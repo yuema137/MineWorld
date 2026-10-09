@@ -2115,10 +2115,11 @@ IB-9).
 **Goal.** SD-IB-13 (the CLI half), SD-IB-14.
 **Scope.** `tools/cli/src/{biography,main}.rs`; NEW `interactions.rs`; NEW
 `tools/cli/tests/interactions.rs`; `worldpack/src/lib.rs` re-exports.
-- [ ] Implementation: as above.
-- [ ] Validation: `tools/cli/tests/biography.rs` passes unedited (unconfigured = ARC-29); IB-11; a
-  structural test that `biography` builds `Configured` from the genesis facts (QIB-11).
-- [ ] Review: both commands are read-only; no new Cargo dependency.
+- [x] Implementation: as above (E-IB-8).
+- [x] Validation: `tools/cli/tests/biography.rs` passes unedited (unconfigured = ARC-29); IB-11 (its
+  unconfigured half here, E-IB-8; its configured half needs the real sections, IB-C10/E-IB-10); a
+  structural test that `biography` builds `Configured` from the genesis facts (QIB-11) (E-IB-8).
+- [x] Review: both commands are read-only; no new Cargo dependency (E-IB-8).
 
 ### IB-C9 — conversation reads its gap from its section
 
@@ -2442,6 +2443,23 @@ E-IB-7  2026-10-09, IB-C7: tests/acceptance/tests/configuration/mod.rs — test-
         unregistered 2, client_rules 3, complete_affordances 4 (unedited), configuration_seam 4,
         configuration_vocabulary 2, interaction_schema 8, precursor_vocabulary and seam_vocabulary
         (unedited) pass. PASS.
+E-IB-8  2026-10-09, IB-C8: tools/cli/src/biography.rs selects through
+        `interactions::biography::selected`, its `Configured` built by `configured()` from the save's
+        genesis facts (each composed capability's `interaction_section()`, its configured fact read by
+        the section's `consequences` fn) and each entity's key, type and tags from the World Pack the
+        command already loads (D-IB-10). NEW tools/cli/src/interactions.rs and the `interactions`
+        subcommand (`--place KEY`, `--json`): reads and assembles the pack in memory, prints each
+        enabled section's resolved JSON (or "default (compiled)") and each entity's class; serde_json's
+        default map is a BTreeMap, so keys are sorted. worldpack/src/lib.rs re-exports
+        `mineworld_sdk::interactions` and authoring's ClassName, Classed, EntityClasses (SD-IB-14: no
+        Cargo.toml change). NEW tools/cli/tests/interactions.rs: the QIB-11 structural test and the
+        unconfigured half of IB-11 (social-cafe: every section default, classes person/place, the
+        directory listing with sizes and mtimes identical before and after). configuration_vocabulary
+        scans the two CLI files and the new test; biography.rs's existing `manifest_row.body` (a
+        persistence field) is admitted by a one-entry list that fails if it admits nothing (D-IB-11).
+        `cargo test -p mineworld-cli --test biography` 2 passed (unedited); `--test interactions` 2;
+        configuration_vocabulary 2. Review: neither command opens a save for writing or writes a file;
+        `git diff --stat -- Cargo.toml Cargo.lock tools/cli/Cargo.toml` empty. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2487,6 +2505,13 @@ D-IB-9  (bounded) IB-10's attachment is carried by a second test-only pack, test
         configuration: a pack whose configuration is its section (interactions!()) has no top-level key
         for an attachment (the six section keys are fixed, SD-IB-6). A pack needing both is a later,
         recorded amendment; S19 TW-d's pack takes a plain configuration.
+D-IB-10 (bounded) The biography projection takes entities' tags from the World Pack it already loads for
+        keys and names, not from the save's genesis journal row (SD-IB-13): tags are authored content
+        fixed at genesis (A-1), the row is persistence's input encoding that the CLI does not decode
+        today, and content drift outside configuration is unchecked either way (QPL-12's scope).
+D-IB-11 (bounded) configuration_vocabulary admits one word on one line — `body` in biography.rs's
+        `format::decode(&manifest_row.body, "manifest")`, persistence's field since S8 — through a
+        one-entry list that fails if it admits nothing (IL-a D-14's mechanism).
 ```
 
 **Findings recorded at implementation start.**

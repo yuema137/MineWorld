@@ -62,6 +62,9 @@ const SCANNED: &[&str] = &[
     "sdk/rust/src/interactions",
     "sdk/rust/tests/interactions.rs",
     "tests/acceptance/tests/interaction_schema.rs",
+    "tools/cli/src/interactions.rs",
+    "tools/cli/src/biography.rs",
+    "tools/cli/tests/interactions.rs",
     "worldpack/src/configure.rs",
     "worldpack/src/configure/tests.rs",
     "sdk/rust/tests/extensions.rs",
@@ -95,13 +98,31 @@ fn words(line: &str) -> Vec<String> {
     words
 }
 
-/// Every listed word in `text`, as `path:line: word`.
-fn listed_words(path: &Path, text: &str) -> Vec<String> {
+/// Words a scanned file must say that are not a pack's vocabulary: (file, a substring of the line, the
+/// word admitted, why). An entry admits one word on the lines of one file that contain its substring,
+/// and an entry that admits nothing fails the test, so the list cannot go stale.
+const ADMITTED: [(&str, &str, &str, &str); 1] = [(
+    "tools/cli/src/biography.rs",
+    "format::decode(&manifest_row.body, \"manifest\")",
+    "body",
+    "persistence's ManifestRow field (the stored bytes), read since S8; not the physics word",
+)];
+
+/// Every listed word in `text`, as `path:line: word`, except those an entry of [`ADMITTED`] admits;
+/// each admitting entry's index is marked in `used`.
+fn listed_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
     let mut found = Vec::new();
     for (number, line) in text.lines().enumerate() {
         for word in words(line) {
-            if VOCABULARY.iter().any(|listed| word.starts_with(listed)) {
-                found.push(format!("{}:{}: {word}", path.display(), number + 1));
+            if !VOCABULARY.iter().any(|listed| word.starts_with(listed)) {
+                continue;
+            }
+            let admitted = ADMITTED.iter().position(|(file, substring, admits, _)| {
+                path.ends_with(file) && line.contains(substring) && word == *admits
+            });
+            match admitted {
+                Some(entry) => used[entry] = true,
+                None => found.push(format!("{}:{}: {word}", path.display(), number + 1)),
             }
         }
     }
@@ -131,10 +152,11 @@ fn scanned(root: &Path) -> Vec<PathBuf> {
 #[test]
 fn the_configuration_seam_and_the_schema_name_no_packs_vocabulary() {
     let mut found = Vec::new();
+    let mut used = [false; ADMITTED.len()];
     for path in scanned(&root()) {
         let text = std::fs::read_to_string(&path)
             .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-        found.extend(listed_words(&path, &text));
+        found.extend(listed_words(&path, &text, &mut used));
     }
     assert!(
         found.is_empty(),
@@ -142,6 +164,13 @@ fn the_configuration_seam_and_the_schema_name_no_packs_vocabulary() {
          vocabulary (ARC-61 … ARC-64):\n{}",
         found.join("\n")
     );
+    for ((file, substring, word, reason), used) in ADMITTED.iter().zip(used) {
+        assert!(!reason.is_empty(), "{file}: an admission needs a reason");
+        assert!(
+            used,
+            "{file}: the admission of {word:?} on \"{substring}\" admits nothing; remove it"
+        );
+    }
 }
 
 /// The splitter sees the vocabulary inside identifiers and not inside other words.
@@ -150,6 +179,7 @@ fn the_splitter_finds_the_vocabulary_inside_identifiers_and_not_inside_other_wor
     let found = listed_words(
         Path::new("x.rs"),
         "let TalkTo = give_item; // Sellers trade; repeat, great, overthrow, uninvited",
+        &mut [],
     );
     assert_eq!(
         found,
