@@ -411,7 +411,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `session.py`, `offers.py`;
   - `tests/test_session_state.py`;
   - `tests/conftest.py` (the network guard only).
-- [ ] Implementation:
+- [x] Implementation (§12.1d; the guard as DV-P3-2):
   - `SeatSession` as specified in §4.3: the handshake, the reader task, newest-wins `observation()`
     and `changed()`, token allocation, `submit`, `leave`, closing;
   - `Invite`, redacted (D-P3-9);
@@ -420,13 +420,13 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     `--disable-socket --allow-unix-socket` only where asyncio's self-pipe is a Unix socket. It is
     configured in `conftest.py` by platform, so no test can forget it (D-P3-11 (b));
   - the `real_server` marker registered in `pyproject.toml` (D-P3-10).
-- [ ] Validation:
+- [x] Validation (E-P3-3; M-7, M-8):
   - AP-4 with its FIFO mutation;
   - the local half of AP-6: the sent-frame count is unchanged on `NotOffered`;
   - AP-8 with its mutation;
   - the session's error paths, as units: `welcome.protocol` 3 gives `ProtocolMismatch`; a foreign
     observer gives `ForeignObserver`; an unknown result token is a protocol error.
-- [ ] Review:
+- [x] Review (§12.1d):
   - no frame other than join, submit and leave can be produced (INV-9): the encoder's input type is
     the closed union;
   - nothing in the session reads the environment or prints;
@@ -760,6 +760,40 @@ Python versions          PASS  requires-python >=3.12; local CPython 3.14; the i
   - **`JsonValue` only at payload positions** (D-P3-7): `ActionRecord.payload`,
     `ComponentRecord.payload`, `Affordance.payload`. Nowhere else; no `Any` anywhere in `src/`.
 
+### 12.1d C3 — the seat session and offers
+
+- [x] Implementation (commit `61d6332`): `session.py` — `SeatSession.connect` (websockets'
+  `asyncio.client.connect`, `compression=None`, 16 MiB frame cap) and `SeatSession.join` over a
+  `Connection` protocol (`send`/`recv`/`close`; websockets' `ClientConnection` satisfies it, pyright
+  checks that); the handshake of §4.3, including reading the `closing` that follows
+  `protocol_mismatch` and `unauthorized` before closing the socket; a reader task that calls
+  `route(frame)`; newest-wins `newest` and `changed(since)`; tokens `c1, c2, …`; `submit` → `Outcome`
+  = `Answered(action_id, result)` | `RefusedRequest(code, detail)`; `leave`; `__aenter__`/`__aexit__`
+  (leave if still open). Errors: `JoinRefused`, `ProtocolMismatch`, `ForeignObserver`,
+  `ProtocolViolation`, `SessionClosed`. `offers.py` — `attempt` (complete, available, and one of the
+  observation's own affordances) and `request` (some affordance offers that type and target as
+  available), `NotOffered`. `__init__.py` exports the public names. The guard is configured in
+  `pyproject.toml` `addopts` (DV-P3-2), so `conftest.py` is not needed until C4.
+  **Naming (bounded):** the design's `Refused(code)` outcome is `RefusedRequest`, because `Refused` is
+  already the server frame's name; the design's `observation()` is the `newest` property.
+- [x] Validation (E-P3-3): 26 passed. M-7 (AP-4 FIFO) RED; M-8 (AP-8 guard off) RED; the local half of
+  AP-6 passes (sent-frame count unchanged on `NotOffered`); the error paths (`welcome.protocol` 3,
+  foreign observer, unknown result token, a token-less refusal) each end the session as specified.
+- [x] Review:
+  - INV-9: `codec.encode` and `SeatSession._send` accept only `Join | Submit | Leave`; there is no
+    other client frame type to construct.
+  - Nothing in `src/` reads `os.environ`, prints or logs (`grep -rn 'environ\|print(\|logging'
+    sdk/python/src` matches only the three docstring lines that say so).
+  - No busy loop (`changed` waits on an `asyncio.Event`); no queue at all in the session (`newest` is
+    one slot; `_pending` holds one future per caller's own in-flight submit).
+  - INV-13: an observation of another observer is never stored or returned; it ends the session.
+
+**Finding (test execution, recorded, not reproduced).** The first run of M-7 (the whole suite, through
+a shell pipeline) did not finish within the tool's 120 s and was killed. Six later runs of the same
+mutated suite finished in 5.3–5.6 s, all RED, and the unmutated suite five times in 0.1–0.5 s. Every
+session test is bounded by `asyncio.wait_for(…, 5)`. Classified INCONCLUSIVE for that one invocation;
+watched in C4 and C5 (R-P3-5).
+
 ### 12.2 Evidence
 
 ```text
@@ -771,6 +805,8 @@ E-P3-1  C1  uv lock: 18 packages (pydantic 2.14.0, pydantic-core 2.50.0, websock
 E-P3-2  C2  uv run --locked pytest sdk/python: 14 passed (8 golden frames, completeness, AP-3 ×2, the
             two cross-field validators, the events guard); ruff check / format --check clean; pyright
             strict 0 errors
+E-P3-3  C3  26 passed (golden 14 + session/offers 10 + guard 2), 0.1–0.5 s, five consecutive runs;
+            ruff check / format --check clean; pyright strict 0 errors (tests included)
 ```
 
 ### 12.4 Mutations
@@ -784,6 +820,10 @@ M-3  AP-1 (b)  Refused.token written null, not omitted      SURVIVED AP-1: refus
 M-4  AP-1 (c)  the `leave` check removed from the table     RED   completeness names ['leave.json']
 M-5  AP-3      ids coerced through float                    RED   submit golden (…996) and AP-3
 M-6  AP-3      numbers coerced to strings (lax mode)        RED   test_an_id_written_as_a_number_is_refused
+M-7  AP-4      answers paired first-in-first-out            RED   test_answers_are_paired_by_token_not_by_order,
+               test_a_refusal_resolves_only_its_request_and_closing_fails_the_rest
+M-8  AP-8      guard off (addopts without --allow-hosts)    RED   TimeoutError after 5.0 s, not the guard's
+               SocketConnectBlockedError (macOS; the Windows/Linux legs in C5)
 ```
 
 ### 12.3 Deviations
