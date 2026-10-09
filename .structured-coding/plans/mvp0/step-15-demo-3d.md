@@ -11,7 +11,7 @@ integration checkpoints and adversarial criteria, risks, and open questions.
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
 authorizes implementation. Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
 **PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
-**PR 16c:** detailed to the commit in §20, `PR design — ready for freeze review` (not frozen), drafted on
+**PR 16c:** detailed to the commit in §20, `DESIGN FROZEN (2026-10-08), primary session` (record in §20.0), drafted on
 `plan/s14-16c` from `main @ 9cf8f8e`.
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
@@ -2280,10 +2280,11 @@ notes          Bob/door (R-16a-2): the ray clears Bob by 67 mm aiming at Alice's
 
 ---
 
-# 20. PR 16c — the living street: one layout, from the server (full design; ready for freeze review)
+# 20. PR 16c — the living street: one layout, from the server (full design; DESIGN FROZEN 2026-10-08)
 
-**Lifecycle:** `PR design — ready for freeze review`. **Not frozen.** Nothing in §20 authorizes
-implementation (`CLAUDE.md` §3.1). Drafted by a planning session on `plan/s14-16c`, from `main @ 9cf8f8e`
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — record and rulings in §20.0.
+Implementation is authorized by that freeze, under the execution contract in §20.11 and its
+precondition (12d merged). Drafted by a planning session on `plan/s14-16c`, from `main @ 9cf8f8e`
 (S12 13a merged as #82, 16a as #79, 16b merged), 2026-10-08; then brought to `main @ 77a8717` (IL-a #80,
 12d's frozen design #85), which changes no client file and leaves 12d's doorway table as cited in A16c-6.
 
@@ -2297,14 +2298,51 @@ section if they ever disagree.
 decision record is proposed (Q-16c-10); if the primary session wants one, it takes a number from S14's
 range (`ARC-50` … `ARC-52`) at the freeze.
 
+## 20.0 Freeze record
+
+## DESIGN FROZEN
+
+```text
+Design revision     §§20.1–20.9, 20.11 as committed in 60164c1, amended by the rulings below (this
+                    commit); §20.7 checkboxes, §20.10 ledger and §20.12 handoff stay live
+Approved by         the primary session, 2026-10-08 ("16c (§20) is DESIGN FROZEN 2026-10-08 (primary
+                    session)"), relayed by the coordinator to the planning session
+Implementation base main after 12d merges (precondition); branch mvp0/pr-16c-living-street; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-16c
+Execution contract  §20.11
+Lifecycle           FROZEN
+```
+
+**Rulings (primary session, 2026-10-08).** Q-16c-1 … Q-16c-13 are accepted as recommended, with these
+additions and one change:
+
+- **Q-16c-7.** The showcase wording (D-16c-11) is accepted. The operator judges it at the milestone F
+  play-test.
+- **Q-16c-11.** The shove-rate threshold (S-6, more than one shove per minute on a standing player)
+  goes on the milestone F checklist.
+- **Q-16c-2.** If 16c's implementation does not start on the day 12d merges, the primary session lands
+  the 0.4 m inset hotfix itself. C2 then finds the inset on its base, drops its own copy, and records
+  that.
+- **Q-16c-8.** C5 stays in 16c. If S11-B is still unmerged when C5 is reached, C5 is split off as
+  **16c′** with this same design, rather than waiting. The split is recorded in §20.10, and 16c's PR
+  opens with C1–C4 and C6.
+- **A16c-14 (changed from Q-16c-12's recommendation).** The door talk going to Bob is a **finding for
+  16c to fix or guard**: a check that passes on the wrong target is a defect. So "print only" is
+  superseded:
+  - `_talk_to` asserts that the ray's target is the person it aimed at. Otherwise the calling check
+    fails, naming both people.
+  - Where a check aims from a spot at which another figure occludes the person, the probe moves to an
+    unobstructed aim before talking, as a player would, and records the move.
+  - Guarded by mutation M16c-9 (§20.4).
+
 ## 20.1 Identity, base, proposed scope
 
 ```text
 PR            16c — the living street (S14, third of 16a … 16f; GitHub number assigned at freeze, ruling 7)
 base          main after S15 12d merges (hard dependency, D-16c-1). C5 additionally needs S11-B (#83,
               the server's --town) merged. 12e may land before or after (D-16c-1)
-branch        mvp0/pr-16c-street, worktree /Users/yuema137/mineworld-worktrees/impl-s14-16c (proposed),
-              held by the implementing session only
+branch        mvp0/pr-16c-living-street from main, worktree /Users/yuema137/mineworld-worktrees/impl-16c
+              (freeze), held by the implementing session only
 audit         §20.2 (main @ 9cf8f8e), re-checked on the base in C1
 ```
 
@@ -2362,7 +2400,7 @@ add what 16c's file-level plan needs.
 | **A16c-11** | **File sizes.** `slice_link.gd` 541 lines (past the ~500 review trigger), `slice_probe_world.gd` 598, `slice_probe.gd` 1 314 | `wc -l` | New code goes into new files with one job each (D-16c-2, D-16c-6, D-16c-8); `slice_link.gd` should shrink, not grow |
 | **A16c-12** | **The standalone HUD already says "offline"** — `world: offline  (./mineworld-slice --server=host:port)` — and is not attached in scripted standalone modes, so `--shots` frames carry no HUD | `slice_main.gd:357–362` | SC-7 is a wording change on an existing line that no accepted review frame contains (Q-16c-7) |
 | **A16c-13** | **The no-rule scan** reads every client `*.gd` (probes included) for action-type literals, rule-named declarations (`REACH`, `RANGE`, `CLEARANCE`, `NUDGE`, `CAPACITY`, `MAX_STRIDE`) and pack paths | `tests/acceptance/tests/client_rules.rs` | 16c's constants must not need an admission: no 16c name contains those words (D-16c-5, D-16c-8); a stale admission fails the scan |
-| **A16c-14** | **On main, `--link`'s door talk went to Bob.** In E16c-0, after walking back in, `_talk_to` aimed at Alice's head from (3.44, −9.58); the ray met Bob, the world answered `too_far_away` for **Bob**, and `--link` passed, because it checks the answer's code only. 16a's T-1, which aims from the seat (3.45, −9.04), asserts the target is Alice (E16a-4: Bob cleared by 67 mm) | E16c-0 (`the world says talking to Bob Achterberg is unavailable`); `slice_probe_world.gd:385–389, 562–583` | Not 16c's defect, and nothing 16c changes moves Bob (A16c-6). Recorded; `--link` gains a printed target line only (Q-16c-12) |
+| **A16c-14** | **On main, `--link`'s door talk went to Bob.** In E16c-0, after walking back in, `_talk_to` aimed at Alice's head from (3.44, −9.58); the ray met Bob, the world answered `too_far_away` for **Bob**, and `--link` passed, because it checks the answer's code only. 16a's T-1, which aims from the seat (3.45, −9.04), asserts the target is Alice (E16a-4: Bob cleared by 67 mm) | E16c-0 (`the world says talking to Bob Achterberg is unavailable`); `slice_probe_world.gd:385–389, 562–583` | Nothing 16c changes moves Bob (A16c-6), but **a check that passes on the wrong target is a defect** (§20.0). 16c fixes and guards it: `_talk_to` fails a check whose ray met someone other than the person aimed at, and aims from an unobstructed point. Guarded by M16c-9 |
 
 **E16c-0 — the doorways on today's content** (`./mineworld-slice --world --link --watch=5` on
 `9cf8f8e`, headless, 2026-10-08; server on `127.0.0.1:51486`, this worktree's own; log
@@ -2476,6 +2514,7 @@ clean of it afterwards; `git grep MUTATION` empty):
 | M16c-5 | S-2 | figures placed on every observation (the pre-16c rule) | S-2 fails with per-frame speeds far above 3.26 m/s outside placements |
 | M16c-6 | S-3 | a leaving figure removed at once | S-3 fails naming each leave's distance from the nearest door |
 | M16c-7 | T-2' | the ray's mask without `LAYER_WORLD` | T-2' fails naming the person targeted through the occluder |
+| M16c-9 | `_talk_to`'s target guard (A16c-14) | `--link`'s door talk aimed from main's re-entry point (3.44, −9.58), where the ray meets Bob | `--link` fails, naming Bob as the person met and Alice as the person aimed at; with the guard removed as well, `--link` passes on the wrong target (recorded as the counterfactual) |
 | M16c-8 | L-3 reads the drawn state, not the frame | one perceived figure's node displaced 1 m east after it is drawn | L-3 fails naming that person, `local` 1 000 mm from the observed position. Counterfactual in the same run: the same report built from the observation instead of the figures passes — so the instrument is shown to read the scene |
 
 ## 20.5 Godot checks (every run of the real client)
@@ -2491,7 +2530,7 @@ G-1  STANDALONE, unchanged (I-S14-7): --drive "all drive checks pass" (engine Jo
      confirmed by one re-run, as Q-16a-3); ./mineworld-3d --drive (the promenade, untouched by 16c,
      run once as a guard on the shared scripts)
 G-2  CONNECTED, the accepted checks (still world, D-16c-10): --link "all link checks pass" with the
-     target line added (Q-16c-12); --conversation "conversation on screen, no ids"; --target T-1, T-2',
+     every talk's ray target asserted equal to the person aimed at (A16c-14, §20.0); --conversation "conversation on screen, no ids"; --target T-1, T-2',
      T-3, T-4
 G-3  NEW: --layout (L-1 … L-4, and L-5 on the exported pre-12d copy); --street (S-1 … S-6), after S11-B
 G-4  WINDOWED EVIDENCE (one Godot window at a time; a stalled capture is INCONCLUSIVE and re-run once):
@@ -2589,16 +2628,19 @@ primary session (it touches 12d's frozen content or the accepted slice). **Commi
 
 ### 16c-C3 — The probe: `--layout`, `SHOWN`, and T-2'
 
-**Goal.** L-1 … L-5, T-2', with M16c-1 … M16c-3, M16c-7, M16c-8. **Scope.** `slice_probe_world.gd`
+**Goal.** L-1 … L-5, T-2', the target guard (A16c-14), with M16c-1 … M16c-3, M16c-7 … M16c-9. **Scope.** `slice_probe_world.gd`
 (`layout` mode; `_target_check`'s wall case at C1's spot; `SHOWN` printed by `--link` and `--layout`;
-`_talk_to` prints the chosen target, Q-16c-12); `mineworld-slice` (`--layout`, headless; the help text).
+`_talk_to` asserts the ray's target is the person aimed at and fails the calling check otherwise, the
+door-talk aim moved to an unobstructed point where needed — A16c-14 as ruled in §20.0, with M16c-9);
+`mineworld-slice` (`--layout`, headless; the help text).
 If `slice_probe_world.gd` passes ~800 lines, the layout mode goes into a sibling the same way 16a split
 the connected modes (bounded, recorded).
 
 - [ ] Implementation: as scoped.
 - [ ] Validation (E16c-3): L-1 … L-3 PASS on social-cafe **and** market-town (`--server=` to a hosted
   market-town; same place files, R-12d-4); L-5 counterfactual; T-1 … T-4 with T-2' PASS; M16c-1, -2, -3,
-  -7, -8 each red as stated, then reverted.
+  -7, -8, -9 each red as stated, then reverted; `--link` and `--conversation` pass with every talk's
+  target asserted.
 - [ ] Review: every assertion's expected value is a literal from the plan or the disclosure, never
   computed by the code under test; the probe names no world content (L-2 prints tags, asserts ids).
 
@@ -2704,7 +2746,7 @@ CI          as main has it when 16c runs (S13's workflow if merged); otherwise N
 | **Q-16c-9** | **`SHOWN` format** (D-16c-7): 13a's keys exactly; `drawn_as` 3D values `room`, `door`, `street`; `drawn_as` and labels declared presentation-only for the parity test; objects and affordances added to both clients together later | **As D-16c-7**; 13f/16e owns the comparison and its presentation-only list |
 | **Q-16c-10** | **Documents**: no `DECISIONS.md` record (the binding is client-internal presentation, specified here; 16f records the general rule from `ARC-50`…`52`); dated lines appended to `VIS-3D-GODOT-2` limitations 1–3; a dated note on `VISUAL_SLICE.md` §4's people row | **Accept.** A record now would be superseded by 16f's within weeks; the notes keep the accepted specs true without editing what the operator accepted |
 | **Q-16c-11 [OM: judged in play]** | **Shoves on a standing player** (S-6; QS14-15's remedy) | **Measure in C5**; over 1 per minute, the primary session applies QS14-15's recommendation (12c's offer policy p1, in the pack), never the client |
-| **Q-16c-12** | **`--link`'s door talk** went to Bob on main (A16c-14). Print the target the ray chose in `_talk_to` (no new fail), or make `--link` fail unless the ray meets the person aimed at? | **Print only** in 16c: T-1 already asserts the target from the seat; making `--link` stricter changes 16a's accepted check and is the primary session's call |
+| **Q-16c-12** | **`--link`'s door talk** went to Bob on main (A16c-14). Print the target the ray chose in `_talk_to` (no new fail), or make `--link` fail unless the ray meets the person aimed at? | Drafted recommendation: print only. **Ruled at the freeze (§20.0): fix and guard** — `_talk_to` fails on a wrong target, the probe aims from an unobstructed point, and M16c-9 guards it |
 | **Q-16c-13** | **The registry's two fields and `DOOR_MATCH` 0.15 m** (D-16c-4, D-16c-5) | **Accept** — bounded, recorded |
 
 ## 20.10 Ledger (live)
@@ -2714,9 +2756,11 @@ E16c-0  §20.2, on main @ 9cf8f8e: today's doorways measured (link-main.log)
 C0      on main @ 77a8717 + this section: check_doc_headings "191 numbered sections across 26
         documents, none duplicated"; check_decision_ids "69 decision ids, all distinct". §20's
         headings 20.1–20.12 are unique within this file
+FREEZE  2026-10-08: §20.0 record and rulings, §20.11 confirmed; A16c-14 ruled fix-and-guard (M16c-9).
+        Doc checks again: "191 … none duplicated"; "69 … all distinct"
 ```
 
-## 20.11 Execution contract (proposed; confirmed at freeze)
+## 20.11 Execution contract (confirmed at the freeze, 2026-10-08)
 
 ```text
 PROJECT / PR        MVP-0 · S14 / PR 16c — the living street
@@ -2726,40 +2770,49 @@ RELATED / BINDING   overall.md §3 (S14), "Parallel build-out, 2026-10-08" (ruli
                     level, §19 (16a); step-11 §19 (12d, as merged), SD-D3, SD-D4, SD-D8, QD-7, QD-11;
                     step-12 §16 (S11-B, as merged); step-13 13a's SHOWN; ENGINEERING_RULES §§3–12, 19;
                     VISUAL_SLICE §4; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2)
-IMPLEMENTATION BASE main after 12d (C5: and S11-B); branch mvp0/pr-16c-street; worktree
-                    /Users/yuema137/mineworld-worktrees/impl-s14-16c (this session only)
-APPROVED SCOPE      §20.1 (SC-1 … SC-7), as answered by Q-16c-1 … 13
+PRECONDITION        12d merged on main. S11-B (#83) is needed for C5 only; if it is unmerged when C5 is
+                    reached, C5 splits off as 16c′ (§20.0, Q-16c-8)
+IMPLEMENTATION BASE main after 12d; branch mvp0/pr-16c-living-street from main; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-16c (this session only)
+APPROVED SCOPE      §20.1 (SC-1 … SC-7), as answered by Q-16c-1 … 13 and the rulings in §20.0
+                    (including A16c-14: fix and guard)
 FROZEN INVARIANTS   I-S14-1 (the scan green with no new admission), I-S14-2, I-S14-3, I-S14-6, I-S14-7,
                     I-S14-10; no edit to clients/protocol/**, clients/2d/**, worlds/**, tools/cli/src/**;
                     no regression of VIS-3D-GODOT-1 or -2 (§20.6); DOOR_MATCH never widened after a
                     measurement
-SEQUENCE            C0 → (freeze) → C1 → C2 → C3 → C4 → C5 (after S11-B) → C6, each committed and pushed
-                    when coherent
+SEQUENCE            C0 → (freeze) → C1 → C2 → C3 → C4 → C5 (after S11-B, else 16c′) → C6, each committed
+                    and pushed when coherent
+COMMANDS            as in 16a's contract (§19.8): cargo fmt / check / clippy -D warnings / test
+                    ($HOME/.cargo/bin/cargo if needed); python3 scripts/check_doc_headings.py,
+                    check_decision_ids.py, check_scratch.py; godot --headless --path clients/3d-spike …
+                    and the tools under clients/3d-spike/tools/; ./mineworld-slice and ./mineworld-3d
+                    modes; git and gh (no merge); one Godot window at a time; only this run's own server
+                    process is killed
 VALIDATION BUDGET   real client runs: each ≤ ~10 min, background when > 2 min, one Godot window at a time,
                     total ≤ ~3 h of wall time including retries; full cargo test: once, on the final head;
                     real-model: NOT REQUIRED
 LIVE DOCUMENTATION  this section (§20.7 checkboxes, §20.10 ledger)
 HANDOFF             §20.12 (one authority, as Q-16a-4)
 ENDPOINT AUTHORITY
-  implementation + local validation   after the freeze message only
-  semantic commits, branch push       recommended authorized, as for 16a
-  PR creation / update                recommended authorized, READY FOR OPERATOR REVIEW
+  implementation + local validation   authorized by the freeze (§20.0), once the precondition holds
+  semantic commits, branch push       authorized, as for 16a
+  PR creation / update                authorized, READY FOR OPERATOR REVIEW
   CI repair                           only if S13's workflow is on main; otherwise N/A
   merge                               explicit operator authorization only
 POST-MERGE SYNC     the primary session owns §13 and overall; the implementing session owns §20
 NORMAL STOP         PR 16c READY FOR OPERATOR REVIEW — DO NOT MERGE
-MATERIAL STOP       a regression of an accepted visual (V-1 … V-3 unexplained); a doorway of 12d's content
-                    off its drawn door by more than DOOR_MATCH that is not a client defect; any change
-                    needed outside the scope above (server, worlds, shared module, 2D); a change to a
-                    frozen invariant
+MATERIAL STOP       any regression of the accepted visuals (V-1 … V-4); any server, kernel, contract or
+                    shared-module (clients/protocol/**) edit; a doorway of 12d's content off its drawn
+                    door by more than DOOR_MATCH that is not a client defect; any other change needed
+                    outside the scope above (worlds, 2D, tools/cli/src); a change to a frozen invariant
 ```
 
 ## 20.12 Handoff (live)
 
 ```text
-checkpoint     C0 drafted on plan/s14-16c (docs only); PR design — ready for freeze review
-next action    the primary session's freeze review of §20; implementation waits for the freeze and for
-               12d's merge (C5 also for S11-B's)
+checkpoint     C0 drafted on plan/s14-16c (docs only, PR #90); DESIGN FROZEN 2026-10-08 (§20.0)
+next action    a fresh implementation session in /Users/yuema137/mineworld-worktrees/impl-16c on
+               mvp0/pr-16c-living-street, once 12d has merged: C1. C5 needs S11-B, else 16c′
 background     none
 notes          E16c-0's log is in the planning worktree's ignored shots/16c-plan/; the implementing
                session re-measures on its own base (C1)
