@@ -634,7 +634,7 @@ TW-e (S19) uses SET-a's clock formatter, catalogs and [launcher] section.
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial criteria (fixed before measuring) |
 | --- | --- | --- | --- | --- |
-| **SET-a** — settings module, language, display, clock, menu, in both clients | §3.1–§3.8: `clients/shared/` project and `settings/` module; catalogs `en`, `zh_Hans`; Noto Sans SC; the menu with General and Display; both clients wired (every UI string through the catalogs, Esc opens the menu, the 2D HUD clock honours 12h/24h, the 3D HUD gains the same time line when connected); launchers stop forcing `--resolution` in play; static scan and catalog check in `cargo test`; runtime checks as `#[ignore]` Godot tests; DECISIONS ARC-SET-a/b, DEP-SET-a/b; `SETTINGS.md`. Full design §12. | **13b merged** (its `words.gd`, keys and pack `en.po` are SET-a's base; 13a #82 and 16a #79 already merged). Scheduled when no S12 or S14 PR is editing `app.gd`, `hud/status.gd`, `slice_main.gd`, `slice_link.gd` or `controls_hud.gd` (QSET-12). | CP-SET-a: `./mineworld-2d` hosting market-town: Esc → menu → 简体中文 → every HUD and menu string turns Chinese at once; clock 24h → `第1天 14:05`-style line; window → 1280×720 → Apply → keep. Quit. `./mineworld-slice --world`: opens in 简体中文 at 1280×720 with the same clock setting. Quit both, relaunch 2D: still Chinese. | AC-SET-1 … AC-SET-14 (§7). |
+| **SET-a** — settings module, language, display, clock, menu, in both clients | §3.1–§3.8: `clients/shared/` project and `settings/` module; catalogs `en`, `zh_Hans`; Noto Sans SC; the menu with General and Display; both clients wired (every UI string through the catalogs, Esc opens the menu, the 2D HUD clock honours 12h/24h, the 3D HUD gains the same time line when connected); launchers stop forcing `--resolution` in play; static scan and catalog check in `cargo test`; runtime checks as `#[ignore]` Godot tests; DECISIONS ARC-SET-a/b, DEP-SET-a/b; `SETTINGS.md`. Full design §12. | **13b merged** (its `words.gd`, keys and pack `en.po` are SET-a's base; 13a #82 and 16a #79 already merged). Scheduled when no S12 or S14 PR is editing `app.gd`, `hud/status.gd`, `slice_main.gd`, `slice_link.gd` or `controls_hud.gd` (QSET-12). | CP-SET-a: `./mineworld-2d` hosting market-town: Esc → menu → 简体中文 → every HUD and menu string turns Chinese at once; clock 24h → `第1天 14:05`-style line; window → 1280×720 → Apply → keep. Quit. `./mineworld-slice --world`: opens in 简体中文 at 1280×720 with the same clock setting. Quit both, relaunch 2D: still Chinese. Run on macOS at the gate, and by the operator on Windows and Linux (§8). | AC-SET-1 … AC-SET-16 (§7). |
 | **SET-b** — basic input options | §3.9: Controls tab (3D mouse sensitivity, invert Y; read-only key map in both clients) through the tab API; `[input]` section; `player.gd` reads it. | SET-a | CP-SET-b: in 3D, sensitivity 0.5× halves the yaw per mouse count, measured by the probe from a scripted mouse motion; invert Y flips pitch sign; settings survive restart. | (1) A frame capture with sensitivity changed equals the default run's frames, apart from the positions walked. (2) Mutation: apply sensitivity twice (squared) → the yaw-per-count measurement fails. (3) The 2D client offers no 3D-only control (capability set). |
 | **SET-c** — the World section (host commands) | §3.10: `clients/shared/host/`, World tab, token hand-over from both launchers, `clock` frame reading, pending/confirmed states, translated errors. | SET-a; **S11-D** (admin surface); **TW-c** (`/admin/clock`, `clock` frame, `WorldSummary.paused`) | CP-SET-c: single-player 2D: World → Pause → HUD shows `Paused` only after the `clock` frame arrives; `/status` `at` frozen for 10 s; day length 1 h → `at` advances 240 ± 24 s in 10 wall s; a second client joined by invite without a token sees the tab read-only and the paused badge, and its buttons are absent. | (1) INV-SET-3: after a session that paused and rescaled, the settings file is byte-identical to before, and grepping it, the logs and the captures for the token finds nothing. (2) Without a token, no HTTP request is made (no `HTTPRequest` node created). (3) Mutation: show "paused" on click instead of on the frame → a stub that never confirms makes the test fail. (4) A 401 from the stub is shown translated, and the controls return to the server's state. |
 
@@ -725,6 +725,11 @@ symlink is missing, both launchers stop with a message naming the fix (SD-SET-a-
 
 # 10. Questions (QSET-n). **[OPERATOR]** marks operator-material ones; the primary session may rule the rest.
 
+**All ruled on 2026-10-08 (§1.5).** QSET-1, -2, -3 and -7 were ruled by the operator as recommended.
+QSET-1 also fixed the exception's terms: fonts only, OFL-1.1, bundled and never sold on its own
+(§4.4.1). QSET-4 … -6 and -8 … -16 were ruled by the primary session as recommended. The table keeps
+the questions as they were asked.
+
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | **QSET-1 [OPERATOR]** | **The Chinese font and its licence.** (a) Noto Sans SC Regular, 8.3 MB, OFL-1.1, unmodified, under a narrow DEP-8 carve-out for fonts (§4.4); (b) the same, subset to GB 2312 (~2–3 MB, a build step, rare characters missing); (c) WenQuanYi Micro Hei through its Apache-2.0 branch (passes ARC-55, older design); (d) no bundled font, relying on the OS (fails INV-SET-9, tofu on bare Linux). | **(a).** OFL is the normal licence for open fonts and the carve-out is narrow; (c) if OFL is refused. |
@@ -785,6 +790,12 @@ symlink is missing, both launchers stop with a message naming the fix (SD-SET-a-
   'Basic input options' is SET-b."  Also apply step-19 §15.2's text, if the primary session has not
   yet.
 - Decision numbers: S20 needs two ARC and two DEP numbers (ruling 6).
+- **A new cross-cutting requirement (operator, 2026-10-08):** "我们要保证支持全平台，mac linux
+  windows都可以" (every platform must be supported, macOS, Linux and Windows). Proposed record in
+  `overall.md`, binding on every client and deployment step: designs state their per-OS behaviour;
+  hand checks name their OS; whatever CI cannot run on an OS becomes an operator checklist item. S20
+  applies it in §1.5, §3.4, §3.5.1, §3.7 and §8. The symlinked shared client modules on Windows
+  (R-SET-10) are raised to S13 as a deployment question.
 
 ## 11.3 `step-19-time-weather.md`
 
@@ -811,12 +822,17 @@ symlink is missing, both launchers stop with a message naming the fix (SD-SET-a-
 
 # 12. PR SET-a — the settings module, language, display, clock and menu, in both clients
 
-**Status: ready for freeze review.** This is not `DESIGN FROZEN`. Freezing it, and filling the
-execution contract (§12.9), is the primary session's or the operator's decision.
+**`DESIGN FROZEN 2026-10-08 (primary session; operator rulings QSET-1, -2, -3, -7 and the all-platform
+requirement of the same date, §1.5)`**
+
+Frozen means the scope (§12.1), the design decisions (§12.3), the acceptance (§12.6, §7, §8) and the
+execution contract (§12.9) are frozen. Progress, evidence, audit findings and bounded corrections stay
+writable. This section is SET-a's single PR design authority and its ledger. **Implementation starts
+only after S12 13b merges**, from the `main` that contains it, in a fresh session.
 
 ## 12.1 Identity, base, scope
 
-- Working name **SET-a**; PR number assigned at freeze. Branch `mvp0/pr-set-a-settings`, from `main`
+- Working name **SET-a**; PR number assigned when the PR opens. Branch `mvp0/pr-set-a`, from `main`
   **after S12 13b merges** (§1.4), with the anchors of §12.2 re-verified against that `main`. Worktree `/Users/yuema137/mineworld-worktrees/impl-set-a`, held by one
   session.
 - **Goal:** both reference clients open a settings menu, switch language live between `en` and
@@ -863,6 +879,7 @@ execution contract (§12.9), is the primary session's or the operator's decision
 | SD-SET-a-14 | Runtime checks as `#[ignore]` tests in `tools/cli/tests/client_settings.rs` (AC-SET-1, -2, -5 … -12, -14), driving `./mineworld-2d --drive=settings` and `./mineworld-slice --world --settings`, plus the module's own headless checks under `clients/shared/checks/` (store, glyphs, menu) run by the same test file. |
 | SD-SET-a-15 | Font as §3.7, subject to QSET-1: `fonts/NotoSansSC-Regular.otf` (sha256 recorded in `NOTICE` and `SETTINGS.md`), `fonts/OFL.txt`; the DEP-8 amendment of §11.1 lands in C1. |
 | SD-SET-a-17 | **Migration of 13b's `.po` (a move, not a reformat).** In C3, every `action.*`, `action.*.done` and `reason.*` entry of `presentation/mineworld-default/2D/i18n/en.po` moves verbatim (msgid, msgstr, comments) into `clients/shared/settings/locale/en.po`. All other 13b entries stay in the pack. No key is renamed. The check asserts that the union of the two files after the move equals 13b's file before it, entry for entry. `check_client_rules.py --check-pack` stays green on the smaller pack file. In C5, `presentation/mineworld-default/2D/i18n/zh_Hans.po` is added for the entries that stay in the pack. |
+| SD-SET-a-18 | **Every platform (§1.5).** No platform branch in the module beyond the Wayland tooltip (AC-SET-16). `display.gd` prints the platform line once on start. Both launchers check that `mineworld` and `mineworld_settings` are directories, and if not stop with "the shared client modules are symlinks; on Windows run `git config core.symlinks true` (Developer Mode) and check out again". The client READMEs and `SETTINGS.md` carry the per-OS facts of §3.4, §3.5.1 and §3.7. The DEP-8 font exception text of §4.4.1 goes into the C1 records. |
 | SD-SET-a-16 | Decision records in C1: ARC-SET-a, ARC-SET-b, DEP-SET-a, DEP-SET-b with real numbers from the primary session, and the DEP-8 amendment. |
 
 ## 12.4 Files touched
@@ -971,14 +988,15 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 
 - **Goal:** the one-module-two-clients checkpoint and the full gate on the PR head.
 - [ ] Implementation: N/A for code; evidence and ledger.
-- [ ] Validation: AC-SET-7 (2D Apply → 3D first frame), AC-SET-14 (a scratch language), CP-SET-a run by hand and recorded; full gate `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace`, both doc checks, every `#[ignore]` Godot test of `client_2d`, `client_settings`; each classified `PASS`/`FAIL`/`INCONCLUSIVE` from its output.
+- [ ] Validation: AC-SET-7 (2D Apply → 3D first frame), AC-SET-14 (a scratch language), AC-SET-15 (the settings folder, macOS), AC-SET-16 (in `client_text`), CP-SET-a run by hand and recorded; full gate `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace`, both doc checks, every `#[ignore]` Godot test of `client_2d`, `client_settings`; each classified `PASS`/`FAIL`/`INCONCLUSIVE` from its output.
 - [ ] Review: INV-SET-1 … 10 each traced to a passing check or a hand check.
-- **Commit boundary:** ledger and evidence only. Then mark **READY FOR OPERATOR REVIEW**, with H-1 … H-9 listed for the operator.
+- **Commit boundary:** ledger and evidence only. Then mark **READY FOR OPERATOR REVIEW**, with the H-1 … H-10 macOS results and the Windows and Linux checklist listed for the operator.
 
 ## 12.6 Acceptance (fixed before measuring)
 
-CP-SET-a (§6) and AC-SET-1 … AC-SET-14 (§7), all `PASS` on the PR's final head, and the hand checks
-H-1 … H-9 handed to the operator, who judges them.
+CP-SET-a (§6) and AC-SET-1 … AC-SET-16 (§7), all `PASS` on the PR's final head (AC-SET-15 on macOS),
+and the hand checks H-1 … H-10 (§8). The macOS column is run at the gate; the Windows and Linux columns
+are handed to the operator as a checklist, and the operator judges them.
 
 ## 12.7 Test ownership
 
@@ -997,16 +1015,17 @@ R-SET-1, -2, -3, -7 and -11 (§9). Also: the 2D stub's frame record cannot see a
 sends after the scenario ends. The scenario therefore holds the connection for 2 s after its last
 step, and the test asserts that the stub saw the client's `leave`.
 
-## 12.9 Execution contract (proposed; to be filled and approved at freeze)
+## 12.9 Execution contract (frozen 2026-10-08)
 
 | Item | Contract |
 | --- | --- |
-| Worktree | `/Users/yuema137/mineworld-worktrees/impl-set-a`, held by one session only. |
-| Branch | `mvp0/pr-set-a-settings` from `main` at freeze. |
+| Worktree | `/Users/yuema137/mineworld-worktrees/impl-set-a`, held by one session only (`CLAUDE.md` §3.1). |
+| Branch | `mvp0/pr-set-a`, created from `main` **after S12 13b merges**. Until then the PR does not start. |
+| Platforms | The gate runs on macOS. The Windows and Linux columns of §8 go into the PR as an operator checklist, together with the platform line `display.gd` prints. The PR is READY FOR OPERATOR REVIEW with that checklist open; the operator closes it. |
 | Allowed commands | `cargo *` (with `$HOME/.cargo/bin/cargo`); `git`; `gh` for PR create and view, never merge; `python3 scripts/*`; `mkdir -p`; `sed -n`; `godot *`; `ln -s` for the two symlinks; the launchers `./mineworld-2d`, `./mineworld-slice`; the CLI binary under `target/`; `gh api` (read-only) to fetch the font, with its sha256 recorded. |
 | Not allowed | `python3 -c`, `sed -i`, `awk`, `xargs`, `curl`, heredoc writes. File changes go through Read, Edit and Write. |
 | Authority | Commit and push to the branch; open the PR; mark it READY FOR OPERATOR REVIEW; never merge. |
-| Material stops | (1) an edit to `clients/protocol/mineworld`, the server, contracts, kernel or any pack; (2) a new runtime dependency or a font other than QSET-1's ruling; (3) an `en` wording change beyond SD-SET-a-12; (4) a 13a or 16a check that changes result; (5) any harness output that changes under a planted user file (AC-SET-9). |
+| Material stops | (1) an edit to `clients/protocol/mineworld`, the server, contracts, kernel or any pack; (2) a new runtime dependency or a font other than QSET-1's ruling; (3) an `en` wording change beyond SD-SET-a-12; (4) a 13a, 13b or 16a check that changes result; (5) any harness output that changes under a planted user file (AC-SET-9); (6) a platform-specific code path beyond AC-SET-16's admitted one; (7) a change to any of 13b's keys (SD-SET-a-17 allows a move only). |
 | Budget | Godot runs as the checks need; no long town runs. |
 | Gate | §12.5 C7. |
 
@@ -1014,5 +1033,7 @@ step, and the test asserts that the stub saw the client's `leave`.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C0–C7 | not started | — |
-| QSET-1, -2, -3, -7 (operator) | open | — |
+| C0 (this design) | done, frozen 2026-10-08 | `plan/client-settings`, PR #91 |
+| C1–C7 | not started (waits for 13b) | — |
+| QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
+| Windows / Linux checklist (§8) | open, for the operator | — |
