@@ -22,20 +22,21 @@
 /// [`SystemPack`](crate::SystemPack) and the perception trait; a type that does not is refused by
 /// the compiler here, at the list.
 ///
-/// An optional `resolution` line, after `perception`, lists the build's arrival resolvers
-/// (`DECISIONS.md` `ARC-39`): the trait they implement, and their types, each followed by a comma.
+/// Zero or more **extension lines**, after `perception` and before the pack lines, list the build's
+/// extension catalogs (`DECISIONS.md` `ARC-62`): for each, a trait a pack owns, that pack's register
+/// function, and the types other packs implement the trait with, each followed by a comma.
 ///
 /// ```text
 /// mineworld_sdk::installed! {
 ///     perception: mineworld_presence::PerceptionProvider;
-///     resolution: mineworld_presence::ArrivalResolver => [];
+///     extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [];
 ///     Presence => mineworld_presence::PresenceSystem,
 /// }
 /// ```
 ///
 /// A listed type must implement that trait and `Default`; one that does not is refused by the
-/// compiler, at the list. Whether each listed type is also an installed pack is the installed set's
-/// own test, because the compiler cannot see it.
+/// compiler, at the list. A register function takes `Vec<Box<dyn Trait>>`. Whether each listed type is
+/// also an installed pack is the installed set's own test, because the compiler cannot see it.
 ///
 /// The expansion, in the invoking crate:
 ///
@@ -43,20 +44,39 @@
 /// pub enum Capability { … }                 one variant per line, in the listed order
 /// pub const AVAILABLE: [Capability; N]      every capability, in the listed order
 /// impl Capability {
-///     resolve, id, section, owning_section, decode_section, biographical, package, version,
-///     install, provider, type_name
-///     resolvers                             only with a `resolution` line: one value of each
-///                                           listed resolver type, in the listed order
+///     resolve, id, section, owning_section, decode_section, configuration, decode_configuration,
+///     configuration_facts, biographical, package, version, install, provider, type_name
+///     register_extensions                   calls each extension line's register function once,
+///                                           with one value of each listed type, lines and types
+///                                           in the listed order — what a host does before it
+///                                           composes any world
+///     extension_types                       each line's trait and its types' Rust paths, for the
+///                                           installed set's guard
 /// }
 /// impl Display for Capability               its id
 /// ```
 ///
-/// The two forms expand identically except for `resolvers`.
+/// The macro names no trait and no pack: a new catalog is one more line in the invocation.
 #[macro_export]
 macro_rules! installed {
     (
         perception: $perception:path;
-        resolution: $resolution:path => [ $( $Resolver:ty , )* ];
+        $( $rest:tt )+
+    ) => {
+        $crate::installed! { @lines [$perception] [] $( $rest )+ }
+    };
+    (
+        @lines [$perception:path] [ $( $done:tt )* ]
+        extension $Trait:path => $register:path : [ $( $Type:ty , )* ];
+        $( $rest:tt )+
+    ) => {
+        $crate::installed! {
+            @lines [$perception] [ $( $done )* { $Trait ; $register ; $( $Type , )* } ]
+            $( $rest )+
+        }
+    };
+    (
+        @lines [$perception:path] [ $( { $Trait:path ; $register:path ; $( $Type:ty , )* } )* ]
         $( $Variant:ident => $System:ty ),+ $(,)?
     ) => {
         $crate::installed! {
@@ -66,26 +86,35 @@ macro_rules! installed {
         }
 
         impl Capability {
-            /// The build's arrival resolvers, one value of each listed type, in the listed order:
-            /// what a host registers before it composes any world (`ARC-39`).
-            pub fn resolvers() -> ::std::vec::Vec<::std::boxed::Box<dyn $resolution>> {
+            /// Registers every extension catalog this build lists (`ARC-62`): each line's register
+            /// function, called once with one value of each listed type, lines and types in the listed
+            /// order. What a host does before it composes any world; each catalog's owner keeps its
+            /// own rules (write-once, a different list refused).
+            pub fn register_extensions() {
+                $(
+                    $register(::std::vec![
+                        $(
+                            ::std::boxed::Box::new(<$Type as ::core::default::Default>::default())
+                                as ::std::boxed::Box<dyn $Trait>,
+                        )*
+                    ]);
+                )*
+            }
+
+            /// Each extension line's trait, and the Rust paths of the types it lists, in the listed
+            /// order: for the installed set's own guard, which refuses a type that is not an installed
+            /// pack, or one listed twice on a line.
+            pub fn extension_types()
+            -> ::std::vec::Vec<(&'static str, ::std::vec::Vec<&'static str>)> {
                 ::std::vec![
                     $(
-                        ::std::boxed::Box::new(<$Resolver as ::core::default::Default>::default())
-                            as ::std::boxed::Box<dyn $resolution>,
+                        (
+                            stringify!($Trait),
+                            ::std::vec![ $( ::core::any::type_name::<$Type>(), )* ],
+                        ),
                     )*
                 ]
             }
-        }
-    };
-    (
-        perception: $perception:path;
-        $( $Variant:ident => $System:ty ),+ $(,)?
-    ) => {
-        $crate::installed! {
-            @catalog
-            perception: $perception;
-            $( $Variant => $System ),+
         }
     };
     (
@@ -159,6 +188,45 @@ macro_rules! installed {
             > {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::decode_section(map), )+
+                }
+            }
+
+            /// This capability's id when it takes a world-level configuration (`ARC-61`), else
+            /// [`None`].
+            pub fn configuration(self) -> ::core::option::Option<$crate::__private::SystemId> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::CONFIGURATION, )+
+                }
+            }
+
+            /// Decodes this capability's `configure/<id>.yaml` with the owner's own type, straight
+            /// from the stream (`DEP-10`). The loader holds the result without knowing its type.
+            ///
+            /// # Errors
+            ///
+            /// The deserializer's error for an invalid configuration, or a refusal naming the system
+            /// when it takes none.
+            pub fn decode_configuration<'de, D: $crate::__private::Deserializer<'de>>(
+                self,
+                deserializer: D,
+            ) -> ::core::result::Result<
+                $crate::__private::Arc<dyn $crate::__private::AuthoredConfiguration>,
+                D::Error,
+            > {
+                match self {
+                    $(
+                        Self::$Variant => {
+                            <$System as $crate::SystemPack>::decode_configuration(deserializer)
+                        }
+                    )+
+                }
+            }
+
+            /// The event types this capability's configuration may seed: what the loader admits at
+            /// genesis and the drift check compares (`ARC-61`).
+            pub fn configuration_facts(self) -> &'static [$crate::__private::EventTypeId] {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::CONFIGURATION_FACTS, )+
                 }
             }
 

@@ -12,6 +12,10 @@
 //!                   enabled, file kind, references declared), and records what `seed` returns
 //! ```
 //!
+//! The same shape serves a world-level configuration (`ARC-61`): a pack implements
+//! [`PackConfiguration`] for `configure/<id>.yaml`, which is about no entity, and the loader holds it as
+//! [`AuthoredConfiguration`] until the world it seeds exists.
+//!
 //! # Why a crate of its own
 //!
 //! The kernel and the contracts know nothing about authored files, and a System Pack cannot depend on
@@ -21,8 +25,10 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod configuration;
 mod content;
 mod section;
 
+pub use configuration::{AuthoredConfiguration, DecodeConfiguration, PackConfiguration};
 pub use content::{AuthoredContent, Decode};
 pub use section::{AuthoredSection, ContentKind, Reference, SectionName, Seeding};

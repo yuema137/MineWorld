@@ -28,9 +28,11 @@
 //! that stays invisible until a replay disagrees. [`WorldPack`] holds its content in `BTreeMap`s, so
 //! the order is the key order and there is nothing here to get wrong.
 //!
-//! Genesis facts are fixed too: passages, then locations, then sections — items', organizations',
-//! places', people's, each in key order — so what a person's or a place's section may name is stated
-//! before it, and a world with no items or organizations keeps every event id it had.
+//! Genesis facts are fixed too: passages, then locations, then configuration in `configure:` order
+//! (`ARC-61`), then sections — items', organizations', places', people's, each in key order — so what
+//! a person's or a place's section may name, and the configuration it may be checked against, is
+//! stated before it, and a world with no items, organizations or configuration keeps every event id it
+//! had.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -45,6 +47,7 @@ use mineworld_kernel::{Emission, World, WorldRead};
 use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
+use crate::configure;
 use crate::error::{ContentKind, PackError};
 use crate::format::{AuthoredLocation, AuthoredPosition, FoundSection, SectionState};
 
@@ -183,14 +186,15 @@ impl WorldPack {
     /// Installs this pack's systems into an empty world, in the order the pack states, and nothing
     /// else.
     ///
-    /// First it registers the build's arrival resolvers — the installed set's `resolution:` line —
-    /// with presence (`docs/DECISIONS.md` `ARC-39`). Every host composes through here (`assemble` and
-    /// `load` call this), so no host can run a world without registering them, and a resolver's pack
-    /// installed below finds itself registered. Registering the same list again is a no-op, so a
-    /// process may compose any number of worlds; a different list registered earlier in the process
-    /// is a defect of the host and panics, naming both.
+    /// First it registers the build's extension catalogs — the installed set's `extension` lines,
+    /// presence's arrival resolvers among them — each with its owner (`docs/DECISIONS.md` `ARC-62`,
+    /// `ARC-39`). Every host composes through here (`assemble` and `load` call this), so no host can
+    /// run a world without registering them, and an implementing pack installed below finds itself
+    /// registered. Registering the same list again is a no-op, so a process may compose any number of
+    /// worlds; a different list registered earlier in the process is a defect of the host and panics,
+    /// naming both.
     pub fn compose(&self) -> Result<ComposedWorld, PackError> {
-        mineworld_presence::register_resolvers(Capability::resolvers());
+        Capability::register_extensions();
         let mut world = World::new();
         for capability in self.systems() {
             capability.install(&mut world)?;
@@ -328,6 +332,10 @@ impl WorldPack {
                 self.location(key, authored, ids, &path)?,
             )?);
         }
+        // Then configuration (ARC-61), in `configure:` order: after passages and locations, so a world
+        // without `configure:` keeps every event id it had, and before sections, so a section's
+        // reduction may check its value against the configured state.
+        facts.extend(configure::seed(world, ids, self.configuration())?);
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.
