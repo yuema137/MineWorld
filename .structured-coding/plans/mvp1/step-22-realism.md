@@ -1,8 +1,11 @@
 # Step 22 — S22: Realism — approximate 1:1 classical mechanics, and an environment that looks real
 
-**Lifecycle:** `DRAFT, awaiting primary review`. Nothing here is frozen, and nothing here authorizes
-implementation. Proposed edits to `overall.md`, `docs/DECISIONS.md` and the specifications are stated in
-§14 and are not applied.
+**Lifecycle:** `STEP DESIGN APPROVED 2026-10-09; per-PR designs follow`. The questions are ruled (§13.1).
+The step design authorizes no implementation by itself: each PR is designed, frozen and contracted in turn.
+**RL-b** (with the skyline preview of QRL-11) is designed in full in
+[`pr-rl-b-3d-budget.md`](pr-rl-b-3d-budget.md), `PR design — ready for freeze review`. Proposed edits to
+`overall.md`, `docs/DECISIONS.md` and the specifications stay in §14; the primary session applies them.
+Superseded lifecycle: `DRAFT, awaiting primary review` (2026-10-09).
 **Effort:** `mvp1` (MVP-0's non-goals exclude "photorealistic fidelity, art production", `mvp0/overall.md`
 §1). §11 lists what can improve *now* inside existing MVP-0 lanes without breaking that rule.
 **Author:** the S22 planning session, 2026-10-09. Worktree `/Users/yuema137/mineworld-worktrees/plan-s22`,
@@ -319,8 +322,8 @@ re-read at the PR's freeze* when it is a well-known published value this session
 | `launch.gravity` | 9 810 mm/s² | **9 807** | standard gravity g_n = 9.80665 m/s² (3rd CGPM, 1901) | BIPM SI Brochure, 9th ed., Appendix; NIST SP 330 — standard reference, re-read at freeze | IL |
 | local gravity (market-town) | — | 9 795 (optional override) | WGS 84 normal gravity at φ = 32.7157°: 9.7954 m/s² (Somigliana formula, computed in this document) | NGA.STND.0036 (WGS 84), eq. 4-1 — standard reference, re-read at freeze | IL (world `configure/bodies.yaml`) |
 | `PERSON_RADIUS` | 300 mm (main) | **250** (12d) | adult shoulder (bideltoid) breadth ≈ 0.41–0.47 m plus clothing | ANSUR II (2012) and ISO 7250-1 summaries — re-read at freeze; ruled by the operator 2026-10-08 | E |
-| `PERSON_HEIGHT` | as 12d | unchanged; QRL-8 | US adult mean stature: men 175.4 cm, women 161.5 cm (2015–2018) | Fryar et al., *NHSR* 160 (2021), CDC NHANES — re-read at freeze | E |
-| person mass (new, `classes.person.mass`) | — | **80 000 g** | US adult means 90.6 kg (men), 77.5 kg (women); world-wide adult mean ≈ 62 kg | Fryar et al. 2021; Walpole et al., *BMC Public Health* 12:439 (2012) — re-read at freeze; QRL-8 chooses | IL |
+| `PERSON_HEIGHT` | as 12d | 1 700 mm default, authored per person (QRL-8 ruled; per-person shape is QPL-6's design) | US adult mean stature: men 175.4 cm, women 161.5 cm (2015–2018) | Fryar et al., *NHSR* 160 (2021), CDC NHANES — re-read at freeze | E |
+| person mass (new, `classes.person.mass`) | — | **70 000 g**, authored per person (QRL-8 ruled) | US adult means 90.6 kg (men), 77.5 kg (women); world-wide adult mean ≈ 62 kg | Fryar et al. 2021; Walpole et al., *BMC Public Health* 12:439 (2012) — re-read at freeze; QRL-8 chooses | IL |
 | walking speed (route pacing, 12n) | as 12n | 1 300 mm/s | comfortable adult gait 1.27–1.46 m/s (ages 20–59) | Bohannon, *Age and Ageing* 26:15–19 (1997) — re-read at freeze | IL (12n's section) |
 | `classes.*.material.friction` | 500 ‰ (one value) | per material, below | Rapier has one Coulomb coefficient per collider (no static/kinetic split): use the kinetic value | Rapier docs (`ColliderBuilder::friction`) | IL |
 | — wood on wood | | 400 | 0.25–0.5 (dry) | CRC Handbook of Chemistry and Physics, "Coefficients of friction"; Engineering ToolBox — re-read at freeze | IL |
@@ -639,7 +642,7 @@ RL-k CC-BY attribution tracking (DEP-RL-c) — parallel; unblocks CC-BY sources
 | PR | Scope | Depends on | Integration checkpoint (real execution) | Adversarial criterion (fixed before measuring) |
 | --- | --- | --- | --- | --- |
 | **RL-a** Spec, boundary, shared module skeleton | `docs/` spec of §4 and §5.1 (ARC-RL-a), the `ENV` report format, `clients/shared/environment/{wind,beaufort}.gd` with unit-free tests, the scan extension | TW-a (merged); TW-b's record shapes (frozen) | both clients connected to one Market Town with `weather`: each prints `ENV` at three world instants; values equal within tolerance | feeding one client an observation stream with the wind from 270° and the other from 90° makes the parity check FAIL naming `wind`; a client file that writes a wind value into an intent fails the scan |
-| **RL-b** Budget recovery (prerequisite) | merge static meshes per block, LOD/HLOD via visibility ranges, texture compression (VRAM-compressed import, 1k cap for distant props), shadow-distance and cascade tuning, `--perf --tier` | none (presentation only) | `--perf` on the M5 and on every reference machine available: Default ≤ 2 000 draw calls, ≤ 3 M primitives, VRAM ≤ 2.0 GB, p95 ≤ 16.7 ms | V-1 frame diff against today within the base's own noise + 0.5 points per view (16c §20.6); a deliberately unbatched block raises draw calls above the ceiling and the perf check FAILs |
+| **RL-b** Budget recovery (prerequisite), with the skyline preview (QRL-11) — **full design: [`pr-rl-b-3d-budget.md`](pr-rl-b-3d-budget.md)** | merge static meshes per block, LOD/HLOD via visibility ranges, texture compression (VRAM-compressed import, 1k cap for distant props), shadow-distance and cascade tuning, `--perf --tier` | none (presentation only) | `--perf` on the M5 and on every reference machine available: Default ≤ 2 000 draw calls, ≤ 3 M primitives, VRAM ≤ 2.0 GB, p95 ≤ 16.7 ms | V-1 frame diff against today within the base's own noise + 0.5 points per view (16c §20.6); a deliberately unbatched block raises draw calls above the ceiling and the perf check FAILs |
 | **RL-c** The `realistic` bodies list | per-class mass, density, drag, materials; air drag for low-terminal-velocity classes; Market Town and Social Café select `realistic`; physical-truth tests of §3.2 | IL-d (classes, materials) | headless `mineworld run` of both towns with kicks and throws; digests re-baselined by design; a 3D session kicks an apple on stone and on wood | each §3.2 test also runs against a mutated list (μ halved; g = 0) and must FAIL; `default` stays byte-identical (IL-I1) |
 | **RL-d** Wind in both clients | the foliage shader (3D), sprite sway (2D), awnings and flags, Beaufort calibration | RL-a; TW-b merged (TW-e for the sun if it lands first) | `--world` with weather: the operator walks the street at Beaufort 1, 3 and 5 (a test world pins the hour's wind) | with `weather` disabled the trees are still (calm default); swapping wind direction in the disclosure reverses the sway direction in both clients' `ENV` and in a frame pair; frame cost increment ≤ +1.0 ms at Default |
 | **RL-e** Far-field terrain and atmosphere | `tools/terrain-bake` (DEP-RL-a), San Diego rings from 3DEP 1/3″ (DEP-RL-b), terrain shader with ambientCG splats, fog and aerial perspective tuned with TW-e's sky; retire `street.gd` ridges | RL-b; QRL-2; TW-e preferred | `./mineworld-slice --shots` adds four far-field views (east to the mountains, west to the sea, north, south) at three sun elevations | the baked skyline's angular profile, sampled at 1° azimuth steps from the town origin, matches a profile computed directly from the source DEM within 0.1°; a ring with its north rotated 90° FAILs that check; increment ≤ +1.0 ms |
@@ -757,6 +760,29 @@ its own authority; each line is a **proposal to that lane's owner** (the primary
 | **QRL-13** | Default renderer for the shipped 3D client: Forward+ (today) or Mobile with Forward+ as the High tier? | **Tier-selected** (RL-i): Mobile for Low, Forward+ for Default and High; a probe picks once, the user can change it |
 | **QRL-14 [OPERATOR]** | Is CC-BY content (Sketchfab, Fab third-party CC-BY) wanted, given it needs attribution tracking (RL-k, ARC-55)? | **Not yet.** CC0 + owned output (Meshy paid, own photogrammetry, TripoSG) covers the goods; add RL-k only if a needed asset exists only under CC-BY |
 
+## 13.1 Rulings, 2026-10-09 (binding; relayed by the coordinator)
+
+**The operator's:**
+
+| Question | Ruling |
+| --- | --- |
+| QRL-1 | **Both scenes fail** — the slice's far ridges and the promenade spike's mountains and lake. `./mineworld-3d` is labelled as the movement and camera spike (§11.2 item 2; done in RL-b). |
+| QRL-2, QRL-3 | **Real San Diego terrain from USGS 3DEP**, skyline at about 1–2°; Market Town on a **bay or coast edge**. The alpine lake moves to a later S21 region. The lakeside references keep their authority over architecture, materials, light and mood (§14.3). |
+| QRL-4, QRL-9 | **Water is authoritative** — buoyancy, wading, drift — after RL-f (RL-g). **Wind stays presentation-only in S22.** |
+| QRL-11 | **Yes**: the ridge rescale may change accepted frames, **as a preview** the operator judges; if disliked, it is reverted. Designed in RL-b (`pr-rl-b-3d-budget.md`). |
+
+**The primary session's** (consistent with standing rules):
+
+| Question | Ruling |
+| --- | --- |
+| QRL-5 | **9 807 mm/s²** in the `realistic` list. |
+| QRL-6 | **The tiers are accepted.** The operator has only the Mac today, so the Windows and Linux tier checks go on the operator's checklist and into S13's CI; until then RL-x evidence says "measured on macOS". |
+| QRL-7 | **Per-region Asset Packs.** |
+| QRL-8 | **70 kg and 1.70 m, authored per person**, each cited. |
+| QRL-10, QRL-12, QRL-13 | As recommended: swell is presentation content; `tools/terrain-bake` in Rust; the renderer is chosen per tier. |
+| QRL-14 | **No CC-BY content yet**; RL-k is not scheduled. |
+| — | **Every physics reference marked "re-read at freeze" (cited from memory) is re-read at source before RL-c freezes**, and §5.1 is corrected to what is read. |
+
 ---
 
 # 14. Proposed records and amendments (text for the primary session; not applied)
@@ -806,4 +832,5 @@ E-RL-2  2026-10-09  ./mineworld-slice --shots, 26 views, clients/3d-spike/shots/
                     promenade spike frame 05_lake_scenic.jpg (committed)
 E-RL-3  2026-10-09  research by three read-only sub-agents (audit; terrain/sky/water; foliage/props/
                     renderer); licences and dates as §6 states; rows marked unverified are not decisions
+RULED   2026-10-09  QRL-1 … QRL-14 (§13.1); step design approved; RL-b designed (pr-rl-b-3d-budget.md)
 ```
