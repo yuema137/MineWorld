@@ -2607,6 +2607,12 @@ E-IB-14 2026-10-09, IB-15, the full gate on 196cbc3 (the final code head; the co
         identical by `diff` to the listing taken before the gate — all under one pid's container from the
         M-IB2/M-IB3/M-IB8 run, whose panicking tests keep their scratch by DEP-29's design; removed, then
         `left` 0. The gate left nothing. CI on the exact PR head: reported with the PR. PASS.
+E-IB-15 2026-10-09, the fifth town run, authorized by the primary session's ruling of 2026-10-09: market-town
+        `run --headless --seed 7 --days 300` on the merged head (code = 196cbc3 = aeafbc5's, dev binary
+        kept as target/il-b/head3-mineworld): exit 0, faults 0, 374 857 facts, sha (every line but
+        `wall`) 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270 = main's TW-a baseline
+        (step-19 E-TWa-9), real 20.7 s. IB-1 now holds against main at merge for both towns (social-cafe
+        E-IB-11, unchanged by TW-a; market-town here). Town runs: 5 (4 + this authorized one). PASS.
 ```
 
 ## 12.14 Deviations
@@ -2687,6 +2693,8 @@ F-IB-16  Unix-only assumption (operator requirement, 2026-10-08: macOS, Linux an
          does not fix these (its own edit to configuration_seam.rs leaves that import as IL-a wrote it);
          the remedy (a cfg(unix) gate, or a portable kill) belongs to whoever adds Windows CI (S13/S14's
          CI lane), recorded here for the primary session to assign.
+         Ruling (primary session, 2026-10-09): owned by S13's PR 13w (frozen), which fixes all nine
+         `ExitStatusExt` files. IL-b does not touch them.
 ```
 
 ## 12.15 After IL-b: IL-c … IL-i, outlined with their dependencies
