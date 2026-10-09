@@ -2894,8 +2894,19 @@ subset), §4.1 (requiring an Entity Pack: step 6b, one namespace, allocation, pr
 §8.1 (`packs validate` of an Entity Pack). `docs/PACKAGE_FORMAT.md` §5.0 (`pack.yaml` read for Entity
 Packs; `items/`), §8 (status row).
 
-- [ ] Implementation · [ ] Validation (both doc checks) · [ ] Review (no defined term redefined; `Entity
-  Pack` used as `MODULE_SPEC.md` §1 defines it).
+- [x] Implementation: `DECISIONS.md` ARC-71 (points 1–10, options, limitations) and "ARC-54 note — a
+  required data pack's own framework range is checked (F-Ed1)", appended after DEP-29; `MODULE_SPEC.md`
+  §2 (the MVP-0 subset, the tree), §4.1 (rule 2's sentence on items across sources; requirement rule
+  2 loses "an Entity Pack, read from E-d" and gains the data-pack framework range; new paragraph
+  "Requiring an Entity Pack"), §8.1 (`validate`'s items line; `packs validate` of an Entity Pack and the
+  `pack.yaml` framework range); `PACKAGE_FORMAT.md` §5.0 (`pack.yaml` read for both; the range; the
+  Entity Pack bullet), §8 (identity row; requirements row; a new Entity Packs row).
+- [x] Validation: `check_doc_headings.py` → "191 numbered sections across 26 documents, none
+  duplicated" (exit 0); `check_decision_ids.py` → "70 decision ids, all distinct" (exit 0). PASS.
+- [x] Review: no defined term redefined — `Entity Pack`, `World Pack`, `Item` used as `MODULE_SPEC.md`
+  §1 and `CORE_CONCEPTS.md` define them; "item kind" is `ARC-36`'s term. Citation corrected while
+  drafting: the design's "§4.2 rule 3" is step-16 §4.2, not `MODULE_SPEC.md` §4.2 (which does not
+  exist) — the note cites step-16.
 
 ### Ed-C2 — `packages`: Entity Packs identified and required; data packs' framework range
 
