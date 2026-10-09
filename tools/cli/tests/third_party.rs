@@ -110,9 +110,16 @@ fn copy_dir(from: &Path, to: &Path) {
     }
 }
 
+/// The text of `file` with LF line endings: a Windows checkout's copy of a world may be CRLF.
+fn read_lf(file: &Path) -> String {
+    std::fs::read_to_string(file)
+        .expect("reads")
+        .replace("\r\n", "\n")
+}
+
 /// Replaces exactly one occurrence of `from` in `file`.
 fn edit(file: &Path, from: &str, to: &str) {
-    let text = std::fs::read_to_string(file).expect("reads");
+    let text = read_lf(file);
     assert_eq!(
         text.matches(from).count(),
         1,
@@ -149,7 +156,7 @@ fn checkpoint(name: &str, pack: &ThirdParty, range: Option<&str>, enabled: bool)
     .expect("writes");
     if enabled {
         let park = world.join("places/park.yaml");
-        let text = std::fs::read_to_string(&park).expect("reads");
+        let text = read_lf(&park);
         std::fs::write(park, text + "\nfishing: { catch: fish, minutes: 60 }\n").expect("writes");
     }
     world

@@ -262,7 +262,10 @@ fn every_unmet_requirement_is_refused_by_name() {
         ]);
         assert!(!ok, "{name}: accepted");
         for needle in needles {
-            assert!(err.contains(needle), "{name}: {needle:?} not in {err}");
+            // A path in a needle is written with `/`; the refusal prints this platform's separator
+            // (step-16 §16.12 PD-p5; the claim is unchanged).
+            let needle = needle.replace('/', std::path::MAIN_SEPARATOR_STR);
+            assert!(err.contains(&needle), "{name}: {needle:?} not in {err}");
         }
     }
 }
