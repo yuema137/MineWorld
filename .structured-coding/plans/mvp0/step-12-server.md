@@ -2419,6 +2419,11 @@ E-SB9 D-SB12 located before counted (primary-session ruling: no bound change, no
       CPU: the world thread was off-CPU (descheduled, or waiting on the commit's I/O), never busy.
       Neither stall source reached 15 ms under the loads this session could make; the 160 ms one
       coincided with a load of ~21 from other worktrees' concurrent runs.
+      GitHub runner (ubuntu-24.04, CI from #63): a scratch branch `scratch/s11b-ticks` (8ecee01 plus
+      one commit that fails hosted_town on purpose to print its lines; run 37856777357, deleted
+      after use) recorded `[world] ticks 1202, longest tick 8 ms`, with accepted moves alice 17,
+      bob 16, carol 10, dev 20, erin 20, felix 16, grace 16, hana 14, ivan 8. On #83 itself, CI at
+      8ecee01 (run 37856771059): fast success, test success — hosted_town passed on the runner.
 ```
 
 ## 16.11 Deviations and discoveries
