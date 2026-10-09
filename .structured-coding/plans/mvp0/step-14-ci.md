@@ -1557,6 +1557,75 @@ What it changes in 13b and 13c, as directed:
 
 Every one of these is reflected in §§13.3–13.14 below.
 
+### 13.0.2 Cross-lane Windows items folded in (coordinator, 2026-10-08)
+
+**Timing.** The coordinator's message ("fold them into your Windows revision before freezing") arrived
+after the freeze commit `5193540` had been pushed and its `fast` and `test` had passed. The items are
+folded in here.
+
+**They change none of 13b's frozen scope, invariants or acceptance:**
+- no new 13b job, file or acceptance item;
+- each item is assigned to 13w, 13c, or a client lane.
+
+The freeze therefore stands. The primary session should confirm that reading (QB-13).
+
+**R-S13-W1 (from S11-C/D): a Windows and macOS CI matrix for the Rust suite, and a Windows graceful-stop
+helper.**
+- **Windows suite.** 13b's `test-windows` is that leg (§13.0.1 item 4). It reports until 13w makes it
+  green.
+- **macOS suite.** A `test-macos` job (`macos-26`, `ci_layer.py core` natively, non-required) belongs in
+  **13w**, not 13b. 13b's frozen job set is unchanged. Nothing is expected to fail on macOS, because the
+  suite is run on the operator's Mac at every gate, so 13w adds it at little risk. Cost: free on a public
+  repository (standard runner)†, about 15–20 min wall time warm, in parallel. QB-13 asks whether the
+  primary session prefers it in 13b instead.
+- **The graceful-stop helper** (W-12, §13.10.1) lives in **`mineworld-test-support`**
+  (`tests/support/src/lib.rs`), as one function, for example `interrupt(child)`:
+  - on Unix it sends SIGINT with `libc::kill`, or through the `nix` crate behind the existing support
+    crate. This replaces S11-B's `sh -c "kill -INT <pid>"`;
+  - on Windows it starts the child with `CREATE_NEW_PROCESS_GROUP` and sends `CTRL_BREAK_EVENT` to that
+    group with `GenerateConsoleCtrlEvent` (through `windows-sys`). Ctrl-C cannot be sent to a single
+    process group; Ctrl-Break can;
+  - **the server must then stop on Ctrl-Break as well as Ctrl-C.** `tokio::signal::windows::ctrl_break()`
+    beside `ctrl_c()` in `tools/cli/src/main.rs`'s `serve` is a production-code change. It is S11's to
+    make, because S11 owns the server, together with the helper's first users;
+  - the alternative, a stop that needs no signal (S11's planned admin frame `shutdown`, or stdin EOF),
+    stays open to S11. If S11 chooses it, the helper wraps that instead, and no `windows-sys` dependency
+    is added. The dependency decision is a DEP record in whichever PR adds it.
+  - **Ownership:**
+    - the helper and its Windows path go to **13w** (test-support is a test crate; 13b may not edit
+      tests, I-S13-2);
+    - the server's Ctrl-Break handling, or the signal-free stop, goes to **S11**;
+    - S11-C's CA-13, S11-D's SD-D13 check and `hosted_town`'s interrupt switch to the helper when it
+      lands, in whichever of S11 and 13w lands second.
+  - They **run on Windows** in `test-windows` (13b's job), and on macOS in 13w's `test-macos`, once 13w is
+    merged. 13c adds nothing for them beyond running these jobs nightly.
+
+**R-SET-10 (from the settings design): Windows symlinks.**
+- **Audit.** `git ls-files -s` shows two tracked symlinks, both pointing to `../protocol/mineworld`:
+  `clients/2d/mineworld` and `clients/3d-spike/mineworld`. Without `core.symlinks=true`, which needs
+  Developer Mode or administrator rights, Git for Windows checks each out as a small text file holding the
+  target path. Godot then cannot load the shared module.
+- **What reads them.** No test in the default suite does: `client_rules.rs` reads `scripts/*.gd`, and
+  `ac13_semantic_parity.rs` reads `clients/protocol/evidence`. The `#[ignore]`d `client_2d` tests, the
+  launchers and Godot do. So **13b's Windows jobs are unaffected**, and B13-11 would show it if not.
+- **CI.** **13c's** `clients` Windows leg (W-9) configures symlinks, with `git config --global
+  core.symlinks true` before checkout. Hosted Windows runners run as administrator, so creating symlinks
+  works†. 13c verifies it by checking that `clients/2d/mineworld` is a directory link after checkout. A
+  text file there is a FAIL, not INCONCLUSIVE.
+- **Players and contributors on Windows: three options.**
+  - **(1) Packaged clients.** A Godot export per OS bundles the module, so no symlink exists in what a
+    player runs. It is the right deployment answer for players. It needs an export pipeline and release
+    artifacts. Publishing binaries is a publication decision, so it is **`[OM]`** (QB-14). The pipeline
+    is S12's and S14's, and CI's export job is 13c's or later.
+  - **(2) Contributors from source.** Developer Mode and `git clone -c core.symlinks=true`, documented in
+    the README's Windows line (a docs change by 13w or the client lanes). Zero code.
+  - **(3) Replacing the symlinks with committed copies kept equal by a `fast` check, or with a sync
+    step.** Declined. Two copies in Git violate ruling 4's single owner of the shared module in spirit.
+    A sync step that rewrites tracked files makes a dirty tree a normal state. Godot cannot reference
+    outside `res://`, so a path setting cannot replace the link either.
+  - **Recommendation: (2) now and (1) for players** (QB-14 `[OM]`). CI configures symlinks (13c). The
+    symlinks stay.
+
 ## 13.0 What this design changes in the step design, and why
 
 The step design (§3.3, §7.2) was written while the repository was private, when a macOS runner cost ten
@@ -2223,11 +2292,16 @@ finding with an owner lane. No test is skipped, `#[ignore]`d or `cfg`-gated to h
 | **W-7** | **`python3`, `df`, `du` and `/usr/bin/time` in CI scripts** | `ci_layer.py`'s layers start commands with `python3`, absent from Windows PATH†. `disk()` calls `df` and `du`. No repository script or test uses `/usr/bin/time`: it appears only in planning measurements (E-13b-0, 12d-0). `check_scratch.py` uses `tempfile.gettempdir()`, which is portable | `ci_layer.py`: `sys.executable` for `python3`, and `shutil.disk_usage` plus a size walk (B-C3). `ci_parity.py` times with `time.monotonic`. Planning-only timing commands stay out of CI | 13b |
 | **W-8** | **`rustup` targets and C toolchain** | `rust-toolchain.toml` pins channel 1.97.1 (profile minimal, rustfmt and clippy). On Windows, rustup resolves it to `x86_64-pc-windows-msvc`. `rusqlite`'s bundled SQLite needs MSVC's `cl.exe`, present on `windows-2025` images†. No target triple is hard-coded anywhere | The record writes `rustc -vV`'s host. G-4 compares releases, not hosts. A build failure is R-B10 | 13b (discovery) |
 | **W-9** | **Godot 4.7.2 on Windows** (13c's client checks) | The probes and launchers are bash scripts (`mineworld-2d`, `mineworld-3d`, `mineworld-slice`, `clients/protocol/run.sh`). Godot's Windows build prints to a console only in its `_console.exe` variant | 13c decides whether `clients` gains a Windows leg (the official `win64_console` binary, checksum-pinned) or stays Linux-only with a recorded reason. Windows launchers for players (a `.ps1` or a cross-platform launcher) are the client lanes' | **13c** (CI); **S12 / S14** (launchers) |
+| **W-11** | **Tracked symlinks** (R-SET-10) | `clients/2d/mineworld`, `clients/3d-spike/mineworld` → `../protocol/mineworld` (`git ls-files -s`, mode 120000). They need `core.symlinks` and Developer Mode or administrator rights. No default-suite test reads them | CI: 13c's `clients` Windows leg sets `core.symlinks true`, then checks that the links resolved. Players: packaged clients (QB-14 `[OM]`). Contributors: the documented clone flag (§13.0.2) | **13c** (CI); **S12 / S14** (packaging, docs) |
+| **W-12** | **A portable graceful stop for tests** (R-S13-W1) | S11-B's `sh -c kill -INT` (W-6), S11-C's CA-13, S11-D's SD-D13 and `hosted_town`'s interrupt all need a graceful server stop in a test | `mineworld-test-support::interrupt`: SIGINT on Unix, `CTRL_BREAK_EVENT` to a new process group on Windows. The server must also handle Ctrl-Break, or S11's signal-free stop is used instead (§13.0.2) | **13w** (helper); **S11** (server side, and switching its tests) |
 | **W-10** | **Locale, time zone and line endings in output** | Rust's `println!` writes `\n` on every platform. Nothing in the simulation reads the locale or the time zone (only `WorldInstanceId::allocate`'s wall clock, excluded by the manifest rule). Python on Windows decodes subprocess output with universal newlines | The script reads child output as bytes, decodes it as UTF-8 and splits on `\n`. An unexpected `\r` is a G-5 difference, never stripped silently | 13b |
 
 **Lanes.**
 - **13w** is a proposed new PR. Its owner is the S13 lane, and it is designed after 13b's merge. Its scope
-  is W-T1 and every W-finding `test-windows` reports.
+  is:
+  - W-T1, and every W-finding `test-windows` reports;
+  - W-12's `interrupt` helper;
+  - a non-required `test-macos` job (§13.0.2, QB-13).
 - **Its acceptance:** `test-windows` is green on `main`. It adds the job's `pull_request` trigger. QB-11
   then asks the operator to make it required.
 
@@ -2250,6 +2324,8 @@ reverses an operator decision. The rest the primary session can decide.
 | --- | --- | --- |
 | **QB-11 [OM]** | When `test-windows` is green on `main`, make it a required check, beside `fast` and `test`? | **Yes, once green on `main` for five consecutive pushes,** after 13w adds its `pull_request` trigger. Cost: free on a public repository (standard runner)†. The price is about 20–30 min of wall time on each PR, in parallel with `test`, so the merge loop lengthens by the difference (expected ≤ 15 min). Until then it reports. Settings are the operator's. |
 | **QB-12** | Who owns making the default suite pass on Windows (W-T1 and any further W-findings)? | **A new bounded PR, 13w, in the S13 lane**, designed after 13b merges, with its own freeze. It edits tests (a portable "was killed" predicate in `mineworld-test-support`), which 13b may not. W-6 goes to **S11** (its `sh -c kill`). W-9's launchers go to **S12 and S14**. |
+| **QB-13** | §13.0.2 folds R-S13-W1 and R-SET-10 in after the freeze commit, assigning everything to 13w, 13c, S11, S12 and S14. Does the freeze stand? And should `test-macos` join 13b instead of 13w? | **The freeze stands:** no 13b job, file or acceptance item changes. **`test-macos` goes in 13w** with the helper, so 13b's frozen job set and run cap stay as frozen. |
+| **QB-14 [OM]** | Windows players and symlinks: publish packaged clients (Godot exports per OS) as release artifacts? | **Yes, as the player path,** owned by S12 and S14 with a CI export job in 13c or later. Until then, document the clone flag and Developer Mode. Keep the symlinks; do not commit copies (§13.0.2). It is `[OM]` because it publishes binaries. |
 | **QB-1 [OM] — DECIDED: yes (operator, 2026-10-08)** | Adopt the live comparison on a GitHub macOS runner (§13.3 (c)), reversing QS13-3's "no macOS runner"? Confirm on the billing page that standard macOS runners are free for this public repository†. | **Yes**, with (a), the laptop at acceptance, and (d), Linux arm64 as the localizer. QS13-3's "no" rested on the 10× private-repository price, which no longer applies. If the billing page shows otherwise, take (a) + (d) only (R-B4). |
 | **QB-2** | Which macOS label: `macos-26`, `macos-15` or `macos-14`? | **`macos-26`**, pinned (not `macos-latest`). It matches the laptop's macOS 26. `macos-14` is deprecated; `macos-15` is the fallback if `macos-26` misbehaves (a bounded, recorded swap). |
 | **QB-3** | Drop `sha2`, and use the reserved `DEP-19` for the macOS runner instead (C-3)? | **Yes.** No Rust change; one hashing implementation on all sides. If the primary session prefers to keep `DEP-19` unused, ARC-49 can carry the runner decision. |
