@@ -98,7 +98,9 @@ def test_every_golden_frame_has_a_model() -> None:
     assert files, f"no golden frames found under {FRAMES}"
     unmodelled = sorted(files - CHECKS.keys())
     vanished = sorted(CHECKS.keys() - files)
-    assert not unmodelled, f"golden frames with no Python model: {[f'{k}.json' for k in unmodelled]}"
+    assert not unmodelled, (
+        f"golden frames with no Python model: {[f'{k}.json' for k in unmodelled]}"
+    )
     assert not vanished, f"checks for golden frames that no longer exist: {vanished}"
 
 
