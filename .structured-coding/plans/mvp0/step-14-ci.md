@@ -2737,6 +2737,17 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
   `os::unix` audit finds the same nine files and W-6, nothing new. The final head's dispatch therefore
   also checks the calendar's float path across the four platforms. The `365b50e0…1d1d` market-town
   digest cited above is main's before TW-a.
+  - Run 10 ● (dispatch 37980642471, on `58f659c`): every leg passed and `ac8` PASSED, with 4 records and
+    1 465 keys. market-town gained 7 keys from the calendar, and its `summary-300` is
+    `24a95d2a…d270`, TW-a's baseline, equal on all four platforms. P-L on `58f659c` PASSED as well.
+- **Main moved again.** `0744fee` (#104, S11-D) was merged cleanly. `docs/DECISIONS.md` merged
+  without a conflict: 76 ids, all distinct.
+  - The `os::unix` audit finds the same nine files and W-6, at `tools/cli/tests/support/mod.rs:187–188`.
+  - It also finds `tools/cli/tests/admin.rs:557 #[cfg(unix)]`, which is S11-D's SD-D13 gate. 13w's
+    QW-3 already owns its removal, so it is a known W-item and not a new finding. Its owners are S11
+    and 13w.
+  - This is the last merge of main before review. Protection is `strict: false`, so later movements
+    of main are recorded rather than chased. Run 11 is the final head's dispatch.
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 
