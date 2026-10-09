@@ -2793,9 +2793,11 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     outside the framework workspace") is false in CI. Two fixes, both outside §16's planned paths:
     (A, recommended) the layer action moves `CARGO_HOME` outside the checkout (`$HOME/.mineworld-ci-cargo`,
     mounted at the same path, cached under `~/`), about ten lines in `.github/actions/layer/action.yml`, no
-    product change — proven on `scratch/ec-cargo-home` (`6792d4b` = this branch's `f237bfa` + that change,
-    run 37980838221: `fast`, `platforms (macos-26)`, `platforms (windows-2025)` green, `test` recorded in the
-    handoff); (B) change `ARC-54`'s classification so a Cargo-fetched checkout is never bundled — a semantic
+    product change — proven on `scratch/ec-cargo-home` @ `974b585` (= this branch's `4d77a74` + that change
+    only), run <https://github.com/yuema137/MineWorld/actions/runs/37983354144>: **`fast`, `test`,
+    `platforms (macos-26)`, `platforms (windows-2025)` all success**. Without it, on this branch's own code
+    (`scratch/ec-platforms` @ `f237bfa`, run 37980834137): `fast`, both `platforms` success, `test` failure
+    at EC-4 only; (B) change `ARC-54`'s classification so a Cargo-fetched checkout is never bundled — a semantic
     change to an accepted decision. Recorded also as `ARC-66`'s limitation in the PR text. Owner of the
     file: S13; decision: the operator.
 
