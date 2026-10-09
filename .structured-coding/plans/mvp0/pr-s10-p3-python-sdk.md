@@ -314,11 +314,12 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
 - **Goal.** Record the primary session's freeze, and fill the execution contract (§10) with its
   sources.
 - **Scope.** This document, and a new `handoff-s10-p3.md`. No code.
-- [ ] Implementation: the `DESIGN FROZEN` header with the operator or primary-session reference; the
-  contract's endpoint authority lines with sources; the handoff initialized.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every endpoint line has a source, and none was narrowed or widened without one
-  (working rules, contract block).
+- [x] Implementation: the `DESIGN FROZEN` header with the operator or primary-session reference; the
+  contract's endpoint authority lines with sources; the handoff initialized. (§12.1)
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  (E-P3-0)
+- [x] Review: every endpoint line has a source, and none was narrowed or widened without one
+  (working rules, contract block). (§12.1)
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specs and toolchain before code
@@ -655,9 +656,42 @@ gathered in step-17 §15.6 so that the operator sees them in one place.
 ## 12. Ledger (live during implementation)
 
 ```text
-Status:            DESIGN FROZEN 2026-10-08 (primary session); awaiting a fresh implementation
-                   session in /Users/yuema137/mineworld-worktrees/impl-s10-p3
-Implementation:    not started
-Evidence:          none yet
-Deviations:        none yet
+Status:            IN IMPLEMENTATION (fresh session, 2026-10-08), worktree
+                   /Users/yuema137/mineworld-worktrees/impl-s10-p3, branch mvp0/pr-s10-p3-sdk
+Implementation
+base:              origin/main @ 827daf9 (#86, the freeze). #83 (S11-B) is open (head 39d02ea) and not
+                   in the base: C2 models S11-A's frames only; C6 is live only if #83 merges during P3
+Handoff:           handoff-s10-p3.md
 ```
+
+### 12.1 C0 — freeze and contract
+
+- [x] Implementation: the `DESIGN FROZEN` header and §10's contract were committed with the freeze (#86);
+  every endpoint line there names its source (the primary session's freeze message). This session
+  records the base above and initializes [`handoff-s10-p3.md`](handoff-s10-p3.md).
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`,
+  both exit 0 (E-P3-0).
+- [x] Review: every endpoint line in §10 has a source; none was narrowed or widened. The coordinator's
+  note that `gh` is temporarily unauthenticated narrows no endpoint: a failed push is INCONCLUSIVE and
+  retried.
+
+**Anchor re-verification (working rules §3).** `git diff 9cf8f8e..827daf9` touches none of the §3
+anchors except `tools/cli/src/main.rs` (save-configuration checks for `--save`; `serve`'s printed lines
+and `app::bind` unchanged). Re-read in this session: `server/src/protocol.rs` and its three submodules,
+the eight golden frames and `server/tests/frames.rs`, `contracts/src/{observation,action,spatial,
+relation,ids,component,time,entity}.rs`, `server/src/app.rs` `bind` (prints `local_addr()`, so
+`--listen 127.0.0.1:0` reports the real port), `tools/cli/src/main.rs` `serve`,
+`tools/cli/tests/support/mod.rs`, `worlds/{social-cafe,market-town}/world.yaml` seats,
+`systems/economy/src/offer.rs`, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`,
+`.github/workflows/ci.yml`, `.github/actions/layer/action.yml`, `.structured-coding/standards.md`.
+
+### 12.2 Evidence
+
+```text
+E-P3-0  C0  check_doc_headings.py, check_decision_ids.py: exit 0 on the C0 tree
+```
+
+### 12.3 Deviations
+
+None yet.
+
