@@ -1,6 +1,6 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[check] connecting to 127.0.0.1:56005 as seat 'visitor'
+[check] connecting to 127.0.0.1:51397 as seat 'visitor'
 [check] observer 17, Alice 7, revision 1
 [check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"22","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
 [check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"24","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
@@ -27,13 +27,13 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 WARNING: [mineworld] submit_affordance: 'talk' is not complete; compose and submit()
      at: push_warning (core/variant/variant_utility.cpp:1033)
      GDScript backtrace (most recent call first):
-         [0] submit_affordance (res://mineworld/world_client.gd:266)
+         [0] submit_affordance (res://mineworld/world_client.gd:296)
          [1] _first_view (res://checks/affordances_check.gd:136)
          [2] _on_observed (res://checks/affordances_check.gd:99)
-         [3] _observation (res://mineworld/world_client.gd:450)
-         [4] _receive (res://mineworld/world_client.gd:386)
-         [5] _drain (res://mineworld/world_client.gd:370)
-         [6] _process (res://mineworld/world_client.gd:348)
+         [3] _observation (res://mineworld/world_client.gd:538)
+         [4] _receive (res://mineworld/world_client.gd:460)
+         [5] _drain (res://mineworld/world_client.gd:444)
+         [6] _process (res://mineworld/world_client.gd:378)
 [check] PASS A-4 submit_affordance(incomplete talk) returns "" and sends nothing: ["",0]
 [check] Alice's first give is available=false, reason "too_far_away"
 [check] PASS A-4 submit_affordance(unavailable give) is sent: false

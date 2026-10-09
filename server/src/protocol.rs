@@ -60,7 +60,7 @@ use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::admission::{Nickname, OfferedInvite};
+use crate::admission::{Nickname, OfferedInvite, OfferedResume, ResumeSecret};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
@@ -109,9 +109,12 @@ pub enum ClientFrame {
         nickname: String,
         /// The seat, named by the authoring key of the entity it belongs to.
         seat: EntityKey,
-        /// A secret from an earlier `welcome`, to re-take a held seat (meaningful from S11-B).
+        /// A secret from an earlier `welcome`, to re-take a held seat (`PROTOCOL.md` §4.2).
         #[serde(default)]
-        resume: Option<String>,
+        resume: Option<OfferedResume>,
+        /// Take the seat from the connection that holds it, or from a dropped one's hold.
+        #[serde(default)]
+        take_over: bool,
     },
     /// Submit a request. No identity and no instant: the server allocates both (`INV-6`).
     Submit {
@@ -180,11 +183,12 @@ pub enum ServerFrame {
         nickname: Nickname,
         /// Which connection this is, for the admin surface. Not a credential.
         session: SessionId,
-        /// The secret that re-takes this seat after a dropped socket; `None` until S11-B.
-        resume: Option<String>,
-        /// How long a dropped connection's seat is held, in wall seconds; `0` until S11-B.
+        /// The secret that re-takes this seat after a dropped socket. A fresh one on every welcome;
+        /// `null` only from a server older than S11-B.
+        resume: Option<ResumeSecret>,
+        /// How long a dropped connection's seat is held, in wall seconds; `0` holds none.
         hold_seconds: u32,
-        /// Whether control of the Person changed hands; always [`TookOver::None`] until S11-B.
+        /// Whether control of the Person changed hands, and how (`PROTOCOL.md` §4.2).
         took_over: TookOver,
         /// What the world is, at the moment of joining.
         world: WorldSummary,
@@ -268,9 +272,10 @@ pub enum RefusalCode {
     Unauthorized,
     /// The `join`'s nickname is empty once trimmed, too long, or holds a control character.
     InvalidNickname,
-    /// Another connection holds the seat (from S11-B; never sent before it).
+    /// Another connection holds the seat, or it is held, and the `join` neither resumed nor took it
+    /// over.
     SeatOccupied,
-    /// The `join`'s `resume` matches no hold. Until S11-B every non-null `resume` is answered so.
+    /// The `join`'s `resume` matches neither the seat's hold nor its live connection.
     InvalidResume,
 }
 

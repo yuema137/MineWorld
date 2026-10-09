@@ -97,13 +97,14 @@ async fn there_is_only_one_alice() {
     let mut three_d = Client::connect(server.address).await;
     let (visitor, world_as_2d_was_told) = two_d.join("visitor").await;
     let (wanderer, world_as_3d_was_told) = three_d.join("wanderer").await;
-    // The agent is the third, and it is not this test's client: it was started by the server command
-    // and occupies the `alice` seat through the same roster these two just used.
+    // The agent is the third participant, and it is not a client: an in-server controller drives
+    // the `alice` seat on the world thread through the same roster these two just used, and
+    // `clients` counts connections only (step-12 S11-B, `PROTOCOL.md` §5.7).
     let status = server.status().await;
     assert_eq!(
         status["clients"],
-        json!(3),
-        "two clients and one agent-driven Person are connected at once: {status}"
+        json!(2),
+        "two clients are connected while an agent drives a third Person: {status}"
     );
 
     // ── EVIDENCE 1: same world instance. ─────────────────────────────────────────────────────
@@ -474,10 +475,12 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
     assert!(!facts.is_empty());
 
     let status = server.status().await;
+    // One: the live window. The agent driving alice is an in-server controller, not a client
+    // (step-12 S11-B, `PROTOCOL.md` §5.7).
     assert_eq!(
         status["clients"],
-        json!(2),
-        "the dead connection is gone and the live ones are not: {status}"
+        json!(1),
+        "the dead connection is gone and the live one is not: {status}"
     );
     assert_eq!(
         status["faults"],

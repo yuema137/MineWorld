@@ -6,8 +6,9 @@ specification, not an introduction; `server/README.md` is the short human orient
 specifies the frames that implement it. Where the two disagree, `NETWORKING.md` governs and this
 document is the defect.
 **Implemented by:** `server/src/protocol.rs` and `server/src/protocol/` (the frames),
-`server/src/admission.rs` (the invite and the nickname), `server/src/session.rs` (the sequence),
-`server/src/app.rs` (the routes). The Rust types are authoritative over the JSON examples here, in the
+`server/src/admission.rs` (the invite, the nickname and the resume secret), `server/src/seats.rs` (who
+drives each seat, §4.2), `server/src/hosted.rs` (in-server controllers), `server/src/session.rs` (the
+sequence), `server/src/app.rs` (the routes). The Rust types are authoritative over the JSON examples here, in the
 sense `docs/ARCHITECTURE.md` §13 states. One example of every frame, as the Rust types write it, is
 kept in `server/tests/frames/` and checked by `server/tests/frames.rs`; a client in another language
 tests its codec against those files.
@@ -44,16 +45,16 @@ A client may send exactly three kinds of frame:
 
 ```json
 { "t": "join", "protocol": 2, "invite": "3f9c0a…", "nickname": "Yue", "seat": "visitor",
-  "resume": null }
+  "resume": null, "take_over": false }
 { "t": "submit", "token": "c1", "request": { … an ActionRequest (§6) … } }
 { "t": "leave" }
 ```
 
 | Frame | Fields | Rules |
 | --- | --- | --- |
-| `join` | `protocol` (integer), `invite` (string), `nickname` (string), `seat` (entity key, required), `resume` (string or `null`, optional, default `null`) | Valid only before a seat is granted; a second `join` on a seated connection is `already_joined`. An absent `protocol` is read as `1`, so a revision-1 join is answered `protocol_mismatch` rather than `malformed_frame`. An absent `invite` or `nickname` is read as the empty string and answered by §4.1's checks. |
+| `join` | `protocol` (integer), `invite` (string), `nickname` (string), `seat` (entity key, required), `resume` (string or `null`, optional, default `null`), `take_over` (boolean, optional, default `false`) | Valid only before a seat is granted; a second `join` on a seated connection is `already_joined`. An absent `protocol` is read as `1`, so a revision-1 join is answered `protocol_mismatch` rather than `malformed_frame`. An absent `invite` or `nickname` is read as the empty string and answered by §4.1's checks. `resume` re-takes a seat this player's dropped connection held (§4.2); `take_over: true` takes a seat another connection holds (§4.2). |
 | `submit` | `token`, `request` | Unchanged from revision 1. Before a seat is granted: `not_joined`. |
-| `leave` | — | Releases the seat at once and ends the connection: the server answers `closing { reason: "left" }` and closes. Before a seat is granted it is answered the same way — nothing is released, and a client that asks to go is let go. |
+| `leave` | — | Releases the seat at once — no hold (§4.2) — and ends the connection: the server answers `closing { reason: "left" }` and closes. Before a seat is granted it is answered the same way — nothing is released, and a client that asks to go is let go. |
 
 There is no fourth. In particular there is no frame that sets a value, names an observer, widens a
 scope, or states a fact about the world. `"my money is now 5000"` is not a frame this protocol has, and
@@ -84,6 +85,10 @@ A client names a **seat**; the server answers with the **observer**. No frame ca
 id, and a connection holds one seat for its whole life — a second `join` is refused
 `already_joined`. This is `INV-13` as construction rather than as a check: perception cannot be
 widened by asking, because nothing in the protocol asks for perception.
+
+A seat is driven by **at most one controller at any instant**: one connection, or one in-server
+controller, or nobody (§4.2). Who drives a seat is host state, never world state: no binding change is
+journaled, states a fact, or moves the world's revision (`docs/DECISIONS.md` `ARC-40`).
 
 `GET /status` lists the seats a world offers. A seat the roster does not contain is refused
 `unknown_seat`.
@@ -126,10 +131,10 @@ A `join` is answered by these checks, in this order. The first that fails decide
 2  invite     wrong or absent  after a fixed delay of 500 ms from the frame's arrival:
                                refused unauthorized, closing {unauthorized}, closed
 3  nickname   not a nickname   refused invalid_nickname; the connection stays, and may join again
-4  resume     not null         refused invalid_resume; the connection stays, and may join without it
-                               (until S11-B there is no hold to resume, §10)
-5  seat       the roster's     refused unknown_seat / seat_not_in_world, as in revision 1; the
+4  seat       the roster's     refused unknown_seat / seat_not_in_world, as in revision 1; the
                                connection stays
+5  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
+                               may join again
    all pass                    welcome, then the observation stream
 ```
 
@@ -158,6 +163,63 @@ whitespace, with no control character, and is kept trimmed. It is shown to the p
 (`welcome.nickname`) and, from S11-D, to the admin surface — and to nobody else: it is in no
 observation, no `/status` answer, no fact and no save. Two players may share a nickname.
 
+### 4.2 Seats: who drives a Person, holding a dropped seat, and taking one over
+
+Every seat is in exactly one of four states, and the server is the only writer of them:
+
+```text
+free        nobody drives the Person; it stands
+hosted      an in-server controller drives it (mineworld server --agent SEAT, --town)
+connected   one connection drives it
+held        its connection dropped without `leave`; nobody drives it — not even its in-server
+            controller — until the hold ends or the connection's `resume` comes back
+```
+
+A seat's **default** is `hosted` when the server runs an in-server controller for it, and `free`
+otherwise. A seat returns to its default with a controller **built afresh** at that instant — never one
+resumed from memory — so a controller handed a Person back does not answer what was said to whoever
+drove it in between.
+
+**Joining (check 5 of §4.1).** After the seat is found in the roster, a `join` is decided by the first of
+these rules that applies:
+
+```text
+1  resume given      it must equal the seat's held secret, or the secret of the connection that
+                     holds the seat now (a half-open socket the server has not yet seen drop):
+                     granted, took_over "held"; that older connection, if still open, is sent
+                     closing {superseded} and closed. Any other resume: refused invalid_resume.
+2  free              granted, took_over "none"
+3  hosted            granted, took_over "hosted": the in-server controller yields to a person, with
+                     no flag — it is not a connection
+4  connected / held  refused seat_occupied — unless take_over is true: then granted, took_over
+                     "connection"; the connection holding it, if live, is sent closing {taken_over}
+                     and closed, and a held seat's secret stops working
+```
+
+Any holder of the server's invite may take any seat with `take_over: true`, a held seat included: MVP-0
+has one level of trust, the invite (`NETWORKING.md` §9; `ARC-40`'s limitation). A seat is never driven
+by two controllers at once: the displaced connection is unbound before the new one is welcomed.
+
+**Leaving and dropping.** A connection that sends `leave` gives its seat back at once: the seat returns
+to its default. A connection whose socket ends without `leave` leaves its seat **held** for the
+server's hold (`welcome.hold_seconds`, wall seconds; `mineworld server --hold`, default 30; `0` means no
+hold, and a dropped seat returns to its default at once). When the hold ends the seat returns to its
+default. During a hold the world goes on — every other Person acts — and the held Person stands.
+
+**Resuming.** `welcome.resume` is a secret for this connection's binding. A client whose socket drops
+may join the same seat presenting it, within the hold, and is welcomed `took_over: "held"`, as the same
+observer, with a new `session` and a new `resume` (every welcome carries a fresh one; the old one is
+dead). The stream restarts with a whole observation. After a server restart every hold and every secret
+is gone (none is persisted): a client joins again with its invite, and finds the seat free or hosted.
+The secret is sent only in its holder's own `welcome`; it is in no observation, no `/status` answer, no
+fact, no save and no log line.
+
+**In-server controllers.** A controller the server runs (`--agent SEAT`: the reactive rule controller;
+`--town`: the paced one on every other seat) acts exactly as a connection does: it reads the observation
+perception computed for its own Person, and every request it makes takes the session's path — the actor
+check, a server-allocated `ActionId` and instant, the journal before the answer. It is not a client:
+`/status`'s `clients` does not count it.
+
 ## 5. Frames the server sends
 
 | Frame | When |
@@ -173,8 +235,8 @@ observation, no `/status` answer, no fact and no save. Two players may share a n
 
 ```json
 { "t": "welcome", "protocol": 2, "seat": "visitor", "observer": "101", "nickname": "Yue",
-  "session": "7", "resume": null, "hold_seconds": 0, "took_over": "none",
-  "world": { … a WorldSummary, §5.7 … } }
+  "session": "7", "resume": "5f0c2a9e8d7b6c5a4f3e2d1c0b9a8f7e", "hold_seconds": 30,
+  "took_over": "hosted", "world": { … a WorldSummary, §5.7 … } }
 ```
 
 - `observer` is the identity this connection sees the world as, a decimal string (§7).
@@ -183,14 +245,19 @@ observation, no `/status` answer, no fact and no save. Two players may share a n
   connection the process has had. It names this connection on the admin surface (S11-D) and nowhere
   else; it is not a credential.
 - `resume` is a 128-bit secret as 32 lowercase hexadecimal characters, with which a client whose socket
-  dropped may re-take its seat within `hold_seconds`. **`null` until S11-B**, and `hold_seconds` is `0`.
+  dropped may re-take its seat within `hold_seconds` (§4.2). A fresh one on every welcome. A client keeps
+  it to itself: it is the only proof that a later connection is this player's.
+- `hold_seconds` is how long this server holds a dropped connection's seat, in wall seconds (an integer;
+  `0` means it holds none).
 - `took_over` says whether control of the Person changed hands: `"none"` when the seat was free,
-  `"hosted"` when an in-server controller was driving it, `"held"` when this join resumed a held seat.
-  It never says which controller kind or which player. **Until S11-B it is always `"none"`, and seats
-  are not exclusive:** a connection joining a seat that `mineworld server --agent` drives is told
-  `"none"` while the agent goes on acting for the same Person. That is the defect S11-B removes
-  (step-12 §2.1 A-1), stated here so that no client relies on it.
+  `"hosted"` when an in-server controller was driving it, `"held"` when this join resumed a held seat,
+  `"connection"` when this join took the seat from another connection with `take_over: true` (§4.2).
+  It never says which controller kind or which player: a client may tell its player "you are now playing
+  Alice, who was living on her own", and learns nothing about any other player.
 - `world` is the same value `GET /status` returns (§5.7).
+
+A client written before S11-B received `resume: null`, `hold_seconds: 0` and `took_over: "none"` on every
+welcome, and seats were not exclusive then (§10).
 
 ### 5.2 `observation`
 
@@ -312,8 +379,8 @@ a client branches on `code` and never on `detail`.
 | `protocol_mismatch` | `join.protocol` is not a revision this server speaks. Followed by `closing`. |
 | `unauthorized` | A wrong or missing invite, answered after a fixed delay of 500 ms. Followed by `closing`. |
 | `invalid_nickname` | Empty after trimming, longer than 32 scalar values, or containing a control character. |
-| `seat_occupied` | From S11-B: another connection holds the seat, or it is held and no valid `resume` was given. |
-| `invalid_resume` | A `resume` that does not match the seat's hold (expired, or for another seat); the client may retry without it. Until S11-B every non-null `resume` is answered this way. |
+| `seat_occupied` | Another connection holds the seat, or it is held for a dropped connection, and the `join` gave neither a valid `resume` nor `take_over: true` (§4.2). |
+| `invalid_resume` | A `resume` that matches neither the seat's hold nor its live connection (expired, superseded, or for another seat); the client may retry without it (§4.2). |
 
 A refusal is **not** a `Rejection`. A rejection means the world considered a well-formed request and
 said no, and it arrives inside a `result`. A refusal means the frame was not a request at all. Being
@@ -340,12 +407,14 @@ arrives with them, which would lose this frame and the refusal before it.
 | `world_stopped` | the world stopped; there is nothing left to observe | S11-A |
 | `kicked` | the operator removed this connection | S11-D |
 | `superseded` | the seat was re-taken with this connection's `resume` by a newer connection | S11-B |
+| `taken_over` | another connection took the seat with `take_over: true` (§4.2) | S11-B |
 | `server_stopping` | the server process is shutting down | the S11 pull request that wires shutdown into sessions |
 
 ### 5.7 `GET /status` and `welcome.world`: what the world is
 
 ```json
-{ "protocol": 2, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9", "at": 4112, "entities": 41,
+{ "protocol": 2, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9", "at": 4112, "time_scale": 1,
+  "entities": 41,
   "systems": [ { "system": "conversation", "enabled": true,
                  "provides": [ "talk" ], "states": [ "spoke", "conversation-started" ] } ],
   "seats": [ "visitor", "wanderer", "alice" ], "clients": 2,
@@ -367,9 +436,12 @@ component and no position appears in it, because a client's knowledge of state a
   `unavailable`), `provides` (the action types the system provides) and `states` (the event types it
   declares it may state, including another system's vocabulary it is declared to state). A client uses
   `provides` to know whether to offer a verb at all, and `states` to name an `event_type` it receives.
+- `at` is the world's clock as of the answer, and `time_scale` how many world seconds pass per wall
+  second while the world is hosted (an integer ≥ 1; `mineworld server --time-scale`, default 1). It is a
+  deployment setting, not world state: the same save hosted at another scale is the same world.
 - `seats`: the seats a client may ask for.
-- `clients`: connections that hold a seat. Until S11-B an in-server `--agent` controller occupies its
-  seat through the same path and is counted; from S11-B hosted controllers are not clients.
+- `clients`: connections that hold a seat. In-server controllers are not clients and are not counted
+  (§4.2).
 - `observations_dropped`: frames the server did not send because a client was not reading them — the
   world never waits for a client.
 - `events_dropped`: from S11-C, facts lost to a full per-connection queue. `0` before S11-C, when no fact
@@ -505,7 +577,8 @@ encoding — GDScript's `1500.0` is refused with `invalid type: floating point 1
 
 ```text
 observation cadence   the server's, configurable, 10 Hz by default
-world clock           whole simulated seconds; several frames share one instant
+world clock           whole simulated seconds; several frames share one instant; time_scale (§5.7)
+                      world seconds pass per wall second
 rendering             the client's own business entirely
 ```
 
@@ -550,9 +623,9 @@ server whose `PROTOCOL.md` lists it as landed.
 | Frame / field | Lands in | Before it lands |
 | --- | --- | --- |
 | `join` with `protocol`, `invite`, `nickname`, `seat`, `resume`; `leave`; `closing` (`left`, `unauthorized`, `protocol_mismatch`, `world_stopped`); `welcome.nickname`, `welcome.session`; refusal codes `protocol_mismatch`, `unauthorized`, `invalid_nickname`, `invalid_resume`; `WorldSummary` revision 2 | S11-A | — |
-| `welcome.resume` (a secret), `welcome.hold_seconds` (non-zero), `welcome.took_over` (`hosted`, `held`); seat exclusivity, `seat_occupied`; `closing.superseded` | S11-B | `resume: null`, `hold_seconds: 0`, `took_over: "none"`; seats are not exclusive |
-| `join.take_over` (an explicit takeover flag) | S11-B, coordination ruling 1 | a `join` carrying it is `malformed_frame` |
-| `time_scale` (world seconds per wall second, reported in `welcome`) | S11-B, coordination ruling 1 | absent; the hosted clock runs one simulated second per wall second |
+| `welcome.resume` (a secret), `welcome.hold_seconds` (non-zero), `welcome.took_over` (`hosted`, `held`, `connection`); seat exclusivity, holds, `seat_occupied`; `closing.superseded`, `closing.taken_over`; in-server controllers not counted in `clients` (§4.2) | S11-B — **landed** | `resume: null`, `hold_seconds: 0`, `took_over: "none"`; seats are not exclusive |
+| `join.take_over` (an explicit takeover flag, §2, §4.2) | S11-B, coordination ruling 1 — **landed** | a `join` carrying it is `malformed_frame` |
+| `WorldSummary.time_scale` (world seconds per wall second, in `welcome.world` and `/status`, §5.7) | S11-B, coordination ruling 1 — **landed** | absent; the hosted clock runs one simulated second per wall second |
 | `observation.events` (facts this observer learned); `observation.entities` in id order; `events_dropped` non-zero | S11-C | `events` empty; entity order unspecified; `events_dropped: 0` |
 | `delta` frames and periodic keyframes | S11-C, if CP-C1's measurement keeps them | whole `observation` frames only |
 | `acted_through` on the observation frame (the newest `ActionId` of this connection the observation reflects) | S11-C, coordination ruling 1 | absent |
