@@ -19,6 +19,7 @@ impl WorldRuntime {
             instance: self.instance,
             at: self.clock.now(),
             time_scale: self.clock.scale().get(),
+            paused: self.clock.paused(),
             entities: self.world.world().entities().len(),
             systems: systems
                 .order()

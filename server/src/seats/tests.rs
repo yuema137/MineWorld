@@ -332,7 +332,10 @@ fn a_seat_outside_the_roster_is_unknown() {
 }
 
 fn state(seats: &SeatTable, seat: &str, now: Instant) -> SeatState {
-    seats.state_of(&key(seat), now).expect("a roster seat").state
+    seats
+        .state_of(&key(seat), now)
+        .expect("a roster seat")
+        .state
 }
 
 /// A kick returns a connected seat to its default with no hold, rebuilding the controller; it finds
@@ -355,12 +358,29 @@ fn a_kick_returns_the_seat_to_its_default_with_no_hold() {
             session: SessionId::new(7)
         }
     );
-    assert_eq!(seats.kick(SessionId::new(8), at(20)), None, "another session");
-    assert_eq!(seats.kick(SessionId::new(7), at(20)), Some((sub(1), key("alice"))));
-    assert_eq!(state(&seats, "alice", now), SeatState::Hosted, "no hold");
-    assert_eq!(bound.borrow().last(), Some(&20), "a controller built afresh at the kick");
     assert_eq!(
-        code(seats.join(&resuming("alice", &secret), sub(2), self::secret(), now, at(20))),
+        seats.kick(SessionId::new(8), at(20)),
+        None,
+        "another session"
+    );
+    assert_eq!(
+        seats.kick(SessionId::new(7), at(20)),
+        Some((sub(1), key("alice")))
+    );
+    assert_eq!(state(&seats, "alice", now), SeatState::Hosted, "no hold");
+    assert_eq!(
+        bound.borrow().last(),
+        Some(&20),
+        "a controller built afresh at the kick"
+    );
+    assert_eq!(
+        code(seats.join(
+            &resuming("alice", &secret),
+            sub(2),
+            self::secret(),
+            now,
+            at(20)
+        )),
         RefusalCode::InvalidResume,
         "the kicked binding's secret died with it"
     );
@@ -396,7 +416,11 @@ fn a_release_returns_connected_and_held_seats_and_leaves_the_others() {
         }),
         "free"
     );
-    assert_eq!(bound.borrow().len(), rebuilt, "no controller rebuilt for a no-op");
+    assert_eq!(
+        bound.borrow().len(),
+        rebuilt,
+        "no controller rebuilt for a no-op"
+    );
 
     seats
         .join(&join("visitor"), sub(1), secret(), now, at(10))

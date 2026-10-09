@@ -247,12 +247,15 @@ impl SeatTable {
         session: SessionId,
         at: WorldTime,
     ) -> Option<(SubscriptionId, EntityKey)> {
-        let (seat, subscription) = self.seats.iter().find_map(|(seat, binding)| match binding {
-            Binding::Connected(connected) if connected.session == session => {
-                Some((seat.clone(), connected.subscription))
-            }
-            _ => None,
-        })?;
+        let (seat, subscription) = self
+            .seats
+            .iter()
+            .find_map(|(seat, binding)| match binding {
+                Binding::Connected(connected) if connected.session == session => {
+                    Some((seat.clone(), connected.subscription))
+                }
+                _ => None,
+            })?;
         let default = self.default(&seat, at);
         self.seats.insert(seat.clone(), default);
         Some((subscription, seat))

@@ -83,11 +83,14 @@ impl Client {
         }
     }
 
-    /// The next frame that is not an observation.
+    /// The next frame that is not part of the stream (an observation or a clock).
     async fn answer(&mut self) -> ServerFrame {
         loop {
             let frame = self.next().await.expect("the connection is open");
-            if !matches!(frame, ServerFrame::Observation { .. }) {
+            if !matches!(
+                frame,
+                ServerFrame::Observation { .. } | ServerFrame::Clock { .. }
+            ) {
                 return frame;
             }
         }
@@ -326,6 +329,7 @@ async fn a_hosted_request_meets_the_actor_check_and_the_sessions_allocator() {
                     break;
                 }
                 ServerFrame::Observation { observation, .. } => heard.push(observation),
+                ServerFrame::Clock { .. } => {}
                 other => panic!("unexpected {other:?}"),
             }
         }

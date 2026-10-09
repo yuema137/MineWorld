@@ -3223,7 +3223,7 @@ not in scope  a live time-scale change (TW-c, QS11D-1); the host journal, world.
 | **SD-D10** | **`POST /admin/clock`** accepts `{ "paused": bool }` (other fields refused, `malformed`); a body with `time_scale` is answered `409 time_scale_fixed` until TW-c lands live scaling (QS11D-1); no field can name an instant, so no route moves the clock to an instant (the I-4 clarification of S19 §15.3). Repeating the current state is `200` and changes nothing. `GET /admin/clock` answers `{ at, time_scale, paused }`. | S19 §7.3, §15.3; "may omit, never redefine" (ARC-41) for `time_scale`. |
 | **SD-D11** | **Size**: `summary` and `first_binding` move from `runtime.rs` to `runtime/status.rs` (pure move, D-C2); admin and clock command handling lives in `runtime/control.rs`. | `runtime.rs` is 492 lines; §19's file ownership (S11-C moves a different part). |
 | **SD-D12** | **CLI**: `--admin-token TOKEN` with `env = "MINEWORLD_ADMIN_TOKEN"`, `hide_env_values`; an illegal token, or one equal to the invite, stops the server with a message that echoes neither; with a token the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without one, `[mineworld] no admin surface (no --admin-token)`. The token is never printed. | §11.4's frozen CLI contract; I-5; an admin token equal to the invite would make every player the host. |
-| **SD-D13** | **Stopping the server on every platform** (operator requirement, §18.14). The shutdown future in `serve.rs` completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C and Ctrl-Break on Windows) and, under `#[cfg(windows)]`, `tokio::signal::windows::ctrl_close()` and `ctrl_shutdown()` (closing the console window, or logging off). Each leads to the same graceful path: stop accepting connections, `WorldHost::shutdown` (checkpoint, statistics), the hosted report. On a Windows close event the OS allows about 5 s; the checkpoint is one snapshot write, measured in E-SD. Under `#[cfg(unix)]` nothing changes. | S19 §7.5: closing the game saves and pauses, including on Windows, where a closed console sends no SIGINT. |
+| **SD-D13** | **Stopping the server on every platform** (operator requirement, §18.14). The shutdown future in `serve.rs` completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C and Ctrl-Break on Windows) and, under `#[cfg(windows)]`, `tokio::signal::windows::ctrl_close()` and `ctrl_shutdown()` (closing the console window, or logging off) — **amended 2026-10-09 by ruling QW-1 (D-SD0): and `ctrl_break()`, because `ctrl_c()` on Windows does not catch Ctrl-Break**. Each leads to the same graceful path: stop accepting connections, `WorldHost::shutdown` (checkpoint, statistics), the hosted report. On a Windows close event the OS allows about 5 s; the checkpoint is one snapshot write, measured in E-SD. Under `#[cfg(unix)]` nothing changes. | S19 §7.5: closing the game saves and pauses, including on Windows, where a closed console sends no SIGINT. |
 
 ## 18.4 The surface, exactly (written into `PROTOCOL.md` §11 and §5.9 by D-C1)
 
@@ -3411,16 +3411,18 @@ registration), `admin/registry.rs`, `protocol.rs` (`ServerFrame::Clock`, `Refusa
 `protocol/summary.rs` (`paused`), golden `clock.json`, `welcome.json`. **Validation:** server suites;
 the socket half of DA-10.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: I-11 (no wait on the world thread; the watch send is
-  non-blocking); a kicked connection is released before the seat is rebound (never two controllers).
+- [x] Implementation · [x] Validation (E-SD4) · [x] Review: I-11 (no wait on the world thread;
+  `send_replace` never waits and never fails); kick/release rebind the seat and release the
+  connection inside one world-thread command, so no consult or join can see two drivers.
 
 ### D-C5 — The HTTP routes
 
 **Scope.** `admin.rs` (SD-D1, SD-D3, SD-D10), `app.rs` (SD-D2), `lib.rs`; `server/tests/admin.rs`: DA-2,
 DA-8 (socket and HTTP halves), DA-5's in-process half. **Validation:** M-DA2a, M-DA2b, M-DA8.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: handlers hold no binding state; every body type
-  denies unknown fields; the delay is in the handler.
+- [x] Implementation · [x] Validation (E-SD4; mutations E-SD-M) · [x] Review: handlers hold no
+  binding state; the one body type denies unknown fields; the delay is in the request's own task
+  (a route_layer middleware in front of every handler).
 
 ### D-C6 — The CLI and the real-binary acceptance
 
@@ -3570,12 +3572,65 @@ E-SD3 D-C3. admission.rs `AdminToken` (the invite's rules through two shared pre
       DA-7 property test: 10 000 seeded LCG steps, scale 60, pause/resume/advance 0–5000 ms: never
       decreases, constant while paused, a resume reads the frozen value, never ahead of the running
       wall time.
+E-SD4 D-C4 + D-C5 (one commit, D-SD3). runtime/control.rs (ControlCommand: Sessions, Seats, Kick,
+      Release, Clock, Pause → ControlAnswer); runtime.rs: Subscriber gains session and a per-session
+      drop count; Command::Control arm; `submit` refuses `paused` before any ActionId; `tick` while
+      paused expires holds and sweeps but neither consults nor advances; a `watch::Sender<ClockState>`
+      written with send_replace on each pause/resume. host.rs Command::Control + WorldHost::control;
+      handles.rs Seated carries the watch receiver (subscribed at join, so a change after the
+      welcome is never missed) and `clock_at_welcome()`; `streams()` returns a `Streams` struct.
+      session.rs: welcome, then `clock` from the welcome's own summary, then the stream; a select
+      branch on `clock.changed()`; registry registration (admin/registry.rs) after the welcome,
+      dropped as soon as the stream ends (before the closing handshake); `seq` from the registry's
+      counter. protocol: ServerFrame::Clock, RefusalCode::Paused, ClockState, WorldSummary.paused;
+      golden clock.json (new), welcome.json (+paused). admin.rs: six routes, a route_layer bearer
+      middleware (`Bearer ` prefix, exact bytes, constant time, sleep_until(arrived + 500 ms) then
+      401), typed JSON errors, ClockChange { paused, time_scale } with deny_unknown_fields
+      (time_scale → 409), GET /admin/sessions = registry ⋈ world counts. app.rs Access with
+      From<Admission>; router/serve/serve_with_shutdown take impl Into<Access>; every existing call
+      compiles unchanged. clippy -D warnings (server, all targets) clean.
+      `cargo test -p mineworld-server --no-fail-fast`: unit 43, admin 5 (new), frames 9 (+clock),
+      handshake 7, headless 4, seats 4, two_clients 9, doc 1 — all pass (load ~250).
+      admin.rs: DA-2 (7 header cases × {POST /admin/clock, POST …/kick}: 401 {"error":
+      "unauthorized"}, each ≥ 500 ms after sending; afterwards paused false and the client still
+      seated, only observations), DA-8 (pause/clock/kick/release frames → unknown_frame; join with
+      admin_token → malformed_frame; bodies {"at"}, {"paused","at"}, {} , not-json → 400,
+      {"time_scale"} and {"paused","time_scale"} → 409; paused false, time_scale and revision
+      unchanged; `at` still advances), DA-10 socket half (every welcome followed by a clock frame
+      equal to the welcome's world before any observation; pause announced to both clients; submit
+      refused `paused` with its token; `at` frozen over 1.2 s; resume answers the frozen `at` and is
+      announced), DA-5 in-process (sessions listed with nicknames, seats, connected_at; kick → 200
+      state free, closing{kicked}, gone from /admin/sessions at once; unknown 404, non-numeric
+      400; release connected → released true + closing{kicked}; repeat → released false; unknown
+      seat 404), and no token → every /admin path 404.
 ```
 
 ## 18.13 Deviations and discoveries
 
 ```text
-(empty until the freeze)
+D-SD0 (ruling, SD-D13 amended) QW-1, relayed by the coordinator 2026-10-09 from S13's 13w design
+      (finding F-13w-2): in tokio 1.53.1 on Windows `tokio::signal::ctrl_c()` catches Ctrl-C only,
+      not Ctrl-Break; without a handler Ctrl-Break kills the server with 0xC000013A (no stopping
+      line, no checkpoint, no statistics). SD-D13 assumed ctrl_c() caught both. Amended: under
+      #[cfg(windows)] the shutdown future also completes on `tokio::signal::windows::ctrl_break()`,
+      beside ctrl_close() and ctrl_shutdown(), all on the same graceful path. QW-3: whichever of
+      S11-D and 13w lands second removes the #[cfg(unix)] gate on SD-D13's graceful-stop check; 13w's
+      `interrupt` helper is not on main (origin/main @ ec38570 at this session's resume), so the gate
+      stays.
+D-SD1 (bounded) tools/cli/src/main.rs is 501 lines at the base, already over DA-12's < 500 before
+      S11-D adds `--admin-token`. Resolved inside §18.6's paths: `saved_genesis`, used by
+      `serve::persisted` and `replay`, moves from main.rs to serve.rs (its other caller), which
+      brings main.rs back under 500 with the flag; tools/cli/tests/configure.rs's structural check
+      (`fn replay(` → `verify(&backend` in main.rs) is unaffected.
+D-SD2 (bounded) Existing tests edited because every welcome is now followed by a `clock` frame
+      (DA-11's "transcripts that now carry clock frames"): each test file's own "next frame that is not
+      an observation" helper now also skips `clock` — server/tests/{handshake.rs, seats.rs (and one
+      match arm), two_clients.rs}; server/src/protocol/tests.rs gains `paused: false` in one
+      WorldSummary literal (a compile requirement); frames.rs gains `paused` in its world() and the
+      `clock` golden test. No assertion changed.
+D-SD3 (bounded) Commit mapping: D-C4 and D-C5 land as one commit. The session registry is created
+      by the router (app.rs) and handed to both sessions and admin routes, so the world-thread and
+      session half cannot be exercised without the routes that read it.
 ```
 
 ## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)

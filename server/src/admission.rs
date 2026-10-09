@@ -461,7 +461,12 @@ mod tests {
         }
         let token = AdminToken::given("admin-token-7c1e").expect("a legal token");
         assert!(token.admits(b"admin-token-7c1e"));
-        for wrong in ["admin-token-7c1f", "admin-token-7c1e ", "admin-token-7c1", ""] {
+        for wrong in [
+            "admin-token-7c1f",
+            "admin-token-7c1e ",
+            "admin-token-7c1",
+            "",
+        ] {
             assert!(!token.admits(wrong.as_bytes()), "{wrong:?} was admitted");
         }
         assert!(!format!("{token:?}").contains("admin-token-7c1e"));

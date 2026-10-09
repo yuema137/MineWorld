@@ -261,12 +261,20 @@ mod tests {
                 0 => {
                     let before = clock.now_at(wall);
                     clock.pause_at(wall);
-                    assert_eq!(clock.now_at(wall), before, "pausing does not move the clock");
+                    assert_eq!(
+                        clock.now_at(wall),
+                        before,
+                        "pausing does not move the clock"
+                    );
                 }
                 1 => {
                     let frozen = clock.now_at(wall);
                     clock.resume_at(wall);
-                    assert_eq!(clock.now_at(wall), frozen, "a resume continues where it stopped");
+                    assert_eq!(
+                        clock.now_at(wall),
+                        frozen,
+                        "a resume continues where it stopped"
+                    );
                 }
                 _ => {
                     let step = Duration::from_millis(next(5_001));
@@ -280,7 +288,10 @@ mod tests {
                 }
             }
             let now = clock.now_at(wall);
-            assert!(now >= previous, "the clock went back: {previous:?} → {now:?}");
+            assert!(
+                now >= previous,
+                "the clock went back: {previous:?} → {now:?}"
+            );
             let ceiling = 1_000 + i64::try_from(running_ms * 60 / 1_000).expect("small");
             assert!(
                 now.seconds() <= ceiling,
