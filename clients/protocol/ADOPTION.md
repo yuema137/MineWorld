@@ -42,8 +42,12 @@ build its own (`docs/ACCEPTANCE.md` §4.1).
 
 ```text
 connect_to_world(address: String, seat_name: String,      open a connection and ask for a seat,
-                 invite: String, nickname: String)        presenting the server's invite and this
-                                                          player's nickname (PROTOCOL.md §4.1)
+                 invite: String, nickname: String,        presenting the server's invite and this
+                 take_over := false)                      player's nickname (PROTOCOL.md §4.1);
+                                                          take_over takes the seat from another
+                                                          connection or a dropped one's hold
+                                                          (§4.2). A seat an in-server controller
+                                                          drives needs no flag
 submit(action_type, target, payload, actor_location)      ask the world for something; returns a token.
                                                           `payload` is any JSON value, normally a
                                                           Dictionary
@@ -58,10 +62,15 @@ world_instance() -> String                                which running world th
 ```
 
 ```text
-state      IDLE | OPENING | JOINING | SEATED | CLOSED
+state      IDLE | OPENING | JOINING | SEATED | CLOSED | RECONNECTING
+reconnect  opt-in, false by default. When the socket drops without a `closing`, rejoin the same seat
+           with the stored resume at 1 s, 2 s, 4 s … while within hold_seconds of the drop, then once
+           without it; emits reconnecting(attempt), then the usual welcomed (took_over "held" if the
+           seat was still held). A `closing` or disconnect_from_world never triggers it
 seat       the seat asked for
 observer   the identity the SERVER resolved it to. A string. Empty until the welcome arrives.
-world      the welcome's world summary: instance, at, entities, systems, seats, clients, counters
+world      the welcome's world summary: instance, at, time_scale, entities, systems, seats, clients,
+           counters
 latest     the newest MineWorldObservation, or null
 sequence   its per-connection frame number, from 1
 revision   the persisted revision `latest` was computed from: an int, or null for a world that is not
@@ -69,8 +78,11 @@ revision   the persisted revision `latest` was computed from: an int, or null fo
 stale_observations  how many arrived out of order and were dropped. Normally 0.
 nickname   this player's nickname as the server accepted it (trimmed). Nobody else is shown it.
 session    which connection this is, an identity string, for the operator. Not a credential.
-took_over  "none" | "hosted" | "held": whether control of the Person changed hands ("none" until S11-B)
-hold_seconds, resume   the seat's hold after a dropped socket: 0 and null until S11-B
+took_over  "none" | "hosted" | "held" | "connection": whether control of the Person changed hands —
+           the seat was free, an in-server controller drove it, this player's dropped seat was
+           resumed, or it was taken from another connection (PROTOCOL.md §4.2)
+hold_seconds, resume   the seat's hold after a dropped socket, in wall seconds, and the secret that
+           re-takes it (fresh on every welcome). The module never prints, logs or emits the resume
 close_reason  the reason of the server's last `closing`, or ""
 ```
 
@@ -87,8 +99,11 @@ refused(code, token, detail)                 the frame was not accepted; nothing
                                              invite is `unauthorized`, another revision is
                                              `protocol_mismatch` — each followed by `closing`
 closing(reason, detail)                      the server is about to close the connection, and why:
-                                             left, unauthorized, protocol_mismatch, world_stopped, …
+                                             left, unauthorized, protocol_mismatch, world_stopped,
+                                             taken_over, superseded, …
 disconnected(reason)                         the connection ended or could not be made
+reconnecting(attempt)                        with reconnect on: the socket dropped and attempt N
+                                             (from 1) is about to be made
 submitted_request(token, request)            what this client just sent, for a log or a transcript
 ```
 
@@ -287,8 +302,6 @@ that invented an `ActionId` would collide with the other client on its first act
 ## 6. What this module does not do yet
 
 ```text
-reconnecting          a dropped connection ends; retrying is the client's own policy (§6.1; an
-                      opt-in reconnect with `resume` arrives with S11-B)
 events                `events` is empty in an observation until S11-C; what an NPC said to you
                       arrives as your own disclosed conversation history instead
 deltas                every observation is whole; S11-C may add `delta` frames, applied here
@@ -298,9 +311,12 @@ a scene graph          yours entirely: this module has no opinion about how a wo
 
 ### 6.1 Reconnecting: the pattern, as guidance
 
-The module stays policy-free: a dropped connection ends with `disconnected`, and `connect_to_world`
-accepts a call from `CLOSED`, so a client reconnects with the API it already has. What a client's own
-policy must get right, as the 2D reference client does it (`clients/2d/scripts/link.gd`):
+By default the module stays policy-free: a dropped connection ends with `disconnected`, and
+`connect_to_world` accepts a call from `CLOSED`, so a client reconnects with the API it already has.
+A client that sets `reconnect = true` (§2) instead gets the module's own short policy — rejoin with
+the stored `resume` within the server's hold, then once without it — and still owns everything below
+once that gives up. What a client's own policy must get right, as the 2D reference client does it
+(`clients/2d/scripts/link.gd`):
 
 ```text
 1  on disconnected    keep showing the last observation, marked stale; retry with capped back-off

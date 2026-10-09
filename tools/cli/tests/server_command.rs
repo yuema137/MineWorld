@@ -457,3 +457,31 @@ async fn status_names_each_systems_actions_and_facts() {
     );
     assert_eq!(health["protocol"], json!(2));
 }
+
+/// step-12 SB-8. `--time-scale N` is how many world seconds pass per wall second, reported in every
+/// welcome and in `/status`; without the flag it is one.
+#[tokio::test]
+async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reported() {
+    let plain = Server::start(&["server", support::PACK]).await;
+    assert_eq!(plain.status().await["time_scale"], json!(1));
+    drop(plain);
+
+    let server = Server::start(&["server", support::PACK, "--time-scale", "60"]).await;
+    let mut client = Client::connect(server.address).await;
+    let (_, world) = client.join("visitor").await;
+    assert_eq!(world.time_scale, 60, "reported in the welcome");
+
+    let before = server.status().await;
+    let wall = std::time::Instant::now();
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let after = server.status().await;
+    let elapsed = wall.elapsed().as_secs_f64();
+    assert_eq!(before["time_scale"], json!(60), "and in /status");
+    let world_seconds =
+        after["at"].as_i64().expect("an instant") - before["at"].as_i64().expect("an instant");
+    assert!(
+        (100..=140).contains(&world_seconds),
+        "two answers {elapsed:.2} wall seconds apart differ by {world_seconds} world seconds, not \
+         about 120"
+    );
+}
