@@ -8,7 +8,8 @@ scope (`CLAUDE.md` §3, "detail one step ahead").
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing in this document authorizes
 implementation. Decision records proposed here carry placeholder ids (`DEP-S13-a`, `ARC-S13-a`, …); the
 primary session numbers them at freeze.
-**PR 13b:** `PR design — ready for freeze review` (§13, written 2026-10-09 by the 13b planning session,
+**PR 13b:** `PR design — ready for freeze review`; the primary session's rulings are recorded in §13 and
+the contract is filled (§13.12); the freeze waits only on QB-1 (operator) (§13, written 2026-10-09 by the 13b planning session,
 worktree `/Users/yuema137/mineworld-worktrees/plan-13b-ci`, branch `plan/s13-13b`, from `main @ 9cf8f8e`).
 Not frozen; nothing in §13 authorizes implementation. §13 proposes revisions to §3.3 and §7.2 that need
 a decision at freeze (§13.11). **PR 13c:** outline only (§14).
@@ -1496,6 +1497,25 @@ Placeholder ids in this section: run ids `<run-…>`, PR number `#<13b>`, commit
 decision numbers `ARC-49` and `DEP-19`, which ruling 6 reserved for S13 but whose titles §13.11 QB-3
 proposes to change.
 
+**Rulings (primary session, 2026-10-08, relayed by the coordinator):**
+
+- **Accepted as recommended:**
+  - QB-2: `macos-26`;
+  - QB-3: drop `sha2`, and use `DEP-19` for the runner decision;
+  - QB-4: the Linux arm64 leg;
+  - QB-5: 13b proceeds before 12d;
+  - QB-6, QB-7 and QB-10;
+  - the deviations C-1 … C-4 of §13.0.
+- **QB-8:** `ac8` is not a required check.
+- **QB-9:** authorized, with the same bounds as 13a's QS13-14. Each `scratch/13b-*-scenario` branch is
+  deleted after its run and checked with `ls-remote`. The run budget of §13.9 is frozen.
+- **QB-1 `[OM]`:** **pending the operator.** The primary session has put it in the operator's next batch.
+  Its fallback, (a) + (d) only (the laptop at acceptance, with Linux arm64 and x86_64 continuously; R-B4),
+  is already designed. The freeze waits only on this answer. If the fallback is taken, the `mac` job and
+  G-3's continuous Darwin side are removed, and G-3 is satisfied by the laptop record at P-L alone.
+
+Not frozen: the freeze header is added only after QB-1 is answered.
+
 ## 13.0 What this design changes in the step design, and why
 
 The step design (§3.3, §7.2) was written while the repository was private, when a macOS runner cost ten
@@ -2039,9 +2059,16 @@ head's run ids go to the PR description and the session report (as in 13a).
 `[OM]` marks an operator-material question: it costs money, changes repository settings or protection, or
 reverses an operator decision. The rest the primary session can decide.
 
+**Status (2026-10-08, §13 rulings):**
+
+- **Decided as recommended:** QB-2, QB-3, QB-4, QB-5, QB-6, QB-7 and QB-10.
+- **QB-8:** decided, as recommended; `ac8` is not required.
+- **QB-9:** authorized, with QS13-14's bounds.
+- **QB-1: PENDING THE OPERATOR.**
+
 | ID | Question | Recommendation |
 | --- | --- | --- |
-| **QB-1 [OM]** | Adopt the live comparison on a GitHub macOS runner (§13.3 (c)), reversing QS13-3's "no macOS runner"? Confirm on the billing page that standard macOS runners are free for this public repository†. | **Yes**, with (a), the laptop at acceptance, and (d), Linux arm64 as the localizer. QS13-3's "no" rested on the 10× private-repository price, which no longer applies. If the billing page shows otherwise, take (a) + (d) only (R-B4). |
+| **QB-1 [OM] — PENDING (operator)** | Adopt the live comparison on a GitHub macOS runner (§13.3 (c)), reversing QS13-3's "no macOS runner"? Confirm on the billing page that standard macOS runners are free for this public repository†. | **Yes**, with (a), the laptop at acceptance, and (d), Linux arm64 as the localizer. QS13-3's "no" rested on the 10× private-repository price, which no longer applies. If the billing page shows otherwise, take (a) + (d) only (R-B4). |
 | **QB-2** | Which macOS label: `macos-26`, `macos-15` or `macos-14`? | **`macos-26`**, pinned (not `macos-latest`). It matches the laptop's macOS 26. `macos-14` is deprecated; `macos-15` is the fallback if `macos-26` misbehaves (a bounded, recorded swap). |
 | **QB-3** | Drop `sha2`, and use the reserved `DEP-19` for the macOS runner instead (C-3)? | **Yes.** No Rust change; one hashing implementation on all sides. If the primary session prefers to keep `DEP-19` unused, ARC-49 can carry the runner decision. |
 | **QB-4** | Include the `linux-arm` localizer leg (adds about 8 free job-minutes per run, no wall time)? | **Yes.** It localizes a difference to OS or architecture without Rosetta, and it covers an arm64 VPS. Its record must also be equal (G-5), which is a stronger claim than AC-8's pair. |
@@ -2052,7 +2079,7 @@ reverses an operator decision. The rest the primary session can decide.
 | **QB-9 [OM]** | Authorize scratch branches `scratch/13b-*-scenario` (pushed only to run CI for PM-1 … PM-5, then deleted) and `workflow_dispatch` of `ci.yml` on the 13b branch and those branches? | **Authorize**, bounded as 13a's QS13-14 was: deleted after each run and checked with `ls-remote`. Without it, PM-1 … PM-5 cannot be shown in CI, and AC-8's planted-difference proof would be local only. |
 | **QB-10** | `ci_image.py`'s hard-coded `WORLDS` → enumeration (a change to 13a's script). | **Accept** as in scope: it is the job 13b grows, and a hand list fails open. |
 
-## 13.12 Proposed execution contract (for the primary session to fill and freeze)
+## 13.12 Execution contract (filled 2026-10-08; it takes effect at the freeze, which waits on QB-1)
 
 ```text
 PROJECT / PR        MineWorld mvp0 — S13 PR 13b, AC-8 parity (layer 3)
@@ -2060,28 +2087,39 @@ PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-14-ci.md §13 (the live l
 RELATED / BINDING   this file §§1–6, 9 (13a as built), 10; overall.md §3 (S13), "Parallel build-out,
                     2026-10-08"; docs/DECISIONS.md ARC-23, ARC-30, ARC-48, DEP-17, DEP-18;
                     docs/ENGINEERING_STANDARDS.md §§15–16; docs/REUSE_POLICY.md §§11–12; CLAUDE.md §§2–4
-IMPLEMENTATION BASE main at freeze (re-audit §13.1 if it moved); branch mvp0/pr-13b-ac8 (proposed);
-                    worktree /Users/yuema137/mineworld-worktrees/impl-13b (proposed), sole writer
-PRECONDITION        QB-1 and QB-9 answered by the operator; QB-5 by the primary session
+IMPLEMENTATION BASE main at freeze (re-audit §13.1 if it moved); branch mvp0/pr-13b-parity;
+                    worktree /Users/yuema137/mineworld-worktrees/impl-13b-ci, held by the implementing
+                    session only
+PRECONDITION        QB-1 answered by the operator (pending). QB-2 … QB-10 decided (§13 rulings,
+                    primary session, 2026-10-08). If QB-1 takes the fallback, §13 is revised to (a) + (d)
+                    before the freeze
+COMMANDS            as 13a's contract (§9.4, as amended by §9.0 R-6): cargo, git, gh (PR create/update,
+                    run list/view/download/cancel, workflow run per QB-9; no merge, no settings),
+                    python3 scripts/*, docker (local builds and runs of the three Dockerfile stages);
+                    ordinary local checks unrestricted
 APPROVED SCOPE      §13.4; B-C1 … B-C4
 FROZEN INVARIANTS   I-S13-1 … I-S13-9; I-13b-1 … I-13b-5
 SEQUENCE            B-C1 → B-C2 → B-C3 → B-C4, each committed and pushed when coherent; the PR opens
                     after B-C2, so B-C3's dispatch runs have a PR to report to
 VALIDATION BUDGET   local: unrestricted (release builds, records, Docker Desktop if running);
-                    CI: ≤ 12 scenario-sized runs (§13.9); each job has timeout-minutes;
-                    monetary: none — standard hosted runners only; any sign of billing → stop
+                    CI: ≤ 12 scenario-sized runs (§13.9), FROZEN (QB-9 ruling); each job has
+                    timeout-minutes; monetary: none — standard hosted runners only; any sign of
+                    billing → stop
 LIVE DOCUMENTATION  §13 of this file
 HANDOFF             a §13 subsection beside the ledger (as 13a's D-13a-0), not handoff.md
 ENDPOINT AUTHORITY  implementation, local validation, semantic commits: authorized (2026-09-25)
                     branch push, PR create/update, CI repair: authorized (D-12)
-                    workflow_dispatch of ci.yml on the 13b branch and scratch/13b-* : per QB-9
-                    scratch/13b-*-scenario push + delete: per QB-9
+                    workflow_dispatch of ci.yml on mvp0/pr-13b-parity and scratch/13b-*-scenario:
+                      authorized (QB-9, primary session, 2026-10-08)
+                    scratch/13b-*-scenario push + delete: authorized (QB-9, bounds of QS13-14: each
+                      deleted after its run; `git ls-remote --heads origin 'scratch/*'` → empty recorded)
                     repository settings (protection, required checks, rulesets, Actions policy,
                       spending limit): NOT authorized — operator only
                     larger runners, paid services: NOT authorized
                     merge: explicit operator authorization only
 MATERIAL STOPS      R-B1 (a real platform difference); billing evidence (R-B4); any change to fast/test
-                    beyond I-13b-1; any Rust, Cargo, test, worlds/ or Dockerfile edit; exceeding the budget
+                    beyond I-13b-1; making any new job required (QB-8: ac8 is not required); any Rust,
+                    Cargo, test, worlds/ or Dockerfile edit; any settings change; exceeding the budget
 NORMAL STOP         PR 13b READY FOR OPERATOR REVIEW — DO NOT MERGE
 STOP CONDITION      B13-1 … B13-10 with evidence on the exact final head; PM-0 … PM-7 recorded
 MERGE AUTHORITY     never without explicit operator approval
