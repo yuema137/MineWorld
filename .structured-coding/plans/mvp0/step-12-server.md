@@ -2235,11 +2235,11 @@ not pure.
 **Goal.** SD-C1, CA-1. **Scope.** `systems/presence/src/audience.rs`, `lib.rs` (`pub mod audience`).
 **Non-goals:** `observe` untouched; no new event type; no other pack named.
 
-- [ ] Implementation · [ ] Validation: CA-1 with M-CA1; a fold-equals-components check — over a 30-day
+- [x] Implementation · [x] Validation: CA-1 with M-CA1; a fold-equals-components check — over a 30-day
   social-cafe `run --save`, `Whereabouts` folded from every fact equals `from_world` of the resumed
   world (S10's A-1; failing it is a stop: the live seed and the offline fold would disagree); presence's
   existing tests, `seam_vocabulary`, `precursor_vocabulary`, `configuration_vocabulary` pass unedited
-  · [ ] Review: the module decodes only `arrived`; no physics or market word; `admits` is total.
+  · [x] Review: the module decodes only `arrived`; no physics or market word; `admits` is total. (E-SC2)
 
 ### C-C3b — `mineworld perceived`, early (S10 R-S11-10, freeze)
 
@@ -2442,6 +2442,28 @@ E-SC1 C-C1, 2026-10-08, working tree on origin/main @ 927ab93. check_decision_id
       entity order, events_dropped, delta/keyframes/--keyframe-every. MODULE_SPEC §8.1: perceived in
       the synopsis, the table and its own paragraph. Review: terms per CORE_CONCEPTS (fact, Visibility,
       observer, PerceivedEvent); PASS.
+E-SC2 C-C3, working tree on ba9b6ce. systems/presence/src/audience.rs: Whereabouts {new, from_world,
+      apply, place_of, FromIterator}, admits, perceived_by (a fresh fold from the first fact; since
+      skips delivery, not the fold); `pub mod audience` in lib.rs with one line in its table.
+      CA-1 (4 unit tests in audience.rs): each Visibility's exact audience over a hand-written
+      Whereabouts; a Place fact judged after it is applied (own arrival heard even with no participant
+      listed; the line before leaving heard, the one after not); since; only a readable arrived moves
+      anybody. PASS (4/4).
+      M-CA1 Place(p) admits everyone → 3 of 4 red; reverted, 4/4 green.
+      M-CA1b judge before applying the fact (admits, then apply) → the "own arrival" case red
+      (left [8], right [7, 8]); reverted.
+      Fold = components (S10 A-1, R-SC1): tools/cli/tests/perceived.rs
+      the_fold_of_a_whole_log_equals_presence_in_the_resumed_world — 30-day seed-7 social-cafe save,
+      37 085 facts, 12 people placed, 18 103 arrivals after genesis; the fold of every fact equals
+      from_world of PersistentWorld::resume of the save. PASS (34 s). No stop.
+      cargo test -p mineworld-presence: lib 4, presence 15, resolver_catalog 1, doctests 0 — all pass;
+      acceptance seam_vocabulary 13, precursor_vocabulary 2, configuration_vocabulary 4,
+      ac1_composability 3 — pass unedited. clippy -D warnings (presence, server, cli, all targets) clean
+      after one fix (useless vec! in a test); fmt clean.
+      Review: decodes only presence's own `arrived` (codec::event_payload::<Arrived>), by event type as
+      the reducer does (a mover states presence's arrived); names no other pack's type (the fixture
+      uses person-entered-place as a label); no physics or market word; `admits` matches every
+      Visibility variant with no wildcard, so a new variant is a compile error.
 ```
 
 ## 17.13 Deviations and discoveries
