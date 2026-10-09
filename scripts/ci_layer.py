@@ -59,12 +59,13 @@ LAYERS: dict[str, list[list[str]]] = {
     # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
     "platforms": [
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
+        # --no-fail-fast: on a platform, one red test binary must not hide another's result.
         [
-            "cargo", "test", "--locked",
+            "cargo", "test", "--locked", "--no-fail-fast",
             "-p", "mineworld-packages", "-p", "mineworld-worldpack", "-p", "mineworld-installed-systems",
         ],
         [
-            "cargo", "test", "--locked", "-p", "mineworld-cli",
+            "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
             "--test", "packs", "--test", "requirements", "--test", "entity_packs",
         ],
     ],

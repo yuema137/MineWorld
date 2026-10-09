@@ -200,7 +200,8 @@ fn an_entity_pack_carries_item_kinds_and_nothing_else() {
 /// F-Ed1): it was stated and never compared before E-d.
 #[test]
 fn a_data_pack_range_that_excludes_the_framework_is_refused_naming_both() {
-    let identity = read(GOOD).expect("reads");
+    // Its own texts: `read` names its scratch by the text, and another test reads `GOOD` concurrently.
+    let identity = read(&format!("{GOOD}# in range\n")).expect("reads");
     identity.require_framework().expect("^0.1 admits 0.1.0");
     let out_of_range = read(&GOOD.replace("\"^0.1\"", "\"^9\"")).expect("identified all the same");
     let refusal = out_of_range
