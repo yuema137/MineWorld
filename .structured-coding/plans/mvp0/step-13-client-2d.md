@@ -1771,11 +1771,25 @@ answering" step, per-request results); `tools/cli/tests/client_2d_interact.rs` (
 **Scope.** `scripts/check_client_rules.py` (R2 admissions, R3', R6, symlinks skipped, `--scope` adds
 `client_2d_interact.rs`); `tests/acceptance/tests/client_rules.rs` (six `ACTION_LITERALS` entries for
 `clients/2d/scripts/intents.gd`; no other line — D-14's precedent).
-- [ ] Implementation: as scoped.
-- [ ] Validation: both scans clean; the six plants of AC-I9 each reported by file and line; reverted →
-  clean. `cargo test -p mineworld-acceptance --test client_rules` PASS.
-- [ ] Review: R6's heuristic catches the plants without flagging `hud/words.gd`'s fallback or the
-  harness's diagnostics (the harness prints evidence, not UI).
+- [x] Implementation: `check_client_rules.py` — `ADMITTED` (R2 by explicit entry, an unused entry
+  fails), R3' (`intents.gd`, `menu.gd`, `hud/**`: a function that submits or calls `intents.` reads no
+  verdict), R6 (a literal of ≥ 2 whitespace-separated words on a line that sets `.text =` or calls
+  `add_item(`, `note(`, `toast(`, outside `hud/words.gd` and `harness/`), `os.walk(followlinks=False)`
+  instead of `rglob` (B-10), `--scope` admits `client_2d_interact.rs`; `client_rules.rs` six
+  `ACTION_LITERALS` entries for `intents.gd` and nothing else. `COMPOSED` is one line in `intents.gd`
+  because R2 reads it per line (a two-line constant was reported missing — caught while running).
+- [x] Validation: both scans clean on the C4 tree (`rules: PASS`, `scope: PASS`, `client_rules` 3
+  passed). Plants, all at once in `menu.gd` + one admission each: (1) `"talk"` → R2
+  `menu.gd:121` and `client_rules.rs` `menu.gd:121`; (2) `may(` in `choose` → R3 `menu.gd:122`; (3)
+  `submit_affordance(` → R1 `menu.gd:124`; (4) `const TALK_RANGE` → `client_rules.rs` `menu.gd:29 names
+  a rule`; (5) `add_item("Talk to " + …)` → R6 `menu.gd:125`; (6) unused admissions → Python "admits
+  \"invite\", which it no longer holds" and `client_rules.rs` "the admission of \"talk\" admits
+  nothing". AC-I10: planted edits to `systems/item-transfer/src/offer.rs` and
+  `clients/protocol/mineworld/observation.gd` → `--scope origin/main` FAIL naming both; reverted →
+  PASS. All reverted → both clean.
+- [x] Review: R6 does not flag keys (`"ui.result.unknown"` is one word) or formats; the first draft
+  counted letter runs and flagged every key — fixed to whitespace words before commit. `hud/words.gd`
+  and `harness/` are exempt by path. R2 caught a real defect during C3 (a `"talk"` panel-group name).
 
 #### C5 — Real-world runs: talk, items, group activity, a pack removed, AC-13
 **Goal.** The integration checkpoint against the real server (AC-I1, I2, I3, I6, I7, I8).
