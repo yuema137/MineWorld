@@ -16,6 +16,13 @@ use mineworld_contracts::{EntityKey, SystemId};
 use mineworld_kernel::KernelError;
 use mineworld_worldpack::{ContentKind, Declared, PackError, WorldPack};
 
+/// A pack-relative path as a refusal on this platform prints it: `places/cafe.yaml`, or
+/// `places\cafe.yaml` on Windows (step-16 §16.12 PD-p5; the claim — the refusal names the file — is
+/// unchanged).
+fn native(relative: &str) -> String {
+    relative.replace('/', std::path::MAIN_SEPARATOR_STR)
+}
+
 /// A pack directory written for one test, under cargo's own temporary directory for this target.
 ///
 /// Named after the test, and named after the pack's own id: a pack's id must be its directory's name,
@@ -488,7 +495,7 @@ fn every_refusal_names_the_file_it_is_about() {
     for (expected, refusal) in cases {
         let message = refusal.to_string();
         assert!(
-            message.contains(expected),
+            message.contains(&native(expected)),
             "a refusal about {expected} must say so: {message}",
         );
     }
@@ -691,7 +698,7 @@ fn every_passage_refusal_names_the_file_that_states_it() {
         let message = fixture.refusal().to_string();
         println!("{}: {message}", fixture.id());
         assert!(
-            message.contains(expected),
+            message.contains(&native(expected)),
             "a refusal about {expected} must say so: {message}"
         );
     }
@@ -843,7 +850,7 @@ fn a_section_in_a_kind_of_file_its_owner_does_not_allow_is_refused() {
     assert_eq!(*kind, ContentKind::Place);
     assert_eq!(carried_by, "person");
     assert!(path.ends_with("places/cafe.yaml"));
-    assert!(refusal.to_string().contains("places/cafe.yaml"));
+    assert!(refusal.to_string().contains(&native("places/cafe.yaml")));
 }
 
 /// A sound pack with `schedule` enabled (or not), places `cafe` and `park`, and alice's file as given.
@@ -897,7 +904,7 @@ fn a_routine_naming_an_undeclared_place_is_refused_by_name() {
     assert_eq!(*named, key("beach"));
     assert_eq!(*expected, mineworld_contracts::EntityType::Place);
     assert!(path.ends_with("people/alice.yaml"));
-    assert!(refusal.to_string().contains("people/alice.yaml"));
+    assert!(refusal.to_string().contains(&native("people/alice.yaml")));
 }
 
 #[test]
