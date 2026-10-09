@@ -2442,6 +2442,9 @@ E-SB10 CP-B4 as ruled (operator, 2026-10-08: option (b)). Merged origin/main 77a
       the server's world thread, so the delay was planted in runtime.rs `tick`) → "the p99 tick took
       68 ms, over 50 ms (p50 64.9 ms, max 78 ms)"; reverted, `git diff` clean of it.
       ARC-42's measured paragraph and MODULE_SPEC §8.1's shutdown line updated to match.
+      CI at 39d02ea: fast success, test FAILURE — IL-a's structural test tools/cli/tests/configure.rs
+      looked for `fn persisted(` in main.rs, where it no longer is. One line now points it at
+      serve.rs (D-SB14); the check itself (drift check before `PersistentWorld::resume`) holds there.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2532,6 +2535,11 @@ D-SB13 (bounded) CI on main (#63) ran #83's `test` job red at 0c9dc02: hosted_to
       `Server::interrupt` spawned a `kill` binary, which the runner image does not have ("kill
       runs: NotFound"). It now sends SIGINT through `sh -c 'kill -INT <pid>'` (the shell builtin),
       with no new dependency; re-run locally green (longest tick 3 ms).
+D-SB14 (bounded) IL-a (#80) landed with a structural test, tools/cli/tests/configure.rs, that
+      reads `fn persisted(` from main.rs. S11-B moved `persisted` to serve.rs (D-SA10), so the
+      merge points that one `checks_before` at serve.rs — the file QS11B-6 already named for the
+      drift call. A path outside §16.5, edited because the frozen move requires it; the assertion
+      is unchanged.
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).
