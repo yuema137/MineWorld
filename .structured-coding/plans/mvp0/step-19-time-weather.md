@@ -1035,7 +1035,7 @@ first risk did not occur). No pack on main uses `configures!()` yet: `calendar` 
 | C1 | [x] ARC-67, DEP-30 appended to `docs/DECISIONS.md`; `CORE_CONCEPTS.md` §17 *Time* (calendar time, embodied time, time scale, paused; four rules); `systems/calendar/README.md`; the spec header as `src/lib.rs`'s module doc, with a doc-only `Cargo.toml` (TWa-D1) | [x] `check_doc_headings.py`: 191 numbered sections across 26 documents, none duplicated — PASS; `check_decision_ids.py`: 71 ids, all distinct — PASS; `cargo check -p mineworld-calendar` clean | [x] terms checked against CORE_CONCEPTS §§1, 10, 11: "calendar time", "embodied time", "time scale", "paused" are new terms, none a synonym of `Process`/`Event`/`WorldTime` (calendar time is *defined as* `WorldTime`, stated, not renamed); §17 is the "time section" §15.4 asked for (none existed) |
 | C2 | [x] `civil.rs` (`CalendarDate` valid by construction; Hinnant `days`/`from_days`; `weekday` 0 = Monday); `day.rs` (`MicroDegrees`, `SunSample`, `DayEvents` + `light_changes`, `Phase`, `CalendarDay::compute`, `DAY`, `SAMPLE_INTERVAL` 900, `SAMPLES` 97); `sun.rs` (`sun_at`, `day_events`, `phase_at`; the only file naming the crate; ΔT = the library's estimate at mid-month of the instant's UTC month); dependency `solar-positioning =0.7.0`, no default features, `libm` | [x] `cargo test -p mineworld-calendar`: 8 passed (E-TWa-2): every day 1901–2099 round-trips (72 684 days); 2026-10-08 = day 20 734, Thursday; NOAA table ±150 s (rise −16 s, set −1 s, noon −8 s); elevation vs NOAA's model ≤ 0.002° at 09/12/15 h; three pinned samples (§16.8 a); 78° N polar night; equator equinox; azimuth convention. Clippy `-p mineworld-calendar --all-targets -D warnings` clean. Lock: + `solar-positioning 0.7.0` only (`libm 0.2.16` already locked). Mutations M-TWa-3a/3b below | [x] quantization: `f64::round` is half away from zero and exact on every IEEE host; azimuth 360 000 wraps to 0; event offsets kept only in 1 … 86 399 so an event never coincides with a midnight wake. Julian date `2 440 587.5 + utc/86 400` (|utc| < 2^53, exact division error ≈ 40 µs). Azimuth north = 0 clockwise is the library's convention and is tested. Phase uses unrefracted elevation against the same three horizons the event search uses, so a day's opening phase and its events agree; the track is refracted (apparent), as NOAA's displayed elevation is |
 | C3 | [x] `configuration.rs` (`CalendarConfiguration`, decode-only, `deny_unknown_fields`; `Epoch` 1901–2099 `YYYY-MM-DD`, `UtcOffset` `±HH:MM` ≤ 14 h, `Latitude` ±90, `Longitude` ±180 → micro-degrees); `event.rs` (`CalendarConfigured`, `DayBegan { day, phase }`, `DaylightChanged { phase }`); `process.rs` (`CalendarProcess` "calendar", `CalendarState { configured, day, phase }`); `component.rs` (`calendar-day`, `calendar-light`, declared, carried by no entity); `system.rs` (`PackConfiguration` + `configures!()`; `react` starts the process from `calendar-configured` and folds the other two; `wake` states midnight or the light changes due; `discloses` on the observer's place only); registry line `Calendar => mineworld_calendar::CalendarSystem` + its Cargo line | [x] E-TWa-3: `cargo test -p mineworld-calendar` 8 + 5 + 2; `-p mineworld-installed-systems -p mineworld-worldpack` all ok; `-p mineworld-acceptance` all ok (ac1_composability 13, precursor_vocabulary, seam guards unedited); `-p mineworld-cli --test configure --test commands` ok; clippy `--all-targets --all-features -D warnings` on calendar and installed clean; fmt clean. M-TWa-4 killed | [x] single ownership: only this pack writes its Process; it reads presence's `Presence` (declared dependency) and nothing of host pacing — no time scale, no pause exists in its inputs (INV-TW-2); the Process state is written only in `react` from fact payloads, `wake` only reschedules and states facts, so a snapshot equals the fold (resume test byte-identical); the configured fact is SystemInternal with no subjects; Public facts have no subjects; disclosure is keyed to `Presence` of the observer, so §16.8 (c) holds by construction and is tested; an enabled-but-unconfigured calendar states and discloses nothing (QTW-8's warning is `mineworld check`'s, not in TW-a's scope) |
-| C4 | **BLOCKED — material (TWa-F1).** The opt-in (`configure/calendar.yaml` as §5.2; `calendar` appended to `systems`; `configure: [calendar]`) is written and parked, uncommitted on this PR, on branch `mvp0/pr-tw-a-c4-proposed` | [x] evidence gathered with the opt-in applied (E-TWa-4, E-TWa-5); [ ] AC-1 check 3 FAILS with it (E-TWa-4), so it cannot land green | [x] content only, no code; the failure is a frozen acceptance guard, not a defect in the opt-in |
+| C4 | [x] Unblocked by the operator's ruling of 2026-10-09 (option (i), TWa-R1). Two commits: 344d28b the ARC-35 note and AC-1 check 3's `GENERIC_PACKS = ["calendar"]` (`compare_systems`, new `compare_configure`, `configure/` entries); 4018434 the opt-in (`configure/calendar.yaml`, `calendar` after the six, `configure: [calendar]`), byte-identical to the parked cf91bbb | [x] E-TWa-8: AC-1 14/14 with C4; both ruled mutations red, naming the pack. E-TWa-9: market-town baseline `24a95d2a…d270` on 4018434; the other digests equal main. CP-TW-a: E-TWa-4 | [x] the market delta is still exact: the six are compared as a set right after Social Café's list; a generic pack is admitted only after them, once, and only if allow-listed; `configure` is admitted only for an enabled allow-listed pack and never in Social Café; check 3's section rule is unchanged, so a generic pack cannot add a section to a person or place file; checks 1 and 2 untouched |
 | C5 | [x] ledger, handoff, PR #94 (C4 parked; not READY — TWa-F1) | [x] full gate E-TWa-6; CI E-TWa-7 | — |
 
 ### Evidence
@@ -1154,6 +1154,29 @@ E-TWa-6b `cargo test -p mineworld-persistence --test kill_and_resume` alone on e
          load race. `check_scratch.py left` still lists the 4 empty `mineworld-kill-*` directories the
          panicked run left in the system temp dir (0 B; removing them needs `rm`, outside this
          session's allowed commands — left for the operator; the re-run added none).
+E-TWa-8  AC-1 amendment, 2026-10-09, on 1b4318a (origin/main 15b05a9 merged: S11-B and plans; the
+         only change on the headless path is `RuleController::since`, a new constructor — `new()` is
+         unchanged, confirmed by E-TWa-9) + 344d28b + the C4 files:
+         `cargo test -p mineworld-acceptance --test ac1_composability`: 14 passed (13 existing + the new
+         `only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them`, which holds the
+         allowed shape, both mutations and the `configure` rules on hand-written manifests).
+         Mutations on the real worlds/market-town/world.yaml, each through `check_3`:
+         M-TWa-A1 `- bodies` appended after `calendar` → FAILED: "world.yaml: `bodies` follows the six
+                  market packs and is not an allow-listed generic pack [\"calendar\"]". Killed.
+         M-TWa-A2 `- calendar` moved between economy and employment → FAILED: "world.yaml: `calendar` is
+                  an allow-listed generic pack at position 11; it may only follow the six market
+                  packs". Killed.
+         Both reverted; world.yaml and configure/calendar.yaml diff-equal to cf91bbb; `git grep
+         MUTATION` empty; check 3 green again. check_decision_ids: 73 ids distinct; headings PASS;
+         clippy -p mineworld-acceptance --all-targets --all-features -D warnings clean.
+E-TWa-9  By capture.sh head on 4018434 (clean tree), 2026-10-09, dev:
+         social-cafe 300 d seed 7: sha ad49c723…c64b, 365 330 facts (= main) — PASS
+         market-town 300 d seed 7: sha 24a95d2a…d270, 374 857 facts, faults 0 — the BASELINE (§16.8 b)
+         bodies-yard 30 d: bd6a1002…80e6 (= main); long_run 4 019 632 B 23f7fa76…5125 (= main);
+         long_run_objects 612 428 B c8358f8b…c5b4 (= main); validate ×3 as E-TWa-5 — PASS.
+         Town runs used: 6 of 6 (E-TWa-0 ×2, E-TWa-5 ×2, E-TWa-9 ×2). Budget exhausted, not exceeded.
+         The four empty `mineworld-kill-*` directories of E-TWa-6b were removed with
+         `rm -rf "$TMPDIR"/mineworld-kill-*` (authorized by the coordinator, 2026-10-09).
 E-TWa-7  CI on e7fdee7 (PR #94, pull_request run 37891509810): fast PASS (1 m 13 s), test PASS
          (13 m 38 s; its log shows `sun::tests::three_sun_samples_are_pinned_exactly ... ok` on
          Linux x86_64 — the three pinned integers equal macOS's, §16.8 (a) held on two OSes).
@@ -1212,8 +1235,14 @@ C4 decision requested (material stop, §16.7 spirit: a frozen acceptance measure
   (iii) drop C4 from TW-a and land it with the client PR (TW-e) after (i) or (ii).
   Recommendation: (i) — AC-1 measures "Social Café + the market", and a calendar is neither; the guard
   should say which later packs are configuration, as ARC-35's notes have done before.
+TWa-R1  RULING (operator, 2026-10-09, relayed by the coordinator): option (i). "AC-1 check 3 stays exact
+        for the market delta (exactly the six market packs appended to Social Café); generic packs on
+        an explicit allow-list may also appear after them, enabled through configuration." Implemented
+        in TW-a: ARC-35 note (2026-10-09), `GENERIC_PACKS = ["calendar"]`, two mutations killed
+        (E-TWa-8), C4 landed (4018434), market-town baseline recorded (E-TWa-9). Weather and later
+        generic packs extend the allow-list in their own PRs.
 ```
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| `market-town` digest baseline (§16.8 b) | not recorded | — |
+| `market-town` digest baseline (§16.8 b) | **recorded** | 300 days, seed 7: sha `24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270`, 374 857 facts, faults 0; produced by commit 4018434 (E-TWa-9; the same value as the candidate in E-TWa-5) |

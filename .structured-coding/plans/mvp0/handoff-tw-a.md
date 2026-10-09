@@ -25,7 +25,14 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. REACHED 
 POST-MERGE SYNC     planning (primary) session: step-19 header, overall.md
 ```
 
-## Current checkpoint — CLOSED / AWAITING OPERATOR ACTION (C4 decision)
+## Update 2026-10-09 — ruling (i) implemented
+
+C4 landed after the operator's ruling (TWa-R1): 344d28b (ARC-35 note + AC-1 allow-list), 4018434
+(market-town opt-in). Baseline `24a95d2a…d270` recorded (E-TWa-9). Town runs 6/6. Kill-test scratch
+removed. Next: full gate on the final head, push, CI green on the exact head, mark the PR READY FOR
+OPERATOR REVIEW. Do not merge.
+
+## Earlier checkpoint — CLOSED / AWAITING OPERATOR ACTION (C4 decision), now superseded
 
 - C1–C3 committed; the full gate and CI are recorded (E-TWa-6, E-TWa-7). C5 is the ledger.
 - C4: needs a decision between (i), (ii) and (iii) in §16.9 "C4 decision requested". If (i) is chosen,
