@@ -2951,9 +2951,41 @@ source — nothing else); `worldpack/src/error.rs` (`KeyFromTwoSources`, `Entity
 `worldpack/src/lib.rs` (exports); `worldpack/tests/entity_packs.rs` (ED-2, ED-3, ED-7, ED-8, ED-10's
 loader rows) through `mineworld_test_support::scratch!`.
 
-- [ ] Implementation · [ ] Validation (`cargo test -p mineworld-worldpack -p mineworld-acceptance`;
-  M-D2, M-D3, M-D6; `validate` of the three worlds byte-identical) · [ ] Review (`load.rs` diff is the
-  two functions; creation order untouched).
+- [x] Implementation: `worldpack/src/entities.rs` (new): `ItemSource { World, EntityPack { id, dir } }`;
+  `compose(manifest, composition, systems, items)` — for each `Composition::required` of type
+  `EntityPack` with `Source::Directory`, in id order, reads `items/` (`Path::extension == "yaml"`,
+  `Path::file_stem` → `EntityKey` or `EntityPackKeyInvalid`), into a `BTreeMap` by key, each file through
+  `parse_with` + `ContentFile::new(Item, systems).item` (the world's systems); checks PD-38
+  (`EntityPackReachesOut`: a decoded section's reference must be an `Item` key of the same pack); merges
+  with PD-34 (`KeyFromTwoSources`, first source "world.yaml's <list>" or "the Entity Pack <id> (<file>)");
+  `validate_entity_pack(dir)` (public; PD-39: identity via `read_pack_file`, items read against
+  `AVAILABLE`, `NotCarriedHere` refused, PD-38). `read.rs`: step 6b in the module doc and after
+  `check_nothing_undeclared`; field `item_sources`; `source_pack` / `source_file` (source-aware path);
+  `check_sections` uses `source_file`; its `NotCarriedHere` refusal extracted to `not_carried_here` (shared
+  with `validate_entity_pack`). `load.rs`: only `provenance` (source_pack through the source; `source_path`
+  still `format!("{}/{key}.yaml")`, `/` on every OS, PD-q2) and `content_file` (delegates to
+  `source_file`). `error.rs`: `KeyFromTwoSources`, `EntityPackKeyInvalid`, `EntityPackReachesOut`.
+  `lib.rs`: `mod entities`, `pub use validate_entity_pack`.
+- [x] Validation: `worldpack/tests/entity_packs.rs`, 7 tests: ED-2 + ED-1 at the loader (moved town: ids
+  map and every genesis fact equal to Market Town's; located first — a genesis `stocked` fact's payload
+  names bread's id `"item":{"entity":"21"`; bread `source_pack` goods / `items/bread.yaml`, apple
+  market-town), ED-13 (LF vs CRLF scratch: same kinds, composition, ids, genesis; CRLF malformed bread
+  refused naming the file and "line"), ED-3 (world+pack `bread`; two packs `tea`), ED-7, ED-8 (world and
+  `validate_entity_pack`), ED-10 (bad stem, malformed, `people/`, no item file, `entity_packs:`,
+  `dependencies:`), `validate_entity_pack` lists bread, coffee. `cargo test --no-fail-fast -p
+  mineworld-worldpack -p mineworld-acceptance`: 132 passed, 0 failed (ac1_composability 13/13).
+  Mutations, each observed failing by name then reverted (`git status` clean of it): **M-D2** provenance
+  always `self.id()` → `kinds_moved_into_a_pack_keep_every_identity_and_name_the_pack` FAILED; **M-D3**
+  collision check disabled → `a_key_from_two_sources_is_refused_naming_both` FAILED; **M-D6**
+  `check_sections` skipping pack kinds → `a_pack_section_needs_its_owner_enabled_by_the_world` FAILED.
+  **Finding (fixed):** the first acceptance run failed `seam_vocabulary::the_seam_names_no_physics` on
+  the word "collision" in `entities.rs`' module doc (the ARC-39 scan covers `worldpack/src`); reworded
+  ("a key stated by two sources"), the scan unedited and passing. `validate` of the three worlds against
+  the base binary: recorded at Ed-C4 with the CLI (one base build serves both).
+- [x] Review: `load.rs`' diff is exactly `provenance` and `content_file`; the creation loop and genesis
+  order untouched. `items()` keeps its signature. No section meaning learned (references are read through
+  `AuthoredContent::references`, the existing seam). Directory listing order never reaches an id (map by
+  key). No new dependency.
 
 ### Ed-C4 — The CLI
 

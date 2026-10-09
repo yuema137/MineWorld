@@ -220,6 +220,55 @@ pub enum PackError {
         second: Declared,
     },
 
+    /// A key declared by two sources: the world and a required Entity Pack, or two required Entity Packs
+    /// (`DECISIONS.md` `ARC-71` point 5). Keys are one namespace, and nothing is overridden.
+    #[error(
+        "'{key}' is declared twice: by {first}, and again by {second}; keys are one namespace across a \
+         world and the Entity Packs it requires"
+    )]
+    KeyFromTwoSources {
+        /// The key.
+        key: EntityKey,
+        /// The first source: a list of `world.yaml`, or an Entity Pack and its file.
+        first: String,
+        /// The second source: an Entity Pack and its file.
+        second: String,
+    },
+
+    /// An Entity Pack's item file whose name is not a key (`ARC-71` point 2): the file's name is the
+    /// kind's key.
+    #[error(
+        "{path}: the Entity Pack {pack} names an item kind by this file's name, which is not a key: {source}"
+    )]
+    EntityPackKeyInvalid {
+        /// The Entity Pack's id.
+        pack: String,
+        /// The file.
+        path: PathBuf,
+        /// What the contract layer said about the name.
+        #[source]
+        source: ContractError,
+    },
+
+    /// A section in an Entity Pack's item file naming a key the same pack does not declare
+    /// (`ARC-71` point 8): an Entity Pack usable by any world cannot depend on one world's content.
+    #[error(
+        "{path} gives '{subject}' a '{section}' section naming '{key}', which the Entity Pack {pack} \
+         does not declare; an Entity Pack's sections may name only its own item kinds"
+    )]
+    EntityPackReachesOut {
+        /// The Entity Pack's id.
+        pack: String,
+        /// The kind the file declares.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// The key it names.
+        key: EntityKey,
+        /// The file.
+        path: PathBuf,
+    },
+
     /// A person is placed in a place this pack does not have.
     #[error(
         "{path} puts '{person}' in the place '{place}', which this pack does not declare \

@@ -20,6 +20,9 @@
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
+//! 6b every required Entity Pack's item kinds, in id order, read with this world's enabled systems,
+//!    self-contained, and merged into the world's items: one key namespace across every source
+//!    (ARC-71)
 //! 7  every person's place exists, and every seat is one of the people
 //! 8  content that needs a capability has it enabled
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
@@ -42,6 +45,7 @@ use serde::de::DeserializeOwned;
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::configure;
 use crate::content::ContentFile;
+use crate::entities::{self, ItemSource};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
     AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundConfiguration,
@@ -84,6 +88,7 @@ pub struct WorldPack {
     places: BTreeMap<EntityKey, AuthoredPlace>,
     people: BTreeMap<EntityKey, AuthoredPerson>,
     items: BTreeMap<EntityKey, AuthoredItem>,
+    item_sources: BTreeMap<EntityKey, ItemSource>,
     organizations: BTreeMap<EntityKey, AuthoredOrganization>,
     seats: BTreeSet<EntityKey>,
     configuration: Vec<FoundConfiguration>,
@@ -163,6 +168,7 @@ impl WorldPack {
         ] {
             check_nothing_undeclared(&root, kind, declared, list)?;
         }
+        let (items, item_sources) = entities::compose(&manifest, &composition, &systems, items)?;
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
@@ -182,6 +188,7 @@ impl WorldPack {
             places,
             people,
             items,
+            item_sources,
             organizations,
             seats,
             configuration,
@@ -235,9 +242,35 @@ impl WorldPack {
         &self.people
     }
 
-    /// The item kinds, in key order (`ARC-36`).
+    /// The item kinds, in key order (`ARC-36`): the world's own and every required Entity Pack's,
+    /// composed (`ARC-71`).
     pub fn items(&self) -> &BTreeMap<EntityKey, AuthoredItem> {
         &self.items
+    }
+
+    /// The pack a content file belongs to: the Entity Pack's id for a kind it declared, this world's
+    /// otherwise — a kind's `source_pack` (`ARC-71` point 7).
+    pub(crate) fn source_pack(&self, kind: ContentKind, key: &EntityKey) -> &str {
+        match self.item_source(kind, key) {
+            Some(ItemSource::EntityPack { id, .. }) => id,
+            Some(ItemSource::World) | None => &self.id,
+        }
+    }
+
+    /// The file a key's content was read from: in a required Entity Pack's directory for a kind it
+    /// declared, in this world's otherwise — for every refusal that names a content file.
+    pub(crate) fn source_file(&self, kind: ContentKind, key: &EntityKey) -> PathBuf {
+        match self.item_source(kind, key) {
+            Some(ItemSource::EntityPack { dir, .. }) => entities::item_file(dir, key),
+            Some(ItemSource::World) | None => content_path(&self.root, kind, key.as_str()),
+        }
+    }
+
+    fn item_source(&self, kind: ContentKind, key: &EntityKey) -> Option<&ItemSource> {
+        match kind {
+            ContentKind::Item => self.item_sources.get(key),
+            ContentKind::Person | ContentKind::Place | ContentKind::Organization => None,
+        }
     }
 
     /// The organizations, in key order.
@@ -308,6 +341,10 @@ impl WorldPack {
             systems,
             places,
             people,
+            item_sources: items
+                .keys()
+                .map(|key| (key.clone(), ItemSource::World))
+                .collect(),
             items,
             organizations,
             seats: BTreeSet::new(),
@@ -627,10 +664,9 @@ fn check_passages(
 /// refusal is the same on every machine. A reference is accepted iff its key is declared in the list of
 /// the type it requires (`ARC-36` item 5).
 pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
-    let root = &pack.root;
     let declared_entities = pack.declared_entities();
     for (kind, subject, sections) in pack.sectioned_files() {
-        let path = content_path(root, kind, subject.as_str());
+        let path = pack.source_file(kind, subject);
         for section in sections {
             let content = match &section.state {
                 SectionState::Decoded(content) => content,
@@ -643,25 +679,7 @@ pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
                     });
                 }
                 SectionState::NotCarriedHere => {
-                    let carried_by = section
-                        .owner
-                        .section()
-                        .map(|owner| {
-                            owner
-                                .carried_by
-                                .iter()
-                                .map(|kind| kind.describes())
-                                .collect::<Vec<_>>()
-                                .join(" and ")
-                        })
-                        .unwrap_or_default();
-                    return Err(PackError::SectionNotCarriedHere {
-                        subject: subject.clone(),
-                        section: section.name,
-                        kind,
-                        carried_by,
-                        path,
-                    });
+                    return Err(not_carried_here(subject, section, kind, path));
                 }
             };
             for reference in content.references() {
@@ -679,6 +697,35 @@ pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
         }
     }
     Ok(())
+}
+
+/// The refusal of a section found in a kind of file its owner does not let carry it, listing the kinds
+/// that may.
+pub(crate) fn not_carried_here(
+    subject: &EntityKey,
+    section: &FoundSection,
+    kind: ContentKind,
+    path: PathBuf,
+) -> PackError {
+    let carried_by = section
+        .owner
+        .section()
+        .map(|owner| {
+            owner
+                .carried_by
+                .iter()
+                .map(|kind| kind.describes())
+                .collect::<Vec<_>>()
+                .join(" and ")
+        })
+        .unwrap_or_default();
+    PackError::SectionNotCarriedHere {
+        subject: subject.clone(),
+        section: section.name,
+        kind,
+        carried_by,
+        path,
+    }
 }
 
 /// Where a content file lives, from the key that names it.
