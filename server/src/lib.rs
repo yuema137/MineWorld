@@ -89,10 +89,13 @@ pub use host::{
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;
 pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
-pub use perception::{PerceivesNothing, Perception, PerceptionContext};
+pub use perception::{
+    EventPerception, HistoryUnavailable, PerceivedHistory, PerceivesNoEvents, PerceivesNothing,
+    Perception, PerceptionContext,
+};
 pub use protocol::{
-    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, ProtocolError, Refusal,
-    RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation, WirePayload,
-    WorldInstanceId, WorldSummary,
+    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm, ProtocolError,
+    Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation,
+    WirePayload, WorldInstanceId, WorldSummary, wire_fact,
 };
 pub use seats::{Departure, JoinRequest};

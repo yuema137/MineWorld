@@ -2928,8 +2928,8 @@ assumption (§17.14).
 hand-written expected frame; a non-JSON payload yields `payload.payload: null`; the contract's agreement
 check still rejects a tampered type (round-trip of a mismatched envelope fails).
 
-- [ ] Implementation · [ ] Validation · [ ] Review: the server names no pack; no `Serialize` added to a
-  contract type; defaults are the safe direction.
+- [x] Implementation · [x] Validation · [x] Review: the server names no pack; no `Serialize` added to a
+  contract type; defaults are the safe direction. (E-SC3 for wire_fact, E-SC5)
 
 ### C-C5 — The world thread and the session: fan-out, `perceived`, `acted_through`
 
@@ -3165,6 +3165,17 @@ E-SC4 Merge of origin/main @ ec38570 (S11-B #83 merged as 15b05a9) — b314dc4; 
       -D warnings (server, all targets) clean. Review: no public path changed (all four items were
       private to runtime); behaviour byte-identical (verbatim bodies; `Instant` imported in the new
       file).
+E-SC5 C-C4 on 7e0a470. perception.rs: EventPerception { record(&mut, fact), admits(&, fact, observer) },
+      PerceivesNoEvents (records nothing, admits nothing), PerceivedHistory: Send + Sync
+      { perceived(observer, since: Option<EventId>, through: EventId) -> Result<Vec<EventEnvelope>,
+      HistoryUnavailable> }, HistoryUnavailable(String). host.rs: HostedWorld.events (default
+      PerceivesNoEvents), .history (default None), builders perceiving_events, with_history. lib.rs
+      re-exports the four, PayloadForm and wire_fact (wire_fact's unit checks: E-SC3).
+      clippy -D warnings (server, all targets) clean. Review: the server names no pack and no event
+      type; no contract type gained Serialize (wire_fact goes through the contract's own serde);
+      defaults learn nothing and serve no history — the safe direction, as PerceivesNothing.
+      PerceivedHistory takes `through` explicitly so that a backfill can never run past the head
+      the world thread fixed at the join (the live stream starts after it).
 ```
 
 ## 17.13 Deviations and discoveries

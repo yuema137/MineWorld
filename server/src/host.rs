@@ -58,7 +58,9 @@ use mineworld_persistence::PersistentWorld;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::hosted::{HostedController, HostedFactory};
-use crate::perception::{PerceivesNothing, Perception};
+use crate::perception::{
+    EventPerception, PerceivedHistory, PerceivesNoEvents, PerceivesNothing, Perception,
+};
 use crate::protocol::{Refusal, RefusalCode, SessionId, WorldSummary};
 use crate::runtime::WorldRuntime;
 use crate::seats::{Departure, JoinRequest};
@@ -84,6 +86,10 @@ const COMMAND_BACKLOG: usize = 256;
 pub struct HostedWorld {
     pub(crate) world: Hosted,
     pub(crate) perception: Box<dyn Perception>,
+    /// Which recorded facts each observer learns of (`ARC-43`).
+    pub(crate) events: Box<dyn EventPerception>,
+    /// Where a `perceived` backfill is read from; `None` for a world that keeps no history.
+    pub(crate) history: Option<Arc<dyn PerceivedHistory>>,
     pub(crate) seats: SeatRoster,
     /// Where the request allocator starts: past every `ActionId` the world's journal already holds,
     /// so that a resumed world never issues one twice (step-06 §2.4, F-7).
@@ -109,6 +115,8 @@ impl HostedWorld {
         Self {
             world: Hosted::Ephemeral(world),
             perception: Box::new(PerceivesNothing),
+            events: Box::new(PerceivesNoEvents),
+            history: None,
             seats: SeatRoster::empty(),
             first_action: FIRST_ACTION_ID,
             recent: Vec::new(),
@@ -131,6 +139,8 @@ impl HostedWorld {
         Ok(Self {
             world: Hosted::Persisted(world),
             perception: Box::new(PerceivesNothing),
+            events: Box::new(PerceivesNoEvents),
+            history: None,
             seats: SeatRoster::empty(),
             first_action,
             recent,
@@ -163,6 +173,23 @@ impl HostedWorld {
     #[must_use]
     pub fn perceiving(mut self, perception: impl Perception) -> Self {
         self.perception = Box::new(perception);
+        self
+    }
+
+    /// Declares which recorded facts this world's observers learn of (`ARC-43`). Without it they
+    /// learn of none: `observation.events` stays empty and the `perceived` stream carries nothing.
+    #[must_use]
+    pub fn perceiving_events(mut self, events: impl EventPerception) -> Self {
+        self.events = Box::new(events);
+        self
+    }
+
+    /// Declares where a `perceived` backfill is read from (`PROTOCOL.md` §5.8). Without it the world
+    /// serves the stream only from a connection's join on, and answers an older cursor
+    /// `cursor_unavailable`.
+    #[must_use]
+    pub fn with_history(mut self, history: impl PerceivedHistory) -> Self {
+        self.history = Some(Arc::new(history));
         self
     }
 }

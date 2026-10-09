@@ -17,7 +17,9 @@
 //! `Observation::new`'s own documentation names an empty observation as the safe starting point and
 //! `INV-13` requires that what is exposed be added deliberately.
 
-use mineworld_contracts::{EntityId, EventEnvelope, Observation, WorldTime};
+use std::fmt;
+
+use mineworld_contracts::{EntityId, EventEnvelope, EventId, Observation, WorldTime};
 use mineworld_kernel::{World, WorldRead};
 
 use crate::protocol::WireObservation;
@@ -116,3 +118,70 @@ impl Perception for PerceivesNothing {
         Observation::new(context.observer(), context.at())
     }
 }
+
+/// Which recorded facts each observer learns of (`docs/DECISIONS.md` `ARC-43`).
+///
+/// A second seam beside [`Perception`], because it is a different kind of judgement: an observation
+/// is a pure read of the world at one instant, while who learns of a fact depends on where people
+/// were *when it was recorded* — a fold that must see every fact, in log order, as it happens. The
+/// world thread calls [`EventPerception::record`] for each new fact and then asks
+/// [`EventPerception::admits`] for every connected observer, before the next fact is recorded.
+///
+/// Built on the world's thread with the world it judges, like [`Perception`], so it need not be
+/// `Send`. The server names no perception system: a composition root adapts one onto this.
+pub trait EventPerception: 'static {
+    /// Advances the judgement past `fact`, which the world has just recorded.
+    fn record(&mut self, fact: &EventEnvelope);
+
+    /// Whether `observer` learns of `fact`, judged right after it was recorded.
+    fn admits(&self, fact: &EventEnvelope, observer: EntityId) -> bool;
+}
+
+/// A world whose observers learn of no fact: the default, and the safe direction, as
+/// [`PerceivesNothing`] is for observations.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PerceivesNoEvents;
+
+impl EventPerception for PerceivesNoEvents {
+    fn record(&mut self, _fact: &EventEnvelope) {}
+
+    fn admits(&self, _fact: &EventEnvelope, _observer: EntityId) -> bool {
+        false
+    }
+}
+
+/// Where a `perceived` backfill comes from: the facts an observer learned before it joined
+/// (`PROTOCOL.md` §5.8).
+///
+/// Read off the world's thread — on a blocking task of a connection's own — because a long world's
+/// history is hundreds of thousands of facts and the world must never wait for it (step-12 I-11). So,
+/// unlike the two seams above, it is `Send + Sync`: it holds no world, only the means to read a
+/// history (a persisted world's save) and the same judgement [`EventPerception`] makes live, so that
+/// a resumed stream and a live one agree.
+pub trait PerceivedHistory: Send + Sync + 'static {
+    /// The facts with an identity in `(since, through]` that `observer` learned of, oldest first —
+    /// every one, from the world's first fact when `since` is `None`.
+    ///
+    /// # Errors
+    ///
+    /// [`HistoryUnavailable`] when the history cannot be read now; the connection is told its cursor
+    /// is unavailable and may try again.
+    fn perceived(
+        &self,
+        observer: EntityId,
+        since: Option<EventId>,
+        through: EventId,
+    ) -> Result<Vec<EventEnvelope>, HistoryUnavailable>;
+}
+
+/// A history that could not be read just now, and why — for the `detail` of `cursor_unavailable`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryUnavailable(pub String);
+
+impl fmt::Display for HistoryUnavailable {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for HistoryUnavailable {}
