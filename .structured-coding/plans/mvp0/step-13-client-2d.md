@@ -1325,10 +1325,35 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## 15. PR 13b — Menu interactions through affordances (full design)
 
+### 13b DESIGN FROZEN
+
+```text
+Lifecycle:            DESIGN FROZEN (2026-10-08), primary session
+Design revision:      §15 as committed in 2d01908, amended by the rulings below (this commit)
+Approved by:          the primary session's message of 2026-10-08, "13b (§15) is DESIGN FROZEN 2026-10-08
+                      (primary session)", within the operator's standing requirements (i18n en/zh-Hans,
+                      client parity, no rule in the client); none of the rulings needed the operator
+Implementation base:  main at the start of implementation (≥ 9cf8f8e)
+Execution contract:   §15.11
+Implemented by:       a fresh session, in /Users/yuema137/mineworld-worktrees/impl-13b
+```
+
+**Primary-session rulings (2026-10-08), binding on §15 where they differ:**
+
+- **QS13b-1 — yes.** UI text goes through translation keys now, with English in a gettext `.po` inside
+  the Presentation Pack. The settings lane owns the language switch and may change the file format behind
+  the same keys; the primary session informs that lane.
+- **QS13b-2 — no shared request module in 13b.** AC-I7 guards 2D/3D parity.
+- **QS13b-3 — item ids may appear in labels** until 12d's item names (R-PK-2) land. If 12d is on `main`
+  before 13b's C5, the labels use the names (a consumer change, recorded in §15.12).
+- **QS13b-4 … QS13b-8 — as recommended.** ARC-13b-b becomes a **note under ARC-47**; ARC-13b-a is
+  **ARC-70**. Every placeholder below reads accordingly: "ARC-13b-a" = ARC-70, "ARC-13b-b" = the
+  ARC-47 note.
+
 ### 15.0 Lifecycle, identity, base, scope
 
 ```text
-Lifecycle:            PR design — ready for freeze review. NOT frozen; nothing here authorizes code.
+Lifecycle:            DESIGN FROZEN (2026-10-08) — see "13b DESIGN FROZEN" above.
 PR                    13b — menu interactions (S12, second of six; PR number assigned at freeze)
 Planning base:        main @ 9cf8f8e (13a merged as #82), branch plan/s12-13b, worktree
                       /Users/yuema137/mineworld-worktrees/plan-13b (planning only)
@@ -1337,7 +1362,7 @@ Parents:              this step §§1–13 (§4.4 especially), §14 (13a, its ru
                       F-1 … F-11); overall.md "Parallel build-out", "Framework, not demo", "One world,
                       two views", "The World Interaction List"
 Scope:                §9's 13b row as amended by §15.2
-Decision ids:         placeholders ARC-13b-a, ARC-13b-b; the primary session assigns numbers
+Decision ids:         ARC-70 (was ARC-13b-a); ARC-13b-b is a note under ARC-47 (rulings above)
 ```
 
 The player can talk, invite and answer an invitation, join and leave an activity, buy, hand over an
@@ -1660,7 +1685,8 @@ requires the work and its evidence.
 
 #### C1 — Specs and wording before code
 **Goal.** The decisions and the pack's wording format exist before code relies on them (`CLAUDE.md` §2.2).
-**Scope.** `docs/DECISIONS.md`: ARC-13b-a, ARC-13b-b (numbers from the primary session).
+**Scope.** `docs/DECISIONS.md`: ARC-70 (wording and translation keys, was ARC-13b-a) and a dated note
+under ARC-47 (the menu model, was ARC-13b-b).
 `clients/2d/PRESENTATION.md`: a new section "Wording" (the `i18n/<locale>.po` files, the key families of
 D-b-9, the fallback, `suggest.invite-kind`, currency format) and §5 "may not" gains "no rule in
 wording: a suggestion list is a suggestion, never a filter". `presentation/mineworld-default/2D/i18n/en.po`
@@ -1746,7 +1772,7 @@ edit     clients/2d/scripts/{intents,app,walker}.gd, clients/2d/scripts/scene/pe
 new      presentation/mineworld-default/2D/i18n/en.po
 new      tools/cli/tests/client_2d_interact.rs; edit tools/cli/tests/godot2d/mod.rs (stub)
 edit     scripts/check_client_rules.py; tests/acceptance/tests/client_rules.rs (entries only)
-docs     docs/DECISIONS.md (ARC-13b-a, ARC-13b-b), this file
+docs     docs/DECISIONS.md (ARC-70; a note under ARC-47), this file
 NOT      clients/protocol/mineworld/**, clients/protocol/ADOPTION.md, clients/3d-spike/**, server/,
          kernel/, contracts/, systems/, worlds/, worldpack/, persistence/, cognition/, Cargo files
 ```
@@ -1789,7 +1815,7 @@ BUDGET      each Godot run ≤ 10 min, > 2 min in the background; full cargo gat
 | **QS13b-7** | `client_rules.rs` is S14's file. 13b adds six admission entries (D-14's precedent). | **Accept**, entries only; S14 is told in the PR body. |
 | **QS13b-8** | `tools/cli/tests/client_2d_interact.rs` as a second test binary, or more tests in `client_2d.rs` (524 lines)? | **A second binary**, sharing `godot2d/`; each file stays under ~800 lines and the walk and interaction suites can be run separately. |
 
-### 15.11 Execution contract (to be filled and approved at freeze)
+### 15.11 Execution contract (filled at freeze, 2026-10-08)
 
 ```text
 PROJECT / PR:            S12 PR 13b — menu interactions through affordances
@@ -1798,16 +1824,26 @@ RELATED / BINDING DOCS:  this step §§1–14; overall.md "Parallel build-out", 
                          "One world, two views", "The World Interaction List"; CLAUDE.md;
                          ENGINEERING_RULES §§4, 7–9, 19, 22; ENGINEERING_STANDARDS; server/PROTOCOL.md;
                          clients/protocol/ADOPTION.md; clients/2d/PRESENTATION.md
-IMPLEMENTATION BASE:     main at freeze (≥ 9cf8f8e)
-APPROVED SCOPE:          §15.0–§15.8, as amended by the operator's answers to QS13b-1 … QS13b-3
+WORKTREE / BRANCH:       /Users/yuema137/mineworld-worktrees/impl-13b, branch mvp0/pr-13b-interactions,
+                         taken from main; held by the 13b implementation session only (a fresh session)
+IMPLEMENTATION BASE:     main at the start of implementation (≥ 9cf8f8e)
+APPROVED SCOPE:          §15.0–§15.8, as amended by the primary-session rulings ("13b DESIGN FROZEN")
 FROZEN INVARIANTS:       I-1 … I-9 (§8.1); no edit to clients/protocol/**, clients/3d-spike/**, or any
-                         server, kernel, contract, System Pack or World Pack file; AC-I1 … AC-I12 as written
+                         server, kernel, contract, System Pack or World Pack file; AC-I1 … AC-I12 as written;
+                         decision ids ARC-70 and the ARC-47 note only
 APPROVED SEQUENCE:       C0 → C6 (§15.6)
 VALIDATION BUDGET:       §15.8
+ALLOWED COMMANDS:        as for 13a (cargo, git, gh without merge, python3 scripts/*, mkdir -p, sed -n),
+                         plus `godot *` and `./mineworld-2d *`
+NEVER:                   python3 -c, sed -i, awk, xargs, curl, heredoc writes
 ENDPOINT AUTHORITY:      implementation, semantic commits, push, PR creation/update and CI repair after
                          freeze; merge only with explicit operator authorization
-MATERIAL STOPS:          a module edit; a server/pack change; an AC falsified; S11-B or 12d forcing more
-                         than a consumer change (RK-b2, RK-b3)
+MATERIAL STOPS:          an edit to the shared module (clients/protocol/mineworld/**), the server, any
+                         System or World Pack, or a contract; a scan rule (check_client_rules.py R1–R6,
+                         client_rules.rs) weakened beyond adding admission entries; an AC falsified;
+                         S11-B or 12d forcing more than a consumer change (RK-b2, RK-b3)
+EVIDENCE:                CI `fast` and `test` green on the final head, plus §15.6's recorded local evidence
+                         (Godot-gated tests NOT RUN in CI, reported as such)
 NORMAL STOP:             PR 13b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
