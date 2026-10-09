@@ -23,7 +23,8 @@ use mineworld_server::{
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
-use crate::perceive::PackPerception;
+use crate::history::SavedHistory;
+use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed, saved_genesis};
 
 /// What `mineworld server` was asked.
@@ -149,12 +150,18 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         let hosted = match save {
             None => {
                 let running = pack.load(epoch).map_err(HostError::build)?.into_running();
-                HostedWorld::new(running.world).perceiving(PackPerception::new(running.providers))
+                let events = PackEventPerception::seeded(&running.world);
+                HostedWorld::new(running.world)
+                    .perceiving(PackPerception::new(running.providers))
+                    .perceiving_events(events)
             }
             Some(save) => {
                 let (persisted, providers) = persisted(&pack, &save, epoch)?;
+                let events = PackEventPerception::seeded(persisted.world());
                 HostedWorld::persisted(persisted, recent)?
                     .perceiving(PackPerception::new(providers))
+                    .perceiving_events(events)
+                    .with_history(SavedHistory::new(save))
             }
         };
         // Each seat's factory builds a fresh controller, bound at the instant it is given: at start,

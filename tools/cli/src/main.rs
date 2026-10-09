@@ -14,8 +14,7 @@
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
 //! mineworld biography <world> --save DIR --person KEY [--json]
 //!                                       a Person's objective biography, from the fact log (ARC-29)
-//! mineworld perceived <world> --save DIR --person KEY [--since ID] [--json]
-//!                                       the facts a Person perceived, from the fact log (ARC-43)
+//! mineworld perceived <world> --save DIR --person KEY …   what a Person perceived (ARC-43)
 //! mineworld create <directory>         a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
@@ -60,6 +59,7 @@
 
 mod biography;
 mod create;
+mod history;
 mod hosted;
 mod inspect;
 mod invite;
@@ -75,12 +75,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
-use mineworld_persistence::{
-    Durability, PersistError, PersistenceBackend, SqliteBackend, WorldRevision, format, verify,
-};
+use mineworld_persistence::{Durability, SqliteBackend, verify};
 use mineworld_worldpack::{PackError, PackRoots, WorldPack};
+
+pub(crate) use history::saved_genesis;
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
@@ -223,14 +223,8 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
-    /// Print the facts a Person perceived, judged from a save's fact log by the audience rule the
-    /// server's perceived stream uses (ARC-43), without resuming or writing it.
-    Perceived {
-        #[command(flatten)]
-        args: perceived::PerceivedArgs,
-        #[command(flatten)]
-        packs: PackDirs,
-    },
+    /// Print the facts a Person perceived, from a save's fact log, by the server's audience rule.
+    Perceived(perceived::PerceivedArgs),
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -368,9 +362,7 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
-        Subcommand::Perceived { args, packs } => packs
-            .roots()
-            .and_then(|roots| perceived::perceived(&args, &roots)),
+        Subcommand::Perceived(args) => perceived::perceived(args),
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {
@@ -477,17 +469,6 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
         verified.head.raw(),
     );
     Ok(())
-}
-
-/// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
-/// resumes or verifies, so that a save never runs on against a configuration other than the one it was
-/// created with (`DECISIONS.md` `ARC-61` item 7). Shared by `replay` here and `serve::persisted`.
-pub(crate) fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
-    backend
-        .facts_of(WorldRevision::GENESIS)?
-        .iter()
-        .map(|row| format::decode(&row.bytes, "fact"))
-        .collect()
 }
 
 /// A pack's own refusal, as a person reads it.

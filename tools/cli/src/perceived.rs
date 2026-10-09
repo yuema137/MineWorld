@@ -21,10 +21,11 @@ use mineworld_persistence::{
     Durability, Manifest, PersistError, PersistenceBackend, SqliteBackend, format,
 };
 use mineworld_presence::audience::perceived_by;
-use mineworld_server::protocol::{PayloadForm, wire_fact};
-use mineworld_worldpack::{PackRoots, WorldPack};
+use mineworld_server::{PayloadForm, wire_fact};
+use mineworld_worldpack::WorldPack;
 
-use crate::described;
+use crate::history::saved_facts;
+use crate::{PackDirs, described};
 
 /// The arguments of `mineworld perceived`, parsed by `clap` (`DEP-11`) and declared here rather than
 /// in `main.rs`, which holds only the variant that flattens them.
@@ -44,6 +45,8 @@ pub struct PerceivedArgs {
     /// One PerceivedEvent per line, in the server's wire form, instead of lines for reading.
     #[arg(long)]
     json: bool,
+    #[command(flatten)]
+    packs: PackDirs,
 }
 
 fn damaged(error: PersistError) -> String {
@@ -51,8 +54,9 @@ fn damaged(error: PersistError) -> String {
 }
 
 /// Prints what the Person perceived, from the save.
-pub fn perceived(args: &PerceivedArgs, roots: &PackRoots) -> Result<(), String> {
-    let pack = WorldPack::read_with(&args.world, roots).map_err(described)?;
+pub fn perceived(args: PerceivedArgs) -> Result<(), String> {
+    let roots = args.packs.roots()?;
+    let pack = WorldPack::read_with(&args.world, &roots).map_err(described)?;
     let facts = read_facts(&args.save, pack.id())?;
 
     let loaded = pack
@@ -138,16 +142,8 @@ fn read_facts(save: &Path, pack: &str) -> Result<Vec<EventEnvelope>, String> {
             manifest.pack,
         ));
     }
-    let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-    let facts = backend
-        .last_facts(all)
-        .map_err(damaged)?
-        .iter()
-        .map(|fact| format::decode(&fact.bytes, "fact"))
-        .collect::<Result<Vec<EventEnvelope>, _>>()
-        .map_err(damaged)?;
     drop(backend);
-    Ok(facts)
+    saved_facts(save).map_err(damaged)
 }
 
 fn name(keys: &BTreeMap<EntityId, &EntityKey>, id: EntityId) -> String {

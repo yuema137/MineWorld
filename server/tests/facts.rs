@@ -554,3 +554,249 @@ async fn an_ephemeral_world_serves_cursors_from_the_join_on() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// CA-3's server half: judged when recorded, fact by fact, within one dispatch.
+// ---------------------------------------------------------------------------------------------
+
+mod rooms {
+    //! A test-local world of two rooms, whose one action states two facts in one dispatch: a line
+    //! heard in the room the actor is leaving, then the actor's arrival in the other room. Nothing
+    //! between them can sweep, so only a fan-out that judges each fact as it is recorded gives the
+    //! line to the person who said it on the way out (step-12 §17 CA-3, D-SC9).
+
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex};
+
+    use mineworld_contracts::{
+        Action, ActionIntent, ActionTypeId, EntityId, EntityKey, EntityType, Event, EventEnvelope,
+        EventSchemaVersion, EventTypeId, PlaceId, SystemId, Visibility, WorldTime,
+    };
+    use mineworld_kernel::{
+        Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
+        WorldView,
+    };
+    use mineworld_server::{EventPerception, HostError, HostedWorld, PerceivesNothing, SeatRoster};
+    use serde::{Deserialize, Serialize};
+
+    pub struct Rooms;
+
+    impl SystemIdentity for Rooms {
+        const ID: SystemId = SystemId::from_static("rooms");
+    }
+
+    /// Say something in the room you are in; with `leaving`, then walk into the yard.
+    #[derive(Serialize, Deserialize)]
+    pub struct Say {
+        pub leaving: bool,
+    }
+
+    impl Action for Say {
+        const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("say");
+        const OWNER: SystemId = Rooms::ID;
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Said;
+
+    impl Event for Said {
+        const EVENT_TYPE: EventTypeId = EventTypeId::from_static("said");
+        const OWNER: SystemId = Rooms::ID;
+        const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Went {
+        pub person: EntityId,
+    }
+
+    impl Event for Went {
+        const EVENT_TYPE: EventTypeId = EventTypeId::from_static("went");
+        const OWNER: SystemId = Rooms::ID;
+        const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    }
+
+    fn place(world_key: &str, read: &mineworld_kernel::WorldRead<'_>) -> PlaceId {
+        let entity = read
+            .resolve_key(&EntityKey::new(world_key).expect("a key"))
+            .expect("the room exists");
+        PlaceId::new(entity, EntityType::Place).expect("a place")
+    }
+
+    impl System for Rooms {
+        const VERSION: SystemVersion = SystemVersion::new(1);
+
+        fn declaration(&self) -> SystemDeclaration {
+            SystemDeclaration::of::<Self>()
+                .providing::<Say>()
+                .emitting::<Said>()
+                .emitting::<Went>()
+        }
+
+        fn resolve(
+            &self,
+            world: &mut WorldView<'_, Self>,
+            intent: &ActionIntent,
+        ) -> Result<Vec<Emission>, KernelError> {
+            let unresolved = || KernelError::ActionNotResolvedBySystem {
+                system: Self::ID,
+                action_type: intent.action_type().clone(),
+            };
+            let bytes = intent
+                .payload()
+                .payload_for::<Say>()
+                .map_err(|_| unresolved())?;
+            let say: Say = serde_json::from_slice(bytes).map_err(|_| unresolved())?;
+            let (hall, yard) = {
+                let read = world.read();
+                (place("hall", &read), place("yard", &read))
+            };
+            // The line names nobody: who hears it is the room's business alone.
+            let mut facts = vec![
+                Emission::new::<Said>(b"null".to_vec(), Visibility::Place(hall)).at_place(hall),
+            ];
+            if say.leaving {
+                let went = serde_json::to_vec(&Went {
+                    person: intent.actor(),
+                })
+                .expect("encodes");
+                facts.push(
+                    Emission::new::<Went>(went, Visibility::Place(yard))
+                        .with_participants(vec![intent.actor()])
+                        .at_place(yard),
+                );
+            }
+            Ok(facts)
+        }
+    }
+
+    /// Who is in which room, folded from `went` — every person starts in the hall.
+    pub struct RoomAudience {
+        rooms: BTreeMap<EntityId, PlaceId>,
+        hall: PlaceId,
+        pub log: Arc<Mutex<Vec<EventEnvelope>>>,
+    }
+
+    impl EventPerception for RoomAudience {
+        fn record(&mut self, fact: &EventEnvelope) {
+            self.log.lock().expect("sound").push(fact.clone());
+            if let (Ok(bytes), Some(place)) = (fact.payload().payload_for::<Went>(), fact.place())
+                && let Ok(went) = serde_json::from_slice::<Went>(bytes)
+            {
+                self.rooms.insert(went.person, place);
+            }
+        }
+
+        fn admits(&self, fact: &EventEnvelope, observer: EntityId) -> bool {
+            match fact.visibility() {
+                Visibility::Place(place) => {
+                    fact.participants().contains(&observer)
+                        || self.rooms.get(&observer).copied().unwrap_or(self.hall) == *place
+                }
+                _ => false,
+            }
+        }
+    }
+
+    pub fn build(log: Arc<Mutex<Vec<EventEnvelope>>>) -> Result<HostedWorld, HostError> {
+        let mut world = World::new();
+        world.install(Rooms)?;
+        for person in ["ann", "ben"] {
+            world.create_entity(EntityKey::new(person).expect("a key"), EntityType::Person)?;
+        }
+        let mut hall = None;
+        for room in ["hall", "yard"] {
+            let id =
+                world.create_entity(EntityKey::new(room).expect("a key"), EntityType::Place)?;
+            hall.get_or_insert(PlaceId::new(id, EntityType::Place).expect("a place"));
+        }
+        world.genesis(WorldTime::EPOCH, Vec::new())?;
+        let audience = RoomAudience {
+            rooms: BTreeMap::new(),
+            hall: hall.expect("the hall"),
+            log,
+        };
+        Ok(HostedWorld::new(world)
+            .seating(SeatRoster::new(
+                ["ann", "ben"].map(|seat| EntityKey::new(seat).expect("a key")),
+            ))
+            .perceiving(PerceivesNothing)
+            .perceiving_events(audience))
+    }
+
+    pub fn say(actor: EntityId, leaving: bool) -> mineworld_contracts::ActionRequest {
+        let wire: mineworld_contracts::ActionRequest<mineworld_server::WirePayload> =
+            serde_json::from_value(serde_json::json!({
+                "actor": actor, "action_type": "say", "target": null,
+                "payload": { "action_type": "say", "payload": { "leaving": leaving } },
+                "actor_location": null,
+            }))
+            .expect("a request");
+        mineworld_server::protocol::into_kernel_request(&wire).expect("a kernel request")
+    }
+}
+
+/// CA-3's server half: Ben says a line in the hall and leaves for the yard in **one** dispatch; Ann
+/// stays. Ben hears his own line (he was in the hall when it was recorded), and the yard arrival;
+/// Ann hears the line but not the yard. A line Ann says afterwards reaches Ann and not Ben.
+#[tokio::test]
+async fn a_fact_is_judged_where_people_were_when_it_was_recorded() {
+    let log: Log = Arc::default();
+    let shared = Arc::clone(&log);
+    let host = WorldHost::spawn(support::brisk(), move || rooms::build(shared))
+        .await
+        .expect("the world starts");
+    let mut ann = host
+        .join_perceiving(
+            JoinRequest::plain(key("ann"), SessionId::new(0)),
+            Some(PerceivedJoin { since: None }),
+        )
+        .await
+        .expect("seated");
+    let mut ben = host
+        .join_perceiving(
+            JoinRequest::plain(key("ben"), SessionId::new(0)),
+            Some(PerceivedJoin { since: None }),
+        )
+        .await
+        .expect("seated");
+
+    host.submit(ben.observer(), rooms::say(ben.observer(), true))
+        .await
+        .expect("dispatched");
+    host.submit(ann.observer(), rooms::say(ann.observer(), false))
+        .await
+        .expect("dispatched");
+    let recorded: Vec<(u64, String)> = log
+        .lock()
+        .expect("sound")
+        .iter()
+        .map(|fact| (fact.id().raw(), fact.event_type().as_str().to_owned()))
+        .collect();
+    let [(line, _), (went, _), (later, _)] = recorded.as_slice() else {
+        panic!("three facts: {recorded:?}");
+    };
+
+    let heard = |items: Vec<Streamed>| -> Vec<u64> {
+        items
+            .into_iter()
+            .filter_map(|item| match item {
+                Streamed::Facts { events, .. } => Some(ids(&events)),
+                Streamed::Observation(_) => None,
+            })
+            .flatten()
+            .collect()
+    };
+    let by_ben = heard(drain(ben.streams().0, Duration::from_millis(300)).await);
+    let by_ann = heard(drain(ann.streams().0, Duration::from_millis(300)).await);
+    assert_eq!(
+        by_ben,
+        vec![*line, *went],
+        "the line said on his way out, then his arrival"
+    );
+    assert_eq!(
+        by_ann,
+        vec![*line, *later],
+        "the hall's two lines, not the yard"
+    );
+}
