@@ -159,6 +159,21 @@ msgstr "{action}: refused ({code})"
 msgid "ui.result.unknown"
 msgstr "{action}: unknown — check the world (nothing was resent)"
 
+msgid "ui.walk-rejected"
+msgstr "The world stopped your walk — {reason}"
+
+msgid "ui.walk-unknown"
+msgstr "A step went unanswered — check the world (nothing was resent)"
+
+msgid "ui.participation"
+msgstr "· {kind} ·"
+
+msgid "ui.door-to"
+msgstr "door to {place}"
+
+msgid "ui.outside"
+msgstr "outside"
+
 msgid "ui.talk.prompt"
 msgstr "Say to {target}:"
 

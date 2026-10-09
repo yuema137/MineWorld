@@ -321,6 +321,8 @@ pub struct StubLog {
     pub teleported: Option<(Instant, (i64, i64))>,
     /// The observer's position the stub last told the client.
     pub position: (i64, i64),
+    /// How many connections the interaction stub ([`offering`]) seated.
+    pub connections: usize,
 }
 
 /// A revision-1 server that seats one client in a bare room and answers by script, so a test can
@@ -400,6 +402,151 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
         }
     });
     (address, log)
+}
+
+/// What the interaction stub (step-13 §15.3 AC-I4, AC-I5, AC-I12) shows and how it answers: a bare
+/// room, the observer `9` and the people listed, the offers exactly as listed (raw JSON, as a server
+/// writes them), and components disclosed about the observer and the place.
+#[derive(Clone, Debug, Default)]
+pub struct StubWorld {
+    /// Everybody but the observer: id, display name, position in millimetres.
+    pub people: Vec<(&'static str, &'static str, (i64, i64))>,
+    /// The affordances every observation offers, in this order.
+    pub offers: Vec<Value>,
+    /// After this many submits, these offers replace `offers`.
+    pub later_offers: Option<(usize, Vec<Value>)>,
+    /// Component records disclosed about the observer, each with the last frame number it is in
+    /// (`None`: every frame).
+    pub own: Vec<(Value, Option<u64>)>,
+    /// Component records disclosed about the place.
+    pub place: Vec<Value>,
+    /// Close the connection without answering this submit (1-based), then seat the reconnect.
+    pub hang_up_on: Option<usize>,
+}
+
+/// The observer's id in every stub, and where it stands (millimetres).
+pub const STUB_OBSERVER: &str = "9";
+const STUB_AT: (i64, i64) = (3000, 2000);
+
+/// A component record as an observation carries one.
+pub fn record(entity: &str, component_type: &str, payload: Value) -> Value {
+    json!({ "component_type": component_type, "entity": entity, "payload": payload, "schema_version": 1 })
+}
+
+/// A revision-2 server that seats the client (again after a hang-up) and offers what `world` lists,
+/// answering every submit `accepted` except the one it hangs up on.
+pub async fn offering(world: StubWorld) -> (SocketAddr, Arc<Mutex<StubLog>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("a port");
+    let address = listener.local_addr().expect("bound");
+    let log = Arc::new(Mutex::new(StubLog {
+        position: STUB_AT,
+        ..StubLog::default()
+    }));
+    let shared = Arc::clone(&log);
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let Ok(socket) = tokio_tungstenite::accept_async(stream).await else {
+                continue;
+            };
+            shared.lock().expect("log").connections += 1;
+            if !serve(socket, &world, &shared).await {
+                return;
+            }
+        }
+    });
+    (address, log)
+}
+
+/// One connection of [`offering`]. `true` when the stub hung up on purpose and waits for a reconnect.
+async fn serve(
+    mut socket: tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
+    world: &StubWorld,
+    log: &Arc<Mutex<StubLog>>,
+) -> bool {
+    let mut seq = 0_u64;
+    let mut seated = false;
+    let mut tick = tokio::time::interval(Duration::from_millis(100));
+    loop {
+        tokio::select! {
+            _ = tick.tick() => {
+                if seated {
+                    seq += 1;
+                    let submits = log.lock().expect("log").submitted.len();
+                    let frame = offering_observation(world, seq, submits);
+                    if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
+                        return false;
+                    }
+                }
+            }
+            incoming = socket.next() => {
+                let Some(Ok(Message::Text(text))) = incoming else { return false };
+                let frame: Value = serde_json::from_str(&text).expect("JSON");
+                match frame["t"].as_str() {
+                    Some("join") => {
+                        assert_eq!(frame["protocol"], 2, "the client speaks revision 2");
+                        assert_eq!(frame["invite"], INVITE, "the client presents the invite");
+                        seated = true;
+                        let welcome = json!({ "t": "welcome", "protocol": 2, "seat": frame["seat"],
+                            "observer": STUB_OBSERVER, "nickname": frame["nickname"], "session": "1",
+                            "resume": null, "hold_seconds": 0, "took_over": "none",
+                            "world": { "protocol": 2, "instance": "5705b0000000000000000000000057ab", "at": 0,
+                                "entities": 2 + world.people.len(), "systems": [], "seats": [frame["seat"]],
+                                "clients": 1, "observations_dropped": 0, "faults": 0, "revision": null } });
+                        let _ = socket.send(Message::Text(welcome.to_string().into())).await;
+                    }
+                    Some("submit") => {
+                        let n = {
+                            let mut log = log.lock().expect("log");
+                            log.submitted.push((Instant::now(), frame["request"].clone()));
+                            log.submitted.len()
+                        };
+                        if world.hang_up_on == Some(n) {
+                            let _ = socket.close(None).await;
+                            return true;
+                        }
+                        let answer = json!({ "t": "result", "token": frame["token"], "action_id": n.to_string(),
+                            "result": { "accepted": { "events": [n.to_string()] } } });
+                        let _ = socket.send(Message::Text(answer.to_string().into())).await;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+fn offering_observation(world: &StubWorld, seq: u64, submits: usize) -> Value {
+    let place = json!({ "entity": "1", "entity_type": "place" });
+    let at = |(x, y): (i64, i64)| json!({ "place": place, "local": { "x": x, "y": y, "z": 0 }, "facing": null });
+    let mut own = vec![record(
+        STUB_OBSERVER,
+        "display-name",
+        json!({ "name": "Stub Person" }),
+    )];
+    own.extend(
+        world
+            .own
+            .iter()
+            .filter(|(_, last)| last.is_none_or(|last| seq <= last))
+            .map(|(component, _)| component.clone()),
+    );
+    let mut entities = vec![
+        json!({ "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": world.place }),
+        json!({ "id": STUB_OBSERVER, "entity_type": "person", "location": at(STUB_AT), "tags": [], "components": own }),
+    ];
+    for (id, name, position) in &world.people {
+        entities.push(
+            json!({ "id": id, "entity_type": "person", "location": at(*position), "tags": [],
+            "components": [record(id, "display-name", json!({ "name": name }))] }),
+        );
+    }
+    let offers = match &world.later_offers {
+        Some((after, later)) if submits >= *after => later,
+        _ => &world.offers,
+    };
+    json!({ "t": "observation", "seq": seq, "revision": null, "observation": {
+        "observer": STUB_OBSERVER, "at": 0, "self_location": at(STUB_AT), "entities": entities,
+        "relations": [], "events": [], "affordances": offers } })
 }
 
 fn stub_observation(seq: u64, position: (i64, i64), move_unavailable: bool) -> Value {

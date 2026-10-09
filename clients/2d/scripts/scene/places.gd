@@ -11,6 +11,7 @@ extends Node
 
 const Ground := preload("res://scripts/scene/ground.gd")
 const Sprites := preload("res://scripts/scene/sprites.gd")
+const Words := preload("res://scripts/hud/words.gd")
 
 ## How fast a façade lifts away and a room fades in, per second (the spike's 3.4: 1 → 0 in 0.3 s).
 const FADE_RATE := 3.4
@@ -78,8 +79,8 @@ func _door_text(to: String) -> String:
 	var name := _observation.display_name(to) if _observation != null else ""
 	if name == "":
 		var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
-		name = to_tags[to_tags.size() - 1] if not to_tags.is_empty() else "outside"
-	return "door to %s" % name
+		name = to_tags[to_tags.size() - 1] if not to_tags.is_empty() else Words.text("ui.outside")
+	return Words.text("ui.door-to", {"place": name})
 
 
 ## Whether a doorway of `place` is drawn at `at` (plan metres), on a floor that is showing (F-10).

@@ -1717,14 +1717,22 @@ frame before a reader is written (B-8).
 participation marker, `pick(screen_point) -> id`); `app.gd` (load wording, panels wiring, keys I / H);
 `harness/drive.gd` → a `--drive=panels` scenario printing `PANEL` lines (the harness may be split into
 `harness/interact.gd` to keep files under ~500 lines).
-- [ ] Implementation: dump one market-town frame for `visitor` (`--drive=seated` with a `FRAME` line),
-  record the observed shapes of the nine components in this ledger, then write the readers; the name
-  cache (D-b-8); "other" raw panel.
-- [ ] Validation: `--drive=panels` against market-town: wallet 200 000, holdings apple 1 / scarf 1,
-  agenda present, shop listing with 6 kinds — each equal to the frame's raw value; AC-I12 (needs C3's
-  stub extension: run in C3, recorded there).
-- [ ] Review: readers hold no rule (no arithmetic beyond formatting); no action literal; panels vanish
-  when the component does.
+- [x] Implementation: frame dumped (`--frame`, §15.12 E-3) and shapes recorded before the readers;
+  `hud/words.gd` (the one wording reader: `load_pack`, `text`, `action`, `code`, `reason`, `money`,
+  `clock`, `readable`), `hud/readers.gd` (name cache D-b-8, `panels(observation)`, one reader per known
+  component, raw "other" with whole numbers shown as on the wire), `hud/panels.gd` (I: things, H:
+  conversations; rebuilt each observation), `scene/people.gd` (`pick`, `figure_at`, participation
+  marker from the disclosure, `activity_of`), `hud/status.gd` and `scene/places.gd` (door labels) now
+  worded by key; `harness/interact.gd` `--drive=panels` and `PANELS` lines. Landed in one commit with
+  C3 (§15.12 E-5).
+- [x] Validation: probe run on market-town (visitor, `--drive=steps`, `target/probe13b/run3.log`): the
+  first `PANELS` shows wallet `200000` → row "2000.00", holdings items 19 and 34 × 1, agenda, the café
+  shop with 6 listed kinds (prices 400/300/250/600/500/250 as rows "4.00" …). After the talk:
+  `acquaintances` (Alice) and `conversation-history` appear, Alice's reply as the newest row. AC-I12 on
+  the stub: PASS (C3).
+- [x] Review: readers do formatting only (minor units ÷ 100, seconds → clock); no action-type literal
+  (R2 and `client_rules.rs` would name it — R2 did catch a `"talk"` panel-group name, renamed
+  `"conversations"`); a panel exists only while its component is in the frame (AC-I12's seq check).
 
 #### C3 — Menus, composers, results
 **Goal.** The interaction itself: subjects, entries, inputs, submission, toasts (D-b-1 … D-b-7, D-b-11).
@@ -1734,12 +1742,29 @@ rebuild, choose); new `hud/{talk_line.gd, toasts.gd}`; `walker.gd` (`approach(id
 `app.gd` (click picking order, E/Q, result routing; the status note of B-3 becomes toasts);
 `tools/cli/tests/godot2d/mod.rs` (stub: scripted offers, people, own components, a "close without
 answering" step, per-request results); `tools/cli/tests/client_2d_interact.rs` (AC-I4, AC-I5, AC-I12).
-- [ ] Implementation: as scoped.
-- [ ] Validation: AC-I4, AC-I5, AC-I12 on the stub, each with its mutations run and reverted (red, then
-  green), evidence lines recorded here.
-- [ ] Review: every submit is in `intents.gd`; the choose path reads no verdict; complete entries go only
-  through `submit_affordance`; no entry is created that the frame did not offer except "walk to" under
-  D-b-3's condition.
+- [x] Implementation: `intents.gd` (`COMPOSED` + `INPUTS`, `composes`, `input_for`, `offered_walk`,
+  `submit_offered`, `compose`, `pending`/`take`/`drop_pending`); `menu.gd` (subjects, entries in the
+  server's order, verdicts read only in `_entry`, `choose` reads none; a Button list rather than
+  `PopupMenu`, because an entry must be greyed *and* choosable, which `PopupMenu` cannot draw — E-6);
+  `hud/{talk_line,toasts}.gd`; `walker.approach` + `APPROACH_M`; `app.gd` (picking order person →
+  doorway → floor, E/Q/I/H, results to toasts with the "walk to" button after `too_far_away`, unknown
+  on reconnect); `godot2d/mod.rs` `offering(StubWorld)` (scripted offers, people, own and place
+  components with a last frame, `later_offers`, `hang_up_on` then a reconnect); new
+  `client_2d_interact.rs` (AC-I4, AC-I5, AC-I12).
+- [x] Validation: `cargo test -p mineworld-cli --test client_2d_interact -- --ignored --test-threads=1`
+  → 3 passed (64.9 s). Mutations, each red then reverted (logs `target/probe13b/mut*.log`):
+  M4a menu sorts entries → AC-I4 FAIL (`["give","give","talk","wave"]`); M4b a default talk entry on
+  every person → AC-I4 FAIL (the drive's "menu lists the frame's offers"); M4c generic reason → AC-I4
+  FAIL (label "… — not possible"); M4d `wave` composed with `{}` → AC-I4 FAIL (entry enabled); M4e a
+  label table dropping unworded types → AC-I4 FAIL; M5a `if not available: return` in `choose` → AC-I5
+  FAIL (no input asked, nothing sent); M5b resend pending after reconnect → AC-I5 FAIL (4 submits);
+  M12a readers drop unknown → AC-I12 FAIL; M12b panel keeps the last value → AC-I12 FAIL. Rounds 1–2
+  ran three mutations together, one per test, each failing at its own assertion; M4d, M4b, M4e ran
+  alone (M4d was masked by M4c in round 2).
+- [x] Review: every submit is in `intents.gd` (R1 clean); `choose` reads only `enabled` and `kind`; a
+  complete entry goes only through `submit_offered` → `submit_affordance`; the only added entry is
+  "walk to", built from `offered_walk` (AC-I4 proves no other); a target-less `move` in one's own menu
+  is listed disabled ("Walk (click where to go)") because its input is a point, not a choice (E-7).
 
 #### C4 — Scans
 **Goal.** The structural half of ARC-47 covers 13b's new files (AC-I9).
@@ -1905,3 +1930,17 @@ Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktree
   `TerminateProcess` on Windows, so behaviour is portable and only the wording is Unix's (S12). 13b adds
   no path, signal, `/tmp` or shell assumption: wording paths are built with `path_join`, tests use the
   scratch helper.
+- **E-5 — C2 and C3 landed as one commit (bounded).** `app.gd` wires readers, panels, menu and toasts in
+  one `_hud()`, and the probe that pinned the shapes already exercised the menu; splitting the file's
+  edits would leave an intermediate commit that does not parse. Mapping: C2 = words, readers, panels,
+  status, people marker, `--drive=panels`; C3 = intents, menu, talk_line, toasts, walker, app routing,
+  stub, tests.
+- **E-6 — Buttons, not `PopupMenu` (bounded).** D-b-2 needs an entry greyed but enabled; `PopupMenu` has
+  only "disabled". A `PanelContainer` of flat `Button`s (greyed by `modulate`, Enter on the focused one)
+  is the built-in that draws it (DEP-16 "widgets: Control nodes").
+- **E-7 — One's own `move` (bounded).** A target-less `move` is offered in every frame, so it appears in
+  one's own menu. Its input is a point on the floor, which a menu cannot supply; it is listed, disabled,
+  worded `action.move` ("Walk (click where to go)") — nothing removed, nothing sent.
+- **E-8 — `--no-wording` (bounded).** AC-I8's language-independence run needs the art without the
+  wording; `--no-wording` skips `Words.load_pack` (the alternative, deleting `en.po` from a copied pack,
+  would also test the copy). Recorded in `app.gd`.
