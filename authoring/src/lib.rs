@@ -25,10 +25,17 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod attachment;
+mod classes;
 mod configuration;
 mod content;
 mod section;
 
-pub use configuration::{AuthoredConfiguration, DecodeConfiguration, PackConfiguration};
+pub use attachment::{ATTACHMENT_DIRECTORY, ATTACHMENT_MAX_BYTES, Attached, Attachment};
+pub use classes::{ClassDefinition, ClassName, Classed, EntityClasses};
+pub use configuration::{
+    AuthoredConfiguration, ConfigurationContext, ConfigurationRefusal, DecodeConfiguration,
+    EntryAt, PackConfiguration,
+};
 pub use content::{AuthoredContent, Decode};
 pub use section::{AuthoredSection, ContentKind, Reference, SectionName, Seeding};

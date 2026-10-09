@@ -29,3 +29,19 @@ cargo test -p mineworld-group-activity   # hand-built café, and an activity acr
 Design and evidence: [`step-09-social.md`](../../.structured-coding/plans/mvp0/step-09-social.md)
 §4.2 (SD-10, C2). The command surface and the rules every pack follows are in
 [`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §3.
+
+## Its section of the World's Interaction List
+
+A world may set how long an invitation can be answered in `configure/group-activity.yaml` (listed in
+`world.yaml`'s `configure:`), for everyone, for a class of inviter or invitee, or in one place:
+
+```yaml
+parameters:
+  - { invitation_lifetime: 3600 }                   # whole seconds, 1 … 86 400; 1 800 when unset
+  - { target: regular, invitation_lifetime: 600 }   # a class from configure/classes.yaml
+```
+
+Roles: `actor` is the inviter, `target` the invitee, `place` where the invitation was made. Each
+invitation records the instant it lapses (`until`), and a controller reads that instant rather than a
+lifetime of its own. In this version the section has no rules and no consequences. The schema is
+[`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.2.

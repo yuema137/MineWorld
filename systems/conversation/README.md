@@ -48,3 +48,21 @@ cargo doc -p mineworld-conversation --open  # the crate docs are the reference
 checkpoint: a talk accepted and remembered, the same talk refused `TooFarAway` with nothing written,
 and two worlds that differ by one boolean — in one of which there is no talking at all, and which is
 not broken.
+
+## Its section of the World's Interaction List
+
+A world may set the conversation gap — the silence after which the next exchange starts a new
+conversation — in `configure/conversation.yaml` (listed in `world.yaml`'s `configure:`), for
+everyone, for a class of speaker or listener, or in one place:
+
+```yaml
+parameters:
+  - { gap: 600 }                      # whole seconds, 1 … 86 400; 300 when unset
+  - { actor: regular, gap: 3600 }     # a class from configure/classes.yaml
+regions:
+  cafe: { parameters: [ { gap: 1800 } ] }
+```
+
+Roles: `actor` is the speaker, `target` the listener, `place` where they are. In this version the
+section has no rules and no consequences. The schema is
+[`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.2.

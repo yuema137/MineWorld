@@ -2047,6 +2047,14 @@ invented or dropped an entry fails. It is regenerated identically from a restart
 in S10. Generated prose is display, never state (§4.4). A pack that states a fact without naming its
 people in the envelope is invisible to biographies; that is the pack's defect, not the projection's.
 
+**Note, 2026-10-08 (S17, PR IL-b; `ARC-65` item 4, QIL-15).** The selection is now
+`mineworld_sdk::interactions::biography::selected`. A fact whose owner has a configured section is
+biographical when that section's consequence for the fact's roles says so (`biography: on | off`, only
+where the owner allows); otherwise the compiled set above decides. `mineworld biography` therefore also
+reads the save's genesis `*-interactions-configured` facts and each entity's type and tags (from the
+World Pack it already reads for keys and names), and each composed capability's declared facts. It still
+writes nothing and resumes nothing. With no configured section it is this decision exactly.
+
 ---
 
 ## ARC-30 — The development profile is optimized at level 1, with its debug checks stated explicitly
@@ -2528,6 +2536,15 @@ complete affordances, for both reference clients at once:
 Nothing on the wire changed. The API is specified in `clients/protocol/ADOPTION.md` §2 and designed in
 `.structured-coding/plans/mvp0/step-15-demo-3d.md` §18. No new record was needed: it is this decision's
 point 3 and point 7 carried into code.
+
+**Note, 2026-10-08 (S17, PR IL-b; QIB-3, QIL-12, QIL-13) — a pack-stated refusal on an offer.**
+Presence's `Offer` gains one builder, `Offer::refused(Rejection)`: the owning pack says the action is
+offered but refused for a reason only it can judge — `PermissionDenied` from its section (`ARC-63`
+item 8). Perception reports a refusal **before** it evaluates the spatial requirement, as
+`Affordance::unavailable(…, reason)`; the requirement is still shown and a complete offer's payload
+still travels. An offer that is not refused behaves exactly as before, and no contract changes:
+`Affordance` already carries any `Rejection`. The offer and the dispatch give the same answer in the
+same order: a refused action is refused before its spatial check in both.
 
 ---
 
@@ -4208,6 +4225,28 @@ not checked (QPL-12's scope).
 - A configured pack's declaration does not change, so configuring a pack does not change its
   `SystemVersion`; a pack whose configuration *schema* changes raises it, as for any owned type.
 
+**Note, 2026-10-08 (S17, PR IL-b; QIA-1, QTW-7, SD-IB-1, SD-IB-3, SD-IB-5) — framework keys, the
+seeding context and `data:` attachments.**
+- **Item 4's reserved keys become framework keys.** `classes` is decoded by
+  `mineworld_authoring::EntityClasses` (`ARC-64`) and `packages` by `mineworld_packages::LicencePolicy`
+  (`ARC-55` note). A framework key is never resolved against the installed set and never seeded on its
+  own; listing it is optional, an unlisted file in `configure/` is still refused, and a test holds that
+  no installed pack's id is a framework key.
+- **The seeding context.** `PackConfiguration::seed(&Seeding, &Configuration, &ConfigurationContext)`:
+  the context hands a configuration the world's entity classes and the bytes of its own attachments,
+  read-only. `Seeding`, which sections share, is unchanged. A configuration may also be checked against
+  the context before anything is seeded (`PackConfiguration::check`, default accept); a refusal there is
+  typed (`ConfigurationRefusal`: an undefined class, two ambiguous entries) and named by the loader with
+  the file, the list and the index. No shim keeps the old signature.
+- **`data:` attachments.** A configuration may name files under the World Pack's `data/` directory with
+  `authoring::Attachment`: a relative path written with `/`, first component `data`, every component a
+  plain name (no `..`, no root, no drive, no `\`), checked as it decodes, at its line and column — the
+  same on every platform. `PackConfiguration::attachments` lists them (default none). The loader reads
+  each one and refuses one that is missing, one that resolves outside the pack after its links are
+  followed, and one over 4 MiB, each by name. `seed` receives the bytes; the owner decodes them and
+  states what it needs in its own fact, so a changed file is drift with no new mechanism. Files under
+  `data/` that nothing names are allowed.
+
 ---
 
 ## ARC-62 — Extension catalogs: a pack-owned trait, implemented by other packs, listed in the installed set
@@ -4704,6 +4743,15 @@ generic seam — chosen.
 does not yet track; it is the first candidate for asset packs once it does. Copyleft licences
 (`CC-BY-SA-*`, `GPL-*`) stay out, for `DEP-8`'s reason.
 
+**Note, 2026-10-08 (S17, PR IL-b; QIA-1, QIB-7) — point 5 is wired.** `packages` is a framework key of
+`configure:` (`ARC-61` note). When a world lists it, `configure/packages.yaml` is decoded straight into
+`LicencePolicy` (`{ allowed: [...] }`, each identifier checked against the SPDX list; a refusal is
+`LicencePolicyInvalid`, with its line and column) right after the world's systems resolve and before its
+requirements do, and that policy replaces the default for the world: in resolution and in `mineworld
+packs validate <world dir>`. `packs validate <pack dir>` keeps the default. The policy is not world
+state: it is never seeded and never drift-checked, and is read again at every read, including every
+resume.
+
 ---
 
 ## ARC-53 note — classification moved to E-b (2026-10-08)
@@ -4769,6 +4817,258 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
   `check_scratch.py left` reports it.
 - Revisit if test scratch must live outside `target/` in a shared, world-writable directory, where
   `tempfile`'s secure creation matters.
+
+---
+
+## ARC-63 — The World's Interaction List: one section shape for every pack, typed and enforced by its owner
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-2
+overruled, QIL-4 … QIL-6, QIL-9, QIL-11 … QIL-16) and the primary session at PR IL-b's design freeze
+(step-18-interaction-list §12; QIB-1 … QIB-14 accepted as recommended) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to** `ARC-25`, `ARC-31`, `ARC-33`, `ARC-34`,
+`ARC-61`, `ARC-64`, `ARC-65`, `DEP-28`, `INV-13` · **Design**
+`.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.4 … §4.6, §4.10, §12 (S17, PR IL-b)
+
+**Problem.** A world author wants to say, without code, that nobles and commoners do not talk, that a
+conversation lasts longer in this world, that an heirloom cannot be given. Every such rule today is a
+compiled constant or a hard-coded branch inside one System Pack (step-18 §2.2). `ARC-61` gave every pack
+a world-level file it types; it did not say what that file looks like. If each pack invented its own
+shape, an author would learn twelve dialects, a tool could print none of them, and the first rule that
+needed a class of person would be written twelve times.
+
+**Choice.**
+
+1. **One shape for every pack.** A pack's part of the list is its **section**: the file
+   `configure/<pack id>.yaml`, carried by `ARC-61`'s seam unchanged. Every section has the same six
+   optional keys and refuses any other (`deny_unknown_fields` throughout):
+
+   ```yaml
+   extends: default            # one of this pack's reference lists (item 4)
+   default: permit             # permit | forbid: what an action no rule matches gets; permit unless said
+   rules:                      # { action, <role>: <selector>…, effect: permit | forbid }
+     - { action: talk, actor: noble, target: commoner, effect: forbid }
+   parameters:                 # { <role>: <selector>…, <field>: <value>… }; unscoped = the base
+     - { gap: 600 }
+     - { actor: guard, gap: 1200 }
+   consequences:               # { fact, <role>: <selector>…, audience?, biography?, <knob>… }
+     - { fact: spoke, actor: servant, biography: off }
+   regions:                    # by place key: rules, parameters and consequences for that place only
+     library: { parameters: [ { gap: 60 } ] }
+   ```
+
+   A **selector** is an entity class (`ARC-64`), a type's implicit class, or `*`. A **role** is a position
+   the owning pack declares per action and per fact: `actor`, `target`, `object`, `place`.
+2. **The SDK supplies the shape; the pack supplies the meaning.** A pack implements
+   `mineworld_sdk::interactions::InteractionSection` and writes `mineworld_sdk::interactions!();` inside
+   its `impl SystemPack`:
+
+   ```text
+   type Parameters      made by parameters!: each field's type, bound (L0) and default, with an
+                        all-optional partial twin for scoped entries
+   type Knobs           pack-specific consequence fields (`()` for none)
+   ACTIONS              each action: its roles, and whether a region may scope it
+   FACTS                each fact type: which envelope position fills each role, its default audience,
+                        the narrowest audience a list may choose, whether biography is configurable
+   PARAMETER_ROLES      the roles a parameter entry may scope by
+   CONFIGURED, COMPONENT   the names of its configured fact and per-place component
+   reference_lists()    the compiled lists; always `default` (today's behaviour)
+   encode, decode       the configured fact's payload, with the pack's own codec
+   ```
+
+   `interactions!()` makes the section the pack's configuration (`ARC-61`'s `CONFIGURATION`,
+   `CONFIGURATION_FACTS`, `decode_configuration`), so a pack with a section has no other configuration,
+   and states `INTERACTIONS` for the installed set's `Capability::interaction_section()`, which the tools
+   read. The pack's `declaration()` and `install()` call `interactions::declare` and
+   `interactions::install`, and its `react` calls `interactions::reduce` first.
+3. **What decoding refuses, at its line and column** (the section's own type, `DEP-10`): an action or fact
+   the pack does not declare; a role the pack does not declare for that action, fact or parameter
+   block; a parameter outside its bound or unknown; a widened audience or one below the owner's
+   narrowest (`ARC-65`); `biography` on a fact whose owner does not allow it; a rule in a region for an
+   action that is not regional; an `extends` naming no reference list of the pack, or one whose chain
+   is cyclic or longer than four. After decoding, once the world's classes are read, the loader refuses
+   by name, naming the file, the list and the index of each entry: a selector naming a class that is
+   neither declared nor implicit (`ClassUndefined`), and two **ambiguous** entries (`AmbiguousEntries`,
+   item 5). A region naming no declared place is `ARC-61`'s unknown-entity refusal.
+4. **Levels, highest last** (`L0` is never overridden):
+
+   ```text
+   L0  the pack's bounds         code; a value outside them is refused at load
+   L1  the pack's `default`      compiled; today's behaviour
+   L2  extends                   a named reference list of this pack (chains of at most four, no cycle)
+   L3  the world's section       configure/<pack>.yaml
+   L4  a region                  that section's regions.<place> entries, for that place only
+   ```
+
+   A higher level's entry replaces a lower level's entry with the same key — the action or fact plus its
+   selectors — field by field for parameters and consequences; entries with different selectors
+   coexist.
+5. **Then specificity, then forbid.** Among the entries that apply to a request, the one naming the most
+   roles wins (an implicit class counts as named). Among rules of equal specificity, `forbid` overrides
+   `permit` (Cedar's rule, `DEP-28`). Two parameter entries or two consequence entries of equal
+   specificity that **overlap** and give one field different values are refused at load: so ambiguity
+   never reaches run time, and a lookup's answer does not depend on the order an author wrote entries
+   in. Two entries overlap when, for every role, their selectors are equal, or one is `*`, or one is an
+   implicit class whose type the other's class selects.
+6. **Storage.** A configured section is resolved at genesis, by a pure function of the files, into one
+   genesis fact `<pack>-interactions-configured`, `Visibility::SystemInternal`, no subjects, holding
+   every level merged, each region, and the classes the section references. The pack reduces it into a
+   component `<pack>-interactions` on every Place, holding the base and that place's region. The drift
+   check (`ARC-61` item 7) compares that fact, so an edited section, an edited referenced class or a
+   changed attachment is refused at resume.
+7. **Lookups are pure and total.** `permits` (`Err(PermissionDenied)` when forbidden), `parameters`
+   and `consequence` read the component on the place the pack names (a request's actor's place, a
+   reaction's fact's place; without a place, the base, which every copy holds). With no component —
+   the world configures nothing for that pack — each returns the compiled default and reads nothing
+   else: `Ok`, the default parameters, the owner's default audience and compiled biographical flag. So
+   a world that configures nothing produces byte-identical facts, pack by pack.
+8. **Enforcement stays in the owning pack.** In `validate`, `permits` after the payload, actor and
+   target exist and before the spatial requirement; in its offers through the same call, as
+   `Offer::refused(PermissionDenied)` (`ARC-34` note); `consequence` at emission; `parameters` where it
+   decides. The kernel sees nothing new.
+9. **A list cannot grant.** It names only declared actions and facts; `permit` is a filter AND-ed with
+   the pack's own validation; parameters stay within bounds; audience only narrows and biography changes
+   only where the owner allows (`ARC-65`); a section for a pack the world does not enable is refused
+   (`ARC-61`).
+10. **`mineworld interactions <world> [--place KEY] [--json]`** prints each configured section resolved
+   — base, then each region — each entity's class, and "default (compiled)" for a pack with a section
+   that the world does not configure. It reads the World Pack only and writes nothing. Its JSON has
+   sorted keys and is stable.
+
+**Options considered.** (a) Each pack's own file format — rejected: twelve dialects, no tool. (b) A
+general policy engine — rejected (`DEP-28`). (c) **One SDK shape, the meaning per pack** — chosen.
+
+**Accepted limitations.**
+- No attribute conditions (`when regard > 50`, QIL-11): data only, no expressions (QPL-1).
+- A reference list is written in Rust by its pack, not in YAML: neither the SDK nor a pack depends on a
+  YAML parser, and the loader's parser is not handed to them.
+- A pack with a section has no other configuration file; a pack that needs a `data:` attachment
+  (`ARC-61` note) and a section at once is a later amendment, when one exists.
+- Converting a pack raises its `SystemVersion` (its declaration grows), so older saves are refused by
+  name (`ARC-25`); no fact digest moves. A pack's `default` is pinned to its version by one test per
+  pack.
+- In IL-b only `conversation` and `group-activity` have sections, and they declare parameters only.
+  Rules and consequences of real packs arrive with IL-e … IL-g.
+
+---
+
+## ARC-64 — Entity classes are named tag selectors, fixed during play
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-3,
+QIL-6, QIL-7; QIL-2 overruled, so classes live in `configure/classes.yaml`) and the primary session at PR
+IL-b's freeze (QIB-8) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to**
+`ARC-36`, `ARC-61`, `ARC-63`, `A-1` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md`
+§4.2, §12 SD-IB-4
+
+**Problem.** A rule about "nobles" needs to know who is a noble, in every pack, without a new owner of
+state and without changing a world that never mentions nobles.
+
+**Choice.**
+
+1. **A class names a tag over one entity type.** `configure/classes.yaml` is a list of
+   `{ class, of, tag }`: `class` has the system-id grammar (`authoring::ClassName`); `of` is `person`,
+   `place`, `item` or `organization`; `tag` is a `Tag`. It is decoded by
+   `mineworld_authoring::EntityClasses`.
+2. **One class per entity, by priority.** An entity's class is the first entry whose `of` is its type
+   and whose tag it carries; otherwise its type's **implicit class**, named by the type. Every entity
+   also matches the selector of its type's implicit class. The four implicit names are reserved.
+3. **Classes are not state.** Tags are a taxonomy fixed after genesis (`A-1`), so a class needs no fact,
+   no component and no owner, and does not change while a world runs. `classes.yaml` is not seeded on
+   its own: each section's resolved fact copies the class entries it references, and the entries of the
+   same type listed before one of them (which could shadow it). So editing a referenced class is drift
+   (`ARC-61` item 7), and editing an entry no section can see is not.
+4. **`classes` is a framework key of `configure:`**, not a System Pack id: listed to be read, read
+   before any section is decoded, refused as `ClassesInvalid` (its line and column) when a class is
+   defined twice, an implicit name is reused, or `of` is not one of the four types. An unlisted
+   `configure/classes.yaml` is refused as any undeclared file is.
+
+**Options considered.** (a) A `classes` pack owning a mutable `Class` component and facts —
+rejected for MVP-0 (QIL-7): an owner, facts and a migration for what tags already say. (b) **Named tag
+selectors** — chosen: byte-identical when unused, already disclosed to clients, already immutable.
+
+**Accepted limitations.** One class per entity and no inheritance (QIL-6); no promotion during play
+(QIL-7); a tag no class names has no effect, and `mineworld interactions` prints each entity's class so
+an author sees which applies (R-IL-7).
+
+---
+
+## ARC-65 — Consequence routing: a list narrows a fact's audience and switches its biography, within the owner's bounds
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-8,
+QIL-10, QIL-15) and the primary session at PR IL-b's freeze (QIB-11, QIB-12) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to** `INV-4`, `INV-11`, `INV-13`, `ARC-29`, `ARC-63`
+· **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.7, §12 SD-IB-11, SD-IB-13
+
+**Problem.** "Servants' lines are not history; nobody overhears in this world." A world must be able to
+say what a fact means for history and perception without ever stopping a fact from being recorded,
+leaking private state, or telling a mind what to forget.
+
+**Choice.**
+
+1. **What a list may govern, per fact type and role selectors:** its **audience**, narrowing along
+   `Public ⊇ Place ⊇ Participants`, never below the owner's declared narrowest and never wider than its
+   default (a widening is refused at load); its **biography** flag, `on` or `off`, only where the owner's
+   `FactDecl` allows; and the pack's own typed knobs. `Entities(…)` and `SystemInternal` are never
+   produced by a list: a list cannot name entities.
+2. **What it may never do:** widen an audience; stop a fact from being recorded (`INV-11`); change a
+   payload, an owner or a fact's subjects; route another pack's fact. A fact stated through another pack's
+   constructor takes its consequence from its owner's section.
+3. **"Enters history", layer by layer:**
+
+   ```text
+   fact log     always: every fact is recorded in every world (INV-11)
+   biography    the ARC-29 projection asks the save's configured sections (item 4)
+   in-world     the owning pack's own state (conversation's Remembered), through that pack's knobs
+   memory       cognition's, from perceived facts only: the list reaches it only through audience
+   ```
+
+   No list writes into a mind; a world cannot tell cognition what to forget (QIL-10).
+4. **`ARC-29` amended.** The biography projection selects through
+   `mineworld_sdk::interactions::biography::selected(fact, person, compiled, configured)`. `Configured`
+   is assembled from the save's genesis `*-interactions-configured` facts, each composed capability's
+   `FactDecl`s, and each entity's type and tags. With nothing configured it is `ARC-29` exactly.
+5. **The audience is chosen by the owner at emission**, through `consequence`, and carried in the
+   envelope's `Visibility`; perception reads only the envelope, so it applies a list's narrowing with no
+   change and no knowledge of lists.
+
+**Accepted limitations.** In IL-b no installed pack declares a configurable fact: the routing is proven
+with a test-only pack, and through the binary when IL-e converts conversation (QIB-11). Perceiving a
+narrowed fact as a bystander is proven by S11-C's audience function and `mineworld perceived` when they
+exist (QIB-12); IL-b proves the envelope's `Visibility`.
+
+---
+
+## DEP-28 — The Interaction List: our own narrow schema, on Cedar's semantics; no policy engine
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List", decision
+numbers) and the primary session at PR IL-b's freeze · **Relates to** `REUSE_POLICY.md` §§2, 11–12, 17,
+`ARC-63`, `QPL-1` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §3
+
+**Problem.** The list decides three things, deterministically, on the hottest paths (`validate`,
+offers, emission): is a (role classes, action, place) tuple allowed; which value of a typed parameter
+applies; which audience and biographical flag a fact gets.
+
+**Options considered** (step-18 §3.2, primary sources):
+
+```text
+flecs relationships        storage and queries, not rules; an ECS is DEP-1's rejection    reference
+RimWorld / Factorio        data names code; ordered composition; untyped, game-bound      reference
+Cedar                      exactly the rule semantics (scope triple, forbid overrides     adopt the semantics,
+                           permit, schema validation); nothing for parameters or          not the engine
+                           consequences; conditions are an expression language; default
+                           deny; an entity set per request; "skip on error"
+OPA / Rego                 general language; time, randomness and network builtins        reject
+Casbin                     scripted matchers (rhai), async runtime, untyped model files   reject
+interaction matrices       the presentation authors expect                                reference
+our own SDK schema         all three columns, integers, sorted data, pure lookups         build, narrowly
+```
+
+**Choice: build, narrowly, with Cedar's semantics.** Our rule grammar is Cedar's scope triple without
+`when`; our tie rule is forbid-overrides-permit; our sections are validated by their owner's type before
+anything runs. Unlike Cedar, a world's default is `permit` (today's behaviour) and an erroring entry is
+refused at load, never skipped. No dependency is added; YAML is `serde-saphyr` (`DEP-10`), as before.
+
+**Revisit trigger.** Attribute conditions becoming a requirement (QIL-11): Cedar's engine is then the
+candidate, not a language of our own.
 
 ---
 
