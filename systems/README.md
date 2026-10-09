@@ -83,6 +83,13 @@ presence's `extension` line in the installed set as well as on its own line, and
 trait it owns with one more `extension` line; a pack can also take a world-level configuration file
 (`configure/<id>.yaml`, `ARC-61`).
 
+A pack whose numbers or rules a world may choose has a **section** of the World's Interaction List
+(`configure/<id>.yaml`, `ARC-63`): it implements `mineworld_sdk::interactions::InteractionSection`
+(its parameters with their bounds and defaults, its actions and facts with their roles), writes
+`mineworld_sdk::interactions!();` in its `impl SystemPack`, and reads the answers with `permits`,
+`parameters` and `consequence`. Its README documents its section. The schema is
+[`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §4.2.
+
 ```sh
 cargo test -p mineworld-presence
 cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control

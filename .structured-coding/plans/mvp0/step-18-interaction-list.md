@@ -2017,12 +2017,12 @@ evidence in §12.13.
   (SD-IB-1, 3, 5). Each id re-checked on every `origin/*` branch before writing.
 - `MODULE_SPEC.md` §4, §4.1, new §4.2; `systems/README.md`; `MVP_STATUS.md`.
 **Non-goals.** Code. **Depends on.** IB-C0 frozen.
-- [ ] Implementation: the records and sections above.
-- [ ] Validation: both doc scripts; `git grep` shows no "reserved for" wording left in the specs for
-  `classes`/`packages`, except in ARC-61's history.
-- [ ] Review: no defined term redefined or given a synonym (entity class, section, selector, role,
+- [x] Implementation: the records and sections above (E-IB-1).
+- [x] Validation: both doc scripts; `git grep` shows no "reserved for" wording left in the specs for
+  `classes`/`packages`, except in ARC-61's history (E-IB-1).
+- [x] Review: no defined term redefined or given a synonym (entity class, section, selector, role,
   rule, parameter block, consequence, reference list, region are §4.1's words); ARC-63 states "a list
-  cannot grant"; ARC-65 states the four layers of "enters history".
+  cannot grant"; ARC-65 states the four layers of "enters history" (E-IB-1).
 
 ### IB-C2 — `authoring`: the seeding context, classes, attachments
 
@@ -2276,11 +2276,87 @@ E-IB-f  2026-10-08, freeze commit on plan/s17-il-b: origin/main @ 77a8717 (IL-a 
         plus the §6.2 pointer; the freeze header, rulings and confirmed contract were added.
         check_doc_headings → 191 numbered sections across 26 documents, none duplicated;
         check_decision_ids → 69 ids, all distinct. PASS.
+E-IB-0  2026-10-08, implementation session, on main @ aa74b32 (code identical to the freeze base 77a8717:
+        `git diff --stat 77a8717 aa74b32` lists three plan documents only; 12d not merged), dev profile,
+        binary kept as target/il-b/base-mineworld, artifacts target/il-b/base-*; "sha" = sha-256 of every
+        output line but `wall`; machine shared with other sessions (load average 60 … 139):
+        social-cafe `run --headless --seed 7 --days 300`: exit 0, faults 0, 365 330 facts, fingerprint
+          59339a9c281829c9, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        market-town, same: exit 0, faults 0, sha
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+        (both = the recorded references; town runs used: 2 of 4)
+        bodies-yard `--days 30`: exit 0, faults 0, sha
+          bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 (= main's ZI-3)
+        long_run second process: LONG-RUN line 4 019 632 bytes, sha 23f7fa76…e5125 (= ZI-1)
+        long_run_objects second process: LONG-RUN-OBJECTS line 612 428 bytes, sha c8358f8b…c5b4 (= ZI-2).
+          Its first invocation set BODIES_LONG_RUN_SECOND_PROCESS instead of the test's own
+          BODIES_LONG_RUN_OBJECTS_SECOND_PROCESS and printed no line: INCONCLUSIVE (invocation mistake),
+          re-run once with the right variable. long_run and long_run_objects: one base run each counted.
+        validate: social-cafe ebcd60a0…f56a8, market-town 64f41086…73502, bodies-yard 7356b8f8…2063f
+          (= E-IA-0's)
+        social-cafe 30 days seed 7 (M-IB1a/b and IB-14's base), three runs: sha
+          06e2d63c6e7ee369fe3d13d59624ee0c691a0050dd8fe93fa1a4eed5d5016fbe each; walls 13.0, 12.0, 6.3 s at
+          load 139, 133, 127 — the spread is far above 5 %, so these walls cannot serve IB-14; IB-14's base
+          walls are re-taken beside the head's (§12.5's INCONCLUSIVE rule). PASS (references captured).
+E-IB-1  2026-10-08, IB-C1: DECISIONS.md ARC-63, ARC-64, ARC-65, DEP-28 appended (ids re-checked on every
+        origin/* branch first: none has a heading for any of them); dated notes on ARC-29, ARC-34, ARC-55,
+        ARC-61. MODULE_SPEC.md §3.1 (a pack with a section), §4 tree (classes.yaml, packages.yaml, data/),
+        §4.1 (framework keys, attachments; the reserved-key refusal removed), new §4.2 "The World's
+        Interaction List" (§4.1's vocabulary of this file, classes, the section, precedence, refusals, what a
+        list cannot do, run time). systems/README.md "Adding a pack": a section. MVP_STATUS.md: the
+        configuration row extended, one Interaction List row. check_doc_headings → 192 numbered sections
+        across 26 documents, none duplicated; check_decision_ids → 73 ids, all distinct. `git grep
+        "reserved for\|reserved key"` in docs/ and systems/README.md: only ARC-61's own history (items 3–5)
+        and its new note. Review: §4.2's terms are §4.1's words, each defined once; ARC-63 item 9 is "A
+        list cannot grant"; ARC-65 item 3 lists the four layers. The records state the implementation's
+        bounded refinements D-IB-1 … D-IB-5 (§12.14) where they touch the specification. PASS.
 ```
 
 ## 12.14 Deviations
 
-None yet.
+```text
+D-IB-1  (bounded) A reference list is a Rust value (`InteractionSection::reference_lists()`, default
+        `[("default", the empty section)]`), not YAML text (`REFERENCE: &[(&str, &str)]`, SD-IB-7). Neither
+        mineworld-sdk nor a pack depends on a YAML parser, and adding one is a Cargo.lock change the
+        contract forbids; the loader's parser cannot be handed to the SDK's resolver at every lookup site
+        (genesis, the biography projection, `mineworld interactions`). The levels, `extends`, its chain
+        bound and its cycle refusal are unchanged.
+D-IB-2  (bounded) Of SD-IB-17's refusals, those decidable from the pack's own declarations alone —
+        ActionNotDeclared, FactNotDeclared, RoleNotDeclared, AudienceWidened (and below-narrowest),
+        BiographyNotConfigurable, a region rule for a non-regional action, ExtendsUnknown, ExtendsCycle,
+        ExtendsTooDeep — are raised by the section's own decoding, so they reach the author as `Malformed`
+        with serde's line and column and a message naming the refusal, rather than as distinct PackError
+        variants without a position. ClassUndefined and AmbiguousEntries, which need the world's classes,
+        are PackError variants naming the file, list and index. RegionUnknownPlace is IL-a's
+        ConfigurationNamesUnknownEntity (through `references`, as SD-IB-17 says).
+D-IB-3  (bounded) `interactions!()` does not write a `PackConfiguration` impl: an item macro inside
+        `impl SystemPack` cannot emit another impl or new types. It defines CONFIGURATION,
+        CONFIGURATION_FACTS, decode_configuration and INTERACTIONS from the SDK's generic types —
+        `Configured<S>` (the event `<pack>-interactions-configured`), `Interactions<S>` (the component
+        `<pack>-interactions`) and an SDK-held `AuthoredConfiguration` — so the loader sees exactly what
+        IL-a's seam carries. The pack names the two type ids (`CONFIGURED`, `COMPONENT`) and supplies its
+        codec (`encode`, `decode`); a pinned test per pack holds the names.
+D-IB-4  (bounded) The context-dependent refusals need a typed answer before seeding:
+        `PackConfiguration::check(&Configuration, &ConfigurationContext) -> Result<(), ConfigurationRefusal>`
+        (default Ok) and the matching `AuthoredConfiguration::check`, in authoring/src/configuration.rs.
+D-IB-5  (bounded) `InteractionSection::PARAMETER_ROLES`: the roles a parameter entry may scope by
+        (SD-IB-16 names conversation's: actor, target and place), which SD-IB-7's list omits.
+```
+
+**Findings recorded at implementation start.**
+
+```text
+F-IB-16  Unix-only assumption (operator requirement, 2026-10-08: macOS, Linux and Windows). Nine test files
+         import `std::os::unix::process::ExitStatusExt` unconditionally for their SIGKILL proofs, so their
+         test crates do not compile on Windows: persistence/tests/kill_and_resume.rs (owner: persistence,
+         S6); tests/acceptance/tests/arrival_resolvers_resume.rs (acceptance, 12a);
+         tests/acceptance/tests/configuration_seam.rs (acceptance, IL-a); tools/cli/tests/{restart,
+         run_restart,milestone_b,milestone_c,market_town,bodies_yard_restart}.rs (cli, S8 … 12c). Found by
+         `git grep "std::os::unix\|cfg(unix)\|\"/tmp\|libc::"` over *.rs: no other hit. IL-b adds none and
+         does not fix these (its own edit to configuration_seam.rs leaves that import as IL-a wrote it);
+         the remedy (a cfg(unix) gate, or a portable kill) belongs to whoever adds Windows CI (S13/S14's
+         CI lane), recorded here for the primary session to assign.
+```
 
 ## 12.15 After IL-b: IL-c … IL-i, outlined with their dependencies
 
