@@ -62,8 +62,8 @@ LAYERS: dict[str, list[list[str]]] = {
     # the package crates, the `packs` commands, the third-party proof, the lock guard — and the build
     # offline from a vendor directory with an empty CARGO_HOME (PD-p3). A subset of `core`, until the
     # whole suite is green on both (S13's 13w).
-    # `cargo fetch` first: every platform's packages, which `cargo metadata --offline` (the lock guard)
-    # reads even for targets this runner does not build. `--no-fail-fast`: one run names every failure.
+    # `cargo fetch` first (EC-3 (a)'s fetch: everything the lock names, every platform), so nothing after
+    # it depends on when a download happens. `--no-fail-fast`: one run names every failing test.
     "platforms": [
         ["cargo", "fetch", "--locked"],
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],

@@ -478,6 +478,20 @@ fn a_pin_that_differs_from_the_manifest_or_a_second_dependent_is_refused() {
 // EC-4: genuinely outside.
 // ---------------------------------------------------------------------------------------------
 
+/// The host's target triple, as the `rustc` beside the `cargo` that built this test reports it.
+fn host_triple() -> String {
+    let output = Command::new("rustc")
+        .arg("-vV")
+        .current_dir(repository())
+        .output()
+        .expect("rustc runs");
+    String::from_utf8(output.stdout)
+        .expect("UTF-8")
+        .lines()
+        .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+        .expect("rustc -vV names the host")
+}
+
 /// The published surface: the crate names `.cargo/config.toml`'s `[patch.crates-io]` maps.
 fn published_surface(config: &str) -> BTreeSet<String> {
     let mut inside = false;
@@ -582,7 +596,10 @@ fn every_third_party_pack_is_genuinely_outside_and_named_by_the_build_as_third_p
         surface.contains("mineworld-sdk"),
         "the published surface is read: {surface:?}"
     );
-    let metadata = metadata(&["--locked"]);
+    // This host's packages only: `--offline` cannot resolve another platform's crates a build here
+    // never downloaded (Windows-only crates on Linux), and the pack's own dependencies do not vary.
+    let host = host_triple();
+    let metadata = metadata(&["--locked", "--filter-platform", &host]);
     assert_eq!(
         refused_outside(&metadata, &git, &surface),
         Vec::<String>::new()
