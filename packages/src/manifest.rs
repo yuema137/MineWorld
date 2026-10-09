@@ -1,5 +1,7 @@
 //! `pack.yaml`: the package identity of a data pack that has no other carrier (`ARC-53`,
-//! `PACKAGE_FORMAT.md` §5.0), and the one content check E-a makes of a Presentation Pack.
+//! `PACKAGE_FORMAT.md` §5.0); the one content check E-a makes of a Presentation Pack; and an Entity
+//! Pack's directory layout (`ARC-71`) — file names only: what an item file says is the World Pack
+//! loader's to read.
 
 use std::path::Path;
 
@@ -13,6 +15,15 @@ pub const PACK_FILE: &str = "pack.yaml";
 
 /// A Presentation Pack's style manifest (`ART_DIRECTION.md` §12) — not a package manifest.
 pub const STYLE_FILE: &str = "manifest.yaml";
+
+/// The directory an Entity Pack's item kinds are in, one `<key>.yaml` per kind (`ARC-71`).
+pub const ENTITY_ITEMS: &str = "items";
+
+/// The extension of an Entity Pack's item file; any other file in [`ENTITY_ITEMS`] is not content.
+pub const ENTITY_ITEM_EXTENSION: &str = "yaml";
+
+/// The content directories of a World Pack that an Entity Pack may not carry in MVP-0.
+const NOT_IN_AN_ENTITY_PACK: [&str; 3] = ["places", "people", "organizations"];
 
 /// `pack.yaml`, exactly: any other field is refused, `dependencies` included until a world's
 /// requirements are resolved, so no field is accepted that nothing checks.
@@ -58,7 +69,8 @@ fn malformed(path: &Path, error: impl std::fmt::Display) -> PackageError {
 ///
 /// [`PackageError::Malformed`] for a file that is not valid YAML, an unknown or missing field, or a
 /// malformed value (with the parser's line and column); [`PackageError::NoAuthors`] inside it for an
-/// empty author list; [`PackageError::NotCarriedHere`] for a type this file does not identify.
+/// empty author list; [`PackageError::NotCarriedHere`] for a type this file does not identify; for an
+/// Entity Pack, [`check_entity_layout`]'s refusals.
 pub fn read_pack_file(dir: &Path) -> Result<Identity, PackageError> {
     let path = dir.join(PACK_FILE);
     let file: PackFile = serde_saphyr::from_str(&read(&path)?).map_err(|e| malformed(&path, e))?;
@@ -68,8 +80,7 @@ pub fn read_pack_file(dir: &Path) -> Result<Identity, PackageError> {
         why,
     };
     match file.kind {
-        PackType::PresentationPack => {}
-        PackType::EntityPack => return Err(not_here("Entity Packs are read from S16's PR E-d")),
+        PackType::PresentationPack | PackType::EntityPack => {}
         PackType::WorldPack => {
             return Err(not_here("a World Pack is identified by its world.yaml"));
         }
@@ -82,6 +93,9 @@ pub fn read_pack_file(dir: &Path) -> Result<Identity, PackageError> {
     if file.authors.is_empty() || file.authors.iter().any(|a| a.trim().is_empty()) {
         return Err(malformed(&path, PackageError::NoAuthors));
     }
+    if file.kind == PackType::EntityPack {
+        check_entity_layout(dir)?;
+    }
     Ok(Identity {
         id: file.id,
         kind: file.kind,
@@ -90,6 +104,45 @@ pub fn read_pack_file(dir: &Path) -> Result<Identity, PackageError> {
         authors: file.authors,
         repository: file.repository,
         mineworld: Some(file.mineworld),
+    })
+}
+
+/// Checks an Entity Pack's directory `dir` (`ARC-71` point 1): it carries item kinds only — no
+/// `places/`, `people/` or `organizations/` — and at least one, a file in `items/` whose extension is
+/// `yaml`. Only names are read: whether each name is a key, and what each file says, is the World Pack
+/// loader's.
+///
+/// # Errors
+///
+/// [`PackageError::EntityPackCarries`] naming the first directory it may not have;
+/// [`PackageError::EntityPackDeclaresNothing`] when `items/` is absent or holds no item file;
+/// [`PackageError::Unreadable`] when `items/` cannot be listed.
+pub fn check_entity_layout(dir: &Path) -> Result<(), PackageError> {
+    for name in NOT_IN_AN_ENTITY_PACK {
+        let path = dir.join(name);
+        if path.exists() {
+            return Err(PackageError::EntityPackCarries { path });
+        }
+    }
+    let items = dir.join(ENTITY_ITEMS);
+    if !items.is_dir() {
+        return Err(PackageError::EntityPackDeclaresNothing {
+            dir: dir.to_path_buf(),
+        });
+    }
+    let unreadable = |error: std::io::Error| PackageError::Unreadable {
+        path: items.clone(),
+        reason: error.to_string(),
+    };
+    for entry in std::fs::read_dir(&items).map_err(unreadable)? {
+        let path = entry.map_err(unreadable)?.path();
+        let extension = path.extension().and_then(std::ffi::OsStr::to_str);
+        if extension == Some(ENTITY_ITEM_EXTENSION) && path.is_file() {
+            return Ok(());
+        }
+    }
+    Err(PackageError::EntityPackDeclaresNothing {
+        dir: dir.to_path_buf(),
     })
 }
 

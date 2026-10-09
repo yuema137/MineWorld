@@ -2916,8 +2916,31 @@ directory rules, items as file names only — no `EntityKey` in `packages`); `pa
 variants); `packages/tests/{manifest,resolve}.rs` (the two rows of ED-11 rewritten; new rows for PD-30,
 PD-37).
 
-- [ ] Implementation · [ ] Validation (`cargo test -p mineworld-packages`; M-D5; `structure.rs`: still a
-  leaf) · [ ] Review (no `contracts` dependency; every refusal names the file and the value).
+- [x] Implementation: `manifest.rs` — `read_pack_file` accepts `entity-pack` and, for one, calls the new
+  `check_entity_layout(dir)` (no `places/`/`people/`/`organizations/`; `items/` holding at least one file
+  whose `Path::extension` is `yaml`); consts `ENTITY_ITEMS`, `ENTITY_ITEM_EXTENSION` exported.
+  `identity.rs` — `Identity::require_framework()` (PD-37; `None` passes, code packs). `resolve.rs` —
+  `EntityPack` resolves like a Presentation Pack; `require_framework()` is the last check of each
+  requirement, after the version range. `error.rs` — `EntityPackCarries { path }`,
+  `EntityPackDeclaresNothing { dir }`, `PackFrameworkNotSupported { id, range, framework }`.
+  **Bounded decision (recorded):** the layout check runs inside `read_pack_file` (identification), not
+  only in `packs validate` — so a malformed Entity Pack in a root is refused wherever packs are
+  identified, as a malformed `pack.yaml` already is, and ED-11's rewritten manifest row is a `read_pack_file`
+  row. The "declares nothing" message names `pack.yaml` because the table asserts every refusal does.
+- [x] Validation: `cargo test -p mineworld-packages` 23 passed, 0 failed (identity 7, manifest 6, policy
+  2, resolve 4, roots 2, structure 2). ED-11 rows: manifest "an entity pack, before E-d" (old claim:
+  refused "type entity-pack … E-d") → "an entity pack without items" (refused "declares nothing");
+  resolve "an entity pack, before E-d" (old: refused "goods is a entity-pack … E-d") → removed from the
+  refusal table, its claim inverted into `an_entity_pack_requirement_resolves_to_its_directory`; its table
+  slot holds PD-37's new row. New: `an_entity_pack_carries_item_kinds_and_nothing_else` (README not a
+  kind; one kind enough; CRLF `pack.yaml` equal identity; each forbidden directory refused naming its
+  path), `a_data_pack_range_that_excludes_the_framework_is_refused_naming_both`. **M-D5** (the
+  `require_framework()` call in `requirement` commented out): `every_failed_rule_is_refused_by_name`
+  FAILED at the PD-37 row → reverted, `git status` showed only the intended files. `structure.rs`: still a
+  leaf (2 passed). clippy `-p mineworld-packages --all-targets --all-features -D warnings`: clean.
+- [x] Review: no `contracts` dependency (no `EntityKey`; names only); every new refusal names the file or
+  directory and the value (`EntityPackCarries` the directory, `DeclaresNothing` the pack dir and
+  `pack.yaml`, `PackFrameworkNotSupported` the pack, range, framework).
 
 ### Ed-C3 — `worldpack`: read, merge, allocate, name the source
 
