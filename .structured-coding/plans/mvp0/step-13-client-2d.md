@@ -1796,11 +1796,36 @@ answering" step, per-request results); `tools/cli/tests/client_2d_interact.rs` (
 **Scope.** `harness/` steps runner (`--steps`, selector resolution against rendered entries, `MENU`
 lines, `--requests`); `client_2d_interact.rs` real tests; test-side helpers that resolve item and person
 ids from genesis facts and build the scratch world for AC-I6.
-- [ ] Implementation: as scoped.
-- [ ] Validation: AC-I1 … I3, I6 … I8 with their mutations (each red, then reverted green), counts and
-  wall time recorded.
-- [ ] Review: no world key or coordinate in a `.gd` file (D-10's rule); every waypoint from disclosure;
-  the AC-13 comparison uses `differing_fields`, never a hand-written one.
+- [x] Implementation: `harness/interact.gd` (steps runner: `open` by a click on a visible point of
+  the figure, `choose` by selector against rendered entries, `await` offered / component / seated,
+  `mark`/`after` through files in `--sync=<dir>` for the three-client run, `--requests=<file>` in
+  demo.gd's format, `MENU`/`PANELS`/`TOAST`/`STEP_DONE` lines, the drive's own "menu lists the frame's
+  offers" check); `tools/cli/tests/godot2d/worlds.rs` (ids from the pack via `WorldPack::load`, facts as
+  JSON from the save, `play`/`start`, `copy_dir` for AC-I6's scratch world); real tests AC-I1
+  `talks_to_alice_from_the_door`, AC-I2+I8 `items_change_hands_whatever_draws_them`, AC-I6
+  `a_removed_pack_offers_no_give`, AC-I7 `the_2d_talk_is_the_3d_talk`, AC-I3
+  `three_clients_do_something_together` in `client_2d_interact.rs`; the stub tests moved to
+  `client_2d_interact_stub.rs` (E-9).
+- [x] Validation: `cargo test -p mineworld-cli --test client_2d_interact --test client_2d_interact_stub
+  -- --ignored --test-threads=1` → 5 passed (73.4 s) + 3 passed (25.0 s), on the C5 tree. Live shapes
+  pinned (E-3 completed): `conversation-history.heard[].speaker` and `acquaintances.known[].counterpart`
+  are typed references `{entity, entity_type}`, read through `_ref`. Mutations, each alone against the
+  test that owns it, red then reverted (logs `target/probe13b/m*.log`): M1a menu hides unavailable
+  entries → AC-I1 FAIL ("7: 0 entries, 4 offers", no talk entry); M1c history shows the player as the
+  speaker → AC-I1 (c) FAIL; M2a complete give rebuilt with `submit(type, target, payload)` → AC-I2 FAIL
+  "the scarf went to Bob" (`count` 1.0 refused); M2b first complete offer per (type, target) → AC-I2
+  FAIL (3 entries for 8 offers, coffee not found); M3a client refuses the slug "Coffee!" → AC-I3 FAIL
+  ("sent as typed": `["coffee","chat","chat"]`); M3b marker from the client's own record → AC-I3 FAIL
+  ("visitor drew the marker on both"); M6 a fallback `give` for held items → AC-I6 FAIL (the drive's
+  "8: 4 entries, 2 offers"); M7a talk sends `{"text": …}` → AC-I7 FAIL (`[Payload, ActorLocation]`);
+  M7b talk trims → AC-I7's utterance has no outer whitespace, so the mutation is equivalent there;
+  AC-I5's first utterance was given outer spaces (E-10) and M7b then FAILS AC-I5 ("exactly as typed");
+  M8 the harness selects by label text → AC-I8 FAIL on `--presentation=none` (no "Buy…" label). The
+  "intents refuses when `may()` is false" mutation of AC-I1 is C3's M5a (same code path).
+- [x] Review: no world key or coordinate in a `.gd` file — ids and the coffee/scarf/apple selectors are
+  resolved by the Rust test from the pack; every waypoint is the walker's `approach` from the disclosed
+  position; the AC-13 comparison is `mineworld_server::differing_fields` against the frozen
+  `request-3d.json`. 12d is still not on `main` (RK-b2 not triggered); S11-B neither (RK-b3).
 
 #### C6 — Stills, operator checklist, final gates
 - [ ] Implementation: capture stills `09_menu_alice_far` (greyed, reason), `10_menu_alice_near`,
@@ -1958,3 +1983,14 @@ Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktree
 - **E-8 — `--no-wording` (bounded).** AC-I8's language-independence run needs the art without the
   wording; `--no-wording` skips `Words.load_pack` (the alternative, deleting `en.po` from a copied pack,
   would also test the copy). Recorded in `app.gd`.
+- **E-9 — Two test binaries, not one (bounded; QS13b-8's reason applied).** With the real-world checks
+  added, `client_2d_interact.rs` reached 1107 lines, past the ~800-line strong warning. The stub checks
+  (AC-I4, AC-I5, AC-I12) moved to `tools/cli/tests/client_2d_interact_stub.rs` (416 lines); the real
+  ones stay (684 lines); shared helpers in `godot2d/worlds.rs`. `--scope` admits the new file. Run both
+  with `cargo test -p mineworld-cli --test client_2d_interact --test client_2d_interact_stub --
+  --ignored --test-threads=1`.
+- **E-10 — AC-I5 strengthened (bounded).** Its first utterance is now `"  first, as typed  "`, so a
+  client that trimmed input is caught (C5's M7b survived AC-I7, whose utterance has no outer spaces).
+- **E-11 — The three-client run uses files to order itself (bounded).** AC-I3's order (visitor leaves,
+  then the busy invite, then Bob leaves) crosses clients; each client marks a step done with a file in
+  `--sync=<dir>` (a scratch directory, `FileAccess`, portable) and the next waits on it, bounded by 90 s.

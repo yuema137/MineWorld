@@ -92,6 +92,22 @@ pub async fn play(
     drive.finish().await
 }
 
+/// The `MENU` lines about `subject`, in order.
+pub fn menus(lines: &[String], subject: &str) -> Vec<Value> {
+    super::tagged(lines, "MENU ")
+        .into_iter()
+        .filter(|menu| menu["subject"] == subject)
+        .collect()
+}
+
+/// Writes `steps` into `dir` and returns the file's path.
+pub fn steps_file(dir: &Path, steps: &Value) -> String {
+    let path = dir.join("steps.json");
+    std::fs::write(&path, serde_json::to_string_pretty(steps).expect("JSON"))
+        .expect("steps written");
+    path.to_str().expect("a UTF-8 path").to_owned()
+}
+
 /// The index of the line where step `n` began (`STEP {step: n}`).
 pub fn step_line(lines: &[String], n: usize) -> usize {
     lines

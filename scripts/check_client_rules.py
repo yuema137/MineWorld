@@ -77,6 +77,7 @@ SCOPE_FILES = (
     "scripts/check_client_rules.py",
     "tools/cli/tests/client_2d.rs",
     "tools/cli/tests/client_2d_interact.rs",
+    "tools/cli/tests/client_2d_interact_stub.rs",
     # S14's structural scan (merged after 13a froze) admits each client's action literals by entry;
     # 13a adds its two (step-13 §14.10 D-14), 13b its six composed types (QS13b-7). No other line of
     # that file is a client PR's.
