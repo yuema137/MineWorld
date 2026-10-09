@@ -2217,9 +2217,9 @@ audience function owned by presence, judged at record time, delivered three ways
 history); `MODULE_SPEC.md` §8.1 (`mineworld perceived`). **Depends on:** freeze; preconditions not needed.
 **Non-goals:** DEP-15 (written in C-C7 with the numbers).
 
-- [ ] Implementation · [ ] Validation: `check_decision_ids`, `check_doc_headings`; §6 and §6.2 of
-  `PROTOCOL.md` untouched · [ ] Review: every new value in the landing table; terminology per
-  `CORE_CONCEPTS.md` (fact, Visibility, observer, PerceivedEvent).
+- [x] Implementation · [x] Validation: `check_decision_ids`, `check_doc_headings`; §6 and §6.2 of
+  `PROTOCOL.md` untouched · [x] Review: every new value in the landing table; terminology per
+  `CORE_CONCEPTS.md` (fact, Visibility, observer, PerceivedEvent). (E-SC1)
 
 ### C-C2 — Pure move: `runtime/delivery.rs`
 
@@ -2429,13 +2429,38 @@ MATERIAL STOP       a needed kernel/contract/persistence edit; R-SC1 (fold ≠ c
 ## 17.12 Evidence ledger
 
 ```text
-(empty until the freeze)
+E-SC0 (pending: base binary built from an export of origin/main @ 927ab93 into /tmp/s11c/base, own
+      target dir — see D-SC1)
+E-SC1 C-C1, 2026-10-08, working tree on origin/main @ 927ab93. check_decision_ids → 70 ids, all
+      distinct (ARC-43 new, placed after DEP-14 inside S11's region). check_doc_headings → 191
+      numbered sections across 26 documents, none duplicated (PROTOCOL.md §5.8 new). PROTOCOL.md
+      hunks: header table §2 (join.perceived), §4.1 (check 6), §5 table, §5.2 (events, acted_through,
+      a fact on the wire), §5.3 (acted_through, keyframes, the three DEP-15 outcomes), §5.5
+      (cursor_unavailable, lagged), §5.6 (lagged), §5.7 (events_dropped), §5.8 (new), §10 rows — none
+      in §6 or §6.2. Every new value is in §10's S11-C rows: join.perceived, perceived frame,
+      cursor_unavailable, lagged (code and reason), acted_through on observation and delta, events,
+      entity order, events_dropped, delta/keyframes/--keyframe-every. MODULE_SPEC §8.1: perceived in
+      the synopsis, the table and its own paragraph. Review: terms per CORE_CONCEPTS (fact, Visibility,
+      observer, PerceivedEvent); PASS.
 ```
 
 ## 17.13 Deviations and discoveries
 
 ```text
-(empty until the freeze)
+D-SC1 E-SC0's base binary. The first base build ran in this worktree while C-C3's edits were being
+      written and compiled some of them (mineworld-presence, mineworld-server), so it is not a base.
+      Bounded: the base is rebuilt from `git archive origin/main` in /tmp/s11c/base with its own
+      CARGO_TARGET_DIR. No other worktree is touched. Impact: none on design; evidence only.
+D-SC2 wire_fact lands early, with C-C3b. `mineworld perceived --json` prints the server's wire form
+      (SD-C13), which is `protocol/fact.rs` `wire_fact` (SD-C4, planned for C-C4). C-C3b is to land
+      before S11-B merges, so `fact.rs` (an S11-C-only file, §19.1) and its unit tests (C-C4's
+      validation list) move into C-C3b, with `mod fact;` and one `pub use` in `protocol.rs`. Not
+      re-exported from lib.rs until C-C4 (lib.rs is a shared file S11-B edits); the CLI reaches it as
+      `mineworld_server::protocol::wire_fact`. The signature returns the payload form as well
+      (`(PerceivedEvent<Value>, PayloadForm)`) so the caller, not a process-global in the server,
+      owns the once-per-type report: the server's runtime prints `[world] …` (C-C5), the CLI prints
+      to stderr so `--json` stdout stays one PerceivedEvent per line. Validation: the three C-C4 unit
+      checks pass (E-SC3).
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)

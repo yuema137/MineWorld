@@ -866,6 +866,7 @@ mineworld replay <world> --save DIR [--packs DIR]...
 mineworld run <world> --headless --seed N --days N [--save DIR] [--packs DIR]...
 mineworld inspect <save-directory> [--last N]
 mineworld biography <world> --save DIR --person KEY [--json] [--packs DIR]...
+mineworld perceived <world> --save DIR --person KEY [--since ID] [--json] [--packs DIR]...
 mineworld create <directory>
 mineworld packs list [--packs DIR]...
 mineworld packs show <id> [--packs DIR]...
@@ -888,6 +889,7 @@ came from `--packs` or `MINEWORLD_PACKS`. A world without `requires:` needs none
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
+| `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 
@@ -937,6 +939,24 @@ are also shown by display name, as `key "Name"`. The names come from the save's 
 read through the `naming` pack's published projection, so the command still names no event type of
 its own (`ARC-31`). `--json` adds `name` (the Person's) and `counterpart_names` (aligned with
 `counterparts`, `null` where unnamed) and changes no existing field.
+
+**`perceived`.** Reads `DIR/world.sqlite`'s manifest and fact table, and the World Pack `<world>` for
+the authoring keys, and nothing else: it opens the save, reads it and closes it, so no handle outlives
+the command. It refuses, by name and with a non-zero exit, a missing save, a save whose manifest names
+another pack, and a KEY the pack does not declare as a Person. It folds the whole fact log from the
+first fact through the audience rule of the `presence` pack (`ARC-43`) and prints every fact the Person
+learned of, oldest first, one per line:
+
+```text
+<event id> <at> <event type> place=<place key or -> caused_by=<cause>
+```
+
+`--since ID` prints only the facts with an `EventId` greater than `ID` (the earlier facts are still
+folded, since where people were decides later judgements); it is the cursor of the server's
+`perceived` stream (`server/PROTOCOL.md` §5.8). With `--json`, each fact is one line holding the
+`PerceivedEvent` exactly as the server's `perceived` frame carries it, so a client's recorded stream and
+this export compare line for line. A world without the `presence` pack perceives only `Public`,
+`Participants` and `Entities` facts, and the `Place` facts that name the Person.
 
 **`create`.** The directory's final component becomes the world's id and must be a valid key (the
 rule `EntityKey` enforces). The pack written has one place, two people who are both seats, and the
