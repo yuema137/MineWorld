@@ -27,7 +27,8 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   accepted, not passed) and TZ-9b (≤ 50 ms). Design, evidence, deviations Z-D1 … Z-D9 and the rulings in
   §20; the post-merge record in §20.14.
 - **PR 12d** — the town gets bodies: detailed in §19, refreshed against `main @ 78ca5ae` (§19's
-  "Refresh" note); **PR design — ready for freeze review**; not frozen. The operator decided QD-1
+  "Refresh" note); **DESIGN FROZEN (2026-10-08), primary session**, to be implemented in a fresh
+  session in `impl-12d` on `mvp0/pr-12d-towns`. The operator decided QD-1
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
@@ -5650,7 +5651,14 @@ DO-17 are the material stops the AO-2 rulings closed. DO-18 is a defect fix.
 
 ---
 
-# 19. PR 12d — the town gets bodies (full design; PR design — ready for freeze review, not frozen)
+# 19. PR 12d — the town gets bodies (full design; DESIGN FROZEN 2026-10-08)
+
+**DESIGN FROZEN (2026-10-08), primary session**, relayed by the coordinator, within authority the
+operator has already given (the operator's own 12d-0 acceptance and overall ruling 5). The rulings on
+QD-14 … QD-18 are in §19.8; the execution contract's freeze fields (worktree `impl-12d`, branch
+`mvp0/pr-12d-towns`, tool discipline, material stops, budget) are in §19.9. Implementation in a fresh
+session; nothing here was implemented by the planning session. One contract field is flagged for the
+primary session before TD-C8 (§19.13, "Freeze note").
 
 **Lifecycle:** drafted by the planning session on `mvp0/s15-12d-plan` on 2026-10-08, stacked on the 12c
 post-merge docs PR (#72); held while 12d-0 (§20) ran; **refreshed by the planning session on
@@ -5710,7 +5718,8 @@ base          main @ 78ca5ae (12d-0 merged as #84) and the PR carrying this refr
               worlds/social-cafe, worlds/market-town, systems/bodies, systems/item, systems/movement,
               worldpack/src, tests/acceptance, tools/cli/tests, persistence/tests or
               clients/3d-spike/scripts moves again before the freeze
-branch        mvp0/pr-12d-town, in its own worktree, held by the implementing session only
+branch        mvp0/pr-12d-towns (the freeze's name), in /Users/yuema137/mineworld-worktrees/impl-12d,
+              held by the implementing session only
 audit         §19.2 (main @ 21f96ff, 2026-10-08), re-audited in §19.2a (main @ 78ca5ae)
 scope         §11.1's 12d row; QB-5 (both towns install bodies); the cost criterion TD-12 (12d-0's
               accepted TZ-9a numbers + 10 %, TZ-9b ≤ 50 ms; QB-11's 1.5 × superseded by the operator,
@@ -6390,6 +6399,12 @@ recommendation.
 **Questions added by the refresh (2026-10-08).** QD-1 … QD-13 stand as ruled; QD-2 and QD-10 are closed
 by 12d-0, QD-6 now reads 3 → 4.
 
+**Rulings at the freeze (primary session, 2026-10-08):** **QD-14** — TD-12 accepted as written (TD-12a
+≤ 3.96 × / ≤ 3.30 × with the contamination rule; TD-12b ≤ 50 ms). **QD-15** — 12d writes the twenty
+names; S12 reviews them in 12d's PR. **QD-16** — confirmed: QS12-3 is answered by overall ruling 5, and
+R-PK-2 is carried in 12d's one re-baseline. **QD-17** — nothing else is queued. **QD-18** — as
+recommended.
+
 | ID | Question | Recommendation |
 | --- | --- | --- |
 | **QD-14 [OM]** | **12d's cost criterion (TD-12)**, replacing QB-11's 1.5 ×, which the operator re-scoped for 12d-0 (§20.5). Proposed by the primary session and fixed here before measuring: the with-bodies towns stay within 12d-0's accepted TZ-9a numbers plus 10 % — social-cafe ≤ 3.96 × (3.60 × 1.10), market-town ≤ 3.30 × (2.999 × 1.10) — under §20.6.1's instrument (interleaved CPU, 10 % contamination rule, INCONCLUSIVE rather than a stop when the machine stays loaded); and TD-12b, per-resolution max ≤ 50 ms on market-town (CP-B4). Alternatives: (b) exactly 12d-0's numbers, no headroom (3.60 ×, 2.999 ×) — the real towns' measured put_solid sizes and the catalogue may cost a few per cent the prototype did not, so (b) risks a stop on noise; (c) an absolute CPU budget (e.g. ≤ 55 s per 300 days) — load-sensitive, which §20.6.1 exists to avoid. | **(a), as proposed.** It inherits only what the operator already accepted, adds headroom smaller than the instrument's own 10 % contamination band, and keeps the per-request bound that matters to a live server. A clear failure stops with the numbers; L1 (Class R) is the named next step, not 12d's. |
@@ -6413,12 +6428,13 @@ RELATED / BINDING   §20 (12d-0 as merged: §20.5's amendments, §20.6.1's instr
                     ARC-25, ARC-34, ARC-35, ARC-36, ARC-37, ARC-39 and its notes, DEP-13; MODULE_SPEC §4.1;
                     CLAUDE.md §§2–4
 PRECONDITION        QD-1 and QD-2 answered (done); 12d-0 merged (78ca5ae; done, base and TD-14 re-read in
-                    the refresh); QD-14 [OM] (TD-12) and the refresh's other questions answered at freeze
-IMPLEMENTATION BASE main @ 78ca5ae or later, with this refresh's PR merged; re-audit §19.2a if a listed
-                    path moved; branch mvp0/pr-12d-town;
-                    worktree /Users/yuema137/mineworld-worktrees/s15-12d (proposed), held by the
-                    implementing session only
-APPROVED SCOPE      §19.1's change set; TD-C1 … TD-C8; SD-D1 … SD-D16 as answered by QD-1 … QD-13
+                    the refresh); QD-14 … QD-18 ruled at the freeze (2026-10-08, §19.8) — all met
+IMPLEMENTATION BASE main @ 78ca5ae or later, with this refresh's PR (#85) merged; re-audit §19.2a if a
+                    listed path moved; branch mvp0/pr-12d-towns, from main (the freeze's name; it
+                    replaces §19.1's proposed mvp0/pr-12d-town); worktree
+                    /Users/yuema137/mineworld-worktrees/impl-12d, held by the implementing session only
+APPROVED SCOPE      §19.1's change set (with §19.6's refreshed rows); TD-C1 … TD-C8; SD-D1 … SD-D16 as
+                    answered by QD-1 … QD-18
 FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/src/, server/, cognition/, clients/,
                     authoring/, sdk/, systems/presence/, tools/cli/src/, worlds/bodies-yard/, the root
                     Cargo.toml; movement and worldpack sources only FU-12a-1's comment lines; no System Pack
@@ -6435,31 +6451,43 @@ FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/src/, server/
                     Existing tests unchanged except §19.6's rows.
 SEQUENCE            TD-C1 → TD-C2 → TD-C3 → TD-C4 → TD-C5 → TD-C6 → TD-C7 → TD-C8, each committed and pushed
                     when coherent; E-TD-base and E-TD1 in TD-C1 before any code
-VALIDATION BUDGET   unit/integration/static unrestricted; 300-day town runs (~13–17 s of CPU without
-                    bodies, ≈ 45–50 s with, by 12d-0's E-Z7): at most fourteen (TD-12a's eight, one
-                    contaminated town's re-run of four, TD-1's two) plus TD-12b's one timing run; 30-day runs inside committed tests; the ladder at most three content
-                    re-runs; the x86_64 build once and its Rosetta runs; one full gate on the final head;
-                    about two hours in total; real-model NOT REQUIRED
+VALIDATION BUDGET   (the freeze's ruling) six 300-day town runs (~13–17 s of CPU without bodies, ≈ 45–50 s
+                    with, by 12d-0's E-Z7); unit/integration/static unrestricted; 30-day runs inside
+                    committed tests; the ladder at most three content re-runs; the x86_64 build once and
+                    its Rosetta runs; one full gate on the final head; real-model NOT REQUIRED.
+                    OPEN, flagged at the freeze for the primary session (§19.13, "Freeze note"): TD-12a
+                    as accepted (QD-14) needs eight interleaved 300-day runs (four more on one
+                    contaminated town's re-run), TD-1 two and TD-12b one — more than six. Until the
+                    primary session says how the six apply, the implementing session stops before TD-C8's
+                    runs rather than choose.
+TOOL DISCIPLINE     as 12d-0's contract: Read, Edit and Write for files; allowed `cargo` (as
+                    `$HOME/.cargo/bin/cargo`), `git`, `gh`, `python3 scripts/*`, `mkdir -p`, `sed -n`,
+                    `/usr/bin/time`, `arch -x86_64`, `rustup target list --installed`; never `python3 -c`,
+                    `sed -i`, `awk`, `xargs`, `curl`, or `cat >>` / heredoc writes; long jobs in the
+                    background; no edit of `.claude/settings*.json` or other worktrees
 LIVE DOCUMENTATION  §19 checkboxes; §19.12; §19.13
 HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12d at TD-C1
 ENDPOINT AUTHORITY
-  implementation + local validation   unresolved until the freeze message
-  semantic commits, branch push       recommended authorized, as for 12a–12c
-  PR creation / update                recommended authorized, as for 12a–12c
-  scratch builds                      recommended authorized: the base binary, the x86_64 build and
-                                      TD-12b's timing copy, in /tmp/s15-12d; no branch
-  CI repair                           recommended authorized: S13 13a's CI is on main (#63); main's
+  implementation + local validation   authorized by the freeze (2026-10-08), for a fresh session
+  semantic commits, branch push       authorized, as for 12a–12c
+  PR creation / update                authorized, as for 12a–12c
+  scratch builds                      authorized: the base binary, the x86_64 build and TD-12b's
+                                      timing copy, in /tmp/s15-12d; no branch
+  CI repair                           authorized: S13 13a's CI is on main (#63); main's
                                       branch protection requires `fast` and `test` green on the PR's
                                       exact head, reported with the local evidence
   merge                               operator only, with a merge commit; never inherited, never widened
 POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated and
                     S15 lines; the implementing session owns §19 and the evidence rows
 NORMAL STOP         PR 12d READY FOR OPERATOR REVIEW — DO NOT MERGE
-MATERIAL STOP       an edit outside §19.1's change set; bodies-yard's sha or the long-run bytes moving;
-                    TD-12 failing clearly (TD-12a INCONCLUSIVE is reported, not a stop); TD-5 or TD-6 failing on every rung; a slice-matched solid refused at genesis
-                    by an authored person; the frozen AC-13 evidence needing re-recording; cross-architecture
-                    digests differing (TD-11 FAIL, not PARTIAL); an answer to QD-1 or QD-7 other than the
-                    design's
+MATERIAL STOP       as §19 lists: an edit outside §19.1's change set; bodies-yard's sha or the long-run
+                    bytes moving; TD-5 or TD-6 failing on every rung; a slice-matched solid refused at
+                    genesis by an authored person; the frozen AC-13 evidence needing re-recording;
+                    cross-architecture digests differing (TD-11 FAIL, not PARTIAL); an answer to QD-1 or
+                    QD-7 other than the design's — plus (the freeze's ruling) **any TD-12 failure**
+                    (TD-12a INCONCLUSIVE is reported with its numbers, not counted a failure), and **any
+                    digest change other than the one planned re-baseline** (TD-1); and the budget
+                    question above, before TD-C8's runs
 ```
 
 ## 19.10 Cross-lane impacts
@@ -6563,6 +6591,14 @@ E-TD-base, E-TD1 … : the implementing session's.
 ## 19.13 Deviations and discoveries during implementation
 
 None yet.
+
+**Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
+freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs
+eight interleaved 300-day runs (two per side per town), four more if one town is contaminated and
+re-run, plus TD-1's two "after" runs and TD-12b's one timing run: eleven to fifteen. The two cannot both
+hold. The contract records the ruling as given and asks the primary session which reading applies
+(six beyond TD-12's own runs, or TD-12a reduced); the implementing session stops before TD-C8's runs
+until it is answered, rather than choose.
 
 ---
 
