@@ -3145,6 +3145,12 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
     key-ordered `items` map and leaves `load.rs`' creation loop untouched — places, people, items,
     organizations, each in `EntityKey` order. There is no per-source loop and no source-dependent order,
     so prefixing region keys with `<region>-` later changes only the keys that loop sees.
+- **Third merge of origin/main** (`d31aba1`: S11-D admin #104, 12e plan #106). `DECISIONS.md`
+  auto-merged, 75 ids distinct, headings 191/26; fmt and workspace clippy clean; `packages`,
+  `worldpack`, `acceptance` and CLI `entity_packs`/`packs`/`requirements`: 33 binaries, 0 failed. On
+  this head: towns' 300-day sha social-cafe `ad49c7235f672153`, market-town `24a95d2ae4e9d99b` (=
+  f80bbb7 base); `validate` of the three worlds byte-identical to the f80bbb7 base. Main touched no file
+  under `worlds/`, `worldpack/` or `packages/`. The final-head CI is in the PR body and handoff.
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |
