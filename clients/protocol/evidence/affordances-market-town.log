@@ -1,6 +1,6 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[check] connecting to 127.0.0.1:54889 as seat 'visitor'
+[check] connecting to 127.0.0.1:64192 as seat 'visitor'
 [check] observer 17, Alice 7, revision 1
 [check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"22","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
 [check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"24","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
@@ -27,13 +27,13 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 WARNING: [mineworld] submit_affordance: 'talk' is not complete; compose and submit()
      at: push_warning (core/variant/variant_utility.cpp:1033)
      GDScript backtrace (most recent call first):
-         [0] submit_affordance (res://mineworld/world_client.gd:307)
+         [0] submit_affordance (res://mineworld/world_client.gd:336)
          [1] _first_view (res://checks/affordances_check.gd:136)
          [2] _on_observed (res://checks/affordances_check.gd:99)
-         [3] _observation (res://mineworld/world_client.gd:555)
-         [4] _receive (res://mineworld/world_client.gd:471)
-         [5] _drain (res://mineworld/world_client.gd:455)
-         [6] _process (res://mineworld/world_client.gd:389)
+         [3] _observation (res://mineworld/world_client.gd:593)
+         [4] _receive (res://mineworld/world_client.gd:504)
+         [5] _drain (res://mineworld/world_client.gd:488)
+         [6] _process (res://mineworld/world_client.gd:418)
 [check] PASS A-4 submit_affordance(incomplete talk) returns "" and sends nothing: ["",0]
 [check] Alice's first give is available=false, reason "too_far_away"
 [check] PASS A-4 submit_affordance(unavailable give) is sent: false
@@ -41,7 +41,7 @@ WARNING: [mineworld] submit_affordance: 'talk' is not complete; compose and subm
 [check] bought item 22 at price 400; wallet 200000, held 0, revision 1
 [check] c1 -> action 1: {"rejected":"too_far_away"}
 [check] PASS A-4 the server answers the unavailable give: rejected too_far_away: "too_far_away"
-[check] c2 -> action 2: {"accepted":{"events":["130","131"]}}
+[check] c2 -> action 2: {"accepted":{"events":["132","133"]}}
 [check] PASS A-3 the buy is accepted: true
 [check] PASS A-3 the wallet fell by the price: 400
 [check] PASS A-3 holdings of that kind rose by one: 1

@@ -2989,7 +2989,7 @@ arms, reconnect with cursor), `observation.gd` (`acted_through`, `events_of`), `
 CA-15. **Review:** every existing name and call valid; no rule in the module (`check_client_rules.py`
 where it applies); `world_client.gd` growth only frame arms and the cursor.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SC12)
 
 ### C-C10 — Close: README, digests, scope, sizes, full gate, ledger, PR
 
@@ -3353,6 +3353,34 @@ E-SC11 Merge of origin/main @ 0744fee (S11-D #104) — 6b02147, resolved per §1
       the observer's place (`observe`, `audience`), unchanged; N-10 — ObservationDelta and
       EntityChanges no longer deny unknown fields (server-sent, client-read), the Godot module ignores
       unknown frame kinds and the applier ignores unknown delta fields. All three satisfied.
+E-SC12 C-C9 (1931642 module; C-C9b evidence and docs), on the merged head d826615, macOS, Godot 4.7
+      headless, one Godot process at a time, each mode run once.
+      Module: mineworld/delta.gd (MineWorldDelta.apply, §5.3's table; ids sorted as decimal strings
+      without parsing); world_client.gd — `delta` and `perceived` arms, perceive_from(cursor),
+      perceived_cursor (every rejoin, reconnect's included, continues from it), deltas_applied /
+      deltas_refused, a delta that does not apply closes the socket (reconnect resumes → whole frame);
+      observation.gd — acted_through(), events_of(). Every existing name and call unchanged; 2D client
+      and the 3D slice symlink this module. world_client.gd 641 lines (569 at S11-B + S11-D's clock arm
+      + these frame arms and the cursor: growth only as §19.3 allows, new logic in delta.gd).
+      CA-15:
+        run.sh deltas — every golden case (7) apply(base, delta) == next; then 60 s against
+          market-town --town (default --keyframe-every 50): 587 deltas applied, 0 refused, 599 whole
+          observations emitted, no disconnect. PASS.
+        run.sh perceived — social-cafe --agent alice --town --save --hold 10, seat wanderer,
+          perceive_from(null), reconnect on: perceived frames from the first fact; two strides to
+          Alice, talk accepted, an observation's acted_through = the talk's action_id (3); Alice's
+          answer (#60, a spoke this client did not cause) in its own observation.events; socket
+          dropped, rejoined "held" with resume + cursor; no id repeated or out of order; after the
+          server stopped, the client's ids equal `mineworld perceived … --person wanderer --json` up
+          to cursor 69. PASS.
+        run.sh evidence (2D, 3D, the other seat, two at once), affordances, reconnect, admin — all
+          exit 0, every check PASS; evidence regenerated on the merged head (invite lines kept out;
+          no invite or resume secret in any evidence file). ./mineworld-slice --world --link — "all
+          link checks pass".
+      check_client_rules.py — PASS (0 findings). ADOPTION.md §§2, 3.4, 6 and README updated.
+      Review: no rule in the module (the applier is the protocol's table; acted_through and events
+      are read, never judged); every four-argument connect_to_world call valid; the module never
+      logs the resume.
 ```
 
 ## 17.13 Deviations and discoveries
