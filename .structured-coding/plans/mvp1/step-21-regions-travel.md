@@ -1,7 +1,8 @@
 # Step 21 — S21: Regions, travel and maps (one world, many regions)
 
-**Lifecycle:** `DRAFT, awaiting primary review`. Step-level design only. Nothing here is frozen and
-nothing here authorizes implementation. Every decision id below is a placeholder (`ARC-RT-a` …,
+**Lifecycle:** `DRAFT → step design approved 2026-10-09; per-PR designs follow in MVP-1`. The
+questions are ruled (§11.1). Step-level design only: no PR here is frozen, and nothing here
+authorizes implementation; each PR in §8 is designed and frozen on its own. Every decision id below is a placeholder (`ARC-RT-a` …,
 `DEP-RT-a` …) to be numbered by the primary session.
 **Effort:** `mvp1` (MVP-1's main line, operator ruling 1). This is the first document in
 `.structured-coding/plans/mvp1/`. There is no `mvp1/overall.md` yet; until there is, the parents
@@ -709,6 +710,28 @@ RT-f and RT-g can run in parallel after RT-e. RT-b and RT-c can run in parallel 
 | QRT-13 | Which directory holds the default scenery library? | `presentation/mineworld-default/{2D,3D}/scenery/`, CC0/MIT only (Quaternius excluded, §3.3). |
 | QRT-14 | Wait for Godot 4.8's texture streaming? | No. The design works on 4.7.2 (`DEP-4`); adopt 4.8 streaming later as an optimization inside the same region-bundle model. |
 | **QRT-15 [OM]** | **Weather per region.** One weather for the whole world, or each region its own? | **Per region, in MVP-1, but after RT-h**, as S19's QTW-12 already planned: one `climate` Process per region in the `weather` pack, configured per region (a coastal and an inland region differ). Disclosure is already keyed to the observer's place (N-14), so nothing in S21 blocks it. RT-h ships with one world weather; the scenery reads whatever weather the destination discloses. |
+
+## 11.1 Rulings, 2026-10-09 (binding; relayed by the coordinator)
+
+**By the operator:**
+
+| Id | Ruling |
+| --- | --- |
+| Ruling 4 (§1.2) | Cars are buses and taxis. Self-driving is allowed only within a region; inter-region self-driving is off by default; a "road trip" mode for specific region pairs is long-term. Answers the former QRT-5. |
+| QRT-6 | Real speeds. The demo distance is 21 km, about 21 world minutes. |
+| QRT-7 | A single-player "doze" fast-forward during a ride is allowed, as a host pacing control. In multiplayer it is not. |
+| QRT-11 | The map shows everything. An `unmapped` tag hides a place; fog of war may come later as a pack. |
+| QRT-15 | Each region has its own weather in MVP-1, after RT-h, through QTW-12's one `climate` Process per region. |
+
+**By the primary session:**
+
+| Id | Ruling |
+| --- | --- |
+| QRT-1 | Accepted as recommended: a region is a role of Place, not a new primitive. Follows the operator's "one world, many regions" ruling. The `CORE_CONCEPTS.md` §6.4 amendment is reviewed as part of RT-0. |
+| QRT-2 | Accepted as recommended: a World Pack may serve as a region under `regions:` only, with no nesting; the `requires:` refusal stays. |
+| QRT-3, QRT-4, QRT-8, QRT-9, QRT-10, QRT-12, QRT-13, QRT-14 | Accepted as recommended. |
+
+The §10 recommendations N-1 … N-15 are relayed to the lanes by the primary session.
 
 ---
 
