@@ -36,7 +36,8 @@ CI runs the same declared checks through one entry point, `scripts/ci_layer.py`,
 repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
 
 - the `fast` layer runs `cargo-fmt`, `doc-headings`, `decision-ids`, the container pin check
-  `scripts/check_ci_pins.py`, `scratch-scan`, `cargo-check` and `cargo-clippy`;
+  `scripts/check_ci_pins.py`, `scratch-scan`, the AC-8 comparator's self-test
+  (`scripts/ci_parity.py --self-test`, `ARC-49`), `cargo-check` and `cargo-clippy`;
 - the `test` layer runs `cargo-test`, then `scripts/check_scratch.py left --target-dir target`, which
   fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22).
 

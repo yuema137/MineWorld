@@ -2163,12 +2163,16 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
   decision itself is unchanged.
 - `.structured-coding/standards.md`, prose only: the `fast` layer now includes the parity self-test.
 
-- [ ] Implementation.
-- [ ] Validation: `check_decision_ids` (ids distinct, count +2), `check_doc_headings`; every cross-reference
-  (ARC-23, ARC-30, ARC-48, DEP-17, DEP-18, I-S13-6, ZR-4, E-RS0) resolves by `git grep`.
-- [ ] Review: each record states its problem, options, choice, why not ourselves, why not the others,
-  isolating interface and accepted limitations. No defined term is redefined. ARC-48's note says what
-  changed and nothing more.
+- [x] Implementation: `ARC-49`, `DEP-19` and "ARC-48 note — the scenario group of jobs and the Windows
+  suite" appended to `docs/DECISIONS.md`; the `fast` bullet of `.structured-coding/standards.md` names
+  the self-test. ARC-49 and DEP-19 were re-checked unused on every `origin/*` branch first.
+- [x] Validation (2026-10-09, working tree on `ec38570`): `check_decision_ids` → 73 ids, all distinct
+  (main 71, +2; the note's heading is not an id, as ARC-53's note is not); `check_doc_headings` → 191
+  sections across 26 documents, none duplicated. ARC-23, ARC-27, ARC-30, ARC-48, DEP-17, DEP-18 resolve to
+  `## ` headings in `DECISIONS.md`; I-S13-6, ZR-4, E-RS0 resolve by `git grep` to step-11/12/14.
+- [x] Review: each record has problem, options, choice, why not ourselves / the others, isolating
+  interface and limitations. ARC-49 also cites ARC-27 for the excluded `instance` (an addition beyond the
+  listed references, bounded). No defined term is redefined. The ARC-48 note lists only what changed.
 
 **Commit boundary.** Documentation only.
 
@@ -2472,6 +2476,33 @@ GATE 1      NOT REQUIRED (no model)
 CI          the PR's fast/test on its final head, plus the dispatch run of scenario/mac/linux-arm/
             windows/ac8/test-windows on the same head
 ```
+
+## 13.14 Handoff for 13b (continuation aid, not a design authority)
+
+As 13a's D-13a-0, the handoff lives beside the ledger, not in `handoff.md` (§13.12 HANDOFF).
+
+```text
+PROJECT / PR       MineWorld mvp0 — S13 PR 13b, AC-8 parity (layer 3)
+PRIMARY DESIGN     this file §13 (frozen 2026-10-08); contract §13.12
+BRANCH / WORKTREE  mvp0/pr-13b-parity · /Users/yuema137/mineworld-worktrees/impl-13b-ci (sole writer)
+BASE               main @ ec38570 (#88, 13b's freeze), 2026-10-09
+RE-AUDIT (§13.1)   holds at ec38570: repository public; main protected, required ["fast","test"],
+                   strict false; ci.yml has fast, test, image and no schedule; .github/actions holds
+                   only `layer`; worlds/ = bodies-yard, market-town, social-cafe (each with world.yaml,
+                   worldpack/src/read.rs MANIFEST); save tables as §13.1; no `native` action on any
+                   origin/* branch (E-c's branch mvp0/pr-ec-third-party has touched no .github file),
+                   so 13b defines `.github/actions/native` (§13.0.3, "if 13b lands first")
+ENDPOINTS          §13.12: commits, push, PR create/update, CI repair, dispatch on this branch and
+                   scratch/13b-*-scenario, scratch push+delete: authorized; settings, spending,
+                   larger runners, Rust/Cargo/test/worlds/Dockerfile edits: NOT authorized; merge:
+                   operator only
+INVARIANTS         I-S13-1 … I-S13-9; I-13b-1 … I-13b-6
+BUDGET             ≤ 12 scenario-sized CI runs (count kept in B-C3's evidence)
+STOPS              §13.12 MATERIAL STOPS (R-B1, R-B10, billing, fast/test change, settings, budget)
+STOP               PR READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+The current checkpoint and the next actions are the first unchecked item of B-C1 … B-C4.
 
 ---
 
