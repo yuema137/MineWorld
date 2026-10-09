@@ -1034,7 +1034,7 @@ first risk did not occur). No pack on main uses `configures!()` yet: `calendar` 
 | --- | --- | --- | --- |
 | C1 | [x] ARC-67, DEP-30 appended to `docs/DECISIONS.md`; `CORE_CONCEPTS.md` §17 *Time* (calendar time, embodied time, time scale, paused; four rules); `systems/calendar/README.md`; the spec header as `src/lib.rs`'s module doc, with a doc-only `Cargo.toml` (TWa-D1) | [x] `check_doc_headings.py`: 191 numbered sections across 26 documents, none duplicated — PASS; `check_decision_ids.py`: 71 ids, all distinct — PASS; `cargo check -p mineworld-calendar` clean | [x] terms checked against CORE_CONCEPTS §§1, 10, 11: "calendar time", "embodied time", "time scale", "paused" are new terms, none a synonym of `Process`/`Event`/`WorldTime` (calendar time is *defined as* `WorldTime`, stated, not renamed); §17 is the "time section" §15.4 asked for (none existed) |
 | C2 | [x] `civil.rs` (`CalendarDate` valid by construction; Hinnant `days`/`from_days`; `weekday` 0 = Monday); `day.rs` (`MicroDegrees`, `SunSample`, `DayEvents` + `light_changes`, `Phase`, `CalendarDay::compute`, `DAY`, `SAMPLE_INTERVAL` 900, `SAMPLES` 97); `sun.rs` (`sun_at`, `day_events`, `phase_at`; the only file naming the crate; ΔT = the library's estimate at mid-month of the instant's UTC month); dependency `solar-positioning =0.7.0`, no default features, `libm` | [x] `cargo test -p mineworld-calendar`: 8 passed (E-TWa-2): every day 1901–2099 round-trips (72 684 days); 2026-10-08 = day 20 734, Thursday; NOAA table ±150 s (rise −16 s, set −1 s, noon −8 s); elevation vs NOAA's model ≤ 0.002° at 09/12/15 h; three pinned samples (§16.8 a); 78° N polar night; equator equinox; azimuth convention. Clippy `-p mineworld-calendar --all-targets -D warnings` clean. Lock: + `solar-positioning 0.7.0` only (`libm 0.2.16` already locked). Mutations M-TWa-3a/3b below | [x] quantization: `f64::round` is half away from zero and exact on every IEEE host; azimuth 360 000 wraps to 0; event offsets kept only in 1 … 86 399 so an event never coincides with a midnight wake. Julian date `2 440 587.5 + utc/86 400` (|utc| < 2^53, exact division error ≈ 40 µs). Azimuth north = 0 clockwise is the library's convention and is tested. Phase uses unrefracted elevation against the same three horizons the event search uses, so a day's opening phase and its events agree; the track is refracted (apparent), as NOAA's displayed elevation is |
-| C3 | [ ] | [ ] | [ ] |
+| C3 | [x] `configuration.rs` (`CalendarConfiguration`, decode-only, `deny_unknown_fields`; `Epoch` 1901–2099 `YYYY-MM-DD`, `UtcOffset` `±HH:MM` ≤ 14 h, `Latitude` ±90, `Longitude` ±180 → micro-degrees); `event.rs` (`CalendarConfigured`, `DayBegan { day, phase }`, `DaylightChanged { phase }`); `process.rs` (`CalendarProcess` "calendar", `CalendarState { configured, day, phase }`); `component.rs` (`calendar-day`, `calendar-light`, declared, carried by no entity); `system.rs` (`PackConfiguration` + `configures!()`; `react` starts the process from `calendar-configured` and folds the other two; `wake` states midnight or the light changes due; `discloses` on the observer's place only); registry line `Calendar => mineworld_calendar::CalendarSystem` + its Cargo line | [x] E-TWa-3: `cargo test -p mineworld-calendar` 8 + 5 + 2; `-p mineworld-installed-systems -p mineworld-worldpack` all ok; `-p mineworld-acceptance` all ok (ac1_composability 13, precursor_vocabulary, seam guards unedited); `-p mineworld-cli --test configure --test commands` ok; clippy `--all-targets --all-features -D warnings` on calendar and installed clean; fmt clean. M-TWa-4 killed | [x] single ownership: only this pack writes its Process; it reads presence's `Presence` (declared dependency) and nothing of host pacing — no time scale, no pause exists in its inputs (INV-TW-2); the Process state is written only in `react` from fact payloads, `wake` only reschedules and states facts, so a snapshot equals the fold (resume test byte-identical); the configured fact is SystemInternal with no subjects; Public facts have no subjects; disclosure is keyed to `Presence` of the observer, so §16.8 (c) holds by construction and is tested; an enabled-but-unconfigured calendar states and discloses nothing (QTW-8's warning is `mineworld check`'s, not in TW-a's scope) |
 | C4 | [ ] | [ ] | [ ] |
 | C5 | [ ] | [ ] | — |
 
@@ -1081,6 +1081,26 @@ M-TWa-3b Variant: `features = ["std"]` (the platform's math) → 8 passed on mac
          guard is the exact feature pin plus the pinned samples on two OSes (macOS here, Linux in CI),
          not a test that could tell the backends apart on one host. Reverted; `git diff` of
          Cargo.toml empty against the intended text.
+E-TWa-3  C3, 2026-10-08 (macOS arm64, dev): `cargo test -p mineworld-calendar`: lib 8, tests/calendar 5,
+         tests/configuration 2 — all pass. tests/calendar: 7 days → 7 `day-began` at 0, 86 400, …,
+         dated 2026-10-08 … 14 with weekdays 3,4,5,6,0,1,2 (Thu … Wed), each at TimeOfDay 0
+         (schedule's), each naming its own midnight, opening phase Night; 42 `daylight-changed`, six a
+         day in the order AT, CT, Day, CT, AT, Night at exactly the instants the day record names; the
+         process state equals the last day and last phase, next due 7 × 86 400. Facts: day-began and
+         daylight-changed Public, calendar-configured SystemInternal, none with subjects. Unconfigured:
+         no facts, no records. §16.8 (c): `bo` (no Presence) → no calendar record; `ada` → exactly
+         [(square, calendar-day), (square, calendar-light)]; the noon record's sample 48 is the pinned
+         (50 759, 189 418) and the light is Day; after `place-me` puts bo in the square, bo gets the
+         same two. Restart: stopped at day 2 14:30, resumed, run to day 8 → 6 day-began (last
+         2026-10-16), facts byte-identical to the uninterrupted world's. tests/configuration: through
+         `WorldPack::read`, latitude 91 refused as "…/configure/calendar.yaml is not a valid
+         configuration file: error: line 3 column 11: latitude is decimal degrees from -90 to 90, not
+         91" (file, line/column, key, value; adversarial 5 PASS); 11 out-of-range values each refused
+         naming their key; 9 bound values accepted; an unknown key `dst` refused.
+M-TWa-4  Mutation (adversarial 4): `day_start = index × 86 400 + 1` in system.rs `day_at` → 3 of 5
+         calendar tests fail, INV-TW-4's among them ("the record names its own midnight": WorldTime(1)
+         vs WorldTime(0)); also the noon sample (azimuth 189 424 ≠ 189 418) and the restart count.
+         Killed. Reverted; `git grep MUTATION -- '*.rs'` empty.
 ```
 
 ### Deviations and findings

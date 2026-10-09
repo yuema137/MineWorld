@@ -791,8 +791,18 @@ dependencies = [
 name = "mineworld-calendar"
 version = "0.1.0"
 dependencies = [
+ "mineworld-authoring",
  "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-schedule",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
  "serde",
+ "serde-saphyr",
+ "serde_json",
  "solar-positioning",
 ]
 
@@ -924,6 +934,7 @@ name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [
  "mineworld-bodies",
+ "mineworld-calendar",
  "mineworld-consumption",
  "mineworld-contracts",
  "mineworld-conversation",

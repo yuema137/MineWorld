@@ -35,11 +35,21 @@
 #![warn(missing_docs)]
 
 pub mod civil;
+pub mod component;
+pub mod configuration;
 pub mod day;
+pub mod event;
+pub mod process;
 mod sun;
+pub mod system;
 
 pub use civil::CalendarDate;
+pub use component::{CalendarDayRecord, CalendarLight};
+pub use configuration::CalendarConfiguration;
 pub use day::{
     CalendarDay, DAY, DayEvents, MicroDegrees, Phase, SAMPLE_INTERVAL, SAMPLES, SunSample,
 };
+pub use event::{CalendarConfigured, DayBegan, DaylightChanged};
+pub use process::{CalendarProcess, CalendarState};
 pub use sun::SunUnavailable;
+pub use system::CalendarSystem;

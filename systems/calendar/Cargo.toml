@@ -8,9 +8,27 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+# The configuration seam (ARC-61): `PackConfiguration`, decoded and seeded by the loader.
+mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where an observer is, for disclosure, and the perception trait. Nothing else of presence is read.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 # The sun (DEP-30): exactly 0.7.0, pre-1.0 (R-TW-3). Without `std` and with `libm` its transcendental
 # functions are pure Rust, so the same inputs give the same bits on every host (§16.8 (a)). Named only
 # in src/sun.rs.
 solar-positioning = { version = "=0.7.0", default-features = false, features = ["libm"] }
+
+[dev-dependencies]
+# The tests decode configuration from YAML as the loader does, refuse it through the real World Pack
+# loader (with this pack in the installed set), pin INV-TW-4 against schedule's midnight, and restart
+# a saved world mid-day.
+mineworld-persistence = { workspace = true }
+mineworld-schedule = { workspace = true }
+mineworld-test-support = { workspace = true }
+mineworld-worldpack = { workspace = true }
+serde-saphyr = { workspace = true }
