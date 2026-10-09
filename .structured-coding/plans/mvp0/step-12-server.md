@@ -996,7 +996,7 @@ integration, rebased on S11-B.
 **Conflicts with:** anything editing `systems/presence/src` — S15's 12a–12e plan no presence edit after
 12a, which must be re-checked against 12d's frozen change set before S11-C freezes.
 
-**Detailed to the commit in §17** (PR design, ready for freeze review), which also carries coordination
+**Detailed to the commit in §17** (DESIGN FROZEN 2026-10-08), which also carries coordination
 rulings 1, 2 and 4: the `perceived` stream, `acted_through` and the module's readers. §19 states how
 S11-C and S11-D share files when they run in parallel.
 
@@ -1021,7 +1021,7 @@ sessions; `GET /admin/sessions` lists both with nicknames and seats; `GET /admin
 
 **May run in parallel with:** S11-C; S15; S13.
 
-**Detailed to the commit in §18** (PR design, ready for freeze review), which adds the host clock routes
+**Detailed to the commit in §18** (DESIGN FROZEN 2026-10-08), which adds the host clock routes
 S19 needs (`step-19-time-weather.md` §7.3–§7.4, QTW-3): `GET`/`POST /admin/clock`, the `clock` frame,
 `WorldSummary.paused`, the refusal `paused`, and the rule that only the holder of the admin token
 changes time.
@@ -1901,8 +1901,24 @@ D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a cl
 
 # 17. PR S11-C — facts in observations, the `perceived` stream, `acted_through`, deltas (full design)
 
-**Lifecycle:** `PR DESIGN — READY FOR FREEZE REVIEW`. Nothing here authorizes implementation; the primary
-session freezes it (ruling 9) and a fresh implementation session executes it.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session`. Superseded: `PR DESIGN — READY FOR FREEZE
+REVIEW`. A fresh implementation session executes it under §17.11, starting only once S11-B (#83) has
+merged (C-C1, C-C3 and C-C3b excepted, §17.11's sequence).
+
+**Freeze record (2026-10-08).** Relayed by the coordinator:
+- **Operator.** QS11C-6 accepted: overhearing is place-level for MVP-0. A hearing range comes later as a
+  configurable World Interaction List rule behind the same `EventPerception` seam. D-SB12 ruled: CP-B4's
+  bound is **p99 tick ≤ 50 ms with the maximum reported**, and `hosted_town` asserts that form (CA-13
+  uses it).
+- **Primary session.** QS11C-1 … QS11C-5 and QS11C-7 … QS11C-9 accepted as recommended. S10's R-S11-9 and
+  R-S11-10 are adopted, as the coordinator states them:
+  - S11-C commits golden frames for `perceived`, `delta`, an observation carrying events, and the new
+    refusals and closing reason (`refused-cursor_unavailable.json`, `refused-lagged.json`,
+    `closing-lagged.json`), in SD-C14;
+  - `mineworld perceived` lands in an early commit, **C-C3b**, right after the audience function.
+- **New binding requirement (operator): "我们要保证支持全平台，mac linux windows都可以"** (macOS, Linux and
+  Windows must all be supported). It is applied in §17.14.
+
 **Author:** the S11-C/D planning agent, 2026-10-08, worktree
 `/Users/yuema137/mineworld-worktrees/plan-s11cd`, branch `plan/s11-cd` (from `main @ 77a8717`).
 **Binding parents:** this file §§4.7, 4.8, 5, 6, 7.3, 7.8, 8, 9.3, 11; §15 (S11-A, merged as #76); §16
@@ -1997,7 +2013,7 @@ Read on `main @ 77a8717` and `mvp0/pr-s11b-seats @ 7811e06` (marked **B**). Re-v
 | **SD-C11** | **The Godot module** (ruling 4): `MineWorldObservation.acted_through()`, `events_of(event_type)`; `MineWorldClient.perceive_from(cursor: Variant)` (opt-in before `connect_to_world`; `null` = from the beginning), `signal perceived(events: Array, through: String)`, `var perceived_cursor` (the last `through`), and the reconnect policy rejoins with `perceived: { since: perceived_cursor }`; delta frames are applied inside the module by `mineworld/delta.gd` (`apply(base: Dictionary, delta: Dictionary) -> Dictionary`), so `observed` always emits a whole observation (S12's R-S11-7); a base mismatch or a `remove` of an id not held disconnects and, with `reconnect` on, resumes (which yields a keyframe). Every existing call and name unchanged. | Ruling 4; S12 R-S11-7; S14 M-4, M-6; R-9 (verified from the far side, CA-15). |
 | **SD-C12** | **`runtime.rs` split before growth**: `Subscriber`, `sweep`, `release`, `depart` and the new fan-out move to `server/src/runtime/delivery.rs` in a pure-move commit (C-C2). | ENGINEERING_STANDARDS §10; §8.2; §19's file ownership (S11-D splits a different part). |
 | **SD-C13** | **`mineworld perceived <world> --save DIR --person KEY [--since ID] [--json]`** in `tools/cli/src/perceived.rs` (`clap::Args` there; one variant in `main.rs`). Reads the save and the pack, nothing else (as `biography`, ARC-29); prints one line per perceived fact (`<id> <at> <event_type> place=<key> caused_by=<…>`), or with `--json` one `PerceivedEvent` per line in the wire form of SD-C4. | Ruling 2; S10 IC-1's offline half; MODULE_SPEC §8.1. |
-| **SD-C14** | **Protocol additions inside revision 2** (landing-table rows already name them S11-C's): `join.perceived`; server frames `perceived` and (per SD-C10) `delta`; `observation.acted_through`; refusal codes `cursor_unavailable` (connection stays in the handshake) and `lagged` (followed by `closing`); closing reason `lagged`; `events_dropped` non-zero; entity order. Golden frames: `perceived.json`, `observation.json` (with `acted_through` and one event), `delta.json` (if shipped), `join.json` gains `perceived`. | ARC-41's "may omit, never redefine"; R-S11-7 (golden frames for S10's Python SDK). |
+| **SD-C14** | **Protocol additions inside revision 2** (the landing table already names them S11-C's): `join.perceived`; server frames `perceived` and (per SD-C10) `delta`; `observation.acted_through`; refusal codes `cursor_unavailable` (the connection stays in the handshake) and `lagged` (followed by `closing`); closing reason `lagged`; `events_dropped` non-zero; entity order. **Golden frames (S10 R-S11-9/10, freeze):** `perceived.json`; `observation.json` with `acted_through` and at least one event; `delta.json` (under the keyframes-only outcome, the file is not added and §5.3 says so); `join.json` with `perceived`; `refused-cursor_unavailable.json`; `refused-lagged.json`; `closing-lagged.json`. | ARC-41's "may omit, never redefine"; R-S11-7 (golden frames for S10's Python SDK). |
 
 ## 17.4 Wire additions, exactly (written into `PROTOCOL.md` by C-C1)
 
@@ -2049,7 +2065,8 @@ CA-1  The rule (unit, presence). For each Visibility over a fixture of envelopes
 CA-2  One function: live + resumed = offline (S10 I-4, IC-1). `mineworld server worlds/social-cafe
       --town --save DIR --hold 10`: a client joins `wanderer` with perceived {since: null}, records every
       perceived frame for 20 wall s, drops its socket without leave, rejoins inside the hold with its
-      resume and perceived {since: <last through>}, records 20 wall s more, leaves; SIGINT. The ids
+      resume and perceived {since: <last through>}, records 20 wall s more, leaves; the server is
+      killed (`Child::kill`, portable, §17.14). The ids
       received, concatenated, equal exactly the ids of `mineworld perceived worlds/social-cafe --save
       DIR --person wanderer --json` (no gap, no duplicate, ascending), and that export is non-empty
       beyond genesis (≥ 1 `spoke` or `arrived` stated after genesis).
@@ -2131,10 +2148,11 @@ CA-12 cursor_unavailable, both worlds. Ephemeral server: a join with perceived {
 
 CA-13 A resume of a long save does not stall the world. A 300-day market-town save (`mineworld run
       --days 300 --save`), hosted with --town; a client joins with perceived {since: null}: the
-      backfill completes without lagged, and the world thread's longest tick in the shutdown line
-      stays within CP-B4's bound as ruled in D-SB12. Backfill wall time and fact count recorded.
+      backfill completes without lagged, and the world thread's p99 tick in the shutdown line is
+      ≤ 50 ms (CP-B4 as ruled on D-SB12; the maximum is reported beside it and recorded). Backfill
+      wall time and fact count recorded.
       [tools/cli/tests/perceived.rs, #[ignore] if > 2 min, run in the close commit]
-      M-CA13 history read on the world thread → the longest-tick bound fails.
+      M-CA13 history read on the world thread → the p99 tick bound fails.
 
 CA-14 Nothing else moved; scope. Both 300-day seed-7 digests at the head equal those at the base
       (I-6; presence's observe and run.rs untouched); every existing test passes, the only edits to
@@ -2222,6 +2240,28 @@ not pure.
   world (S10's A-1; failing it is a stop: the live seed and the offline fold would disagree); presence's
   existing tests, `seam_vocabulary`, `precursor_vocabulary`, `configuration_vocabulary` pass unedited
   · [ ] Review: the module decodes only `arrived`; no physics or market word; `admits` is total.
+
+### C-C3b — `mineworld perceived`, early (S10 R-S11-10, freeze)
+
+**Goal.** SD-C13, landed before the server work so that S10's P4 can build memory fixtures on it.
+**Scope.** `tools/cli/src/perceived.rs` (the `clap::Args` struct and the command), one variant and one
+match arm in `main.rs`, `tools/cli/tests/perceived.rs` (the offline half), MODULE_SPEC §8.1's line.
+**Depends on:** C-C3 only, so it may land on `main` before S11-B merges. If it does, S11-B's rebase
+carries the one `main.rs` variant, which is mechanical. Path handling uses `std::path` only, with no Unix
+assumption (§17.14).
+
+- [ ] Implementation · [ ] Validation:
+  - a 30-day social-cafe `run --save`, exported for one person:
+    - every exported id is a fact in the save;
+    - every `Place(p)` fact exported is one the person was in `p` for, checked against an independent
+      scripted case with known placements (CA-3's literals);
+    - `--since X` exports exactly the suffix after X;
+    - an unknown person is refused by name;
+    - `--json` lines decode as `PerceivedEvent<Value>`.
+  · [ ] Review:
+  - it reads the save and the pack and nothing else;
+  - it opens the save, reads it, and closes it, so no handle outlives the command (Windows locking,
+    §17.14).
 
 ### C-C4 — The server seams and the wire form of a fact
 
@@ -2343,7 +2383,12 @@ CI          the PR's CI on the exact final head is canonical; no local full suit
 | QS11C-8 | A resume reads the whole fact log (≈373 000 facts at 300 days); seed the fold from a snapshot later? | **Accept now**, measured in CA-13; the snapshot seed is an optimization when measured necessary. |
 | QS11C-9 | `lagged` is both a refusal code (the ruling's word) and a closing reason, as `unauthorized` is. | **Yes**, consistent with S11-A's pattern. |
 
-## 17.11 Execution contract (proposed; confirmed only by the primary session's freeze)
+**Rulings (freeze, 2026-10-08):**
+- every question above is accepted as recommended;
+- QS11C-6 was accepted by the operator, with a hearing range to come later as a World Interaction List
+  rule.
+
+## 17.11 Execution contract (frozen 2026-10-08)
 
 ```text
 PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-C — facts in observations, the perceived stream,
@@ -2352,23 +2397,29 @@ PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §17; eviden
 RELATED / BINDING   this file §§4.7, 4.8, 5, 6, 7.3, 7.8, 8, 9.3, 15, 16, 19; server/PROTOCOL.md rev 2;
                     overall.md rulings 1, 2, 4, 6, 9, 10 and QIL-8; step-17 §§3.3, 10, 11.1;
                     docs/DECISIONS.md ARC-23, ARC-25, ARC-28, ARC-40, ARC-41, ARC-42; CLAUDE.md §§2–4
-IMPLEMENTATION BASE main after #83 (S11-B) merges; branch mvp0/pr-s11c-facts; its own worktree, one session
-APPROVED SCOPE      §17.6; C-C1 … C-C10; SD-C1 … SD-C14 as the questions are ruled
+IMPLEMENTATION BASE main after #83 (S11-B) has merged (precondition); branch mvp0/pr-s11c-perception;
+                    worktree /Users/yuema137/mineworld-worktrees/impl-s11c, held by one session only
+APPROVED SCOPE      §17.6; C-C1 … C-C10 with C-C3b; SD-C1 … SD-C14 as ruled; §17.14 (all platforms)
 FROZEN INVARIANTS   I-1 (no kernel/contracts/persistence diff); I-6 (digests = E-SC0; observe and run.rs
                     untouched); I-7 (facts only through EventPerception; SystemInternal to nobody);
                     I-9 (no pack in server/); I-10 (if deltas ship); I-11 (no history read or wait on the
                     world thread); I-12 (ac13, ac15 green); every existing module name and call valid
-SEQUENCE            E-SC0 → C-C1 → (C-C3 may precede S11-B's merge) → C-C2 → C-C4 → C-C5 → C-C6 →
-                    C-C7 → C-C8 → C-C9 → C-C10; each commit pushed when coherent
+SEQUENCE            E-SC0 → C-C1 → C-C3 → C-C3b (these three may precede S11-B's merge) → [S11-B merged]
+                    → C-C2 → C-C4 → C-C5 → C-C6 → C-C7 → C-C8 → C-C9 → C-C10; each commit pushed when
+                    coherent
+COMMANDS            as S11-B's contract: cargo (fmt, check, clippy -D warnings, test, run, info), git,
+                    gh (no merge), python3 scripts/*, the repository's Godot and run.sh scripts, and
+                    `cargo check --target x86_64-pc-windows-msvc` if that target is installed (§17.14)
 VALIDATION BUDGET   unit/integration/static unrestricted; CP-C1 at most two 60 s runs; CA-13 once (≤ 10
                     min with the 300-day save); 300-day digests at most four; Godot one window at a time,
                     each mode at most three runs; one full gate; about two hours; real-model NOT REQUIRED
 LIVE DOCUMENTATION  §17 checkboxes; §17.12; §17.13
 HANDOFF             .structured-coding/plans/mvp0/handoff-s11c.md
 ENDPOINT AUTHORITY
-  implementation + local validation   unresolved until the primary session's freeze message
-  semantic commits, branch push       authorized after the freeze
-  PR creation / update                authorized after the freeze
+  implementation + local validation   authorized (the primary session's freeze, 2026-10-08)
+  semantic commits, branch push       authorized
+  PR creation / update                authorized
+  CI repair to review readiness       authorized
   merge                               operator only; never inherited
 NORMAL STOP         PR S11-C READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       a needed kernel/contract/persistence edit; R-SC1 (fold ≠ components); a digest change;
@@ -2387,19 +2438,67 @@ MATERIAL STOP       a needed kernel/contract/persistence edit; R-SC1 (fold ≠ c
 (empty until the freeze)
 ```
 
+## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
+
+The audit found that CI runs only on `ubuntu-24.04` (`.github/workflows/ci.yml`). The test support
+interrupts a server with `sh -c 'kill -INT <pid>'`, from S11-B's D-SB13, which is Unix only. The
+requirement binds in four ways:
+
+- **No platform assumption in product code.**
+  - Paths use `std::path`.
+  - Nothing in S11-C's server or CLI code signals, forks or reads `/proc`.
+  - `spawn_blocking` and tokio are portable as used.
+- **The resume history read on Windows.** `SavedHistory` opens its own connection for each backfill
+  (`SqliteBackend::open`) and drops it before returning. No handle outlives the read, so on Windows a
+  save directory can still be removed or renamed once the server stops.
+  - The second reader runs beside the world thread's writer in WAL mode. SQLite arbitrates that on
+    Windows as on Unix, under the existing `busy_timeout` of 5 s.
+  - A read that still fails (`SQLITE_BUSY`, a sharing violation) is answered `cursor_unavailable`, with
+    the cause in `detail`. The connection stays and may rejoin. It never stalls the world.
+  - `mineworld perceived` likewise opens, reads and closes.
+- **Tests that use signals.**
+  - Wherever the property under test is not a graceful stop, a test ends a server with `Child::kill`,
+    which is portable (TerminateProcess on Windows). Every commit is durable before anyone is told, so a
+    kill loses nothing a test reads.
+  - CA-2 and CA-6 read the save after a kill, never after an interrupt.
+  - CA-13 needs the shutdown statistics line, so it needs a graceful stop. Its interrupt helper is
+    `#[cfg(unix)]`, and **its Windows path is owned by S13**: a graceful-stop helper for the Windows
+    lane (`GenerateConsoleCtrlEvent` or an equivalent), recorded as R-S13-W1.
+  - No other S11-C test needs a signal.
+- **Evidence of portability.**
+  - C-C10 runs `cargo check -p mineworld-server -p mineworld-cli --target x86_64-pc-windows-msvc` if
+    that target is installed. If it is not, the check is recorded as INCONCLUSIVE, with the owner below.
+  - The Godot far side (`run.sh`, bash) runs on macOS here and on Linux in CI.
+  - **A Windows and macOS CI matrix is S13's** (proposed requirement R-S13-W1: build, unit and server
+    tests on `windows-latest` and `macos-latest`). Until it exists, Windows behaviour is designed and
+    compiled, not exercised, and this PR's handoff says so.
+
 ---
 
 # 18. PR S11-D — the admin surface and the host clock routes (full design)
 
-**Lifecycle:** `PR DESIGN — READY FOR FREEZE REVIEW`. Nothing here authorizes implementation.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session`. Superseded: `PR DESIGN — READY FOR FREEZE
+REVIEW`. A fresh implementation session executes it under §18.11, once S11-B (#83) has merged (D-C1
+excepted).
+
+**Freeze record (2026-10-08).** Relayed by the coordinator:
+- **Operator.** QS11D-3 accepted as a recorded limitation: there is no ban list; to ban someone, rotate
+  the invite (restart the server with a new `--invite`). D-SB12: CP-B4's bound is p99 tick ≤ 50 ms with
+  the maximum reported.
+- **Primary session.** QS11D-1: a live scale change is TW-c's, and S11-D answers `409
+  time_scale_fixed`. QS11D-2 and QS11D-4 … QS11D-8 accepted as recommended. QS11D-6: ruling 4 is amended
+  so that S11-D adds the one `clock` reader to the module. QS11D-7: S11-D's record is **ARC-44**, which
+  replaces the placeholder record id throughout §§18–19.
+- **New binding requirement (operator):** macOS, Linux and Windows must all be supported. It is applied in
+  §18.14 and SD-D13.
+
 **Author:** the S11-C/D planning agent, 2026-10-08, worktree `plan-s11cd`, branch `plan/s11-cd`.
 **Binding parents:** this file §§4.1, 4.9, 5, 6 (I-4, I-5), 7.2, 7.6, 7.7, 8, 9.4, 11.4; §15 (S11-A);
 §16 (S11-B, PR #83, **not merged**); `step-19-time-weather.md` §§4.1–4.3, 7.1–7.4, 10 (INV-TW-2, -8, -9),
 14.1 (QTW-2: full pause; QTW-3: the routes inside S11-D; QTW-13: wall cadence), 15.3 (the I-4
 clarification); `overall.md` rulings 1, 6, 9, 10. Evidence `E-SD<n>` in §18.12, deviations `D-SD<n>` in
 §18.13. Placeholders: commits `D-C0 …`, decisions `SD-D1 …`, acceptance `DA-1 …`, questions `QS11D-1 …`,
-and one decision record `ARC-S11D-a` (proposed number: ARC-44, S11's unassigned reserve; the primary
-session assigns it).
+and one decision record, numbered **ARC-44** at the freeze (S11's reserve).
 
 ## 18.1 Identity, base, scope, preconditions
 
@@ -2467,6 +2566,7 @@ not in scope  a live time-scale change (TW-c, QS11D-1); the host journal, world.
 | **SD-D10** | **`POST /admin/clock`** accepts `{ "paused": bool }` (other fields refused, `malformed`); a body with `time_scale` is answered `409 time_scale_fixed` until TW-c lands live scaling (QS11D-1); no field can name an instant, so no route moves the clock to an instant (the I-4 clarification of S19 §15.3). Repeating the current state is `200` and changes nothing. `GET /admin/clock` answers `{ at, time_scale, paused }`. | S19 §7.3, §15.3; "may omit, never redefine" (ARC-41) for `time_scale`. |
 | **SD-D11** | **Size**: `summary` and `first_binding` move from `runtime.rs` to `runtime/status.rs` (pure move, D-C2); admin and clock command handling lives in `runtime/control.rs`. | `runtime.rs` is 492 lines; §19's file ownership (S11-C moves a different part). |
 | **SD-D12** | **CLI**: `--admin-token TOKEN` with `env = "MINEWORLD_ADMIN_TOKEN"`, `hide_env_values`; an illegal token, or one equal to the invite, stops the server with a message that echoes neither; with a token the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without one, `[mineworld] no admin surface (no --admin-token)`. The token is never printed. | §11.4's frozen CLI contract; I-5; an admin token equal to the invite would make every player the host. |
+| **SD-D13** | **Stopping the server on every platform** (operator requirement, §18.14). The shutdown future in `serve.rs` completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C and Ctrl-Break on Windows) and, under `#[cfg(windows)]`, `tokio::signal::windows::ctrl_close()` and `ctrl_shutdown()` (closing the console window, or logging off). Each leads to the same graceful path: stop accepting connections, `WorldHost::shutdown` (checkpoint, statistics), the hosted report. On a Windows close event the OS allows about 5 s; the checkpoint is one snapshot write, measured in E-SD. Under `#[cfg(unix)]` nothing changes. | S19 §7.5: closing the game saves and pauses, including on Windows, where a closed console sends no SIGINT. |
 
 ## 18.4 The surface, exactly (written into `PROTOCOL.md` §11 and §5.9 by D-C1)
 
@@ -2514,7 +2614,8 @@ DA-2  Permission refusals. With --admin-token T (a fixed test token): each of �
 DA-3  No admin route changes world state (I-4, S19 INV-TW-9). `mineworld server worlds/social-cafe
       --save DIR --admin-token T` (no --town), inside the routine-free first minutes, one idle seated
       client: every route called twice, in order sessions, seats, clock GET, pause, resume, release of a
-      free seat, kick of the client. /status's revision is the same before and after; after SIGKILL
+      free seat, kick of the client. /status's revision is the same before and after; after a kill
+      (`Child::kill`, portable, §18.14)
       `mineworld inspect DIR` reports exactly `mineworld validate`'s genesis fact count.
       [tools/cli/tests/admin.rs]
       M-DA3  kick also submits a no-op `move` as the kicked seat → revision moves; fails.
@@ -2599,7 +2700,7 @@ tools/cli/tests/{admin.rs (new), server_command.rs, support/mod.rs}
 clients/protocol/{mineworld/world_client.gd (the clock arm and signal only),
                   checks/admin_check.gd (new, with .uid), run.sh, ADOPTION.md, README.md,
                   evidence/* (regenerated)}
-docs/{DECISIONS.md (ARC-S11D-a), MODULE_SPEC.md §8.1}
+docs/{DECISIONS.md (ARC-44), MODULE_SPEC.md §8.1}
 .structured-coding/plans/mvp0/{step-12-server.md §18, handoff-s11d.md}
 ```
 
@@ -2613,12 +2714,12 @@ docs/{DECISIONS.md (ARC-S11D-a), MODULE_SPEC.md §8.1}
   decision and a criterion (SD-D6 … SD-D10; DA-6, DA-8, DA-10); every guard names a mutation. Self-review;
   the freeze is pending.
 
-### D-C1 — Specs before code: `PROTOCOL.md` §§5.9, 11; ARC-S11D-a; MODULE_SPEC §8.1
+### D-C1 — Specs before code: `PROTOCOL.md` §§5.9, 11; ARC-44; MODULE_SPEC §8.1
 
 **Scope.** `PROTOCOL.md`: §1 (the `/admin` routes exist only with a token), §5 table (`clock`), new
 §5.9 (`clock`), §5.5 (`paused`), §5.6 (`kicked` landed), §5.7 (`paused`), §9 (admin is HTTP, confirmed),
 new §11 (the admin surface, §18.4), §10's rows (S11-D landed; `time_scale` in `POST /admin/clock` "from
-TW-c"). `DECISIONS.md` **ARC-S11D-a** (the admin surface is HTTP behind a bearer token, mounted only when
+TW-c"). `DECISIONS.md` **ARC-44** (the admin surface is HTTP behind a bearer token, mounted only when
 configured, and changes no world state; pause is host pacing; the I-4 clarification of S19 §15.3;
 rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no per-player bans).
 `MODULE_SPEC.md` §8.1: `--admin-token`, `MINEWORLD_ADMIN_TOKEN`.
@@ -2724,14 +2825,20 @@ CI          the PR's CI on the exact final head is canonical
 | --- | --- | --- |
 | QS11D-1 | A live `time_scale` change through `POST /admin/clock`: in S11-D, or in TW-c? A live change needs every hosted adapter's cadence rescheduled (S19 §4.4) — a seam change — and the host journal. | **TW-c.** S11-D specifies the field and answers `409 time_scale_fixed` until TW-c lands it; pause needs neither the seam change nor the journal. Cross-lane, primary session. |
 | QS11D-2 | Pause is checked in `submit` (sessions) and `tick` (hosted, Processes); kicks, joins and releases still work while paused. | **Yes** (S19 §7.2's full pause concerns the world, not host state). |
-| **QS11D-3 [OPERATOR]** | A kicked player may rejoin at once with the invite: there is no ban without per-player identity. Accept for MVP-0? | **Accept**, recorded in ARC-S11D-a's limitations beside ARC-40's one trust level; a ban list waits for durable player identity. Security posture, so the operator's. |
+| **QS11D-3 [OPERATOR]** | A kicked player may rejoin at once with the invite: there is no ban without per-player identity. Accept for MVP-0? | **Accept**, recorded in ARC-44's limitations beside ARC-40's one trust level; a ban list waits for durable player identity. Security posture, so the operator's. |
 | QS11D-4 | An admin token equal to the invite is refused at start. | **Yes.** |
 | QS11D-5 | Releasing a free or hosted seat is a `200` no-op (`released: false`), not an error and not a controller rebuild. | **Yes.** |
 | QS11D-6 | Ruling 4 says no PR but 16b, S11-A and S11-C edits the module; S11-D needs one `clock` arm so clients stop warning on a frame every server now sends. Amend ruling 4? | **Yes**, for that arm only; the alternative (S11-C carries D's arm) couples the two lanes. |
-| QS11D-7 | Decision record: S11-D records ARC-S11D-a (proposed ARC-44, S11's reserve); S19's ARC-69 ("pause and scale are host commands") is left to TW-c and cited. | **Yes**; the primary session assigns the number. |
+| QS11D-7 | Decision record: S11-D records ARC-44 (S11's reserve). S19's ARC-69 ("pause and scale are host commands") is left to TW-c and cited. | **Yes** — ruled: ARC-44. |
 | QS11D-8 | `paused` is public in `/status` (pacing, like `time_scale`). | **Yes.** |
 
-## 18.11 Execution contract (proposed; confirmed only by the primary session's freeze)
+**Rulings (freeze, 2026-10-08):**
+- every question above is accepted as recommended;
+- QS11D-3 was accepted by the operator as a recorded limitation: to ban someone, rotate the invite;
+- QS11D-6 amends ruling 4;
+- QS11D-7 assigns ARC-44.
+
+## 18.11 Execution contract (frozen 2026-10-08)
 
 ```text
 PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-D — the admin surface and the host clock routes
@@ -2739,23 +2846,29 @@ PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §18; eviden
 RELATED / BINDING   this file §§4.9, 5, 6, 7.2, 7.6, 7.7, 9.4, 11.4, 15, 16, 19; server/PROTOCOL.md rev 2;
                     step-19-time-weather.md §§4.2, 7, 10, 14.1, 15.3; overall.md rulings 1, 6, 9, 10;
                     docs/DECISIONS.md ARC-23, ARC-40, ARC-41, DEP-14; CLAUDE.md §§2–4
-IMPLEMENTATION BASE main after #83 (S11-B) merges; branch mvp0/pr-s11d-admin; its own worktree, one session
-APPROVED SCOPE      §18.6; D-C1 … D-C8; SD-D1 … SD-D12 as the questions are ruled
+IMPLEMENTATION BASE main after #83 (S11-B) has merged (precondition); branch mvp0/pr-s11d-admin;
+                    worktree /Users/yuema137/mineworld-worktrees/impl-s11d, held by one session only
+APPROVED SCOPE      §18.6; D-C1 … D-C8; SD-D1 … SD-D13 as ruled; §18.14 (all platforms)
 FROZEN INVARIANTS   I-1; I-2/ARC-40 (no admin action moves the revision); I-3 (one controller per seat);
                     I-4 (no route changes world state or names an instant); I-5 (admin token in no
                     save, frame, /status or log; nicknames only in /admin/sessions and the holder's
                     welcome); I-6 (digests = E-SD0); I-9; I-11 (handlers and the delay never on the
                     world thread); INV-TW-8 (the clock never decreases and never jumps)
-SEQUENCE            E-SD0 → D-C1 → D-C2 → D-C3 → D-C4 → D-C5 → D-C6 → D-C7 → D-C8
+SEQUENCE            E-SD0 → D-C1 (may precede S11-B's merge) → [S11-B merged] → D-C2 → D-C3 → D-C4 →
+                    D-C5 → D-C6 (with SD-D13) → D-C7 → D-C8
+COMMANDS            as S11-B's contract: cargo (fmt, check, clippy -D warnings, test, run, info), git,
+                    gh (no merge), python3 scripts/*, the repository's Godot and run.sh scripts, and
+                    `cargo check --target x86_64-pc-windows-msvc` if that target is installed (§18.14)
 VALIDATION BUDGET   unit/integration/static unrestricted; real-binary tests as listed (each < 2 min);
                     300-day digests at most four; Godot one window at a time, at most three runs per
                     mode; one full gate; about 1.5 hours; real-model NOT REQUIRED
 LIVE DOCUMENTATION  §18 checkboxes; §18.12; §18.13
 HANDOFF             .structured-coding/plans/mvp0/handoff-s11d.md
 ENDPOINT AUTHORITY
-  implementation + local validation   unresolved until the primary session's freeze message
-  semantic commits, branch push       authorized after the freeze
-  PR creation / update                authorized after the freeze
+  implementation + local validation   authorized (the primary session's freeze, 2026-10-08)
+  semantic commits, branch push       authorized
+  PR creation / update                authorized
+  CI repair to review readiness       authorized
   merge                               operator only; never inherited
 NORMAL STOP         PR S11-D READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       any world-state change by an admin path; a kernel/contract/persistence edit; a new
@@ -2773,6 +2886,35 @@ MATERIAL STOP       any world-state change by an admin path; a kernel/contract/p
 ```text
 (empty until the freeze)
 ```
+
+## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
+
+CI runs only on `ubuntu-24.04` (`.github/workflows/ci.yml`). The test support's `Server::interrupt` uses
+`sh -c 'kill -INT'`, which is Unix only (S11-B D-SB13). Applied to S11-D:
+
+- **The admin token on Windows, from the environment and the CLI.**
+  - clap's `env` feature reads `MINEWORLD_ADMIN_TOKEN` through `std::env` on every platform.
+  - The token rules (8–128 printable ASCII, no whitespace) avoid every character that cmd.exe or
+    PowerShell would need to quote.
+  - DA-9's environment and flag cases use `Command::env` and `Command::arg`, never a shell, so they run
+    unchanged on Windows.
+  - Launchers on every platform pass the token through the environment, not the command line (R-SD5).
+- **Stopping on Windows**: SD-D13 covers Ctrl-C, Ctrl-Break and closing the console window, ahead of
+  SIGINT. `HostClock` and the delays use `std::time::Instant` and tokio timers, which are portable.
+- **Tests that use signals.**
+  - DA-3, DA-4, DA-5 and DA-6 end their servers with `Child::kill`, which is portable (TerminateProcess
+    on Windows), and read the save after the kill.
+  - No S11-D test needs a graceful stop, with one exception: SD-D13's own graceful-stop check is
+    `#[cfg(unix)]`. **Its Windows path is owned by S13** as proposed requirement R-S13-W1: a
+    Windows/macOS CI matrix, and a Windows graceful-stop helper (`GenerateConsoleCtrlEvent`, or
+    `windows::ctrl_close` exercised in a console test).
+  - The same owner covers the existing `hosted_town` interrupt.
+- **Evidence.**
+  - D-C8 runs `cargo check -p mineworld-server -p mineworld-cli --target x86_64-pc-windows-msvc` if that
+    target is installed, which is what compiles SD-D13's `#[cfg(windows)]` branch. If it is not
+    installed, the check is recorded INCONCLUSIVE with S13 as the owner.
+  - Until S13's matrix exists, Windows behaviour is designed and compiled, not exercised, and the
+    handoff says so.
 
 ---
 
@@ -2794,7 +2936,7 @@ S11-C   systems/presence/src/audience.rs (+ lib.rs line); server/src/perception.
 S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs, seats/tests.rs};
         server/src/runtime/{world.rs, status.rs, control.rs}; server/src/protocol/summary.rs;
         server/tests/{admin.rs, frames/{clock,welcome}.json}; tools/cli/tests/admin.rs;
-        clients/protocol/checks/admin_check.gd; DECISIONS ARC-S11D-a
+        clients/protocol/checks/admin_check.gd; DECISIONS ARC-44
 ```
 
 ## 19.2 Files both edit, and the hunks each owns
@@ -2813,7 +2955,7 @@ S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs,
 | `tools/cli/tests/support/mod.rs`, `server_command.rs` | a perceived join helper; CA-11 | an admin request helper; DA-9's half |
 | `clients/protocol/mineworld/world_client.gd` | `perceived`/`delta` arms, cursor, reconnect with cursor | the `clock` arm and signal only |
 | `clients/protocol/{run.sh, ADOPTION.md, README.md, evidence/*}` | `run.sh perceived|deltas`; §§2, 3.4, 6 | `run.sh admin`; §§2, 6 |
-| `docs/MODULE_SPEC.md` §8.1, `docs/DECISIONS.md` | `perceived` command; ARC-43, DEP-15 | `--admin-token`; ARC-S11D-a |
+| `docs/MODULE_SPEC.md` §8.1, `docs/DECISIONS.md` | `perceived` command; ARC-43, DEP-15 | `--admin-token`; ARC-44 |
 
 ## 19.3 Rules
 
@@ -2826,6 +2968,9 @@ S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs,
 - **Sizes are per lane and per head**: each lane's pure move keeps `runtime.rs` under 500 alone; together
   they leave room for both. `world_client.gd` (569 lines at S11-B) grows only by frame arms; new logic goes
   to new files (`delta.gd`).
-- **Decision ids**: ARC-43 and DEP-15 are S11-C's (ruling 6); ARC-S11D-a takes the number the primary
-  session assigns; neither lane writes the other's record.
+- **Decision ids**: ARC-43 and DEP-15 are S11-C's (ruling 6), and ARC-44 is S11-D's (freeze). Neither
+  lane writes the other's record.
+- **Worktrees** (freeze): S11-C in `/Users/yuema137/mineworld-worktrees/impl-s11c` on
+  `mvp0/pr-s11c-perception`; S11-D in `/Users/yuema137/mineworld-worktrees/impl-s11d` on
+  `mvp0/pr-s11d-admin`. Each is held by one session.
 
