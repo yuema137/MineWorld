@@ -1,9 +1,9 @@
 # Step 20 — S20 (placeholder): in-game client settings, shared by the 2D and 3D clients
 
-**Lifecycle:** `DRAFT, awaiting primary review`. **PR SET-a (§12) is `ready for freeze review`**. SET-b and
-SET-c are scoped in §6 and are not designed to the commit. Nothing in this file authorizes
-implementation. Each PR is frozen on its own, and only by the primary session or the operator
-(`CLAUDE.md` §3.1).
+**Lifecycle:** the step plan has been reviewed and its questions are ruled (§1.5, 2026-10-08). **PR
+SET-a (§12) is `DESIGN FROZEN 2026-10-08 (primary session)`**, and §12 alone authorizes implementation,
+under its execution contract (§12.9), **starting only after S12 13b merges**. SET-b and SET-c are
+scoped in §6 and are not frozen. Each PR is frozen on its own (`CLAUDE.md` §3.1).
 **Author:** the settings planning session, 2026-10-08. Worktree
 `/Users/yuema137/mineworld-worktrees/plan-settings`, branch `plan/client-settings`, from
 `origin/main @ 9cf8f8e` (S12 13a merged as #82; S14 16a merged as #79).
@@ -94,7 +94,34 @@ The one migration is a move, not a reformat. Entries that both clients use (`act
 move verbatim from the 2D pack's `en.po` into the shared catalog, so the 2D and 3D clients use one
 translation. Their keys do not change, so 13b's `tr()` calls keep working untouched (SD-SET-a-17).
 
-## 1.5 The answer in brief
+## 1.5 Rulings, and a new binding requirement, 2026-10-08 (relayed by the coordinator)
+
+**By the operator:**
+
+| Id | Ruling |
+| --- | --- |
+| QSET-1 | **Noto Sans SC Regular**, under a narrow DEP-8 exception for fonts only: OFL-1.1, bundled with the software and never sold on its own. The exception's text is in §4.4.1. The primary session adds it to `DECISIONS.md` when SET-a lands. |
+| QSET-2 | **Yes:** Esc opens the menu in both clients, and Quit moves into the menu. |
+| QSET-3 | **Accepted as designed.** "Resolution" is the window size in windowed mode and the 3D render scale in the two full-screen modes. "Refresh rate" is the frame-rate cap plus VSync, with the monitor's rate shown read-only. |
+| QSET-7 | **Accepted as designed.** SET-b covers sensitivity, invert-Y and a read-only key map. Key rebinding comes later. |
+
+**By the primary session:** QSET-4 to QSET-16 are accepted as recommended.
+
+**New binding requirement (operator, 2026-10-08):**
+
+> "我们要保证支持全平台，mac linux windows都可以"
+
+That is: every platform must be supported, macOS, Linux and Windows. For SET-a this means:
+
+- §3.5.1 states how each display mode, VSync and the frame cap behave on Windows (D3D12 and Vulkan),
+  Linux (X11 and Wayland) and macOS.
+- §3.4 states where the shared settings folder resolves on each OS.
+- §3.7 states the font fallback on each OS.
+- §8 names the OS each hand check must run on. CI runs no Godot (A-SET-12), so no headless CI check
+  can stand in for a rendered one. The Windows and Linux hand checks are therefore checklist items
+  for the operator, apart from what the platform-independent CI checks already cover (§8).
+
+## 1.6 The answer in brief
 
 ```text
 module      clients/shared/ is a small Godot project, like clients/protocol/. It holds module folders.
@@ -249,9 +276,19 @@ max_fps: int                  0 (no cap) or one of 30, 60, 120, 144, 165, 240; d
 - **File:** `user://settings.cfg`, a Godot `ConfigFile`, sections `[meta] version=1`, `[general]`,
   `[display]`, later `[input]` and `[launcher]`. Both `clients/2d/project.godot` and
   `clients/3d-spike/project.godot` set `application/config/use_custom_user_dir=true` and
-  `custom_user_dir_name="MineWorld"`, so `user://` is `~/Library/Application Support/MineWorld/` on
-  macOS, `~/.local/share/MineWorld/` on Linux and `%APPDATA%\MineWorld\` on Windows, and **one file
-  serves both clients** (QSET-5). Language chosen in 2D is the language of 3D.
+  `custom_user_dir_name="MineWorld"`, so **one file serves both clients** (QSET-5). Language chosen in
+  2D is the language of 3D. Where the shared folder resolves, from Godot's "Data paths" page (custom
+  directory with a custom name):
+
+  | OS | `user://` (the shared settings folder) | The file |
+  | --- | --- | --- |
+  | Windows | `%APPDATA%\MineWorld\` (typically `C:\Users\<user>\AppData\Roaming\MineWorld\`) | `%APPDATA%\MineWorld\settings.cfg` |
+  | macOS | `~/Library/Application Support/MineWorld/` | `…/MineWorld/settings.cfg` |
+  | Linux | `~/.local/share/MineWorld/`, or `$XDG_DATA_HOME/MineWorld/` when `XDG_DATA_HOME` is set | `…/MineWorld/settings.cfg` |
+
+  The user's extra catalogs (`user://locale/`) sit in the same folder. A check prints
+  `OS.get_user_data_dir()` on the OS it runs on and asserts the path ends in `MineWorld` (AC-SET-15).
+  It runs on macOS at the gate, and the operator runs it on Windows and Linux (H-10).
 - **Override:** `--settings=<path>` uses another file; `--settings=none` uses defaults and never
   writes. Every harness mode (2D `--drive`, `--capture`; 3D `--shots`, `--drive`, `--measure`,
   `--threshold`, `--perf`, `--hud`, `--character`, every `--world` probe) behaves as `--settings=none`
@@ -263,7 +300,10 @@ max_fps: int                  0 (no cap) or one of 30, 60, 120, 144, 165, 240; d
   defaults and a warning, and the file is not overwritten until the user applies.
 - **Save:** only on Apply in the menu (and on the display-revert timer's confirmation, §3.8). It
   writes `settings.cfg.tmp` and renames it over `settings.cfg` (`DirAccess.rename_absolute`), so a
-  crash leaves the old or the new file, never half of one. Two clients open at once: the last Apply
+  crash leaves the old or the new file, never half of one. On Windows a rename onto an existing
+  file is the case to verify. If `rename_absolute` refuses to replace the file there, the store
+  removes `settings.cfg` and renames `.tmp` into place, after first keeping a copy as `.bak`. That is a
+  bounded detail C2 decides from evidence and records; the observable rule stays the same. Two clients open at once: the last Apply
   wins, whole-file. Each client re-reads the file before writing and keeps the sections it did not
   change, so a 3D Apply of the display tab does not undo a 2D language change made a minute earlier.
 - **Precedence at start:** `--settings` choice of file → the file → defaults. A launcher's explicit
@@ -279,6 +319,28 @@ max_fps: int                  0 (no cap) or one of 30, 60, 120, 144, 165, 240; d
 | Render scale (3D only) | `get_viewport().scaling_3d_scale = render_scale / 100.0` (bilinear) | what "resolution" can mean when the window is the whole screen; offered only by a client that declares the 3D capability; the 2D client hides it |
 | VSync | `DisplayServer.window_set_vsync_mode(VSYNC_DISABLED / ENABLED / ADAPTIVE)` | Mailbox is not offered (it is not uniformly supported and the difference is not a player-level choice) |
 | Frame-rate cap | `Engine.max_fps = n` (0 = none; -1 → `round(screen_get_refresh_rate())`, or none when it reports -1) | "refresh rate" in the operator's words: the game cannot change the monitor's refresh rate (Godot has no API for it); it can cap its own frame rate, and the Display tab shows the monitor's rate read-only (QSET-3) |
+
+### 3.5.1 Per platform (the operator's "全平台" requirement)
+
+Godot changes the monitor's video mode on no platform, in either full-screen mode. The Godot 4.7
+`DisplayServer` reference says so for both modes: "The display's video mode is not changed". The
+quotations below are from that page.
+
+| Setting | Windows (D3D12 or Vulkan) | macOS (Metal or Vulkan through MoltenVK) | Linux X11 | Linux Wayland |
+| --- | --- | --- | --- | --- |
+| Windowed | Decorated window at the saved size, centred on the current screen | same | same | Size honoured. **Position is the compositor's:** a client cannot place its window, so "centre" is a no-op. Recorded, not a defect. |
+| Borderless (`WINDOW_MODE_FULLSCREEN`) | A borderless window covering the monitor. The desktop compositor (DWM) stays in the path; Alt-Tab is instant. | "A new desktop is used to display the running project" (its own Space) | Borderless full screen through the window manager; the compositor stays in the path | xdg full screen |
+| Fullscreen (`WINDOW_MODE_EXCLUSIVE_FULLSCREEN`) | One window per screen, less overhead. "Depending on video driver, full screen transition might cause screens to go black for a moment." Alt-Tab triggers a transition. | Its own Space, and "prevents Dock and Menu from showing up when the mouse pointer is hovering the edge of the screen" | "bypasses compositor" | "**Equivalent to WINDOW_MODE_FULLSCREEN**." Both entries stay in the menu. On Wayland the Fullscreen entry's tooltip says it behaves as Borderless (key `ui.settings.display.wayland_same`). |
+| VSync | Supported (`FEATURE_SWAP_BUFFERS` lists Windows). Adaptive needs driver support for relaxed FIFO and otherwise behaves as On. | Supported | Supported | Supported, but **the compositor may still synchronise presentation with VSync Off**. H-5 records what happens. |
+| Frame-rate cap (`Engine.max_fps`) | All platforms. With VSync On or Adaptive the frame rate is also "limited by the monitor refresh rate", so the lower limit wins. With VSync Off the cap is the only limit. AC-SET-11 measures that the cap holds with VSync Off. | same | same | same |
+| Monitor rate, read-only (`screen_get_refresh_rate`) | Implemented | Implemented | Implemented | Implemented |
+| Render scale (3D) | Viewport scaling on every renderer; bilinear, no FSR | same | same | same |
+| HiDPI | The window size is in physical pixels. Under Windows display scaling (125 %, 150 %) the size presets are filtered against the usable rect in physical pixels. | Retina: `screen_get_scale()` is 2.0, and sizes are physical, so 1600×900 is half as tall on screen as on a 1× display. H-4 judges whether presets should be logical; if so, that is a bounded change recorded in C2. | scale 1.0 | Fractional scales are reported rounded up for indirect screen queries; only the main window's screen is queried |
+
+`display.gd` logs the rendering driver (`RenderingServer.get_current_rendering_driver_name()`) and
+the display server (`DisplayServer.get_name()`) on start. Each hand check records them, so a result
+always names its platform. SET-a adds no Windows- or Linux-specific code path, beyond the
+Wayland tooltip text and the no-op centring that Godot itself performs.
 
 Everything is a no-op under the headless display server (P-11), so a headless check can load and
 apply settings safely. A window-mode or size change starts a 15-second "Keep these display settings?"
@@ -355,6 +417,19 @@ font. Latin text keeps its current font, glyph for glyph, so `en` rendering does
 the default font lacks comes from Noto Sans SC before the system is asked. That covers Chinese UI text
 and Chinese world content alike. A check (AC-SET-13) proves that every character of every shipped
 catalog is in the bundled font.
+
+**Per platform.** The chain is the same on every OS: the default font, then the bundled Noto Sans SC,
+then the system. Godot rasterizes with its own FreeType on all three, so a bundled glyph has the
+same shape everywhere. Only the last step differs, and shipped text never reaches it (INV-SET-9):
+
+| OS | System fallback (Godot: "the engine automatically uses system fonts as fallback fonts") | Reached for |
+| --- | --- | --- |
+| Windows | Windows' font set (e.g. Microsoft YaHei for hanzi) | only characters neither bundled font has (rare hanzi in world content, emoji) |
+| macOS | CoreText's set (e.g. PingFang SC) | same |
+| Linux | fontconfig. Godot: "the set of default fonts shipped on Linux depends on the distribution". A minimal install may have no CJK font. | same. On a bare Linux machine such a character is a tofu box, which is why the bundled font, not the system, carries every shipped string |
+
+H-1 is checked on all three OSes. On Linux it is checked on a machine with no CJK system font
+(`fc-list :lang=zh` empty), so that a pass shows the bundled font is doing the work.
 
 ## 3.8 The menu (`menu.gd`)
 
@@ -475,6 +550,38 @@ under OFL-1.1 when it is unmodified (or a subset, if QSET-1 chooses that), it si
 MIT. This is the ordinary way OFL fonts are bundled with software (OFL §1: "may be bundled, embedded,
 redistributed and/or sold with any software").
 
+### 4.4.1 The DEP-8 font exception (ruled by the operator under QSET-1; text for `DECISIONS.md`)
+
+The primary session adds this text, word for word, to `docs/DECISIONS.md` as an amendment to DEP-8
+when SET-a lands:
+
+> **Amended 2026-10-08 — the font exception (operator ruling QSET-1, S20).** DEP-8's binding test is
+> whether MineWorld may relicense an asset under MIT. Fonts under the SIL Open Font License 1.1
+> cannot pass it, because OFL-1.1 requires the font to stay under OFL. They are the only exception to
+> the test, under every one of these conditions:
+>
+> 1. **Fonts only.** The exception covers font software (`.otf`, `.ttf`, `.otc`, `.woff2`) licensed
+>    under `OFL-1.1` and nothing else: no texture, model, sound, code or data file, and no other
+>    licence.
+> 2. **Bundled, never sold on its own.** The font ships only inside MineWorld, as a file the clients
+>    load, and is never offered, sold or distributed as a product on its own (OFL-1.1 §1).
+> 3. **Unmodified and named as upstream.** The file is the upstream release, byte for byte. Its
+>    source URL, version and SHA-256 are recorded beside it. A modified or subset font is not covered
+>    without a new decision, which would also have to respect any Reserved Font Name (OFL-1.1 §3).
+> 4. **Its licence travels with it.** `OFL.txt`, with the upstream copyright notice, sits in the same
+>    folder (OFL-1.1 §2). `NOTICE` names the font, its copyright holder and its licence, and states
+>    that MineWorld's MIT licence does not cover it.
+> 5. **Never merged into MIT material.** The font is never embedded into, or concatenated with, a
+>    file under MIT. Loading it at runtime is use, not merging.
+> 6. **Listed.** Every font admitted under this exception is a row of DEP-8's table. At present
+>    there is one: **Noto Sans SC Regular** (`notofonts/noto-cjk`,
+>    `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, 8,331,336 bytes, OFL-1.1, copyright Adobe with
+>    Reserved Font Name "Source"), the CJK fallback font of both reference clients' UI (S20 SET-a).
+>
+> ARC-55's default pack allow-list is unchanged. A **pack** that carries an OFL font still needs a
+> world-level policy that allows `OFL-1.1` (ARC-55 point 5). This exception covers fonts bundled with
+> MineWorld's own clients.
+
 ## 4.5 Display control
 
 | Option | Fit | Verdict |
@@ -554,25 +661,44 @@ Each criterion states its oracle, and each mutation that must turn it red. A cri
 | **AC-SET-12** | **An open menu takes gameplay input.** With the menu open, a scripted WASD hold of 2 s and a click on a walkable point send no request (2D stub record; 3D request transcript), and the 3D camera yaw does not change under scripted mouse motion. | stub record; transcript; yaw | Let `_unhandled_input` walk while the menu is open. |
 | **AC-SET-13** | **Every shipped glyph is bundled (INV-SET-9).** A check loads the bundled font with `allow_system_fallback = false` and asserts `has_char` for every character of every msgstr in every shipped catalog, plus the digits and punctuation the formats use. | `clients/shared/checks/glyph_check.gd` | Add a catalog entry using a character outside the font (e.g. an emoji). |
 | **AC-SET-14** | **A language can be added without code.** A scratch `user://locale/xx_test.po` with two entries and `language.self_name` is listed in the language selector; choosing it shows its two strings and English for every other key (never a raw key). | the menu's item list; the tree walk | Hardcode the language list. |
+| **AC-SET-15** | **The shared settings folder resolves as §3.4 states, on the OS it runs on.** `clients/shared/checks/store_check.gd` prints `OS.get_name()`, `OS.get_user_data_dir()`, the rendering driver and the display server, and asserts that the folder's last component is `MineWorld`. It also asserts that a file saved by one project (`clients/2d`) is read by the other (`clients/3d-spike`). Run on macOS at the gate; the same command is H-10 on Windows and Linux. | the printed line | Drop `custom_user_dir_name` from one project. |
+| **AC-SET-16** | **No platform branch in the module, apart from the declared one.** `client_text.rs` finds no `OS.get_name()`, `OS.has_feature("windows"/"macos"/"linuxbsd"/"x11"/"wayland")` or `DisplayServer.get_name()` comparison under `clients/shared/settings/`, apart from `display.gd`'s Wayland tooltip, admitted by name. Platform behaviour comes from Godot, not from our branches. | the scan | A planted `if OS.get_name() == "Windows":` in `store.gd`. |
 
 ---
 
 # 8. Visual checks the operator must do by hand
 
 These cannot be decided by a script. Each is a short look, judged by the operator, with the result
-recorded in the PR.
+recorded in the PR together with the platform line `display.gd` prints (OS, rendering driver,
+display server).
 
-| Id | Where | What to look at | Pass |
-| --- | --- | --- | --- |
-| H-1 | 2D and 3D, `zh_Hans` | HUD, toasts, captions, door labels, the whole menu | Chinese is crisp at the default size, no tofu boxes, no mixed fallback faces in one line, on a Retina display and on an external 1× display |
-| H-2 | both, both languages | menu layout | no text clipped or overflowing; buttons fit their labels in Chinese and English |
-| H-3 | macOS, both clients | windowed → borderless → fullscreen → windowed | each mode looks as named; returning to windowed restores the size and position; borderless does not leave an empty Space behind; Cmd-Tab works in each |
-| H-4 | both | window size change and the 15 s confirmation | the countdown is visible; not answering reverts; answering keeps it after a restart |
-| H-5 | 3D | VSync off/on, cap 30/60/none, render scale 50–100 % | tearing visible with VSync off on a panning shot and gone with it on; 30 fps feels capped; 50 % is visibly softer and the HUD stays sharp (the HUD is not scaled) |
-| H-6 | both, connected to one world | 12h and 24h, `en` and `zh_Hans` | the two clients show the same time in the same form (`7:42 PM` / `下午 7:42`; `19:42`) |
-| H-7 | both | Esc behaviour | Esc opens and closes the menu; 2D Quit works from the menu; 3D mouse released while the menu is open, recaptured on the first click after closing |
-| H-8 | 3D, `en` | the golden-hour slice | looks exactly as accepted (ARC-13): no font, colour or HUD regression |
-| H-9 | after relaunch | language chosen in 2D | the 3D client opens in it |
+**What CI covers, and what it cannot.** CI is a Linux container without Godot (A-SET-12). The checks
+that run there are platform-independent by construction: the static text scan (AC-SET-3), the
+catalog consistency check (AC-SET-4) and the no-platform-branch scan (AC-SET-16). They hold on every
+OS because they read files, not a running engine. Glyph coverage (AC-SET-13) is also
+platform-independent, because it reads the bundled font with system fallback off. It runs under
+Godot at the gate on macOS, and its verdict carries to the other OSes, since the font and the catalogs
+are the same bytes everywhere. Everything rendered or windowed needs the real OS. **So every
+Windows and Linux entry below is an operator checklist item**, and SET-a's gate runs the macOS
+column.
+
+**Prerequisites on Windows.** The clients take the shared modules by symlink. A Windows checkout
+needs `git config core.symlinks true` with Developer Mode or administrator rights, or the module
+folders appear as text files (R-SET-10). The launchers are bash scripts and run from Git Bash. If a
+symlink is missing, both launchers stop with a message naming the fix (SD-SET-a-18).
+
+| Id | What to look at | Pass | macOS | Windows (D3D12, and Vulkan with `--rendering-driver vulkan`) | Linux X11 | Linux Wayland |
+| --- | --- | --- | --- | --- | --- | --- |
+| H-1 | `zh_Hans`, 2D and 3D: HUD, toasts, captions, door labels, the whole menu | crisp at the default size, no tofu, no mixed faces in one line | Retina and an external 1× display (gate) | at 100 % and 150 % display scaling (checklist) | on a machine with `fc-list :lang=zh` empty (checklist) | at a fractional scale such as 125 % (checklist) |
+| H-2 | menu layout in both languages | nothing clipped or overflowing | gate | at 150 % scaling (checklist) | — (same font and layout as macOS) | — |
+| H-3 | windowed → borderless → fullscreen → windowed, both clients | each mode as §3.5.1 says for that platform; back in windowed with the same size (and position, except on Wayland) | Cmd-Tab in each; no empty Space left behind (gate) | Alt-Tab in each; at most a brief black flash on exclusive (checklist) | exclusive bypasses the compositor; no stuck full screen after Alt-Tab (checklist) | Fullscreen behaves as Borderless and the tooltip says so (checklist) |
+| H-4 | a window size change and the 15 s confirmation | the countdown shows; no answer reverts; an answer persists across a restart | gate; judge whether presets should be logical points on Retina (§3.5.1) | checklist | checklist | checklist |
+| H-5 | 3D: VSync Off/On/Adaptive, cap 30/60/none, render scale 50–100 % | tearing with Off on a panning shot and none with On; 30 fps is capped (the Display tab's FPS confirms it); 50 % visibly softer while the HUD stays sharp | gate | D3D12 and Vulkan (checklist) | checklist | record whether VSync Off is honoured or the compositor syncs anyway (checklist) |
+| H-6 | 12h and 24h × `en` and `zh_Hans`, both clients in one world | same time, same form (`7:42 PM` / `下午 7:42`; `19:42`) | gate | — (no platform dependency) | — | — |
+| H-7 | Esc behaviour | Esc opens and closes the menu; 2D Quit in the menu; 3D mouse released while open and recaptured on the next click | gate | checklist | checklist | checklist (pointer capture under Wayland) |
+| H-8 | 3D golden-hour slice in `en` | exactly as accepted (ARC-13) | gate (the accepted baseline) | checklist (a sanity look, not a pixel match) | — | — |
+| H-9 | relaunch: language chosen in 2D | the 3D client opens in it | gate | checklist | checklist | — (same code path as X11) |
+| H-10 | the shared settings folder (AC-SET-15's command) | resolves to §3.4's path, and 2D and 3D share the file | gate | `%APPDATA%\MineWorld\settings.cfg` (checklist) | `~/.local/share/MineWorld/settings.cfg`, and `$XDG_DATA_HOME/MineWorld/` when set (checklist) | — (same as X11) |
 
 ---
 
@@ -589,7 +715,9 @@ recorded in the PR.
 | R-SET-7 | `check_client_rules.py` R4 (`within`) or the action-literal scan trips on shared code reached through the new symlink. | Shared code avoids both words as literals. SET-a verifies the scans against the symlink; Python's `rglob` symlink behaviour is checked, not assumed. |
 | R-SET-8 | Chinese strings are longer or shorter than English and break HUD layout. | Containers size to content; H-2. |
 | R-SET-9 | P-5: a `zh_TW` system locale is shown Simplified Chinese. | Moot while the default is always `en` and the user picks explicitly (QSET-8). Recorded in `SETTINGS.md`. |
-| R-SET-10 | Windows checkouts without `core.symlinks` see a text file instead of the folder. | The same is already true of `mineworld/`; ADOPTION.md's "copy" route covers it. |
+| R-SET-10 | Windows checkouts without `core.symlinks` see a text file instead of the folder. This is now in scope, because every platform must work (§1.5). | The same is already true of `mineworld/`. SET-a documents the Windows setup in both client READMEs and `SETTINGS.md`, and both launchers stop with a clear message when a module folder is not a directory (SD-SET-a-18). Replacing symlinks with a copy step, or packaging the clients for export, is a deployment question for S13, raised there and not solved in SET-a. |
+| R-SET-13 | Platform differences appear only on the OS that has them, and CI cannot see them. | §3.5.1 states the expected behaviour per platform; the checklist in §8 has an entry for each; the platform line `display.gd` prints makes every report traceable. |
+| R-SET-14 | The Windows atomic replace of `settings.cfg` behaves differently from POSIX rename. | §3.4: verified in C2; the remove-then-rename fallback keeps `.bak`. |
 | R-SET-12 | 13b and SET-a disagree on wording mechanics: where English lives, the fallback, the scans. | §1.4 and §3.6 keep 13b's format, keys, fallback and R6. The only change to 13b's material is the verbatim move of `action.*`/`reason.*` into the shared layer (SD-SET-a-17), checked key for key. SET-a starts after 13b merges. |
 | R-SET-11 | Pseudo-localization or the marker catalog leaks into a shipped build. | The marker catalog is generated into a scratch folder by the check and passed with `--extra-locale=`; it is never in `settings/locale/`. |
 
