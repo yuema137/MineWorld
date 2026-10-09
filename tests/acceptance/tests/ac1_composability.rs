@@ -15,6 +15,15 @@
 //!                           market packs, items/, organizations/ and sections they own
 //! ```
 //!
+//! **Check 3 and Social Café's own items** (`DECISIONS.md` `ARC-35` note of 2026-10-08; step-11 QD-1,
+//! decided by the operator: "Social Café may own `items/` (loose objects as Item files with `body:`);
+//! Market Town carries them unchanged; the claim 'Market Town = Social Café + installed packs +
+//! configuration' stays word for word; market-owned item sections stay Market Town's only"). Social
+//! Café may list `items`; Market Town's list holds every one of them; each of Social Café's item files
+//! is compared like a place or person file; an item file only Market Town has carries only the
+//! format's fields and market sections; `organizations/` stays Market Town's only. The claim is
+//! unchanged: **Market Town is Social Café plus configuration.**
+//!
 //! # Fail closed
 //!
 //! Every check fails, naming the cause, when it cannot run: `git` missing, a directory that is not a
@@ -1052,8 +1061,9 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
     }
 }
 
-/// The two manifests: `world.id` and `world.name` may differ, `systems` as above, `items` and
-/// `organizations` in Market Town only, every other key equal.
+/// The two manifests: `world.id` and `world.name` may differ, `systems` as above, `organizations` in
+/// Market Town only, `items` present in Market Town and holding every key of Social Café's (`ARC-35`
+/// note, QD-1), every other key equal.
 fn compare_manifests(social: &Value, market: &Value) -> Vec<String> {
     let (Some(social), Some(market)) = (social.as_object(), market.as_object()) else {
         return vec!["world.yaml: not a map in both packs".to_owned()];
@@ -1077,10 +1087,36 @@ fn compare_manifests(social: &Value, market: &Value) -> Vec<String> {
                 }
             }
             "systems" => found.extend(compare_systems(ours, theirs)),
-            "items" | "organizations" if ours.is_some() || theirs.is_none() => found.push(format!(
+            "organizations" if ours.is_some() || theirs.is_none() => found.push(format!(
                 "world.yaml: `{key}` must be absent in Social Café and present in Market Town"
             )),
-            "items" | "organizations" => {}
+            "organizations" => {}
+            // ARC-35 note (2026-10-08, QD-1, the operator): Social Café may own items — its loose
+            // objects — and Market Town carries every one of them.
+            "items" if theirs.is_none() => {
+                found.push("world.yaml: `items` must be present in Market Town".to_owned());
+            }
+            "items" => {
+                let keys = |value: Option<&Value>| -> BTreeSet<String> {
+                    value
+                        .and_then(Value::as_array)
+                        .map(|list| {
+                            list.iter()
+                                .map(|key| {
+                                    key.as_str().map_or_else(|| key.to_string(), str::to_owned)
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                };
+                let market_keys = keys(theirs);
+                for missing in keys(ours).difference(&market_keys) {
+                    found.push(format!(
+                        "world.yaml: Social Café's item `{missing}` is missing from Market Town's \
+                         `items`"
+                    ));
+                }
+            }
             _ if ours != theirs => found.push(format!("world.yaml: `{key}` differs")),
             _ => {}
         }
@@ -1174,24 +1210,31 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         .into_iter()
         .filter(not_configuration)
         .collect();
-    let market_only: BTreeSet<String> = ["items", "organizations"].map(str::to_owned).into();
+    // `items/` may exist in both (ARC-35 note, QD-1: Social Café's loose objects); `organizations/`
+    // exists in Market Town only.
+    let market_may_add: BTreeSet<String> = ["items", "organizations"].map(str::to_owned).into();
     for name in ours.symmetric_difference(&theirs) {
-        if !(market_only.contains(name) && theirs.contains(name)) {
+        if !(market_may_add.contains(name) && theirs.contains(name)) {
             found.push(format!("{name}: present in one pack only"));
         }
     }
-    for name in &market_only {
-        if ours.contains(name) || !theirs.contains(name) {
-            found.push(format!("{name}/: must exist in Market Town only"));
-        }
+    if ours.contains("organizations") || !theirs.contains("organizations") {
+        found.push("organizations/: must exist in Market Town only".to_owned());
+    }
+    if !theirs.contains("items") {
+        found.push("items/: must exist in Market Town".to_owned());
     }
 
-    for directory in ["places", "people"] {
+    for directory in ["places", "people", "items"] {
         let (ours, theirs) = (
             entries(&social.join(directory))?,
             entries(&market.join(directory))?,
         );
         for file in ours.symmetric_difference(&theirs) {
+            // A Market Town-only item file is the market's own kind, read below.
+            if directory == "items" && theirs.contains(file) {
+                continue;
+            }
             found.push(format!("{directory}/{file}: present in one pack only"));
         }
         for file in ours.intersection(&theirs) {
@@ -1203,8 +1246,12 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
             ));
         }
     }
-    for directory in &market_only {
+    let social_items = entries(&social.join("items"))?;
+    for directory in &market_may_add {
         for file in entries(&market.join(directory))? {
+            if directory == "items" && social_items.contains(&file) {
+                continue; // Social Café's own, compared above
+            }
             found.extend(market_only_content(
                 &format!("{directory}/{file}"),
                 &read_yaml(&market.join(directory).join(&file))?,
@@ -1339,4 +1386,43 @@ fn the_world_delta_names_every_difference_by_file_and_key() {
     );
     let short = systems(json!(["presence", "naming", "item"]));
     assert!(compare_manifests(&base, &short)[0].contains("not the six market packs"));
+
+    // ARC-35 note (QD-1): Social Café's own items, which Market Town must carry, unchanged.
+    let mut cafe = base.clone();
+    cafe["items"] = json!(["cafe-ball"]);
+    let mut carried = town.clone();
+    carried["items"] = json!(["k", "cafe-ball"]);
+    assert!(compare_manifests(&cafe, &carried).is_empty(), "carried");
+    assert_eq!(
+        compare_manifests(&cafe, &town),
+        ["world.yaml: Social Café's item `cafe-ball` is missing from Market Town's `items`"],
+        "a social item missing in Market Town"
+    );
+    let mut cafe_with_organizations = base.clone();
+    cafe_with_organizations["organizations"] = json!(["o"]);
+    assert_eq!(
+        compare_manifests(&cafe_with_organizations, &town),
+        ["world.yaml: `organizations` must be absent in Social Café and present in Market Town"],
+        "organizations stay Market Town's only"
+    );
+    let social_ball = json!({ "tags": ["toy"], "body": { "shape": { "ball": 110 } } });
+    assert_eq!(
+        compare_content(
+            "items/cafe-ball.yaml",
+            &social_ball,
+            &json!({ "tags": ["toy"], "body": { "shape": { "ball": 120 } } }),
+            &market
+        ),
+        ["items/cafe-ball.yaml: `body` differs from Social Café's"],
+        "a social item that differs in Market Town"
+    );
+    assert_eq!(
+        market_only_content(
+            "items/ball.yaml",
+            &json!({ "tags": [], "body": { "shape": { "ball": 110 } } }),
+            &market
+        ),
+        ["items/ball.yaml: `body` is not a section a market pack owns"],
+        "a Market Town-only item file with a `body:`"
+    );
 }

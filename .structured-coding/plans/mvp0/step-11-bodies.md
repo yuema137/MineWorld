@@ -6260,11 +6260,22 @@ Social Café's files; Market Town-only files as today), the unit test's new case
 **Failure and edge cases.** Social Café with no `items:` (every world before 12d): the check behaves
 exactly as today — shown by running it on the base's two towns.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` on this commit (the
-  towns unchanged: passes as before) and again after TD-C5; M-TD2, M-TD3, M-TD4 fail by name.
-- [ ] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
-  unchanged; no case is weakened; the operator's QD-1 answer is cited in the doc comment.
+- [x] Implementation: `compare_manifests` (`organizations` as before; `items` must be present in
+  Market Town and hold every key of Social Café's); `world_delta_failures` (`items/` may exist in
+  both; Social Café's item files compared by `compare_content`, like places and people; Market
+  Town-only item files by `market_only_content`, unchanged; `organizations/` Market Town's only); the
+  module doc quotes QD-1; the unit test gains four cases (carried; a social item missing in Market
+  Town's list; organizations in Social Café; a social item differing; a Market Town-only item with
+  `body:`).
+- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` 13/13 on this commit
+  (the towns unchanged — the base towns pass as before) **[x]**; again after TD-C5, with M-TD2, M-TD3,
+  M-TD4 on the real towns — **pending TD-C5**. An early M-TD2 on the base towns (a `body:` appended to
+  market-town's apple.yaml) was refused by the loader before check 3 ran ("gives 'apple' a body, which
+  the 'bodies' system owns, but world.yaml does not enable it"), so it proves nothing about check 3;
+  reverted (the file restored from a copy; `git status` clean), to be repeated after TD-C5.
+- [x] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
+  unchanged; no existing case weakened (the old assertions all stand; `organizations` keeps its
+  message); the operator's QD-1 answer is quoted in the module doc.
 
 ### TD-C5 — The towns get bodies
 
