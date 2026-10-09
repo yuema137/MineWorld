@@ -2046,3 +2046,11 @@ Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktree
   retries with the capped back-off, so it recovers after ~30 s). Adopting `MineWorldClient.resume` in
   `link.gd` is a 13-series follow-up; 13b's acceptance is unaffected (its stub does not hold seats and
   its real runs never drop a socket).
+- **E-15 — `action.move`'s English is 2D-specific (note for SET-a and 16d; coordinator, from 16d's
+  A16d-11).** `en.po`'s `action.move` = "Walk (click where to go)" is the only `action.*` text that
+  fits 2D alone. It is used in one place: `menu.gd` `_build`, the disabled entry for one's own
+  target-less `move` (kind `point`, E-7), labelled through `Words.action(type, …)`. When SET-a moves
+  the shared `action.*` keys into a shared catalog and 16d makes the shared `action.move` read "Walk",
+  the mechanical move is: give the 2D client a 2D key (e.g. `ui.walk-by-click`) for kind `point` in
+  `menu.gd` `_entry`'s label, or the 2D override 16d plans. Every other `action.*` / `.done` text in
+  `en.po` is client-neutral. Not changed in 13b.
