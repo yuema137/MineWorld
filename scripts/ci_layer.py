@@ -110,20 +110,33 @@ def report(command: list[str]) -> None:
     print(f"[ci] {shlex.join(command)}: {output}", flush=True)
 
 
+def size(path: Path) -> int:
+    """Bytes under a directory, without following links (`du`, which Windows lacks)."""
+    total = 0
+    for directory, _, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass  # a file removed while walking: it no longer takes space
+    return total
+
+
+def gigabytes(count: int) -> str:
+    return f"{count / 1024**3:.1f} G"
+
+
 def disk(moment: str) -> None:
-    print(f"[ci] disk {moment}:", flush=True)
     usage = shutil.disk_usage(ROOT)
-    print(f"[ci] free {usage.free / 2**30:.1f} GiB of {usage.total / 2**30:.1f} GiB", flush=True)
-    if shutil.which("du"):
-        present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-        if present:
-            subprocess.run(["du", "-sh", *present], cwd=ROOT)
-    sys.stdout.flush()
+    print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
+    for path in ("target", "target/tmp"):
+        if (ROOT / path).exists():
+            print(f"[ci]   {path}: {gigabytes(size(ROOT / path))}", flush=True)
 
 
-def native(command: list[str]) -> list[str]:
-    """A table command as this runner runs it: `python3` is this interpreter, which is `python` on a
-    Windows runner (the table stays one spelling everywhere)."""
+def resolved(command: list[str]) -> list[str]:
+    """`python3` is this interpreter: Windows runners have no `python3` on PATH. The listed command
+    (`--list`) stays as written."""
     return [sys.executable, *command[1:]] if command[0] == "python3" else command
 
 
@@ -183,7 +196,7 @@ def run(layer: str) -> int:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(native(command), cwd=ROOT).returncode
+            status = subprocess.run(resolved(command), cwd=ROOT).returncode
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status = 127

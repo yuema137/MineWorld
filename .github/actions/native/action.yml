@@ -1,27 +1,29 @@
-# Runs one CI layer natively on a macOS or Windows runner: the counterpart of ./.github/actions/layer,
-# which is container-only (docs/DECISIONS.md ARC-48; step-14 §13.0.3, one definition shared by S13's
-# 13b and S16's E-c and E-d; step-16 §16.12 PD-p1).
+# Runs one CI layer natively on a hosted macOS or Windows runner (docs/DECISIONS.md DEP-19, ARC-48).
 #
-# The caller has checked the repository out already. This action lets rustup take rust-toolchain.toml's
-# channel, restores the Cargo caches, runs `scripts/ci_layer.py <layer>` with the runner's own Python,
-# and prunes target/ before the cache is saved. It names a layer, never a command: what a layer runs is
-# scripts/ci_layer.py's (step-14 I-S13-9).
-name: Run a CI layer natively
+# The counterpart of .github/actions/layer, which runs a layer in the Linux toolchain container. The
+# caller has checked the repository out already. This action installs the toolchain rust-toolchain.toml
+# names, restores the Cargo caches, runs `scripts/ci_layer.py <layer>` with the runner's Python, and
+# prunes target/ before the cache is saved. It names a layer, never a command: what a layer runs is
+# scripts/ci_layer.py's (step-14 I-S13-9). One action serves every native job: 13b's `mac`, `windows`
+# and `test-windows`, and the `platforms` layer of S16 (step-14 §13.0.3).
+name: Run a CI layer on a native runner
 description: Install the pinned toolchain, restore caches, run scripts/ci_layer.py, prune the cache.
 inputs:
   layer:
-    description: A layer of scripts/ci_layer.py meant for native runners (platforms).
+    description: A layer of scripts/ci_layer.py (parity, core, ...).
     required: true
 runs:
   using: composite
   steps:
-    - name: Toolchain (rust-toolchain.toml)
+    # With no argument, rustup installs the toolchain of rust-toolchain.toml: its channel, profile and
+    # components. The toolchain version therefore has one source on every runner (DEP-18).
+    - name: Install the pinned toolchain
       shell: bash
       run: |
         rustup toolchain install
-        rustc -V
+        rustc -vV
 
-    # One cache per operating system and layer. A PR restores main's entry through the prefix.
+    # One cache per OS, architecture and layer. An entry is saved only when the layer passed.
     - name: Restore the Cargo caches
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -29,25 +31,23 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: cargo-${{ runner.os }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-        restore-keys: cargo-${{ runner.os }}-${{ inputs.layer }}-
+        key: native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+        restore-keys: native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.layer }}-
 
-    # `python3` on macOS, `python` on Windows: ci_layer.py runs its own Python commands with the
-    # interpreter that runs it.
+    # Windows runners have `python`, not `python3`, on PATH; within, ci_layer.py starts every Python
+    # command with its own interpreter.
     - name: Run layer ${{ inputs.layer }}
       shell: bash
       env:
         LAYER: ${{ inputs.layer }}
         CARGO_INCREMENTAL: "0"
         CARGO_PROFILE_DEV_DEBUG: line-tables-only
-        CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       run: |
-        if [ "$RUNNER_OS" = "Windows" ]; then PYTHON=python; else PYTHON=python3; fi
-        "$PYTHON" scripts/ci_layer.py "$LAYER"
+        if [ "$RUNNER_OS" = Windows ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py "$LAYER"
 
     - name: Prune target/ before the cache is saved
-      if: always()
       shell: bash
       run: |
-        if [ "$RUNNER_OS" = "Windows" ]; then PYTHON=python; else PYTHON=python3; fi
-        "$PYTHON" scripts/ci_layer.py --prune-cache
+        if [ "$RUNNER_OS" = Windows ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py --prune-cache
