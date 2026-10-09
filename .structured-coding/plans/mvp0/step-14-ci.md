@@ -8,6 +8,10 @@ scope (`CLAUDE.md` §3, "detail one step ahead").
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing in this document authorizes
 implementation. Decision records proposed here carry placeholder ids (`DEP-S13-a`, `ARC-S13-a`, …); the
 primary session numbers them at freeze.
+**PR 13b:** `PR design — ready for freeze review` (§13, written 2026-10-09 by the 13b planning session,
+worktree `/Users/yuema137/mineworld-worktrees/plan-13b-ci`, branch `plan/s13-13b`, from `main @ 9cf8f8e`).
+Not frozen; nothing in §13 authorizes implementation. §13 proposes revisions to §3.3 and §7.2 that need
+a decision at freeze (§13.11). **PR 13c:** outline only (§14).
 **Planning session:** worktree `/Users/yuema137/mineworld-worktrees/plan-s13-ci`, branch `plan/s13-ci`,
 from `main @ 0fd0be3`. Written in parallel with the planning of S11, S12, S14 and Milestone E; this
 session writes only this file (§12 lists the edits it proposes to parent documents).
@@ -566,6 +570,11 @@ Full design in §9.
 
 ## 7.2 PR 13b — AC-8 parity (layer 3)
 
+> **Superseded in detail by §13 (2026-10-09), pending its freeze.** The outline below is kept as the
+> step-level record. §13.0 lists every point where §13 departs from it and why: the comparison becomes
+> live (a macOS runner against the Linux container) instead of a committed laptop reference, nothing is
+> added to the required `test` check, `sha2` is not needed, and 13b no longer waits for 12d's digests.
+
 - **Output:** `tools/cli/tests/ac8_parity.rs`; `tools/cli/tests/parity/ac8.ref` recorded on the laptop;
   `sha2` as a dev-dependency of `mineworld-cli` (`DEP-S13-c`); the `scenario` job (P-3, `validate` of
   every world, the server-in-container smoke with a volume restart); `ARC-S13-b` (how AC-8 is measured,
@@ -586,6 +595,9 @@ Full design in §9.
   re-baselines both towns), otherwise whichever of 13b and 12c/12d lands second re-records (QS13-12).
 
 ## 7.3 PR 13c — long-running stability, client probes, benchmark timings (layer 4)
+
+> **Refined by §14's outline (2026-10-09).** §14 restates 13c against what 13a and 13b actually built
+> and against the probes' current exit statuses.
 
 - **Output:** the `stability` job:
   - social-cafe 1 000 days with `--save`, then `mineworld replay` (byte-for-byte reconstruction);
@@ -1428,6 +1440,11 @@ protection, or changes an operator decision. The rest the primary session can de
       tools/cli/tests/parity/ac8.ref · .github/workflows/ci.yml (scenario job) · scripts/ci_layer.py
       (`parity` layer) · Dockerfile (cargo-chef, only if §5.4's threshold) · docs/DECISIONS.md (DEP-S13-c,
       ARC-S13-b) · docs/MVP_STATUS.md (AC-8 row) · this file
+13b′  as revised by §13 (pending freeze): scripts/ci_parity.py (new) · scripts/ci_image.py (world
+      enumeration) · scripts/ci_layer.py (`fast` self-test) · .github/workflows/ci.yml (image → scenario;
+      mac, linux-arm, ac8) · docs/DECISIONS.md (ARC-49, DEP-19, ARC-48 note) · docs/MVP_STATUS.md (AC-8
+      row) · README.md (one line) · .structured-coding/standards.md (prose) · this file. No Cargo.*, no
+      tools/cli/, no Dockerfile
 13c   .github/workflows/ci.yml (stability, clients) · scripts/ci_layer.py (`stability` layer) ·
       possibly scripts/godot_probe.py (verdict parsing) · docs/MVP_STATUS.md · this file
 ```
@@ -1465,3 +1482,683 @@ tell those planning sessions at freeze.
 - **`docs/MVP_STATUS.md` S13 row:** "planned: `step-14-ci.md` (13a–13c); not frozen".
 - **`step-11-bodies.md` R-B7:** "a native x86_64 host (S13)" → "S13's P-2 and P-3 (`step-14-ci.md` §3.3)",
   once 13b merges.
+
+---
+
+# 13. PR 13b — AC-8: the same world on a Mac and in a Linux container (full design)
+
+**Lifecycle:** `PR design — ready for freeze review` (2026-10-09). Not frozen. Written by the 13b planning
+session (worktree `/Users/yuema137/mineworld-worktrees/plan-13b-ci`, branch `plan/s13-13b`, from
+`main @ 9cf8f8e`). Nothing here authorizes implementation. Implementation starts in a fresh session after
+the primary session (and, for the `[OM]` questions of §13.11, the operator) freezes it.
+
+Placeholder ids in this section: run ids `<run-…>`, PR number `#<13b>`, commit SHAs `<sha>`, and the
+decision numbers `ARC-49` and `DEP-19`, which ruling 6 reserved for S13 but whose titles §13.11 QB-3
+proposes to change.
+
+## 13.0 What this design changes in the step design, and why
+
+The step design (§3.3, §7.2) was written while the repository was private, when a macOS runner cost ten
+times a Linux minute. On 2026-10-08 the repository became public (§9.0), and 13a measured what CI really
+costs (§9 A-C4: about 14 job-minutes per PR head, `test` 12–19 min). Those two facts change the best design
+for AC-8. Each change below is a question in §13.11 with a recommendation; none is assumed.
+
+| # | Step design (§3.3, §7.2) | This design | Why | Question |
+| --- | --- | --- | --- | --- |
+| C-1 | A reference file `ac8.ref`, recorded on the laptop and committed; each platform checks itself against it | **A live comparison.** On every run, a macOS arm64 runner and the Linux x86_64 runtime container each write a parity record of the same commit, and a third job compares the two | A committed digest of three worlds turns every PR that changes any of their facts red until someone re-records it on a Mac. Every lane (S10, S11, S15 12d, S16, S17) would carry that duty, and a contributor without a Mac could not do it. A live comparison has no reference to keep: it asks only "do the two platforms agree on this commit?", which is exactly AC-8 | QB-1 `[OM]` |
+| C-2 | `ac8_parity` runs inside the required `test` check (P-2), so `test` grows by about 2–3 min | **Nothing is added to `test`.** Parity runs in the non-required `scenario` group of jobs | The operator's constraint: no required check is renamed or made slower | QB-1 |
+| C-3 | `sha2` as a dev-dependency of `mineworld-cli` (`DEP-19`), the test in `tools/cli/tests/` | **No Rust change, no new crate.** A stdlib Python script (`scripts/ci_parity.py`, in the style of `ci_image.py`) runs the binary, reads the save with `sqlite3` and hashes with `hashlib` | The same script then runs on the laptop, the macOS runner and beside the container, with one hashing implementation on every side (§5.6's objection to `shasum` versus `sha256sum` does not apply). I-S13-1 holds more strictly: 13b touches no `tools/cli/` file | QB-3 |
+| C-4 | 13b waits for 12d, because 12d re-baselines the towns' digests (ruling 8, QS13-12) | **13b need not wait.** With no committed reference, a re-baseline in 12d or anywhere else needs no action from 13b. After 12d merges, the `scenario` run on `main` checks the towns with bodies automatically | Removes a dependency, and a re-record, from the critical path | QB-5 (primary session) |
+| C-5 | The `image` job (13a) is evidence only, and a separate `scenario` job runs P-3 | `image` is **renamed `scenario`** and grows. It keeps `ci_image.py`'s checks (A13-5) and adds the Linux leg of the parity record | One job builds the runtime image once and uses it for both | — (bounded) |
+
+What does **not** change: AC-8's claim (§3.3, "Claim"); I-S13-1 … I-S13-9 (§4); bytes, not the FNV
+fingerprint (I-S13-6); the self-reference guard (now a check on two records' platforms, §13.4.2); and
+§3.7's "scenario blocks main's health, not a PR".
+
+## 13.1 Audit anchors (main @ 9cf8f8e, 2026-10-09)
+
+| Anchor | Finding | Evidence |
+| --- | --- | --- |
+| Base | `main @ 9cf8f8e` (S12 13a, #82). Since 13a's merge (`2690c1b`, #63), main gained 12d-0's plan (#84) and S12 13a (#82). 12d-0's code (SD-Z5, bodies `VERSION` 3) is on main; 12d is not frozen | `git log --oneline -15`; `step-11-bodies.md` header, §20 |
+| Repository | **public**; `main` protected, required checks `["fast","test"]`, `strict: false` (branches need not be up to date) | `gh api repos/yuema137/MineWorld` → `private: false`; `…/branches/main/protection` → `required_status_checks` |
+| Workflow | `.github/workflows/ci.yml`: `fast` (every push, every PR), `test` (non-draft PR, push to `main`, push to `scratch/**` except `*-image`), `image` (`workflow_dispatch`, push to `scratch/*-image`; checkout depth 1, `persist-credentials: false`; builds `--target runtime` for `linux/amd64` with the GHA cache scope `runtime`; runs `python3 scripts/ci_image.py mineworld:ci`). `permissions: contents: read`; per-ref concurrency, cancelling except on `main`. No `schedule:` trigger | `ci.yml:8–83` |
+| Composite action | `.github/actions/layer`: builds the `toolchain` stage, restores `.ci/cargo` and `target`, runs `ci_layer.py <layer>` in the container as the runner's uid, prunes. Linux only (it uses `docker`) | `action.yml` |
+| Layers | `ci_layer.py`: `fast` = 7 commands, `core` = `cargo test --workspace --no-run`, `cargo test --workspace`, `check_scratch.py left`. The table is the only place commands live (I-S13-9) | `scripts/ci_layer.py:37–56` |
+| Image evidence | `ci_image.py`: `validate` of a **hard-coded** world list (`WORLDS = ("social-cafe", "market-town", "bodies-yard")`), a 1-day run with `faults 0`, and the default command on a named volume (create, listen on 7878, TCP accepted, `docker stop` exit 0, restart resumes). Verdicts read from output | `scripts/ci_image.py:27, 96–117` |
+| Dockerfile | `runtime` = Debian trixie slim + `/usr/local/bin/mineworld` + `/opt/mineworld/worlds/`; user `mineworld`; `WORKDIR /opt/mineworld`; no Python in the runtime image. `build` = `cargo build --release --locked -p mineworld-cli` (no dependency layer caching) | `Dockerfile:13–42` |
+| Worlds | `worlds/` holds `bodies-yard`, `market-town`, `social-cafe`. Only bodies-yard installs `bodies` until 12d | `ls worlds`; step-11 F-O12 |
+| Run summary | `mineworld run <w> --headless --seed N --days D [--save DIR]`. The first line, `[mineworld] run …`, names the world and seats and ends `in memory` or `created <save>/world.sqlite`; the last line is `wall <s>`. `history N facts, fingerprint …` is FNV-1a ("not evidence") | `tools/cli/src/run.rs:372–508`; E-13b-0 |
+| Save layout | One file, `<save>/world.sqlite`. Tables `manifest(id, format, body)`, `journal(revision PK, at, action_id, entry)`, `facts(event_id PK, revision, fact)`, `snapshots(revision PK, snapshot)`. Blobs are `serde_json` (`persistence/src/format.rs:54`). The manifest body carries `instance` (allocated from the wall clock), `pack` and `composition` | `persistence/src/sqlite.rs:46–66, 125`; `format.rs:25–33` |
+| Test-side comparison | `Tables::read` and `assert_same_history` compare facts, journal and snapshots by key and blob, and the manifest's `pack` and `composition` only | `tools/cli/tests/headless/mod.rs:159–244` |
+| Platform-sensitive code | No transcendental float call (`sin`, `exp`, `powf`, …) in `kernel/`, `contracts/`, `systems/*/src`, `worldpack/`, `server/`, `persistence/`. `rapier3d =0.36.0` with `enhanced-determinism` (libm, not the platform's). `read_dir` is sorted where it is used (`worldpack/src/read.rs:466–476`, `packages/src/found.rs:70–76`) | `git grep` (see §13.2) |
+| Precedent ZR-4 | 12d-0: an `x86_64-apple-darwin` build run under Rosetta (`arch -x86_64`), bodies-yard 30 days: summary sha `bd6a1002…80e6`, equal to arm64's. That is the architecture changed with the OS held fixed, under emulation. AC-8 needs the OS changed too, natively | `step-11-bodies.md` §20.4 ZR-4, E-Z7 |
+| 13a's measured cost | `fast` ≈ 1.5–1.7 min warm; `test` 12 min (PR, warm) to 19 min (first `main` run after 13a, cold cache); `image` 3 min 44 s with a cold 132.7 s release build; ≈ 14 job-minutes per PR head. Disk is not a constraint on the public runner (`target/` peaks at 3.9 G, ≥ 80 G free) | §9 A-C3, A-C4; `gh run view 37856137552`, `37853658192` |
+| Runner images | GitHub's `runner-images` README (read 2026-10-09): `macos-14` (arm64) is **deprecated**; `macos-15` and `macos-26` are arm64 standard labels (`macos-latest` = `macos-26`); `macos-15-intel` and `macos-26-intel` are x86_64; `ubuntu-24.04-arm` is arm64 Linux. The macOS 15 and 26 arm64 images (20260907) carry Rustup 1.29.0 and Python 3.14 | `gh api repos/actions/runner-images/contents/README.md`, `…/images/macos/macos-26-arm64-Readme.md` |
+| The operator's laptop | Darwin 25.2 (macOS 26), Apple Silicon; Docker Desktop installed | session environment; §2.1 |
+
+## 13.2 Planning measurement E-13b-0
+
+2026-10-09, this worktree at `9cf8f8e`, the operator's Mac, `cargo build --release --locked -p
+mineworld-cli` (38.3 s wall with warm dependencies; 232 s user CPU). Logs in `/tmp/s13b-plan/`, not
+committed.
+
+```text
+run (release)                         wall     lines  sha-256 of every line but `wall`         facts
+social-cafe  300 d seed 7, memory     20.6 s   339    ad49c723…c64b  = E-RS0, = A13-8 (dev)   365 330
+market-town  300 d seed 7, memory     28.3 s   355    365b50e0…1d1d  = E-RS0, = A13-8 (dev)   372 755
+bodies-yard   30 d seed 7, memory      1.5 s          bd6a1002…80e6  = 12d-0's ZI-3, = ZR-4    62 385
+bodies-yard  300 d seed 7, memory     14.1 s          0bf87efc…7bbb                           624 482
+social-cafe   30 d seed 7, --save      2.2 s          save 249 MB                              37 085
+market-town   30 d seed 7, --save      2.5 s          save 258 MB
+bodies-yard   30 d seed 7, --save      2.8 s          save 246 MB
+```
+
+Findings:
+
+- **F-13b-1.** The release profile reproduces the dev-profile digests exactly (towns: E-RS0; bodies-yard:
+  ZI-3). So comparing two release builds isolates the platform. The profile is not a second variable.
+- **F-13b-2.** In memory, the `[mineworld] run` header is deterministic: it names the world and its seats
+  and ends `in memory`. With `--save` it ends with the save's path, which differs between hosts. A record
+  therefore keeps the header in memory mode and drops it in save mode. `wall` is always dropped.
+- **F-13b-3.** A 30-day save is about 250 MB, mostly snapshots. Three of them fit any runner (≈ 750 MB).
+  A 300-day save is about 2.4 GB (§2.3), so long-horizon table parity is nightly work (13c, §14).
+- **F-13b-4.** The record's whole workload, three 300-day runs and three 30-day saves, takes about 70 s on
+  the laptop in release. On a 3-vCPU M1 runner or a 4-vCPU x86_64 runner, expect roughly 1.5–2.5× that
+  (an estimate; B13-10 measures it).
+
+## 13.3 Where the Mac side runs: options compared
+
+AC-8: "The same World Pack runs on a laptop and inside a cloud Docker container with no semantic
+differences." The Linux side is settled: the runtime image on `ubuntu-24.04`, which is native x86_64
+(§3.1). The question is the Mac side. Costs are GitHub's published terms as this session knows them (†):
+billing cannot be read with the session's token (§2.2), so the operator confirms every † before relying
+on it.
+
+| Option | What it proves | Continuous? | Cost | Verdict |
+| --- | --- | --- | --- | --- |
+| **(a) The operator's laptop against a GitHub Linux run, with an evidence artifact.** CI's `scenario` uploads the Linux record; on the laptop, `ci_parity.py record` writes the Mac record of the same commit and `ci_parity.py compare` compares them | AC-8 literally: *the* laptop and the cloud container | **No.** A one-time comparison, made by a person or session. A platform difference introduced by a later PR goes unseen until somebody repeats it | $0 | **Adopt as the acceptance evidence** (P-L), with (c) |
+| (b) Committed laptop reference (§3.3 as drawn), checked on Linux in `test` | Each side equals a recorded file, so they equal each other | Linux side yes; the Mac side only when someone runs the suite on a Mac | $0 | **Decline** (§13.0 C-1, C-2): re-record churn across every lane, Mac-only re-recording, and it slows a required check |
+| **(c) A GitHub macOS arm64 runner (`macos-26`) and the Linux container, compared live in one workflow run** | A Mac (Apple Silicon, `aarch64-apple-darwin`, the laptop's macOS major) against the shipped container, on every run, with no stored reference | **Yes**, on every `main` push and on demand | **Free on a public repository**: standard hosted runners, macOS included, carry no per-minute charge†. A private repository would bill macOS at 10×† (§10.1). Free-plan concurrency is about 5 macOS jobs† | **Adopt** as the continuous check (`DEP-19`, QB-1, QB-3) |
+| (c′) `macos-14` (the label named in the brief) | as (c) | yes | as (c) | **Decline the label**: deprecated in `runner-images`. `macos-26` matches the laptop's macOS 26; `macos-15` is the fallback label (QB-2) |
+| (d) `ubuntu-24.04-arm` (Linux arm64) as a third leg | Localizes a difference: OS (macOS against both Linux legs) or architecture (x86_64 against both arm64 legs) without Rosetta. It also covers an arm64 VPS, a plausible deployment | yes | free on a public repository† | **Adopt as a localizer leg** (QB-4). It adds about 8 job-minutes per run and no wall time, since the legs run in parallel |
+| (e) `macos-15-intel` or `macos-26-intel` (Darwin x86_64) as a fourth leg | The remaining corner of the OS × architecture square | yes | free if standard† | **Decline for now.** (c) and (d) already localize, and Intel Macs are not the laptop. Revisit if a difference appears that (c) and (d) cannot place |
+| (f) Rosetta on the laptop (ZR-4's method) | Architecture only, under emulation, OS fixed | no | $0 | Keep as precedent and as a local diagnostic, not as evidence |
+| (g) Docker Desktop `linux/arm64` on the laptop | OS only (Linux on the same Apple Silicon) | no | $0 | Optional local diagnostic. (d) gives the same corner in CI |
+| (h) A self-hosted runner on the operator's Mac | the real laptop, continuously | yes | $0 in minutes†; the machine and its uptime | **Decline.** On a public repository, a self-hosted runner can execute code from fork PRs on the operator's machine; GitHub advises against it. It would also make CI depend on a laptop being awake |
+| (i) Larger macOS runners (`macos-26-xlarge`) | as (c), faster | yes | **paid, even on public repositories**† | **Decline**: not needed at about 7 min per run. Any use would be `[OM]` |
+| (j) Another CI service for macOS (Cirrus, CircleCI, Codemagic) | as (c) | yes | free tiers vary† | **Decline**: a second CI account and platform for one job (§5.1's reasoning) |
+
+**Recommendation: (c) + (a) + (d).** `macos-26` and the `linux/amd64` runtime container are compared on
+every `main` push and on demand (the continuous check), with `ubuntu-24.04-arm` as the localizer. At 13b's
+acceptance, the operator's laptop is compared once with the final head's Linux record (literal AC-8
+evidence). **Cost: $0** under the published terms for public repositories†. In steady state that is about
+24 job-minutes per `main` push, about 7 of them on macOS. 13b's own validation is at most 12 runs, about
+290 job-minutes (§13.9). It is `[OM]` because it reverses QS13-3's "no macOS runner" and rests on a
+billing fact the session cannot read (QB-1).
+
+## 13.4 Design
+
+### 13.4.1 The parity record
+
+`scripts/ci_parity.py record` writes one plain-text file per platform, one `key value` per line, UTF-8,
+sorted within each section. It uses the standard library only (`subprocess`, `sqlite3`, `hashlib`,
+`json`, `platform`). It runs the binary in one of two ways:
+
+- `--binary <path>`: native, on the laptop and the macOS runner;
+- `--image <tag>`: `docker run --rm --platform <p> --user <uid>:<gid> -v <host-dir>:/var/lib/mineworld/ac8
+  <tag> run worlds/<w> …` beside the container, in `scenario` and `linux-arm`. The script runs on the host,
+  because the runtime image has no Python. The save is written to the bind-mounted host directory and read
+  there.
+
+```text
+[platform]
+os               Darwin | Linux                     uname -s, run where the binary runs (for --image:
+                                                    `docker run --entrypoint uname <tag> -sm`)
+arch             arm64 | aarch64 | x86_64           uname -m, the same way
+translated       0 | 1 | absent                     macOS only: sysctl.proc_translated (Rosetta → 1)
+container        <image id> <os>/<arch> | none      docker image inspect, for --image
+rustc            <rustc -vV release line>           native: the build's toolchain; image: recorded by the
+                                                    workflow from the toolchain stage (1.97.1 by check_ci_pins)
+[source]
+commit           <git rev-parse HEAD>               the commit whose binary and worlds were run
+worlds           social-cafe market-town …          every directory under worlds/ with a pack manifest,
+                                                    enumerated, never listed by hand (fails closed)
+[world <w>]
+validate         <sha-256 of `mineworld validate worlds/<w>` stdout>
+summary-300      <n lines> <sha-256>                memory mode, seed 7, 300 days: every line but `wall`
+line-300 <i>     <the line>                          the summary itself, verbatim, so that a difference is
+                                                    shown, not only detected (≈ 350 lines per world)
+summary-30s      <n lines> <sha-256>                save mode, seed 7, 30 days: every line but the header
+                                                    and `wall` (F-13b-2)
+manifest         <sha-256>                          the decoded manifest body with `instance` removed,
+                                                    re-encoded with sorted keys; plus the `format` column
+<table> rows     <n> <sha-256>                      for journal, facts and snapshots, in primary-key order
+<table> chunk <k> <first key> <last key> <sha-256>  1 000 rows a chunk (locates, ARC-23)
+```
+
+- **Row encoding.** Each row is hashed as every column, in schema order. An integer is 8 bytes,
+  little-endian, signed; NULL is one `0x00` byte, and a present value is preceded by `0x01`. A blob is
+  preceded by its length as 8 bytes, little-endian. That covers more than `Tables::read`, which ignores
+  `facts.revision`, `journal.at` and `journal.action_id`. Parity should cover every stored byte.
+- **Why 300 days in memory and 30 days saved.** The 300-day runs are E-RS0's horizon for all three worlds
+  (bodies-yard's 300 days take 14 s in release, so §3.3's 30-day bodies-yard summary is lengthened at no
+  real cost). The 30-day saves give the byte-level claim for every table at about 250 MB each (F-13b-3).
+  QB-6 asks whether the ages are right.
+- **Worlds are enumerated.** A world added under `worlds/` (Lakeside, S16) enters the record with no edit.
+  A world has no per-world settings: all use seed 7 and the two ages above. A world that fails to `run`
+  fails the record, naming it.
+- **`ci_image.py` gets the same enumeration** in place of its hard-coded `WORLDS` (a bounded improvement
+  inside the job 13b grows). The fail-open list goes, for the reason test rules §11 gives.
+
+### 13.4.2 The comparison and its guards
+
+`scripts/ci_parity.py compare <record> <record> [<record> …]` exits 0 only if all of the following hold.
+Otherwise it exits 1 and names the first failure of each kind.
+
+```text
+G-1  well-formed      every record parses; every section and key the format requires is present
+G-2  same source      every record names the same commit, and the same world list, which equals the
+                      worlds/ of that commit (re-enumerated by the compare job's own checkout)
+G-3  cross-platform   among the records there is one with os Darwin, arch arm64, translated 0 or
+                      absent, container none, AND one with os Linux, arch x86_64, container present.
+                      AC-8 is that pair. Two records from one platform never satisfy G-3, however equal
+G-4  same toolchain   every record's rustc release is the same and equals rust-toolchain.toml's channel
+G-5  equal            for every world, every key in [world <w>] is equal across all records
+```
+
+On a G-5 failure it prints, for each world that differs:
+
+- which records agree with which. For example, `Darwin/arm64 ≠ {Linux/x86_64, Linux/aarch64}` places the
+  difference in the OS, while `x86_64 ≠ {arm64, aarch64}` places it in the architecture (QB-4);
+- the first differing summary line, as both texts, for summaries;
+- for a table: its name, its row counts, and the first differing chunk with its key range.
+
+The compare job also writes this to the step summary (`$GITHUB_STEP_SUMMARY`), uploads every record as an
+artifact, and passes or fails on the comparison only.
+
+`ci_parity.py --self-test` checks the comparator against synthetic records built in code: equal records,
+a differing line, a differing chunk, a missing world, a same-platform pair, a Rosetta-translated "Mac", a
+commit mismatch and a malformed file. Each must get its stated verdict. It runs in `fast` (well under 1 s;
+§13.4.3). This is UNIT ownership of a fail-closed classifier (test rules §2). It is not a test of
+MineWorld.
+
+### 13.4.3 The workflow, and its boundary with the required checks
+
+```text
+job        runs-on            trigger (13b)                                    does
+scenario   ubuntu-24.04       push to main; workflow_dispatch;                 build runtime (linux/amd64, GHA cache);
+           (x86_64)           push to scratch/*-scenario                       ci_image.py (A13-5, worlds enumerated);
+                                                                               ci_parity.py record --image → artifact
+mac        macos-26           same                                             checkout (depth 1, sparse: no clients/,
+           (arm64)                                                             presentation/); rustup takes 1.97.1 from
+                                                                               rust-toolchain.toml; actions/cache for
+                                                                               ~/.cargo/registry and target; cargo build
+                                                                               --release --locked -p mineworld-cli;
+                                                                               ci_parity.py record --binary → artifact
+linux-arm  ubuntu-24.04-arm   same                                             build runtime (linux/arm64);
+           (arm64)                                                             ci_parity.py record --image → artifact
+ac8        ubuntu-24.04       same; needs: [scenario, mac, linux-arm];          download the three artifacts;
+                              if: always()                                     ci_parity.py compare; step summary
+```
+
+- **The required checks are untouched.** `fast` and `test` keep their names and their jobs. `core` keeps
+  its commands, byte-identical (B13-6). The one change to `fast` is `python3 scripts/ci_parity.py
+  --self-test`, appended after `check_scratch.py scan`, which takes under a second. `test`'s `if:` gains
+  `!endsWith(github.ref, '-scenario')`, as it already has for `-image`, so that a scenario scratch branch
+  does not spend a `test` run. None of the four new jobs ever runs on `pull_request`, so none can appear
+  as a check on a PR, slow one, or be mistaken for a required one.
+- **Check names are an interface here too.** `scenario`, `mac`, `linux-arm` and `ac8` use no matrix and
+  no decorated `name:`. A later decision to require `ac8` on `main` (QB-8) can then name it.
+- **`ac8` fails closed.** It runs `if: always()`, so a leg that fails or is cancelled leaves `ac8` running
+  and red ("no record from mac"). It never shows as skipped, and the run never concludes `success`.
+- **`image` is renamed `scenario`.** Its `scratch/*-image` route becomes `scratch/*-scenario`. ARC-48's
+  table row "image … evidence only" becomes "scenario … blocks main's health" (amended by a dated note,
+  not rewritten).
+- **The nightly boundary.** 13b adds **no `schedule:` trigger**. 13c owns `on.schedule` for the whole
+  workflow (§14). There it adds `scenario`, `mac`, `linux-arm` and `ac8` to the nightly set beside
+  `stability` and `clients`, and adds the long-horizon parity of 300-day saves (F-13b-3). 13b's triggers
+  are `main` pushes, dispatch and scratch branches only.
+- **`workflow_dispatch` on the PR branch.** `ci.yml` is on `main`, so `gh workflow run ci.yml --ref
+  <13b branch>` runs the branch's own `ci.yml`. That is how 13b's PR shows its jobs green before merge
+  (13a could not, §9.0 R-1). Dispatch is an endpoint the contract must authorize (§13.12). It runs
+  `fast` on the branch too, because `fast` has no `if:`. That costs about 1.5 min and is accepted.
+- **Pins and permissions.** `actions/upload-artifact` and `actions/download-artifact` join the existing
+  pins at full commit SHAs, resolved at implementation the way §9 A-C3 resolved the others.
+  `actions/cache` is reused for the macOS leg. `permissions: contents: read` is unchanged (artifacts need
+  no extra permission). No secret is used.
+- **Timeouts.** `scenario` 30 min, `mac` 30, `linux-arm` 30, `ac8` 10.
+- **Release build cost (§5.4's `cargo-chef` threshold).** 13a measured a cold release build of 132.7 s,
+  far under the 8-min threshold, so `cargo-chef` is not adopted. B13-10 re-measures on all three legs.
+
+### 13.4.4 The laptop evidence (P-L)
+
+At B-C4, on the final head, the implementing session runs this on the operator's Mac (this host):
+
+```text
+cargo build --release --locked -p mineworld-cli
+python3 scripts/ci_parity.py record --binary target/release/mineworld --out /tmp/s13b/laptop.ac8
+gh run download <final-head scenario run> -n ac8-linux-x86_64 -D /tmp/s13b/
+python3 scripts/ci_parity.py compare /tmp/s13b/laptop.ac8 /tmp/s13b/ac8-linux-x86_64.txt
+```
+
+The ledger records both records' `[platform]` sections, the per-world summary and table digests, and the
+compare verdict. The laptop's record is not committed, because a committed record is the churn C-1
+removes. The run id of the Linux artifact and the commit identify the evidence.
+
+### 13.4.5 Non-goals
+
+- No Rust, test, `Cargo.*`, `worlds/` or `Dockerfile` change (I-S13-1, I-S13-2). If B13-10 crosses
+  §5.4's threshold, `cargo-chef` is raised as a deviation, not added.
+- No `schedule:` trigger, no stability runs, no Godot (13c).
+- No seated-client smoke inside the container. S11's invite tokens make it a client-driving test. It
+  belongs with 13c's restart-with-reconnect run (§14), and A13-5's TCP-level check stays.
+- No change to repository settings: no required `ac8` check, no protection change (QB-8 is the
+  operator's).
+- No re-tiering of the default suite (QS13-5 stands).
+
+## 13.5 Invariants added for 13b
+
+The step's I-S13-1 … I-S13-9 apply unchanged. 13b adds:
+
+```text
+I-13b-1  No required check changes name, trigger or commands, except `fast`'s appended self-test (< 1 s)
+         and `test`'s `if:` exclusion of `scratch/*-scenario`; `ci_layer.py --list core` is identical to
+         main's
+I-13b-2  AC-8's verdict is a comparison of two records of one commit, made on two platforms: Darwin arm64
+         (not translated) and Linux x86_64 in a container. No stored reference stands in for either side
+I-13b-3  The record covers every world under worlds/ and every stored column of every save table; no hand
+         list, no sampling
+I-13b-4  The ac8 job's verdict comes from ci_parity.py's comparison only: a missing, cancelled or
+         malformed leg is FAIL, never skipped and never PASS
+I-13b-5  Planted platform differences (§13.7) live only on scratch branches, are never merged or
+         cherry-picked, and every scratch branch is deleted after its run
+```
+
+## 13.6 Acceptance (decided before measuring)
+
+```text
+B13-1   scenario on the final head (a workflow_dispatch of the PR branch): every ci_image.py expectation
+        holds for every enumerated world, and an ac8-linux-x86_64 record is uploaded whose platform reads
+        Linux / x86_64 / container <image id> linux/amd64
+B13-2   mac on the same run: record platform Darwin / arm64 / translated 0 or absent / container none;
+        rustc 1.97.1
+B13-3   ac8 on the same run: PASS, comparing all three records (G-1 … G-5); the step summary lists the
+        number of worlds (3 at this base) and of compared keys; every world's summary-300 equals main's
+        known digests where they exist (social-cafe ad49c723…c64b, market-town 365b50e0…1d1d,
+        bodies-yard 300 d as on main), so I-S13-8 is shown by the same run
+B13-4   P-L: the laptop's record of the final head equals the final head's ac8-linux-x86_64 artifact
+        (compare exit 0, G-3 satisfied by laptop + container)
+B13-5   determinism precondition: two laptop records of one head are byte-identical files (a record
+        holds no wall-clock value by construction, §13.4.1), and the Linux x86_64 records of two CI runs
+        on one head are byte-identical (R1 and R2, §13.9)
+B13-6   I-13b-1: ci_layer.py --list core is byte-identical to main's; --list fast is main's plus the
+        self-test line; the PR's fast and test pass on the final head with their names unchanged; test's
+        wall time is recorded beside main's recent runs (information, not a criterion)
+B13-7   scope: git diff --stat main…HEAD lists only scripts/ci_parity.py, scripts/ci_image.py,
+        scripts/ci_layer.py, .github/workflows/ci.yml, docs/DECISIONS.md, docs/MVP_STATUS.md, README.md
+        (one line), .structured-coding/standards.md (prose), and this file — no .rs, Cargo.*, test,
+        worlds/ or Dockerfile
+B13-8   PM-0 … PM-7 (§13.7) all have their stated outcome
+B13-9   ci_parity.py --self-test passes in fast, and fails when its comparator is mutated (PM-7)
+B13-10  cost recorded from the runs: per leg wall time, cold and warm release build, record time, and
+        job-minutes per run, and none exceeds its timeout
+```
+
+## 13.7 Adversarial criteria (decided before measuring)
+
+Every planted difference is a scratch commit on a branch `scratch/13b-<name>-scenario`. It is pushed only
+to run CI, never merged, and deleted after its run (I-13b-5). The PR's own code is never edited to plant
+anything. A planted difference may touch MineWorld code, because a scratch commit is evidence and not part
+of the PR's diff (13a's M2 edited a test the same way). Outcomes are fixed now.
+
+```text
+PM-0  local   seed sensitivity: a laptop record with seed 8 (a scratch edit of the script's seed, never
+              committed) compared with seed 7's → exit 1, naming every world, its first differing
+              summary line and its first differing facts chunk. Shows the instrument sees a difference.
+
+PM-1  CI      THE PLANTED PLATFORM DIFFERENCE. A scratch commit adds, under
+              #[cfg(all(target_os = "linux", target_arch = "x86_64"))], a change to what one System Pack
+              records for social-cafe and market-town. The site is chosen at implementation (bounded) and
+              must change a recorded fact. Expected:
+                - mac and linux-arm records are equal to each other and to main's;
+                - ac8 is red with G-5, naming social-cafe and market-town, the first differing summary line
+                  and facts chunk, and the grouping "x86_64 ≠ {arm64, aarch64}";
+                - bodies-yard is reported equal unless the pack is installed there (located, not smeared).
+              Precondition, checked from the same run: the Linux x86_64 record differs from main's.
+              If the change is absorbed, so that no stored byte differs, the run is INCONCLUSIVE, not a
+              pass, and a larger change at the same site is planted (one re-run, budgeted).
+
+PM-2  CI      FINER THAN THE SUMMARY. As PM-1, but the planted change alters stored bytes and NOT a summary
+              line, for example one field of one fact type that no summary line counts. Expected: ac8 red
+              on a table (facts, or snapshots) of the affected world with its chunk and key range, while
+              summary-300 and summary-30s are equal. Shows the table digests carry the byte-level claim
+              that the summary cannot (I-S13-6). If no such site exists without moving a summary line, this
+              is recorded as a finding and PM-2 is N/A with that reason (not silently dropped).
+
+PM-3  CI      THE MAC SIDE REALLY COMPARES. The planted change of PM-1 under #[cfg(target_os = "macos")]
+              instead. Expected: ac8 red, grouping "Darwin/arm64 ≠ {Linux/x86_64, Linux/aarch64}", and the
+              Linux records equal to main's.
+
+PM-4  CI      SELF-REFERENCE. A scratch ci.yml whose mac job runs on ubuntu-24.04 (the script then records a
+              Linux/x86_64 "mac" leg). Every digest is equal, yet ac8 is red by G-3, "no Darwin arm64
+              record". Shows equality alone never passes AC-8.
+
+PM-5  CI      FAIL CLOSED. A scratch ci.yml whose mac job fails before recording (an `exit 1` step after
+              checkout). Expected: ac8 runs (if: always()) and is red, "no record from mac"; the workflow
+              run's conclusion is failure, never success; ac8 is not reported skipped.
+
+PM-6  local   STALE PAIRING. Compare a record of the final head with one of its parent (the laptop records
+              both) → exit 1 by G-2, naming both commits.
+
+PM-7  local   THE SELF-TEST BITES. Invert G-3 in ci_parity.py (a working-tree edit, reverted) →
+              `ci_parity.py --self-test` exits non-zero naming the same-platform case; restored → passes.
+```
+
+Not attempted, and why: a planted difference in float maths inside `bodies`. A one-ulp perturbation is
+usually absorbed by the pack's integer millimetre verification (step-11 PB-5), so it would test the pack's
+rounding, not the instrument. PM-1 and PM-2 already prove the instrument sees and locates a platform-only
+change. A real float divergence is R-B1's subject.
+
+## 13.8 Commit plan
+
+Each commit tracks implementation, validation and review as separate items, per CLAUDE.md §3.1.
+
+### B-C0 — Design (this section), docs only
+
+- [x] Implementation: §13 and §14 of this file, the §7.2 and §7.3 pointers, the header line.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  (results in the planning commit's message and the PR description).
+- [x] Self-review: every §13.1 anchor cites a file and line, a command or an API answer; E-13b-0's figures
+  were measured on this head; † marks every billing figure; `[OM]` marks every operator-material question.
+- [ ] Review: by the primary session (and the operator for `[OM]` items), then the freeze.
+
+### B-C1 — Specs before code: ARC-49, DEP-19, ARC-48's note
+
+**Goal.** How AC-8 is measured and why a macOS runner is used are reviewable records before any workflow
+relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
+
+**Scope.** `docs/DECISIONS.md`:
+
+- **ARC-49** — *How AC-8 is measured.* It records:
+  - the claim, the two platforms, and the live comparison (I-13b-2);
+  - the record format (§13.4.1) and the guards G-1 … G-5;
+  - the localizer leg;
+  - the triggers, and that `ac8` blocks main's health, not a PR;
+  - the laptop evidence;
+  - accepted limitations: the runner is not the operator's laptop, the long horizon is 13c's, and
+    `main` is checked after merge, not before.
+- **DEP-19** — *AC-8's Mac side: GitHub-hosted macOS arm64 runners.* Options §13.3 (a)–(j), the cost
+  basis†, the isolating seam (`ci_parity.py` runs anywhere; the runner label is one line), and the revisit
+  triggers: a billing change, the label's deprecation, a self-hosted need. This replaces §5.6's `sha2`
+  title for the reserved number (QB-3).
+- **ARC-48, a dated note**: `image` → `scenario`, the new jobs and their triggers, `fast`'s self-test, and
+  `test`'s `-scenario` exclusion. The decision itself is unchanged.
+- `.structured-coding/standards.md`, prose only: the `fast` layer now includes the parity self-test.
+
+- [ ] Implementation.
+- [ ] Validation: `check_decision_ids` (ids distinct, count +2), `check_doc_headings`; every cross-reference
+  (ARC-23, ARC-30, ARC-48, DEP-17, DEP-18, I-S13-6, ZR-4, E-RS0) resolves by `git grep`.
+- [ ] Review: each record states its problem, options, choice, why not ourselves, why not the others,
+  isolating interface and accepted limitations. No defined term is redefined. ARC-48's note says what
+  changed and nothing more.
+
+**Commit boundary.** Documentation only.
+
+### B-C2 — `scripts/ci_parity.py` (record, compare, self-test)
+
+**Goal.** The instrument, runnable on the laptop before any CI exists for it.
+
+**Scope.** A new stdlib script, in the house style of `ci_image.py` and `check_ci_pins.py`: a module
+docstring stating why it exists, verdicts read from output, and non-zero exits that name the cause.
+
+- Subcommands: `record (--binary P | --image T [--platform P]) --out F`, `compare F F [F …]`,
+  `--self-test`. The usage line names them.
+- World enumeration from `worlds/*/` with a pack manifest. The implementation reads which file marks a
+  pack from `worldpack/src/read.rs` and does not guess it.
+- In image mode, the save directory is bind-mounted, the container runs with `--user` set to the host's
+  uid and gid, and the directory is removed afterwards. The script leaves no scratch behind, in keeping
+  with QTH-4's rule.
+
+**Depends on:** B-C1.
+
+- [ ] Implementation.
+- [ ] Validation, local, on the laptop:
+  - `--self-test` passes; PM-7 (inverted G-3 → fails; restored → passes);
+  - two `record --binary target/release/mineworld` runs of one head → byte-identical files (B13-5, laptop
+    half);
+  - `compare` of a record with itself → exit 1 by G-3 (one platform), the self-reference guard on real data;
+  - PM-0 (seed 8) and PM-6 (parent commit) → their stated verdicts;
+  - the record's `summary-300` digests for the towns equal E-RS0's values, and bodies-yard's equal
+    E-13b-0's (`0bf87efc…7bbb`, or main's at implementation if it moved);
+  - optional, if Docker Desktop is running: `record --image` of a local `linux/arm64` build of the runtime
+    stage → `compare` with the laptop record. G-3 fails (no x86_64), but G-5's equality is reported as
+    information (option (g)).
+- [ ] Review: no third-party import; every subprocess's failure is a named verdict, never a traceback; the
+  row encoding matches §13.4.1 exactly (lengths and NULL markers); the manifest excludes `instance` and
+  nothing else; no path or host name enters a hashed line; no `|| true`-style swallowing.
+
+**Commit boundary.** One script.
+
+### B-C3 — The workflow: `scenario`, `mac`, `linux-arm`, `ac8`; `fast`'s self-test; `ci_image.py`'s enumeration
+
+**Goal.** O-2 made continuous: AC-8 checked on every `main` push and on demand.
+
+**Scope.**
+
+- `.github/workflows/ci.yml` per §13.4.3:
+  - `image` renamed to `scenario`, which records after `ci_image.py`;
+  - new jobs `mac`, `linux-arm` and `ac8`;
+  - `test`'s `if:` excludes `-scenario`;
+  - upload and download artifact actions pinned to full SHAs.
+- `scripts/ci_layer.py`: `fast` gains `["python3", "scripts/ci_parity.py", "--self-test"]`. `core` is
+  unchanged.
+- `scripts/ci_image.py`: `WORLDS` becomes the same enumeration as the record's. Its expectations are
+  otherwise unchanged.
+
+**Depends on:** B-C2.
+
+- [ ] Implementation.
+- [ ] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger):
+  - `ci_layer.py --list core` diff against main → empty; `--list fast` → main's plus one line (B13-6);
+  - R1: `gh workflow run ci.yml --ref <branch>`, cold → B13-1, B13-2, B13-3;
+  - R2: the same head dispatched again, warm → B13-5's CI half (Linux records byte-identical) and B13-10's
+    warm figures;
+  - PM-1 … PM-5 on `scratch/13b-*-scenario` branches, each deleted after its run; `git ls-remote --heads
+    origin 'scratch/*'` → empty, recorded.
+- [ ] Review:
+  - every `uses:` pinned to a full SHA with its version in a comment;
+  - no `continue-on-error`, `|| true` or retry;
+  - `ac8` is `if: always()` and judges by the script only;
+  - no new job has a `pull_request` trigger;
+  - check names undecorated;
+  - `permissions: contents: read`;
+  - the workflow names layers and scripts, never commands (I-S13-9).
+
+**Commit boundary.** Workflow and the two script edits.
+
+### B-C4 — Close: laptop evidence, status, ledger, handoff
+
+- [ ] Implementation:
+  - `docs/MVP_STATUS.md`: the AC-8 row, stating what is demonstrated (three worlds, 300 days and 30-day
+    saves, macOS arm64 against the Linux x86_64 container, plus Linux arm64), with the run id;
+  - `README.md`: the CI line gains "AC-8 parity on every `main` push";
+  - this section's ledger.
+- [ ] Validation:
+  - B13-4 (P-L) on the final head;
+  - B13-7 (`git diff --stat`);
+  - the final head's PR checks `fast` and `test` green, and its dispatch run green (B13-1 … B13-3 on the
+    exact final head);
+  - the doc checks.
+- [ ] Review:
+  - every B13 criterion has evidence or an explicit N/A;
+  - every PM has its outcome;
+  - deviations are numbered D-13b-n;
+  - nothing is material (§13.11 answered as frozen), or a stop is recorded.
+
+**Commit boundary.** Docs and ledger. A run on a commit cannot be written into that commit, so the final
+head's run ids go to the PR description and the session report (as in 13a).
+
+## 13.9 Run budget
+
+| What | Runs | Job-minutes each (estimate; B13-10 measures) | macOS minutes |
+| --- | --- | --- | --- |
+| R1 dispatch, cold | 1 | scenario ≈ 8, mac ≈ 8, linux-arm ≈ 9, ac8 ≈ 1, fast ≈ 2 → ≈ 28 | 8 |
+| R2 dispatch, same head, warm | 1 | ≈ 22 | 6 |
+| PM-1 … PM-5 (scratch pushes; `fast` runs too) | 5 | ≈ 22–28 | 6–8 |
+| Repairs (bounded) | ≤ 3 | ≈ 22 | 6 |
+| Final head dispatch | 1 | ≈ 22 | 6 |
+| Re-run of an absorbed PM-1 (§13.7) | ≤ 1 | ≈ 22 | 6 |
+| **Cap** | **≤ 12 scenario-sized runs** | **≈ 290 job-minutes** | **≈ 80** |
+
+- Each PR push also runs `fast` and `test`, about 14 job-minutes (13a's measurement). These do not count
+  against the cap. They are not limited beyond ordinary practice.
+- **Monetary: none.** Every runner above is a standard hosted runner, free on a public repository†. No
+  larger runner, no spending limit, no paid service. If any evidence shows billing, for example a usage
+  warning or a job refused for minutes, stop and report (§13.12).
+- **Steady state after merge:** about 22 job-minutes per `main` push, about 6 of them macOS; at about 4.5
+  merges a day, about 100 job-minutes and 27 macOS minutes a day. All free†. A run takes about 10 min of
+  wall time, because the legs run in parallel.
+- **Exceeding the cap** is a stop with a projection, not a silent overrun.
+
+## 13.10 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-B1** | **A real platform difference appears.** Candidates: Rapier's floats on x86_64 (ZR-4 says equal under Rosetta, but Rosetta is not native SSE codegen); a std or libm function whose result differs between glibc and Apple's libm (none in the simulation per §13.1, but a dependency might call one); a path or locale leak into a fact | That is AC-8 working. `ac8` locates the world, table and chunk; the ledger records it; the owning pack fixes it (S15 for `bodies`). It is a **material stop** for 13b: AC-8 cannot be claimed met, and nothing is weakened to pass (I-S13-6). The localizer grouping says whether it is OS or architecture |
+| **R-B2** | **The macOS runner is not the laptop** (another M-series chip, another macOS 26 build) | The triple and the macOS major match; P-L compares the actual laptop at acceptance; any later doubt is settled by repeating P-L (one command). Accepted limitation in ARC-49 |
+| **R-B3** | **Runner labels move.** `macos-26` gets deprecated, or `macos-latest` moves (not used) | A pinned label, one line. DEP-19's revisit trigger. `runner-images` marks deprecations months ahead (as for `macos-14`) |
+| **R-B4** | **Billing assumption wrong** (†) | QB-1 `[OM]`: the operator confirms on the billing page before freeze. If macOS is billed, fall back to (a) + (d) only: the laptop at acceptance plus Linux arm64 and x86_64 continuously, and the Mac side by hand. That is weaker and recorded as such |
+| **R-B5** | **macOS queueing** (about 5 concurrent macOS jobs on Free†) delays `ac8` | Not on PRs, so it never holds a merge. A queued `main` run is late, not wrong |
+| **R-B6** | **`main` is checked after merge.** A PR that introduces a platform difference merges green, and `ac8` turns red on `main` | ARC-48's "blocks main's health": the line stops until fixed or ruled. QB-7 offers a PR-level dispatch for PRs that touch simulation code |
+| **R-B7** | **Records diverge for a non-semantic reason** (a host path in a summary line, a wall-clock field in a table) | B13-5's same-platform determinism precondition fails first and names it. The record drops only the header (in save mode), `wall` and the manifest's `instance`, each justified in §13.4.1. Any further exclusion is a deviation to review, never a quiet filter |
+| **R-B8** | **Disk or time on the macOS runner** (three 250 MB saves, a release build) | Well within a standard image†. Measured in R1 (B13-10). Saves are removed by the script |
+| **R-B9** | **Scratch branches with planted bugs are public** for the length of a run | Named `scratch/13b-*`, deleted after each run, never merged; the ledger records their deletion |
+
+## 13.11 Questions
+
+`[OM]` marks an operator-material question: it costs money, changes repository settings or protection, or
+reverses an operator decision. The rest the primary session can decide.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QB-1 [OM]** | Adopt the live comparison on a GitHub macOS runner (§13.3 (c)), reversing QS13-3's "no macOS runner"? Confirm on the billing page that standard macOS runners are free for this public repository†. | **Yes**, with (a), the laptop at acceptance, and (d), Linux arm64 as the localizer. QS13-3's "no" rested on the 10× private-repository price, which no longer applies. If the billing page shows otherwise, take (a) + (d) only (R-B4). |
+| **QB-2** | Which macOS label: `macos-26`, `macos-15` or `macos-14`? | **`macos-26`**, pinned (not `macos-latest`). It matches the laptop's macOS 26. `macos-14` is deprecated; `macos-15` is the fallback if `macos-26` misbehaves (a bounded, recorded swap). |
+| **QB-3** | Drop `sha2`, and use the reserved `DEP-19` for the macOS runner instead (C-3)? | **Yes.** No Rust change; one hashing implementation on all sides. If the primary session prefers to keep `DEP-19` unused, ARC-49 can carry the runner decision. |
+| **QB-4** | Include the `linux-arm` localizer leg (adds about 8 free job-minutes per run, no wall time)? | **Yes.** It localizes a difference to OS or architecture without Rosetta, and it covers an arm64 VPS. Its record must also be equal (G-5), which is a stronger claim than AC-8's pair. |
+| **QB-5** | Ruling 8 sequences "13b after 12d". With no committed reference, may 13b proceed before 12d? | **Yes** (C-4). 12d's re-baseline needs nothing from 13b, and the first `main` run after 12d checks the towns with bodies. If 12d lands first, nothing changes. |
+| **QB-6** | Ages and modes: 300 days in memory (summary) and 30 days saved (tables), seed 7, every world. | **Accept.** It covers E-RS0's horizon and every stored byte at about 70 s per platform. Long-horizon table parity (300-day saves, 2.4 GB each) is 13c's nightly. One seed is enough for platform parity; seed sensitivity is shown by PM-0. |
+| **QB-7** | Should `scenario`/`ac8` also run on PRs (non-required)? | **Not in 13b.** Instead, a PR author may dispatch them on the branch (`gh workflow run ci.yml --ref <branch>`), which ARC-49 recommends for PRs touching `systems/`, `kernel/`, `persistence/` or `worldpack/`. Revisit if R-B6 bites. |
+| **QB-8 [OM]** | Make `ac8` a required check (on `main` or on PRs)? | **No.** A required check on PRs would put a 10-min macOS leg in the merge loop, which the operator's constraint forbids, and on `main` push it cannot block anything. ARC-48's "blocks main's health" policy stands. |
+| **QB-9 [OM]** | Authorize scratch branches `scratch/13b-*-scenario` (pushed only to run CI for PM-1 … PM-5, then deleted) and `workflow_dispatch` of `ci.yml` on the 13b branch and those branches? | **Authorize**, bounded as 13a's QS13-14 was: deleted after each run and checked with `ls-remote`. Without it, PM-1 … PM-5 cannot be shown in CI, and AC-8's planted-difference proof would be local only. |
+| **QB-10** | `ci_image.py`'s hard-coded `WORLDS` → enumeration (a change to 13a's script). | **Accept** as in scope: it is the job 13b grows, and a hand list fails open. |
+
+## 13.12 Proposed execution contract (for the primary session to fill and freeze)
+
+```text
+PROJECT / PR        MineWorld mvp0 — S13 PR 13b, AC-8 parity (layer 3)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-14-ci.md §13 (the live ledger)
+RELATED / BINDING   this file §§1–6, 9 (13a as built), 10; overall.md §3 (S13), "Parallel build-out,
+                    2026-10-08"; docs/DECISIONS.md ARC-23, ARC-30, ARC-48, DEP-17, DEP-18;
+                    docs/ENGINEERING_STANDARDS.md §§15–16; docs/REUSE_POLICY.md §§11–12; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main at freeze (re-audit §13.1 if it moved); branch mvp0/pr-13b-ac8 (proposed);
+                    worktree /Users/yuema137/mineworld-worktrees/impl-13b (proposed), sole writer
+PRECONDITION        QB-1 and QB-9 answered by the operator; QB-5 by the primary session
+APPROVED SCOPE      §13.4; B-C1 … B-C4
+FROZEN INVARIANTS   I-S13-1 … I-S13-9; I-13b-1 … I-13b-5
+SEQUENCE            B-C1 → B-C2 → B-C3 → B-C4, each committed and pushed when coherent; the PR opens
+                    after B-C2, so B-C3's dispatch runs have a PR to report to
+VALIDATION BUDGET   local: unrestricted (release builds, records, Docker Desktop if running);
+                    CI: ≤ 12 scenario-sized runs (§13.9); each job has timeout-minutes;
+                    monetary: none — standard hosted runners only; any sign of billing → stop
+LIVE DOCUMENTATION  §13 of this file
+HANDOFF             a §13 subsection beside the ledger (as 13a's D-13a-0), not handoff.md
+ENDPOINT AUTHORITY  implementation, local validation, semantic commits: authorized (2026-09-25)
+                    branch push, PR create/update, CI repair: authorized (D-12)
+                    workflow_dispatch of ci.yml on the 13b branch and scratch/13b-* : per QB-9
+                    scratch/13b-*-scenario push + delete: per QB-9
+                    repository settings (protection, required checks, rulesets, Actions policy,
+                      spending limit): NOT authorized — operator only
+                    larger runners, paid services: NOT authorized
+                    merge: explicit operator authorization only
+MATERIAL STOPS      R-B1 (a real platform difference); billing evidence (R-B4); any change to fast/test
+                    beyond I-13b-1; any Rust, Cargo, test, worlds/ or Dockerfile edit; exceeding the budget
+NORMAL STOP         PR 13b READY FOR OPERATOR REVIEW — DO NOT MERGE
+STOP CONDITION      B13-1 … B13-10 with evidence on the exact final head; PM-0 … PM-7 recorded
+MERGE AUTHORITY     never without explicit operator approval
+```
+
+## 13.13 Test ownership for 13b
+
+```text
+STATIC      fast's existing checks; ci_parity.py --self-test (UNIT: the comparator's fail-closed verdicts)
+UNIT        the self-test only; no Rust unit test (no Rust changes)
+INTEGRATION the unchanged default suite in `test` (13a); nothing added there
+REAL RUN    scenario: the shipped image hosting a world (A13-5) and running every world for the record
+CROSS-PLAT  ac8: Darwin arm64 (macos-26) × Linux x86_64 (container) × Linux arm64 (container), on every
+            main push and on dispatch; P-L: the operator's laptop × the final head's container, once
+GATE 1      NOT REQUIRED (no model)
+CI          the PR's fast/test on its final head, plus the dispatch run of scenario/mac/linux-arm/ac8 on
+            the same head
+```
+
+---
+
+# 14. PR 13c — outline: nightly long runs and the Godot probes (medium scope)
+
+**Lifecycle:** outline, not designed to the commit. It refines §7.3 against 13a and 13b as built and as
+designed. It is detailed to the commit by its own planning session, after 13b's freeze.
+
+## 14.1 What 13c owns
+
+- **The `schedule:` trigger, for the whole workflow.** It is a single nightly cron, for example 03:17 UTC,
+  off the hour, to avoid GitHub's top-of-hour congestion. A first job, `changed`, compares `main`'s SHA
+  with the last successful nightly's (`gh api` over the workflow's runs, read-only, or the
+  `actions/cache` marker pattern) and skips the night when `main` has not moved. A `workflow_dispatch`
+  input `force` overrides that.
+- **The nightly set:**
+  - 13b's `scenario`, `mac`, `linux-arm` and `ac8`, unchanged;
+  - `stability`;
+  - `parity-long`;
+  - `clients`.
+- **What a red nightly does.** A red nightly reports and never gates a PR (ARC-48: `stability` and
+  `clients` report; `scenario`/`ac8` keep "blocks main's health"). It opens or updates one issue labelled
+  `nightly`, which needs `issues: write` on that job only (I-S13-7 is relaxed for one job; a question for
+  the 13c design). The alternative is a step summary that a session reads. That choice is a 13c question.
+
+## 14.2 Jobs
+
+| Job | Runs | Verdict from |
+| --- | --- | --- |
+| `stability` (layer 4) | In the toolchain container, from `scripts/ci_layer.py stability`, a new layer. **(1)** social-cafe 1 000 days `--save`, then `mineworld replay`, byte-for-byte reconstruction (§16 "replay event log"). **(2)** market-town 300 days SIGKILLed at five points and resumed, compared with an uninterrupted run (tables equal). **(3)** bodies-yard 300 days `--save` with the bodies scan. **(4)** `mineworld server` killed and restarted ten times on one volume while a scripted client reconnects with its invite (S11's credentials), each restart resuming at the same revision. Scratch removed (QTH-4) | each program's own verdict lines; a missing verdict is INCONCLUSIVE, not PASS |
+| `parity-long` | 13b's `ci_parity.py` with a `--long` profile: 300-day saves (2.4 GB each) for table parity at E-RS0's horizon, and 1 000-day summaries, on the same three legs plus `ac8`'s comparison | `ci_parity.py compare` |
+| `clients` | Godot 4.7.2 Linux x86_64 headless, the official binary, downloaded once, pinned by its published SHA-512, cached (§5.7). **(1)** `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1`: the 2D client's eight `#[ignore]`d tests, which already exit non-zero on failure (`clients/2d/scripts/harness/drive.gd:464`). **(2)** `clients/protocol/run.sh evidence` then `git diff --exit-code clients/protocol/evidence`; the protocol checks exit non-zero on failure (`affordances_check.gd:220`, `reader_check.gd:40`). **(3)** `./mineworld-slice --drive`, whose probe still exits 0 unconditionally (`slice_probe.gd:160`; F-5 open for the 3D slice only), so its verdict line is parsed and a missing one is INCONCLUSIVE | exit status where the probe has one; a parsed verdict line otherwise |
+| `benchmark` (report) | Wall time per world-day from `stability`'s and `parity-long`'s runs, as a step summary and an artifact; a trend over the last 30 nights from the artifacts (QS13-13: a report, not a crate) | information only |
+
+## 14.3 Adversarial outline (to be fixed before measuring in 13c's design)
+
+- One altered fact row in a scratch copy of a save → `replay` refuses it, and `stability` is red.
+- A probe made to fail (a missing scene) → `clients` FAIL for the 2D and protocol checks. For the 3D slice
+  it is INCONCLUSIVE or FAIL by the parsed line, never PASS.
+- The `changed` gate: a dispatch with `force=false` on an unmoved `main` skips. With `force=true` it runs.
+- A nightly with a planted platform difference (13b's PM-1 on a scratch branch, dispatched with the
+  nightly inputs) → `parity-long` red, located.
+
+## 14.4 Dependencies and boundary with 13b
+
+- 13c depends on 13a (merged). It reuses 13b's `ci_parity.py` and jobs, so it follows 13b's merge.
+  Otherwise only `stability` and `clients` can land first.
+- **Boundary.** 13b never adds `schedule:`, `stability`, `parity-long` or `clients`. 13c never changes
+  `fast`, `test`, or 13b's record format beyond adding the `--long` profile, and never makes a nightly job
+  a required check.
+- The 3D slice's exit status (F-5) belongs to S14. 13c asks S14 for `quit(1)` on failure, and until then
+  parses the verdict line.
+- Budget, estimated: `stability` 30–60 min, `parity-long` about 20–30 min per leg (2.4 GB saves; disk to be
+  measured on the macOS runner†), `clients` 10–15 min. At most one night a day, skipped when `main` is
+  unmoved. All on standard runners, free on a public repository†.
+
+## 14.5 Questions to carry into 13c's design
+
+- `issues: write` for the nightly reporter, or a step summary only?
+- Whether `parity-long` includes the macOS leg every night, or weekly (macOS concurrency†).
+- Whether the 1 000-day social-cafe replay replaces or joins the default suite's 300-day runs (QS13-5
+  stands: no re-tiering without a fail-closed selector).
