@@ -3441,8 +3441,8 @@ bool)`, `var paused`, `var time_scale` — nothing else (ruling 4 is amended for
 appear in transcripts). **Validation:** DA-10, one Godot window at a time; `run.sh evidence`,
 `affordances`, `reconnect`, `./mineworld-slice --world --link` still pass.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: no rule in the module; every existing name and call
-  valid.
+- [x] Implementation · [x] Validation (E-SD6) · [x] Review: no rule in the module (the arm stores and
+  emits); every existing name and call valid.
 
 ### D-C8 — Close
 
@@ -3653,6 +3653,26 @@ E-SD5 D-C6. main.rs `--admin-token` (env MINEWORLD_ADMIN_TOKEN, hide_env_values)
       targets ok — ac13, ac15 (6), ac3_reconnect, ac5_takeover (2), milestone_b, milestone_c,
       hosted_town (120 s, p99 bound asserted), restart, server_command (10) among them; client_2d's
       8 are #[ignore] (Godot-gated) as at the base. Load ~250 throughout.
+E-SD6 D-C7 (DA-10's far side). world_client.gd: one `"clock"` arm, `signal clock_changed(at,
+      time_scale, paused)`, `var paused`, `var time_scale`, and the `closing` doc names `kicked` —
+      nothing else (QS11D-6); every existing name and call unchanged. checks/admin_check.gd (+ .uid
+      Godot generated): the host's HTTP calls are made by the check itself through Godot's
+      HTTPRequest with the bearer token read from MINEWORLD_ADMIN_TOKEN (no curl, no argument);
+      run.sh `admin` generates a token per run, exports it to the server and the check, and fails if
+      the token reaches either evidence file. Godot 4.7.2, one headless window at a time:
+        run 1  FAIL at "POST /admin/clock was sent: 44" (ERR_BUSY): the `refused paused` frame came
+               back before the pause's HTTP answer had finished, and one HTTPRequest carries one
+               request. A check defect, not a module or server one: requests now queue in the
+               check and go one at a time.
+        run 2  PASS — 8 checks, 0 failures: clock after welcome (paused false, scale 1); pause
+               announced and held in `paused`; submit refused `paused` with its token "c1"; resume
+               announced; kicked → closing "kicked" before disconnected.
+      `run.sh evidence` exit 0, Alice answers in every transcript, no SCRIPT ERROR and no "unknown
+      kind" warning in any log (the module now reads the clock frame every server sends);
+      `run.sh affordances` PASS 0 failures; `run.sh reconnect` PASS 0 failures;
+      `./mineworld-slice --world --link` → "all link checks pass". Evidence regenerated (server logs
+      gain "[mineworld] no admin surface (no --admin-token)"; admin-social-cafe.log and
+      server-admin.log new); the generated token is in no evidence file.
 ```
 
 ## 18.13 Deviations and discoveries

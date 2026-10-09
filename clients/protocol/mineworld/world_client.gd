@@ -62,12 +62,17 @@ signal refused(code: String, token: String, detail: String)
 ##
 ## `reason` is one of `PROTOCOL.md` §5.6's: `left`, `unauthorized`, `protocol_mismatch`,
 ## `world_stopped`, `taken_over` (another connection took the seat), `superseded` (this player's own
-## newer connection resumed it), and from later S11 pull requests `kicked`, `server_stopping`. A client
+## newer connection resumed it), `kicked` (the operator removed it), and later `server_stopping`. A client
 ## branches on `reason` (a wrong invite is `unauthorized`) and never on `detail`.
 signal closing(reason: String, detail: String)
 
 ## The connection ended, or could not be made. `reason` is for a developer and a status line.
 signal disconnected(reason: String)
+
+## How the host is pacing the world's clock (`PROTOCOL.md` §5.9): once right after the welcome, then on
+## every pause and resume. `at` is the world's instant then, `time_scale` world seconds per wall second,
+## `paused` whether the host stopped the clock — while it is, a submit is refused `paused`.
+signal clock_changed(at: int, time_scale: int, paused: bool)
 
 ## The socket dropped without a `closing`, [member reconnect] is on, and this module is about to try
 ## again: `attempt` counts from 1. A successful attempt ends in the usual [signal welcomed], with
@@ -156,6 +161,12 @@ var resume: Variant = null
 
 ## Why the server last closed this connection (`closing.reason`), or `""`.
 var close_reason: String = ""
+
+## Whether the host has paused the world's clock, from the newest `clock` frame (`PROTOCOL.md` §5.9).
+var paused := false
+
+## World seconds per wall second, from the newest `clock` frame.
+var time_scale := 1
 
 var _socket := WebSocketPeer.new()
 var _invite := ""
@@ -469,6 +480,12 @@ func _receive(text: String) -> void:
 			refused.emit(code, String(frame.get("token", "")), String(frame.get("detail", "")))
 			if state == State.JOINING and _attempt > 0:
 				_refused_while_reconnecting(code)
+		"clock":
+			# How the host paces the world's clock: right after the welcome, then on every pause and
+			# resume (`PROTOCOL.md` §5.9). Read, stored and announced; nothing is decided here.
+			time_scale = int(frame.get("time_scale", 1))
+			paused = bool(frame.get("paused", false))
+			clock_changed.emit(int(frame.get("at", 0)), time_scale, paused)
 		"closing":
 			# The connection is over; the reason is the only thing a client branches on. The client
 			# closes the socket itself, which is what the server waits for (`PROTOCOL.md` §5.6).
