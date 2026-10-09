@@ -1,8 +1,8 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[demo] connecting to 127.0.0.1:51414 as seat 'wanderer' (3d)
+[demo] connecting to 127.0.0.1:57652 as seat 'wanderer' (3d)
 [demo] seated: seat 'wanderer' is observer 18, protocol 2, as 'demo-3d-wanderer', took over: none
-[demo] world instance 0000000018dcad33e54933e17fe60000, 18 entities, 2 client(s)
+[demo] world instance 0000000018dcf2b26fd18f8176170000, 18 entities, 1 client(s)
 [demo] observation 1: 2, 7, 8, 17, 18
 [demo] the server says talk to 7 is not available (too far away)
 [demo] c1 -> action 1: accepted (1 fact(s))
@@ -11,7 +11,7 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [demo] walked there in 2 stride(s)
 [demo] c3 -> action 4: accepted (4 fact(s))
 [demo] --- what this client was told ---
-[demo] world instance      0000000018dcad33e54933e17fe60000
+[demo] world instance      0000000018dcf2b26fd18f8176170000
 [demo] observer            18
 [demo] perceived           2, 7, 8, 17, 18
 [demo]   2  tags ["cafe","public"]  at (0.0, 0.0) m

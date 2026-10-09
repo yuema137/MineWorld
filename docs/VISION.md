@@ -418,6 +418,26 @@ university simulation. That leverage is the point of the module system.
 
 The MVP validates the architecture and nothing else; see [`MVP.md`](MVP.md).
 
+## Next after MVP-0 — one world of many regions, linked by transport
+
+Decided by the operator on 2026-10-09 and recorded in the MVP-0 overall plan
+(`.structured-coding/plans/mvp0/overall.md` §5, "Operator requirements and rulings"):
+
+- **One world, many regions.** A world is one server and one timeline; every region is simulated all
+  the time, and people may live across regions. A world author composes region packs into one world.
+  Clients load each region's presentation assets when the player arrives, never the whole world at once.
+- **Travel by train or car.** Transport is an optional System Pack (lines, stops, timetables, fares).
+  A trip takes world time; the ride's carriage is itself a place where riders can walk about and talk,
+  and the window scenery is drawn from the landscapes of the origin and destination while the
+  destination loads.
+- **Maps.** A region map and a world map, served by the server and drawn by every client.
+- **Realism within classical mechanics.** The long-term target is approximate 1:1 reproduction of the
+  real world within classical mechanics: authoritative physics on the server with real-world defaults,
+  and presentation-only effects (wind in foliage, flowing water) driven by the server's weather and sun.
+
+The step designs are `.structured-coding/plans/mvp1/step-21-regions-travel.md` and
+`.structured-coding/plans/mvp1/step-22-realism.md`.
+
 ## Phase 2 — World Creator
 
 A visual creator experience replaces hand-editing YAML: world editor, character editor,

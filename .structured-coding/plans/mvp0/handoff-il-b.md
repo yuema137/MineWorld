@@ -36,32 +36,23 @@ PLATFORMS            operator requirement 2026-10-08: macOS, Linux and Windows; 
 STOP                 PR IL-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
-## Lifecycle: READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION
+## Lifecycle: APPROVED ON REVIEW — AWAITING THE PRIMARY SESSION'S MERGE (2026-10-09)
 
-- PR #102. Final code head 196cbc3 (gate E-IB-14 PASS); the PR head is the ledger commit after it —
-  CI evidence is read off the PR on that exact head. Do not merge without the operator.
-- Open request: one market-town 300-day run on the merged head against TW-a's baseline 24a95d2a…d270
-  (a fifth town run; E-IB-13). F-IB-16 needs an owner.
-
-## Current checkpoint (2026-10-09)
-
-- IB-C1 … IB-C11 implemented and validated; IB-1 … IB-14 PASS (§12.13 E-IB-0 … E-IB-12); town runs
-  4 of 4 used; origin/main a30755e merged (35885f2). Next: the full gate (E-IB-13), push, PR marked
-  READY FOR OPERATOR REVIEW, CI on the exact head. Do not merge.
-
-## Earlier checkpoint
-
-- E-IB-0 captured on the base (two of four town runs used). Base binary: target/il-b/base-mineworld.
-- IB-C1 … IB-C8 committed and pushed (head 81dba89): specs; authoring context/classes/attachments;
-  worldpack framework keys/attachments/policy; presence Offer::refused; sdk interactions (IB-6 PASS,
-  M-IB6); test-tuning schema proofs (M-IB5a/b/c, M-IB10); cli biography + `mineworld interactions`.
-- Deviations D-IB-1 … D-IB-11 recorded in §12.14. No material stop so far.
-- The machine is heavily loaded by other sessions (load 100–250): IB-14's walls will need a quiet
-  window, else INCONCLUSIVE per §12.5.
+- PR #102 approved by the primary session (its own mutation — `permits` always allowing — was caught by
+  name by `a_forbidden_pair_is_refused_at_dispatch_and_shown_unavailable_for_that_reason` and
+  `a_forbidding_default_admits_only_what_a_rule_permits`; D-IB-12 and D-IB-13 accepted). The primary
+  session merges, with a merge commit; this session does not.
+- All IB-1 … IB-15 PASS (§12.13 E-IB-0 … E-IB-15). Town runs: 5 (4 budgeted + the fifth, authorized:
+  market-town 300 days = TW-a's baseline 24a95d2a…d270). F-IB-16 is owned by S13's 13w (ruling).
+- Code head of the gate (E-IB-14): 196cbc3; CI green on 9862663 (pull_request run 37981060252).
+- This commit merges origin/main bc4f8e7 (#98 S10 P3 Python SDK, #104 S11-D admin, #106, #107, #108
+  docs): one DECISIONS.md conflict (ARC-63 … DEP-28 against P3's ARC-56 … block), both kept; no Rust
+  simulation path changed on main (sdk/python, server/, tools/cli/src/{main,serve}.rs only), so the
+  byte-identity evidence stands. Checked after the merge: fmt; clippy -D warnings for cli and server;
+  cli --test interactions 4, --test configure 3; doc checks 192 / 82 distinct. CI on the new head is
+  reported to the primary session.
 
 ## Next actions
 
-- IB-C9 conversation's `gap` section (VERSION 2); IB-4 in worldpack/tests/interaction_sections.rs with
-  M-IB4a/b; IB-C10 group-activity `invitation_lifetime` + Invitation.until + rule controller; IB-11's
-  configured half in tools/cli/tests/interactions.rs; IB-C11 runs (IB-1 two town runs left; IB-2, IB-3,
-  IB-8, IB-14, M-IB1a/b, M-IB2, M-IB3, M-IB8), the gate, merge origin/main, PR.
+- None for this session beyond reporting the new head's CI. After merge: the primary session owns the
+  step and overall updates (§12.12's POST-MERGE owner).

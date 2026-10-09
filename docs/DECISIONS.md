@@ -3938,6 +3938,66 @@ it is chattier than a person (QS11-4), which is cognition's to tune (S10), not t
 
 ---
 
+## ARC-44 — The admin surface is HTTP behind a bearer token, mounted only when configured, and changes no world state
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-D · **Approved by** the primary
+session at S11-D's design freeze (step-12 §18, QS11D-1 … QS11D-8; QS11D-3 by the operator) · **Relates
+to** `ARC-40`, `ARC-41`, `DEP-14`, `INV-9`, [`NETWORKING.md`](NETWORKING.md) §§3, 5, 9 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.9, 7.6, 18;
+[`step-19-time-weather.md`](../.structured-coding/plans/mvp0/step-19-time-weather.md) §§7.2–7.4, 15.3 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.9, 11
+
+**Problem.** An operator could see a hosted world only through `/status`: not who is connected, not who
+drives which seat, and not how to remove a misbehaving player or pause the town. S19 needs a host-only
+pause, and a `clock` announcement so clients re-anchor their time display. None of this may give a
+client a new way to change the world, and none of it may make the invite a host credential.
+
+**Choice.**
+- **HTTP on the control plane, never a socket frame.** `server/src/admin.rs` serves `GET
+  /admin/sessions`, `GET /admin/seats`, `POST /admin/sessions/{session}/kick`, `POST
+  /admin/seats/{seat}/release`, `GET /admin/clock` and `POST /admin/clock` (`{ "paused": bool }`), each
+  body typed and denying unknown fields. The client vocabulary stays `join`, `submit`, `leave` (`INV-9`):
+  a socket frame `pause`, `clock`, `kick` or `release` is `unknown_frame`.
+- **Mounted only when configured.** With `--admin-token` / `MINEWORLD_ADMIN_TOKEN` the routes exist;
+  without it every `/admin` path is `404`. One bearer token, compared in constant time with `DEP-14`'s
+  `subtle`; every failure answers `401` no sooner than 500 ms after the request, in that request's task.
+  The token follows the invite's rules, is never printed, is in no save, frame or `/status`, and must
+  differ from the invite.
+- **No world state.** Kick, release, pause and resume are host state (`ARC-40`): never journaled, no fact,
+  no revision. A kick or release returns the seat to its default with no hold, and the displaced
+  connection is told `closing { kicked }`. **Pause is host pacing**: the host clock is a segment that
+  stops where it stands and continues from there on resume (monotonic and jump-free); while paused the
+  world is not advanced, hosted controllers are not consulted and every `submit` is refused `paused`
+  before an `ActionId` is allocated; observers stay connected. This is S19's clarification of I-4: a
+  route may change the pacing of the clock, never its value — **no route and no field names an
+  instant**.
+- **Telling clients.** `WorldSummary.paused`, and a `clock { at, time_scale, paused }` frame after
+  `welcome` and on every change, carried by a `tokio::sync::watch` channel the world thread writes —
+  newest wins, never dropped, never waited on.
+- **The live scale change is TW-c's.** `POST /admin/clock` carrying `time_scale` answers `409
+  time_scale_fixed` until TW-c lands it with the hosted-cadence rescheduling and the host journal it
+  needs. S19's record of pause and scale as host commands (its placeholder ARC-69) remains TW-c's.
+
+**Options considered.** (a) HTTP routes on the existing axum router — chosen: the control plane
+`NETWORKING.md` §3 names, testable with any HTTP client, no new dependency. (b) Admin frames on the
+WebSocket — rejected: it widens the client vocabulary and puts host commands one field away from player
+commands. (c) A separate gRPC admin service (`tonic`) — rejected: a second protocol stack and listener for
+six routes. (d) `axum-extra`'s `TypedHeader` for the bearer header — rejected: two crates to read one
+header, which is about fifteen lines with `HeaderMap`.
+
+**Limitations accepted (MVP-0).**
+- **One admin token, one level of host trust.** Whoever holds it is the host (the operator, or a
+  single-player launcher that generated one for its own client).
+- **No ban list** (QS11D-3, operator): a kicked player may rejoin at once with the invite, because there
+  is no per-player identity. To remove someone for good, rotate the invite (restart with a new
+  `--invite`).
+- **A pause is not persisted** until TW-c's host journal: a server restarted while paused runs. Holds are
+  wall time and still end during a pause.
+- **Unbounded parallel wrong-token requests** each wait 500 ms but are not counted; rate limiting is the
+  adopt route for public hosting (`DEP-14`).
+
+---
+
 ## ARC-53 — A pack's identity is stated once, where the pack already states who it is
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-a's design freeze (step-16 §14.0;
@@ -4493,6 +4553,26 @@ meaning. And no claim about enforcement is stronger than the repository's settin
 - The canonical evidence arrives when CI finishes, not when the session stops typing.
 - Until protection is enabled, a merge without green checks is prevented by discipline only.
 
+**Note, 2026-10-08 (S10 PR P3, `pr-s10-p3-python-sdk.md` C5): the Python layers and the first jobs
+outside the container.**
+- **Layers.** `ci_layer.py` gains `python` (the Python static checks, `cargo build -p mineworld-cli`,
+  `pytest` including the real-server tests, the scratch check) and `python-smoke` (the static checks and
+  `pytest -m "not real_server"`, no Rust build). `core` is unchanged. `fast` gains the four static
+  commands (`uv sync --locked`, `ruff check`, `ruff format --check`, `pyright`), because they cost about
+  6 s against the primary session's 60 s allowance (QP3-3), measured on PR #98's first run.
+- **Job.** One new job, `python`, a matrix over `ubuntu-24.04`, `windows-2025` and `macos-15`, each
+  running the full `python` layer: on that first run Windows took 2 min 26 s longer than Ubuntu and
+  macOS 8 s less, both under the 3-minute rule that would otherwise have reduced Windows to
+  `python-smoke` and dropped macOS. `fast` and `test` keep their names and contents. `python` is not a
+  required check until the primary session makes it one.
+- **Departure from "inside the container".** The Linux leg runs in the toolchain container like every
+  other layer, with uv copied into the image pinned by digest (DEP-26). Windows and macOS cannot run that
+  container, so their legs install what they need on the runner, each pinned: the Rust toolchain from
+  `rust-toolchain.toml` (`rustup toolchain install`), uv through `astral-sh/setup-uv` pinned by commit
+  SHA at uv 0.12.5, and Python 3.12 (the `requires-python` floor) through uv. They still name a layer and
+  never a command of it. This departure exists only because the operator requires every platform
+  (2026-10-08) and a Linux container cannot show Windows or macOS behaviour.
+
 ---
 
 ## DEP-20 — Client collision: Godot's built-in Jolt Physics, never authoritative
@@ -4989,6 +5069,158 @@ refused at load, never skipped. No dependency is added; YAML is `serde-saphyr` (
 
 **Revisit trigger.** Attribute conditions becoming a requirement (QIL-11): Cedar's engine is then the
 candidate, not a language of our own.
+
+---
+
+## ARC-56 — Cognition is a client: a Python process joins a seat over the public protocol
+
+**Date** 2026-10-08 · **Status** accepted; implemented first by S10 PR P3 (`mineworld-sdk`) · **Approved
+by** the primary session at P3's design freeze (step-17 S10 freeze; P3 §11.1) · **Relates to** `ARC-41`,
+`ARC-34`, `INV-1`, `INV-9`, `INV-13`, effort decision `D-4` · **Design**
+`.structured-coding/plans/mvp0/step-17-cognition.md` §§3.2, 4.6;
+`.structured-coding/plans/mvp0/pr-s10-p3-python-sdk.md` · **Placeholder in the step design**
+`ARC-S10-a` (S10's range `ARC-56 … ARC-60`, `overall.md` ruling 6)
+
+**Problem.** Cognition is Python (`ENGINEERING_STANDARDS.md` §3) and the world is Rust, and the server
+must never block on a model (`ARCHITECTURE.md` §9). Something carries what a seat perceives out to the
+cognition process and its requests back in.
+
+**Options considered** (step-17 §4.6, with licences and maturity):
+
+```text
+(a) an LM controller in Rust, inside the server   a model stall shares the world's process; Rust's model
+                                                  clients are thinner; against §3's Python rule
+(b) Python embedded in the server (PyO3)          a cognition crash or GIL stall is a world crash or
+                                                  stall; the server crate would depend on a controller
+(c) a Python sidecar behind a Rust driver          a second protocol (gRPC or stdio JSON-RPC) beside the
+    (gRPC or stdio JSON-RPC)                       client one; one controller split over two processes
+(d) a Python process that is a client of the      chosen
+    public protocol, one WebSocket per seat
+```
+
+**Choice: (d).** A model-driven Person is a client. Its process joins a seat with the invite and a
+nickname, receives exactly what that seat is entitled to, and sends the same three frames a 2D or 3D
+client sends (`join`, `submit`, `leave`). The Python side is `sdk/python` (`mineworld-sdk`): typed
+mirrors of the revision-2 frames, held to `server/tests/frames/`, and one seat session.
+
+- **`INV-9` and `INV-1` by construction.** The server cannot tell a model from a person, and has no path
+  a model could use that a player lacks.
+- **One boundary.** The JSON client protocol is already proven from Godot; Python is its next consumer,
+  checked by the same golden frames (`ARC-41`). gRPC is declined: a second protocol beside the client
+  one, with `.proto` mirrors of every contract, for an encoding gain the protocol's rates do not need.
+- **The server never waits.** A model call happens in another process.
+
+**Consequences.** A seat's cognition has no more privilege than a player. Whatever cognition needs from
+the world (reliable perceived events, a resumable cursor, seat exclusivity) is a protocol feature every
+client gets (step-17 §11, S11-B, S11-C). A Python SDK names no System Pack's vocabulary
+(`mineworld-sdk` builds requests generically from what an observation offers); pack-specific request
+builders live with the controller that uses them (P6).
+
+**Revisit** if a measured latency or bandwidth need cannot be met by the JSON protocol — the same
+trigger as `ARC-41`'s encoding choice.
+
+---
+
+## DEP-24 — Pydantic for the Python wire models
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 (`pydantic>=2.13,<3`; locked 2.14.0) · **Approved
+by** the primary session at P3's freeze (QP3-7) · **Licence** MIT · **Relates to** `ARC-56`, `ARC-41`
+· **Design** step-17 §4.2, §4.7 ("Wire models"); P3 D-P3-3, D-P3-7 · **Placeholder** `DEP-S10-b`
+
+**Problem.** The Python SDK holds every revision-2 frame as a typed value, decodes what the server
+sends strictly (unknown fields refused, ids only as decimal strings, integers never floats, closed
+enumerations, the contract's cross-field rules), and re-encodes to exactly what the Rust types write.
+Later S10 PRs need JSON Schema generation for structured model output from the same library.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12):
+
+```text
+(a) Pydantic 2 (MIT; the ecosystem standard; pyright understands its models)
+(b) msgspec (BSD-3-Clause; faster)
+(c) dataclasses plus our own validation
+```
+
+**Choice: (a).** Strict models with discriminated unions; validation is local and deterministic.
+- **(b) declined:** speed is not a constraint at 10 Hz per seat, and it would be a second schema library
+  once P6 needs Pydantic's JSON Schema for structured output.
+- **(c) declined:** re-implementing strict decoding, discriminated unions and schema generation is
+  exactly the wheel `REUSE_POLICY.md` §12 forbids rebuilding.
+
+**Isolating interface.** `mineworld_sdk.wire`: callers name the SDK's model types and `codec.encode` /
+`codec.decode`; how a model validates is not part of the SDK's interface.
+
+**Revisit** if decoding cost is measured to matter, or Pydantic 3 changes the model API.
+
+---
+
+## DEP-25 — `websockets` for the Python client's WebSocket
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 (`websockets>=17,<18`; locked 17.2) · **Approved
+by** the primary session at P3's freeze · **Licence** BSD-3-Clause · **Relates to** `ARC-56` · **Design**
+step-17 §4.6, §4.7 ("WebSocket client"); P3 R-P3-6 · **Placeholder** `DEP-S10-c`
+
+**Problem.** One asyncio WebSocket connection per seat, text frames only, to a local or remote server.
+
+**Options considered:**
+
+```text
+(a) websockets (BSD-3-Clause; asyncio-native; maintained; requires Python >= 3.10)
+(b) aiohttp (a whole HTTP client and server framework)
+(c) httpx-ws (not verified)
+(d) our own client over asyncio streams (RFC 6455 framing, masking, close handshake)
+```
+
+**Choice: (a)**, its `websockets.asyncio.client` implementation only, pinned to one major version
+because the library has replaced its asyncio API before (R-P3-6).
+- **(b) declined:** a framework for one socket.
+- **(c) declined:** maturity not verified.
+- **(d) declined:** commodity infrastructure (`REUSE_POLICY.md` §12).
+
+**Isolating interface.** `mineworld_sdk.session.SeatSession` is the only module that imports
+`websockets`; nothing else in the SDK, and no caller, names a `websockets` type.
+
+**Revisit** at the next major version, or if a transport other than WebSocket is added.
+
+---
+
+## DEP-26 — The Python toolchain: uv, ruff, pyright, pytest and pytest-socket
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 · **Approved by** the primary session at P3's
+freeze (QP3-3, QP3-4, QP3-6) and the operator's platform requirement of 2026-10-08 · **Relates to**
+`DEP-17`, `DEP-18`, `ARC-48` · **Design** step-17 §4.7; P3 D-P3-4, D-P3-10, D-P3-11, R-P3-1, R-P3-2,
+R-P3-9, R-P3-10 · **Placeholder** `DEP-S10-e`
+
+**Problem.** Python enters a Rust repository. Its environments must be reproducible from one lock on
+Linux, macOS and Windows; its code must be linted and type-checked strictly from the first module; its
+suite must run with no network but localhost (`I-11`); and CI must run all of it without slowing the
+required Rust checks.
+
+**Choices, each with its alternatives:**
+
+| Piece | Adopted (licence; version locked at P3) | Declined, and why |
+| --- | --- | --- |
+| Environments, locking, running | **uv** (MIT OR Apache-2.0, verified on PyPI 2026-10-08; uv 0.12) with a **virtual workspace root** (`pyproject.toml` with only `[tool.uv.workspace]`) and one universal `uv.lock`; its build backend `uv_build` for the SDK package | pip + venv + pip-tools: two tools and no workspace; Poetry: heavier, slower, no universal lock across members. A lock per package: two resolutions of shared dependencies once P6 adds a member (QP3-4) |
+| Lint and format | **ruff** (MIT; 0.16) | flake8 + isort + black: three tools doing what one does |
+| Types | **pyright** (MIT; 1.1.414) from PyPI with its **`nodejs` extra**, which brings Node.js as a locked wheel (`nodejs-wheel-binaries`, MIT) for every platform | mypy: weaker inference on Pydantic and asyncio code, and the step's design names pyright; basedpyright: equivalent, kept as R-P3-1's fallback; Node.js in the CI image: a second toolchain to pin |
+| Tests | **pytest** (MIT; 9.1) | unittest: no fixtures or markers to run the real server once per test and deselect it by name |
+| Network guard | **pytest-socket** (MIT; 0.8.1), `--allow-hosts=127.0.0.1,::1` on every platform | our own socket patching in `conftest.py`: re-implementing a small, purpose-built library (QP3-6) |
+| CI, non-Linux legs | **`astral-sh/setup-uv`**, pinned by commit SHA in `ci.yml` (recorded with the job) | installing uv by a shell script fetched at run time: not pinned |
+
+**Verified at P3 (C1), not assumed:**
+- uv accepts a virtual root, and `uv sync --locked` builds the workspace from it.
+- `uv.lock` holds `win_amd64`, `macosx_*_arm64` and `manylinux*_x86_64` wheels for every compiled
+  dependency (`pydantic-core`, `websockets`, `nodejs-wheel-binaries`).
+- The pyright wrapper prefers a `node` already on `PATH` and, unless told otherwise, asks PyPI whether it
+  is the newest release on every run. CI therefore runs it with `PYRIGHT_PYTHON_GLOBAL_NODE=0` (the locked
+  Node wheel, not whatever Node the runner has) and `PYRIGHT_PYTHON_IGNORE_WARNINGS=1` (no version query).
+- pytest-socket blocks `connect` to any host but the allowed ones; with `--allow-hosts` given it ignores
+  `--disable-socket`, so asyncio's self-pipe works on every platform with the same flags.
+
+**Isolating interface.** The commands live in `.structured-coding/standards.md` and in
+`scripts/ci_layer.py`; every one runs `uv run --locked`, so the lock is the whole resolution.
+
+**Revisit** if uv's licence changes, if pyright's wrapper stops shipping its JavaScript, or when a
+second workspace member needs a different Python floor.
 
 ---
 

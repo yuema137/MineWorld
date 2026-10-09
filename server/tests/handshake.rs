@@ -82,11 +82,14 @@ impl Client {
         serde_json::from_str(&text).expect("a server frame")
     }
 
-    /// The next frame that is not an observation.
+    /// The next frame that is not part of the stream (an observation or a clock).
     async fn answer(&mut self) -> ServerFrame {
         loop {
             let frame = self.frame().await;
-            if !matches!(frame, ServerFrame::Observation { .. }) {
+            if !matches!(
+                frame,
+                ServerFrame::Observation { .. } | ServerFrame::Clock { .. }
+            ) {
                 return frame;
             }
         }

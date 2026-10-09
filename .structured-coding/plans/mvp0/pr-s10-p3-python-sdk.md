@@ -314,11 +314,12 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
 - **Goal.** Record the primary session's freeze, and fill the execution contract (§10) with its
   sources.
 - **Scope.** This document, and a new `handoff-s10-p3.md`. No code.
-- [ ] Implementation: the `DESIGN FROZEN` header with the operator or primary-session reference; the
-  contract's endpoint authority lines with sources; the handoff initialized.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every endpoint line has a source, and none was narrowed or widened without one
-  (working rules, contract block).
+- [x] Implementation: the `DESIGN FROZEN` header with the operator or primary-session reference; the
+  contract's endpoint authority lines with sources; the handoff initialized. (§12.1)
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  (E-P3-0)
+- [x] Review: every endpoint line has a source, and none was narrowed or widened without one
+  (working rules, contract block). (§12.1)
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specs and toolchain before code
@@ -348,9 +349,9 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     - Protobuf and gRPC are declined until an encoding need is measured (`ARC-41`);
   - the §13 table row "Contracts" updated to match.
 - **Non-goals.** No model and no session code. No CI change (C5).
-- [ ] Implementation: the files above. Verify and record the five "not verified in planning" items
-  of §3; each failure is recorded with its fallback.
-- [ ] Validation:
+- [x] Implementation: the files above. Verify and record the five "not verified in planning" items
+  of §3; each failure is recorded with its fallback. (§12.1b)
+- [x] Validation (E-P3-1):
   - `uv lock` then `uv sync --locked` succeed;
   - `uv run --locked ruff check sdk/python`, `ruff format --check sdk/python` and `pyright sdk/python`
     report zero findings (AP-10 baseline);
@@ -361,7 +362,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - D-P3-11 / R-P3-9: `uv.lock` holds wheels for `win_amd64`, `macosx_*_arm64` and Linux for every
     package that ships wheels. This is read from the lock, and `pyright[nodejs]`'s Node wheel is
     checked for each of the three.
-- [ ] Review:
+- [x] Review (§12.1b):
   - each DECISIONS entry states what it adopts, the alternatives from step-17 §4 with their
     verdicts, and a re-evaluation trigger (`REUSE_POLICY.md` §§11–12);
   - the §13.1 edit contradicts neither `ARC-41` nor D-4's direction;
@@ -378,7 +379,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `tests/test_golden_frames.py`.
   - If S11-B has merged at the base, its fields too (D-P3-5).
 - **Non-goals.** Event envelopes: empty-only (D-P3-6). `delta`. `perceived`.
-- [ ] Implementation:
+- [x] Implementation (§12.1c):
   - read every contract file in §3 for its serde attributes;
   - id `NewType`s: decimal-string validation for ids; the contract's key rule for `EntityKey`;
     32-character lowercase hexadecimal for `WorldInstanceId`; the length and printable rule for
@@ -388,7 +389,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - frame unions, discriminated on `t`;
   - `codec.encode` and `codec.decode` with per-field omission (R-P3-4);
   - `UnsupportedFrame` for non-empty `events`.
-- [ ] Validation:
+- [x] Validation (E-P3-2; M-1 … M-6; M-3's owner moved to AP-2, §12.4):
   - AP-1 (the eight files and completeness), with the three mutations (a), (b) and (c) run and seen
     red, then reverted;
   - AP-3, with its mutation;
@@ -396,7 +397,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     agreement. They are cross-field rules, not library behaviour;
   - the `UnsupportedFrame` guard;
   - ruff and pyright clean.
-- [ ] Review:
+- [x] Review (§12.1c):
   - compare every model field with its Rust struct line by line, and list in the ledger any field
     whose optionality differs from serde's;
   - the landing table: no field from an unlanded PR is sent;
@@ -410,7 +411,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `session.py`, `offers.py`;
   - `tests/test_session_state.py`;
   - `tests/conftest.py` (the network guard only).
-- [ ] Implementation:
+- [x] Implementation (§12.1d; the guard as DV-P3-2):
   - `SeatSession` as specified in §4.3: the handshake, the reader task, newest-wins `observation()`
     and `changed()`, token allocation, `submit`, `leave`, closing;
   - `Invite`, redacted (D-P3-9);
@@ -419,13 +420,13 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     `--disable-socket --allow-unix-socket` only where asyncio's self-pipe is a Unix socket. It is
     configured in `conftest.py` by platform, so no test can forget it (D-P3-11 (b));
   - the `real_server` marker registered in `pyproject.toml` (D-P3-10).
-- [ ] Validation:
+- [x] Validation (E-P3-3; M-7, M-8):
   - AP-4 with its FIFO mutation;
   - the local half of AP-6: the sent-frame count is unchanged on `NotOffered`;
   - AP-8 with its mutation;
   - the session's error paths, as units: `welcome.protocol` 3 gives `ProtocolMismatch`; a foreign
     observer gives `ForeignObserver`; an unknown result token is a protocol error.
-- [ ] Review:
+- [x] Review (§12.1d):
   - no frame other than join, submit and leave can be produced (INV-9): the encoder's input type is
     the closed union;
   - nothing in the session reads the environment or prints;
@@ -440,11 +441,11 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     127.0.0.1:0` with `MINEWORLD_INVITE` set to a test marker, reads the bound address from the
     `listening on` line, and kills the process at teardown (D-P3-10);
   - `tests/test_real_server.py`.
-- [ ] Implementation:
+- [x] Implementation (§12.1e):
   - verify that `--listen 127.0.0.1:0` reports the real port, or use the free-port fallback (§3);
   - record AP-2's market-town seat and position before the first run, chosen from the pack sources;
   - the fixture, and the tests for AP-2, AP-5, the world half of AP-6, AP-7 and AP-11.
-- [ ] Validation:
+- [x] Validation (E-P3-4; M-3 re-run, M-9 … M-12; the Windows/macOS half is C5's):
   - `cargo build -p mineworld-cli`, then `uv run --locked pytest sdk/python`, with wall time and
     counts recorded;
   - AP-5's mutation (wrong actor), AP-7's mutation (the invite in the message) and AP-11's mutation
@@ -452,7 +453,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - AP-2's coverage counts recorded;
   - the fixture's binary path and process stop follow D-P3-11 (a) and (c). They are proved on
     Windows and macOS by C5's jobs (AP-12).
-- [ ] Review:
+- [x] Review (§12.1e):
   - every wait is bounded;
   - the fixture removes nothing it did not create (an in-memory world writes no scratch);
   - the test vocabulary (`talk`, `conversation-history`) stays in `tests/`, never in `src/` (D-P3-2).
@@ -500,13 +501,13 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
       `uv sync --locked`, the static checks and `pytest -m "not real_server"`, with no Rust build;
     - the macOS leg is then dropped, with the measurement recorded;
   - an `ARC-48` note recording the new layer(s), their jobs, and the non-container legs.
-- [ ] Implementation: as above. First measure, in one CI run:
+- [x] Implementation (§12.1f; measurements recorded before placement): as above. First measure, in one CI run:
   - the static checks' wall time in the `python` layer;
   - each platform leg's wall time.
 
   Then place the static checks by the 60 s rule and size the matrix by the 3-minute rule. Record
   every measurement and placement in the ledger before the decisive run.
-- [ ] Validation:
+- [x] Validation (E-P3-5 … E-P3-7; the final-head comparison in the handoff and PR body):
   - `python3 scripts/check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from`;
   - `python3 scripts/ci_layer.py --list fast`, `--list core` and `--list python` show the intended
     commands, and `core`'s list is unchanged;
@@ -517,7 +518,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - on the PR head, `fast` and `test` are green, and their wall times are compared with the base's.
     `fast` may grow by the static checks only within the 60 s rule; `test` must not grow beyond run
     noise.
-- [ ] Review: the S13 owner's rules hold: the layers are the only command list, every image is
+- [x] Review (§12.1f): the S13 owner's rules hold: the layers are the only command list, every image is
   pinned by digest, required checks keep their names, and nothing in CI can reach a model.
 
 ### C6 — Absorb S11-B (conditional on D-P3-5)
@@ -530,26 +531,27 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `ClosingReason` values `superseded`, `taken_over`;
   - the `seat_occupied` refusal;
   - a non-null `resume`, stored but not used.
-- [ ] Implementation: models and the golden test follow #83's files. The session raises
-  `JoinRefused("seat_occupied")`.
-- [ ] Validation: AP-1 over the updated files; AP-2 and AP-5 re-run on the merged base.
-- [ ] Review: no reconnect policy was added (it is P3b's).
+- [x] Implementation: models and the golden test follow #83's files. The session raises
+  `JoinRefused("seat_occupied")`. (Live: #83 merged during P3. §12.1g)
+- [x] Validation: AP-1 over the updated files; AP-2 and AP-5 re-run on the merged base. (E-P3-5, M-13)
+- [x] Review: no reconnect policy was added (it is P3b's). (§12.1g)
 - **N/A** when #83 is at the base (C2 covers it) or still unmerged at review. In the second case,
   R-S11-9 moves the obligation to #83.
 
 ### C7 — Close out
 
-- [ ] Implementation:
+- [x] Implementation (§12.1h):
   - `sdk/python/README.md`: what the SDK is, the one-screen example, and a link to `PROTOCOL.md`;
   - the ledger (§12) with all evidence;
   - the handoff closed.
-- [ ] Validation:
+- [x] Validation (E-P3-8):
   - the full Python suite and the static checks on the final head;
   - `cargo test --workspace` **NOT RUN for evidence**, because no Rust changed: AP-9 holds it, and CI
-    runs it anyway;
+    runs it anyway; (it was nevertheless run locally, because the coordinator's finish list asks for
+    the full Rust gate: E-P3-8)
   - both doc checks.
-- [ ] Review: the whole diff against §2.3's invariants; every `[x]` has its evidence; deviations
-  recorded.
+- [x] Review (§12.1h): the whole diff against §2.3's invariants; every `[x]` has its evidence;
+  deviations recorded.
 - **Stop:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`.
 
 ---
@@ -655,9 +657,413 @@ gathered in step-17 §15.6 so that the operator sees them in one place.
 ## 12. Ledger (live during implementation)
 
 ```text
-Status:            DESIGN FROZEN 2026-10-08 (primary session); awaiting a fresh implementation
-                   session in /Users/yuema137/mineworld-worktrees/impl-s10-p3
-Implementation:    not started
-Evidence:          none yet
-Deviations:        none yet
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE (PR #98). Implementation context CLOSED /
+                   AWAITING OPERATOR ACTION. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p3,
+                   branch mvp0/pr-s10-p3-sdk
+Implementation
+base:              origin/main @ 827daf9 (#86, the freeze); #83 (S11-B) was not in it and merged during
+                   P3, so C6 was live. origin/main merged at cd85d8d (with #83) and b3895f7 (a30755e)
+Final heads:       the PR head and its CI run are recorded in the handoff and the PR body (a commit
+                   cannot carry its own run)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session's evidence,
+                   deviations and findings are here (§12.1h)
+Handoff:           handoff-s10-p3.md
 ```
+
+### 12.1 C0 — freeze and contract
+
+- [x] Implementation: the `DESIGN FROZEN` header and §10's contract were committed with the freeze (#86);
+  every endpoint line there names its source (the primary session's freeze message). This session
+  records the base above and initializes [`handoff-s10-p3.md`](handoff-s10-p3.md).
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`,
+  both exit 0 (E-P3-0).
+- [x] Review: every endpoint line in §10 has a source; none was narrowed or widened. The coordinator's
+  note that `gh` is temporarily unauthenticated narrows no endpoint: a failed push is INCONCLUSIVE and
+  retried.
+
+**Anchor re-verification (working rules §3).** `git diff 9cf8f8e..827daf9` touches none of the §3
+anchors except `tools/cli/src/main.rs` (save-configuration checks for `--save`; `serve`'s printed lines
+and `app::bind` unchanged). Re-read in this session: `server/src/protocol.rs` and its three submodules,
+the eight golden frames and `server/tests/frames.rs`, `contracts/src/{observation,action,spatial,
+relation,ids,component,time,entity}.rs`, `server/src/app.rs` `bind` (prints `local_addr()`, so
+`--listen 127.0.0.1:0` reports the real port), `tools/cli/src/main.rs` `serve`,
+`tools/cli/tests/support/mod.rs`, `worlds/{social-cafe,market-town}/world.yaml` seats,
+`systems/economy/src/offer.rs`, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`,
+`.github/workflows/ci.yml`, `.github/actions/layer/action.yml`, `.structured-coding/standards.md`.
+
+### 12.1b C1 — specs and toolchain
+
+- [x] Implementation: root `pyproject.toml` (virtual workspace, pyright's strict configuration);
+  `uv.lock`; `sdk/python/{pyproject.toml,README.md,src/mineworld_sdk/__init__.py,py.typed}`;
+  `.gitignore` (`.pytest_cache/`, `.ruff_cache/`, and the `{"*` pattern rewritten as `[{]"*`, see
+  DV-P3-3); `.structured-coding/standards.md` (four Python checks, prose); `docs/DECISIONS.md` ARC-56,
+  DEP-24, DEP-25, DEP-26; `docs/ARCHITECTURE.md` §13 row "Contracts" and §13.1 (G-1).
+- [x] Validation (E-P3-1): `uv lock`, `uv sync --locked` succeed; `ruff check`, `ruff format --check`,
+  `pyright` (strict) report zero findings; the planted `def f(x): return x` gives 4 strict errors
+  (`reportMissingParameterType`, `reportUnknownParameterType` ×2, `reportUnknownVariableType`), then
+  removed; doc checks exit 0; `standards.py inspect` lists `ruff-lint`, `ruff-format`,
+  `pyright-strict`, `pytest` enabled; the lock holds `win_amd64`, `macosx_11_0_arm64` and
+  `manylinux2014_x86_64` wheels for `pydantic-core`, `websockets`, `nodejs-wheel-binaries`.
+- [x] Review: each DECISIONS entry states what it adopts, the step-17 §4 alternatives with verdicts,
+  and a revisit trigger; the §13.1 edit keeps D-4's direction (Rust types are the source) and agrees
+  with ARC-41 (JSON stays; Protobuf declined until measured); no provider concept anywhere (I-10:
+  `grep -ri 'openai\|ollama\|anthropic' sdk/python pyproject.toml` empty).
+
+**§3's five "not verified in planning" items, verified:**
+
+```text
+virtual uv root          PASS  pyproject.toml with only [tool.uv.workspace] (+ [tool.pyright]); uv 0.12.5
+                               locks and syncs it
+uv licence               PASS  PyPI license_expression "MIT OR Apache-2.0" (pypi.org/pypi/uv/json,
+                               read 2026-10-08)
+pyright without Node     PASS  pyright[nodejs] → nodejs-wheel-binaries 24.19.0; with
+                               PYRIGHT_PYTHON_GLOBAL_NODE=0 its debug log reads "Using nodejs_wheel
+                               package". FINDING: by default the wrapper prefers a PATH node and queries
+                               PyPI for its newest version on every run (pyright/_utils.py,
+                               node.py) — CI sets both variables off (DEP-26)
+pytest-socket + asyncio  PASS, with a correction (DV-P3-2): with --allow-hosts given, pytest-socket
+                               ignores --disable-socket (pytest_socket/__init__.py,
+                               pytest_runtest_setup: "socket_disabled and not hosts"), so the guard is
+                               connect-only; asyncio.run works and 192.0.2.1 raises
+                               SocketConnectBlockedError, with one flag set on every platform
+Python versions          PASS  requires-python >=3.12; local CPython 3.14; the image's Debian trixie
+                               python3 is 3.13 (checked again by the CI job, C5)
+```
+
+### 12.1c C2 — wire models and codec
+
+- [x] Implementation (commit `73c2f74`): `src/mineworld_sdk/errors.py` (`MineWorldError`,
+  `MalformedFrame`, `UnsupportedFrame` — a small module of its own so every later module shares one
+  error base, bounded); `wire/ids.py` (14 `NewType`s, validated `*Field` aliases: canonical decimal
+  ≤ u64 for opaque ids, `contracts/src/ids.rs`'s identifier rule, 32 lowercase hex for the instance,
+  1–64 UTF-8 bytes and no `Cc` character for a token; `JsonValue` as a PEP 695 recursive alias);
+  `wire/contract.py` (the contract shapes, `strict`/`frozen`/`extra="forbid"`, the affordance and
+  request agreement validators, `Observation.events: tuple[()]` with the `UnsupportedFrame` guard);
+  `wire/frames.py` (`Join`/`Submit`/`Leave`, `Welcome`/`ObservationFrame`/`Result`/`Refused`/`Closing`,
+  `t`-discriminated unions, `Invite` — placed beside `Join`, its only reader, and re-exported by the
+  session in C3); `wire/codec.py` (`encode`, `decode`, `to_json`); `tests/test_golden_frames.py`.
+  S11-B is not at the base, so only S11-A's fields are modelled (C6 conditional).
+- [x] Validation (E-P3-2): 14 passed. Mutations, each run and reverted (M-1 … M-6 in §12.4).
+- [x] Review:
+  - **Field-by-field against the Rust structs.** Every field name and JSON shape matches
+    (`PlaceRequirement` and `Rejection` externally tagged; `ActionResult` `{"accepted":{"events":…}}` /
+    `{"rejected":…}` / `"unavailable"`; `Relation.from` by alias). `TookOver`, `ClosingReason` and
+    `RefusalCode` mirror the Rust enums **as they are on main**, which already hold `hosted`, `held`,
+    `kicked`, `superseded`, `server_stopping` and `seat_occupied`; C6 therefore adds only #83's new
+    values and fields. **Optionality that differs from serde's**, listed as C2 requires: serde reads a
+    missing `Option` field as `None`; the SDK requires these present (the server always writes them, so
+    the stricter decode loses nothing and the round trip is exact): `Orientation.pitch`,
+    `SpatialRequirement.within_range`, `PerceivedEntity.location`, `Observation.self_location`,
+    `Affordance.target`, `Affordance.unavailable_reason`, `SystemRejectionBody.detail`,
+    `Welcome.resume`, `ObservationFrame.revision`, `WorldSummary.revision`. Fields a client also
+    constructs default to `None` and encode `null`, as serde writes them: `Location.local`,
+    `Location.facing`, `ActionRequest.target`, `ActionRequest.actor_location`, `Join.resume`. Fields
+    serde omits when `None` default to `None` and are omitted: `Refused.token`, `Refused.detail`,
+    `Closing.detail`, `Affordance.payload`. Integers carry the Rust width as bounds (`i32`, `u32`,
+    `u64`, `i64`).
+  - **Landing table.** `Join` sends exactly S11-A's fields (`protocol`, `invite`, `nickname`, `seat`,
+    `resume`); no S11-B or S11-C field can be sent.
+  - **`JsonValue` only at payload positions** (D-P3-7): `ActionRecord.payload`,
+    `ComponentRecord.payload`, `Affordance.payload`. Nowhere else; no `Any` anywhere in `src/`.
+
+### 12.1d C3 — the seat session and offers
+
+- [x] Implementation (commit `61d6332`): `session.py` — `SeatSession.connect` (websockets'
+  `asyncio.client.connect`, `compression=None`, 16 MiB frame cap) and `SeatSession.join` over a
+  `Connection` protocol (`send`/`recv`/`close`; websockets' `ClientConnection` satisfies it, pyright
+  checks that); the handshake of §4.3, including reading the `closing` that follows
+  `protocol_mismatch` and `unauthorized` before closing the socket; a reader task that calls
+  `route(frame)`; newest-wins `newest` and `changed(since)`; tokens `c1, c2, …`; `submit` → `Outcome`
+  = `Answered(action_id, result)` | `RefusedRequest(code, detail)`; `leave`; `__aenter__`/`__aexit__`
+  (leave if still open). Errors: `JoinRefused`, `ProtocolMismatch`, `ForeignObserver`,
+  `ProtocolViolation`, `SessionClosed`. `offers.py` — `attempt` (complete, available, and one of the
+  observation's own affordances) and `request` (some affordance offers that type and target as
+  available), `NotOffered`. `__init__.py` exports the public names. The guard is configured in
+  `pyproject.toml` `addopts` (DV-P3-2), so `conftest.py` is not needed until C4.
+  **Naming (bounded):** the design's `Refused(code)` outcome is `RefusedRequest`, because `Refused` is
+  already the server frame's name; the design's `observation()` is the `newest` property.
+- [x] Validation (E-P3-3): 26 passed. M-7 (AP-4 FIFO) RED; M-8 (AP-8 guard off) RED; the local half of
+  AP-6 passes (sent-frame count unchanged on `NotOffered`); the error paths (`welcome.protocol` 3,
+  foreign observer, unknown result token, a token-less refusal) each end the session as specified.
+- [x] Review:
+  - INV-9: `codec.encode` and `SeatSession._send` accept only `Join | Submit | Leave`; there is no
+    other client frame type to construct.
+  - Nothing in `src/` reads `os.environ`, prints or logs (`grep -rn 'environ\|print(\|logging'
+    sdk/python/src` matches only the three docstring lines that say so).
+  - No busy loop (`changed` waits on an `asyncio.Event`); no queue at all in the session (`newest` is
+    one slot; `_pending` holds one future per caller's own in-flight submit).
+  - INV-13: an observation of another observer is never stored or returned; it ends the session.
+
+**Finding (test execution, recorded, not reproduced).** The first run of M-7 (the whole suite, through
+a shell pipeline) did not finish within the tool's 120 s and was killed. Six later runs of the same
+mutated suite finished in 5.3–5.6 s, all RED, and the unmutated suite five times in 0.1–0.5 s. Every
+session test is bounded by `asyncio.wait_for(…, 5)`. Classified INCONCLUSIVE for that one invocation;
+watched in C4 and C5 (R-P3-5).
+
+### 12.1e C4 — the real binary (CP-P3)
+
+- [x] Implementation (commit `36b2f21`):
+  - `--listen 127.0.0.1:0` verified: `app::bind` returns `local_addr()` and `serve` prints it; the
+    fixture reads the URL from the `listening on … (ws://ADDR/ws)` line. The free-port fallback and
+    the bounded port-collision retry are therefore **N/A**: port 0 cannot collide.
+  - **AP-2's market-town seat, chosen from the sources before the test was written:** `bob`.
+    `worlds/market-town/people/bob.yaml` places him in `cafe`; `systems/economy/src/offer.rs` `buys`
+    offers one **complete** `buy` per priced kind to a living Person standing in a shop, available or
+    not. A probe connection (outside the repository) confirmed six available complete `buy`
+    affordances, an `eat` and `give`s, and a `{"specific": …}` place requirement in his first
+    observation.
+  - `tests/realserver.py`: `Server` (binary from `MINEWORLD_BIN` or `target/debug/mineworld` +
+    platform suffix; argument list, no shell; invite by `MINEWORLD_INVITE`; stdout and stderr drained
+    by threads; 30 s startup bound naming stderr; `Popen.kill` + `wait`), `Recording` (a `Connection`
+    that keeps every received text frame raw), `seated`, `first_difference` (the JSON path of a
+    round-trip difference). `tests/conftest.py`: the `mineworld` fixture — a missing binary is
+    `pytest.fail` in fixture setup, so it reports **error**. `tests/test_real_server.py`: AP-5 + AP-2
+    (social-cafe) + AP-6's world half; AP-2 (market-town); AP-7. `tests/test_fail_never_skip.py`:
+    AP-11 as a child pytest, unmarked, so it runs where no binary is built.
+  - **Placement (bounded):** AP-11 lives in its own module rather than `test_real_server.py`, because
+    that module's tests carry the `real_server` marker and AP-11 must run without a binary.
+- [x] Validation (E-P3-4): `cargo build -p mineworld-cli` (debug); the whole suite 30 passed in 9.8 s
+  (real-server tests 9.6 s of it). AP-2 coverage: visitor 1 welcome / 50 observations / 7 results (59
+  frames), alice 1 / 50 / 2 (54), bob 1 / 50 / 2 (54), plus the wrong-invite connection's `refused` and
+  `closing`; at least one entity with a component, an affordance, a non-empty `relations`, and a
+  complete affordance, all asserted. AP-5: each exchange said → accepted → heard → answered →
+  disclosed in 1 ms (the server pushes an observation when the world changes; 10 s bound). AP-7:
+  refused after ≥ 0.5 s; neither invite in any log record (DEBUG, every logger), exception or
+  `repr`. Mutations M-9 … M-12 and the M-3 re-run, all RED (§12.4).
+- [x] Review:
+  - every wait is bounded: `until` 20 s, each scenario 120 s, the join 10 s, server start 30 s, the
+    child pytest 120 s;
+  - the fixture creates no file (both worlds run in memory) and removes nothing; it kills only the
+    processes it started;
+  - `talk`, `move`, `utterance`, `conversation-history` appear only under `tests/`
+    (`grep` over `src/` is empty) (D-P3-2);
+  - the AP-2 comparison is value-equality of parsed JSON with a type check at every leaf, so `1` and
+    `1.0` or `true` and `1` would differ.
+
+### 12.1f C5 — CI runs the Python checks
+
+- [x] Implementation (commits `6b3434a`, `7a0ec69`):
+  - `Dockerfile` toolchain stage: `COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844…f174b1 /uv
+    /uvx /bin/` (the index digest, read with `docker buildx imagetools inspect`), `ENV
+    UV_PYTHON_DOWNLOADS=never`. uv 0.12.5 is the version the lock was made with, here and on the
+    non-Linux legs.
+  - `scripts/check_ci_pins.py`: a `COPY --from=` naming an image, not an earlier stage, needs a digest.
+  - `scripts/ci_layer.py`: layers `python` and `python-smoke`; `PYTHON_STATIC` appended to `fast`
+    (60 s rule, below); `ENVIRONMENT` gains `uv --version`; every command runs with
+    `PYRIGHT_PYTHON_GLOBAL_NODE=0`, `PYRIGHT_PYTHON_IGNORE_WARNINGS=1` (DEP-26's finding); the new
+    layers name `sys.executable` for a repository script. `core` is byte-identical in `--list`.
+  - `.github/workflows/ci.yml`: one new job `python` (matrix: `ubuntu-24.04` in the container through
+    `./.github/actions/layer`; `windows-2025` and `macos-15` with `astral-sh/setup-uv@c18668ad…`
+    (v10.2.0, `version: 0.12.5`, `python-version: 3.12`, the `requires-python` floor) and `rustup
+    toolchain install`), each calling `ci_layer.py <layer>` only. `fast`, `test`, `image` unchanged.
+  - `docs/DECISIONS.md` ARC-48 note; `.structured-coding/standards.md` prose.
+- **Measurements, PR #98's first run 37908207198 (merge of `6b3434a`), recorded before placement:**
+
+  ```text
+  static checks (python layer)  ubuntu: uv sync 3.0 + ruff 0.1 + format 0.0 + pyright 2.5 = 5.6 s
+                                windows 3.9 s; macos 2.2 s
+  python legs, wall             ubuntu 2:54   macos 2:46 (-0:08)   windows 5:20 (+2:26)
+                                (cargo build -p mineworld-cli cold: 112 s / 130 s / 267 s)
+  baseline main 37896089917     fast 1:11 (layer 19.9 s), test 14:19 (layer 800.5 s)
+  this run                      fast 1:51 (layer 25.1 s), test 17:10 (layer 943.2 s)
+  ```
+
+  **Placement.** Static checks: 5.6 s < 60 s → added to `fast` (and kept in `python` so AP-10 is judged
+  on Windows and macOS, where `fast` does not run). Matrix: Windows +2:26 and macOS −0:08 are both under
+  3 minutes → all three legs run the **full** `python` layer; no `python-smoke` leg is needed (the layer
+  exists, and is what a slower future leg would use).
+  **The `fast`/`test` difference on this run** is the one-time cost of changing the Dockerfile: the
+  toolchain image built its new layer (49–58 s instead of 26 s), and both cargo caches restored by
+  prefix because the Dockerfile is part of their key; the PR's merge commit also carried #83's Rust
+  changes, which the base run did not compile. The layer commands themselves are comparable (`fast`'s
+  cargo check+clippy 23.9 s vs 19.0 s; `cargo test` 704 s vs 642 s on a larger tree). The comparison is
+  repeated on the final head, with warm caches (§12.2 E-P3-6).
+- [x] Validation (E-P3-5 … E-P3-7):
+  - `check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from` (E-P3-5);
+  - `--list fast` = the base's seven commands + the four static ones; `--list core` byte-identical;
+    `--list python` / `python-smoke` as intended;
+  - the scratch branch `scratch/s10-p3-mutation` (guard off) is **red on every leg**, Windows included,
+    and only on AP-8 (E-P3-7); the PR run with the guard on is green on every leg (E-P3-6);
+  - AP-12: all three legs ran the **full** `python` layer, 32 tests including the real-server ones,
+    green on Linux (CPython 3.13, container), Windows (3.12) and macOS (3.12) (E-P3-6);
+  - `fast` and `test`: names and `core` unchanged; `fast`'s layer grew by the Python static checks
+    only (5.8 s, inside the 60 s allowance). `cargo test` time follows main's own growth (main's runs:
+    530 → 581 → 642 s as tests landed); the like-for-like comparison of `test` against main's own run
+    on the same Rust tree is recorded with the final-head CI (handoff, PR body), because a commit
+    cannot carry its own run.
+- [x] Review: the layers remain the only command list (the YAML names layers, plus runner setup on the
+  non-Linux legs, which ARC-48's note records); every image is pinned by digest and every action by
+  commit SHA; required checks keep their names; nothing in CI can reach a model (no key, no model, no
+  provider; the test network guard allows loopback only).
+
+**The measuring run also proved D-P3-5 in practice.** #83 (S11-B) merged at 06:54, before the run. All
+three legs built the binary and reached pytest; AP-1 and AP-2 failed exactly on #83's changes and named
+them: `welcome.world.time_scale` (extra field), `closing` reason `taken_over` (not in the enumeration),
+`join.take_over` (golden join differed). Classified FAIL of the SDK against the new `main`, which is C6.
+
+### 12.1g C6 — absorb S11-B (#83, merged during P3)
+
+- [x] Implementation (commit `5f6e899`, after merging `origin/main` at `cd85d8d`): `Join.take_over:
+  bool = False` (landed, so always sent); `Join.resume` and `Welcome.resume` typed `ResumeSecret` (32
+  lowercase hex, `PROTOCOL.md` §5.1) and excluded from `repr`, because the resume is a credential like
+  the invite; `WorldSummary.time_scale: u32`; `TookOver` + `connection`; `ClosingReason` +
+  `taken_over`; `SeatSession.connect`/`join` take `take_over` and pass it through; `seat_occupied` is
+  raised as `JoinRefused("seat_occupied")` by the existing refusal path, which closes the socket (the
+  server keeps the connection open after it). The unit fixture's `WORLD` gains `time_scale`, which the
+  strict model now requires.
+- [x] Validation (E-P3-5): 32 passed locally on the merged base with the rebuilt binary — AP-1 over #83's
+  files, AP-2 and AP-5 re-run (coverage unchanged: visitor 1/50/7, alice 1/50/2, bob 1/50/2), plus two new
+  tests: the occupied-seat unit, and the real server answering a second `visitor` join `seat_occupied`,
+  then `take_over: true` granting it (`took_over: "connection"`, same observer) and the first connection
+  told `closing { taken_over }`. Mutation M-13 RED.
+- [x] Review: no reconnect policy was added — `resume` is stored and never sent by the session;
+  `take_over` is the caller's explicit choice and defaults to `false`.
+
+### 12.1h C7 — close-out
+
+- [x] Implementation: `sdk/python/README.md` (one screen: what it is, an example through `offers`, the
+  link to `PROTOCOL.md`); this ledger; the handoff closed.
+- [x] Validation: E-P3-8.
+- [x] Review, the whole diff (`git diff origin/main...HEAD`, 31 files) against §2.3:
+
+  ```text
+  I-1    PASS  no file under kernel/, contracts/, persistence/, server/src/, systems/, worlds/; no *.rs
+               anywhere in the diff
+  I-2    PASS  no Cargo file changed; mineworld_sdk imports only itself, pydantic, websockets and the
+               standard library (grep of src/ imports)
+  I-7    PASS  no Rust change, so every frame, transcript and digest is unchanged; CI `test` green
+  I-10   PASS  no provider or model name, endpoint or key in sdk/python or pyproject.toml (grep)
+  I-11   PASS  the guard is in addopts for every invocation; AP-8 green on three platforms and red on
+               three when switched off (E-P3-6, E-P3-7)
+  INV-9  PASS  codec.encode / SeatSession._send accept Join | Submit | Leave only
+  INV-13 PASS  a foreign observer ends the session (unit), and every real frame's observer is the
+               session's own (AP-5, AP-2)
+  AP-9   PASS  every changed path is in AP-9's list (pyproject.toml, uv.lock, sdk/python/**, .gitignore,
+               .structured-coding/**, docs/DECISIONS.md, docs/ARCHITECTURE.md, scripts/ci_layer.py,
+               Dockerfile, scripts/check_ci_pins.py, .github/workflows/ci.yml with one new job)
+  ```
+
+**The adversarial criteria, final status:**
+
+```text
+AP-1   PASS  8 golden files (S11-A's, then #83's) + completeness; M-1, M-2, M-4, M-13 RED
+AP-2   PASS  visitor 59, alice 54, bob 54 real frames + the refused/closing pair round-trip; coverage
+             ≥ 1/50/2 each, component, affordance+requirement, relations, complete affordance; M-12 RED;
+             M-3 RED here
+AP-3   PASS  …995/…997 distinct; a number refused; M-5, M-6 RED
+AP-4   PASS  reverse-order results, refusal of the second only, closing fails the rest; M-7 RED
+AP-5   PASS  two exchanges, each disclosed in ≤ 1 ms of wall time (10 s bound); M-9 RED
+AP-6   PASS  NotOffered sends nothing (unit and real); the world answers the raw request `unavailable`
+AP-7   PASS  refused ≥ 0.5 s; no invite in logs, exceptions or reprs; M-10 RED
+AP-8   PASS  SocketConnectBlockedError < 1 s; M-8 RED locally, and RED on all three CI legs (E-P3-7)
+AP-9   PASS  above
+AP-10  PASS  ruff, format, pyright strict: zero findings locally and on all three CI legs; the planted
+             `def f(x)` gives 4 strict errors
+AP-11  PASS  child pytest with no binary: "4 errors in 0.02s" (the four real_server tests), names
+             `cargo build -p mineworld-cli`; M-11 ("3 skipped") RED
+AP-12  PASS  the full python layer (32 tests, real server included) green on ubuntu-24.04 (CPython 3.13),
+             windows-2025 (3.12), macos-15 (3.12); the AP-8 mutation red on each
+```
+
+**Findings for the primary session and other lanes (not P3 work):**
+- DEP ids: S10's range `DEP-24 … DEP-27` has one number left (DEP-27) for three placeholders
+  (`DEP-S10-a`, `-d`, `-f`) (DV-P3-1).
+- S13's 13w (frozen on main, `step-14-ci.md`) also edits `scripts/ci_layer.py` (portable `disk()`,
+  `sys.executable` for `python3` commands) and `.github/workflows/ci.yml`. P3 already runs its new
+  layers' script commands through `sys.executable`; whichever of P3 and 13w merges second reconciles
+  the two edits.
+- `session.py` is about 390 lines, past the design's expectation of 300 and under the 500-line review
+  threshold; it is one responsibility (one seat's sequence) and was not split.
+- The pytest-socket warning ("A test tried to use socket.socket.connect() …") printed once per run is
+  the AP-8 test itself.
+
+### 12.2 Evidence
+
+```text
+E-P3-0  C0  check_doc_headings.py, check_decision_ids.py: exit 0 on the C0 tree
+E-P3-1  C1  uv lock: 18 packages (pydantic 2.14.0, pydantic-core 2.50.0, websockets 17.2, pytest 9.1.1,
+            pytest-socket 0.8.1, ruff 0.16.10, pyright 1.1.414, nodejs-wheel-binaries 24.19.0);
+            ruff check "All checks passed!"; ruff format --check "2 files already formatted"; pyright
+            "0 errors"; mutation: 4 errors; doc checks: 191 sections / 73 decision ids distinct
+E-P3-2  C2  uv run --locked pytest sdk/python: 14 passed (8 golden frames, completeness, AP-3 ×2, the
+            two cross-field validators, the events guard); ruff check / format --check clean; pyright
+            strict 0 errors
+E-P3-3  C3  26 passed (golden 14 + session/offers 10 + guard 2), 0.1–0.5 s, five consecutive runs;
+            ruff check / format --check clean; pyright strict 0 errors (tests included)
+E-P3-4  C4  macOS arm64, CPython 3.14, target/debug/mineworld built at 827daf9's Rust tree:
+            uv run --locked pytest sdk/python → 30 passed in 9.76 s; -m real_server → 3 passed in 9.6 s
+            (market-town 4.8 s, social-cafe 4.3 s, wrong invite 0.5 s); coverage and timings as §12.1e
+E-P3-5  C6  merged base cd85d8d (origin/main with #83), binary rebuilt: 32 passed in 9.95 s; ruff,
+            format, pyright strict clean. check_ci_pins.py passes, and fails on a planted digest-less
+            COPY --from ("Dockerfile:24: COPY --from=ghcr.io/astral-sh/uv:0.12.5 is not pinned");
+            ci_layer --list core identical to the base's
+E-P3-6  C5  PR #98 run 37975968675 (merge of 7a0ec69 into main): fast success (1:32; layer 31.7 s, of
+            which uv sync 3.1 + ruff 0.1 + format 0.0 + pyright 2.6 s), test success (19:22; cargo test
+            835 s), python ubuntu-24.04 success (2:54 wall; layer 130.4 s: build 113.7 s, pytest 10.9 s),
+            windows-2025 success (5:27; layer 277.4 s: build 261.1 s, pytest 12.4 s), macos-15 success
+            (4:13; layer 214.5 s: build 198.9 s, pytest 12.0 s). 32 passed on each leg
+E-P3-7  C5  scratch/s10-p3-mutation (5c8f195, addopts without --allow-hosts) run 37975983158: python
+            ubuntu, windows, macos all FAILURE, each "FAILED test_network_guard.py::
+            test_a_connection_beyond_localhost_is_blocked_by_the_guard - TimeoutError: timed out",
+            31 passed; fast success (the mutation is in a test configuration only)
+E-P3-8  C7  local full gate on b3895f7 (origin/main a30755e merged; its Rust tree is identical to
+            cd85d8d's, `git diff --stat cd85d8d HEAD -- '*.rs' Cargo.* worlds` empty):
+            cargo fmt --check OK; cargo clippy --workspace --all-targets --all-features -D warnings OK;
+            cargo test --workspace OK (all suites passed, exit 0); ruff check, ruff format --check
+            (after formatting the README's code block, which ruff 0.16 also formats), pyright strict 0
+            errors; pytest 32 passed in 9.95 s; check_doc_headings, check_decision_ids, check_scratch
+            scan and left: pass
+```
+
+### 12.4 Mutations
+
+```text
+M-1  AP-1 (a)  Welcome.hold_seconds → hold_second          RED   test_golden_frame[welcome]
+M-2  AP-1 (b)  Closing.detail written null, not omitted     RED   test_golden_frame[closing]
+M-3  AP-1 (b)  Refused.token written null, not omitted      SURVIVED AP-1: refused.json carries a token
+               (as designed), so no golden file exercises the omission. Owner moved to AP-2: the real
+               server's `unauthorized` refusal has no token, and C4 round-trips it (re-run there)
+M-4  AP-1 (c)  the `leave` check removed from the table     RED   completeness names ['leave.json']
+M-5  AP-3      ids coerced through float                    RED   submit golden (…996) and AP-3
+M-6  AP-3      numbers coerced to strings (lax mode)        RED   test_an_id_written_as_a_number_is_refused
+M-7  AP-4      answers paired first-in-first-out            RED   test_answers_are_paired_by_token_not_by_order,
+               test_a_refusal_resolves_only_its_request_and_closing_fails_the_rest
+M-8  AP-8      guard off (addopts without --allow-hosts)    RED   TimeoutError after 5.0 s, not the guard's
+               SocketConnectBlockedError (macOS; the Windows/Linux legs in C5)
+M-3  re-run    Refused.token written null, against the real server   RED   "a received refused frame
+               does not round-trip at $.token" (the wrong-invite refusal has no token) — M-3 KILLED
+M-9  AP-5      Alice's echo submits with the visitor as actor        RED   "alice's reply was not
+               accepted: RefusedRequest(code='actor_not_observer', …)"
+M-10 AP-7      the offered invite put in JoinRefused's message       RED   "an invite leaked". (A first
+               variant also changed `code`, and failed earlier, on the code assertion; the reported
+               mutation changes the message only, so the scan is what turns red)
+M-11 AP-11     the fixture calls pytest.skip                         RED   child summary "3 skipped"
+M-12 AP-2      Observation.relations excluded from the encoding      RED   "does not round-trip at
+               $.observation.relations" (both real-server tests), and observation.json (AP-1)
+M-13 C6        `taken_over` removed from ClosingReason              RED   closing.json (AP-1) and
+               test_an_occupied_seat_is_refused_unless_taken_over
+```
+
+### 12.3 Deviations
+
+```text
+DV-P3-1  Decision ids mapped (bounded; ruling 6 gave S10 ARC-56…60, DEP-24…27, and the primary session
+         had not mapped the placeholders): ARC-S10-a → ARC-56; DEP-S10-b → DEP-24; DEP-S10-c → DEP-25;
+         DEP-S10-e → DEP-26. FINDING for the primary session: step-17 has six DEP placeholders (a…f)
+         and S10's range holds four; after P3 only DEP-27 is left for DEP-S10-a, -d and -f.
+DV-P3-2  D-P3-11 (b) simplified (bounded): `--allow-hosts=127.0.0.1,::1` alone, in pyproject addopts,
+         on every platform, instead of adding `--disable-socket --allow-unix-socket` on POSIX: the
+         plugin ignores --disable-socket once --allow-hosts is set (C1 evidence). The intent (only
+         loopback reachable; asyncio works on all three platforms) is unchanged; AP-8 holds it.
+DV-P3-3  `.gitignore` line `{"*` rewritten `[{]"*` (bounded; .gitignore is in AP-9's list): ruff
+         honours .gitignore and refused the whole file (E902, "unclosed alternate group"). Git matches
+         `[{]` as a literal `{`; checked by creating `{"x` and seeing `git status --ignored` list it.
+DV-P3-4  The checks are named `ruff-lint`, `ruff-format`, `pyright-strict`, `pytest` rather than
+         `ruff`/`pyright` with commands (bounded): the standards helper refuses a declared command for
+         `ruff` and `pyright` and runs its own argv from PATH, outside the locked environment
+         (references/standards.md, "Tools the skill does not ship argv for").
+DV-P3-5  [tool.pyright] lives in the root pyproject.toml, not sdk/python's (bounded): pyright reads
+         configuration from the directory it runs in, and every check runs from the root; it covers
+         every future workspace member.
+```
+
