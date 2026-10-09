@@ -441,11 +441,11 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     127.0.0.1:0` with `MINEWORLD_INVITE` set to a test marker, reads the bound address from the
     `listening on` line, and kills the process at teardown (D-P3-10);
   - `tests/test_real_server.py`.
-- [ ] Implementation:
+- [x] Implementation (§12.1e):
   - verify that `--listen 127.0.0.1:0` reports the real port, or use the free-port fallback (§3);
   - record AP-2's market-town seat and position before the first run, chosen from the pack sources;
   - the fixture, and the tests for AP-2, AP-5, the world half of AP-6, AP-7 and AP-11.
-- [ ] Validation:
+- [x] Validation (E-P3-4; M-3 re-run, M-9 … M-12; the Windows/macOS half is C5's):
   - `cargo build -p mineworld-cli`, then `uv run --locked pytest sdk/python`, with wall time and
     counts recorded;
   - AP-5's mutation (wrong actor), AP-7's mutation (the invite in the message) and AP-11's mutation
@@ -453,7 +453,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - AP-2's coverage counts recorded;
   - the fixture's binary path and process stop follow D-P3-11 (a) and (c). They are proved on
     Windows and macOS by C5's jobs (AP-12).
-- [ ] Review:
+- [x] Review (§12.1e):
   - every wait is bounded;
   - the fixture removes nothing it did not create (an in-memory world writes no scratch);
   - the test vocabulary (`talk`, `conversation-history`) stays in `tests/`, never in `src/` (D-P3-2).
@@ -794,6 +794,46 @@ mutated suite finished in 5.3–5.6 s, all RED, and the unmutated suite five tim
 session test is bounded by `asyncio.wait_for(…, 5)`. Classified INCONCLUSIVE for that one invocation;
 watched in C4 and C5 (R-P3-5).
 
+### 12.1e C4 — the real binary (CP-P3)
+
+- [x] Implementation (commit `36b2f21`):
+  - `--listen 127.0.0.1:0` verified: `app::bind` returns `local_addr()` and `serve` prints it; the
+    fixture reads the URL from the `listening on … (ws://ADDR/ws)` line. The free-port fallback and
+    the bounded port-collision retry are therefore **N/A**: port 0 cannot collide.
+  - **AP-2's market-town seat, chosen from the sources before the test was written:** `bob`.
+    `worlds/market-town/people/bob.yaml` places him in `cafe`; `systems/economy/src/offer.rs` `buys`
+    offers one **complete** `buy` per priced kind to a living Person standing in a shop, available or
+    not. A probe connection (outside the repository) confirmed six available complete `buy`
+    affordances, an `eat` and `give`s, and a `{"specific": …}` place requirement in his first
+    observation.
+  - `tests/realserver.py`: `Server` (binary from `MINEWORLD_BIN` or `target/debug/mineworld` +
+    platform suffix; argument list, no shell; invite by `MINEWORLD_INVITE`; stdout and stderr drained
+    by threads; 30 s startup bound naming stderr; `Popen.kill` + `wait`), `Recording` (a `Connection`
+    that keeps every received text frame raw), `seated`, `first_difference` (the JSON path of a
+    round-trip difference). `tests/conftest.py`: the `mineworld` fixture — a missing binary is
+    `pytest.fail` in fixture setup, so it reports **error**. `tests/test_real_server.py`: AP-5 + AP-2
+    (social-cafe) + AP-6's world half; AP-2 (market-town); AP-7. `tests/test_fail_never_skip.py`:
+    AP-11 as a child pytest, unmarked, so it runs where no binary is built.
+  - **Placement (bounded):** AP-11 lives in its own module rather than `test_real_server.py`, because
+    that module's tests carry the `real_server` marker and AP-11 must run without a binary.
+- [x] Validation (E-P3-4): `cargo build -p mineworld-cli` (debug); the whole suite 30 passed in 9.8 s
+  (real-server tests 9.6 s of it). AP-2 coverage: visitor 1 welcome / 50 observations / 7 results (59
+  frames), alice 1 / 50 / 2 (54), bob 1 / 50 / 2 (54), plus the wrong-invite connection's `refused` and
+  `closing`; at least one entity with a component, an affordance, a non-empty `relations`, and a
+  complete affordance, all asserted. AP-5: each exchange said → accepted → heard → answered →
+  disclosed in 1 ms (the server pushes an observation when the world changes; 10 s bound). AP-7:
+  refused after ≥ 0.5 s; neither invite in any log record (DEBUG, every logger), exception or
+  `repr`. Mutations M-9 … M-12 and the M-3 re-run, all RED (§12.4).
+- [x] Review:
+  - every wait is bounded: `until` 20 s, each scenario 120 s, the join 10 s, server start 30 s, the
+    child pytest 120 s;
+  - the fixture creates no file (both worlds run in memory) and removes nothing; it kills only the
+    processes it started;
+  - `talk`, `move`, `utterance`, `conversation-history` appear only under `tests/`
+    (`grep` over `src/` is empty) (D-P3-2);
+  - the AP-2 comparison is value-equality of parsed JSON with a type check at every leaf, so `1` and
+    `1.0` or `true` and `1` would differ.
+
 ### 12.2 Evidence
 
 ```text
@@ -807,6 +847,9 @@ E-P3-2  C2  uv run --locked pytest sdk/python: 14 passed (8 golden frames, compl
             strict 0 errors
 E-P3-3  C3  26 passed (golden 14 + session/offers 10 + guard 2), 0.1–0.5 s, five consecutive runs;
             ruff check / format --check clean; pyright strict 0 errors (tests included)
+E-P3-4  C4  macOS arm64, CPython 3.14, target/debug/mineworld built at 827daf9's Rust tree:
+            uv run --locked pytest sdk/python → 30 passed in 9.76 s; -m real_server → 3 passed in 9.6 s
+            (market-town 4.8 s, social-cafe 4.3 s, wrong invite 0.5 s); coverage and timings as §12.1e
 ```
 
 ### 12.4 Mutations
@@ -824,6 +867,16 @@ M-7  AP-4      answers paired first-in-first-out            RED   test_answers_a
                test_a_refusal_resolves_only_its_request_and_closing_fails_the_rest
 M-8  AP-8      guard off (addopts without --allow-hosts)    RED   TimeoutError after 5.0 s, not the guard's
                SocketConnectBlockedError (macOS; the Windows/Linux legs in C5)
+M-3  re-run    Refused.token written null, against the real server   RED   "a received refused frame
+               does not round-trip at $.token" (the wrong-invite refusal has no token) — M-3 KILLED
+M-9  AP-5      Alice's echo submits with the visitor as actor        RED   "alice's reply was not
+               accepted: RefusedRequest(code='actor_not_observer', …)"
+M-10 AP-7      the offered invite put in JoinRefused's message       RED   "an invite leaked". (A first
+               variant also changed `code`, and failed earlier, on the code assertion; the reported
+               mutation changes the message only, so the scan is what turns red)
+M-11 AP-11     the fixture calls pytest.skip                         RED   child summary "3 skipped"
+M-12 AP-2      Observation.relations excluded from the encoding      RED   "does not round-trip at
+               $.observation.relations" (both real-server tests), and observation.json (AP-1)
 ```
 
 ### 12.3 Deviations
