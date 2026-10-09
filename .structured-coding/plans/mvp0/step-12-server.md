@@ -3603,6 +3603,18 @@ E-SD4 D-C4 + D-C5 (one commit, D-SD3). runtime/control.rs (ControlCommand: Sessi
       state free, closing{kicked}, gone from /admin/sessions at once; unknown 404, non-numeric
       400; release connected → released true + closing{kicked}; repeat → released false; unknown
       seat 404), and no token → every /admin path 404.
+E-SD-M Mutations, each planted on the working tree, seen red, reverted (`git checkout`/re-edit,
+      `git diff` clean of it):
+      M-DA2a  bearer check admits any non-empty bearer → "the invite on /admin/clock … left: 200,
+              right: 401"; red.
+      M-DA2b  no sleep before 401 → "no Authorization header on /admin/clock was answered after
+              93.542µs, under 500 ms"; red.
+      M-DA8   ClockChange without deny_unknown_fields → `{"paused": true, "at": 5}` answered 200
+              (the clock paused); red. As predicted, `{"at": 999999}` alone stays 400 under the
+              mutation (no `paused`), so the second body carries the guard.
+      Probe   DA-2's literal trailing space → admitted 200 (D-SD4).
+      M-DA6c (DA-7, unit) resume_at does not re-anchor the wall instant → "a resume continues where
+              it stopped … left: WorldTime(1523)"; red.
 ```
 
 ## 18.13 Deviations and discoveries
@@ -3631,6 +3643,12 @@ D-SD2 (bounded) Existing tests edited because every welcome is now followed by a
 D-SD3 (bounded) Commit mapping: D-C4 and D-C5 land as one commit. The session registry is created
       by the router (app.rs) and handed to both sessions and admin routes, so the world-thread and
       session half cannot be exercised without the routes that read it.
+D-SD4 (bounded) DA-2's case "Bearer <T> " with a trailing space cannot be told apart by any server:
+      HTTP field values exclude leading and trailing whitespace (RFC 9110 §5.5), and hyper's parser
+      strips it before axum's HeaderMap is built. Probed, not assumed (E-SD-M): with the literal case
+      the request was admitted (200) because the bytes the server receives are exactly `Bearer <T>`.
+      The case is exercised as "Bearer <T> x" — the token followed by whitespace and more — which is
+      refused 401 after 500 ms. Not a weakening: the credential the client sent is the token itself.
 ```
 
 ## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)

@@ -270,7 +270,9 @@ async fn every_permission_failure_is_unauthorized_after_half_a_second_and_change
             "",
         ),
         (
-            "the token with a trailing space",
+            // A literal trailing space is optional whitespace that HTTP strips before any server
+            // sees it (RFC 9110 §5.5; step-12 D-SD4), so the case is the token, a space, and more.
+            "the token followed by a space and more",
             vec![format!("Authorization: Bearer {TOKEN} x")],
             "",
         ),
