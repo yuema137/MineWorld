@@ -531,10 +531,10 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `ClosingReason` values `superseded`, `taken_over`;
   - the `seat_occupied` refusal;
   - a non-null `resume`, stored but not used.
-- [ ] Implementation: models and the golden test follow #83's files. The session raises
-  `JoinRefused("seat_occupied")`.
-- [ ] Validation: AP-1 over the updated files; AP-2 and AP-5 re-run on the merged base.
-- [ ] Review: no reconnect policy was added (it is P3b's).
+- [x] Implementation: models and the golden test follow #83's files. The session raises
+  `JoinRefused("seat_occupied")`. (Live: #83 merged during P3. §12.1g)
+- [x] Validation: AP-1 over the updated files; AP-2 and AP-5 re-run on the merged base. (E-P3-5, M-13)
+- [x] Review: no reconnect policy was added (it is P3b's). (§12.1g)
 - **N/A** when #83 is at the base (C2 covers it) or still unmerged at review. In the second case,
   R-S11-9 moves the obligation to #83.
 
@@ -834,6 +834,71 @@ watched in C4 and C5 (R-P3-5).
   - the AP-2 comparison is value-equality of parsed JSON with a type check at every leaf, so `1` and
     `1.0` or `true` and `1` would differ.
 
+### 12.1f C5 — CI runs the Python checks
+
+- [x] Implementation (commits `6b3434a`, `7a0ec69`):
+  - `Dockerfile` toolchain stage: `COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844…f174b1 /uv
+    /uvx /bin/` (the index digest, read with `docker buildx imagetools inspect`), `ENV
+    UV_PYTHON_DOWNLOADS=never`. uv 0.12.5 is the version the lock was made with, here and on the
+    non-Linux legs.
+  - `scripts/check_ci_pins.py`: a `COPY --from=` naming an image, not an earlier stage, needs a digest.
+  - `scripts/ci_layer.py`: layers `python` and `python-smoke`; `PYTHON_STATIC` appended to `fast`
+    (60 s rule, below); `ENVIRONMENT` gains `uv --version`; every command runs with
+    `PYRIGHT_PYTHON_GLOBAL_NODE=0`, `PYRIGHT_PYTHON_IGNORE_WARNINGS=1` (DEP-26's finding); the new
+    layers name `sys.executable` for a repository script. `core` is byte-identical in `--list`.
+  - `.github/workflows/ci.yml`: one new job `python` (matrix: `ubuntu-24.04` in the container through
+    `./.github/actions/layer`; `windows-2025` and `macos-15` with `astral-sh/setup-uv@c18668ad…`
+    (v10.2.0, `version: 0.12.5`, `python-version: 3.12`, the `requires-python` floor) and `rustup
+    toolchain install`), each calling `ci_layer.py <layer>` only. `fast`, `test`, `image` unchanged.
+  - `docs/DECISIONS.md` ARC-48 note; `.structured-coding/standards.md` prose.
+- **Measurements, PR #98's first run 37908207198 (merge of `6b3434a`), recorded before placement:**
+
+  ```text
+  static checks (python layer)  ubuntu: uv sync 3.0 + ruff 0.1 + format 0.0 + pyright 2.5 = 5.6 s
+                                windows 3.9 s; macos 2.2 s
+  python legs, wall             ubuntu 2:54   macos 2:46 (-0:08)   windows 5:20 (+2:26)
+                                (cargo build -p mineworld-cli cold: 112 s / 130 s / 267 s)
+  baseline main 37896089917     fast 1:11 (layer 19.9 s), test 14:19 (layer 800.5 s)
+  this run                      fast 1:51 (layer 25.1 s), test 17:10 (layer 943.2 s)
+  ```
+
+  **Placement.** Static checks: 5.6 s < 60 s → added to `fast` (and kept in `python` so AP-10 is judged
+  on Windows and macOS, where `fast` does not run). Matrix: Windows +2:26 and macOS −0:08 are both under
+  3 minutes → all three legs run the **full** `python` layer; no `python-smoke` leg is needed (the layer
+  exists, and is what a slower future leg would use).
+  **The `fast`/`test` difference on this run** is the one-time cost of changing the Dockerfile: the
+  toolchain image built its new layer (49–58 s instead of 26 s), and both cargo caches restored by
+  prefix because the Dockerfile is part of their key; the PR's merge commit also carried #83's Rust
+  changes, which the base run did not compile. The layer commands themselves are comparable (`fast`'s
+  cargo check+clippy 23.9 s vs 19.0 s; `cargo test` 704 s vs 642 s on a larger tree). The comparison is
+  repeated on the final head, with warm caches (§12.2 E-P3-6).
+- [ ] Validation: see §12.2 E-P3-5 … E-P3-7 (pin-check mutation; `--list`; the scratch mutation branch;
+  final-head legs; fast/test comparison).
+- [ ] Review: pending the final head.
+
+**The measuring run also proved D-P3-5 in practice.** #83 (S11-B) merged at 06:54, before the run. All
+three legs built the binary and reached pytest; AP-1 and AP-2 failed exactly on #83's changes and named
+them: `welcome.world.time_scale` (extra field), `closing` reason `taken_over` (not in the enumeration),
+`join.take_over` (golden join differed). Classified FAIL of the SDK against the new `main`, which is C6.
+
+### 12.1g C6 — absorb S11-B (#83, merged during P3)
+
+- [x] Implementation (commit `5f6e899`, after merging `origin/main` at `cd85d8d`): `Join.take_over:
+  bool = False` (landed, so always sent); `Join.resume` and `Welcome.resume` typed `ResumeSecret` (32
+  lowercase hex, `PROTOCOL.md` §5.1) and excluded from `repr`, because the resume is a credential like
+  the invite; `WorldSummary.time_scale: u32`; `TookOver` + `connection`; `ClosingReason` +
+  `taken_over`; `SeatSession.connect`/`join` take `take_over` and pass it through; `seat_occupied` is
+  raised as `JoinRefused("seat_occupied")` by the existing refusal path, which closes the socket (the
+  server keeps the connection open after it). The unit fixture's `WORLD` gains `time_scale`, which the
+  strict model now requires.
+- [x] Validation (E-P3-5): 32 passed locally on the merged base with the rebuilt binary — AP-1 over #83's
+  files, AP-2 and AP-5 re-run (coverage unchanged: visitor 1/50/7, alice 1/50/2, bob 1/50/2), plus two new
+  tests: the occupied-seat unit, and the real server answering a second `visitor` join `seat_occupied`,
+  then `take_over: true` granting it (`took_over: "connection"`, same observer) and the first connection
+  told `closing { taken_over }`. Mutation M-13 RED.
+- [x] Review: no reconnect policy was added — `resume` is stored and never sent by the session;
+  `take_over` is the caller's explicit choice and defaults to `false`.
+
 ### 12.2 Evidence
 
 ```text
@@ -850,6 +915,10 @@ E-P3-3  C3  26 passed (golden 14 + session/offers 10 + guard 2), 0.1–0.5 s, fi
 E-P3-4  C4  macOS arm64, CPython 3.14, target/debug/mineworld built at 827daf9's Rust tree:
             uv run --locked pytest sdk/python → 30 passed in 9.76 s; -m real_server → 3 passed in 9.6 s
             (market-town 4.8 s, social-cafe 4.3 s, wrong invite 0.5 s); coverage and timings as §12.1e
+E-P3-5  C6  merged base cd85d8d (origin/main with #83), binary rebuilt: 32 passed in 9.95 s; ruff,
+            format, pyright strict clean. check_ci_pins.py passes, and fails on a planted digest-less
+            COPY --from ("Dockerfile:24: COPY --from=ghcr.io/astral-sh/uv:0.12.5 is not pinned");
+            ci_layer --list core identical to the base's
 ```
 
 ### 12.4 Mutations
@@ -877,6 +946,8 @@ M-10 AP-7      the offered invite put in JoinRefused's message       RED   "an i
 M-11 AP-11     the fixture calls pytest.skip                         RED   child summary "3 skipped"
 M-12 AP-2      Observation.relations excluded from the encoding      RED   "does not round-trip at
                $.observation.relations" (both real-server tests), and observation.json (AP-1)
+M-13 C6        `taken_over` removed from ClosingReason              RED   closing.json (AP-1) and
+               test_an_occupied_seat_is_refused_unless_taken_over
 ```
 
 ### 12.3 Deviations
