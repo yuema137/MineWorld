@@ -2202,8 +2202,55 @@ docstring stating why it exists, verdicts read from output, and non-zero exits t
 
 **Depends on:** B-C1.
 
-- [ ] Implementation.
-- [ ] Validation, local, on the laptop:
+- [x] Implementation: `scripts/ci_parity.py` (stdlib only: `subprocess`, `sqlite3`, `hashlib`, `json`,
+  `platform`, `tomllib`, `struct`). `record`, `compare`, `--self-test` as §13.4.1–§13.4.2. Bounded
+  details, each a deviation from the letter of §13.4.1, none from its meaning:
+  - **D-13b-1, key spelling.** Keys hold no space, so a line splits on its first space: `line-300.0007`,
+    `line-30s.0007`, `table.facts.rows`, `table.facts.chunk.00003`, `manifest <format> <sha>`. Indices are
+    zero-padded, so "sorted within each section" keeps line order. `[source]` gains `record-format 1`.
+  - **D-13b-2, `line-30s` kept verbatim** beside `summary-30s` (≈ 50–75 lines a world), so a save-mode
+    difference is shown as text too, not only detected.
+  - **D-13b-3, the image's `rustc`.** The runtime image holds no `rustc`. Image mode reads the release
+    from the Dockerfile's `FROM rust:<version>-` line, which built the binary and which `check_ci_pins.py`
+    holds equal to `rust-toolchain.toml`; `target` is `<uname -m>-unknown-linux-gnu`. Native mode reads
+    `rustc -vV`'s `release` and `host`. G-4 compares releases.
+  - **D-13b-4, tables enumerated, not listed.** Every table of the save is hashed (from `sqlite_master`),
+    ordered by its primary key (`PRAGMA table_info`), so a table added later enters the record with no
+    edit (I-13b-3); `journal`, `facts`, `snapshots` are required (G-1). The row encoding is §13.4.1's for
+    integers, blobs and NULL; a TEXT value is encoded as a length-prefixed UTF-8 blob and a REAL as an f64,
+    though no column of today's schema has either type.
+  - **D-13b-5, `.exe`.** `--binary target/release/mineworld` resolves to `mineworld.exe` on Windows, so
+    the `parity` layer has one command on every OS.
+  - The compare job's step summary is written by the script when `GITHUB_STEP_SUMMARY` is set (it relaxes
+    nothing; the verdict is the exit status).
+- [x] Validation, local, on the laptop (2026-10-09, release binary of `ee1ac11`, whose Rust equals main's;
+  the host was heavily loaded by other lanes, load average 77–196, so wall times are upper bounds):
+  - **Two findings while validating, fixed before commit.** (1) The self-test's "differing facts chunk"
+    case failed: a table was located only when its `rows` digest differed, so a chunk-only difference
+    would have been reported without its chunk. Now a table is reported when any of its chunks or its
+    digest differs. (2) Duplicate platform labels were numbered `#1` and then unnumbered; fixed, and the
+    difference lines use the numbered labels too.
+  - `--self-test` → 15 cases ok, "passed", 0.2 s user (well under a second). **PM-7**: G-3's Darwin
+    check inverted → exit 1, 3 cases FAIL ("equal records of the four platforms", "a same-platform
+    pair", "a Rosetta-translated Mac"); restored → passed. **PASS.**
+  - Records `laptop-a` (59.4 s: bodies-yard 31.9, market-town 15.2, social-cafe 12.2) and `laptop-b`
+    (57.8 s) of `ee1ac11` → `cmp` **byte-identical** (B13-5, laptop half). 1 474 lines. No
+    `ac8-parity-*` scratch left in the temporary directory. **PASS.**
+  - `summary-300`: social-cafe `ad49c723…c64b` (338 lines), market-town `365b50e0…1d1d` (354), both
+    E-RS0's; bodies-yard `0bf87efc…7bbb` (330), E-13b-0's. **PASS.**
+  - `compare laptop-a laptop-a` → exit 1: "G-3 no Linux x86_64 record from the container", "G-3 no
+    Windows x86_64 record (native, not emulated)", every world equal. The self-reference guard holds on
+    real data. **PASS.**
+  - **PM-0**: `SEED = 8` as a working-tree edit (reverted at once; the committed file says 7) →
+    `compare laptop-a laptop-seed8` exit 1, G-5 for bodies-yard, market-town and social-cafe, each with
+    its first differing `summary-300` line (line 0, the header naming the seed), `summary-30s` line 0
+    (e.g. social-cafe "day 1 revision 966 facts 1368" against "… 969 … 1378"), and facts chunk 0, keys
+    1 … 1000; journal and snapshots located the same way. **PASS.**
+  - Records `a` and `b` were made before the two compare-side fixes and D-13b-5; the record-writing code
+    did not change after them (the edits touch `compare` and `Native`'s Windows suffix only).
+  - PM-6 needs a record of a second commit; it is run on this commit's head (below).
+  - Optional Docker comparison (option (g)): **NOT RUN**, the Docker Desktop daemon is not running.
+- Earlier wording of the plan, kept:
   - `--self-test` passes; PM-7 (inverted G-3 → fails; restored → passes);
   - two `record --binary target/release/mineworld` runs of one head → byte-identical files (B13-5, laptop
     half);
