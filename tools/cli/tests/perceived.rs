@@ -418,3 +418,94 @@ async fn a_resumed_stream_equals_the_offline_export() {
         "facts after an observation of their revision: {late:?}"
     );
 }
+
+/// CP-B4's bound as ruled on D-SB12: the p99 tick of the world thread, in milliseconds.
+const TICK_BUDGET_MS: f64 = 50.0;
+
+/// CA-13: a resume of a long save does not stall the world. A 300-day seed-7 market-town save
+/// (`MINEWORLD_CA13_SAVE` names one already made, or it is made here — minutes), hosted with `--town`;
+/// a client joins with `perceived { since: null }`. The backfill — the save's whole log, judged off
+/// the world thread — completes without `lagged`, and the world thread's p99 tick on the graceful stop
+/// is within CP-B4's bound; the maximum is printed beside it, with the backfill's wall time and size.
+///
+/// Unix only: the shutdown statistics need a graceful stop, and the Windows graceful-stop helper is
+/// S13's (step-12 §17.14, R-S13-W1).
+#[cfg(unix)]
+#[tokio::test]
+#[ignore = "CA-13: needs a 300-day save (minutes to make); run explicitly in S11-C's close"]
+async fn a_resume_of_a_long_save_does_not_stall_the_world() {
+    let made = fresh("perceived-ca13-300");
+    let save = std::env::var("MINEWORLD_CA13_SAVE")
+        .unwrap_or_else(|_| made.to_str().expect("a printable path").to_owned());
+    if !std::path::Path::new(&save).join("world.sqlite").exists() {
+        let output = mineworld(&[
+            "run",
+            support::MARKET_PACK,
+            "--headless",
+            "--seed",
+            "7",
+            "--days",
+            "300",
+            "--save",
+            &save,
+        ]);
+        assert!(output.status.success(), "{}", stderr(&output));
+    }
+    let facts = facts_of(std::path::Path::new(&save)).len();
+
+    let (mut server, output) = Server::start_captured(
+        &[
+            "server",
+            support::MARKET_PACK,
+            "--town",
+            "--invite",
+            support::INVITE,
+            "--save",
+            &save,
+        ],
+        None,
+    )
+    .await;
+    let mut client = Client::connect(server.address).await;
+    let started = Instant::now();
+    client.send(joining("wanderer", None, Value::Null)).await;
+    let mut backfilled = 0usize;
+    loop {
+        match client.frame().await {
+            ServerFrame::Perceived { events, .. } => backfilled += events.len(),
+            ServerFrame::Observation { .. } => break,
+            ServerFrame::Welcome { .. } | ServerFrame::Clock { .. } => {}
+            other => panic!("the backfill ended in {other:?}"),
+        }
+    }
+    let backfill = started.elapsed();
+    // The world keeps running, and the client keeps reading, for a few seconds more.
+    let ends = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < ends {
+        if let ServerFrame::Closing { reason, .. } = client.frame().await {
+            panic!("the connection was closed: {reason:?}");
+        }
+    }
+    let ended = server.interrupt();
+    assert!(ended.success(), "Ctrl-C is a clean stop: {ended:?}");
+    let ticks = output.line_starting("[world] ticks ").await;
+    let field = |name: &str| -> f64 {
+        ticks
+            .split(", ")
+            .find_map(|part| part.strip_prefix(name))
+            .and_then(|rest| rest.strip_suffix(" ms"))
+            .and_then(|number| number.parse().ok())
+            .unwrap_or_else(|| panic!("{name}… ms in {ticks:?}"))
+    };
+    let (p50, p99, longest) = (field("p50 "), field("p99 "), field("longest tick "));
+    println!(
+        "CA-13: {facts} facts in the save; backfill of {backfilled} facts in {:.1} s; tick p50 {p50} \
+         ms, p99 {p99} ms, max {longest} ms ({ticks})",
+        backfill.as_secs_f64()
+    );
+    assert!(backfilled > 0, "the wanderer learned something in 300 days");
+    assert!(
+        p99 <= TICK_BUDGET_MS,
+        "the p99 tick took {p99} ms, over {TICK_BUDGET_MS} ms (max {longest} ms)"
+    );
+}

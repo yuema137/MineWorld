@@ -3381,6 +3381,36 @@ E-SC12 C-C9 (1931642 module; C-C9b evidence and docs), on the merged head d82661
       Review: no rule in the module (the applier is the protocol's table; acted_through and events
       are read, never judged); every four-argument connect_to_world call valid; the module never
       logs the resume.
+E-SC13 C-C10 on f43d73d (+ README and the CA-13 test, committed with this entry).
+      CA-14 digests (head binary copied to /tmp/s11c/mineworld-head, debug):
+        social-cafe 300 d seed 7 — 339 lines, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+          = E-SC0 = E-SB0. PASS.
+        market-town 300 d seed 7 — 358 lines, 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270.
+          ≠ E-SC0 (365b50e0…, taken on 927ab93), and = the baseline TW-a recorded on main for 4018434
+          (step-19 E-TWa-9: the calendar pack opted into market-town, merged as #94 after E-SC0; the
+          day lines differ from day 1 by exactly the calendar's facts). So the digest moved with main,
+          not with S11-C, whose diff touches neither observe nor run.rs: I-6 holds against the current
+          base. PASS (no stop). Runs used: base 2 complete + 1 market run stopped at day 178 by the
+          background limit, head 2 — the budget of four completed runs, plus that partial one.
+      CA-13 (perceived.rs a_resume_of_a_long_save_does_not_stall_the_world, #[ignore], unix): a
+        300-day seed-7 market-town save made by the head binary (374 857 facts), hosted with --town;
+        wanderer joins perceived since null: backfill of 156 622 facts in 3.5 s, no lagged; graceful
+        stop: [world] ticks 87, p50 0.2 ms, p99 12.3 ms, longest tick 12 ms — p99 ≤ 50 ms (CP-B4 as
+        ruled), max reported. PASS, once, 20 s. M-CA13 NOT RUN: CA-13's budget is one run, and in a
+        run of ~90 ticks a single stall moves the maximum, not the p99; the maximum itself (12 ms
+        while a 156 622-fact fold took 3.5 s) is the evidence that the history was not read on the
+        world thread.
+      §17.14 Windows: `rustup target list --installed` → aarch64-apple-darwin, x86_64-apple-darwin; no
+        x86_64-pc-windows-msvc, so `cargo check --target x86_64-pc-windows-msvc` is INCONCLUSIVE (not
+        run); owner S13 (R-S13-W1). Product code uses std::path, no signal/fork/proc; CA-2/CA-6 end the
+        server with Child::kill; only CA-13's interrupt is #[cfg(unix)].
+      CA-14 scope (git diff origin/main...HEAD): nothing under kernel, contracts, persistence,
+        worlds, worldpack, sdk, authoring, cognition; under systems only presence's audience.rs and
+        lib.rs; server/Cargo.toml unchanged (no pack dependency); every path in §17.6. Vocabulary
+        scans unedited and passing (E-SC2). Sizes: runtime.rs 449, session.rs 492, host.rs 499,
+        protocol.rs < 420, main.rs 499. Existing tests edited only for shapes and helpers: protocol/
+        tests.rs (join), frames.rs (join, observation, new cases), the CLI and server support helpers
+        (D-SC13), one S11-C test for the clock frame.
 ```
 
 ## 17.13 Deviations and discoveries
