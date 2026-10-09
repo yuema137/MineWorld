@@ -1626,6 +1626,68 @@ helper.**
   - **Recommendation: (2) now and (1) for players** (QB-14 `[OM]`). CI configures symlinks (13c). The
     symlinks stay.
 
+### 13.0.3 One definition of the native-runner layers, shared with S16's E-c and E-d (coordinator, 2026-10-08)
+
+**The overlap.** E-c's frozen design (`step-16-packages.md` §16.12 PD-p1, landed as Ec-C7b; PR #93,
+pending merge; E-d reuses it as PD-q4 / Ed-C4b) adds a `platforms` layer to `scripts/ci_layer.py`. A
+`platforms` job runs that layer natively on `macos-latest` and `windows-latest`, with `test`'s triggers.
+The layer is a subset of the suite:
+- `cargo build -p mineworld-cli`;
+- the tests of `mineworld-packages`, `mineworld-worldpack` and `mineworld-installed-systems`;
+- the CLI targets `packs`, `requirements` and `third_party` (and `entity_packs`).
+
+13b's `mac`, `windows` and `test-windows` jobs also run natively on macOS and Windows. Two parallel
+definitions of "run a layer on a native runner" would drift.
+
+**One definition, whichever PR lands first.**
+
+1. **The layer table stays the single place for commands** (I-S13-9). 13b adds one layer, `parity`:
+   - `cargo build --release --locked -p mineworld-cli`;
+   - `python3 scripts/ci_parity.py record --binary target/release/mineworld[.exe] --out ac8-<os>-<arch>.txt`,
+     where the default output name comes from the platform.
+
+   The native legs `mac` and `windows` run `ci_layer.py parity`. The Linux legs keep image mode, beside
+   the container. `test-windows` runs `core`. E-c's `platforms` layer stays E-c's.
+2. **One composite action for native runners: `.github/actions/native/action.yml`.** It is the
+   counterpart of 13a's `.github/actions/layer` (which is container-only). Its input is `layer`. It:
+   - lets rustup take `rust-toolchain.toml`'s channel;
+   - restores `actions/cache` for `~/.cargo/registry`, `~/.cargo/git` and `target`, keyed on `runner.os`,
+     the layer, `Cargo.lock`, `rust-toolchain.toml`;
+   - runs `python ci_layer.py <layer>` with the runner's Python (`python3` on macOS, `python` on
+     Windows; `ci_layer.py` uses `sys.executable` within, W-7);
+   - prunes `target/` before the cache saves, with `ci_layer.py --prune-cache`.
+
+   It names a layer and never a command.
+   - **If 13b lands first,** 13b creates the action and the `parity` layer. E-c's Ec-C7b and E-d's
+     Ed-C4b then add only their `platforms` layer and a job that calls this action.
+   - **If E-c or E-d lands first** with its own native job, 13b's B-C3 lifts that job's steps into this
+     action and switches every native job to it, with E-c's job included. The command lists stay
+     unchanged.
+
+   Either way there is one action and one layer table.
+3. **Runner labels are one decision, DEP-19's.** 13b pins `macos-26` and `windows-2025` (QB-2; §13.0.1),
+   not `-latest`, so that a label migration never silently changes a platform under AC-8. Recommend that
+   E-c's `platforms` job use the same pinned labels. That is a one-line change at Ec-C7b, or a note that
+   13b applies if it lands second.
+4. **`platforms` and `test-windows` are different on purpose, until 13w.**
+   - `platforms` is the subset that is green on Windows and macOS today. It runs on PRs, and S16 needs it
+     to show its packages work everywhere.
+   - `test-windows` is the whole suite, red at W-T1 until 13w.
+   - When 13w makes `test-windows` (and its `test-macos`) green, `platforms` becomes a strict subset of
+     them. 13w then proposes retiring the `platforms` job, keeping the layer only if a consumer remains.
+     QB-15 decides.
+   - Whether `platforms` blocks a merge is the ARC-48 question E-c raised to S13. Recommendation: it may
+     be made required like any green-on-`main` job, under QB-11's rule (five consecutive green `main`
+     pushes, then the operator's settings change).
+
+**Effect on the frozen design.** No acceptance criterion or invariant changes. Two details of B-C3's scope
+are added, and they are bounded:
+- the `parity` layer;
+- the `native` composite action (or the refactor into it).
+
+B13-7's file list gains `.github/actions/native/action.yml`. B13-6 holds: `core` is unchanged, `fast`
+gains only the self-test, and adding a layer does not touch either. Recorded here, and QB-15 confirms it.
+
 ## 13.0 What this design changes in the step design, and why
 
 The step design (§3.3, §7.2) was written while the repository was private, when a macOS runner cost ten
@@ -1980,7 +2042,8 @@ B13-6   I-13b-1: ci_layer.py --list core is byte-identical to main's; --list fas
         self-test line; the PR's fast and test pass on the final head with their names unchanged; test's
         wall time is recorded beside main's recent runs (information, not a criterion)
 B13-7   scope: git diff --stat main…HEAD lists only scripts/ci_parity.py, scripts/ci_image.py,
-        scripts/ci_layer.py, .github/workflows/ci.yml, .gitattributes, docs/DECISIONS.md,
+        scripts/ci_layer.py, .github/workflows/ci.yml, .github/actions/native/action.yml (§13.0.3),
+        .gitattributes, docs/DECISIONS.md,
         docs/MVP_STATUS.md, README.md (one line), .structured-coding/standards.md (prose), and this file —
         no .rs, Cargo.*, test, worlds/ or Dockerfile; after .gitattributes, `git ls-files --eol` shows no
         i/crlf file except the one marked -text, and `git status` is clean (no renormalization)
@@ -2165,7 +2228,10 @@ systems. The Windows state of the default suite becomes visible.
   - new jobs `mac`, `linux-arm`, `windows`, `ac8` and `test-windows`;
   - `test`'s `if:` excludes `-scenario`;
   - upload and download artifact actions pinned to full SHAs.
+- `.github/actions/native/action.yml`, the shared native-runner action, or the refactor of E-c's job into
+  it if E-c landed first (§13.0.3). `mac`, `windows` and `test-windows` call it.
 - `scripts/ci_layer.py`:
+  - a new layer, `parity`: the release build, then `ci_parity.py record --binary` (§13.0.3);
   - `fast` gains `["python3", "scripts/ci_parity.py", "--self-test"]`, and `core` is unchanged;
   - `disk()` is made portable (`shutil.disk_usage`, a Python size walk);
   - a layer command whose first word is `python3` runs with `sys.executable`. Windows runners have no
@@ -2326,6 +2392,7 @@ reverses an operator decision. The rest the primary session can decide.
 | **QB-12** | Who owns making the default suite pass on Windows (W-T1 and any further W-findings)? | **A new bounded PR, 13w, in the S13 lane**, designed after 13b merges, with its own freeze. It edits tests (a portable "was killed" predicate in `mineworld-test-support`), which 13b may not. W-6 goes to **S11** (its `sh -c kill`). W-9's launchers go to **S12 and S14**. |
 | **QB-13** | §13.0.2 folds R-S13-W1 and R-SET-10 in after the freeze commit, assigning everything to 13w, 13c, S11, S12 and S14. Does the freeze stand? And should `test-macos` join 13b instead of 13w? | **The freeze stands:** no 13b job, file or acceptance item changes. **`test-macos` goes in 13w** with the helper, so 13b's frozen job set and run cap stay as frozen. |
 | **QB-14 [OM]** | Windows players and symlinks: publish packaged clients (Godot exports per OS) as release artifacts? | **Yes, as the player path,** owned by S12 and S14 with a CI export job in 13c or later. Until then, document the clone flag and Developer Mode. Keep the symlinks; do not commit copies (§13.0.2). It is `[OM]` because it publishes binaries. |
+| **QB-15** | §13.0.3: one `native` composite action and one layer table, shared with E-c and E-d; 13b adds the `parity` layer; labels pinned (`macos-26`, `windows-2025`) for E-c too; `platforms` retired in favour of `test-windows` and `test-macos` once 13w makes them green. Accept? | **Accept.** One definition however the PRs are ordered. The pinned labels keep AC-8's platforms from moving silently. Retiring `platforms` removes a duplicate subset once the whole suite is green everywhere. |
 | **QB-1 [OM] — DECIDED: yes (operator, 2026-10-08)** | Adopt the live comparison on a GitHub macOS runner (§13.3 (c)), reversing QS13-3's "no macOS runner"? Confirm on the billing page that standard macOS runners are free for this public repository†. | **Yes**, with (a), the laptop at acceptance, and (d), Linux arm64 as the localizer. QS13-3's "no" rested on the 10× private-repository price, which no longer applies. If the billing page shows otherwise, take (a) + (d) only (R-B4). |
 | **QB-2** | Which macOS label: `macos-26`, `macos-15` or `macos-14`? | **`macos-26`**, pinned (not `macos-latest`). It matches the laptop's macOS 26. `macos-14` is deprecated; `macos-15` is the fallback if `macos-26` misbehaves (a bounded, recorded swap). |
 | **QB-3** | Drop `sha2`, and use the reserved `DEP-19` for the macOS runner instead (C-3)? | **Yes.** No Rust change; one hashing implementation on all sides. If the primary session prefers to keep `DEP-19` unused, ARC-49 can carry the runner decision. |
