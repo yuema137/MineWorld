@@ -1746,7 +1746,7 @@ DEP-30 with 74 ids. All as recorded.
 | # | Implementation | Deterministic validation | LLM logic review |
 | --- | --- | --- | --- |
 | C1 | [x] ARC-68 appended after DEP-30 (date, approval, design pointer, choice 1–8, alternatives, reuse table WGEN / LARS-WG / ClimGen / plain tables, defaults with sources, limitations); `systems/weather/README.md`; `src/lib.rs` = the spec header (§17.3 as a module doc); doc-only `Cargo.toml` (TWa-D1's precedent) | [x] `check_doc_headings.py`: 191 sections, none duplicated — PASS; `check_decision_ids.py`: 75 ids (74 + 1), all distinct — PASS; `cargo check -p mineworld-weather` clean; Cargo.lock gains the member only | [x] terms against CORE_CONCEPTS: `System Pack`, `Process`, `Event` (facts), `Component` used as defined; "climate" is a Process type name, "WGEN-lite" a generator name, neither an ontology term. ARC-68 names DEP-31 as TW-d's and does not restate data, CSV or fetch content |
-| C2 | [ ] | [ ] | [ ] |
+| C2 | [x] `day.rs` (`Condition` closed, kebab-case; `WeatherHour`, `DailyWeather`, `Chain`, `Origin::Rule`, `WeatherDay`); `draw.rs` (`mix` restated with the paced controller's constants and Vigna's reference cited; `permille` multiply-shift; `draw`; fixed indices 0…6, 16, 17); `rules.rs` (`Rules`/`Month`, decode-is-validate, every refusal naming its key); `generate.rs` (`day` per SD-TW-b-5, `weather_day` composing a calendar day → `WeatherDay`); `hours.rs` (`DIURNAL`, `WET_HOURS`, AMS thresholds, okta mapping, `hours`); real manifest (SD-TW-b-1) | [x] E-TWb-2: `cargo test -p mineworld-weather` lib 15 + diurnal 1 + no_float 1, all pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. Mutations M-TWb-2, -3, -6 killed (below); `git grep MUTATION -- '*.rs'` empty | [x] rounding stated (i64 division toward zero, documented in `generate.rs`; T(h) floor with range > 0, `hours.rs`); indices are distinct constants in one module, never reused; quintile = u·5/1000 ≤ 4 since u ≤ 999; the remainder goes to the first wet hour, deterministic; sources cited in code (Richardson; Parton & Logan; AMS drizzle / rain; WMO okta; Vigna); nothing reads host, scale or pause — the inputs are the rules, the seed, the day index, the month and the light events; overflow: every i64 product ≤ 10^4·10^3, every narrowing bounded by validation or `ANOMALY_LIMIT_DC` (TWb-D2) |
 | C3 | [ ] | [ ] | [ ] |
 | C4 | [ ] | [ ] | [ ] |
 | C5 | [ ] | [ ] | — |
@@ -1754,19 +1754,92 @@ DEP-30 with 74 ids. All as recorded.
 ### Evidence
 
 ```text
-(recorded as each commit completes)
+E-TWb-1  E-TWb-pre-1 re-read 2026-10-09 with WebFetch:
+         https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/access/USW00023188.csv (San Diego Lindbergh
+         Fld). Jan … Dec:
+           MLY-TMAX-NORMAL °F         66.4 66.2 67.0 68.8 69.5 71.7 75.3 77.3 77.2 74.6 70.7 66.0
+           MLY-TMIN-NORMAL °F         50.3 51.8 54.5 57.1 60.0 62.6 66.1 67.5 66.2 61.5 54.8 49.8
+           MLY-PRCP-AVGNDS-GE001HI    6.5  7.1  6.2  3.8  2.2  0.7  0.7  0.3  0.9  2.4  3.7  5.8
+           MLY-PRCP-NORMAL in         1.98 2.20 1.46 0.65 0.28 0.05 0.08 0.01 0.12 0.50 0.79 1.67
+         The first three rows equal §17.2's E-TWb-pre-1. The fourth is also used, for the amounts
+         (TWb-D4). The table they give, by §17.4's formulas (February 28 days, TWb-D8):
+           tmax_dc  191 190 194 204 208 221 241 252 251 237 215 189
+           tmin_dc  102 110 125 139 156 170 189 197 190 164 127  99
+           p_wd     147 178 140  89  50  16  16   7  21  54  86 131   (p_ww = p_wd + 300)
+E-TWb-2  C2, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- --nocapture`: 17 passed.
+         (a) mix(0,1..3) = E220A8397B1DCDAF, 6E789E6AA1B965F4, 06C45D188009454F = the reference
+             splitmix64.c's first three outputs from seed 0. PASS.
+         (b) Criterion 2, 36 524 days, seed 19, the provisional San Diego table: wet ‰ against
+             stationary ‰ — Jan 221/210, Feb 268/254, Mar 215/200, Apr 123/127, May 80/71, Jun 20/22,
+             Jul 19/22, Aug 9/10, Sep 38/30, Oct 76/77, Nov 126/122, Dec 175/187. Max |Δ| = 15 ‰
+             (Mar), bound 30 ‰. PASS.
+         (c) Criterion 3, constant table p_wd 200 / p_ww 500: 10 435 wet days in 5 213 spells, mean
+             2.00 days (bound 1.8 … 2.2). PASS.
+         (d) Same seed gives equal bytes over 365 days; seeds 19 and 20 differ. PASS.
+         (e) Over all 36 524 days: max T(h) = TMAX and min T(h) = TMIN exactly, Σ hourly precipitation =
+             PRCP exactly, wet-hour count = WET_HOURS(PRCP); 1 000+ wet days exercised. PASS.
+         (f) 20 → 2 h drizzle (10/h, boundary); 44 → 4 h rain (11/h); 912 → 12 h rain (76/h, boundary);
+             924 → heavy rain (77/h); 913 → the remainder tips only the first hour to heavy rain; thunder
+             day → thunderstorm; fog 05–09 (civil dawn 05:23), polar fog 05–09, civil dawn 07:00 →
+             07–09; polar minimum at 06:00, maximum at 15:00; San Diego minimum at 05:00. PASS.
+         (g) 18 refusals through serde-saphyr, each naming its key and "line 2 … column"; eleven months
+             refused naming `months` and 11; unknown keys `gusts`, `seasons` refused; five bound values
+             accepted; CRLF = LF; a fact copy with tmin ≥ tmax is refused on decode. PASS.
+         (h) no_float: 0 tokens in 12 source files. PASS. diurnal: DIURNAL equals the formula
+             recomputed in floating point (outside src/), every row 0 at sunrise and 1000 at 15:00.
+         Edge cases: p_ww = 1000 absorbing after the first wet day; p_wd = p_ww → 300 ± 30 ‰ marginal
+         and conditional (independent); TMIN repair exercised with tmin 190 / tmax 191, noise 200,
+         ρ 999 — tmin < tmax on every day of 100 years.
 ```
 
 ### Mutations
 
 ```text
-(recorded as observed)
+M-TWb-3  generate.rs: the wet branch uses p_wet_after_dry (the chain ignores yesterday) →
+         the_mean_wet_spell_is_the_chains FAILS: "7300 wet days in 5837 spells: mean 1.25 days … outside
+         1.8 … 2.2" (as §17.5 C2 (c) predicted, 1.25), and criterion 2 and the absorbing-chain test fail
+         too. Killed. Reverted.
+M-TWb-2  generate.rs: p_wet_after_wet on both branches → criterion 2 FAILS at January: 1 379 wet of 3 100
+         = 444 ‰ against 210 ‰. Killed. Reverted.
+M-TWb-6  generate.rs: `let _x: f64 = 0.0;` → no_float FAILS naming generate.rs. Killed. Reverted.
+         After all three: `git grep MUTATION -- '*.rs'` empty; 17 passed.
 ```
 
 ### Deviations and findings
 
 ```text
-(recorded as found)
+TWb-D1  (bounded) `rain_tenth_mm` "5 ascending integers ≥ 3" is checked as non-decreasing, each 3 … 10 000.
+        Reason: the normals-derived August quintiles are 3, 3, 6, 10, 19 (two amounts at the 0.3 mm
+        floor), and a non-decreasing table still gives a well-defined quintile lookup. The upper bound
+        keeps the amount in u16. Impact: none on the generator.
+TWb-D2  (bounded) The temperature anomaly is clamped to ±400 (40 °C), `ANOMALY_LIMIT_DC`. Reason: at the
+        stated bounds (ρ up to 999 ‰, noise up to 200) the AR(1) fixed point is ±200 000, which would
+        overflow the i16 `Chain` and the temperatures. Realistic tables stay far inside the clamp: the
+        stationary sd is about 0.72 × noise ≈ 2 °C. Impact: deterministic and stated. TMAX stays within
+        ±1 200 and TMIN within ±1 300, so both fit i16.
+TWb-D3  (bounded) `DIURNAL` is 13 rows of 24, one per sunrise hour 01 … 13, not one 24-entry curve. Reason:
+        SD-TW-b-8a's curve must be 0 at the day's sunrise hour, which varies (San Diego 05 … 06), so one
+        row cannot hold it. A sunrise outside 01 … 13 is clamped to the nearest (near polar day), and a
+        missing sunrise uses 06 as designed. The table is precomputed from the formula in its comment
+        (Parton & Logan's sine to 15:00, exponential decay b = 2.2 to the next sunrise), and
+        tests/diurnal.rs recomputes it in floating point outside src/ and holds it equal.
+TWb-D4  (bounded; realism, operator rule "realistic defaults with sources") The provisional wet-day
+        amounts are not free design values. Each month's are derived from the same normals file:
+        μ = MLY-PRCP-NORMAL × 254 / MLY-PRCP-AVGNDS-GE001HI (the mean wet-day amount, 0.1 mm), times the
+        exponential distribution's quintile midpoints −ln(1 − p) at p = 0.1, 0.3, 0.5, 0.7, 0.9
+        (0.105, 0.357, 0.693, 1.204, 2.303), rounded and floored at 3. The other provisional fields are
+        labelled design values (C4's file header): t_noise 30 (stationary sd ≈ 2.2 °C), t_ar 600 (WGEN's
+        typical lag-1 temperature persistence), wet_tmax_shift −20, and monthly fog, thunder, overcast
+        and wind values. TW-d's fit replaces them all.
+TWb-D5  (bounded) A fog hour carries 8 oktas (the sky is obscured: WMO's 9 is outside the 0 … 8 field).
+        Precedence within an hour is wet, then fog, then cloud.
+TWb-D6  (bounded) The no-float scan (C2 (h)) and the DIURNAL formula check live in systems/weather/tests/,
+        outside src/: the scan reads src/ only, and the formula check must evaluate floating point.
+TWb-D7  (bounded) `generate::day` takes the month (u8) rather than the whole date: the month is all it
+        reads. `generate::weather_day` (calendar day + chain → `WeatherDay`) is added in C2 as the pure
+        composition C3's `react` calls.
+TWb-D8  (bounded) The wet-day frequency π uses 28 days for February (§17.4 does not state it). With 28.25
+        February's p_wd would be 176 rather than 178.
 ```
 
 ---

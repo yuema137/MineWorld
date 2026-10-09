@@ -6,3 +6,26 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+
+[dependencies]
+# The configuration seam (ARC-61): `PackConfiguration`, decoded and seeded by the loader.
+mineworld-authoring = { workspace = true }
+# The date and the day's light events arrive in calendar's `day-began`, decoded with calendar's own
+# published types; weather never recomputes a date or the sun (step-19 §6.1, INV-TW-10).
+mineworld-calendar = { path = "../calendar" }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where an observer is, for disclosure, and the perception trait. Nothing else of presence is read.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests decode configuration from YAML as the loader does, refuse it through the real World Pack
+# loader (with this pack in the installed set), and restart a saved world mid-day.
+mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }
+mineworld-worldpack = { workspace = true }
+serde-saphyr = { workspace = true }

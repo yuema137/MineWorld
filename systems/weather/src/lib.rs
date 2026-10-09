@@ -39,8 +39,19 @@
 //! condition from the hourly rate (AMS Glossary drizzle and heavy-rain thresholds), thunder, fog and the
 //! cloud's oktas (WMO).
 //!
-//! **Integers only** (`INV-TW-5`): 0.1 °C, 0.1 mm, 0.1 m/s, degrees, per mille, oktas. No `f32` or `f64`
-//! appears in this crate's source, and a test scans for them.
+//! **Integers only** (`INV-TW-5`): 0.1 °C, 0.1 mm, 0.1 m/s, degrees, per mille, oktas. No floating-point
+//! type appears in this crate's source, and `tests/no_float.rs` scans for one.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+pub mod day;
+mod draw;
+#[cfg(test)]
+mod fixture;
+pub mod generate;
+pub mod hours;
+pub mod rules;
+
+pub use day::{Chain, Condition, DailyWeather, HOURS, Origin, WeatherDay, WeatherHour};
+pub use rules::{Month, Rules};
