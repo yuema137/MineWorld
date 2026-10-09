@@ -33,8 +33,9 @@ check runs through it, `uv run --locked`, so the locked tool versions are the on
 They are named `ruff-lint` and `pyright-strict` rather than `ruff` and `pyright` deliberately: for those
 two names this helper supplies its own argv and runs them from `PATH`, outside the locked environment,
 and it refuses a declared `command` for them. A new workspace member adds its directory to these
-commands. Python is never part of the `fast` or `core` layers' Rust checks: CI runs it in its own
-`python` job (`ci_layer.py` layer `python`; ARC-48's note of 2026-10-08).
+commands. In CI (ARC-48's note of 2026-10-08): the static checks also run in the `fast` layer, where
+they cost about 6 s; the tests never join `core`. The `python` job runs the static checks, builds the
+binary and runs the whole suite on Linux, Windows and macOS (`ci_layer.py` layer `python`).
 
 All command entries need one deliberate approval before anything runs them:
 
@@ -51,9 +52,13 @@ CI runs the same declared checks through one entry point, `scripts/ci_layer.py`,
 repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
 
 - the `fast` layer runs `cargo-fmt`, `doc-headings`, `decision-ids`, the container pin check
-  `scripts/check_ci_pins.py`, `scratch-scan`, `cargo-check` and `cargo-clippy`;
+  `scripts/check_ci_pins.py`, `scratch-scan`, `cargo-check`, `cargo-clippy`, then `uv sync --locked`,
+  `ruff-lint`, `ruff-format` and `pyright-strict`;
 - the `test` layer runs `cargo-test`, then `scripts/check_scratch.py left --target-dir target`, which
-  fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22).
+  fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22);
+- the `python` layer (its own job, `python`, on Linux, Windows and macOS) runs the Python static checks,
+  `cargo build -p mineworld-cli`, `pytest`, and the scratch check; `python-smoke` is the same without
+  the binary and with the `real_server` tests deselected, for a platform that cannot afford the build.
 
 `python3 scripts/ci_layer.py --list <layer>` prints a layer's commands, and the same command runs
 a layer locally. A command added to the declaration below that must also block is added to the

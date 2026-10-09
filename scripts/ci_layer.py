@@ -56,8 +56,8 @@ LAYERS: dict[str, list[list[str]]] = {
     ],
 }
 
-# The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Never part of
-# `fast` or `core`, whose jobs are required checks that must not get slower (pr-s10-p3 QP3-3). Every
+# The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
+# join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
 # rather than the literal `python3`, which Windows does not have; these layers also run outside the
 # container, on Windows and macOS.
@@ -67,6 +67,11 @@ PYTHON_STATIC: list[list[str]] = [
     ["uv", "run", "--locked", "ruff", "format", "--check", "sdk/python"],
     ["uv", "run", "--locked", "pyright", "sdk/python"],
 ]
+# The static checks are also part of `fast`: they add about 6 s to it, measured on PR #98's first run
+# (uv sync 3.0 s, ruff 0.1 s, pyright 2.5 s), well under the 60 s the ruling allows (QP3-3), so a Python
+# lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
+# also judged on Windows and macOS, where `fast` does not run (D-P3-11, AP-12).
+LAYERS["fast"] += PYTHON_STATIC
 LAYERS["python"] = [
     *PYTHON_STATIC,
     # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).

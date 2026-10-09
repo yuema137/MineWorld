@@ -4434,6 +4434,26 @@ meaning. And no claim about enforcement is stronger than the repository's settin
 - The canonical evidence arrives when CI finishes, not when the session stops typing.
 - Until protection is enabled, a merge without green checks is prevented by discipline only.
 
+**Note, 2026-10-08 (S10 PR P3, `pr-s10-p3-python-sdk.md` C5): the Python layers and the first jobs
+outside the container.**
+- **Layers.** `ci_layer.py` gains `python` (the Python static checks, `cargo build -p mineworld-cli`,
+  `pytest` including the real-server tests, the scratch check) and `python-smoke` (the static checks and
+  `pytest -m "not real_server"`, no Rust build). `core` is unchanged. `fast` gains the four static
+  commands (`uv sync --locked`, `ruff check`, `ruff format --check`, `pyright`), because they cost about
+  6 s against the primary session's 60 s allowance (QP3-3), measured on PR #98's first run.
+- **Job.** One new job, `python`, a matrix over `ubuntu-24.04`, `windows-2025` and `macos-15`, each
+  running the full `python` layer: on that first run Windows took 2 min 26 s longer than Ubuntu and
+  macOS 8 s less, both under the 3-minute rule that would otherwise have reduced Windows to
+  `python-smoke` and dropped macOS. `fast` and `test` keep their names and contents. `python` is not a
+  required check until the primary session makes it one.
+- **Departure from "inside the container".** The Linux leg runs in the toolchain container like every
+  other layer, with uv copied into the image pinned by digest (DEP-26). Windows and macOS cannot run that
+  container, so their legs install what they need on the runner, each pinned: the Rust toolchain from
+  `rust-toolchain.toml` (`rustup toolchain install`), uv through `astral-sh/setup-uv` pinned by commit
+  SHA at uv 0.12.5, and Python 3.12 (the `requires-python` floor) through uv. They still name a layer and
+  never a command of it. This departure exists only because the operator requires every platform
+  (2026-10-08) and a Linux container cannot show Windows or macOS behaviour.
+
 ---
 
 ## DEP-20 — Client collision: Godot's built-in Jolt Physics, never authoritative
