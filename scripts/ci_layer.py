@@ -15,6 +15,8 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
                                                    natively on macOS and Windows runners)
+    python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
+    python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
     python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
@@ -64,6 +66,39 @@ LAYERS: dict[str, list[list[str]]] = {
     ],
 }
 
+# The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
+# join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
+# command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
+# rather than the literal `python3`, which Windows does not have; these layers also run outside the
+# container, on Windows and macOS.
+PYTHON_STATIC: list[list[str]] = [
+    ["uv", "sync", "--locked"],
+    ["uv", "run", "--locked", "ruff", "check", "sdk/python"],
+    ["uv", "run", "--locked", "ruff", "format", "--check", "sdk/python"],
+    ["uv", "run", "--locked", "pyright", "sdk/python"],
+]
+# The static checks are also part of `fast`: they add about 6 s to it, measured on PR #98's first run
+# (uv sync 3.0 s, ruff 0.1 s, pyright 2.5 s), well under the 60 s the ruling allows (QP3-3), so a Python
+# lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
+# also judged on Windows and macOS, where `fast` does not run (D-P3-11, AP-12).
+LAYERS["fast"] += PYTHON_STATIC
+LAYERS["python"] = [
+    *PYTHON_STATIC,
+    # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
+    ["cargo", "build", "-p", "mineworld-cli"],
+    ["uv", "run", "--locked", "pytest", "sdk/python"],
+    [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+]
+# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else.
+LAYERS["python-smoke"] = [
+    *PYTHON_STATIC,
+    ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
+]
+
+# The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
+# PyPI for its newest version on every run (DEP-26).
+COMMAND_ENVIRONMENT = {"PYRIGHT_PYTHON_GLOBAL_NODE": "0", "PYRIGHT_PYTHON_IGNORE_WARNINGS": "1"}
+
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
 MEASURES_DISK = {"core"}
 
@@ -73,6 +108,7 @@ ENVIRONMENT: list[list[str]] = [
     ["cargo", "fmt", "--version"],
     ["cargo", "clippy", "--version"],
     ["git", "--version"],
+    ["uv", "--version"],
     ["git", "rev-parse", "HEAD"],
     ["git", "rev-parse", "--is-shallow-repository"],
     ["git", "config", "--get", "remote.origin.partialclonefilter"],
@@ -132,7 +168,9 @@ def run(layer: str) -> int:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(resolved(command), cwd=ROOT).returncode
+            status = subprocess.run(
+                resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}
+            ).returncode
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status = 127

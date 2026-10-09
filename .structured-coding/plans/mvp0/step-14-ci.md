@@ -2746,8 +2746,37 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
   - It also finds `tools/cli/tests/admin.rs:557 #[cfg(unix)]`, which is S11-D's SD-D13 gate. 13w's
     QW-3 already owns its removal, so it is a known W-item and not a new finding. Its owners are S11
     and 13w.
+  - Run 11 ● (dispatch 37982741312, on `0e07f42`): every leg passed and `ac8` PASSED, with 4 records
+    and 1 465 keys. P-L on `0e07f42` PASSED. `test-windows` stopped at `bodies_yard_restart`. The PR
+    run 37982719791 had `fast` and `test` green.
+- **Main moved again, and this time it conflicted.** PR #97 became `CONFLICTING`, because #98
+  (S10-P3, `7a0ec69`/`6b3434a`) changed the same CI files: a `python` matrix job on Linux, Windows and
+  macOS; `uv` in the toolchain image; `python` and `python-smoke` layers; Python static checks appended
+  to `fast`; and `COMMAND_ENVIRONMENT` in `ci_layer.py`. Main (`f867b25`) was merged, and the conflicts
+  were resolved by keeping both sides:
+  - `ci_layer.py`: one command runs with `resolved(command)` and main's environment. The usage lines
+    list both sets of layers.
+  - `standards.md`: the `fast` bullet names the self-test and the Python checks.
+  - `DECISIONS.md`: 13b's records, then main's. 80 ids, all distinct.
+  - `ci.yml`: main's `python` job, then 13b's `scenario` group.
+  - **D-13b-9.** The `python` job's scratch exclusion gains `!endsWith(github.ref, '-scenario')`
+    beside its `-image`, as `test`'s did. This PR renamed the `-image` route, so without it a
+    `scratch/*-scenario` push would also run the Python matrix. It changes no trigger of a required
+    check.
+  - **§13.0.3 is not applied to the `python` job**, recorded here as a follow-up. That job installs
+    `uv` and Python on the runner and runs `uv run --locked python scripts/ci_layer.py`, so it is not a
+    plain layer-on-a-native-runner job. Moving it onto `.github/actions/native` changes S10's job and
+    belongs to S10 or 13w, not to this merge.
+  - Checks after the merge:
+    - `ci_layer.py --list core` is identical to main's; `--list fast` is main's plus the self-test line
+      (B13-6).
+    - `check_ci_pins` passes, now including the copied uv image.
+    - The self-test passes.
+    - The `os::unix` audit finds the same nine files plus the known W-6 and SD-D13 items, and nothing
+      new.
   - This is the last merge of main before review. Protection is `strict: false`, so later movements
-    of main are recorded rather than chased. Run 11 is the final head's dispatch.
+    of main are recorded rather than chased, unless they conflict. Run 12 is the final head's dispatch,
+    and the cap is then reached.
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 

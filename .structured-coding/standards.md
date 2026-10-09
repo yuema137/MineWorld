@@ -16,12 +16,28 @@ Only the single fenced `json` block is read. Everything outside it is prose for 
 ## Current state of the checks
 
 The Cargo workspace exists (`contracts/`, `kernel/`), so the `cargo` checks below are live and
-are run on every change. No Python package exists yet.
+are run on every change.
 
-`ruff` and `pyright` are declared but disabled. Enable them in the same change that
-introduces the first Python module under `cognition/`.
+The Python checks are live since the first Python package, `sdk/python` (`mineworld-sdk`, S10 PR P3).
+The repository root is a uv workspace with one `uv.lock` (`docs/DECISIONS.md` DEP-26), and every Python
+check runs through it, `uv run --locked`, so the locked tool versions are the ones that judge:
 
-All `cargo` entries need one deliberate approval before anything runs them:
+- `ruff-lint` and `ruff-format`: `ruff check` and `ruff format --check` over `sdk/python`, with the rule
+  set in `sdk/python/pyproject.toml`;
+- `pyright-strict`: pyright in strict mode, configured in the root `pyproject.toml`, which covers every
+  workspace member;
+- `pytest`: the SDK's suite, with its network guard (only `127.0.0.1` and `::1` are reachable). Its
+  `real_server` tests need the `mineworld` binary built first (`cargo build -p mineworld-cli`), and fail
+  rather than skip without it.
+
+They are named `ruff-lint` and `pyright-strict` rather than `ruff` and `pyright` deliberately: for those
+two names this helper supplies its own argv and runs them from `PATH`, outside the locked environment,
+and it refuses a declared `command` for them. A new workspace member adds its directory to these
+commands. In CI (ARC-48's note of 2026-10-08): the static checks also run in the `fast` layer, where
+they cost about 6 s; the tests never join `core`. The `python` job runs the static checks, builds the
+binary and runs the whole suite on Linux, Windows and macOS (`ci_layer.py` layer `python`).
+
+All command entries need one deliberate approval before anything runs them:
 
 ```sh
 python3 .claude/skills/structured-coding/scripts/standards.py approve --project .
@@ -37,9 +53,13 @@ repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
 
 - the `fast` layer runs `cargo-fmt`, `doc-headings`, `decision-ids`, the container pin check
   `scripts/check_ci_pins.py`, `scratch-scan`, the AC-8 comparator's self-test
-  (`scripts/ci_parity.py --self-test`, `ARC-49`), `cargo-check` and `cargo-clippy`;
+  (`scripts/ci_parity.py --self-test`, `ARC-49`), `cargo-check`, `cargo-clippy`, then
+  `uv sync --locked`, `ruff-lint`, `ruff-format` and `pyright-strict`;
 - the `test` layer runs `cargo-test`, then `scripts/check_scratch.py left --target-dir target`, which
-  fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22).
+  fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22);
+- the `python` layer (its own job, `python`, on Linux, Windows and macOS) runs the Python static checks,
+  `cargo build -p mineworld-cli`, `pytest`, and the scratch check; `python-smoke` is the same without
+  the binary and with the `real_server` tests deselected, for a platform that cannot afford the build.
 
 `python3 scripts/ci_layer.py --list <layer>` prints a layer's commands, and the same command runs
 a layer locally. A command added to the declaration below that must also block is added to the
@@ -175,14 +195,52 @@ matching layer in `ci_layer.py`.
         "scope": "repository"
       },
       {
-        "name": "ruff",
-        "enabled": false,
-        "scope": "changed"
+        "name": "ruff-lint",
+        "command": [
+          "uv",
+          "run",
+          "--locked",
+          "ruff",
+          "check",
+          "sdk/python"
+        ],
+        "scope": "repository"
       },
       {
-        "name": "pyright",
-        "enabled": false,
-        "scope": "changed"
+        "name": "ruff-format",
+        "command": [
+          "uv",
+          "run",
+          "--locked",
+          "ruff",
+          "format",
+          "--check",
+          "sdk/python"
+        ],
+        "scope": "repository"
+      },
+      {
+        "name": "pyright-strict",
+        "command": [
+          "uv",
+          "run",
+          "--locked",
+          "pyright",
+          "sdk/python"
+        ],
+        "scope": "repository"
+      },
+      {
+        "name": "pytest",
+        "enabled": true,
+        "command": [
+          "uv",
+          "run",
+          "--locked",
+          "pytest",
+          "sdk/python"
+        ],
+        "scope": "repository"
       }
     ]
   }
