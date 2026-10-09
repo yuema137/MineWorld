@@ -36,7 +36,7 @@ use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTH
 use crate::host::{Backfill, Seated, Streamed, SubscriptionId, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, ServerFrame,
-    SessionId, backfill_frames, into_kernel_request,
+    SessionId, backfill_frames, delta, into_kernel_request,
 };
 use crate::seats::{Departure, JoinRequest};
 
@@ -344,7 +344,8 @@ async fn stream(
                             seq,
                             revision: perceived.revision,
                             acted_through: perceived.acted_through,
-                            observation: perceived.observation,
+                            // Entities in ascending id order (`PROTOCOL.md` §5.2).
+                            observation: delta::canonical(perceived.observation),
                         }
                     }
                 }

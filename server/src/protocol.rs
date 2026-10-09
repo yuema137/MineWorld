@@ -44,9 +44,11 @@
 //! protocol/summary      what a world is: its instance identity and its composition
 //! protocol/connection   what a frame says about the connection: its session, a takeover, a closing
 //! protocol/fact         a recorded fact as a client receives it (PROTOCOL.md §5.2)
+//! protocol/delta        one observation as the change from the previous one (PROTOCOL.md §5.3)
 //! ```
 
 mod connection;
+pub mod delta;
 mod fact;
 mod request;
 mod summary;

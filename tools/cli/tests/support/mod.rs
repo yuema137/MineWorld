@@ -461,17 +461,22 @@ impl Client {
 
     /// The next frame the server sends, decoded.
     pub async fn frame(&mut self) -> ServerFrame {
+        let text = self.text().await;
+        serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"))
+    }
+
+    /// The next frame the server sends, as the text it sent — for a test that counts bytes.
+    pub async fn text(&mut self) -> String {
         let message = tokio::time::timeout(PATIENCE, self.socket.next())
             .await
             .expect("a frame arrives")
             .expect("the socket is open")
             .expect("a readable frame");
-        let text = match message {
-            Message::Text(text) => text,
+        match message {
+            Message::Text(text) => text.to_string(),
             other => panic!("the protocol is JSON text: {other:?}"),
-        };
-        serde_json::from_str(&text)
-            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"))
+        }
     }
 
     /// The next frame that is not an observation.

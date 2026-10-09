@@ -2966,8 +2966,9 @@ the outcome. **Gate spec (before running):** claim — which encoding halves the
 binary measurement; evidence — the three byte rates; counterfactual — none (a measurement); cost — one
 60 s run, at most two.
 
-- [ ] Implementation · [ ] Validation: CA-8 recorded (E-SC); CA-9 with M-CA9a, M-CA9b · [ ] Review: the
+- [x] Implementation · [x] Validation: CA-8 recorded (E-SC); CA-9 with M-CA9a, M-CA9b · [x] Review: the
   outcome follows the frozen rule mechanically; DEP-15 records the `permessage-deflate` dead end.
+  (E-SC8, E-SC9; D-SC12)
 
 ### C-C8 — Deltas on the wire, or their removal (by C-C7's outcome)
 
@@ -3283,6 +3284,36 @@ E-SC7 C-C6, commit ded1c93 (wiring + server record-time test) and the C-C6b test
       Review: SavedHistory runs only inside the session's spawn_blocking; it opens, reads and drops
       its own connection (no handle outlives a read — §17.14); `mineworld perceived` reads the pack and
       the save only. The server still names no pack.
+E-SC8 CP-C1 gate specification (written before the run). Claim: which encoding halves the bytes per
+      client per second on a hosted market town. Owner: real-binary measurement
+      (tools/cli/tests/deltas.rs, #[ignore]). Executable head: the C-C7 working tree on b16ce8a.
+      Command: cargo test -p mineworld-cli --test deltas -- --ignored --nocapture. Budget: one 60 s
+      run, at most two. Evidence: the three byte rates per client and their mean, and the rule's
+      outcome computed by the test (SD-C10, literally: typed if typed ≤ ½ whole and json-patch not
+      within 10 % of typed; json-patch if within 10 % of typed and ≤ ½ whole; keyframes only
+      otherwise). No counterfactual (a measurement). CA-9 on the same pairs (≥ 2 000) asserted.
+      Deviation from CA-8's literal set-up: no `--keyframe-every 1` — the flag is C-C8's, and before
+      C-C8 every frame the server sends is whole anyway, which is what the flag was for.
+      Result (one run, 60.8 s, PASS for the measurement and for CA-9): 601 whole frames per client;
+        visitor  whole 81 993 B/s, typed 1 141 B/s, json-patch   993 B/s
+        wanderer whole 93 733 B/s, typed 1 161 B/s, json-patch 1 012 B/s
+        alice    whole 90 487 B/s, typed 1 155 B/s, json-patch 1 007 B/s
+        bob      whole 81 552 B/s, typed 1 140 B/s, json-patch   992 B/s
+        mean     whole 86 941 B/s, typed 1 149 B/s (1.3 %), json-patch 1 001 B/s (1.2 %)
+      2 400 consecutive pairs, every apply(prev, diff(prev, next)) = canonical(next). Outcome by the
+      frozen rule: TYPED (D-SC12). DEP-15 written with these numbers.
+E-SC9 C-C7 on b16ce8a. server/src/protocol/delta.rs: ObservationDelta (deny_unknown_fields;
+      self_location present-and-null distinct from absent), EntityChanges, diff, apply (DeltaError::
+      UnknownRemove), canonical (entities by ascending EntityId). The session sends every observation
+      in canonical order (SD-C8). server/tests/deltas.rs + frames/deltas/*.json (7 hand-reviewed
+      cases: entity-added, entity-added-before, entity-removed, entity-changed,
+      self-location-to-null, affordances-reordered, events-only; each checked both ways — diff writes
+      the file's delta, apply gives the file's next) and an unknown remove is an error. PASS 2/2.
+      M-CA9a apply ignores remove → red (entity-removed). M-CA9b upserts not re-sorted → SURVIVED the
+      first six cases (every added entity had the highest id), so entity-added-before was added; red on
+      it. Both reverted. json-patch =4.2.0 (MIT/Apache-2.0, `cargo info`, default features off, `diff`
+      on) as a dev-dependency of mineworld-cli only; Cargo.lock gains it. cargo test -p
+      mineworld-server all green; clippy clean; session.rs 479, protocol.rs 394.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3341,6 +3372,13 @@ D-SC11 Process note: one shell command in this session used `sed -i` (forbidden 
       change one import line of tools/cli/tests/facts.rs; the change was the intended edit, its
       `.bak` was removed with `git clean -f`, and no other file was touched. A second command later
       contained a `sed -i` aimed at /dev/null (no file changed). Neither recurs.
+D-SC12 CP-C1's outcome and §4.8. json-patch measured 12.9 % smaller than typed (1 001 vs 1 149 B/s per
+      client, both ~1.3 % of whole). SD-C10's frozen rule, applied literally as C-C7's review requires,
+      selects typed (typed ≤ ½ whole, json-patch not within 10 %). §4.8 (pre-freeze) said typed is kept
+      "only if it beats both", under which neither non-whole branch would apply; the rule's three
+      branches did not foresee json-patch being more than 10 % *smaller*. Decision: the frozen §17 text
+      binds; typed ships; DEP-15 records the tension and the operator is told in the handoff. Not
+      treated as a stop: the rule is explicit and was written to make this decision mechanical.
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
