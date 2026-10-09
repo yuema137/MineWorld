@@ -220,6 +220,9 @@ func _draw() -> void:
 		var button := Button.new()
 		button.text = entry["label"]
 		button.flat = true
+		for colour in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+			button.add_theme_color_override(colour, Color("3b2c1e"))
+		button.add_theme_color_override("font_disabled_color", Color("9a8a78"))
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.disabled = not entry["enabled"]
 		if entry["enabled"] and not entry["available"]:
@@ -231,3 +234,11 @@ func _draw() -> void:
 			first = button
 	if first != null:
 		first.grab_focus.call_deferred()
+	_keep_on_screen.call_deferred()
+
+
+## Moves the box back inside the window once its size is known: a menu opened near an edge.
+func _keep_on_screen() -> void:
+	_box.reset_size()
+	var room: Vector2 = _box.get_viewport_rect().size - _box.size - Vector2(12, 12)
+	_box.position = _box.position.clamp(Vector2(12, 12), room.max(Vector2(12, 12)))

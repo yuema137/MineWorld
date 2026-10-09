@@ -27,6 +27,8 @@ extends Node
 ## {"await": {"seated": true}}                    until the connection is seated and observed again
 ## {"mark": "<name>"} / {"after": "<name>"}       cross-client order, through files in --sync=<dir>
 ## {"sleep": seconds} / {"report": true}
+## {"panels": "things" | "conversations"}         toggle a panel group, as I / H do
+## {"shoot": "<name>"}                            a still under --capture (windowed), else nothing
 ## ```
 ## Each wait is bounded (STEP_LIMIT_S); a step that cannot complete fails the drive by name.
 
@@ -130,6 +132,15 @@ func _step(i: int, step: Dictionary) -> String:
 		return ""
 	if step.has("report"):
 		drive._report_shown()
+		return ""
+	if step.has("panels"):
+		app.panels.toggle(String(step["panels"]))
+		return ""
+	if step.has("shoot"):
+		# A still, with the menu or panels as they stand (`--capture`, windowed); ignored headless.
+		if drive._capture != null:
+			await drive._seconds(0.6)
+			await drive._capture.shoot(String(step["shoot"]))
 		return ""
 	return "unknown step %s" % JSON.stringify(step)
 
