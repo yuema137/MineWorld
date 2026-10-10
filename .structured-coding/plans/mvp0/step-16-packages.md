@@ -3583,9 +3583,9 @@ ED-13 Every platform (PD-q1 … PD-q4). On the PR's final head the `platforms` j
 
 # 18. PR E-e — Lakeside and Milestone E (PR design)
 
-**Lifecycle:** `DRAFT — awaiting the primary session's freeze`. Nothing in this section authorizes
-implementation. Drafted by the E-e implementation session (Phase 1 of its kickoff, 2026-10-10) from the
-audit in §18.3 on `main @ 5ccc402`.
+**Lifecycle:** `DESIGN FROZEN (primary, 2026-10-10)` — with the rulings in §18.0 and §18.9. Drafted by
+the E-e implementation session (Phase 1 of its kickoff, 2026-10-10) from the audit in §18.3 on
+`main @ 5ccc402`; implementation runs under §18.11 in the same session (the kickoff's Phase 2).
 
 **Identifiers.** PD-40 … PD-52, EE-1 … EE-14, M-E1 … M-E9, F-Ee1 … F-Ee5, FQ-e1 … FQ-e8 are this
 section's own labels. M-1 … M-10 are §8.2's milestone steps. The decision record is **`ARC-Ee-a`**, a
@@ -3595,7 +3595,29 @@ only the primary session assigns one (FQ-e3). No dependency is added, so no DEP.
 ## 18.0 Freeze record
 
 ```text
-(empty until the primary session freezes this section)
+DESIGN FROZEN (2026-10-10), primary session
+Design revision:     §18 as committed in c1a231d (PR #137), with these rulings
+Approved by:         the coordinator's message relaying the primary session, 2026-10-10: "Primary rulings
+                     on E-e Phase 1 (#137) — approved; proceed to Phase 2 with Ee-C1…C8"
+Rulings:
+  FQ-e1  (a) — Ee-C7 is in E-e: ci_parity.py and ci_image.py pass `--packs entities --packs
+         presentation/mineworld-default` (as needed) for every world; the image carries entities/ and
+         the two presentation packs' pack.yaml + manifest.yaml; validated by one scratch/ee-…-scenario
+         push and one -image push. Bounded under F-Ec3's precedent; S13's files limited to exactly that
+  FQ-e2  not taken (Lakeside keeps its presentation requirements)
+  FQ-e3  ARC-Ee-a is ARC-77
+  FQ-e4  no tag now (the release design, S23, owns tags); row E and MVP_STATUS as stated
+  FQ-e5, FQ-e6, FQ-e8  as recommended
+  FQ-e7  QSE-15 confirmed (entities/ at top level)
+  F-Ee2, F-Ee3, F-Ee4  accepted as bounded
+Endpoint authority:  implementation, semantic commits, pushing this branch and scratch/ee-* branches,
+                     updating PR #137 and marking it ready, CI repair; CI green on the exact head (fast,
+                     test, platforms, test-windows, test-macos); READY FOR OPERATOR REVIEW. Merge NOT
+                     authorized
+Material stops:      as §18.11
+Implementation base: main @ a926fbf (merged into the branch as 5192fb6; #136 docs only)
+Execution contract:  §18.11
+Lifecycle:           FROZEN
 ```
 
 ## 18.1 Identity, base, approved scope
@@ -3926,6 +3948,10 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
 - **F-Ee5.** The framework is already 0.1.0 (E-a); E-e bumps nothing (PD-40).
 
 ## 18.9 Freeze questions
+
+**Rulings (primary, 2026-10-10; §18.0):** FQ-e1 (a); FQ-e2 not taken; FQ-e3 ARC-77; FQ-e4 no tag now
+(S23 owns tags); FQ-e5, FQ-e6, FQ-e8 as recommended; FQ-e7 confirmed. Every "ARC-Ee-a" in §18 means
+ARC-77.
 
 ```text
 FQ-e1  [PRIMARY / OPERATOR — S13's files] F-Ee1: (a) E-e includes Ee-C7 — ci_parity.py and ci_image.py
