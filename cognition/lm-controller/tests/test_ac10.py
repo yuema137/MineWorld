@@ -49,6 +49,8 @@ class Run:
     dump: bytes
     fallbacks: int
     store_bytes: int
+    whole: bytes
+    """A second store, built from the whole export in one frame: shared by (e) and (g) (ledger §14.5)."""
 
 
 def _identity(history: History) -> StoreIdentity:
@@ -87,7 +89,8 @@ def run(tmp_path_factory: pytest.TempPathFactory) -> Run:
         dump = store.dump()
     history.wall_s["ingest"] = time.monotonic() - started
     print(f"\n[ac10] wall {history.wall_s}; store {path.stat().st_size} bytes on disk")
-    return Run(history, sections, dump, fallbacks, path.stat().st_size)
+    whole = _dump(history, len(history.alice))
+    return Run(history, sections, dump, fallbacks, path.stat().st_size, whole)
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
@@ -167,7 +170,8 @@ def test_d_nothing_alice_did_not_perceive_appears_anywhere(run: Run) -> None:
 
 
 def test_e_two_stores_from_one_export_dump_the_same_bytes(run: Run) -> None:
-    assert _dump(run.history, FRAME) == run.dump
+    # The file store (frames of 256, cut at the triggers) and an in-memory one built separately.
+    assert run.whole == run.dump
 
 
 def test_f_each_counterpart_reaches_back_to_the_first_fact_naming_them(run: Run) -> None:
@@ -186,8 +190,9 @@ def test_f_each_counterpart_reaches_back_to_the_first_fact_naming_them(run: Run)
 
 def test_g_batch_boundaries_change_nothing(run: Run) -> None:
     # Its mutation closes the open episode at the end of each batch.
+    # Frames of 1, of 256 (the file store) and of the whole export (the store (e) shares).
     assert _dump(run.history, 1) == run.dump
-    assert _dump(run.history, len(run.history.alice)) == run.dump
+    assert run.whole == run.dump
 
 
 def test_no_text_holds_an_entity_id_and_every_payload_decoded(run: Run) -> None:

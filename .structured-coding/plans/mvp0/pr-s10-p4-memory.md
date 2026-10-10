@@ -1026,3 +1026,17 @@ Smallest revisions, for the primary session / operator:
 Recommendation:        (a), optionally with (b). The implementation session has changed nothing in
                        response; it waits for the ruling.
 ```
+
+**Ruling (primary session, 2026-10-10, relayed by the coordinator):** "(a) + (b). Raise
+`test_ac10.py`'s per-leg ceiling to 300 s, and restructure within the frozen criteria so (e) and (g)
+share one built store. Do not change ci_layer.py or the build profile (option c declined for now)."
+This replaces §12's "test_ac10.py over 120 s on any CI leg" stop line with **300 s**; nothing else in
+§12 changes.
+
+Applied (after merging `origin/main` at `737e032`, #141, #142, #151, which touch no P4 file):
+
+- `test_ac10.py`: the module fixture builds one extra in-memory store from the whole export in one frame
+  (`Run.whole`). (e) compares it with the file store (frames of 256, cut at the triggers): two stores from
+  one export. (g) compares frames of 1 with the file store, and the whole-export store with it. One full
+  ingestion fewer per leg; criteria (e) and (g) unchanged in substance.
+- Local: 8 passed in 27.7 s (was 29.9 s). CI per leg: §14.4.
