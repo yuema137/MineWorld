@@ -1,0 +1,7 @@
+[mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
+[mineworld] created /var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/tmp.jotfqbwPNE/save/world.sqlite: a new world, 53 genesis fact(s) at revision 1
+[mineworld] listening on http://127.0.0.1:64078 (ws://127.0.0.1:64078/ws), protocol 2
+[mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018dcf4abc70387689e450000
+[mineworld] no admin surface (no --admin-token)
+[mineworld] hold 10 s, time scale 1, 11 seat(s) driven in-server (town: seed 0, pace 5 wall s)

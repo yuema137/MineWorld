@@ -17,6 +17,10 @@ mineworld-contracts = { workspace = true }
 # bodies without item, and there the answer is "not declared".
 mineworld-item = { path = "../item" }
 mineworld-kernel = { workspace = true }
+# A crate dependency, not a system dependency (DECISIONS.md ARC-39 note 5): this pack implements
+# movement's Wayfinder catalog (ARC-75), so it names the trait and its types. It declares no system
+# dependency on movement; a world may install bodies without movement.
+mineworld-movement = { workspace = true }
 # The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers
 # through (ARC-39), and PerceptionProvider, the seam it discloses a place's shape through.
 mineworld-presence = { workspace = true }
@@ -30,9 +34,11 @@ serde_json = { workspace = true }
 # persisted). Declared here rather than in the root manifest, so installing this pack touches only
 # systems/ and Cargo.lock (step-11 §17.0, QP-3). Named only in src/rapier.rs.
 rapier3d = { version = "=0.36.0", features = ["enhanced-determinism"] }
+# Route search (DECISIONS.md DEP-34): A* over this pack's integer visibility graph. Pinned exactly,
+# because a change of tie-breaking changes routes and so results, and bumps this pack's VERSION. Named
+# only in src/route.rs.
+pathfinding = "=4.16.0"
 
 [dev-dependencies]
-# The scenarios walk people through the real `move` action.
-mineworld-movement = { workspace = true }
 # The tests decode a section from YAML text exactly as the World Pack loader does (DEP-10).
 serde-saphyr = { workspace = true }

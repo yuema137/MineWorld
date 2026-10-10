@@ -1,7 +1,8 @@
-//! The action this pack provides, and the one number a client benefits from knowing.
+//! The actions this pack provides — `move`, `walk-to` and `walk-step` — and the numbers a client
+//! benefits from knowing.
 
 use mineworld_contracts::{
-    Action, ActionTypeId, Location, Millimetres, SpatialRequirement, SystemId,
+    Action, ActionTypeId, Location, Millimetres, PersonId, SpatialRequirement, SystemId,
 };
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
@@ -76,4 +77,87 @@ pub fn stride_requirement() -> SpatialRequirement {
 /// answer to any one destination is the server's, given when it is asked.
 pub const fn move_offer_requirement() -> SpatialRequirement {
     SpatialRequirement::NONE
+}
+
+/// The most one `walk-step` carries a walker along their route: 1 340 mm (`DECISIONS.md` `ARC-75`).
+///
+/// A distance, not a duration: no rule here knows how often steps arrive. Sent once a wall second —
+/// the senders' cadence, never this pack's — it is 1.34 m/s, the mean free walking speed of pedestrians
+/// (Weidmann 1993; Bohannon 1997 measured 1.27–1.46 m/s comfortable gait for adults aged 20–59). Less
+/// than [`MAX_STRIDE`], so every stride of a walk is a stride `move` would also allow.
+pub const WALK_STRIDE: Millimetres = Millimetres::new(1_340);
+
+/// How near a walk to a person ends, centre to centre: 1 200 mm, the far limit of personal distance
+/// (Hall 1966, 0.46–1.22 m) — near enough to talk, not on top of them.
+pub const PERSON_APPROACH: Millimetres = Millimetres::new(1_200);
+
+/// Consecutive steps with less than [`STALL_PROGRESS`] of progress after which a walk ends `stalled`.
+pub const STALLS_MAX: u32 = 3;
+
+/// What counts as progress for [`STALLS_MAX`]: 50 mm between one step and the next.
+pub const STALL_PROGRESS: Millimetres = Millimetres::new(50);
+
+/// Re-plans one walk may make — after a stopped or displaced stride, or a person destination that moved
+/// — before it ends `stalled`.
+pub const REPLANS_MAX: u32 = 8;
+
+/// How far a person destination may move from where its leg was planned to end before the walk
+/// re-plans: 500 mm.
+pub const TARGET_MOVED: Millimetres = Millimetres::new(500);
+
+/// Where a walk goes (`DECISIONS.md` `ARC-75`): a location, or a person.
+///
+/// Open to extension (step-11 note N-1): a later arm — a region, a remote place the travel system
+/// reaches, an object — is an addition, not a breaking change to `walk-to`'s payload or to a `match` in
+/// another crate. Serialized with one explicit tag per arm: `{ "place": <Location> }` or
+/// `{ "person": <PersonId> }`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum Destination {
+    /// A point in the walker's place or in a place a chain of passages reaches; a location without a
+    /// position means "enter that place".
+    Place(Location),
+    /// Within [`PERSON_APPROACH`] of a person in the walker's own place, following them if they move.
+    Person(PersonId),
+}
+
+/// A person asks to walk somewhere: the server plans the route and keeps it as the walker's
+/// [`Walking`](crate::Walking); nothing moves until the walker asks for a [`WalkStep`].
+///
+/// One request for "go to X", from every caller — a client's click, a menu entry, a controller — so
+/// that no client or controller computes a route (`ENGINEERING_RULES.md` §§8–9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WalkTo {
+    to: Destination,
+}
+
+impl Action for WalkTo {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("walk-to");
+    const OWNER: SystemId = MovementSystem::ID;
+}
+
+impl WalkTo {
+    /// Asks to walk to `to`.
+    pub const fn new(to: Destination) -> Self {
+        Self { to }
+    }
+
+    /// Where the walk goes.
+    pub const fn to(&self) -> Destination {
+        self.to
+    }
+}
+
+/// The next stride of the actor's own walk: at most [`WALK_STRIDE`] along its route, or the crossing
+/// at a doorway. No payload — the walk is the world's, not the request's.
+///
+/// An embodied input: its sender paces it (a client once a wall second, a host at its cadence), and
+/// the walk takes exactly as many requests as it has strides (`DECISIONS.md` `ARC-67`, `ARC-75`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WalkStep {}
+
+impl Action for WalkStep {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("walk-step");
+    const OWNER: SystemId = MovementSystem::ID;
 }

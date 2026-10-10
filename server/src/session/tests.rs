@@ -65,6 +65,7 @@ fn greeting() -> Greeting {
             time_scale: 1,
             paused: false,
         },
+        backfill: Vec::new(),
     }
 }
 

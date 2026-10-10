@@ -14,17 +14,20 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from mineworld_sdk.errors import UnsupportedFrame
 from mineworld_sdk.wire.ids import (
+    ActionIdField,
     ActionTypeIdField,
     ComponentTypeIdField,
     EntityIdField,
     EventIdField,
+    EventTypeIdField,
     JsonValue,
+    ProcessIdField,
     RejectionCodeField,
     RelationTypeIdField,
+    SystemIdField,
     TagField,
 )
 
@@ -232,29 +235,111 @@ class Affordance(WireModel):
         return self
 
 
+class ActionCause(WireModel):
+    """`Causation::Action`: a controller or a client asked."""
+
+    action: ActionIdField
+
+
+class ProcessCause(WireModel):
+    """`Causation::Process`: a process reached a point that produced the fact."""
+
+    process: ProcessIdField
+
+
+class EventCause(WireModel):
+    """`Causation::Event`: another fact, reacted to."""
+
+    event: EventIdField
+
+
+class SystemTickBody(WireModel):
+    """The fields of `Causation::SystemTick`."""
+
+    system: SystemIdField
+
+
+class SystemTickCause(WireModel):
+    """`Causation::SystemTick`: a system acting on its own schedule."""
+
+    system_tick: SystemTickBody
+
+
+Causation = ActionCause | ProcessCause | EventCause | SystemTickCause | Literal["world_genesis"]
+"""`Causation`, externally tagged, snake_case: why a fact happened."""
+
+
+class PlaceAudience(WireModel):
+    """`Visibility::Place`: anyone present in this place."""
+
+    place: PlaceId
+
+
+class EntitiesAudience(WireModel):
+    """`Visibility::Entities`: exactly these entities (the contract's sorted set, as a list)."""
+
+    entities: list[EntityIdField]
+
+
+Visibility = PlaceAudience | EntitiesAudience | Literal["public", "participants", "system_internal"]
+"""`Visibility`: who could have learned of a fact. Whether a person did is the server's judgement."""
+
+
+class Provenance(WireModel):
+    """`Provenance`: which system emitted a fact, and the request that led to it, if any."""
+
+    emitted_by: SystemIdField
+    controller_decision: ActionIdField | None
+
+
+class EventRecord(WireModel):
+    """`EventRecord<serde_json::Value>`: a fact's payload, labelled with its type, uninterpreted."""
+
+    event_type: EventTypeIdField
+    schema_version: U32
+    payload: JsonValue
+
+
+class PerceivedEvent(WireModel):
+    """`PerceivedEvent<serde_json::Value>`: one fact this observer learned (`PROTOCOL.md` §5.2), the
+    contract's event envelope with the owning pack's payload as JSON (`null` when it was not JSON).
+
+    An `event_type` this SDK's caller does not know is "something happened", never an error: the
+    payload is carried, not interpreted (D-P3-7)."""
+
+    id: EventIdField
+    at: I64
+    event_type: EventTypeIdField
+    subjects: list[EntityIdField]
+    participants: list[EntityIdField]
+    place: PlaceId | None
+    caused_by: Causation
+    payload: EventRecord
+    visibility: Visibility
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _types_agree(self) -> Self:
+        # EventEnvelopeFields: the envelope and the record must name one event type.
+        if self.event_type != self.payload.event_type:
+            raise ValueError(
+                f"the fact's event_type {self.event_type!r} disagrees with its payload's "
+                f"{self.payload.event_type!r}"
+            )
+        return self
+
+
 class Observation(WireModel):
     """`Observation<serde_json::Value>`: what this connection's observer perceives, and nothing else.
 
-    `events` is modelled as empty-only until S11-C delivers perceived events in observations (D-P3-6):
-    no golden frame carries an event envelope yet, so a model of one would be written against nothing.
-    """
+    `events` are the facts this observer learned since its previous frame, oldest first — best effort;
+    a caller that must not miss one asks for the `perceived` stream (`PROTOCOL.md` §§5.2, 5.8).
+    `entities` are in ascending id order (§5.2)."""
 
     observer: EntityIdField
     at: I64
     self_location: Location | None
     entities: list[PerceivedEntity]
     relations: list[Relation]
-    events: tuple[()]
+    events: list[PerceivedEvent]
     affordances: list[Affordance]
-
-    @field_validator("events", mode="before")
-    @classmethod
-    def _events_empty(cls, value: object) -> object:
-        if _non_empty_array(value):
-            raise UnsupportedFrame("observation.events: arrives with S11-C; this SDK predates it")
-        # A JSON array arrives as a list, which strict mode would not accept as the empty tuple.
-        return () if value == [] else value
-
-
-def _non_empty_array(value: object) -> bool:
-    return isinstance(value, list | tuple) and value != [] and value != ()

@@ -1,0 +1,44 @@
+# cargo-deny's policy over the code graph (docs/DECISIONS.md DEP-22; step-16 §16.2 PD-29). Run by CI's
+# `fast` layer (scripts/ci_layer.py): `cargo deny check licenses sources bans`. Advisories are not
+# checked: their answer depends on a database fetched at run time, and ARC-48 allows nothing to fail
+# non-deterministically.
+
+[graph]
+all-features = true
+
+# The licences every crate compiled into any MineWorld binary or test may carry: ARC-55's default
+# allow-list for packs, and only what the graph needs beyond it, each with the crates that need it.
+[licenses]
+allow = [
+    # ARC-55's eight.
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+    "Unlicense",
+    # unicode-ident: "(MIT OR Apache-2.0) AND Unicode-3.0" — the Unicode data tables it is generated from.
+    "Unicode-3.0",
+]
+confidence-threshold = 0.9
+# ARC-55's list is kept whole even where no crate of today's graph carries one of its licences (ISC).
+unused-allowed-license = "allow"
+
+# crates.io, and git only from the third-party System Packs this build installs (ARC-66, DEP-23).
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = ["https://github.com/yuema137/mineworld-pack-fishing"]
+
+[bans]
+# A `*` requirement is reported. It cannot be denied yet: cargo-deny counts a path dependency as a
+# wildcard unless its crate says `publish = false`, and the workspace's crates do not (they are one
+# release unit, not yet published or unpublished by decision). Every wildcard today is such a path
+# dependency between workspace crates (step-16 §16.8 E-Ec7). Turn this to "deny" when the workspace
+# decides `publish`.
+wildcards = "warn"
+allow-wildcard-paths = true
+multiple-versions = "allow"

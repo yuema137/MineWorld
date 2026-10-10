@@ -5,13 +5,13 @@
 # The Cargo workspace (Cargo.toml) is unrelated to this file; no Rust crate depends on Python (I-2).
 
 [tool.uv.workspace]
-members = ["sdk/python"]
+members = ["sdk/python", "cognition/lm-controller"]
 
 # Pyright reads its configuration from the directory it runs in, and every check runs from the
 # repository root (`uv run --locked pyright sdk/python`), so the configuration lives here and covers
 # every member. Strict, as `.structured-coding/standards.md` declares.
 [tool.pyright]
-include = ["sdk/python"]
+include = ["sdk/python", "cognition/lm-controller"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingModuleSource = "error"

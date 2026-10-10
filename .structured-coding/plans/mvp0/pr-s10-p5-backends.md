@@ -959,7 +959,468 @@ is recorded here so that the slip is visible. No other file was edited that way.
 | QP5-8 [primary] | Should QS10-5's second real server be llama.cpp's `llama-server` (MIT), in an optional operator-run `live_model` test? | **Yes.** It shows the adapter is generic with no paid API. Never in CI. |
 | QP5-9 [primary] | Live tests (`live_model`) deselected by `addopts` and restricted to loopback URLs (D-P5-12)? | **Yes.** A hosted live test would contradict QS10-19 for any gate. A user who wants one runs it outside the suite. |
 
-## 13. Ledger
+## 13. Ledger (live during implementation)
 
-Added at C0, when the design is frozen. Until then this document is a design under review and records
-no progress.
+```text
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE. Implementation context CLOSED / AWAITING
+                   OPERATOR ACTION. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p5, branch
+                   mvp0/pr-s10-p5-backends. C7's operator step (the spike) NOT RUN: it gates P6's
+                   freeze, not this review (QP5-3)
+Implementation
+base:              origin/main @ 2c6d34c (#111, the P5a freeze with the provider-preset amendment)
+Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session owns this
+                   ledger, its evidence and its deviations
+Handoff:           handoff-s10-p5.md
+```
+
+### 13.1 C0 — freeze and contract
+
+- [x] Implementation: the `DESIGN FROZEN` header and §11's contract were committed with the freeze (#111);
+  every endpoint line in §11 names its source (the primary session's freeze message, relayed by the
+  coordinator). This session records the base above (`2c6d34c`) and initializes
+  [`handoff-s10-p5.md`](handoff-s10-p5.md).
+- [x] Validation (E-P5-0): `python3 scripts/check_doc_headings.py` ("192 numbered sections across 26
+  documents, none duplicated") and `python3 scripts/check_decision_ids.py` ("85 decision ids, all
+  distinct"), both exit 0. `grep -c 'ARC-57\|ARC-58\|DEP-27\|DEP-32' docs/DECISIONS.md` = 0: the four
+  numbers are free.
+- [x] Review: every authority line in §11 has a source; none was narrowed or widened. The kickoff brief of
+  this session restates §11's NEVER list (no model run, no key file, no hosted API, no real CLI) and adds
+  only process rules (WebFetch for "verify" facts; never rename or slow `fast`/`test`), none of which
+  changes an endpoint.
+
+### 13.2 C1 — specs, decisions and the package skeleton
+
+- [x] Implementation: root `pyproject.toml` (member and pyright `include`); `uv.lock` (+ `httpx2` 2.13.1,
+  `httpcore2` 2.13.1, `h11` 0.16.0, `anyio` 4.15.1, `idna` 3.20, `truststore` 0.10.4, `python-dotenv`
+  1.2.4, `httpx2-jsfetch` 1.0 emscripten-only); `cognition/lm-controller/{pyproject.toml, README.md
+  (placeholder until C8), src/mineworld_cognition/{__init__.py, py.typed}}` with the guard, the
+  `live_model` marker and `-m "not live_model"` in `addopts`; `.gitattributes` (`*.jsonl text eol=lf`);
+  `.gitignore` (`.env.*`, `!.env.example`, and DV-P5-1's negation); `docs/DECISIONS.md` `ARC-57`,
+  `ARC-58`, `DEP-27`, `DEP-32`; `docs/ARCHITECTURE.md` §9.1 (wall-time keys plus the context-bound
+  sentence) and §9.2 (one adapter behind `ModelBackend`); `scripts/ci_layer.py` (`PYTHON_MEMBERS`; two
+  pytest commands in `python` and in `python-smoke`); `.structured-coding/standards.md` (the static
+  checks over both members; a new check `pytest-cognition`).
+- [x] Validation (E-P5-1):
+  - `uv lock` resolved 27 packages; `uv sync --locked` succeeds;
+  - `ruff check` "All checks passed!", `ruff format --check` "19 files already formatted", `pyright`
+    strict "0 errors" over both members;
+  - `uv run --locked pytest cognition/lm-controller`: rootdir `cognition/lm-controller`, configfile its
+    `pyproject.toml`, plugin `socket-0.8.1` loaded, "collected 0 items", exit 0 (expected: no tests yet);
+  - `ci_layer.py --list core` byte-identical to the base's (`diff` empty); `--list python` and
+    `--list python-smoke` show `pytest sdk/python …` and `pytest cognition/lm-controller` as two
+    commands; `--list fast` ends with the static checks over both members;
+  - every new package's wheel is `py3-none-any` (lock entries read), so all three platforms are served;
+  - `check_doc_headings.py` exit 0; `check_decision_ids.py` "89 decision ids, all distinct";
+  - `standards.py inspect` lists `ruff-lint`, `ruff-format`, `pyright-strict`, `pytest`,
+    `pytest-cognition`;
+  - `git check-ignore -v`: `.env` (`*.env`), `.env.local` (`.env.*`), `prod.env` (`*.env`),
+    `secrets.env` (`secrets*`) ignored; `examples/.env.example` and `src/mineworld_cognition/secrets.py`
+    matched only by their negations (not ignored).
+- [x] Review: each DECISIONS entry names its alternatives with verdicts and a revisit trigger; the §9.1
+  edit keys cost on wall time and the context bound on simulated time, exactly QS10-18; DECISIONS and
+  ARCHITECTURE name providers (documentation), no source file does yet.
+
+**§3's "not verified in planning" items (A-3 excepted, it is the spike's):**
+
+```text
+httpx2 API            PASS  2.13.1 exports AsyncClient, Timeout, MockTransport (sync and async
+                            handlers; httpx2/_transports/mock.py), ConnectError, TimeoutException, …
+                            R-P5-1's fallback is not needed
+httpx2 platforms      PASS  anyio, httpcore2, h11, idna, truststore, python-dotenv: py3-none-any wheels
+                            only; httpx2-jsfetch is emscripten-only (marker in the lock)
+pytest-socket + httpx2  verified in C6 (AP5-10 (b)): the TEST-NET connection test
+Ollama /v1 json_schema  A-3: the operator's spike (QP5-3), not an agent
+```
+
+**Findings.**
+
+- **F-P5-1 (`httpx2` reads the environment by default).** `AsyncClient(trust_env=True)` is the default and
+  reads proxy variables, `.netrc` and certificate-file variables (`httpx2/_client.py`, `allow_env_proxies
+  = trust_env and transport is None`). D-P5-4 (a) forbids any environment read but `key_env`, so the
+  adapter passes `trust_env=False`. Consequence: a user behind an HTTP proxy is not served by this
+  version; recorded in `DEP-27` as a limitation.
+- **F-P5-2 (anyio's pytest plugin).** `anyio` (an `httpx2` dependency) registers a pytest plugin, now
+  loaded in both members' runs. It changes nothing unless a test uses its marker; the suites keep
+  `asyncio.run`, as the SDK's do.
+
+**Deviation DV-P5-1 (bounded).**
+
+```text
+Deviation:        .gitignore gains `!/cognition/lm-controller/src/mineworld_cognition/secrets.py`
+Reason:           the existing pattern `secrets*` (a guard for key files) also matches the module the
+                  design names `secrets.py`, which would silently stay untracked
+Source evidence:  git check-ignore -v reported `.gitignore:55:secrets*` for the module before the negation
+Impact:           one anchored negation for one source path; every key-file pattern still holds
+Validation:       git check-ignore (E-P5-1); AP5-13 (e) re-checks it in a test (C6)
+```
+
+### 13.3 C2 — the model interface, the key, the scripted backend
+
+**AP5-1 (a)'s golden literal, recorded before any test was written (2026-10-09).** Computed
+**independently of the implementation**: the canonical bytes were written out by hand from D-P5-6's rules
+and hashed with the system's `shasum -a 256` (so the expected value does not come from the code under
+test, test rules §25). The request: purpose `decide`; messages `system` "You are Alice, who keeps the
+café." and `user` `Bob says: "Hello — one coffee?"`; output schema `{"type": "object", "properties":
+{"act": {"enum": ["say", "wait"]}}, "required": ["act"]}`; sampling `temperature_milli` 700,
+`max_output_tokens` 256, `seed` 42.
+
+```text
+canonical  {"key_scheme":1,"request":{"messages":[{"role":"system","text":"You are Alice, who keeps the café."},{"role":"user","text":"Bob says: \"Hello — one coffee?\""}],"output_schema":{"properties":{"act":{"enum":["say","wait"]}},"required":["act"],"type":"object"},"purpose":"decide","sampling":{"max_output_tokens":256,"seed":42,"temperature_milli":700}}}
+key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
+```
+
+- [x] Implementation: `backend/model.py` (`Purpose`, `Role`, `Finish`, `FailureReason`, `CognitionModel`
+  — strict, frozen, `extra="forbid"` — `Message`, `Sampling`, `CompletionRequest`, `Usage`, `Completion`,
+  `BackendFailure` with a cross-field rule (a status exactly when the reason is `http_status`), and the
+  `ModelBackend` protocol: `complete(request) -> Completion | BackendFailure`, `aclose()`);
+  `backend/canonical.py` (`KEY_SCHEME = 1`, `CassetteKey`, `KeyMaterialError(path)`,
+  `canonical_object`, `canonical_json`, `cassette_key`); `backend/scripted.py` (`ScriptedBackend(script,
+  *, delay_s)` with a `calls` counter); `backend/__init__.py` (imports nothing);
+  `tests/support.py`; `tests/test_model_and_key.py`.
+- [x] Validation (E-P5-2): 5 passed; ruff, format and pyright strict clean. AP5-1 (a) passed on its
+  first run against the hand-computed literal. Mutations (§13.10): M-1 `sort_keys=False` → the golden
+  test fails; M-2 return instead of raising on a float → both AP5-2 path cases fail. Both reverted
+  (`git diff` of `src/` empty afterwards; 5 passed). The strictness case (a `model` field through
+  `extra`) fails construction, naming the field. AP5-1 (b) (two gateways, two configurations, one key)
+  needs the gateway and the configuration: it is shown in C6 with AP5-8 and AP5-14 (c).
+- [x] Review: no float field in the request model (`temperature_milli`, integers throughout);
+  `JsonValue` appears only at `output_schema`; no `Any` in `src/`. Design choice recorded: a backend
+  **returns** `BackendFailure` (a typed value) rather than raising it, so the gateway's outcome union is
+  exhaustive and no failure path carries an exception message that could hold a response body (I-16);
+  `CassetteMiss` alone is an exception (§5.3).
+
+### 13.4 C3 — cassettes and the recorder
+
+- [x] Implementation: `record.py` — `EntryMeta` (closed: `binding` matches the backend-name pattern,
+  `model` refuses `://` and `@`, `recorded_at` RFC 3339 UTC `…Z`, `latency_ms` int), `CassetteEntry`,
+  `Cassette.load` (universal newlines, header check by name — kind, `format`, `key_scheme` — each entry
+  parsed with `model_validate_json` and its key recomputed), `CassetteFormatError(path, line, why)`,
+  `CassetteMiss(kind, key, nearest, first_difference)` (an exception), `ReplayBackend` (per-key cursors;
+  holds no other backend), `RecordingBackend` (`.partial` opened with mode `x` and `newline="\n"`, the
+  header written and flushed at once, one flushed line per completed call, `BackendFailure` passed
+  through unrecorded, an exception from the inner backend abandons the recording and closes the file,
+  `aclose` closes the file **then** `os.replace`s), `CassetteRecordError`, `partial_path`;
+  `tests/test_record_replay.py`.
+- [x] Validation (E-P5-3): 16 passed (11 new); ruff, format, pyright strict clean. AP5-4: ordered replay,
+  `exhausted`, an edited request refused at load naming line 3, `format: 2` and `key_scheme: 2` refused
+  by name; a corrupt line refused with its number; a missing header refused; a CRLF copy still loads.
+  AP5-5: three calls recorded and replayed, no `\r\n` in the file, no `.partial` left; interrupted in the
+  third call: the old cassette byte-identical, `.partial` holds the header and two entries, and a new
+  `RecordingBackend` is refused naming `kept.jsonl.partial`. Mutations (§13.10): M-3 return the first
+  entry for every repeat → the ordered test fails; M-4 skip the key check → the edited-entry test fails;
+  M-5 write the target directly (and replace nothing) → the interrupted test fails (the cassette's bytes
+  changed at index 113). All reverted; `grep MUTATION` empty; 16 passed.
+- [x] Review: `EntryMeta`'s fields are closed and none can hold a header or a key; every write uses
+  `newline="\n"`; the only `os.replace` runs after `close()`. AP5-3 (a miss never reaches a backend,
+  shown against a loopback listener) needs `config.load` and the router: it is written in C6, where a
+  fall-through could actually be implemented, and recorded there (bounded placement; the criterion and
+  its mutations are unchanged).
+
+### 13.5 C4 — the OpenAI-compatible adapter
+
+- [x] Implementation: `backend/openai_compatible.py` (`request_body`, `_parse`, `OpenAICompatibleBackend
+  (config, key, *, transport=None)`); `backend/registry.py` (`FACTORIES`, `build_backend`, the adapter
+  imported inside its factory); `secrets.py` (`Secret`: redacted `repr`/`str`, `__slots__`, refuses
+  pickling — `resolve_key` follows in C6); `config.py` (`BackendConfig` with D-P5-10's typed options,
+  `check_base_url`, `is_loopback_host`, `KEY_ENV`, `ConfigError` — the rest of the file follows in C6);
+  `backend/model.py` gains `estimate_tokens` (D-P5-8's `ceil(utf8_bytes / 4)`, shared by the adapter's
+  missing-usage path and the budget's pre-check); `tests/test_openai_compatible.py`.
+- [x] Validation (E-P5-4): 33 passed (17 new), ruff, format, pyright strict clean. AP5-6 (b): the exact
+  body (`model`, `messages` with `content`, `max_tokens`, `stream: false`, `temperature` 0.7 from
+  `temperature_milli` 700, `seed`, `response_format` `json_schema` with the schema); `json_object`;
+  `none` (no `response_format`); `temperature = "omit"`; `reasoning` `off` → `reasoning_effort: "none"`,
+  `high` → `"high"`; no `Authorization` without a key and `Bearer …` with one; 401 → `unauthorized`,
+  500 → `http_status(500)`, a non-JSON body and an unknown `finish_reason` → `malformed_response`;
+  missing usage → estimated and flagged. Over real loopback sockets: a stub server with a canned answer
+  (the request line `POST /v1/chat/completions HTTP/1.1` observed); a closed port → `unreachable`; a
+  stalled server with `request_timeout_s = 1` → `timeout` in under 2 s. `base_url` with userinfo, remote
+  `http`, a query, or a non-HTTP scheme refused; a missing `base_url` refused. AP5-6 (c): a 503 is sent
+  once; M-6 (one retry on 5xx) → the count is 2 and the test fails; reverted.
+- [x] Review: `grep import.*httpx2` finds `openai_compatible.py` only; no `os.environ`, `getenv`,
+  `logging` or `print` anywhere in `src/`; a failure carries a reason and a status, never a body.
+
+**Decisions recorded at C4 (bounded, within D-P5-4 and D-P5-10).**
+
+- `reasoning = "off"` maps to `reasoning_effort: "none"`, the value OpenAI's and Ollama's documentation
+  use for "no reasoning"; `low`/`medium`/`high` pass through.
+- `json_schema` is sent as `{"type": "json_schema", "json_schema": {"name": "answer", "schema": …,
+  "strict": true}}`, OpenAI's envelope. `strict: true` asks a server to constrain decoding; a server
+  that cannot is answered by local validation in P6 (R-P5-2), and a user can choose `json_object`.
+- 403 maps to `unauthorized`, like 401 (both mean the key is not accepted); every other non-2xx status
+  is `http_status`.
+- `base_url` also refuses a query or a fragment (a key in `?key=…` is the case in point), tightening
+  D-P5-10's "no userinfo" in the same direction.
+- With `request_timeout_s` unset the adapter sets no HTTP timeout of its own (`httpx2.Timeout(None)`):
+  `httpx2`'s 5 s default would cut ordinary generations short, and the gateway's `call_timeout_s` bounds
+  every call anyway (D-P5-8).
+
+### 13.6 C5 — budgets and the gateway
+
+- [x] Implementation: `budget.py` (`Clock`, `SystemClock`, `BudgetPolicy` — QP5-4's defaults —
+  `BudgetRefusal(limit, spent, asked, ceiling)`, `Window`, the `Ledger` protocol, `MemoryLedger`,
+  `SqliteLedger` (one table `budget_ledger(seat, at, calls, tokens, estimated)`, committed per charge,
+  `close()`), `reservation`, `Reservations`, `precheck`, `InFlightLimiter` over `asyncio.Semaphore`);
+  `gateway.py` (`Tier`, `TIERS`, `Completed`/`Refused`/`Failed`, `GateOutcome`, `Budget` — what every
+  gateway of a process shares — `ModelGateway.complete` in §5.3's order, `Router.for_tier`, and
+  `Router.aclose`, which closes each gateway once and then the ledger); `record.py`: an exception from
+  the inner backend abandons the recording, a cancellation (the gateway's timeout) does not
+  (`except Exception`, see F-P5-3); `tests/test_budget.py`.
+- [x] Validation (E-P5-5): 40 passed (7 new); ruff, format, pyright strict clean. AP5-7 (i) the 21st call
+  is `Refused(calls_per_wall_hour)` and the backend counter stays at 22 for 22 admitted calls; another
+  seat is unaffected; (ii) after 3 601 s the call is admitted; (iii) a reservation of estimate +
+  `max_output_tokens` past 30 000 is refused before the call; (iv) `SqliteLedger`: 20 calls, closed,
+  reopened, the 21st refused; (v) an AST scan of `budget.py` and `gateway.py`: no import from a
+  `…contract` module, no `WorldTime`; (vi) five concurrent calls with `max_in_flight = 2`: two start, the
+  rest wait, starts in submission order, peak 2; (vii) a backend sleeping 5 s with `call_timeout_s = 1`
+  → `Failed(timeout)` in under 2 s, charged one call and no tokens. Integration: record through the
+  gateway with `SqliteLedger`, restart (new objects, same files), replay: identical outcomes, and the
+  ledger holds 6 calls and 90 tokens across both sessions. Every outcome in the tests goes through one
+  `match` ending in `assert_never`. Mutations (§13.10): M-7 check the budget after the call → (i) and
+  (iii) fail (counters 23 and 3); M-8 `SqliteLedger` on `:memory:` → (iv) and the round trip fail;
+  M-9 import `Observation` from `mineworld_sdk.wire.contract` into `budget.py` → (v) fails. All reverted.
+- [x] Review: P5-2 read in code — key material, then `precheck`, and only then the reservation, the
+  limiter and the backend; P5-3 — `budget.py` reads only the injected `Clock`; a `CassetteMiss` raised
+  inside the call releases the reservation in `finally` and charges nothing (AP5-3 (iii)).
+
+**Findings and decisions (bounded).**
+
+- **F-P5-3.** The gateway's timeout cancels the inner call; in C3 `RecordingBackend` caught
+  `BaseException` and would have abandoned a whole recording on one slow call. It now catches `Exception`:
+  a cancelled call is simply not recorded; a crash still abandons the session (AP5-5 unchanged, green).
+- **Concurrent admission.** D-P5-8's pre-check reads the ledger, which is charged only after the call;
+  two concurrent calls could both pass a check only one fits. Admitted calls therefore hold a
+  **reservation** (one call, the reserved tokens) until they are charged, and the pre-check counts it.
+  This is D-P5-8's "the actual usage replaces the reservation", made exact.
+- **The charge's timestamp** is the pre-check's `now`, so a window is deterministic under a fake clock.
+
+### 13.7 C6 — configuration, routing, presets, secrets, the scans
+
+- [x] Implementation: `config.py` completed (`BackendConfig` gains `preset` and fills omitted fields from
+  the row; `RecordingConfig`, `BudgetConfig(BudgetPolicy)` with `ledger`, `SecretsConfig`,
+  `CognitionConfig` with its cross-field rules, `world_directory_of`, `load(path)` — `tomllib`, strict
+  models, errors rendered from location and message only, paths resolved against the file, a
+  configuration or `env_file` inside a `world.yaml` directory refused — and `build_router(config, *,
+  clock, scripted)`, which imports the registry and `secrets.resolve_key` only in `live`/`record`);
+  `backend/providers.py` (`ProviderPreset`, `PresetName`, `PRESETS`, eleven rows; the option literals
+  `StructuredOutput`, `Reasoning`, `TemperatureMode` live here so `config.py` can import the table
+  without a cycle); `secrets.py` completed (`permission_check_applies`, `check_env_file`,
+  `resolve_key`); `errors.py` (`ConfigError`, shared by `config.py` and `secrets.py`); `registry.py`'s
+  `FACTORIES` is a `dict` (tests substitute a factory with `monkeypatch.setitem`, no production seam);
+  `examples/hosted.toml.example`, `examples/.env.example` (names, empty values); `README.md` with the
+  provider table; `tests/test_config_router.py`, `tests/test_secrets.py`,
+  `tests/test_structural_isolation.py`, `tests/test_provider_scan.py`; `tests/cassettes/example.jsonl`
+  (written by `test_the_committed_cassette_loads_as_lf_and_is_reproduced_by_this_test`'s own recording
+  over `ScriptedBackend`, copied from its `--basetemp`; the test re-records and compares keys, requests,
+  completions and bindings).
+- [x] Validation (E-P5-6): cognition suite **77 passed**; SDK suite (no binary) 30 passed, 4 deselected;
+  ruff, format ("41 files already formatted") and pyright strict clean over both members.
+  - AP5-1 (b) and AP5-8: one cassette recorded under binding `local`, replayed under configurations
+    `local`/`127.0.0.1:11434`/`model-a` and `elsewhere`/`[::1]:8080`/`model-b`: identical completions,
+    keys equal to the recomputed keys and the first to AP5-1's literal.
+  - AP5-3: replay mode, backend `local` at a test-owned listening loopback port; an absent request
+    raises `CassetteMiss("absent")` naming its key, the nearest recorded request and
+    `$.messages[0].text`; the listener accepted **0** connections; the ledger holds 0 calls, 0 tokens.
+  - AP5-6 (a): a child interpreter loads a replay configuration, builds the router, completes one
+    replayed call: `{"completed": true, "modules": []}` — no `httpx*` module, no `openai_compatible`.
+  - AP5-9, per source (environment; `env_file` 0600): a record session through `config.load` →
+    `build_router` → the real adapter over a mock transport that echoes every header into its 500 and
+    401 bodies, then a 200. The server received `Bearer <key>` three times; the key is absent from the
+    cassette, the SQLite ledger's bytes, every captured log record (DEBUG, all loggers), captured stdout
+    and stderr, and the `str`/`repr` of every outcome, the configuration, the router and the gateway. An
+    unset variable raises `ConfigError` naming it and the file, not the file's other value.
+  - AP5-10 (a) the scan (word-bounded, case-insensitive) over `src/` minus the four allowed files, the
+    committed cassette's keys and requests, and `sdk/python/src`: no finding; (b) the member's `addopts`
+    hold the guard and the deselection; a connection to `192.0.2.1:80` through the adapter is refused by
+    `SocketConnectBlockedError` (wrapped by anyio's task group) in under 1 s; (c) `ci_layer.py --list`
+    for `python` and `python-smoke` shows two pytest commands, the second exactly `uv run --locked pytest
+    cognition/lm-controller`.
+  - AP5-13 (a) `os.environ` compared whole before and after a file read: equal; (b) the environment
+    wins; (c) `cognition.toml` and an `env_file` under a temporary `worlds/cafe/world.yaml` refused,
+    naming the path; (d) macOS: 0644 refused naming `chmod 600`, 0600 accepted; on Windows the test
+    asserts `permission_check_applies() is False` and that 0644 is accepted (skipped by platform,
+    visibly); (e) `git check-ignore --no-index`: `.env`, `.env.local`, `prod.env`, `secrets.env` ignored;
+    `examples/.env.example` and `src/mineworld_cognition/secrets.py` not; (f) no `load_dotenv` call or
+    import, `dotenv` imported by `secrets.py` only, `httpx2` by the adapter only, no reference to the
+    operator's `secrets.env` or `.config/mineworld`.
+  - AP5-14 (a), (b) every row `https` (or None), no userinfo, query or fragment, `key_env` a name, no
+    key-like value; (c) the golden request recorded through config → router → gateway → recorder under
+    `preset = "openai"`, `preset = "xai"` and a hand-written table (the adapter factory swapped for a
+    scripted backend): the key equals AP5-1's literal each time and `meta.binding` is the user's `mine`;
+    (d) a set `structured_output` wins; (e) `dashscope` without `base_url` names `base_url`; (f) the
+    README's table lists exactly the eleven presets and their key variables.
+  - §5.4's refusals, each naming its table and key: an unknown key (`recording.colour`), a tier bound to
+    an undefined backend (`tiers.social`), replay without a cassette (`recording.cassette`), the
+    non-tier `routine` (`tiers.routine`), a pasted key in `key_env` (`backends.x.key_env`) — whose value
+    is not echoed. The hosted example loads.
+  - Mutations (§13.10), each shown red then reverted: M-10, M-11, M-12, M-13, M-14, M-15, M-16, M-17,
+    M-18, M-19, M-20.
+- [x] Review: `worlds/` untouched; `secrets.py` is the only reader of a key and of a key file, and reads
+  only the file the configuration names; docstrings and examples use loopback URLs or `api.example.com`
+  (the hosted example names the providers' presets, never a key); no test, fixture or CI command sets a
+  real key or reaches a non-loopback address (the TEST-NET connection is refused by the guard before any
+  packet leaves).
+- **CI timing (the 60 s and 3-minute rules)** is recorded at C8 from the PR's run (E-P5-8).
+
+**Preset verification, 2026-10-09, from each provider's own documentation (WebFetch; no API called).**
+
+```text
+preset      fact checked                         source read                                   result
+openai      base URL; json_schema                (planning, §4.1c: the schema's origin)          confirmed in planning
+xai         base URL; json_schema, json_object   docs.x.ai/docs/guides/structured-outputs        CONFIRMED; reasoning_effort
+                                                                                                 not on the page → README "verify"
+deepseek    json_object                          api-docs.deepseek.com/guides/json_mode          CONFIRMED ("Set the response_format
+                                                 ("Set the response_format parameter to         ... json_object"); base URL
+                                                 {'type': 'json_object'}"); base_url             https://api.deepseek.com confirmed;
+                                                                                                 json_schema not documented (README note)
+glm         base URL; JSON mode                  docs.bigmodel.cn OpenAI page and               CONFIRMED: base https://open.bigmodel.cn/
+                                                 guide/capabilities/struct-output                api/paas/v4; json_object
+zai         base URL; JSON mode                  docs.z.ai/api-reference/introduction;          CONFIRMED: https://api.z.ai/api/paas/v4;
+                                                 docs.z.ai/guides/capabilities/struct-output    json_object (no json_schema)
+mistral     json_schema envelope                 docs.mistral.ai/api, structured-output pages    base URL and `{"type": "json_schema"}`
+                                                                                                 mode confirmed; envelope's sub-fields not
+                                                                                                 in the fetched text → README "verify"
+moonshot    JSON mode; base URL                  platform.kimi.ai/docs/guide/use-json-mode-...   CONFIRMED: json_object;
+                                                                                                 https://api.moonshot.ai/v1
+dashscope   JSON mode                            alibabacloud.com/help/en/model-studio/json-mode CONFIRMED: json_object on most Qwen
+                                                                                                 models, json_schema on some; the prompt
+                                                                                                 must contain the word "JSON" (README note);
+                                                                                                 base URL per workspace and region (preset None)
+gemini      (no "verify" mark)                   planning §4.1c                                  not re-fetched
+openrouter  (no "verify" mark)                   planning §4.1c                                  not re-fetched
+groq        (no "verify" mark)                   planning §4.1c                                  not re-fetched
+```
+
+**Deviations (bounded).**
+
+```text
+DV-P5-2  errors.py, a module not in §5.1: ConfigError is shared by config.py and secrets.py, and
+         config.py imports secrets lazily; defining it in either would make the two import each other.
+DV-P5-3  BackendConfig.kind defaults to "openai-compatible" (the only kind until P5b), so a preset table
+         needs only `preset` and `model`. P5b's new kind is still a closed literal added beside it.
+DV-P5-4  record mode records one backend binding at a time (a ConfigError otherwise): two recorders on one
+         cassette would race for one `.partial`. Replay serves every bound tier from one cassette, since
+         keys are provider-free.
+DV-P5-5  AP5-3 is in test_config_router.py (C6), not C3: the fall-through it guards against can only be
+         implemented where a router builds backends (recorded in §13.4).
+DV-P5-6  the option literals (StructuredOutput, Reasoning, TemperatureMode) are defined in
+         backend/providers.py and imported by config.py, to keep the import graph acyclic.
+```
+
+### 13.8 C7 — the operator-run spike tool
+
+- [x] Implementation: `tools/spike_scenarios.json` (40 synthetic decisions: five personas, eight heard
+  lines each) and `tools/model_spike.py` (`run_spike(config, models, out, *, allow_remote, factory)` and
+  `main`): the `social` binding of the operator's configuration with only `model` replaced; each model,
+  listed smallest first, answers every scenario once through `ModelGateway` around a
+  `RecordingBackend` (one cassette per model, `spike-<model>.jsonl`), under the spike's own ceilings
+  (10 000 calls, 10 000 000 tokens, one in flight, 120 s per call) so a seat's everyday budget does not
+  refuse the run; first-attempt validity is checked locally (`SpikeChoice`, strict, plus
+  `words` ≤ 480 UTF-8 bytes); the report holds, per model, the valid count, completions, failures by
+  reason, p50 and nearest-rank p95 latency, the `reasoning` setting and whether the server accepted it
+  (no `http_status:400`), and `meets_criteria`; plus the criteria, the scenario file's sha256, the
+  server binding, the machine (OS, machine, processor, CPUs, memory on POSIX) and the default — the first
+  model meeting every criterion, or "no candidate meets the criteria: to the operator". A non-loopback
+  `base_url` is refused without `--allow-remote`. The README's operator section names the command.
+- [x] Validation (E-P5-7): 81 passed (4 new); static clean. The tool runs end to end against a scripted
+  factory (`small` fails the schema on 5 scenarios → 35 < 38 → not meeting; `large` 40/40 → the
+  default); `report.json` equals the returned report and carries every AP5-S field; a remote URL is
+  refused naming `--allow-remote`; no `ci_layer.py` layer names `model_spike` or `--allow-remote`.
+  **Committed before any real run (hashes):** `spike_scenarios.json`
+  `050f0b17b4200a40090874ef0a6f7f24032dba5232f83e1a824f32adb5f0eccc`; the thresholds are the literals
+  `SCENARIO_COUNT = 40`, `FIRST_ATTEMPT_VALID_MIN = 38`, `P95_LATENCY_MAX_MS = 15_000` in
+  `model_spike.py`, asserted by `test_the_thresholds_are_ap5_s_literals_and_the_scenarios_are_fixed`.
+- [x] Review: the thresholds equal AP5-S's; the tool reads a key only through `secrets.resolve_key`,
+  only when the configuration names a `key_env` (a local server needs none), and never on its own.
+- **Operator step — NOT RUN.** No agent ran the spike, pulled or downloaded a model (QP5-3). P6's freeze
+  waits for the operator's report, or an operator decision in its place. The command:
+
+  ```sh
+  uv run python cognition/lm-controller/tools/model_spike.py \
+      --config ~/Library/Application\ Support/MineWorld/cognition.toml \
+      --models qwen3.5:4b,qwen3.5:9b,gemma4:12b --out ./spike-2026-10
+  ```
+
+  with a `cognition.toml` whose `[tiers] social` binds a backend at `http://127.0.0.1:11434/v1`
+  (`key_env = ""`, `reasoning = "off"`). The agent then commits the report and the chosen cassette
+  under `tests/cassettes/spike-<date>.{json,jsonl}` and records the default in the README's example.
+
+### 13.9 C8 — close-out
+
+- [x] Implementation: `README.md` (what the package is, the modes, the configuration and where to keep
+  it per platform, the never-in-CI rule, the provider table with the "verify" marks of §13.7, the spike
+  command); this ledger; [`handoff-s10-p5.md`](handoff-s10-p5.md) closed. origin/main merged at
+  `cf18713` (#97 13b parity, #114): no conflict; `.gitattributes` now starts with `* text=auto eol=lf`
+  (main's), and P5a's `*.jsonl text eol=lf` stays beside it; `ci_layer.py` gained main's `parity` layer
+  and keeps both pytest commands; `test_spike_tool.py` now also checks `parity`.
+- [x] Validation (E-P5-8), on the merged tree (`a718fec`, then documentation only):
+  - Rust: `cargo fmt --all --check` OK; `cargo clippy --workspace --all-targets --all-features -- -D
+    warnings` clean; `cargo test --workspace` every result `ok`, no `FAILED`, no panic (run locally on
+    the merged tree, because main moved; no Rust file changed in this PR, AP5-11).
+  - Python: `uv sync --locked`; `ruff check` and `ruff format --check` over both members clean;
+    `pyright` strict over both, 0 errors; `pytest cognition/lm-controller` 81 passed; `pytest sdk/python`
+    34 passed with the real server (binary rebuilt); `check_scratch.py left` clean.
+  - Documentation and pins: `check_doc_headings.py` (192 sections), `check_decision_ids.py` (91 ids,
+    all distinct), `check_ci_pins.py`, `check_scratch.py scan`, all exit 0.
+  - CI: a scratch branch (`scratch/s10-p5-platforms`, evidence only) ran the full matrix at `89146e4`:
+    `fast`, `test`, `platforms` ×2 and `python` on Ubuntu and macOS green; **Windows red** on AP5-10 (b)
+    (F-P5-4, below); fixed in `a718fec`. The scratch re-run at `a718fec` (run 38014270115) was red on
+    Windows again, earlier: pyright, which checks for the host platform, refused `os.sysconf` in
+    `tools/model_spike.py` (POSIX only; `hasattr` does not narrow). Fixed by `sys.platform != "win32"`,
+    which pyright narrows; checked locally with `pyright --pythonplatform Windows` and `Linux` as well as
+    the default (0 errors each). The PR's own runs are recorded in the handoff and the PR body.
+- [x] Review: the whole diff against §2.3 — no `*.rs`, nothing under `sdk/python/`, `worlds/` or
+  `.github/` (AP5-11, `git diff --stat` at the PR); no secret anywhere (AP5-9's scans); every `[x]` above
+  carries its evidence; deviations DV-P5-1 … DV-P5-6 and findings F-P5-1 … F-P5-4 recorded.
+
+**F-P5-4 (Windows: the network guard does not see the proactor loop).** CI's Windows leg (run
+38013201062) failed AP5-10 (b): a connection to `192.0.2.1:80` through the adapter took 10.0 s instead of
+being refused at once. Audit: on Windows, `asyncio` defaults to the proactor loop, whose `sock_connect`
+calls `IocpProactor.connect` (`BindLocal` + `ConnectEx`) and never `socket.socket.connect`, which is the
+only call pytest-socket patches when `--allow-hosts` is given (DV-P3-2). On macOS and Linux the selector
+loop calls `socket.connect`, so the guard holds there. **Decision (bounded):** the cognition suite runs
+every coroutine on `asyncio.SelectorEventLoop` (`tests/support.run`, `loop_factory`), on every platform;
+the test now checks the error type before the time. Replay mode's structural guarantee (no client is
+constructed, AP5-6 (a)) is unaffected and is the primary protection. **Material for the planning
+session, not fixed here:** the SDK's suite (`sdk/python`, P3) runs `asyncio.run` with the default loop, so
+on Windows its asynchronous connections are not guarded either (its own guard test uses a blocking
+`socket.create_connection`, which is). Changing `sdk/python` is outside P5a (I-1, AP5-11).
+
+### 13.10 Mutations (each applied, run, observed red, reverted)
+
+```text
+ID    criterion   mutation                                               observed
+M-1   AP5-1 (a)   canonical_json with sort_keys=False                    golden test FAILED (bytes differ)
+M-2   AP5-2       a float returns instead of raising KeyMaterialError    both schema-path cases FAILED
+M-3   AP5-4       replay returns the first entry for every repeat        ordered-replay test FAILED
+M-4   AP5-4       Cassette.load skips the key check                      edited-entry test FAILED
+M-5   AP5-5       record writes the target directly, replaces nothing    interrupted test FAILED (bytes
+                                                                         changed at index 113)
+M-6   AP5-6 (c)   one retry on a 5xx                                     no-retry test FAILED (2 requests)
+M-7   AP5-7 (i)   budget checked after the backend call                  (i) FAILED 23≠22; (iii) FAILED 3≠2
+M-8   AP5-7 (iv)  SqliteLedger on ":memory:"                             (iv) and the round trip FAILED
+M-9   AP5-7 (v)   budget.py imports Observation from wire.contract       (v) FAILED
+M-10  AP5-6 (a)   backend/__init__.py imports openai_compatible          child-interpreter test FAILED (and
+                                                                         the scan, at that line)
+M-11  AP5-8       replay keeps only entries whose binding is bound       rename/repoint test FAILED (misses)
+M-12  AP5-9       the adapter logs a 401's body                          both source cases FAILED ("logs")
+M-13  AP5-13 (a)  load_dotenv instead of dotenv_values                   (a), (f) and AP5-9[env_file] FAILED
+M-14  AP5-13 (e)  `.env.*` dropped from .gitignore                       `.env.local` case FAILED
+M-15  AP5-14 (a)  groq preset on http://                                 row test FAILED naming "groq"
+M-16  AP5-14 (c)  the preset name written as meta.binding                both preset cases FAILED
+M-17  AP5-14 (f)  a "cerebras" row with no README row                    README test FAILED naming it
+M-18  AP5-10 (a)  "ollama" planted at the end of gateway.py              scan FAILED at gateway.py:151
+M-19  AP5-10 (b)  the guard removed from the member's addopts            configuration test FAILED (only that
+                                                                         test was run: without the guard the
+                                                                         TEST-NET test would attempt a real
+                                                                         connection, which this session avoids)
+M-20  AP5-10 (c)  the two pytest commands merged into one                once-per-member test FAILED
+```
+
+AP5-14 (c)'s listed mutation ("add the preset name to the request") cannot be written: the request is a
+closed model with no field for it (AP5-1 (c)). M-16 is the nearest real leak — the preset name reaching
+the cassette — and it is caught.
+
+**Process note.** While editing a test this session ran `sed -i.bak '' /dev/null` once by mistake (an
+empty `sed -i` on `/dev/null`, which the brief forbids). It touched no file: `git status` and a search for
+`*.bak` showed nothing. Recorded so the slip is visible.

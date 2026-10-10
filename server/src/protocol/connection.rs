@@ -82,6 +82,9 @@ pub enum ClosingReason {
     Superseded,
     /// Another connection took this seat with `take_over: true`.
     TakenOver,
+    /// The connection's `perceived` stream fell further behind than the server holds for it; it
+    /// rejoins with its `resume` and its cursor (`PROTOCOL.md` §5.8).
+    Lagged,
     /// The invite was wrong or missing.
     Unauthorized,
     /// The client speaks another revision of the protocol.

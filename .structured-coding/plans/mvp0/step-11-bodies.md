@@ -8889,55 +8889,137 @@ Goal: `ARC-W`, `DEP-P`, the `ARC-26` and `ARC-39` notes, `MODULE_SPEC.md` §4.1 
 `walk-step`, `Walking`, `Wayfinder`; bodies as wayfinder), `systems/README.md`. (The `ARC-27` / `ARC-42`
 notes and §8.1 land with 12n-2's host change.) Base captures: NV-1's digests and
 bytes on the implementation base. Non-goal: any code.
-- [ ] Implementation: the records and spec edits; E-NV-base.
-- [ ] Validation: doc checks; the captures equal the values in NV-1 or the difference is recorded.
-- [ ] Review: terminology (`Process`, `ActionIntent`, no new synonym); the records state both reuse directions.
+- [x] Implementation: the records and spec edits; E-NV-base. `ARC-75`, `DEP-34` (N-D1), `ARC-26` note,
+  `ARC-39` note 5, `MODULE_SPEC.md` §4.1 (walking paragraph; `body` row), `systems/README.md`.
+- [x] Validation: doc checks (85 decision ids, all distinct; 192 sections, none duplicated); the captures
+  equal NV-1's values except market-town, whose difference (main moved it before 12n) is recorded in
+  E-NV-base.
+- [x] Review: terminology — `Process`, `ActionIntent`, `System Pack`, `Person` used as defined; no new
+  synonym (a "walk" is named as movement's state, never a Process); DEP-34 states both reuse directions
+  (adopt the search, build the graph, with the reason).
 
 ### NV-C2 — movement: the catalog
 Goal: `Wayfinder`, `RouteAsk`, `Waypoints`, `register_wayfinders`, `registered_wayfinders`,
 `require_registered` (movement's own, mirroring presence's, `ARC-62` item 4); the `installed!` line
 listing nobody yet. Files: `systems/movement/src/{wayfinder.rs,lib.rs}`, `systems/installed/src/lib.rs`.
-- [ ] Implementation: the trait and catalog; the empty line.
-- [ ] Validation: the installed set's guard tests; a synthetic wayfinder in a movement test (own process)
-  answers and is asked in `SystemId` order; never-registered means straight lines.
-- [ ] Review: catalog rules match `ARC-62` item 4 word for word; nothing reads it but `walk`.
+- [x] Implementation: the trait and catalog; the empty line. `systems/movement/src/wayfinder.rs`
+  (`Wayfinder`, `RouteAsk`, `Waypoints`, `RouteAnswer`, `register_wayfinders`, `registered_wayfinders`,
+  `require_wayfinder` — renamed from `require_registered`, N-D2); `installed!` line with `[]`. Committed
+  with NV-C3 (one commit: the catalog's only reader is the walk, so alone it is dead code — N-D3).
+- [x] Validation: `systems/installed` tests (resolution.rs now asserts two lines) pass;
+  `systems/movement/tests/wayfinder.rs` (own process): two synthetic wayfinders registered out of order
+  are asked alpha → zeta; alpha's answer is the route (hand-computed trail (2 114, 5 743), (2 500, 6 000),
+  (3 614, 5 257), (4 000, 5 000)); zeta's `Unreachable` refuses `no-route`; no answer → straight; the
+  write-once, duplicate and unregistered panics. `tests/walk.rs` (never registers) is the straight-line
+  case. E-NV1.
+- [x] Review: the three entry points and their rules are `ARC-39` item 5's as `ARC-62` item 4 carries
+  them (write-once, sorted by id, same ids no-op, different list panics naming both, purity and inertness
+  stated on the trait); only `walk.rs`'s `plan` reads the catalog (`wayfinder::route`).
 
 ### NV-C3 — movement: `walk-to`, `walk-step`, `Walking`, facts, disclosure, `is_walking`, VERSION 2
 Files: `systems/movement/src/{action.rs,walk.rs,event.rs,system.rs,component.rs}`;
 `clients/protocol/ADOPTION.md` (the stepping rule beside the `move` reporting rule).
-- [ ] Implementation: SD-N1, SD-N2, SD-N6 … SD-N10; `reachable` reused for each stride; no Process.
-- [ ] Validation: movement tests with no wayfinder: straight walk, cross-place walk, person walk, every
-  refusal, superseding, NV-2 (g)'s "no calendar time" and M-N0, a snapshot round trip mid-walk.
-- [ ] Review: every stride goes through `reachable` then `arrivals()`; no position is written by movement;
-  nothing in movement reads a clock or a scale (NV-11); a `move` ends a walk in the same dispatch.
+- [x] Implementation: SD-N1, SD-N2, SD-N6 … SD-N10; `reachable` reused for each stride; no Process.
+  `action.rs` (`WalkTo`, `WalkStep`, `Destination` `#[non_exhaustive]`, externally tagged; constants),
+  `component.rs` (`Walking`, schema 1), `event.rs` (`walk-started`, `walk-ended`, `Ended`), `walk.rs`
+  (`places_to`, `begin`, `step`, `arrived`, integer stride/approach), `system.rs` (VERSION 2; reacts to
+  presence's `arrived` — ends the walk at its goal in the same dispatch — and `stopped-short` — records
+  who stopped the walker, SD-N9's `avoid`; discloses `walking { destination, next ≤ 4 }`; offers
+  `walk-to` always and `walk-step` to a walker, both incomplete), `is_walking`, `NO_ROUTE`;
+  `clients/protocol/ADOPTION.md` §4.2. Literal edits in other crates (N-D4).
+- [x] Validation: `systems/movement/tests/walk.rs` 10 tests (straight 3 000 mm walk = 1 340, 1 340, 320;
+  cross-place walk = (3 940, 2 000), (4 600, 2 000), street (0, 2 000), (1 000, 2 000), one entry;
+  positionless place; semantic crossing; person walk to (1 200, 2 200) and following a moved target;
+  TooFarAway / no-route / PreconditionFailed / malformed-payload; replaced and stopped; a day's
+  `advance_to` moves nobody and the next step is the same stride; disclosure and offers; snapshot
+  restore continues byte-identically) — all pass. M-N0 (a stride in walk-to's resolve) → 7 of 10 fail,
+  `a_walk_takes_no_calendar_time` by name ("nobody stepped, nobody moved"); reverted. E-NV1.
+- [x] Review: every stride is `walk::step` → `reachable` → `arrivals()` (system.rs walk-step branch;
+  an unreachable stride ends the walk `no-route` rather than erroring); movement writes `Walking` and
+  `Passages` only; no clock, scale or random source in movement's sources (grep, E-NV1); a `move` by a
+  walker emits `walk-ended { stopped }` before its arrivals, in the same dispatch.
 
 ### NV-C4 — bodies: the route (`route.rs`) and `DEP-P`'s dependency
 Files: `systems/bodies/src/route.rs`, `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement`
 as a crate dependency), `Cargo.lock`, `systems/bodies/tests/route.rs`.
-- [ ] Implementation: SD-N4, SD-N5, SD-N9's `avoid`.
-- [ ] Validation: NV-5 (oracle, 2 000 scenes) and M-N5; NV-10's timing in a scratch build.
-- [ ] Review: no float, no `HashMap`; every predicate in `i128`; corner order and successor order are as
-  specified; snapping reuses E3's order.
+- [x] Implementation: SD-N4, SD-N5, SD-N9's `avoid`. `systems/bodies/src/route.rs` (`route_in`, public
+  for tests and tools like `explain`; `PLAN_MARGIN` 50, `WAYPOINTS_MAX` 64; the `Wayfinder` impl lives
+  here too, so it is the one file naming `pathfinding`); `entry::nearest_free` made `pub(crate)` and
+  reused for the goal's snap (E3's order); a start inside a grown box is held to the box's core for its
+  own edges (N-D7); `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement` moved from
+  dev-dependencies to dependencies); `Cargo.lock` adds exactly `pathfinding` 4.16.0, `deprecate-until`
+  1.0.0, `integer-sqrt` 0.1.5, `rustc-hash` 2.1.3 — each "Apache-2.0/MIT" or "Apache-2.0 OR MIT"
+  (ARC-55 admits both); `indexmap`, `num-traits`, `thiserror` were already locked.
+- [x] Validation: NV-5 (`systems/bodies/tests/route.rs`, 2 000 seeded scenes): 852 routed (1 310 bends,
+  573 goals moved and equal to the oracle's own snap), 909 unreachable each confirmed by the 25 mm flood
+  fill, 239 without a start — PASS. M-N5 as two mutations: (a) touching counts as blocked → "scene 9:
+  unreachable, but the flood fill reaches (8246, 9661) from (10954, 3395)"; (c) a corner on the line
+  counts for either side (a grazing segment passes) → "scene 0: … (2431, 5040) within 310 of solid";
+  both reverted. (b) the line test dropped (bounding boxes only) survives: it only over-blocks, adding
+  bends (1 816), which the oracle — safety and refusal, not optimality — does not claim to see. NV-10:
+  E-NV2.
+- [x] Review: no float, `HashMap` or clock in route.rs (`no_float_outside_the_adapter` holds it); every
+  predicate is an `i128` cross product or an integer comparison; corners SW, SE, NE, NW, boxes solids →
+  objects (lying_in's ItemId order) → the avoided person; successors in node order; the snap is
+  `entry::nearest_free`, E3's (distance, y, x).
 
 ### NV-C5 — bodies answers: the `Wayfinder` impl, the installed line, SD-N11
 Files: `systems/bodies/src/{system.rs,geometry.rs}`, `systems/installed/src/lib.rs`,
 `systems/bodies/tests/{actions,scenarios,isolation}.rs`.
-- [ ] Implementation: `impl Wayfinder for BodiesSystem` (inert without `PlaceShape`); `install` calls
-  movement's `require_registered`; the line lists bodies; `NUDGE_MAX`, `BIAS_BAND` derived; the two
-  tests per §21.6.
-- [ ] Validation: bodies' full suite; NV-7 at R 300 and the scratch R 250 run; NV-6.
-- [ ] Review: no result changes at R 300 (bodies-yard digest, long-run bytes).
+- [x] Implementation: `impl Wayfinder for BodiesSystem` (inert without `PlaceShape`; in route.rs, NV-C4);
+  `install` calls movement's `require_wayfinder` (N-D2) after presence's `require_registered`; the line
+  lists bodies; `NUDGE_MAX := PERSON_RADIUS`, `BIAS_BAND := 2·PERSON_RADIUS/3`; the two tests per §21.6:
+  `a_stride_toward_a_person_within_the_offset_is_never_passed_through` (actions.rs; replaces
+  `…_600_mm_away_is_still_stopped`, claim 1 (i) and (ii), lengths in R) and n3's crowd at 13R/6 with a
+  5R/3 step and `bounded_stride`'s bounds as R + 10 and 2R − 5 (scenarios.rs). RN-9's audit: two hand
+  compositions install bodies — `tests/support/mod.rs::register` and `resolve.rs`'s unit tests — both
+  now register the wayfinder beside the resolver; no other crate installs bodies by hand (git grep).
+- [x] Validation: bodies' full suite and installed's pass (clippy -D warnings clean); NV-6's structural
+  test `the_search_crate_stays_in_route_rs_and_movement_names_no_bodies` passes; NV-7 at R 300: (i) a
+  stopped by b at (3 400, 5 000), (ii) 201 mm aside stopped by b at (3 427, 5 000); n3 2 strides
+  blocked, ≤ 4 moved, 2 generations. M-Z5 (the "away" exclusion widened to everybody within the
+  offset): fails (i) by name — a passes through b to (4 369, 4 758), b nudged to (3 858, 5 093) — not
+  (ii) as §21.6 predicted (at 633 mm b in (ii) is outside the 610 mm offset, so the exclusion never
+  reaches it); reverted. Scratch R 250: E-NV3.
+- [x] Review: no result changes at R 300 — E-NV3's C5 captures: long_run 23f7fa76…, long_run_objects
+  c8358f8b…, bodies-yard 30 d bd6a1002…, the three `validate` outputs — all equal E-NV-base.
 
 ### NV-C6 — the real walk
 Files: `tools/cli/tests/walking.rs` (new; test-time world copies).
-- [ ] Implementation: NV-2 (a–f), NV-3, NV-4.
-- [ ] Validation: the tests; M-N1 … M-N4 applied and reverted.
-- [ ] Review: every expected waypoint and distance is hand-computed in the test's comments.
+- [x] Implementation: NV-2 (a–g), NV-3, NV-4 — `tools/cli/tests/walking.rs`, 9 tests. The worlds are
+  written by the test (bodies-yard's court verbatim, a hall of the yard's size and door with the
+  claim's furniture, an attic with no passage — N-D9); a scripted session on the real `mineworld
+  server` sends `walk-to` and `walk-step`s; facts are read back from the save with this file's own
+  payload mirrors. NV-3 runs on `worlds/social-cafe` itself (read-only). NV-4 runs the persistence path
+  (`PersistentWorld`, what `run` and the server use) in two processes: the test binary re-run as a
+  child creates the save, walks through the crossing and is killed (`Child::kill`: SIGKILL on Unix,
+  TerminateProcess on Windows); the parent resumes it and finishes the walk at the same instants.
+- [x] Validation: 9 of 9 pass (E-NV4). Mutations, each applied, observed failing by name, reverted:
+  M-N1 (the wayfinder line emptied) → every bodies test world refuses to assemble — bodies' `install`
+  panics naming the empty catalog (fail-closed); M-N1b (also the guard removed, so walks go straight)
+  → (a) fails at its waypoints, `[(4500, 1500)]` ≠ the three, as do (c), the crate and the ring
+  refusal; M-N2 (PLAN_MARGIN 0) → (a), (c), the crate fail at their waypoints ((2690, 4210) …); M-N3
+  (objects omitted) → the crate's route assertion, and with it disabled "the crate was walked round,
+  not pushed"; M-N4 (the search's successor costs depending on how many searches the process has run)
+  → `resumes: ReplayDiverged { revision: 3, "fact 8 differs from the logged fact 8" }` — the parity
+  form literally as §21.8 words it survives here, because the uninterrupted run makes an even number of
+  searches before the resume re-runs them (recorded, not hidden).
+- [x] Review: every waypoint asserted is hand-computed in the test's comments from the hall's numbers
+  grown by 360 mm (slot (2 640, 4 260), (3 660, 4 260); pocket (9 360, 2 640), (9 360, 3 660), (7 360,
+  3 960), (6 340, 3 960); table (6 640, 7 360); crate (840, 1 840), (840, 3 160) with the tie stated;
+  the court walk's five positions). Strides between waypoints are asserted by bound (≤ 1 340 mm), not
+  by literal.
 
 ### NV-C7 — close
-- [ ] Implementation: ledger, `MVP_STATUS.md` rows, handoff.
-- [ ] Validation: NV-1 (the four captures), NV-8 (Rosetta), NV-9 (gate) on the final head.
-- [ ] Review: scope (`git diff --name-only`), the no-diff paths, the records match the code.
+- [x] Implementation: ledger (§21.15), `MVP_STATUS.md` (Movement row, S15 row: in review, held at M-1),
+  handoff; origin/main merged (9fbc807).
+- [x] Validation: NV-1 (E-NV5: four town runs in all, every digest equal its reference), NV-8 (E-NV5:
+  Rosetta), NV-9 (E-NV5 local gate; the workspace tests and CI on the exact head: E-NV6).
+- [x] Review: scope — `git diff --name-only origin/main...HEAD` is §21.14's paths plus N-D4's four
+  literal-edit test files; no diff under kernel/, contracts/, persistence/src/, server/,
+  systems/presence/, worlds/; clients/ only ADOPTION.md. The records match the code except the
+  recorded deviations N-D2 (`require_wayfinder`), N-D5 (re-plan triggers), N-D6 (arrival in the
+  reaction), N-D7 (start core). M-1 ruled (option (a)) and applied; READY FOR OPERATOR REVIEW.
 
 ## 21.13 Commit plan — 12n-2 (medium detail; detailed at its own freeze after 12n-1 merges)
 
@@ -9067,6 +9149,220 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
            (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
            docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
+```
+
+**12n-1 implementation session (2026-10-09, worktree `impl-12n`, branch `mvp0/pr-12n-navigation` from
+`origin/main @ 551fb2c`).**
+
+```text
+N-D1  Record ids (NV-C1): ARC-W → ARC-75, DEP-P → DEP-34. (First taken as ARC-73; renumbered to ARC-75
+      on the primary session's instruction of 2026-10-09, because ARC-72 … ARC-74 are S10's on main,
+      pr-s10-p5b QP5b-3; DEP-34 kept.) ARC-72, DEP-32 and DEP-33 are provisionally
+      S20's (mvp0/pr-set-a, step-20 F-10), so the next free numbers were taken; check_decision_ids.py
+      guards a collision. overall.md's "Decision numbers assigned" table is the planning session's to
+      update (post-merge sync).
+
+E-NV-base NV-C1, 2026-10-09 17:28–17:30, on 551fb2c (= origin/main, #100 merged), before any code.
+      Machine: Apple silicon, rustc 1.97.1, other lanes running (no time here is a measurement).
+      `cargo build -p mineworld-cli` (dev) → /tmp/s15-12n/base-mineworld. /tmp/s15-12n/capture.sh base
+      … towns (cap-base.log):
+        long_run           LONG-RUN line 4 019 632 bytes, 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125
+        long_run_objects   612 428 bytes, c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4
+        bodies-yard 30 d   faults 0, 62 385 facts, bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6
+        social-cafe 300 d  faults 0, 365 330 facts, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        market-town 300 d  faults 0, 374 857 facts, 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270
+        validate           bodies-yard 7356b8f8…12063f, market-town 31fb85d4…480620, social-cafe ebcd60a0…f56a8
+      Four of five equal §21.8 NV-1's values. market-town differs from NV-1's 365b50e0…1d1d (372 755
+      facts): main moved it before this PR (4018434 "worlds: market-town lives in San Diego" enabled
+      the calendar pack with configure/calendar.yaml after ec38570; its `validate` output moved with
+      it, 64f41086… → 31fb85d4…). NV-1's
+      reference for market-town is therefore this capture, 24a95d2a…d270, as NV-1 provides ("captured
+      on the implementation base first … or the difference recorded"). Not a 12n change.
+
+N-D2  Movement's guard is `require_wayfinder`, not `require_registered` (SD-N3 / NV-C2's name).
+      tests/acceptance/tests/seam_vocabulary.rs `movement_names_no_resolver` (ARC-39, 12a's SC-7) refuses
+      the string `require_registered` anywhere in movement's sources; renaming keeps that acceptance
+      test unedited and the ARC-39 absence true. Same rules, same panics. Recorded in ARC-39 note 5.
+N-D3  NV-C2 and NV-C3 are one commit (the catalog alone is dead code under clippy -D warnings).
+N-D4  Literal edits outside §21.14's listed paths, each a mechanical consequence of a frozen decision,
+      claims unchanged (none is under the frozen no-edit paths kernel/, contracts/, persistence/src/,
+      server/, systems/presence/, clients/ but ADOPTION.md, worlds/):
+        systems/conversation/tests/conversation_and_presence.rs  offered actions gain `walk-to` (SD-N7);
+                                                                 component declarations gain movement's
+                                                                 `walking` (SD-N2)
+        tools/cli/tests/inspect.rs, social_composition.rs (×2)   `movement v1` → `movement v2` (SD-N13)
+        systems/installed/tests/resolution.rs                    two extension lines, not one
+      Judged bounded (as 12a's QR-2 literals were), not the material "edit outside the approved paths",
+      which guards scope; reported to the operator for confirmation. CONFIRMED bounded by the primary
+      session, 2026-10-09 (no stop).
+N-D5  SD-N9's third re-plan trigger ("the place's LooseObjects changed since the plan") is not
+      observable by movement without naming bodies (ARC-62: an owner never names its implementers).
+      Implemented: a step re-plans when the last stride did not end where it was asked (stopped short,
+      nudged, shoved — which is what an object in the way does when it blocks), or a person destination
+      moved > 500 mm. An object moved across a planned leg is pushed by a stride like any object a `move`
+      meets. Stated in ARC-75's limitations.
+N-D6  The walk's arrival is recognised in movement's reaction to presence's `arrived` (the walker
+      recorded at the leg's planned end, or within PERSON_APPROACH of the person), so `walk-ended
+      { arrived }` is in the same dispatch as the last stride rather than at a further step. Movement
+      therefore subscribes to `arrived` and `stopped-short` (presence's vocabulary; movement already
+      depends on presence and states both). `Walking` carries `goal` and `stopped_by` besides SD-N2's
+      fields; `progress` is the last stride asked (from, to).
+
+E-NV1 NV-C2/NV-C3, 2026-10-09, working tree on 1200b90. `cargo clippy -p mineworld-movement
+      -p mineworld-installed-systems --all-targets -D warnings` clean; `cargo test -p mineworld-movement
+      -p mineworld-installed-systems` all pass (walk.rs 10, wayfinder.rs 5, the existing 13). A workspace
+      run (`cargo test --workspace --no-fail-fast`, /tmp/s15-12n/ws-c3.log, for N-D4's discovery only —
+      not the gate) found exactly four failing targets: seam_vocabulary (N-D2), inspect and
+      social_composition (N-D4 literals), and a bodies doctest built against a stale rlib while route.rs
+      was being added (not reproducible; re-run in NV-C5). 183 targets passed. NV-11 audit: no `Instant`,
+      `SystemTime`, scale, `now()` or random source in systems/movement/src or route.rs (grep).
+
+N-D7  SD-N5's start rule, refined. "A start inside a grown box ignores the boxes containing it for its
+      own outgoing edges" would let a person standing 260 mm from the counter route straight through the
+      counter to its other side. Implemented: such a box is replaced, for the start's edges only, by its
+      core — the box shrunk until the start lies on its edge — so the start may step away or along, never
+      across (route.rs `core`; unit test a_start_inside_a_grown_box_may_leave_it_but_not_cross_it).
+      Same intent (a start within the margin can leave), no defect. NV-5's starts are free points, so
+      the rule is held by the unit test, not the oracle.
+
+E-NV2 NV-10, 2026-10-09 ~17:47, dev profile, scratch build (/tmp/s15-12n/target-b; the timing harness
+      /tmp/s15-12n/route_timing.rs and a temporary timer in tests/route.rs, both removed). Machine load
+      average 32–38 (other lanes) — contaminated.
+        NV-5's scenes (1 761 plans):  run 1 max 13 502 µs, p99 683 µs; runs 2, 3 max 502 / 648 µs,
+                                      p99 264 / 290 µs, p50 ≈ 40 µs
+        12d's street (62 solids, origin/mvp0/pr-12d-towns:worlds/social-cafe/places/street.yaml;
+        2 000 random pairs, 1 983 routed): max 1 914 / 1 167 µs, p99 973 / 633 µs, p50 84 / 53 µs
+      Bound max ≤ 5 ms, p99 ≤ 1 ms: PASS on every run but run 1 of the scenes, whose single 13.5 ms plan
+      did not recur in two re-runs of the same 1 761 plans (a scheduling outlier at load 38; the p99 of
+      that run, 683 µs, is within bound). No grid fallback needed.
+
+N-D8  NV-7 claim 1 (ii)'s layout, corrected before the R 250 verdict. As first written (1796c29) the
+      test placed a 2R behind b with b ⌊2R/3⌋ + 1 aside — 633 mm apart at R 300, 527 at R 250: outside
+      the controller's offset (2R + 10), so not the case §21.6 names ("a stride toward a person within
+      the offset"). Corrected to 19R/10 along the line: 604 mm at R 300, 504 at R 250, both inside
+      [2R − 5, 2R + 10]. The test's own extra "(ii) b not moved" (not in §21.6's claim) became "b moved
+      at most a nudge, R + GAP" — at R 250 b is nudged 231 mm on the way to the stop. Claim (ii) as
+      §21.6 states it ("stopped by them") is unchanged.
+
+E-NV3 NV-7, 2026-10-09 18:00–18:10. R 300 on the PR tree: (i) a stopped by b at (3 400, 5 000), b
+      unmoved; (ii) 201 mm aside, a stopped by b at (3 430, 5 000); n3 2 strides blocked, ≤ 4 moved,
+      2 generations — PASS. M-Z5 (exclusion widened): (i) fails by name, a passes b; reverted.
+      Scratch R 250: `git worktree add --detach /tmp/s15-12n/r250 1796c29`, geometry.rs PERSON_RADIUS
+      300 → 250 and CLEARANCE 595 → 2R − 5 (12d's two edits), tests/support's invariant literals 595 /
+      295 → 2R − 5 / R − 5 (495 / 245; they are R-300 literals of the test harness), actions.rs with N-D8;
+      own target dir /tmp/s15-12n/target-r250. Never committed.
+        claim 1 (i)   a turned by the bias to (3 500, 4 799), stopped-short { by: None }, 538 mm from b
+                      (≥ 495), not the asked point, b unmoved                                   PASS
+        claim 1 (ii)  167 mm aside: a stopped by b at (3 775, 5 000); b nudged to (4 185, 5 305), 231 mm
+                      ≤ R + GAP                                                                  PASS
+        claim 2 (n3)  6 of 12 strides blocked (strides 6–11: nudge_failed, biased); 0 people moved,
+                      0 generations — "the crowd was nudged" FAILS (scenarios.rs:313). Bounds hold.
+      Probes (scratch only, reverted, informative): crowd spacing 2R + 50 (12d's) instead of 13R/6 → the
+      same 6 blocked, 0 moved; NUDGE_MAX 300 (12d's absolute) with spacing 2R + 50 → c1 is nudged 280 mm
+      (so a fixed 300 mm budget nudges at R 250 where R does not).
+
+M-1   MATERIAL STOP (§21.14: "NV-7 failing at R 250 with derived constants (QN-5)"; §21.6: "a material
+      stop with the numbers — no constant is re-tuned to pass"). Claim 2 fails at R 250: with NUDGE_MAX
+      = R the crowd of n3 is never nudged; the walker is blocked at contact from stride 6 on. Claim 1
+      passes (after N-D8). Nothing at R 300 changes (E-NV3; NV-1's captures). The dependent action —
+      12d's TD-D8 close — waits for a ruling; the rest of 12n-1 (NV-C6, NV-C7) is independent and goes
+      on. Smallest revisions, for the operator / primary session:
+        (a) keep SD-N11 and restate claim 2 at R 250 as "bounded chains, and sometimes blocks" — the
+            crowd need not be nudged (at R 250 it is not);
+        (b) keep NUDGE_MAX absolute (300) as 12d's WIP did ("a policy, not a person dimension"), i.e.
+            withdraw SD-N11's first derivation (BIAS_BAND's stays);
+        (c) re-derive the bound differently (e.g. NUDGE_MAX := R + 50) and measure again.
+      Recommendation: (a) — the claim's purpose (bounded, sometimes blocks) holds, and a body-relative
+      yield is the operator's realistic-defaults intent; (b) contradicts the frozen SD-N11.
+
+M-1 RULING (operator, 2026-10-09, relayed by the coordinator): option (a). SD-N11's claim 2 at R 250 is
+      restated as "nudge chains are bounded and a stride may be blocked; a blocked walker re-plans".
+      SD-N11 (NUDGE_MAX := R, BIAS_BAND := 2R/3) stands. Applied: scenarios.rs's n3 test is now
+      `n3_a_crowds_nudge_chains_are_bounded_and_a_stride_may_be_blocked` — at least one stride blocked,
+      at most four moved and two generations per stride (bounded_stride also holds R + 10 per nudge and
+      2R − 5 apart after every stride); whether the crowd is nudged at all is printed, not claimed. "A
+      blocked walker re-plans" is the walk's claim, held by movement's re-plan on a stride that did not
+      end where asked (walk.rs; walking.rs NV-2 (c), (f)).
+      Evidence after the ruling, on the PR tree (R 300) and the scratch /tmp/s15-12n/r250 (R 250, the
+      same tests copied, geometry.rs R 250 and CLEARANCE 2R − 5, support literals 2R − 5 / R − 5):
+        R 300  claim 1 (i) stopped by b at (3 400, 5 000); (ii) stopped by b at (3 430, 5 000);
+               n3 2 strides blocked, ≤ 4 moved, 2 generations — PASS
+        R 250  claim 1 (i) turned to (3 500, 4 799), 538 mm from b; (ii) stopped by b at (3 775, 5 000),
+               b nudged 231 mm; n3 6 strides blocked, 0 moved, 0 generations — PASS
+      M-1 is closed. The primary session also confirmed N-D4 as bounded (no stop).
+
+N-D9  NV-2's "test-time copy of bodies-yard" is a world the test writes: the yard's court file
+      verbatim, and a hall with the yard's floor (12 × 9 m) and east door but the claim's furniture in
+      place of the yard's table and six people and eight objects (which would stand on the routes and
+      make the waypoints people-dependent). Same packs (presence, movement, bodies). (g) runs on the
+      server at --time-scale 28 800 (a world day in three wall seconds) instead of `advance_to`, which
+      the movement test owns (E-NV1).
+
+E-NV4 NV-C6, 2026-10-09, working tree on c1fab19 + walking.rs. `cargo test -p mineworld-cli --test
+      walking`: 9 passed, 4.5 s.
+        (a) 7 steps: (2 011, 2 738), (2 522, 3 976), (2 640, 4 260), (3 660, 4 260), (4 050, 2 979),
+            (4 440, 1 698), (4 500, 1 500); no stopped-short; arrived
+        (b) 8 steps: (9 211, 2 570), (9 360, 2 640), (9 360, 3 660), (8 036, 3 858), (7 360, 3 960),
+            (6 340, 3 960), (5 813, 2 729), (5 500, 2 000); arrived
+        (c) ends 1 198 mm from Bea (6 820, 7 392); after Bea's move, (6 007, 6 807), within 1 200 of
+            (6 500, 7 900); both arrived
+        (d) (11 340, 4 500), (11 600, 4 500), court (400, 5 000), (1 740, 5 000), (2 000, 5 000); entered
+        (e) no-route ×2 (ring, attic), TooFarAway, malformed-payload, PreconditionFailed; nothing recorded
+        (f) outcomes replaced, stopped, arrived; the shove recorded and the walk arrived after it
+        (g) world time 1 353 → 116 611 s while nobody stepped: no stride, nothing ended, same waypoints
+        crate (840, 1 840), (840, 3 160), (1 500, 4 000); no object-moved
+        NV-3 café → street: (1 610, 200), street (0, 3 000), (0, 4 000); no stopped-short
+        NV-4 15 facts uninterrupted; the killed child's save held 12, resumed to 15, facts, journal and
+             snapshots byte-equal; `mineworld replay` of the resumed save exits 0
+
+E-NV5 NV-C7 on 9fbc807 (the PR's code with origin/main fb1d701 merged; later commits are Markdown).
+      NV-1 (/tmp/s15-12n/capture.sh head, cap-head.log; binary /tmp/s15-12n/head-mineworld):
+        social-cafe 300 d   365 330 facts, ad49c7235f…e9716c64b = E-NV-base                 PASS
+        market-town 300 d   375 527 facts, 90479fd8631a3f9c88ddc9c05720fbf8fd8fbc5b1573d6abd47e7351b9d1ae57
+                            = main's own reference after TW-b (step-19 E-TWb-4, which made the weather
+                            pack market-town's) — main moved it from E-NV-base's 24a95d2a…d270 while 12n
+                            was in flight; equality with main's recorded value shows 12n moves nothing PASS
+        bodies-yard 30 d    62 385 facts, bd6a1002…80e6 = E-NV-base                          PASS
+        long_run 23f7fa76…, long_run_objects c8358f8b… = E-NV-base                           PASS
+        validate            social-cafe ebcd60a0…, bodies-yard 7356b8f8… = base; market-town
+                            6368595a…0318 = TW-b's (main's)                                     PASS
+      Town 300-day runs: 4 of the 4 budgeted (two on 551fb2c, two here).
+      Only the composition records differ: movement v2, its actions (walk-to, walk-step), emissions
+      (walk-started, walk-ended), subscriptions (arrived, stopped-short) and the `walking` component.
+      NV-8: `cargo build --target x86_64-apple-darwin` (own target /tmp/s15-12n/target-x86); under
+        `arch -x86_64`: bodies-yard 30 d bd6a1002…80e6 = arm64's; the x86_64 test binaries (Mach-O x86_64,
+        run under Rosetta): NV-5 "852 routed (1 310 bends, 573 goals moved), 909 unreachable, 239 without a
+        start" = arm64's, walking.rs 9/9 with every trail printed identical to arm64's (E-NV4) and NV-4's
+        byte comparison passing. The hosted walks' fact bytes are not compared across architectures:
+        their instants follow the wall clock; their positions are (above). PASS.
+      NV-9 gate (local): `cargo fmt --all --check` 0; `cargo clippy --workspace --all-targets
+        --all-features -D warnings` 0; doc checks 87 decision ids / 192 sections; check_scratch scan
+        clean; check_ci_pins agree. Cargo.lock adds only pathfinding and its three new dependencies (E-NV2
+        context, NV-C4). The workspace test run and CI: E-NV6.
+
+E-NV6 NV-9's workspace tests, once, on 1d18757 (code = 9fbc807's; this entry and later commits are
+      Markdown): `cargo test --workspace` exit 0, 199 result lines all ok;
+      `scripts/check_scratch.py left --target-dir target` exit 0. CI on 1d18757 (run 38012271233):
+      fast, platforms (macos-26, windows-2025) and the three python jobs passed; the exact-final-head CI
+      is reported in the PR and the handoff, not here (a commit cannot carry its own CI).
+
+E-NV7 Exact-final-head CI on aed3a45 (ARC-73 → ARC-75 and the M-1 ruling applied): run 38014416639 —
+      fast, test (18m46s), platforms macos-26 and windows-2025, python ×3 all passed; run 38014413513
+      fast passed.
+
+MERGED PR #116 merged by the operator, merge commit ecc8d405472298246ec994f498549c4bab1279a4,
+      2026-10-10T02:06:41Z (head aed3a45). 12n-1 is complete; 12n-2 starts in a fresh session on
+      `mvp0/pr-12n-navigation-2` from main, and details its own design at its freeze (§21.13).
+      Post-merge sync: the step header and overall.md are the planning session's.
+
+F-12n-R1 (finding, the primary session's review mutation, 2026-10-09). Mutation: `walk::toward` returns
+      the target outright whenever it lies within two strides (2 × 1 340 mm). Caught by four tests of
+      tools/cli/tests/walking.rs (their hand-computed trails and the ≤ 1 340 mm stride bound), but not
+      by movement's unit test `a_stride_is_at_most_the_walk_stride_and_ends_at_a_near_waypoint`, whose
+      long case is 3 000 mm (> 2 × 1 340) and whose other cases are within one stride. The unit test
+      has no case between one and two strides, so the stride cap is pinned only at the integration
+      layer. Follow-up for the next PR that touches walk.rs: a unit case between 1 340 and 2 680 mm
+      (e.g. 2 000 mm east → exactly (1 340, 0)).
 ```
 
 
