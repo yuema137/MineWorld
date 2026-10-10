@@ -33,7 +33,14 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — READY FOR OPERATOR REVIEW (context CLOSED / AWAITING OPERATOR ACTION)
+## Current checkpoint — MATERIAL STOP M-6: CI red on other lanes' criteria (ASR-2 save size; AC-10 test_d)
+
+- CI run 38091503186 on f7465e3, testing the merge ref with newer main: `test` fails ASR-2 (30-day
+  market-town save 112.3 MiB > 64 MiB; main 59.2 MiB); `python` ×3 fail test_ac10's test_d (located 2
+  of 5). Both are pinned to the town history or its volume. Proposed: each owner lane adapts its
+  criterion (§21.15 M-6). origin/main merged (0946569).
+
+## Earlier checkpoint — READY FOR OPERATOR REVIEW (withdrawn by M-6)
 
 - M-4 and M-5 ruled. TD-12b on the merge is INCONCLUSIVE under load; 12d re-measures it on its final
   head, timing by thread CPU time as well as wall clock. 23 300-day runs, accepted as final.

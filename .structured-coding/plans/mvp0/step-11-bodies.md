@@ -10046,7 +10046,40 @@ E-NW8 NW-C4 / NW-8, the final gate, 2026-10-10, on f78ae67 (origin/main merged: 
       CI on the exact final head is reported in the PR and the handoff (a commit cannot carry its own CI).
       QN-2: the towns' digests moved here (E-NW3: social-cafe 300 d 837 953 facts, market-town 817 742,
       both before the route fix and before main's later merges; bodies-yard 30 d e0f5964c…, version 4).
-      12n-2 merges immediately before 12d. READY FOR OPERATOR REVIEW.
+      12n-2 merges immediately before 12d. READY FOR OPERATOR REVIEW — withdrawn by M-6 below.
+
+E-NW9 CI on the PR head f7465e3. GitHub tests the merge ref refs/pull/125/merge, so the run also carried
+      main's work merged after f78ae67. A dispatch (run 38089604885) skips `test`, `platforms` and
+      `python` by their job conditions, so the PR was closed and reopened to give a non-draft
+      pull_request run, 38091503186: fast, changes and platforms (macos-26, windows-2025) pass; `test`
+      and `python` ×3 FAIL.
+        test     tools/cli/tests/market_town.rs: "ASR-2: the 30-day save is 117772288 B (112.3 MiB), over
+                 the 64 MiB bound". ASR-2 is the SR lane's 30-day save-size bound (ARC-81, QSR-5; PR
+                 #153, merged into main after f78ae67). Main's own measurement is 62 029 824 B (59.2 MiB;
+                 pr-s6-save-retention.md). With walks the town records about 2.2 × the facts (E-NW3), and
+                 the save grows with them.
+        python   cognition/lm-controller/tests/test_ac10.py::test_d_… (S10 P4, AC-10): "assert 2 == 5".
+                 Its harness locates five of Bob's lines that Alice never perceived and whose words she
+                 never heard, in the 100-day social-cafe history at seed 7. The walking history has two:
+                 people talk more (E-NW3), and Alice hears the fixed greetings from others.
+      Both are other lanes' criteria pinned to the towns' history or volume, which QN-2's re-baseline
+      moves. Neither was visible on f78ae67's base (ASR-2 merged later; test_ac10 needs the Python suite,
+      which `cargo test --workspace` does not run).
+      origin/main merged again (0946569: SR save retention, IL-e, S10 P3b; no conflict).
+
+M-6   MATERIAL STOP (§21.14: an edit outside the approved paths; another lane's criterion). The PR head's
+      CI is red in two places 12n-2 may not edit:
+        1 ASR-2 (SR, `ARC-81`): a 30-day market-town save is 112.3 MiB with walking against a 64 MiB bound
+          that main meets at 59.2 MiB. Options: (a) the SR owner restates the bound for walking towns (e.g.
+          ≤ 128 MiB, about 2 × main's, as the facts are); (b) 12n-2 records fewer facts — e.g. no
+          `walk-started`, which `walk-ended` and the first `arrived` imply — a change to ARC-75's
+          vocabulary and so to the frozen design; (c) both.
+        2 AC-10's test_d (S10 P4): the located count 5 is a fixture property of the old history. Options:
+          (a) the S10 owner widens the harness's search (more listeners than Alice, or more days) and
+          keeps "5"; (b) the count drops to what the new history holds (2) — a weaker located case.
+      Recommendation: 1 (a) and 2 (a), each in its own lane's PR, merged with or just before 12n-2 —
+      QN-2 already makes 12n-2 and 12d one re-baseline event. Or both edited in 12n-2, under a ruling
+      that names them.
 ```
 
 
