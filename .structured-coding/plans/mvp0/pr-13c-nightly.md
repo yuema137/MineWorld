@@ -1065,10 +1065,14 @@ Overlap, justified: `repeat` re-runs the default suite, which `test` owns. The c
 
 # 12. Ledger (live; empty until implementation)
 
+Implementation base: `main @ 3c8bbf3` (#158's merge, 2026-10-10). Re-audit (N-C0's rule): `git diff
+--stat 98fe3e6..3c8bbf3` touches only `.structured-coding/plans/` (this file, the doorway-names design,
+step-13 and step-14 prose), so every audited claim of §2 stands on the implementation base.
+
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| N-C0 | [x] this file | [ ] | [ ] | — |
-| N-C1 | [ ] | [ ] | [ ] | — |
+| N-C0 | [x] this file | [x] | [x] | PR #158 run 38089513604: `changes` classified it docs-only, `fast` (docs layer) passed; merged as `3c8bbf3`. Review: done by the primary session at freeze (§14.1) |
+| N-C1 | [x] `docs/DECISIONS.md`: `ARC-48 note` (13c), `ARC-83`, `DEP-45`, placed after the 13x note; `.structured-coding/standards.md` one prose paragraph (no declaration change) | [x] | [x] | `check_decision_ids.py`: "109 decision ids, all distinct" (107 → 109); `check_doc_headings.py`: "193 numbered sections across 26 documents, none duplicated". Review: terms as defined (Layer, World Pack, System Pack); each ARC-83 point maps to §3.1–3.7; restart client wording follows `server/PROTOCOL.md` §4.2 (D-13c-1) |
 | N-C2 | [ ] | [ ] | [ ] | — |
 | N-C3 | [ ] | [ ] | [ ] | — |
 | N-C4 | [ ] | [ ] | [ ] | — |
@@ -1076,7 +1080,21 @@ Overlap, justified: `repeat` re-runs the default suite, which `test` owns. The c
 | N-C6 | [ ] | [ ] | [ ] | — |
 | N-C7 | [ ] | [ ] | [ ] | — |
 
-Deviations: none yet (D-13c-n). Findings during implementation: none yet.
+### 12.1 Deviations (D-13c-n)
+
+- **D-13c-1 — the restart loop's client re-joins; it does not `resume`.** Previous assumption (§3, N-C3):
+  "join and resume a seat with the SDK … the client's resume uses the protocol's `resume`". Audit:
+  `server/PROTOCOL.md` §4.2 — "After a server restart every hold and every secret is gone (none is
+  persisted): a client joins again with its invite"; the SDK's `SeatSession.connect` takes no `resume`.
+  Corrected: after each restart the client joins again with the invite and asks for the `perceived`
+  stream from the cursor (`through`) it reached before the kill (§5.8), the protocol's own continuation
+  across a restart; a `cursor_unavailable` refusal is FAIL. In-process resume within a hold stays
+  covered by `run.sh reconnect` (`clients-probes`). Bounded: the oracle (`/status`, `replay`) is
+  unchanged. Validation: N-C3's local run.
+
+### 12.2 Findings during implementation
+
+None yet.
 
 ---
 

@@ -5645,6 +5645,214 @@ windows, ac8
 
 ---
 
+## ARC-48 note — layer 4, the nightly workflow (2026-10-10, S13 PR 13c)
+
+The decision is unchanged in what `ci.yml`'s layers run; its table gains the rows of `ARC-83`, all in a
+second workflow, `.github/workflows/nightly.yml`.
+
+```text
+job group          workflow     trigger                                              merge
+gate               nightly.yml  schedule 10:17 UTC; workflow_dispatch; push to        (decides the night)
+                                scratch/**-nightly
+parity-long(-*)    nightly.yml  the same, when the gate runs the night               reports
+stability-*        nightly.yml  the same                                             reports
+clients-*          nightly.yml  the same                                             reports
+repeat-*           nightly.yml  the same                                             reports
+report             nightly.yml  the same; if: always()                               reports; opens and
+                                                                                     closes the `nightly`
+                                                                                     issue
+```
+
+- **Nothing in `nightly.yml` is a required check, and nothing in it runs on `pull_request`.** A red night
+  reports; it never gates a PR. `parity-long` reports only and does not inherit `ac8`'s "blocks main's
+  health" (13c QC-11); that is revisited after a month of nights.
+- **`ci.yml`'s scratch route.** `test`, `test-windows`, `test-macos`, `platforms` and `python` are not
+  run on a `scratch/*-nightly` branch, beside their `-image` and `-scenario` exclusions; `fast` still is.
+  Nothing else in `ci.yml` changes.
+- **`fast` gains four self-tests** (`ci_nightly.py`, `ci_godot.py`, `ci_repeat.py`, `ci_stability.py`
+  `--self-test`, each under a second), and `check_ci_pins.py` gains one rule: every `uses:` that is not
+  a local `./` path ends in `@<40 hex>`, a full commit SHA (13c QC-7). `core`'s commands are unchanged.
+- **`I-S13-7` is amended for one job.** The workflow default stays `permissions: contents: read`. `gate`
+  adds `actions: read`; `report` adds `actions: read` and `issues: write` (operator, 13c QC-1,
+  2026-10-10). Both use the automatic `GITHUB_TOKEN`; no secret exists.
+
+---
+
+## ARC-83 — Layer 4: the nightly workflow, its verdicts and its baselines
+
+**Date** 2026-10-10 · **Status** decided; live from S13 PR 13c · **Approved by** the operator (13c QC-1:
+`issues: write` on the report job; QC-2) and the primary session (13c QC-3 … QC-12, design freeze
+2026-10-10) · **Relates to** `ARC-48`, `ARC-49`, `DEP-17`, `DEP-19`, `DEP-26`, `DEP-45`,
+[`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §16 · **Design**
+`.structured-coding/plans/mvp0/pr-13c-nightly.md`
+
+**Problem.** `ENGINEERING_STANDARDS.md` §16's fourth layer — "long-running stability tests … can run
+separately from the fastest PR loop … simulate 100 days, … restart server repeatedly, replay event log" —
+did not exist: no workflow had a schedule. Four further gaps had no owner. `AC-8` was compared at 300
+days in memory and 30 days saved only. A behaviour change identical on every platform passed every
+check, because the towns' long-run digests were recorded in prose only. The 25 `#[ignore]`d Godot tests
+and the 3D slice probes never ran in CI. Nothing sampled a commit twice, so a flaky test was invisible
+until it failed a PR.
+
+**Options considered** (design §5). Scheduling: GitHub Actions `on.schedule` with a read-only `gh api`
+query for the last nightly's commit (chosen); an `actions/cache` marker; a third-party "skip if
+unchanged" action; running every night regardless. Reporting: one rolling issue written by `gh` with the
+automatic token (chosen); a third-party issue action or `actions/github-script`; the step summary and
+GitHub's failure e-mail only (the fallback); a webhook (needs a secret); a committed status file (needs
+`contents: write` on a protected branch). Flake detection: repeating the unchanged default suite on the
+night's commit (chosen); `cargo-nextest` retries (a retry turns a flaky failure green); GitHub's re-run
+of failed jobs; a paid flaky-test service. The restart loop: a standard-library script driving the real
+binary with the repository's own Python SDK as the client (chosen); a new Rust test (it would join the
+default suite); the Godot client (heavier, and `run.sh reconnect` already covers it).
+
+**Decision.**
+1. **One workflow, `.github/workflows/nightly.yml`**, separate from `ci.yml`, so that no required job
+   gains a trigger and the one write permission lives in its own file. Triggers: `schedule` at
+   `17 10 * * *` (10:17 UTC, off the hour and outside the operator's working day); `workflow_dispatch`
+   with inputs `force` (boolean, default true) and `groups` (default `all`); and pushes to
+   `scratch/**-nightly`, the only way to exercise the workflow before it exists on `main`. Concurrency
+   `nightly-<ref>`, never cancelled. The jobs name layers of `scripts/ci_layer.py`, never commands
+   (`I-S13-9`), and reuse `ci.yml`'s composite actions and pinned actions.
+2. **The gate** (`scripts/ci_nightly.py gate`, `actions: read`). A scheduled night runs iff `main`'s head
+   differs from the `head_sha` of the last `nightly.yml` run on `main` that concluded `success` or
+   `failure`; with no such run it runs. A dispatch on `main` with `force=false` decides the same way;
+   `force=true`, a dispatch elsewhere and a scratch push always run. Any `gh api` error runs the night,
+   with the error as the reason: a needless night costs minutes, a wrongly skipped one hides a defect.
+   `groups` (`parity-long`, `stability`, `clients`, `repeat`) come from the dispatch input or, on a
+   scratch push, from the token before `-nightly` in the branch name when it names a group; an unknown
+   group is an error, never "none".
+3. **Five groups.**
+   - `parity-long`: `scripts/ci_parity.py record --profile long` on `AC-8`'s four legs (the runtime image
+     on Linux x86_64 and Linux arm64, natively on `macos-26` and `windows-2025`). The long record keeps
+     the default profile's keys and adds `summary-1000` (memory, seed 7, 1 000 days) and `summary-300s`
+     with every stored byte of a 300-day save. `[source]` names `profile long`; `compare` refuses records
+     of different profiles. The default record is unchanged byte for byte. Then the comparison, and the
+     baseline check of point 5.
+   - `stability`, on Linux (toolchain container), macOS and Windows: `scripts/ci_stability.py restarts`
+     kills and restarts `mineworld server` ten times on one save while the SDK client joins with the
+     invite and asks for the `perceived` stream from the cursor it reached (a restart drops every hold
+     and resume secret, `server/PROTOCOL.md` §4.2). Each cycle's oracle is the server's own `GET /status`:
+     the same `instance`, a `revision` not behind the last one seen before the kill, `faults` 0; then
+     `mineworld replay` of the killed save. `scripts/ci_stability.py replay` saves every world 300 days and
+     replays it. CA-13's ignored test (`perceived.rs`) runs here. Scratch must be left clean.
+   - `clients`: the 25 `#[ignore]`d Godot tests (`client_2d`, `client_2d_interact`,
+     `client_2d_interact_stub`, `client_settings`) on all three operating systems; on Linux and macOS
+     also `clients-probes` — the 3D slice's `--drive`, `--world --link` and `--world --target`, whose
+     verdict is parsed (they exit 0 on failure), the protocol module's live checks, and
+     `ac13_semantic_parity` over the regenerated evidence, which is judged by that test, not by a byte
+     diff (the evidence holds ports and timings). Windows runs `clients` only: the probe launchers are
+     bash scripts, and `clients-probes` moves onto S23 R-c's portable launcher when it merges (follow-up
+     owned by S13). A windowed test that cannot show a window on one leg may be skipped there by name
+     only if it passes on another leg the same night, and a coverage check refuses a test run on no leg.
+   - `repeat`: the unchanged default suite run twice more per OS (`scripts/ci_repeat.py`), every
+     repetition run even after a failure. A test that failed in one sample and passed in another of the
+     same commit and OS — the two repetitions and `main`'s own push run — is a flake candidate; a test
+     that failed in every sample is a failure. A repetition that failed before any test ran is
+     infrastructure, never a flake.
+   - `report` (below).
+4. **Verdicts are PASS only on positive evidence.** Each job writes one verdict — PASS, FAIL or
+   INCONCLUSIVE — from its layer's own result file and parsed sub-verdicts. A failed command inside the
+   layer is FAIL; a job cancelled or timed out, a setup step that failed before the layer ran, a missing
+   summary line, or a missing verdict artifact is INCONCLUSIVE. INCONCLUSIVE is red. Nothing is retried to
+   green.
+5. **Committed baselines, `scripts/baselines.txt`.** For every world, the long record's `summary-300`,
+   `summary-1000`, `summary-300s`, `facts-300s` and `journal-300s` must equal the committed values;
+   snapshots and the manifest are excluded, because they are derived storage and a storage-format change
+   must not read as a behaviour change (they stay covered by cross-platform parity). A world with no
+   baseline, or a baseline for a world that no longer exists, is a named FAIL. **A PR that intends to
+   change a world's behaviour updates the file in the same PR, with a `reason <PR or step id>: <one line>`
+   entry for each world it re-baselines** (`ci_parity.py baseline write` keeps those lines). Any
+   platform's long record serves, because parity holds. A forgotten update turns the next night red with
+   the world, the key, the commit range and the first differing line. The file is code for
+   `ci_changes.py`.
+6. **The report** (`scripts/ci_nightly.py report`): a step summary with one row per expected job, `main`'s
+   own push run for the commit, flake candidates, baseline drift, and a benchmark (wall time per
+   world-day per leg, 300-day save sizes, a trend over the last 14 nights). On `main` a red night opens
+   one issue labelled `nightly` or comments on the open one; a green night comments and closes it. A
+   scratch run whose branch ends `-issue-nightly` uses the label `nightly-scratch` instead. The job fails
+   iff the night is red, so the run is red in the Actions list.
+7. **Permissions.** `contents: read` by default; `gate` adds `actions: read`; `report` alone adds
+   `issues: write`. The automatic `GITHUB_TOKEN` only; no secret. No `pull_request` trigger, so no fork's
+   code runs with a write token; every value from a branch name, an input or a job output reaches a
+   script through `env:`, never `${{ }}` inside `run:`; every action is pinned by full SHA, and
+   `check_ci_pins.py` now checks that.
+
+**Why not ourselves / why not the others.** Scheduling, reporting and process control are GitHub's and
+the standard library's; the scripts are the glue the existing CI already is. A third-party action would
+hold a token for a few lines of `gh`. Retries are declined because they are the defect flake detection
+exists to see.
+
+**Isolating interface.** `nightly.yml`'s triggers and the gate; the layers of `ci_layer.py`; the verdict
+files; the report's last step (the issue), which can be dropped without touching the rest; `baselines.txt`
+with `ci_parity.py baseline`.
+
+**Accepted limitations.**
+- The 1 000-day **saved** run and the `ASR-1` 640 MiB save-size assertion wait for S6 save retention
+  (13c QC-6); until then 300 days is the saved horizon (a 1 000-day save is about 8 GB).
+- No "simulate many agents" scale test: no world with many agents exists; it belongs to a performance
+  lane when one does.
+- Windows has no `clients-probes` until a portable launcher exists (above).
+- Rendering is not judged in CI (`ARC-17`); windowed Godot tests check behaviour, not frames.
+- Hosted runners only, free on a public repository (GitHub's published terms; billing cannot be read by
+  the session). If the repository became private, the night would cost about 1 800 Linux-equivalent
+  minutes and must shrink to Linux-only and weekly.
+- GitHub disables a schedule after 60 days without repository activity; `MVP_STATUS.md`'s S13 row names
+  the nightly, so a silent stop shows as a stale date.
+
+---
+
+## DEP-45 — Godot in CI: the official 4.7.2 builds, SHA-512 pinned in the repository; Xvfb and Mesa for windowed tests
+
+**Date** 2026-10-10 · **Status** selected; integrated in S13 PR 13c · **Approved by** the primary session
+(13c QC-5, QC-10, design freeze 2026-10-10) · **Relates to** `ARC-83`, `ARC-17`, step-23 §16.4 · **Design**
+`.structured-coding/plans/mvp0/pr-13c-nightly.md` §§3.4, 5.3
+
+**Problem.** The nightly's `clients` group needs Godot 4.7.2 — the version the operator runs
+(`4.7.2.stable.official.ed1daf0bf`) — on Linux, macOS and Windows runners, fetched reproducibly and
+without trusting whatever a release page serves on the night.
+
+**Options considered.**
+
+```text
+(a) the official 4.7.2-stable builds from godotengine/godot-builds, downloaded   chosen
+    by our script, checked against SHA-512 values pinned in the repository,
+    unpacked and cached (MIT)
+(b) chickensoft-games/setup-godot (third-party action, MIT)                      declined: holds the
+                                                                                 download logic we must
+                                                                                 pin anyway, with .NET
+                                                                                 options we do not need
+(c) barichello/godot-ci container (MIT)                                          declined: Linux only, a
+                                                                                 third party's cadence
+(d) Godot built from source                                                      declined: hours of CI
+(e) Xvfb and Mesa (lavapipe) from the Ubuntu archive for the windowed tests      chosen for Linux
+```
+
+**Choice.** (a) and (e). `scripts/ci_godot.py fetch` downloads `Godot_v4.7.2-stable_linux.x86_64.zip`,
+`…_win64.exe.zip` or `…_macos.universal.zip` with the standard library, refuses any archive whose SHA-512
+differs from the value pinned in the script (cross-checked once against the release's
+`SHA512-SUMS.txt` when pinned; the release's own file is not trusted at run time, because it would only
+detect corruption, not a replaced asset), unpacks it, and checks that `--version` starts with
+`4.7.2.stable.official`. On Windows it uses the archive's `_console.exe`. `.github/actions/godot` caches
+the unpacked build keyed on the version and the pinned hash, exports `GODOT`, and puts a `godot` command
+on `PATH` for the bash launchers; on Linux it installs `xvfb` and `mesa-vulkan-drivers` from the
+runner's Ubuntu mirror and starts a virtual display. One pinned Godot version exists in the repository:
+S23's `export` job reuses this action and adds its export templates (step-23 §16.4: one download step,
+owned by whichever lands first).
+
+**Why not ourselves / why not the others.** The binary is Godot's own build; only the hundred lines that
+fetch and verify it are ours, because any adopted action would still need our pin to be trustworthy.
+
+**Isolating interface.** One constant block in `scripts/ci_godot.py` (version, three SHA-512 values) and
+the composite action. The tests and launchers read only `GODOT` or `godot` on `PATH`.
+
+**Revisit triggers.** A Godot upgrade (change the block, re-pin from `SHA512-SUMS.txt`); S23 needing
+export templates; a hosted runner gaining a GPU.
+
+**Accepted limitations.** Windowed tests on Linux run on a software Vulkan device under a virtual
+display; they judge behaviour, never frames (`ARC-17`).
+
+---
+
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;
