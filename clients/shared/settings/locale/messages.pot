@@ -328,6 +328,22 @@ msgstr ""
 msgid "action.move"
 msgstr ""
 
+#. Walk to {target}
+msgid "action.walk-to"
+msgstr ""
+
+#. You set off towards {target}
+msgid "action.walk-to.done"
+msgstr ""
+
+#. Take the next step
+msgid "action.walk-step"
+msgstr ""
+
+#. You took a step
+msgid "action.walk-step.done"
+msgstr ""
+
 #. Talk to {target}
 msgid "action.talk"
 msgstr ""
@@ -522,4 +538,12 @@ msgstr ""
 
 #. paused
 msgid "reason.paused"
+msgstr ""
+
+#. cursor unavailable
+msgid "reason.cursor_unavailable"
+msgstr ""
+
+#. lagged
+msgid "reason.lagged"
 msgstr ""

@@ -248,6 +248,18 @@ msgstr "被拒收（与 {who} {verb}）：{reason}"
 msgid "action.move"
 msgstr "行走"
 
+msgid "action.walk-to"
+msgstr "走到{target}"
+
+msgid "action.walk-to.done"
+msgstr "你出发前往{target}"
+
+msgid "action.walk-step"
+msgstr "走下一步"
+
+msgid "action.walk-step.done"
+msgstr "你走了一步"
+
 msgid "action.talk"
 msgstr "和{target}说话"
 
@@ -394,3 +406,9 @@ msgstr "无法恢复会话"
 
 msgid "reason.paused"
 msgstr "世界已暂停"
+
+msgid "reason.cursor_unavailable"
+msgstr "无法从该进度继续"
+
+msgid "reason.lagged"
+msgstr "连接落后太多"

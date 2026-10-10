@@ -261,6 +261,18 @@ msgstr "refused ({verb} {who}): {reason}"
 msgid "action.move"
 msgstr "Walk"
 
+msgid "action.walk-to"
+msgstr "Walk to {target}"
+
+msgid "action.walk-to.done"
+msgstr "You set off towards {target}"
+
+msgid "action.walk-step"
+msgstr "Take the next step"
+
+msgid "action.walk-step.done"
+msgstr "You took a step"
+
 msgid "action.talk"
 msgstr "Talk to {target}"
 
@@ -410,3 +422,9 @@ msgstr "invalid resume"
 
 msgid "reason.paused"
 msgstr "paused"
+
+msgid "reason.cursor_unavailable"
+msgstr "cursor unavailable"
+
+msgid "reason.lagged"
+msgstr "lagged"
