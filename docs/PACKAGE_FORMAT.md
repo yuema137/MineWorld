@@ -217,7 +217,7 @@ provenance  authors; repository where stated                Cargo authors,     (
   (`SystemPack::PACKAGE`, required; [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1).
 - A **World Pack**'s three fields are optional to the loader in MVP-0 and checked when present;
   `mineworld packs validate` requires them ([`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1).
-- A **`pack.yaml`** is read for a Presentation Pack (and an Entity Pack from S16's PR E-d). Its fields:
+- A **`pack.yaml`** is read for a Presentation Pack and an Entity Pack. Its fields:
 
   ```yaml
   id: mineworld-default-3d            # required. Stated here; the directory's name is free
@@ -232,7 +232,15 @@ provenance  authors; repository where stated                Cargo authors,     (
   Any other field is refused by name, `dependencies` included: a world's requirements are resolved
   (below), a data pack's own dependencies on other data packs are not, in MVP-0. A `type` that
   `pack.yaml` does not carry is refused naming its carrier: `system-pack` and `controller-pack`
-  (`Cargo.toml`), `world-pack` (`world.yaml`); `asset-pack` is refused in MVP-0.
+  (`Cargo.toml`), `world-pack` (`world.yaml`); `asset-pack` is refused in MVP-0. A `mineworld:` range
+  that does not admit the running framework is refused when the pack is required by a world and by
+  `mineworld packs validate` (`ARC-54` note).
+- An **Entity Pack** ([`DECISIONS.md`](DECISIONS.md) `ARC-71`) is `pack.yaml` and an `items/` directory:
+  every `items/<key>.yaml` is one item kind, keyed by its file's name, in the World Pack item-file
+  format ([`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1); `pack.yaml` lists no items. It carries item kinds
+  only in MVP-0: a `places/`, `people/` or `organizations/` directory in it is refused, and so is an
+  Entity Pack with no item file. A world uses it by naming it in `requires:` (below); its kinds join the
+  world's in one key namespace ([`MODULE_SPEC.md`](MODULE_SPEC.md) §2, §4.1).
 - The framework's own version is **0.1.0**, shared by every framework crate and every bundled pack.
 - **Bundled or third-party** ([`DECISIONS.md`](DECISIONS.md) `ARC-54`). A code pack is *bundled* when it
   was compiled from the framework's own workspace — decided at compile time by `package!()` from where
@@ -348,8 +356,10 @@ Frozen as a design; implemented only as far as MVP-0 needs.
 | --- | --- |
 | Asset Pack as a type, glTF canonical, asset contract | specified; the 3D spike is its first real test |
 | `.mwpack`, `mineworld validate asset`, dependency resolution | after the vertical slice |
-| Package identity (§5.0) | every pack: code packs by `Cargo.toml` and `package!()`, World Packs by `world.yaml`, Presentation Packs by `pack.yaml`; `mineworld packs list \| show \| validate`; framework 0.1.0 (`DECISIONS.md` `ARC-53`, S16 PR E-a) |
-| Requirements and licence policy (§5.0) | a world's `requires:` resolved against the build and the pack roots (`--packs`, `MINEWORLD_PACKS`), one version per pack, each failure refused by name; bundled or third-party decided at compile time; the default licence policy; `mineworld packs resolve` (`ARC-54`, `ARC-55`, S16 PR E-b). A data pack's own `dependencies`, version selection and a registry: not in MVP-0 |
+| A System Pack from another repository | installed by the same two lines, its Cargo line a git source pinned to a full commit id, locked by `Cargo.lock`; written against the published surface (`mineworld-sdk`, `-kernel`, `-contracts`, `-authoring`, `-presence`, `-inventory`), which the build maps once in `.cargo/config.toml`; `packs list` shows it `third-party`; guarded by `tests/acceptance/tests/package_sources.rs`; `cargo-deny` checks the graph's licences and sources in CI ([`MODULE_SPEC.md`](MODULE_SPEC.md) §3.2, `DECISIONS.md` `ARC-66`, `DEP-22`, `DEP-23`, S16 PR E-c). The first: `acme-fishing`. A registry, `.mwpack` and installing without a rebuild: not in MVP-0 |
+| Package identity (§5.0) | every pack: code packs by `Cargo.toml` and `package!()`, World Packs by `world.yaml`, Presentation Packs and Entity Packs by `pack.yaml`; `mineworld packs list \| show \| validate`; framework 0.1.0 (`DECISIONS.md` `ARC-53`, S16 PR E-a) |
+| Requirements and licence policy (§5.0) | a world's `requires:` resolved against the build and the pack roots (`--packs`, `MINEWORLD_PACKS`), one version per pack, each failure refused by name; bundled or third-party decided at compile time; the default licence policy; `mineworld packs resolve` (`ARC-54`, `ARC-55`, S16 PR E-b); a required data pack's own `mineworld:` range checked (`ARC-54` note, S16 PR E-d). A data pack's own `dependencies`, version selection and a registry: not in MVP-0 |
+| Entity Packs (§5.0) | item kinds only: `pack.yaml` and `items/<key>.yaml` in the World Pack item-file format, required by a world through `requires:`, read with that world's enabled systems, in one key namespace with the world's own content (a collision refused naming both sources), allocated with the world's item kinds in key order, `source_pack` naming the pack; no rebuild; `mineworld packs validate` of one (`DECISIONS.md` `ARC-71`, S16 PR E-d). Entity types, component schemas, authoring templates, namespaced keys: not in MVP-0 |
 | Tier 0 | what the sample worlds already are |
 | World Pack fields | the subset [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 specifies: identity, `systems`, `places`, `population`, `items`, `organizations`, `seats`, one content file per declared key (`places/`, `people/`, `items/`, `organizations/`; an authored Item is a kind, `DECISIONS.md` `ARC-36`), a person's `location`, and a place's `passages` (doorways between places, owned by the `movement` system, `DECISIONS.md` `ARC-26`), and **sections**: a top-level key of a person, place, item or organization file that a System Pack declares as its own, validates with its own type and turns into its own genesis facts (`ARC-31`; in MVP-0 `name`, owned by `naming`, `routine`, owned by `schedule`, `item`, owned by `item`, and `holdings`, owned by `inventory`, `ARC-37`; `economy`, owned by `economy`, and `job`, owned by `employment`, `ARC-38`); every other field of §4's model is refused by name |
 | Tier 1 WASM/WIT | specified; MVP-0 ships trusted in-process Rust systems ([`ARCHITECTURE.md`](ARCHITECTURE.md) §12) |

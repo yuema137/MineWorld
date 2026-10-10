@@ -1,0 +1,53 @@
+# Runs one CI layer natively on the runner — macOS or Windows — rather than in the toolchain container
+# (step-16 §16.12 PD-p1, §17.12 PD-q4; step-14 §13.0.3: the one native-runner definition every native
+# job shares). The counterpart of .github/actions/layer, which is container-only.
+#
+# The caller has checked the repository out already. rustup takes rust-toolchain.toml's channel on the
+# first cargo call; the Cargo caches are restored per OS and layer; `scripts/ci_layer.py <layer>` runs
+# with the runner's own Python; target/ is pruned before the cache is saved. It names a layer, never a
+# command: what a layer runs is scripts/ci_layer.py's (step-14 I-S13-9).
+name: Run a CI layer natively
+description: Restore caches, run scripts/ci_layer.py natively, prune the cache.
+inputs:
+  layer:
+    description: A layer of scripts/ci_layer.py (platforms).
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Restore the Cargo caches
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: native-${{ runner.os }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+        restore-keys: native-${{ runner.os }}-${{ inputs.layer }}-
+
+    # The line endings the checkout produced are part of the evidence: on Windows, Git's default
+    # core.autocrlf gives CRLF YAML and lock files, as a Windows user's checkout would (PD-p2, PD-q1).
+    - name: Report the checkout's line endings
+      shell: bash
+      run: |
+        echo "core.autocrlf: $(git config --get core.autocrlf || echo unset)"
+        # Counted from the bytes (od), not with grep, which may read a file in text mode on Windows.
+        # `|| true`: no match (an LF checkout) is a count of 0, not a failure under pipefail.
+        crs=$({ od -An -c worlds/market-town/world.yaml | grep -o '\\r' || true; } | wc -l | tr -d ' ')
+        echo "worlds/market-town/world.yaml: $crs carriage returns"
+
+    - name: Run layer ${{ inputs.layer }}
+      shell: bash
+      env:
+        LAYER: ${{ inputs.layer }}
+        CARGO_INCREMENTAL: "0"
+        CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py "$LAYER"
+
+    - name: Prune target/ before the cache is saved
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py --prune-cache

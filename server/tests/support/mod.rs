@@ -79,10 +79,13 @@ pub fn seats() -> SeatRoster {
     SeatRoster::new([key(ALICE), key(BOB)])
 }
 
-/// A host configuration that streams faster than the default, so a test waits milliseconds.
+/// A host configuration that streams faster than the default, so a test waits milliseconds — and
+/// sends every frame whole (`keyframe_every` 1), because these socket tests read observations and
+/// are not about deltas; `tests/deltas.rs` and the binary's acceptance tests own those (`DEP-15`).
 pub fn brisk() -> HostConfig {
     HostConfig {
         observation_interval: std::time::Duration::from_millis(20),
+        keyframe_every: std::num::NonZeroU32::MIN,
         ..HostConfig::default()
     }
 }

@@ -1,0 +1,61 @@
+# mineworld-cognition: the language-model side of a cognition client (S10).
+#
+# Design: .structured-coding/plans/mvp0/pr-s10-p5-backends.md (P5a). Dependencies are recorded in
+# docs/DECISIONS.md (DEP-24 Pydantic, DEP-27 httpx2 and no provider SDK, DEP-32 python-dotenv, DEP-26 the
+# toolchain); adding one is a decision, not an edit.
+
+[project]
+name = "mineworld-cognition"
+version = "0.1.0"
+description = "Ask a language model through one provider-neutral interface, with budgets and recorded replay."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    # EntityKey (a seat's key) and JsonValue; one way: mineworld-sdk never imports this package (I-2).
+    "mineworld-sdk",
+    "pydantic>=2.13,<3",
+    # The HTTP client of the one OpenAI-compatible adapter, imported by backend/openai_compatible.py only
+    # (DEP-27, D-P5-4 (e)).
+    "httpx2>=2.13,<3",
+    # dotenv_values only, never load_dotenv; imported by secrets.py only (DEP-32, D-P5-9).
+    "python-dotenv>=1.2,<2",
+]
+
+[tool.uv.sources]
+mineworld-sdk = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-socket>=0.8,<0.9",
+    "ruff>=0.16",
+    "pyright[nodejs]>=1.1.414",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# The SDK's rule set (sdk/python/pyproject.toml): pycodestyle, pyflakes, import order, pyupgrade,
+# bugbear, annotations, ruff's own.
+select = ["E", "F", "I", "UP", "B", "ANN", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `live_model` marks a test that calls a real model server on a loopback address named by
+# MINEWORLD_LIVE_BASE_URL (D-P5-12). It is deselected here, for every run; an operator selects it with
+# `-m live_model`. A selected live test without the variable fails; it never skips itself.
+markers = [
+    "live_model: calls a real model server on loopback; deselected by default, never in CI",
+]
+# The network guard (I-11, as sdk/python): pytest-socket blocks every `connect` to anything but the
+# loopback addresses, on every platform. It allows loopback, where a user's Ollama listens, which is why
+# replay mode also constructs no network client (D-P5-5, AP5-6).
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-m", "not live_model"]

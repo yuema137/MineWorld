@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from mineworld_sdk.errors import MalformedFrame, UnsupportedFrame
+from mineworld_sdk.errors import MalformedFrame
 from mineworld_sdk.wire import codec
 from mineworld_sdk.wire.contract import (
     ActionRecord,
@@ -24,12 +24,14 @@ from mineworld_sdk.wire.contract import (
     Observation,
     SpatialRequirement,
 )
-from mineworld_sdk.wire.frames import Invite, Join, Leave, ObservationFrame, Submit
+from mineworld_sdk.wire.delta import DeltaMismatch, ObservationDelta, apply_delta
+from mineworld_sdk.wire.frames import Invite, Join, Leave, ObservationFrame, PerceivedJoin, Submit
 from mineworld_sdk.wire.ids import (
     ActionTypeId,
     CorrelationToken,
     EntityId,
     EntityKey,
+    EventId,
     JsonValue,
 )
 
@@ -42,11 +44,12 @@ def golden(kind: str) -> tuple[str, JsonValue]:
     return text, value
 
 
-def server_frame(kind: str) -> None:
-    """The file decodes, and what it decodes to encodes back to the file."""
+def server_frame(kind: str, t: str | None = None) -> None:
+    """The file decodes, and what it decodes to encodes back to the file. `t` is the frame kind when
+    the file is one example of a kind among several (`refused-lagged.json` is a `refused`)."""
     text, expected = golden(kind)
     frame = codec.decode(text)
-    assert frame.t == kind
+    assert frame.t == (t or kind)
     assert codec.to_json(frame) == expected, f"{kind}.json no longer round-trips"
 
 
@@ -56,8 +59,12 @@ def join() -> None:
         invite=Invite("3f9c0a1b2c3d4e5f60718293a4b5c6d7"),
         nickname="Yue",
         seat=EntityKey("visitor"),
+        perceived=PerceivedJoin(since=EventId("1873")),
     )
     assert json.loads(codec.encode(frame)) == expected
+    # Without `perceived`, the frame carries no such field (an older server refuses it, §10).
+    plain = Join(invite=Invite("x" * 8), nickname="Yue", seat=EntityKey("visitor"))
+    assert "perceived" not in json.loads(codec.encode(plain))
 
 
 def submit() -> None:
@@ -91,7 +98,39 @@ CHECKS: dict[str, Callable[[], None]] = {
     "refused": lambda: server_frame("refused"),
     "closing": lambda: server_frame("closing"),
     "clock": lambda: server_frame("clock"),
+    "perceived": lambda: server_frame("perceived"),
+    "delta": lambda: server_frame("delta"),
+    "refused-cursor_unavailable": lambda: server_frame("refused-cursor_unavailable", "refused"),
+    "refused-lagged": lambda: server_frame("refused-lagged", "refused"),
+    "closing-lagged": lambda: server_frame("closing-lagged", "closing"),
 }
+
+DELTAS = FRAMES / "deltas"
+
+
+@pytest.mark.parametrize("case", sorted(path.stem for path in DELTAS.glob("*.json")))
+def test_golden_delta_case(case: str) -> None:
+    # The reviewed `{ base, delta, next }` cases the Rust and GDScript appliers are checked against
+    # (step-12 CA-9): the delta decodes and re-encodes to the file, and applies to `next`.
+    value = json.loads((DELTAS / f"{case}.json").read_text(encoding="utf-8"))
+    base = Observation.model_validate(value["base"])
+    delta = ObservationDelta.model_validate(value["delta"])
+    assert codec.to_json(delta) == value["delta"], f"{case}: the delta no longer round-trips"
+    assert codec.to_json(apply_delta(base, delta)) == value["next"], case
+
+
+def test_there_are_golden_delta_cases() -> None:
+    assert len(list(DELTAS.glob("*.json"))) >= 7, f"no reviewed delta cases under {DELTAS}"
+
+
+def test_a_delta_removing_an_entity_not_held_is_a_mismatch() -> None:
+    held = Observation.model_validate_json(
+        '{"observer":"1","at":0,"self_location":null,"entities":[],"relations":[],"events":[],'
+        '"affordances":[]}'
+    )
+    delta = ObservationDelta.model_validate_json('{"at":1,"entities":{"remove":["7"]},"events":[]}')
+    with pytest.raises(DeltaMismatch, match="entity 7"):
+        apply_delta(held, delta)
 
 
 def test_every_golden_frame_has_a_model() -> None:
@@ -112,7 +151,8 @@ def test_golden_frame(kind: str) -> None:
 
 def observation_text(entities: str) -> str:
     return (
-        '{"t":"observation","seq":3,"revision":null,"observation":{"observer":"101","at":5,'
+        '{"t":"observation","seq":3,"revision":null,"acted_through":null,'
+        '"observation":{"observer":"101","at":5,'
         f'"self_location":null,"entities":[{entities}],"relations":[],"events":[],'
         '"affordances":[]}}'
     )
@@ -175,14 +215,12 @@ def test_a_request_whose_two_action_types_disagree_is_refused() -> None:
         )
 
 
-def test_an_observation_carrying_events_is_unsupported_until_s11_c() -> None:
-    # D-P3-6: loud, not silently dropped.
-    text = observation_text("").replace('"events":[]', '"events":[{"event_type":"spoke"}]')
-    with pytest.raises(UnsupportedFrame, match="S11-C"):
-        codec.decode(text)
-    # The guard is on the model, not only on the decoder.
-    with pytest.raises(UnsupportedFrame):
-        Observation.model_validate_json(
-            '{"observer":"1","at":0,"self_location":null,"entities":[],"relations":[],'
-            '"events":[{}],"affordances":[]}'
-        )
+def test_a_fact_whose_two_event_types_disagree_is_refused() -> None:
+    # EventEnvelopeFields' agreement check, mirrored: the envelope and its record name one type.
+    _, value = golden("perceived")
+    assert isinstance(value, dict) and isinstance(value["events"], list)
+    event = value["events"][0]
+    assert isinstance(event, dict)
+    tampered = json.dumps({**value, "events": [{**event, "event_type": "tolled"}]})
+    with pytest.raises(MalformedFrame, match="disagrees with its payload"):
+        codec.decode(tampered)

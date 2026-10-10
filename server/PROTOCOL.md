@@ -48,14 +48,14 @@ A client may send exactly three kinds of frame:
 
 ```json
 { "t": "join", "protocol": 2, "invite": "3f9c0a…", "nickname": "Yue", "seat": "visitor",
-  "resume": null, "take_over": false }
+  "resume": null, "take_over": false, "perceived": { "since": "1873" } }
 { "t": "submit", "token": "c1", "request": { … an ActionRequest (§6) … } }
 { "t": "leave" }
 ```
 
 | Frame | Fields | Rules |
 | --- | --- | --- |
-| `join` | `protocol` (integer), `invite` (string), `nickname` (string), `seat` (entity key, required), `resume` (string or `null`, optional, default `null`), `take_over` (boolean, optional, default `false`) | Valid only before a seat is granted; a second `join` on a seated connection is `already_joined`. An absent `protocol` is read as `1`, so a revision-1 join is answered `protocol_mismatch` rather than `malformed_frame`. An absent `invite` or `nickname` is read as the empty string and answered by §4.1's checks. `resume` re-takes a seat this player's dropped connection held (§4.2); `take_over: true` takes a seat another connection holds (§4.2). |
+| `join` | `protocol` (integer), `invite` (string), `nickname` (string), `seat` (entity key, required), `resume` (string or `null`, optional, default `null`), `take_over` (boolean, optional, default `false`), `perceived` (object, optional; from S11-C, §5.8) | Valid only before a seat is granted; a second `join` on a seated connection is `already_joined`. An absent `protocol` is read as `1`, so a revision-1 join is answered `protocol_mismatch` rather than `malformed_frame`. An absent `invite` or `nickname` is read as the empty string and answered by §4.1's checks. `resume` re-takes a seat this player's dropped connection held (§4.2); `take_over: true` takes a seat another connection holds (§4.2). `perceived`, when present, is `{ "since": <EventId string> \| null }`: `since` is required inside it and any other field inside it is `malformed_frame`. Without `perceived` the connection is never sent a `perceived` frame. |
 | `submit` | `token`, `request` | Unchanged from revision 1. Before a seat is granted: `not_joined`. |
 | `leave` | — | Releases the seat at once — no hold (§4.2) — and ends the connection: the server answers `closing { reason: "left" }` and closes. Before a seat is granted it is answered the same way — nothing is released, and a client that asks to go is let go. |
 
@@ -136,9 +136,14 @@ A `join` is answered by these checks, in this order. The first that fails decide
 3  nickname   not a nickname   refused invalid_nickname; the connection stays, and may join again
 4  seat       the roster's     refused unknown_seat / seat_not_in_world, as in revision 1; the
                                connection stays
-5  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
+5  perceived  a cursor this    from S11-C, only when the join carries perceived (§5.8): refused
+              world can serve  cursor_unavailable; nothing is granted, the connection stays, and
+                               may join again. Before control, so that a refused cursor never
+                               displaces or resumes anybody
+6  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
                                may join again
-   all pass                    welcome, then the observation stream
+   all pass                    welcome, then (§5.8) the perceived backfill, then the observation
+                               stream
 ```
 
 The protocol is checked first, so a client of another revision is told that rather than that its
@@ -230,7 +235,8 @@ check, a server-allocated `ActionId` and instant, the journal before the answer.
 | `welcome` | once, after a granted `join` |
 | `clock` | once right after `welcome`, before the first observation; then on every pause and resume (§5.9) |
 | `observation` | the first frame of the stream; every `keyframe_every`-th frame and the first after a resume (from S11-C); any frame the server chooses |
-| `delta` | from S11-C: any other frame of the stream (§5.3) |
+| `delta` | from S11-C, if `DEP-15` ships deltas: any other frame of the stream (§5.3) |
+| `perceived` | from S11-C, only to a connection whose `join` carried `perceived`: the reliable stream of the facts its observer learned (§5.8) |
 | `result` | one per `submit` |
 | `refused` | a frame was not accepted (§5.5) |
 | `closing` | immediately before the server closes the socket (§5.6) |
@@ -266,7 +272,7 @@ welcome, and seats were not exclusive then (§10).
 ### 5.2 `observation`
 
 ```json
-{ "t": "observation", "seq": 12, "revision": 7, "observation": { … } }
+{ "t": "observation", "seq": 12, "revision": 7, "acted_through": "41", "observation": { … } }
 ```
 
 `revision` is the persisted revision of the world state this observation was computed from: the number
@@ -305,15 +311,48 @@ numbered.
 
 - `observation.entities` is in ascending `EntityId` order.
 - `observation.events` is the facts this observer learned since the previous frame on this connection,
-  oldest first, each a `PerceivedEvent` — the event envelope the contract already serializes, with
-  `event_type`, `caused_by`, `visibility`, participants and the owning pack's JSON payload. Which facts
-  an observer learns is perception's judgement. Before S11-C `events` is always empty.
+  oldest first, each a `PerceivedEvent` (below). Which facts an observer learns is perception's
+  judgement, made when each fact is recorded, against where people were at that moment
+  (`docs/DECISIONS.md` `ARC-43`). **Best effort:** the facts waiting for a connection's next frame are
+  bounded (256 by default); when more arrive the oldest are dropped and counted in
+  `WorldSummary.events_dropped` (§5.7). Facts waiting for a frame that was dropped because the client was
+  not reading are not lost with it: they ride on the next frame that is sent. No fact appears in two
+  frames' `events` on one connection. The reliable form of the same facts is the `perceived` stream
+  (§5.8). Before S11-C `events` is always empty.
+- `acted_through` is the newest `ActionId` the server allocated to a request **submitted on this
+  connection** whose dispatch had completed (with any result) before this observation was computed, or
+  `null` before the first. It never decreases on a connection. A request refused before an identity
+  was allocated (`actor_not_observer`, for example) never sets it. A new connection on a seat — a
+  resume or a takeover — starts at `null`: it made none of its predecessor's requests. A client that
+  predicts the effect of its own requests (a 3D body that walks before the server answers) reconciles
+  with an observation only once `acted_through` reaches the request it predicted.
+
+**A fact on the wire.** A `PerceivedEvent` is the contract's `EventEnvelope`, serialized by the
+contract, with the payload record's inner `payload` replaced by the owning pack's payload read as JSON:
+
+```json
+{ "id": "1890", "at": 4100, "event_type": "spoke", "subjects": ["5"], "participants": ["5", "7"],
+  "place": "3", "caused_by": { … }, "visibility": { "place": "3" }, "provenance": { … },
+  "payload": { "event_type": "spoke", "schema_version": 1, "payload": { "utterance": "hello" } } }
+```
+
+The example abbreviates; the exact form of every field, including how a `PlaceId` and a `Causation`
+are written, is the contract's, and `server/tests/frames/perceived.json` holds one as the Rust types
+write it.
+
+Every pack in this repository encodes its payloads as JSON, but that is each pack's convention, not a
+contract (`DEP-5`). A payload whose bytes are not JSON is delivered with `payload.payload: null`, and the
+server says so once per event type on its own output. A client names an `event_type` from `/status`'s
+`states` (§5.7) and treats a type it does not know as "something happened", never as an error.
 
 ### 5.3 `delta` (from S11-C)
 
 ```json
-{ "t": "delta", "seq": 13, "base": 12, "revision": 7, "delta": { … an ObservationDelta … } }
+{ "t": "delta", "seq": 13, "base": 12, "revision": 7, "acted_through": "41",
+  "delta": { … an ObservationDelta … } }
 ```
+
+`acted_through` means what it means on `observation` (§5.2), and is stated whole on every frame.
 
 ```json
 { "at": 4112,
@@ -339,9 +378,32 @@ of `seq`, field by field:
 
 `observer` never changes on a connection and is not in a delta. A delta whose `base` is not the `seq`
 the client holds cannot occur on one WebSocket; a client that sees one drops the connection and resumes,
-which yields a whole observation. A client must accept a whole `observation` at any time. Whether
-deltas ship at all is decided by S11-C's measurement (step-12 §9.3 CP-C1); "whole observations only"
-is a conforming outcome.
+which yields a whole observation. A client must accept a whole `observation` at any time.
+
+**Keyframes.** When deltas ship, the first frame of a connection is a whole `observation`; so is every
+`keyframe_every`-th frame (`mineworld server --keyframe-every N`, default 50), the first frame after a
+resume, and the first frame after a `perceived` backfill (§5.8). A delta is computed against the last
+frame **this connection was sent**, so it is always against a frame the client received.
+
+**Per `DEP-15`.** Whether deltas ship, and in which encoding, is decided by S11-C's measurement
+(step-12 §9.3 CP-C1) under a rule frozen before measuring. The three outcomes are specified here so that
+the decision changes no other part of this document:
+
+```text
+typed        the ObservationDelta above, in "delta"
+json-patch   instead of "delta", "patch": an RFC 6902 JSON Patch array that turns the JSON of the
+             observation of `base` into the JSON of the observation of `seq`:
+             { "t": "delta", "seq": 13, "base": 12, "revision": 7, "acted_through": "41",
+               "patch": [ { "op": "replace", "path": "/at", "value": 4113 }, … ] }
+keyframes    no delta frame is sent; every frame is a whole observation
+             only
+```
+
+`DEP-15` records which outcome this revision ships; "whole observations only" is a conforming outcome.
+**Revision 2 ships the typed `ObservationDelta`** (CP-C1 measured it at 1.3 % of the whole frames'
+bytes on a hosted market town). One example of the frame is `server/tests/frames/delta.json`, and
+`server/tests/frames/deltas/*.json` hold reviewed `{ base, delta, next }` cases a client checks its
+applier against.
 
 ### 5.4 `result`
 
@@ -385,6 +447,8 @@ a client branches on `code` and never on `detail`.
 | `invalid_nickname` | Empty after trimming, longer than 32 scalar values, or containing a control character. |
 | `seat_occupied` | Another connection holds the seat, or it is held for a dropped connection, and the `join` gave neither a valid `resume` nor `take_over: true` (§4.2). |
 | `invalid_resume` | A `resume` that matches neither the seat's hold nor its live connection (expired, superseded, or for another seat); the client may retry without it (§4.2). |
+| `cursor_unavailable` | From S11-C: a `join`'s `perceived.since` is a cursor this world cannot serve — older than what it can replay (a world with no save serves only from the join on), newer than the newest fact it has recorded, or one whose history could not be read just now (`detail` says which). Nothing is granted; the connection stays and may join again, for example with `since` set to `null` on a persisted world. |
+| `lagged` | From S11-C: this connection's `perceived` stream fell further behind than the server holds for it. Followed by `closing { reason: "lagged" }`; the client rejoins with its `resume` and its last `perceived` cursor, and loses nothing. |
 | `paused` | The host has paused the world's clock (§5.9, §11.3): a `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled. The client may submit again after a `clock` frame says `paused: false`. From S11-D. |
 
 A refusal is **not** a `Rejection`. A rejection means the world considered a well-formed request and
@@ -413,6 +477,7 @@ arrives with them, which would lose this frame and the refusal before it.
 | `kicked` | the operator removed this connection, or released the seat it held (`POST /admin/sessions/{session}/kick`, `POST /admin/seats/{seat}/release`, §11). The seat returns to its default at once, with no hold, and this connection's `resume` is dead | S11-D — **landed** |
 | `superseded` | the seat was re-taken with this connection's `resume` by a newer connection | S11-B |
 | `taken_over` | another connection took the seat with `take_over: true` (§4.2) | S11-B |
+| `lagged` | the connection's `perceived` stream overflowed (§5.8); preceded by `refused { code: "lagged" }` | S11-C |
 | `server_stopping` | the server process is shutting down | the S11 pull request that wires shutdown into sessions |
 
 ### 5.7 `GET /status` and `welcome.world`: what the world is
@@ -452,7 +517,8 @@ component and no position appears in it, because a client's knowledge of state a
   (§4.2).
 - `observations_dropped`: frames the server did not send because a client was not reading them — the
   world never waits for a client.
-- `events_dropped`: from S11-C, facts lost to a full per-connection queue. `0` before S11-C, when no fact
+- `events_dropped`: from S11-C, facts lost from `observation.events` to a full per-connection queue
+  (§5.2) — never from the `perceived` stream, which does not drop (§5.8). `0` before S11-C, when no fact
   is delivered and none can be dropped.
 - `faults`: dispatches, and advances of the world's clock, in which a system broke its own contract.
 - `revision`: the persisted head, or `null` for a world that is not persisted (§5.2).
@@ -460,6 +526,47 @@ component and no position appears in it, because a client's knowledge of state a
 Removed from revision 1: `deferrals_unscheduled`, always `0` since S4.
 
 `GET /health` answers `{ "status": "ok", "protocol": 2 }` without consulting the world.
+
+### 5.8 `perceived`: the reliable stream of what an observer learned (from S11-C)
+
+```json
+{ "t": "perceived", "through": "1907", "events": [ PerceivedEvent, … ] }
+```
+
+A client that must not miss a fact — a memory, a transcript, a cognition process — asks for this
+stream in its `join` with `perceived: { "since": <cursor> }`, where the cursor is the `through` of the
+last `perceived` frame it processed, or `null` for "from the beginning of this world". It carries the
+same facts, judged by the same rule, as `observation.events` (§5.2), but none is ever dropped.
+
+- **`events`** are facts this observer learned, each a `PerceivedEvent` (§5.2), in ascending `EventId`:
+  never reordered, never dropped, never duplicated within a connection.
+- **`through`** is the newest `EventId` the server has considered for this connection, whether this
+  observer learned of it or not. A client stores it as its cursor. A frame is sent when it has at least
+  one event, and once at the end of a backfill even when it has none.
+- **The head.** When the join is granted the server notes the newest `EventId` its world has recorded,
+  the connection's head. Facts recorded after it reach the connection live. If `since` is `null` or
+  older than the head, the server first sends the **backfill** — the facts in `(since, head]` this
+  observer learned, in frames of at most 256 events, the last with `through` equal to the head — and only
+  then the live stream and the observation stream.
+- **Where a backfill comes from.** A persisted world replays it from its save, judged by the same rule
+  as the live stream; that is the function `mineworld perceived` runs, so a client's stream and the
+  export of the same save agree fact for fact. A world with no save keeps no history beyond its
+  observers' queues, and serves a `perceived` stream only from the join on: it answers any `since`
+  older than its head `cursor_unavailable` (§5.5), and `since` equal to the head is the way to ask it
+  for the live stream alone. Any `since` newer than the head is not a cursor of this world and is
+  answered `cursor_unavailable` everywhere.
+- **Order.** Every `perceived` frame carrying a fact recorded at revision R is sent before any
+  `observation` or `delta` frame whose `revision` is R or later. A client that reads frames in order
+  therefore never sees the world change before it has been told the facts that changed it.
+- **Flow.** The world does not wait for a client. The server holds up to 4 096 facts not yet sent to a
+  connection's `perceived` stream; while some are waiting, that connection's observation frames are
+  skipped (and counted in `observations_dropped`) rather than sent ahead of them. A connection that
+  falls further behind than that is sent `refused { code: "lagged" }` and `closing { reason: "lagged" }`,
+  and rejoins with its `resume` and its cursor. Nothing is lost; the price of not reading is a
+  reconnect, never a gap.
+- **Resuming.** A client whose socket dropped rejoins with `resume` (§5.1) and `perceived: { since:
+  <its cursor> }`, and receives exactly the facts after the cursor: those recorded while it was gone come
+  in the backfill.
 
 ### 5.9 `clock` (from S11-D)
 
@@ -660,10 +767,10 @@ server whose `PROTOCOL.md` lists it as landed.
 | `welcome.resume` (a secret), `welcome.hold_seconds` (non-zero), `welcome.took_over` (`hosted`, `held`, `connection`); seat exclusivity, holds, `seat_occupied`; `closing.superseded`, `closing.taken_over`; in-server controllers not counted in `clients` (§4.2) | S11-B — **landed** | `resume: null`, `hold_seconds: 0`, `took_over: "none"`; seats are not exclusive |
 | `join.take_over` (an explicit takeover flag, §2, §4.2) | S11-B, coordination ruling 1 — **landed** | a `join` carrying it is `malformed_frame` |
 | `WorldSummary.time_scale` (world seconds per wall second, in `welcome.world` and `/status`, §5.7) | S11-B, coordination ruling 1 — **landed** | absent; the hosted clock runs one simulated second per wall second |
-| `observation.events` (facts this observer learned); `observation.entities` in id order; `events_dropped` non-zero | S11-C | `events` empty; entity order unspecified; `events_dropped: 0` |
-| `delta` frames and periodic keyframes | S11-C, if CP-C1's measurement keeps them | whole `observation` frames only |
-| `acted_through` on the observation frame (the newest `ActionId` of this connection the observation reflects) | S11-C, coordination ruling 1 | absent |
-| the `perceived` stream (a reliable, cursor-resumable event stream; `join.perceived`; refusals `cursor_unavailable`, `lagged`) | S11-C, coordination ruling 2 | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
+| `observation.events` (facts this observer learned, §5.2); `observation.entities` in id order; `events_dropped` non-zero | S11-C — **landed** | `events` empty; entity order unspecified; `events_dropped: 0` |
+| `delta` frames (the typed `ObservationDelta`, `DEP-15`) and periodic keyframes, `--keyframe-every` (§5.3) | S11-C — **landed** | whole `observation` frames only |
+| `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 — **landed** | absent |
+| the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
 | `time_scale` in `POST /admin/clock` (a live scale change) | TW-c (`step-19-time-weather.md` §§4.3, 7.3) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process |
 

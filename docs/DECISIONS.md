@@ -1824,6 +1824,15 @@ pack yet needs another value, and a configuration mechanism built for one consta
 abstraction `CLAUDE.md` §4 rule 11 forbids. It stays a published constant until the first pack that
 needs a different stride, which introduces System Pack configuration (`MODULE_SPEC.md` §9) then.
 
+**Note, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N1, SD-N2) — walking is not the travel Process.**
+`movement` gains a second scale of the same spatial model inside a place and across adjoining places:
+`walk-to` (go to a destination) and `walk-step` (the next stride of my walk), with the walk held as
+`movement`'s `Walking` component (`ARC-75`). It is not the "Room for travel" above: a walk takes no
+calendar time and starts no `Process`; each stride is one request, at most `WALK_STRIDE` (1 340 mm),
+checked by the same rule as `move` and stated through presence's `arrivals()`. Travel between places
+that do not adjoin by a passage chain remains the later travel system's, a `Process` in calendar time.
+`move` is unchanged and still one stride: a walker's own `move` ends their walk.
+
 ---
 
 ## ARC-27 — A headless run is a pace schedule over stateless seeded controllers
@@ -2318,6 +2327,10 @@ then                                   rebuild the binary
   repository's build, is the WASM component model of `ARC-8` (Tier 1). That is outside MVP-0
   (`overall.md` §1 non-goals). So is Milestone E's publishing sense of "a real world assembled from
   independently installable packs": `.mwpack`, a registry, and packs from outside this repository.
+  *(Superseded in part by `ARC-66`, 2026-10-08: a System Pack whose **source** is outside this
+  repository but which is **compiled into this build** from a pinned commit is in MVP-0, installed by
+  the same two lines. `.mwpack`, a registry, installing without a rebuild and unreviewed code remain
+  outside it.)*
 - `mineworld install` and `mineworld add-system` (`MODULE_SPEC.md` §8) remain unimplemented. The
   two lines are written by hand.
 
@@ -2766,6 +2779,13 @@ The allow-list is `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.r
 with its own review. A pack is generic when it is neither Social Café's nor the market's: a calendar is
 a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
 dependency structure still measure the market and nothing else. A test holds both refusals.
+
+**Note, 2026-10-09 (S19, PR TW-b; step-19 §17.5 C4) — `weather` joins the allow-list.** `GENERIC_PACKS`
+is now `["calendar", "weather"]` (`ARC-68`). Weather is a world's climate, not a market, so it is generic
+by the rule above. Nothing else in check 3 changes. Order among the allow-listed packs is free; each
+still follows the six and is listed once; and `configure/weather.yaml` is admitted as the configuration
+of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
+allow-listed is now `bodies` (it was `weather`).
 
 ---
 
@@ -3428,6 +3448,25 @@ extension line, `extension mineworld_presence::ArrivalResolver => mineworld_pres
 storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
 notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
 
+**Note 5, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N3, SD-N4, SD-N11) — bodies is also a
+wayfinder.** Items 1–8 and the earlier notes are unchanged.
+
+1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-75`), listed on
+   movement's own extension line of the installed set, and its `install` calls movement's
+   `require_wayfinder` after presence's `require_registered`. (Movement's guard is not named
+   `require_registered`: movement's sources name nothing of the resolver seam, `seam_vocabulary.rs`.)
+   A route is a plan, never a permission: every stride of a walk
+   is still a `walk-step` request checked by movement and resolved by this decision's resolvers. The
+   planner reads `bodies`' own state (`PlaceShape`, `LooseObjects`) and nothing else, keeps nothing, and
+   answers "not mine" for a place without a shape, so a world without `bodies` walks straight.
+2. **The crate dependency `bodies → movement`.** Implementing movement's trait needs movement's crate;
+   it is a crate dependency, not a system dependency (`bodies` still declares presence alone), like the
+   `item` read of note 2, point 4.
+3. **Two person-relative bounds are expressions of the radius** (step-11 §21.6, TD-D8): `NUDGE_MAX` is
+   `PERSON_RADIUS` and `BIAS_BAND` is ⌊2 · `PERSON_RADIUS` / 3⌋. At the radius of 300 mm both are the
+   values the first note and 12b fixed (300 mm, 200 mm), so no result changes and `bodies`' version does
+   not; a different radius scales them with the body.
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -4006,6 +4045,149 @@ or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located ev
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
 the requests. The paced controller's rates are tuned to a 900-second pace; at the hosted default of 5 s
 it is chattier than a person (QS11-4), which is cognition's to tune (S10), not the server's.
+
+---
+
+## ARC-43 — Facts reach observers through one audience rule, judged when they are recorded
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-C · **Approved by** the primary
+session at S11-C's design freeze (QS11C-1 … QS11C-5, QS11C-7 … QS11C-9) and the operator (QS11C-6) ·
+**Relates to** `INV-13`, `ARC-28`, `ARC-29`, `ARC-40`, `ARC-41`, `ARC-42`, coordination rulings 1, 2 and
+4 of `.structured-coding/plans/mvp0/overall.md` "Parallel build-out, 2026-10-08", and "The World
+Interaction List" QIL-8 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §§4.7, 17 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.2, 5.8; [`MODULE_SPEC.md`](MODULE_SPEC.md)
+§8.1 (`mineworld perceived`)
+
+**Problem.** A fact states who *could* have learned of it — its `Visibility` — and nothing yet decides
+who *did*. Three consumers need that answer: a client's observation frame (`observation.events`), a
+cognition process that must not miss a fact and must resume after a dropped socket (S10's R-S11-1 …
+R-S11-3), and an offline reader building a Person's memory from a save (S10's IC-1). If each answered it
+for itself, a resumed stream, a live one and an offline export would disagree, and nobody could say
+which was right.
+
+**Choice.**
+
+1. **One rule, owned by the perception system.** `systems/presence/src/audience.rs`:
+   `Whereabouts` (which place each person is in — a fold of presence's own `arrived`, seeded from its
+   `Presence` components or from a world's first fact), `admits` and `perceived_by`. `SystemInternal`
+   reaches nobody; `Public` everybody; `Participants` exactly the fact's participants; `Entities(S)`
+   exactly `S`; `Place(p)` the fact's participants and subjects, and everybody whose whereabouts *after
+   the fact is applied* is `p`. Presence owns it because where people are is presence's state and
+   perception is presence's job (`INV-13`); the server names no pack (it asks an `EventPerception` seam
+   the composition root fills).
+2. **Judged at record time, fact by fact.** As each fact is recorded the fold advances past it and every
+   connection's observer is asked about it then. A `Place` fact is heard by whoever was there when it
+   happened, not by whoever is there at the next 100 ms sweep; a person's own arrival is heard by them; a
+   line said just before somebody leaves reaches them.
+3. **Delivered three ways from that one function.** `observation.events`, best effort and bounded,
+   drops counted in `events_dropped`; the `perceived` stream, reliable, ordered before the observations
+   it explains, cursor-resumable, backfilled for a persisted world from its save by `perceived_by`; and
+   `mineworld perceived`, the same `perceived_by` over a save, offline. Live, resumed and offline agree
+   by construction, and the acceptance tests check that they do.
+4. **The audience narrows at emission, not here.** A World Interaction List rule that makes a fact
+   quieter states a narrower `Visibility` when the fact is built (QIL-8); this function reads only the
+   envelope and needs no change for it. A hearing range is a later refinement behind the same seam; for
+   MVP-0 overhearing is place-level (the operator's ruling on QS11C-6): a player on market-town's street
+   hears every line said anywhere on the street.
+
+**Supersedes.** S10's plan (`step-17-cognition.md` §3.3.4) for `Observation.events` to stay empty, with
+perceived facts only in their own frame, and its check IC-9 "transcripts byte-identical": coordination
+ruling 2 delivers both from the one function, so IC-9 reduces to "the 300-day digests are unchanged" —
+`mineworld run` calls `observe`, which this decision does not touch. S10's text is amended by its owner
+at its next pull request (QS11C-1).
+
+**Rejected.**
+- *Judging at sweep time* against the world as it stands: answers where people are now, not where they
+  were when the fact happened; the "said before they left" case fails.
+- *A broadcast channel of every fact, filtered per connection*: the filter needs the whereabouts at
+  record time, which only the world thread has; and a lagging receiver on a broadcast channel loses
+  facts silently.
+- *An ephemeral world keeping a re-foldable window of recent facts* so it can serve old cursors: a
+  second log. An unsaved world serves the stream from the join on and answers older cursors
+  `cursor_unavailable` (QS11C-2).
+- *In-server controllers receiving facts* now: none reads them (the paced controller reads histories,
+  the reactive one its conversation history), and a queue nobody drains is a cost with no consumer
+  (QS11C-4). The seam is there when one does.
+
+**Limitations accepted.** A resume of a persisted world folds its whole fact log off the world thread (a
+300-day market town is about 373 000 facts); seeding the fold from a snapshot is the recorded
+optimization, taken when measured necessary (QS11C-8). A payload that is not JSON reaches the wire as
+`null` (`PROTOCOL.md` §5.2); `EventEnvelope::map_payload` is a proposed later contract change, not taken
+here (QS11C-3).
+
+---
+
+## DEP-15 — Observation deltas: the typed `ObservationDelta`, chosen by measurement
+
+**Date** 2026-10-09 · **Status** selected; shipped in S11 PR S11-C · **Approved by** the primary session
+at S11-C's design freeze (SD-C10's rule and QS11C-5, frozen before measuring) · **Relates to** `ARC-41`,
+`ARC-23`, `ARC-43`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §15 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.8, 7.3, 17 (CP-C1, E-SC8) · **Specification**
+[`server/PROTOCOL.md`](../server/PROTOCOL.md) §5.3
+
+**Problem.** A hosted world sends every connected client a whole observation ten times a second. On a
+hosted market town that is about 87 KB per client per second, almost all of it unchanged from the
+frame before: the people in the room, their components, the list of what may be attempted.
+
+**Options considered** (both directions of the reuse question).
+
+```text
+(a) the typed ObservationDelta (ours, server/src/protocol/delta.rs)   chosen, by the frozen rule
+    keyed by contract identity: entities upserted / removed by EntityId,
+    relations and affordances replaced whole when changed, events always
+(b) RFC 6902 JSON Patch (the json-patch crate 4.2.0, MIT/Apache-2.0)  measured; 13 % smaller than (a)
+    a generic diff of the observation's JSON                          on this world; no GDScript
+                                                                      applier exists
+(c) whole observations only                                           the conforming fallback
+(d) transport compression, permessage-deflate                         a dead end: Godot's
+                                                                      WebSocketPeer cannot negotiate
+                                                                      it (godot#103230, ARC-41)
+(e) a binary encoding (MessagePack)                                   a different question: ARC-41
+                                                                      keeps JSON; bytes are answered
+                                                                      by deltas, not by encoding
+```
+
+**Measurement** (step-12 E-SC8; `tools/cli/tests/deltas.rs`, run explicitly). A hosted
+`worlds/market-town --town`, four sessions (visitor, wanderer, and Alice and Bob taken over from their
+in-server controllers), 60 wall seconds, 601 whole frames per client; on the same frames, per client
+per second:
+
+```text
+client     whole       typed            json-patch
+visitor    81 993 B/s  1 141 B/s        993 B/s
+wanderer   93 733 B/s  1 161 B/s      1 012 B/s
+alice      90 487 B/s  1 155 B/s      1 007 B/s
+bob        81 552 B/s  1 140 B/s        992 B/s
+mean       86 941 B/s  1 149 B/s (1.3 %)  1 001 B/s (1.2 %)
+```
+
+Every one of the 2 400 consecutive pairs reconstructs exactly: `apply(previous, diff(previous, next))`
+equals `next` with its entities in id order (CA-9).
+
+**Choice.** The rule frozen before measuring (step-12 SD-C10) reads: *typed* if it is at most half the
+whole bytes and json-patch is not within 10 % of it; *json-patch* if within 10 % of typed and at most
+half the whole bytes; *whole observations only* otherwise. Typed is 1.3 % of whole, and json-patch is
+not within 10 % of it (it is 12.9 % smaller), so the rule selects **typed**, and it ships: `delta`
+frames between keyframes (`PROTOCOL.md` §5.3), the first frame, every `--keyframe-every`-th frame
+(default 50) and the first after a resume or a backfill being whole.
+
+**Disagreement recorded.** step-12 §4.8, written before the rule, said the typed delta is kept "only
+if it beats both". On these numbers it beats whole observations by a factor of 75 and loses to
+json-patch by 148 B/s per client; read that way, neither non-whole branch of the frozen rule applies.
+The freeze is the binding text and its rule was applied as written; the operator is told of the
+tension in S11-C's handoff. What the rule's outcome keeps: an applier a client writes in a few lines
+against `PROTOCOL.md` §5.3's table, with no RFC 6902 implementation in GDScript to adopt or write, and
+deltas keyed by contract identity rather than by JSON paths into a list. What it gives up: about
+150 B/s per client against json-patch, on a stream already 75 times smaller.
+
+**Isolating interface.** `server/src/protocol/delta.rs` (`ObservationDelta`, `diff`, `apply`,
+`canonical`); the Godot module's `mineworld/delta.gd`. `json-patch` is a dev-dependency of
+`mineworld-cli` only, for this measurement, and is in no shipped artefact.
+
+**Limitations accepted.** Measured on one town and one cadence; a world whose observations churn
+differently may weigh the encodings differently, and the measurement is re-runnable as written. A
+`delta` whose `base` is not the frame a client holds cannot occur on one WebSocket; a client that sees
+one resumes, which yields a whole observation.
 
 ---
 
@@ -4891,6 +5073,484 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
 
 ---
 
+## ARC-66 — A System Pack from outside this repository is installed by the same two lines, pinned to a commit
+
+**Date** 2026-10-08 · **Approved by** the operator (S16 QSE-2, QSE-3, QSE-12, QSE-16; FQ-c1, FQ-c2,
+FQ-c5) and the primary session at PR E-c's design freeze (step-16 §16.0) · **Supersedes in part**
+`ARC-33`'s sentence placing "packs from outside this repository" outside MVP-0 · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1, §3.2; [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §8 · **Relates
+to** `ARC-8`, `ARC-26`, `ARC-33`, `ARC-35`, `ARC-38`, `ARC-53`, `ARC-54`, `ARC-55`, `DEP-12`, `DEP-22`,
+`DEP-23` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §3, §4.4, §16 (S16, PR E-c)
+
+**Problem.** The frozen top-level criterion asks for *independently installable* interaction systems.
+Until this decision every System Pack in the build was compiled from this repository, and `ARC-33`
+placed a pack from anywhere else outside MVP-0 together with the WASM tier. A framework whose only packs
+live in its own tree has not shown that somebody else can write one.
+
+**Choice.**
+
+1. **Same two lines, pinned.** A System Pack whose source lives in another repository is installed by
+   `ARC-33`'s two lines in `systems/installed/`, the Cargo line naming a git source and a **full 40-hex
+   commit id**, and the lock records the same commit:
+
+   ```text
+   systems/installed/Cargo.toml   <package> = { git = "<url>", rev = "<40 hex>" }   (one line)
+   systems/installed/src/lib.rs   <Variant> => <crate>::<System>,                    (one line)
+   Cargo.lock                     source = "git+<url>?rev=<sha>#<sha>"              (generated)
+   ```
+
+   No `branch`, no `tag`: a tag can be moved, a commit cannot. The dependency key is the pack's own
+   package name, never a rename (`<package> = { package = "…" }`): the installed set's consistency
+   guard compares the manifest's keys with the crates `core::any::type_name` reports, and that is the
+   real crate name (spike SC-2 observed a rename fail it).
+2. **The pack names the framework by version, and the build maps the names once.** A third-party pack
+   depends on MineWorld's crates by version requirement (`mineworld-sdk = "0.1"`), so it builds against
+   whichever MineWorld its consumer has. The reference build maps those names to its own paths in one
+   `[patch.crates-io]` table — the **published surface** — and nothing else: `mineworld-sdk`,
+   `mineworld-kernel`, `mineworld-contracts`, `mineworld-authoring`, `mineworld-presence`,
+   `mineworld-inventory`. A pack may depend on these and on registry crates; a pack's dev-dependencies
+   are not part of the surface (Cargo never resolves a dependency's dev-dependencies). Publishing one
+   more crate to third parties is one line in that table, a reviewed act.
+3. **Where the table lives: `.cargo/config.toml` at the repository root**, a supported Cargo location
+   for `[patch]` (FQ-c2 (a)). Paths in it are relative and written with `/`; Cargo resolves them against
+   the directory that holds `.cargo/` on every operating system. Finding F-Ec1 decided the location:
+   `ARC-35`'s check 2, bullet 3 scans every `*.rs` and every `Cargo.toml` — the root one explicitly —
+   outside `systems/`, `worlds/` and `tests/acceptance/` for the market's crate names, and
+   `mineworld-inventory` is one of them (a producing pack states `items-produced` only through
+   `mineworld_inventory::produce`, `ARC-26`, `ARC-38`). The table in the root `Cargo.toml` would fail
+   `AC-1`. In `.cargo/config.toml` it is build configuration, which the scan does not read — and this
+   record does not lean on that silently: the published-surface table names one market crate outside
+   `systems/`, which is consistent with `ARC-35`'s claim, because installing the market still edited only
+   `systems/`, and publishing a crate to third parties is a separate, reviewed act after it. The
+   acceptance test `package_sources.rs` reads the table, so it is guarded rather than invisible.
+   `ac1_composability.rs` and `ARC-35` are not edited.
+4. **Third-party is decided by where the pack was compiled** (`ARC-54` point 2). A git checkout lies
+   under `CARGO_HOME`, outside the framework workspace, so `package!()` records it third-party; a world
+   that enables its system must `require` the pack, in range, and its licence is judged by `ARC-55`.
+   `mineworld packs list` says `bundled` or `third-party` for every code pack. The binary does not print
+   the revision: Cargo exposes no variable for a dependency's source, and reading `Cargo.lock` at run
+   time is `cargo_metadata` at run time, rejected in step-16 §5 row 15. The revision is stated once, on
+   the pack's line in `systems/installed/Cargo.toml`, and `package_sources.rs` proves `Cargo.lock` holds
+   the same one.
+5. **Guarded by one acceptance test file**, `tests/acceptance/tests/package_sources.rs`, which names no
+   pack:
+   - over `Cargo.lock`: every package without a source is a workspace member, every registry package
+     has a checksum, every git package's source is `git+<url>?rev=<40 hex>#<the same 40 hex>`; no
+     `mineworld-*` package comes from a registry; each git package's revision equals the one its line
+     in `systems/installed/Cargo.toml` states; only the installed set depends on a git package;
+   - over `cargo metadata --locked --offline`: the git packages are exactly the installed capabilities
+     whose `bundled()` is false; each is not a workspace member, its manifest is not under the workspace
+     root, every normal dependency is in the published-surface table or a registry crate, no dependency
+     has a `path`, and its manifest says no `workspace = true`;
+   - over the tracked files: no `*.rs` and no `Cargo.toml` other than `systems/installed/Cargo.toml`
+     spells a git package's crate name; `systems/installed/src/lib.rs` may name it once.
+6. **Reproducible offline after one fetch** (§16 PD-26). `cargo fetch --locked`, then `--offline
+   --frozen`; or `cargo vendor --locked <directory outside the tree>` and an empty `CARGO_HOME` with the
+   generated `--config`. The vendor directory is never committed. A committed test does not vendor; the
+   lock guard proves the precondition (every non-workspace package content-addressed).
+7. **Trusted, reviewed code.** A pinned pack is compiled into the binary and runs in process with the
+   kernel's authority, like every MVP-0 pack (`ARCHITECTURE.md` §12). It is reviewed like any
+   dependency before the reference build installs it, and recorded as one (`DEP-23` is the first).
+   Installing without a rebuild, and running code nobody reviewed, remain `ARC-8`'s Tier 1.
+8. **Upkeep** (FQ-c7). A framework PR that breaks a pinned pack updates the pack in its repository and the
+   `rev` here, in the same review. A breaking change to a published crate is a MINOR release before 1.0
+   (`ARC-53`'s rule, extended to the published surface).
+
+**Options considered** (`REUSE_POLICY.md` §§2, 11–12, 17 — both directions; step-16 §16.4):
+
+```text
+M1 a Cargo git dependency with `rev`, locked by Cargo.lock          ADOPT
+M2 vendoring into this repository (copy, in-tree `cargo vendor`, subtree)
+                                                                      REJECT: inside the tree it is
+                                                                      bundled (ARC-54's limitation) and,
+                                                                      under systems/, a workspace member
+M3 a git submodule + a path dependency                               REJECT: bundled; the lock loses
+                                                                      the pin; four places, not two
+M4 `cargo vendor` outside the tree                                   ADOPT as the offline route, never
+                                                                      committed
+M5 a registry (crates.io, a private one, a static index)             REJECT for MVP-0: the Phase 3
+                                                                      non-goal; publishes names before a
+                                                                      stable contract. The patch table
+                                                                      makes the move a deletion
+M6 a hermetic build system (Nix crane/naersk, Bazel rules_rust)      REJECT: a second build description,
+                                                                      framework lock-in
+M7 our own fetcher (tarball + sha256 into vendor/)                   REJECT: rebuilds M1 + M4 badly
+```
+
+Not reinventing: Cargo fetches, pins, locks, vendors and enforces the framework requirement (a pack
+requiring `mineworld-sdk = "0.2"` is refused by Cargo). MineWorld adds only the published-surface table
+and a guard over the lock. Not forcing: no registry, second build system or fetch script where a git
+`rev` already does the job.
+
+**How it fails, closed.**
+- The table removed (spike SC-5): `cargo metadata` refuses — "no matching package named
+  `mineworld-contracts` found, location searched: crates.io index". A crate of that name published by a
+  stranger would change that, which is why the lock guard refuses any `mineworld-*` package with a
+  registry source and `cargo-deny`'s `sources` check allows only crates.io and the pack's repository
+  (`DEP-22`).
+- Cargo run from outside the repository (`--manifest-path <repo>/Cargo.toml` from another directory)
+  does not read `.cargo/config.toml` and refuses the same way (spike SC-6). Run Cargo in the repository.
+- The pack's repository or commit gone: the fetch fails, naming the source; an existing vendor
+  directory still builds it.
+
+**Accepted limitations.**
+- `.cargo/config.toml` is read from the working directory upward, so the published surface depends on
+  where Cargo runs (above).
+- The CI cache key (`Cargo.lock`, toolchain, Dockerfile) does not include `.cargo/config.toml`; a change
+  to the table that changes resolution changes `Cargo.lock` too.
+- A third-party pack takes no world configuration in this first instance (FQ-c9); the seam
+  (`ARC-61`) is the same for it, and its third-party reach is S17's to demonstrate.
+- Revisit together with `ARC-33` and `DEP-12` when a registry or `ARC-8`'s Tier 1 arrives.
+
+---
+
+## DEP-23 — The first third-party System Pack: `acme-fishing`, pinned by git revision
+
+**Date** 2026-10-08 · **Status** selected; installed in S16 PR E-c · **Approved by** the operator
+(QSE-3, QSE-12, QSE-16; FQ-c1, FQ-c4, FQ-c5) and the primary session at E-c's freeze (step-16 §16.0) ·
+**Relates to** `ARC-66`, `ARC-26`, `ARC-34`, `ARC-38`, `ARC-55` · **Design**
+`.structured-coding/plans/mvp0/step-16-packages.md` §16.2 PD-27 (S16, PR E-c)
+
+**What.** `acme-fishing` 0.1.0, a System Pack with system id `fishing`: a place's `fishing:` section
+(`catch: <item key>`, `minutes: 30..=240`) makes it a fishing spot; a living person at a spot who can
+carry one more is offered `fish`, a complete affordance with no target (`ARC-34`); a `catch` process ends
+after the spot's minutes and, if the angler is still there and can carry one more, states inventory's
+`items-produced` through `mineworld_inventory::produce` (`ARC-26`, `ARC-38`). It depends on `presence` and
+`inventory`, discloses nothing, takes no configuration. Its law is step-16 §16.2's table.
+
+**Where.** <https://github.com/yuema137/mineworld-pack-fishing>, branch `main`, a separate public
+repository. The build installs it by `ARC-66`'s two lines; the revision is stated once, on its line in
+`systems/installed/Cargo.toml` (the tag `v0.1.0` names the same commit, informatively).
+
+**Why this and not a bundled pack.** It is the evidence `ARC-66` exists for: a pack written only
+against the published surface, in a repository that is not this one, with its own tests and CI on Linux,
+macOS and Windows, compiled into this build without a path into its source.
+
+**Licence.** MIT (its `Cargo.toml` and `LICENSE`), on `ARC-55`'s default allow-list. Its normal
+dependencies outside the published surface are `serde` and `serde_json`, both already in this build's
+lock: installing it adds no registry crate to the graph.
+
+**Who maintains it.** The MineWorld maintainers (the repository's owner is this project's operator). A
+framework PR that breaks it updates it in its repository and the `rev` here, in the same review
+(`ARC-66` point 8).
+
+**Upgrade.** Commit to its repository; change the `rev` on its line; `cargo update -p acme-fishing`
+regenerates the lock; a world whose `requires:` range no longer admits the new version is refused naming
+both.
+
+**Removal.** Delete its two lines; the lock is regenerated. A world enabling `fishing` is then refused
+`UnknownSystem`, listing the systems the build provides; every other world is unaffected.
+
+---
+
+## DEP-22 — `cargo-deny` checks the code graph's licences, sources and bans in CI
+
+**Date** 2026-10-08 · **Status** selected; integrated in S16 PR E-c (Ec-C7) · **Approved by** the
+operator's reuse table (step-16 §5 row 11) and the primary session at E-c's freeze (FQ-c6) ·
+**Relates to** `ARC-48`, `ARC-55`, `ARC-66`, `DEP-17`, `DEP-18`, `DEP-21` · **Design**
+`.structured-coding/plans/mvp0/step-16-packages.md` §5 row 11, §16.2 PD-29 (S16, PR E-c)
+
+**Problem.** `ARC-55` judges the licence a *pack* declares, at resolution. Nothing judged the licences
+of every crate compiled into the binary, and nothing stated which sources a crate may come from — the
+policy that keeps a crate published under a framework name by a stranger out of the build (`ARC-66`,
+"How it fails, closed").
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+(a) cargo-deny (EmbarkStudios; MIT OR Apache-2.0): licences, sources, bans, advisories over a Cargo graph
+(b) cargo-about / cargo-license: licence listing only, no source or ban policy
+(c) a script of our own over `cargo metadata`
+```
+
+**Choice: (a)**, run by CI only — it is not a dependency of any crate. (b) lists licences but enforces
+neither sources nor bans, so a second tool would still be needed; (c) is the wheel (a) is.
+
+**Policy (`deny.toml`).**
+- `[sources]`: crates.io, and git only from `https://github.com/yuema137/mineworld-pack-fishing`
+  (`DEP-23`); anything else is refused.
+- `[licenses]`: the allow-list the code graph actually needs — `ARC-55`'s eight, plus only what
+  `cargo deny list` shows, each addition named in `deny.toml` with the crates that need it.
+- `[bans]`: no wildcard version requirements.
+- Advisories are **not** checked: the answer depends on a database fetched at run time, and `ARC-48`
+  allows nothing to fail non-deterministically.
+
+**Where it runs.** Installed in the CI image's `toolchain` stage at a pinned version with `--locked`,
+and run by the `fast` layer (`scripts/ci_layer.py`): `cargo deny check licenses sources bans`.
+
+**Weight, measured** at integration: recorded in step-16 §16.8 (install time, image size).
+
+**Revisit** when an advisory database can be pinned and read offline, or when the graph needs a licence
+outside the list (a reviewed addition here first).
+
+---
+
+## ARC-49 — How AC-8 is measured
+
+**Date** 2026-10-09 · **Status** decided; live from S13 PR 13b · **Approved by** the primary session at
+13b's design freeze (step-14 §13, 2026-10-08), the operator for QB-1 and for the all-platforms
+requirement · **Relates to** `ARC-23`, `ARC-30`, `ARC-48`, `DEP-17`, `DEP-18`, `DEP-19`,
+[`MVP.md`](MVP.md) §9 `AC-8`, [`NETWORKING.md`](NETWORKING.md) §8 · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §13
+
+**Problem.** `AC-8`: "The same World Pack runs on a laptop and inside a cloud Docker container with no
+semantic differences." The operator added on 2026-10-08: "we must support every platform: Mac, Linux and
+Windows." The project needs an instrument that says, for one commit, whether those platforms produce the
+same world, that locates a difference when they do not, and that cannot pass by comparing a platform with
+itself.
+
+**Options considered.**
+
+```text
+(a) a reference file recorded on the laptop and committed; each platform    every PR that changes a
+    checks itself against it inside the required `test` check (step-14      world's facts turns red until
+    §3.3 as first drawn)                                                     someone re-records on a Mac;
+                                                                             slows a required check
+(b) a live comparison: on one workflow run, each platform writes a          chosen
+    parity record of the same commit, and a separate job compares them
+(c) compare the FNV-1a fingerprint `run` prints                             "for reading; not evidence"
+                                                                             (step-08 Q9)
+(d) a Rust test with `sha2` (the reserved DEP-19 of the step design)        a dev-dependency and a Rust
+                                                                             change for what stdlib Python
+                                                                             does on every side
+```
+
+**Decision.**
+1. **The record.** `scripts/ci_parity.py record` runs the `mineworld` binary (natively with `--binary`,
+   or in the runtime image with `--image`) and writes one plain-text record, `key value` per line, `\n`
+   line endings on every platform. It holds:
+   - `[platform]`: OS, architecture, Rosetta translation (macOS), emulation (Windows), the container
+     image and its platform when there is one, and `rustc`'s release;
+   - `[source]`: the commit and the worlds, enumerated from every `worlds/*/world.yaml`, never listed by
+     hand;
+   - per world: the digest of `validate`'s output; `summary-300`, seed 7, 300 days in memory, every line
+     but `wall`, digested and also kept verbatim; `summary-30s`, seed 7, 30 days with `--save`, every
+     line but the header (it names the host's save path) and `wall`; and the save's tables.
+   - Tables: `manifest` (the body decoded, `instance` removed, re-encoded with sorted keys, plus the
+     `format` column), and `journal`, `facts` and `snapshots`, each as a row count and a SHA-256 over
+     every column of every row in primary-key order, with a digest per 1 000-row chunk to locate a
+     difference (`ARC-23`). A row encodes each column: NULL as `0x00`; otherwise `0x01`, then an
+     integer as 8 bytes little-endian or a blob as its 8-byte length and its bytes.
+   - Nothing else is excluded. `instance` is excluded because it is allocated from the wall clock
+     (`ARC-27`); any further exclusion is a reviewed change to this record.
+2. **The comparison.** `scripts/ci_parity.py compare` exits 0 only if:
+   - **G-1** every record is well-formed;
+   - **G-2** every record names the same commit and the same worlds, equal to `worlds/` of that commit;
+   - **G-3** the records include Darwin arm64 (not translated, no container), Linux x86_64 in a
+     container, and Windows x86_64 (native, not emulated). Records from fewer platforms never pass,
+     however equal;
+   - **G-4** every record's `rustc` release equals `rust-toolchain.toml`'s channel;
+   - **G-5** every world's every key is equal across all records, a Linux arm64 record included.
+
+   On a G-5 failure it names the world, groups the platforms that agree (which places the difference in
+   an OS or an architecture), and prints the first differing summary line or the first differing table
+   chunk with its key range. `--self-test` checks these verdicts against synthetic records and runs in
+   `fast`.
+3. **Where it runs.** Four jobs record the same commit: `scenario` (the runtime image, `linux/amd64`, on
+   `ubuntu-24.04`), `linux-arm` (the runtime image, `linux/arm64`, on `ubuntu-24.04-arm`), `mac`
+   (native, `macos-26`) and `windows` (native, `windows-2025`) (`DEP-19`). `ac8` downloads the four
+   records and compares them. It runs `if: always()`, so a missing leg is a red `ac8`, never a skip.
+4. **When.** On every push to `main`, on `workflow_dispatch`, and on `scratch/*-scenario` branches
+   (planted-difference evidence). Not on pull requests. `ac8` is not a required check; like `scenario`
+   it blocks main's health (`ARC-48`). A PR touching `systems/`, `kernel/`, `persistence/` or
+   `worldpack/` should dispatch the workflow on its branch before review.
+5. **The laptop.** At 13b's acceptance the operator's Mac records the final head and is compared with
+   that head's Linux and Windows records (step-14 §13.4.4). That is `AC-8` literally; it is repeated by
+   one command whenever doubt arises.
+
+**Why not ourselves / why not the others.** Hashing, SQLite reading and process control are the
+standard library's; nothing is built that a mature library provides. (a) moves a duty onto every lane and
+onto whoever owns a Mac; (c) is not evidence; (d) adds a dependency for no gain and two hashing
+implementations.
+
+**Isolating interface.** The record format and `ci_parity.py`'s two subcommands. A runner label is one
+line of the workflow (`DEP-19`). A world joins the record by existing under `worlds/`.
+
+**Accepted limitations.**
+- The macOS runner is not the operator's laptop: same OS major and target triple, another machine. The
+  laptop comparison at acceptance covers the literal claim.
+- `main` is checked after a merge, not before: a PR that introduces a platform difference merges green and
+  `ac8` turns red on `main`.
+- The long horizon (300-day saves, 1 000-day runs) is S13 PR 13c's nightly work.
+
+---
+
+## DEP-19 — AC-8's non-Linux sides: GitHub-hosted macOS arm64 (`macos-26`) and Windows x86_64 (`windows-2025`) runners
+
+**Date** 2026-10-09 · **Status** selected; integrated in S13 PR 13b · **Approved by** the operator
+(QB-1, 2026-10-08: "Use the macOS runner (macos-26). If billing later shows a charge, switch to the
+designed fallback"; and "we must support every platform: Mac, Linux and Windows") and the primary session
+at 13b's freeze · **Relates to** `ARC-49`, `DEP-17`, `ARC-48` · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§13.0.1, 13.3
+
+Ruling 6 reserved `DEP-19` for `sha2`; 13b needs no `sha2` (`ARC-49` option (d)), and QB-3 gave the
+number to this decision.
+
+**Problem.** `AC-8`'s Linux side is the runtime container on hosted `ubuntu-24.04` (`DEP-17`). Its Mac
+side, and the Windows side the operator requires, need machines that run on every check.
+
+**Options considered** (step-14 §13.3).
+
+```text
+(a) the operator's laptop against a CI Linux record, once         chosen for acceptance, not continuous
+(b) a committed laptop reference                                  declined (ARC-49 option (a))
+(c) GitHub-hosted macos-26 (arm64)                                chosen: continuous
+(c') macos-14                                                     deprecated in runner-images
+(d) ubuntu-24.04-arm (Linux arm64) as a localizer                 chosen: places a difference in OS or
+                                                                  architecture without Rosetta
+(e) macos-26-intel (Darwin x86_64)                                not needed while (c) and (d) localize
+(f) Rosetta on the laptop                                         emulation; a diagnostic only
+(g) Docker Desktop linux/arm64 on the laptop                      a diagnostic only; (d) covers it
+(h) a self-hosted runner on the operator's Mac                    runs fork-PR code on the operator's
+                                                                  machine; depends on a laptop being awake
+(i) larger macOS runners                                          paid, even on a public repository
+(j) another CI service for macOS                                  a second platform for one job
+(k) GitHub-hosted windows-2025 (Windows x86_64), native           chosen: the operator's third platform;
+                                                                  hosted Windows cannot run the Linux image
+```
+
+**Choice.** (c) + (a) + (d) + (k). Labels are pinned (`macos-26`, `windows-2025`, `ubuntu-24.04-arm`),
+never `-latest`, so a label migration never silently changes a platform under `AC-8`. The native legs
+build with rustup taking `rust-toolchain.toml`'s channel, through the shared composite action
+`.github/actions/native`, which names a layer of `scripts/ci_layer.py` and never a command.
+
+**Cost basis.** Standard GitHub-hosted runners, macOS and Windows included, carry no per-minute charge on
+a public repository (GitHub's published terms; the session cannot read billing, so this is the operator's
+to confirm). No larger runner and no paid service is used.
+
+**Isolating interface.** `ci_parity.py` runs anywhere Python 3 and the binary do. A runner is one line;
+the native action is one file.
+
+**Revisit triggers.**
+- Billing shows a charge: switch to the designed fallback, (a) + (d) + (k), recorded as a deviation.
+- A label is deprecated in `runner-images`: move to the next pinned label.
+- A need for a machine GitHub does not host.
+
+**Accepted limitations.** Hosted runners are not the operator's laptop (`ARC-49`). About five macOS jobs
+run concurrently on the Free plan, so a busy day delays `ac8`; it never holds a merge.
+
+---
+
+## ARC-48 note — the scenario group of jobs and the Windows suite (2026-10-09, S13 PR 13b)
+
+The decision is unchanged; its table gains these rows, and two details of the required checks change.
+
+```text
+job           layer / role                  trigger                                         merge
+scenario      3 scenario: the runtime        push to main; workflow_dispatch;               blocks main's
+              image's evidence (was          push to scratch/*-scenario                     health
+              `image`) and the Linux x86_64
+              parity record (ARC-49)
+mac           parity record, macos-26        same                                           blocks main's health
+linux-arm     parity record, Linux arm64     same                                           blocks main's health
+windows       parity record, windows-2025    same                                           blocks main's health
+ac8           AC-8's comparison (ARC-49)     same; if: always()                             blocks main's health
+test-windows  the `core` layer natively on   push to main; workflow_dispatch                reports
+              windows-2025
+```
+
+- `image` is renamed `scenario`; its scratch route `scratch/*-image` becomes `scratch/*-scenario`.
+- `fast` gains one command, `python3 scripts/ci_parity.py --self-test` (under a second). `test` is not
+  run on `scratch/*-scenario` branches, as it was not on `-image` ones. `core`'s commands are unchanged.
+- `test-windows` reports only. It is red until the Windows-portability PR (13w) makes the suite compile
+  and pass there; that PR adds its `pull_request` trigger, and only then may the operator make it a
+  required check (QB-11).
+- None of the new jobs runs on `pull_request`, and none is required (QB-8).
+
+---
+
+## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
+
+**Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;
+FQ-d1 … FQ-d6) and the operator's every-platform requirement (§17.12) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §2, §4.1, §8.1; [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0, §8 ·
+**Relates to** `ARC-31`, `ARC-36`, `ARC-53`, `ARC-54`, `ARC-55`, `DEP-10` · **Design**
+`.structured-coding/plans/mvp0/step-16-packages.md` §4.3, §17 (S16, PR E-d)
+
+**Problem.** `MODULE_SPEC.md` §2 defines an Entity Pack — "what exists in the world" — and `ARC-53`
+gave it an identity, but nothing read one: `pack.yaml` refused `type: entity-pack` and `requires:`
+refused to resolve one. A kind of thing (bread, coffee) could exist only inside the one world that
+declared it, so two worlds sharing goods had to copy the files. "Install modules → compose world" needs
+a kind of thing to be installable on its own, with no rebuild.
+
+**Choice.**
+
+1. **Item kinds and nothing else, in MVP-0.** An Entity Pack is a directory holding `pack.yaml`
+   (`type: entity-pack`, `ARC-53`'s fields, no new field) and `items/<key>.yaml`, each in the World Pack
+   item-file format (`tags`, `note`, sections, `ARC-36`), read by the same code. A `places/`, `people/`
+   or `organizations/` directory in it is refused by name ("an Entity Pack carries item kinds only in
+   MVP-0"); one with no item file is refused ("declares nothing").
+2. **The directory is the declaration** (FQ-d1). Every `*.yaml` in `items/` is one kind, keyed by the
+   file's stem (`Path::file_stem` of an entry whose `Path::extension` is `yaml`), which must be an
+   `EntityKey` or the file is refused naming it. Any other file in `items/` is not content and is left
+   alone. `pack.yaml` has no `items:` list, so the key is stated once, by the file name.
+3. **Who reads what.** `mineworld-packages` identifies an Entity Pack and checks its directory layout
+   (file names only; it stays a leaf that knows no `EntityKey`); `mineworld-worldpack` reads its content
+   in `worldpack/src/entities.rs`, because the item-file format and section decoding are its.
+4. **Composition: read order step 6b.** After the world's own content is read and checked for
+   undeclared files, each requirement that resolved to an Entity Pack, in id order, has its `items/`
+   read **with the requiring world's enabled systems**, so a section is decoded by its owner exactly as
+   if the world had written it, and the section rules (owner enabled, file may carry it, references
+   declared and typed — `ARC-31`) apply unchanged. The kinds merge into the world's item kinds.
+5. **One key namespace, refused by name** (`MODULE_SPEC.md` §4.1 rule 1). A key an Entity Pack declares
+   that the world also declares — in `places`, `population`, `items` or `organizations` — or that another
+   required Entity Pack declares, is refused naming the key and both sources. Never "last one wins":
+   Minecraft data packs' override-by-load-order is exactly the silent shadowing refused here.
+6. **Identity in key order across every source** (FQ-d2). Item kinds — the world's and every required
+   pack's together — are allocated after people and before organizations, in key order, by the loop
+   that already exists. A world that requires no Entity Pack allocates exactly what it did; moving kinds
+   out of a world into an Entity Pack it then requires changes no id and no fact.
+7. **Provenance names the pack.** A kind read from an Entity Pack carries `Metadata { source_pack: <the
+   pack's id>, source_path: "items/<key>.yaml" }`, `source_path` written with `/` on every operating
+   system so a save does not depend on the machine. Every refusal that names a content file names the
+   file in the Entity Pack's directory. `Metadata` is free text already: no contract change.
+8. **Self-contained** (FQ-d3). A section in an Entity Pack's item file may name only keys the same pack
+   declares; any other key is refused naming the pack, the file and the key. In MVP-0 the only item
+   section with references is `bodies`' object form (`at: { place }`), which describes one loose object,
+   not a kind (`ARC-36` note), so it is refused in an Entity Pack, as intended.
+9. **What the CLI shows** (FQ-d5). `mineworld packs validate <entity pack>` checks the identity, the
+   licence policy and the framework range (the `ARC-54` note below), then reads every item file against
+   **the build's whole installed set** — each section decoded by its owner; whether the owner is enabled
+   is a world's question, answered at resolution — and rule 8, and prints the kinds. `packs list` lists
+   `entity-pack` lines. `validate <world>` prints the composed item kinds (the world's and its packs') on
+   its existing `items` line.
+10. **Every platform.** CRLF line endings in `pack.yaml`, `items/*.yaml` and `world.yaml` read exactly
+    as LF does, relying on `serde-saphyr` (`DEP-10`); `items/` is read into a map by key, so no file
+    system's listing order can change an id; paths are built with `Path` operations, never by splitting
+    text on `/`.
+
+**Options considered.** An `items:` list in `pack.yaml` mirroring `world.yaml`'s (FQ-d1) — rejected:
+the key would be stated twice. Pack kinds allocated after organizations (FQ-d2) — rejected: one order,
+and moving kinds into a pack would then move ids. Namespaced keys (`goods:bread`, as Minecraft and
+Factorio prototypes do) — rejected for MVP-0: `EntityKey` is a contract type and every reference would
+change. A generic schema-driven content loader — rejected: a second statement of what each owner
+already decodes with its own type.
+
+**Accepted limitations.**
+- Item kinds only: new entity types would extend the closed `EntityType` in `contracts`, and component
+  schemas belong to System Packs in MVP-0 (`ARC-31` sections). Authoring templates are not read.
+- No namespaced keys: two packs that both declare `tea` cannot be required by one world.
+- No pack-to-pack dependency: `pack.yaml` still refuses `dependencies`, so an Entity Pack cannot build
+  on another.
+- A stray `.yaml` in `items/` becomes a kind; `packs validate` lists every kind so an author sees it.
+- A world that adopts an Entity Pack shifts the ids of its later item kinds and organizations, as
+  editing its own `items:` does today. Saves do not record which packs they used (QSE-14).
+
+---
+
+## ARC-54 note — a required data pack's own framework range is checked (F-Ed1, 2026-10-08)
+
+Point 4's rule 2 gains a check `ARC-54` left out: **a required data pack whose `mineworld:` range does
+not admit the running framework is refused**, naming the pack, its range and the framework's version —
+after the version check, as the last check of that requirement. `mineworld packs validate` applies the
+same check to every `pack.yaml` pack. Before S16's PR E-d a Presentation Pack stating `mineworld: "^9"`
+passed both (finding F-Ed1, spike SC-7), although step-16 §4.2's refusals list "a framework outside
+`mineworld:`" and `ARC-53` says a package fact is never ignored. A bounded correction of E-b's
+merged behaviour, landed with the PR that first reads data packs' content; the two shipped Presentation
+Packs state `^0.1` and are unaffected. A World Pack's own range is checked as before, by the reader.
+
+---
+
 ## ARC-63 — The World's Interaction List: one section shape for every pack, typed and enforced by its owner
 
 **Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-2
@@ -5406,3 +6066,450 @@ holds it. Delta T comes from the library's own estimate at the middle of the day
 per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
 latitudes on the few days with two crossings of one horizon, the second is not an event that day and
 the next day's opening phase corrects the light.
+
+---
+
+## ARC-75 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
+
+**Date** 2026-10-09 · **Approved by** the operator ("add pathfinding; 12d waits for it", 2026-10-08;
+realistic defaults; the two time domains, QTW-13) and the primary session at PR 12n's design freeze
+(step-11 §21.0: revision 1 with R-12n-1, QN-1 … QN-13, binding note N-1) · **Implements**
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§6, 8–9, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-25`, `ARC-26`, `ARC-27`, `ARC-34`, `ARC-39`, `ARC-62`, `ARC-67`, `DEP-34` ·
+**Design** `.structured-coding/plans/mvp0/step-11-bodies.md` §21 (S15, PRs 12n-1 and 12n-2)
+
+**Problem.** `move` is one stride toward a point and sees no walls (`ARC-26`). With walls and furniture
+in the towns (`bodies`, `ARC-39`), a controller that strides straight at its target stops short at the
+first table, and a café door behind an A-board becomes unreachable (step-11 §19, TD-D7). Somebody has to
+go round things. Three rules bound where that lives: no client or controller may compute a world rule
+(`ENGINEERING_RULES.md` §8; a client only reports intent, and 2D, 3D and a Python controller must share
+the capability without duplicating it, §9); controllers are stateless (`ARC-27`); and embodied pace is
+the wall-clock cadence of requests, never a world duration and never a pack reading the time scale
+(`ARC-67`).
+
+**Options considered** (step-11 §21.3).
+
+```text
+(a) a movement Process that strides once per      wakes in calendar time, so the time scale multiplies
+    simulated second                              the walking speed (≈ 16 m/s at 12×); correcting it
+                                                  in the pack would read the scale — both rejected by
+                                                  ARC-67 (R-12n-1)
+(b) a planning library every controller and       every client and controller embeds a planner (GDScript
+    client embeds                                 2D and 3D, Python): duplicated logic; a stateless
+                                                  controller re-plans every consult
+(c) a server plan plus a client preview planner   two planners that can disagree
+(d) the walk owned by bodies, or a third pack     walking would vanish without bodies, or the stride and
+                                                  passage rule would be duplicated
+(e) the route on the server, owned by movement    chosen
+    and planned through a catalog the geometry
+    owner answers; each stride an embodied request
+```
+
+**Choice: (e).**
+
+1. **Two actions of `movement`.** `walk-to { to: Destination }` asks to go somewhere; `Destination` is
+   `place(Location)` — a point in the walker's place or in a place reachable through a chain of
+   passages, or a place without a position, meaning "enter it" — or `person(PersonId)` in the walker's
+   own place. `Destination` is `#[non_exhaustive]` and serialized with one explicit tag per arm, so a
+   later arm (a region, a remote place the travel system reaches, an object) is an addition, not a
+   breaking change. `walk-step` (no payload) asks for the next stride of one's own walk. Both are offered
+   once, against nobody, without a request, like `move` (`ARC-34`): a client or controller composes them.
+2. **The walk is world state.** `walk-to`'s resolution plans the first leg and records it as the
+   walker's `Walking` component — destination, the places still to enter, the current leg's waypoints,
+   the last stride asked, stall and re-plan counts — and states `walk-started { person, destination }`.
+   No stride, no `Process`, no world duration: a walk nobody steps waits, and takes no calendar time.
+   `Walking` is persisted, restored and replayed like every component, so a resumed world continues the
+   walk where it was.
+3. **Each stride is a request.** `walk-step` takes at most `WALK_STRIDE` (1 340 mm) toward the next
+   waypoint and never past it, or, at a doorway, the crossing into the next place, after which the next
+   leg is planned. The stride is checked by the same rule as `move` and stated through presence's
+   `arrivals()`, so the registered resolvers resolve it like any other arrival (`ARC-39`). The walk ends
+   with `walk-ended { person, destination, outcome }`, outcome `arrived`, `stalled` (three consecutive
+   steps with under 50 mm of progress, or more than eight re-plans), `no-route` (a later leg or a
+   re-plan found no way), `replaced` (a new `walk-to`) or `stopped` (the walker's own `move` — direct
+   control always wins). Arrival is recognised when presence records the walker at the leg's end (or,
+   for a person, within `PERSON_APPROACH`, 1 200 mm, of them), in the same dispatch.
+4. **The route is the geometry owner's answer.** `movement` owns a catalog (`ARC-62`):
+   `Wayfinder { wayfinder_of, route(world, RouteAsk) -> Option<RouteAnswer> }`, `RouteAsk { person,
+   place, from, to, avoid }` built only by movement, `RouteAnswer` either waypoints (non-empty, integer
+   positions ending at the possibly adjusted goal) or `unreachable`. Its rules are `ARC-62` item 4's:
+   write-once and process-wide, pure, keeps nothing, inert (`None`) where its pack holds no state for
+   the place. Asked in ascending `SystemId`; the first answer wins; with none, the leg is the straight
+   segment. `bodies` is the build's wayfinder (`DEP-34`, `ARC-39` note 5). Movement never names it.
+5. **Refusals.** `walk-to` is refused `malformed-payload` for a payload it cannot read;
+   `NoSupportedInteraction` for an actor that is not a person; `PreconditionFailed` for an actor without
+   a presence or a destination presence refuses; `TooFarAway` only for a `person` destination outside
+   the walker's place; and **`Rejection::System { code: "no-route" }`** when the destination place has no
+   passage chain from the walker's or the first leg's wayfinder answers `unreachable`. The code string
+   `no-route` is part of movement's public vocabulary and is never renamed. `walk-step` without a walk
+   is `PreconditionFailed`.
+6. **Re-planning** happens at a step when the last stride did not end where it was asked (stopped
+   short, nudged or shoved), with the person who stopped the walker given as `avoid`; or when a `person`
+   destination moved more than 500 mm from where the leg was planned to. A walk re-plans at most eight
+   times. A shove or a nudge does not end a walk.
+7. **Cadence belongs to the sender.** One `walk-step` per wall second (`EMBODIED_STEP`) is 1.34 m/s
+   — Weidmann (1993), the mean free walking speed of pedestrians; Bohannon (1997), 1.27–1.46 m/s
+   comfortable gait for adults aged 20–59. A player's client sends it on a timer while its own `walking`
+   record is disclosed; a hosted controller is stepped by the host in wall seconds (`ARC-67` item 4); a
+   headless `run` steps at a notional cadence. No System Pack reads the cadence, a wall clock or the time
+   scale: a walk at 6×, 12× or 24× covers the same ground per wall second.
+8. **Disclosure.** To whoever perceives a walking person, movement discloses `walking { destination,
+   next }` — the next four waypoints at most. Clients draw intent from the server's own plan; nobody
+   plans a route outside the server.
+
+**Accepted limitations.**
+- **A sender may step faster than a person walks**, exactly as `move` may be sent back to back
+  (`ARC-26`, L-1): a bound per request, not per second.
+- **Geometry changed after a plan is noticed only through its effect**: movement cannot see another
+  pack's state, so an object kicked across a planned leg is pushed or blocks the stride like any
+  object a `move` meets, and a blocked stride re-plans. (Step-11 §21.15 records this against SD-N9's
+  wording.)
+- **People are not planned round**, except the one who just stopped the walker: passing other people is
+  the resolver's nudging and head-on bias (`ARC-39` notes).
+- **No overhead geometry, stairs or floors**; no travel between places not joined by passages.
+
+---
+
+## DEP-34 — Route search: `pathfinding`'s A*, over a visibility graph `bodies` builds on integers
+
+**Date** 2026-10-09 · **Status** selected; one dependency added to `systems/bodies` only · **Approved by**
+the primary session at PR 12n's design freeze (step-11 §21.0, QN-4) · **Relates to** `ARC-25`,
+`ARC-39`, `ARC-55`, `ARC-75`, `DEP-13`, `REUSE_POLICY.md` §§11–12, §17 · **Design**
+`.structured-coding/plans/mvp0/step-11-bodies.md` §21.4 (S15, PR 12n-1)
+
+**Problem.** `bodies` must answer "how does a person get from here to there in this place" round the
+place's solids and loose objects, with an answer that becomes positions in the log: exact, and the
+same on every machine (`ARC-25`, `AC-8`), with no C++ toolchain (Windows) and no engine bound in. A
+place holds at most 64 solids and 32 objects, all axis-aligned boxes or discs.
+
+**Options considered** (step-11 §21.4; crates.io and the projects' pages, 2026-10-09; both directions of
+`REUSE_POLICY.md`).
+
+```text
+search
+  (a) pathfinding 4.16.0 (evenfurther), MIT / Apache-2.0 — A*, Dijkstra, BFS, fringe, IDA*, Yen;
+      generic over node and integer cost; since 2016, ≈ 3 M downloads; MSRV 1.88       chosen
+  (b) our own A*                                       a mature, small, generic search exists
+graph
+  (c) pathfinding's Grid at 50 or 100 mm               110 k–440 k cells on the street; zig-zag paths
+                                                       needing string-pulling against the same boxes;
+                                                       a second discretization. Kept as the fallback
+                                                       if the graph's cost fails (step-11 NV-10)
+  (d) landmass 0.9.2 — a navigation system with        its own agent loop, velocities and frame delta;
+      steering and avoidance                           f32 (glam), no determinism statement
+  (e) oxidized_navigation 0.12.0                       a Bevy plugin: bound to Bevy's ECS and schedule
+  (f) recastnavigation-rs 0.1.0 (Recast/Detour)        C++ on every platform; MPL-2.0 binding; floats
+  (g) polyanya 0.17.1 — any-angle paths on a mesh      f32 triangulation (glam, spade), no determinism
+                                                       statement; the reference for a later, larger
+                                                       geometry
+  (h) a visibility graph over the grown boxes, ours    chosen
+```
+
+**Choice: (a) for the search and (h) for the graph.** `pathfinding = "=4.16.0"`, an exact pin, in
+`systems/bodies/Cargo.toml` only; `systems/bodies/src/route.rs` is the only file that names it.
+The graph: every solid's footprint and every loose object's footprint (a ball as its bounding square),
+and the person who stopped the walker when there is one, each grown on every side by `PERSON_RADIUS +
+GAP + PLAN_MARGIN` (300 + 10 + 50 mm); the floor shrunk by the same. Nodes are the start, the goal and
+every grown corner strictly inside the shrunk floor and outside every other grown box, in authored
+order. An edge exists when its segment meets no grown box's open interior, decided with integer cross
+products; its cost is ⌈√(dx² + dy²)⌉ mm and the heuristic ⌊√(dx² + dy²)⌋, admissible and consistent.
+Edges are evaluated lazily as A* expands a node, successors in node order. A goal inside a grown box or
+outside the shrunk floor is moved to the nearest free point of the 50 mm lattice (distance, then y,
+then x — the entry order of `ARC-39` note 3); none, an enclosed goal, or more than `WAYPOINTS_MAX` (64)
+waypoints is `unreachable`.
+
+**Why the graph is ours** (rejecting a mature wheel needs a reason, `CLAUDE.md` §4 rule 16). Every
+navmesh candidate is float geometry whose cross-machine bit-identity is unproven, and a route's
+waypoints become positions in the log, so they must be exact (`CORE_CONCEPTS.md` §6.2). Rapier is
+admitted only behind quantization and a verify-then-degrade check (`DEP-13`); a planner's output has no
+such check to fall back on. For axis-aligned boxes the shortest path bends only at grown corners — a
+graph of at most 386 nodes — so the case our geometry is made of is the one case where a visibility
+graph is both optimal and small.
+
+**Determinism.** Pure integer code in and out. `pathfinding`'s A* keeps its parents in an `FxIndexMap`
+(a fixed hasher, insertion order) and orders its heap by estimated cost, then by cost, so equal inputs
+give equal paths on every machine; `bodies`' successor order is fixed. An upgrade may change
+tie-breaking and so results: it bumps `bodies`' `VERSION`, as a Rapier upgrade does.
+
+**Licences** (`ARC-55`): `pathfinding` is Apache-2.0 or MIT, and so are the crates it brings
+(`deprecate-until`, `indexmap`, `integer-sqrt`, `num-traits`, `rustc-hash`, `thiserror`), each recorded in
+step-11 §21.15 as `Cargo.lock` admits them.
+
+**Accepted limitations.** Grown boxes are squares, so a route keeps at least the margin from a corner
+and more than it needs diagonally. A route is planned per request from current state, so its cost is
+bounded by measurement (step-11 NV-10: a plan's maximum ≤ 5 ms, p99 ≤ 1 ms), with the grid as the named
+fallback. Overhead geometry and slopes are out of scope (`body:` has none).
+
+---
+
+## ARC-68 — Calendar and weather are System Packs; weather is a seeded WGEN-lite generator built from the published algorithm
+
+**Date** 2026-10-09 · **Approved by** the primary session at PR TW-b's design freeze (step-19 §17.9.1;
+QTWb-1 … 7 ruled as recommended) · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-26`, `ARC-28`, `ARC-33`, `ARC-35`, `ARC-61`, `ARC-67`, `DEP-30`, `DEP-31` (weather
+data and the fetch tool, TW-d), `REUSE_POLICY.md` §§11–12 · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.3, §5, §6, §15.1, §16, §17 (S19, PRs TW-a and
+TW-b)
+
+**Problem.** A world that wants a date, a sun and weather must have them without the kernel learning what
+a day, a sunrise or rain is (kernel ignorance), without any client computing them (clients only render,
+`INV-TW-6`), and without the time scale or pause reaching a rule (`ARC-67`, `INV-TW-2`). The weather must
+be the same for every observer, reproducible from the world's facts, realistic by default, and
+replaceable by a world's author.
+
+**Choice.**
+
+1. **Both are System Packs.** `calendar` (`systems/calendar`, PR TW-a) owns the civil date and the sun.
+   `weather` (`systems/weather`, PR TW-b) owns the weather: condition, cloud, temperature, precipitation
+   and wind, hour by hour, one climate per world. Each is installed by one line in `systems/installed`
+   (`ARC-33`) and enabled by a world's `systems:` list.
+2. **`weather` depends on `calendar`, never the reverse** (`INV-TW-10`). It declares the dependency, so a
+   world that enables `weather` without `calendar` is refused at assembly by the kernel's existing
+   dependency check. It reacts to calendar's Public `day-began` and reads the date and the day's light
+   events from that fact's payload; it never recomputes a date or the sun. Removing `weather` leaves
+   calendar's facts byte-identical.
+3. **Both are configured through `ARC-61`'s seam**: `configure/calendar.yaml` and
+   `configure/weather.yaml`, decoded by the owner's own types so a refusal names the file, its line and
+   column, and the key. Each configuration becomes one SystemInternal fact with no subjects
+   (`calendar-configured`, `weather-configured`). A pack that is enabled but not configured states
+   nothing.
+4. **Each keeps one world-level Process** (`calendar`, `climate`) whose state is the fold of the pack's
+   own facts, so a snapshot and a replay agree and a resumed world continues the same weather chain.
+5. **Both emit Public facts at changes** — `day-began`, `daylight-changed`, `weather-changed` — so other
+   packs (an umbrella seller, a rainy-day routine) may react without either pack knowing them
+   (`ARC-26`, `ARC-28`). The per-day weather record, `weather-day`, is SystemInternal.
+6. **Both disclose on the observer's place** through presence's existing `PerceptionProvider::discloses`
+   (`calendar-day`, `calendar-light`; `weather-today`, `weather-now`). An observer in no place gets
+   none.
+7. **Integers only.** Weather is fixed-point integers end to end (0.1 °C, 0.1 mm, 0.1 m/s, per-mille
+   probabilities, oktas); no `f32` or `f64` appears in the weather pack's source, which a test scans
+   for (`INV-TW-5`). Its randomness is counter-based SplitMix64 keyed by the configured seed, the world
+   day and a fixed draw index, so a fixed configuration gives the same weather on every platform.
+8. **Kernel, contracts and presence are unchanged** (`INV-TW-3`).
+
+**Alternatives rejected.** A `discloses_at` on presence (a perception contract change for a need the
+existing `discloses` meets); client-side astronomy or weather (every client would compute a world rule,
+and two clients could disagree); a kernel clock that knows days (`ARC-67`).
+
+**Reuse: the weather generator is built from the published algorithm** (`REUSE_POLICY.md`; step-19
+§3.3, read 2026-10-08).
+
+```text
+(a) WGEN — Richardson 1981, Water Resources Research 17:182–190; Richardson & Wright 1984, USDA-ARS
+    ARS-8. A published algorithm: a first-order two-state Markov chain for wet and dry days with monthly
+    P(W|D) and P(W|W), gamma wet-day amounts, AR(1) temperature conditioned on wet or dry. A clean-room
+    implementation has no licence issue.
+(b) LARS-WG — academic, non-commercial licence only
+(c) ClimGen (WSU) — Weibull amounts; not pursued
+(d) plain monthly rule tables — trivially authored, but independent days with no rain spells
+```
+
+**Selected: (a), simplified to "WGEN-lite"** and written by us in `systems/weather`: the Markov chain
+with monthly per-mille probabilities; wet-day amounts from a per-month table of five quintile amounts
+instead of a gamma sampler (no floating point); temperature as the monthly mean plus an integer AR(1)
+anomaly with bounded integer noise. (b) fails the licence rule. (c) offers no gain in fit for this use.
+(d) is kept as the degenerate case of the same file: a table with `p_wet_after_dry == p_wet_after_wet`
+*is* an independent table, so there is one schema, not two. No crate is adopted: no maintained Rust
+weather generator exists, and the generator is about two hundred lines of integer arithmetic over a
+mixer the tree already uses (the paced controller's SplitMix64 finalizer, restated in the pack and
+pinned to the reference outputs). The station record, its CSV form and the fetch tool's HTTP client are
+`DEP-31`'s (TW-d), not this decision's.
+
+**Defaults are content with sources.** The pack's climate is `configure/weather.yaml`. Market Town's
+table is derived from NOAA's U.S. Climate Normals 1991–2020 for San Diego Lindbergh Field (USW00023188)
+by formulas written in the file's header; values the normals do not give are labelled provisional until
+TW-d fits them from the station record. The daily-to-hourly constants are pack constants with cited
+sources: the diurnal temperature shape of Parton & Logan (1981), the American Meteorological Society's
+drizzle and heavy-rain intensity thresholds, and the WMO okta scale (step-19 QTWb-6).
+
+**Accepted limitations.** One climate per world (regional weather is QTW-12). Wet-hour counts by daily
+amount are a stated design default, not a measured climatology, until the hourly layer (TW-g). Wind has
+no day-to-day noise in this version.
+
+---
+
+## ARC-57 — Cognition budgets: cost ceilings on wall time, decided before the recorder and the backend
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`mineworld-cognition`,
+`budget.py`, `gateway.py`) · **Approved by** the primary session's ruling QS10-18 (2026-10-08) and the
+P5a freeze (QP5-4, 2026-10-09) · **Relates to** `ARC-56`, `ARC-58`, `INV-4`, step-17 `I-13` · **Design**
+`.structured-coding/plans/mvp0/step-17-cognition.md` §3.10, §15.6;
+`.structured-coding/plans/mvp0/pr-s10-p5-backends.md` D-P5-8, §5.3, AP5-7 · **Placeholder**
+`ARC-S10-d`
+
+**Problem.** A model call costs wall time on a GPU, or money on a user's hosted key. S11-B's
+`time_scale` lets one wall second be N simulated seconds, so a ceiling keyed on simulated time
+(`ARCHITECTURE.md` §9.1 as first written: calls per simulated hour, tokens per simulated day) costs N
+times as much per wall hour at scale N. A ceiling must also stop a call *before* it is made, or it bounds
+nothing.
+
+**Options considered:**
+
+```text
+(a) ceilings on simulated time (the first §9.1 text)   cost grows with time_scale; rejected by QS10-18
+(b) ceilings on wall time, checked after the call      a refused call has already been paid for
+(c) ceilings on wall time, checked before the call,    chosen
+    with the actual usage charged after it
+(d) one shared ceiling per process, no per-seat one    one talkative seat starves every other seat
+```
+
+**Choice: (c).** Cost ceilings are keyed on **wall** time and read only an injected clock (UTC epoch
+seconds); no budget code reads simulated time. The **context** bound stays on simulated time, because
+memory is about a life (`I-13`); it belongs to memory and context assembly (P4, P6), not here.
+
+- **Per seat** (`EntityKey`), rolling windows: `calls_per_wall_hour` (default 20, 3 600 s) and
+  `tokens_per_wall_day` (default 30 000, 86 400 s) — `ARCHITECTURE.md` §9.1's numbers re-keyed.
+- **Per process:** `max_in_flight` (default 2, FIFO) and `call_timeout_s` (default 20).
+- **Order** (`ModelGateway.complete`): key-material check → budget pre-check → in-flight slot → timeout
+  around (recorder → backend) → charge. A refused call reaches neither the recorder nor the backend.
+- **Pre-check** reserves `ceil(utf8_bytes(messages) / 4) + max_output_tokens`, erring toward refusal; the
+  **post-charge** uses the backend's reported usage, or the estimate flagged `estimated`. A transport
+  failure charges the call and no tokens; a timeout charges the call.
+- **Ledgers:** an in-memory one for tests and a SQLite one (standard-library `sqlite3`) at a path the
+  operator configures, never inside a world save (`INV-4`), so a restart neither resets nor
+  double-counts a window.
+- **Outcomes** are typed, never exceptions: `Completed | Refused | Failed`. A controller falls back on
+  `Refused` and `Failed` (P6).
+
+**Consequences.** A world's `time_scale` changes nothing about what cognition may spend per hour of the
+operator's day. A crash-looping cognition process cannot spend again after each restart. Prices are
+never modelled: tokens are reported, never priced (step-17 §3.10.4).
+
+**Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
+no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
+
+---
+
+## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`record.py`,
+`backend/canonical.py`) · **Approved by** the primary session at the P5a freeze (2026-10-09), under the
+operator's rulings QS10-14 (recorded outputs, tests with no network) and QS10-19 (local models only)
+· **Relates to** `ARC-56`, `ARC-57`, `AC-4`, `CLAUDE.md` §4 rule 10 · **Design** step-17 §3.11, §4.5;
+`pr-s10-p5-backends.md` D-P5-5, D-P5-6, D-P5-7, AP5-1 … AP5-5, AP5-8 · **Placeholder** `ARC-S10-e`
+
+**Problem.** Core tests never need a live model (`CLAUDE.md` §4 rule 10), yet the cognition path must be
+exercised with real model outputs, deterministically, on every platform. `AC-4` requires that swapping
+the backend needs no World Pack edit, so a recording must replay under any backend.
+
+**Options considered** (P5a §4.3, with licences and maturity):
+
+```text
+vcrpy / pytest-recording (MIT)   HTTP cassettes: provider wire formats, URLs and headers to scrub; a
+                                  cassette recorded against Ollama does not replay under llama.cpp; no
+                                  httpx2 support found
+respx (BSD-3-Clause)              mocks httpx, not httpx2; HTTP-level, so provider-specific
+LiteLLM caching (MIT)             the key contains the provider-prefixed model name
+inline-snapshot (MIT)             reference only: its review-the-diff workflow is the model for re-recording
+our own interface-level cassette  chosen
+```
+
+**Choice.** A cassette records at **our** interface, above HTTP:
+
+- **The key** is `sha256` over canonical JSON of `{"key_scheme": 1, "request": CompletionRequest}`:
+  UTF-8, sorted keys, `(",", ":")` separators, no ASCII escaping, no Unicode normalization, and **no
+  floats** (a float anywhere, including inside an output schema, is refused). The request holds no
+  provider, model, URL, tier, binding or key, so one cassette replays under every backend.
+- **The format** is JSON Lines, UTF-8, LF: a header `{"cassette": "mineworld-cognition", "format": 1,
+  "key_scheme": 1}`, then entries `{key, request, completion, meta: {binding, model, recorded_at,
+  latency_ms}}`. Never a URL, a header, a key, `key_env`, or a transport failure.
+- **Replay is strict and ordered.** Entries are grouped by key in file order; the n-th call with a key
+  returns the n-th entry; one more is a miss (`exhausted`), an unknown key is a miss (`absent`, with the
+  nearest recorded request and the first differing JSON path). A miss is an exception, never a fallback,
+  and never reaches a backend. An entry whose `key` does not match its `request` is refused at load.
+- **Record is atomic**: it writes `<name>.jsonl.partial`, flushes each line, and replaces the cassette on
+  clean close; a crash leaves the old cassette and a visible `.partial`, which blocks the next record.
+- **Modes**, process-wide: `live`, `record`, `replay`, `scripted`. In `replay` and `scripted` no backend
+  object is constructed and the HTTP adapter is never imported, which is stronger than a network guard
+  that allows loopback, where a user's local model listens.
+
+**Consequences.** Redaction holds by construction rather than by scrubbing. A prompt change invalidates
+the cassettes that recorded it, and the miss names the first differing path; re-recording from a real
+model is operator work (QS10-19).
+
+**Revisit** if a provider feature the plain request cannot express (tool calls, streaming deltas) must be
+recorded, which would be a `key_scheme` or `format` bump, never a silent change.
+
+---
+
+## DEP-27 — The model HTTP client: `httpx2`, and no provider SDK
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`httpx2>=2.13,<3`; locked 2.13.1) · **Approved
+by** the primary session (QP5-1, 2026-10-09) · **Licence** BSD-3-Clause · **Supersedes** step-17 §4.1's
+placeholder `DEP-S10-a` (the `openai` SDK) · **Relates to** `ARC-58`, `DEP-24`, `DEP-32` · **Design**
+`pr-s10-p5-backends.md` §4.1, §4.2, D-P5-4, D-P5-10, AP5-6
+
+**Problem.** Every backend MineWorld targets — Ollama, llama.cpp's server, LM Studio, vLLM, and the hosted
+OpenAI-compatible APIs a user configures (OpenAI, xAI, DeepSeek, Zhipu GLM, Mistral, Kimi, DashScope,
+Gemini, OpenRouter, Groq) — speaks the OpenAI-compatible `POST /chat/completions` schema. Something must
+send that request with a cancellable timeout, and must refuse every source of configuration but the
+operator's file.
+
+**Options considered** (facts read 2026-10-09):
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| `openai` SDK (`AsyncOpenAI(base_url=…)`) | Apache-2.0; 3.27.0 | **Rejected.** With an argument omitted its constructor reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_ADMIN_KEY`, `OPENAI_WEBHOOK_SECRET` and `OPENAI_CUSTOM_HEADERS`, and defaults to `api.openai.com`: a hosted key in a user's shell could redirect local traffic, or its key, to a hosted API (QS10-19). Its retries hide calls from the budget ledger. Its value-add, typed parsing, is ours anyway (local validation) |
+| `ollama-python` | MIT; 0.6.3 | Reference only: native API only; pins the old `httpx` line |
+| LiteLLM | MIT core, proprietary `enterprise/` | Rejected: the provider lives in the model string, and the tree is large |
+| `httpx` | BSD-3-Clause; 0.28.1, no release since 2024-12 | Fallback only: unmaintained; `openai` 3.x and the Anthropic SDK moved to `httpx2` |
+| **`httpx2`** | **BSD-3-Clause; 2.13.1 (2026-09-23)**, stewarded by Pydantic Services (whose `pydantic` is `DEP-24`) | **Adopted** |
+| `aiohttp` | Apache-2.0 AND MIT; 3.14.4 | Rejected: nine runtime dependencies and a server framework, for one POST per decision |
+| standard library (`urllib.request` in a thread) | PSF | Rejected: blocking I/O in a thread cannot be cancelled when the timeout fires |
+
+**Choice.** One adapter of our own, `backend/openai_compatible.py`, about 200 lines over
+`httpx2.AsyncClient`: request mapping, response parsing, error mapping, **no retries** (one call is one
+ledger entry). It is constructed only from a typed `BackendConfig`; `base_url` has no default; it reads
+no environment variable except the one `key_env` names. It is the only module that imports `httpx2`.
+
+**Verified at P5a (C1), not assumed:**
+
+- `httpx2` 2.13.1 exposes `AsyncClient`, `Timeout` (per-phase), `MockTransport` (sync and async
+  handlers, `httpx2/_transports/mock.py`) and the `httpx` exception hierarchy (`ConnectError`,
+  `TimeoutException`, …).
+- Its dependencies (`anyio`, `httpcore2`, `h11`, `idna`, `truststore`; `typing-extensions` below 3.13)
+  are pure-Python `py3-none-any` wheels, so the universal lock serves Linux, macOS and Windows alike.
+  `httpx2-jsfetch` is locked but installed only on `emscripten`.
+- **Finding:** `AsyncClient(trust_env=True)`, the default, reads proxy variables, `.netrc` and
+  certificate-file variables from the environment (`httpx2/_client.py`). The adapter therefore passes
+  `trust_env=False`: a user who needs an HTTP proxy for a hosted API is not served by this version, which
+  is recorded as a limitation, not worked around with an implicit read.
+
+**Revisit** if the native Anthropic adapter needs the `anthropic` SDK (P5b compares it), if a needed
+provider feature (tool calls, batch, realtime) cannot be expressed in the plain schema, or if `httpx2`
+stops being maintained — the switch to `httpx` or `aiohttp` is one file.
+
+---
+
+## DEP-32 — Reading a `.env`-style key file: `python-dotenv`'s `dotenv_values`, never `load_dotenv`
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`python-dotenv>=1.2,<2`; locked 1.2.4) ·
+**Approved by** the operator's requirement of 2026-10-09 (API keys through a `.env`-style file) and the
+primary session at the P5a freeze (QP5-6, QP5-10 … QP5-12) · **Licence** BSD-3-Clause · **Relates to**
+`DEP-27`, `ARCHITECTURE.md` §9.2 · **Design** `pr-s10-p5-backends.md` §4.2b, D-P5-9, D-P5-14, AP5-9,
+AP5-13
+
+**Problem.** A user's hosted API needs a key. The configuration names only the **variable** (`key_env`);
+its value comes from the process environment, or from a `.env`-style file the operator names. That
+file's format (quoting, `export` prefixes, comments, multiline values, CRLF) is easy to get subtly wrong.
+
+**Options considered:**
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| **`python-dotenv`** | **BSD-3-Clause; 1.2.4; no runtime dependencies** | **Adopted**, one call: `dotenv_values(path, interpolate=False)`, which returns a mapping and does not touch `os.environ` |
+| our own parser | ~40 lines | Rejected: the quoting and escaping corner cases would be ours to find (`REUSE_POLICY.md` §12) |
+| `pydantic-settings` | MIT | Rejected: it binds every settings field to environment variables; our file is TOML and only key values come from the environment |
+| `environs` | MIT | Rejected: wraps `python-dotenv` and mutates `os.environ` by default |
+| process environment only | — | Kept as one of two sources, not the only one: the operator asked for `.env`-style files |
+
+**Choice.** `secrets.py` is the only importer of `dotenv` and the only reader of a key. The process
+environment wins over the file (`python-dotenv`'s own `override=False` default). Never `load_dotenv`, so
+a file's values never become ambient credentials for a child process or for another library's implicit
+read; never interpolation; never a default file location. A key file inside a directory holding a
+`world.yaml` is refused (credentials never travel with a world), and on macOS and Linux a file readable
+by group or others is refused, as `ssh` refuses a key. A key value lives in a `Secret` whose `repr` is
+redacted, and is never logged, recorded, put in an exception, or written to the ledger.
+
+**Revisit** if `python-dotenv` gains runtime dependencies or changes `dotenv_values`' contract, or if
+an OS keychain becomes a required source (a separate decision).

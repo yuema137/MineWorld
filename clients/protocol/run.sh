@@ -9,7 +9,12 @@
 #                         temporary directory that is removed afterwards   (checks/affordances_check.gd)
 #   ./run.sh reconnect    headless: the module's opt-in reconnect against worlds/market-town with
 #                         --town --hold 10: drop, resume, held             (checks/reconnect_check.gd)
-#   ./run.sh admin        headless: the clock frame, pause, resume and kick through the admin surface,
+#   ./run.sh perceived    headless: the perceived stream, overheard facts and acted_through against a
+#                         saved worlds/social-cafe --town; the ids compared with the server's own
+#                         `mineworld perceived` after it stops              (checks/perceived_check.gd)
+#   ./run.sh deltas       headless: every golden delta case, then 60 s of live deltas against
+#                         worlds/market-town --town                         (checks/delta_check.gd)
+#   ./run.sh admin       headless: the clock frame, pause, resume and kick through the admin surface,
 #                         with a generated MINEWORLD_ADMIN_TOKEN           (checks/admin_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
@@ -147,6 +152,54 @@ reconnect)
 	stop_server
 	grep '^\[check\]' "$here/evidence/reconnect-market-town.log"
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/reconnect-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+perceived)
+	# Social Café hosted as a town with Alice answering, saved (so a stream can start at its first
+	# fact), with a 10 s hold. After the client, the server is stopped and its own export of what the
+	# wanderer perceived is compared with what the client was sent, up to the client's last cursor.
+	server_extra=(--town --hold 10)
+	save_dir="$(mktemp -d)"
+	: > "$here/evidence/server-perceived.log"
+	start_server "$here/evidence/server-perceived.log" social-cafe "$save_dir/save"
+	godot --headless --path "$here" --script res://checks/perceived_check.gd -- \
+		--address "$address" --seat wanderer --invite "$invite" \
+		> "$here/evidence/perceived-social-cafe.log" 2>&1
+	outcome=$?
+	stop_server
+	received="$(sed -n 's/^\[check\] ids //p' "$here/evidence/perceived-social-cafe.log")"
+	cursor="$(sed -n 's/^\[check\] cursor //p' "$here/evidence/perceived-social-cafe.log")"
+	exported=""
+	while read -r id; do
+		[ -n "$id" ] && [ "$id" -le "${cursor:-0}" ] && exported="${exported:+$exported,}$id"
+	done < <("$root/target/debug/mineworld" perceived worlds/social-cafe --save "$save_dir/save" \
+		--person wanderer --json | sed -n 's/^{"id":"\([0-9]*\)".*/\1/p')
+	rm -rf "$save_dir"
+	if [ -n "$received" ] && [ "$received" = "$exported" ]; then
+		echo "[check] PASS the client's perceived ids equal mineworld perceived up to cursor $cursor" \
+			| tee -a "$here/evidence/perceived-social-cafe.log"
+	else
+		echo "[check] FAIL the client's perceived ids differ from mineworld perceived (cursor $cursor)" \
+			| tee -a "$here/evidence/perceived-social-cafe.log"
+		outcome=1
+	fi
+	grep '^\[check\]' "$here/evidence/perceived-social-cafe.log" | grep -v '^\[check\] ids '
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/perceived-social-cafe.log" && outcome=1
+	exit "$outcome"
+	;;
+deltas)
+	# Market Town hosted as a town, with the default --keyframe-every 50: 60 s of deltas applied by
+	# the module, after every reviewed golden case.
+	server_extra=(--town)
+	: > "$here/evidence/server-deltas.log"
+	start_server "$here/evidence/server-deltas.log" market-town
+	godot --headless --path "$here" --script res://checks/delta_check.gd -- \
+		--address "$address" --seat wanderer --invite "$invite" \
+		> "$here/evidence/deltas-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/deltas-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/deltas-market-town.log" && outcome=1
 	exit "$outcome"
 	;;
 admin)

@@ -82,10 +82,16 @@ systems:
   # presence only, and nothing depends on it. Leave it out, with `configure:` below, and the town has
   # no date and today's fixed light.
   - calendar
+  # The town's weather (`ARC-68`), hour by hour, drawn from San Diego's climate in
+  # configure/weather.yaml. Appended after calendar, on which it depends (it reads each day's date and
+  # sunrise from calendar's facts); nothing depends on it. Leave it out, with its `configure:` entry,
+  # and the town has no weather and everything else stays as it was.
+  - weather
 
 # The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
 configure:
   - calendar
+  - weather
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the
