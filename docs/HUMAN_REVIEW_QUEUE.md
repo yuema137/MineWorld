@@ -530,6 +530,43 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
+
+**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):
+- props are drawn as imported scenes with LODs;
+- the slice's textures are VRAM-compressed with mipmaps;
+- tiny objects are hidden below 1.5 px;
+- occluders cull what solid walls hide;
+- on your rulings of 2026-10-09: VoxelGI at 128 subdivisions and directional soft-shadow quality 2.
+
+You accepted that slight visual change and the mipmap softening. The accepted frames are re-baselined
+on this look. The skyline preview was **not kept** and is reverted, so the old ridges remain until RL-e.
+
+The frame-time and video-memory bounds stay binding; draw calls and primitives are advisory. The
+re-measure is pending: it needs an unlocked screen (`caffeinate -d ./mineworld-slice --perf`).
+
+**Checklist** — run `./mineworld-slice`, then `./mineworld-slice --world`:
+
+1. **Smoothness.** Walk the street end to end, enter the café and the florist, come back out: no hitch
+   at doors, no pop-in of objects as you approach, less flicker on cobbles and roof tiles at distance.
+2. **The textures.** Stone, brick and paving are smoother than before (mipmaps): the old per-pixel
+   grain is gone and mid-distance walls are a little softer. Keep, or ask for sharper oblique
+   filtering.
+3. **The café inside.** At the counter and the back wall: the warm room and the floor's sun patch as
+   accepted; small objects on shelves and tables as before.
+4. **Through the glass.** From the street into the café and the florist: goods, tables and people
+   visible (nothing culled behind glass).
+5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows keep their
+   shape, with slightly harder edges (shadow quality 2).
+6. **The florist and the café.** Under VoxelGI 128 the florist is a little warmer and brighter, and
+   the café's tone shifts slightly. You accepted this; check that nothing looks blotchy.
+7. **The old spike.** `./mineworld-3d` now says at start that it is the movement and camera spike, not
+   the world.
+8. **Frame cost.** With the screen unlocked, run `caffeinate -d ./mineworld-slice --perf`. Every
+   view should print p95 ≤ 16.7 ms and video memory ≤ 2 048 MB.
+9. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
+   evidence is macOS only (QRL-6).
+
 ### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
 
 **Verdict, 2026-10-07.** The operator judged the slice from its screenshots, shown together with

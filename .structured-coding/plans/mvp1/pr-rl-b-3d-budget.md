@@ -47,6 +47,20 @@ session. The cost is that part 2 waits for part 1's review.
 | Merge order | **RL-b merges first** (§10); 16c, 12e and 16d rebase onto it. |
 | CI | The `python` jobs' failure (`clock.json` has no SDK model) is a main-wide gap with an SDK fix in flight. It is **not required** and does not block RL-b. The required checks are `fast` and `test`. |
 
+## 0.2 Operator rulings on the material stop (2026-10-09 23:00; binding; relayed by the coordinator)
+
+These amend frozen sections. They are the operator's decision on the §9 stop. They are not
+implementation choices.
+
+| Ruling | Effect on this design |
+| --- | --- |
+| R-1 | **Accept the slight visual change: apply SD-RLb-6 (a) VoxelGI 256 → 128 and (b) soft-shadow filter quality 3 → 2.** The "revert if V-1 fails" clause of SD-RLb-6 does not apply to these two. |
+| R-2 | **M-6 amended.** p95 ≤ 16.7 ms and video memory ≤ 2 048 MB stay binding. Draw calls ≤ 2 000 and primitives ≤ 3 M become **advisory**: they are reported, but they are not a gate. If any view still fails p95 with (a) and (b), stop and report the numbers; no further lever is added. |
+| R-3 | **V-gates re-baselined on the new look.** The accepted frames for V-1 and V-3 of later PRs (16c, 12e, 16d) are the frames of this PR's final head, not the 2026-10-07 frames. |
+| R-4 | **Mipmap softening (C3, V-4) accepted.** |
+| R-5 | **The skyline preview is not kept.** The C8 code is reverted, including skyline.gd, `--skyline-check`, `--hide-backdrop` and the mask options of `frame_diff.gd` that served only the preview. The old ridges return. QRL-11's preview is closed; RL-e's real terrain stays planned. The summit table in §5 and E-RLb-7 stays as research for RL-e. |
+| R-6 | Re-measure with the display awake (`caffeinate -d`), with no other Godot window: three runs, the median of p95, all eight views, pass or fail per view. |
+
 ## 1. Identity, base, scope
 
 ```text
@@ -360,59 +374,289 @@ with evidence.
 - [ ] Review: freeze review by the primary session.
 
 ### C1 — `3d: a perf protocol fixed before measuring; the baseline`
-- [ ] Implementation: `slice_perf.gd` (M-1 … M-5, M-7); `slice_probe.gd` dispatch; `mineworld-slice`
+- [x] Implementation: `slice_perf.gd` (M-1 … M-5, M-7); `slice_probe.gd` dispatch; `mineworld-slice`
   `--res` fix and `--perf --breakdown`; the `mw_category` meta in `props.gd` `place()`, the backdrop root and
-  the merged cells. No behaviour change in any other mode.
-- [ ] Validation: the base measured, three runs at each resolution, plus the breakdown → E-RLb-2 in the
-  ledger. V-1 on this commit: identical within noise.
-- [ ] Review: the instrument measures what it is named after (`ARC-23`). X-4 run once and recorded.
+  the merged cells. No behaviour change in any other mode. *Evidence:* `slice_perf.gd` (new);
+  `slice_probe.gd` `_perf()` is one call; `mineworld-slice` loops three runs with up to three re-runs each
+  and passes `--res=`; meta in `Props.gltf` (D-2), `street.gd` backdrop root, `batch.gd` `_category`
+  (D-3).
+- [x] Validation: the base measured, three runs at each resolution, plus the breakdown → E-RLb-2 in the
+  ledger. V-1 on this commit: identical within noise. *Evidence:* E-RLb-2. V-1 noise floor: two `--shots`
+  runs on this tree (`shots/slice/rlb/base1`, `base2`), `frame_diff.gd`: every view ≤ 0.037 % of pixels
+  over 8/255 (09c_character_close 0.037 %, all street and interior views ≤ 0.009 %). The C1 diff changes
+  no rendering state, so these frames are the base's and are V-1's reference for C2–C7.
+- [x] Review: the instrument measures what it is named after (`ARC-23`). X-4 run once and recorded.
+  *Evidence:* X-4 (`SliceBatch.merge` replaced by a no-op, one run at 1920x1080): draw calls 10 772 –
+  21 654 per view against 3 409 – 4 420 merged; CPU render time 2.8–7.5 ms p95 against 1.1–2.0 ms. The
+  draw-call ceiling sees batching; mutation reverted (`shots/slice/rlb/c1-x4.log`). Review findings:
+  GPU timestamps absent on Metal (recorded, the wall interval is the judged statistic); the breakdown's
+  base drifts in `cafe frontage` after the `gltf` row (recorded; no pass/fail role).
 
 ### C2 — `3d: props load as imported scenes (LODs, shadow meshes)`
-- [ ] Implementation: SD-RLb-1; `mineworld-slice` reimport condition; the scene `.import` files committed.
-- [ ] Validation: A-3, X-6; M-5 re-measure; V-1; A-7's `--drive`, `--measure`.
-- [ ] Review: the fallback is exercised; `retint` on imported materials gives the same tint.
+- [x] Implementation: SD-RLb-1; `mineworld-slice` reimport condition; the scene `.import` files committed.
+  *Evidence:* `Props.gltf` loads `<slug>.gltf` as a `PackedScene` when the import exists, else
+  `_parse()` (the old GLTFDocument path) with one warning per slug; `Props.imported` / `fallback`
+  counted and printed by `slice_world.gd` after the batch line. `mineworld-slice` reimports when the
+  cache or a `.godot/mineworld-import.stamp` is missing, or any script, `.import`, glTF, bin, glb, jpg
+  or png is newer than the stamp. The scene `.import` files were already tracked (D-1) with
+  `generate_lods=true`, `create_shadow_meshes=true`; no diff to them. `frame_diff.gd` gains the
+  optional `--mask=` (V-5, planned for C8, landed here with the tool's other option) and `--heat=`
+  (a red-over-darkened locator image) — default output unchanged (re-run on C2's frames printed the
+  identical lines).
+- [x] Validation: A-3, X-6; M-5 re-measure; V-1; A-7's `--drive`, `--measure`. *Evidence (E-RLb-3):*
+  A-3 `props  36 imported, 0 fallback`. X-6 (fallback forced): `props  0 imported, 36 fallback`, 36
+  warnings, the scene builds, primitives back to 8.2–10.5 M (base values) — FAIL as required, reverted.
+  M-5 at 1920x1080 (three conclusive runs, median p95 ms / max draws / max primitives):
+  street wide 13.82 / 4155 / 2.11 M; cafe frontage 22.12 / 4426 / 3.70 M; interior 17.63 / 3912 /
+  3.75 M; doorway 23.75 / 3428 / 3.17 M; street east 15.54 / 4215 / 2.34 M; south side 14.35 / 614 /
+  0.17 M; florist interior 20.08 / 3649 / 3.53 M; skyline east 14.71 / 4047 / 2.08 M; video memory
+  2 515.9 MB. M-6 still FAIL on all four; primitives fall 64–76 % per view. A-9: `build batched`
+  7.4–8.6 s against 7.5–9.0 s on the base (no growth). `--drive`: all drive checks pass. `--measure`:
+  prop extents identical to C1's run; the one out-of-range line (occupant stature 1.802 m vs
+  1.70–1.80) is the same on C1 (pre-existing, character-owned, not this PR's).
+  V-1 (base1 vs c2): 19 of 30 views over the 0.5-point bound (max 18_pavement_detail 5.23 %,
+  12_back_wall 2.26 %). Located with `--heat` (`shots/slice/rlb/heat-c2/`): every changed pixel is on
+  a Poly Haven prop surface (leaves, pot, crockery, cakes, chair seats); nothing else moves. Cause
+  named: the props' textures now come through Godot's importer, whose committed settings for those
+  textures are Lossless with no mipmaps (A-3), where the run-time parser generated its own textures;
+  the surfaces alias differently (fine speckle). C3 sets mipmaps and VRAM compression on exactly
+  these textures, so V-1 for prop surfaces is judged on C3's head against the base, not here.
+- [x] Review: the fallback is exercised; `retint` on imported materials gives the same tint.
+  *Evidence:* X-6 exercised the fallback end to end. `retint` duplicates whatever `BaseMaterial3D`
+  the mesh carries and multiplies its albedo; imported materials are `StandardMaterial3D` like the
+  parser's, and the heat maps show no prop changing hue (speckle only). `SliceMain._exit_tree` still
+  frees the templates (instantiated nodes). `SliceProps.keep`'s suffix matching sees the same child
+  names (the `--measure` prop table is identical).
 
 ### C3 — `3d: the slice's textures are VRAM-compressed and mipmapped, owned by a tool`
-- [ ] Implementation: `tools/slice_imports.py`; texture `.import` files committed.
-- [ ] Validation: A-4, X-3; M-5; V-1 and V-4.
-- [ ] Review: no character path touched; the tool is idempotent (a second run gives no diff).
+- [x] Implementation: `tools/slice_imports.py`; texture `.import` files committed. *Evidence:* the tool
+  owns 213 texture `.import` files (assets/textures/** and assets/models/*/textures/**) and sets
+  `compress/mode=2`, `compress/high_quality=true`, `mipmaps/generate=true`, `compress/normal_map=1`
+  on `*_nor_gl_*` else 0; Godot's `--import` then rewrote each file's `[remap]` (`path.bptc=`,
+  `imported_formats ["s3tc_bptc"]`, `vram_texture true`). `slice_perf.gd` prints each probe
+  texture's loaded format and mip count (A-4).
+- [x] Validation: A-4, X-3; M-5; V-1 and V-4. *Evidence (E-RLb-4):*
+  A-4: cobblestone diff, arm and nor_gl and croissant diff load as `BPTC_RGBA`, 11 mip levels; the
+  character's `face_bc.jpg` loads as `RGB8` (untouched).
+  **Deviation (bounded):** the normal maps load as BPTC, not RGTC as SD-RLb-2 and A-4 expected. With
+  `high_quality=true` Godot 4.7 encodes a normal-flagged texture as BC7 (BPTC); RGTC is its choice only
+  at `high_quality=false`. Both are 8 bits per texel, so memory is the same; BC7 keeps the third
+  channel. Kept as written in SD-RLb-2's key list; recorded here.
+  X-3 (tool also run over assets/characters): 17 character `.import` files changed, the V-2 path check
+  (`git diff --name-only` over character paths) reported 17 — FAIL as required; files restored with
+  `git checkout`, tool reverted, before any import ran.
+  M-5 at 1920x1080 (three conclusive runs): street wide 12.09 / 4155 / 2.11 M; cafe frontage 21.30 /
+  4426 / 3.70 M; interior 16.02 / 3912 / 3.75 M; doorway 22.70 / 3428 / 3.17 M; street east 12.82 /
+  4215 / 2.34 M; south side 11.58 / 614 / 0.17 M; florist interior 16.98 / 3649 / 3.53 M; skyline
+  east 12.23 / 4047 / 2.08 M; video memory 2 049.6 MB (−466 MB). M-6 still FAIL (all four; video
+  memory 1.6 MB over).
+  V-1 / V-4 (base1 vs c3, `shots/slice/rlb/heat-c3/`): every view over the bound (1.3–12.2 % of
+  pixels). Located: the changed pixels are a texel-scale speckle over every PBR-textured surface (walls,
+  paving, roofs, floors, props) at every distance; untextured paint, glass, sky, signage and the
+  character are unchanged. Looked at side by side at 2x crop (`shots/slice/rlb/pairs/c3-01r-wall.png`,
+  `c3-01r-far.png`): the stone and the paving are smoother — the base's per-pixel grain (aliasing from
+  sampling 1k textures with no mip chain) is gone, and mid-distance stone reads slightly softer.
+  Cause named: the mip chain (and BC7 at the texel level). This is the change Q-RLb-3 ruled
+  "keep; show side by side", but it is **not confined to far paving and roofs** as V-4's wording
+  assumes: mid-distance walls soften too. It is explained and expected, so it is not a stop under
+  V-1; it is put to the operator in the review package as V-4's side-by-side, with one option noted:
+  raising `textures/default_filters/anisotropic_filtering_level` from 4 to 16 would keep more
+  oblique sharpness (not in this PR's change set; not taken).
+  `--drive`: all drive checks pass. **Cost recorded:** the first import of the new settings took
+  10 min 45 s (2 160 s CPU, BC7 encoding) on the M5 — a one-time cost on a fresh checkout or after
+  the settings change, then cached.
+- [x] Review: no character path touched; the tool is idempotent (a second run gives no diff).
+  *Evidence:* second run `213 owned, 0 changed`; `--check` exit 0 after Godot's reimport (Godot's
+  rewrite leaves the four keys as written); `git diff --name-only` has no path outside the two owned
+  roots. The tool refuses anything outside its roots by construction (`owned_texture`).
 
 ### C4 — `3d: screen-size culling`
-- [ ] Implementation: `budget.gd` part 1; the call in `slice_world.gd`.
-- [ ] Validation: A-5, X-1; M-5; V-1.
-- [ ] Review: FOV read from the rig, not copied; characters, ground and backdrop excluded.
+- [x] Implementation: `budget.gd` part 1; the call in `slice_world.gd`. *Evidence:* `SliceBudget.apply`
+  after the props line in `SliceWorld.build`; `visibility_range_end = r · H / (tan(FOV/2) · p)`,
+  margin 0.1·end, fade off. **Bounded correction:** SD-RLb-3's formula as written,
+  `r · (H/2) / (tan(fov/2) · p)`, hides an object when its projected *radius* is p, i.e. a 3 px
+  diameter, which contradicts SD-RLb-3's own sentence and A-5 ("diameter ≤ 1.5 px"). The diameter
+  form is used (twice the distance: more conservative). `r` is the larger of the world AABB's
+  half-diagonal and the farthest AABB corner from the instance origin, so the sphere bounds the
+  object whether Godot measures the range to the AABB centre or to the origin.
+- [x] Validation: A-5, X-1; M-5; V-1. *Evidence (E-RLb-5):* A-5: `budget 278 instances ranged by
+  screen size; widest at its range end 1.50 px; 0 over` (A-5's bound is a separate constant from the
+  one the range uses). X-1 (`MIN_PX = 6`): `278 over`, 278 errors — A-5 FAILs as required. V-1 on
+  `street wide` did **not** fail under X-1 (0.002 % over 8/255; `17_street_from_east` 0.009 %): the
+  objects X-1 hides at 4x the distance are under 6 px and their removal moves almost no pixel by more
+  than 8/255. The surviving half of X-1 is recorded, not papered over: V-1's 0.5-point rule is
+  insensitive to a handful of tiny objects popping; A-5 is the check that owns this failure class.
+  Reverted. V-1 (c3 → c4, the previous lever's head, because C3 changed every textured pixel): max
+  0.114 % (09b_character_detail, the character's own frame-to-frame noise region); every street and
+  interior view ≤ 0.001 % — PASS. M-5 at 1920x1080: street wide 11.58 / 4152 / 2.11 M; cafe frontage
+  20.87 / 4426 / 3.70 M; interior 15.94 / 3912 / 3.75 M; doorway 23.49 / 3428 / 3.17 M; street east
+  12.35 / 4215 / 2.34 M; south side 11.33 / 614 / 0.17 M; florist interior 16.79 / 3649 / 3.53 M;
+  skyline east 12.16 / 4044 / 2.08 M; video memory 2 049.6 MB. The yield is small (−3 draw calls at
+  most): the slice is 68 m long and few objects are far enough to fall below 1.5 px. `--drive` passes.
+- [x] Review: FOV read from the rig, not copied; characters, ground and backdrop excluded.
+  *Evidence:* `CameraRig.FOV` is read in `apply`; the exclusion is by `mw_category` (merged, foliage,
+  ground, backdrop) and the occupant is not under the world root. Labels and props are ranged.
 
 ### C5 — `3d: occluders from opaque massing`
-- [ ] Implementation: `occluders.gd`; the `terrace.gd` registry line; `project.godot`.
-- [ ] Validation: A-6, X-2; M-5; V-1 (especially `03`, `11`, `13`, `22`).
-- [ ] Review: no occluder intersects any glazing or door box (asserted at build time).
+- [x] Implementation: `occluders.gd`; the `terrace.gd` registry line; `project.godot`. *Evidence:*
+  `SliceOccluders.build` after the budget pass: 17 `BoxOccluder3D`s — each ordinary unit's solid mass
+  (from `RECESS_DEEP` behind the façade, behind every reveal, shop-window recess and door, to the rear,
+  ground to eaves), the café's side walls, back wall and upper storeys, the florist's party walls and
+  the storey above its room (its back wall has a doorway and is left out). All inset 2 cm.
+  **Bounded deviation:** SD-RLb-5 described the unit occluder as "upper storeys … 0.15 m behind the
+  façade face" plus rear and party walls; the window reveals reach 0.18–0.19 m behind the face, so a
+  box at 0.15 m would have cut through upper-window glazing. The unit's own solid mass, which starts
+  1.45 m back and contains the upper storeys, rear and party walls, is used instead: same intent
+  (opaque massing only), strictly further from any opening. `terrace.gd`: one `static var massing`
+  declaration and one `massing.append` beside the doors registry. `project.godot`:
+  `occlusion_culling/use_occlusion_culling=true` (the promenade scene has no occluders, so nothing
+  changes there).
+- [x] Validation: A-6, X-2; M-5; V-1 (especially `03`, `11`, `13`, `22`). *Evidence (E-RLb-6):*
+  build log `occluders 17 boxes from opaque massing; 0 overlap glazing or a door`. A-6 (breakdown,
+  occlusion switched off): objects in frame +349 (street wide), +98 (interior), +459 (cafe frontage,
+  drift caveat) — occlusion culling is active on macOS arm64. X-2 (a box across the café glazing):
+  the build check reports 29 overlaps (28 glass triangles and one door); V-1 on `11_interior_looking_out`
+  4.316 % — FAIL as required; V-1 on `03_cafe_exterior` 0.049 % — **survived**: from the street the
+  culled objects behind the glass are few and small (merged cells are large and stay partly visible),
+  so V-1 alone would not catch this; the build check owns it. Reverted. V-1 (c4 → c5): max 0.019 %
+  (09c, character noise); `03`, `11`, `13`, `22` all ≤ 0.009 % — PASS. M-5 at 1920x1080: street wide
+  11.74 / 3814 / 1.99 M; cafe frontage 20.78 / 4215 / 3.56 M; interior 15.20 / 3814 / 3.67 M; doorway
+  23.68 / 3424 / 3.16 M; street east 12.41 / 3964 / 2.21 M; south side 11.57 / 614 / 0.17 M; florist
+  interior 16.77 / 3630 / 3.53 M; skyline east 11.70 / 3715 / 1.97 M; video memory 2 049.6 MB. M-6
+  still FAIL on all four. `--drive` passes.
+  Breakdown on C5 (where the remaining cost is): merged cells −2 080 to −2 142 draws; sun shadows
+  −2 183 to −2 871 draws and −1.1 to −2.8 M primitives; VoxelGI −7.96 ms (cafe frontage), −3.82 ms
+  (interior), −1.12 ms (street wide).
+- [x] Review: no occluder intersects any glazing or door box (asserted at build time). *Evidence:*
+  the check tests every box against every alpha-blended triangle in the slice (shop, door and
+  upper-window glazing) and every street door's opening; it found the X-2 box and nothing on the
+  real set.
 
 ### C6 — `3d: small interior objects cast no sun shadow` (kept only if V-1 passes)
-- [ ] Implementation: `budget.gd` part 2.
-- [ ] Validation: M-5; V-1 on the pre-registered interior views (SD-RLb-4).
-- [ ] Review: the policy keys on room volumes, not names.
+- [x] Implementation: `budget.gd` part 2. *Evidence:* implemented and measured on top of C5, then
+  **reverted (not committed)**: objects with a world-AABB half-diagonal ≤ 0.30 m whose centre lies in
+  a non-street place volume were moved to render layer 20, which the sun's `shadow_caster_mask`
+  excluded (rather than `cast_shadow = OFF`, which would also have removed the florist pendants' omni
+  shadows). Build log: `203 small objects in rooms cast no sun shadow`.
+- [x] Validation: M-5; V-1 on the pre-registered interior views (SD-RLb-4). *Evidence:* V-1 (c5 → c6)
+  passed: max 0.228 % (22), 0.209 % (21), interior views ≤ 0.011 %. M-5: draw calls and primitives
+  **identical** to C5 in every view (e.g. interior 3 814 / 3.67 M both), p95 within run noise
+  (interior 15.88 vs 15.20 ms). The lever had no measurable yield; it was reverted for that reason
+  rather than kept as dead complexity. The pre-registered rule (keep iff V-1 passes) did not
+  anticipate a zero yield; reverting is the narrower choice and is recorded as a deviation.
+- [x] Review: the policy keys on room volumes, not names. *Evidence:* rooms were the `place_id`
+  volumes other than `SliceWorld.STREET_PLACE`. Finding: Godot 4.7.2's directional
+  `shadow_caster_mask` did not lower the draw-call count, so the cost it was meant to remove was not
+  where the policy could reach it.
 
 ### C7 — `3d: conditional levers` (only while M-6 is unmet; each sub-lever its own commit)
-- [ ] Implementation: SD-RLb-6 (a), then (b), then (c), stopping as soon as M-6 holds.
-- [ ] Validation: M-5; V-1 and V-3 for each sub-lever. Final: A-1 three runs → E-RLb-final; the breakdown on
-  the head (A-2).
-- [ ] Review: every lever not taken is recorded as "not needed", with the numbers.
+- [x] Implementation: SD-RLb-6 (a), then (b), then (c), stopping as soon as M-6 holds. *Evidence:* each
+  applied alone on C5, measured, frame-checked, and **reverted because V-1 failed**, as SD-RLb-6
+  requires. No C7 commit exists.
+- [x] Validation: M-5; V-1 and V-3 for each sub-lever. *Evidence (E-RLb-8):*
+  (a) VoxelGI 256 → 128 (`slice_main.gd` `_voxel_gi`): M-5 street wide 10.96, cafe frontage 17.54,
+      interior 13.86, doorway 18.59, street east 11.46, south side 10.63, florist interior 14.78,
+      skyline east 11.08 ms; video memory **1 608.1 MB (passes)**; draws and primitives unchanged.
+      V-1 (c5 → c7a) FAIL: florist interior 16.3 %, florist looking out 27.6 %, café interior views
+      5.0–7.2 %. Side by side (`shots/slice/rlb/pairs/c7a-22.png`, `c7a-05.png`): the florist reads
+      warmer and brighter (coarser GI cells bleed more bounce into it), the café's ceiling and walls
+      shift tone. Cause named: GI resolution. Reverted.
+  (b) directional soft-shadow filter quality 3 → 2 (`project.godot`): M-5 −1.6 to −2.1 ms on the
+      exterior views (cafe frontage 19.14, doorway 21.62); V-1 FAIL on every street view (3.3–7.7 %):
+      the penumbrae of the raking shadows change. Reverted.
+  (c) SSIL quality 2 → 1 (`project.godot` `environment/ssil/quality`): M-5 up to −0.9 ms (cafe frontage
+      19.90, doorway 23.52); V-1 FAIL on 15 views (0.53–3.4 %): noisier indirect light. Reverted.
+  V-3 not run for (a)–(c): each had already failed V-1 and was reverted, so no head carried it.
+- [x] Review: every lever not taken is recorded as "not needed", with the numbers. *Evidence:* none
+  was "not needed": all three were needed and all three failed V-1. With them reverted, M-6 is unmet
+  on the final head — **the §9 material stop** (see the ledger, E-RLb-final and "Material stop").
 
-### C8 — `3d: a San Diego skyline preview (QRL-11)` (isolated; revertible alone)
-- [ ] Implementation: `skyline.gd`; `street.gd`'s backdrop removed; `slice_world.gd`'s line;
-  `frame_diff.gd` mask; `--skyline-check`.
-- [ ] Validation: A-8, X-5; V-5; M-5 (`skyline east` within budget); the summit table re-read at source and
-  recorded.
-- [ ] Review: no constant copied from the camera rig; the placeholder nature stated in code.
+### C8-R — `Revert "3d: a San Diego skyline preview (QRL-11)"` (operator ruling R-5)
+- [x] Implementation: `git revert --no-commit 58bc0c4`, keeping this plan file at HEAD so that the
+  C6/C7/C8 ledger notes that rode in 58bc0c4 stay. Conflict in `mineworld-slice`, resolved
+  mechanically: S20's `--settings` / `scripted` handling kept; `--skyline-check` and `--hide-backdrop`
+  removed. Commit `33a278c`.
+- [x] Validation: no reference to `SliceSkyline`, `hide_backdrop` or `--skyline-check` remains in the
+  scripts or the launcher (grep). `street.gd` `backdrop()`/`_ridge()` are restored as they were.
+  Frames: see E-RLb-ruled.
+- [x] Review: the `skyline east` perf view stays in M-1 (frozen), and it now looks at the old ridges.
+
+### C7-R — `3d: VoxelGI 128 subdivisions, soft-shadow filter quality 2 (operator ruling)`
+- [x] Implementation: `slice_main.gd` `_voxel_gi` `SUBDIV_128`; `project.godot`
+  `directional_shadow/soft_shadow_filter_quality=2`. Commit `7f37212`.
+- [x] Validation: E-RLb-ruled (three runs with the display awake, all eight views).
+- [x] Review: the visual cost is the one measured at C7a/C7b (florist warmer, café tone, shadow
+  penumbrae), accepted under R-1; frames re-baselined under R-3.
+
+### C8 — `3d: a San Diego skyline preview (QRL-11)` (isolated; revertible alone) — REVERTED (R-5)
+- [x] Implementation: `skyline.gd`; `street.gd`'s backdrop removed; `slice_world.gd`'s line;
+  `frame_diff.gd` mask; `--skyline-check`. *Evidence:* `SliceSkyline` (Node3D following the active
+  camera's position each frame, never rotating) builds three unshaded, fog-disabled, shadowless ribbon
+  bands (far 1 300 m, mid 1 100 m, near 900 m) whose crest at bearing b is `D · tan(angle)`; bearings
+  and distances are computed at build from the cited coordinates (initial bearing, haversine), the
+  angle from `(h − 20 − d²(1−k)/2R)/d`, k = 0.13; colour `lerp(horizon, terrain, exp(−2.996 d / 80 km))`
+  in linear vertex colour, horizon sampled from the loaded HDRI (±1° rows at the bearing) times the
+  sky's energy; 8 % darker at the base. Shape between summits: smoothstep plus ±12 % relief with whole
+  half-waves between anchors (≥ 8° per undulation), zero at every summit; stated as a placeholder for
+  RL-e. Sea sector 255–310° empty. `street.gd` `backdrop()`/`_ridge()` removed; `slice_world.gd`
+  builds the skyline (and `--hide-backdrop` builds it hidden, for V-5's masks). `frame_diff.gd`:
+  comma-separated `--mask=` union and `--write-mask=`. Probe mode `--slice-skyline-check`
+  (launcher `--skyline-check`, headless). Three skyline review views added to the probe's `views`
+  (23_skyline_east, 24_skyline_west, 25_skyline_southwest) — a bounded addition to the probe beyond
+  "dispatch only", needed for the operator's stills.
+- [x] Validation: A-8, X-5; V-5; M-5 (`skyline east` within budget); the summit table re-read at source and
+  recorded. *Evidence (E-RLb-7):* `--skyline-check`: 172 degrees checked, worst |drawn − table|
+  0.000° (whole degrees are mesh vertices; rays cast ±0.001° either side of each seam), highest crest
+  2.14°, 0 sea-sector degrees drawn — **PASS**. X-5 (bearings rotated 90° in the mesh only): worst
+  3.145° at 187°, 256 degrees over — **FAIL** as required; reverted. The check's expectation comes from
+  the coordinates, its measurement from the built mesh (rays against its triangles), so it is not
+  self-referential. V-5: masks from `--hide-backdrop` on C5 and on C8 (`shots/slice/rlb/mask-base`,
+  `mask-head`); `frame_diff` c5 → c8 with their union masked: every view ≤ 0.001 % outside the mask —
+  PASS. Inside the mask is the preview (0.0–0.9 % of each frame: the backdrop is behind the frontage in
+  most review views). M-5: skyline east 10.74 ms p95, 3 714 draws, 1.97 M primitives (within the
+  p95 bound; the draw and primitive bounds fail there as everywhere). `--drive` passes.
+  Summit table re-read 2026-10-09 (sources in `skyline.gd` `SUMMITS`; computed by the check):
+    Point Loma 126 m (GNIS via GeoNames; Wikipedia gives 422 ft = 129 m)  237.0°   8.9 km  0.65°
+    Mount Soledad 251 m (NGS 'Soledad')                                  328.3°  16.2 km  0.75°
+    Cowles Mountain 486 m (GNIS / Peakbagger)                             48.4°  16.2 km  1.58°
+    Mount Helix 416 m (GNIS via GeoNames; others 406–419 m)               71.0°  17.6 km  1.22°
+    San Miguel Mountain 783 m (NGS 'San Miguel Reset')                    95.8°  21.1 km  1.99°
+    Otay Mountain 1 088 m (NGS 'Otay', DC2046)                           114.4°  32.5 km  1.75°
+    Cuyamaca Peak 1 985 m (NGS 'Cuyamaca reset')                          63.5°  57.8 km  1.72°
+    Monument Peak 1 911 m (6 271 ft, hundredpeaks.org; GeoNames 1 904 m)  73.9°  72.0 km  1.22°
+  Against the design's approximate table: heights within 3 m except Otay (1 101 → 1 088 m), San
+  Miguel (790 → 783 m), Monument (1 881 → 1 911 m); Point Loma's bearing 249° → 237° and distance
+  7.9 → 8.9 km (the design's coordinate was not the high point). Constants re-read: k = 0.13 (Gauss,
+  via Hirt et al. 2010, JGR 115 D21102); MOR at 5 % contrast, `ln 20 = 2.996` (WMO-No. 8, Part I ch. 9).
+  Preview stills: `shots/slice/rlb/skyline/` (after), `skyline-before/` (the old ridges at the same
+  poses), pairs `shots/slice/rlb/pairs/skyline-*.png`.
+- [x] Review: no constant copied from the camera rig; the placeholder nature stated in code.
+  *Evidence:* proxy distances are chosen inside `CameraRig.FAR` (cited in the header, not copied
+  into code); the header and `profile()` say the between-summit shape is a placeholder RL-e replaces.
+  The terrain radiance (albedo × the sun's share at its elevation + the sky's) is an estimate for a
+  preview and says so.
 
 ### C9 — `3d: label the promenade spike; docs`
-- [ ] Implementation: SD-RLb-8; README; the `HUMAN_REVIEW_QUEUE.md` dated line with §8's checklist.
-- [ ] Validation: `./mineworld-3d` prints the label; the doc checks.
-- [ ] Review: no scene change in the spike.
+- [x] Implementation: SD-RLb-8; README; the `HUMAN_REVIEW_QUEUE.md` dated line with §8's checklist.
+  *Evidence:* `mineworld-3d` header and a two-line start banner; `clients/3d-spike/README.md` lead
+  note (the two scenes, the perf and skyline commands); `HUMAN_REVIEW_QUEUE.md` new dated section
+  "`VIS-3D-GODOT-2` — RL-b … PREVIEW (2026-10-09)" with §8's checklist (plus a texture item for V-4)
+  and the statement that the Default tier is not yet met.
+- [x] Validation: `./mineworld-3d` prints the label; the doc checks. *Evidence:* the banner prints
+  first; `check_doc_headings.py` 192 sections, none duplicated; `check_decision_ids.py` 83 ids,
+  distinct. `./mineworld-3d --drive` completes ("drive test done", every check as before). Its exit
+  reports leaks (76 ObjectDB instances on the base; resources in use 21 → 50, dummy meshes 9 → 18 with
+  this PR): pre-existing in the spike, which never frees `Props` templates (`SliceMain._exit_tree` does
+  it for the slice only); imported meshes with LODs and shadow meshes count as more resources. Not
+  fixed here (props.gd's change is C2's; the spike's scene is out of scope).
+- [x] Review: no scene change in the spike. *Evidence:* `git diff` touches only `mineworld-3d`'s
+  comments and echo lines; no file under `scenes/` or the spike's scripts changed in C9.
 
 ### C10 — `docs(plan): RL-b evidence`
-- [ ] The ledger, the final measurement and the review package (`ARC-20`): frames base/head per view, the
-  skyline before/after, the perf tables.
+- [x] The ledger, the final measurement and the review package (`ARC-20`): frames base/head per view, the
+  skyline before/after, the perf tables. *Evidence:* E-RLb-final and "Material stop" in §14; the
+  package is pushed to the branch `review/rl-b-frames` (images only, not part of this PR's diff),
+  linked from the PR body.
 
 ## 12. Questions for the freeze (primary session; **[OM]** = the operator's)
 
@@ -477,7 +721,218 @@ E-RLb-1  2026-10-09  planning: headless API probe, Godot 4.7.2: disable_fog, mea
                      (cpu/gpu), occlusion-culling setting, visibility_parent, ImporterMesh.generate_lods
                      all present (A-7)
 FREEZE   2026-10-09  DESIGN FROZEN by the primary session; rulings §0.1
-E-RLb-2  —           C1 baseline (to be recorded before any other commit)
+E-RLb-2  2026-10-09  C1 baseline, recorded before any other commit (M-8). The C1 diff changes no
+                     rendering state (a `mw_category` meta on nodes and the perf mode moved into
+                     slice_perf.gd), so its frames are the base's. Machine: Apple M5 | macOS 26.2.0 |
+                     Apple M5 (Apple9) Metal 4.0 | Godot 4.7.2-stable (official) | forward_plus.
+                     Session dirs under clients/3d-spike/shots/slice/perf/ (ignored by Git);
+                     logs copied to shots/slice/rlb/c1-*.log.
+
+  1920x1080, gi=voxel, three conclusive runs, median of p95 (ms):
+    view               median p95   p95 per run            draws   primitives
+    street wide            16.23    15.13, 17.59, 16.23    4155     8 784 353
+    cafe frontage          25.09    23.33, 26.56, 25.09    4420    10 460 745
+    interior               20.31    20.15, 21.50, 20.31    3899     9 639 642
+    doorway                27.26    26.76, 27.26, 44.88    3409     8 150 691
+    street east            17.82    16.14, 17.82, 30.45    4215     8 522 496
+    south side             15.22    15.22, 15.25, 14.37     614       372 639
+    florist interior       19.74    36.29, 19.74, 17.90    3642     8 515 551
+    skyline east           17.06    35.31, 17.06, 16.71    4047     8 732 462
+    video memory 2 503.6 MB (texture 2 064 MB, buffer 108 MB)
+    M-6  FAIL on all four: p95, draws, primitives, video memory
+
+  1600x900, gi=voxel (continuity with E-RL-1), median of p95 (ms):
+    street wide 13.49 | cafe frontage 18.87 | interior 15.69 | doorway 20.25 | street east 13.87 |
+    south side 10.88 | florist interior 14.26 | skyline east 14.30 | video memory 2 435.7 MB
+
+  M-7 breakdown (1920x1080, one run; d = category off minus all on):
+    category    members                street wide           cafe frontage          interior
+                                       d p95  d draws d prims  d p95 d draws d prims   d p95 d draws d prims
+    merged      592 cells, 74 612 tris -1.21  -2250   -0.38M   -4.60 -2161  +0.14M    -1.48 -2158  -0.43M
+    gltf        203 prop roots         -1.87  -1415   -8.03M   -1.55 -1548  -9.55M    -4.22 -1637  -9.47M
+    foliage     70 cells, 4 454 tris   -0.33  -180     0.0M    (drift) +68   +0.58M   -0.02 -134    0.0M
+    characters  1 (the occupant)       -0.30   0       0.0M    (drift)                +0.09  0       0
+    labels      41                     -0.21  -34      0.0M    (drift)                +0.19 -6       0
+    backdrop    1 root                 -0.21  -3       0.0M    (drift)                +0.04 -3       0
+    ground      1 cell, 2 tris         -0.05  -15      0.0M    (drift)                +1.28 -20      0
+    voxelgi     1                      -0.34   0       0       -7.95  (drift)         -3.46  0       0
+    ssil        1 env                  -1.68   0       0       -2.73  (drift)         +0.18  0       0
+    ssao        1 env                  -0.32   0       0       -1.54  (drift)        +20.16  0       0 (noise)
+    shadows     1 sun                  -1.68  -2185   -4.28M   -3.50 -2495  -5.53M    -1.69 -2860  -6.62M
+    occlusion   (off on the base)      not measured
+
+  Readings (ARC-23: locate before counting):
+  - Primitives are glTF props: switching them off removes 8.0-9.5 M of 8.8-10.5 M primitives. They
+    carry no LODs (A-4), and each prop is drawn again in every shadow split.
+  - Draw calls split about evenly between merged cells + props in the colour/depth passes and the
+    sun's four shadow splits (-2 185 to -2 860 draws with shadows off).
+  - VoxelGI is the largest single frame cost in the cafe frontage (-7.95 ms) and interior (-3.46 ms).
+  - Instrument finding: in `cafe frontage` every row after `gltf` reads about +246 draws and +0.59 M
+    primitives above the all-on base, so the base taken first was not the state the later rows ran in
+    (drift after re-showing props). The deltas marked (drift) are against a shifted base and are not
+    used. The breakdown has no pass/fail role (M-7); on the final head it is read with this caveat.
+  - GPU time: Godot 4.7.2's Metal driver reports no GPU timestamps (the gpu columns read 0 in every
+    run). The wall interval with vsync off is the frame cost M-5 and M-6 judge; CPU render time is
+    recorded (1.1-2.0 ms p95 everywhere).
+  - Run-to-run noise at 1920x1080 is large (florist interior 36.29 vs 19.74 ms; another session's
+    headless Godot tests were running on the machine during these runs). The median of three is the
+    statistic M-5 fixes, unchanged.
+
+Bounded discoveries recorded at C1:
+  D-1  A-3 is stale on one point: the scene and texture `.import` files under assets/models and
+       assets/textures are already tracked (253 files, since #50). SC-3 is unchanged: the tool now
+       owns settings in files Git already tracks.
+  D-2  Most props are placed by `SliceProps.put` / `hang` (dressing.gd, not in the change set), which
+       call `Props.gltf` directly. The `mw_category` meta is therefore set in `Props.gltf`, where every
+       prop node is made, rather than in `Props.place`.
+  D-3  `Build.ground`'s plane and the foliage cards are primitive meshes with a material override,
+       so `SliceBatch` merges them. Their category is decided in batch.gd when the cell is made
+       (a cell whose members were all `ground` planes is `ground`; an alpha-scissor card material is
+       `foliage`). batch.gd is not in §1's change set, but C1 names "the merged cells", so this edit
+       is the one C1 itself requires.
+  D-4  `--res` did nothing because the project's stretch mode is `viewport`, which renders at
+       `content_scale_size`; SlicePerf sets it (M-4). Verified: the run header reports the viewport
+       texture's size, 1920x1080.
+  D-5  The camera rig class is `CameraRig` (camera_rig.gd), not `SliceCameraRig`; SD-RLb-3 reads
+       `CameraRig.FOV`.
 ```
 
-**Handoff.** Not started. The next action after the freeze is C1 in a fresh session in `impl-rl-b`.
+E-RLb-final  2026-10-09  The final head is `bfa88f1` + C10 (merge of origin/main at 02788e6, clean).
+                     Its executable 3D content equals C8's (`git diff 58bc0c4 bfa88f1 --
+                     clients/3d-spike mineworld-slice` touches only README.md), so C8's three
+                     conclusive runs, taken with no other Godot window, are the final measurement:
+    view               base p95 -> head p95 (ms)   draws base -> head   primitives base -> head
+    street wide           16.23 -> 10.49            4155 -> 3814         8.78 M -> 1.99 M
+    cafe frontage         25.09 -> 19.00  FAIL      4420 -> 4214         10.46 M -> 3.56 M  FAIL
+    interior              20.31 -> 14.63            3899 -> 3814         9.64 M -> 3.67 M   FAIL
+    doorway               27.26 -> 22.20  FAIL      3409 -> 3425         8.15 M -> 3.16 M   FAIL
+    street east           17.82 -> 11.20            4215 -> 3963         8.52 M -> 2.21 M
+    south side            15.22 -> 10.23             614 ->  615         0.37 M -> 0.17 M
+    florist interior      19.74 -> 15.38            3642 -> 3630         8.52 M -> 3.53 M   FAIL
+    skyline east          17.06 -> 10.74            4047 -> 3714         8.73 M -> 1.97 M
+    video memory 2 503.6 -> 2 049.7 MB (FAIL by 1.7 MB); draw calls FAIL in 7 of 8 views
+    M-6: FAIL on all four bounds — the §9 material stop.
+  Two further final-head perf attempts are INCONCLUSIVE and not used: (1) 21:41–21:53, two perf
+  chains of this same session overlapped (a pre-rate-limit background command survived its
+  resume), so two Godot windows ran at once; (2) 22:22–22:41, every attempt had 8–100 frames over
+  250 ms with ~1 000 ms frames (macOS throttling the window: the machine's display was idle late
+  at night; M-3 requires a frontmost window), stopped after attempt 2.
+  M-7 breakdown on the final head (`shots/slice/rlb/final/breakdown.log`, taken alone, no
+  inconclusive row): merged cells −1.41/−6.90/−3.80 ms and −2 080 to −2 142 draws; sun shadows
+  −1.49 to −2.51 ms and −2 183 to −2 871 draws; VoxelGI −0.10/−7.69/−4.04 ms; SSIL −1.84/−2.54/
+  −1.48 ms (street wide / cafe frontage / interior); occlusion off adds 98–459 objects (A-6).
+  A-7 on the final head (`shots/slice/rlb/final/`): `--drive` all checks pass; `--threshold` four
+  PASS (worst step x1.42); `--measure` as on C1 (the one pre-existing stature line); `--character`
+  all checks pass; `--world --link` all link checks pass; `--world --conversation` door rejected
+  too_far_away with the toast, counter talk accepted, both caption lines; `--skyline-check` PASS.
+  V-3 (connected frames, `final/conv/conversation_{1,2,3}*.png`): names on every person, the door
+  toast, Alice in plain view at the counter, both caption lines — PASS on the checklist. A pixel
+  comparison against base connected frames was NOT RUN (it needs a base worktree with its own
+  server build); the only differences expected are V-1's explained texture change.
+  Rust: `cargo fmt --check` PASS; `cargo clippy --workspace --all-targets -D warnings` PASS;
+  `cargo test --workspace` all results ok, 0 failed. Scans: doc headings, decision ids, CI pins,
+  `check_scratch scan`, `ci_parity --self-test`, `check_client_rules` (0 findings),
+  `check_slice_provenance` — all pass.
+
+E-RLb-final-2  2026-10-09  Second merge of origin/main (b61b4f4) as 3f5a6b5, needed because the PR
+                     was CONFLICTING (no pull_request CI ran). One conflict, `mineworld-slice`,
+                     resolved mechanically (§10): S20's `--settings`, `scripted` and window-size
+                     logic kept beside RL-b's perf flags, `--perf` and `--skyline-check` counted as
+                     scripted so they run with `--settings=none`. Main also brought S20's settings
+                     module into `slice_main.gd` (display, render scale). On 3f5a6b5:
+                     `--skyline-check` PASS; `--drive` all checks pass; `--shots` vs the pre-merge
+                     head: every view ≤ 0.49 % except character-noise views and
+                     `25_skyline_southwest` (29.6 %): that review view stands the body on the west
+                     end's raised setts and its eye height settles differently run to run (a pose
+                     instability of the new still, not a rendering change). A perf attempt was
+                     INCONCLUSIVE again (24–100 frames per view at ~1 000 ms: the window throttled
+                     with the display idle) and was stopped; its draw calls and primitives equal
+                     C8's exactly (3 814 / 1 992 536 street wide, 4 214 / 3 563 680 cafe frontage),
+                     so the geometry is unchanged by the merge. The p95 table above stands; it
+                     should be re-taken with the display awake before any M-6 verdict is final.
+                     Known miss, stated for the preview: the open west horizon shows the 900 m
+                     grass ground plane, not a sea surface (no water exists until RL-f).
+
+E-RLb-ruled  2026-10-09/10  The head after rulings R-1 to R-6: `7f37212` (C8 reverted in `33a278c`;
+                     VoxelGI 128 and soft-shadow quality 2 in `7f37212`), plus this ledger commit.
+  M-5 / M-6 re-measure (R-6): **INCONCLUSIVE — NOT MEASURED.** `caffeinate -d ./mineworld-slice
+  --perf` ran with no other Godot window. Every attempt had dozens of frames at about 1 000 ms
+  (street wide p95 1 011.7 ms, cafe frontage 1 011.8 ms), because the session's screen is locked:
+  `ioreg` reports `CGSSessionScreenIsLocked = true`. `caffeinate -d` keeps the display on, but it
+  cannot stop macOS throttling a locked session's window to about 1 fps. Under M-5's 250 ms rule the
+  runs are inconclusive, and I stopped them. The pass/fail per view under R-2 waits for a run on an
+  unlocked screen:
+      caffeinate -d ./mineworld-slice --perf
+  What is known from conclusive data: the C7a run on C5 gave cafe frontage 17.54 ms, doorway
+  18.59 ms (both over 16.7 ms) and video memory 1 608 MB. The C7b run gave a further −1.6 to −2.1 ms
+  on the exterior views. The two were never measured together. Projected from the separate deltas,
+  cafe frontage would be about 15.5–16 ms and doorway about 16.5–17 ms. That is a projection, not a
+  measurement: the doorway may still fail.
+  Gates on the ruled head (`shots/slice/rlb/ruled/`), timing-independent, all run: `--shots` 27
+  views; `--drive` all checks pass; `--threshold` all PASS; `--measure` as before (the one
+  pre-existing stature line); `--character` all checks pass; `--world --link` all link checks
+  pass; `--world --conversation` the door refusal and the counter conversation, "conversation on
+  screen, no ids".
+  R-3 re-baseline: the new accepted frames are `shots/slice/rlb/ruled/frames/` (base1 vs ruled
+  pairs on the branch `review/rl-b-frames`, `rl-b/ruled/`).
+
+E-RLb-final  2026-10-10  R-6 re-measure on the ruled head `661e556` (code identical to `7f37212`; the later
+                     commits change only this ledger and `docs/HUMAN_REVIEW_QUEUE.md`). Machine: Apple M5, macOS
+                     26.2 (Darwin 25.2.0), Godot 4.7.2 (`shots/slice/rlb/final-env.log`). Command:
+                     `caffeinate -d ./mineworld-slice --perf` (`shots/slice/rlb/final-perf.log`).
+  **INCONCLUSIVE — NOT MEASURED. No view has a conclusive median-of-3 p95, so no view passes or fails.**
+  Run 1, attempt 1 (`final-run1-a1.log`, `.json`): verdict INCONCLUSIVE (measured frames over 250 ms in
+  five views: interior max 8 869.48 ms, doorway 12 577.08, street east 20 635.17, south side 12 402.35,
+  florist interior 21 624.03; street wide, cafe frontage and skyline east had none). Run 1, attempt 2
+  (`final-run1-a2.log`): street wide completed (p95 14.11 ms, max 7 305.80 ms, one frame over 250 ms, so
+  it is disturbed too), then the Godot process stalled
+  at about 6–8 % CPU with no new frame for more than 6 minutes (log unchanged). I stopped the run; it
+  wrote no record. Runs 2 and 3 were not started. Stopping was my call, not a re-run: a re-run into the
+  same state would only repeat the stall.
+  Signs of the session state at the stall: `ioreg` no longer lists `CGSSessionScreenIsLocked` (absent,
+  so the operator's unlock is plausible), but the HID idle time was about 1 413 s (23 min) with no input,
+  and the Godot process had `PreventUserIdleDisplaySleep` from `caffeinate`. The cause is not confirmed.
+  The same pattern (frames of 1 s to 20 s with a locked or idle session) is what made E-RLb-ruled
+  inconclusive. A conclusive run needs the operator to keep the screen unlocked and the window
+  frontmost while the run goes.
+  Partial, not a verdict (run 1 attempt 1; disturbed, not used in any median), p95 ms: street wide 12.90,
+  cafe frontage 18.72, interior 15.91, doorway 24.06, street east 14.67, south side 13.63, florist interior
+  19.11, skyline east 11.69. Draws / primitives in the same run: street wide 3 814 / 1.99 M, cafe frontage
+  4 215 / 3.56 M, interior 3 814 / 3.67 M, doorway 3 424 / 3.16 M, street east 3 964 / 2.21 M, south side
+  614 / 0.17 M, florist interior 3 630 / 3.53 M, skyline east 3 715 / 1.97 M. Video memory 1 608.6 MB
+  (texture 1 190.1 MB, buffer 85.6 MB) (the only figure in this run that is not a frame measurement).
+  Binding verdict under R-2: **M-6 p95 and video memory: NOT DECIDED (INCONCLUSIVE).** Advisory (R-2):
+  not decided either.
+
+Material stop (§9, superseded by R-1 … R-6): M-6 was unmet after SC-2 … SC-7.
+  Remaining gap at 1920x1080 (head vs bound): p95 cafe frontage +2.3 ms, doorway +5.5 ms; draw calls
+  +1 425 to +2 214 in 7 views; primitives +0.16 to +0.67 M in 4 views; video memory +1.7 MB.
+  Options with their measured yield and visual cost (all measured on C5, all reverted here):
+    O-1 VoxelGI SUBDIV 256 -> 128: p95 cafe frontage 17.54, doorway 18.59 ms; video memory 1 608 MB
+        (passes). Visible: the florist interior warmer and brighter, café walls and ceiling shift
+        tone (V-1 5–28 %; `pairs/c7a-22.png`, `c7a-05.png`). Still short on p95 by 0.8–1.9 ms.
+    O-2 VoxelGI -> SSIL in Default (ruled a stop, Q-RLb-4): about −7.7 ms in cafe frontage and −4 ms
+        in the interior (breakdown); the accepted café interior changes.
+    O-3 Soft-shadow filter quality 3 -> 2: −1.6 to −2.1 ms; the raking shadows' penumbrae change.
+    O-4 SSIL quality -> 1: up to −0.9 ms; noisier indirect light.
+    O-5 For draw calls and primitives (no in-scope lever reaches them): fewer sun shadow splits
+        (4 -> 2) or a shorter shadow distance (shadows are 2 183–2 871 draws and 1.1–2.8 M
+        primitives); coarser batching / texture atlases for the 592 merged cells (about 2 100
+        draws); or the operator relaxing the Default tier's 2 000-draw / 3 M-primitive bounds
+        (step-22 §6.6) for this scene.
+    O-1 + O-3 together would put every view's p95 near or under 16.7 ms by the measured deltas, at
+    both visual costs; the draw-call and primitive bounds still need O-5.
+  The operator chooses; nothing above is applied.
+
+**Lifecycle.** READY FOR OPERATOR REVIEW, with one item INCONCLUSIVE: the R-6 re-measure of p95 and
+video memory could not be taken (E-RLb-ruled; re-attempted 2026-10-10, E-RLb-final: disturbed runs, INCONCLUSIVE). DO NOT
+MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION. (Superseded: "MATERIAL STOP
+(M-6 unmet)", resolved by rulings R-1 to R-6.)
+
+**Handoff.** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action: with the screen
+unlocked and no other Godot window, run `caffeinate -d ./mineworld-slice --perf` on the PR head and
+record pass or fail per view against p95 ≤ 16.7 ms and video memory ≤ 2 048 MB. Draw calls and
+primitives are advisory under R-2. If any view fails p95, stop and report; no further lever (R-2).
+Rulings R-1 to R-5 are applied. Evidence lives under `clients/3d-spike/shots/slice/rlb/` (ignored) and
+on the branch `review/rl-b-frames`. Post-merge sync: the planning session owns step-22 and
+overall; this session owns this file's ledger and merge identity.

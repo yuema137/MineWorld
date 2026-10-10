@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://djr36a5q2krwc"
-path="res://.godot/imported/wine_bottles_01_label_intertwine_01_diff_1k.jpg-a1eef2b852148064d82d504d876b229d.ctex"
+path.bptc="res://.godot/imported/wine_bottles_01_label_intertwine_01_diff_1k.jpg-a1eef2b852148064d82d504d876b229d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/wine_bottles_01/textures/wine_bottles_01_label_intertwine_01_diff_1k.jpg"
-dest_files=["res://.godot/imported/wine_bottles_01_label_intertwine_01_diff_1k.jpg-a1eef2b852148064d82d504d876b229d.ctex"]
+dest_files=["res://.godot/imported/wine_bottles_01_label_intertwine_01_diff_1k.jpg-a1eef2b852148064d82d504d876b229d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
