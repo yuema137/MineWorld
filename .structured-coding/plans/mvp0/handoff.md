@@ -33,7 +33,16 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — M-3 ruled and fixed (25660e8, bodies v4); NW-C3 measured; MATERIAL STOP M-4 (budget)
+## Current checkpoint — READY FOR OPERATOR REVIEW (context CLOSED / AWAITING OPERATOR ACTION)
+
+- M-4 and M-5 ruled. TD-12b on the merge is INCONCLUSIVE under load; 12d re-measures it on its final
+  head, timing by thread CPU time as well as wall clock. 23 300-day runs, accepted as final.
+- E-NW8: the final gate on f78ae67 (origin/main merged) — fmt, clippy, doc checks, scratch scan and left,
+  `cargo test --workspace` (221 ok). CI on the exact head: see PR #125.
+- Merge: operator only, with a merge commit; QN-2 — immediately before 12d. 12d takes bodies v5 on
+  rebase (§21.15 CROSS-LANE).
+
+## Earlier checkpoint — M-3 ruled and fixed (25660e8, bodies v4); NW-C3 measured; MATERIAL STOP M-4 (budget)
 
 - E-NW6 on the merge (/tmp/s15-12n/12n2/merge, 25660e8 + 8814aad): NW-1 routines, NW-2, NW-3 restated,
   TD-12a (social-cafe after one foreground re-run; market-town), NW-5 (restart, two 30-day runs,

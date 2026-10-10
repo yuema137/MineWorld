@@ -9300,7 +9300,8 @@ immediately ended walk or a refusal) is accepted as is.
 
 #### NW-C3 — the 12d WIP measurement (scratch merge, never committed there)
 
-- [ ] Implementation: `git worktree add --detach /tmp/s15-12n/12n2/merge <NW-C2 head>`; `git merge
+- [x] Implementation (E-NW4, E-NW6; the harness is `nw_scratch2.rs`, the counts `nw_scratch.rs`; the
+  final merge is of 25660e8, after the M-3 fix): `git worktree add --detach /tmp/s15-12n/12n2/merge <NW-C2 head>`; `git merge
   --no-commit --no-ff 8814aad` (or 12d's successor head, named); conflicts resolved there and listed
   (expected in bodies' `geometry.rs` and tests, where 12d's R 250 meets 12n-1's derived constants and
   the M-1 restatement); own target `/tmp/s15-12n/12n2/target-merge`. The tree's fingerprint (`git
@@ -9308,7 +9309,8 @@ immediately ended walk or a refusal) is accepted as is.
   that tree (`tools/cli/tests/nw2_cafe_door.rs`: from each of the five street doorways and (−3 000, 600),
   (3 000, 600), `walk-to` the café → `arrived`, `person-entered-place { café }`, ≤ 40 strides, no
   `stalled`); its text is kept in the evidence and offered to 12d (`N-D20`).
-- [ ] Validation: NW-1 (`routines.rs` unedited; `run.rs` on the 300-day run), NW-2, NW-3 (stopped-short
+- [x] Validation (E-NW6, E-NW7). All PASS except TD-12b, which is INCONCLUSIVE under load (M-5 ruling);
+  NW-3 is judged as restated by M-3's ruling, NW-1 after M-3's fix. As planned: NW-1 (`routines.rs` unedited; `run.rs` on the 300-day run), NW-2, NW-3 (stopped-short
   ≤ 10 % of the walkers' accepted arrivals over 30 days; entries ≥ 90 % of the SD-D13 copy without
   bodies; per-bucket counts printed), NW-4 (TD-12a: 8 interleaved 300-day runs, ≤ 3.96 × and ≤ 3.30 ×,
   per-resolution max ≤ 50 ms; contamination rule as TD-12a), NW-5 (`run_restart.rs`, `market_town.rs`,
@@ -9316,16 +9318,16 @@ immediately ended walk or a refusal) is accepted as is.
   NW-6 / M-N6 in the M-N1b form (`N-D19`: line emptied and bodies' guard removed → NW-1 names the people
   below 90 %, NW-2 names the doorways), NW-10 on the merge. Each result `PASS` / `FAIL` /
   `INCONCLUSIVE` with counts.
-- [ ] Review: no result copied into a committed test; the merge never pushed; budget counted against
-  §21.14's 19-run cap.
+- [x] Review: no result copied into a committed test; the merge never pushed (a detached /tmp worktree);
+  budget counted against §21.14's 19-run cap, exceeded and then accepted at 23 (M-4, M-5 rulings).
 
 #### NW-C4 — close
 
-- [ ] Implementation: §21.15 ledger complete (E-NW*, N-D*), handoff, `origin/main` merged as needed.
-- [ ] Validation (NW-8): fmt, clippy, both doc checks, `check_scratch` scan, `cargo test --workspace`
-  once on the final head, `check_scratch left`; CI `fast`, `test`, platforms green on the exact head
-  (F-12n-CI1 re-run once if it recurs, recorded).
-- [ ] Review: `git diff --name-only origin/main...HEAD` within §21.14's 12n-2 paths plus the recorded
+- [x] Implementation: §21.15 ledger complete (E-NW*, N-D*), handoff, `origin/main` merged as needed (E-NW8).
+- [x] Validation (NW-8): fmt, clippy, both doc checks, `check_scratch` scan, `cargo test --workspace`
+  once on the final head, `check_scratch left` (E-NW8); CI `fast`, `test`, platforms green on the exact head
+  (F-12n-CI1 re-run once if it recurs, recorded) — in the PR and the handoff.
+- [x] Review: `git diff --name-only origin/main...HEAD` within §21.14's 12n-2 paths plus the recorded
   N-D12 / literal-edit list; no diff under kernel/, contracts/, persistence/src/, server/, systems/,
   clients/, worlds/; READY FOR OPERATOR REVIEW; QN-2: merges immediately before 12d.
 
@@ -10023,6 +10025,28 @@ M-5   MATERIAL STOP (TD-12b, §19.4: "a maximum above 50 ms … is a material st
         (b) accept TD-12b as INCONCLUSIVE under load: p99.9 0.27 ms, two outliers. 12d re-measures TD-12b
             on its final head anyway (§19.4).
       Recommendation: (a) — one run, 24 in all.
+
+M-5 RULING (primary session, 2026-10-10): option (b). TD-12b on the scratch merge is INCONCLUSIVE under
+      load: wall-clock timer, load 8–13; p99 95 µs, p99.9 0.27 ms, max 68.6 ms (two calls over 50 ms).
+      TD-12b is 12d's criterion, and 12d re-measures it on its own final head. FOR 12d: time each
+      resolution by thread CPU time as well as by wall clock (option (a)'s method: a scratch-only
+      `libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID)` beside `Instant`), so that a load outlier can be told
+      apart from the resolver's own cost. Budget: 23 300-day runs accepted as final; no more in 12n-2.
+      M-5 is closed.
+
+E-NW8 NW-C4 / NW-8, the final gate, 2026-10-10, on f78ae67 (origin/main merged: lakeside, milestone_e,
+      packs; no conflict; this entry and later commits are Markdown only). `cargo fmt --all --check` 0;
+      `cargo clippy --workspace --all-targets --all-features -D warnings` 0; doc checks 193 sections and
+      107 decision ids, all distinct; `check_scratch.py scan` 0 (206 sources, 2 exempt); `cargo test
+      --workspace --no-fail-fast` exit 0, 221 result lines, all ok (walking_pace and hosted_town among
+      them); `check_scratch.py left --target-dir /tmp/impl-12n2-target` 0. Scope: `git diff --name-only
+      origin/main...HEAD` is exactly §21.14's 12n-2 paths plus N-D12 (tools/cli/Cargo.toml, Cargo.lock)
+      and the M-3 ruling's paths (systems/bodies/src/{route,system}.rs, systems/bodies/tests/{route,
+      rapier_pin}.rs); no diff under kernel/, contracts/, persistence/src/, server/, clients/, worlds/.
+      CI on the exact final head is reported in the PR and the handoff (a commit cannot carry its own CI).
+      QN-2: the towns' digests moved here (E-NW3: social-cafe 300 d 837 953 facts, market-town 817 742,
+      both before the route fix and before main's later merges; bodies-yard 30 d e0f5964c…, version 4).
+      12n-2 merges immediately before 12d. READY FOR OPERATOR REVIEW.
 ```
 
 
