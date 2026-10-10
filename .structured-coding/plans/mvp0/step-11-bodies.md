@@ -8986,9 +8986,29 @@ Files: `systems/bodies/src/{system.rs,geometry.rs}`, `systems/installed/src/lib.
 
 ### NV-C6 — the real walk
 Files: `tools/cli/tests/walking.rs` (new; test-time world copies).
-- [ ] Implementation: NV-2 (a–f), NV-3, NV-4.
-- [ ] Validation: the tests; M-N1 … M-N4 applied and reverted.
-- [ ] Review: every expected waypoint and distance is hand-computed in the test's comments.
+- [x] Implementation: NV-2 (a–g), NV-3, NV-4 — `tools/cli/tests/walking.rs`, 9 tests. The worlds are
+  written by the test (bodies-yard's court verbatim, a hall of the yard's size and door with the
+  claim's furniture, an attic with no passage — N-D9); a scripted session on the real `mineworld
+  server` sends `walk-to` and `walk-step`s; facts are read back from the save with this file's own
+  payload mirrors. NV-3 runs on `worlds/social-cafe` itself (read-only). NV-4 runs the persistence path
+  (`PersistentWorld`, what `run` and the server use) in two processes: the test binary re-run as a
+  child creates the save, walks through the crossing and is killed (`Child::kill`: SIGKILL on Unix,
+  TerminateProcess on Windows); the parent resumes it and finishes the walk at the same instants.
+- [x] Validation: 9 of 9 pass (E-NV4). Mutations, each applied, observed failing by name, reverted:
+  M-N1 (the wayfinder line emptied) → every bodies test world refuses to assemble — bodies' `install`
+  panics naming the empty catalog (fail-closed); M-N1b (also the guard removed, so walks go straight)
+  → (a) fails at its waypoints, `[(4500, 1500)]` ≠ the three, as do (c), the crate and the ring
+  refusal; M-N2 (PLAN_MARGIN 0) → (a), (c), the crate fail at their waypoints ((2690, 4210) …); M-N3
+  (objects omitted) → the crate's route assertion, and with it disabled "the crate was walked round,
+  not pushed"; M-N4 (the search's successor costs depending on how many searches the process has run)
+  → `resumes: ReplayDiverged { revision: 3, "fact 8 differs from the logged fact 8" }` — the parity
+  form literally as §21.8 words it survives here, because the uninterrupted run makes an even number of
+  searches before the resume re-runs them (recorded, not hidden).
+- [x] Review: every waypoint asserted is hand-computed in the test's comments from the hall's numbers
+  grown by 360 mm (slot (2 640, 4 260), (3 660, 4 260); pocket (9 360, 2 640), (9 360, 3 660), (7 360,
+  3 960), (6 340, 3 960); table (6 640, 7 360); crate (840, 1 840), (840, 3 160) with the tie stated;
+  the court walk's five positions). Strides between waypoints are asserted by bound (≤ 1 340 mm), not
+  by literal.
 
 ### NV-C7 — close
 - [ ] Implementation: ledger, `MVP_STATUS.md` rows, handoff.
@@ -9245,6 +9265,30 @@ M-1   MATERIAL STOP (§21.14: "NV-7 failing at R 250 with derived constants (QN-
         (c) re-derive the bound differently (e.g. NUDGE_MAX := R + 50) and measure again.
       Recommendation: (a) — the claim's purpose (bounded, sometimes blocks) holds, and a body-relative
       yield is the operator's realistic-defaults intent; (b) contradicts the frozen SD-N11.
+
+N-D9  NV-2's "test-time copy of bodies-yard" is a world the test writes: the yard's court file
+      verbatim, and a hall with the yard's floor (12 × 9 m) and east door but the claim's furniture in
+      place of the yard's table and six people and eight objects (which would stand on the routes and
+      make the waypoints people-dependent). Same packs (presence, movement, bodies). (g) runs on the
+      server at --time-scale 28 800 (a world day in three wall seconds) instead of `advance_to`, which
+      the movement test owns (E-NV1).
+
+E-NV4 NV-C6, 2026-10-09, working tree on c1fab19 + walking.rs. `cargo test -p mineworld-cli --test
+      walking`: 9 passed, 4.5 s.
+        (a) 7 steps: (2 011, 2 738), (2 522, 3 976), (2 640, 4 260), (3 660, 4 260), (4 050, 2 979),
+            (4 440, 1 698), (4 500, 1 500); no stopped-short; arrived
+        (b) 8 steps: (9 211, 2 570), (9 360, 2 640), (9 360, 3 660), (8 036, 3 858), (7 360, 3 960),
+            (6 340, 3 960), (5 813, 2 729), (5 500, 2 000); arrived
+        (c) ends 1 198 mm from Bea (6 820, 7 392); after Bea's move, (6 007, 6 807), within 1 200 of
+            (6 500, 7 900); both arrived
+        (d) (11 340, 4 500), (11 600, 4 500), court (400, 5 000), (1 740, 5 000), (2 000, 5 000); entered
+        (e) no-route ×2 (ring, attic), TooFarAway, malformed-payload, PreconditionFailed; nothing recorded
+        (f) outcomes replaced, stopped, arrived; the shove recorded and the walk arrived after it
+        (g) world time 1 353 → 116 611 s while nobody stepped: no stride, nothing ended, same waypoints
+        crate (840, 1 840), (840, 3 160), (1 500, 4 000); no object-moved
+        NV-3 café → street: (1 610, 200), street (0, 3 000), (0, 4 000); no stopped-short
+        NV-4 15 facts uninterrupted; the killed child's save held 12, resumed to 15, facts, journal and
+             snapshots byte-equal; `mineworld replay` of the resumed save exits 0
 ```
 
 
