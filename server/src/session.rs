@@ -30,7 +30,7 @@ use std::time::Duration;
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket, close_code};
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{Sink, SinkExt, StreamExt};
 use tokio::time::Instant;
 
 use crate::admin::registry::{Joined, Registered, Registry};
@@ -115,12 +115,14 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         took_over: seated.took_over(),
         world: seated.world().clone(),
     };
-    // The welcome, then the clock as it stood at the welcome, then the stream (`PROTOCOL.md` §5.9).
     let clock = seated.clock_at_welcome().into_frame();
-    let ending = if send(&mut outgoing, &welcome).await.is_ok()
-        && send(&mut outgoing, &clock).await.is_ok()
-    {
-        let listed = connection.registry.register(connection.session, joined);
+    let greeting = Greeting {
+        session: connection.session,
+        joined,
+        welcome,
+        clock,
+    };
+    let ending = if let Some(listed) = greet(&mut outgoing, &connection.registry, greeting).await {
         let ending = stream(
             &mut outgoing,
             &mut incoming,
@@ -152,6 +154,33 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         }
         Ending::Released(reason) => close(&mut outgoing, &mut incoming, reason).await,
     }
+}
+
+/// What a seated connection is told first, and what it is listed as.
+struct Greeting {
+    session: SessionId,
+    joined: Joined,
+    welcome: ServerFrame,
+    clock: ServerFrame,
+}
+
+/// Lists the session on the admin surface, then sends the welcome and the clock as it stood at the
+/// welcome (`PROTOCOL.md` §5.9). `None` if the connection went while they were being sent — and the
+/// session is off the list again, because the guard is dropped with it.
+async fn greet<S>(
+    outgoing: &mut S,
+    registry: &Arc<Registry>,
+    greeting: Greeting,
+) -> Option<Registered>
+where
+    S: Sink<Message> + Unpin,
+{
+    // Listed first: the welcome is the client's proof that it is seated, so from the moment it can
+    // be read the admin surface must list this session (F-SD1).
+    let listed = registry.register(greeting.session, greeting.joined);
+    let sent = send(outgoing, &greeting.welcome).await.is_ok()
+        && send(outgoing, &greeting.clock).await.is_ok();
+    sent.then_some(listed)
 }
 
 /// Reads frames until the connection has a seat, refusing everything else.
@@ -416,7 +445,10 @@ async fn close(outgoing: &mut Outgoing, incoming: &mut Incoming, reason: Closing
 /// A frame that cannot be serialized is a defect in the server rather than in the client, so it is
 /// reported and the connection continues: the alternative is a silent disconnect whose cause is
 /// invisible at both ends.
-async fn send(outgoing: &mut Outgoing, frame: &ServerFrame) -> Result<(), ConnectionGone> {
+async fn send<S>(outgoing: &mut S, frame: &ServerFrame) -> Result<(), ConnectionGone>
+where
+    S: Sink<Message> + Unpin,
+{
     let text = match serde_json::to_string(frame) {
         Ok(text) => text,
         Err(error) => {
@@ -440,3 +472,6 @@ fn unix_seconds() -> u64 {
 
 /// The connection ended while the server was writing to it.
 struct ConnectionGone;
+
+#[cfg(test)]
+mod tests;
