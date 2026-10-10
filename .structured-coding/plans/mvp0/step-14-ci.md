@@ -2915,8 +2915,10 @@ designed. It is detailed to the commit by its own planning session, after 13b's 
 
 # 15. PR 13w — the default suite on Windows and macOS (full design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-09), primary session`. Superseded: `PR design — ready for freeze
-review`.
+**Lifecycle:** `MERGED` — PR #118, merge commit `0345922034c1bc9ece38e55ea74cced55aef1980`,
+2026-10-10T05:31:47Z, merged by the operator's authorization relayed by the primary session (§15.14).
+Superseded: `READY FOR OPERATOR REVIEW` (final head `b815fc9`, run 38026093425), `DESIGN FROZEN
+(2026-10-09), primary session`, `PR design — ready for freeze review`.
 - Evidence: the coordinator's message relaying the primary session's rulings: "13w (§15) is DESIGN FROZEN
   2026-10-09 (primary session)".
 - A fresh session implements it under §15.12, after 13b merges.
@@ -3515,3 +3517,53 @@ correct as is.
 deleted. Remaining: the final head's PR run (`fast`, `test`, `test-windows`, `test-macos` green on the
 exact head; re-run a failed job only for F-13w-3's flake), then READY FOR OPERATOR REVIEW in PR #118's
 description. Runs used before the final head: 7 of 14.
+
+**Closed (2026-10-10).** Superseded by §15.14: merged; the implementation context is closed.
+
+## 15.14 Merge record and closeout (13w)
+
+**Merge identity.** PR #118 merged as `0345922034c1bc9ece38e55ea74cced55aef1980` at 2026-10-10T05:31:47Z,
+on operator authorization relayed by the primary session. The merged head was `b815fc9` (main @
+`44ac762` merged in).
+
+**Final evidence (the exact merged head, PR run 38026093425).** `fast`, `test`, `test-windows`,
+`test-macos`, `platforms` (macOS, Windows), `python` ×3 green. Linux `test`, `test-windows` and
+`test-macos` each: 211 result lines, 964 passed, 0 failed, 31 ignored; `[cafe]`, `[clock]`,
+`[resolver-yard]` PASS; `hosted_town` and SD-D13's interrupt test pass; `check_scratch.py left` clean.
+Wall: `test` 24 min, `test-windows` 24 min 47 s (warm), `test-macos` 20 min 27 s (warm). Main's `test` at
+`44ac762`: 209 lines, 958 passed, 31 ignored (the +6 are the helper's 4 tests and 2 doctests). Local gate
+on `b815fc9` (Mac): 964 / 0 / 31. Runs used: 9 of 14 (§15.9).
+
+**Acceptance.** A-W1 … A-W7 met as recorded in §15.8 (A-W1's "ac1_composability 13/13" reads 14/14 at
+the merged head: main gained a test). MW-1 … MW-6 PASS (§15.8, W-C1 and W-C4).
+
+**Primary session's review mutations (recorded at merge).**
+- `interrupt` sending `kill -KILL` instead of `-INT` → caught by
+  `tools/cli/tests/admin.rs::an_interrupt_stops_an_administered_server_gracefully` (MW-4's mutation,
+  reproduced). Killed.
+- **F-13w-R1 (survived, equivalent today).** `ended_by_kill` on Unix also accepting SIGTERM (signal 15)
+  survived every test. It is equivalent today: nothing in the suite or the helper sends SIGTERM, so no
+  status that test code can observe distinguishes the two predicates. **Trigger:** if any code path
+  starts sending SIGTERM to a child (a stop helper, a timeout, a CI wrapper), add a helper test in
+  `tests/support/tests/process.rs` in which a child ended by SIGTERM is not `killed()`. Owner: whoever
+  introduces the SIGTERM path (S13 by default, as `mineworld-test-support`'s `process` owner).
+
+**Carried findings and follow-ups.**
+- **F-13w-3 → S11 (CLI test support).** `tools/cli/tests/support/mod.rs` `Server::launch` picks a port by
+  binding and releasing it, and `answers()` polls `GET /health` before checking whether its own child has
+  exited. After a port collision ("cannot listen …: Address already in use") another test's server
+  answers, and the test joins the wrong world (seen once, Linux `test`, PR run 38023542192,
+  `restart.rs`). Pre-existing on `main`; 13w did not change `launch` or `answers`. Suggested fix: confirm
+  after `/health` that the child is alive (or let the server bind port 0 and print its address).
+- **`platforms` duplication → S16 or S13 (follow-up, not scheduled).** The `platforms` job was kept
+  (D-13w-6) because its layer runs E-c's offline vendor check (`ci_layer.py --offline-check`, PD-p3,
+  EC-3 (b)), which `core` does not. The rest of the layer (`cargo build -p mineworld-cli`, the
+  packages/worldpack/installed-systems tests, the CLI `packs`/`requirements`/`entity_packs`/`third_party`
+  targets, `package_sources`) now repeats part of `test-windows` and `test-macos` on the same runners.
+  Trim the layer to `cargo fetch --locked` plus the offline check, or move the check into a job of its
+  own; record it in ARC-48.
+- **QB-11 `[OM]`, open.** Whether `test-windows` and `test-macos` become required checks (recommended
+  after five consecutive green `main` pushes) is the operator's settings change.
+
+**Post-merge synchronization.** This session recorded the PR document (§15) and the S13 / AC-8 rows of
+`docs/MVP_STATUS.md`. The overall and other step documents are the primary session's.
