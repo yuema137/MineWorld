@@ -1098,10 +1098,13 @@ Files: `docs/DECISIONS.md` (ARC-78; ARC-6 note), `docs/MODULE_SPEC.md` (the serv
 launcher's specification: bundle layout read, arguments, `launch.toml` grammar, per-user folders, run
 sequence, stop sequence, logs, errors, exit status), `tools/launch/README.md` (human, short).
 
-- [ ] Implementation: the four files.
-- [ ] Validation: doc-headings and decision-ids PASS.
-- [ ] Review: ARC-78 says what §6.1 and §12 say and resolves `ARC-6`'s open question without contradicting
-  `MVP.md` §7; `LAUNCHER.md` agrees with §19.2 and §6; terms per `CORE_CONCEPTS.md`.
+- [x] Implementation: the four files.
+- [x] Validation: doc-headings (193 sections, none duplicated) and decision-ids (106 ids, all distinct)
+  PASS.
+- [x] Review: ARC-78 states §6.1/§12's decision and the stdin stop, resolves `ARC-6`'s question, and says
+  why it is not `MVP.md` §7's launcher GUI; `LAUNCHER.md` §§1–9 match §19.2; the server row in
+  `MODULE_SPEC.md` states that without the flag stdin is never read (the invariant "no existing behaviour
+  changes when absent").
 
 ### C2 — server `--stop-on-stdin-eof`
 
