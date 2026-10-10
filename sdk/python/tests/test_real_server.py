@@ -43,7 +43,10 @@ pytestmark = pytest.mark.real_server
 
 
 def run[T](coroutine: Coroutine[Any, Any, T]) -> T:
-    return asyncio.run(asyncio.wait_for(coroutine, 120))
+    """Runs one coroutine on a selector event loop on every platform, so the network guard sees its
+    connections on Windows too (the same mechanism as `cognition/lm-controller`'s `tests/support.run`,
+    ledger F-P5-4)."""
+    return asyncio.run(asyncio.wait_for(coroutine, 120), loop_factory=asyncio.SelectorEventLoop)
 
 
 async def until(
