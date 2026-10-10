@@ -760,7 +760,9 @@ and of §4.4: the dependency key cannot be a rename (PD-21), and a root `[patch.
 
 ## 9.6 E-e — Lakeside and Milestone E
 
-**Expanded into a PR design in §18** (DRAFT, awaiting the primary session's freeze). It records that the
+**Expanded into a PR design in §18.** Status: `MERGED` — PR #137, merge commit `8c710d1` (2026-10-10T20:18:51Z).
+S16 is complete: E-a (`1a1d08e`), E-b, E-c (`0ba037f`), E-d and E-e (`8c710d1`) are all merged; Milestone E
+awaits the operator's acceptance. It records that the
 framework version is already 0.1.0 (E-a, Ea-C3), and one bounded finding that needs a ruling: the AC-8
 and image instruments enumerate `worlds/` without pack roots (F-Ee1, FQ-e1).
 
@@ -3583,7 +3585,8 @@ ED-13 Every platform (PD-q1 … PD-q4). On the PR's final head the `platforms` j
 
 # 18. PR E-e — Lakeside and Milestone E (PR design)
 
-**Lifecycle:** `DESIGN FROZEN (primary, 2026-10-10)` — with the rulings in §18.0 and §18.9. Drafted by
+**Lifecycle:** `MERGED` — PR #137, merge commit `8c710d1` (2026-10-10T20:18:51Z), final head `cdab766`;
+closeout in §18.8 (`E-Ee-final`). Before the merge: `DESIGN FROZEN (primary, 2026-10-10)` — with the rulings in §18.0 and §18.9. Drafted by
 the E-e implementation session (Phase 1 of its kickoff, 2026-10-10) from the audit in §18.3 on
 `main @ 5ccc402`; implementation runs under §18.11 in the same session (the kickoff's Phase 2).
 
@@ -4064,6 +4067,14 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   (summary-300 `e3fdc8bd…d596`); bodies-yard, market-town (`d5db8988…22ee`), social-cafe (`ad49c723…c64b`)
   equal. EE-14 PASS. Scratch branches `scratch/ee-36d0338-{scenario,image}`, `scratch/ee-7f4fb6f-scenario`
   deleted; `scratch/ee-718f630-scenario` deleted after this record.
+- **E-Ee-final** (closeout, 2026-10-10). Merged: PR #137, merge commit
+  `8c710d1ca6a1bdc363a2a1df863ebd071ceb7475`, 2026-10-10T20:18:51Z; final PR head `cdab766`. PR CI run
+  `38080335312` green on the exact head: `fast`, `test`, `platforms` (`macos-26`, `windows-2025`),
+  `test-windows`, `test-macos`, `python` ×3. AC-8: run `38065578235` PASS with four records (Darwin/arm64,
+  Linux/arm64, Linux/x86_64, Windows/x86_64), as recorded in E-Ee9. Primary review mutation: lakeside's
+  `requires:` changed to `acme-fishing "^0.2"` (the pinned pack is 0.1.0) → all 7 `milestone_e` tests failed
+  by name. Rulings applied: F-Ee6 (b) and F-Ee8 (E-Ee9). Lifecycle of §18 set to `MERGED`. Milestone E
+  awaits the operator's acceptance; no tag created (FQ-e4).
 
 **Findings (bounded unless marked).**
 
