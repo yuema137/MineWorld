@@ -2482,6 +2482,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | C3 | [x] `tools/weather-fetch`: manifest (lib + bin `weather-fetch`; `clap`, `mineworld-weather`, `serde-saphyr`; `ureq =3.4.2` optional, `default-features = false, features = ["rustls"]`, feature `fetch`); `src/lib.rs` (`reshape_bytes`, `write`, `date_argument`), `dly.rs` (readme §III columns; refusals by line), `reshape.rs` (rows by the pack's `RecordRow`, the report), `notice.rs` (§6.4 text, provenance, no clock), `fit.rs` (SD-TW-d-8c in `i128`), `fetch.rs` (`cfg(feature = "fetch")`, no retry), `main.rs` (clap; `fetch` without the feature explains how to get the file); tests `reshape.rs`, `fit.rs`, `confined.rs`; DEP-31 gains the feature tree's licences | [x] E-TWd-3: `cargo test -p mineworld-weather-fetch`: confined 1, fit 2, reshape 3, all pass; clippy `-p mineworld-weather-fetch --all-targets --all-features -D warnings` clean (compiles ring/rustls/ureq); fmt clean; criterion 4 commands verbatim in E-TWd-3. M-TWd-1, M-TWd-4 killed (TWd-F1) | [x] the tool owns no CSV format: rows are `mineworld_weather::RecordRow`, written by `record::encode` and re-read by `record::decode` before anything is written; the rules are decoded by `WeatherConfiguration` before `fit` returns. No float in the tool's source (the scan test). The NOTICE carries the attribution, both citations, CC0, "MODIFIED DATA … not endorsed by NOAA", the URL, the retrieval date and the provenance counts (§6.4, DEP-31, SD-TW-d-12). ring needs only a C compiler: the CI image is `rust:1.97.1-slim-trixie` (gcc), and `fast`'s clippy is the only `--all-features` build; the `platforms` layer (macOS, Windows) builds `mineworld-cli` and S16's tests, never the feature — no material stop (5) |
 | C4 | [x] `target/debug/weather-fetch fetch --station USW00023188 --out target/tw-d/noaa/USW00023188.dly` (the tool built with `--features fetch`; 1 of ≤ 3 fetches); `reshape --input … --station USW00023188 --from 2015 --to 2024 --retrieved 2026-10-10 --out-dir worlds/market-town/data/weather --name san-diego-usw00023188-2015-2024`; `.gitattributes` `worlds/*/data/**/*.csv text eol=lf`; the report into E-TWd-4 | [x] E-TWd-4: (a) 3 653 data rows; (b) 116 705 bytes (< 1 MiB); (c) one gap (2018-07-06, 1 day; TMAX Q-flagged), WT01 88 … 149 and WT02 8 … 26 days every year (CP-TW-d 2 applies; R-TW-5 does not occur); (d) re-run with the same arguments → `git diff --exit-code` on the staged CSV and NOTICE clean, report identical; (e) NOTICE "116705 bytes, 3654 lines (LF)" = `wc -c -l` of the committed CSV; `git check-attr`: text set, eol lf | [x] the NOTICE carries the attribution, both Menne et al. 2012 citations with DOIs, "MODIFIED DATA … not endorsed by NOAA", the URL and "retrieved 2026-10-10 (UTC)"; the licence is CC0-1.0 as E-TWd-1 / §3.2 |
 | C5 | [x] `worlds/market-town/configure/weather.yaml` = `weather-fetch fit --input <the CSV> --base <TW-b's file> --out … --station USW00023188 --data data/weather/san-diego-usw00023188-2015-2024.csv --first-year 2015` (`source: record`, `fill: rules`, seed 19, the fitted months); `worlds/market-town/README.md` one sentence; `ac1_composability.rs` (`files_under`, `data_failures`, `data/` admitted in Market Town for allow-listed packs' attachments and their NOTICE, refused in Social Café; unit test `data_admits_only_attachments_and_their_notice`); `tools/weather-fetch/tests/market_town.rs` (criterion 7 fit-equality; criterion 5); `systems/weather/tests/record_checkpoint.rs` (CP-TW-d, opt-in) and `moves_nobody.rs` gains `the_record_moves_nobody_but_process_ids` (opt-in); `src/rules/tests.rs` and `src/fixture.rs` no longer name the old table's values (TWd-D11) | [x] E-TWd-5 … E-TWd-8: CP-TW-d PASS; criterion 5 PASS (max \|Δ\| 14 ‰; spells 1.859 vs 1.844 days); criterion 7 PASS; INV-TW-1 PASS (four digests and the validate outputs = main's); the new market-town baseline `d5db8988…22ee`; TW-b criterion 5 re-checked (process ids +1 only, the TWb-F1 class); AC-1 15/15. M-TWd-5, M-TWd-10, M-TWd-A1, M-TWd-A2 killed. Town runs 8 of 8 (counting the 200-day leg) | [x] the AC-1 change admits nothing but the attachments the allow-listed packs' configurations name (read through the loader, `FoundConfiguration::configuration.attachments()`) and a `NOTICE` in the same directory; it is Market Town only, and `data/` in Social Café is named; checks 1 and 2 untouched. The fitted file's header names the tool, its version and the data file, and the formulas; the rules still bound-check (the pack decodes the file; `validate` accepts the world). A rules world's bytes are unchanged (E-TWd-5) |
+| C6 | [x] merge of origin/main @ cf18713 (70db0b0; clean, no conflict; main's `.gitattributes` now has `* text=auto eol=lf`, and TW-d's narrower line stays as frozen); this ledger; `handoff-tw-d.md` | [x] E-TWd-9: the full gate on 70db0b0; CI on the exact final head is recorded in the PR and the handoff, not here | N/A — records only |
 
 ### Evidence
 
@@ -2642,6 +2643,18 @@ E-TWd-8  CP-TW-d (§18.6) and criteria 5, 7, on the C5 tree:
            (and re-running the tool with its own output as the base reproduces it). PASS.
          AC-1: `cargo test -p mineworld-acceptance --test ac1_composability`: 15 passed (14 + the data/
            unit test). PASS.
+E-TWd-9  Full gate on 70db0b0 (C1–C5 + origin/main cf18713 merged; clean), macOS arm64, 2026-10-09
+         18:47–18:58 PDT (target/tw-d/gate.log, gate-test.log):
+           cargo fmt --all --check                                          exit 0          PASS
+           check_doc_headings.py   192 numbered sections, none duplicated                    PASS
+           check_decision_ids.py   88 ids, all distinct                                      PASS
+           check_ci_pins.py        toolchain pins agree                                      PASS
+           check_scratch.py scan   188 test sources, none outside test-support (2 exempt)    PASS
+           cargo clippy --workspace --all-targets --all-features -- -D warnings   exit 0   PASS
+           cargo test --workspace --no-fail-fast   exit 0: 204 result lines, all ok;
+             902 passed, 0 failed, 22 ignored (the opt-in save checks among them)        PASS
+           check_scratch.py left --target-dir target   no scratch left                       PASS
+         Later commits change only the plan documents. Full workspace test runs: 1 of 2.
 ```
 
 ### Mutations
@@ -2749,7 +2762,8 @@ TWd-F2  (finding; the TWb-F1 class) A record world starts a second weather Proce
         every person's activity are unchanged. TW-b merged with TWb-F1 open in its ledger; the operator's
         acceptance of its proposed form is inferred from that merge, not read in a recorded ruling — this
         PR reports the re-check in both forms rather than assume it.
-TWd-F3  (process) Two forbidden-list slips by this session, both read-only or no-ops, recorded for
-        honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing) and an empty
-        heredoc to /dev/null. No file was written by either.
+TWd-F3  (process) Three forbidden-list slips by this session, all read-only or no-ops, recorded for
+        honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing), an empty
+        heredoc to /dev/null, and an `awk` summing the gate's test counts (read-only). No file was
+        written by any of them.
 ```
