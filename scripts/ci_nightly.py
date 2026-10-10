@@ -361,30 +361,45 @@ def trend_section(repo: str, ref: str, run_id: str) -> list[str]:
     return lines if len(lines) > 2 else ["(no earlier night with a Linux x86_64 long record)"]
 
 
+def last_green_parity(repo: str, ref: str, sha: str, run_id: str) -> dict[str, object] | None:
+    """The newest earlier night (on main, for main) of another commit whose `parity-long` job passed —
+    the compare and the baselines both held there — so its Linux record is a reference to diff against."""
+    branch = "&branch=main" if ref == MAIN else ""
+    runs = json.loads(gh("api", f"repos/{repo}/actions/workflows/{WORKFLOW}/runs?status=completed{branch}&per_page=20"))
+    for run in runs.get("workflow_runs", []):
+        if str(run.get("id")) == run_id or run.get("head_sha") == sha:
+            continue
+        jobs = json.loads(gh("api", f"repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100")).get("jobs", [])
+        if any(job.get("name") == "parity-long" and job.get("conclusion") == "success" for job in jobs):
+            return run
+    return None
+
+
 def drift_section(repo: str, ref: str, sha: str, run_id: str, artifacts: Path) -> list[str]:
-    """When the baselines failed: the commits since the last green night and the first changed line."""
+    """When the baselines failed: the commits since the last night whose parity held, and the first line
+    and chunk that changed since then."""
     baseline = artifacts / "nightly-parity-long" / "baseline.txt"
     if not baseline.is_file() or "baselines FAIL" not in baseline.read_text(encoding="utf-8"):
         return ["- none" if baseline.is_file() else "- not checked tonight"]
     lines = ["```text", *baseline.read_text(encoding="utf-8").splitlines()[-30:], "```"]
-    branch = "&branch=main" if ref == MAIN else ""
     try:
-        runs = json.loads(gh("api", f"repos/{repo}/actions/workflows/{WORKFLOW}/runs?status=success{branch}&per_page=20"))
-        green = next(run for run in runs["workflow_runs"] if str(run["id"]) != run_id and run.get("head_sha") != sha)
-    except (Unmet, ValueError, KeyError, StopIteration) as error:
-        return lines + [f"(no earlier green night to locate the drift: {error or 'none'})"]
+        green = last_green_parity(repo, ref, sha, run_id)
+    except (Unmet, ValueError, KeyError) as error:
+        return lines + [f"(the earlier nights could not be read: {error})"]
+    if green is None:
+        return lines + ["(no earlier night of another commit whose parity-long passed, to locate the drift)"]
     new = artifacts / "nightly-parity-long-linux" / "parity-long-linux-x86_64.txt"
     with tempfile.TemporaryDirectory(prefix="mineworld-nightly-drift-") as scratch:
         try:
             gh("run", "download", str(green["id"]), "-R", repo, "-n", "nightly-parity-long-linux", "-D", scratch)
         except Unmet as error:
-            return lines + [f"(the green night {green['id']} has no Linux record: {error})"]
+            return lines + [f"(night {green['id']} has no Linux record: {error})"]
         located = subprocess.run([sys.executable, "scripts/ci_parity.py", "diff",
                                   str(Path(scratch) / "parity-long-linux-x86_64.txt"), str(new)],
                                  cwd=ROOT, capture_output=True, text=True)
     commits = subprocess.run(["git", "log", "--oneline", f"{green['head_sha']}..{sha}"], cwd=ROOT,
                              capture_output=True, text=True)
-    return lines + [f"Since the last green night, run {green['id']} on {str(green['head_sha'])[:12]}:",
+    return lines + [f"Since the last night whose parity-long passed, run {green['id']} on {str(green['head_sha'])[:12]}:",
                     "```text", *(commits.stdout.splitlines()[:40] or [commits.stderr.strip()]), "```",
                     "```text", *located.stdout.splitlines()[:60], "```"]
 
