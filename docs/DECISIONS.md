@@ -1760,6 +1760,13 @@ snapshot, not a load of facts. A restored world's clock is the instant of its la
 seconds after it are not persisted, and world time does not pass while no process hosts the world.
 The log is kept whole; compaction and snapshot pruning are later work.
 
+**Note 2026-10-10 (`ARC-81`).** Snapshot pruning is that later work, done for snapshots only:
+`ARC-81` retains genesis, an anchor every 64 scheduled snapshots and the newest two, and stores each
+snapshot as a zstd frame of its JSON encoding. Everything above still holds unchanged — the fact log
+and the journal are kept whole, a restart restores the newest snapshot at or below the head, and
+`verify` re-executes from genesis and compares every snapshot the save still holds. Compaction of the
+log remains later work (SR-b), and dropping journal or facts before a checkpoint stays excluded.
+
 ---
 
 ## ARC-26 — Movement decides, presence owns: an event type's owner is its vocabulary and its reducer
@@ -5910,6 +5917,24 @@ general policy engine — rejected (`DEP-28`). (c) **One SDK shape, the meaning 
 - In IL-b only `conversation` and `group-activity` have sections, and they declare parameters only.
   Rules and consequences of real packs arrive with IL-e … IL-g.
 
+**Note, 2026-10-10 (S17, PR IL-e; QIE-1, QIE-2, SD-IE-2, SD-IE-8) — the first rules of real packs, and a
+rule decided in a reaction.** `conversation` declares the action `talk`; `group-activity` declares
+`invite`, `accept-invitation` and `join-group-activity` (never `decline-invitation` or
+`leave-group-activity`: a list can stop people coming together, not trap anyone in an invitation or an
+activity; `accept-invitation` is governed because accepting joins the inviter's activity, so a
+`join-group-activity` rule alone would leak). Each pack asks `permits` in `validate` after the payload is
+readable, the actor and target exist and are Persons and the actor is located, and before any condition
+that depends on the pack's own state (an open invitation, `Busy`) and before the spatial requirement; its
+offers ask the same `permits` and answer `Offer::refused(PermissionDenied)` (item 8).
+
+Item 1 says a rule is "an action and role selectors". A pack may also declare a **rule name for a yes/no
+decision it makes in a reaction**: `relationships` declares `acquaint` (roles `actor`, the person who
+would come to know, and `target`, the counterpart; not regional), asked per directed change while it
+reduces another pack's fact, before any state is written; forbidden, that direction forms no
+acquaintance, no `knows` edge and no fact. The name is declared through the same `ActionDecl` (the SDK
+keys rules by `ActionTypeId`); it **names no action type a client can send**, and a test pins that no
+installed pack provides an action type `acquaint`. No SDK type is added.
+
 ---
 
 ## ARC-64 — Entity classes are named tag selectors, fixed during play
@@ -5995,6 +6020,27 @@ leaking private state, or telling a mind what to forget.
 with a test-only pack, and through the binary when IL-e converts conversation (QIB-11). Perceiving a
 narrowed fact as a bystander is proven by S11-C's audience function and `mineworld perceived` when they
 exist (QIB-12); IL-b proves the envelope's `Visibility`.
+
+**Note, 2026-10-10 (S17, PR IL-e; QIE-3, QIE-5, QIE-6, QIE-10 … QIE-12) — the first configurable facts of
+installed packs.** `conversation` declares `spoke` (owner default `Place`, narrowest `Participants`) and
+`conversation-started` (`Participants`), both with configurable biography, compiled off, and the knob
+`remember` (item 3's "in-world" layer: whether the listener's `ConversationHistory` keeps the line; it
+never stops the fact being recorded, perceived or reduced by another pack). `group-activity` declares its
+seven facts — the three invitation facts `Participants`, compiled non-biographical; `group-activity-started`
+and `-ended` by `place` only, since their members list has no fixed positions; `joined-` and
+`left-group-activity` by `actor` and `place` — each narrowable to `Participants`, biography configurable.
+`relationships` declares `became-acquainted` and `relationship-changed` (already `Participants`;
+biography configurable, compiled on). Each owner writes its default audience once, in its `FactDecl`, and
+passes it as `owner_default` at emission.
+
+The accepted limitations above are closed: the biography projection through the binary (QIB-11) and a
+narrowed `spoke` not perceived by a bystander through `audience::admits` and `mineworld perceived`
+(QIB-12) are proven by IL-e's tests. **Biography is chosen per fact, not per reader** (QIE-6, accepted for
+MVP-0): `selected` fills the roles from the envelope, so its answer is the same for every person the fact
+names — `{ fact: spoke, actor: servant, biography: off }` removes a servant's line from the servant's and
+the listener's biography alike. Per-reader selection would change the SDK and this record. No line is
+biographical by default in MVP-0 (QIE-12): a world that wants lines in biographies writes
+`{ fact: spoke, biography: on }` first.
 
 ---
 
@@ -7053,6 +7099,138 @@ programs running its CLI with a subscription.
 
 ---
 
+## ARC-81 — Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole
+
+**Date** 2026-10-10 · **Amends** `ARC-25`'s accepted limitation ("compaction and snapshot pruning are
+later work"), for snapshots only · **Relates to** `INV-11`, `ARC-23`, `ARC-25`, `ARC-27`, `ARC-49`,
+`DEP-2`, `DEP-5`, `DEP-43`, [`MVP.md`](MVP.md) §9 `AC-8`, `AC-12` · **Approved by** the operator's
+rulings on QSR-1, QSR-3, QSR-4 and the primary session's on QSR-2, QSR-5, QSR-6 (2026-10-10) ·
+**Design** `.structured-coding/plans/mvp0/pr-s6-save-retention.md` (finding `F-SAVE-1`)
+
+**Problem.** A save wrote a full world snapshot every 64 revisions and never dropped one. Measured at
+`bb62edf`: a 30-day Market Town save is 357 MiB and a 300-day one 3.53 GiB, of which 80–84 % is
+snapshots of ≈ 0.7 MB each. Snapshot size had plateaued; the growth was purely their count.
+Snapshots are checkpoints, never an authority (`ARC-25`), so almost all of them carry no information
+the journal cannot regenerate.
+
+**Options considered** (design §5; sizes for the 300-day save).
+
+```text
+5.1  keep genesis + an anchor every 4 096 revisions + the newest 2     ≈ 636 MiB   adopted
+5.2  zstd-compressed snapshot rows                                    ≈ 809 MiB   adopted
+5.1 + 5.2                                                             ≈ 587 MiB   the choice
+5.3  delta snapshots (zstd --patch-from a base)                       chained restore, one damaged
+                                                                      delta damages every later one
+5.4  SQLite VACUUM / auto_vacuum                                      no effect alone; nothing deleted
+5.5  page compression: ZIPVFS, sqlite-zstd                            proprietary; LGPL-3.0, layout
+                                                                      changed outside our transaction
+5.6  content-addressed dedup of snapshot sections                     a second storage model for ≈ 3 MiB
+5.7  drop journal and facts before a checkpoint                       contradicts ARC-25 and INV-11
+5.8  compress the log in sealed blocks (SR-b)                         ≈ 40 MiB; changes where the
+                                                                      authority's bytes live: its own PR
+```
+
+**Choice.**
+
+1. **Only snapshot rows are ever deleted** (D-SR-1). No row of `facts` or `journal` is deleted,
+   updated or re-encoded; their bytes are exactly what a format-2 build wrote for the same run.
+2. **Anchors** (D-SR-2). Scheduled snapshots stay every `interval` revisions (default 64). An anchor is
+   a scheduled snapshot at a multiple of `64 · interval` (default 4 096). Genesis (revision 1) is
+   always kept.
+3. **The retention rule** (D-SR-3). When the scheduled snapshot at revision *n* is committed, the
+   retained set is `K(n) = {1} ∪ {a ≤ n : a mod (64·interval) = 0} ∪ {n, n − interval}`; every stored
+   snapshot *s < n* outside `K(n)` is deleted in the same transaction. An off-lattice checkpoint (a
+   clean shutdown's) is kept until the next scheduled snapshot and then falls under the rule. The rule
+   reads *n*, the interval and the set of stored revisions, nothing else, so a killed-and-resumed
+   headless run holds the same rows as an uninterrupted one (`ARC-27`).
+4. **The codec** (D-SR-4, D-SR-5). A stored snapshot is a zstd frame — level 3, checksum on, content
+   size in the header, single-threaded, no dictionary — of the exact bytes `serde_json` gives the
+   `WorldSnapshot`. It lives in `persistence/src/format.rs` (`encode_snapshot`, `decode_snapshot`);
+   the backend stays opaque (`DEP-2`). Journal entries and facts are not compressed.
+5. **Comparison is of decoded bytes** (D-SR-6). `verify` decompresses each stored snapshot and compares
+   its JSON bytes with the state the history produces. `verify_from(backend, composed, anchor)`
+   restores a retained snapshot and re-executes to the head with the same checks.
+6. **Where pruning runs** (D-SR-7). `PersistentWorld` tracks the stored snapshot revisions, computes
+   the revisions to retire and hands them to the backend in `RevisionRow::retire`; the SQLite backend
+   deletes them inside the revision's transaction, after inserting the new snapshot. A failed delete
+   fails the whole revision.
+7. **Format** (D-SR-8). `SAVE_FORMAT` is 3. A format-2 save is refused by name
+   (`SaveFormatOutdated { saved: 2, supported: 3 }`); no migration (QSR-3: no release has shipped).
+8. **Visible** (D-SR-9). `mineworld inspect` prints the retained snapshot revisions and their stored
+   sizes (`ARC-23`).
+
+**Why it does not weaken `ARC-25`.** A restart still restores the newest snapshot at or below the head,
+which the rule never deletes (`n` and `n − interval` are always kept). `verify` still re-executes every
+revision from genesis and compares every fact and every snapshot the save holds. Equality of state is
+argued only from decoded JSON, so no codec setting can change a replay verdict. Free pages left by a
+delete are reused by the next insert; `VACUUM` is never run on a user's save.
+
+**Accepted limitations.** The log alone still grows ≈ 1.9 MiB per simulated day in Market Town; SR-b
+(log compression, design §6.9) is its remedy, approved as a separate PR (QSR-1). Retention is a constant,
+not a player or World Pack setting (QSR-4). A hosted world may hold one extra off-lattice checkpoint
+between scheduled snapshots, which `AC-12` does not cover (`ARC-27`).
+
+**Revisit** if a feature needs denser history (a "rewind to any hour" would revisit 5.3 / 5.6 and the
+anchor spacing), if `AC-8` parity ever differs in the `snapshots` table (see `DEP-43`), or when SR-b is
+designed.
+
+---
+
+## DEP-43 — Snapshot compression: `zstd` (bundled libzstd), level 3
+
+**Date** 2026-10-10 · **Status** selected; one dependency added to `mineworld-persistence` only ·
+**Approved by** the primary session (QSR-6) and the operator's QSR-1 ruling, 2026-10-10 · **Relates
+to** `ARC-25`, `ARC-49`, `ARC-55`, `ARC-81`, `DEP-2`, `DEP-22`, `REUSE_POLICY.md` §§1–4, 11–12 ·
+**Design** `.structured-coding/plans/mvp0/pr-s6-save-retention.md` §5
+
+**Problem.** A plateaued Market Town snapshot is ≈ 700 KB of JSON, written every 64 revisions on the
+world thread. It must shrink by an order of magnitude, cheaply, and the stored bytes must be the same
+on macOS, Linux and Windows, because `AC-8` hashes every stored byte of a 30-day save on all three
+(`ARC-49`).
+
+**Options considered** (one day-30 snapshot of 703 730 B, measured on the design laptop).
+
+```text
+zstd 3 (zstd crate, bundled libzstd)     52 045 B  13.5×   ≈ 1.2 ms; decompress ≈ 1 GB/s   chosen
+zstd 9                                   41 550 B  16.9×   ≈ 5× slower than level 3
+zstd 19                                  33 021 B  21.3×   seconds per 50 snapshots
+deflate 6 (miniz_oxide / flate2)         45 672 B  15.4×   ≈ 16 ms: ≈ 13× slower
+lz4 (lz4_flex, pure Rust)                96 989 B   7.3×   fastest, 1.9× larger
+ruzstd (pure Rust zstd)                  its own documentation: the encoder does not yet reach the
+                                         reference library's speed or ratio        the fallback
+sqlite-zstd                              LGPL-3.0 (outside ARC-55); asynchronous chunking
+ZIPVFS                                   proprietary licence
+```
+
+**Choice.** `zstd = { version = "0.13", default-features = false }` in the workspace, used only by
+`persistence/src/format.rs` (the codec behind `encode_snapshot` / `decode_snapshot`, `ARC-81`). Default
+features off: no legacy-format decoding, no dictionary builder, no multithreading. libzstd is compiled
+from the source bundled in `zstd-sys` with the same `cc` path `libsqlite3-sys` already uses (MSVC on
+Windows, clang on macOS, gcc in the Linux container): no new toolchain. `zstd-sys`'s `pkg-config`
+feature is never enabled, and no MineWorld build or CI job sets `ZSTD_SYS_USE_PKG_CONFIG` (the
+environment variable that would link a system libzstd instead); the exact versions are pinned by
+`Cargo.lock`.
+
+**Determinism.** One compression level, no dictionary, single-threaded, checksum and content size in
+the frame header: the stored bytes are a pure function of the JSON bytes and the pinned libzstd. That is
+checked rather than assumed: `AC-8` compares the `snapshots` table's stored bytes across the three
+platforms. A future zstd upgrade may change the stored bytes of new snapshots; it changes no decoded
+state and no replay verdict (`ARC-81`: comparison is of decoded JSON), and `AC-12` compares two runs of
+one build.
+
+**Licences** (`ARC-55`, `DEP-22`), as `Cargo.lock` admits them: `zstd` 0.13.3 is MIT; `zstd-safe`
+7.3.0 and `zstd-sys` 2.1.1+zstd.1.5.7 declare BSD-3-Clause, the licence the bundled libzstd 1.5.7 is
+taken under (upstream is dual BSD / GPL-2.0). `zstd-sys` builds with `cc`'s `parallel` feature, which
+adds build-time crates only: `jobserver` 0.1.35 and `getrandom` 0.4.3 (MIT or Apache-2.0) and `r-efi`
+6.0.0 (MIT or Apache-2.0 or LGPL-2.1-or-later, taken under MIT; compiled only for UEFI targets).
+`cargo deny check licenses sources bans` admits the graph.
+
+**Re-evaluation trigger.** A platform build of `zstd-sys` fails, or `AC-8` parity differs in the
+`snapshots` table: then `ruzstd` (MIT, pure Rust) is the named fallback, or `ci_parity` hashes decoded
+snapshot JSON (a reviewed change to `ARC-49`). Either is a decision returned to the operator.
+
+---
+
 ## ARC-77 — Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere
 
 **Date** 2026-10-10 · **Approved by** the primary session at PR E-e's design freeze (step-16 §18.0;
@@ -7227,3 +7405,37 @@ be compiled into the interpreter; P4 checks it on every CI platform (`test_fts5_
 
 **Revisit** if a platform's CPython ships without FTS5, if embedding retrieval is adopted (sqlite-vec or
 LanceDB, re-evaluated then), or if CJK worlds become a demo target.
+
+---
+
+## DEP-44 — The resuming seat's reconnect loop is our own, over the adopted `websockets` transport
+
+**Date** 2026-10-10 · **Status** adopted by S10 PR P3b (no new dependency; `uv.lock` unchanged) ·
+**Approved by** the primary session at P3b's freeze (Q-P3b-1, 2026-10-10) · **Relates to** `DEP-25`,
+`ARC-56` · **Design** `pr-s10-p3b-perceived.md` §4.3 (D-P3b-5, D-P3b-9, D-P3b-10), §4.5 · **Placeholder**
+`DEP-P3b-a`
+
+**Problem.** A Python seat that must not miss a fact rejoins after a dropped socket, a `lagged` refusal
+or a server restart (`server/PROTOCOL.md` §§4.2, 5.5, 5.8). Which outcomes are retried, whether a rejoin
+carries `resume`, which cursor it presents, and when a changed world instance ends the seat are protocol
+decisions; the delays between attempts are the small remainder.
+
+**Options considered** (facts read 2026-10-10 from the installed or cached distributions):
+
+| Candidate | Licence (from its own metadata); version | Verdict |
+| --- | --- | --- |
+| `websockets`' reconnecting iterator, `async for connection in connect(url)` | BSD-3-Clause (`License-Expression`, 17.2, already `DEP-25`) | **Declined** for the protocol loop. `websockets/asyncio/client.py` `connect.__aiter__`: it backs off only when opening a connection fails (`process_exception` decides which failures); a connection that ends after it was yielded is reopened at once and resets the backoff, and nothing in it knows `join`, `resume`, the hold, the cursor or a world instance — the whole problem. Its default delays (`websockets/client.py` `backoff`) come from module globals read from `WEBSOCKETS_BACKOFF_*` environment variables at import (`D-P3-9`: the SDK reads no environment), the first `random.random() * 5` s from the unseeded global generator, then 3.1 s × 1.618 up to 90 s — past the server's default 30 s hold. A `reconnect_delays` callable can replace that sequence, but the sleep is `asyncio.sleep`, not injectable for a fake clock, and each retry is logged through the library's logger |
+| `tenacity` | Apache-2.0 (`License: Apache 2.0`, 9.1.4) | **Declined**: a dependency for a capped exponential sequence of a few lines; the decision of *what* to retry stays ours either way, and it would put its own sleep and clock in the path the scripted tests replace |
+| `backoff` | MIT (`License: MIT`, 2.2.1) | **Declined**, for the same reasons |
+| **Our loop**: `mineworld_sdk/resuming.py` (the seat) and `mineworld_sdk/reconnect.py` (the table and the delays) | — | **Adopted** |
+
+**Choice.** `ResumingSeat` owns the loop (`pr-s10-p3b-perceived.md` §4.5's table is the whole retry
+policy). Its delays: the first attempt after a loss is immediate, then `first_delay × factor^k` capped
+at `ceiling`, each scaled by a factor drawn from `random.Random(policy.seed)` (per seat), until
+`give_up_after` wall seconds from the loss. The sleep and the clock are injectable (default
+`asyncio.sleep` and the running loop's `time()`); no environment variable is read. The transport stays
+`websockets` (`DEP-25`) with its keepalive; `session.py` remains the only importer of `websockets` in the
+library.
+
+**Revisit** when a second protocol client in Python needs the same loop: it then moves, unchanged, into a
+shared module, not into a library.

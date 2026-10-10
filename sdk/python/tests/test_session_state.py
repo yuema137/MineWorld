@@ -10,9 +10,12 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Coroutine
+from pathlib import Path
 from typing import Any
 
 import pytest
+import support
+from websockets.exceptions import ConnectionClosedError
 
 from mineworld_sdk import offers
 from mineworld_sdk.errors import MineWorldError
@@ -21,6 +24,7 @@ from mineworld_sdk.session import (
     ForeignObserver,
     JoinRefused,
     Outcome,
+    Perceiving,
     ProtocolMismatch,
     ProtocolViolation,
     RefusedRequest,
@@ -34,8 +38,8 @@ from mineworld_sdk.wire.contract import (
     Observation,
     SpatialRequirement,
 )
-from mineworld_sdk.wire.frames import Invite, PerceivedJoin
-from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
+from mineworld_sdk.wire.frames import Invite, Perceived
+from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, EventId, JsonValue
 
 ME = EntityId("101")
 WORLD: JsonValue = {
@@ -145,11 +149,8 @@ async def settle() -> None:
 
 
 def run[T](coroutine: Coroutine[Any, Any, T]) -> T:
-    """Runs one coroutine on a selector event loop on every platform.
-
-    The selector loop connects with `socket.connect`, which the network guard (pytest-socket) patches.
-    Windows' default proactor loop connects with `ConnectEx` instead and is not guarded (ledger F-P5-4)."""
-    return asyncio.run(asyncio.wait_for(coroutine, 5), loop_factory=asyncio.SelectorEventLoop)
+    """Runs one coroutine on the selector loop on every platform, within 5 s (`support.run`)."""
+    return support.run(coroutine, timeout_s=5)
 
 
 def test_answers_are_paired_by_token_not_by_order() -> None:
@@ -283,28 +284,125 @@ def test_a_delta_is_applied_to_the_observation_held_and_one_that_does_not_fit_en
     run(scenario())
 
 
-def test_the_perceived_stream_is_kept_in_order_with_its_cursor() -> None:
-    # S11-C (PROTOCOL.md §5.8): the join asks for the stream; every fact is kept, with the cursor.
+def perceived(through: str, *ids: str) -> str:
+    return json.dumps({"t": "perceived", "through": through, "events": [fact(i) for i in ids]})
+
+
+async def perceiving(
+    script: Script, since: str | None = None
+) -> tuple[SeatSession, list[Perceived]]:
+    """A session that asked for the `perceived` stream, and the frames its sink was handed."""
+    handed: list[Perceived] = []
+    session = await SeatSession.join(
+        script,
+        seat=EntityKey("visitor"),
+        invite=Invite("not-a-secret"),
+        nickname="tester",
+        perceiving=Perceiving(None if since is None else EventId(since), handed.append),
+    )
+    return session, handed
+
+
+def test_perceived_frames_reach_the_sink_in_order_and_the_session_keeps_none() -> None:
+    # S11-C (PROTOCOL.md §5.8): the join asks for the stream from its cursor; each frame goes to the
+    # caller's sink, and the through received before an observation is recorded with it (§3.6).
     async def scenario() -> None:
         script = Script(welcome())
-        session = await SeatSession.join(
-            script,
-            seat=EntityKey("visitor"),
-            invite=Invite("not-a-secret"),
-            nickname="tester",
-            perceived=PerceivedJoin(since=None),
-        )
+        session, handed = await perceiving(script, since="3")
         sent = script.sent[0]
-        assert isinstance(sent, dict) and sent.get("perceived") == {"since": None}, sent
-        for through, ids in (("12", ["7", "12"]), ("20", ["15"])):
-            script.say(
-                json.dumps({"t": "perceived", "through": through, "events": [fact(i) for i in ids]})
-            )
+        assert isinstance(sent, dict) and sent.get("perceived") == {"since": "3"}, sent
+        script.say(perceived("12", "7", "12"))
+        script.say(observation(1))
+        script.say(perceived("20", "15"))
+        await session.changed()
         await settle()
-        assert [event.id for event in session.perceived] == ["7", "12", "15"]
-        assert session.perceived_cursor == "20"
+        assert [(f.through, [e.id for e in f.events]) for f in handed] == [
+            ("12", ["7", "12"]),
+            ("20", ["15"]),
+        ]
+        assert session.newest_through == "12"
 
     run(scenario())
+
+
+FRAMES = Path(__file__).resolve().parents[3] / "server" / "tests" / "frames"
+
+
+def golden_text(kind: str) -> str:
+    """A reviewed server frame, byte for byte as `server/tests/frames.rs` checks the Rust types."""
+    return (FRAMES / f"{kind}.json").read_text(encoding="utf-8")
+
+
+def test_the_lagged_sequence_ends_the_session_as_lagged_not_as_a_violation() -> None:
+    # AP3b-1 (F-P3b-1): `refused { lagged }` carries no token and is followed by `closing { lagged }`
+    # (PROTOCOL.md §5.5, §5.8). The client rejoins and loses nothing; it never met a violation.
+    async def scenario() -> MineWorldError:
+        script = Script(welcome())
+        session, handed = await perceiving(script)
+        script.say(perceived("12", "7"))
+        script.say(golden_text("refused-lagged"))
+        script.say(golden_text("closing-lagged"))
+        with pytest.raises(MineWorldError) as ended:
+            await session.changed(since=10**6)
+        await settle()
+        assert script.closed, "the client closes the socket on closing (PROTOCOL.md §5.6)"
+        assert [f.through for f in handed] == ["12"]
+        return ended.value
+
+    error = run(scenario())
+    assert isinstance(error, SessionClosed) and error.reason == "lagged", repr(error)
+
+
+class Dropped(Script):
+    """A socket whose server side vanishes once its frames are read: `recv` then raises as `websockets`
+    does for a connection closed without a close frame."""
+
+    async def recv(self) -> str:
+        if self.inbound.empty():
+            raise ConnectionClosedError(None, None)
+        return await super().recv()
+
+
+def test_a_socket_dropped_between_lagged_and_its_closing_still_ends_as_lagged() -> None:
+    # C2's failure case: the socket ends before `closing { lagged }` is read.
+    async def scenario() -> MineWorldError:
+        script = Dropped(welcome())
+        session, _ = await perceiving(script)
+        script.say(golden_text("refused-lagged"))
+        with pytest.raises(MineWorldError) as ended:
+            await session.changed(since=10**6)
+        return ended.value
+
+    error = run(scenario())
+    assert isinstance(error, SessionClosed) and error.reason == "lagged", repr(error)
+
+
+@pytest.mark.parametrize(
+    ("frames", "wrong"),
+    [
+        ([perceived("12", "12", "7")], "strictly ascending"),
+        ([perceived("10", "7", "10"), perceived("15", "10", "15")], "repeats a fact"),
+        ([perceived("9", "7", "10")], "below its own last fact"),
+        ([perceived("10", "7", "10"), perceived("8")], "below the previous"),
+    ],
+    ids=["descending", "duplicate", "through-below-fact", "through-goes-back"],
+)
+def test_a_broken_perceived_stream_fails_closed(frames: list[str], wrong: str) -> None:
+    # AP3b-2 (design §4.4, checks 1-3): the session ends ProtocolViolation and hands the sink nothing
+    # from the bad frame on. Through ResumingSeat that is SeatLost("protocol_violation") (AP3b-5 row 11).
+    async def scenario() -> tuple[MineWorldError, list[Perceived]]:
+        script = Script(welcome())
+        session, handed = await perceiving(script)
+        for frame in frames:
+            script.say(frame)
+        with pytest.raises(MineWorldError) as ended:
+            await session.changed(since=10**6)
+        return ended.value, handed
+
+    error, handed = run(scenario())
+    assert isinstance(error, ProtocolViolation) and wrong in str(error), repr(error)
+    good = [json.loads(frame)["through"] for frame in frames[:-1]]
+    assert [f.through for f in handed] == good, "nothing past the bad frame reached the sink"
 
 
 def test_a_server_of_another_revision_is_refused() -> None:

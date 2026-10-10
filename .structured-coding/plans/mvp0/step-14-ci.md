@@ -2848,6 +2848,11 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
 **Lifecycle:** outline, not designed to the commit. It refines §7.3 against 13a and 13b as built and as
 designed. It is detailed to the commit by its own planning session, after 13b's freeze.
 
+> **Detailed and frozen (2026-10-10, primary session):** the nightly part of 13c is designed in
+> [`pr-13c-nightly.md`](pr-13c-nightly.md) (`ARC-83`, `DEP-45`), which departs from this outline as its
+> §1.3 lists (a separate `nightly.yml`; 13b's per-push jobs read, not re-run; committed baselines; the
+> 1 000-day saved run after S6). Where they differ, that document governs.
+
 ## 14.1 What 13c owns
 
 - **The `schedule:` trigger, for the whole workflow.** It is a single nightly cron, for example 03:17 UTC,
