@@ -178,6 +178,8 @@ func _walk() -> void:
 	if not await _walk_done("into the street"):
 		return
 	await _seconds(SETTLE_S)
+	# From the street, before the café: what the doorways read and how the façades are drawn (R-PK-1).
+	_report_self()
 	_check_facades()
 	var door := Vector2i.ZERO
 	var target := ""
@@ -450,7 +452,8 @@ func _report_shown() -> void:
 		var drawn: Variant = app.people.drawn_plan(id)
 		people.append({"id": id, "label": app.people.label_of(id), "activity": app.people.activity_of(id),
 			"local": null if drawn == null else app.town.local_in(here, drawn)})
-	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways, "people": people}))
+	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways,
+		"doorway_labels": app.places.door_labels(), "people": people}))
 
 
 func _report_self() -> void:
