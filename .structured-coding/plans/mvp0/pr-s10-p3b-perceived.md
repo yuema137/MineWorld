@@ -533,11 +533,18 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 - **Goal.** §4.4's per-seat rules as a pure, scriptable component.
 - **Scope.** `perceived.py` (`PerceivedBatch`, `CursorSource`, `CursorCell`, `PerceivedStream`, the
   accept/deliver/discard operations), `tests/test_perceived.py`. **Depends on:** C2.
-- [ ] Implementation.
-- [ ] Validation: AP3b-3 (a)–(c) and the `CursorAhead` case; AP3b-4. Mutations AP3b-3 (a), (b), (c);
-  AP3b-4.
-- [ ] Review: no `int(` on an id (scan as in P4 AP4-2 (c)); an empty batch with a higher `through` is
-  delivered; a terminal end delivers what was accepted before raising.
+- [x] Implementation: `perceived.py` `PerceivedBatch`, `CursorSource`, `CursorCell` (refuses a lower
+  `through`), `CursorAhead`, `LocalLag`, `PerceivedStream` (`accept` / `discard` / `since` / `finish`,
+  `delivered`; suppression at the high-water mark of accepted-or-delivered, reset to `delivered` on
+  discard); `tests/test_perceived.py` (stream-level; the seat-level halves — the sent `join`, the
+  close without `leave` — are C4's in `test_resuming.py`).
+- [x] Validation (E-P3b-6): 8 stream tests; 61 passed in the SDK suite without real_server; ruff,
+  pyright clean. Mutations AP3b-3 (a), (b), (c) and AP3b-4 red (§13.4).
+- [x] Review: no `int(` in `perceived.py` or `session.py` (grep empty); an empty batch with a higher
+  `through` is delivered, one with an equal `through` is not
+  (`test_an_empty_batch_that_moves_the_cursor_is_delivered`); a terminal end delivers what was
+  accepted, then raises (`test_the_stream_ends_after_what_was_accepted`). AP3b-3's script literal
+  corrected (DV-P3b-4).
 
 ### C4 — The resuming seat: the decision table, backoff, observations and submits across connections
 
@@ -728,6 +735,8 @@ E-P3b-5  C2 working tree (base bf44367+C1 e90392c + C2 diff): `pytest sdk/python
          real_server"` → 53 passed, 4 deselected; `pytest sdk/python -m real_server -v` → 4 passed
          (9.6 s, the binary built from this worktree); ruff check, ruff format --check, pyright
          (0 errors) clean.
+E-P3b-6  C3 working tree: `pytest sdk/python/tests/test_perceived.py` → 8 passed; `pytest
+         sdk/python -m "not real_server"` → 61 passed, 4 deselected; ruff, pyright 0 errors.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
@@ -759,6 +768,17 @@ DV-P3b-3 (bounded; C2) — a perceived frame on a join that asked for none is a 
   Reason: with no sink there is nowhere to hand it; PROTOCOL.md §5's table sends perceived "only to a
     connection whose join carried perceived". Before, such frames were silently kept.
   Validation: covered by review; no client of the SDK receives such a frame from the real server.
+
+DV-P3b-4 (bounded; C3) — AP3b-3's script literal 18 replaced by 22.
+  Previous assumption: AP3b-3's script sends B{12,15 → 20} on connection 1, then {12,15,18 → 25}
+    on connection 2, and expects the consumer to receive {18 → 25}.
+  Audit evidence: PROTOCOL.md §5.8 — through is "the newest EventId the server has considered for
+    this connection"; so a fact 18 ≤ 20 that B did not carry is not this observer's, and cannot
+    follow on a later connection. D-P3b-3 (frozen) drops every fact ≤ delivered (20); the literal
+    script contradicts it.
+  Corrected understanding: the criterion (exactly once, the store decides the cursor, the
+    concatenation ascending without gap or duplicate) is unchanged; only the inconsistent literal is.
+  Implementation consequence: none. Test consequence: 22 for 18; delivered 7, 10, 12, 15, 22.
 ```
 
 ### 13.4 Mutations (filled during implementation)
@@ -769,4 +789,8 @@ Each planted on the working tree, run, and reverted; the reverted tree re-run gr
 | --- | --- | --- | --- |
 | AP3b-1 | base `route` (tokenless refusal → `ProtocolViolation`) | `test_the_lagged_sequence_…` FAILED: `ProtocolViolation('a refusal naming no request: lagged')` | red, as required |
 | AP3b-2 | `ConnectionOrder.admit` check 2 disabled | `test_a_broken_perceived_stream_fails_closed[duplicate]` FAILED; the other three passed | red, as required |
+| AP3b-3 (a) | `since()` returns the last received `through` (`delivered`, "20") | `test_each_fact_…` FAILED `'20' == '10'` (and `test_a_source_ahead_…` did not raise) | red, as required |
+| AP3b-3 (b) | suppression removed (every fact kept) | `test_each_fact_…` FAILED: `['12', '15', '22'] == ['22']` (12 and 15 twice) | red, as required |
+| AP3b-3 (c) | `since()` presents the cursor one id late | `test_a_new_process_resumes_…` FAILED: `['12', '15', '18'] == ['11', …]` (11 missing); within one process `CursorAhead` catches it first | red, as required |
+| AP3b-4 | on overflow, drop the oldest batch instead of discarding all and lagging | `test_more_waiting_than_the_bound_…` FAILED: did not raise `LocalLag` (the gap itself is shown at seat level, C4) | red, as required |
 | AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |
