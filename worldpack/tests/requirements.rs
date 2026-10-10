@@ -116,8 +116,8 @@ fn an_unmet_requirement_is_refused_naming_the_world_and_the_pack() {
         );
         let refusal = refusal.to_string();
         for needle in needles {
-            // A path in a needle is written with `/`; the refusal prints this platform's separator
-            // (step-16 §16.12 PD-p5; the claim — the refusal names the file — is unchanged).
+            // A needle naming a file is written with '/'; the refusal displays the OS's separator
+            // (step-16 §16.12 PD-p5). No other needle holds a '/'.
             let needle = needle.replace('/', std::path::MAIN_SEPARATOR_STR);
             assert!(
                 refusal.contains(&needle),

@@ -56,9 +56,11 @@ jobs:
         with:
           layer: core
 
-  # The `platforms` layer on macOS and Windows, natively (step-16 §16.12 PD-p1; step-14 §13.0.3: one
-  # native action and one layer table, shared with S13's 13b). Same triggers as `test`. Runner labels
-  # pinned as 13b pins them, so a label migration never moves a platform silently.
+  # S16's packages on macOS and Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms`
+  # layer, with `test`'s triggers. Linux keeps its container layers. The whole checkout: its longest path
+  # is 120 characters, far inside Windows' MAX_PATH; Git's default core.autocrlf is left as the runner
+  # has it, so the layer reads CRLF files as a Windows user would. Whether it blocks a merge is ARC-48's
+  # question, raised to S13.
   platforms:
     name: platforms (${{ matrix.os }})
     if: >-
@@ -69,35 +71,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, windows-2025]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
-      # PD-p2: a sparse checkout of the Cargo workspace and what its tests read, so the clients' deep
-      # asset paths never meet Windows' MAX_PATH. Git's default line endings are kept: the layer reads
-      # CRLF files as a Windows user's checkout has them.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
-          sparse-checkout: |
-            .cargo
-            .github
-            authoring
-            cognition
-            contracts
-            kernel
-            packages
-            persistence
-            presentation
-            scripts
-            sdk
-            server
-            systems
-            tests
-            tools
-            worldpack
-            worlds
       - uses: ./.github/actions/native
         with:
           layer: platforms

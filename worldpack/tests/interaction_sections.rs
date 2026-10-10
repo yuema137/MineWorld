@@ -152,7 +152,11 @@ fn a_class_scopes_the_gap_to_its_people_and_never_to_a_place_with_the_same_tag()
 
     // The park carries the tag too; the class is of people, so the park is not in it.
     let (scratch, _) = loaded("interaction-sections-place-tag", &[], &[]);
-    let park = std::fs::read_to_string(scratch.join("places/park.yaml")).expect("readable");
+    // Line endings normalized: a Windows checkout gives CRLF, and the edit below searches for "\n"
+    // (step-16 §16.12 PD-p5; CRLF YAML reads the same, PD-q1).
+    let park = std::fs::read_to_string(scratch.join("places/park.yaml"))
+        .expect("readable")
+        .replace("\r\n", "\n");
     drop(scratch);
     let tagged = park.replacen("tags:\n", "tags:\n  - regular\n", 1);
     assert_ne!(tagged, park, "the park's tags were found");

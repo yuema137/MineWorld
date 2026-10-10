@@ -298,8 +298,8 @@ fn a_bad_pack_in_a_named_directory_is_refused_by_name() {
         let (ok, _, stderr) = mineworld(&["packs", "list", "--packs", scratch.path()]);
         assert!(!ok, "{case}: accepted");
         for needle in needles {
-            // A path in a needle is written with `/`; the refusal prints this platform's separator
-            // (step-16 §16.12 PD-p5; the claim is unchanged).
+            // A needle naming a directory is written with '/'; the refusal displays the OS's separator
+            // (step-16 §16.12 PD-p5). No other needle holds a '/'.
             let needle = needle.replace('/', std::path::MAIN_SEPARATOR_STR);
             assert!(
                 stderr.contains(&needle),

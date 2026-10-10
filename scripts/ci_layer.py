@@ -12,14 +12,15 @@ partial-clone filter), because a green layer is only evidence about the toolchai
 with. Every command is printed before it runs and timed after; the first failure stops the layer with
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
-    python3 scripts/ci_layer.py fast | core       run a layer (in the toolchain container)
-    python3 scripts/ci_layer.py platforms          run the native layer (macOS, Windows; step-16 §16.12)
+    python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
+                                                   (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
     python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
                                                    offline with an empty CARGO_HOME (EC-3 (b))
-    python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
+    python3 scripts/ci_layer.py --prune-cache     before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
                                                    compiled dependencies
 """
@@ -59,24 +60,24 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
-    # Run natively on macOS and Windows, not in the container (step-16 §16.12 PD-p1, step-14 §13.0.3):
-    # what S16 needs to show works on every platform — the build with its git-pinned third-party pack,
-    # the package crates, the `packs` commands, the third-party proof, the lock guard — and the build
-    # offline from a vendor directory with an empty CARGO_HOME (PD-p3). A subset of `core`, until the
-    # whole suite is green on both (S13's 13w).
-    # `cargo fetch` first (EC-3 (a)'s fetch: everything the lock names, every platform), so nothing after
-    # it depends on when a download happens. `--no-fail-fast`: one run names every failing test.
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
+    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
+    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
+    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
     "platforms": [
-        ["cargo", "fetch", "--locked"],
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
+        # --no-fail-fast: on a platform, one red test binary must not hide another's result.
         [
             "cargo", "test", "--locked", "--no-fail-fast",
             "-p", "mineworld-packages", "-p", "mineworld-worldpack", "-p", "mineworld-installed-systems",
         ],
         [
             "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
-            "--test", "packs", "--test", "requirements", "--test", "third_party",
+            "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+            "--test", "third_party",
         ],
+        # E-c: the lock guard and the graph check over this platform's checkout (EC-13), then the build
+        # offline from a vendor directory with an empty CARGO_HOME (PD-p3).
         [
             "cargo", "test", "--locked", "--no-fail-fast",
             "-p", "mineworld-acceptance", "--test", "package_sources",
@@ -146,28 +147,19 @@ def report(command: list[str]) -> None:
     print(f"[ci] {shlex.join(command)}: {output}", flush=True)
 
 
-def size(path: Path) -> int:
-    """Bytes under a directory, without following links (`du`, which Windows lacks)."""
-    total = 0
-    for directory, _, files in os.walk(path):
-        for name in files:
-            try:
-                total += os.lstat(os.path.join(directory, name)).st_size
-            except OSError:
-                pass  # a file removed while walking: it no longer takes space
-    return total
-
-
-def gigabytes(count: int) -> str:
-    return f"{count / 1024**3:.1f} G"
-
-
 def disk(moment: str) -> None:
-    usage = shutil.disk_usage(ROOT)
-    print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
-    for path in ("target", "target/tmp"):
-        if (ROOT / path).exists():
-            print(f"[ci]   {path}: {gigabytes(size(ROOT / path))}", flush=True)
+    """Prints free disk and target/'s size for the record; on a runner without `df`/`du` (Windows
+    outside its bash), says so instead — the record is information, never a verdict."""
+    print(f"[ci] disk {moment}:", flush=True)
+    present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
+    for command in (["df", "-h", str(ROOT)], ["du", "-sh", *present] if present else None):
+        if command is None:
+            continue
+        try:
+            subprocess.run(command, cwd=ROOT)
+        except FileNotFoundError:
+            print(f"[ci] {command[0]}: not found on PATH", flush=True)
+    sys.stdout.flush()
 
 
 def resolved(command: list[str]) -> list[str]:
@@ -283,8 +275,7 @@ def main(arguments: list[str]) -> int:
     if len(arguments) == 1 and arguments[0] in LAYERS:
         return run(arguments[0])
     print(
-        f"usage: ci_layer.py <layer> | --list <layer> | --prune-cache | --offline-check"
-        f"   (layers: {known})",
+        f"usage: ci_layer.py <layer> | --list <layer> | --prune-cache   (layers: {known})",
         file=sys.stderr,
     )
     return 2
