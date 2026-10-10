@@ -601,11 +601,16 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 
 - **Scope.** `sdk/python/README.md` (one example, under 40 lines in total); §13 of this document; the
   handoff.
-- [ ] Implementation: README; ledger; deviations; findings for P6 and S11.
-- [ ] Validation: AP3b-15 (diff gate), AP3b-16; **one** PR CI run on the final head (`fast`, `python`
-  on the three platforms), recorded with its run id; AP3b-13's three legs read from it.
-- [ ] Review: every AP3b with evidence or an honest INCONCLUSIVE; every mutation planted, red, reverted;
-  the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- [x] Implementation: `sdk/python/README.md` (35 lines: one `ResumingSeat` example with a perceived
+  stream and a `CursorCell`); this ledger; deviations DV-P3b-1 … 8; findings §13.5.
+- [x] Validation: AP3b-15 (E-P3b-9: the diff touches only `sdk/python/**`, `docs/DECISIONS.md`,
+  `.structured-coding/**`; no `*.rs`, no golden frame, `uv.lock` unchanged); AP3b-16 (ruff check,
+  ruff format --check, pyright strict: clean). The PR's CI on the final head (`fast`, `test`, `python`
+  × ubuntu/windows/macos) is recorded with its run id in the PR body and the handoff's final report,
+  because a commit cannot carry its own run.
+- [x] Review: every AP3b has evidence (§13.6); every mutation planted, seen red, reverted (§13.4), with
+  AP3b-14's Windows red not observed (no CI run beyond the PR's). Lifecycle: READY FOR OPERATOR
+  REVIEW — DO NOT MERGE once the exact-head CI is green (PR body).
 
 ---
 
@@ -773,6 +778,12 @@ E-P3b-8  C5, Gate 2 (real binary, real sockets, real saves, real kills), working
            AP3b-12 PASS — SeatLost("cursor_unavailable"); a plain SeatSession then joins (took_over
                    none).
          Whole suite with the binary: 102 passed (10.7 s). ruff, ruff format, pyright clean.
+E-P3b-9  C6 diff gate: `git diff --stat f4ed913..HEAD` lists only .structured-coding/plans/mvp0/
+         {handoff-s10-p3b.md, pr-s10-p3b-perceived.md}, docs/DECISIONS.md and sdk/python/**;
+         `git diff --stat f4ed913..HEAD -- uv.lock '*.rs' server/tests/frames` is empty.
+         Sizes: session.py 495, resuming.py 488, reconnect.py 159, perceived.py 223 lines;
+         test_resuming.py 557 (a test module past the 500-line review trigger: one table's rows,
+         kept together; below the 800 warning).
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
@@ -869,3 +880,40 @@ Each planted on the working tree, run, and reverted; the reverted tree re-run gr
 | AP3b-11 | `invalid_resume` final | FAILED: `SeatLost: … (JoinRefused: … invalid_resume)` | red, as required |
 | AP3b-12 | `cursor_unavailable` retried | FAILED: `'gave_up' == 'cursor_unavailable'` (open is bounded, so it raises gave_up rather than succeeding) | red, as required |
 | AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |
+
+AP3b-15 (a diff gate) and AP3b-16 (static) have no behavioural mutation beyond the design's
+`def f(x): return x` for pyright, which was not planted separately: pyright strict's untyped-function
+report is the tool's documented behaviour (test rules §1), and the gate is run on every commit.
+
+### 13.5 Findings for later PRs
+
+```text
+F-P3b-4 (for P6). A consumer must start iterating seat.perceived() promptly. Until it does, accepted
+  facts wait in the seat's buffer; past perceived_buffer (4 096) the seat lags locally and rejoins
+  (D-P3b-4), and with no consumer at all it would repeat that cycle without progress. P6 starts its
+  ingestion task before anything else awaits on the seat. Recorded, not a defect: the bound and the
+  rule are Q-P3b-5's.
+F-P3b-5 (for P6). open() makes one attempt (DV-P3b-6): a cognition process started before its server
+  retries open() itself. ResumingSeat's own patience (give_up_after) applies after a welcome.
+F-P3b-3 (restated for P6): based_on needs Seen.connection as well as seq.
+R-S11-P3b-1 / F-P3b-2: unchanged, open with S11 (AP3b-12 pins today's behaviour).
+```
+
+### 13.6 Acceptance summary
+
+| ID | Result | Evidence |
+| --- | --- | --- |
+| AP3b-1 | PASS | red on base (E-P3b-4); session and seat halves green (E-P3b-5, E-P3b-7) |
+| AP3b-2 | PASS | 4 streams fail closed (E-P3b-5) |
+| AP3b-3 | PASS | stream and seat (E-P3b-6, E-P3b-7); literal corrected (DV-P3b-4) |
+| AP3b-4 | PASS | stream and seat (E-P3b-6, E-P3b-7) |
+| AP3b-5 | PASS | every row (E-P3b-7) |
+| AP3b-6 | PASS | seeds 7/7 equal, 7/8 differ, first 0, ≤ ceiling, sum ≤ 30 (E-P3b-7) |
+| AP3b-7 | PASS | Seen(2, 1) after Seen(1, 40), acted_through None, perceived_through "5" |
+| AP3b-8 | PASS | AnswerLost, NotConnected, fresh `c1` answered, one submit per link |
+| AP3b-9 … 12 | PASS (macOS) | E-P3b-8; Linux and Windows: the PR's CI legs |
+| AP3b-13 | PASS (scan); three legs: the PR's CI | `test_the_sdk_uses_only_primitives_every_event_loop_has` |
+| AP3b-14 | PASS (macOS); Windows: the PR's CI leg | E-P3b-5 |
+| AP3b-15 | PASS | E-P3b-9 |
+| AP3b-16 | PASS | ruff, ruff format, pyright strict clean at every commit |
+| AP3b-17 | PASS | `no_secret` over rows 3–12 objects; `test_nothing_is_logged` |
