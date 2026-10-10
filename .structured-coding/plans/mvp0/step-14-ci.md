@@ -3708,9 +3708,41 @@ self-test; `test`'s draft rule; concurrency; permissions.
 
 | Commit | Content | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| X-C0 | this section; ARC-48's note | [ ] | [ ] doc checks | [ ] |
-| X-C1 | `scripts/ci_changes.py`, the `docs` layer, self-test in `fast` | [ ] | [ ] A-X1, A-X4 | [ ] |
-| X-C2 | `.github/workflows/ci.yml`: `changes`, `needs`/`if`, `push` branches | [ ] | [ ] A-X2, A-X3 | [ ] |
+| X-C0 | this section; ARC-48's note | [x] `f80eb87` | [x] doc checks PASS | [x] terminology, ids |
+| X-C1 | `scripts/ci_changes.py`, the `docs` layer, self-test in `fast` | [x] `caa1d4f` | [x] A-X1, A-X4 PASS | [x] fail-closed paths |
+| X-C2 | `.github/workflows/ci.yml`: `changes`, `needs`/`if`, `push` branches | [x] `4443b5f` | [x] A-X2, A-X3, guard PASS | [x] every job's `if:` |
 
 Endpoint authority: commits, push of `ci/docs-only-skip` and `scratch/13x-docs`, PR create/update/close,
 branch delete: authorized by the primary session's brief. Settings and merge: not authorized.
+
+**Evidence (2026-10-09 local; run times UTC 2026-10-10).**
+- **A-X1.** `python3 scripts/ci_changes.py --self-test`: 20 cases pass, locally and in CI (both layers).
+  Local real-git checks: this branch's docs commit alone against `origin/main` → `code=false`; a
+  non-ancestor `before` on a push → `code=true` ("a force-push").
+- **A-X4 (mutation).** `is_docs` widened to every `README*.md` at any depth → self-test exit 1, failing
+  by name `a file CI reads is code: cognition/lm-controller/README.md` (and `sdk/python/README.md`,
+  `worlds/social-cafe/README.md`, `systems/economy/README.md`). Reverted.
+- **A-X2.** PR #133 opened one run only (38029012754, `pull_request`; no `push` run for
+  `ci/docs-only-skip`). `changes` (10 s) printed the five paths with their classes and
+  `code=true: 3 of 5 changed path(s) are code`; `fast` took the container path, green in 1 min 33 s. The
+  final-head run is recorded in the PR description.
+- **A-X3.** Probe PR #134 (`scratch/13x-docs`, one line of `README.md`), run 38029645292: `changes`
+  `code=false: all 1 changed path(s) are documentation` (12 s); `fast` ran the `docs` layer on a
+  depth-1 checkout, green in **10 s** (layer 0.1 s); `test`, `python`, `platforms`, `test-windows`,
+  `test-macos` and the scenario group skipped. GitHub reported the PR `MERGEABLE`.
+  - **Bounded deviation.** The probe PR targeted `ci/docs-only-skip`, not `main`: a PR to `main` from a
+    branch carrying this workflow has this PR's code in its diff, so it cannot be docs-only until 13x
+    is on `main`. That a skipped required job reports as passing on `main` is GitHub's documented
+    behaviour ("a job that is skipped will report its status as Success"); the first docs-only PR to
+    `main` after the merge confirms it, and is the primary session's check.
+  - The probe branch's own `push` run (38029642931, a new branch) classified `code=true: change set
+    unknown: no base (000…0)`, the fail-closed fallback, and was cancelled after `changes` to free
+    runners.
+- **Fail-closed guard.** A second probe commit made `ci_changes.py` exit with an error: in both runs
+  (38029834594 `pull_request`, 38029833271 `push`) `changes` failed and `fast` failed first with
+  "changes: result 'failure', code '': nothing is known about this change, so nothing passes", every
+  other job skipped. PR #134 closed unmerged; `scratch/13x-docs` deleted.
+- **Timings.** Before (docs PR #130): `fast` 1 min 34 s on `push` and again 1 min 22 s on
+  `pull_request`, `python (ubuntu)` 2 min 15 s, and `test` (20–24 min) plus five native jobs started.
+  After (docs-only): one run, `changes` 12 s + `fast` 10 s, nothing else. A code PR pays `changes`
+  (about 10 s) once before `fast` and `test` start.
