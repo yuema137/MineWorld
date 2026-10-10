@@ -1,20 +1,29 @@
 # PR S10-P3b — The SDK's perceived stream: cursor, resume, `lagged`, reconnect
 
-## Status: DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-10 (primary session)
 
 ```text
-Lifecycle:              DRAFT (awaiting the primary session's review and the operator's answers in §12)
-Author:                 S10 P3b design agent, 2026-10-10
-Worktree / branch:      /Users/yuema137/mineworld-worktrees/design-p3b · docs/p3b-design
-Planning base:          origin/main @ bb62edf (S23 freeze, #140; S11-B #83, S11-C #95, P3 #98, P5a #120,
-                        P5b #126 and the P4 freeze #138 all merged)
-Execution contract:     §11 (unfilled lines stay "unresolved" until the freeze)
-Decision identifiers:   one placeholder, DEP-P3b-a (§4.3). Requested from the primary session; an
-                        implementation session never picks a number (overall.md, "decision numbers")
+Design revision:        §§1–12 as committed on docs/p3b-design (PR #149) with this header
+Approved by / evidence: the operator accepted every P3b recommendation on 2026-10-10 (Q-P3b-4
+                        included); the primary session's answers of 2026-10-10, relayed by the
+                        coordinator: DEP-44, Q-P3b-2/3/5/7/8 accepted, Q-P3b-6 recorded for S11.
+                        Recorded in §12.1
+Implementation base:    main at the start of implementation (exact commit recorded in C0)
+Execution contract:     §11
+Lifecycle:              FROZEN
 ```
 
-Nothing in this document authorizes implementation. It becomes authoritative for P3b only under a
-`DESIGN FROZEN` header the primary session writes (`CLAUDE.md` §3.1).
+Scope, invariants, D-P3b-1 … D-P3b-10, DEP-44, §4.5's table, the acceptance criteria AP3b-1 … AP3b-17
+and the commit plan are frozen. Progress, evidence, findings and bounded corrections stay writable
+(§13). Superseded: `DRAFT — PR DESIGN, NOT FROZEN` (author: S10 P3b design agent, 2026-10-10, worktree
+`design-p3b`, planning base `origin/main @ bb62edf`).
+
+**Amendment at freeze (main moved, 2026-10-10).** #142 (`7eed282`) already runs the SDK suite's
+coroutines on `asyncio.SelectorEventLoop` on every platform (a per-module `run` in
+`test_session_state.py` and `test_real_server.py`), closing F-P5-4's SDK half. P3b therefore no longer
+moves that runner. It keeps: one shared `tests/support.py` `run` with a `loop` choice, which its new
+modules use (the default loop is needed by AP3b-9, §4.6); and AP3b-14, the asynchronous-connection
+guard test, which #142 did not add. Re-audited on `origin/main @ 737e032`.
 
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) (§3.4.3, §10 IC-1,
 §15.2's P3b row, §15.3, §15.8) · **Parent:** [`overall.md`](overall.md) S10.
@@ -57,10 +66,10 @@ concatenate to exactly `mineworld perceived` over the same save.
   - `__init__.py`: the new public names.
 - `sdk/python/tests/`: deterministic session and seat tests over scripted connections; the real-binary
   tests of §6 (AP3b-9 … AP3b-12); `realserver.py` gains a save, a hold, a restart and the
-  `mineworld perceived` export; a shared coroutine runner on the selector loop (closes F-P5-4 for the
-  SDK suite, §4.6).
+  `mineworld perceived` export; a shared coroutine runner, selector loop by default and the platform
+  default on request (§4.6; the selector-loop runner itself landed in #142).
 - `sdk/python/README.md`: one short example of a resuming seat with a perceived stream.
-- `docs/DECISIONS.md`: **DEP-P3b-a**, the reconnect loop built on our side, with `websockets`'
+- `docs/DECISIONS.md`: **DEP-44**, the reconnect loop built on our side, with `websockets`'
   reconnecting iterator and the retry libraries declined (§4.3; `REUSE_POLICY.md`, `CLAUDE.md` §4
   rule 16).
 - Every platform: Linux, macOS, Windows (operator, 2026-10-08; step-17 §15.8's P3b row).
@@ -124,12 +133,12 @@ Every row was read in this session. The implementing session re-reads each befor
 | `tools/cli/tests/perceived.rs` `a_resumed_stream_equals_the_offline_export` | S11-C's CA-2 in Rust: `--town --save --hold 10`, 20 s + 20 s windows, the export filtered to ids ≤ the last cursor. | P3b's AP3b-9 is the Python mirror, made deterministic: no `--town`, lines spoken by a second seat on a script (§6). |
 | `worlds/social-cafe/people/{wanderer,visitor,alice}.yaml` | All three start in `cafe`. `spoke` is `Visibility::Place`. | A line `visitor` says to `alice` is overheard by `wanderer`: a perceived fact the test causes on demand. |
 | `sdk/python/tests/realserver.py` | Starts `mineworld server <world> --listen 127.0.0.1:0` only; kills with `Popen.kill`; finds the binary with the platform suffix. | Gains `--save`, `--hold`, restart on the same save, and a `perceived` export helper. |
-| `sdk/python/tests/test_session_state.py` `Script` l. 106; `run` l. 147; `test_real_server.py` `run` l. 45 | Scripted connection; coroutines run with `asyncio.run` on the **default** loop. | F-P5-4: on Windows the default (proactor) loop connects without `socket.connect`, so pytest-socket does not see it. P3b moves the suite's runner to the selector loop (§4.6). |
+| `sdk/python/tests/test_session_state.py` `Script` l. 106; `run` l. 147; `test_real_server.py` `run` l. 45 | Scripted connection. At `bb62edf` coroutines ran on the **default** loop; **since #142 (`7eed282`, re-read at `737e032`) each module's `run` uses `loop_factory=asyncio.SelectorEventLoop`**, closing F-P5-4's SDK half. `test_network_guard.py` still checks only a blocking `socket.create_connection`. | P3b's new modules share one `tests/support.py` `run` (selector by default; default loop for AP3b-9); AP3b-14 adds the asynchronous guard test. |
 | `cognition/lm-controller/tests/support.py` `run` l. 61 | Runs on `asyncio.SelectorEventLoop` (F-P5-4's fix there). | The same pattern, in the SDK's own test support. |
 | `pr-s10-p5b-hosted-subscriptions.md` F-P5b-1 | On Windows a selector loop cannot start subprocesses; a cognition process with a subscription bridge must run the proactor loop. | The SDK library must work on the proactor loop (P3b-5); one real-binary test runs on the platform default loop (§4.6). |
 | `pr-s10-p4-memory.md` D-P4-5, P4-2, §11 R-P3b-1, `MemoryStore.cursor() -> EventId \| None`, `ingest(store, facts, through)` | Memory ingests `Sequence[PerceivedEvent]` with the frame's `through`; its cursor is never ahead of what it durably ingested; "the SDK's perceived cursor is advanced by the caller after a successful `ingest`, never by the session on receipt". | `CursorSource` is shaped so that `MemoryStore` satisfies it structurally; a batch is `(events, through)` (§4.2). |
 | `step-17-cognition.md` §3.6 layer 2 | A decision records `based_on = (observation.at, observation seq, perceived cursor)`. | `seq` alone is ambiguous across connections; `Seen` carries the connection number and the `through` received before the observation (§4.2). |
-| `.venv/.../websockets/asyncio/client.py` `connect.__aiter__` l. 592; `websockets/client.py` `backoff` l. 415, `BACKOFF_*` l. 409–412 (websockets 17.2, `uv.lock`) | The reconnecting iterator retries only a failed *connect*, through `process_exception`; delays come from module globals read from `WEBSOCKETS_BACKOFF_*` environment variables, with an initial delay of `random.random() * 5` from the unseeded global generator, then 3.1 s × 1.618 up to 90 s. | Declined for the protocol-level loop (DEP-P3b-a, §4.3). The transport stays `websockets` (DEP-25). |
+| `.venv/.../websockets/asyncio/client.py` `connect.__aiter__` l. 592; `websockets/client.py` `backoff` l. 415, `BACKOFF_*` l. 409–412 (websockets 17.2, `uv.lock`) | The reconnecting iterator retries only a failed *connect*, through `process_exception`; delays come from module globals read from `WEBSOCKETS_BACKOFF_*` environment variables, with an initial delay of `random.random() * 5` from the unseeded global generator, then 3.1 s × 1.618 up to 90 s. | Declined for the protocol-level loop (DEP-44, §4.3). The transport stays `websockets` (DEP-25). |
 | `scripts/ci_layer.py --list python`; `.github/workflows/ci.yml` l. 204–241 | The `python` layer builds `mineworld-cli` and runs `pytest sdk/python` on `ubuntu-24.04`, `windows-2025`, `macos-15`, Python 3.12. | Every P3b test, real-binary ones included, runs on all three in the PR's CI. No CI change is needed. |
 
 **Findings of this audit:**
@@ -285,10 +294,10 @@ class ResumingSeat:
 | **D-P3b-6** | **Resume within the hold, join afresh after it.** The seat notes the wall instant of the loss and the current welcome's `hold_seconds`. Before `loss + hold_seconds` a rejoin carries `resume`; after it, or when `hold_seconds` is 0, it carries none. Either way it carries `perceived { since: cursor() }`. A rejoin welcomed with another `instance` is left at once (`leave`) and ends `SeatLost("world_changed")`; one welcomed with another `observer` ends `SeatLost("protocol_violation")` (INV-13). | §4.2: after the hold "the seat returns to its default"; after a restart "every hold and every secret is gone … a client joins again with its invite". The instance check stops a cursor of one world being replayed against another (`PROTOCOL.md` §5.7: a restarted persisted world keeps its instance). |
 | **D-P3b-7** | **Observations across connections are ordered by `(connection, seq)`.** `changed(after)` returns the newest `Seen` strictly after `after` in that order. A new connection's first frame is whole (`PROTOCOL.md` §4.2), so the seat never applies a delta across connections; `SeatSession` already refuses one on a foreign base. | F-P3b-3. `acted_through` restarting at `null` is then visible to the caller as a new `connection`. |
 | **D-P3b-8** | **Submits are never re-sent.** A pending submit whose connection ends fails with `AnswerLost`; a submit while no connection is welcomed raises `NotConnected` at once and sends nothing. The caller reads what happened from later observations and facts (`acted_through`, `Causation`). | A request is not idempotent; re-sending one could act twice. step-17 §3.6 already re-decides on the newest state. |
-| **D-P3b-9** | **Backoff is ours, seeded and injectable.** The first attempt after a loss is immediate; then `first_delay × factor^k`, capped at `ceiling`, each scaled by a factor drawn from `random.Random(policy.seed)`, until `give_up_after`. The sleep and the clock are injectable for tests (`scripted.py`), and default to `asyncio.sleep` and `loop.time()`. No environment variable is read. | `.structured-coding/standards.md`: randomness is seedable. D-P3-9: the SDK never reads the environment. DEP-P3b-a. |
+| **D-P3b-9** | **Backoff is ours, seeded and injectable.** The first attempt after a loss is immediate; then `first_delay × factor^k`, capped at `ceiling`, each scaled by a factor drawn from `random.Random(policy.seed)`, until `give_up_after`. The sleep and the clock are injectable for tests (`scripted.py`), and default to `asyncio.sleep` and `loop.time()`. No environment variable is read. | `.structured-coding/standards.md`: randomness is seedable. D-P3-9: the SDK never reads the environment. DEP-44. |
 | **D-P3b-10** | **Event loops: neither chosen nor required.** The SDK uses tasks, futures, `asyncio.Event`, `asyncio.Queue`, `asyncio.sleep`, `asyncio.timeout` and `websockets` — all implemented by both the selector and the proactor loop. It never calls `add_reader`, `add_signal_handler`, `set_event_loop_policy`, or names a loop class; a source scan holds this (AP3b-13). | F-P5b-1: a P6 process with a subscription bridge runs the proactor loop on Windows. step-17 §15.8: "Reconnect and backoff use only asyncio primitives. They need no POSIX signals and no Unix sockets." |
 
-**DEP-P3b-a (placeholder; number requested from the primary session).** *The resuming seat's
+**DEP-44 (numbered by the primary session, 2026-10-10; placeholder DEP-P3b-a in the draft).** *The resuming seat's
 reconnect loop is MineWorld's own (about 100 lines in `resuming.py`), on top of the adopted
 `websockets` transport (DEP-25).* Declined, both directions of `REUSE_POLICY.md`:
 
@@ -362,10 +371,11 @@ Pending submits fail with `AnswerLost` on rows 4–7 and 11; with the `SeatLost`
 ### 4.6 Event loops and the network guard on every platform
 
 - **Library (P3b-5, D-P3b-10).** Works on whichever loop the caller runs.
-- **Tests.** `tests/support.py` `run(coroutine, *, timeout_s, loop)` runs on `asyncio.SelectorEventLoop`
-  by default on every platform, as the cognition suite does, so pytest-socket's `socket.connect` patch
-  sees every connection (closes F-P5-4 for `sdk/python`). Existing `asyncio.run` call sites in the SDK
-  suite move to it.
+- **Tests.** Since #142 the SDK suite runs on `asyncio.SelectorEventLoop` on every platform, so
+  pytest-socket's `socket.connect` patch sees every connection (F-P5-4, closed there). P3b factors that
+  into one `tests/support.py` `run(coroutine, *, timeout_s, loop="selector" | "default")`, used by its
+  new modules; the two existing per-module `run` helpers may delegate to it in C2 (a helper move, no
+  behaviour change).
 - **The proactor loop is exercised too.** AP3b-9 (IC-1 through the binary) runs on the platform's
   default loop (`loop="default"`): the proactor on Windows, the loop P6 will run (F-P5b-1). Its only
   connections go to the address the test's own server printed on `127.0.0.1`; that the guard does not
@@ -421,7 +431,7 @@ and recorded in §13.4.
 | **AP3b-11** IC-1: the server restarts | As AP3b-9 to the first 3 lines; then the server is killed and started again on the same save (a new port, which the test's connector follows). The seat retries (connect failures), meets `invalid_resume` (holds do not survive a restart) and joins afresh (`took_over == "none"`); `instance` is unchanged; 3 lines (a new `visitor` session) are delivered; the concatenation equals the export of the final save. | Treat `invalid_resume` as terminal (row 9): the test ends `SeatLost`. |
 | **AP3b-12** No save, no history | `mineworld server worlds/social-cafe` without `--save`: `ResumingSeat.connect(..., cursor=CursorCell(None))` raises `SeatLost("cursor_unavailable")`, and the same seat is then joinable by a plain `SeatSession` (nothing was granted, `PROTOCOL.md` §4.1). | Retry `cursor_unavailable` with another cursor: the open does not raise. |
 | **AP3b-13** Every platform | The whole SDK suite passes in the PR's CI on `ubuntu-24.04`, `windows-2025`, `macos-15`. A source scan of `src/mineworld_sdk/` finds none of `add_reader`, `add_writer`, `add_signal_handler`, `set_event_loop_policy`, `SelectorEventLoop`, `ProactorEventLoop`, `import signal`, `AF_UNIX`. | Plant `loop.add_reader(…)` in `resuming.py`: the scan names the file and line. |
-| **AP3b-14** The guard sees asynchronous connections | Under `support.run`, a `websockets` connect to `ws://192.0.2.1:80/ws` fails within 1 s with pytest-socket's error type, on every platform (F-P5-4). | Make `support.run` use the default loop: the Windows leg fails (a timeout, not the guard's error). |
+| **AP3b-14** The guard sees asynchronous connections | Under `support.run`, a `websockets` connect to `ws://192.0.2.1:80/ws` fails within 1 s with pytest-socket's error type, on every platform (F-P5-4; #142 fixed the runner, this is the test that pins it). | Make `support.run` use the default loop: the Windows leg fails (a timeout, not the guard's error). |
 | **AP3b-15** Scope | `git diff --stat <base>..HEAD` touches only `sdk/python/**`, `docs/DECISIONS.md`, `.structured-coding/**`. No `*.rs`, no golden frame, `uv.lock` unchanged. | — (a diff gate) |
 | **AP3b-16** Static | `ruff check`, `ruff format --check`, `pyright` strict over `sdk/python`: zero findings. | `def f(x): return x` in `perceived.py`: pyright reports it. |
 | **AP3b-17** Secrets | With the 32-character marker invite and a scripted welcome's resume secret: neither string appears in the `str` or `repr` of any `SeatLost`, `AnswerLost`, `NotConnected`, `Seen`, `ResumingSeat`, `ReconnectPolicy`, nor in any captured log record of a run through rows 3–12. | Put the welcome into `SeatLost`'s message: the scan finds the secret. |
@@ -457,19 +467,20 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 
 ### C0 — Freeze record and contract (Markdown only)
 
-- **Goal.** Record the primary session's freeze and its rulings on §12; fill §11 with sources; the
-  decision number replaces DEP-P3b-a.
-- **Scope.** This document; a new `handoff-s10-p3b.md`. No code.
-- [ ] Implementation: `DESIGN FROZEN` header with the approval reference; §11's endpoint lines each with
-  a source; the handoff initialized with the contract's required fields.
+- **Goal.** The freeze, §11 and §12.1 were written by the planning session on 2026-10-10 (PR #149). The
+  implementation session's C0 records the exact implementation base and initializes the handoff.
+- **Scope.** This document (§13.2 E-P3b-1: base commit, test counts at the base); a new
+  `handoff-s10-p3b.md`. No code.
+- [ ] Implementation: the base recorded; the handoff initialized with the contract's required fields;
+  the endpoint lines of §11 copied with their sources.
 - [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
 - [ ] Review: no endpoint narrowed or widened without a source; every Q-P3b answered or recorded open.
 - **Commit boundary.** Documentation only.
 
 ### C1 — The decision before the code
 
-- **Goal.** DEP-P3b-a exists before the loop it governs (`CLAUDE.md` §2.2).
-- **Scope.** `docs/DECISIONS.md` (DEP-P3b-a's number, §4.3's text). **Non-goal:** any code.
+- **Goal.** DEP-44 exists before the loop it governs (`CLAUDE.md` §2.2).
+- **Scope.** `docs/DECISIONS.md` (DEP-44, §4.3's text). **Non-goal:** any code.
 - [ ] Implementation: the record, with `websockets` 17.2's facts cited from its source (§3's anchor).
 - [ ] Validation: `check_decision_ids.py`, `check_doc_headings.py`.
 - [ ] Review: both directions of the reuse question answered; the licence of each declined library
@@ -478,13 +489,15 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 ### C2 — One connection: the lagged sequence, the sink, the order checks; the test runner
 
 - **Goal.** F-P3b-1 fixed with its regression test first; `SeatSession` hands perceived frames to a
-  sink after the connection-local checks; F-P5-4 closed for the SDK suite.
+  sink after the connection-local checks; the shared test runner and the asynchronous guard test
+  (F-P5-4's runner fix itself is #142's).
 - **Scope.** `session.py` (`route`: tokenless `lagged` expected, then `closing { lagged }` →
   `SessionClosed("lagged")`; `Perceiving(since, deliver)` replaces `perceived: PerceivedJoin` on
   `connect`/`join`; `perceived` and `perceived_cursor` removed; `newest_through` recorded with the
   newest observation); `perceived.py` (`ConnectionOrder` only); `wire/ids.py` (`event_order`);
-  `tests/support.py` (new); `test_session_state.py`, `test_real_server.py` (runner moved; the old
-  `perceived` assertions rewritten against the sink); `test_network_guard.py` (AP3b-14).
+  `tests/support.py` (new: #142's selector-loop `run`, factored, plus `loop="default"`);
+  `test_session_state.py`, `test_real_server.py` (their `run` may delegate to it; the old `perceived`
+  assertions rewritten against the sink); `test_network_guard.py` (AP3b-14).
   **Unchanged:** every wire model; newest-wins; token pairing; INV-13.
 - [ ] Implementation: AP3b-1's test written first and run against `main`'s `route`; the red run
   (command and output) recorded in §13.2; then the fix, in the same commit so the suite is never red
@@ -556,27 +569,31 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 
 - **R-P6-P3b-1 (on P6).** Drive a seat through `ResumingSeat`; pass the seat's `MemoryStore` as the
   `CursorSource`; `ingest(store, batch.events, batch.through)` for every batch before taking the next;
-  record `based_on` with `Seen.connection` as well as `seq` (F-P3b-3); decide the cold-start policy
-  inside a hold (persisted `resume`, `take_over`, or wait: Q-P3b-4), and the slow retry after
+  record `based_on` with `Seen.connection` as well as `seq` (F-P3b-3); persist the current
+  `welcome.resume` beside the memory store and rewrite it after every rejoin, so a restart inside the
+  hold rejoins with it (Q-P3b-4, operator ruling 2026-10-10); decide the slow retry after
   `SeatLost("taken_over" | "seat_occupied")` (R-S11-4); run the platform's default loop on Windows if a
   bridge is bound (F-P5b-1).
-- **R-S11-P3b-1 (on S11, proposed, not blocking).** F-P3b-2: a client of a world without a save cannot
+- **R-S11-P3b-1 (on S11; recorded by the primary session 2026-10-10, not blocking).** F-P3b-2: a client of a world without a save cannot
   ask for the live stream alone, because the head is not on the wire. Options for S11: the head on
   `welcome`, or `since: "live"`. P3b needs neither (Q-P3b-6).
 
-## 10. Proposed edits to documents this PR may not edit
+## 10. Edits to parent documents
 
-| Document | Edit | Owner, when |
-| --- | --- | --- |
-| `step-17-cognition.md` §15.2 | P3b's row: "Designed: `pr-s10-p3b-perceived.md`"; at merge, "merged as …" | S10 planning session, at freeze and at merge |
-| `step-17-cognition.md` §3.4.3 | Name `ResumingSeat`; "lagged or disconnected: reconnect with the cursor" → "with the cursor the memory store reports (R-P3b-1)" | S10 planning session, at merge |
-| `overall.md` | The decision number DEP-P3b-a maps to; F-P5-4's SDK half closed by P3b | primary session |
+| Document | Edit | Owner, when | State |
+| --- | --- | --- | --- |
+| `step-17-cognition.md` §15.2 | P3b's row: designed and frozen in `pr-s10-p3b-perceived.md`; at merge, "merged as …" | this planning session at freeze (primary's instruction); the S10 planning session at merge | **applied at freeze** (PR #149) |
+| `step-17-cognition.md` §3.4.3 | Name `ResumingSeat`; the cursor a rejoin presents is the one the memory store reports (R-P3b-1); a rejoin is with `resume` inside the hold | as above | **applied at freeze** (PR #149) |
+| `overall.md` | DEP-44 recorded as used by P3b | primary session | primary's |
 
-## 11. Execution contract (to be filled at freeze)
+## 11. Execution contract (filled at freeze, 2026-10-10)
 
-Unfilled lines are `unresolved`, not decided. Suggested values follow the S10 convention
-(`pr-s10-p3-python-sdk.md` §10, `pr-s10-p4-memory.md` §12) and need the primary session's freeze as
-their source.
+Source of every line marked "primary session": its freeze instruction of 2026-10-10, relayed by the
+coordinator ("record rulings in §12, header DESIGN FROZEN 2026-10-10 (primary session), fill §11's
+contract (branch `mvp0/pr-s10-p3b`, worktree `/Users/yuema137/mineworld-worktrees/impl-p3b`)"). Lines
+marked "S10 convention" follow P3's and P4's contracts (`pr-s10-p3-python-sdk.md` §10,
+`pr-s10-p4-memory.md` §12) and were not separately ruled; the endpoints the instruction does not name
+take the working rules' shipped defaults (§21), which it does not narrow.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S10 PR P3b — the SDK's perceived stream, cursor and resume
@@ -584,33 +601,36 @@ PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p3b-perceived.md
 RELATED / BINDING DOCS:  step-17-cognition.md (§3.4.3, §3.6, §10 IC-1, §15); pr-s10-p3-python-sdk.md;
                          pr-s10-p4-memory.md (R-P3b-1); step-12-server.md §§16–17; server/PROTOCOL.md
                          rev 2 §§4, 5; docs/REUSE_POLICY.md; docs/ENGINEERING_STANDARDS.md; CLAUDE.md
-WORKTREE:                unresolved (suggested /Users/yuema137/mineworld-worktrees/impl-s10-p3b)
-BRANCH:                  unresolved (suggested mvp0/pr-s10-p3b-perceived, from main)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-p3b         (primary session)
+BRANCH:                  mvp0/pr-s10-p3b, created from main                   (primary session)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records the commit
+                         (designed against origin/main @ 737e032, which includes #142)
 APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-P3b-1 … D-P3b-10; DEP-P3b-a; §4.5's table; §12's rulings
+FROZEN INVARIANTS:       §2.3; D-P3b-1 … D-P3b-10; DEP-44; §4.5's table; AP3b-1 … AP3b-17;
+                         §12.1's rulings
 SEQUENCE:                C0 … C6
-ALLOWED COMMANDS:        unresolved (suggested, as P3: cargo *; git; gh (never merge); uv *;
-                         python3 scripts/*; mkdir -p; sed -n; target/*/mineworld *)
-NEVER:                   unresolved (suggested, as P3: python3 -c; sed -i; awk; xargs; curl; heredoc
-                         writes; reading ~/.config/mineworld/secrets.env)
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n;
+                         target/*/mineworld *                                 (S10 convention)
+NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading
+                         ~/.config/mineworld/secrets.env                      (S10 convention)
 MATERIAL STOPS:          any Rust, server, protocol or golden-frame change; any new dependency
                          (uv.lock must not change); a change to §4.5's table or to P3b-1 … P3b-6;
-                         any hosted-API use
+                         any hosted-API use                                   (S10 convention)
 PLATFORMS:               Linux, macOS, Windows (operator, 2026-10-08)
 VALIDATION BUDGET:       unit, static and local real-binary tests: unrestricted. Gate 1: NOT REQUIRED.
                          No model, no key, no paid API. CI: the PR's runs only; no manual dispatch
+                                                                              (S10 convention)
 LIVE DOCUMENTATION:      this document (§13 ledger)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p3b.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved
-                         semantic commits: unresolved
-                         branch push: unresolved
-                         PR creation / update: unresolved
-                         CI repair to review readiness: unresolved
+ENDPOINT AUTHORITY:      implementation + local validation: authorized        (primary session freeze)
+                         semantic commits: authorized                         (primary session freeze)
+                         branch push: authorized                (working rules §21 default, not narrowed)
+                         PR creation / update: authorized       (working rules §21 default, not narrowed)
+                         CI repair to review readiness: authorized (working rules §21 default)
                          merge: explicit operator authorization only
-POST-MERGE SYNC OWNER:   unresolved (default: the S10 planning session owns step-17 §15 and
-                         overall.md; the implementation session owns this document, the merge
-                         identity, the evidence and the deviations)
+POST-MERGE SYNC OWNER:   the S10 planning session owns step-17 §15 and overall.md; the implementation
+                         session owns this document, the merge identity, the evidence and the
+                         deviations (the workflow's default)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -629,6 +649,22 @@ rule. Each carries a recommendation.
 | **Q-P3b-6 [primary, for S11]** | F-P3b-2: on a world without a save no client can ask for the live stream alone, since the head is not on the wire. Raise R-S11-P3b-1 with S11 (head on `welcome`, or `since: "live"`)? | Record it for S11 and do not block P3b: S10's runs are on persisted worlds (QS11C-2), and P3b treats the refusal as terminal. |
 | **Q-P3b-7 [primary]** | Defaults of `ReconnectPolicy`: immediate first attempt, then 0.1 s doubling to 5 s, jitter 50 %, give up after 120 s. | Accept. Inside the server's default 30 s hold the seat makes about ten attempts; 120 s covers a server restart on a 300-day save (CA-13 measured its backfill off the world thread). |
 | **Q-P3b-8 [primary]** | AP3b-9 drives facts with a second seat speaking lines (no `--town`) rather than S11-C CA-2's paced town. | Accept: deterministic, faster, and it makes "facts recorded while away" certain, so the backfill mutation is always red. CA-2 already covers the paced town in Rust. |
+
+### 12.1 Rulings, 2026-10-10 (operator and primary session, at freeze)
+
+Relayed by the coordinator: "operator accepted all P3b recommendations on 2026-10-10 (incl. Q-P3b-4: P6
+persists the resume secret next to its memory store)", with the primary session's answers below.
+
+| ID | Ruling | Status |
+| --- | --- | --- |
+| Q-P3b-1 | **DEP-44** for the own-reconnect-loop record; no ARC record. DEP-P3b-a is replaced throughout. | closed |
+| Q-P3b-2 | Accepted as proposed: composition, and the names. | closed |
+| Q-P3b-3 | Accepted: `SeatSession.perceived` and `perceived_cursor` are removed without an adapter. | closed |
+| Q-P3b-4 | **Operator:** accepted as recommended — P6 persists the resume secret next to its memory store, rewritten after every rejoin. Binding on P6 (R-P6-P3b-1). | closed |
+| Q-P3b-5 | Accepted: 4 096 facts; local `lagged` → rejoin. | closed |
+| Q-P3b-6 | R-S11-P3b-1 recorded for S11; not blocking P3b. | closed for P3b; open with S11 |
+| Q-P3b-7 | Accepted: the `ReconnectPolicy` defaults as stated. | closed |
+| Q-P3b-8 | Accepted: AP3b-9 … AP3b-11 drive facts with a second seat's lines, without `--town`. | closed |
 
 ## 13. Ledger (live during implementation)
 

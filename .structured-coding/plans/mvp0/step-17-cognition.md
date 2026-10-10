@@ -622,6 +622,17 @@ connect → join { seat, token, perceived_since: cursor | null }   (R-S11-1, R-S
 The cursor is the id of the last perceived event that **memory has durably ingested**. A crash
 between receipt and ingestion re-delivers rather than loses. Ingestion is idempotent by `EventId`.
 
+**As designed in P3b (frozen 2026-10-10, [`pr-s10-p3b-perceived.md`](pr-s10-p3b-perceived.md)).** The
+SDK's `ResumingSeat` composes one `SeatSession` per connection. Every join and rejoin presents as
+`since` the cursor the caller's store reports (`CursorSource`; P4's `MemoryStore` fits it), never one
+the SDK advanced on receipt (P4's R-P3b-1). A rejoin carries `resume` while the server still holds the
+seat and joins afresh after the hold or a server restart; `taken_over`, `cursor_unavailable` and a
+changed world instance end the seat with a typed `SeatLost`. Facts reach the consumer at most once per
+process, in ascending order, as `PerceivedBatch(events, through, connection)`. Because `seq` restarts
+on every connection, observations are delivered as `Seen(connection, frame, perceived_through)`, and
+§3.6's `based_on` records the connection too. P6 persists `welcome.resume` beside its memory store
+(operator ruling, 2026-10-10).
+
 ### 3.4.4 The Controller protocol, and the only decisions there are
 
 ```python
@@ -1772,7 +1783,7 @@ ruling 6 assigned to S10 (`ARC-56 … ARC-60`, `DEP-24 … DEP-27`).
 | **P1** Event perception (presence's audience, the seam, `mineworld perceived`) | **Moved to S11-C** by ruling 2. Not implemented. S11-C is being designed in parallel. | S11-C | — | n/a for S10 | S10 consumes it. §15.4 states what S10 needs S11-C to deliver. |
 | **P2** F-13 for `--agent` | **Dropped** by ruling 3. The fix is `RuleController::since(bind instant)` in S11-B: #83, open and `READY FOR OPERATOR REVIEW`, with SB-5 (CP-B3) PASS and its mutation red. It is reopened only if #83's fix proves insufficient. | S11-B | — | n/a | None, unless #83 is rejected. |
 | **P3** Python SDK | **Not started. DESIGN FROZEN 2026-10-08** by the primary session: [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md). Scope narrowed against §8 (below), as ruled in §15.7. | S10 | S11-A (**merged**) | **Yes** | A fresh implementation session in `impl-s10-p3`, on branch `mvp0/pr-s10-p3-sdk`. |
-| **P3b** (new) SDK: the `perceived` stream | Not started. Split out of P3: the cursor, resume, `cursor_unavailable` and `lagged` handling; IC-1's live and resumed halves; reconnect with `resume`. | S10 | P3; **S11-C** (the stream); S11-B (`resume`) | No | Detailed after S11-C freezes, from its frames. |
+| **P3b** (new) SDK: the `perceived` stream | Not started. Split out of P3: the cursor, resume, `cursor_unavailable` and `lagged` handling; IC-1's live and resumed halves; reconnect with `resume`. | S10 | P3; **S11-C** (the stream); S11-B (`resume`) | No | Detailed after S11-C freezes, from its frames. **2026-10-10:** S11-B and S11-C merged; designed in [`pr-s10-p3b-perceived.md`](pr-s10-p3b-perceived.md) (PR #149) and **DESIGN FROZEN 2026-10-10 (primary session)**, every recommendation accepted by the operator; DEP-44. Implementation: worktree `impl-p3b`, branch `mvp0/pr-s10-p3b`. |
 | **P4** Memory and compression, `AC-10` | Not started. | S10 | P3 (package skeleton); **S11-C's `mineworld perceived`** (IC-4 step 2) | No (see §15.3) | Wait for S11-C's offline export. Detail P4 then. |
 | **P5** Backends, recorder, budgets | Not started. The live spike (QS10-2) runs on the operator's machine. **2026-10-09:** P3 merged (#98). The operator added hosted APIs and subscriptions, so P5 is split: **P5a** [`pr-s10-p5-backends.md`](pr-s10-p5-backends.md) (backends, recorder, budgets, API keys via `.env`) and **P5b** [`pr-s10-p5b-hosted-subscriptions.md`](pr-s10-p5b-hosted-subscriptions.md) (native Anthropic adapter; the Codex subscription opt-in; the Claude subscription route dropped by the operator on terms-of-service grounds). **Both DESIGN FROZEN 2026-10-09 (primary session).** P5a: `impl-s10-p5`, `mvp0/pr-s10-p5-backends`. P5b, after P5a merges: `impl-s10-p5b`, `mvp0/pr-s10-p5b-hosted`. S10's decision numbers now also include `DEP-32`, `DEP-33` and `ARC-72 … ARC-74`. | S10 | P3 (workspace and toolchain) | After P3 merges | Freeze review of the P5 design. It can run in parallel with P4. |
 | **P6** `LMController` and `persona` | Not started. | S10 | P3, P4, P5, P3b; **S11-B** (exclusivity, takeover, `time_scale`); **S11-C** (perceived stream, `acted_through`) | No | — |
