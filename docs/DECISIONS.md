@@ -2750,6 +2750,13 @@ with its own review. A pack is generic when it is neither Social Café's nor the
 a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
 dependency structure still measure the market and nothing else. A test holds both refusals.
 
+**Note, 2026-10-09 (S19, PR TW-b; step-19 §17.5 C4) — `weather` joins the allow-list.** `GENERIC_PACKS`
+is now `["calendar", "weather"]` (`ARC-68`). Weather is a world's climate, not a market, so it is generic
+by the rule above. Nothing else in check 3 changes. Order among the allow-listed packs is free; each
+still follows the six and is listed once; and `configure/weather.yaml` is admitted as the configuration
+of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
+allow-listed is now `bodies` (it was `weather`).
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack

@@ -5,7 +5,7 @@ use mineworld_calendar::{CalendarDate, DayEvents};
 
 use super::{FOG_LAST_HOUR, hours, wet_hours};
 use crate::day::{Chain, Condition, DailyWeather};
-use crate::fixture::{SAN_DIEGO, rules};
+use crate::fixture::san_diego;
 use crate::generate::day;
 
 /// San Diego 2026-10-08's events (E-TWa-2): civil dawn 05:23, sunrise 05:47.
@@ -46,7 +46,7 @@ fn dry() -> DailyWeather {
 /// hours' precipitation sums to the day's, and every hour carries the day's wind.
 #[test]
 fn the_hours_keep_the_days_extremes_and_its_amount_exactly() {
-    let table = rules(SAN_DIEGO);
+    let table = san_diego();
     let epoch = CalendarDate::new(2026, 10, 8).expect("a date").days();
     let mut chain = Chain::default();
     let mut wet_days = 0;

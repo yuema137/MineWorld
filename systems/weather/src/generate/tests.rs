@@ -6,7 +6,7 @@ use mineworld_calendar::CalendarDate;
 
 use super::day;
 use crate::day::{Chain, DailyWeather};
-use crate::fixture::{SAN_DIEGO, constant, rules};
+use crate::fixture::{constant, rules, san_diego, san_diego_text};
 use crate::rules::Rules;
 
 /// 100 world years, 2026-10-08 onward (step-19 §17.6 criterion 2).
@@ -32,7 +32,7 @@ fn run(rules: &Rules, seed: u64, days: i64) -> Vec<(u8, DailyWeather)> {
 /// of its stationary probability p_wd / (1000 − p_ww + p_wd).
 #[test]
 fn each_months_wet_day_frequency_is_its_stationary_probability() {
-    let table = rules(SAN_DIEGO);
+    let table = san_diego();
     let days = run(&table, 19, CENTURY);
     for month in 1..=12_u8 {
         let m = table.month(month);
@@ -89,7 +89,7 @@ fn the_mean_wet_spell_is_the_chains() {
 /// (d) The same inputs give the same bytes; another seed gives another year.
 #[test]
 fn the_same_seed_gives_the_same_weather_and_another_seed_another() {
-    let table = rules(SAN_DIEGO);
+    let table = san_diego();
     let bytes = |seed| serde_json::to_vec(&run(&table, seed, 365)).expect("encodes");
     assert_eq!(bytes(19), bytes(19));
     assert_ne!(bytes(19), bytes(20));
@@ -134,10 +134,12 @@ fn equal_branches_are_a_plain_independent_table() {
 /// a wet day at least 0.3 mm; thunder only when wet, a grey morning only when dry.
 #[test]
 fn every_day_is_physically_consistent() {
-    let tight = rules(&SAN_DIEGO.replace("tmin_dc: 102", "tmin_dc: 190").replace(
-        "t_noise_dc: 30, t_ar_permille: 600",
-        "t_noise_dc: 200, t_ar_permille: 999",
-    ));
+    let tight = rules(
+        &san_diego_text()
+            .replace("tmin_dc: 102", "tmin_dc: 190")
+            .replace("t_noise_dc: 30", "t_noise_dc: 200")
+            .replace("t_ar_permille: 600", "t_ar_permille: 999"),
+    );
     let mut repaired = 0;
     for (_, s) in run(&tight, 3, CENTURY) {
         assert!(s.tmin_dc < s.tmax_dc, "{s:?}");

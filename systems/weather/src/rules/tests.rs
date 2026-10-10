@@ -2,21 +2,41 @@
 //! with the deserializer's line and column; and line endings make no difference.
 
 use super::Rules;
-use crate::fixture::{SAN_DIEGO, rules};
+use crate::fixture::{rules, san_diego, san_diego_text};
 
 fn decode(text: &str) -> Result<Rules, String> {
     serde_saphyr::from_str::<Rules>(text).map_err(|error| error.to_string())
 }
 
-/// San Diego with the first occurrence of `from` replaced by `to`.
+/// San Diego with the first occurrence of `from` (in January) replaced by `to`.
 fn with(from: &str, to: &str) -> String {
-    assert!(SAN_DIEGO.contains(from), "{from}");
-    SAN_DIEGO.replacen(from, to, 1)
+    let text = san_diego_text();
+    assert!(text.contains(from), "{from}");
+    text.replacen(from, to, 1)
+}
+
+/// The line a refusal names.
+fn line_of(refusal: &str) -> usize {
+    let at = refusal.find("line ").expect("a line") + "line ".len();
+    refusal[at..]
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .expect("a number")
 }
 
 #[test]
 fn every_bound_is_refused_naming_its_key_with_a_position() {
-    assert!(decode(SAN_DIEGO).is_ok());
+    let text = san_diego_text();
+    assert!(decode(&text).is_ok());
+    // January's entry in `text`: from its `-` (line 2) to the line before February's.
+    let january = |text: &str| {
+        2..=text
+            .lines()
+            .position(|line| line.contains("# February"))
+            .expect("February")
+    };
     let cases = [
         (
             "p_wet_after_dry: 147",
@@ -69,23 +89,25 @@ fn every_bound_is_refused_naming_its_key_with_a_position() {
         ("wind_from_deg: 300", "wind_from_deg: 360", "wind_from_deg"),
         (
             "wind_from_deg: 300",
-            "wind_from_deg: 300, gusts: 9",
+            "wind_from_deg: 300\n    gusts: 9",
             "gusts",
         ),
     ];
     for (from, to, key) in cases {
-        let refusal = decode(&with(from, to)).expect_err(to);
+        let changed = with(from, to);
+        let refusal = decode(&changed).expect_err(to);
         assert!(refusal.contains(key), "{to} → {refusal}");
+        let lines = january(&changed);
         assert!(
-            refusal.contains("line 2"),
-            "{to} → the first month's line: {refusal}"
+            lines.contains(&line_of(&refusal)),
+            "{to} → a line of January's entry {lines:?}: {refusal}"
         );
         assert!(refusal.contains("column"), "{to} → {refusal}");
     }
-    // Eleven months; the error is at the list.
-    let eleven: String = SAN_DIEGO
+    // Eleven months: December's entry dropped.
+    let eleven: String = text
         .lines()
-        .take(12)
+        .take_while(|line| !line.contains("# December"))
         .map(|line| format!("{line}\n"))
         .collect();
     let refusal = decode(&eleven).expect_err("eleven months");
@@ -94,7 +116,7 @@ fn every_bound_is_refused_naming_its_key_with_a_position() {
         "{refusal}"
     );
     // An unknown top-level key.
-    let refusal = decode(&format!("{SAN_DIEGO}seasons: 4\n")).expect_err("an unknown key");
+    let refusal = decode(&format!("{text}seasons: 4\n")).expect_err("an unknown key");
     assert!(refusal.contains("seasons"), "{refusal}");
     // Bound values are accepted.
     for (from, to) in [
@@ -110,16 +132,14 @@ fn every_bound_is_refused_naming_its_key_with_a_position() {
 
 #[test]
 fn crlf_and_lf_give_the_same_table() {
-    assert_eq!(
-        decode(&SAN_DIEGO.replace('\n', "\r\n")),
-        Ok(rules(SAN_DIEGO))
-    );
+    let text = san_diego_text();
+    assert_eq!(decode(&text.replace('\n', "\r\n")), Ok(rules(&text)));
 }
 
 /// The copy carried in a fact decodes back to the same table, through the same validation.
 #[test]
 fn the_table_round_trips_through_its_encoding() {
-    let table = rules(SAN_DIEGO);
+    let table = san_diego();
     let bytes = serde_json::to_vec(&table).expect("encodes");
     assert_eq!(
         serde_json::from_slice::<Rules>(&bytes).expect("decodes"),
