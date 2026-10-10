@@ -206,8 +206,8 @@ Mutations, each run once and each must fail the named test:
 | --- | --- |
 | Read the observer's own place's tags instead of the destination's | T1 |
 | Add `to_tags` to the stored `Passage` and reduce it into state | T3 |
-| Mark `Passages` `deny_unknown_fields` | T4 |
-| Omit `to_tags` when empty | T1 (shape) — to be added as an assertion of presence |
+| Mark the disclosed entry type `Passage` `deny_unknown_fields` (amended C3: `to_tags` sits inside each entry, so marking the outer `Passages` cannot fail T4) | T4 |
+| Omit `to_tags` when empty (amended C3: T1's destinations all carry tags, so the presence check is the added test `a_doorway_to_an_untagged_place_says_so_with_an_empty_list`) | that test |
 | Leave the disclosure unchanged | T1 |
 
 ### 7.2 2D client
@@ -241,6 +241,13 @@ The 300-day seed-7 digests of `social-cafe` and `market-town` must be unchanged.
   reference. (b) On the head, repeat exactly. (c) The two must be identical. The row digest is taken
   with the existing `Tables` reader, so no new reader is added; if it cannot be made byte-stable, the
   check is `INCONCLUSIVE` and the row-level comparison (`social::facts_of`) is used instead.
+- **Amended in C3 (operator rulings 2026-10-10, findings 4).** The manifest row carries an `instance`
+  identity that the run derives from its start time, so it differs between two runs of the same code.
+  Before its digest is taken, the `"instance"` field of that row is replaced by a fixed token; every other
+  row is compared as written. Without this normalisation the check cannot be byte-stable. The evidence of
+  the C1 run took each table's rows with `sqlite3 <save>/world.sqlite "select * from <table> order by
+  rowid"` and SHA-256 over that output, since the `Tables` reader is not reachable from the shell; the
+  digest method is recorded with the numbers.
 - The existing `run.rs` test must pass unchanged.
 - Why this proves the claim: the paced controller reads `passages` only through the decode in §4.3, which
   ignores `to_tags`, so its decisions, and therefore the facts it causes, are unchanged.
@@ -386,6 +393,14 @@ Three commits, each with implementation, deterministic validation and LLM logic 
   or refutes it before the change.
 - No file outside `.structured-coding/plans/mvp0/pr-13c-doorway-names.md` (and the step-13 link in §6.3's
   13c row) is changed by this design.
+- **Follow-up (operator ruling, 2026-10-10; not in 13c).** Doorway labels are drawn only at the doors of
+  the room the observer stands in (`places.gd` `_place_door_labels`). From the street the hub gets no
+  drawn label. This PR reports the wording of each doorway of the observer's place through `door_labels()`
+  (the `doorway_labels` field of the harness report). Drawing street doorway labels on screen is a visible
+  change and is recorded as a follow-up finding for a later PR.
+- **Amended in C3 (operator rulings 2026-10-10).** The `place` family is added to `KEY_FAMILIES` in
+  `tests/acceptance/tests/client_text.rs` (outside the §13 allowed list, approved as a bounded edit). The
+  `drive.gd` `_walk` scenario reports at the street (`_report_self()`), which the walk test needs.
 
 ## 13. Execution contract (frozen 2026-10-10)
 
