@@ -101,13 +101,13 @@ never appears: nobody can buy, and the rest of the town still works.
 | **Bodies** | ✅ people and objects never pass through each other; you can push, kick, throw and shove · 🚧 finding a way around walls and furniture, then walls in the towns |
 | **Time and weather** | ✅ the date, the day of the week, sunrise and sunset · 🚧 weather, then weather from ten years of real records |
 | **Your own rules** | ✅ the first adjustable rules (for example, how soon someone can speak again) · 🚧 rules for the other modules, and two example worlds: a manor with strict manners, and an ice rink |
-| **Add-ons** | ✅ every module has a name, a version and a licence, and a world can say which versions it needs · 🚧 a module from another repository, and new kinds of objects without rebuilding |
+| **Add-ons** | ✅ every module has a name, a version and a licence, and a world can say which versions it needs; new kinds of objects can be added without rebuilding · 🚧 a module from another repository |
 | **Playing together** | ✅ invite codes, nicknames, a 30-second grace period to reconnect, a player taking over an AI character, a host who can pause or remove players · 🚧 a test with four players at once |
 | **2D view** | ✅ (preview) walk, use doors, talk, invite, buy, give, eat and drink, all through menus the server provides |
 | **3D view** | ✅ walk, run, jump, enter the café and talk to Alice on a running server · 🚧 the whole street built from the server's map, bumping into things, shopping, running smoothly on ordinary computers |
 | **Settings** | 🚧 English and Simplified Chinese, resolution, window or full screen, frame-rate limit |
 | **AI characters** | ✅ the Python toolkit they connect with · 🚧 a local model by default, online services with your own key, memory, and Alice remembering in 3D what you told her in 2D |
-| **Computers** | ✅ automatic tests on Linux; the Python toolkit tested on macOS, Linux and Windows · 🚧 the same results on all three, and the full test suite on Windows |
+| **Computers** | ✅ automatic tests on Linux; the Python toolkit and the add-on tests also run on macOS and Windows · 🚧 the same results on all three, and the full test suite on Windows |
 | **Many towns** | 🗺 next stage: several towns in one world, trains, buses and taxis, walking about on board, town and world maps |
 | **Looking real** | 🗺 next stage: hills from real height data, water you can wade in and that carries things along, trees that move in the server's wind |
 | **Later** | 🗺 a visual world editor, modules shared by the community, public worlds that run all the time |
@@ -125,7 +125,7 @@ that makes your world *your* world comes in a pack, a folder you add
 | --- | --- | --- |
 | **Rule module** (System Pack) | what can happen | `systems/economy`: wallets, shops, buying, wages |
 | **World** (World Pack) | one particular world: its people, places, and which rule modules are on | `worlds/market-town` |
-| **Kinds of things** (Entity Pack) | what kinds of objects exist | 🚧 shared between worlds; today each world lists its own |
+| **Kinds of things** (Entity Pack) | what kinds of objects exist | ✅ shared between worlds, added without rebuilding; the example worlds still list their own |
 | **Minds** (Controller Pack) | who decides what a character does | `cognition/rule-controller` · 🚧 AI models |
 | **Look** (Presentation Pack) | how the world is drawn | `presentation/mineworld-default`, for 2D and 3D |
 | **Art files** (Asset Pack) | the models, pictures and sounds | 🚧 today they live with the 2D and 3D programs |
@@ -236,7 +236,7 @@ The file formats are in [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) and
 [`docs/PACKAGE_FORMAT.md`](docs/PACKAGE_FORMAT.md).
 
 **Which computers.** MineWorld is meant for macOS, Linux and Windows. Today it is developed and
-played on macOS, and the automatic tests run on Linux. Getting the full test suite to run on
+played on macOS, and the automatic tests run mainly on Linux. Getting the full test suite to run on
 Windows is being worked on now. To host the café town in Docker:
 `docker build --target runtime -t mineworld .`, then
 `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld`.

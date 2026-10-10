@@ -69,13 +69,13 @@ MineWorld 不是游戏引擎。画面、动画和屏幕上的物理效果，交�
 | **身体** | ✅ 人和物体不会互相穿过去；可以推、踢、扔、撞开别人 · 🚧 学会绕开墙和家具走路，然后给小镇加上墙 |
 | **时间和天气** | ✅ 日期、星期几、日出日落 · 🚧 天气，之后改用十年的真实天气记录 |
 | **你自己的规则** | ✅ 第一批可调的规则（比如一个人隔多久才能再开口）· 🚧 其他模块的规则，以及两个示例世界：一座讲规矩的庄园，一座溜冰场 |
-| **扩展包** | ✅ 每个模块都有名字、版本号和许可证，世界可以写明需要哪些版本 · 🚧 来自其他代码仓库的模块，以及不用重新编译就能添加新种类的物品 |
+| **扩展包** | ✅ 每个模块都有名字、版本号和许可证，世界可以写明需要哪些版本；不用重新编译就能添加新种类的物品 · 🚧 来自其他代码仓库的模块 |
 | **多人一起玩** | ✅ 邀请码、昵称、断线 30 秒内可以回来、真人接管 AI 角色、房主可以暂停或请人离开 · 🚧 四个人同时在线的测试 |
 | **2D 视图** | ✅（预览版）走路、进出门、聊天、邀请、购买、赠送、吃喝，全部通过服务器给出的菜单 |
 | **3D 视图** | ✅ 走、跑、跳，走进咖啡馆，在运行中的服务器上和 Alice 聊天 · 🚧 整条街都按服务器的地图来搭、会撞到东西、购物、在普通电脑上也流畅 |
 | **设置** | 🚧 英文和简体中文、分辨率、窗口或全屏、帧率上限 |
 | **AI 角色** | ✅ 它们用来接入世界的 Python 工具包 · 🚧 默认用本地模型、也可以用你自己的密钥接在线服务、记忆，以及你在 2D 里告诉 Alice 的话，她在 3D 里还记得 |
-| **电脑系统** | ✅ 自动测试在 Linux 上运行；Python 工具包在 macOS、Linux 和 Windows 上都有测试 · 🚧 三个系统上结果完全一致，以及完整测试在 Windows 上运行 |
+| **电脑系统** | ✅ 自动测试在 Linux 上运行；Python 工具包和扩展包相关的测试也会在 macOS 和 Windows 上跑 · 🚧 三个系统上结果完全一致，以及完整测试在 Windows 上运行 |
 | **很多小镇** | 🗺 下一阶段：一个世界里有好几个小镇，火车、公交、出租车，在车上走动，小镇地图和世界地图 |
 | **看起来像真的** | 🗺 下一阶段：用真实高度数据做的山，能蹚、能把东西冲走的水，随服务器的风摆动的树 |
 | **再往后** | 🗺 可视化的世界编辑器、大家共享的模块、一直开着的公共世界 |
@@ -90,7 +90,7 @@ MineWorld 不是游戏引擎。画面、动画和屏幕上的物理效果，交�
 | --- | --- | --- |
 | **规则模块**（System Pack） | 能发生什么 | `systems/economy`：钱包、商店、购买、工资 |
 | **世界**（World Pack） | 一个具体的世界：里面的人、地方，以及打开了哪些规则模块 | `worlds/market-town` |
-| **物品种类**（Entity Pack） | 有哪些种类的东西 | 🚧 让多个世界共用；现在每个世界各列各的 |
+| **物品种类**（Entity Pack） | 有哪些种类的东西 | ✅ 可以让多个世界共用，添加时不用重新编译；示例世界目前还是各列各的 |
 | **大脑**（Controller Pack） | 角色由谁来做决定 | `cognition/rule-controller` · 🚧 AI 模型 |
 | **外观**（Presentation Pack） | 世界画成什么样 | `presentation/mineworld-default`，2D 和 3D 都有 |
 | **美术文件**（Asset Pack） | 模型、图片和声音 | 🚧 现在放在 2D 和 3D 程序里 |
@@ -188,7 +188,7 @@ cargo run -p mineworld-cli -- run my-world --headless --seed 1 --days 7
 
 接下来用简短的文本文件添加人、地方和物品，在 `world.yaml` 里打开需要的模块。文件格式见 [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) 和 [`docs/PACKAGE_FORMAT.md`](docs/PACKAGE_FORMAT.md)。
 
-**支持哪些电脑。** MineWorld 的目标是 macOS、Linux 和 Windows 都能用。目前在 macOS 上开发和游玩，自动测试在 Linux 上跑。让完整测试也能在 Windows 上跑，正在进行中。想用 Docker 开一个咖啡馆小镇：先运行 `docker build --target runtime -t mineworld .`，再运行 `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld`。
+**支持哪些电脑。** MineWorld 的目标是 macOS、Linux 和 Windows 都能用。目前在 macOS 上开发和游玩，自动测试主要在 Linux 上跑。让完整测试也能在 Windows 上跑，正在进行中。想用 Docker 开一个咖啡馆小镇：先运行 `docker build --target runtime -t mineworld .`，再运行 `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld`。
 
 ## 延伸阅读
 
