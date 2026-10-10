@@ -7030,8 +7030,8 @@ MineWorld-<version>-<target>/
   <launcher entry points>                         ARC-78
   runtime/
     mineworld[.exe]                               the release server
-    clients/mineworld-2d[.exe|.app]               the exported 2D client, engine and pack together
-    clients/mineworld-3d[.exe|.app]               the exported 3D client (slice scene as main)
+    clients/mineworld-2d[.exe] + mineworld-2d.pck the exported 2D client (macOS: mineworld-2d.app)
+    clients/mineworld-3d[.exe] + mineworld-3d.pck the exported 3D client, slice scene as main (macOS: .app)
     clients/shared/settings/locale/*.po           the shared catalog layer, as plain files
     clients/shared/settings/fonts/NotoSansSC-Regular.otf, OFL.txt
     presentation/mineworld-default/2D/{art,assets,i18n,renderer,manifest.yaml,pack.yaml}
@@ -7040,8 +7040,11 @@ MineWorld-<version>-<target>/
 ```
 
 `<target>` is `macos-universal`, `windows-x86_64`, `linux-x86_64` or `linux-arm64`. Linux and Windows
-clients embed their pack in the executable; macOS clients are ad-hoc-signed `.app`s with the pack in
-`Contents/Resources`. Under `runtime/`, every file the clients read from disk keeps its path relative to
+clients carry their pack beside the executable (`mineworld-2d[.exe]` and `mineworld-2d.pck`, which Godot
+loads by name), so the packaging checks can read every pack's directory; macOS clients are
+ad-hoc-signed `.app`s with the pack in `Contents/Resources`. `BUNDLE.toml` names each client's
+executable (`client_2d`, `client_3d`, relative to `runtime/`): a macOS client's program is named after its
+Godot project, and the launcher reads the name rather than guessing it. Under `runtime/`, every file the clients read from disk keeps its path relative to
 the repository root, so one argument locates all of them.
 
 **Choice — `--root=<dir>`.** A user argument both clients accept: the absolute folder that stands for the
