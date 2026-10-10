@@ -1,7 +1,23 @@
 # PR 13c — Nightly stability, long parity and client checks in CI (S13, layer 4)
 
-**Lifecycle:** `DRAFT — PR design, awaiting the primary session's review and the operator's answers to the
-[OM] questions (§13)`. Not frozen. Nothing in this document authorizes implementation.
+## DESIGN FROZEN 2026-10-10 (primary session)
+
+```text
+Design revision:        revision 1 (PR #158, first commit 29459bb) with §14.1's rulings applied and the
+                        decision number corrected to ARC-83
+Approved by / evidence: the coordinator's message relaying the operator's rulings (QC-1, QC-2) and the
+                        primary session's rulings (QC-3 … QC-12, QC-8, decision ids), 2026-10-10 (§14.1)
+Implementation base:    main at the start of implementation (exact commit recorded in N-C0's re-audit)
+Execution contract:     §15 (filled at freeze)
+Lifecycle:              FROZEN
+```
+
+Scope (§3), invariants (§4), acceptance and mutations (§7), the commit plan (§9) and the contract (§15)
+are frozen. The ledger (§12), evidence, findings and bounded corrections stay writable. Implementation
+starts in a fresh session (§15); this planning session does not implement.
+
+*Superseded header:* `DRAFT — PR design, awaiting the primary session's review and the operator's answers
+to the [OM] questions`.
 
 - **Effort:** `mvp0`. **Step:** S13, [`step-14-ci.md`](step-14-ci.md). This document details the outline
   of step-14 §14 (and §7.3) to the commit. Where they differ, this document proposes the change and says
@@ -15,8 +31,8 @@
   Godot download step); [`pr-s6-save-retention.md`](pr-s6-save-retention.md) ASR-1, ASR-11.
 - **Written by:** the 13c design session. Worktree `/Users/yuema137/mineworld-worktrees/design-13c-ci`,
   branch `docs/13c-ci-design`, from `origin/main @ 98fe3e6` (2026-10-10).
-- **Decision numbers:** `ARC-82` and `DEP-45`, the next free numbers per `overall.md` "decision-number
-  table" (line 927), as given by the primary session's brief. They are proposals until the freeze.
+- **Decision numbers:** `ARC-83` and `DEP-45`, assigned at freeze by the primary session (ARC-82 went to
+  13c R-PK-1, doorway names, #156).
 
 ---
 
@@ -120,7 +136,7 @@ Operator rules that bind this design:
 - No required check. No repository setting (protection, required checks, rulesets, Actions policy). QB-11
   is a recommendation to the operator, not a change this PR makes.
 - No "simulate many agents" scale test. §16 names it as an example; no world with many agents exists,
-  and a scale test belongs to the performance lane when one does (recorded as a gap in ARC-82).
+  and a scale test belongs to the performance lane when one does (recorded as a gap in ARC-83).
 - No rendering or pixel acceptance in CI: `D-11` and `ARC-17` keep visual acceptance with the operator
   (step-14 §5.7). Windowed Godot tests run where a runner can open a window; they check behaviour, not
   frames.
@@ -430,7 +446,7 @@ long adds                  summary-1000 <n> <sha>  · line-1000.*      memory, s
 baseline unless a reviewed commit changed the baseline.
 
 ```text
-# MineWorld long-run baselines: ci_parity.py's long profile, seed 7. Read by the nightly (ARC-82).
+# MineWorld long-run baselines: ci_parity.py's long profile, seed 7. Read by the nightly (ARC-83).
 # Regenerate from any platform's long record (they are equal, ARC-49):
 #   python3 scripts/ci_parity.py baseline write <record> > scripts/baselines.txt
 [world lakeside]
@@ -459,9 +475,10 @@ journal-300s   <rows> <sha-256>
   `compare`. Since `compare` proved every platform's record equal, checking one is checking all; if
   `compare` failed, the baseline check still runs and its verdict is reported separately (two findings,
   never one hiding the other).
-- **Who updates it (QC-3).** Recommended: a PR that intends to change a world's behaviour updates
-  `scripts/baselines.txt` in the same PR, as step-11 I-7 already requires prose digests to be
-  re-baselined "here, and only here". It needs no Mac: any platform's long record serves, because parity
+- **Who updates it (QC-3, ruled yes).** A PR that intends to change a world's behaviour updates
+  `scripts/baselines.txt` in the same PR, **with a reason line** for each changed world (a `reason <PR or
+  step id>: <one line>` entry in that world's section, which `baseline check` ignores and `baseline write`
+  keeps), as step-11 I-7 already requires prose digests to be re-baselined "here, and only here". It needs no Mac: any platform's long record serves, because parity
   holds. A PR author gets a record either locally (`ci_parity.py record --profile long --binary …`, about
   10 minutes on a laptop, N-C2 measures) or by pushing `scratch/<name>-parity-long-nightly`. If a PR
   forgets, the nightly turns red the next night, the issue names the world, the key and the commit range,
@@ -526,9 +543,9 @@ clients-probes   Linux and macOS (bash launchers, W-9)
 - **Windows.** `clients-windows` runs `clients` only. Before checkout it runs `git config --global
   core.symlinks true` (W-11), then checks that `clients/2d/mineworld` and `clients/3d-spike/mineworld` are
   directories, failing by name otherwise. `clients-probes` is not run on Windows, with the reason
-  recorded in ARC-82: the launchers are bash scripts that use `kill`, `seq` and `sed`, and a portable
+  recorded in ARC-83: the launchers are bash scripts that use `kill`, `seq` and `sed`, and a portable
   launcher is S23 R-c's `mineworld-launch` (open, #148). When R-c merges, `clients-probes` moves onto it
-  for all three OSes (a follow-up row in ARC-82, owner S13).
+  for all three OSes (a follow-up row in ARC-83, owner S13).
 - **Windowed tests on a runner that cannot show a window (R-1).** Discovery at N-C6. If one of the three
   windowed tests fails on a leg for a display or GPU reason (not a behaviour reason), the pre-authorized
   fallback (QC-5) is: that leg's layer variant passes `--skip <test name>` for exactly those tests, each
@@ -857,10 +874,10 @@ is re-audited at N-C0.
   freeze header is absent (DRAFT).
 - **Commit boundary.** One file.
 
-### N-C1 — Specs before code: ARC-82, DEP-45, ARC-48 note, standards prose
+### N-C1 — Specs before code: ARC-83, DEP-45, ARC-48 note, standards prose
 
 - **Goal.** The decisions exist before the code that implements them (CLAUDE.md §2.2).
-- **Scope.** `docs/DECISIONS.md`: `ARC-82` (layer 4: `nightly.yml`, triggers, the gate, the five groups,
+- **Scope.** `docs/DECISIONS.md`: `ARC-83` (layer 4: `nightly.yml`, triggers, the gate, the five groups,
   the verdict rule I-13c-3, the report and the issue, `issues: write` on one job, the baselines policy
   and its update duty, the Windows `clients-probes` reason and its R-c follow-up, the "many agents" gap);
   `DEP-45` (official Godot builds in CI, SHA-512 pinned in the repository, cached; Xvfb and Mesa from the
@@ -870,8 +887,8 @@ is re-audited at N-C0.
 - [ ] Implementation: the three records and the prose, with the ids the primary session confirms at
   freeze.
 - [ ] Validation: `check_decision_ids.py` (ids distinct, count +2), `check_doc_headings.py`.
-- [ ] Review: terminology fixed (Layer, System Pack, World Pack as defined); every rule in ARC-82 traceable
-  to §3; nothing in ARC-82 stronger than what §3 implements.
+- [ ] Review: terminology fixed (Layer, System Pack, World Pack as defined); every rule in ARC-83 traceable
+  to §3; nothing in ARC-83 stronger than what §3 implements.
 - **Commit boundary.** Docs only.
 
 ### N-C2 — `ci_parity.py`: the long profile, baselines, `diff`; `scripts/baselines.txt`
@@ -1094,7 +1111,7 @@ decision. The rest the primary session can decide.
 | **QC-1 [OM]** | Give the `report` job `issues: write` (the automatic `GITHUB_TOKEN`, no secret) so a red night opens or updates one issue labelled `nightly`, relaxing I-S13-7 for that job only? | **Yes.** It is the only notification that lands where the project already works (issues link from ledgers), needs no secret, and closes itself on green. Fallback if no: the step summary plus GitHub's failure e-mail to the cron's last editor. |
 | **QC-2 [OM]** | QB-11: which checks become required? | **(B)** (§11): `test-macos` now; `test-windows` after seven flake-free nightly runs and once its warm time is within 5 min of `test`'s. The settings change is the operator's. |
 | **QC-3** | Baselines (§3.3): a committed `scripts/baselines.txt` that a behaviour-changing PR updates, with the nightly catching a forgotten update? | **Yes.** It closes F-13c-3 at the cost of one line per behaviour change, which lanes already do in prose. Alternative (no committed file, compare with the previous night) flags every intended change and is self-referential; declined. |
-| **QC-4** | `clients-probes` (bash launchers) on Linux and macOS only until S23 R-c's `mineworld-launch` merges, with the reason in ARC-82? | **Accept.** The 25 Rust-driven Godot tests run on Windows from the first night. |
+| **QC-4** | `clients-probes` (bash launchers) on Linux and macOS only until S23 R-c's `mineworld-launch` merges, with the reason in ARC-83? | **Accept.** The 25 Rust-driven Godot tests run on Windows from the first night. |
 | **QC-5** | Pre-authorize the named-skip fallback for the three windowed Godot tests on a leg that cannot show a window, with the coverage rule that each passes on another leg the same night? | **Accept.** Without it, a runner limitation would keep a leg red every night, which teaches people to ignore red. |
 | **QC-6** | Sequencing with S6 SR (#153): 13c lands with 300-day saves now; the 1 000-day saved run and an ASR-1 assertion (≤ 640 MiB) are added after SR merges? | **Yes.** One layer line each, owned by S13, after SR. 13c does not wait for SR. |
 | **QC-7** | Extend `check_ci_pins.py` (run by `fast`) to require full-SHA pins on every `uses:`? | **Yes.** Today's tree passes; it turns I-S13-7's convention into a check before a job with a write permission exists. |
@@ -1104,9 +1121,33 @@ decision. The rest the primary session can decide.
 | **QC-11** | Should a red `parity-long` (a platform difference at the long horizon) "block main's health" like `ac8`, or only report? | **Report** for now. Revisit after a month of nights: if it never flakes, promote it to ARC-48's "blocks main's health". |
 | **QC-12** | Run CA-13 (`perceived.rs`, ignored, needs a 300-day save) nightly in `stability`? | **Yes.** It is a guard nobody runs since S11-C closed. AO-2's evidence test and `deltas.rs`' measurement stay out (measurements, not guards). |
 
+## 14.1 Rulings (2026-10-10)
+
+Relayed by the coordinator. Each ruling replaces the recommendation above where they differ.
+
+- **QC-1 [OM], operator: yes.** `issues: write` on the `report` job only, with the automatic
+  `GITHUB_TOKEN`; it opens and closes one `nightly` issue. I-S13-7 is amended for that job only.
+- **QC-2 [OM], operator: accepted.** `test-macos` becomes a required check now; the primary session is
+  applying the branch-protection change (a settings change outside this PR). `test-windows` becomes
+  required after seven clean nightly runs and once its warm wall time is within 5 min of `test`'s.
+- **QC-8, primary: approved.** `scratch/13c-*-nightly` push and delete, `nightly-scratch` issues (closed
+  after), and §8's run budget (≤ 6 full, ≤ 12 single-group scratch runs).
+- **QC-3, primary: yes**, with a reason line in `scripts/baselines.txt` for each world a PR re-baselines
+  (§3.3).
+- **QC-4, primary: yes.** `clients-probes` on Linux and macOS until R-c's launcher.
+- **QC-5, primary: yes.** Skip by name only when the test passed on another platform that night.
+- **QC-6, primary: yes.** 13c lands before S6; the 1 000-day saved run and the 640 MiB (ASR-1) check are
+  added after S6 merges.
+- **QC-7, primary: yes.** Full-SHA pins required by `check_ci_pins.py`.
+- **QC-9, primary:** 10:17 UTC.
+- **QC-10, primary: yes.** One Godot download step shared with S23.
+- **QC-11, primary:** `parity-long` reports only.
+- **QC-12, primary: yes.** CA-13 runs nightly.
+- **Decision ids, primary:** `ARC-83` (ARC-82 went to 13c R-PK-1, doorway names) and `DEP-45`.
+
 ---
 
-# 15. Proposed execution contract (for the primary session to fill and freeze)
+# 15. Execution contract (filled and frozen 2026-10-10, primary session)
 
 ```text
 PROJECT / PR        MineWorld mvp0 — S13 PR 13c, nightly stability, long parity and client checks
@@ -1115,10 +1156,11 @@ RELATED / BINDING   step-14-ci.md §§3.4–3.7, 4, 5.7, 13, 15, 16; overall.md 
                     docs/DECISIONS.md ARC-48 (+ notes), ARC-49, DEP-17, DEP-18, DEP-19, DEP-26, DEP-29,
                     DEP-41; step-23-release.md §16.4; pr-s6-save-retention.md ASR-1, ASR-11;
                     ENGINEERING_STANDARDS.md §§15–16; CLAUDE.md §§2–4
-IMPLEMENTATION BASE main at freeze (re-audit §2 if it moved); branch mvp0/pr-13c-nightly; worktree
-                    /Users/yuema137/mineworld-worktrees/impl-13c (sole writer)
-PRECONDITION        QC-1, QC-2 (informational for 13c), QC-8 answered by the operator; QC-3 … QC-12 by
-                    the primary session; DESIGN FROZEN header recorded
+IMPLEMENTATION BASE main at the start of implementation (re-audit §2 if it moved); branch
+                    mvp0/pr-13c-nightly; worktree /Users/yuema137/mineworld-worktrees/impl-13c-nightly
+                    (sole writer)
+PRECONDITION        met: QC-1, QC-2 (operator, 2026-10-10); QC-3 … QC-12 and QC-8 (primary session,
+                    2026-10-10); DESIGN FROZEN 2026-10-10 (primary session); ids ARC-83, DEP-45
 COMMANDS            cargo, git, gh (PR create/update; run list/view/download/cancel; issue list/view for
                     MN-9's checks; no merge, no settings), python3 scripts/*, uv, docker (local), godot
                     (local, the laptop's 4.7.2)
@@ -1128,8 +1170,9 @@ VALIDATION BUDGET   local: unrestricted; CI: ≤ 6 full and ≤ 12 single-group 
                     monetary: none; any sign of billing → stop
 ENDPOINT AUTHORITY  implementation, local validation, semantic commits: authorized (D-12)
                     branch push, PR create/update, CI repair: authorized (D-12)
-                    scratch/13c-*-nightly push + delete, nightly-scratch issues: per QC-8 (unresolved
-                      until answered)
+                    scratch/13c-*-nightly push + delete, nightly-scratch issues (closed after):
+                      authorized (QC-8, primary session, 2026-10-10)
+                    issues: write on the report job: authorized (QC-1, operator, 2026-10-10)
                     repository settings (required checks included), larger runners, paid services:
                       NOT authorized — operator only
                     merge: explicit operator authorization only
