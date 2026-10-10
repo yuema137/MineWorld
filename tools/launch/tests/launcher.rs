@@ -397,7 +397,19 @@ fn copy_tree(from: &Path, to: &Path) {
 
 /// Whether a process id is alive: `kill -0` on Unix, `tasklist` on Windows (test-only; the launcher
 /// itself never looks a process up).
+///
+/// An exited process whose parent is gone is a zombie until an init reaps it, and CI's Linux container
+/// has no reaping init: `kill -0` succeeds on a zombie. On Linux the state in `/proc/<pid>/stat` decides
+/// — `Z` (zombie) or `X` (dead) is not alive.
 fn alive(pid: u32) -> bool {
+    if cfg!(target_os = "linux") {
+        return fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+            // "<pid> (<comm>) <state> …": the state follows the last ')', since comm may hold one.
+            stat.rsplit_once(')')
+                .and_then(|(_, rest)| rest.split_whitespace().next())
+                .is_some_and(|state| state != "Z" && state != "X")
+        });
+    }
     if cfg!(windows) {
         let listed = Command::new("tasklist")
             .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])

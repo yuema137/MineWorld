@@ -65,6 +65,7 @@ mod platform {
 mod platform {
     // user32, linked by the GUI subsystem; declared here rather than taken from `windows-sys`, as
     // `DEP-29`'s note did for `GenerateConsoleCtrlEvent` (ARC-78).
+    #[allow(unsafe_code)]
     #[link(name = "user32")]
     unsafe extern "system" {
         fn MessageBoxW(window: isize, text: *const u16, caption: *const u16, kind: u32) -> i32;

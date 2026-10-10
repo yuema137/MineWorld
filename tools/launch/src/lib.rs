@@ -12,7 +12,8 @@
 //! A process supervisor and nothing else: it reads nothing from the server but the join line, holds no
 //! world state and no world rule, and stops only the processes it started.
 
-// `deny`, not `forbid`: exactly one function, Windows' `MessageBoxW` in `dialog`, allows it.
+// `deny`, not `forbid`: Windows' `MessageBoxW` in `dialog` — its one declaration and its one call —
+// allows it.
 #![deny(unsafe_code)]
 
 mod bundle;

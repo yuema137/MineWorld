@@ -1214,3 +1214,15 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
 Per-commit local evidence is under each commit in §19.4. CI on the PR's exact head is recorded here once
 read (the commit that records it cannot contain its own hash; the final head and its runs are also in the PR
 body and the handoff).
+
+- **PR #148, head `fe34c77`, run 38036218436.** `fast` PASS, `python (ubuntu)` PASS; **`test-windows` FAIL**
+  at `cargo test --workspace --no-run`: `error: usage of an unsafe extern block` in `mineworld-launch` —
+  `#![deny(unsafe_code)]` also covers the `unsafe extern "system"` declaration, which only the Windows build
+  compiles (finding F-RC-1; nothing on macOS could show it, the Windows target is not installed locally).
+  Fix: `#[allow(unsafe_code)]` on that one declaration as well as on `show`; the crate comment names both.
+  `test-macos` PASS (launcher 4/4, `stop_on_stdin_eof` 2/2). **`test` (Linux container) FAIL**: launcher
+  `killing_the_launcher_stops_its_server` — "the stub client exits" (`launcher.rs:622`); the other three
+  cases and `stop_on_stdin_eof` passed. Finding F-RC-2 (test, not product): after the launcher is killed its
+  children are orphans; in the CI container PID 1 does not reap them, so an exited stub stays a zombie and
+  `kill -0` reports it alive. Fix: on Linux the test reads the state in `/proc/<pid>/stat` and counts `Z`/`X`
+  as not alive (the same helper judges the server's pid). `platforms` ×2 and `python` ×3 PASS.
