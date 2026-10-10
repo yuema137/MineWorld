@@ -52,6 +52,9 @@ static func build(parent: Node3D) -> Node3D:
 	var b := SliceBudget.apply(g)
 	print("budget %d instances ranged by screen size; widest at its range end %.2f px; %d over"
 		% [b["ranged"], b["max_px"], b["violations"]])
+	var o := SliceOccluders.build(g)
+	print("occluders %d boxes from opaque massing; %d overlap glazing or a door"
+		% [o["occluders"], o["overlaps"]])
 	_tick("batched", t0)
 	return g
 

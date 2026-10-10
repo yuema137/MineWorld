@@ -484,9 +484,39 @@ with evidence.
   ground, backdrop) and the occupant is not under the world root. Labels and props are ranged.
 
 ### C5 — `3d: occluders from opaque massing`
-- [ ] Implementation: `occluders.gd`; the `terrace.gd` registry line; `project.godot`.
-- [ ] Validation: A-6, X-2; M-5; V-1 (especially `03`, `11`, `13`, `22`).
-- [ ] Review: no occluder intersects any glazing or door box (asserted at build time).
+- [x] Implementation: `occluders.gd`; the `terrace.gd` registry line; `project.godot`. *Evidence:*
+  `SliceOccluders.build` after the budget pass: 17 `BoxOccluder3D`s — each ordinary unit's solid mass
+  (from `RECESS_DEEP` behind the façade, behind every reveal, shop-window recess and door, to the rear,
+  ground to eaves), the café's side walls, back wall and upper storeys, the florist's party walls and
+  the storey above its room (its back wall has a doorway and is left out). All inset 2 cm.
+  **Bounded deviation:** SD-RLb-5 described the unit occluder as "upper storeys … 0.15 m behind the
+  façade face" plus rear and party walls; the window reveals reach 0.18–0.19 m behind the face, so a
+  box at 0.15 m would have cut through upper-window glazing. The unit's own solid mass, which starts
+  1.45 m back and contains the upper storeys, rear and party walls, is used instead: same intent
+  (opaque massing only), strictly further from any opening. `terrace.gd`: one `static var massing`
+  declaration and one `massing.append` beside the doors registry. `project.godot`:
+  `occlusion_culling/use_occlusion_culling=true` (the promenade scene has no occluders, so nothing
+  changes there).
+- [x] Validation: A-6, X-2; M-5; V-1 (especially `03`, `11`, `13`, `22`). *Evidence (E-RLb-6):*
+  build log `occluders 17 boxes from opaque massing; 0 overlap glazing or a door`. A-6 (breakdown,
+  occlusion switched off): objects in frame +349 (street wide), +98 (interior), +459 (cafe frontage,
+  drift caveat) — occlusion culling is active on macOS arm64. X-2 (a box across the café glazing):
+  the build check reports 29 overlaps (28 glass triangles and one door); V-1 on `11_interior_looking_out`
+  4.316 % — FAIL as required; V-1 on `03_cafe_exterior` 0.049 % — **survived**: from the street the
+  culled objects behind the glass are few and small (merged cells are large and stay partly visible),
+  so V-1 alone would not catch this; the build check owns it. Reverted. V-1 (c4 → c5): max 0.019 %
+  (09c, character noise); `03`, `11`, `13`, `22` all ≤ 0.009 % — PASS. M-5 at 1920x1080: street wide
+  11.74 / 3814 / 1.99 M; cafe frontage 20.78 / 4215 / 3.56 M; interior 15.20 / 3814 / 3.67 M; doorway
+  23.68 / 3424 / 3.16 M; street east 12.41 / 3964 / 2.21 M; south side 11.57 / 614 / 0.17 M; florist
+  interior 16.77 / 3630 / 3.53 M; skyline east 11.70 / 3715 / 1.97 M; video memory 2 049.6 MB. M-6
+  still FAIL on all four. `--drive` passes.
+  Breakdown on C5 (where the remaining cost is): merged cells −2 080 to −2 142 draws; sun shadows
+  −2 183 to −2 871 draws and −1.1 to −2.8 M primitives; VoxelGI −7.96 ms (cafe frontage), −3.82 ms
+  (interior), −1.12 ms (street wide).
+- [x] Review: no occluder intersects any glazing or door box (asserted at build time). *Evidence:*
+  the check tests every box against every alpha-blended triangle in the slice (shop, door and
+  upper-window glazing) and every street door's opening; it found the X-2 box and nothing on the
+  real set.
 
 ### C6 — `3d: small interior objects cast no sun shadow` (kept only if V-1 passes)
 - [ ] Implementation: `budget.gd` part 2.
