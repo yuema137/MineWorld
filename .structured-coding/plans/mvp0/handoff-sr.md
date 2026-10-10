@@ -33,9 +33,13 @@ POST-MERGE SYNC     primary session: overall.md (F-SAVE-1, F-SAVE-2, decision ta
                     this session: the PR ledger and step-06 L-6 note
 ```
 
-## Current checkpoint
+## Current checkpoint — READY FOR OPERATOR REVIEW — DO NOT MERGE
 
-C5 in progress. Commits: d573ea2 C0 · 5e202e8 C1 · ded6e73 C2 · 054bf5b C3 · 93d50a8 C4. Draft PR
+Context CLOSED / AWAITING OPERATOR ACTION. All commits C0 … C6 on PR #153; evidence in the design's
+§14; exact-head CI and AC-8 (scratch/sr-ac8-scenario) reported on the PR. Merge only with the
+operator's explicit authorization after the primary session's review.
+
+### Earlier checkpoint — C5 in progress. Commits: d573ea2 C0 · 5e202e8 C1 · ded6e73 C2 · 054bf5b C3 · 93d50a8 C4. Draft PR
 #153. Scratch branch `scratch/sr-c1-build` (three-platform build of zstd: green; delete at close).
 Uncommitted: kill_and_resume anchor/retiring kill points + control oracle (green);
 market_town ASR-2 assertion (running: /tmp/impl-sr/c5-market.log).

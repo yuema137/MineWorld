@@ -511,7 +511,8 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Goal.** READY FOR OPERATOR REVIEW.
 - **Scope.** §14 final; handoff; `overall.md` F-SAVE-1 entry marked "SR in review" (primary session's
   file — a request, §11).
-- [ ] Implementation / [ ] Validation (exact-head CI) / [ ] Review.
+- [x] Implementation / [x] Validation (exact-head CI: reported on PR #153 against the final SHA) /
+  [x] Review. *Evidence: §14.7.*
 
 ## 11. Requirements this PR places on other documents and lanes
 
@@ -610,6 +611,8 @@ Relayed by the coordinator to the persistence-lane design session on 2026-10-10.
 | QSR-6 [primary] | Decision numbers. | Assign `ARC-81` and `DEP-43` (next free per `overall.md`, verified unused). |
 
 ## 14. Ledger (live during implementation)
+
+**Status: READY FOR OPERATOR REVIEW — DO NOT MERGE** (C0 … C6 done; §14.7).
 
 Opened by C0 in the implementation session (2026-10-10), worktree
 `/Users/yuema137/mineworld-worktrees/impl-save-retention`, branch `mvp0/pr-s6-save-retention`.
@@ -943,6 +946,46 @@ delete one fact row (binary that skips inserting EventId 20 000)
 
 ASR-6 (`AC-12`, `tools/cli/tests/run.rs` and `market_town.rs`' same-seed comparisons) is green
 unchanged at C3 and C5. ASR-7 (`AC-8`) and ASR-12 are recorded at C6 on the PR head.
+
+### 14.7 C6 — close-out: READY FOR OPERATOR REVIEW — DO NOT MERGE
+
+```text
+PR                 #153 (mvp0/pr-s6-save-retention → main)
+commits            d573ea2 C0 · 5e202e8 C1 · ded6e73 C2 · 054bf5b C3 · 93d50a8 C4 · 8c35887 C5 ·
+                   the C6 commit carrying this section (its SHA is the PR head; CI is reported on the
+                   PR against that exact SHA, so this file does not chase its own head)
+ASR-12             git diff --stat a5f5357 -- kernel contracts systems packages: empty      PASS
+ASR-7 (AC-8)       scratch/sr-ac8-scenario pushed at the final head: the scenario, linux-arm, mac,
+                   windows and ac8 jobs (ci_parity compare over every stored byte of the 30-day
+                   save, snapshots table included); result on the PR
+```
+
+Criteria summary:
+
+```text
+ASR-1   586.9 MiB ≤ 640; snapshots 3.75 MiB ≤ 8; exactly K(290944)                 PASS (§14.6)
+ASR-2   59.2 MiB ≤ 64; 10 = 1 + 7 + 2; asserted in CI by market_town               PASS (§14.6)
+ASR-3   replay of the 300-day save: 290 995 revisions, 375 619 facts, 74 snapshots PASS (§14.6)
+ASR-4   verify_from every anchor (30-day, 7) and first/middle/last (300-day)       PASS (§14.6)
+ASR-5   kill_and_resume incl. anchor and retiring kills, byte-identical            PASS (§14.6)
+ASR-6   AC-12 tests unchanged, green                                               PASS (§14.4, §14.6)
+ASR-7   AC-8 three platforms on the final head                                     on the PR
+ASR-8   format-2 refused: base-built fixture (library); run/replay/inspect/server  PASS (§14.3)
+ASR-9   non-frame → Damaged naming the revision; foreign frame → Disagrees         PASS (§14.3)
+ASR-10  sweep to 3·4096+5 at interval 8; checkpoint → 0 replayed                   PASS (§14.4)
+ASR-11  facts/journal row counts and SHA-256 equal to the base (30 and 300 days)   PASS (§14.6)
+ASR-12  no kernel/contracts/systems/packages change                                PASS
+```
+
+Deviations: D-1 (ASR-8 split: library fixture + CLI with SQL-marked format), D-2 (MODULE_SPEC §8.1
+names inspect's new line), D-3 (kill test intervals 4 and 8). Findings: F-SR-0 (overall.md's table
+lacks ARC-81/DEP-43 — request to the primary session), F-SR-1 (the `≥ n` guard, per D-SR-3 and §6.6).
+Survived mutation: wall-clock rule vs AC-12 (converges; caught by the K(n) oracles). No material stop
+arose. Requests for the primary session (§11): record ARC-81/DEP-43 in overall.md's table; mark
+F-SAVE-1 "SR in review" (then resolved for snapshots on merge, SR-b open); record F-SAVE-2.
+
+Remaining limitation, as designed: the log grows ≈ 1.9 MiB per simulated day (300 days: facts 389 MiB,
+journal 189 MiB); SR-b is its remedy.
 
 *Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
 tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run
