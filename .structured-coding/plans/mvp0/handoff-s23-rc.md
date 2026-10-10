@@ -11,8 +11,11 @@
 - **Approved scope / frozen invariants / sequence / budget / stop conditions:** §17.2, unmodified
 - **Endpoint authority:** implementation, commits, push, PR, CI repair — authorized (§17.2, sources there;
   plus the primary session's dispatch of 2026-10-10, D-RC-0). Merge: operator only.
-- **Current checkpoint:** C0 written.
-- **Exact next actions:** C1 specs → C2 server flag → C3 launcher core → C4 per-OS → push, PR, CI. C5–C6
-  wait for R-a's merge.
+- **Current checkpoint:** C0–C4 committed (`16c3164`, `2559cc3`, `d509770`, `e830097`); branch pushed and
+  PR opened (see §19.6 for number, head and CI).
+- **Exact next actions:** read CI (`fast`, `test`, `test-macos`, `test-windows`) on the exact head; repair
+  routine failures. C5–C6 wait for R-a's merge: then merge `origin/main`, add the launcher to
+  `scripts/package.py assemble` and `smoke` (additions only), assemble on macOS and run `smoke` for 2d, 3d,
+  both.
 - **Cargo:** `export PATH="$HOME/.cargo/bin:$PATH"`, `CARGO_TARGET_DIR=/tmp/impl-s23-rc-target`.
 - **Background processes:** none.

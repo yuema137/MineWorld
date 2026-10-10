@@ -1211,4 +1211,6 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
 
 ## 19.6 Validation ledger
 
-(filled as commits land)
+Per-commit local evidence is under each commit in §19.4. CI on the PR's exact head is recorded here once
+read (the commit that records it cannot contain its own hash; the final head and its runs are also in the PR
+body and the handoff).
