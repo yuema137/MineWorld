@@ -221,6 +221,12 @@ P5b's native adapter provides.
    "Effective: January 1, 2026"; the page answered our fetcher with HTTP 403, so the quote is from the
    excerpts and is re-read by the operator before freeze. Among the things a user may not do:
    > Automatically or programmatically extract data or Output (defined below).
+
+   **C1 re-read (P5b implementation session, 2026-10-09): INCONCLUSIVE.** WebFetch of
+   `https://openai.com/policies/terms-of-use/` and of `https://openai.com/policies/row-terms-of-use/`
+   both answered HTTP 403. The quote above therefore still rests on search excerpts; nothing was
+   guessed. C4 does not start (freeze header). Pending: the operator, or a session with a browser,
+   pastes the effective date and the clauses here.
 3. **Not found:** any OpenAI text that explicitly permits, or explicitly forbids, a third-party
    application running `codex exec` with the user's ChatGPT plan.
 
@@ -548,3 +554,34 @@ Handoff:           handoff-s10-p5b.md
     On Windows a selector loop cannot start a subprocess; resolved in C3 (F-P5b-1).
   - The contract's branch name is `mvp0/pr-s10-p5b-hosted`; the primary session's kickoff of this
     session names `mvp0/pr-s10-p5b`, which is used (DV-P5b-1).
+
+### 11.2 C1 — decisions and the operator's CLI check
+
+- [x] Implementation: `docs/DECISIONS.md` `DEP-33` (the native adapter; the `anthropic` SDK and
+  `claude-agent-sdk` declined, with the SDK's environment reads verified in source) and `ARC-60` (the
+  subscription route as ruled: no Claude route, the bridge invariants I-B1 … I-B5, the Codex opt-in
+  conditional on the terms re-read); `cognition/lm-controller/README.md` "Subscriptions", after the
+  API-key routes (QP5b-6), quoting §4 with URLs and dates.
+- [ ] **The operator's `codex exec --help` paste: NOT AVAILABLE.** No operator paste reached this
+  session, and an agent does not run the CLI (§9 NEVER). It is needed by C4 only.
+- [ ] **The OpenAI Terms of Use re-read: INCONCLUSIVE** (§4.2): two WebFetch attempts, HTTP 403 each.
+  Per the freeze header, **C4 does not start**; this is an open operator obligation, not a material
+  stop (nothing shows that the terms forbid the use).
+- [x] Validation (E-P5b-1): `check_doc_headings.py` and `check_decision_ids.py` exit 0 (100 ids, all
+  distinct, after `DEP-33` and `ARC-60`); the README section carries both URLs and the date
+  2026-10-09; §4.2 carries the re-read attempt, its date and its result.
+- [x] Review: no claim about a Codex flag is made anywhere (no preset exists); the README states that
+  the Codex route is not available yet, rather than describing an unbuilt route as usable; nothing in
+  the re-read attempt contradicts QP5b-2.
+
+**External research recorded at C1 (§2 of the working rules).**
+
+```text
+question     does the anthropic SDK read the environment and retry implicitly? (§4.3 "not re-verified")
+source       github.com/anthropics/anthropic-sdk-python, main: src/anthropic/_client.py and
+             src/anthropic/_constants.py (raw files, WebFetch, 2026-10-09)
+conclusion   Anthropic.__init__ and AsyncAnthropic.__init__ each read ANTHROPIC_API_KEY,
+             ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL with os.environ.get when the argument is
+             omitted; max_retries defaults to DEFAULT_MAX_RETRIES = 2; DEFAULT_TIMEOUT 600 s, connect 5 s
+consequence  confirms DEP-33's rejection (D-P5-4's rules (a) and (c)); no limitation follows
+```
