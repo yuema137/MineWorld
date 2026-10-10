@@ -68,6 +68,23 @@ Constraint: an Entity Pack declares structure. Behavior requires a System Pack. 
 `Vehicle` without a transport system yields an object that exists and does nothing — which is
 correct, not broken.
 
+**The subset MVP-0 implements: item kinds** (`DECISIONS.md` `ARC-71`). Of the contents above, MVP-0
+reads **item types** only. New entity types would extend the closed `EntityType` of the contracts, and
+component schemas belong to System Packs in MVP-0 (their sections, `ARC-31`); authoring templates are
+not read. An MVP-0 Entity Pack is:
+
+```text
+modern-goods/
+  pack.yaml          id, type: entity-pack, version, mineworld, license, authors (PACKAGE_FORMAT.md §5.0)
+  items/
+    bread.yaml       one item kind, keyed by the file's name, in the World Pack item-file format (§4.1):
+    coffee.yaml      tags, note, and sections — e.g. `item: { category: food }`, owned by `item`
+```
+
+A world uses it by requiring it (`requires: { modern-goods: "^0.1" }`, §4.1); its kinds then exist in
+that world as if the world had declared them. How a world requiring one is read, and every refusal,
+is §4.1's "Requiring an Entity Pack"; `mineworld packs validate` of one is §8.1's.
+
 ---
 
 # 3. System Pack
@@ -551,7 +568,8 @@ Six rules govern this subset, and each one is a decision rather than an implemen
    of `places`, `population`, `items` and `organizations` is *not* observable: entity identities are
    allocated places, then people, then items, then organizations, each in key order, so reordering a
    list changes nothing. Items and organizations come last so that declaring them moves no identity a
-   world already had.
+   world already had. The items are the world's own kinds and every required Entity Pack's together,
+   in one key order (`ARC-71`).
 3. **`seats` is the world's, not the client's.** A client names a seat and the server resolves which
    entity it is, which is why no protocol frame ever names an entity. A seat must be one of
    `population`.
@@ -588,10 +606,11 @@ refused by name, in this order:
 1. any pack found twice under one id, naming both places;
 2. for each requirement, in id order:
    - absent — naming the id and every place searched, or that no pack directory was given;
-   - of a type a world cannot require — a World Pack or a Controller Pack — or an Entity Pack, which is
-     read from S16's PR E-d;
+   - of a type a world cannot require — a World Pack or a Controller Pack;
    - bundled — "versioned with the framework; remove it from requires";
    - at a version the range does not admit — naming the id, the range and the version found;
+   - a data pack whose own `mineworld:` range does not admit the running framework — naming the pack,
+     its range and the framework's version (`ARC-54` note, F-Ed1);
 3. a **third-party** system the world enables in `systems` that `requires:` does not name — naming the
    system, its pack and the missing requirement;
 4. a licence outside the **licence policy** — the world's own when stated, every required pack's, every
@@ -608,6 +627,41 @@ The resolved **composition** — the framework, each requirement with the versio
 satisfied it, each enabled system's pack — is printed by `mineworld packs resolve` (§8.1). It is never
 world state: no fact and no save records a version or a pack root, and a world resumed from a save is
 resolved again against the roots given then.
+
+**Requiring an Entity Pack** (`DECISIONS.md` `ARC-71`). A requirement may name an Entity Pack (§2): a
+pack-root directory holding `pack.yaml` with `type: entity-pack` and an `items/` directory. Requiring it
+is using it: its item kinds exist in the world as if the world's own `items:` listed them.
+
+- **What the pack is.** Every `*.yaml` file in its `items/` is one item kind whose key is the file's
+  name without `.yaml`; any other file there is not content and is ignored. There is no list to keep in
+  step. Each file is in the item-file format above — `tags`, `note`, and sections.
+- **When it is read.** After the world's own content has been read and checked for undeclared files
+  (and before persons' locations, passages and sections are checked), each required Entity Pack, in id
+  order, has its item files read **with the requiring world's enabled systems**: a section is decoded by
+  its owner exactly as if the world had written it, and rules 1 and 6 and the section rules above apply
+  unchanged — an `item:` section in a pack's file needs the world to enable `item`, and is refused naming
+  the pack's file otherwise.
+- **One namespace.** A key a required Entity Pack declares that the world also declares (in any of
+  `places`, `population`, `items`, `organizations`), or that a second required Entity Pack declares, is
+  refused naming the key and both sources. Nothing is overridden.
+- **Identity.** Its kinds are allocated with the world's own, in key order (rule 2), so moving kinds out
+  of a world into an Entity Pack it then requires changes no identity and no fact.
+- **Provenance.** Each of its kinds carries the Entity Pack's id as `source_pack` and `items/<key>.yaml`
+  as `source_path` (written with `/` on every operating system). A refusal names the file in the pack's
+  own directory.
+- **Self-contained.** A section in one of its files may name only kinds the same pack declares; a
+  section naming any other key — a `body:` lying `at:` a place — is refused naming the pack, the file and
+  the key.
+
+Refused by name when the pack is identified (in every pack root, before any world uses it): an Entity
+Pack holding `places/`, `people/` or `organizations/` ("an Entity Pack carries item kinds only in
+MVP-0"); one whose `items/` is absent or holds no `.yaml` file ("declares nothing"). Refused when its
+content is read: an item file whose name is not a valid key; an item file that does not parse (with its
+line and column). A required Entity Pack that is absent, out of range, outside the licence policy, or
+whose `mineworld:` range excludes the framework is refused like any other requirement. The two names
+the frozen model used and MVP-0 replaced — `entity_packs:` in `world.yaml`, `dependencies` in
+`pack.yaml` — stay refused. Line endings are not content: a file written with CRLF reads exactly as one
+written with LF.
 
 **Configuration: a world-level file a System Pack owns** (`DECISIONS.md` `ARC-61`). `configure:` lists
 the enabled packs this world configures. Each key is a system id and names `configure/<key>.yaml`, which
@@ -991,7 +1045,8 @@ repeatable: the directories a world's `requires:` is resolved in (§4.1), in the
 by the entries of the `MINEWORLD_PACKS` environment variable (a path list, `:`-separated on Unix; empty
 entries skipped). A root that does not exist or is not a directory is refused, naming it and whether it
 came from `--packs` or `MINEWORLD_PACKS`. A world without `requires:` needs none. `validate` prints one
-`requires` line per requirement, after `seats`, only when the world states `requires:`.
+`requires` line per requirement, after `seats`, only when the world states `requires:`; its `items` line
+lists the world's item kinds composed with every required Entity Pack's (`ARC-71`).
 
 | Command | What it does |
 | --- | --- |
@@ -1068,9 +1123,12 @@ reports success. An existing directory is refused and left untouched.
   range, and for a System Pack its system id and `SystemVersion`. An id no source provides is refused,
   listing the ids that exist.
 - `validate <directory>` checks one data pack: its package fields, all required, its licence against
-  the licence policy, then its content — a World Pack is read (its requirements resolved in the pack
-  roots) and loaded as `validate` does; a Presentation Pack's style manifest must have an `id` and a
-  `dimension` list.
+  the licence policy, a `pack.yaml` pack's `mineworld:` range against the running framework (`ARC-54`
+  note), then its content — a World Pack is read (its requirements resolved in the pack roots) and
+  loaded as `validate` does; a Presentation Pack's style manifest must have an `id` and a `dimension`
+  list; an Entity Pack's item files are each read against **this build's whole installed set** (each
+  section decoded by its owner; whether a world enables that owner is checked when a world requires the
+  pack), must be self-contained (§4.1), and are listed on an `items` line (`ARC-71`).
 - `resolve <world>` prints the world's composition (`ARC-54`): the framework's version and the world's
   `mineworld:` range; each requirement with the version that satisfied it and where it was found;
   each enabled system with its pack, version and `bundled` or `third-party` — or the first refusal.

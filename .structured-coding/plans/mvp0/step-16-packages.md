@@ -2894,8 +2894,19 @@ subset), §4.1 (requiring an Entity Pack: step 6b, one namespace, allocation, pr
 §8.1 (`packs validate` of an Entity Pack). `docs/PACKAGE_FORMAT.md` §5.0 (`pack.yaml` read for Entity
 Packs; `items/`), §8 (status row).
 
-- [ ] Implementation · [ ] Validation (both doc checks) · [ ] Review (no defined term redefined; `Entity
-  Pack` used as `MODULE_SPEC.md` §1 defines it).
+- [x] Implementation: `DECISIONS.md` ARC-71 (points 1–10, options, limitations) and "ARC-54 note — a
+  required data pack's own framework range is checked (F-Ed1)", appended after DEP-29; `MODULE_SPEC.md`
+  §2 (the MVP-0 subset, the tree), §4.1 (rule 2's sentence on items across sources; requirement rule
+  2 loses "an Entity Pack, read from E-d" and gains the data-pack framework range; new paragraph
+  "Requiring an Entity Pack"), §8.1 (`validate`'s items line; `packs validate` of an Entity Pack and the
+  `pack.yaml` framework range); `PACKAGE_FORMAT.md` §5.0 (`pack.yaml` read for both; the range; the
+  Entity Pack bullet), §8 (identity row; requirements row; a new Entity Packs row).
+- [x] Validation: `check_doc_headings.py` → "191 numbered sections across 26 documents, none
+  duplicated" (exit 0); `check_decision_ids.py` → "70 decision ids, all distinct" (exit 0). PASS.
+- [x] Review: no defined term redefined — `Entity Pack`, `World Pack`, `Item` used as `MODULE_SPEC.md`
+  §1 and `CORE_CONCEPTS.md` define them; "item kind" is `ARC-36`'s term. Citation corrected while
+  drafting: the design's "§4.2 rule 3" is step-16 §4.2, not `MODULE_SPEC.md` §4.2 (which does not
+  exist) — the note cites step-16.
 
 ### Ed-C2 — `packages`: Entity Packs identified and required; data packs' framework range
 
@@ -2905,8 +2916,31 @@ directory rules, items as file names only — no `EntityKey` in `packages`); `pa
 variants); `packages/tests/{manifest,resolve}.rs` (the two rows of ED-11 rewritten; new rows for PD-30,
 PD-37).
 
-- [ ] Implementation · [ ] Validation (`cargo test -p mineworld-packages`; M-D5; `structure.rs`: still a
-  leaf) · [ ] Review (no `contracts` dependency; every refusal names the file and the value).
+- [x] Implementation: `manifest.rs` — `read_pack_file` accepts `entity-pack` and, for one, calls the new
+  `check_entity_layout(dir)` (no `places/`/`people/`/`organizations/`; `items/` holding at least one file
+  whose `Path::extension` is `yaml`); consts `ENTITY_ITEMS`, `ENTITY_ITEM_EXTENSION` exported.
+  `identity.rs` — `Identity::require_framework()` (PD-37; `None` passes, code packs). `resolve.rs` —
+  `EntityPack` resolves like a Presentation Pack; `require_framework()` is the last check of each
+  requirement, after the version range. `error.rs` — `EntityPackCarries { path }`,
+  `EntityPackDeclaresNothing { dir }`, `PackFrameworkNotSupported { id, range, framework }`.
+  **Bounded decision (recorded):** the layout check runs inside `read_pack_file` (identification), not
+  only in `packs validate` — so a malformed Entity Pack in a root is refused wherever packs are
+  identified, as a malformed `pack.yaml` already is, and ED-11's rewritten manifest row is a `read_pack_file`
+  row. The "declares nothing" message names `pack.yaml` because the table asserts every refusal does.
+- [x] Validation: `cargo test -p mineworld-packages` 23 passed, 0 failed (identity 7, manifest 6, policy
+  2, resolve 4, roots 2, structure 2). ED-11 rows: manifest "an entity pack, before E-d" (old claim:
+  refused "type entity-pack … E-d") → "an entity pack without items" (refused "declares nothing");
+  resolve "an entity pack, before E-d" (old: refused "goods is a entity-pack … E-d") → removed from the
+  refusal table, its claim inverted into `an_entity_pack_requirement_resolves_to_its_directory`; its table
+  slot holds PD-37's new row. New: `an_entity_pack_carries_item_kinds_and_nothing_else` (README not a
+  kind; one kind enough; CRLF `pack.yaml` equal identity; each forbidden directory refused naming its
+  path), `a_data_pack_range_that_excludes_the_framework_is_refused_naming_both`. **M-D5** (the
+  `require_framework()` call in `requirement` commented out): `every_failed_rule_is_refused_by_name`
+  FAILED at the PD-37 row → reverted, `git status` showed only the intended files. `structure.rs`: still a
+  leaf (2 passed). clippy `-p mineworld-packages --all-targets --all-features -D warnings`: clean.
+- [x] Review: no `contracts` dependency (no `EntityKey`; names only); every new refusal names the file or
+  directory and the value (`EntityPackCarries` the directory, `DeclaresNothing` the pack dir and
+  `pack.yaml`, `PackFrameworkNotSupported` the pack, range, framework).
 
 ### Ed-C3 — `worldpack`: read, merge, allocate, name the source
 
@@ -2917,9 +2951,41 @@ source — nothing else); `worldpack/src/error.rs` (`KeyFromTwoSources`, `Entity
 `worldpack/src/lib.rs` (exports); `worldpack/tests/entity_packs.rs` (ED-2, ED-3, ED-7, ED-8, ED-10's
 loader rows) through `mineworld_test_support::scratch!`.
 
-- [ ] Implementation · [ ] Validation (`cargo test -p mineworld-worldpack -p mineworld-acceptance`;
-  M-D2, M-D3, M-D6; `validate` of the three worlds byte-identical) · [ ] Review (`load.rs` diff is the
-  two functions; creation order untouched).
+- [x] Implementation: `worldpack/src/entities.rs` (new): `ItemSource { World, EntityPack { id, dir } }`;
+  `compose(manifest, composition, systems, items)` — for each `Composition::required` of type
+  `EntityPack` with `Source::Directory`, in id order, reads `items/` (`Path::extension == "yaml"`,
+  `Path::file_stem` → `EntityKey` or `EntityPackKeyInvalid`), into a `BTreeMap` by key, each file through
+  `parse_with` + `ContentFile::new(Item, systems).item` (the world's systems); checks PD-38
+  (`EntityPackReachesOut`: a decoded section's reference must be an `Item` key of the same pack); merges
+  with PD-34 (`KeyFromTwoSources`, first source "world.yaml's <list>" or "the Entity Pack <id> (<file>)");
+  `validate_entity_pack(dir)` (public; PD-39: identity via `read_pack_file`, items read against
+  `AVAILABLE`, `NotCarriedHere` refused, PD-38). `read.rs`: step 6b in the module doc and after
+  `check_nothing_undeclared`; field `item_sources`; `source_pack` / `source_file` (source-aware path);
+  `check_sections` uses `source_file`; its `NotCarriedHere` refusal extracted to `not_carried_here` (shared
+  with `validate_entity_pack`). `load.rs`: only `provenance` (source_pack through the source; `source_path`
+  still `format!("{}/{key}.yaml")`, `/` on every OS, PD-q2) and `content_file` (delegates to
+  `source_file`). `error.rs`: `KeyFromTwoSources`, `EntityPackKeyInvalid`, `EntityPackReachesOut`.
+  `lib.rs`: `mod entities`, `pub use validate_entity_pack`.
+- [x] Validation: `worldpack/tests/entity_packs.rs`, 7 tests: ED-2 + ED-1 at the loader (moved town: ids
+  map and every genesis fact equal to Market Town's; located first — a genesis `stocked` fact's payload
+  names bread's id `"item":{"entity":"21"`; bread `source_pack` goods / `items/bread.yaml`, apple
+  market-town), ED-13 (LF vs CRLF scratch: same kinds, composition, ids, genesis; CRLF malformed bread
+  refused naming the file and "line"), ED-3 (world+pack `bread`; two packs `tea`), ED-7, ED-8 (world and
+  `validate_entity_pack`), ED-10 (bad stem, malformed, `people/`, no item file, `entity_packs:`,
+  `dependencies:`), `validate_entity_pack` lists bread, coffee. `cargo test --no-fail-fast -p
+  mineworld-worldpack -p mineworld-acceptance`: 132 passed, 0 failed (ac1_composability 13/13).
+  Mutations, each observed failing by name then reverted (`git status` clean of it): **M-D2** provenance
+  always `self.id()` → `kinds_moved_into_a_pack_keep_every_identity_and_name_the_pack` FAILED; **M-D3**
+  collision check disabled → `a_key_from_two_sources_is_refused_naming_both` FAILED; **M-D6**
+  `check_sections` skipping pack kinds → `a_pack_section_needs_its_owner_enabled_by_the_world` FAILED.
+  **Finding (fixed):** the first acceptance run failed `seam_vocabulary::the_seam_names_no_physics` on
+  the word "collision" in `entities.rs`' module doc (the ARC-39 scan covers `worldpack/src`); reworded
+  ("a key stated by two sources"), the scan unedited and passing. `validate` of the three worlds against
+  the base binary: recorded at Ed-C4 with the CLI (one base build serves both).
+- [x] Review: `load.rs`' diff is exactly `provenance` and `content_file`; the creation loop and genesis
+  order untouched. `items()` keeps its signature. No section meaning learned (references are read through
+  `AuthoredContent::references`, the existing seam). Directory listing order never reaches an id (map by
+  key). No new dependency.
 
 ### Ed-C4 — The CLI
 
@@ -2928,17 +2994,87 @@ loader rows) through `mineworld_test_support::scratch!`.
 `tools/cli/tests/entity_packs.rs` (ED-1, ED-4, ED-5, ED-6, ED-9 through the real binary,
 `MINEWORLD_PACKS` removed from every child unless the case sets it).
 
-- [ ] Implementation · [ ] Validation (the new file; `packs.rs`, `requirements.rs`, `commands.rs`
-  unchanged and passing; M-D1, M-D4, M-B3) · [ ] Review (no rebuild anywhere in ED-9; the six refusals
-  table above holds).
+- [x] Implementation: `tools/cli/src/packs.rs` `validate`: a `pack.yaml` pack is judged by the licence
+  policy, then `Identity::require_framework()` (PD-37), then its content by type — Entity Pack →
+  `mineworld_worldpack::validate_entity_pack` and an `items` line (`  items       bread, coffee`);
+  otherwise the style manifest as before. A World Pack's path is unchanged. `main.rs` untouched: its
+  `items` line already prints `pack.items()`, now composed. `tools/cli/tests/entity_packs.rs` (5 tests):
+  ED-1 (resolve names `goods "^0.1" → entity-pack 0.1.0` and the directory; validate's `items` line
+  composed; 30-day seed-7 run: `history` and `faults` lines EQUAL to the unmodified Market Town's,
+  `faults 0`), ED-4 (no root → "no pack directory was given"; empty root named; pack beside the world not
+  found), ED-5 + ED-6 (GPL-3.0-only and `^9` refused by `packs resolve` and `packs validate`; a
+  presentation pack's `^9` refused by `packs validate`), `packs validate` lists kinds, ED-9 (fresh root,
+  `packs list` shows `entity-pack … goods`, resolve, 1-day run; binary length and mtime unchanged;
+  no `cargo` spawned; `CARGO_BIN_EXE_mineworld` is the `.exe` on Windows).
+- [x] Validation: `cargo test --no-fail-fast -p mineworld-cli --test packs --test requirements --test
+  commands --test entity_packs` → 4 + 5 + 5 + 6 passed, 0 failed (entity_packs 3.5 s). clippy `-p
+  mineworld-cli --all-targets --all-features -D warnings` clean. Mutations, each observed and reverted
+  (`git status` after: only the C4 files): **M-D1** (pack kinds created after organizations, in `load.rs`)
+  → `a_world_uses_an_entity_pack_without_copying_it` FAILED: history 37 888 facts `4e8c9554e841ee3b` vs
+  Market Town's 38 004 facts `f4055c0cff59c9fe` (so the 30-day equality is discriminative: one moved id
+  changes 116 facts); **M-D4** (the world's parent added as an implicit root when none is given) →
+  `an_absent_entity_pack_is_refused_naming_where_it_was_searched` FAILED; **M-B3** (policy allows every
+  requirement) → `a_data_pack_outside_the_policy_or_the_framework_is_refused_by_name` FAILED.
+- [x] Review: ED-9 builds nothing and spawns only the binary; the six refusals table holds for E-d's rows
+  (b ED-4/M-D4, c ED-3/M-D3, d ED-5/M-B3, e ED-6/M-D5); `packs.rs`' `list`/`show` untouched (E-c's lane,
+  §17.8), only `validate` changed.
+
+### Ed-C4b — The `platforms` layer (E-c had not landed it; PD-q4)
+
+**Why here.** At Ed-C4 E-c's branch (`origin/mvp0/pr-ec-third-party` @ `e127e1c`) had no `platforms`
+layer and no PR; main had none. Landed as Ed-C4b in a form E-c shares: one layer in
+`scripts/ci_layer.py`, one native composite action `.github/actions/native/action.yml` (step-14
+§13.0.3 point 2: the one native-runner definition 13b also uses), one `platforms` job.
+
+- [x] Implementation: layer `platforms` = `cargo build --locked -p mineworld-cli`; `cargo test --locked
+  --no-fail-fast -p mineworld-packages -p mineworld-worldpack -p mineworld-installed-systems`; `cargo
+  test --locked --no-fail-fast -p mineworld-cli --test packs --test requirements --test entity_packs`.
+  `disk()` tolerates a runner without `df`/`du` (record only). Action: per-OS/layer `actions/cache`
+  (same pinned SHA as `.github/actions/layer`), a report of `core.autocrlf` and whether
+  `worlds/market-town/world.yaml` was checked out CRLF, `ci_layer.py <layer>` with `python3` (macOS) or
+  `python` (Windows), `--prune-cache`. Job `platforms (${{ matrix.os }})`, matrix `macos-latest`,
+  `windows-latest`, `fail-fast: false`, `test`'s `if:`, 60 min.
+  **Bounded deviations (recorded):** (1) PD-p3's offline vendored check is not in the layer — it is
+  EC-3's evidence and needs E-c's generated config; E-c adds it with `--test third_party`. (2) PD-p2's
+  sparse checkout replaced by the whole checkout: the longest tracked path is 120 characters
+  (`clients/3d-spike/assets/models/outdoor_table_chair_set_01/textures/…_1k.jpg.import`), so MAX_PATH is not reached
+  from `D:\a\MineWorld\MineWorld\`; the 3D client's assets are simply checked out. (3) Runner labels
+  `-latest` as §17.12 states; step-14 §13.0.3 point 3 recommends 13b's pinned `macos-26` /
+  `windows-2025`, a one-line change 13b applies when it lands (noted, not taken: DEP-19's decision).
+  (4) `--no-fail-fast` added after the first run, so one red test binary cannot hide another's result.
+- [x] Validation: `python3 scripts/ci_layer.py --list platforms` prints the three commands;
+  `check_ci_pins.py` exit 0. **First run** (scratch branch `scratch/ed-platforms` @ `b050ac5`, run
+  37908212320): fast ✓, test ✓, platforms macOS ✗, Windows ✗ — FAIL, diagnosed:
+  (a) macOS: `packages/tests/manifest.rs` — my new range test called `read(GOOD)`, whose scratch is
+  named by the text's hash, concurrently with `a_well_formed_pack_file_is_one_identity` reading the same
+  text; one test's drop removed the other's `pack.yaml` ("No such file or directory"). A test defect of
+  this PR (Linux passed by timing); fixed by giving the range test its own text. (b) Windows: four
+  existing `worldpack/tests/refusals.rs` tests asserted a refusal *string* contains `people/alice.yaml` /
+  `places/cafe.yaml`; Windows displays `people\alice.yaml`. Production is right (paths built with
+  `Path::join`); the tests were separator-bound. Made separator-neutral with a `shown()` helper building
+  the expected text with `Path::join(..).display()` — claim unchanged ("the refusal names the file"),
+  under PD-p5's allowance for existing `worldpack` tests. ED-13's own CRLF test passed on Windows in
+  that run. **Second run** (`a7edf3a`, run 37975627447): macOS ✓; Windows ✗ at
+  `worldpack/tests/requirements.rs` (a refusal needle `the-world/world.yaml`) — same class, fixed in
+  `7a50c1a`. **Third run** (`7a50c1a`, run 37976994358): macOS ✓; Windows: build ✓, packages /
+  worldpack / installed-systems all ✓ (ED-13's CRLF test included), CLI `entity_packs` ✓ (ED-9 with the
+  `.exe`), and two existing CLI tests ✗ by the same class — `tools/cli/tests/packs.rs`
+  (`packs-duplicate/a`) and `tools/cli/tests/requirements.rs` (`root/style-a`) needles; made
+  separator-neutral (`MAIN_SEPARATOR_STR`), claims unchanged. The final run is the PR head's (PR body,
+  `handoff-ed.md`).
+- [x] Review: no container change; the workflow names layers only; the action names no command but the
+  layer runner; the layer's subset is S16's portable targets (RE-q2: the rest of Windows is S13's).
 
 ### Ed-C5 — Close
 
-- [ ] `docs/MVP_STATUS.md` capability and evidence rows; `handoff-ed.md`; this ledger.
-- [ ] Full gate on the final executable head (fmt, clippy `--all-features -D warnings`, `cargo test
-  --workspace --no-fail-fast` with counts, `check_scratch.py left`); ED-11's digests and `validate`;
-  both doc checks.
-- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+- [x] `docs/MVP_STATUS.md`: capability row "Entity Packs: shared item kinds (S16)" and evidence row "An
+  Entity Pack's kinds are used without being copied or rebuilt"; `handoff-ed.md`; this ledger (§17.8).
+- [x] Full gate (§17.8 "Full local gate"): fmt, workspace clippy `--all-targets --all-features -D
+  warnings`, `cargo test --workspace --no-fail-fast` 780 passed / 0 failed / 9 ignored, `check_scratch.py
+  left` and `scan` clean; ED-11 digests and `validate` equal to base; both doc checks (191/26; 72 ids).
+  The executable head after it differs by one test assertion (`7a50c1a`), covered by CI on the PR head.
+- [x] PR opened READY FOR OPERATOR REVIEW (URL and final-head CI in the PR body and `handoff-ed.md`).
+  Not merged.
 
 ## 17.7 Test ownership
 
@@ -2957,6 +3093,88 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
 
 - **E-Ed0** (design, `9cf8f8e`): spike SC-7 (§16.3) is F-Ed1's evidence; both doc checks re-run with
   this section in place: 191 sections / 26 documents, none duplicated; 67 decision ids, distinct.
+- **E-Ed-start** (2026-10-08, fresh session): base `6ca763d` (#93 merged), worktree
+  `/Users/yuema137/mineworld-worktrees/impl-ed`; §17.3's anchors re-read: `manifest.rs` refused
+  `entity-pack` at `read_pack_file`, `resolve.rs` at `requirement` — as audited; `read.rs` has IL-a's
+  step 4c; `load.rs`' `provenance`/`content_file` as audited. E-c had not landed `platforms`; 12d not
+  open (no ED-1 re-capture needed).
+- **E-Ed-base** (`6ca763d`, built into `target/ed-base` from a detached worktree
+  `/Users/yuema137/mineworld-worktrees/impl-ed-base`): `validate` of the three worlds saved
+  (`target/ed-evidence/base-validate-*`); 300-day seed-7 runs: social-cafe 365 330 facts, sha256 (all
+  but `wall`) `ad49c7235f672153…`, market-town 372 755 facts `365b50e066387959…` (= E-b's EB-6 values).
+- **ED-11 (head `a7edf3a`, before merging main)**: `validate` of social-cafe (27 lines), market-town
+  (51), bodies-yard (40) byte-identical (`cmp`) to base; both towns' 300-day sha and history lines equal
+  to base. `git diff --stat 6ca763d HEAD -- kernel contracts persistence server clients systems
+  cognition tests/acceptance` → empty. Existing tests edited: the two ED-11 rows (Ed-C2), plus —
+  **deviation, bounded, PD-p5** — separator-neutral assertions in `worldpack/tests/refusals.rs` (4
+  assertions via `shown()`) and `worldpack/tests/requirements.rs` (1 needle), claims unchanged, found by
+  the first Windows runs of `platforms`.
+- **Merge of origin/main** (`a7ce497`, S11-B #83 and 13b's plan #88): no conflict; DECISIONS gained
+  ids, `check_decision_ids` 72 distinct, headings 191/26; workspace clippy `-D warnings` clean; CLI
+  `entity_packs`/`packs`/`requirements` green after it.
+- **Full local gate** (on `a7ce497` + Ed-C5's Markdown): `cargo fmt --all --check` ok; `cargo test
+  --workspace --no-fail-fast`: 174 test binaries, 780 passed, 0 failed, 9 ignored; `check_scratch.py
+  left --target-dir target` → nothing left; `check_scratch.py scan` → 162 sources, none outside the helper
+  (2 exempt, pre-existing). `7a50c1a` after it changes one test assertion only (Windows repair).
+- **PR #101 opened** at `db807ad`. Run on `9ed9c1c` (pull_request 37978280918): fast ✓, test ✓,
+  platforms macOS ✓, Windows ✓ — the first all-green head. Its Windows log reported `core.autocrlf:
+  true` yet "LF" for `worlds/market-town/world.yaml` by `grep $'\r'`; that probe is not trustworthy under
+  Git Bash, so `cfa5120` counts carriage returns from `od` bytes instead (ED-13's "the checkout carries
+  CRLF" is read from that line on the final run). ED-13's CRLF claim itself is held by the committed
+  LF/CRLF test, green on Windows and macOS.
+- **Second merge of origin/main** (`7bea1bb`; TW-a calendar #94 — Market Town gains `calendar` and
+  `configure/calendar.yaml`; 13w plan #96): the PR had become CONFLICTING (no pull_request run fired on
+  `cfa5120`). One conflict, `docs/DECISIONS.md` — both sides appended (ARC-71 + ARC-54 note; ARC-67, DEP-30):
+  union, `---` between; 74 ids distinct, headings 191/26. After it: workspace clippy clean;
+  `packages`, `worldpack`, `acceptance` and CLI `entity_packs`/`packs`/`requirements`: 33 binaries, 0
+  failed. **ED-11 re-captured against the new main** (`f80bbb7`, base rebuilt): `validate` of the three
+  worlds byte-identical; 300-day seed-7 sha (all but `wall`) social-cafe `ad49c7235f672153` = base,
+  market-town `24a95d2ae4e9d99b` = base (TW-a's recorded re-baseline), 374 857 facts. ED-1's fixture
+  copies the current Market Town, calendar included, so it needs no re-capture.
+- **CI repair** (`c85075d`, run 37982065130): Windows ✓, macOS ✗ in the action's line-ending probe —
+  under `pipefail`, `grep -o '\r'` with no match (an LF checkout) exits 1. The probe now treats no match
+  as 0 (`{ … || true; }`), checked locally under `set -eo pipefail`: LF file 0, CRLF file 2.
+- **Non-preclusion, MVP-1 regions/travel (S21 §10, PR #109; coordinator, 2026-10-09)** — nothing built,
+  confirmed against E-d's code:
+  - **N-5:** the refusal "a world is not a part of another world" stays confined to `requires:`. It lives
+    only in `packages/src/resolve.rs` `requirement()` (`PackType::WorldPack`), which only resolves
+    `requires:` entries. E-d added no other World-Pack-type check; `entities.rs` handles only
+    `EntityPack` requirements and skips every other type. A future `regions:` key using a World Pack is
+    not refused by anything E-d added.
+  - **N-6:** id allocation stays one function of the ordered keys. E-d merges pack kinds into the same
+    key-ordered `items` map and leaves `load.rs`' creation loop untouched — places, people, items,
+    organizations, each in `EntityKey` order. There is no per-source loop and no source-dependent order,
+    so prefixing region keys with `<region>-` later changes only the keys that loop sees.
+- **Third merge of origin/main** (`d31aba1`: S11-D admin #104, 12e plan #106). `DECISIONS.md`
+  auto-merged, 75 ids distinct, headings 191/26; fmt and workspace clippy clean; `packages`,
+  `worldpack`, `acceptance` and CLI `entity_packs`/`packs`/`requirements`: 33 binaries, 0 failed. On
+  this head: towns' 300-day sha social-cafe `ad49c7235f672153`, market-town `24a95d2ae4e9d99b` (=
+  f80bbb7 base); `validate` of the three worlds byte-identical to the f80bbb7 base. Main touched no file
+  under `worlds/`, `worldpack/` or `packages/`. The final-head CI is in the PR body and handoff.
+- **Operator review (coordinator, 2026-10-09):** #101 approved. The coordinator's mutation (making
+  `check_self_contained` always pass) was caught by `a_pack_section_naming_a_key_outside_the_pack_is_refused`.
+  The platforms-layer deviation was accepted. #101 had become CONFLICTING again.
+- **Fourth and fifth merges of origin/main** (`55392a7`: P3 Python SDK, S11-D, docs; `fe94e39` @
+  `aee8290`: IL-b #102, 13b #103):
+  - `ci.yml` keeps both jobs, `platforms` and main's `python`.
+  - `ci_layer.py` keeps both layer sets; the docstring lists `platforms`, `python` and `python-smoke`.
+  - `DECISIONS.md` is a union: 84 ids distinct, headings 192/26.
+  - `tools/cli/src/packs.rs` keeps both sides. A World Pack is judged by its own licence policy (main's
+    ARC-55 note), after it is read and loaded. A `pack.yaml` pack is judged by the default policy, then
+    its framework range (PD-37), then its content (PD-39).
+  - fmt and workspace clippy are clean. 35 test binaries (packages, worldpack, acceptance, CLI
+    `entity_packs`/`packs`/`requirements`) passed with 0 failures.
+  - Towns' 300-day sha are unchanged: `ad49c723…`, `24a95d2a…`.
+- **Concurrency check** (two resumed copies may have run briefly around 17:14–17:16):
+  `ps -eo pid,command | grep impl-ed` showed only this session's CI watchers. The tree was clean. The
+  history holds only this session's commits; `fe94e39` was already on origin when this copy looked, with
+  the content this copy committed. No foreign change was found, and nothing was reconciled. From here
+  this session is the only writer.
+- **Windows repair after the fifth merge** (run 38008327205): `platforms (windows-latest)` failed in
+  IL-b's new `worldpack/tests/interaction_sections.rs`. That test edits `places/park.yaml` by searching
+  for `"tags:\n"`, which a CRLF checkout does not contain. The file's text is now normalized to LF
+  before the edit. This is PD-p5's allowance, with the claim unchanged; it passes locally. The `python`
+  jobs' failures in that run are main's known SDK gap, not required (coordinator).
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |
