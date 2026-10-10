@@ -88,7 +88,13 @@ impl View {
             let mut held = Invitations::default();
             for (from, at) in &self.invited_by {
                 held.receive(
-                    Invitation::new(person(*from), coffee(), WorldTime::from_seconds(*at)),
+                    // Open for the compiled 1 800 s, as an unconfigured world states it.
+                    Invitation::new(
+                        person(*from),
+                        coffee(),
+                        WorldTime::from_seconds(*at),
+                        WorldTime::from_seconds(*at + 1_800),
+                    ),
                     WorldTime::from_seconds(*at),
                 );
             }

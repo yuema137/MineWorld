@@ -14,7 +14,9 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
 
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
-                                                   natively on macOS and Windows runners)
+                                                   parity natively on macOS and Windows runners)
+    python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
+                                                   (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
@@ -63,6 +65,22 @@ LAYERS: dict[str, list[list[str]]] = {
     "parity": [
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
+    ],
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
+    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
+    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
+    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
+    "platforms": [
+        ["cargo", "build", "--locked", "-p", "mineworld-cli"],
+        # --no-fail-fast: on a platform, one red test binary must not hide another's result.
+        [
+            "cargo", "test", "--locked", "--no-fail-fast",
+            "-p", "mineworld-packages", "-p", "mineworld-worldpack", "-p", "mineworld-installed-systems",
+        ],
+        [
+            "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
+            "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+        ],
     ],
 }
 
@@ -143,6 +161,8 @@ def gigabytes(count: int) -> str:
 
 
 def disk(moment: str) -> None:
+    """Prints free disk and target/'s size for the record, with no `df` or `du`, which Windows lacks;
+    the record is information, never a verdict."""
     usage = shutil.disk_usage(ROOT)
     print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
     for path in ("target", "target/tmp"):

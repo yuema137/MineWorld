@@ -2814,6 +2814,30 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
     that write CRLF themselves (E-d's ED-13, IL-b's IB-10, TW-d's parser tests), not from Windows
     checkouts. E-d's "Report the checkout's line endings" step therefore shows 0 carriage returns
     **by design**, and that is recorded here.
+- **E-d merged (`68176e7`, #101); main merged into this branch** (it also brought #105, #110 and #112,
+  the last fixing S10-P3's `clock.json` frame). The conflicts were resolved as the plan said:
+  - `.github/actions/native/action.yml` (add/add): **E-d's file taken unchanged**; 13b's version is
+    dropped. Nothing was added to it. Parity needs no explicit toolchain step, because the layer's
+    first command, `cargo build --release`, makes rustup install `rust-toolchain.toml`'s channel. It
+    needs no architecture in the cache key: each OS here has one architecture, and the layer name
+    separates `parity` from `core` and `platforms`.
+  - `scripts/ci_layer.py`: `parity` beside `platforms` in the table, both usage lines kept. 13b's
+    portable `disk()` (`shutil.disk_usage` and a walk) replaces E-d's `df`/`du` with its
+    `FileNotFoundError` guard; it prints the same information on every OS.
+  - `docs/DECISIONS.md`: 13b's records, then E-d's (ARC-71 …). 86 ids, all distinct.
+  - `ci.yml`: E-d's `platforms` job is **pinned to `macos-26` / `windows-2025`** (§13.0.3, ruled), and
+    its scratch exclusion gains `-scenario`. Its comment now says the line-endings report reads 0 by
+    design (the CRLF ruling above).
+- **Checks after the merge:**
+  - `ci_layer.py --list core` and `--list platforms` are identical to main's; `--list fast` is main's
+    plus the self-test.
+  - `check_ci_pins`, `check_decision_ids`, `check_doc_headings` and the self-test pass.
+  - Four jobs use the shared `native` action: `platforms`, `mac`, `windows`, `test-windows`.
+  - The `os::unix` audit adds one hit: `worldpack/src/configure/tests.rs:655`, a `#[cfg(unix)]`
+    symlink-escape test from IL-a (`73c478b`). It compiles on Windows and is gated out there, so it is
+    a W-item for **13w** to review (whether a Windows equivalent is needed); 13b does not touch it.
+- **E-c** will add `third_party` and `package_sources` to `platforms`. Whichever of E-c and 13b lands
+  second reconciles the table (coordinator, 2026-10-09).
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 

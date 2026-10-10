@@ -1,17 +1,21 @@
-//! IA-8 — the configuration seam names no physics and no interaction (step-18-interaction-list §11.4;
-//! `docs/DECISIONS.md` `ARC-61`, `ARC-62`).
+//! IA-8 and IB-12 — the configuration seam and the Interaction List's framework name no pack's
+//! vocabulary (step-18-interaction-list §11.4, §12.5; `docs/DECISIONS.md` `ARC-61` … `ARC-64`).
 //!
-//! PR IL-a is a framework precursor of the World Interaction List: the seam exists before any pack
-//! configures anything, and must not be shaped by the first one in name. The absence is held
-//! structurally:
+//! The seam (PR IL-a) and the schema (PR IL-b) exist for every pack and must not be shaped by any one
+//! in name. The absence is held structurally:
 //!
 //! ```text
-//! the seam's code   no word beginning with a word of the seam scan's physics list
-//!                   (`seam_vocabulary.rs`), nor talk, spoke, convers, give, buy, sell, trade, eat,
-//!                   drink, kick, throw, shove, permit, forbid, biograph or class — in authoring's
-//!                   configuration contract, worldpack's configure module and its in-crate tests, and
-//!                   every test file PR IL-a adds
+//! the framework's code   no word beginning with a word of the seam scan's physics list
+//!                        (`seam_vocabulary.rs`), nor talk, spoke, convers, give, buy, sell, trade, eat,
+//!                        drink, kick, throw, shove or invit — in authoring's configuration contract,
+//!                        classes and attachments, worldpack's configure module and its in-crate tests,
+//!                        the SDK's interactions module, the CLI's interactions and biography commands,
+//!                        and every framework test file IL-a and IL-b add
 //! ```
+//!
+//! The schema's own words (permit, forbid, class, biograph, audience), which IL-a's scan also refused,
+//! are allowed since IL-b (QIB-2): they are what the schema is. The packs that gain sections in IL-b
+//! (`conversation`, `group-activity`) are not scanned; their sections are theirs to name.
 //!
 //! Every line is read, comments included. This file is not scanned, because it has to name the
 //! vocabulary it looks for. Words are split as the I-2 scan splits them (`precursor_vocabulary.rs`,
@@ -22,8 +26,8 @@
 use std::path::{Path, PathBuf};
 
 /// The seam scan's physics list (`seam_vocabulary.rs` `PHYSICS`), and the interaction words of
-/// §11.4 IA-8: a word matches when, lowercased, it begins with one of these.
-const VOCABULARY: [&str; 26] = [
+/// §12.5 IB-12: a word matches when, lowercased, it begins with one of these.
+const VOCABULARY: [&str; 23] = [
     "body",
     "bodies",
     "bodily",
@@ -46,40 +50,20 @@ const VOCABULARY: [&str; 26] = [
     "kick",
     "throw",
     "shove",
-    "permit",
-    "forbid",
-    "biograph",
-    "class",
+    "invit",
 ];
 
-/// The one word of the list the seam itself must say: `classes` is a reserved `configure:` key
-/// (SD-IA-6, QIA-1), refused by name until IL-b gives it its meaning. (file, a substring of the line,
-/// the word admitted, why). An entry admits one word on the lines of one file that contain its
-/// substring, and an entry that admits nothing fails the test, so the list cannot go stale.
-const RESERVED_KEY_LINES: [(&str, &str, &str, &str); 3] = [
-    (
-        "worldpack/src/configure.rs",
-        "(\"classes\", \"the World's Interaction List's entity classes\")",
-        "classes",
-        "SD-IA-6: the reserved key itself, in RESERVED, so a world cannot give it a meaning first",
-    ),
-    (
-        "worldpack/tests/configuration.rs",
-        "(\"classes\", \"entity classes\")",
-        "classes",
-        "IA-3: the test that the reserved key is refused, naming what it is reserved for",
-    ),
-    (
-        "tools/cli/tests/configure.rs",
-        "\"configure:\\n  - classes\\n\"",
-        "classes",
-        "IA-3: the real `mineworld validate` refuses the reserved key",
-    ),
-];
-
-/// The files PR IL-a adds that hold the seam, and every test file it adds but this one.
-const SCANNED: [&str; 8] = [
+/// The files IL-a and IL-b add that hold the seam and the schema, and every framework test file they
+/// add but this one.
+const SCANNED: &[&str] = &[
     "authoring/src/configuration.rs",
+    "authoring/src/classes.rs",
+    "authoring/src/attachment.rs",
+    "sdk/rust/src/interactions",
+    "sdk/rust/tests/interactions.rs",
+    "tests/acceptance/tests/interaction_schema.rs",
+    "tools/cli/src/interactions.rs",
+    "tools/cli/src/biography.rs",
     "worldpack/src/configure.rs",
     "worldpack/src/configure/tests.rs",
     "sdk/rust/tests/extensions.rs",
@@ -113,8 +97,18 @@ fn words(line: &str) -> Vec<String> {
     words
 }
 
-/// Every listed word in `text`, as `path:line: word`, except those an entry of
-/// [`RESERVED_KEY_LINES`] admits; each admitting entry's index is marked in `used`.
+/// Words a scanned file must say that are not a pack's vocabulary: (file, a substring of the line, the
+/// word admitted, why). An entry admits one word on the lines of one file that contain its substring,
+/// and an entry that admits nothing fails the test, so the list cannot go stale.
+const ADMITTED: [(&str, &str, &str, &str); 1] = [(
+    "tools/cli/src/biography.rs",
+    "format::decode(&manifest_row.body, \"manifest\")",
+    "body",
+    "persistence's ManifestRow field (the stored bytes), read since S8; not the physics word",
+)];
+
+/// Every listed word in `text`, as `path:line: word`, except those an entry of [`ADMITTED`] admits;
+/// each admitting entry's index is marked in `used`.
 fn listed_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
     let mut found = Vec::new();
     for (number, line) in text.lines().enumerate() {
@@ -122,11 +116,9 @@ fn listed_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
             if !VOCABULARY.iter().any(|listed| word.starts_with(listed)) {
                 continue;
             }
-            let admitted = RESERVED_KEY_LINES
-                .iter()
-                .position(|(file, substring, admits, _)| {
-                    path.ends_with(file) && line.contains(substring) && word == *admits
-                });
+            let admitted = ADMITTED.iter().position(|(file, substring, admits, _)| {
+                path.ends_with(file) && line.contains(substring) && word == *admits
+            });
             match admitted {
                 Some(entry) => used[entry] = true,
                 None => found.push(format!("{}:{}: {word}", path.display(), number + 1)),
@@ -136,27 +128,46 @@ fn listed_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
     found
 }
 
-#[test]
-fn the_configuration_seam_names_no_physics_and_no_interaction() {
-    let root = root();
-    let mut found = Vec::new();
-    let mut used = [false; RESERVED_KEY_LINES.len()];
+/// Every scanned file, a directory read whole (in a fixed order); a missing one fails.
+fn scanned(root: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
     for file in SCANNED {
         let path = root.join(file);
+        if path.is_dir() {
+            let mut entries: Vec<PathBuf> = std::fs::read_dir(&path)
+                .unwrap_or_else(|error| panic!("{file}: {error}"))
+                .map(|entry| entry.expect("a directory entry").path())
+                .collect();
+            entries.sort();
+            files.extend(entries);
+        } else {
+            assert!(path.is_file(), "a scanned file is missing: {file}");
+            files.push(path);
+        }
+    }
+    files
+}
+
+#[test]
+fn the_configuration_seam_and_the_schema_name_no_packs_vocabulary() {
+    let mut found = Vec::new();
+    let mut used = [false; ADMITTED.len()];
+    for path in scanned(&root()) {
         let text = std::fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("a scanned file is missing: {file}: {error}"));
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
         found.extend(listed_words(&path, &text, &mut used));
     }
     assert!(
         found.is_empty(),
-        "the configuration seam must name no physics and no interaction (ARC-61, ARC-62):\n{}",
+        "the configuration seam and the Interaction List's framework must name no pack's \
+         vocabulary (ARC-61 … ARC-64):\n{}",
         found.join("\n")
     );
-    for ((file, substring, word, reason), used) in RESERVED_KEY_LINES.iter().zip(used) {
-        assert!(!reason.is_empty(), "{file}: an exemption needs a reason");
+    for ((file, substring, word, reason), used) in ADMITTED.iter().zip(used) {
+        assert!(!reason.is_empty(), "{file}: an admission needs a reason");
         assert!(
             used,
-            "{file}: the exemption for {word:?} on \"{substring}\" admits nothing; remove it"
+            "{file}: the admission of {word:?} on \"{substring}\" admits nothing; remove it"
         );
     }
 }
@@ -166,7 +177,7 @@ fn the_configuration_seam_names_no_physics_and_no_interaction() {
 fn the_splitter_finds_the_vocabulary_inside_identifiers_and_not_inside_other_words() {
     let found = listed_words(
         Path::new("x.rs"),
-        "let TalkTo = give_item; // Sellers trade; repeat, great, overthrow, unforbidden",
+        "let TalkTo = give_item; // Sellers trade; repeat, great, overthrow, uninvited",
         &mut [],
     );
     assert_eq!(

@@ -335,7 +335,12 @@ impl WorldPack {
         // Then configuration (ARC-61), in `configure:` order: after passages and locations, so a world
         // without `configure:` keeps every event id it had, and before sections, so a section's
         // reduction may check its value against the configured state.
-        facts.extend(configure::seed(world, ids, self.configuration())?);
+        facts.extend(configure::seed(
+            world,
+            ids,
+            self.classes(),
+            self.configuration(),
+        )?);
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.
@@ -417,18 +422,19 @@ impl WorldPack {
     /// entities cannot be traced back to the files that wrote them, which is the first question anyone
     /// asks of a world that came out wrong.
     fn provenance(&self, kind: ContentKind, key: &EntityKey, note: Option<String>) -> Metadata {
+        // The pack that wrote it — a required Entity Pack's id for its kinds (ARC-71 point 7) — and the
+        // path within that pack, spelled with '/' on every OS so a save does not depend on the machine.
         Metadata {
-            source_pack: self.id().to_owned(),
+            source_pack: self.source_pack(kind, key).to_owned(),
             source_path: format!("{}/{key}.yaml", kind.directory()),
             authoring_note: note,
         }
     }
 
-    /// The file a key's content was read from, for an error to name.
+    /// The file a key's content was read from, for an error to name: in its Entity Pack's directory for
+    /// a kind a required pack declared (ARC-71).
     fn content_file(&self, kind: ContentKind, key: &EntityKey) -> PathBuf {
-        self.root()
-            .join(kind.directory())
-            .join(format!("{key}.yaml"))
+        self.source_file(kind, key)
     }
 }
 

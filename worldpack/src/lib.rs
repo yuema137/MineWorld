@@ -67,6 +67,7 @@
 pub mod catalog;
 pub mod configure;
 pub mod content;
+mod entities;
 pub mod error;
 pub mod format;
 pub mod load;
@@ -74,6 +75,7 @@ pub mod read;
 mod requirements;
 
 pub use catalog::Capability;
+pub use entities::validate_entity_pack;
 pub use error::{ContentKind, Declared, PackError};
 pub use format::{
     AuthoredItem, AuthoredLocation, AuthoredOrganization, AuthoredPerson, AuthoredPlace,
@@ -81,5 +83,10 @@ pub use format::{
     WorldIdentity, WorldManifest,
 };
 pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
+/// The world's entity classes (`ARC-64`), for the tools.
+pub use mineworld_authoring::{ClassName, Classed, EntityClasses};
 pub use mineworld_packages::{Composition, PackRoots};
+/// The Interaction List's selection and declarations (`ARC-63`, `ARC-65`), for the tools — so a tool
+/// reaches them through the loader, with no dependency of its own (SD-IB-14).
+pub use mineworld_sdk::interactions;
 pub use read::{MANIFEST, PackageFields, WorldPack};
