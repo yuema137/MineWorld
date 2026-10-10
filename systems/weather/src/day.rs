@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub const HOURS: usize = 24;
 
 /// What the weather is doing in an hour. Closed: a new condition is a schema change of this pack.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Condition {
     /// Dry, 0 – 2 oktas of cloud.

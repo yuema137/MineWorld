@@ -80,7 +80,7 @@ pub struct Month {
 struct RawMonth {
     p_wet_after_dry: i64,
     p_wet_after_wet: i64,
-    rain_tenth_mm: [i64; QUINTILES],
+    rain_tenth_mm: Quintiles,
     tmax_dc: i64,
     tmin_dc: i64,
     t_noise_dc: i64,
@@ -108,6 +108,29 @@ impl From<Month> for RawMonth {
     }
 }
 
+/// Five amounts, counted while decoding so a list of the wrong length names its key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "Vec<i64>", into = "Vec<i64>")]
+struct Quintiles([i64; QUINTILES]);
+
+impl TryFrom<Vec<i64>> for Quintiles {
+    type Error = String;
+
+    fn try_from(amounts: Vec<i64>) -> Result<Self, Self::Error> {
+        let count = amounts.len();
+        amounts
+            .try_into()
+            .map(Self)
+            .map_err(|_| format!("rain_tenth_mm is {QUINTILES} amounts in 0.1 mm, not {count}"))
+    }
+}
+
+impl From<Quintiles> for Vec<i64> {
+    fn from(amounts: Quintiles) -> Self {
+        amounts.0.to_vec()
+    }
+}
+
 /// `key` must lie in `low ..= high`, in `unit`.
 fn bounded(key: &str, value: i64, low: i64, high: i64, unit: &str) -> Result<(), String> {
     if (low..=high).contains(&value) {
@@ -123,7 +146,7 @@ impl Month {
         let per_mille = "per mille";
         bounded("p_wet_after_dry", raw.p_wet_after_dry, 0, 1_000, per_mille)?;
         bounded("p_wet_after_wet", raw.p_wet_after_wet, 0, 1_000, per_mille)?;
-        let rain = raw.rain_tenth_mm;
+        let rain = raw.rain_tenth_mm.0;
         let min = i64::from(WET_DAY_MIN_TENTH_MM);
         if rain.iter().any(|amount| !(min..=10_000).contains(amount))
             || rain.windows(2).any(|pair| pair[1] < pair[0])
@@ -181,7 +204,7 @@ impl Month {
 
     /// A wet day's amount in each quintile, 0.1 mm, non-decreasing, each at least 0.3 mm.
     pub const fn rain_tenth_mm(&self) -> [i64; QUINTILES] {
-        self.raw.rain_tenth_mm
+        self.raw.rain_tenth_mm.0
     }
 
     /// The mean daily maximum, 0.1 °C.

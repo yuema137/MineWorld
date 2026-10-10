@@ -1747,7 +1747,7 @@ DEP-30 with 74 ids. All as recorded.
 | --- | --- | --- | --- |
 | C1 | [x] ARC-68 appended after DEP-30 (date, approval, design pointer, choice 1–8, alternatives, reuse table WGEN / LARS-WG / ClimGen / plain tables, defaults with sources, limitations); `systems/weather/README.md`; `src/lib.rs` = the spec header (§17.3 as a module doc); doc-only `Cargo.toml` (TWa-D1's precedent) | [x] `check_doc_headings.py`: 191 sections, none duplicated — PASS; `check_decision_ids.py`: 75 ids (74 + 1), all distinct — PASS; `cargo check -p mineworld-weather` clean; Cargo.lock gains the member only | [x] terms against CORE_CONCEPTS: `System Pack`, `Process`, `Event` (facts), `Component` used as defined; "climate" is a Process type name, "WGEN-lite" a generator name, neither an ontology term. ARC-68 names DEP-31 as TW-d's and does not restate data, CSV or fetch content |
 | C2 | [x] `day.rs` (`Condition` closed, kebab-case; `WeatherHour`, `DailyWeather`, `Chain`, `Origin::Rule`, `WeatherDay`); `draw.rs` (`mix` restated with the paced controller's constants and Vigna's reference cited; `permille` multiply-shift; `draw`; fixed indices 0…6, 16, 17); `rules.rs` (`Rules`/`Month`, decode-is-validate, every refusal naming its key); `generate.rs` (`day` per SD-TW-b-5, `weather_day` composing a calendar day → `WeatherDay`); `hours.rs` (`DIURNAL`, `WET_HOURS`, AMS thresholds, okta mapping, `hours`); real manifest (SD-TW-b-1) | [x] E-TWb-2: `cargo test -p mineworld-weather` lib 15 + diurnal 1 + no_float 1, all pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. Mutations M-TWb-2, -3, -6 killed (below); `git grep MUTATION -- '*.rs'` empty | [x] rounding stated (i64 division toward zero, documented in `generate.rs`; T(h) floor with range > 0, `hours.rs`); indices are distinct constants in one module, never reused; quintile = u·5/1000 ≤ 4 since u ≤ 999; the remainder goes to the first wet hour, deterministic; sources cited in code (Richardson; Parton & Logan; AMS drizzle / rain; WMO okta; Vigna); nothing reads host, scale or pause — the inputs are the rules, the seed, the day index, the month and the light events; overflow: every i64 product ≤ 10^4·10^3, every narrowing bounded by validation or `ANOMALY_LIMIT_DC` (TWb-D2) |
-| C3 | [ ] | [ ] | [ ] |
+| C3 | [x] `configuration.rs` (`WeatherConfiguration { source, seed, rules }`, `deny_unknown_fields`; `source: record` refused with SD-TW-b-3's message); `event.rs` (`WeatherConfigured { seed, rules, record: Option<RecordRef> }` with `RecordRef` an empty enum; `WeatherDay` is itself the `weather-day` event; `WeatherChanged { hour, condition, cloud_oktas, precipitation_tenth_mm }`); `process.rs` (`ClimateProcess` "climate", `ClimateState { configured, today: Option, now, chain }`); `component.rs` (`weather-today`, `weather-now`); `system.rs` (`PackConfiguration` + `configures!()`; `depending_on([presence, calendar])`; `react` and `wake` per SD-TW-b-10; `discloses` per SD-TW-b-11); registry line `Weather => mineworld_weather::WeatherSystem` plus its Cargo line. Separate commit: the placeholder `weather` in two loader tests renamed (TWb-D9) | [x] E-TWb-3: `cargo test -p mineworld-weather` lib 15, configuration 2, diurnal 1, no_float 1, weather 8, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` all pass (after TWb-D9); `-p mineworld-cli --test configure --test commands` pass; `-p mineworld-acceptance` E-TWb-3b; clippy on weather and installed `--all-targets --all-features -D warnings` clean; fmt clean. M-TWb-1 held as a permanent control; M-TWb-4 killed | [x] single ownership: only weather starts, reschedules or writes the climate Process (`ProcessKind::Owner`), and it reads calendar only through `day-began`'s payload (`DayBegan::day()`), never calendar's Process or components. No host state, scale or pause is read (inputs: facts, `world.at()`, Presence for disclosure). State is written only in `react` from fact payloads (`with_day`, `with_now`), and `wake` only reschedules and states facts, so a snapshot equals the fold (restart test byte-identical). Public `weather-changed` has no subjects; `weather-configured` and `weather-day` are SystemInternal with none. Dependency direction: weather → calendar → presence; calendar names nothing of weather (its crate does not depend on weather and its declaration subscribes to nothing of weather), so INV-TW-10 holds structurally as well as by C3 (g). The "day-began before the climate exists" path: genesis records both configured facts in generation 0 and `day-began` is generation 1 (C3 (a) observes the order), and later `day-began`s come from calendar's wake after genesis. If it ever happened, `react` returns nothing (treated as unconfigured), not a refusal. A `weather-changed` with no `today` is refused `weather-unstarted`; a `wake` with nothing due reschedules and states nothing |
 | C4 | [ ] | [ ] | [ ] |
 | C5 | [ ] | [ ] | — |
 
@@ -1790,6 +1790,46 @@ E-TWb-2  C2, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- -
          Edge cases: p_ww = 1000 absorbing after the first wet day; p_wd = p_ww → 300 ± 30 ‰ marginal
          and conditional (independent); TMIN repair exercised with tmin 190 / tmax 191, noise 200,
          ρ 999 — tmin < tmax on every day of 100 years.
+E-TWb-3  C3, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- --nocapture`: 27 passed.
+         The test world has presence, calendar (San Diego), weather (a changeable test climate: every
+         month p_wd 250 / p_ww 550, fog 300 ‰, thunder 150 ‰, grey mornings 400 ‰) and a placer.
+         (a) Genesis at instant 0, in this order: calendar-configured, weather-configured, day-began,
+             weather-day, weather-changed (hour 0). PASS.
+         (b) 30 days → 31 weather-day at 0, 86 400, … 30 × 86 400, dated 2026-10-08 … 2026-11-07; 83
+             weather-changed, each at day_start + 3 600 h, each changing the condition, and the
+             sequence equals the one the days' own hours imply (instant, hour, condition, oktas,
+             amount). 11 wet days; conditions seen: clear, overcast, fog, drizzle, rain, thunderstorm.
+             Process state = the fold (last day, chain, now). PASS.
+         Visibility: weather-changed Public; weather-day and weather-configured SystemInternal; no
+             subjects on any. PASS.
+         (c) Restart stopped at day 2 14:30, resumed, run to day 8: 6 weather-day after the stop; the
+             facts after the stop are byte-identical to the uninterrupted world's; the resumed state's
+             today, chain and now equal the fold of the facts. PASS.
+         (d) Criterion 4, through WorldPack::read + assemble: `systems: [presence, weather]` refused with
+             "the world this pack describes cannot be composed: system 'weather' depends on 'calendar',
+             which is not installed in this world". The same pack with calendar assembles and its
+             genesis carries weather-configured. PASS.
+         (e) weather enabled, no configure/weather.yaml: no weather fact, no climate Process, no weather
+             record disclosed; calendar's facts (projection without ids) equal a world without weather
+             installed. PASS.
+         (f) bo (no place) → no weather record; ada → exactly [(square, weather-today), (square,
+             weather-now)]; weather-today = day 0's weather-day; weather-now = the last change (hour,
+             condition), which is the noon hour's condition; after `place-me` bo gets the same two.
+             Disclosure size: weather-today 3 179 B, weather-now 31 B (R-TWb-4 estimated about 2 KB). PASS.
+         (g) INV-TW-10: over 30 days the 1 + 31 + 180 calendar facts are equal with and without weather in
+             (at, type, visibility, subjects, payload bytes). PASS. Control M-TWb-1 below.
+         (h) Largest encoded climate state at 13:00 on each of 30 days: 6 701 bytes ≤ 8 192. PASS.
+         (i) Through WorldPack::read: `source: record` → "…/configure/weather.yaml is not a valid
+             configuration file: error: line 1 column 9: source `record` needs the record data of TW-d;
+             this build accepts `rules`"; p_wet_after_wet 1447 → "line 5 column 7: p_wet_after_wet is per
+             mille from 0 to 1000, not 1447"; tmin_dc 300 → "line 5 column 7: tmin_dc must be below
+             tmax_dc, not 300 against 191"; rain_tenth_mm of 2 → "line 5 column 68: rain_tenth_mm is 5
+             amounts in 0.1 mm, not 2". File (by the platform's separator), line, column and key in
+             each. PASS.
+         (j) `cargo test -p mineworld-installed-systems -p mineworld-worldpack`: all pass, the registry
+             consistency test included. `-p mineworld-cli --test configure --test commands`: 4 + 2 pass.
+E-TWb-3b `cargo test -p mineworld-acceptance` on the C3 tree (log target/tw-b/c3-acceptance.log): exit 0,
+         ac1_composability 14 passed, and every other target passes; 10 s wall. No world has changed yet.
 ```
 
 ### Mutations
@@ -1803,6 +1843,14 @@ M-TWb-2  generate.rs: p_wet_after_wet on both branches → criterion 2 FAILS at 
          = 444 ‰ against 210 ‰. Killed. Reverted.
 M-TWb-6  generate.rs: `let _x: f64 = 0.0;` → no_float FAILS naming generate.rs. Killed. Reverted.
          After all three: `git grep MUTATION -- '*.rs'` empty; 17 passed.
+M-TWb-1  Kept as a permanent control in tests/weather.rs `calendars_facts_are_the_same_with_and_without_
+         weather`: the same projection *including* event ids is asserted unequal between the two worlds,
+         and it is (the weather's facts take ids from the shared counter). So the id-free comparison is
+         known to see the interleaving and to exclude only the ids. Observed: PASS of the `assert_ne!`.
+M-TWb-4  system.rs: `depending_on([PresenceSystem::ID])` (calendar dropped) →
+         weather_without_calendar_is_refused_at_assembly FAILS: "refused: ()" — the world without calendar
+         assembled. So the guard is the declared dependency, and the test observes it. Killed. Reverted;
+         `git grep MUTATION -- '*.rs'` empty.
 ```
 
 ### Deviations and findings
@@ -1840,6 +1888,30 @@ TWb-D7  (bounded) `generate::day` takes the month (u8) rather than the whole dat
         composition C3's `react` calls.
 TWb-D8  (bounded) The wet-day frequency π uses 28 days for February (§17.4 does not state it). With 28.25
         February's p_wd would be 176 rather than 178.
+TWb-D9  (OUTSIDE §17.10's CHANGE SET; flagged for the operator) Installing a pack named `weather` falsified
+        the premise of two existing loader tests, which used `weather` as their example of "a name no
+        system of this build provides": worldpack/tests/configuration.rs
+        `a_key_that_is_no_system_of_this_build_is_refused_listing_the_systems` (it then failed with
+        `ConfigurationOwnerNotEnabled { system: "weather" }`) and tools/cli/tests/configure.rs
+        `validate_refuses_each_configuration_mistake_by_name`. Change: the placeholder name only,
+        `weather` → `tides`, with a comment saying why. No assertion is weakened and no production code
+        is touched. It is one separate commit, so it can be reviewed or dropped on its own. Why it was
+        not treated as a stop: none of §17.10's material stops (1)–(7) names the loader's tests, the
+        change is forced by the frozen scope item "registered in the installed set", and there is no
+        alternative inside the change set (the pack's id `weather` is frozen by SD-TW-b-1 and
+        §17.4). Kernel tests that define their own local `weather` stub system compose their own
+        worlds, not the installed set, and are unaffected.
+TWb-D10 (bounded) Small shape choices inside SD-TW-b-4/-9:
+        - `WeatherDay` is itself the `weather-day` event type, rather than being wrapped.
+        - `Condition` derives `Ord`, for deterministic sets in tests and clients.
+        - `rain_tenth_mm` is decoded through a counting newtype, so a list of the wrong length names its
+          key rather than serde's "invalid length".
+        - `now` (and `weather-now.hour`) is the hour of *today* the condition holds from. At midnight it
+          is folded to 0 when yesterday's condition carries over and no `weather-changed` is stated
+          (SD-TW-b-10 (c)).
+        - `react(weather-day)` takes the hour from `world.at()` rather than assuming 0, so a genesis that
+          is not at a midnight would still be right. At every midnight, and so in every world today,
+          it is 0.
 ```
 
 ---

@@ -45,13 +45,23 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod component;
+pub mod configuration;
 pub mod day;
 mod draw;
+pub mod event;
 #[cfg(test)]
 mod fixture;
 pub mod generate;
 pub mod hours;
+pub mod process;
 pub mod rules;
+pub mod system;
 
+pub use component::{WeatherNow, WeatherToday};
+pub use configuration::WeatherConfiguration;
 pub use day::{Chain, Condition, DailyWeather, HOURS, Origin, WeatherDay, WeatherHour};
+pub use event::{RecordRef, WeatherChanged, WeatherConfigured};
+pub use process::{ClimateProcess, ClimateState};
 pub use rules::{Month, Rules};
+pub use system::WeatherSystem;
