@@ -9320,6 +9320,12 @@ E-NV5 NV-C7 on 9fbc807 (the PR's code with origin/main fb1d701 merged; later com
         --all-features -D warnings` 0; doc checks 87 decision ids / 192 sections; check_scratch scan
         clean; check_ci_pins agree. Cargo.lock adds only pathfinding and its three new dependencies (E-NV2
         context, NV-C4). The workspace test run and CI: E-NV6.
+
+E-NV6 NV-9's workspace tests, once, on 1d18757 (code = 9fbc807's; this entry and later commits are
+      Markdown): `cargo test --workspace` exit 0, 199 result lines all ok;
+      `scripts/check_scratch.py left --target-dir target` exit 0. CI on 1d18757 (run 38012271233):
+      fast, platforms (macos-26, windows-2025) and the three python jobs passed; the exact-final-head CI
+      is reported in the PR and the handoff, not here (a commit cannot carry its own CI).
 ```
 
 
