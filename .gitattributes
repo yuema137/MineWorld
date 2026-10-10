@@ -4,3 +4,6 @@
 # (tests/acceptance/tests/precursor_vocabulary.rs).
 *.bin binary
 *.glb binary
+# Recorded model outputs (cassettes, ARC-58) are JSON Lines whose entries are hashed: a Windows
+# checkout must keep them LF, as they were written (pr-s10-p5-backends.md D-P5-13).
+*.jsonl text eol=lf

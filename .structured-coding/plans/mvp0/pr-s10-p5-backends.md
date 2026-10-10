@@ -986,3 +986,69 @@ Handoff:           handoff-s10-p5.md
   this session restates §11's NEVER list (no model run, no key file, no hosted API, no real CLI) and adds
   only process rules (WebFetch for "verify" facts; never rename or slow `fast`/`test`), none of which
   changes an endpoint.
+
+### 13.2 C1 — specs, decisions and the package skeleton
+
+- [x] Implementation: root `pyproject.toml` (member and pyright `include`); `uv.lock` (+ `httpx2` 2.13.1,
+  `httpcore2` 2.13.1, `h11` 0.16.0, `anyio` 4.15.1, `idna` 3.20, `truststore` 0.10.4, `python-dotenv`
+  1.2.4, `httpx2-jsfetch` 1.0 emscripten-only); `cognition/lm-controller/{pyproject.toml, README.md
+  (placeholder until C8), src/mineworld_cognition/{__init__.py, py.typed}}` with the guard, the
+  `live_model` marker and `-m "not live_model"` in `addopts`; `.gitattributes` (`*.jsonl text eol=lf`);
+  `.gitignore` (`.env.*`, `!.env.example`, and DV-P5-1's negation); `docs/DECISIONS.md` `ARC-57`,
+  `ARC-58`, `DEP-27`, `DEP-32`; `docs/ARCHITECTURE.md` §9.1 (wall-time keys plus the context-bound
+  sentence) and §9.2 (one adapter behind `ModelBackend`); `scripts/ci_layer.py` (`PYTHON_MEMBERS`; two
+  pytest commands in `python` and in `python-smoke`); `.structured-coding/standards.md` (the static
+  checks over both members; a new check `pytest-cognition`).
+- [x] Validation (E-P5-1):
+  - `uv lock` resolved 27 packages; `uv sync --locked` succeeds;
+  - `ruff check` "All checks passed!", `ruff format --check` "19 files already formatted", `pyright`
+    strict "0 errors" over both members;
+  - `uv run --locked pytest cognition/lm-controller`: rootdir `cognition/lm-controller`, configfile its
+    `pyproject.toml`, plugin `socket-0.8.1` loaded, "collected 0 items", exit 0 (expected: no tests yet);
+  - `ci_layer.py --list core` byte-identical to the base's (`diff` empty); `--list python` and
+    `--list python-smoke` show `pytest sdk/python …` and `pytest cognition/lm-controller` as two
+    commands; `--list fast` ends with the static checks over both members;
+  - every new package's wheel is `py3-none-any` (lock entries read), so all three platforms are served;
+  - `check_doc_headings.py` exit 0; `check_decision_ids.py` "89 decision ids, all distinct";
+  - `standards.py inspect` lists `ruff-lint`, `ruff-format`, `pyright-strict`, `pytest`,
+    `pytest-cognition`;
+  - `git check-ignore -v`: `.env` (`*.env`), `.env.local` (`.env.*`), `prod.env` (`*.env`),
+    `secrets.env` (`secrets*`) ignored; `examples/.env.example` and `src/mineworld_cognition/secrets.py`
+    matched only by their negations (not ignored).
+- [x] Review: each DECISIONS entry names its alternatives with verdicts and a revisit trigger; the §9.1
+  edit keys cost on wall time and the context bound on simulated time, exactly QS10-18; DECISIONS and
+  ARCHITECTURE name providers (documentation), no source file does yet.
+
+**§3's "not verified in planning" items (A-3 excepted, it is the spike's):**
+
+```text
+httpx2 API            PASS  2.13.1 exports AsyncClient, Timeout, MockTransport (sync and async
+                            handlers; httpx2/_transports/mock.py), ConnectError, TimeoutException, …
+                            R-P5-1's fallback is not needed
+httpx2 platforms      PASS  anyio, httpcore2, h11, idna, truststore, python-dotenv: py3-none-any wheels
+                            only; httpx2-jsfetch is emscripten-only (marker in the lock)
+pytest-socket + httpx2  verified in C6 (AP5-10 (b)): the TEST-NET connection test
+Ollama /v1 json_schema  A-3: the operator's spike (QP5-3), not an agent
+```
+
+**Findings.**
+
+- **F-P5-1 (`httpx2` reads the environment by default).** `AsyncClient(trust_env=True)` is the default and
+  reads proxy variables, `.netrc` and certificate-file variables (`httpx2/_client.py`, `allow_env_proxies
+  = trust_env and transport is None`). D-P5-4 (a) forbids any environment read but `key_env`, so the
+  adapter passes `trust_env=False`. Consequence: a user behind an HTTP proxy is not served by this
+  version; recorded in `DEP-27` as a limitation.
+- **F-P5-2 (anyio's pytest plugin).** `anyio` (an `httpx2` dependency) registers a pytest plugin, now
+  loaded in both members' runs. It changes nothing unless a test uses its marker; the suites keep
+  `asyncio.run`, as the SDK's do.
+
+**Deviation DV-P5-1 (bounded).**
+
+```text
+Deviation:        .gitignore gains `!/cognition/lm-controller/src/mineworld_cognition/secrets.py`
+Reason:           the existing pattern `secrets*` (a guard for key files) also matches the module the
+                  design names `secrets.py`, which would silently stay untracked
+Source evidence:  git check-ignore -v reported `.gitignore:55:secrets*` for the module before the negation
+Impact:           one anchored negation for one source path; every key-file pattern still holds
+Validation:       git check-ignore (E-P5-1); AP5-13 (e) re-checks it in a test (C6)
+```

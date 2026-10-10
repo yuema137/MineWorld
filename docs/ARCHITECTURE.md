@@ -323,9 +323,14 @@ cognition:
     model: frontier
 
 limits:
-  max_calls_per_sim_hour: 20
-  max_tokens_per_day: 30000
+  max_calls_per_wall_hour: 20
+  max_tokens_per_wall_day: 30000
 ```
+
+Cost limits (calls and tokens) are keyed on **wall** time, per seat, as rolling windows, and are decided
+before a call is made: inference costs wall time and money whatever the world's `time_scale` (ruling
+QS10-18; `docs/DECISIONS.md` `ARC-57`). The context bound — how much of a life a prompt may carry — is
+keyed on **simulated** time, because memory is about the life, not the operator's clock.
 
 The server operator decides who pays for inference. The framework itself must require no paid
 API.
@@ -341,6 +346,12 @@ llama.cpp
 vLLM
 custom HTTP
 ```
+
+Every backend is an adapter behind one provider-neutral interface, `ModelBackend`, in the cognition
+package; nothing above it names a provider, a model or an endpoint. The OpenAI-compatible chat-completions
+schema is the common interface: one adapter reaches Ollama, llama.cpp, LM Studio, vLLM and any hosted
+OpenAI-compatible API the operator configures (`docs/DECISIONS.md` `DEP-27`). A backend whose
+compatibility layer drops a feature the controller depends on gets an adapter of its own.
 
 Credentials belong to the server operator and never appear in a World Pack. A world declares
 capabilities, not secrets:
