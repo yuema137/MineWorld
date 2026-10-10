@@ -471,10 +471,12 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   implementation session's C0 records the exact implementation base and initializes the handoff.
 - **Scope.** This document (§13.2 E-P3b-1: base commit, test counts at the base); a new
   `handoff-s10-p3b.md`. No code.
-- [ ] Implementation: the base recorded; the handoff initialized with the contract's required fields;
-  the endpoint lines of §11 copied with their sources.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no endpoint narrowed or widened without a source; every Q-P3b answered or recorded open.
+- [x] Implementation: the base recorded (§13.2 E-P3b-1, `f4ed913`); `handoff-s10-p3b.md` initialized
+  with the contract's required fields; the endpoint lines of §11 copied with their sources.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`:
+  both clean (E-P3b-2).
+- [x] Review: the handoff's endpoint lines match §11 word for word in substance, each with §11's
+  source; none narrowed or widened. Q-P3b-1 … 8 are all ruled in §12.1 (Q-P3b-6 open with S11 only).
 - **Commit boundary.** Documentation only.
 
 ### C1 — The decision before the code
@@ -687,6 +689,20 @@ E-P3b-0  Planning base origin/main @ bb62edf. Read in this session: CLAUDE.md; t
 ```
 
 ### 13.2 Evidence (filled during implementation)
+
+```text
+E-P3b-1  Implementation base: origin/main @ f4ed913 (merge of #149, this design frozen), which
+         contains #142 (7eed282). Worktree /Users/yuema137/mineworld-worktrees/impl-p3b, branch
+         mvp0/pr-s10-p3b, sole writer. Re-read in the implementation session (2026-10-10): CLAUDE.md;
+         structured-coding SKILL.md, agent-workflow.md, adaptation.md, implementation-working-rules.md
+         and test-ci-gate-rules.md in full; .structured-coding/standards.md; this design in full;
+         step-17 §3.4.3, §15.2; server/PROTOCOL.md §§4–5; every sdk/python source and test file.
+         Test count at the base: `uv run --locked pytest sdk/python -m "not real_server" -q` → 46
+         passed, 4 deselected (50 collected; the 4 are test_real_server.py's real_server tests).
+         Local Python 3.14 (uv's .venv); CI runs 3.12.
+E-P3b-2  C0: check_doc_headings.py → "193 numbered sections across 26 documents, none duplicated",
+         rc 0; check_decision_ids.py → "104 decision ids, all distinct", rc 0.
+```
 
 ### 13.3 Deviations (filled during implementation)
 
