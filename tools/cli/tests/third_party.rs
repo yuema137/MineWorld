@@ -136,19 +136,24 @@ fn checkpoint(name: &str, pack: &ThirdParty, range: Option<&str>, enabled: bool)
         mineworld_test_support::scratch!(format!("third-party-{name}")).within("market-town");
     copy_dir(Path::new(MARKET_TOWN), &world);
     let manifest = world.join("world.yaml");
-    let mut appended = String::new();
+    // The system joins `systems:` beside a market pack (inside the list whatever follows it there); the
+    // requirement is a top-level key, appended at the end of the file.
     if enabled {
-        appended.push_str(&format!("  - {}\n", pack.system));
+        edit(
+            &manifest,
+            "  - consumption\n",
+            &format!("  - consumption\n  - {}\n", pack.system),
+        );
     }
-    if let Some(range) = range {
-        appended.push_str(&format!("\nrequires:\n  {}: \"{range}\"\n", pack.package));
-    }
-    edit(
-        &manifest,
-        "  - consumption\n",
-        &format!("  - consumption\n{appended}"),
-    );
     edit(&manifest, "  - umbrella\n", "  - umbrella\n  - fish\n");
+    if let Some(range) = range {
+        let text = read_lf(&manifest);
+        std::fs::write(
+            &manifest,
+            text + &format!("\nrequires:\n  {}: \"{range}\"\n", pack.package),
+        )
+        .expect("writes");
+    }
     std::fs::write(
         world.join("items/fish.yaml"),
         "# A fish, caught at the park's pond.\nitem: { category: food }\n",
@@ -194,7 +199,15 @@ fn the_checkpoint_world_resolves_with_the_pack_third_party_and_its_licence_judge
         "{out}"
     );
     let systems: Vec<&str> = out.lines().filter(|l| l.starts_with("  system ")).collect();
-    assert_eq!(systems.len(), 14, "Market Town's 13 and the pack's: {out}");
+    let market = mineworld_worldpack::WorldPack::read(MARKET_TOWN)
+        .expect("Market Town reads")
+        .systems()
+        .len();
+    assert_eq!(
+        systems.len(),
+        market + 1,
+        "Market Town's {market} and the pack's: {out}"
+    );
     assert_eq!(
         systems
             .iter()
