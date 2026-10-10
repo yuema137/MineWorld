@@ -339,6 +339,8 @@ jobs:
             /*
             !/clients/
             !/presentation/
+            /presentation/mineworld-default/*/pack.yaml
+            /presentation/mineworld-default/*/manifest.yaml
       - uses: ./.github/actions/native
         with:
           layer: parity
@@ -370,6 +372,8 @@ jobs:
             /*
             !/clients/
             !/presentation/
+            /presentation/mineworld-default/*/pack.yaml
+            /presentation/mineworld-default/*/manifest.yaml
       - uses: ./.github/actions/native
         with:
           layer: parity

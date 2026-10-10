@@ -62,6 +62,14 @@ subscription is your account with a vendor, and its terms decide what another pr
   an empty temporary directory, and receives none of your API keys. Your CLI's own global configuration
   (hooks, MCP servers) is yours and still runs.
 
+**Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`). A seat remembers only what its Person perceived:
+one SQLite file per seat, at a path you choose, never inside a world's save. Facts become one-line
+records, then episodes, weekly chapters and what it knows of each person, every line citing the Event
+IDs it stands for. The memory part of a decision's context stays under 6 000 bytes however long the
+world has run, and is written with no model; optional prose through the `summarize` tier never changes
+a citation. Specification:
+[`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
+
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 
 ```sh

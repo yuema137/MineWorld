@@ -1,0 +1,22 @@
+# Greta — retired, the village's oldest. Sections as in alba.yaml.
+
+name: Greta Novak
+
+routine:
+  - { from: "07:00", place: square, label: well }
+  - { from: "11:00", place: shore, label: fishing }
+  - { from: "15:00", place: bakery, label: company }
+  - { from: "19:00", place: cottages, label: home }
+
+tags:
+  - retired
+
+note: Has fished from the same stone for fifty years.
+
+location:
+  place: cottages
+  position:
+    x: 2000
+    y: 2000
+
+holdings: { milk: 1, bread: 1 }

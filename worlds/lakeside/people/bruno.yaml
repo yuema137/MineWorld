@@ -1,0 +1,22 @@
+# Bruno — a carpenter who fishes in the mornings. Sections as in alba.yaml.
+
+name: Bruno Lindqvist
+
+routine:
+  - { from: "06:00", place: bakery, label: breakfast }
+  - { from: "10:00", place: shore, label: fishing }
+  - { from: "15:00", place: square, label: work }
+  - { from: "19:00", place: cottages, label: home }
+
+tags:
+  - carpenter
+
+note: Mends the benches on the square and anything else made of wood.
+
+location:
+  place: cottages
+  position:
+    x: 4000
+    y: 2500
+
+holdings: { apple: 1, coffee: 1 }

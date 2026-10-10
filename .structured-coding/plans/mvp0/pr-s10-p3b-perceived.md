@@ -784,6 +784,13 @@ E-P3b-9  C6 diff gate: `git diff --stat f4ed913..HEAD` lists only .structured-co
          Sizes: session.py 495, resuming.py 488, reconnect.py 159, perceived.py 223 lines;
          test_resuming.py 557 (a test module past the 500-line review trigger: one table's rows,
          kept together; below the 800 warning).
+E-P3b-10 PR #157 opened at 25206e3 and reported CONFLICTING (no CI ran): main had moved to 865f2be
+         (P4 #143, E-e #137, S6 save-retention design #145, …), and docs/DECISIONS.md had new
+         records appended at its end. Merged origin/main (merge commit, no rebase of the pushed
+         history); resolved by keeping main's records and appending DEP-44 after them (its "Our
+         loop" row now names reconnect.py too, DV-P3b-5). check_decision_ids → 108 distinct;
+         check_doc_headings clean. With P4 merged: pyright and ruff over sdk/python and
+         cognition/lm-controller clean, `pytest cognition/lm-controller` → 169 passed, 1 skipped.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
