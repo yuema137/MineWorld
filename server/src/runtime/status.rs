@@ -41,7 +41,7 @@ impl WorldRuntime {
             clients: self.subscribers.len(),
             observations_dropped: self.dropped,
             // No fact is delivered to an observer before S11-C, so none is dropped.
-            events_dropped: 0,
+            events_dropped: self.events_dropped,
             faults: self.faults,
             revision: self.world.revision(),
         }

@@ -12,13 +12,17 @@ partial-clone filter), because a green layer is only evidence about the toolchai
 with. Every command is printed before it runs and timed after; the first failure stops the layer with
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
-    python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py fast | core | parity
+                                                   run a layer (on Linux in the toolchain container;
+                                                   parity natively on macOS and Windows runners)
     python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
                                                    (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
-    python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
+    python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
+                                                   offline with an empty CARGO_HOME (EC-3 (b))
+    python3 scripts/ci_layer.py --prune-cache     before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
                                                    compiled dependencies
 """
@@ -45,8 +49,11 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        ["python3", "scripts/ci_parity.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+        # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
+        ["cargo", "deny", "check", "licenses", "sources", "bans"],
     ],
     # Building first and running second runs the same tests; it only makes the log say how long the
     # build took and how long the tests did, which is what CI's budget is judged by. After a passing
@@ -56,11 +63,23 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # AC-8's record on a native runner (macOS, Windows): the release binary, then every world recorded
+    # (docs/DECISIONS.md ARC-49). The Linux legs record from the runtime image instead. On Windows the
+    # script finds target/release/mineworld.exe.
+    "parity": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
+    ],
     # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
     # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
     # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
     # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
     "platforms": [
+        # E-c: everything the lock names, first (EC-3 (a)'s fetch). The lock guard's `cargo metadata
+        # --offline` reads every workspace crate's dependencies, dev-dependencies of crates this layer
+        # never builds included (`trybuild`'s `glob`), so nothing after this may depend on what a build
+        # happened to download.
+        ["cargo", "fetch", "--locked"],
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
         # --no-fail-fast: on a platform, one red test binary must not hide another's result.
         [
@@ -70,7 +89,15 @@ LAYERS: dict[str, list[list[str]]] = {
         [
             "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
             "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+            "--test", "third_party",
         ],
+        # E-c: the lock guard and the graph check over this platform's checkout (EC-13), then the build
+        # offline from a vendor directory with an empty CARGO_HOME (PD-p3).
+        [
+            "cargo", "test", "--locked", "--no-fail-fast",
+            "-p", "mineworld-acceptance", "--test", "package_sources",
+        ],
+        ["python3", "scripts/ci_layer.py", "--offline-check"],
     ],
 }
 
@@ -115,6 +142,7 @@ ENVIRONMENT: list[list[str]] = [
     ["cargo", "-V"],
     ["cargo", "fmt", "--version"],
     ["cargo", "clippy", "--version"],
+    ["cargo", "deny", "--version"],
     ["git", "--version"],
     ["uv", "--version"],
     ["git", "rev-parse", "HEAD"],
@@ -134,19 +162,80 @@ def report(command: list[str]) -> None:
     print(f"[ci] {shlex.join(command)}: {output}", flush=True)
 
 
+def size(path: Path) -> int:
+    """Bytes under a directory, without following links (`du`, which Windows lacks)."""
+    total = 0
+    for directory, _, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass  # a file removed while walking: it no longer takes space
+    return total
+
+
+def gigabytes(count: int) -> str:
+    return f"{count / 1024**3:.1f} G"
+
+
 def disk(moment: str) -> None:
-    """Prints free disk and target/'s size for the record; on a runner without `df`/`du` (Windows
-    outside its bash), says so instead — the record is information, never a verdict."""
-    print(f"[ci] disk {moment}:", flush=True)
-    present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-    for command in (["df", "-h", str(ROOT)], ["du", "-sh", *present] if present else None):
-        if command is None:
-            continue
-        try:
-            subprocess.run(command, cwd=ROOT)
-        except FileNotFoundError:
-            print(f"[ci] {command[0]}: not found on PATH", flush=True)
-    sys.stdout.flush()
+    """Prints free disk and target/'s size for the record, with no `df` or `du`, which Windows lacks;
+    the record is information, never a verdict."""
+    usage = shutil.disk_usage(ROOT)
+    print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
+    for path in ("target", "target/tmp"):
+        if (ROOT / path).exists():
+            print(f"[ci]   {path}: {gigabytes(size(ROOT / path))}", flush=True)
+
+
+def resolved(command: list[str]) -> list[str]:
+    """`python3` is this interpreter: Windows runners have no `python3` on PATH. The listed command
+    (`--list`) stays as written."""
+    return [sys.executable, *command[1:]] if command[0] == "python3" else command
+
+
+def offline_check() -> int:
+    """EC-3 (b) on this runner (step-16 §16.12 PD-p3): vendor every dependency to a directory outside
+    the checkout, then check the CLI with `--offline --frozen` against it and an empty CARGO_HOME, so
+    nothing can come from the network or from a cache.
+
+    The vendor directory and the empty home are siblings of the checkout and are removed afterwards.
+    The configuration `cargo vendor` prints is written to a file with its directory as a `/` path, so
+    it needs no escaping in TOML on Windows."""
+    outside = ROOT.parent
+    vendor = outside / "mineworld-vendor"
+    home = outside / "mineworld-empty-cargo-home"
+    config = outside / "mineworld-vendor.toml"
+    for path in (vendor, home):
+        shutil.rmtree(path, ignore_errors=True)
+    home.mkdir()
+    try:
+        vendored = subprocess.run(
+            ["cargo", "vendor", "--locked", "--versioned-dirs", str(vendor)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if vendored.returncode != 0:
+            print(vendored.stderr, file=sys.stderr, flush=True)
+            return vendored.returncode
+        lines = [
+            f'directory = "{vendor.as_posix()}"' if line.startswith("directory = ") else line
+            for line in vendored.stdout.splitlines()
+        ]
+        config.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        crates = sum(1 for entry in vendor.iterdir() if entry.is_dir())
+        print(f"[ci] vendored {crates} crates to {vendor}; CARGO_HOME={home} (empty)", flush=True)
+        environment = {**os.environ, "CARGO_HOME": str(home)}
+        command = [
+            "cargo", "check", "--offline", "--frozen", "--config", str(config), "-p", "mineworld-cli",
+        ]
+        print(f"[ci] $ {shlex.join(command)}", flush=True)
+        return subprocess.run(command, cwd=ROOT, env=environment).returncode
+    finally:
+        for path in (vendor, home):
+            shutil.rmtree(path, ignore_errors=True)
+        config.unlink(missing_ok=True)
 
 
 def run(layer: str) -> int:
@@ -161,7 +250,9 @@ def run(layer: str) -> int:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(command, cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}).returncode
+            status = subprocess.run(
+                resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}
+            ).returncode
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status = 127
@@ -201,6 +292,8 @@ def main(arguments: list[str]) -> int:
     known = ", ".join(LAYERS)
     if arguments == ["--prune-cache"]:
         return prune_cache()
+    if arguments == ["--offline-check"]:
+        return offline_check()
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
         for command in LAYERS[arguments[1]]:
             print(shlex.join(command))

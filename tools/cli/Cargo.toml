@@ -46,3 +46,6 @@ mineworld-relationships = { workspace = true }
 mineworld-schedule = { workspace = true }
 # Every test's saves and pack copies are scratch removed when the test ends (DEP-29).
 mineworld-test-support = { workspace = true }
+# CP-C1's measurement only: RFC 6902 patches of recorded frames, the comparison DEP-15 is decided by.
+# Never a dependency of the server or the binary.
+json-patch = { version = "=4.2.0", default-features = false, features = ["diff"] }

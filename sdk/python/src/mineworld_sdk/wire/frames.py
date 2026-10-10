@@ -1,11 +1,12 @@
-"""The frames of protocol revision 2: three a client may send, six a server sends.
+"""The frames of protocol revision 2: three a client may send, eight a server sends.
 
 Mirrors `server/src/protocol.rs` (`ClientFrame`, `ServerFrame`, `RefusalCode`) and
-`server/src/protocol/{connection,summary}.rs`. Only what `server/PROTOCOL.md` §10 lists as landed is
-modelled: S11-A; S11-B (`join.take_over`, `WorldSummary.time_scale`, seat holds and their `resume`
+`server/src/protocol/{connection,summary,delta}.rs`. Only what `server/PROTOCOL.md` §10 lists as landed
+is modelled: S11-A; S11-B (`join.take_over`, `WorldSummary.time_scale`, seat holds and their `resume`
 secret, absorbed by P3's C6 under D-P3-5); S11-D (the `clock` frame, `WorldSummary.paused`, the refusal
-`paused`, under R-S11-9). S11-C's `delta` and `perceived` frames are absent until that pull request
-lands (D-P3-6).
+`paused`, under R-S11-9); S11-C (`join.perceived`, the `perceived` and `delta` frames, `acted_through`,
+`observation.events`, the refusals `cursor_unavailable` and `lagged`, the closing reason `lagged`,
+modelled in S11-C's own pull request under R-S11-9).
 
 `ClientFrame` is a closed union of `Join`, `Submit` and `Leave`. The encoder accepts nothing else, so
 this SDK can say exactly join, submit and leave (`INV-9`).
@@ -24,14 +25,17 @@ from mineworld_sdk.wire.contract import (
     ActionRequest,
     ActionResult,
     Observation,
+    PerceivedEvent,
     WireModel,
 )
+from mineworld_sdk.wire.delta import ObservationDelta
 from mineworld_sdk.wire.ids import (
     ActionIdField,
     ActionTypeIdField,
     CorrelationTokenField,
     EntityIdField,
     EntityKeyField,
+    EventIdField,
     EventTypeIdField,
     ResumeSecretField,
     SessionIdField,
@@ -76,12 +80,21 @@ class Invite:
 # ── What a client may say ─────────────────────────────────────────────────────────────────────────
 
 
+class PerceivedJoin(WireModel):
+    """A `join`'s request for the reliable `perceived` stream (`PROTOCOL.md` §5.8): the `through` of
+    the last `perceived` frame processed, or `None` for "from this world's first fact". `since` is
+    required inside it, and is written even when `None`."""
+
+    since: EventIdField | None
+
+
 class Join(WireModel, arbitrary_types_allowed=True):
     """Ask for a seat. A client names a seat, never an observer (`INV-13`).
 
     `resume` re-takes a seat this player's dropped connection held; `take_over` takes a seat another
     connection holds (`PROTOCOL.md` §4.2). The SDK sends both as given and decides neither: reconnect
-    policy is P3b's.
+    policy is P3b's. `perceived`, when given, asks for the `perceived` stream from its cursor; it is
+    omitted from the frame otherwise.
     """
 
     t: Literal["join"] = "join"
@@ -91,6 +104,7 @@ class Join(WireModel, arbitrary_types_allowed=True):
     seat: EntityKeyField
     resume: ResumeSecretField | None = Field(default=None, repr=False)
     take_over: bool = False
+    perceived: PerceivedJoin | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_serializer("invite")
     def _reveal(self, invite: Invite) -> str:
@@ -129,6 +143,7 @@ ClosingReason = Literal[
     "world_stopped",
     "server_stopping",
     "taken_over",
+    "lagged",
 ]
 """`ClosingReason`: why the server is about to close the connection."""
 
@@ -148,6 +163,8 @@ RefusalCode = Literal[
     "seat_occupied",
     "invalid_resume",
     "paused",
+    "cursor_unavailable",
+    "lagged",
 ]
 """`RefusalCode`: the ways a frame fails to be a request at all. Not a `Rejection`."""
 
@@ -212,7 +229,31 @@ class ObservationFrame(WireModel):
     t: Literal["observation"]
     seq: U64
     revision: U64 | None
+    acted_through: ActionIdField | None
+    """The newest request submitted on this connection that this observation already reflects, or
+    `None` before the first (`PROTOCOL.md` §5.2)."""
     observation: Observation
+
+
+class Delta(WireModel):
+    """What changed since the frame numbered `base` — always the previous one (`PROTOCOL.md` §5.3).
+    A session applies it to the observation it holds; its caller only ever sees whole observations."""
+
+    t: Literal["delta"]
+    seq: U64
+    base: U64
+    revision: U64 | None
+    acted_through: ActionIdField | None
+    delta: ObservationDelta
+
+
+class Perceived(WireModel):
+    """Facts this connection's observer learned, on the reliable stream its `join` asked for
+    (`PROTOCOL.md` §5.8): ascending, never dropped, never repeated. `through` is the cursor."""
+
+    t: Literal["perceived"]
+    through: EventIdField
+    events: list[PerceivedEvent]
 
 
 class Result(WireModel):
@@ -244,6 +285,7 @@ class Closing(WireModel):
 
 
 ServerFrame = Annotated[
-    Welcome | Clock | ObservationFrame | Result | Refused | Closing, Field(discriminator="t")
+    Welcome | Clock | ObservationFrame | Delta | Perceived | Result | Refused | Closing,
+    Field(discriminator="t"),
 ]
-"""Everything a client ever receives on revision 2 as landed on `main` (S11-A, S11-B, S11-D)."""
+"""Everything a client ever receives on revision 2 (S11-A, S11-B, S11-C, S11-D)."""

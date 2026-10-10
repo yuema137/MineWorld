@@ -57,6 +57,13 @@ submit(action_type, target, payload, actor_location)      ask the world for some
 submit_affordance(affordance, actor_location := null)     submit a complete affordance exactly as
                                                           offered; returns a token, or "" and sends
                                                           nothing when it is not complete
+perceive_from(cursor)                                     opt-in, before connect_to_world: also receive
+                                                          the reliable `perceived` stream of the facts
+                                                          this observer learns (PROTOCOL.md §5.8), from
+                                                          `cursor` — null for "from this world's first
+                                                          fact" (a world with a save), or a `through`
+                                                          kept from before. Every rejoin, reconnect's
+                                                          included, continues from perceived_cursor
 leave_world()                                             give the seat up and end the connection;
                                                           the server answers `closing` "left"
 disconnect_from_world(reason := "…")                      drop the socket
@@ -87,6 +94,10 @@ took_over  "none" | "hosted" | "held" | "connection": whether control of the Per
 hold_seconds, resume   the seat's hold after a dropped socket, in wall seconds, and the secret that
            re-takes it (fresh on every welcome). The module never prints, logs or emits the resume
 close_reason  the reason of the server's last `closing`, or ""
+perceived_cursor   the `through` of the last perceived frame: the cursor a rejoin continues from
+deltas_applied, deltas_refused   how many `delta` frames were applied to the observation held, and
+           how many could not be (each one drops the connection; with reconnect on it resumes, which
+           yields a whole observation). For a status line or a test; act on neither
 paused, time_scale   from the newest `clock` frame (PROTOCOL.md §5.9): whether the host has paused
            the world's clock, and world seconds per wall second. While paused, a submit is refused
            `paused`; observations keep arriving
@@ -99,7 +110,13 @@ logs or emits the invite.
 
 ```text
 welcomed(seat, observer, world)             the connection has a seat
-observed(observation)                        a fresh view, for this observer only
+observed(observation)                        a fresh view, for this observer only — always whole:
+                                             the module applies `delta` frames itself
+                                             (mineworld/delta.gd, PROTOCOL.md §5.3), so a client
+                                             never sees one
+perceived(events, through)                   with perceive_from: facts this observer learned, oldest
+                                             first, never dropped or repeated; `through` is the
+                                             cursor (PROTOCOL.md §5.8)
 resolved(token, action_id, result)           the world's answer to one request
 refused(code, token, detail)                 the frame was not accepted; nothing happened. A wrong
                                              invite is `unauthorized`, another revision is
@@ -134,8 +151,21 @@ affordances_about(id) is_complete(affordance)   (static)
 affordance(action_type, target := "") may(action_type, target := "")
 unavailable_reason(action_type, target := "") requirement(action_type, target := "")
 offered_against(target := "")
-frame        the dictionary exactly as it arrived
+acted_through()          the newest request this connection submitted that this observation already
+                         reflects — the action_id its `resolved` carried — or null (PROTOCOL.md §5.2)
+events_of(event_type)    the facts in events() of one event type, oldest first
+frame        the dictionary exactly as it arrived (always a whole observation)
 ```
+
+**Facts in an observation.** `events()` is what this observer learned since its previous frame,
+oldest first, each a `PerceivedEvent` dictionary — judged by the server, never filtered here. It is
+best effort: a client that falls behind may miss some (counted in the server's `events_dropped`). A
+client that must not miss one asks for the `perceived` stream with `perceive_from`. An `event_type` a
+client does not know is "something happened", never an error.
+
+**Predicting your own requests.** A client that moves its body before the server answers reconciles
+with an observation only once `acted_through()` has reached the `action_id` of the request it
+predicted: earlier observations do not yet reflect it.
 
 `may()` **reports** the server's verdict. It does not compute one, and neither may you.
 
@@ -248,7 +278,11 @@ Submitting something the server refuses is correct behaviour. Deciding it yourse
 
 An observation is whole and self-contained, and the world never waits for a client: one that stops
 reading loses frames. Draw `latest`; do not accumulate. A gap in `sequence` is not an error
-(`PROTOCOL.md` §8).
+(`PROTOCOL.md` §8). On the wire most frames are deltas against the previous one (`DEP-15`); the module
+applies them and emits the whole observation, so this rule is unchanged — and a delta that does not
+apply is never patched around: the module resumes and is sent a whole frame. Facts are different:
+`events()` is a since-the-last-frame stream, so a client that draws only the newest frame and needs
+every fact uses the `perceived` stream (§2), not `events()`.
 
 ## 4. What a client may decide for itself
 
@@ -291,6 +325,33 @@ is refused every time. A 2D client that walks to a click splits the walk into st
 ignores it is refused by the server, not by itself. On `too_far_away`, move the body back to the
 position the next observation shows.
 
+### 4.2 Walking somewhere: submit `walk-to`, then step once a wall second
+
+To send a person somewhere — a click on the floor, "Walk to <name>" — do not plan a route and do not
+split it into strides. Ask the server, which plans it round the world's walls, furniture and objects
+(`DECISIONS.md` `ARC-75`):
+
+```gdscript
+world.submit("walk-to", null, { "to": { "place": MineWorldSpace.location(place, MineWorldSpace.from_2d(here)) } })
+world.submit("walk-to", null, { "to": { "person": person_ref } })
+```
+
+A refusal is the server's answer: `too_far_away` for a person in another place, and the code `no-route`
+for a destination no way leads to. Once accepted, the walk is the player's own `walking` record in the
+next observation — its destination and the next waypoints — and it moves nobody by itself. While that
+record is disclosed, send one `walk-step` (no payload) per wall second:
+
+```text
+while your own `walking` record is disclosed: one walk-step every 1 s of wall time
+```
+
+Each step carries the person at most 1 340 mm along the route — 1.34 m/s, a person's walking pace — and
+the server answers it like a `move`. The timer is pacing, the same kind of rule as the `move` reporting
+rule above: it is never a rule about the world, and the server neither knows nor checks how often you
+send. Stop when the record is gone (the walk ended: arrived, stalled, no route, replaced or stopped). A
+`move` of your own — WASD — ends the walk. Draw the record if you like (a route line, a heading); never
+compute one.
+
 ## 5. The shape of a client, as this module expects it
 
 ```text
@@ -313,9 +374,9 @@ that invented an `ActionId` would collide with the other client on its first act
 ## 6. What this module does not do yet
 
 ```text
-events                `events` is empty in an observation until S11-C; what an NPC said to you
-                      arrives as your own disclosed conversation history instead
-deltas                every observation is whole; S11-C may add `delta` frames, applied here
+remembering facts    the `perceived` stream delivers them and perceived_cursor resumes it; keeping
+                      them (a memory, a transcript) across process restarts is yours — store the
+                      cursor with them and pass it to perceive_from next time
 admin calls           pausing, resuming, kicking and releasing are the host's, over HTTP with the
                       admin token (PROTOCOL.md §11); a launcher that holds one makes those calls
                       itself. The module only reads the `clock` frame

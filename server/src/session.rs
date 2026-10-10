@@ -34,13 +34,16 @@ use futures_util::{Sink, SinkExt, StreamExt};
 use tokio::time::Instant;
 
 use crate::admin::registry::{Joined, Registered, Registry};
-use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
-use crate::host::{Seated, Streams, WorldHost};
+use crate::admission::{Admission, Nickname};
+use crate::host::{Seated, Streamed, Streams, SubscriptionId, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, SessionId,
-    into_kernel_request,
+    delta, into_kernel_request,
 };
-use crate::seats::{Departure, JoinRequest};
+use crate::seats::Departure;
+use join::{Joining, Offered, join};
+
+mod join;
 
 type Outgoing = SplitSink<WebSocket, Message>;
 type Incoming = SplitStream<WebSocket>;
@@ -68,16 +71,6 @@ enum Ending {
     Released(ClosingReason),
 }
 
-/// What one `join` came to.
-enum Joining {
-    /// The connection has its seat.
-    Seated(Box<Seated>, Nickname),
-    /// Refused; the connection stays in the handshake and may join again.
-    Refused(Refusal),
-    /// Refused, and the connection ends: a mismatched protocol, or a wrong invite.
-    Closed(Refusal, ClosingReason),
-}
-
 /// What a session is given besides its socket: the world, who may join it, and its own identity.
 pub(crate) struct Connection {
     /// The hosted world.
@@ -93,7 +86,8 @@ pub(crate) struct Connection {
 /// Runs one connection to completion, then releases its subscription.
 pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     let (mut outgoing, mut incoming) = socket.split();
-    let Some((mut seated, nickname)) = handshake(&mut outgoing, &mut incoming, &connection).await
+    let Some((mut seated, nickname, backfill)) =
+        handshake(&mut outgoing, &mut incoming, &connection).await
     else {
         return;
     };
@@ -121,6 +115,7 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         joined,
         welcome,
         clock,
+        backfill,
     };
     let ending = if let Some(listed) = greet(&mut outgoing, &connection.registry, greeting).await {
         let ending = stream(
@@ -152,6 +147,15 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
             host.leave(seated.subscription(), Departure::Left);
             close(&mut outgoing, &mut incoming, ClosingReason::WorldStopped).await;
         }
+        Ending::Released(ClosingReason::Lagged) => {
+            // `PROTOCOL.md` §5.5: the refusal says what to do (rejoin with the cursor), then closing.
+            let lagged = Refusal::new(RefusalCode::Lagged).detail(
+                "the perceived stream fell too far behind; rejoin with resume and your cursor",
+            );
+            if send(&mut outgoing, &lagged.into_frame()).await.is_ok() {
+                close(&mut outgoing, &mut incoming, ClosingReason::Lagged).await;
+            }
+        }
         Ending::Released(reason) => close(&mut outgoing, &mut incoming, reason).await,
     }
 }
@@ -162,11 +166,13 @@ struct Greeting {
     joined: Joined,
     welcome: ServerFrame,
     clock: ServerFrame,
+    /// The `perceived` backfill (§5.8), sent after the clock and before the stream.
+    backfill: Vec<ServerFrame>,
 }
 
-/// Lists the session on the admin surface, then sends the welcome and the clock as it stood at the
-/// welcome (`PROTOCOL.md` §5.9). `None` if the connection went while they were being sent — and the
-/// session is off the list again, because the guard is dropped with it.
+/// Lists the session on the admin surface, then sends the welcome, the clock as it stood at the
+/// welcome (`PROTOCOL.md` §5.9) and the backfill. `None` if the connection went while they were being
+/// sent — and the session is off the list again, because the guard is dropped with it.
 async fn greet<S>(
     outgoing: &mut S,
     registry: &Arc<Registry>,
@@ -178,9 +184,11 @@ where
     // Listed first: the welcome is the client's proof that it is seated, so from the moment it can
     // be read the admin surface must list this session (F-SD1).
     let listed = registry.register(greeting.session, greeting.joined);
-    let sent = send(outgoing, &greeting.welcome).await.is_ok()
-        && send(outgoing, &greeting.clock).await.is_ok();
-    sent.then_some(listed)
+    let first = [greeting.welcome, greeting.clock];
+    for frame in first.iter().chain(&greeting.backfill) {
+        send(outgoing, frame).await.ok()?;
+    }
+    Some(listed)
 }
 
 /// Reads frames until the connection has a seat, refusing everything else.
@@ -188,7 +196,7 @@ async fn handshake(
     outgoing: &mut Outgoing,
     incoming: &mut Incoming,
     connection: &Connection,
-) -> Option<(Seated, Nickname)> {
+) -> Option<(Seated, Nickname, Vec<ServerFrame>)> {
     loop {
         let received = receive(incoming).await;
         let arrived = Instant::now();
@@ -204,6 +212,7 @@ async fn handshake(
                     seat,
                     resume,
                     take_over,
+                    perceived,
                 }) => {
                     let offered = Offered {
                         protocol,
@@ -211,9 +220,12 @@ async fn handshake(
                         nickname,
                         resume,
                         take_over,
+                        perceived,
                     };
                     match join(connection, offered, seat, arrived).await {
-                        Joining::Seated(seated, nickname) => return Some((*seated, nickname)),
+                        Joining::Seated(seated, nickname, backfill) => {
+                            return Some((*seated, nickname, backfill));
+                        }
                         Joining::Refused(refusal) => refusal,
                         Joining::Closed(refusal, reason) => {
                             if send(outgoing, &refusal.into_frame()).await.is_ok() {
@@ -237,59 +249,6 @@ async fn handshake(
     }
 }
 
-/// A join's credentials and options, before any of them is trusted.
-struct Offered {
-    protocol: u32,
-    invite: OfferedInvite,
-    nickname: String,
-    resume: Option<OfferedResume>,
-    take_over: bool,
-}
-
-/// `PROTOCOL.md` §4.1's checks, in its order. The first that fails decides the answer.
-async fn join(
-    connection: &Connection,
-    offered: Offered,
-    seat: mineworld_contracts::EntityKey,
-    arrived: Instant,
-) -> Joining {
-    if offered.protocol != PROTOCOL_VERSION {
-        return Joining::Closed(
-            Refusal::new(RefusalCode::ProtocolMismatch).detail(format!(
-                "this server speaks protocol {PROTOCOL_VERSION}, and the join speaks {}",
-                offered.protocol
-            )),
-            ClosingReason::ProtocolMismatch,
-        );
-    }
-    if connection.admission.admit(&offered.invite).is_err() {
-        // Measured from the frame's arrival, so the answer's timing says nothing about the check.
-        tokio::time::sleep_until(arrived + UNAUTHORIZED_DELAY).await;
-        return Joining::Closed(
-            Refusal::new(RefusalCode::Unauthorized).detail("that is not this server's invite"),
-            ClosingReason::Unauthorized,
-        );
-    }
-    let nickname = match Nickname::new(&offered.nickname) {
-        Ok(nickname) => nickname,
-        Err(error) => {
-            return Joining::Refused(Refusal::new(RefusalCode::InvalidNickname).detailed(error));
-        }
-    };
-    // The seat and who may have it are the world thread's to decide (`PROTOCOL.md` §4.2): the
-    // resume and the takeover flag travel with the seat, and nothing here holds a binding.
-    let request = JoinRequest {
-        seat,
-        take_over: offered.take_over,
-        resume: offered.resume,
-        session: connection.session,
-    };
-    match connection.host.join_with(request).await {
-        Ok(seated) => Joining::Seated(Box::new(seated), nickname),
-        Err(refusal) => Joining::Refused(refusal),
-    }
-}
-
 /// The seated phase: observations out, requests in, until either end stops.
 ///
 /// One task, so the two directions take turns rather than running concurrently. That is a
@@ -304,6 +263,8 @@ async fn stream(
     listed: &Registered,
 ) -> Ending {
     let observer = seated.observer();
+    let subscription = seated.subscription();
+    let mut encoder = delta::Encoder::new(seated.keyframe_every());
     let Streams {
         observations,
         released,
@@ -321,13 +282,21 @@ async fn stream(
             observation = observations.recv() => {
                 // `None` means the world has stopped, or unbound this connection — which the
                 // `released` branch, polled first, has said if so. The connection ends with it.
-                let Some(perceived) = observation else {
+                let Some(streamed) = observation else {
                     return released.try_recv().map_or(Ending::WorldStopped, Ending::Released);
                 };
-                ServerFrame::Observation {
-                    seq: listed.next_seq(),
-                    revision: perceived.revision,
-                    observation: perceived.observation,
+                match streamed {
+                    Streamed::Facts { through, events } => ServerFrame::Perceived {
+                        through,
+                        events: events.iter().map(|event| (**event).clone()).collect(),
+                    },
+                    // Whole at keyframes, a delta otherwise; entities in id order (§§5.2, 5.3).
+                    Streamed::Observation(perceived) => encoder.frame(
+                        listed.next_seq(),
+                        perceived.revision,
+                        perceived.acted_through,
+                        perceived.observation,
+                    ),
                 }
             }
             changed = clock.changed() => {
@@ -346,7 +315,7 @@ async fn stream(
                         .detail("a connection holds one seat for its whole life")
                         .into_frame(),
                     Ok(ClientFrame::Submit { token, request }) => {
-                        submit(host, observer, token, &request).await
+                        submit(host, (subscription, observer), token, &request).await
                     }
                     Ok(ClientFrame::Leave {}) => return Ending::Left,
                 },
@@ -366,7 +335,7 @@ async fn stream(
 /// its own request.
 async fn submit(
     host: &WorldHost,
-    observer: mineworld_contracts::EntityId,
+    (subscription, observer): (SubscriptionId, mineworld_contracts::EntityId),
     token: crate::protocol::CorrelationToken,
     request: &mineworld_contracts::ActionRequest<crate::protocol::WirePayload>,
 ) -> ServerFrame {
@@ -379,7 +348,10 @@ async fn submit(
                 .into_frame();
         }
     };
-    match host.submit(observer, kernel_request).await {
+    match host
+        .submit_on(Some(subscription), observer, kernel_request)
+        .await
+    {
         Ok(submitted) => ServerFrame::Result {
             token,
             action_id: submitted.action_id(),

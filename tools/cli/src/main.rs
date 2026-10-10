@@ -1,20 +1,16 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--town]
-//!                  [--seed N] [--pace SECONDS] [--hold SECONDS] [--time-scale N] [--save DIR]
-//!                  [--admin-token TOKEN]
-//!                                       load the pack and host it; with --save, persisted;
-//!                                       clients join with the invite (generated and printed
-//!                                       when neither --invite nor MINEWORLD_INVITE gives one);
-//!                                       in-server controllers drive seats nobody plays (ARC-42)
+//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [OPTIONS]   (every flag: §8.1)
+//!                                       host the pack (persisted with --save) for clients with the
+//!                                       invite; in-server controllers drive seats nobody plays
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
 //!                                       run it headless, every seat a seeded rule (ARC-27)
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
-//! mineworld biography <world> --save DIR --person KEY [--json]
-//!                                       a Person's objective biography, from the fact log (ARC-29)
+//! mineworld biography|perceived <world> --save DIR --person KEY [--json]
+//!                                       a Person's biography (ARC-29), or what they perceived (ARC-43)
 //! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
@@ -59,12 +55,14 @@
 
 mod biography;
 mod create;
+mod history;
 mod hosted;
 mod inspect;
 mod interactions;
 mod invite;
 mod packs;
 mod perceive;
+mod perceived;
 mod run;
 mod serve;
 
@@ -103,8 +101,7 @@ enum Subcommand {
         /// Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it.
         #[arg(long, default_value = DEFAULT_LISTEN)]
         listen: SocketAddr,
-        /// The invite every client must present to join. Without it (and without
-        /// MINEWORLD_INVITE) one is generated and printed once.
+        /// The invite every client must present to join; else one is generated and printed once.
         #[arg(
             long,
             value_name = "TOKEN",
@@ -112,12 +109,10 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
-        /// The bearer token that opens the admin surface under /admin; without it (and without
-        /// MINEWORLD_ADMIN_TOKEN) there is none. Never printed; must differ from the invite.
+        /// The bearer token that opens /admin (else none); never printed; not the invite.
         #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
         admin_token: Option<String>,
-        /// Drive that seat with the reactive rule controller, on the world thread, whenever no
-        /// player holds it. Repeat it for more than one.
+        /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
         /// Drive every other seat with the paced rule controller whenever no player holds it.
@@ -126,19 +121,19 @@ enum Subcommand {
         /// The paced controllers' seed.
         #[arg(long, default_value_t = 0)]
         seed: u64,
-        /// How often each paced seat is consulted, in wall seconds: the time scale never makes a
-        /// hosted Person walk or talk faster.
+        /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
         #[arg(long, value_name = "SECONDS", default_value = "5")]
         pace: NonZeroU32,
-        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0 holds
-        /// none.
+        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
         #[arg(long, value_name = "SECONDS", default_value_t = 30)]
         hold: u32,
         /// How many world seconds pass per wall second.
         #[arg(long, value_name = "N", default_value = "1")]
         time_scale: NonZeroU32,
-        /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
-        /// same world, where it stopped — every time after.
+        /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
+        #[arg(long, value_name = "N", default_value = "50")]
+        keyframe_every: NonZeroU32,
+        /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
         #[command(flatten)]
@@ -227,6 +222,8 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// Print the facts a Person perceived, from a save's fact log, by the server's audience rule.
+    Perceived(perceived::PerceivedArgs),
     /// What a World Pack's Interaction List resolves to: each configured section, base then regions,
     /// and each entity's class (ARC-63, ARC-64). Reads the pack only.
     Interactions {
@@ -323,6 +320,7 @@ async fn main() -> ExitCode {
             pace,
             hold,
             time_scale,
+            keyframe_every,
             save,
             packs,
         } => match packs.roots() {
@@ -338,6 +336,7 @@ async fn main() -> ExitCode {
                     pace,
                     hold,
                     time_scale,
+                    keyframe_every,
                     save,
                     roots,
                 })
@@ -380,6 +379,7 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Perceived(args) => perceived::perceived(args),
         Subcommand::Interactions {
             world,
             place,
@@ -423,8 +423,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create, \
-         mineworld packs (see mineworld --help)."
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
+         mineworld create, mineworld packs (see mineworld --help)."
     ))
 }
 

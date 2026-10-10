@@ -23,6 +23,7 @@ EntityId = NewType("EntityId", str)
 EventId = NewType("EventId", str)
 ActionId = NewType("ActionId", str)
 SessionId = NewType("SessionId", str)
+ProcessId = NewType("ProcessId", str)
 
 EntityKey = NewType("EntityKey", str)
 ActionTypeId = NewType("ActionTypeId", str)
@@ -99,6 +100,7 @@ EntityIdField = Annotated[EntityId, AfterValidator(_decimal)]
 EventIdField = Annotated[EventId, AfterValidator(_decimal)]
 ActionIdField = Annotated[ActionId, AfterValidator(_decimal)]
 SessionIdField = Annotated[SessionId, AfterValidator(_decimal)]
+ProcessIdField = Annotated[ProcessId, AfterValidator(_decimal)]
 
 EntityKeyField = Annotated[EntityKey, AfterValidator(_identifier)]
 ActionTypeIdField = Annotated[ActionTypeId, AfterValidator(_identifier)]
