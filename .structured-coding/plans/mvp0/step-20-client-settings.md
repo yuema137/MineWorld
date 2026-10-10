@@ -1181,9 +1181,95 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 ### C7 — cross-client evidence and gates
 
 - **Goal:** the one-module-two-clients checkpoint and the full gate on the PR head.
-- [ ] Implementation: N/A for code; evidence and ledger.
-- [ ] Validation: AC-SET-7 (2D Apply → 3D first frame), AC-SET-14 (a scratch language), AC-SET-15 (the settings folder, macOS), AC-SET-16 (in `client_text`), CP-SET-a run by hand and recorded; full gate `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace`, both doc checks, every `#[ignore]` Godot test of `client_2d`, `client_settings`; each classified `PASS`/`FAIL`/`INCONCLUSIVE` from its output.
-- [ ] Review: INV-SET-1 … 10 each traced to a passing check or a hand check.
+- [x] Implementation: evidence and ledger; and three small code items found by the gate's runs —
+  the menu's language selector follows the live language (a still showed "English" selected over a
+  Chinese menu), stills hooks (2D `--capture`, 3D `--stills=`), AC-SET-14's check in
+  `menu_check.gd`; `clients/shared/evidence/` (stills, `.gdignore`, README); `origin/main` merged
+  (`72efd61`; one conflict in `docs/DECISIONS.md`, both sides appended — kept both; ARC-68 landed on
+  main, no collision with ARC-72/DEP-32/DEP-33).
+- [x] Validation — the full gate, on the merged tree (macOS 26, Godot 4.7.2, Metal, 120 Hz display):
+  - `cargo fmt --all --check` PASS; `cargo clippy --workspace --all-targets --all-features -D warnings`
+    PASS; `cargo test --workspace` (at `72efd61` + the stills commit's non-Rust changes) → 886 passed,
+    0 failed, 29 ignored (the Godot tests) — PASS; `check_doc_headings.py` → 192 sections, none
+    duplicated; `check_decision_ids.py` → 88 ids, all distinct; `check_scratch.py scan` → 185 test
+    sources clean; `check_client_rules.py` → PASS (0); `--check-pack presentation/mineworld-default/2D`
+    → PASS (0); `client_text` 5/5; `client_rules` 3/3.
+  - Godot, on code head `d5921e7`: `client_2d` 8/8, `client_2d_interact` 5/5,
+    `client_2d_interact_stub` 3/3, `client_settings` 9/9 (`/tmp/mw-seta-logs/c7-godot.log`); on
+    `873612b` (AC-SET-14 added): `the_settings_module_checks_pass` and `the_settings_folder_is_shared`
+    re-run → 2/2; the four module checks PASS (store 49, text, glyph 263 characters, menu incl.
+    AC-SET-14).
+  - 3D probes: `--drive`, `--world --link`, `--world --target` pass; `--measure` the same one pre-existing
+    line; `--world --conversation` PASS (on re-run); `--world --settings --marker` PASS.
+  - AC-SET-9, 3D half and stills: with a zh_Hans/24h/borderless/30 fps file planted in the real
+    folder (then removed by `store_check --read`), `--drive` and `--world --link` pass with no Chinese
+    in their output and the platform line unchanged. The 2D `--capture` stills are **not byte-identical
+    even between two runs with no planted file** (the world's clock and people move), so that oracle
+    cannot discriminate: INCONCLUSIVE as an oracle; the discriminating evidence is the settings line,
+    identical with and without the planted file (`file ""`, en, cap 0, VSync on, windowed 1600×900),
+    and the planted run's still shows the English 12-hour HUD.
+  - AC-SET-14: PASS (`menu_check`): a scratch `user://locale/xx_test.po` is offered as "Testish";
+    choosing it shows its two texts and English for the rest, never a raw key; removed afterwards.
+  - CP-SET-a by hand on macOS (§6): see §12.12; the parts the harness covers are in the AC table.
+  - Mutations (each reverted): the language list hardcoded → AC-SET-14 FAIL; an `HTTPRequest` and an
+    `OS.get_name()` branch planted in `store.gd` → `client_text` FAIL naming
+    `store.gd:61 names HTTPRequest (INV-SET-1)` and `store.gd:63 a platform branch (AC-SET-16)`.
+- [x] Review: INV-SET-1 … 10 traced in §12.12.
+
+## 12.12 Acceptance on the final head (macOS; Windows and Linux are the operator's, §8)
+
+| Criterion | Result | Evidence (where) | Mutation that turned it red |
+| --- | --- | --- | --- |
+| AC-SET-1 | PASS | 2D market-town 41 texts, 3D social-cafe 44 texts, menu alone 39 — every text turns at once and back (`client_settings`, `menu_check`; `EVIDENCE text` pairs) | menu ignores `NOTIFICATION_TRANSLATION_CHANGED`; 2D hint not re-rendered |
+| AC-SET-2 | PASS | marker `qaa` walks in 2D, 3D and the menu | planted `Label` "Hello there" |
+| AC-SET-3 | PASS | `client_text` (3D client + module; 2D is 13b's R6, PASS) | planted label literal named at `menu.gd:267`; the pre-C6 3D tree itself (12 literals) |
+| AC-SET-4 | PASS | `client_text` catalogs, families from `PROTOCOL.md` §5.5 and `Rejection`, `messages.pot`; the move vs `aee8290` | 4/4 design mutations |
+| AC-SET-5 | PASS | 2D stub: frames `join`…`leave` equal; 3D: requests equal; static: INV-SET-1 scan | locale in the move payload; planted `HTTPRequest` |
+| AC-SET-6 | PASS | an Apply's file holds exactly §3.3's keys, no invite/nickname/seat/address | the store writes `seat` |
+| AC-SET-7 | PASS | 2D Apply zh_Hans/24h/1280×720 → 3D first frame zh_Hans, clock 2, 1280×720 | — (no planted mutation; the oracle is the first frame) |
+| AC-SET-8 | PASS | `store_check` five cases; 2D runtime `window_mode=7` | the file saved on load |
+| AC-SET-9 | PASS (stills byte-identity INCONCLUSIVE as an oracle, see C7) | 2D `--drive=walk`, 3D `--drive`, `--world --link` with a planted file | `drive` dropped from `HARNESS_FLAGS` |
+| AC-SET-10 | PASS | 3D `[link]` lines equal across en/zh files; `--world --link` with a planted zh file all English; 2D `drive:` lines equal | — (by construction: `_say` prints `log_line`; review of all 16 calls) |
+| AC-SET-11 | PASS | 2D window 1280×720, VSync 0, cap 30 → 30.01 fps, none → 119.97 fps; 3D render scale 0.67; headless no-op | `Engine.max_fps` assignment dropped (C2) |
+| AC-SET-12 | PASS | 2D: W 2 s + a click → 0 requests; 3D: W, mouse motion, E → 0 requests, yaw and pitch unchanged | walker left running |
+| AC-SET-13 | PASS | `glyph_check` 263 characters, 0 missing | ☕🙂 in a scratch catalog |
+| AC-SET-14 | PASS | `menu_check` | the language list hardcoded |
+| AC-SET-15 | PASS (macOS) | `…/Application Support/MineWorld` in the shared, 2D and 3D projects; a file written by the 2D project read by the 3D one | — (H-10 on Windows/Linux) |
+| AC-SET-16 | PASS | `client_text` (the one Wayland line admitted) | planted `OS.get_name()` branch |
+
+**INV-SET-1 … 10.** 1: `client_text` scan + AC-SET-5. 2: AC-SET-6. 3: N/A in SET-a (no host module;
+SET-c). 4: AC-SET-1/-2/-3, R6. 5: AC-SET-9. 6: AC-SET-10 and the 2D `drive:` comparison. 7: the named
+changes only (`client_text` move check: `ui.hint`; SD-SET-a-12; F-15, F-16) — the 3D `[link]` lines
+and HUD English as on `main` (review, stills). 8: both clients symlink one module; INV-SET-8's one
+duplicated formula removed (`MineWorldClockFormat.day_time`). 9: AC-SET-13. 10: review — names, places,
+tags, dialogue and kinds are world text or plain arguments, never keys.
+
+**CP-SET-a (§6), macOS.** The harness covers it end to end: Esc's menu open over the connected 2D HUD
+→ 简体中文 → every HUD and menu string Chinese at once (AC-SET-1); the clock line in 24-hour form
+("第1天  00:00"); Apply of zh_Hans/24h/1280×720 → the 3D client's first frame in Chinese, 24-hour, at
+1280×720 (AC-SET-7). The windowed walk-through by hand (Esc key, the 15 s confirmation on a real window
+change, relaunch) is H-3, H-4, H-7 and H-9 below, left to the operator.
+
+## 12.13 The operator's hand checks (§8), per OS
+
+The gate ran the automated column on macOS. Each check records the platform line the client prints
+(`[settings] platform <OS>, driver <driver>, display <server>`).
+
+| Id | macOS | Windows (D3D12; Vulkan with `--rendering-driver vulkan`) | Linux X11 | Linux Wayland |
+| --- | --- | --- | --- | --- |
+| H-1 Chinese crisp, no tofu, no mixed faces | stills in `clients/shared/evidence/` (Retina capture); external 1× display: operator | 100 % and 150 % scaling | on a machine with `fc-list :lang=zh` empty | at 125 % |
+| H-2 menu layout in both languages | stills; operator | 150 % | — | — |
+| H-3 windowed → borderless → fullscreen → windowed | operator (Cmd-Tab, no empty Space) | operator (Alt-Tab, brief black flash at most) | operator (no stuck full screen) | operator (Fullscreen = Borderless, tooltip says so) |
+| H-4 size change, 15 s countdown, revert, keep across restart | operator; judge logical vs physical presets on Retina | operator | operator | operator |
+| H-5 3D VSync Off/On/Adaptive, cap 30/60/none, render scale 50–100 % | operator (the Display tab's FPS: 30.01 with cap 30, 119.97 uncapped measured in 2D) | operator, D3D12 and Vulkan | operator | operator: is VSync Off honoured? |
+| H-6 12h/24h × en/zh, both clients | automated (`text_check` table; stills "第1天  00:00", "day 1  12:00 AM"); operator in one world | — | — | — |
+| H-7 Esc opens/closes; 2D Quit in the menu; 3D mouse released, recaptured on click | operator | operator | operator | operator (pointer capture) |
+| H-8 3D golden-hour slice in `en` as accepted | operator | operator (sanity look) | — | — |
+| H-9 relaunch: 2D language → 3D opens in it | automated (AC-SET-7); operator by hand | operator | operator | — |
+| H-10 the shared folder | automated (AC-SET-15): `~/Library/Application Support/MineWorld` | operator: `%APPDATA%\MineWorld\settings.cfg` | operator: `~/.local/share/MineWorld/`, and `$XDG_DATA_HOME/MineWorld/` | — |
+
+Windows prerequisite: `git config core.symlinks true` (Developer Mode) before checkout; the launchers run
+from Git Bash and stop with that message if a module folder is a text file.
 - **Commit boundary:** ledger and evidence only. Then mark **READY FOR OPERATOR REVIEW**, with the H-1 … H-10 macOS results and the Windows and Linux checklist listed for the operator.
 
 ## 12.6 Acceptance (fixed before measuring)
@@ -1228,8 +1314,14 @@ step, and the test asserts that the stub saw the client's `leave`.
 | Item | Status | Evidence |
 | --- | --- | --- |
 | C0 (this design) | done, frozen 2026-10-08; anchors re-verified 2026-10-09 against `main @ aee8290` (§12.11) | `plan/client-settings`, PR #91 |
-| C1 | see §12.5 C1 | — |
-| C2–C7 | see §12.5 | — |
+| C1 | done | `3614584` |
+| C2 | done | `ff82a50` |
+| C3 + C4 | done (one commit) | `42ea4de` |
+| C5 + C6 | done (one commit) | `b95e748` |
+| merge `origin/main` | done | `72efd61` |
+| C7 | done; final code head `873612b` | `ce0b4c1`, `d5921e7`, `873612b`; ledger commit after it |
+| Lifecycle | **READY FOR OPERATOR REVIEW** (PR opened; CI on the exact head recorded in the PR) — DO NOT MERGE | — |
+| Post-merge synchronization | this session: §12 lifecycle, merge identity and evidence; the primary session: step-20 §§1–11, `overall.md` (S20 row, decision numbers ARC-72/DEP-32/DEP-33 to confirm) | — |
 | QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
 | Windows / Linux checklist (§8) | open, for the operator | — |
 
