@@ -634,7 +634,11 @@ fn the_catalogs_are_complete_and_consistent() {
     if std::env::var_os("MINEWORLD_WRITE_POT").is_some() {
         std::fs::write(&pot_path, &expected).expect("messages.pot writes");
     }
-    if std::fs::read_to_string(&pot_path).ok().as_deref() != Some(expected.as_str()) {
+    // Line endings as a Windows checkout may write them (core.autocrlf) are not a difference.
+    let on_disk = std::fs::read_to_string(&pot_path)
+        .ok()
+        .map(|text| text.replace("\r\n", "\n"));
+    if on_disk.as_deref() != Some(expected.as_str()) {
         found.push(format!(
             "{}: not the template of en.po; regenerate with MINEWORLD_WRITE_POT=1",
             relative(&shared_dir)
