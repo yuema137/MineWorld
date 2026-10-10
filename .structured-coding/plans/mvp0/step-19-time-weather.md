@@ -2813,8 +2813,23 @@ TWd-F4  MATERIAL STOP — the licence policy that landed on main after the freez
         RULED (operator, 2026-10-09 21:45): option (A), §18.9.2. Applied in C7: the crate-scoped exception
         in deny.toml and the DEP-22 / DEP-31 notes; `cargo deny check licenses sources bans` → "bans ok,
         licenses ok, sources ok" (E-TWd-10).
+TWd-R1  (primary review of #121 @ f944357, 2026-10-09) A mutation survived the default suite:
+        `fog: false && recorded.fog()` in generate.rs `record_day` left every non-ignored test green.
+        Fog on record days was checked only by the opt-in record_checkpoint, and the six dates C2 (c)
+        compares happened to carry no fog. Fixed in C8: tests/record.rs
+        `record_days_replay_their_rows_fog_thunder_and_wind` runs the fixture world for a year (world
+        2026-10-08 … 2027-10-08, 0.3 s) and holds every record day's summary fog, thunder, wind speed
+        and wind direction to its row's (a missing wind → the month's 25 dm/s from 300°). It asserts that
+        the year contains record days with fog (28), with thunder (30) and with no wind (1). The fixture's
+        2016-10-08 now also has no direction. Mutations, each killed by name:
+          TWd-R1  `fog: false && recorded.fog()` → FAILS "2015-10-14: fog" (false against true)
+          R1b     `thunder: false && recorded.thunder()` → FAILS "2015-10-16: thunder"
+          R1c     a missing direction → 0 instead of the month's → FAILS "2016-10-08: wind direction"
+          R1d     a missing speed → 0 instead of the month's → FAILS "2016-10-08: wind speed" (and C2 (c))
+        All reverted; `grep -rn MUTATION` empty; `cargo test -p mineworld-weather` all ok (record 7).
 TWd-F3  (process) Three forbidden-list slips by this session, all read-only or no-ops, recorded for
         honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing), an empty
         heredoc to /dev/null, and an `awk` summing the gate's test counts (read-only). No file was
-        written by any of them.
+        written by any of them. A fourth, later: a `sed -i` on the untracked target/tw-d/pr-body.md (the
+        PR body draft; no tracked file).
 ```

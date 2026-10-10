@@ -7,7 +7,7 @@
 //! The record is a hand-made two-year file, 2015–2016, written into a scratch World Pack (DEP-29): its
 //! values follow a simple rule of the day's index so a test can name any day's, and it holds a two-day
 //! gap (2015-03-10 … 11, no maximum), a five-day gap (2015-07-01 … 05, no precipitation), 29 February
-//! 2016, and an empty wind cell on 2016-10-08 (a quality-flagged value dropped).
+//! 2016, and empty wind speed and direction cells on 2016-10-08 (quality-flagged values dropped).
 
 use mineworld_calendar::DayBegan;
 use mineworld_contracts::{Event, EventEnvelope, WorldTime};
@@ -68,6 +68,7 @@ fn fixture() -> Vec<RecordRow> {
         }
         if on == date(2016, 10, 8) {
             row.awnd_dms = None;
+            row.wdf2_deg = None;
         }
         rows.push(row);
         on = on.next().expect("a next day");
@@ -353,6 +354,52 @@ fn world_dates_replay_record_dates_and_gaps_are_filled_or_drawn() {
         Origin::Record {
             date: date(2016, 2, 29)
         }
+    );
+}
+
+/// TWd-R1: every record day of a year replays its row's fog, thunder and wind, and the year holds days
+/// with fog, with thunder, and with the wind missing (the month's wind then), so a summary that drops
+/// any of them fails here, in the default suite.
+#[test]
+fn record_days_replay_their_rows_fog_thunder_and_wind() {
+    let rows = fixture();
+    let scratch = pack(
+        "flags",
+        &configuration(2015, "rules"),
+        encode(&rows).as_bytes(),
+    );
+    // World 2026-10-08 … 2027-10-08 replays record 2015-10-08 … 2016-10-08.
+    let days: Vec<WeatherDay> = of(&run_to(scratch.path(), date(2027, 10, 8)));
+    let (mut fog, mut thunder, mut windless) = (0, 0, 0);
+    for day in &days {
+        let Origin::Record { date: record } = day.origin() else {
+            continue;
+        };
+        let row = row_of(&rows, record);
+        let summary = day.summary();
+        assert_eq!(summary.fog, row.fog, "{}: fog", show(record));
+        assert_eq!(summary.thunder, row.thunder, "{}: thunder", show(record));
+        // The month's wind is the configuration's: 25 (0.1 m/s) from 300 degrees, every month.
+        assert_eq!(
+            summary.awnd_dms,
+            row.awnd_dms.map_or(25, u16::from),
+            "{}: wind speed",
+            show(record)
+        );
+        assert_eq!(
+            summary.wind_from_deg,
+            row.wdf2_deg.map_or(300, |degrees| degrees % 360),
+            "{}: wind direction",
+            show(record)
+        );
+        fog += usize::from(row.fog);
+        thunder += usize::from(row.thunder);
+        windless += usize::from(row.awnd_dms.is_none() && row.wdf2_deg.is_none());
+    }
+    println!("record days with fog {fog}, thunder {thunder}, no wind speed {windless}");
+    assert!(
+        fog > 0 && thunder > 0 && windless > 0,
+        "the year exercises every flag"
     );
 }
 
