@@ -514,9 +514,11 @@ Each commit lists implementation, validation and review separately; each `[x]` n
 reaction rules); `systems/{conversation,group-activity,relationships}/README.md` ("Its section", §4's
 tables); `docs/MVP_STATUS.md` (S17 row: IL-e in progress); `handoff-il-e.md` created.
 **Non-goals.** No code. No new decision number (QIE-9, ruled).
-- [ ] Implementation: the notes and README sections, worded from §4/§5.
-- [ ] Validation: both doc scripts; every term used is `MODULE_SPEC.md` §4.2's vocabulary (no synonym).
-- [ ] Review: the README tables equal §4's (field, bound, default); `acquaint` is never called an action.
+- [x] Implementation: the notes and README sections, worded from §4/§5 (E-IE-1).
+- [x] Validation: both doc scripts; every term used is `MODULE_SPEC.md` §4.2's vocabulary (no synonym)
+  (E-IE-1).
+- [x] Review: the README tables equal §4's (field, bound, default); `acquaint` is never called an action
+  (E-IE-1).
 **Failure cases.** A doc script failure is fixed in the commit; a term conflict with `CORE_CONCEPTS.md` is a
 stop (terminology law).
 
@@ -706,6 +708,36 @@ ruling.
 E-IE-d  2026-10-10, design commit on docs/il-e-design from origin/main @ bb62edf: check_doc_headings →
         193 sections / 26 documents, none duplicated (exit 0); check_decision_ids → 104 ids, all distinct
         (exit 0).
+E-IE-0  2026-10-10, implementation session, on origin/main @ c9832d3 (the freeze merge #147; §3's paths
+        unchanged since bb62edf except plan documents — re-audited before IE-C2), dev profile, binary kept
+        as /tmp/impl-il-e-base/base-mineworld; "sha" = sha-256 of every output line but `wall`
+        (`grep -v '^wall' | shasum -a 256`); machine shared (load average ≈ 100):
+        social-cafe `run --headless --seed 7 --days 300`: exit 0, faults 0, 365 330 facts, fingerprint
+          59339a9c281829c9, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+          (= F-IE-19's recorded value)
+        market-town, same: exit 0, faults 0, 375 619 facts, fingerprint 27693f9e0c72bc9f, sha
+          d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee. This differs from F-IE-19's
+          remembered 365b50e0…1d1d: main moved market-town's references between IL-b and this base (12d
+          and later merges); IE-1 compares against this capture, as §6 IE-1 and §9 require.
+        (town runs used: 2 of 4)
+        bodies-yard `--days 30`: exit 0, faults 0, sha
+          bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 (bodies-yard runs: 1 of 2)
+        validate (sha-256 of the whole output): social-cafe ebcd60a0…f56a8, market-town
+          6368595ab6cea52d5677fd77517d88d0d6ab3596a5f39286a05552bdca910318, bodies-yard 7356b8f8…2063f
+        social-cafe 30 days seed 7 (M-IE1a–c's reference): sha
+          06e2d63c6e7ee369fe3d13d59624ee0c691a0050dd8fe93fa1a4eed5d5016fbe, 37 085 facts, fingerprint
+          2f65cd4b5a2b540e; talk accepted 6 705. PASS (references captured).
+E-IE-1  2026-10-10, IE-C1: DECISIONS.md dated notes on ARC-63 (first rules of real packs; the reaction
+        rule `acquaint`, SD-IE-8) and ARC-65 (first configurable facts of installed packs; QIB-11/12
+        closed by IE-6/IE-7; per-fact biography, QIE-6; QIE-12); MODULE_SPEC.md §4.2 one paragraph
+        "A rule decided in a reaction"; READMEs of conversation, group-activity, relationships: "Its
+        section" with §4's tables (field, unit, default, bound equal §4.1–§4.3; facts' audiences and
+        compiled biography equal §4's FactDecl tables); conversation's README states QIE-5's
+        `remember: off` semantics and QIE-6; MVP_STATUS.md S17 row: IL-e in progress; handoff-il-e.md
+        created. check_doc_headings → 193 numbered sections across 26 documents, none duplicated (exit
+        0); check_decision_ids → 104 decision ids, all distinct (exit 0; no new id). Review: terms used
+        are §4.2's (section, rule, parameter, consequence, region, class, role); `acquaint` is called a
+        "rule name" decided "in a reaction" everywhere and "not an action anybody sends". PASS.
 ```
 
 ## 15. Deviations

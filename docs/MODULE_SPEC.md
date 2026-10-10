@@ -883,6 +883,11 @@ Then the entry naming most roles wins (an implicit class counts as named). Then,
 specificity, `forbid` wins. Two parameter or consequence entries of equal specificity that overlap and
 disagree on a field are **refused at load**, naming both.
 
+**A rule decided in a reaction.** A pack may declare a rule name for a yes/no decision it makes while
+reducing another pack's fact rather than while validating an action — `relationships`' `acquaint`, asked
+per directed pair before an acquaintance forms — and a rule about it is written, resolved and refused
+like any other, but it names no action a client can send (`ARC-63` note of 2026-10-10).
+
 **What a section is refused for**, by name, naming the file:
 
 - at its line and column, while its owner's type decodes it: an undeclared action, fact or role; a
