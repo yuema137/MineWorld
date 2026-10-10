@@ -3860,23 +3860,27 @@ them — the content is sized against criteria stated in advance, never the reve
 helpers (roots, `mineworld` with `MINEWORLD_PACKS` removed, `located()`, scratch copies of Lakeside via
 `scratch!`), EE-1 … EE-4.
 
-- [ ] Implementation: as scoped (PD-46, PD-51).
-- [ ] Validation: `cargo test -p mineworld-cli --test milestone_e` (counts, wall); M-E1, M-B1, M-D3
+- [x] Implementation: as scoped (PD-46, PD-51), with the shared helpers in a test-only module
+  `tools/cli/tests/lakeside/{mod.rs, history.rs}` (F-Ee7) (E-Ee4).
+- [x] Validation: `cargo test -p mineworld-cli --test milestone_e` (counts, wall); M-E1, M-B1, M-D3
   observed failing and reverted; `check_scratch.py scan`; AC-1 (`-p mineworld-acceptance --test
-  ac1_composability --test package_sources`) green — no market or third-party crate name in the file.
-- [ ] Review: every count preceded by locating; no pack identity copied into the test (I-E5): ids and
-  versions read from `packs list`, the world, or `AVAILABLE`.
+  ac1_composability --test package_sources`) green — no market or third-party crate name in the file
+  (E-Ee4).
+- [x] Review: every count preceded by locating; no pack identity copied into the test (I-E5): ids and
+  versions read from `packs list`, the world, or `AVAILABLE`. Spelled as strings, as PD-51 allows: the
+  action slug `fish`, the section key `fishing:`, the fact slugs; M-4's own fixture pack
+  `lake-provisions`; M-3's edits `  - fish` (the world's own kind) and `license: MIT`.
 
 ### Ee-C5 — `milestone_e.rs` (2): 300 days, determinism, SIGKILL (M-5 … M-7)
 
 **Scope.** `milestone_e.rs`: one test running the 300-day saved run and the four 30-day runs in parallel
 (`std::thread::scope`, as `market_town.rs`), then EE-5, EE-6, EE-7.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: the test's wall (debug, local) and the 300-day save's bytes recorded against PD-50;
+- [x] Implementation: as scoped (E-Ee4).
+- [x] Validation: the test's wall (debug, local) and the 300-day save's bytes recorded against PD-50;
   M-E2, M-E3, M-E4 observed failing and reverted; Lakeside's baseline (300-day `history` line, sha-256 of
-  the deterministic lines) recorded.
-- [ ] Review: activity before determinism (no comparison before PD-47 (1)–(2) hold for every compared
+  the deterministic lines) recorded (E-Ee4; the baseline re-recorded on the final head, E-Ee8).
+- [x] Review: activity before determinism (no comparison before PD-47 (1)–(2) hold for every compared
   run); the kill is a real SIGKILL/TerminateProcess (portable `process::kill`, no "finished" line).
 
 ### Ee-C6 — `milestone_e.rs` (3): the server and disabling (M-8, M-9); removal evidence
@@ -3885,12 +3889,14 @@ helpers (roots, `mineworld` with `MINEWORLD_PACKS` removed, `located()`, scratch
 30-day disabled run against the Ee-C5 control's fact-type set — or its own enabled 30-day control if
 sharing state across tests would couple them, decided at the commit and recorded). EE-10 as evidence.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: test counts and wall; M-E5 observed failing and reverted; EE-10's scratch worktree
-  (two lines removed, rebuilt, `validate` refused by name), then removed; INCONCLUSIVE recorded if sockets
-  are unavailable.
-- [ ] Review: the server and kernel untouched; `Unavailable` is the kernel's rejection, not a test's
-  inference.
+- [x] Implementation: as scoped; M-9 (a) runs its own enabled 30-day control (decided: no state shared
+  across tests) (E-Ee4).
+- [x] Validation: test counts and wall; M-E5 observed failing and reverted; EE-10's scratch worktree
+  (two lines removed, rebuilt, `validate` refused by name), then removed; sockets available — M-8 PASS
+  (E-Ee4).
+- [x] Review: the server and kernel untouched; `Unavailable` is the kernel's rejection, not a test's
+  inference (`kernel/src/dispatch.rs:455`, INV-10: the request is the one accepted in Lakeside,
+  submitted unchanged; the test compares the `ActionResult` the server returned).
 
 ### Ee-C7 — AC-8 and the image name Lakeside's pack roots (only as FQ-e1 rules)
 
@@ -3978,6 +3984,38 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   social-cafe `ebcd60a0…`, market-town `6368595a…`, bodies-yard `7356b8f8…`; the binary is built from
   source identical to main's (no Rust source changed), and the worlds are unchanged, so the outputs equal
   main's by construction — no separate base build (bounded; saves ~5 min of build).
+- **E-Ee4** (Ee-C4 … C6 as one commit, F-Ee7; working tree on `1b483d4`): `cargo test -p mineworld-cli
+  --test milestone_e` → **7 passed, 0 failed**, 34.6 s (test profile; the five parallel runs 27.1 s;
+  60.8 s on a loaded machine earlier). The 300-day save 2 140 372 992 bytes; peak scratch ≈ 2.2 GB
+  (PD-50: under 4 GB / 6 GB). Printed evidence: 2 711 catches landed through the EC-7 chain; fish
+  requests per bucket 309–359; eaten 260–290; the catch eaten 260–288 per bucket; a `modern-goods` kind
+  eaten (`juice`; seed 8: `apple`); seed 7 and 8 first differ at fact #83 (`conversation-started` vs
+  `arrived`); `nils` (located: the seat whose `location.place` has a `fishing:` section) offered an
+  available complete `fish` through `server`, accepted, its events include one `fishing-started`; in the
+  disabled copy `nils` is offered `move, walk-to, eat, drink` and the same request is answered
+  `Unavailable`; the disabled 30-day run's fact types are the enabled run's minus exactly
+  `fishing-ended, fishing-spot, fishing-started, items-produced`. Sockets available: M-8 PASS.
+  **Mutations** (each applied, observed failing by name, reverted; `git status` after each: only the new
+  test files untracked): **M-E1** `origin_word` always "bundled" (`tools/cli/src/packs.rs`) → M-1 FAILS
+  "packs list and the installed set agree on the third-party packs" (left `[]`, right
+  `[("acme-fishing", "fishing")]`); **M-B1** `if false && !range.admits(…)` (`packages/src/resolve.rs`)
+  → M-3 FAILS at `range ["validate"]` (exit 0, not 1); **M-D3** the one-namespace check filtered off
+  (`worldpack/src/entities.rs`) → M-3 FAILS at `one-namespace ["validate"]`; **M-E2** alba's water part
+  moved to `square` → the structural check FAILS "alba's routine never reaches {"pier", "shore"}", and
+  with that check bypassed for the mutation run the count FAILS "alba never fished in bucket 1 … 10"
+  (48.5 s); **M-E3** fish `category: goods` → FAILS "nobody ate the catch in bucket 1", then every seat
+  "never fished"/"never ate" from bucket 2 (people full of uneatable fish, endowments spent — the food
+  loop is real); **M-E4** the killed save deleted before the re-run → FAILS "the re-run resumed the save
+  on disk at the head the kill left: … created …"; **M-E5** `disabled_copy` returns the unedited copy →
+  M-9 (a) FAILS (fact-type sets differ by the four) and M-9 (b) FAILS "nobody is offered fish once
+  fishing is disabled: [move, walk-to, eat, drink, fish]". **EE-10** (scratch worktree `/tmp/ee-remove`
+  of `1b483d4`, the two `ARC-33` lines removed, `Cargo.lock` −16 lines on rebuild, release 45 s):
+  `validate worlds/lakeside --packs entities --packs presentation/mineworld-default` → exit 1, "world.yaml
+  enables the system 'fishing', which this build does not provide (it has: 'presence', … 'weather')";
+  worktree and target removed. **Regression:** `ac1_composability` 15 passed, `package_sources` 11,
+  `precursor_vocabulary` 4, `seam_vocabulary` 3 — unedited; `check_scratch.py scan` → 205 test sources,
+  none makes scratch outside test-support (2 exempt, pre-existing); `cargo clippy -p mineworld-cli
+  --all-targets --all-features -D warnings` clean.
 
 **Findings (bounded unless marked).**
 
@@ -3992,6 +4030,13 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
 - **F-Ee4.** §9.6's "bundled Entity Pack" would reuse ARC-54's defined term for a data pack; read as "the
   repository's own Entity Pack" (PD-43).
 - **F-Ee5.** The framework is already 0.1.0 (E-a); E-e bumps nothing (PD-40).
+- **F-Ee7 (bounded, resolved).** One file holding M-1 … M-9 and its helpers measured 1 245 lines after
+  `rustfmt`, past the standards' ~800-line strong warning. The helpers moved to a test-only module beside
+  `headless/` and `market/` — `tools/cli/tests/lakeside/mod.rs` (commands and roots, locating, what the
+  world's files say, scratch copies; 403 lines) and `lakeside/history.rs` (reading a run and a save as
+  PD-47 measures it; 248 lines) — and `milestone_e.rs` keeps every test (645 lines): "one test file shows
+  all of it" still holds. Because the counting code written for Ee-C3 and those helpers serve all three
+  halves of the file, Ee-C4, C5 and C6 landed as one commit (mapping recorded; scope unchanged).
 
 ## 18.9 Freeze questions
 
