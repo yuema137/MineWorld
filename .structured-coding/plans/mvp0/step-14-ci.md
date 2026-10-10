@@ -3148,18 +3148,48 @@ Each commit tracks implementation, validation and review separately.
 
 ### W-C1 — `mineworld-test-support::process` (`kill`, `Killed`, `interruptible`, `interrupt`) and the DEP-29 note
 
-- [ ] Implementation:
+- [x] Implementation:
   - the module, as §15.3 and §15.4 describe;
   - the `deny(unsafe_code)` change with one allowed function, per QW-2;
   - its tests (MW-1, MW-2);
   - `docs/DECISIONS.md`, a DEP-29 note.
-- [ ] Validation:
+  - Done: `tests/support/src/process.rs` (`kill`, `Killed { status, was_running }` with `killed()`,
+    `status()` and a `Debug` that prints the verdict too; `interruptible`, `Interruptible::spawn`,
+    `InterruptibleChild` with `Deref`/`DerefMut` to `Child`; `interrupt`; the private `send_interrupt`,
+    `sh -c "kill -INT <pid>"` on Unix and the one `#[allow(unsafe_code)]` `GenerateConsoleCtrlEvent` call
+    on Windows, a missing console (`ERROR_INVALID_HANDLE`) named). `lib.rs`: `forbid` → `deny`,
+    `pub mod process`. `tests/support/tests/process.rs`: MW-1 and MW-2, the children being the test
+    binary re-executed into `child_entry_point` with a role (no `sleep` on Windows). The compile-fail
+    doctest (a plain `Child` passed to `interrupt`) beside a `no_run` doctest that compiles. DEP-29 note
+    (2026-10-09).
+  - **D-13w-1 (bounded).** `DerefMut` as well as `Deref` on `InterruptibleChild`: the CLI support takes
+    the server's stdout and stderr (`Option::take`) and polls `try_wait`, both `&mut`. A swap of the
+    inner `Child` for another is not reachable without a second spawn, so the guarantee holds in practice.
+  - **D-13w-2 (bounded).** MW-2's per-platform expected status is read in the test file under
+    `cfg(unix)` / `cfg(windows)`, so `ExitStatusExt` also appears in `tests/support/tests/process.rs`,
+    not only in `src/process.rs` (W-C2's grep). Both sides assert; neither is skipped.
+- [x] Validation:
   - local, on the Mac: `cargo test -p mineworld-test-support`, then `cargo clippy` with `-D warnings`;
   - Windows: compiled and run by this PR's `test-windows` dispatch.
-- [ ] Review:
+  - Local (Mac, working tree on `cf18713`): `process.rs` 4 passed, `scratch.rs` 7 passed, doctests 2
+    passed (the `no_run` compiles, the `compile_fail` fails to compile). **PASS.** `cargo clippy -p
+    mineworld-test-support --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean.
+  - First attempt: the sleeping child's marker was matched as a whole line and never seen, because
+    libtest under `--nocapture` prints `test child_entry_point ... ` with no newline before the test's
+    output; matched with `ends_with` instead.
+  - **MW-1 mutation (local):** `killed()` without `was_running`, and code 1 read as a kill (Windows'
+    ambiguity, emulated on Unix) → `a_child_that_ended_by_itself_is_never_reported_killed` red, "exit-1:
+    … Killed { status: … (256), was_running: false, killed: true }"; restored → green. **PASS.**
+  - Windows: see W-C4's runs.
+- [x] Review:
   - no `unsafe` outside the one function;
   - every error is surfaced, none ignored;
   - the doc comments name the platforms' semantics and the residual race.
+  - Done: the only `unsafe` is the call in `send_interrupt` (and its `extern` block), under
+    `cfg(windows)` and `#[allow(unsafe_code)]`; the crate `deny`s it elsewhere. `kill` panics, naming the
+    step, if `try_wait`, `kill` or `wait` fails; `interrupt` returns `io::Error` for a failed `sh`, a
+    non-zero `kill`, or a zero `GenerateConsoleCtrlEvent`. The module doc carries the platform table and
+    the residual race; DEP-29's note repeats both.
 
 ### W-C2 — The nine files and the CLI test support
 
@@ -3269,3 +3299,31 @@ NORMAL STOP         PR 13w READY FOR OPERATOR REVIEW — DO NOT MERGE
 STOP CONDITION      A-W1 … A-W7 with evidence on the exact final head; MW-1 … MW-6 recorded
 MERGE AUTHORITY     never without explicit operator approval
 ```
+
+## 15.13 Handoff for 13w (continuation aid, not a design authority)
+
+```text
+PROJECT / PR        MineWorld mvp0 — S13 PR 13w (§15.12's contract, frozen 2026-10-09)
+PRIMARY DESIGN DOC  this file, §15 (the ledger: §15.8)
+BRANCH / BASE       mvp0/pr-13w-windows from origin/main @ cf18713 (13b merged, #97; S11-D merged, #104)
+WORKTREE            /Users/yuema137/mineworld-worktrees/impl-13w (sole writer; created by this session)
+ENDPOINT AUTHORITY  commits, push, PR create/update, CI repair: authorized (§15.12, D-12)
+                    scratch/13w-* push + delete, workflow_dispatch: authorized (§15.12, QS13-14's bounds)
+                    settings, merge: NOT authorized (operator only)
+POST-MERGE SYNC     this session: §15's ledger, merge identity, evidence, deviations; the primary
+                    session: parent documents (overall, other steps)
+```
+
+**Re-audit at the base (2026-10-09, `git grep -n "std::os::unix\|cfg(unix)\|ExitStatusExt"` and
+`.signal()`, `"sh"`, `kill -` on `cf18713`).** Every hit, and its handling:
+
+| Site | Finding | Handling |
+| --- | --- | --- |
+| The nine files of §15.2 (line numbers moved: `configuration_seam.rs:31,358`) | `ExitStatusExt`, `signal() == Some(9)` | W-C2: `process::kill` / `Killed::killed()` |
+| `tools/cli/tests/support/mod.rs:187` (W-6) | `sh -c kill -INT` | W-C2: `Server` spawns through `interruptible`, `Server::interrupt` calls `process::interrupt` |
+| `tools/cli/tests/admin.rs:557` (SD-D13's check) | `#[cfg(unix)]` on `an_interrupt_stops_an_administered_server_gracefully` | W-C2: the gate removed (QW-3: 13w lands second) |
+| `tools/cli/tests/server_command.rs:254` | `Server::kill()`'s status read with `success()` | W-C2: reads `Killed` (the type changed, §15.3) |
+| `worldpack/src/configure/tests.rs:655` (IL-a/IL-b) | `#[cfg(unix)]` block: a file symlink out of the pack, refused as `AttachmentOutside` | W-C2: a Windows equivalent, see D-13w-3 |
+| `tools/cli/src/serve.rs:267` | `#[cfg(windows)]` Ctrl-Break, close, shutdown in `stop_requested` | Production code, S11-D's (`9d83937`, merged by #104): already handles Ctrl-Break, so W-C3 is N/A |
+
+**Current checkpoint.** W-C1 committed. Next: W-C2.

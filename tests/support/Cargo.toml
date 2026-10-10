@@ -1,6 +1,6 @@
 [package]
 name = "mineworld-test-support"
-description = "Test support for MineWorld's own tests: a test's scratch directory, removed when the test ends (ENGINEERING_STANDARDS.md §22, DEP-29)."
+description = "Test support for MineWorld's own tests: a test's scratch directory, removed when the test ends, and a child process killed or interrupted the same way on every platform (ENGINEERING_STANDARDS.md §22, DEP-29)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
