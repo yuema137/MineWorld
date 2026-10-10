@@ -32,11 +32,9 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use configuration::{
-    Advance, Advanced, Count, Stride, Tuning, TuningConfigured, composed, genesis_facts, world,
-};
+use configuration::{Advance, Advanced, Count, Tuning, composed, genesis_facts, world};
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionRecord, ActionResult, EntityKey, Event, EventEnvelope, SystemId,
+    ActionId, ActionIntent, ActionRecord, ActionResult, EntityKey, EventEnvelope, SystemId,
     WorldTime,
 };
 use mineworld_kernel::{KernelError, SystemIdentity, World};
@@ -48,7 +46,11 @@ use mineworld_test_support::Scratch;
 use mineworld_worldpack::configure::compare;
 
 const PEOPLE: [&str; 2] = ["ada", "bo"];
-const CONFIGURED: &str = "# configure/test-tuning.yaml\nstep: 5\n";
+const CONFIGURED: &str = "# configure/test-tuning.yaml\nparameters:\n  - { step: 5 }\n";
+
+/// test-tuning's configuration fact: its section, resolved (`ARC-63`).
+const CONFIGURED_FACT: mineworld_contracts::EventTypeId =
+    <Tuning as mineworld_sdk::interactions::InteractionSection>::CONFIGURED;
 const STARTS: [(&str, u32); 2] = [("ada", 10), ("bo", 15)];
 const DURABILITY: Durability = Durability::PowerLoss;
 const STEPS: u64 = 240;
@@ -90,14 +92,24 @@ fn a_section_is_checked_against_the_configuration_seeded_before_it() {
         .genesis(WorldTime::EPOCH, facts)
         .expect("multiples of 5 are taken");
     let read = tuned.read();
+    let square = ids[&key("square")];
     assert_eq!(
-        read.component::<Stride>(ids[&key("square")]),
-        Some(&Stride { step: 5 }),
+        mineworld_sdk::interactions::parameters::<Tuning>(
+            &read,
+            mineworld_contracts::PlaceId::new(square, mineworld_contracts::EntityType::Place)
+                .expect("a place"),
+            &mineworld_sdk::interactions::Roles::new(),
+        )
+        .step,
+        5,
         "the configured step is on the place"
     );
     assert_eq!(
         read.component::<Count>(ids[&key("bo")]),
-        Some(&Count { value: 15 })
+        Some(&Count {
+            value: 15,
+            place: square
+        })
     );
 
     let refusal = |configuration, starts: &[(&str, u32)], sections_first| {
@@ -118,10 +130,16 @@ fn a_section_is_checked_against_the_configuration_seeded_before_it() {
         "a section reduced before its configuration has nothing to check against"
     );
 
-    let out_of_bound = genesis_facts(&tuned, &ids, Some("step: 0\n"), &[], false)
-        .expect_err("the pack's own bound");
+    let out_of_bound = genesis_facts(
+        &tuned,
+        &ids,
+        Some("parameters:\n  - { step: 0 }\n"),
+        &[],
+        false,
+    )
+    .expect_err("the pack's own bound");
     assert!(
-        out_of_bound.contains("line 1 column 7") && out_of_bound.contains("1 to 100, not 0"),
+        out_of_bound.contains("line 2") && out_of_bound.contains("'step' is 1 … 100, not 0"),
         "{out_of_bound}"
     );
 }
@@ -165,7 +183,7 @@ fn create_save(directory: &Path, configuration: Option<&str>) -> PersistentWorld
 
 #[test]
 fn a_saves_configuration_is_compared_and_every_difference_is_drift_naming_the_pack() {
-    let owners = BTreeMap::from([(TuningConfigured::EVENT_TYPE, Tuning::ID)]);
+    let owners = BTreeMap::from([(CONFIGURED_FACT, Tuning::ID)]);
     let here = |configuration: Option<&str>| {
         assembled(
             configuration,
@@ -184,17 +202,26 @@ fn a_saves_configuration_is_compared_and_every_difference_is_drift_naming_the_pa
     assert!(
         saved
             .iter()
-            .any(|fact| *fact.event_type() == TuningConfigured::EVENT_TYPE),
+            .any(|fact| *fact.event_type() == CONFIGURED_FACT),
         "the save holds its configuration"
     );
     assert_eq!(compare(&saved, &here(Some(CONFIGURED)), &owners), Ok(()));
     assert_eq!(
-        compare(&saved, &here(Some("step: 5  # reformatted\n")), &owners),
+        compare(
+            &saved,
+            &here(Some("parameters: [ { step: 5 } ]  # reformatted\n")),
+            &owners
+        ),
         Ok(()),
         "the value is compared, not the text"
     );
 
-    let changed = compare(&saved, &here(Some("step: 25\n")), &owners).expect_err("changed");
+    let changed = compare(
+        &saved,
+        &here(Some("parameters: [ { step: 25 } ]\n")),
+        &owners,
+    )
+    .expect_err("changed");
     assert_eq!(changed.system, SystemId::from_static("test-tuning"));
     assert!(changed.saved.contains(r#""step":5"#) && changed.here.contains(r#""step":25"#));
 

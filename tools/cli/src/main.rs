@@ -61,6 +61,7 @@ mod biography;
 mod create;
 mod hosted;
 mod inspect;
+mod interactions;
 mod invite;
 mod packs;
 mod perceive;
@@ -226,6 +227,20 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// What a World Pack's Interaction List resolves to: each configured section, base then regions,
+    /// and each entity's class (ARC-63, ARC-64). Reads the pack only.
+    Interactions {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only the resolution that applies at this place.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        place: Option<EntityKey>,
+        /// One JSON document, keys sorted.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -361,6 +376,19 @@ async fn main() -> ExitCode {
                 world: &world,
                 save: &save,
                 person: &person,
+                json,
+                roots: &roots,
+            })
+        }),
+        Subcommand::Interactions {
+            world,
+            place,
+            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            interactions::interactions(&interactions::InteractionsRequest {
+                world: &world,
+                place: place.as_ref(),
                 json,
                 roots: &roots,
             })

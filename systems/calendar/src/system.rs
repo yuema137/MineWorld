@@ -1,7 +1,7 @@
 //! The installable system: what it declares, the facts it folds, the wake that keeps the calendar,
 //! and what it discloses.
 
-use mineworld_authoring::{PackConfiguration, Seeding};
+use mineworld_authoring::{ConfigurationContext, PackConfiguration, Seeding};
 use mineworld_contracts::{
     ComponentRecord, ContractError, EntityId, Event, EventEnvelope, EventRecord, EventTypeId,
     Rejection, RejectionCode, SystemId, Visibility, WorldTime,
@@ -47,6 +47,7 @@ impl PackConfiguration for CalendarSystem {
     fn seed(
         _: &Seeding<'_, '_>,
         configuration: &CalendarConfiguration,
+        _: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection> {
         Ok(vec![Emission::new::<CalendarConfigured>(
             encode(&CalendarConfigured::of(configuration)),

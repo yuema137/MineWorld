@@ -32,12 +32,43 @@
 use std::path::{Path, PathBuf};
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 6] = [
+const ACTION_LITERALS: [(&str, &str, &str); 12] = [
     (
         "clients/2d/scripts/intents.gd",
         "move",
         "intents.gd builds every request of the 2D client and is its only submitter (step-13 ARC-47 R1, \
          R2); move is the one action it composes in PR 13a",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "talk",
+        "composed by the 2D client's only submitter from the typed utterance (step-13 §15.4 D-b-5, PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "invite",
+        "composed by the 2D client's only submitter from the typed activity kind (step-13 §15.4 D-b-5, \
+         PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "accept-invitation",
+        "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "decline-invitation",
+        "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "join-group-activity",
+        "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "leave-group-activity",
+        "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
     ),
     (
         "clients/2d/scripts/app.gd",
