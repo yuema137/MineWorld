@@ -112,6 +112,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S13 deployment parity and CI | in progress (`step-14-ci.md`, PRs 13a–13c, 13w). 13a merged (`2690c1b`, #63): `Dockerfile` (toolchain, build, runtime; `DEP-18`), GitHub Actions `fast` and `test` layers in the toolchain container with full history (`DEP-17`, `ARC-48`); `main` requires `fast` and `test`. 13b (PR #97, awaiting operator review): AC-8 on macOS, Linux and Windows (`ARC-49`, `DEP-19`); the `scenario` layer; `test-windows`, which reports (red at W-T1). Still to come: 13w, Windows-portable tests; 13c `stability` and `clients` nightly layers |
 | S14 Demo B, 3D walking world | 🚧 planned in `step-15-demo-3d.md` (step design frozen 2026-10-08): 16a–16e, with S15's 12e. 16b merged (the shared module's affordance readers). 16a ready for review: Jolt (`DEP-20`), ray targeting, `intents.gd`, the no-rule scan (`client_rules.rs`), the connected probe split out, the exit texture leak attributed to the engine |
 | S15 bodies and physical interaction | 🚧 five PRs (`step-11-bodies.md`, step design frozen 2026-10-07). 12a merged (`03f1d7c`): the arrival-resolver seam (`ARC-39`); presence resolves every arrival before recording it. 12b merged (`9c617ed`): people, walls and nudging, with the `bodies` pack on Rapier (`DEP-13`) as the build's only resolver, proven on `worlds/bodies-yard`; social-cafe and market-town have no geometry yet and are byte-identical. 12c merged (`889d217`): loose objects, walking pushes them, and `kick`, `throw` and `shove` as complete affordances, proven on `worlds/bodies-yard`; AO-2 (activity) failed as frozen and was replaced after measuring (step-11 §18.12). 12d-0, bodies' cost, is in review (step-11 §20): the nearest-free entry search made exact and outward (half of a town's with-bodies CPU), a people scene builds only its broad phase, and a stride away from a person within the controller's offset is no longer stopped by them (`bodies` version 3); QB-11's 1.5× was re-scoped by the operator, after measuring, to ≤ 3.0× CPU on both town prototypes and CP-B4's 50 ms per resolution (step-11 §20.5): market-town 2.999×, social-cafe 3.60× accepted by the operator (not passed), ≈ 45 s of CPU per 300 days, at most 10.5 ms per resolution. Next is 12d, the town: geometry, objects and S12's item names in both towns, their digests re-baselined once, under that bound. 12e the 3D client follows. 12n-1, the walk, merged (`ecc8d40`, PR #116; step-11 §21; `ARC-75`, `DEP-34`): `movement`'s `walk-to` and `walk-step` with the walk as world state, routed round a shaped place's solids and objects by `bodies` (an integer visibility graph, `pathfinding`'s A*), every existing world's facts unchanged; the crowd invariant at a 250 mm radius restated by the operator's ruling (§21.15 M-1: nudge chains bounded, a stride may be blocked). 12n-2 (people walk there) follows |
+| S20 in-game client settings, both clients | 🚧 SET-a merged (`44ac762`, PR #117, 2026-10-10; `step-20-client-settings.md` §12; `ARC-76`, `DEP-35`, `DEP-36`, DEP-8's font exception). It adds one shared settings module (`clients/shared/settings`), symlinked into both clients: English by default and 简体中文 switched live; window mode, size, 3D render scale, VSync and frame cap; a 12h/24h/automatic clock; Esc opens the menu, which holds Quit; the bundled Noto Sans SC; one per-user file that never reaches the server. All 16 of AC-SET-1 … 16 pass on macOS. The Windows and Linux hand checks and the macOS manual looks are carried (below). SET-b (input options) and SET-c (the World section, host commands) follow |
 
 ## Evidence banked so far
 
@@ -156,6 +157,44 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | An Entity Pack's kinds are used without being copied or rebuilt (`ARC-71`) | Market Town with `bread` and `coffee` moved into a scratch Entity Pack `goods` it requires: `packs resolve` names it, `validate` lists the composed kinds, and a 30-day seed-7 run has the same fact count and fingerprint as Market Town itself (`tools/cli/tests/entity_packs.rs`); at the loader every identity and genesis fact is equal and bread's provenance is `goods` / `items/bread.yaml` (`worldpack/tests/entity_packs.rs`). A key in the world and the pack, or in two packs, an absent pack, a GPL pack, a pack stating `mineworld: "^9"`, a section whose owner the world does not enable, and a section naming a world's place are each refused by name, exit 1; a new pack in a fresh root is listed, resolved and run with the binary's length and time unchanged; the same pack and world written with CRLF load identically. The towns' 300-day runs and every world's `validate` output are unchanged (PR E-d, step-16 §17) |
 | Objects are pushed, kicked, thrown; people are shoved (`ARC-39` note 2, `ARC-36` note, `DEP-13` note) | `worlds/bodies-yard` with 16 objects, 30 days, seeds 7, 8 and 9, through the real binary: no pair closer than 595 mm, no object in a solid or under a person, every object still reachable at day 30, after every one of ≈ 31 200 requests per seed; kicks, throws, shoves, pushes and stopped-shorts by objects happen (AO-2 as first frozen failed and was replaced by AO-2′, recorded in step-11 §18.11); the same world without `bodies` neither kicks nor pushes; two processes, SIGKILL at days 5, 15, 25, replay from genesis and arm64/x86_64 under Rosetta are byte-identical. Pushes, jams, no tunnelling, kicks, throws and shoves to ± 1 mm literals through the real dispatch (`systems/bodies/tests/{objects,actions}.rs`); the 3 000-request long run with props at 48 µs per swept move and 199 µs per kick (release); social-cafe and market-town byte-identical (PR 12c, step-11 §18.10) |
 | The same World Pack is the same world on macOS, Linux and Windows (`AC-8`, operator's all-platforms requirement) | `scripts/ci_parity.py` records every world under `worlds/` (social-cafe, market-town, bodies-yard): `validate`, 300 days in memory and a 30-day save with every stored byte, seed 7. CI's `ac8` compares four records of one commit: macOS arm64 (`macos-26`, native), the Linux x86_64 runtime container, Windows x86_64 (`windows-2025`, native) and the Linux arm64 container. All are equal on 1 458 keys (dispatch run 37908152878, 13b's PR #97). The operator's laptop is compared at 13b's acceptance (step-14 §13.4.4). A change planted on one OS turns `ac8` red, and the difference is located. Each of macOS, Linux x86_64 and Windows is grouped apart from the rest, and an untouched world stays equal (step-14 §13.7, PM-1, PM-3, PM-8). Runs on every `main` push (`ARC-49`, `DEP-19`). The default suite does not yet compile on Windows: `test-windows` reports W-T1, nine test files using `std::os::unix`, owned by 13w; S11-B's `sh -c kill` (W-6) is owned by S11 and 13w |
+| Both clients switch language live, apply display and clock settings, and send the world nothing about them (S20 SET-a, `ARC-76`) | On macOS (Godot 4.7.2, Metal), `tools/cli/tests/client_settings.rs`, nine tests: (1) every UI text turns from English to 简体中文 and back, live — 2D on market-town, 41 texts; 3D on social-cafe, 44 texts; (2) under a marker catalog every UI text comes from a catalog; (3) a 2D stub records identical frames from `join` to `leave` on default settings and on a Chinese/24h/borderless/30 fps file, and the 3D requests are identical too; (4) a 2D Apply is in effect in the 3D client's first frame through the one shared file; (5) a planted player file changes no harness run; (6) a 30 fps cap measures 30.01 fps and no cap 119.97 fps. `tests/acceptance/tests/client_text.rs` in CI: no hardcoded UI string, catalogs complete across layers and covering every action type and code. **Operator review on the PR:** removing `action.walk-to` from `zh_Hans.po` was caught by `the_catalogs_are_complete_and_consistent`. Windows and Linux are not yet checked by hand (carried below) |
+
+## Carried to milestone F
+
+These items are open after S20 SET-a (`44ac762`) and are carried to milestone F. Each is a hand check from
+`step-20-client-settings.md` §8 and §12.13. Each records the platform line the client prints:
+`[settings] platform <OS>, driver <driver>, display <server>`.
+
+```text
+SET-a, Windows (D3D12, and Vulkan with --rendering-driver vulkan); needs git config core.symlinks true
+  H-1  Chinese crisp, no tofu, at 100 % and 150 % display scaling
+  H-2  menu layout in both languages at 150 %
+  H-3  windowed -> borderless -> fullscreen -> windowed; Alt-Tab; at most a brief black flash
+  H-4  a window size change, the 15 s countdown, revert on no answer, kept across a restart
+  H-5  3D VSync Off/On/Adaptive, cap 30/60/none, render scale 50-100 %, on D3D12 and on Vulkan
+  H-7  Esc opens and closes the menu; 2D Quit in it; 3D mouse released, recaptured on a click
+  H-8  3D golden-hour slice in en: a sanity look
+  H-9  relaunch: the language chosen in 2D is the 3D client's
+  H-10 %APPDATA%\MineWorld\settings.cfg is the shared file
+SET-a, Linux X11
+  H-1  on a machine with `fc-list :lang=zh` empty (the bundled font does the work)
+  H-3  exclusive full screen bypasses the compositor; no stuck full screen after Alt-Tab
+  H-4, H-5, H-7, H-9 as above
+  H-10 ~/.local/share/MineWorld/, and $XDG_DATA_HOME/MineWorld/ when set
+SET-a, Linux Wayland
+  H-1  at a fractional scale such as 125 %
+  H-3  Fullscreen behaves as Borderless, and the tooltip says so
+  H-4  size honoured; position is the compositor's
+  H-5  whether VSync Off is honoured or the compositor syncs anyway
+  H-7  pointer capture
+SET-a, macOS by hand (the automated parts passed at the gate)
+  H-1  an external 1x display; H-2 menu layout by eye (stills in clients/shared/evidence/)
+  H-3  Cmd-Tab in each mode; no empty Space left behind
+  H-4  the 15 s confirmation on a real size change; judge logical vs physical presets on Retina
+  H-5  tearing with VSync Off, none with On; 50 % render scale visibly softer, the HUD sharp
+  H-6  12h/24h x en/zh, both clients in one world; H-7 Esc and mouse capture; H-8 the golden-hour look
+  H-9  relaunch by hand
+```
 
 ## Non-blocking follow-ups
 
