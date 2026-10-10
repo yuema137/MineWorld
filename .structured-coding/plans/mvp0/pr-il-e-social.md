@@ -11,7 +11,7 @@ Approved by / evidence: the operator accepted every recommendation, QIE-1 … QI
                         session (§13 "Rulings")
 Implementation base:    main at the start of implementation (exact commit recorded in IE-C1's evidence)
 Execution contract:     §12 (filled at freeze)
-Lifecycle:              FROZEN
+Lifecycle:              MERGED (#159, merge commit 079d61d4f817ff0b71ea4414d142b93120e5bf86, 2026-10-10T22:29:29Z)
 ```
 
 Scope (§1), section shapes (§4), decisions SD-IE-1 … SD-IE-12, acceptance IE-1 … IE-13 and the commit plan
@@ -922,6 +922,16 @@ E-IE-7  2026-10-10, IE-C7. origin/main merged at 7538934 (main @ 865f2be: S16 E-
           process this session killed at a timeout earlier, and were removed). File sizes reviewed:
           the two new test files are 635 and 564 lines, one PR criterion group each.
         PASS (CI: E-IE-8).
+E-IE-8  2026-10-10, CI on the exact final head 6d822e8 (PR #159): run 38089044583 green — fast, test,
+        test-macos, test-windows, platforms ×2, python ×3. PASS.
+E-IE-final  2026-10-10, merged as 079d61d4f817ff0b71ea4414d142b93120e5bf86 at 2026-10-10T22:29:29Z
+        (PR #159). Primary review mutation: `ConversationHistory::remember_within` ignoring a configured
+        bound below the compiled default (`REMEMBERED_AT_MOST.max(at_most)`) → `social_sections::
+        a_listener_who_keeps_nothing_keeps_nothing_and_a_bound_keeps_the_last_lines` failed by name. PASS.
+        Finding F-IE-R1 (from D-IE-3): the client catalog check `tests/acceptance/tests/client_text.rs`
+        treats every inline `ActionTypeId::from_static` under `systems/` as a client-labelled action;
+        reaction-rule names such as `acquaint` never reach a client. A later PR should teach the check
+        about rule names that are not actions. Owner: S12/S20 client-text lane. Not blocking IL-e.
 ```
 
 ## 15. Deviations
