@@ -2777,6 +2777,28 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
   - This is the last merge of main before review. Protection is `strict: false`, so later movements
     of main are recorded rather than chased, unless they conflict. Run 12 is the final head's dispatch,
     and the cap is then reached.
+- **Run 12 ● (dispatch 38006525123, on `0df0be4`, the cap reached).** `scenario`, `mac`, `linux-arm`,
+  `windows` PASS; `ac8` **PASS** (4 records, 1 465 keys; market-town `24a95d2a…d270`); `test-windows`
+  red at W-T1 (`bodies_yard_restart`). P-L on `0df0be4` **PASS** (laptop + Linux x86_64 + Windows, exit
+  0). PR run 38006501836: `fast` and `test` **PASS**. The `python` matrix of S10-P3 FAILED on all three
+  platforms at `sdk/python/tests/test_golden_frames.py::test_every_golden_frame_has_a_model`
+  ("golden frames with no Python model: ['clock.json']"). Main fails identically (push run
+  38006324721 on `f867b25`): S11-D's new `server/tests/frames/clock.json` meets S10-P3's golden-frame
+  check. **Not 13b's; owners S10 and S11.** `python` is not a required check.
+- **MATERIAL STOP: the run cap (§13.12, "exceeding the budget").** After run 12:
+  - main moved again (`aee8290`, #102/#103), and PR #97 now conflicts in `docs/DECISIONS.md` only
+    (both sides append records);
+  - the coordinator directs that 13b build on E-d's `.github/actions/native` and `platforms` layer once
+    E-d (#101, open) merges. E-d's action has the same `layer` input; it differs in having no explicit
+    `rustup toolchain install`, a cache key without the architecture, and a line-endings report step.
+    The integration is to take E-d's file, drop 13b's, and keep `parity` beside `platforms` in
+    `ci_layer.py`.
+
+  Either change makes a new head, and the exact-head rule then needs one more dispatch: run 13, beyond
+  the frozen cap of 12 (QB-9). **Proposed to the operator:** authorize one extra dispatch run (about
+  30–60 job-minutes on standard runners, free on a public repository) after E-d merges. Then merge
+  main, integrate E-d's action, dispatch once, repeat P-L, and mark READY. Until then the branch stays
+  at `0df0be4`, whose evidence is complete.
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 
