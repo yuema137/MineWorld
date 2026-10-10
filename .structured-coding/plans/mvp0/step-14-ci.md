@@ -3193,17 +3193,63 @@ Each commit tracks implementation, validation and review separately.
 
 ### W-C2 — The nine files and the CLI test support
 
-- [ ] Implementation: the nine files and `tools/cli/tests/support/mod.rs` (§15.3, §15.4).
-- [ ] Validation:
+- [x] Implementation: the nine files and `tools/cli/tests/support/mod.rs` (§15.3, §15.4).
+  - Done. Pattern (a) (`kill_and_resume`, `arrival_resolvers_resume`, `configuration_seam`): the
+    `sent_kill`/`sent` flag becomes `Option<Killed>`, set by `process::kill(&mut process)` at the kill
+    point; `killed` is `sent.is_some_and(|sent| sent.killed())`. The later `process.wait()` is kept: std
+    returns the reaped status again. Pattern (b) (`bodies_yard_restart`, `market_town`, `run_restart`,
+    `milestone_b`'s `killed_after`): `let killed = process::kill(&mut child); assert!(killed.killed(),
+    "killed by SIGKILL, not finished: {killed:?}")`. `Server::kill()` callers (`milestone_b`,
+    `milestone_c`, `restart`): `assert!(died.killed(), "the server died of SIGKILL: {died:?}")`.
+    `support/mod.rs`: `Server.process` is an `InterruptibleChild`, spawned through
+    `process::interruptible`; `Server::kill() -> Killed`; `Server::interrupt` calls `process::interrupt`
+    and keeps its signature.
+  - **D-13w-3 (bounded, files beyond A-W5's list; all test code).** The re-audit (§15.13) found three
+    sites the design's list did not name:
+    - `tools/cli/tests/admin.rs`: SD-D13's `#[cfg(unix)]` removed (QW-3 assigns it to whichever lands
+      second; S11-D landed first), and the module doc and section comment now say "every platform".
+    - `tools/cli/tests/server_command.rs:255`: `Server::kill()` now returns `Killed`, so `assert!(
+      !status.success(), "SIGKILL ended the server")` became `assert!(status.killed(), "SIGKILL ended the
+      server: {status:?}")`. The claim is the message's; the check is stricter than "not success".
+    - `worldpack/src/configure/tests.rs` (IL-a/IL-b's symlink case, `#[cfg(unix)]`): **decision: a
+      Windows equivalent, not a gate.** Under the operator's rule a gated case is a case Windows never
+      runs. A file symlink needs Developer Mode or administrator rights on Windows (the CI runner has
+      them, a contributor may not), so the Windows side makes a **directory junction**
+      (`cmd /C mklink /J data\linked <outside>`), which any user may make, and names
+      `data/linked/secret.txt` through it. `read_attachments` canonicalizes, which resolves junctions
+      (`GetFinalPathNameByHandle`), so the same `AttachmentOutside` refusal is asserted on both. The case
+      moved into `link_out_of`, one function per platform. Limitation: `cmd`'s argument parsing of a path
+      with spaces is not exercised (the runner's temp path has none).
+- [x] Validation:
   - local full suite on the Mac (`cargo test --workspace`): the same counts as before;
   - `git grep ExitStatusExt` → only inside `tests/support/src/process.rs`.
-- [ ] Review: A-W6, line by line.
+  - Local full suite (Mac, working tree on `d6325f0` + W-C2, 2026-10-09; log `/tmp/s13w/local-full.log`):
+    exit 0; 198 `test result:` lines, **887 passed, 0 failed, 20 ignored**; `[resolver-yard] PASS`,
+    `[cafe] PASS`, `[clock] PASS`. **PASS.** Against main: +6 passes, all in `mineworld-test-support`
+    (4 tests, 2 doctests); no other count moves on Unix (SD-D13's check already ran there). Main's own
+    counts are compared on CI (A-W3).
+  - `git grep -n "std::os::unix\|cfg(unix)\|ExitStatusExt\|\.signal()\|\"sh\""` → only
+    `tests/support/src/process.rs`, `tests/support/tests/process.rs` (D-13w-2) and
+    `worldpack/src/configure/tests.rs`'s `link_out_of` (D-13w-3), each beside its `cfg(windows)` twin.
+  - `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean; `cargo fmt --all
+    --check` clean.
+- [x] Review: A-W6, line by line.
+  - Done on the diff: every assertion keeps its message text ("killed by SIGKILL, not finished", "the
+    server died of SIGKILL", "{label}: the victim died of SIGKILL" untouched in the pattern-(a) callers),
+    now followed by the `Killed` debug where it previously printed `left`/`right`. Every "not finished"
+    check beside a kill is untouched. The kill points are the same lines of the read loops. One check is
+    stricter (`server_command`, D-13w-3); none is weaker.
 
 ### W-C3 — The server's Ctrl-Break (**only under §15.4's fallback**; otherwise N/A, with S11-D's merge commit cited)
 
-- [ ] Implementation: one `cfg(windows)` `ctrl_break()` in `serve.rs`'s shutdown select.
-- [ ] Validation: A-W4 on Windows (MW-3).
-- [ ] Review: no other `src/` change.
+- N/A Implementation: one `cfg(windows)` `ctrl_break()` in `serve.rs`'s shutdown select. **Not needed:**
+  S11-D took QW-1. `tools/cli/src/serve.rs` `stop_requested()` (lines 262–300 at `cf18713`) selects
+  `ctrl_c()` with `cfg(windows)` `ctrl_break()`, `ctrl_close()` and `ctrl_shutdown()`, added by `9d83937`
+  ("every platform's graceful stop (QW-1)") and merged to `main` by #104 (`0744fee`). No `src/` file is
+  touched by 13w.
+- [ ] Validation: A-W4 on Windows (MW-3) still applies, because it proves S11-D's handler is what the
+  Windows path exercises; recorded under W-C4.
+- N/A Review: no `src/` change at all (A-W5's grep, W-C5).
 
 ### W-C4 — The workflow: `test-macos`, both jobs' PR triggers, and `platforms` per QW-4
 

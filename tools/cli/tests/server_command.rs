@@ -252,7 +252,7 @@ async fn a_generated_invite_is_printed_on_one_line_and_kept_out_of_everything_el
     );
 
     let status = server.kill();
-    assert!(!status.success(), "SIGKILL ended the server");
+    assert!(status.killed(), "SIGKILL ended the server: {status:?}");
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     let (stdout, stderr) = (output.stdout(), output.stderr());
     assert_eq!(

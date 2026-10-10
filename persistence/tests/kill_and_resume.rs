@@ -36,7 +36,6 @@
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader};
-use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -52,7 +51,7 @@ use mineworld_kernel::{
 use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, verify,
 };
-use mineworld_test_support::Scratch;
+use mineworld_test_support::{Scratch, process};
 use mineworld_worldpack::WorldPack;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -514,7 +513,7 @@ fn run(role: &str, scenario: Scenario, directory: &Path, kill_at: Option<u64>) -
         .expect("a child starts");
     let stdout = process.stdout.take().expect("piped");
     let mut lines = Vec::new();
-    let mut sent_kill = false;
+    let mut sent_kill = None;
     for line in BufReader::new(stdout).lines() {
         let line = line.expect("a line");
         let reached = line
@@ -523,14 +522,13 @@ fn run(role: &str, scenario: Scenario, directory: &Path, kill_at: Option<u64>) -
         lines.push(line);
         if let (Some(kill_at), Some(reached)) = (kill_at, reached)
             && reached >= kill_at
-            && !sent_kill
+            && sent_kill.is_none()
         {
-            process.kill().expect("SIGKILL is delivered");
-            sent_kill = true;
+            sent_kill = Some(process::kill(&mut process));
         }
     }
     let status = process.wait().expect("the child is reaped");
-    let killed = status.signal() == Some(9);
+    let killed = sent_kill.is_some_and(|sent| sent.killed());
     if kill_at.is_none() {
         assert!(
             status.success(),
