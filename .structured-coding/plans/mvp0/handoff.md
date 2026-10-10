@@ -33,7 +33,16 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — NW-C2 committed (ac9055c); MATERIAL STOP M-2 (NW-4 no-bodies cost)
+## Current checkpoint — M-2 ruled (a), PASS; NW-C3 measured in part; MATERIAL STOP M-3
+
+- M-3 (§21.15, E-NW4): on the 12d scratch merge (/tmp/s15-12n/12n2/merge, tree a407132e) NW-2 PASS,
+  NW-1 FAIL (alice pinned in the planner margin: route.rs start rule, a 12n-1 defect outside 12n-2's
+  paths), NW-3 FAIL (stopped-short 21 %; 18.8 % with the scratch start fix, 85 % person-caused).
+  Proposed: the route.rs start fix inside 12n-2; NW-3 restated as geometry-caused stops ≤ 10 %.
+  The merge tree's route.rs carries the scratch experiment (uncommitted); merge-mineworld is the
+  measured binary without it, mergex-mineworld with it.
+
+## Earlier checkpoint — NW-C2 committed (ac9055c); MATERIAL STOP M-2 (NW-4 no-bodies cost)
 
 - f241a1b NW-C0 plan · 50685e6 merge of origin/main (#123, #124) · 4416ee8 NW-C1 (hosts pace steps;
   byte-identical, E-NW1) · ac9055c NW-C2 (people walk there; E-NW2; NW-4 FAIL → M-2, E-NW3).

@@ -9812,6 +9812,63 @@ M-2 RULING (operator, 2026-10-10, relayed by the primary session): option (a). N
       with ÷ without bounds on the 12d merge) is unchanged. M-2 is closed; NW-C3 and NW-C4 continue.
       origin/main merged again (a0d578a: weather records, S23/S10 plans; tools/cli/tests support and
       run_restart's portable kill; no conflict).
+
+E-NW4 NW-C3, the scratch merge, 2026-10-10. Recipe: `git worktree add --detach /tmp/s15-12n/12n2/merge
+      1bf18cc`; `git merge --no-commit --no-ff 8814aad` (origin/mvp0/pr-12d-towns). Conflicts: bodies'
+      geometry.rs (NUDGE_MAX — kept SD-N11's `PERSON_RADIUS`; 12d's R 250 and CLEARANCE 2R − 5 merged
+      clean) and Cargo.toml (comment only) resolved by hand; DECISIONS.md, handoff.md, market-town's
+      README, bodies' four test files, ac1_composability, inspect.rs, social_composition.rs taken from
+      12n-2's side (literals and docs that no NW measurement runs; 12d resolves them on rebase). Tree
+      after `git add -A`: a407132e5712692122907a73ab4fc1dfb30abfae. Binary /tmp/s15-12n/12n2/
+      merge-mineworld (target-merge). SD-D13 copies without bodies: /tmp/s15-12n/12n2/nobodies.sh
+      (bodies dropped from systems, every `body:` section dropped from places/ and items/; both
+      validate). Never committed, never pushed.
+        NW-2  the café door, a scratch harness (tools/cli/tests/nw_scratch.rs in the merge tree): the
+              real server, the visitor walked to each start on the street, then walk-to the café —
+              apartments door 19 strides, café door 1, park door 20, store door 14, workplace door 15,
+              terrace west (−3 000, 600) 6, terrace east (3 000, 600) 8; every walk `arrived`, the
+              visitor in the café after each, no `stalled`, every one ≤ 40 strides — PASS.
+        NW-1  routines.rs (unedited) on the merge, social-cafe 30 d: FAIL — "alice reached 31 of 91"
+              (misses apartments and park every day from day 2); every other seat ≥ 119/121 or 91/91.
+              Cause: from day 1 afternoon alice stands at (2 194, 260) in the café, 260 mm from the
+              front wall and at the bench's corner — a place bodies' resolver leaves her (R + GAP from
+              both), but inside the planner's margin (route.rs grows by R + GAP + PLAN_MARGIN = 310):
+              the start is outside the shrunk floor and inside the bench's grown box, N-D7's core rule
+              blocks every edge out of it, and every walk-to is refused `no-route` ("no way leads there
+              inside the place": 1 990 refusals in 30 days, all people). A 12n-1 planner defect, in
+              systems/bodies/src/route.rs — outside 12n-2's paths.
+        NW-3  social-cafe 30 d: stopped-short 9 417 of 44 803 walk-steps = 21 % — FAIL (≤ 10 %; 12d WIP
+              62 %); entries 1 931 vs 2 119 without bodies = 91 % — PASS (≥ 90 %). By cause: 81 % a
+              person (by: Some), 19 % geometry; by place: apartments 61 %, café 27 %.
+        cost  indicative 30 d (not NW-4's TD-12a instrument): with ÷ without bodies 12.05 / 4.86 = 2.48 ×
+              (social-cafe, bound 3.96), 19.63 / 9.18 = 2.14 × (market-town, bound 3.30).
+      Scratch experiment (route.rs only, in the merge tree, never committed): a start that is not free
+      first steps to the nearest free lattice point (E3's order), then the route is planned from there.
+      social-cafe 30 d: no `no-route` refusal; NW-1 routines PASS (alice 91/91, every seat ≥ 120/121
+      but otto, whom no seat drives); entries 2 117 = 99.9 %; stopped-short 10 778 of 57 475 = 18.8 % —
+      still FAIL (geometry-caused 1 609 = 2.8 %, person-caused 9 169 = 16 %; apartments 64 %); user
+      CPU 8.05 s (was 12.05). Town 300-day runs used: still 4 of 19.
+
+M-3   MATERIAL STOP (§21.14: "NW-1 / NW-2 failing (no remedy is pre-approved)"; §21.8: a failure is a
+      named remedy or a material stop). On the 12d merge NW-1 fails (alice 31/91) and NW-3 fails
+      (stopped-short 21 %); NW-2 passes; the cost is within TD-12's bounds by a 30-day indication.
+        1 NW-1's cause is a 12n-1 planner defect: a start inside the planner's margin but where bodies
+          legally leaves a person (near a wall and a solid's corner) has no route out. The smallest
+          fix is in systems/bodies/src/route.rs (outside 12n-2's paths): a start that is not free
+          first steps to the nearest free point (the goal's own SD-N5 rule, applied to the start),
+          with a unit case and an NV-5 oracle case for starts in the margin. Shown in scratch: NW-1
+          passes, refusals vanish, the run is cheaper. It changes no existing world's facts on main
+          (no town on main has bodies; bodies-yard's digest to be checked) — proposed as a bounded
+          fix inside 12n-2 with the path added, or a 12n-1 follow-up PR merged first.
+        2 NW-3 still fails with the fix (18.8 %): 85 % of the stops are people stopping people, two
+          thirds of them in the apartments at night, where eleven residents wander one room. Walls
+          and furniture now stop 2.8 % of strides. Options: (a) restate NW-3 as geometry-caused stops
+          ≤ 10 % of strides (2.8 %, the failure the claim was written against: TD-D7's walls), with
+          person-caused stops printed; (b) keep NW-3 and treat crowding as a later behaviour change
+          (the controller's wander at home, or SD-N9's avoid widened) — not in 12n-2's scope.
+      Recommendation: 1 inside 12n-2 (path systems/bodies/src/route.rs + its tests, bodies' VERSION
+      unchanged if bodies-yard's facts are unchanged, else bumped with the record); 2 (a).
+      Held: NW-1's run.rs part, NW-4's TD-12a set, NW-5, NW-6, NW-10 on the merge, NW-C4.
 ```
 
 
