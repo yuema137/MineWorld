@@ -32,16 +32,49 @@ Design and evidence: [`step-09-social.md`](../../.structured-coding/plans/mvp0/s
 
 ## Its section of the World's Interaction List
 
-A world may set how long an invitation can be answered in `configure/group-activity.yaml` (listed in
-`world.yaml`'s `configure:`), for everyone, for a class of inviter or invitee, or in one place:
+A world may say who invites, accepts and joins whom, how far an invitation reaches, how long things
+last, and what its facts mean for history and perception, in `configure/group-activity.yaml` (listed
+in `world.yaml`'s `configure:`), for everyone, for a class of person, or in one place:
 
 ```yaml
+rules:
+  - { action: invite, actor: noble, target: commoner, effect: forbid }
+  - { action: accept-invitation, actor: noble, target: commoner, effect: forbid }
+  - { action: join-group-activity, actor: noble, target: commoner, effect: forbid }
 parameters:
-  - { invitation_lifetime: 3600 }                   # whole seconds, 1 … 86 400; 1 800 when unset
+  - { invitation_lifetime: 3600, invite_range: 3000, activity_length: 3600 }
   - { target: regular, invitation_lifetime: 600 }   # a class from configure/classes.yaml
+regions:
+  park: { parameters: [ { activity_length: 7200 } ] }
+consequences:
+  - { fact: group-activity-started, audience: participants }
+  - { fact: joined-group-activity, actor: servant, biography: off }
 ```
 
-Roles: `actor` is the inviter, `target` the invitee, `place` where the invitation was made. Each
-invitation records the instant it lapses (`until`), and a controller reads that instant rather than a
-lifetime of its own. In this version the section has no rules and no consequences. The schema is
-[`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.2.
+| Action | `actor` | `target` |
+| --- | --- | --- |
+| `invite` | the inviter | the invitee |
+| `accept-invitation` | the one accepting | the inviter |
+| `join-group-activity` | the joiner | the member joined |
+
+`decline-invitation` and `leave-group-activity` cannot be governed: a list can stop people coming
+together, never trap anyone in an invitation or an activity. `accept-invitation` is governed because
+accepting joins the inviter's activity. A forbidden request is refused `PermissionDenied`, and its
+affordance shows it unavailable for that reason, before any other check of this pack.
+
+| Parameter | Unit | Default | Bound | Looked up with |
+| --- | --- | --- | --- | --- |
+| `invitation_lifetime` | seconds | 1 800 | 1 … 86 400 | inviter, invitee, where it was made |
+| `invite_range` | millimetres | 3 000 | 1 … 100 000 | inviter, invitee, the inviter's place |
+| `activity_length` | seconds | 3 600 | 60 … 86 400 | inviter, invitee, where it starts |
+
+| Fact | Roles | Audience (default → narrowest) | Biography (compiled) |
+| --- | --- | --- | --- |
+| `invited` | `actor` inviter, `target` invitee, `place` | participants | configurable (off) |
+| `invitation-accepted`, `invitation-declined` | `actor` invitee, `target` inviter, `place` | participants | configurable (off) |
+| `group-activity-started`, `group-activity-ended` | `place` | place → participants | configurable (on) |
+| `joined-group-activity`, `left-group-activity` | `actor` the person, `place` | place → participants | configurable (on) |
+
+Each invitation records the instant it lapses (`until`), and a controller reads that instant rather
+than a lifetime of its own. The schema is [`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md)
+§4.2.

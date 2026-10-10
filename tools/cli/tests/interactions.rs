@@ -205,7 +205,7 @@ fn validate_refuses_each_section_mistake_by_name() {
             "rules:\n  - { action: whisper, effect: forbid }\n",
             &[
                 "line 2",
-                "'whisper' is not an action 'conversation' declares (it declares: none)",
+                "'whisper' is not an action 'conversation' declares (it declares: talk)",
             ][..],
         ),
         (

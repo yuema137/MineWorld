@@ -5873,6 +5873,24 @@ general policy engine — rejected (`DEP-28`). (c) **One SDK shape, the meaning 
 - In IL-b only `conversation` and `group-activity` have sections, and they declare parameters only.
   Rules and consequences of real packs arrive with IL-e … IL-g.
 
+**Note, 2026-10-10 (S17, PR IL-e; QIE-1, QIE-2, SD-IE-2, SD-IE-8) — the first rules of real packs, and a
+rule decided in a reaction.** `conversation` declares the action `talk`; `group-activity` declares
+`invite`, `accept-invitation` and `join-group-activity` (never `decline-invitation` or
+`leave-group-activity`: a list can stop people coming together, not trap anyone in an invitation or an
+activity; `accept-invitation` is governed because accepting joins the inviter's activity, so a
+`join-group-activity` rule alone would leak). Each pack asks `permits` in `validate` after the payload is
+readable, the actor and target exist and are Persons and the actor is located, and before any condition
+that depends on the pack's own state (an open invitation, `Busy`) and before the spatial requirement; its
+offers ask the same `permits` and answer `Offer::refused(PermissionDenied)` (item 8).
+
+Item 1 says a rule is "an action and role selectors". A pack may also declare a **rule name for a yes/no
+decision it makes in a reaction**: `relationships` declares `acquaint` (roles `actor`, the person who
+would come to know, and `target`, the counterpart; not regional), asked per directed change while it
+reduces another pack's fact, before any state is written; forbidden, that direction forms no
+acquaintance, no `knows` edge and no fact. The name is declared through the same `ActionDecl` (the SDK
+keys rules by `ActionTypeId`); it **names no action type a client can send**, and a test pins that no
+installed pack provides an action type `acquaint`. No SDK type is added.
+
 ---
 
 ## ARC-64 — Entity classes are named tag selectors, fixed during play
@@ -5958,6 +5976,27 @@ leaking private state, or telling a mind what to forget.
 with a test-only pack, and through the binary when IL-e converts conversation (QIB-11). Perceiving a
 narrowed fact as a bystander is proven by S11-C's audience function and `mineworld perceived` when they
 exist (QIB-12); IL-b proves the envelope's `Visibility`.
+
+**Note, 2026-10-10 (S17, PR IL-e; QIE-3, QIE-5, QIE-6, QIE-10 … QIE-12) — the first configurable facts of
+installed packs.** `conversation` declares `spoke` (owner default `Place`, narrowest `Participants`) and
+`conversation-started` (`Participants`), both with configurable biography, compiled off, and the knob
+`remember` (item 3's "in-world" layer: whether the listener's `ConversationHistory` keeps the line; it
+never stops the fact being recorded, perceived or reduced by another pack). `group-activity` declares its
+seven facts — the three invitation facts `Participants`, compiled non-biographical; `group-activity-started`
+and `-ended` by `place` only, since their members list has no fixed positions; `joined-` and
+`left-group-activity` by `actor` and `place` — each narrowable to `Participants`, biography configurable.
+`relationships` declares `became-acquainted` and `relationship-changed` (already `Participants`;
+biography configurable, compiled on). Each owner writes its default audience once, in its `FactDecl`, and
+passes it as `owner_default` at emission.
+
+The accepted limitations above are closed: the biography projection through the binary (QIB-11) and a
+narrowed `spoke` not perceived by a bystander through `audience::admits` and `mineworld perceived`
+(QIB-12) are proven by IL-e's tests. **Biography is chosen per fact, not per reader** (QIE-6, accepted for
+MVP-0): `selected` fills the roles from the envelope, so its answer is the same for every person the fact
+names — `{ fact: spoke, actor: servant, biography: off }` removes a servant's line from the servant's and
+the listener's biography alike. Per-reader selection would change the SDK and this record. No line is
+biographical by default in MVP-0 (QIE-12): a world that wants lines in biographies writes
+`{ fact: spoke, biography: on }` first.
 
 ---
 
