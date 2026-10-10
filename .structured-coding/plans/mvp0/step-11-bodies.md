@@ -8902,19 +8902,42 @@ bytes on the implementation base. Non-goal: any code.
 Goal: `Wayfinder`, `RouteAsk`, `Waypoints`, `register_wayfinders`, `registered_wayfinders`,
 `require_registered` (movement's own, mirroring presence's, `ARC-62` item 4); the `installed!` line
 listing nobody yet. Files: `systems/movement/src/{wayfinder.rs,lib.rs}`, `systems/installed/src/lib.rs`.
-- [ ] Implementation: the trait and catalog; the empty line.
-- [ ] Validation: the installed set's guard tests; a synthetic wayfinder in a movement test (own process)
-  answers and is asked in `SystemId` order; never-registered means straight lines.
-- [ ] Review: catalog rules match `ARC-62` item 4 word for word; nothing reads it but `walk`.
+- [x] Implementation: the trait and catalog; the empty line. `systems/movement/src/wayfinder.rs`
+  (`Wayfinder`, `RouteAsk`, `Waypoints`, `RouteAnswer`, `register_wayfinders`, `registered_wayfinders`,
+  `require_wayfinder` — renamed from `require_registered`, N-D2); `installed!` line with `[]`. Committed
+  with NV-C3 (one commit: the catalog's only reader is the walk, so alone it is dead code — N-D3).
+- [x] Validation: `systems/installed` tests (resolution.rs now asserts two lines) pass;
+  `systems/movement/tests/wayfinder.rs` (own process): two synthetic wayfinders registered out of order
+  are asked alpha → zeta; alpha's answer is the route (hand-computed trail (2 114, 5 743), (2 500, 6 000),
+  (3 614, 5 257), (4 000, 5 000)); zeta's `Unreachable` refuses `no-route`; no answer → straight; the
+  write-once, duplicate and unregistered panics. `tests/walk.rs` (never registers) is the straight-line
+  case. E-NV1.
+- [x] Review: the three entry points and their rules are `ARC-39` item 5's as `ARC-62` item 4 carries
+  them (write-once, sorted by id, same ids no-op, different list panics naming both, purity and inertness
+  stated on the trait); only `walk.rs`'s `plan` reads the catalog (`wayfinder::route`).
 
 ### NV-C3 — movement: `walk-to`, `walk-step`, `Walking`, facts, disclosure, `is_walking`, VERSION 2
 Files: `systems/movement/src/{action.rs,walk.rs,event.rs,system.rs,component.rs}`;
 `clients/protocol/ADOPTION.md` (the stepping rule beside the `move` reporting rule).
-- [ ] Implementation: SD-N1, SD-N2, SD-N6 … SD-N10; `reachable` reused for each stride; no Process.
-- [ ] Validation: movement tests with no wayfinder: straight walk, cross-place walk, person walk, every
-  refusal, superseding, NV-2 (g)'s "no calendar time" and M-N0, a snapshot round trip mid-walk.
-- [ ] Review: every stride goes through `reachable` then `arrivals()`; no position is written by movement;
-  nothing in movement reads a clock or a scale (NV-11); a `move` ends a walk in the same dispatch.
+- [x] Implementation: SD-N1, SD-N2, SD-N6 … SD-N10; `reachable` reused for each stride; no Process.
+  `action.rs` (`WalkTo`, `WalkStep`, `Destination` `#[non_exhaustive]`, externally tagged; constants),
+  `component.rs` (`Walking`, schema 1), `event.rs` (`walk-started`, `walk-ended`, `Ended`), `walk.rs`
+  (`places_to`, `begin`, `step`, `arrived`, integer stride/approach), `system.rs` (VERSION 2; reacts to
+  presence's `arrived` — ends the walk at its goal in the same dispatch — and `stopped-short` — records
+  who stopped the walker, SD-N9's `avoid`; discloses `walking { destination, next ≤ 4 }`; offers
+  `walk-to` always and `walk-step` to a walker, both incomplete), `is_walking`, `NO_ROUTE`;
+  `clients/protocol/ADOPTION.md` §4.2. Literal edits in other crates (N-D4).
+- [x] Validation: `systems/movement/tests/walk.rs` 10 tests (straight 3 000 mm walk = 1 340, 1 340, 320;
+  cross-place walk = (3 940, 2 000), (4 600, 2 000), street (0, 2 000), (1 000, 2 000), one entry;
+  positionless place; semantic crossing; person walk to (1 200, 2 200) and following a moved target;
+  TooFarAway / no-route / PreconditionFailed / malformed-payload; replaced and stopped; a day's
+  `advance_to` moves nobody and the next step is the same stride; disclosure and offers; snapshot
+  restore continues byte-identically) — all pass. M-N0 (a stride in walk-to's resolve) → 7 of 10 fail,
+  `a_walk_takes_no_calendar_time` by name ("nobody stepped, nobody moved"); reverted. E-NV1.
+- [x] Review: every stride is `walk::step` → `reachable` → `arrivals()` (system.rs walk-step branch;
+  an unreachable stride ends the walk `no-route` rather than erroring); movement writes `Walking` and
+  `Passages` only; no clock, scale or random source in movement's sources (grep, E-NV1); a `move` by a
+  walker emits `walk-ended { stopped }` before its arrivals, in the same dispatch.
 
 ### NV-C4 — bodies: the route (`route.rs`) and `DEP-P`'s dependency
 Files: `systems/bodies/src/route.rs`, `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement`
@@ -9099,6 +9122,43 @@ E-NV-base NV-C1, 2026-10-09 17:28–17:30, on 551fb2c (= origin/main, #100 merge
       it, 64f41086… → 31fb85d4…). NV-1's
       reference for market-town is therefore this capture, 24a95d2a…d270, as NV-1 provides ("captured
       on the implementation base first … or the difference recorded"). Not a 12n change.
+
+N-D2  Movement's guard is `require_wayfinder`, not `require_registered` (SD-N3 / NV-C2's name).
+      tests/acceptance/tests/seam_vocabulary.rs `movement_names_no_resolver` (ARC-39, 12a's SC-7) refuses
+      the string `require_registered` anywhere in movement's sources; renaming keeps that acceptance
+      test unedited and the ARC-39 absence true. Same rules, same panics. Recorded in ARC-39 note 5.
+N-D3  NV-C2 and NV-C3 are one commit (the catalog alone is dead code under clippy -D warnings).
+N-D4  Literal edits outside §21.14's listed paths, each a mechanical consequence of a frozen decision,
+      claims unchanged (none is under the frozen no-edit paths kernel/, contracts/, persistence/src/,
+      server/, systems/presence/, clients/ but ADOPTION.md, worlds/):
+        systems/conversation/tests/conversation_and_presence.rs  offered actions gain `walk-to` (SD-N7);
+                                                                 component declarations gain movement's
+                                                                 `walking` (SD-N2)
+        tools/cli/tests/inspect.rs, social_composition.rs (×2)   `movement v1` → `movement v2` (SD-N13)
+        systems/installed/tests/resolution.rs                    two extension lines, not one
+      Judged bounded (as 12a's QR-2 literals were), not the material "edit outside the approved paths",
+      which guards scope; reported to the operator for confirmation.
+N-D5  SD-N9's third re-plan trigger ("the place's LooseObjects changed since the plan") is not
+      observable by movement without naming bodies (ARC-62: an owner never names its implementers).
+      Implemented: a step re-plans when the last stride did not end where it was asked (stopped short,
+      nudged, shoved — which is what an object in the way does when it blocks), or a person destination
+      moved > 500 mm. An object moved across a planned leg is pushed by a stride like any object a `move`
+      meets. Stated in ARC-73's limitations.
+N-D6  The walk's arrival is recognised in movement's reaction to presence's `arrived` (the walker
+      recorded at the leg's planned end, or within PERSON_APPROACH of the person), so `walk-ended
+      { arrived }` is in the same dispatch as the last stride rather than at a further step. Movement
+      therefore subscribes to `arrived` and `stopped-short` (presence's vocabulary; movement already
+      depends on presence and states both). `Walking` carries `goal` and `stopped_by` besides SD-N2's
+      fields; `progress` is the last stride asked (from, to).
+
+E-NV1 NV-C2/NV-C3, 2026-10-09, working tree on 1200b90. `cargo clippy -p mineworld-movement
+      -p mineworld-installed-systems --all-targets -D warnings` clean; `cargo test -p mineworld-movement
+      -p mineworld-installed-systems` all pass (walk.rs 10, wayfinder.rs 5, the existing 13). A workspace
+      run (`cargo test --workspace --no-fail-fast`, /tmp/s15-12n/ws-c3.log, for N-D4's discovery only —
+      not the gate) found exactly four failing targets: seam_vocabulary (N-D2), inspect and
+      social_composition (N-D4 literals), and a bodies doctest built against a stale rlib while route.rs
+      was being added (not reproducible; re-run in NV-C5). 183 targets passed. NV-11 audit: no `Instant`,
+      `SystemTime`, scale, `now()` or random source in systems/movement/src or route.rs (grep).
 ```
 
 

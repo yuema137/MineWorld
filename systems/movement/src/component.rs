@@ -1,10 +1,73 @@
-//! The state this pack owns: which places open onto which, and where the doorway is.
+//! The state this pack owns: which places open onto which, where the doorway is, and who is walking
+//! where.
 
-use mineworld_contracts::{LocalPosition, PlaceId};
+use mineworld_contracts::{EntityId, LocalPosition, Location, PlaceId};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
+use crate::action::Destination;
 use crate::system::MovementSystem;
+
+/// A walk in progress: the walker's intention and the route the world planned for it
+/// (`DECISIONS.md` `ARC-73`; step-11 SD-N2).
+///
+/// Owned by [`MovementSystem`], on the walker. Written when `walk-to` is resolved, at each `walk-step`
+/// and in this pack's reactions to the walker's own arrivals; removed when the walk ends. It is not a
+/// position — where the walker is stays presence's — and not a `Process`: it takes no calendar time,
+/// and nothing advances it but its walker's requests. Persisted and replayed like every component, so
+/// a resumed world continues the walk where it was.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Walking {
+    pub(crate) destination: Destination,
+    /// The places still to enter, in order; empty in the destination's own place.
+    pub(crate) legs: Vec<PlaceId>,
+    /// The current leg's waypoints not yet reached, in order.
+    pub(crate) waypoints: Vec<LocalPosition>,
+    /// Where the current leg was planned to end; [`None`] until it is planned — after a crossing, or
+    /// when it must be planned again.
+    pub(crate) goal: Option<LocalPosition>,
+    /// The last stride asked for: where from and where to. [`None`] before the first.
+    pub(crate) progress: Option<Asked>,
+    /// Consecutive steps that made less than `STALL_PROGRESS`.
+    pub(crate) stalls: u32,
+    /// Re-plans made so far.
+    pub(crate) replans: u32,
+    /// Who stopped the last stride short, when presence's `stopped-short` named somebody.
+    pub(crate) stopped_by: Option<EntityId>,
+}
+
+/// One stride as it was asked for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Asked {
+    pub(crate) from: Location,
+    pub(crate) to: Location,
+}
+
+owned_component! {
+    component = Walking,
+    owner = MovementSystem,
+    component_type = "walking",
+    schema_version = 1,
+}
+
+impl Walking {
+    /// Where the walk goes.
+    pub const fn destination(&self) -> Destination {
+        self.destination
+    }
+
+    /// The places still to enter, in order.
+    pub fn legs(&self) -> &[PlaceId] {
+        &self.legs
+    }
+
+    /// The current leg's waypoints not yet reached, in order.
+    pub fn waypoints(&self) -> &[LocalPosition] {
+        &self.waypoints
+    }
+}
 
 /// One way out of a place: the place it leads to, and where the doorway is on each side.
 ///

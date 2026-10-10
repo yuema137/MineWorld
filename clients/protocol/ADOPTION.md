@@ -288,6 +288,33 @@ is refused every time. A 2D client that walks to a click splits the walk into st
 ignores it is refused by the server, not by itself. On `too_far_away`, move the body back to the
 position the next observation shows.
 
+### 4.2 Walking somewhere: submit `walk-to`, then step once a wall second
+
+To send a person somewhere — a click on the floor, "Walk to <name>" — do not plan a route and do not
+split it into strides. Ask the server, which plans it round the world's walls, furniture and objects
+(`DECISIONS.md` `ARC-73`):
+
+```gdscript
+world.submit("walk-to", null, { "to": { "place": MineWorldSpace.location(place, MineWorldSpace.from_2d(here)) } })
+world.submit("walk-to", null, { "to": { "person": person_ref } })
+```
+
+A refusal is the server's answer: `too_far_away` for a person in another place, and the code `no-route`
+for a destination no way leads to. Once accepted, the walk is the player's own `walking` record in the
+next observation — its destination and the next waypoints — and it moves nobody by itself. While that
+record is disclosed, send one `walk-step` (no payload) per wall second:
+
+```text
+while your own `walking` record is disclosed: one walk-step every 1 s of wall time
+```
+
+Each step carries the person at most 1 340 mm along the route — 1.34 m/s, a person's walking pace — and
+the server answers it like a `move`. The timer is pacing, the same kind of rule as the `move` reporting
+rule above: it is never a rule about the world, and the server neither knows nor checks how often you
+send. Stop when the record is gone (the walk ended: arrived, stalled, no route, replaced or stopped). A
+`move` of your own — WASD — ends the walk. Draw the record if you like (a route line, a heading); never
+compute one.
+
 ## 5. The shape of a client, as this module expects it
 
 ```text

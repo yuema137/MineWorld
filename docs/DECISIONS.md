@@ -3442,7 +3442,9 @@ wayfinder.** Items 1–8 and the earlier notes are unchanged.
 
 1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-73`), listed on
    movement's own extension line of the installed set, and its `install` calls movement's
-   `require_registered` after presence's. A route is a plan, never a permission: every stride of a walk
+   `require_wayfinder` after presence's `require_registered`. (Movement's guard is not named
+   `require_registered`: movement's sources name nothing of the resolver seam, `seam_vocabulary.rs`.)
+   A route is a plan, never a permission: every stride of a walk
    is still a `walk-step` request checked by movement and resolved by this decision's resolvers. The
    planner reads `bodies`' own state (`PlaceShape`, `LooseObjects`) and nothing else, keeps nothing, and
    answers "not mine" for a place without a shape, so a world without `bodies` walks straight.
