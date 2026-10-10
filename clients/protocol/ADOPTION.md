@@ -84,6 +84,9 @@ took_over  "none" | "hosted" | "held" | "connection": whether control of the Per
 hold_seconds, resume   the seat's hold after a dropped socket, in wall seconds, and the secret that
            re-takes it (fresh on every welcome). The module never prints, logs or emits the resume
 close_reason  the reason of the server's last `closing`, or ""
+paused, time_scale   from the newest `clock` frame (PROTOCOL.md §5.9): whether the host has paused
+           the world's clock, and world seconds per wall second. While paused, a submit is refused
+           `paused`; observations keep arriving
 ```
 
 The invite is required by every server, loopback included. A server started without `--invite` (or
@@ -100,7 +103,12 @@ refused(code, token, detail)                 the frame was not accepted; nothing
                                              `protocol_mismatch` — each followed by `closing`
 closing(reason, detail)                      the server is about to close the connection, and why:
                                              left, unauthorized, protocol_mismatch, world_stopped,
-                                             taken_over, superseded, …
+                                             taken_over, superseded, kicked (the operator removed
+                                             this connection or released its seat), …
+clock_changed(at, time_scale, paused)        how the host paces the clock: once right after the
+                                             welcome, then on every pause and resume. Only the
+                                             holder of the server's admin token changes it, over
+                                             HTTP (PROTOCOL.md §11); this module has no call for it
 disconnected(reason)                         the connection ended or could not be made
 reconnecting(attempt)                        with reconnect on: the socket dropped and attempt N
                                              (from 1) is about to be made
@@ -305,6 +313,9 @@ that invented an `ActionId` would collide with the other client on its first act
 events                `events` is empty in an observation until S11-C; what an NPC said to you
                       arrives as your own disclosed conversation history instead
 deltas                every observation is whole; S11-C may add `delta` frames, applied here
+admin calls           pausing, resuming, kicking and releasing are the host's, over HTTP with the
+                      admin token (PROTOCOL.md §11); a launcher that holds one makes those calls
+                      itself. The module only reads the `clock` frame
 prediction, smoothing, interpolation    yours, and deliberately not here
 a scene graph          yours entirely: this module has no opinion about how a world looks
 ```

@@ -231,7 +231,7 @@ fn described_identity(identity: &Identity, origin: &Origin) -> String {
 }
 
 /// `mineworld packs validate <directory>`: one data pack, its package fields all required, its licence
-/// judged by the default policy, then its content — a world read (its requirements resolved in the
+/// judged by the default policy (a World Pack's by its own, ARC-55 note), then its content — a world read (its requirements resolved in the
 /// roots) and loaded as `validate` does; a presentation pack's style manifest.
 pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = DataPack::of(dir).map_err(refused)?.ok_or_else(|| {
@@ -239,20 +239,22 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
             dir: dir.to_path_buf(),
         })
     })?;
-    let identity = match &pack {
+    // A World Pack is judged by its own policy (`configure/packages.yaml`, ARC-55 note); any other
+    // pack by the default.
+    let (identity, policy) = match &pack {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
-            identity
+            (identity, world.licence_policy().clone())
         }
         DataPack::PackFile(dir) => {
             let identity = read_pack_file(dir).map_err(refused)?;
             check_style_manifest(dir).map_err(refused)?;
-            identity
+            (identity, LicencePolicy::default())
         }
     };
-    LicencePolicy::default()
+    policy
         .judge(identity.id.as_str(), &identity.license)
         .map_err(refused)?;
     print!(

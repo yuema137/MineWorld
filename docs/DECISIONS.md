@@ -2047,6 +2047,14 @@ invented or dropped an entry fails. It is regenerated identically from a restart
 in S10. Generated prose is display, never state (§4.4). A pack that states a fact without naming its
 people in the envelope is invisible to biographies; that is the pack's defect, not the projection's.
 
+**Note, 2026-10-08 (S17, PR IL-b; `ARC-65` item 4, QIL-15).** The selection is now
+`mineworld_sdk::interactions::biography::selected`. A fact whose owner has a configured section is
+biographical when that section's consequence for the fact's roles says so (`biography: on | off`, only
+where the owner allows); otherwise the compiled set above decides. `mineworld biography` therefore also
+reads the save's genesis `*-interactions-configured` facts and each entity's type and tags (from the
+World Pack it already reads for keys and names), and each composed capability's declared facts. It still
+writes nothing and resumes nothing. With no configured section it is this decision exactly.
+
 ---
 
 ## ARC-30 — The development profile is optimized at level 1, with its debug checks stated explicitly
@@ -2533,6 +2541,15 @@ Nothing on the wire changed. The API is specified in `clients/protocol/ADOPTION.
 `.structured-coding/plans/mvp0/step-15-demo-3d.md` §18. No new record was needed: it is this decision's
 point 3 and point 7 carried into code.
 
+**Note, 2026-10-08 (S17, PR IL-b; QIB-3, QIL-12, QIL-13) — a pack-stated refusal on an offer.**
+Presence's `Offer` gains one builder, `Offer::refused(Rejection)`: the owning pack says the action is
+offered but refused for a reason only it can judge — `PermissionDenied` from its section (`ARC-63`
+item 8). Perception reports a refusal **before** it evaluates the spatial requirement, as
+`Affordance::unavailable(…, reason)`; the requirement is still shown and a complete offer's payload
+still travels. An offer that is not refused behaves exactly as before, and no contract changes:
+`Affordance` already carries any `Rejection`. The offer and the dispatch give the same answer in the
+same order: a refused action is refused before its spatial check in both.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
@@ -2733,6 +2750,26 @@ to QS-54 below.
 **What the proof does not claim.** Installation without a rebuild: installing a pack is a directory,
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
+
+**Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
+operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
+named on an explicit allow-list, after the six market packs, through configuration. **The claim is
+unchanged: the market delta is measured exactly.** Check 3 (item 4, as note 11f item 5 reads it) now
+reads:
+
+1. `systems` is Social Café's list, in order, then exactly the six market packs (as a set), then only
+   packs on the allow-list, each once. An allow-listed pack anywhere before the end of the six, and any
+   pack after the six that is not on the list, is refused, naming the pack.
+2. `configure` is absent in Social Café. In Market Town it is absent or lists only allow-listed packs
+   that `systems` enables; `configure/` exists in Market Town only and holds only their files.
+3. Every other part of check 3 is unchanged: an allow-listed pack adds no section to a person or place
+   file, because only a market pack's sections are admitted there.
+
+The allow-list is `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. It is
+`["calendar"]` (`ARC-67`, `DEP-30`). Weather and any later generic pack are added by their own PRs, each
+with its own review. A pack is generic when it is neither Social Café's nor the market's: a calendar is
+a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
+dependency structure still measure the market and nothing else. A test holds both refusals.
 
 ---
 
@@ -3677,6 +3714,77 @@ The client composes only the requests it knows how to ask for, decides nothing, 
 submit what the player chose, and never retries a request whose answer it did not see (a retry
 could do a thing twice; the server allocates identity, `INV-6`).
 
+**Note 1, 2026-10-08 (S12 PR 13b; step-13 §15.4 D-b-1 … D-b-6, QS13b-5) — the interaction menu is the
+observation's affordances.** No new principle; how this record applies to menus:
+
+1. A menu is about one subject — a perceived person, or the observer itself — and lists exactly the
+   affordances the newest observation offers against that subject (target-less ones for the
+   observer), **in the server's order**, one entry per affordance: nothing sorted, grouped out of
+   order, removed or invented. Several complete affordances sharing an action type and a target are
+   several entries.
+2. A **complete** affordance is submitted unchanged through the shared module's `submit_affordance`;
+   a **composable** one (its type is in `intents.gd`'s `COMPOSED`) through that file's composer, with
+   the player's input sent exactly as typed; any other is listed disabled, "not supported by this
+   client", and never sent.
+3. An entry the server marks unavailable is drawn greyed **and stays choosable**, with the server's
+   reason in the client's wording and, where declared, the requirement's range, unevaluated. Choosing
+   it submits it; the answer is the server's. No key submits "the first available" entry: selecting
+   by the server's verdict is the client deciding.
+4. The only entry a client adds is "walk to <person>", which is the offered `move` (listed only when
+   the frame offers a target-less `move`), walked as ordinary strides the server answers one by one.
+5. The scan grows with the menu: R2 admits `app.gd`'s `"invite"` (the join option) by explicit entry
+   only; R3 extends to `menu.gd` and `hud/` (a function that calls `intents.` reads no verdict); R6
+   refuses a user-visible English sentence outside the wording (`ARC-70`).
+
+---
+
+## ARC-70 — Client UI text is addressed by message keys; a Presentation Pack carries the wording as gettext files
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13b's design freeze (QS13b-1) ·
+**Relates to** `ARC-46`, `ARC-47`, `DD-13`, `DEP-16`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design**
+step-13 §15.4 D-b-9; [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) §7
+
+**Problem.** The contract carries no display text (`DD-13`): an action type, a rejection code and a
+component are identifiers, and a client words them. The 2D client's menus, results and panels add
+dozens of user-visible strings. The operator requires every client UI string to be translatable,
+with translations as standard files in the Presentation layer, so that a user adds a language
+without code ("Framework, not demo" item 4, `en` default, `zh-Hans` next).
+
+**Decided.**
+
+1. Every user-visible string of a reference client is a **message key** looked up through the
+   engine's translation server, with arguments substituted after the lookup. Keys are built from data
+   where the thing worded is data: `action.<type>`, `action.<type>.done`, `reason.<code>` — so no
+   client file holds an action type or a reason code to word it. Fixed UI text uses `ui.*`, panel
+   titles `panel.*`, suggestion lists `suggest.*`, formats `format.*`.
+2. A Presentation Pack carries the wording as **gettext `.po` files**, `i18n/<locale>.po`, loaded at
+   runtime from the pack directory (never imported into the client project). `en` is the default and
+   the one 13b ships.
+3. A key the wording does not hold falls back to a readable form of the key's last part
+   (`reason.too_far_away` → "too far away"); a client with no pack still says something true. A code
+   the wording does not know is therefore shown as the code itself.
+4. Wording holds no rule: no number, no condition, no filter. A suggestion list is a suggestion; what
+   the player types is sent unchanged and the server decides whether it is valid.
+5. The language switch, `zh-Hans` and the setting's persistence belong to the client-settings lane,
+   which may change the file format behind the same keys.
+
+**Options compared** (`REUSE_POLICY.md`, adopt → adapt → extend → build):
+
+```text
+Godot TranslationServer + gettext .po, loaded at runtime   adopt: the engine's own; .po is the standard
+                                                           translators' tools edit; Godot 4.7 loads a .po
+                                                           from an absolute path unimported (probed)
+Godot CSV translations                                     reject for packs: need the editor's import
+                                                           step, so a pack outside the project cannot be
+                                                           loaded at runtime
+our own JSON wording table                                 reject: non-standard; the operator asked for
+                                                           standard files
+third-party i18n addons                                    none needed over the engine's own
+```
+
+**Isolating interface.** One script per client reads the wording (`clients/2d/scripts/hud/words.gd`);
+every other script asks it for a key's text.
+
 ---
 
 ## DEP-16 — The 2D reference client: Godot built-ins and the shared protocol module, no addon
@@ -3902,6 +4010,66 @@ or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located ev
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
 the requests. The paced controller's rates are tuned to a 900-second pace; at the hosted default of 5 s
 it is chattier than a person (QS11-4), which is cognition's to tune (S10), not the server's.
+
+---
+
+## ARC-44 — The admin surface is HTTP behind a bearer token, mounted only when configured, and changes no world state
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-D · **Approved by** the primary
+session at S11-D's design freeze (step-12 §18, QS11D-1 … QS11D-8; QS11D-3 by the operator) · **Relates
+to** `ARC-40`, `ARC-41`, `DEP-14`, `INV-9`, [`NETWORKING.md`](NETWORKING.md) §§3, 5, 9 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.9, 7.6, 18;
+[`step-19-time-weather.md`](../.structured-coding/plans/mvp0/step-19-time-weather.md) §§7.2–7.4, 15.3 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.9, 11
+
+**Problem.** An operator could see a hosted world only through `/status`: not who is connected, not who
+drives which seat, and not how to remove a misbehaving player or pause the town. S19 needs a host-only
+pause, and a `clock` announcement so clients re-anchor their time display. None of this may give a
+client a new way to change the world, and none of it may make the invite a host credential.
+
+**Choice.**
+- **HTTP on the control plane, never a socket frame.** `server/src/admin.rs` serves `GET
+  /admin/sessions`, `GET /admin/seats`, `POST /admin/sessions/{session}/kick`, `POST
+  /admin/seats/{seat}/release`, `GET /admin/clock` and `POST /admin/clock` (`{ "paused": bool }`), each
+  body typed and denying unknown fields. The client vocabulary stays `join`, `submit`, `leave` (`INV-9`):
+  a socket frame `pause`, `clock`, `kick` or `release` is `unknown_frame`.
+- **Mounted only when configured.** With `--admin-token` / `MINEWORLD_ADMIN_TOKEN` the routes exist;
+  without it every `/admin` path is `404`. One bearer token, compared in constant time with `DEP-14`'s
+  `subtle`; every failure answers `401` no sooner than 500 ms after the request, in that request's task.
+  The token follows the invite's rules, is never printed, is in no save, frame or `/status`, and must
+  differ from the invite.
+- **No world state.** Kick, release, pause and resume are host state (`ARC-40`): never journaled, no fact,
+  no revision. A kick or release returns the seat to its default with no hold, and the displaced
+  connection is told `closing { kicked }`. **Pause is host pacing**: the host clock is a segment that
+  stops where it stands and continues from there on resume (monotonic and jump-free); while paused the
+  world is not advanced, hosted controllers are not consulted and every `submit` is refused `paused`
+  before an `ActionId` is allocated; observers stay connected. This is S19's clarification of I-4: a
+  route may change the pacing of the clock, never its value — **no route and no field names an
+  instant**.
+- **Telling clients.** `WorldSummary.paused`, and a `clock { at, time_scale, paused }` frame after
+  `welcome` and on every change, carried by a `tokio::sync::watch` channel the world thread writes —
+  newest wins, never dropped, never waited on.
+- **The live scale change is TW-c's.** `POST /admin/clock` carrying `time_scale` answers `409
+  time_scale_fixed` until TW-c lands it with the hosted-cadence rescheduling and the host journal it
+  needs. S19's record of pause and scale as host commands (its placeholder ARC-69) remains TW-c's.
+
+**Options considered.** (a) HTTP routes on the existing axum router — chosen: the control plane
+`NETWORKING.md` §3 names, testable with any HTTP client, no new dependency. (b) Admin frames on the
+WebSocket — rejected: it widens the client vocabulary and puts host commands one field away from player
+commands. (c) A separate gRPC admin service (`tonic`) — rejected: a second protocol stack and listener for
+six routes. (d) `axum-extra`'s `TypedHeader` for the bearer header — rejected: two crates to read one
+header, which is about fifteen lines with `HeaderMap`.
+
+**Limitations accepted (MVP-0).**
+- **One admin token, one level of host trust.** Whoever holds it is the host (the operator, or a
+  single-player launcher that generated one for its own client).
+- **No ban list** (QS11D-3, operator): a kicked player may rejoin at once with the invite, because there
+  is no per-player identity. To remove someone for good, rotate the invite (restart with a new
+  `--invite`).
+- **A pause is not persisted** until TW-c's host journal: a server restarted while paused runs. Holds are
+  wall time and still end during a pause.
+- **Unbounded parallel wrong-token requests** each wait 500 ms but are not counted; rate limiting is the
+  adopt route for public hosting (`DEP-14`).
 
 ---
 
@@ -4131,6 +4299,28 @@ not checked (QPL-12's scope).
   silently, as before this decision.
 - A configured pack's declaration does not change, so configuring a pack does not change its
   `SystemVersion`; a pack whose configuration *schema* changes raises it, as for any owned type.
+
+**Note, 2026-10-08 (S17, PR IL-b; QIA-1, QTW-7, SD-IB-1, SD-IB-3, SD-IB-5) — framework keys, the
+seeding context and `data:` attachments.**
+- **Item 4's reserved keys become framework keys.** `classes` is decoded by
+  `mineworld_authoring::EntityClasses` (`ARC-64`) and `packages` by `mineworld_packages::LicencePolicy`
+  (`ARC-55` note). A framework key is never resolved against the installed set and never seeded on its
+  own; listing it is optional, an unlisted file in `configure/` is still refused, and a test holds that
+  no installed pack's id is a framework key.
+- **The seeding context.** `PackConfiguration::seed(&Seeding, &Configuration, &ConfigurationContext)`:
+  the context hands a configuration the world's entity classes and the bytes of its own attachments,
+  read-only. `Seeding`, which sections share, is unchanged. A configuration may also be checked against
+  the context before anything is seeded (`PackConfiguration::check`, default accept); a refusal there is
+  typed (`ConfigurationRefusal`: an undefined class, two ambiguous entries) and named by the loader with
+  the file, the list and the index. No shim keeps the old signature.
+- **`data:` attachments.** A configuration may name files under the World Pack's `data/` directory with
+  `authoring::Attachment`: a relative path written with `/`, first component `data`, every component a
+  plain name (no `..`, no root, no drive, no `\`), checked as it decodes, at its line and column — the
+  same on every platform. `PackConfiguration::attachments` lists them (default none). The loader reads
+  each one and refuses one that is missing, one that resolves outside the pack after its links are
+  followed, and one over 4 MiB, each by name. `seed` receives the bytes; the owner decodes them and
+  states what it needs in its own fact, so a changed file is drift with no new mechanism. Files under
+  `data/` that nothing names are allowed.
 
 ---
 
@@ -4438,6 +4628,26 @@ meaning. And no claim about enforcement is stronger than the repository's settin
 - The canonical evidence arrives when CI finishes, not when the session stops typing.
 - Until protection is enabled, a merge without green checks is prevented by discipline only.
 
+**Note, 2026-10-08 (S10 PR P3, `pr-s10-p3-python-sdk.md` C5): the Python layers and the first jobs
+outside the container.**
+- **Layers.** `ci_layer.py` gains `python` (the Python static checks, `cargo build -p mineworld-cli`,
+  `pytest` including the real-server tests, the scratch check) and `python-smoke` (the static checks and
+  `pytest -m "not real_server"`, no Rust build). `core` is unchanged. `fast` gains the four static
+  commands (`uv sync --locked`, `ruff check`, `ruff format --check`, `pyright`), because they cost about
+  6 s against the primary session's 60 s allowance (QP3-3), measured on PR #98's first run.
+- **Job.** One new job, `python`, a matrix over `ubuntu-24.04`, `windows-2025` and `macos-15`, each
+  running the full `python` layer: on that first run Windows took 2 min 26 s longer than Ubuntu and
+  macOS 8 s less, both under the 3-minute rule that would otherwise have reduced Windows to
+  `python-smoke` and dropped macOS. `fast` and `test` keep their names and contents. `python` is not a
+  required check until the primary session makes it one.
+- **Departure from "inside the container".** The Linux leg runs in the toolchain container like every
+  other layer, with uv copied into the image pinned by digest (DEP-26). Windows and macOS cannot run that
+  container, so their legs install what they need on the runner, each pinned: the Rust toolchain from
+  `rust-toolchain.toml` (`rustup toolchain install`), uv through `astral-sh/setup-uv` pinned by commit
+  SHA at uv 0.12.5, and Python 3.12 (the `requires-python` floor) through uv. They still name a layer and
+  never a command of it. This departure exists only because the operator requires every platform
+  (2026-10-08) and a Linux container cannot show Windows or macOS behaviour.
+
 ---
 
 ## DEP-20 — Client collision: Godot's built-in Jolt Physics, never authoritative
@@ -4607,6 +4817,15 @@ generic seam — chosen.
 **Candidates left out of the default, on purpose.** `CC-BY-4.0` requires attribution, which MineWorld
 does not yet track; it is the first candidate for asset packs once it does. Copyleft licences
 (`CC-BY-SA-*`, `GPL-*`) stay out, for `DEP-8`'s reason.
+
+**Note, 2026-10-08 (S17, PR IL-b; QIA-1, QIB-7) — point 5 is wired.** `packages` is a framework key of
+`configure:` (`ARC-61` note). When a world lists it, `configure/packages.yaml` is decoded straight into
+`LicencePolicy` (`{ allowed: [...] }`, each identifier checked against the SPDX list; a refusal is
+`LicencePolicyInvalid`, with its line and column) right after the world's systems resolve and before its
+requirements do, and that policy replaces the default for the world: in resolution and in `mineworld
+packs validate <world dir>`. `packs validate <pack dir>` keeps the default. The policy is not world
+state: it is never seeded and never drift-checked, and is read again at every read, including every
+resume.
 
 ---
 
@@ -4885,3 +5104,521 @@ and run by the `fast` layer (`scripts/ci_layer.py`): `cargo deny check licenses 
 
 **Revisit** when an advisory database can be pinned and read offline, or when the graph needs a licence
 outside the list (a reviewed addition here first).
+
+---
+
+## ARC-63 — The World's Interaction List: one section shape for every pack, typed and enforced by its owner
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-2
+overruled, QIL-4 … QIL-6, QIL-9, QIL-11 … QIL-16) and the primary session at PR IL-b's design freeze
+(step-18-interaction-list §12; QIB-1 … QIB-14 accepted as recommended) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to** `ARC-25`, `ARC-31`, `ARC-33`, `ARC-34`,
+`ARC-61`, `ARC-64`, `ARC-65`, `DEP-28`, `INV-13` · **Design**
+`.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.4 … §4.6, §4.10, §12 (S17, PR IL-b)
+
+**Problem.** A world author wants to say, without code, that nobles and commoners do not talk, that a
+conversation lasts longer in this world, that an heirloom cannot be given. Every such rule today is a
+compiled constant or a hard-coded branch inside one System Pack (step-18 §2.2). `ARC-61` gave every pack
+a world-level file it types; it did not say what that file looks like. If each pack invented its own
+shape, an author would learn twelve dialects, a tool could print none of them, and the first rule that
+needed a class of person would be written twelve times.
+
+**Choice.**
+
+1. **One shape for every pack.** A pack's part of the list is its **section**: the file
+   `configure/<pack id>.yaml`, carried by `ARC-61`'s seam unchanged. Every section has the same six
+   optional keys and refuses any other (`deny_unknown_fields` throughout):
+
+   ```yaml
+   extends: default            # one of this pack's reference lists (item 4)
+   default: permit             # permit | forbid: what an action no rule matches gets; permit unless said
+   rules:                      # { action, <role>: <selector>…, effect: permit | forbid }
+     - { action: talk, actor: noble, target: commoner, effect: forbid }
+   parameters:                 # { <role>: <selector>…, <field>: <value>… }; unscoped = the base
+     - { gap: 600 }
+     - { actor: guard, gap: 1200 }
+   consequences:               # { fact, <role>: <selector>…, audience?, biography?, <knob>… }
+     - { fact: spoke, actor: servant, biography: off }
+   regions:                    # by place key: rules, parameters and consequences for that place only
+     library: { parameters: [ { gap: 60 } ] }
+   ```
+
+   A **selector** is an entity class (`ARC-64`), a type's implicit class, or `*`. A **role** is a position
+   the owning pack declares per action and per fact: `actor`, `target`, `object`, `place`.
+2. **The SDK supplies the shape; the pack supplies the meaning.** A pack implements
+   `mineworld_sdk::interactions::InteractionSection` and writes `mineworld_sdk::interactions!();` inside
+   its `impl SystemPack`:
+
+   ```text
+   type Parameters      made by parameters!: each field's type, bound (L0) and default, with an
+                        all-optional partial twin for scoped entries
+   type Knobs           pack-specific consequence fields (`()` for none)
+   ACTIONS              each action: its roles, and whether a region may scope it
+   FACTS                each fact type: which envelope position fills each role, its default audience,
+                        the narrowest audience a list may choose, whether biography is configurable
+   PARAMETER_ROLES      the roles a parameter entry may scope by
+   CONFIGURED, COMPONENT   the names of its configured fact and per-place component
+   reference_lists()    the compiled lists; always `default` (today's behaviour)
+   encode, decode       the configured fact's payload, with the pack's own codec
+   ```
+
+   `interactions!()` makes the section the pack's configuration (`ARC-61`'s `CONFIGURATION`,
+   `CONFIGURATION_FACTS`, `decode_configuration`), so a pack with a section has no other configuration,
+   and states `INTERACTIONS` for the installed set's `Capability::interaction_section()`, which the tools
+   read. The pack's `declaration()` and `install()` call `interactions::declare` and
+   `interactions::install`, and its `react` calls `interactions::reduce` first.
+3. **What decoding refuses, at its line and column** (the section's own type, `DEP-10`): an action or fact
+   the pack does not declare; a role the pack does not declare for that action, fact or parameter
+   block; a parameter outside its bound or unknown; a widened audience or one below the owner's
+   narrowest (`ARC-65`); `biography` on a fact whose owner does not allow it; a rule in a region for an
+   action that is not regional; an `extends` naming no reference list of the pack, or one whose chain
+   is cyclic or longer than four. After decoding, once the world's classes are read, the loader refuses
+   by name, naming the file, the list and the index of each entry: a selector naming a class that is
+   neither declared nor implicit (`ClassUndefined`), and two **ambiguous** entries (`AmbiguousEntries`,
+   item 5). A region naming no declared place is `ARC-61`'s unknown-entity refusal.
+4. **Levels, highest last** (`L0` is never overridden):
+
+   ```text
+   L0  the pack's bounds         code; a value outside them is refused at load
+   L1  the pack's `default`      compiled; today's behaviour
+   L2  extends                   a named reference list of this pack (chains of at most four, no cycle)
+   L3  the world's section       configure/<pack>.yaml
+   L4  a region                  that section's regions.<place> entries, for that place only
+   ```
+
+   A higher level's entry replaces a lower level's entry with the same key — the action or fact plus its
+   selectors — field by field for parameters and consequences; entries with different selectors
+   coexist.
+5. **Then specificity, then forbid.** Among the entries that apply to a request, the one naming the most
+   roles wins (an implicit class counts as named). Among rules of equal specificity, `forbid` overrides
+   `permit` (Cedar's rule, `DEP-28`). Two parameter entries or two consequence entries of equal
+   specificity that **overlap** and give one field different values are refused at load: so ambiguity
+   never reaches run time, and a lookup's answer does not depend on the order an author wrote entries
+   in. Two entries overlap when, for every role, their selectors are equal, or one is `*`, or one is an
+   implicit class whose type the other's class selects.
+6. **Storage.** A configured section is resolved at genesis, by a pure function of the files, into one
+   genesis fact `<pack>-interactions-configured`, `Visibility::SystemInternal`, no subjects, holding
+   every level merged, each region, and the classes the section references. The pack reduces it into a
+   component `<pack>-interactions` on every Place, holding the base and that place's region. The drift
+   check (`ARC-61` item 7) compares that fact, so an edited section, an edited referenced class or a
+   changed attachment is refused at resume.
+7. **Lookups are pure and total.** `permits` (`Err(PermissionDenied)` when forbidden), `parameters`
+   and `consequence` read the component on the place the pack names (a request's actor's place, a
+   reaction's fact's place; without a place, the base, which every copy holds). With no component —
+   the world configures nothing for that pack — each returns the compiled default and reads nothing
+   else: `Ok`, the default parameters, the owner's default audience and compiled biographical flag. So
+   a world that configures nothing produces byte-identical facts, pack by pack.
+8. **Enforcement stays in the owning pack.** In `validate`, `permits` after the payload, actor and
+   target exist and before the spatial requirement; in its offers through the same call, as
+   `Offer::refused(PermissionDenied)` (`ARC-34` note); `consequence` at emission; `parameters` where it
+   decides. The kernel sees nothing new.
+9. **A list cannot grant.** It names only declared actions and facts; `permit` is a filter AND-ed with
+   the pack's own validation; parameters stay within bounds; audience only narrows and biography changes
+   only where the owner allows (`ARC-65`); a section for a pack the world does not enable is refused
+   (`ARC-61`).
+10. **`mineworld interactions <world> [--place KEY] [--json]`** prints each configured section resolved
+   — base, then each region — each entity's class, and "default (compiled)" for a pack with a section
+   that the world does not configure. It reads the World Pack only and writes nothing. Its JSON has
+   sorted keys and is stable.
+
+**Options considered.** (a) Each pack's own file format — rejected: twelve dialects, no tool. (b) A
+general policy engine — rejected (`DEP-28`). (c) **One SDK shape, the meaning per pack** — chosen.
+
+**Accepted limitations.**
+- No attribute conditions (`when regard > 50`, QIL-11): data only, no expressions (QPL-1).
+- A reference list is written in Rust by its pack, not in YAML: neither the SDK nor a pack depends on a
+  YAML parser, and the loader's parser is not handed to them.
+- A pack with a section has no other configuration file; a pack that needs a `data:` attachment
+  (`ARC-61` note) and a section at once is a later amendment, when one exists.
+- Converting a pack raises its `SystemVersion` (its declaration grows), so older saves are refused by
+  name (`ARC-25`); no fact digest moves. A pack's `default` is pinned to its version by one test per
+  pack.
+- In IL-b only `conversation` and `group-activity` have sections, and they declare parameters only.
+  Rules and consequences of real packs arrive with IL-e … IL-g.
+
+---
+
+## ARC-64 — Entity classes are named tag selectors, fixed during play
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-3,
+QIL-6, QIL-7; QIL-2 overruled, so classes live in `configure/classes.yaml`) and the primary session at PR
+IL-b's freeze (QIB-8) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to**
+`ARC-36`, `ARC-61`, `ARC-63`, `A-1` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md`
+§4.2, §12 SD-IB-4
+
+**Problem.** A rule about "nobles" needs to know who is a noble, in every pack, without a new owner of
+state and without changing a world that never mentions nobles.
+
+**Choice.**
+
+1. **A class names a tag over one entity type.** `configure/classes.yaml` is a list of
+   `{ class, of, tag }`: `class` has the system-id grammar (`authoring::ClassName`); `of` is `person`,
+   `place`, `item` or `organization`; `tag` is a `Tag`. It is decoded by
+   `mineworld_authoring::EntityClasses`.
+2. **One class per entity, by priority.** An entity's class is the first entry whose `of` is its type
+   and whose tag it carries; otherwise its type's **implicit class**, named by the type. Every entity
+   also matches the selector of its type's implicit class. The four implicit names are reserved.
+3. **Classes are not state.** Tags are a taxonomy fixed after genesis (`A-1`), so a class needs no fact,
+   no component and no owner, and does not change while a world runs. `classes.yaml` is not seeded on
+   its own: each section's resolved fact copies the class entries it references, and the entries of the
+   same type listed before one of them (which could shadow it). So editing a referenced class is drift
+   (`ARC-61` item 7), and editing an entry no section can see is not.
+4. **`classes` is a framework key of `configure:`**, not a System Pack id: listed to be read, read
+   before any section is decoded, refused as `ClassesInvalid` (its line and column) when a class is
+   defined twice, an implicit name is reused, or `of` is not one of the four types. An unlisted
+   `configure/classes.yaml` is refused as any undeclared file is.
+
+**Options considered.** (a) A `classes` pack owning a mutable `Class` component and facts —
+rejected for MVP-0 (QIL-7): an owner, facts and a migration for what tags already say. (b) **Named tag
+selectors** — chosen: byte-identical when unused, already disclosed to clients, already immutable.
+
+**Accepted limitations.** One class per entity and no inheritance (QIL-6); no promotion during play
+(QIL-7); a tag no class names has no effect, and `mineworld interactions` prints each entity's class so
+an author sees which applies (R-IL-7).
+
+---
+
+## ARC-65 — Consequence routing: a list narrows a fact's audience and switches its biography, within the owner's bounds
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-8,
+QIL-10, QIL-15) and the primary session at PR IL-b's freeze (QIB-11, QIB-12) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2 · **Relates to** `INV-4`, `INV-11`, `INV-13`, `ARC-29`, `ARC-63`
+· **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.7, §12 SD-IB-11, SD-IB-13
+
+**Problem.** "Servants' lines are not history; nobody overhears in this world." A world must be able to
+say what a fact means for history and perception without ever stopping a fact from being recorded,
+leaking private state, or telling a mind what to forget.
+
+**Choice.**
+
+1. **What a list may govern, per fact type and role selectors:** its **audience**, narrowing along
+   `Public ⊇ Place ⊇ Participants`, never below the owner's declared narrowest and never wider than its
+   default (a widening is refused at load); its **biography** flag, `on` or `off`, only where the owner's
+   `FactDecl` allows; and the pack's own typed knobs. `Entities(…)` and `SystemInternal` are never
+   produced by a list: a list cannot name entities.
+2. **What it may never do:** widen an audience; stop a fact from being recorded (`INV-11`); change a
+   payload, an owner or a fact's subjects; route another pack's fact. A fact stated through another pack's
+   constructor takes its consequence from its owner's section.
+3. **"Enters history", layer by layer:**
+
+   ```text
+   fact log     always: every fact is recorded in every world (INV-11)
+   biography    the ARC-29 projection asks the save's configured sections (item 4)
+   in-world     the owning pack's own state (conversation's Remembered), through that pack's knobs
+   memory       cognition's, from perceived facts only: the list reaches it only through audience
+   ```
+
+   No list writes into a mind; a world cannot tell cognition what to forget (QIL-10).
+4. **`ARC-29` amended.** The biography projection selects through
+   `mineworld_sdk::interactions::biography::selected(fact, person, compiled, configured)`. `Configured`
+   is assembled from the save's genesis `*-interactions-configured` facts, each composed capability's
+   `FactDecl`s, and each entity's type and tags. With nothing configured it is `ARC-29` exactly.
+5. **The audience is chosen by the owner at emission**, through `consequence`, and carried in the
+   envelope's `Visibility`; perception reads only the envelope, so it applies a list's narrowing with no
+   change and no knowledge of lists.
+
+**Accepted limitations.** In IL-b no installed pack declares a configurable fact: the routing is proven
+with a test-only pack, and through the binary when IL-e converts conversation (QIB-11). Perceiving a
+narrowed fact as a bystander is proven by S11-C's audience function and `mineworld perceived` when they
+exist (QIB-12); IL-b proves the envelope's `Visibility`.
+
+---
+
+## DEP-28 — The Interaction List: our own narrow schema, on Cedar's semantics; no policy engine
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List", decision
+numbers) and the primary session at PR IL-b's freeze · **Relates to** `REUSE_POLICY.md` §§2, 11–12, 17,
+`ARC-63`, `QPL-1` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §3
+
+**Problem.** The list decides three things, deterministically, on the hottest paths (`validate`,
+offers, emission): is a (role classes, action, place) tuple allowed; which value of a typed parameter
+applies; which audience and biographical flag a fact gets.
+
+**Options considered** (step-18 §3.2, primary sources):
+
+```text
+flecs relationships        storage and queries, not rules; an ECS is DEP-1's rejection    reference
+RimWorld / Factorio        data names code; ordered composition; untyped, game-bound      reference
+Cedar                      exactly the rule semantics (scope triple, forbid overrides     adopt the semantics,
+                           permit, schema validation); nothing for parameters or          not the engine
+                           consequences; conditions are an expression language; default
+                           deny; an entity set per request; "skip on error"
+OPA / Rego                 general language; time, randomness and network builtins        reject
+Casbin                     scripted matchers (rhai), async runtime, untyped model files   reject
+interaction matrices       the presentation authors expect                                reference
+our own SDK schema         all three columns, integers, sorted data, pure lookups         build, narrowly
+```
+
+**Choice: build, narrowly, with Cedar's semantics.** Our rule grammar is Cedar's scope triple without
+`when`; our tie rule is forbid-overrides-permit; our sections are validated by their owner's type before
+anything runs. Unlike Cedar, a world's default is `permit` (today's behaviour) and an erroring entry is
+refused at load, never skipped. No dependency is added; YAML is `serde-saphyr` (`DEP-10`), as before.
+
+**Revisit trigger.** Attribute conditions becoming a requirement (QIL-11): Cedar's engine is then the
+candidate, not a language of our own.
+
+---
+
+## ARC-56 — Cognition is a client: a Python process joins a seat over the public protocol
+
+**Date** 2026-10-08 · **Status** accepted; implemented first by S10 PR P3 (`mineworld-sdk`) · **Approved
+by** the primary session at P3's design freeze (step-17 S10 freeze; P3 §11.1) · **Relates to** `ARC-41`,
+`ARC-34`, `INV-1`, `INV-9`, `INV-13`, effort decision `D-4` · **Design**
+`.structured-coding/plans/mvp0/step-17-cognition.md` §§3.2, 4.6;
+`.structured-coding/plans/mvp0/pr-s10-p3-python-sdk.md` · **Placeholder in the step design**
+`ARC-S10-a` (S10's range `ARC-56 … ARC-60`, `overall.md` ruling 6)
+
+**Problem.** Cognition is Python (`ENGINEERING_STANDARDS.md` §3) and the world is Rust, and the server
+must never block on a model (`ARCHITECTURE.md` §9). Something carries what a seat perceives out to the
+cognition process and its requests back in.
+
+**Options considered** (step-17 §4.6, with licences and maturity):
+
+```text
+(a) an LM controller in Rust, inside the server   a model stall shares the world's process; Rust's model
+                                                  clients are thinner; against §3's Python rule
+(b) Python embedded in the server (PyO3)          a cognition crash or GIL stall is a world crash or
+                                                  stall; the server crate would depend on a controller
+(c) a Python sidecar behind a Rust driver          a second protocol (gRPC or stdio JSON-RPC) beside the
+    (gRPC or stdio JSON-RPC)                       client one; one controller split over two processes
+(d) a Python process that is a client of the      chosen
+    public protocol, one WebSocket per seat
+```
+
+**Choice: (d).** A model-driven Person is a client. Its process joins a seat with the invite and a
+nickname, receives exactly what that seat is entitled to, and sends the same three frames a 2D or 3D
+client sends (`join`, `submit`, `leave`). The Python side is `sdk/python` (`mineworld-sdk`): typed
+mirrors of the revision-2 frames, held to `server/tests/frames/`, and one seat session.
+
+- **`INV-9` and `INV-1` by construction.** The server cannot tell a model from a person, and has no path
+  a model could use that a player lacks.
+- **One boundary.** The JSON client protocol is already proven from Godot; Python is its next consumer,
+  checked by the same golden frames (`ARC-41`). gRPC is declined: a second protocol beside the client
+  one, with `.proto` mirrors of every contract, for an encoding gain the protocol's rates do not need.
+- **The server never waits.** A model call happens in another process.
+
+**Consequences.** A seat's cognition has no more privilege than a player. Whatever cognition needs from
+the world (reliable perceived events, a resumable cursor, seat exclusivity) is a protocol feature every
+client gets (step-17 §11, S11-B, S11-C). A Python SDK names no System Pack's vocabulary
+(`mineworld-sdk` builds requests generically from what an observation offers); pack-specific request
+builders live with the controller that uses them (P6).
+
+**Revisit** if a measured latency or bandwidth need cannot be met by the JSON protocol — the same
+trigger as `ARC-41`'s encoding choice.
+
+---
+
+## DEP-24 — Pydantic for the Python wire models
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 (`pydantic>=2.13,<3`; locked 2.14.0) · **Approved
+by** the primary session at P3's freeze (QP3-7) · **Licence** MIT · **Relates to** `ARC-56`, `ARC-41`
+· **Design** step-17 §4.2, §4.7 ("Wire models"); P3 D-P3-3, D-P3-7 · **Placeholder** `DEP-S10-b`
+
+**Problem.** The Python SDK holds every revision-2 frame as a typed value, decodes what the server
+sends strictly (unknown fields refused, ids only as decimal strings, integers never floats, closed
+enumerations, the contract's cross-field rules), and re-encodes to exactly what the Rust types write.
+Later S10 PRs need JSON Schema generation for structured model output from the same library.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12):
+
+```text
+(a) Pydantic 2 (MIT; the ecosystem standard; pyright understands its models)
+(b) msgspec (BSD-3-Clause; faster)
+(c) dataclasses plus our own validation
+```
+
+**Choice: (a).** Strict models with discriminated unions; validation is local and deterministic.
+- **(b) declined:** speed is not a constraint at 10 Hz per seat, and it would be a second schema library
+  once P6 needs Pydantic's JSON Schema for structured output.
+- **(c) declined:** re-implementing strict decoding, discriminated unions and schema generation is
+  exactly the wheel `REUSE_POLICY.md` §12 forbids rebuilding.
+
+**Isolating interface.** `mineworld_sdk.wire`: callers name the SDK's model types and `codec.encode` /
+`codec.decode`; how a model validates is not part of the SDK's interface.
+
+**Revisit** if decoding cost is measured to matter, or Pydantic 3 changes the model API.
+
+---
+
+## DEP-25 — `websockets` for the Python client's WebSocket
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 (`websockets>=17,<18`; locked 17.2) · **Approved
+by** the primary session at P3's freeze · **Licence** BSD-3-Clause · **Relates to** `ARC-56` · **Design**
+step-17 §4.6, §4.7 ("WebSocket client"); P3 R-P3-6 · **Placeholder** `DEP-S10-c`
+
+**Problem.** One asyncio WebSocket connection per seat, text frames only, to a local or remote server.
+
+**Options considered:**
+
+```text
+(a) websockets (BSD-3-Clause; asyncio-native; maintained; requires Python >= 3.10)
+(b) aiohttp (a whole HTTP client and server framework)
+(c) httpx-ws (not verified)
+(d) our own client over asyncio streams (RFC 6455 framing, masking, close handshake)
+```
+
+**Choice: (a)**, its `websockets.asyncio.client` implementation only, pinned to one major version
+because the library has replaced its asyncio API before (R-P3-6).
+- **(b) declined:** a framework for one socket.
+- **(c) declined:** maturity not verified.
+- **(d) declined:** commodity infrastructure (`REUSE_POLICY.md` §12).
+
+**Isolating interface.** `mineworld_sdk.session.SeatSession` is the only module that imports
+`websockets`; nothing else in the SDK, and no caller, names a `websockets` type.
+
+**Revisit** at the next major version, or if a transport other than WebSocket is added.
+
+---
+
+## DEP-26 — The Python toolchain: uv, ruff, pyright, pytest and pytest-socket
+
+**Date** 2026-10-08 · **Status** adopted by S10 PR P3 · **Approved by** the primary session at P3's
+freeze (QP3-3, QP3-4, QP3-6) and the operator's platform requirement of 2026-10-08 · **Relates to**
+`DEP-17`, `DEP-18`, `ARC-48` · **Design** step-17 §4.7; P3 D-P3-4, D-P3-10, D-P3-11, R-P3-1, R-P3-2,
+R-P3-9, R-P3-10 · **Placeholder** `DEP-S10-e`
+
+**Problem.** Python enters a Rust repository. Its environments must be reproducible from one lock on
+Linux, macOS and Windows; its code must be linted and type-checked strictly from the first module; its
+suite must run with no network but localhost (`I-11`); and CI must run all of it without slowing the
+required Rust checks.
+
+**Choices, each with its alternatives:**
+
+| Piece | Adopted (licence; version locked at P3) | Declined, and why |
+| --- | --- | --- |
+| Environments, locking, running | **uv** (MIT OR Apache-2.0, verified on PyPI 2026-10-08; uv 0.12) with a **virtual workspace root** (`pyproject.toml` with only `[tool.uv.workspace]`) and one universal `uv.lock`; its build backend `uv_build` for the SDK package | pip + venv + pip-tools: two tools and no workspace; Poetry: heavier, slower, no universal lock across members. A lock per package: two resolutions of shared dependencies once P6 adds a member (QP3-4) |
+| Lint and format | **ruff** (MIT; 0.16) | flake8 + isort + black: three tools doing what one does |
+| Types | **pyright** (MIT; 1.1.414) from PyPI with its **`nodejs` extra**, which brings Node.js as a locked wheel (`nodejs-wheel-binaries`, MIT) for every platform | mypy: weaker inference on Pydantic and asyncio code, and the step's design names pyright; basedpyright: equivalent, kept as R-P3-1's fallback; Node.js in the CI image: a second toolchain to pin |
+| Tests | **pytest** (MIT; 9.1) | unittest: no fixtures or markers to run the real server once per test and deselect it by name |
+| Network guard | **pytest-socket** (MIT; 0.8.1), `--allow-hosts=127.0.0.1,::1` on every platform | our own socket patching in `conftest.py`: re-implementing a small, purpose-built library (QP3-6) |
+| CI, non-Linux legs | **`astral-sh/setup-uv`**, pinned by commit SHA in `ci.yml` (recorded with the job) | installing uv by a shell script fetched at run time: not pinned |
+
+**Verified at P3 (C1), not assumed:**
+- uv accepts a virtual root, and `uv sync --locked` builds the workspace from it.
+- `uv.lock` holds `win_amd64`, `macosx_*_arm64` and `manylinux*_x86_64` wheels for every compiled
+  dependency (`pydantic-core`, `websockets`, `nodejs-wheel-binaries`).
+- The pyright wrapper prefers a `node` already on `PATH` and, unless told otherwise, asks PyPI whether it
+  is the newest release on every run. CI therefore runs it with `PYRIGHT_PYTHON_GLOBAL_NODE=0` (the locked
+  Node wheel, not whatever Node the runner has) and `PYRIGHT_PYTHON_IGNORE_WARNINGS=1` (no version query).
+- pytest-socket blocks `connect` to any host but the allowed ones; with `--allow-hosts` given it ignores
+  `--disable-socket`, so asyncio's self-pipe works on every platform with the same flags.
+
+**Isolating interface.** The commands live in `.structured-coding/standards.md` and in
+`scripts/ci_layer.py`; every one runs `uv run --locked`, so the lock is the whole resolution.
+
+**Revisit** if uv's licence changes, if pyright's wrapper stops shipping its JavaScript, or when a
+second workspace member needs a different Python floor.
+
+---
+
+## ARC-67 — Two time domains: `WorldTime` is calendar time; embodied time is not a world quantity
+
+**Date** 2026-10-08 · **Approved by** the operator (requirements of 2026-10-08, rulings QTW-1, QTW-2,
+QTW-5, QTW-9, QTW-13) and the primary session at PR TW-a's design freeze · **Implements**
+[`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 · **Relates to** `ARC-26`, `ARC-27`, `ARC-28`, `ARC-61`,
+`ARC-68` (calendar and weather packs, TW-b), `ARC-69` (pause and scale, TW-c), `DEP-6`, `DEP-30` ·
+**Design** `.structured-coding/plans/mvp0/step-19-time-weather.md` §4, §15.1 (S19)
+
+**Problem.** The operator asked for a town whose day passes faster than a real day — a real 24 hours
+mapped onto 4, 2 or 1 real hours (6×, 12×, 24×; 12× by default), changeable live, and pausable — and
+fixed what the speed may and may not touch: it changes the rate of weather and of world events (the
+calendar, day and night, the sun, schedules, shifts, wages), and it must **not** change how fast a
+character walks, animates, falls or talks. The kernel already has one clock, `WorldTime`, and states
+that "how fast a hosted world's seconds pass in real time is the host's decision" (`kernel/src/clock.rs`).
+The question is how the two kinds of time relate without the kernel learning what a day is.
+
+**Choice.**
+
+1. **Calendar time is `WorldTime`**, unchanged: the world's one clock, whole simulated seconds from the
+   epoch. Every fact, Process wake-up and `Observation.at` is stamped in it, and the calendar, the sun,
+   weather, routines, shifts, wages and every calendar-driven Process are functions of it.
+2. **Embodied time is not a world quantity.** It is real (wall-clock) time as a body experiences it:
+   how fast a player walks, how long a line takes to type, how long an animation or a physics impulse
+   plays. No fact, component, Process or rule carries it. It exists only as the cadence at which
+   embodied inputs arrive at the server: a human's client sends requests at human speed, the host
+   consults a hosted controller every *cadence* wall seconds, and a client animates at frame rate. A
+   per-request rule (a stride, an impulse, a spoken line) is resolved at the instant its request
+   arrives, so the scale cannot reach it.
+3. **Time scale and paused are host pacing.** The time scale is world seconds per wall second while a
+   hosted world runs (an integer ≥ 1); paused is the host state in which world seconds do not pass. The
+   host turns wall time into the instant it advances the world to; the event queue fires what is due on
+   the way. Neither is world state: no System Pack, controller decision or fact reads either
+   (`INV-TW-2`). Their changes are host records in a host journal, never facts (`ARC-69`, TW-c).
+4. **Consequence: hosted consult cadence is in wall seconds** (QTW-13, ruled by the operator; it reverses
+   QS11B-4 for consult cadence). Headless `run` has no scale and no wall clock: it is unchanged, and its
+   output for a world without the time packs is byte-identical.
+
+**Alternatives rejected** (step-19 §4.2).
+- *Two kernel clocks with a ratio:* the kernel would learn a day, every Process would have to say which
+  clock it uses, and persistence would reconcile two timelines — kernel ignorance and change
+  amplification both fail.
+- *Each pack multiplies its durations by the scale:* packs would read host state; a rule that depends on
+  the host is a determinism and ownership defect, and headless and hosted runs would diverge.
+- *Embodied actions take world durations divided by the scale:* movement is per request and not
+  modelled in world time (`ARC-26`); inventing durations only to cancel the scale is the coupling the
+  operator asked to avoid.
+
+**Accepted limitations.** World-time constants that a human answers in practice — conversation's
+300 s gap, group-activity's 1 800 s invitation lifetime — become short in wall time at 12–24×. They stay
+calendar time by this decision's rule; making them configurable content is QTW-15 (IL-b). FX-24
+(step-19 §9.2) measures whether agendas remain feasible at 24×; its remedies are content, never a
+controller that reads the scale.
+
+---
+
+## DEP-30 — Solar position: `solar-positioning` with `libm`, behind a private seam; civil dates built
+
+**Date** 2026-10-08 · **Status** selected; one dependency added to `systems/calendar` only · **Approved
+by** the primary session at PR TW-a's design freeze (SD-TW-a-1, SD-TW-a-6, SD-TW-a-7; §16.8 (a)) ·
+**Relates to** `ARC-67`, `REUSE_POLICY.md` §§11–12 · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.1, §5.4, §16 (S19, PR TW-a)
+
+**Problem.** The `calendar` System Pack must say, for a configured latitude and longitude, where the
+sun is at any instant and when the day's light events fall (astronomical and civil dawn, sunrise, solar
+noon, sunset, civil and astronomical dusk), including polar days and nights. It must also turn an
+instant into a civil date and weekday. Every result enters facts, so it must be the same integers on
+every platform.
+
+**Options considered** (read 2026-10-08; the full table is step-19 §3.1).
+
+```text
+solar position
+  (a) solar-positioning 0.7.0 — MIT; NREL SPA and Grena3; azimuth, zenith, rise, set, transit, every
+      twilight; numeric Julian-date API with no chrono and no heap; `libm` feature; pre-1.0
+  (b) NOAA Solar Calculator equations (Meeus), ~100 lines of our own
+  (c) NREL SPA C reference code — not freely redistributable
+  (d) sunrise 3.0 — rise and set only, no elevation or azimuth; chrono
+  (e) spa 0.5 — not NREL's SPA despite its name; stale
+  (f) sun 0.3, astro 2.0 — low accuracy or abandoned
+civil dates
+  (g) chrono or time — mature, but heavier than the two functions the pack needs
+  (h) H. Hinnant's public-domain integer algorithms days_from_civil / civil_from_days, ~25 lines
+```
+
+**Choice: (a) and (h).**
+- `solar-positioning = { version = "=0.7.0", default-features = false, features = ["libm"] }`, an exact
+  pin, in `systems/calendar/Cargo.toml` only. With `libm` and without `std` the crate's transcendental
+  functions are the pure-Rust `libm`'s, not the platform's, so the same inputs give the same bits on
+  every host. The lock gains `solar-positioning` alone (`libm` 0.2.16 is already locked).
+- Civil dates are (h), in `systems/calendar/src/civil.rs`, citing their source.
+
+**Why not the others.** (b) is the fallback, kept ready: it would be ours to maintain and test for no gain
+in fit. (c) fails the licence rule. (d) cannot light a scene. (e) and (f) are less accurate, stale or
+dead. (g) would add a dependency for two integer functions and a weekday; formatting a date is a
+client's job.
+
+**Isolating interface.** `systems/calendar/src/sun.rs` is the only file that names the crate:
+`sun_at(…) -> SunSample` and `day_events(…) -> DayEvents`, both returning integers (millidegrees,
+whole seconds; round half away from zero). If the pre-1.0 API churns or the crate is withdrawn, the same
+two functions are re-implemented from (b) without touching anything else.
+
+**Determinism and its guard.** Every output is quantized to integers before it reaches a fact, a
+Process state or a disclosure. A test pins three exact `SunSample` integers (San Diego at 12:00 and
+18:00 local on 2026-10-08, 78° N at winter-solstice noon). A change to any of them — a dependency bump,
+a platform difference at a rounding boundary — fails the test and is a material stop, never a re-golden.
+
+**Accepted limitations.** The library is pre-1.0 and its README warns the API may change: the exact pin
+holds it. Delta T comes from the library's own estimate at the middle of the day's month, so it is fixed
+per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
+latitudes on the few days with two crossings of one horizon, the second is not an event that day and
+the next day's opening phase corrects the light.

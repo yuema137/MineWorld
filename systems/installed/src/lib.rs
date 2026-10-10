@@ -48,5 +48,6 @@ mineworld_sdk::installed! {
     Employment => mineworld_employment::EmploymentSystem,
     Consumption => mineworld_consumption::ConsumptionSystem,
     Bodies => mineworld_bodies::BodiesSystem,
+    Calendar => mineworld_calendar::CalendarSystem,
     Fishing => acme_fishing::FishingSystem,
 }

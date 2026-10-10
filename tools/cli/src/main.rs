@@ -3,6 +3,7 @@
 //! ```text
 //! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--town]
 //!                  [--seed N] [--pace SECONDS] [--hold SECONDS] [--time-scale N] [--save DIR]
+//!                  [--admin-token TOKEN]
 //!                                       load the pack and host it; with --save, persisted;
 //!                                       clients join with the invite (generated and printed
 //!                                       when neither --invite nor MINEWORLD_INVITE gives one);
@@ -60,11 +61,15 @@ mod biography;
 mod create;
 mod hosted;
 mod inspect;
+mod interactions;
 mod invite;
 mod packs;
 mod perceive;
 mod run;
 mod serve;
+
+// Where `run` and `replay` find it since it moved beside `persisted` (step-12 D-SD1).
+pub(crate) use serve::saved_genesis;
 
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
@@ -72,11 +77,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
-use mineworld_persistence::{
-    Durability, PersistError, PersistenceBackend, SqliteBackend, WorldRevision, format, verify,
-};
+use mineworld_persistence::{Durability, SqliteBackend, verify};
 use mineworld_worldpack::{PackError, PackRoots, WorldPack};
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
@@ -109,6 +112,10 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
+        /// The bearer token that opens the admin surface under /admin; without it (and without
+        /// MINEWORLD_ADMIN_TOKEN) there is none. Never printed; must differ from the invite.
+        #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
+        admin_token: Option<String>,
         /// Drive that seat with the reactive rule controller, on the world thread, whenever no
         /// player holds it. Repeat it for more than one.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
@@ -220,6 +227,20 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// What a World Pack's Interaction List resolves to: each configured section, base then regions,
+    /// and each entity's class (ARC-63, ARC-64). Reads the pack only.
+    Interactions {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only the resolution that applies at this place.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        place: Option<EntityKey>,
+        /// One JSON document, keys sorted.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -295,6 +316,7 @@ async fn main() -> ExitCode {
             world,
             listen,
             invite,
+            admin_token,
             agents,
             town,
             seed,
@@ -309,6 +331,7 @@ async fn main() -> ExitCode {
                     world,
                     listen,
                     invite,
+                    admin_token,
                     agents,
                     town,
                     seed,
@@ -353,6 +376,19 @@ async fn main() -> ExitCode {
                 world: &world,
                 save: &save,
                 person: &person,
+                json,
+                roots: &roots,
+            })
+        }),
+        Subcommand::Interactions {
+            world,
+            place,
+            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            interactions::interactions(&interactions::InteractionsRequest {
+                world: &world,
+                place: place.as_ref(),
                 json,
                 roots: &roots,
             })
@@ -447,7 +483,7 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let backend = SqliteBackend::open(save, Durability::PowerLoss)
         .map_err(|error| format!("[mineworld] {error}"))?;
-    let genesis = saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
+    let genesis = serve::saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
     pack.check_configuration(&genesis).map_err(described)?;
     let composed = pack.compose().map_err(described)?;
     let verified = verify(&backend, composed.world)
@@ -462,17 +498,6 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
         verified.head.raw(),
     );
     Ok(())
-}
-
-/// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
-/// resumes or verifies, so that a save never runs on against a configuration other than the one it was
-/// created with (`DECISIONS.md` `ARC-61` item 7). Shared by `replay` here and `serve::persisted`.
-pub(crate) fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
-    backend
-        .facts_of(WorldRevision::GENESIS)?
-        .iter()
-        .map(|row| format::decode(&row.bytes, "fact"))
-        .collect()
 }
 
 /// A pack's own refusal, as a person reads it.

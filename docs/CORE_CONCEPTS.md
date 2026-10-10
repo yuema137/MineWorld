@@ -839,3 +839,34 @@ network_profile:
 
 A world's identity is its semantics. Renderer, transport, deployment target, database, and
 model provider are all interchangeable around it (INV-14).
+
+---
+
+# 17. Time
+
+A world has one clock, `WorldTime`: whole simulated seconds from the world's epoch. Four terms say how
+it relates to real time ([`DECISIONS.md`](DECISIONS.md) `ARC-67`). They are not synonyms of one another,
+nor of `Process` or `Event`.
+
+```text
+calendar time   WorldTime. Every Event, every Process wake-up and every Observation is stamped in it;
+                dates, the sun, weather, routines, shifts and wages are functions of it. A System Pack
+                gives it a meaning (a calendar pack says which date an instant is); the kernel does not.
+embodied time   real (wall-clock) time as a body experiences it: how fast a player walks, how long a
+                line takes to type, how long an animation or a physics impulse plays. NOT a world
+                quantity: no Event, Component, Process or rule carries it. It exists only as the
+                cadence at which embodied inputs reach the server.
+time scale      world seconds per wall second while a hosted world runs (an integer ≥ 1). Host pacing,
+                not world state.
+paused          the host pacing state in which world seconds do not pass. Not world state.
+```
+
+Rules that follow:
+
+1. No System Pack, Controller decision or Event depends on the time scale or on paused. Only the host
+   and the clients see them.
+2. A per-request rule — a stride, an impulse, a spoken line — is resolved at the instant its
+   `ActionIntent` arrives, so the time scale cannot reach it.
+3. Headless `run` has no time scale: it advances calendar time as fast as the machine allows.
+4. A calendar's local midnight is every multiple of 86 400 s from instant 0, the convention every
+   calendar-driven pack shares.

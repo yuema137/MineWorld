@@ -1,8 +1,10 @@
 # Step 19 — S19: World time, two time domains, pause, day and night, weather
 
 **Lifecycle:** step plan reviewed; the questions are ruled (§14.1, 2026-10-08). **TW-a (§16) is `DESIGN
-FROZEN 2026-10-08`**, and §16 alone authorizes implementation, under its execution contract (§16.7). TW-b to
-TW-g are scoped in §11 and are not frozen.
+FROZEN 2026-10-08`** and merged (#94, f80bbb7). **TW-b (§17) and TW-d (§18) are `DESIGN FROZEN
+2026-10-09`** (primary session; rulings in §17.9.1 and §18.9.1). Each authorizes implementation under its own
+execution contract (§17.10, §18.10). TW-d starts only after TW-b and IL-b have merged. TW-c, TW-e, TW-f and TW-g are scoped in §11
+and are not frozen.
 **Author:** the S19 planning session, 2026-10-08. Worktree `/Users/yuema137/mineworld-worktrees/plan-s19`,
 branch `plan/s19-time-weather`, from `main @ f842c52`.
 **Binding parents:** `CLAUDE.md` §§2–4; `overall.md` "Parallel build-out", "Framework, not demo", "One world,
@@ -784,7 +786,10 @@ those lanes, never in parallel with another PR editing the same client.
 | TW-g (optional) | GHCNh hourly layer → `sky_am`, `sky_pm`, `fog_hours` columns. | — | the same as TW-d's 1, 3, 4. |
 
 Each PR, when designed, gets its own `pr-TW-x-*.md` with a commit plan and execution contract; this table
-fixes scope, checkpoints and adversarial criteria only.
+fixes scope, checkpoints and adversarial criteria only. (TW-a, TW-b and TW-d are designed in place, §16,
+§17 and §18, to keep one authority. §17.6 and §18.6 restate the TW-b and TW-d rows with the corrections
+their audits required, each with its reason. Where a row and its section differ, the section governs once
+it is frozen.)
 
 ---
 
@@ -1014,7 +1019,1136 @@ whose 12:00 sample has elevation within ±0.5° of NOAA's value for that instant
 
 ## 16.9 Ledger
 
+Execution session: worktree `/Users/yuema137/mineworld-worktrees/impl-tw-a`, branch
+`mvp0/pr-tw-a-calendar`, base `origin/main @ 543c80a` (IL-a #80 merged). Handoff:
+[`handoff-tw-a.md`](handoff-tw-a.md).
+
+**Start-of-session audit (2026-10-08).** §16.2's anchors re-verified on 543c80a: `systems/employment`
+(`lib.rs` table, `process.rs` `ShiftProcess`, `system.rs` `react`/`wake`); `kernel/src/view.rs`
+`start_process` l. 332, `reschedule_process` l. 368, `set_process_state` l. 392;
+`systems/presence/src/interaction.rs` `discloses` l. 118; `systems/installed/src/lib.rs` (one line per
+pack); `authoring/src/configuration.rs` `PackConfiguration { Configuration, FACTS, references,
+requires, seed }`; `sdk/rust/src/pack.rs` `configures!()`; `worldpack/src/configure.rs` `read` / `seed` /
+`compare`; `systems/schedule/src/time.rs` `DAY = 86_400`, `TimeOfDay::of = rem_euclid(DAY)`. IL-a's
+final `seed(&Seeding, &Configuration) -> Result<Vec<Emission>, Rejection>` equals the branch's (§16.6's
+first risk did not occur). No pack on main uses `configures!()` yet: `calendar` is its first.
+
+### Commit ledger
+
+| # | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- |
+| C1 | [x] ARC-67, DEP-30 appended to `docs/DECISIONS.md`; `CORE_CONCEPTS.md` §17 *Time* (calendar time, embodied time, time scale, paused; four rules); `systems/calendar/README.md`; the spec header as `src/lib.rs`'s module doc, with a doc-only `Cargo.toml` (TWa-D1) | [x] `check_doc_headings.py`: 191 numbered sections across 26 documents, none duplicated — PASS; `check_decision_ids.py`: 71 ids, all distinct — PASS; `cargo check -p mineworld-calendar` clean | [x] terms checked against CORE_CONCEPTS §§1, 10, 11: "calendar time", "embodied time", "time scale", "paused" are new terms, none a synonym of `Process`/`Event`/`WorldTime` (calendar time is *defined as* `WorldTime`, stated, not renamed); §17 is the "time section" §15.4 asked for (none existed) |
+| C2 | [x] `civil.rs` (`CalendarDate` valid by construction; Hinnant `days`/`from_days`; `weekday` 0 = Monday); `day.rs` (`MicroDegrees`, `SunSample`, `DayEvents` + `light_changes`, `Phase`, `CalendarDay::compute`, `DAY`, `SAMPLE_INTERVAL` 900, `SAMPLES` 97); `sun.rs` (`sun_at`, `day_events`, `phase_at`; the only file naming the crate; ΔT = the library's estimate at mid-month of the instant's UTC month); dependency `solar-positioning =0.7.0`, no default features, `libm` | [x] `cargo test -p mineworld-calendar`: 8 passed (E-TWa-2): every day 1901–2099 round-trips (72 684 days); 2026-10-08 = day 20 734, Thursday; NOAA table ±150 s (rise −16 s, set −1 s, noon −8 s); elevation vs NOAA's model ≤ 0.002° at 09/12/15 h; three pinned samples (§16.8 a); 78° N polar night; equator equinox; azimuth convention. Clippy `-p mineworld-calendar --all-targets -D warnings` clean. Lock: + `solar-positioning 0.7.0` only (`libm 0.2.16` already locked). Mutations M-TWa-3a/3b below | [x] quantization: `f64::round` is half away from zero and exact on every IEEE host; azimuth 360 000 wraps to 0; event offsets kept only in 1 … 86 399 so an event never coincides with a midnight wake. Julian date `2 440 587.5 + utc/86 400` (|utc| < 2^53, exact division error ≈ 40 µs). Azimuth north = 0 clockwise is the library's convention and is tested. Phase uses unrefracted elevation against the same three horizons the event search uses, so a day's opening phase and its events agree; the track is refracted (apparent), as NOAA's displayed elevation is |
+| C3 | [x] `configuration.rs` (`CalendarConfiguration`, decode-only, `deny_unknown_fields`; `Epoch` 1901–2099 `YYYY-MM-DD`, `UtcOffset` `±HH:MM` ≤ 14 h, `Latitude` ±90, `Longitude` ±180 → micro-degrees); `event.rs` (`CalendarConfigured`, `DayBegan { day, phase }`, `DaylightChanged { phase }`); `process.rs` (`CalendarProcess` "calendar", `CalendarState { configured, day, phase }`); `component.rs` (`calendar-day`, `calendar-light`, declared, carried by no entity); `system.rs` (`PackConfiguration` + `configures!()`; `react` starts the process from `calendar-configured` and folds the other two; `wake` states midnight or the light changes due; `discloses` on the observer's place only); registry line `Calendar => mineworld_calendar::CalendarSystem` + its Cargo line | [x] E-TWa-3: `cargo test -p mineworld-calendar` 8 + 5 + 2; `-p mineworld-installed-systems -p mineworld-worldpack` all ok; `-p mineworld-acceptance` all ok (ac1_composability 13, precursor_vocabulary, seam guards unedited); `-p mineworld-cli --test configure --test commands` ok; clippy `--all-targets --all-features -D warnings` on calendar and installed clean; fmt clean. M-TWa-4 killed | [x] single ownership: only this pack writes its Process; it reads presence's `Presence` (declared dependency) and nothing of host pacing — no time scale, no pause exists in its inputs (INV-TW-2); the Process state is written only in `react` from fact payloads, `wake` only reschedules and states facts, so a snapshot equals the fold (resume test byte-identical); the configured fact is SystemInternal with no subjects; Public facts have no subjects; disclosure is keyed to `Presence` of the observer, so §16.8 (c) holds by construction and is tested; an enabled-but-unconfigured calendar states and discloses nothing (QTW-8's warning is `mineworld check`'s, not in TW-a's scope) |
+| C4 | [x] Unblocked by the operator's ruling of 2026-10-09 (option (i), TWa-R1). Two commits: 344d28b the ARC-35 note and AC-1 check 3's `GENERIC_PACKS = ["calendar"]` (`compare_systems`, new `compare_configure`, `configure/` entries); 4018434 the opt-in (`configure/calendar.yaml`, `calendar` after the six, `configure: [calendar]`), byte-identical to the parked cf91bbb | [x] E-TWa-8: AC-1 14/14 with C4; both ruled mutations red, naming the pack. E-TWa-9: market-town baseline `24a95d2a…d270` on 4018434; the other digests equal main. CP-TW-a: E-TWa-4 | [x] the market delta is still exact: the six are compared as a set right after Social Café's list; a generic pack is admitted only after them, once, and only if allow-listed; `configure` is admitted only for an enabled allow-listed pack and never in Social Café; check 3's section rule is unchanged, so a generic pack cannot add a section to a person or place file; checks 1 and 2 untouched |
+| C5 | [x] ledger, handoff, PR #94 (C4 parked; not READY — TWa-F1) | [x] full gate E-TWa-6; CI E-TWa-7 | — |
+
+### Evidence
+
+```text
+E-TWa-0  2026-10-08, base capture on 543c80a (clean tree), dev profile, by target/tw-a/capture.sh base
+         (IL-a's capture.sh method; "sha" = sha-256 of every output line but `wall`):
+         social-cafe run 300 d seed 7: exit 0, faults 0, 365 330 facts, sha ad49c723…c64b, wall 13 s
+         market-town run 300 d seed 7: exit 0, faults 0, 372 755 facts, sha 365b50e0…1d1d, wall 23 s
+         bodies-yard 30 d seed 7: exit 0, faults 0, 62 385 facts, sha bd6a1002…80e6
+         long_run second process: 4 019 632 bytes, sha 23f7fa76…5125
+         long_run_objects second process: 612 428 bytes, sha c8358f8b…c5b4
+         validate ×3: shas ebcd60a0…, 64f41086…, 7356b8f8… (= E-IA-0)
+         Every value equals main's recorded reference (E-IA-8 / E-IA-13). Town runs used: 2 of 6.
+E-TWa-1  NOAA references, read once on 2026-10-08 with the WebFetch tool (never at run time):
+         (a) https://gml.noaa.gov/grad/solcalc/table.php?lat=32.7157&lon=-117.1611&year=2026 —
+             "Time Zone Offset: America/Los_Angeles -7.0", local time with DST. 2026-10-08: sunrise
+             06:48, sunset 18:24, solar noon 12:36:14 (PDT) → at the world's fixed −08:00: 05:48, 17:24,
+             11:36:14. Cross-check: its 2026-12-21 row (standard time) 06:47 / 16:47 / 11:46:38. The
+             same URL with `&tz=-8` prints the same (the parameter is ignored).
+         (b) Elevation at an instant is computed in the browser (azel.html, the current calculator) and
+             published as no table, so the elevation reference is NOAA's own spreadsheet model
+             (NOAA_Solar_Calculations_day.xls, linked from
+             https://gml.noaa.gov/grad/solcalc/calcdetails.html, read 2026-10-08; refraction formulas
+             as that page prints them), transcribed in `src/sun/tests.rs` `noaa_elevation` — an
+             independent model, not SPA. (TWa-D2.)
+E-TWa-2  C2, 2026-10-08, `cargo test -p mineworld-calendar -- --nocapture` (macOS arm64, dev):
+         8 passed. San Diego 2026-10-08 (−08:00): sunrise 20 864 s = 05:47:44 (NOAA 05:48, −16 s),
+         sunset 62 639 s = 17:23:59 (NOAA 17:24, −1 s), solar noon 41 766 s = 11:36:06 (NOAA 11:36:14,
+         −8 s) — all within CP-TW-a's ±2 min. Other events: astronomical dawn 15 956, civil dawn
+         19 384, civil dusk 64 118, astronomical dusk 67 540. Elevation vs NOAA's model: 09:00 36.369°
+         / 36.371°, 12:00 50.759° / 50.761°, 15:00 27.965° / 27.966° — max |Δ| 0.002° (bound 0.5°).
+         Pinned SunSample (§16.8 a), millidegrees (elevation, azimuth):
+           San Diego 2026-10-08 12:00 −08:00    ( 50 759, 189 418)
+           San Diego 2026-10-08 18:00 −08:00    ( −8 391, 267 971)
+           78° N 15° E 2026-12-21 12:00 +01:00  (−11 440, 180 458)
+         78° N 2026-12-21: astronomical dawn 27 433, solar noon 43 083, astronomical dusk 58 731;
+         sunrise, sunset, civil dawn and dusk None; phase at midnight Night. PASS.
+M-TWa-3a Mutation (TW-a adversarial 3): `features = []` (neither libm nor std) → the crate does not
+         compile ("cannot find module or crate `libm`", ×8 in solar-positioning). Fails loudly. Reverted.
+M-TWa-3b Variant: `features = ["std"]` (the platform's math) → 8 passed on macOS: at millidegree
+         quantization the platform's and libm's results agree on this host. Expected, and it is why the
+         guard is the exact feature pin plus the pinned samples on two OSes (macOS here, Linux in CI),
+         not a test that could tell the backends apart on one host. Reverted; `git diff` of
+         Cargo.toml empty against the intended text.
+E-TWa-3  C3, 2026-10-08 (macOS arm64, dev): `cargo test -p mineworld-calendar`: lib 8, tests/calendar 5,
+         tests/configuration 2 — all pass. tests/calendar: 7 days → 7 `day-began` at 0, 86 400, …,
+         dated 2026-10-08 … 14 with weekdays 3,4,5,6,0,1,2 (Thu … Wed), each at TimeOfDay 0
+         (schedule's), each naming its own midnight, opening phase Night; 42 `daylight-changed`, six a
+         day in the order AT, CT, Day, CT, AT, Night at exactly the instants the day record names; the
+         process state equals the last day and last phase, next due 7 × 86 400. Facts: day-began and
+         daylight-changed Public, calendar-configured SystemInternal, none with subjects. Unconfigured:
+         no facts, no records. §16.8 (c): `bo` (no Presence) → no calendar record; `ada` → exactly
+         [(square, calendar-day), (square, calendar-light)]; the noon record's sample 48 is the pinned
+         (50 759, 189 418) and the light is Day; after `place-me` puts bo in the square, bo gets the
+         same two. Restart: stopped at day 2 14:30, resumed, run to day 8 → 6 day-began (last
+         2026-10-16), facts byte-identical to the uninterrupted world's. tests/configuration: through
+         `WorldPack::read`, latitude 91 refused as "…/configure/calendar.yaml is not a valid
+         configuration file: error: line 3 column 11: latitude is decimal degrees from -90 to 90, not
+         91" (file, line/column, key, value; adversarial 5 PASS); 11 out-of-range values each refused
+         naming their key; 9 bound values accepted; an unknown key `dst` refused.
+M-TWa-4  Mutation (adversarial 4): `day_start = index × 86 400 + 1` in system.rs `day_at` → 3 of 5
+         calendar tests fail, INV-TW-4's among them ("the record names its own midnight": WorldTime(1)
+         vs WorldTime(0)); also the noon sample (azimuth 189 424 ≠ 189 418) and the restart count.
+         Killed. Reverted; `git grep MUTATION -- '*.rs'` empty.
+E-TWa-4  C4 applied, uncommitted, on fa78d36 (= the commit parked as cf91bbb on
+         mvp0/pr-tw-a-c4-proposed), 2026-10-08, dev:
+         AC-1 check 3: `cargo test -p mineworld-acceptance --test ac1_composability check_3` FAILS:
+           "world.yaml: `configure` differs" · "the systems appended to Social Café's are [item,
+           inventory, item-transfer, economy, employment, consumption, calendar], not the six market
+           packs" · "configure: present in one pack only". TWa-F1 confirmed. → MATERIAL STOP for C4.
+         CP-TW-a through the binary: `mineworld validate worlds/market-town` valid, 131 genesis facts.
+           `run worlds/market-town --headless --seed 1 --days 7 --save D`: exit 0, faults 0, 9 046 facts;
+           calendar-configured 1, day-began 8 at t0, t86400, … t604800 (TWa-D5), daylight-changed 42
+           (six a day for days 0–6). Day 0's sunrise fact at t20864 = 05:47:44 and sunset at t62639 =
+           17:23:59 (NOAA 05:48 / 17:24 at −08:00; −16 s / −1 s). Dates and weekdays of the facts are
+           the pack's (E-TWa-3 asserts 2026-10-08 … 14, Thu … Wed on the same code path).
+           Restart: D resumed to `--days 8` ("resumed … at revision 6753 (snapshot 6720 + 33
+           re-executed)") vs an uninterrupted 8-day run E: both 10 360 facts, fingerprint
+           ed1a964ca73864f9, `inspect --last 20000` identical but for the instance id; `replay` of each:
+           "7748 revision(s) re-executed from genesis, 10360 fact(s) and 122 snapshot(s) reproduced byte
+           for byte". PASS for CP-TW-a's content; its landing waits on C4.
+E-TWa-5  INV-TW-1 / §16.8 (b), by capture.sh c4 on fa78d36 + the C4 opt-in (artifacts target/tw-a/c4-*):
+         social-cafe 300 d seed 7: sha ad49c723…c64b, 365 330 facts (= main, E-TWa-0) — PASS
+         bodies-yard 30 d: sha bd6a1002…80e6 (= main) — PASS
+         long_run: 4 019 632 bytes, sha 23f7fa76…5125 (= main) — PASS
+         long_run_objects: 612 428 bytes, sha c8358f8b…c5b4 (= main) — PASS
+         validate social-cafe / bodies-yard: = main; market-town: 31fb85d4…0620 (changed by design)
+         market-town 300 d seed 7 — CANDIDATE baseline (not recorded as the baseline: C4 has not
+           landed): sha 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270, faults 0,
+           374 857 facts = main's 372 755 + 2 102 = 1 calendar-configured + 301 day-began + 1 800
+           daylight-changed; every other fact count equal to main's; wall 20 s.
+         Town runs used: 4 of 6 (E-TWa-0 ×2, E-TWa-5 ×2).
+E-TWa-6  Full gate on e7fdee7 (C1–C3 + ledger, origin/main aa74b32 merged in — planning documents only,
+         no code), clean tree, macOS arm64, by target/tw-a/gate.sh, 2026-10-08/09; host load average
+         ≈ 270 (other sessions):
+         cargo fmt --all --check                         exit 0                  PASS
+         check_doc_headings.py                           191 sections, distinct  PASS
+         check_decision_ids.py                           71 ids, distinct        PASS
+         check_ci_pins.py                                exit 0                  PASS
+         check_scratch.py scan                           159 sources, 2 exempt   PASS
+         cargo clippy --workspace --all-targets --all-features -D warnings   exit 0   PASS
+         cargo test --workspace --no-fail-fast           exit 101, 59 min: 173 test binaries,
+           755 passed, 0 failed, 9 ignored, and one harness-less target panicked:
+           persistence/tests/kill_and_resume.rs:682 "middle: the victim died of SIGKILL" — the
+           victim reached revision 236 before a kill sent at 126 landed (scenario `clock`), i.e. it
+           finished before the signal arrived. A timing race under a saturated host; TW-a changes
+           nothing persistence runs (the test composes its own scenarios, not the installed set).
+           Classified INCONCLUSIVE for TW-a, not FAIL: the same target passed in CI's `test` on the
+           same head (E-TWa-7). Re-run alone: see E-TWa-6b.
+         check_scratch.py left --target-dir target       exit 1: 4 entries, 0 B, all
+           mineworld-kill-* in the system temp dir — the panicked kill test's own scratch. Follows
+           from the line above; INCONCLUSIVE for the same reason.
+E-TWa-6b `cargo test -p mineworld-persistence --test kill_and_resume` alone on e7fdee7, load ≈ 277:
+         "[cafe] PASS", "[clock] PASS", exit 0 (899 s wall, 11 s user). The full-gate panic was the
+         load race. `check_scratch.py left` still lists the 4 empty `mineworld-kill-*` directories the
+         panicked run left in the system temp dir (0 B; removing them needs `rm`, outside this
+         session's allowed commands — left for the operator; the re-run added none).
+E-TWa-8  AC-1 amendment, 2026-10-09, on 1b4318a (origin/main 15b05a9 merged: S11-B and plans; the
+         only change on the headless path is `RuleController::since`, a new constructor — `new()` is
+         unchanged, confirmed by E-TWa-9) + 344d28b + the C4 files:
+         `cargo test -p mineworld-acceptance --test ac1_composability`: 14 passed (13 existing + the new
+         `only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them`, which holds the
+         allowed shape, both mutations and the `configure` rules on hand-written manifests).
+         Mutations on the real worlds/market-town/world.yaml, each through `check_3`:
+         M-TWa-A1 `- bodies` appended after `calendar` → FAILED: "world.yaml: `bodies` follows the six
+                  market packs and is not an allow-listed generic pack [\"calendar\"]". Killed.
+         M-TWa-A2 `- calendar` moved between economy and employment → FAILED: "world.yaml: `calendar` is
+                  an allow-listed generic pack at position 11; it may only follow the six market
+                  packs". Killed.
+         Both reverted; world.yaml and configure/calendar.yaml diff-equal to cf91bbb; `git grep
+         MUTATION` empty; check 3 green again. check_decision_ids: 73 ids distinct; headings PASS;
+         clippy -p mineworld-acceptance --all-targets --all-features -D warnings clean.
+E-TWa-9  By capture.sh head on 4018434 (clean tree), 2026-10-09, dev:
+         social-cafe 300 d seed 7: sha ad49c723…c64b, 365 330 facts (= main) — PASS
+         market-town 300 d seed 7: sha 24a95d2a…d270, 374 857 facts, faults 0 — the BASELINE (§16.8 b)
+         bodies-yard 30 d: bd6a1002…80e6 (= main); long_run 4 019 632 B 23f7fa76…5125 (= main);
+         long_run_objects 612 428 B c8358f8b…c5b4 (= main); validate ×3 as E-TWa-5 — PASS.
+         Town runs used: 6 of 6 (E-TWa-0 ×2, E-TWa-5 ×2, E-TWa-9 ×2). Budget exhausted, not exceeded.
+         The four empty `mineworld-kill-*` directories of E-TWa-6b were removed with
+         `rm -rf "$TMPDIR"/mineworld-kill-*` (authorized by the coordinator, 2026-10-09).
+E-TWa-7  CI on e7fdee7 (PR #94, pull_request run 37891509810): fast PASS (1 m 13 s), test PASS
+         (13 m 38 s; its log shows `sun::tests::three_sun_samples_are_pinned_exactly ... ok` on
+         Linux x86_64 — the three pinned integers equal macOS's, §16.8 (a) held on two OSes).
+         https://github.com/yuema137/MineWorld/actions/runs/37891509810
+```
+
+### Deviations and findings
+
+```text
+TWa-D1  (bounded) C1 carries a doc-only crate skeleton (Cargo.toml with no dependencies, lib.rs = the
+        spec header). Reason: the workspace's `systems/*` glob refuses a member directory without a
+        manifest (`cargo metadata`: "failed to read systems/calendar/Cargo.toml"), so a README alone
+        would break every build. Impact: none; the solar dependency still lands in C2.
+TWa-F1  (MATERIAL, found at start, blocks C4 only) AC-1 check 3
+        (tests/acceptance/tests/ac1_composability.rs `compare_systems`, `compare_manifests`,
+        `world_delta_failures`; ARC-35 item 4) requires Market Town's systems to be Social Café's list
+        plus exactly the six market packs, every other world.yaml key equal, and no top-level entry
+        but items/ and organizations/ in one pack only. SD-TW-a-10 (market-town adds `calendar`,
+        `configure: [calendar]` and configure/) fails all three. Not anticipated by §16; the frozen
+        stop list does not name the acceptance tests, but the honest fixes each change a frozen
+        acceptance measure (ARC-35) or a frozen scope item (SD-TW-a-10). C1–C3 are unaffected and
+        proceed; C4 is reported to the primary session (see the C4 row).
+TWa-D2  (bounded) The ±0.5° elevation check (§16.5) is against NOAA's published spreadsheet equations,
+        not a published elevation value: NOAA publishes none for an instant (E-TWa-1 b). The rise,
+        set and noon checks are against NOAA's published table. Impact: none on the acceptance bound.
+TWa-D3  (bounded) Component types are `calendar-day` and `calendar-light`, not `calendar.day` /
+        `calendar.light` (§5.5): an identifier may contain only a–z, 0–9, '-', '_'
+        (contracts/src/ids.rs `is_legal_identifier_byte`).
+TWa-D4  (bounded) `day-began` also carries `phase`, the light phase at day_start, and the Process state
+        holds `{ configuration, day, phase }` rather than SD-TW-a-3's `next`: the next due event is a
+        pure function of the day record and the instant, recomputed at each wake, and the phase is what
+        `calendar-light` discloses. Without the opening phase a day that begins in twilight or polar day
+        would have no fact saying so, and the fold could not be the state.
+TWa-D5  (bounded) `run --days 7` records 8 `day-began`, not 7: `run` advances to instant 7 × 86 400
+        inclusive, and that instant is 2026-10-15's local midnight. The seven dates CP-TW-a names are
+        all there (t0 … t518400); the eighth begins at the run's last instant. No code change: a day
+        that begins at the final instant has begun.
+TWa-F2  (cross-platform, operator requirement 2026-10-08: macOS, Linux, Windows) What TW-a adds holds no
+        Unix-only assumption: tests build paths with `Path::join` (the refusal test checks
+        `configure` + `calendar.yaml` joined by the platform's separator, not a literal '/'), use
+        DEP-29's scratch (no `/tmp`), no signal and no shell helper; the sun is `libm`-only so the
+        pinned integers are OS-independent. The one Unix-only artefact is this PR's evidence script
+        target/tw-a/capture.sh (bash, shasum; untracked, under target/, never run by a test or CI) —
+        recorded, not a product defect. No existing test was edited by TW-a.
+        Encountered (not edited): persistence/tests/kill_and_resume.rs kills its victim with SIGKILL
+        and keeps scratch in the system temp dir (`mineworld-kill-*`), both Unix-only assumptions,
+        and is timing-sensitive under load (E-TWa-6). Owner lane: persistence (S6) with the
+        test-hygiene / DEP-29 lane for the scratch location.
+C4 decision requested (material stop, §16.7 spirit: a frozen acceptance measure). The smallest options:
+  (i)  amend ARC-35 by a note and AC-1 check 3 to admit packs appended after the six market packs
+       when each is a configured world-level pack with its `configure:` entry and `configure/` file
+       (e.g. a fixed allow-list `["calendar"]`) — the market delta still measured exactly; owner: the
+       AC-1 / S9 lane; then C4 lands as cf91bbb;
+  (ii) keep market-town as AC-1's fixture and opt a different World Pack into the calendar (a new
+       scope item; CP-TW-a re-targeted), leaving ARC-35 untouched;
+  (iii) drop C4 from TW-a and land it with the client PR (TW-e) after (i) or (ii).
+  Recommendation: (i) — AC-1 measures "Social Café + the market", and a calendar is neither; the guard
+  should say which later packs are configuration, as ARC-35's notes have done before.
+TWa-R1  RULING (operator, 2026-10-09, relayed by the coordinator): option (i). "AC-1 check 3 stays exact
+        for the market delta (exactly the six market packs appended to Social Café); generic packs on
+        an explicit allow-list may also appear after them, enabled through configuration." Implemented
+        in TW-a: ARC-35 note (2026-10-09), `GENERIC_PACKS = ["calendar"]`, two mutations killed
+        (E-TWa-8), C4 landed (4018434), market-town baseline recorded (E-TWa-9). Weather and later
+        generic packs extend the allow-list in their own PRs.
+```
+
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C1–C5 | not started | — |
-| `market-town` digest baseline (§16.8 b) | not recorded | — |
+| `market-town` digest baseline (§16.8 b) | **recorded** | 300 days, seed 7: sha `24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270`, 374 857 facts, faults 0; produced by commit 4018434 (E-TWa-9; the same value as the candidate in E-TWa-5) |
+
+---
+
+# 17. TW-b — the `weather` System Pack (seeded rules)
+
+**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §17.9.1)`**
+
+Design revision: §17 as of PR #107 (drafted by the planning session on 2026-10-09 in worktree
+`/Users/yuema137/mineworld-worktrees/plan-tw-bd`, branch `plan/s19-tw-bd`, from `origin/main @ f80bbb7`).
+Approved by: the primary session, 2026-10-09, relayed by the coordinator; QTWb-1 … 7 ruled as recommended.
+Implementation base: `origin/main` at the start of execution, at or after f80bbb7; IL-b need not be merged
+(R-TWb-1). Execution contract: §17.10. Lifecycle: FROZEN.
+
+Frozen means the scope (§17.1), the decisions (§17.3, §17.4), the acceptance and adversarial criteria
+(§17.6) and the execution contract (§17.10) are frozen. Progress, evidence, audit findings and bounded
+corrections stay writable.
+
+This section is TW-b's single PR design authority and, once frozen, its ledger (§17.11). If the execution
+session moves it into a separate `pr-TW-b-weather.md`, it moves it whole and leaves a pointer here; the two
+never exist side by side.
+
+## 17.1 Goal, scope, non-goals
+
+**Goal.** A world that enables `calendar` and `weather` has weather hour by hour. Every observer sees the
+same weather, and other packs can react to its changes. The weather comes from a seeded, integer-only
+generator whose climate is content (`configure/weather.yaml`), and its default table is San Diego's.
+
+**In scope.**
+- A new crate `systems/weather` (`mineworld-weather`), registered in the installed set.
+- The WGEN-lite daily generator (§3.3) and the daily-to-hourly derivation (§6.6), both integer-only and
+  keyed by counter-based SplitMix64.
+- `weather-configured`, `weather-day` and `weather-changed` facts; a world-level `climate` Process.
+- Disclosure on the observer's place.
+- A declared dependency on `calendar` (refusal when it is absent).
+- Market Town opts in with a provisional San Diego rules table taken from NOAA's 1991–2020 normals.
+- AC-1's `GENERIC_PACKS` gains `"weather"`.
+- `docs/DECISIONS.md` **ARC-68**.
+
+**Non-goals.**
+- Record-driven weather, the station CSV, `data:` attachments, the fetch tool and DEP-31 (all TW-d).
+- Any client (TW-e, TW-f) or host-pacing change (TW-c).
+- Any controller reading weather (S10's lane).
+- `mineworld check` warnings (QTWb-5).
+- Regional weather (QTW-12).
+- The GHCNh hourly layer (TW-g).
+- Any change to the kernel, contracts, presence, persistence, the server, `calendar` or any other pack's
+  source (INV-TW-3).
+
+## 17.2 Audit anchors (`origin/main @ f80bbb7`, read 2026-10-09; re-verify at freeze)
+
+| File / symbol | Finding | Consequence for TW-b |
+| --- | --- | --- |
+| `systems/calendar/src/system.rs` | Pattern to copy. `PackConfiguration` + `configures!()`. `react` starts the Process from the configured fact and folds the pack's own facts with `set_process_state`. `wake` only reschedules and states facts. `discloses` is keyed to the observer's `Presence` place. | `weather` follows the same shape, so the Process state is the fold of its facts (§16.9 C3 review). |
+| `systems/calendar/src/event.rs` `DayBegan { day: CalendarDay, phase }`; `day.rs` `CalendarDay::{date, weekday, day_start, events, track}`, `DayEvents::{sunrise, civil_dawn, …}: Option<u32>` (seconds after `day_start`) | Public, no subjects. The date and the light events arrive in the payload. | `weather` subscribes to `day-began` and decodes it with calendar's published type. It needs the crate dependency `mineworld-calendar` and never recomputes a date or the sun (§6.1). |
+| `kernel/src/dispatch.rs` `genesis` (l. 509–527) and `reduce` (l. 605–) | Genesis records every seeded fact first, then reduces **generation by generation** (breadth-first), with subscribers in registration order. | With `configure: [calendar, weather]`, `calendar-configured` and `weather-configured` are both in generation 0. The climate Process exists before day 0's `day-began` (generation 1) reaches `weather`. At each midnight: `day-began` (gen 1) → `weather-day` (gen 2) → fold and a possible `weather-changed` (gen 3). |
+| `kernel/src/registry.rs` `check_dependencies` (l. 207–227) | A declared dependency that is not installed gives `SystemDependencyMissing`; one that is not enabled gives `SystemDependencyDisabled`. The world is refused at assembly. | `depending_on([PresenceSystem::ID, CalendarSystem::ID])` gives TW-b criterion 4 with no new mechanism. |
+| `kernel/src/process.rs` `ProcessStart::new` (l. 192) / `ending_at` (l. 220) | Open-ended is the default, and `ending_at` must be strictly later than the start. | The climate Process is rescheduled to the next condition change, or left open-ended until the next `day-began` when no change is due. |
+| `kernel/src/view.rs` `start_process` l. 332, `reschedule_process` l. 368, `set_process_state` l. 392 | Available on `WorldView` in `react` and in `wake`. | As in calendar. |
+| `authoring/src/configuration.rs` (main) `PackConfiguration { Configuration, FACTS, references, requires, seed(&Seeding, &C) }` | IL-a's seam. On the IL-b branch, `seed` gains a third argument, `&ConfigurationContext` (`mvp0/pr-il-b-interactions @ 29d0b49`, SD-IB-3). | TW-b writes `seed` against whichever signature `main` has at its branch point. Whichever of TW-b and IL-b merges second adapts the other's implementors (step-18 §12.6 "Other lanes"). |
+| `systems/installed/src/lib.rs`, `Cargo.toml` | One line in each per pack. `tests/installed.rs` holds them equal. | Two lines. |
+| `tests/acceptance/tests/ac1_composability.rs` l. 1026–1030 `GENERIC_PACKS = ["calendar"]` | Check 3 admits allow-listed generic packs only after the six market packs, each once. `configure:` entries and `configure/<key>.yaml` are admitted only for allow-listed packs. The doc comment says "Each is added by the PR that brings its pack" (TWa-R1). | `["calendar", "weather"]`. No ARC-35 amendment is needed (TWa-R1 already covers later generic packs). |
+| `cognition/rule-controller/src/paced.rs` l. 311–313 `mix(a, b)` | SplitMix64's finalizer over two words. It is the tree's idiom, and no System Pack depends on `rand`. | `weather` restates it as its own private function and does not depend on the controller (a pack never depends on cognition). A test pins its outputs against three published SplitMix64 reference values, so the restatement cannot drift silently. |
+| `systems/presence/src/observe.rs` `owned_by_an_enabled_system` | A disclosed record survives only when its component type is declared by an enabled system. | `weather` declares `weather-today` and `weather-now` as owned component types that no entity carries (calendar's pattern, TWa-D3 naming rule: `[a-z0-9_-]`). |
+| `persistence/src/world.rs` l. 13 `DEFAULT_SNAPSHOT_INTERVAL = 64`; `sqlite.rs` `checkpoint` `INSERT OR IGNORE` | A full world snapshot every 64 revisions, all retained. | Every byte of Process state is multiplied by the number of snapshots (F-TWbd-1). The climate state is kept small (§17.3 SD-TW-b-6). |
+| `worlds/market-town/world.yaml` | `calendar` is last in `systems:`, and `configure: [calendar]`. | Append `weather` after `calendar`, and `configure: [calendar, weather]`. |
+| `.github/workflows/ci.yml` | `ubuntu-24.04` only. There is no macOS or Windows CI job. | Cross-platform claims rest on integer-only arithmetic, a no-float source scan and the Linux CI run (§17.7 R-TWb-5). |
+
+**Evidence read for realism** (WebFetch, 2026-10-09, never at run time):
+- **E-TWb-pre-1.** NOAA NCEI U.S. Climate Normals 1991–2020, monthly, station USW00023188 (San Diego
+  Lindbergh Field), <https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/access/USW00023188.csv>.
+  Columns `MLY-TMAX-NORMAL`, `MLY-TMIN-NORMAL` (°F) and `MLY-PRCP-AVGNDS-GE001HI` (mean days with
+  ≥ 0.01 in).
+  - TMAX, January to December: 66.4, 66.2, 67.0, 68.8, 69.5, 71.7, 75.3, 77.3, 77.2, 74.6, 70.7, 66.0.
+  - TMIN, January to December: 50.3, 51.8, 54.5, 57.1, 60.0, 62.6, 66.1, 67.5, 66.2, 61.5, 54.8, 49.8.
+  - Days with ≥ 0.01 in, January to December: 6.5, 7.1, 6.2, 3.8, 2.2, 0.7, 0.7, 0.3, 0.9, 2.4, 3.7, 5.8.
+  - The implementing session re-reads this file in C4 and records the values it used.
+- **E-TWb-pre-2.** The GHCN-Daily element definitions,
+  <https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt>. PRCP is tenths of mm, TMAX and TMIN tenths
+  of °C, AWND tenths of m/s, and the missing value is −9999. Used for units only.
+
+## 17.3 Design decisions (SD-TW-b-n)
+
+| Id | Decision |
+| --- | --- |
+| SD-TW-b-1 | **Crate.** `systems/weather` (`mineworld-weather`), registered as `Weather => mineworld_weather::WeatherSystem`. It depends on `mineworld-{contracts,kernel,authoring,presence,sdk,calendar}`, `serde`, `serde_json` and nothing else: no new external dependency, and nothing new in `Cargo.lock`. Its dev-dependencies are those of calendar's tests (`mineworld-persistence`, `mineworld-test-support`, `mineworld-worldpack`, `serde-saphyr`). |
+| SD-TW-b-2 | **Declaration.** `depending_on([PresenceSystem::ID, CalendarSystem::ID])`. It owns `weather-today` and `weather-now`, emits its three facts, subscribes to its three facts and to calendar's `day-began`. It does **not** subscribe to `daylight-changed`: hours are placed from the day record's events. It provides no action. `VERSION = 1`. |
+| SD-TW-b-3 | **Configuration** (`configure/weather.yaml`, `deny_unknown_fields`, decoding is validating; §17.4 has the exact schema). In TW-b `source` admits only `rules`. A `source: record` is refused while decoding with "source `record` needs the record data of TW-d; this build accepts `rules`", which names the key. The rules live **inline** under `rules:`, not in a separate file: IL-a's seam reads one YAML file per key, and IL-b's attachments live under `data/` and are bytes the pack would have to parse itself (QTWb-1). `FACTS = [weather-configured]`. `seed` emits one `weather-configured`, SystemInternal, with no subjects. |
+| SD-TW-b-4 | **`weather-configured` is shaped for TW-d now.** The payload is `{ seed: u64, rules: Rules, record: Option<RecordRef> }`, and TW-b always writes `record: None`. TW-d fills it in without bumping the event schema version, so a TW-b-era save stays readable by TW-d's code. (Before a stable contract this is not compatibility debt: it is the payload's final shape stated once.) `RecordRef` in TW-b is a unit-less placeholder type that cannot be constructed (an empty enum), so no TW-b world can claim a record. |
+| SD-TW-b-5 | **The generator** (`generate.rs`), WGEN-lite, per world day `d` (the index `day_start / 86 400`). (1) Wet or dry: `u₀ < (wet_yesterday ? p_wet_after_wet : p_wet_after_dry)`, both per-mille. (2) A wet day's amount: quintile `q = u₁ × 5 / 1000`, the amount is `rain_tenth_mm[q]`, and the result is at least 3 (0.3 mm, the first record value at or above NOAA's 0.01 in wet-day threshold). (3) Temperature anomalies as integer AR(1): `aₜ = aₜ₋₁ × t_ar_permille / 1000 + noise`, with `noise = u₂ × (2 × t_noise_dc + 1) / 1000 − t_noise_dc` (and likewise for tmin with `u₃`). Rounding is toward zero, as `i64` division does, which is stated and tested. TMAX = `tmax_dc + a_max + (wet ? wet_tmax_shift_dc : 0)` and TMIN = `tmin_dc + a_min`, with TMIN ≤ TMAX − 1 enforced by lowering TMIN. (4) Fog: `u₄ < fog_permille`. Thunder (wet days only): `u₅ < thunder_permille`. Morning overcast (dry days only): `u₆ < overcast_morning_permille`. (5) Wind: `wind_dms` and `wind_from_deg` of the month, with no noise in TW-b. Each `uₖ` is a per-mille draw `draw(seed, d, k)` (SD-TW-b-7). The month is the calendar date's month from `day-began`. |
+| SD-TW-b-6 | **The Process state stays small.** The `climate` Process (`ProcessKind` type `climate`, no place, no participants, uninterruptible) holds `{ configured, today: WeatherDay, now: HourIndex, chain: Chain }`. The rules are 12 × 11 integers, about 2 KB as JSON. `Chain { wet: bool, tmax_anomaly_dc: i16, tmin_anomaly_dc: i16 }` is the generator's carry. Because every snapshot holds the whole state (F-TWbd-1), the encoded climate state has a test-pinned budget of **8 KB**. Exceeding it is a FAIL. |
+| SD-TW-b-7 | **Draws.** `draw(seed, day, k) = permille(mix(mix(seed, day as u64), k))`, where `mix` is SplitMix64's finalizer restated in `draw.rs` (§17.2) and `permille(x) = ((x >> 32) × 1000) >> 32`, which is in `0 … 999` by a multiply-shift with no modulo bias. Draw indices are fixed constants: 0…6 for the daily draws and 16 + n for hour placement. A new draw takes a new index, so existing draws never shift. |
+| SD-TW-b-8 | **Daily to hourly** (`hours.rs`, all integers). Three parts follow. (a) Temperature (SD-TW-b-8a): a 24-entry per-mille curve, pack constant `DIURNAL`, with 0 at the sunrise hour and 1000 at 15:00, rising on a half-sine and decaying exponentially after 15:00 to the next sunrise. This is the shape of Parton & Logan (1981), *Agricultural Meteorology* 23:205–216, precomputed once offline into integers and committed with the citation and the generating formula in a comment. The sunrise hour is `day.events().sunrise / 3600`, falling back to 6 when it is `None` (polar). `T(h) = TMIN + (TMAX − TMIN) × curve(h) / 1000`, so `max T(h) == TMAX` and `min T(h) == TMIN` exactly. (b) Wet hours (SD-TW-b-8b): pack constant `WET_HOURS` by daily amount (≤ 2.0 mm → 2 h, ≤ 10 mm → 4 h, ≤ 25 mm → 8 h, otherwise 12 h). This is a stated design default, not a measured climatology; TW-g's hourly layer replaces it. The hours form one run, or two runs when the amount exceeds 10 mm, placed by draws 16 and 17. The rate per wet hour is `prcp / wet_hours`, with the remainder added to the first wet hour so the 24 hours sum exactly to the day's amount. (c) Condition (SD-TW-b-8c): a wet hour is `drizzle` when its rate is ≤ 1.0 mm/h, which uses the AMS Glossary's "drizzle … seldom exceeds 1 mm per hour". It is `rain` when the rate is ≤ 7.6 mm/h and `heavy-rain` above that, which uses the AMS Glossary's heavy-rain threshold of more than 7.6 mm/h. A wet hour on a thunder day is `thunderstorm`. A fog day is `fog` from the civil-dawn hour (falling back to 5) to 09:59. A dry hour takes its cloud from the day: overcast-morning days have 8 oktas from 05:00 to 10:59, wet days 8 oktas in and next to wet hours, and otherwise 1 okta. Cloud then maps by the okta scale: 0–2 `clear`, 3–6 `partly-cloudy`, 7–8 `overcast`. Wind is the day's wind every hour. The AMS and WMO sources are cited in code with the URL and the date read. |
+| SD-TW-b-9 | **Facts.** `weather-day` is SystemInternal: `WeatherDay { day_start, date, origin: Rule, summary: DailyWeather { tmax_dc, tmin_dc, prcp_tenth_mm, awnd_dms, wind_from_deg, fog, thunder, overcast_morning }, chain: Chain, hours: [WeatherHour; 24] }`, with `origin` an enum whose `Record` and `Filled` variants arrive with TW-d. `weather-changed` is **Public**: `{ hour: u8, condition, cloud_oktas, precipitation_tenth_mm }`, emitted when an hour's condition differs from the condition in force. The `summary` is in the fact (§11.2's TW-d checkpoint needs exact TMAX, TMIN and PRCP), and the `chain` is in the fact (the fold must equal the state). |
+| SD-TW-b-10 | **Lifecycle.** (a) `react(weather-configured)` starts the climate Process with no `today` (state `Unstarted`), open-ended. It refuses `weather-configured-twice`. (b) `react(day-began)`: when the climate Process is absent, return nothing (weather is unconfigured); otherwise compute the day from the date, the events, the chain and the draws, and emit `weather-day`. (c) `react(weather-day)` folds `today`, `chain` and `now = 0`, and emits `weather-changed` for hour 0 at once if its condition differs from the condition in force (or if none is in force yet, on day 0). It reschedules the Process to the next hour whose condition differs, or leaves it open-ended. (d) `wake`: when the hour due differs from `now`, emit `weather-changed` and reschedule. (e) `react(weather-changed)` folds `now`. State is written only in `react` from fact payloads; `wake` only states facts and reschedules (calendar's discipline, §16.9 C3 review). |
+| SD-TW-b-11 | **Disclosure.** For a subject equal to the observer's place: `weather-today` (the 24 hours and the summary) and `weather-now` (`{ hour, condition }`). Nothing for any other subject, and nothing for an observer in no place (as §16.8 (c)). |
+| SD-TW-b-12 | **Market Town opts in** in C4. `configure/weather.yaml` takes the provisional San Diego rules (§17.4), derived from E-TWb-pre-1 by the formulas written in the file's header, so a reader can re-derive every number. `systems:` gains `weather` after `calendar`; `configure:` becomes `[calendar, weather]`. The market-town digest changes by design, and its new value is recorded as the baseline. |
+| SD-TW-b-13 | **ARC-68** lands in C1, covering both packs (§15.1 text, extended). Its reuse paragraph records WGEN-lite as built from the published algorithm (Richardson 1981; Richardson & Wright 1984), LARS-WG rejected (non-commercial licence), ClimGen not pursued, and plain monthly tables kept as the degenerate case (§3.3). The data-source and fetch-tool records stay in DEP-31 (TW-d). |
+
+## 17.4 Configuration schema (TW-b)
+
+```yaml
+# configure/weather.yaml — Market Town, TW-b (provisional; TW-d replaces the table with the fit and
+# switches `source` to the record)
+source: rules                 # TW-b: only `rules`
+seed: 19                      # content, not --seed (§6.2); u64
+rules:
+  months:                     # exactly 12 entries, January first
+    - p_wet_after_dry: 147    # per mille, 0 … 1000
+      p_wet_after_wet: 447    # per mille, 0 … 1000
+      rain_tenth_mm: [3, 20, 50, 110, 300]   # 5 ascending integers ≥ 3 (quintile amounts, 0.1 mm)
+      tmax_dc: 191            # mean daily maximum, 0.1 °C, −900 … 600
+      tmin_dc: 102            # mean daily minimum, 0.1 °C, < tmax_dc
+      t_noise_dc: 20          # 0 … 200
+      t_ar_permille: 600      # 0 … 999
+      wet_tmax_shift_dc: -20  # −200 … 200
+      fog_permille: 60        # 0 … 1000
+      thunder_permille: 20    # 0 … 1000, applies on wet days
+      overcast_morning_permille: 150   # 0 … 1000, applies on dry days
+      wind_dms: 30            # 0.1 m/s, 0 … 1000
+      wind_from_deg: 290      # 0 … 359, the direction the wind comes from
+    # … eleven more
+```
+
+The provisional numbers are derived as follows. The header of the committed file states the formulas, and
+C4 records the inputs.
+- `tmax_dc` and `tmin_dc` are the normals converted with `round((°F − 32) × 50 / 9)`.
+- The wet-day frequency is `π = days ≥ 0.01 in / days in month`.
+- `p_wet_after_dry` and `p_wet_after_wet` assume a lag-1 persistence `r = 300‰`, so
+  `p_wet_after_dry = π × (1000 − r)` and `p_wet_after_wet = p_wet_after_dry + r`.
+- The other fields (amounts, noise, fog, thunder, overcast, wind) are provisional design values, stated as
+  such, and TW-d's fit replaces them. Their only acceptance claims are their bounds and the frequency check
+  (§17.6 criterion 2), which uses this table's own stationary probability.
+
+Refusals arise while decoding and each names its key:
+- not 12 months;
+- a probability out of range;
+- `rain_tenth_mm` not 5 ascending values ≥ 3;
+- `tmin_dc ≥ tmax_dc`;
+- any bound above;
+- an unknown key;
+- `source` other than `rules`.
+
+## 17.5 Commit plan
+
+### C1 — `docs: ARC-68 calendar and weather are System Packs; weather pack spec`
+
+1. **Goal.** The decision record and the pack's specification exist before the code they govern
+   (`CLAUDE.md` §2.2).
+2. **Scope.** `docs/DECISIONS.md` gains ARC-68 (§15.1 text plus SD-TW-b-13's reuse paragraph). New:
+   `systems/weather/README.md` (short, human), `systems/weather/Cargo.toml` (doc-only, no dependencies:
+   TWa-D1's precedent, because the `systems/*` glob refuses a member without a manifest), and
+   `systems/weather/src/lib.rs` (the spec header only: §17.3's table as a module doc). There is no code.
+   ARC-67's "Relates to" already names ARC-68, so it is not edited.
+3. **Implementation.**
+   - [ ] ARC-68 appended after DEP-30, with date, approval, design pointer, choice, alternatives and
+     reuse.
+   - [ ] The README and the lib.rs spec header.
+   - [ ] The doc-only manifest.
+4. **Validation.**
+   - [ ] `python3 scripts/check_doc_headings.py` passes.
+   - [ ] `python3 scripts/check_decision_ids.py` passes, with the id count one higher than before.
+   - [ ] `cargo check -p mineworld-weather` is clean.
+5. **Acceptance.** Both checks print their success lines. ARC-68 is cited by the README and the lib.rs
+   header.
+6. **Failure cases.** An id collision means the coordinator re-assigns: stop and report.
+7. **Review.**
+   - [ ] Terminology is checked against CORE_CONCEPTS: `Process`, `Event` and `System Pack` are used as
+     defined, and "climate" is a Process type name, not a new ontology term.
+   - [ ] ARC-68 does not restate DEP-31's content.
+8. **Boundary.** Docs and an empty crate only.
+
+### C2 — `weather: the generator and the hours, in integers`
+
+1. **Goal.** The climate model is pure, deterministic and integer-only, and it is tested on its own,
+   before any world exists.
+2. **Scope.** New files `src/{rules,draw,generate,hours,day}.rs`; the crate's real manifest
+   (SD-TW-b-1); `src/lib.rs` exports.
+   - `rules.rs`: `Rules`, `Month` and their `TryFrom` validation.
+   - `draw.rs`: `mix`, `draw`, `permille`.
+   - `generate.rs`: `fn day(rules, seed, day_index, date, chain) -> (DailyWeather, Chain)`.
+   - `hours.rs`: `DIURNAL`, `WET_HOURS`, `fn hours(summary, events, seed, day_index) -> [WeatherHour; 24]`
+     and the classification.
+   - `day.rs`: `Condition`, `WeatherHour`, `DailyWeather`, `Chain`, `WeatherDay`.
+
+   Nothing from world assembly is in this commit.
+3. **Implementation.**
+   - [ ] The types, with `Condition` as a closed enum (§6.6).
+   - [ ] `mix` restated with the paced controller's constant, with a doc citation.
+   - [ ] `permille` as a multiply-shift.
+   - [ ] The generator, per SD-TW-b-5.
+   - [ ] The hours, per SD-TW-b-8.
+   - [ ] `DIURNAL` precomputed, with its formula and citation in the comment.
+4. **Validation.** Unit tests in `src/*/tests.rs`, each owning one failure class:
+   - [ ] (a) `mix` pinned to SplitMix64 reference outputs. These are the first three outputs from seed 0
+     of the reference `splitmix64.c` (Vigna, <https://prng.di.unimi.it/splitmix64.c>), recorded with the
+     URL. The test owns the failure "the restated mixer drifted".
+   - [ ] (b) **Frequency, criterion 2.** Over 100 world years (36 524 days) with the provisional
+     San Diego table and seed 19, each month's wet-day frequency is within ±3 points of its stationary
+     `p_wd / (1000 − p_ww + p_wd)`.
+   - [ ] (c) **Spell length, criterion 3.** With a constant table (every month `p_wd = 200`,
+     `p_ww = 500`) over 100 years, the mean wet-spell length is within ±10 % of `1000 / (1000 − p_ww)`
+     = 2.0. Mutation **M-TWb-3**: the chain ignores yesterday (it always uses `p_wd`). The mean must
+     fall to about 1.25, so (c) fails.
+   - [ ] (d) Determinism: the same `(rules, seed, day, chain)` gives the same bytes twice. Seed 19 and
+     seed 20 give different 365-day sequences.
+   - [ ] (e) Hours: over many generated days, `max T(h) == TMAX` and `min T(h) == TMIN`, and the hourly
+     precipitation sums exactly to PRCP.
+   - [ ] (f) The classification boundaries 10 / 11 and 76 / 77 tenths mm/h. A thunder wet hour is
+     `thunderstorm`. A fog day is fog from civil dawn to 09:59. Polar `None` events fall back to the
+     stated hours.
+   - [ ] (g) Rules refusals: each bound in §17.4, through serde-saphyr, with line and column. LF and CRLF
+     input give equal results.
+   - [ ] (h) No float: a test scans `systems/weather/src/**/*.rs` for `f32` and `f64` and fails on any
+     occurrence (INV-TW-5 for this pack).
+5. **Acceptance.**
+   - (b): each of the 12 months is within ±3.0 points.
+   - (c): the mean is in [1.8, 2.2], and M-TWb-3 is observed red, by name.
+   - (a): equal to the reference.
+   - (e): exact equality over every day of the 100-year run.
+6. **Failure and edge cases.**
+   - `p_ww = 1000` gives an absorbing wet chain. This is legal content and is tested as such ("always
+     rainy town", §3.3).
+   - `p_wd = p_ww` gives independent days (the plain table).
+   - TMIN ≥ TMAX after noise is repaired by lowering TMIN, and tested.
+   - `i64` overflow is impossible within the stated bounds, which the review checks.
+7. **Commands.**
+   - `cargo test -p mineworld-weather --lib`.
+   - `cargo clippy -p mineworld-weather --all-targets --all-features -- -D warnings`.
+   - The mutation is recorded as M-TWb-3; afterwards `git grep MUTATION -- '*.rs'` is empty.
+8. **Review.**
+   - [ ] Rounding direction is stated everywhere.
+   - [ ] Draw indices are never reused.
+   - [ ] The quintile index is never 5.
+   - [ ] The remainder in the wet-hour division is placed deterministically.
+   - [ ] Sources are cited in code (Parton & Logan; AMS; WMO okta; Richardson).
+   - [ ] Nothing reads the host, the scale or pause (INV-TW-2).
+9. **Boundary.** A pure library: no `System` impl, no registry line.
+
+### C3 — `weather: configuration, facts, the climate process, disclosure`
+
+1. **Goal.** The pack runs in a world: configured at genesis, a day each midnight, changes at hours, and
+   disclosed to observers.
+2. **Scope.** `src/{configuration,event,process,component,system}.rs`; the registry line and the
+   installed `Cargo.toml` line; tests `tests/{weather,configuration}.rs` and `tests/support/mod.rs`
+   (calendar's test support pattern).
+3. **Implementation.**
+   - [ ] `WeatherConfiguration` (SD-TW-b-3) and `WeatherConfigured` (SD-TW-b-4).
+   - [ ] `WeatherDay` and `WeatherChanged` events.
+   - [ ] `ClimateProcess` and `ClimateState`.
+   - [ ] `WeatherToday` and `WeatherNow` components.
+   - [ ] `WeatherSystem`: `PackConfiguration` + `configures!()`, then `declaration`, `install`, `react`,
+     `wake` and `discloses` per SD-TW-b-2, -10 and -11.
+   - [ ] The registry line `Weather => mineworld_weather::WeatherSystem`.
+4. **Validation.** Integration tests over a test world with presence, calendar and weather:
+   - [ ] (a) Genesis order: `calendar-configured`, `weather-configured`, then `day-began` (day 0), then
+     `weather-day` (day 0). The first `weather-changed` (hour 0) is at instant 0.
+   - [ ] (b) 30 days: 31 `weather-day` (TWa-D5: the final instant is a midnight). Each `weather-changed`
+     is at `day_start + 3600 h`, its condition differs from the one before it, and the sequence equals
+     the one derived from the days' `hours`.
+   - [ ] (c) **Restart** stopped at day 2 14:30, resumed and run to day 8, gives facts byte-identical to
+     the uninterrupted world, and the resumed climate state equals the fold.
+   - [ ] (d) **Criterion 4:** a World Pack enabling `weather` without `calendar` is refused at assembly
+     with `SystemDependencyDisabled` or `SystemDependencyMissing`, naming `weather` and `calendar`
+     (through `WorldPack::read` / assemble).
+   - [ ] (e) Unconfigured: `weather` enabled with no `configure/weather.yaml` produces no weather fact and
+     no record, and calendar's facts are unchanged.
+   - [ ] (f) Disclosure: an observer in a place gets exactly `[(place, weather-today), (place,
+     weather-now)]`. An observer in no place gets none, and gets both once placed.
+   - [ ] (g) **INV-TW-10 (criterion 1b):** over 30 days, the sequence of calendar-owned facts' `(at,
+     event_type, visibility, subjects, payload bytes)` is equal with and without `weather`. Event ids
+     are excluded: they are a world counter shared by all packs, and their shift is expected.
+   - [ ] (h) The climate state budget is ≤ 8 KB encoded (SD-TW-b-6).
+   - [ ] (i) Configuration refusals through `WorldPack::read`, each naming file, line and column, and key.
+     These are `source: record` and three bound violations.
+   - [ ] (j) `cargo test -p mineworld-installed-systems` passes (the registry consistency test).
+5. **Acceptance.** Every check above is observed with the named facts and their counts recorded in
+   evidence, not inferred from the exit code.
+6. **Failure cases.**
+   - `day-began` before the climate Process exists. This is impossible by §17.2's generation order, and a
+     test proves the order. If it ever happens, the day is skipped and nothing is refused, and the review
+     confirms there is no path to it.
+   - A `weather-changed` folded with no `today`: refused as `weather-unstarted`, an internal defect.
+   - A `wake` with nothing due: it reschedules and emits nothing.
+7. **Commands.**
+   - `cargo test -p mineworld-weather`.
+   - `cargo test -p mineworld-installed-systems -p mineworld-worldpack`.
+   - `cargo test -p mineworld-acceptance` (AC-1 still 14/14 because no world has changed yet).
+   - clippy on weather and installed.
+8. **Review.**
+   - [ ] Single ownership: only weather writes the climate state, and it reads calendar only through the
+     `day-began` payload.
+   - [ ] No host state is read.
+   - [ ] The Process state is a fold of facts.
+   - [ ] Public facts have no subjects.
+   - [ ] The configured fact is SystemInternal with no subjects.
+   - [ ] Dependency direction weather → calendar → presence, never the reverse (INV-TW-10).
+9. **Boundary.** No world is changed. No acceptance test is edited.
+
+### C4 — `worlds: market-town has San Diego's weather (rules)`
+
+1. **Goal.** The default town has weather, and AC-1 still measures the market exactly.
+2. **Scope.**
+   - `worlds/market-town/configure/weather.yaml` (§17.4, with the derivation header).
+   - `world.yaml`: `systems:` gains `weather` after `calendar`, with a comment in calendar's style;
+     `configure: [calendar, weather]`.
+   - `worlds/market-town/README.md`: one line, only if it lists the town's packs.
+   - `tests/acceptance/tests/ac1_composability.rs`: `GENERIC_PACKS = ["calendar", "weather"]`, plus its
+     unit test's allowed shape if that test enumerates the list.
+3. **Implementation.**
+   - [ ] Re-read E-TWb-pre-1 and record it.
+   - [ ] Compute the table by the header's formulas.
+   - [ ] Write the files.
+4. **Validation.**
+   - [ ] (a) **CP-TW-b** (§17.6).
+   - [ ] (b) **INV-TW-1:** the social-cafe 300 d seed 7, bodies-yard 30 d, long_run and long_run_objects
+     digests equal `main`'s (E-TWa-9 values, re-captured on the base first as E-TWb-0), and
+     `validate` of social-cafe and bodies-yard is unchanged.
+   - [ ] (c) The new market-town 300 d seed 7 digest is recorded as the baseline.
+   - [ ] (d) **Weather moves nobody (criterion 5):** in market-town 300 d seed 7, the sequence of facts
+     *not* owned by `weather`, compared by `(at, event_type, visibility, subjects, payload)`, equals the
+     TW-a baseline world's. This is measured from `inspect` output of two saves, or by a test-only
+     comparison, and every non-weather fact count equals E-TWa-9's.
+   - [ ] (e) AC-1: 14/14. Two mutations on the real `world.yaml`: **M-TWb-A1** puts `weather` before
+     `calendar` but still after the six (it must stay green: order among generic packs is free) and is
+     recorded. **M-TWb-A2** removes `"weather"` from `GENERIC_PACKS`, and check 3 must fail naming
+     `weather`.
+5. **Acceptance.**
+   - (b): all digests are byte-equal to E-TWb-0.
+   - (d): equality holds. If it fails, a controller or rule reads weather records or is perturbed by
+     weather facts. That is **material stop (6)**: report it with the first diverging fact, and do not
+     re-baseline.
+6. **Failure cases.**
+   - A digest other than market-town's changes: material stop (4).
+   - A 300-day run with zero wet days in a winter month is not a failure by itself: the statistical claims
+     are C2's. CP-TW-b's spell claim is over 120 days and is fixed in §17.6.
+7. **Commands.** `target/debug/mineworld run worlds/<w> --headless --seed 7 --days 300` per world, with
+   TW-a's capture method (sha-256 of every output line but `wall`, by an untracked script under
+   `target/tw-b/`), and `cargo test -p mineworld-acceptance --test ac1_composability`.
+8. **Review.**
+   - [ ] Content only plus the one allow-list word.
+   - [ ] The derivation header lets a reader recompute every normals-derived number.
+   - [ ] Provisional values are labelled as such.
+9. **Boundary.** One world and one allow-list entry.
+
+### C5 — `docs(plan): TW-b evidence`
+
+- [ ] Ledger, handoff (`handoff-tw-b.md`), PR opened as **READY FOR OPERATOR REVIEW** after the full
+  gate and CI on the exact head.
+- [ ] Gate (classified from output):
+  - `cargo fmt --all --check`;
+  - `cargo clippy --workspace --all-targets --all-features -- -D warnings`;
+  - `cargo test --workspace --no-fail-fast`;
+  - both doc checks;
+  - `check_ci_pins.py`;
+  - `check_scratch.py`.
+- [ ] Review: N/A for the ledger itself, which is records only.
+
+## 17.6 Acceptance and adversarial criteria (fixed before measuring)
+
+**CP-TW-b**, revising §11.2. The 30-day spell claim moves to 120 days, because a provisional October–November
+San Diego table can produce no wet day in 30 days with any given seed, so "the 30 days contain wet and dry
+spells" could fail by chance rather than by defect.
+- `mineworld run worlds/market-town --headless --seed 1 --days 120 --save D`, run twice into two
+  directories, gives identical output lines (but `wall`) and identical fact sequences.
+- The 121 `weather-day` facts are dated 2026-10-08 … 2027-02-05.
+- At least one wet day and at least one dry run of ≥ 7 days occur.
+- Every `weather-changed` matches its day's hours.
+- D resumed from day 60 to day 120 equals the uninterrupted run (`replay` reproduces every fact and
+  snapshot byte for byte).
+
+**Adversarial criteria**, as §11.2 with the corrections stated:
+
+| # | Criterion | Owner | Mutation |
+| --- | --- | --- | --- |
+| 1a | INV-TW-1: social-cafe, bodies-yard, long_run, long_run_objects digests and validate outputs equal `main`'s | C4 (b) | — |
+| 1b | INV-TW-10: calendar facts identical with and without weather (ids excluded, §17.5 C3 (g)) | C3 (g) | **M-TWb-1**: compare *including* event ids. The comparison must then fail, which proves the test observes the interleaving of weather facts. The structural guard, that calendar subscribes to nothing of weather and does not depend on it, is a C3 review item |
+| 2 | Monthly wet-day frequency within ±3 points of the stationary probability over **100 years** (36 524 days). §11.2 said 3 650 days, but at about 300 days per month with persistence the standard error is about 3 points, so ±3 would fail by chance about one month in three. At 100 years it is about 1 point, so ±3 is about 3σ. | C2 (b) | **M-TWb-2**: use `p_ww` for both branches. The frequencies move far outside ±3 and (b) fails |
+| 3 | Mean wet-spell length within ±10 % of `1000/(1000 − p_ww)` on a constant table | C2 (c) | **M-TWb-3** (chain ignores yesterday) must fail |
+| 4 | `weather` without `calendar` is refused at assembly | C3 (d) | **M-TWb-4**: drop `CalendarSystem::ID` from `depending_on`. (d) must fail, or the world must assemble and fail later. Recorded either way, because it establishes the guard |
+| 5 (new) | Weather moves nobody: non-weather facts of market-town 300 d equal TW-a's baseline | C4 (d) | — (a failure is a material stop, not a mutation) |
+| 6 (new) | Integers only: no `f32`/`f64` token in `systems/weather/src` | C2 (h) | **M-TWb-6**: insert `let _x: f64 = 0.0;`. The scan must fail |
+
+## 17.7 Risks
+
+| Id | Risk | Mitigation |
+| --- | --- | --- |
+| R-TWb-1 | IL-b merges during TW-b, so `seed` gains `&ConfigurationContext`. | Merge `main` and adapt `weather`'s `seed` (a mechanical, bounded change). If IL-b merges after TW-b, IL-b adapts `weather` as it does calendar (step-18 §12.6). |
+| R-TWb-2 | Criterion 5 fails: the paced controller's choices depend on the content of observations (for example a hash over records), so adding records changes NPC behaviour. | Material stop. Calendar's evidence (E-TWa-5: every other fact count equal) suggests it holds, but counts are weaker than payloads. That is why the criterion is fixed now. |
+| R-TWb-3 | The provisional table's non-normal fields (amounts, fog, overcast, wind) are unrealistic. | They are labelled provisional. TW-d replaces them with the fit from the record, and the fit's own criterion is TW-d's #5. |
+| R-TWb-4 | Disclosure size: `weather-today` (24 hours) on every observation. | About 2 KB per observation, the same order as calendar's 97-sample track. S11-C's delta stream sends it once per day. Measured in C3's evidence. |
+| R-TWb-5 | Platforms: no macOS or Windows CI. | Integer-only arithmetic (criterion 6), no paths beyond `Path::join` in tests, DEP-29 scratch, no signals. Local runs on macOS plus CI on Linux are recorded. Windows is argued from the integer-only design and the CRLF test (C2 (g)), and is not claimed as run. |
+| R-TWb-6 | Snapshot growth (F-TWbd-1). | Climate state ≤ 8 KB, pinned by C3 (h). |
+
+## 17.8 Findings recorded at planning
+
+```text
+F-TWbd-1  (pre-existing, persistence lane) Every snapshot is a full world state and all are retained
+          (persistence/src/world.rs DEFAULT_SNAPSHOT_INTERVAL = 64; sqlite.rs INSERT OR IGNORE). Measured
+          2026-10-09 on origin/main @ f80bbb7 (dev build, macOS arm64): `mineworld run worlds/market-town
+          --headless --seed 1 --days 30 --save target/plan-tw-bd/s30` → 38 055 facts, world.sqlite
+          266 342 400 bytes (about 0.5 MB per snapshot; estimated about 450 snapshots). A 300-day save is
+          therefore of the order of 2.5 GB today, before S19. S19's packs add to every snapshot: calendar's
+          day record (about 2 KB), weather's climate state (≤ 8 KB, SD-TW-b-6) and TW-d's record series
+          (§18.3 SD-TW-d-5). §13 R-TW-4's "~40 KB fact" estimate counted the fact log only and missed
+          the snapshot multiplier. Not S19's to fix (persistence owns retention); reported for the
+          primary session to route to the S6 lane (QTWd-2).
+F-TWbd-2  `mineworld check` does not exist on main (tools/cli/src/main.rs subcommands: server,
+          validate, replay, create, install, add-system, inspect, run, biography, packs). QTW-8's warning
+          (enabled without its configure file) and §6.4's 1 MB station-file warning have no host;
+          IL-b's 4 MiB hard cap (ATTACHMENT_MAX_BYTES) is the only size guard. QTWb-5.
+```
+
+## 17.9 Questions (QTWb-n). **[OPERATOR]** marks operator-material ones.
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| QTWb-1 | Where the rules table lives: inline under `rules:` in `configure/weather.yaml` (IL-a's seam as it is), or a separate YAML file (§6.2 sketched `rules/san-diego.yaml`, which IL-a cannot read; as an IL-b attachment, the pack would parse YAML bytes itself and lose the loader's line and column)? | **Inline.** One file per key, positioned refusals, and drift checked through `weather-configured`. TW-d's tool writes the fitted block for this file (§18). |
+| QTWb-2 | Criterion 2's sample: 100 years instead of §11.2's 3 650 days (statistical reason in §17.6). | **Yes.** It is a pure-function test and costs well under a second. |
+| QTWb-3 | Market Town opts into rules-driven weather in TW-b with a provisional table (normals-derived temperatures and wet frequencies, other values provisional), rather than waiting for TW-d. | **Yes.** It gives the clients (TW-e, TW-f) weather to render earlier, and TW-d switches the source in one content commit. |
+| QTWb-4 | ARC-68 carries WGEN-lite's reuse verdict (built from the published algorithm), and DEP-31 (TW-d) carries data, CSV and the fetch tool's HTTP client. Is that split acceptable, given §15.1 put the generator in DEP-31? | **Yes.** DEP-31 is assigned to TW-d's data. A build decision must be recorded before the code that embodies it (REUSE_POLICY), and TW-b embodies the generator. |
+| QTWb-5 | QTW-8's `mineworld check` warning has no command to live in (F-TWbd-2). Defer it to S16's CLI work, or add a warning to `validate` in TW-b? | **Defer** to S16. TW-b does not touch the CLI. |
+| QTWb-6 | The hour-derivation constants (`DIURNAL`, Parton & Logan; `WET_HOURS`, a design default; AMS intensity thresholds; okta mapping) are pack constants with citations, not content. Should they become content in the rules file now? | **Constants now.** They are physics-like defaults with sources, and the rules file stays the climate. Making them content is an additive change if a world needs it. |
+| QTWb-7 | The provisional persistence `r = 300‰` used to split normals into `p_wd`/`p_ww` (§17.4). | **Accept as provisional.** TW-d's fit replaces it with measured transitions. |
+
+None of TW-b's questions is operator-material: each stays within §14.1's rulings and ARC-61/ARC-35 as noted.
+
+### 17.9.1 Rulings, 2026-10-09 (primary session; binding)
+
+| Id | Ruling |
+| --- | --- |
+| QTWb-1 … QTWb-7 | Accepted as recommended. |
+| IL-b's `seed` signature | Whichever of TW-b and IL-b merges second adapts the other's implementors (R-TWb-1). IL-b is close to merging, so TW-b should expect to write the three-argument `seed`. |
+| F-TWbd-1 | Routed to the persistence lane as **F-SAVE-1**: snapshot retention, with saves growing about 2.5 GB per 300 days. The primary session opens a design for it. The climate state stays at or below 8 KB, as designed. |
+
+## 17.10 Execution contract (frozen 2026-10-09)
+
+```text
+PROJECT / PR            S19 TW-b — the `weather` System Pack (seeded rules)
+PRIMARY DESIGN DOC      .structured-coding/plans/mvp0/step-19-time-weather.md §17 (this section; live ledger §17.11)
+RELATED / BINDING DOCS  CLAUDE.md; step-19 §§4–6, §10 (INV-TW-1 … 10), §11, §14.1; §16 (TW-a, merged);
+                        docs/DECISIONS.md ARC-26, ARC-28, ARC-33, ARC-35 (+ 2026-10-09 note), ARC-61,
+                        ARC-67, DEP-30; docs/ENGINEERING_STANDARDS.md; docs/ENGINEERING_RULES.md;
+                        docs/CORE_CONCEPTS.md
+IMPLEMENTATION BASE     origin/main at freeze (≥ f80bbb7, TW-a merged). IL-b need not be merged (R-TWb-1).
+WORKTREE                /Users/yuema137/mineworld-worktrees/impl-tw-b — held by one session only (CLAUDE.md §3.1)
+BRANCH                  mvp0/pr-tw-b-weather, from the base above
+APPROVED SCOPE          §17.1. Change set: systems/weather/** (new); systems/installed/{Cargo.toml,src/lib.rs};
+                        worlds/market-town/{world.yaml,configure/weather.yaml,README.md};
+                        tests/acceptance/tests/ac1_composability.rs (GENERIC_PACKS only); docs/DECISIONS.md
+                        (ARC-68); Cargo.lock (workspace member only); this section; handoff-tw-b.md
+FROZEN INVARIANTS       INV-TW-1, -2, -3, -5, -10; SD-TW-b-1 … 13; §17.6 criteria and mutations
+SEQUENCE                C1 → C2 → C3 → C4 → C5 (§17.5)
+ALLOWED COMMANDS        cargo * (incl. $HOME/.cargo/bin/cargo); git; gh (PR create/view/edit, never merge);
+                        python3 scripts/*; mkdir -p; sed -n; the CLI binary under target/; WebFetch for NOAA
+                        normals only
+NOT ALLOWED             python3 -c, sed -i, awk, xargs, curl, heredoc writes; edits outside the change set;
+                        .claude/settings*; other worktrees
+AUTHORITY               commit and push to the branch; open the PR; mark READY FOR OPERATOR REVIEW; never merge
+BUDGET                  ≤ 8 town runs of 300 days (E-TWb-0 ×2, C4 ×4, reserve ×2); unit statistics unrestricted;
+                        full workspace test ≤ 2 runs
+MATERIAL STOPS          (1) an edit needed to the kernel, contracts, presence, persistence, server, clients,
+                        calendar or any other pack; (2) any new external dependency; (3) IL-a's/IL-b's API
+                        must change; (4) any digest other than market-town's changes; (5) a criterion in
+                        §17.6 fails after a correct implementation; (6) criterion 5 fails; (7) AC-1 needs
+                        more than the allow-list word
+GATE                    cargo fmt --all --check; cargo clippy --workspace --all-targets --all-features -- -D
+                        warnings; cargo test --workspace --no-fail-fast; check_doc_headings.py;
+                        check_decision_ids.py; check_ci_pins.py; check_scratch.py — each PASS / FAIL /
+                        INCONCLUSIVE from output, never from the exit code alone; CI on the exact head
+HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-b.md
+```
+
+## 17.11 Ledger
+
+Empty until execution starts. Commit rows, evidence (E-TWb-n), mutations (M-TWb-n) and deviations (TWb-Dn) are
+recorded here by the execution session.
+
+---
+
+# 18. TW-d — San Diego record data, `tools/weather-fetch`, and `source: record`
+
+**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §18.9.1)`**
+
+Design revision: §18 as of PR #107 (planning session, 2026-10-09; same worktree and base as §17).
+Approved by: the primary session, 2026-10-09, relayed by the coordinator. QTWd-1 and QTWd-2 are ruled
+yes and accepted. QTWd-3 … 8 are ruled as recommended. Implementation base: `origin/main` **after both
+TW-b (§17) and IL-b (`mvp0/pr-il-b-interactions`, `data:` attachments, QTW-7) have merged**; until then this
+PR does not start. Execution contract: §18.10. Lifecycle: FROZEN.
+
+Frozen means the scope (§18.1), the decisions (§18.3, §18.5), the acceptance and adversarial criteria
+(§18.6) and the execution contract (§18.10) are frozen. Progress, evidence, audit findings and bounded
+corrections stay writable.
+
+This section is TW-d's single PR design authority and, once frozen, its ledger (§18.11).
+
+## 18.1 Goal, scope, non-goals
+
+**Goal.** Market Town's weather is San Diego's real weather of 2015–2024, replayed day by day and looped.
+A player or a world author can switch any world to any station's committed record, or back to rules, by
+editing content only. The data is committed, licensed, provenance-recorded and produced by a reproducible
+offline tool. Nothing reaches the network at run time.
+
+**In scope.**
+- `source: record` in `weather`: the attachment-decoding CSV parser (LF, CRLF and BOM tolerant), gap rules,
+  the packed series, the record-date mapping with leap rules, and a second, never-woken Process
+  `weather-record` that holds the series.
+- The new tool crate `tools/weather-fetch`:
+  - a `reshape` mode from NOAA's `.dly` file;
+  - `fit` of the rules block;
+  - a `fetch` mode behind the cargo feature `fetch`, with `ureq` confined to the tool.
+- `worlds/market-town/data/weather/san-diego-usw00023188-2015-2024.csv` and `NOTICE`.
+- `.gitattributes` line endings for World Pack data.
+- Market Town switches to the record, with the fitted rules for gap filling.
+- AC-1 check 3 admits `data/` for allow-listed generic packs (QTWd-1).
+- `docs/DECISIONS.md` **DEP-31** and the DEP-8 table row; a root `NOTICE` pointer.
+
+**Non-goals.**
+- The GHCNh hourly layer (TW-g).
+- ERA5 (QTW-10).
+- Any client.
+- `mineworld check` (F-TWbd-2).
+- Persistence snapshot retention (F-TWbd-1, QTWd-2).
+- Changes to IL-b's seam (if it must change, material stop).
+- More than 10 record years (QTW-5).
+
+## 18.2 Audit anchors (re-verify at freeze against `main` after IL-b merges)
+
+| File / symbol | Finding | Consequence for TW-d |
+| --- | --- | --- |
+| IL-b `authoring/src/attachment.rs` (`mvp0/pr-il-b-interactions @ 29d0b49`): `Attachment` (`/`-separated, first component `data`, no `\`, `:`, `.`, `..`, empty or absolute), `path_under(root)` builds the platform path by `join`; `Attached` (bytes by attachment); `ATTACHMENT_MAX_BYTES = 4 MiB` | Paths are platform-neutral by construction, and the loader reads bytes whole. | The pack never sees a path, only bytes, so line endings and a BOM are the pack's to normalize (SD-TW-d-3). The 130 KB file is far under the cap. |
+| IL-b `authoring/src/configuration.rs`: `PackConfiguration::attachments(&C) -> Vec<&Attachment>`; `seed(&Seeding, &C, &ConfigurationContext)`; `ConfigurationContext::attached()` | The owner names its attachments and receives their bytes at seed. | `WeatherConfiguration::record.data: Attachment`, and `seed` decodes the bytes into the series it states in `weather-configured`. |
+| IL-b SD-IB-5, worldpack `configure.rs` (`read_attachments`; refusals `AttachmentMissing`, `AttachmentOutside`, `AttachmentTooLarge`); drift: `check_configuration` re-reads attachments and compares the seeded facts (E-IB-3: `a_changed_attachment_is_drift_and_an_unchanged_one_is_not`) | A changed file is drift with no new mechanism. | Criterion 3 runs through the real drift check. Because decoding normalizes line endings, a CRLF checkout of an LF file is **not** drift (SD-TW-d-3), which is tested. |
+| IL-b test pack `test-table` (E-IB-7: "rows decoded from the attachment (CRLF-tolerant)"); D-IB-9: "S19 TW-d's pack takes a plain configuration" | A plain configuration with an attachment key is the supported shape. | `weather` keeps a plain `PackConfiguration` (not `interactions!()`). |
+| §17 SD-TW-b-4 `weather-configured { seed, rules, record: Option<RecordRef> }` | Shaped for this PR. | `RecordRef` becomes `RecordSeries { station, first_year, years, days: packed }`, with no event schema bump. |
+| `persistence/src/world.rs` snapshot cadence (F-TWbd-1) | Process state is multiplied by the number of snapshots. | The series is packed, and it lives in its own never-rewritten Process so the frequently folded climate state stays ≤ 8 KB (SD-TW-d-5). |
+| `tests/acceptance/tests/ac1_composability.rs` l. 1234–1280 `world_delta_failures` | Top-level entries present in one pack only must be `items`, `organizations` or `configure` (Market Town only). **`data/` in Market Town fails check 3** ("data: present in one pack only"). | TW-d needs QTWd-1's ruling: admit `data/` in Market Town when every file in it is an attachment named by an allow-listed generic pack's `configure/` file or that attachment's `NOTICE`. TWa-R1's wording ("generic packs on an explicit allow-list … enabled through configuration") arguably covers it, but it changes a frozen acceptance measure, so it is asked. |
+| `Cargo.toml` `[workspace] members` lists `tools/cli` explicitly | A new tool crate is a members edit. | `"tools/weather-fetch"` is added to the root manifest. |
+| `.gitattributes` | Only `*.bin` and `*.glb` binary; no `eol` rule. | `worlds/*/data/**/*.csv text eol=lf` is added, so every platform checks out the same bytes and the NOTICE's byte count holds everywhere (SD-TW-d-12). The parser stays CRLF-tolerant for user-authored files (SD-TW-d-3). |
+| `NOTICE` (root) | Lists where bundled assets' records live. | One entry is added: `worlds/market-town/data/weather/NOTICE`, NOAA GHCN-Daily, CC0 / US public domain. |
+| `docs/DECISIONS.md` DEP-8 table (l. ~303) | Source, licence and use rows. | One row (§15.1 text). |
+| No HTTP client in the workspace (`Cargo.lock`: no `ureq`, `reqwest`); agents may not run `curl` (execution contracts) | The data must be fetched by some program. | The tool's `fetch` mode is how the implementing session obtains the file (QTWd-4). The feature is off by default. |
+
+**Evidence read for the data plan** (WebFetch, 2026-10-09; never at run time):
+- **E-TWd-pre-1.** <https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt>: PRCP is tenths of mm,
+  TMAX and TMIN tenths of °C, AWND tenths of m/s, and missing is −9999. The WT codes are 01 fog (may
+  include heavy fog), 02 heavy fog, 03 thunder, 08 smoke or haze, 13 mist, 14 drizzle, 16 rain, and 21
+  ground fog. A Q-flag blank means "did not fail any quality assurance check".
+- **E-TWd-pre-2.** <https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/USW00023188.dly> is plain fixed-width
+  text of about 4.3 M characters, beginning `USW00023188193907TMAX …`. A read of the excerpt covering
+  2016-03 to 2017-12 found:
+  - present: TMAX, TMIN, PRCP, AWND, WDF2, WSF2, WT01, WT02, WT03 and WT08, with source flag `W`;
+  - absent in that excerpt: WT13, WT14, WT16, WT21, ACSH, ACMH, PSUN and TSUN.
+
+  Population over 2015–2024 as a whole is **unverified** and is the tool's report (C4).
+- **E-TWd-pre-3.** <https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme-by_station.txt>: the by-station
+  CSV is a long format (`ID, YYYYMMDD, ELEMENT, VALUE, M, Q, S, OBS-TIME`) and is served gzipped. It was
+  not chosen (QTWd-3).
+
+## 18.3 Design decisions (SD-TW-d-n)
+
+| Id | Decision |
+| --- | --- |
+| SD-TW-d-1 | **The committed CSV format** (the pack's input, owned by `weather`, documented in its README). UTF-8. The header is exactly `date,tmax_dc,tmin_dc,prcp_tenth_mm,awnd_dms,wdf2_deg,fog,thunder`. One row per day, `date` is `YYYY-MM-DD`, ascending, no duplicates, and covering whole calendar years from Jan 1 to Dec 31. The integer cells may be empty (missing). `fog` and `thunder` are `0` or `1`. Columns change from §6.4: drizzle and rain flags are dropped (WT14 and WT16 are unpopulated per E-TWd-pre-2, and precipitation comes from PRCP), and `wdf2_deg` is added (populated, it gives `wind_from_deg`). `fog = WT01 ∨ WT02 ∨ WT21`; `thunder = WT03`. The `sky_am`, `sky_pm` and `fog_hours` columns are TW-g's, additive. |
+| SD-TW-d-2 | **Missing values.** In the tool, a `.dly` value of −9999, or one with a non-blank Q-flag, is written as an empty cell. A WT element absent on a day is 0 (WT elements record presence only). In the pack, a day is *missing* when TMAX, TMIN or PRCP is empty. A run of ≤ 3 missing days copies the previous complete day's values (origin `Filled`). A longer run takes rule days (origin `Rule`) when `fill: rules`, or is refused at seed when `fill: none`, naming the attachment and the first and last missing dates. An empty AWND or WDF2 alone takes the month's `wind_dms` or `wind_from_deg` from the rules and does not make the day missing. A leading missing run (no previous day) is treated as a long gap. |
+| SD-TW-d-3 | **Cross-platform decoding.** The parser accepts and strips one leading UTF-8 BOM. It splits lines on `\n` and strips one trailing `\r` from each, so LF and CRLF files decode identically. A final newline is optional, and an empty final line is ignored. Any other `\r`, a tab, a quoted cell or a non-ASCII byte outside the BOM is refused with the 1-based line number. The parser never sees a path (IL-b gives it bytes). A test decodes one fixture in LF, CRLF, CRLF+BOM and no-final-newline forms and asserts byte-identical `weather-configured` payloads. |
+| SD-TW-d-4 | **Record-date mapping** (§6.3, made exact for a `first_year` that is not the file's first year). `record_year = file_first + ((first_year − file_first) + (world_year − epoch_year)).rem_euclid(N)`. Here `file_first` is the file's first year, `N` the number of whole years in the file, and `epoch_year` the year of the first `day-began` the pack sees, stored in the climate state. With `first_year == file_first` this is §6.3's formula. Month and day are kept. A world Feb 29 on a non-leap record year uses that year's Feb 28. A record Feb 29 is used only by a world Feb 29. `first_year` must lie within the file's years, or the configuration is refused at seed. |
+| SD-TW-d-5 | **Where the series lives.** `weather-configured.record = RecordSeries { station: String (≤ 32 ASCII), first_year: i32, years: u16, days: PackedDays }`. `PackedDays` is a fixed 9-byte record per day: `tmax_dc i16, tmin_dc i16, prcp u16, awnd u8, wdf2/2 u8, flags u8` (fog, thunder, origin 2 bits, and wind-missing). It is serialized as one lowercase hex string, so 3 653 × 18 characters is about 66 KB in JSON. Hex needs no new dependency. Base64 would save about a third and is rejected only to avoid a dependency or 30 lines of codec; this is recorded. `react(weather-configured)` starts a second Process `weather-record` (open-ended, never woken, never rewritten) holding `{ series }`. The climate Process stays ≤ 8 KB (SD-TW-b-6). `react(day-began)` reads the record Process once per day (read-only) to take that day's 9 bytes. Each snapshot therefore carries about 66 KB more, which is about +13 % on today's about 0.5 MB market-town snapshot (F-TWbd-1, QTWd-2). Alternatives: (a) the series in the climate state, rejected because it is re-encoded at every fold, several times a day; (b) re-reading the CSV at run time, rejected as §6.5 (c); (c) a kernel "static world data" store, rejected by INV-TW-3. |
+| SD-TW-d-6 | **Record days in the generator.** A record or filled day sets `summary` from the record and `chain.wet = prcp ≥ 3`. It resets the anomalies to `tmax − month.tmax_dc` and `tmin − month.tmin_dc`, so a following rule-filled day continues the same climate. The hours are derived by §17's `hours()`, unchanged. `origin` is `Record { date }`, `Filled { date }` or `Rule`. |
+| SD-TW-d-7 | **Configuration** (TW-d's schema; `deny_unknown_fields`). `source: rules \| record`; `seed`; `rules` (always required, used for fill and for wind gaps); `record:` required iff `source: record`, holding `{ station: <GHCN id, provenance only>, data: <Attachment>, first_year: <i32> }`; `fill: rules \| none` (default `rules`). `attachments()` returns `record.data` when present. |
+| SD-TW-d-8 | **`tools/weather-fetch`** (crate `mineworld-weather-fetch`, binary `weather-fetch`, a workspace member). Its dependencies are `clap` (workspace), `mineworld-weather` (one CSV and rules authority: the tool writes what the pack decodes, and `fit` and the generator are the pack's types) and `serde-saphyr` (to read `--base`). It also has an optional `ureq` behind feature `fetch`, off by default, with the minimal TLS feature set; the version is pinned exactly at C3 and recorded in DEP-31. Its modes are listed in the three rows below. |
+| SD-TW-d-8a | `fetch --station USW00023188 --out FILE`, available only with `--features fetch`, downloads `https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/<station>.dly` and writes it verbatim. It records the URL, the UTC retrieval date and the byte count to stdout for the ledger (SD-TW-d-12: no hash crate). |
+| SD-TW-d-8b | `reshape --input FILE.dly --station ID --from YYYY --to YYYY --out-dir DIR` parses the `.dly` file by the readme's fixed columns, writes `<name>.csv` (LF, SD-TW-d-1) and `NOTICE` (§6.4's text plus the provenance fields of SD-TW-d-12), and prints a report: rows; missing TMAX/TMIN/PRCP by year; gap runs with their lengths; per-WT population by year; Q-flagged values dropped. |
+| SD-TW-d-8c | `fit --input FILE.csv --base configure/weather.yaml --out FILE.yaml` estimates per month, from complete record days: `p_wet_after_dry` and `p_wet_after_wet` from counted transitions (wet = PRCP ≥ 3, NOAA's 0.01 in rounded up to the record's 0.1 mm); `rain_tenth_mm` as the 10th/30th/50th/70th/90th percentiles of wet-day amounts (nearest rank); `tmax_dc` and `tmin_dc` as means; `t_noise_dc` as the integer square root of the anomaly variance × 3 / 2 (because uniform noise on ±n has variance n²/3), clamped to bounds; `t_ar_permille` from the lag-1 autocovariance ratio; `wet_tmax_shift_dc` as the wet minus all-day TMAX mean; `fog_permille` and `thunder_permille` as frequencies; `wind_dms` as the mean AWND; `wind_from_deg` as the modal WDF2 in 10° bins. `overcast_morning_permille` cannot be estimated from GHCN-Daily and is copied from `--base`, with a comment saying so. It writes the full `configure/weather.yaml` text with the fitted `rules:` block and a header naming the command. All of its arithmetic is integer (`i64`/`i128`), so the fit is byte-reproducible. |
+| SD-TW-d-9 | **Determinism of the tool.** Same input bytes and same arguments give byte-identical outputs: no timestamps in the CSV, the NOTICE's retrieval date passed as `--retrieved YYYY-MM-DD` rather than read from the clock, `BTreeMap` iteration only, and LF only. |
+| SD-TW-d-10 | **Market Town** switches to `source: record`, `first_year: 2015`, `fill: rules`, with the `rules:` block replaced by `fit`'s output on the committed CSV and the `--base` being TW-b's file. A test (C5) re-runs `fit` in-process on the committed CSV and asserts the committed `configure/weather.yaml` is byte-equal to its output, so the data and its fitted rules cannot drift apart. |
+| SD-TW-d-11 | **DEP-31** lands in C1, as §15.1 text, amended. It covers the data source (GHCN-Daily, the `.dly` input), GHCNh for TW-g, and the rejections of Meteostat, Open-Meteo (free API non-commercial), ERA5 (fallback only) and LARS-WG. It records that `ureq` is confined to `tools/weather-fetch` behind an off-by-default feature (QTW-14) and that the CSV is our own format, reshaped and labelled "modified". It adds the DEP-8 row. |
+
+## 18.4 Commit plan
+
+### C1 — `docs: DEP-31 weather data; the record format; weather-fetch spec`
+
+1. **Goal.** The data, licence and dependency decisions, and the CSV format, are written before code.
+2. **Scope.**
+   - `docs/DECISIONS.md`: DEP-31 plus the DEP-8 row, and, if QTWd-1 is ruled, an ARC-35 note dated with
+     the ruling.
+   - `systems/weather/README.md`: the record format section.
+   - New `tools/weather-fetch/{README.md,Cargo.toml,src/main.rs}`, as a doc-only skeleton.
+   - The root `Cargo.toml` members list.
+   - The root `NOTICE` entry.
+3. **Implementation.**
+   - [ ] DEP-31.
+   - [ ] The DEP-8 row.
+   - [ ] The ARC-35 note (only with the ruling).
+   - [ ] The format section.
+   - [ ] The tool skeleton and the members entry.
+   - [ ] The NOTICE pointer.
+4. **Validation.**
+   - [ ] Both doc checks pass.
+   - [ ] `cargo check -p mineworld-weather-fetch` is clean.
+5. **Acceptance.** As for TW-b C1.
+6. **Failure cases.** QTWd-1 unruled: C1 lands without the ARC-35 note, and C5 is parked (TW-a's C4
+   precedent).
+7. **Review.**
+   - [ ] DEP-31 does not restate ARC-68.
+   - [ ] The licence wording matches §3.2 and E-TWd-pre-1.
+   - [ ] "Modified data so labelled" is present.
+8. **Boundary.** Docs and skeletons only.
+
+### C2 — `weather: record source — decoding, gaps, the record process, the date mapping`
+
+1. **Goal.** The pack replays a committed record exactly, on every platform.
+2. **Scope.** `weather/src/{record.rs (new: CSV decode, PackedDays, gaps), configuration.rs, event.rs
+   (RecordSeries), process.rs (RecordProcess), system.rs (attachments, seed, react)}`; tests
+   `tests/record.rs` with a fixture World Pack under `tests/fixtures/record-town/` holding a 2-year
+   hand-written CSV (2015–2016, including a 2-day gap, a 5-day gap, Feb 29 2016 and a Q-dropped empty
+   cell).
+3. **Implementation.**
+   - [ ] The decoder (SD-TW-d-1, -2, -3).
+   - [ ] Packing (SD-TW-d-5).
+   - [ ] `source: record` and `attachments()` (SD-TW-d-7).
+   - [ ] `seed` decodes the bytes and refuses with `Rejection::System { code: "weather-record-invalid",
+     detail: "<attachment>: line N: …" }`.
+   - [ ] The record Process.
+   - [ ] The mapping (SD-TW-d-4).
+   - [ ] Record and filled days in the generator (SD-TW-d-6).
+4. **Validation.**
+   - [ ] (a) **LF, CRLF, BOM:** four encodings give byte-identical `weather-configured`.
+   - [ ] (b) Refusals, each with its line: bad header, unsorted date, duplicate date, a partial year, a
+     non-integer cell, a tab, a quoted cell, `first_year` outside the file, `fill: none` with a 5-day gap
+     (naming both dates).
+   - [ ] (c) **Criterion 2 (leap)**, with epoch 2026-10-08 and the fixture file 2015–2016 (`file_first`
+     2015, N = 2), asserted on `weather-day.origin` dates. The expected values follow from SD-TW-d-4:
+     - `first_year: 2015`:
+       - world 2027-02-28 → record 2016-02-28. Record 2016-02-29 is skipped, because world 2027 has no
+         Feb 29.
+       - world 2027-03-01 → record 2016-03-01.
+       - world 2028-02-29 → record 2015-02-28 (2015 is not a leap year).
+       - world 2028-03-01 → record 2015-03-01.
+     - `first_year: 2016`:
+       - world 2026-10-08 → record 2016-10-08.
+       - world 2028-02-29 → record 2016-02-29 (leap to leap).
+   - [ ] (d) Gaps: the 2-day gap is `Filled` with the previous day's values, and the 5-day gap is 5 `Rule`
+     days whose chain continues from the last record day.
+   - [ ] (e) **Criterion 3 (drift):** through `WorldPack::read` and the real drift check, editing one CSV
+     value after assembly reports `weather` changed, and converting the file to CRLF reports no drift.
+   - [ ] (f) Climate state ≤ 8 KB (TW-b's pin still holds). The record Process holds the series, and its
+     encoded size is recorded.
+   - [ ] (g) A resume mid-year equals uninterrupted.
+5. **Acceptance.** Every assertion above is on observed facts. (c)'s expected dates are written in the test
+   before it is run.
+6. **Failure cases.** As in (b). An attachment over 4 MiB is IL-b's refusal, which is not re-tested here.
+7. **Commands.** `cargo test -p mineworld-weather`; clippy.
+8. **Review.**
+   - [ ] The fold equals the state.
+   - [ ] The record Process is never rewritten (grep for `set_process_state::<RecordProcess>` gives none).
+   - [ ] No path handling in the pack.
+   - [ ] Leap logic is written once.
+   - [ ] Integer overflow is impossible in packing.
+9. **Boundary.** The pack only. No world, no tool.
+
+### C3 — `weather-fetch: reshape, fit, and an optional fetch`
+
+1. **Goal.** The data and its fitted rules are reproducible by a tool anyone can run offline.
+2. **Scope.** `tools/weather-fetch/src/{main.rs, dly.rs (fixed-width parser), reshape.rs, notice.rs,
+   fit.rs, fetch.rs (#[cfg(feature = "fetch")])}`, the manifest with `ureq` optional, and tests with a
+   hand-made `.dly` fixture (three months, with −9999 values, a Q-flag, WT01 and WT03 lines, and a
+   month with no WT lines).
+3. **Implementation.**
+   - [ ] The modes (SD-TW-d-8, SD-TW-d-8a to -8c).
+   - [ ] Determinism (SD-TW-d-9).
+   - [ ] The report.
+4. **Validation.**
+   - [ ] (a) **Criterion 1:** `reshape` run twice on the fixture gives byte-identical CSV and NOTICE,
+     and the CSV decodes with the pack's decoder (round trip).
+   - [ ] (b) Q-flagged values become empty cells. −9999 becomes empty. Missing WT lines become 0.
+   - [ ] (c) `fit` on a synthetic CSV generated by the pack's own generator from a known table (100 years)
+     recovers `p_wd` and `p_ww` within ±20‰ and the means within ±3 dC. This is the fit's own oracle.
+   - [ ] (d) **Criterion 4 (INV-TW-7):** `cargo tree -e normal -i ureq --workspace --all-features` lists
+     only `mineworld-weather-fetch` as the dependent. `cargo tree -p mineworld-cli -i ureq` and
+     `cargo tree -p mineworld-server -i ureq` (default and all features) report no match. The commands
+     and output are recorded verbatim.
+   - [ ] (e) `cargo build -p mineworld-weather-fetch` (no features) does not compile `ureq` (from
+     `cargo tree -p mineworld-weather-fetch`).
+5. **Acceptance.** (a) is byte-equal; (c) is within bounds; (d) lists exactly one dependent.
+6. **Failure cases.**
+   - Malformed `.dly` lines are refused with a line number.
+   - A station id mismatch between `--station` and the file is refused.
+   - `--from` > `--to` is refused.
+   - Years outside the file are refused.
+   - `fetch` without network gives a clear error, and the tool never retries silently.
+7. **Commands.** `cargo test -p mineworld-weather-fetch`; `cargo clippy -p mineworld-weather-fetch
+   --all-targets --all-features -- -D warnings`; the `cargo tree` lines.
+8. **Review.**
+   - [ ] The tool owns no CSV format of its own (it calls the pack's writer and decoder types).
+   - [ ] No float in `fit` (scan as in TW-b criterion 6).
+   - [ ] The NOTICE text matches §6.4 and DEP-31.
+   - [ ] `ureq`'s TLS backend needs no build tool beyond the CI image's (material stop (2) otherwise).
+9. **Boundary.** The tool only. No data is committed yet.
+
+### C4 — `data: San Diego, GHCN-Daily USW00023188, 2015–2024`
+
+1. **Goal.** The real record is committed with provenance.
+2. **Scope.** `worlds/market-town/data/weather/san-diego-usw00023188-2015-2024.csv` and `NOTICE`;
+   `.gitattributes` (`worlds/*/data/**/*.csv text eol=lf`).
+3. **Implementation.**
+   - [ ] `cargo run -p mineworld-weather-fetch --features fetch -- fetch --station USW00023188 --out
+     target/tw-d/USW00023188.dly` (once; the URL, date and byte count are recorded).
+   - [ ] `reshape … --from 2015 --to 2024 --retrieved <date> --out-dir worlds/market-town/data/weather`.
+   - [ ] The report goes into evidence.
+4. **Validation.**
+   - [ ] (a) 3 653 data rows (2015–2024, two leap years).
+   - [ ] (b) File size recorded, expected about 110–130 KB, must be < 1 MiB.
+   - [ ] (c) The report: missing-day runs; WT01, WT03 population per year. If WT01 is unpopulated in any
+     year, that year's fog comes from no record day, and this is recorded as R-TW-5 occurring.
+   - [ ] (d) Re-running `reshape` on the same `.dly` gives a byte-identical CSV and NOTICE (criterion 1
+     on real data).
+   - [ ] (e) The NOTICE's recorded byte and line counts (SD-TW-d-12) equal the committed CSV's.
+5. **Acceptance.** (a), (b), (d) and (e) as stated, and (c) recorded.
+6. **Failure cases.**
+   - NOAA unreachable: retry once later. If it is still unreachable, the operator downloads the file by
+     hand and the tool's `reshape` runs on it (provenance records who downloaded it).
+   - A gap > 3 days in 2015–2024 is fine with `fill: rules` and is reported.
+7. **Commands.** The tool lines above.
+8. **Review.**
+   - [ ] The NOTICE carries the attribution, both Menne et al. citations, "modified … not endorsed by
+     NOAA", the URL and the retrieval date.
+   - [ ] The licence per E-TWd-pre-1 and §3.2.
+9. **Boundary.** Data and `.gitattributes` only.
+
+### C5 — `worlds: market-town's weather is San Diego's record`
+
+1. **Goal.** The default town replays the record, and AC-1 stays exact.
+2. **Scope.**
+   - `worlds/market-town/configure/weather.yaml` (`fit`'s output).
+   - `tests/acceptance/tests/ac1_composability.rs`: QTWd-1's `data/` admission and its unit test.
+   - `systems/weather/tests/market_town.rs` (or under the CLI tests, by the existing pattern): the
+     fit-equality test (SD-TW-d-10).
+3. **Implementation.**
+   - [ ] Run `fit` and commit its output.
+   - [ ] The AC-1 change (only after the QTWd-1 ruling; otherwise park the commit as TW-a's C4 did).
+   - [ ] The fit-equality test.
+4. **Validation.**
+   - [ ] (a) **CP-TW-d** (§18.6).
+   - [ ] (b) **Criterion 5:** over 100 world years with the fitted rules (`source: rules`, pure function),
+     each month's wet-day frequency is within ±3 points of the record's 2015–2024 frequency for that
+     month, and the pooled mean wet-spell length is within ±15 % of the record's. M-TWd-5 must turn
+     both red.
+   - [ ] (c) The fit-equality test is green. Mutation **M-TWd-10**: edit one fitted number, and the test
+     must fail.
+   - [ ] (d) INV-TW-1: the four other digests equal `main`'s. The new market-town baseline is recorded.
+   - [ ] (e) Criterion 5 of TW-b (weather moves nobody) re-checked on the record world.
+   - [ ] (f) AC-1 14/14 plus the new `data/` test. Mutations: **M-TWd-A1**, a stray
+     `worlds/market-town/data/other.txt` that is not an attachment or a NOTICE, must fail naming it.
+     **M-TWd-A2**, a `data/` directory in Social Café, must fail.
+5. **Acceptance.** As written. (b)'s tolerance and sample are fixed now.
+6. **Failure cases.**
+   - (b) fails because the record's wet frequency is non-stationary within a month (a known WGEN
+     weakness). Report it with the per-month numbers. It is not material unless the gap is more than
+     5 points.
+   - A digest moves: material stop (4).
+7. **Commands.** As TW-b C4, with town runs within budget.
+8. **Review.**
+   - [ ] The AC-1 change admits nothing but attachments and their NOTICE.
+   - [ ] The fitted file's header names the command.
+   - [ ] The rules still bound-check.
+9. **Boundary.** Content, one acceptance guard, one test.
+
+### C6 — `docs(plan): TW-d evidence`
+
+- [ ] Ledger, handoff (`handoff-tw-d.md`), full gate (as TW-b C5), CI on the exact head; then READY FOR
+  OPERATOR REVIEW.
+
+## 18.5 Provenance without a hash dependency (SD-TW-d-12)
+
+`Cargo.lock` at `f80bbb7` contains no SHA-256 implementation (it has `sha1` and `digest` through the
+WebSocket stack, and no `sha2`; audited 2026-10-09). The tool therefore adds no hash crate. The NOTICE
+records the following, and the `fetch` mode prints the same counts for the `.dly` file:
+- the source URL;
+- the retrieval date (`--retrieved`);
+- the exact command line;
+- the tool's version;
+- the `.dly` input's byte count;
+- the CSV's byte count and line count.
+
+The provenance claim is that the data came from NOAA's published file through this tool. Reproducibility is
+owned by the reshape determinism test (criterion 1) and by `eol=lf` (QTWd-6), not by a digest in a text
+file. Adding a hash crate for this alone would be material stop (2). §6.4's "the fetch tool's version and
+command" is kept, and no digest is recorded (QTWd-7).
+
+## 18.6 Acceptance and adversarial criteria (fixed before measuring)
+
+**CP-TW-d**, revising §11.2 only in precision:
+
+`mineworld run worlds/market-town --headless --seed 1 --days 365 --save D`, then:
+1. **Seasonality.** Wet days with world dates in Dec–Feb exceed wet days in Jun–Aug.
+2. **Fog.** At least one `weather-day` with `fog` in May–July, **if** the tool's report shows WT01/WT02
+   populated in record year 2016. World 2027 maps to record 2016. If WT01/WT02 are unpopulated, the claim is
+   recorded N/A with the report's evidence.
+3. **Exact replay.** World 2026-10-08's `weather-day` has `origin = Record { 2015-10-08 }` and its summary
+   TMAX, TMIN and PRCP equal that CSV row's cells exactly. The test reads the row from the committed file.
+   World 2027-10-08 likewise equals record 2016-10-08. World 2027-10-08 is day 365, and its `day-began`
+   is at instant 365 × 86 400, the run's last instant, which `run` includes (TWa-D5).
+4. **Restart.** D resumed from day 200 to day 365 equals the uninterrupted run.
+
+**Adversarial criteria:**
+
+| # | Criterion | Owner | Mutation |
+| --- | --- | --- | --- |
+| 1 | The tool is byte-reproducible on the same input | C3 (a), C4 (d) | **M-TWd-1**: the NOTICE gains the wall-clock time of the run (seconds). (a) must fail |
+| 2 | The leap mapping, exactly as SD-TW-d-4 | C2 (c) | **M-TWd-2**: map a world Feb 29 to the record's Mar 1. (c) must fail |
+| 3 | A changed CSV value is drift; a CRLF conversion is not | C2 (e) | the edit itself is the mutation; **M-TWd-3b**: stop stripping `\r`, and the CRLF case must report drift |
+| 4 | INV-TW-7: only `mineworld-weather-fetch` depends on an HTTP client | C3 (d) | **M-TWd-4**: add `mineworld-weather-fetch` as a dev-dependency of `mineworld-cli` with `fetch` enabled. The tree check must name `mineworld-cli` |
+| 5 | Fitted rules reproduce, over 100 years, each month's record wet-day frequency within ±3 points, and the record's pooled mean wet-spell length (all months, 2015–2024) within ±15 % | C5 (b) | **M-TWd-5**: the fit writes `p_wet_after_wet := p_wet_after_dry`. The stationary frequency falls from `p_wd / (1000 − p_ww + p_wd)` to `p_wd`, and the spell length falls to about 1 day. Both halves must fail |
+| 6 (new) | Cross-platform decode: LF, CRLF and BOM give identical facts | C2 (a) | M-TWd-3b |
+| 7 (new) | The committed rules equal `fit` of the committed CSV | C5 (c) | M-TWd-10 |
+
+## 18.7 Risks
+
+| Id | Risk | Mitigation |
+| --- | --- | --- |
+| R-TWd-1 | IL-b's final API differs from `29d0b49` (`attachments`, the context, `Attached`). | Re-audit at freeze. An API change TW-d needs is material stop (3). |
+| R-TWd-2 | AC-1 check 3 refuses `data/` (§18.2). | QTWd-1. Until it is ruled, C5 is parked, with the TW-a C4 precedent. |
+| R-TWd-3 | Snapshot growth: about +66 KB per snapshot (F-TWbd-1). | Packed hex. Measured in C2 (f) and C5. QTWd-2 asks whether to accept it. The structural fix (retention) is the persistence lane's. |
+| R-TWd-4 | `ureq`'s TLS backend needs native tooling (`aws-lc-rs` needs cmake and nasm on Windows; `ring` needs a C compiler and clang on aarch64-windows). | The `fetch` feature is off by default, so default builds and every runtime crate never compile it. `--all-features` clippy on Linux CI compiles it. A backend needing more than the CI image's C toolchain is material stop (2). The fallback is `--input` only (QTW-14's alternative). |
+| R-TWd-5 | WT flags are sparsely populated (R-TW-5). | The tool reports it. Fog then comes from rule days only on filled days, and CP-TW-d 2 is N/A with evidence. TW-g adds GHCNh. |
+| R-TWd-6 | NOAA moves the `.dly` path (R-TW-10). | The data is committed. The tool takes `--input` too, and the URL is one constant recorded in DEP-31. |
+| R-TWd-7 | Platforms: there is no Windows CI, and a Windows checkout with `core.autocrlf=true` converts text files. | `eol=lf` in `.gitattributes`, plus a CRLF-tolerant parser, plus test (a). Windows is argued, not run (F-IB-16 records the Unix-only test files that block a Windows CI today). |
+| R-TWd-8 | The fitted WGEN-lite misses San Diego's spell structure or seasonality within a month. | Criteria 5 and its spell pairing. The record is the default and the rules only fill gaps, so the default world's realism comes from the record. |
+
+## 18.8 Findings recorded at planning
+
+```text
+F-TWd-1  E-TWd-pre-2 (excerpt 2016-03 … 2017-12): WT14 (drizzle) and WT16 (rain) absent, WT01/02/03/08
+         present, WDF2 present. §6.4's CSV columns are corrected accordingly (SD-TW-d-1).
+F-TWd-2  The GHCN-Daily `.dly` file is uncompressed fixed-width text (about 4.3 MB for the whole record);
+         the by-station CSV is gzipped (E-TWd-pre-3). Choosing `.dly` avoids a gzip dependency (QTWd-3).
+F-TWd-3  AC-1 check 3 refuses a `data/` directory in Market Town (§18.2).
+F-TWd-4  The execution contracts forbid `curl`, and the workspace has no HTTP client: without the tool's
+         `fetch` mode the implementing session cannot obtain the data itself (QTWd-4).
+```
+
+## 18.9 Questions (QTWd-n). **[OPERATOR]** marks operator-material ones.
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| **QTWd-1 [OPERATOR]** | AC-1 check 3 (ARC-35): admit a `data/` directory in Market Town when every file in it is an attachment named by an allow-listed generic pack's `configure/` file, or that attachment's sibling `NOTICE`? TWa-R1 admitted "generic packs … enabled through configuration". Attachments are configuration (ARC-61 note), but the ruling did not name `data/`, so this is asked rather than assumed. | **Yes**, as an ARC-35 note dated with the ruling. The market delta stays exactly the six packs and their content, and two mutations (M-TWd-A1, -A2) guard the admission. |
+| **QTWd-2 [OPERATOR]** | Accept that the record series adds about 66 KB to every world snapshot (+~13 % on Market Town's measured ~0.5 MB snapshots; F-TWbd-1), with snapshot retention routed to the persistence lane as a separate item? The alternative inside S19 is fewer record years, which reverses QTW-5. | **Accept**, and open a persistence item: a 30-day Market Town save is already 266 MB on `main` (measured), so retention is needed with or without weather. |
+| QTWd-3 | Tool input: NOAA's `.dly` (plain fixed-width, the format readme.txt §III documents) rather than the gzipped by-station CSV? | **`.dly`.** No gzip dependency, and it is the canonical documented format. |
+| QTWd-4 | Keep QTW-14's `fetch` mode (`ureq` in the tool only), behind an **off-by-default** cargo feature? | **Yes.** It is the only way an agent session can fetch the data under the no-`curl` rule, and the feature keeps it out of every default build. |
+| QTWd-5 | CSV columns as SD-TW-d-1 (drop drizzle and rain flags, add `wdf2_deg`), revising §6.4. | **Yes**, per F-TWd-1. |
+| QTWd-6 | `.gitattributes`: `worlds/*/data/**/*.csv text eol=lf`. | **Yes.** The same bytes on every platform. The parser still tolerates CRLF for user files. |
+| QTWd-7 | NOTICE hash: no new dependency for a SHA-256 (§18.5). | **Yes.** Reproducibility is owned by criterion 1 and `eol=lf`. |
+| QTWd-8 | The series encoding: hex (no dependency, about 66 KB) rather than base64 (about 44 KB, needs a dependency or a hand-written codec)? | **Hex** now. Revisit with QTWd-2's persistence item. |
+
+### 18.9.1 Rulings, 2026-10-09 (primary session; binding)
+
+| Id | Ruling |
+| --- | --- |
+| QTWd-1 | **Yes.** This applies the operator's AC-1 ruling of 2026-10-09 (TWa-R1: generic packs on the allow-list are admitted after the six market packs). Admitting their named `data/` attachments and the NOTICEs beside them is the same allowance. TW-d records it as an **ARC-35 note** in C1 and implements it in C5, with mutations M-TWd-A1 (a stray file under `data/` must fail, named) and M-TWd-A2 (a `data/` in Social Café must fail). |
+| QTWd-2 | **Accepted.** Weather's per-snapshot addition (about 66 KB packed series, SD-TW-d-5) is kept as designed. Snapshot retention goes to the persistence lane as **F-SAVE-1** (saves growing about 2.5 GB per 300 days); the primary session opens its design. |
+| QTWd-3 … QTWd-8 | Accepted as recommended. |
+
+These rulings settle every "after QTWd-1" and "if QTWd-1 is unruled" clause in §18.4 and §18.10. C1 lands the ARC-35 note, and C5 is not parked.
+
+## 18.10 Execution contract (frozen 2026-10-09)
+
+```text
+PROJECT / PR            S19 TW-d — San Diego record data, tools/weather-fetch, and source: record
+PRIMARY DESIGN DOC      .structured-coding/plans/mvp0/step-19-time-weather.md §18 (live ledger §18.11)
+RELATED / BINDING DOCS  as §17.10, plus §17 (TW-b, merged), step-18-interaction-list.md §12 (IL-b: SD-IB-5,
+                        QIB-6, D-IB-9), docs/DECISIONS.md DEP-8, DEP-31 (this PR), ARC-55; docs/REUSE_POLICY.md
+IMPLEMENTATION BASE     origin/main at freeze, after BOTH TW-b and IL-b have merged; re-audit §18.2 there
+WORKTREE                /Users/yuema137/mineworld-worktrees/impl-tw-d — held by one session only
+BRANCH                  mvp0/pr-tw-d-data, from the base above
+APPROVED SCOPE          §18.1. Change set: systems/weather/** ; tools/weather-fetch/** (new); Cargo.toml
+                        (members); Cargo.lock; .gitattributes (one line); NOTICE (one entry);
+                        worlds/market-town/{configure/weather.yaml,data/weather/**,README.md};
+                        tests/acceptance/tests/ac1_composability.rs (data/ admission, after QTWd-1);
+                        docs/DECISIONS.md (DEP-31, DEP-8 row, ARC-35 note after QTWd-1); this section;
+                        handoff-tw-d.md
+FROZEN INVARIANTS       INV-TW-1, -2, -3, -5, -7, -10; SD-TW-d-1 … 11; §18.6 criteria and mutations
+SEQUENCE                C1 → C2 → C3 → C4 → C5 → C6 (§18.4); QTWd-1 is ruled (§18.9.1): C1 carries the
+                        ARC-35 note and C5 is not parked
+ALLOWED COMMANDS        as §17.10, plus: the weather-fetch binary under target/ (including `fetch`, at most
+                        3 network fetches of the one NOAA URL); WebFetch for NOAA metadata only
+NOT ALLOWED             as §17.10
+AUTHORITY               commit and push to the branch; open the PR; READY FOR OPERATOR REVIEW; never merge
+BUDGET                  ≤ 8 town runs (300–366 days); ≤ 3 NOAA fetches; full workspace test ≤ 2 runs
+MATERIAL STOPS          (1)–(4) as §17.10 with "any new external dependency" read as "any beyond `ureq`
+                        (and its tree) in the tool"; (5) a TLS backend needing tools beyond the CI image's
+                        C toolchain; (6) the data's licence or terms differ from E-TWd-pre-1 / §3.2 when
+                        re-read; (7) a §18.6 criterion fails after a correct implementation (except the
+                        bounded case of C5 (b) ≤ 5 points); (8) AC-1 needs more than QTWd-1's ruling
+GATE                    as §17.10
+HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-d.md
+```
+
+## 18.11 Ledger
+
+Empty until execution starts. Commit rows, evidence (E-TWd-n), mutations (M-TWd-n) and deviations (TWd-Dn) are
+recorded here by the execution session.

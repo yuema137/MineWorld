@@ -22,6 +22,11 @@ RUN rustup component add rustfmt clippy
 # Pinned, built from its own lock; installed into the image's CARGO_HOME bin, which is on PATH.
 RUN cargo install --locked cargo-deny@0.20.2 \
     && rm -rf /usr/local/cargo/registry /usr/local/cargo/git
+# uv: the Python workspace's one tool (docs/DECISIONS.md DEP-26), copied from its official image and
+# pinned by digest like every base image (scripts/check_ci_pins.py). The image's own python3 (Debian's
+# 3.13) is the interpreter; uv never downloads another.
+COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /uvx /bin/
+ENV UV_PYTHON_DOWNLOADS=never
 ENV CARGO_TERM_COLOR=always
 WORKDIR /work
 
