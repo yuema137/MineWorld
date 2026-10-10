@@ -15,6 +15,8 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
                                                    parity natively on macOS and Windows runners)
+    python3 scripts/ci_layer.py docs              a documentation-only change: the doc checks only, on
+                                                   the bare runner (step-14 §16)
     python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
                                                    (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
@@ -50,6 +52,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
+        ["python3", "scripts/ci_changes.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -62,6 +65,14 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # A documentation-only change (step-14 §16, ARC-48's note of 2026-10-09 for 13x): the only CI
+    # commands that read the audited docs set, plus the classifier's own self-test. Pure Python and the
+    # standard library, run on the bare runner in `fast`'s place; no toolchain, no container.
+    "docs": [
+        ["python3", "scripts/check_doc_headings.py"],
+        ["python3", "scripts/check_decision_ids.py"],
+        ["python3", "scripts/ci_changes.py", "--self-test"],
     ],
     # AC-8's record on a native runner (macOS, Windows): the release binary, then every world recorded
     # (docs/DECISIONS.md ARC-49). The Linux legs record from the runtime image instead. On Windows the
@@ -159,6 +170,16 @@ ENVIRONMENT: list[list[str]] = [
     ["git", "rev-parse", "--is-shallow-repository"],
     ["git", "config", "--get", "remote.origin.partialclonefilter"],
 ]
+# The `docs` layer runs on the bare runner: probing `cargo` or `rustc` there would make rustup install
+# the toolchain `rust-toolchain.toml` pins, which is the minute the layer exists to save.
+ENVIRONMENT_OF: dict[str, list[list[str]]] = {
+    "docs": [
+        ["python3", "--version"],
+        ["git", "--version"],
+        ["git", "rev-parse", "HEAD"],
+        ["git", "rev-parse", "--is-shallow-repository"],
+    ],
+}
 
 
 def report(command: list[str]) -> None:
@@ -250,8 +271,8 @@ def offline_check() -> int:
 
 def run(layer: str) -> int:
     print(f"[ci] layer {layer} in {ROOT}", flush=True)
-    for command in ENVIRONMENT:
-        report(command)
+    for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
+        report(resolved(command))
     measured = layer in MEASURES_DISK
     if measured:
         disk("before")
