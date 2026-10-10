@@ -48,6 +48,7 @@ static func build(parent: Node3D) -> Node3D:
 	var m := SliceBatch.merge(g)
 	print("batch  %d primitive instances -> %d meshes, %d triangles"
 		% [m["merged_from"], m["merged_into"], m["triangles"]])
+	print("props  %d imported, %d fallback" % [Props.imported, Props.fallback])
 	_tick("batched", t0)
 	return g
 

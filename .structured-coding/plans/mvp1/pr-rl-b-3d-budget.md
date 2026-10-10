@@ -379,9 +379,40 @@ with evidence.
   base drifts in `cafe frontage` after the `gltf` row (recorded; no pass/fail role).
 
 ### C2 — `3d: props load as imported scenes (LODs, shadow meshes)`
-- [ ] Implementation: SD-RLb-1; `mineworld-slice` reimport condition; the scene `.import` files committed.
-- [ ] Validation: A-3, X-6; M-5 re-measure; V-1; A-7's `--drive`, `--measure`.
-- [ ] Review: the fallback is exercised; `retint` on imported materials gives the same tint.
+- [x] Implementation: SD-RLb-1; `mineworld-slice` reimport condition; the scene `.import` files committed.
+  *Evidence:* `Props.gltf` loads `<slug>.gltf` as a `PackedScene` when the import exists, else
+  `_parse()` (the old GLTFDocument path) with one warning per slug; `Props.imported` / `fallback`
+  counted and printed by `slice_world.gd` after the batch line. `mineworld-slice` reimports when the
+  cache or a `.godot/mineworld-import.stamp` is missing, or any script, `.import`, glTF, bin, glb, jpg
+  or png is newer than the stamp. The scene `.import` files were already tracked (D-1) with
+  `generate_lods=true`, `create_shadow_meshes=true`; no diff to them. `frame_diff.gd` gains the
+  optional `--mask=` (V-5, planned for C8, landed here with the tool's other option) and `--heat=`
+  (a red-over-darkened locator image) — default output unchanged (re-run on C2's frames printed the
+  identical lines).
+- [x] Validation: A-3, X-6; M-5 re-measure; V-1; A-7's `--drive`, `--measure`. *Evidence (E-RLb-3):*
+  A-3 `props  36 imported, 0 fallback`. X-6 (fallback forced): `props  0 imported, 36 fallback`, 36
+  warnings, the scene builds, primitives back to 8.2–10.5 M (base values) — FAIL as required, reverted.
+  M-5 at 1920x1080 (three conclusive runs, median p95 ms / max draws / max primitives):
+  street wide 13.82 / 4155 / 2.11 M; cafe frontage 22.12 / 4426 / 3.70 M; interior 17.63 / 3912 /
+  3.75 M; doorway 23.75 / 3428 / 3.17 M; street east 15.54 / 4215 / 2.34 M; south side 14.35 / 614 /
+  0.17 M; florist interior 20.08 / 3649 / 3.53 M; skyline east 14.71 / 4047 / 2.08 M; video memory
+  2 515.9 MB. M-6 still FAIL on all four; primitives fall 64–76 % per view. A-9: `build batched`
+  7.4–8.6 s against 7.5–9.0 s on the base (no growth). `--drive`: all drive checks pass. `--measure`:
+  prop extents identical to C1's run; the one out-of-range line (occupant stature 1.802 m vs
+  1.70–1.80) is the same on C1 (pre-existing, character-owned, not this PR's).
+  V-1 (base1 vs c2): 19 of 30 views over the 0.5-point bound (max 18_pavement_detail 5.23 %,
+  12_back_wall 2.26 %). Located with `--heat` (`shots/slice/rlb/heat-c2/`): every changed pixel is on
+  a Poly Haven prop surface (leaves, pot, crockery, cakes, chair seats); nothing else moves. Cause
+  named: the props' textures now come through Godot's importer, whose committed settings for those
+  textures are Lossless with no mipmaps (A-3), where the run-time parser generated its own textures;
+  the surfaces alias differently (fine speckle). C3 sets mipmaps and VRAM compression on exactly
+  these textures, so V-1 for prop surfaces is judged on C3's head against the base, not here.
+- [x] Review: the fallback is exercised; `retint` on imported materials gives the same tint.
+  *Evidence:* X-6 exercised the fallback end to end. `retint` duplicates whatever `BaseMaterial3D`
+  the mesh carries and multiplies its albedo; imported materials are `StandardMaterial3D` like the
+  parser's, and the heat maps show no prop changing hue (speckle only). `SliceMain._exit_tree` still
+  frees the templates (instantiated nodes). `SliceProps.keep`'s suffix matching sees the same child
+  names (the `--measure` prop table is identical).
 
 ### C3 — `3d: the slice's textures are VRAM-compressed and mipmapped, owned by a tool`
 - [ ] Implementation: `tools/slice_imports.py`; texture `.import` files committed.

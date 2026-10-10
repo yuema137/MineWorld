@@ -47,10 +47,20 @@ fi
 # Godot resolves global class names outside the editor only from its resource
 # cache. Build it on the first run, and rebuild whenever a script is newer than
 # the cache: adding a class_name to the tree otherwise fails to parse at startup.
+# The same pass imports the props and textures (RL-b SD-RLb-1): the slice draws
+# props as imported scenes, so an asset or a committed `.import` newer than the
+# last import must be reimported too. A stamp marks the last import, because the
+# class cache is not rewritten when no script changed.
 cache="$proj/.godot/global_script_class_cache.cfg"
-if [ ! -f "$cache" ] || [ -n "$(find "$proj/scripts" -name '*.gd' -newer "$cache" -print -quit)" ]; then
+stamp="$proj/.godot/mineworld-import.stamp"
+if [ ! -f "$cache" ] || [ ! -f "$stamp" ] \
+    || [ -n "$(find "$proj/scripts" -name '*.gd' -newer "$cache" -print -quit)" ] \
+    || [ -n "$(find "$proj/scripts" "$proj/assets" -newer "$stamp" \
+         \( -name '*.gd' -o -name '*.import' -o -name '*.gltf' -o -name '*.bin' \
+            -o -name '*.glb' -o -name '*.jpg' -o -name '*.png' \) -print -quit)" ]; then
   echo "building the Godot resource cache..."
   "$godot_bin" --headless --path "$proj" --import >/dev/null 2>&1 || true
+  touch "$stamp"
 fi
 
 args=()

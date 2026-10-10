@@ -2,8 +2,9 @@
 ##
 ## Two sources, deliberately only two (mixing eight libraries is what makes a
 ## scene read as a pile of assets rather than a town):
-##   1. CC0 Poly Haven glTF props, loaded at runtime through GLTFDocument so
-##      nothing has to go through Godot's importer.
+##   1. CC0 Poly Haven glTF props, loaded as Godot-imported scenes (mesh LODs,
+##      shadow meshes, imported textures), with a run-time GLTFDocument parse as
+##      the fallback when no import cache exists. The launchers build the cache.
 ##   2. Primitives built here, for everything no open licence covers -- trees,
 ##      planters, awnings, signage, bikes, boats, fountains.
 ##
@@ -49,17 +50,31 @@ static func _grass_mat(v: int) -> Material:
 	return _cached("grass%d" % v, func(): return Mats.card(ProcGen.grass_card(17 + v * 29), 0.6))
 
 
+## Slugs that came through Godot's importer, and slugs that fell back to the
+## run-time glTF parser (RL-b A-3: with the import cache present, 0 fallback).
+static var imported := 0
+static var fallback := 0
+
+
+## One prop, as a fresh node. The imported scene comes first (RL-b SD-RLb-1): it
+## is what carries the importer's mesh LODs and shadow meshes, and its textures
+## are the imported ones with their committed `.import` settings. Measured on the
+## base, props without LODs were 8-9.5 M of a frame's 8.8-10.5 M primitives
+## (E-RLb-2). The run-time `GLTFDocument` path stays as the fallback, so a
+## checkout whose import cache has not been built still runs, and it says so.
 static func gltf(slug: String) -> Node3D:
 	if not _scenes.has(slug):
 		var path := "%s/%s/%s.gltf" % [MODEL_DIR, slug, slug]
-		var doc := GLTFDocument.new()
-		var st := GLTFState.new()
-		var err := doc.append_from_file(path, st)
-		if err != OK:
-			push_warning("gltf load failed: %s (%d)" % [path, err])
-			_scenes[slug] = null
+		var packed: PackedScene = null
+		if ResourceLoader.exists(path, "PackedScene"):
+			packed = load(path) as PackedScene
+		if packed != null:
+			_scenes[slug] = packed.instantiate()
+			imported += 1
 		else:
-			_scenes[slug] = doc.generate_scene(st)
+			push_warning("props: no imported scene for %s; parsing the glTF at run time" % slug)
+			fallback += 1
+			_scenes[slug] = _parse(path)
 	var src: Node3D = _scenes[slug]
 	if src == null:
 		return Node3D.new()
@@ -67,6 +82,17 @@ static func gltf(slug: String) -> Node3D:
 	# the slice's frame-cost breakdown finds props by this (RL-b M-7)
 	n.set_meta("mw_category", "gltf")
 	return n
+
+
+## The fallback: parse the glTF at run time, as the spike always did.
+static func _parse(path: String) -> Node3D:
+	var doc := GLTFDocument.new()
+	var st := GLTFState.new()
+	var err := doc.append_from_file(path, st)
+	if err != OK:
+		push_warning("gltf load failed: %s (%d)" % [path, err])
+		return null
+	return doc.generate_scene(st) as Node3D
 
 
 ## Re-point an imported prop's materials at our palette.
