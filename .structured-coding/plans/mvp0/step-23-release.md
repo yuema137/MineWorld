@@ -1134,19 +1134,56 @@ Files: `Cargo.toml` (member `tools/launch`), `tools/launch/Cargo.toml`, `src/lib
 `src/bundle.rs`, `src/config.rs` (`launch.toml`), `src/join.rs`, `src/user.rs` (per-user folder, logs,
 retention), `src/bin/*.rs`, `tests/launcher.rs` (harness = false).
 
-- [ ] Implementation.
-- [ ] Validation: unit tests; launcher integration tests locally; mutation M1 and M3 recorded.
-- [ ] Review: invariants of §17.2 (join line only, own children only, per-user saves, loopback only).
+**Landed as one commit with C4** (the entry points, `windows_subsystem` and `CREATE_NO_WINDOW` are a few
+lines each and the tests start the real binaries): files as planned plus `src/children.rs` (the server and
+the clients, split out of `lib.rs` when it passed 500 lines) and `src/dialog.rs`.
+
+- [x] Implementation: `lib.rs` (`Mode`, `Failure`, `Options`, `main`, `run`, `chosen`, smoke `Scratch`
+  guard); `bundle.rs` (root from the executable's path, every bundle path); `config.rs` (`WorldName`,
+  `Seat`, `Choice`, the `launch.toml` subset); `join.rs` (complete lines only); `user.rs` (per-user folder,
+  `Run`, logs, retention of five runs, `Log`); `children.rs` (`Server`: start with a stdin pipe and output
+  to a file, join wait, stop = close stdin, 10 s, kill own child; `Clients`: start, wait all, first
+  non-zero code); three one-line binaries; `tests/launcher.rs` (harness = false, stub = the test
+  executable).
+- [x] Validation (macOS arm64, working tree on `d509770`, `cargo build -p mineworld-cli` first):
+  - unit: 7 passed (bundle root ×1, `launch.toml` grammar ×2 with 10 refusals, join line ×2, log names ×1,
+    command line ×1);
+  - `cargo test -p mineworld-launch --test launcher`: 4 passed in 4.5 s — play (arguments; a real join with
+    them is `welcome`; invite absent from the launcher's log; graceful stop lines in order; save in the
+    per-user folder; second run `resumed`; `--fresh` `created`), kill (launcher `killed()`; server pid gone
+    within 15 s; one server log with the graceful lines), smoke both (two headless clients with their
+    probes, seats `visitor`/`wanderer`, one `--server`; no `scratch/`, no save; retention kept this run and
+    the four newest older runs, deleted two, left `keep-me.log`; `--smoke=2d` with a client exiting 3 →
+    launcher exit 3), failures (missing `market-town` named, exit 1; empty world → "the server stopped
+    before it was ready" naming the server log; no client started);
+  - mutation **M1** (launcher omits `--stop-on-stdin-eof`): 3 of 4 FAILED by name — "the server did not
+    stop within 10 s and was killed" (play, smoke) and "the server (pid …) outlived its launcher by 15s"
+    (kill). The orphan of that run was ended by hand (pid 6074); the kill case now ends an orphan itself
+    before failing;
+  - mutation **M3** (launcher passes a wrong invite): play FAILED, `left: "refused"`, `right: "welcome"`;
+    the `Background` guard released the stub and the launcher stopped its server — no process left
+    (`pgrep` empty) and no scratch left;
+  - `cargo clippy -p mineworld-launch -p mineworld-cli --all-targets -D warnings` clean; also for
+    `--target x86_64-apple-darwin`; `/tmp/impl-s23-rc-target/tmp` empty after every passing run;
+  - the macOS alert script compiles (`osacompile`, the exact three `-e` lines); the dialog was not shown
+    by hand (it blocks until dismissed) — INCONCLUSIVE for the visual, PASS for syntax;
+  - Windows and Linux code paths (`MessageBoxW`, `CREATE_NO_WINDOW`, `APPDATA`, XDG, zenity/kdialog):
+    compiled and tested only by CI (`test-windows`, `test`), §19.6.
+- [x] Review: the launcher reads only the join line from the server's output; it kills only `Child`
+  handles it holds (server after 10 s, clients only when a later client cannot start); saves, logs and
+  scratch are under the per-user folder; the server listens on `127.0.0.1:0`; no network call in the
+  launcher itself; `MINEWORLD_INVITE`/`MINEWORLD_ADMIN_TOKEN` removed so the join line is always the
+  generated one and no admin surface is mounted; a failure after the server started drops `Server`, whose
+  `Drop` takes the same stop path; the smoke `Scratch` is declared before `Server` so it is removed after the
+  server has exited (Windows cannot delete an open SQLite file). Function sizes: `run` ≈ 60 lines, every
+  other under 50; files ≤ 293 lines (tests 790).
 
 ### C4 — per-OS errors, windowless start, the three entry points
 
-Files: `tools/launch/src/dialog.rs`, the `windows_subsystem` attribute, `CREATE_NO_WINDOW`.
-
-- [ ] Implementation.
-- [ ] Validation: `cargo check` for `x86_64-pc-windows-msvc` locally if the target is installed, else CI
-  `test-windows`; a manual dialog on macOS (`--bundle` at an empty folder) recorded.
-- [ ] Review: no `unsafe` beyond the one `MessageBoxW` call, with its SAFETY note; dialogs never block a
-  smoke run.
+Merged into C3's commit (above). `dialog.rs`: macOS `osascript` with the message as `argv`, Linux zenity
+(`--no-markup`) then kdialog, Windows `MessageBoxW` from one `user32` declaration with a SAFETY note — the
+only `unsafe` (`#![deny(unsafe_code)]` crate-wide, one `#[allow]`). No dialog with `--no-dialog`, in any
+smoke run, or (for an argument error) when `--no-dialog` is among the raw arguments.
 
 ### C5 — packaging integration (after R-a merges; merge `origin/main` first)
 

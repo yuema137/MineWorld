@@ -102,7 +102,8 @@ comment  = "#" anything
 keys     [2d] and [3d]: world, seat        [both]: world, seat-2d, seat-3d
 ```
 
-Blank lines, comments and surrounding whitespace are ignored. A pair before any section, an unknown section
+Blank lines, comments and surrounding whitespace are ignored; a comment is a whole line (a `#` after a value
+is refused, not read as a comment). A pair before any section, an unknown section
 or key, a key given twice in one section, or any other line is an error naming the file, the line number and
 what was expected. A `world` is one folder name under `runtime/worlds/` (no separator, not `.` or `..`). A
 seat is not checked by the launcher: the server refuses an unknown seat to the client that asks for it.
