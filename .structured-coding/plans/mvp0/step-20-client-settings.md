@@ -825,6 +825,11 @@ the questions as they were asked.
 **`DESIGN FROZEN 2026-10-08 (primary session; operator rulings QSET-1, -2, -3, -7 and the all-platform
 requirement of the same date, §1.5)`**
 
+**Lifecycle: MERGED** — PR #117, merge commit `44ac76293fbbd56979c3e2ec3fecb40d99141d53`,
+2026-10-10T04:57:51Z, from PR head `fcabd23` (CI on that head: `fast`, `test`, `platforms` macos-26 and
+windows-2025, `python` ×3 all green, run 38024027336). The record of the merge is §12.14. The Windows and
+Linux hand checks, and the macOS manual looks, are carried to milestone F (§12.14; `docs/MVP_STATUS.md`).
+
 Frozen means the scope (§12.1), the design decisions (§12.3), the acceptance (§12.6, §7, §8) and the
 execution contract (§12.9) are frozen. Progress, evidence, audit findings and bounded corrections stay
 writable. This section is SET-a's single PR design authority and its ledger. **Implementation starts
@@ -1325,8 +1330,8 @@ step, and the test asserts that the stub saw the client's `leave`.
 | C5 + C6 | done (one commit) | `b95e748` |
 | merge `origin/main` | done | `72efd61` |
 | C7 | done; final code head `873612b` | `ce0b4c1`, `d5921e7`, `873612b`; ledger commit after it |
-| Lifecycle | **READY FOR OPERATOR REVIEW** (PR opened; CI on the exact head recorded in the PR) — DO NOT MERGE | — |
-| Post-merge synchronization | this session: §12 lifecycle, merge identity and evidence; the primary session: step-20 §§1–11, `overall.md` (S20 row; decision numbers ARC-76, DEP-35, DEP-36) | — |
+| Lifecycle | **MERGED** — PR #117, `44ac762`, 2026-10-10T04:57:51Z (§12.14) | `44ac76293fbbd56979c3e2ec3fecb40d99141d53` |
+| Post-merge synchronization | this session: §12 (this record) and `docs/MVP_STATUS.md` (S20 row, evidence, carried items), branch `docs/set-a-closeout`; the primary session: step-20 §§1–11, `overall.md` (S20 row; decision numbers ARC-76, DEP-35, DEP-36) | closeout PR |
 | QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
 | Windows / Linux checklist (§8) | open, for the operator | — |
 
@@ -1355,3 +1360,28 @@ Handoff: [`handoff-set-a.md`](handoff-set-a.md).
 | F-17 | Main's `platforms` CI layer (Windows, macOS) and its note that Windows checkouts keep the runner's `core.autocrlf`: a CRLF `messages.pot` would fail `client_text`'s byte comparison for a Windows developer (the layer itself does not run `mineworld-acceptance`). | `.github/workflows/ci.yml` l. 60–84; `scripts/ci_layer.py` `platforms` | The comparison normalizes `\r\n`; the `.po` reader already uses `str::lines`. Godot reads `.po` line by line; CRLF catalogs on Windows are part of H-1 on Windows. |
 | F-18 | Second merge of `origin/main` (`050790d`: 12n #116, S11-C #95, E-c #99, 13b parity #97). `DECISIONS.md` conflicted (both sides appended; kept both — 12n's ARC-75 and this PR's ARC-76). AC-SET-4 then failed as designed on the new codes: 12n's action types `walk-to`, `walk-step` and S11-C's refusal codes `cursor_unavailable`, `lagged`. | `client_text` output after the merge | Added to both shared catalogs (refusal codes' English in the readable form, F-15's rule); `messages.pot` regenerated. The protocol module changed under S11-C, so the Godot suites re-ran on the merged tree (C7 evidence below). |
 | F-12 | Engine probe (Godot 4.7.2, headless, scratch project outside the repository): `standardize_locale("xx_test")` → `xx`; a `.po` loads from an absolute path inside a `.gdignore` folder; appending Noto Sans SC to `ThemeDB.fallback_font.fallbacks` makes `"设置 Settings"` shape with no tofu and two fonts; `screen_get_refresh_rate()` is `-1` headless. | scratch probe, recorded here | The marker catalog uses locale `qaa` (a private-use code) so it never collides with AC-SET-14's scratch `xx_test` (→ `xx`). Catalogs and the font sit in `.gdignore` folders and are loaded by absolute path, so no `.import` sidecar is ever written through the symlinks. |
+
+## 12.14 Merge record (closeout, 2026-10-10)
+
+- **Merged:** PR #117 (`mvp0/pr-set-a`), merge commit `44ac76293fbbd56979c3e2ec3fecb40d99141d53`,
+  2026-10-10T04:57:51Z, by the operator's authorization relayed by the primary session. The PR head was
+  `fcabd23c5d302008d28f985f0756fed4781fd60e`, with CI on that exact head all green (pull_request run
+  38024027336: `fast`, `test`, `platforms` macos-26 and windows-2025, `python` ubuntu/macos/windows;
+  push run 38024024847: `fast`).
+- **Review:** the primary session ran a review mutation, removing `action.walk-to` from the shared
+  `zh_Hans.po`. It was caught by `tests/acceptance/tests/client_text.rs`
+  `the_catalogs_are_complete_and_consistent`. The ruling on F-10 (decision numbers ARC-76, DEP-35, DEP-36,
+  renumbered in `5fb7762`) and acceptance of F-15 and F-16 as bounded are recorded in §12.11.
+- **Evidence at merge:** §12.5 C7 and §12.12. On macOS all 16 of AC-SET-1 … 16 pass; the last Godot gate
+  ran on `7787572`, the code head after the second merge of `main`.
+- **Carried to milestone F** (`docs/MVP_STATUS.md` "Carried to milestone F", §12.13):
+  - every Windows and Linux hand check, H-1 … H-10 per §12.13's columns (Windows D3D12 and Vulkan;
+    Linux X11; Linux Wayland);
+  - the macOS manual items: H-1 on an external 1× display, H-2 by eye, H-3 Cmd-Tab, H-4's countdown
+    and the Retina preset judgement, H-5 tearing and render-scale softness, H-6 in one world, H-7,
+    H-8, H-9 by hand.
+- **Remaining in S20:** SET-b (input options) and SET-c (the World section, host commands, after S11-D
+  and TW-c), each to be frozen on its own. The parent and overall updates (step-20 §§1–11,
+  `overall.md`) belong to the primary session.
+- **This session's worktree** `/Users/yuema137/mineworld-worktrees/impl-set-a` is removed after the
+  closeout PR is opened.
