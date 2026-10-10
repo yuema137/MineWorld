@@ -101,12 +101,64 @@ func _run() -> void:
 			unmarked.append(line)
 	_check(unmarked.is_empty(), "under the marker catalog every text comes from a catalog", "\n".join(unmarked))
 
+	await _language_without_code(menu)
 	MineWorldText.load_layers("")
 	MineWorldText.set_language("en")
 	menu.queue_free()
 	_clear(_scratch)
 	print("menu_check: %s" % ("PASS" if _fails == 0 else "FAIL"))
 	quit(0 if _fails == 0 else 1)
+
+
+## AC-SET-14: a `.po` dropped into the user's layer (`user://locale/xx_test.po`) with a self-name and
+## two entries is offered in the language list; choosing it shows its two texts and English for every
+## other key, never a raw key. The file and folder are removed afterwards.
+func _language_without_code(menu: MineWorldSettingsMenu) -> void:
+	var dir := ProjectSettings.globalize_path(MineWorldText.USER_LAYER)
+	var created := not DirAccess.dir_exists_absolute(dir)
+	DirAccess.make_dir_recursive_absolute(dir)
+	var file := dir.path_join("xx_test.po")
+	var out := FileAccess.open(file, FileAccess.WRITE)
+	out.store_string("msgid \"\"\nmsgstr \"\"\n\"Language: xx_test\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\n" +
+		"msgid \"language.self_name\"\nmsgstr \"Testish\"\n\nmsgid \"ui.settings.title\"\nmsgstr \"Testish settings\"\n\n" +
+		"msgid \"ui.settings.apply\"\nmsgstr \"Testish apply\"\n")
+	out.close()
+	MineWorldText.load_layers("")
+	MineWorldText.set_language("en")
+	menu.open()
+	await process_frame
+	var listed := PackedStringArray()
+	for i in menu._language.item_count:
+		listed.append(menu._language.get_item_text(i))
+	_check(listed.has("Testish"), "a user's .po is offered as a language", ", ".join(listed))
+	menu._on_language(menu._locales.find(TranslationServer.standardize_locale("xx_test")))
+	await process_frame
+	var texts := _texts(menu)
+	var title := ""
+	var apply := ""
+	var raw := PackedStringArray()
+	for line in texts:
+		var said := line.get_slice("\t", 1)
+		if said == "Testish settings":
+			title = said
+		if said == "Testish apply":
+			apply = said
+		if said.begins_with("ui.") or said.begins_with("hud.") or said.contains(".settings."):
+			raw.append(said)
+	_check(title != "" and apply != "" and _any(texts, "Revert") and raw.is_empty(),
+		"choosing it shows its two texts and English for the rest, never a raw key", " | ".join(raw))
+	menu._on_language(menu._locales.find("en"))
+	menu.close()
+	DirAccess.remove_absolute(file)
+	if created:
+		DirAccess.remove_absolute(dir)
+
+
+static func _any(lines: PackedStringArray, needle: String) -> bool:
+	for line in lines:
+		if line.get_slice("\t", 1) == needle:
+			return true
+	return false
 
 
 ## A marker catalog (locale `qaa`): every entry of the shared and 2D pack en.po wrapped as ⟦…⟧.
