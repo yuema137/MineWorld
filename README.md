@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/readme/3d-cafe-front.jpg" alt="The café on the main street, in the 3D view" width="100%">
+  <img src="docs/images/readme/3d-cafe-front.jpg" alt="The café on the main street, seen in the 3D view" width="100%">
 </p>
 
 <p align="center">
