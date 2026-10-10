@@ -3619,6 +3619,50 @@ requirement binds in four ways:
     tests on `windows-latest` and `macos-latest`). Until it exists, Windows behaviour is designed and
     compiled, not exercised, and this PR's handoff says so.
 
+## 17.15 Merge and closeout (post-merge sync)
+
+```text
+MERGED      PR #95 (mvp0/pr-s11c-perception) merged by the operator as 370bb38
+            (370bb38e3a95c9d108ff5c3c5d91eba620176d5c) at 2026-10-10T02:04:57Z. Final PR head 9f8c87c
+            (origin/main @ cf18713 merged, D-SC17); PR CI run 38013913903 on that head: fast, test,
+            python ×3 (macOS, Ubuntu, Windows), platforms ×2 success.
+STATUS      S11-C complete. Evidence E-SC0 … E-SC17 (§17.12); deviations D-SC1 … D-SC17 (§17.13);
+            operator rulings on D-SC12 (typed deltas stand), D-SC14 (main.rs follow-up for the CLI
+            owner) and D-SC16 (SDK models in the PR) recorded there.
+```
+
+**Finding F-SC1 (operator's merge review, 2026-10-10).** The reviewer planted a mutation in
+presence's audience rule: `Visibility::Place` admits everyone, regardless of where they were. It was
+caught by `tools/cli/tests/facts.rs`
+`a_line_reaches_who_was_there_and_nobody_else`, through the real binary. `server/tests/facts.rs` alone
+did **not** catch it.
+
+The reason is in how `server/tests/facts.rs` is built. It pins the record-time property (D-SC9) with
+a test-local system and a test-local `EventPerception`. The real adapters (`PackEventPerception`)
+live in the binary crate, which an integration test cannot import (D-SC9). So the server crate's
+tests exercise the seam and its delivery, but never presence's real `Place` audience. Whether a fact
+admitted to the wrong audience reaches a client is therefore checked only end to end, through the
+binary (CA-3).
+
+The review did not record which file the mutation was planted in. If it was presence's `admits`
+(`systems/presence/src/audience.rs`), then presence's own unit test
+`each_visibility_has_exactly_its_audience` also pins the `Place` branch. That covers the rule where it
+lives; the server suite simply sits one layer away from it.
+
+This is recorded as a test-coverage finding, not a defect in the shipped behaviour. The guard that
+caught it is real and runs in the default suite. Follow-up, optional, for the S11 server owner: a
+server-crate test that drives the real presence audience through the `EventPerception` seam, if the
+adapter is ever moved where an integration test can reach it.
+
+**Items carried INCONCLUSIVE or not run (unchanged by the merge):**
+
+| Item | Status | Owner / reason |
+| --- | --- | --- |
+| `cargo check --target x86_64-pc-windows-msvc` (C-C10, §17.14) | INCONCLUSIVE locally: target not installed | S13 (R-S13-W1). PR CI's `platforms (windows-2025)` and `python (windows-2025)` jobs passed on 9f8c87c. What `platforms` covers is 13b's (`ARC-49`), and is not claimed here as this check |
+| CA-4's drop path through the binary (E-SC6, §17.12) | INCONCLUSIVE: OS socket buffers absorb the overflow before the server's queue drops; exactness PASS, and the drop rule is pinned in-process (D-SC8) | S11 follow-up if a deterministic socket-level overflow harness is wanted |
+| M-CA13 (CA-13's mutation) | Not run: §17.11's validation budget | CA-13 itself PASS (E-SC13) |
+| CA-13 graceful stop on Windows | Not exercised: interrupt helper is `#[cfg(unix)]` | S13 (R-S13-W1) |
+
 ---
 
 # 18. PR S11-D — the admin surface and the host clock routes (full design)
