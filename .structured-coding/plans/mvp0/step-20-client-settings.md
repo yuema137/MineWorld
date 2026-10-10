@@ -947,9 +947,33 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Goal:** settings can be loaded, validated, saved atomically and applied, headless-safe.
 - **Scope:** `clients/shared/project.godot`, `settings.gd`, `store.gd`, `display.gd`,
   `checks/store_check.gd`. **Non-goals:** catalogs, menu, clients.
-- [ ] Implementation: the typed value and `validate()`; `open(args)` with `--settings=` and `none`; load (missing, corrupt, unknown key, future version), section-wise merge on save, `.tmp` + rename, `.bak` on replacing a corrupt file; `display.gd` per §3.5 with the capability set.
-- [ ] Validation: `godot --headless --path clients/shared --script res://checks/store_check.gd` covering AC-SET-8's five cases, a round trip of every field, an atomic-write test (the `.tmp` never remains), and a merge test (two stores changing different sections); a headless `apply` of every value makes no error.
-- [ ] Review: no network identifier (INV-SET-1); no `Dictionary` crosses the module's API.
+- [x] Implementation: `clients/shared/{project.godot,.gitignore}`; `settings/settings.gd`
+  (`MineWorldSettings`: enums, `read(config, problems)` in place of `validate()` — the same rule, read
+  and validated in one pass — `write`, `differs_in`, `copy`, `equals`); `settings/store.gd`
+  (`MineWorldSettingsStore.open(args, harness_flags)`, `--settings=<path>|none`, `--extra-locale=`,
+  load: missing / unreadable / future version / bad key / unknown key / lone `.tmp` recovered (F-11),
+  `settle_language(offered)`, `save`: re-read, per-section merge, `.bak` after a load problem, `.tmp` +
+  `rename_absolute`); `settings/display.gd` (`MineWorldDisplay.apply` changes only what differs;
+  `CAP_RENDER_SCALE`; `effective_fps`; `refresh_rate`; `size_pinned` — an engine `--resolution` wins;
+  `size_presets`; `fullscreen_same_as_borderless` (the one Wayland branch); `print_platform_once`).
+- [x] Validation: `godot --headless --path clients/shared --script res://checks/store_check.gd` →
+  `store_check: PASS`, 49 `[PASS]`, 0 `[FAIL]` (macOS, Godot 4.7.2, driver metal, display headless).
+  Covers AC-SET-8's five cases (unparsable; `window_mode=7`; `language="tlh"` through
+  `settle_language`; `max_fps="fast"`; `version=99`): defaults per key, a warning naming file and key,
+  file byte-identical after load, `.bak` equal to the old bytes after an apply; the round trip of every
+  field; harness flags → `none`; atomic write (no `.tmp` left; a lone `.tmp` recovered); the two-store
+  merge; a headless `apply` of every mode × vsync, render scale and caps; AC-SET-15's folder line
+  (`…/Application Support/MineWorld`). First run: 2 FAIL — (1) after a key problem the save rebuilt the
+  file from scratch and lost another module's `[launcher]` section: fixed, a parseable file is always
+  merged and, after a load problem, every owned section is rewritten; (2) the check assumed a client
+  window, but a bare `--script` root is 100×100: the check now starts from the default size. Mutations
+  (each then reverted, recorded): skip the merge → 2 FAIL (the `[launcher]` keep and the two-client
+  merge); drop the `Engine.max_fps` assignment → "the frame cap applies" FAIL. Note: for an unparsable
+  file Godot itself also prints its `ConfigFile parse error` line before the store's one warning.
+- [x] Review: `grep` for `MineWorldClient|HTTPRequest|WebSocketPeer|StreamPeer|PacketPeer|submit|connect_to_world`
+  under `settings/` finds nothing (INV-SET-1; held in CI by `client_text.rs` from C3). No `Dictionary`
+  crosses the API: capabilities are a `PackedStringArray` of `CAP_*`, problems a `PackedStringArray`.
+  The store writes only `MineWorldSettings.write`'s keys (INV-SET-2).
 - **Failure cases:** unwritable user directory → a warning; settings stay in memory, and the client runs.
 - **Commit boundary:** the module's own project only.
 
