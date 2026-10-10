@@ -922,7 +922,7 @@ MVP-0 non-preclusion audit.
 | S10 P3b (`pr-s10-p3b-perceived.md`, design frozen #149, 2026-10-10) | — (no ARC record) | DEP-44 (own reconnect loop; the `websockets` reconnect iterator, `tenacity` and its backoff declined) |
 | S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
 | S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
-| S20 SET-b (step-20 §3.6 and §11.1) | — (a dated note under `ARC-70`, not a new number; the note of 2026-10-09 already stands in `DECISIONS.md` for the planned `ARC-SET-b`, and `ARC-76` is SET-a's own record) | — |
+| S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
 
 The next free numbers are ARC-82 and DEP-45. ARC-81 and DEP-43 were assigned to S6 save retention, and
 DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
