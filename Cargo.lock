@@ -296,6 +296,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
+name = "deprecate-until"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d0795c0c5b2cab72b80d75b5cb08bde679e616c67e954669a2476668319ac3a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "semver",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -664,6 +676,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "integer-sqrt"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "276ec31bcb4a9ee45f58bec6f9ec700ae4cf4f4f8f2fa7e06cb406bd5ffdd770"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -781,6 +802,7 @@ dependencies = [
  "mineworld-movement",
  "mineworld-presence",
  "mineworld-sdk",
+ "pathfinding",
  "rapier3d",
  "serde",
  "serde-saphyr",
@@ -1343,6 +1365,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pathfinding"
+version = "4.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbb041402cdb260d46c836e67bd1193d2258cac438d2638db97ada0ef712d6c7"
+dependencies = [
+ "deprecate-until",
+ "indexmap",
+ "integer-sqrt",
+ "num-traits",
+ "rustc-hash",
+ "thiserror",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1510,6 +1546,12 @@ dependencies = [
  "smallvec",
  "sqlite-wasm-rs",
 ]
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
 name = "rustversion"

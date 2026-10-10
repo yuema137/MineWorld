@@ -8942,10 +8942,26 @@ Files: `systems/movement/src/{action.rs,walk.rs,event.rs,system.rs,component.rs}
 ### NV-C4 — bodies: the route (`route.rs`) and `DEP-P`'s dependency
 Files: `systems/bodies/src/route.rs`, `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement`
 as a crate dependency), `Cargo.lock`, `systems/bodies/tests/route.rs`.
-- [ ] Implementation: SD-N4, SD-N5, SD-N9's `avoid`.
-- [ ] Validation: NV-5 (oracle, 2 000 scenes) and M-N5; NV-10's timing in a scratch build.
-- [ ] Review: no float, no `HashMap`; every predicate in `i128`; corner order and successor order are as
-  specified; snapping reuses E3's order.
+- [x] Implementation: SD-N4, SD-N5, SD-N9's `avoid`. `systems/bodies/src/route.rs` (`route_in`, public
+  for tests and tools like `explain`; `PLAN_MARGIN` 50, `WAYPOINTS_MAX` 64; the `Wayfinder` impl lives
+  here too, so it is the one file naming `pathfinding`); `entry::nearest_free` made `pub(crate)` and
+  reused for the goal's snap (E3's order); a start inside a grown box is held to the box's core for its
+  own edges (N-D7); `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement` moved from
+  dev-dependencies to dependencies); `Cargo.lock` adds exactly `pathfinding` 4.16.0, `deprecate-until`
+  1.0.0, `integer-sqrt` 0.1.5, `rustc-hash` 2.1.3 — each "Apache-2.0/MIT" or "Apache-2.0 OR MIT"
+  (ARC-55 admits both); `indexmap`, `num-traits`, `thiserror` were already locked.
+- [x] Validation: NV-5 (`systems/bodies/tests/route.rs`, 2 000 seeded scenes): 852 routed (1 310 bends,
+  573 goals moved and equal to the oracle's own snap), 909 unreachable each confirmed by the 25 mm flood
+  fill, 239 without a start — PASS. M-N5 as two mutations: (a) touching counts as blocked → "scene 9:
+  unreachable, but the flood fill reaches (8246, 9661) from (10954, 3395)"; (c) a corner on the line
+  counts for either side (a grazing segment passes) → "scene 0: … (2431, 5040) within 310 of solid";
+  both reverted. (b) the line test dropped (bounding boxes only) survives: it only over-blocks, adding
+  bends (1 816), which the oracle — safety and refusal, not optimality — does not claim to see. NV-10:
+  E-NV2.
+- [x] Review: no float, `HashMap` or clock in route.rs (`no_float_outside_the_adapter` holds it); every
+  predicate is an `i128` cross product or an integer comparison; corners SW, SE, NE, NW, boxes solids →
+  objects (lying_in's ItemId order) → the avoided person; successors in node order; the snap is
+  `entry::nearest_free`, E3's (distance, y, x).
 
 ### NV-C5 — bodies answers: the `Wayfinder` impl, the installed line, SD-N11
 Files: `systems/bodies/src/{system.rs,geometry.rs}`, `systems/installed/src/lib.rs`,
@@ -9159,6 +9175,25 @@ E-NV1 NV-C2/NV-C3, 2026-10-09, working tree on 1200b90. `cargo clippy -p minewor
       social_composition (N-D4 literals), and a bodies doctest built against a stale rlib while route.rs
       was being added (not reproducible; re-run in NV-C5). 183 targets passed. NV-11 audit: no `Instant`,
       `SystemTime`, scale, `now()` or random source in systems/movement/src or route.rs (grep).
+
+N-D7  SD-N5's start rule, refined. "A start inside a grown box ignores the boxes containing it for its
+      own outgoing edges" would let a person standing 260 mm from the counter route straight through the
+      counter to its other side. Implemented: such a box is replaced, for the start's edges only, by its
+      core — the box shrunk until the start lies on its edge — so the start may step away or along, never
+      across (route.rs `core`; unit test a_start_inside_a_grown_box_may_leave_it_but_not_cross_it).
+      Same intent (a start within the margin can leave), no defect. NV-5's starts are free points, so
+      the rule is held by the unit test, not the oracle.
+
+E-NV2 NV-10, 2026-10-09 ~17:47, dev profile, scratch build (/tmp/s15-12n/target-b; the timing harness
+      /tmp/s15-12n/route_timing.rs and a temporary timer in tests/route.rs, both removed). Machine load
+      average 32–38 (other lanes) — contaminated.
+        NV-5's scenes (1 761 plans):  run 1 max 13 502 µs, p99 683 µs; runs 2, 3 max 502 / 648 µs,
+                                      p99 264 / 290 µs, p50 ≈ 40 µs
+        12d's street (62 solids, origin/mvp0/pr-12d-towns:worlds/social-cafe/places/street.yaml;
+        2 000 random pairs, 1 983 routed): max 1 914 / 1 167 µs, p99 973 / 633 µs, p50 84 / 53 µs
+      Bound max ≤ 5 ms, p99 ≤ 1 ms: PASS on every run but run 1 of the scenes, whose single 13.5 ms plan
+      did not recur in two re-runs of the same 1 761 plans (a scheduling outlier at load 38; the p99 of
+      that run, 683 µs, is within bound). No grid fallback needed.
 ```
 
 

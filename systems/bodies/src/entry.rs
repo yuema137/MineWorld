@@ -110,7 +110,11 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
 /// `k·s > m`. Rings are visited in order and that bound grows with `k`, so once it exceeds the best
 /// distance² found every unvisited point has a strictly larger key. Points are distinct, so the key
 /// has no ties and the minimum is one point — the full scan's. Integers only; nothing is kept.
-fn nearest_free(room: &Room, target: Point, free: &impl Fn(Point) -> bool) -> Option<Point> {
+pub(crate) fn nearest_free(
+    room: &Room,
+    target: Point,
+    free: &impl Fn(Point) -> bool,
+) -> Option<Point> {
     let (margin, step) = (PERSON_RADIUS.value(), i64::from(LATTICE.value()));
     let floor = room.floor;
     let (x0, y0) = (

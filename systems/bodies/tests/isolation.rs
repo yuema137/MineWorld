@@ -172,8 +172,51 @@ fn this_packs_system_dependency_is_presence_and_its_pack_crates_are_presence_and
     println!("dependencies {dependencies:?}; packs named {named:?}");
     assert_eq!(
         named,
-        ["mineworld-item", "mineworld-presence"],
-        "presence and item, and no other pack crate"
+        ["mineworld-item", "mineworld-movement", "mineworld-presence"],
+        "presence, item, and movement for its Wayfinder trait (ARC-39 note 5) — no other pack crate"
+    );
+}
+
+/// NV-6 (step-11 §21.8): `pathfinding` is named only in `src/route.rs` and in this pack's manifest —
+/// no other code file of the repository names it — and movement, which owns the catalog this pack
+/// answers through, names no `bodies` anywhere in its sources (`ARC-62`: an owner never names its
+/// implementers).
+#[test]
+fn the_search_crate_stays_in_route_rs_and_movement_names_no_bodies() {
+    let mut files = Vec::new();
+    files_under(&root(), &mut files);
+    let found: Vec<String> = files
+        .iter()
+        .filter(|file| {
+            file.extension()
+                .is_some_and(|extension| extension == "rs" || extension == "toml")
+                && file.file_name().is_some_and(|name| name != "Cargo.lock")
+        })
+        .filter(|file| !file.ends_with("systems/bodies/src/route.rs"))
+        .filter(|file| !file.ends_with("systems/bodies/Cargo.toml"))
+        .filter(|file| !file.ends_with("systems/bodies/tests/isolation.rs"))
+        .flat_map(|file| naming(file, "pathfinding"))
+        .collect();
+    assert!(
+        found.is_empty(),
+        "pathfinding is named only in route.rs (DEP-34):\n{}",
+        found.join("\n")
+    );
+    let mut movement = Vec::new();
+    files_under(&root().join("systems/movement/src"), &mut movement);
+    assert!(movement.len() >= 7, "movement's sources are scanned");
+    let named: Vec<String> = movement
+        .iter()
+        .flat_map(|file| {
+            let mut lines = naming(file, "bodies");
+            lines.extend(naming(file, "Bodies"));
+            lines
+        })
+        .collect();
+    assert!(
+        named.is_empty(),
+        "movement never names the pack that answers its catalog:\n{}",
+        named.join("\n")
     );
 }
 
