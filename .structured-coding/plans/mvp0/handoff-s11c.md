@@ -24,13 +24,14 @@ VALIDATION BUDGET   §17.11 (CP-C1 ≤ two 60 s runs; CA-13 once; digests ≤ fo
 STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §17.11 MATERIAL STOP;
                     coordinator: S11-B still open 3 h after the wait began → stop and report
 CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. PR #95. C-C1 … C-C10 done; E-SC0 …
-                    E-SC15, D-SC1 … D-SC15 in step-12 §§17.12–17.13. Workspace gate on 82d4e59
+                    E-SC16, D-SC1 … D-SC16 in step-12 §§17.12–17.13. Workspace gate on 82d4e59
                     (E-SC14); main's 13b merged as 0337e5d and re-validated (E-SC15: CLI suite, Godot
-                    2D suites). Final PR head = the commit carrying this line; CI on that exact head:
-                    see the PR's checks. Context CLOSED / AWAITING OPERATOR ACTION. Two session copies
-                    briefly overlapped; reconciled (D-SC15).
-OPERATOR ATTENTION  D-SC12 (CP-C1: json-patch measured 13 % smaller than typed; the frozen rule
-                    selects typed); D-SC14 (main.rs is 526 lines on main after IL-b; S11-C net 0);
+                    2D suites). origin/main @ acbf90c merged; the Python SDK models added by operator
+                    ruling (D-SC16, E-SC16). Final PR head = the commit carrying this line; CI on that
+                    exact head: see the PR's checks. Context CLOSED / AWAITING OPERATOR ACTION. Two
+                    session copies briefly overlapped; reconciled (D-SC15).
+OPERATOR ATTENTION  D-SC12 ruled: typed stands, json-patch's 13 % recorded as information; D-SC14
+                    ruled: main.rs (526 lines on main) is a follow-up for the CLI owner;
                     Windows check INCONCLUSIVE (target not installed; S13 owns the Windows CI lane);
                     CA-4's binary drop path INCONCLUSIVE (OS buffers); M-CA13 not run (budget).
 NEXT ACTIONS        operator review and merge decision; if main moves before merge, merge origin/main,

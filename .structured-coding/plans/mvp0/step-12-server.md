@@ -3448,6 +3448,20 @@ E-SC15 Main moved after E-SC14 (S12 13b #103, aee8290: the 2D client's menu inte
       client walks, talks, interacts and reconnects through delta frames. PASS. The workspace gate of
       E-SC14 (82d4e59) is not repeated locally: the server, presence and every other crate are
       unchanged by #103; PR CI on the exact final head is the canonical full run.
+E-SC16 The SDK models (D-SC16), on the tree merged with origin/main @ acbf90c (#112, #110, #101).
+      uv run --locked ruff check sdk/python: all checks passed; ruff format --check: 18 files
+      formatted; pyright sdk/python (strict): 0 errors, 0 warnings. cargo build -p mineworld-cli,
+      then uv run --locked pytest sdk/python: 50 passed (46 unit/golden, 4 real_server). Real server:
+      AP-2 coverage visitor {welcome 1, observation stream 50 (48 of them delta), result 7}, alice and
+      bob {welcome 1, stream 50 (48 delta), result 2}; 60/55/55 frames round-tripped byte-equal;
+      acted_through reached the talk's action id; a `spoke` reached each seat in observation events.
+      (`scripts/ci_layer.py python` stopped locally at `cargo build` because cargo is not on this
+      shell's PATH; the same commands were run by hand. PR CI runs the layer.)
+      Mutations, each planted, run red, reverted, suite green again (50 passed):
+      M-SDK1 apply_delta ignores entities.remove → 2 failed (golden delta cases entity-removed,
+             self-location-to-null). Killed.
+      M-SDK2 Delta dropped from the ServerFrame union → 4 failed (golden frame `delta`, both
+             real-server round-trip tests, the session-state delta test). Killed.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3512,7 +3526,8 @@ D-SC14 main.rs and CA-14's 500-line bound. After merging origin/main @ ffbbedc (
       to it is 0 lines against main (its variant, arm, flag and module lines are offset by shortened
       doc lines), so S11-C does not add to the overrun; splitting main.rs is a follow-up outside this
       PR's scope (it is IL-b's and S11-D's code too) and is flagged to the operator. Every other
-      CA-14 size holds.
+      CA-14 size holds. Operator ruling (2026-10-09): recorded as a follow-up for the CLI owner,
+      outside this PR.
 D-SC15 Two copies of this session ran together for a short time (17:14–17:16, two resume messages,
       coordinator's notice). The second copy committed and pushed 5914cc7 (the READY ledger, E-SC14,
       the acceptance summary, the handoff closeout) and set PR #95 ready with its body, on top of this
@@ -3527,11 +3542,30 @@ D-SC12 CP-C1's outcome and §4.8. json-patch measured 12.9 % smaller than typed 
       branches did not foresee json-patch being more than 10 % *smaller*. Decision: the frozen §17 text
       binds; typed ships; DEP-15 records the tension and the operator is told in the handoff. Not
       treated as a stop: the rule is explicit and was written to make this decision mechanical.
+      Operator ruling (2026-10-09): the frozen SD-C10 rule stands; typed deltas ship; json-patch's
+      12.9 % (~13 %) is recorded as information only.
 D-SC13 Test harness helpers with deltas on. Shipping deltas changes what every socket client is sent,
       so the CLI harness's Client::frame() now applies `delta` frames (as the Godot module and any
       real client must) and the server's socket-test config sends whole frames (those tests are about
       seats and handshakes). No assertion in an existing test was changed. Both are the "helper"
       edits CA-14 allows.
+D-SC16 Scope amendment by operator ruling (2026-10-09): the Python SDK models move into this PR.
+      CA-14's "nothing under sdk/" predates R-S11-9, which S11-C adopted from S10: a PR that adds or
+      changes golden frames updates the Python models in the same PR. PR CI's python job failed on
+      the merged head because the SDK still refused S11-C's frames ("arrives with S11-C" guard). So
+      sdk/python gains, following #112's pattern (models, golden checks, one real-server assertion,
+      a mutation): wire/delta.py (ObservationDelta, EntityChanges, apply_delta, DeltaMismatch);
+      contract.py PerceivedEvent with Causation, Visibility, Provenance, EventRecord (event_type
+      agreement enforced as the contract does), Observation.events typed and the guard removed;
+      frames.py Delta, Perceived, PerceivedJoin / Join.perceived, ObservationFrame.acted_through,
+      refusals cursor_unavailable and lagged, closing reason lagged; ids.py ProcessId; session.py
+      applies deltas to the frame held (a delta on another base, or removing an entity not held,
+      ends the session as a ProtocolViolation) and keeps the perceived stream and its cursor. Tests:
+      golden checks for every new golden frame, every server/tests/frames/deltas case applied
+      (base + delta == next), session-state tests, and the real-server test now counts the
+      observation stream as whole + delta frames, waits for acted_through == the talk's action id,
+      and asserts that deltas arrived and that a `spoke` reached each seat in observation events.
+      Bounded: no Rust, wire, golden or design change; evidence E-SC16.
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
