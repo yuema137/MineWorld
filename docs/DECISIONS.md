@@ -5114,6 +5114,61 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
 
 ---
 
+## DEP-29 note — ending a test's child process on every platform (2026-10-09, S13 PR 13w)
+
+**Approved by** the primary session at 13w's design freeze (step-14 §15, QW-2) · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §15.3–15.4
+
+The decision is unchanged: `mineworld-test-support` stays standard-library-only. It gains a module
+`process` so that the default suite compiles and passes on Windows as on Unix (the operator's
+all-platforms requirement, step-14 §13.0.1):
+
+- **`kill(&mut Child) -> Killed`** and **`Killed::killed()`**: whether the kill ended the child. On Unix
+  the status is signal 9 (`ExitStatusExt`, now used in this crate only). On Windows std's `Child::kill`
+  is `TerminateProcess(handle, 1)`, so the status is exit code 1, and the child must have been running
+  (`try_wait` is `None`) immediately before the kill. Tests assert the verdict, never a raw status.
+- **`interruptible(Command)`, `InterruptibleChild` and `interrupt(&mut InterruptibleChild)`**: an
+  operator's stop. On Unix, `SIGINT` through `sh -c "kill -INT <pid>"` (moved unchanged from the CLI's
+  test support), then a wait. On Windows the child is spawned with `CREATE_NEW_PROCESS_GROUP` (std's
+  safe `CommandExt::creation_flags`), and `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, <pid>)` reaches
+  that group and nothing else; Ctrl-C cannot be sent to one group. `interrupt` accepts only an
+  `InterruptibleChild`, so a Ctrl-Break can never be broadcast to every process on the console (a
+  compile-fail doctest pins it).
+
+**Options considered for the one Windows call** (`REUSE_POLICY.md` §§11–12, both directions):
+
+```text
+(a) one `unsafe extern "system"` declaration of GenerateConsoleCtrlEvent from kernel32, which std
+    already links on every Windows target
+(b) `windows-sys` 0.61.2 (already in Cargo.lock, transitively) as a cfg(windows) dependency
+(c) libc / nix on Unix in place of `sh -c kill`
+```
+
+**Choice: (a), and `sh -c kill` on Unix.**
+- (b) is a real dependency (`REUSE_POLICY.md` §11) for one function, and its functions are `unsafe` to
+  call as well; it buys no safety over (a).
+- (c) adds a dependency and `unsafe` to replace a command that every Unix CI image and developer machine
+  already has, and that 13a's container proves in CI.
+- The crate's `#![forbid(unsafe_code)]` becomes `#![deny(unsafe_code)]`, with exactly one
+  `#[allow(unsafe_code)]` function, `send_interrupt` under `cfg(windows)`. The call takes two integers by
+  value and touches no memory.
+
+**Accepted limitations.**
+- **The residual race on Windows.** A child that exits with code 1 by itself in the instant between
+  `try_wait` and `TerminateProcess` would read as killed. Every killing test also checks separately that
+  the child had not finished (no final summary line, or a revision short of the end), so a false
+  "killed" cannot also pass that check. On Unix the verdict is unambiguous.
+- **A console is needed on Windows.** `GenerateConsoleCtrlEvent` works only for a caller attached to a
+  console. Without one the call fails, and `interrupt` returns a named error ("no console attached;
+  Ctrl-Break cannot be delivered"); it never passes silently.
+- The server must handle Ctrl-Break itself: `tokio::signal::ctrl_c()` does not catch it on Windows
+  (step-14 F-13w-2). `serve.rs`'s `stop_requested` does, since S11-D (step-12 SD-D13, QW-1).
+
+**Revisit** if a test needs to stop a child that is not a console process, or the server gains a stop that
+needs no signal (an admin `shutdown` frame); `interrupt` would then wrap that instead.
+
+---
+
 ## ARC-66 — A System Pack from outside this repository is installed by the same two lines, pinned to a commit
 
 **Date** 2026-10-08 · **Approved by** the operator (S16 QSE-2, QSE-3, QSE-12, QSE-16; FQ-c1, FQ-c2,
@@ -5497,6 +5552,34 @@ test-windows  the `core` layer natively on   push to main; workflow_dispatch    
   and pass there; that PR adds its `pull_request` trigger, and only then may the operator make it a
   required check (QB-11).
 - None of the new jobs runs on `pull_request`, and none is required (QB-8).
+
+---
+
+## ARC-48 note — the default suite on Windows and macOS (2026-10-09, S13 PR 13w)
+
+The decision is unchanged; its table gains or changes these rows (step-14 §15.5, QW-4, QW-5).
+
+```text
+job           layer / role                  trigger                                         merge
+test-windows  the `core` layer natively on  non-draft pull_request; push to main;          reports
+              windows-2025                  push to scratch/** (not -image, -scenario);
+                                            workflow_dispatch
+test-macos    the `core` layer natively on  the same                                       reports
+              macos-26
+```
+
+- **`test-windows` gains its `pull_request` trigger**, in the PR that makes it green (13w), as 13b's
+  note said it would. `test-macos` is new, with the same triggers. Both carry `test`'s triggers plus
+  dispatch, so a mutation pushed to a `scratch/` branch is judged on all three operating systems.
+- **Neither is a required check.** Making them required is the operator's settings change (QB-11): the
+  recommendation is after five consecutive green `main` pushes.
+- **E-c/E-d's `platforms` job stays** (QB-15, QW-4's fallback). Retiring it was conditional on its layer
+  being a strict subset of `core`. E-c (#99) merged first and added its offline vendor check (PD-p3,
+  EC-3 (b): `ci_layer.py --offline-check`), which `core` does not run, so the condition fails and the job
+  is kept unchanged. The rest of the layer duplicates part of `core` on the same runners; trimming it to
+  what `core` lacks is a later, separate change.
+- Wall times are recorded in step-14 §15.8 (W-C4); both jobs have a 60-minute timeout and run in
+  parallel with `test`.
 
 ---
 
