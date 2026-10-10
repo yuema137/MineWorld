@@ -9,6 +9,8 @@
 //!                  retired by the next scheduled snapshot
 //! a new interval   a save resumed under another interval keeps genesis and the anchors both
 //!                  lattices share, and converges on the new lattice's set
+//! verify_from      from genesis and from every retained anchor to the head (ASR-4 at test scale);
+//!                  a revision not kept is refused by name; a bad later snapshot is seen
 //! ```
 //!
 //! The expected sets are computed here from the rule as `ARC-81` states it, not by the crate's own
@@ -20,7 +22,8 @@ use std::collections::BTreeSet;
 
 use mineworld_contracts::EntityId;
 use mineworld_persistence::{
-    Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, WorldRevision, verify,
+    Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
+    WorldRevision, verify, verify_from,
 };
 use support::{Scratch, Step, assembled, composed, genesis_facts, script, t};
 
@@ -201,6 +204,90 @@ fn a_clean_shutdown_s_checkpoint_resumes_with_nothing_replayed_then_is_retired()
         "the next scheduled snapshot retired the checkpoint"
     );
     verify(&open(&scratch), composed()).expect("and the save verifies");
+}
+
+#[test]
+fn verification_from_every_retained_anchor_reaches_the_head_and_sees_a_later_bad_snapshot() {
+    // Interval 2: anchors every 128 revisions, so a short run holds several (ASR-4 at test scale).
+    let scratch = Scratch::new("retention-verify-from");
+    let (mut persisted, people) = create(&scratch, 2);
+    let steps = script(1_000, 10, 1);
+    let mut index = 0;
+    while persisted.revision().raw() < 700 {
+        step(&mut persisted, &people, &steps[index], |_| {});
+        index += 1;
+    }
+    let head = persisted.revision().raw();
+    drop(persisted);
+
+    let reader = open(&scratch);
+    let held = stored(&reader);
+    let anchors: Vec<u64> = held
+        .iter()
+        .copied()
+        .filter(|revision| *revision > 1 && revision.is_multiple_of(128))
+        .collect();
+    assert_eq!(anchors, [128, 256, 384, 512, 640], "located: five anchors");
+    let facts_after = |from: u64| -> u64 {
+        (from + 1..=head)
+            .map(|revision| {
+                reader
+                    .facts_of(WorldRevision::from_raw(revision))
+                    .expect("reads")
+                    .len() as u64
+            })
+            .sum()
+    };
+    for from in std::iter::once(1).chain(anchors.iter().copied()) {
+        let verified = verify_from(&reader, composed(), WorldRevision::from_raw(from))
+            .unwrap_or_else(|error| panic!("from r{from}: {error}"));
+        assert_eq!(verified.head.raw(), head);
+        assert_eq!(
+            verified.revisions,
+            head - from,
+            "from r{from}: every later revision"
+        );
+        assert_eq!(
+            verified.facts,
+            facts_after(from),
+            "from r{from}: every later fact"
+        );
+        assert_eq!(
+            verified.snapshots,
+            held.iter().filter(|revision| **revision > from).count() as u64,
+            "from r{from}: every later snapshot the save holds"
+        );
+    }
+
+    // A revision the rule did not keep is refused by name, with what the save does hold.
+    let refused = verify_from(&reader, composed(), WorldRevision::from_raw(130));
+    assert!(
+        matches!(&refused, Err(PersistError::NoSnapshotAt { revision, retained })
+            if revision.raw() == 130
+                && retained.iter().map(|kept| kept.raw()).collect::<BTreeSet<_>>() == held),
+        "{refused:?}"
+    );
+    drop(reader);
+
+    // Genesis' frame written over the anchor at 512: from 384 the re-execution reaches 512 and the
+    // stored state there disagrees with history.
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    let changed = connection
+        .execute(
+            "UPDATE snapshots SET snapshot = (SELECT snapshot FROM snapshots WHERE revision = 1)
+             WHERE revision = 512",
+            [],
+        )
+        .expect("executes");
+    assert_eq!(changed, 1);
+    drop(connection);
+    let verified = verify_from(&open(&scratch), composed(), WorldRevision::from_raw(384));
+    assert!(
+        matches!(&verified, Err(PersistError::SnapshotDisagreesWithHistory { revision })
+            if revision.raw() == 512),
+        "{verified:?}"
+    );
 }
 
 #[test]

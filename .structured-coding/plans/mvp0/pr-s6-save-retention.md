@@ -485,9 +485,10 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** `persistence/src/replay.rs` (`verify_from`), `lib.rs` export, `error.rs`
   (`NoSnapshotAt`); `tools/cli/src/inspect.rs` (one line); tests for ASR-4 (30-day scale via a fixture
   world) and the error case.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli`.
-- [ ] Review: `verify_from` shares `replay_after`; no second comparison path.
+- [x] Implementation. *Evidence: §14.5.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli`. *Evidence:
+  §14.5 (the CLI targets this commit touches; the whole CLI suite runs in the PR's CI).*
+- [x] Review: `verify_from` shares `replay_after`; no second comparison path. *Evidence: §14.5.*
 
 ### C5 — Kill-and-resume and the real runs (integration checkpoint)
 
@@ -799,6 +800,42 @@ cargo fmt --all --check  rc 0;  cargo clippy -p mineworld-persistence -p minewor
 Review: `retired` reads only *n*, the interval and the stored set; `stored` changes only after the
 backend reports the commit, so a failed commit leaves it as the save is; the delete runs only inside
 `write_revision`'s transaction; F-SR-1 records the `≥ n` guard.
+
+### 14.5 C4 — `verify_from` and `inspect`
+
+```text
+persistence/src/replay.rs   verify_from(backend, composed, anchor): manifest + composition checks,
+                            NoSnapshotAt when nothing is stored there, restore decode_snapshot, then the
+                            shared reexecute(backend, world, from) — the one comparison path, used by
+                            verify (from r0) too; reexecute requires from + rows = head
+persistence/src/error.rs    PersistError::NoSnapshotAt { revision, retained } ("… holds snapshots at
+                            r1, r128, …")
+persistence/src/lib.rs      export verify_from; module doc: retention and the codec
+tools/cli/src/inspect.rs    one line: "snapshots  N kept (zstd): r1 2316 B, r4096 52045 B, …"
+docs/MODULE_SPEC.md §8.1    inspect's description names the line (the spec lists what inspect prints)
+persistence/tests/retention.rs  verify_from from genesis and from each of the five anchors of an
+                            interval-2 save (head ≥ 700): revisions = head − anchor, facts = every fact
+                            after it, snapshots = every later stored one; r130 → NoSnapshotAt with the
+                            held set; genesis' frame over r512 → SnapshotDisagreesWithHistory at r512
+                            from r384
+tools/cli/tests/inspect.rs  the line equals the save's own snapshot rows and sizes
+tools/cli/tests/save_retention.rs  #[ignore] verify_from_retained_anchors_of_a_real_save: ASR-4 on a
+                            release run's save (first / middle / last anchor, or all), used at C5
+```
+
+*Deviation D-2 (bounded).* `MODULE_SPEC.md` §8.1 lists what `inspect` prints, so D-SR-9's new line is
+added there too (CLAUDE.md §2.1 rule 4: code and spec must not disagree); the design's §6.7 list did not
+name the file.
+
+```text
+cargo test -p mineworld-persistence      unit 1; kill_and_resume cafe, clock; retention 4; save 11  PASS
+cargo test -p mineworld-cli --test inspect --test save_retention   3 + 1 passed, 1 ignored         PASS
+cargo clippy -p mineworld-persistence -p mineworld-cli -p mineworld-acceptance -p mineworld-server
+      --all-targets -- -D warnings   rc 0                                                         PASS
+```
+
+Review: `verify_from` and `verify` share `reexecute` and `replay_after` (no second comparison path);
+the anchor's own snapshot is restored, not compared, and the doc says so.
 
 *Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
 tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run

@@ -29,6 +29,25 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
         report.contains(&format!("head       revision {head} ")),
         "the head on disk: {report}"
     );
+    // The retained snapshots (ARC-81, D-SR-9): exactly the save's, each with its stored size.
+    let kept: Vec<String> = before
+        .snapshots
+        .iter()
+        .map(|(revision, bytes)| format!("r{revision} {} B", bytes.len()))
+        .collect();
+    assert_eq!(
+        lines(&report, "snapshots  "),
+        [format!(
+            "snapshots  {} kept (zstd): {}",
+            kept.len(),
+            kept.join(", ")
+        )],
+        "{report}"
+    );
+    assert!(
+        kept.len() >= 3,
+        "genesis, an anchor and the newest two: {kept:?}"
+    );
     let facts = count_after(lines(&report, "facts      ")[0], "facts ");
     assert_eq!(facts, u64::try_from(before.facts.len()).expect("fits"));
     assert!(facts > 10_000, "a month of a busy world: {facts}");

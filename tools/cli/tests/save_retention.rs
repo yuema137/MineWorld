@@ -3,6 +3,7 @@
 //!
 //! ```text
 //! ASR-8   a format-2 save is refused by run, server, replay and inspect, naming formats 2 and 3
+//! ASR-4   verify_from on a real save's anchors (ignored; run by hand against a long run's save)
 //! ```
 //!
 //! The format-2 save itself — rows written by the build before SR — is refused in
@@ -15,9 +16,73 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use headless::{BINARY, PACK, fresh, mineworld, run, stderr};
-use mineworld_persistence::SqliteBackend;
+use mineworld_persistence::{
+    Durability, PersistenceBackend, SqliteBackend, WorldRevision, verify_from,
+};
 
 const REFUSAL: &str = "the save is format 2; this code reads format 3 and does not migrate";
+
+/// ASR-4 on a real save, run by hand: `verify_from` from the first, middle and last retained anchor
+/// (or from every one) of the save in `MINEWORLD_SR_SAVE`, composed from the pack in
+/// `MINEWORLD_SR_PACK`. Not in the default suite: the saves it is meant for are the 30- and 300-day
+/// release runs the design measures (§14), which the suite does not keep.
+///
+/// ```text
+/// MINEWORLD_SR_PACK=worlds/market-town MINEWORLD_SR_SAVE=DIR [MINEWORLD_SR_ANCHORS=all] \
+///   cargo test --release -p mineworld-cli --test save_retention -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "run by hand against a long run's save (ASR-4)"]
+fn verify_from_retained_anchors_of_a_real_save() {
+    let pack = std::env::var("MINEWORLD_SR_PACK").expect("MINEWORLD_SR_PACK names the pack");
+    let save = std::env::var("MINEWORLD_SR_SAVE").expect("MINEWORLD_SR_SAVE names the save");
+    let every = std::env::var("MINEWORLD_SR_ANCHORS").is_ok_and(|value| value == "all");
+    let pack = mineworld_worldpack::WorldPack::read(&pack).expect("the pack reads");
+    let backend = SqliteBackend::open(std::path::Path::new(&save), Durability::ProcessCrash)
+        .expect("the save opens");
+    let anchors: Vec<WorldRevision> = backend
+        .snapshot_revisions()
+        .expect("reads")
+        .into_iter()
+        .filter(|revision| revision.raw() > 1 && revision.raw().is_multiple_of(4_096))
+        .collect();
+    assert!(!anchors.is_empty(), "the save holds an anchor");
+    let chosen: Vec<WorldRevision> = if every {
+        anchors.clone()
+    } else {
+        let mut chosen = vec![
+            anchors[0],
+            anchors[anchors.len() / 2],
+            anchors[anchors.len() - 1],
+        ];
+        chosen.dedup();
+        chosen
+    };
+    println!(
+        "anchors held: {}",
+        anchors
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    for anchor in chosen {
+        let started = Instant::now();
+        let world = pack.compose().expect("the pack composes").world;
+        let verified = verify_from(&backend, world, anchor)
+            .unwrap_or_else(|error| panic!("from {anchor}: {error}"));
+        assert_eq!(verified.revisions, verified.head.raw() - anchor.raw());
+        println!(
+            "verify_from {anchor}: {} revisions, {} facts and {} later snapshots reproduced to head \
+             {} in {:.1} s",
+            verified.revisions,
+            verified.facts,
+            verified.snapshots,
+            verified.head,
+            started.elapsed().as_secs_f64()
+        );
+    }
+}
 
 #[test]
 fn every_command_that_opens_a_save_refuses_format_2_by_name() {
