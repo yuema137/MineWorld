@@ -1,0 +1,29 @@
+# MineWorld long-run baselines: ci_parity.py's long profile, seed 7. Read by the nightly (ARC-83).
+# A PR that changes a world's behaviour updates its section here, with a line
+#   reason <PR or step id>: <why the world's history changed>
+# Regenerate from any platform's long record (they are equal, ARC-49); reason lines are kept:
+#   python3 scripts/ci_parity.py baseline write <long record> scripts/baselines.txt
+[world bodies-yard]
+summary-300 330 0bf87efc577c2447323de1f050bf540f40376f468421ea14633dab500f9e7bbb
+summary-1000 1054 9067d6a090c7f6dc6c04c775e8cc930a4b4dc2d2f1578b7dd8aa06388e87e34c
+summary-300s 329 29d1c97a67ce5ad1fef9242f33ad3642d802611ae3b763839d9da25fa246defc
+facts-300s 624482 e6fb785e86284f8088642f73f022b6048798344c62111f96cb38c77348b87247
+journal-300s 312443 2f84aa81d9e204b0a66dbba24c568d55ac7615636fca43f73c943bf2bacc1f39
+[world lakeside]
+summary-300 350 e3fdc8bdf191c69230d7c10b774d04f8dc5ea5f0b958ce6d664d594c4b39d596
+summary-1000 1074 f3030c3fc2e3953e4c7fbe81aa0fe0876c5d56e487d4b3248b56e3af460f8315
+summary-300s 349 97dac8fc5086991af4ab33591c6e5fb446c62da4aaddb304e3d115790bc6fce3
+facts-300s 356689 8b378d125e5a0e84e3c7f4429f7afbf116fd795351c563e8b9b6529c8242a11e
+journal-300s 265673 a4fcee8e8f062f34571bce9438a77537400ccd2b2d6f3b50ab0ecdd8cfbccebf
+[world market-town]
+summary-300 360 d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee
+summary-1000 1084 0b6cf6ac82c1cf63fa8f26ff3ed5b208d6e7773dd56b5a1a97dc5df4bd4902be
+summary-300s 359 beb4ec5bbf8279c2bcc9728878b05e8923ff5cc1594185b6d99c6fbe7c22fcb5
+facts-300s 375619 d890541cb648ae1304e4055a68474264e5de19ac37a6948b2bd24c91ea9bfaea
+journal-300s 290995 6f9135449d14fd342f4e855e5b328e059fff036ea736b428a76f07ffc8005197
+[world social-cafe]
+summary-300 338 ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+summary-1000 1062 24486a4b51d2c6899c512dfa737f09e721b81d6a1deea884bb5c0a608ab8f676
+summary-300s 337 0ad707b0d6ba6f8c5b7f1ac222b54c6b7f4da2443cf6beb99cfc34520b23a89d
+facts-300s 365330 9ffcfcb1d11dd3660ddcd7112b6a5b4988fdbd777a67fe6492264ebec892c590
+journal-300s 284507 df8b67c509ef45bf5b9583618c0c0ef81a2906b8ea75da4e93e4b884c47e8cdc
