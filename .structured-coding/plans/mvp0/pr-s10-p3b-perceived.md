@@ -10,7 +10,7 @@ Approved by / evidence: the operator accepted every P3b recommendation on 2026-1
                         Recorded in §12.1
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
 Execution contract:     §11
-Lifecycle:              FROZEN
+Lifecycle:              MERGED (#157, b650a2d, 2026-10-10T22:46:16Z; §13.2 E-P3b-final)
 ```
 
 Scope, invariants, D-P3b-1 … D-P3b-10, DEP-44, §4.5's table, the acceptance criteria AP3b-1 … AP3b-17
@@ -798,7 +798,17 @@ E-P3b-11 CI run 38088050534 on 83327b9: python (ubuntu) and python (windows) FAI
          (38 lines); `ruff format --check` and `ruff check` over both members clean.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
-```
+E-P3b-final  Merged: PR #157 merged as b650a2d (merge commit, 2026-10-10T22:46:16Z), final head
+         812bc71. CI run 38089962734 green: changes, fast, test, test-macos, test-windows,
+         platforms ×2, python ×3. The Windows python leg is the first positive evidence for
+         AP3b-9 on the proactor loop and for AP3b-14.
+         Primary review: two mutations in perceived.py survived the first 102 tests: the per-fact
+         filter `>` → `>=`, and the all-duplicate frame `<=` → `<`. Recorded as F-P3b-R1 (§13.5)
+         and closed by test_resuming.py::test_a_store_behind_what_was_delivered_never_sees_a_fact_twice,
+         which fails under both mutations.
+         Carried forward to P6 (§13.5 and §9): F-P3b-3 (based_on needs the connection number),
+         F-P3b-4 (start consuming seat.perceived() promptly), F-P3b-5 (retry open() at start-up),
+         and operator ruling Q-P3b-4 (persist the resume secret beside the memory store).
 
 ### 13.3 Deviations (filled during implementation)
 
