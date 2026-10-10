@@ -566,14 +566,15 @@ perception,process,system,lib}.rs`; pinned test; the version pins in the three C
 **Goal.** §4.3, SD-IE-7, SD-IE-8. **Scope.** `systems/relationships/src/{interactions.rs NEW, system,lib}.rs`;
 `tests/relationships.rs`; README already in IE-C1; version pins.
 **Dependencies.** IE-C1.
-- [ ] Implementation: derives; `InteractionSection`; `interactions!()`; `declare`/`install`/`reduce`;
+- [x] Implementation: derives; `InteractionSection`; `interactions!()`; `declare`/`install`/`reduce`;
   `changes` takes the looked-up parameters per directed change; `apply` checks `permits(acquaint)` first;
-  `fact` takes the consequence's Visibility; VERSION 2.
-- [ ] Validation: relationships' tests (defaults unchanged); a scripted forbid (no entry, no edge, no fact,
+  `fact` takes the consequence's Visibility; VERSION 2 (E-IE-4).
+- [x] Validation: relationships' tests (defaults unchanged); a scripted forbid (no entry, no edge, no fact,
   reverse direction formed); a unit test that every subscribed cause type is stated with a place (F-IE-13);
-  a test that no installed pack provides `acquaint` (SD-IE-8).
-- [ ] Review: the parameters are looked up with actor = holder, target = counterpart, for each direction; a
-  consequence entry naming `spoke` in this section is refused (another pack's fact).
+  a test that no installed pack provides `acquaint` (SD-IE-8). (E-IE-4; the scripted forbid and the
+  provider test live in IE-C5's file, D-IE-2, evidence E-IE-5.)
+- [x] Review: the parameters are looked up with actor = holder, target = counterpart, for each direction; a
+  consequence entry naming `spoke` in this section is refused (another pack's fact) (E-IE-4, E-IE-5).
 
 ### IE-C5 — Scripted proofs through the loader
 
@@ -784,6 +785,21 @@ E-IE-3  2026-10-10, IE-C3 (group-activity): interactions.rs (ACTIONS invite, acc
         30-day social-cafe seed 7: sha 06e2d63c…6fbe = E-IE-0. Review: `git grep
         ACTIVITY_LENGTH\|INVITE_RANGE -- systems/group-activity/src` → only the constants, their
         re-exports, `invite_requirement()` and the pinned test. PASS.
+E-IE-4  2026-10-10, IE-C4 (relationships): interactions.rs NEW (ACQUAINT = "acquaint", ActionDecl roles
+        actor/target, regional false; RelationshipParameters, the five increments with §4.3's bounds and
+        defaults; FACTS became-acquainted/relationship-changed actor→Subject(0), target→Participant(1),
+        place→Place, Participants/Participants, biography configurable; helpers may_acquaint,
+        increments, audience — each looked up with actor = the holder, target = the counterpart, at
+        the cause's place; without a place, the compiled default); system.rs: derives Debug, Clone,
+        Default, PartialEq; `interactions!()`; declare/install/reduce; `changes(read, event)` reads
+        the increments per directed change; `apply` skips a direction `acquaint` forbids before any
+        read or write; `fact` takes the consequence's audience; VERSION 2. lib.rs `pub mod
+        interactions`. tests/relationships.rs gains
+        every_cause_this_pack_reduces_is_stated_at_a_place (F-IE-13). CLI pins "relationships v2" ×3.
+        cargo clippy -p mineworld-relationships --all-targets -D warnings: clean; cargo test -p
+        mineworld-relationships: 2 unit + 6 integration passed (existing asserts on the constants
+        unchanged); CLI inspect 3, interactions 4, social_composition 4 passed; 30-day social-cafe seed
+        7 sha 06e2d63c…6fbe = E-IE-0. No Cargo.toml / Cargo.lock change. PASS.
 ```
 
 ## 15. Deviations
