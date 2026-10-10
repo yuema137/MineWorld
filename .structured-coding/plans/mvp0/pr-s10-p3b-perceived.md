@@ -551,13 +551,27 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 - **Goal.** §4.2's `ResumingSeat` and §4.5, deterministic under scripted connections.
 - **Scope.** `resuming.py`; `__init__.py`; `tests/scripted.py` (scripted connector, fake clock,
   recorded sleep); `tests/test_resuming.py`. **Depends on:** C3.
-- [ ] Implementation.
-- [ ] Validation: AP3b-5 (every row), AP3b-6, AP3b-7, AP3b-8, AP3b-13 (the scan), AP3b-17; static.
-  Mutations: AP3b-5 (row 8), AP3b-6, AP3b-7, AP3b-8, AP3b-13, AP3b-17.
-- [ ] Review: every row of §4.5 traced to a `PROTOCOL.md` sentence; `take_over` never on a rejoin;
-  `detach` and `leave` race-free against a rejoin in flight; no task leaks after `leave`, `detach` or
-  `SeatLost` (each test asserts `asyncio.all_tasks()` returns to its starting set); `resuming.py`
-  under 500 lines.
+- [x] Implementation: `resuming.py` (`ResumingSeat`, `Seen`, `Connector`; supervisor, rejoin, the
+  welcome checks, the per-connection submit verdict, `_Intake`), `reconnect.py` (the §4.5 table as
+  `end_outcome` / `join_outcome`, `ReconnectPolicy`, `delays`, `SeatLost`, `AnswerLost`,
+  `NotConnected`, `SeatLossReason`; DV-P3b-5), `__init__.py` exports; `tests/scripted.py`
+  (`ScriptedServer`, `Link`, `Gate`, `FakeClock`); `tests/test_resuming.py` (33 tests).
+- [x] Validation (E-P3b-7): every row of §4.5 (rows 1, 2, 3 ×4, 4 = AP3b-1, 5 = AP3b-4, 6 ×2 endings
+  × 3 hold cases, 7, 8, 9 ×7 + first join, 10, 11 ×2, 12 = AP3b-6), AP3b-6, AP3b-7, AP3b-8, AP3b-13,
+  AP3b-17 (no secret in `str`/`repr` of `SeatLost`, `AnswerLost`, `NotConnected`, `Seen`,
+  `ResumingSeat`, `ReconnectPolicy`; no log record), the seat halves of AP3b-1/3/4; full SDK suite
+  96 passed (real_server included); ruff, pyright clean. Mutations all red (§13.4).
+- [x] Review: rows traced — 1 §2/§5.6 `left`; 2 —; 3 §4.2 rule 1/4, §5.6 `superseded`/`taken_over`/
+  `kicked`/`world_stopped`; 4 §5.5 `lagged`, §5.8 Flow; 5 D-P3b-4; 6 §4.2 "Leaving and dropping",
+  "Resuming", §5.6 `server_stopping`; 7 §5.5 `invalid_resume` "may retry without it"; 8 §5.5
+  `cursor_unavailable`, §4.1 check 5; 9 §4.1 checks 1–4, 6, §5.5 (`unauthorized` at a rejoin =
+  rotated invite); 10 §5.7 `instance`; 11 INV-13, §5.3 ("drops the connection" for a foreign base is
+  the client's, here final per the table); 12 D-P3b-9. `take_over=False` on every rejoin (asserted in
+  AP3b-1 and row 6). `leave`/`detach` during a rejoin in flight: `test_leaving_while_a_rejoin_is_in_
+  flight_stops_it_cleanly` (no join on the late connection). Every test asserts no task outlives the
+  seat. `resuming.py` 486 lines, `reconnect.py` 159. Failure cases: unknown connector error propagates
+  (`test_an_unknown_connector_error_…`); `changed()` after `SeatLost` raises it (row 3); `perceived()`
+  twice → `RuntimeError`.
 - **Failure cases.** A connector that raises an unexpected exception type → propagates (D-P3b-5);
   `changed()` after `SeatLost` raises it; `perceived()` called twice → `RuntimeError`.
 
@@ -737,6 +751,9 @@ E-P3b-5  C2 working tree (base bf44367+C1 e90392c + C2 diff): `pytest sdk/python
          (0 errors) clean.
 E-P3b-6  C3 working tree: `pytest sdk/python/tests/test_perceived.py` → 8 passed; `pytest
          sdk/python -m "not real_server"` → 61 passed, 4 deselected; ruff, pyright 0 errors.
+E-P3b-7  C4 working tree: `pytest sdk/python/tests/test_resuming.py` → 33 passed (0.08 s); `pytest
+         sdk/python` (real_server included) → 96 passed before the race test was added, then 33/33
+         in test_resuming.py; ruff check, ruff format --check, pyright 0 errors.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
@@ -779,6 +796,34 @@ DV-P3b-4 (bounded; C3) — AP3b-3's script literal 18 replaced by 22.
   Corrected understanding: the criterion (exactly once, the store decides the cursor, the
     concatenation ascending without gap or duplicate) is unchanged; only the inconsistent literal is.
   Implementation consequence: none. Test consequence: 22 for 18; delivered 7, 10, 12, 15, 22.
+
+DV-P3b-5 (bounded; C4) — the decision table and its errors live in reconnect.py.
+  Reason: resuming.py came to 617 lines with everything in it; the design requires < 500.
+  Change: reconnect.py holds ReconnectPolicy, delays, SeatLossReason, SeatLost, AnswerLost,
+    NotConnected, Retry and the two table functions; resuming.py holds the seat and re-exports the
+    public names (mineworld_sdk exports them too). §4.1's "resuming.py … the supervisor and its
+    decision table" becomes resuming.py (supervisor) + reconnect.py (table). No API change.
+
+DV-P3b-6 (bounded; C4) — the first join is one attempt.
+  Question: §4.2 says open "returns after the first welcome; raises SeatLost for a terminal first
+    answer", and §4.5 counts retries "from the loss"; a first join has no loss.
+  Decision: open() makes one attempt; a socket that cannot be opened raises what opening raised
+    (as SeatSession.connect does), a terminal answer raises SeatLost, and invalid_resume on a
+    caller-given resume is retried at once without it (row 7, which AP3b-10's path can meet). A caller
+    that wants patience at start-up retries open itself. `sleep` and `clock` are keyword arguments of
+    open (D-P3b-9's injection), not of connect.
+
+DV-P3b-7 (bounded; C4) — which error a pending submit gets.
+  The verdict is fixed when the submit's connection ends: AnswerLost for rows 4–7 and 11, the SeatLost
+  for row 3, SessionClosed for rows 1–2. Rows 8–10 and 12 happen on a rejoin, after the loss, when no
+  submit can be pending on the seat (a submit between connections raises NotConnected); their pending
+  set is empty by construction.
+
+DV-P3b-8 (bounded; C4) — frames of a rejoin are held until its welcome is accepted (_Intake).
+  Reason: the backfill follows the welcome at once, and is read before row 10 / row 11 can be decided;
+  without holding, another world's facts could reach the consumer. Held frames are admitted after the
+  welcome checks; a local lag at that moment closes the new connection without leave and the
+  supervisor rejoins (the row 5 path through row 6's code).
 ```
 
 ### 13.4 Mutations (filled during implementation)
@@ -793,4 +838,10 @@ Each planted on the working tree, run, and reverted; the reverted tree re-run gr
 | AP3b-3 (b) | suppression removed (every fact kept) | `test_each_fact_…` FAILED: `['12', '15', '22'] == ['22']` (12 and 15 twice) | red, as required |
 | AP3b-3 (c) | `since()` presents the cursor one id late | `test_a_new_process_resumes_…` FAILED: `['12', '15', '18'] == ['11', …]` (11 missing); within one process `CursorAhead` catches it first | red, as required |
 | AP3b-4 | on overflow, drop the oldest batch instead of discarding all and lagging | `test_more_waiting_than_the_bound_…` FAILED: did not raise `LocalLag` (the gap itself is shown at seat level, C4) | red, as required |
+| AP3b-5 row 8 | `join_outcome` retries `cursor_unavailable` | `test_row_8_…` FAILED: "P3b-3: cursor_unavailable was answered with another join, not SeatLost" | red, as required |
+| AP3b-6 | jitter from the module-level `random` | `test_backoff_…` FAILED: "one seed, one sequence" | red, as required |
+| AP3b-7 | `Seen` ordered and `changed` filtered by `seq` alone | `test_observations_are_ordered_…` FAILED: the 5 s bound expired (`TimeoutError`) | red, as required |
+| AP3b-8 | a pending submit waits for the next connection and is re-sent | `test_a_submit_is_sent_once_…` FAILED: the pending submit never failed `AnswerLost` (bound expired) | red, as required (the bound fires before a second `submit` frame could be recorded) |
+| AP3b-13 | `asyncio.get_running_loop().add_reader(0, print)` planted in `resuming.py` | scan FAILED: `resuming.py:485: asyncio.get_running_loop().add_reader(0, print)` | red, names file and line |
+| AP3b-17 | the welcome's resume secret put into `SeatLost`'s cause | 7 FAILED, e.g. "a secret leaked through SeatLost" (rows 3 ×4, 8, 11) | red, as required |
 | AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |
