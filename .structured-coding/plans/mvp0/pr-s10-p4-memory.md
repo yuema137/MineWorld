@@ -991,3 +991,38 @@ probe's `sqlite3.connect(":memory:")`; every other `open(`, `os.`, `Path(`, `sub
 | --- | --- | --- | --- |
 | `3de3664` (C1) | 38035409127 | `pull_request`, draft | `changes`, `fast` pass; every other job skipped (draft, X-2) |
 | `84caaf1` (C8) | 38037138795 | `pull_request`; the push and `gh pr ready` landed two seconds apart, the `ready_for_review` run (38037136527) was cancelled by the workflow's concurrency group and the surviving run still read the PR as a draft | `fast` only; `python`, `test` skipped. Re-triggered by the next push (this ledger entry) |
+| `b724861` | [38037220947](https://github.com/yuema137/MineWorld/actions/runs/38037220947) | `pull_request`, ready | **every job green**: `changes`, `fast`, `test`, `test-macos`, `test-windows`, `platforms` (macOS, Windows), `python` (Ubuntu 24.04, macOS 15, Windows 2025); scenario/AC-8 jobs skipped by design (PR) |
+
+Per-leg evidence from run 38037220947 (job logs, `-v` names every test):
+
+| Leg | `test_fts5_is_present_on_this_platform` | `test_ac10.py` wall (pytest start → last AC-10 test) | of which the module fixture | whole cognition command |
+| --- | --- | --- | --- | --- |
+| ubuntu-24.04 | PASSED (FTS5 present) | **71.6 s** | 41.8 s | 77.7 s |
+| macos-15 | PASSED (FTS5 present) | **66.7 s** | 42.6 s | 74.0 s |
+| windows-2025 | PASSED (FTS5 present) | **198.8 s** | 157.1 s | 222.2 s |
+
+The fixture column includes pytest's start-up and collection (`test_ac10.py` runs first); the rest is
+the eight assertions, chiefly the three extra full ingestions of (e) and (g).
+
+### 14.5 Material stop — `test_ac10.py` over 120 s on the Windows leg
+
+```text
+Stop condition (§12):  "test_ac10.py over 120 s on any CI leg" (also R-P4-2; §5.10 expected < 60 s).
+Evidence:              run 38037220947 on head b724861, all jobs green; test_ac10.py took 198.8 s on
+                       windows-2025 (fixture 157.1 s: the 100-day `mineworld run` with the dev-profile
+                       binary, two exports, ingestion); 71.6 s on Linux and 66.7 s on macOS, which are
+                       under 120 s but over §5.10's 60 s expectation.
+What is not affected:  every criterion passes on all three legs; FTS5 is present on all three; no
+                       literal, invariant or design decision is in question.
+Smallest revisions, for the primary session / operator:
+  (a) raise the per-leg ceiling for test_ac10.py to 300 s (Windows measured 199 s);
+  (b) bounded test restructuring inside the frozen criteria: build (e)'s second store and (g)'s
+      whole-export store as one (both are "the same export, frames of N"), and the frames-of-1 store
+      with transactions batched per frame only — saves roughly one full ingestion per leg (about 10 s on
+      Linux, an estimated 15-30 s on Windows); it does not bring Windows under 120 s, because the
+      fixture alone is 157 s;
+  (c) build the binary for the python job in the release profile (8.0 s vs 10.9 s for the 100-day run
+      locally); a CI change outside AP4-13's scope (scripts/ci_layer.py `python` layer), so a ruling.
+Recommendation:        (a), optionally with (b). The implementation session has changed nothing in
+                       response; it waits for the ruling.
+```
