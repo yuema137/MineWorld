@@ -803,6 +803,25 @@ E-RLb-final  2026-10-09  The final head is `bfa88f1` + C10 (merge of origin/main
   `check_scratch scan`, `ci_parity --self-test`, `check_client_rules` (0 findings),
   `check_slice_provenance` — all pass.
 
+E-RLb-final-2  2026-10-09  Second merge of origin/main (b61b4f4) as 3f5a6b5, needed because the PR
+                     was CONFLICTING (no pull_request CI ran). One conflict, `mineworld-slice`,
+                     resolved mechanically (§10): S20's `--settings`, `scripted` and window-size
+                     logic kept beside RL-b's perf flags, `--perf` and `--skyline-check` counted as
+                     scripted so they run with `--settings=none`. Main also brought S20's settings
+                     module into `slice_main.gd` (display, render scale). On 3f5a6b5:
+                     `--skyline-check` PASS; `--drive` all checks pass; `--shots` vs the pre-merge
+                     head: every view ≤ 0.49 % except character-noise views and
+                     `25_skyline_southwest` (29.6 %): that review view stands the body on the west
+                     end's raised setts and its eye height settles differently run to run (a pose
+                     instability of the new still, not a rendering change). A perf attempt was
+                     INCONCLUSIVE again (24–100 frames per view at ~1 000 ms: the window throttled
+                     with the display idle) and was stopped; its draw calls and primitives equal
+                     C8's exactly (3 814 / 1 992 536 street wide, 4 214 / 3 563 680 cafe frontage),
+                     so the geometry is unchanged by the merge. The p95 table above stands; it
+                     should be re-taken with the display awake before any M-6 verdict is final.
+                     Known miss, stated for the preview: the open west horizon shows the 900 m
+                     grass ground plane, not a sea surface (no water exists until RL-f).
+
 Material stop (§9): M-6 is unmet after SC-2 … SC-7.
   Remaining gap at 1920x1080 (head vs bound): p95 cafe frontage +2.3 ms, doorway +5.5 ms; draw calls
   +1 425 to +2 214 in 7 views; primitives +0.16 to +0.67 M in 4 views; video memory +1.7 MB.
