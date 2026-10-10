@@ -12,6 +12,14 @@ var _prompt: Label
 var _line: LineEdit
 var _suggestions: HBoxContainer
 var _on_done: Callable = Callable()
+var _hint: Label
+
+
+## The hint again in the language now selected (S20). The prompt was composed by the menu and keeps
+## the person's name; the line is the player's own words.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _hint != null:
+		_hint.text = Words.text("ui.input.hint")
 
 
 func _ready() -> void:
@@ -46,7 +54,10 @@ func _ready() -> void:
 	_suggestions = HBoxContainer.new()
 	lines.add_child(_suggestions)
 	var hint := Label.new()
+	hint.name = "Hint"
+	hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	hint.text = Words.text("ui.input.hint")
+	_hint = hint
 	hint.add_theme_font_size_override("font_size", 11)
 	hint.add_theme_color_override("font_color", Color("7a6650"))
 	lines.add_child(hint)

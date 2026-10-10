@@ -89,9 +89,16 @@ pub struct Drive {
 impl Drive {
     /// `godot --headless --path clients/2d -- --server=… --seat=… <arguments>`.
     pub fn start(server: SocketAddr, seat: &str, arguments: &[&str]) -> Self {
+        Self::start_with(server, seat, arguments, &["--headless"])
+    }
+
+    /// The same with other engine arguments before the project's: `&[]` for a real window (S20
+    /// AC-SET-11, where the display settings are the property under test).
+    pub fn start_with(server: SocketAddr, seat: &str, arguments: &[&str], engine: &[&str]) -> Self {
         let binary = imported();
         let mut child = Command::new(binary)
-            .args(["--headless", "--path", PROJECT, "--"])
+            .args(engine)
+            .args(["--path", PROJECT, "--"])
             .arg(format!("--server={server}"))
             .arg(format!("--seat={seat}"))
             .arg(format!("--invite={INVITE}"))
@@ -325,6 +332,9 @@ pub struct StubLog {
     pub position: (i64, i64),
     /// How many connections the interaction stub ([`offering`]) seated.
     pub connections: usize,
+    /// Every frame the client sent to [`stub`], in arrival order, exactly as received (S20 SET-a,
+    /// AC-SET-5: the oracle for "settings never reach the server").
+    pub frames: Vec<Value>,
 }
 
 /// A revision-1 server that seats one client in a bare room and answers by script, so a test can
@@ -359,6 +369,7 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                 incoming = socket.next() => {
                     let Some(Ok(Message::Text(text))) = incoming else { return };
                     let frame: Value = serde_json::from_str(&text).expect("JSON");
+                    shared.lock().expect("log").frames.push(frame.clone());
                     match frame["t"].as_str() {
                         Some("join") => {
                             // Revision 2 (`PROTOCOL.md` §§2, 5): the client must present the
