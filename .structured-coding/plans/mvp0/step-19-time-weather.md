@@ -2479,6 +2479,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | --- | --- | --- | --- |
 | C1 | [x] DEP-31 appended after ARC-68 (data source table, `.dly` input, our own CSV labelled modified, provenance without a digest, the tool, `ureq =3.4.2` with `rustls`/ring behind `fetch`, limitations); DEP-8 row (NOAA GHCN-Daily, CC0); ARC-35 note (QTWd-1 ruling, 2026-10-09); `systems/weather/README.md` "The record format"; `tools/weather-fetch/{Cargo.toml,README.md,src/main.rs}` skeleton (no dependency); root `Cargo.toml` member; root `NOTICE` pointer | [x] `check_doc_headings.py`: 192 sections, none duplicated — PASS; `check_decision_ids.py`: 86 ids (85 + 1), all distinct — PASS; `cargo check -p mineworld-weather-fetch` clean; `Cargo.lock` gains the member only | [x] DEP-31 does not restate ARC-68 (it points to it for the generator and LARS-WG); the licence wording matches §3.2 and E-TWd-1 (CC0, "no restrictions", attribution requested, no endorsement, modified data not presented as original); "modified (reshaped and gap-reported) … not endorsed by NOAA" present; terms (`System Pack`, `World Pack`) as defined |
 | C2 | [x] `src/record.rs` (new): `HEADER`, `RecordRow`, `RecordFile`, `decode` (BOM, LF/CRLF, refusals with line), `encode` (the tool's writer), `PackedDay`/`PackedDays` (9 bytes, hex), `Fill`, `pack` (gaps), `Station`, `RecordSeries` (`record_date`, `day`: SD-TW-d-4, the only leap logic); `configuration.rs` (`source: rules \| record`, `record:` iff record, `fill:` only with record, `RecordConfiguration { station, data: Attachment, first_year }`); `event.rs` (`WeatherConfigured.record: Option<RecordSeries>`, `RecordRef` removed; `without_record`); `day.rs` (`Origin::{Record, Filled} { date }`); `generate.rs` (`record_day`, SD-TW-d-6); `process.rs` (`RecordProcess` "weather-record", `RecordState`; `ClimateState.epoch_year`, skipped when absent); `system.rs` (`attachments`, `seed` decoding into `weather-record-invalid`, the record Process started after the climate, `day-began` replays or draws, `weather-day` folds the epoch in record worlds); `lib.rs` exports (and `CalendarDate` re-exported); tests `src/record/tests.rs`, `tests/record.rs`, `tests/configuration.rs` (the TW-b `source: record` refusal case replaced, TWd-D3) | [x] E-TWd-2: `cargo test -p mineworld-weather` lib 20, configuration 3, record 6, weather 8, diurnal 1, no_float 1, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. M-TWd-2, M-TWd-3b killed; `git grep MUTATION` empty | [x] the fold equals the state: the climate state is written only in `react` from fact payloads (`with_day`, `with_now`, `with_epoch` from the `weather-day`'s date), and (g) is byte-identical after a resume across a new year; the record Process is never rewritten (`grep 'RecordProcess>('` finds only `state_for`; (f) compares its state before and after 40 days); no path handling in the pack (no `std::fs`/`Path` in `src`); leap logic once (`RecordSeries::record_date`; `is_leap` otherwise only counts a year's days); packing cannot overflow: decode bounds tmax/tmin to −900 … 600 (i16), prcp ≤ 65 535 (u16), awnd ≤ 255 (u8), wdf2 ≤ 360 → half ≤ 180 (u8), and the hex decoder re-checks every bound; rules worlds unchanged (TWd-D2) |
+| C3 | [x] `tools/weather-fetch`: manifest (lib + bin `weather-fetch`; `clap`, `mineworld-weather`, `serde-saphyr`; `ureq =3.4.2` optional, `default-features = false, features = ["rustls"]`, feature `fetch`); `src/lib.rs` (`reshape_bytes`, `write`, `date_argument`), `dly.rs` (readme §III columns; refusals by line), `reshape.rs` (rows by the pack's `RecordRow`, the report), `notice.rs` (§6.4 text, provenance, no clock), `fit.rs` (SD-TW-d-8c in `i128`), `fetch.rs` (`cfg(feature = "fetch")`, no retry), `main.rs` (clap; `fetch` without the feature explains how to get the file); tests `reshape.rs`, `fit.rs`, `confined.rs`; DEP-31 gains the feature tree's licences | [x] E-TWd-3: `cargo test -p mineworld-weather-fetch`: confined 1, fit 2, reshape 3, all pass; clippy `-p mineworld-weather-fetch --all-targets --all-features -D warnings` clean (compiles ring/rustls/ureq); fmt clean; criterion 4 commands verbatim in E-TWd-3. M-TWd-1, M-TWd-4 killed (TWd-F1) | [x] the tool owns no CSV format: rows are `mineworld_weather::RecordRow`, written by `record::encode` and re-read by `record::decode` before anything is written; the rules are decoded by `WeatherConfiguration` before `fit` returns. No float in the tool's source (the scan test). The NOTICE carries the attribution, both citations, CC0, "MODIFIED DATA … not endorsed by NOAA", the URL, the retrieval date and the provenance counts (§6.4, DEP-31, SD-TW-d-12). ring needs only a C compiler: the CI image is `rust:1.97.1-slim-trixie` (gcc), and `fast`'s clippy is the only `--all-features` build; the `platforms` layer (macOS, Windows) builds `mineworld-cli` and S16's tests, never the feature — no material stop (5) |
 
 ### Evidence
 
@@ -2526,6 +2527,40 @@ E-TWd-2  C2, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- -
          (g) Stopped at day 50 14:30, resumed through day 120 (crossing into 2027): 70 weather-day, the
              last replaying 2015-02-05 from the saved epoch; facts byte-identical to the uninterrupted
              world's. PASS.
+E-TWd-3  C3, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather-fetch -- --nocapture`: 6 pass.
+         (a) Criterion 1 on the hand-made .dly (station USW00099999, 2016; Jan–Mar elements, WT01 Jan/Feb,
+             WT03 Feb, March without WT lines): reshape twice, the second 1.1 s later → CSV, NOTICE and
+             report byte-equal; the CSV decodes with the pack's decoder (366 rows, LF only); the NOTICE
+             names the URL, "retrieved 2026-10-09 (UTC)", MODIFIED DATA, "not endorsed by NOAA", both
+             DOIs, CC0-1.0, the command, "input USW00099999.dly, 4860 bytes", "output test-2016.csv,
+             8491 bytes, 367 lines (LF)". PASS.
+         (b) 2016-01-05 (−9999) and 2016-01-10 (Q-flag 'X') → empty TMAX; WT01 on Jan 3–4 → fog; WT03 on
+             Feb 15 → thunder; March (no WT line) → 0; April–December (no line) → empty; report: "TMAX 1"
+             flagged, gap runs 2016-01-05 (1 d), 2016-01-10 (1 d), 2016-04-01 … 2016-12-31 (275 d). PASS.
+             Failure cases: a 268-character line → "line 1: a .dly line is 269 …"; a second station →
+             "line 19: station USW00011111, but the file began with USW00099999"; MONTH 13 refused;
+             --station mismatch, --from after --to, years outside the file refused. PASS.
+         (c) fit's oracle: 100 years (36 524 days, 2001–2100) drawn by the pack's generator from a known
+             table (p_wd 40 … 260, p_ww 250 … 580, tmax 150 … 260, tmin 80 … 168, noise 30, ρ 600, no
+             wet shift): p_wd within ±20 ‰ in every month (max |Δ| 14, Aug); tmax/tmin within ±3 (max
+             |Δ| 2); p_ww within its tolerance (TWd-D8; max |Δ| 51 in May, tolerance 68); t_noise
+             recovered as 30 in all 12 months, ρ 568 … 599; overcast copied; byte-identical twice. PASS.
+             No f32/f64 in the tool's src (7 files). PASS.
+         (d) Criterion 4 (INV-TW-7), verbatim (target/tw-d/criterion4.txt):
+               $ cargo tree -e normal -i ureq --workspace --all-features
+               ureq v3.4.2
+               └── mineworld-weather-fetch v0.1.0 (…/tools/weather-fetch)
+               $ cargo tree -p mineworld-cli -i ureq            → error: package ID specification `ureq`
+                                                                  did not match any packages [exit 101]
+               $ cargo tree -p mineworld-cli -i ureq --all-features      → the same
+               $ cargo tree -p mineworld-server -i ureq                  → the same
+               $ cargo tree -p mineworld-server -i ureq --all-features   → the same
+             Exactly one dependent. PASS. tests/confined.rs: in Cargo.lock only mineworld-weather-fetch
+             depends on ureq and nothing depends on mineworld-weather-fetch. PASS.
+         (e) `cargo tree -p mineworld-weather-fetch -i ureq` (no features) → no match; `cargo tree -p
+             mineworld-weather-fetch -e normal | grep -c ureq` → 0. The default build does not compile
+             ureq. PASS. With `--features fetch` it builds ring 0.17.14, rustls 0.23.45, ureq 3.4.2 in
+             7.6 s on macOS (Apple clang).
 ```
 
 ### Mutations
@@ -2540,6 +2575,15 @@ M-TWd-3b record.rs `lines`: the trailing \r no longer stripped → the CRLF chec
          … weather-record-invalid … line 1: a carriage return inside the line"), and both (a) tests
          fail. Killed — as a refusal rather than as drift, because the decoder refuses a stray \r
          (SD-TW-d-3) before any value could differ. Reverted; `git grep MUTATION -- '*.rs'` empty.
+M-TWd-1  notice.rs: the NOTICE gains "written <unix seconds>" → `reshape_is_byte_reproducible_and_
+         writes_the_packs_format` FAILS on "the NOTICE" (…1791595649 against …1791595650). Killed by the
+         1.1 s gap between the two runs. Reverted.
+M-TWd-4  tools/cli/Cargo.toml: `mineworld-weather-fetch` as a dev-dependency with `fetch` →
+         `cargo tree -e normal -i ureq --workspace --all-features` STILL lists only the tool (a dev edge is
+         not a normal edge: TWd-F1), but `cargo tree -p mineworld-cli -i ureq` names
+         "[dev-dependencies] └── mineworld-cli", and tests/confined.rs FAILS: left ["mineworld-cli"],
+         right []. Killed by the second command and the lock test. Reverted; `grep -rn MUTATION tools
+         systems` empty.
 ```
 
 ### Deviations and findings
@@ -2578,4 +2622,25 @@ TWd-D6  (bounded; SD-TW-d-6 does not say) A record or filled day's grey morning,
         kept as recorded even on a dry day (it then affects no hour).
 TWd-D7  (bounded) `mineworld-weather` re-exports `CalendarDate`, so the tool can build record rows
         without a direct dependency on calendar (SD-TW-d-8 lists the tool's dependencies).
+TWd-D8  (bounded; a statistical correction of C3 (c), which is not a §18.6 criterion) "p_ww within ±20 ‰"
+        over 100 years cannot hold by design in a dry month: January of the known table has 203 days
+        after a wet day, so the binomial standard error of p_ww is about 30 ‰ and ±20 ‰ is under 1σ
+        (first run: 227 against 250, FAIL by chance). The test keeps ±20 ‰ for p_wd (2 500+ dry
+        yesterdays a month, 3σ ≈ 18 ‰) and the means, and for p_ww uses max(20 ‰, 3 standard errors from
+        that month's own count). M-TWd-5 (p_ww := p_wd) is still far outside it (January 42 against 250,
+        tolerance 92). Criterion 5 (C5 (b)) is unaffected: it compares frequencies and spell lengths.
+TWd-D9  (bounded; SD-TW-d-8c's wording) t_noise_dc is ⌊√(3 · var · (1 − ρ²))⌋ with the fitted ρ, where
+        SD-TW-d-8c wrote "the integer square root of the anomaly variance × 3 / 2". Its stated reason —
+        uniform noise on ±n has variance n²/3 — gives n = √(3 · noise variance), and an AR(1) anomaly's
+        variance is the noise's / (1 − ρ²); "/ 2" is that factor at ρ ≈ 0.7. With the fitted ρ the
+        oracle recovers the generating noise exactly (30 in all 12 months; "× 3 / 2" would give 26).
+TWd-D10 (bounded) The tool has a library target (`src/lib.rs`) besides the binary, so its tests call
+        `reshape_bytes` and `fit` in process; `reshape` takes an optional `--name` (default
+        `<station>-<from>-<to>`), and `fit` takes `--station/--data/--first-year/--fill` to write a
+        `source: record` file from a rules base, or keeps the base's own record block. `fetch` exists
+        in every build and, without the feature, says how to get the file instead of being an unknown
+        subcommand.
+TWd-F1  (finding) Criterion 4's first command, `cargo tree -e normal … --workspace`, cannot see a dev-
+        dependency (M-TWd-4 survives it). The per-crate commands (default edges include dev) and the new
+        `tests/confined.rs` over Cargo.lock catch it, and the lock test runs in CI.
 ```

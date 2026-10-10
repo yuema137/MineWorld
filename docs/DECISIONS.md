@@ -5681,7 +5681,11 @@ feature `fetch`, **off by default**.
 **Selected: (a)**, pinned exactly (`=3.4.2`) in `tools/weather-fetch/Cargo.toml` as an optional dependency
 enabled only by the tool's `fetch` feature. No other crate depends on the tool, so no runtime crate can
 reach `ureq` (`INV-TW-7`, checked by `cargo tree` and by a test over `Cargo.lock`). The ring provider
-needs only a C compiler, which the CI image has; `cargo clippy --all-features` compiles it there. (b) is
+needs only a C compiler, which the CI image has; `cargo clippy --all-features` compiles it there. The
+feature adds 22 entries to `Cargo.lock` (twelve crates and ten Windows target shims), all under permissive
+licences (MIT, Apache-2.0, ISC, BSD-3-Clause; `ring` is
+Apache-2.0 AND ISC; `webpki-roots`, Mozilla's root certificates as data, is CDLA-Permissive-2.0); none
+is in any default build, and none ships with a world. (b) is
 the wrong size for one download. (c) remains the fallback when the network is unavailable: `reshape`
 takes any `.dly` file, and the NOTICE records who obtained it.
 
