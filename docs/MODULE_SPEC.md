@@ -85,6 +85,11 @@ A world uses it by requiring it (`requires: { modern-goods: "^0.1" }`, §4.1); i
 that world as if the world had declared them. How a world requiring one is read, and every refusal,
 is §4.1's "Requiring an Entity Pack"; `mineworld packs validate` of one is §8.1's.
 
+The repository ships one: `entities/modern-goods`, shop goods (food, drink, everyday things) that
+`worlds/lakeside` requires (`DECISIONS.md` `ARC-77`). It is found like any data pack, through a named
+pack root (`--packs entities`), and is never "bundled": that word means a code pack compiled from this
+workspace (`ARC-54`).
+
 ---
 
 # 3. System Pack

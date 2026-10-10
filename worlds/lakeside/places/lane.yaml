@@ -1,0 +1,15 @@
+# The lane: the village's one street, between the houses and the water.
+#
+# Millimetres from the lane's own origin, its south-west corner; `x` east, `y` north
+# (docs/CORE_CONCEPTS.md §6.1). About 30 m by 6 m: the houses, the bakery and the square open onto its
+# north side, the shore and the pier onto its south side. Every other place states its doorway onto the
+# lane, so the lane states none itself. No place here has drawn geometry yet; positions are semantic.
+
+tags:
+  - street
+  - public
+  - outdoor
+
+note: >-
+  A cobbled lane along the lake. The houses, the bakery and the square are on one side; the shore and
+  the pier on the other.

@@ -1,0 +1,19 @@
+# The cottages: a row of small houses round a shared yard, north of the lane.
+#
+# About 14 m by 10 m; the yard's gate onto the lane is on its south edge.
+
+tags:
+  - cottages
+  - residential
+
+note: >-
+  Four small cottages round a yard with a pump. Most of the village lives here.
+
+passages:
+  - to: lane
+    here:
+      x: 2000
+      y: 200
+    there:
+      x: 3000
+      y: 5800
