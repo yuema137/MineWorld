@@ -6,6 +6,12 @@ use thiserror::Error;
 
 use crate::input::WorldRevision;
 
+/// Revisions as a person reads them: `r1, r4096, r8128`.
+fn listed(revisions: &[WorldRevision]) -> String {
+    let names: Vec<String> = revisions.iter().map(ToString::to_string).collect();
+    names.join(", ")
+}
+
 /// Why a save could not be created, opened, written or trusted.
 ///
 /// Refusals are by name and carry what they found. None of them is repaired: a save that does not
@@ -88,6 +94,18 @@ pub enum PersistError {
     SnapshotDisagreesWithHistory {
         /// The snapshot's revision.
         revision: WorldRevision,
+    },
+
+    /// Verification was asked to start from a revision the save holds no snapshot at (`ARC-81`).
+    #[error(
+        "the save holds no snapshot at {revision}; it holds snapshots at {}",
+        listed(retained)
+    )]
+    NoSnapshotAt {
+        /// The revision asked for.
+        revision: WorldRevision,
+        /// The revisions the save does hold a snapshot at, in order.
+        retained: Vec<WorldRevision>,
     },
 
     /// A commit failed after the world had applied the input, so the world in memory is ahead of

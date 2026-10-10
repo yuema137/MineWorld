@@ -1,16 +1,49 @@
 //! A world with a save: every input journaled, every fact logged, before anybody is told.
 
+use std::collections::BTreeSet;
+
 use mineworld_contracts::{ActionIntent, EventEnvelope, WorldTime};
 use mineworld_kernel::{Advanced, Dispatched, Emission, World, WorldSnapshot};
 
 use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow};
 use crate::error::PersistError;
-use crate::format::{Manifest, SAVE_FORMAT, decode, encode, instance_text};
+use crate::format::{
+    Manifest, SAVE_FORMAT, decode, decode_snapshot, encode, encode_snapshot, instance_text,
+};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 use crate::replay::{self, advanced, check_composition, dispatched};
 
 /// How often a persisted world writes a snapshot, unless told otherwise: every 64 revisions.
 pub const DEFAULT_SNAPSHOT_INTERVAL: u64 = 64;
+
+/// How many scheduled snapshots apart two anchors are: an anchor is kept at every multiple of
+/// `ANCHOR_EVERY × interval` revisions — 4 096 at the default interval (`ARC-81`, QSR-2).
+const ANCHOR_EVERY: u64 = 64;
+
+/// The retention rule (`ARC-81`, design D-SR-3): which stored snapshots to delete once the scheduled
+/// snapshot at `n` is committed. Kept are genesis, every anchor, `n` itself and `n − interval`; every
+/// other stored revision below `n` goes — an off-lattice checkpoint included, which is kept only until
+/// the next scheduled snapshot.
+///
+/// A function of `n`, the interval and the stored set and of nothing else, so that a killed and
+/// resumed run holds exactly the rows an uninterrupted one does (`ARC-27`).
+fn retired(
+    n: WorldRevision,
+    interval: u64,
+    stored: &BTreeSet<WorldRevision>,
+) -> Vec<WorldRevision> {
+    let anchor = ANCHOR_EVERY * interval;
+    let kept = |revision: u64| {
+        revision == WorldRevision::GENESIS.raw()
+            || revision.is_multiple_of(anchor)
+            || revision + interval == n.raw()
+    };
+    stored
+        .range(..n)
+        .copied()
+        .filter(|revision| !kept(revision.raw()))
+        .collect()
+}
 
 /// What a new save is created with, beyond the world itself.
 #[derive(Debug, Clone)]
@@ -51,6 +84,9 @@ pub struct PersistentWorld {
     revision: WorldRevision,
     instance: u128,
     snapshot_interval: u64,
+    /// The revisions the save holds a snapshot at — read once when the world is created or resumed,
+    /// then kept in step with every commit and checkpoint, so that retention needs no query.
+    stored: BTreeSet<WorldRevision>,
     /// Set when a commit failed: the world in memory is then ahead of its save, and refuses
     /// every further input.
     ahead_of_save: Option<(WorldRevision, String)>,
@@ -102,6 +138,7 @@ impl PersistentWorld {
                 revision: WorldRevision::GENESIS,
                 instance: creation.instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
+                stored: BTreeSet::from([WorldRevision::GENESIS]),
                 ahead_of_save: None,
             },
             began,
@@ -126,10 +163,11 @@ impl PersistentWorld {
                 .ok_or_else(|| PersistError::Damaged {
                     detail: "the save has no snapshot, not even at genesis".to_owned(),
                 })?;
-        composed.restore(decode::<WorldSnapshot>(&bytes, "snapshot")?)?;
+        composed.restore(decode_snapshot(&bytes, snapshot)?)?;
         let (replayed, facts) =
             replay::replay_after(&mut composed, backend.as_ref(), snapshot, |_, _| Ok(()))?;
         let instance = manifest.instance_number()?;
+        let stored = backend.snapshot_revisions()?.into_iter().collect();
         Ok((
             Self {
                 committed_at: composed.now(),
@@ -138,6 +176,7 @@ impl PersistentWorld {
                 revision: head,
                 instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
+                stored,
                 ahead_of_save: None,
             },
             Resumed {
@@ -234,8 +273,9 @@ impl PersistentWorld {
         if self.world.now() != self.committed_at {
             return Ok(false);
         }
-        let snapshot = encode(&self.world.snapshot()?)?;
+        let snapshot = encode_snapshot(&self.world.snapshot()?)?;
         self.backend.checkpoint(self.revision, &snapshot)?;
+        self.stored.insert(self.revision);
         Ok(true)
     }
 
@@ -257,19 +297,38 @@ impl PersistentWorld {
         facts: &[EventEnvelope],
     ) -> Result<(), PersistError> {
         let revision = self.revision.next();
+        let scheduled = revision.raw().is_multiple_of(self.snapshot_interval);
         let committed = (|| {
-            let snapshot = if revision.raw().is_multiple_of(self.snapshot_interval) {
+            let snapshot = if scheduled {
                 Some(self.world.snapshot()?)
             } else {
                 None
             };
-            let row = revision_row(revision, input, outcome, facts, snapshot.as_ref())?;
-            self.backend.commit(&row)
+            let mut row = revision_row(revision, input, outcome, facts, snapshot.as_ref())?;
+            if scheduled {
+                row.retire = retired(revision, self.snapshot_interval, &self.stored);
+                // By construction every retired revision is below this one; the check keeps a
+                // future edit of the rule from ever deleting the snapshot a resume would read.
+                if let Some(late) = row.retire.iter().find(|retired| **retired >= revision) {
+                    debug_assert!(false, "the rule retired {late} at {revision}");
+                    return Err(PersistError::Damaged {
+                        detail: format!("the retention rule retired {late} at {revision}"),
+                    });
+                }
+            }
+            self.backend.commit(&row)?;
+            Ok(row.retire)
         })();
         match committed {
-            Ok(()) => {
+            Ok(retire) => {
                 self.revision = revision;
                 self.committed_at = self.world.now();
+                if scheduled {
+                    self.stored.insert(revision);
+                }
+                for retired in retire {
+                    self.stored.remove(&retired);
+                }
                 Ok(())
             }
             Err(error) => {
@@ -308,6 +367,59 @@ fn revision_row(
                 })
             })
             .collect::<Result<_, PersistError>>()?,
-        snapshot: snapshot.map(encode).transpose()?,
+        snapshot: snapshot.map(encode_snapshot).transpose()?,
+        retire: Vec::new(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn revisions(raw: &[u64]) -> BTreeSet<WorldRevision> {
+        raw.iter().copied().map(WorldRevision::from_raw).collect()
+    }
+
+    fn retired_raw(n: u64, interval: u64, stored: &[u64]) -> Vec<u64> {
+        retired(WorldRevision::from_raw(n), interval, &revisions(stored))
+            .into_iter()
+            .map(WorldRevision::raw)
+            .collect()
+    }
+
+    /// One case: what, n, interval, stored before the commit, expected retired.
+    type Case = (&'static str, u64, u64, &'static [u64], &'static [u64]);
+
+    /// D-SR-3 over the cases a save can be in: the steady state, the first anchor, an anchor that
+    /// has just become older than the newest two, off-lattice checkpoints below and between the
+    /// newest two, another interval, and rows the rule never sees (the new snapshot and above).
+    #[test]
+    fn the_rule_keeps_genesis_anchors_and_the_newest_two_and_retires_the_rest() {
+        let cases: [Case; 9] = [
+            ("first scheduled", 64, 64, &[1], &[]),
+            ("second scheduled", 128, 64, &[1, 64], &[]),
+            ("steady state", 320, 64, &[1, 192, 256], &[192]),
+            ("at an anchor", 4_096, 64, &[1, 3_968, 4_032], &[3_968]),
+            ("past an anchor", 4_224, 64, &[1, 4_096, 4_160], &[]),
+            (
+                "anchor ages",
+                4_288,
+                64,
+                &[1, 4_096, 4_160, 4_224],
+                &[4_160],
+            ),
+            (
+                "checkpoints",
+                512,
+                64,
+                &[1, 384, 400, 448, 470],
+                &[384, 400, 470],
+            ),
+            ("interval 8", 1_032, 8, &[1, 512, 1_016, 1_024], &[1_016]),
+            ("never above n", 128, 64, &[1, 64, 128, 130], &[]),
+        ];
+        for (what, n, interval, stored, expected) in cases {
+            assert_eq!(retired_raw(n, interval, stored), expected, "{what}");
+        }
+    }
 }

@@ -62,6 +62,12 @@ trybuild = "1.0.121"
 # local server has no system dependency. Named only inside `persistence/src/sqlite.rs`.
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 
+# Snapshot compression (DEP-43, ARC-81): a stored snapshot is a zstd frame of its JSON. Default features
+# off — no legacy formats, no dictionary builder, no multithreading — and libzstd built from the source
+# bundled in zstd-sys, so the stored bytes are the same on every platform. Named only inside
+# `persistence/src/format.rs`.
+zstd = { version = "0.13", default-features = false }
+
 # YAML, for World Packs. `serde_yaml` is archived and every fork of its lineage sits on the
 # archived `unsafe-libyaml`; `serde-saphyr` is a maintained parser with a stable major version, no
 # unsafe code, positioned error reports and a duplicate-key policy. DEP-10 records the comparison.
