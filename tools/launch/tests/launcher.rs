@@ -520,7 +520,7 @@ fn play_joins_with_working_arguments_stops_gracefully_and_resumes() {
         client.engine(),
         [
             "--main-pack".to_owned(),
-            runtime.join("clients/2d.pck").display().to_string()
+            runtime.join("clients").join("2d.pck").display().to_string()
         ],
         "a play run is windowed and loads the 2D pack"
     );

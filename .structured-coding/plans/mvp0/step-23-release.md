@@ -1226,3 +1226,8 @@ body and the handoff).
   children are orphans; in the CI container PID 1 does not reap them, so an exited stub stays a zombie and
   `kill -0` reports it alive. Fix: on Linux the test reads the state in `/proc/<pid>/stat` and counts `Z`/`X`
   as not alive (the same helper judges the server's pid). `platforms` ×2 and `python` ×3 PASS.
+- **Head `48d58ca`.** `fast`, `test` (Linux, launcher 4/4), `test-macos`, `platforms` ×2, `python` ×3 PASS.
+  **`test-windows` FAIL** in the test's own expectation only (F-RC-3): it compared the launcher's
+  `…\runtime\clients\2d.pck` with `runtime.join("clients/2d.pck")`, which keeps a `/` on Windows. The other
+  three launcher cases (A-R6 kill, smoke both, failures) and `stop_on_stdin_eof` 2/2 PASSED on Windows —
+  the stdin-EOF stop works there. Fix: build the expected path component by component.
