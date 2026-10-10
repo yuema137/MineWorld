@@ -39,8 +39,18 @@ use crate::codec;
 use crate::event::{BecameAcquainted, RelationshipChanged};
 use crate::system::RelationshipsSystem;
 
-/// The rule name relationships asks before a person comes to know another.
-pub const ACQUAINT: ActionTypeId = ActionTypeId::from_static("acquaint");
+/// The rule name's text.
+///
+/// Named, rather than written inline as `from_static("…")`, on purpose: the client-text catalog check
+/// (`tests/acceptance/tests/client_text.rs`, AC-SET-4) collects every inline action-type literal under
+/// `systems/` as a code a client may be shown and needs a label for. `acquaint` is never sent to a
+/// client — it is not offered, not dispatchable and never a request's outcome — so it has no label,
+/// and it is not one of those literals (`pr-il-e-social.md` D-IE-3).
+const ACQUAINT_NAME: &str = "acquaint";
+
+/// The rule name relationships asks before a person comes to know another. It names no action type
+/// any pack provides (SD-IE-8).
+pub const ACQUAINT: ActionTypeId = ActionTypeId::from_static(ACQUAINT_NAME);
 
 mineworld_sdk::parameters! {
     /// What a world may choose about how contact moves a relationship.

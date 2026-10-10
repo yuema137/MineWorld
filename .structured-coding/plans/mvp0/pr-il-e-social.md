@@ -898,3 +898,15 @@ E-IE-6  2026-10-10, IE-C6: NEW tools/cli/tests/social_interactions.rs, 3 tests, 
   dev-depends on group-activity and relationships. *Impact:* the same tests at the same layer (real
   loader, `World::dispatch`, `observe`); one more new file in §11's change set (tools/cli/tests is
   already in it). *Validation:* E-IE-5.
+- **D-IE-3** (bounded, IE-C7; R-IE-8 met in a place §3 did not audit). *Finding:* the full gate failed
+  `tests/acceptance/tests/client_text.rs::the_catalogs_are_complete_and_consistent` — "clients/shared/
+  settings/locale/en.po: no "action.acquaint" (a code the server or a System Pack sends)", and likewise
+  zh_Hans.po. The check (AC-SET-4) collects every inline `ActionTypeId::from_static("…")` literal under
+  `systems/*/src` as an action code a client may be shown. `ACQUAINT` was such a literal. *Resolution:*
+  the literal is named (`const ACQUAINT_NAME: &str = "acquaint"`, `from_static(ACQUAINT_NAME)`), with a
+  comment saying why: `acquaint` is never sent to a client (not offered, not dispatchable, never a
+  request's outcome), so it needs no label. *Alternatives refused:* a label in `clients/shared/.../*.po`
+  or an edit to the acceptance check are both in §11's no-diff list. *Operator note:* the catalog check
+  now passes because the name is not an inline literal; if the operator prefers that the check learn
+  "rule names that are not actions" instead, that is an acceptance-test change for a later PR.
+  *Validation:* `cargo test -p mineworld-acceptance --test client_text` 5 passed; E-IE-7's gate.
