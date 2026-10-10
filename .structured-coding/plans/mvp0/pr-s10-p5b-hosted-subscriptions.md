@@ -1,15 +1,38 @@
 # PR S10-P5b — The native Anthropic adapter, and subscription access through the user's own CLI
 
-## PR design — ready for freeze review
+## DESIGN FROZEN 2026-10-09 (primary session)
 
 ```text
-Design revision:        revision 1 (2026-10-09), as committed on plan/s10-p5
-Approved by / evidence: NOT YET. Freeze needs the primary session's approval, and the operator's
-                        rulings on QP5b-1 and QP5b-2 (terms of service; §4, §10)
+Design revision:        revision 1 (2026-10-09), with §10.1's rulings, as committed on plan/s10-p5
+                        (PR #111) with this header
+Approved by / evidence: the primary session's freeze message of 2026-10-09, relayed by the coordinator;
+                        the operator's rulings on QP5b-1 (drop the Claude subscription route) and
+                        QP5b-2 (Codex as an opt-in for the user's own local use) of the same day
 Implementation base:    main after P5a has merged (exact commit recorded in C0)
-Execution contract:     §9 (proposed; its authority lines are filled at freeze)
-Lifecycle:              DRAFT — ready for freeze review. Not frozen. Authorizes no implementation
+Execution contract:     §9 (filled at freeze)
+Lifecycle:              FROZEN. Implementation starts only after P5a has merged
 ```
+
+**What the rulings change in this design.** Each change is applied below and marked "ruled".
+
+- **QP5b-1, operator: the Claude Code subscription route is dropped.** `presets/claude_code.py`,
+  `kind = "claude-code-subscription"` and C5 leave the scope. Claude is supported through the user's own
+  Anthropic API key with `AnthropicMessagesBackend`. The reason is recorded in §4.1 with Anthropic's
+  terms quoted.
+- **QP5b-2, operator: Codex through the user's ChatGPT plan is an opt-in for the user's own local use
+  only.** It is off by default, never in an example, gated by `acknowledge_terms`, and documented in
+  the README after every API-key route.
+- **Open obligation (the operator's condition on QP5b-2).** OpenAI's Terms of Use must be re-read before
+  the Codex preset is built. The quote in §4.2 came from search excerpts because the page answered HTTP
+  403. A second attempt at freeze time (2026-10-09, `openai.com/en-GB/policies/terms-of-use/`) also
+  answered 403. The obligation therefore moves to **C1**. The operator, or a session with a browser,
+  reads the page and pastes the effective date and the relevant clauses into §4.2. **C4 (the Codex
+  preset) does not start until that is recorded.** If the re-read shows that the terms forbid the use,
+  C4 becomes N/A and the route is dropped as Claude's was. That would be a material stop, returned to
+  the operator.
+- **Decision numbers:** `DEP-33` is the native Anthropic adapter, with the SDK declined (QP5b-4).
+  `ARC-60` is the subscription route as it remains: the Codex opt-in, its gate, and I-B1 … I-B5. S10
+  also holds `ARC-72 … ARC-74` for later PRs (P4, P6).
 
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) §3.7 · **Depends on:**
 P5a, [`pr-s10-p5-backends.md`](pr-s10-p5-backends.md) (the interface, the gateway, budgets, recorder,
@@ -17,10 +40,10 @@ P5a, [`pr-s10-p5-backends.md`](pr-s10-p5-backends.md) (the interface, the gatewa
 **Planning base:** `origin/main @ aee8290`, branch `plan/s10-p5`.
 **Decision identifiers:**
 
-- `DEP-33` (ruled to S10, 2026-10-09): the Anthropic adapter over `httpx2`, with the Anthropic SDK and
-  the Claude Agent SDK declined.
-- `ARC-60`, proposed: the subscription route and its terms gate. It is the last of S10's ARC range, and
-  needs the primary session's confirmation (QP5b-3).
+- `DEP-33` (ruled 2026-10-09): the Anthropic adapter over `httpx2`, with the Anthropic SDK and the
+  Claude Agent SDK declined.
+- `ARC-60` (ruled 2026-10-09, QP5b-3): the subscription route as it remains after QP5b-1, that is, the
+  Codex opt-in and its terms gate. It records why the Claude route was dropped.
 
 ### The requirement, verbatim (operator, 2026-10-09)
 
@@ -58,12 +81,12 @@ key and the secret rules apply unchanged.
 - `backend/cli_bridge.py`: `CliBridgeBackend`, a generic runner for a model CLI. It handles discovery,
   argv built from fixed literals, the prompt on stdin, an environment allowlist, an empty working
   directory, timeouts that kill the process tree, and output parsing per preset.
-- `backend/presets/codex.py`: the `codex exec` preset (`kind = "codex-subscription"`), **conditional on
-  QP5b-2**.
-- `backend/presets/claude_code.py`: the `claude -p` preset (`kind = "claude-code-subscription"`),
-  **conditional on QP5b-1. Not built under the recommendation** (§4).
+- `backend/presets/codex.py`: the `codex exec` preset (`kind = "codex-subscription"`). Ruled in by
+  QP5b-2 as an opt-in, and built only after the C1 re-read of OpenAI's terms.
+- ~~`backend/presets/claude_code.py`~~: **dropped by QP5b-1 (operator, 2026-10-09).** No
+  `claude-code-subscription` kind exists; `config.load` reports it as unknown.
 - `config.py`:
-  - the `kind` union gains `anthropic`, plus the subscription kinds the operator rules in;
+  - the `kind` union gains `anthropic` and `codex-subscription`;
   - the `acknowledge_terms` field;
   - a refusal of `kind = "openai-compatible"` pointed at `api.anthropic.com` (AB-2).
 - Tests with **fake CLIs**: small Python scripts started as `[sys.executable, fake.py]`, and on Windows
@@ -168,10 +191,16 @@ non-human means" clause point the same way. Anthropic may enforce "without prior
 account at risk is the user's. The route that is explicitly allowed is **Claude by API key**, which
 P5b's native adapter provides.
 
-**Recommendation (QP5b-1, operator-material): drop the Claude Code subscription route.** Claude is
-supported through the user's own Anthropic API key (the `anthropic` kind). If the operator nevertheless
-wants the route, the only defensible form is §5.4's opt-in for the user's own local use: documented,
-not promoted, off by default, never in an example. This design does not recommend it.
+**Ruled (QP5b-1, operator, 2026-10-09): the Claude Code subscription route is dropped.**
+
+- **The reason**, in Anthropic's words quoted above: "Anthropic does not permit third-party developers
+  to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max
+  plan credentials on behalf of their users".
+- **Enforcement:** Anthropic "may do so without prior notice", against the user's account.
+- **What remains:** Claude is supported through the user's own Anthropic API key with
+  `AnthropicMessagesBackend` (the `anthropic` kind), which Anthropic directs developers to use: "should
+  use API key authentication through Claude Console or a supported cloud provider".
+- **Recorded in:** `ARC-60` and the README's "Subscriptions" section.
 
 ### 4.2 OpenAI: Codex CLI with a ChatGPT subscription
 
@@ -201,11 +230,15 @@ automation". "Access tokens are intended for trusted scripts … and private CI 
 terms bar programmatic extraction of output. A game's NPC driven by `codex exec` is automation in
 plain words.
 
-**Recommendation (QP5b-2, operator-material): an opt-in for the user's own local use, documented but
-not promoted.** It is built in P5b behind §5.4's gate. The README states that OpenAI recommends API
-keys for automation, and that the user is responsible for their plan's terms. OpenAI models by API key
-(P5a's OpenAI-compatible adapter) remain the recommended route. The alternative is to drop the route,
-as for Claude.
+**Ruled (QP5b-2, operator, 2026-10-09): an opt-in for the user's own local use only.**
+
+- It is off by default and never in an example.
+- It is gated by `acknowledge_terms`.
+- It is documented in the README **after** every API-key route, stating that OpenAI recommends API keys
+  for automation and that the user is responsible for their plan's terms.
+- OpenAI models by API key (P5a's OpenAI-compatible adapter) remain the recommended route.
+- **Condition:** the Terms of Use quote above is re-read from the live page before the preset is built
+  (C1 → C4; see the freeze header).
 
 ### 4.3 Libraries considered for the two routes
 
@@ -294,9 +327,8 @@ complete(request):
 - `--output-schema` requires strict schemas: the same lowering as §5.1 sets `additionalProperties:
   false`.
 
-**Claude Code (`kind = "claude-code-subscription"`): NOT BUILT under the recommendation (QP5b-1).**
-
-If the operator rules it in as an opt-in:
+**Claude Code (`kind = "claude-code-subscription"`): DROPPED by QP5b-1 (operator, 2026-10-09).** It is
+not built. The sketch below is kept only as the record of what was considered:
 
 - argv: `claude -p --output-format json --json-schema-file <schema_path>`, *or* `--json-schema` with
   the schema text if no file form exists. Schema text is generated by us and contains no player
@@ -352,10 +384,17 @@ If the operator rules it in as an opt-in:
   - `ARC-60`, the subscription route: the terms evidence, the gate, I-B1 … I-B5;
   - the README's "Subscriptions" section.
 
-  The operator pastes `codex exec --help` (and, if QP5b-1 rules it in, `claude --help`) from their own
-  machine. The preset flags are fixed from that text and recorded with the CLI versions.
-- [ ] Validation: both doc checks; the README section quotes §4 with dates and URLs.
-- [ ] Review: no claim about a flag rests on anything but the pasted help or the documentation.
+  The operator pastes `codex exec --help` from their own machine. The preset flags are fixed from
+  that text and recorded with the CLI version.
+  **The OpenAI Terms of Use re-read** (QP5b-2's condition): the live page's effective date and its
+  clauses on programmatic output extraction and on account sharing are pasted into §4.2, replacing the
+  search-excerpt quote.
+- [ ] Validation: both doc checks; the README section quotes §4 with dates and URLs; §4.2 carries the
+  re-read text and its date.
+- [ ] Review:
+  - no claim about a flag rests on anything but the pasted help or the documentation;
+  - the re-read does not contradict QP5b-2. If it forbids the use: a material stop, back to the
+    operator, and C4 becomes N/A.
 
 ### C2 — `AnthropicMessagesBackend`
 
@@ -372,17 +411,19 @@ If the operator rules it in as an opt-in:
 - [ ] Review: argv construction has no string formatting of request content; stderr is scrubbed
   before entering any message.
 
-### C4 — The Codex preset (conditional on QP5b-2)
+### C4 — The Codex preset (ruled in by QP5b-2; starts only after C1's terms re-read)
 
 - [ ] Implementation: §5.4 Codex; `acknowledge_terms`; README usage.
 - [ ] Validation: AB-7 with its mutation; the preset parses a **recorded fake** event stream built
   from the documentation's event names; the fake CLI exercises `turn.failed`.
 - [ ] Review: no shipped example enables the kind.
-- **N/A** if QP5b-2 rules "drop", with the ruling as the reason.
+- **N/A** only if C1's re-read shows that OpenAI's terms forbid the use (a material stop first).
 
-### C5 — The Claude Code preset (conditional on QP5b-1; N/A under the recommendation)
+### C5 — The Claude Code preset: N/A (dropped by QP5b-1, operator, 2026-10-09)
 
-- [ ] As C4, for §5.4 Claude Code. **N/A** unless the operator rules it in.
+- N/A: Anthropic does not permit a third-party product to route requests through a user's Free, Pro or
+  Max plan credentials (§4.1). The registry has no such kind, and AB-7 checks that
+  `claude-code-subscription` is refused as unknown.
 
 ### C6 — CI and close-out
 
@@ -394,32 +435,62 @@ If the operator rules it in as an opt-in:
 
 ---
 
-## 9. Execution contract (proposed; filled at freeze)
+## 9. Execution contract (filled at freeze, 2026-10-09)
+
+Source of every line marked "primary session": its freeze message of 2026-10-09, relayed by the
+coordinator to the S10 planning session.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S10 PR P5b — native Anthropic adapter; subscription bridges
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p5b-hosted-subscriptions.md
 RELATED / BINDING DOCS:  pr-s10-p5-backends.md (P5a, merged first); step-17-cognition.md §3.7;
                          docs/ARCHITECTURE.md §9.2; docs/REUSE_POLICY.md; CLAUDE.md
-WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5b
-BRANCH:                  mvp0/pr-s10-p5b-hosted, created from main after P5a merges
-APPROVED SCOPE:          §2.1, with C4 and C5 as the operator rules
-FROZEN INVARIANTS:       §2.3; D-B1 … D-B8; P5a's invariants; QS10-19
-SEQUENCE:                C0 … C6 (C4 and C5 conditional)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5b            (primary session)
+BRANCH:                  mvp0/pr-s10-p5b-hosted, created from main after P5a merges (primary session)
+IMPLEMENTATION BASE:     origin/main after P5a's merge; C0 records it. P5b does not start before then
+APPROVED SCOPE:          §2.1 as ruled: the Anthropic adapter, the bridge core and the Codex opt-in; no
+                         Claude subscription preset
+FROZEN INVARIANTS:       §2.3; D-B1 … D-B8; P5a's invariants; QS10-19; QP5b-1 (dropped);
+                         QP5b-2 (opt-in, off by default, never in an example, gated, documented last)
+SEQUENCE:                C0 … C6 (C4 only after C1's OpenAI terms re-read; C5 N/A by QP5b-1)
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n
 NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; running a real `codex` or
                          `claude` binary (help text comes from the operator); reading any key file,
                          ~/.config/mineworld/secrets.env, ~/.codex, ~/.claude or a keychain; using any
                          API key; calling any hosted API; running or downloading any model
 MATERIAL STOPS:          any change to P5a's seams; any dependency (P5b adds none); a preset the operator
-                         did not rule in; any CI command naming a real CLI
+                         did not rule in (any Claude subscription route); any CI command naming a real
+                         CLI; OpenAI's re-read terms forbidding the Codex opt-in
 PLATFORMS:               Linux, macOS, Windows (AB-9)
 VALIDATION BUDGET:       unit and fake-CLI integration: unrestricted. Real CLIs, keys, hosted models: none
-ENDPOINT AUTHORITY:      (filled at freeze); merge: explicit operator authorization only
+LIVE DOCUMENTATION:      this document (a ledger section is added in C0)
+HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p5b.md
+ENDPOINT AUTHORITY:      implementation + local validation: authorized   (primary session freeze)
+                         semantic commits: authorized                    (primary session freeze)
+                         branch push: authorized                         (primary session freeze)
+                         PR creation / update: authorized                (primary session freeze)
+                         CI repair to review readiness: authorized       (primary session freeze)
+                         merge: explicit operator authorization only
+POST-MERGE SYNC OWNER:   the S10 planning session owns step-17 §15 and overall.md; the implementation
+                         session owns this document's ledger, evidence and deviations
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
 ## 10. Questions
+
+### 10.1 Rulings, 2026-10-09
+
+| ID | Ruling |
+| --- | --- |
+| QP5b-1 | **Operator: drop** the Claude subscription route. Claude goes through the user's own API key and the native adapter. The reason is quoted in §4.1. |
+| QP5b-2 | **Operator: opt-in for the user's own local use only**: off by default, never in an example, gated by `acknowledge_terms`, documented after the API-key routes. OpenAI's Terms of Use are re-read before the preset is built (C1 → C4). |
+| QP5b-3 | **Primary:** `ARC-60` for the subscription route as it remains. S10 also receives `ARC-72`, `ARC-73` and `ARC-74`. |
+| QP5b-4 | **Primary: yes.** `DEP-33` is the native Anthropic adapter, with the SDK declined. |
+| QP5b-5 | **Primary: yes.** P5b follows P5a and may run in parallel with P4. |
+| QP5b-6 | **Primary: yes.** The README lists the API-key routes first and subscriptions after them. |
+| Freeze | **Primary session, 2026-10-09:** P5b DESIGN FROZEN; contract §9 filled. |
+
+### 10.2 The questions as asked (kept for review)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |

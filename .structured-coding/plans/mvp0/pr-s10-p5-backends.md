@@ -1,16 +1,21 @@
 # PR S10-P5a — Model backends, the recorder and cassettes, cognition budgets, API keys
 
-## PR design — ready for freeze review
+## DESIGN FROZEN 2026-10-09 (primary session)
 
 ```text
-Design revision:        revision 2 (2026-10-09): the rulings on QP5-1 … QP5-9 and the operator's
-                        requirement for API and subscription access, as committed on plan/s10-p5
-Approved by / evidence: NOT YET. Freeze requires the primary session's approval. The operator answered
-                        QP5-2 and QP5-3 on 2026-10-09 (§12); no P5a question is operator-material now
+Design revision:        revision 2 (2026-10-09), with §12.1's rulings, as committed on plan/s10-p5
+                        (PR #111) with this header
+Approved by / evidence: the primary session's freeze message of 2026-10-09, relayed by the coordinator
+                        to the S10 planning session; the operator's rulings on QP5-2, QP5-3 and the
+                        API/subscription requirement of the same day (§12.1)
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
-Execution contract:     §11 (proposed; its authority lines are filled at freeze)
-Lifecycle:              DRAFT — ready for freeze review. Not frozen. Authorizes no implementation
+Execution contract:     §11 (filled at freeze)
+Lifecycle:              FROZEN
 ```
+
+Scope (§2.1), invariants (§2.3), decisions D-P5-1 … D-P5-14, the adversarial criteria AP5-1 … AP5-13
+and AP5-S, and the commit plan are frozen. Progress, evidence, findings and bounded corrections stay
+writable (§13). No P5a question remains open.
 
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) (§3.5, §3.7, §3.10,
 §3.11, §4.1, §4.5, §5, §8, §9, §10, and §15, the 2026-10-08 audit with its rulings) · **Parent:**
@@ -790,7 +795,10 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
 - **R-P5b-1 (on P5b).** P5b adds adapters through `backend/registry.py` and `BackendConfig`'s `kind`
   union only. It reuses `Secret`, `resolve_key`, the gateway, the budgets and the recorder unchanged.
 
-## 11. Execution contract (proposed; filled at freeze)
+## 11. Execution contract (filled at freeze, 2026-10-09)
+
+Source of every line marked "primary session": its freeze message of 2026-10-09, relayed by the
+coordinator to the S10 planning session.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S10 PR P5a — model backends, recorder and cassettes, budgets,
@@ -800,8 +808,8 @@ RELATED / BINDING DOCS:  step-17-cognition.md (§§3.5, 3.7, 3.10, 3.11, 4.1, 4.
                          pr-s10-p3-python-sdk.md; overall.md (S10; §5 operator requirements);
                          docs/ARCHITECTURE.md §9; docs/MODULE_SPEC.md §5; docs/ENGINEERING_STANDARDS.md
                          (§§22–24); docs/REUSE_POLICY.md; CLAUDE.md
-WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5
-BRANCH:                  mvp0/pr-s10-p5-backends, created from main
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5             (primary session)
+BRANCH:                  mvp0/pr-s10-p5-backends, created from main                  (primary session)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
 FROZEN INVARIANTS:       §2.3; D-P5-1 … D-P5-14; QS10-18; QS10-19; QP5-1 … QP5-9 as ruled;
@@ -822,9 +830,11 @@ VALIDATION BUDGET:       unit, static, local integration: unrestricted. Real mod
                          primary session wants it shown red in CI
 LIVE DOCUMENTATION:      this document (a §13 ledger is added in C0)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p5.md
-ENDPOINT AUTHORITY:      implementation + local validation: (filled at freeze)
-                         semantic commits: (filled at freeze)
-                         branch push / PR creation / CI repair: (filled at freeze)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized   (primary session freeze)
+                         semantic commits: authorized                    (primary session freeze)
+                         branch push: authorized                         (primary session freeze)
+                         PR creation / update: authorized                (primary session freeze)
+                         CI repair to review readiness: authorized       (primary session freeze)
                          merge: explicit operator authorization only
 POST-MERGE SYNC OWNER:   the S10 planning session owns step-17 §15 and overall.md; the implementation
                          session owns this document's ledger, evidence and deviations
@@ -847,7 +857,15 @@ scope, or a reversal of an operator ruling. **[primary]** marks one the primary 
 | QP5-6 | **Primary:** `ARC-57`, `ARC-58` and `DEP-27` as proposed. S10 also gets `DEP-32` (P5a: `python-dotenv`) and `DEP-33` (P5b). |
 | New requirement | **Operator:** API keys through a `.env`-style file, and subscriptions through Codex's or Claude Code's own login. P5a carries the API-key half (§4.1b, §4.2b, D-P5-9, D-P5-14, AP5-13). P5b carries the Anthropic adapter and the subscription half. |
 
-### 12.2 Open questions for P5a
+| QP5-10, QP5-11, QP5-12 | **Primary, 2026-10-09: yes**, as recommended in §12.2: per-user configuration; the process environment wins over the `env_file`; group- or world-readable key files refused on macOS and Linux. |
+| Freeze | **Primary session, 2026-10-09:** P5a DESIGN FROZEN; contract §11 filled. |
+
+**Planning-process note (recorded, 2026-10-09).** During revision 2 the planning session ran `sed -i`
+once on this file: the single line renaming the heading of §5.2 to "D-P5-1 … D-P5-14". The brief
+forbids `sed -i`. The change was correct and touched only that line, which the diff in PR #111 shows. It
+is recorded here so that the slip is visible. No other file was edited that way.
+
+### 12.2 Questions for P5a (all answered 2026-10-09, §12.1)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
