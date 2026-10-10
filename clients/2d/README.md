@@ -14,14 +14,25 @@ draws the town that Person can see, in the default isometric `town` style.
 Click to walk, or use WASD / the arrow keys; Esc quits. Walk out of the apartments, along the street
 and into the café. Close the window and open it again: you are where the world left you.
 
+Click a person (or press E over them) for what you can do with them; click yourself (or press Q) for
+what you can do on your own — buy, eat, drink, leave an activity. Every entry is something the world
+offered; a greyed one says why not, and you may still try it. I shows your things, H your
+conversations.
+
+```sh
+./mineworld-2d --seat visitor     # in the café: talk to Alice, buy a coffee, give Bob the scarf
+./mineworld-2d --seat bob         # a second window: accept the visitor's invitation
+```
+
 What it is and is not:
 
 - It asks the world for things and draws what the world says. It decides no rule — not distance, not
   whether a door can be used — and a check (`scripts/check_client_rules.py`) holds it to that.
-- The art is a separate Presentation Pack, `presentation/mineworld-default/2D`, read from disk at
-  runtime. `--presentation=none` draws plainly; `--variant=` picks one of the four style sets.
+- The art and the wording are a separate Presentation Pack, `presentation/mineworld-default/2D`,
+  read from disk at runtime (the English text is `i18n/en.po`). `--presentation=none` draws plainly;
+  `--variant=` picks one of the four style sets.
 
 What it looks like today: [`shots/preview/`](shots/preview/) (a preview, not an accepted look).
 
 For agents: the pack format is [`PRESENTATION.md`](PRESENTATION.md); the design and its acceptance
-are `.structured-coding/plans/mvp0/step-13-client-2d.md` §14.
+are `.structured-coding/plans/mvp0/step-13-client-2d.md` §14 (walking) and §15 (interactions).

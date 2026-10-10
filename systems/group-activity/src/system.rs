@@ -10,6 +10,7 @@ use mineworld_kernel::{
 };
 use mineworld_presence::{PersonEnteredPlace, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
+use mineworld_sdk::interactions::{self, Role, Roles};
 
 use crate::action::{
     AcceptInvitation, DeclineInvitation, Invite, JoinGroupActivity, LeaveGroupActivity,
@@ -27,7 +28,7 @@ use crate::process::{ACTIVITY_LENGTH, ActivityState, GroupActivity};
 /// Doing things together.
 ///
 /// A unit struct: its state is the components and processes it owns, held in the world (`INV-7`).
-#[derive(Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct GroupActivitySystem;
 
 impl SystemIdentity for GroupActivitySystem {
@@ -35,10 +36,12 @@ impl SystemIdentity for GroupActivitySystem {
 }
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
-/// biographical facts. It owns no authored section.
+/// biographical facts, and its section of the World's Interaction List (`ARC-63`), which is its
+/// configuration. It owns no authored section.
 impl SystemPack for GroupActivitySystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
+    mineworld_sdk::interactions!();
 }
 
 /// Which of this pack's facts belong in a person's objective biography (`ARC-29`): beginning,
@@ -56,36 +59,40 @@ pub const BIOGRAPHICAL: &[EventTypeId] = &[
 const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
 
 impl System for GroupActivitySystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// 2 since S17's PR IL-b: the section's component and configured fact, and `Invitations`' schema 2.
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     fn declaration(&self) -> SystemDeclaration {
-        SystemDeclaration::of::<Self>()
-            .depending_on([PresenceSystem::ID])
-            .owning::<Invitations>()
-            .owning::<Participation>()
-            .providing::<Invite>()
-            .providing::<AcceptInvitation>()
-            .providing::<DeclineInvitation>()
-            .providing::<JoinGroupActivity>()
-            .providing::<LeaveGroupActivity>()
-            .emitting::<Invited>()
-            .emitting::<InvitationAccepted>()
-            .emitting::<InvitationDeclined>()
-            .emitting::<GroupActivityStarted>()
-            .emitting::<JoinedGroupActivity>()
-            .emitting::<LeftGroupActivity>()
-            .emitting::<GroupActivityEnded>()
-            .subscribing_to::<Invited>()
-            .subscribing_to::<InvitationAccepted>()
-            .subscribing_to::<InvitationDeclined>()
-            .subscribing_to::<GroupActivityStarted>()
-            .subscribing_to::<JoinedGroupActivity>()
-            .subscribing_to::<LeftGroupActivity>()
-            .subscribing_to::<GroupActivityEnded>()
-            .subscribing_to::<PersonEnteredPlace>()
+        interactions::declare::<Self>(
+            SystemDeclaration::of::<Self>()
+                .depending_on([PresenceSystem::ID])
+                .owning::<Invitations>()
+                .owning::<Participation>()
+                .providing::<Invite>()
+                .providing::<AcceptInvitation>()
+                .providing::<DeclineInvitation>()
+                .providing::<JoinGroupActivity>()
+                .providing::<LeaveGroupActivity>()
+                .emitting::<Invited>()
+                .emitting::<InvitationAccepted>()
+                .emitting::<InvitationDeclined>()
+                .emitting::<GroupActivityStarted>()
+                .emitting::<JoinedGroupActivity>()
+                .emitting::<LeftGroupActivity>()
+                .emitting::<GroupActivityEnded>()
+                .subscribing_to::<Invited>()
+                .subscribing_to::<InvitationAccepted>()
+                .subscribing_to::<InvitationDeclined>()
+                .subscribing_to::<GroupActivityStarted>()
+                .subscribing_to::<JoinedGroupActivity>()
+                .subscribing_to::<LeftGroupActivity>()
+                .subscribing_to::<GroupActivityEnded>()
+                .subscribing_to::<PersonEnteredPlace>(),
+        )
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        interactions::install::<Self>(tables)?;
         tables.component::<Invitations>()?;
         tables.component::<Participation>()
     }
@@ -237,14 +244,22 @@ impl System for GroupActivitySystem {
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
+        if interactions::reduce(world, event)? {
+            return Ok(Vec::new());
+        }
         let now = event.at();
         let kind = event.event_type();
         if *kind == Invited::EVENT_TYPE {
             let invited: Invited = codec::event_payload(event.payload())?;
             let invitee = invited.invitee().entity_id();
+            let until = WorldTime::from_seconds(now.seconds().saturating_add(lifetime(
+                &world.read(),
+                &invited,
+                event.place(),
+            )));
             let mut held = invitations(world, invitee);
             held.receive(
-                Invitation::new(invited.inviter(), invited.kind().clone(), now),
+                Invitation::new(invited.inviter(), invited.kind().clone(), now, until),
                 now,
             );
             world.insert(invitee, held)?;
@@ -363,6 +378,21 @@ fn activity(world: &WorldRead<'_>, id: ProcessId) -> Result<(ActivityState, Plac
 }
 
 /// The invitations a person holds, or none yet.
+/// The seconds an invitation lasts: the world's section for this inviter, invitee and place, or the
+/// compiled [`INVITATION_LIFETIME`](crate::INVITATION_LIFETIME) when the world configures none (and for
+/// a fact with no place, which this pack never states).
+fn lifetime(world: &WorldRead<'_>, invited: &Invited, place: Option<PlaceId>) -> i64 {
+    let Some(place) = place else {
+        return crate::INVITATION_LIFETIME.seconds();
+    };
+    let roles = Roles::new()
+        .with(Role::Actor, invited.inviter().entity_id())
+        .with(Role::Target, invited.invitee().entity_id());
+    i64::from(
+        interactions::parameters::<GroupActivitySystem>(world, place, &roles).invitation_lifetime,
+    )
+}
+
 fn invitations(world: &WorldView<'_, GroupActivitySystem>, invitee: EntityId) -> Invitations {
     world
         .read()
