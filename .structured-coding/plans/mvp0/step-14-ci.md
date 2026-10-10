@@ -3281,7 +3281,8 @@ Each commit tracks implementation, validation and review separately.
     **QW-3: 13w lands second, so the gate is removed** and its doc says "every platform"; it already uses
     `Server::interrupt`. Its `#[ignore = "CA-13: needs a 300-day save …"]` is S11-C's cost tier, not a
     platform gate, and is left as S11-C froze it (it runs on demand on every platform now).
-- [ ] Validation:
+- [x] Validation (the final head's run is in PR #118's description and the session report: a commit
+  cannot hold its own run):
   - dispatch runs, then the PR's own runs (A-W1, A-W2, A-W3, A-W7);
   - **Changed route: no dispatch.** The PR's `pull_request` runs carry both jobs once W-C4 is pushed,
     so a dispatch of the same head would duplicate them (test rules §10). The first PR run is the cold
@@ -3316,20 +3317,96 @@ Each commit tracks implementation, validation and review separately.
     name is `Path::new("people").join("alice.yaml")` as displayed. Claim unchanged (the complaint names
     the file and the field, at line 2). Local: 4/4. No production-code cause was found: no material stop.
   - MW-3 … MW-6 on scratch branches, each deleted after its run, then `ls-remote` → empty.
-- [ ] Review:
+  - **● 3–6. MW-3 … MW-6** (2026-10-10), each a scratch commit on `99d9760` (the PR head before the
+    merge of `origin/main`; no mutated line changed in that merge), pushed once, judged on its push run:
+    - **MW-3 ● run 38023346322** (`scratch/13w-mw3`, `15a32ce`: `serve.rs`'s `() = on_break => {}` arm
+      removed). `test-windows` **red**: `an_interrupt_stops_an_administered_server_gracefully`
+      (`admin.rs:580`), "a graceful stop exits cleanly: ExitStatus(ExitStatus(3221225786))" =
+      `0xC000013A`, `STATUS_CONTROL_C_EXIT`: the Ctrl-Break reached the server, nothing handled it, and
+      Windows' default handler ended it. `test` and `test-macos` **green** (both interrupt tests pass on
+      macOS). **PASS.** Deviation from the planned wording: the first red binary is SD-D13's `admin.rs`,
+      not `hosted_town`, because cargo stops at the first failing binary and `admin` runs first; both
+      assert the same graceful stop, exit status first, so the missing `[mineworld] stopping` is never
+      reached. The point MW-3 exists for — the Windows path really exercises the server's Ctrl-Break
+      handler, S11-D's — is shown.
+    - **MW-4 ● run 38023355842** (`scratch/13w-mw4`, `6a712e2`: `process::interrupt` sends `kill -KILL`
+      on Unix). `test` (Linux) and `test-macos` **red**, both at `admin.rs:580`, "a graceful stop exits
+      cleanly: ExitStatus(unix_wait_status(9))". `test-windows` **green** (31 min; the Unix path is not
+      compiled there). **PASS**: the Unix tests rely on the helper's SIGINT.
+    - **MW-5 ● run 38023372407** (`scratch/13w-mw5`, `09d2e40`: `run_restart.rs`'s victim is read to
+      the end and reaped before `process::kill`). `test` (Linux), `test-macos` **and `test-windows`** red
+      at `run_restart.rs:71` with the original message: "killed by SIGKILL, not finished: Killed { status:
+      ExitStatus(unix_wait_status(0)), was_running: false, killed: false }" (Linux, macOS) and "…
+      ExitStatus(ExitStatus(0)), was_running: false, killed: false }" (Windows). **PASS**: the portable
+      check keeps the claim on every OS.
+    - **MW-6 ● run 38023379746** (`scratch/13w-mw6`, `cbec591`: `#[cfg(target_os = "macos")]
+      panic!("MW-6: planted on macOS only")` in `commands.rs`). `test-macos` **red** at
+      `commands.rs:111`, "MW-6: planted on macOS only"; `test` and `test-windows` **green**. **PASS**:
+      `test-macos` bites, and only it.
+  - **● 7. PR run 38023542192** on `3a20ca7` (after the merge of `origin/main`): **`test-windows`
+    green (30 min 1 s)** and **`test-macos` green (23 min 41 s)** — the first green Windows run of the
+    whole default suite — plus `fast`, `platforms` (macOS, Windows) and `python` ×3. Linux `test` **red**
+    in `tools/cli/tests/restart.rs`, two tests at once: "[mineworld] cannot listen on 127.0.0.1:46051:
+    Address already in use", then "a join is answered with a welcome, and this was Refused { …
+    SeatOccupied … }" and "a readable frame: Protocol(ResetWithoutClosingHandshake)".
+  - **F-13w-3 (pre-existing flake, not 13w's; owner: the CLI test support's owner, S11).** `Server::
+    launch` picks a port by binding and releasing it, and `answers()` polls `GET /health` *before*
+    asking whether its own child has exited. When the child loses the port to another test's server
+    (`Address already in use`), that other server answers `/health`, `answers()` returns true, and the
+    test joins the wrong world. 13w does not touch `launch` or `answers` (its only change there,
+    `CREATE_NEW_PROCESS_GROUP`, applies on Windows only), and the same lines are on `main`. A fix (for
+    example, confirming after `/health` that the child is alive and owns the port, or letting the server
+    bind port 0 and print its address) changes shared test support beyond 13w's scope; recorded, not
+    fixed. A failed job of this flake is re-run, never counted as evidence of 13w.
+- [x] Review:
   - neither job is required;
   - no `continue-on-error`;
   - labels pinned (`macos-26`, `windows-2025`);
   - the native action is reused, with no parallel definition (§13.0.3).
+  - Done on the final `ci.yml`: branch protection is untouched (no settings change; the required checks
+    stay `fast` and `test`); no `continue-on-error`, `|| true` or retry was added; `runs-on: windows-2025`
+    and `macos-26`; both jobs call `./.github/actions/native` with layer `core`, the same action and
+    layer `platforms` and AC-8's native legs use; check names undecorated; `permissions` unchanged.
 
 ### W-C5 — Close
 
-- [ ] Implementation:
+- [x] Implementation:
   - `docs/MVP_STATUS.md`: the suite runs on all three OSes, with the run ids;
   - §13.10.1's W-T1, W-4 and W-12 marked resolved, or carried with owners;
   - this ledger.
-- [ ] Validation: A-W5 and the doc checks.
-- [ ] Review: every A-W and MW item has evidence or N/A; deviations are numbered D-13w-n.
+  - Done. `docs/MVP_STATUS.md`: the S13 row (13b merged; 13w awaiting review; both jobs on PRs, not
+    required) and AC-8's row (the default suite natively on Windows and macOS; run ids here). §13.10.1,
+    resolved by 13w (the 13b table is left as audited; resolutions here):
+    - **W-T1 / W-T1b / W-5 — resolved.** The nine files compile and pass on Windows (`process::kill`).
+    - **W-6 / W-12 — resolved.** `sh -c kill` lives only in the helper's Unix path; Windows uses
+      Ctrl-Break to a new process group; S11-D's server handles it (MW-3).
+    - **W-4 (file locks, scratch on Windows) — resolved as far as observed.** No scratch or lock failure
+      appeared on Windows: the survey's whole suite and run 7 passed. `check_scratch.py left` passed on
+      `test-windows` in run 7 (the survey stopped before it), so nothing was left behind.
+    - **W-2 / W-3 (newline-sensitive goldens) — no finding.** Nothing failed for CRLF. The two Windows
+      failures were path-separator assumptions in tests (W-13w-1, W-13w-2), fixed.
+- [x] Validation: A-W5 and the doc checks.
+  - A-W5: `git diff --stat origin/main...HEAD` lists the nine files, `tools/cli/tests/support/mod.rs`,
+    `tests/support/` (`Cargo.toml`, `src/lib.rs`, `src/process.rs`, `tests/process.rs`),
+    `.github/workflows/ci.yml`, `docs/DECISIONS.md`, `docs/MVP_STATUS.md` and this file, plus the
+    test files of D-13w-3 (`admin.rs`, `server_command.rs`, `worldpack/src/configure/tests.rs`), of
+    W-13w-1 and W-13w-2 (`ac1_composability.rs`, `commands.rs`) and CA-13's gate (`perceived.rs`). No
+    `src/` file other than `tests/support/src` and the `#[cfg(test)]` module `worldpack/src/configure/
+    tests.rs`; `tools/cli/src/serve.rs` unchanged (W-C3 N/A); `scripts/ci_layer.py` equal to `main`'s.
+    `git diff origin/main...HEAD | grep '^+' | grep -E '#\[ignore|cfg\((unix|not)'` → only the
+    `cfg(unix)` halves of pairs whose `cfg(windows)` half is beside them (`process.rs` ×2,
+    `tests/process.rs`, `link_out_of`); no `#[ignore]` and no excluded target added.
+  - `check_doc_headings`, `check_decision_ids`, `check_ci_pins` pass.
+  - Local full gate on `3a20ca7` (Mac, 2026-10-10): `cargo test --workspace` exit 0, 209 result lines,
+    **959 passed, 0 failed, 22 ignored**, `[resolver-yard]`, `[cafe]`, `[clock]` PASS;
+    `check_scratch.py left` clean; `cargo fmt --all --check` and `cargo clippy --workspace
+    --all-targets --all-features -- -D warnings` clean.
+- [x] Review: every A-W and MW item has evidence or N/A; deviations are numbered D-13w-n.
+  - A-W1 … A-W7 and MW-1 … MW-6: the evidence log above and the final head's run (PR description).
+    Deviations D-13w-1 … D-13w-6 (D-13w-5 withdrawn); findings W-13w-1, W-13w-2 (fixed, test code),
+    F-13w-3 (pre-existing flake, recorded with its owner). Nothing material: no production-code cause,
+    no skip, ignore, gate or exclusion, no assertion's claim changed, R-W1 and R-W5 did not occur (the
+    longest job, `test-windows`, 30 min cold against its 60), no settings change.
 
 ## 15.9 Run budget
 
@@ -3429,4 +3506,12 @@ POST-MERGE SYNC     this session: §15's ledger, merge identity, evidence, devia
 | `worldpack/src/configure/tests.rs:655` (IL-a/IL-b) | `#[cfg(unix)]` block: a file symlink out of the pack, refused as `AttachmentOutside` | W-C2: a Windows equivalent, see D-13w-3 |
 | `tools/cli/src/serve.rs:267` | `#[cfg(windows)]` Ctrl-Break, close, shutdown in `stop_requested` | Production code, S11-D's (`9d83937`, merged by #104): already handles Ctrl-Break, so W-C3 is N/A |
 
-**Current checkpoint.** W-C1 committed. Next: W-C2.
+Re-audit at the merge of `origin/main` (`02788e6`, 2026-10-10): one new hit,
+`tools/cli/tests/perceived.rs:433` (S11-C's CA-13, `#[cfg(unix)]`), gate removed (QW-3);
+`tools/cli/src/serve.rs:313` `#[cfg(not(windows))]` is the Unix half of S11-D's stop, production code,
+correct as is.
+
+**Current checkpoint (2026-10-10).** W-C1 … W-C5 committed; MW-1 … MW-6 recorded; scratch branches
+deleted. Remaining: the final head's PR run (`fast`, `test`, `test-windows`, `test-macos` green on the
+exact head; re-run a failed job only for F-13w-3's flake), then READY FOR OPERATOR REVIEW in PR #118's
+description. Runs used before the final head: 7 of 14.
