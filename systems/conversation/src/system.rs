@@ -10,6 +10,7 @@ use mineworld_kernel::{
 };
 use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
+use mineworld_sdk::interactions::{self, Role, Roles};
 use serde_json::Value;
 
 use crate::action::{Talk, talk_requirement};
@@ -23,26 +24,31 @@ use crate::utterance::Utterance;
 /// Five minutes of simulated time. Without a rule of this kind
 /// [`ConversationStarted`] would either fire on every `talk` — saying nothing — or fire once and never
 /// again, which is worse, because two people who spoke yesterday and meet again today have plainly
-/// started talking. The gap is this pack's policy and becomes configuration in S7; what matters
-/// architecturally is that the rule lives in the system that owns the concept, and that it is decided
-/// from the world's clock rather than from a wall clock, so a replay makes the same decision.
+/// started talking. The rule lives in the system that owns the concept, and it is decided from the
+/// world's clock rather than from a wall clock, so a replay makes the same decision.
+///
+/// This is the compiled default. Since S17's PR IL-b a world may choose another gap — for everyone, for
+/// a class of speaker or listener, or in one place — through this pack's section of the World's
+/// Interaction List (`gap`, [`crate::interactions`], `ARC-63`).
 pub const CONVERSATION_GAP: SimDuration = SimDuration::from_seconds(300);
 
 /// Speaking, and remembering having been spoken to.
 ///
 /// A unit struct: a system holds no fields, because its mutable state is the components it owns and
 /// those live in the world behind a gated view (`INV-7`).
-#[derive(Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ConversationSystem;
 
 impl SystemIdentity for ConversationSystem {
     const ID: SystemId = SystemId::from_static("conversation");
 }
 
-/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
-/// It declares no biographical fact (`ARC-29`) and owns no authored section.
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// section of the World's Interaction List (`ARC-63`), which is its configuration. It declares no
+/// biographical fact (`ARC-29`) and owns no authored section.
 impl SystemPack for ConversationSystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+    mineworld_sdk::interactions!();
 }
 
 /// This pack's own reason for refusing a request it cannot read.
@@ -54,19 +60,23 @@ impl SystemPack for ConversationSystem {
 const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
 
 impl System for ConversationSystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// 2 since S17's PR IL-b: the declaration gained the section's component and configured fact.
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     fn declaration(&self) -> SystemDeclaration {
-        SystemDeclaration::of::<Self>()
-            .depending_on([PresenceSystem::ID])
-            .owning::<ConversationHistory>()
-            .providing::<Talk>()
-            .emitting::<ConversationStarted>()
-            .emitting::<Spoke>()
-            .subscribing_to::<Spoke>()
+        interactions::declare::<Self>(
+            SystemDeclaration::of::<Self>()
+                .depending_on([PresenceSystem::ID])
+                .owning::<ConversationHistory>()
+                .providing::<Talk>()
+                .emitting::<ConversationStarted>()
+                .emitting::<Spoke>()
+                .subscribing_to::<Spoke>(),
+        )
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        interactions::install::<Self>(tables)?;
         tables.component::<ConversationHistory>()
     }
 
@@ -128,11 +138,20 @@ impl System for ConversationSystem {
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
         let exchange = Exchange::of(&world.read(), intent)?;
+        let gap = interactions::parameters::<Self>(
+            &world.read(),
+            exchange.place,
+            &Roles::new()
+                .with(Role::Actor, exchange.speaker.entity_id())
+                .with(Role::Target, exchange.listener.entity_id()),
+        )
+        .gap;
         let starts = !continues_a_conversation(
             &world.read(),
             exchange.speaker,
             exchange.listener,
             world.at(),
+            SimDuration::from_seconds(i64::from(gap)),
         );
 
         let mut emissions = Vec::new();
@@ -177,7 +196,7 @@ impl System for ConversationSystem {
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
-        if *event.event_type() != Spoke::EVENT_TYPE {
+        if interactions::reduce(world, event)? || *event.event_type() != Spoke::EVENT_TYPE {
             return Ok(Vec::new());
         }
         let spoke: Spoke = codec::event_payload(event.payload())?;
@@ -356,12 +375,14 @@ fn located(world: &WorldRead<'_>, entity: EntityId) -> Option<mineworld_contract
 ///
 /// Both directions, because a reply is part of the same conversation: Alice's history records what Bob
 /// said to her and Bob's records what she said to him, so asking only one would make every reply start a
-/// second conversation. Checked against the world's clock and [`CONVERSATION_GAP`].
+/// second conversation. Checked against the world's clock and the gap this world's section gives the
+/// pair here ([`CONVERSATION_GAP`] when it configures none).
 fn continues_a_conversation(
     world: &WorldRead<'_>,
     speaker: PersonId,
     listener: PersonId,
     now: WorldTime,
+    gap: SimDuration,
 ) -> bool {
     [(listener, speaker), (speaker, listener)]
         .into_iter()
@@ -369,12 +390,12 @@ fn continues_a_conversation(
             world
                 .component::<ConversationHistory>(holder.entity_id())
                 .and_then(|history| history.last_heard_from(other))
-                .is_some_and(|heard| within_the_gap(heard.at(), now))
+                .is_some_and(|heard| within_the_gap(heard.at(), now, gap))
         })
 }
 
 /// Whether `then` is recent enough for a conversation to still be going on at `now`.
-fn within_the_gap(then: WorldTime, now: WorldTime) -> bool {
+fn within_the_gap(then: WorldTime, now: WorldTime, gap: SimDuration) -> bool {
     now.duration_since(then)
-        .is_some_and(|elapsed| elapsed <= CONVERSATION_GAP)
+        .is_some_and(|elapsed| elapsed <= gap)
 }

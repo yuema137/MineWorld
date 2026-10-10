@@ -972,8 +972,10 @@ fn each_pack_writes_its_own_state_and_reads_the_others() {
             .declarations()
             .map(|declaration| declaration.owner().as_str().to_owned())
             .collect::<Vec<_>>(),
-        vec!["conversation", "movement", "presence"],
-        "one component type each, each owned by the pack that declared it"
+        // Conversation owns two since S17's PR IL-b: its history, and its section of the World's
+        // Interaction List (ARC-63), which an unconfigured world leaves empty.
+        vec!["conversation", "conversation", "movement", "presence"],
+        "each component type owned by the pack that declared it"
     );
 
     let edge = Relation::between(

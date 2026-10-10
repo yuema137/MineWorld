@@ -267,10 +267,12 @@ fn verdict(
     let there = target
         .and_then(|target| read.component::<Presence>(target))
         .map(Presence::location);
-    let evaluated = match here {
-        Some(here) => requirement.evaluate(&here, there.as_ref(), offer.target_available()),
-        None if requirement == SpatialRequirement::NONE => Ok(()),
-        None => Err(Rejection::PreconditionFailed),
+    // The owning pack's own refusal comes first, as it does at dispatch (`ARC-34` note).
+    let evaluated = match (offer.refusal(), here) {
+        (Some(reason), _) => Err(reason.clone()),
+        (None, Some(here)) => requirement.evaluate(&here, there.as_ref(), offer.target_available()),
+        (None, None) if requirement == SpatialRequirement::NONE => Ok(()),
+        (None, None) => Err(Rejection::PreconditionFailed),
     };
     let affordance = match evaluated {
         Ok(()) => Affordance::available(offer.action_type().clone(), target, requirement),

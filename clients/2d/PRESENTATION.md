@@ -137,8 +137,56 @@ It may not decide whether anything is valid, reachable or allowed (`ART_DIRECTIO
 never derives a request from a pack value — a pack changes how the same requests look, never which
 requests are sent (`I-5`, step-13 AC-W10).
 
+There is no rule in wording either (§7, `ARC-70`): a message holds no number and no condition, and a
+suggestion list is a suggestion, never a filter — what the player types is sent unchanged, and the
+server decides whether it is valid.
+
 ## 6. Plain drawing, with no pack or an unbound role
 
 People are discs with a facing tick and their label; the player's disc is ringed; a façade is an
 outlined block with a door mark; ground is flat colour; the projection is `plan`. Plain drawing is
 complete enough to play: the scripted checks pass with `--presentation=none`.
+
+## 7. Wording: `i18n/<locale>.po`
+
+Every user-visible string of the client — menu entries, results, panel titles, the status line,
+hints — is a **message key** looked up in the pack's wording (`docs/DECISIONS.md` `ARC-70`). The
+wording is a standard **gettext** file per language, `i18n/<locale>.po`, UTF-8, read at runtime from
+the pack directory and added to Godot's `TranslationServer`; it is never imported into the client
+project. 13b ships `i18n/en.po` and selects `en`; the language switch and further languages
+(`zh-Hans`) belong to the client-settings lane, which may change the file format behind the same keys.
+
+```text
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "action.talk"
+msgstr "Talk to {target}"
+```
+
+**The file.** A header entry (`msgid ""`) whose `msgstr` carries a `Language:` line, then one
+`msgid` / `msgstr` pair per key, each a double-quoted string (adjacent quoted lines concatenate, as
+gettext defines). Comments (`#`) are allowed. `scripts/check_client_rules.py --check-pack DIR` parses
+every `i18n/*.po` and reports by line: an unterminated or unpaired string, a missing `Language:`
+header, a duplicate key, and an `action.*` or `reason.*` key that is not well formed.
+
+**Key families.** Keys are built from data, so the client holds no action type or code to word it:
+
+| Key | Meaning | Arguments |
+| --- | --- | --- |
+| `action.<type>` | a menu entry offering an action of that type (the server's action type id, e.g. `action.give`) | `{target}` the target's name; `{item}` the name of an entity the payload refers to |
+| `action.<type>.done` | the result toast when that action was accepted | as above |
+| `reason.<code>` | a rejection or unavailability code: a kernel reason (`too_far_away`, `busy`, …) or the first key of a system's dictionary code | none |
+| `ui.*` | fixed interface text: the hint line, the status line, "walk to", "not supported by this client", "needs {metres} m", result framings, prompts | as each key's English shows |
+| `panel.*` | the title of a panel showing an own component | none |
+| `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
+| `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
+
+Arguments are substituted after the lookup (`{name}` placeholders, Godot's `String.format`).
+
+**The fallback.** A key the wording does not hold is shown as a readable form of its last part —
+`reason.too_far_away` → "too far away", `action.ring` → "ring" — followed, for an action, by the names
+its arguments carry. A client with `--presentation=none` loads no wording and shows only fallbacks, and
+plays exactly the same (`I-5`). A code no wording knows is therefore shown as the code itself.

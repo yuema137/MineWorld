@@ -74,6 +74,10 @@ pub trait SystemPack: System + Default {
     /// drift check at resume compares (`ARC-61` items 5 and 7).
     const CONFIGURATION_FACTS: &'static [EventTypeId] = &[];
 
+    /// What the build's tools need to know about the pack's section of the World's Interaction List,
+    /// if it has one (`ARC-63`). Defined only through [`interactions!`](crate::interactions).
+    const INTERACTIONS: Option<crate::interactions::SectionDecl> = None;
+
     /// Decodes `configure/<id>.yaml` with the pack's own type — straight from the stream, so a refusal
     /// keeps its line and column (`DEP-10`).
     ///

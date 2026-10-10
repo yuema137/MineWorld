@@ -11,6 +11,11 @@ extends Node
 ## stride poses per view.
 
 const Sprites := preload("res://scripts/scene/sprites.gd")
+const Words := preload("res://scripts/hud/words.gd")
+
+## A click this close to a drawn figure picks that person: half its width, in screen pixels at zoom 1
+## (drawing only, step-13 D-b-1).
+const PICK_HALF_WIDTH_PX := 15.0
 
 ## How far a person travels between one footfall and the next.
 const STRIDE_M := 0.72
@@ -62,6 +67,12 @@ func reconcile(observation: MineWorldObservation) -> void:
 		person["target"] = plan
 		var name := observation.display_name(id)
 		person["label"].text = name if name != "" else id
+		# The participation marker: drawn from the disclosure about this person, never from what this
+		# client did (step-13 D-b-7, AC-I3).
+		var taking_part: Variant = observation.component_value(id, "participation")
+		var kind: Variant = taking_part.get("kind") if typeof(taking_part) == TYPE_DICTIONARY else null
+		person["activity"] = null if kind == null else str(kind)
+		person["marker"].text = "" if kind == null else Words.text("ui.participation", {"kind": str(kind)})
 	for id in _people.keys():
 		if not listed.has(id):
 			_people[id]["node"].queue_free()
@@ -106,6 +117,35 @@ func drawn_plan(id: String) -> Variant:
 
 func label_of(id: String) -> String:
 	return _people[id]["label"].text if _people.has(id) else ""
+
+
+## The activity kind a drawn person's marker shows, or null.
+func activity_of(id: String) -> Variant:
+	return _people[id].get("activity") if _people.has(id) else null
+
+
+## The person drawn under `at` (a point in the world node's frame), or "": the front-most figure whose
+## drawn outline holds it.
+func pick(at: Vector2) -> String:
+	var picked := ""
+	var front := -INF
+	for id in _people:
+		var person: Dictionary = _people[id]
+		var foot: Vector2 = person["node"].position
+		var top: float = person.get("top", 34.0)
+		if absf(at.x - foot.x) <= PICK_HALF_WIDTH_PX and at.y >= foot.y - top - 6.0 and at.y <= foot.y + 8.0 \
+				and foot.y > front:
+			picked = id
+			front = foot.y
+	return picked
+
+
+## Where a drawn person's figure is, in the world node's frame: the middle of its body.
+func figure_at(id: String) -> Variant:
+	if not _people.has(id):
+		return null
+	var person: Dictionary = _people[id]
+	return person["node"].position - Vector2(0, float(person.get("top", 34.0)) * 0.5)
 
 
 ## The real height a person's sprite was normalized to, or null (plain drawing, or not recorded).
@@ -171,11 +211,21 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 	label.size = Vector2(160, 18)
 	label.position = Vector2(-80, -top - 22)
 	node.add_child(label)
+	var marker := Label.new()
+	marker.name = "marker"
+	marker.add_theme_font_size_override("font_size", 12)
+	marker.add_theme_color_override("font_color", Color("8a3f1c"))
+	marker.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.9))
+	marker.add_theme_constant_override("outline_size", 5)
+	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	marker.size = Vector2(160, 16)
+	marker.position = Vector2(-80, -top - 38)
+	node.add_child(marker)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
-	return {"node": node, "body": body, "label": label, "plan": plan, "target": plan,
+	return {"node": node, "body": body, "label": label, "marker": marker, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
-		"height_m": height_m}
+		"height_m": height_m, "top": top, "activity": null}
 
 
 func _cast_index(id: String) -> int:

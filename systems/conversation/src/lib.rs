@@ -51,6 +51,7 @@ pub mod action;
 pub mod component;
 pub mod error;
 pub mod event;
+pub mod interactions;
 pub mod system;
 pub mod utterance;
 
