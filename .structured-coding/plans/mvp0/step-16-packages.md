@@ -3838,15 +3838,19 @@ them — the content is sized against criteria stated in advance, never the reve
 (PD-44, PD-45); `tools/cli/tests/packs.rs` (F-Ee2: `--packs entities` on the listing, the roots on each
 `packs validate` of a world; no assertion changed).
 
-- [ ] Implementation: as scoped. The README carries §8.3's checklist with the real roots.
-- [ ] Validation: `validate worlds/lakeside <roots>` exit 0; `packs resolve` exit 0; then, with the
+- [x] Implementation: as scoped. The README carries §8.3's checklist with the real roots. Seven places
+  (`shore` `fishing: { catch: fish, minutes: 60 }`, `pier` 90 min, `square`, `bakery`, `cottages`,
+  `boathouse`, `lane` joining all six); ten seats, every routine with one ≥ 4 h part at `shore` or
+  `pier`; holdings 2–3 `modern-goods` kinds each; `nils` begins on the pier (M-8's seat) (E-Ee3).
+- [x] Validation: `validate worlds/lakeside <roots>` exit 0; `packs resolve` exit 0; then, with the
   release binary, a 300-day seed-7 saved run checked against PD-47 (1)–(5) with Ee-C5's counting code,
   written first in the working tree and committed in Ee-C5 (so the criteria that tune the content are
   exactly the ones the test later pins) — **content tuning loop**: if a criterion fails, the remedy is content (routines, holdings, minutes, passages), recorded
   run by run; at most ~20 tuning runs (each ≈ 40 s, its save removed). Measured and recorded: wall, facts,
   save bytes (PD-50's ceiling applied here); `cargo test -p mineworld-cli --test packs` green with the
   edit; towns' 300-day sha and `validate` of the three worlds equal to main's binary (EE-12, base build).
-- [ ] Review: the controller untouched (`git diff main -- cognition` empty); every routine boundary in
+  (E-Ee3: the first content passed every criterion; zero tuning runs.)
+- [x] Review: the controller untouched (`git diff main -- cognition` empty); every routine boundary in
   05:00–23:00; every seat's routine at the water; holdings ≤ 3; `fishing` placed after `presence` and
   `inventory` in `systems:`.
 
@@ -3944,6 +3948,36 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   `--save` → `faults 0`, 375 619 facts, wall 37.1 s (37.6 s real), `world.sqlite` 3 795 013 632 bytes
   (3.5 GB); save removed. S16 merges' forbidden-path diffs (`1a1d08e`, `4bdbca1`, `0ba037f`, `68176e7`):
   empty.
+- **E-Ee1** (`14d778a`) and **E-Ee2** (`535bf8d`): recorded in Ee-C1's and Ee-C2's items above.
+- **Resume (2026-10-10).** The first execution session stopped after `535bf8d` (unpushed) leaving an
+  untracked `worlds/lakeside/` (world.yaml, seven places, ten people, `items/fish.yaml`; no README). The
+  resumed session audited every file against PD-44/PD-45 (all match: routines 05:00–19:00 boundaries,
+  every part ≥ 4 h, one water part each, holdings ≤ 3, `fishing` last in `systems:`, minutes 60 and 90),
+  kept it, added the README, merged `origin/main @ bb62edf` (docs only: overall, P4, S23) as `3e4a638`,
+  pushed.
+- **E-Ee3** (release binary, source identical to `origin/main @ bb62edf`; `git diff origin/main --
+  '*.rs' ':!tools/cli/tests'` empty): `validate worlds/lakeside --packs entities --packs
+  presentation/mineworld-default` → exit 0, 82 genesis facts, `requires` four lines resolved;
+  `packs resolve` → exit 0, twelve `system` lines, `fishing → acme-fishing 0.1.0 (third-party)`.
+  Without roots, `packs list --packs worlds --packs presentation/…` → exit 1 naming `modern-goods`
+  (F-Ee2 reproduced), fixed in `packs.rs`; `cargo test -p mineworld-cli --test packs` → 6 passed.
+  **300 days, seed 7, `--save`** (release): exit 0, `faults 0`, 356 689 facts, wall 22.6 s (22.57 s
+  real), save 2 140 372 992 bytes (2.0 GB) — under PD-50's 4 GB / 120 s; `fish accepted 3388`,
+  `items-produced 2711`, `eat accepted 2722`, `drink accepted 9`. Ee-C5's counting code (working tree)
+  over the same run (`cargo test --test milestone_e`, debug-profile tests, five runs in parallel, 60.8 s
+  for the runs, 85.6 s the test): every PD-47 criterion PASS at the first content — fish requests per
+  bucket 309–359, eaten per bucket 260–290, the catch eaten 260–288 per bucket, every seat fished and
+  ate in every bucket, a `modern-goods` kind eaten (located: `juice`). **Tuning runs: 0.** Lakeside's
+  provisional baseline (re-recorded on the final head): `history    356689 facts, fingerprint
+  ea0415997b6d0066`; sha-256 of the 349 deterministic lines (all but header and `wall`)
+  `97dac8fc5086991af4ab33591c6e5fb446c62da4aaddb304e3d115790bc6fce3`. **EE-12:** 300-day seed-7 sha of
+  every line but `wall` (the method the recorded values use): social-cafe
+  `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` (365 330 facts), market-town
+  `d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee` (375 619 facts) — both equal to
+  main's recorded baselines (E-Ed / TW-d). `validate` of the three existing worlds: sha-256
+  social-cafe `ebcd60a0…`, market-town `6368595a…`, bodies-yard `7356b8f8…`; the binary is built from
+  source identical to main's (no Rust source changed), and the worlds are unchanged, so the outputs equal
+  main's by construction — no separate base build (bounded; saves ~5 min of build).
 
 **Findings (bounded unless marked).**
 
