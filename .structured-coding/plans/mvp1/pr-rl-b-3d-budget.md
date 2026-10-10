@@ -622,8 +622,10 @@ with evidence.
   comments and echo lines; no file under `scenes/` or the spike's scripts changed in C9.
 
 ### C10 — `docs(plan): RL-b evidence`
-- [ ] The ledger, the final measurement and the review package (`ARC-20`): frames base/head per view, the
-  skyline before/after, the perf tables.
+- [x] The ledger, the final measurement and the review package (`ARC-20`): frames base/head per view, the
+  skyline before/after, the perf tables. *Evidence:* E-RLb-final and "Material stop" in §14; the
+  package is pushed to the branch `review/rl-b-frames` (images only, not part of this PR's diff),
+  linked from the PR body.
 
 ## 12. Questions for the freeze (primary session; **[OM]** = the operator's)
 
@@ -764,5 +766,69 @@ Bounded discoveries recorded at C1:
        `CameraRig.FOV`.
 ```
 
-**Handoff.** C1 implemented and measured (E-RLb-2); next: V-1 noise floor (two base `--shots`), then
-commit C1 and start C2 (imported props). Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`.
+E-RLb-final  2026-10-09  The final head is `bfa88f1` + C10 (merge of origin/main at 02788e6, clean).
+                     Its executable 3D content equals C8's (`git diff 58bc0c4 bfa88f1 --
+                     clients/3d-spike mineworld-slice` touches only README.md), so C8's three
+                     conclusive runs, taken with no other Godot window, are the final measurement:
+    view               base p95 -> head p95 (ms)   draws base -> head   primitives base -> head
+    street wide           16.23 -> 10.49            4155 -> 3814         8.78 M -> 1.99 M
+    cafe frontage         25.09 -> 19.00  FAIL      4420 -> 4214         10.46 M -> 3.56 M  FAIL
+    interior              20.31 -> 14.63            3899 -> 3814         9.64 M -> 3.67 M   FAIL
+    doorway               27.26 -> 22.20  FAIL      3409 -> 3425         8.15 M -> 3.16 M   FAIL
+    street east           17.82 -> 11.20            4215 -> 3963         8.52 M -> 2.21 M
+    south side            15.22 -> 10.23             614 ->  615         0.37 M -> 0.17 M
+    florist interior      19.74 -> 15.38            3642 -> 3630         8.52 M -> 3.53 M   FAIL
+    skyline east          17.06 -> 10.74            4047 -> 3714         8.73 M -> 1.97 M
+    video memory 2 503.6 -> 2 049.7 MB (FAIL by 1.7 MB); draw calls FAIL in 7 of 8 views
+    M-6: FAIL on all four bounds — the §9 material stop.
+  Two further final-head perf attempts are INCONCLUSIVE and not used: (1) 21:41–21:53, two perf
+  chains of this same session overlapped (a pre-rate-limit background command survived its
+  resume), so two Godot windows ran at once; (2) 22:22–22:41, every attempt had 8–100 frames over
+  250 ms with ~1 000 ms frames (macOS throttling the window: the machine's display was idle late
+  at night; M-3 requires a frontmost window), stopped after attempt 2.
+  M-7 breakdown on the final head (`shots/slice/rlb/final/breakdown.log`, taken alone, no
+  inconclusive row): merged cells −1.41/−6.90/−3.80 ms and −2 080 to −2 142 draws; sun shadows
+  −1.49 to −2.51 ms and −2 183 to −2 871 draws; VoxelGI −0.10/−7.69/−4.04 ms; SSIL −1.84/−2.54/
+  −1.48 ms (street wide / cafe frontage / interior); occlusion off adds 98–459 objects (A-6).
+  A-7 on the final head (`shots/slice/rlb/final/`): `--drive` all checks pass; `--threshold` four
+  PASS (worst step x1.42); `--measure` as on C1 (the one pre-existing stature line); `--character`
+  all checks pass; `--world --link` all link checks pass; `--world --conversation` door rejected
+  too_far_away with the toast, counter talk accepted, both caption lines; `--skyline-check` PASS.
+  V-3 (connected frames, `final/conv/conversation_{1,2,3}*.png`): names on every person, the door
+  toast, Alice in plain view at the counter, both caption lines — PASS on the checklist. A pixel
+  comparison against base connected frames was NOT RUN (it needs a base worktree with its own
+  server build); the only differences expected are V-1's explained texture change.
+  Rust: `cargo fmt --check` PASS; `cargo clippy --workspace --all-targets -D warnings` PASS;
+  `cargo test --workspace` all results ok, 0 failed. Scans: doc headings, decision ids, CI pins,
+  `check_scratch scan`, `ci_parity --self-test`, `check_client_rules` (0 findings),
+  `check_slice_provenance` — all pass.
+
+Material stop (§9): M-6 is unmet after SC-2 … SC-7.
+  Remaining gap at 1920x1080 (head vs bound): p95 cafe frontage +2.3 ms, doorway +5.5 ms; draw calls
+  +1 425 to +2 214 in 7 views; primitives +0.16 to +0.67 M in 4 views; video memory +1.7 MB.
+  Options with their measured yield and visual cost (all measured on C5, all reverted here):
+    O-1 VoxelGI SUBDIV 256 -> 128: p95 cafe frontage 17.54, doorway 18.59 ms; video memory 1 608 MB
+        (passes). Visible: the florist interior warmer and brighter, café walls and ceiling shift
+        tone (V-1 5–28 %; `pairs/c7a-22.png`, `c7a-05.png`). Still short on p95 by 0.8–1.9 ms.
+    O-2 VoxelGI -> SSIL in Default (ruled a stop, Q-RLb-4): about −7.7 ms in cafe frontage and −4 ms
+        in the interior (breakdown); the accepted café interior changes.
+    O-3 Soft-shadow filter quality 3 -> 2: −1.6 to −2.1 ms; the raking shadows' penumbrae change.
+    O-4 SSIL quality -> 1: up to −0.9 ms; noisier indirect light.
+    O-5 For draw calls and primitives (no in-scope lever reaches them): fewer sun shadow splits
+        (4 -> 2) or a shorter shadow distance (shadows are 2 183–2 871 draws and 1.1–2.8 M
+        primitives); coarser batching / texture atlases for the 592 merged cells (about 2 100
+        draws); or the operator relaxing the Default tier's 2 000-draw / 3 M-primitive bounds
+        (step-22 §6.6) for this scene.
+    O-1 + O-3 together would put every view's p95 near or under 16.7 ms by the measured deltas, at
+    both visual costs; the draw-call and primitive bounds still need O-5.
+  The operator chooses; nothing above is applied.
+
+**Lifecycle.** MATERIAL STOP (M-6 unmet) — PR opened for operator review of the preview and of the
+options; DO NOT MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+
+**Handoff.** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action is the operator's:
+(1) the M-6 ruling among O-1 … O-5 (or a relaxed bound), (2) the skyline preview kept or reverted
+(revert 58bc0c4 alone; it also carries the C6/C7 ledger notes, re-add them if reverted), (3) the
+mipmap softening kept (V-4). Evidence lives under `clients/3d-spike/shots/slice/rlb/` (ignored) and
+on the branch `review/rl-b-frames`. Post-merge sync: the planning session owns step-22 and
+overall; this session owns this file's ledger and merge identity.
