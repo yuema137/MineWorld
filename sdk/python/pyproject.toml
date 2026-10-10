@@ -53,4 +53,7 @@ markers = [
 # `connect` to anything but the loopback addresses, on every platform. With `--allow-hosts` given,
 # pytest-socket ignores `--disable-socket`, so asyncio's self-pipe (a Unix socketpair on POSIX, a
 # loopback TCP pair on Windows) needs no platform-specific flag.
+# The async tests run on `asyncio.SelectorEventLoop` on every platform (`loop_factory` in each test module's
+# `run`), because Windows' default proactor loop connects through `ConnectEx`, which pytest-socket does not
+# patch (ledger F-P5-4). Subprocesses are not started through asyncio here, so the selector loop is safe.
 addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1"]
