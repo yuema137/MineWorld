@@ -383,6 +383,7 @@ func _place_door_labels(areas: Array) -> void:
 			continue
 		for door in area.get("doors", []):
 			var label := Label.new()
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			label.set_meta("to", door["to"])
 			label.text = _door_text(door["to"])
 			label.add_theme_font_size_override("font_size", 13)

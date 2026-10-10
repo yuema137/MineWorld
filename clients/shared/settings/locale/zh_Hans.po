@@ -1,0 +1,414 @@
+# Simplified Chinese wording shared by both reference clients: the shared catalog layer
+# (clients/shared/SETTINGS.md §6.2). Every key of en.po, with the same placeholders.
+msgid ""
+msgstr ""
+"Project-Id-Version: mineworld-shared-settings 0.1.0\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "language.self_name"
+msgstr "简体中文"
+
+msgid "clock.default"
+msgstr "24h"
+
+msgid "hud.time.24h"
+msgstr "{hour24}:{minute2}"
+
+msgid "hud.time.12h"
+msgstr "{ampm} {hour12}:{minute2}"
+
+msgid "hud.day_time"
+msgstr "第{day}天  {time}"
+
+msgid "hud.ampm.am"
+msgstr "上午"
+
+msgid "hud.ampm.pm"
+msgstr "下午"
+
+msgid "ui.settings.title"
+msgstr "设置"
+
+msgid "ui.settings.tab.general"
+msgstr "通用"
+
+msgid "ui.settings.tab.display"
+msgstr "显示"
+
+msgid "ui.settings.language"
+msgstr "语言"
+
+msgid "ui.settings.clock"
+msgstr "时钟"
+
+msgid "ui.settings.clock.auto"
+msgstr "自动（随语言习惯）"
+
+msgid "ui.settings.clock.12h"
+msgstr "12 小时制"
+
+msgid "ui.settings.clock.24h"
+msgstr "24 小时制"
+
+msgid "ui.settings.window_mode"
+msgstr "窗口模式"
+
+msgid "ui.settings.window.windowed"
+msgstr "窗口"
+
+msgid "ui.settings.window.borderless"
+msgstr "无边框全屏"
+
+msgid "ui.settings.window.fullscreen"
+msgstr "独占全屏"
+
+msgid "ui.settings.display.wayland_same"
+msgstr "在 Wayland 上，这与无边框全屏相同。"
+
+msgid "ui.settings.window_size"
+msgstr "窗口大小"
+
+msgid "ui.settings.size_value"
+msgstr "{width} × {height} 像素"
+
+msgid "ui.settings.render_scale"
+msgstr "渲染比例"
+
+msgid "ui.settings.percent_value"
+msgstr "百分之 {percent}"
+
+msgid "ui.settings.vsync"
+msgstr "垂直同步"
+
+msgid "ui.settings.vsync.off"
+msgstr "关"
+
+msgid "ui.settings.vsync.on"
+msgstr "开"
+
+msgid "ui.settings.vsync.adaptive"
+msgstr "自适应"
+
+msgid "ui.settings.max_fps"
+msgstr "帧率上限"
+
+msgid "ui.settings.max_fps.none"
+msgstr "不限"
+
+msgid "ui.settings.max_fps.match"
+msgstr "与显示器一致"
+
+msgid "ui.settings.fps_value"
+msgstr "{fps} 帧/秒"
+
+msgid "ui.settings.refresh"
+msgstr "显示器刷新率"
+
+msgid "ui.settings.hz_value"
+msgstr "{rate} 赫兹"
+
+msgid "ui.settings.measured"
+msgstr "实测帧率"
+
+msgid "ui.settings.unknown"
+msgstr "未知"
+
+msgid "ui.settings.hint"
+msgstr "语言和时钟会立即改变；点“应用”保存。"
+
+msgid "ui.settings.saved"
+msgstr "已保存。"
+
+msgid "ui.settings.session_only"
+msgstr "仅在本次运行中生效，未保存。"
+
+msgid "ui.settings.apply"
+msgstr "应用"
+
+msgid "ui.settings.revert"
+msgstr "还原"
+
+msgid "ui.settings.close"
+msgstr "关闭"
+
+msgid "ui.settings.quit"
+msgstr "退出游戏"
+
+msgid "ui.settings.confirm"
+msgstr "保留这些显示设置吗？{seconds} 秒后还原。"
+
+msgid "ui.settings.keep"
+msgstr "保留"
+
+msgid "ui.settings.undo"
+msgstr "立即还原"
+
+msgid "hint.controls"
+msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  释放鼠标"
+
+msgid "hint.controls_menu"
+msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  菜单"
+
+msgid "camera.first_person"
+msgstr "第一人称"
+
+msgid "camera.third_rear"
+msgstr "第三人称 — 背后"
+
+msgid "camera.third_front"
+msgstr "第三人称 — 正面"
+
+msgid "hud.camera"
+msgstr "镜头：{mode}"
+
+msgid "hud.place"
+msgstr "地点：{place}"
+
+msgid "hud.looking_at"
+msgstr "正在看：{who}"
+
+msgid "hud.world"
+msgstr "世界：{status}"
+
+msgid "hud.world.offline"
+msgstr "世界：离线（./mineworld-slice --server=host:port）"
+
+msgid "link.you"
+msgstr "你"
+
+msgid "link.someone"
+msgstr "某人"
+
+msgid "link.verb.talk"
+msgstr "交谈"
+
+msgid "link.connecting"
+msgstr "正在以 {seat} 的身份连接 {address}"
+
+msgid "link.seated"
+msgstr "已作为 {seat} 入座"
+
+msgid "link.disconnected"
+msgstr "已断开：{reason}"
+
+msgid "link.server_closed"
+msgstr "服务器关闭了连接：{reason}"
+
+msgid "link.in_place"
+msgstr "在{place}"
+
+msgid "link.in_place_undrawn"
+msgstr "在{place}（此场景未绘制）"
+
+msgid "link.placed"
+msgstr "已放到世界所说的位置"
+
+msgid "link.arrived"
+msgstr "{who} 在这里"
+
+msgid "link.left_view"
+msgstr "{who} 已不在视野中"
+
+msgid "link.no_passage"
+msgstr "世界没有公开从这里通往{place}的通道；无可报告"
+
+msgid "link.nobody"
+msgstr "视野里没有可以说话的人"
+
+msgid "link.talk_unavailable"
+msgstr "世界说现在不能和 {who} 说话：{reason}"
+
+msgid "link.talking_to"
+msgstr "正在和 {who} 说话"
+
+msgid "link.cant"
+msgstr "无法与 {who} {verb}：{reason}"
+
+msgid "link.result_accepted"
+msgstr "{action}：已接受"
+
+msgid "link.result_other"
+msgstr "{action}：{kind}，{reason}"
+
+msgid "link.kind.rejected"
+msgstr "被拒绝"
+
+msgid "link.kind.unavailable"
+msgstr "不可用"
+
+msgid "link.refused"
+msgstr "被拒收：{reason}"
+
+msgid "link.refused_about"
+msgstr "被拒收（与 {who} {verb}）：{reason}"
+
+msgid "action.move"
+msgstr "行走"
+
+msgid "action.walk-to"
+msgstr "走到{target}"
+
+msgid "action.walk-to.done"
+msgstr "你出发前往{target}"
+
+msgid "action.walk-step"
+msgstr "走下一步"
+
+msgid "action.walk-step.done"
+msgstr "你走了一步"
+
+msgid "action.talk"
+msgstr "和{target}说话"
+
+msgid "action.talk.done"
+msgstr "你和{target}说了话"
+
+msgid "action.invite"
+msgstr "邀请{target}去…"
+
+msgid "action.invite.done"
+msgstr "你邀请了{target}"
+
+msgid "action.accept-invitation"
+msgstr "接受{target}的邀请"
+
+msgid "action.accept-invitation.done"
+msgstr "你接受了{target}的邀请"
+
+msgid "action.decline-invitation"
+msgstr "拒绝{target}的邀请"
+
+msgid "action.decline-invitation.done"
+msgstr "你拒绝了{target}的邀请"
+
+msgid "action.join-group-activity"
+msgstr "加入{target}"
+
+msgid "action.join-group-activity.done"
+msgstr "你加入了{target}"
+
+msgid "action.leave-group-activity"
+msgstr "离开活动"
+
+msgid "action.leave-group-activity.done"
+msgstr "你离开了活动"
+
+msgid "action.buy"
+msgstr "购买{item}"
+
+msgid "action.buy.done"
+msgstr "你买了{item}"
+
+msgid "action.give"
+msgstr "把{item}给{target}"
+
+msgid "action.give.done"
+msgstr "你把{item}给了{target}"
+
+msgid "action.eat"
+msgstr "吃{item}"
+
+msgid "action.eat.done"
+msgstr "你吃了{item}"
+
+msgid "action.drink"
+msgstr "喝{item}"
+
+msgid "action.drink.done"
+msgstr "你喝了{item}"
+
+msgid "action.kick"
+msgstr "踢{item}"
+
+msgid "action.kick.done"
+msgstr "你踢了{item}"
+
+msgid "action.shove"
+msgstr "推{target}"
+
+msgid "action.shove.done"
+msgstr "你推了{target}"
+
+msgid "action.throw"
+msgstr "扔{item}"
+
+msgid "action.throw.done"
+msgstr "你扔了{item}"
+
+msgid "reason.too_far_away"
+msgstr "太远了"
+
+msgid "reason.busy"
+msgstr "现在正忙"
+
+msgid "reason.permission_denied"
+msgstr "不允许"
+
+msgid "reason.no_supported_interaction"
+msgstr "这里没有什么能做到这件事"
+
+msgid "reason.target_unavailable"
+msgstr "不可用"
+
+msgid "reason.unavailable"
+msgstr "做不到"
+
+msgid "reason.precondition_failed"
+msgstr "现在还做不到"
+
+msgid "reason.malformed-payload"
+msgstr "世界没有理解这个请求"
+
+msgid "reason.malformed_frame"
+msgstr "消息格式有误"
+
+msgid "reason.unknown_frame"
+msgstr "世界不认识这条消息"
+
+msgid "reason.not_joined"
+msgstr "尚未加入"
+
+msgid "reason.already_joined"
+msgstr "已经加入"
+
+msgid "reason.unknown_seat"
+msgstr "这个世界没有这个座位"
+
+msgid "reason.seat_not_in_world"
+msgstr "这个座位对应的人不在这个世界里"
+
+msgid "reason.actor_not_observer"
+msgstr "你只能以自己的身份行动"
+
+msgid "reason.dispatch_failed"
+msgstr "世界无法回应"
+
+msgid "reason.world_stopped"
+msgstr "世界已停止"
+
+msgid "reason.protocol_mismatch"
+msgstr "客户端与服务器的协议版本不同"
+
+msgid "reason.unauthorized"
+msgstr "邀请未被接受"
+
+msgid "reason.invalid_nickname"
+msgstr "这个昵称不能使用"
+
+msgid "reason.seat_occupied"
+msgstr "这个座位已被别人占用"
+
+msgid "reason.invalid_resume"
+msgstr "无法恢复会话"
+
+msgid "reason.paused"
+msgstr "世界已暂停"
+
+msgid "reason.cursor_unavailable"
+msgstr "无法从该进度继续"
+
+msgid "reason.lagged"
+msgstr "连接落后太多"

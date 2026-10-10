@@ -915,9 +915,12 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 ### C0 — design (this section)
 
 - Goal: the PR's design and acceptance, before code. Markdown only.
-- [ ] Implementation: this §12 is current at freeze (anchors re-verified against `main`).
-- [ ] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every SD traces to §3, and every AC to §7.
+- [x] Implementation: this §12 is current at freeze; anchors re-verified against `main @ aee8290`
+  on 2026-10-09 (§12.11 F-1 … F-12).
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` —
+  run with C1 (below).
+- [x] Review: every SD traces to §3, and every AC to §7 (re-read at implementation start; F-1 … F-4
+  are the bounded corrections the re-verification found).
 
 ### C1 — specs before code
 
@@ -926,9 +929,16 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
   INV-SET-1 … 10), `clients/shared/README.md` (short), DECISIONS records (SD-SET-a-16), the DEP-8
   amendment, `NOTICE`, the ADOPTION.md sentence.
 - **Scope:** Markdown only. **Non-goals:** any `.gd`.
-- [ ] Implementation: the files above.
-- [ ] Validation: both doc checks; every term matches `CORE_CONCEPTS.md` (no new defined term; "setting" and "host command" are explained in `SETTINGS.md`, not added to the ontology).
-- [ ] Review: no synonym for `Presentation Pack`, `Observation` or `ActionIntent`; the DEP-8 carve-out is limited to fonts.
+- [x] Implementation: the files above — `clients/shared/SETTINGS.md`, `clients/shared/README.md`;
+  `docs/DECISIONS.md`: DEP-8's font exception (§4.4.1, word for word) and its table row, a dated note
+  under ARC-70 (ARC-SET-b), ARC-76 (ARC-SET-a), DEP-35 (DEP-SET-a), DEP-36 (DEP-SET-b) — numbers
+  allocated by the primary session (F-10); `NOTICE`; the `ADOPTION.md` §1 sentence.
+- [x] Validation: `check_doc_headings.py` → "192 numbered sections across 26 documents, none
+  duplicated"; `check_decision_ids.py` → "86 decision ids, all distinct". PASS. No new defined term:
+  "setting" and "host command" are explained in `SETTINGS.md` §1, which says they are not ontology.
+- [x] Review: `SETTINGS.md` uses `Presentation Pack`, `Observation`, `ActionIntent` as
+  `CORE_CONCEPTS.md` defines them, with no synonym; the DEP-8 exception text is §4.4.1's verbatim, limited
+  to fonts under OFL-1.1.
 - **Acceptance:** a reader can implement C2–C6 from `SETTINGS.md` alone.
 - **Commit boundary:** documentation only.
 
@@ -937,9 +947,33 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Goal:** settings can be loaded, validated, saved atomically and applied, headless-safe.
 - **Scope:** `clients/shared/project.godot`, `settings.gd`, `store.gd`, `display.gd`,
   `checks/store_check.gd`. **Non-goals:** catalogs, menu, clients.
-- [ ] Implementation: the typed value and `validate()`; `open(args)` with `--settings=` and `none`; load (missing, corrupt, unknown key, future version), section-wise merge on save, `.tmp` + rename, `.bak` on replacing a corrupt file; `display.gd` per §3.5 with the capability set.
-- [ ] Validation: `godot --headless --path clients/shared --script res://checks/store_check.gd` covering AC-SET-8's five cases, a round trip of every field, an atomic-write test (the `.tmp` never remains), and a merge test (two stores changing different sections); a headless `apply` of every value makes no error.
-- [ ] Review: no network identifier (INV-SET-1); no `Dictionary` crosses the module's API.
+- [x] Implementation: `clients/shared/{project.godot,.gitignore}`; `settings/settings.gd`
+  (`MineWorldSettings`: enums, `read(config, problems)` in place of `validate()` — the same rule, read
+  and validated in one pass — `write`, `differs_in`, `copy`, `equals`); `settings/store.gd`
+  (`MineWorldSettingsStore.open(args, harness_flags)`, `--settings=<path>|none`, `--extra-locale=`,
+  load: missing / unreadable / future version / bad key / unknown key / lone `.tmp` recovered (F-11),
+  `settle_language(offered)`, `save`: re-read, per-section merge, `.bak` after a load problem, `.tmp` +
+  `rename_absolute`); `settings/display.gd` (`MineWorldDisplay.apply` changes only what differs;
+  `CAP_RENDER_SCALE`; `effective_fps`; `refresh_rate`; `size_pinned` — an engine `--resolution` wins;
+  `size_presets`; `fullscreen_same_as_borderless` (the one Wayland branch); `print_platform_once`).
+- [x] Validation: `godot --headless --path clients/shared --script res://checks/store_check.gd` →
+  `store_check: PASS`, 49 `[PASS]`, 0 `[FAIL]` (macOS, Godot 4.7.2, driver metal, display headless).
+  Covers AC-SET-8's five cases (unparsable; `window_mode=7`; `language="tlh"` through
+  `settle_language`; `max_fps="fast"`; `version=99`): defaults per key, a warning naming file and key,
+  file byte-identical after load, `.bak` equal to the old bytes after an apply; the round trip of every
+  field; harness flags → `none`; atomic write (no `.tmp` left; a lone `.tmp` recovered); the two-store
+  merge; a headless `apply` of every mode × vsync, render scale and caps; AC-SET-15's folder line
+  (`…/Application Support/MineWorld`). First run: 2 FAIL — (1) after a key problem the save rebuilt the
+  file from scratch and lost another module's `[launcher]` section: fixed, a parseable file is always
+  merged and, after a load problem, every owned section is rewritten; (2) the check assumed a client
+  window, but a bare `--script` root is 100×100: the check now starts from the default size. Mutations
+  (each then reverted, recorded): skip the merge → 2 FAIL (the `[launcher]` keep and the two-client
+  merge); drop the `Engine.max_fps` assignment → "the frame cap applies" FAIL. Note: for an unparsable
+  file Godot itself also prints its `ConfigFile parse error` line before the store's one warning.
+- [x] Review: `grep` for `MineWorldClient|HTTPRequest|WebSocketPeer|StreamPeer|PacketPeer|submit|connect_to_world`
+  under `settings/` finds nothing (INV-SET-1; held in CI by `client_text.rs` from C3). No `Dictionary`
+  crosses the API: capabilities are a `PackedStringArray` of `CAP_*`, problems a `PackedStringArray`.
+  The store writes only `MineWorldSettings.write`'s keys (INV-SET-2).
 - **Failure cases:** unwritable user directory → a warning; settings stay in memory, and the client runs.
 - **Commit boundary:** the module's own project only.
 
@@ -949,18 +983,87 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Scope:** `text.gd`, `clock_format.gd`, `locale/{en,zh_Hans}.po`, `messages.pot` (the keys the menu
   needs and the clock entries), `fonts/`, `checks/glyph_check.gd`, `tests/acceptance/tests/client_text.rs`,
   the lexer move to `support/gdscript.rs`.
-- [ ] Implementation: SD-SET-a-5, -6, -7, -13, -15, -17 (the move of 13b's shared entries, with its union check); marker-catalog generation (`--extra-locale=`, R-SET-11).
-- [ ] Validation: `cargo test -p mineworld-acceptance --test client_text --test client_rules` (both green; client_rules' results unchanged); `python3 scripts/check_client_rules.py` and `--check-pack presentation/mineworld-default/2D` green after the move; 13b's 2D tests green, unchanged (same keys); AC-SET-4's four mutations each turn `client_text` red (recorded, then reverted); `glyph_check.gd` (AC-SET-13) and its emoji mutation; a headless probe of `set_language` round trip and `time_of_day` for 00:00, 12:00, 19:42, 23:59 in both clocks and both languages.
-- [ ] Review: `code()` is the only place a key is built from data; the fallback never shows a raw key.
+- [x] Implementation: `settings/text.gd` (`MineWorldText`: `load_layers(pack_dir, extra_dirs, wording)`
+  merging shared → pack → `user://locale` → `--extra-locale=` per locale into one registered
+  `Translation` each; `locales`, `languages` (`MineWorldText.Language`), `set_language`, `has`, `text`
+  with 13b's readable fallback, `code(family, …)` over `FAMILIES`, `readable`, `set_clock`/`clock`,
+  `install_font_fallback`, `bundled_font`, `mark_world_text`, `visible_ui_texts`);
+  `settings/clock_format.gd` (`time_of_day(seconds, clock)`, step-19 §8.2's placeholders
+  `{hour24}`/`{hour12}`/`{minute2}`/`{ampm}` — the design's `locale` parameter is the current language,
+  bounded); `locale/{en,zh_Hans}.po` + `messages.pot` + `.gdignore`; `fonts/NotoSansSC-Regular.otf`
+  (fetched with `gh api … NotoSansSC-Regular.otf`, SHA-256 `faa6c9df…706d5ea9`, git blob `fc0fda93…`
+  equal to upstream's), `fonts/OFL.txt` (upstream `Sans/LICENSE` verbatim, under the copyright line read
+  from the font's name table) + `.gdignore`; the move (SD-SET-a-17, F-4) — every `action.*`/`reason.*`
+  entry from the 2D pack's `en.po` into the shared layer, keys unchanged, `action.move` neutral
+  ("Walk") in the shared layer and 13b's entry kept in the pack under `#. override`; the shared layer
+  also carries every §5.5 refusal code (F-7) and `language.self_name`, `clock.default`, `hud.time.*`,
+  `hud.ampm.*`; `checks/glyph_check.gd`, `checks/text_check.gd`;
+  `tests/acceptance/tests/support/gdscript.rs` (the lexer, moved unchanged) and
+  `tests/acceptance/tests/client_text.rs` (AC-SET-3, AC-SET-4, SD-SET-a-17's move check against
+  `aee8290`'s file, INV-SET-1, AC-SET-16, a reader self-test). Marker catalog: generated by
+  `menu_check.gd`'s `write_marker` (C4) into a scratch folder, locale `qaa`, loaded with
+  `--extra-locale=`.
+  **Brought forward from C5 (bounded, F-13):** the 2D symlink `clients/2d/mineworld_settings`,
+  `words.gd`'s delegation (`load_pack` → `MineWorldText.load_layers`; `has`, `text`, `readable`,
+  `reason` delegate) and `presentation/mineworld-default/2D/i18n/zh_Hans.po` — the moved entries live
+  in the shared layer from this commit on, so the 2D client must load it here, and AC-SET-4's per-layer
+  completeness needs the pack's `zh_Hans.po` as soon as the test exists.
+- [x] Validation (macOS, Godot 4.7.2):
+  - `cargo test -p mineworld-acceptance --test client_rules` → 3 passed (unchanged after the lexer
+    move). On the way it caught `store_check.gd`'s probe key `invite` (an action type's spelling);
+    renamed `server_address` (C2's committed check therefore trips `client_rules` at C2's head only).
+  - `cargo test -p mineworld-acceptance --test client_text` → 4 passed, 1 failed by design: AC-SET-3's
+    scan lists exactly the 3D client's present literals (`controls_hud.gd:170` "camera: %s",
+    `slice_main.gd` "place: %s", "looking at: %s", "world: offline …", `slice_link.gd` "perceive %s",
+    …), which C6 converts. That is the scan's discrimination on the real tree; it is red from C3 to C6.
+    Two false positives found and fixed in the scan, each pinned by the self-test: `"\n"` (the lexer
+    keeps an escape's character, so two letters are required) and placeholder names in
+    `{"fps": n}` argument dictionaries (a literal followed by `:` is a key).
+  - AC-SET-4's four mutations, applied together, each produce their own finding (then reverted):
+    delete `reason.paused` from `zh_Hans.po` → "has no zh_Hans entry"; `{target}` → `{who}` in
+    `action.talk` → "has placeholders {"who"}, en has {"target"}"; a `mutant_code` row in
+    `PROTOCOL.md` §5.5 → "no "reason.mutant_code""; `action.talk` duplicated in the 2D pack → "also
+    in the shared layer; mark it `#. override`".
+  - `python3 scripts/check_client_rules.py` → PASS (0); `--check-pack presentation/mineworld-default/2D`
+    → PASS (0) on the smaller pack file with `zh_Hans.po`.
+  - `glyph_check.gd` → PASS: 4 catalogs, 263 distinct characters, 0 missing. Mutation: a scratch
+    catalog with `☕🙂` → FAIL naming U+2615 and U+1F642.
+  - `text_check.gd` → PASS: en/zh_Hans offered, en first; the round trip; `code` and the readable
+    fallback (never raw, in both languages); a key only English has falls back to English; 00:00,
+    12:00, 19:42, 23:59 × 12h/24h × en/zh_Hans (`12:00 AM`/`00:00` … `下午 11:59`/`23:59`); automatic
+    12h in en and 24h in zh_Hans; a chosen 12h holds in zh_Hans.
+  - 13b's and 13a's 2D suites on this tree: see the C3/C4 run below.
+- [x] Review: keys built from data — `MineWorldText.code` and, in the 2D client, `words.gd`'s
+  `action()` (13b's, whose own fallback names the action's arguments) and its `reason()`, now through
+  `code`; 13b's `status.gd` builds `ui.state.<state>` (13b's key, unchanged; `client_text.rs` counts
+  a literal prefix ending in `.` as asking for its keys). The fallback never shows a raw key
+  (`text_check`).
 - **Commit boundary:** module + one acceptance test file + the lexer extraction.
 
 ### C4 — the menu
 
 - **Goal:** a working menu over the store, display and text.
 - **Scope:** `menu.gd`, `checks/menu_check.gd`, catalog keys for the menu.
-- [ ] Implementation: §3.8: tabs, Apply/Revert/Close/Quit, the 15 s revert, the read-only refresh rate and FPS, capabilities, `add_tab`, theme injection, input consumption.
-- [ ] Validation: `menu_check.gd` headless: open, change language (AC-SET-1's tree walk on the menu alone), Apply writes the expected file, Revert restores, the revert timer reverts when not confirmed (timer driven by the check), `add_tab` adds a tab without touching others; AC-SET-2 on the menu alone with the marker catalog.
-- [ ] Review: no client-specific branch beyond the capability set.
+- [x] Implementation: `settings/menu.gd` (`MineWorldSettingsMenu`): General (language by
+  `self_name`, clock) and Display (window mode with the Wayland tooltip, window size in windowed mode,
+  render scale in the full-screen modes with `CAP_RENDER_SCALE`, VSync, frame cap, the monitor's rate
+  and the measured frame rate, read-only); Apply / Revert / Close / Quit (`quit_requested`); the 15 s
+  confirmation (`confirm_left`, `tick`, `keep_display`); `add_tab(key, control)`; the client's
+  `Theme`; a full-screen control with `MOUSE_FILTER_STOP`. Every text from a key, rendered again on
+  `NOTIFICATION_TRANSLATION_CHANGED`; a clock change propagates that notification so composed labels
+  re-render. Close drops what was not applied (§7 of `SETTINGS.md`). The menu's keys
+  (`ui.settings.*`) in both shared catalogs. Committed together with C3 (one commit, recorded).
+- [x] Validation: `menu_check.gd` → PASS (39 texts over both tabs): every text turns Chinese at once
+  and switching back reproduces every text exactly (AC-SET-1 on the menu alone; the language list is
+  admitted — each language names itself); Apply saves language and clock with no confirmation; Revert
+  restores; Close drops an unapplied language; a display change applies, is not saved, and reverts
+  after `tick(16)`; Keep saves it; `add_tab` adds one tab and leaves the others; under the marker
+  catalog (`qaa`, 100+ entries) every text carries `⟦` (AC-SET-2 on the menu alone). First run: 1 FAIL
+  — the walk saw only the current tab (13 texts); the check now visits each tab. Mutations (reverted):
+  the menu ignores `NOTIFICATION_TRANSLATION_CHANGED` → both walks FAIL naming the title label; a
+  planted `Label` "Hello there" → both walks FAIL and `client_text.rs` names `menu.gd:267`.
+- [x] Review: the menu decides nothing per client beyond `capabilities` and the `Theme`; it names no
+  client, no network identifier and no platform (the Wayland question is `MineWorldDisplay`'s).
 - **Commit boundary:** module only.
 
 ### C5 — the 2D client
@@ -968,9 +1071,55 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Goal:** the 2D client uses the module for every UI string, the menu, the clock and display.
 - **Scope:** symlink, `project.godot`, `app.gd`, `hud/status.gd`, `scene/places.gd`, `scene/people.gd`,
   `harness/drive.gd` (`settings` scenario), `README.md`, `mineworld-2d`, catalog keys.
-- [ ] Implementation: SD-SET-a-2, -3, -7, -8, -9, -11, -12 for 2D.
-- [ ] Validation: `python3 scripts/check_client_rules.py` (R1–R6 green with the new symlink present; 13b's explicit symlink skip, B-10, covers it); `--check-pack` green with `zh_Hans.po`; `client_text`'s catalog checks green over the 2D pack layer; `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1` (13a's AC-W tests unchanged, AC-SET-9's 2D half); `client_settings` 2D tests: AC-SET-1, -2, -5, -6, -8, -10 (the 2D analogue: `drive:` lines), -11 (2D part), -12.
-- [ ] Review: no world content through `tr()` (INV-SET-10); the 13a behaviour is unchanged apart from Esc.
+- [x] Implementation: `project.godot` (SD-SET-a-2); `app.gd` `_settings()` first in `_ready` (store
+  with `HARNESS_FLAGS = ["drive", "capture"]`, layers with 13b's `--no-wording` and
+  `--presentation=none`, font, clock, language, platform line, display), the settings menu in `_hud()`
+  with a warm `Theme`, the walker disabled while it is open, Esc closes 13b's menu or toggles the
+  settings menu (Quit is in it), keys and clicks ignored while it is open, `_notification` re-rendering
+  door labels, markers, 13b's menu and panels and the status line and clearing toasts;
+  `hud/status.gd` (the hint and the time line re-rendered, the who-line marked world text),
+  `hud/words.gd` (`day_time` → `MineWorldClockFormat.day_time`), `hud/talk_line.gd` (hint
+  re-rendered), `hud/toasts.gd` (`clear`), `scene/people.gd` (names marked world text, markers not
+  auto-translated), `scene/places.gd` (door labels not auto-translated); `harness/settings.gd` (the
+  `settings` scenario: a two-stride walk, AC-SET-1's walk both ways with `EVIDENCE text` pairs,
+  `--marker` (AC-SET-2), `--apply=` through the menu, AC-SET-12, then `leave_world`; the `display`
+  scenario for AC-SET-11) and `drive.gd` (dispatch, and every scripted run prints
+  `EVIDENCE {"settings": …}`); `ui.hint` "Esc: close, menu" in both 2D catalogs (SD-SET-a-12, in
+  `client_text.rs`'s `NAMED_CHANGES`); `mineworld-2d` (symlink check, `--settings=none` for `--drive`,
+  `--resolution` only with `--res=` or `--capture`, Bash 3.2-safe empty array); `README.md`,
+  `PRESENTATION.md` §7 (layers, `--no-wording`); `tools/cli/tests/godot2d/mod.rs` (`StubLog.frames`,
+  `Drive::start_with`); `tools/cli/tests/client_settings.rs`.
+  **F-16 (bounded, recorded):** the clock setting governs the HUD's day and time through a new shared
+  key `hud.day_time`; 13b's `format.clock` (the 24-hour schedule times of the agenda and employment
+  rows) is unchanged. Following the setting there would have turned 13b's agenda row "08:00" into
+  "8:00 AM" under QTW-16's English default and failed 13b's
+  `the_panels_show_what_is_disclosed` (material stop 4); SD-SET-a-7 names only the status line.
+- [x] Validation (macOS, Godot 4.7.2):
+  - `check_client_rules.py` → PASS (0) with `clients/2d/mineworld_settings` present (F-5);
+    `--check-pack presentation/mineworld-default/2D` → PASS (0); `client_text` → 5 passed (with C6).
+  - 13a/13b suites on the C5 tree: `client_2d` 8/8, `client_2d_interact` 5/5,
+    `client_2d_interact_stub` 3/3 (`/tmp/mw-seta-logs/c5-2d.log`).
+  - `client_settings` 2D tests: AC-SET-1/-2/-12 on market-town (41 texts; "every UI text turns from
+    en to zh_Hans at once", "switching back reproduces every text exactly", "under the marker catalog
+    …", "an open menu takes gameplay input 0 requests while open"); AC-SET-5 (frames from `join` to
+    `leave` equal on defaults and on a zh_Hans/24h/borderless/30 fps file; `drive:` lines and check
+    names equal, INV-SET-6); AC-SET-6 (an Apply's file holds exactly the §3.3 keys, none of the invite,
+    nickname, seat or address); AC-SET-8 at runtime (a `window_mode=7` file: the client runs, the
+    problem names file and key, the file is byte-identical); AC-SET-9 2D half (`--drive=walk` with a
+    planted zh_Hans/30 fps file in the real folder reports `file ""`, en, cap 0 and the same checks;
+    the player's file restored); AC-SET-11 2D (window 1280×720, VSync 0; cap 30 → 30.01 fps; no cap →
+    119.97 fps on a 120 Hz display). First run: 2 FAIL in the test's verdict parsing (names padded to
+    30 columns then one space; borderless hides the size list, so text counts differ) — fixed in the
+    test, the client unchanged.
+  - Mutations (each reverted): walker left running while open → AC-SET-12 FAIL "7 requests while
+    open"; hint not re-rendered → AC-SET-1 and AC-SET-2 FAIL naming the hint label; `seat="carol"`
+    written by the store → AC-SET-6 FAIL "the settings file holds "carol""; the file saved on load →
+    store_check FAIL (byte-identical, `.bak`, merge); the locale in the move payload → AC-SET-5 FAIL
+    "the frames sent do not depend on the settings"; `drive` dropped from `HARNESS_FLAGS` → AC-SET-9
+    FAIL ("a harness reads no settings file", `user://settings.cfg`).
+- [x] Review: names, places, tags, dialogue and activity kinds are never passed through a catalog
+  (people labels and the who-line are world text; door labels and markers put world content only in
+  `{place}`/`{kind}`); 13a's behaviour is unchanged apart from Esc (13a/13b suites green).
 - **Commit boundary:** the 2D client, its launcher and its tests.
 
 ### C6 — the 3D client
@@ -979,17 +1128,153 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Scope:** symlink, `project.godot`, `controls_hud.gd`, `slice_main.gd`, `slice_link.gd`,
   `intents.gd`, `slice_probe_world.gd` (`--world --settings`), `README.md`, `mineworld-slice`,
   catalog keys.
-- [ ] Implementation: SD-SET-a-7 (time line), -8, -9, -10, -11, -12 for 3D; render-scale capability.
-- [ ] Validation: `cargo test -p mineworld-acceptance` (client_rules and client_text green over `clients/3d-spike`); `./mineworld-slice --drive`, `--measure`, `--world --link`, `--world --target`, `--world --conversation` pass as on `main` (AC-SET-9, AC-SET-10); `client_settings` 3D tests: AC-SET-1, -2, -5, -7, -11 (3D part, render scale), -12.
-- [ ] Review: `_say`'s 16 calls each keep their exact English log line; `player.gd` unchanged for the promenade.
+- [x] Implementation: symlink `clients/3d-spike/mineworld_settings`; `project.godot` (shared user
+  dir); `controls_hud.gd` (every line from keys, re-rendered on a language change, a showing toast
+  dropped; `attach(…, esc_opens_menu)`: the slice says "Esc  menu", the promenade keeps "Esc  release
+  mouse" through its own key `hint.controls`, and `attach` loads the shared layer when no client has —
+  the promenade loads no settings, QSET-9; conversation captions marked world text);
+  `slice/slice_main.gd` (`_settings()` first in `_ready`, `harness_flags()` = every probe mode, render
+  scale capability, the menu with a dark `Theme`, Esc in `_input` before the player's own handler,
+  walking/looking/E stopped while open, HUD lines from keys every frame, the world line kept as key +
+  arguments and re-rendered, the time line `hud.day_time` when connected, `first_frame` for AC-SET-7);
+  `slice/slice_link.gd` (`said(key, args, notice)`; `_say(log_line, key, args, notice, log_detail)` —
+  all 16 calls converted, every log line's format string as on `main`; `shown_label`/`shown_text`
+  for "You"/"Someone"; `_shown_reason` as a `reason.<code>` reference; figure labels world text;
+  `_speak` names the speaker in English in the log); `slice/intents.gd` (`VERBS` → keys,
+  `LOG_VERBS` for the log); `slice/slice_probe.gd` (`--hud`'s place line from its key);
+  `slice/slice_probe_world.gd` (mode `settings`: first frame, render scale, two deterministic
+  requests, AC-SET-1 walk, `--marker`, AC-SET-12 with play-mode input); `mineworld-slice` (symlink
+  check, `--settings` mode, `--settings=none` for every scripted mode, `--resolution` only with
+  `--res=` or a scripted mode); `README.md`. Shared: `MineWorldText.Ref`/`ref`/`code_ref` (an argument
+  worded at render time, found by the 3D walk — see validation), `has_cjk`, the walk skips faded text,
+  `MineWorldClockFormat.day_time`; the 3D keys in both shared catalogs, `en` reading exactly as on
+  `main`.
+- [x] Validation (macOS, Godot 4.7.2):
+  - `cargo test -p mineworld-acceptance --test client_text --test client_rules` → 5 + 3 passed: the
+    AC-SET-3 scan is green over the 3D client and the module (red since C3 by design). One finding on
+    the way: a log detail literal on a `_say(` line — moved to its own line.
+  - `./mineworld-slice --drive` → "all drive checks pass"; `--world --link` → "all link checks pass",
+    every `[link]` line in `main`'s English format; `--world --target` → "all target checks pass";
+    `--measure` → "1 SCALE CHECKS OUT OF RANGE", the stature 1.802 m line recorded as pre-existing
+    in step-15 (§19 J-1: "the same lines as before") — unchanged; `--world --conversation` → first run
+    INCONCLUSIVE (the connection closed (−1) right after connecting, before the probe began), re-run
+    PASS (reply on screen 1.6 s after talk; caption 2 lines).
+  - `--world --settings --marker` (windowed): first run 2 FAIL — (1) a faded toast was walked, then
+    correctly dropped by the language change: the walk now skips text at alpha 0 and the probe waits
+    for the toast's fade; (2) **a real defect:** the world line re-rendered its template in Chinese
+    but kept its arguments (verb, reason) worded in English at arrival ("世界：无法与 Wes Calloway talk
+    to：too far away") — fixed with `MineWorldText.Ref` arguments; then PASS (44 texts, "世界：无法与 Wes
+    Calloway 交谈：太远了").
+  - `client_settings` (9 tests) → 9 passed: the module's checks; AC-SET-15 over the shared, 2D and 3D
+    projects, and a probe file written by the 2D project read by the 3D one; the 2D tests above; the 3D
+    test (AC-SET-1/-2/-12 on social-cafe, AC-SET-5: the requests equal on defaults and on a
+    zh_Hans/24h/67 % file, AC-SET-10: the `[link]` lines equal after masking per-run port and instance,
+    AC-SET-11 3D: `scaling_3d_scale` 0.67 from the file, 1.0 by default); AC-SET-7 (2D Apply of
+    zh_Hans/24h/1280×720 → the 3D first frame: zh_Hans, clock 2, window 1280×720; the player's file
+    restored).
+- [x] Review: `_say`'s 16 calls: each `log_line` is the same format string with the same English
+  arguments as on `main` (`display_label`, `_readable`, `SliceIntents.log_verb`); `player.gd` is
+  unchanged, its Esc branch still serves the promenade; the menu's Esc reaches the slice first
+  (`_input`).
 - **Commit boundary:** the 3D client, its launcher and its tests.
 
 ### C7 — cross-client evidence and gates
 
 - **Goal:** the one-module-two-clients checkpoint and the full gate on the PR head.
-- [ ] Implementation: N/A for code; evidence and ledger.
-- [ ] Validation: AC-SET-7 (2D Apply → 3D first frame), AC-SET-14 (a scratch language), AC-SET-15 (the settings folder, macOS), AC-SET-16 (in `client_text`), CP-SET-a run by hand and recorded; full gate `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace`, both doc checks, every `#[ignore]` Godot test of `client_2d`, `client_settings`; each classified `PASS`/`FAIL`/`INCONCLUSIVE` from its output.
-- [ ] Review: INV-SET-1 … 10 each traced to a passing check or a hand check.
+- [x] Implementation: evidence and ledger; and three small code items found by the gate's runs —
+  the menu's language selector follows the live language (a still showed "English" selected over a
+  Chinese menu), stills hooks (2D `--capture`, 3D `--stills=`), AC-SET-14's check in
+  `menu_check.gd`; `clients/shared/evidence/` (stills, `.gdignore`, README); `origin/main` merged
+  (`72efd61`; one conflict in `docs/DECISIONS.md`, both sides appended — kept both; ARC-68 landed on
+  main; the numbers were later renumbered to ARC-76/DEP-35/DEP-36, F-10).
+- [x] Validation — the full gate, on the merged tree (macOS 26, Godot 4.7.2, Metal, 120 Hz display):
+  - `cargo fmt --all --check` PASS; `cargo clippy --workspace --all-targets --all-features -D warnings`
+    PASS; `cargo test --workspace` (at `72efd61` + the stills commit's non-Rust changes) → 886 passed,
+    0 failed, 29 ignored (the Godot tests) — PASS; `check_doc_headings.py` → 192 sections, none
+    duplicated; `check_decision_ids.py` → 88 ids, all distinct; `check_scratch.py scan` → 185 test
+    sources clean; `check_client_rules.py` → PASS (0); `--check-pack presentation/mineworld-default/2D`
+    → PASS (0); `client_text` 5/5; `client_rules` 3/3.
+  - Godot, on code head `d5921e7`: `client_2d` 8/8, `client_2d_interact` 5/5,
+    `client_2d_interact_stub` 3/3, `client_settings` 9/9 (`/tmp/mw-seta-logs/c7-godot.log`); on
+    `873612b` (AC-SET-14 added): `the_settings_module_checks_pass` and `the_settings_folder_is_shared`
+    re-run → 2/2; the four module checks PASS (store 49, text, glyph 263 characters, menu incl.
+    AC-SET-14).
+  - 3D probes: `--drive`, `--world --link`, `--world --target` pass; `--measure` the same one pre-existing
+    line; `--world --conversation` PASS (on re-run); `--world --settings --marker` PASS.
+  - AC-SET-9, 3D half and stills: with a zh_Hans/24h/borderless/30 fps file planted in the real
+    folder (then removed by `store_check --read`), `--drive` and `--world --link` pass with no Chinese
+    in their output and the platform line unchanged. The 2D `--capture` stills are **not byte-identical
+    even between two runs with no planted file** (the world's clock and people move), so that oracle
+    cannot discriminate: INCONCLUSIVE as an oracle; the discriminating evidence is the settings line,
+    identical with and without the planted file (`file ""`, en, cap 0, VSync on, windowed 1600×900),
+    and the planted run's still shows the English 12-hour HUD.
+  - AC-SET-14: PASS (`menu_check`): a scratch `user://locale/xx_test.po` is offered as "Testish";
+    choosing it shows its two texts and English for the rest, never a raw key; removed afterwards.
+  - CP-SET-a by hand on macOS (§6): see §12.12; the parts the harness covers are in the AC table.
+  - Mutations (each reverted): the language list hardcoded → AC-SET-14 FAIL; an `HTTPRequest` and an
+    `OS.get_name()` branch planted in `store.gd` → `client_text` FAIL naming
+    `store.gd:61 names HTTPRequest (INV-SET-1)` and `store.gd:63 a platform branch (AC-SET-16)`.
+- [x] Review: INV-SET-1 … 10 traced in §12.12.
+- **After the renumbering (F-10) and the second merge (F-18):** on code head `7787572`,
+  `cargo fmt --check` and `clippy -D warnings` PASS; `client_text` 5/5, `client_rules` 3/3; Godot
+  `client_2d` 8/8, `client_2d_interact` 5/5, `client_2d_interact_stub` 3/3, `client_settings` 9/9
+  (`/tmp/mw-seta-logs/c7b-godot.log`); `glyph_check`, `text_check`, `menu_check` PASS;
+  `./mineworld-slice --world --link` → "all link checks pass" on the S11-C protocol module.
+
+## 12.12 Acceptance on the final head (macOS; Windows and Linux are the operator's, §8)
+
+| Criterion | Result | Evidence (where) | Mutation that turned it red |
+| --- | --- | --- | --- |
+| AC-SET-1 | PASS | 2D market-town 41 texts, 3D social-cafe 44 texts, menu alone 39 — every text turns at once and back (`client_settings`, `menu_check`; `EVIDENCE text` pairs) | menu ignores `NOTIFICATION_TRANSLATION_CHANGED`; 2D hint not re-rendered |
+| AC-SET-2 | PASS | marker `qaa` walks in 2D, 3D and the menu | planted `Label` "Hello there" |
+| AC-SET-3 | PASS | `client_text` (3D client + module; 2D is 13b's R6, PASS) | planted label literal named at `menu.gd:267`; the pre-C6 3D tree itself (12 literals) |
+| AC-SET-4 | PASS | `client_text` catalogs, families from `PROTOCOL.md` §5.5 and `Rejection`, `messages.pot`; the move vs `aee8290` | 4/4 design mutations |
+| AC-SET-5 | PASS | 2D stub: frames `join`…`leave` equal; 3D: requests equal; static: INV-SET-1 scan | locale in the move payload; planted `HTTPRequest` |
+| AC-SET-6 | PASS | an Apply's file holds exactly §3.3's keys, no invite/nickname/seat/address | the store writes `seat` |
+| AC-SET-7 | PASS | 2D Apply zh_Hans/24h/1280×720 → 3D first frame zh_Hans, clock 2, 1280×720 | — (no planted mutation; the oracle is the first frame) |
+| AC-SET-8 | PASS | `store_check` five cases; 2D runtime `window_mode=7` | the file saved on load |
+| AC-SET-9 | PASS (stills byte-identity INCONCLUSIVE as an oracle, see C7) | 2D `--drive=walk`, 3D `--drive`, `--world --link` with a planted file | `drive` dropped from `HARNESS_FLAGS` |
+| AC-SET-10 | PASS | 3D `[link]` lines equal across en/zh files; `--world --link` with a planted zh file all English; 2D `drive:` lines equal | — (by construction: `_say` prints `log_line`; review of all 16 calls) |
+| AC-SET-11 | PASS | 2D window 1280×720, VSync 0, cap 30 → 30.01 fps, none → 119.97 fps; 3D render scale 0.67; headless no-op | `Engine.max_fps` assignment dropped (C2) |
+| AC-SET-12 | PASS | 2D: W 2 s + a click → 0 requests; 3D: W, mouse motion, E → 0 requests, yaw and pitch unchanged | walker left running |
+| AC-SET-13 | PASS | `glyph_check` 263 characters, 0 missing | ☕🙂 in a scratch catalog |
+| AC-SET-14 | PASS | `menu_check` | the language list hardcoded |
+| AC-SET-15 | PASS (macOS) | `…/Application Support/MineWorld` in the shared, 2D and 3D projects; a file written by the 2D project read by the 3D one | — (H-10 on Windows/Linux) |
+| AC-SET-16 | PASS | `client_text` (the one Wayland line admitted) | planted `OS.get_name()` branch |
+
+**INV-SET-1 … 10.** 1: `client_text` scan + AC-SET-5. 2: AC-SET-6. 3: N/A in SET-a (no host module;
+SET-c). 4: AC-SET-1/-2/-3, R6. 5: AC-SET-9. 6: AC-SET-10 and the 2D `drive:` comparison. 7: the named
+changes only (`client_text` move check: `ui.hint`; SD-SET-a-12; F-15, F-16) — the 3D `[link]` lines
+and HUD English as on `main` (review, stills). 8: both clients symlink one module; INV-SET-8's one
+duplicated formula removed (`MineWorldClockFormat.day_time`). 9: AC-SET-13. 10: review — names, places,
+tags, dialogue and kinds are world text or plain arguments, never keys.
+
+**CP-SET-a (§6), macOS.** The harness covers it end to end: Esc's menu open over the connected 2D HUD
+→ 简体中文 → every HUD and menu string Chinese at once (AC-SET-1); the clock line in 24-hour form
+("第1天  00:00"); Apply of zh_Hans/24h/1280×720 → the 3D client's first frame in Chinese, 24-hour, at
+1280×720 (AC-SET-7). The windowed walk-through by hand (Esc key, the 15 s confirmation on a real window
+change, relaunch) is H-3, H-4, H-7 and H-9 below, left to the operator.
+
+## 12.13 The operator's hand checks (§8), per OS
+
+The gate ran the automated column on macOS. Each check records the platform line the client prints
+(`[settings] platform <OS>, driver <driver>, display <server>`).
+
+| Id | macOS | Windows (D3D12; Vulkan with `--rendering-driver vulkan`) | Linux X11 | Linux Wayland |
+| --- | --- | --- | --- | --- |
+| H-1 Chinese crisp, no tofu, no mixed faces | stills in `clients/shared/evidence/` (Retina capture); external 1× display: operator | 100 % and 150 % scaling | on a machine with `fc-list :lang=zh` empty | at 125 % |
+| H-2 menu layout in both languages | stills; operator | 150 % | — | — |
+| H-3 windowed → borderless → fullscreen → windowed | operator (Cmd-Tab, no empty Space) | operator (Alt-Tab, brief black flash at most) | operator (no stuck full screen) | operator (Fullscreen = Borderless, tooltip says so) |
+| H-4 size change, 15 s countdown, revert, keep across restart | operator; judge logical vs physical presets on Retina | operator | operator | operator |
+| H-5 3D VSync Off/On/Adaptive, cap 30/60/none, render scale 50–100 % | operator (the Display tab's FPS: 30.01 with cap 30, 119.97 uncapped measured in 2D) | operator, D3D12 and Vulkan | operator | operator: is VSync Off honoured? |
+| H-6 12h/24h × en/zh, both clients | automated (`text_check` table; stills "第1天  00:00", "day 1  12:00 AM"); operator in one world | — | — | — |
+| H-7 Esc opens/closes; 2D Quit in the menu; 3D mouse released, recaptured on click | operator | operator | operator | operator (pointer capture) |
+| H-8 3D golden-hour slice in `en` as accepted | operator | operator (sanity look) | — | — |
+| H-9 relaunch: 2D language → 3D opens in it | automated (AC-SET-7); operator by hand | operator | operator | — |
+| H-10 the shared folder | automated (AC-SET-15): `~/Library/Application Support/MineWorld` | operator: `%APPDATA%\MineWorld\settings.cfg` | operator: `~/.local/share/MineWorld/`, and `$XDG_DATA_HOME/MineWorld/` | — |
+
+Windows prerequisite: `git config core.symlinks true` (Developer Mode) before checkout; the launchers run
+from Git Bash and stop with that message if a module folder is a text file.
 - **Commit boundary:** ledger and evidence only. Then mark **READY FOR OPERATOR REVIEW**, with the H-1 … H-10 macOS results and the Windows and Linux checklist listed for the operator.
 
 ## 12.6 Acceptance (fixed before measuring)
@@ -1033,7 +1318,40 @@ step, and the test asserts that the stub saw the client's `leave`.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C0 (this design) | done, frozen 2026-10-08 | `plan/client-settings`, PR #91 |
-| C1–C7 | not started (waits for 13b) | — |
+| C0 (this design) | done, frozen 2026-10-08; anchors re-verified 2026-10-09 against `main @ aee8290` (§12.11) | `plan/client-settings`, PR #91 |
+| C1 | done | `3614584` |
+| C2 | done | `ff82a50` |
+| C3 + C4 | done (one commit) | `42ea4de` |
+| C5 + C6 | done (one commit) | `b95e748` |
+| merge `origin/main` | done | `72efd61` |
+| C7 | done; final code head `873612b` | `ce0b4c1`, `d5921e7`, `873612b`; ledger commit after it |
+| Lifecycle | **READY FOR OPERATOR REVIEW** (PR opened; CI on the exact head recorded in the PR) — DO NOT MERGE | — |
+| Post-merge synchronization | this session: §12 lifecycle, merge identity and evidence; the primary session: step-20 §§1–11, `overall.md` (S20 row; decision numbers ARC-76, DEP-35, DEP-36) | — |
 | QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
 | Windows / Linux checklist (§8) | open, for the operator | — |
+
+Implementation session: 2026-10-09, worktree `/Users/yuema137/mineworld-worktrees/impl-set-a`, branch
+`mvp0/pr-set-a` from `origin/main @ aee8290` (13b merged as #103; S11-D, 16a and IL-b on `main`).
+Handoff: [`handoff-set-a.md`](handoff-set-a.md).
+
+## 12.11 Findings at implementation (anchors re-verified against `main @ aee8290`)
+
+| Id | Finding | Source | Decision (bounded unless marked) |
+| --- | --- | --- | --- |
+| F-1 | 13b's `words.gd` API is `load_pack(pack_dir, locale)`, `has`, `text`, `action`, `code`, `reason`, `money`, `clock`, `readable`; its wording-removed switch is `--no-wording` (`app.gd`), not a `--wording=none`. | `clients/2d/scripts/hud/words.gd`; `app.gd` `_ready` | `words.gd` keeps every function and delegates loading and the fallback to `MineWorldText`. §3.6's "new `--wording=none`" is **13b's existing `--no-wording`**, which now removes every layer; no new flag. |
+| F-2 | 13b already words the 2D clock through `format.clock` = `day {day}  {hh}:{mm}`, used by the status line and the agenda rows. There is no `clock()` in `status.gd` any more. | `en.po`; `words.gd` `clock`; `readers.gd` | SD-SET-a-7's 2D half: `Words.clock` formats the time with `MineWorldClockFormat`, and `format.clock`'s msgstr becomes `day {day}  {time}` (key unchanged). In 24h the line reads exactly as before; in 12h it gains `h:mm AM/PM` — SD-SET-a-12's named change. |
+| F-3 | 13b's hint `ui.hint` ends "Esc: close, quit"; the 2D rejection note's raw JSON is gone (13b words it through `reason.<code>`). | `en.po` `ui.hint`; `app.gd` `_on_resolved` | SD-SET-a-12's 2D items: "Esc: close, quit" → "Esc: close, menu"; the rejection prose item is already done by 13b. |
+| F-4 | **A16d-11 / step-13 E-15:** `action.move` = "Walk (click where to go)" is 2D-specific. 16d plans (D-16d-6) a neutral shared entry and a 2D override. | `step-13-client-2d.md` E-15; `origin/plan/s14-16d` step-15 A16d-11, D-16d-6 | Done in SET-a's move: the shared `action.move` reads "Walk"; the 2D pack keeps 13b's entry verbatim under `#. override`. 2D's screen does not change; no key changes. The union check compares the **effective** wording (pack over shared) with 13b's file, entry for entry. |
+| F-5 | `check_client_rules.py` walks `clients/2d` without descending symlinked directories (13b's B-10, `os.walk(followlinks=False)`), so the new `mineworld_settings` symlink is never scanned by R1–R6. | `scripts/check_client_rules.py` `scripts_of_client` | R-SET-7 closed for the Python scan by its own code; verified at C5. `client_rules.rs` also skips symlinks and reads `clients/shared/` once where it lives. |
+| F-6 | The 2D Godot tests start Godot directly (`godot --headless --path clients/2d -- --drive=…`), not through the launcher. | `tools/cli/tests/godot2d/mod.rs` `Drive::start` | INV-SET-5 is held by the client, not the launcher: `drive` and `capture` are the 2D harness flags that force `--settings=none`. The launchers also pass `--settings=none` to scripted modes (belt and braces, SD-SET-a-11). |
+| F-7 | `server/PROTOCOL.md` lists refusal codes in a table (§5.5) but lists no rejection reasons; the kernel's closed reasons are the `Rejection` enum in `contracts/src/action.rs`. | `PROTOCOL.md` §5.5; `contracts/src/action.rs` | AC-SET-4's code families are read from both: every §5.5 refusal code and every unit variant of `Rejection` (snake_case) needs a `reason.<code>` entry in the shared `en.po` and `zh_Hans.po`. |
+| F-8 | The 2D client's own interaction menu is `scripts/menu.gd` (13b's `Menu`). | `clients/2d/scripts/menu.gd` | The settings menu is `MineWorldSettingsMenu`; the two never share a name. |
+| F-9 | The 3D `SliceIntents.DEFAULT_UTTERANCE` ("Hello! A coffee, please.") is the player's words, sent as the `talk` payload. | `clients/3d-spike/scripts/slice/intents.gd` | Not UI text: translating it would change the request (AC-SET-5). It stays as written, admitted by `client_text.rs`'s allow-list with that reason. |
+| F-10 | No decision numbers were allocated to S20 (`overall.md` "Decision numbers assigned since the parallel build-out table"). | `overall.md` §5 | Provisional first: `ARC-SET-a` → ARC-72, `DEP-SET-a` → DEP-32, `DEP-SET-b` → DEP-33; `ARC-SET-b` → a dated note under `ARC-70` (§11.1 allows it). **Ruled by the primary session, 2026-10-09:** those numbers belong to S10 (pr-s10-p5-backends QP5-6, pr-s10-p5b QP5b-3; P5a uses DEP-32 for python-dotenv), and ARC-75/DEP-34 are 12n's; SET-a takes **ARC-76**, **DEP-35**, **DEP-36**, renumbered everywhere in this PR (`DECISIONS.md`, `NOTICE`, `OFL.txt`, `SETTINGS.md`, this file, the handoff, the PR body). The same ruling accepts F-15 and F-16 as bounded. |
+| F-11 | Godot 4.7.2's `DirAccessWindows::rename` removes an existing destination and then `MoveFileW`s the source; it does not refuse. | `godotengine/godot` tag `4.7.2-stable`, `drivers/windows/dir_access_windows.cpp` l. 339–346 (read 2026-10-09 with `gh api`) | §3.4's Windows fallback is already Godot's own behaviour. The store therefore never removes the file itself; it recovers a lone `settings.cfg.tmp` on load (the crash window between remove and move), keeps `.bak` before replacing a file that had a load problem, and states the rule in `SETTINGS.md` §4. No platform branch. |
+| F-13 | The move puts `action.*`/`reason.*` in the shared layer, so from that commit the 2D client must load it, and AC-SET-4 needs the 2D pack's `zh_Hans.po` as soon as the test exists. | C3's validation | The 2D symlink, `words.gd`'s delegation and the pack's `zh_Hans.po` land in C3 rather than C5 (a reordering inside the frozen file list). |
+| F-14 | **Session overlap, 2026-10-09 17:14–17:16.** The coordinator resumed this session twice; for a short while two copies may have run in this worktree. Audit after it: `ps` shows no other process on the worktree; the C2 commit `ff82a50` holds only this session's files and its checks passed on that content; the one foreign change in the tree was `clients/shared/SETTINGS.md` §4's `--settings=<path>` line, rewritten to "(an absolute path, or user://…)", which contradicts the code (relative paths resolve against the working directory). | `git status`, `git show --stat ff82a50`, `ps` | Reverted to the committed text (`git checkout`), and this session continues as the only writer. |
+| F-15 | **3D reason wording.** §3.6 has the 3D client word a refusal code or rejection reason through `reason.<code>`, the family whose `en` text is 13b's. On `main` the 3D client shows the code made readable (`busy`, `permission denied`). For the six kernel reasons 13b worded differently (`busy` → "busy right now", `permission_denied` → "not allowed", `no_supported_interaction`, `target_unavailable`, `unavailable`, `precondition_failed`) the 3D toast's English therefore changes; INV-SET-7 lists no such change. | §3.6 "Server codes"; SD-SET-a-12; `slice_link.gd` `_readable` | Read as the frozen design's own consequence (§3.6 governs reason wording; SD-SET-a-17 makes 13b's wording the shared one), not as an extra change: the 3D shown text follows §3.6. To keep everything else unchanged, the refusal codes' `en` entries (new, SET-a's) read exactly as the 3D client showed them (`not joined`). `[link]` log lines keep the readable code (INV-SET-6). **Flagged for the operator** in the PR: if the 3D toast must keep `busy`, a 3D override layer can carry it once 16f gives 3D a pack. |
+| F-17 | Main's `platforms` CI layer (Windows, macOS) and its note that Windows checkouts keep the runner's `core.autocrlf`: a CRLF `messages.pot` would fail `client_text`'s byte comparison for a Windows developer (the layer itself does not run `mineworld-acceptance`). | `.github/workflows/ci.yml` l. 60–84; `scripts/ci_layer.py` `platforms` | The comparison normalizes `\r\n`; the `.po` reader already uses `str::lines`. Godot reads `.po` line by line; CRLF catalogs on Windows are part of H-1 on Windows. |
+| F-18 | Second merge of `origin/main` (`050790d`: 12n #116, S11-C #95, E-c #99, 13b parity #97). `DECISIONS.md` conflicted (both sides appended; kept both — 12n's ARC-75 and this PR's ARC-76). AC-SET-4 then failed as designed on the new codes: 12n's action types `walk-to`, `walk-step` and S11-C's refusal codes `cursor_unavailable`, `lagged`. | `client_text` output after the merge | Added to both shared catalogs (refusal codes' English in the readable form, F-15's rule); `messages.pot` regenerated. The protocol module changed under S11-C, so the Godot suites re-ran on the merged tree (C7 evidence below). |
+| F-12 | Engine probe (Godot 4.7.2, headless, scratch project outside the repository): `standardize_locale("xx_test")` → `xx`; a `.po` loads from an absolute path inside a `.gdignore` folder; appending Noto Sans SC to `ThemeDB.fallback_font.fallbacks` makes `"设置 Settings"` shape with no tofu and two fonts; `screen_get_refresh_rate()` is `-1` headless. | scratch probe, recorded here | The marker catalog uses locale `qaa` (a private-use code) so it never collides with AC-SET-14's scratch `xx_test` (→ `xx`). Catalogs and the font sit in `.gdignore` folders and are loaded by absolute path, so no `.import` sidecar is ever written through the symlinks. |

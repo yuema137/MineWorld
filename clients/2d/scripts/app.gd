@@ -10,12 +10,14 @@ extends Node2D
 ## menu        the offers about one subject (13b)         readers     own components, names
 ## panels      what was disclosed to me (I, H)            toasts      the world's answers
 ## talk_line   a typed line for a request                 words       the pack's wording (ARC-70)
+## settings_menu  the shared settings menu (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`)
 ## ```
 ##
 ## Arguments (after `--`): `--server=host:port`, `--seat=key`, `--invite=TOKEN` (the server's, from
-## its join line), `--nickname=NAME`, `--presentation=<dir>|none`,
-## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`. The launcher
-## `./mineworld-2d` passes them; see `clients/2d/README.md`.
+## its join line), `--nickname=NAME`, `--presentation=<dir>|none`, `--no-wording`,
+## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`, `--settings=<path>|none`
+## (`--drive` and `--capture` mean `none` unless a path is given: a harness never reads the player's
+## settings). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
 const Link := preload("res://scripts/link.gd")
 const Intents := preload("res://scripts/intents.gd")
@@ -36,8 +38,12 @@ const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 
 const DEFAULT_PACK := "presentation/mineworld-default/2D"
+## The scripted and capture flags: each runs on default settings (INV-SET-5).
+const HARNESS_FLAGS: PackedStringArray = ["drive", "capture"]
 
 var options: Dictionary = {}
+var settings_store: MineWorldSettingsStore
+var settings_menu: MineWorldSettingsMenu
 var presentation
 var projection
 var town
@@ -65,10 +71,7 @@ func _ready() -> void:
 	var pack := String(options.get("presentation", DEFAULT_PACK))
 	if pack != "none":
 		presentation.load_pack(repo_path(pack), String(options.get("variant", "")))
-		# The pack's wording, unless a run asks to play without it (the language-independence check).
-		if not options.has("no-wording"):
-			for problem in Words.load_pack(repo_path(pack)):
-				push_warning("[mineworld-2d] %s" % problem)
+	_settings(repo_path(pack) if pack != "none" else "")
 	for problem in presentation.errors:
 		push_warning("[mineworld-2d] %s" % problem)
 	if presentation.is_plain():
@@ -123,7 +126,25 @@ func _ready() -> void:
 		String(options.get("invite", "")), String(options.get("nickname", "2d-player")))
 
 
-## The interaction layer (13b): readers and panels, toasts, the typed line, the menu.
+## The player's settings, before anything is drawn (S20): the file (or defaults for a harness), the
+## wording's layers — the shared module's, the pack's (unless `--presentation=none`), the user's —
+## unless a run plays without wording (`--no-wording`, the language-independence check), the CJK font,
+## the clock, the language and the display.
+func _settings(pack_dir: String) -> void:
+	settings_store = MineWorldSettingsStore.open(OS.get_cmdline_user_args(), HARNESS_FLAGS)
+	for problem in MineWorldText.load_layers(pack_dir, settings_store.extra_locale_dirs,
+			not options.has("no-wording")):
+		push_warning("[mineworld-2d] %s" % problem)
+	settings_store.settle_language(MineWorldText.locales())
+	MineWorldText.install_font_fallback()
+	MineWorldText.set_clock(settings_store.settings.clock)
+	MineWorldText.set_language(settings_store.settings.language)
+	MineWorldDisplay.print_platform_once()
+	MineWorldDisplay.apply(settings_store.settings, get_window(), PackedStringArray())
+
+
+## The interaction layer (13b): readers and panels, toasts, the typed line, the menu; and the settings
+## menu (S20), over everything, which stops the walker while it is open.
 func _hud() -> void:
 	readers = Readers.new()
 	readers.town = town
@@ -139,6 +160,39 @@ func _hud() -> void:
 	menu.readers = readers
 	menu.talk_line = talk_line
 	add_child(menu)
+	settings_menu = MineWorldSettingsMenu.new()
+	add_child(settings_menu)
+	settings_menu.setup(settings_store, PackedStringArray(), _menu_theme())
+	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
+	settings_menu.opened.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_DISABLED)
+	settings_menu.closed.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_INHERIT)
+
+
+## The settings menu in this client's warm panel colours.
+static func _menu_theme() -> Theme:
+	var theme := Theme.new()
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.99, 0.97, 0.92, 0.97)
+	panel.set_corner_radius_all(12)
+	panel.set_content_margin_all(22)
+	theme.set_stylebox("panel", "PanelContainer", panel)
+	theme.set_color("font_color", "Label", Color("3b2c1e"))
+	theme.set_font_size("font_size", "Label", 15)
+	return theme
+
+
+## Every composed text again, in the language now selected: the status line, door labels, markers,
+## the open menu and panels. Toasts already shown are cleared rather than left in the old language.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_TRANSLATION_CHANGED or status == null:
+		return
+	if latest != null:
+		places.reconcile(latest)
+		people.reconcile(latest)
+		menu.refresh(latest)
+		panels.show_panels(readers.panels(latest))
+	toasts.clear()
+	status.show_state(latest, link, link.client.revision if link.client != null else null)
 
 
 func _process(_delta: float) -> void:
@@ -150,12 +204,16 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			# Esc closes what is open, else opens the settings menu, which holds Quit (QSET-2).
+			if menu.is_open():
+				menu.close()
+			else:
+				settings_menu.toggle()
+			return
+		if settings_menu.is_open():
+			return
 		match event.keycode:
-			KEY_ESCAPE:
-				if menu.is_open():
-					menu.close()
-				else:
-					get_tree().quit(0)
 			KEY_E:
 				open_menu_at(get_local_mouse_position(), false)
 			KEY_Q:
@@ -165,7 +223,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				panels.toggle("things")
 			KEY_H:
 				panels.toggle("conversations")
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
+			and not settings_menu.is_open():
 		# Picking reads the event's own position, moved into this node's (the world's) frame, so a
 		# scripted click and a real one take the same path.
 		var at: InputEventMouseButton = make_input_local(event)

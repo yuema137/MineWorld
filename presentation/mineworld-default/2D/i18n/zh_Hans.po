@@ -1,0 +1,152 @@
+# Simplified Chinese wording of the 2D reference client: the pack layer (clients/shared/SETTINGS.md
+# §6.2). Every key of this folder's en.po, with the same placeholders. Names, places and words that come
+# from the world are filled in as the world states them and are never translated.
+msgid ""
+msgstr ""
+"Project-Id-Version: mineworld-default-2d 0.1.0\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. override
+msgid "action.move"
+msgstr "行走（点击要去的地方）"
+
+msgid "ui.hint"
+msgstr "点击地面行走，点击某人打开菜单  ·  E：光标下的人  ·  Q：你自己  ·  I：你的物品  ·  H：对话  ·  Esc：关闭，菜单"
+
+msgid "ui.walk-to"
+msgstr "走到{target}身边"
+
+msgid "ui.unsupported"
+msgstr "{label} — 此客户端不支持"
+
+msgid "ui.unavailable"
+msgstr "{label} — {reason}"
+
+msgid "ui.needs-range"
+msgstr "需要 {metres} 米以内"
+
+msgid "ui.self"
+msgstr "你"
+
+msgid "ui.menu.empty"
+msgstr "这里没有可做的事"
+
+msgid "ui.item"
+msgstr "物品 {id}"
+
+msgid "ui.result.accepted"
+msgstr "{done}"
+
+msgid "ui.result.rejected"
+msgstr "{action}：世界拒绝了 — {reason}"
+
+msgid "ui.result.unavailable"
+msgstr "{action}：这个世界里没有什么能做到这件事"
+
+msgid "ui.result.refused"
+msgstr "{action}：被拒收（{code}）"
+
+msgid "ui.result.unknown"
+msgstr "{action}：结果未知 — 请查看世界（没有重新发送）"
+
+msgid "ui.walk-rejected"
+msgstr "世界阻止了你的行走 — {reason}"
+
+msgid "ui.walk-unknown"
+msgstr "有一步没有得到回应 — 请查看世界（没有重新发送）"
+
+msgid "ui.participation"
+msgstr "· 正在参加：{kind} ·"
+
+msgid "ui.door-to"
+msgstr "通往{place}的门"
+
+msgid "ui.outside"
+msgstr "户外"
+
+msgid "ui.talk.prompt"
+msgstr "对{target}说："
+
+msgid "ui.invite.prompt"
+msgstr "邀请{target}去（一项活动，用你自己的话）："
+
+msgid "ui.input.hint"
+msgstr "Enter 发送  ·  Esc 取消"
+
+msgid "ui.status.who"
+msgstr "{name}  ·  {place}"
+
+msgid "ui.status.when"
+msgstr "{clock}  ·  版本 {revision}  ·  世界 …{instance}  ·  {state}"
+
+msgid "ui.state.connecting"
+msgstr "正在连接"
+
+msgid "ui.state.seated"
+msgstr "已连接"
+
+msgid "ui.state.reconnecting"
+msgstr "正在重新连接"
+
+msgid "ui.state.closed"
+msgstr "已断开"
+
+msgid "panel.wallet"
+msgstr "钱"
+
+msgid "panel.holdings"
+msgstr "随身物品"
+
+msgid "panel.shop"
+msgstr "这里出售"
+
+msgid "panel.conversation-history"
+msgstr "最近听到的"
+
+msgid "panel.acquaintances"
+msgstr "你认识的人"
+
+msgid "panel.invitations"
+msgstr "邀请"
+
+msgid "panel.agenda"
+msgstr "你的一天"
+
+msgid "panel.employment"
+msgstr "工作"
+
+msgid "panel.other"
+msgstr "别人告诉你的其他事"
+
+msgid "ui.row.holding"
+msgstr "{item} × {count}"
+
+msgid "ui.row.shop"
+msgstr "{item}  ·  {price}  ·  剩 {stock} 件"
+
+msgid "ui.row.heard"
+msgstr "{speaker}：{utterance}"
+
+msgid "ui.row.invitation"
+msgstr "{inviter} 邀请你：{kind}"
+
+msgid "ui.row.agenda"
+msgstr "{from}–{until}，{label}，在{place}"
+
+msgid "ui.row.employment"
+msgstr "{employer}，在{place}，{from}–{until}，工资 {wage}"
+
+msgid "ui.row.on-shift"
+msgstr "当班中"
+
+msgid "suggest.invite-kind"
+msgstr "咖啡, 聊天, 散步"
+
+msgid "format.money"
+msgstr "{amount}"
+
+msgid "format.clock"
+msgstr "第{day}天  {hh}:{mm}"
