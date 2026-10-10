@@ -1,7 +1,7 @@
 //! The installable system: what it declares, the facts it folds, the wake that turns the weather, and
 //! what it discloses (SD-TW-b-2, -10, -11).
 
-use mineworld_authoring::{PackConfiguration, Seeding};
+use mineworld_authoring::{ConfigurationContext, PackConfiguration, Seeding};
 use mineworld_calendar::{CalendarSystem, DayBegan};
 use mineworld_contracts::{
     ComponentRecord, ContractError, EntityId, Event, EventEnvelope, EventRecord, EventTypeId,
@@ -50,6 +50,7 @@ impl PackConfiguration for WeatherSystem {
     fn seed(
         _: &Seeding<'_, '_>,
         configuration: &WeatherConfiguration,
+        _: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection> {
         Ok(vec![Emission::new::<WeatherConfigured>(
             encode(&WeatherConfigured::of(configuration)),

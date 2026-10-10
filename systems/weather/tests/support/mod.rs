@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_authoring::Seeding;
+use mineworld_authoring::{Attached, ConfigurationContext, EntityClasses, Seeding};
 use mineworld_calendar::CalendarSystem;
 use mineworld_contracts::{
     Action, ActionTypeId, EntityId, EntityKey, EntityType, Event, EventEnvelope, LocalPosition,
@@ -172,11 +172,15 @@ pub fn assemble(
     if let Some(text) = weather {
         configurations.push(decoded::<WeatherSystem>(text));
     }
+    let (classes, attached) = (EntityClasses::default(), Attached::none());
     for configuration in configurations {
         let read = world.read();
         facts.extend(
             configuration
-                .seed(&Seeding::new(&read, &keys))
+                .seed(
+                    &Seeding::new(&read, &keys),
+                    &ConfigurationContext::new(&classes, &attached),
+                )
                 .expect("seeds"),
         );
     }
