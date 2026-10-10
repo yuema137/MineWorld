@@ -2795,6 +2795,13 @@ with its own review. A pack is generic when it is neither Social Café's nor the
 a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
 dependency structure still measure the market and nothing else. A test holds both refusals.
 
+**Note, 2026-10-09 (S19, PR TW-b; step-19 §17.5 C4) — `weather` joins the allow-list.** `GENERIC_PACKS`
+is now `["calendar", "weather"]` (`ARC-68`). Weather is a world's climate, not a market, so it is generic
+by the rule above. Nothing else in check 3 changes. Order among the allow-listed packs is free; each
+still follows the six and is listed once; and `configure/weather.yaml` is admitted as the configuration
+of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
+allow-listed is now `bodies` (it was `weather`).
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -4932,6 +4939,98 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
 
 ---
 
+## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
+
+**Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;
+FQ-d1 … FQ-d6) and the operator's every-platform requirement (§17.12) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §2, §4.1, §8.1; [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0, §8 ·
+**Relates to** `ARC-31`, `ARC-36`, `ARC-53`, `ARC-54`, `ARC-55`, `DEP-10` · **Design**
+`.structured-coding/plans/mvp0/step-16-packages.md` §4.3, §17 (S16, PR E-d)
+
+**Problem.** `MODULE_SPEC.md` §2 defines an Entity Pack — "what exists in the world" — and `ARC-53`
+gave it an identity, but nothing read one: `pack.yaml` refused `type: entity-pack` and `requires:`
+refused to resolve one. A kind of thing (bread, coffee) could exist only inside the one world that
+declared it, so two worlds sharing goods had to copy the files. "Install modules → compose world" needs
+a kind of thing to be installable on its own, with no rebuild.
+
+**Choice.**
+
+1. **Item kinds and nothing else, in MVP-0.** An Entity Pack is a directory holding `pack.yaml`
+   (`type: entity-pack`, `ARC-53`'s fields, no new field) and `items/<key>.yaml`, each in the World Pack
+   item-file format (`tags`, `note`, sections, `ARC-36`), read by the same code. A `places/`, `people/`
+   or `organizations/` directory in it is refused by name ("an Entity Pack carries item kinds only in
+   MVP-0"); one with no item file is refused ("declares nothing").
+2. **The directory is the declaration** (FQ-d1). Every `*.yaml` in `items/` is one kind, keyed by the
+   file's stem (`Path::file_stem` of an entry whose `Path::extension` is `yaml`), which must be an
+   `EntityKey` or the file is refused naming it. Any other file in `items/` is not content and is left
+   alone. `pack.yaml` has no `items:` list, so the key is stated once, by the file name.
+3. **Who reads what.** `mineworld-packages` identifies an Entity Pack and checks its directory layout
+   (file names only; it stays a leaf that knows no `EntityKey`); `mineworld-worldpack` reads its content
+   in `worldpack/src/entities.rs`, because the item-file format and section decoding are its.
+4. **Composition: read order step 6b.** After the world's own content is read and checked for
+   undeclared files, each requirement that resolved to an Entity Pack, in id order, has its `items/`
+   read **with the requiring world's enabled systems**, so a section is decoded by its owner exactly as
+   if the world had written it, and the section rules (owner enabled, file may carry it, references
+   declared and typed — `ARC-31`) apply unchanged. The kinds merge into the world's item kinds.
+5. **One key namespace, refused by name** (`MODULE_SPEC.md` §4.1 rule 1). A key an Entity Pack declares
+   that the world also declares — in `places`, `population`, `items` or `organizations` — or that another
+   required Entity Pack declares, is refused naming the key and both sources. Never "last one wins":
+   Minecraft data packs' override-by-load-order is exactly the silent shadowing refused here.
+6. **Identity in key order across every source** (FQ-d2). Item kinds — the world's and every required
+   pack's together — are allocated after people and before organizations, in key order, by the loop
+   that already exists. A world that requires no Entity Pack allocates exactly what it did; moving kinds
+   out of a world into an Entity Pack it then requires changes no id and no fact.
+7. **Provenance names the pack.** A kind read from an Entity Pack carries `Metadata { source_pack: <the
+   pack's id>, source_path: "items/<key>.yaml" }`, `source_path` written with `/` on every operating
+   system so a save does not depend on the machine. Every refusal that names a content file names the
+   file in the Entity Pack's directory. `Metadata` is free text already: no contract change.
+8. **Self-contained** (FQ-d3). A section in an Entity Pack's item file may name only keys the same pack
+   declares; any other key is refused naming the pack, the file and the key. In MVP-0 the only item
+   section with references is `bodies`' object form (`at: { place }`), which describes one loose object,
+   not a kind (`ARC-36` note), so it is refused in an Entity Pack, as intended.
+9. **What the CLI shows** (FQ-d5). `mineworld packs validate <entity pack>` checks the identity, the
+   licence policy and the framework range (the `ARC-54` note below), then reads every item file against
+   **the build's whole installed set** — each section decoded by its owner; whether the owner is enabled
+   is a world's question, answered at resolution — and rule 8, and prints the kinds. `packs list` lists
+   `entity-pack` lines. `validate <world>` prints the composed item kinds (the world's and its packs') on
+   its existing `items` line.
+10. **Every platform.** CRLF line endings in `pack.yaml`, `items/*.yaml` and `world.yaml` read exactly
+    as LF does, relying on `serde-saphyr` (`DEP-10`); `items/` is read into a map by key, so no file
+    system's listing order can change an id; paths are built with `Path` operations, never by splitting
+    text on `/`.
+
+**Options considered.** An `items:` list in `pack.yaml` mirroring `world.yaml`'s (FQ-d1) — rejected:
+the key would be stated twice. Pack kinds allocated after organizations (FQ-d2) — rejected: one order,
+and moving kinds into a pack would then move ids. Namespaced keys (`goods:bread`, as Minecraft and
+Factorio prototypes do) — rejected for MVP-0: `EntityKey` is a contract type and every reference would
+change. A generic schema-driven content loader — rejected: a second statement of what each owner
+already decodes with its own type.
+
+**Accepted limitations.**
+- Item kinds only: new entity types would extend the closed `EntityType` in `contracts`, and component
+  schemas belong to System Packs in MVP-0 (`ARC-31` sections). Authoring templates are not read.
+- No namespaced keys: two packs that both declare `tea` cannot be required by one world.
+- No pack-to-pack dependency: `pack.yaml` still refuses `dependencies`, so an Entity Pack cannot build
+  on another.
+- A stray `.yaml` in `items/` becomes a kind; `packs validate` lists every kind so an author sees it.
+- A world that adopts an Entity Pack shifts the ids of its later item kinds and organizations, as
+  editing its own `items:` does today. Saves do not record which packs they used (QSE-14).
+
+---
+
+## ARC-54 note — a required data pack's own framework range is checked (F-Ed1, 2026-10-08)
+
+Point 4's rule 2 gains a check `ARC-54` left out: **a required data pack whose `mineworld:` range does
+not admit the running framework is refused**, naming the pack, its range and the framework's version —
+after the version check, as the last check of that requirement. `mineworld packs validate` applies the
+same check to every `pack.yaml` pack. Before S16's PR E-d a Presentation Pack stating `mineworld: "^9"`
+passed both (finding F-Ed1, spike SC-7), although step-16 §4.2's refusals list "a framework outside
+`mineworld:`" and `ARC-53` says a package fact is never ignored. A bounded correction of E-b's
+merged behaviour, landed with the PR that first reads data packs' content; the two shipped Presentation
+Packs state `^0.1` and are unaffected. A World Pack's own range is checked as before, by the reader.
+
+---
+
 ## ARC-63 — The World's Interaction List: one section shape for every pack, typed and enforced by its owner
 
 **Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": QIL-2
@@ -5555,3 +5654,89 @@ Apache-2.0 branch (the fallback had OFL been refused); Droid Sans Fallback (date
 (rejected as the mechanism: different on every machine).
 
 **Accepted cost.** 8.3 MB in Git history, once.
+
+---
+
+## ARC-68 — Calendar and weather are System Packs; weather is a seeded WGEN-lite generator built from the published algorithm
+
+**Date** 2026-10-09 · **Approved by** the primary session at PR TW-b's design freeze (step-19 §17.9.1;
+QTWb-1 … 7 ruled as recommended) · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-26`, `ARC-28`, `ARC-33`, `ARC-35`, `ARC-61`, `ARC-67`, `DEP-30`, `DEP-31` (weather
+data and the fetch tool, TW-d), `REUSE_POLICY.md` §§11–12 · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.3, §5, §6, §15.1, §16, §17 (S19, PRs TW-a and
+TW-b)
+
+**Problem.** A world that wants a date, a sun and weather must have them without the kernel learning what
+a day, a sunrise or rain is (kernel ignorance), without any client computing them (clients only render,
+`INV-TW-6`), and without the time scale or pause reaching a rule (`ARC-67`, `INV-TW-2`). The weather must
+be the same for every observer, reproducible from the world's facts, realistic by default, and
+replaceable by a world's author.
+
+**Choice.**
+
+1. **Both are System Packs.** `calendar` (`systems/calendar`, PR TW-a) owns the civil date and the sun.
+   `weather` (`systems/weather`, PR TW-b) owns the weather: condition, cloud, temperature, precipitation
+   and wind, hour by hour, one climate per world. Each is installed by one line in `systems/installed`
+   (`ARC-33`) and enabled by a world's `systems:` list.
+2. **`weather` depends on `calendar`, never the reverse** (`INV-TW-10`). It declares the dependency, so a
+   world that enables `weather` without `calendar` is refused at assembly by the kernel's existing
+   dependency check. It reacts to calendar's Public `day-began` and reads the date and the day's light
+   events from that fact's payload; it never recomputes a date or the sun. Removing `weather` leaves
+   calendar's facts byte-identical.
+3. **Both are configured through `ARC-61`'s seam**: `configure/calendar.yaml` and
+   `configure/weather.yaml`, decoded by the owner's own types so a refusal names the file, its line and
+   column, and the key. Each configuration becomes one SystemInternal fact with no subjects
+   (`calendar-configured`, `weather-configured`). A pack that is enabled but not configured states
+   nothing.
+4. **Each keeps one world-level Process** (`calendar`, `climate`) whose state is the fold of the pack's
+   own facts, so a snapshot and a replay agree and a resumed world continues the same weather chain.
+5. **Both emit Public facts at changes** — `day-began`, `daylight-changed`, `weather-changed` — so other
+   packs (an umbrella seller, a rainy-day routine) may react without either pack knowing them
+   (`ARC-26`, `ARC-28`). The per-day weather record, `weather-day`, is SystemInternal.
+6. **Both disclose on the observer's place** through presence's existing `PerceptionProvider::discloses`
+   (`calendar-day`, `calendar-light`; `weather-today`, `weather-now`). An observer in no place gets
+   none.
+7. **Integers only.** Weather is fixed-point integers end to end (0.1 °C, 0.1 mm, 0.1 m/s, per-mille
+   probabilities, oktas); no `f32` or `f64` appears in the weather pack's source, which a test scans
+   for (`INV-TW-5`). Its randomness is counter-based SplitMix64 keyed by the configured seed, the world
+   day and a fixed draw index, so a fixed configuration gives the same weather on every platform.
+8. **Kernel, contracts and presence are unchanged** (`INV-TW-3`).
+
+**Alternatives rejected.** A `discloses_at` on presence (a perception contract change for a need the
+existing `discloses` meets); client-side astronomy or weather (every client would compute a world rule,
+and two clients could disagree); a kernel clock that knows days (`ARC-67`).
+
+**Reuse: the weather generator is built from the published algorithm** (`REUSE_POLICY.md`; step-19
+§3.3, read 2026-10-08).
+
+```text
+(a) WGEN — Richardson 1981, Water Resources Research 17:182–190; Richardson & Wright 1984, USDA-ARS
+    ARS-8. A published algorithm: a first-order two-state Markov chain for wet and dry days with monthly
+    P(W|D) and P(W|W), gamma wet-day amounts, AR(1) temperature conditioned on wet or dry. A clean-room
+    implementation has no licence issue.
+(b) LARS-WG — academic, non-commercial licence only
+(c) ClimGen (WSU) — Weibull amounts; not pursued
+(d) plain monthly rule tables — trivially authored, but independent days with no rain spells
+```
+
+**Selected: (a), simplified to "WGEN-lite"** and written by us in `systems/weather`: the Markov chain
+with monthly per-mille probabilities; wet-day amounts from a per-month table of five quintile amounts
+instead of a gamma sampler (no floating point); temperature as the monthly mean plus an integer AR(1)
+anomaly with bounded integer noise. (b) fails the licence rule. (c) offers no gain in fit for this use.
+(d) is kept as the degenerate case of the same file: a table with `p_wet_after_dry == p_wet_after_wet`
+*is* an independent table, so there is one schema, not two. No crate is adopted: no maintained Rust
+weather generator exists, and the generator is about two hundred lines of integer arithmetic over a
+mixer the tree already uses (the paced controller's SplitMix64 finalizer, restated in the pack and
+pinned to the reference outputs). The station record, its CSV form and the fetch tool's HTTP client are
+`DEP-31`'s (TW-d), not this decision's.
+
+**Defaults are content with sources.** The pack's climate is `configure/weather.yaml`. Market Town's
+table is derived from NOAA's U.S. Climate Normals 1991–2020 for San Diego Lindbergh Field (USW00023188)
+by formulas written in the file's header; values the normals do not give are labelled provisional until
+TW-d fits them from the station record. The daily-to-hourly constants are pack constants with cited
+sources: the diurnal temperature shape of Parton & Logan (1981), the American Meteorological Society's
+drizzle and heavy-rain intensity thresholds, and the WMO okta scale (step-19 QTWb-6).
+
+**Accepted limitations.** One climate per world (regional weather is QTW-12). Wet-hour counts by daily
+amount are a stated design default, not a measured climatology, until the hourly layer (TW-g). Wind has
+no day-to-day noise in this version.

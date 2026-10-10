@@ -208,6 +208,9 @@ def test_two_seats_hold_one_conversation_and_every_frame_round_trips(
                     for a in f.observation.affordances
                 ),
             )
+            # S11-D: the server sent its clock right after welcome, and the world is running.
+            for session in (visitor, alice):
+                assert session.clock is not None and not session.clock.paused, session.clock
             answered = 0
             for line in ("Good morning.", "Is the coffee fresh?"):
                 began = time.monotonic()

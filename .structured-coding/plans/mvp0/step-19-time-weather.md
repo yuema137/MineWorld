@@ -1725,8 +1725,306 @@ HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-b.md
 
 ## 17.11 Ledger
 
-Empty until execution starts. Commit rows, evidence (E-TWb-n), mutations (M-TWb-n) and deviations (TWb-Dn) are
-recorded here by the execution session.
+Execution session: worktree `/Users/yuema137/mineworld-worktrees/impl-tw-b`, branch `mvp0/pr-tw-b-weather`,
+base `origin/main @ a454e37` (#107 merged; TW-a on main). IL-b (#102) was open at the start. Handoff:
+[`handoff-tw-b.md`](handoff-tw-b.md).
+
+**Start-of-session audit (2026-10-09).** §17.2's anchors re-verified on a454e37: calendar's
+`system.rs` shape (`PackConfiguration` + `configures!()`, `react` starts the Process from the configured
+fact and folds its own facts, `wake` only reschedules and states facts, `discloses` keyed to `Presence`);
+`DayBegan { day, phase }` with `CalendarDay::{date, weekday, day_start, events, track}` public and
+`DayEvents` fields public `Option<u32>`; `kernel/src/registry.rs` `check_dependencies` l. 212–228
+(`SystemDependencyMissing` / `SystemDependencyDisabled`); `authoring/src/configuration.rs`
+`seed(&Seeding, &C)` (two arguments on main at the branch point); `systems/installed` one line each, with
+`mineworld-calendar` a path dependency (not a workspace dependency); AC-1 `GENERIC_PACKS: [&str; 1] =
+["calendar"]` at l. 1030; `cognition/rule-controller/src/paced.rs` `mix` at l. 312–318;
+`worlds/market-town/world.yaml` `calendar` last, `configure: [calendar]`; `docs/DECISIONS.md` ends at
+DEP-30 with 74 ids. All as recorded.
+
+### Commit ledger
+
+| # | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- |
+| C1 | [x] ARC-68 appended after DEP-30 (date, approval, design pointer, choice 1–8, alternatives, reuse table WGEN / LARS-WG / ClimGen / plain tables, defaults with sources, limitations); `systems/weather/README.md`; `src/lib.rs` = the spec header (§17.3 as a module doc); doc-only `Cargo.toml` (TWa-D1's precedent) | [x] `check_doc_headings.py`: 191 sections, none duplicated — PASS; `check_decision_ids.py`: 75 ids (74 + 1), all distinct — PASS; `cargo check -p mineworld-weather` clean; Cargo.lock gains the member only | [x] terms against CORE_CONCEPTS: `System Pack`, `Process`, `Event` (facts), `Component` used as defined; "climate" is a Process type name, "WGEN-lite" a generator name, neither an ontology term. ARC-68 names DEP-31 as TW-d's and does not restate data, CSV or fetch content |
+| C2 | [x] `day.rs` (`Condition` closed, kebab-case; `WeatherHour`, `DailyWeather`, `Chain`, `Origin::Rule`, `WeatherDay`); `draw.rs` (`mix` restated with the paced controller's constants and Vigna's reference cited; `permille` multiply-shift; `draw`; fixed indices 0…6, 16, 17); `rules.rs` (`Rules`/`Month`, decode-is-validate, every refusal naming its key); `generate.rs` (`day` per SD-TW-b-5, `weather_day` composing a calendar day → `WeatherDay`); `hours.rs` (`DIURNAL`, `WET_HOURS`, AMS thresholds, okta mapping, `hours`); real manifest (SD-TW-b-1) | [x] E-TWb-2: `cargo test -p mineworld-weather` lib 15 + diurnal 1 + no_float 1, all pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. Mutations M-TWb-2, -3, -6 killed (below); `git grep MUTATION -- '*.rs'` empty | [x] rounding stated (i64 division toward zero, documented in `generate.rs`; T(h) floor with range > 0, `hours.rs`); indices are distinct constants in one module, never reused; quintile = u·5/1000 ≤ 4 since u ≤ 999; the remainder goes to the first wet hour, deterministic; sources cited in code (Richardson; Parton & Logan; AMS drizzle / rain; WMO okta; Vigna); nothing reads host, scale or pause — the inputs are the rules, the seed, the day index, the month and the light events; overflow: every i64 product ≤ 10^4·10^3, every narrowing bounded by validation or `ANOMALY_LIMIT_DC` (TWb-D2) |
+| C3 | [x] `configuration.rs` (`WeatherConfiguration { source, seed, rules }`, `deny_unknown_fields`; `source: record` refused with SD-TW-b-3's message); `event.rs` (`WeatherConfigured { seed, rules, record: Option<RecordRef> }` with `RecordRef` an empty enum; `WeatherDay` is itself the `weather-day` event; `WeatherChanged { hour, condition, cloud_oktas, precipitation_tenth_mm }`); `process.rs` (`ClimateProcess` "climate", `ClimateState { configured, today: Option, now, chain }`); `component.rs` (`weather-today`, `weather-now`); `system.rs` (`PackConfiguration` + `configures!()`; `depending_on([presence, calendar])`; `react` and `wake` per SD-TW-b-10; `discloses` per SD-TW-b-11); registry line `Weather => mineworld_weather::WeatherSystem` plus its Cargo line. Separate commit: the placeholder `weather` in two loader tests renamed (TWb-D9) | [x] E-TWb-3: `cargo test -p mineworld-weather` lib 15, configuration 2, diurnal 1, no_float 1, weather 8, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` all pass (after TWb-D9); `-p mineworld-cli --test configure --test commands` pass; `-p mineworld-acceptance` E-TWb-3b; clippy on weather and installed `--all-targets --all-features -D warnings` clean; fmt clean. M-TWb-1 held as a permanent control; M-TWb-4 killed | [x] single ownership: only weather starts, reschedules or writes the climate Process (`ProcessKind::Owner`), and it reads calendar only through `day-began`'s payload (`DayBegan::day()`), never calendar's Process or components. No host state, scale or pause is read (inputs: facts, `world.at()`, Presence for disclosure). State is written only in `react` from fact payloads (`with_day`, `with_now`), and `wake` only reschedules and states facts, so a snapshot equals the fold (restart test byte-identical). Public `weather-changed` has no subjects; `weather-configured` and `weather-day` are SystemInternal with none. Dependency direction: weather → calendar → presence; calendar names nothing of weather (its crate does not depend on weather and its declaration subscribes to nothing of weather), so INV-TW-10 holds structurally as well as by C3 (g). The "day-began before the climate exists" path: genesis records both configured facts in generation 0 and `day-began` is generation 1 (C3 (a) observes the order), and later `day-began`s come from calendar's wake after genesis. If it ever happened, `react` returns nothing (treated as unconfigured), not a refusal. A `weather-changed` with no `today` is refused `weather-unstarted`; a `wake` with nothing due reschedules and states nothing |
+| C4 | [x] 0728fa9: `configure/weather.yaml` (§17.4 table from E-TWb-1, derivation header with inputs and formulas, provisional values labelled); `world.yaml` `weather` after `calendar`, `configure: [calendar, weather]`; README one line; `GENERIC_PACKS = ["calendar", "weather"]`; the AC-1 unit test's foreign pack `weather` → `bodies`, plus the allowed shape for both generic packs in either order; ARC-35 note (2026-10-09, TW-b) as the kickoff asked; the weather unit tests read the world's own file (one copy of the table). 52a3c1c merges origin/main (IL-b #102, 13b #103, P3 #98); 0599b2b adapts `seed` to IL-b's third argument. The opt-in tests `tests/moves_nobody.rs` (criterion 5 and its diagnostic) and `tests/checkpoint.rs` (CP-TW-b) read saves | [x] E-TWb-0 (base), E-TWb-4 (INV-TW-1 and the new baseline), E-TWb-5 (CP-TW-b), E-TWb-6 (criterion 5: **FAIL as frozen**; material stop (6), TWb-F1). AC-1 14/14; M-TWb-A1, M-TWb-A2 as ruled. Town runs 6 of 8 | [x] content plus the allow-list word, the unit test's example and the ARC-35 note; the derivation header lets a reader recompute every normals-derived number (inputs printed, formulas stated, rounding stated); provisional values labelled. TWb-F2: the world must list calendar before weather (kernel install order), though AC-1 is order-free |
+| C5 | [x] ledger, handoff, PR #113 opened **not READY** (TWb-F1 open) | [x] full gate E-TWb-7 PASS; CI on the final head is recorded in the PR and the handoff, not here (a commit cannot name its own CI) | — |
+
+### Evidence
+
+```text
+E-TWb-1  E-TWb-pre-1 re-read 2026-10-09 with WebFetch:
+         https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/access/USW00023188.csv (San Diego Lindbergh
+         Fld). Jan … Dec:
+           MLY-TMAX-NORMAL °F         66.4 66.2 67.0 68.8 69.5 71.7 75.3 77.3 77.2 74.6 70.7 66.0
+           MLY-TMIN-NORMAL °F         50.3 51.8 54.5 57.1 60.0 62.6 66.1 67.5 66.2 61.5 54.8 49.8
+           MLY-PRCP-AVGNDS-GE001HI    6.5  7.1  6.2  3.8  2.2  0.7  0.7  0.3  0.9  2.4  3.7  5.8
+           MLY-PRCP-NORMAL in         1.98 2.20 1.46 0.65 0.28 0.05 0.08 0.01 0.12 0.50 0.79 1.67
+         The first three rows equal §17.2's E-TWb-pre-1. The fourth is also used, for the amounts
+         (TWb-D4). The table they give, by §17.4's formulas (February 28 days, TWb-D8):
+           tmax_dc  191 190 194 204 208 221 241 252 251 237 215 189
+           tmin_dc  102 110 125 139 156 170 189 197 190 164 127  99
+           p_wd     147 178 140  89  50  16  16   7  21  54  86 131   (p_ww = p_wd + 300)
+E-TWb-2  C2, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- --nocapture`: 17 passed.
+         (a) mix(0,1..3) = E220A8397B1DCDAF, 6E789E6AA1B965F4, 06C45D188009454F = the reference
+             splitmix64.c's first three outputs from seed 0. PASS.
+         (b) Criterion 2, 36 524 days, seed 19, the provisional San Diego table: wet ‰ against
+             stationary ‰ — Jan 221/210, Feb 268/254, Mar 215/200, Apr 123/127, May 80/71, Jun 20/22,
+             Jul 19/22, Aug 9/10, Sep 38/30, Oct 76/77, Nov 126/122, Dec 175/187. Max |Δ| = 15 ‰
+             (Mar), bound 30 ‰. PASS.
+         (c) Criterion 3, constant table p_wd 200 / p_ww 500: 10 435 wet days in 5 213 spells, mean
+             2.00 days (bound 1.8 … 2.2). PASS.
+         (d) Same seed gives equal bytes over 365 days; seeds 19 and 20 differ. PASS.
+         (e) Over all 36 524 days: max T(h) = TMAX and min T(h) = TMIN exactly, Σ hourly precipitation =
+             PRCP exactly, wet-hour count = WET_HOURS(PRCP); 1 000+ wet days exercised. PASS.
+         (f) 20 → 2 h drizzle (10/h, boundary); 44 → 4 h rain (11/h); 912 → 12 h rain (76/h, boundary);
+             924 → heavy rain (77/h); 913 → the remainder tips only the first hour to heavy rain; thunder
+             day → thunderstorm; fog 05–09 (civil dawn 05:23), polar fog 05–09, civil dawn 07:00 →
+             07–09; polar minimum at 06:00, maximum at 15:00; San Diego minimum at 05:00. PASS.
+         (g) 18 refusals through serde-saphyr, each naming its key and "line 2 … column"; eleven months
+             refused naming `months` and 11; unknown keys `gusts`, `seasons` refused; five bound values
+             accepted; CRLF = LF; a fact copy with tmin ≥ tmax is refused on decode. PASS.
+         (h) no_float: 0 tokens in 12 source files. PASS. diurnal: DIURNAL equals the formula
+             recomputed in floating point (outside src/), every row 0 at sunrise and 1000 at 15:00.
+         Edge cases: p_ww = 1000 absorbing after the first wet day; p_wd = p_ww → 300 ± 30 ‰ marginal
+         and conditional (independent); TMIN repair exercised with tmin 190 / tmax 191, noise 200,
+         ρ 999 — tmin < tmax on every day of 100 years.
+E-TWb-3  C3, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- --nocapture`: 27 passed.
+         The test world has presence, calendar (San Diego), weather (a changeable test climate: every
+         month p_wd 250 / p_ww 550, fog 300 ‰, thunder 150 ‰, grey mornings 400 ‰) and a placer.
+         (a) Genesis at instant 0, in this order: calendar-configured, weather-configured, day-began,
+             weather-day, weather-changed (hour 0). PASS.
+         (b) 30 days → 31 weather-day at 0, 86 400, … 30 × 86 400, dated 2026-10-08 … 2026-11-07; 83
+             weather-changed, each at day_start + 3 600 h, each changing the condition, and the
+             sequence equals the one the days' own hours imply (instant, hour, condition, oktas,
+             amount). 11 wet days; conditions seen: clear, overcast, fog, drizzle, rain, thunderstorm.
+             Process state = the fold (last day, chain, now). PASS.
+         Visibility: weather-changed Public; weather-day and weather-configured SystemInternal; no
+             subjects on any. PASS.
+         (c) Restart stopped at day 2 14:30, resumed, run to day 8: 6 weather-day after the stop; the
+             facts after the stop are byte-identical to the uninterrupted world's; the resumed state's
+             today, chain and now equal the fold of the facts. PASS.
+         (d) Criterion 4, through WorldPack::read + assemble: `systems: [presence, weather]` refused with
+             "the world this pack describes cannot be composed: system 'weather' depends on 'calendar',
+             which is not installed in this world". The same pack with calendar assembles and its
+             genesis carries weather-configured. PASS.
+         (e) weather enabled, no configure/weather.yaml: no weather fact, no climate Process, no weather
+             record disclosed; calendar's facts (projection without ids) equal a world without weather
+             installed. PASS.
+         (f) bo (no place) → no weather record; ada → exactly [(square, weather-today), (square,
+             weather-now)]; weather-today = day 0's weather-day; weather-now = the last change (hour,
+             condition), which is the noon hour's condition; after `place-me` bo gets the same two.
+             Disclosure size: weather-today 3 179 B, weather-now 31 B (R-TWb-4 estimated about 2 KB). PASS.
+         (g) INV-TW-10: over 30 days the 1 + 31 + 180 calendar facts are equal with and without weather in
+             (at, type, visibility, subjects, payload bytes). PASS. Control M-TWb-1 below.
+         (h) Largest encoded climate state at 13:00 on each of 30 days: 6 701 bytes ≤ 8 192. PASS.
+         (i) Through WorldPack::read: `source: record` → "…/configure/weather.yaml is not a valid
+             configuration file: error: line 1 column 9: source `record` needs the record data of TW-d;
+             this build accepts `rules`"; p_wet_after_wet 1447 → "line 5 column 7: p_wet_after_wet is per
+             mille from 0 to 1000, not 1447"; tmin_dc 300 → "line 5 column 7: tmin_dc must be below
+             tmax_dc, not 300 against 191"; rain_tenth_mm of 2 → "line 5 column 68: rain_tenth_mm is 5
+             amounts in 0.1 mm, not 2". File (by the platform's separator), line, column and key in
+             each. PASS.
+         (j) `cargo test -p mineworld-installed-systems -p mineworld-worldpack`: all pass, the registry
+             consistency test included. `-p mineworld-cli --test configure --test commands`: 4 + 2 pass.
+E-TWb-3b `cargo test -p mineworld-acceptance` on the C3 tree (log target/tw-b/c3-acceptance.log): exit 0,
+         ac1_composability 14 passed, and every other target passes; 10 s wall. No world has changed yet.
+E-TWb-0  Base capture on a454e37 (clean; the branch's base), dev, by target/tw-b/capture.sh base save
+         (untracked; TW-a's method: sha-256 of every `run` output line but `wall`; LONG-RUN payload bytes):
+           social-cafe 300 d seed 7   ad49c723…c64b   365 330 facts, faults 0, 15.7 s
+           market-town 300 d seed 7   24a95d2a…d270   374 857 facts, faults 0, 21.2 s
+           bodies-yard 30 d seed 7    bd6a1002…80e6   62 385 facts
+           validate social-cafe / bodies-yard / market-town   ebcd60a0… / 7356b8f8… / 31fb85d4…
+           long_run          4 019 622 B   fdcf28d6…4445   (TW-a counted 4 019 632 with prefix and newline)
+           long_run_objects    612 410 B   e018c85e…d2be
+           market-town 300 d seed 7 --save base/market-save: 374 857 facts, 2 756 976 640 bytes, 39.2 s
+         All equal TW-a's E-TWa-9 references. Town runs: 3.
+E-TWb-4  Head capture on 0599b2b (C1–C4 + origin/main 551fb2c merged + the IL-b adaptation; clean), dev:
+           social-cafe 300 d seed 7   ad49c723…c64b   365 330 facts   = E-TWb-0   PASS (INV-TW-1)
+           bodies-yard 30 d           bd6a1002…80e6                   = E-TWb-0   PASS
+           validate social-cafe, bodies-yard                          = E-TWb-0   PASS
+           long_run, long_run_objects                                 = E-TWb-0   PASS
+           market-town 300 d seed 7   90479fd8631a3f9c88ddc9c05720fbf8fd8fbc5b1573d6abd47e7351b9d1ae57,
+             375 527 facts = 374 857 + 670 weather (1 weather-configured, 301 weather-day, 368
+             weather-changed), faults 0, 27.0 s — the NEW MARKET-TOWN BASELINE (SD-TW-b-12)
+           validate market-town 6368595a…0318 (changed by design: 134 genesis facts)
+           market-town 300 d seed 7 --save head/market-save: 375 527 facts, 2 872 868 864 bytes, 45.8 s
+         Main moved from a454e37 to 551fb2c during TW-b. The unchanged social-cafe, bodies-yard and long_run
+         digests on the merged head show that the move did not change the headless path, and IL-b's own
+         E-IB-15 records market-town at main equal to 24a95d2a. So E-TWb-0 stays the reference.
+         The run summaries of base and head market-town (every line but `wall`) differ only in the
+         per-day cumulative totals and the history line, both of which count the weather's own facts.
+         Every per-type fact count, every request count and every person's activity line is equal.
+         Town runs: 6 of 8.
+E-TWb-5  CP-TW-b on 0599b2b + the checkpoint test, 2026-10-09: `run market-town --seed 1 --days 120 --save
+         A` and again into B (17.5 s, 17.3 s), output equal but the save path in the header line and
+         `wall`; R run to day 60 and resumed to day 120 ("resumed … at revision 58258 (snapshot 58240 + 18
+         re-executed)"). tests/checkpoint.rs (opt-in): A, B and R hold the same fact rows byte for byte;
+         121 weather-day at 0, 86 400, …, dated 2026-10-08 … 2027-02-05; 16 wet days, longest dry run 16
+         days, 112.8 mm in all (normals for that span: about 19 wet days, about 127 mm); 134 weather-
+         changed, each as the hours imply. `mineworld replay --save R worlds/market-town`: "116389
+         revision(s) re-executed from genesis, 150616 fact(s) and 1819 snapshot(s) reproduced byte for
+         byte". PASS.
+E-TWb-6  Criterion 5 (weather moves nobody), tests/moves_nobody.rs (opt-in), E-TWb-0's base save vs
+         E-TWb-4's head save:
+         `weather_moves_nobody` — FAILS as frozen (payload bytes compared): the first diverging non-
+           weather fact is #119, at t0, agenda-changed, Participants, [EntityId(7)]: payload
+           `{… "label":"home","until":19800,"routine":"2"}` without weather, `"routine":"3"` with.
+         `where_the_non_weather_facts_differ` (diagnostic, written after the failure) — over all 374 857
+           non-weather facts: instant, type, visibility and subjects are equal for every one; 32 953
+           payloads differ, and every differing leaf is a Process id shifted by exactly +1:
+             agenda-changed.routine              11 712 of 11 712
+             group-activity-started.activity      6 651 of  6 651
+             group-activity-ended.activity        6 650 of  6 650
+             left-group-activity.activity         4 481 of  4 481
+             joined-group-activity.activity       3 459 of  3 459
+         Cause: the climate Process is started in genesis generation 0 and takes Process id 2 from the
+         world's one Process counter (calendar's is 1). Every routine and group activity started after it
+         gets an id one higher. That is the same kind of shift as the event ids that §17.5 C3 (g) already
+         excludes; it is not a controller or rule reading weather.
+         → TWb-F1, MATERIAL STOP (6). Not re-baselined; the criterion is not edited.
+E-TWb-7  Full gate on 5928db2 (clean), macOS arm64, by target/tw-b/gate.sh, 2026-10-09 17:27–17:38:
+           cargo fmt --all --check                                         exit 0           PASS
+           check_doc_headings.py   192 numbered sections, none duplicated                    PASS
+           check_decision_ids.py   84 ids, all distinct                                      PASS
+           check_ci_pins.py        toolchain pins agree                                      PASS
+           check_scratch.py scan   180 test sources, none outside test-support (2 exempt)    PASS
+           cargo clippy --workspace --all-targets --all-features -- -D warnings   exit 0   PASS
+           cargo test --workspace --no-fail-fast   exit 0, 641 s: 194 result lines, all ok;
+             864 passed, 0 failed, 20 ignored (the opt-in save checks among them)        PASS
+           check_scratch.py left --target-dir target   no scratch left                       PASS
+         The later commits change only the plan documents. Full workspace test runs: 1 of 2.
+```
+
+### Mutations
+
+```text
+M-TWb-3  generate.rs: the wet branch uses p_wet_after_dry (the chain ignores yesterday) →
+         the_mean_wet_spell_is_the_chains FAILS: "7300 wet days in 5837 spells: mean 1.25 days … outside
+         1.8 … 2.2" (as §17.5 C2 (c) predicted, 1.25), and criterion 2 and the absorbing-chain test fail
+         too. Killed. Reverted.
+M-TWb-2  generate.rs: p_wet_after_wet on both branches → criterion 2 FAILS at January: 1 379 wet of 3 100
+         = 444 ‰ against 210 ‰. Killed. Reverted.
+M-TWb-6  generate.rs: `let _x: f64 = 0.0;` → no_float FAILS naming generate.rs. Killed. Reverted.
+         After all three: `git grep MUTATION -- '*.rs'` empty; 17 passed.
+M-TWb-1  Kept as a permanent control in tests/weather.rs `calendars_facts_are_the_same_with_and_without_
+         weather`: the same projection *including* event ids is asserted unequal between the two worlds,
+         and it is (the weather's facts take ids from the shared counter). So the id-free comparison is
+         known to see the interleaving and to exclude only the ids. Observed: PASS of the `assert_ne!`.
+M-TWb-A1 world.yaml: `weather` moved before `calendar`, still after the six → AC-1 14/14, green as ruled
+         (order among generic packs is free in check 3). But `mineworld validate worlds/market-town` then
+         refuses the world: "system 'weather' depends on 'calendar', which is not installed in this world"
+         — the kernel installs in `systems:` order and checks dependencies at install (TWb-F2). Reverted.
+M-TWb-A2 ac1_composability.rs: `GENERIC_PACKS = ["calendar"]` → check_3_the_world_delta FAILS:
+         "world.yaml: `weather` follows the six market packs and is not an allow-listed generic pack
+         [\"calendar\"]", "world.yaml: `configure` names `weather`, not an allow-listed generic pack",
+         "configure/weather.yaml: not the configuration of an allow-listed generic pack"; the unit test
+         fails too (its allowed shape). Killed. Reverted; `git grep MUTATION` empty; 14/14.
+M-TWb-4  system.rs: `depending_on([PresenceSystem::ID])` (calendar dropped) →
+         weather_without_calendar_is_refused_at_assembly FAILS: "refused: ()" — the world without calendar
+         assembled. So the guard is the declared dependency, and the test observes it. Killed. Reverted;
+         `git grep MUTATION -- '*.rs'` empty.
+```
+
+### Deviations and findings
+
+```text
+TWb-D1  (bounded) `rain_tenth_mm` "5 ascending integers ≥ 3" is checked as non-decreasing, each 3 … 10 000.
+        Reason: the normals-derived August quintiles are 3, 3, 6, 10, 19 (two amounts at the 0.3 mm
+        floor), and a non-decreasing table still gives a well-defined quintile lookup. The upper bound
+        keeps the amount in u16. Impact: none on the generator.
+TWb-D2  (bounded) The temperature anomaly is clamped to ±400 (40 °C), `ANOMALY_LIMIT_DC`. Reason: at the
+        stated bounds (ρ up to 999 ‰, noise up to 200) the AR(1) fixed point is ±200 000, which would
+        overflow the i16 `Chain` and the temperatures. Realistic tables stay far inside the clamp: the
+        stationary sd is about 0.72 × noise ≈ 2 °C. Impact: deterministic and stated. TMAX stays within
+        ±1 200 and TMIN within ±1 300, so both fit i16.
+TWb-D3  (bounded) `DIURNAL` is 13 rows of 24, one per sunrise hour 01 … 13, not one 24-entry curve. Reason:
+        SD-TW-b-8a's curve must be 0 at the day's sunrise hour, which varies (San Diego 05 … 06), so one
+        row cannot hold it. A sunrise outside 01 … 13 is clamped to the nearest (near polar day), and a
+        missing sunrise uses 06 as designed. The table is precomputed from the formula in its comment
+        (Parton & Logan's sine to 15:00, exponential decay b = 2.2 to the next sunrise), and
+        tests/diurnal.rs recomputes it in floating point outside src/ and holds it equal.
+TWb-D4  (bounded; realism, operator rule "realistic defaults with sources") The provisional wet-day
+        amounts are not free design values. Each month's are derived from the same normals file:
+        μ = MLY-PRCP-NORMAL × 254 / MLY-PRCP-AVGNDS-GE001HI (the mean wet-day amount, 0.1 mm), times the
+        exponential distribution's quintile midpoints −ln(1 − p) at p = 0.1, 0.3, 0.5, 0.7, 0.9
+        (0.105, 0.357, 0.693, 1.204, 2.303), rounded and floored at 3. The other provisional fields are
+        labelled design values (C4's file header): t_noise 30 (stationary sd ≈ 2.2 °C), t_ar 600 (WGEN's
+        typical lag-1 temperature persistence), wet_tmax_shift −20, and monthly fog, thunder, overcast
+        and wind values. TW-d's fit replaces them all.
+TWb-D5  (bounded) A fog hour carries 8 oktas (the sky is obscured: WMO's 9 is outside the 0 … 8 field).
+        Precedence within an hour is wet, then fog, then cloud.
+TWb-D6  (bounded) The no-float scan (C2 (h)) and the DIURNAL formula check live in systems/weather/tests/,
+        outside src/: the scan reads src/ only, and the formula check must evaluate floating point.
+TWb-D7  (bounded) `generate::day` takes the month (u8) rather than the whole date: the month is all it
+        reads. `generate::weather_day` (calendar day + chain → `WeatherDay`) is added in C2 as the pure
+        composition C3's `react` calls.
+TWb-D8  (bounded) The wet-day frequency π uses 28 days for February (§17.4 does not state it). With 28.25
+        February's p_wd would be 176 rather than 178.
+TWb-D9  (OUTSIDE §17.10's CHANGE SET; flagged for the operator) Installing a pack named `weather` falsified
+        the premise of two existing loader tests, which used `weather` as their example of "a name no
+        system of this build provides": worldpack/tests/configuration.rs
+        `a_key_that_is_no_system_of_this_build_is_refused_listing_the_systems` (it then failed with
+        `ConfigurationOwnerNotEnabled { system: "weather" }`) and tools/cli/tests/configure.rs
+        `validate_refuses_each_configuration_mistake_by_name`. Change: the placeholder name only,
+        `weather` → `tides`, with a comment saying why. No assertion is weakened and no production code
+        is touched. It is one separate commit, so it can be reviewed or dropped on its own. Why it was
+        not treated as a stop: none of §17.10's material stops (1)–(7) names the loader's tests, the
+        change is forced by the frozen scope item "registered in the installed set", and there is no
+        alternative inside the change set (the pack's id `weather` is frozen by SD-TW-b-1 and
+        §17.4). Kernel tests that define their own local `weather` stub system compose their own
+        worlds, not the installed set, and are unaffected.
+TWb-D10 (bounded) Small shape choices inside SD-TW-b-4/-9:
+        - `WeatherDay` is itself the `weather-day` event type, rather than being wrapped.
+        - `Condition` derives `Ord`, for deterministic sets in tests and clients.
+        - `rain_tenth_mm` is decoded through a counting newtype, so a list of the wrong length names its
+          key rather than serde's "invalid length".
+        - `now` (and `weather-now.hour`) is the hour of *today* the condition holds from. At midnight it
+          is folded to 0 when yesterday's condition carries over and no `weather-changed` is stated
+          (SD-TW-b-10 (c)).
+        - `react(weather-day)` takes the hour from `world.at()` rather than assuming 0, so a genesis that
+          is not at a midnight would still be right. At every midnight, and so in every world today,
+          it is 0.
+TWb-D9  RULING (coordinator, 2026-10-09): accepted, as bounded and necessary.
+TWb-D11 (process; reconciliation) Two copies of this execution session ran at once in this worktree after
+        two resume messages (the coordinator's error, 2026-10-09). The first copy found unexplained edits
+        and stopped under CLAUDE.md §3.1. The coordinator confirmed that both copies had stopped and that
+        this session holds the tree alone, and ordered a reconciliation. The twin's uncommitted changes
+        were reviewed file by file against §17's C3/C4:
+          systems/weather/src/fixture.rs        kept — reads the world's own weather.yaml (one copy)
+          systems/weather/src/generate/tests.rs kept — adapted to the block-style table
+          systems/weather/src/hours/tests.rs    kept — adapted to `san_diego()`
+          systems/weather/src/rules/tests.rs    kept — January's line range computed from the edited
+                                                  text, so an inserted key still points inside January
+          worlds/market-town/world.yaml         kept — `weather` after `calendar`, `configure` entry,
+                                                  comment in calendar's style
+          worlds/market-town/README.md          kept, rewrapped to the file's width
+          worlds/market-town/configure/weather.yaml  kept — byte-for-byte the table derived in E-TWb-1,
+                                                  confirmed by the unit statistics, which equal E-TWb-2's
+        None was restored from 4b922da. All of it is in 0728fa9 and was validated after reconciliation
+        (weather 27, AC-1 14/14, mutations above).
+TWb-F1  MATERIAL STOP (6) — criterion 5 fails as frozen, and its stated premise does not hold. Evidence:
+        E-TWb-6. §17.5 C4 (d) compares non-weather facts by payload bytes and says a failure means "a
+        controller or rule reads weather records or is perturbed by weather facts". The failure is
+        instead the world's shared Process-id counter: the climate Process takes id 2 at genesis, and
+        every routine and group activity id after it is one higher. Instants, types, visibility, subjects,
+        per-type counts, requests and every person's activity are identical over 300 days.
+        This is the Process-id analogue of the event ids that C3 (g) already excludes. No correct
+        implementation of SD-TW-b-6/-10 avoids it: the climate is a Process (frozen) and is started at
+        genesis (frozen generation order), and the id counter is the kernel's (INV-TW-3).
+        Not re-baselined, and the criterion is not edited. Smallest revision proposed for the operator:
+        criterion 5 compares non-weather facts with event ids and Process ids excluded, where a Process id
+        in a payload is compared through the bijection that maps each id to the id at the same start
+        order. Equivalently, the diagnostic's rule: equal everywhere except Process-id leaves shifted by
+        the number of climate Processes started before them. The diagnostic test already proves that
+        form on the full 300 days, so accepting the revision changes no code. Until it is ruled the PR
+        is not marked READY FOR OPERATOR REVIEW.
+TWb-F2  (finding) AC-1 check 3 treats order among generic packs as free (M-TWb-A1 stays green), but the
+        kernel installs `systems:` in order and refuses a dependency listed later. So a world must list
+        `calendar` before `weather`, and Market Town does. No change: AC-1 measures the delta's
+        structure, and assembly refuses the wrong order with a clear message.
+```
 
 ---
 

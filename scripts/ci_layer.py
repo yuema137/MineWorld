@@ -13,6 +13,8 @@ with. Every command is printed before it runs and timed after; the first failure
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
     python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
+                                                   (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
@@ -53,6 +55,22 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
+    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
+    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
+    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
+    "platforms": [
+        ["cargo", "build", "--locked", "-p", "mineworld-cli"],
+        # --no-fail-fast: on a platform, one red test binary must not hide another's result.
+        [
+            "cargo", "test", "--locked", "--no-fail-fast",
+            "-p", "mineworld-packages", "-p", "mineworld-worldpack", "-p", "mineworld-installed-systems",
+        ],
+        [
+            "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
+            "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+        ],
     ],
 }
 
@@ -117,11 +135,17 @@ def report(command: list[str]) -> None:
 
 
 def disk(moment: str) -> None:
+    """Prints free disk and target/'s size for the record; on a runner without `df`/`du` (Windows
+    outside its bash), says so instead — the record is information, never a verdict."""
     print(f"[ci] disk {moment}:", flush=True)
-    subprocess.run(["df", "-h", str(ROOT)], cwd=ROOT)
     present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-    if present:
-        subprocess.run(["du", "-sh", *present], cwd=ROOT)
+    for command in (["df", "-h", str(ROOT)], ["du", "-sh", *present] if present else None):
+        if command is None:
+            continue
+        try:
+            subprocess.run(command, cwd=ROOT)
+        except FileNotFoundError:
+            print(f"[ci] {command[0]}: not found on PATH", flush=True)
     sys.stdout.flush()
 
 

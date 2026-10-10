@@ -90,6 +90,7 @@ CHECKS: dict[str, Callable[[], None]] = {
     "result": lambda: server_frame("result"),
     "refused": lambda: server_frame("refused"),
     "closing": lambda: server_frame("closing"),
+    "clock": lambda: server_frame("clock"),
 }
 
 
