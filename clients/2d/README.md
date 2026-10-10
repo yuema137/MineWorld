@@ -11,8 +11,10 @@ draws the town that Person can see, in the default isometric `town` style.
 ./mineworld-2d --drive=walk     # the scripted checks, headless
 ```
 
-Click to walk, or use WASD / the arrow keys; Esc quits. Walk out of the apartments, along the street
-and into the café. Close the window and open it again: you are where the world left you.
+Click to walk, or use WASD / the arrow keys. Esc opens the settings menu: language (English or 简体中文),
+12- or 24-hour clock, window and display; Quit is there too. Settings stay on your machine and are
+shared with the 3D client. Walk out of the apartments, along the street and into the café. Close the
+window and open it again: you are where the world left you.
 
 Click a person (or press E over them) for what you can do with them; click yourself (or press Q) for
 what you can do on your own — buy, eat, drink, leave an activity. Every entry is something the world
@@ -29,8 +31,11 @@ What it is and is not:
 - It asks the world for things and draws what the world says. It decides no rule — not distance, not
   whether a door can be used — and a check (`scripts/check_client_rules.py`) holds it to that.
 - The art and the wording are a separate Presentation Pack, `presentation/mineworld-default/2D`,
-  read from disk at runtime (the English text is `i18n/en.po`). `--presentation=none` draws plainly;
-  `--variant=` picks one of the four style sets.
+  read from disk at runtime (`i18n/en.po`, `i18n/zh_Hans.po`; wording both clients use is in
+  `clients/shared/settings/locale/`). `--presentation=none` draws plainly; `--variant=` picks one of
+  the four style sets.
+- On Windows, clone with `git config core.symlinks true` (Developer Mode): `mineworld` and
+  `mineworld_settings` here are symlinks to the shared modules.
 
 What it looks like today: [`shots/preview/`](shots/preview/) (a preview, not an accepted look).
 

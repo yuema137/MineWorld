@@ -210,6 +210,8 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.size = Vector2(160, 18)
 	label.position = Vector2(-80, -top - 22)
+	# A name the world disclosed is world content: never translated, never UI text (S20 SD-SET-a-9).
+	MineWorldText.mark_world_text(label)
 	node.add_child(label)
 	var marker := Label.new()
 	marker.name = "marker"
@@ -220,6 +222,7 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	marker.size = Vector2(160, 16)
 	marker.position = Vector2(-80, -top - 38)
+	marker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	node.add_child(marker)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")

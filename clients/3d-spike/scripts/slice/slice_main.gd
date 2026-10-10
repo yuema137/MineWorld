@@ -45,8 +45,17 @@ var _env: Environment
 var hud: ControlsHud = null
 var _hud_place: Label = null
 
+## The player's settings (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`): read and
+## applied first, before anything is drawn; the menu opens with Esc.
+var settings_store: MineWorldSettingsStore
+var settings_menu: MineWorldSettingsMenu
+## What the first `_process` found in effect (AC-SET-7), for a probe to print.
+var first_frame := {}
+var _look_before := [true, false]
+
 
 func _ready() -> void:
+	_settings()
 	gi_mode = _gi_from_args()
 	_environment()
 	_sun()
@@ -67,6 +76,70 @@ func _ready() -> void:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested()
+
+
+## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
+static func harness_flags() -> PackedStringArray:
+	var out := PackedStringArray()
+	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES:
+		out.append("slice-" + mode)
+	return out
+
+
+## The settings, the shared catalogs (the 3D client has no Presentation Pack yet, S14 16f), the CJK
+## font, the clock, the language and the display, with the render scale this client offers.
+func _settings() -> void:
+	settings_store = MineWorldSettingsStore.open(OS.get_cmdline_user_args(), harness_flags())
+	for problem in MineWorldText.load_layers("", settings_store.extra_locale_dirs):
+		push_warning(problem)
+	settings_store.settle_language(MineWorldText.locales())
+	MineWorldText.install_font_fallback()
+	MineWorldText.set_clock(settings_store.settings.clock)
+	MineWorldText.set_language(settings_store.settings.language)
+	MineWorldDisplay.print_platform_once()
+	MineWorldDisplay.apply(settings_store.settings, get_window(),
+		PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE]))
+
+
+## The settings menu over everything; while it is open the body neither walks nor looks and E asks
+## for nothing. Closing leaves the mouse released until the next click, as Esc always did.
+func _menu() -> void:
+	settings_menu = MineWorldSettingsMenu.new()
+	add_child(settings_menu)
+	settings_menu.setup(settings_store, PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE]), _menu_theme())
+	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
+	settings_menu.opened.connect(func() -> void:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_look_before = [player.look_enabled, player.scripted_look]
+		player.look_enabled = false
+		player.scripted_look = false
+		if link != null:
+			link.set_process_unhandled_input(false))
+	settings_menu.closed.connect(func() -> void:
+		player.look_enabled = _look_before[0]
+		player.scripted_look = _look_before[1]
+		if link != null:
+			link.set_process_unhandled_input(true))
+
+
+## The menu in this client's light-on-dark HUD colours.
+static func _menu_theme() -> Theme:
+	var theme := Theme.new()
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.08, 0.09, 0.11, 0.92)
+	panel.set_corner_radius_all(10)
+	panel.set_content_margin_all(22)
+	theme.set_stylebox("panel", "PanelContainer", panel)
+	theme.set_color("font_color", "Label", Color(1, 1, 1, 0.92))
+	theme.set_font_size("font_size", "Label", 15)
+	return theme
+
+
+## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it.
+func _input(event: InputEvent) -> void:
+	if settings_menu != null and event.is_action_pressed("ui_cancel"):
+		settings_menu.toggle()
+		get_viewport().set_input_as_handled()
 
 
 ## `Props.gltf` keeps one generated scene per slug as a template it duplicates
@@ -345,21 +418,37 @@ func _spawn_player() -> void:
 	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
 
 
+## The HUD's composed lines are rendered every frame from their keys, so a language change shows at
+## once; the world line keeps its last key and arguments and renders again on a change.
 func _process(_d: float) -> void:
+	if first_frame.is_empty():
+		var window := get_window()
+		first_frame = {"language": MineWorldText.language(), "clock": MineWorldText.clock(),
+			"window": [window.size.x, window.size.y], "mode": window.mode, "max_fps": Engine.max_fps,
+			"render_scale": window.scaling_3d_scale, "file": settings_store.path,
+			"problems": settings_store.problems}
 	if _hud_place != null and player != null:
 		var p := SliceWorld.place_at(world, player.global_position)
-		_hud_place.text = "place: %s" % (p if p != "" else "-")
+		_hud_place.text = MineWorldText.text("hud.place", {"place": p if p != "" else "-"})
 	if _hud_looking != null and link != null:
 		var who := link.looking_at()
-		_hud_looking.text = "looking at: %s" % (who if who != "" else "-")
+		_hud_looking.text = MineWorldText.text("hud.looking_at", {"who": who if who != "" else "-"})
+	if _hud_time != null and link != null and link.client != null and link.client.latest != null:
+		_hud_time.text = MineWorldClockFormat.day_time(link.client.latest.at())
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		_render_world()
 
 
 func _hud() -> void:
-	if _scripted() and not SliceProbeWorld.with_hud():
-		return
-	hud = ControlsHud.attach(self, player)
-	_hud_place = hud.add_line("place: -")
-	_hud_world = hud.add_line("world: offline  (./mineworld-slice --server=host:port)")
+	if not (_scripted() and not SliceProbeWorld.with_hud()):
+		hud = ControlsHud.attach(self, player, true)
+		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
+		_hud_world = hud.add_line("")
+		_render_world()
+	_menu()
 
 
 ## The connection to a running MineWorld world (`VISUAL_SLICE.md` sec.9), when
@@ -367,6 +456,17 @@ func _hud() -> void:
 var link: SliceLink = null
 var _hud_world: Label = null
 var _hud_looking: Label = null
+var _hud_time: Label = null
+## The world line's last message, as a key and its arguments ("" while offline).
+var _world_key := ""
+var _world_args := {}
+
+
+func _render_world() -> void:
+	if _hud_world == null:
+		return
+	_hud_world.text = MineWorldText.text("hud.world.offline") if _world_key == "" \
+		else MineWorldText.text("hud.world", {"status": MineWorldText.text(_world_key, _world_args)})
 
 
 func _link() -> void:
@@ -378,13 +478,14 @@ func _link() -> void:
 	link.player = player
 	link.world_root = world
 	add_child(link)
-	# Both arrive in display labels (`SliceLink.display_label`); the link keeps
-	# entity ids to its log.
-	link.said.connect(func(text: String, notice: bool) -> void:
-		if _hud_world != null:
-			_hud_world.text = "world: " + text
+	# Both arrive in display labels (`SliceLink.shown_label`); the link keeps
+	# entity ids to its log. A status line is a key and its arguments, worded here.
+	link.said.connect(func(key: String, args: Dictionary, notice: bool) -> void:
+		_world_key = key
+		_world_args = args
+		_render_world()
 		if hud != null and notice:
-			hud.toast(text))
+			hud.toast(MineWorldText.text(key, args)))
 	link.spoke.connect(func(line: String) -> void:
 		if hud != null:
 			hud.caption(line))
@@ -395,4 +496,6 @@ func _link() -> void:
 	# visual default the operator judges in play). Offline nothing is targeted.
 	if hud != null:
 		hud.add_reticle()
-		_hud_looking = hud.add_line("looking at: -")
+		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
+		# The world's day and time, in the clock form the settings choose (S20 SD-SET-a-7).
+		_hud_time = hud.add_line("")
