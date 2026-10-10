@@ -5583,6 +5583,43 @@ test-macos    the `core` layer natively on  the same                            
 
 ---
 
+## ARC-48 note — documentation-only changes do not run the build (2026-10-09, S13 PR 13x)
+
+The decision is unchanged in what each layer runs; its triggers change (step-14 §16, under the
+operator's requirement of 2026-10-09 that a documentation-only update must not trigger CI).
+
+```text
+job        layer / role                         trigger                                  merge
+changes    classify the diff: code or docs      every run                                (feeds fast)
+           (scripts/ci_changes.py)
+fast       code: 1 fast structural              push to main and scratch/**;             blocks
+           docs only: the `docs` layer          pull_request; workflow_dispatch
+test, python, platforms, test-windows,          as before, and only when changes says    as before
+test-macos, scenario, linux-arm, mac,           code; otherwise skipped
+windows, ac8
+```
+
+- **The docs set is fixed by audit, not by guess** (step-14 §16.3): `docs/**`,
+  `.structured-coding/plans/**`, the root `README*.md`, `CLAUDE.md`. Nothing else is documentation,
+  including subdirectory READMEs, some of which tests read (`cognition/lm-controller/README.md`,
+  `server/PROTOCOL.md`). A diff is docs-only when every changed path, renames split into deletion and
+  addition, is in the set; an empty diff, an unknown base (a new branch, a force-push) and any `git`
+  failure are code. A push to `main` and a dispatch are always code, so `main` stays fully verified.
+- **The `docs` layer** (`ci_layer.py docs`) is `check_doc_headings.py`, `check_decision_ids.py` and
+  `ci_changes.py --self-test`, the only CI commands that read the docs set, run on the runner's Python
+  in seconds. `fast` also runs the classifier's self-test.
+- **Required checks still report.** No workflow-level `paths-ignore` (a workflow that never starts leaves
+  `fast` and `test` pending). Skipped jobs use a job-level `if:` on `needs.changes.outputs.code`, which a
+  required check reads as passing. `fast` runs `if: always()` and fails first if `changes` did not
+  succeed, so a broken classifier cannot let a PR merge with everything skipped.
+- **One run per PR commit.** `push` now triggers on `main` and `scratch/**` only; feature branches are
+  run by `pull_request`. This supersedes the "Economy" bullet that branch pushes run `fast` even when a
+  PR also runs it: a branch with no PR is not run until a (draft) PR is opened.
+- **Reuse.** `dorny/paths-filter` was considered and rejected, to avoid a third-party action holding a
+  repository-read token for a 30-line check that `git diff` already answers.
+
+---
+
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;
