@@ -2799,6 +2799,21 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
   30–60 job-minutes on standard runners, free on a public repository) after E-d merges. Then merge
   main, integrate E-d's action, dispatch once, repeat P-L, and mark READY. Until then the branch stays
   at `0df0be4`, whose evidence is complete.
+- **Rulings after the stop (primary session, relayed by the coordinator, 2026-10-09):**
+  - **Run 13 authorized.** The cap rises to 13 for one purpose: integrating E-d's action and main.
+  - **The plan is accepted.** Once E-d (#101) merges:
+    - merge main;
+    - take E-d's `.github/actions/native` unchanged. Parity needs no explicit `rustup toolchain
+      install` (the layer's `cargo build` installs the pinned toolchain first) and no architecture in
+      the cache key (one architecture per OS here);
+    - keep `parity` beside `platforms` in `ci_layer.py`, and keep 13b's portable `disk()`;
+    - pin E-d's `platforms` job to `macos-26` / `windows-2025` (§13.0.3) and add `-scenario` to its
+      scratch exclusion;
+    - dispatch run 13, repeat P-L, and mark the PR READY.
+  - **CRLF.** 13b's `.gitattributes`, with LF checkouts (W-3), stays. CRLF coverage comes from tests
+    that write CRLF themselves (E-d's ED-13, IL-b's IB-10, TW-d's parser tests), not from Windows
+    checkouts. E-d's "Report the checkout's line endings" step therefore shows 0 carriage returns
+    **by design**, and that is recorded here.
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 
