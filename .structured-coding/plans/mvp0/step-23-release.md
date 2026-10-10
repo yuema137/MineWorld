@@ -968,3 +968,280 @@ STOP CONDITION:
 MERGE AUTHORITY:
   NEVER merge without explicit operator approval, relayed after the primary session's review.
 ```
+
+---
+
+# 19. R-c — commit plan and live ledger
+
+**Lifecycle:** `IN EXECUTION`. Written by R-c's implementation session (worktree
+`/Users/yuema137/mineworld-worktrees/impl-s23-rc`, branch `mvp0/pr-s23-rc` from `origin/main @ bb62edf`),
+2026-10-10, as C0 of §17.2. **Freeze of this commit plan:** the primary session dispatched this session on
+2026-10-10 with the instruction "Implement through READY FOR OPERATOR REVIEW"; no separate freeze of C0 had
+been recorded when execution began. That instruction is recorded here as the source on which C1–C4 proceed;
+the primary session's review of this section remains due, and any revision it asks for is applied to the
+same PR (D-RC-0). Nothing here changes §§1–17.
+
+## 19.1 Anchors of §2 re-verified at `bb62edf`
+
+| Anchor | Re-verified |
+| --- | --- |
+| `serve.rs:244–253` graceful path; `stop_requested` at 273–317 (Ctrl-C; Windows Ctrl-Break, close, shutdown) | yes — `app::serve_with_shutdown(listener, host, access, async { stop_requested().await; println!("\n[mineworld] stopping") })`, then `host.shutdown()` and `hosted::report` |
+| The join line `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>` | yes — `tools/cli/src/invite.rs:56–68`; `server/PROTOCOL.md` §4.1 ("A launcher may read the token after `invite ` on the line that begins `[mineworld] invite`"). A supplied invite (`--invite`/`MINEWORLD_INVITE`) prints no token, so the launcher removes `MINEWORLD_INVITE` and `MINEWORLD_ADMIN_TOKEN` from the server's environment |
+| `mineworld-2d` hosting logic | at lines 96–157 at this base (§2.1 said 96–160): port 0, log file, poll for the join line every 0.2 s for up to 60 s, stop only its own server |
+| Server arguments are specified in `docs/MODULE_SPEC.md` (usage block and the `server` row of the command table) | yes — lines 1141–1167 |
+| `windows-sys 0.61.2` in `Cargo.lock` | yes — but see D-RC-1: the launcher does not need it |
+| Defaults: 2D `market-town` as `carol` with `--agent alice` (`mineworld-2d`); 3D `social-cafe` as `visitor` with `--agent alice` (`mineworld-slice --world`) | yes |
+| `AC-15`'s two players in `social-cafe` are `visitor` and `wanderer` (`worlds/social-cafe/world.yaml` seats) | yes — the "2D + 3D" entry point uses `visitor` for 2D and `wanderer` for 3D |
+| `tests/support` (`DEP-29`): `scratch!`, `process::kill`, `process::interruptible`/`interrupt` | yes; Windows Ctrl-Break by a `kernel32` declaration, not `windows-sys` |
+| CI `core` layer (`test`, `test-windows`, `test-macos`) is `cargo test --workspace` | yes — `scripts/ci_layer.py` `LAYERS["core"]`; so `target/<profile>/mineworld` is built before any test runs |
+
+## 19.2 Design detail (within §6 and §17.2; no change to them)
+
+**Bundle as the launcher reads it** (§3.1). The bundle root is found from the launcher's own path: the
+folder that holds the executable, or, when the executable is `<X>.app/Contents/MacOS/<exe>`, the folder that
+holds `<X>.app`. `--bundle=<dir>` overrides it (tests, and a developer). Under `<root>/runtime/`:
+`mineworld[.exe]`, `worlds/<world>/`, `clients/2d.pck`, `clients/3d.pck`, and the engine at
+`godot/godot.exe` (Windows), `godot/godot` (Linux), `godot/Godot.app/Contents/MacOS/Godot` (macOS). These
+paths live in one module (`bundle.rs`) so that C5 adjusts them to R-a's assembled layout in one place; a
+missing file is an error naming the path. **Superseded by D-RC-4** (two exported clients, no `godot/`, no
+`--main-pack`); kept as written for the record.
+
+**What the launcher runs** (one server, one or two clients):
+
+```text
+server  runtime/mineworld server runtime/worlds/<world> --listen 127.0.0.1:0 --save <user>/saves/<world>
+                          --agent alice --stop-on-stdin-eof
+        stdin: a pipe the launcher holds; stdout and stderr: <user>/logs/<run>-server.log (a file, so
+        that the server never writes into a broken pipe after the launcher has gone)
+        environment: MINEWORLD_INVITE and MINEWORLD_ADMIN_TOKEN removed; Windows: CREATE_NO_WINDOW
+client  <engine> --main-pack runtime/clients/<2d|3d>.pck [--headless]
+                 -- --root=<root>/runtime --server=<address> --seat=<seat> --invite=<token>
+                    [smoke: 2D --drive --settings=none · 3D --slice-link --settings=none]
+        stdout and stderr: <user>/logs/<run>-client-<2d|3d>.log
+```
+
+The join line is read by polling the server's log file (as `mineworld-2d` does), every 100 ms for up to
+60 s; a server that exits first, or a minute without the line, is an error naming the log. The token is
+passed to the client and is never written to the launcher's own log.
+
+**Stopping** (§6.4, A-R5/A-R6). When every client has exited, the launcher closes the server's stdin and
+waits up to 10 s; a server still running then is killed (that child only; never anything found by name)
+and the launcher reports it. If the launcher itself dies, the OS closes the pipe and the server takes the
+same graceful path.
+
+**Per-user folder** (§3.3, `SETTINGS.md` §4): `%APPDATA%\MineWorld\` · `~/Library/Application
+Support/MineWorld/` · `$XDG_DATA_HOME/MineWorld/` or `~/.local/share/MineWorld/`; `--user-dir=<dir>`
+overrides it (tests). Saves: `saves/<world>/`. Logs: `logs/`, keeping the files of the last five runs.
+Smoke runs use `scratch/<run>/` as the save and remove it at the end, pass or fail.
+
+**Arguments** (all optional): `--fresh` (delete `saves/<world>/` first), `--smoke=2d|3d|both`,
+`--no-dialog`, `--bundle=<dir>`, `--user-dir=<dir>`. The three binaries are `mineworld-2d-launch`,
+`mineworld-3d-launch` and `mineworld-both-launch` (product names "MineWorld 2D", "MineWorld 3D",
+"MineWorld 2D + 3D" are the `.app`/`.desktop`/file names given by `assemble` in C5); each `main` is one
+line naming its mode.
+
+**`runtime/launch.toml`** (optional; a strict subset of TOML parsed by the launcher, std only — a TOML
+crate would be a new dependency, material stop 2): sections `[2d]`, `[3d]` with keys `world` and `seat`;
+`[both]` with `world`, `seat-2d`, `seat-3d`; values are double-quoted strings without escapes; `#` comments
+and blank lines. Anything else is an error naming the file and line. A world is a single folder name under
+`runtime/worlds/`; a seat is checked by the server, not by the launcher.
+
+**Errors**: one message naming the failing step and the log file; shown with `osascript` (`display alert`,
+message passed as an argument, never interpolated into the script) on macOS, `MessageBoxW` on Windows,
+`zenity --error --no-markup` or `kdialog --error` on Linux when present; always written to the launcher log
+and stderr. `--no-dialog` and every smoke run show no dialog. Exit status: the client's (smoke; for `both`,
+the first non-zero), else 0, or 1 when the launcher failed.
+
+**Windowless**: `#![windows_subsystem = "windows"]` on the three binaries; the server gets
+`CREATE_NO_WINDOW`. macOS `.app` wrappers and Linux `.desktop` files are C5's (`assemble`).
+
+## 19.3 Test ownership (test rules §26)
+
+| Layer | Owns |
+| --- | --- |
+| Static | `cargo fmt`, `clippy -D warnings`, `cargo check --all-targets` on three OSes (Windows-only code is compiled only on `test-windows`) |
+| Unit (in `tools/launch/src`) | join-line parsing (token and address, a supplied-invite line yields nothing); `launch.toml` grammar and its refusals; bundle-root derivation from an executable path (plain and `.app`); log retention keeps five runs |
+| Integration, real processes (`tools/cli/tests/stop_on_stdin_eof.rs`) | `--stop-on-stdin-eof`: EOF → the stopping and statistics lines, exit 0, the save resumes; without the flag a closed stdin does not stop the server |
+| Integration, real processes (`tools/launch/tests/launcher.rs`, a scratch bundle with the real `mineworld` and a stub client) | the stub receives the expected arguments and joins with them; closing the client stops the server gracefully (A-R5); killing the launcher stops the server within 10 s (A-R6); the second run resumes the save; `--fresh`; a server that fails to start is an error naming the log; smoke `both` starts two clients on one server; no scratch left |
+| Gate 1 (real LM) | N/A — no language model anywhere in R-c (§1.2, QR-8) |
+| Real bundle smoke (C5/C6) | `package.py smoke` on an assembled macOS bundle with the exported clients; after R-a merges |
+| CI | `fast`, `test`, `test-macos`, `test-windows` on the exact final head; `platforms` and `python` unaffected but read |
+
+**The stub client.** The launcher's integration test is a `harness = false` test target whose `main`
+acts as the stub client when the environment variable `MINEWORLD_LAUNCH_STUB` names a record file, and runs
+the test cases otherwise. The scratch bundle's engine path is a hard link (copy as fallback) to the test
+executable itself, so the stub needs no extra binary, script or platform branch. The stub records its
+arguments, then waits until the test creates a release file beside the record (or exits at once, as the
+test asks) and exits with the code the test chose. While the stub is "open", the test itself joins the
+server with the address, seat and invite the stub was given (`tokio-tungstenite`, a dev-dependency already
+in the workspace) and must be welcomed — so the arguments are proved usable, not only well-formed. The real `mineworld` binary is found at
+`target/<profile>/mineworld[.exe]` beside the test's own `deps/` folder; it is absent only when the crate's
+tests are run alone without `cargo build -p mineworld-cli`, and then the test fails naming that command
+(the SDK's `real_server` precedent, `standards.md`).
+
+**Mutations planned** (§12 of the working rules): (M1) the launcher omits `--stop-on-stdin-eof` → A-R5 sees
+no graceful stop (the launcher kills after 10 s and says so) and A-R6 finds the server still running;
+(M2) the server ignores EOF → the `stop_on_stdin_eof` test times out by name; (M3) the launcher passes a
+wrong invite → the test's join with the stub's arguments is `refused`, the argument test fails.
+
+## 19.4 Commit plan
+
+### C0 — this plan (Markdown only)
+
+- [x] Implementation: §19 written; `handoff-s23-rc.md` initialized.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `check_decision_ids.py` PASS (docs-only).
+- [x] Review: anchors re-read at `bb62edf` (§19.1); file boundary of §13 respected (no R-a file).
+
+### C1 — specifications first
+
+Files: `docs/DECISIONS.md` (ARC-78; ARC-6 note), `docs/MODULE_SPEC.md` (the server's
+`--stop-on-stdin-eof` in the usage block and the `server` row), `tools/launch/LAUNCHER.md` (the
+launcher's specification: bundle layout read, arguments, `launch.toml` grammar, per-user folders, run
+sequence, stop sequence, logs, errors, exit status), `tools/launch/README.md` (human, short).
+
+- [x] Implementation: the four files.
+- [x] Validation: doc-headings (193 sections, none duplicated) and decision-ids (105 ids, all distinct; the ARC-6 note is not an id)
+  PASS.
+- [x] Review: ARC-78 states §6.1/§12's decision and the stdin stop, resolves `ARC-6`'s question, and says
+  why it is not `MVP.md` §7's launcher GUI; `LAUNCHER.md` §§1–9 match §19.2; the server row in
+  `MODULE_SPEC.md` states that without the flag stdin is never read (the invariant "no existing behaviour
+  changes when absent").
+
+### C2 — server `--stop-on-stdin-eof`
+
+Files: `tools/cli/src/main.rs` (the flag), `tools/cli/src/serve.rs` (`ServeRequest.stop_on_stdin_eof`;
+`stop_requested` also completes on EOF when asked: a detached std thread reads stdin to EOF or error and
+completes a `tokio::sync::oneshot`), `tools/cli/tests/stop_on_stdin_eof.rs`.
+
+- [x] Implementation: `--stop-on-stdin-eof` (`main.rs`, clap `bool`); `ServeRequest.stop_on_stdin_eof`;
+  `serve.rs` `stdin_ended()` — a detached std thread reads and discards stdin until `Ok(0)` or an error
+  other than `Interrupted`, then completes a `oneshot`; the shutdown future selects it against
+  `stop_requested()`, so both lead to the same `"[mineworld] stopping"` → `host.shutdown()` → statistics.
+  The watch starts after the join line is printed.
+- [x] Validation: `cargo test -p mineworld-cli --test stop_on_stdin_eof` — 2 passed, 2.6 s (macOS arm64,
+  working tree on `2559cc3`): EOF → exit 0 with `[mineworld] stopping` before `[world] ticks`, second
+  process prints `[mineworld] resumed`; without the flag a null stdin leaves the server running 2 s, and
+  Ctrl-C still stops it gracefully. Mutation **M2** (watch disabled) → the first test FAILED by name, "the
+  server was still running 20s after its standard input closed" (PASS of the mutation check). Clippy
+  `-D warnings` clean for `mineworld-cli`; scratch dir empty after the run. Three OSes: CI (§19.6).
+- [x] Review: absent flag starts no thread and never touches stdin (`then` is lazy); `Interrupted` is
+  retried, any other read error is treated as the end (a parent whose pipe broke is gone); the oneshot's
+  sender dropped without sending also completes the select — a panicking reader stops the server rather
+  than leaving it unstoppable, which is the safer side. No protocol, world state or save change.
+
+### C3 — `tools/launch` core
+
+Files: `Cargo.toml` (member `tools/launch`), `tools/launch/Cargo.toml`, `src/lib.rs` (run sequence),
+`src/bundle.rs`, `src/config.rs` (`launch.toml`), `src/join.rs`, `src/user.rs` (per-user folder, logs,
+retention), `src/bin/*.rs`, `tests/launcher.rs` (harness = false).
+
+**Landed as one commit with C4** (the entry points, `windows_subsystem` and `CREATE_NO_WINDOW` are a few
+lines each and the tests start the real binaries): files as planned plus `src/children.rs` (the server and
+the clients, split out of `lib.rs` when it passed 500 lines) and `src/dialog.rs`.
+
+- [x] Implementation: `lib.rs` (`Mode`, `Failure`, `Options`, `main`, `run`, `chosen`, smoke `Scratch`
+  guard); `bundle.rs` (root from the executable's path, every bundle path); `config.rs` (`WorldName`,
+  `Seat`, `Choice`, the `launch.toml` subset); `join.rs` (complete lines only); `user.rs` (per-user folder,
+  `Run`, logs, retention of five runs, `Log`); `children.rs` (`Server`: start with a stdin pipe and output
+  to a file, join wait, stop = close stdin, 10 s, kill own child; `Clients`: start, wait all, first
+  non-zero code); three one-line binaries; `tests/launcher.rs` (harness = false, stub = the test
+  executable).
+- [x] Validation (macOS arm64, working tree on `d509770`, `cargo build -p mineworld-cli` first):
+  - unit: 7 passed (bundle root ×1, `launch.toml` grammar ×2 with 10 refusals, join line ×2, log names ×1,
+    command line ×1);
+  - `cargo test -p mineworld-launch --test launcher`: 4 passed in 4.5 s — play (arguments; a real join with
+    them is `welcome`; invite absent from the launcher's log; graceful stop lines in order; save in the
+    per-user folder; second run `resumed`; `--fresh` `created`), kill (launcher `killed()`; server pid gone
+    within 15 s; one server log with the graceful lines), smoke both (two headless clients with their
+    probes, seats `visitor`/`wanderer`, one `--server`; no `scratch/`, no save; retention kept this run and
+    the four newest older runs, deleted two, left `keep-me.log`; `--smoke=2d` with a client exiting 3 →
+    launcher exit 3), failures (missing `market-town` named, exit 1; empty world → "the server stopped
+    before it was ready" naming the server log; no client started);
+  - mutation **M1** (launcher omits `--stop-on-stdin-eof`): 3 of 4 FAILED by name — "the server did not
+    stop within 10 s and was killed" (play, smoke) and "the server (pid …) outlived its launcher by 15s"
+    (kill). The orphan of that run was ended by hand (pid 6074); the kill case now ends an orphan itself
+    before failing;
+  - mutation **M3** (launcher passes a wrong invite): play FAILED, `left: "refused"`, `right: "welcome"`;
+    the `Background` guard released the stub and the launcher stopped its server — no process left
+    (`pgrep` empty) and no scratch left;
+  - `cargo clippy -p mineworld-launch -p mineworld-cli --all-targets -D warnings` clean; also for
+    `--target x86_64-apple-darwin`; `/tmp/impl-s23-rc-target/tmp` empty after every passing run;
+  - the macOS alert script compiles (`osacompile`, the exact three `-e` lines); the dialog was not shown
+    by hand (it blocks until dismissed) — INCONCLUSIVE for the visual, PASS for syntax;
+  - Windows and Linux code paths (`MessageBoxW`, `CREATE_NO_WINDOW`, `APPDATA`, XDG, zenity/kdialog):
+    compiled and tested only by CI (`test-windows`, `test`), §19.6.
+- [x] Review: the launcher reads only the join line from the server's output; it kills only `Child`
+  handles it holds (server after 10 s, clients only when a later client cannot start); saves, logs and
+  scratch are under the per-user folder; the server listens on `127.0.0.1:0`; no network call in the
+  launcher itself; `MINEWORLD_INVITE`/`MINEWORLD_ADMIN_TOKEN` removed so the join line is always the
+  generated one and no admin surface is mounted; a failure after the server started drops `Server`, whose
+  `Drop` takes the same stop path; the smoke `Scratch` is declared before `Server` so it is removed after the
+  server has exited (Windows cannot delete an open SQLite file). Function sizes: `run` ≈ 60 lines, every
+  other under 50; files ≤ 293 lines (tests 790).
+
+### C4 — per-OS errors, windowless start, the three entry points
+
+Merged into C3's commit (above). `dialog.rs`: macOS `osascript` with the message as `argv`, Linux zenity
+(`--no-markup`) then kdialog, Windows `MessageBoxW` from one `user32` declaration with a SAFETY note — the
+only `unsafe` (`#![deny(unsafe_code)]` crate-wide, one `#[allow]`). No dialog with `--no-dialog`, in any
+smoke run, or (for an argument error) when `--no-dialog` is among the raw arguments.
+
+### C5 — packaging integration (after R-a merges; merge `origin/main` first)
+
+- [ ] `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop` files in
+  `assemble`; `smoke` running §9.1 steps 1–6 through the launcher. Additions only (material stop 6).
+
+### C6 — gate
+
+- [ ] Default suite green on Linux, macOS and Windows in CI on the exact final head.
+- [ ] On macOS, `package.py smoke` PASS for `2d`, `3d` and `both` on an assembled bundle; evidence here.
+
+## 19.5 Deviations and findings
+
+- **D-RC-0 (process).** C0's freeze by the primary session was not recorded before C1 began; the
+  dispatch instruction of 2026-10-10 is the recorded source (header of §19).
+- **D-RC-1 (bounded, a narrowing).** §6.3 and §17.2 allow `windows-sys` for `MessageBoxW` and
+  `CREATE_NO_WINDOW`. Neither needs it: `CREATE_NO_WINDOW` is a constant passed to std's
+  `CommandExt::creation_flags`, and `MessageBoxW` is one `user32` declaration — the pattern `DEP-29`'s note
+  chose for `GenerateConsoleCtrlEvent` (step-14 QW-2). The launcher is std only on every OS; no feature of
+  `windows-sys` is enabled and `Cargo.lock` gains no edge.
+- **D-RC-2 (bounded).** The server's output goes to a log file, not a pipe the launcher reads (§6.1 says
+  "read the join line"): a server writing into a pipe whose reader has died gets `EPIPE`, and Rust's
+  `println!` panics on it — the A-R6 case would then end the server by a panic instead of its graceful
+  path. Reading the file is what `mineworld-2d` already does.
+- **D-RC-4 (bounded; directed by the primary session, 2026-10-10).** Previous assumption: §3.2 option (a),
+  one Godot runtime started with `--main-pack runtime/clients/<2d|3d>.pck`. Audit evidence: R-a's probe P-3
+  (§18 on PR #146) — official release templates are built with `disable_path_overrides` and abort on
+  `--main-pack`; D-Ra-1 adopts option (b). Corrected understanding: each client is a full export at
+  `runtime/clients/mineworld-<2d|3d>[.exe]` (pack embedded) or `mineworld-<2d|3d>.app` on macOS; `--root` is
+  still passed; `--headless` works (P-4). Implementation: `bundle.rs` `client()` replaces `engine()` and
+  `pack()` (on macOS it starts the single file in `Contents/MacOS/`, since the export names it after the
+  project); `children.rs` starts that executable with `[--headless] -- --root=… …`; `LAUNCHER.md` §§1, 4, 7
+  and ARC-78's wording updated. Validation: the test bundle places the stub at both client paths and the
+  stub reports which client it is by the name it was started under; play asserts the program path and an
+  empty engine-option list, smoke still asserts `--headless`. Launcher 4/4 and unit 7/7 green on macOS after
+  merging `origin/main` (`737e032`); `stop_on_stdin_eof` moved to port 0 read from the listening line, as
+  #151 did for the shared harness (its `free_port` is gone).
+
+## 19.6 Validation ledger
+
+Per-commit local evidence is under each commit in §19.4. CI on the PR's exact head is recorded here once
+read (the commit that records it cannot contain its own hash; the final head and its runs are also in the PR
+body and the handoff).
+
+- **PR #148, head `fe34c77`, run 38036218436.** `fast` PASS, `python (ubuntu)` PASS; **`test-windows` FAIL**
+  at `cargo test --workspace --no-run`: `error: usage of an unsafe extern block` in `mineworld-launch` —
+  `#![deny(unsafe_code)]` also covers the `unsafe extern "system"` declaration, which only the Windows build
+  compiles (finding F-RC-1; nothing on macOS could show it, the Windows target is not installed locally).
+  Fix: `#[allow(unsafe_code)]` on that one declaration as well as on `show`; the crate comment names both.
+  `test-macos` PASS (launcher 4/4, `stop_on_stdin_eof` 2/2). **`test` (Linux container) FAIL**: launcher
+  `killing_the_launcher_stops_its_server` — "the stub client exits" (`launcher.rs:622`); the other three
+  cases and `stop_on_stdin_eof` passed. Finding F-RC-2 (test, not product): after the launcher is killed its
+  children are orphans; in the CI container PID 1 does not reap them, so an exited stub stays a zombie and
+  `kill -0` reports it alive. Fix: on Linux the test reads the state in `/proc/<pid>/stat` and counts `Z`/`X`
+  as not alive (the same helper judges the server's pid). `platforms` ×2 and `python` ×3 PASS.
+- **Head `48d58ca`.** `fast`, `test` (Linux, launcher 4/4), `test-macos`, `platforms` ×2, `python` ×3 PASS.
+  **`test-windows` FAIL** in the test's own expectation only (F-RC-3): it compared the launcher's
+  `…\runtime\clients\2d.pck` with `runtime.join("clients/2d.pck")`, which keeps a `/` on Windows. The other
+  three launcher cases (A-R6 kill, smoke both, failures) and `stop_on_stdin_eof` 2/2 PASSED on Windows —
+  the stdin-EOF stop works there. Fix: build the expected path component by component.

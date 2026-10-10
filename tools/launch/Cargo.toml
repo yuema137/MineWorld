@@ -1,0 +1,40 @@
+[package]
+name = "mineworld-launch"
+description = "The downloadable bundle's supervisor: starts the local server and a client, and stops the server when the client exits (DECISIONS.md ARC-78; LAUNCHER.md)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+# Three entry points, one per mode, each a one-line `main` (LAUNCHER.md §2): no argv[0] trickery.
+[[bin]]
+name = "mineworld-2d-launch"
+path = "src/bin/mineworld-2d-launch.rs"
+
+[[bin]]
+name = "mineworld-3d-launch"
+path = "src/bin/mineworld-3d-launch.rs"
+
+[[bin]]
+name = "mineworld-both-launch"
+path = "src/bin/mineworld-both-launch.rs"
+
+# The integration test's own `main` is also the stub client the scratch bundle starts in Godot's place
+# (step-23 §19.3), so it has no libtest harness.
+[[test]]
+name = "launcher"
+harness = false
+
+# Standard library only (ARC-78): no [dependencies].
+
+[dev-dependencies]
+# The test joins the launched server with the arguments the stub client was given: the client half of
+# the transport DEP-3 chose, as tools/cli's acceptance tests do.
+futures-util = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+# Every test's bundle, per-user folder and saves are scratch removed when the test ends (DEP-29).
+mineworld-test-support = { workspace = true }
