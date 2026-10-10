@@ -9273,7 +9273,8 @@ four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
 - [x] NW-7 on main: `run.rs`, `run_restart.rs`, `routines.rs`, `milestone_b.rs`, `milestone_c.rs`,
   `market_town.rs`, `market_composition.rs`, `social_composition.rs`, `hosted_town.rs` pass unedited in
   claim (literal edits only as listed); NW-10's restart claim on main.
-- [ ] **FAIL — M-2.** NW-4's no-bodies half, on main: social-cafe and market-town 300 d seed 7, user
+- [x] **PASS under the M-2 ruling (≤ 2.5 × a paired base: 1.88 ×, 2.18 ×); failed the original bound.**
+  NW-4's no-bodies half, on main: social-cafe and market-town 300 d seed 7, user
   CPU ≤ 27.8 s and ≤ 23.9 s (two of the 19 budgeted 300-day runs); new digests recorded (QN-2's
   re-baseline, `E-NW`). Measured 52.16 s and 88.02 s (E-NW3).
 - [x] Gate on this commit: clippy, fmt, doc checks; the workspace tests once at NW-C4.
@@ -9803,6 +9804,14 @@ M-2   MATERIAL STOP (§21.8: "a failure is a bounded remedy named here or a mate
         (c) a larger notional stride cadence does not help: the number of strides, not their spacing,
             is the work.
       Recommendation: (a); (b) if the operator wants the headless towns cheaper, measured first.
+
+M-2 RULING (operator, 2026-10-10, relayed by the primary session): option (a). NW-4's no-bodies cost
+      bound is restated against today's main: 300-day user CPU, seed 7, ≤ 2.5 × a fresh base binary run
+      paired with it on the same machine and load. Applied to E-NW3's pairs: social-cafe 52.16 / 27.81 =
+      1.88 × ≤ 2.5 — PASS; market-town 88.02 / 40.40 = 2.18 × ≤ 2.5 — PASS. NW-4's bodies half (TD-12's
+      with ÷ without bounds on the 12d merge) is unchanged. M-2 is closed; NW-C3 and NW-C4 continue.
+      origin/main merged again (a0d578a: weather records, S23/S10 plans; tools/cli/tests support and
+      run_restart's portable kill; no conflict).
 ```
 
 
