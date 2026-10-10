@@ -145,7 +145,11 @@ async def settle() -> None:
 
 
 def run[T](coroutine: Coroutine[Any, Any, T]) -> T:
-    return asyncio.run(asyncio.wait_for(coroutine, 5))
+    """Runs one coroutine on a selector event loop on every platform.
+
+    The selector loop connects with `socket.connect`, which the network guard (pytest-socket) patches.
+    Windows' default proactor loop connects with `ConnectEx` instead and is not guarded (ledger F-P5-4)."""
+    return asyncio.run(asyncio.wait_for(coroutine, 5), loop_factory=asyncio.SelectorEventLoop)
 
 
 def test_answers_are_paired_by_token_not_by_order() -> None:
