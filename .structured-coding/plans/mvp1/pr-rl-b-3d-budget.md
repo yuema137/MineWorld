@@ -606,9 +606,20 @@ with evidence.
   preview and says so.
 
 ### C9 — `3d: label the promenade spike; docs`
-- [ ] Implementation: SD-RLb-8; README; the `HUMAN_REVIEW_QUEUE.md` dated line with §8's checklist.
-- [ ] Validation: `./mineworld-3d` prints the label; the doc checks.
-- [ ] Review: no scene change in the spike.
+- [x] Implementation: SD-RLb-8; README; the `HUMAN_REVIEW_QUEUE.md` dated line with §8's checklist.
+  *Evidence:* `mineworld-3d` header and a two-line start banner; `clients/3d-spike/README.md` lead
+  note (the two scenes, the perf and skyline commands); `HUMAN_REVIEW_QUEUE.md` new dated section
+  "`VIS-3D-GODOT-2` — RL-b … PREVIEW (2026-10-09)" with §8's checklist (plus a texture item for V-4)
+  and the statement that the Default tier is not yet met.
+- [x] Validation: `./mineworld-3d` prints the label; the doc checks. *Evidence:* the banner prints
+  first; `check_doc_headings.py` 192 sections, none duplicated; `check_decision_ids.py` 83 ids,
+  distinct. `./mineworld-3d --drive` completes ("drive test done", every check as before). Its exit
+  reports leaks (76 ObjectDB instances on the base; resources in use 21 → 50, dummy meshes 9 → 18 with
+  this PR): pre-existing in the spike, which never frees `Props` templates (`SliceMain._exit_tree` does
+  it for the slice only); imported meshes with LODs and shadow meshes count as more resources. Not
+  fixed here (props.gd's change is C2's; the spike's scene is out of scope).
+- [x] Review: no scene change in the spike. *Evidence:* `git diff` touches only `mineworld-3d`'s
+  comments and echo lines; no file under `scenes/` or the spike's scripts changed in C9.
 
 ### C10 — `docs(plan): RL-b evidence`
 - [ ] The ledger, the final measurement and the review package (`ARC-20`): frames base/head per view, the

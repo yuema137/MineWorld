@@ -530,6 +530,38 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### `VIS-3D-GODOT-2` — RL-b: frame budget and the San Diego skyline, PREVIEW (2026-10-09)
+
+**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`): props are drawn as
+imported scenes with LODs; the slice's textures are VRAM-compressed with mipmaps; tiny objects are
+hidden below 1.5 px; occluders cull what solid walls hide; and, as a **preview** you judge (QRL-11), the
+sine-sum ridges are replaced by San Diego's real summits at their real bearings, about 1–2° high,
+layered and hazed by distance. **The Default tier is not yet met** (draw calls, primitives, and the café
+frontage and doorway frame times): the levers that would close the frame-time gap all change the
+accepted look, so the choice is yours — the options and their measured cost are in the PR.
+
+**Checklist** — run `./mineworld-slice`, then `./mineworld-slice --world`:
+
+1. **Smoothness.** Walk the street end to end, enter the café and the florist, come back out: no hitch
+   at doors, no pop-in of objects as you approach, less flicker on cobbles and roof tiles at distance.
+2. **The textures.** Stone, brick and paving are smoother than before (mipmaps): the old per-pixel
+   grain is gone and mid-distance walls are a little softer. Keep, or ask for sharper oblique
+   filtering.
+3. **The café inside.** At the counter and the back wall: the warm room and the floor's sun patch as
+   accepted; small objects on shelves and tables as before.
+4. **Through the glass.** From the street into the café and the florist: goods, tables and people
+   visible (nothing culled behind glass).
+5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows unchanged.
+6. **The skyline (the preview).** Look east along the street, and west from the east end: mountains low
+   on the horizon (about a finger's width at arm's length), nearer grey-green to fainter blue-grey; no
+   seam where land meets sky; an open horizon to the west (sea, with no land drawn); nothing that moves
+   wrongly as you walk. Does it read more real than before? If not, say which single thing is most
+   wrong; the preview reverts with one commit.
+7. **The old spike.** `./mineworld-3d` now says at start that it is the movement and camera spike, not
+   the world.
+8. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
+   evidence is macOS only (QRL-6).
+
 ### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
 
 **Verdict, 2026-10-07.** The operator judged the slice from its screenshots, shown together with
