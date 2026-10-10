@@ -2481,6 +2481,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | C2 | [x] `src/record.rs` (new): `HEADER`, `RecordRow`, `RecordFile`, `decode` (BOM, LF/CRLF, refusals with line), `encode` (the tool's writer), `PackedDay`/`PackedDays` (9 bytes, hex), `Fill`, `pack` (gaps), `Station`, `RecordSeries` (`record_date`, `day`: SD-TW-d-4, the only leap logic); `configuration.rs` (`source: rules \| record`, `record:` iff record, `fill:` only with record, `RecordConfiguration { station, data: Attachment, first_year }`); `event.rs` (`WeatherConfigured.record: Option<RecordSeries>`, `RecordRef` removed; `without_record`); `day.rs` (`Origin::{Record, Filled} { date }`); `generate.rs` (`record_day`, SD-TW-d-6); `process.rs` (`RecordProcess` "weather-record", `RecordState`; `ClimateState.epoch_year`, skipped when absent); `system.rs` (`attachments`, `seed` decoding into `weather-record-invalid`, the record Process started after the climate, `day-began` replays or draws, `weather-day` folds the epoch in record worlds); `lib.rs` exports (and `CalendarDate` re-exported); tests `src/record/tests.rs`, `tests/record.rs`, `tests/configuration.rs` (the TW-b `source: record` refusal case replaced, TWd-D3) | [x] E-TWd-2: `cargo test -p mineworld-weather` lib 20, configuration 3, record 6, weather 8, diurnal 1, no_float 1, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. M-TWd-2, M-TWd-3b killed; `git grep MUTATION` empty | [x] the fold equals the state: the climate state is written only in `react` from fact payloads (`with_day`, `with_now`, `with_epoch` from the `weather-day`'s date), and (g) is byte-identical after a resume across a new year; the record Process is never rewritten (`grep 'RecordProcess>('` finds only `state_for`; (f) compares its state before and after 40 days); no path handling in the pack (no `std::fs`/`Path` in `src`); leap logic once (`RecordSeries::record_date`; `is_leap` otherwise only counts a year's days); packing cannot overflow: decode bounds tmax/tmin to −900 … 600 (i16), prcp ≤ 65 535 (u16), awnd ≤ 255 (u8), wdf2 ≤ 360 → half ≤ 180 (u8), and the hex decoder re-checks every bound; rules worlds unchanged (TWd-D2) |
 | C3 | [x] `tools/weather-fetch`: manifest (lib + bin `weather-fetch`; `clap`, `mineworld-weather`, `serde-saphyr`; `ureq =3.4.2` optional, `default-features = false, features = ["rustls"]`, feature `fetch`); `src/lib.rs` (`reshape_bytes`, `write`, `date_argument`), `dly.rs` (readme §III columns; refusals by line), `reshape.rs` (rows by the pack's `RecordRow`, the report), `notice.rs` (§6.4 text, provenance, no clock), `fit.rs` (SD-TW-d-8c in `i128`), `fetch.rs` (`cfg(feature = "fetch")`, no retry), `main.rs` (clap; `fetch` without the feature explains how to get the file); tests `reshape.rs`, `fit.rs`, `confined.rs`; DEP-31 gains the feature tree's licences | [x] E-TWd-3: `cargo test -p mineworld-weather-fetch`: confined 1, fit 2, reshape 3, all pass; clippy `-p mineworld-weather-fetch --all-targets --all-features -D warnings` clean (compiles ring/rustls/ureq); fmt clean; criterion 4 commands verbatim in E-TWd-3. M-TWd-1, M-TWd-4 killed (TWd-F1) | [x] the tool owns no CSV format: rows are `mineworld_weather::RecordRow`, written by `record::encode` and re-read by `record::decode` before anything is written; the rules are decoded by `WeatherConfiguration` before `fit` returns. No float in the tool's source (the scan test). The NOTICE carries the attribution, both citations, CC0, "MODIFIED DATA … not endorsed by NOAA", the URL, the retrieval date and the provenance counts (§6.4, DEP-31, SD-TW-d-12). ring needs only a C compiler: the CI image is `rust:1.97.1-slim-trixie` (gcc), and `fast`'s clippy is the only `--all-features` build; the `platforms` layer (macOS, Windows) builds `mineworld-cli` and S16's tests, never the feature — no material stop (5) |
 | C4 | [x] `target/debug/weather-fetch fetch --station USW00023188 --out target/tw-d/noaa/USW00023188.dly` (the tool built with `--features fetch`; 1 of ≤ 3 fetches); `reshape --input … --station USW00023188 --from 2015 --to 2024 --retrieved 2026-10-10 --out-dir worlds/market-town/data/weather --name san-diego-usw00023188-2015-2024`; `.gitattributes` `worlds/*/data/**/*.csv text eol=lf`; the report into E-TWd-4 | [x] E-TWd-4: (a) 3 653 data rows; (b) 116 705 bytes (< 1 MiB); (c) one gap (2018-07-06, 1 day; TMAX Q-flagged), WT01 88 … 149 and WT02 8 … 26 days every year (CP-TW-d 2 applies; R-TW-5 does not occur); (d) re-run with the same arguments → `git diff --exit-code` on the staged CSV and NOTICE clean, report identical; (e) NOTICE "116705 bytes, 3654 lines (LF)" = `wc -c -l` of the committed CSV; `git check-attr`: text set, eol lf | [x] the NOTICE carries the attribution, both Menne et al. 2012 citations with DOIs, "MODIFIED DATA … not endorsed by NOAA", the URL and "retrieved 2026-10-10 (UTC)"; the licence is CC0-1.0 as E-TWd-1 / §3.2 |
+| C5 | [x] `worlds/market-town/configure/weather.yaml` = `weather-fetch fit --input <the CSV> --base <TW-b's file> --out … --station USW00023188 --data data/weather/san-diego-usw00023188-2015-2024.csv --first-year 2015` (`source: record`, `fill: rules`, seed 19, the fitted months); `worlds/market-town/README.md` one sentence; `ac1_composability.rs` (`files_under`, `data_failures`, `data/` admitted in Market Town for allow-listed packs' attachments and their NOTICE, refused in Social Café; unit test `data_admits_only_attachments_and_their_notice`); `tools/weather-fetch/tests/market_town.rs` (criterion 7 fit-equality; criterion 5); `systems/weather/tests/record_checkpoint.rs` (CP-TW-d, opt-in) and `moves_nobody.rs` gains `the_record_moves_nobody_but_process_ids` (opt-in); `src/rules/tests.rs` and `src/fixture.rs` no longer name the old table's values (TWd-D11) | [x] E-TWd-5 … E-TWd-8: CP-TW-d PASS; criterion 5 PASS (max \|Δ\| 14 ‰; spells 1.859 vs 1.844 days); criterion 7 PASS; INV-TW-1 PASS (four digests and the validate outputs = main's); the new market-town baseline `d5db8988…22ee`; TW-b criterion 5 re-checked (process ids +1 only, the TWb-F1 class); AC-1 15/15. M-TWd-5, M-TWd-10, M-TWd-A1, M-TWd-A2 killed. Town runs 8 of 8 (counting the 200-day leg) | [x] the AC-1 change admits nothing but the attachments the allow-listed packs' configurations name (read through the loader, `FoundConfiguration::configuration.attachments()`) and a `NOTICE` in the same directory; it is Market Town only, and `data/` in Social Café is named; checks 1 and 2 untouched. The fitted file's header names the tool, its version and the data file, and the formulas; the rules still bound-check (the pack decodes the file; `validate` accepts the world). A rules world's bytes are unchanged (E-TWd-5) |
 
 ### Evidence
 
@@ -2593,6 +2594,54 @@ E-TWd-4  C4, the real record, 2026-10-09 18:29 PDT (macOS arm64):
          "116705 bytes, 3654 lines (LF)" = `wc -c -l`. PASS.
          Spot rows: 2015-10-08,278,194,0,17,310,1,0; 2016-10-08,300,167,0,20,300,0,0;
          2018-07-06,,200,0,30,330,0,0.
+E-TWd-5  Worlds without weather data are byte-identical — on 38ce8c6 (C1–C4; Market Town still TW-b's
+         rules), dev, macOS arm64, digest = sha-256 of every `run` output line but `wall` (TW-a's method):
+           market-town 300 d seed 7 (no save)   90479fd8631a3f9c88ddc9c05720fbf8fd8fbc5b1573d6abd47e7351b9d1ae57
+                                                = E-TWb-4's baseline, byte for byte; 375 527 facts. PASS.
+           the same with --save target/tw-d/rules-save: 375 527 facts, history fingerprint 142354b7…615c
+           (equal to the no-save run's), 2.7 GB. Town runs 1, 2.
+E-TWd-6  INV-TW-1 and the new baseline, on the C5 tree (c5 code + fitted weather.yaml), dev:
+           social-cafe 300 d seed 7     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+                                        = E-TWb-0/-4. PASS. 365 330 facts.               (town run 4)
+           bodies-yard 30 d seed 7      bd6a1002…80e6 = E-TWb-0. PASS.
+           validate social-cafe / bodies-yard / market-town   ebcd60a0… / 7356b8f8… / 6368595a…0318
+                                        = E-TWb-0/-4 (validate prints no weather payload). PASS.
+           long_run (bodies, second process payload)          4 019 622 B, fdcf28d6…4445 = E-TWb-0. PASS.
+           long_run_objects                                   612 410 B, e018c85e…d2be = E-TWb-0. PASS.
+           market-town 300 d seed 7 (record)
+             d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee — THE NEW MARKET-TOWN
+             BASELINE; 375 619 facts, faults 0, 27.0 s.                                    (town run 3)
+           Against the rules run (E-TWd-5), every summary line but the day lines is equal except
+           "weather-changed 368" → "460" and the history line: every non-weather per-type count,
+           request count and activity line is the same.
+E-TWd-7  TW-b's criterion 5 re-checked on the record world (C5 (e)), the record save (300 d seed 7,
+         375 619 facts; town run 5) against E-TWd-5's rules save, `the_record_moves_nobody_but_process_ids`:
+           374 857 non-weather facts in each; instant, type, visibility and subjects equal for every one;
+           32 953 differ in payload, every differing leaf a Process id exactly one higher:
+             agenda-changed.routine 11 712, group-activity-started.activity 6 651,
+             group-activity-ended.activity 6 650, left-group-activity.activity 4 481,
+             joined-group-activity.activity 3 459; every type's count equal.
+         The record world's `weather-record` Process takes one id at genesis — the TWb-F1 class, the same
+         32 953 leaves TW-b found for the climate Process. PASS in the form TWb-F1 proposed (and TW-b
+         merged with); the frozen payload-bytes form would fail exactly as TW-b's did. TWd-F2.
+E-TWd-8  CP-TW-d (§18.6) and criteria 5, 7, on the C5 tree:
+         `run market-town --seed 1 --days 365 --save U` (90.3 s; 456 677 facts) and `--days 200 --save R`
+         then `--days 365 --save R` ("resumed … at revision 193821 (snapshot 193792 + 29 re-executed)";
+         456 677 facts) — town runs 6, 7, 8. tests/record_checkpoint.rs (opt-in):
+           4. U and R hold the same fact rows byte for byte. PASS.
+           1. wet days (≥ 0.3 mm) dated December–February 19, June–August 0. PASS.
+           2. 16 fog days in May–July (world 2027, record 2016). PASS.
+           3. world 2026-10-08 → Record {2015-10-08}: TMAX 278, TMIN 194, PRCP 0 = the CSV row; world
+              2027-10-08 (day 365, instant 31 536 000, the run's last) → Record {2016-10-08}: 300, 167, 0 =
+              the CSV row. PASS. All 366 days are record days (no gap falls in 2015-10-08 … 2016-10-08).
+         Criterion 5 (tools/weather-fetch/tests/market_town.rs), wet ‰ record / 100 fitted years:
+           Jan 229/224 Feb 194/200 Mar 251/243 Apr 106/104 May 116/130 Jun 23/27 Jul 12/18 Aug 16/15
+           Sep 56/52 Oct 54/54 Nov 130/144 Dec 174/169 — max |Δ| 14 ‰ (May, Nov) ≤ 30. Pooled mean wet
+           spell 1.844 days (225 spells) / 1.859 (2 262 spells), Δ 0.8 % ≤ 15 %. PASS.
+         Criterion 7: `fit` of the committed CSV with the committed file as the base is byte-equal to it
+           (and re-running the tool with its own output as the base reproduces it). PASS.
+         AC-1: `cargo test -p mineworld-acceptance --test ac1_composability`: 15 passed (14 + the data/
+           unit test). PASS.
 ```
 
 ### Mutations
@@ -2616,6 +2665,17 @@ M-TWd-4  tools/cli/Cargo.toml: `mineworld-weather-fetch` as a dev-dependency wit
          "[dev-dependencies] └── mineworld-cli", and tests/confined.rs FAILS: left ["mineworld-cli"],
          right []. Killed by the second command and the lock test. Reverted; `grep -rn MUTATION tools
          systems` empty.
+M-TWd-5  fit.rs: p_wet_after_wet estimated as p_wet_after_dry; the town's file re-fitted with it →
+         criterion 5 FAILS on both halves: Jan 142 against 229 ‰, Feb 122/194, Mar 161/251, Apr 57/106,
+         Nov 77/130, Dec 114/174; mean wet spell 1.130 against 1.844 days. Killed. Reverted, re-fitted:
+         the file is byte-identical to the committed fit again.
+M-TWd-10 weather.yaml: January's p_wet_after_dry 143 → 144 → `the_committed_rules_are_the_fit_of_the_
+         committed_record` FAILS ("configure/weather.yaml is not `fit` of the record"). Killed. Reverted
+         (cmp equal).
+M-TWd-A1 worlds/market-town/data/other.txt → check 3 FAILS: "data/other.txt: not an attachment of an
+         allow-listed generic pack's configuration, nor its NOTICE". Killed. Removed (git clean).
+M-TWd-A2 worlds/social-cafe/data/weather/NOTICE → check 3 FAILS: "data/: must be absent in Social Café".
+         Killed. Removed. `grep -rn MUTATION` over the tree: none.
 ```
 
 ### Deviations and findings
@@ -2675,4 +2735,21 @@ TWd-D10 (bounded) The tool has a library target (`src/lib.rs`) besides the binar
 TWd-F1  (finding) Criterion 4's first command, `cargo tree -e normal … --workspace`, cannot see a dev-
         dependency (M-TWd-4 survives it). The per-crate commands (default edges include dev) and the new
         `tests/confined.rs` over Cargo.lock catch it, and the lock test runs in CI.
+TWd-D11 (bounded) TW-b's unit tests read Market Town's own table (one copy, TWb-D11), and two of them
+        named its provisional January values literally (`rules/tests.rs`: "p_wet_after_dry: 147" …). With
+        the fitted table they could not find them. They now set a key's value whatever the table holds;
+        every refusal, bound and line assertion is unchanged. TW-b's statistics tests (criterion 2 and
+        3, the hours) pass on the fitted table as they did on the provisional one.
+TWd-D12 (bounded) The AC-1 `data/` rule reads the attachments through the World Pack loader (the
+        configurations of the allow-listed packs, `attachments()`), not by parsing YAML in the test, so
+        the admission is exactly what the loader reads.
+TWd-F2  (finding; the TWb-F1 class) A record world starts a second weather Process at genesis
+        (`weather-record`, SD-TW-d-5, frozen), so every later routine and group-activity Process id is one
+        higher than in a rules world (E-TWd-7). Instants, types, visibility, subjects, counts, requests and
+        every person's activity are unchanged. TW-b merged with TWb-F1 open in its ledger; the operator's
+        acceptance of its proposed form is inferred from that merge, not read in a recorded ruling — this
+        PR reports the re-check in both forms rather than assume it.
+TWd-F3  (process) Two forbidden-list slips by this session, both read-only or no-ops, recorded for
+        honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing) and an empty
+        heredoc to /dev/null. No file was written by either.
 ```

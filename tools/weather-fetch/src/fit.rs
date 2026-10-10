@@ -365,8 +365,10 @@ pub fn fit(
     let mut text = format!(
         "# Weather (`weather` System Pack; docs/DECISIONS.md ARC-61, ARC-68, DEP-31).\n\
          #\n\
-         # Written by `weather-fetch fit` (mineworld-weather-fetch {version}) from {from}, with the seed and\n\
-         # overcast_morning_permille of the base configuration; re-run the tool rather than edit by hand\n\
+         # Written by `weather-fetch fit` (mineworld-weather-fetch {version}) from\n\
+         #   {from}\n\
+         # with the seed and overcast_morning_permille of the base configuration; re-run the tool rather\n\
+         # than edit by hand\n\
          # (tools/weather-fetch/README.md). WGEN-lite rules fitted in integers from the record's complete days\n\
          # (step-19 SD-TW-d-8c): wet = at least 0.3 mm; p_wet_after_dry and p_wet_after_wet are counted\n\
          # transitions; rain_tenth_mm the 10th, 30th, 50th, 70th and 90th percentiles of wet-day amounts;\n\
