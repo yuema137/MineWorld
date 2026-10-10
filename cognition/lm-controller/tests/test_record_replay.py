@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from support import completion, request, run
+from support import completion, golden_request, request, run
 
 from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import Completion, CompletionRequest
@@ -180,3 +180,24 @@ def test_an_interrupted_recording_leaves_the_old_cassette_and_a_partial(tmp_path
     assert len(partial.read_text(encoding="utf-8").splitlines()) == 3  # header + two entries
     with pytest.raises(CassetteRecordError, match=r"kept\.jsonl\.partial"):
         RecordingBackend(ScriptedBackend(script), path, binding="local", model="m")
+
+
+COMMITTED = Path(__file__).resolve().parent / "cassettes" / "example.jsonl"
+
+
+def test_the_committed_cassette_loads_as_lf_and_is_reproduced_by_this_test(tmp_path: Path) -> None:
+    # tests/cassettes/example.jsonl was written by this test's recording (no model): a Windows checkout
+    # keeps it LF (.gitattributes, AP5-12), it loads, and recording again gives the same entries.
+    calls = [golden_request(), request("Hello?"), request("Hello?")]
+    answers = [completion('{"act":"say"}'), completion("first"), completion("second")]
+    fresh = tmp_path / "example.jsonl"
+    _record(fresh, calls, answers)
+    assert b"\r" not in COMMITTED.read_bytes()
+
+    def stable(path: Path) -> list[tuple[str, str, str, str]]:
+        return [
+            (e.key, e.request.model_dump_json(), e.completion.model_dump_json(), e.meta.binding)
+            for e in Cassette.load(path).entries
+        ]
+
+    assert stable(COMMITTED) == stable(fresh)

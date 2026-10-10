@@ -6,7 +6,7 @@ process that reads this module still loads no network client (D-P5-5, AP5-6).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 
 from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.config import BackendConfig
@@ -21,7 +21,7 @@ def _openai_compatible(config: BackendConfig, key: Secret | None) -> ModelBacken
     return OpenAICompatibleBackend(config, key)
 
 
-FACTORIES: Mapping[str, Factory] = {"openai-compatible": _openai_compatible}
+FACTORIES: dict[str, Factory] = {"openai-compatible": _openai_compatible}
 
 
 def build_backend(config: BackendConfig, key: Secret | None) -> ModelBackend:

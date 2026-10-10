@@ -1191,3 +1191,120 @@ key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
   **reservation** (one call, the reserved tokens) until they are charged, and the pre-check counts it.
   This is D-P5-8's "the actual usage replaces the reservation", made exact.
 - **The charge's timestamp** is the pre-check's `now`, so a window is deterministic under a fake clock.
+
+### 13.7 C6 — configuration, routing, presets, secrets, the scans
+
+- [x] Implementation: `config.py` completed (`BackendConfig` gains `preset` and fills omitted fields from
+  the row; `RecordingConfig`, `BudgetConfig(BudgetPolicy)` with `ledger`, `SecretsConfig`,
+  `CognitionConfig` with its cross-field rules, `world_directory_of`, `load(path)` — `tomllib`, strict
+  models, errors rendered from location and message only, paths resolved against the file, a
+  configuration or `env_file` inside a `world.yaml` directory refused — and `build_router(config, *,
+  clock, scripted)`, which imports the registry and `secrets.resolve_key` only in `live`/`record`);
+  `backend/providers.py` (`ProviderPreset`, `PresetName`, `PRESETS`, eleven rows; the option literals
+  `StructuredOutput`, `Reasoning`, `TemperatureMode` live here so `config.py` can import the table
+  without a cycle); `secrets.py` completed (`permission_check_applies`, `check_env_file`,
+  `resolve_key`); `errors.py` (`ConfigError`, shared by `config.py` and `secrets.py`); `registry.py`'s
+  `FACTORIES` is a `dict` (tests substitute a factory with `monkeypatch.setitem`, no production seam);
+  `examples/hosted.toml.example`, `examples/.env.example` (names, empty values); `README.md` with the
+  provider table; `tests/test_config_router.py`, `tests/test_secrets.py`,
+  `tests/test_structural_isolation.py`, `tests/test_provider_scan.py`; `tests/cassettes/example.jsonl`
+  (written by `test_the_committed_cassette_loads_as_lf_and_is_reproduced_by_this_test`'s own recording
+  over `ScriptedBackend`, copied from its `--basetemp`; the test re-records and compares keys, requests,
+  completions and bindings).
+- [x] Validation (E-P5-6): cognition suite **77 passed**; SDK suite (no binary) 30 passed, 4 deselected;
+  ruff, format ("41 files already formatted") and pyright strict clean over both members.
+  - AP5-1 (b) and AP5-8: one cassette recorded under binding `local`, replayed under configurations
+    `local`/`127.0.0.1:11434`/`model-a` and `elsewhere`/`[::1]:8080`/`model-b`: identical completions,
+    keys equal to the recomputed keys and the first to AP5-1's literal.
+  - AP5-3: replay mode, backend `local` at a test-owned listening loopback port; an absent request
+    raises `CassetteMiss("absent")` naming its key, the nearest recorded request and
+    `$.messages[0].text`; the listener accepted **0** connections; the ledger holds 0 calls, 0 tokens.
+  - AP5-6 (a): a child interpreter loads a replay configuration, builds the router, completes one
+    replayed call: `{"completed": true, "modules": []}` — no `httpx*` module, no `openai_compatible`.
+  - AP5-9, per source (environment; `env_file` 0600): a record session through `config.load` →
+    `build_router` → the real adapter over a mock transport that echoes every header into its 500 and
+    401 bodies, then a 200. The server received `Bearer <key>` three times; the key is absent from the
+    cassette, the SQLite ledger's bytes, every captured log record (DEBUG, all loggers), captured stdout
+    and stderr, and the `str`/`repr` of every outcome, the configuration, the router and the gateway. An
+    unset variable raises `ConfigError` naming it and the file, not the file's other value.
+  - AP5-10 (a) the scan (word-bounded, case-insensitive) over `src/` minus the four allowed files, the
+    committed cassette's keys and requests, and `sdk/python/src`: no finding; (b) the member's `addopts`
+    hold the guard and the deselection; a connection to `192.0.2.1:80` through the adapter is refused by
+    `SocketConnectBlockedError` (wrapped by anyio's task group) in under 1 s; (c) `ci_layer.py --list`
+    for `python` and `python-smoke` shows two pytest commands, the second exactly `uv run --locked pytest
+    cognition/lm-controller`.
+  - AP5-13 (a) `os.environ` compared whole before and after a file read: equal; (b) the environment
+    wins; (c) `cognition.toml` and an `env_file` under a temporary `worlds/cafe/world.yaml` refused,
+    naming the path; (d) macOS: 0644 refused naming `chmod 600`, 0600 accepted; on Windows the test
+    asserts `permission_check_applies() is False` and that 0644 is accepted (skipped by platform,
+    visibly); (e) `git check-ignore --no-index`: `.env`, `.env.local`, `prod.env`, `secrets.env` ignored;
+    `examples/.env.example` and `src/mineworld_cognition/secrets.py` not; (f) no `load_dotenv` call or
+    import, `dotenv` imported by `secrets.py` only, `httpx2` by the adapter only, no reference to the
+    operator's `secrets.env` or `.config/mineworld`.
+  - AP5-14 (a), (b) every row `https` (or None), no userinfo, query or fragment, `key_env` a name, no
+    key-like value; (c) the golden request recorded through config → router → gateway → recorder under
+    `preset = "openai"`, `preset = "xai"` and a hand-written table (the adapter factory swapped for a
+    scripted backend): the key equals AP5-1's literal each time and `meta.binding` is the user's `mine`;
+    (d) a set `structured_output` wins; (e) `dashscope` without `base_url` names `base_url`; (f) the
+    README's table lists exactly the eleven presets and their key variables.
+  - §5.4's refusals, each naming its table and key: an unknown key (`recording.colour`), a tier bound to
+    an undefined backend (`tiers.social`), replay without a cassette (`recording.cassette`), the
+    non-tier `routine` (`tiers.routine`), a pasted key in `key_env` (`backends.x.key_env`) — whose value
+    is not echoed. The hosted example loads.
+  - Mutations (§13.10), each shown red then reverted: M-10, M-11, M-12, M-13, M-14, M-15, M-16, M-17,
+    M-18, M-19, M-20.
+- [x] Review: `worlds/` untouched; `secrets.py` is the only reader of a key and of a key file, and reads
+  only the file the configuration names; docstrings and examples use loopback URLs or `api.example.com`
+  (the hosted example names the providers' presets, never a key); no test, fixture or CI command sets a
+  real key or reaches a non-loopback address (the TEST-NET connection is refused by the guard before any
+  packet leaves).
+- **CI timing (the 60 s and 3-minute rules)** is recorded at C8 from the PR's run (E-P5-8).
+
+**Preset verification, 2026-10-09, from each provider's own documentation (WebFetch; no API called).**
+
+```text
+preset      fact checked                         source read                                   result
+openai      base URL; json_schema                (planning, §4.1c: the schema's origin)          confirmed in planning
+xai         base URL; json_schema, json_object   docs.x.ai/docs/guides/structured-outputs        CONFIRMED; reasoning_effort
+                                                                                                 not on the page → README "verify"
+deepseek    json_object                          api-docs.deepseek.com/guides/json_mode          CONFIRMED ("Set the response_format
+                                                 ("Set the response_format parameter to         ... json_object"); base URL
+                                                 {'type': 'json_object'}"); base_url             https://api.deepseek.com confirmed;
+                                                                                                 json_schema not documented (README note)
+glm         base URL; JSON mode                  docs.bigmodel.cn OpenAI page and               CONFIRMED: base https://open.bigmodel.cn/
+                                                 guide/capabilities/struct-output                api/paas/v4; json_object
+zai         base URL; JSON mode                  docs.z.ai/api-reference/introduction;          CONFIRMED: https://api.z.ai/api/paas/v4;
+                                                 docs.z.ai/guides/capabilities/struct-output    json_object (no json_schema)
+mistral     json_schema envelope                 docs.mistral.ai/api, structured-output pages    base URL and `{"type": "json_schema"}`
+                                                                                                 mode confirmed; envelope's sub-fields not
+                                                                                                 in the fetched text → README "verify"
+moonshot    JSON mode; base URL                  platform.kimi.ai/docs/guide/use-json-mode-...   CONFIRMED: json_object;
+                                                                                                 https://api.moonshot.ai/v1
+dashscope   JSON mode                            alibabacloud.com/help/en/model-studio/json-mode CONFIRMED: json_object on most Qwen
+                                                                                                 models, json_schema on some; the prompt
+                                                                                                 must contain the word "JSON" (README note);
+                                                                                                 base URL per workspace and region (preset None)
+gemini      (no "verify" mark)                   planning §4.1c                                  not re-fetched
+openrouter  (no "verify" mark)                   planning §4.1c                                  not re-fetched
+groq        (no "verify" mark)                   planning §4.1c                                  not re-fetched
+```
+
+**Deviations (bounded).**
+
+```text
+DV-P5-2  errors.py, a module not in §5.1: ConfigError is shared by config.py and secrets.py, and
+         config.py imports secrets lazily; defining it in either would make the two import each other.
+DV-P5-3  BackendConfig.kind defaults to "openai-compatible" (the only kind until P5b), so a preset table
+         needs only `preset` and `model`. P5b's new kind is still a closed literal added beside it.
+DV-P5-4  record mode records one backend binding at a time (a ConfigError otherwise): two recorders on one
+         cassette would race for one `.partial`. Replay serves every bound tier from one cassette, since
+         keys are provider-free.
+DV-P5-5  AP5-3 is in test_config_router.py (C6), not C3: the fall-through it guards against can only be
+         implemented where a router builds backends (recorded in §13.4).
+DV-P5-6  the option literals (StructuredOutput, Reasoning, TemperatureMode) are defined in
+         backend/providers.py and imported by config.py, to keep the import graph acyclic.
+```
+
+**Process note.** While editing a test this session ran `sed -i.bak '' /dev/null` once by mistake (an
+empty `sed -i` on `/dev/null`, which the brief forbids). It touched no file: `git status` and a search for
+`*.bak` showed nothing. Recorded so the slip is visible.
