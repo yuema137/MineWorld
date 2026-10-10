@@ -511,11 +511,12 @@ full suite (test rules §8); the PR's CI is the one full run.
   contract's authority lines and the decision numbers (`ARC-59`, `DEP-37`) were filled by the planning
   session at freeze (§12, §13.1); C0 verifies them rather than writing them.
 - **Scope.** This document (§14 opened); a new `handoff-s10-p4.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
   that `overall.md`'s table lists `ARC-59` and `DEP-37` for P4; record the implementation base commit;
-  initialize the handoff with the contract's required fields.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every authority line has a source, and none was widened.
+  initialize the handoff with the contract's required fields. Evidence: §14.1 C0.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  Evidence: §14.1 C0 (193 sections, none duplicated; 104 ids, all distinct).
+- [x] Review: every authority line has a source, and none was widened. Evidence: §14.1 C0.
 - **Commit boundary.** Documentation only.
 
 ### C1 — Decisions, spec edits, the platform check, the marker
@@ -734,6 +735,34 @@ a key or money.
 
 ## 14. Ledger (live during implementation)
 
-Empty until C0. Sub-sections at C0: §14.1 per-commit evidence (commands, counts, wall times, exact
-heads); §14.2 mutations (each planted, run, observed red, reverted); §14.3 deviations and discoveries;
-§14.4 CI runs per head.
+Opened at C0 by the implementation session (2026-10-10), worktree
+`/Users/yuema137/mineworld-worktrees/impl-s10-p4`, branch `mvp0/pr-s10-p4-memory`.
+
+### 14.1 Per-commit evidence
+
+**C0 — freeze and contract.**
+
+- Implementation base: `origin/main @ 573c205` (#139). The branch was first cut from `f9626c4` (#138)
+  and fast-forwarded to `573c205` before any edit, so that `overall.md`'s decision table is the one P4
+  builds on.
+- Verified: the `DESIGN FROZEN 2026-10-10` header (revision 2, approved by the primary session's rulings
+  QP4-1 … QP4-10 and the operator's QP4-11, lifecycle FROZEN); §12's endpoint lines, each with its source
+  (primary session 2026-10-10, or the S10 convention, or working rules §§14, 21, 22), none widened;
+  `overall.md` l. 918 lists `S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5
+  matching)`.
+- Handoff initialized: [`handoff-s10-p4.md`](handoff-s10-p4.md).
+- Validation: `python3 scripts/check_doc_headings.py` → "193 numbered sections across 26 documents, none
+  duplicated"; `python3 scripts/check_decision_ids.py` → "104 decision ids, all distinct". PASS.
+- Session recovery (2026-10-10): the first implementation session stopped right after writing this
+  ledger start and the handoff, before committing. The replacement session (sole writer of the worktree)
+  audited both diffs against §12 and the repository, found them correct, and committed them as C0.
+  `origin/main` has since moved to `bb62edf` (#140, `step-23-release.md` only); the base stays `573c205`,
+  since nothing P4 depends on changed.
+
+### 14.2 Mutations
+
+(Each planted, run, observed red, reverted.)
+
+### 14.3 Deviations and discoveries
+
+### 14.4 CI runs per head
