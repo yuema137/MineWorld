@@ -3555,6 +3555,15 @@ the merged head: main gained a test). MW-1 … MW-6 PASS (§15.8, W-C1 and W-C4)
   answers, and the test joins the wrong world (seen once, Linux `test`, PR run 38023542192,
   `restart.rs`). Pre-existing on `main`; 13w did not change `launch` or `answers`. Suggested fix: confirm
   after `/health` that the child is alive (or let the server bind port 0 and print its address).
+  **Resolved (branch `fix/test-port-race`, 2026-10-10; test support only).** `Server::launch` now starts
+  `--listen 127.0.0.1:0` and reads the bound address from the `[mineworld] listening on http://ADDR …`
+  line `serve.rs` already prints once it holds the socket, then polls `/health` on that address; a child
+  that exits or stays silent fails the test. `free_port()` and the three-attempt retry (D-SA5) are gone:
+  the harness never releases a port between choosing and binding it, so no other process can take it.
+  No server CLI, output or `PROTOCOL.md` change — the line is read exactly as the Python SDK's
+  `sdk/python/tests/realserver.py` reads it (step-13 D-12 did the same for the godot2d `World` with the
+  join line). The godot2d `World::restart` (AC-W4) still rebinds a just-released address by design;
+  that is the test's subject, not a port choice. Evidence: the branch's PR.
 - **`platforms` duplication → S16 or S13 (follow-up, not scheduled).** The `platforms` job was kept
   (D-13w-6) because its layer runs E-c's offline vendor check (`ci_layer.py --offline-check`, PD-p3,
   EC-3 (b)), which `core` does not. The rest of the layer (`cargo build -p mineworld-cli`, the
