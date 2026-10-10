@@ -23,9 +23,16 @@ ENDPOINT AUTHORITY  implementation, commits, push, PR create/update, CI repair: 
 VALIDATION BUDGET   §17.11 (CP-C1 ≤ two 60 s runs; CA-13 once; digests ≤ four; one full gate)
 STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §17.11 MATERIAL STOP;
                     coordinator: S11-B still open 3 h after the wait began → stop and report
-CURRENT CHECKPOINT  C-C1 … C-C5 committed and pushed (head 375b090); E-SC0 … E-SC6 recorded
-NEXT ACTIONS        C-C6: tools/cli perceive.rs PackEventPerception, history.rs SavedHistory, serve.rs
-                    wiring, main.rs < 500 (516 now); tests CA-2, CA-3, CA-4 (binary), CA-6, CA-11,
-                    CA-12 persisted; then C-C7 (entity order, delta.rs, CP-C1), C-C8, C-C9 (Godot),
-                    C-C10 (CA-13, digests, full gate, READY)
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. PR #95. C-C1 … C-C10 done; E-SC0 …
+                    E-SC14, D-SC1 … D-SC14 in step-12 §§17.12–17.13. Final executable head 82d4e59 (full
+                    gate E-SC14); final PR head = that + the regenerated evidence and this ledger
+                    commit; CI on that exact head: see the PR's checks. Context CLOSED / AWAITING
+                    OPERATOR ACTION.
+OPERATOR ATTENTION  D-SC12 (CP-C1: json-patch measured 13 % smaller than typed; the frozen rule
+                    selects typed); D-SC14 (main.rs is 526 lines on main after IL-b; S11-C net 0);
+                    Windows check INCONCLUSIVE (target not installed; S13 owns the Windows CI lane);
+                    CA-4's binary drop path INCONCLUSIVE (OS buffers); M-CA13 not run (budget).
+NEXT ACTIONS        operator review and merge decision; if main moves before merge, merge origin/main,
+                    keep both lanes' hunks, re-run the affected suites and regenerate evidence;
+                    after merge, record the merge identity in §17 (post-merge sync owner per §17.11).
 ```

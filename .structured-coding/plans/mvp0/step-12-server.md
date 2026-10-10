@@ -2558,9 +2558,10 @@ D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the insta
 
 # 17. PR S11-C — facts in observations, the `perceived` stream, `acted_through`, deltas (full design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session`. Superseded: `PR DESIGN — READY FOR FREEZE
-REVIEW`. A fresh implementation session executes it under §17.11, starting only once S11-B (#83) has
-merged (C-C1, C-C3 and C-C3b excepted, §17.11's sequence).
+**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE` (PR #95, 2026-10-09; implementation context
+CLOSED / AWAITING OPERATOR ACTION; final heads and CI in `handoff-s11c.md`). Superseded:
+`DESIGN FROZEN (2026-10-08), primary session`; `PR DESIGN — READY FOR FREEZE REVIEW`. Implemented under
+§17.11 by a fresh session in `impl-s11c` (C-C1, C-C3 and C-C3b before S11-B merged, as §17.11 allows).
 
 **Freeze record (2026-10-08).** Relayed by the coordinator:
 - **Operator.** QS11C-6 accepted: overhearing is place-level for MVP-0. A hearing range comes later as a
@@ -2993,10 +2994,11 @@ where it applies); `world_client.gd` growth only frame arms and the cursor.
 
 ### C-C10 — Close: README, digests, scope, sizes, full gate, ledger, PR
 
-- [ ] Implementation: `server/README.md`; ledger · [ ] Validation: CA-13 (the long-save resume, once);
+- [x] Implementation: `server/README.md`; ledger · [x] Validation: CA-13 (the long-save resume, once);
   CA-14 (digests at head vs base, scope diff, sizes, scans); **one** full gate on the final head (PR CI if
-  the workflow runs it, else local in the background) · [ ] Review: CA-1 … CA-15 with evidence; every
+  the workflow runs it, else local in the background) · [x] Review: CA-1 … CA-15 with evidence; every
   mutation planted, red, reverted; the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE.
+  (E-SC13, E-SC14, the summary after it; D-SC14)
 
 **E-SC0 (first action after the freeze):** the base's two 300-day digests and test counts.
 
@@ -3411,6 +3413,32 @@ E-SC13 C-C10 on f43d73d (+ README and the CA-13 test, committed with this entry)
         protocol.rs < 420, main.rs 499. Existing tests edited only for shapes and helpers: protocol/
         tests.rs (join), frames.rs (join, observation, new cases), the CLI and server support helpers
         (D-SC13), one S11-C test for the clock frame.
+E-SC14 Final gate, executable head 82d4e59 (merge of origin/main @ ffbbedc: IL-b #102, S10 P3, S21
+      plans; main.rs conflict only, D-SC14) plus the regenerated evidence committed after it.
+        cargo fmt --all -- --check                         PASS
+        cargo clippy --workspace --all-targets -D warnings  PASS (exit 0)
+        cargo test --workspace --no-fail-fast               PASS (exit 0; 188 test targets ok, 0 failed;
+                                                            ignored: the Godot-gated client_2d set, the
+                                                            bodies three-seed evidence run, CP-C1, CA-13)
+        check_doc_headings                                  PASS (192 sections, none duplicated)
+        check_decision_ids                                  PASS (84 ids, all distinct)
+        check_scratch scan / left                           PASS (175 sources; no scratch left)
+        bash clients/protocol/run.sh evidence               PASS (exit 0, no script error; evidence
+                                                            regenerated on this head, invite kept out)
+        cargo check --target x86_64-pc-windows-msvc         INCONCLUSIVE (target not installed; S13)
+      CI (`fast`, `test`) on the exact final PR head: recorded in handoff-s11c.md.
+Acceptance summary (CA-1 … CA-15):
+      CA-1 PASS (E-SC2; M-CA1, M-CA1b red). CA-2 PASS (E-SC7; M-CA2 survives the binary run — the
+      fact after the cursor was not one the wanderer learned — and is red in CA-5). CA-3 PASS, server
+      half and binary half (E-SC7; M-CA3 red; D-SC9). CA-4 PASS in-process with and without perceived
+      (E-SC6; M-CA4 red on the variant, D-SC8); binary half exact but drop path INCONCLUSIVE (socket
+      buffers absorbed the stall). CA-5 PASS (M-CA5 red). CA-6 PASS (E-SC7; M-CA6 red on the in-process
+      order check; the first planting was equivalent). CA-7 PASS (M-CA7 red). CA-8 recorded: typed
+      1.3 %, json-patch 1.2 % of whole; outcome typed by the frozen rule (D-SC12). CA-9 PASS (7 golden
+      cases, 2 400 recorded pairs; M-CA9a, M-CA9b red). CA-10 PASS. CA-11 PASS (M-CA11 red). CA-12 PASS
+      both halves. CA-13 PASS (p99 12.3 ms, max 12 ms; M-CA13 not run, E-SC13). CA-14 PASS (social-cafe
+      digest = base; market-town = main's TW-a baseline; scope; sizes except main.rs = main's 526,
+      D-SC14). CA-15 PASS (E-SC12; slice link and every existing run.sh mode pass).
 ```
 
 ## 17.13 Deviations and discoveries
