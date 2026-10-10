@@ -9976,6 +9976,53 @@ M-4   MATERIAL STOP — the validation budget (§21.14: "Reaching a cap is a mat
         NW-5  market_town.rs on the merge: one 300-day and four 30-day runs.
       Requested: authorize three more 300-day runs (NW-1, TD-12b, NW-5). All of them run in the
       foreground.
+
+M-4 RULING (primary session, 2026-10-10): three more 300-day runs authorized (run.rs's claims, TD-12b,
+      market_town.rs on the merge), all in the foreground; "new cap 22 total". N-D25 accepted as a bounded
+      refinement of the M-3 ruling; N-D26 and N-D27 accepted.
+
+CROSS-LANE (12d; recorded at the primary session's request): 12n-2 takes `bodies` to version 4
+      (25660e8; ARC-39 note 6: the walk out of the planner's margin changes routes and results). 12d's WIP
+      (8814aad) also takes `bodies` to version 4, for its genesis doorway refusal (SD-D5, QD-6). Both are
+      changes of results, so they cannot share a number. On rebase, 12d takes version 5 (or reconciles
+      the two under one bump), updates `tests/rapier_pin.rs`'s pinned pair and its "bodies vN" literals
+      (inspect.rs, social_composition.rs), and records it. The scratch merges of E-NW4 and E-NW6 used 5.
+
+E-NW7 The three authorized runs, on the merge (25660e8 + 8814aad; binary merge2-mineworld), 2026-10-10,
+      foreground.
+        NW-1  run.rs's claims on social-cafe 300 d, seed 7, with a save (nw1-300.txt, nw1-300-save):
+              faults 0, 1 240 225 facts. Every one of the 11 seats has an accepted stride and an accepted
+              talk in every one of the 10 buckets (no `move 0` or `talk 0` in any activity line); every
+              place entered — apartments 3 306, café 2 992, park 2 092, store 1 198, street 10 487,
+              workplace 900 — PASS. (Geometry-caused stops 15 308; person-caused 87 657, printed.)
+        NW-5  market_town.rs on the merge (merge-market.log): 1 passed in 285 s (a 300-day and four
+              30-day runs in parallel, 239.5 s wall; wallet totals conserved at 2 360 000) — PASS.
+        NW-4  TD-12b. A scratch timing build: bodies' `ArrivalResolver::resolve` wrapped in a
+              wall-clock timer printing every call. It was built from the merge tree to timing-mineworld,
+              and the timer was removed from the tree right after. market-town 300 d, seed 7: faults 0,
+              1 219 332 facts with fingerprint 08f7d8c784a10912, equal to TD-12a's plain with-bodies run
+              (the timing changes nothing). Load 7.6 → 12.9.
+                calls 549 393; p50 1 µs, p99 95 µs, p99.9 272 µs, max 68 587 µs
+                over 1 ms 262, over 5 ms 86, over 10 ms 54, over 20 ms 25, over 50 ms 2 (57 205, 68 587)
+              Bound max ≤ 50 ms — FAIL by two calls. 12d-0's TZ-9b gave max 10.5 ms on its prototype.
+              The timer is wall-clock and includes descheduling. At a load of 8–13 the tail cannot be told
+              apart from off-CPU stalls, the cause step-12 E-SB9 found for every tick outlier.
+        Budget: 300-day runs now 23 = E-NW3's 2 + 2, TD-12a 8 + 4, the 4 other (3 aborted + 1 check),
+        and these 3. The primary session's "new cap 22" is 19 + 3, but M-4 stated 20 already used, so 20 +
+        3 = 23. The arithmetic differs by one; reported, not hidden.
+
+M-5   MATERIAL STOP (TD-12b, §19.4: "a maximum above 50 ms … is a material stop with the numbers";
+      §21.8 NW-4 carries it). Two of 549 393 resolutions exceeded 50 ms, measured on wall time on a loaded
+      machine. The 300-day run budget is also at 23 against the stated 22. Options:
+        (a) one more market-town 300-day timing run in the foreground on a quiet machine, timing each
+            call by both wall clock and thread CPU time (`clock_gettime(CLOCK_THREAD_CPUTIME_ID)` through
+            std is unavailable; the scratch build would read `libc::clock_gettime`, a scratch-only
+            dependency). PASS iff the CPU-time maximum ≤ 50 ms; the wall maximum is reported. This
+            separates the resolver's own cost from descheduling, as the CP-B4 ruling (D-SB12) did for
+            ticks;
+        (b) accept TD-12b as INCONCLUSIVE under load: p99.9 0.27 ms, two outliers. 12d re-measures TD-12b
+            on its final head anyway (§19.4).
+      Recommendation: (a) — one run, 24 in all.
 ```
 
 
