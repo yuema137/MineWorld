@@ -2448,5 +2448,63 @@ HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-d.md
 
 ## 18.11 Ledger
 
-Empty until execution starts. Commit rows, evidence (E-TWd-n), mutations (M-TWd-n) and deviations (TWd-Dn) are
-recorded here by the execution session.
+Execution session: worktree `/Users/yuema137/mineworld-worktrees/impl-tw-d`, branch `mvp0/pr-tw-d-data`, base
+`origin/main @ 2c6d34c` (TW-b #113 = 712bb51 and IL-b #102 merged; also ED #101 and the S10 P5 plan #111).
+Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
+
+**Start-of-session audit (2026-10-09).** §18.2's anchors re-verified on 2c6d34c:
+- `authoring/src/attachment.rs`: `Attachment` (`/`-separated, first component `data`, refusals as listed),
+  `path_under`, `Attached::get`, `ATTACHMENT_MAX_BYTES = 4 MiB`. `authoring/src/configuration.rs`:
+  `PackConfiguration::attachments(&C) -> Vec<&Attachment>`, `seed(&Seeding, &C, &ConfigurationContext)`,
+  `ConfigurationContext::attached()`. `worldpack/src/configure.rs` `read_attachments` (l. 193;
+  `AttachmentMissing`/`Outside`/`TooLarge`) and `check_configuration` (l. 524, re-assembles and compares the
+  configuration facts). The test pack `test-table` (tests/acceptance/tests/configuration/mod.rs l. 425) is a
+  plain configuration with one attachment. All as recorded; IL-b's API is as R-TWd-1 assumed.
+- weather (TW-b, merged): `WeatherConfigured { seed, rules, record: Option<RecordRef> }` with `RecordRef` an
+  empty enum; `Origin { Rule }`; `ClimateState { configured, today, now, chain }` — note: `configured` is the
+  whole `WeatherConfigured`, so the series must not be stored there (TWd-D2).
+- AC-1 `world_delta_failures` (l. 1235) refuses `data/` ("present in one pack only"); `GENERIC_PACKS =
+  ["calendar", "weather"]` (l. 1030).
+- `Cargo.toml` members list `tools/cli` explicitly; `Cargo.lock` has no `ureq`; `.gitattributes` has only
+  `*.bin`/`*.glb binary`; root `NOTICE` lists asset records; DEP-8 table at l. 303; `DECISIONS.md` ends at
+  ARC-68 with 85 ids.
+- Calendar: `mineworld_calendar::civil::{is_leap, days_in_month}` and `CalendarDate::{new, days,
+  from_days, next}` are public.
+- Digest method (sha-256 of every `run` output line but `wall`): bodies-yard 30 d seed 7 on the base gives
+  `bd6a1002…80e6` = E-TWb-0.
+
+### Commit ledger
+
+| # | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- |
+| C1 | [x] DEP-31 appended after ARC-68 (data source table, `.dly` input, our own CSV labelled modified, provenance without a digest, the tool, `ureq =3.4.2` with `rustls`/ring behind `fetch`, limitations); DEP-8 row (NOAA GHCN-Daily, CC0); ARC-35 note (QTWd-1 ruling, 2026-10-09); `systems/weather/README.md` "The record format"; `tools/weather-fetch/{Cargo.toml,README.md,src/main.rs}` skeleton (no dependency); root `Cargo.toml` member; root `NOTICE` pointer | [x] `check_doc_headings.py`: 192 sections, none duplicated — PASS; `check_decision_ids.py`: 86 ids (85 + 1), all distinct — PASS; `cargo check -p mineworld-weather-fetch` clean; `Cargo.lock` gains the member only | [x] DEP-31 does not restate ARC-68 (it points to it for the generator and LARS-WG); the licence wording matches §3.2 and E-TWd-1 (CC0, "no restrictions", attribution requested, no endorsement, modified data not presented as original); "modified (reshaped and gap-reported) … not endorsed by NOAA" present; terms (`System Pack`, `World Pack`) as defined |
+
+### Evidence
+
+```text
+E-TWd-1  Licence and format re-read 2026-10-09 with WebFetch (material stop (6) check):
+         https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt — §III: ID 1–11, YEAR 12–15, MONTH 16–17,
+         ELEMENT 18–21, then VALUEn/MFLAGn/QFLAGn/SFLAGn in 8 columns from 22 (VALUE31 262–269); PRCP tenths
+         of mm, TMAX/TMIN tenths of °C, AWND tenths of m/s, WDF2 degrees; missing −9999; WT01 fog (may
+         include heavy fog), WT02 heavy fog, WT03 thunder, WT08 smoke or haze, WT13 mist, WT14 drizzle,
+         WT16 rain, WT21 ground fog; QFLAG blank = "did not fail any quality assurance check"; citations
+         Menne et al. 2012 doi:10.1175/JTECH-D-11-00103.1 and doi:10.7289/V5D21VHZ. No licence text in the
+         readme. https://registry.opendata.aws/noaa-ghcn/ — "made available under the Creative Commons 1.0
+         Universal Public Domain Dedication (CC0-1.0)… There are no restrictions on the use of the data";
+         "NOAA requests attribution"; "not permissible to state or imply endorsement"; "If you modify NOAA
+         data, you may not state or imply that it is original, unaltered NOAA data". Equal to E-TWd-pre-1
+         and §3.2 → no material stop (6). (The data.gov catalog URL of §3.2 now returns 404; the NODD
+         registry page is cited instead.)
+```
+
+### Mutations
+
+```text
+(none yet)
+```
+
+### Deviations and findings
+
+```text
+(none yet)
+```

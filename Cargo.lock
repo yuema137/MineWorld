@@ -1182,6 +1182,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-weather-fetch"
+version = "0.1.0"
+
+[[package]]
 name = "mineworld-worldpack"
 version = "0.1.0"
 dependencies = [

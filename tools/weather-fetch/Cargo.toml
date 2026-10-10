@@ -1,0 +1,17 @@
+[package]
+name = "mineworld-weather-fetch"
+description = "Developer tool: turns a NOAA GHCN-Daily station file into a World Pack's weather record (CSV and NOTICE) and fits the weather pack's rules to it. Offline; never run by a world, CI or the server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "weather-fetch"
+path = "src/main.rs"
+
+# The skeleton of S19 TW-d C1 (step-19 §18.4): no dependency yet. C3 adds clap, the weather pack (the
+# one authority for the CSV and the rules), serde-saphyr, and `ureq` behind the off-by-default `fetch`
+# feature (DECISIONS.md DEP-31).
