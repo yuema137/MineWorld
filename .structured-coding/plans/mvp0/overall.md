@@ -915,8 +915,11 @@ MVP-0 non-preclusion audit.
 | S10 P5a / P5b | ARC-57, ARC-58 (P5a), ARC-60 (P5b); ARC-72, ARC-73, ARC-74 reserved for P4 and P6 | DEP-27 (`httpx2`), DEP-32 (`python-dotenv`, P5a), DEP-33 (native Anthropic adapter, P5b) |
 | S15 12n-1 | ARC-75 (walking and wayfinding; first drafted as ARC-73, renumbered before merge) | DEP-34 (`pathfinding`) |
 | S20 SET-a | ARC-76 (first drafted as ARC-72, renumbered before merge) | DEP-35, DEP-36 (first drafted as DEP-32 and DEP-33) |
+| S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5 matching) |
+| S16 E-e | ARC-77 (Lakeside, the repository's own Entity Pack) | — |
+| S23 release | ARC-78 (windowless launcher), ARC-79 (release channels and versioning), ARC-80 (bundle layout and per-user data) | DEP-38 (cargo-about), DEP-39 (butler), DEP-40 (syft), DEP-41 (Godot export templates), DEP-42 (actions/attest) |
 
-The next free numbers are ARC-77 and DEP-37. An implementation session never picks a number; it asks
+The next free numbers are ARC-81 and DEP-43. An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
 2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
 S10 PR designs) are why this table now lists reservations as well as assignments.
