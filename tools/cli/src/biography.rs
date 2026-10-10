@@ -1,13 +1,16 @@
 //! `mineworld biography` — a Person's objective biography, derived from a save's fact log
 //! (`docs/DECISIONS.md` `ARC-29`, `docs/CORE_CONCEPTS.md` §5.2).
 //!
-//! Reads the save's manifest and fact table and nothing else: it never resumes the world, never reads
-//! the journal and never writes a row. The biography is not stored anywhere — every invocation
+//! Reads the save's manifest and fact table and the World Pack: it never resumes the world, never
+//! reads the journal and never writes a row. The biography is not stored anywhere — every invocation
 //! regenerates it from the log, which is what makes it a projection rather than a second account.
 //!
 //! ```text
 //! selection   the Person is among the fact's subjects or participants
-//!             and its event type is one the composition declares biographical
+//!             and, when the fact's owner has a section the save's genesis configured, that
+//!             section's biography for the fact's roles (ARC-65); otherwise its event type is one
+//!             the composition declares biographical (ARC-29) — the SDK's
+//!             interactions::biography::selected decides
 //! entry       { at, event id, event type, place, counterparts } — envelope fields only
 //! ```
 //!
@@ -20,9 +23,9 @@ use std::path::Path;
 
 use mineworld_contracts::{EntityId, EntityKey, EntityType, EventEnvelope, EventTypeId, WorldTime};
 use mineworld_persistence::{
-    Durability, Manifest, PersistError, PersistenceBackend, SqliteBackend, format,
+    Durability, Manifest, PersistError, PersistenceBackend, SqliteBackend, WorldRevision, format,
 };
-use mineworld_worldpack::{Capability, PackRoots, WorldPack};
+use mineworld_worldpack::{Capability, PackRoots, WorldPack, interactions};
 use serde_json::json;
 
 use crate::described;
@@ -95,9 +98,10 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
         .map(|fact| format::decode(&fact.bytes, "fact"))
         .collect::<Result<_, _>>()
         .map_err(damaged)?;
+    let configured = configured(&backend, &manifest, &loaded)?;
     let entries: Vec<&EventEnvelope> = facts
         .iter()
-        .filter(|fact| selected.contains(fact.event_type()) && names(fact, person))
+        .filter(|fact| interactions::biography::selected(fact, person, &selected, &configured))
         .collect();
 
     // Display names, from the save's own `named` facts through naming's projection of them, so this
@@ -177,9 +181,55 @@ fn biographical(manifest: &Manifest) -> Result<BTreeSet<EventTypeId>, String> {
     Ok(selected)
 }
 
-/// Whether the fact is about, or involves, this person.
-fn names(fact: &EventEnvelope, person: EntityId) -> bool {
-    fact.subjects().contains(&person) || fact.participants().contains(&person)
+/// What the save says about its world's configured sections (`ARC-65` item 4): for each composed
+/// capability with a section, the genesis fact it was configured by, read into the table the
+/// selection asks; and each entity's key, type and tags — from the World Pack this command already
+/// reads for keys and names, since tags are fixed at genesis (`A-1`). With no configured section the
+/// selection is `ARC-29` exactly.
+fn configured(
+    backend: &SqliteBackend,
+    manifest: &Manifest,
+    loaded: &mineworld_worldpack::LoadedWorld,
+) -> Result<interactions::Configured, String> {
+    let genesis: Vec<EventEnvelope> = backend
+        .facts_of(WorldRevision::GENESIS)
+        .map_err(damaged)?
+        .iter()
+        .map(|fact| format::decode(&fact.bytes, "fact"))
+        .collect::<Result<_, _>>()
+        .map_err(damaged)?;
+    let read = loaded.world().read();
+    let entities = read
+        .entities()
+        .map(|entity| {
+            (
+                entity.id(),
+                interactions::Known {
+                    key: entity.key().clone(),
+                    entity_type: entity.entity_type(),
+                    tags: entity.tags().clone(),
+                },
+            )
+        })
+        .collect();
+    let mut configured = interactions::Configured::none().with_entities(entities);
+    for installed in &manifest.composition {
+        let Some(section) = Capability::resolve(installed.declaration.system())
+            .and_then(Capability::interaction_section)
+        else {
+            continue;
+        };
+        if let Some(fact) = genesis
+            .iter()
+            .find(|fact| *fact.event_type() == section.configured)
+        {
+            let table = (section.consequences)(fact.payload().payload()).map_err(|error| {
+                format!("[mineworld] the save's {}: {error}", section.configured)
+            })?;
+            configured = configured.with_section(section.facts, &table);
+        }
+    }
+    Ok(configured)
 }
 
 /// Everybody else the fact names, subjects first, each once.

@@ -218,7 +218,7 @@ fn described_identity(identity: &Identity, origin: &Origin) -> String {
 }
 
 /// `mineworld packs validate <directory>`: one data pack, its package fields all required, its licence
-/// judged by the default policy, then its content — a world read (its requirements resolved in the
+/// judged by the default policy (a World Pack's by its own, ARC-55 note), then its content — a world read (its requirements resolved in the
 /// roots) and loaded as `validate` does; a presentation pack's style manifest.
 pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = DataPack::of(dir).map_err(refused)?.ok_or_else(|| {
@@ -226,16 +226,22 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
             dir: dir.to_path_buf(),
         })
     })?;
+    // A World Pack is judged by its own policy (`configure/packages.yaml`, ARC-55 note), after it is
+    // read and loaded; any other pack by the default, before its content — then its own framework range
+    // (ARC-54 note, F-Ed1), then its content.
     let (identity, kinds) = match &pack {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
+            world
+                .licence_policy()
+                .judge(identity.id.as_str(), &identity.license)
+                .map_err(refused)?;
             (identity, None)
         }
         DataPack::PackFile(dir) => {
             let identity = read_pack_file(dir).map_err(refused)?;
-            // Its licence, then its own framework range (ARC-54 note, F-Ed1), then its content.
             LicencePolicy::default()
                 .judge(identity.id.as_str(), &identity.license)
                 .map_err(refused)?;
@@ -251,9 +257,6 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
             (identity, kinds)
         }
     };
-    LicencePolicy::default()
-        .judge(identity.id.as_str(), &identity.license)
-        .map_err(refused)?;
     print!(
         "{}",
         described_identity(&identity, &Origin::Directory(dir.to_path_buf()))

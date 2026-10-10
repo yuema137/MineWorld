@@ -20,20 +20,38 @@ use crate::system::GroupActivitySystem;
 /// It is a published constant of this pack, not derived from the pace at run time: a pack that knew a
 /// driver's schedule would be a pack that knew who drives it. It is checked against the instant the
 /// answer is made (the request's `issued_at`), inclusive.
+///
+/// This is the compiled default. Since S17's PR IL-b a world may choose another lifetime through this
+/// pack's section of the World's Interaction List (`invitation_lifetime`, [`crate::interactions`],
+/// `ARC-63`); each invitation carries the instant it lapses, [`Invitation::until`], so whoever reads it
+/// judges by the world's number and not by this one.
 pub const INVITATION_LIFETIME: SimDuration = SimDuration::from_seconds(1_800);
 
-/// One invitation a person has been given: from whom, to do what, and when.
+/// One invitation a person has been given: from whom, to do what, when, and until when it can be
+/// answered.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Invitation {
     from: PersonId,
     kind: ActivityKind,
     at: WorldTime,
+    until: WorldTime,
 }
 
 impl Invitation {
-    /// An invitation from `from` to do `kind`, made at `at`.
-    pub const fn new(from: PersonId, kind: ActivityKind, at: WorldTime) -> Self {
-        Self { from, kind, at }
+    /// An invitation from `from` to do `kind`, made at `at`, open until `until` inclusive.
+    pub const fn new(from: PersonId, kind: ActivityKind, at: WorldTime, until: WorldTime) -> Self {
+        Self {
+            from,
+            kind,
+            at,
+            until,
+        }
+    }
+
+    /// The last instant it can be answered: `at` plus the lifetime the world's section gave the pair
+    /// where it was made ([`INVITATION_LIFETIME`] when it configures none).
+    pub const fn until(&self) -> WorldTime {
+        self.until
     }
 
     /// Who invited.
@@ -51,10 +69,11 @@ impl Invitation {
         self.at
     }
 
-    /// Whether it can still be answered at `now`: no older than [`INVITATION_LIFETIME`], inclusive.
+    /// Whether it can still be answered at `now`: not past [`Invitation::until`], inclusive. With
+    /// `until = at + INVITATION_LIFETIME` this is exactly the test the pack made before invitations
+    /// carried their expiry — `now − at ≤ lifetime`, which an instant before `at` also passed.
     pub fn is_open_at(&self, now: WorldTime) -> bool {
-        now.duration_since(self.at)
-            .is_some_and(|age| age.seconds() <= INVITATION_LIFETIME.seconds())
+        now <= self.until
     }
 }
 
@@ -112,7 +131,8 @@ owned_component! {
     component = Invitations,
     owner = GroupActivitySystem,
     component_type = "invitations",
-    schema_version = 1,
+    // 2 since S17's PR IL-b: an invitation carries `until`.
+    schema_version = 2,
 }
 
 /// That a person is part of an activity: which, doing what, since when.
@@ -157,4 +177,54 @@ owned_component! {
     owner = GroupActivitySystem,
     component_type = "participation",
     schema_version = 1,
+}
+
+#[cfg(test)]
+mod tests {
+    use mineworld_contracts::{EntityId, EntityType};
+
+    use super::*;
+
+    fn invitation(at: i64, lifetime: i64) -> Invitation {
+        Invitation::new(
+            PersonId::new(EntityId::from_raw(1), EntityType::Person).expect("a person"),
+            ActivityKind::new("coffee").expect("a kind"),
+            WorldTime::from_seconds(at),
+            WorldTime::from_seconds(at + lifetime),
+        )
+    }
+
+    /// SD-IB-15: with `until = at + INVITATION_LIFETIME`, `is_open_at` is the old test exactly —
+    /// `now − at ≤ 1 800`, an instant before `at` included — over a table of instants on both sides of
+    /// each bound; and an invitation
+    /// a world gave 60 s lapses at its own `until`.
+    #[test]
+    fn an_invitation_is_open_exactly_until_it_says() {
+        let old = |at: i64, now: i64| {
+            WorldTime::from_seconds(now)
+                .duration_since(WorldTime::from_seconds(at))
+                .is_some_and(|age| age.seconds() <= INVITATION_LIFETIME.seconds())
+        };
+        for at in [0, 7, 900, 86_399] {
+            let held = invitation(at, INVITATION_LIFETIME.seconds());
+            for now in [
+                at - 1,
+                at,
+                at + 1,
+                at + 1_799,
+                at + 1_800,
+                at + 1_801,
+                at + 5_000,
+            ] {
+                assert_eq!(
+                    held.is_open_at(WorldTime::from_seconds(now)),
+                    old(at, now),
+                    "at {at}, now {now}"
+                );
+            }
+        }
+        let short = invitation(100, 60);
+        assert!(short.is_open_at(WorldTime::from_seconds(160)));
+        assert!(!short.is_open_at(WorldTime::from_seconds(161)));
+    }
 }

@@ -12,11 +12,15 @@
 //! 2  world.yaml parses, with unknown fields refused
 //! 3  the pack's id is its directory's name, and a stated `mineworld:` range admits this framework
 //! 4  every system it enables exists here, and none twice
+//! 4a the world's licence policy: configure/packages.yaml when configure: lists `packages`, else the
+//!    default (ARC-55 note)
 //! 4b its requirements resolve in this build and the pack roots, and every pack in its composition
-//!    carries a licence the policy allows (ARC-54, ARC-55)
-//! 4c every configure: key is an enabled, configurable system of this build, listed once and not
-//!    reserved; its file exists and its owner's type decodes it; every file in configure/ is listed;
-//!    every system a configuration requires is enabled (ARC-61)
+//!    carries a licence that policy allows (ARC-54, ARC-55)
+//! 4c every configure: key is listed once, and is a framework key (classes, packages) or an enabled,
+//!    configurable system of this build; configure/classes.yaml decodes (ARC-64); each system's file
+//!    exists and its owner's type decodes it; every file in configure/ is listed; every system a
+//!    configuration requires is enabled; every data/ file it names is read; each configuration is
+//!    checked against the classes (ARC-61, ARC-63)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -38,8 +42,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use mineworld_authoring::EntityClasses;
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
-use mineworld_packages::{Compatibility, Composition, License, PackRoots, Version};
+use mineworld_packages::{Compatibility, Composition, LicencePolicy, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
@@ -92,6 +97,8 @@ pub struct WorldPack {
     organizations: BTreeMap<EntityKey, AuthoredOrganization>,
     seats: BTreeSet<EntityKey>,
     configuration: Vec<FoundConfiguration>,
+    classes: EntityClasses,
+    licence_policy: LicencePolicy,
 }
 
 impl WorldPack {
@@ -123,8 +130,15 @@ impl WorldPack {
                 })?;
         }
         let systems = resolve_systems(&manifest.systems)?;
-        let composition = crate::requirements::resolve(&manifest_path, &manifest, &systems, roots)?;
-        let configuration = configure::read(&root, &manifest.configure, &systems)?;
+        let licence_policy = configure::licence_policy(&root, &manifest.configure)?;
+        let composition = crate::requirements::resolve(
+            &manifest_path,
+            &manifest,
+            &systems,
+            roots,
+            &licence_policy,
+        )?;
+        let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
@@ -192,6 +206,8 @@ impl WorldPack {
             organizations,
             seats,
             configuration,
+            classes,
+            licence_policy,
         };
         check_sections(&pack)?;
         configure::check_references(&pack)?;
@@ -289,6 +305,17 @@ impl WorldPack {
         &self.configuration
     }
 
+    /// The world's entity classes (`DECISIONS.md` `ARC-64`): `configure/classes.yaml`, or none.
+    pub fn classes(&self) -> &EntityClasses {
+        &self.classes
+    }
+
+    /// The licence policy this world's packs are judged by (`ARC-55` note): its
+    /// `configure/packages.yaml`, or the default. Not world state.
+    pub fn licence_policy(&self) -> &LicencePolicy {
+        &self.licence_policy
+    }
+
     /// Every content file's sections, in the one order every per-file pass uses: items', then
     /// organizations', then places', then people's, each in key order (`ARC-36` item 7).
     ///
@@ -349,6 +376,8 @@ impl WorldPack {
             organizations,
             seats: BTreeSet::new(),
             configuration: Vec::new(),
+            classes: EntityClasses::default(),
+            licence_policy: LicencePolicy::default(),
         }
     }
 

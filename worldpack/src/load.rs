@@ -335,7 +335,12 @@ impl WorldPack {
         // Then configuration (ARC-61), in `configure:` order: after passages and locations, so a world
         // without `configure:` keeps every event id it had, and before sections, so a section's
         // reduction may check its value against the configured state.
-        facts.extend(configure::seed(world, ids, self.configuration())?);
+        facts.extend(configure::seed(
+            world,
+            ids,
+            self.classes(),
+            self.configuration(),
+        )?);
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.

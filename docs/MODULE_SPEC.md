@@ -265,6 +265,14 @@ decode_configuration   decodes configure/<id>.yaml into its own type; default: r
 A pack states its configuration facts `Visibility::SystemInternal` with no subjects: a world's
 configuration is nobody's perception and nobody's biography.
 
+**A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
+`mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
+inside its `impl SystemPack`: its section *is* its configuration, decoded, resolved and seeded by the
+SDK. Its `declaration()` passes through `interactions::declare`, its `install()` calls
+`interactions::install`, and its `react` calls `interactions::reduce` first; it looks up `permits`,
+`parameters` and `consequence` where it decides. The installed set's `Capability::interaction_section()`
+names its declared actions and facts for the tools.
+
 **Dependencies between packs.** A pack that depends on another pack — to state its facts under
 `ARC-26`, or to decode them as a subscriber under `ARC-28` — names it by path:
 `mineworld-<other> = { path = "../<other>" }`. The root manifest's `[workspace.dependencies]` is not
@@ -306,7 +314,10 @@ lakewood/
 │   └── park.yaml
 ├── items/
 ├── organizations/
-├── configure/            each enabled System Pack's world-level configuration, typed by it (ARC-61)
+├── configure/            each enabled System Pack's world-level configuration, typed by it (ARC-61);
+│   ├── classes.yaml      the world's entity classes, a framework key (ARC-64, §4.2)
+│   └── packages.yaml     the world's licence policy, a framework key (ARC-55)
+├── data/                 files a configuration names as attachments (ARC-61 note)
 ├── scenarios/
 └── dependencies.yaml
 ```
@@ -403,8 +414,8 @@ organizations:             # optional. Each key names organizations/<key>.yaml
 seats:                     # the Persons a client may connect as, each one of `population`
   - visitor
 
-configure:                 # optional. Each key is a system id and names configure/<key>.yaml (ARC-61)
-  - <system id>
+configure:                 # optional. Each key names configure/<key>.yaml (ARC-61): an enabled system's
+  - <system id>            # id, or one of the framework keys `classes` (ARC-64) and `packages` (ARC-55)
 ```
 
 ```yaml
@@ -660,8 +671,6 @@ loader never learns what a configuration means. It refuses, by name and naming t
 
 - a key that is no system of this build, or a system the world does not enable;
 - a system that takes no configuration;
-- a **reserved** key: `classes` (the Interaction List's entity classes) and `packages` (the licence-policy
-  override), both reserved for a later build;
 - a key listed twice; a listed file that is missing; a `.yaml` file in `configure/` that is not listed;
 - a system the configuration requires that the world does not enable;
 - an entity the configuration names that is not declared, or not of the type its owner needs;
@@ -673,6 +682,26 @@ configuration: resuming or replaying it against a World Pack whose configuration
 added or removed — is refused, naming the system (`ConfigurationDrift`). Other content is not compared
 at resume.
 
+**Framework keys** (`ARC-61` note). Two keys of `configure:` name no System Pack; each is owned by a
+framework crate, never resolved against the installed set, and never seeded on its own:
+
+```text
+classes    configure/classes.yaml, decoded by mineworld_authoring::EntityClasses (ARC-64, §4.2); read
+           before any configuration is decoded; refused as ClassesInvalid at its line and column
+packages   configure/packages.yaml, decoded by mineworld_packages::LicencePolicy (ARC-55 note); read right
+           after the world's systems resolve and before its requirements do, and used in place of the
+           default policy; refused as LicencePolicyInvalid at its line and column; not world state, not
+           drift-checked
+```
+
+**Attachments** (`ARC-61` note). A configuration may name files under `data/`, written as relative
+paths with `/` whose first component is `data` (`data/table.csv`), each checked as it decodes — no `..`,
+no root, no drive, no `\` — so a path means the same on macOS, Linux and Windows. The loader reads every
+named file and refuses one that is missing (`AttachmentMissing`), one whose real path after following
+links lies outside the World Pack (`AttachmentOutside`), and one over 4 MiB (`AttachmentTooLarge`). The
+owner receives the bytes when it seeds and states what it needs in its own fact, so a changed file is
+drift. A file under `data/` that no configuration names is allowed.
+
 Initial state is **not** written into the world by the loader. Each authored `passage`, each
 authored `location`, each configuration and each section becomes a recorded event caused by
 `Causation::WorldGenesis` — passages first, because they are facts about places that exist before
@@ -682,6 +711,89 @@ file in the order the world's `systems` lists their owners — which the owning 
 person's or a place's section may refer to is seeded before it, and a world that declares no items or
 organizations seeds exactly what it seeded before they existed (`ARC-36`). So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
 (`DECISIONS.md` `ARC-15`).
+
+## 4.2 The World's Interaction List
+
+A world says what its installed interactions may do — who may do what to whom, with which numbers, and
+what a fact means for history — through one document shared by every pack (`DECISIONS.md` `ARC-63`,
+`ARC-64`, `ARC-65`, `DEP-28`). The list is **not** a new carrier: it is `configure/classes.yaml` plus
+each pack's section, `configure/<pack id>.yaml`, all carried by §4.1's configuration seam.
+
+**Vocabulary.** These terms are defined here and nowhere else; none reuses a term of
+[`CORE_CONCEPTS.md`](CORE_CONCEPTS.md).
+
+| Term | Meaning |
+| --- | --- |
+| **entity class** | A name the list gives to a tag over one entity type: `noble` = a Person carrying the tag `noble`. Every entity also matches the **implicit class** named by its type (`person`, `place`, `item`, `organization`). |
+| **section** | One pack's part of the list: `configure/<pack id>.yaml`. |
+| **selector** | An entity class, an implicit class, or `*`, in one role of an entry. |
+| **role** | A position in an interaction, declared by the owning pack per action, per fact and for its parameters: `actor`, `target`, `object`, `place`. |
+| **rule** | `permit` or `forbid` for an action and role selectors. |
+| **parameter block** | A pack's typed numbers, each bounded by the pack. |
+| **consequence** | For one fact type and role selectors: its audience (narrowed within the owner's bounds), its biographical flag, and the pack's knobs. |
+| **reference list** | A section compiled into a pack: always `default` (today's behaviour), and any named list the pack ships. |
+| **region** | A place whose section entries override the world's for that place. |
+
+**Classes** (`ARC-64`). `configure/classes.yaml`, listed as `classes` in `configure:`:
+
+```yaml
+- { class: noble,    of: person, tag: noble }      # priority is list order
+- { class: heirloom, of: item,   tag: heirloom }
+```
+
+An entity's class is the first entry whose `of` is its type and whose tag it carries, otherwise its
+implicit class. A class is defined once; an implicit name is never redefined; `of` is one of the four
+types. Classes are fixed during play and are not seeded on their own: a section's resolved fact copies the
+entries it can be affected by.
+
+**A section** (`ARC-63`). Every key is optional and no other key is accepted:
+
+```yaml
+extends: default                 # a reference list of this pack; chains of at most four, no cycle
+default: permit                  # permit | forbid: what an action no rule matches gets
+rules:
+  - { action: talk, actor: noble, target: commoner, effect: forbid }
+parameters:
+  - { gap: 600 }                                     # unscoped: the base
+  - { actor: guard, gap: 1200 }                      # scoped: only the fields it names
+consequences:
+  - { fact: spoke, actor: servant, biography: off }  # audience: public | place | participants
+regions:
+  library:                                           # a declared place's key
+    parameters: [ { gap: 60 } ]
+```
+
+**Precedence.** Levels, highest last: the pack's bounds (never overridden), its `default` list, `extends`,
+the world's section, a region (for its place only). A higher level replaces a lower level's entry with
+the same key (the action or fact plus its selectors), field by field for parameters and consequences.
+Then the entry naming most roles wins (an implicit class counts as named). Then, between rules of equal
+specificity, `forbid` wins. Two parameter or consequence entries of equal specificity that overlap and
+disagree on a field are **refused at load**, naming both.
+
+**What a section is refused for**, by name, naming the file:
+
+- at its line and column, while its owner's type decodes it: an undeclared action, fact or role; a
+  parameter outside its bound or unknown; an audience wider than the owner's default or narrower than
+  its narrowest; `biography` on a fact whose owner does not allow it; a region rule for an action that
+  is not regional; an `extends` naming no reference list, or a cyclic or over-long chain;
+- with the list and the index of each entry, once the classes are read: a selector naming a class that
+  is neither defined nor implicit (`ClassUndefined`); two ambiguous entries (`AmbiguousEntries`);
+- a region naming no declared place, as any configuration naming an unknown entity (§4.1).
+
+**What a list cannot do.** Grant: a `permit` is a filter on the pack's own checks, never a bypass. Name
+an action, a fact or a role its owner does not declare. Exceed a bound. Widen an audience, or switch
+biography where the owner does not allow it. Stop a fact from being recorded, change a payload or a
+subject, or route another pack's fact. Configure a pack the world does not enable. Reach a client: a
+client sees affordances (an offer refused `PermissionDenied`), requirements, tags and the facts it
+perceives — never the list.
+
+**At run time.** A configured section is one genesis fact `<pack>-interactions-configured`
+(`SystemInternal`, no subjects), reduced by its pack into a component `<pack>-interactions` on every
+Place. The pack looks up `permits`, `parameters` and `consequence` on the place it is deciding at; a pack
+the world does not configure answers its compiled defaults without reading state, so an unconfigured
+world is byte-identical. Editing a section or a class it references is refused at resume as drift.
+`mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
+entity's class.
 
 ---
 
