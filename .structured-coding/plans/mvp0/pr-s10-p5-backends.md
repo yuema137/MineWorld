@@ -1152,3 +1152,42 @@ key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
 - With `request_timeout_s` unset the adapter sets no HTTP timeout of its own (`httpx2.Timeout(None)`):
   `httpx2`'s 5 s default would cut ordinary generations short, and the gateway's `call_timeout_s` bounds
   every call anyway (D-P5-8).
+
+### 13.6 C5 — budgets and the gateway
+
+- [x] Implementation: `budget.py` (`Clock`, `SystemClock`, `BudgetPolicy` — QP5-4's defaults —
+  `BudgetRefusal(limit, spent, asked, ceiling)`, `Window`, the `Ledger` protocol, `MemoryLedger`,
+  `SqliteLedger` (one table `budget_ledger(seat, at, calls, tokens, estimated)`, committed per charge,
+  `close()`), `reservation`, `Reservations`, `precheck`, `InFlightLimiter` over `asyncio.Semaphore`);
+  `gateway.py` (`Tier`, `TIERS`, `Completed`/`Refused`/`Failed`, `GateOutcome`, `Budget` — what every
+  gateway of a process shares — `ModelGateway.complete` in §5.3's order, `Router.for_tier`, and
+  `Router.aclose`, which closes each gateway once and then the ledger); `record.py`: an exception from
+  the inner backend abandons the recording, a cancellation (the gateway's timeout) does not
+  (`except Exception`, see F-P5-3); `tests/test_budget.py`.
+- [x] Validation (E-P5-5): 40 passed (7 new); ruff, format, pyright strict clean. AP5-7 (i) the 21st call
+  is `Refused(calls_per_wall_hour)` and the backend counter stays at 22 for 22 admitted calls; another
+  seat is unaffected; (ii) after 3 601 s the call is admitted; (iii) a reservation of estimate +
+  `max_output_tokens` past 30 000 is refused before the call; (iv) `SqliteLedger`: 20 calls, closed,
+  reopened, the 21st refused; (v) an AST scan of `budget.py` and `gateway.py`: no import from a
+  `…contract` module, no `WorldTime`; (vi) five concurrent calls with `max_in_flight = 2`: two start, the
+  rest wait, starts in submission order, peak 2; (vii) a backend sleeping 5 s with `call_timeout_s = 1`
+  → `Failed(timeout)` in under 2 s, charged one call and no tokens. Integration: record through the
+  gateway with `SqliteLedger`, restart (new objects, same files), replay: identical outcomes, and the
+  ledger holds 6 calls and 90 tokens across both sessions. Every outcome in the tests goes through one
+  `match` ending in `assert_never`. Mutations (§13.10): M-7 check the budget after the call → (i) and
+  (iii) fail (counters 23 and 3); M-8 `SqliteLedger` on `:memory:` → (iv) and the round trip fail;
+  M-9 import `Observation` from `mineworld_sdk.wire.contract` into `budget.py` → (v) fails. All reverted.
+- [x] Review: P5-2 read in code — key material, then `precheck`, and only then the reservation, the
+  limiter and the backend; P5-3 — `budget.py` reads only the injected `Clock`; a `CassetteMiss` raised
+  inside the call releases the reservation in `finally` and charges nothing (AP5-3 (iii)).
+
+**Findings and decisions (bounded).**
+
+- **F-P5-3.** The gateway's timeout cancels the inner call; in C3 `RecordingBackend` caught
+  `BaseException` and would have abandoned a whole recording on one slow call. It now catches `Exception`:
+  a cancelled call is simply not recorded; a crash still abandons the session (AP5-5 unchanged, green).
+- **Concurrent admission.** D-P5-8's pre-check reads the ledger, which is charged only after the call;
+  two concurrent calls could both pass a check only one fits. Admitted calls therefore hold a
+  **reservation** (one call, the reserved tokens) until they are charged, and the pre-check counts it.
+  This is D-P5-8's "the actual usage replaces the reservation", made exact.
+- **The charge's timestamp** is the pre-check's `now`, so a window is deterministic under a fake clock.

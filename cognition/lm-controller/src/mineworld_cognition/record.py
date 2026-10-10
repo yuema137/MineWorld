@@ -281,7 +281,9 @@ class RecordingBackend:
         started = time.monotonic()
         try:
             answer = await self._inner.complete(request)
-        except BaseException:
+        except Exception:
+            # A bug or a crash in the inner backend: the session is not clean. A cancellation (the
+            # gateway's timeout) is not an Exception: that call is simply not recorded.
             self._abandon()
             raise
         if isinstance(answer, BackendFailure):
