@@ -9206,6 +9206,45 @@ E-NV2 NV-10, 2026-10-09 ~17:47, dev profile, scratch build (/tmp/s15-12n/target-
       Bound max ≤ 5 ms, p99 ≤ 1 ms: PASS on every run but run 1 of the scenes, whose single 13.5 ms plan
       did not recur in two re-runs of the same 1 761 plans (a scheduling outlier at load 38; the p99 of
       that run, 683 µs, is within bound). No grid fallback needed.
+
+N-D8  NV-7 claim 1 (ii)'s layout, corrected before the R 250 verdict. As first written (1796c29) the
+      test placed a 2R behind b with b ⌊2R/3⌋ + 1 aside — 633 mm apart at R 300, 527 at R 250: outside
+      the controller's offset (2R + 10), so not the case §21.6 names ("a stride toward a person within
+      the offset"). Corrected to 19R/10 along the line: 604 mm at R 300, 504 at R 250, both inside
+      [2R − 5, 2R + 10]. The test's own extra "(ii) b not moved" (not in §21.6's claim) became "b moved
+      at most a nudge, R + GAP" — at R 250 b is nudged 231 mm on the way to the stop. Claim (ii) as
+      §21.6 states it ("stopped by them") is unchanged.
+
+E-NV3 NV-7, 2026-10-09 18:00–18:10. R 300 on the PR tree: (i) a stopped by b at (3 400, 5 000), b
+      unmoved; (ii) 201 mm aside, a stopped by b at (3 430, 5 000); n3 2 strides blocked, ≤ 4 moved,
+      2 generations — PASS. M-Z5 (exclusion widened): (i) fails by name, a passes b; reverted.
+      Scratch R 250: `git worktree add --detach /tmp/s15-12n/r250 1796c29`, geometry.rs PERSON_RADIUS
+      300 → 250 and CLEARANCE 595 → 2R − 5 (12d's two edits), tests/support's invariant literals 595 /
+      295 → 2R − 5 / R − 5 (495 / 245; they are R-300 literals of the test harness), actions.rs with N-D8;
+      own target dir /tmp/s15-12n/target-r250. Never committed.
+        claim 1 (i)   a turned by the bias to (3 500, 4 799), stopped-short { by: None }, 538 mm from b
+                      (≥ 495), not the asked point, b unmoved                                   PASS
+        claim 1 (ii)  167 mm aside: a stopped by b at (3 775, 5 000); b nudged to (4 185, 5 305), 231 mm
+                      ≤ R + GAP                                                                  PASS
+        claim 2 (n3)  6 of 12 strides blocked (strides 6–11: nudge_failed, biased); 0 people moved,
+                      0 generations — "the crowd was nudged" FAILS (scenarios.rs:313). Bounds hold.
+      Probes (scratch only, reverted, informative): crowd spacing 2R + 50 (12d's) instead of 13R/6 → the
+      same 6 blocked, 0 moved; NUDGE_MAX 300 (12d's absolute) with spacing 2R + 50 → c1 is nudged 280 mm
+      (so a fixed 300 mm budget nudges at R 250 where R does not).
+
+M-1   MATERIAL STOP (§21.14: "NV-7 failing at R 250 with derived constants (QN-5)"; §21.6: "a material
+      stop with the numbers — no constant is re-tuned to pass"). Claim 2 fails at R 250: with NUDGE_MAX
+      = R the crowd of n3 is never nudged; the walker is blocked at contact from stride 6 on. Claim 1
+      passes (after N-D8). Nothing at R 300 changes (E-NV3; NV-1's captures). The dependent action —
+      12d's TD-D8 close — waits for a ruling; the rest of 12n-1 (NV-C6, NV-C7) is independent and goes
+      on. Smallest revisions, for the operator / primary session:
+        (a) keep SD-N11 and restate claim 2 at R 250 as "bounded chains, and sometimes blocks" — the
+            crowd need not be nudged (at R 250 it is not);
+        (b) keep NUDGE_MAX absolute (300) as 12d's WIP did ("a policy, not a person dimension"), i.e.
+            withdraw SD-N11's first derivation (BIAS_BAND's stays);
+        (c) re-derive the bound differently (e.g. NUDGE_MAX := R + 50) and measure again.
+      Recommendation: (a) — the claim's purpose (bounded, sometimes blocks) holds, and a body-relative
+      yield is the operator's realistic-defaults intent; (b) contradicts the frozen SD-N11.
 ```
 
 
