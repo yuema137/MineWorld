@@ -586,11 +586,16 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   saves, real kills). Evidence: the id lists and their equality, the recorded rejoin `since`, the
   connection numbers and `took_over` values. Counterfactual: AP3b-9 (a), (b), AP3b-10, AP3b-11's
   mutations. Cost: four tests, each under 30 s, together normally under a minute.
-- [ ] Implementation.
-- [ ] Validation: AP3b-9 … AP3b-12 locally (macOS), each classified PASS / FAIL / INCONCLUSIVE from the
-  printed evidence; their mutations; the Windows and Linux evidence is the PR's CI (C6).
-- [ ] Review: the oracle is the binary's export, never the SDK's own output (test rules §25); no test
-  sleeps for a fixed time where an event can be awaited; `tmp_path` only.
+- [x] Implementation: `tests/realserver.py` (`Server(world, *, save, hold)`, `perceived_export`);
+  `tests/conftest.py` (`Start` protocol; the fixture passes `save`/`hold`); `tests/test_real_resume.py`
+  (`Tap` records joins and aborts the transport, `Wire` connector follows a restarted server and
+  gates reconnection, `Consumer` commits every batch to a `CursorCell`, `Speaker` = the visitor talking
+  to Alice within reach, reusing `test_real_server.walk_into_reach`).
+- [x] Validation (E-P3b-8): AP3b-9 … AP3b-12 PASS locally (macOS, Python 3.14, the debug binary built
+  from this worktree), 3 further consecutive runs green (0.75–0.97 s each); mutations red (§13.4).
+- [x] Review: the oracle is `mineworld perceived … --json` of the save after `Popen.kill` (never the
+  SDK's output); every wait is an `asyncio.Event`/`changed()` with a 30 s ceiling, no fixed sleep;
+  saves under `tmp_path` only; the server is killed and waited before the export and before a restart.
 
 ### C6 — Close: README, ledger, scope, the PR
 
@@ -754,6 +759,20 @@ E-P3b-6  C3 working tree: `pytest sdk/python/tests/test_perceived.py` → 8 pass
 E-P3b-7  C4 working tree: `pytest sdk/python/tests/test_resuming.py` → 33 passed (0.08 s); `pytest
          sdk/python` (real_server included) → 96 passed before the race test was added, then 33/33
          in test_resuming.py; ruff check, ruff format --check, pyright 0 errors.
+E-P3b-8  C5, Gate 2 (real binary, real sockets, real saves, real kills), working tree on 29c22ad + C5,
+         macOS arm64, `uv run --locked pytest sdk/python/tests/test_real_resume.py -v -s`:
+           AP3b-9  PASS — "33 delivered over 2 connections, 33 exported; rejoin since {'since':
+                   '63'}, took_over held"; delivered == export ≤ cursor; ascending; first delivered
+                   = first exported (genesis); the 3 lines said while away came on connection 2;
+                   the rejoin's since equals the cell's value recorded when the socket was opened;
+                   run on the default loop (selector on macOS; the proactor on the Windows CI leg).
+           AP3b-10 PASS — "seed 20261010, cut after 3 delivered batches"; "26 + 4 delivered, 30
+                   exported"; took_over held; no id twice; concatenation == export.
+           AP3b-11 PASS — "joins with resume [False, True, False]; took_over none; 31 delivered";
+                   instance unchanged across the restart; concatenation == export of the final save.
+           AP3b-12 PASS — SeatLost("cursor_unavailable"); a plain SeatSession then joins (took_over
+                   none).
+         Whole suite with the binary: 102 passed (10.7 s). ruff, ruff format, pyright clean.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
@@ -844,4 +863,9 @@ Each planted on the working tree, run, and reverted; the reverted tree re-run gr
 | AP3b-8 | a pending submit waits for the next connection and is re-sent | `test_a_submit_is_sent_once_…` FAILED: the pending submit never failed `AnswerLost` (bound expired) | red, as required (the bound fires before a second `submit` frame could be recorded) |
 | AP3b-13 | `asyncio.get_running_loop().add_reader(0, print)` planted in `resuming.py` | scan FAILED: `resuming.py:485: asyncio.get_running_loop().add_reader(0, print)` | red, names file and line |
 | AP3b-17 | the welcome's resume secret put into `SeatLost`'s cause | 7 FAILED, e.g. "a secret leaked through SeatLost" (rows 3 ×4, 8, 11) | red, as required |
+| AP3b-9 (a) | the seat drops the first fact of each connection's first frame | FAILED: "the wanderer never delivered away line 0 within 30 s" (a first attempt planted with a slots `setattr` crashed the sink instead — discarded as invalid, re-planted) | red, as required |
+| AP3b-9 (b) | rejoins present `since: null` | FAILED: `{'since': None} == {'since': '63'}`; the equality with the export still held (suppression), as the design predicted | red, as required |
+| AP3b-10 | the second seat starts with a fresh `CursorCell()` | FAILED: "no fact twice across the two processes", 30 distinct of 56 | red, as required |
+| AP3b-11 | `invalid_resume` final | FAILED: `SeatLost: … (JoinRefused: … invalid_resume)` | red, as required |
+| AP3b-12 | `cursor_unavailable` retried | FAILED: `'gave_up' == 'cursor_unavailable'` (open is bounded, so it raises gave_up rather than succeeding) | red, as required |
 | AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |
