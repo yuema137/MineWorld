@@ -2480,6 +2480,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | C1 | [x] DEP-31 appended after ARC-68 (data source table, `.dly` input, our own CSV labelled modified, provenance without a digest, the tool, `ureq =3.4.2` with `rustls`/ring behind `fetch`, limitations); DEP-8 row (NOAA GHCN-Daily, CC0); ARC-35 note (QTWd-1 ruling, 2026-10-09); `systems/weather/README.md` "The record format"; `tools/weather-fetch/{Cargo.toml,README.md,src/main.rs}` skeleton (no dependency); root `Cargo.toml` member; root `NOTICE` pointer | [x] `check_doc_headings.py`: 192 sections, none duplicated — PASS; `check_decision_ids.py`: 86 ids (85 + 1), all distinct — PASS; `cargo check -p mineworld-weather-fetch` clean; `Cargo.lock` gains the member only | [x] DEP-31 does not restate ARC-68 (it points to it for the generator and LARS-WG); the licence wording matches §3.2 and E-TWd-1 (CC0, "no restrictions", attribution requested, no endorsement, modified data not presented as original); "modified (reshaped and gap-reported) … not endorsed by NOAA" present; terms (`System Pack`, `World Pack`) as defined |
 | C2 | [x] `src/record.rs` (new): `HEADER`, `RecordRow`, `RecordFile`, `decode` (BOM, LF/CRLF, refusals with line), `encode` (the tool's writer), `PackedDay`/`PackedDays` (9 bytes, hex), `Fill`, `pack` (gaps), `Station`, `RecordSeries` (`record_date`, `day`: SD-TW-d-4, the only leap logic); `configuration.rs` (`source: rules \| record`, `record:` iff record, `fill:` only with record, `RecordConfiguration { station, data: Attachment, first_year }`); `event.rs` (`WeatherConfigured.record: Option<RecordSeries>`, `RecordRef` removed; `without_record`); `day.rs` (`Origin::{Record, Filled} { date }`); `generate.rs` (`record_day`, SD-TW-d-6); `process.rs` (`RecordProcess` "weather-record", `RecordState`; `ClimateState.epoch_year`, skipped when absent); `system.rs` (`attachments`, `seed` decoding into `weather-record-invalid`, the record Process started after the climate, `day-began` replays or draws, `weather-day` folds the epoch in record worlds); `lib.rs` exports (and `CalendarDate` re-exported); tests `src/record/tests.rs`, `tests/record.rs`, `tests/configuration.rs` (the TW-b `source: record` refusal case replaced, TWd-D3) | [x] E-TWd-2: `cargo test -p mineworld-weather` lib 20, configuration 3, record 6, weather 8, diurnal 1, no_float 1, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. M-TWd-2, M-TWd-3b killed; `git grep MUTATION` empty | [x] the fold equals the state: the climate state is written only in `react` from fact payloads (`with_day`, `with_now`, `with_epoch` from the `weather-day`'s date), and (g) is byte-identical after a resume across a new year; the record Process is never rewritten (`grep 'RecordProcess>('` finds only `state_for`; (f) compares its state before and after 40 days); no path handling in the pack (no `std::fs`/`Path` in `src`); leap logic once (`RecordSeries::record_date`; `is_leap` otherwise only counts a year's days); packing cannot overflow: decode bounds tmax/tmin to −900 … 600 (i16), prcp ≤ 65 535 (u16), awnd ≤ 255 (u8), wdf2 ≤ 360 → half ≤ 180 (u8), and the hex decoder re-checks every bound; rules worlds unchanged (TWd-D2) |
 | C3 | [x] `tools/weather-fetch`: manifest (lib + bin `weather-fetch`; `clap`, `mineworld-weather`, `serde-saphyr`; `ureq =3.4.2` optional, `default-features = false, features = ["rustls"]`, feature `fetch`); `src/lib.rs` (`reshape_bytes`, `write`, `date_argument`), `dly.rs` (readme §III columns; refusals by line), `reshape.rs` (rows by the pack's `RecordRow`, the report), `notice.rs` (§6.4 text, provenance, no clock), `fit.rs` (SD-TW-d-8c in `i128`), `fetch.rs` (`cfg(feature = "fetch")`, no retry), `main.rs` (clap; `fetch` without the feature explains how to get the file); tests `reshape.rs`, `fit.rs`, `confined.rs`; DEP-31 gains the feature tree's licences | [x] E-TWd-3: `cargo test -p mineworld-weather-fetch`: confined 1, fit 2, reshape 3, all pass; clippy `-p mineworld-weather-fetch --all-targets --all-features -D warnings` clean (compiles ring/rustls/ureq); fmt clean; criterion 4 commands verbatim in E-TWd-3. M-TWd-1, M-TWd-4 killed (TWd-F1) | [x] the tool owns no CSV format: rows are `mineworld_weather::RecordRow`, written by `record::encode` and re-read by `record::decode` before anything is written; the rules are decoded by `WeatherConfiguration` before `fit` returns. No float in the tool's source (the scan test). The NOTICE carries the attribution, both citations, CC0, "MODIFIED DATA … not endorsed by NOAA", the URL, the retrieval date and the provenance counts (§6.4, DEP-31, SD-TW-d-12). ring needs only a C compiler: the CI image is `rust:1.97.1-slim-trixie` (gcc), and `fast`'s clippy is the only `--all-features` build; the `platforms` layer (macOS, Windows) builds `mineworld-cli` and S16's tests, never the feature — no material stop (5) |
+| C4 | [x] `target/debug/weather-fetch fetch --station USW00023188 --out target/tw-d/noaa/USW00023188.dly` (the tool built with `--features fetch`; 1 of ≤ 3 fetches); `reshape --input … --station USW00023188 --from 2015 --to 2024 --retrieved 2026-10-10 --out-dir worlds/market-town/data/weather --name san-diego-usw00023188-2015-2024`; `.gitattributes` `worlds/*/data/**/*.csv text eol=lf`; the report into E-TWd-4 | [x] E-TWd-4: (a) 3 653 data rows; (b) 116 705 bytes (< 1 MiB); (c) one gap (2018-07-06, 1 day; TMAX Q-flagged), WT01 88 … 149 and WT02 8 … 26 days every year (CP-TW-d 2 applies; R-TW-5 does not occur); (d) re-run with the same arguments → `git diff --exit-code` on the staged CSV and NOTICE clean, report identical; (e) NOTICE "116705 bytes, 3654 lines (LF)" = `wc -c -l` of the committed CSV; `git check-attr`: text set, eol lf | [x] the NOTICE carries the attribution, both Menne et al. 2012 citations with DOIs, "MODIFIED DATA … not endorsed by NOAA", the URL and "retrieved 2026-10-10 (UTC)"; the licence is CC0-1.0 as E-TWd-1 / §3.2 |
 
 ### Evidence
 
@@ -2561,6 +2562,37 @@ E-TWd-3  C3, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather-fetc
              mineworld-weather-fetch -e normal | grep -c ureq` → 0. The default build does not compile
              ureq. PASS. With `--features fetch` it builds ring 0.17.14, rustls 0.23.45, ureq 3.4.2 in
              7.6 s on macOS (Apple clang).
+E-TWd-4  C4, the real record, 2026-10-09 18:29 PDT (macOS arm64):
+         fetch (1 of ≤ 3; the only network access of this PR, through the tool's documented path):
+           url        https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/USW00023188.dly
+           retrieved  2026-10-10 (UTC)
+           bytes      4300290        (15 927 lines; first line "USW00023188193907TMAX  244  0 …")
+         The .dly file stays untracked under target/tw-d/noaa/ (provenance: fetched by this session
+         with the tool, not by hand).
+         reshape report (target/tw-d/reshape-report.txt):
+           rows 3653 (2015-01-01 … 2024-12-31)
+           missing (TMAX TMIN PRCP AWND WDF2; any of the first three): 0 every year but 2018: 1 0 0 0 0 1
+           gap runs 1 (longer than 3 days: 0): 2018-07-06 … 2018-07-06 1 d
+           weather types, days present by year:
+             year  WT01 WT02 WT03 WT08 WT13 WT14 WT16 WT21
+             2015    88    8    6   74    0    0    0    0
+             2016    97   15    6   70    0    0    0    0
+             2017   107   21    3   81    0    0    0    0
+             2018    96   14    2   84    0    0    0    0
+             2019   118    9    7   84    0    0    0    0
+             2020   130   26    3  115    0    0    0    0
+             2021   110   11    8  120    0    0    0    0
+             2022   102   10    6   79    0    0    0    0
+             2023   149   10    7  101    0    0    0    0
+             2024   127   23    3  107    0    0    0    0
+           fog days 1127, thunder days 51; quality-flagged values dropped: TMAX 1
+         (a) 3 653 rows. PASS. (b) 116 705 bytes, 3 654 lines. PASS. (c) recorded: WT01/WT02 populated
+         in every year, 2016 included, so CP-TW-d 2 applies; WT13/14/16/21 never (F-TWd-1 confirmed
+         over the whole decade). (d) the same command again → CSV and NOTICE byte-identical (`git diff
+         --exit-code` against the staged files) and the report identical (`cmp`). PASS. (e) the NOTICE's
+         "116705 bytes, 3654 lines (LF)" = `wc -c -l`. PASS.
+         Spot rows: 2015-10-08,278,194,0,17,310,1,0; 2016-10-08,300,167,0,20,300,0,0;
+         2018-07-06,,200,0,30,330,0,0.
 ```
 
 ### Mutations

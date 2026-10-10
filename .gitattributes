@@ -4,3 +4,6 @@
 # (tests/acceptance/tests/precursor_vocabulary.rs).
 *.bin binary
 *.glb binary
+# A World Pack's data files are the same bytes on every platform (Windows' autocrlf included), so the
+# NOTICE's byte and line counts hold everywhere; the weather pack still reads CRLF (DECISIONS.md DEP-31).
+worlds/*/data/**/*.csv text eol=lf
