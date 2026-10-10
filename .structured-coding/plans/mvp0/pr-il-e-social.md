@@ -580,10 +580,12 @@ perception,process,system,lib}.rs`; pinned test; the version pins in the three C
 
 **Scope.** NEW `worldpack/tests/social_sections.rs`: IE-3 (a)–(e), IE-8, IE-9's scripted halves, with
 M-IE3a–d, M-IE8, M-IE9.
-- [ ] Implementation: scratch copies (§7), scripted dispatch and observe.
-- [ ] Validation: each case passes; each mutation observed failing by name and reverted (`git status`,
-  `git grep MUTATION`).
-- [ ] Review: each test reads offers **and** dispatch; expected values are literals from the layout.
+- [x] Implementation: scratch copies (§7), scripted dispatch and observe — in
+  `tools/cli/tests/social_sections.rs` (D-IE-2) (E-IE-5).
+- [x] Validation: each case passes; each mutation observed failing by name and reverted (`git status`,
+  `git grep MUTATION`) (E-IE-5).
+- [x] Review: each test reads offers **and** dispatch; expected values are literals from the layout
+  (E-IE-5).
 
 ### IE-C6 — Through the binary
 
@@ -800,6 +802,45 @@ E-IE-4  2026-10-10, IE-C4 (relationships): interactions.rs NEW (ACQUAINT = "acqu
         mineworld-relationships: 2 unit + 6 integration passed (existing asserts on the constants
         unchanged); CLI inspect 3, interactions 4, social_composition 4 passed; 30-day social-cafe seed
         7 sha 06e2d63c…6fbe = E-IE-0. No Cargo.toml / Cargo.lock change. PASS.
+E-IE-5  2026-10-10, IE-C5: NEW tools/cli/tests/social_sections.rs (D-IE-2), 9 tests over scratch
+        social-cafe copies (classes resident/commuter; carol, grace, otto, hana placed in the café at
+        the layout in its header), real loader, World::dispatch, presence's `observe` with presence,
+        conversation and group-activity as providers:
+        a_forbidden_talk_is_refused_before_distance_and_its_offer_says_why (IE-3a: carol→hana at 4 m
+          and carol→grace at 2 m PermissionDenied; carol's talk offer at grace unavailable,
+          PermissionDenied, requirement = talk_requirement(); grace→carol accepted and offered)
+        a_forbidden_invite_accept_or_join_is_refused_and_accepting_cannot_bypass_joining (IE-3b; the
+          review's bypass case: grace in a running activity invites carol, carol's accept and join are
+          both refused and both offers unavailable PermissionDenied; bob, of no class, joins)
+        a_scoped_range_is_the_one_validated_and_the_one_offered (IE-3d: carol→hana 4 m accepted,
+          hana→carol TooFarAway; offered requirements within 6 000 / 3 000)
+        a_region_forbids_talk_in_its_place_only (IE-3e)
+        a_forbidden_acquaintance_forms_nothing_in_that_direction_and_the_other_direction_forms (IE-5
+          scripted: one became-acquainted, subject grace; knows edges = [(grace, carol)]; carol holds
+          no Acquaintances entry)
+        a_listener_who_keeps_nothing_keeps_nothing_and_a_bound_keeps_the_last_lines (IE-8: grace's
+          history empty after carol's line, the spoke recorded; otto→grace twice 60 s apart → 2
+          conversation-started (QIE-5); carol keeps exactly the last 2 of 3 lines)
+        an_activity_lasts_what_its_place_says_and_its_facts_are_routed (IE-9: park activity ends at
+          +600 not +599, café at +3 600 not +3 599; started's Visibility Participants; joined's
+          biography::selected false for carol (resident), true for bob)
+        what_a_social_section_cannot_say_is_refused_at_its_line_and_column (IE-3c decline-invitation;
+          acquaint in a region "line 3 column 14"; a relationships consequence naming spoke; IE-7's
+          public/place/nobody audiences)
+        no_installed_pack_provides_an_action_named_acquaint (SD-IE-8: every AVAILABLE capability
+          installed into one World; systems().provider("acquaint") = None)
+        cargo test -p mineworld-cli --test social_sections: 9 passed, 0 failed.
+        Mutations, each applied in the working tree, observed red by name, reverted with git checkout:
+        M-IE3a offers ignore `permitted` (conversation) → a_forbidden_talk_… FAILED (line 262);
+        M-IE3b validate ignores `permitted` → a_forbidden_talk_… and a_region_forbids_… FAILED;
+        M-IE3c validate evaluates talk_requirement() → a_scoped_range_… FAILED;
+        M-IE3d accept's permits removed from validate → a_forbidden_invite_accept_or_join_… FAILED;
+        M-IE5 apply ignores may_acquaint → a_forbidden_acquaintance_… FAILED;
+        M-IE8 react ignores `remember` → a_listener_who_keeps_nothing_… FAILED;
+        M-IE9 begin uses ACTIVITY_LENGTH → an_activity_lasts_… FAILED.
+        After the last revert: `git status --short` = only the new test file; `git grep MUTATION --
+        '*.rs'` → nothing (exit 1). Review: every IE-3 case reads dispatch and the offer; values are
+        literals from the layout (4 m, 2 m, 600 s, 3 600 s, 6 000 mm). PASS.
 ```
 
 ## 15. Deviations
@@ -811,3 +852,13 @@ E-IE-4  2026-10-10, IE-C4 (relationships): interactions.rs NEW (ACQUAINT = "acqu
   deleting it would force an edit under `cognition/`, which §11, SD-IE-12 and IE-12 forbid (a material
   stop). Of the two frozen statements, the no-diff invariant governs. *Evidence:* `git grep "\.remember("`.
   *Impact:* none on behaviour; the pack itself calls only `remember_within`. *Validation:* E-IE-2.
+- **D-IE-2** (bounded, IE-C4/IE-C5). *Deviation:* the scripted proofs §8 placed in
+  `worldpack/tests/social_sections.rs` (IE-3, IE-8, IE-9) and in relationships' tests (IE-5's scripted
+  half, SD-IE-8's provider test) live in `tools/cli/tests/social_sections.rs`. *Reason:* they read
+  group-activity's and relationships' types (`Invite`, `Acquaintances`, `knows`, `ACQUAINT`) and need the
+  real loader. `mineworld-worldpack` has neither pack as a dev-dependency and `mineworld-relationships`
+  has no worldpack or installed-set dependency; adding one changes `Cargo.lock`, which §11 and IE-12 keep
+  unchanged. `mineworld-cli` already depends on the worldpack, conversation, presence and kernel and
+  dev-depends on group-activity and relationships. *Impact:* the same tests at the same layer (real
+  loader, `World::dispatch`, `observe`); one more new file in §11's change set (tools/cli/tests is
+  already in it). *Validation:* E-IE-5.
