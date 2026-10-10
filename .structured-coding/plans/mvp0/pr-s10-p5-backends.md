@@ -17,6 +17,27 @@ Scope (§2.1), invariants (§2.3), decisions D-P5-1 … D-P5-14, the adversarial
 and AP5-S, and the commit plan are frozen. Progress, evidence, findings and bounded corrections stay
 writable (§13). No P5a question remains open.
 
+**Amendment under the freeze, 2026-10-09 (operator requirement, relayed by the coordinator).**
+
+- **The operator, verbatim:**
+
+  > deepseek glm grok之类我们也都要支持
+
+  That is: DeepSeek, GLM, Grok and similar providers must all be supported.
+- **Why it is bounded.** The adapter, the configuration shape and every seam are unchanged. The
+  amendment adds named **provider presets** for the one OpenAI-compatible adapter: a typed table of base
+  URL, `key_env` name, `structured_output`, `temperature` and default `reasoning`. A preset adds no code
+  path.
+- **What it adds:**
+  - §4.1c, the verified provider table;
+  - D-P5-15;
+  - `backend/providers.py`;
+  - AP5-14;
+  - the README provider table;
+  - one exclusion in AP5-10's scan;
+  - items in C4, C6 and C8.
+- **Not frozen with it:** nothing. No question is raised.
+
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) (§3.5, §3.7, §3.10,
 §3.11, §4.1, §4.5, §5, §8, §9, §10, and §15, the 2026-10-08 audit with its rulings) · **Parent:**
 [`overall.md`](overall.md) §3 (S10), the parallel build-out rulings (ruling 6: S10 holds `ARC-56 … ARC-60`
@@ -253,6 +274,30 @@ third option, `temperature = "send" | "omit"` (D-P5-10), is added for servers th
 Claude needs P5b's native adapter, because the compatibility layer ignores the one feature the
 controller depends on.
 
+### 4.1c Named provider presets (amendment, 2026-10-09)
+
+Each row was read from the provider's own documentation on 2026-10-09, except where it says otherwise.
+"Verify" means the fact could not be confirmed from a primary source. The implementing session re-checks
+it from the provider's documentation (never by calling the API), and the README carries the same mark.
+The preset holds no model: model names change monthly, so the user names one.
+
+| Preset | Base URL | `key_env` | `structured_output` | `temperature` | `reasoning` | Evidence, and what is unverified |
+| --- | --- | --- | --- | --- | --- | --- |
+| `openai` | `https://api.openai.com/v1` | `OPENAI_API_KEY` | `json_schema` | `send` | `unset` | The schema's origin |
+| `xai` (Grok) | `https://api.x.ai/v1` | `XAI_API_KEY` | `json_schema` | `send` | `unset` | xAI, "Structured outputs" (`docs.x.ai/docs/guides/structured-outputs`): the OpenAI-SDK examples set `base_url` to `https://api.x.ai/v1`; "The primary and most flexible method is to use the `response_format` parameter"; `json_schema` and `json_object` are accepted; "When using supported schema features, the response is guaranteed to match your schema." **Verify:** which Grok models accept `reasoning_effort`, so `unset` stays the default |
+| `deepseek` | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `json_object` | `send` | `unset` | DeepSeek API docs: "The DeepSeek API uses an API format compatible with OpenAI/Anthropic." **Verify:** `json_object` support (not on the page read) |
+| `glm` (Zhipu, China) | `https://open.bigmodel.cn/api/paas/v4` | `ZHIPUAI_API_KEY` | `json_object` | `send` | `unset` | Zhipu, `docs.bigmodel.cn` OpenAI page: "智谱提供与 OpenAI API 兼容的接口" (Zhipu provides an interface compatible with the OpenAI API), base URL `https://open.bigmodel.cn/api/paas/v4/`. **Verify:** JSON mode (not on the page) |
+| `zai` (GLM, international) | `https://api.z.ai/api/paas/v4` | `ZAI_API_KEY` | `json_object` | `send` | `unset` | **Verify:** the base URL comes from third-party integration docs (jambonz, PicoClaw); JSON mode is unverified |
+| `mistral` | `https://api.mistral.ai/v1` | `MISTRAL_API_KEY` | `json_schema` | `send` | `unset` | Mistral API reference: `https://api.mistral.ai/v1/chat/completions`; `response_format` `json_object` ("guarantees the message the model generates is in JSON") and `json_schema`. **Verify:** the exact `json_schema` envelope, which the page paraphrased |
+| `moonshot` (Kimi) | `https://api.moonshot.ai/v1` | `MOONSHOT_API_KEY` | `json_object` | **`omit`** | `unset` | Kimi, "Migrating from OpenAI" (`platform.kimi.ai`): "The Kimi API is compatible with OpenAI's interface specifications"; `temperature` range `[0, 1]`; for `kimi-k2.6`, any value other than the fixed one is an error, "so the page recommends not setting temperature". **Verify:** JSON mode (not on the page) |
+| `dashscope` (Alibaba Qwen) | **none: the user sets `base_url`** | `DASHSCOPE_API_KEY` | `json_object` | `send` | `unset` | Alibaba Model Studio, "OpenAI compatibility": the base URL is per workspace and region (`https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`), and "Each API key works only with the base URL of the region where it was created". The legacy `https://dashscope.aliyuncs.com` "remains available". A fixed URL would be wrong for most users, so the preset requires `base_url`. **Verify:** JSON mode (`response_format` is not in the page's parameter table) |
+| `gemini` | `https://generativelanguage.googleapis.com/v1beta/openai` | `GEMINI_API_KEY` | `json_schema` | `send` | `unset` | Google, "OpenAI compatibility": `base_url="https://generativelanguage.googleapis.com/v1beta/openai/"`; "Support for the OpenAI libraries is still in beta"; structured output via `response_format`; "Reasoning cannot be turned off for Gemini 2.5 Pro or 3 models", hence `unset` |
+| `openrouter` (aggregator) | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `json_schema` | `send` | `unset` | OpenRouter API reference: schemas "very similar to the OpenAI Chat API"; `json_object` and `json_schema` modes; if a model does not support a parameter, "the parameter is ignored". Local validation (P6) is the authority |
+| `groq` | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` | `json_object` | `send` | `unset` | Groq, "Structured outputs": `json_schema` with `strict: true` only on a few models (`openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`); "JSON Object Mode" for others. Hence `json_object` by default; a user may set `json_schema` |
+
+Not presets: Anthropic (P5b's native `anthropic` kind, §4.1b), and the local servers (Ollama, llama.cpp,
+LM Studio, vLLM), whose base URL is the user's own loopback address.
+
 ### 4.2 The Python HTTP client, and whether to depend on a provider SDK
 
 | Candidate | Licence (verified) | Maturity (verified) | N | D | V | Cost and fit | Verdict |
@@ -361,6 +406,7 @@ cognition/lm-controller/
       scripted.py                   ScriptedBackend(fn: Callable[[CompletionRequest], Completion])
       openai_compatible.py          OpenAICompatibleBackend   (the ONLY module that imports httpx2)
       registry.py                   KIND → factory; today: "openai-compatible"
+      providers.py                  the provider preset table (D-P5-15; data only, no code path)
     record.py                       Cassette (read/write), CassetteEntry, EntryMeta, ReplayBackend,
                                     RecordingBackend, CassetteMiss, CassetteFormatError
     budget.py                       BudgetPolicy, Ledger, MemoryLedger, SqliteLedger, Clock, SystemClock,
@@ -410,6 +456,23 @@ No module is expected past about 300 lines. `openai_compatible.py` and `record.p
 | **D-P5-11** | **CI and checks cover the new member, with one pytest invocation per member.** `PYTHON_STATIC`'s ruff commands gain `cognition/lm-controller`; pyright covers it through the root `include`. The `python` layer runs `uv run --locked pytest sdk/python` **and** `uv run --locked pytest cognition/lm-controller` as two commands; `python-smoke` likewise. The member's own `pyproject.toml` carries the network guard in `addopts`. `standards.md` follows. No YAML changes. | A single `pytest sdk/python cognition/lm-controller` takes its rootdir and ini file from the **common ancestor**, the repository root, whose `pyproject.toml` has no pytest section. Both packages' `addopts`, and with them the network guard, would be dropped silently. AP5-10 holds this. |
 | **D-P5-12** | **Live tests are opt-in and never in CI.** A `live_model` marker is registered. Every live test is deselected by the package's `addopts` (`-m "not live_model"`), and it needs `MINEWORLD_LIVE_BASE_URL` naming a **loopback** URL. A non-loopback URL fails the test rather than calling a hosted API. Live tests fail, never skip, when selected without the variable (D-P3-10's rule). `ci_layer.py` never selects the marker. | QS10-19 (no hosted API in any gate), I-11, `ENGINEERING_STANDARDS.md` §24 ("maintain optional live-model integration tests when useful"). |
 | **D-P5-13** | **Every platform.** Paths through `pathlib`. Cassettes are written with `newline="\n"` and read as UTF-8 tolerating CRLF, and `.gitattributes` keeps them LF. `os.replace` is called only after the file is closed (Windows). SQLite connections are closed before a ledger file is moved or deleted (Windows file locking). Timeouts use `asyncio.timeout` (3.11+) and the monotonic clock; budget windows use the wall clock. No POSIX signal, no Unix socket. The loopback stub server binds `127.0.0.1:0`. The key's golden literal is checked on all three CI legs. | Operator requirement 2026-10-08; P3 D-P3-11; step-17 §15.8 (P5). |
+
+**D-P5-15 — Provider presets (amendment, 2026-10-09).**
+
+- **Where:** `backend/providers.py` holds a frozen, typed table: `ProviderPreset { name, base_url:
+  HttpsUrl | None, key_env, structured_output, temperature, reasoning }`, one row per §4.1c entry.
+- **How a user selects one:** `BackendConfig` gains one optional field, `preset: PresetName`, a closed
+  literal of the table's names. When it is set, every field the user left out is filled from the
+  preset. A field the user sets wins.
+- **Validation:**
+  - `model` is always required;
+  - a preset whose `base_url` is `None` (`dashscope`) requires the user's `base_url`;
+  - the result is validated exactly as a hand-written `BackendConfig` is.
+- **Nothing downstream changes:** `OpenAICompatibleBackend` never sees the preset name; it receives the
+  resolved `BackendConfig`. The preset name is not in `CompletionRequest`, not in the cassette key, and
+  not in cassette metadata (`meta.binding` is the user's backend name).
+- **Reason:** the operator's requirement, with no new code path. A preset is data, and adding a provider
+  is one table row plus one README row (`CLAUDE.md` §4 rule 5).
 
 **D-P5-14 — Where configuration and keys live: per user, never per world.**
 
@@ -556,10 +619,11 @@ the mutation that must turn it red. A criterion whose mutation stays green has t
 | **AP5-7** Budgets: wall time, before everything, durable | With a `FakeClock`: (i) the 21st call within 3 600 wall seconds for one seat returns `Refused(calls_per_wall_hour)`, and the backend's call counter is unchanged (P5-2); a second seat is unaffected. (ii) After the clock advances 3 601 s, the call is allowed. (iii) A request whose estimate plus `max_output_tokens` would exceed 30 000 tokens in the 24-hour window is refused **before** the call. (iv) `SqliteLedger`: 20 calls, the ledger closed and reopened (a restart), and the 21st call refused. (v) No budget code reads simulated time: `budget.py` and `gateway.py` import nothing from `mineworld_sdk.wire.contract`, and no function there takes a `WorldTime` (a static check in the test, plus pyright). (vi) A third concurrent call waits while two are in flight (`max_in_flight = 2`), and is served FIFO. (vii) A scripted backend that sleeps past `call_timeout_s` (the test sets 1 s) gives `Failed(timeout)` within 2 s, and the call is charged. | Check the budget after calling the backend: (i)'s backend counter rises. Use `MemoryLedger` for the `SqliteLedger` path: (iv) allows the 21st. Key the window on an observation's `at`: (v) fails. |
 | **AP5-8** `AC-4`, the seam half | One cassette is recorded through binding `local` (`ScriptedBackend` standing in for the inner backend). It is replayed under a configuration in which the binding is renamed `elsewhere` and repointed to another `base_url` and `model`. Every call hits, the keys are identical, and the completions are identical. The scenario half (`worlds/` byte-identical, submitted requests identical) is P7's IC-6. | Put the binding name in the key: every replay misses. |
 | **AP5-9** No secret in any artefact | Run twice, once per source. A fake key `MWTEST-<32 random hex>` is placed (1) in the process environment, and (2) only in a temporary `env_file` (mode 0600 on POSIX), under the name `key_env` names. The scan also covers pytest's captured stdout and stderr for the test, which is what CI prints. A record session runs over a mock transport that **echoes request headers into its error body**, plus one 401. The fake key appears in no cassette line, no ledger row, no captured log record (DEBUG, every logger), no exception's `str` or `repr`, and no `repr` of any config, backend or gateway. The mock transport itself must have received it as `Authorization: Bearer …`, which proves the key was used. An unset `key_env` raises a `ConfigError` naming the variable, with no value. The package's source has no reference to `secrets.env` or `~/.config/mineworld` (scan). | Include the response body of a 401 in `BackendFailure`'s message: the echoed header leaks, and the scan finds it. |
-| **AP5-10** No provider concept outside the adapter; the guard is active | (a) A scan of `cognition/lm-controller/src` **excluding** `backend/openai_compatible.py`, `backend/registry.py` and `config.py`, of every cassette's `key` and `request`, and of `sdk/python/src`, finds none of a fixed list: `openai`, `ollama`, `anthropic`, `llama`, `qwen`, `gemma`, `mistral`, `phi`, `vllm`, `lmstudio`, `api_key`, `http://`, `https://`, `11434`. It reports file and line. (b) The cognition suite's pytest configuration contains `--allow-hosts=127.0.0.1,::1`, and a test connecting `httpx2` to `192.0.2.1:80` fails within 1 s with pytest-socket's error type. (c) `ci_layer.py --list python` shows two pytest commands, one per member. | (a) Plant `"ollama"` in `gateway.py`: the scan fails at that file and line. (b) Remove the guard from the member's `addopts`: the TEST-NET test times out instead. (c) Merge the two pytest commands into one: (c) fails. |
+| **AP5-10** No provider concept outside the adapter; the guard is active | (a) A scan of `cognition/lm-controller/src` **excluding** `backend/openai_compatible.py`, `backend/registry.py`, `backend/providers.py` (amendment, 2026-10-09) and `config.py`, of every cassette's `key` and `request`, and of `sdk/python/src`, finds none of a fixed list: `openai`, `ollama`, `anthropic`, `llama`, `qwen`, `gemma`, `mistral`, `phi`, `vllm`, `lmstudio`, `api_key`, `http://`, `https://`, `11434`. It reports file and line. (b) The cognition suite's pytest configuration contains `--allow-hosts=127.0.0.1,::1`, and a test connecting `httpx2` to `192.0.2.1:80` fails within 1 s with pytest-socket's error type. (c) `ci_layer.py --list python` shows two pytest commands, one per member. | (a) Plant `"ollama"` in `gateway.py`: the scan fails at that file and line. (b) Remove the guard from the member's `addopts`: the TEST-NET test times out instead. (c) Merge the two pytest commands into one: (c) fails. |
 | **AP5-11** Scope | `git diff --stat <base>..HEAD` touches only `cognition/lm-controller/**`, `pyproject.toml`, `uv.lock`, `.gitattributes`, `.gitignore`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and `scripts/ci_layer.py` (commands in `PYTHON_STATIC`, `python`, `python-smoke` only). No `*.rs`, nothing under `sdk/python/`, `worlds/` or `.github/`. | — (a diff gate) |
 | **AP5-12** Every platform | The whole cognition suite, including AP5-1(a)'s literal, AP5-5's `os.replace`, AP5-7(iv)'s reopen and AP5-3's listener, passes on `ubuntu-24.04`, `windows-2025` and `macos-15` in the PR's CI run. | Write cassettes with the platform newline: AP5-4's load of a committed cassette and the LF check fail on Windows. Replace while the file is open: Windows raises `PermissionError`. |
 | **AP5-13** Key files stay the user's, and stay out of the environment | (a) After `resolve_key` reads a key from an `env_file`, `os.environ` is unchanged (compared as a whole before and after), and the key is not in it. (b) A variable present in both sources resolves to the process environment's value. (c) An `env_file` under a directory holding a `world.yaml` (a temporary copy of the layout) raises `ConfigError` naming the path; so does a `cognition.toml` there. (d) On macOS and Linux, an `env_file` with mode 0644 is refused, naming `chmod 600`; with 0600 it is accepted. On Windows, the check is recorded as not applicable, and the test asserts that it is skipped by platform, not silently. (e) `git check-ignore` reports `.env`, `.env.local`, `prod.env` and `secrets.env` as ignored, and `.env.example` as **not** ignored. (f) No module calls `load_dotenv` (a source scan), and `python-dotenv` is imported only by `secrets.py`. | (a) Use `load_dotenv(path)`: `os.environ` gains the key. (e) Drop `.env.*` from `.gitignore`: `.env.local` is reported as not ignored. |
+| **AP5-14** The preset table (amendment, 2026-10-09) | Over every row of `providers.py`: (a) `base_url` is `None` or an `https` URL with no userinfo, no query and no fragment; (b) no row carries a key: `key_env` matches `^[A-Z_][A-Z0-9_]*$`, and no field value matches a key-like pattern (`sk-`, `xai-`, `gsk_`, `AIza`, or 20+ base64 characters); (c) the cassette key of one literal request is identical under a configuration with `preset = "openai"`, one with `preset = "xai"`, and one hand-written with no preset, and it equals AP5-1's literal; (d) a user-set field overrides the preset, shown for `structured_output`; (e) `preset = "dashscope"` without `base_url` raises `ConfigError` naming the field; (f) the README's provider table lists exactly the table's preset names and `key_env` names (the test parses the Markdown table). | (a) Change one preset to `http://`: (a) fails, naming the row. (c) Add the preset name to the request: the keys differ. (f) Add a preset without a README row: (f) names it. |
 | **AP5-S** The spike's criteria (operator-run; decide the default) | Over the fixed `spike_scenarios.json` (40 synthetic decisions, defined in C7 before any run), per candidate model, on the operator's machine: schema-valid on the **first** attempt ≥ 95 % (≥ 38/40); 95th-percentile wall latency ≤ 15 s; `reasoning = "off"` honoured or its absence recorded; Ollama through `/v1` (A-3 recorded as PASS or FAIL). The default is the **smallest** model meeting all of them. If none does, the result goes to the operator, and the thresholds are not changed (QS10-2's criteria are fixed). | — (an operator measurement. Its integrity rule is that thresholds may not move after a run) |
 
 ---
@@ -723,6 +787,9 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
   - §5.4's model, with lazy adapter import (D-P5-5);
   - `ConfigError`s that name the table and key;
   - `secrets.py` per D-P5-9 and D-P5-14;
+  - `backend/providers.py` and the `preset` field per D-P5-15 (amendment, 2026-10-09). Before writing
+    each row, re-check every "verify" fact of §4.1c from the provider's own documentation, never by
+    calling the API. Record each as confirmed, or as still "verify" in the README;
   - the hosted and `.env` examples (names only, no values);
   - the scan list of AP5-10 (a).
 - [ ] Validation:
@@ -730,6 +797,7 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
   - AP5-8 with its mutation;
   - AP5-9, with both sources, and its mutation;
   - AP5-13 (a)–(f) with their mutations;
+  - AP5-14 (a)–(f) with their mutations (amendment, 2026-10-09);
   - AP5-10 (a)–(c) with their mutations;
   - on the PR's first CI run, record the static checks' added time in `fast` (60 s rule) and each
     `python` leg's wall time (3-minute rule);
@@ -771,8 +839,12 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
 
 ### C8 — Close-out
 
-- [ ] Implementation: `README.md` (what the package is, the modes, the configuration, the
-  never-in-CI rule); the ledger; the handoff closed.
+- [ ] Implementation:
+  - `README.md`: what the package is, the modes, the configuration, the never-in-CI rule, and the
+    **provider table** (amendment, 2026-10-09). The table lists each preset's name, provider, base URL,
+    key environment variable name, defaults, and any "verify" mark from §4.1c;
+  - the ledger;
+  - the handoff closed.
 - [ ] Validation:
   - the full Python suite and static checks on the final head, locally and on three CI legs;
   - `cargo test --workspace` NOT RUN for evidence, because no Rust changed (AP5-11). CI runs it;
@@ -812,7 +884,7 @@ WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5        
 BRANCH:                  mvp0/pr-s10-p5-backends, created from main                  (primary session)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-P5-1 … D-P5-14; QS10-18; QS10-19; QP5-1 … QP5-9 as ruled;
+FROZEN INVARIANTS:       §2.3; D-P5-1 … D-P5-15 (D-P5-15 by the 2026-10-09 amendment); QS10-18; QS10-19; QP5-1 … QP5-9 as ruled;
                          every platform
 SEQUENCE:                C0 … C8 (C7's operator step may be NOT RUN at review)
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n
