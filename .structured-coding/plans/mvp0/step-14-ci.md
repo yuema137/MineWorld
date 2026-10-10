@@ -3567,3 +3567,183 @@ the merged head: main gained a test). MW-1 … MW-6 PASS (§15.8, W-C1 and W-C4)
 
 **Post-merge synchronization.** This session recorded the PR document (§15) and the S13 / AC-8 rows of
 `docs/MVP_STATUS.md`. The overall and other step documents are the primary session's.
+
+---
+
+# 16. PR 13x — documentation-only changes do not run the build (2026-10-09)
+
+**Lifecycle:** design approved by the primary session (2026-10-09) under the operator's requirement
+below; implemented by the 13x execution session (worktree `/Users/yuema137/mineworld-worktrees/impl-13x`,
+branch `ci/docs-only-skip`, from `origin/main @ b61b4f4`). Decision record: `docs/DECISIONS.md` ARC-48's
+note of 2026-10-09 for 13x (no new id).
+
+## 16.1 Requirement, quoted
+
+> 随着我们的repo越来越大，我们一定要注意纯文档更新不应该触发ci
+> ("As the repository grows, a documentation-only update must not trigger CI.")
+> — operator, 2026-10-09
+
+**Problem, measured on `main @ b61b4f4`.** Every push and every pull request ran `fast` and `test`, plus
+`python` ×3, `platforms` ×2, `test-windows` and `test-macos`, for a README change too. The docs PR #130
+(`docs/13w-closeout`), whose diff is Markdown only: push run 38028614449 `fast` 1 min 34 s; PR run
+38028617205 `fast` 1 min 22 s, `python (ubuntu)` 2 min 15 s, and `test` (required) plus the five native
+jobs started for nothing (`test` takes 20–24 min, §15.14). Every PR commit also ran `fast` twice, once
+for `push` and once for `pull_request`.
+
+## 16.2 Constraints
+
+- **Required checks are by name and must report.** Branch protection on `main` requires `fast` and
+  `test` (strict: false). A job skipped by a job-level `if:` reports as passing; a workflow that never
+  starts leaves the required checks pending forever. So **no workflow-level `paths-ignore`**: the workflow
+  always starts, and the decision is made inside it.
+- **Fail closed.** A path is documentation only if the audit (§16.3) shows that no CI command reads it,
+  or that the only reader is a pure-Python doc check that the docs-only path still runs. Anything not
+  positively in the docs set, and any diff that cannot be computed, is code.
+- **`main` stays fully verified.** A push to `main` is always code (§16.4, point 5).
+- **A failed classifier must not merge.** If the classifying job fails, `test` and the others are skipped
+  (which would read as passing), so `fast` must turn red (§16.4, point 3).
+
+## 16.3 Audit: who reads documentation (`main @ b61b4f4`)
+
+Searched: `git grep -n -E '"[^"]*\.md"|README|"docs|docs/[A-Z_]+\.md|\.structured-coding|CLAUDE\.md|\.png|\.svg|\.jpg|images'`
+and `ls-files|"log"|rev-list|WalkDir|rglob|os\.walk|glob\(` over `*.rs`, `scripts/*.py`, `sdk/python`
+and `cognition` Python, `include_str!`/`include_bytes!`, every `pyproject.toml` `readme =`, the
+`Dockerfile`'s `COPY` lines and `.dockerignore`. Comments and doc comments that only cite a document
+were excluded. Every reader found, and what it reads:
+
+| Reader (run by CI) | Reads | Consequence |
+| --- | --- | --- |
+| `scripts/check_doc_headings.py` (`fast`) | `docs/**/*.md` | pure Python, stdlib, 0.02 s: runs in the `docs` layer |
+| `scripts/check_decision_ids.py` (`fast`) | `docs/DECISIONS.md` | pure Python, stdlib, 0.02 s: runs in the `docs` layer |
+| `tests/acceptance/tests/client_text.rs` | `server/PROTOCOL.md` | **code** |
+| `cognition/lm-controller/tests/test_provider_scan.py:107` | `cognition/lm-controller/README.md` | **code** |
+| `cognition/lm-controller/pyproject.toml`, `sdk/python/pyproject.toml` (`readme = "README.md"`; `uv sync` builds both members) | `cognition/lm-controller/README.md`, `sdk/python/README.md` | **code** |
+| `worldpack` reader, `ac1_composability.rs` check 3 (`README.md` filtered by name inside a World Pack) | `worlds/*/README.md` (inside a World Pack directory) | **code** |
+| `ac1_composability.rs` check 1 (`allowed`) | the change sets of recorded, merged PRs (fixed history), never the working tree's docs | no effect on the docs set |
+| `ac1_composability.rs` bullet 3 (`ls-files`) | `.rs` and `Cargo.toml` only | no effect |
+| `precursor_vocabulary.rs` | merged precursors' diffs (fixed history), Markdown excluded by `scanned` | no effect |
+| `seam_vocabulary.rs`, `configuration_vocabulary.rs`, `client_rules.rs` | named source directories (`systems/`, `clients/`, …), Markdown excluded | no effect on the docs set |
+| `packages/tests/manifest.rs`, `worldpack/tests/configuration.rs`, `worldpack/tests/entity_packs.rs` | `README.md` files they write into their own scratch | no effect |
+| `scripts/check_scratch.py scan` | `.rs` files under `tests` directories | no effect |
+| `scripts/check_ci_pins.py` | the workflow, actions, `Dockerfile` | no effect (all code) |
+| `Dockerfile` `COPY . /work` (`runtime` image: `scenario` on `main` only) | the build context; `.dockerignore` drops `docs/`, `.structured-coding/`, `.claude/` | top-level `README*.md` and `CLAUDE.md` enter the image context, but the image is built only on `main`, which is always code |
+| `scripts/check_client_rules.py` | `.md` paths only under `--scope`; not run by CI | no effect |
+
+No Rust or Python test, and no CI script other than the two doc checks, reads `docs/**`,
+`.structured-coding/plans/**`, the top-level `README.md` / `README.zh-CN.md`, or `CLAUDE.md`.
+
+**The docs set (`scripts/ci_changes.py` `is_docs`), by the audit:**
+
+```text
+docs/**                            every file (Markdown read only by the two doc checks; images and
+                                   docs/references/** read by nothing)
+.structured-coding/plans/**        read by nothing in CI
+README*.md at the repository root  README.md, README.zh-CN.md: read by nothing in CI
+CLAUDE.md                          read by nothing in CI
+```
+
+Everything else is code, deliberately including READMEs in subdirectories (some are read, above; the
+rest are close to code and cheap to keep on the safe side), `.structured-coding/standards.md`,
+`.claude/**`, `.github/**`, and `LICENSE`-like files. Widening the set is a change to this table and to
+`ci_changes.py`'s self-test, made after the same audit.
+
+## 16.4 Design
+
+1. **A first job, `changes`** (ubuntu-24.04, seconds), runs `scripts/ci_changes.py`: a stdlib-only
+   classifier. It prints every changed path with its class and the reason for the verdict, and writes
+   `code=true|false` to `$GITHUB_OUTPUT`.
+   - `pull_request`: `git diff --name-only --no-renames <base.sha>...<head.sha>` (the PR's own changes,
+     against the merge base; a rename is a deletion plus an addition, so moving a code file into `docs/`
+     is still code).
+   - `push` to `main`, and `workflow_dispatch`: code, without diffing.
+   - `push` to another branch (only `scratch/**` now): `<before>...<after>`, and code when `before` is
+     the null id (a new branch), is not an object in the clone, or is not an ancestor of `after` (a
+     force-push).
+   - An empty diff, an unknown event, or any `git` failure: code.
+   - **Reuse (one line):** `dorny/paths-filter` was considered and rejected, to avoid a third-party action
+     holding a repository-read token for a 30-line check that `git diff` already answers.
+2. **`docs` layer** in `scripts/ci_layer.py`: `check_doc_headings.py`, `check_decision_ids.py` and
+   `ci_changes.py --self-test`. It runs natively on the runner's Python, not in the toolchain container,
+   and its environment report names only `git` and Python (a `cargo`/`rustc` probe would make rustup
+   install the pinned toolchain from `rust-toolchain.toml`). `fast` gains `ci_changes.py --self-test`
+   too, so a change to the classifier is judged in the code path.
+3. **`fast`** `needs: changes` and runs `if: always() && !cancelled()`:
+   - first step: fails if `needs.changes.result` is not `success` (fail closed: a broken classifier
+     turns the required `fast` red instead of skipping everything);
+   - `code == 'true'`: unchanged (full-history partial clone, the container, the `fast` layer);
+   - `code == 'false'`: a depth-1 checkout and `python3 scripts/ci_layer.py docs`.
+4. **`test`, `python`, `platforms`, `test-windows`, `test-macos`, and the scenario group** (`scenario`,
+   `linux-arm`, `mac`, `windows`, `ac8`) gain `needs: changes` and
+   `if: needs.changes.outputs.code == 'true' && (<their existing condition>)`. On a docs-only PR they are
+   skipped, which the required `test` reports as passing. `ac8` keeps `always()` and also needs
+   `changes`.
+5. **No duplicate runs.** `push` is restricted to `main` and `scratch/**` (scratch branches carry mutation
+   runs); a feature branch gets its runs from `pull_request` only. `workflow_dispatch` stays. A push to
+   `main` is always code, so `main` stays fully verified, and the scenario group's `main` trigger is
+   unchanged.
+
+What does not change: the job names `fast` and `test`; every layer's commands except the one added
+self-test; `test`'s draft rule; concurrency; permissions.
+
+**Trade-off recorded.** A branch with no PR no longer runs `fast` on push. Opening a draft PR runs `fast`
+(as before, drafts run `fast` only).
+
+## 16.5 Acceptance (decided before measuring)
+
+- **A-X1.** `ci_changes.py --self-test` passes, with named fixtures for: docs-only (each docs-set entry),
+  mixed, code-only, each audited docs-reader target as code (`server/PROTOCOL.md`,
+  `cognition/lm-controller/README.md`, `sdk/python/README.md`, `worlds/social-cafe/README.md`,
+  `.structured-coding/standards.md`, a subdirectory README), a rename out of code, an empty diff, a push
+  to `main`, a dispatch, and an unknown base (null id and a missing object) → code.
+- **A-X2.** This PR (a workflow change: code) has `changes` → `code=true` and `fast`, `test`, `python`
+  ×3, `platforms` ×2, `test-windows`, `test-macos` green on its exact head, and runs once (no push run for
+  `ci/docs-only-skip`).
+- **A-X3.** A probe PR from `scratch/13x-docs`, changing one README line only: `changes` → `code=false`,
+  `fast` runs the `docs` layer and finishes in well under a minute, `test` and the other jobs are skipped,
+  and GitHub reports the PR mergeable (required checks satisfied). Closed unmerged, branch deleted.
+- **A-X4 (mutation).** `is_docs` widened to treat a test-read file as docs (every `README.md` at any
+  depth) → `ci_changes.py --self-test` fails naming the fixture `cognition/lm-controller/README.md`.
+
+## 16.6 Commit plan and ledger
+
+| Commit | Content | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| X-C0 | this section; ARC-48's note | [x] `f80eb87` | [x] doc checks PASS | [x] terminology, ids |
+| X-C1 | `scripts/ci_changes.py`, the `docs` layer, self-test in `fast` | [x] `caa1d4f` | [x] A-X1, A-X4 PASS | [x] fail-closed paths |
+| X-C2 | `.github/workflows/ci.yml`: `changes`, `needs`/`if`, `push` branches | [x] `4443b5f` | [x] A-X2, A-X3, guard PASS | [x] every job's `if:` |
+| X-C3 | ledger; `ENGINEERING_STANDARDS.md` §15 reconciled with the docs-only rule (`CLAUDE.md` §2.1 rule 4: the review found §§15–16's "every pull request" / "every change" contradicting the design) | [x] | [x] doc checks PASS | [x] |
+
+Endpoint authority: commits, push of `ci/docs-only-skip` and `scratch/13x-docs`, PR create/update/close,
+branch delete: authorized by the primary session's brief. Settings and merge: not authorized.
+
+**Evidence (2026-10-09 local; run times UTC 2026-10-10).**
+- **A-X1.** `python3 scripts/ci_changes.py --self-test`: 20 cases pass, locally and in CI (both layers).
+  Local real-git checks: this branch's docs commit alone against `origin/main` → `code=false`; a
+  non-ancestor `before` on a push → `code=true` ("a force-push").
+- **A-X4 (mutation).** `is_docs` widened to every `README*.md` at any depth → self-test exit 1, failing
+  by name `a file CI reads is code: cognition/lm-controller/README.md` (and `sdk/python/README.md`,
+  `worlds/social-cafe/README.md`, `systems/economy/README.md`). Reverted.
+- **A-X2.** PR #133 opened one run only (38029012754, `pull_request`; no `push` run for
+  `ci/docs-only-skip`). `changes` (10 s) printed the five paths with their classes and
+  `code=true: 3 of 5 changed path(s) are code`; `fast` took the container path, green in 1 min 33 s. The
+  final-head run is recorded in the PR description.
+- **A-X3.** Probe PR #134 (`scratch/13x-docs`, one line of `README.md`), run 38029645292: `changes`
+  `code=false: all 1 changed path(s) are documentation` (12 s); `fast` ran the `docs` layer on a
+  depth-1 checkout, green in **10 s** (layer 0.1 s); `test`, `python`, `platforms`, `test-windows`,
+  `test-macos` and the scenario group skipped. GitHub reported the PR `MERGEABLE`.
+  - **Bounded deviation.** The probe PR targeted `ci/docs-only-skip`, not `main`: a PR to `main` from a
+    branch carrying this workflow has this PR's code in its diff, so it cannot be docs-only until 13x
+    is on `main`. That a skipped required job reports as passing on `main` is GitHub's documented
+    behaviour ("a job that is skipped will report its status as Success"); the first docs-only PR to
+    `main` after the merge confirms it, and is the primary session's check.
+  - The probe branch's own `push` run (38029642931, a new branch) classified `code=true: change set
+    unknown: no base (000…0)`, the fail-closed fallback, and was cancelled after `changes` to free
+    runners.
+- **Fail-closed guard.** A second probe commit made `ci_changes.py` exit with an error: in both runs
+  (38029834594 `pull_request`, 38029833271 `push`) `changes` failed and `fast` failed first with
+  "changes: result 'failure', code '': nothing is known about this change, so nothing passes", every
+  other job skipped. PR #134 closed unmerged; `scratch/13x-docs` deleted.
+- **Timings.** Before (docs PR #130): `fast` 1 min 34 s on `push` and again 1 min 22 s on
+  `pull_request`, `python (ubuntu)` 2 min 15 s, and `test` (20–24 min) plus five native jobs started.
+  After (docs-only): one run, `changes` 12 s + `fast` 10 s, nothing else. A code PR pays `changes`
+  (about 10 s) once before `fast` and `test` start.
