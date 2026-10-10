@@ -14,7 +14,8 @@
 
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,
-    EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, WorldTime,
+    EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, Tag, Tags,
+    WorldTime,
 };
 use mineworld_conversation::ConversationSystem;
 use mineworld_kernel::{Emission, SystemIdentity, World};
@@ -114,18 +115,28 @@ impl Town {
         visitor_at: impl FnOnce(&Town) -> Location,
     ) -> (Self, Vec<Emission>) {
         let (mut world, providers) = compose(movement);
-        let mut create = |key: &str, entity_type| {
+        // Places carry the tags a door sign reads (`ARC-82`); people carry none.
+        let mut create = |key: &str, entity_type, tags: &[&str]| {
             world
-                .create_entity(EntityKey::new(key).expect("a key"), entity_type)
+                .create_authored_entity(
+                    EntityKey::new(key).expect("a key"),
+                    entity_type,
+                    Tags::new(tags.iter().map(|tag| Tag::new(*tag).expect("a tag"))),
+                    None,
+                )
                 .expect("created")
         };
         let place = |entity| PlaceId::new(entity, EntityType::Place).expect("a place");
-        let cafe = place(create("cafe", EntityType::Place));
-        let street = place(create("street", EntityType::Place));
-        let attic = place(create("attic", EntityType::Place));
-        let visitor = create("visitor", EntityType::Person);
-        let alice = create("alice", EntityType::Person);
-        let stranger = create("stranger", EntityType::Person);
+        let cafe = place(create("cafe", EntityType::Place, &["cafe", "public"]));
+        let street = place(create("street", EntityType::Place, &["street", "public"]));
+        let attic = place(create(
+            "attic",
+            EntityType::Place,
+            &["apartments", "residential"],
+        ));
+        let visitor = create("visitor", EntityType::Person, &[]);
+        let alice = create("alice", EntityType::Person, &[]);
+        let stranger = create("stranger", EntityType::Person, &[]);
         let town = Self {
             world,
             providers,
