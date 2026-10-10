@@ -1,15 +1,25 @@
 # PR IL-e — The World Interaction List for the social packs: `talk`, `invite`, `join`, `acquaint`
 
-## Lifecycle
+## DESIGN FROZEN 2026-10-10 (primary session)
 
 ```text
-Lifecycle:              DRAFT — PR design, awaiting the primary session's review (NOT frozen)
-Design revision:        revision 1 (2026-10-10), the first commit of docs/il-e-design
-Approved by / evidence: none yet. Implementation requires a DESIGN FROZEN header recorded by the
-                        primary session (and the operator for the [OM] questions of §13)
-Implementation base:    main at the start of implementation (exact commit recorded in IE-C0's evidence)
-Execution contract:     §12 (proposed; confirmed at freeze)
+Design revision:        revision 2 (2026-10-10): revision 1 (8abea2e on docs/il-e-design) with §13's
+                        rulings recorded and §12's contract filled, as committed with this header
+Approved by / evidence: the operator accepted every recommendation, QIE-1 … QIE-12 (including the [OM]
+                        questions QIE-6 and QIE-12), on 2026-10-10; QIE-9 ruled "dated notes on ARC-63
+                        and ARC-65 only, no new ARC". Relayed by the primary session to this planning
+                        session (§13 "Rulings")
+Implementation base:    main at the start of implementation (exact commit recorded in IE-C1's evidence)
+Execution contract:     §12 (filled at freeze)
+Lifecycle:              FROZEN
 ```
+
+Scope (§1), section shapes (§4), decisions SD-IE-1 … SD-IE-12, acceptance IE-1 … IE-13 and the commit plan
+are frozen. Progress, evidence, findings and bounded corrections stay writable (§10, §14, §15). No IL-e
+question remains open. Implementation starts in a fresh session (§12); this planning session does not
+implement.
+
+*Superseded header:* `DRAFT — PR design, awaiting the primary session's review (NOT frozen)`, revision 1.
 
 **Effort:** `mvp0` · **Step:** S17, [`step-18-interaction-list.md`](step-18-interaction-list.md) (§2.2 rows
 conversation / relationships / group-activity, §4.4–§4.8, §5 IL-I1 … IL-I11, §6.2 IL-e row, §12 IL-b and its
@@ -22,9 +32,8 @@ QIL-9, QIL-11 … QIL-16, QIL-18 … QIL-20).
 shared lines are listed in §9.
 **Planning base:** `origin/main @ bb62edf` (#140). Planning worktree
 `/Users/yuema137/mineworld-worktrees/design-il-e`, branch `docs/il-e-design`, one writer.
-**Decision numbers:** none new is proposed (§13 QIE-9). IL-e implements `ARC-63` and `ARC-65` and adds dated
-notes to them. If the primary session prefers a record of its own for §4.4's reaction rule, the next free
-number is ARC-81 (`overall.md`), assigned by the primary session, never picked here.
+**Decision numbers:** none (QIE-9, ruled 2026-10-10). IL-e implements `ARC-63` and `ARC-65` and adds dated
+notes to them only.
 
 ---
 
@@ -37,8 +46,8 @@ base          main after IL-b and S11-C (both merged at bb62edf). Re-audit §3 i
               systems/{conversation,group-activity,relationships,presence}/src, sdk/rust/src/interactions,
               tools/cli/src/{biography,perceived,interactions}.rs, tools/cli/tests/{interactions,inspect,
               social_composition,interaction_runs}.rs, worldpack/tests/interaction_sections.rs
-branch        mvp0/pr-il-e-social from main, worktree /Users/yuema137/mineworld-worktrees/impl-il-e
-              (named at freeze), held by the implementing session only
+branch        mvp0/pr-il-e from main, worktree /Users/yuema137/mineworld-worktrees/impl-il-e (named at
+              freeze), held by the implementing session only
 depends on    IL-b (sections for conversation and group-activity exist; Offer::refused; the biography
               projection reads sections); S11-C (the bystander proof, QIB-12)
 merge         a merge commit, never a squash (ARC-5)
@@ -63,7 +72,7 @@ consequences:
   - { fact: spoke, audience: participants }
 ```
 
-**Approved scope (proposed).** §6.2's IL-e row and §12.15's IL-e row, made concrete in §4–§5:
+**Approved scope (frozen 2026-10-10).** §6.2's IL-e row and §12.15's IL-e row, made concrete in §4–§5:
 
 1. conversation: the `talk` rule; parameters `range` (was `INTERACTION_RANGE`) and `remembered` (was
    `REMEMBERED_AT_MOST`) beside IL-b's `gap`; consequences of `spoke` and `conversation-started`; the knob
@@ -504,7 +513,7 @@ Each commit lists implementation, validation and review separately; each `[x]` n
 **Scope.** `docs/DECISIONS.md` (dated notes on `ARC-63`, `ARC-65`); `docs/MODULE_SPEC.md` §4.2 (one sentence:
 reaction rules); `systems/{conversation,group-activity,relationships}/README.md` ("Its section", §4's
 tables); `docs/MVP_STATUS.md` (S17 row: IL-e in progress); `handoff-il-e.md` created.
-**Non-goals.** No code. No new decision number unless the primary session assigns one (QIE-9).
+**Non-goals.** No code. No new decision number (QIE-9, ruled).
 - [ ] Implementation: the notes and README sections, worded from §4/§5.
 - [ ] Validation: both doc scripts; every term used is `MODULE_SPEC.md` §4.2's vocabulary (no synonym).
 - [ ] Review: the README tables equal §4's (field, bound, default); `acquaint` is never called an action.
@@ -608,17 +617,19 @@ No diff: `kernel/`, `contracts/`, `persistence/`, `server/`, `clients/`, `worlds
 
 ---
 
-## 12. Proposed execution contract (confirmed or amended at freeze)
+## 12. Execution contract for PR IL-e (filled at the freeze, 2026-10-10)
 
 ```text
 PROJECT / PR        MVP-0 · S17 / PR IL-e — social sections of the World's Interaction List
+FREEZE              DESIGN FROZEN 2026-10-10 (primary session); operator accepted QIE-1 … QIE-12
 PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/pr-il-e-social.md; evidence §14 (E-IE<n>); deviations §15
 RELATED / BINDING   step-18-interaction-list.md §§2.2, 4, 5, 6.2, 12 (IL-b as merged), 12.15; overall.md
                     "The World Interaction List"; step-12-server.md QS11C-6; DECISIONS ARC-5, ARC-23,
                     ARC-25, ARC-29, ARC-34, ARC-43, ARC-61, ARC-63, ARC-64, ARC-65, DEP-28; MODULE_SPEC §4.2;
                     CLAUDE.md §§2–4
-IMPLEMENTATION BASE main at start (re-audit §3); branch mvp0/pr-il-e-social; worktree
-                    /Users/yuema137/mineworld-worktrees/impl-il-e; one worktree, one session
+IMPLEMENTATION BASE main at start (exact commit recorded in IE-C1's evidence; re-audit §3); branch
+                    mvp0/pr-il-e from main; worktree /Users/yuema137/mineworld-worktrees/impl-il-e; one
+                    worktree, one session, a fresh one
 COMMANDS            cargo (fmt, check, clippy -D warnings, test), the built `mineworld` binary, git, gh (never
                     merge), python3 scripts/*, mkdir -p, sed -n; no python3 -c, sed -i, awk, xargs, curl or
                     heredoc writes; files edited with the editor tools; no other worktree; no .claude/settings*
@@ -646,7 +657,16 @@ MATERIAL STOP       any edit in §11's no-diff list (above all sdk/, authoring/,
 
 ## 13. Questions (QIE-1 …)
 
-**[OM]** marks operator-material questions. Each has a recommendation.
+### Rulings (2026-10-10)
+
+- **The operator accepted every recommendation below, QIE-1 … QIE-12**, including the operator-material
+  QIE-6 (biography per fact, not per reader, for MVP-0) and QIE-12 (`spoke` stays non-biographical by
+  default; IL-h's manor list carries both entries). Relayed by the primary session on 2026-10-10.
+- **QIE-9:** dated notes on `ARC-63` and `ARC-65` only; no new ARC number.
+- **QIE-12's consequence for IL-h** is recorded in `step-18-interaction-list.md` §12.15's IL-h row.
+
+**[OM]** marks operator-material questions. Each has a recommendation, and each recommendation is now the
+ruling.
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
