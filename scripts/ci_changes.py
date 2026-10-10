@@ -151,6 +151,7 @@ def self_test() -> int:
 
 
 def main(arguments: list[str]) -> int:
+    raise SystemExit("13x probe: a broken classifier")
     if arguments == ["--self-test"]:
         return self_test()
     parser = argparse.ArgumentParser(description="Classify a CI run's change set as code or docs.")
