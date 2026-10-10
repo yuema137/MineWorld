@@ -3911,10 +3911,10 @@ fixtures need the roots.
 - [x] Implementation: as ruled (`36d0338`). The roots are relative (`PACK_ROOTS` in `ci_parity.py`,
   imported by `ci_image.py`), not `/opt/mineworld/…`: the runtime image's WORKDIR is `/opt/mineworld`, so
   the same words work natively and in the image and the record carries no host-specific root (bounded).
-- [ ] Validation: **FAIL — blocked on F-Ee6 and F-Ee8 (material, primary's ruling).** Self-test,
-  local record and M-E6 PASS; the scenario legs scenario (image + `ci_image.py`) and linux-arm PASS;
-  mac and windows FAIL (F-Ee8); with F-Ee8's fix on a scratch-only commit all four legs PASS and `ac8`
-  FAILS G-5 on Lakeside's `validate` key, Windows alone (F-Ee6). E-Ee7.
+- [x] Validation: self-test, local record and M-E6 PASS; first scenario push FAILED on F-Ee8 then F-Ee6
+  (E-Ee7); both ruled by the primary 2026-10-10 and fixed (`4ce50c8`, `718f630`); `scratch/ee-718f630-
+  scenario` → scenario, linux-arm, mac, windows ✓ and **ac8 PASS, four records, four worlds equal**
+  (E-Ee9).
 - [x] Review: no world-specific branch in either script (the roots are passed to every world); the image
   gains four small files and `entities/`, nothing from `presentation/`'s art.
 
@@ -4045,6 +4045,25 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   worldpack/src tools/cli/src '*Cargo.toml' Cargo.lock` → empty; the S16 merges' forbidden-path diffs
   empty (E-Ee0). **EE-12:** E-Ee3's digests (no product change since). The binary is unchanged since
   E-Ee3, so Lakeside's baseline there is final for this head.
+- **Rulings (primary, 2026-10-10, relayed by the coordinator):** F-Ee8 approved as bounded (the four
+  manifests re-included in the `mac` and `windows` legs' sparse checkout); F-Ee6 option **(b)** —
+  `packs::source` prints `/` on every OS, the E-d `source_path` precedent — **a recorded exception to
+  PD-41** (one function of `tools/cli/src/packs.rs`; no other product source, no manifest or lock);
+  merge origin/main; scratch branches deleted.
+- **E-Ee9** (after the rulings): `7f4fb6f` re-applied on the PR branch as `4ce50c8` (message reworded;
+  same four lines); origin/main @ `737e032` (#141, #142, #151: CLI test servers bind port 0) merged as
+  `1b3a236`, no conflict; `718f630`: `source()` rewrites `\` to `/` under `cfg!(windows)` only (lossless
+  there; on other OSes `\` is a name character and output is byte-identical to before, so EE-12 holds
+  unchanged), and the two tests that compared the directory now compare the `/` form —
+  `milestone_e.rs` M-2 (as ruled) and `entity_packs.rs` ED-1's `goods_dir` (an existing-test edit forced
+  by the ruled change; claim unchanged; bounded). Local: clippy clean; `milestone_e` 7, `entity_packs`
+  5, `requirements` 6, `packs` 6, `third_party` 3 — all pass. **AC-8:** `scratch/ee-718f630-scenario` →
+  https://github.com/yuema137/MineWorld/actions/runs/38065578235 success: fast, scenario (image +
+  `ci_image.py`), linux-arm, mac, windows, **ac8 "AC-8 PASS"** — 4 records (Darwin/arm64, Linux/arm64,
+  Linux/x86_64, Windows/x86_64), 4 worlds, 1 962 keys; lakeside equal on 4 records, 491 keys
+  (summary-300 `e3fdc8bd…d596`); bodies-yard, market-town (`d5db8988…22ee`), social-cafe (`ad49c723…c64b`)
+  equal. EE-14 PASS. Scratch branches `scratch/ee-36d0338-{scenario,image}`, `scratch/ee-7f4fb6f-scenario`
+  deleted; `scratch/ee-718f630-scenario` deleted after this record.
 
 **Findings (bounded unless marked).**
 
@@ -4059,7 +4078,7 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
 - **F-Ee4.** §9.6's "bundled Entity Pack" would reuse ARC-54's defined term for a data pack; read as "the
   repository's own Entity Pack" (PD-43).
 - **F-Ee5.** The framework is already 0.1.0 (E-a); E-e bumps nothing (PD-40).
-- **F-Ee6 — MATERIAL, needs the primary's ruling.** `validate` (and `packs resolve`) print a required
+- **F-Ee6 — MATERIAL; ruled (b) by the primary 2026-10-10, fixed in `718f630` (E-Ee9).** `validate` (and `packs resolve`) print a required
   data pack's directory as `root.join(name).display()` (`tools/cli/src/packs.rs` `source`), so Windows
   prints `entities\modern-goods` and `presentation/mineworld-default\2D` where the other platforms print
   `/`. AC-8's record hashes `validate`'s output, so Lakeside — the first world with a data-pack
@@ -4073,7 +4092,8 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   milestone world from the parity check). Recommended: **(b)** — it makes the printed composition
   identical on every platform, which is what AC-8 claims — as a bounded exception to PD-41 inside E-e,
   or (a) if the primary prefers no product change in E-e.
-- **F-Ee8 — MATERIAL (S13's file beyond FQ-e1), needs the primary's ruling.** The `mac` and `windows`
+- **F-Ee8 — MATERIAL (S13's file beyond FQ-e1); approved as bounded by the primary 2026-10-10, applied
+  as `4ce50c8` (E-Ee9).** The `mac` and `windows`
   AC-8 legs sparse-check-out the repository without `/presentation/` (`.github/workflows/ci.yml`), so the
   presentation root does not exist there and every world's record fails (run 38036440204). Fix shown
   working on a scratch-only commit (`7f4fb6f`): two lines per leg re-including

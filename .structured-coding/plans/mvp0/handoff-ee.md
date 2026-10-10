@@ -18,7 +18,8 @@ STOPS               §18.11 MATERIAL STOPS (no product code, no Cargo.toml/lock,
 ENDPOINTS           implementation, commits, pushes (branch and scratch/ee-*), PR update and ready, CI
                     repair; merge NOT authorized
 SEQUENCE            Ee-C1 14d778a → C2 535bf8d → merge 3e4a638 → C3 1b483d4 → C4…C6 3e5c95c (one commit,
-                    F-Ee7) → C7 36d0338 → C8 (docs, ledger, this file)
+                    F-Ee7) → C7 36d0338 → C8 2cb9631 → F-Ee8 4ce50c8 → merge 1b3a236 → F-Ee6 718f630 →
+                    ledger (docs)
 ```
 
 ## Current checkpoint
@@ -28,17 +29,14 @@ test passes 7/7 locally (34.6 s, ≈ 2.2 GB scratch). Ee-C7's scratch pushes (`s
 and `-image`) are the evidence for EE-14; the PR's own CI (fast, test, platforms, test-windows,
 test-macos) needs the PR marked ready.
 
-**BLOCKED on two material findings (§18.8 F-Ee6, F-Ee8), the primary's to rule.** EE-14 FAILS:
-the native AC-8 legs lack the presentation manifests (F-Ee8, fix proven on scratch `7f4fb6f`), and with
-that fixed `ac8` fails G-5 on Lakeside's `validate` key on Windows alone, because a required pack's
-directory prints with `\` there (F-Ee6; run 38037163670). Everything else is green locally (E-Ee8).
+F-Ee6 and F-Ee8 were ruled by the primary (2026-10-10) and fixed (`718f630`, `4ce50c8`); AC-8 PASS
+with four records on `scratch/ee-718f630-scenario` (§18.8 E-Ee9). The PR's CI on the final head and
+READY FOR OPERATOR REVIEW are the remaining steps.
 
 ## Next actions
 
-1. On the ruling: apply F-Ee8's two lines per leg to `ci.yml` and F-Ee6's chosen fix; push a new
-   `scratch/ee-<sha>-scenario`; `ac8` must be green with four records.
-2. PR #137 CI (fast, test, platforms, test-windows, test-macos) green on the exact final head.
-3. READY FOR OPERATOR REVIEW with §8.3's checklist (in `docs/HUMAN_REVIEW_QUEUE.md`, Milestone E).
+1. PR #137 CI (fast, test, platforms, test-windows, test-macos) green on the exact final head.
+2. READY FOR OPERATOR REVIEW with §8.3's checklist (in `docs/HUMAN_REVIEW_QUEUE.md`, Milestone E).
    Do not merge.
 4. After the operator's merge: record the merge identity in §18; delete `scratch/ee-*` branches. The
    primary owns §9.6's status, the step header, overall.md and the progress page.
