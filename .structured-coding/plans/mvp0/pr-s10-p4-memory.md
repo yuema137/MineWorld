@@ -1054,3 +1054,18 @@ Applied (after merging `origin/main` at `737e032`, #141, #142, #151, which touch
   test overall. So the extra Windows time is most likely runner variance in the 100-day `mineworld run`,
   but it was not measured separately. The margin under the 300 s ceiling is 57 s. If a later Windows run
   goes over, that is the same stop again, and option (c) (release build) is the lever left.
+
+### 14.6 Merge and closure
+
+- **Merged** 2026-10-10T18:33:12Z: PR #143, merge commit `d3bca96482af1e60b0df165ca3aa9f15e7715de0`.
+  The final PR head was `117694d`, with CI run 38070422590 green on every job (`test_ac10.py` on Windows
+  233.8 s).
+- **Primary session's review mutation:** dropping the per-section byte check in
+  `retrieve._Section.offer`. It was caught by
+  `test_memory_retrieve.py::test_every_section_and_the_whole_stay_within_their_budgets`, the same
+  failure class as §14.2 M8.
+- **Open risk:** on Windows, `test_ac10.py` takes 233–243 s against the 300 s ceiling (runs 38065521041
+  and 38070422590). If it goes over, option (c) of §14.5 (build `mineworld-cli` in the release profile for
+  the `python` job) is the lever, and it needs a ruling.
+- Parent synchronization: step-17 §15.2's P4 row and `docs/MVP_STATUS.md`'s S10 row are updated by the
+  close-out PR. `overall.md` is left to the S10 planning session. This PR context is closed.
