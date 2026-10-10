@@ -422,11 +422,14 @@ Targeted validation per commit; the PR's CI is the one full run.
   contract's authority lines and the decision numbers (`ARC-81`, `DEP-43`) were filled by the planning
   session at freeze (§12, §13.1); C0 verifies them rather than writing them.
 - **Scope.** This document (§14 opened); a new `handoff-sr.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
   that `overall.md`'s table lists `ARC-81` and `DEP-43` for SR; record the implementation base commit;
-  initialize the handoff with the contract's required fields.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every authority line has a source; no scope widened.
+  initialize the handoff with the contract's required fields. *Evidence: §14.1 (base a5f5357; the
+  table does not yet list SR — F-SR-0, a request to the primary session); `handoff-sr.md`.*
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  *Evidence: both exit 0 at C0 (§14.1).*
+- [x] Review: every authority line has a source; no scope widened. *Evidence: §12 re-read; C0 edits
+  only this ledger and the new handoff.*
 - **Commit boundary.** Documentation only.
 
 ### C1 — Decisions, spec edits, the dependency
@@ -603,4 +606,25 @@ Relayed by the coordinator to the persistence-lane design session on 2026-10-10.
 
 ## 14. Ledger (live during implementation)
 
-Opened by C0 in the implementation session. Nothing implemented yet.
+Opened by C0 in the implementation session (2026-10-10), worktree
+`/Users/yuema137/mineworld-worktrees/impl-save-retention`, branch `mvp0/pr-s6-save-retention`.
+
+### 14.1 C0 — freeze verification
+
+```text
+Implementation base:   origin/main @ a5f535735e31ac14ff2413df014e82bf48fb6043 (#145 merged: this design
+                       frozen). The audit anchors of §3 (bb62edf) were re-read at this base: every
+                       file and line named there is unchanged in substance.
+Freeze header:         present (revision 2, 2026-10-10), lifecycle FROZEN; §12 filled, every
+                       ENDPOINT AUTHORITY line carries its source.
+Decision numbers:      ARC-81 and DEP-43 are named by this document (QSR-6) and unused in
+                       docs/DECISIONS.md at the base.
+```
+
+**Finding F-SR-0 (bounded; a request to the primary session, not an edit).** C0 asks to verify that
+`overall.md`'s decision-number table lists `ARC-81` and `DEP-43` for SR. At the base it does not: the
+table ends with S23's row and the sentence "The next free numbers are ARC-81 and DEP-43". The numbers
+are assigned by the primary session's QSR-6 ruling (§13.1), which is this PR's authority for them, so
+implementation proceeds; `overall.md` is the primary session's file (§12 POST-MERGE SYNC OWNER), so this
+session does not edit it. Request R-overall (§11) stands: the primary session adds the row
+`S6 SR | ARC-81 | DEP-43 (zstd)` before merge.
