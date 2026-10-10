@@ -9914,6 +9914,68 @@ E-NW5 The fix, 2026-10-10, working tree on b23d8e1.
                facts e0f5964c…8e31ed — the facts change, so bodies VERSION 3 → 4 (N-D26; ARC-39 note 6).
         suites `cargo test -p mineworld-bodies` all pass; tools/cli walking (9), bodies_yard (4 + 1
                ignored), bodies_yard_restart (1) pass; clippy --workspace -D warnings and fmt clean.
+      Committed 25660e8.
+
+E-NW6 NW-C3 on the scratch merge of 25660e8 with 8814aad, 2026-10-10. Recreated as E-NW4's recipe, at
+      /tmp/s15-12n/12n2/merge. One more conflict: bodies' system.rs VERSION, where 12n-2's 4 meets 12d's 4;
+      the scratch takes 5. Tree ef332673… (c79d6e22… with the two scratch test files nw_scratch.rs and
+      nw_scratch2.rs added later; no code differs). Binary /tmp/s15-12n/12n2/merge2-mineworld. SD-D13
+      copies /tmp/s15-12n/12n2/nb2/{social-cafe,market-town} (nobodies.sh; both validate).
+        NW-1  routines.rs, unedited: every seat ≥ 90 % — alice 91/91, bob 120/121, ivan, visitor and
+              wanderer 121/121, carol … hana 91/91 (otto, whom no seat drives, 31/61, as on main);
+              journeys median 15 min, p90 47 min — PASS. run.rs's 300-day claims: NOT RUN (budget, below).
+        NW-2  the scratch harness: apartments door 20 strides, café door 1, park door 20, store door 14,
+              workplace door 15, terrace west 6, terrace east 8; all 14 walks `arrived`, the visitor in
+              the café after each — PASS.
+        NW-3  (restated, M-3 ruling 2) social-cafe 30 d: geometry-caused stopped-short 1 463 of 55 408
+              walk-steps = 2.6 % ≤ 10 % — PASS. Printed, not bounded: person-caused 8 253 (14.9 %;
+              apartments 5 570, café 1 805). Entries 2 117 vs 2 119 without bodies = 99.9 % — PASS. No
+              `walk-to` refused; walk outcomes arrived 10 517, no-route 316 (a later leg), stalled 234,
+              replaced 2. market-town: geometry 1 137 of 53 755 = 2.1 %, person 8 411.
+        NW-4  TD-12a (bodies half), §20.6.1's instrument, user + sys CPU, 300 d seed 7, in memory:
+              first set (td12a.log; runs launched in the background):
+                social-cafe  without 24.02 / 33.91 s, with 52.72 / 64.45 s; pair ratios 2.19 / 1.90,
+                             15 % apart — contaminated
+                market-town  without 82.81 / 83.42 s, with 152.04 / 148.01 s; pair ratios 1.84 / 1.77,
+                             3.5 % apart — clean; max(with) ÷ min(without) 1.84 ≤ 3.30 — PASS
+              social-cafe re-run once (td12a-rerun3.log, in the foreground, load 3.5–5.6): without 23.54 /
+                             24.31 s, with 46.59 / 48.45 s; pair ratios 1.98 / 1.99 — clean;
+                             max(with) ÷ min(without) 2.06 ≤ 3.96 — PASS
+              faults 0 in every run; facts with bodies 1 240 225 / 1 219 332, without 877 751 / 858 406.
+              Instrument finding (N-D27): a run started with run_in_background is scheduled at background
+              QoS on this machine — two attempted re-runs took 17 to 69 wall minutes for seconds of CPU and
+              were aborted. Only foreground runs are comparable. The market-town set ran in the background,
+              but its two pairs agree within 3.5 %.
+              TD-12b (per-resolution timing): NOT RUN (budget, below).
+        NW-5  run_restart.rs on the merge: 3 passed (the killed runs, the continued run, the mid-walk
+              stop) — PASS. Two 30-day runs byte-identical: social-cafe 1096c6fc…cbb0 both, market-town
+              277add76…c2958c both — PASS. market_town.rs: NOT RUN to the end (killed at the 2-hour task
+              limit under load ≈ 200; it runs 300 days). arm64 = x86_64: the merged tree built for
+              x86_64-apple-darwin (target-x86; Mach-O x86_64), run under `arch -x86_64`, 30 d seed 7 —
+              social-cafe 122 928 facts 1096c6fc…cbb0, summary 4258eae7…a59a; market-town 120 954 facts
+              277add76…c2958c, summary fbdddcaa…3b60 — both equal arm64's — PASS.
+        NW-6  M-N1b on the merge (the wayfinder line emptied, bodies' require_wayfinder guard removed):
+              routines.rs FAILS naming ten people below 90 % (alice 35/91, bob 58/121, carol 25/91, erin
+              59/91, felix 7/91, grace 52/91, hana 47/91, ivan 91/121, visitor 60/121, wanderer 89/121);
+              the NW-2 harness FAILS naming "terrace east" (walk-to the café, 10 steps, not in the café).
+              The other six starts still reach the café: straight walks from the doorways and the west
+              terrace are not blocked. Reverted; the tree's code is the measured one again.
+        NW-10 on the merge: run_restart.rs (above) — PASS.
+
+N-D27 TD-12a's runs are made in the foreground only (see E-NW6). Background-QoS scheduling inflates user
+      CPU and wall time, unevenly.
+
+M-4   MATERIAL STOP — the validation budget (§21.14: "Reaching a cap is a material stop"). 300-day runs
+      so far: NW-4 main pair 2; TD-12a 8 + its social-cafe re-run 4; other 6 against a cap of 4 — two
+      base re-baseline runs (E-NW3), three completed runs of the two aborted background re-runs, and one
+      foreground timing check. The total, 20, is over the cap of 19 by one (the timing slot is unused).
+      Still owed, each needing 300-day runs:
+        NW-1  run.rs's claims on the 300-day run (every seat moves and talks in every bucket, all six
+              places entered): 1 run (social-cafe with --save, read with nw_scratch).
+        NW-4  TD-12b, per-resolution max ≤ 50 ms on market-town: 1 run (its own slot).
+        NW-5  market_town.rs on the merge: one 300-day and four 30-day runs.
+      Requested: authorize three more 300-day runs (NW-1, TD-12b, NW-5). All of them run in the
+      foreground.
 ```
 
 

@@ -33,7 +33,15 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — M-2 ruled (a), PASS; NW-C3 measured in part; MATERIAL STOP M-3
+## Current checkpoint — M-3 ruled and fixed (25660e8, bodies v4); NW-C3 measured; MATERIAL STOP M-4 (budget)
+
+- E-NW6 on the merge (/tmp/s15-12n/12n2/merge, 25660e8 + 8814aad): NW-1 routines, NW-2, NW-3 restated,
+  TD-12a (social-cafe after one foreground re-run; market-town), NW-5 (restart, two 30-day runs,
+  Rosetta), NW-6 and NW-10 all as claimed. Not run: run.rs's 300-day claims, TD-12b,
+  market_town.rs. 300-day runs: 20 of 19 — M-4 asks for 3 more.
+- Run measurements in the foreground only (N-D27): background tasks get background QoS here.
+
+## Earlier checkpoint — M-2 ruled (a), PASS; NW-C3 measured in part; MATERIAL STOP M-3
 
 - M-3 (§21.15, E-NW4): on the 12d scratch merge (/tmp/s15-12n/12n2/merge, tree a407132e) NW-2 PASS,
   NW-1 FAIL (alice pinned in the planner margin: route.rs start rule, a 12n-1 defect outside 12n-2's
