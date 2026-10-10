@@ -9,7 +9,6 @@
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
 ##   --slice-perf       frame cost at eight viewpoints by a fixed protocol
 ##                      (`slice_perf.gd`; `--perf-breakdown` for categories)
-##   --slice-skyline-check  the drawn skyline against the summit table (A-8)
 ##   --slice-character  the occupant animates (idle and walk, measured on its
 ##                      bones) and every camera mode, standing and walking,
 ##                      outdoors and in, as frames to inspect
@@ -71,11 +70,6 @@ var views := [
 	["20_florist_door", Vector3(9.60, 0.45, -4.20), -22.0, 3.0, FP],
 	["21_florist_interior", Vector3(11.40, 0.45, -9.10), -38.0, -6.0, FP],
 	["22_florist_looking_out", Vector3(17.40, 0.45, -13.30), 140.0, -3.0, FP],
-	# RL-b's skyline preview (skyline.gd): east along the street to the mountains,
-	# west from the east end, and south-west from the west end toward Point Loma
-	["23_skyline_east", Vector3(-20.0, 0.45, -5.20), -90.0, 4.0, FP],
-	["24_skyline_west", Vector3(22.0, 0.45, -5.30), 90.0, 2.0, FP],
-	["25_skyline_southwest", Vector3(-33.0, 0.45, 0.0), 123.0, 2.0, FP],
 ]
 
 ## Compositions the player's camera rig cannot frame: a camera that stays put
@@ -116,7 +110,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "skyline-check"]
+	"character"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -179,7 +173,6 @@ func _run(mode: String) -> void:
 		"jumpshots": await _jump_frames()
 		"doors": await _door_frames()
 		"character": await _character_check()
-		"skyline-check": SliceSkyline.check(slice.world.find_child("Skyline", false, false))
 
 
 func _settle(frames := 10) -> void:

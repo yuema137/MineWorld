@@ -137,5 +137,65 @@ static func _surrounds(g: Node3D) -> void:
 		Mats.pbr("leafy_grass", 2.2, Color(0.46, 0.58, 0.34), 0.97), 0.0, true)
 	Build.box(g, Vector3(X_MAX + 8.0, 0.55, 6.0), Vector3(16.0, 1.1, 14.0),
 		Mats.pbr("leafy_grass", 2.2, Color(0.46, 0.58, 0.34), 0.97), 0.0, true)
-	# The far backdrop is `skyline.gd` (RL-b): real summits at real angles. The
-	# sine-sum ridges that stood here were removed with it.
+
+
+## A gently rolling forested ridge closing the view, plus a further blue ridge
+## behind it. Built as a heightfield with explicitly counter-clockwise winding
+## seen from above -- ARC-13 records the previous ridge being wound the other
+## way, so its normals pointed at the ground and it read as pale angular shards
+## floating over the water. The winding is asserted here rather than hoped for.
+static func backdrop(parent: Node3D) -> Node3D:
+	var g := Node3D.new()
+	g.name = "Backdrop"
+	g.set_meta("mw_category", "backdrop")
+	parent.add_child(g)
+	_ridge(g, 320.0, 620.0, 62.0, Color(0.208, 0.268, 0.192), 7717, 0.0)
+	_ridge(g, 520.0, 980.0, 138.0, Color(0.330, 0.404, 0.470), 4231, -6.0)
+	_ridge(g, 760.0, 1420.0, 214.0, Color(0.512, 0.570, 0.640), 9091, -18.0)
+	return g
+
+
+static func _ridge(g: Node3D, dist: float, span: float, height: float, c: Color,
+		seed_v: int, y0: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var cols := 56
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hs: Array[float] = []
+	for i in range(cols + 1):
+		var t := float(i) / float(cols)
+		var h := height * (0.34
+			+ 0.40 * sin(t * 9.1 + float(seed_v % 17))
+			+ 0.26 * sin(t * 23.7 + 1.9)
+			+ 0.18 * rng.randf())
+		hs.append(maxf(h, height * 0.10))
+	for i in range(cols):
+		var x0 := -span * 0.5 + span * float(i) / float(cols)
+		var x1 := -span * 0.5 + span * float(i + 1) / float(cols)
+		var a := Vector3(x0, y0, -dist)
+		var b := Vector3(x1, y0, -dist)
+		var ca := Vector3(x0, y0 + hs[i], -dist - span * 0.22)
+		var cb := Vector3(x1, y0 + hs[i + 1], -dist - span * 0.22)
+		# Wound so that the front faces of the slope point at +z, toward the
+		# viewer, with the normal generated from a counter-clockwise triangle
+		# seen from the street.
+		for tri in [[a, b, cb], [a, cb, ca]]:
+			var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
+			if n.z < 0.0:
+				push_error("ridge triangle wound away from the street")
+			for v in tri:
+				st.set_normal(n)
+				st.add_vertex(v)
+	st.index()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 1.0
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	# The ridges are far enough away to be aerial perspective and nothing else;
+	# shadowing them costs shadow-map range for no visible gain.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.material_override = m
+	g.add_child(mi)

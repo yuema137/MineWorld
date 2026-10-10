@@ -17,28 +17,18 @@ extends SceneTree
 ##                        file, for a directory) are left out of both counts; the
 ##                        share is then of the unmasked pixels, and the line says
 ##                        how many were masked
-##                        several masks, comma-separated, are united
 ##   --heat=<dir>         writes <dir>/<name>: the frame <b> darkened to a third,
 ##                        with every pixel over the threshold drawn in red, so a
 ##                        change is located by eye rather than by its box
-##   --write-mask=<dir>   writes <dir>/<name>: white where a pixel differs by
-##                        more than the threshold, black elsewhere -- a mask for
-##                        --mask (V-5: a frame with and without the backdrop)
-var _write_mask := ""
-
-
 func _init() -> void:
 	var pos: Array[String] = []
 	var mask := ""
 	var heat := ""
 	for x in OS.get_cmdline_user_args():
 		if x.begins_with("--mask="):
-			mask = x.substr(7)
+			mask = ProjectSettings.globalize_path(x.substr(7))
 		elif x.begins_with("--heat="):
 			heat = ProjectSettings.globalize_path(x.substr(7))
-		elif x.begins_with("--write-mask="):
-			_write_mask = ProjectSettings.globalize_path(x.substr(13))
-			DirAccess.make_dir_recursive_absolute(_write_mask)
 		else:
 			pos.append(x)
 	if pos.size() < 2:
@@ -56,26 +46,15 @@ func _init() -> void:
 			func(n: String) -> bool: return n.ends_with(".png"))
 		names.sort()
 		for n in names:
-			ok = _pair(left.path_join(n), right.path_join(n), n, threshold, _masks(mask, n),
-				heat) and ok
+			var m := mask.path_join(n) if mask != "" and DirAccess.dir_exists_absolute(mask) \
+				else mask
+			ok = _pair(left.path_join(n), right.path_join(n), n, threshold, m, heat) and ok
 	else:
-		ok = _pair(left, right, left.get_file(), threshold, _masks(mask, ""), heat)
+		ok = _pair(left, right, left.get_file(), threshold, mask, heat)
 	quit(0 if ok else 1)
 
 
-## The mask files for frame `n`: each comma-separated entry is a PNG, or a
-## directory holding one of the frame's name.
-static func _masks(spec: String, n: String) -> Array[String]:
-	var out: Array[String] = []
-	if spec == "":
-		return out
-	for p in spec.split(","):
-		var g := ProjectSettings.globalize_path(p)
-		out.append(g.path_join(n) if n != "" and DirAccess.dir_exists_absolute(g) else g)
-	return out
-
-
-func _pair(pa: String, pb: String, label: String, threshold: int, mask_paths: Array[String],
+func _pair(pa: String, pb: String, label: String, threshold: int, mask_path: String,
 		heat: String) -> bool:
 	var ia := Image.load_from_file(pa)
 	var ib := Image.load_from_file(pb) if FileAccess.file_exists(pb) else null
@@ -88,7 +67,7 @@ func _pair(pa: String, pb: String, label: String, threshold: int, mask_paths: Ar
 	ia.convert(Image.FORMAT_RGB8)
 	ib.convert(Image.FORMAT_RGB8)
 	var dm := PackedByteArray()
-	for mask_path in mask_paths:
+	if mask_path != "":
 		if not FileAccess.file_exists(mask_path):
 			print("%-40s cannot compare: no mask %s" % [label, mask_path])
 			return false
@@ -97,15 +76,7 @@ func _pair(pa: String, pb: String, label: String, threshold: int, mask_paths: Ar
 			print("%-40s cannot compare: mask unreadable or of another size" % label)
 			return false
 		im.convert(Image.FORMAT_L8)
-		if dm.is_empty():
-			dm = im.get_data()
-		else:
-			var d2 := im.get_data()
-			for i in range(dm.size()):
-				dm[i] = maxi(dm[i], d2[i])
-	var wm := PackedByteArray()
-	if _write_mask != "":
-		wm.resize(ia.get_width() * ia.get_height())
+		dm = im.get_data()
 	var da := ia.get_data()
 	var db := ib.get_data()
 	var hd := PackedByteArray()
@@ -137,11 +108,6 @@ func _pair(pa: String, pb: String, label: String, threshold: int, mask_paths: Ar
 				hd[i] = 255
 				hd[i + 1] = 0
 				hd[i + 2] = 0
-			if not wm.is_empty():
-				wm[i / 3] = 255
-	if not wm.is_empty():
-		Image.create_from_data(w, ia.get_height(), false, Image.FORMAT_L8, wm).save_png(
-			_write_mask.path_join(label if label.ends_with(".png") else label + ".png"))
 	if heat != "":
 		Image.create_from_data(w, ia.get_height(), false, Image.FORMAT_RGB8, hd).save_png(
 			heat.path_join(label if label.ends_with(".png") else label + ".png"))

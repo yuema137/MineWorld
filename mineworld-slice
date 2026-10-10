@@ -11,8 +11,6 @@
 #                                     per view, and the Default tier's verdict. 1920x1080 unless
 #                                     --res=WxH; JSON per run under shots/slice/perf/
 #   ./mineworld-slice --perf --breakdown   one run: each cost category switched off in turn
-#   ./mineworld-slice --skyline-check headless: the drawn skyline against the summit table
-#   ./mineworld-slice --hide-backdrop build the far skyline hidden (frame masks, RL-b V-5)
 #   ./mineworld-slice --gi=<mode>     none | ssil | voxel | sdfgi  (default voxel)
 #   ./mineworld-slice --hud | --jumpshots | --doors    capture the controls, a jump, every door
 #   ./mineworld-slice --character     the character animates; every camera mode, as frames
@@ -96,15 +94,14 @@ for a in "$@"; do
     --world)                               world=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings|--skyline-check)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] \
-    || [ "$a" = "--skyline-check" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
 done
 # A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
 if [ "$scripted" = "1" ] && [ -z "$settings" ]; then
