@@ -76,7 +76,8 @@ pub enum PackType {
     WorldPack,
     /// How a world looks: identified by its `pack.yaml`.
     PresentationPack,
-    /// What kinds of thing can exist: identified by its `pack.yaml` (read from S16's PR E-d).
+    /// What kinds of thing can exist: identified by its `pack.yaml`; item kinds only in MVP-0
+    /// (`ARC-71`).
     EntityPack,
 }
 
@@ -301,6 +302,26 @@ pub struct Identity {
 }
 
 impl Identity {
+    /// Refuses a data pack whose stated `mineworld:` range the running framework is not in (`ARC-54`
+    /// note, F-Ed1). A code pack states none — Cargo enforces its requirement at build time — and passes.
+    ///
+    /// # Errors
+    ///
+    /// [`PackageError::PackFrameworkNotSupported`], naming the pack, its range and the framework's
+    /// version.
+    pub fn require_framework(&self) -> Result<(), PackageError> {
+        match &self.mineworld {
+            Some(range) if !range.admits(&framework_version()) => {
+                Err(PackageError::PackFrameworkNotSupported {
+                    id: self.id.to_string(),
+                    range: range.to_string(),
+                    framework: crate::FRAMEWORK_VERSION.to_owned(),
+                })
+            }
+            _ => Ok(()),
+        }
+    }
+
     /// The identity a code pack's [`Package`] states, checked.
     ///
     /// # Errors

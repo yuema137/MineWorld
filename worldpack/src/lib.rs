@@ -67,6 +67,7 @@
 pub mod catalog;
 pub mod configure;
 pub mod content;
+mod entities;
 pub mod error;
 pub mod format;
 pub mod load;
@@ -74,6 +75,7 @@ pub mod read;
 mod requirements;
 
 pub use catalog::Capability;
+pub use entities::validate_entity_pack;
 pub use error::{ContentKind, Declared, PackError};
 pub use format::{
     AuthoredItem, AuthoredLocation, AuthoredOrganization, AuthoredPerson, AuthoredPlace,
