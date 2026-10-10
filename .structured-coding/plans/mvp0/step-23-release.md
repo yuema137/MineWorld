@@ -1099,7 +1099,7 @@ launcher's specification: bundle layout read, arguments, `launch.toml` grammar, 
 sequence, stop sequence, logs, errors, exit status), `tools/launch/README.md` (human, short).
 
 - [x] Implementation: the four files.
-- [x] Validation: doc-headings (193 sections, none duplicated) and decision-ids (106 ids, all distinct)
+- [x] Validation: doc-headings (193 sections, none duplicated) and decision-ids (105 ids, all distinct; the ARC-6 note is not an id)
   PASS.
 - [x] Review: ARC-78 states §6.1/§12's decision and the stdin stop, resolves `ARC-6`'s question, and says
   why it is not `MVP.md` §7's launcher GUI; `LAUNCHER.md` §§1–9 match §19.2; the server row in
@@ -1112,10 +1112,21 @@ Files: `tools/cli/src/main.rs` (the flag), `tools/cli/src/serve.rs` (`ServeReque
 `stop_requested` also completes on EOF when asked: a detached std thread reads stdin to EOF or error and
 completes a `tokio::sync::oneshot`), `tools/cli/tests/stop_on_stdin_eof.rs`.
 
-- [ ] Implementation.
-- [ ] Validation: the new tests on macOS locally; `cargo clippy` clean; CI on three OSes.
-- [ ] Review: absent flag = no change (no thread started); EOF and read error both stop; the stop is the
-  same graceful path (one future); no protocol, world state or save format change.
+- [x] Implementation: `--stop-on-stdin-eof` (`main.rs`, clap `bool`); `ServeRequest.stop_on_stdin_eof`;
+  `serve.rs` `stdin_ended()` — a detached std thread reads and discards stdin until `Ok(0)` or an error
+  other than `Interrupted`, then completes a `oneshot`; the shutdown future selects it against
+  `stop_requested()`, so both lead to the same `"[mineworld] stopping"` → `host.shutdown()` → statistics.
+  The watch starts after the join line is printed.
+- [x] Validation: `cargo test -p mineworld-cli --test stop_on_stdin_eof` — 2 passed, 2.6 s (macOS arm64,
+  working tree on `2559cc3`): EOF → exit 0 with `[mineworld] stopping` before `[world] ticks`, second
+  process prints `[mineworld] resumed`; without the flag a null stdin leaves the server running 2 s, and
+  Ctrl-C still stops it gracefully. Mutation **M2** (watch disabled) → the first test FAILED by name, "the
+  server was still running 20s after its standard input closed" (PASS of the mutation check). Clippy
+  `-D warnings` clean for `mineworld-cli`; scratch dir empty after the run. Three OSes: CI (§19.6).
+- [x] Review: absent flag starts no thread and never touches stdin (`then` is lazy); `Interrupted` is
+  retried, any other read error is treated as the end (a parent whose pipe broke is gone); the oneshot's
+  sender dropped without sending also completes the select — a panicking reader stops the server rather
+  than leaving it unstoppable, which is the safer side. No protocol, world state or save change.
 
 ### C3 — `tools/launch` core
 

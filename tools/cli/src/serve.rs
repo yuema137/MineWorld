@@ -60,6 +60,8 @@ pub struct ServeRequest {
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
     pub roots: PackRoots,
+    /// Whether the end of standard input also stops the server (`--stop-on-stdin-eof`, `ARC-78`).
+    pub stop_on_stdin_eof: bool,
 }
 
 /// Which controller drives a seat nobody plays.
@@ -108,6 +110,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         keyframe_every,
         save,
         roots,
+        stop_on_stdin_eof,
     } = request;
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
@@ -241,8 +244,19 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    app::serve_with_shutdown(listener, host.clone(), access, async {
-        stop_requested().await;
+    // Watched from here, after the join line: a launcher that closes the pipe early stops a server
+    // that is already listening, by the one graceful path below.
+    let stdin_ended = stop_on_stdin_eof.then(stdin_ended);
+    app::serve_with_shutdown(listener, host.clone(), access, async move {
+        match stdin_ended {
+            Some(ended) => {
+                tokio::select! {
+                    () = stop_requested() => {}
+                    _ = ended => {}
+                }
+            }
+            None => stop_requested().await,
+        }
         println!("\n[mineworld] stopping");
     })
     .await
@@ -268,6 +282,31 @@ fn admin_access(token: String, invite: &InviteToken) -> Result<AdminToken, Strin
         );
     }
     Ok(token)
+}
+
+/// Completes when standard input ends or cannot be read (`--stop-on-stdin-eof`, `ARC-78`): how a parent
+/// with no console to signal through — a windowless launcher — asks for the stop, by closing the pipe it
+/// holds or by dying. Whatever arrives before the end is discarded.
+///
+/// Read on a plain thread rather than tokio's blocking pool: a read still blocked when the server returns
+/// must not hold the runtime's shutdown, and a detached thread ends with the process.
+fn stdin_ended() -> tokio::sync::oneshot::Receiver<()> {
+    let (ended, receiver) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut input = std::io::stdin().lock();
+        let mut discarded = [0_u8; 256];
+        loop {
+            match input.read(&mut discarded) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
+        }
+        let _ = ended.send(());
+    });
+    receiver
 }
 
 /// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as
