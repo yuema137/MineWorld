@@ -23,7 +23,7 @@
 //! owns, that pack's register function, and the packs that implement the trait; every host registers
 //! them by composing a world. The lines today are presence's — the packs that answer what an arrival
 //! actually achieves (`ARC-39`) — and movement's — the packs that plan the route a walk follows through
-//! a place they know the geometry of (`ARC-73`). A type on an extension line is listed below as well,
+//! a place they know the geometry of (`ARC-75`). A type on an extension line is listed below as well,
 //! and a test
 //! (`tests/resolution.rs`) refuses one that is not, or one listed twice on a line. A world that does not
 //! enable a listed resolver's pack is untouched by it, because a resolver answers "unchanged" where its

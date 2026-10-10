@@ -18,7 +18,7 @@ mineworld-contracts = { workspace = true }
 mineworld-item = { path = "../item" }
 mineworld-kernel = { workspace = true }
 # A crate dependency, not a system dependency (DECISIONS.md ARC-39 note 5): this pack implements
-# movement's Wayfinder catalog (ARC-73), so it names the trait and its types. It declares no system
+# movement's Wayfinder catalog (ARC-75), so it names the trait and its types. It declares no system
 # dependency on movement; a world may install bodies without movement.
 mineworld-movement = { workspace = true }
 # The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers

@@ -9,7 +9,7 @@ use crate::action::Destination;
 use crate::system::MovementSystem;
 
 /// A walk in progress: the walker's intention and the route the world planned for it
-/// (`DECISIONS.md` `ARC-73`; step-11 SD-N2).
+/// (`DECISIONS.md` `ARC-75`; step-11 SD-N2).
 ///
 /// Owned by [`MovementSystem`], on the walker. Written when `walk-to` is resolved, at each `walk-step`
 /// and in this pack's reactions to the walker's own arrivals; removed when the walk ends. It is not a

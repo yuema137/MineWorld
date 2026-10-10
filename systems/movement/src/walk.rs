@@ -1,4 +1,4 @@
-//! A walk, decided (`DECISIONS.md` `ARC-73`; step-11 SD-N1 … SD-N10): which places it passes through,
+//! A walk, decided (`DECISIONS.md` `ARC-75`; step-11 SD-N1 … SD-N10): which places it passes through,
 //! the route of each leg, and what one `walk-step` does.
 //!
 //! ```text

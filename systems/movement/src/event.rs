@@ -10,7 +10,7 @@ use crate::action::Destination;
 use crate::codec;
 use crate::system::MovementSystem;
 
-/// A person set out on a walk (`DECISIONS.md` `ARC-73`): stated when `walk-to` is resolved, before
+/// A person set out on a walk (`DECISIONS.md` `ARC-75`): stated when `walk-to` is resolved, before
 /// any stride.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WalkStarted {
@@ -52,7 +52,7 @@ pub enum Ended {
     Stopped,
 }
 
-/// A walk ended, and how (`DECISIONS.md` `ARC-73`).
+/// A walk ended, and how (`DECISIONS.md` `ARC-75`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WalkEnded {
     person: PersonId,

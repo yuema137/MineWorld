@@ -546,7 +546,7 @@ fn disabling_conversation_makes_talk_unavailable_with_nothing_else_changing() {
             .map(|affordance| affordance.action_type().as_str().to_owned())
             .collect()
     };
-    // Movement offers `walk-to` beside `move` since S15's PR 12n-1 (ARC-73): the other pack's stay.
+    // Movement offers `walk-to` beside `move` since S15's PR 12n-1 (ARC-75): the other pack's stay.
     assert_eq!(offered(&talkative), vec!["move", "walk-to", "talk"]);
     assert_eq!(offered(&silent), vec!["move", "walk-to"]);
 
@@ -975,7 +975,7 @@ fn each_pack_writes_its_own_state_and_reads_the_others() {
             .collect::<Vec<_>>(),
         // Conversation owns two since S17's PR IL-b: its history, and its section of the World's
         // Interaction List (ARC-63), which an unconfigured world leaves empty. Movement owns two since
-        // S15's PR 12n-1: its passages, and a walker's `walking` (ARC-73), listed by component type.
+        // S15's PR 12n-1: its passages, and a walker's `walking` (ARC-75), listed by component type.
         vec![
             "conversation",
             "conversation",

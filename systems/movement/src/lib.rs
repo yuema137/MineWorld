@@ -7,7 +7,7 @@
 //! owns        Passages            which places a place opens onto, and where the doorway is
 //!             Walking             a walk in progress: where to, and the route the world planned
 //! provides    move                a stride within a place, or through a doorway into the next
-//!             walk-to             go somewhere: plan the route, record the walk (ARC-73)
+//!             walk-to             go somewhere: plan the route, record the walk (ARC-75)
 //!             walk-step           the next stride of one's own walk — an embodied request
 //! emits       passage-opened      the genesis fact that gives places their Passages
 //!             arrived             presence's fact, built by presence's `arrivals` (ARC-26)
@@ -24,7 +24,7 @@
 //! # Walking somewhere
 //!
 //! A walk is this pack's state, its route is the geometry owner's answer, and its strides are
-//! embodied requests (`DECISIONS.md` `ARC-73`). `walk-to` plans the first leg — asking the registered
+//! embodied requests (`DECISIONS.md` `ARC-75`). `walk-to` plans the first leg — asking the registered
 //! [`Wayfinder`]s, or going straight when none answers — and records [`Walking`]; each `walk-step`
 //! takes at most [`WALK_STRIDE`] along it, checked by the same rule as `move` and stated through
 //! presence's `arrivals`, so a walk is never a way round that rule. A walk takes no calendar time:

@@ -1,4 +1,4 @@
-//! Movement's wayfinder catalog (`DECISIONS.md` `ARC-73`, `ARC-62` item 4; step-11 SD-N3, NV-C2).
+//! Movement's wayfinder catalog (`DECISIONS.md` `ARC-75`, `ARC-62` item 4; step-11 SD-N3, NV-C2).
 //!
 //! This file is its own process, so it owns the catalog: it registers two synthetic wayfinders, listed
 //! in the wrong order, and every test below sees that one registration (tests in one file share a

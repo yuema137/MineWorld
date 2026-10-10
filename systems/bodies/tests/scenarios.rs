@@ -291,8 +291,13 @@ fn n2_a_standing_person_is_nudged_aside_a_little_at_a_time() {
     assert!(a.0 > b.0, "a ends east of b: a {a:?}, b {b:?}");
 }
 
+/// Claim 2 as the operator ruled it (step-11 §21.15, M-1 ruling, 2026-10-09, option (a)): nudge chains
+/// are bounded and a stride may be blocked. Whether anybody in the crowd is nudged at all depends on the
+/// radius (at R 300 up to four are; at R 250, with NUDGE_MAX = R, nobody is), so it is printed, not
+/// claimed. That a blocked walker re-plans is the walk's claim, held by movement's re-plan on a
+/// stopped stride (`tools/cli/tests/walking.rs`, NV-2 (c) and (f)).
 #[test]
-fn n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks() {
+fn n3_a_crowds_nudge_chains_are_bounded_and_a_stride_may_be_blocked() {
     let (_, strides) = scenario("n3");
     let blocked = strides
         .iter()
@@ -310,7 +315,8 @@ fn n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks() {
         .unwrap_or(0);
     println!("n3: {blocked} strides blocked; at most {most} moved, {deepest} generations");
     assert!(blocked >= 1, "at least one stride is blocked");
-    assert!(most >= 1, "the crowd was nudged");
+    assert!(most <= 4, "at most four moved by one stride: {most}");
+    assert!(deepest <= 2, "at most two generations: {deepest}");
 }
 
 // ---------------------------------------------------------------------------------------------

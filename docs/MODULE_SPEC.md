@@ -483,7 +483,7 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
-Passages are also what a **walk** follows (`DECISIONS.md` `ARC-73`). Besides `move`, the `movement`
+Passages are also what a **walk** follows (`DECISIONS.md` `ARC-75`). Besides `move`, the `movement`
 system provides `walk-to { to: { place: <Location> } | { person: <PersonId> } }` — go to a point in this
 place or in any place joined to it by a chain of passages, to a place without a position (enter it), or
 to within 1 200 mm of a person in this place — and `walk-step`, no payload: the next stride of the

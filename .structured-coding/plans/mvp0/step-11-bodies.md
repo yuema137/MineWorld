@@ -8889,7 +8889,7 @@ Goal: `ARC-W`, `DEP-P`, the `ARC-26` and `ARC-39` notes, `MODULE_SPEC.md` §4.1 
 `walk-step`, `Walking`, `Wayfinder`; bodies as wayfinder), `systems/README.md`. (The `ARC-27` / `ARC-42`
 notes and §8.1 land with 12n-2's host change.) Base captures: NV-1's digests and
 bytes on the implementation base. Non-goal: any code.
-- [x] Implementation: the records and spec edits; E-NV-base. `ARC-73`, `DEP-34` (N-D1), `ARC-26` note,
+- [x] Implementation: the records and spec edits; E-NV-base. `ARC-75`, `DEP-34` (N-D1), `ARC-26` note,
   `ARC-39` note 5, `MODULE_SPEC.md` §4.1 (walking paragraph; `body` row), `systems/README.md`.
 - [x] Validation: doc checks (85 decision ids, all distinct; 192 sections, none duplicated); the captures
   equal NV-1's values except market-town, whose difference (main moved it before 12n) is recorded in
@@ -9019,7 +9019,7 @@ Files: `tools/cli/tests/walking.rs` (new; test-time world copies).
   literal-edit test files; no diff under kernel/, contracts/, persistence/src/, server/,
   systems/presence/, worlds/; clients/ only ADOPTION.md. The records match the code except the
   recorded deviations N-D2 (`require_wayfinder`), N-D5 (re-plan triggers), N-D6 (arrival in the
-  reaction), N-D7 (start core). NOT READY: M-1 is open.
+  reaction), N-D7 (start core). M-1 ruled (option (a)) and applied; READY FOR OPERATOR REVIEW.
 
 ## 21.13 Commit plan — 12n-2 (medium detail; detailed at its own freeze after 12n-1 merges)
 
@@ -9155,7 +9155,9 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
 `origin/main @ 551fb2c`).**
 
 ```text
-N-D1  Record ids (NV-C1): ARC-W → ARC-73, DEP-P → DEP-34. ARC-72, DEP-32 and DEP-33 are provisionally
+N-D1  Record ids (NV-C1): ARC-W → ARC-75, DEP-P → DEP-34. (First taken as ARC-73; renumbered to ARC-75
+      on the primary session's instruction of 2026-10-09, because ARC-72 … ARC-74 are S10's on main,
+      pr-s10-p5b QP5b-3; DEP-34 kept.) ARC-72, DEP-32 and DEP-33 are provisionally
       S20's (mvp0/pr-set-a, step-20 F-10), so the next free numbers were taken; check_decision_ids.py
       guards a collision. overall.md's "Decision numbers assigned" table is the planning session's to
       update (post-merge sync).
@@ -9191,13 +9193,14 @@ N-D4  Literal edits outside §21.14's listed paths, each a mechanical consequenc
         tools/cli/tests/inspect.rs, social_composition.rs (×2)   `movement v1` → `movement v2` (SD-N13)
         systems/installed/tests/resolution.rs                    two extension lines, not one
       Judged bounded (as 12a's QR-2 literals were), not the material "edit outside the approved paths",
-      which guards scope; reported to the operator for confirmation.
+      which guards scope; reported to the operator for confirmation. CONFIRMED bounded by the primary
+      session, 2026-10-09 (no stop).
 N-D5  SD-N9's third re-plan trigger ("the place's LooseObjects changed since the plan") is not
       observable by movement without naming bodies (ARC-62: an owner never names its implementers).
       Implemented: a step re-plans when the last stride did not end where it was asked (stopped short,
       nudged, shoved — which is what an object in the way does when it blocks), or a person destination
       moved > 500 mm. An object moved across a planned leg is pushed by a stride like any object a `move`
-      meets. Stated in ARC-73's limitations.
+      meets. Stated in ARC-75's limitations.
 N-D6  The walk's arrival is recognised in movement's reaction to presence's `arrived` (the walker
       recorded at the leg's planned end, or within PERSON_APPROACH of the person), so `walk-ended
       { arrived }` is in the same dispatch as the last stride rather than at a further step. Movement
@@ -9271,6 +9274,22 @@ M-1   MATERIAL STOP (§21.14: "NV-7 failing at R 250 with derived constants (QN-
         (c) re-derive the bound differently (e.g. NUDGE_MAX := R + 50) and measure again.
       Recommendation: (a) — the claim's purpose (bounded, sometimes blocks) holds, and a body-relative
       yield is the operator's realistic-defaults intent; (b) contradicts the frozen SD-N11.
+
+M-1 RULING (operator, 2026-10-09, relayed by the coordinator): option (a). SD-N11's claim 2 at R 250 is
+      restated as "nudge chains are bounded and a stride may be blocked; a blocked walker re-plans".
+      SD-N11 (NUDGE_MAX := R, BIAS_BAND := 2R/3) stands. Applied: scenarios.rs's n3 test is now
+      `n3_a_crowds_nudge_chains_are_bounded_and_a_stride_may_be_blocked` — at least one stride blocked,
+      at most four moved and two generations per stride (bounded_stride also holds R + 10 per nudge and
+      2R − 5 apart after every stride); whether the crowd is nudged at all is printed, not claimed. "A
+      blocked walker re-plans" is the walk's claim, held by movement's re-plan on a stride that did not
+      end where asked (walk.rs; walking.rs NV-2 (c), (f)).
+      Evidence after the ruling, on the PR tree (R 300) and the scratch /tmp/s15-12n/r250 (R 250, the
+      same tests copied, geometry.rs R 250 and CLEARANCE 2R − 5, support literals 2R − 5 / R − 5):
+        R 300  claim 1 (i) stopped by b at (3 400, 5 000); (ii) stopped by b at (3 430, 5 000);
+               n3 2 strides blocked, ≤ 4 moved, 2 generations — PASS
+        R 250  claim 1 (i) turned to (3 500, 4 799), 538 mm from b; (ii) stopped by b at (3 775, 5 000),
+               b nudged 231 mm; n3 6 strides blocked, 0 moved, 0 generations — PASS
+      M-1 is closed. The primary session also confirmed N-D4 as bounded (no stop).
 
 N-D9  NV-2's "test-time copy of bodies-yard" is a world the test writes: the yard's court file
       verbatim, and a hall with the yard's floor (12 × 9 m) and east door but the claim's furniture in

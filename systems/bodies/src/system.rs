@@ -93,7 +93,7 @@ impl System for BodiesSystem {
     }
 
     /// Refuses to join a world whose host never registered this pack's resolver — before anything
-    /// else, as `ARC-39` item 7 requires — or its wayfinder (`ARC-73`, `ARC-39` note 5), and then
+    /// else, as `ARC-39` item 7 requires — or its wayfinder (`ARC-75`, `ARC-39` note 5), and then
     /// declares its three tables.
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         require_registered(&Self::ID);

@@ -1,5 +1,5 @@
 //! Walking with no wayfinder registered: the route of every leg is the straight segment (step-11
-//! SD-N1 … SD-N10, NV-C3; `DECISIONS.md` `ARC-73`).
+//! SD-N1 … SD-N10, NV-C3; `DECISIONS.md` `ARC-75`).
 //!
 //! This file never registers a wayfinder, so it is the world without a geometry pack: what NV-3 claims
 //! of a world without `bodies` (a straight route, one waypoint per leg, every stride accepted where it

@@ -1,4 +1,4 @@
-//! NV-2, NV-3 and NV-4 — the walk, for real (step-11 §21.8; `DECISIONS.md` `ARC-73`, `DEP-34`).
+//! NV-2, NV-3 and NV-4 — the walk, for real (step-11 §21.8; `DECISIONS.md` `ARC-75`, `DEP-34`).
 //!
 //! The worlds are test-time copies of `worlds/bodies-yard`'s shape: its court, verbatim, and a hall of
 //! the same size and door whose furniture is drawn for each claim — a wall with a 1 100 mm slot, a

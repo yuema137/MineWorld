@@ -1,5 +1,5 @@
 //! The catalog through which whoever owns a place's geometry plans the route a walk follows through
-//! it (`DECISIONS.md` `ARC-73`, `ARC-62`; step-11 SD-N3).
+//! it (`DECISIONS.md` `ARC-75`, `ARC-62`; step-11 SD-N3).
 //!
 //! A walk is this pack's state, and each of its strides is checked by this pack's own rule. What this
 //! pack does not know is what stands in a place — walls, furniture, objects — because that is another
@@ -127,7 +127,7 @@ pub enum RouteAnswer {
     Unreachable,
 }
 
-/// A pack's answer to "how does this person get from here to there in this place" (`ARC-73`).
+/// A pack's answer to "how does this person get from here to there in this place" (`ARC-75`).
 ///
 /// Asked by this pack while it plans a leg, before anything is recorded. Handed a [`WorldRead`] and
 /// nothing else, like a perception provider: it can consult any state and write none. The
@@ -177,7 +177,7 @@ pub fn register_wayfinders(mut wayfinders: Vec<Box<dyn Wayfinder>>) {
     if let Some(pair) = offered.windows(2).find(|pair| pair[0] == pair[1]) {
         panic!(
             "register_wayfinders was given two wayfinders for '{}': a build has one wayfinder per \
-             system (DECISIONS.md ARC-73)",
+             system (DECISIONS.md ARC-75)",
             pair[0]
         );
     }
@@ -190,7 +190,7 @@ pub fn register_wayfinders(mut wayfinders: Vec<Box<dyn Wayfinder>>) {
     assert!(
         current == offered,
         "register_wayfinders was called with {offered:?}, but this process already registered \
-         {current:?}: one build has one catalog of wayfinders (DECISIONS.md ARC-73)"
+         {current:?}: one build has one catalog of wayfinders (DECISIONS.md ARC-75)"
     );
 }
 
@@ -206,13 +206,13 @@ pub fn registered_wayfinders() -> Option<Vec<SystemId>> {
 /// # Panics
 ///
 /// When nothing was registered, or the registered list does not name `wayfinder`. The message names
-/// the pack, [`register_wayfinders`] and `ARC-73`.
+/// the pack, [`register_wayfinders`] and `ARC-75`.
 pub fn require_wayfinder(wayfinder: &SystemId) {
     match CATALOG.get() {
         None => panic!(
             "the '{wayfinder}' system plans routes, but this process never registered the build's \
              wayfinders: a host calls mineworld_movement::register_wayfinders before it installs a \
-             wayfinder's pack, as worldpack::compose does (DECISIONS.md ARC-73)"
+             wayfinder's pack, as worldpack::compose does (DECISIONS.md ARC-75)"
         ),
         Some(wayfinders) => assert!(
             wayfinders
@@ -220,7 +220,7 @@ pub fn require_wayfinder(wayfinder: &SystemId) {
                 .any(|registered| registered.wayfinder_of() == *wayfinder),
             "the '{wayfinder}' system plans routes, but the wayfinders registered with \
              register_wayfinders are {:?}: list it on movement's extension line in the installed \
-             set (DECISIONS.md ARC-73)",
+             set (DECISIONS.md ARC-75)",
             ids(wayfinders)
         ),
     }

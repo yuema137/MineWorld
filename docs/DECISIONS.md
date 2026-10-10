@@ -1827,7 +1827,7 @@ needs a different stride, which introduces System Pack configuration (`MODULE_SP
 **Note, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N1, SD-N2) — walking is not the travel Process.**
 `movement` gains a second scale of the same spatial model inside a place and across adjoining places:
 `walk-to` (go to a destination) and `walk-step` (the next stride of my walk), with the walk held as
-`movement`'s `Walking` component (`ARC-73`). It is not the "Room for travel" above: a walk takes no
+`movement`'s `Walking` component (`ARC-75`). It is not the "Room for travel" above: a walk takes no
 calendar time and starts no `Process`; each stride is one request, at most `WALK_STRIDE` (1 340 mm),
 checked by the same rule as `move` and stated through presence's `arrivals()`. Travel between places
 that do not adjoin by a passage chain remains the later travel system's, a `Process` in calendar time.
@@ -3447,7 +3447,7 @@ notes above state. Where items above say "the `resolution:` line", read "presenc
 **Note 5, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N3, SD-N4, SD-N11) — bodies is also a
 wayfinder.** Items 1–8 and the earlier notes are unchanged.
 
-1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-73`), listed on
+1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-75`), listed on
    movement's own extension line of the installed set, and its `install` calls movement's
    `require_wayfinder` after presence's `require_registered`. (Movement's guard is not named
    `require_registered`: movement's sources name nothing of the resolver seam, `seam_vocabulary.rs`.)
@@ -5536,7 +5536,7 @@ the next day's opening phase corrects the light.
 
 ---
 
-## ARC-73 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
+## ARC-75 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
 
 **Date** 2026-10-09 · **Approved by** the operator ("add pathfinding; 12d waits for it", 2026-10-08;
 realistic defaults; the two time domains, QTW-13) and the primary session at PR 12n's design freeze
@@ -5641,7 +5641,7 @@ the wall-clock cadence of requests, never a world duration and never a pack read
 
 **Date** 2026-10-09 · **Status** selected; one dependency added to `systems/bodies` only · **Approved by**
 the primary session at PR 12n's design freeze (step-11 §21.0, QN-4) · **Relates to** `ARC-25`,
-`ARC-39`, `ARC-55`, `ARC-73`, `DEP-13`, `REUSE_POLICY.md` §§11–12, §17 · **Design**
+`ARC-39`, `ARC-55`, `ARC-75`, `DEP-13`, `REUSE_POLICY.md` §§11–12, §17 · **Design**
 `.structured-coding/plans/mvp0/step-11-bodies.md` §21.4 (S15, PR 12n-1)
 
 **Problem.** `bodies` must answer "how does a person get from here to there in this place" round the

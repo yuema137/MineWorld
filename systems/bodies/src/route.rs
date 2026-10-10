@@ -1,5 +1,5 @@
 //! This pack's answer to movement's question: how does a person get from here to there in a shaped
-//! place (`DECISIONS.md` `ARC-73`, `DEP-34`, `ARC-39` note 5; step-11 SD-N3 … SD-N5, SD-N9).
+//! place (`DECISIONS.md` `ARC-75`, `DEP-34`, `ARC-39` note 5; step-11 SD-N3 … SD-N5, SD-N9).
 //!
 //! ```text
 //! inert       the place has no shape                                     → None

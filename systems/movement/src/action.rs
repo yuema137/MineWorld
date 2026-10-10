@@ -79,7 +79,7 @@ pub const fn move_offer_requirement() -> SpatialRequirement {
     SpatialRequirement::NONE
 }
 
-/// The most one `walk-step` carries a walker along their route: 1 340 mm (`DECISIONS.md` `ARC-73`).
+/// The most one `walk-step` carries a walker along their route: 1 340 mm (`DECISIONS.md` `ARC-75`).
 ///
 /// A distance, not a duration: no rule here knows how often steps arrive. Sent once a wall second —
 /// the senders' cadence, never this pack's — it is 1.34 m/s, the mean free walking speed of pedestrians
@@ -105,7 +105,7 @@ pub const REPLANS_MAX: u32 = 8;
 /// re-plans: 500 mm.
 pub const TARGET_MOVED: Millimetres = Millimetres::new(500);
 
-/// Where a walk goes (`DECISIONS.md` `ARC-73`): a location, or a person.
+/// Where a walk goes (`DECISIONS.md` `ARC-75`): a location, or a person.
 ///
 /// Open to extension (step-11 note N-1): a later arm — a region, a remote place the travel system
 /// reaches, an object — is an addition, not a breaking change to `walk-to`'s payload or to a `match` in
@@ -153,7 +153,7 @@ impl WalkTo {
 /// at a doorway. No payload — the walk is the world's, not the request's.
 ///
 /// An embodied input: its sender paces it (a client once a wall second, a host at its cadence), and
-/// the walk takes exactly as many requests as it has strides (`DECISIONS.md` `ARC-67`, `ARC-73`).
+/// the walk takes exactly as many requests as it has strides (`DECISIONS.md` `ARC-67`, `ARC-75`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WalkStep {}
 

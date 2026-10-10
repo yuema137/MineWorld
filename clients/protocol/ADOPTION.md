@@ -292,7 +292,7 @@ position the next observation shows.
 
 To send a person somewhere — a click on the floor, "Walk to <name>" — do not plan a route and do not
 split it into strides. Ask the server, which plans it round the world's walls, furniture and objects
-(`DECISIONS.md` `ARC-73`):
+(`DECISIONS.md` `ARC-75`):
 
 ```gdscript
 world.submit("walk-to", null, { "to": { "place": MineWorldSpace.location(place, MineWorldSpace.from_2d(here)) } })

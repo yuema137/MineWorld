@@ -42,15 +42,19 @@ STOP CONDITIONS     NORMAL: 12n-1 READY FOR OPERATOR REVIEW — DO NOT MERGE. MA
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — NV-C7 (close), held at MATERIAL STOP M-1
+## Current checkpoint — READY FOR OPERATOR REVIEW (M-1 ruled (a) and applied; ARC-73 → ARC-75)
+
+Context CLOSED / AWAITING OPERATOR ACTION. The exact-head CI is in the PR (#116), not here.
+
+### Earlier checkpoint — NV-C7 (close), held at MATERIAL STOP M-1
 
 - Commits: 1200b90 NV-C1 · b8dc78a NV-C2+C3 · 3847ec2 NV-C4 · 1796c29 NV-C5 · c1fab19 NV-7 evidence + M-1
-  · 030e67f NV-C6 · MVP_STATUS · 9fbc807 merge of origin/main (fb1d701; DECISIONS conflict: ARC-73/DEP-34
+  · 030e67f NV-C6 · MVP_STATUS · 9fbc807 merge of origin/main (fb1d701; DECISIONS conflict: ARC-75/DEP-34
   beside ARC-68, both kept).
 - M-1 (§21.15): at R 250 with derived NUDGE_MAX the n3 crowd is never nudged ("the crowd was nudged"
   fails); claim 1 passes at R 250 and everything passes at R 300. Awaiting the operator's ruling — options
   (a)/(b)/(c) in §21.15. The towns do not enable bodies, so no ruling changes their digests.
-- Record ids: `ARC-W` → ARC-73, `DEP-P` → DEP-34 (N-D1).
+- Record ids: `ARC-W` → ARC-75, `DEP-P` → DEP-34 (N-D1).
 - Binaries: /tmp/s15-12n/base-mineworld (551fb2c), c5-mineworld (1796c29), head-mineworld (9fbc807 + ledger).
   Scripts: /tmp/s15-12n/capture.sh. Scratch R 250 worktree: /tmp/s15-12n/r250 (detached, uncommitted
   edits; target /tmp/s15-12n/target-r250). Town 300-day runs used: 4 of 4 (cap reached; no more without

@@ -84,7 +84,7 @@ presence's `extension` line in the installed set as well as on its own line, and
 trait it owns with one more `extension` line; a pack can also take a world-level configuration file
 (`configure/<id>.yaml`, `ARC-61`). `movement` owns the second such catalog, `Wayfinder`: a pack that
 knows a place's geometry plans the routes walks follow through it, as `bodies` does
-([`DECISIONS.md` `ARC-73`, `DEP-34`](../docs/DECISIONS.md)), and movement never names it.
+([`DECISIONS.md` `ARC-75`, `DEP-34`](../docs/DECISIONS.md)), and movement never names it.
 
 A pack whose numbers or rules a world may choose has a **section** of the World's Interaction List
 (`configure/<id>.yaml`, `ARC-63`): it implements `mineworld_sdk::interactions::InteractionSection`

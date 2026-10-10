@@ -51,7 +51,7 @@ const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-p
 
 impl System for MovementSystem {
     /// Version 2: `walk-to`, `walk-step`, the `walking` component and the two walk facts
-    /// (`DECISIONS.md` `ARC-73`), so a save written by version 1 is refused by name (`ARC-25`).
+    /// (`DECISIONS.md` `ARC-75`), so a save written by version 1 is refused by name (`ARC-25`).
     const VERSION: SystemVersion = SystemVersion::new(2);
 
     fn declaration(&self) -> SystemDeclaration {
