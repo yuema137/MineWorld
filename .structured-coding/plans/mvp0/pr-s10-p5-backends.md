@@ -1114,3 +1114,41 @@ key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
   shown against a loopback listener) needs `config.load` and the router: it is written in C6, where a
   fall-through could actually be implemented, and recorded there (bounded placement; the criterion and
   its mutations are unchanged).
+
+### 13.5 C4 — the OpenAI-compatible adapter
+
+- [x] Implementation: `backend/openai_compatible.py` (`request_body`, `_parse`, `OpenAICompatibleBackend
+  (config, key, *, transport=None)`); `backend/registry.py` (`FACTORIES`, `build_backend`, the adapter
+  imported inside its factory); `secrets.py` (`Secret`: redacted `repr`/`str`, `__slots__`, refuses
+  pickling — `resolve_key` follows in C6); `config.py` (`BackendConfig` with D-P5-10's typed options,
+  `check_base_url`, `is_loopback_host`, `KEY_ENV`, `ConfigError` — the rest of the file follows in C6);
+  `backend/model.py` gains `estimate_tokens` (D-P5-8's `ceil(utf8_bytes / 4)`, shared by the adapter's
+  missing-usage path and the budget's pre-check); `tests/test_openai_compatible.py`.
+- [x] Validation (E-P5-4): 33 passed (17 new), ruff, format, pyright strict clean. AP5-6 (b): the exact
+  body (`model`, `messages` with `content`, `max_tokens`, `stream: false`, `temperature` 0.7 from
+  `temperature_milli` 700, `seed`, `response_format` `json_schema` with the schema); `json_object`;
+  `none` (no `response_format`); `temperature = "omit"`; `reasoning` `off` → `reasoning_effort: "none"`,
+  `high` → `"high"`; no `Authorization` without a key and `Bearer …` with one; 401 → `unauthorized`,
+  500 → `http_status(500)`, a non-JSON body and an unknown `finish_reason` → `malformed_response`;
+  missing usage → estimated and flagged. Over real loopback sockets: a stub server with a canned answer
+  (the request line `POST /v1/chat/completions HTTP/1.1` observed); a closed port → `unreachable`; a
+  stalled server with `request_timeout_s = 1` → `timeout` in under 2 s. `base_url` with userinfo, remote
+  `http`, a query, or a non-HTTP scheme refused; a missing `base_url` refused. AP5-6 (c): a 503 is sent
+  once; M-6 (one retry on 5xx) → the count is 2 and the test fails; reverted.
+- [x] Review: `grep import.*httpx2` finds `openai_compatible.py` only; no `os.environ`, `getenv`,
+  `logging` or `print` anywhere in `src/`; a failure carries a reason and a status, never a body.
+
+**Decisions recorded at C4 (bounded, within D-P5-4 and D-P5-10).**
+
+- `reasoning = "off"` maps to `reasoning_effort: "none"`, the value OpenAI's and Ollama's documentation
+  use for "no reasoning"; `low`/`medium`/`high` pass through.
+- `json_schema` is sent as `{"type": "json_schema", "json_schema": {"name": "answer", "schema": …,
+  "strict": true}}`, OpenAI's envelope. `strict: true` asks a server to constrain decoding; a server
+  that cannot is answered by local validation in P6 (R-P5-2), and a user can choose `json_object`.
+- 403 maps to `unauthorized`, like 401 (both mean the key is not accepted); every other non-2xx status
+  is `http_status`.
+- `base_url` also refuses a query or a fragment (a key in `?key=…` is the case in point), tightening
+  D-P5-10's "no userinfo" in the same direction.
+- With `request_timeout_s` unset the adapter sets no HTTP timeout of its own (`httpx2.Timeout(None)`):
+  `httpx2`'s 5 s default would cut ordinary generations short, and the gateway's `call_timeout_s` bounds
+  every call anyway (D-P5-8).

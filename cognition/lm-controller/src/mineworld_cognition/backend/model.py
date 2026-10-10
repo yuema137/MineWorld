@@ -83,6 +83,12 @@ class BackendFailure(CognitionModel):
         return self
 
 
+def estimate_tokens(text: str) -> int:
+    """A deterministic token estimate: a quarter of the UTF-8 bytes, rounded up (D-P5-8). Used when a
+    backend reports no usage, and by the budget's pre-check."""
+    return -(-len(text.encode("utf-8")) // 4)
+
+
 class ModelBackend(Protocol):
     """Anything that answers a `CompletionRequest`: a scripted function, a cassette, or an adapter."""
 
