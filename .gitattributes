@@ -11,6 +11,9 @@ clients/3d-spike/assets/characters/LICENSE.quaternius-ual.txt -text
 # (tests/acceptance/tests/precursor_vocabulary.rs).
 *.bin binary
 *.glb binary
+# A World Pack's data files are the same bytes on every platform (Windows' autocrlf included), so the
+# NOTICE's byte and line counts hold everywhere; the weather pack still reads CRLF (DECISIONS.md DEP-31).
+worlds/*/data/**/*.csv text eol=lf
 # Recorded model outputs (cassettes, ARC-58) are JSON Lines whose entries are hashed: a Windows
 # checkout must keep them LF, as they were written (pr-s10-p5-backends.md D-P5-13).
 *.jsonl text eol=lf

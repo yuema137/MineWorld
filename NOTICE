@@ -32,6 +32,10 @@ this repository's licence. The records:
     the reference images, generated with ChatGPT, and the crops derived from them
 - presentation/mineworld-default/2D/candidates/*.provenance.yaml
     one record per generated 2D candidate
+- worlds/market-town/data/weather/NOTICE
+    San Diego's daily weather record, 2015-2024: modified (reshaped) from NOAA
+    GHCN-Daily, station USW00023188; CC0 1.0 / US public domain; attribution,
+    citations and provenance in that file (docs/DECISIONS.md, DEP-31)
 - docs/DECISIONS.md, DEP-8
     the asset-sourcing rules, and the vendor terms that AI-generated assets rest on
     (OpenAI and Meshy), quoted with URLs and the dates they were read

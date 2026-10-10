@@ -96,9 +96,9 @@ fn a_bad_weather_configuration_is_refused_naming_file_position_and_key() {
     let file = file.to_string_lossy().into_owned();
     for (id, text, key) in [
         (
-            "recorded-square",
-            valid().replace("source: rules", "source: record"),
-            "record",
+            "unknown-source-square",
+            valid().replace("source: rules", "source: almanac"),
+            "source",
         ),
         (
             "wet-square",
@@ -134,5 +134,59 @@ fn a_bad_weather_configuration_is_refused_naming_file_position_and_key() {
             "{refused}"
         );
         assert!(refused.contains(key), "names {key}: {refused}");
+    }
+}
+
+/// SD-TW-d-7's rules between keys: `record:` exactly with `source: record`, `fill:` only with it. These
+/// are refused for the file as a whole, naming the keys; the decoder reports a line and column only for
+/// a refusal raised inside one value (step-19 TWd-D3).
+#[test]
+fn source_record_and_fill_go_together() {
+    let file = std::path::Path::new("configure").join("weather.yaml");
+    let file = file.to_string_lossy().into_owned();
+    let block = "record:\n  station: USW00023188\n  data: data/weather/x.csv\n  first_year: 2015\n";
+    for (id, text, says) in [
+        (
+            "recordless-square",
+            valid().replace("source: rules", "source: record"),
+            "source `record` needs a `record:` block",
+        ),
+        (
+            "ruled-record-square",
+            format!("{block}{}", valid()),
+            "`record:` is read only with source `record`",
+        ),
+        (
+            "ruled-fill-square",
+            format!("fill: none\n{}", valid()),
+            "`fill:` applies only to source `record`",
+        ),
+        (
+            "bad-station-square",
+            format!(
+                "{}{}",
+                block.replace("USW00023188", "\"USW 23188\""),
+                valid()
+            )
+            .replace("source: rules", "source: record"),
+            "station is 1 to 32 printable ASCII characters",
+        ),
+        (
+            "outside-data-square",
+            format!("{}{}", block.replace("data/weather", "../weather"), valid())
+                .replace("source: rules", "source: record"),
+            "is not under data/",
+        ),
+    ] {
+        let bad = pack(
+            id,
+            &["presence", "calendar", "weather"],
+            &["calendar", "weather"],
+            &text,
+        );
+        let refused = refusal(&bad);
+        eprintln!("REFUSAL {refused}");
+        assert!(refused.contains(&file), "names the file: {refused}");
+        assert!(refused.contains(says), "{says}: {refused}");
     }
 }

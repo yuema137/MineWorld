@@ -16,6 +16,7 @@ use mineworld_calendar::{CalendarDay, DAY};
 use crate::day::{Chain, DailyWeather, Origin, WeatherDay};
 use crate::draw::{draw, index};
 use crate::hours::hours;
+use crate::record::PackedDay;
 use crate::rules::{QUINTILES, Rules, WET_DAY_MIN_TENTH_MM};
 
 #[cfg(test)]
@@ -101,6 +102,60 @@ pub fn weather_day(rules: &Rules, seed: u64, calendar: &CalendarDay, chain: Chai
         calendar.day_start(),
         calendar.date(),
         Origin::Rule,
+        summary,
+        carry,
+        hours,
+    )
+}
+
+/// The weather of calendar's day `calendar` replayed from a record day `recorded` (SD-TW-d-6), with
+/// `origin` `Record` or `Filled`. The summary is the record's: its maximum, minimum and precipitation
+/// exactly (a minimum at or above the maximum is lowered to one below it, as the generator does), its
+/// wind — or the month's where the record has none — its fog and thunder. A grey morning, which the
+/// record cannot say, is drawn by the rules on a dry day with the same draw as a rule day. The carry
+/// continues the climate: wet when at least 0.3 mm fell, and anomalies reset to the record's departure
+/// from the month's means, so a rule day after it follows on. The hours are spread as for any day.
+pub fn record_day(
+    rules: &Rules,
+    seed: u64,
+    calendar: &CalendarDay,
+    recorded: &PackedDay,
+    origin: Origin,
+) -> WeatherDay {
+    let day_index = calendar.day_start().seconds().div_euclid(DAY);
+    let m = rules.month(calendar.date().month());
+    let tmax = i64::from(recorded.tmax_dc());
+    let tmin = i64::from(recorded.tmin_dc()).min(tmax - 1);
+    let prcp = recorded.prcp_tenth_mm();
+    let wet = prcp > 0;
+    let overcast_morning =
+        !wet && i64::from(draw(seed, day_index, index::OVERCAST)) < m.overcast_morning_permille();
+    let summary = DailyWeather {
+        tmax_dc: narrow(tmax),
+        tmin_dc: narrow(tmin),
+        prcp_tenth_mm: prcp,
+        awnd_dms: recorded
+            .awnd_dms()
+            .map_or_else(|| narrow(m.wind_dms()), u16::from),
+        wind_from_deg: recorded
+            .wind_from_deg()
+            .unwrap_or_else(|| narrow(m.wind_from_deg())),
+        fog: recorded.fog(),
+        thunder: recorded.thunder(),
+        overcast_morning,
+    };
+    let anomaly =
+        |value: i64, mean: i64| narrow((value - mean).clamp(-ANOMALY_LIMIT_DC, ANOMALY_LIMIT_DC));
+    let carry = Chain {
+        wet: prcp >= WET_DAY_MIN_TENTH_MM,
+        tmax_anomaly_dc: anomaly(tmax, m.tmax_dc()),
+        tmin_anomaly_dc: anomaly(tmin, m.tmin_dc()),
+    };
+    let hours = hours(&summary, calendar.events(), seed, day_index);
+    WeatherDay::new(
+        calendar.day_start(),
+        calendar.date(),
+        origin,
         summary,
         carry,
         hours,

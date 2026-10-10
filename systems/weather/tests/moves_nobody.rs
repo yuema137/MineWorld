@@ -12,6 +12,17 @@
 //! ```
 //!
 //! It reads the saves' fact logs through the persistence backend and writes nothing.
+//!
+//! TW-d re-checks the criterion on the record world (step-19 §18.4 C5 (e)): two saves of the same town
+//! and seed, one with the rules (`TWD_SAVE_RULES`) and one replaying the record (`TWD_SAVE_RECORD`).
+//! Weather's own facts differ by design; every other fact must be the same in instant, type,
+//! visibility and subjects, and its payload the same but for Process ids, each exactly one higher —
+//! the record world's `weather-record` Process takes one id at genesis (the TWb-F1 class):
+//!
+//! ```text
+//! TWD_SAVE_RULES=<dir> TWD_SAVE_RECORD=<dir> \
+//!   cargo test -p mineworld-weather --test moves_nobody record -- --ignored --nocapture
+//! ```
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -174,4 +185,64 @@ fn weather_moves_nobody() {
         "PASS: {} non-weather facts equal in instant, type, visibility, subjects and payload",
         without.len()
     );
+}
+
+/// TW-d's re-check: the record moves nobody the rules did not (see the module's documentation).
+#[test]
+#[ignore = "opt-in: needs two 300-day saves (TWD_SAVE_RULES, TWD_SAVE_RECORD)"]
+fn the_record_moves_nobody_but_process_ids() {
+    let not_weather = |facts: Vec<EventEnvelope>| -> Vec<EventEnvelope> {
+        facts
+            .into_iter()
+            .filter(|fact| !WEATHERS.contains(&fact.event_type().as_str()))
+            .collect()
+    };
+    let rules = not_weather(facts("TWD_SAVE_RULES"));
+    let record = not_weather(facts("TWD_SAVE_RECORD"));
+    assert_eq!(
+        rules.len(),
+        record.len(),
+        "the same number of non-weather facts"
+    );
+    let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
+    let mut differing = 0;
+    for (index, (a, b)) in rules.iter().zip(&record).enumerate() {
+        let (pa, pb) = (projection(a), projection(b));
+        assert_eq!(
+            (pa.0, &pa.1, &pa.2, &pa.3),
+            (pb.0, &pb.1, &pb.2, &pb.3),
+            "fact #{index}: instant, type, visibility, subjects"
+        );
+        if pa.4 == pb.4 {
+            continue;
+        }
+        differing += 1;
+        let va: serde_json::Value = serde_json::from_slice(&pa.4).expect("json");
+        let vb: serde_json::Value = serde_json::from_slice(&pb.4).expect("json");
+        let mut out = Vec::new();
+        leaves(&pa.1, &va, &vb, &mut out);
+        for (path, x, y) in out {
+            let number = |s: &str| s.trim_matches('"').parse::<u64>().ok();
+            assert!(
+                matches!((number(&x), number(&y)), (Some(x), Some(y)) if y == x + 1),
+                "fact #{index} {path}: {x} → {y} is not an id one higher"
+            );
+            *by_key.entry(path).or_insert(0) += 1;
+        }
+    }
+    println!(
+        "{} non-weather facts; {differing} differ in payload, every differing leaf an id one higher:",
+        rules.len()
+    );
+    for (path, count) in &by_key {
+        println!("  {path}: {count}");
+    }
+    assert!(
+        by_key
+            .keys()
+            .all(|path| path.ends_with(".routine") || path.ends_with(".activity")),
+        "only Process ids (routines and group activities) differ: {:?}",
+        by_key.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(counts(&rules), counts(&record), "every type's count");
 }

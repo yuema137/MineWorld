@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::day::{Chain, Condition, WeatherDay};
 use crate::event::WeatherConfigured;
+use crate::record::RecordSeries;
 use crate::system::WeatherSystem;
 
 /// The kind of process the world's climate is, owned — as a type — by [`WeatherSystem`], so no other
@@ -23,24 +24,70 @@ impl ProcessKind for ClimateProcess {
     type Owner = WeatherSystem;
 }
 
-/// The climate's state: what was configured, today (none before the first day), the hour whose
-/// condition is in force, and the generator's carry.
+/// The kind of process a replayed record is: started once, from `weather-configured`, never woken and
+/// never rewritten; its state is the series that fact carries (SD-TW-d-5). It is a Process of its own so
+/// the climate state, which is rewritten several times a day, stays small, and the 66 KB series is
+/// encoded once.
+pub struct RecordProcess;
+
+impl ProcessKind for RecordProcess {
+    const PROCESS_TYPE: ProcessTypeId = ProcessTypeId::from_static("weather-record");
+    type Owner = WeatherSystem;
+}
+
+/// The record Process's state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecordState {
+    series: RecordSeries,
+}
+
+impl RecordState {
+    pub(crate) const fn new(series: RecordSeries) -> Self {
+        Self { series }
+    }
+
+    /// The series.
+    pub const fn series(&self) -> &RecordSeries {
+        &self.series
+    }
+}
+
+/// The climate's state: what was configured (without the record's days, which the `weather-record`
+/// Process holds), today (none before the first day), the hour whose condition is in force, the
+/// generator's carry, and — in a world that replays a record — the year of its first day.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClimateState {
     configured: WeatherConfigured,
     today: Option<WeatherDay>,
     now: u8,
     chain: Chain,
+    /// Absent, not `null`, in a world of rules alone, so its state is byte for byte TW-b's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    epoch_year: Option<i32>,
 }
 
 impl ClimateState {
-    /// Configured, no day yet.
-    pub(crate) fn unstarted(configured: WeatherConfigured) -> Self {
+    /// Configured, no day yet. The record's days are not kept here (SD-TW-d-5).
+    pub(crate) fn unstarted(configured: &WeatherConfigured) -> Self {
         Self {
-            configured,
+            configured: configured.without_record(),
             today: None,
             now: 0,
             chain: Chain::default(),
+            epoch_year: None,
+        }
+    }
+
+    /// The year of the world's first day, once a record world has had one (SD-TW-d-4).
+    pub const fn epoch_year(&self) -> Option<i32> {
+        self.epoch_year
+    }
+
+    /// The first day's year folded, if not yet known.
+    pub(crate) fn with_epoch(self, year: i32) -> Self {
+        Self {
+            epoch_year: self.epoch_year.or(Some(year)),
+            ..self
         }
     }
 

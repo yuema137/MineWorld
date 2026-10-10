@@ -10,22 +10,20 @@ use mineworld_contracts::{Event, EventSchemaVersion, EventTypeId, SystemId};
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
-use crate::configuration::WeatherConfiguration;
 use crate::day::{Condition, WeatherDay};
+use crate::record::RecordSeries;
 use crate::rules::Rules;
 use crate::system::WeatherSystem;
 
-/// A reference to a station record. TW-d gives it its variants; in TW-b it has none, so no world can
-/// claim a record, and a TW-b save's `record: null` stays readable when it gains them (SD-TW-b-4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RecordRef {}
-
-/// The world's weather, as configured: its seed, its climate, and (from TW-d) its record.
+/// The world's weather, as configured: its seed, its climate, and, when it replays one, its record —
+/// every day of it, decoded and packed (SD-TW-d-5), so the world is a fold of its facts and a changed
+/// file is configuration drift. `record` is `null` for a world of rules alone, exactly as in TW-b
+/// (SD-TW-b-4), so such a world's facts are unchanged.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WeatherConfigured {
     seed: u64,
     rules: Rules,
-    record: Option<RecordRef>,
+    record: Option<RecordSeries>,
 }
 
 impl Event for WeatherConfigured {
@@ -35,12 +33,28 @@ impl Event for WeatherConfigured {
 }
 
 impl WeatherConfigured {
-    pub(crate) fn of(configuration: &WeatherConfiguration) -> Self {
+    /// What a configuration and its decoded record (if any) state.
+    pub(crate) const fn new(seed: u64, rules: Rules, record: Option<RecordSeries>) -> Self {
         Self {
-            seed: configuration.seed(),
-            rules: configuration.rules().clone(),
+            seed,
+            rules,
+            record,
+        }
+    }
+
+    /// The same configuration without its record: what the climate Process keeps, since the series
+    /// lives in its own Process (SD-TW-d-5) and the climate state stays small (SD-TW-b-6).
+    pub(crate) fn without_record(&self) -> Self {
+        Self {
+            seed: self.seed,
+            rules: self.rules.clone(),
             record: None,
         }
+    }
+
+    /// The record, taken out.
+    pub(crate) fn into_record(self) -> Option<RecordSeries> {
+        self.record
     }
 
     /// The seed.
@@ -53,9 +67,9 @@ impl WeatherConfigured {
         &self.rules
     }
 
-    /// The record, if any; always none in TW-b.
-    pub const fn record(&self) -> Option<RecordRef> {
-        self.record
+    /// The record, if the world replays one.
+    pub const fn record(&self) -> Option<&RecordSeries> {
+        self.record.as_ref()
     }
 }
 
