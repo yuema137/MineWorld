@@ -32,22 +32,28 @@ const CONTROLLERS: [Package; 1] = [mineworld_rule_controller::PACKAGE];
 
 /// Where a listed pack comes from.
 enum Origin {
-    /// A System Pack of this build's installed set.
+    /// A System Pack of this build's installed set, bundled or third-party (`ARC-54` point 2).
     System {
         id: SystemId,
         version: SystemVersion,
+        bundled: bool,
     },
-    /// A controller this binary composes.
-    Controller,
+    /// A controller this binary composes, bundled or third-party.
+    Controller { bundled: bool },
     /// A data pack in a pack root.
     Directory(PathBuf),
+}
+
+/// A code pack's origin in one word (`ARC-66` point 4): compiled from this workspace, or not.
+const fn origin_word(bundled: bool) -> &'static str {
+    if bundled { "bundled" } else { "third-party" }
 }
 
 impl Origin {
     fn describe(&self) -> String {
         match self {
             Self::System { id, .. } => format!("this build (system {id})"),
-            Self::Controller => "this build (a controller)".to_owned(),
+            Self::Controller { .. } => "this build (a controller)".to_owned(),
             Self::Directory(dir) => dir.display().to_string(),
         }
     }
@@ -82,6 +88,7 @@ fn gather(roots: &PackRoots) -> Result<Vec<Listed>, String> {
             origin: Origin::System {
                 id: capability.id(),
                 version: capability.version(),
+                bundled: capability.package().bundled(),
             },
         });
     }
@@ -89,7 +96,9 @@ fn gather(roots: &PackRoots) -> Result<Vec<Listed>, String> {
         listed.push(Listed {
             identity: Identity::of_code_pack(controller, PackType::ControllerPack)
                 .map_err(refused)?,
-            origin: Origin::Controller,
+            origin: Origin::Controller {
+                bundled: controller.bundled(),
+            },
         });
     }
     for pack in roots.packs().map_err(refused)? {
@@ -148,8 +157,8 @@ pub fn list(roots: &PackRoots) -> Result<(), String> {
     for pack in &listed {
         let identity = &pack.identity;
         let tail = match &pack.origin {
-            Origin::System { id, .. } => format!("system {id}"),
-            Origin::Controller => String::new(),
+            Origin::System { id, bundled, .. } => format!("{}  system {id}", origin_word(*bundled)),
+            Origin::Controller { bundled } => origin_word(*bundled).to_owned(),
             Origin::Directory(dir) => dir.display().to_string(),
         };
         let line = format!(
@@ -203,12 +212,16 @@ fn described_identity(identity: &Identity, origin: &Origin) -> String {
         .map_or_else(|| "—".to_owned(), ToString::to_string);
     let _ = writeln!(out, "  mineworld   {range}");
     match origin {
-        Origin::System { id, version } => {
+        Origin::System {
+            id,
+            version,
+            bundled,
+        } => {
             let _ = writeln!(out, "  system      {id} (SystemVersion {})", version.get());
-            let _ = writeln!(out, "  source      this build");
+            let _ = writeln!(out, "  source      this build ({})", origin_word(*bundled));
         }
-        Origin::Controller => {
-            let _ = writeln!(out, "  source      this build");
+        Origin::Controller { bundled } => {
+            let _ = writeln!(out, "  source      this build ({})", origin_word(*bundled));
         }
         Origin::Directory(dir) => {
             let _ = writeln!(out, "  source      {}", dir.display());

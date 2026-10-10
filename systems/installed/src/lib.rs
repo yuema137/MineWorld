@@ -50,4 +50,5 @@ mineworld_sdk::installed! {
     Bodies => mineworld_bodies::BodiesSystem,
     Calendar => mineworld_calendar::CalendarSystem,
     Weather => mineworld_weather::WeatherSystem,
+    Fishing => acme_fishing::FishingSystem,
 }
