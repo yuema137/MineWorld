@@ -10,7 +10,9 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, Utterance, talk_requirement};
-use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages, move_offer_requirement};
+use mineworld_movement::{
+    MAX_STRIDE, Move, Passage, Passages, WalkStep, Walking, move_offer_requirement,
+};
 use serde_json::{Value, json};
 
 use crate::PacedRuleController;
@@ -72,6 +74,11 @@ struct View {
     move_offered: bool,
     /// The doorways the place I stand in discloses.
     doors: Vec<Passage>,
+    /// Whose walk is disclosed: mine, and Bob's (movement's `walking` record, step-11 SD-N8).
+    my_walk: bool,
+    bobs_walk: bool,
+    /// Whether the world offers me `walk-step` (only to a walker, in the real world).
+    walk_step_offered: bool,
 }
 
 impl View {
@@ -90,6 +97,9 @@ impl View {
                 Some(spot(8_000, 1_000)),
                 Some(spot(0, 3_000)),
             )],
+            my_walk: false,
+            bobs_walk: false,
+            walk_step_offered: false,
         }
     }
 
@@ -111,12 +121,16 @@ impl View {
                 json!({ "leads_to": leads_to }),
             )]);
         }
+        let mut mine = vec![ComponentRecord::new::<ConversationHistory>(
+            id(ME),
+            serde_json::to_value(&history).expect("serializes"),
+        )];
+        if self.my_walk {
+            mine.push(walk_record(ME));
+        }
         let me = PerceivedEntity::new(id(ME), EntityType::Person)
             .at(self.me)
-            .with_components(vec![ComponentRecord::new::<ConversationHistory>(
-                id(ME),
-                serde_json::to_value(&history).expect("serializes"),
-            )]);
+            .with_components(mine);
         let mut entities = vec![cafe, me];
         let mut affordances = Vec::new();
         if self.move_offered {
@@ -126,8 +140,19 @@ impl View {
                 move_offer_requirement(),
             ));
         }
+        if self.walk_step_offered {
+            affordances.push(Affordance::available(
+                WalkStep::ACTION_TYPE,
+                None,
+                move_offer_requirement(),
+            ));
+        }
         for (person, location, may_talk) in &self.people {
-            entities.push(PerceivedEntity::new(id(*person), EntityType::Person).at(*location));
+            let mut other = PerceivedEntity::new(id(*person), EntityType::Person).at(*location);
+            if *person == BOB && self.bobs_walk {
+                other = other.with_components(vec![walk_record(BOB)]);
+            }
+            entities.push(other);
             affordances.push(if *may_talk {
                 Affordance::available(Talk::ACTION_TYPE, Some(id(*person)), talk_requirement())
             } else {
@@ -144,6 +169,17 @@ impl View {
             .perceiving(entities)
             .offering(affordances)
     }
+}
+
+/// `who`'s walk as movement discloses it: a destination and the next waypoints (step-11 SD-N8).
+fn walk_record(who: u64) -> ComponentRecord<Value> {
+    ComponentRecord::new::<Walking>(
+        id(who),
+        json!({
+            "destination": { "place": in_cafe(6_000, 6_000) },
+            "next": [spot(6_000, 6_000)],
+        }),
+    )
 }
 
 fn talk(request: &ActionRequest) -> Option<(Option<EntityId>, String)> {
@@ -465,4 +501,75 @@ fn a_stride_never_exceeds_the_published_bound_in_any_direction() {
             assert!(distance(stepped, to) >= 1_000 - 1, "toward ({x}, {y})");
         }
     }
+}
+
+/// SD-N16: `step` asks for the next stride of *my* walk — `walk-step`, by me, with no payload but an
+/// empty one — exactly when my walk is disclosed and the world offers `walk-step`; otherwise nothing.
+#[test]
+fn step_asks_for_my_stride_only_while_my_walk_is_disclosed_and_offered() {
+    let cases = [
+        (
+            true,
+            true,
+            false,
+            true,
+            "my walk disclosed, walk-step offered",
+        ),
+        (true, false, false, false, "walk-step not offered"),
+        (false, true, false, false, "no walk of mine disclosed"),
+        (false, true, true, false, "only Bob's walk disclosed"),
+    ];
+    for (my_walk, offered, bobs_walk, steps, what) in cases {
+        let view = View {
+            my_walk,
+            walk_step_offered: offered,
+            bobs_walk,
+            ..View::new()
+        };
+        let asked = controller(7).step(&view.build());
+        assert_eq!(asked.is_some(), steps, "{what}");
+        if let Some(request) = asked {
+            assert_eq!(*request.action_type(), WalkStep::ACTION_TYPE, "{what}");
+            assert_eq!(request.actor(), id(ME), "{what}: asked by me");
+            assert_eq!(request.target(), None, "{what}: against nobody");
+            assert_eq!(request.payload().payload(), b"{}", "{what}: no payload");
+        }
+    }
+}
+
+/// SD-N16 / F-N14: `step` never answers, greets or draws. With a line waiting in my window it still
+/// asks only for the stride; its answer is the same for every seed and at every instant; and asking
+/// it twice on one observation gives the same answer.
+#[test]
+fn step_never_answers_takes_no_draw_and_is_a_function_of_the_observation() {
+    let mut view = View {
+        my_walk: true,
+        walk_step_offered: true,
+        heard: vec![said(BOB, "hello", NOW - 30)],
+        ..View::new()
+    };
+    let mut answers = Vec::new();
+    for at in (NOW..NOW + 20 * PACE).step_by(97) {
+        view.at = at;
+        let observation = view.build();
+        for seed in 0..SEEDS {
+            let first = controller(seed).step(&observation);
+            assert_eq!(
+                first,
+                controller(seed).step(&observation),
+                "seed {seed} at {at}"
+            );
+            answers.push(first);
+        }
+    }
+    assert!(
+        answers.windows(2).all(|pair| pair[0] == pair[1]),
+        "one answer for every seed and instant"
+    );
+    assert!(
+        answers[0]
+            .as_ref()
+            .is_some_and(|request| *request.action_type() == WalkStep::ACTION_TYPE),
+        "and it is the stride, never a reply"
+    );
 }

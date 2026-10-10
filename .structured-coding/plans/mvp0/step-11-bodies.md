@@ -9113,9 +9113,9 @@ unable to walk (decide asking `walk-to`, nobody stepping) for one commit.
 
 - [x] Implementation: §21.13.1 (this), §21.13.2, N-D10 … N-D22 in §21.15, handoff reinitialized for
   12n-2.
-- [ ] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
-  on the PR head (names as `ci_layer.py --list fast` prints them).
-- [ ] Review: the primary session approves this plan and rules on §21.13.2 before NW-C1.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  on the PR head (names as `ci_layer.py --list fast` prints them) — 193 sections, 94 ids (f241a1b).
+- [x] Review: the primary session approved this plan and ruled on §21.13.2 (§21.15 RULINGS).
 
 #### NW-C1 — the hosts can pace steps (no fact of any world changes)
 
@@ -9128,7 +9128,7 @@ run.rs}`; `tools/cli/Cargo.toml` + `Cargo.lock` (one workspace edge, `N-D12`); `
 change to `decide`; any server, kernel or pack edit; any change to the reactive seat.
 
 **Implementation.**
-- [ ] Docs first (`CLAUDE.md` §2.2): `ARC-27` note — `run` step-consults seat `k` at `genesis + k +
+- [x] Docs first (`CLAUDE.md` §2.2): `ARC-27` note — `run` step-consults seat `k` at `genesis + k +
   n·RUN_STEP` (30 world seconds, a divisor of `PACE`) while its person has a `Walking` (read with
   movement's `is_walking`, so a resume schedules what the dead run would have); a lattice instant is
   the lattice consult (`N-D13`); the cap becomes 29 seats. `ARC-42` note — `PacedSeat` interleaves
@@ -9137,12 +9137,13 @@ change to `decide`; any server, kernel or pack edit; any change to the reactive 
   returns nothing; no pack sees the scale. `MODULE_SPEC.md` §8.1: the `run` paragraph (step consults,
   the 29-seat cap, what the `move` column counts — `N-D18`) and the `server` row (hosted walkers step
   once a wall second).
-- [ ] `paced.rs`: `pub fn step(&self, observation) -> Option<ActionRequest>` — `walk-step` (empty
+- [x] `paced.rs`: `pub fn step(&self, observation) -> Option<ActionRequest>` — `walk-step` (empty
   payload, `WalkStep::default()`) iff the observer's own `walking` record is disclosed and `walk-step`
   is offered and available; no draw, never a reply. `pub fn walks(observation) -> bool` (free function,
   exported from `lib.rs`): whether the observer's own `walking` record is disclosed — what a host
-  reads to keep stepping, so the host never decodes a pack's component itself.
-- [ ] `hosted.rs`: `EMBODIED_STEP` (1 wall second, the host constant §21.5.1 names) with its
+  reads to keep stepping, so the host never decodes a pack's component itself. (Both live in a new
+  module `walking.rs`; `PacedRuleController::step` delegates to it.)
+- [x] `hosted.rs`: `EMBODIED_STEP` (1 wall second, the host constant §21.5.1 names) with its
   Weidmann / Bohannon reference; `PacedSeat` gains `step: i64` (= `EMBODIED_STEP × scale`), `walking:
   bool`, `last: Option<i64>`. `next_consult`: without `walking`, the lattice as today; with it, the
   next `first + n·step` strictly after `after` (the lattice is a subset of that grid because `pace` is
@@ -9151,7 +9152,7 @@ change to `decide`; any server, kernel or pack edit; any change to the reactive 
   `decide(obs).or_else(|| step(obs))` (`N-D13`); otherwise a **step consult**, answered by
   `step(obs)`. Then `walking := walks(obs) || asked ∈ {walk-to, walk-step}`, and a step consult that
   returns nothing sets `walking := false`. `last := at`. `Counting` unchanged.
-- [ ] `run.rs`: `RUN_STEP` (30 world seconds) with step-19 §4.6's reason; the cap `seats ≥ RUN_STEP`
+- [x] `run.rs`: `RUN_STEP` (30 world seconds) with step-19 §4.6's reason; the cap `seats ≥ RUN_STEP`
   refused, the message naming `RUN_STEP` and 29; the loop over sub-rounds `n`: `at = genesis + k +
   n·RUN_STEP`, lattice iff `n % (PACE / RUN_STEP) == 0`; a non-lattice instant is consulted only if
   `is_walking` holds **before** advancing (a `Walking` is created only by a request, so a seat not
@@ -9161,27 +9162,30 @@ change to `decide`; any server, kernel or pack edit; any change to the reactive 
   (`N-D13`); a step consult calls `step`. Resume: the first sub-round from `start` in `RUN_STEP` units.
   `PersonId` for `is_walking` from the seat's entity, checked to be a person. The summary's `move`
   column counts accepted `move` and `walk-step` requests (`N-D18`); `consults` counts both kinds.
-- [ ] `tools/cli/Cargo.toml`: `mineworld-movement = { workspace = true }` under `[dependencies]` with a
+- [x] `tools/cli/Cargo.toml`: `mineworld-movement = { workspace = true }` under `[dependencies]` with a
   one-line reason; `Cargo.lock` gains only that edge.
 
-**Validation.**
-- [ ] `paced_tests.rs`: `step` returns `walk-step` exactly when the own `walking` record is disclosed
+**Validation.** (E-NW1)
+- [x] `paced_tests.rs`: `step` returns `walk-step` exactly when the own `walking` record is disclosed
   and `walk-step` offered; nothing when either is absent, when only *another* person's `walking` is
   disclosed, or when a line is waiting to be answered (it never answers); two calls on one
   observation are equal; across 64 seeds `step`'s answer is seed-independent (no draw).
-- [ ] `hosted.rs` unit tests: `cadence_is_wall_time_whatever_the_scale` extended — a walking seat at
+- [x] `hosted.rs` unit tests: `cadence_is_wall_time_whatever_the_scale` extended — a walking seat at
   scale 1, 12 and 60 is consulted every `scale` world seconds (one per wall second) at offset `k·scale`,
   and its lattice instants are unchanged; a seat that is not walking is consulted on the lattice only
   (idle seats cheap); a step consult returning nothing returns the seat to the lattice; the lattice /
   step classification holds when the observation's instant is past the due instant (A-5).
-- [ ] NW-10's unit test (`run.rs` `#[cfg(test)]`): over 29 seats and one year of instants, no two
+- [x] NW-10's unit test (`run.rs` `#[cfg(test)]`): over 29 seats and one year of instants, no two
   (seat, instant) pairs share an instant, and every lattice instant is a step instant of its seat; the
-  30-seat refusal names `RUN_STEP` (a `tools/cli/tests/run.rs` case on a test-time copy of social-cafe
-  with 30 seats, through the real binary).
-- [ ] Byte identity (nothing walks yet): `mineworld run` 30 days, seed 7, of social-cafe, market-town
+  30-seat refusal names `RUN_STEP` (a `tools/cli/tests/run.rs` case through the real binary — on a
+  pack `mineworld create` writes and the test widens to 30 and 29 seats, smaller than a social-cafe
+  copy and testing the same rule).
+- [x] Byte identity (nothing walks yet): `mineworld run` 30 days, seed 7, of social-cafe, market-town
   and bodies-yard on the base binary and on NW-C1's — the saves' fact streams' sha-256 equal, and the
   printed summaries equal except `wall`. 30-day runs are unrestricted (§21.14).
-- [ ] `cargo test -p mineworld-rule-controller -p mineworld-cli`; `cargo clippy --workspace
+- [x] `cargo test -p mineworld-rule-controller -p mineworld-cli` (the controller's tests, the CLI's
+  unit tests, `run`'s 30-seat test, `run_restart` and `hosted_town`; the full CLI suite runs with the
+  workspace at NW-C4); `cargo clippy --workspace
   --all-targets --all-features -D warnings`; `cargo fmt --all --check`; the two doc checks.
 
 **Acceptance.** `step` and `walks` exist and are pure; `PacedSeat` and `run` consult a walking seat
@@ -9195,10 +9199,13 @@ consults: the first instant is recomputed from `start`, and `is_walking` is read
 state.
 
 **Review.**
-- [ ] No pack, no controller reads the scale or a wall clock (`hosted.rs` alone multiplies by
-  `scale`; `paced.rs` greps clean for `scale`, `Instant`, `SystemTime`).
-- [ ] Idle seats get no step consults in either host; a step instant never shares an instant with
-  another seat in `run`; `decide`'s lattice, windows and draw indices are untouched.
+- [x] No pack, no controller reads the scale or a wall clock (`hosted.rs` alone multiplies by
+  `scale`; `cognition/rule-controller/src` greps clean for `scale`, `Instant`, `SystemTime`, `now()`;
+  no diff under kernel/, contracts/, persistence/src/, server/, systems/, clients/, worlds/).
+- [x] Idle seats get no step consults in either host (hosted: `walking` false → `pace` period; run:
+  the pre-advance `is_walking` check); a step instant never shares an instant with another seat in
+  `run` (the unit test); `decide`'s lattice, windows and draw indices are untouched (`decide` has no
+  diff; the lattice is `round % 30 == 0` of the same instants, and E-NW1's byte identity).
 
 **Commit boundary.** Docs + controller `step` + hosts + one Cargo edge; no `decide` change.
 
@@ -9682,6 +9689,39 @@ N-D21 SD-N14's "S19's live-rescale pass covers step consults" is vacuous on main
       same scale as the lattice, so a later rescale inherits it.
 N-D22 F-12n-R1 (a walk.rs unit case between one and two strides) stays open: 12n-2 does not touch
       systems/movement.
+
+RULINGS (primary session, 2026-10-09, relayed by the coordinator; bounded, within the frozen design):
+      Phase 1 approved, NW-C1 … NW-C4 in N-D11's order. Q-W1 approved as bounded: the step schedule may
+      be added to the four A-10 loops only if they fail, claims and assertions unchanged; a change to any
+      claim's wording or expected value is a material stop. Q-W2 approved (the mineworld-movement edge).
+      Q-W3 approved as read (lattice: decide, then step for a walker). Q-W4 approved, with F-12n2-1.
+      origin/main merged (50685e6: #123 closeout, #124 overall.md; both §21.15 blocks kept, no conflict).
+
+F-12n2-1 (finding, owned by whichever PR next touches movement's disclosure). The controller reads the
+      destination of its own disclosed walk through a private copy of movement's wire shape
+      `{ destination: Destination }`, because movement's disclosed type (`system.rs` `Disclosed`) is
+      private. That duplicates a wire shape across a crate boundary. Movement should export a typed
+      disclosed walk, and the controller should decode with it.
+
+E-NW-base 2026-10-09 ~21:20, on 50685e6 (= origin/main 02788e6's code + this plan). Binary
+      /tmp/s15-12n/12n2/base-mineworld (dev). /tmp/s15-12n/12n2/capture.sh base 30 (cap-base.log;
+      facts sha = sha-256 over hex(fact) in event_id order; summary sha excludes the header and `wall`):
+        social-cafe 30 d  37 085 facts  3ca3d670…73b4a2  summary 9758584b…ae0085  user 2.26 s
+        market-town 30 d  38 294 facts  7a954c82…6eda5   summary 20915535…5464f   user 3.89 s
+        bodies-yard 30 d  62 385 facts  7feed53b…ab3a48  summary a888469f…6e760   user 2.96 s
+
+E-NW1 NW-C1, working tree on 50685e6. Binary /tmp/s15-12n/12n2/c1-mineworld. Byte identity while nobody
+      walks (capture.sh c1 30): all three fact shas and summary shas equal E-NW-base — PASS (user 2.20 /
+      3.63 / 2.87 s: no measurable cost from the 30-second rounds). `cargo test -p mineworld-rule-controller`
+      37 passed (the two new step tests among them); `cargo test -p mineworld-cli --bin mineworld` 7 passed
+      (hosted: the cadence test, a walking seat stepping every `scale` world seconds at scales 1/12/60 with
+      the lattice inside, idle seats on the lattice only, the late-observed lattice consult, stepping
+      continuing and then stopping through decide; run: the 29-seat × one-year instant order and the
+      lattice); `--test run a_pack_with_thirty…` passed (30 seats refused naming RUN_STEP, 29 run).
+      clippy --workspace --all-targets --all-features -D warnings clean; fmt clean; doc checks 193 / 98.
+      Cargo.lock: only the mineworld-cli → mineworld-movement edge. `cargo test -p mineworld-cli --test
+      run_restart --test hosted_town`: 2 + 1 passed (the resume arithmetic in RUN_STEP rounds; the hosted
+      town within its tick budget), 152 s wall (c1-restart.log).
 ```
 
 

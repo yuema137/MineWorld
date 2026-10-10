@@ -1919,6 +1919,26 @@ is cognition's. Places have no extent, so wandering is bounded only by the pull 
    measured strides with the same floored root (`ARC-23`). With the fix, a 300-day run has no refusals
    at all.
 
+**Note, 2026-10-09 (S15, PR 12n-2; `step-11-bodies.md` §21 SD-N15, SD-N16; `ARC-75`).** People walk
+by asking movement for a walk (`walk-to`) and then for its strides (`walk-step`), one per request. The
+run paces those strides; nothing about the decision itself changes:
+
+1. **Step consults.** As well as the lattice `genesis + k + m·P`, seat `k` is consulted at `genesis + k
+   + n·RUN_STEP` (`RUN_STEP` = 30 world seconds, a divisor of P) whenever its person has a `Walking`
+   at that instant. The run reads that from world state through movement's `is_walking`, so a resumed
+   run schedules exactly the step consults the dead one would have, which is this decision's restart
+   property. A seat that is not walking is not consulted, and the clock is not advanced for it: a
+   `Walking` is only ever created by a request, so a seat that was not walking before the instant is
+   not walking at it. `RUN_STEP` is notional (step-19 §4.6: `run` has no time scale). A 20 m walk is
+   15 strides, 7½ notional minutes, rather than ten lattice consults.
+2. **At a step consult the controller is asked `step`**, a separate pure function that returns only
+   `walk-step`, takes no draw and never answers. `decide` is still asked only on the lattice, once per
+   pace, so "answer each line once" holds. A lattice instant is always a step instant. The one consult
+   there is `decide`, and when `decide` returns nothing for a walker, `step`, so that a walker who
+   rolls "stand" keeps walking.
+3. **A pack with `RUN_STEP` (30) seats or more is refused**, naming `RUN_STEP` (it was P). Residues
+   mod 30 keep every instant to one seat. The largest pack has eleven seats.
+
 ---
 
 ## DEP-11 — The CLI's argument parsing: `clap`
@@ -4045,6 +4065,19 @@ or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located ev
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
 the requests. The paced controller's rates are tuned to a 900-second pace; at the hosted default of 5 s
 it is chattier than a person (QS11-4), which is cognition's to tune (S10), not the server's.
+
+**Note, 2026-10-09 (S15, PR 12n-2; `step-11-bodies.md` §21 SD-N14; `ARC-75` item 7).** A hosted paced
+seat steps its walks at wall cadence. `PacedSeat` keeps its lattice `genesis + (k + m·pace)·scale`
+for `decide`. After a consult whose observation disclosed the seat's own `walking` record, or whose
+request was `walk-to` or `walk-step`, it adds **step consults** every `EMBODIED_STEP × scale` world
+seconds, offset `k·scale` (QTW-13's form), each answered by the controller's pure `step`. It stops at
+the first step consult that returns nothing. `EMBODIED_STEP` is one wall second, a constant of this
+adapter: one `walk-step` of 1 340 mm per wall second is 1.34 m/s on screen at any time scale
+(Weidmann 1993). No pack and no controller sees the scale. Idle seats get no step consults. A
+consult is the lattice consult when a lattice instant lies between the seat's previous consult and
+this one, because the runtime builds the observation at `due.max(world.now())`. There it is `decide`,
+and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
+seat does not walk.
 
 ---
 

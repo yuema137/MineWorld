@@ -198,6 +198,16 @@ impl PacedRuleController {
         }
     }
 
+    /// The next stride of my own walk, or nothing: what a host asks between two consults of `decide`
+    /// while my walk is disclosed (`step-11-bodies.md` SD-N16).
+    ///
+    /// A separate function, not a band of [`Self::decide`], because `decide` must be asked exactly one
+    /// pace apart for "answer each line once" to hold. `step` answers nothing, greets nobody and takes
+    /// no draw, so asking it at any instant changes nothing `decide` relies on.
+    pub fn step(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
+        crate::walking::step(observation)
+    }
+
     /// The reply to the lowest-id speaker whose newest line was heard in this consult's window and
     /// whom the server says I may answer — sometimes.
     fn answer(&self, observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
