@@ -519,22 +519,91 @@ with evidence.
   real set.
 
 ### C6 — `3d: small interior objects cast no sun shadow` (kept only if V-1 passes)
-- [ ] Implementation: `budget.gd` part 2.
-- [ ] Validation: M-5; V-1 on the pre-registered interior views (SD-RLb-4).
-- [ ] Review: the policy keys on room volumes, not names.
+- [x] Implementation: `budget.gd` part 2. *Evidence:* implemented and measured on top of C5, then
+  **reverted (not committed)**: objects with a world-AABB half-diagonal ≤ 0.30 m whose centre lies in
+  a non-street place volume were moved to render layer 20, which the sun's `shadow_caster_mask`
+  excluded (rather than `cast_shadow = OFF`, which would also have removed the florist pendants' omni
+  shadows). Build log: `203 small objects in rooms cast no sun shadow`.
+- [x] Validation: M-5; V-1 on the pre-registered interior views (SD-RLb-4). *Evidence:* V-1 (c5 → c6)
+  passed: max 0.228 % (22), 0.209 % (21), interior views ≤ 0.011 %. M-5: draw calls and primitives
+  **identical** to C5 in every view (e.g. interior 3 814 / 3.67 M both), p95 within run noise
+  (interior 15.88 vs 15.20 ms). The lever had no measurable yield; it was reverted for that reason
+  rather than kept as dead complexity. The pre-registered rule (keep iff V-1 passes) did not
+  anticipate a zero yield; reverting is the narrower choice and is recorded as a deviation.
+- [x] Review: the policy keys on room volumes, not names. *Evidence:* rooms were the `place_id`
+  volumes other than `SliceWorld.STREET_PLACE`. Finding: Godot 4.7.2's directional
+  `shadow_caster_mask` did not lower the draw-call count, so the cost it was meant to remove was not
+  where the policy could reach it.
 
 ### C7 — `3d: conditional levers` (only while M-6 is unmet; each sub-lever its own commit)
-- [ ] Implementation: SD-RLb-6 (a), then (b), then (c), stopping as soon as M-6 holds.
-- [ ] Validation: M-5; V-1 and V-3 for each sub-lever. Final: A-1 three runs → E-RLb-final; the breakdown on
-  the head (A-2).
-- [ ] Review: every lever not taken is recorded as "not needed", with the numbers.
+- [x] Implementation: SD-RLb-6 (a), then (b), then (c), stopping as soon as M-6 holds. *Evidence:* each
+  applied alone on C5, measured, frame-checked, and **reverted because V-1 failed**, as SD-RLb-6
+  requires. No C7 commit exists.
+- [x] Validation: M-5; V-1 and V-3 for each sub-lever. *Evidence (E-RLb-8):*
+  (a) VoxelGI 256 → 128 (`slice_main.gd` `_voxel_gi`): M-5 street wide 10.96, cafe frontage 17.54,
+      interior 13.86, doorway 18.59, street east 11.46, south side 10.63, florist interior 14.78,
+      skyline east 11.08 ms; video memory **1 608.1 MB (passes)**; draws and primitives unchanged.
+      V-1 (c5 → c7a) FAIL: florist interior 16.3 %, florist looking out 27.6 %, café interior views
+      5.0–7.2 %. Side by side (`shots/slice/rlb/pairs/c7a-22.png`, `c7a-05.png`): the florist reads
+      warmer and brighter (coarser GI cells bleed more bounce into it), the café's ceiling and walls
+      shift tone. Cause named: GI resolution. Reverted.
+  (b) directional soft-shadow filter quality 3 → 2 (`project.godot`): M-5 −1.6 to −2.1 ms on the
+      exterior views (cafe frontage 19.14, doorway 21.62); V-1 FAIL on every street view (3.3–7.7 %):
+      the penumbrae of the raking shadows change. Reverted.
+  (c) SSIL quality 2 → 1 (`project.godot` `environment/ssil/quality`): M-5 up to −0.9 ms (cafe frontage
+      19.90, doorway 23.52); V-1 FAIL on 15 views (0.53–3.4 %): noisier indirect light. Reverted.
+  V-3 not run for (a)–(c): each had already failed V-1 and was reverted, so no head carried it.
+- [x] Review: every lever not taken is recorded as "not needed", with the numbers. *Evidence:* none
+  was "not needed": all three were needed and all three failed V-1. With them reverted, M-6 is unmet
+  on the final head — **the §9 material stop** (see the ledger, E-RLb-final and "Material stop").
 
 ### C8 — `3d: a San Diego skyline preview (QRL-11)` (isolated; revertible alone)
-- [ ] Implementation: `skyline.gd`; `street.gd`'s backdrop removed; `slice_world.gd`'s line;
-  `frame_diff.gd` mask; `--skyline-check`.
-- [ ] Validation: A-8, X-5; V-5; M-5 (`skyline east` within budget); the summit table re-read at source and
-  recorded.
-- [ ] Review: no constant copied from the camera rig; the placeholder nature stated in code.
+- [x] Implementation: `skyline.gd`; `street.gd`'s backdrop removed; `slice_world.gd`'s line;
+  `frame_diff.gd` mask; `--skyline-check`. *Evidence:* `SliceSkyline` (Node3D following the active
+  camera's position each frame, never rotating) builds three unshaded, fog-disabled, shadowless ribbon
+  bands (far 1 300 m, mid 1 100 m, near 900 m) whose crest at bearing b is `D · tan(angle)`; bearings
+  and distances are computed at build from the cited coordinates (initial bearing, haversine), the
+  angle from `(h − 20 − d²(1−k)/2R)/d`, k = 0.13; colour `lerp(horizon, terrain, exp(−2.996 d / 80 km))`
+  in linear vertex colour, horizon sampled from the loaded HDRI (±1° rows at the bearing) times the
+  sky's energy; 8 % darker at the base. Shape between summits: smoothstep plus ±12 % relief with whole
+  half-waves between anchors (≥ 8° per undulation), zero at every summit; stated as a placeholder for
+  RL-e. Sea sector 255–310° empty. `street.gd` `backdrop()`/`_ridge()` removed; `slice_world.gd`
+  builds the skyline (and `--hide-backdrop` builds it hidden, for V-5's masks). `frame_diff.gd`:
+  comma-separated `--mask=` union and `--write-mask=`. Probe mode `--slice-skyline-check`
+  (launcher `--skyline-check`, headless). Three skyline review views added to the probe's `views`
+  (23_skyline_east, 24_skyline_west, 25_skyline_southwest) — a bounded addition to the probe beyond
+  "dispatch only", needed for the operator's stills.
+- [x] Validation: A-8, X-5; V-5; M-5 (`skyline east` within budget); the summit table re-read at source and
+  recorded. *Evidence (E-RLb-7):* `--skyline-check`: 172 degrees checked, worst |drawn − table|
+  0.000° (whole degrees are mesh vertices; rays cast ±0.001° either side of each seam), highest crest
+  2.14°, 0 sea-sector degrees drawn — **PASS**. X-5 (bearings rotated 90° in the mesh only): worst
+  3.145° at 187°, 256 degrees over — **FAIL** as required; reverted. The check's expectation comes from
+  the coordinates, its measurement from the built mesh (rays against its triangles), so it is not
+  self-referential. V-5: masks from `--hide-backdrop` on C5 and on C8 (`shots/slice/rlb/mask-base`,
+  `mask-head`); `frame_diff` c5 → c8 with their union masked: every view ≤ 0.001 % outside the mask —
+  PASS. Inside the mask is the preview (0.0–0.9 % of each frame: the backdrop is behind the frontage in
+  most review views). M-5: skyline east 10.74 ms p95, 3 714 draws, 1.97 M primitives (within the
+  p95 bound; the draw and primitive bounds fail there as everywhere). `--drive` passes.
+  Summit table re-read 2026-10-09 (sources in `skyline.gd` `SUMMITS`; computed by the check):
+    Point Loma 126 m (GNIS via GeoNames; Wikipedia gives 422 ft = 129 m)  237.0°   8.9 km  0.65°
+    Mount Soledad 251 m (NGS 'Soledad')                                  328.3°  16.2 km  0.75°
+    Cowles Mountain 486 m (GNIS / Peakbagger)                             48.4°  16.2 km  1.58°
+    Mount Helix 416 m (GNIS via GeoNames; others 406–419 m)               71.0°  17.6 km  1.22°
+    San Miguel Mountain 783 m (NGS 'San Miguel Reset')                    95.8°  21.1 km  1.99°
+    Otay Mountain 1 088 m (NGS 'Otay', DC2046)                           114.4°  32.5 km  1.75°
+    Cuyamaca Peak 1 985 m (NGS 'Cuyamaca reset')                          63.5°  57.8 km  1.72°
+    Monument Peak 1 911 m (6 271 ft, hundredpeaks.org; GeoNames 1 904 m)  73.9°  72.0 km  1.22°
+  Against the design's approximate table: heights within 3 m except Otay (1 101 → 1 088 m), San
+  Miguel (790 → 783 m), Monument (1 881 → 1 911 m); Point Loma's bearing 249° → 237° and distance
+  7.9 → 8.9 km (the design's coordinate was not the high point). Constants re-read: k = 0.13 (Gauss,
+  via Hirt et al. 2010, JGR 115 D21102); MOR at 5 % contrast, `ln 20 = 2.996` (WMO-No. 8, Part I ch. 9).
+  Preview stills: `shots/slice/rlb/skyline/` (after), `skyline-before/` (the old ridges at the same
+  poses), pairs `shots/slice/rlb/pairs/skyline-*.png`.
+- [x] Review: no constant copied from the camera rig; the placeholder nature stated in code.
+  *Evidence:* proxy distances are chosen inside `CameraRig.FAR` (cited in the header, not copied
+  into code); the header and `profile()` say the between-summit shape is a placeholder RL-e replaces.
+  The terrain radiance (albedo × the sun's share at its elevation + the sky's) is an estimate for a
+  preview and says so.
 
 ### C9 — `3d: label the promenade spike; docs`
 - [ ] Implementation: SD-RLb-8; README; the `HUMAN_REVIEW_QUEUE.md` dated line with §8's checklist.

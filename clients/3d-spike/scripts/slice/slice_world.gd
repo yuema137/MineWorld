@@ -35,7 +35,7 @@ static func build(parent: Node3D) -> Node3D:
 
 	var t0 := Time.get_ticks_msec()
 	SliceStreet.build(g);                                        _tick("street", t0)
-	SliceStreet.backdrop(g);                                     _tick("backdrop", t0)
+	SliceSkyline.build(g).visible = not hide_backdrop();         _tick("skyline", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
 	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
@@ -57,6 +57,12 @@ static func build(parent: Node3D) -> Node3D:
 		% [o["occluders"], o["overlaps"]])
 	_tick("batched", t0)
 	return g
+
+
+## `--hide-backdrop`: build the far backdrop hidden, so a frame can be captured
+## with and without it and the pixels it covers masked (RL-b §7 V-5).
+static func hide_backdrop() -> bool:
+	return "--hide-backdrop" in OS.get_cmdline_user_args()
 
 
 ## Build timing, printed on every run. A scene that takes a minute to assemble
