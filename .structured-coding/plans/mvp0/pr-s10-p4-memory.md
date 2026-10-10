@@ -537,7 +537,8 @@ full suite (test rules §8); the PR's CI is the one full run.
   - `scripts/ci_layer.py`: `python-smoke`'s cognition command gains `-m "not real_binary"`.
   - `tests/test_fts5_platform.py` and `memory/fts.py` (`available()`, the query builder).
 - [x] Implementation: the files above (evidence §14.1 C1; one extra file, §14.3 X-1).
-- [ ] Validation (all local items done, §14.1 C1; the per-leg FTS5 line waits on the first CI run):
+- [x] Validation (local items §14.1 C1; FTS5 present on all three legs, runs 38037220947 and
+  38065521041, §14.4):
   - ruff, ruff format, pyright strict: zero findings;
   - `uv run --locked pytest cognition/lm-controller -k fts5` locally;
   - `python3 scripts/ci_layer.py --list python-smoke` shows the deselection; `--list core` and
@@ -619,8 +620,8 @@ full suite (test rules §8); the PR's CI is the one full run.
 - **Scope.** `tests/ac10_harness.py`, `tests/binary.py`, `tests/test_ac10.py` (AP4-10, AP4-4 (d)).
 - [x] Implementation: the harness (subprocess calls to the binary, into `tmp_path`); a module-scoped
   fixture; assertions (a)–(g); the decode-fallback count asserted 0. Commit `d421b18`.
-- [ ] Validation (local items done, §14.1 C7 and §14.2 A1–A7; the per-leg CI wall times wait on the
-  PR's first full run, §14.4):
+- [x] Validation (local items §14.1 C7 and §14.2 A1–A7; per-leg CI wall times §14.4, all three legs
+  under the ruled 300 s ceiling, §14.5):
   - `cargo build -p mineworld-cli`, then `uv run --locked pytest cognition/lm-controller -k ac10`;
     wall time recorded;
   - the six mutations of AP4-10 each planted, run, seen red, reverted (§14.2);
@@ -635,8 +636,9 @@ full suite (test rules §8); the PR's CI is the one full run.
 - **Scope.** This document's ledger (§14), the README paragraph, `handoff-s10-p4.md`; parent
   synchronization marked pending for the S10 planning session (step-17 §15, overall `AC-10` row).
 - [x] Implementation: ledger complete; deviations recorded; README. Evidence: §14.1 C8.
-- [ ] Validation: both doc checks; the final head's CI green on every job.
-- [ ] Review: AP4-13's diff gate; every `[x]` carries evidence.
+- [x] Validation: both doc checks; the final head's CI green on every job. Evidence: §14.4 (the
+  final head's run is recorded in the handoff and the PR, since recording it here changes the head).
+- [x] Review: AP4-13's diff gate; every `[x]` carries evidence. Evidence: §14.1 C8.
 
 ---
 
@@ -1039,4 +1041,16 @@ Applied (after merging `origin/main` at `737e032`, #141, #142, #151, which touch
   (`Run.whole`). (e) compares it with the file store (frames of 256, cut at the triggers): two stores from
   one export. (g) compares frames of 1 with the file store, and the whole-export store with it. One full
   ingestion fewer per leg; criteria (e) and (g) unchanged in substance.
-- Local: 8 passed in 27.7 s (was 29.9 s). CI per leg: §14.4.
+- Local: 8 passed in 27.7 s (was 29.9 s). CI per leg, run 38065521041 on `f7837dc` (all jobs green):
+
+| Leg | `test_ac10.py` wall | of which the module fixture | whole cognition command | FTS5 |
+| --- | --- | --- | --- | --- |
+| ubuntu-24.04 | 49.3 s | 38.5 s | 54.8 s | present |
+| macos-15 | 46.5 s | 33.0 s | 52.5 s | present |
+| windows-2025 | **242.9 s** (≤ 300 s) | 215.3 s | 254.3 s | present |
+
+  Windows took longer than in run 38037220947 (198.8 s), although the test now does one ingestion less.
+  The fixture now builds the whole-export store too, but on Linux and macOS that change shortened the
+  test overall. So the extra Windows time is most likely runner variance in the 100-day `mineworld run`,
+  but it was not measured separately. The margin under the 300 s ceiling is 57 s. If a later Windows run
+  goes over, that is the same stop again, and option (c) (release build) is the lever left.

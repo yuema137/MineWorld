@@ -27,10 +27,11 @@ SEQUENCE            C0 … C8 (§10); C2–C4 landed as one commit (§14.1)
 VALIDATION BUDGET   unit, static, local integration (incl. 100-day runs): unrestricted. Real model calls:
                     none. CI: the PR's runs; no manual dispatch, no scratch branch
 STOP CONDITIONS     READY FOR OPERATOR REVIEW — DO NOT MERGE; material stops per §12
-CURRENT CHECKPOINT  C0–C8 committed; CI run 38037220947 on b724861 green on every job; FTS5 present on
-                    all three legs. MATERIAL STOP (§14.5): test_ac10.py took 198.8 s on windows-2025
-                    (> the 120 s stop line of §12); Linux 71.6 s, macOS 66.7 s.
-NEXT ACTIONS        Wait for the primary session / operator ruling on §14.5 (a)/(b)/(c). After it:
-                    apply only what is ruled, re-run CI on the new head, record §14.4, close C1/C7/C8
-                    validation boxes, hand off READY FOR OPERATOR REVIEW. Never merge.
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. The §14.5 stop was ruled (a) + (b) and
+                    applied (origin/main 737e032 merged first); run 38065521041 on f7837dc green on
+                    every job; test_ac10.py 49.3 / 46.5 / 242.9 s (Linux / macOS / Windows) under the
+                    ruled 300 s ceiling. Every C0–C8 box closed. The final head carries only this
+                    ledger/handoff update; its CI run is named in the PR's last comment.
+NEXT ACTIONS        Primary session's review, then the operator's merge decision. After merge: the S10
+                    planning session updates step-17 §15 and overall.md; this session's ledger is final.
 ```
