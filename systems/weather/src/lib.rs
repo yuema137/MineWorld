@@ -9,10 +9,12 @@
 //!
 //! ```text
 //! depends on  presence, calendar        weather without calendar is refused at assembly
-//! configure   configure/weather.yaml    source: rules (TW-b admits only `rules`); seed: u64; rules:
-//!                                       twelve months of integer climate (SD-TW-b-3, step-19 §17.4)
-//! emits       weather-configured        genesis, from the configuration: { seed, rules, record: None };
-//!                                       SystemInternal, no subjects (SD-TW-b-4)
+//! configure   configure/weather.yaml    source: rules | record; seed: u64; rules: twelve months of
+//!                                       integer climate (SD-TW-b-3, step-19 §17.4); with `record`, a
+//!                                       station's CSV under data/ and fill: rules | none (SD-TW-d-7)
+//! emits       weather-configured        genesis, from the configuration: { seed, rules, record }, the
+//!                                       record's days decoded and packed (SD-TW-b-4, SD-TW-d-5);
+//!                                       SystemInternal, no subjects
 //!             weather-day               reacting to calendar's day-began: the day's summary (TMAX,
 //!                                       TMIN, PRCP, wind, fog, thunder, overcast morning), the
 //!                                       generator's carry, and its 24 hours; SystemInternal
@@ -23,6 +25,8 @@
 //! owns        one `climate` Process     no place, no participants, uninterruptible; woken at each
 //!                                       condition change; its state { configured, today, now, chain }
 //!                                       is the fold of the facts above (SD-TW-b-6, -10)
+//!             one `weather-record`      only when a record is replayed: its days, written once at
+//!               Process                 genesis, never woken, read each midnight (SD-TW-d-5)
 //! discloses   weather-today             the day's summary and its 24 hours  ┐ about the observer's
 //!             weather-now               { hour, condition }                 ┘ place only (SD-TW-b-11)
 //! ```
@@ -55,13 +59,18 @@ mod fixture;
 pub mod generate;
 pub mod hours;
 pub mod process;
+pub mod record;
 pub mod rules;
 pub mod system;
 
 pub use component::{WeatherNow, WeatherToday};
-pub use configuration::WeatherConfiguration;
+pub use configuration::{RecordConfiguration, WeatherConfiguration};
 pub use day::{Chain, Condition, DailyWeather, HOURS, Origin, WeatherDay, WeatherHour};
-pub use event::{RecordRef, WeatherChanged, WeatherConfigured};
-pub use process::{ClimateProcess, ClimateState};
+pub use event::{WeatherChanged, WeatherConfigured};
+/// The date type of a day's weather and of a record row (calendar's, re-exported for the record's
+/// readers and writers, `tools/weather-fetch` among them).
+pub use mineworld_calendar::CalendarDate;
+pub use process::{ClimateProcess, ClimateState, RecordProcess, RecordState};
+pub use record::{RecordFile, RecordRow, RecordSeries};
 pub use rules::{Month, Rules};
 pub use system::WeatherSystem;

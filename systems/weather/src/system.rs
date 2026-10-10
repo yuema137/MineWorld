@@ -1,7 +1,7 @@
 //! The installable system: what it declares, the facts it folds, the wake that turns the weather, and
 //! what it discloses (SD-TW-b-2, -10, -11).
 
-use mineworld_authoring::{ConfigurationContext, PackConfiguration, Seeding};
+use mineworld_authoring::{Attachment, ConfigurationContext, PackConfiguration, Seeding};
 use mineworld_calendar::{CalendarSystem, DayBegan};
 use mineworld_contracts::{
     ComponentRecord, ContractError, EntityId, Event, EventEnvelope, EventRecord, EventTypeId,
@@ -18,11 +18,12 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::component::{WeatherNow, WeatherToday};
-use crate::configuration::WeatherConfiguration;
-use crate::day::{HOURS, WeatherDay};
+use crate::configuration::{RecordConfiguration, WeatherConfiguration};
+use crate::day::{HOURS, Origin, WeatherDay};
 use crate::event::{WeatherChanged, WeatherConfigured};
-use crate::generate::weather_day;
-use crate::process::{ClimateProcess, ClimateState};
+use crate::generate::{record_day, weather_day};
+use crate::process::{ClimateProcess, ClimateState, RecordProcess, RecordState};
+use crate::record::{DayOrigin, Fill, RecordSeries};
 
 /// Seconds in an hour.
 const HOUR: i64 = 3_600;
@@ -46,17 +47,55 @@ impl PackConfiguration for WeatherSystem {
     type Configuration = WeatherConfiguration;
     const FACTS: &'static [EventTypeId] = &[WeatherConfigured::EVENT_TYPE];
 
-    /// One `weather-configured`, SystemInternal, about nobody (`ARC-61` item 8).
+    /// The record's file, when the world replays one (`ARC-61` note).
+    fn attachments(configuration: &WeatherConfiguration) -> Vec<&Attachment> {
+        configuration
+            .record()
+            .map(RecordConfiguration::data)
+            .into_iter()
+            .collect()
+    }
+
+    /// One `weather-configured`, SystemInternal, about nobody (`ARC-61` item 8). With `source: record` the
+    /// attachment's bytes are decoded and packed into it here; a file that is not the format, a
+    /// `first_year` outside it, or a long gap under `fill: none` is refused as `weather-record-invalid`,
+    /// naming the attachment and the line (SD-TW-d-1 … 4).
     fn seed(
         _: &Seeding<'_, '_>,
         configuration: &WeatherConfiguration,
-        _: &ConfigurationContext<'_>,
+        context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection> {
+        let record = configuration
+            .record()
+            .map(|record| series(record, configuration.fill(), context))
+            .transpose()?;
         Ok(vec![Emission::new::<WeatherConfigured>(
-            encode(&WeatherConfigured::of(configuration)),
+            encode(&WeatherConfigured::new(
+                configuration.seed(),
+                configuration.rules().clone(),
+                record,
+            )),
             Visibility::SystemInternal,
         )])
     }
+}
+
+/// The record a configuration names, decoded from the bytes the loader read and packed.
+fn series(
+    record: &RecordConfiguration,
+    fill: Fill,
+    context: &ConfigurationContext<'_>,
+) -> Result<RecordSeries, Rejection> {
+    let invalid = |detail: String| Rejection::System {
+        code: RejectionCode::from_static("weather-record-invalid"),
+        detail: Some(format!("{}: {detail}", record.data())),
+    };
+    let bytes = context
+        .attached()
+        .get(record.data())
+        .ok_or_else(|| invalid("was not read".to_owned()))?;
+    let file = crate::record::decode(bytes).map_err(|error| invalid(error.to_string()))?;
+    RecordSeries::new(record.station().clone(), &file, record.first_year(), fill).map_err(invalid)
 }
 
 /// Encodes a payload this pack declared; infallible for its structs of integers.
@@ -91,6 +130,27 @@ fn climate<'a>(world: &WorldRead<'a>) -> Option<&'a Process> {
     world.processes().find(|process| {
         *process.owner() == WeatherSystem::ID
             && *process.process_type() == ClimateProcess::PROCESS_TYPE
+    })
+}
+
+/// The world's replayed record, if it has one: the `weather-record` Process's series, read only.
+fn recorded(world: &WorldRead<'_>) -> Result<Option<RecordState>, KernelError> {
+    let Some(process) = record_process(world) else {
+        return Ok(None);
+    };
+    let bytes = process.state_for::<RecordProcess>()?;
+    serde_json::from_slice::<RecordState>(bytes)
+        .map(Some)
+        .map_err(|_| KernelError::ProcessNotRunning {
+            process: process.id(),
+        })
+}
+
+/// The `weather-record` Process, if the world replays a record.
+fn record_process<'a>(world: &WorldRead<'a>) -> Option<&'a Process> {
+    world.processes().find(|process| {
+        *process.owner() == WeatherSystem::ID
+            && *process.process_type() == RecordProcess::PROCESS_TYPE
     })
 }
 
@@ -172,9 +232,17 @@ impl System for WeatherSystem {
                 return Err(refused(kind, "weather-configured-twice"));
             }
             world.start_process(
-                ProcessStart::<ClimateProcess>::new(encode(&ClimateState::unstarted(configured)))
+                ProcessStart::<ClimateProcess>::new(encode(&ClimateState::unstarted(&configured)))
                     .uninterruptible(),
             )?;
+            // A replayed record's days get a Process of their own, open-ended and never woken, written
+            // once here and only read after (SD-TW-d-5).
+            if let Some(series) = configured.into_record() {
+                world.start_process(
+                    ProcessStart::<RecordProcess>::new(encode(&RecordState::new(series)))
+                        .uninterruptible(),
+                )?;
+            }
             return Ok(Vec::new());
         }
         let current = {
@@ -190,12 +258,23 @@ impl System for WeatherSystem {
             };
             let began: DayBegan = payload(event.payload())?;
             let configured = current.configured();
-            let day = weather_day(
-                configured.rules(),
-                configured.seed(),
-                began.day(),
-                current.chain(),
-            );
+            let (rules, seed, calendar) = (configured.rules(), configured.seed(), began.day());
+            let record = recorded(&world.read())?;
+            // A record world replays the day's record date (SD-TW-d-4); a day the record lacks for
+            // longer than a short gap, and every day of a world of rules, is drawn by the rules.
+            let replayed = record.map(|record| {
+                let epoch = current.epoch_year().unwrap_or(calendar.date().year());
+                record.series().day(calendar.date(), epoch)
+            });
+            let day = match replayed {
+                Some((date, recorded)) if recorded.origin() == DayOrigin::Record => {
+                    record_day(rules, seed, calendar, &recorded, Origin::Record { date })
+                }
+                Some((date, recorded)) if recorded.origin() == DayOrigin::Filled => {
+                    record_day(rules, seed, calendar, &recorded, Origin::Filled { date })
+                }
+                _ => weather_day(rules, seed, calendar, current.chain()),
+            };
             return Ok(vec![Emission::new::<WeatherDay>(
                 encode(&day),
                 Visibility::SystemInternal,
@@ -213,8 +292,17 @@ impl System for WeatherSystem {
             } else {
                 vec![changed(&day, hour)]
             };
-            world.reschedule_process::<ClimateProcess>(id, next_change(&day, hour))?;
-            world.set_process_state::<ClimateProcess>(id, encode(&current.with_day(day, hour)))?;
+            // A record world folds the year of its first day, from which every later day's record year
+            // is counted (SD-TW-d-4); a world of rules keeps none, so its state is TW-b's.
+            let replays = record_process(&world.read()).is_some();
+            let year = day.date().year();
+            let next = next_change(&day, hour);
+            let mut folded = current.with_day(day, hour);
+            if replays {
+                folded = folded.with_epoch(year);
+            }
+            world.reschedule_process::<ClimateProcess>(id, next)?;
+            world.set_process_state::<ClimateProcess>(id, encode(&folded))?;
             return Ok(emissions);
         }
         let turned: WeatherChanged = payload(event.payload())?;

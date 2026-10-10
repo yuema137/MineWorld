@@ -88,12 +88,23 @@ pub struct Chain {
     pub tmin_anomaly_dc: i16,
 }
 
-/// Where a day's weather came from. TW-d adds `Record` and `Filled`.
+/// Where a day's weather came from (SD-TW-b-9, SD-TW-d-6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Origin {
     /// Drawn by the rules.
     Rule,
+    /// The station's record of `date`.
+    Record {
+        /// The record date the world's day replays.
+        date: CalendarDate,
+    },
+    /// The record of `date` is missing; its values are the last complete day's before it (a gap of at
+    /// most three days).
+    Filled {
+        /// The record date the world's day replays.
+        date: CalendarDate,
+    },
 }
 
 /// One local day's weather: when it began, its date, its origin, its summary, the carry it leaves,

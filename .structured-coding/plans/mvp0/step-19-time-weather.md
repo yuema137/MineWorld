@@ -2478,6 +2478,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | # | Implementation | Deterministic validation | LLM logic review |
 | --- | --- | --- | --- |
 | C1 | [x] DEP-31 appended after ARC-68 (data source table, `.dly` input, our own CSV labelled modified, provenance without a digest, the tool, `ureq =3.4.2` with `rustls`/ring behind `fetch`, limitations); DEP-8 row (NOAA GHCN-Daily, CC0); ARC-35 note (QTWd-1 ruling, 2026-10-09); `systems/weather/README.md` "The record format"; `tools/weather-fetch/{Cargo.toml,README.md,src/main.rs}` skeleton (no dependency); root `Cargo.toml` member; root `NOTICE` pointer | [x] `check_doc_headings.py`: 192 sections, none duplicated — PASS; `check_decision_ids.py`: 86 ids (85 + 1), all distinct — PASS; `cargo check -p mineworld-weather-fetch` clean; `Cargo.lock` gains the member only | [x] DEP-31 does not restate ARC-68 (it points to it for the generator and LARS-WG); the licence wording matches §3.2 and E-TWd-1 (CC0, "no restrictions", attribution requested, no endorsement, modified data not presented as original); "modified (reshaped and gap-reported) … not endorsed by NOAA" present; terms (`System Pack`, `World Pack`) as defined |
+| C2 | [x] `src/record.rs` (new): `HEADER`, `RecordRow`, `RecordFile`, `decode` (BOM, LF/CRLF, refusals with line), `encode` (the tool's writer), `PackedDay`/`PackedDays` (9 bytes, hex), `Fill`, `pack` (gaps), `Station`, `RecordSeries` (`record_date`, `day`: SD-TW-d-4, the only leap logic); `configuration.rs` (`source: rules \| record`, `record:` iff record, `fill:` only with record, `RecordConfiguration { station, data: Attachment, first_year }`); `event.rs` (`WeatherConfigured.record: Option<RecordSeries>`, `RecordRef` removed; `without_record`); `day.rs` (`Origin::{Record, Filled} { date }`); `generate.rs` (`record_day`, SD-TW-d-6); `process.rs` (`RecordProcess` "weather-record", `RecordState`; `ClimateState.epoch_year`, skipped when absent); `system.rs` (`attachments`, `seed` decoding into `weather-record-invalid`, the record Process started after the climate, `day-began` replays or draws, `weather-day` folds the epoch in record worlds); `lib.rs` exports (and `CalendarDate` re-exported); tests `src/record/tests.rs`, `tests/record.rs`, `tests/configuration.rs` (the TW-b `source: record` refusal case replaced, TWd-D3) | [x] E-TWd-2: `cargo test -p mineworld-weather` lib 20, configuration 3, record 6, weather 8, diurnal 1, no_float 1, all pass; `-p mineworld-installed-systems -p mineworld-worldpack` pass; clippy `-p mineworld-weather --all-targets --all-features -D warnings` clean; fmt clean. M-TWd-2, M-TWd-3b killed; `git grep MUTATION` empty | [x] the fold equals the state: the climate state is written only in `react` from fact payloads (`with_day`, `with_now`, `with_epoch` from the `weather-day`'s date), and (g) is byte-identical after a resume across a new year; the record Process is never rewritten (`grep 'RecordProcess>('` finds only `state_for`; (f) compares its state before and after 40 days); no path handling in the pack (no `std::fs`/`Path` in `src`); leap logic once (`RecordSeries::record_date`; `is_leap` otherwise only counts a year's days); packing cannot overflow: decode bounds tmax/tmin to −900 … 600 (i16), prcp ≤ 65 535 (u16), awnd ≤ 255 (u8), wdf2 ≤ 360 → half ≤ 180 (u8), and the hex decoder re-checks every bound; rules worlds unchanged (TWd-D2) |
 
 ### Evidence
 
@@ -2495,16 +2496,86 @@ E-TWd-1  Licence and format re-read 2026-10-09 with WebFetch (material stop (6) 
          data, you may not state or imply that it is original, unaltered NOAA data". Equal to E-TWd-pre-1
          and §3.2 → no material stop (6). (The data.gov catalog URL of §3.2 now returns 404; the NODD
          registry page is cited instead.)
+E-TWd-2  C2, 2026-10-09, macOS arm64, dev, `cargo test -p mineworld-weather -- --nocapture`:
+         lib 20 (5 new: record), configuration 3, record 6, weather 8, diurnal 1, no_float 1 — all pass.
+         (a) Criterion 6: the fixture as LF, CRLF, CRLF+BOM and without a final newline → the same
+             `weather-configured`, 16 562 bytes each, byte-equal. Unit: the same four forms decode to
+             equal rows. PASS.
+         (b) Refusals, each "line N: …": header (line 1), a date before the line before, a repeated
+             date, a skipped day, a file beginning on 2015-01-02 (line 2) or ending on 2015-12-30, a
+             non-integer cell ('19.5'), awnd 300, fog 2, 7 cells, a tab, a quoted cell, a stray \r, a
+             non-ASCII byte, 2015-02-30; empty file; header only. At assembly through WorldPack::read:
+             `fill: none` → "weather-record-invalid … data/weather/test-2015-2016.csv: line 183:
+             2015-07-01 … 2015-07-05 are missing, more than 3 days, and `fill` is `none`";
+             first_year 2017 → "… first_year 2017 is outside the record's years 2015 … 2016". PASS.
+         (c) Criterion 2 (epoch 2026-10-08, file 2015–2016), on `weather-day.origin`:
+             first_year 2015: 2026-10-08 → Record 2015-10-08; 2027-02-28 → 2016-02-28; 2027-03-01 →
+             2016-03-01; 2028-02-29 → 2015-02-28; 2028-03-01 → 2015-03-01; 2027-10-08 → 2016-10-08 (its
+             empty wind cell → the month's 25); no day replays 2016-02-29. first_year 2016: 2026-10-08
+             → 2016-10-08; 2028-02-29 → 2016-02-29. Each record day's TMAX, TMIN, PRCP, fog and thunder
+             equal the fixture row's. PASS.
+         (d) 2028-03-10/11 → Filled {2015-03-10/11} with 2015-03-09's values; 2028-07-01 … 05 → five
+             Rule days, each equal to `weather_day(rules, seed, its day-began, the day before's
+             chain)`, the first from record 2015-06-30's carry; 2028-07-06 → Record 2015-07-06. PASS.
+         (e) Criterion 3 through WorldPack::read + check_configuration: the file rewritten with CRLF →
+             Ok; one value changed (2015-01-01 tmax 140 → 141) → ConfigurationDrift { system: weather }.
+             PASS.
+         (f) Largest climate state over 40 days at 13:00: 6 734 bytes ≤ 8 192; the record Process
+             state is 13 255 bytes for 731 days (about 18 bytes a day, as SD-TW-d-5 predicts), unchanged
+             after 40 days; the climate state holds no record; epoch_year 2026. PASS.
+         (g) Stopped at day 50 14:30, resumed through day 120 (crossing into 2027): 70 weather-day, the
+             last replaying 2015-02-05 from the saved epoch; facts byte-identical to the uninterrupted
+             world's. PASS.
 ```
 
 ### Mutations
 
 ```text
-(none yet)
+M-TWd-2  record.rs `record_date`: a world 29 February in a non-leap record year → 1 March →
+         unit `the_record_date_keeps_month_and_day_and_loops` FAILS (2015-03-01 against 2015-02-28) and
+         `world_dates_replay_record_dates_and_gaps_are_filled_or_drawn` FAILS "2028-02-29: Record
+         {2015-03-01} against Record {2015-02-28}". Killed. Reverted.
+M-TWd-3b record.rs `lines`: the trailing \r no longer stripped → the CRLF checkout is no longer the same
+         record: `a_changed_value_is_drift_and_a_crlf_checkout_is_not` FAILS ("CRLF is the same record:
+         … weather-record-invalid … line 1: a carriage return inside the line"), and both (a) tests
+         fail. Killed — as a refusal rather than as drift, because the decoder refuses a stray \r
+         (SD-TW-d-3) before any value could differ. Reverted; `git grep MUTATION -- '*.rs'` empty.
 ```
 
 ### Deviations and findings
 
 ```text
-(none yet)
+TWd-D1  (bounded) C2's fixture is not a committed `tests/fixtures/record-town/` directory: tests/record.rs
+        writes a scratch World Pack (DEP-29) with a two-year CSV generated by a stated rule of the day's
+        index, holding exactly the planned features (a 2-day gap, a 5-day gap, 29 February 2016, an
+        empty quality-dropped cell). Reason: four line-ending variants and the drift edit each need
+        their own copy anyway, a 731-row hand-typed file is unreadable, and a committed fixture outside
+        `worlds/*/data` would be subject to a Windows checkout's autocrlf. The rows are written with the
+        pack's own `encode`; decoding is tested separately on hand-edited text (unit (b)).
+TWd-D2  (bounded; the "worlds without weather data are byte-identical" rule) The climate state keeps the
+        configuration *without* the record (`WeatherConfigured::without_record`), because TW-b's
+        `ClimateState.configured` held the whole fact and would otherwise carry the 66 KB series
+        (SD-TW-d-5). `epoch_year` is `#[serde(skip_serializing_if = "Option::is_none")]` and folded only
+        when a record Process exists, and `record: null` is unchanged, so a world of rules has the same
+        facts and the same Process state bytes as under TW-b (TW-b's tests all pass unchanged but the one
+        refusal case, TWd-D3; the market-town digest check before C5 measures it end to end).
+TWd-D3  (bounded) The rules between keys of SD-TW-d-7 (`record:` iff `source: record`; `fill:` only with
+        it) are decided in the configuration's `try_from`, and serde-saphyr reports no line and column
+        for a refusal raised at the level of the whole file. These refusals name the file and the keys,
+        not a position. TW-b's test case "source: record is refused" is replaced: `source: almanac`
+        keeps the positional case, and a new test holds the five cross-key and record-block refusals.
+TWd-D4  (bounded) `RecordSeries` carries both `file_first_year` and the configured `first_year`
+        (SD-TW-d-5 listed one `first_year`; SD-TW-d-4 needs both, and the series alone must locate a
+        day). `years` and the day count are checked against each other on decode.
+TWd-D5  (bounded) The packed flags carry two "missing" bits, one for the wind speed and one for the
+        direction (SD-TW-d-5 said one "wind-missing"), because SD-TW-d-2 takes each from the month
+        independently. A direction is stored halved (0 … 180): an odd degree rounds down (GHCN-Daily's
+        are multiples of ten); 360 is read back as 0 (north).
+TWd-D6  (bounded; SD-TW-d-6 does not say) A record or filled day's grey morning, which GHCN-Daily cannot
+        say, is drawn by the rules on a dry day with the same draw index as a rule day (`OVERCAST`), so
+        the marine layer still appears on record days. A record minimum at or above its maximum is
+        lowered to one below it, as the generator does, so the hours' range stays positive. Thunder is
+        kept as recorded even on a dry day (it then affects no hour).
+TWd-D7  (bounded) `mineworld-weather` re-exports `CalendarDate`, so the tool can build record rows
+        without a direct dependency on calendar (SD-TW-d-8 lists the tool's dependencies).
 ```
