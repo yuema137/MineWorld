@@ -3151,6 +3151,30 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
   this head: towns' 300-day sha social-cafe `ad49c7235f672153`, market-town `24a95d2ae4e9d99b` (=
   f80bbb7 base); `validate` of the three worlds byte-identical to the f80bbb7 base. Main touched no file
   under `worlds/`, `worldpack/` or `packages/`. The final-head CI is in the PR body and handoff.
+- **Operator review (coordinator, 2026-10-09):** #101 approved. The coordinator's mutation (making
+  `check_self_contained` always pass) was caught by `a_pack_section_naming_a_key_outside_the_pack_is_refused`.
+  The platforms-layer deviation was accepted. #101 had become CONFLICTING again.
+- **Fourth and fifth merges of origin/main** (`55392a7`: P3 Python SDK, S11-D, docs; `fe94e39` @
+  `aee8290`: IL-b #102, 13b #103):
+  - `ci.yml` keeps both jobs, `platforms` and main's `python`.
+  - `ci_layer.py` keeps both layer sets; the docstring lists `platforms`, `python` and `python-smoke`.
+  - `DECISIONS.md` is a union: 84 ids distinct, headings 192/26.
+  - `tools/cli/src/packs.rs` keeps both sides. A World Pack is judged by its own licence policy (main's
+    ARC-55 note), after it is read and loaded. A `pack.yaml` pack is judged by the default policy, then
+    its framework range (PD-37), then its content (PD-39).
+  - fmt and workspace clippy are clean. 35 test binaries (packages, worldpack, acceptance, CLI
+    `entity_packs`/`packs`/`requirements`) passed with 0 failures.
+  - Towns' 300-day sha are unchanged: `ad49c723…`, `24a95d2a…`.
+- **Concurrency check** (two resumed copies may have run briefly around 17:14–17:16):
+  `ps -eo pid,command | grep impl-ed` showed only this session's CI watchers. The tree was clean. The
+  history holds only this session's commits; `fe94e39` was already on origin when this copy looked, with
+  the content this copy committed. No foreign change was found, and nothing was reconciled. From here
+  this session is the only writer.
+- **Windows repair after the fifth merge** (run 38008327205): `platforms (windows-latest)` failed in
+  IL-b's new `worldpack/tests/interaction_sections.rs`. That test edits `places/park.yaml` by searching
+  for `"tags:\n"`, which a CRLF checkout does not contain. The file's text is now normalized to LF
+  before the edit. This is PD-p5's allowance, with the claim unchanged; it passes locally. The `python`
+  jobs' failures in that run are main's known SDK gap, not required (coordinator).
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |
