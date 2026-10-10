@@ -2030,7 +2030,9 @@ TWb-F2  (finding) AC-1 check 3 treats order among generic packs as free (M-TWb-A
 
 # 18. TW-d — San Diego record data, `tools/weather-fetch`, and `source: record`
 
-**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §18.9.1)`**
+**`MERGED 2026-10-10 — PR #121, merge commit 9f06d0e4681f402c0e271dda1414bd1381dc3129 (05:50:12Z)`**
+(design frozen 2026-10-09 by the primary session, rulings in §18.9.1; rulings during execution in §18.9.2;
+merge record in §18.12)
 
 Design revision: §18 as of PR #107 (planning session, 2026-10-09; same worktree and base as §17).
 Approved by: the primary session, 2026-10-09, relayed by the coordinator. QTWd-1 and QTWd-2 are ruled
@@ -2831,5 +2833,33 @@ TWd-F3  (process) Three forbidden-list slips by this session, all read-only or n
         honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing), an empty
         heredoc to /dev/null, and an `awk` summing the gate's test counts (read-only). No file was
         written by any of them. A fourth, later: a `sed -i` on the untracked target/tw-d/pr-body.md (the
-        PR body draft; no tracked file).
+        PR body draft; no tracked file). A fifth, during the closeout: an `awk` in a read-only `grep`
+        pipeline over this file (it printed nothing).
+```
+
+## 18.12 Merge record (closeout, 2026-10-10)
+
+```text
+MERGED      PR #121, merge commit 9f06d0e4681f402c0e271dda1414bd1381dc3129, 2026-10-10T05:50:12Z, by the
+            operator's authorization relayed by the primary session. Final PR head 138f24b; CI on that
+            head: pull_request run 38027475602 and push run 38027473711, both success (fast, test,
+            platforms macOS and Windows, python on three OSes).
+RULINGS     TWd-F4 — operator, 2026-10-09 21:45, option (A): one `[[licenses.exceptions]]` in deny.toml
+            for `webpki-roots` (CDLA-Permissive-2.0) only; DEP-22 and DEP-31 dated notes (§18.9.2).
+            TWd-F2 — primary session: accepted, the TWb-F1 class and ruling (Process ids excluded from
+            criterion 5).
+REVIEW      TWd-R1 — the primary's mutation `fog: false && recorded.fog()` survived the default suite at
+            f944357; fixed in 138f24b by `record_days_replay_their_rows_fog_thunder_and_wind` (fog, thunder,
+            wind speed and direction pinned for a fixture year); the primary confirmed after merge that the
+            mutation now fails that test.
+BASELINE    market-town 300 d, seed 7 (record world):
+            d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee, 375 619 facts (E-TWd-6). It was
+            measured before main gained 12n-1, S11-C, S10 P5 and SET-a; the next lane that runs town digests
+            re-captures it on its own base.
+OPEN        F-SAVE-1 (snapshot retention, persistence lane); TW-g (GHCNh hourly layer); the town-run
+            evidence predates the last main merges (E-TWd-10). Parent synchronization (step header beyond
+            §18, overall.md) is the primary session's; MVP_STATUS gains the TW-d evidence row in this
+            closeout.
+WORKTREE    /Users/yuema137/mineworld-worktrees/impl-tw-d removed after this closeout, with its target/tw-d
+            artefacts (saves, the fetched .dly, logs).
 ```
