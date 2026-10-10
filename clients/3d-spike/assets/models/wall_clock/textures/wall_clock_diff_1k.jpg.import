@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0m3qwlnvnq4v"
-path="res://.godot/imported/wall_clock_diff_1k.jpg-536e92714badc4287828492ab81cc0ca.ctex"
+path.bptc="res://.godot/imported/wall_clock_diff_1k.jpg-536e92714badc4287828492ab81cc0ca.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/wall_clock/textures/wall_clock_diff_1k.jpg"
-dest_files=["res://.godot/imported/wall_clock_diff_1k.jpg-536e92714badc4287828492ab81cc0ca.ctex"]
+dest_files=["res://.godot/imported/wall_clock_diff_1k.jpg-536e92714badc4287828492ab81cc0ca.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dqf48rtuhgn6w"
-path="res://.godot/imported/sandstone_blocks_05_diff_1k.jpg-8ef2f216520ad9df730ecad34ae126f8.ctex"
+path.bptc="res://.godot/imported/sandstone_blocks_05_diff_1k.jpg-8ef2f216520ad9df730ecad34ae126f8.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/sandstone_blocks_05/sandstone_blocks_05_diff_1k.jpg"
-dest_files=["res://.godot/imported/sandstone_blocks_05_diff_1k.jpg-8ef2f216520ad9df730ecad34ae126f8.ctex"]
+dest_files=["res://.godot/imported/sandstone_blocks_05_diff_1k.jpg-8ef2f216520ad9df730ecad34ae126f8.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

@@ -200,6 +200,7 @@ func _protocol() -> void:
 	print("machine  %s | %s | %s (%s %s) | Godot %s | %s" % [m["cpu"], m["os"],
 		m["adapter"], m["driver"], m["adapter_api"], m["godot"], m["renderer"]])
 	print("per view: settle %d, warm-up %d discarded, %d measured" % [SETTLE, WARMUP, MEASURED])
+	_texture_formats()
 	_header()
 	var views: Array = []
 	var inconclusive := false
@@ -230,6 +231,33 @@ func _protocol() -> void:
 	if out != "":
 		_write(out, rec)
 		_aggregate(out.get_base_dir())
+
+
+## RL-b A-4: the format a texture is actually loaded in, for one albedo, one
+## ORM and one normal map the slice owns (`tools/slice_imports.py`), and one of
+## the character's, which that tool must never touch.
+const FORMAT_PROBES := [
+	"res://assets/textures/cobblestone_floor_08/cobblestone_floor_08_diff_1k.jpg",
+	"res://assets/textures/cobblestone_floor_08/cobblestone_floor_08_arm_1k.jpg",
+	"res://assets/textures/cobblestone_floor_08/cobblestone_floor_08_nor_gl_1k.jpg",
+	"res://assets/models/croissant/textures/croissant_diff_1k.jpg",
+	"res://assets/characters/vitruvian/textures/face_bc.jpg",
+]
+const FORMAT_NAMES := {Image.FORMAT_RGB8: "RGB8", Image.FORMAT_RGBA8: "RGBA8",
+	Image.FORMAT_DXT1: "DXT1", Image.FORMAT_DXT5: "DXT5", Image.FORMAT_RGTC_RG: "RGTC_RG",
+	Image.FORMAT_BPTC_RGBA: "BPTC_RGBA", Image.FORMAT_DXT5_RA_AS_RG: "DXT5_RA_AS_RG"}
+
+
+static func _texture_formats() -> void:
+	for p in FORMAT_PROBES:
+		var t := load(p) as CompressedTexture2D if ResourceLoader.exists(p) else null
+		if t == null:
+			print("texture  %-62s not loaded as an imported texture" % p.get_file())
+			continue
+		var f := t.get_format()
+		print("texture  %-62s %s, %d mip level(s)" % [p.trim_prefix("res://assets/"),
+			FORMAT_NAMES.get(f, "format %d" % f), t.get_image().get_mipmap_count() + 1
+			if t.get_image() != null else 0])
 
 
 func _header() -> void:

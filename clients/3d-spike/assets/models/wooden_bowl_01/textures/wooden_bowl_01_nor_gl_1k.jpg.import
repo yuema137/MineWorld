@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://vtby0avffuwx"
-path="res://.godot/imported/wooden_bowl_01_nor_gl_1k.jpg-9139e4da07150fe0fbfc14bb2cf671e1.ctex"
+path.bptc="res://.godot/imported/wooden_bowl_01_nor_gl_1k.jpg-9139e4da07150fe0fbfc14bb2cf671e1.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/wooden_bowl_01/textures/wooden_bowl_01_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/wooden_bowl_01_nor_gl_1k.jpg-9139e4da07150fe0fbfc14bb2cf671e1.ctex"]
+dest_files=["res://.godot/imported/wooden_bowl_01_nor_gl_1k.jpg-9139e4da07150fe0fbfc14bb2cf671e1.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

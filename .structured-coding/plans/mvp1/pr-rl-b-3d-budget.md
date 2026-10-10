@@ -415,9 +415,46 @@ with evidence.
   names (the `--measure` prop table is identical).
 
 ### C3 — `3d: the slice's textures are VRAM-compressed and mipmapped, owned by a tool`
-- [ ] Implementation: `tools/slice_imports.py`; texture `.import` files committed.
-- [ ] Validation: A-4, X-3; M-5; V-1 and V-4.
-- [ ] Review: no character path touched; the tool is idempotent (a second run gives no diff).
+- [x] Implementation: `tools/slice_imports.py`; texture `.import` files committed. *Evidence:* the tool
+  owns 213 texture `.import` files (assets/textures/** and assets/models/*/textures/**) and sets
+  `compress/mode=2`, `compress/high_quality=true`, `mipmaps/generate=true`, `compress/normal_map=1`
+  on `*_nor_gl_*` else 0; Godot's `--import` then rewrote each file's `[remap]` (`path.bptc=`,
+  `imported_formats ["s3tc_bptc"]`, `vram_texture true`). `slice_perf.gd` prints each probe
+  texture's loaded format and mip count (A-4).
+- [x] Validation: A-4, X-3; M-5; V-1 and V-4. *Evidence (E-RLb-4):*
+  A-4: cobblestone diff, arm and nor_gl and croissant diff load as `BPTC_RGBA`, 11 mip levels; the
+  character's `face_bc.jpg` loads as `RGB8` (untouched).
+  **Deviation (bounded):** the normal maps load as BPTC, not RGTC as SD-RLb-2 and A-4 expected. With
+  `high_quality=true` Godot 4.7 encodes a normal-flagged texture as BC7 (BPTC); RGTC is its choice only
+  at `high_quality=false`. Both are 8 bits per texel, so memory is the same; BC7 keeps the third
+  channel. Kept as written in SD-RLb-2's key list; recorded here.
+  X-3 (tool also run over assets/characters): 17 character `.import` files changed, the V-2 path check
+  (`git diff --name-only` over character paths) reported 17 — FAIL as required; files restored with
+  `git checkout`, tool reverted, before any import ran.
+  M-5 at 1920x1080 (three conclusive runs): street wide 12.09 / 4155 / 2.11 M; cafe frontage 21.30 /
+  4426 / 3.70 M; interior 16.02 / 3912 / 3.75 M; doorway 22.70 / 3428 / 3.17 M; street east 12.82 /
+  4215 / 2.34 M; south side 11.58 / 614 / 0.17 M; florist interior 16.98 / 3649 / 3.53 M; skyline
+  east 12.23 / 4047 / 2.08 M; video memory 2 049.6 MB (−466 MB). M-6 still FAIL (all four; video
+  memory 1.6 MB over).
+  V-1 / V-4 (base1 vs c3, `shots/slice/rlb/heat-c3/`): every view over the bound (1.3–12.2 % of
+  pixels). Located: the changed pixels are a texel-scale speckle over every PBR-textured surface (walls,
+  paving, roofs, floors, props) at every distance; untextured paint, glass, sky, signage and the
+  character are unchanged. Looked at side by side at 2x crop (`shots/slice/rlb/pairs/c3-01r-wall.png`,
+  `c3-01r-far.png`): the stone and the paving are smoother — the base's per-pixel grain (aliasing from
+  sampling 1k textures with no mip chain) is gone, and mid-distance stone reads slightly softer.
+  Cause named: the mip chain (and BC7 at the texel level). This is the change Q-RLb-3 ruled
+  "keep; show side by side", but it is **not confined to far paving and roofs** as V-4's wording
+  assumes: mid-distance walls soften too. It is explained and expected, so it is not a stop under
+  V-1; it is put to the operator in the review package as V-4's side-by-side, with one option noted:
+  raising `textures/default_filters/anisotropic_filtering_level` from 4 to 16 would keep more
+  oblique sharpness (not in this PR's change set; not taken).
+  `--drive`: all drive checks pass. **Cost recorded:** the first import of the new settings took
+  10 min 45 s (2 160 s CPU, BC7 encoding) on the M5 — a one-time cost on a fresh checkout or after
+  the settings change, then cached.
+- [x] Review: no character path touched; the tool is idempotent (a second run gives no diff).
+  *Evidence:* second run `213 owned, 0 changed`; `--check` exit 0 after Godot's reimport (Godot's
+  rewrite leaves the four keys as written); `git diff --name-only` has no path outside the two owned
+  roots. The tool refuses anything outside its roots by construction (`owned_texture`).
 
 ### C4 — `3d: screen-size culling`
 - [ ] Implementation: `budget.gd` part 1; the call in `slice_world.gd`.
