@@ -26,6 +26,18 @@ class Language:
 		self_name = a_self_name
 
 
+## An argument that is itself catalog text: worded when the text holding it is rendered, so a message
+## kept and rendered again after a language change is all in the new language.
+class Ref:
+	extends RefCounted
+	var key: String
+	var args: Dictionary
+
+	func _init(a_key: String, an_args: Dictionary = {}) -> void:
+		key = a_key
+		args = an_args
+
+
 static var _registered: Array[Translation] = []
 static var _merged := {}                    ## locale -> Translation, the registered ones
 static var _clock: MineWorldSettings.ClockFormat = MineWorldSettings.ClockFormat.AUTO
@@ -127,24 +139,45 @@ static func has(key: String) -> bool:
 ## The text of `key` with its `{name}` arguments filled in; a key no layer has is shown as its readable
 ## form (followed by its arguments), never raw.
 static func text(key: String, args: Dictionary = {}) -> String:
+	var worded := _worded(args)
 	if has(key):
 		var said := String(TranslationServer.translate(key))
-		return said.format(args) if not args.is_empty() else said
+		return said.format(worded) if not worded.is_empty() else said
 	var fallback := readable(key)
-	if args.is_empty():
+	if worded.is_empty():
 		return fallback
 	var values := PackedStringArray()
-	for value in args.values():
+	for value in worded.values():
 		values.append(str(value))
 	return "%s: %s" % [fallback, "  ·  ".join(values)]
 
 
+## The arguments with every `Ref` worded in the current language.
+static func _worded(args: Dictionary) -> Dictionary:
+	var out := {}
+	for name in args:
+		var value: Variant = args[name]
+		out[name] = text(value.key, value.args) if value is Ref else value
+	return out
+
+
+## A reference to a key, for an argument (`Ref`).
+static func ref(key: String, args: Dictionary = {}) -> Ref:
+	return Ref.new(key, args)
+
+
 ## A key built from data: `<family>.<code>`, for a family of FAMILIES only.
 static func code(family: String, a_code: String, args: Dictionary = {}) -> String:
+	var built: Variant = code_ref(family, a_code, args)
+	return text(built.key, built.args) if built is Ref else String(built)
+
+
+## `code` as a `Ref`, worded when rendered; the readable code for a family not built from data.
+static func code_ref(family: String, a_code: String, args: Dictionary = {}) -> Variant:
 	if not FAMILIES.has(family):
 		push_error("[settings] %s is not a family whose keys are built from data" % family)
 		return readable(a_code)
-	return text(family + "." + a_code, args)
+	return Ref.new(family + "." + a_code, args)
 
 
 ## A key's last part, made readable: `reason.too_far_away` → "too far away" (13b's rule).
@@ -204,6 +237,15 @@ static func mark_world_text(node: Node) -> void:
 	node.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 
 
+## Whether `text` holds a CJK character (the evidence walk's test that a text is Chinese).
+static func has_cjk(text: String) -> bool:
+	for i in text.length():
+		var c := text.unicode_at(i)
+		if (c >= 0x4E00 and c <= 0x9FFF) or (c >= 0x3000 and c <= 0x303F) or (c >= 0xFF00 and c <= 0xFFEF):
+			return true
+	return false
+
+
 ## Every visible UI text under `root`, as "<node path>\t<text>", for the AC-SET-1/-2 evidence walk.
 ## World text (the group, and anything under a member) is left out.
 static func visible_ui_texts(root: Node) -> PackedStringArray:
@@ -216,6 +258,9 @@ static func _walk(node: Node, out: PackedStringArray) -> void:
 	if node.is_in_group(WORLD_TEXT_GROUP):
 		return
 	if node is CanvasItem and not (node as CanvasItem).is_visible_in_tree():
+		return
+	# Faded out (a toast after its fade) is not seen either.
+	if node is CanvasItem and (node as CanvasItem).modulate.a <= 0.01:
 		return
 	if node is CanvasLayer and not (node as CanvasLayer).visible:
 		return

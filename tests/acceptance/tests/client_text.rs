@@ -77,8 +77,12 @@ const PLATFORM_ADMITTED: [(&str, &str, &str); 1] = [(
 
 /// 13b's merged wording, the oracle of the move (S12 PR 13b, #103).
 const BEFORE_MOVE: &str = "aee8290:presentation/mineworld-default/2D/i18n/en.po";
-/// SD-SET-a-12's named en changes to 13b's entries: (key, why). They land with the 2D client (C5).
-const NAMED_CHANGES: [(&str, &str); 0] = [];
+/// SD-SET-a-12's named en changes to 13b's entries: (key, why).
+const NAMED_CHANGES: [(&str, &str); 1] = [(
+    "ui.hint",
+    "\"Esc: close, quit\" becomes \"Esc: close, menu\": Esc opens the settings menu, which holds Quit \
+     (QSET-2)",
+)];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

@@ -89,9 +89,16 @@ pub struct Drive {
 impl Drive {
     /// `godot --headless --path clients/2d -- --server=… --seat=… <arguments>`.
     pub fn start(server: SocketAddr, seat: &str, arguments: &[&str]) -> Self {
+        Self::start_with(server, seat, arguments, &["--headless"])
+    }
+
+    /// The same with other engine arguments before the project's: `&[]` for a real window (S20
+    /// AC-SET-11, where the display settings are the property under test).
+    pub fn start_with(server: SocketAddr, seat: &str, arguments: &[&str], engine: &[&str]) -> Self {
         let binary = imported();
         let mut child = Command::new(binary)
-            .args(["--headless", "--path", PROJECT, "--"])
+            .args(engine)
+            .args(["--path", PROJECT, "--"])
             .arg(format!("--server={server}"))
             .arg(format!("--seat={seat}"))
             .arg(format!("--invite={INVITE}"))

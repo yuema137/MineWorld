@@ -26,14 +26,21 @@ PLATFORMS           macOS gate; Windows and Linux hand checks are operator check
 
 ## Checkpoint
 
-- Worktree created from origin/main @ aee8290; anchors re-verified (§12.11 F-1 … F-12).
-- C0/C1 in progress.
+- Worktree created from origin/main @ aee8290; anchors re-verified (§12.11 F-1 … F-15).
+- C1 `3614584`; C2 `ff82a50`; C3+C4 `42ea4de` (pushed). Shared checks store/text/glyph/menu PASS;
+  13a/13b 2D suites 16/16 on the C3 tree. `client_text` AC-SET-3 is red until C6 (by design).
+- Session overlap 17:14–17:16 audited and reconciled (F-14); this session is the only writer.
+
+- C5+C6 committed together (the shared catalogs and text.gd serve both): 2D and 3D wired; client_text
+  5/5, client_rules 3/3, client_settings 9/9, 13a/13b 2D suites 16/16, 3D probes as on main.
+- F-15 (3D reason wording) and F-16 (status-line clock only; 13b's format.clock untouched) recorded.
 
 ## Next actions
 
-1. C1 specs and records; commit; push.
-2. C2 store + display + store_check.gd; C3 text layer + catalogs + font + client_text.rs; C4 menu;
-   C5 2D; C6 3D; C7 evidence and gate; PR READY FOR OPERATOR REVIEW.
+1. C7: merge origin/main; full gate (fmt, clippy, cargo test --workspace, both doc checks, every
+   Godot suite: client_2d*, client_settings, the 3D probes); AC-SET-9 3D half and AC-SET-10 --link;
+   2D capture stills (AC-SET-9) if feasible; stills for the PR; ledger; push; PR READY FOR OPERATOR
+   REVIEW with H-1…H-10 per OS; fast/test green on the exact head.
 
 ## Background processes
 

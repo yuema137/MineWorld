@@ -14,7 +14,7 @@ msgid "action.move"
 msgstr "行走（点击要去的地方）"
 
 msgid "ui.hint"
-msgstr "点击地面行走，点击某人打开菜单  ·  E：光标下的人  ·  Q：你自己  ·  I：你的物品  ·  H：对话  ·  Esc：关闭，退出"
+msgstr "点击地面行走，点击某人打开菜单  ·  E：光标下的人  ·  Q：你自己  ·  I：你的物品  ·  H：对话  ·  Esc：关闭，菜单"
 
 msgid "ui.walk-to"
 msgstr "走到{target}身边"

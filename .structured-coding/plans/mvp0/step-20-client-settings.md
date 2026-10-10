@@ -1071,9 +1071,55 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Goal:** the 2D client uses the module for every UI string, the menu, the clock and display.
 - **Scope:** symlink, `project.godot`, `app.gd`, `hud/status.gd`, `scene/places.gd`, `scene/people.gd`,
   `harness/drive.gd` (`settings` scenario), `README.md`, `mineworld-2d`, catalog keys.
-- [ ] Implementation: SD-SET-a-2, -3, -7, -8, -9, -11, -12 for 2D.
-- [ ] Validation: `python3 scripts/check_client_rules.py` (R1–R6 green with the new symlink present; 13b's explicit symlink skip, B-10, covers it); `--check-pack` green with `zh_Hans.po`; `client_text`'s catalog checks green over the 2D pack layer; `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1` (13a's AC-W tests unchanged, AC-SET-9's 2D half); `client_settings` 2D tests: AC-SET-1, -2, -5, -6, -8, -10 (the 2D analogue: `drive:` lines), -11 (2D part), -12.
-- [ ] Review: no world content through `tr()` (INV-SET-10); the 13a behaviour is unchanged apart from Esc.
+- [x] Implementation: `project.godot` (SD-SET-a-2); `app.gd` `_settings()` first in `_ready` (store
+  with `HARNESS_FLAGS = ["drive", "capture"]`, layers with 13b's `--no-wording` and
+  `--presentation=none`, font, clock, language, platform line, display), the settings menu in `_hud()`
+  with a warm `Theme`, the walker disabled while it is open, Esc closes 13b's menu or toggles the
+  settings menu (Quit is in it), keys and clicks ignored while it is open, `_notification` re-rendering
+  door labels, markers, 13b's menu and panels and the status line and clearing toasts;
+  `hud/status.gd` (the hint and the time line re-rendered, the who-line marked world text),
+  `hud/words.gd` (`day_time` → `MineWorldClockFormat.day_time`), `hud/talk_line.gd` (hint
+  re-rendered), `hud/toasts.gd` (`clear`), `scene/people.gd` (names marked world text, markers not
+  auto-translated), `scene/places.gd` (door labels not auto-translated); `harness/settings.gd` (the
+  `settings` scenario: a two-stride walk, AC-SET-1's walk both ways with `EVIDENCE text` pairs,
+  `--marker` (AC-SET-2), `--apply=` through the menu, AC-SET-12, then `leave_world`; the `display`
+  scenario for AC-SET-11) and `drive.gd` (dispatch, and every scripted run prints
+  `EVIDENCE {"settings": …}`); `ui.hint` "Esc: close, menu" in both 2D catalogs (SD-SET-a-12, in
+  `client_text.rs`'s `NAMED_CHANGES`); `mineworld-2d` (symlink check, `--settings=none` for `--drive`,
+  `--resolution` only with `--res=` or `--capture`, Bash 3.2-safe empty array); `README.md`,
+  `PRESENTATION.md` §7 (layers, `--no-wording`); `tools/cli/tests/godot2d/mod.rs` (`StubLog.frames`,
+  `Drive::start_with`); `tools/cli/tests/client_settings.rs`.
+  **F-16 (bounded, recorded):** the clock setting governs the HUD's day and time through a new shared
+  key `hud.day_time`; 13b's `format.clock` (the 24-hour schedule times of the agenda and employment
+  rows) is unchanged. Following the setting there would have turned 13b's agenda row "08:00" into
+  "8:00 AM" under QTW-16's English default and failed 13b's
+  `the_panels_show_what_is_disclosed` (material stop 4); SD-SET-a-7 names only the status line.
+- [x] Validation (macOS, Godot 4.7.2):
+  - `check_client_rules.py` → PASS (0) with `clients/2d/mineworld_settings` present (F-5);
+    `--check-pack presentation/mineworld-default/2D` → PASS (0); `client_text` → 5 passed (with C6).
+  - 13a/13b suites on the C5 tree: `client_2d` 8/8, `client_2d_interact` 5/5,
+    `client_2d_interact_stub` 3/3 (`/tmp/mw-seta-logs/c5-2d.log`).
+  - `client_settings` 2D tests: AC-SET-1/-2/-12 on market-town (41 texts; "every UI text turns from
+    en to zh_Hans at once", "switching back reproduces every text exactly", "under the marker catalog
+    …", "an open menu takes gameplay input 0 requests while open"); AC-SET-5 (frames from `join` to
+    `leave` equal on defaults and on a zh_Hans/24h/borderless/30 fps file; `drive:` lines and check
+    names equal, INV-SET-6); AC-SET-6 (an Apply's file holds exactly the §3.3 keys, none of the invite,
+    nickname, seat or address); AC-SET-8 at runtime (a `window_mode=7` file: the client runs, the
+    problem names file and key, the file is byte-identical); AC-SET-9 2D half (`--drive=walk` with a
+    planted zh_Hans/30 fps file in the real folder reports `file ""`, en, cap 0 and the same checks;
+    the player's file restored); AC-SET-11 2D (window 1280×720, VSync 0; cap 30 → 30.01 fps; no cap →
+    119.97 fps on a 120 Hz display). First run: 2 FAIL in the test's verdict parsing (names padded to
+    30 columns then one space; borderless hides the size list, so text counts differ) — fixed in the
+    test, the client unchanged.
+  - Mutations (each reverted): walker left running while open → AC-SET-12 FAIL "7 requests while
+    open"; hint not re-rendered → AC-SET-1 and AC-SET-2 FAIL naming the hint label; `seat="carol"`
+    written by the store → AC-SET-6 FAIL "the settings file holds "carol""; the file saved on load →
+    store_check FAIL (byte-identical, `.bak`, merge); the locale in the move payload → AC-SET-5 FAIL
+    "the frames sent do not depend on the settings"; `drive` dropped from `HARNESS_FLAGS` → AC-SET-9
+    FAIL ("a harness reads no settings file", `user://settings.cfg`).
+- [x] Review: names, places, tags, dialogue and activity kinds are never passed through a catalog
+  (people labels and the who-line are world text; door labels and markers put world content only in
+  `{place}`/`{kind}`); 13a's behaviour is unchanged apart from Esc (13a/13b suites green).
 - **Commit boundary:** the 2D client, its launcher and its tests.
 
 ### C6 — the 3D client
@@ -1082,9 +1128,54 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Scope:** symlink, `project.godot`, `controls_hud.gd`, `slice_main.gd`, `slice_link.gd`,
   `intents.gd`, `slice_probe_world.gd` (`--world --settings`), `README.md`, `mineworld-slice`,
   catalog keys.
-- [ ] Implementation: SD-SET-a-7 (time line), -8, -9, -10, -11, -12 for 3D; render-scale capability.
-- [ ] Validation: `cargo test -p mineworld-acceptance` (client_rules and client_text green over `clients/3d-spike`); `./mineworld-slice --drive`, `--measure`, `--world --link`, `--world --target`, `--world --conversation` pass as on `main` (AC-SET-9, AC-SET-10); `client_settings` 3D tests: AC-SET-1, -2, -5, -7, -11 (3D part, render scale), -12.
-- [ ] Review: `_say`'s 16 calls each keep their exact English log line; `player.gd` unchanged for the promenade.
+- [x] Implementation: symlink `clients/3d-spike/mineworld_settings`; `project.godot` (shared user
+  dir); `controls_hud.gd` (every line from keys, re-rendered on a language change, a showing toast
+  dropped; `attach(…, esc_opens_menu)`: the slice says "Esc  menu", the promenade keeps "Esc  release
+  mouse" through its own key `hint.controls`, and `attach` loads the shared layer when no client has —
+  the promenade loads no settings, QSET-9; conversation captions marked world text);
+  `slice/slice_main.gd` (`_settings()` first in `_ready`, `harness_flags()` = every probe mode, render
+  scale capability, the menu with a dark `Theme`, Esc in `_input` before the player's own handler,
+  walking/looking/E stopped while open, HUD lines from keys every frame, the world line kept as key +
+  arguments and re-rendered, the time line `hud.day_time` when connected, `first_frame` for AC-SET-7);
+  `slice/slice_link.gd` (`said(key, args, notice)`; `_say(log_line, key, args, notice, log_detail)` —
+  all 16 calls converted, every log line's format string as on `main`; `shown_label`/`shown_text`
+  for "You"/"Someone"; `_shown_reason` as a `reason.<code>` reference; figure labels world text;
+  `_speak` names the speaker in English in the log); `slice/intents.gd` (`VERBS` → keys,
+  `LOG_VERBS` for the log); `slice/slice_probe.gd` (`--hud`'s place line from its key);
+  `slice/slice_probe_world.gd` (mode `settings`: first frame, render scale, two deterministic
+  requests, AC-SET-1 walk, `--marker`, AC-SET-12 with play-mode input); `mineworld-slice` (symlink
+  check, `--settings` mode, `--settings=none` for every scripted mode, `--resolution` only with
+  `--res=` or a scripted mode); `README.md`. Shared: `MineWorldText.Ref`/`ref`/`code_ref` (an argument
+  worded at render time, found by the 3D walk — see validation), `has_cjk`, the walk skips faded text,
+  `MineWorldClockFormat.day_time`; the 3D keys in both shared catalogs, `en` reading exactly as on
+  `main`.
+- [x] Validation (macOS, Godot 4.7.2):
+  - `cargo test -p mineworld-acceptance --test client_text --test client_rules` → 5 + 3 passed: the
+    AC-SET-3 scan is green over the 3D client and the module (red since C3 by design). One finding on
+    the way: a log detail literal on a `_say(` line — moved to its own line.
+  - `./mineworld-slice --drive` → "all drive checks pass"; `--world --link` → "all link checks pass",
+    every `[link]` line in `main`'s English format; `--world --target` → "all target checks pass";
+    `--measure` → "1 SCALE CHECKS OUT OF RANGE", the stature 1.802 m line recorded as pre-existing
+    in step-15 (§19 J-1: "the same lines as before") — unchanged; `--world --conversation` → first run
+    INCONCLUSIVE (the connection closed (−1) right after connecting, before the probe began), re-run
+    PASS (reply on screen 1.6 s after talk; caption 2 lines).
+  - `--world --settings --marker` (windowed): first run 2 FAIL — (1) a faded toast was walked, then
+    correctly dropped by the language change: the walk now skips text at alpha 0 and the probe waits
+    for the toast's fade; (2) **a real defect:** the world line re-rendered its template in Chinese
+    but kept its arguments (verb, reason) worded in English at arrival ("世界：无法与 Wes Calloway talk
+    to：too far away") — fixed with `MineWorldText.Ref` arguments; then PASS (44 texts, "世界：无法与 Wes
+    Calloway 交谈：太远了").
+  - `client_settings` (9 tests) → 9 passed: the module's checks; AC-SET-15 over the shared, 2D and 3D
+    projects, and a probe file written by the 2D project read by the 3D one; the 2D tests above; the 3D
+    test (AC-SET-1/-2/-12 on social-cafe, AC-SET-5: the requests equal on defaults and on a
+    zh_Hans/24h/67 % file, AC-SET-10: the `[link]` lines equal after masking per-run port and instance,
+    AC-SET-11 3D: `scaling_3d_scale` 0.67 from the file, 1.0 by default); AC-SET-7 (2D Apply of
+    zh_Hans/24h/1280×720 → the 3D first frame: zh_Hans, clock 2, window 1280×720; the player's file
+    restored).
+- [x] Review: `_say`'s 16 calls: each `log_line` is the same format string with the same English
+  arguments as on `main` (`display_label`, `_readable`, `SliceIntents.log_verb`); `player.gd` is
+  unchanged, its Esc branch still serves the promenade; the menu's Esc reaches the slice first
+  (`_input`).
 - **Commit boundary:** the 3D client, its launcher and its tests.
 
 ### C7 — cross-client evidence and gates

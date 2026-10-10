@@ -73,7 +73,14 @@ static func money(minor: Variant) -> String:
 	return text("format.money", {"amount": "%s%d.%02d" % [minus, units / 100, units % 100]})
 
 
-## World seconds as the pack's clock.
+## The status line's day and time: `hud.day_time`, the time in the 12- or 24-hour form the settings
+## choose (S20 SD-SET-a-7, `MineWorldClockFormat`).
+static func day_time(seconds: int) -> String:
+	return MineWorldClockFormat.day_time(seconds)
+
+
+## World seconds as the pack's clock (13b's `format.clock`, a 24-hour schedule time for the panels'
+## rows; the clock setting governs the status line, `day_time`).
 static func clock(seconds: int) -> String:
 	var in_day := posmod(seconds, 86400)
 	return text("format.clock", {"day": seconds / 86400 + 1, "hh": "%02d" % (in_day / 3600),

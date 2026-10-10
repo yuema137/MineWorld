@@ -153,18 +153,10 @@ func _compare(english: PackedStringArray, chinese: PackedStringArray) -> void:
 	for line in english:
 		var path := line.get_slice("\t", 0)
 		var said: String = by_path.get(path, "")
-		if said == line.get_slice("\t", 1) or not _has_cjk(said):
+		if said == line.get_slice("\t", 1) or not MineWorldText.has_cjk(said):
 			wrong.append("%s: \"%s\" → \"%s\"" % [path, line.get_slice("\t", 1), said])
 	_check(chinese.size() == english.size() and wrong.is_empty(),
 		"every text of the menu turns Chinese at once", "\n".join(wrong))
-
-
-static func _has_cjk(text: String) -> bool:
-	for i in text.length():
-		var c := text.unicode_at(i)
-		if (c >= 0x4E00 and c <= 0x9FFF) or (c >= 0x3000 and c <= 0x303F) or (c >= 0xFF00 and c <= 0xFFEF):
-			return true
-	return false
 
 
 func _read(file: String) -> ConfigFile:

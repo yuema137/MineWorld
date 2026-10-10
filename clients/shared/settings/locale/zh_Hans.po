@@ -20,6 +20,9 @@ msgstr "{hour24}:{minute2}"
 msgid "hud.time.12h"
 msgstr "{ampm} {hour12}:{minute2}"
 
+msgid "hud.day_time"
+msgstr "第{day}天  {time}"
+
 msgid "hud.ampm.am"
 msgstr "上午"
 
@@ -142,6 +145,105 @@ msgstr "保留"
 
 msgid "ui.settings.undo"
 msgstr "立即还原"
+
+msgid "hint.controls"
+msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  释放鼠标"
+
+msgid "hint.controls_menu"
+msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  菜单"
+
+msgid "camera.first_person"
+msgstr "第一人称"
+
+msgid "camera.third_rear"
+msgstr "第三人称 — 背后"
+
+msgid "camera.third_front"
+msgstr "第三人称 — 正面"
+
+msgid "hud.camera"
+msgstr "镜头：{mode}"
+
+msgid "hud.place"
+msgstr "地点：{place}"
+
+msgid "hud.looking_at"
+msgstr "正在看：{who}"
+
+msgid "hud.world"
+msgstr "世界：{status}"
+
+msgid "hud.world.offline"
+msgstr "世界：离线（./mineworld-slice --server=host:port）"
+
+msgid "link.you"
+msgstr "你"
+
+msgid "link.someone"
+msgstr "某人"
+
+msgid "link.verb.talk"
+msgstr "交谈"
+
+msgid "link.connecting"
+msgstr "正在以 {seat} 的身份连接 {address}"
+
+msgid "link.seated"
+msgstr "已作为 {seat} 入座"
+
+msgid "link.disconnected"
+msgstr "已断开：{reason}"
+
+msgid "link.server_closed"
+msgstr "服务器关闭了连接：{reason}"
+
+msgid "link.in_place"
+msgstr "在{place}"
+
+msgid "link.in_place_undrawn"
+msgstr "在{place}（此场景未绘制）"
+
+msgid "link.placed"
+msgstr "已放到世界所说的位置"
+
+msgid "link.arrived"
+msgstr "{who} 在这里"
+
+msgid "link.left_view"
+msgstr "{who} 已不在视野中"
+
+msgid "link.no_passage"
+msgstr "世界没有公开从这里通往{place}的通道；无可报告"
+
+msgid "link.nobody"
+msgstr "视野里没有可以说话的人"
+
+msgid "link.talk_unavailable"
+msgstr "世界说现在不能和 {who} 说话：{reason}"
+
+msgid "link.talking_to"
+msgstr "正在和 {who} 说话"
+
+msgid "link.cant"
+msgstr "无法与 {who} {verb}：{reason}"
+
+msgid "link.result_accepted"
+msgstr "{action}：已接受"
+
+msgid "link.result_other"
+msgstr "{action}：{kind}，{reason}"
+
+msgid "link.kind.rejected"
+msgstr "被拒绝"
+
+msgid "link.kind.unavailable"
+msgstr "不可用"
+
+msgid "link.refused"
+msgstr "被拒收：{reason}"
+
+msgid "link.refused_about"
+msgstr "被拒收（与 {who} {verb}）：{reason}"
 
 msgid "action.move"
 msgstr "行走"

@@ -12,40 +12,73 @@
 ##
 ## Appearance only. It reads `Player.camera_mode_changed` and decides nothing
 ## about the world.
+##
+## Every line is a catalog key of the shared settings module (S20,
+## `clients/shared/SETTINGS.md` §6), rendered again when the language changes.
+## The promenade loads no settings, so `attach` loads the shared catalogs (in
+## English) if nothing has.
 class_name ControlsHud
 extends CanvasLayer
 
-const CONTROLS := "W A S D  move     Shift  jog     Space  jump     V  camera     " \
-	+ "Esc  release mouse"
+## The controls line: the slice's Esc opens the settings menu; the promenade's
+## releases the mouse, as it always has.
+const CONTROLS_MENU := "hint.controls_menu"
+const CONTROLS_MOUSE := "hint.controls"
 const TOAST_HOLD := 1.6
 const TOAST_FADE := 0.6
 
-## Display names, keyed by CameraRig.MODE_NAMES. Wording is presentation.
+## Display names' keys, by CameraRig.MODE_NAMES. Wording is presentation.
 const MODE_TITLES := {
-	"first person": "First person",
-	"third person rear": "Third person — rear",
-	"third person front": "Third person — front",
+	"first person": "camera.first_person",
+	"third person rear": "camera.third_rear",
+	"third person front": "camera.third_front",
 }
 
+var _controls: Label
+var _controls_key := CONTROLS_MOUSE
 var _mode: Label
+var _mode_name := ""
 var _toast: Label
 var _tween: Tween = null
 var _lines := 0
 
 
-static func attach(parent: Node, player: Player) -> ControlsHud:
+static func attach(parent: Node, player: Player, esc_opens_menu := false) -> ControlsHud:
+	if MineWorldText.locales().is_empty():
+		MineWorldText.load_layers("")
 	var h := ControlsHud.new()
+	h._controls_key = CONTROLS_MENU if esc_opens_menu else CONTROLS_MOUSE
 	parent.add_child(h)
 	h._build(player)
 	return h
 
 
+## A language change renders the lines again and drops a toast still showing,
+## so nothing is left in the old language.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _mode != null:
+		_render()
+		if _tween != null:
+			_tween.kill()
+		_toast.text = ""
+		_toast.modulate.a = 0.0
+
+
+func _render() -> void:
+	_controls.text = MineWorldText.text(_controls_key)
+	_mode.text = MineWorldText.text("hud.camera", {"mode": _title(_mode_name)})
+
+
 func _build(player: Player) -> void:
-	add_child(_line(CONTROLS, Vector2(18, 14), 15))
-	_mode = _line("camera: %s" % _title(player.rig.mode_name()), Vector2(18, 38), 15)
+	_controls = _line("", Vector2(18, 14), 15)
+	add_child(_controls)
+	_mode_name = player.rig.mode_name()
+	_mode = _line("", Vector2(18, 38), 15)
 	add_child(_mode)
+	_render()
 
 	_toast = Label.new()
+	_toast.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_toast.offset_top = -170
@@ -115,6 +148,8 @@ var _captions: Array = []          ## [text, seconds left]
 func caption(text: String) -> void:
 	if _caption == null:
 		_caption = Label.new()
+		# Lines of conversation: who said what, as the world states it — world content.
+		MineWorldText.mark_world_text(_caption)
 		_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 		_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -167,16 +202,19 @@ func toast(text: String) -> void:
 
 
 func _on_mode(mode_name: String) -> void:
-	_mode.text = "camera: %s" % _title(mode_name)
+	_mode_name = mode_name
+	_render()
 	toast(_title(mode_name))
 
 
 static func _title(mode_name: String) -> String:
-	return MODE_TITLES.get(mode_name, mode_name)
+	return MineWorldText.text(MODE_TITLES[mode_name]) if MODE_TITLES.has(mode_name) else mode_name
 
 
 func _line(txt: String, pos: Vector2, size: int) -> Label:
 	var l := Label.new()
+	# Composed or keyed: rendered by this script, never by auto-translation.
+	l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	l.text = txt
 	l.position = pos
 	_style(l, size)

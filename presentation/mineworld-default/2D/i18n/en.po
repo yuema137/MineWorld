@@ -22,7 +22,7 @@ msgstr "Walk (click where to go)"
 
 # Fixed interface text.
 msgid "ui.hint"
-msgstr "click to walk, or on someone for a menu  ·  E: the person under the cursor  ·  Q: yourself  ·  I: your things  ·  H: conversations  ·  Esc: close, quit"
+msgstr "click to walk, or on someone for a menu  ·  E: the person under the cursor  ·  Q: yourself  ·  I: your things  ·  H: conversations  ·  Esc: close, menu"
 
 msgid "ui.walk-to"
 msgstr "Walk to {target}"

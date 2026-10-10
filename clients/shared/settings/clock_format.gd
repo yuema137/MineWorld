@@ -7,6 +7,13 @@ class_name MineWorldClockFormat
 extends RefCounted
 
 
+## World seconds as the HUD's day and time: `hud.day_time` ("day 1  7:42 PM"), the time in the form
+## in effect. Both clients' HUDs use it (S20 SD-SET-a-7).
+static func day_time(seconds: int) -> String:
+	return MineWorldText.text("hud.day_time", {"day": seconds / 86400 + 1,
+		"time": time_of_day(posmod(seconds, 86400))})
+
+
 ## `seconds_into_day` (0 … 86399; anything else is taken modulo a day) as `hud.time.24h` or
 ## `hud.time.12h`. `clock` is H12 or H24; AUTO (the default) is the form in effect.
 static func time_of_day(seconds_into_day: int,

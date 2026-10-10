@@ -16,7 +16,7 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target"]
+const WORLD_MODES := ["link", "conversation", "target", "settings"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
@@ -33,7 +33,7 @@ static func requested() -> bool:
 ## it exactly as for a player (`SliceMain._hud`) rather than the probe making a
 ## copy of its wiring.
 static func with_hud() -> bool:
-	return requested_of(["conversation"]) != ""
+	return requested_of(["conversation", "settings"]) != ""
 
 
 func _modes() -> Array:
@@ -45,6 +45,7 @@ func _run(mode: String) -> void:
 		"link": await _link_check()
 		"conversation": await _conversation_frames()
 		"target": await _target_check()
+		"settings": await _settings_check()
 		_: await super(mode)
 
 
@@ -589,6 +590,173 @@ func _walk_to(p: Vector3, max_secs: float) -> void:
 	d.y = 0.0
 	player.rotation.y = atan2(-d.x, -d.z)
 	await _walk_dist(maxf(d.length() - 0.15, 0.0), max_secs)
+
+
+# --- the settings menu (S20 SET-a) --------------------------------------------------
+
+const MARKER := "qaa"
+var _set_fails := 0
+
+
+func _set_check(ok: bool, what: String, detail := "") -> void:
+	if not ok:
+		_set_fails += 1
+	print("[%s] %s  %s" % ["PASS" if ok else "FAIL", what, detail])
+
+
+## step-20 §7 in the connected slice: the settings in effect at the first frame (AC-SET-7), the
+## render scale (AC-SET-11), two deterministic requests for the transcript (AC-SET-5), every UI text
+## turning to the other language at once and back (AC-SET-1), the marker catalog (AC-SET-2, with
+## `--marker`), and an open menu taking walking, looking and E (AC-SET-12).
+func _settings_check() -> void:
+	print("== S20 SET-a -- the settings menu in the connected slice ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
+		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	_set_check(link.client.is_seated(), "seated")
+	print("EVIDENCE ", JSON.stringify({"first_frame": slice.first_frame}))
+	var window := get_window()
+	print("EVIDENCE ", JSON.stringify({"display": {"render_scale": window.scaling_3d_scale,
+		"window": [window.size.x, window.size.y], "mode": window.mode}}))
+	await _hold(0.5)
+	# Two requests whose content does not depend on timing: the body where the world placed it, and
+	# a line to whoever is perceived first, by id.
+	link.report_position()
+	var someone := ""
+	for id in link.figures:
+		someone = id if someone == "" or id < someone else someone
+	if someone != "":
+		link.intents.talk(link.client, someone, SliceIntents.DEFAULT_UTTERANCE,
+			link._location(link.here_key, link.to_world(link.here_key, player.global_position)))
+	# Long enough for an answer's toast to fade (ControlsHud: 1.6 s held, 0.6 s fading).
+	await _hold(3.0)
+	var menu: MineWorldSettingsMenu = slice.settings_menu
+	menu.open()
+	await _settle(3)
+	var start := MineWorldText.language()
+	var other := "en" if start == "zh_Hans" else "zh_Hans"
+	var first := _ui_texts()
+	MineWorldText.set_language(other)
+	await _settle(3)
+	var second := _ui_texts()
+	print("EVIDENCE ", JSON.stringify({"texts": {start: first.size(), other: second.size()}}))
+	_compare_texts(first, second, start, other)
+	MineWorldText.set_language(start)
+	await _settle(3)
+	_set_check(_masked(_ui_texts()) == _masked(first), "switching back reproduces every text exactly")
+	if "--marker" in OS.get_cmdline_user_args():
+		await _marker_texts()
+	await _menu_takes_input(link)
+	print("\n%s" % ("all settings checks pass" if _set_fails == 0 else "%d SETTINGS CHECKS FAILED" % _set_fails))
+	link.client.leave_world()
+	await _hold(0.5)
+
+
+func _compare_texts(first: PackedStringArray, second: PackedStringArray, a: String, b: String) -> void:
+	var by_path := {}
+	for line in second:
+		by_path[line.get_slice("\t", 0)] = line.get_slice("\t", 1)
+	var wrong := PackedStringArray()
+	for line in first:
+		var path := line.get_slice("\t", 0)
+		var before := line.get_slice("\t", 1)
+		var after: String = by_path.get(path, "")
+		print("EVIDENCE ", JSON.stringify({"text": {"path": path, a: before, b: after}}))
+		var chinese := after if b == "zh_Hans" else before
+		if after == before or not MineWorldText.has_cjk(chinese):
+			wrong.append("%s: \"%s\" → \"%s\"" % [path, before, after])
+	_set_check(first.size() >= 30 and first.size() == second.size() and wrong.is_empty(),
+		"every UI text turns from %s to %s at once" % [a, b], "%d texts; %s" % [first.size(), " | ".join(wrong)])
+
+
+func _marker_texts() -> void:
+	var english := TranslationServer.get_translation_object("en")
+	var marked := Translation.new()
+	marked.locale = MARKER
+	for key in english.get_message_list():
+		if key != "":
+			marked.add_message(key, "⟦%s⟧" % String(english.get_message(key)))
+	TranslationServer.add_translation(marked)
+	var start := MineWorldText.language()
+	MineWorldText.set_language(MARKER)
+	await _settle(3)
+	var unmarked := PackedStringArray()
+	for line in _ui_texts():
+		if not line.contains("⟦"):
+			unmarked.append(line)
+	_set_check(unmarked.is_empty(), "under the marker catalog every UI text comes from a catalog", " | ".join(unmarked))
+	MineWorldText.set_language(start)
+	TranslationServer.remove_translation(marked)
+	await _settle(2)
+
+
+## AC-SET-12 as a player meets it: looking and walking enabled as in play, then the menu opens; two
+## seconds of W, mouse motion and E ask for nothing and do not turn the camera.
+func _menu_takes_input(link: SliceLink) -> void:
+	var menu: MineWorldSettingsMenu = slice.settings_menu
+	menu.close()
+	player.scripted_look = false
+	player.ignore_mouse_look = false
+	player.look_enabled = true
+	menu.open()
+	await _settle(2)
+	var asked := [0]
+	var count := func(_t: String, _r: Dictionary) -> void: asked[0] += 1
+	link.client.submitted_request.connect(count)
+	var yaw := player.rotation.y
+	var pitch: float = player.rig.pitch
+	var at := player.global_position
+	Input.action_press("move_forward")
+	for i in 20:
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(40, 12)
+		Input.parse_input_event(motion)
+		await _hold(0.1)
+	Input.action_release("move_forward")
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_E
+	press.pressed = true
+	Input.parse_input_event(press)
+	await _hold(0.5)
+	link.client.submitted_request.disconnect(count)
+	print("EVIDENCE ", JSON.stringify({"menu_input": {"requests": asked[0], "yaw": [yaw, player.rotation.y],
+		"pitch": [pitch, player.rig.pitch], "moved_m": at.distance_to(player.global_position)}}))
+	_set_check(asked[0] == 0 and is_equal_approx(yaw, player.rotation.y) and is_equal_approx(pitch, player.rig.pitch)
+		and at.distance_to(player.global_position) < 0.05, "an open menu takes gameplay input",
+		"%d requests while open" % asked[0])
+	menu.close()
+
+
+## Every UI text of the slice: the HUD and the menu, tab by tab; the language list (each language names
+## itself) and the live frame-rate reading are left out.
+func _ui_texts() -> PackedStringArray:
+	var menu: MineWorldSettingsMenu = slice.settings_menu
+	var skip := [str(menu._language.get_path()), str(menu._fps_value.get_path())]
+	var out := PackedStringArray()
+	var current := menu._tabs.current_tab
+	for tab in menu._tabs.get_tab_count():
+		menu._tabs.current_tab = tab
+		for line in MineWorldText.visible_ui_texts(slice):
+			var path := line.get_slice("\t", 0)
+			if not skip.any(func(s: String) -> bool: return path.begins_with(s)) and not out.has(line):
+				out.append(line)
+	menu._tabs.current_tab = current
+	return out
+
+
+static func _masked(lines: PackedStringArray) -> PackedStringArray:
+	var out := PackedStringArray()
+	var digits := RegEx.create_from_string("[0-9]+")
+	for line in lines:
+		out.append(digits.sub(line, "#", true))
+	return out
 
 
 func _answered(link: SliceLink, tok: String) -> bool:

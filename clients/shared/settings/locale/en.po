@@ -28,6 +28,9 @@ msgstr "{hour24}:{minute2}"
 msgid "hud.time.12h"
 msgstr "{hour12}:{minute2} {ampm}"
 
+msgid "hud.day_time"
+msgstr "day {day}  {time}"
+
 msgid "hud.ampm.am"
 msgstr "AM"
 
@@ -151,6 +154,107 @@ msgstr "Keep"
 
 msgid "ui.settings.undo"
 msgstr "Revert now"
+
+# The 3D client's own text, until it reads a Presentation Pack (S14 16f), when these move, keys
+# unchanged, to presentation/mineworld-default/3D/i18n/. In English each reads exactly as before S20.
+msgid "hint.controls"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  release mouse"
+
+msgid "hint.controls_menu"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  menu"
+
+msgid "camera.first_person"
+msgstr "First person"
+
+msgid "camera.third_rear"
+msgstr "Third person — rear"
+
+msgid "camera.third_front"
+msgstr "Third person — front"
+
+msgid "hud.camera"
+msgstr "camera: {mode}"
+
+msgid "hud.place"
+msgstr "place: {place}"
+
+msgid "hud.looking_at"
+msgstr "looking at: {who}"
+
+msgid "hud.world"
+msgstr "world: {status}"
+
+msgid "hud.world.offline"
+msgstr "world: offline  (./mineworld-slice --server=host:port)"
+
+msgid "link.you"
+msgstr "You"
+
+msgid "link.someone"
+msgstr "Someone"
+
+msgid "link.verb.talk"
+msgstr "talk to"
+
+msgid "link.connecting"
+msgstr "connecting to {address} as {seat}"
+
+msgid "link.seated"
+msgstr "seated as {seat}"
+
+msgid "link.disconnected"
+msgstr "disconnected: {reason}"
+
+msgid "link.server_closed"
+msgstr "the server closed the connection: {reason}"
+
+msgid "link.in_place"
+msgstr "in the {place}"
+
+msgid "link.in_place_undrawn"
+msgstr "in the {place} (not drawn by this slice)"
+
+msgid "link.placed"
+msgstr "placed where the world says you are"
+
+msgid "link.arrived"
+msgstr "{who} is here"
+
+msgid "link.left_view"
+msgstr "{who} is no longer in view"
+
+msgid "link.no_passage"
+msgstr "the world has disclosed no passage from here to {place}; nothing to report"
+
+msgid "link.nobody"
+msgstr "nobody in view to talk to"
+
+msgid "link.talk_unavailable"
+msgstr "the world says talking to {who} is unavailable: {reason}"
+
+msgid "link.talking_to"
+msgstr "talking to {who}"
+
+msgid "link.cant"
+msgstr "can't {verb} {who}: {reason}"
+
+msgid "link.result_accepted"
+msgstr "{action}: accepted"
+
+msgid "link.result_other"
+msgstr "{action}: {kind}, {reason}"
+
+msgid "link.kind.rejected"
+msgstr "rejected"
+
+msgid "link.kind.unavailable"
+msgstr "unavailable"
+
+msgid "link.refused"
+msgstr "refused: {reason}"
+
+msgid "link.refused_about"
+msgstr "refused ({verb} {who}): {reason}"
 
 # Menu entries, one per action type a System Pack declares. {target}: the person the action is
 # directed at; {item}: the thing its payload names.
