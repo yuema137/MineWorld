@@ -15,6 +15,8 @@ from mineworld_sdk.wire.ids import EntityKey
 from support import request, run
 
 from mineworld_cognition.backend import registry
+from mineworld_cognition.backend.anthropic_messages import AnthropicMessagesBackend
+from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.backend.openai_compatible import OpenAICompatibleBackend
 from mineworld_cognition.config import BackendConfig, ConfigError, build_router, load
 from mineworld_cognition.secrets import Secret, permission_check_applies, resolve_key
@@ -35,7 +37,13 @@ def _key_file(directory: Path, text: str, mode: int = 0o600) -> Path:
     return path
 
 
-def _configuration(directory: Path, env_file: bool) -> Path:
+ANTHROPIC_ANSWER = (
+    b'{"content":[{"type":"text","text":"fine"}],"stop_reason":"end_turn",'
+    b'"usage":{"input_tokens":3,"output_tokens":1}}'
+)
+
+
+def _configuration(directory: Path, env_file: bool, kind: str = "openai-compatible") -> Path:
     path = directory / "cognition.toml"
     secrets_table = '[secrets]\nenv_file = "mineworld.env"\n' if env_file else ""
     path.write_text(
@@ -44,6 +52,7 @@ def _configuration(directory: Path, env_file: bool) -> Path:
         '[tiers]\nsocial = "hosted"\n'
         f"{secrets_table}"
         "[backends.hosted]\n"
+        f'kind = "{kind}"\n'
         'base_url = "https://api.example.com/v1"\nmodel = "m"\n'
         f'key_env = "{VARIABLE}"\n',
         encoding="utf-8",
@@ -52,6 +61,7 @@ def _configuration(directory: Path, env_file: bool) -> Path:
     return path
 
 
+@pytest.mark.parametrize("kind", ["openai-compatible", "anthropic"])  # P5b C2 re-runs it for Claude
 @pytest.mark.parametrize("source", ["environment", "env_file"])
 def test_a_key_appears_in_no_artefact(
     tmp_path: Path,
@@ -59,6 +69,7 @@ def test_a_key_appears_in_no_artefact(
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
     source: str,
+    kind: str,
 ) -> None:
     key = "MWTEST-" + stdlib_secrets.token_hex(16)
     monkeypatch.delenv(VARIABLE, raising=False)
@@ -69,20 +80,25 @@ def test_a_key_appears_in_no_artefact(
     received: list[str] = []
     answers = iter([500, 401, 200])
 
+    anthropic = kind == "anthropic"
+
     def echo(sent: httpx2.Request) -> httpx2.Response:
         # A hostile server: its error bodies repeat every header it was sent, the key among them.
-        received.append(sent.headers.get("authorization", ""))
+        received.append(sent.headers.get("x-api-key" if anthropic else "authorization", ""))
         status = next(answers)
         if status != 200:
             return httpx2.Response(status, content=repr(dict(sent.headers)).encode())
-        return httpx2.Response(200, content=ANSWER)
+        return httpx2.Response(200, content=ANTHROPIC_ANSWER if anthropic else ANSWER)
 
-    def factory(config: BackendConfig, secret: Secret | None) -> OpenAICompatibleBackend:
-        return OpenAICompatibleBackend(config, secret, transport=httpx2.MockTransport(echo))
+    def factory(config: BackendConfig, secret: Secret | None) -> ModelBackend:
+        transport = httpx2.MockTransport(echo)
+        if anthropic:
+            return AnthropicMessagesBackend(config, secret, transport=transport)
+        return OpenAICompatibleBackend(config, secret, transport=transport)
 
-    monkeypatch.setitem(registry.FACTORIES, "openai-compatible", factory)
+    monkeypatch.setitem(registry.FACTORIES, kind, factory)
     caplog.set_level(logging.DEBUG)
-    config = load(_configuration(tmp_path, env_file=source == "env_file"))
+    config = load(_configuration(tmp_path, env_file=source == "env_file", kind=kind))
     router = build_router(config)
     gateway = router.for_tier("social")
     assert gateway is not None
@@ -107,7 +123,7 @@ def test_a_key_appears_in_no_artefact(
         "stderr": captured.err,
         "shown": "\n".join(shown),
     }
-    assert received == [f"Bearer {key}"] * 3  # the key was used
+    assert received == [key if anthropic else f"Bearer {key}"] * 3  # the key was used
     for name, text in artefacts.items():
         assert key not in text, name
     assert "fine" in artefacts["cassette"]

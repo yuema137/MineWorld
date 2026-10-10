@@ -38,7 +38,12 @@ your own profile there, where POSIX permissions are not checked.
 | `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `json_schema` | `send` | unsupported parameters are ignored |
 | `groq` | Groq | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` | `json_object` | `send` | `json_schema` on a few models only |
 
-Claude needs its own adapter (S10 P5b). A hosted API costs you money; MineWorld never calls one in a test.
+**Claude** uses its own adapter (`DEP-33`), with your Anthropic API key: `kind = "anthropic"`,
+`base_url = "https://api.anthropic.com"`, a `model`, `key_env = "ANTHROPIC_API_KEY"`. It sends schema-
+constrained output natively and omits the temperature unless you set `temperature = "send"`. Pointing
+`kind = "openai-compatible"` at Anthropic is refused: that layer ignores `response_format` and `seed`.
+
+A hosted API costs you money; MineWorld never calls one in a test.
 
 **Subscriptions** (`ARC-60`). API keys, above, are the recommended route for every hosted model. A
 subscription is your account with a vendor, and its terms decide what another program may do with it:

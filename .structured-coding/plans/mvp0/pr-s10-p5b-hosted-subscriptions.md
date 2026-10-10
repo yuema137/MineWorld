@@ -585,3 +585,64 @@ conclusion   Anthropic.__init__ and AsyncAnthropic.__init__ each read ANTHROPIC_
              omitted; max_retries defaults to DEFAULT_MAX_RETRIES = 2; DEFAULT_TIMEOUT 600 s, connect 5 s
 consequence  confirms DEP-33's rejection (D-P5-4's rules (a) and (c)); no limitation follows
 ```
+
+### 11.3 C2 — `AnthropicMessagesBackend`
+
+- [x] Implementation: `backend/anthropic_messages.py` (`API_VERSION`, `request_body`, `_parse`,
+  `AnthropicMessagesBackend(config, key, *, transport=None)`, `trust_env=False`, no retry);
+  `backend/strict_schema.py` (`lower_schema`, pure, returns a copy; DV-P5b-3); `backend/registry.py`
+  (`"anthropic"` → a factory importing the adapter when called); `config.py` (`Kind =
+  Literal["openai-compatible", "anthropic"]`; the `anthropic` kind defaults `temperature` to `"omit"`;
+  `_kind_options`: AB-2's refusal of `openai-compatible` on `api.anthropic.com` or any
+  `*.anthropic.com` host, and, for `anthropic`, refusals of `preset`, `structured_output =
+  "json_object"` and a `reasoning` setting — D-P5b-a below); `examples/hosted.toml.example` gains a
+  `[backends.claude]` table (bound to no tier) and `.env.example` `ANTHROPIC_API_KEY=`; README's Claude
+  paragraph. Tests: `tests/test_anthropic_messages.py` (new); `test_secrets.py`'s AP5-9 test is
+  parametrized over `kind` (`openai-compatible`, `anthropic`); `test_provider_scan.py` allows
+  `anthropic_messages.py` (I-10) and expects it as the second `httpx2` importer;
+  `test_structural_isolation.py`'s replay child now binds a second tier to an `anthropic` backend and
+  checks that neither adapter (nor `cli_bridge`) nor `httpx*` is imported.
+- [x] Validation (E-P5b-2): cognition suite **101 passed** (81 → 101); ruff check, ruff format, pyright
+  strict clean over the workspace.
+  - AB-1: the exact body for a literal five-message request (two `system` joined with `"\n"` and
+    hoisted; `user`/`assistant` in order; `max_tokens` 256; no `temperature`, no `seed`;
+    `output_config.format` with `maxLength` removed and `additionalProperties: false`), `x-api-key`
+    equal to the key, `anthropic-version: 2023-06-01`, no `authorization`; the text of two text blocks
+    concatenated, usage mapped. `temperature = "send"` sends 0.7; `structured_output = "none"` sends no
+    `output_config`; no key → no `x-api-key`. Recorded through `RecordingBackend`: the entry's key equals
+    AP5-1's literal `6bd78b32…` and its request equals the golden request (no `additionalProperties`),
+    while the body sent carried `additionalProperties: false`. `end_turn`/`stop_sequence` → `complete`,
+    `max_tokens` → `length`, `refusal` → `refused`, `tool_use` and a non-JSON body →
+    `malformed_response`; missing usage → estimated, flagged (4 output tokens, by hand); 401 and 403 →
+    `unauthorized`, 429, 500 and 529 → `http_status(code)`, one request each (no retry).
+  - Lowering, against a hand-written expectation: a property *named* `minimum` kept with its bounds
+    removed; `minItems: 2` and `maxItems` removed, `minItems: 1` kept; an `anyOf` branch with
+    `properties` closed; an `enum` value `{"maxLength": 3}` left alone; `additionalProperties: true`
+    overridden to `false`; the input unchanged.
+  - AB-2: `openai-compatible` at `https://api.anthropic.com/v1/` → `ConfigError` naming
+    `kind = "anthropic"` and `response_format`. `claude-code-subscription` → `ConfigError` at
+    `backends.x.kind` (QP5b-1).
+  - AP5-9 re-run with `kind = "anthropic"`, both key sources: the mock received the key in `x-api-key`
+    three times; it is absent from the cassette, the SQLite ledger, every log record, stdout, stderr
+    and every `str`/`repr`.
+  - Mutations (§11.8): M-b1 lowering in place → the key test fails (`CassetteFormatError`: key
+    `6bd78b32…` does not match its request, which hashes to `5e871f83…`); M-b2 `temperature` defaulting
+    to `"send"` → the exact-body and the default tests fail; M-b3 AB-2's check removed → AB-2's test
+    fails. All reverted; `grep -rn MUTATION cognition/` empty; 101 passed.
+- [x] Review: among P5b's files only `anthropic_messages.py` imports `httpx2` (the scan pins the list);
+  the adapter reads no environment variable and logs nothing; a failure carries a reason and a status,
+  never a body; the example's Claude table is bound to no tier, so the example's behaviour is unchanged.
+
+**D-P5b-a (bounded, fail-closed).** For `kind = "anthropic"` three options of `BackendConfig` have no
+meaning: `preset` (every row is an OpenAI-compatible endpoint), `structured_output = "json_object"` (the
+Messages API has no such mode) and `reasoning` (no mapping is designed). Each is refused by name rather
+than silently ignored. Applies only to the new kind; no P5a configuration changes meaning.
+
+**DV-P5b-3 (bounded).** `backend/strict_schema.py`, a module not in §2.1: §5.1 puts the lowering
+"inside the adapter", but §5.4 has the Codex preset use "the same lowering", and a preset importing
+`anthropic_messages.py` would import `httpx2` into the bridge. The pure function lives in a module of
+its own that names no provider.
+
+**Process note.** Twice this session a Bash call held an empty heredoc (`<<'X' … X`) redirected to
+`/dev/null` or to `python3 -` with no body. Neither wrote a file nor ran code (`git status` unchanged);
+recorded because the brief forbids heredoc writes.
