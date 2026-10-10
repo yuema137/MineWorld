@@ -9011,9 +9011,15 @@ Files: `tools/cli/tests/walking.rs` (new; test-time world copies).
   by literal.
 
 ### NV-C7 — close
-- [ ] Implementation: ledger, `MVP_STATUS.md` rows, handoff.
-- [ ] Validation: NV-1 (the four captures), NV-8 (Rosetta), NV-9 (gate) on the final head.
-- [ ] Review: scope (`git diff --name-only`), the no-diff paths, the records match the code.
+- [x] Implementation: ledger (§21.15), `MVP_STATUS.md` (Movement row, S15 row: in review, held at M-1),
+  handoff; origin/main merged (9fbc807).
+- [x] Validation: NV-1 (E-NV5: four town runs in all, every digest equal its reference), NV-8 (E-NV5:
+  Rosetta), NV-9 (E-NV5 local gate; the workspace tests and CI on the exact head: E-NV6).
+- [x] Review: scope — `git diff --name-only origin/main...HEAD` is §21.14's paths plus N-D4's four
+  literal-edit test files; no diff under kernel/, contracts/, persistence/src/, server/,
+  systems/presence/, worlds/; clients/ only ADOPTION.md. The records match the code except the
+  recorded deviations N-D2 (`require_wayfinder`), N-D5 (re-plan triggers), N-D6 (arrival in the
+  reaction), N-D7 (start core). NOT READY: M-1 is open.
 
 ## 21.13 Commit plan — 12n-2 (medium detail; detailed at its own freeze after 12n-1 merges)
 
@@ -9289,6 +9295,31 @@ E-NV4 NV-C6, 2026-10-09, working tree on c1fab19 + walking.rs. `cargo test -p mi
         NV-3 café → street: (1 610, 200), street (0, 3 000), (0, 4 000); no stopped-short
         NV-4 15 facts uninterrupted; the killed child's save held 12, resumed to 15, facts, journal and
              snapshots byte-equal; `mineworld replay` of the resumed save exits 0
+
+E-NV5 NV-C7 on 9fbc807 (the PR's code with origin/main fb1d701 merged; later commits are Markdown).
+      NV-1 (/tmp/s15-12n/capture.sh head, cap-head.log; binary /tmp/s15-12n/head-mineworld):
+        social-cafe 300 d   365 330 facts, ad49c7235f…e9716c64b = E-NV-base                 PASS
+        market-town 300 d   375 527 facts, 90479fd8631a3f9c88ddc9c05720fbf8fd8fbc5b1573d6abd47e7351b9d1ae57
+                            = main's own reference after TW-b (step-19 E-TWb-4, which made the weather
+                            pack market-town's) — main moved it from E-NV-base's 24a95d2a…d270 while 12n
+                            was in flight; equality with main's recorded value shows 12n moves nothing PASS
+        bodies-yard 30 d    62 385 facts, bd6a1002…80e6 = E-NV-base                          PASS
+        long_run 23f7fa76…, long_run_objects c8358f8b… = E-NV-base                           PASS
+        validate            social-cafe ebcd60a0…, bodies-yard 7356b8f8… = base; market-town
+                            6368595a…0318 = TW-b's (main's)                                     PASS
+      Town 300-day runs: 4 of the 4 budgeted (two on 551fb2c, two here).
+      Only the composition records differ: movement v2, its actions (walk-to, walk-step), emissions
+      (walk-started, walk-ended), subscriptions (arrived, stopped-short) and the `walking` component.
+      NV-8: `cargo build --target x86_64-apple-darwin` (own target /tmp/s15-12n/target-x86); under
+        `arch -x86_64`: bodies-yard 30 d bd6a1002…80e6 = arm64's; the x86_64 test binaries (Mach-O x86_64,
+        run under Rosetta): NV-5 "852 routed (1 310 bends, 573 goals moved), 909 unreachable, 239 without a
+        start" = arm64's, walking.rs 9/9 with every trail printed identical to arm64's (E-NV4) and NV-4's
+        byte comparison passing. The hosted walks' fact bytes are not compared across architectures:
+        their instants follow the wall clock; their positions are (above). PASS.
+      NV-9 gate (local): `cargo fmt --all --check` 0; `cargo clippy --workspace --all-targets
+        --all-features -D warnings` 0; doc checks 87 decision ids / 192 sections; check_scratch scan
+        clean; check_ci_pins agree. Cargo.lock adds only pathfinding and its three new dependencies (E-NV2
+        context, NV-C4). The workspace test run and CI: E-NV6.
 ```
 
 

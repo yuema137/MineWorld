@@ -42,14 +42,22 @@ STOP CONDITIONS     NORMAL: 12n-1 READY FOR OPERATOR REVIEW — DO NOT MERGE. MA
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — NV-C1 (documents first, base captures)
+## Current checkpoint — NV-C7 (close), held at MATERIAL STOP M-1
 
-- Record ids: `ARC-W` → **ARC-73**, `DEP-P` → **DEP-34** (ARC-72, DEP-32, DEP-33 are provisionally
-  S20's on `mvp0/pr-set-a`).
-- Base binary `/tmp/s15-12n/base-mineworld` (dev, built at 551fb2c). Capture script (an input, not
-  evidence): `/tmp/s15-12n/capture.sh <label> <binary> [towns]`; base log `/tmp/s15-12n/cap-base.log`.
+- Commits: 1200b90 NV-C1 · b8dc78a NV-C2+C3 · 3847ec2 NV-C4 · 1796c29 NV-C5 · c1fab19 NV-7 evidence + M-1
+  · 030e67f NV-C6 · MVP_STATUS · 9fbc807 merge of origin/main (fb1d701; DECISIONS conflict: ARC-73/DEP-34
+  beside ARC-68, both kept).
+- M-1 (§21.15): at R 250 with derived NUDGE_MAX the n3 crowd is never nudged ("the crowd was nudged"
+  fails); claim 1 passes at R 250 and everything passes at R 300. Awaiting the operator's ruling — options
+  (a)/(b)/(c) in §21.15. The towns do not enable bodies, so no ruling changes their digests.
+- Record ids: `ARC-W` → ARC-73, `DEP-P` → DEP-34 (N-D1).
+- Binaries: /tmp/s15-12n/base-mineworld (551fb2c), c5-mineworld (1796c29), head-mineworld (9fbc807 + ledger).
+  Scripts: /tmp/s15-12n/capture.sh. Scratch R 250 worktree: /tmp/s15-12n/r250 (detached, uncommitted
+  edits; target /tmp/s15-12n/target-r250). Town 300-day runs used: 4 of 4 (cap reached; no more without
+  authorization).
 
 ## Next actions
 
-1. Record E-NV-base in §21.15; commit NV-C1 (docs + ledger) and push.
-2. NV-C2: `systems/movement/src/wayfinder.rs` (catalog), the empty `installed!` line.
+1. Record E-NV5 (head captures, x86_64), push, open the PR marked "awaiting M-1 ruling".
+2. On the ruling: apply it (bodies tests/geometry only), re-run NV-7 at R 300 and R 250, bodies-yard and
+   long-run captures (towns unaffected), push; CI on the exact head.
