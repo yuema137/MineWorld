@@ -3439,6 +3439,15 @@ Acceptance summary (CA-1 … CA-15):
       both halves. CA-13 PASS (p99 12.3 ms, max 12 ms; M-CA13 not run, E-SC13). CA-14 PASS (social-cafe
       digest = base; market-town = main's TW-a baseline; scope; sizes except main.rs = main's 526,
       D-SC14). CA-15 PASS (E-SC12; slice link and every existing run.sh mode pass).
+E-SC15 Main moved after E-SC14 (S12 13b #103, aee8290: the 2D client's menu interactions and new CLI
+      tests), merged as 0337e5d with no conflict. Its executable change is the 2D client (which reads
+      observations through this module, so it now receives deltas) and Godot-gated CLI tests; so on the
+      merged tree, re-run: cargo test -p mineworld-cli --no-fail-fast — 35 targets ok, 0 failed;
+      and the Godot-gated 2D suites, which CI does not run, one at a time (--ignored
+      --test-threads=1): client_2d 8/8, client_2d_interact 5/5, client_2d_interact_stub 3/3 — the 2D
+      client walks, talks, interacts and reconnects through delta frames. PASS. The workspace gate of
+      E-SC14 (82d4e59) is not repeated locally: the server, presence and every other crate are
+      unchanged by #103; PR CI on the exact final head is the canonical full run.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3504,6 +3513,13 @@ D-SC14 main.rs and CA-14's 500-line bound. After merging origin/main @ ffbbedc (
       doc lines), so S11-C does not add to the overrun; splitting main.rs is a follow-up outside this
       PR's scope (it is IL-b's and S11-D's code too) and is flagged to the operator. Every other
       CA-14 size holds.
+D-SC15 Two copies of this session ran together for a short time (17:14–17:16, two resume messages,
+      coordinator's notice). The second copy committed and pushed 5914cc7 (the READY ledger, E-SC14,
+      the acceptance summary, the handoff closeout) and set PR #95 ready with its body, on top of this
+      copy's 13b merge 0337e5d. Reconciled by this copy, now the only writer (no other impl-s11c
+      process running): 5914cc7's content was checked line by line against this copy's evidence and is
+      consistent; it is kept as is, and E-SC15 records what the 13b merge required that 5914cc7 did
+      not (the CLI and 2D re-runs). No change from either copy was lost or overwritten.
 D-SC12 CP-C1's outcome and §4.8. json-patch measured 12.9 % smaller than typed (1 001 vs 1 149 B/s per
       client, both ~1.3 % of whole). SD-C10's frozen rule, applied literally as C-C7's review requires,
       selects typed (typed ≤ ½ whole, json-patch not within 10 %). §4.8 (pre-freeze) said typed is kept

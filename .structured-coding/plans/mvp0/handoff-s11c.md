@@ -24,10 +24,11 @@ VALIDATION BUDGET   §17.11 (CP-C1 ≤ two 60 s runs; CA-13 once; digests ≤ fo
 STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §17.11 MATERIAL STOP;
                     coordinator: S11-B still open 3 h after the wait began → stop and report
 CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. PR #95. C-C1 … C-C10 done; E-SC0 …
-                    E-SC14, D-SC1 … D-SC14 in step-12 §§17.12–17.13. Final executable head 82d4e59 (full
-                    gate E-SC14); final PR head = that + the regenerated evidence and this ledger
-                    commit; CI on that exact head: see the PR's checks. Context CLOSED / AWAITING
-                    OPERATOR ACTION.
+                    E-SC15, D-SC1 … D-SC15 in step-12 §§17.12–17.13. Workspace gate on 82d4e59
+                    (E-SC14); main's 13b merged as 0337e5d and re-validated (E-SC15: CLI suite, Godot
+                    2D suites). Final PR head = the commit carrying this line; CI on that exact head:
+                    see the PR's checks. Context CLOSED / AWAITING OPERATOR ACTION. Two session copies
+                    briefly overlapped; reconciled (D-SC15).
 OPERATOR ATTENTION  D-SC12 (CP-C1: json-patch measured 13 % smaller than typed; the frozen rule
                     selects typed); D-SC14 (main.rs is 526 lines on main after IL-b; S11-C net 0);
                     Windows check INCONCLUSIVE (target not installed; S13 owns the Windows CI lane);
