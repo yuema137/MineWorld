@@ -1052,3 +1052,38 @@ Source evidence:  git check-ignore -v reported `.gitignore:55:secrets*` for the 
 Impact:           one anchored negation for one source path; every key-file pattern still holds
 Validation:       git check-ignore (E-P5-1); AP5-13 (e) re-checks it in a test (C6)
 ```
+
+### 13.3 C2 — the model interface, the key, the scripted backend
+
+**AP5-1 (a)'s golden literal, recorded before any test was written (2026-10-09).** Computed
+**independently of the implementation**: the canonical bytes were written out by hand from D-P5-6's rules
+and hashed with the system's `shasum -a 256` (so the expected value does not come from the code under
+test, test rules §25). The request: purpose `decide`; messages `system` "You are Alice, who keeps the
+café." and `user` `Bob says: "Hello — one coffee?"`; output schema `{"type": "object", "properties":
+{"act": {"enum": ["say", "wait"]}}, "required": ["act"]}`; sampling `temperature_milli` 700,
+`max_output_tokens` 256, `seed` 42.
+
+```text
+canonical  {"key_scheme":1,"request":{"messages":[{"role":"system","text":"You are Alice, who keeps the café."},{"role":"user","text":"Bob says: \"Hello — one coffee?\""}],"output_schema":{"properties":{"act":{"enum":["say","wait"]}},"required":["act"],"type":"object"},"purpose":"decide","sampling":{"max_output_tokens":256,"seed":42,"temperature_milli":700}}}
+key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
+```
+
+- [x] Implementation: `backend/model.py` (`Purpose`, `Role`, `Finish`, `FailureReason`, `CognitionModel`
+  — strict, frozen, `extra="forbid"` — `Message`, `Sampling`, `CompletionRequest`, `Usage`, `Completion`,
+  `BackendFailure` with a cross-field rule (a status exactly when the reason is `http_status`), and the
+  `ModelBackend` protocol: `complete(request) -> Completion | BackendFailure`, `aclose()`);
+  `backend/canonical.py` (`KEY_SCHEME = 1`, `CassetteKey`, `KeyMaterialError(path)`,
+  `canonical_object`, `canonical_json`, `cassette_key`); `backend/scripted.py` (`ScriptedBackend(script,
+  *, delay_s)` with a `calls` counter); `backend/__init__.py` (imports nothing);
+  `tests/support.py`; `tests/test_model_and_key.py`.
+- [x] Validation (E-P5-2): 5 passed; ruff, format and pyright strict clean. AP5-1 (a) passed on its
+  first run against the hand-computed literal. Mutations (§13.10): M-1 `sort_keys=False` → the golden
+  test fails; M-2 return instead of raising on a float → both AP5-2 path cases fail. Both reverted
+  (`git diff` of `src/` empty afterwards; 5 passed). The strictness case (a `model` field through
+  `extra`) fails construction, naming the field. AP5-1 (b) (two gateways, two configurations, one key)
+  needs the gateway and the configuration: it is shown in C6 with AP5-8 and AP5-14 (c).
+- [x] Review: no float field in the request model (`temperature_milli`, integers throughout);
+  `JsonValue` appears only at `output_schema`; no `Any` in `src/`. Design choice recorded: a backend
+  **returns** `BackendFailure` (a typed value) rather than raising it, so the gateway's outcome union is
+  exhaustive and no failure path carries an exception message that could hold a response body (I-16);
+  `CassetteMiss` alone is an exception (§5.3).
