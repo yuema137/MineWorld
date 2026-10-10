@@ -5617,6 +5617,10 @@ windows, ac8
   PR also runs it: a branch with no PR is not run until a (draft) PR is opened.
 - **Reuse.** `dorny/paths-filter` was considered and rejected, to avoid a third-party action holding a
   repository-read token for a 30-line check that `git diff` already answers.
+- **The standards agree.** `ENGINEERING_STANDARDS.md` §15 ("every pull request should run" format,
+  compile, lint and core tests) and §16 ("run on every change") now say that a documentation-only change
+  as defined here runs the documentation checks only: no other check reads its files, so their verdict
+  is the base's, and `main` runs every layer on every push.
 
 ---
 

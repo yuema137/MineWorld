@@ -3711,6 +3711,7 @@ self-test; `test`'s draft rule; concurrency; permissions.
 | X-C0 | this section; ARC-48's note | [x] `f80eb87` | [x] doc checks PASS | [x] terminology, ids |
 | X-C1 | `scripts/ci_changes.py`, the `docs` layer, self-test in `fast` | [x] `caa1d4f` | [x] A-X1, A-X4 PASS | [x] fail-closed paths |
 | X-C2 | `.github/workflows/ci.yml`: `changes`, `needs`/`if`, `push` branches | [x] `4443b5f` | [x] A-X2, A-X3, guard PASS | [x] every job's `if:` |
+| X-C3 | ledger; `ENGINEERING_STANDARDS.md` §15 reconciled with the docs-only rule (`CLAUDE.md` §2.1 rule 4: the review found §§15–16's "every pull request" / "every change" contradicting the design) | [x] | [x] doc checks PASS | [x] |
 
 Endpoint authority: commits, push of `ci/docs-only-skip` and `scratch/13x-docs`, PR create/update/close,
 branch delete: authorized by the primary session's brief. Settings and merge: not authorized.

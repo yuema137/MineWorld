@@ -475,6 +475,13 @@ The exact commands may evolve, but quality gates must remain automatic.
 
 Code should not rely on reviewers noticing basic formatting, lint, or type problems manually.
 
+"Every pull request" here and "every change" in §16 mean every change that a check could judge
+differently. A documentation-only change — every changed path in the audited docs set of
+[`DECISIONS.md`](DECISIONS.md) ARC-48's note of 2026-10-09 (13x), which no build, test or script reads
+except the documentation checks — runs those documentation checks only, by the operator's decision of
+2026-10-09. The set is fixed by audit and fails closed: any other path, or a change set that cannot be
+computed, runs every layer, and every push to `main` runs every layer.
+
 ---
 
 # 16. CI Must Test the Product, Not Just the Source Tree
