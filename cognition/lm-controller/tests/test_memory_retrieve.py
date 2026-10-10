@@ -98,8 +98,10 @@ def _talks() -> list[PerceivedEvent]:
         spoke(
             10, t, BOB, ALICE, "Bring an umbrella and a coat, it will rain.", CAFE
         ),  # E2 (2 terms)
-        spoke(20, 3 * DAY + t, CAROL, ALICE, "I lost my umbrella.", CAFE),  # E3
-        spoke(30, 6 * DAY + t, CAROL, ALICE, "Umbrella weather.", CAFE),  # E4, same time as E5
+        spoke(
+            20, 3 * DAY + t, CAROL, ALICE, "I lost my umbrella near here, that's the gist.", CAFE
+        ),
+        spoke(30, 6 * DAY + t, CAROL, ALICE, "Umbrella weather, foo.", CAFE),  # E4, as E5's time
         spoke(31, 6 * DAY + t, CAROL, ALICE, "Umbrellas everywhere.", PARK),  # E5: no whole term
         spoke(32, 6 * DAY + t, CAROL, ALICE, "An umbrella!", PARK),  # E5 (one term)
         *(spoke(40 + d, d * DAY + t, CAROL, ALICE, "Nice day.", CAFE) for d in range(8, 20)),
@@ -130,8 +132,16 @@ def test_hostile_words_are_matched_as_literal_terms(words: str) -> None:
     # AP4-7 (d), P4-4. Its mutation passes the words unquoted to MATCH: OperationalError.
     with _store(_talks()) as store:
         section = retrieve(store, RecallQuery(at=20 * DAY, words=words))
-    # Only "umbrella" survives as a term (`or` and `x` are too short): one term each, so recency ranks.
-    expected = ["[#30]", "[#31-32]", "[#20]", "[#10]"] if words.startswith("umbrella") else []
+    # Terms are the words' runs of letters and digits, three or more long: `umbrella` (one term each, so
+    # recency ranks); `near`, not the NEAR operator; `gist` and `foo`, not a column filter; none for `*`
+    # and `-x`.
+    expected = {
+        'umbrella" OR "x': ["[#30]", "[#31-32]", "[#20]", "[#10]"],
+        "NEAR(a b)": ["[#20]"],
+        "gist:foo": ["[#30]", "[#20]"],
+        "*": [],
+        "-x": [],
+    }[words]
     assert _l1(section) == expected
 
 

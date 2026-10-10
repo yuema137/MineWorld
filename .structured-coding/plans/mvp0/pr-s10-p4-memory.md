@@ -559,11 +559,12 @@ full suite (test rules §8); the PR's CI is the one full run.
   canonically.
 - **Scope.** `memory/records.py`, `memory/store.py`, `memory/__init__.py`, `tests/memory_fixtures.py`,
   `tests/test_memory_store.py` (AP4-1, AP4-2 (a), (c)).
-- [ ] Implementation: D-P4-2, D-P4-3, D-P4-4, D-P4-8, D-P4-13; schema v1 (§5.3); context-managed close.
-- [ ] Validation: AP4-1; AP4-2 (a), (c); a store created, closed and reopened in `tmp_path` keeps its
-  identity and cursor.
-- [ ] Review: no id becomes an `int`; no connection outlives `close()`; the dump has no float and no
-  wall-clock value.
+- [x] Implementation: D-P4-2, D-P4-3, D-P4-4, D-P4-8, D-P4-13; schema v1 (§5.3); context-managed close.
+  Landed with C3 and C4 in one commit (`8db4626`; §14.1 C2–C4).
+- [x] Validation: AP4-1; AP4-2 (a), (c); a store created, closed and reopened in `tmp_path` keeps its
+  identity and cursor. Evidence: §14.1 C2–C4; mutations M1, M2 (§14.2).
+- [x] Review: no id becomes an `int`; no connection outlives `close()`; the dump has no float and no
+  wall-clock value. Evidence: §14.1 C2–C4 (review).
 
 ### C3 — Renderers, names and ingestion
 
@@ -572,63 +573,68 @@ full suite (test rules §8); the PR's CI is the one full run.
   (AP4-4 (a)–(c), (e)); `tests/test_memory_store.py` (AP4-2 (b), AP4-3). Ingestion calls the roll-up in
   `compress/episodes.py`. If C3 alone would need a temporary stand-in for it, C3 and C4 land as one
   commit instead; the implementing session decides by reviewability and records the mapping.
-- [ ] Implementation: D-P4-5, D-P4-6; `ingest` per §5.4; `IngestReport`.
-- [ ] Validation: AP4-2 (b); AP4-3; AP4-4 (a)–(c), (e); ingestion time for the 100-day export measured
-  once locally and recorded (A-5).
-- [ ] Review: every plug-in falls back on a decode failure; quotes are injection-safe; `names.learn`
-  is the only write path for names.
+- [x] Implementation: D-P4-5, D-P4-6; `ingest` per §5.4; `IngestReport`. Commit `8db4626` (C2–C4).
+- [x] Validation: AP4-2 (b); AP4-3; AP4-4 (a)–(c), (e); ingestion time for the 100-day export measured
+  once locally and recorded (A-5). Evidence: §14.1 C2–C4; mutations M3, M4, M5.
+- [x] Review: every plug-in falls back on a decode failure; quotes are injection-safe; `names.learn`
+  is the only write path for names. Evidence: §14.1 C2–C4 (review).
 
 ### C4 — Compression: L1, L2, L3 and the structural summarizer
 
 - **Goal.** Episodes, chapters and stable facts, each with exact citations, decided by facts only.
 - **Scope.** `compress/episodes.py`, `compress/chapters.py`, `compress/stable.py`,
   `compress/summarize.py`; `tests/test_memory_compress.py` (AP4-5, AP4-6, AP4-8).
-- [ ] Implementation: D-P4-7; §5.5; `StructuralSummarizer`.
-- [ ] Validation: AP4-5; AP4-6; AP4-8; batch independence on a fixture (frames of 1 and of all).
-- [ ] Review: no closing decision depends on a batch boundary; every closed episode's range is
-  consecutive in the perceived sequence; chapters close only on fully past weeks.
+- [x] Implementation: D-P4-7; §5.5; `StructuralSummarizer`. Commit `8db4626` (C2–C4).
+- [x] Validation: AP4-5; AP4-6; AP4-8; batch independence on a fixture (frames of 1 and of all).
+  Evidence: §14.1 C2–C4; mutations M6, M7, M11.
+- [x] Review: no closing decision depends on a batch boundary; every closed episode's range is
+  consecutive in the perceived sequence; chapters close only on fully past weeks. Evidence: §14.1
+  C2–C4 (review).
 
 ### C5 — Retrieval and the memory section
 
 - **Goal.** A bounded, deterministic section with citations, from structure first and words last.
 - **Scope.** `memory/retrieve.py`, `memory/fts.py` (the match side); `tests/test_memory_retrieve.py`
   (AP4-7).
-- [ ] Implementation: D-P4-9, D-P4-11, D-P4-12; `MemorySection.render()` and `citations()`.
-- [ ] Validation: AP4-7 (a)–(e).
-- [ ] Review: no float reaches an ordering; the budgets are applied after line cutting; a line is never
-  partly emitted.
+- [x] Implementation: D-P4-9, D-P4-11, D-P4-12; `MemorySection.render()` and `citations()`. Commit
+  `a03b0fb`; the (d) fixture strengthened in C8 (§14.2 M9).
+- [x] Validation: AP4-7 (a)–(e). Evidence: §14.1 C5; mutations M8, M9, M10.
+- [x] Review: no float reaches an ordering; the budgets are applied after line cutting; a line is never
+  partly emitted. Evidence: §14.1 C5 (review).
 
 ### C6 — `ModelSummarizer` and `embellish`, through P5a's gateway
 
 - **Goal.** Optional prose that can never alter provenance, tested with no model.
 - **Scope.** `compress/model_summarizer.py`; `tests/test_memory_summarizers.py` (AP4-9);
   `tests/test_memory_isolation.py` (AP4-11).
-- [ ] Implementation: D-P4-10; the summarize request template (names only); prose validation.
-- [ ] Validation: AP4-9 (a)–(f); AP4-11 (a)–(c).
-- [ ] Review: every `GateOutcome` case handled (`assert_never`); `CassetteMiss` not caught; no
-  provider concept or binding name reaches the store.
+- [x] Implementation: D-P4-10; the summarize request template (names only); prose validation. Commit
+  `590f30a`.
+- [x] Validation: AP4-9 (a)–(f); AP4-11 (a)–(c). Evidence: §14.1 C6; mutations M12, M13, M14.
+- [x] Review: every `GateOutcome` case handled (`assert_never`); `CassetteMiss` not caught; no
+  provider concept or binding name reaches the store. Evidence: §14.1 C6 (review).
 
 ### C7 — `AC-10` over the real binary (IC-4)
 
 - **Goal.** The acceptance criterion, shown on a real 100-day history, with every mutation red.
 - **Scope.** `tests/ac10_harness.py`, `tests/binary.py`, `tests/test_ac10.py` (AP4-10, AP4-4 (d)).
-- [ ] Implementation: the harness (subprocess calls to the binary, into `tmp_path`); a module-scoped
-  fixture; assertions (a)–(g); the decode-fallback count asserted 0.
-- [ ] Validation:
+- [x] Implementation: the harness (subprocess calls to the binary, into `tmp_path`); a module-scoped
+  fixture; assertions (a)–(g); the decode-fallback count asserted 0. Commit `d421b18`.
+- [ ] Validation (local items done, §14.1 C7 and §14.2 A1–A7; the per-leg CI wall times wait on the
+  PR's first full run, §14.4):
   - `cargo build -p mineworld-cli`, then `uv run --locked pytest cognition/lm-controller -k ac10`;
     wall time recorded;
   - the six mutations of AP4-10 each planted, run, seen red, reverted (§14.2);
   - the store's size on disk after 100 days, recorded (R-P4-4);
   - the PR's CI: all three legs, wall time of `test_ac10.py` per leg.
-- [ ] Review: no oracle calls `mineworld_cognition`; located facts are chosen by rule, not by literal
-  ids; the harness reads the save only through the CLI.
+- [x] Review: no oracle calls `mineworld_cognition`; located facts are chosen by rule, not by literal
+  ids; the harness reads the save only through the CLI. Evidence: §14.1 C7 (review).
 
 ### C8 — Close-out
 
 - **Goal.** Review readiness.
 - **Scope.** This document's ledger (§14), the README paragraph, `handoff-s10-p4.md`; parent
   synchronization marked pending for the S10 planning session (step-17 §15, overall `AC-10` row).
-- [ ] Implementation: ledger complete; deviations recorded; README.
+- [x] Implementation: ledger complete; deviations recorded; README. Evidence: §14.1 C8.
 - [ ] Validation: both doc checks; the final head's CI green on every job.
 - [ ] Review: AP4-13's diff gate; every `[x]` carries evidence.
 
@@ -781,11 +787,106 @@ Opened at C0 by the implementation session (2026-10-10), worktree
   §12's verbatim plus the `ARC-59` link; G-6 follows step-17 §12 (the store lives in the operator's
   cognition directory because it is not world state). `fts_string` quotes and doubles; `query_terms`
   already strips `"` (split on non-alphanumerics), so the doubling is a second guard.
-- FTS5 per CI leg: recorded in §14.4 with the PR's first run.
+- FTS5 per CI leg: recorded in §14.4 with the PR's first full run (X-2).
+
+**C2–C4 — store, renderers, ingestion, compression (one commit, `8db4626`).** C3's ingestion calls C4's
+roll-up, so they land together, as §10 C3 allows; C2's tests use `ingest`, so it joins them.
+
+- Files: `memory/{__init__,records,store,names,ingest}.py`, `memory/render/{__init__,conversation,
+  presence,relationships,naming}.py`, `compress/{__init__,episodes,chapters,stable,summarize}.py`;
+  `tests/memory_fixtures.py`, `tests/test_memory_{store,render,compress}.py`. Largest module `store.py`
+  (264 lines); the longest function `ingest` (≈45 lines after `_write` was split out).
+- Validation (targeted): the three test files plus `test_fts5_platform`, `test_provider_scan`,
+  `test_structural_isolation`, run on the staged tree alone (later files stashed): 40 passed; ruff and
+  pyright clean. PASS.
+- A-5, measured once on the planning export regenerated at this base (`mineworld run … --seed 7 --days
+  100`, dev profile, 9.7 s; Alice's export 54 044 facts): SDK validation 0.9–1.2 s, ingestion in frames
+  of 256 into a file store **1.45–2.1 s**, 0 decode fallbacks, 923 closed episodes, 14 chapters, dump
+  19.6 MB. The design's scratch prototype counted 930 episodes (§6 F-P4-1); its handling of null places
+  and ambient records was not recorded, so the difference of 7 is noted, not explained. It is a
+  compression ratio, which no criterion bounds.
+- Review: ids are strings end to end (`event_key` pads, `event_of` strips; the AP4-2 (c) scan finds only
+  three `int(` conversions, all of booleans); `MemoryStore.close` and the context manager close the one
+  connection, and `test_a_store_releases_its_file_when_closed` deletes the file after closing; the dump
+  holds integers and strings only (no `at` is a wall clock: `at` is world time). Every plug-in returns
+  `fallback(...)` when `decode` fails; `quote` replaces `«`/`»` and folds whitespace, so speech cannot
+  close a quote or break a line; `NameBook.learn` is the only `INSERT INTO names`. Closing is decided in
+  `Episodes.feed` from the record and the stored open episode only; an episode is a run of consecutive
+  keys by construction; `close_weeks` writes a week only when a closed episode exists in a later week.
+
+**C5 — retrieval (`a03b0fb`).** `memory/retrieve.py`; `tests/test_memory_retrieve.py`.
+
+- Validation: 10 passed (AP4-7 (a)–(e)); the adversarial store (sixty days of 480-byte, three-byte-per-
+  character utterances, twenty long names) renders every section within its line and byte budget, every
+  line ≤ 160 bytes, the whole ≤ 6 000 bytes, all four sections used. PASS.
+- Review: every ordering key is an integer or a string (`times_met`, `first_key`, `episode`, `closed_at`,
+  `event_key`); `cut` runs before a line is measured, and `_Section.offer` adds a line whole or marks the
+  section full; `bm25` appears only in the module's docstring.
+
+**C6 — `ModelSummarizer` and `embellish` (`590f30a`).** `compress/model_summarizer.py`;
+`tests/test_memory_{summarizers,isolation}.py`.
+
+- Validation: 7 + 3 passed (AP4-9 (a)–(f), AP4-11 (a)–(c)), behind a real `ModelGateway` over
+  `ScriptedBackend`, `RecordingBackend` and `ReplayBackend`, a fake clock and a `MemoryLedger`; no
+  network, no model. PASS.
+- Review: `match outcome` covers `Completed`, `Refused`, `Failed`, then `assert_never`; nothing catches
+  `CassetteMiss` (M13); the dump of a store embellished through a recording whose model is `qwen-test`
+  has no provider term (AP4-11 (b)); only `prose` and `prose_key` are written (M12).
+
+**C7 — `AC-10` over the real binary (`d421b18`).** `tests/{binary,ac10_harness,test_ac10}.py`.
+
+- Gate 2 specification (written before the run): claim — on a real 100-day history, Alice's memory
+  section stays ≤ 6 000 B and does not grow with age, every citation resolves into her perceived set,
+  coverage is exact, nothing unperceived appears, the store is deterministic and batch-independent;
+  owner — Gate 2 (real binary, real export, real store on disk); command — `uv run --locked pytest
+  cognition/lm-controller/tests/test_ac10.py -s` after `cargo build -p mineworld-cli`; PASS evidence —
+  8 tests green with the printed section sizes; counterfactuals — §14.2 A1–A7.
+- Result, local (macOS arm64, dev profile, head `d421b18`): **PASS**, 8 passed in 29.9 s. Wall: run
+  11.2 s, two exports 4.0 s, ingestion with four retrievals 2.1 s; the remainder is the three extra
+  dumps of (e) and (g). Section bytes: day 10 4 424, day 30 4 909, day 60 4 905, day 100 4 915 (day 100 /
+  day 30 = 1.001 ≤ 1.10). Decode fallbacks 0. Five unperceived `spoke` facts located in Bob's export.
+- R-P4-4: the store on disk after 100 days is **19 521 536 bytes** (19.5 MB) for one seat; the canonical
+  dump 19.6 MB.
+- Review: `ac10_harness.py` imports `binary` and the SDK only; it locates triggers, Alice's whereabouts,
+  the unperceived facts and each counterpart's first naming by rule over the exports; the save is read
+  only through `mineworld run`, `inspect` and `perceived`.
+
+**C8 — close-out.** README "Memory" paragraph; this ledger; the handoff; `test_memory_retrieve.py`'s
+hostile-words fixture strengthened after M9 survived in part (§14.2). AP4-13's diff gate,
+`git diff --name-only 573c205` filtered by the allowed list: no file outside it (no `*.rs`, nothing
+under `sdk/python/`, `worlds/`, `systems/`, `.github/`; `uv.lock` unchanged). Both doc checks pass.
+Parent synchronization (step-17
+§15, `overall.md`'s `AC-10` row) is pending for the S10 planning session, which owns it (§12).
 
 ### 14.2 Mutations
 
-(Each planted, run, observed red, reverted.)
+(Each planted, run, observed red, reverted with `git checkout -- <file>`; local, macOS arm64.)
+
+| ID | Criterion | Mutation planted | Observed |
+| --- | --- | --- | --- |
+| M1 | AP4-1 | `_check_identity` skips `world_instance` | RED: `test_a_foreign_identity…[world_instance]` |
+| M2 | AP4-2 (a) | `event_key` stops padding (the code never orders by `CAST`; an unpadded key is the same defect: `"9" > "10"`) | RED: `test_ids_order_as_integers…`, and every test that ingests ids of mixed widths |
+| M3 | AP4-2 (b) | a re-delivery with a different digest overwrites it | RED: `test_a_redelivery_is_a_no_op…` |
+| M4 | AP4-3 | the cursor written before the transaction, outside it (first form also fed the new cursor into the order check, which turned ten tests red for the wrong reason; replanted so only the cursor moves) | RED: `test_a_failure_inside_ingestion…` (dump differs: cursor 24) |
+| M5 | AP4-4 (c) | `render` raises on an unknown type (`RENDERERS[...]`) | RED: `test_an_event_type_no_code_knows…` |
+| M6 | AP4-5 | a notable record must have the episode's counterpart set | RED: union, ambient and chapter tests |
+| M7 | AP4-6; AP4-10 (f) | `stable.first_key` follows every newer fact (L3 over a recent window) | RED: `test_stable_facts…`, and on the real history `test_f_each_counterpart_reaches_back…` |
+| M8 | AP4-7 (a); AP4-10 (a) | `_Section.offer` without the byte budget; then without any budget | RED: adversarial store 6 158 B > 6 000; on the real history `test_a_bounded…` |
+| M9 | AP4-7 (d) | the trigger's raw words passed to `MATCH` unquoted | first run: RED for `umbrella" OR "x` (`fts5: syntax error`) and the ranking test, but **survived** for `NEAR(a b)` and `gist:foo`, which parse as valid FTS5 and matched nothing in the fixture either way. Fixture strengthened (C8: the words `near`, `gist`, `foo` now occur), rerun: RED for those two as well. `*` and `-x` yield no term, so no query runs in either form: they assert "raises nothing" only |
+| M9' | P4-4 | terms quoted → bare (`fts_string` skipped, terms still split) | equivalent: `query_terms` yields lower-case alphanumeric runs, which FTS5 reads as barewords; the quoting is the second guard, recorded, not testable apart from M9 |
+| M10 | AP4-7 (e) | `import random` in `retrieve.py` | RED: `test_retrieval_is_deterministic…` |
+| M11 | AP4-8 | a clock reading appended to the chapter text | RED: golden test, chapters, batch independence |
+| M12 | AP4-9 (b) | `embellish` also rewrites an episode's `first_key` | RED: `test_prose_replaces_text_only…` |
+| M13 | AP4-9 (e) | `CassetteMiss` caught and skipped | RED: `test_recorded_prose_replays…` and the isolation import scan |
+| M14 | AP4-11 (b) | `prose_key` carries `:qwen-test` | RED: `test_an_embellished_store_holds_no_provider_concept` |
+| A1 | AP4-10 (b), (d) | the store fed the union of Alice's and Bob's exports | RED: `test_b…`, `test_d…` |
+| A2 | AP4-10 (c) | the roll-up disabled (`_fits` always true: episodes never close) | RED: `test_c…` (the open tail spans 100 days) |
+| A3 | AP4-10 (c) | closed episode 100's row deleted | RED: `test_c…` (coverage differs) |
+| A4 | AP4-10 (a) | D-P4-9's budgets removed | M8's second form: RED |
+| A5 | AP4-10 (f) | L3 over a recent window | M7: RED |
+| A6 | AP4-10 (g) | the open episode closed at the end of every batch | RED: `test_g…` (and six fixture tests); 161 s under the mutation |
+| A7 | AP4-4 (d) | an unnamed person rendered `entity-<id>` | RED: `'entity-8 arrived'` named |
+| — | AP4-12 | a store connection left open | not observable on macOS (POSIX deletes an open file); the Windows leg runs `test_a_store_releases_its_file_when_closed`, but a red Windows run would need a CI run beyond the PR's own (§12 budget), so it was not obtained (X-13) |
 
 ### 14.3 Deviations and discoveries
 
@@ -807,5 +908,81 @@ Impact:              none on scope: the same deselection the design asked for, w
                      cognition/lm-controller/** (AP4-13).
 Validation:          `ci_layer.py --list python-smoke`; the isolation test passes.
 ```
+
+All further entries are bounded: none changes a frozen invariant, an IC-4 literal, D-P4-7 or D-P4-9, a
+public contract, ownership, a dependency, or scope.
+
+**X-2 (C1) — a draft PR runs only `fast`.** `.github/workflows/ci.yml` runs `python` (and `test`) on
+non-draft pull requests only. The per-leg FTS5 evidence C1 planned "on the PR's first CI run" therefore
+comes from the first non-draft run (the PR is marked ready at C8). The LIKE fallback exists behind the
+same function, so nothing depended on FTS5 meanwhile. No scratch branch was pushed (the contract's CI
+budget is the PR's runs).
+
+**X-3 (C6) — `model_summarizer.py` also imports `backend.canonical`.** AP4-11 (a) says `ModelSummarizer`
+imports `gateway` and `backend.model` only. It stores each prose's cassette key (D-P4-10), which is
+`backend.canonical.cassette_key`; recomputing the hash here would duplicate the key scheme. `canonical`
+is neither an adapter, `config`, `record` nor `secrets`; the isolation test pins the exact set of
+outside imports (`gateway`, `backend.model`, `backend.canonical`).
+
+**X-4 (C7) — AP4-4 (d)'s oracle made stricter than a token match.** The literal oracle ("every entity id
+string in the export, matched as a whole token") cannot be met on social-cafe: its entity ids are `1` …
+`18`, which are also days, hours and counts in §5.5's frozen templates (`Day 12`, `met 212 times`). The
+oracle used removes every labelled template field (written in `ac10_harness.LABELLED` as literals) and
+every `«…»` quote, then requires that **no digit at all** remains. An id can hide nowhere, and the
+`entity-<id>` mutation is red (A7). Section lines cut at 160 bytes drop their last `; ` part before the
+check (a half label no longer reads as one); the whole text of every stored line is checked uncut.
+
+**X-5 (C4) — the `Summarizer` protocol takes two keyword inputs.** `episode(records, names, *, place)`
+and `chapter(episodes, names, *, newcomers)`: the episode's place is the roll-up's (D-P4-7), which its
+records alone do not determine when an ambient record from elsewhere opened it; "first met" (§5.5) needs
+the counterparts whose first naming falls in the week, which `chapters.py` reads from L3.
+
+**X-6 (C4) — the L1 template is pack-neutral.** `compress/` knows no event type, so the episode line
+counts notable records ("6 notable moments, 3 mine") and ambient passers ("4 others came and went"),
+and quotes one **gist**: the newest notable record that is not mine, else the newest notable. §5.5's
+"newest utterance addressed to me" would need a per-record "I took part" flag that schema v1 does not
+hold. Golden literal: AP4-8.
+
+**X-7 (C3, C4) — who a record concerns.** A record's counterparts are the fact's **participants** other
+than me, for every renderer (the envelope's own statement; `passage-opened` lists places as subjects and
+no participants). L3: `first_key` is the first perceived fact naming them as a participant (the oracle
+of AP4-10 (f) uses the same definition, computed from the export); `times_met` counts closed episodes
+whose counterparts include them (ambient presence included, as D-P4-7's union does); `exchanges` counts
+notable facts with them in which I am a participant; `level` is the `to` of the newest
+`relationship-changed` whose `person` is me. `became-acquainted` sets no level (the payload states none).
+
+**X-8 (C7) — AP4-10 (c) also bounds the open tail.** With episodes that never close, "open tail ∪
+closed ranges" would still cover everything. The test therefore takes the open tail to be the one open
+episode and requires its records to share one day, so the "roll-up disabled" mutation is red (A2).
+
+**X-9 (C3) — closing on elapsed time is P6's.** D-P4-7 mentions closing "when ingestion is told the
+world's time has passed the gap (P6, on an observation)". P4 closes on facts only; an open episode's
+records stay in the open L0 tail, covered and citable. P6 adds the call when it has observations.
+
+**X-10 (C2) — `Citation` enforces sorted and disjoint, not non-adjacent.** Adjacency is defined over the
+seat's perceived sequence, which a citation value cannot see. Episodes are consecutive, so a chapter
+cites one span; L3 cites up to three single facts.
+
+**X-11 (C2) — the FTS5 index uses `l0`'s own rowid.** `l0` is a rowid table, so `l0_text.rowid =
+l0.rowid` aligns them without the `l0_rowid` side table §5.3 sketches. The index is never dumped.
+
+**X-12 (C2) — `NotAMemoryStore`.** Opening a SQLite file that has tables but no `meta` (a world's save,
+for instance) is refused rather than turned into a store.
+
+**X-13 (C2) — AP4-12's mutation is not observable off Windows.** See §14.2: the test runs on the
+Windows leg; its red form was not obtained.
+
+**X-14 (C4) — day numbers.** The split rule uses `at // 86 400` (QP4-10); texts print that plus one,
+as `mineworld inspect` counts days (`t8639110 (day 100, …)`).
+
+**X-15 (C5) — section headers.** `People I know:`, `Recent weeks:`, `Episodes I remember:`, `The last
+day:`; each section's bytes include its header and newlines, so the 6 000-byte bound covers the whole
+rendered text.
+
+**X-16 (C6) — readings of two criteria.** AP4-9 (d)'s "no delimiter token" is read as the citation
+token's mark `#` (prose may never look like provenance); a completion whose `finish` is not `complete`
+is also discarded. AP4-11 (a)'s source scan allows `def open(` (the store's constructor) and the FTS5
+probe's `sqlite3.connect(":memory:")`; every other `open(`, `os.`, `Path(`, `subprocess` or
+`world.sqlite` is a finding.
 
 ### 14.4 CI runs per head
