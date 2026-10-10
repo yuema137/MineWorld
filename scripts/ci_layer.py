@@ -12,7 +12,9 @@ partial-clone filter), because a green layer is only evidence about the toolchai
 with. Every command is printed before it runs and timed after; the first failure stops the layer with
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
-    python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py fast | core | parity
+                                                   run a layer (on Linux in the toolchain container;
+                                                   parity natively on macOS and Windows runners)
     python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
                                                    (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
@@ -45,6 +47,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        ["python3", "scripts/ci_parity.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
     ],
@@ -55,6 +58,13 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # AC-8's record on a native runner (macOS, Windows): the release binary, then every world recorded
+    # (docs/DECISIONS.md ARC-49). The Linux legs record from the runtime image instead. On Windows the
+    # script finds target/release/mineworld.exe.
+    "parity": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
     ],
     # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
     # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
@@ -144,19 +154,36 @@ def report(command: list[str]) -> None:
     print(f"[ci] {shlex.join(command)}: {output}", flush=True)
 
 
+def size(path: Path) -> int:
+    """Bytes under a directory, without following links (`du`, which Windows lacks)."""
+    total = 0
+    for directory, _, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass  # a file removed while walking: it no longer takes space
+    return total
+
+
+def gigabytes(count: int) -> str:
+    return f"{count / 1024**3:.1f} G"
+
+
 def disk(moment: str) -> None:
-    """Prints free disk and target/'s size for the record; on a runner without `df`/`du` (Windows
-    outside its bash), says so instead — the record is information, never a verdict."""
-    print(f"[ci] disk {moment}:", flush=True)
-    present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-    for command in (["df", "-h", str(ROOT)], ["du", "-sh", *present] if present else None):
-        if command is None:
-            continue
-        try:
-            subprocess.run(command, cwd=ROOT)
-        except FileNotFoundError:
-            print(f"[ci] {command[0]}: not found on PATH", flush=True)
-    sys.stdout.flush()
+    """Prints free disk and target/'s size for the record, with no `df` or `du`, which Windows lacks;
+    the record is information, never a verdict."""
+    usage = shutil.disk_usage(ROOT)
+    print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
+    for path in ("target", "target/tmp"):
+        if (ROOT / path).exists():
+            print(f"[ci]   {path}: {gigabytes(size(ROOT / path))}", flush=True)
+
+
+def resolved(command: list[str]) -> list[str]:
+    """`python3` is this interpreter: Windows runners have no `python3` on PATH. The listed command
+    (`--list`) stays as written."""
+    return [sys.executable, *command[1:]] if command[0] == "python3" else command
 
 
 def run(layer: str) -> int:
@@ -171,7 +198,9 @@ def run(layer: str) -> int:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(command, cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}).returncode
+            status = subprocess.run(
+                resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}
+            ).returncode
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status = 127

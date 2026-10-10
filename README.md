@@ -90,7 +90,8 @@ Details: [`docs/MVP_STATUS.md`](docs/MVP_STATUS.md) and [`docs/MVP.md`](docs/MVP
 - [`CLAUDE.md`](CLAUDE.md) and [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md): the rules
   code here must follow
 - CI: every push and pull request runs the `fast` and `test` layers
-  ([`docs/DECISIONS.md`](docs/DECISIONS.md) `ARC-48`); `python3 scripts/ci_layer.py fast` runs one locally
+  ([`docs/DECISIONS.md`](docs/DECISIONS.md) `ARC-48`); `python3 scripts/ci_layer.py fast` runs one locally.
+  AC-8 parity on every `main` push: the same worlds on macOS, Linux and Windows (`ARC-49`)
 - Run in Docker: `docker build --target runtime -t mineworld .`, then
   `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld` hosts Social Café
   ([`Dockerfile`](Dockerfile))
