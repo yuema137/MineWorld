@@ -13,8 +13,11 @@ async def main() -> None:
     invite = Invite(os.environ["MY_INVITE"])  # you choose where it comes from
     cursor = CursorCell()  # or your own durable store: anything with .cursor()
     async with await ResumingSeat.connect(  # survives dropped sockets, lagged, restarts
-        "ws://127.0.0.1:7878/ws", seat=EntityKey("visitor"), invite=invite,
-        nickname="me", cursor=cursor,
+        "ws://127.0.0.1:7878/ws",
+        seat=EntityKey("visitor"),
+        invite=invite,
+        nickname="me",
+        cursor=cursor,
     ) as seat:
         seen = (await seat.changed()).frame.observation  # the newest observation
         complete = next(a for a in seen.affordances if a.available and a.payload is not None)

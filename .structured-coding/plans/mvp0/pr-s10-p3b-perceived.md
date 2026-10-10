@@ -791,6 +791,11 @@ E-P3b-10 PR #157 opened at 25206e3 and reported CONFLICTING (no CI ran): main ha
          loop" row now names reconnect.py too, DV-P3b-5). check_decision_ids → 108 distinct;
          check_doc_headings clean. With P4 merged: pyright and ruff over sdk/python and
          cognition/lm-controller clean, `pytest cognition/lm-controller` → 169 passed, 1 skipped.
+E-P3b-11 CI run 38088050534 on 83327b9: python (ubuntu) and python (windows) FAILED at
+         `ruff format --check sdk/python cognition/lm-controller` — ruff also formats the Python
+         block in sdk/python/README.md, written in C6 after the last local format check (a
+         validation gap of C6, not of the code). Fixed with `ruff format sdk/python/README.md`
+         (38 lines); `ruff format --check` and `ruff check` over both members clean.
          Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
          has exited; runs are written to files instead (no effect on results).
 ```
