@@ -63,7 +63,10 @@ static func gltf(slug: String) -> Node3D:
 	var src: Node3D = _scenes[slug]
 	if src == null:
 		return Node3D.new()
-	return src.duplicate() as Node3D
+	var n := src.duplicate() as Node3D
+	# the slice's frame-cost breakdown finds props by this (RL-b M-7)
+	n.set_meta("mw_category", "gltf")
+	return n
 
 
 ## Re-point an imported prop's materials at our palette.

@@ -6,7 +6,11 @@
 #   ./mineworld-slice --drive         walk in through the door, headless, and report
 #   ./mineworld-slice --measure       print measured scale against VISUAL_SLICE.md sec.3
 #   ./mineworld-slice --threshold     the sec.7.1 indoor/outdoor measurement
-#   ./mineworld-slice --perf          frame cost at four viewpoints
+#   ./mineworld-slice --perf          frame cost at eight views by RL-b's fixed protocol: three
+#                                     fresh runs (an inconclusive run is re-run), the median p95
+#                                     per view, and the Default tier's verdict. 1920x1080 unless
+#                                     --res=WxH; JSON per run under shots/slice/perf/
+#   ./mineworld-slice --perf --breakdown   one run: each cost category switched off in turn
 #   ./mineworld-slice --gi=<mode>     none | ssil | voxel | sdfgi  (default voxel)
 #   ./mineworld-slice --hud | --jumpshots | --doors    capture the controls, a jump, every door
 #   ./mineworld-slice --character     the character animates; every camera mode, as frames
@@ -52,13 +56,19 @@ fi
 args=()
 headless=0
 world=0
+perf=0
+breakdown=0
+res_given=0
+gi="voxel"
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation|--target)
+    --perf)                                perf=1; args+=("--slice-perf") ;;
+    --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target)
                                            args+=("--slice-${a#--}") ;;
-    --gi=*)                                args+=("$a") ;;
-    --res=*)                               res="${a#--res=}" ;;
+    --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
+    --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
   { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
@@ -101,6 +111,39 @@ fi
 if [ "$headless" = "1" ]; then
   "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}"
   exit $?
+fi
+
+# --perf (RL-b §3): the Default tier's 1920x1080 unless --res says otherwise. The
+# render size is passed to the probe as well, because the project's stretch mode
+# renders at a fixed size whatever the window is (slice_perf.gd, M-4). M-5: three
+# fresh processes; a run with any measured frame over 250 ms is inconclusive and
+# is re-run, up to three times, never averaged in. Each run writes its JSON into
+# one session directory, and the last run prints the median over the conclusive
+# ones.
+if [ "$perf" = "1" ]; then
+  [ "$res_given" = "1" ] || res="1920x1080"
+  session="$proj/shots/slice/perf/$(date +%Y%m%d-%H%M%S)-${gi}-${res}"
+  mkdir -p "$session"
+  echo "perf session: $session"
+  if [ "$breakdown" = "1" ]; then
+    "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]}" \
+      "--res=$res" "--perf-out=$session/breakdown.json" 2>&1 | tee "$session/breakdown.log"
+    exit "${PIPESTATUS[0]}"
+  fi
+  for run in 1 2 3; do
+    for attempt in 1 2 3 4; do
+      out="$session/run$run-a$attempt.json"
+      "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]}" \
+        "--res=$res" "--perf-out=$out" "--perf-run=$run" 2>&1 | tee "$session/run$run-a$attempt.log"
+      if [ ! -f "$out" ]; then
+        echo "perf: run $run attempt $attempt wrote no record (see its log)" >&2
+        continue
+      fi
+      grep -q '"inconclusive": false' "$out" && break
+      echo "perf: run $run attempt $attempt INCONCLUSIVE; re-running" >&2
+    done
+  done
+  exit 0
 fi
 
 "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]:-}"

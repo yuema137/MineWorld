@@ -360,12 +360,23 @@ with evidence.
 - [ ] Review: freeze review by the primary session.
 
 ### C1 — `3d: a perf protocol fixed before measuring; the baseline`
-- [ ] Implementation: `slice_perf.gd` (M-1 … M-5, M-7); `slice_probe.gd` dispatch; `mineworld-slice`
+- [x] Implementation: `slice_perf.gd` (M-1 … M-5, M-7); `slice_probe.gd` dispatch; `mineworld-slice`
   `--res` fix and `--perf --breakdown`; the `mw_category` meta in `props.gd` `place()`, the backdrop root and
-  the merged cells. No behaviour change in any other mode.
-- [ ] Validation: the base measured, three runs at each resolution, plus the breakdown → E-RLb-2 in the
-  ledger. V-1 on this commit: identical within noise.
-- [ ] Review: the instrument measures what it is named after (`ARC-23`). X-4 run once and recorded.
+  the merged cells. No behaviour change in any other mode. *Evidence:* `slice_perf.gd` (new);
+  `slice_probe.gd` `_perf()` is one call; `mineworld-slice` loops three runs with up to three re-runs each
+  and passes `--res=`; meta in `Props.gltf` (D-2), `street.gd` backdrop root, `batch.gd` `_category`
+  (D-3).
+- [x] Validation: the base measured, three runs at each resolution, plus the breakdown → E-RLb-2 in the
+  ledger. V-1 on this commit: identical within noise. *Evidence:* E-RLb-2. V-1 noise floor: two `--shots`
+  runs on this tree (`shots/slice/rlb/base1`, `base2`), `frame_diff.gd`: every view ≤ 0.037 % of pixels
+  over 8/255 (09c_character_close 0.037 %, all street and interior views ≤ 0.009 %). The C1 diff changes
+  no rendering state, so these frames are the base's and are V-1's reference for C2–C7.
+- [x] Review: the instrument measures what it is named after (`ARC-23`). X-4 run once and recorded.
+  *Evidence:* X-4 (`SliceBatch.merge` replaced by a no-op, one run at 1920x1080): draw calls 10 772 –
+  21 654 per view against 3 409 – 4 420 merged; CPU render time 2.8–7.5 ms p95 against 1.1–2.0 ms. The
+  draw-call ceiling sees batching; mutation reverted (`shots/slice/rlb/c1-x4.log`). Review findings:
+  GPU timestamps absent on Metal (recorded, the wall interval is the judged statistic); the breakdown's
+  base drifts in `cafe frontage` after the `gltf` row (recorded; no pass/fail role).
 
 ### C2 — `3d: props load as imported scenes (LODs, shadow meshes)`
 - [ ] Implementation: SD-RLb-1; `mineworld-slice` reimport condition; the scene `.import` files committed.
@@ -477,7 +488,81 @@ E-RLb-1  2026-10-09  planning: headless API probe, Godot 4.7.2: disable_fog, mea
                      (cpu/gpu), occlusion-culling setting, visibility_parent, ImporterMesh.generate_lods
                      all present (A-7)
 FREEZE   2026-10-09  DESIGN FROZEN by the primary session; rulings §0.1
-E-RLb-2  —           C1 baseline (to be recorded before any other commit)
+E-RLb-2  2026-10-09  C1 baseline, recorded before any other commit (M-8). The C1 diff changes no
+                     rendering state (a `mw_category` meta on nodes and the perf mode moved into
+                     slice_perf.gd), so its frames are the base's. Machine: Apple M5 | macOS 26.2.0 |
+                     Apple M5 (Apple9) Metal 4.0 | Godot 4.7.2-stable (official) | forward_plus.
+                     Session dirs under clients/3d-spike/shots/slice/perf/ (ignored by Git);
+                     logs copied to shots/slice/rlb/c1-*.log.
+
+  1920x1080, gi=voxel, three conclusive runs, median of p95 (ms):
+    view               median p95   p95 per run            draws   primitives
+    street wide            16.23    15.13, 17.59, 16.23    4155     8 784 353
+    cafe frontage          25.09    23.33, 26.56, 25.09    4420    10 460 745
+    interior               20.31    20.15, 21.50, 20.31    3899     9 639 642
+    doorway                27.26    26.76, 27.26, 44.88    3409     8 150 691
+    street east            17.82    16.14, 17.82, 30.45    4215     8 522 496
+    south side             15.22    15.22, 15.25, 14.37     614       372 639
+    florist interior       19.74    36.29, 19.74, 17.90    3642     8 515 551
+    skyline east           17.06    35.31, 17.06, 16.71    4047     8 732 462
+    video memory 2 503.6 MB (texture 2 064 MB, buffer 108 MB)
+    M-6  FAIL on all four: p95, draws, primitives, video memory
+
+  1600x900, gi=voxel (continuity with E-RL-1), median of p95 (ms):
+    street wide 13.49 | cafe frontage 18.87 | interior 15.69 | doorway 20.25 | street east 13.87 |
+    south side 10.88 | florist interior 14.26 | skyline east 14.30 | video memory 2 435.7 MB
+
+  M-7 breakdown (1920x1080, one run; d = category off minus all on):
+    category    members                street wide           cafe frontage          interior
+                                       d p95  d draws d prims  d p95 d draws d prims   d p95 d draws d prims
+    merged      592 cells, 74 612 tris -1.21  -2250   -0.38M   -4.60 -2161  +0.14M    -1.48 -2158  -0.43M
+    gltf        203 prop roots         -1.87  -1415   -8.03M   -1.55 -1548  -9.55M    -4.22 -1637  -9.47M
+    foliage     70 cells, 4 454 tris   -0.33  -180     0.0M    (drift) +68   +0.58M   -0.02 -134    0.0M
+    characters  1 (the occupant)       -0.30   0       0.0M    (drift)                +0.09  0       0
+    labels      41                     -0.21  -34      0.0M    (drift)                +0.19 -6       0
+    backdrop    1 root                 -0.21  -3       0.0M    (drift)                +0.04 -3       0
+    ground      1 cell, 2 tris         -0.05  -15      0.0M    (drift)                +1.28 -20      0
+    voxelgi     1                      -0.34   0       0       -7.95  (drift)         -3.46  0       0
+    ssil        1 env                  -1.68   0       0       -2.73  (drift)         +0.18  0       0
+    ssao        1 env                  -0.32   0       0       -1.54  (drift)        +20.16  0       0 (noise)
+    shadows     1 sun                  -1.68  -2185   -4.28M   -3.50 -2495  -5.53M    -1.69 -2860  -6.62M
+    occlusion   (off on the base)      not measured
+
+  Readings (ARC-23: locate before counting):
+  - Primitives are glTF props: switching them off removes 8.0-9.5 M of 8.8-10.5 M primitives. They
+    carry no LODs (A-4), and each prop is drawn again in every shadow split.
+  - Draw calls split about evenly between merged cells + props in the colour/depth passes and the
+    sun's four shadow splits (-2 185 to -2 860 draws with shadows off).
+  - VoxelGI is the largest single frame cost in the cafe frontage (-7.95 ms) and interior (-3.46 ms).
+  - Instrument finding: in `cafe frontage` every row after `gltf` reads about +246 draws and +0.59 M
+    primitives above the all-on base, so the base taken first was not the state the later rows ran in
+    (drift after re-showing props). The deltas marked (drift) are against a shifted base and are not
+    used. The breakdown has no pass/fail role (M-7); on the final head it is read with this caveat.
+  - GPU time: Godot 4.7.2's Metal driver reports no GPU timestamps (the gpu columns read 0 in every
+    run). The wall interval with vsync off is the frame cost M-5 and M-6 judge; CPU render time is
+    recorded (1.1-2.0 ms p95 everywhere).
+  - Run-to-run noise at 1920x1080 is large (florist interior 36.29 vs 19.74 ms; another session's
+    headless Godot tests were running on the machine during these runs). The median of three is the
+    statistic M-5 fixes, unchanged.
+
+Bounded discoveries recorded at C1:
+  D-1  A-3 is stale on one point: the scene and texture `.import` files under assets/models and
+       assets/textures are already tracked (253 files, since #50). SC-3 is unchanged: the tool now
+       owns settings in files Git already tracks.
+  D-2  Most props are placed by `SliceProps.put` / `hang` (dressing.gd, not in the change set), which
+       call `Props.gltf` directly. The `mw_category` meta is therefore set in `Props.gltf`, where every
+       prop node is made, rather than in `Props.place`.
+  D-3  `Build.ground`'s plane and the foliage cards are primitive meshes with a material override,
+       so `SliceBatch` merges them. Their category is decided in batch.gd when the cell is made
+       (a cell whose members were all `ground` planes is `ground`; an alpha-scissor card material is
+       `foliage`). batch.gd is not in §1's change set, but C1 names "the merged cells", so this edit
+       is the one C1 itself requires.
+  D-4  `--res` did nothing because the project's stretch mode is `viewport`, which renders at
+       `content_scale_size`; SlicePerf sets it (M-4). Verified: the run header reports the viewport
+       texture's size, 1920x1080.
+  D-5  The camera rig class is `CameraRig` (camera_rig.gd), not `SliceCameraRig`; SD-RLb-3 reads
+       `CameraRig.FOV`.
 ```
 
-**Handoff.** Not started. The next action after the freeze is C1 in a fresh session in `impl-rl-b`.
+**Handoff.** C1 implemented and measured (E-RLb-2); next: V-1 noise floor (two base `--shots`), then
+commit C1 and start C2 (imported props). Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`.
