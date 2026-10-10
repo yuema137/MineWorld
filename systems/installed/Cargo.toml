@@ -27,6 +27,7 @@ mineworld-employment = { path = "../employment" }
 mineworld-consumption = { path = "../consumption" }
 mineworld-bodies = { path = "../bodies" }
 mineworld-calendar = { path = "../calendar" }
+mineworld-weather = { path = "../weather" }
 acme-fishing = { git = "https://github.com/yuema137/mineworld-pack-fishing", rev = "b40e71ff1c4e7f6921b692809810d6835fae3921" }
 
 [dev-dependencies]

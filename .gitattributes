@@ -1,3 +1,10 @@
+# Every text file checks out with LF, on Windows too (Git for Windows defaults to core.autocrlf=true).
+# World Packs are YAML: a CRLF inside a block scalar would change a string, then a fact, then AC-8's
+# Windows record (docs/DECISIONS.md ARC-49; step-14 §13.10.1 W-3).
+* text=auto eol=lf
+# The one file committed with CRLF keeps its bytes: it is a third party's licence text, never renormalized.
+clients/3d-spike/assets/characters/LICENSE.quaternius-ual.txt -text
+
 # glTF binary buffers and GLB containers are binary data. Git's own test (a NUL byte in
 # the first 8000 bytes) misses some of them: bar_chair_round_01.bin was diffed as text,
 # and a diff with invalid UTF-8 broke the acceptance scan that reads `git diff` output

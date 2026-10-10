@@ -2825,7 +2825,14 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     keeps `cargo deny`. `cargo fetch --locked` was first left out, on the reasoning that EC-4's
     `--filter-platform` made it unnecessary; the PR's run 38011128259 on `2e1903e` refuted that on both
     OSes ("failed to download `glob v0.3.4`" — a dev-dependency of a workspace crate the layer never
-    builds), so it is re-added as the layer's first command, as the coordinator allowed. The worldpack and CLI portability fixes are E-d's (same separator rule), and E-c's
+    builds), so it is re-added as the layer's first command, as the coordinator allowed.
+  - **Merge of `origin/main` @ `cf18713`** (13b #97, TW-b #113, S10-P5 plan, S11-D fix; the PR showed
+    CONFLICTING and no `pull_request` run started): unions in `systems/installed` (weather's line, then
+    fishing's) and DECISIONS (90 ids, distinct); 13b's `ci.yml` and native action taken as merged (the
+    `platforms` job now on 13b's pinned `macos-26`, `windows-2025`); `ci_layer.py` held two identical
+    `resolved()` (13b's and E-c's), one removed; the layer action's `CARGO_HOME` change (F-Ec3) survives
+    the merge. `cargo metadata --locked` ok; installed-systems and acceptance, CLI third_party 3, packs 6,
+    requirements 6, entity_packs 5 passed; clippy and `cargo deny` clean. The worldpack and CLI portability fixes are E-d's (same separator rule), and E-c's
     `packs.rs` test `every_system_pack_is_listed_bundled_or_third_party…` is re-added on E-d's file. Docs:
     unions (DECISIONS 87 ids distinct; PACKAGE_FORMAT §8 and MVP_STATUS keep E-c's and E-d's rows).
     **Deviation from PD-p2 (bounded, coordinator)**: E-d's job uses `-latest` labels and a full checkout

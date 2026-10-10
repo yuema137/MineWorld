@@ -2771,6 +2771,13 @@ with its own review. A pack is generic when it is neither Social Café's nor the
 a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
 dependency structure still measure the market and nothing else. A test holds both refusals.
 
+**Note, 2026-10-09 (S19, PR TW-b; step-19 §17.5 C4) — `weather` joins the allow-list.** `GENERIC_PACKS`
+is now `["calendar", "weather"]` (`ARC-68`). Weather is a world's climate, not a market, so it is generic
+by the rule above. Nothing else in check 3 changes. Order among the allow-listed packs is free; each
+still follows the six and is listed once; and `configure/weather.yaml` is admitted as the configuration
+of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
+allow-listed is now `bodies` (it was `weather`).
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -5107,6 +5114,180 @@ outside the list (a reviewed addition here first).
 
 ---
 
+## ARC-49 — How AC-8 is measured
+
+**Date** 2026-10-09 · **Status** decided; live from S13 PR 13b · **Approved by** the primary session at
+13b's design freeze (step-14 §13, 2026-10-08), the operator for QB-1 and for the all-platforms
+requirement · **Relates to** `ARC-23`, `ARC-30`, `ARC-48`, `DEP-17`, `DEP-18`, `DEP-19`,
+[`MVP.md`](MVP.md) §9 `AC-8`, [`NETWORKING.md`](NETWORKING.md) §8 · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §13
+
+**Problem.** `AC-8`: "The same World Pack runs on a laptop and inside a cloud Docker container with no
+semantic differences." The operator added on 2026-10-08: "we must support every platform: Mac, Linux and
+Windows." The project needs an instrument that says, for one commit, whether those platforms produce the
+same world, that locates a difference when they do not, and that cannot pass by comparing a platform with
+itself.
+
+**Options considered.**
+
+```text
+(a) a reference file recorded on the laptop and committed; each platform    every PR that changes a
+    checks itself against it inside the required `test` check (step-14      world's facts turns red until
+    §3.3 as first drawn)                                                     someone re-records on a Mac;
+                                                                             slows a required check
+(b) a live comparison: on one workflow run, each platform writes a          chosen
+    parity record of the same commit, and a separate job compares them
+(c) compare the FNV-1a fingerprint `run` prints                             "for reading; not evidence"
+                                                                             (step-08 Q9)
+(d) a Rust test with `sha2` (the reserved DEP-19 of the step design)        a dev-dependency and a Rust
+                                                                             change for what stdlib Python
+                                                                             does on every side
+```
+
+**Decision.**
+1. **The record.** `scripts/ci_parity.py record` runs the `mineworld` binary (natively with `--binary`,
+   or in the runtime image with `--image`) and writes one plain-text record, `key value` per line, `\n`
+   line endings on every platform. It holds:
+   - `[platform]`: OS, architecture, Rosetta translation (macOS), emulation (Windows), the container
+     image and its platform when there is one, and `rustc`'s release;
+   - `[source]`: the commit and the worlds, enumerated from every `worlds/*/world.yaml`, never listed by
+     hand;
+   - per world: the digest of `validate`'s output; `summary-300`, seed 7, 300 days in memory, every line
+     but `wall`, digested and also kept verbatim; `summary-30s`, seed 7, 30 days with `--save`, every
+     line but the header (it names the host's save path) and `wall`; and the save's tables.
+   - Tables: `manifest` (the body decoded, `instance` removed, re-encoded with sorted keys, plus the
+     `format` column), and `journal`, `facts` and `snapshots`, each as a row count and a SHA-256 over
+     every column of every row in primary-key order, with a digest per 1 000-row chunk to locate a
+     difference (`ARC-23`). A row encodes each column: NULL as `0x00`; otherwise `0x01`, then an
+     integer as 8 bytes little-endian or a blob as its 8-byte length and its bytes.
+   - Nothing else is excluded. `instance` is excluded because it is allocated from the wall clock
+     (`ARC-27`); any further exclusion is a reviewed change to this record.
+2. **The comparison.** `scripts/ci_parity.py compare` exits 0 only if:
+   - **G-1** every record is well-formed;
+   - **G-2** every record names the same commit and the same worlds, equal to `worlds/` of that commit;
+   - **G-3** the records include Darwin arm64 (not translated, no container), Linux x86_64 in a
+     container, and Windows x86_64 (native, not emulated). Records from fewer platforms never pass,
+     however equal;
+   - **G-4** every record's `rustc` release equals `rust-toolchain.toml`'s channel;
+   - **G-5** every world's every key is equal across all records, a Linux arm64 record included.
+
+   On a G-5 failure it names the world, groups the platforms that agree (which places the difference in
+   an OS or an architecture), and prints the first differing summary line or the first differing table
+   chunk with its key range. `--self-test` checks these verdicts against synthetic records and runs in
+   `fast`.
+3. **Where it runs.** Four jobs record the same commit: `scenario` (the runtime image, `linux/amd64`, on
+   `ubuntu-24.04`), `linux-arm` (the runtime image, `linux/arm64`, on `ubuntu-24.04-arm`), `mac`
+   (native, `macos-26`) and `windows` (native, `windows-2025`) (`DEP-19`). `ac8` downloads the four
+   records and compares them. It runs `if: always()`, so a missing leg is a red `ac8`, never a skip.
+4. **When.** On every push to `main`, on `workflow_dispatch`, and on `scratch/*-scenario` branches
+   (planted-difference evidence). Not on pull requests. `ac8` is not a required check; like `scenario`
+   it blocks main's health (`ARC-48`). A PR touching `systems/`, `kernel/`, `persistence/` or
+   `worldpack/` should dispatch the workflow on its branch before review.
+5. **The laptop.** At 13b's acceptance the operator's Mac records the final head and is compared with
+   that head's Linux and Windows records (step-14 §13.4.4). That is `AC-8` literally; it is repeated by
+   one command whenever doubt arises.
+
+**Why not ourselves / why not the others.** Hashing, SQLite reading and process control are the
+standard library's; nothing is built that a mature library provides. (a) moves a duty onto every lane and
+onto whoever owns a Mac; (c) is not evidence; (d) adds a dependency for no gain and two hashing
+implementations.
+
+**Isolating interface.** The record format and `ci_parity.py`'s two subcommands. A runner label is one
+line of the workflow (`DEP-19`). A world joins the record by existing under `worlds/`.
+
+**Accepted limitations.**
+- The macOS runner is not the operator's laptop: same OS major and target triple, another machine. The
+  laptop comparison at acceptance covers the literal claim.
+- `main` is checked after a merge, not before: a PR that introduces a platform difference merges green and
+  `ac8` turns red on `main`.
+- The long horizon (300-day saves, 1 000-day runs) is S13 PR 13c's nightly work.
+
+---
+
+## DEP-19 — AC-8's non-Linux sides: GitHub-hosted macOS arm64 (`macos-26`) and Windows x86_64 (`windows-2025`) runners
+
+**Date** 2026-10-09 · **Status** selected; integrated in S13 PR 13b · **Approved by** the operator
+(QB-1, 2026-10-08: "Use the macOS runner (macos-26). If billing later shows a charge, switch to the
+designed fallback"; and "we must support every platform: Mac, Linux and Windows") and the primary session
+at 13b's freeze · **Relates to** `ARC-49`, `DEP-17`, `ARC-48` · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§13.0.1, 13.3
+
+Ruling 6 reserved `DEP-19` for `sha2`; 13b needs no `sha2` (`ARC-49` option (d)), and QB-3 gave the
+number to this decision.
+
+**Problem.** `AC-8`'s Linux side is the runtime container on hosted `ubuntu-24.04` (`DEP-17`). Its Mac
+side, and the Windows side the operator requires, need machines that run on every check.
+
+**Options considered** (step-14 §13.3).
+
+```text
+(a) the operator's laptop against a CI Linux record, once         chosen for acceptance, not continuous
+(b) a committed laptop reference                                  declined (ARC-49 option (a))
+(c) GitHub-hosted macos-26 (arm64)                                chosen: continuous
+(c') macos-14                                                     deprecated in runner-images
+(d) ubuntu-24.04-arm (Linux arm64) as a localizer                 chosen: places a difference in OS or
+                                                                  architecture without Rosetta
+(e) macos-26-intel (Darwin x86_64)                                not needed while (c) and (d) localize
+(f) Rosetta on the laptop                                         emulation; a diagnostic only
+(g) Docker Desktop linux/arm64 on the laptop                      a diagnostic only; (d) covers it
+(h) a self-hosted runner on the operator's Mac                    runs fork-PR code on the operator's
+                                                                  machine; depends on a laptop being awake
+(i) larger macOS runners                                          paid, even on a public repository
+(j) another CI service for macOS                                  a second platform for one job
+(k) GitHub-hosted windows-2025 (Windows x86_64), native           chosen: the operator's third platform;
+                                                                  hosted Windows cannot run the Linux image
+```
+
+**Choice.** (c) + (a) + (d) + (k). Labels are pinned (`macos-26`, `windows-2025`, `ubuntu-24.04-arm`),
+never `-latest`, so a label migration never silently changes a platform under `AC-8`. The native legs
+build with rustup taking `rust-toolchain.toml`'s channel, through the shared composite action
+`.github/actions/native`, which names a layer of `scripts/ci_layer.py` and never a command.
+
+**Cost basis.** Standard GitHub-hosted runners, macOS and Windows included, carry no per-minute charge on
+a public repository (GitHub's published terms; the session cannot read billing, so this is the operator's
+to confirm). No larger runner and no paid service is used.
+
+**Isolating interface.** `ci_parity.py` runs anywhere Python 3 and the binary do. A runner is one line;
+the native action is one file.
+
+**Revisit triggers.**
+- Billing shows a charge: switch to the designed fallback, (a) + (d) + (k), recorded as a deviation.
+- A label is deprecated in `runner-images`: move to the next pinned label.
+- A need for a machine GitHub does not host.
+
+**Accepted limitations.** Hosted runners are not the operator's laptop (`ARC-49`). About five macOS jobs
+run concurrently on the Free plan, so a busy day delays `ac8`; it never holds a merge.
+
+---
+
+## ARC-48 note — the scenario group of jobs and the Windows suite (2026-10-09, S13 PR 13b)
+
+The decision is unchanged; its table gains these rows, and two details of the required checks change.
+
+```text
+job           layer / role                  trigger                                         merge
+scenario      3 scenario: the runtime        push to main; workflow_dispatch;               blocks main's
+              image's evidence (was          push to scratch/*-scenario                     health
+              `image`) and the Linux x86_64
+              parity record (ARC-49)
+mac           parity record, macos-26        same                                           blocks main's health
+linux-arm     parity record, Linux arm64     same                                           blocks main's health
+windows       parity record, windows-2025    same                                           blocks main's health
+ac8           AC-8's comparison (ARC-49)     same; if: always()                             blocks main's health
+test-windows  the `core` layer natively on   push to main; workflow_dispatch                reports
+              windows-2025
+```
+
+- `image` is renamed `scenario`; its scratch route `scratch/*-image` becomes `scratch/*-scenario`.
+- `fast` gains one command, `python3 scripts/ci_parity.py --self-test` (under a second). `test` is not
+  run on `scratch/*-scenario` branches, as it was not on `-image` ones. `core`'s commands are unchanged.
+- `test-windows` reports only. It is red until the Windows-portability PR (13w) makes the suite compile
+  and pass there; that PR adds its `pull_request` trigger, and only then may the operator make it a
+  required check (QB-11).
+- None of the new jobs runs on `pull_request`, and none is required (QB-8).
+
+---
+
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;
@@ -5714,3 +5895,89 @@ holds it. Delta T comes from the library's own estimate at the middle of the day
 per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
 latitudes on the few days with two crossings of one horizon, the second is not an event that day and
 the next day's opening phase corrects the light.
+
+---
+
+## ARC-68 — Calendar and weather are System Packs; weather is a seeded WGEN-lite generator built from the published algorithm
+
+**Date** 2026-10-09 · **Approved by** the primary session at PR TW-b's design freeze (step-19 §17.9.1;
+QTWb-1 … 7 ruled as recommended) · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-26`, `ARC-28`, `ARC-33`, `ARC-35`, `ARC-61`, `ARC-67`, `DEP-30`, `DEP-31` (weather
+data and the fetch tool, TW-d), `REUSE_POLICY.md` §§11–12 · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.3, §5, §6, §15.1, §16, §17 (S19, PRs TW-a and
+TW-b)
+
+**Problem.** A world that wants a date, a sun and weather must have them without the kernel learning what
+a day, a sunrise or rain is (kernel ignorance), without any client computing them (clients only render,
+`INV-TW-6`), and without the time scale or pause reaching a rule (`ARC-67`, `INV-TW-2`). The weather must
+be the same for every observer, reproducible from the world's facts, realistic by default, and
+replaceable by a world's author.
+
+**Choice.**
+
+1. **Both are System Packs.** `calendar` (`systems/calendar`, PR TW-a) owns the civil date and the sun.
+   `weather` (`systems/weather`, PR TW-b) owns the weather: condition, cloud, temperature, precipitation
+   and wind, hour by hour, one climate per world. Each is installed by one line in `systems/installed`
+   (`ARC-33`) and enabled by a world's `systems:` list.
+2. **`weather` depends on `calendar`, never the reverse** (`INV-TW-10`). It declares the dependency, so a
+   world that enables `weather` without `calendar` is refused at assembly by the kernel's existing
+   dependency check. It reacts to calendar's Public `day-began` and reads the date and the day's light
+   events from that fact's payload; it never recomputes a date or the sun. Removing `weather` leaves
+   calendar's facts byte-identical.
+3. **Both are configured through `ARC-61`'s seam**: `configure/calendar.yaml` and
+   `configure/weather.yaml`, decoded by the owner's own types so a refusal names the file, its line and
+   column, and the key. Each configuration becomes one SystemInternal fact with no subjects
+   (`calendar-configured`, `weather-configured`). A pack that is enabled but not configured states
+   nothing.
+4. **Each keeps one world-level Process** (`calendar`, `climate`) whose state is the fold of the pack's
+   own facts, so a snapshot and a replay agree and a resumed world continues the same weather chain.
+5. **Both emit Public facts at changes** — `day-began`, `daylight-changed`, `weather-changed` — so other
+   packs (an umbrella seller, a rainy-day routine) may react without either pack knowing them
+   (`ARC-26`, `ARC-28`). The per-day weather record, `weather-day`, is SystemInternal.
+6. **Both disclose on the observer's place** through presence's existing `PerceptionProvider::discloses`
+   (`calendar-day`, `calendar-light`; `weather-today`, `weather-now`). An observer in no place gets
+   none.
+7. **Integers only.** Weather is fixed-point integers end to end (0.1 °C, 0.1 mm, 0.1 m/s, per-mille
+   probabilities, oktas); no `f32` or `f64` appears in the weather pack's source, which a test scans
+   for (`INV-TW-5`). Its randomness is counter-based SplitMix64 keyed by the configured seed, the world
+   day and a fixed draw index, so a fixed configuration gives the same weather on every platform.
+8. **Kernel, contracts and presence are unchanged** (`INV-TW-3`).
+
+**Alternatives rejected.** A `discloses_at` on presence (a perception contract change for a need the
+existing `discloses` meets); client-side astronomy or weather (every client would compute a world rule,
+and two clients could disagree); a kernel clock that knows days (`ARC-67`).
+
+**Reuse: the weather generator is built from the published algorithm** (`REUSE_POLICY.md`; step-19
+§3.3, read 2026-10-08).
+
+```text
+(a) WGEN — Richardson 1981, Water Resources Research 17:182–190; Richardson & Wright 1984, USDA-ARS
+    ARS-8. A published algorithm: a first-order two-state Markov chain for wet and dry days with monthly
+    P(W|D) and P(W|W), gamma wet-day amounts, AR(1) temperature conditioned on wet or dry. A clean-room
+    implementation has no licence issue.
+(b) LARS-WG — academic, non-commercial licence only
+(c) ClimGen (WSU) — Weibull amounts; not pursued
+(d) plain monthly rule tables — trivially authored, but independent days with no rain spells
+```
+
+**Selected: (a), simplified to "WGEN-lite"** and written by us in `systems/weather`: the Markov chain
+with monthly per-mille probabilities; wet-day amounts from a per-month table of five quintile amounts
+instead of a gamma sampler (no floating point); temperature as the monthly mean plus an integer AR(1)
+anomaly with bounded integer noise. (b) fails the licence rule. (c) offers no gain in fit for this use.
+(d) is kept as the degenerate case of the same file: a table with `p_wet_after_dry == p_wet_after_wet`
+*is* an independent table, so there is one schema, not two. No crate is adopted: no maintained Rust
+weather generator exists, and the generator is about two hundred lines of integer arithmetic over a
+mixer the tree already uses (the paced controller's SplitMix64 finalizer, restated in the pack and
+pinned to the reference outputs). The station record, its CSV form and the fetch tool's HTTP client are
+`DEP-31`'s (TW-d), not this decision's.
+
+**Defaults are content with sources.** The pack's climate is `configure/weather.yaml`. Market Town's
+table is derived from NOAA's U.S. Climate Normals 1991–2020 for San Diego Lindbergh Field (USW00023188)
+by formulas written in the file's header; values the normals do not give are labelled provisional until
+TW-d fits them from the station record. The daily-to-hourly constants are pack constants with cited
+sources: the diurnal temperature shape of Parton & Logan (1981), the American Meteorological Society's
+drizzle and heavy-rain intensity thresholds, and the WMO okta scale (step-19 QTWb-6).
+
+**Accepted limitations.** One climate per world (regional weather is QTW-12). Wet-hour counts by daily
+amount are a stated design default, not a measured climatology, until the hourly layer (TW-g). Wind has
+no day-to-day noise in this version.

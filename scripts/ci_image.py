@@ -6,7 +6,7 @@ runs (`NETWORKING.md` §7). Building it proves only that it builds. This script 
 operator would, and reads every verdict from what the program printed. An exit code alone is not a
 verdict (step-14 §9, A13-5):
 
-1. `mineworld validate worlds/<w>` for every shipped world → "<w> is a valid World Pack."
+1. `mineworld validate worlds/<w>` for every world under worlds/ → "<w> is a valid World Pack."
 2. `mineworld run worlds/social-cafe --headless --seed 7 --days 1` → a `faults 0` summary line
 3. the image's default command on a named volume → it creates a world and listens on 7878 (a TCP
    connection is accepted); `docker stop` (SIGINT, the image's STOPSIGNAL) → it reports stopping
@@ -26,8 +26,14 @@ import subprocess
 import sys
 import time
 import uuid
+from pathlib import Path
 
-WORLDS = ("social-cafe", "market-town", "bodies-yard")
+# The worlds are enumerated, never listed by hand: a hand list fails open when a world is added
+# (step-14 §13.4.1). One enumeration serves this script and AC-8's record.
+from ci_parity import Unmet as NoWorlds
+from ci_parity import enumerate_worlds
+
+ROOT = Path(__file__).resolve().parent.parent
 PORT = 7878
 
 
@@ -102,7 +108,12 @@ def main(arguments: list[str]) -> int:
         return 2
     image = arguments[0]
     try:
-        for world in WORLDS:
+        worlds = enumerate_worlds(ROOT)
+    except NoWorlds as missing:
+        print(f"[image] FAIL {missing}", file=sys.stderr)
+        return 1
+    try:
+        for world in worlds:
             expect(rf"^worlds/{world} is a valid World Pack\.$",
                    docker("run", "--rm", image, "validate", f"worlds/{world}"),
                    f"validate worlds/{world}")
