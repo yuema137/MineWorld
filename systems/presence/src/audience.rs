@@ -257,6 +257,20 @@ mod tests {
     }
 
     #[test]
+    fn a_place_fact_is_not_heard_by_someone_elsewhere_or_nowhere() {
+        let here = placed();
+        let fact = noise(1, Visibility::Place(hall()));
+        assert!(
+            !admits(&here, &fact, CAT),
+            "Cat is in the yard, neither a participant nor a subject"
+        );
+        assert!(
+            !admits(&here, &fact, DAN),
+            "Dan is nowhere this pack knows of, and names no participant"
+        );
+    }
+
+    #[test]
     fn a_place_fact_is_judged_against_where_people_are_once_it_is_applied() {
         let log = vec![
             arrived(1, ANN, hall(), true),
