@@ -3795,11 +3795,17 @@ endowments and fish is the renewable food). `docs/ARCHITECTURE.md` §14: `entiti
 `docs/MODULE_SPEC.md` §2: `entities/modern-goods` named as the shipped example of the MVP-0 subset.
 `docs/PACKAGE_FORMAT.md` §8: the Entity Packs row gains the shipped pack.
 
-- [ ] Implementation: as scoped; ARC number re-checked free on every `origin/*` branch.
-- [ ] Validation: both doc checks; `git grep -n "bundled" docs/DECISIONS.md` shows ARC-Ee-a uses the
-  word only in ARC-54's sense.
-- [ ] Review: no defined term redefined or synonym introduced (`Entity Pack`, `World Pack`,
-  `Presentation Pack`; "bundled", "pack root", "third-party" as ARC-54 defines them).
+- [x] Implementation: `docs/DECISIONS.md` **ARC-77** (six points, options, limitations), appended at
+  the end; `ARCHITECTURE.md` §14 (`entities/`, Lakeside on the `worlds/` line); `MODULE_SPEC.md` §2 (a
+  paragraph naming `entities/modern-goods`, found through a root, never "bundled"); `PACKAGE_FORMAT.md`
+  §8's Entity Packs row. ARC-77 absent from `docs/DECISIONS.md` on every `origin/*` branch (`git grep
+  "^## ARC-77\b"` per branch: none) (E-Ee1).
+- [x] Validation: `check_doc_headings` 193 sections / 26 documents, none duplicated; `check_decision_ids`
+  105 ids, all distinct (+1). ARC-77 uses "bundled" only for `ARC-54`'s code-pack sense and to reject the
+  other reading (E-Ee1).
+- [x] Review: no defined term redefined or synonym introduced (`Entity Pack`, `World Pack`,
+  `Presentation Pack`, `System Pack` as `MODULE_SPEC.md` §1; "bundled", "pack root", "third-party" as
+  ARC-54/ARC-66 define them; "the repository's own" is stated to be description, not a category).
 
 **Commit boundary.** Documentation only.
 
