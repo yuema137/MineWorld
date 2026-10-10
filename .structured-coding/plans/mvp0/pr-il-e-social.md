@@ -529,13 +529,14 @@ version move together.
 **Scope.** `systems/conversation/src/{interactions,action,component,system,lib}.rs`; its pinned test;
 `tools/cli/tests/{inspect,social_composition,interactions}.rs` version and "(it declares: …)" pins.
 **Dependencies.** IE-C1.
-- [ ] Implementation: `ACTIONS` (`talk`), `FACTS` (`spoke`, `conversation-started`), `ConversationParameters`
+- [x] Implementation: `ACTIONS` (`talk`), `FACTS` (`spoke`, `conversation-started`), `ConversationParameters`
   gains `range`, `remembered`; `ConversationKnobs` (`remember`); `talk_requirement_within`; validate calls
   `permits` then evaluates with the looked-up range; offers likewise with `Offer::refused`; `resolve` routes both
-  emissions through `consequence`; `react` reads `remember` and `remembered`; `remember_within`; VERSION 3.
-- [ ] Validation: conversation's tests; the emission-visibility unit test (unconfigured = `FactDecl` default);
-  the pinned test; the three CLI pins; `cargo clippy -p mineworld-conversation -D warnings`.
-- [ ] Review: no other use of `INTERACTION_RANGE` / `REMEMBERED_AT_MOST` remains except as defaults' values and
+  emissions through `consequence`; `react` reads `remember` and `remembered`; `remember_within`; VERSION 3
+  (E-IE-2; D-IE-1: `remember` kept as the default bound).
+- [x] Validation: conversation's tests; the emission-visibility unit test (unconfigured = `FactDecl` default);
+  the pinned test; the three CLI pins; `cargo clippy -p mineworld-conversation -D warnings` (E-IE-2).
+- [x] Review (E-IE-2): no other use of `INTERACTION_RANGE` / `REMEMBERED_AT_MOST` remains except as defaults' values and
   docs (`git grep`); validate and offers call one `permits` with the same roles and place; no cognition diff.
 **Acceptance.** Unconfigured, every emission and requirement is byte-equal to today's (unit-level); a forbidden
 pair is refused with the reason in both paths (fully proven in IE-C5).
@@ -738,8 +739,35 @@ E-IE-1  2026-10-10, IE-C1: DECISIONS.md dated notes on ARC-63 (first rules of re
         0); check_decision_ids → 104 decision ids, all distinct (exit 0; no new id). Review: terms used
         are §4.2's (section, rule, parameter, consequence, region, class, role); `acquaint` is called a
         "rule name" decided "in a reaction" everywhere and "not an action anybody sends". PASS.
+E-IE-2  2026-10-10, IE-C2 (conversation): interactions.rs (ACTIONS talk, roles actor/target/place,
+        regional; FACTS spoke Place→Participants and conversation-started Participants, both roles
+        actor→Participant(0), target→Participant(1), place→Place, biography configurable;
+        ConversationParameters gap/range/remembered; ConversationKnobs remember, the partial twin of
+        ConversationKnobValues { remember: bool = true }; owner_default from the FactDecl);
+        action.rs talk_requirement_within, talk_requirement() = _within(INTERACTION_RANGE);
+        component.rs remember_within (D-IE-1); system.rs: one helper `talk_terms` (permits + range)
+        called by validate (after the listener is a Person and the speaker located, before evaluate)
+        and offers (Offer::refused on Err; an unlocated observer gets the compiled default); resolve
+        routes both emissions through `consequence`; react reads `remember` and `remembered`; VERSION
+        3. CLI pins: inspect.rs, social_composition.rs ×2 "conversation v3"; interactions.rs "(it
+        declares: talk)".
+        cargo clippy -p mineworld-conversation --all-targets -D warnings: clean. cargo test -p
+        mineworld-conversation -p mineworld-rule-controller: 2 + 14 + 35 passed, 0 failed (rule
+        controller unedited). cargo test -p mineworld-cli --test interactions --test inspect --test
+        social_composition: 4 + 3 + 4 passed. 30-day social-cafe seed 7 at this state: sha 06e2d63c…6fbe
+        = E-IE-0 (byte identity holds after the conversation conversion). Review: `git grep
+        INTERACTION_RANGE\|REMEMBERED_AT_MOST -- systems/conversation/src` → only the constants, their
+        docs, the defaults' pins, `talk_requirement()`, `remember()` and react's no-place fallback;
+        validate and offers share `talk_terms` (same roles, same place); `git diff --stat --
+        cognition` empty. PASS.
 ```
 
 ## 15. Deviations
 
-None yet.
+- **D-IE-1** (bounded, IE-C2). *Deviation:* SD-IE-4 said `ConversationHistory::remember(heard)` is
+  deleted. It is kept, as `remember_within(heard, REMEMBERED_AT_MOST)`: the compiled default's bound,
+  exactly as QIE-8 keeps `talk_requirement()` beside `_within`. *Reason:* `remember` is called by
+  `cognition/rule-controller/src/{agenda_tests,paced_tests,tests}.rs` (F-IE-5 missed these callers);
+  deleting it would force an edit under `cognition/`, which §11, SD-IE-12 and IE-12 forbid (a material
+  stop). Of the two frozen statements, the no-diff invariant governs. *Evidence:* `git grep "\.remember("`.
+  *Impact:* none on behaviour; the pack itself calls only `remember_within`. *Validation:* E-IE-2.
