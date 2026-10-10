@@ -512,7 +512,10 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ## 11. Ledger (live during implementation)
 
 ```text
-Status:            IN PROGRESS (C0)
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE, with C4 BLOCKED (the OpenAI Terms of Use
+                   re-read is INCONCLUSIVE and the `codex exec --help` paste is missing; §11.2, §11.5).
+                   Implementation context CLOSED / AWAITING OPERATOR ACTION
+Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
 Implementation
 base:              origin/main @ 02788e6 (#123), which contains P5a's merge 60a6295 (#120)
 Worktree / branch: /Users/yuema137/mineworld-worktrees/impl-s10-p5b, mvp0/pr-s10-p5b (sole writer)
@@ -730,6 +733,76 @@ DV-P5b-5  The member's pytest addopts gain `-v`, so CI's log names every test an
           `.cmd` case is visibly run on its leg. ci_layer.py is unchanged (AB-10).
 DV-P5b-6  test_provider_scan.py's ALLOWED gains cli_bridge.py: its deny pattern names OPENAI_ and
           ANTHROPIC_ (I-10 allows "the adapters, the presets, the registry and config.py").
+```
+
+### 11.5 C4 — the Codex preset: BLOCKED (not started)
+
+- [ ] Implementation — **not started.** The freeze header: "C4 (the Codex preset) does not start until
+  [the Terms of Use re-read] is recorded", and the re-read is INCONCLUSIVE (§11.2: HTTP 403 twice). The
+  operator's `codex exec --help` paste, from which the flags are to be fixed, has not been given either.
+  No `codex-subscription` kind, no `acknowledge_terms` field and no `backend/presets/` exist on this
+  branch; `config.load` refuses `codex-subscription` as an unknown kind, like
+  `claude-code-subscription`.
+- [ ] Validation — not run (AB-7's gate half, the recorded event stream, `turn.failed`).
+- [ ] Review — not run.
+- **Not N/A:** nothing shows that OpenAI's terms forbid the use; the obligation is open. **To unblock:**
+  the operator (or a browser session) pastes into §4.2 the Terms of Use's effective date and its clauses
+  on programmatic extraction of output and on account sharing, and pastes `codex exec --help` (with the
+  CLI's version) into §11.2. C4 then proceeds on this branch, or in a follow-up PR if this one has
+  merged; the bridge core (C3) needs no change for it: one preset file, one registry entry, the
+  `acknowledge_terms` field and its gate in `config.py`.
+- What C3 already covers of AB-7: a dropped or unbuilt kind is refused by name (`claude-code-subscription`
+  in `test_a_claude_subscription_kind_does_not_exist`); replay mode constructs no bridge
+  (`test_structural_isolation.py`'s child checks that `cli_bridge` is never imported); a missing
+  executable names what was looked for (DV-P5b-4).
+
+### 11.6 C5 — the Claude Code preset: N/A (QP5b-1)
+
+- N/A, ruled: Anthropic does not permit a third-party product to route requests through a user's Free,
+  Pro or Max plan credentials (§4.1). No such kind exists; `config.load` refuses
+  `claude-code-subscription` naming `backends.<name>.kind` (C2's test).
+
+### 11.7 C6 — CI and close-out
+
+- [x] Implementation: README ("Claude" paragraph and "Subscriptions"; the Codex route stated as not
+  available yet); this ledger; [`handoff-s10-p5b.md`](handoff-s10-p5b.md) closed.
+- [x] Validation (local, at the C6 head; CI on the exact head is recorded in the handoff and the PR body,
+  since a commit cannot carry its own run):
+  - `uv run --locked ruff check` and `ruff format --check` over both members: clean; `pyright` strict:
+    0 errors (also with `--pythonplatform Windows` and `Linux`);
+  - `uv run --locked pytest cognition/lm-controller`: 111 passed, 1 skipped (macOS);
+  - `check_doc_headings.py` and `check_decision_ids.py` exit 0;
+  - AB-10: `git diff --stat origin/main...HEAD` touches only `cognition/lm-controller/**`,
+    `docs/DECISIONS.md` and `.structured-coding/plans/mvp0/**`; `scripts/ci_layer.py` unchanged; no CI
+    command names a real CLI, a key or a hosted URL (no CI file changed);
+  - no Rust, `sdk/python`, `worlds/` or `.github/` file changed, so the Rust layers are unaffected
+    (CI runs them anyway).
+- [x] Review: §2.3 against the diff — I-10 (provider names only in the adapters, the registry,
+  `providers.py` and `config.py`; the scan pins it), I-16 (AP5-9 re-run for `anthropic`; no secret in a
+  failure), I-B1 (AB-6 scan), I-B2 (AB-3), I-B3 (AB-4), I-B4 (AB-5), I-B5 (no subscription kind exists;
+  replay imports no bridge). Every `[x]` carries its evidence; the open items (C1's two operator inputs,
+  C4) are marked open, not done.
+- **Stop:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`, with **C4 BLOCKED** on the operator's terms
+  re-read and help paste. The operator decides whether this PR merges without the Codex opt-in (C4 then
+  becomes a follow-up PR) or waits for it.
+
+### 11.8 Mutations (each applied, run, observed red, reverted)
+
+```text
+ID     criterion  mutation                                               observed
+M-b1   AB-1       schema lowered in place (the key "after lowering")     key test FAILED: CassetteFormatError,
+                                                                         key 6bd78b32… ≠ its request's 5e871f83…
+M-b2   AB-1       anthropic kind defaults temperature to "send"          exact-body and default tests FAILED
+M-b3   AB-2       the api.anthropic.com refusal removed                  AB-2 test FAILED (configuration loads)
+M-b4   AB-3       env=dict(os.environ)                                   AB-3 FAILED: planted OPENAI_API_KEY
+                                                                         value in the child's environment
+M-b5   AB-4       the rendered prompt appended to argv                   both AB-4 tests FAILED
+M-b6   AB-5       process.kill() instead of os.killpg                    both tree tests FAILED (on the 30 s
+                                                                         test bound: the grandchild holds the
+                                                                         pipe, see §11.4)
+M-b7   AB-8       the gateway calls the backend before returning a       AB-8 FAILED: 21 starts ≠ 20
+                  refusal (budget checked after the spawn)
+M-b8   AB-6       Path.home() / ".codex" / "auth.json" in cli_bridge.py  AB-6 FAILED at backend/cli_bridge.py:71
 ```
 
 **Process note.** Twice this session a Bash call held an empty heredoc (`<<'X' … X`) redirected to

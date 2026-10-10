@@ -21,6 +21,15 @@ ENDPOINT AUTHORITY  implementation + local validation, commits, push, PR create/
 SEQUENCE            C0 … C6; C4 only after C1's OpenAI terms re-read; C5 N/A (QP5b-1)
 VALIDATION BUDGET   unit and fake-CLI integration unrestricted; real CLIs, keys, hosted models: none
 STOP CONDITIONS     READY FOR OPERATOR REVIEW — DO NOT MERGE; material stops per design §9
-CURRENT CHECKPOINT  C0 complete
-NEXT ACTIONS        C1: DEP-33, ARC-60, README "Subscriptions"; the OpenAI terms re-read (WebFetch)
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE, with C4 BLOCKED. C0, C1 (decisions,
+                    README), C2, C3, C6 complete (ledger §11.1 … §11.8); C5 N/A (QP5b-1). C1's two
+                    operator inputs are open: the OpenAI Terms of Use re-read (INCONCLUSIVE, HTTP 403
+                    twice) and the `codex exec --help` paste; C4 has not started. Context CLOSED /
+                    AWAITING OPERATOR ACTION. The PR number, the final head and its CI runs are in the
+                    PR body (a commit cannot carry its own run).
+NEXT ACTIONS        operator: review; decide whether the PR merges without the Codex opt-in (C4 as a
+                    follow-up PR) or waits; supply the terms text and the help paste to unblock C4.
+                    Planning session: F-P5b-1 (P6 must run the proactor loop on Windows if a bridge is
+                    bound). After merge: record the merge identity in §11; the S10 planning session
+                    updates step-17 §15 and overall.md.
 ```
