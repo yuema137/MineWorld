@@ -505,14 +505,26 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   `test_session_state.py`, `test_real_server.py` (their `run` may delegate to it; the old `perceived`
   assertions rewritten against the sink); `test_network_guard.py` (AP3b-14).
   **Unchanged:** every wire model; newest-wins; token pairing; INV-13.
-- [ ] Implementation: AP3b-1's test written first and run against `main`'s `route`; the red run
-  (command and output) recorded in §13.2; then the fix, in the same commit so the suite is never red
-  on the branch.
-- [ ] Validation: AP3b-1, AP3b-2, AP3b-14; the existing SDK tests unchanged in count except the two
-  rewritten; `ruff`, `pyright`. Mutations: AP3b-1 (today's code), AP3b-2 (check 2 removed), AP3b-14
-  (default loop; on Linux the mutation is inert — recorded, and its Windows evidence is the PR's CI leg).
-- [ ] Review: a tokenless refusal other than `lagged` still ends the session; the sink is called in
-  frame order on the reader task, never concurrently; `session.py` stays under 500 lines.
+- [x] Implementation: AP3b-1's test written first and run against `main`'s `route` (red, E-P3b-4);
+  then the fix in the same commit. `session.py`: `Perceiving(since, deliver)` replaces
+  `perceived: PerceivedJoin` on `connect`/`join`, which also take `resume`; `route` hands each
+  perceived frame to the sink after `ConnectionOrder.admit`; a tokenless `refused { lagged }` sets
+  `_lagging` and `closing { lagged }` (or a drop after it) ends `SessionClosed("lagged")`;
+  `newest_through`, `ended`, `close()` (no `leave`), `wait_closed()`, `open_socket(url)`,
+  `TRANSPORT_FAILURES` added; `perceived`/`perceived_cursor` removed (Q-P3b-3). `perceived.py`:
+  `ConnectionOrder`. `wire/ids.py`: `event_order`. `errors.py`: the five session errors moved here
+  (DV-P3b-2). `tests/support.py`: `run(coroutine, *, timeout_s, loop)`; both existing per-module
+  `run`s delegate to it.
+- [x] Validation (E-P3b-5): 53 passed (46 at the base + AP3b-1, the lagged-drop case, 4 × AP3b-2,
+  AP3b-14; the rewritten perceived test replaces the old one), 4 real_server passed; ruff, ruff
+  format, pyright strict clean. Mutations (§13.4): AP3b-1 red on main's code; AP3b-2 check 2 removed →
+  `[duplicate]` red; AP3b-14 default loop → inert on macOS (selector is the default there), Windows
+  evidence is the PR's CI leg.
+- [x] Review: a tokenless refusal other than `lagged` still ends `ProtocolViolation`
+  (`test_a_refusal_naming_no_request_ends_the_session` unchanged, green); the sink is called from
+  `route`, which only the reader task calls, one frame at a time; `session.py` 495 lines. A perceived
+  frame on a join that asked for none now ends `ProtocolViolation` (the server sends none then,
+  `PROTOCOL.md` §5 table) — DV-P3b-3.
 - **Failure cases.** `lagged` arriving without its `closing` (the socket drops first) → the session
   ends `SessionClosed("lagged")` all the same; a second `lagged` is impossible on one connection.
 
@@ -709,6 +721,15 @@ E-P3b-2  C0: check_doc_headings.py → "193 numbered sections across 26 document
 E-P3b-3  C1: DEP-44 appended to docs/DECISIONS.md; check_decision_ids.py → "105 decision ids, all
          distinct"; check_doc_headings.py → "193 numbered sections across 26 documents, none
          duplicated".
+E-P3b-4  AP3b-1 red first (C2). The test, written against main's API (perceived=PerceivedJoin), on
+         base code: `uv run --locked pytest sdk/python/tests/test_session_state.py -k lagged -q`
+         → "AssertionError: ProtocolViolation('a refusal naming no request: lagged')", 1 failed.
+E-P3b-5  C2 working tree (base bf44367+C1 e90392c + C2 diff): `pytest sdk/python -m "not
+         real_server"` → 53 passed, 4 deselected; `pytest sdk/python -m real_server -v` → 4 passed
+         (9.6 s, the binary built from this worktree); ruff check, ruff format --check, pyright
+         (0 errors) clean.
+         Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
+         has exited; runs are written to files instead (no effect on results).
 ```
 
 ### 13.3 Deviations (filled during implementation)
@@ -726,6 +747,26 @@ DV-P3b-1 (bounded; C1) — an audit fact of §3 corrected, the decision unchange
     still absent.
   Implementation consequence: none. DEP-44 records the corrected facts; the choice stands.
   Validation consequence: none.
+
+DV-P3b-2 (bounded; C2) — the session errors move to errors.py.
+  Reason: session.py reached 542 lines with C2's additions; the design requires < 500 (§4.1, C2 review).
+  Change: JoinRefused, ProtocolMismatch, ForeignObserver, ProtocolViolation, SessionClosed now live in
+    mineworld_sdk/errors.py and are imported (and still exported) by session.py; every existing import
+    path keeps working. resuming.py imports them from errors.py without depending on session's internals.
+  Validation: the unchanged tests importing them from mineworld_sdk.session pass.
+
+DV-P3b-3 (bounded; C2) — a perceived frame on a join that asked for none is a ProtocolViolation.
+  Reason: with no sink there is nowhere to hand it; PROTOCOL.md §5's table sends perceived "only to a
+    connection whose join carried perceived". Before, such frames were silently kept.
+  Validation: covered by review; no client of the SDK receives such a frame from the real server.
 ```
 
 ### 13.4 Mutations (filled during implementation)
+
+Each planted on the working tree, run, and reverted; the reverted tree re-run green.
+
+| Criterion | Mutation | Observed | Verdict |
+| --- | --- | --- | --- |
+| AP3b-1 | base `route` (tokenless refusal → `ProtocolViolation`) | `test_the_lagged_sequence_…` FAILED: `ProtocolViolation('a refusal naming no request: lagged')` | red, as required |
+| AP3b-2 | `ConnectionOrder.admit` check 2 disabled | `test_a_broken_perceived_stream_fails_closed[duplicate]` FAILED; the other three passed | red, as required |
+| AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |

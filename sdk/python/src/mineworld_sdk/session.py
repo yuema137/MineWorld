@@ -6,13 +6,17 @@ stream, `submit` paired with `result` by the session's own token, and `leave` an
 - **Newest wins** (§8). The session keeps only the newest observation. It never queues them, because a
   controller acts on what the world looks like now, and the server drops frames for a slow reader
   anyway. A `delta` frame (§5.3) is applied to the observation held, so `newest` is always whole; one
-  that does not apply ends the session with `ProtocolViolation` (reconnecting is P3b's).
-- **Facts kept in order** (§5.8). With `perceived` on `connect`, every fact of the reliable stream is
-  kept in arrival order with its cursor: the stream is for a caller that must not miss one.
+  that does not apply ends the session with `ProtocolViolation` (reconnecting is `ResumingSeat`'s).
+- **Facts handed on, in order** (§5.8). With `perceiving` on `connect`, each frame of the reliable
+  stream is checked against the connection's order (`perceived.ConnectionOrder`) and handed to the
+  caller's sink, on the reader task, in frame order. The session keeps no fact and advances no cursor
+  of the caller's: what was received is not what was ingested (P4's R-P3b-1).
 - **One observer** (`INV-13`). Every observation must name the observer `welcome` named. A frame for
   anybody else ends the session with `ForeignObserver`; the session never shows it to its caller.
-- **No retry and no reconnect.** A dropped socket ends the session with `SessionClosed(None)`.
-  Reconnecting belongs with `resume` (P3b).
+- **No retry and no reconnect.** A dropped socket ends the session with `SessionClosed(None)`; the
+  server's `lagged` sequence (`refused { lagged }`, which names no request, then `closing { lagged }`)
+  ends it with `SessionClosed("lagged")`. Reconnecting is `resuming.ResumingSeat`'s, which composes one
+  session per connection.
 
 The session never reads the environment, never logs, and never puts the invite in a message or a
 `repr` (D-P3-9).
@@ -21,16 +25,25 @@ The session never reads the environment, never logs, and never puts the invite i
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self
 
 from websockets.asyncio.client import connect as websocket_connect
-from websockets.exceptions import ConnectionClosed
+from websockets.exceptions import ConnectionClosed, InvalidHandshake
 
-from mineworld_sdk.errors import MineWorldError
+from mineworld_sdk.errors import (
+    ForeignObserver,
+    JoinRefused,
+    MineWorldError,
+    ProtocolMismatch,
+    ProtocolViolation,
+    SessionClosed,
+)
+from mineworld_sdk.perceived import ConnectionOrder
 from mineworld_sdk.wire import codec
-from mineworld_sdk.wire.contract import ActionRequest, ActionResult, PerceivedEvent
+from mineworld_sdk.wire.contract import ActionRequest, ActionResult
 from mineworld_sdk.wire.delta import DeltaMismatch, apply_delta
 from mineworld_sdk.wire.frames import (
     PROTOCOL_VERSION,
@@ -51,20 +64,30 @@ from mineworld_sdk.wire.frames import (
     Submit,
     Welcome,
 )
-from mineworld_sdk.wire.ids import ActionId, CorrelationToken, EntityId, EntityKey, EventId
+from mineworld_sdk.wire.ids import (
+    ActionId,
+    CorrelationToken,
+    EntityId,
+    EntityKey,
+    EventId,
+    ResumeSecret,
+)
 
 __all__ = [
+    "TRANSPORT_FAILURES",
     "Answered",
     "Connection",
     "ForeignObserver",
     "Invite",
     "JoinRefused",
     "Outcome",
+    "Perceiving",
     "ProtocolMismatch",
     "ProtocolViolation",
     "RefusedRequest",
     "SeatSession",
     "SessionClosed",
+    "open_socket",
 ]
 
 JOIN_PATIENCE = 10.0
@@ -76,52 +99,9 @@ LEAVE_PATIENCE = 5.0
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 """The largest frame accepted: well above any observation of the sample worlds."""
 
-
-class JoinRefused(MineWorldError):
-    """The server did not grant the seat. `code` is the refusal code or the closing reason."""
-
-    def __init__(self, code: RefusalCode | ClosingReason) -> None:
-        super().__init__(f"the server refused the join: {code}")
-        self.code: RefusalCode | ClosingReason = code
-
-
-class ProtocolMismatch(MineWorldError):
-    """The server speaks a protocol revision this SDK does not (`PROTOCOL.md` §10)."""
-
-    def __init__(self, protocol: int) -> None:
-        super().__init__(
-            f"the server speaks protocol {protocol}; this SDK speaks {PROTOCOL_VERSION}"
-        )
-        self.protocol = protocol
-
-
-class ForeignObserver(MineWorldError):
-    """An observation named another observer than this connection's (`INV-13`)."""
-
-    def __init__(self, expected: EntityId, received: EntityId) -> None:
-        super().__init__(
-            f"an observation for observer {received} arrived on the connection of observer {expected}"
-        )
-        self.expected = expected
-        self.received = received
-
-
-class ProtocolViolation(MineWorldError):
-    """The server sent a frame the sequence does not allow: an answer to no request, a second
-    `welcome`, a binary frame, or a refusal that names no request."""
-
-
-class SessionClosed(MineWorldError):
-    """The session ended. `reason` is the server's `closing` reason, or `None` when the socket dropped
-    without one."""
-
-    def __init__(self, reason: ClosingReason | None) -> None:
-        super().__init__(
-            f"the session is closed: {reason}"
-            if reason
-            else "the connection dropped without closing"
-        )
-        self.reason: ClosingReason | None = reason
+TRANSPORT_FAILURES = (OSError, TimeoutError, InvalidHandshake, ConnectionClosed)
+"""What a socket that could not be opened, or that ended under a join, raises. A caller that reconnects
+retries these and nothing else (D-P3b-5); named here so that only this module imports `websockets`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +136,27 @@ class Connection(Protocol):
     async def close(self) -> None: ...
 
 
+@dataclass(frozen=True, slots=True)
+class Perceiving:
+    """A `join`'s request for the reliable `perceived` stream, and where its frames go.
+
+    `since` is the cursor to serve from (`PROTOCOL.md` §5.8): the `through` the caller last *ingested*,
+    or `None` for this world's first fact. `deliver` receives every frame that passed the connection's
+    order checks, on the session's reader task, one at a time, in frame order. An error it raises that is
+    a `MineWorldError` ends the session with that error, and the socket is closed without `leave`."""
+
+    since: EventId | None
+    deliver: Callable[[Perceived], None]
+
+
+async def open_socket(url: str) -> Connection:
+    """Opens a WebSocket to `url` (`ws://host:port/ws`) as every session of this SDK does: no
+    compression, `MAX_FRAME_BYTES`, `JOIN_PATIENCE` to open, `websockets`' keepalive left on."""
+    return await websocket_connect(
+        url, compression=None, max_size=MAX_FRAME_BYTES, open_timeout=JOIN_PATIENCE
+    )
+
+
 class SeatSession:
     """One seat of a running server. Use `connect`, as an async context manager:
 
@@ -166,14 +167,22 @@ class SeatSession:
     ```
     """
 
-    def __init__(self, connection: Connection, welcome: Welcome) -> None:
+    def __init__(
+        self,
+        connection: Connection,
+        welcome: Welcome,
+        deliver: Callable[[Perceived], None] | None = None,
+    ) -> None:
         self._connection = connection
         self._welcome = welcome
         self._newest: ObservationFrame | None = None
+        self._newest_through: EventId | None = None
         self._clock: Clock | None = None
-        self._perceived: list[PerceivedEvent] = []
-        self._cursor: EventId | None = None
+        self._deliver = deliver
+        self._order = ConnectionOrder()
+        self._lagging = False
         self._arrived = asyncio.Event()
+        self._finished = asyncio.Event()
         self._pending: dict[CorrelationToken, asyncio.Future[Outcome]] = {}
         self._issued = 0
         self._sent = 1  # the join
@@ -192,13 +201,12 @@ class SeatSession:
         invite: Invite,
         nickname: str,
         take_over: bool = False,
-        perceived: PerceivedJoin | None = None,
+        resume: ResumeSecret | None = None,
+        perceiving: Perceiving | None = None,
     ) -> SeatSession:
-        """Opens a WebSocket to `url` (`ws://host:port/ws`) and joins `seat`; with `perceived`, also
+        """Opens a WebSocket to `url` (`ws://host:port/ws`) and joins `seat`; with `perceiving`, also
         asks for the reliable `perceived` stream from its cursor (`PROTOCOL.md` §5.8)."""
-        connection = await websocket_connect(
-            url, compression=None, max_size=MAX_FRAME_BYTES, open_timeout=JOIN_PATIENCE
-        )
+        connection = await open_socket(url)
         try:
             return await cls.join(
                 connection,
@@ -206,7 +214,8 @@ class SeatSession:
                 invite=invite,
                 nickname=nickname,
                 take_over=take_over,
-                perceived=perceived,
+                resume=resume,
+                perceiving=perceiving,
             )
         except BaseException:
             await connection.close()
@@ -221,14 +230,20 @@ class SeatSession:
         invite: Invite,
         nickname: str,
         take_over: bool = False,
-        perceived: PerceivedJoin | None = None,
+        resume: ResumeSecret | None = None,
+        perceiving: Perceiving | None = None,
     ) -> SeatSession:
         """Joins `seat` over an open connection and starts reading. Raises `JoinRefused` (for an occupied
-        seat, `seat_occupied`, unless `take_over` asks to take it, `PROTOCOL.md` §4.2; for a cursor the
-        world cannot serve, `cursor_unavailable`, §5.8), `ProtocolMismatch` or `ProtocolViolation`,
-        after closing the connection."""
+        seat, `seat_occupied`, unless `resume` re-takes it or `take_over` takes it, `PROTOCOL.md` §4.2;
+        for a cursor the world cannot serve, `cursor_unavailable`, §5.8), `ProtocolMismatch` or
+        `ProtocolViolation`, after closing the connection."""
         frame = Join(
-            invite=invite, nickname=nickname, seat=seat, take_over=take_over, perceived=perceived
+            invite=invite,
+            nickname=nickname,
+            seat=seat,
+            resume=resume,
+            take_over=take_over,
+            perceived=None if perceiving is None else PerceivedJoin(since=perceiving.since),
         )
         await connection.send(codec.encode(frame))
         answer = await asyncio.wait_for(_receive(connection), JOIN_PATIENCE)
@@ -236,7 +251,7 @@ class SeatSession:
             if answer.protocol != PROTOCOL_VERSION:
                 await connection.close()
                 raise ProtocolMismatch(answer.protocol)
-            session = cls(connection, answer)
+            session = cls(connection, answer, None if perceiving is None else perceiving.deliver)
             session._reader = asyncio.create_task(session._read())
             return session
         if isinstance(answer, Refused):
@@ -278,15 +293,15 @@ class SeatSession:
         return self._clock
 
     @property
-    def perceived(self) -> tuple[PerceivedEvent, ...]:
-        """Every fact the `perceived` stream delivered, in arrival order (ascending ids). Empty unless
-        `connect` asked for the stream."""
-        return tuple(self._perceived)
+    def newest_through(self) -> EventId | None:
+        """The `through` of the last `perceived` frame received on this connection before `newest`
+        arrived, or `None` (step-17 §3.6's `based_on`). Read with `newest`: the two change together."""
+        return self._newest_through
 
     @property
-    def perceived_cursor(self) -> EventId | None:
-        """The `through` of the last `perceived` frame: the cursor to pass as `since` next time."""
-        return self._cursor
+    def ended(self) -> MineWorldError | None:
+        """What ended the session, or `None` while it is open."""
+        return self._ended
 
     @property
     def sent_frames(self) -> int:
@@ -329,6 +344,16 @@ class SeatSession:
         finally:
             await self._stop()
 
+    async def close(self) -> None:
+        """Closes the socket **without** `leave`: the server holds the seat for `hold_seconds`, and the
+        welcome's `resume` re-takes it (`PROTOCOL.md` §4.2). The session ends `SessionClosed(None)`."""
+        await self._stop()
+
+    async def wait_closed(self) -> MineWorldError:
+        """Waits until the session has ended, and returns what ended it."""
+        await self._finished.wait()
+        return self._ended or SessionClosed(None)
+
     async def __aenter__(self) -> Self:
         return self
 
@@ -360,7 +385,9 @@ class SeatSession:
             while self._ended is None:
                 self.route(await _receive(self._connection))
         except ConnectionClosed:
-            self._end(SessionClosed(None))
+            # A socket that drops between `refused { lagged }` and its `closing` ended for the same
+            # reason (design C2's failure cases).
+            self._end(SessionClosed("lagged" if self._lagging else None))
         except MineWorldError as error:
             self._end(error)
         finally:
@@ -377,6 +404,7 @@ class SeatSession:
                     return
                 if self._newest is None or frame.seq > self._newest.seq:
                     self._newest = frame
+                    self._newest_through = self._order.last_through
                     self._arrived.set()
             case Delta():
                 held = self._newest
@@ -400,12 +428,22 @@ class SeatSession:
                     )
                 )
             case Perceived():
-                self._perceived.extend(frame.events)
-                self._cursor = frame.through
+                if self._deliver is None:
+                    self._end(ProtocolViolation("a perceived frame on a join that asked for none"))
+                    return
+                wrong = self._order.admit(frame)
+                if wrong is not None:
+                    self._end(ProtocolViolation(wrong))
+                    return
+                self._deliver(frame)
             case Result():
                 self._resolve(frame.token, Answered(frame.action_id, frame.result))
             case Refused() if frame.token is not None:
                 self._resolve(frame.token, RefusedRequest(frame.code, frame.detail))
+            case Refused() if frame.code == "lagged":
+                # PROTOCOL.md §5.5, §5.8: names no request, and `closing { lagged }` follows. The client
+                # rejoins and loses nothing, so this is no violation (F-P3b-1).
+                self._lagging = True
             case Refused():
                 self._end(ProtocolViolation(f"a refusal naming no request: {frame.code}"))
             case Closing():
@@ -436,6 +474,7 @@ class SeatSession:
         if self._left is not None and not self._left.done():
             self._left.set_exception(error)
         self._arrived.set()
+        self._finished.set()
 
     async def _stop(self) -> None:
         self._end(SessionClosed(None))
