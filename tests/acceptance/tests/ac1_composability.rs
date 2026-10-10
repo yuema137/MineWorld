@@ -709,10 +709,12 @@ fn workspace(metadata: &serde_json::Value) -> Result<BTreeMap<String, Member>, S
     for package in packages {
         let name = text(&package["name"], "package name")?;
         let manifest = text(&package["manifest_path"], "manifest_path")?;
+        // `cargo metadata` writes the platform's separator (`\` on Windows); the checks compare
+        // repository paths written with `/`, as `git` writes them on every platform.
         let directory = manifest
             .strip_prefix(&root)
             .and_then(|rest| rest.strip_suffix("Cargo.toml"))
-            .map(|rest| rest.trim_start_matches('/').to_owned())
+            .map(|rest| rest.replace('\\', "/").trim_start_matches('/').to_owned())
             .ok_or_else(|| format!("{name}: {manifest} is not under {root}"))?;
         let mut dependencies = Vec::new();
         for dependency in package["dependencies"].as_array().into_iter().flatten() {

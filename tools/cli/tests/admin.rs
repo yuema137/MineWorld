@@ -12,9 +12,9 @@
 //! DA-9  the token and the nicknames go nowhere they should not
 //! ```
 //!
-//! The real binary and real sockets (`support`); every server is ended with `Child::kill`, which is
-//! portable, except SD-D13's graceful-stop check, which is Unix-only until S13's Windows helper lands
-//! (step-12 §18.14, QW-3).
+//! The real binary and real sockets (`support`); every server is ended with `Server::kill`, except
+//! SD-D13's graceful-stop check, which uses `Server::interrupt`. Both are portable through
+//! `mineworld_test_support::process` (step-12 §18.14; step-14 §15, QW-3).
 
 mod fixture;
 mod support;
@@ -551,10 +551,10 @@ async fn the_admin_token_and_the_nicknames_go_nowhere_else() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// SD-D13 — a graceful stop takes the same path with an admin surface mounted (Unix; §18.14, QW-3).
+// SD-D13 — a graceful stop takes the same path with an admin surface mounted (every platform;
+// §18.14, QW-3: Ctrl-Break on Windows, SIGINT on Unix).
 // ---------------------------------------------------------------------------------------------
 
-#[cfg(unix)]
 #[tokio::test]
 async fn an_interrupt_stops_an_administered_server_gracefully() {
     let save = SaveDir::new("admin-stop");

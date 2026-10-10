@@ -13,9 +13,16 @@
 //! `MINEWORLD_KEEP_SCRATCH` says to keep it ([`Keep`]). A name is unique among the scratches alive in
 //! one process: asking for a live name again panics and names it, rather than letting two tests write
 //! one save.
+//!
+//! [`process`] ends a test's child process the same way on every platform: a kill whose verdict a
+//! test can assert, and an operator's interrupt (step-14 §15.3–15.4).
 
-#![forbid(unsafe_code)]
+// `deny`, not `forbid`: exactly one function, Windows' Ctrl-Break in `process`, allows it
+// (`DEP-29` note of 2026-10-09, step-14 QW-2).
+#![deny(unsafe_code)]
 #![warn(missing_docs)]
+
+pub mod process;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;

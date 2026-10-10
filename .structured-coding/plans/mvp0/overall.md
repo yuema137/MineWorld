@@ -950,6 +950,31 @@ Test-gap findings, each owned by the next PR that touches the file:
 
 The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze, not P5b.
 
+Also merged: #117 S20 SET-a, shared client settings (`44ac762`; review mutation: `action.walk-to`
+removed from `zh_Hans.po`, caught by `client_text::the_catalogs_are_complete_and_consistent`).
+
+### Milestone F — walk, walls, interact (operator hands-on gate)
+
+Milestone F is the operator's next hands-on acceptance, named in conversation on 2026-10-08 and
+defined here so later documents can cite it. It is not an MVP-0 acceptance criterion of its own; it
+is the point at which the primary session stops and hands the operator one numbered checklist
+(see the standing rule in §5: at a milestone, stop and give the operator a short runnable test list).
+
+| Prerequisite | Lane | State on 2026-10-09 |
+| --- | --- | --- |
+| 12n-1, the walk (server routes) | S15 | merged (#116) |
+| 12n-2, people walk there | S15 | in progress (#125) |
+| 12d, the towns get walls | S15 | waiting for 12n-2; merges immediately after it (QN-2) |
+| 16c, the living street in 3D | S14 | waiting for 12d |
+| SET-a, shared settings | S20 | merged (#117) |
+| 2D menus and interaction (13a / IL-b) | S12 | merged (#82, #102, #103) |
+
+The checklist covers, on the operator's own machines: walking round walls and furniture in both
+clients; doors; people walking to their agenda places at 1.34 m/s on screen at every time scale;
+the interaction menu and its refusals in 2D and 3D; the settings menu (language, clock, display); and
+the hand checks carried from SET-a (`docs/MVP_STATUS.md`, "Carried to milestone F": H-1 … H-10 on
+Windows and Linux, and the macOS manual items).
+
 ### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
 
 - A 30-day Market Town save measures 266 MB: a full snapshot every 64 revisions, none ever pruned

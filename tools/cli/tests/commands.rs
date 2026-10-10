@@ -92,8 +92,10 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
 
     assert!(!output.status.success(), "a malformed pack must fail");
     let complaint = stderr(&output);
+    // The file is named as the host writes paths (`people\alice.yaml` on Windows).
+    let file = std::path::Path::new("people").join("alice.yaml");
     assert!(
-        complaint.contains("people/alice.yaml") && complaint.contains("locatoin"),
+        complaint.contains(&file.display().to_string()) && complaint.contains("locatoin"),
         "the complaint names the file and the field: {complaint}",
     );
     assert!(

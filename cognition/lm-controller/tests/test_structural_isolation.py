@@ -30,6 +30,8 @@ from mineworld_cognition.backend.model import CompletionRequest, Message, Sampli
 from mineworld_cognition.config import build_router, load
 from mineworld_cognition.gateway import Completed
 
+ADAPTERS = {"openai_compatible", "anthropic_messages", "cli_bridge"}
+
 async def main() -> None:
     router = build_router(load(Path(sys.argv[1])))
     gateway = router.for_tier("social")
@@ -43,7 +45,7 @@ async def main() -> None:
     print(json.dumps({
         "completed": isinstance(outcome, Completed),
         "modules": sorted(name for name in sys.modules
-                          if name.startswith("httpx") or name.endswith("openai_compatible")),
+                          if name.startswith("httpx") or name.rsplit(".", 1)[-1] in ADAPTERS),
     }))
 
 asyncio.run(main())
@@ -67,7 +69,10 @@ def test_replay_mode_never_imports_the_http_client(tmp_path: Path) -> None:
     config = tmp_path / "cognition.toml"
     config.write_text(
         '[recording]\nmode = "replay"\ncassette = "cassette.jsonl"\n[tiers]\nsocial = "local"\n'
-        '[backends.local]\nbase_url = "http://127.0.0.1:11434/v1"\nmodel = "m"\n',
+        'major_decision = "claude"\n'
+        '[backends.local]\nbase_url = "http://127.0.0.1:11434/v1"\nmodel = "m"\n'
+        '[backends.claude]\nkind = "anthropic"\nbase_url = "https://api.example.com"\nmodel = "m"\n'
+        'key_env = "MWTEST_UNSET_KEY"\n',
         encoding="utf-8",
     )
     script = tmp_path / "child.py"

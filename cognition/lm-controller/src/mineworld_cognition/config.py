@@ -80,10 +80,21 @@ def check_base_url(value: str) -> str:
     return value
 
 
+Kind = Literal["openai-compatible", "anthropic"]
+"""The adapters (`backend/registry.py`). A kind not listed, `claude-code-subscription` among them
+(QP5b-1), is refused by name."""
+
+ANTHROPIC_HOST = "api.anthropic.com"
+
+
+def _is_anthropic_host(host: str) -> bool:
+    return host == ANTHROPIC_HOST or host.endswith(".anthropic.com")
+
+
 class BackendConfig(ConfigModel):
     """One `[backends.<name>]` table (D-P5-10, D-P5-15). Typed options only: no free-form map."""
 
-    kind: Literal["openai-compatible"] = "openai-compatible"
+    kind: Kind = "openai-compatible"
     preset: PresetName | None = None
     """A named provider (`backend/providers.py`): fills every field this table leaves out."""
     base_url: str
@@ -101,6 +112,10 @@ class BackendConfig(ConfigModel):
         if not isinstance(data, dict):
             return data
         fields = cast(dict[str, object], data)
+        if fields.get("kind") == "anthropic":
+            # The Messages API refuses a temperature below 1 on recent models (pr-s10-p5b §3): omit it
+            # unless the table asks for it. Presets are OpenAI-compatible rows; `_kind_options` refuses one.
+            return {"temperature": "omit", **fields}
         name = fields.get("preset")
         preset = PRESETS.get(name) if isinstance(name, str) else None
         if preset is None:
@@ -128,6 +143,28 @@ class BackendConfig(ConfigModel):
                 "key_env is the NAME of an environment variable (A-Z, 0-9, _), never a key's value"
             )
         return value
+
+    @model_validator(mode="after")
+    def _kind_options(self) -> Self:
+        host = urlsplit(self.base_url).hostname or ""
+        if self.kind == "openai-compatible" and _is_anthropic_host(host):
+            raise ValueError(
+                f'base_url on {host}: use kind = "anthropic" for Claude. Anthropic\'s '
+                "OpenAI-compatibility layer ignores response_format and seed (DEP-33)"
+            )
+        if self.kind == "anthropic":
+            if self.preset is not None:
+                raise ValueError(
+                    'preset: presets are OpenAI-compatible rows; kind = "anthropic" '
+                    "takes base_url, model and key_env"
+                )
+            if self.structured_output == "json_object":
+                raise ValueError(
+                    'structured_output: kind = "anthropic" supports "json_schema" or "none"'
+                )
+            if self.reasoning != "unset":
+                raise ValueError('reasoning: kind = "anthropic" does not map a reasoning setting')
+        return self
 
 
 class RecordingConfig(ConfigModel):
