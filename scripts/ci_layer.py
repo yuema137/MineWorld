@@ -65,6 +65,11 @@ LAYERS: dict[str, list[list[str]]] = {
     # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
     # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
     "platforms": [
+        # E-c: everything the lock names, first (EC-3 (a)'s fetch). The lock guard's `cargo metadata
+        # --offline` reads every workspace crate's dependencies, dev-dependencies of crates this layer
+        # never builds included (`trybuild`'s `glob`), so nothing after this may depend on what a build
+        # happened to download.
+        ["cargo", "fetch", "--locked"],
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
         # --no-fail-fast: on a platform, one red test binary must not hide another's result.
         [

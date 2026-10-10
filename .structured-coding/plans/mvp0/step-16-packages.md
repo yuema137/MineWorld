@@ -2822,8 +2822,10 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     checkout) and `platforms` layer are kept; E-c adds to the layer only `--test third_party`, `cargo test
     -p mineworld-acceptance --test package_sources` (EC-13) and `--offline-check` (PD-p3), and to the script
     `resolved()` (`python3` → `sys.executable`, absent from main's `run()`) and `offline_check()`; `fast`
-    keeps `cargo deny`. `cargo fetch --locked` is not re-added: EC-4's `--filter-platform` makes it
-    unnecessary. The worldpack and CLI portability fixes are E-d's (same separator rule), and E-c's
+    keeps `cargo deny`. `cargo fetch --locked` was first left out, on the reasoning that EC-4's
+    `--filter-platform` made it unnecessary; the PR's run 38011128259 on `2e1903e` refuted that on both
+    OSes ("failed to download `glob v0.3.4`" — a dev-dependency of a workspace crate the layer never
+    builds), so it is re-added as the layer's first command, as the coordinator allowed. The worldpack and CLI portability fixes are E-d's (same separator rule), and E-c's
     `packs.rs` test `every_system_pack_is_listed_bundled_or_third_party…` is re-added on E-d's file. Docs:
     unions (DECISIONS 87 ids distinct; PACKAGE_FORMAT §8 and MVP_STATUS keep E-c's and E-d's rows).
     **Deviation from PD-p2 (bounded, coordinator)**: E-d's job uses `-latest` labels and a full checkout
