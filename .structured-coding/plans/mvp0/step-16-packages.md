@@ -2808,6 +2808,15 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     §16.6 Ec-C8: that file. Coordination: E-d (#101) lands `.github/actions/native` and the `platforms`
     layer first; after it merges, this branch takes E-d's versions and adds only `--test third_party` and
     the PD-p3 offline check; 13b-CI also edits the layer action, and whichever lands second reconciles.
+  - **Merge of `origin/main` @ `aee8290`** (`5d8137f`; E-d not yet merged): conflicts resolved as unions —
+    `systems/installed` (calendar's line, then fishing's), `Dockerfile` (cargo-deny and uv), DECISIONS (E-c's
+    entries and main's ARC-63 …; 86 ids, distinct), `ci_layer.py` (the `platforms` and `python` layers;
+    `resolved()` with main's `COMMAND_ENVIRONMENT`), `ci.yml` (the `platforms` and `python` jobs). Main's
+    Market Town gained `calendar` and `configure:` after `consumption`, so `third_party.rs` appends
+    `requires:` at the end of `world.yaml` and reads Market Town's system count (`4541014`); third_party 3,
+    installed/acceptance and packs/requirements re-run green locally.
+  - **Concurrent-session check (2026-10-09, coordinator)**: `ps` shows no other process in `impl-ec`; `git
+    status` clean; every commit on the branch is this session's. Nothing to reconcile.
 
 ## 16.9 Freeze questions
 
