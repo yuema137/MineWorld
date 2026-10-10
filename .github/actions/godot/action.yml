@@ -1,0 +1,41 @@
+# Puts the one pinned Godot on the runner (docs/DECISIONS.md DEP-45): the official 4.7.2-stable build for
+# this OS, refused unless its SHA-512 equals the value pinned in scripts/ci_godot.py, cached on that pin,
+# exported as GODOT (what the Rust tests read) and as a `godot` command on PATH (what the bash launchers
+# call). On Linux it also installs Xvfb and Mesa's software Vulkan from the runner's Ubuntu mirror and
+# starts a virtual display, so the windowed client tests have one; they judge behaviour, never frames
+# (ARC-17). Shared with S23's export job (step-23 §16.4: one download step, one pinned version).
+#
+# The caller has checked the repository out already; this action names no test and no layer.
+name: Install the pinned Godot
+description: Download, verify, cache and export the pinned Godot build; on Linux, a virtual display.
+runs:
+  using: composite
+  steps:
+    - name: Restore the Godot cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.mineworld-godot
+        key: godot-${{ runner.os }}-${{ hashFiles('scripts/ci_godot.py') }}
+
+    - name: Fetch and verify Godot
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_godot.py fetch --dest "$HOME/.mineworld-godot" \
+          --github-env "$GITHUB_ENV" --github-path "$GITHUB_PATH"
+
+    - name: A virtual display with software Vulkan (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y -q --no-install-recommends xvfb mesa-vulkan-drivers libvulkan1 \
+          libgl1-mesa-dri libxcursor1 libxinerama1 libxrandr2 libxi6
+        Xvfb :99 -screen 0 1920x1080x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+        for _ in $(seq 1 50); do
+          [ -e /tmp/.X11-unix/X99 ] && break
+          sleep 0.2
+        done
+        [ -e /tmp/.X11-unix/X99 ] || { cat "$RUNNER_TEMP/xvfb.log"; exit 1; }
+        echo "Xvfb is serving :99"
