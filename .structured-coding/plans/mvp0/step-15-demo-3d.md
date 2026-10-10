@@ -3413,6 +3413,15 @@ MERGE   2026-10-09: origin/main merged into plan/s14-16d (12e's design #106 and 
         "§21 for 12e" notes corrected. Then origin/main @ bc4f8e7 (#108, overall and decisions)
         merged cleanly; doc checks: "191 numbered sections across 26 documents, none duplicated";
         "78 decision ids, all distinct"
+MERGE   origin/main @ aee8290 merged cleanly: S12 13b is now on main (#103), one of §22.11's three
+        merges. A16d-8 re-checked against it: since the audited 98bd42e only presentation was added
+        (menu.gd's button colours and `_keep_on_screen`, which moves a menu opened near an edge back
+        inside the window; the harness's `panels` and `shoot` steps). The entry model, the reports
+        and the selector format are unchanged. D-16d-8 adopts the same keep-on-screen rule for the 3D
+        menus (a bounded detail). Doc checks: "192 numbered sections across 26 documents, none
+        duplicated"; "83 decision ids, all distinct". CI's `python` jobs are red on main itself since
+        bc4f8e7 (sdk golden frames: "golden frames with no Python model: ['clock.json']"), not
+        caused by this docs-only PR
 ```
 
 ## 22.13 Handoff (live)
@@ -3424,7 +3433,7 @@ next action    once 12d, 13b and SET-a have merged and the inset is on main, a f
                starts at C1. The [OM] defaults (keys, look, zh_Hans wording) are judged at the
                milestone play-test through OC-1 … OC-8
 background     none
-notes          12d is paused for 12n (8814aad); 13b is in implementation (98bd42e, C5 done); SET-a waits
-               for 13b; 12e is frozen in step-11-bodies.md §22 (after 12d and 16c); its offer line and
+notes          12d is paused for 12n (8814aad); 13b merged (#103); SET-a can start now that 13b is in;
+               12e is frozen in step-11-bodies.md §22 (after 12d and 16c); its offer line and
                16d's menus are reconciled in A16d-18
 ```
