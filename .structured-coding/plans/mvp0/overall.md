@@ -1025,6 +1025,10 @@ Windows and Linux, and the macOS manual items).
 - A 30-day Market Town save measures 266 MB: a full snapshot every 64 revisions, none ever pruned
   (≈ 2.5 GB per 300 days). Owner: the persistence lane (S6 follow-up), to design snapshot retention and
   compaction without weakening byte-exact replay (ARC-25).
+- 2026-10-10: snapshots resolved by #153 (merge `97e92a0`; 300-day save 3 795 013 632 B → 615 399 424 B,
+  −83.8 %; 30-day 373 882 880 B → 62 029 824 B, −83.4 %). The log still grows ≈ 1.9 MiB per simulated
+  day; SR-b (sealed-block log compression, ≈ 40 MiB per 300 days) is the follow-up per QSR-1. F-SAVE-2
+  stays with the kernel lane.
 
 ### 2026-10-10: one development session, rulings and freezes
 

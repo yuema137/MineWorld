@@ -10,7 +10,7 @@ Approved by / evidence: the operator's rulings on QSR-1, QSR-3, QSR-4 and the pr
                         persistence-lane design session (§13.1)
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
 Execution contract:     §12 (filled at freeze)
-Lifecycle:              FROZEN
+Lifecycle:              MERGED
 ```
 
 Scope (§2.1, with QSR-5's CI assertion), invariants (§2.3), decisions D-SR-1 … D-SR-9, the acceptance
@@ -997,3 +997,18 @@ journal 189 MiB); SR-b is its remedy.
 *Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
 tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run
 in the background above).
+
+### 14.8 E-SR-final — merged
+
+```text
+merge                2026-10-10T22:06:15Z, merge commit 97e92a037a448be32f6e360c70f5f403c4216e09
+final head           a9d0508
+PR CI                run 38087899133, green: changes, fast, test, test-windows, test-macos,
+                     platforms ×2, python ×3
+AC-8                 run 38087897703, green
+review mutation      genesis dropped from the kept set in persistence/src/world.rs retired() →
+                     world::tests::the_rule_keeps_genesis_anchors_and_the_newest_two_and_retires_the_rest
+                     failed by name                                                          CAUGHT
+measured, 300 days   3 795 013 632 B → 615 399 424 B (−83.8 %)
+measured, 30 days    373 882 880 B → 62 029 824 B (−83.4 %)
+```
