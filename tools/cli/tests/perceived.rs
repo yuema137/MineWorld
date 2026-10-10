@@ -428,9 +428,8 @@ const TICK_BUDGET_MS: f64 = 50.0;
 /// the world thread — completes without `lagged`, and the world thread's p99 tick on the graceful stop
 /// is within CP-B4's bound; the maximum is printed beside it, with the backfill's wall time and size.
 ///
-/// Unix only: the shutdown statistics need a graceful stop, and the Windows graceful-stop helper is
-/// S13's (step-12 §17.14, R-S13-W1).
-#[cfg(unix)]
+/// Every platform: the shutdown statistics need a graceful stop, which `Server::interrupt` gives on
+/// Unix and Windows alike (step-12 §17.14, R-S13-W1; step-14 §15, QW-3).
 #[tokio::test]
 #[ignore = "CA-13: needs a 300-day save (minutes to make); run explicitly in S11-C's close"]
 async fn a_resume_of_a_long_save_does_not_stall_the_world() {

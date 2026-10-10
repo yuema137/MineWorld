@@ -8,6 +8,7 @@ const Words := preload("res://scripts/hud/words.gd")
 
 var _who: Label
 var _when: Label
+var _hint: Label
 
 
 func _ready() -> void:
@@ -25,14 +26,18 @@ func _ready() -> void:
 	var lines := VBoxContainer.new()
 	panel.add_child(lines)
 	_who = _line(lines, 17)
+	# Who and where: a name and a place the world disclosed, joined by punctuation — world content.
+	MineWorldText.mark_world_text(_who)
 	_when = _line(lines, 13)
-	var hint := _line(lines, 12)
-	hint.text = Words.text("ui.hint")
+	_hint = _line(lines, 12)
+	_hint.text = Words.text("ui.hint")
 	add_child(panel)
 
 
 func _line(parent: Node, size: int) -> Label:
 	var label := Label.new()
+	# Composed from a template and data: rendered again by `show_state` on a language change.
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.add_theme_color_override("font_color", Color("4b3826"))
 	label.add_theme_font_size_override("font_size", size)
 	parent.add_child(label)
@@ -41,6 +46,7 @@ func _line(parent: Node, size: int) -> Label:
 
 ## Refreshes the lines from the newest observation and the connection's state.
 func show_state(observation: MineWorldObservation, link: Node, revision: Variant) -> void:
+	_hint.text = Words.text("ui.hint")
 	var state := Words.text("ui.state." + String(link.state))
 	if observation != null:
 		var me := observation.observer()
@@ -49,7 +55,7 @@ func show_state(observation: MineWorldObservation, link: Node, revision: Variant
 		var tags: Array = place.get("tags", [])
 		_who.text = Words.text("ui.status.who", {"name": name if name != "" else me,
 			"place": ", ".join(PackedStringArray(tags)) if not tags.is_empty() else observation.place()})
-		_when.text = Words.text("ui.status.when", {"clock": Words.clock(observation.at()),
+		_when.text = Words.text("ui.status.when", {"clock": Words.day_time(observation.at()),
 			"revision": "—" if revision == null else str(int(revision)),
 			"instance": link.instance.right(8), "state": state})
 	else:

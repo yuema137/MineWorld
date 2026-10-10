@@ -28,7 +28,6 @@ mod configuration;
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader};
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -42,7 +41,7 @@ use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, WorldRevision,
     format, verify,
 };
-use mineworld_test_support::Scratch;
+use mineworld_test_support::{Scratch, process};
 use mineworld_worldpack::configure::compare;
 
 const PEOPLE: [&str; 2] = ["ada", "bo"];
@@ -334,7 +333,7 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
         .expect("a child starts");
     let stdout = process.stdout.take().expect("piped");
     let mut lines = Vec::new();
-    let mut sent = false;
+    let mut sent = None;
     for line in BufReader::new(stdout).lines() {
         let line = line.expect("a line");
         let reached = line
@@ -343,10 +342,9 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
         lines.push(line);
         if let (Some(kill_at), Some(reached)) = (kill_at, reached)
             && reached >= kill_at
-            && !sent
+            && sent.is_none()
         {
-            process.kill().expect("SIGKILL is delivered");
-            sent = true;
+            sent = Some(process::kill(&mut process));
         }
     }
     let status = process.wait().expect("reaped");
@@ -355,7 +353,7 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
     }
     Ran {
         lines,
-        killed: status.signal() == Some(9),
+        killed: sent.is_some_and(|sent| sent.killed()),
     }
 }
 

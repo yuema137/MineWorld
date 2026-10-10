@@ -30,6 +30,9 @@ Either way the scripts sit at `res://mineworld/` in your project and the three c
 by name: `MineWorldClient`, `MineWorldObservation`, `MineWorldSpace`. A different directory name is
 fine — nothing in the module refers to its own path.
 
+Other shared client modules live in `clients/shared/` and are taken the same way; see
+[`clients/shared/SETTINGS.md`](../shared/SETTINGS.md).
+
 **A project must be imported once before a headless run.** Godot registers `class_name` in a cache it
 builds when it imports a project, so a first `godot --headless --path <project>` may fail to find
 `MineWorldClient`. `godot --headless --path <project> --import` builds it. A windowed run through the

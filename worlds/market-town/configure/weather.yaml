@@ -1,207 +1,192 @@
-# Market Town's weather (`weather` System Pack; `docs/DECISIONS.md` `ARC-61`, `ARC-68`).
+# Weather (`weather` System Pack; docs/DECISIONS.md ARC-61, ARC-68, DEP-31).
 #
-# Content, not code: the town's climate, as twelve months of integer WGEN-lite parameters (January
-# first), and the seed that draws its days. The seed is the world's, not `run --seed`'s: the same town
-# has the same weather whoever drives its people. PROVISIONAL (step-19 TW-b): TW-d replaces this table
-# with one fitted from San Diego's daily station record and switches `source` to that record.
-#
-# Derived from NOAA NCEI, U.S. Climate Normals 1991–2020, monthly, station USW00023188 (San Diego
-# Lindbergh Field, CA), https://www.ncei.noaa.gov/data/normals-monthly/1991-2020/access/USW00023188.csv,
-# read 2026-10-09. Inputs, January … December:
-#   MLY-TMAX-NORMAL (°F)          66.4 66.2 67.0 68.8 69.5 71.7 75.3 77.3 77.2 74.6 70.7 66.0
-#   MLY-TMIN-NORMAL (°F)          50.3 51.8 54.5 57.1 60.0 62.6 66.1 67.5 66.2 61.5 54.8 49.8
-#   MLY-PRCP-AVGNDS-GE001HI (d)   6.5  7.1  6.2  3.8  2.2  0.7  0.7  0.3  0.9  2.4  3.7  5.8
-#   MLY-PRCP-NORMAL (in)          1.98 2.20 1.46 0.65 0.28 0.05 0.08 0.01 0.12 0.50 0.79 1.67
-#
-# Every value below, and how it is obtained ("round" is to the nearest integer):
-#   tmax_dc, tmin_dc        round((°F − 32) × 50 / 9), the normal in 0.1 °C.
-#   p_wet_after_dry         round(π × (1000 − r)), with π = wet days (≥ 0.01 in) / days in the month
-#                           (February 28) and an assumed lag-1 persistence r = 300 ‰ — PROVISIONAL r.
-#   p_wet_after_wet         p_wet_after_dry + r. The chain's stationary wet fraction
-#                           p_wd / (1000 − p_ww + p_wd) is then π itself.
-#   rain_tenth_mm           μ × (0.105, 0.357, 0.693, 1.204, 2.303), rounded, each at least 3, where
-#                           μ = MLY-PRCP-NORMAL × 254 / wet days is the mean wet-day amount in 0.1 mm and
-#                           the factors are −ln(1 − p) at p = 0.1, 0.3, 0.5, 0.7, 0.9: the quintile
-#                           midpoints of an exponential distribution with that mean — PROVISIONAL shape.
-# PROVISIONAL design values (not from the normals; TW-d's fit replaces them):
-#   t_noise_dc 30, t_ar_permille 600   day-to-day temperature anomaly: AR(1) persistence 0.6 (WGEN's
-#                                      typical value) and uniform noise ±3.0 °C, a stationary spread of
-#                                      about ±2.2 °C
-#   wet_tmax_shift_dc −20              a rainy day's maximum is 2 °C cooler
-#   fog_permille                       morning fog, most often in autumn and winter (about 21 days a year)
-#   thunder_permille                   thunder on a wet day, likeliest in the late-summer monsoon
-#   overcast_morning_permille          a grey morning on a dry day: the marine layer of "May Gray" and
-#                                      "June Gloom"
-#   wind_dms, wind_from_deg            mean wind 2.4 – 3.7 m/s from the west-north-west (the sea breeze)
-source: rules
+# Written by `weather-fetch fit` (mineworld-weather-fetch 0.1.0) from
+#   data/weather/san-diego-usw00023188-2015-2024.csv
+# with the seed and overcast_morning_permille of the base configuration; re-run the tool rather
+# than edit by hand
+# (tools/weather-fetch/README.md). WGEN-lite rules fitted in integers from the record's complete days
+# (step-19 SD-TW-d-8c): wet = at least 0.3 mm; p_wet_after_dry and p_wet_after_wet are counted
+# transitions; rain_tenth_mm the 10th, 30th, 50th, 70th and 90th percentiles of wet-day amounts;
+# tmax_dc and tmin_dc means; t_ar_permille the lag-1 autocorrelation of the temperature anomalies;
+# t_noise_dc = isqrt(3 * variance * (1 - rho^2)) of the anomalies; wet_tmax_shift_dc the wet days'
+# mean maximum minus all days'; fog and thunder frequencies (thunder among wet days); wind the mean
+# speed and the modal direction in 10-degree bins. overcast_morning_permille is not in GHCN-Daily.
+# With `source: record` the rules draw only the days the record lacks for more than three days in a
+# row, and give the month's wind where the record has none.
+source: record
 seed: 19
+record:
+  station: USW00023188
+  data: data/weather/san-diego-usw00023188-2015-2024.csv
+  first_year: 2015
+fill: rules
 rules:
   months:
     - # January
-      p_wet_after_dry: 147
-      p_wet_after_wet: 447
-      rain_tenth_mm: [8, 28, 54, 93, 178]
-      tmax_dc: 191
-      tmin_dc: 102
-      t_noise_dc: 30
-      t_ar_permille: 600
+      p_wet_after_dry: 143
+      p_wet_after_wet: 521
+      rain_tenth_mm: [5, 13, 38, 74, 241]
+      tmax_dc: 192
+      tmin_dc: 100
+      t_noise_dc: 34
+      t_ar_permille: 718
       wet_tmax_shift_dc: -20
-      fog_permille: 80
-      thunder_permille: 40
+      fog_permille: 452
+      thunder_permille: 70
       overcast_morning_permille: 150
-      wind_dms: 25
+      wind_dms: 19
       wind_from_deg: 300
     - # February
-      p_wet_after_dry: 178
-      p_wet_after_wet: 478
-      rain_tenth_mm: [8, 28, 55, 95, 181]
-      tmax_dc: 190
-      tmin_dc: 110
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 60
-      thunder_permille: 40
+      p_wet_after_dry: 115
+      p_wet_after_wet: 509
+      rain_tenth_mm: [5, 13, 25, 64, 224]
+      tmax_dc: 197
+      tmin_dc: 104
+      t_noise_dc: 36
+      t_ar_permille: 766
+      wet_tmax_shift_dc: -32
+      fog_permille: 314
+      thunder_permille: 109
       overcast_morning_permille: 150
-      wind_dms: 30
-      wind_from_deg: 290
+      wind_dms: 23
+      wind_from_deg: 300
     - # March
-      p_wet_after_dry: 140
-      p_wet_after_wet: 440
-      rain_tenth_mm: [6, 21, 41, 72, 138]
-      tmax_dc: 194
-      tmin_dc: 125
-      t_noise_dc: 30
-      t_ar_permille: 600
+      p_wet_after_dry: 169
+      p_wet_after_wet: 494
+      rain_tenth_mm: [3, 10, 30, 58, 124]
+      tmax_dc: 198
+      tmin_dc: 123
+      t_noise_dc: 33
+      t_ar_permille: 708
       wet_tmax_shift_dc: -20
-      fog_permille: 50
-      thunder_permille: 40
+      fog_permille: 345
+      thunder_permille: 141
       overcast_morning_permille: 250
-      wind_dms: 34
-      wind_from_deg: 290
+      wind_dms: 26
+      wind_from_deg: 280
     - # April
-      p_wet_after_dry: 89
-      p_wet_after_wet: 389
-      rain_tenth_mm: [5, 16, 30, 52, 100]
-      tmax_dc: 204
-      tmin_dc: 139
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 40
-      thunder_permille: 40
+      p_wet_after_dry: 67
+      p_wet_after_wet: 452
+      rain_tenth_mm: [3, 3, 8, 18, 94]
+      tmax_dc: 210
+      tmin_dc: 141
+      t_noise_dc: 33
+      t_ar_permille: 673
+      wet_tmax_shift_dc: -26
+      fog_permille: 263
+      thunder_permille: 0
       overcast_morning_permille: 400
-      wind_dms: 37
-      wind_from_deg: 290
+      wind_dms: 28
+      wind_from_deg: 280
     - # May
-      p_wet_after_dry: 50
-      p_wet_after_wet: 350
-      rain_tenth_mm: [3, 12, 22, 39, 74]
-      tmax_dc: 208
-      tmin_dc: 156
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 40
-      thunder_permille: 40
+      p_wet_after_dry: 81
+      p_wet_after_wet: 368
+      rain_tenth_mm: [3, 5, 10, 23, 86]
+      tmax_dc: 204
+      tmin_dc: 155
+      t_noise_dc: 22
+      t_ar_permille: 663
+      wet_tmax_shift_dc: -13
+      fog_permille: 184
+      thunder_permille: 56
       overcast_morning_permille: 600
-      wind_dms: 37
-      wind_from_deg: 290
+      wind_dms: 30
+      wind_from_deg: 280
     - # June
-      p_wet_after_dry: 16
-      p_wet_after_wet: 316
-      rain_tenth_mm: [3, 6, 13, 22, 42]
-      tmax_dc: 221
-      tmin_dc: 170
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 30
-      thunder_permille: 100
+      p_wet_after_dry: 24
+      p_wet_after_wet: 0
+      rain_tenth_mm: [3, 5, 8, 10, 20]
+      tmax_dc: 223
+      tmin_dc: 172
+      t_noise_dc: 23
+      t_ar_permille: 680
+      wet_tmax_shift_dc: -8
+      fog_permille: 310
+      thunder_permille: 286
       overcast_morning_permille: 650
-      wind_dms: 35
-      wind_from_deg: 290
+      wind_dms: 28
+      wind_from_deg: 280
     - # July
-      p_wet_after_dry: 16
-      p_wet_after_wet: 316
-      rain_tenth_mm: [3, 10, 20, 35, 67]
-      tmax_dc: 241
-      tmin_dc: 189
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 30
-      thunder_permille: 300
-      overcast_morning_permille: 450
-      wind_dms: 34
-      wind_from_deg: 290
-    - # August
       p_wet_after_dry: 7
-      p_wet_after_wet: 307
-      rain_tenth_mm: [3, 3, 6, 10, 19]
-      tmax_dc: 252
-      tmin_dc: 197
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 40
-      thunder_permille: 300
+      p_wet_after_wet: 400
+      rain_tenth_mm: [3, 3, 3, 168, 262]
+      tmax_dc: 247
+      tmin_dc: 194
+      t_noise_dc: 20
+      t_ar_permille: 724
+      wet_tmax_shift_dc: 35
+      fog_permille: 201
+      thunder_permille: 250
+      overcast_morning_permille: 450
+      wind_dms: 27
+      wind_from_deg: 280
+    - # August
+      p_wet_after_dry: 13
+      p_wet_after_wet: 200
+      rain_tenth_mm: [3, 5, 5, 58, 462]
+      tmax_dc: 260
+      tmin_dc: 204
+      t_noise_dc: 19
+      t_ar_permille: 784
+      wet_tmax_shift_dc: -1
+      fog_permille: 219
+      thunder_permille: 200
       overcast_morning_permille: 350
-      wind_dms: 33
+      wind_dms: 27
       wind_from_deg: 290
     - # September
-      p_wet_after_dry: 21
-      p_wet_after_wet: 321
-      rain_tenth_mm: [4, 12, 23, 41, 78]
-      tmax_dc: 251
-      tmin_dc: 190
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 60
-      thunder_permille: 250
+      p_wet_after_dry: 39
+      p_wet_after_wet: 353
+      rain_tenth_mm: [3, 5, 8, 18, 160]
+      tmax_dc: 261
+      tmin_dc: 197
+      t_noise_dc: 28
+      t_ar_permille: 792
+      wet_tmax_shift_dc: 4
+      fog_permille: 253
+      thunder_permille: 176
       overcast_morning_permille: 300
-      wind_dms: 31
-      wind_from_deg: 290
-    - # October
-      p_wet_after_dry: 54
-      p_wet_after_wet: 354
-      rain_tenth_mm: [6, 19, 37, 64, 122]
-      tmax_dc: 237
-      tmin_dc: 164
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 90
-      thunder_permille: 60
-      overcast_morning_permille: 250
-      wind_dms: 28
-      wind_from_deg: 290
-    - # November
-      p_wet_after_dry: 86
-      p_wet_after_wet: 386
-      rain_tenth_mm: [6, 19, 38, 65, 125]
-      tmax_dc: 215
-      tmin_dc: 127
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 90
-      thunder_permille: 40
-      overcast_morning_permille: 150
       wind_dms: 25
       wind_from_deg: 290
-    - # December
-      p_wet_after_dry: 131
-      p_wet_after_wet: 431
-      rain_tenth_mm: [8, 26, 51, 88, 168]
-      tmax_dc: 189
-      tmin_dc: 99
-      t_noise_dc: 30
-      t_ar_permille: 600
-      wet_tmax_shift_dc: -20
-      fog_permille: 90
-      thunder_permille: 40
+    - # October
+      p_wet_after_dry: 48
+      p_wet_after_wet: 176
+      rain_tenth_mm: [3, 8, 23, 41, 119]
+      tmax_dc: 249
+      tmin_dc: 166
+      t_noise_dc: 35
+      t_ar_permille: 758
+      wet_tmax_shift_dc: -19
+      fog_permille: 329
+      thunder_permille: 353
+      overcast_morning_permille: 250
+      wind_dms: 21
+      wind_from_deg: 300
+    - # November
+      p_wet_after_dry: 72
+      p_wet_after_wet: 556
+      rain_tenth_mm: [3, 15, 28, 38, 165]
+      tmax_dc: 224
+      tmin_dc: 122
+      t_noise_dc: 40
+      t_ar_permille: 682
+      wet_tmax_shift_dc: -30
+      fog_permille: 370
+      thunder_permille: 77
       overcast_morning_permille: 150
-      wind_dms: 24
+      wind_dms: 19
+      wind_from_deg: 300
+    - # December
+      p_wet_after_dry: 113
+      p_wet_after_wet: 472
+      rain_tenth_mm: [3, 13, 43, 114, 249]
+      tmax_dc: 194
+      tmin_dc: 98
+      t_noise_dc: 37
+      t_ar_permille: 604
+      wet_tmax_shift_dc: -21
+      fog_permille: 461
+      thunder_permille: 93
+      overcast_morning_permille: 150
+      wind_dms: 18
       wind_from_deg: 300

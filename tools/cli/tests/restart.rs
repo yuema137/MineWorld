@@ -29,8 +29,6 @@
 mod fixture;
 mod support;
 
-use std::os::unix::process::ExitStatusExt;
-
 use mineworld_contracts::ActionResult;
 use serde_json::json;
 use support::{Client, SaveDir, Server, run_command, tagged, talk, walk};
@@ -109,11 +107,7 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
 
     // ── The kill. ────────────────────────────────────────────────────────────────────────────
     let died = first.kill();
-    assert_eq!(
-        died.signal(),
-        Some(9),
-        "the server died of SIGKILL: {died:?}"
-    );
+    assert!(died.killed(), "the server died of SIGKILL: {died:?}");
     drop(window);
 
     // ── After: the same command, a new process. ──────────────────────────────────────────────

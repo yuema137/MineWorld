@@ -35,7 +35,6 @@
 mod resolvers;
 
 use std::io::{BufRead, BufReader};
-use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -45,7 +44,7 @@ use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, WorldRevision, verify,
 };
 use mineworld_presence::{ArrivalResolver, register_resolvers};
-use mineworld_test_support::Scratch;
+use mineworld_test_support::{Scratch, process};
 use resolvers::{Fences, Pack, Plan, Where, at};
 
 const ROLE: &str = "MINEWORLD_RESOLVER_KILL_ROLE";
@@ -211,7 +210,7 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
         .expect("a child starts");
     let stdout = process.stdout.take().expect("piped");
     let mut lines = Vec::new();
-    let mut sent_kill = false;
+    let mut sent_kill = None;
     for line in BufReader::new(stdout).lines() {
         let line = line.expect("a line");
         let reached = line
@@ -220,10 +219,9 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
         lines.push(line);
         if let (Some(kill_at), Some(reached)) = (kill_at, reached)
             && reached >= kill_at
-            && !sent_kill
+            && sent_kill.is_none()
         {
-            process.kill().expect("SIGKILL is delivered");
-            sent_kill = true;
+            sent_kill = Some(process::kill(&mut process));
         }
     }
     let status = process.wait().expect("the child is reaped");
@@ -232,7 +230,7 @@ fn run(role: &str, directory: &Path, kill_at: Option<u64>) -> Ran {
     }
     Ran {
         lines,
-        killed: status.signal() == Some(9),
+        killed: sent_kill.is_some_and(|sent| sent.killed()),
     }
 }
 

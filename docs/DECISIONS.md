@@ -298,6 +298,33 @@ or training or testing any artificial intelligence"*. For a project whose purpos
 characters with recorded cognition fixtures, that constrains use even where redistribution is not
 at issue, and it needs its own decision at that point rather than being discovered later.
 
+**Amended 2026-10-08 — the font exception (operator ruling QSET-1, S20).** DEP-8's binding test is
+whether MineWorld may relicense an asset under MIT. Fonts under the SIL Open Font License 1.1
+cannot pass it, because OFL-1.1 requires the font to stay under OFL. They are the only exception to
+the test, under every one of these conditions:
+
+1. **Fonts only.** The exception covers font software (`.otf`, `.ttf`, `.otc`, `.woff2`) licensed
+   under `OFL-1.1` and nothing else: no texture, model, sound, code or data file, and no other
+   licence.
+2. **Bundled, never sold on its own.** The font ships only inside MineWorld, as a file the clients
+   load, and is never offered, sold or distributed as a product on its own (OFL-1.1 §1).
+3. **Unmodified and named as upstream.** The file is the upstream release, byte for byte. Its
+   source URL, version and SHA-256 are recorded beside it. A modified or subset font is not covered
+   without a new decision, which would also have to respect any Reserved Font Name (OFL-1.1 §3).
+4. **Its licence travels with it.** `OFL.txt`, with the upstream copyright notice, sits in the same
+   folder (OFL-1.1 §2). `NOTICE` names the font, its copyright holder and its licence, and states
+   that MineWorld's MIT licence does not cover it.
+5. **Never merged into MIT material.** The font is never embedded into, or concatenated with, a
+   file under MIT. Loading it at runtime is use, not merging.
+6. **Listed.** Every font admitted under this exception is a row of DEP-8's table. At present
+   there is one: **Noto Sans SC Regular** (`notofonts/noto-cjk`,
+   `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, 8,331,336 bytes, OFL-1.1, copyright Adobe with
+   Reserved Font Name "Source"), the CJK fallback font of both reference clients' UI (S20 SET-a).
+
+ARC-55's default pack allow-list is unchanged. A **pack** that carries an OFL font still needs a
+world-level policy that allows `OFL-1.1` (ARC-55 point 5). This exception covers fonts bundled with
+MineWorld's own clients.
+
 ### Approved, licences confirmed from primary sources
 
 | Source | Licence | For |
@@ -310,6 +337,8 @@ at issue, and it needs its own decision at that point rather than being discover
 | [Quality Godot First Person Controller v2](https://github.com/ColormaticStudios/quality-godot-first-person-2) | MIT | the controller. v1 is archived — take v2 |
 | [Sky3D](https://github.com/TokisanGames/Sky3D) | MIT | sky and daylight. Credit is required only if the bundled star map ships |
 | [Kenney](https://kenney.nl) | CC0 | blockout and placeholder only; the style is deliberately not ours |
+| [NOAA GHCN-Daily](https://www.ncei.noaa.gov/pub/data/ghcn/daily/), station USW00023188 | CC0-1.0 / US public domain ("no restrictions on the use of the data", [NODD](https://registry.opendata.aws/noaa-ghcn/)) | Market Town's daily weather record (`DEP-31`). Attribution and both requested citations in the `NOTICE` beside the file; no implied endorsement; modified data so labelled |
+| [Noto Sans SC Regular](https://github.com/notofonts/noto-cjk) (`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit `165c01b`, SHA-256 `faa6c9df…706d5ea9`) | **OFL-1.1**, admitted only under the font exception above | the CJK fallback font of both reference clients' UI (`clients/shared/settings/fonts/`, S20 SET-a, `DEP-36`) |
 
 ### Excluded, with the reason
 
@@ -2807,6 +2836,17 @@ still follows the six and is listed once; and `configure/weather.yaml` is admitt
 of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
 allow-listed is now `bodies` (it was `weather`).
 
+**Note, 2026-10-09 (S19, PR TW-d; step-19 §18.9.1 QTWd-1) — an allow-listed pack's `data/` attachments.**
+The primary session ruled (2026-10-09) that admitting an allow-listed generic pack's data is the same
+allowance as admitting its configuration (TWa-R1), since an attachment is configuration (`ARC-61`'s
+`data:` note). Check 3 therefore admits a `data/` directory **in Market Town only**, when every file in
+it, at any depth, is either an attachment named by the `configure/` file of an allow-listed pack the
+world enables, or a file named `NOTICE` in the same directory as such an attachment (its licence and
+provenance record, `DEP-8`, `DEP-31`). Any other file under `data/` is refused, naming it; a `data/` in
+Social Café is refused. **The claim is unchanged: the market delta is measured exactly.** No market pack
+gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
+stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -3839,6 +3879,19 @@ third-party i18n addons                                    none needed over the 
 
 **Isolating interface.** One script per client reads the wording (`clients/2d/scripts/hud/words.gd`);
 every other script asks it for a key's text.
+
+**Note 2026-10-09 — extended to both clients by S20 SET-a** (design step-20 §3.6, ruling QSET-11,
+QSET-16; this note stands in for the planned `ARC-SET-b`). The format and every key of point 1 are
+unchanged. Catalogs are **layered per key**: the shared settings module's `locale/` (keys both clients
+use, among them `action.*` and `reason.*`, moved verbatim from the 2D pack), then the Presentation Pack's
+`i18n/` (the pack's own wording, and any override of a shared key it marks `#. override`), then the
+user's `user://locale/`, the later layer winning. Languages are discovered from the `.po` files present
+(a language is offered when some layer gives it a `language.self_name`), so a `fr.po` dropped into any
+layer adds French with no code. The language is switched live. The fallback is English, then point 3's
+readable form; a raw key is never shown. World content, stdout logs and evidence lines are never
+translated. `words.gd` keeps its API and delegates loading and the fallback to
+`clients/shared/settings/text.gd`. The translation comparison above is confirmed for both clients by
+step-20 §4.1.
 
 ---
 
@@ -5106,6 +5159,61 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
 
 ---
 
+## DEP-29 note — ending a test's child process on every platform (2026-10-09, S13 PR 13w)
+
+**Approved by** the primary session at 13w's design freeze (step-14 §15, QW-2) · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §15.3–15.4
+
+The decision is unchanged: `mineworld-test-support` stays standard-library-only. It gains a module
+`process` so that the default suite compiles and passes on Windows as on Unix (the operator's
+all-platforms requirement, step-14 §13.0.1):
+
+- **`kill(&mut Child) -> Killed`** and **`Killed::killed()`**: whether the kill ended the child. On Unix
+  the status is signal 9 (`ExitStatusExt`, now used in this crate only). On Windows std's `Child::kill`
+  is `TerminateProcess(handle, 1)`, so the status is exit code 1, and the child must have been running
+  (`try_wait` is `None`) immediately before the kill. Tests assert the verdict, never a raw status.
+- **`interruptible(Command)`, `InterruptibleChild` and `interrupt(&mut InterruptibleChild)`**: an
+  operator's stop. On Unix, `SIGINT` through `sh -c "kill -INT <pid>"` (moved unchanged from the CLI's
+  test support), then a wait. On Windows the child is spawned with `CREATE_NEW_PROCESS_GROUP` (std's
+  safe `CommandExt::creation_flags`), and `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, <pid>)` reaches
+  that group and nothing else; Ctrl-C cannot be sent to one group. `interrupt` accepts only an
+  `InterruptibleChild`, so a Ctrl-Break can never be broadcast to every process on the console (a
+  compile-fail doctest pins it).
+
+**Options considered for the one Windows call** (`REUSE_POLICY.md` §§11–12, both directions):
+
+```text
+(a) one `unsafe extern "system"` declaration of GenerateConsoleCtrlEvent from kernel32, which std
+    already links on every Windows target
+(b) `windows-sys` 0.61.2 (already in Cargo.lock, transitively) as a cfg(windows) dependency
+(c) libc / nix on Unix in place of `sh -c kill`
+```
+
+**Choice: (a), and `sh -c kill` on Unix.**
+- (b) is a real dependency (`REUSE_POLICY.md` §11) for one function, and its functions are `unsafe` to
+  call as well; it buys no safety over (a).
+- (c) adds a dependency and `unsafe` to replace a command that every Unix CI image and developer machine
+  already has, and that 13a's container proves in CI.
+- The crate's `#![forbid(unsafe_code)]` becomes `#![deny(unsafe_code)]`, with exactly one
+  `#[allow(unsafe_code)]` function, `send_interrupt` under `cfg(windows)`. The call takes two integers by
+  value and touches no memory.
+
+**Accepted limitations.**
+- **The residual race on Windows.** A child that exits with code 1 by itself in the instant between
+  `try_wait` and `TerminateProcess` would read as killed. Every killing test also checks separately that
+  the child had not finished (no final summary line, or a revision short of the end), so a false
+  "killed" cannot also pass that check. On Unix the verdict is unambiguous.
+- **A console is needed on Windows.** `GenerateConsoleCtrlEvent` works only for a caller attached to a
+  console. Without one the call fails, and `interrupt` returns a named error ("no console attached;
+  Ctrl-Break cannot be delivered"); it never passes silently.
+- The server must handle Ctrl-Break itself: `tokio::signal::ctrl_c()` does not catch it on Windows
+  (step-14 F-13w-2). `serve.rs`'s `stop_requested` does, since S11-D (step-12 SD-D13, QW-1).
+
+**Revisit** if a test needs to stop a child that is not a console process, or the server gains a stop that
+needs no signal (an admin `shutdown` frame); `interrupt` would then wrap that instead.
+
+---
+
 ## ARC-66 — A System Pack from outside this repository is installed by the same two lines, pinned to a commit
 
 **Date** 2026-10-08 · **Approved by** the operator (S16 QSE-2, QSE-3, QSE-12, QSE-16; FQ-c1, FQ-c2,
@@ -5316,6 +5424,15 @@ and run by the `fast` layer (`scripts/ci_layer.py`): `cargo deny check licenses 
 **Revisit** when an advisory database can be pinned and read offline, or when the graph needs a licence
 outside the list (a reviewed addition here first).
 
+**Note, 2026-10-09 (operator ruling on S19 TW-d's TWd-F4) — one crate-scoped exception.** `deny.toml`
+gains `[[licenses.exceptions]] crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"]`. `webpki-roots`
+is Mozilla's root-certificate list as data; it is reached only through `ureq`'s `rustls` feature in
+`mineworld-weather-fetch`'s off-by-default `fetch` feature (`DEP-31`), a developer tool that no world
+build compiles. The exception names that crate only: CDLA-Permissive-2.0 is not added to the allow-list,
+and any other crate carrying it is still refused. Every rustls route to a root store carries a CDLA root
+list (`webpki-roots` or `webpki-root-certs`), and `native-tls` would need OpenSSL headers in the CI
+image (step-19 §18.11 TWd-F4); the alternative, dropping `fetch`, was not chosen.
+
 ---
 
 ## ARC-49 — How AC-8 is measured
@@ -5489,6 +5606,75 @@ test-windows  the `core` layer natively on   push to main; workflow_dispatch    
   and pass there; that PR adds its `pull_request` trigger, and only then may the operator make it a
   required check (QB-11).
 - None of the new jobs runs on `pull_request`, and none is required (QB-8).
+
+---
+
+## ARC-48 note — the default suite on Windows and macOS (2026-10-09, S13 PR 13w)
+
+The decision is unchanged; its table gains or changes these rows (step-14 §15.5, QW-4, QW-5).
+
+```text
+job           layer / role                  trigger                                         merge
+test-windows  the `core` layer natively on  non-draft pull_request; push to main;          reports
+              windows-2025                  push to scratch/** (not -image, -scenario);
+                                            workflow_dispatch
+test-macos    the `core` layer natively on  the same                                       reports
+              macos-26
+```
+
+- **`test-windows` gains its `pull_request` trigger**, in the PR that makes it green (13w), as 13b's
+  note said it would. `test-macos` is new, with the same triggers. Both carry `test`'s triggers plus
+  dispatch, so a mutation pushed to a `scratch/` branch is judged on all three operating systems.
+- **Neither is a required check.** Making them required is the operator's settings change (QB-11): the
+  recommendation is after five consecutive green `main` pushes.
+- **E-c/E-d's `platforms` job stays** (QB-15, QW-4's fallback). Retiring it was conditional on its layer
+  being a strict subset of `core`. E-c (#99) merged first and added its offline vendor check (PD-p3,
+  EC-3 (b): `ci_layer.py --offline-check`), which `core` does not run, so the condition fails and the job
+  is kept unchanged. The rest of the layer duplicates part of `core` on the same runners; trimming it to
+  what `core` lacks is a later, separate change.
+- Wall times are recorded in step-14 §15.8 (W-C4); both jobs have a 60-minute timeout and run in
+  parallel with `test`.
+
+---
+
+## ARC-48 note — documentation-only changes do not run the build (2026-10-09, S13 PR 13x)
+
+The decision is unchanged in what each layer runs; its triggers change (step-14 §16, under the
+operator's requirement of 2026-10-09 that a documentation-only update must not trigger CI).
+
+```text
+job        layer / role                         trigger                                  merge
+changes    classify the diff: code or docs      every run                                (feeds fast)
+           (scripts/ci_changes.py)
+fast       code: 1 fast structural              push to main and scratch/**;             blocks
+           docs only: the `docs` layer          pull_request; workflow_dispatch
+test, python, platforms, test-windows,          as before, and only when changes says    as before
+test-macos, scenario, linux-arm, mac,           code; otherwise skipped
+windows, ac8
+```
+
+- **The docs set is fixed by audit, not by guess** (step-14 §16.3): `docs/**`,
+  `.structured-coding/plans/**`, the root `README*.md`, `CLAUDE.md`. Nothing else is documentation,
+  including subdirectory READMEs, some of which tests read (`cognition/lm-controller/README.md`,
+  `server/PROTOCOL.md`). A diff is docs-only when every changed path, renames split into deletion and
+  addition, is in the set; an empty diff, an unknown base (a new branch, a force-push) and any `git`
+  failure are code. A push to `main` and a dispatch are always code, so `main` stays fully verified.
+- **The `docs` layer** (`ci_layer.py docs`) is `check_doc_headings.py`, `check_decision_ids.py` and
+  `ci_changes.py --self-test`, the only CI commands that read the docs set, run on the runner's Python
+  in seconds. `fast` also runs the classifier's self-test.
+- **Required checks still report.** No workflow-level `paths-ignore` (a workflow that never starts leaves
+  `fast` and `test` pending). Skipped jobs use a job-level `if:` on `needs.changes.outputs.code`, which a
+  required check reads as passing. `fast` runs `if: always()` and fails first if `changes` did not
+  succeed, so a broken classifier cannot let a PR merge with everything skipped.
+- **One run per PR commit.** `push` now triggers on `main` and `scratch/**` only; feature branches are
+  run by `pull_request`. This supersedes the "Economy" bullet that branch pushes run `fast` even when a
+  PR also runs it: a branch with no PR is not run until a (draft) PR is opened.
+- **Reuse.** `dorny/paths-filter` was considered and rejected, to avoid a third-party action holding a
+  repository-read token for a 30-line check that `git diff` already answers.
+- **The standards agree.** `ENGINEERING_STANDARDS.md` §15 ("every pull request should run" format,
+  compile, lint and core tests) and §16 ("run on every change") now say that a documentation-only change
+  as defined here runs the documentation checks only: no other check reads its files, so their verdict
+  is the base's, and `main` runs every layer on every push.
 
 ---
 
@@ -6102,6 +6288,113 @@ the next day's opening phase corrects the light.
 
 ---
 
+## ARC-76 — Client settings are a shared, presentation-only client module
+
+**Date** 2026-10-09 · **Approved by** the primary session at S20 PR SET-a's design freeze (2026-10-08;
+`ARC-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) · **Relates to** `ARC-46`, `ARC-47`, `ARC-70`, `DEP-35`, `DEP-36`,
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§2–3, 10–12 · **Design**
+`.structured-coding/plans/mvp0/step-20-client-settings.md` §3, §12; specification
+[`clients/shared/SETTINGS.md`](../clients/shared/SETTINGS.md)
+
+**Problem.** The operator requires an in-game settings menu in both reference clients: language (`en`
+by default, `zh-Hans`), display (window mode, resolution, VSync, frame-rate cap) and a 12-hour or
+24-hour clock, persisted per user, never reaching the server ("Framework, not demo" item 4). Two clients
+that each built their own would drift; settings placed in the protocol module or on the server would
+mix presentation with the world.
+
+**Decided.**
+
+1. Client settings are **one Godot module**, `clients/shared/settings/`, in a sibling project
+   `clients/shared/` (the protocol module's pattern, `ADOPTION.md` §1). Each client takes it by symlink
+   as `res://mineworld_settings`. No autoload, no required project setting, no import step.
+2. The module is **presentation-only and has no network code**. A setting never becomes an
+   `ActionIntent`, a frame or a request, and a client's frames are the same whatever its settings.
+3. **One per-user `ConfigFile`**, `user://settings.cfg`, shared by both clients through the custom user
+   directory `MineWorld`. It holds settings only: never an invite, an admin token, a seat, an address, a
+   nickname or a world. Every scripted and capture mode runs on defaults (`--settings=none`).
+4. **Host commands are not settings.** Pause and day length (S19 `/admin/clock`) live in a separate
+   module, `clients/shared/host/` (SET-c), which contributes a tab to the menu and never reads or writes
+   the settings file; the admin token is held in memory only.
+5. The module has **no platform branch** beyond one declared case (a Wayland tooltip); per-platform
+   behaviour is Godot's.
+
+**Rejected.** Settings in the protocol module (it is the wire, owned by S11); settings as a server- or
+world-side concept (they are one person's presentation); an autoload (a module a client adopts must not
+change the project's global composition); a copy per client (two copies drift).
+
+---
+
+## DEP-35 — Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined
+
+**Date** 2026-10-09 · **Status** selected; no dependency added · **Approved by** the primary session at
+S20 PR SET-a's design freeze (`DEP-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) ·
+**Relates to** `ARC-76`, `ARC-70`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** step-20 §4.1–§4.3,
+§4.5
+
+**Options compared** (step-20 §4 holds the full tables and sources):
+
+```text
+persistence  Godot ConfigFile in user://                 adopt: typed values round-trip, readable,
+                                                         per user; our own atomic write and validation
+             ProjectSettings override.cfg                reject: per checkout, read once at start
+             JSON through FileAccess                     reject: numbers come back as floats
+             a Resource saved as .tres                   reject: a user-writable .tres can carry scripts
+             OS-native preferences                       reject: native code, three back ends
+display      DisplayServer + Engine.max_fps +            adopt: everything except changing the
+             Viewport.scaling_3d_scale                   monitor's mode, which Godot does not expose
+             project settings (display/window/*)         reject: read at start only
+             native code to change the monitor's mode    reject (QSET-3): risky, per OS
+menus        Maaack's Godot Menus / Game Template (MIT)  decline adoption, borrow the pattern
+                                                         (PlayerConfig: a ConfigFile plus static apply
+                                                         helpers): its scene and plugin flow does not
+                                                         fit two code-built clients, and it has no
+                                                         borderless/exclusive split, frame cap, render
+                                                         scale or locale setting
+             GGS — Godot Game Settings (MIT)             decline: editor-centric, saves resources, no
+                                                         localisation
+             our own small module                        build: about six short scripts over three
+                                                         engine APIs, typed, with no editor step
+text         ARC-70's TranslationServer + gettext .po    confirmed for both clients (CSV needs the
+                                                         editor's importer; P-3)
+```
+
+**Credit.** The `ConfigFile` + static-apply pattern is Maaack's (`Maaack/Godot-Menus-Template`, MIT).
+
+**Isolating interface.** `MineWorldSettingsStore` (`store.gd`) is the only code that reads or writes
+the settings file; `MineWorldDisplay` (`display.gd`) is the only code that applies display settings.
+
+---
+
+## DEP-36 — Noto Sans SC Regular bundled as the clients' CJK fallback font
+
+**Date** 2026-10-09 · **Status** selected; one font file added under the DEP-8 font exception ·
+**Approved by** the operator (QSET-1, 2026-10-08) · **Relates to** `DEP-8` (its font exception and table
+row), `ARC-55`, `ARC-76` · **Design** step-20 §3.7, §4.4
+
+**Problem.** Godot's default font has no CJK glyphs. Without a bundled font, Chinese text renders only
+through whatever font the operating system supplies — PingFang on macOS, Microsoft YaHei on Windows,
+nothing at all (tofu boxes) on a minimal Linux — so the same build looks different per machine and a
+capture cannot be compared.
+
+**Choice.** `clients/shared/settings/fonts/NotoSansSC-Regular.otf`, the unmodified upstream file
+(`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit
+`165c01b46ea533872e002e0785ff17e44f6d97d8`, 8,331,336 bytes, SHA-256
+`faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9`), beside its `OFL.txt`, named in
+`NOTICE`. It is loaded at runtime and appended to the **fallbacks** of the default theme font, so Latin
+text keeps its current font glyph for glyph and only glyphs the default font lacks come from Noto Sans
+SC, before the system is asked. A check proves every character of every shipped catalog is in the
+bundled font with system fallback off (`clients/shared/checks/glyph_check.gd`).
+
+**Options compared** (step-20 §4.4): the variable Noto Sans SC (twice the size for weights the UI does
+not use); a GB 2312 subset (a build step, rare characters become tofu, and a Modified Version needs a
+new decision); Source Han Sans SC (identical glyphs, no advantage); WenQuanYi Micro Hei through its
+Apache-2.0 branch (the fallback had OFL been refused); Droid Sans Fallback (dated); the OS's own fonts
+(rejected as the mechanism: different on every machine).
+
+**Accepted cost.** 8.3 MB in Git history, once.
+
+---
+
 ## ARC-75 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
 
 **Date** 2026-10-09 · **Approved by** the operator ("add pathfinding; 12d waits for it", 2026-10-08;
@@ -6361,6 +6654,104 @@ no day-to-day noise in this version.
 
 ---
 
+## DEP-31 — Weather data: NOAA GHCN-Daily, reshaped offline by `tools/weather-fetch`; `ureq` confined to that tool behind an off-by-default feature
+
+**Date** 2026-10-09 · **Status** selected; one optional dependency (`ureq`) added to `tools/weather-fetch`
+only · **Approved by** the primary session at PR TW-d's design freeze (step-19 §18.9.1; QTWd-3 … 8 ruled
+as recommended) · **Relates to** `ARC-61` (and its `data:` attachment note), `ARC-68`, `DEP-8`,
+`REUSE_POLICY.md` §§11–12, step-19 `INV-TW-7` · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.2, §6.3–§6.5, §18 (S19, PR TW-d)
+
+**Problem.** Market Town's weather should be San Diego's real weather, replayed day by day, with the
+rules of `ARC-68` filling only what the record lacks. The data must be redistributable inside the
+repository, carry its provenance, be produced by a program anyone can re-run, and reach a world without
+any crate that `run`, the server or a client builds ever opening a network connection (`INV-TW-7`).
+
+**Data source** (read 2026-10-08, re-read 2026-10-09; the full table is step-19 §3.2).
+
+```text
+(a) NOAA GHCN-Daily, station USW00023188 (San Diego International Airport, Lindbergh Field) —
+    CC0-1.0 through NOAA's Open Data Dissemination ("There are no restrictions on the use of the
+    data", https://registry.opendata.aws/noaa-ghcn/); a US federal work. NOAA requests attribution,
+    forbids stating or implying endorsement, and asks that modified data not be presented as original
+    NOAA data. Daily TMAX, TMIN, PRCP, AWND, WDF2 and weather-type flags since 1939.
+(b) NOAA GHCNh (hourly) — CC0; ISD's successor, with visibility and present weather (fog)
+(c) NOAA ISD / ISD-Lite — CC0; superseded (no updates after about 2025-08-24), no fog field
+(d) Meteostat — CC BY 4.0; repackages NOAA for this station and adds an attribution duty
+(e) Open-Meteo historical — data CC BY 4.0, but the free API is non-commercial only
+(f) ERA5 (Copernicus) — CC BY 4.0 since 2025-07-02; a ~31 km grid that smooths the coastal marine
+    layer; needs an account and NetCDF/GRIB extraction
+```
+
+**Selected: (a)** as the default daily record, years 2015–2024 (ten whole years, two of them leap
+years; QTW-5). **(b)** is the optional hourly layer of a later PR (TW-g). (c) is rejected for new work,
+(d) as a redundant intermediary, (e) because its access route fails `DEP-8`'s commercial-use rule, and
+(f) is kept only as the fallback for a world placed where no station exists (QTW-10). The generator that
+fills gaps stays `ARC-68`'s (WGEN-lite, built from the published algorithm; LARS-WG rejected there for
+its non-commercial licence); this decision does not restate it.
+
+**Input format: the station's `.dly` file**, `https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/<station>.dly`
+— plain fixed-width text whose columns NOAA's `readme.txt` §III documents (one line per station, month
+and element; 31 values of eight columns each; missing is −9999). The by-station CSV is a long format
+served gzipped, so it would add a gzip dependency for no gain (QTWd-3).
+
+**The committed form is our own CSV, labelled modified.** `worlds/<world>/data/weather/<name>.csv`, the
+`weather` pack's input format (`systems/weather/README.md`, step-19 SD-TW-d-1): one row per day,
+`date,tmax_dc,tmin_dc,prcp_tenth_mm,awnd_dms,wdf2_deg,fog,thunder`, integers in GHCN-Daily's own units, an
+empty cell for a missing or quality-flagged value, `fog = WT01 ∨ WT02 ∨ WT21`, `thunder = WT03`. A `NOTICE`
+beside it records the source URL, station, retrieval date, the tool's version and exact command, the
+`.dly` input's byte count, the CSV's byte and line counts, the attribution, NOAA's two requested
+citations (Menne et al. 2012, *J. Atmos. Oceanic Technol.* 29:897–910, doi:10.1175/JTECH-D-11-00103.1;
+Menne et al. 2012, GHCN-Daily Version 3, doi:10.7289/V5D21VHZ), and the statement that the data is
+modified (reshaped and gap-reported) from NOAA GHCN-Daily and not endorsed by NOAA. No digest is recorded
+(no SHA-256 crate is in the tree, and adding one for this alone is not worth a dependency, QTWd-7):
+reproducibility is owned by the tool's determinism test and by `.gitattributes`' `eol=lf` for World Pack
+data, which makes every platform check out the same bytes. The pack decodes LF, CRLF and a leading BOM
+identically, so a user's own file in either form works too.
+
+**The tool: `tools/weather-fetch`** (crate `mineworld-weather-fetch`), a developer tool that `run`, CI and
+the server never execute. `reshape` turns a `.dly` file into the CSV and NOTICE and prints a report
+(missing values by year, gap runs, weather-type population by year, quality-flagged values dropped);
+`fit` estimates a `configure/weather.yaml` rules block from a CSV in integers only; both are byte-
+reproducible for the same input and arguments. It uses the `weather` pack's own CSV and rules types, so
+the format has one authority. `fetch` downloads the `.dly` file verbatim and exists only with the cargo
+feature `fetch`, **off by default**.
+
+**HTTP client** (`REUSE_POLICY.md`: a commodity, adopted, not built).
+
+```text
+(a) ureq 3.4.2 — MIT OR Apache-2.0; blocking, small; rustls with the ring provider and webpki-roots
+    (features: default off, `rustls`)
+(b) reqwest — async (tokio) for one GET; far larger tree
+(c) no HTTP client: the developer downloads the file by hand and runs `reshape`
+```
+
+**Selected: (a)**, pinned exactly (`=3.4.2`) in `tools/weather-fetch/Cargo.toml` as an optional dependency
+enabled only by the tool's `fetch` feature. No other crate depends on the tool, so no runtime crate can
+reach `ureq` (`INV-TW-7`, checked by `cargo tree` and by a test over `Cargo.lock`). The ring provider
+needs only a C compiler, which the CI image has; `cargo clippy --all-features` compiles it there. The
+feature adds 22 entries to `Cargo.lock` (twelve crates and ten Windows target shims), all under permissive
+licences (MIT, Apache-2.0, ISC, BSD-3-Clause; `ring` is
+Apache-2.0 AND ISC; `webpki-roots`, Mozilla's root certificates as data, is CDLA-Permissive-2.0); none
+is in any default build, and none ships with a world. (b) is
+the wrong size for one download. (c) remains the fallback when the network is unavailable: `reshape`
+takes any `.dly` file, and the NOTICE records who obtained it.
+
+**Accepted limitations.** WT flags are sparsely reported for some stations and years; the tool reports
+their population and the pack then takes fog only from what the record says (TW-g's hourly layer adds
+GHCNh). `overcast_morning_permille` cannot be estimated from GHCN-Daily and is carried over from the base
+rules by `fit`. The record series adds about 66 KB to every world snapshot (QTWd-2, accepted; retention is
+the persistence lane's F-SAVE-1). Windows is argued from `eol=lf`, the CRLF/BOM-tolerant decoder and its
+test, not run in CI.
+
+**Note, 2026-10-09 (operator ruling on TWd-F4) — `webpki-roots`' licence.** After this decision was
+frozen, `DEP-22`'s `deny.toml` (with `all-features = true`) refused `webpki-roots` (CDLA-Permissive-2.0),
+which the `fetch` feature's `ureq` + `rustls` brings. The operator chose a single crate-scoped exception
+in `deny.toml` over dropping `fetch` (`DEP-22`'s note of the same date). The tree, the pin and the
+confinement above are unchanged.
+
+---
+
 ## ARC-57 — Cognition budgets: cost ceilings on wall time, decided before the recorder and the backend
 
 **Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`mineworld-cognition`,
@@ -6546,3 +6937,105 @@ redacted, and is never logged, recorded, put in an exception, or written to the 
 
 **Revisit** if `python-dotenv` gains runtime dependencies or changes `dotenv_values`' contract, or if
 an OS keychain becomes a required source (a separate decision).
+
+---
+
+## DEP-33 — Claude by API key: a native Anthropic Messages adapter over `httpx2`; the SDKs declined
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5b (no new dependency: `httpx2` is `DEP-27`'s) ·
+**Approved by** the primary session (QP5b-4, 2026-10-09) and the operator's ruling QP5b-1 (Claude is
+supported by API key only) · **Relates to** `DEP-27`, `DEP-32`, `ARC-58`, `ARC-60` · **Design**
+`pr-s10-p5b-hosted-subscriptions.md` §4.3, §5.1, AB-1, AB-2
+
+**Problem.** The operator asked for Claude among the hosted models. Anthropic's OpenAI-compatibility
+layer, reachable through `DEP-27`'s adapter, ignores `response_format` and `seed` and refuses a
+temperature below 1 on recent models (`platform.claude.com/docs/en/api/openai-sdk`, read 2026-10-09:
+"not considered a long-term or production-ready solution"). Schema-constrained output needs the native
+Messages API (`output_config.format = {"type": "json_schema", …}`).
+
+**Options considered** (facts read 2026-10-09):
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| `anthropic` SDK | MIT; 1.13.0; depends on `httpx2`, `anyio`, `docstring-parser`, `jiter`, `pydantic`, `sniffio`, `typing-extensions` | **Rejected.** Verified in its source (`src/anthropic/_client.py`, `main`, read 2026-10-09): with an argument omitted, both `Anthropic.__init__` and `AsyncAnthropic.__init__` run `os.environ.get("ANTHROPIC_API_KEY")`, `os.environ.get("ANTHROPIC_AUTH_TOKEN")` and `os.environ.get("ANTHROPIC_BASE_URL")`; `max_retries` defaults to `DEFAULT_MAX_RETRIES = 2` (`_constants.py`), so one decision could be three calls the budget ledger never sees. Both contradict `DEP-27`'s rules (no environment read but `key_env`; no retries) |
+| `claude-agent-sdk` | MIT; 0.2.165; bundles the Claude Code CLI | **Rejected.** It would ship Claude Code inside MineWorld (Anthropic's Commercial Terms apply), and its documentation forbids the subscription login it would be used for |
+| Anthropic's OpenAI-compatibility layer through `DEP-27`'s adapter | — | **Rejected for Claude**, and refused by `config.load`: `kind = "openai-compatible"` with a `base_url` on `api.anthropic.com` is a `ConfigError` naming `kind = "anthropic"` |
+| **Our adapter over `httpx2`** | — | **Adopted**: `backend/anthropic_messages.py`, one POST per call |
+
+**Choice.** `AnthropicMessagesBackend` (`kind = "anthropic"`): `POST {base_url}/v1/messages` with
+`x-api-key` (only when a key was resolved) and `anthropic-version: 2023-06-01`, never `Authorization`;
+`system` messages hoisted; `max_tokens` from the request; `temperature` sent only when configured
+(`"omit"` is the default for this kind); no `seed` (the API has none); no retry; `trust_env=False`. The
+request's schema is **lowered** for Anthropic's structured outputs (keywords it refuses removed,
+`additionalProperties: false` on every object) by a pure function that returns a copy: the cassette key
+is computed on the unlowered request (`ARC-58`), so a cassette recorded through Claude replays under any
+backend, and local validation (P6) still enforces every removed bound. `anthropic_messages.py` and
+`openai_compatible.py` are the only importers of `httpx2`.
+
+**Revisit** if Anthropic's API needs a feature the plain Messages request cannot express (tool use,
+batches, streaming), if the OpenAI-compatibility layer gains `response_format`, or if the SDK stops
+reading the environment implicitly and retrying by default.
+
+---
+
+## ARC-60 — Subscriptions: the user's own CLI as a backend, opt-in, and never Claude's
+
+**Date** 2026-10-09 · **Status** accepted; the bridge core implemented by S10 PR P5b; the Codex preset
+**conditional** on the re-read of OpenAI's Terms of Use (P5b C1 → C4) · **Approved by** the operator's
+rulings QP5b-1 (drop the Claude subscription route) and QP5b-2 (Codex as an opt-in for the user's own
+local use), and the primary session (QP5b-3), 2026-10-09 · **Relates to** `DEP-27`, `DEP-32`, `DEP-33`,
+`ARC-57`, `ARC-58` · **Design** `pr-s10-p5b-hosted-subscriptions.md` §4, §5.2 … §5.4, I-B1 … I-B5, AB-3
+… AB-9
+
+**Problem.** The operator asked for subscriptions "authorized by Codex's or Claude Code's own login"
+beside API keys. A subscription is the user's account with a vendor, and the vendor's terms decide what
+a third-party program may do with it.
+
+**The evidence** (verbatim; dates and URLs in the design's §4):
+
+- Anthropic, Claude Code "Legal and compliance" (`code.claude.com/docs/en/legal-and-compliance`, read
+  2026-10-09): "Anthropic does not permit third-party developers to offer Claude.ai login into their own
+  applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their
+  users. Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session
+  tokens". Enforcement "may do so without prior notice". Developers "should use API key authentication
+  through Claude Console or a supported cloud provider".
+- OpenAI, Codex authentication (`learn.chatgpt.com/docs/auth`, read 2026-10-09): "API keys are still the
+  recommended default for automation." "Treat `~/.codex/auth.json` like a password." OpenAI's Terms of
+  Use answered HTTP 403 to every fetch (planning, freeze, and P5b C1 on 2026-10-09); the clause quoted
+  from search excerpts ("Automatically or programmatically extract data or Output") is not yet re-read
+  from the live page.
+
+**Choice.**
+
+1. **No Claude subscription route** (QP5b-1). No `claude-code-subscription` kind exists; `config.load`
+   reports it as unknown. Claude is supported by the user's own API key (`DEP-33`).
+2. **A generic bridge**, `backend/cli_bridge.py` (`CliBridgeBackend`), runs the user's own installed and
+   logged-in model CLI for one tool-less answer, under these invariants:
+   - **I-B1** MineWorld never reads, writes, copies or forwards a CLI's credentials; the CLI
+     authenticates itself;
+   - **I-B2** the child's environment is an allowlist (system paths, home and temporary directories,
+     locale, XDG directories, the preset's home variable): no `*_API_KEY`, no `*_TOKEN`, nothing from an
+     `env_file`;
+   - **I-B3** no model-facing text in argv: the prompt goes through stdin, the schema through a
+     temporary file; argv holds only literals and validated configuration values (the Windows `.cmd`
+     argument-injection class, CVE-2024-24576);
+   - **I-B4** the call is bounded and its timeout kills the whole process tree (POSIX: a new session and
+     `killpg`; Windows: a new process group and `taskkill /T /F`);
+   - **I-B5** a subscription backend exists only when its preset was ruled in **and** the user set
+     `acknowledge_terms = "<kind>"`; `replay` and `scripted` modes never construct it.
+   The child runs in an empty temporary directory, so no project configuration is picked up. A bridged
+   call passes the same gateway: the budget pre-check before the spawn, the same cassettes, the CLI's
+   reported usage or the estimate.
+3. **Codex through the user's ChatGPT plan** (QP5b-2): an opt-in for the user's own local use only, off
+   by default, never in a shipped example, gated by `acknowledge_terms`, and documented after every
+   API-key route. **Conditional:** its preset is built only after OpenAI's Terms of Use are re-read from
+   the live page and recorded in the design's §4.2. If the re-read forbids the use, the route is dropped
+   as Claude's was.
+
+**Limitation accepted.** The user's own global CLI configuration (hooks, MCP servers) runs during a
+bridged call; MineWorld does not and cannot disable it. A CLI's flags may change between versions; a
+preset is one file.
+
+**Revisit** if a vendor changes its terms or enforces against such use (remove the preset: one file and
+one registry line), or if a vendor publishes an explicit permission or prohibition for third-party
+programs running its CLI with a subscription.

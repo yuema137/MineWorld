@@ -912,6 +912,106 @@ MVP-0 non-preclusion audit.
 | S16 E-d | ARC-71 | — |
 | S11-D | ARC-44 (from S11's reserve) | — |
 | S10 P3 | ARC-56 | DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed) |
+| S10 P5a / P5b | ARC-57, ARC-58 (P5a), ARC-60 (P5b); ARC-72, ARC-73, ARC-74 reserved for P4 and P6 | DEP-27 (`httpx2`), DEP-32 (`python-dotenv`, P5a), DEP-33 (native Anthropic adapter, P5b) |
+| S15 12n-1 | ARC-75 (walking and wayfinding; first drafted as ARC-73, renumbered before merge) | DEP-34 (`pathfinding`) |
+| S20 SET-a | ARC-76 (first drafted as ARC-72, renumbered before merge) | DEP-35, DEP-36 (first drafted as DEP-32 and DEP-33) |
+| S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5 matching) |
+| S16 E-e | ARC-77 (Lakeside, the repository's own Entity Pack) | — |
+| S23 release | ARC-78 (windowless launcher), ARC-79 (release channels and versioning), ARC-80 (bundle layout and per-user data) | DEP-38 (cargo-about), DEP-39 (butler), DEP-40 (syft), DEP-41 (Godot export templates), DEP-42 (actions/attest) |
+
+The next free numbers are ARC-81 and DEP-43. An implementation session never picks a number; it asks
+the primary session, which records the assignment here before the PR merges. Two collisions on
+2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
+S10 PR designs) are why this table now lists reservations as well as assignments.
+
+### Evening of 2026-10-09: merges and review findings
+
+Merged after the primary session's review (gates re-run on the exact head plus one mutation of its own):
+
+| PR | Merge commit | Review mutation | Caught by |
+| --- | --- | --- | --- |
+| #99 E-c, third-party pack | `0ba037f` | `origin_word` always "bundled" | `packs::every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it` |
+| #95 S11-C, perception | `370bb38` | `Visibility::Place` admits every observer | `tools/cli/tests/facts.rs::a_line_reaches_who_was_there_and_nobody_else` only |
+| #116 12n-1, the walk | `ecc8d40` | `walk::toward` returns the target within two strides | four `tools/cli/tests/walking.rs` tests |
+| #120 S10 P5a, backends | `60a6295` | the budget window counts charges 2 s older than its edge | `test_budget.py::test_the_21st_call_in_a_wall_hour_is_refused_before_the_backend` |
+
+Closeout records: #119 (E-c), #122 (S11-C), #123 (12n-1).
+
+Operator ruling (12n-1 material stop M-1): at R 250, SD-N11 claim 2 is restated as "nudge chains are
+bounded and a stride may be blocked; a blocked walker re-plans" (option (a)); recorded in step-11 §21.15.
+
+Test-gap findings, each owned by the next PR that touches the file:
+
+- **F-SC1 / F-PRES-1.** The S11-C mutation (in `systems/presence/src/audience.rs` `admits`) survived
+  presence's own unit tests and `server/tests/facts.rs`; only the CLI end-to-end test caught it. Presence's
+  unit test needs an observer outside the place for the `Place` case.
+- **F-12n-R1.** `walk.rs`'s unit test has no case between one and two strides; add a 2 000 mm case
+  expecting exactly (1 340, 0).
+- **F-P5-4.** On Windows, asyncio's default loop connects without `socket.connect`, so pytest-socket does
+  not guard async connections. Fixed for the cognition suite (selector loop); the `sdk/python` suite (P3)
+  still has the gap. Owner: S10.
+
+The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze, not P5b.
+
+Also merged: #117 S20 SET-a, shared client settings (`44ac762`; review mutation: `action.walk-to`
+removed from `zh_Hans.po`, caught by `client_text::the_catalogs_are_complete_and_consistent`).
+
+### Late evening of 2026-10-09: merges, rulings, and a CI rule
+
+Merged after review (primary mutation in brackets, each caught by name unless noted):
+
+| PR | Merge commit | Review mutation |
+| --- | --- | --- |
+| #126 S10 P5b, Anthropic adapter and CLI bridge | `5f9b8bb` | `_NEVER_PASSED` filter dropped → `test_the_environment_is_an_allowlist` |
+| #118 S13 13w, default suite on Windows and macOS | `0345922` | `interrupt` sends SIGKILL → `admin::an_interrupt_stops_an_administered_server_gracefully`; `ended_by_kill` accepting SIGTERM survived (F-13w-R1, equivalent today) |
+| #121 S19 TW-d, San Diego record weather | `9f06d0e` | fog dropped on record days survived the default suite at first (TWd-R1); fixed before merge, now caught by `record_days_replay_their_rows_fog_thunder_and_wind` |
+| #115 README rework (WeKnora-style banner, diagrams, tour) | `37cb52a` | docs only |
+| #133 S13 13x, docs-only changes skip the build | `9f5c176` | `server/PROTOCOL.md` treated as docs → `ci_changes.py --self-test` |
+
+Closeout records: #127 (SET-a), #129 (P5b), #130 (13w), #132 (TW-d).
+
+Operator rulings:
+
+- **P5b C4 (Codex subscription opt-in):** merge P5b without it; C4 becomes P5c once the operator pastes the
+  current OpenAI Terms of Use and `codex exec --help`.
+- **TWd-F4:** one `deny.toml` licence exception for `webpki-roots` (CDLA-Permissive-2.0, root-certificate
+  data, reached only through the weather tool's off-by-default `fetch` feature); notes under DEP-22 and DEP-31.
+- **RL-b M-6 (3D budget):** accept the slight visual change — VoxelGI 256 → 128 and soft-shadow quality
+  3 → 2. Frame time p95 ≤ 16.7 ms and video memory ≤ 2048 MB stay binding; draw calls and primitives
+  become advisory. Mipmap softening (C3) accepted. The skyline preview is not kept; it returns with S22's
+  sea surface and real terrain.
+- **README and other public pages ship early:** merge a first version once it is honest (✅/🚧), iterate in
+  follow-up PRs, never hold it for review rounds.
+- **Documentation-only changes do not run the build** (operator, 2026-10-09: "纯文档更新不应该触发ci").
+  Implemented by 13x: a `changes` job classifies the diff against an audited docs set (`docs/**`,
+  `.structured-coding/plans/**`, root `README*.md`, `CLAUDE.md`); docs-only runs only the doc checks
+  (about 20 s) and the other jobs are skipped; `push` runs only for `main` and `scratch/**`. Docs-only PRs
+  may be merged as soon as `fast` passes.
+
+QB-11 (make `test-windows` and `test-macos` required) is now decidable: 13w is green on all three systems.
+`test-windows` takes about 43 minutes on a PR, which is the cost of making it required.
+
+### Milestone F — walk, walls, interact (operator hands-on gate)
+
+Milestone F is the operator's next hands-on acceptance, named in conversation on 2026-10-08 and
+defined here so later documents can cite it. It is not an MVP-0 acceptance criterion of its own; it
+is the point at which the primary session stops and hands the operator one numbered checklist
+(see the standing rule in §5: at a milestone, stop and give the operator a short runnable test list).
+
+| Prerequisite | Lane | State on 2026-10-09 |
+| --- | --- | --- |
+| 12n-1, the walk (server routes) | S15 | merged (#116) |
+| 12n-2, people walk there | S15 | in progress (#125) |
+| 12d, the towns get walls | S15 | waiting for 12n-2; merges immediately after it (QN-2) |
+| 16c, the living street in 3D | S14 | waiting for 12d |
+| SET-a, shared settings | S20 | merged (#117) |
+| 2D menus and interaction (13a / IL-b) | S12 | merged (#82, #102, #103) |
+
+The checklist covers, on the operator's own machines: walking round walls and furniture in both
+clients; doors; people walking to their agenda places at 1.34 m/s on screen at every time scale;
+the interaction menu and its refusals in 2D and 3D; the settings menu (language, clock, display); and
+the hand checks carried from SET-a (`docs/MVP_STATUS.md`, "Carried to milestone F": H-1 … H-10 on
+Windows and Linux, and the macOS manual items).
 
 ### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
 
@@ -925,6 +1025,7 @@ MVP-0 non-preclusion audit.
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
 | QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b` |
 
 
 # 6. Risks

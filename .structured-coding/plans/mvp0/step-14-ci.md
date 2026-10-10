@@ -2915,8 +2915,10 @@ designed. It is detailed to the commit by its own planning session, after 13b's 
 
 # 15. PR 13w — the default suite on Windows and macOS (full design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-09), primary session`. Superseded: `PR design — ready for freeze
-review`.
+**Lifecycle:** `MERGED` — PR #118, merge commit `0345922034c1bc9ece38e55ea74cced55aef1980`,
+2026-10-10T05:31:47Z, merged by the operator's authorization relayed by the primary session (§15.14).
+Superseded: `READY FOR OPERATOR REVIEW` (final head `b815fc9`, run 38026093425), `DESIGN FROZEN
+(2026-10-09), primary session`, `PR design — ready for freeze review`.
 - Evidence: the coordinator's message relaying the primary session's rulings: "13w (§15) is DESIGN FROZEN
   2026-10-09 (primary session)".
 - A fresh session implements it under §15.12, after 13b merges.
@@ -3148,55 +3150,265 @@ Each commit tracks implementation, validation and review separately.
 
 ### W-C1 — `mineworld-test-support::process` (`kill`, `Killed`, `interruptible`, `interrupt`) and the DEP-29 note
 
-- [ ] Implementation:
+- [x] Implementation:
   - the module, as §15.3 and §15.4 describe;
   - the `deny(unsafe_code)` change with one allowed function, per QW-2;
   - its tests (MW-1, MW-2);
   - `docs/DECISIONS.md`, a DEP-29 note.
-- [ ] Validation:
+  - Done: `tests/support/src/process.rs` (`kill`, `Killed { status, was_running }` with `killed()`,
+    `status()` and a `Debug` that prints the verdict too; `interruptible`, `Interruptible::spawn`,
+    `InterruptibleChild` with `Deref`/`DerefMut` to `Child`; `interrupt`; the private `send_interrupt`,
+    `sh -c "kill -INT <pid>"` on Unix and the one `#[allow(unsafe_code)]` `GenerateConsoleCtrlEvent` call
+    on Windows, a missing console (`ERROR_INVALID_HANDLE`) named). `lib.rs`: `forbid` → `deny`,
+    `pub mod process`. `tests/support/tests/process.rs`: MW-1 and MW-2, the children being the test
+    binary re-executed into `child_entry_point` with a role (no `sleep` on Windows). The compile-fail
+    doctest (a plain `Child` passed to `interrupt`) beside a `no_run` doctest that compiles. DEP-29 note
+    (2026-10-09).
+  - **D-13w-1 (bounded).** `DerefMut` as well as `Deref` on `InterruptibleChild`: the CLI support takes
+    the server's stdout and stderr (`Option::take`) and polls `try_wait`, both `&mut`. A swap of the
+    inner `Child` for another is not reachable without a second spawn, so the guarantee holds in practice.
+  - **D-13w-2 (bounded).** MW-2's per-platform expected status is read in the test file under
+    `cfg(unix)` / `cfg(windows)`, so `ExitStatusExt` also appears in `tests/support/tests/process.rs`,
+    not only in `src/process.rs` (W-C2's grep). Both sides assert; neither is skipped.
+- [x] Validation:
   - local, on the Mac: `cargo test -p mineworld-test-support`, then `cargo clippy` with `-D warnings`;
   - Windows: compiled and run by this PR's `test-windows` dispatch.
-- [ ] Review:
+  - Local (Mac, working tree on `cf18713`): `process.rs` 4 passed, `scratch.rs` 7 passed, doctests 2
+    passed (the `no_run` compiles, the `compile_fail` fails to compile). **PASS.** `cargo clippy -p
+    mineworld-test-support --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean.
+  - First attempt: the sleeping child's marker was matched as a whole line and never seen, because
+    libtest under `--nocapture` prints `test child_entry_point ... ` with no newline before the test's
+    output; matched with `ends_with` instead.
+  - **MW-1 mutation (local):** `killed()` without `was_running`, and code 1 read as a kill (Windows'
+    ambiguity, emulated on Unix) → `a_child_that_ended_by_itself_is_never_reported_killed` red, "exit-1:
+    … Killed { status: … (256), was_running: false, killed: true }"; restored → green. **PASS.**
+  - Windows: see W-C4's runs.
+- [x] Review:
   - no `unsafe` outside the one function;
   - every error is surfaced, none ignored;
   - the doc comments name the platforms' semantics and the residual race.
+  - Done: the only `unsafe` is the call in `send_interrupt` (and its `extern` block), under
+    `cfg(windows)` and `#[allow(unsafe_code)]`; the crate `deny`s it elsewhere. `kill` panics, naming the
+    step, if `try_wait`, `kill` or `wait` fails; `interrupt` returns `io::Error` for a failed `sh`, a
+    non-zero `kill`, or a zero `GenerateConsoleCtrlEvent`. The module doc carries the platform table and
+    the residual race; DEP-29's note repeats both.
 
 ### W-C2 — The nine files and the CLI test support
 
-- [ ] Implementation: the nine files and `tools/cli/tests/support/mod.rs` (§15.3, §15.4).
-- [ ] Validation:
+- [x] Implementation: the nine files and `tools/cli/tests/support/mod.rs` (§15.3, §15.4).
+  - Done. Pattern (a) (`kill_and_resume`, `arrival_resolvers_resume`, `configuration_seam`): the
+    `sent_kill`/`sent` flag becomes `Option<Killed>`, set by `process::kill(&mut process)` at the kill
+    point; `killed` is `sent.is_some_and(|sent| sent.killed())`. The later `process.wait()` is kept: std
+    returns the reaped status again. Pattern (b) (`bodies_yard_restart`, `market_town`, `run_restart`,
+    `milestone_b`'s `killed_after`): `let killed = process::kill(&mut child); assert!(killed.killed(),
+    "killed by SIGKILL, not finished: {killed:?}")`. `Server::kill()` callers (`milestone_b`,
+    `milestone_c`, `restart`): `assert!(died.killed(), "the server died of SIGKILL: {died:?}")`.
+    `support/mod.rs`: `Server.process` is an `InterruptibleChild`, spawned through
+    `process::interruptible`; `Server::kill() -> Killed`; `Server::interrupt` calls `process::interrupt`
+    and keeps its signature.
+  - **D-13w-3 (bounded, files beyond A-W5's list; all test code).** The re-audit (§15.13) found three
+    sites the design's list did not name:
+    - `tools/cli/tests/admin.rs`: SD-D13's `#[cfg(unix)]` removed (QW-3 assigns it to whichever lands
+      second; S11-D landed first), and the module doc and section comment now say "every platform".
+    - `tools/cli/tests/server_command.rs:255`: `Server::kill()` now returns `Killed`, so `assert!(
+      !status.success(), "SIGKILL ended the server")` became `assert!(status.killed(), "SIGKILL ended the
+      server: {status:?}")`. The claim is the message's; the check is stricter than "not success".
+    - `worldpack/src/configure/tests.rs` (IL-a/IL-b's symlink case, `#[cfg(unix)]`): **decision: a
+      Windows equivalent, not a gate.** Under the operator's rule a gated case is a case Windows never
+      runs. A file symlink needs Developer Mode or administrator rights on Windows (the CI runner has
+      them, a contributor may not), so the Windows side makes a **directory junction**
+      (`cmd /C mklink /J data\linked <outside>`), which any user may make, and names
+      `data/linked/secret.txt` through it. `read_attachments` canonicalizes, which resolves junctions
+      (`GetFinalPathNameByHandle`), so the same `AttachmentOutside` refusal is asserted on both. The case
+      moved into `link_out_of`, one function per platform. Limitation: `cmd`'s argument parsing of a path
+      with spaces is not exercised (the runner's temp path has none).
+- [x] Validation:
   - local full suite on the Mac (`cargo test --workspace`): the same counts as before;
   - `git grep ExitStatusExt` → only inside `tests/support/src/process.rs`.
-- [ ] Review: A-W6, line by line.
+  - Local full suite (Mac, working tree on `d6325f0` + W-C2, 2026-10-09; log `/tmp/s13w/local-full.log`):
+    exit 0; 198 `test result:` lines, **887 passed, 0 failed, 20 ignored**; `[resolver-yard] PASS`,
+    `[cafe] PASS`, `[clock] PASS`. **PASS.** Against main: +6 passes, all in `mineworld-test-support`
+    (4 tests, 2 doctests); no other count moves on Unix (SD-D13's check already ran there). Main's own
+    counts are compared on CI (A-W3).
+  - `git grep -n "std::os::unix\|cfg(unix)\|ExitStatusExt\|\.signal()\|\"sh\""` → only
+    `tests/support/src/process.rs`, `tests/support/tests/process.rs` (D-13w-2) and
+    `worldpack/src/configure/tests.rs`'s `link_out_of` (D-13w-3), each beside its `cfg(windows)` twin.
+  - `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean; `cargo fmt --all
+    --check` clean.
+- [x] Review: A-W6, line by line.
+  - Done on the diff: every assertion keeps its message text ("killed by SIGKILL, not finished", "the
+    server died of SIGKILL", "{label}: the victim died of SIGKILL" untouched in the pattern-(a) callers),
+    now followed by the `Killed` debug where it previously printed `left`/`right`. Every "not finished"
+    check beside a kill is untouched. The kill points are the same lines of the read loops. One check is
+    stricter (`server_command`, D-13w-3); none is weaker.
 
 ### W-C3 — The server's Ctrl-Break (**only under §15.4's fallback**; otherwise N/A, with S11-D's merge commit cited)
 
-- [ ] Implementation: one `cfg(windows)` `ctrl_break()` in `serve.rs`'s shutdown select.
-- [ ] Validation: A-W4 on Windows (MW-3).
-- [ ] Review: no other `src/` change.
+- N/A Implementation: one `cfg(windows)` `ctrl_break()` in `serve.rs`'s shutdown select. **Not needed:**
+  S11-D took QW-1. `tools/cli/src/serve.rs` `stop_requested()` (lines 262–300 at `cf18713`) selects
+  `ctrl_c()` with `cfg(windows)` `ctrl_break()`, `ctrl_close()` and `ctrl_shutdown()`, added by `9d83937`
+  ("every platform's graceful stop (QW-1)") and merged to `main` by #104 (`0744fee`). No `src/` file is
+  touched by 13w.
+- [ ] Validation: A-W4 on Windows (MW-3) still applies, because it proves S11-D's handler is what the
+  Windows path exercises; recorded under W-C4.
+- N/A Review: no `src/` change at all (A-W5's grep, W-C5).
 
 ### W-C4 — The workflow: `test-macos`, both jobs' PR triggers, and `platforms` per QW-4
 
-- [ ] Implementation:
+- [x] Implementation:
   - `.github/workflows/ci.yml`;
   - ARC-48's dated note.
-- [ ] Validation:
+  - Done: `test-windows` moved beside `test` and given `test`'s triggers plus dispatch; `test-macos`
+    added (`macos-26`, `fetch-depth: 0`, `blob:none`, the `native` action with layer `core`, timeout
+    60); ARC-48 note of 2026-10-09 (13w). First drafted with the `platforms` job removed (QW-4), then
+    restored at the merge of `origin/main` (D-13w-6).
+  - **D-13w-4 (bounded): triggers.** §15.5 lists non-draft `pull_request`, push to `main` and dispatch.
+    The jobs also take `test`'s `scratch/**` push route (except `-image`, `-scenario`), for two reasons:
+    MW-3 … MW-6 are judged on scratch pushes, which otherwise run Linux `test` but not these two
+    (a dispatch would also start the five parity jobs); and the removed `platforms` job ran on scratch
+    pushes, so without the route the replacement would cover less than what it replaces.
+  - **D-13w-5 (withdrawn at the merge of `origin/main`, see D-13w-6).** `scripts/ci_layer.py`'s comments
+    had been edited for the removed job; the file is back to `main`'s, byte for byte.
+  - **D-13w-6 (bounded; QW-4's own fallback): the `platforms` job is kept.** The merge of `origin/main`
+    (`02788e6`, 2026-10-10) brought E-c (#99, `0ba037f`), which added to the `platforms` layer
+    `cargo fetch --locked`, the `third_party` and `package_sources` targets and
+    `ci_layer.py --offline-check` (PD-p3, EC-3 (b): vendor outside the checkout, check offline with an
+    empty `CARGO_HOME`). `core` runs the two targets but **not the offline check**, so `test-windows` and
+    `test-macos` are no longer a strict superset, and QW-4 ("retire … if both are green; otherwise keep
+    it", §15.5: "keeps the layer only if another consumer names it") resolves to keeping the job. The
+    `platforms` job is restored exactly as on `main`, with one comment line saying why; ARC-48's 13w note
+    says the same. Trimming the layer to what `core` lacks is left to a later change (S16's or S13's).
+  - Also from the merge: S11-C (#95) landed CA-13 (`tools/cli/tests/perceived.rs`
+    `a_resume_of_a_long_save_does_not_stall_the_world`) behind `#[cfg(unix)]`, waiting for this helper.
+    **QW-3: 13w lands second, so the gate is removed** and its doc says "every platform"; it already uses
+    `Server::interrupt`. Its `#[ignore = "CA-13: needs a 300-day save …"]` is S11-C's cost tier, not a
+    platform gate, and is left as S11-C froze it (it runs on demand on every platform now).
+- [x] Validation (the final head's run is in PR #118's description and the session report: a commit
+  cannot hold its own run):
   - dispatch runs, then the PR's own runs (A-W1, A-W2, A-W3, A-W7);
+  - **Changed route: no dispatch.** The PR's `pull_request` runs carry both jobs once W-C4 is pushed,
+    so a dispatch of the same head would duplicate them (test rules §10). The first PR run is the cold
+    run, the next the warm.
+  - **CI evidence log (2026-10-09/10).** Counted runs (any run carrying `test-windows` or
+    `test-macos`, PR runs included) are marked ●, against §15.9's cap of 14.
+    - Baseline: `main` run 38012097668 on `cf18713`: `test` PASS; `test-windows` FAIL at compile, as
+      13b recorded (W-T1); `platforms` PASS on both runners.
+    - **● 1. PR #118 run 38013867967** on `619f266`, cold: `fast`, `test` (23 min), `python` ×3 PASS;
+      **`test-macos` PASS, 17 min 14 s cold**. `test-windows` FAIL (7 min 14 s): the suite **compiled**
+      on Windows for the first time (`cargo test --workspace --no-run` exit 0, 404.7 s), then
+      `ac1_composability` `check_2_the_dependency_structure` failed — **W-13w-1** below. Cargo stops at
+      the first failing binary, so nothing after it ran.
+    - **● 2. Survey run 38014681037** (`scratch/13w-survey`, `cbed119` = `3da2628` + `core`'s `cargo
+      test --workspace` given `--no-fail-fast` in the scratch only): the complete Windows list in one run
+      instead of one repair run per failing binary. `test-windows` (29 min 54 s, cold build 641.8 s, tests
+      1118.6 s): **198 result lines, 886 passed, 1 failed, 20 ignored** — the Mac's 887/20 with one
+      failure, **W-13w-2**, the only failing target ("error: 1 target failed"). Passing on Windows:
+      `an_interrupt_stops_an_administered_server_gracefully` (SD-D13, gate removed),
+      `the_hosted_town_lives_within_its_tick_budget`, `a_killed_server_restarts_…`, the helper's MW-1
+      and MW-2 tests (so `GenerateConsoleCtrlEvent` works on the runner: **R-W1 did not occur**), the
+      junction case (D-13w-3), `[resolver-yard] PASS`, `[cafe] PASS`, `[clock] PASS`. `test-macos`,
+      `test`, `fast` PASS. Branch deleted after the run (`ls-remote` empty).
+  - **W-13w-1 (test code).** `tests/acceptance/tests/ac1_composability.rs` `workspace()` derived each
+    member's directory from `cargo metadata`'s `manifest_path`, which uses `\` on Windows, then checked
+    `starts_with("systems/")`: every `systems\…` crate was reported "only systems/ may". Fix (`3da2628`):
+    the relative directory is written with `/` (`replace('\\', "/")`), as `git` paths are; the claim is
+    unchanged. Local: 14/14.
+  - **W-13w-2 (test code).** `tools/cli/tests/commands.rs` `a_malformed_pack_is_refused_…` looked for
+    `people/alice.yaml` in the refusal; `mineworld validate` names the file by its host path,
+    `…\people\alice.yaml` on Windows, which is the right form for a Windows operator. Fix: the expected
+    name is `Path::new("people").join("alice.yaml")` as displayed. Claim unchanged (the complaint names
+    the file and the field, at line 2). Local: 4/4. No production-code cause was found: no material stop.
   - MW-3 … MW-6 on scratch branches, each deleted after its run, then `ls-remote` → empty.
-- [ ] Review:
+  - **● 3–6. MW-3 … MW-6** (2026-10-10), each a scratch commit on `99d9760` (the PR head before the
+    merge of `origin/main`; no mutated line changed in that merge), pushed once, judged on its push run:
+    - **MW-3 ● run 38023346322** (`scratch/13w-mw3`, `15a32ce`: `serve.rs`'s `() = on_break => {}` arm
+      removed). `test-windows` **red**: `an_interrupt_stops_an_administered_server_gracefully`
+      (`admin.rs:580`), "a graceful stop exits cleanly: ExitStatus(ExitStatus(3221225786))" =
+      `0xC000013A`, `STATUS_CONTROL_C_EXIT`: the Ctrl-Break reached the server, nothing handled it, and
+      Windows' default handler ended it. `test` and `test-macos` **green** (both interrupt tests pass on
+      macOS). **PASS.** Deviation from the planned wording: the first red binary is SD-D13's `admin.rs`,
+      not `hosted_town`, because cargo stops at the first failing binary and `admin` runs first; both
+      assert the same graceful stop, exit status first, so the missing `[mineworld] stopping` is never
+      reached. The point MW-3 exists for — the Windows path really exercises the server's Ctrl-Break
+      handler, S11-D's — is shown.
+    - **MW-4 ● run 38023355842** (`scratch/13w-mw4`, `6a712e2`: `process::interrupt` sends `kill -KILL`
+      on Unix). `test` (Linux) and `test-macos` **red**, both at `admin.rs:580`, "a graceful stop exits
+      cleanly: ExitStatus(unix_wait_status(9))". `test-windows` **green** (31 min; the Unix path is not
+      compiled there). **PASS**: the Unix tests rely on the helper's SIGINT.
+    - **MW-5 ● run 38023372407** (`scratch/13w-mw5`, `09d2e40`: `run_restart.rs`'s victim is read to
+      the end and reaped before `process::kill`). `test` (Linux), `test-macos` **and `test-windows`** red
+      at `run_restart.rs:71` with the original message: "killed by SIGKILL, not finished: Killed { status:
+      ExitStatus(unix_wait_status(0)), was_running: false, killed: false }" (Linux, macOS) and "…
+      ExitStatus(ExitStatus(0)), was_running: false, killed: false }" (Windows). **PASS**: the portable
+      check keeps the claim on every OS.
+    - **MW-6 ● run 38023379746** (`scratch/13w-mw6`, `cbec591`: `#[cfg(target_os = "macos")]
+      panic!("MW-6: planted on macOS only")` in `commands.rs`). `test-macos` **red** at
+      `commands.rs:111`, "MW-6: planted on macOS only"; `test` and `test-windows` **green**. **PASS**:
+      `test-macos` bites, and only it.
+  - **● 7. PR run 38023542192** on `3a20ca7` (after the merge of `origin/main`): **`test-windows`
+    green (30 min 1 s)** and **`test-macos` green (23 min 41 s)** — the first green Windows run of the
+    whole default suite — plus `fast`, `platforms` (macOS, Windows) and `python` ×3. Linux `test` **red**
+    in `tools/cli/tests/restart.rs`, two tests at once: "[mineworld] cannot listen on 127.0.0.1:46051:
+    Address already in use", then "a join is answered with a welcome, and this was Refused { …
+    SeatOccupied … }" and "a readable frame: Protocol(ResetWithoutClosingHandshake)".
+  - **F-13w-3 (pre-existing flake, not 13w's; owner: the CLI test support's owner, S11).** `Server::
+    launch` picks a port by binding and releasing it, and `answers()` polls `GET /health` *before*
+    asking whether its own child has exited. When the child loses the port to another test's server
+    (`Address already in use`), that other server answers `/health`, `answers()` returns true, and the
+    test joins the wrong world. 13w does not touch `launch` or `answers` (its only change there,
+    `CREATE_NEW_PROCESS_GROUP`, applies on Windows only), and the same lines are on `main`. A fix (for
+    example, confirming after `/health` that the child is alive and owns the port, or letting the server
+    bind port 0 and print its address) changes shared test support beyond 13w's scope; recorded, not
+    fixed. A failed job of this flake is re-run, never counted as evidence of 13w.
+- [x] Review:
   - neither job is required;
   - no `continue-on-error`;
   - labels pinned (`macos-26`, `windows-2025`);
   - the native action is reused, with no parallel definition (§13.0.3).
+  - Done on the final `ci.yml`: branch protection is untouched (no settings change; the required checks
+    stay `fast` and `test`); no `continue-on-error`, `|| true` or retry was added; `runs-on: windows-2025`
+    and `macos-26`; both jobs call `./.github/actions/native` with layer `core`, the same action and
+    layer `platforms` and AC-8's native legs use; check names undecorated; `permissions` unchanged.
 
 ### W-C5 — Close
 
-- [ ] Implementation:
+- [x] Implementation:
   - `docs/MVP_STATUS.md`: the suite runs on all three OSes, with the run ids;
   - §13.10.1's W-T1, W-4 and W-12 marked resolved, or carried with owners;
   - this ledger.
-- [ ] Validation: A-W5 and the doc checks.
-- [ ] Review: every A-W and MW item has evidence or N/A; deviations are numbered D-13w-n.
+  - Done. `docs/MVP_STATUS.md`: the S13 row (13b merged; 13w awaiting review; both jobs on PRs, not
+    required) and AC-8's row (the default suite natively on Windows and macOS; run ids here). §13.10.1,
+    resolved by 13w (the 13b table is left as audited; resolutions here):
+    - **W-T1 / W-T1b / W-5 — resolved.** The nine files compile and pass on Windows (`process::kill`).
+    - **W-6 / W-12 — resolved.** `sh -c kill` lives only in the helper's Unix path; Windows uses
+      Ctrl-Break to a new process group; S11-D's server handles it (MW-3).
+    - **W-4 (file locks, scratch on Windows) — resolved as far as observed.** No scratch or lock failure
+      appeared on Windows: the survey's whole suite and run 7 passed. `check_scratch.py left` passed on
+      `test-windows` in run 7 (the survey stopped before it), so nothing was left behind.
+    - **W-2 / W-3 (newline-sensitive goldens) — no finding.** Nothing failed for CRLF. The two Windows
+      failures were path-separator assumptions in tests (W-13w-1, W-13w-2), fixed.
+- [x] Validation: A-W5 and the doc checks.
+  - A-W5: `git diff --stat origin/main...HEAD` lists the nine files, `tools/cli/tests/support/mod.rs`,
+    `tests/support/` (`Cargo.toml`, `src/lib.rs`, `src/process.rs`, `tests/process.rs`),
+    `.github/workflows/ci.yml`, `docs/DECISIONS.md`, `docs/MVP_STATUS.md` and this file, plus the
+    test files of D-13w-3 (`admin.rs`, `server_command.rs`, `worldpack/src/configure/tests.rs`), of
+    W-13w-1 and W-13w-2 (`ac1_composability.rs`, `commands.rs`) and CA-13's gate (`perceived.rs`). No
+    `src/` file other than `tests/support/src` and the `#[cfg(test)]` module `worldpack/src/configure/
+    tests.rs`; `tools/cli/src/serve.rs` unchanged (W-C3 N/A); `scripts/ci_layer.py` equal to `main`'s.
+    `git diff origin/main...HEAD | grep '^+' | grep -E '#\[ignore|cfg\((unix|not)'` → only the
+    `cfg(unix)` halves of pairs whose `cfg(windows)` half is beside them (`process.rs` ×2,
+    `tests/process.rs`, `link_out_of`); no `#[ignore]` and no excluded target added.
+  - `check_doc_headings`, `check_decision_ids`, `check_ci_pins` pass.
+  - Local full gate on `3a20ca7` (Mac, 2026-10-10): `cargo test --workspace` exit 0, 209 result lines,
+    **959 passed, 0 failed, 22 ignored**, `[resolver-yard]`, `[cafe]`, `[clock]` PASS;
+    `check_scratch.py left` clean; `cargo fmt --all --check` and `cargo clippy --workspace
+    --all-targets --all-features -- -D warnings` clean.
+- [x] Review: every A-W and MW item has evidence or N/A; deviations are numbered D-13w-n.
+  - A-W1 … A-W7 and MW-1 … MW-6: the evidence log above and the final head's run (PR description).
+    Deviations D-13w-1 … D-13w-6 (D-13w-5 withdrawn); findings W-13w-1, W-13w-2 (fixed, test code),
+    F-13w-3 (pre-existing flake, recorded with its owner). Nothing material: no production-code cause,
+    no skip, ignore, gate or exclusion, no assertion's claim changed, R-W1 and R-W5 did not occur (the
+    longest job, `test-windows`, 30 min cold against its 60), no settings change.
 
 ## 15.9 Run budget
 
@@ -3269,3 +3481,269 @@ NORMAL STOP         PR 13w READY FOR OPERATOR REVIEW — DO NOT MERGE
 STOP CONDITION      A-W1 … A-W7 with evidence on the exact final head; MW-1 … MW-6 recorded
 MERGE AUTHORITY     never without explicit operator approval
 ```
+
+## 15.13 Handoff for 13w (continuation aid, not a design authority)
+
+```text
+PROJECT / PR        MineWorld mvp0 — S13 PR 13w (§15.12's contract, frozen 2026-10-09)
+PRIMARY DESIGN DOC  this file, §15 (the ledger: §15.8)
+BRANCH / BASE       mvp0/pr-13w-windows from origin/main @ cf18713 (13b merged, #97; S11-D merged, #104)
+WORKTREE            /Users/yuema137/mineworld-worktrees/impl-13w (sole writer; created by this session)
+ENDPOINT AUTHORITY  commits, push, PR create/update, CI repair: authorized (§15.12, D-12)
+                    scratch/13w-* push + delete, workflow_dispatch: authorized (§15.12, QS13-14's bounds)
+                    settings, merge: NOT authorized (operator only)
+POST-MERGE SYNC     this session: §15's ledger, merge identity, evidence, deviations; the primary
+                    session: parent documents (overall, other steps)
+```
+
+**Re-audit at the base (2026-10-09, `git grep -n "std::os::unix\|cfg(unix)\|ExitStatusExt"` and
+`.signal()`, `"sh"`, `kill -` on `cf18713`).** Every hit, and its handling:
+
+| Site | Finding | Handling |
+| --- | --- | --- |
+| The nine files of §15.2 (line numbers moved: `configuration_seam.rs:31,358`) | `ExitStatusExt`, `signal() == Some(9)` | W-C2: `process::kill` / `Killed::killed()` |
+| `tools/cli/tests/support/mod.rs:187` (W-6) | `sh -c kill -INT` | W-C2: `Server` spawns through `interruptible`, `Server::interrupt` calls `process::interrupt` |
+| `tools/cli/tests/admin.rs:557` (SD-D13's check) | `#[cfg(unix)]` on `an_interrupt_stops_an_administered_server_gracefully` | W-C2: the gate removed (QW-3: 13w lands second) |
+| `tools/cli/tests/server_command.rs:254` | `Server::kill()`'s status read with `success()` | W-C2: reads `Killed` (the type changed, §15.3) |
+| `worldpack/src/configure/tests.rs:655` (IL-a/IL-b) | `#[cfg(unix)]` block: a file symlink out of the pack, refused as `AttachmentOutside` | W-C2: a Windows equivalent, see D-13w-3 |
+| `tools/cli/src/serve.rs:267` | `#[cfg(windows)]` Ctrl-Break, close, shutdown in `stop_requested` | Production code, S11-D's (`9d83937`, merged by #104): already handles Ctrl-Break, so W-C3 is N/A |
+
+Re-audit at the merge of `origin/main` (`02788e6`, 2026-10-10): one new hit,
+`tools/cli/tests/perceived.rs:433` (S11-C's CA-13, `#[cfg(unix)]`), gate removed (QW-3);
+`tools/cli/src/serve.rs:313` `#[cfg(not(windows))]` is the Unix half of S11-D's stop, production code,
+correct as is.
+
+**Current checkpoint (2026-10-10).** W-C1 … W-C5 committed; MW-1 … MW-6 recorded; scratch branches
+deleted. Remaining: the final head's PR run (`fast`, `test`, `test-windows`, `test-macos` green on the
+exact head; re-run a failed job only for F-13w-3's flake), then READY FOR OPERATOR REVIEW in PR #118's
+description. Runs used before the final head: 7 of 14.
+
+**Closed (2026-10-10).** Superseded by §15.14: merged; the implementation context is closed.
+
+## 15.14 Merge record and closeout (13w)
+
+**Merge identity.** PR #118 merged as `0345922034c1bc9ece38e55ea74cced55aef1980` at 2026-10-10T05:31:47Z,
+on operator authorization relayed by the primary session. The merged head was `b815fc9` (main @
+`44ac762` merged in).
+
+**Final evidence (the exact merged head, PR run 38026093425).** `fast`, `test`, `test-windows`,
+`test-macos`, `platforms` (macOS, Windows), `python` ×3 green. Linux `test`, `test-windows` and
+`test-macos` each: 211 result lines, 964 passed, 0 failed, 31 ignored; `[cafe]`, `[clock]`,
+`[resolver-yard]` PASS; `hosted_town` and SD-D13's interrupt test pass; `check_scratch.py left` clean.
+Wall: `test` 24 min, `test-windows` 24 min 47 s (warm), `test-macos` 20 min 27 s (warm). Main's `test` at
+`44ac762`: 209 lines, 958 passed, 31 ignored (the +6 are the helper's 4 tests and 2 doctests). Local gate
+on `b815fc9` (Mac): 964 / 0 / 31. Runs used: 9 of 14 (§15.9).
+
+**Acceptance.** A-W1 … A-W7 met as recorded in §15.8 (A-W1's "ac1_composability 13/13" reads 14/14 at
+the merged head: main gained a test). MW-1 … MW-6 PASS (§15.8, W-C1 and W-C4).
+
+**Primary session's review mutations (recorded at merge).**
+- `interrupt` sending `kill -KILL` instead of `-INT` → caught by
+  `tools/cli/tests/admin.rs::an_interrupt_stops_an_administered_server_gracefully` (MW-4's mutation,
+  reproduced). Killed.
+- **F-13w-R1 (survived, equivalent today).** `ended_by_kill` on Unix also accepting SIGTERM (signal 15)
+  survived every test. It is equivalent today: nothing in the suite or the helper sends SIGTERM, so no
+  status that test code can observe distinguishes the two predicates. **Trigger:** if any code path
+  starts sending SIGTERM to a child (a stop helper, a timeout, a CI wrapper), add a helper test in
+  `tests/support/tests/process.rs` in which a child ended by SIGTERM is not `killed()`. Owner: whoever
+  introduces the SIGTERM path (S13 by default, as `mineworld-test-support`'s `process` owner).
+
+**Carried findings and follow-ups.**
+- **F-13w-3 → S11 (CLI test support).** `tools/cli/tests/support/mod.rs` `Server::launch` picks a port by
+  binding and releasing it, and `answers()` polls `GET /health` before checking whether its own child has
+  exited. After a port collision ("cannot listen …: Address already in use") another test's server
+  answers, and the test joins the wrong world (seen once, Linux `test`, PR run 38023542192,
+  `restart.rs`). Pre-existing on `main`; 13w did not change `launch` or `answers`. Suggested fix: confirm
+  after `/health` that the child is alive (or let the server bind port 0 and print its address).
+- **`platforms` duplication → S16 or S13 (follow-up, not scheduled).** The `platforms` job was kept
+  (D-13w-6) because its layer runs E-c's offline vendor check (`ci_layer.py --offline-check`, PD-p3,
+  EC-3 (b)), which `core` does not. The rest of the layer (`cargo build -p mineworld-cli`, the
+  packages/worldpack/installed-systems tests, the CLI `packs`/`requirements`/`entity_packs`/`third_party`
+  targets, `package_sources`) now repeats part of `test-windows` and `test-macos` on the same runners.
+  Trim the layer to `cargo fetch --locked` plus the offline check, or move the check into a job of its
+  own; record it in ARC-48.
+- **QB-11 `[OM]`, open.** Whether `test-windows` and `test-macos` become required checks (recommended
+  after five consecutive green `main` pushes) is the operator's settings change.
+
+**Post-merge synchronization.** This session recorded the PR document (§15) and the S13 / AC-8 rows of
+`docs/MVP_STATUS.md`. The overall and other step documents are the primary session's.
+
+---
+
+# 16. PR 13x — documentation-only changes do not run the build (2026-10-09)
+
+**Lifecycle:** design approved by the primary session (2026-10-09) under the operator's requirement
+below; implemented by the 13x execution session (worktree `/Users/yuema137/mineworld-worktrees/impl-13x`,
+branch `ci/docs-only-skip`, from `origin/main @ b61b4f4`). Decision record: `docs/DECISIONS.md` ARC-48's
+note of 2026-10-09 for 13x (no new id).
+
+## 16.1 Requirement, quoted
+
+> 随着我们的repo越来越大，我们一定要注意纯文档更新不应该触发ci
+> ("As the repository grows, a documentation-only update must not trigger CI.")
+> — operator, 2026-10-09
+
+**Problem, measured on `main @ b61b4f4`.** Every push and every pull request ran `fast` and `test`, plus
+`python` ×3, `platforms` ×2, `test-windows` and `test-macos`, for a README change too. The docs PR #130
+(`docs/13w-closeout`), whose diff is Markdown only: push run 38028614449 `fast` 1 min 34 s; PR run
+38028617205 `fast` 1 min 22 s, `python (ubuntu)` 2 min 15 s, and `test` (required) plus the five native
+jobs started for nothing (`test` takes 20–24 min, §15.14). Every PR commit also ran `fast` twice, once
+for `push` and once for `pull_request`.
+
+## 16.2 Constraints
+
+- **Required checks are by name and must report.** Branch protection on `main` requires `fast` and
+  `test` (strict: false). A job skipped by a job-level `if:` reports as passing; a workflow that never
+  starts leaves the required checks pending forever. So **no workflow-level `paths-ignore`**: the workflow
+  always starts, and the decision is made inside it.
+- **Fail closed.** A path is documentation only if the audit (§16.3) shows that no CI command reads it,
+  or that the only reader is a pure-Python doc check that the docs-only path still runs. Anything not
+  positively in the docs set, and any diff that cannot be computed, is code.
+- **`main` stays fully verified.** A push to `main` is always code (§16.4, point 5).
+- **A failed classifier must not merge.** If the classifying job fails, `test` and the others are skipped
+  (which would read as passing), so `fast` must turn red (§16.4, point 3).
+
+## 16.3 Audit: who reads documentation (`main @ b61b4f4`)
+
+Searched: `git grep -n -E '"[^"]*\.md"|README|"docs|docs/[A-Z_]+\.md|\.structured-coding|CLAUDE\.md|\.png|\.svg|\.jpg|images'`
+and `ls-files|"log"|rev-list|WalkDir|rglob|os\.walk|glob\(` over `*.rs`, `scripts/*.py`, `sdk/python`
+and `cognition` Python, `include_str!`/`include_bytes!`, every `pyproject.toml` `readme =`, the
+`Dockerfile`'s `COPY` lines and `.dockerignore`. Comments and doc comments that only cite a document
+were excluded. Every reader found, and what it reads:
+
+| Reader (run by CI) | Reads | Consequence |
+| --- | --- | --- |
+| `scripts/check_doc_headings.py` (`fast`) | `docs/**/*.md` | pure Python, stdlib, 0.02 s: runs in the `docs` layer |
+| `scripts/check_decision_ids.py` (`fast`) | `docs/DECISIONS.md` | pure Python, stdlib, 0.02 s: runs in the `docs` layer |
+| `tests/acceptance/tests/client_text.rs` | `server/PROTOCOL.md` | **code** |
+| `cognition/lm-controller/tests/test_provider_scan.py:107` | `cognition/lm-controller/README.md` | **code** |
+| `cognition/lm-controller/pyproject.toml`, `sdk/python/pyproject.toml` (`readme = "README.md"`; `uv sync` builds both members) | `cognition/lm-controller/README.md`, `sdk/python/README.md` | **code** |
+| `worldpack` reader, `ac1_composability.rs` check 3 (`README.md` filtered by name inside a World Pack) | `worlds/*/README.md` (inside a World Pack directory) | **code** |
+| `ac1_composability.rs` check 1 (`allowed`) | the change sets of recorded, merged PRs (fixed history), never the working tree's docs | no effect on the docs set |
+| `ac1_composability.rs` bullet 3 (`ls-files`) | `.rs` and `Cargo.toml` only | no effect |
+| `precursor_vocabulary.rs` | merged precursors' diffs (fixed history), Markdown excluded by `scanned` | no effect |
+| `seam_vocabulary.rs`, `configuration_vocabulary.rs`, `client_rules.rs` | named source directories (`systems/`, `clients/`, …), Markdown excluded | no effect on the docs set |
+| `packages/tests/manifest.rs`, `worldpack/tests/configuration.rs`, `worldpack/tests/entity_packs.rs` | `README.md` files they write into their own scratch | no effect |
+| `scripts/check_scratch.py scan` | `.rs` files under `tests` directories | no effect |
+| `scripts/check_ci_pins.py` | the workflow, actions, `Dockerfile` | no effect (all code) |
+| `Dockerfile` `COPY . /work` (`runtime` image: `scenario` on `main` only) | the build context; `.dockerignore` drops `docs/`, `.structured-coding/`, `.claude/` | top-level `README*.md` and `CLAUDE.md` enter the image context, but the image is built only on `main`, which is always code |
+| `scripts/check_client_rules.py` | `.md` paths only under `--scope`; not run by CI | no effect |
+
+No Rust or Python test, and no CI script other than the two doc checks, reads `docs/**`,
+`.structured-coding/plans/**`, the top-level `README.md` / `README.zh-CN.md`, or `CLAUDE.md`.
+
+**The docs set (`scripts/ci_changes.py` `is_docs`), by the audit:**
+
+```text
+docs/**                            every file (Markdown read only by the two doc checks; images and
+                                   docs/references/** read by nothing)
+.structured-coding/plans/**        read by nothing in CI
+README*.md at the repository root  README.md, README.zh-CN.md: read by nothing in CI
+CLAUDE.md                          read by nothing in CI
+```
+
+Everything else is code, deliberately including READMEs in subdirectories (some are read, above; the
+rest are close to code and cheap to keep on the safe side), `.structured-coding/standards.md`,
+`.claude/**`, `.github/**`, and `LICENSE`-like files. Widening the set is a change to this table and to
+`ci_changes.py`'s self-test, made after the same audit.
+
+## 16.4 Design
+
+1. **A first job, `changes`** (ubuntu-24.04, seconds), runs `scripts/ci_changes.py`: a stdlib-only
+   classifier. It prints every changed path with its class and the reason for the verdict, and writes
+   `code=true|false` to `$GITHUB_OUTPUT`.
+   - `pull_request`: `git diff --name-only --no-renames <base.sha>...<head.sha>` (the PR's own changes,
+     against the merge base; a rename is a deletion plus an addition, so moving a code file into `docs/`
+     is still code).
+   - `push` to `main`, and `workflow_dispatch`: code, without diffing.
+   - `push` to another branch (only `scratch/**` now): `<before>...<after>`, and code when `before` is
+     the null id (a new branch), is not an object in the clone, or is not an ancestor of `after` (a
+     force-push).
+   - An empty diff, an unknown event, or any `git` failure: code.
+   - **Reuse (one line):** `dorny/paths-filter` was considered and rejected, to avoid a third-party action
+     holding a repository-read token for a 30-line check that `git diff` already answers.
+2. **`docs` layer** in `scripts/ci_layer.py`: `check_doc_headings.py`, `check_decision_ids.py` and
+   `ci_changes.py --self-test`. It runs natively on the runner's Python, not in the toolchain container,
+   and its environment report names only `git` and Python (a `cargo`/`rustc` probe would make rustup
+   install the pinned toolchain from `rust-toolchain.toml`). `fast` gains `ci_changes.py --self-test`
+   too, so a change to the classifier is judged in the code path.
+3. **`fast`** `needs: changes` and runs `if: always() && !cancelled()`:
+   - first step: fails if `needs.changes.result` is not `success` (fail closed: a broken classifier
+     turns the required `fast` red instead of skipping everything);
+   - `code == 'true'`: unchanged (full-history partial clone, the container, the `fast` layer);
+   - `code == 'false'`: a depth-1 checkout and `python3 scripts/ci_layer.py docs`.
+4. **`test`, `python`, `platforms`, `test-windows`, `test-macos`, and the scenario group** (`scenario`,
+   `linux-arm`, `mac`, `windows`, `ac8`) gain `needs: changes` and
+   `if: needs.changes.outputs.code == 'true' && (<their existing condition>)`. On a docs-only PR they are
+   skipped, which the required `test` reports as passing. `ac8` keeps `always()` and also needs
+   `changes`.
+5. **No duplicate runs.** `push` is restricted to `main` and `scratch/**` (scratch branches carry mutation
+   runs); a feature branch gets its runs from `pull_request` only. `workflow_dispatch` stays. A push to
+   `main` is always code, so `main` stays fully verified, and the scenario group's `main` trigger is
+   unchanged.
+
+What does not change: the job names `fast` and `test`; every layer's commands except the one added
+self-test; `test`'s draft rule; concurrency; permissions.
+
+**Trade-off recorded.** A branch with no PR no longer runs `fast` on push. Opening a draft PR runs `fast`
+(as before, drafts run `fast` only).
+
+## 16.5 Acceptance (decided before measuring)
+
+- **A-X1.** `ci_changes.py --self-test` passes, with named fixtures for: docs-only (each docs-set entry),
+  mixed, code-only, each audited docs-reader target as code (`server/PROTOCOL.md`,
+  `cognition/lm-controller/README.md`, `sdk/python/README.md`, `worlds/social-cafe/README.md`,
+  `.structured-coding/standards.md`, a subdirectory README), a rename out of code, an empty diff, a push
+  to `main`, a dispatch, and an unknown base (null id and a missing object) → code.
+- **A-X2.** This PR (a workflow change: code) has `changes` → `code=true` and `fast`, `test`, `python`
+  ×3, `platforms` ×2, `test-windows`, `test-macos` green on its exact head, and runs once (no push run for
+  `ci/docs-only-skip`).
+- **A-X3.** A probe PR from `scratch/13x-docs`, changing one README line only: `changes` → `code=false`,
+  `fast` runs the `docs` layer and finishes in well under a minute, `test` and the other jobs are skipped,
+  and GitHub reports the PR mergeable (required checks satisfied). Closed unmerged, branch deleted.
+- **A-X4 (mutation).** `is_docs` widened to treat a test-read file as docs (every `README.md` at any
+  depth) → `ci_changes.py --self-test` fails naming the fixture `cognition/lm-controller/README.md`.
+
+## 16.6 Commit plan and ledger
+
+| Commit | Content | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| X-C0 | this section; ARC-48's note | [x] `f80eb87` | [x] doc checks PASS | [x] terminology, ids |
+| X-C1 | `scripts/ci_changes.py`, the `docs` layer, self-test in `fast` | [x] `caa1d4f` | [x] A-X1, A-X4 PASS | [x] fail-closed paths |
+| X-C2 | `.github/workflows/ci.yml`: `changes`, `needs`/`if`, `push` branches | [x] `4443b5f` | [x] A-X2, A-X3, guard PASS | [x] every job's `if:` |
+| X-C3 | ledger; `ENGINEERING_STANDARDS.md` §15 reconciled with the docs-only rule (`CLAUDE.md` §2.1 rule 4: the review found §§15–16's "every pull request" / "every change" contradicting the design) | [x] | [x] doc checks PASS | [x] |
+
+Endpoint authority: commits, push of `ci/docs-only-skip` and `scratch/13x-docs`, PR create/update/close,
+branch delete: authorized by the primary session's brief. Settings and merge: not authorized.
+
+**Evidence (2026-10-09 local; run times UTC 2026-10-10).**
+- **A-X1.** `python3 scripts/ci_changes.py --self-test`: 20 cases pass, locally and in CI (both layers).
+  Local real-git checks: this branch's docs commit alone against `origin/main` → `code=false`; a
+  non-ancestor `before` on a push → `code=true` ("a force-push").
+- **A-X4 (mutation).** `is_docs` widened to every `README*.md` at any depth → self-test exit 1, failing
+  by name `a file CI reads is code: cognition/lm-controller/README.md` (and `sdk/python/README.md`,
+  `worlds/social-cafe/README.md`, `systems/economy/README.md`). Reverted.
+- **A-X2.** PR #133 opened one run only (38029012754, `pull_request`; no `push` run for
+  `ci/docs-only-skip`). `changes` (10 s) printed the five paths with their classes and
+  `code=true: 3 of 5 changed path(s) are code`; `fast` took the container path, green in 1 min 33 s. The
+  final-head run is recorded in the PR description.
+- **A-X3.** Probe PR #134 (`scratch/13x-docs`, one line of `README.md`), run 38029645292: `changes`
+  `code=false: all 1 changed path(s) are documentation` (12 s); `fast` ran the `docs` layer on a
+  depth-1 checkout, green in **10 s** (layer 0.1 s); `test`, `python`, `platforms`, `test-windows`,
+  `test-macos` and the scenario group skipped. GitHub reported the PR `MERGEABLE`.
+  - **Bounded deviation.** The probe PR targeted `ci/docs-only-skip`, not `main`: a PR to `main` from a
+    branch carrying this workflow has this PR's code in its diff, so it cannot be docs-only until 13x
+    is on `main`. That a skipped required job reports as passing on `main` is GitHub's documented
+    behaviour ("a job that is skipped will report its status as Success"); the first docs-only PR to
+    `main` after the merge confirms it, and is the primary session's check.
+  - The probe branch's own `push` run (38029642931, a new branch) classified `code=true: change set
+    unknown: no base (000…0)`, the fail-closed fallback, and was cancelled after `changes` to free
+    runners.
+- **Fail-closed guard.** A second probe commit made `ci_changes.py` exit with an error: in both runs
+  (38029834594 `pull_request`, 38029833271 `push`) `changes` failed and `fast` failed first with
+  "changes: result 'failure', code '': nothing is known about this change, so nothing passes", every
+  other job skipped. PR #134 closed unmerged; `scratch/13x-docs` deleted.
+- **Timings.** Before (docs PR #130): `fast` 1 min 34 s on `push` and again 1 min 22 s on
+  `pull_request`, `python (ubuntu)` 2 min 15 s, and `test` (20–24 min) plus five native jobs started.
+  After (docs-only): one run, `changes` 12 s + `fast` 10 s, nothing else. A code PR pays `changes`
+  (about 10 s) once before `fast` and `test` start.

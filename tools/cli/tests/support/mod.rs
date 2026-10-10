@@ -11,7 +11,7 @@
 
 use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -19,6 +19,7 @@ use futures_util::{SinkExt, StreamExt};
 use mineworld_contracts::{ActionId, ActionResult, EntityId, EventId, PerceivedEntity};
 use mineworld_conversation::ConversationHistory;
 use mineworld_server::{ServerFrame, WireObservation, WorldRevision, WorldSummary};
+use mineworld_test_support::process::{self, InterruptibleChild, Killed};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -42,9 +43,10 @@ pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social
 /// The twelve-person town, for the tests in which in-server controllers drive a whole town.
 pub const MARKET_PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 
-/// The real binary, hosting the real pack, killed when the test ends.
+/// The real binary, hosting the real pack, killed when the test ends. It is spawned so that
+/// [`Server::interrupt`] can reach it on every platform (`mineworld_test_support::process`).
 pub struct Server {
-    process: Child,
+    process: InterruptibleChild,
     pub address: SocketAddr,
 }
 
@@ -117,7 +119,9 @@ impl Server {
             } else {
                 command.stdout(Stdio::null()).stderr(Stdio::inherit());
             }
-            let mut process = command.spawn().expect("the mineworld binary runs");
+            let mut process = process::interruptible(command)
+                .spawn()
+                .expect("the mineworld binary runs");
             let captured = capture.then(|| Captured {
                 stdout: drain(process.stdout.take().expect("piped stdout")),
                 stderr: drain(process.stderr.take().expect("piped stderr")),
@@ -172,24 +176,18 @@ impl Server {
         (server, captured.expect("captured output"))
     }
 
-    /// Kills the process with `SIGKILL` — no shutdown, no checkpoint, no flush — and returns how it
-    /// ended, so that a test can show the death was real.
-    pub fn kill(&mut self) -> std::process::ExitStatus {
-        self.process.kill().expect("SIGKILL is delivered");
-        self.process.wait().expect("the process is reaped")
+    /// Kills the process with `SIGKILL` (Windows: `TerminateProcess`) — no shutdown, no checkpoint, no
+    /// flush — and returns how it ended, so that a test can show the death was real
+    /// ([`Killed::killed`]).
+    pub fn kill(&mut self) -> Killed {
+        process::kill(&mut self.process)
     }
 
-    /// Stops the process with `SIGINT`, as an operator's Ctrl-C does — the graceful stop that prints
-    /// the shutdown statistics (step-12 SD-B11) — and returns how it ended.
+    /// Stops the process with `SIGINT` (Windows: Ctrl-Break to its own process group), as an
+    /// operator's Ctrl-C does — the graceful stop that prints the shutdown statistics (step-12 SD-B11,
+    /// SD-D13) — and returns how it ended.
     pub fn interrupt(&mut self) -> std::process::ExitStatus {
-        // The shell's builtin `kill`, not a `kill` binary: a minimal CI image has a shell and may have
-        // no procps (and this crate takes no libc dependency to signal a child).
-        let sent = Command::new("sh")
-            .args(["-c", &format!("kill -INT {}", self.process.id())])
-            .status()
-            .expect("sh runs");
-        assert!(sent.success(), "SIGINT is delivered");
-        self.process.wait().expect("the process is reaped")
+        process::interrupt(&mut self.process).expect("the interrupt is delivered")
     }
 }
 

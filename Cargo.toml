@@ -14,6 +14,9 @@ members = [
     "tests/acceptance",
     "tests/support",
     "tools/cli",
+    # A developer tool, never part of a world's build: the only crate allowed an HTTP client, behind
+    # its off-by-default `fetch` feature (DECISIONS.md DEP-31, step-19 INV-TW-7).
+    "tools/weather-fetch",
     "worldpack",
 ]
 resolver = "2"

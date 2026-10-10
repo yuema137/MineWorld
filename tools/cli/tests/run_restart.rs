@@ -24,7 +24,6 @@ mod headless;
 mod social;
 
 use std::io::{BufRead, BufReader};
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -32,6 +31,7 @@ use headless::{BINARY, PACK, Tables, every_seat_active_in_every_bucket, fresh, r
 use mineworld_contracts::{EventEnvelope, EventRecord};
 use mineworld_conversation::Spoke;
 use mineworld_persistence::format;
+use mineworld_test_support::process;
 
 const SEED: u64 = 7;
 const DAYS: u64 = 30;
@@ -68,9 +68,11 @@ fn killed_at(save: &Path, day: u64) {
             break;
         }
     }
-    child.kill().expect("SIGKILL is delivered");
-    let status = child.wait().expect("reaped");
-    assert_eq!(status.signal(), Some(9), "killed by SIGKILL, not finished");
+    let killed = process::kill(&mut child);
+    assert!(
+        killed.killed(),
+        "killed by SIGKILL, not finished: {killed:?}"
+    );
     assert!(
         !printed.iter().any(|line| line.starts_with("history ")),
         "the victim did not finish: {printed:?}"

@@ -615,9 +615,9 @@ fn tabled(root: &std::path::Path, table: &str) -> FoundConfiguration {
     }
 }
 
-/// A named file that is missing, one that is over 4 MiB and (where the platform lets a test make one)
-/// one whose link leads outside the pack are each refused by name; a present one is read, its bytes
-/// unchanged — CRLF included — and a file nothing names is left alone.
+/// A named file that is missing, one that is over 4 MiB and one whose link leads outside the pack are
+/// each refused by name; a present one is read, its bytes unchanged — CRLF included — and a file
+/// nothing names is left alone.
 #[test]
 fn attachments_are_read_whole_and_refused_when_missing_outside_or_over_size() {
     let scratch = ScratchRoot::new("attachments");
@@ -650,21 +650,43 @@ fn attachments_are_read_whole_and_refused_when_missing_outside_or_over_size() {
         other => panic!("expected AttachmentTooLarge, got {other:?}"),
     }
 
-    // A link out of the pack. Windows lets an unprivileged process make no symlink, so this case is
-    // made only where the platform allows it; the check itself is platform-neutral (canonical paths).
-    #[cfg(unix)]
-    {
-        let outside = ScratchRoot::new("attachments-outside");
-        std::fs::write(outside.0.join("secret.txt"), "not the pack's").expect("writable");
-        std::os::unix::fs::symlink(outside.0.join("secret.txt"), data.join("link.txt"))
-            .expect("a symlink");
-        match read_attachments(&scratch.0, &tabled(&scratch.0, "link.txt")) {
-            Err(PackError::AttachmentOutside { attachment, .. }) => {
-                assert_eq!(attachment, "data/link.txt");
-            }
-            other => panic!("expected AttachmentOutside, got {other:?}"),
+    // A link out of the pack, on every platform (step-14 §15.13, D-13w-3); the check itself is
+    // platform-neutral (canonical paths).
+    let outside = ScratchRoot::new("attachments-outside");
+    std::fs::write(outside.0.join("secret.txt"), "not the pack's").expect("writable");
+    let linked = link_out_of(&data, &outside.0);
+    match read_attachments(&scratch.0, &tabled(&scratch.0, linked)) {
+        Err(PackError::AttachmentOutside { attachment, .. }) => {
+            assert_eq!(attachment, format!("data/{linked}"));
         }
+        other => panic!("expected AttachmentOutside, got {other:?}"),
     }
+}
+
+/// Makes a link under `data` through which `outside/secret.txt` is reached, and returns the path under
+/// `data/` that names the secret through it. On Unix, a file symlink.
+#[cfg(unix)]
+fn link_out_of(data: &std::path::Path, outside: &std::path::Path) -> &'static str {
+    std::os::unix::fs::symlink(outside.join("secret.txt"), data.join("link.txt"))
+        .expect("a symlink");
+    "link.txt"
+}
+
+/// On Windows an unprivileged process may make no symlink (that needs Developer Mode or
+/// administrator rights), but anyone may make a directory junction (`mklink /J`), which leads out of
+/// the pack just as well.
+#[cfg(windows)]
+fn link_out_of(data: &std::path::Path, outside: &std::path::Path) -> &'static str {
+    let made = std::process::Command::new("cmd")
+        .arg("/C")
+        .arg("mklink")
+        .arg("/J")
+        .arg(data.join("linked"))
+        .arg(outside)
+        .output()
+        .expect("cmd runs");
+    assert!(made.status.success(), "a directory junction: {made:?}");
+    "linked/secret.txt"
 }
 
 /// The bytes reach the owner's seed and its fact, so a changed file is drift at resume (IB-8's

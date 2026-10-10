@@ -38,7 +38,29 @@ your own profile there, where POSIX permissions are not checked.
 | `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `json_schema` | `send` | unsupported parameters are ignored |
 | `groq` | Groq | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` | `json_object` | `send` | `json_schema` on a few models only |
 
-Claude needs its own adapter (S10 P5b). A hosted API costs you money; MineWorld never calls one in a test.
+**Claude** uses its own adapter (`DEP-33`), with your Anthropic API key: `kind = "anthropic"`,
+`base_url = "https://api.anthropic.com"`, a `model`, `key_env = "ANTHROPIC_API_KEY"`. It sends schema-
+constrained output natively and omits the temperature unless you set `temperature = "send"`. Pointing
+`kind = "openai-compatible"` at Anthropic is refused: that layer ignores `response_format` and `seed`.
+
+A hosted API costs you money; MineWorld never calls one in a test.
+
+**Subscriptions** (`ARC-60`). API keys, above, are the recommended route for every hosted model. A
+subscription is your account with a vendor, and its terms decide what another program may do with it:
+
+- **Claude: not supported through a subscription.** Anthropic's Claude Code terms
+  (<https://code.claude.com/docs/en/legal-and-compliance>, read 2026-10-09): "Anthropic does not permit
+  third-party developers to offer Claude.ai login into their own applications, or to route requests
+  through Free, Pro, or Max plan credentials on behalf of their users", enforced "without prior
+  notice". Use your Anthropic API key instead.
+- **Codex with a ChatGPT plan: not available yet.** It is planned only as an opt-in for your own local
+  use, off by default and never in an example. OpenAI recommends API keys "for automation"
+  (<https://learn.chatgpt.com/docs/auth>, read 2026-10-09), and its Terms of Use must be re-read before
+  this route is built; until then, use an OpenAI API key (`preset = "openai"`). If it is built, you
+  remain responsible for your plan's terms; check them yourself.
+- MineWorld never reads, copies or forwards a CLI's login: a bridged CLI authenticates itself, runs in
+  an empty temporary directory, and receives none of your API keys. Your CLI's own global configuration
+  (hooks, MCP servers) is yours and still runs.
 
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 

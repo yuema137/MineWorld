@@ -1,4 +1,4 @@
-//! Tables the unit tests share: Market Town's provisional San Diego climate — read from the world's own
+//! Tables the unit tests share: Market Town's San Diego climate (fitted to its record since TW-d) — read from the world's own
 //! `configure/weather.yaml`, so the statistics are measured on the shipped table and there is one copy
 //! of it (step-19 §17.4) — and a constant table for the spell-length check.
 

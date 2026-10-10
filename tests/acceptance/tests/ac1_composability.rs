@@ -709,10 +709,12 @@ fn workspace(metadata: &serde_json::Value) -> Result<BTreeMap<String, Member>, S
     for package in packages {
         let name = text(&package["name"], "package name")?;
         let manifest = text(&package["manifest_path"], "manifest_path")?;
+        // `cargo metadata` writes the platform's separator (`\` on Windows); the checks compare
+        // repository paths written with `/`, as `git` writes them on every platform.
         let directory = manifest
             .strip_prefix(&root)
             .and_then(|rest| rest.strip_suffix("Cargo.toml"))
-            .map(|rest| rest.trim_start_matches('/').to_owned())
+            .map(|rest| rest.replace('\\', "/").trim_start_matches('/').to_owned())
             .ok_or_else(|| format!("{name}: {manifest} is not under {root}"))?;
         let mut dependencies = Vec::new();
         for dependency in package["dependencies"].as_array().into_iter().flatten() {
@@ -1230,15 +1232,62 @@ fn entries(directory: &Path) -> Result<BTreeSet<String>, String> {
         .collect()
 }
 
+/// Every file under `directory`, at any depth, as a `/`-separated path beginning with `prefix`.
+fn files_under(directory: &Path, prefix: &str) -> Result<BTreeSet<String>, String> {
+    let mut found = BTreeSet::new();
+    for name in entries(directory)? {
+        let path = directory.join(&name);
+        let relative = format!("{prefix}/{name}");
+        if path.is_dir() {
+            found.extend(files_under(&path, &relative)?);
+        } else {
+            found.insert(relative);
+        }
+    }
+    Ok(found)
+}
+
+/// `data/` in Market Town (`ARC-35`'s note of 2026-10-09 for S19 TW-d, QTWd-1): every file is an
+/// attachment an allow-listed generic pack's configuration names, or a `NOTICE` in the same directory
+/// as one. `attachments` are those paths, as their configurations write them.
+fn data_failures(files: &BTreeSet<String>, attachments: &BTreeSet<String>) -> Vec<String> {
+    let notices: BTreeSet<String> = attachments
+        .iter()
+        .filter_map(|attachment| attachment.rsplit_once('/'))
+        .map(|(directory, _)| format!("{directory}/NOTICE"))
+        .collect();
+    files
+        .iter()
+        .filter(|file| !attachments.contains(*file) && !notices.contains(*file))
+        .map(|file| {
+            format!(
+                "{file}: not an attachment of an allow-listed generic pack's configuration, nor its \
+                 NOTICE"
+            )
+        })
+        .collect()
+}
+
 /// Check 3 over the two packs under `root`: every difference that is not configuration, named by
 /// file and key. Empty means the check holds.
 fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
     let (social, market) = (root.join(SOCIAL_CAFE), root.join(MARKET_TOWN));
+    let mut read = Vec::new();
     for pack in [&social, &market] {
-        mineworld_worldpack::WorldPack::read(pack.as_path()).map_err(|error| {
-            format!("{}: the World Pack does not read: {error}", pack.display())
-        })?;
+        read.push(
+            mineworld_worldpack::WorldPack::read(pack.as_path()).map_err(|error| {
+                format!("{}: the World Pack does not read: {error}", pack.display())
+            })?,
+        );
     }
+    // The files Market Town's allow-listed generic packs attach, as their configurations name them.
+    let attachments: BTreeSet<String> = read[1]
+        .configuration()
+        .iter()
+        .filter(|found| GENERIC_PACKS.contains(&found.configuration.owner().as_str()))
+        .flat_map(|found| found.configuration.attachments())
+        .map(ToString::to_string)
+        .collect();
     let mut found = compare_manifests(
         &read_yaml(&social.join("world.yaml"))?,
         &read_yaml(&market.join("world.yaml"))?,
@@ -1255,14 +1304,20 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         .collect();
     let market_only: BTreeSet<String> = ["items", "organizations"].map(str::to_owned).into();
     for name in ours.symmetric_difference(&theirs) {
-        let configuration = name == "configure" && theirs.contains(name);
+        let configuration = (name == "configure" || name == "data") && theirs.contains(name);
         if !(market_only.contains(name) && theirs.contains(name)) && !configuration {
             found.push(format!("{name}: present in one pack only"));
         }
     }
-    if ours.contains("configure") {
-        found.push("configure/: must be absent in Social Café".to_owned());
+    for configuration in ["configure", "data"] {
+        if ours.contains(configuration) {
+            found.push(format!("{configuration}/: must be absent in Social Café"));
+        }
     }
+    found.extend(data_failures(
+        &files_under(&market.join("data"), "data")?,
+        &attachments,
+    ));
     // configure/: Market Town's only, one `<key>.yaml` per allow-listed generic pack it configures
     // (the loader already refuses a file `configure:` does not list).
     for file in entries(&market.join("configure"))? {
@@ -1356,6 +1411,52 @@ fn a_section_is_the_market_s_by_the_build_s_own_catalog() {
     for key in ["name", "routine", "location", "tags", "no-such-section"] {
         assert!(!market_section(key), "{key}");
     }
+}
+
+/// `data/` admits exactly the allow-listed packs' attachments and a NOTICE beside each; anything else
+/// is named (step-19 QTWd-1).
+#[test]
+fn data_admits_only_attachments_and_their_notice() {
+    let set = |paths: &[&str]| {
+        paths
+            .iter()
+            .map(|path| (*path).to_owned())
+            .collect::<BTreeSet<_>>()
+    };
+    let attachments = set(&["data/weather/record.csv"]);
+    assert!(
+        data_failures(
+            &set(&["data/weather/record.csv", "data/weather/NOTICE"]),
+            &attachments
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        data_failures(
+            &set(&[
+                "data/weather/record.csv",
+                "data/NOTICE",
+                "data/other.txt",
+                "data/weather/old.csv",
+                "data/weather/sub/NOTICE",
+            ]),
+            &attachments
+        ),
+        [
+            "data/NOTICE: not an attachment of an allow-listed generic pack's configuration, nor its \
+             NOTICE",
+            "data/other.txt: not an attachment of an allow-listed generic pack's configuration, nor \
+             its NOTICE",
+            "data/weather/old.csv: not an attachment of an allow-listed generic pack's configuration, \
+             nor its NOTICE",
+            "data/weather/sub/NOTICE: not an attachment of an allow-listed generic pack's \
+             configuration, nor its NOTICE",
+        ]
+    );
+    assert_eq!(
+        data_failures(&set(&["data/weather/NOTICE"]), &BTreeSet::new()).len(),
+        1
+    );
 }
 
 /// The comparison names a changed value, a removed key and an added key that is not the market's;
