@@ -16,13 +16,16 @@ extends Node
 ## ```
 ##
 ## Scenarios: `seated` (default), `walk`, `street`, `strides`, `idle`, `click`, `home`, and 13b's
-## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines).
+## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
+## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
+## `--apply=<language>,<clock>,<W>x<H>` applies through the menu).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
 ## coordinates: every waypoint is derived from the disclosed passages.
 
 const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
+const SettingsScenario := preload("res://scripts/harness/settings.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -90,6 +93,7 @@ func _ready() -> void:
 		_capture = Capture.new()
 		_capture.app = app
 		add_child(_capture)
+	print("EVIDENCE ", SettingsScenario.evidence(app))
 	_interact = Interact.new()
 	_interact.drive = self
 	_interact.app = app
@@ -139,6 +143,15 @@ func _run() -> void:
 			await _interact.steps(String(app.options.get("steps", "")))
 		"panels":
 			await _interact.panels()
+		"settings", "display":
+			var settings: Node = SettingsScenario.new()
+			settings.drive = self
+			settings.app = app
+			add_child(settings)
+			if scenario == "settings":
+				await settings.run()
+			else:
+				await settings.display()
 		_:
 			await _seconds(SETTLE_S)
 			_check_seated()

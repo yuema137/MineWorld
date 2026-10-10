@@ -21,7 +21,16 @@ def _openai_compatible(config: BackendConfig, key: Secret | None) -> ModelBacken
     return OpenAICompatibleBackend(config, key)
 
 
-FACTORIES: dict[str, Factory] = {"openai-compatible": _openai_compatible}
+def _anthropic(config: BackendConfig, key: Secret | None) -> ModelBackend:
+    from mineworld_cognition.backend.anthropic_messages import AnthropicMessagesBackend
+
+    return AnthropicMessagesBackend(config, key)
+
+
+FACTORIES: dict[str, Factory] = {
+    "openai-compatible": _openai_compatible,
+    "anthropic": _anthropic,
+}
 
 
 def build_backend(config: BackendConfig, key: Secret | None) -> ModelBackend:

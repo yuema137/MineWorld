@@ -22,8 +22,15 @@
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
 #                                              that it picks nobody through a wall
+#   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
+#   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
+#                                     shared per-user file (clients/shared/SETTINGS.md §4); every
+#                                     scripted mode uses none
+#   ./mineworld-slice --res=WxH        this window size for this run (not saved)
+#
+# Esc opens the in-game settings menu (language, display, clock; Quit is in it).
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
 #
@@ -38,7 +45,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 proj="$here/clients/3d-spike"
 scene="res://scenes/slice.tscn"
 godot_bin="${GODOT:-godot}"
-res="1600x900"
+res=""
 
 if ! command -v "$godot_bin" >/dev/null 2>&1; then
   echo "error: '$godot_bin' not found on PATH. Install Godot 4.7 (brew install godot)," >&2
@@ -65,6 +72,16 @@ if [ ! -f "$cache" ] || [ ! -f "$stamp" ] \
   touch "$stamp"
 fi
 
+# The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
+# checkout that did not create them (Windows without core.symlinks) has text files in their place.
+for module in mineworld mineworld_settings; do
+  if [ ! -d "$proj/$module" ]; then
+    echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
+    echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
+    exit 1
+  fi
+done
+
 args=()
 headless=0
 world=0
@@ -72,13 +89,16 @@ perf=0
 breakdown=0
 res_given=0
 gi="voxel"
+scripted=0
+settings=""
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --perf)                                perf=1; args+=("--slice-perf") ;;
+    --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--skyline-check)
-                                           args+=("--slice-${a#--}") ;;
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings|--skyline-check)
+                                           args+=("--slice-${a#--}"); scripted=1 ;;
+    --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
@@ -86,6 +106,10 @@ for a in "$@"; do
   { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] \
     || [ "$a" = "--skyline-check" ]; } && headless=1
 done
+# A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
+if [ "$scripted" = "1" ] && [ -z "$settings" ]; then
+  args+=("--settings=none")
+fi
 
 # --world: host worlds/social-cafe locally, exactly as clients/protocol/run.sh
 # does, connect to it, and stop it when the slice exits. The server listens on a
@@ -159,4 +183,12 @@ if [ "$perf" = "1" ]; then
   exit 0
 fi
 
-"$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]:-}"
+# Captures and probes keep their fixed window; play takes the player's window size (the settings
+# menu), unless a developer asks for one with --res=, which is not saved.
+size=()
+if [ -n "$res" ]; then
+  size=(--resolution "$res")
+elif [ "$scripted" = "1" ]; then
+  size=(--resolution "1600x900")
+fi
+"$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"

@@ -912,6 +912,68 @@ MVP-0 non-preclusion audit.
 | S16 E-d | ARC-71 | — |
 | S11-D | ARC-44 (from S11's reserve) | — |
 | S10 P3 | ARC-56 | DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed) |
+| S10 P5a / P5b | ARC-57, ARC-58 (P5a), ARC-60 (P5b); ARC-72, ARC-73, ARC-74 reserved for P4 and P6 | DEP-27 (`httpx2`), DEP-32 (`python-dotenv`, P5a), DEP-33 (native Anthropic adapter, P5b) |
+| S15 12n-1 | ARC-75 (walking and wayfinding; first drafted as ARC-73, renumbered before merge) | DEP-34 (`pathfinding`) |
+| S20 SET-a | ARC-76 (first drafted as ARC-72, renumbered before merge) | DEP-35, DEP-36 (first drafted as DEP-32 and DEP-33) |
+
+The next free numbers are ARC-77 and DEP-37. An implementation session never picks a number; it asks
+the primary session, which records the assignment here before the PR merges. Two collisions on
+2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
+S10 PR designs) are why this table now lists reservations as well as assignments.
+
+### Evening of 2026-10-09: merges and review findings
+
+Merged after the primary session's review (gates re-run on the exact head plus one mutation of its own):
+
+| PR | Merge commit | Review mutation | Caught by |
+| --- | --- | --- | --- |
+| #99 E-c, third-party pack | `0ba037f` | `origin_word` always "bundled" | `packs::every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it` |
+| #95 S11-C, perception | `370bb38` | `Visibility::Place` admits every observer | `tools/cli/tests/facts.rs::a_line_reaches_who_was_there_and_nobody_else` only |
+| #116 12n-1, the walk | `ecc8d40` | `walk::toward` returns the target within two strides | four `tools/cli/tests/walking.rs` tests |
+| #120 S10 P5a, backends | `60a6295` | the budget window counts charges 2 s older than its edge | `test_budget.py::test_the_21st_call_in_a_wall_hour_is_refused_before_the_backend` |
+
+Closeout records: #119 (E-c), #122 (S11-C), #123 (12n-1).
+
+Operator ruling (12n-1 material stop M-1): at R 250, SD-N11 claim 2 is restated as "nudge chains are
+bounded and a stride may be blocked; a blocked walker re-plans" (option (a)); recorded in step-11 §21.15.
+
+Test-gap findings, each owned by the next PR that touches the file:
+
+- **F-SC1 / F-PRES-1.** The S11-C mutation (in `systems/presence/src/audience.rs` `admits`) survived
+  presence's own unit tests and `server/tests/facts.rs`; only the CLI end-to-end test caught it. Presence's
+  unit test needs an observer outside the place for the `Place` case.
+- **F-12n-R1.** `walk.rs`'s unit test has no case between one and two strides; add a 2 000 mm case
+  expecting exactly (1 340, 0).
+- **F-P5-4.** On Windows, asyncio's default loop connects without `socket.connect`, so pytest-socket does
+  not guard async connections. Fixed for the cognition suite (selector loop); the `sdk/python` suite (P3)
+  still has the gap. Owner: S10.
+
+The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze, not P5b.
+
+Also merged: #117 S20 SET-a, shared client settings (`44ac762`; review mutation: `action.walk-to`
+removed from `zh_Hans.po`, caught by `client_text::the_catalogs_are_complete_and_consistent`).
+
+### Milestone F — walk, walls, interact (operator hands-on gate)
+
+Milestone F is the operator's next hands-on acceptance, named in conversation on 2026-10-08 and
+defined here so later documents can cite it. It is not an MVP-0 acceptance criterion of its own; it
+is the point at which the primary session stops and hands the operator one numbered checklist
+(see the standing rule in §5: at a milestone, stop and give the operator a short runnable test list).
+
+| Prerequisite | Lane | State on 2026-10-09 |
+| --- | --- | --- |
+| 12n-1, the walk (server routes) | S15 | merged (#116) |
+| 12n-2, people walk there | S15 | in progress (#125) |
+| 12d, the towns get walls | S15 | waiting for 12n-2; merges immediately after it (QN-2) |
+| 16c, the living street in 3D | S14 | waiting for 12d |
+| SET-a, shared settings | S20 | merged (#117) |
+| 2D menus and interaction (13a / IL-b) | S12 | merged (#82, #102, #103) |
+
+The checklist covers, on the operator's own machines: walking round walls and furniture in both
+clients; doors; people walking to their agenda places at 1.34 m/s on screen at every time scale;
+the interaction menu and its refusals in 2D and 3D; the settings menu (language, clock, display); and
+the hand checks carried from SET-a (`docs/MVP_STATUS.md`, "Carried to milestone F": H-1 … H-10 on
+Windows and Linux, and the macOS manual items).
 
 ### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
 
@@ -925,6 +987,7 @@ MVP-0 non-preclusion audit.
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
 | QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b` |
 
 
 # 6. Risks

@@ -25,8 +25,13 @@ run builds Godot's resource cache automatically and takes about 30 s extra.
 | mouse | look (X turns, Y looks up/down) |
 | `Shift` | jog |
 | `F5` | cycle the camera: first person -> third rear -> third front |
-| `Esc` | release / recapture the mouse |
+| `Esc` | release / recapture the mouse (in the slice, `./mineworld-slice`: open the settings menu) |
 | — | **no jump.** This is a walking simulator. |
+
+In the slice (`./mineworld-slice`), Esc opens the settings menu: language (English or 简体中文), 12- or
+24-hour clock, window mode and size, render scale, VSync and frame cap; Quit is there too. Settings stay
+on your machine and are shared with the 2D client. On Windows, clone with `git config core.symlinks
+true` (Developer Mode): `mineworld` and `mineworld_settings` here are symlinks to the shared modules.
 
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has

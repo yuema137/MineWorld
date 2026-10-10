@@ -153,8 +153,17 @@ Every user-visible string of the client — menu entries, results, panel titles,
 hints — is a **message key** looked up in the pack's wording (`docs/DECISIONS.md` `ARC-70`). The
 wording is a standard **gettext** file per language, `i18n/<locale>.po`, UTF-8, read at runtime from
 the pack directory and added to Godot's `TranslationServer`; it is never imported into the client
-project. 13b ships `i18n/en.po` and selects `en`; the language switch and further languages
-(`zh-Hans`) belong to the client-settings lane, which may change the file format behind the same keys.
+project. The pack ships `i18n/en.po` and `i18n/zh_Hans.po`; the player chooses the language in the
+settings menu (S20, `clients/shared/SETTINGS.md` §6), live.
+
+**Layers (S20).** The pack's wording is the middle of three layers, merged per key, the later winning:
+the shared settings module's catalogs (`clients/shared/settings/locale/`: the keys both clients use,
+among them every `action.*` and `reason.*` entry), then this pack's `i18n/`, then the player's
+`user://locale/`. A pack entry that replaces a shared one is marked with the extracted comment
+`#. override` (this pack overrides `action.move`, whose wording here describes clicking).
+`tests/acceptance/tests/client_text.rs` holds every layer complete in `zh_Hans` and every override
+marked. A language is offered when some layer gives it a `language.self_name`, so a `fr.po` in any
+layer adds French with no code.
 
 ```text
 msgid ""
@@ -188,5 +197,6 @@ Arguments are substituted after the lookup (`{name}` placeholders, Godot's `Stri
 
 **The fallback.** A key the wording does not hold is shown as a readable form of its last part —
 `reason.too_far_away` → "too far away", `action.ring` → "ring" — followed, for an action, by the names
-its arguments carry. A client with `--presentation=none` loads no wording and shows only fallbacks, and
-plays exactly the same (`I-5`). A code no wording knows is therefore shown as the code itself.
+its arguments carry. A client with `--presentation=none` loads no pack wording (the shared layer still
+loads); `--no-wording` loads no layer at all and shows only fallbacks, and plays exactly the same
+(`I-5`). A code no wording knows is therefore shown as the code itself.
