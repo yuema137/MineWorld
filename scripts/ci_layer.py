@@ -121,8 +121,6 @@ LAYERS: dict[str, list[list[str]]] = {
 # Layer 4, nightly (docs/DECISIONS.md ARC-83; .github/workflows/nightly.yml). None of these runs on a
 # pull request or in `core`; each writes its result to artifacts/nightly/ for the night's verdict.
 NIGHTLY_OUT = "artifacts/nightly"
-GODOT_TESTS = ["--test", "client_2d", "--test", "client_2d_interact", "--test", "client_2d_interact_stub",
-               "--test", "client_settings"]
 LAYERS.update({
     # AC-8 at the long horizon on a native runner (macOS, Windows); the Linux legs record from the
     # runtime image instead (ARC-49's legs, the long profile).
@@ -145,12 +143,13 @@ LAYERS.update({
         ["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", f"{NIGHTLY_OUT}/repeat.txt", "--",
          "cargo", "test", "--workspace", "--no-fail-fast"],
     ],
-    # The 25 #[ignore]d Godot tests, one at a time (each starts Godot and a server), on every OS (DEP-45).
-    # Through ci_repeat.py once, which only records the failing tests' names for the night's verdict.
+    # The 25 #[ignore]d Godot tests, one at a time (each starts Godot and a server), on every OS (DEP-45):
+    # `cargo test -p mineworld-cli` over client_2d, client_2d_interact, client_2d_interact_stub and
+    # client_settings with `--ignored --test-threads=1`, minus this OS's named skips (QC-5), which
+    # ci_godot.py holds with their reasons; it records the failing tests' names for the night's verdict.
     "clients": [
         ["cargo", "build", "-p", "mineworld-cli"],
-        ["python3", "scripts/ci_repeat.py", "--times", "1", "--summary", f"{NIGHTLY_OUT}/clients-tests.txt", "--",
-         "cargo", "test", "-p", "mineworld-cli", *GODOT_TESTS, "--", "--ignored", "--test-threads=1"],
+        ["python3", "scripts/ci_godot.py", "tests"],
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],

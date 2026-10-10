@@ -209,6 +209,9 @@ def verdict(arguments: list[str]) -> int:
                      if path.name == "repeat.txt" or path.name.endswith("-tests.txt")
                      for sample in parse_repeat(path.read_text(encoding="utf-8")) for test in sample.failed})
     decided, detail = judge_job(outcome, layers, steps, probes, failed)
+    # Notes inform and never decide: a test skipped on this leg by name (QC-5), with its reason.
+    notes = OUT / "notes.txt"
+    detail += [f"note: {line}" for line in notes.read_text(encoding="utf-8").splitlines()] if notes.is_file() else []
     OUT.mkdir(parents=True, exist_ok=True)
     lines = [f"job {job}", f"commit {os.environ.get('GITHUB_SHA', '?')}", f"verdict {decided}",
              *[f"detail {line}" for line in detail]]

@@ -1074,8 +1074,8 @@ step-13 and step-14 prose), so every audited claim of §2 stands on the implemen
 | N-C0 | [x] this file | [x] | [x] | PR #158 run 38089513604: `changes` classified it docs-only, `fast` (docs layer) passed; merged as `3c8bbf3`. Review: done by the primary session at freeze (§14.1) |
 | N-C1 | [x] `docs/DECISIONS.md`: `ARC-48 note` (13c), `ARC-83`, `DEP-45`, placed after the 13x note; `.structured-coding/standards.md` one prose paragraph (no declaration change) | [x] | [x] | `check_decision_ids.py`: "109 decision ids, all distinct" (107 → 109); `check_doc_headings.py`: "193 numbered sections across 26 documents, none duplicated". Review: terms as defined (Layer, World Pack, System Pack); each ARC-83 point maps to §3.1–3.7; restart client wording follows `server/PROTOCOL.md` §4.2 (D-13c-1) |
 | N-C2 | [x] `ci_parity.py`: `--profile long` (`LONG_PROFILE_DAYS`, `SAVE_LONG_DAYS`; `run_days`, `saved_run`, `record_world`), `profile` in `[source]` only when not default, G-2's profile clause, `--timings`, `baseline check\|write`, `diff`, 15 self-test cases added (29 in all); `scripts/baselines.txt` from the laptop's long record | [x] | [x] | See N-C2 evidence below |
-| N-C3 | [x] `ci_layer.py`: layers `parity-long`, `stability`, `core-repeat` (and N-C4's two), `NIGHTLY_LAYERS` result files, four self-test lines in `fast`; `ci_stability.py` (`restarts`, `replay`, `replay-check`, self-test); `ci_repeat.py` (repeat, parse, `classify`, self-test) | [ ] local stability `replay` and MN-3 pending | [x] | See N-C3 evidence below |
-| N-C4 | [x] `.github/actions/godot/action.yml`; `ci_godot.py` (`fetch`, `slice`, `coverage`, self-test); layers `clients`, `clients-probes` | [ ] local `clients` / `clients-probes` runs pending | [x] | See N-C4 evidence below |
+| N-C3 | [x] `ci_layer.py`: layers `parity-long`, `stability`, `core-repeat` (and N-C4's two), `NIGHTLY_LAYERS` result files, four self-test lines in `fast`; `ci_stability.py` (`restarts`, `replay`, `replay-check`, self-test); `ci_repeat.py` (repeat, parse, `classify`, self-test) | [x] | [x] | See N-C3 evidence below |
+| N-C4 | [x] `.github/actions/godot/action.yml`; `ci_godot.py` (`fetch`, `slice`, `coverage`, self-test); layers `clients`, `clients-probes` | [x] | [x] | See N-C4 evidence below |
 | N-C5 | [x] `.github/workflows/nightly.yml`; `ci_nightly.py` (`gate`, `verdict`, `report`, self-test); `ci.yml`'s five `-nightly` exclusions; `check_ci_pins.py`'s action-SHA rule | [ ] first scratch push (syntax) pending | [x] | See N-C5 evidence below |
 
 Commit mapping: N-C2 is `798ecf2`. N-C3 and N-C4's programs (`ci_stability.py`, `ci_repeat.py`,
@@ -1107,7 +1107,12 @@ mutation `len(failing) == len(usable)` → `>= 1` → "FAIL failed in one sample
 Local `uv run --locked python scripts/ci_stability.py restarts --binary target/release/mineworld` (laptop,
 32 s): ten cycles on market-town, one instance throughout, revision at each start = the last seen before
 the kill (5, 9, 15 … 54), perceived cursor 135 → 197, faults 0; the killed save replayed ("54 revision(s)
-re-executed from genesis, 205 fact(s) and 1 snapshot(s) reproduced byte for byte"); PASS. A-N8 static:
+re-executed from genesis, 205 fact(s) and 1 snapshot(s) reproduced byte for byte"); PASS. Local
+`ci_stability.py replay` (laptop): every world 300 days saved and replayed ("… reproduced byte for byte"),
+CA-13 `test result: ok. 1 passed` (14.9 s) on market-town's save, "replay PASS". MN-3 PASS: a lakeside
+300-day save copied, one byte of fact 200000 flipped with `sqlite3` (`"at":14524206` → `"at":04524206`)
+→ `replay-check` exit 1, "FAIL replay lakeside: exited 1: … replay diverged at revision r149075: fact
+200000 differs from the logged fact 200000"; the untampered save → PASS. A-N8 static:
 `--list` of `core`, `docs`, `parity`, `platforms`, `python`, `python-smoke` identical to `main`'s; `fast`
 = `main`'s plus the four self-test lines.
 
@@ -1118,7 +1123,17 @@ ed1daf0bf"; a second `fetch` used the unpacked copy (cache path). MN-10 PASS: Da
 altered → exit 1, "SHA-512 mismatch for Godot_v4.7.2-stable_macos.universal.zip: pinned …, downloaded …;
 nothing unpacked", the destination empty. Self-test 12 cases passed; mutation "no summary → PASS" →
 "FAIL no summary line is INCONCLUSIVE" and "FAIL an empty transcript is INCONCLUSIVE"; restored.
-`ci_godot.py coverage` (laptop): "25 ignored Godot tests …; skips none".
+`ci_godot.py coverage` (laptop): "25 ignored Godot tests …; skips none". Local `ci_layer.py clients`
+(laptop, `GODOT` = the fetched build): client_2d 8 passed, client_2d_interact 5, client_2d_interact_stub
+3, client_settings 9 (the three windowed tests among them); coverage; scratch clean; "layer clients
+passed: 4 command(s) in 598.0 s". Local `ci_layer.py clients-probes`: drive, link and target "PASS (exit
+0)" by their summary lines (64, 105, 51 s); `run.sh` evidence, affordances, reconnect, perceived, deltas,
+admin each exit 0; `ac13_semantic_parity` passed on the regenerated evidence; "layer clients-probes
+passed: 12 command(s) in 317.0 s" (the regenerated evidence was then restored with `git checkout`).
+MN-4b PASS: `ci_godot.py slice --limit 5 --drive` → "probe drive: INCONCLUSIVE (exit None, 5 s) … killed
+at the 5 s limit", exit 3, no Godot process left (the launcher's process group is killed).
+Finding during the local run: `ci_repeat.py` wrote the suite's output without flushing, so a log showed
+nothing until the run ended; fixed (flush per line) in the next commit.
 
 **N-C5 evidence:** `ci_nightly.py --self-test` 37 cases passed (MN-6's six gate cases among them);
 mutation of the gate's comparison (`==` → `!=`) → four MN-6 cases FAIL; restored. `check_ci_pins.py`

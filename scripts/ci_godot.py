@@ -15,6 +15,10 @@
         pass` line and no line beginning `FAIL`; a `<n> <MODE> CHECKS FAILED` line or a `FAIL` line is
         FAIL; neither summary (an early return, a crash, a hang killed at the limit) is INCONCLUSIVE.
         Exits 0, 1 or 3, and writes the decisive lines to artifacts/nightly/probe-<mode>.txt.
+    python3 scripts/ci_godot.py tests
+        The ignored Godot tests, one at a time (`--test-threads=1`: each starts Godot and a server), with
+        this OS's named skips (SKIPS below), through `ci_repeat.py` once so that a failing test is named in
+        artifacts/nightly/clients-tests.txt; the skips and their reasons go to artifacts/nightly/notes.txt.
     python3 scripts/ci_godot.py coverage
         Lists the ignored Godot tests (`cargo test … -- --ignored --list`) and fails if none is found, if
         a skip below names a test that does not exist, or if a test is skipped on every OS (QC-5).
@@ -38,6 +42,9 @@ import time
 import urllib.request
 import zipfile
 from pathlib import Path
+
+from ci_repeat import render as render_samples
+from ci_repeat import repeat
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "artifacts" / "nightly"
@@ -226,11 +233,30 @@ def kill_group(process: subprocess.Popen[bytes]) -> None:
 # ------------------------------------------------------------------------------------------- coverage
 
 
-def listed_tests() -> list[str]:
+def godot_tests_command(*libtest: str) -> list[str]:
     command = ["cargo", "test", "-p", "mineworld-cli"]
     for test in GODOT_TESTS:
         command += ["--test", test]
-    command += ["--", "--ignored", "--list"]
+    return [*command, "--", "--ignored", *libtest]
+
+
+def run_tests(system: str) -> int:
+    skips = SKIPS.get(system, {})
+    command = godot_tests_command("--test-threads=1", *[part for name in sorted(skips) for part in ("--skip", name)])
+    samples = repeat(1, command)
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "clients-tests.txt").write_text(render_samples(samples, command), encoding="utf-8", newline="\n")
+    if skips:
+        with open(OUT / "notes.txt", "a", encoding="utf-8", newline="\n") as out:
+            out.writelines(f"skipped on {system} (QC-5): {name} — {reason}\n" for name, reason in sorted(skips.items()))
+    failed = [sample for sample in samples if sample.status != 0 or sample.scratch != "clean"]
+    print(f"[godot] {len(skips)} test(s) skipped on {system} by name (QC-5); "
+          f"{'FAILED' if failed else 'passed'}", flush=True)
+    return 1 if failed else 0
+
+
+def listed_tests() -> list[str]:
+    command = godot_tests_command("--list")
     result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
     if result.returncode != 0:
         raise Unmet(f"{' '.join(command)} exited {result.returncode}:\n{result.stderr[-2000:]}")
@@ -291,7 +317,7 @@ def self_test() -> int:
 
 USAGE = ("usage: ci_godot.py fetch --dest DIR [--github-env FILE] [--github-path FILE]\n"
          "       ci_godot.py slice [--limit SECONDS] FLAGS ...\n"
-         "       ci_godot.py coverage | --self-test")
+         "       ci_godot.py tests | coverage | --self-test")
 
 
 def main(arguments: list[str]) -> int:
@@ -300,6 +326,8 @@ def main(arguments: list[str]) -> int:
             return self_test()
         if arguments == ["coverage"]:
             return coverage()
+        if arguments == ["tests"]:
+            return run_tests(platform.system())
         if arguments[:1] == ["slice"] and len(arguments) > 1:
             flags, limit = arguments[1:], SLICE_LIMIT
             if flags[0] == "--limit" and len(flags) > 2:

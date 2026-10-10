@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RUNNING = re.compile(r"^\s+Running \S.* \((?:.*[\\/])?(?P<binary>[^\\/]+?)-[0-9a-f]+(?:\.exe)?\)\s*$")
 FAILED = re.compile(r"^test (?P<test>\S+) \.\.\. FAILED\s*$")
 STARTED = re.compile(r"^running \d+ tests?\s*$")
+LISTED = re.compile(r"^    (?P<test>[A-Za-z_][\w:]*)\s*$")
 # `cargo test --no-fail-fast` lists failed targets at the end; a harness = false program reports here only.
 TARGET = re.compile(r"^\s+`(?P<target>-p \S+ --(?:test|lib|bin|bench|doc)(?: \S+)?)`\s*$")
 TARGET_ONE = re.compile(r"^error: test failed, to rerun pass `(?P<target>[^`]+)`\s*$")
@@ -56,17 +57,30 @@ class Sample:
 
 
 class Transcript:
-    """Reads a `cargo test` transcript line by line."""
+    """Reads a `cargo test` transcript line by line.
+
+    A failing test is named by its `test <name> ... FAILED` line or, because a test whose child process
+    writes to the shared stderr can split that line, by the `failures:` list libtest prints before
+    `test result: FAILED` (four-space-indented names, ended by a blank line)."""
 
     def __init__(self) -> None:
         self.binary = "?"
         self.ran = False
         self.failed: set[str] = set()
         self.targets: set[str] = set()
+        self.listing: list[str] | None = None
 
     def read(self, line: str) -> None:
         line = line.rstrip("\r\n")
-        if running := RUNNING.match(line):
+        if self.listing is not None:
+            if listed := LISTED.match(line):
+                self.listing.append(listed["test"])
+                return
+            self.failed.update(f"{self.binary}::{test}" for test in self.listing)
+            self.listing = None
+        if line == "failures:":
+            self.listing = []
+        elif running := RUNNING.match(line):
             self.binary = running["binary"]
         elif STARTED.match(line):
             self.ran = True
@@ -88,9 +102,11 @@ def repeat(times: int, command: list[str]) -> list[Sample]:
                                        stderr=subprocess.STDOUT)
             assert process.stdout is not None
             for raw in process.stdout:
-                text = raw.decode("utf-8", errors="replace")
-                sys.stdout.write(text)
-                transcript.read(text)
+                # The bytes as they came: a console code page (cp1252 on Windows) cannot encode every
+                # character a test prints, and a re-encoding failure must not end the sample.
+                sys.stdout.buffer.write(raw)
+                sys.stdout.buffer.flush()
+                transcript.read(raw.decode("utf-8", errors="replace"))
             status = process.wait()
         except OSError as error:
             print(f"[repeat] could not start {command[0]}: {error}", flush=True)
@@ -188,6 +204,26 @@ error: 2 targets failed:
     `-p mineworld-cli --test market_town`
     `-p mineworld-persistence --test kill_and_resume`
 """
+# A child process's stderr split the FAILED line; only libtest's `failures:` list names the test.
+SPLIT = """\
+     Running tests/client_settings.rs (target/debug/deps/client_settings-56a3f7e2)
+
+running 2 tests
+test two_d_display_settings_take_effect ... libpulse.so.0: cannot open shared object file
+FAILED
+test the_settings_folder_is_shared ... ok
+
+failures:
+
+---- two_d_display_settings_take_effect stdout ----
+    indented captured output
+thread 'two_d_display_settings_take_effect' panicked at tools/cli/tests/client_settings.rs:571:5:
+
+failures:
+    two_d_display_settings_take_effect
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
+"""
 BUILD_ERROR = """\
    Compiling mineworld-kernel v0.1.0
 error[E0425]: cannot find value `x` in this scope
@@ -213,6 +249,8 @@ def self_test() -> int:
     cases = [
         ("a passing transcript ran and failed nothing", passing.ran and not passing.failed and not passing.inconclusive()),
         ("a failing test is named with its binary", failing.failed == {"market_town::b_town_resumes"}),
+        ("a split FAILED line is named from libtest's failures list",
+         sample_of("s", SPLIT, 101).failed == {"client_settings::two_d_display_settings_take_effect"}),
         ("failed targets are read, a harness = false program's included",
          failing.targets == {"-p mineworld-cli --test market_town", "-p mineworld-persistence --test kill_and_resume"}),
         ("a Windows path names the binary", "mineworld_kernel" in RUNNING.match(FAILING.splitlines()[0]).group("binary")),  # type: ignore[union-attr]
