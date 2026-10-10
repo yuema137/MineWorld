@@ -1,0 +1,431 @@
+# PR S10-P5b — The native Anthropic adapter, and subscription access through the user's own CLI
+
+## PR design — ready for freeze review
+
+```text
+Design revision:        revision 1 (2026-10-09), as committed on plan/s10-p5
+Approved by / evidence: NOT YET. Freeze needs the primary session's approval, and the operator's
+                        rulings on QP5b-1 and QP5b-2 (terms of service; §4, §10)
+Implementation base:    main after P5a has merged (exact commit recorded in C0)
+Execution contract:     §9 (proposed; its authority lines are filled at freeze)
+Lifecycle:              DRAFT — ready for freeze review. Not frozen. Authorizes no implementation
+```
+
+**Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) §3.7 · **Depends on:**
+P5a, [`pr-s10-p5-backends.md`](pr-s10-p5-backends.md) (the interface, the gateway, budgets, recorder,
+`Secret`, `resolve_key`, the configuration). P5b changes none of P5a's seams (R-P5b-1 there).
+**Planning base:** `origin/main @ aee8290`, branch `plan/s10-p5`.
+**Decision identifiers:**
+
+- `DEP-33` (ruled to S10, 2026-10-09): the Anthropic adapter over `httpx2`, with the Anthropic SDK and
+  the Claude Agent SDK declined.
+- `ARC-60`, proposed: the subscription route and its terms gate. It is the last of S10's ARC range, and
+  needs the primary session's confirmation (QP5b-3).
+
+### The requirement, verbatim (operator, 2026-10-09)
+
+> 我们还需要提供api和订阅接口，这样才能支持非本地模型，比如gpt claude glm deepseek等……api通过.env
+> 之类的配置，subscription就用codex或者claude code本身的authorize验证
+
+MineWorld must support non-local models (GPT, Claude, GLM, DeepSeek and others) through two routes:
+API keys configured through a `.env`-style file, and subscriptions authorized by Codex's or Claude
+Code's own login. P5a delivers the API-key route for every OpenAI-compatible service. P5b delivers the
+native Claude adapter and the subscription route.
+
+**Unchanged and binding (QS10-19):**
+
+- no MVP-0 gate depends on a paid API or a subscription;
+- CI runs scripted backends and cassettes only;
+- live tests are operator-run and opt-in;
+- agents never read keys, never call a hosted model, and never run a model CLI with a real login.
+
+---
+
+## 1. Goal
+
+A user can bind a tier to Claude through their own Anthropic API key, with schema-constrained output,
+which Anthropic's OpenAI-compatibility layer cannot give. Where the vendor's terms allow it, as ruled
+by the operator, a user can also bind a tier to their **own** installed and logged-in model CLI. That
+route runs headlessly as that user. MineWorld never sees, stores or forwards the CLI's credentials.
+Both routes are ordinary `ModelBackend`s behind P5a's gateway, so budgets, cassettes, the provider-neutral
+key and the secret rules apply unchanged.
+
+## 2. Scope
+
+### 2.1 In scope
+
+- `backend/anthropic_messages.py`: `AnthropicMessagesBackend` over `httpx2`, `kind = "anthropic"`.
+- `backend/cli_bridge.py`: `CliBridgeBackend`, a generic runner for a model CLI. It handles discovery,
+  argv built from fixed literals, the prompt on stdin, an environment allowlist, an empty working
+  directory, timeouts that kill the process tree, and output parsing per preset.
+- `backend/presets/codex.py`: the `codex exec` preset (`kind = "codex-subscription"`), **conditional on
+  QP5b-2**.
+- `backend/presets/claude_code.py`: the `claude -p` preset (`kind = "claude-code-subscription"`),
+  **conditional on QP5b-1. Not built under the recommendation** (§4).
+- `config.py`:
+  - the `kind` union gains `anthropic`, plus the subscription kinds the operator rules in;
+  - the `acknowledge_terms` field;
+  - a refusal of `kind = "openai-compatible"` pointed at `api.anthropic.com` (AB-2).
+- Tests with **fake CLIs**: small Python scripts started as `[sys.executable, fake.py]`, and on Windows
+  also through a `.cmd` shim. No real CLI runs in a test or in CI.
+- `examples/hosted.toml.example`: a Claude-by-API-key example.
+- `README.md`: a "Subscriptions" section stating the terms evidence, the opt-in, and that API keys
+  are the recommended route.
+- `docs/DECISIONS.md` `DEP-33` and `ARC-60`.
+
+### 2.2 Not in scope
+
+| Not here | Why |
+| --- | --- |
+| Reading, refreshing or copying any CLI credential (`~/.codex/auth.json`, the OS keychain, `~/.claude`) | Prohibited by design (I-B1) and, for Claude, by Anthropic's terms ("developers may not collect, store, or intermediate Claude.ai credentials or session tokens") |
+| Installing, bundling or updating a CLI | The user installs their own. Bundling the Agent SDK would ship Claude Code itself (§4.3) |
+| Any agent or CI run against a real CLI, key or hosted API | QS10-19, §9 NEVER |
+| Tool use, files or MCP in a bridged CLI | A bridge asks one question and reads one answer; every agentic capability is disabled (D-B5) |
+| Prices or plan limits | Provider concepts. Calls and tokens only (P5a D-P5-8) |
+
+### 2.3 Invariants
+
+```text
+I-10   (P5a) no provider concept outside the adapters, the presets, the registry and config.py
+I-16   (P5a) no secret in any artefact; a key file's values never enter os.environ
+I-B1   MineWorld never reads, writes, copies or forwards a CLI's credentials. A bridge runs the user's
+       own CLI, which authenticates itself
+I-B2   a bridged CLI receives no MineWorld secret: its environment is an allowlist that holds no
+       *_API_KEY, no *_TOKEN and nothing from the env_file
+I-B3   no model-facing text in argv: the prompt goes through stdin, the schema through a temporary file;
+       argv holds only fixed literals and validated configuration values
+I-B4   a bridged call is bounded: the timeout kills the whole process tree on every platform
+I-B5   a subscription backend exists only when its preset was ruled in AND the user set
+       acknowledge_terms; replay and scripted modes never construct it
+```
+
+---
+
+## 3. Audit anchors
+
+| Anchor | What it establishes |
+| --- | --- |
+| P5a design: D-P5-2, D-P5-4, D-P5-5, D-P5-8, D-P5-9, D-P5-10, §5.3 | The interface, the no-SDK rule, lazy construction, budgets, keys and the gateway sequence that P5b plugs into |
+| `cognition/lm-controller/src/mineworld_cognition/backend/registry.py` (P5a; not yet on main) | Adapters are added by `kind`; C0 re-audits P5a's merged code before C1 |
+| `.gitignore` (after P5a) | `.env`, `*.env`, `.env.*`, `secrets*` |
+| Claude Code headless documentation (`code.claude.com/docs/en/headless`, read 2026-10-09) | `claude -p … --output-format json --json-schema '<schema>'`, with the result in `structured_output`. "`--bare` … Set `ANTHROPIC_API_KEY` … because bare mode doesn't use your subscription login." "Without `--bare`, a `-p` session runs the hooks in a project's `.claude/settings.json` and connects the servers in its `.mcp.json`, even in a folder you've never trusted." |
+| Codex authentication documentation (`learn.chatgpt.com/docs/auth`, the redirect target of `developers.openai.com/codex/auth`, read 2026-10-09) | ChatGPT sign-in or an API key. "Codex caches login details locally in a plaintext file at `~/.codex/auth.json` or in your OS-specific credential store." |
+| Codex non-interactive mode (search excerpts of `developers.openai.com/codex/noninteractive`, 2026-10-09; the page itself was not fetched) | `codex exec` takes the prompt as an argument or on stdin; `--json` streams JSON Lines events including `turn.completed` with token usage; `--output-schema FILE`; a read-only sandbox by default; `--skip-git-repo-check` outside a Git repository. **Re-verified in C1 against the installed version's `--help`, by the operator** (an agent does not run the CLI) |
+| `openai/codex` (GitHub API) | Apache-2.0, active (pushed 2026-10-09) |
+| Anthropic structured outputs (`platform.claude.com/docs/en/build-with-claude/structured-outputs`, 2026-10-09) | `output_config.format = {"type": "json_schema", "schema": …}`; no beta header; `additionalProperties: false` required; `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf` unsupported (400) |
+| Anthropic OpenAI-compatibility (`platform.claude.com/docs/en/api/openai-sdk`, 2026-10-09) | `response_format` "Ignored"; `seed` "Ignored"; `temperature` below 1 is "a 400 error" on Claude 4.7 and later; "not considered a long-term or production-ready solution for most use cases" |
+
+---
+
+## 4. Terms of service: the evidence, read 2026-10-09
+
+The pages carry no revision date unless one is given. Every quote is verbatim from the page named.
+
+### 4.1 Anthropic: Claude Code with a consumer subscription
+
+1. **Claude Code, "Legal and compliance"**, <https://code.claude.com/docs/en/legal-and-compliance>,
+   section "Authentication and credential use":
+   > **OAuth authentication** is intended exclusively for purchasers of Claude Free, Pro, Max, Team,
+   > and Enterprise subscription plans and is designed to support ordinary use of Claude Code and other
+   > native Anthropic applications.
+
+   > **Developers** building products or services that interact with Claude's capabilities, including
+   > those using the Agent SDK, should use API key authentication through Claude Console or a supported
+   > cloud provider. Anthropic does not permit third-party developers to offer Claude.ai login into
+   > their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf
+   > of their users. Moreover, developers may not collect, store, or intermediate Claude.ai credentials
+   > or session tokens — sign-in to a Claude account must complete through Anthropic's own flow.
+
+   > Nor does it prevent an end user from signing in to the unmodified Claude Code binary with their
+   > own Claude subscription, including where a platform hosts Claude Code as described under *Can
+   > customers offer Claude Code in their products?* above.
+
+   > Anthropic reserves the right to take measures to enforce these restrictions and may do so without
+   > prior notice.
+
+   And, under "Acceptable use":
+   > Advertised usage limits for Pro and Max plans assume ordinary, individual usage of Claude Code and
+   > the Agent SDK.
+2. **Agent SDK overview**, <https://code.claude.com/docs/en/agent-sdk/overview>:
+   > Unless previously approved, Anthropic does not allow third party developers to offer claude.ai
+   > login or rate limits for their products, including agents built on the Claude Agent SDK. Use the
+   > API key authentication methods described in the Quickstart instead.
+3. **Consumer Terms of Service**, <https://www.anthropic.com/legal/consumer-terms>, "Effective October
+   8, 2025", among the things a user may not do:
+   > Except when you are accessing our Services via an Anthropic API Key or where we otherwise
+   > explicitly permit it, to access the Services through automated or non-human means, whether through
+   > a bot, script, or otherwise.
+4. **Claude Code headless**, <https://code.claude.com/docs/en/headless>: the scripted mode Anthropic
+   recommends, `--bare`, "doesn't use your subscription login", and "In bare mode, Claude Code never
+   reads OAuth credentials or the system keychain."
+
+**Reading.** A MineWorld backend that runs `claude -p` to write NPC dialogue is a third-party product
+that routes model requests through the user's Free, Pro or Max credentials. Anthropic says it does "not
+permit" exactly that. The carve-out for "an end user signing in to the unmodified Claude Code binary"
+covers using Claude Code itself. It does not cover using Claude Code as the model endpoint of another
+product. The usage-limit note ("ordinary, individual usage") and the consumer terms' "automated or
+non-human means" clause point the same way. Anthropic may enforce "without prior notice", and the
+account at risk is the user's. The route that is explicitly allowed is **Claude by API key**, which
+P5b's native adapter provides.
+
+**Recommendation (QP5b-1, operator-material): drop the Claude Code subscription route.** Claude is
+supported through the user's own Anthropic API key (the `anthropic` kind). If the operator nevertheless
+wants the route, the only defensible form is §5.4's opt-in for the user's own local use: documented,
+not promoted, off by default, never in an example. This design does not recommend it.
+
+### 4.2 OpenAI: Codex CLI with a ChatGPT subscription
+
+1. **Codex authentication**, <https://learn.chatgpt.com/docs/auth>, the redirect target of
+   <https://developers.openai.com/codex/auth>. No date on the page.
+   > Sign in with ChatGPT for subscription access
+
+   > Use API key authentication for programmatic Codex CLI workflows, such as CI/CD jobs.
+
+   > API keys are still the recommended default for automation.
+
+   > Access tokens are intended for trusted scripts, schedulers, and private CI runners.
+
+   > Treat `~/.codex/auth.json` like a password.
+
+   > Don't expose Codex execution in untrusted or public environments.
+2. **OpenAI Terms of Use**, <https://openai.com/policies/terms-of-use/>. Search excerpts show
+   "Effective: January 1, 2026"; the page answered our fetcher with HTTP 403, so the quote is from the
+   excerpts and is re-read by the operator before freeze. Among the things a user may not do:
+   > Automatically or programmatically extract data or Output (defined below).
+3. **Not found:** any OpenAI text that explicitly permits, or explicitly forbids, a third-party
+   application running `codex exec` with the user's ChatGPT plan.
+
+**Reading.** This is unclear rather than forbidden. `codex exec` is OpenAI's own documented
+non-interactive mode, and the user runs it as themselves. But OpenAI recommends API keys "for
+automation". "Access tokens are intended for trusted scripts … and private CI runners." The consumer
+terms bar programmatic extraction of output. A game's NPC driven by `codex exec` is automation in
+plain words.
+
+**Recommendation (QP5b-2, operator-material): an opt-in for the user's own local use, documented but
+not promoted.** It is built in P5b behind §5.4's gate. The README states that OpenAI recommends API
+keys for automation, and that the user is responsible for their plan's terms. OpenAI models by API key
+(P5a's OpenAI-compatible adapter) remain the recommended route. The alternative is to drop the route,
+as for Claude.
+
+### 4.3 Libraries considered for the two routes
+
+| Candidate | Licence (verified) | Verdict |
+| --- | --- | --- |
+| **`anthropic` SDK** | MIT; 1.13.0; depends on `httpx2`, `anyio`, `docstring-parser`, `jiter`, `pydantic`, `sniffio`, `typing-extensions` | **REJECT** (`DEP-33`), for QP5-1's reasons. It reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` when an argument is omitted. **This behaviour is not re-verified this session; C1 reads `_client.py` and records it.** Its retries hide calls from the ledger. The Messages request P5b needs is one POST over the `httpx2` we already depend on. QP5-1's ruling asks for this comparison, and it finds no reason to take the SDK |
+| **`claude-agent-sdk`** | MIT; 0.2.165. "The Claude Code CLI is automatically bundled with the package" | **REJECT.** Depending on it would ship Claude Code inside MineWorld, which needs Anthropic's Commercial Terms ("preinstalling or running Claude Code in your products … requires agreeing to our Commercial Terms of Service"). Its documentation forbids exactly the subscription login this route would use (§4.1 (2)) |
+| **Anthropic's OpenAI-compatibility layer** through P5a's adapter | — | **REJECT** for Claude: `response_format` and `seed` are ignored, and a temperature below 1 is refused on recent models (§3). `config.load` refuses `openai-compatible` at `api.anthropic.com` and names the `anthropic` kind (AB-2) |
+| **An OpenAI or Codex SDK for the bridge** | — | **REJECT.** The bridge's contract is the CLI's documented command line, not a library. It works with whatever version the user installed |
+| **Our adapter over `httpx2`, and a subprocess bridge on the standard library's `asyncio.create_subprocess_exec`** | — | **CHOSEN**: no new dependency |
+
+---
+
+## 5. Design
+
+### 5.1 `AnthropicMessagesBackend` (`kind = "anthropic"`)
+
+- **Request.** `POST {base_url}/v1/messages`, where `base_url` defaults to nothing and must be given:
+  `https://api.anthropic.com` in the example. Headers: `x-api-key` from `resolve_key(key_env, …)`, and
+  `anthropic-version: 2023-06-01`. There is no `Authorization` header.
+- **Mapping from `CompletionRequest`:**
+  - `system` messages are joined with `"\n"` into the top-level `system`;
+  - `user` and `assistant` messages map in order;
+  - `max_tokens` = `max_output_tokens`;
+  - `temperature` is sent only when `temperature = "send"`, and the default for this kind is `"omit"`;
+  - `seed` is not sent (the API has none);
+  - `output_config.format = {"type": "json_schema", "schema": lowered(output_schema)}` when a schema is
+    present and `structured_output = "json_schema"`.
+- **Schema lowering** is a pure, deterministic function inside the adapter:
+  - it removes the keywords Anthropic refuses (`minLength`, `maxLength`, `minimum`, `maximum`,
+    `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems` above 1, `maxItems`);
+  - it sets `additionalProperties: false` on every object.
+
+  The cassette key is computed on the **unlowered** request (P5a D-P5-6), so it is unchanged. P6's
+  local Pydantic validation still enforces every removed bound.
+- **Response.**
+  - Text blocks are concatenated.
+  - `stop_reason`: `end_turn` and `stop_sequence` → `complete`; `max_tokens` → `length`; `refusal` →
+    `refused`; anything else → `malformed_response`.
+  - `usage.input_tokens` and `usage.output_tokens` map directly.
+  - HTTP 401 and 403 → `unauthorized`; 429, 500 and 529 → `http_status(code)`.
+  - No retry.
+
+### 5.2 `CliBridgeBackend`: running the user's own CLI
+
+```text
+complete(request):
+  1. workdir = a fresh empty temporary directory (tempfile.mkdtemp); removed afterwards
+  2. if a schema: write it to workdir/schema.json (UTF-8, LF); the preset passes the PATH, not the text
+  3. argv = preset.argv(config, schema_path)   # fixed literals + validated config values only (I-B3)
+  4. env  = allowlist(os.environ)              # I-B2; see D-B3
+  5. proc = asyncio.create_subprocess_exec(*argv, cwd=workdir, env=env, stdin=PIPE, stdout=PIPE,
+                                           stderr=PIPE, **platform_group_flags)
+  6. write preset.render_prompt(request) to stdin as UTF-8; close stdin
+  7. read stdout under the gateway's timeout; on timeout → kill_tree(proc) (D-B4) → Failed(timeout)
+  8. exit code ≠ 0 → BackendFailure(unreachable | unauthorized | http_status) by preset.classify(stderr
+     first line, exit code). The message carries the first 200 characters of stderr only after the
+     secret scrub of P5a, and never stdout
+  9. preset.parse(stdout) → Completion(text, finish, usage | estimated)
+```
+
+### 5.3 Decisions
+
+| ID | Decision | Reason |
+| --- | --- | --- |
+| **D-B1** | **Discovery.** `command: list[str] \| None` in the backend's configuration. When absent, `shutil.which("codex")` (or `"claude"`) is used, which honours `PATHEXT` on Windows and so finds `codex.exe` or the npm shim `codex.cmd`. A missing executable is `BackendFailure("unreachable")` naming the command looked for and suggesting `command = [...]`. There is no fallback search of install directories. | Explicit, platform-correct, and testable with a fake (`command = [sys.executable, "fake_codex.py"]`). |
+| **D-B2** | **Prompt by stdin, schema by file path, nothing model-facing in argv** (I-B3). argv holds only preset literals, the temporary schema path (generated, ASCII), and `model`, validated against `^[A-Za-z0-9._:/-]{1,128}$`. | On Windows a `.cmd` shim is run through `cmd.exe`, whose argument parsing is the source of the "BatBadBut" class of injection (CVE-2024-24576 and relatives). Player speech reaches the prompt, so the prompt must never reach argv. |
+| **D-B3** | **An environment allowlist.** The child receives only: `PATH`, `PATHEXT`, `SYSTEMROOT`, `COMSPEC`, `WINDIR`, `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `TEMP`, `TMP`, `TMPDIR`, `LANG`, `LC_ALL`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, and the preset's home variable (`CODEX_HOME`; `CLAUDE_CONFIG_DIR`), each only if set. Every `*_API_KEY`, `*_TOKEN`, `OPENAI_*`, `ANTHROPIC_*` and every `env_file` value is absent. | I-B2. It also keeps the route honest: with `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` passed through, the CLI would silently bill an API key instead of the user's subscription. |
+| **D-B4** | **Kill the tree.** POSIX: `start_new_session=True`, then `os.killpg(pgid, SIGKILL)`. Windows: `CREATE_NEW_PROCESS_GROUP`, then `taskkill /T /F /PID <pid>` (a system binary, argv only). `Process.kill()` alone is not enough: a `.cmd` shim or a Node launcher leaves its child running. | I-B4. Claude Code's own documentation notes that SIGTERM leaves turns unfinished. A bridge needs a hard bound. |
+| **D-B5** | **No agentic capability.** Each preset passes the CLI's own switches for a single, tool-less answer: a read-only sandbox, no tools, no MCP, one turn. It runs in an empty temporary directory, so no project file (`CLAUDE.md`, `.mcp.json`, `.claude/settings.json`, `AGENTS.md`) can be picked up. The exact switches are confirmed against the CLI's `--help` **by the operator** in C1, never by an agent running it. | The documentation shows that `claude -p` without `--bare` "runs the hooks in a project's `.claude/settings.json` and connects the servers in its `.mcp.json`". An empty working directory removes the project half; the user's own global configuration remains theirs. |
+| **D-B6** | **The gate (I-B5).** A subscription kind is accepted by `config.load` only if its preset was ruled in (QP5b-1, QP5b-2) **and** the backend sets `acknowledge_terms = "<kind>"`. Otherwise `ConfigError` names the README section with §4's evidence. `replay` and `scripted` modes never construct it (P5a D-P5-5). No shipped example enables one. | The operator's ToS instruction: opt-in for the user's own local use, documented but not promoted. |
+| **D-B7** | **The same budgets and cassettes.** A bridged call passes P5a's gateway like any other. The budget pre-check happens **before** the process is spawned. Tokens come from the CLI's usage report (Codex's `turn.completed`; Claude Code's JSON `usage`), else they are estimated. Cassettes record the binding name and model as metadata, never the command line. | The operator: "subscription calls count against the same wall-time budgets". `AC-4`: a cassette recorded through a bridge replays under any backend. |
+| **D-B8** | **Timeouts.** A bridge's per-call bound is `request_timeout_s`, defaulting to the gateway's `call_timeout_s` (20 s). CLI start-up cost is not measured here; the operator's spike (P5a C7) may measure a bridge if they wish. | No agent can measure it (§9 NEVER). |
+
+### 5.4 The presets
+
+**Codex (`kind = "codex-subscription"`, conditional on QP5b-2).**
+
+- argv: `codex exec --skip-git-repo-check --sandbox read-only --json --output-schema <schema_path>
+  [-m <model>] -`. The trailing `-` reads the prompt from stdin, *as documented*; the exact form is
+  confirmed in C1.
+- The prompt renders `CompletionRequest.messages` as role-labelled sections. This rendering is the
+  preset's, and the key is computed before it.
+- Output: JSON Lines events. The final agent message is the completion text; `turn.completed` carries
+  usage; `turn.failed` maps to `BackendFailure`.
+- `--output-schema` requires strict schemas: the same lowering as §5.1 sets `additionalProperties:
+  false`.
+
+**Claude Code (`kind = "claude-code-subscription"`): NOT BUILT under the recommendation (QP5b-1).**
+
+If the operator rules it in as an opt-in:
+
+- argv: `claude -p --output-format json --json-schema-file <schema_path>`, *or* `--json-schema` with
+  the schema text if no file form exists. Schema text is generated by us and contains no player
+  speech; C1 records which form exists. Then `--max-turns 1` and the tool-disabling switch, and never
+  `--bare`, because bare mode does not use the subscription.
+- Output: `structured_output` and `usage` from the JSON result.
+
+---
+
+## 6. Adversarial criteria (fixed now, before anything is measured)
+
+| ID | Criterion | Mutation that must fail it |
+| --- | --- | --- |
+| **AB-1** Anthropic mapping | Over a mock transport: the exact body for one literal request. `system` is hoisted; there is no `temperature` by default and no `seed`; `output_config.format` carries the lowered schema with `maxLength` removed and `additionalProperties: false` set. The header `x-api-key` is present and `Authorization` absent. The cassette key equals the key of the unlowered request. Response mapping for `end_turn`, `max_tokens` and `refusal`, and for 401, 429 and 529. One call per `complete` (no retry). | Compute the key after lowering: the key differs from P5a's literal. Send `temperature` by default: the body differs. |
+| **AB-2** The compatibility layer is not used for Claude | `kind = "openai-compatible"` with a `base_url` on `api.anthropic.com` raises `ConfigError` naming `kind = "anthropic"` and the reason (`response_format` ignored). | Remove the check: the configuration loads. |
+| **AB-3** No secret reaches a CLI | Fake CLI `fake_cli.py` writes its environment, argv and working directory to a file the test names. The test plants `MWTEST-…` in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CODEX_API_KEY`, an unrelated `FOO_TOKEN`, and in the `env_file`. None appears in the child's environment, argv or stdin. The working directory is an empty temporary directory, removed after the call. | Pass `os.environ` through: the planted values appear. |
+| **AB-4** No model-facing text in argv | A request whose user message is `"& calc.exe %PATH% $(id) \"; rm -rf /` plus 10 KB of text. The fake CLI's argv contains none of it, and its stdin contains all of it byte for byte. On the Windows CI leg the same test runs through a `fake_codex.cmd` shim found by `shutil.which` (PATHEXT). | Put the prompt in argv: the scan finds it, and on Windows the shim mangles it. |
+| **AB-5** The timeout kills the tree | The fake CLI starts a grandchild that sleeps 60 s, then sleeps itself. With a 1 s timeout, `Failed(timeout)` arrives within 2 s, and **both** process ids are gone within 3 s, on Linux, macOS and Windows. | Use `proc.kill()` only: the grandchild survives, and the test names its pid. |
+| **AB-6** MineWorld never touches CLI credentials | A source scan of `cognition/lm-controller/src` finds no `auth.json`, `.codex`, `.claude`, `.credentials`, `keychain`, `keyring` or `CLAUDE_CODE_OAUTH`. The fake CLI's recorded environment holds no credential path variable other than the allowlisted home variables. | Plant a read of `~/.codex/auth.json` in `codex.py`: the scan fails at that line. |
+| **AB-7** The gate | A subscription kind without `acknowledge_terms` raises `ConfigError` pointing to the README section. A kind not ruled in is unknown to the registry (`ConfigError: unknown kind`). In `replay` mode a configuration naming a subscription backend constructs no bridge: the fake CLI's spawn counter is 0. A missing executable gives `BackendFailure("unreachable")` naming the command. | Construct backends eagerly: the spawn counter is non-zero in replay. |
+| **AB-8** Budgets bound the bridge | With the per-seat ceiling at 20 calls per wall hour (FakeClock), the 21st call is refused, and the fake CLI's spawn counter stays at 20. The usage from the fake's `turn.completed` is charged; a fake without usage is charged the estimate, flagged as estimated. | Check the budget after spawning: the counter reaches 21. |
+| **AB-9** Every platform | AB-1 … AB-8 pass on `ubuntu-24.04`, `windows-2025` and `macos-15` in the PR's CI. AB-4's `.cmd` path is Windows-only, and is shown to have run there by name in the CI log. | Hard-code `os.killpg`: Windows fails on AB-5. |
+| **AB-10** Scope and isolation | The diff touches only `cognition/lm-controller/**`, `docs/DECISIONS.md`, `.structured-coding/**`, and the README and examples. No CI command names a real CLI, key or hosted URL. `ci_layer.py` is unchanged. | — (a diff gate) |
+
+---
+
+## 7. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-B1 | A vendor changes its terms, or enforces against users of the bridge. | Opt-in only, documented with dated evidence (§4); no example enables it; API keys are the recommended route. The README tells the user to check the current terms. A terms change is a reason to remove a preset, which is one file plus one registry line. |
+| R-B2 | CLI flags change between versions. | The preset is one file. A changed flag fails with the CLI's own error, classified `malformed_response` or `unreachable` and naming the command. C1 records the version the operator checked. |
+| R-B3 | The user's global CLI configuration (hooks, MCP servers in `~/.claude` or `~/.codex`) runs during a bridged call. | It is the user's own, run as them. The empty working directory removes project configuration. The README says so. MineWorld cannot and does not disable the user's global configuration. |
+| R-B4 | CLI start-up adds seconds per call. | The timeout bounds it. The operator's spike may measure it; P6's fallback applies on timeout. |
+| R-B5 | `taskkill` is unavailable or slow on Windows. | It is part of every supported Windows. AB-5 runs on the Windows CI leg. The fallback is a Job Object through `ctypes`, recorded as a deviation if needed. |
+
+---
+
+## 8. Commit plan
+
+### C0 — Freeze, contract, re-audit of P5a's merged code
+
+- [ ] Implementation: the `DESIGN FROZEN` header with the operator's QP5b-1 and QP5b-2 rulings; §9
+  filled; handoff `handoff-s10-p5b.md`.
+- [ ] Validation: both doc checks.
+- [ ] Review: P5a's registry, configuration and gateway on `main` match §3's assumptions. Any
+  difference is recorded here before C1.
+
+### C1 — Decisions and the operator's CLI check
+
+- [ ] Implementation:
+  - `DEP-33` (§4.3);
+  - `ARC-60`, the subscription route: the terms evidence, the gate, I-B1 … I-B5;
+  - the README's "Subscriptions" section.
+
+  The operator pastes `codex exec --help` (and, if QP5b-1 rules it in, `claude --help`) from their own
+  machine. The preset flags are fixed from that text and recorded with the CLI versions.
+- [ ] Validation: both doc checks; the README section quotes §4 with dates and URLs.
+- [ ] Review: no claim about a flag rests on anything but the pasted help or the documentation.
+
+### C2 — `AnthropicMessagesBackend`
+
+- [ ] Implementation: §5.1; registry entry; AB-2's check in `config.py`.
+- [ ] Validation: AB-1 and AB-2 with their mutations; P5a's AP5-9 secret test re-run with
+  `kind = "anthropic"` (the `x-api-key` header must be received by the mock, and found nowhere else).
+- [ ] Review: only `anthropic_messages.py` imports `httpx2` among P5b's files.
+
+### C3 — `CliBridgeBackend` core
+
+- [ ] Implementation: §5.2, D-B1 … D-B5, D-B7, D-B8; fake CLIs under `tests/fakes/`.
+- [ ] Validation: AB-3, AB-4, AB-5, AB-6 and AB-8 with their mutations, over a test-only `fake`
+  preset.
+- [ ] Review: argv construction has no string formatting of request content; stderr is scrubbed
+  before entering any message.
+
+### C4 — The Codex preset (conditional on QP5b-2)
+
+- [ ] Implementation: §5.4 Codex; `acknowledge_terms`; README usage.
+- [ ] Validation: AB-7 with its mutation; the preset parses a **recorded fake** event stream built
+  from the documentation's event names; the fake CLI exercises `turn.failed`.
+- [ ] Review: no shipped example enables the kind.
+- **N/A** if QP5b-2 rules "drop", with the ruling as the reason.
+
+### C5 — The Claude Code preset (conditional on QP5b-1; N/A under the recommendation)
+
+- [ ] As C4, for §5.4 Claude Code. **N/A** unless the operator rules it in.
+
+### C6 — CI and close-out
+
+- [ ] Implementation: README; ledger; handoff closed.
+- [ ] Validation: AB-9 on three CI legs; AB-10; the whole Python suite and static checks; both doc
+  checks.
+- [ ] Review: §2.3 against the diff; every `[x]` with evidence.
+- **Stop:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`.
+
+---
+
+## 9. Execution contract (proposed; filled at freeze)
+
+```text
+PROJECT / PR:            MineWorld mvp0, S10 PR P5b — native Anthropic adapter; subscription bridges
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p5b-hosted-subscriptions.md
+RELATED / BINDING DOCS:  pr-s10-p5-backends.md (P5a, merged first); step-17-cognition.md §3.7;
+                         docs/ARCHITECTURE.md §9.2; docs/REUSE_POLICY.md; CLAUDE.md
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5b
+BRANCH:                  mvp0/pr-s10-p5b-hosted, created from main after P5a merges
+APPROVED SCOPE:          §2.1, with C4 and C5 as the operator rules
+FROZEN INVARIANTS:       §2.3; D-B1 … D-B8; P5a's invariants; QS10-19
+SEQUENCE:                C0 … C6 (C4 and C5 conditional)
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n
+NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; running a real `codex` or
+                         `claude` binary (help text comes from the operator); reading any key file,
+                         ~/.config/mineworld/secrets.env, ~/.codex, ~/.claude or a keychain; using any
+                         API key; calling any hosted API; running or downloading any model
+MATERIAL STOPS:          any change to P5a's seams; any dependency (P5b adds none); a preset the operator
+                         did not rule in; any CI command naming a real CLI
+PLATFORMS:               Linux, macOS, Windows (AB-9)
+VALIDATION BUDGET:       unit and fake-CLI integration: unrestricted. Real CLIs, keys, hosted models: none
+ENDPOINT AUTHORITY:      (filled at freeze); merge: explicit operator authorization only
+STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+## 10. Questions
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QP5b-1 [operator — terms of service]** | Claude through the user's Claude Code subscription (`claude -p`)? | **Drop it.** Anthropic: "Anthropic does not permit third-party developers to … route requests through Free, Pro, or Max plan credentials on behalf of their users", enforced "without prior notice" (§4.1). Claude stays fully supported through the user's own API key and the native adapter. The only alternative is an opt-in for the user's own local use, which this design does not recommend for Claude. |
+| **QP5b-2 [operator — terms of service]** | Codex through the user's ChatGPT plan (`codex exec`)? | **Opt-in for the user's own local use, documented but not promoted** (D-B6). OpenAI's text is unclear rather than forbidding: it recommends API keys for automation, and its consumer terms bar programmatic extraction of output (§4.2). The alternative is to drop it. |
+| QP5b-3 [primary] | `ARC-60` for the subscription route? It is S10's last ARC number; P4 needs one (`ARC-59`), and P6 will likely need more. | **Yes**, and allocate further ARC numbers to S10 before P6 is designed. |
+| QP5b-4 [primary] | The native Anthropic adapter over `httpx2`, with the `anthropic` SDK declined (`DEP-33`), as QP5-1's ruling asked to compare? | **Yes**, for QP5-1's reasons. The SDK's implicit environment reads are re-verified in C1. |
+| QP5b-5 [primary] | P5b after P5a, possibly in parallel with P4? | **Yes.** P5b touches no file P4 touches beyond the registry line. |
+| QP5b-6 [operator] | Present Claude by API key, OpenAI by API key, DeepSeek and GLM as the recommended hosted routes in the README, with subscriptions listed after them as a user's own opt-in? | **Yes.** It matches the vendors' own guidance and keeps the user's account safe. |

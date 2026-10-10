@@ -1,11 +1,12 @@
-# PR S10-P5 — Model backends, the recorder and cassettes, cognition budgets
+# PR S10-P5a — Model backends, the recorder and cassettes, cognition budgets, API keys
 
 ## PR design — ready for freeze review
 
 ```text
-Design revision:        this document as committed on plan/s10-p5
-Approved by / evidence: NOT YET. Freeze requires the primary session's approval, and the operator's
-                        answers to the questions marked [operator] in §12 (QP5-2, QP5-3)
+Design revision:        revision 2 (2026-10-09): the rulings on QP5-1 … QP5-9 and the operator's
+                        requirement for API and subscription access, as committed on plan/s10-p5
+Approved by / evidence: NOT YET. Freeze requires the primary session's approval. The operator answered
+                        QP5-2 and QP5-3 on 2026-10-09 (§12); no P5a question is operator-material now
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
 Execution contract:     §11 (proposed; its authority lines are filled at freeze)
 Lifecycle:              DRAFT — ready for freeze review. Not frozen. Authorizes no implementation
@@ -17,13 +18,32 @@ Lifecycle:              DRAFT — ready for freeze review. Not frozen. Authorize
 and `DEP-24 … DEP-27`), and §5 "Operator requirements and rulings, 2026-10-08 to 2026-10-09".
 **Predecessor:** P3, the Python SDK, merged as #98 (`285c152`):
 [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md).
-**Working name:** P5. The PR number is assigned at freeze.
+**Working name:** P5a. The PR number is assigned at freeze.
+**The split (revision 2).** The operator's requirement of 2026-10-09 (below) adds hosted APIs and
+subscriptions. P5 is therefore two PRs:
+
+- **P5a, this document:**
+  - the interface, the key, the recorder, the budgets and the configuration;
+  - the one OpenAI-compatible adapter, which also serves every hosted OpenAI-compatible API (OpenAI,
+    DeepSeek, Zhipu GLM, …);
+  - **API keys** from the process environment or from a `.env`-style file.
+- **P5b, [`pr-s10-p5b-hosted-subscriptions.md`](pr-s10-p5b-hosted-subscriptions.md):**
+  - the native Anthropic Messages adapter;
+  - the **subscription** route, which runs the user's own logged-in CLI;
+  - the terms-of-service evidence that gates the subscription route.
+
+  P5b depends on P5a and changes none of P5a's seams.
+
+**Decision numbers (QP5-6, ruled):** `ARC-57`, `ARC-58` and `DEP-27` as proposed. S10 also holds
+`DEP-32` and `DEP-33`. P5a uses `DEP-32` for `python-dotenv` (§4.2b); P5b uses `DEP-33`.
 **Planning base:** `origin/main @ bc4f8e7` (#108, the operator-requirements index, on top of #98).
 Branch of this design: `plan/s10-p5`.
-**Decision identifiers:** proposed in S10's range. `ARC-57` for budgets (step-17 placeholder
-`ARC-S10-d`), `ARC-58` for recorded model outputs (`ARC-S10-e`), and `DEP-27` for the HTTP client and
-the decision to depend on no provider SDK. This replaces `DEP-S10-a` (QP5-1). The primary session
-confirms the mapping at freeze (QP5-6).
+**Decision identifiers (ruled 2026-10-09):**
+
+- `ARC-57`, budgets (step-17 placeholder `ARC-S10-d`);
+- `ARC-58`, recorded model outputs (`ARC-S10-e`);
+- `DEP-27`, the HTTP client and the decision to depend on no provider SDK, replacing `DEP-S10-a`;
+- `DEP-32`, `python-dotenv`.
 
 ### Binding rulings this design is written under
 
@@ -35,6 +55,11 @@ confirms the mapping at freeze (QP5-6).
 | **`CLAUDE.md` §4 rules 3, 10** | No LM-provider concept in cognition contracts. Core tests never need a live model; they use recorded cognition. | I-10, I-11, D-P5-2, D-P5-5, AP5-5, AP5-10 |
 | **`AC-4`** | Swapping the LM backend needs no World Pack edits. | D-P5-3, AP5-8 (the seam half; the scenario half is P7's IC-6) |
 | **QS10-2** (operator, accepted 2026-10-08) | A local model, chosen by a spike against fixed criteria. | C7 (the spike tool), QP5-2, QP5-3 |
+| **QP5-2** (operator, 2026-10-09) | Start from `qwen3.5:4b`; the spike settles the final choice. | §4.4, AP5-S, C7 |
+| **QP5-3** (operator, 2026-10-09) | The operator runs the spike personally before P6 freezes. Agents never run, pull or download a model. | C7, §11 NEVER |
+| **QP5-1** (primary, 2026-10-09) | Yes: `httpx2`, no provider SDK. Revisit only if the native Anthropic adapter needs one, as a compared and recorded decision. | D-P5-4; P5b re-compares the Anthropic SDK |
+| **QP5-4, -5, -7, -8, -9** (primary, 2026-10-09) | As recommended. | D-P5-8, D-P5-1, §2.2, D-P5-12 |
+| **API and subscription access** (operator, 2026-10-09), verbatim: "我们还需要提供api和订阅接口，这样才能支持非本地模型，比如gpt claude glm deepseek等……api通过.env 之类的配置，subscription就用codex或者claude code本身的authorize验证" | MineWorld also supports non-local models (GPT, Claude, GLM, DeepSeek, …) through API keys configured in a `.env`-style file, and through subscriptions authorized by Codex's or Claude Code's own login. QS10-19 still holds: no MVP-0 gate depends on any paid API or subscription; CI runs scripted backends and cassettes only; live tests are operator-run and opt-in; agents never read keys or call hosted models. | P5a: §4.1b, §4.2b, D-P5-9, D-P5-14, AP5-9, AP5-13. P5b: the Anthropic adapter and the subscription route |
 
 ---
 
@@ -49,7 +74,10 @@ keyed by a hash of the provider-neutral request, so one cassette replays under a
 is a **budget gate**: per-seat call and token ceilings keyed on wall time, a process-wide limit on calls
 in flight, and a per-call timeout. All four sit in front of every backend. P5 also adds the operator's
 TOML configuration for backends, tier bindings, budgets and recording mode. In it, a key appears only as
-the **name** of an environment variable. P5 creates the `cognition/lm-controller` package
+the **name** of an environment variable. The value of that variable comes from the process
+environment, or from a `.env`-style file at a path the operator chooses (D-P5-9). With that, the same
+adapter reaches a hosted OpenAI-compatible API such as OpenAI, DeepSeek or Zhipu GLM, configured by the
+user. P5 creates the `cognition/lm-controller` package
 (`mineworld-cognition`), adds a provider-concept scan, and ships an operator-run spike tool that will
 choose the default local model. Nothing in P5 calls a model in tests or CI. Nothing in it makes a social
 decision, holds memory or joins a seat: those are P6 and P4.
@@ -72,8 +100,19 @@ decision, holds memory or joins a seat: those are P6 and P4.
   the in-flight limiter, the timeout, and `GateOutcome`.
 - `gateway.py`: `ModelGateway`, which composes budget gate → recorder → backend for one tier binding.
   `Router` maps a tier to a gateway, or to nothing.
-- `config.py`: the TOML configuration model (`tomllib` plus Pydantic), with the sections P5 owns:
-  `[backends.*]`, `[tiers]`, `[budgets]` and `[recording]`.
+- `config.py`: the TOML configuration model (`tomllib` plus Pydantic), with the sections P5a owns:
+  `[backends.*]`, `[tiers]`, `[budgets]`, `[recording]` and `[secrets]`.
+- `secrets.py`: `Secret`, and `resolve_key(name, env_file)`. It reads the process environment, or a
+  `.env`-style file through `python-dotenv`'s `dotenv_values(path, interpolate=False)`, which never
+  writes to `os.environ` (D-P5-9, `DEP-32`).
+- `.gitignore`: `.env.*`, with `!.env.example` re-included, beside the existing `.env` and `*.env`
+  (§3).
+- `cognition/lm-controller/examples/`:
+  - `hosted.toml.example`: OpenAI, DeepSeek and Zhipu GLM as OpenAI-compatible backends, each with
+    `key_env` only;
+  - `.env.example`: variable names with empty values.
+
+  Neither is used by any test or CI job.
 - Tests under `cognition/lm-controller/tests/`, a test cassette directory `tests/cassettes/`, and the
   provider-concept scan (`tests/test_provider_scan.py`, the P5 half of IC-10).
 - `cognition/lm-controller/tools/model_spike.py`: the operator-run spike (QS10-2). Agents and CI never
@@ -94,6 +133,8 @@ decision, holds memory or joins a seat: those are P6 and P4.
 | Memory, compression, `AC-10`, the memory store | P4, after S11-C's `mineworld perceived` | P4 |
 | Config keys `server`, `seats`, `store`, and `python -m mineworld_cognition` | They bind seats, which P6 does | P6 extends `config.py` |
 | `OllamaNativeBackend` (`/api/chat`, `format=`, `options.num_ctx`, `think`) | Added only if the spike shows `/v1` insufficient (QS10-3, A-3). `CLAUDE.md` §4 rule 11 | conditional: a follow-up PR, or P6, on spike evidence (QP5-7) |
+| The native Anthropic Messages adapter | Anthropic's OpenAI-compatibility layer ignores `response_format` and `seed`, and refuses `temperature` below 1 on recent models (§4.1b). Claude needs its own adapter | **P5b** |
+| Subscription access through the user's Claude Code or Codex login | Gated by terms-of-service evidence and an operator decision | **P5b** |
 | Recording a cassette from a real model, and running the spike | Needs a running local model. Under the brief, agents run no model. The operator runs it (QP5-3) | operator, before P6's freeze |
 | A live test against two real OpenAI-compatible servers (QS10-5's live `AC-4` variant) | Operator-run, optional | marker `live_model`, never in CI (D-P5-12) |
 | The `AC-4` scenario test (IC-6) and removability (IC-7) | They need P6's controller and P7's scenario | P7. P5 proves the seam (AP5-8) |
@@ -115,7 +156,8 @@ I-10   no provider concept (a provider name, a model name, an endpoint, a key) i
        backend/registry.py and config.py
 I-11   the full Python suite passes with no model reachable and outbound network blocked except loopback.
        P5 adds: no test reaches a model on loopback either (AP5-5, AP5-6)
-I-16   no secret is written anywhere: log, cassette, ledger, exception message or repr
+I-16   no secret is written anywhere: log, cassette, ledger, save, exception message, repr or CI
+       output; a key file's values never enter os.environ
 INV-14 simulation semantics never depend on the model provider: P5 has no path into the world at all
 P5-1   (new) replay is strict: a cassette miss raises CassetteMiss and never reaches a backend
 P5-2   (new) the budget gate decides before the recorder and the backend; a refused call reaches neither
@@ -144,6 +186,7 @@ Each row was read in this planning session. The implementing session re-reads ea
 | `overall.md` §5, decision-number table | "S10 P3: ARC-56; DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed)." |
 | `step-17` §3.7, §3.10, §3.11, §4.1, §4.5 | The step design P5 implements, with two refinements: QS10-18's wall-time keys, and the HTTP client (QP5-1). |
 | `pr-s10-p3-python-sdk.md` §12 | DV-P3-2: with `--allow-hosts` set, pytest-socket's guard is connect-only and **allows loopback**. A local Ollama on `127.0.0.1:11434` would therefore pass the guard. This is why P5 needs structural guards (AP5-5, AP5-6), not the socket guard alone. |
+| `.gitignore` lines 51–55 | "Credentials. Keys live outside the tree (`~/.config/mineworld/secrets.env`)". The patterns are `.env`, `*.env` and `secrets*`. **Missing:** `.env.local`, `.env.production` and the like, which `*.env` does not match. P5a adds `.env.*` and `!.env.example`. |
 | `cognition/` | Holds only `rule-controller` (Rust) and `.gitkeep`. There is no `lm-controller`. P5 creates it; P4 (waiting on S11-C) builds on it (R-P4-1, §10). |
 
 **Not verified in planning; verified in C1.** An assumption that fails here goes to §8 with its
@@ -187,6 +230,24 @@ implements exactly one adapter for it (`openai_compatible.py`). Two typed config
 the differences that matter: `structured_output = "json_schema" | "json_object" | "none"` and
 `reasoning = "off" | "low" | "medium" | "high" | "unset"`. There is no free-form `extra` map (D-P5-10).
 
+### 4.1b Hosted APIs (operator requirement, 2026-10-09)
+
+Hosted services are configured by a **user**, with that user's key and at that user's cost. No test,
+CI job, gate or agent calls one (QS10-19). Facts were read on 2026-10-09.
+
+| Service | OpenAI-compatible endpoint | Structured output through it | Covered by | Notes |
+| --- | --- | --- | --- | --- |
+| **OpenAI** (GPT) | `https://api.openai.com/v1` (the schema's origin) | `response_format` `json_schema` | P5a, `OpenAICompatibleBackend` | `structured_output = "json_schema"` |
+| **DeepSeek** | `https://api.deepseek.com`. Docs: "The DeepSeek API uses an API format compatible with OpenAI/Anthropic". Models `deepseek-flash`, `deepseek-v4-pro` | The fetched page does not mention `response_format`; `json_object` *not verified* | P5a | Example uses `structured_output = "json_object"` until a user confirms `json_schema`. Local validation is the authority either way (P6) |
+| **Zhipu GLM** | China `https://open.bigmodel.cn/api/paas/v4`; international (Z.ai) `https://api.z.ai/api/paas/v4`; `/chat/completions` with a Bearer token. Confirmed by third-party integration docs (jambonz, PicoClaw, AgentScope); **Zhipu's own page was not reached** | JSON mode reported by a community adapter; *not verified* | P5a | Example marked "verify against Zhipu's documentation" |
+| **Anthropic** (Claude), OpenAI-compatibility layer | `https://api.anthropic.com/v1/`. Anthropic: "primarily intended to test and compare model capabilities, and is not considered a long-term or production-ready solution for most use cases" | **`response_format`: Ignored.** `seed`: Ignored. `temperature`: "On Claude 4.7 and later models … any value below 1 returns a 400 error, so omit it" | **Not used.** The native adapter is P5b | Our requests always carry a schema and usually a temperature below 1, so the compatibility layer would silently drop the one and refuse the other |
+| **Anthropic**, native Messages API | `POST /v1/messages`; `output_config.format = {"type": "json_schema", "schema": …}` with no beta header | Yes, with schema limits: `additionalProperties: false` is required; `minLength`, `maxLength`, `minimum` and `maximum` are unsupported (400) | **P5b**, `AnthropicMessagesBackend` over `httpx2` | P5b compares it with the `anthropic` SDK, as QP5-1's ruling requires |
+
+**Conclusion for P5a.** One adapter and three typed options cover every OpenAI-compatible service. The
+third option, `temperature = "send" | "omit"` (D-P5-10), is added for servers that reject a temperature.
+Claude needs P5b's native adapter, because the compatibility layer ignores the one feature the
+controller depends on.
+
 ### 4.2 The Python HTTP client, and whether to depend on a provider SDK
 
 | Candidate | Licence (verified) | Maturity (verified) | N | D | V | Cost and fit | Verdict |
@@ -203,6 +264,16 @@ the differences that matter: `structured_output = "json_schema" | "json_object" 
 over `httpx2`. It is about 200 lines: request mapping, response parsing, error mapping and no retries.
 The interface (`ModelBackend`) is ours, the wire schema is the industry's, and the HTTP client is
 reused. What we own is the mapping, which is exactly the part that must refuse implicit configuration.
+
+### 4.2b Reading a `.env`-style key file
+
+| Candidate | Licence (verified) | Maturity (verified) | Fit | Verdict |
+| --- | --- | --- | --- | --- |
+| **`python-dotenv`** | BSD-3-Clause | 1.2.4 (changelog 2026-10-01); `requires-python >=3.10`; **no runtime dependencies** (`click` only for the `cli` extra) | `dotenv_values(path, interpolate=False)` returns a mapping and **does not touch `os.environ`**. It handles quoting, `export` prefixes, comments, multiline values and CRLF: the format details a hand parser gets wrong. `load_dotenv`, which mutates the environment, is never called | **REUSE** (`DEP-32`). One call site, in `secrets.py` |
+| **Our own parser** | n/a | about 40 lines | It would re-implement the quoting and escaping rules, and its corner cases would be ours to find. `REUSE_POLICY.md` §12: "writing it ourselves feels cleaner" is not a reason | **REJECT** |
+| **`pydantic-settings`** (`.env` support) | MIT | maintained | It loads settings classes from the environment and `.env` files, with the environment taking priority. But it binds every field to environment variables, which is a configuration model we do not want: our file is TOML, and only key **values** come from the environment | **REJECT**: a framework for what one function call does |
+| **`environs`** | MIT | maintained | It wraps `python-dotenv` and adds parsing; it mutates `os.environ` by default | **REJECT** |
+| **Process environment only** (no file) | n/a | — | The operator asked for `.env`-style configuration explicitly | **REJECT** as the only path; kept as one of the two sources |
 
 ### 4.3 Recording and replay
 
@@ -249,7 +320,8 @@ them. What the repository does ship is **outputs**: the cassettes P6 and P7 comm
 place no conditions on outputs. The Llama licence does. A model under Apache-2.0 or MIT therefore keeps
 committed cassettes free of third-party licence terms. That is why the default is restricted to them.
 
-**Recommendation (QP5-2, operator-material).** Default `social` binding `qwen3.5:4b` (Apache-2.0,
+**Ruled (QP5-2, operator, 2026-10-09): start from `qwen3.5:4b`; the spike settles the final choice.**
+The recommendation it accepted: default `social` binding `qwen3.5:4b` (Apache-2.0,
 about 3.3–4.0 GB). It is the one candidate that fits an 8 GB Windows or Linux machine and still offers a
 long context. The spike also measures `qwen3.5:9b` and `gemma4:12b` (both Apache-2.0) as the
 recommended choice for 16 GB machines such as the operator's Mac. The default is the smallest
@@ -290,7 +362,13 @@ cognition/lm-controller/
                                     InFlightLimiter, BudgetRefusal
     gateway.py                      ModelGateway, GateOutcome = Completed | Refused | Failed; Router; Tier
     config.py                       CognitionConfig, BackendConfig, TierBindings, BudgetConfig,
-                                    RecordingConfig, Mode; load(path) -> CognitionConfig; ConfigError
+                                    RecordingConfig, SecretsConfig, Mode; load(path) -> CognitionConfig;
+                                    ConfigError
+    secrets.py                      Secret; resolve_key(name, env_file) (D-P5-9; the only python-dotenv
+                                    call site); the env_file location and permission checks (D-P5-14)
+  examples/
+    hosted.toml.example             OpenAI, DeepSeek, Zhipu GLM as openai-compatible backends (key_env only)
+    .env.example                    OPENAI_API_KEY=, DEEPSEEK_API_KEY=, ZHIPUAI_API_KEY= (names, no values)
   tests/
     conftest.py                     shared fixtures; no network
     cassettes/                      small cassettes written by tests' RecordingBackend over ScriptedBackend
@@ -310,7 +388,7 @@ cognition/lm-controller/
 
 No module is expected past about 300 lines. `openai_compatible.py` and `record.py` are the largest.
 
-### 5.2 Decisions (D-P5-1 … D-P5-13)
+### 5.2 Decisions (D-P5-1 … D-P5-14)
 
 | ID | Decision | Reason |
 | --- | --- | --- |
@@ -322,11 +400,33 @@ No module is expected past about 300 lines. `openai_compatible.py` and `record.p
 | **D-P5-6** | **The key.** `cassette_key = sha256(canonical_json(request))`, as lowercase hexadecimal. `canonical_json`: UTF-8; `sort_keys`; separators `(",", ":")`; `ensure_ascii=False`; no Unicode normalization (text bytes are the request); **any float anywhere raises `KeyMaterialError`**, including floats inside `output_schema`. The canonical object is `{"key_scheme": 1, "request": …}`, so a future change of canonicalization is an explicit scheme bump, never a silent collision. A golden test pins the key of one literal request as a hexadecimal literal. It runs on all three platforms. | Step-17 §3.11.1. Float formatting is the classic source of cross-platform and cross-version key drift. The SDK's `JsonValue` admits floats, so the refusal must be explicit. |
 | **D-P5-7** | **The cassette format.** JSON Lines, UTF-8, LF. The first line is a header: `{"cassette": "mineworld-cognition", "format": 1, "key_scheme": 1}`. Each later line is an entry: `{"key", "request", "completion", "meta": {"binding", "model", "recorded_at", "latency_ms"}}`. `binding` is the operator's backend **name** (for example `local`); `model` is the configured model name; `recorded_at` is RFC 3339 UTC; `latency_ms` is an int. **Never in a cassette:** a URL, a header, a key, `key_env`, or a `BackendFailure`. **Replay:** entries are grouped by key in file order. The n-th call with a key returns the n-th entry. Call n+1 raises `CassetteMiss(kind="exhausted")`. A key not present raises `CassetteMiss(kind="absent")` with the nearest recorded request (same purpose, fewest differing top-level fields) and the first differing JSON path. A recorded entry whose `key` does not equal the key recomputed from its `request` raises `CassetteFormatError` at load: a hand-edited cassette fails loudly. **Record:** writes `<name>.jsonl.partial`, flushes each line, and on clean close replaces `<name>.jsonl` with `os.replace`. A crash leaves the old cassette intact and a visible `.partial`. Record mode refuses to start when `.partial` exists. | Step-17 §3.11.2, made exact. Ordered per-key replay keeps a scenario that asks the same question twice deterministic. URL and key are excluded because a URL can carry credentials (`user:pass@`) or internal host names. `os.replace` is atomic on all three platforms once the file is closed. |
 | **D-P5-8** | **Budgets, under QS10-18.** Cost ceilings are keyed on **wall** time and read only `Clock.now()` (UTC epoch seconds, injected). Defaults, from `ARCHITECTURE.md` §9.1's numbers re-keyed: per seat, `calls_per_wall_hour = 20` and `tokens_per_wall_day = 30 000`, as rolling windows of 3 600 s and 86 400 s; per process, `max_in_flight = 2` and `call_timeout_s = 20`; per backend, `requests_per_minute` unset (an operator ceiling). **Pre-check:** a call is refused before the recorder and the backend when `spent_calls + 1 > calls`, or when `spent_tokens + estimate_input(request) + max_output_tokens > tokens`. `estimate_input` is `ceil(utf8_bytes(messages) / 4)`, deterministic. **Post-charge:** the actual `usage` replaces the reservation; when the backend reports none, the estimate is charged with `estimated = true`. A `BackendFailure` charges the call but no tokens. **Ledgers:** `MemoryLedger` for tests; `SqliteLedger` (standard-library `sqlite3`, one table `budget_ledger(seat, at, calls, tokens, estimated)`, at a path from configuration) so a restart neither resets nor double-counts. The **context bound** (simulated time, I-13) is not here: it is P4's memory ceiling and P6's context assembly. | QS10-18 and step-17 §3.10. A rolling wall window bounds GPU time and money whatever the world's `time_scale`. Two ledger implementations exist from the start because tests need one and restart durability needs the other (as step-17 §3.16.3 allows for `MemoryStore`). The ledger path is configured, never inside a world save (`INV-4`). |
-| **D-P5-9** | **Keys.** `BackendConfig.key_env: str` holds a variable **name** matching `^[A-Z_][A-Z0-9_]*$`, or is empty. At construction, a non-empty name that is unset raises `ConfigError("backend 'hosted': environment variable OPENAI_API_KEY is not set")`, naming the variable and never a value. The value is held in a `Secret` whose `repr` and `str` are `Secret(<redacted>)`. It is never logged, recorded, put in an exception, or written to the ledger. Nothing in the package reads `~/.config/mineworld/secrets.env` or any file of secrets. | Step-17 §3.7.4; QS10-19; I-16; the SDK's `Invite` precedent (D-P3-9). |
-| **D-P5-10** | **Typed backend options, no free-form map.** `BackendConfig { kind: "openai-compatible", base_url: HttpUrl (http or https; no userinfo), model: str, key_env: str, structured_output: "json_schema" \| "json_object" \| "none" (default "json_schema"), reasoning: "unset" \| "off" \| "low" \| "medium" \| "high" (default "unset"; mapped to `reasoning_effort` when set), request_timeout_s: int \| None }`. A `base_url` with userinfo is refused. | `CLAUDE.md` §4 rule 7: no `dict[str, Any]` at a boundary. Step-17's `extra` is replaced by the two options the backends in §4.1 actually differ on. `reasoning: off` matters for the thinking-capable Qwen 3.5 and Gemma 4 families, whose latency it governs (A-4). Whether each server honours it is spike evidence. |
+| **D-P5-9** | **Keys: one indirection, two sources.** `BackendConfig.key_env: str` holds a variable **name** matching `^[A-Z_][A-Z0-9_]*$`, or is empty.<br>**Resolution**, only when the backend is built in `live` or `record` mode:<br>(1) the process environment;<br>(2) else, when `[secrets] env_file` is set, that file through `dotenv_values(path, interpolate=False)`.<br>The process environment wins, as `python-dotenv`'s own default (`override=False`) does: an operator's shell can override a file without editing it.<br>**Never:**<br>- `load_dotenv`; a file's values never enter `os.environ`, so they cannot leak into a child process (P5b's CLIs) or into another library's implicit read;<br>- interpolation;<br>- a default file location. MineWorld reads no `.env` it was not pointed at; in particular, not one in the working directory, and not `~/.config/mineworld/secrets.env`, unless the operator names it.<br>**Failure.** A non-empty name found in neither source raises `ConfigError("backend 'deepseek': DEEPSEEK_API_KEY is not set in the environment or in the configured env_file")`. It names the variable and the file path, never a value. The value is held in a `Secret` whose `repr` and `str` are `Secret(<redacted>)`. It is never logged, recorded, put in an exception, or written to the ledger. | Step-17 §3.7.4; QS10-19; I-16; the SDK's `Invite` precedent (D-P3-9); the operator's 2026-10-09 requirement ("api通过.env 之类的配置"). Not mutating `os.environ` is the property that keeps a key file from becoming ambient credentials for every child process. |
+| **D-P5-10** | **Typed backend options, no free-form map.** `BackendConfig { kind: "openai-compatible", base_url: HttpUrl (http or https; no userinfo), model: str, key_env: str, structured_output: "json_schema" \| "json_object" \| "none" (default "json_schema"), reasoning: "unset" \| "off" \| "low" \| "medium" \| "high" (default "unset"; mapped to `reasoning_effort` when set), temperature: "send" \| "omit" (default "send"), request_timeout_s: int \| None }`. A `base_url` with userinfo is refused. A non-loopback `base_url` must be `https`, so a key never travels in clear text to a remote host. | `CLAUDE.md` §4 rule 7: no `dict[str, Any]` at a boundary. Step-17's `extra` is replaced by the three options the backends in §4.1 and §4.1b actually differ on. `reasoning: off` matters for the thinking-capable Qwen 3.5 and Gemma 4 families, whose latency it governs (A-4). Whether each server honours it is spike evidence. |
 | **D-P5-11** | **CI and checks cover the new member, with one pytest invocation per member.** `PYTHON_STATIC`'s ruff commands gain `cognition/lm-controller`; pyright covers it through the root `include`. The `python` layer runs `uv run --locked pytest sdk/python` **and** `uv run --locked pytest cognition/lm-controller` as two commands; `python-smoke` likewise. The member's own `pyproject.toml` carries the network guard in `addopts`. `standards.md` follows. No YAML changes. | A single `pytest sdk/python cognition/lm-controller` takes its rootdir and ini file from the **common ancestor**, the repository root, whose `pyproject.toml` has no pytest section. Both packages' `addopts`, and with them the network guard, would be dropped silently. AP5-10 holds this. |
 | **D-P5-12** | **Live tests are opt-in and never in CI.** A `live_model` marker is registered. Every live test is deselected by the package's `addopts` (`-m "not live_model"`), and it needs `MINEWORLD_LIVE_BASE_URL` naming a **loopback** URL. A non-loopback URL fails the test rather than calling a hosted API. Live tests fail, never skip, when selected without the variable (D-P3-10's rule). `ci_layer.py` never selects the marker. | QS10-19 (no hosted API in any gate), I-11, `ENGINEERING_STANDARDS.md` §24 ("maintain optional live-model integration tests when useful"). |
 | **D-P5-13** | **Every platform.** Paths through `pathlib`. Cassettes are written with `newline="\n"` and read as UTF-8 tolerating CRLF, and `.gitattributes` keeps them LF. `os.replace` is called only after the file is closed (Windows). SQLite connections are closed before a ledger file is moved or deleted (Windows file locking). Timeouts use `asyncio.timeout` (3.11+) and the monotonic clock; budget windows use the wall clock. No POSIX signal, no Unix socket. The loopback stub server binds `127.0.0.1:0`. The key's golden literal is checked on all three CI legs. | Operator requirement 2026-10-08; P3 D-P3-11; step-17 §15.8 (P5). |
+
+**D-P5-14 — Where configuration and keys live: per user, never per world.**
+
+- `cognition.toml` and any `.env` file belong to the **operator who runs cognition**: a person on
+  their own machine, or a server operator. Credentials belong to the server operator and never appear
+  in a World Pack (`ARCHITECTURE.md` §9.2). A World Pack names no backend (`AC-4`).
+- Two consequences:
+  - `config.load` refuses a configuration file, or an `env_file`, whose resolved path lies inside a
+    directory containing a `world.yaml`. A key file placed in a world, which travels with the world,
+    is a `ConfigError`;
+  - the same world can be played by two users with two different backends.
+- Paths are explicit: `--config FILE` (P6), and `env_file` inside it, resolved relative to the
+  configuration file with `pathlib`. P5a ships no implicit default location. The README suggests one
+  per platform:
+  - macOS: `~/Library/Application Support/MineWorld/`;
+  - Linux: `$XDG_CONFIG_HOME/mineworld/`, falling back to `~/.config/mineworld/`;
+  - Windows: `%APPDATA%\MineWorld\`.
+- On macOS and Linux, an `env_file` readable by group or others (`mode & 0o077`) is refused with a
+  message suggesting `chmod 600`, as `ssh` refuses a key. On Windows, POSIX modes do not apply. The
+  check is skipped there, and the README says to keep the file under the user's profile.
+- Reason: the operator ruled "per world or per user — say which". Per user is the only answer that
+  keeps `AC-4` and keeps secrets out of shareable content.
 
 ### 5.3 The seam and one call, precisely
 
@@ -378,6 +478,17 @@ model             = "qwen3.5:4b"          # example; the default is QP5-2's oper
 key_env           = ""                    # Ollama needs none
 structured_output = "json_schema"
 reasoning         = "off"
+
+# A user's own hosted API (examples/hosted.toml.example). Never used by a test, CI or an agent.
+[secrets]
+env_file = "mineworld.env"                # optional; relative to this file; never inside a world
+
+[backends.deepseek]
+kind              = "openai-compatible"
+base_url          = "https://api.deepseek.com"
+model             = "deepseek-flash"
+key_env           = "DEEPSEEK_API_KEY"    # the NAME; the value comes from the environment or env_file
+structured_output = "json_object"
 ```
 
 - The file is parsed with `tomllib` into strict Pydantic models. An unknown key is a `ConfigError`
@@ -439,10 +550,11 @@ the mutation that must turn it red. A criterion whose mutation stays green has t
 | **AP5-6** Replay and scripted construct no network client | (a) A child interpreter loads a `replay`-mode configuration through `config.load`, builds the router, and runs one replayed call. Afterwards `"httpx2" not in sys.modules` and `"mineworld_cognition.backend.openai_compatible" not in sys.modules`. (b) The adapter, over a mock transport, maps a request to the exact JSON body (`model`, `messages`, `temperature` = `temperature_milli / 1000`, `max_tokens`, `seed`, and `response_format` by `structured_output`), sends no `Authorization` header when `key_env` is empty, and maps HTTP 401 → `unauthorized`, 500 → `http_status(500)`, a non-JSON body → `malformed_response`, a closed port → `unreachable`, and a stalled server → `timeout` within `request_timeout_s` + 1 s. (c) The adapter is called once per `complete`: a 503 is not retried (a mock counts requests). | (a) Import `openai_compatible` at the top of `backend/__init__.py`: the module list contains it. (c) Add one retry: the count is 2. |
 | **AP5-7** Budgets: wall time, before everything, durable | With a `FakeClock`: (i) the 21st call within 3 600 wall seconds for one seat returns `Refused(calls_per_wall_hour)`, and the backend's call counter is unchanged (P5-2); a second seat is unaffected. (ii) After the clock advances 3 601 s, the call is allowed. (iii) A request whose estimate plus `max_output_tokens` would exceed 30 000 tokens in the 24-hour window is refused **before** the call. (iv) `SqliteLedger`: 20 calls, the ledger closed and reopened (a restart), and the 21st call refused. (v) No budget code reads simulated time: `budget.py` and `gateway.py` import nothing from `mineworld_sdk.wire.contract`, and no function there takes a `WorldTime` (a static check in the test, plus pyright). (vi) A third concurrent call waits while two are in flight (`max_in_flight = 2`), and is served FIFO. (vii) A scripted backend that sleeps past `call_timeout_s` (the test sets 1 s) gives `Failed(timeout)` within 2 s, and the call is charged. | Check the budget after calling the backend: (i)'s backend counter rises. Use `MemoryLedger` for the `SqliteLedger` path: (iv) allows the 21st. Key the window on an observation's `at`: (v) fails. |
 | **AP5-8** `AC-4`, the seam half | One cassette is recorded through binding `local` (`ScriptedBackend` standing in for the inner backend). It is replayed under a configuration in which the binding is renamed `elsewhere` and repointed to another `base_url` and `model`. Every call hits, the keys are identical, and the completions are identical. The scenario half (`worlds/` byte-identical, submitted requests identical) is P7's IC-6. | Put the binding name in the key: every replay misses. |
-| **AP5-9** No secret in any artefact | A fake key `MWTEST-<32 random hex>` is placed in the environment under the name `key_env` names. A record session runs over a mock transport that **echoes request headers into its error body**, plus one 401. The fake key appears in no cassette line, no ledger row, no captured log record (DEBUG, every logger), no exception's `str` or `repr`, and no `repr` of any config, backend or gateway. The mock transport itself must have received it as `Authorization: Bearer …`, which proves the key was used. An unset `key_env` raises a `ConfigError` naming the variable, with no value. The package's source has no reference to `secrets.env` or `~/.config/mineworld` (scan). | Include the response body of a 401 in `BackendFailure`'s message: the echoed header leaks, and the scan finds it. |
+| **AP5-9** No secret in any artefact | Run twice, once per source. A fake key `MWTEST-<32 random hex>` is placed (1) in the process environment, and (2) only in a temporary `env_file` (mode 0600 on POSIX), under the name `key_env` names. The scan also covers pytest's captured stdout and stderr for the test, which is what CI prints. A record session runs over a mock transport that **echoes request headers into its error body**, plus one 401. The fake key appears in no cassette line, no ledger row, no captured log record (DEBUG, every logger), no exception's `str` or `repr`, and no `repr` of any config, backend or gateway. The mock transport itself must have received it as `Authorization: Bearer …`, which proves the key was used. An unset `key_env` raises a `ConfigError` naming the variable, with no value. The package's source has no reference to `secrets.env` or `~/.config/mineworld` (scan). | Include the response body of a 401 in `BackendFailure`'s message: the echoed header leaks, and the scan finds it. |
 | **AP5-10** No provider concept outside the adapter; the guard is active | (a) A scan of `cognition/lm-controller/src` **excluding** `backend/openai_compatible.py`, `backend/registry.py` and `config.py`, of every cassette's `key` and `request`, and of `sdk/python/src`, finds none of a fixed list: `openai`, `ollama`, `anthropic`, `llama`, `qwen`, `gemma`, `mistral`, `phi`, `vllm`, `lmstudio`, `api_key`, `http://`, `https://`, `11434`. It reports file and line. (b) The cognition suite's pytest configuration contains `--allow-hosts=127.0.0.1,::1`, and a test connecting `httpx2` to `192.0.2.1:80` fails within 1 s with pytest-socket's error type. (c) `ci_layer.py --list python` shows two pytest commands, one per member. | (a) Plant `"ollama"` in `gateway.py`: the scan fails at that file and line. (b) Remove the guard from the member's `addopts`: the TEST-NET test times out instead. (c) Merge the two pytest commands into one: (c) fails. |
-| **AP5-11** Scope | `git diff --stat <base>..HEAD` touches only `cognition/lm-controller/**`, `pyproject.toml`, `uv.lock`, `.gitattributes`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and `scripts/ci_layer.py` (commands in `PYTHON_STATIC`, `python`, `python-smoke` only). No `*.rs`, nothing under `sdk/python/`, `worlds/` or `.github/`. | — (a diff gate) |
+| **AP5-11** Scope | `git diff --stat <base>..HEAD` touches only `cognition/lm-controller/**`, `pyproject.toml`, `uv.lock`, `.gitattributes`, `.gitignore`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and `scripts/ci_layer.py` (commands in `PYTHON_STATIC`, `python`, `python-smoke` only). No `*.rs`, nothing under `sdk/python/`, `worlds/` or `.github/`. | — (a diff gate) |
 | **AP5-12** Every platform | The whole cognition suite, including AP5-1(a)'s literal, AP5-5's `os.replace`, AP5-7(iv)'s reopen and AP5-3's listener, passes on `ubuntu-24.04`, `windows-2025` and `macos-15` in the PR's CI run. | Write cassettes with the platform newline: AP5-4's load of a committed cassette and the LF check fail on Windows. Replace while the file is open: Windows raises `PermissionError`. |
+| **AP5-13** Key files stay the user's, and stay out of the environment | (a) After `resolve_key` reads a key from an `env_file`, `os.environ` is unchanged (compared as a whole before and after), and the key is not in it. (b) A variable present in both sources resolves to the process environment's value. (c) An `env_file` under a directory holding a `world.yaml` (a temporary copy of the layout) raises `ConfigError` naming the path; so does a `cognition.toml` there. (d) On macOS and Linux, an `env_file` with mode 0644 is refused, naming `chmod 600`; with 0600 it is accepted. On Windows, the check is recorded as not applicable, and the test asserts that it is skipped by platform, not silently. (e) `git check-ignore` reports `.env`, `.env.local`, `prod.env` and `secrets.env` as ignored, and `.env.example` as **not** ignored. (f) No module calls `load_dotenv` (a source scan), and `python-dotenv` is imported only by `secrets.py`. | (a) Use `load_dotenv(path)`: `os.environ` gains the key. (e) Drop `.env.*` from `.gitignore`: `.env.local` is reported as not ignored. |
 | **AP5-S** The spike's criteria (operator-run; decide the default) | Over the fixed `spike_scenarios.json` (40 synthetic decisions, defined in C7 before any run), per candidate model, on the operator's machine: schema-valid on the **first** attempt ≥ 95 % (≥ 38/40); 95th-percentile wall latency ≤ 15 s; `reasoning = "off"` honoured or its absence recorded; Ollama through `/v1` (A-3 recorded as PASS or FAIL). The default is the **smallest** model meeting all of them. If none does, the result goes to the operator, and the thresholds are not changed (QS10-2's criteria are fixed). | — (an operator measurement. Its integrity rule is that thresholds may not move after a run) |
 
 ---
@@ -462,6 +574,8 @@ the mutation that must turn it red. A criterion whose mutation stays green has t
 | R-P5-9 | P4 also creates `cognition/lm-controller`, so the two PRs conflict. | D-P5-1 and R-P4-1: P5 owns the skeleton. P4's design, detailed after S11-C, starts from P5's tree. |
 | R-P5-10 | Windows: SQLite locks, `os.replace` on an open file, CRLF checkouts. | D-P5-13, AP5-12, `.gitattributes`. |
 | R-P5-11 | An agent is tempted to "just run Ollama" to produce a real cassette. | Forbidden by the contract (§11 NEVER). Only the operator runs the spike (QP5-3). No P5 test needs a real cassette. |
+| R-P5-12 | A user commits a key: a `.env.local` that `*.env` does not match, or a key pasted into `cognition.toml`. | `.gitignore` gains `.env.*` (AP5-13 (e)). `cognition.toml` has no field that can hold a key value; `key_env` must match a variable-name pattern, so a pasted key (lowercase, `-`) is refused. The README says where to keep files (D-P5-14). |
+| R-P5-13 | A hosted service's "OpenAI compatibility" differs in details: DeepSeek's and GLM's `json_schema` support, error bodies, `usage`. | Typed options (`structured_output`, `temperature`), with local validation as the authority (P6). The hosted examples are marked "verify". Behaviour is checked by users, never by CI or an agent. |
 
 ---
 
@@ -497,6 +611,9 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
       modes;
     - `DEP-27`, the HTTP client `httpx2`, and no provider SDK. It records §4.2's and §4.3's
       alternatives with verdicts, and supersedes step-17's `DEP-S10-a`;
+    - `DEP-32`, `python-dotenv` (`dotenv_values` only, never `load_dotenv`), with §4.2b's
+      alternatives;
+  - `.gitignore`: `.env.*` and `!.env.example`;
   - `docs/ARCHITECTURE.md`:
     - §9.1: `limits` become `max_calls_per_wall_hour` and `max_tokens_per_wall_day`, with one sentence
       saying the context bound is on simulated time;
@@ -595,24 +712,29 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
 
 - **Goal.** The operator's file is the only place a backend is named. Replay mode never touches a
   network client. The scans hold. CI runs it all on three platforms.
-- **Scope.** `config.py`; `tests/test_config_router.py`, `tests/test_structural_isolation.py`,
-  `tests/test_provider_scan.py` and `tests/test_secrets.py`.
+- **Scope.** `config.py`, `secrets.py`, `examples/`; `tests/test_config_router.py`,
+  `tests/test_structural_isolation.py`, `tests/test_provider_scan.py` and `tests/test_secrets.py`.
 - [ ] Implementation:
   - §5.4's model, with lazy adapter import (D-P5-5);
   - `ConfigError`s that name the table and key;
+  - `secrets.py` per D-P5-9 and D-P5-14;
+  - the hosted and `.env` examples (names only, no values);
   - the scan list of AP5-10 (a).
 - [ ] Validation:
   - AP5-6 (a) in a child interpreter, with its mutation;
   - AP5-8 with its mutation;
-  - AP5-9 with its mutation;
+  - AP5-9, with both sources, and its mutation;
+  - AP5-13 (a)–(f) with their mutations;
   - AP5-10 (a)–(c) with their mutations;
   - on the PR's first CI run, record the static checks' added time in `fast` (60 s rule) and each
     `python` leg's wall time (3-minute rule);
   - AP5-12 green on all three legs.
 - [ ] Review:
   - `worlds/` untouched;
-  - nothing in `config.py` reads a secrets file;
-  - the examples in docstrings use only `127.0.0.1` URLs.
+  - nothing reads a key file the configuration did not name; `secrets.py` is the only reader;
+  - the examples in docstrings use only `127.0.0.1` URLs; `examples/` hold names, never values;
+  - no test, fixture or CI command sets a real key or a non-loopback `base_url` outside the mock
+    transport.
 
 ### C7 — The operator-run spike tool
 
@@ -665,11 +787,14 @@ assume the worktree root, with `uv` and `cargo` on `PATH`.
   `Refused` and `Failed` as fallbacks (step-17 §3.10.3). `CassetteMiss` stops the run. P6's freeze
   requires the spike report (AP5-S) or an operator decision in its place.
 - **R-P7-1 (on P7).** IC-6 uses AP5-8's mechanism (rename and repoint the binding), at scenario scale.
+- **R-P5b-1 (on P5b).** P5b adds adapters through `backend/registry.py` and `BackendConfig`'s `kind`
+  union only. It reuses `Secret`, `resolve_key`, the gateway, the budgets and the recorder unchanged.
 
 ## 11. Execution contract (proposed; filled at freeze)
 
 ```text
-PROJECT / PR:            MineWorld mvp0, S10 PR P5 — model backends, recorder and cassettes, budgets
+PROJECT / PR:            MineWorld mvp0, S10 PR P5a — model backends, recorder and cassettes, budgets,
+                         API keys
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p5-backends.md
 RELATED / BINDING DOCS:  step-17-cognition.md (§§3.5, 3.7, 3.10, 3.11, 4.1, 4.5, 5, 15);
                          pr-s10-p3-python-sdk.md; overall.md (S10; §5 operator requirements);
@@ -679,15 +804,17 @@ WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p5
 BRANCH:                  mvp0/pr-s10-p5-backends, created from main
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-P5-1 … D-P5-13; QS10-18; QS10-19; every platform
+FROZEN INVARIANTS:       §2.3; D-P5-1 … D-P5-14; QS10-18; QS10-19; QP5-1 … QP5-9 as ruled;
+                         every platform
 SEQUENCE:                C0 … C8 (C7's operator step may be NOT RUN at review)
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n
 NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading
                          ~/.config/mineworld/secrets.env or any key file; using any API key; calling any
                          hosted API; running, pulling or downloading any model (Ollama, llama.cpp, LM
                          Studio, vLLM or other); running tools/model_spike.py
-MATERIAL STOPS:          any Rust or sdk/python change; any dependency beyond DEP-27 (httpx2) and the
-                         P3 toolchain (DEP-24 … DEP-26); any provider SDK; any hosted-API use; a change
+MATERIAL STOPS:          any Rust or sdk/python change; any dependency beyond DEP-27 (httpx2), DEP-32
+                         (python-dotenv) and the P3 toolchain (DEP-24 … DEP-26); any provider SDK; any
+                         hosted-API use; any real key in a test or example; a change
                          to AP5-S's thresholds; the spike report showing no candidate meets AP5-S
 PLATFORMS:               Linux, macOS, Windows (AP5-12)
 VALIDATION BUDGET:       unit, static, local integration: unrestricted. Real model calls: none by
@@ -708,6 +835,27 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 **[operator]** marks a question only the operator can answer: model or provider choice, a paid API,
 scope, or a reversal of an operator ruling. **[primary]** marks one the primary session decides.
+
+### 12.1 Rulings, 2026-10-09
+
+| ID | Ruling |
+| --- | --- |
+| QP5-1 | **Primary: yes.** `httpx2`, no provider SDK. Revisit only if the native Anthropic adapter needs an SDK, as a compared and recorded decision (P5b §4). |
+| QP5-2 | **Operator:** start from `qwen3.5:4b`; the spike settles the final choice. |
+| QP5-3 | **Operator:** the operator runs the spike personally before P6 freezes. Agents never run, pull or download a model. |
+| QP5-4, QP5-5, QP5-7, QP5-8, QP5-9 | **Primary: as recommended.** |
+| QP5-6 | **Primary:** `ARC-57`, `ARC-58` and `DEP-27` as proposed. S10 also gets `DEP-32` (P5a: `python-dotenv`) and `DEP-33` (P5b). |
+| New requirement | **Operator:** API keys through a `.env`-style file, and subscriptions through Codex's or Claude Code's own login. P5a carries the API-key half (§4.1b, §4.2b, D-P5-9, D-P5-14, AP5-13). P5b carries the Anthropic adapter and the subscription half. |
+
+### 12.2 Open questions for P5a
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| QP5-10 [primary] | Configuration and keys live per **user** (the operator who runs cognition), never per world; a key file inside a world directory is refused (D-P5-14)? | **Yes.** Per world would put credentials into shareable content and break `AC-4`. |
+| QP5-11 [primary] | The process environment wins over the `env_file` when both define a variable (D-P5-9)? | **Yes**, as `python-dotenv`'s own default. A shell can override a file without editing it. |
+| QP5-12 [primary] | Refuse a group- or world-readable `env_file` on macOS and Linux (D-P5-14)? | **Yes.** It is cheap and is the `ssh` convention. On Windows the check is skipped, and the README says so. |
+
+### 12.3 The questions as first asked (kept for review)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
