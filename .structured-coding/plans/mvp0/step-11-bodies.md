@@ -8966,11 +8966,23 @@ as a crate dependency), `Cargo.lock`, `systems/bodies/tests/route.rs`.
 ### NV-C5 — bodies answers: the `Wayfinder` impl, the installed line, SD-N11
 Files: `systems/bodies/src/{system.rs,geometry.rs}`, `systems/installed/src/lib.rs`,
 `systems/bodies/tests/{actions,scenarios,isolation}.rs`.
-- [ ] Implementation: `impl Wayfinder for BodiesSystem` (inert without `PlaceShape`); `install` calls
-  movement's `require_registered`; the line lists bodies; `NUDGE_MAX`, `BIAS_BAND` derived; the two
-  tests per §21.6.
-- [ ] Validation: bodies' full suite; NV-7 at R 300 and the scratch R 250 run; NV-6.
-- [ ] Review: no result changes at R 300 (bodies-yard digest, long-run bytes).
+- [x] Implementation: `impl Wayfinder for BodiesSystem` (inert without `PlaceShape`; in route.rs, NV-C4);
+  `install` calls movement's `require_wayfinder` (N-D2) after presence's `require_registered`; the line
+  lists bodies; `NUDGE_MAX := PERSON_RADIUS`, `BIAS_BAND := 2·PERSON_RADIUS/3`; the two tests per §21.6:
+  `a_stride_toward_a_person_within_the_offset_is_never_passed_through` (actions.rs; replaces
+  `…_600_mm_away_is_still_stopped`, claim 1 (i) and (ii), lengths in R) and n3's crowd at 13R/6 with a
+  5R/3 step and `bounded_stride`'s bounds as R + 10 and 2R − 5 (scenarios.rs). RN-9's audit: two hand
+  compositions install bodies — `tests/support/mod.rs::register` and `resolve.rs`'s unit tests — both
+  now register the wayfinder beside the resolver; no other crate installs bodies by hand (git grep).
+- [x] Validation: bodies' full suite and installed's pass (clippy -D warnings clean); NV-6's structural
+  test `the_search_crate_stays_in_route_rs_and_movement_names_no_bodies` passes; NV-7 at R 300: (i) a
+  stopped by b at (3 400, 5 000), (ii) 201 mm aside stopped by b at (3 427, 5 000); n3 2 strides
+  blocked, ≤ 4 moved, 2 generations. M-Z5 (the "away" exclusion widened to everybody within the
+  offset): fails (i) by name — a passes through b to (4 369, 4 758), b nudged to (3 858, 5 093) — not
+  (ii) as §21.6 predicted (at 633 mm b in (ii) is outside the 610 mm offset, so the exclusion never
+  reaches it); reverted. Scratch R 250: E-NV3.
+- [x] Review: no result changes at R 300 — E-NV3's C5 captures: long_run 23f7fa76…, long_run_objects
+  c8358f8b…, bodies-yard 30 d bd6a1002…, the three `validate` outputs — all equal E-NV-base.
 
 ### NV-C6 — the real walk
 Files: `tools/cli/tests/walking.rs` (new; test-time world copies).

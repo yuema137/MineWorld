@@ -29,6 +29,12 @@ use mineworld_contracts::{ActionRecord, EntityType, Location, PersonId};
 use mineworld_presence::Arrived;
 use support::{Fact, Moved, Plan, Put, Xy, Yard, cafe, distance2, encode, shape, xy};
 
+/// The radius n3's lengths are multiples of (step-11 §21.6): 300 mm today.
+const R: i32 = mineworld_bodies::PERSON_RADIUS.value();
+
+/// n3's crowd spacing, 13R/6: 650 mm at R 300.
+const SPACING: i32 = 13 * R / 6;
+
 /// The floor shrunk by 295 mm (a radius less the tolerance), and the counter grown by it.
 fn inside_the_cafe((x, y): Xy) -> bool {
     let in_floor = (295..=8_320 - 295).contains(&x) && (295..=10_320 - 295).contains(&y);
@@ -181,16 +187,18 @@ fn bounded_stride(yard: &mut Yard, walker: &str, (dx, dy): Xy) -> (Outcome, Move
             .find(|(standing, _)| *standing == key)
             .expect("stood in the room")
             .1;
+        // NUDGE_MAX + GAP = R + 10: 310 mm at R 300 (step-11 §21.6).
         let length2 = distance2(was, xy(*at));
         assert!(
-            length2 <= 310 * 310,
-            "{key} nudged {} mm, more than 310 (I-11)",
+            length2 <= i64::from(R + 10).pow(2),
+            "{key} nudged {} mm, more than R + GAP (I-11)",
             length2.isqrt()
         );
     }
+    // CLEARANCE = 2R − 5: 595 mm at R 300.
     if let Some((a, b, closest)) = yard.closest("room") {
         assert!(
-            closest >= 595 * 595,
+            closest >= i64::from(2 * R - 5).pow(2),
             "{a} and {b} {} mm apart after {walker}'s stride (I-12)",
             closest.isqrt()
         );
@@ -234,16 +242,18 @@ fn scenario(name: &str) -> (Yard, Vec<(Outcome, Moved)>) {
             vec![("a", (2_000, 5_000)), ("b", (4_000, 5_100))],
             vec![("a", (500, 0)); 12],
         ),
+        // The crowd's spacing 13R/6 and the walker's step 5R/3 — 650 and 500 mm at R 300 — so the
+        // scenario keeps its shape at any radius (step-11 §21.6, TD-D8).
         "n3" => (
             vec![
                 ("a", (2_000, 5_000)),
                 ("c1", (5_000, 5_000)),
-                ("c2", (5_000, 5_650)),
-                ("c3", (5_000, 4_350)),
-                ("c4", (5_650, 5_000)),
-                ("c5", (5_650, 5_650)),
+                ("c2", (5_000, 5_000 + SPACING)),
+                ("c3", (5_000, 5_000 - SPACING)),
+                ("c4", (5_000 + SPACING, 5_000)),
+                ("c5", (5_000 + SPACING, 5_000 + SPACING)),
             ],
-            vec![("a", (500, 0)); 12],
+            vec![("a", (5 * R / 3, 0)); 12],
         ),
         other => panic!("no scenario {other}"),
     };

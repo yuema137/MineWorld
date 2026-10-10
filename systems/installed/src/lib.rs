@@ -36,7 +36,7 @@
 mineworld_sdk::installed! {
     perception: mineworld_presence::PerceptionProvider;
     extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [mineworld_bodies::BodiesSystem,];
-    extension mineworld_movement::Wayfinder => mineworld_movement::register_wayfinders: [];
+    extension mineworld_movement::Wayfinder => mineworld_movement::register_wayfinders: [mineworld_bodies::BodiesSystem,];
     Presence => mineworld_presence::PresenceSystem,
     Movement => mineworld_movement::MovementSystem,
     Conversation => mineworld_conversation::ConversationSystem,
