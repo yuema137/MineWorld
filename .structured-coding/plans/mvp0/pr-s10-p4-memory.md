@@ -1,18 +1,24 @@
 # PR S10-P4 — Subjective memory, compression L0–L3 with retained Event IDs, retrieval, `AC-10`
 
-## DESIGN DRAFT — awaiting the primary session's review (not frozen)
+## DESIGN FROZEN 2026-10-10 (primary session)
 
 ```text
-Design revision:        revision 1 (2026-10-10), branch docs/s10-p4-design
-Approved by / evidence: none yet. Only the primary session or the operator freezes this design.
+Design revision:        revision 2 (2026-10-10): revision 1 (PR #138, first commit) with §13.1's
+                        rulings filled in, as committed on docs/s10-p4-design with this header
+Approved by / evidence: the primary session's rulings on QP4-1 … QP4-10 of 2026-10-10, and the
+                        operator's ruling on QP4-11 of the same day, relayed by the coordinator to
+                        the S10 planning session (§13.1)
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
-Execution contract:     §12 (skeleton; filled at freeze)
-Lifecycle:              DESIGN DRAFT
+Execution contract:     §12 (filled at freeze)
+Lifecycle:              FROZEN
 ```
 
-No implementation is authorized by this document (`CLAUDE.md` §3.1). The questions in §13 are open.
-Every one has a recommendation. The design is written so that accepting all the recommendations
-needs no further revision before freeze.
+Scope (§2.1), invariants (§2.3), decisions D-P4-1 … D-P4-13, the acceptance and adversarial criteria
+AP4-1 … AP4-13 and the commit plan are frozen. Progress, evidence, findings and bounded corrections stay
+writable (§14). No P4 question remains open. Implementation starts in a fresh session (§12); this
+planning session does not implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's review (not frozen)`, revision 1.
 
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) (§3.8 subjective
 memory, §3.9 compression, §3.16.3 seams, §4.3, §4.4, §4.7, §5, §6 A-5, §9 P4, §10 IC-4, §15 audit and
@@ -33,13 +39,11 @@ decision-number table ("Decision numbers assigned since the parallel build-out t
 **Prerequisite now met:** step-17 §15.3 gated P4 on S11-C's offline export. `mineworld perceived` is
 on `main` (`tools/cli/src/perceived.rs`, S11-C C-C3b), so P4 can be detailed and, once frozen, built.
 
-**Decision numbers (QP4-1, open).** S10 holds `ARC-59` (from ruling 6's original range `ARC-56 …
-ARC-60`; unused on `main`, and named for P4 by P5b's QP5b-3) and `ARC-72`, `ARC-73`, `ARC-74`
-(reserved for P4 and P6 by `overall.md`). This design proposes **`ARC-59`** for P4's one architecture
-record, leaving `ARC-72 … ARC-74` to P6. It needs **one DEP number** for the store and retrieval
-decision (the step-17 placeholders `DEP-S10-d` and the memory half of `DEP-S10-f`). The next free DEP is
-`DEP-37`; this design writes `DEP-P4-a` until the primary session assigns one. An implementation
-session never picks a number.
+**Decision numbers (QP4-1, ruled 2026-10-10 by the primary session).** **`ARC-59`** is P4's
+architecture record (memory, compression with retained ids, the store outside the save). **`DEP-37`**
+is the store and retrieval record (replacing step-17's placeholders `DEP-S10-d` and the memory half of
+`DEP-S10-f`). The primary session records both in `overall.md`'s decision-number table. `ARC-72 …
+ARC-74` stay with P6. An implementation session never picks a number.
 
 ### Binding rulings this design is written under
 
@@ -85,7 +89,7 @@ default path: those are P6.
 - `cognition/lm-controller/src/mineworld_cognition/compress/`: L1 episodes, L2 chapters, L3 stable
   facts, the `Summarizer` protocol, `StructuralSummarizer`, `ModelSummarizer` and the `embellish` pass.
 - The `AC-10` scenario test (IC-4) over the real `mineworld` binary, plus its small harness.
-- `docs/DECISIONS.md`: `ARC-59` (proposed) and `DEP-P4-a` (number pending).
+- `docs/DECISIONS.md`: `ARC-59` and `DEP-37` (QP4-1).
 - `docs/ARCHITECTURE.md` §8 (G-6) and `docs/CORE_CONCEPTS.md` §5.4 (G-2), the two edits step-17 §12
   assigns to P4.
 - `cognition/lm-controller/pyproject.toml`: one pytest marker, `real_binary`; `scripts/ci_layer.py`:
@@ -198,7 +202,7 @@ week).
 
 | Candidate | Licence | Maturity | D | V | P | I | S | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **stdlib `sqlite3`** (CPython's bundled SQLite) | Python's PSF licence; SQLite public domain | ships with every CPython; SQLite 3.50.4 in the workspace interpreter (measured) | ✓ transactions; ordered reads; content is deterministic given ordered writes (the **file** bytes are not a contract, D-P4-8) | ✓ | ✓ no wheel, no build | ✓ behind `MemoryStore` | ✓ zero new dependencies; already used by P5a's `SqliteLedger` | **REUSE** (`DEP-P4-a`). |
+| **stdlib `sqlite3`** (CPython's bundled SQLite) | Python's PSF licence; SQLite public domain | ships with every CPython; SQLite 3.50.4 in the workspace interpreter (measured) | ✓ transactions; ordered reads; content is deterministic given ordered writes (the **file** bytes are not a contract, D-P4-8) | ✓ | ✓ no wheel, no build | ✓ behind `MemoryStore` | ✓ zero new dependencies; already used by P5a's `SqliteLedger` | **REUSE** (`DEP-37`). |
 | **Plain files** (JSON Lines per level, appended) | n/a | n/a | ✓ | ✓ | ✓ (Windows replace semantics need care, as P5a's cassettes) | ✓ | ✗ we would build indexes, transactions (cursor atomic with records, P4-2), range queries and lexical search ourselves | **REJECT.** Atomicity of "records + roll-up + cursor" is the property P4-2 needs, and a database gives it for free. Kept as the **canonical dump** format for determinism and review (D-P4-8). |
 | **LanceDB** (Python package over a Rust core, Lance columnar format) | Apache-2.0 | active; 0.30.2 on PyPI 2026-03-31 seen on three mirrors, a later 0.34.0 reported but not confirmed (*verify*) | ~ | ✓ for plain tables | ~ native wheels per platform (pyarrow, the Rust core); *verify Windows arm64* | ✓ | ✗ a columnar vector database, built for embeddings and analytics; a large dependency tree for a few small ordered tables | **REJECT for P4; REFERENCE ONLY.** Its strength is vector search over large tables, which QS10-10 defers. Re-evaluate together with embedding retrieval (D-P4-11). |
 | **DuckDB** | MIT | mature | ✓ | ✓ | ✓ wheels | ✓ | ~ analytical engine; its full-text search is an extension installed at run time (*verify*: autoload may download), which a network-guarded test must never do | **REJECT** (as step-17 §4.7): analytical, not transactional per-row ingest; the FTS extension's download path conflicts with I-11. |
@@ -209,7 +213,7 @@ week).
 
 | Candidate | Licence | Maturity | D | V | P | I | S | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **SQLite FTS5** (in the same database) | public domain | part of SQLite; present in the workspace interpreter (measured); present in python-build-standalone builds (its SQLite flags list `SQLITE_ENABLE_FTS5`, PR #800, checked 2026-10-10); **CI's** interpreters are `actions/setup-python` 3.12 builds, *verify in C1 on all three legs* | ✓ for the match **set**; ✗ for `bm25()` ordering, which is a float (measured) whose value may differ across SQLite versions | ✓ | ✓ if compiled in (the C1 check) | ✓ behind `Retriever` | ✓ nothing new | **REUSE, as a candidate filter only** (`DEP-P4-a`, D-P4-11): FTS5 decides which records match; ranking is our integer rule. |
+| **SQLite FTS5** (in the same database) | public domain | part of SQLite; present in the workspace interpreter (measured); present in python-build-standalone builds (its SQLite flags list `SQLITE_ENABLE_FTS5`, PR #800, checked 2026-10-10); **CI's** interpreters are `actions/setup-python` 3.12 builds, *verify in C1 on all three legs* | ✓ for the match **set**; ✗ for `bm25()` ordering, which is a float (measured) whose value may differ across SQLite versions | ✓ | ✓ if compiled in (the C1 check) | ✓ behind `Retriever` | ✓ nothing new | **REUSE, as a candidate filter only** (`DEP-37`, D-P4-11): FTS5 decides which records match; ranking is our integer rule. |
 | **sqlite-vec** (vector search extension) | MIT or Apache-2.0 | pre-1.0 ("expect breaking changes"); 0.1.9 2026-03-31, 0.1.10 alpha in May 2026 (registry mirrors, checked 2026-10-10) | ~ | ✗ needs embeddings, so an embedding model on the memory path | ✗ a loadable extension; `enable_load_extension` is missing from some CPython builds (macOS system Python), *verify* | ✓ | ~ | **REJECT for P4; REFERENCE ONLY.** It is the natural engine for QS10-10's embedding retrieval later, inside the same SQLite file. Re-evaluate then, at 1.0 or later. |
 | **rank-bm25** (pure Python BM25) | Apache-2.0 (*verify*) | small, slow-moving | ✗ float scores | ✓ | ✓ | ✓ | ~ in-memory corpus rebuilt per query | **REJECT.** Float scores, and an in-memory index of the whole history, when SQLite already holds an index on disk. |
 | **tantivy-py** (Rust full-text engine) | MIT | maintained (*verify version*) | ~ float scores | ✓ | ~ native wheels per platform | ✓ | ✗ a second storage engine beside SQLite | **REJECT.** A second index with its own files and lifecycle, for a lexical match FTS5 already provides. Revisit only if FTS5 is absent on a platform and the LIKE fallback proves too slow. |
@@ -222,7 +226,7 @@ week).
 Memory derived from a world's perceived event log, with Event-ID provenance kept by construction and no
 model on the ingest path, is MineWorld's core value (`REUSE_POLICY.md` §4); no candidate in step-17 §4.3
 or here provides it ("missing required semantics"). The commodity parts (storage, transactions, lexical
-indexing) are reused. `DEP-P4-a` records the adopted pieces, the declined ones above with their
+indexing) are reused. `DEP-37` records the adopted pieces, the declined ones above with their
 re-evaluation triggers, and supersedes step-17's `DEP-S10-d` placeholder.
 
 ---
@@ -503,11 +507,13 @@ full suite (test rules §8); the PR's CI is the one full run.
 
 ### C0 — Freeze and contract (Markdown only)
 
-- **Goal.** Record the freeze and fill §12's contract with its sources.
-- **Scope.** This document; a new `handoff-s10-p4.md`.
-- [ ] Implementation: the `DESIGN FROZEN` header with its approval reference; the contract's authority
-  lines with sources; the handoff initialized; the base commit recorded; the decision numbers the
-  primary session assigned written in place of `DEP-P4-a` (and `ARC-59` confirmed or replaced).
+- **Goal.** Start the implementation context against the frozen design. The freeze header, the
+  contract's authority lines and the decision numbers (`ARC-59`, `DEP-37`) were filled by the planning
+  session at freeze (§12, §13.1); C0 verifies them rather than writing them.
+- **Scope.** This document (§14 opened); a new `handoff-s10-p4.md`.
+- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
+  that `overall.md`'s table lists `ARC-59` and `DEP-37` for P4; record the implementation base commit;
+  initialize the handoff with the contract's required fields.
 - [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
 - [ ] Review: every authority line has a source, and none was widened.
 - **Commit boundary.** Documentation only.
@@ -517,9 +523,9 @@ full suite (test rules §8); the PR's CI is the one full run.
 - **Goal.** The decisions exist before the code (`CLAUDE.md` §2.2); FTS5 is known present (or the
   fallback chosen) on all three legs before anything depends on it.
 - **Scope.**
-  - `docs/DECISIONS.md`: `ARC-59` (proposed) — memory is a derivation of perceived facts; compression
+  - `docs/DECISIONS.md`: `ARC-59` — memory is a derivation of perceived facts; compression
     L0–L3 with citations kept by construction; the model may rewrite text, never citations; the store
-    is the operator's, outside the save; determinism on the canonical dump. `DEP-P4-a` — stdlib
+    is the operator's, outside the save; determinism on the canonical dump. `DEP-37` — stdlib
     `sqlite3` and FTS5 as a filter with integer ranking; §4's declines (LanceDB, DuckDB, SQLAlchemy,
     LangGraph stores, plain files, sqlite-vec, rank-bm25, tantivy-py, Chroma) with re-evaluation
     triggers; supersedes step-17's `DEP-S10-d`.
@@ -638,10 +644,13 @@ full suite (test rules §8); the PR's CI is the one full run.
 - **R-P7-1' (on P7).** Milestone D's "same memory" check reads the cited ranges through
   `MemorySection.citations()`; IC-8's mutation (store deleted, re-ingestion disabled) uses P4's store.
 
-## 12. Execution contract (skeleton; filled at freeze)
+## 12. Execution contract (filled at freeze, 2026-10-10)
 
-Lines marked `unresolved` are settled by the primary session or the operator at freeze; none is a
-decision of this planning session.
+Source of every line marked "primary session": its freeze rulings of 2026-10-10, relayed by the
+coordinator to the S10 planning session: "implementation authorized for a fresh session; merge only
+after primary review". Endpoints the rulings do not name individually (push, PR, CI repair) take the
+working rules' shipped defaults (§21), which that authorization does not narrow. Lines marked "S10
+convention" follow P5a's contract (`pr-s10-p5-backends.md` §11) and were not separately ruled.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S10 PR P4 — subjective memory, compression L0–L3, retrieval,
@@ -652,14 +661,15 @@ RELATED / BINDING DOCS:  step-17-cognition.md (§§3.8, 3.9, 3.16.3, 4.3, 4.4, 4
                          step-12-server.md §17 (perceived; ARC-43); overall.md (S10; decision table);
                          docs/ARCHITECTURE.md §8; docs/CORE_CONCEPTS.md §5; docs/ENGINEERING_STANDARDS.md
                          (§§22–24); docs/REUSE_POLICY.md; CLAUDE.md
-WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p4            (unresolved)
-BRANCH:                  mvp0/pr-s10-p4-memory, created from main                   (unresolved)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p4, its own, held by one
+                         session (CLAUDE.md §3.1)                                  (S10 convention)
+BRANCH:                  mvp0/pr-s10-p4-memory, created from main                   (S10 convention)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
 FROZEN INVARIANTS:       §2.3; D-P4-1 … D-P4-13 as ruled; QS10-11; QS10-17; QS10-18; QS10-19; every platform
 SEQUENCE:                C0 … C8
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; target/*/mineworld *;
-                         mkdir -p; sed -n                                          (unresolved)
+                         mkdir -p; sed -n                                          (S10 convention)
 NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading
                          ~/.config/mineworld/secrets.env or any key file; using any API key; calling any
                          hosted API; running, pulling or downloading any model; running
@@ -673,14 +683,19 @@ VALIDATION BUDGET:       unit, static, local integration (incl. 100-day runs): u
                          calls: none by agents. CI: the PR's runs; no manual dispatch
 LIVE DOCUMENTATION:      this document (§14)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p4.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved   (default: authorized)
-                         semantic commits: unresolved                    (default: authorized)
-                         branch push: unresolved                         (default: authorized)
-                         PR creation / update: unresolved                (default: authorized)
-                         CI repair to review readiness: unresolved       (default: authorized)
-                         merge: explicit operator authorization only
-POST-MERGE SYNC OWNER:   unresolved (proposed: the S10 planning session owns step-17 §15 and overall.md;
-                         the implementation session owns this document's ledger, evidence, deviations)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized, in a fresh session
+                                                                 (primary session, 2026-10-10)
+                         semantic commits: authorized            (primary session; working rules §14)
+                         branch push: authorized                 (primary session; working rules §21)
+                         PR creation / update: authorized        (primary session; working rules §21)
+                         CI repair to review readiness: authorized
+                                                                 (primary session; working rules §21)
+                         merge: never by the implementation session. Only after the primary session's
+                         review, and only with explicit operator authorization (primary session,
+                         2026-10-10; working rules §22)
+POST-MERGE SYNC OWNER:   the S10 planning session owns step-17 §15 and overall.md; the implementation
+                         session owns this document's ledger, evidence, deviations and remaining issues
+                                                                 (S10 convention, as P5a)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -690,9 +705,22 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 operator ruling). **[primary]** marks one the primary session decides. No question here needs a model,
 a key or money.
 
+### 13.1 Rulings, 2026-10-10
+
+| ID | Ruling |
+| --- | --- |
+| QP4-1 | **Primary:** `ARC-59` for P4 and `DEP-37` for the store and retrieval record. The primary session records both in `overall.md`'s decision-number table. `ARC-72 … ARC-74` stay with P6. |
+| QP4-2 | **Primary:** the refined episode rule is accepted (same place, gap ≤ 30 min, same day, people merged; D-P4-7). |
+| QP4-3 | **Primary:** the IC-4 changes are accepted. Each is stricter or makes a criterion hold across platforms; no threshold is relaxed. |
+| QP4-4 … QP4-10 | **Primary:** as recommended. |
+| QP4-11 | **Operator, 2026-10-10:** no pruning in P4; forgetting goes to MVP-1. C7 measures and records store growth per seat per 100 days (R-P4-4). |
+| Freeze | **Primary session, 2026-10-10:** P4 DESIGN FROZEN; implementation authorized for a fresh session; merge only after the primary session's review (§12). |
+
+### 13.2 The questions as asked (kept for review)
+
 | ID | Question | Recommendation |
 | --- | --- | --- |
-| **QP4-1 [primary]** | Decision numbers: `ARC-59` for P4's architecture record (leaving `ARC-72 … ARC-74` to P6), and which DEP number for the store and retrieval record (`DEP-P4-a`; next free `DEP-37`)? | **`ARC-59` and `DEP-37`**, recorded in `overall.md`'s table before P4 merges, so the reservation does not live only in this document (the 2026-10-09 collision lesson). |
+| **QP4-1 [primary]** | Decision numbers: `ARC-59` for P4's architecture record (leaving `ARC-72 … ARC-74` to P6), and which DEP number for the store and retrieval record (next free: `DEP-37`)? | **`ARC-59` and `DEP-37`**, recorded in `overall.md`'s table before P4 merges, so the reservation does not live only in this document (the 2026-10-09 collision lesson). |
 | **QP4-2 [primary]** | Accept D-P4-7's L1 rule (same place, gap ≤ 30 min, day; counterparts as union) in place of step-17 §3.9.1's "sharing a place and a counterpart set"? | **Yes.** F-P4-1: the step-17 rule yields 441 episodes a day (median size 1) on the real export; the refined rule 9.3 a day. It changes no IC-4 literal. |
 | **QP4-3 [primary]** | Accept the IC-4 refinements: determinism on the canonical dump, not SQLite file bytes (D-P4-8); coverage as "open L0 tail ∪ closed episodes, exact and disjoint"; the mutation "disable the L1 roll-up" asserted through (c), not (a), because (a) holds by construction (D-P4-9) and the budget's own mutation is added; two added criteria, (f) reach-back and (g) batch independence? | **Yes.** Each makes IC-4 stricter or makes a step-17 criterion satisfiable across platforms; none relaxes a literal. |
 | **QP4-4 [primary]** | Drop step-17 §3.16.3's in-memory `MemoryStore` implementation, and use SQLite `":memory:"` for tests (D-P4-13)? | **Yes.** One implementation, exercised by every test; no protocol for a single implementation (`CLAUDE.md` §4 rule 11). |
