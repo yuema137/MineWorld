@@ -108,9 +108,10 @@ def test_a_connection_beyond_loopback_is_blocked_at_once() -> None:
     started = time.monotonic()
     with pytest.raises(BaseException) as raised:
         run(attempt())
-    assert time.monotonic() - started < 1
+    elapsed = time.monotonic() - started
     # httpx2's connector runs inside an anyio task group, which wraps the guard's error in a group.
     assert _contains(raised.value, SocketConnectBlockedError), repr(raised.value)
+    assert elapsed < 1
 
 
 def _contains(error: BaseException, kind: type[BaseException]) -> bool:

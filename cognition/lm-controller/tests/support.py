@@ -59,10 +59,14 @@ def completion(text: str, *, input_tokens: int = 10, output_tokens: int = 5) -> 
 
 
 def run[T](coroutine: Coroutine[Any, Any, T], *, timeout_s: float = 10) -> T:
-    """Runs one coroutine to completion with a bound, as the SDK's tests do."""
+    """Runs one coroutine to completion with a bound, on a selector event loop on every platform.
+
+    The selector loop connects with `socket.connect`, which the network guard (pytest-socket) patches.
+    Windows' default proactor loop connects with `ConnectEx` instead and is not guarded: CI's first
+    Windows run showed a TEST-NET connection taking 10 s rather than being refused (ledger F-P5-4)."""
 
     async def bounded() -> T:
         async with asyncio.timeout(timeout_s):
             return await coroutine
 
-    return asyncio.run(bounded())
+    return asyncio.run(bounded(), loop_factory=asyncio.SelectorEventLoop)

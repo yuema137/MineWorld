@@ -100,7 +100,7 @@ def test_a_remote_server_is_refused_without_allow_remote(tmp_path: Path) -> None
 
 
 def test_no_ci_command_runs_the_spike_or_allows_a_remote_server() -> None:
-    for layer in ("fast", "core", "platforms", "python", "python-smoke"):
+    for layer in ("fast", "core", "parity", "platforms", "python", "python-smoke"):
         listed = subprocess.run(
             [sys.executable, "scripts/ci_layer.py", "--list", layer],
             cwd=REPOSITORY,

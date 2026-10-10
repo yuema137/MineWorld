@@ -1343,6 +1343,41 @@ DV-P5-6  the option literals (StructuredOutput, Reasoning, TemperatureMode) are 
   (`key_env = ""`, `reasoning = "off"`). The agent then commits the report and the chosen cassette
   under `tests/cassettes/spike-<date>.{json,jsonl}` and records the default in the README's example.
 
+### 13.10 Mutations (each applied, run, observed red, reverted)
+
+```text
+ID    criterion   mutation                                               observed
+M-1   AP5-1 (a)   canonical_json with sort_keys=False                    golden test FAILED (bytes differ)
+M-2   AP5-2       a float returns instead of raising KeyMaterialError    both schema-path cases FAILED
+M-3   AP5-4       replay returns the first entry for every repeat        ordered-replay test FAILED
+M-4   AP5-4       Cassette.load skips the key check                      edited-entry test FAILED
+M-5   AP5-5       record writes the target directly, replaces nothing    interrupted test FAILED (bytes
+                                                                         changed at index 113)
+M-6   AP5-6 (c)   one retry on a 5xx                                     no-retry test FAILED (2 requests)
+M-7   AP5-7 (i)   budget checked after the backend call                  (i) FAILED 23≠22; (iii) FAILED 3≠2
+M-8   AP5-7 (iv)  SqliteLedger on ":memory:"                             (iv) and the round trip FAILED
+M-9   AP5-7 (v)   budget.py imports Observation from wire.contract       (v) FAILED
+M-10  AP5-6 (a)   backend/__init__.py imports openai_compatible          child-interpreter test FAILED (and
+                                                                         the scan, at that line)
+M-11  AP5-8       replay keeps only entries whose binding is bound       rename/repoint test FAILED (misses)
+M-12  AP5-9       the adapter logs a 401's body                          both source cases FAILED ("logs")
+M-13  AP5-13 (a)  load_dotenv instead of dotenv_values                   (a), (f) and AP5-9[env_file] FAILED
+M-14  AP5-13 (e)  `.env.*` dropped from .gitignore                       `.env.local` case FAILED
+M-15  AP5-14 (a)  groq preset on http://                                 row test FAILED naming "groq"
+M-16  AP5-14 (c)  the preset name written as meta.binding                both preset cases FAILED
+M-17  AP5-14 (f)  a "cerebras" row with no README row                    README test FAILED naming it
+M-18  AP5-10 (a)  "ollama" planted at the end of gateway.py              scan FAILED at gateway.py:151
+M-19  AP5-10 (b)  the guard removed from the member's addopts            configuration test FAILED (only that
+                                                                         test was run: without the guard the
+                                                                         TEST-NET test would attempt a real
+                                                                         connection, which this session avoids)
+M-20  AP5-10 (c)  the two pytest commands merged into one                once-per-member test FAILED
+```
+
+AP5-14 (c)'s listed mutation ("add the preset name to the request") cannot be written: the request is a
+closed model with no field for it (AP5-1 (c)). M-16 is the nearest real leak — the preset name reaching
+the cassette — and it is caught.
+
 **Process note.** While editing a test this session ran `sed -i.bak '' /dev/null` once by mistake (an
 empty `sed -i` on `/dev/null`, which the brief forbids). It touched no file: `git status` and a search for
 `*.bak` showed nothing. Recorded so the slip is visible.
