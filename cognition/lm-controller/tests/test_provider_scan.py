@@ -19,6 +19,8 @@ SDK_SOURCE = PACKAGE.parent.parent / "sdk" / "python" / "src"
 CASSETTES = PACKAGE / "tests" / "cassettes"
 ALLOWED = {
     SOURCE / "backend" / "openai_compatible.py",
+    SOURCE / "backend" / "anthropic_messages.py",
+    SOURCE / "backend" / "cli_bridge.py",  # its allowlist refuses OPENAI_* and ANTHROPIC_* by name
     SOURCE / "backend" / "registry.py",
     SOURCE / "backend" / "providers.py",
     SOURCE / "config.py",
@@ -97,7 +99,7 @@ def test_only_the_adapter_imports_the_http_client() -> None:
         for path in sorted(SOURCE.rglob("*.py"))
         if re.search(r"^\s*(from|import) httpx2\b", path.read_text(encoding="utf-8"), re.MULTILINE)
     ]
-    assert importers == ["backend/openai_compatible.py"]
+    assert importers == ["backend/anthropic_messages.py", "backend/openai_compatible.py"]
 
 
 def test_the_readme_lists_exactly_the_presets() -> None:

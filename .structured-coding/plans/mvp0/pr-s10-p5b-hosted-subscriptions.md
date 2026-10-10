@@ -221,6 +221,12 @@ P5b's native adapter provides.
    "Effective: January 1, 2026"; the page answered our fetcher with HTTP 403, so the quote is from the
    excerpts and is re-read by the operator before freeze. Among the things a user may not do:
    > Automatically or programmatically extract data or Output (defined below).
+
+   **C1 re-read (P5b implementation session, 2026-10-09): INCONCLUSIVE.** WebFetch of
+   `https://openai.com/policies/terms-of-use/` and of `https://openai.com/policies/row-terms-of-use/`
+   both answered HTTP 403. The quote above therefore still rests on search excerpts; nothing was
+   guessed. C4 does not start (freeze header). Pending: the operator, or a session with a browser,
+   pastes the effective date and the clauses here.
 3. **Not found:** any OpenAI text that explicitly permits, or explicitly forbids, a third-party
    application running `codex exec` with the user's ChatGPT plan.
 
@@ -500,3 +506,305 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | QP5b-4 [primary] | The native Anthropic adapter over `httpx2`, with the `anthropic` SDK declined (`DEP-33`), as QP5-1's ruling asked to compare? | **Yes**, for QP5-1's reasons. The SDK's implicit environment reads are re-verified in C1. |
 | QP5b-5 [primary] | P5b after P5a, possibly in parallel with P4? | **Yes.** P5b touches no file P4 touches beyond the registry line. |
 | QP5b-6 [operator] | Present Claude by API key, OpenAI by API key, DeepSeek and GLM as the recommended hosted routes in the README, with subscriptions listed after them as a user's own opt-in? | **Yes.** It matches the vendors' own guidance and keeps the user's account safe. |
+
+---
+
+## 11. Ledger (live during implementation)
+
+```text
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE, with C4 BLOCKED (the OpenAI Terms of Use
+                   re-read is INCONCLUSIVE and the `codex exec --help` paste is missing; §11.2, §11.5).
+                   Implementation context CLOSED / AWAITING OPERATOR ACTION
+Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
+Implementation
+base:              origin/main @ 02788e6 (#123), which contains P5a's merge 60a6295 (#120)
+Worktree / branch: /Users/yuema137/mineworld-worktrees/impl-s10-p5b, mvp0/pr-s10-p5b (sole writer)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session owns this
+                   ledger, its evidence and its deviations
+Handoff:           handoff-s10-p5b.md
+```
+
+### 11.1 C0 — freeze, contract, re-audit of P5a's merged code
+
+- [x] Implementation: the `DESIGN FROZEN` header and §9 were committed with the freeze (#111). This
+  session records the base (`02788e6`; P5a merged as `60a6295`, #120) and initializes
+  [`handoff-s10-p5b.md`](handoff-s10-p5b.md).
+- [x] Validation (E-P5b-0): `check_doc_headings.py` ("193 numbered sections across 26 documents, none
+  duplicated") and `check_decision_ids.py` ("98 decision ids, all distinct"), both exit 0; `grep -n
+  'ARC-60\|DEP-33' docs/DECISIONS.md` finds only ARC-56's note of S10's range: both numbers are free.
+  Baseline: `uv run --locked pytest cognition/lm-controller` at `02788e6`, 81 passed.
+- [x] Review: P5a's merged code against §3's assumptions (files read in full: `backend/model.py`,
+  `backend/registry.py`, `backend/openai_compatible.py`, `backend/providers.py`, `config.py`,
+  `gateway.py`, `record.py`, `budget.py`, `secrets.py`, `errors.py`, `tests/support.py`,
+  `tests/test_provider_scan.py`):
+  - `registry.FACTORIES: dict[str, Factory]`, `Factory = (BackendConfig, Secret | None) -> ModelBackend`,
+    each adapter imported inside its factory: P5b adds a kind by one entry, as assumed.
+  - `BackendConfig.kind` is `Literal["openai-compatible"]` with that default (DV-P5-3); `base_url` is
+    required and validated by `check_base_url`; `temperature` defaults to `"send"`. The `anthropic` kind
+    needs `"omit"` as its default (§5.1): a kind-dependent default in the same `before` validator that
+    fills presets.
+  - `ModelGateway.complete` runs the budget pre-check, then the limiter, then the backend under
+    `asyncio.timeout(call_timeout_s)`, which **cancels** the backend's coroutine: a bridge must kill
+    its process tree on cancellation as well as on its own bound (D-B4, D-B7 hold by placement).
+  - `RecordingBackend` computes the key **before** the call and serializes the request **after** it:
+    a backend that lowered the schema in place would leave a cassette whose key no longer matches its
+    request (the load check refuses it). AB-1's key half is tested through that path.
+  - **Difference 1:** `BackendFailure` carries only `reason` and `status`; it has no message field, and
+    P5a has no "secret scrub" (`grep -ri scrub src` finds only `record.py`'s "redaction holds by
+    construction, not by scrubbing"). §5.2 step 8's "first 200 characters of stderr after the scrub"
+    cannot be carried without changing P5a's seam (a material stop). Resolved in C3 as DV-P5b-2.
+  - **Difference 2:** `tests/support.run` runs every coroutine on `asyncio.SelectorEventLoop` (F-P5-4).
+    On Windows a selector loop cannot start a subprocess; resolved in C3 (F-P5b-1).
+  - The contract's branch name is `mvp0/pr-s10-p5b-hosted`; the primary session's kickoff of this
+    session names `mvp0/pr-s10-p5b`, which is used (DV-P5b-1).
+
+### 11.2 C1 — decisions and the operator's CLI check
+
+- [x] Implementation: `docs/DECISIONS.md` `DEP-33` (the native adapter; the `anthropic` SDK and
+  `claude-agent-sdk` declined, with the SDK's environment reads verified in source) and `ARC-60` (the
+  subscription route as ruled: no Claude route, the bridge invariants I-B1 … I-B5, the Codex opt-in
+  conditional on the terms re-read); `cognition/lm-controller/README.md` "Subscriptions", after the
+  API-key routes (QP5b-6), quoting §4 with URLs and dates.
+- [ ] **The operator's `codex exec --help` paste: NOT AVAILABLE.** No operator paste reached this
+  session, and an agent does not run the CLI (§9 NEVER). It is needed by C4 only.
+- [ ] **The OpenAI Terms of Use re-read: INCONCLUSIVE** (§4.2): two WebFetch attempts, HTTP 403 each.
+  Per the freeze header, **C4 does not start**; this is an open operator obligation, not a material
+  stop (nothing shows that the terms forbid the use).
+- [x] Validation (E-P5b-1): `check_doc_headings.py` and `check_decision_ids.py` exit 0 (100 ids, all
+  distinct, after `DEP-33` and `ARC-60`); the README section carries both URLs and the date
+  2026-10-09; §4.2 carries the re-read attempt, its date and its result.
+- [x] Review: no claim about a Codex flag is made anywhere (no preset exists); the README states that
+  the Codex route is not available yet, rather than describing an unbuilt route as usable; nothing in
+  the re-read attempt contradicts QP5b-2.
+
+**External research recorded at C1 (§2 of the working rules).**
+
+```text
+question     does the anthropic SDK read the environment and retry implicitly? (§4.3 "not re-verified")
+source       github.com/anthropics/anthropic-sdk-python, main: src/anthropic/_client.py and
+             src/anthropic/_constants.py (raw files, WebFetch, 2026-10-09)
+conclusion   Anthropic.__init__ and AsyncAnthropic.__init__ each read ANTHROPIC_API_KEY,
+             ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL with os.environ.get when the argument is
+             omitted; max_retries defaults to DEFAULT_MAX_RETRIES = 2; DEFAULT_TIMEOUT 600 s, connect 5 s
+consequence  confirms DEP-33's rejection (D-P5-4's rules (a) and (c)); no limitation follows
+```
+
+### 11.3 C2 — `AnthropicMessagesBackend`
+
+- [x] Implementation: `backend/anthropic_messages.py` (`API_VERSION`, `request_body`, `_parse`,
+  `AnthropicMessagesBackend(config, key, *, transport=None)`, `trust_env=False`, no retry);
+  `backend/strict_schema.py` (`lower_schema`, pure, returns a copy; DV-P5b-3); `backend/registry.py`
+  (`"anthropic"` → a factory importing the adapter when called); `config.py` (`Kind =
+  Literal["openai-compatible", "anthropic"]`; the `anthropic` kind defaults `temperature` to `"omit"`;
+  `_kind_options`: AB-2's refusal of `openai-compatible` on `api.anthropic.com` or any
+  `*.anthropic.com` host, and, for `anthropic`, refusals of `preset`, `structured_output =
+  "json_object"` and a `reasoning` setting — D-P5b-a below); `examples/hosted.toml.example` gains a
+  `[backends.claude]` table (bound to no tier) and `.env.example` `ANTHROPIC_API_KEY=`; README's Claude
+  paragraph. Tests: `tests/test_anthropic_messages.py` (new); `test_secrets.py`'s AP5-9 test is
+  parametrized over `kind` (`openai-compatible`, `anthropic`); `test_provider_scan.py` allows
+  `anthropic_messages.py` (I-10) and expects it as the second `httpx2` importer;
+  `test_structural_isolation.py`'s replay child now binds a second tier to an `anthropic` backend and
+  checks that neither adapter (nor `cli_bridge`) nor `httpx*` is imported.
+- [x] Validation (E-P5b-2): cognition suite **101 passed** (81 → 101); ruff check, ruff format, pyright
+  strict clean over the workspace.
+  - AB-1: the exact body for a literal five-message request (two `system` joined with `"\n"` and
+    hoisted; `user`/`assistant` in order; `max_tokens` 256; no `temperature`, no `seed`;
+    `output_config.format` with `maxLength` removed and `additionalProperties: false`), `x-api-key`
+    equal to the key, `anthropic-version: 2023-06-01`, no `authorization`; the text of two text blocks
+    concatenated, usage mapped. `temperature = "send"` sends 0.7; `structured_output = "none"` sends no
+    `output_config`; no key → no `x-api-key`. Recorded through `RecordingBackend`: the entry's key equals
+    AP5-1's literal `6bd78b32…` and its request equals the golden request (no `additionalProperties`),
+    while the body sent carried `additionalProperties: false`. `end_turn`/`stop_sequence` → `complete`,
+    `max_tokens` → `length`, `refusal` → `refused`, `tool_use` and a non-JSON body →
+    `malformed_response`; missing usage → estimated, flagged (4 output tokens, by hand); 401 and 403 →
+    `unauthorized`, 429, 500 and 529 → `http_status(code)`, one request each (no retry).
+  - Lowering, against a hand-written expectation: a property *named* `minimum` kept with its bounds
+    removed; `minItems: 2` and `maxItems` removed, `minItems: 1` kept; an `anyOf` branch with
+    `properties` closed; an `enum` value `{"maxLength": 3}` left alone; `additionalProperties: true`
+    overridden to `false`; the input unchanged.
+  - AB-2: `openai-compatible` at `https://api.anthropic.com/v1/` → `ConfigError` naming
+    `kind = "anthropic"` and `response_format`. `claude-code-subscription` → `ConfigError` at
+    `backends.x.kind` (QP5b-1).
+  - AP5-9 re-run with `kind = "anthropic"`, both key sources: the mock received the key in `x-api-key`
+    three times; it is absent from the cassette, the SQLite ledger, every log record, stdout, stderr
+    and every `str`/`repr`.
+  - Mutations (§11.8): M-b1 lowering in place → the key test fails (`CassetteFormatError`: key
+    `6bd78b32…` does not match its request, which hashes to `5e871f83…`); M-b2 `temperature` defaulting
+    to `"send"` → the exact-body and the default tests fail; M-b3 AB-2's check removed → AB-2's test
+    fails. All reverted; `grep -rn MUTATION cognition/` empty; 101 passed.
+- [x] Review: among P5b's files only `anthropic_messages.py` imports `httpx2` (the scan pins the list);
+  the adapter reads no environment variable and logs nothing; a failure carries a reason and a status,
+  never a body; the example's Claude table is bound to no tier, so the example's behaviour is unchanged.
+
+**D-P5b-a (bounded, fail-closed).** For `kind = "anthropic"` three options of `BackendConfig` have no
+meaning: `preset` (every row is an OpenAI-compatible endpoint), `structured_output = "json_object"` (the
+Messages API has no such mode) and `reasoning` (no mapping is designed). Each is refused by name rather
+than silently ignored. Applies only to the new kind; no P5a configuration changes meaning.
+
+**DV-P5b-3 (bounded).** `backend/strict_schema.py`, a module not in §2.1: §5.1 puts the lowering
+"inside the adapter", but §5.4 has the Codex preset use "the same lowering", and a preset importing
+`anthropic_messages.py` would import `httpx2` into the bridge. The pure function lives in a module of
+its own that names no provider.
+
+### 11.4 C3 — `CliBridgeBackend` core
+
+- [x] Implementation: `backend/cli_bridge.py` — `ENVIRONMENT_ALLOWLIST` (D-B3's names), a deny pattern
+  (`*_API_KEY`, `*_TOKEN`, `OPENAI_*`, `ANTHROPIC_*`) applied even to a preset's home variable,
+  `MODEL_NAME` (`^[A-Za-z0-9._:/-]{1,128}$`), the `BridgePreset` protocol (`executable`, `home_variable`,
+  `arguments`, `schema_document`, `render_prompt`, `parse`, `classify`), `child_environment`,
+  `kill_tree` (POSIX `os.killpg(pid, SIGKILL)`; Windows `taskkill /T /F /PID`, then `kill()`; then
+  `wait()`), `CliBridgeBackend(preset, *, command, model, request_timeout_s)` following §5.2: a fresh
+  `mkdtemp` directory removed in `finally`; the schema written there as `schema.json` (UTF-8, LF); argv
+  = command + the preset's arguments; the allowlisted environment; `start_new_session=True` (POSIX) or
+  `CREATE_NEW_PROCESS_GROUP` (Windows); the prompt through `communicate(stdin)`; the bridge's own bound
+  (`request_timeout_s`, else none: the gateway's `call_timeout_s` bounds the call, D-B8); `kill_tree` in
+  `finally`, so a timeout, the gateway's cancellation or any error leaves nothing running; a non-zero
+  exit classified by the preset from stderr's first line. Tests: `tests/fakes/fake_cli.py` (modes
+  `answer`, `answer-no-usage`, `fail`, `hang`, `sleep`; one JSON record per start: argv, environment,
+  working directory and its entries, stdin as hex, pid, the grandchild's pid); `tests/test_cli_bridge.py`
+  with a test-only `FakePreset`. `pyproject.toml`'s `addopts` gains `-v` (DV-P5b-5);
+  `test_provider_scan.py` allows `cli_bridge.py` (DV-P5b-6).
+- [x] Validation (E-P5b-3): cognition suite **111 passed, 1 skipped** (the Windows-only shim test on
+  macOS); ruff, format, pyright strict clean, and pyright with `--pythonplatform Windows` and `Linux`
+  clean (the `sys.platform` branches narrow).
+  - AB-3: `MWTEST-…` values planted in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CODEX_API_KEY`,
+    `FOO_TOKEN`, and in an `env_file` the same process resolved a key from: none in the child's argv,
+    environment or stdin; no `*_API_KEY`/`*_TOKEN` name in its environment; the preset's home variable
+    passed; the working directory `mineworld-bridge-…` was empty and is gone after the call.
+  - AB-4: a user message starting `& calc.exe %PATH% $(id) "; rm -rf /` plus 300 lines (over 10 000
+    bytes) of `& | < > ^ %X% !Y!` and non-ASCII text: argv holds none of it; stdin equals the rendered
+    prompt byte for byte; the schema travels as a generated `schema.json` path; a model `m; rm -rf /`
+    is refused (`ConfigError`), `gpt-test.1:mini` accepted. The same through a launcher found by
+    `shutil.which` on a test-owned `PATH`: a shell script on POSIX (run here), a `.cmd` shim through
+    `PATHEXT` on Windows (`test_no_model_facing_text_reaches_argv_through_a_cmd_shim_on_windows`, which
+    also asserts the found path ends in `.cmd`; runs on the Windows leg only — AB-9).
+  - AB-5: through `ModelGateway` with `call_timeout_s = 1`, the fake starts a grandchild and sleeps:
+    `Failed(timeout)` in under 2 s, and both pids gone within 3 s (`_alive`: `os.kill(pid, 0)` plus the
+    Linux `/proc` zombie state; `OpenProcess` + `WaitForSingleObject` on Windows). The bridge's own
+    `request_timeout_s = 1` also kills the grandchild.
+  - AB-6: the credential scan of `src/` finds nothing; a planted `codex.py` line naming `.codex` and
+    `auth.json` is found at that line.
+  - AB-8: `calls_per_wall_hour = 20`, `FakeClock`: 20 calls complete, the 21st is
+    `Refused(calls_per_wall_hour)`, and the fake recorded **20** starts; the reported usage (11 + 4) is
+    charged unflagged, the no-usage fake's is estimated and flagged; the ledger holds 20 calls and the
+    exact token sum.
+  - Missing executable: `ConfigError` "'mwtest_absent_cli' was not found on PATH; … command = [...]"
+    (DV-P5b-4); a configured command that does not exist → `BackendFailure("unreachable")`. A failing CLI
+    (exit 3, "error: not logged in") → `unauthorized`, with no stderr text in the failure.
+  - Mutations (§11.8): M-b4 `env=dict(os.environ)` → AB-3 fails (the planted `OPENAI_API_KEY` value found
+    in the child's environment); M-b5 the prompt appended to argv → both AB-4 tests fail; M-b6
+    `process.kill()` instead of `killpg` → both tree tests fail; M-b7 the gateway spawning before it
+    returns a refusal → AB-8 fails (21 starts ≠ 20); M-b8 a `Path.home() / ".codex" / "auth.json"` line
+    planted in `cli_bridge.py` → AB-6 fails naming `backend/cli_bridge.py:71`. All reverted; `grep -rn
+    MUTATION cognition/` empty; 111 passed, 1 skipped.
+- [x] Review: argv is built from `self._command` (configuration or `shutil.which`), the preset's literals,
+  the generated schema path and the validated model only; `render_prompt` reaches `communicate` and
+  nothing else; no request text is formatted into any argument. Stderr is decoded only to give the
+  preset its first line; no stderr or stdout text enters a `BackendFailure`, a log or an exception.
+  `kill_tree` runs in a `finally`, so the gateway's cancellation path is covered (AB-5 runs through it).
+
+**F-P5b-1 (Windows: a selector event loop cannot start a subprocess).** `tests/support.run` uses
+`asyncio.SelectorEventLoop` on every platform (F-P5-4, for the network guard). On Windows,
+`SelectorEventLoop` does not implement subprocesses (`NotImplementedError`); only the default proactor
+loop does. **Decision (bounded):** the bridge tests run on the platform's default loop (`run_loop` in
+`test_cli_bridge.py`), which is safe because they open no socket. **Material for P6 (the planning
+session):** a cognition process that binds a subscription bridge must run the default (proactor) loop on
+Windows; if P6 chooses a selector loop there, as the tests do, bridges will fail to start. The module's
+docstring says so.
+
+**M-b6 observation.** With `process.kill()` alone the grandchild keeps the stdout pipe open, so
+`Process.wait()` (which waits for the pipes as well as the exit) blocks until the grandchild's 60 s
+sleep ends; the tests went red on their 30 s `run_loop` bound (`TimeoutError`), not on the pid
+assertion. The mutation is caught; the failure message does not name the pid as §6 imagined.
+
+**Deviations (bounded).**
+
+```text
+DV-P5b-2  No stderr text in a failure. §5.2 step 8 has the failure "carry the first 200 characters of
+          stderr after P5a's secret scrub". BackendFailure has no message field and P5a has no scrub
+          (C0's difference 1); adding either changes P5a's seam (a material stop). Stderr's first line
+          is used only to classify. Stricter than designed; I-16 holds by construction.
+DV-P5b-4  A missing executable is a ConfigError at construction, naming the command looked for and
+          suggesting `command = [...]` (D-B1's message), not a BackendFailure("unreachable") naming it:
+          a BackendFailure cannot name anything (DV-P5b-2's reason). Construction happens only in live
+          and record modes (I-B5). An executable that vanishes after construction is
+          BackendFailure("unreachable") at call time.
+DV-P5b-5  The member's pytest addopts gain `-v`, so CI's log names every test and AB-9's Windows-only
+          `.cmd` case is visibly run on its leg. ci_layer.py is unchanged (AB-10).
+DV-P5b-6  test_provider_scan.py's ALLOWED gains cli_bridge.py: its deny pattern names OPENAI_ and
+          ANTHROPIC_ (I-10 allows "the adapters, the presets, the registry and config.py").
+```
+
+### 11.5 C4 — the Codex preset: BLOCKED (not started)
+
+- [ ] Implementation — **not started.** The freeze header: "C4 (the Codex preset) does not start until
+  [the Terms of Use re-read] is recorded", and the re-read is INCONCLUSIVE (§11.2: HTTP 403 twice). The
+  operator's `codex exec --help` paste, from which the flags are to be fixed, has not been given either.
+  No `codex-subscription` kind, no `acknowledge_terms` field and no `backend/presets/` exist on this
+  branch; `config.load` refuses `codex-subscription` as an unknown kind, like
+  `claude-code-subscription`.
+- [ ] Validation — not run (AB-7's gate half, the recorded event stream, `turn.failed`).
+- [ ] Review — not run.
+- **Not N/A:** nothing shows that OpenAI's terms forbid the use; the obligation is open. **To unblock:**
+  the operator (or a browser session) pastes into §4.2 the Terms of Use's effective date and its clauses
+  on programmatic extraction of output and on account sharing, and pastes `codex exec --help` (with the
+  CLI's version) into §11.2. C4 then proceeds on this branch, or in a follow-up PR if this one has
+  merged; the bridge core (C3) needs no change for it: one preset file, one registry entry, the
+  `acknowledge_terms` field and its gate in `config.py`.
+- What C3 already covers of AB-7: a dropped or unbuilt kind is refused by name (`claude-code-subscription`
+  in `test_a_claude_subscription_kind_does_not_exist`); replay mode constructs no bridge
+  (`test_structural_isolation.py`'s child checks that `cli_bridge` is never imported); a missing
+  executable names what was looked for (DV-P5b-4).
+
+### 11.6 C5 — the Claude Code preset: N/A (QP5b-1)
+
+- N/A, ruled: Anthropic does not permit a third-party product to route requests through a user's Free,
+  Pro or Max plan credentials (§4.1). No such kind exists; `config.load` refuses
+  `claude-code-subscription` naming `backends.<name>.kind` (C2's test).
+
+### 11.7 C6 — CI and close-out
+
+- [x] Implementation: README ("Claude" paragraph and "Subscriptions"; the Codex route stated as not
+  available yet); this ledger; [`handoff-s10-p5b.md`](handoff-s10-p5b.md) closed.
+- [x] Validation (local, at the C6 head; CI on the exact head is recorded in the handoff and the PR body,
+  since a commit cannot carry its own run):
+  - `uv run --locked ruff check` and `ruff format --check` over both members: clean; `pyright` strict:
+    0 errors (also with `--pythonplatform Windows` and `Linux`);
+  - `uv run --locked pytest cognition/lm-controller`: 111 passed, 1 skipped (macOS);
+  - `check_doc_headings.py` and `check_decision_ids.py` exit 0;
+  - AB-10: `git diff --stat origin/main...HEAD` touches only `cognition/lm-controller/**`,
+    `docs/DECISIONS.md` and `.structured-coding/plans/mvp0/**`; `scripts/ci_layer.py` unchanged; no CI
+    command names a real CLI, a key or a hosted URL (no CI file changed);
+  - no Rust, `sdk/python`, `worlds/` or `.github/` file changed, so the Rust layers are unaffected
+    (CI runs them anyway).
+- [x] Review: §2.3 against the diff — I-10 (provider names only in the adapters, the registry,
+  `providers.py` and `config.py`; the scan pins it), I-16 (AP5-9 re-run for `anthropic`; no secret in a
+  failure), I-B1 (AB-6 scan), I-B2 (AB-3), I-B3 (AB-4), I-B4 (AB-5), I-B5 (no subscription kind exists;
+  replay imports no bridge). Every `[x]` carries its evidence; the open items (C1's two operator inputs,
+  C4) are marked open, not done.
+- **Stop:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`, with **C4 BLOCKED** on the operator's terms
+  re-read and help paste. The operator decides whether this PR merges without the Codex opt-in (C4 then
+  becomes a follow-up PR) or waits for it.
+
+### 11.8 Mutations (each applied, run, observed red, reverted)
+
+```text
+ID     criterion  mutation                                               observed
+M-b1   AB-1       schema lowered in place (the key "after lowering")     key test FAILED: CassetteFormatError,
+                                                                         key 6bd78b32… ≠ its request's 5e871f83…
+M-b2   AB-1       anthropic kind defaults temperature to "send"          exact-body and default tests FAILED
+M-b3   AB-2       the api.anthropic.com refusal removed                  AB-2 test FAILED (configuration loads)
+M-b4   AB-3       env=dict(os.environ)                                   AB-3 FAILED: planted OPENAI_API_KEY
+                                                                         value in the child's environment
+M-b5   AB-4       the rendered prompt appended to argv                   both AB-4 tests FAILED
+M-b6   AB-5       process.kill() instead of os.killpg                    both tree tests FAILED (on the 30 s
+                                                                         test bound: the grandchild holds the
+                                                                         pipe, see §11.4)
+M-b7   AB-8       the gateway calls the backend before returning a       AB-8 FAILED: 21 starts ≠ 20
+                  refusal (budget checked after the spawn)
+M-b8   AB-6       Path.home() / ".codex" / "auth.json" in cli_bridge.py  AB-6 FAILED at backend/cli_bridge.py:71
+```
+
+**Process note.** Twice this session a Bash call held an empty heredoc (`<<'X' … X`) redirected to
+`/dev/null` or to `python3 -` with no body. Neither wrote a file nor ran code (`git status` unchanged);
+recorded because the brief forbids heredoc writes.
