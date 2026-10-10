@@ -457,9 +457,31 @@ with evidence.
   roots. The tool refuses anything outside its roots by construction (`owned_texture`).
 
 ### C4 — `3d: screen-size culling`
-- [ ] Implementation: `budget.gd` part 1; the call in `slice_world.gd`.
-- [ ] Validation: A-5, X-1; M-5; V-1.
-- [ ] Review: FOV read from the rig, not copied; characters, ground and backdrop excluded.
+- [x] Implementation: `budget.gd` part 1; the call in `slice_world.gd`. *Evidence:* `SliceBudget.apply`
+  after the props line in `SliceWorld.build`; `visibility_range_end = r · H / (tan(FOV/2) · p)`,
+  margin 0.1·end, fade off. **Bounded correction:** SD-RLb-3's formula as written,
+  `r · (H/2) / (tan(fov/2) · p)`, hides an object when its projected *radius* is p, i.e. a 3 px
+  diameter, which contradicts SD-RLb-3's own sentence and A-5 ("diameter ≤ 1.5 px"). The diameter
+  form is used (twice the distance: more conservative). `r` is the larger of the world AABB's
+  half-diagonal and the farthest AABB corner from the instance origin, so the sphere bounds the
+  object whether Godot measures the range to the AABB centre or to the origin.
+- [x] Validation: A-5, X-1; M-5; V-1. *Evidence (E-RLb-5):* A-5: `budget 278 instances ranged by
+  screen size; widest at its range end 1.50 px; 0 over` (A-5's bound is a separate constant from the
+  one the range uses). X-1 (`MIN_PX = 6`): `278 over`, 278 errors — A-5 FAILs as required. V-1 on
+  `street wide` did **not** fail under X-1 (0.002 % over 8/255; `17_street_from_east` 0.009 %): the
+  objects X-1 hides at 4x the distance are under 6 px and their removal moves almost no pixel by more
+  than 8/255. The surviving half of X-1 is recorded, not papered over: V-1's 0.5-point rule is
+  insensitive to a handful of tiny objects popping; A-5 is the check that owns this failure class.
+  Reverted. V-1 (c3 → c4, the previous lever's head, because C3 changed every textured pixel): max
+  0.114 % (09b_character_detail, the character's own frame-to-frame noise region); every street and
+  interior view ≤ 0.001 % — PASS. M-5 at 1920x1080: street wide 11.58 / 4152 / 2.11 M; cafe frontage
+  20.87 / 4426 / 3.70 M; interior 15.94 / 3912 / 3.75 M; doorway 23.49 / 3428 / 3.17 M; street east
+  12.35 / 4215 / 2.34 M; south side 11.33 / 614 / 0.17 M; florist interior 16.79 / 3649 / 3.53 M;
+  skyline east 12.16 / 4044 / 2.08 M; video memory 2 049.6 MB. The yield is small (−3 draw calls at
+  most): the slice is 68 m long and few objects are far enough to fall below 1.5 px. `--drive` passes.
+- [x] Review: FOV read from the rig, not copied; characters, ground and backdrop excluded.
+  *Evidence:* `CameraRig.FOV` is read in `apply`; the exclusion is by `mw_category` (merged, foliage,
+  ground, backdrop) and the occupant is not under the world root. Labels and props are ranged.
 
 ### C5 — `3d: occluders from opaque massing`
 - [ ] Implementation: `occluders.gd`; the `terrace.gd` registry line; `project.godot`.

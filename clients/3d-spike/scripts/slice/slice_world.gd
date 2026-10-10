@@ -49,6 +49,9 @@ static func build(parent: Node3D) -> Node3D:
 	print("batch  %d primitive instances -> %d meshes, %d triangles"
 		% [m["merged_from"], m["merged_into"], m["triangles"]])
 	print("props  %d imported, %d fallback" % [Props.imported, Props.fallback])
+	var b := SliceBudget.apply(g)
+	print("budget %d instances ranged by screen size; widest at its range end %.2f px; %d over"
+		% [b["ranged"], b["max_px"], b["violations"]])
 	_tick("batched", t0)
 	return g
 
