@@ -591,9 +591,10 @@ M-IE3a–d, M-IE8, M-IE9.
 
 **Scope.** NEW `tools/cli/tests/social_interactions.rs`: IE-2, IE-4, IE-5, IE-6, IE-7 with M-IE1, M-IE2,
 M-IE5, M-IE6, M-IE7; IE-10's interactions/inspect cases.
-- [ ] Implementation: scratch copies; one unconfigured twin shared by the cases.
-- [ ] Validation: each criterion's literal; INCONCLUSIVE rules applied as written; mutations observed.
-- [ ] Review: no assertion depends on a wall clock or a platform path.
+- [x] Implementation: scratch copies; one unconfigured twin shared by the cases (E-IE-6).
+- [x] Validation: each criterion's literal; INCONCLUSIVE rules applied as written; mutations observed
+  (E-IE-6).
+- [x] Review: no assertion depends on a wall clock or a platform path (E-IE-6).
 
 ### IE-C7 — Close: byte identity, cost, guards, gate, ledger
 
@@ -841,6 +842,41 @@ E-IE-5  2026-10-10, IE-C5: NEW tools/cli/tests/social_sections.rs (D-IE-2), 9 te
         After the last revert: `git status --short` = only the new test file; `git grep MUTATION --
         '*.rs'` → nothing (exit 1). Review: every IE-3 case reads dispatch and the offer; values are
         literals from the layout (4 m, 2 m, 600 s, 3 600 s, 6 000 mm). PASS.
+E-IE-6  2026-10-10, IE-C6: NEW tools/cli/tests/social_interactions.rs, 3 tests, every run the real
+        binary, 30 days seed 7 --save on scratch copies:
+        an_explicit_default_for_the_three_social_sections_adds_only_their_genesis_facts (IE-2: request
+          lines equal; exactly 3 *-interactions-configured facts, all WorldGenesis; every other fact equal
+          in type, at, payload, subjects, participants, visibility; ids and causes offset by exactly 3;
+          > 10 000 moved)
+        the_social_sections_change_the_world_as_configured (one twin for IE-4 … IE-7):
+          IE-4 twin 1 078 resident–commuter lines (precondition met), configured 0 of 6 184 lines; no
+            "requests talk rejected PermissionDenied" line; faults 0; every seat speaks in each of the
+            three 10-day buckets. PASS
+          IE-5 twin 26 resident → commuter relationship facts (precondition met), configured 0; the
+            reverse 28. PASS
+          IE-6 grace's biography: 1 778 entries, 1 212 lines, none whose speaker is a resident, some by
+            non-residents; no became-acquainted held by grace; carol's biography holds one of hers; the
+            log holds resident → grace lines and commuter-held acquaintances. PASS (QIB-11 closed)
+          IE-7 twin seats perceive 37 329 lines they are not party to (precondition met), configured 0
+            over all 11 seats via `mineworld perceived --json`; every configured spoke is stated
+            Participants. PASS (QIB-12 closed)
+        the_interactions_command_shows_the_social_sections (IE-10: social-cafe prints "default
+          (compiled)" for conversation, group-activity and relationships; the IE-4 copy prints talk,
+          forbid, resident, commuter in conversation's section and carol resident, grace commuter, bob
+          person). With inspect.rs's pin (E-IE-4) IE-10 is met.
+        cargo test -p mineworld-cli --test social_interactions: 3 passed (30.8 s).
+        Mutations, observed red by name, reverted with git checkout:
+        M-IE1 talk's offer ignores permits → the_social_sections_… FAILED at IE-4 (b) ("requests talk
+          rejected PermissionDenied 375");
+        M-IE2 relationships' `default` reference list with declined_regard 0 → an_explicit_default_…
+          FAILED ("every other fact, once": 37 054 vs the plain count — the decline's regard changes
+          which levels are crossed);
+        M-IE5 apply ignores may_acquaint → FAILED at IE-5 ("none (twin: 26)");
+        M-IE6 spoke's FactDecl maps actor to Participant(1) → FAILED at IE-6 (a);
+        M-IE7 spoke stated with its owner default → FAILED at IE-7 ("nobody overhears (twin: 37329)").
+        After: `git status --short` = only the new file; `git grep MUTATION -- '*.rs'` → nothing. Review:
+        thresholds are literals or the twin's own counts; paths built with Path::join; no wall-clock
+        read. PASS.
 ```
 
 ## 15. Deviations
