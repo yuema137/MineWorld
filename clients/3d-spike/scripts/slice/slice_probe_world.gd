@@ -643,9 +643,20 @@ func _settings_check() -> void:
 	var start := MineWorldText.language()
 	var other := "en" if start == "zh_Hans" else "zh_Hans"
 	var first := _ui_texts()
+	await _settings_still("settings_%s_general" % start)
 	MineWorldText.set_language(other)
 	await _settle(3)
 	var second := _ui_texts()
+	await _settings_still("settings_%s_general" % other)
+	menu._tabs.current_tab = 1
+	await _settings_still("settings_%s_display" % other)
+	menu._tabs.current_tab = 0
+	# The HUD alone, in the same language: the menu's layer hidden, not closed (Close drops an
+	# unapplied language, by design).
+	menu.visible = false
+	await _settings_still("hud_%s" % other)
+	menu.visible = true
+	await _settle(2)
 	print("EVIDENCE ", JSON.stringify({"texts": {start: first.size(), other: second.size()}}))
 	_compare_texts(first, second, start, other)
 	MineWorldText.set_language(start)
@@ -657,6 +668,22 @@ func _settings_check() -> void:
 	print("\n%s" % ("all settings checks pass" if _set_fails == 0 else "%d SETTINGS CHECKS FAILED" % _set_fails))
 	link.client.leave_world()
 	await _hold(0.5)
+
+
+## A still, with `--stills=<dir>` (windowed): the menu or the HUD, for the operator's review (JPEG).
+func _settings_still(name: String) -> void:
+	var dir := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--stills="):
+			dir = arg.substr(9)
+	if dir == "":
+		return
+	await _settle(4)
+	await RenderingServer.frame_post_draw
+	DirAccess.make_dir_recursive_absolute(dir)
+	var path := dir.path_join(name + ".jpg")
+	var saved := get_viewport().get_texture().get_image().save_jpg(path, 0.85)
+	print("EVIDENCE ", JSON.stringify({"still": path, "saved": saved == OK}))
 
 
 func _compare_texts(first: PackedStringArray, second: PackedStringArray, a: String, b: String) -> void:

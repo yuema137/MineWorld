@@ -39,9 +39,14 @@ func run() -> void:
 	var start := MineWorldText.language()
 	var other := "en" if start == "zh_Hans" else "zh_Hans"
 	var first := _texts()
+	await _still("settings_%s_general" % start)
 	MineWorldText.set_language(other)
 	await _frames(3)
 	var second := _texts()
+	await _still("settings_%s_general" % other)
+	app.settings_menu._tabs.current_tab = 1
+	await _still("settings_%s_display" % other)
+	app.settings_menu._tabs.current_tab = 0
 	print("EVIDENCE ", JSON.stringify({"texts": {start: first.size(), other: second.size()}}))
 	_changed(first, second, start, other)
 	MineWorldText.set_language(start)
@@ -171,6 +176,12 @@ static func _masked(lines: PackedStringArray) -> PackedStringArray:
 	for line in lines:
 		out.append(digits.sub(line, "#", true))
 	return out
+
+
+## A still, with `--capture` (windowed): the menu over the HUD, for the operator's review.
+func _still(name: String) -> void:
+	if drive._capture != null:
+		await drive._capture.shoot(name)
 
 
 func _frames(n: int) -> void:

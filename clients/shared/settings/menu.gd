@@ -103,6 +103,8 @@ func add_tab(key: String, control: Control) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and _root != null:
+		# The selector shows the language in effect, however it was chosen.
+		draft.language = MineWorldText.language()
 		_render()
 
 
