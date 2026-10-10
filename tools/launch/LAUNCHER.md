@@ -7,8 +7,8 @@ human introduction is [`README.md`](README.md).
 ## 1. What it is
 
 A process supervisor for one machine. It finds the bundle it belongs to, starts `mineworld server` on a
-world with a save in the per-user `MineWorld` folder, reads the server's join line, starts the Godot runtime
-with a client's pack and the join arguments, waits for the client(s) to exit, stops the server, and reports
+world with a save in the per-user `MineWorld` folder, reads the server's join line, starts an exported client
+with the join arguments, waits for the client(s) to exit, stops the server, and reports
 a failure.
 
 It never reads world state; the only thing it reads from the server is the join line
@@ -60,11 +60,15 @@ binary's mode.
 | --- | --- |
 | `mineworld` (`mineworld.exe` on Windows) | the server binary |
 | `worlds/<world>/` | a World Pack |
-| `clients/2d.pck`, `clients/3d.pck` | the exported clients |
-| `godot/godot.exe` (Windows), `godot/godot` (Linux), `godot/Godot.app/Contents/MacOS/Godot` (macOS) | the Godot runtime |
+| `clients/mineworld-2d.exe`, `clients/mineworld-3d.exe` (Windows); `clients/mineworld-2d`, `clients/mineworld-3d` (Linux) | the exported clients, each a Godot release template with its pack embedded |
+| `clients/mineworld-2d.app`, `clients/mineworld-3d.app` (macOS) | the exported clients; the launcher starts the one executable in `Contents/MacOS/`, whatever the export named it |
 | `launch.toml` | optional overrides (§6) |
 
-A missing file is an error naming its path. These paths are defined in one place, `src/bundle.rs`.
+Each client is a full export because official Godot release templates are built with
+`disable_path_overrides` and refuse `--main-pack` (step-23 §18, probe P-3, D-Ra-1; the bundle layout is
+`ARC-80`'s). A missing file — or a macOS `Contents/MacOS/` holding other than exactly one file — is an error
+naming its path. The server is checked when the bundle is found; a client when its mode needs it. These paths
+are defined in one place, `src/bundle.rs`.
 
 ## 5. Per-user folder
 
@@ -124,7 +128,7 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
    the token follows "invite " up to the next space; the address follows " join with: " up to the next
    space. The server exiting first, or no line within 60 s, is an error naming the server's log.
 5  start each client of the mode:
-     <engine> --main-pack runtime/clients/<2d|3d>.pck [--headless]
+     <exported client> [--headless]
               -- --root=<root>/runtime --server=<address> --seat=<seat> --invite=<token> [probe]
      standard output and error: logs/<run>-client-<2d|3d>.log
 6  wait until every client has exited

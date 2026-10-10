@@ -7034,7 +7034,7 @@ the players'.
    `CREATE_NO_WINDOW`; macOS wraps each in a minimal `.app`; Linux ships `.desktop` files.
 3. It is **a process supervisor and nothing else**: find the bundle, start `mineworld server` on a world
    with a save in the per-user `MineWorld` folder, read the server's join line (`server/PROTOCOL.md`
-   §4.1), start the Godot runtime with the client's pack and the join arguments, wait for the client(s),
+   §4.1), start the exported client with the join arguments, wait for the client(s),
    stop the server, report a failure in a dialog naming the log. It reads nothing from the server but the
    join line, holds no world state and no world rule, opens no window of its own, and stops only processes
    it started.

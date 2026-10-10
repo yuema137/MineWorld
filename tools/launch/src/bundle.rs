@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::Failure;
 use crate::config::WorldName;
 
-/// A bundle root whose `runtime/` holds the server and the Godot runtime.
+/// A bundle root whose `runtime/` holds the server and the exported clients.
 #[derive(Debug)]
 pub struct Bundle {
     runtime: PathBuf,
@@ -20,7 +20,7 @@ pub enum Client {
 }
 
 impl Client {
-    /// The short name used in the pack's file name and in log names: `2d`, `3d`.
+    /// The short name used in the client's file name and in log names: `2d`, `3d`.
     pub fn label(self) -> &'static str {
         match self {
             Self::TwoD => "2d",
@@ -31,7 +31,7 @@ impl Client {
 
 impl Bundle {
     /// The bundle at `root`, or at the root found from this executable's path (`LAUNCHER.md` §4), checked
-    /// to hold the server and the Godot runtime.
+    /// to hold the server. A client's executable is checked when its mode needs it.
     pub fn locate(root: Option<PathBuf>) -> Result<Self, Failure> {
         let root = match root {
             Some(root) => root,
@@ -47,9 +47,7 @@ impl Bundle {
         let bundle = Self {
             runtime: root.join("runtime"),
         };
-        for needed in [bundle.server(), bundle.engine()] {
-            exists(&needed)?;
-        }
+        exists(&bundle.server())?;
         Ok(bundle)
     }
 
@@ -64,18 +62,6 @@ impl Bundle {
             .join(format!("mineworld{}", std::env::consts::EXE_SUFFIX))
     }
 
-    /// The Godot runtime the exported clients run in.
-    pub fn engine(&self) -> PathBuf {
-        let godot = self.runtime.join("godot");
-        if cfg!(target_os = "macos") {
-            godot.join("Godot.app/Contents/MacOS/Godot")
-        } else if cfg!(windows) {
-            godot.join("godot.exe")
-        } else {
-            godot.join("godot")
-        }
-    }
-
     /// A world's directory, checked to exist.
     pub fn world(&self, world: &WorldName) -> Result<PathBuf, Failure> {
         let path = self.runtime.join("worlds").join(world.as_str());
@@ -83,12 +69,34 @@ impl Bundle {
         Ok(path)
     }
 
-    /// A client's exported pack, checked to exist.
-    pub fn pack(&self, client: Client) -> Result<PathBuf, Failure> {
-        let path = self
-            .runtime
-            .join("clients")
-            .join(format!("{}.pck", client.label()));
+    /// A client's exported executable, checked to exist (step-23 D-Ra-1: official release templates refuse
+    /// `--main-pack`, so each client is a full export with its pack): `clients/mineworld-<2d|3d>.exe` on
+    /// Windows, `clients/mineworld-<2d|3d>` on Linux, and on macOS the one executable in
+    /// `clients/mineworld-<2d|3d>.app/Contents/MacOS/`, whose name the export takes from the project.
+    pub fn client(&self, client: Client) -> Result<PathBuf, Failure> {
+        let name = format!("mineworld-{}", client.label());
+        let clients = self.runtime.join("clients");
+        if cfg!(target_os = "macos") {
+            let folder = clients.join(format!("{name}.app/Contents/MacOS"));
+            exists(&folder)?;
+            let files: Vec<PathBuf> = std::fs::read_dir(&folder)
+                .map_err(|error| {
+                    Failure::new(format!("cannot read {}: {error}", folder.display()))
+                })?
+                .filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .filter(|path| path.is_file())
+                .collect();
+            return match files.as_slice() {
+                [only] => Ok(only.clone()),
+                _ => Err(Failure::new(format!(
+                    "this bundle is incomplete: {} should hold exactly one executable, it holds {}",
+                    folder.display(),
+                    files.len()
+                ))),
+            };
+        }
+        let path = clients.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
         exists(&path)?;
         Ok(path)
     }

@@ -1003,7 +1003,8 @@ holds `<X>.app`. `--bundle=<dir>` overrides it (tests, and a developer). Under `
 `mineworld[.exe]`, `worlds/<world>/`, `clients/2d.pck`, `clients/3d.pck`, and the engine at
 `godot/godot.exe` (Windows), `godot/godot` (Linux), `godot/Godot.app/Contents/MacOS/Godot` (macOS). These
 paths live in one module (`bundle.rs`) so that C5 adjusts them to R-a's assembled layout in one place; a
-missing file is an error naming the path.
+missing file is an error naming the path. **Superseded by D-RC-4** (two exported clients, no `godot/`, no
+`--main-pack`); kept as written for the record.
 
 **What the launcher runs** (one server, one or two clients):
 
@@ -1208,6 +1209,19 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
   "read the join line"): a server writing into a pipe whose reader has died gets `EPIPE`, and Rust's
   `println!` panics on it — the A-R6 case would then end the server by a panic instead of its graceful
   path. Reading the file is what `mineworld-2d` already does.
+- **D-RC-4 (bounded; directed by the primary session, 2026-10-10).** Previous assumption: §3.2 option (a),
+  one Godot runtime started with `--main-pack runtime/clients/<2d|3d>.pck`. Audit evidence: R-a's probe P-3
+  (§18 on PR #146) — official release templates are built with `disable_path_overrides` and abort on
+  `--main-pack`; D-Ra-1 adopts option (b). Corrected understanding: each client is a full export at
+  `runtime/clients/mineworld-<2d|3d>[.exe]` (pack embedded) or `mineworld-<2d|3d>.app` on macOS; `--root` is
+  still passed; `--headless` works (P-4). Implementation: `bundle.rs` `client()` replaces `engine()` and
+  `pack()` (on macOS it starts the single file in `Contents/MacOS/`, since the export names it after the
+  project); `children.rs` starts that executable with `[--headless] -- --root=… …`; `LAUNCHER.md` §§1, 4, 7
+  and ARC-78's wording updated. Validation: the test bundle places the stub at both client paths and the
+  stub reports which client it is by the name it was started under; play asserts the program path and an
+  empty engine-option list, smoke still asserts `--headless`. Launcher 4/4 and unit 7/7 green on macOS after
+  merging `origin/main` (`737e032`); `stop_on_stdin_eof` moved to port 0 read from the listening line, as
+  #151 did for the shared harness (its `free_port` is gone).
 
 ## 19.6 Validation ledger
 

@@ -184,8 +184,8 @@ impl Clients<'_> {
         log: &mut Log,
     ) -> Result<u8, Failure> {
         let mut running: Vec<(Client, Child)> = Vec::new();
-        for (client, seat, pack) in clients {
-            match self.start(*client, seat, pack, &logs(*client)) {
+        for (client, seat, executable) in clients {
+            match self.start(*client, seat, executable, &logs(*client)) {
                 Ok(child) => {
                     log.line(&format!(
                         "client {} started as {} (pid {})",
@@ -220,20 +220,19 @@ impl Clients<'_> {
         Ok(code)
     }
 
-    /// Starts a client in the Godot runtime (`LAUNCHER.md` §7 step 5). The invite is on its command line,
-    /// as the root launchers pass it, and never in the launcher's log.
+    /// Starts an exported client (`LAUNCHER.md` §7 step 5). The invite is on its command line, as the
+    /// root launchers pass it, and never in the launcher's log.
     fn start(
         &self,
         client: Client,
         seat: &Seat,
-        pack: &Path,
+        executable: &Path,
         log: &Path,
     ) -> Result<Child, Failure> {
         let (out, err) = log_files(log)?;
         let mut root = OsString::from("--root=");
         root.push(self.bundle.runtime());
-        let mut command = Command::new(self.bundle.engine());
-        command.arg("--main-pack").arg(pack);
+        let mut command = Command::new(executable);
         if self.smoke {
             command.arg("--headless");
         }
@@ -258,7 +257,7 @@ impl Clients<'_> {
                 Failure::new(format!(
                     "cannot start the {} client ({}): {error}",
                     client.label(),
-                    self.bundle.engine().display()
+                    executable.display()
                 ))
             })
     }

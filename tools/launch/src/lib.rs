@@ -174,7 +174,7 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
     let clients = choice
         .clients
         .iter()
-        .map(|(client, seat)| Ok((*client, seat.clone(), bundle.pack(*client)?)))
+        .map(|(client, seat)| Ok((*client, seat.clone(), bundle.client(*client)?)))
         .collect::<Result<Vec<_>, Failure>>()?;
 
     // Declared before the server, so that it is removed after the server has stopped (drop order).

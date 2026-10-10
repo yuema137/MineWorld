@@ -9,12 +9,13 @@
 mod support;
 
 use std::io::{BufRead, BufReader, Read};
+use std::net::SocketAddr;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use mineworld_test_support::process::{self, InterruptibleChild};
-use support::{INVITE, PACK, PATIENCE, SaveDir, free_port, get};
+use support::{INVITE, PACK, PATIENCE, SaveDir, get};
 
 /// A server process whose standard output is kept in memory, line by line.
 struct Hosted {
@@ -31,47 +32,51 @@ impl Drop for Hosted {
 
 impl Hosted {
     /// Starts the server on `save` with `stdin` as its standard input, and waits until it answers
-    /// `/health`. A port taken between choosing and binding is retried on another, as the shared harness
-    /// does.
+    /// `/health` on the port it chose and printed.
     async fn start(save: &str, flag: bool, stdin: fn() -> Stdio) -> Self {
-        for _ in 0..3 {
-            let address = free_port().await;
-            let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
-            command
-                .args(["server", PACK, "--invite", INVITE, "--save", save])
-                .args(["--listen", &address.to_string()])
-                .args(flag.then_some("--stop-on-stdin-eof"))
-                .env_remove("MINEWORLD_INVITE")
-                .env_remove("MINEWORLD_ADMIN_TOKEN")
-                .stdin(stdin())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::inherit());
-            let mut process = process::interruptible(command)
-                .spawn()
-                .expect("the mineworld binary runs");
-            let stdin = process.stdin.take();
-            let lines = drain(process.stdout.take().expect("piped stdout"));
-            let mut hosted = Self {
-                process,
-                stdin,
-                lines,
-            };
-            let deadline = Instant::now() + PATIENCE;
-            while Instant::now() < deadline {
-                if get(address, "/health").await.is_some() {
-                    return hosted;
-                }
-                if hosted.process.try_wait().ok().flatten().is_some() {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(50)).await;
-            }
+        let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
+        command
+            .args(["server", PACK, "--invite", INVITE, "--save", save])
+            // Port 0, read back from what the server prints: no port race (step-14 F-13w-3, #151).
+            .args(["--listen", "127.0.0.1:0"])
+            .args(flag.then_some("--stop-on-stdin-eof"))
+            .env_remove("MINEWORLD_INVITE")
+            .env_remove("MINEWORLD_ADMIN_TOKEN")
+            .stdin(stdin())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit());
+        let mut process = process::interruptible(command)
+            .spawn()
+            .expect("the mineworld binary runs");
+        let stdin = process.stdin.take();
+        let lines = drain(process.stdout.take().expect("piped stdout"));
+        let hosted = Self {
+            process,
+            stdin,
+            lines,
+        };
+        let listening = |printed: &[String]| {
+            printed
+                .iter()
+                .find_map(|line| line.strip_prefix("[mineworld] listening on http://"))
+                .and_then(|rest| rest.split(' ').next())
+                .and_then(|address| address.parse::<SocketAddr>().ok())
+        };
+        assert!(
+            hosted.shows(|printed| listening(printed).is_some()).await,
+            "the server printed no listening line: {:?}",
+            hosted.printed()
+        );
+        let address = listening(&hosted.printed()).expect("the listening address");
+        let deadline = Instant::now() + PATIENCE;
+        while get(address, "/health").await.is_none() {
             assert!(
-                hosted.process.try_wait().ok().flatten().is_some(),
+                Instant::now() < deadline,
                 "the server did not answer /health within {PATIENCE:?}"
             );
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        panic!("the server exited before answering /health, 3 times");
+        hosted
     }
 
     fn printed(&self) -> Vec<String> {

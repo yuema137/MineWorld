@@ -1,10 +1,11 @@
 //! The launcher run for real (`LAUNCHER.md`; step-23 §6.4, §13.3, A-R5, A-R6): a scratch bundle with the
-//! real `mineworld` server, a real World Pack, and a stub in the Godot runtime's place.
+//! real `mineworld` server, a real World Pack, and a stub in each exported client's place.
 //!
 //! **The stub is this executable.** The test target has no libtest harness: `main` acts as the stub client
 //! when `MINEWORLD_LAUNCH_STUB` names a record folder, and runs the cases below otherwise. The scratch
-//! bundle's engine path is a hard link to this executable, so the launcher starts it exactly as it would
-//! start Godot. The stub writes its process id and arguments to `<record>/<2d|3d>.args`, then exits — at
+//! bundle's two client executables (step-23 D-Ra-1) are hard links to this executable, so the launcher
+//! starts it exactly as it would start an exported client; the stub tells which client it is by the name
+//! it was started under. The stub writes its process id and arguments to `<record>/<2d|3d>.args`, then exits — at
 //! once, with `MINEWORLD_LAUNCH_STUB_CODE`, or, with `MINEWORLD_LAUNCH_STUB_WAIT`, when the test writes an
 //! exit code into `<record>/<2d|3d>.release`: the moment the player closes the game.
 //!
@@ -98,13 +99,20 @@ fn main() -> ExitCode {
 // The stub client.
 
 fn stub(record: &Path) -> ExitCode {
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let label = arguments
-        .windows(2)
-        .find(|pair| pair[0] == "--main-pack")
-        .and_then(|pair| Path::new(&pair[1]).file_stem()?.to_str().map(str::to_owned))
-        .unwrap_or_else(|| "unknown".to_owned());
-    let text = format!("pid={}\n{}\n", std::process::id(), arguments.join("\n"));
+    let mut all = std::env::args();
+    let program = all.next().unwrap_or_default();
+    let arguments: Vec<String> = all.collect();
+    // `mineworld-2d`, `mineworld-3d.exe`, `MineWorld 3D` inside `mineworld-3d.app`.
+    let name = Path::new(&program)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let label = if name.contains("3d") { "3d" } else { "2d" };
+    let text = format!(
+        "pid={}\n{program}\n{}\n",
+        std::process::id(),
+        arguments.join("\n")
+    );
     // Written whole, then renamed: the test never reads half a record.
     let partial = record.join(format!("{label}.partial"));
     fs::write(&partial, text).expect("the record folder is writable");
@@ -131,6 +139,8 @@ fn stub(record: &Path) -> ExitCode {
 /// What a stub was started with.
 struct Record {
     pid: u32,
+    /// The path the launcher started the client by.
+    program: PathBuf,
     arguments: Vec<String>,
 }
 
@@ -173,23 +183,22 @@ struct Bundle {
 
 impl Bundle {
     /// A bundle whose root has a space and a non-ASCII character in its path (step-23 §9.1 step 1),
-    /// holding the real server, the given worlds of the repository, two empty packs and the stub.
+    /// holding the real server, the given worlds of the repository, and the stub as both exported clients.
     fn new(name: &str, worlds: &[&str]) -> Self {
         let scratch = scratch!(empty name);
         let root = scratch.join("MineWorld 世界");
         let runtime = root.join("runtime");
-        for folder in ["worlds", "clients", "godot"] {
+        for folder in ["worlds", "clients"] {
             fs::create_dir_all(runtime.join(folder)).expect("bundle folders");
         }
         link(&server_binary(), &runtime.join(exe("mineworld")));
-        let engine = engine_path(&runtime);
-        fs::create_dir_all(engine.parent().expect("a folder")).expect("the engine folder");
-        link(
-            &std::env::current_exe().expect("this test's executable"),
-            &engine,
-        );
-        for pack in ["2d.pck", "3d.pck"] {
-            fs::write(runtime.join("clients").join(pack), b"").expect("a pack");
+        for label in ["2d", "3d"] {
+            let client = client_path(&runtime, label);
+            fs::create_dir_all(client.parent().expect("a folder")).expect("the client folder");
+            link(
+                &std::env::current_exe().expect("this test's executable"),
+                &client,
+            );
         }
         let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../worlds");
         for world in worlds {
@@ -256,8 +265,10 @@ impl Bundle {
             .and_then(|line| line.strip_prefix("pid="))
             .and_then(|pid| pid.parse().ok())
             .expect("the stub's pid");
+        let program = PathBuf::from(lines.next().expect("the stub's program"));
         Record {
             pid,
+            program,
             arguments: lines.map(str::to_owned).collect(),
         }
     }
@@ -337,14 +348,18 @@ fn exe(name: &str) -> String {
     format!("{name}{}", std::env::consts::EXE_SUFFIX)
 }
 
-fn engine_path(runtime: &Path) -> PathBuf {
-    let godot = runtime.join("godot");
+/// Where an exported client is in the bundle (step-23 D-Ra-1). On macOS the executable inside the `.app`
+/// is named after the Godot project, not the bundle path; a name of that form is used here.
+fn client_path(runtime: &Path, label: &str) -> PathBuf {
+    let clients = runtime.join("clients");
     if cfg!(target_os = "macos") {
-        godot.join("Godot.app/Contents/MacOS/Godot")
-    } else if cfg!(windows) {
-        godot.join("godot.exe")
+        clients
+            .join(format!("mineworld-{label}.app"))
+            .join("Contents")
+            .join("MacOS")
+            .join(format!("MineWorld {}", label.to_uppercase()))
     } else {
-        godot.join("godot")
+        clients.join(exe(&format!("mineworld-{label}")))
     }
 }
 
@@ -516,14 +531,12 @@ fn play_joins_with_working_arguments_stops_gracefully_and_resumes() {
     let mut launcher = bundle.background("2d");
     let client = bundle.record_of("2d");
     let runtime = bundle.runtime();
-    assert_eq!(
-        client.engine(),
-        [
-            "--main-pack".to_owned(),
-            runtime.join("clients").join("2d.pck").display().to_string()
-        ],
-        "a play run is windowed and loads the 2D pack"
+    assert!(
+        client.engine().is_empty(),
+        "a play run gives the exported client no engine option (windowed; no --main-pack): {:?}",
+        client.arguments
     );
+    assert_eq!(client.program, client_path(&runtime, "2d"), "the 2D client");
     assert_eq!(
         client.user("root"),
         runtime.display().to_string(),
