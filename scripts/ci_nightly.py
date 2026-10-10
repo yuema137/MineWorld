@@ -413,7 +413,7 @@ def render_report(rows: list[Row], env: dict[str, str], main_line: str, flakes: 
     for row in rows:
         detail = "; ".join(row.detail)[:500].replace("|", "\\|")
         out.append(f"| {row.job} | {row.verdict} | {row.wall} | {detail} |")
-    out += ["", f"**main's own push run for this commit:** {main_line}", "", "### Flake candidates", *flakes,
+    out += ["", f"**ci.yml's own push run for this commit:** {main_line}", "", "### Flake candidates", *flakes,
             "", "### Baseline drift", *drift, "", "### Benchmark", *bench, "", f"### Trend (last {TREND_NIGHTS} nights)",
             *trend, ""]
     return "\n".join(out)

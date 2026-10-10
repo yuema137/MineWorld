@@ -1199,6 +1199,36 @@ takes branch names, inputs and job outputs through `env:`; `issues: write` appea
   (349 lines) = Milestone E's `97dac8fc5086…bc6fce3` and `facts-300s` rows 356 689 = its "356689 facts".
   Both ledger values are current; §3.3's pairing for market-town was the design's error, not a stale
   ledger. Every `summary-300` equals the same commit's default (ac8) record (local, all four worlds).
+- **F-13c-impl-2 — R-1 happened: hosted runners cannot run two of the three windowed Godot tests on any
+  leg.** Evidence, R1 (run 38091440131, `6c23476`) and the clients-only re-run (38094430653, `a6bd02d`):
+
+  ```text
+  test (client_settings.rs)                         Linux (Xvfb,       macOS (Apple          Windows (D3D12,
+                                                    llvmpipe)          Paravirtual, Metal)   Basic Render Driver)
+  two_d_display_settings_take_effect                FAIL 18.7 fps      FAIL window           FAIL 14.1 fps
+                                                    uncapped (≤ 31)    1280x645, not 720     uncapped
+  the_language_chosen_in_2d_is_in_the_3d_clients_   FAIL "the slice    FAIL "the slice       FAIL "the slice
+  first_frame                                       hung"              hung" (build 42.8 s)  hung"
+  three_d_switches_language_live_and_settings_      FAIL "the slice    PASS                  FAIL "the slice
+  never_reach_the_server                            hung"                                    hung"
+  ```
+
+  Every one is a display or GPU reason, not a behaviour defect: a software renderer cannot exceed the
+  30 fps cap the 2D test must see lifted; the macOS runner's screen cannot hold a 1280x720 window; the
+  connected 3D slice on a software renderer (or the paravirtual GPU, where the scene builds in 43 s)
+  passes its run limit. All 22 other Godot tests pass on all three OSes; the 3D probes and protocol
+  checks pass on Linux and macOS. On the laptop all 25 pass (N-C4).
+  - **Within QC-5 (applied):** `three_d_switches_language_live_and_settings_never_reach_the_server` is
+    skipped by name on Linux and Windows (`ci_godot.py` `SKIPS`, with reasons), because it passed on
+    macOS the same night; each night's macOS leg keeps that true or turns red.
+  - **Outside QC-5 (material, raised to the operator; not applied):** the other two fail on every
+    hosted leg, so QC-5 ("skip only when the test passed on another platform that night") allows no
+    skip, and the coverage check refuses a test skipped everywhere. Until a ruling, `clients-*` is red
+    every night for these two tests. Proposed smallest revision, **QC-5b**: a windowed test that fails
+    on every hosted leg for a recorded display reason is listed by name in `ci_godot.py` as "not run on
+    hosted runners" with its evidence, reported in every night's notes, and stays with the operator's
+    machine (as `ARC-17`/D-11 keep visual acceptance); the coverage check then accepts exactly that
+    list. No test is edited (I-S13-1).
 
 ---
 
