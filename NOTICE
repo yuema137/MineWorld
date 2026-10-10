@@ -7,6 +7,16 @@ Blender's GPL-licensed Python API and are licensed GPL-2.0-or-later (see that
 directory's LICENSE and README). The assets those scripts produce are not covered
 by the scripts' licence.
 
+A second exception: the font file clients/shared/settings/fonts/NotoSansSC-Regular.otf
+(Noto Sans SC Regular, from https://github.com/notofonts/noto-cjk, file
+Sans/SubsetOTF/SC/NotoSansSC-Regular.otf at commit 165c01b46ea533872e002e0785ff17e44f6d97d8,
+SHA-256 faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9) is
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name "Source",
+and is licensed under the SIL Open Font License 1.1 (see OFL.txt in the same folder).
+MineWorld's MIT licence does not cover it. It is bundled, unmodified, as the clients'
+CJK fallback font and is never distributed on its own (docs/DECISIONS.md, DEP-8's font
+exception, and DEP-33).
+
 Bundled assets keep the status recorded for each of them. None is under a licence
 that forbids redistribution. Third-party assets are CC0 1.0. AI-generated assets
 are owned output under their generator's terms, and they are distributed under

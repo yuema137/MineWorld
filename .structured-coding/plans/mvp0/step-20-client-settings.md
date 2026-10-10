@@ -915,9 +915,12 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 ### C0 — design (this section)
 
 - Goal: the PR's design and acceptance, before code. Markdown only.
-- [ ] Implementation: this §12 is current at freeze (anchors re-verified against `main`).
-- [ ] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every SD traces to §3, and every AC to §7.
+- [x] Implementation: this §12 is current at freeze; anchors re-verified against `main @ aee8290`
+  on 2026-10-09 (§12.11 F-1 … F-12).
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` —
+  run with C1 (below).
+- [x] Review: every SD traces to §3, and every AC to §7 (re-read at implementation start; F-1 … F-4
+  are the bounded corrections the re-verification found).
 
 ### C1 — specs before code
 
@@ -926,9 +929,16 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
   INV-SET-1 … 10), `clients/shared/README.md` (short), DECISIONS records (SD-SET-a-16), the DEP-8
   amendment, `NOTICE`, the ADOPTION.md sentence.
 - **Scope:** Markdown only. **Non-goals:** any `.gd`.
-- [ ] Implementation: the files above.
-- [ ] Validation: both doc checks; every term matches `CORE_CONCEPTS.md` (no new defined term; "setting" and "host command" are explained in `SETTINGS.md`, not added to the ontology).
-- [ ] Review: no synonym for `Presentation Pack`, `Observation` or `ActionIntent`; the DEP-8 carve-out is limited to fonts.
+- [x] Implementation: the files above — `clients/shared/SETTINGS.md`, `clients/shared/README.md`;
+  `docs/DECISIONS.md`: DEP-8's font exception (§4.4.1, word for word) and its table row, a dated note
+  under ARC-70 (ARC-SET-b), ARC-72 (ARC-SET-a), DEP-32 (DEP-SET-a), DEP-33 (DEP-SET-b) — numbers
+  provisional (F-10); `NOTICE`; the `ADOPTION.md` §1 sentence.
+- [x] Validation: `check_doc_headings.py` → "192 numbered sections across 26 documents, none
+  duplicated"; `check_decision_ids.py` → "86 decision ids, all distinct". PASS. No new defined term:
+  "setting" and "host command" are explained in `SETTINGS.md` §1, which says they are not ontology.
+- [x] Review: `SETTINGS.md` uses `Presentation Pack`, `Observation`, `ActionIntent` as
+  `CORE_CONCEPTS.md` defines them, with no synonym; the DEP-8 exception text is §4.4.1's verbatim, limited
+  to fonts under OFL-1.1.
 - **Acceptance:** a reader can implement C2–C6 from `SETTINGS.md` alone.
 - **Commit boundary:** documentation only.
 
@@ -1033,7 +1043,29 @@ step, and the test asserts that the stub saw the client's `leave`.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C0 (this design) | done, frozen 2026-10-08 | `plan/client-settings`, PR #91 |
-| C1–C7 | not started (waits for 13b) | — |
+| C0 (this design) | done, frozen 2026-10-08; anchors re-verified 2026-10-09 against `main @ aee8290` (§12.11) | `plan/client-settings`, PR #91 |
+| C1 | see §12.5 C1 | — |
+| C2–C7 | see §12.5 | — |
 | QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
 | Windows / Linux checklist (§8) | open, for the operator | — |
+
+Implementation session: 2026-10-09, worktree `/Users/yuema137/mineworld-worktrees/impl-set-a`, branch
+`mvp0/pr-set-a` from `origin/main @ aee8290` (13b merged as #103; S11-D, 16a and IL-b on `main`).
+Handoff: [`handoff-set-a.md`](handoff-set-a.md).
+
+## 12.11 Findings at implementation (anchors re-verified against `main @ aee8290`)
+
+| Id | Finding | Source | Decision (bounded unless marked) |
+| --- | --- | --- | --- |
+| F-1 | 13b's `words.gd` API is `load_pack(pack_dir, locale)`, `has`, `text`, `action`, `code`, `reason`, `money`, `clock`, `readable`; its wording-removed switch is `--no-wording` (`app.gd`), not a `--wording=none`. | `clients/2d/scripts/hud/words.gd`; `app.gd` `_ready` | `words.gd` keeps every function and delegates loading and the fallback to `MineWorldText`. §3.6's "new `--wording=none`" is **13b's existing `--no-wording`**, which now removes every layer; no new flag. |
+| F-2 | 13b already words the 2D clock through `format.clock` = `day {day}  {hh}:{mm}`, used by the status line and the agenda rows. There is no `clock()` in `status.gd` any more. | `en.po`; `words.gd` `clock`; `readers.gd` | SD-SET-a-7's 2D half: `Words.clock` formats the time with `MineWorldClockFormat`, and `format.clock`'s msgstr becomes `day {day}  {time}` (key unchanged). In 24h the line reads exactly as before; in 12h it gains `h:mm AM/PM` — SD-SET-a-12's named change. |
+| F-3 | 13b's hint `ui.hint` ends "Esc: close, quit"; the 2D rejection note's raw JSON is gone (13b words it through `reason.<code>`). | `en.po` `ui.hint`; `app.gd` `_on_resolved` | SD-SET-a-12's 2D items: "Esc: close, quit" → "Esc: close, menu"; the rejection prose item is already done by 13b. |
+| F-4 | **A16d-11 / step-13 E-15:** `action.move` = "Walk (click where to go)" is 2D-specific. 16d plans (D-16d-6) a neutral shared entry and a 2D override. | `step-13-client-2d.md` E-15; `origin/plan/s14-16d` step-15 A16d-11, D-16d-6 | Done in SET-a's move: the shared `action.move` reads "Walk"; the 2D pack keeps 13b's entry verbatim under `#. override`. 2D's screen does not change; no key changes. The union check compares the **effective** wording (pack over shared) with 13b's file, entry for entry. |
+| F-5 | `check_client_rules.py` walks `clients/2d` without descending symlinked directories (13b's B-10, `os.walk(followlinks=False)`), so the new `mineworld_settings` symlink is never scanned by R1–R6. | `scripts/check_client_rules.py` `scripts_of_client` | R-SET-7 closed for the Python scan by its own code; verified at C5. `client_rules.rs` also skips symlinks and reads `clients/shared/` once where it lives. |
+| F-6 | The 2D Godot tests start Godot directly (`godot --headless --path clients/2d -- --drive=…`), not through the launcher. | `tools/cli/tests/godot2d/mod.rs` `Drive::start` | INV-SET-5 is held by the client, not the launcher: `drive` and `capture` are the 2D harness flags that force `--settings=none`. The launchers also pass `--settings=none` to scripted modes (belt and braces, SD-SET-a-11). |
+| F-7 | `server/PROTOCOL.md` lists refusal codes in a table (§5.5) but lists no rejection reasons; the kernel's closed reasons are the `Rejection` enum in `contracts/src/action.rs`. | `PROTOCOL.md` §5.5; `contracts/src/action.rs` | AC-SET-4's code families are read from both: every §5.5 refusal code and every unit variant of `Rejection` (snake_case) needs a `reason.<code>` entry in the shared `en.po` and `zh_Hans.po`. |
+| F-8 | The 2D client's own interaction menu is `scripts/menu.gd` (13b's `Menu`). | `clients/2d/scripts/menu.gd` | The settings menu is `MineWorldSettingsMenu`; the two never share a name. |
+| F-9 | The 3D `SliceIntents.DEFAULT_UTTERANCE` ("Hello! A coffee, please.") is the player's words, sent as the `talk` payload. | `clients/3d-spike/scripts/slice/intents.gd` | Not UI text: translating it would change the request (AC-SET-5). It stays as written, admitted by `client_text.rs`'s allow-list with that reason. |
+| F-10 | No decision numbers were allocated to S20 (`overall.md` "Decision numbers assigned since the parallel build-out table"). | `overall.md` §5 | Provisional: `ARC-SET-a` → **ARC-72**; `ARC-SET-b` → a dated note under `ARC-70` (§11.1 allows it); `DEP-SET-a` → **DEP-32**; `DEP-SET-b` → **DEP-33**. Recorded in each entry as provisional, for the primary session to confirm; `check_decision_ids.py` guards a collision. |
+| F-11 | Godot 4.7.2's `DirAccessWindows::rename` removes an existing destination and then `MoveFileW`s the source; it does not refuse. | `godotengine/godot` tag `4.7.2-stable`, `drivers/windows/dir_access_windows.cpp` l. 339–346 (read 2026-10-09 with `gh api`) | §3.4's Windows fallback is already Godot's own behaviour. The store therefore never removes the file itself; it recovers a lone `settings.cfg.tmp` on load (the crash window between remove and move), keeps `.bak` before replacing a file that had a load problem, and states the rule in `SETTINGS.md` §4. No platform branch. |
+| F-12 | Engine probe (Godot 4.7.2, headless, scratch project outside the repository): `standardize_locale("xx_test")` → `xx`; a `.po` loads from an absolute path inside a `.gdignore` folder; appending Noto Sans SC to `ThemeDB.fallback_font.fallbacks` makes `"设置 Settings"` shape with no tofu and two fonts; `screen_get_refresh_rate()` is `-1` headless. | scratch probe, recorded here | The marker catalog uses locale `qaa` (a private-use code) so it never collides with AC-SET-14's scratch `xx_test` (→ `xx`). Catalogs and the font sit in `.gdignore` folders and are loaded by absolute path, so no `.import` sidecar is ever written through the symlinks. |
