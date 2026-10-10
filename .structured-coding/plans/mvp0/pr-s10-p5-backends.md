@@ -1087,3 +1087,30 @@ key        6bd78b32af7a296775cda4bc397c7803340a7377a9e897195003658a11037a27
   **returns** `BackendFailure` (a typed value) rather than raising it, so the gateway's outcome union is
   exhaustive and no failure path carries an exception message that could hold a response body (I-16);
   `CassetteMiss` alone is an exception (§5.3).
+
+### 13.4 C3 — cassettes and the recorder
+
+- [x] Implementation: `record.py` — `EntryMeta` (closed: `binding` matches the backend-name pattern,
+  `model` refuses `://` and `@`, `recorded_at` RFC 3339 UTC `…Z`, `latency_ms` int), `CassetteEntry`,
+  `Cassette.load` (universal newlines, header check by name — kind, `format`, `key_scheme` — each entry
+  parsed with `model_validate_json` and its key recomputed), `CassetteFormatError(path, line, why)`,
+  `CassetteMiss(kind, key, nearest, first_difference)` (an exception), `ReplayBackend` (per-key cursors;
+  holds no other backend), `RecordingBackend` (`.partial` opened with mode `x` and `newline="\n"`, the
+  header written and flushed at once, one flushed line per completed call, `BackendFailure` passed
+  through unrecorded, an exception from the inner backend abandons the recording and closes the file,
+  `aclose` closes the file **then** `os.replace`s), `CassetteRecordError`, `partial_path`;
+  `tests/test_record_replay.py`.
+- [x] Validation (E-P5-3): 16 passed (11 new); ruff, format, pyright strict clean. AP5-4: ordered replay,
+  `exhausted`, an edited request refused at load naming line 3, `format: 2` and `key_scheme: 2` refused
+  by name; a corrupt line refused with its number; a missing header refused; a CRLF copy still loads.
+  AP5-5: three calls recorded and replayed, no `\r\n` in the file, no `.partial` left; interrupted in the
+  third call: the old cassette byte-identical, `.partial` holds the header and two entries, and a new
+  `RecordingBackend` is refused naming `kept.jsonl.partial`. Mutations (§13.10): M-3 return the first
+  entry for every repeat → the ordered test fails; M-4 skip the key check → the edited-entry test fails;
+  M-5 write the target directly (and replace nothing) → the interrupted test fails (the cassette's bytes
+  changed at index 113). All reverted; `grep MUTATION` empty; 16 passed.
+- [x] Review: `EntryMeta`'s fields are closed and none can hold a header or a key; every write uses
+  `newline="\n"`; the only `os.replace` runs after `close()`. AP5-3 (a miss never reaches a backend,
+  shown against a loopback listener) needs `config.load` and the router: it is written in C6, where a
+  fall-through could actually be implemented, and recorded there (bounded placement; the criterion and
+  its mutations are unchanged).
