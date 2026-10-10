@@ -28,6 +28,10 @@ use tokio_tungstenite::tungstenite::Message;
 /// How long a test waits for the server to come up, and for a frame to arrive.
 pub const PATIENCE: Duration = Duration::from_secs(20);
 
+/// What the server prints, followed by its bound address, once it holds its socket
+/// (`tools/cli/src/serve.rs`: `[mineworld] listening on http://ADDR (ws://ADDR/ws), protocol N`).
+const LISTENING: &str = "[mineworld] listening on http://";
+
 /// The invite every test server is started with, and every test client joins with.
 pub const INVITE: &str = "cli-test-invite-3f9c0a1b";
 
@@ -58,10 +62,10 @@ impl Drop for Server {
 }
 
 impl Server {
-    /// Starts `mineworld <arguments> --listen 127.0.0.1:<port>` and waits until it answers.
+    /// Starts `mineworld <arguments> --listen 127.0.0.1:0` and waits until it answers.
     ///
-    /// A port is chosen by binding one and letting it go, rather than by hard-coding: two test
-    /// binaries may run at once, and a fixed port makes that a flake nobody can reproduce.
+    /// The system picks the port as the server binds it, and the harness reads the address back from
+    /// the line the server prints once it holds it ([`LISTENING`]); see [`Server::launch`].
     ///
     /// Every server is started with [`INVITE`] unless the arguments name an invite themselves, so a
     /// test's [`Client::join`] is admitted (`PROTOCOL.md` §4.1).
@@ -101,48 +105,79 @@ impl Server {
         (server, captured.expect("captured output"))
     }
 
-    /// Starts the binary on a free port and waits until it answers.
+    /// Starts the binary on `127.0.0.1:0`, reads back the address it bound, and waits until it answers.
     ///
-    /// A port chosen by binding and releasing it can be taken by another process before the server
-    /// binds it — another test binary, or another worktree's tests on the same machine. A server that
-    /// exits before it answers is therefore started again on another port, a bounded number of times;
-    /// one that is running but silent fails the test.
+    /// The port is never chosen by the harness. An earlier harness bound a port, released it and
+    /// passed it on; between the two another test's server could take it, this one failed with
+    /// "Address already in use", and that other server answered `/health` in its place, so the test
+    /// joined the wrong world (step-12 D-SA5, step-14 F-13w-3). Binding port 0 lets the system choose
+    /// a port at the moment the server holds it; the server prints that address once it is bound
+    /// (`tools/cli/src/serve.rs`), and only then is it polled. The Python SDK's `realserver.py` reads
+    /// the same line.
     async fn launch(configure: impl Fn(&mut Command), capture: bool) -> (Self, Option<Captured>) {
-        const ATTEMPTS: usize = 3;
-        for _ in 0..ATTEMPTS {
-            let address = free_port().await;
-            let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
-            configure(&mut command);
-            command.args(["--listen", &address.to_string()]);
-            if capture {
-                command.stdout(Stdio::piped()).stderr(Stdio::piped());
-            } else {
-                command.stdout(Stdio::null()).stderr(Stdio::inherit());
-            }
-            let mut process = process::interruptible(command)
-                .spawn()
-                .expect("the mineworld binary runs");
-            let captured = capture.then(|| Captured {
-                stdout: drain(process.stdout.take().expect("piped stdout")),
-                stderr: drain(process.stderr.take().expect("piped stderr")),
-            });
-            let mut server = Self { process, address };
-            if server.answers().await {
-                return (server, captured);
-            }
+        let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
+        configure(&mut command);
+        command
+            .args(["--listen", "127.0.0.1:0"])
+            .stdout(Stdio::piped());
+        if capture {
+            command.stderr(Stdio::piped());
+        } else {
+            command.stderr(Stdio::inherit());
         }
-        panic!("the server exited before answering /health, {ATTEMPTS} times");
+        let mut process = process::interruptible(command)
+            .spawn()
+            .expect("the mineworld binary runs");
+        let stdout = drain(process.stdout.take().expect("piped stdout"));
+        let stderr = capture.then(|| drain(process.stderr.take().expect("piped stderr")));
+        let address = Self::bound(&mut process, &stdout).await;
+        let mut server = Self { process, address };
+        server.answers().await;
+        let captured = stderr.map(|stderr| Captured { stdout, stderr });
+        (server, captured)
     }
 
-    /// Polls `GET /health` until the server answers (`true`) or exits (`false`), or fails the test.
-    async fn answers(&mut self) -> bool {
+    /// The address the server says it bound: the first [`LISTENING`] line it prints. A server that
+    /// exits first, or prints none within [`PATIENCE`], fails the test.
+    async fn bound(process: &mut InterruptibleChild, stdout: &Mutex<Vec<String>>) -> SocketAddr {
+        let deadline = Instant::now() + PATIENCE;
+        loop {
+            let printed = stdout
+                .lock()
+                .expect("the reader thread is sound")
+                .iter()
+                .find_map(|line| line.strip_prefix(LISTENING).map(str::to_owned));
+            if let Some(rest) = printed {
+                let address = rest.split(' ').next().unwrap_or_default();
+                return address
+                    .parse()
+                    .unwrap_or_else(|e| panic!("the listening line's address {address:?}: {e}"));
+            }
+            if let Some(status) = process.try_wait().expect("the process can be waited on") {
+                panic!("the server exited before it was listening: {status}");
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the server printed no {LISTENING:?} line within {PATIENCE:?}"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    /// Polls `GET /health` on the address this server bound until it answers; a server that exits
+    /// first, or stays silent for [`PATIENCE`], fails the test.
+    async fn answers(&mut self) {
         let deadline = Instant::now() + PATIENCE;
         while Instant::now() < deadline {
             if get(self.address, "/health").await.is_some() {
-                return true;
+                return;
             }
-            if self.process.try_wait().ok().flatten().is_some() {
-                return false;
+            if let Some(status) = self
+                .process
+                .try_wait()
+                .expect("the process can be waited on")
+            {
+                panic!("the server exited before answering /health: {status}");
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -294,14 +329,6 @@ pub fn run_command(arguments: &[&str]) -> (std::process::ExitStatus, String) {
         output.status,
         String::from_utf8(output.stdout).expect("UTF-8 output"),
     )
-}
-
-/// An address nothing is listening on: bound, read back, released.
-pub async fn free_port() -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("an ephemeral port");
-    listener.local_addr().expect("the port it bound")
 }
 
 /// One HTTP GET, hand-written, because these tests need no HTTP client of their own.
