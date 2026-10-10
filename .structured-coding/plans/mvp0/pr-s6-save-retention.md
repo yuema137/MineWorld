@@ -497,14 +497,14 @@ Targeted validation per commit; the PR's CI is the one full run.
   `tools/cli/tests/market_town.rs` (QSR-5: save C's file ≤ 64 MiB and snapshot revisions exactly
   `K(n)`, asserted after its activity checks, with the measured size in the failure message); §14
   evidence.
-- [ ] Implementation: the kill points; the ASR-2 assertion.
-- [ ] Validation: `cargo test -p mineworld-persistence --test kill_and_resume`;
+- [x] Implementation: the kill points; the ASR-2 assertion. *Evidence: §14.6.*
+- [x] Validation (*evidence: §14.6; the PR's CI and AC-8 at C6, §14.7*): `cargo test -p mineworld-persistence --test kill_and_resume`;
   `cargo test -p mineworld-cli --test market_town` (the assertion passes; mutated once to 1 MiB to see
   it fail, recorded); release-profile runs of
   30 and 300 days with `--save`; `mineworld inspect`; `sqlite3 … dbstat` sizes; `mineworld replay` on
   the 300-day save; `verify_from` on three anchors; SHA-256 of facts/journal vs the base build
   (ASR-11); wall times; the PR's CI (`AC-8` three legs).
-- [ ] Review: every number in §14 comes from a command recorded beside it.
+- [x] Review: every number in §14 comes from a command recorded beside it. *Evidence: §14.6.*
 
 ### C6 — Close-out
 
@@ -836,6 +836,113 @@ cargo clippy -p mineworld-persistence -p mineworld-cli -p mineworld-acceptance -
 
 Review: `verify_from` and `verify` share `reexecute` and `replay_after` (no second comparison path);
 the anchor's own snapshot is restored, not compared, and the doc says so.
+
+### 14.6 C5 — kill-and-resume and the real runs (integration checkpoint)
+
+**Test changes.**
+
+```text
+persistence/tests/kill_and_resume.rs   per-scenario interval (cafe 4 → anchor 256; clock 8 → anchor
+                         512) so both runs cross an anchor; two kill points added, "anchor" (the first
+                         anchor's commit) and "retiring" (anchor + 2·interval, a commit that retires the
+                         snapshot before it); the control's snapshot set asserted equal to K computed in
+                         the test (+ the clean-shutdown checkpoint when the child reports one wrote:
+                         "checkpoint true|false", since a clock run idles past its head, F-12)
+tools/cli/tests/market_town.rs   save_is_bounded on save C after the activity checks: world.sqlite +
+                         -wal ≤ 64 MiB, and the snapshot revisions exactly {1, 4096·k ≤ n, n − 64, n}
+```
+
+*Bounded deviation D-3.* The kill test's intervals changed from 32 to 4 (cafe) and 8 (clock); with 32
+neither run reaches an anchor (2 048 > 634 revisions), so "kill at an anchor commit" (ASR-5) could not
+be expressed otherwise. Snapshot cadence is a test parameter (`snapshot_every`), not production.
+
+```text
+cargo test -p mineworld-persistence --test kill_and_resume
+  cafe   control 301 revisions, 5 snapshots; kills early 60, middle 153 (→165 on disk), late 247,
+         anchor 256 (→257), retiring 264: every survivor's facts, journal and snapshot rows equal the
+         control's byte for byte, and verify() from genesis passes                          PASS
+  clock  control 634 revisions, 4 snapshots {1, 512, 624, 632}; kills 126, 320 (→323), 514,
+         anchor 512 (→528), retiring 528: byte-identical, verified                         PASS
+cargo test -p mineworld-cli --test market_town   1 passed (99.2 s, dev profile)
+  "ASR-2: the 30-day save is 62029824 B (59.2 MiB), 10 snapshots, 510495 B of them, head 29193"
+                                                                                           PASS
+  mutation: BOUND = 1 MiB → panicked "ASR-2: the 30-day save is 62029824 B (59.2 MiB), over the …
+  bound" (96.8 s); restored (message now prints the bound itself)                          RED
+cargo fmt --all --check rc 0; cargo clippy -p mineworld-persistence -p mineworld-cli --all-targets
+  -- -D warnings rc 0                                                                      PASS
+```
+
+**Real runs** (release profile, `/tmp/impl-sr/head-mineworld` built from 93d50a8 — production code
+identical to this commit's; macOS 26.2 arm64; host shared with other sessions' jobs, so wall times
+are indicative only).
+
+```text
+mineworld run worlds/market-town --headless --seed 7 --days 30 --save head-30
+  wall 3.83 s (base 5.17 s)
+  world.sqlite 62 029 824 B = 59.2 MiB, no -wal (base 373 882 880 B; −83.4 %)
+  dbstat: facts 41 209 856, journal 19 828 736, facts_by_revision 446 464, snapshots 524 288 B
+  snapshots r1 4096 8192 12288 16384 20480 24576 28672 29120 29184 = K(29184): 10 = 1 + 7 + 2   ASR-2 PASS
+mineworld run worlds/market-town --headless --seed 7 --days 300 --save head-300
+  wall 37.22 s (base 57.30 s)
+  world.sqlite 615 399 424 B = 586.9 MiB ≤ 640 MiB, no -wal (base 3 795 013 632 B; −83.8 %)
+  dbstat: facts 407 851 008, journal 198 516 736, facts_by_revision 5 087 232,
+          snapshots 3 932 160 B = 3.75 MiB ≤ 8 MiB; freelist 0 pages
+  snapshots: r1, 4096·k for k = 1 … 71 (r4096 … r290816), r290880, r290944 = K(290944): 74   ASR-1 PASS
+mineworld inspect head-300 --last 0
+  "save … (format 3)"; "snapshots  74 kept (zstd): r1 39985 B, r4096 52253 B, …"; AC-9 every cause
+  resolves, 375 619 facts                                                                   PASS
+mineworld replay worlds/market-town --save head-300   (4.74 s)
+  "290995 revision(s) re-executed from genesis, 375619 fact(s) and 74 snapshot(s) reproduced byte
+   for byte; head revision 290995"                                                          ASR-3 PASS
+mineworld replay … --save head-30   "29193 …, 38286 fact(s) and 10 snapshot(s) …"           PASS
+verify_from (save_retention's ignored test, release build)
+  head-30, all 7 anchors: r4096 25 097 revisions / 32 656 facts / 8 later snapshots … r28672 521 /
+  680 / 2 — every one reaches r29193                                                        ASR-4 PASS
+  head-300, first / middle / last: r4096 286 899 revisions, 369 989 facts, 72 snapshots (8.4 s);
+  r147456 143 539, 184 802, 37 (2.1 s); r290816 179, 226, 2                                 ASR-4 PASS
+the log is whole (SHA-256 commands of §14.1, head saves)
+  head-30   facts a1fc10a8…f53ddfa, journal ae11e5fc…c9008ae33 — equal to base-30
+  head-300  facts 5b1dd246…e86e9707, journal 60d8e807…aaeebd2 — equal to base-300;
+            rows 375 619 facts, 290 995 journal                                             ASR-11 PASS
+```
+
+(Full digests: head-30 facts `a1fc10a8a991e5b73a5b38f0c66e3425c39684b196fdac40296c14042f53ddfa`,
+journal `ae11e5fccc856a91c360ae27218b7b0164f0c5710bc5e7d0fa01754c9008ae33`; head-300 facts
+`5b1dd246e35f45f81334e40c5b9c4a591f275c5b84c3a0710ed27832e86e9707`, journal
+`60d8e807360e3b8545a201a6ca3b4febdea296bd9a4fda92c59d3c077aaeebd2` — each identical to the base's.)
+
+**Adversarial criteria (§8), each run once on purpose-built binaries; production source restored and
+`git diff -- persistence/src tools/cli/src` empty afterwards.**
+
+```text
+retire nothing (M1, release binary)
+  300-day save 853 458 944 B = 813.9 MiB > 640 MiB; 4 547 snapshot rows; snapshots table
+  241 991 680 B = 230.8 MiB > 8 MiB                                                         ASR-1 RED
+also retire n − interval (M2, C3)   retention sweep red at r16                              ASR-10 RED
+rule reads the wall clock (keep an odd anchor only when SystemTime's microseconds are even)
+  kill_and_resume: "cafe: the control holds exactly the rule's snapshots" left [1, 296, 300, 301]
+  right [1, 256, 296, 300, 301]                                                             ASR-5 RED
+  run's AC-12 300-day comparison (social-cafe): passed — SURVIVED. Reason: the mutation re-draws at
+  every scheduled commit, so each odd anchor is retired at the first odd microsecond and both runs
+  converge on the same final rows; AC-12 compares only final rows. The K(n) oracles (kill test above,
+  market_town's ASR-2 set assertion) are what see a rule that is not a function; recorded, no test
+  change: ASR-5's red is the criterion's "ASR-5 or ASR-6 fails".
+zstd level 9 instead of 3 (release binary)
+  30-day level-9 save: snapshot frames 32 774 … 41 683 B (vs 39 985 … 52 826 at level 3);
+  the level-3 binary replays it: 29 193 revisions, 10 snapshots reproduced                  ASR-3 PASS
+  verify_from all 7 anchors with the level-3 build                                          ASR-4 PASS
+  mixed: head-30 (level 3) resumed by the level-9 binary to day 31 → anchors at level 3 (r4096 52 253 B
+  …), newest two at level 9 (r30016 41 205 B, r30080 41 127 B); the level-3 binary replays it (30 137
+  revisions, 10 snapshots) and verify_from passes from every anchor                         PASS
+  — a codec setting never changes a replay verdict (I-SR-4)
+delete one fact row (binary that skips inserting EventId 20 000)
+  30-day save: 38 285 facts, facts SHA-256 f775a27a… ≠ base a1fc10a8…                       ASR-11 RED
+  replay: "replay diverged at revision r15127: re-execution recorded 1 facts; the save logged 0"
+                                                                                            replay RED
+```
+
+ASR-6 (`AC-12`, `tools/cli/tests/run.rs` and `market_town.rs`' same-seed comparisons) is green
+unchanged at C3 and C5. ASR-7 (`AC-8`) and ASR-12 are recorded at C6 on the PR head.
 
 *Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
 tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run

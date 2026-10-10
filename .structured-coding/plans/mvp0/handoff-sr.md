@@ -35,11 +35,21 @@ POST-MERGE SYNC     primary session: overall.md (F-SAVE-1, F-SAVE-2, decision ta
 
 ## Current checkpoint
 
-C0 — implementation context opened; base release binary being built to /tmp/impl-sr/base-mineworld
-for the ASR-8 fixture and the ASR-11 base hashes.
+C5 in progress. Commits: d573ea2 C0 · 5e202e8 C1 · ded6e73 C2 · 054bf5b C3 · 93d50a8 C4. Draft PR
+#153. Scratch branch `scratch/sr-c1-build` (three-platform build of zstd: green; delete at close).
+Uncommitted: kill_and_resume anchor/retiring kill points + control oracle (green);
+market_town ASR-2 assertion (running: /tmp/impl-sr/c5-market.log).
+
+Scratch on this machine: /tmp/impl-sr (base binary, base-tree detached worktree at a5f5357 with an
+uncommitted fixture-maker test — remove with `git worktree remove --force` at close), saves under
+/tmp/impl-sr-target/sr-saves (base-30 kept for comparison; delete at close).
 
 ## Next actions
 
-1. C1: DECISIONS ARC-81, DEP-43, ARC-25 note; ARCHITECTURE persistence; persistence README; step-06
-   L-6; zstd in Cargo.toml; cargo deny; push for the three-platform build.
-2. C2 … C6 per §10.
+1. market_town green → ASR-2 mutation (bound 1 MiB) red → commit C5 tests.
+2. Release build of head; 30- and 300-day saved runs; inspect; dbstat; replay 300-day; verify_from
+   (ignored test) on 30-day all anchors and 300-day first/middle/last; SHA-256 vs base; wall times;
+   M1 on the real binary (ASR-1 red); level-9 mutation (ASR-3/4 still pass, mixed-level resume);
+   delete-a-fact mutation (ASR-11 + replay red).
+3. Push; PR ready; CI all jobs; `scratch/sr-…-scenario` push for AC-8 (ASR-7).
+4. C6 close-out; delete scratch saves and branches.
