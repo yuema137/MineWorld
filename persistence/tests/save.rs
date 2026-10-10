@@ -208,10 +208,19 @@ fn verification_re_executes_every_revision_and_every_snapshot_from_genesis() {
         u64::try_from(twin_facts.len()).expect("small"),
         "every fact the twin recorded was compared"
     );
+    // Retention (ARC-81): below the first anchor (64 · INTERVAL) the save keeps genesis and the
+    // newest two scheduled snapshots, and each of them equals the history's state.
+    assert!(
+        head.raw() / INTERVAL > 2,
+        "pruning has happened: head {head}"
+    );
+    assert!(
+        head.raw() < 64 * INTERVAL,
+        "and no anchor exists yet: head {head}"
+    );
     assert_eq!(
-        verified.snapshots,
-        1 + head.raw() / INTERVAL,
-        "genesis plus one every {INTERVAL} revisions, each equal to the history's state"
+        verified.snapshots, 3,
+        "genesis and the newest two scheduled snapshots, each equal to the history's state"
     );
 }
 

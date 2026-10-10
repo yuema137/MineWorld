@@ -471,12 +471,13 @@ Targeted validation per commit; the PR's CI is the one full run.
   `retire` computation), `backend.rs` (`RevisionRow::retire`), `sqlite.rs` (`write_revision` deletes);
   the test double in `persistence/tests/save.rs`; new `persistence/tests/retention.rs` (ASR-10 sweep,
   off-lattice checkpoint then restart, changed interval).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance` (the two
+- [x] Implementation. *Evidence: §14.4.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance` (the two
   resume comparisons); headless AC-12; the adversarial mutations "retire nothing" and "retire n"
-  run once each and recorded.
-- [ ] Review: the rule reads nothing but *n*, the interval and the stored set; deletion only in the
-  revision's transaction; `retire` never contains ≥ n − interval.
+  run once each and recorded. *Evidence: §14.4 (M1, M2 red; all green after restore).*
+- [x] Review: the rule reads nothing but *n*, the interval and the stored set; deletion only in the
+  revision's transaction; `retire` never contains ≥ n − interval. *Evidence: §14.4; the last clause
+  is F-SR-1 (the frozen D-SR-3 retires an off-lattice checkpoint above n − interval; guard is ≥ n).*
 
 ### C4 — `verify_from` and `inspect`
 
@@ -735,6 +736,69 @@ cargo test -p mineworld-cli --test save_retention --test inspect --test run
 cargo fmt --all --check                                 rc 0                                   PASS
 cargo clippy -p mineworld-persistence -p mineworld-cli --all-targets -- -D warnings   rc 0    PASS
 ```
+
+### 14.4 C3 — the retention rule
+
+```text
+persistence/src/world.rs    ANCHOR_EVERY = 64; fn retired(n, interval, stored) — the pure rule D-SR-3
+                            (range ..n, keep 1, multiples of 64·interval, n − interval);
+                            PersistentWorld.stored: BTreeSet<WorldRevision> (create: {1}; resume:
+                            snapshot_revisions(); commit: + n, − retired, only after the backend
+                            committed; checkpoint: + head); commit fills RevisionRow::retire on a
+                            scheduled revision and refuses (debug_assert + Damaged) a retired ≥ n;
+                            table-driven unit test of the rule (9 cases incl. off-lattice, interval 8)
+persistence/src/backend.rs  RevisionRow::retire: Vec<WorldRevision>; commit's doc
+persistence/src/sqlite.rs   write_revision: DELETE each retired row after the INSERT, in the
+                            revision's transaction; a delete that removes ≠ 1 row is Damaged;
+                            module doc (facts/journal insert-only; no VACUUM)
+persistence/tests/retention.rs   ASR-10 sweep (interval 8, to 3·4096+5: after every commit the stored
+                            set equals an oracle K computed in the test, latest_snapshot(head) within
+                            one interval, ≥ 1 000 retiring commits, ⌊head/512⌋ anchors held, verify compares every
+                            stored snapshot); checkpoint then restart (0 replayed, then retired);
+                            interval 16 → 8 (converges on {1, 1024, m − 8, m})
+persistence/tests/save.rs   verify's snapshot count is now 3 (genesis + newest two; no anchor yet)
+tools/cli/tests/inspect.rs  RevisionRow literal gains retire: Vec::new()
+```
+
+*Finding F-SR-1 (bounded, recorded).* §10 C3's review line says "`retire` never contains ≥ n −
+interval". D-SR-3 (frozen) retires an off-lattice checkpoint *s* with n − interval < s < n at the next
+scheduled snapshot ("kept until the next scheduled snapshot and then fall under the rule"), and §6.6's
+guard is "a `retire` entry ≥ the committed revision". The implementation follows D-SR-3 and §6.6: the
+guard is `≥ n`. I-SR-2 holds either way — after the commit the newest snapshot is *n* itself — and the
+checkpoint test shows that case (checkpoint at r100, retired by the commit of r112).
+
+*Mutation note.* "Retire n" cannot be expressed through the rule: the stored set read before the commit
+never contains *n* (it is inserted after the backend commits), so the `≥ n` guard is unreachable from
+the rule today; it guards future edits. The design's "retire n − interval and n" mutation was therefore
+run as "retire n − interval, range widened to ..=n".
+
+```text
+mutations (each restored; git diff of world.rs checked clean of them after)
+M1  retired() returns nothing (filter … && false)
+      retention: 3/3 FAILED — sweep "at r24: the save holds exactly K(24)" left {1, 8, 16, 24};
+      checkpoint left {1, 16, …, 100, 112}; interval left every multiple of 16 to 1088     RED
+      (ASR-1's size consequence is shown on the real binary at C5)
+M2  n − interval not kept, range ..=n
+      retention: 3/3 FAILED — sweep "at r16 … K(16)" left {1, 16}; checkpoint left {1, 112};
+      interval left {1, 1024, 1088}                                                         RED
+after restore: cargo test -p mineworld-persistence — unit 1, kill_and_resume cafe + clock,
+      retention 3, save 11: all PASS
+```
+
+```text
+cargo test -p mineworld-acceptance --test arrival_resolvers_resume --test configuration_seam
+      resolver-yard PASS (control 401 revisions, 4 snapshots; three kills byte-identical);
+      configuration_seam 4 passed                                                          PASS
+cargo test -p mineworld-cli --test run --test inspect --test save_retention
+      3 + 3 + 1 passed (run carries AC-12's 300-day same-seed byte comparison)             PASS
+cargo fmt --all --check  rc 0;  cargo clippy -p mineworld-persistence -p mineworld-cli
+      -p mineworld-acceptance --all-targets -- -D warnings  rc 0 (after naming the unit test's
+      case tuple, clippy::type_complexity)                                                 PASS
+```
+
+Review: `retired` reads only *n*, the interval and the stored set; `stored` changes only after the
+backend reports the commit, so a failed commit leaves it as the save is; the delete runs only inside
+`write_revision`'s transaction; F-SR-1 records the `≥ n` guard.
 
 *Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
 tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run

@@ -97,6 +97,7 @@ fn a_fact_whose_cause_no_request_carried_fails_the_check_by_name() {
                 bytes: serde_json::to_vec(&fact).expect("encodes"),
             }],
             snapshot: None,
+            retire: Vec::new(),
         })
         .expect("the backend stores rows it is given");
     drop(backend);
