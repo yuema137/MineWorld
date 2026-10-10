@@ -25,6 +25,18 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning (primary) session: step-19 header, overall.md
 ```
 
-## Current checkpoint
+## Current checkpoint — MATERIAL STOP (6) open; PR open, not READY
 
-Session started 2026-10-09; anchors re-verified (§17.11). Next: C1.
+- C1–C4 are committed and pushed: 7b975eb, fa9b0e8, da31cd0 (TWb-D9, accepted), 4b922da, 0728fa9; merge
+  52a3c1c (origin/main 551fb2c: IL-b, 13b, P3); 0599b2b (IL-b `seed`); 5928db2 (opt-in save checks,
+  ledger). Evidence E-TWb-0 … 6 and mutations are in §17.11.
+- INV-TW-1 PASS. The new market-town baseline is `90479fd8…ae57` (375 527 facts). CP-TW-b PASS. AC-1
+  14/14. Town runs 6 of 8.
+- **TWb-F1, material stop (6):** criterion 5 fails as frozen. The only differences are Process ids
+  shifted by +1 (the climate Process takes id 2 at genesis). The proposed revision is in TWb-F1. Awaiting
+  the operator's ruling; the PR is not marked READY until then.
+- TWb-D11: the twin-session reconciliation; every change kept.
+- Saves (large, untracked): target/tw-b/{base,head}/market-save (about 2.8 GB each), target/tw-b/cp/{A,B,R}.
+  Scripts: target/tw-b/capture.sh and gate.sh. Logs: target/tw-b/*.log.
+- Next after a ruling: if the revision is accepted, record the ruling and mark the PR READY on a green
+  exact head. Do not merge.
