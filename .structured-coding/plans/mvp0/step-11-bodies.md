@@ -9220,7 +9220,7 @@ run_restart.rs}` and any further literal edit NW-7 finds, each listed in §21.15
 four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
 
 **Implementation.**
-- [ ] `paced.rs`: one emitter `walk_to(observation, Destination)` gated on `walk-to` being offered
+- [x] `paced.rs`: one emitter `walk_to(observation, Destination)` gated on `walk-to` being offered
   and available (replaces `walk()`); a band whose destination equals the observer's own disclosed walk
   destination answers **continue** (`decide` returns `None` there without falling through; with
   `N-D13` the host then steps) — `N-D14`; `head_for(place)` → `walk-to { Place(Location::in_place(place)) }`
@@ -9230,9 +9230,10 @@ four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
   `walk-to { Place(here.with_local(offset)) }` (the server snaps a goal off the floor, SD-N5). Deleted:
   `through`, `toward`, `within`, `isqrt_up`, `APPROACH_STOPS_AT`, the `MAX_STRIDE` import (`CLAUDE.md`
   §4 rule 12). `distance` stays for `CLOSE_ENOUGH`. Module docs updated (the walking table, "a stride it
-  proposes" → "a walk it asks for").
-- [ ] `agenda.rs`: the module doc's "through `move`, one stride at a time" → "by asking `walk-to`".
-- [ ] Tests, claim-preserving (each test's old and new claim listed in §21.15 at commit):
+  proposes" → "a walk it asks for"). (`walk_to`, `Walked { Ask, Continue }` and the private
+  `DisclosedWalk` copy live in `walking.rs` beside `step`; F-12n2-1.)
+- [x] `agenda.rs`: the module doc's "through `move`, one stride at a time" → "by asking `walk-to`".
+- [x] Tests, claim-preserving (each test's old and new claim listed in §21.15 at commit):
   `paced_tests.rs` — `it_greets_only_whom_…_and_walks_only_when_walk_to_is_offered`;
   `every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway` → "every proposed walk is a `walk-to`
   to a doorway's place, a person in my place, or a point within `WANDER_AXIS` of me";
@@ -9244,12 +9245,15 @@ four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
   asked is the agenda's, never another"; `with_no_move_offered…` → `with_no_walk_to_offered…`.
   `social_tests.rs` — "part of an activity it never crosses a doorway" → "never asks a walk to another
   place"; `with_nothing_social…` admits `walk-to`. `offered_tests.rs` — offers `walk-to` beside `move`.
-- [ ] `tools/cli/tests/hosted_town.rs`: the "{seat} made N accepted move(s)" parse reads `walk-step N`
+- [x] `tools/cli/tests/hosted_town.rs`: the "{seat} made N accepted move(s)" parse reads `walk-step N`
   (same claim: every driven seat walked ≥ 3 strides).
-- [ ] `tools/cli/tests/run_restart.rs`: NW-10's claim made observable — at least one of the SIGKILLs
-  lands while a walk is open (a `walk-started` without its `walk-ended` among the facts up to the
-  kill's head), and that resume's history equals the control's (the existing byte comparison).
-- [ ] `tools/cli/tests/walking_pace.rs` (NW-9): the real `mineworld server --town --time-scale s`
+- [x] `tools/cli/tests/run_restart.rs`: NW-10's claim made observable — **as built (N-D24):** where a
+  SIGKILL lands is a race (three kills saw no open walk, `[0, 0, 0]`), so the killed test only prints
+  the open walks, and a new test, `a_run_stopped_mid_walk_continues_the_same_world`, makes the case:
+  a test-written street-and-shop world whose walker's day turns to the shop at 23:45, 78 m away, so a
+  `run --days 1` stops mid-walk; `--days 2` continues it, the history equals a 2-day control byte for
+  byte, and the walk ends in the first hour after midnight by the resumed run's steps.
+- [x] `tools/cli/tests/walking_pace.rs` (NW-9): the real `mineworld server --town --time-scale s`
   on a test-time copy of social-cafe written by the test (street and one far place; two seats — the
   walker, driven by the paced controller with an agenda in the far place whose door is ≥ 20 m from
   its start, and an observer seat the test joins and never moves); the observer records the walker's
@@ -9258,18 +9262,21 @@ four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
   12, 24 in sequence, each bounded to 3 wall minutes. PASS iff every median is 1.34 m/s ± 15 % and the
   6×, 12×, 24× medians are within 10 % of each other, and strides per world second ≈ 1 / s (the scale
   was applied, `ARC-23`). Written with `Path::join`, no Unix-only API, scratch through `scratch!`.
+  **As built (N-D23):** the world is a minimal street-and-shop pack the test writes (presence,
+  movement, schedule), not a social-cafe copy — the smallest world with a ≥ 20 m walk toward a day.
 
-**Validation.**
-- [ ] `cargo test -p mineworld-rule-controller` (all rewritten tests; purity; `step` never answers).
-- [ ] NW-9 at 1×, 6×, 12×, 24× (≤ two attempts per scale); **M-N7**: `step` stated as `EMBODIED_STEP`
-  world seconds (× scale dropped) → the 24× median ≈ 4 × the 6× median, the test fails naming the
+**Validation.** (E-NW2)
+- [x] `cargo test -p mineworld-rule-controller` (all rewritten tests; purity; `step` never answers).
+- [x] NW-9 at 1×, 6×, 12×, 24× (one attempt each); **M-N7**: `step` stated as `EMBODIED_STEP`
+  world seconds (× scale dropped) → 6× 6 722, 12× 13 368, 24× 13 370 mm/s, the test fails naming the
   scales; reverted; `git status` recorded.
-- [ ] NW-7 on main: `run.rs`, `run_restart.rs`, `routines.rs`, `milestone_b.rs`, `milestone_c.rs`,
+- [x] NW-7 on main: `run.rs`, `run_restart.rs`, `routines.rs`, `milestone_b.rs`, `milestone_c.rs`,
   `market_town.rs`, `market_composition.rs`, `social_composition.rs`, `hosted_town.rs` pass unedited in
   claim (literal edits only as listed); NW-10's restart claim on main.
-- [ ] NW-4's no-bodies half, on main: social-cafe and market-town 300 d seed 7, user CPU ≤ 27.8 s and
-  ≤ 23.9 s (two of the 19 budgeted 300-day runs); new digests recorded (QN-2's re-baseline, `E-NW`).
-- [ ] Gate on this commit: clippy, fmt, doc checks; the workspace tests once at NW-C4.
+- [ ] **FAIL — M-2.** NW-4's no-bodies half, on main: social-cafe and market-town 300 d seed 7, user
+  CPU ≤ 27.8 s and ≤ 23.9 s (two of the 19 budgeted 300-day runs); new digests recorded (QN-2's
+  re-baseline, `E-NW`). Measured 52.16 s and 88.02 s (E-NW3).
+- [x] Gate on this commit: clippy, fmt, doc checks; the workspace tests once at NW-C4.
 
 **Acceptance.** No `move` is emitted by the paced controller; every walk is `walk-to` + `walk-step`;
 NW-7, NW-9, NW-10 and NW-4's no-bodies half pass with the numbers recorded; M-N7 observed failing by
@@ -9282,10 +9289,11 @@ lattice consult may ask again. A person already at the destination: movement's a
 immediately ended walk or a refusal) is accepted as is.
 
 **Review.**
-- [ ] No geometry and no distance rule in the controller beyond choosing destinations (`CLOSE_ENOUGH`
-  chooses whom to approach; nothing measures a stride).
-- [ ] Draw indices 0–15 unchanged in meaning; the doorway mix unchanged; no assertion weakened, no
-  threshold lowered; every removed test's claim is named with where it now lives.
+- [x] No geometry and no distance rule in the controller beyond choosing destinations (`CLOSE_ENOUGH`
+  chooses whom to approach; nothing measures a stride; `toward`, `within`, `isqrt_up`, `MAX_STRIDE`
+  are gone from the crate — `git grep` clean).
+- [x] Draw indices 0–15 unchanged in meaning; the doorway mix unchanged; no assertion weakened, no
+  threshold lowered; every removed test's claim is named with where it now lives (E-NW2's table).
 
 **Commit boundary.** Controller behaviour + its tests + the listed literal edits + the two CLI tests.
 
@@ -9721,7 +9729,80 @@ E-NW1 NW-C1, working tree on 50685e6. Binary /tmp/s15-12n/12n2/c1-mineworld. Byt
       clippy --workspace --all-targets --all-features -D warnings clean; fmt clean; doc checks 193 / 98.
       Cargo.lock: only the mineworld-cli → mineworld-movement edge. `cargo test -p mineworld-cli --test
       run_restart --test hosted_town`: 2 + 1 passed (the resume arithmetic in RUN_STEP rounds; the hosted
-      town within its tick budget), 152 s wall (c1-restart.log).
+      town within its tick budget), 152 s wall (c1-restart.log). Committed 4416ee8.
+
+N-D23 NW-9's world is a minimal street-and-shop pack the test writes (presence, movement, schedule; a
+      walker whose day is the shop 28 m along the street, a watcher seat the test joins), not a copy of
+      social-cafe: the smallest world with a ≥ 20 m walk toward a day, and social-cafe's street has no
+      geometry on main either. Same server path, same paced seat.
+N-D24 NW-10's restart claim, made deterministic. Where a SIGKILL lands is a race: the three kills of
+      a_killed_run… saw no open walk ([0, 0, 0]), and a day boundary of the 30-day social-cafe run has
+      none either (people are home at midnight). So the killed test prints the open walks, and a new test
+      makes the case: a test-written world whose walker's day turns to a shop 78 m away at 23:45, so
+      `run --days 1` stops mid-walk; `--days 2` continues it; byte-equal to a 2-day control; the walk
+      ends within the hour after midnight. (Routines need ≥ 2 segments that differ in place or label —
+      schedule's rule, met by a second label.)
+Q-W1 RESULT  The four A-10 tests pass unedited with NW-C2's controller (consumption 2, economy 3,
+      item-transfer 3, complete_affordances 4): no edit outside the paths.
+
+E-NW2 NW-C2, working tree on 4416ee8. `cargo test -p mineworld-rule-controller` 37 passed — prints:
+      58 of 64 seeds ask to walk to the park; walks 123 through the door, 136 to a person, 402 nearby;
+      already-walking case located; five doors all chosen, 466 crossings in 768 consults. Claims, old →
+      new: greets-only-whom… "walks only when move is offered" → "…when walk-to is offered";
+      every-walk-is-one-stride-or-a-crossing → every walk names a doorway's place (entered), a person
+      here, or a point within 1 400 mm per axis, and no `move` is asked; a-stride-never-exceeds-the-
+      bound → removed with `toward` (the bound is movement's: walk.rs, walking.rs NV-2 (a)); agenda
+      "head for that door" → "ask to walk to the agenda's place" (the park, two doors away);
+      "the door taken leads to the agenda" → "the place walked to is the agenda's, never another";
+      with-no-move-offered → with-no-walk-to-offered; social "never crosses a doorway" → "never walks to
+      another place" (a `move` would also count); with-nothing-social admits walk-to; offered_tests'
+      hall offers walk-to too. New: already_walking_there_asks_for_nothing.
+      NW-9 (walking_pace.rs, 95 s): scales 1 / 6 / 12 / 24 → median 1 340 mm per wall second each;
+      1.0 / 6.0 / 12.0 / 24.0 world s between strides; 22, 22, 24, 22 positions — PASS. M-N7 (`step:
+      EMBODIED_STEP`): 1 340 / 6 722 / 13 368 / 13 370 mm/s, fails at "scale 6: median 6722 mm/s, not
+      1 340 ± 15 %"; reverted, hosted.rs clean in `git status`.
+      NW-7 (c2-nw7.log, 499 s): run 4, run_restart 2 + 1 (the new mid-walk test after N-D24), routines 1
+      (every seat 100 % of its segments; journeys median 9 min, p90 41 min), milestone_b, milestone_c,
+      market_town, market_composition, social_composition, hosted_town (CP-B4 p99 4.9 ms, max 10 ms) —
+      all pass. run.rs: person-entered-place by place {apartments 3 310, cafe 3 000, park 2 100, store
+      1 200, street 10 509, workplace 900}.
+      clippy --workspace --all-targets --all-features -D warnings clean; fmt clean.
+
+E-NW3 NW-4's no-bodies half, on main (the PR's code, 50685e6 + NW-C2), 2026-10-09 21:50–21:54,
+      interleaved with today's base (cap-base300, cap-c2-300; nw4-main.log). Load average 12.7 at the
+      start, 5.7 at the end (other lanes running).
+        social-cafe 300 d  base 365 330 facts, user 27.81 s │ walking 837 953 facts, user 52.16 s (1.88 ×)
+                           sha (hex facts) dc97c7f2…cfcde   summary 9f9aa768…a8a6
+        market-town 300 d  base 375 527 facts, user 40.40 s │ walking 817 742 facts, user 88.02 s (2.18 ×)
+                           sha ca5433bc…d8d3                summary d4cd8fa3…1e9
+      Bound (§21.8 NW-4): ≤ 27.8 s and ≤ 23.9 s (1.5 × E-TD-base) — FAIL for both. Today's base is
+      itself at (social-cafe, 27.81) and over (market-town, 40.40: calendar and weather joined it after
+      E-TD-base) the absolute bound under this load. Against today's base the ratios are 1.88 × and
+      2.18 ×, also over 1.5 ×.
+      Why: the walking towns do about 2.3 × the work. social-cafe 300 d: consults 316 800 → 659 271
+      (lattice + 342 471 step consults); facts 365 330 → 837 953 — arrived 180 677 → 340 214 (a stride is
+      at most 1 340 mm, not 2 000, and wanders are walks), walk-started + walk-ended 238 018 new, spoke
+      67 752 → 101 339 (lattice consults no longer spent on single strides are spent talking);
+      person-entered-place 20 720 → 21 019. Faults 0, no refusal. CPU per fact is about unchanged (76 →
+      62 µs), so this is work, not overhead: a profile of a 60-day run shows perception and serialization
+      throughout, with no hot spot. Town 300-day runs used: 4 of 19 (2 NW-4, 2 re-baseline).
+
+M-2   MATERIAL STOP (§21.8: "a failure is a bounded remedy named here or a material stop with the
+      numbers"; NW-4 names no remedy). NW-4's no-bodies half fails: 52.16 s and 88.02 s against 27.8 s
+      and 23.9 s (E-NW3). Everything else measured on main passes (NW-7, NW-9, NW-10, Q-W1). Held: NW-C3
+      (the 12d scratch-merge measurements, whose TD-12 runs and digests depend on the ruling) and NW-C4.
+      Options, for the operator / primary session:
+        (a) restate NW-4's no-bodies bound against today's base and the walking design's work — e.g.
+            ≤ 2.5 × today's base user CPU (measured 1.88 × / 2.18 ×) — the cost of 2.3 × as many facts,
+            and of a world that talks 50 % more; the absolute 1.5 × E-TD-base is already unmet by main's
+            market-town;
+        (b) cut work within the design: keep `wander` a single `move` stride (it is within one
+            MAX_STRIDE by construction) instead of a walk — reverses QN-11; wanders are 61 % of the
+            walks in the controller test's café view, so perhaps half of the walks and their
+            walk-started/walk-ended pairs go; an estimate, not measured;
+        (c) a larger notional stride cadence does not help: the number of strides, not their spacing,
+            is the work.
+      Recommendation: (a); (b) if the operator wants the headless towns cheaper, measured first.
 ```
 
 

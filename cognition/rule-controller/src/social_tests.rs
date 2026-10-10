@@ -13,7 +13,7 @@ use mineworld_group_activity::{
     JoinGroupActivity, LeaveGroupActivity, Participation, accept_requirement, decline_requirement,
     invite_requirement, join_requirement, leave_requirement,
 };
-use mineworld_movement::{Move, Passage, Passages, move_offer_requirement};
+use mineworld_movement::{Destination, Move, Passage, Passages, WalkTo, move_offer_requirement};
 use serde_json::{Value, json};
 
 use crate::PacedRuleController;
@@ -136,11 +136,10 @@ impl View {
             .at(in_cafe(1_000, 1_000))
             .with_components(mine);
         let mut entities = vec![cafe, me];
-        let mut affordances = vec![Affordance::available(
-            Move::ACTION_TYPE,
-            None,
-            move_offer_requirement(),
-        )];
+        let mut affordances = vec![
+            Affordance::available(Move::ACTION_TYPE, None, move_offer_requirement()),
+            Affordance::available(WalkTo::ACTION_TYPE, None, move_offer_requirement()),
+        ];
         if self.leave_offered {
             affordances.push(Affordance::available(
                 LeaveGroupActivity::ACTION_TYPE,
@@ -325,15 +324,19 @@ fn it_invites_only_whom_the_server_says_it_may_and_joins_only_through_an_offer()
 }
 
 #[test]
-fn part_of_an_activity_it_sometimes_leaves_and_never_crosses_a_doorway() {
+fn part_of_an_activity_it_sometimes_leaves_and_never_walks_to_another_place() {
+    // A walk out of the café is a `walk-to` whose destination is another place (or anybody's walk
+    // a member would follow out: a person destination is in this place by movement's rule).
     let doorway_crossings = |requests: &[ActionRequest]| {
-        of::<Move>(requests)
+        of::<WalkTo>(requests)
             .iter()
             .filter(|request| {
-                let to: Move = serde_json::from_slice(request.payload().payload()).expect("a move");
-                to.to().place() != place(CAFE)
+                let to: WalkTo =
+                    serde_json::from_slice(request.payload().payload()).expect("a walk-to");
+                matches!(to.to(), Destination::Place(at) if at.place() != place(CAFE))
             })
             .count()
+            + of::<Move>(requests).len()
     };
     let mut member = View::new();
     member.member_of = Some(9);
@@ -402,7 +405,7 @@ fn with_nothing_social_in_view_no_social_action_is_ever_proposed() {
     for request in &decided {
         let kind = request.payload().action_type();
         assert!(
-            *kind == Move::ACTION_TYPE || kind.as_str() == "talk",
+            *kind == WalkTo::ACTION_TYPE || kind.as_str() == "talk",
             "only the old repertoire: {kind}"
         );
     }

@@ -8,7 +8,7 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, Utterance, talk_requirement};
-use mineworld_movement::{Move, Passage, Passages, move_offer_requirement};
+use mineworld_movement::{Destination, Move, Passage, Passages, WalkTo, move_offer_requirement};
 use mineworld_schedule::{Agenda, AgendaLabel};
 use serde_json::{Value, json};
 
@@ -46,7 +46,8 @@ struct Day {
     me: Location,
     doors: Vec<Passage>,
     agenda: Option<PlaceId>,
-    move_offered: bool,
+    /// Whether movement offers me `move` and `walk-to` (it offers both, or neither).
+    walk_offered: bool,
     heard: Vec<Heard>,
 }
 
@@ -62,13 +63,12 @@ impl Day {
                 Some(spot(0, 3_000)),
             )],
             agenda: None,
-            move_offered: true,
+            walk_offered: true,
             heard: Vec::new(),
         }
     }
 
-    /// On the street, five doors each within a stride, so a heading is a crossing whose destination
-    /// says which door was taken.
+    /// On the street, five doors; a heading is a `walk-to` whose destination says which place.
     fn on_street() -> Self {
         let at_doors = [
             (1_500, 0),
@@ -134,12 +134,14 @@ impl Day {
             Some(id(BOB)),
             talk_requirement(),
         )];
-        if self.move_offered {
-            affordances.push(Affordance::available(
-                Move::ACTION_TYPE,
-                None,
-                move_offer_requirement(),
-            ));
+        if self.walk_offered {
+            for offered in [Move::ACTION_TYPE, WalkTo::ACTION_TYPE] {
+                affordances.push(Affordance::available(
+                    offered,
+                    None,
+                    move_offer_requirement(),
+                ));
+            }
         }
         Observation::new(id(ME), WorldTime::from_seconds(self.at))
             .at_location(self.me)
@@ -148,10 +150,19 @@ impl Day {
     }
 }
 
-fn moved_to(request: &ActionRequest) -> Option<Location> {
-    let payload = request.payload().payload_for::<Move>().ok()?;
-    let to: Move = serde_json::from_slice(payload).ok()?;
-    Some(to.to())
+/// The place a `walk-to` asks to be in, when its destination is a place (entered, or a point in it).
+fn walks_into(request: &ActionRequest) -> Option<PlaceId> {
+    let payload = request.payload().payload_for::<WalkTo>().ok()?;
+    let to: WalkTo = serde_json::from_slice(payload).ok()?;
+    match to.to() {
+        Destination::Place(location) => Some(location.place()),
+        _ => None,
+    }
+}
+
+/// Whether the request is any walk at all: a `walk-to`, or (never, now) a `move`.
+fn walks(request: &ActionRequest) -> bool {
+    *request.action_type() == WalkTo::ACTION_TYPE || *request.action_type() == Move::ACTION_TYPE
 }
 
 /// Whether the request answers a line — a reply, not a greeting, which is also a `talk`.
@@ -179,38 +190,31 @@ fn decisions(day: &Day, windows: i64) -> Vec<Option<ActionRequest>> {
         .collect()
 }
 
+/// Away from the agenda's place, most seeds ask to walk there — to the park itself, which the café
+/// does not open onto: movement plans the way through the street (N-D15).
 #[test]
-fn away_from_the_agenda_in_a_place_with_one_door_most_seeds_head_for_that_door() {
+fn away_from_the_agenda_most_seeds_ask_to_walk_to_the_agenda_s_place() {
     let away = Day {
         agenda: Some(place(PARK)),
         ..Day::in_cafe()
     };
-    let door = spot(8_000, 1_000);
-    let from = away.me.local().expect("positioned");
-    let gap = |at: LocalPosition| {
-        let (dx, dy) = (
-            i64::from(at.x().value()) - i64::from(door.x().value()),
-            i64::from(at.y().value()) - i64::from(door.y().value()),
-        );
-        dx * dx + dy * dy
-    };
     let all = decisions(&away, 1);
-    let toward: usize = all
+    let heading: usize = all
         .iter()
         .flatten()
-        .filter_map(moved_to)
-        .filter(|to| to.place() == place(CAFE) && to.local().is_some_and(|at| gap(at) < gap(from)))
+        .filter_map(walks_into)
+        .filter(|to| *to == place(PARK))
         .count();
-    println!("{toward} of {SEEDS} seeds stride toward the door");
+    println!("{heading} of {SEEDS} seeds ask to walk to the park");
     assert!(
-        toward * 100 >= all.len() * 75,
-        "the agenda band (90 of 100) shows: {toward} of {}",
+        heading * 100 >= all.len() * 75,
+        "the agenda band (90 of 100) shows: {heading} of {}",
         all.len()
     );
 }
 
 #[test]
-fn on_the_street_the_door_taken_is_the_one_that_leads_to_the_agenda_and_never_another() {
+fn on_the_street_the_place_walked_to_is_the_agenda_s_and_never_another() {
     let away = Day {
         agenda: Some(place(PARK)),
         ..Day::on_street()
@@ -218,9 +222,9 @@ fn on_the_street_the_door_taken_is_the_one_that_leads_to_the_agenda_and_never_an
     let crossings: Vec<u64> = decisions(&away, 12)
         .iter()
         .flatten()
-        .filter_map(moved_to)
-        .filter(|to| to.place() != place(STREET))
-        .map(|to| to.place().entity_id().raw())
+        .filter_map(walks_into)
+        .filter(|to| *to != place(STREET))
+        .map(|to| to.entity_id().raw())
         .collect();
     println!(
         "{} crossings, all to {:?}",
@@ -248,8 +252,8 @@ fn at_the_agenda_nobody_walks_out_even_standing_at_the_door() {
         decisions(day, 16)
             .iter()
             .flatten()
-            .filter_map(moved_to)
-            .filter(|to| to.place() != place(CAFE))
+            .filter_map(walks_into)
+            .filter(|to| *to != place(CAFE))
             .count()
     };
     assert!(
@@ -266,17 +270,17 @@ fn at_the_agenda_nobody_walks_out_even_standing_at_the_door() {
 }
 
 #[test]
-fn with_no_move_offered_an_agenda_proposes_no_walk() {
+fn with_no_walk_to_offered_an_agenda_proposes_no_walk() {
     let stuck = Day {
         agenda: Some(place(PARK)),
-        move_offered: false,
+        walk_offered: false,
         ..Day::in_cafe()
     };
     assert!(
         decisions(&stuck, 8)
             .iter()
             .flatten()
-            .all(|request| moved_to(request).is_none()),
+            .all(|request| !walks(request)),
         "the server's verdict is the whole answer (ENGINEERING_RULES §8)"
     );
 }

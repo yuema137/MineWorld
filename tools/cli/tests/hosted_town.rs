@@ -7,7 +7,8 @@
 //! ```
 //!
 //! What is asserted is what an operator reads: every seat the town drives made at least three
-//! accepted `move`s, the world reported no fault, and the p99 tick — consults, the journal's
+//! accepted strides (since step-11 12n-2 a walk's strides are `walk-step`s: the paced controller
+//! asks `walk-to` and then steps once a wall second), the world reported no fault, and the p99 tick — consults, the journal's
 //! fsync per request, and the sweep — took at most 50 ms, half the 100 ms cadence (`ARC-42`, I-11).
 //! The maximum is printed beside it and does not gate: one off-CPU stall the server cannot control
 //! must not decide the bound (operator ruling on D-SB12, 2026-10-08; step-12 E-SB9).
@@ -105,14 +106,14 @@ async fn the_hosted_town_lives_within_its_tick_budget() {
             .await;
         println!("{line}");
         let moves: u64 = line
-            .split_once("move ")
+            .split_once("walk-step ")
             .and_then(|(_, rest)| {
                 rest.split(|c: char| !c.is_ascii_digit())
                     .next()
                     .and_then(|number| number.parse().ok())
             })
             .unwrap_or(0);
-        assert!(moves >= 3, "{seat} made {moves} accepted move(s): {line}");
+        assert!(moves >= 3, "{seat} made {moves} accepted stride(s): {line}");
         driven += 1;
     }
     assert_eq!(

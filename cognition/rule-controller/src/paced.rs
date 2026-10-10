@@ -24,8 +24,14 @@
 //! finish the same world (`AC-6` with controllers in the loop).
 //!
 //! Like [`RuleController`](crate::RuleController) it reads the server's verdicts and never computes
-//! one (`ENGINEERING_RULES.md` §8): a stride it proposes may be refused `TooFarAway`, and that is the
-//! world's answer, not this controller's mistake to pre-empt. Every distance here is a *proposal*.
+//! one (`ENGINEERING_RULES.md` §8): a walk it asks for may be refused (`no-route`, `TooFarAway`), and
+//! that is the world's answer, not this controller's mistake to pre-empt.
+//!
+//! **It names destinations; the world walks there.** Every walking band asks movement's `walk-to` —
+//! a doorway's place, a person, a point nearby — and movement plans the route, round whatever the
+//! world's geometry holds (`DECISIONS.md` `ARC-75`). The strides are asked one at a time through
+//! [`PacedRuleController::step`], at the cadence of whoever drives the controller. No route, stride or
+//! wall is computed here.
 //!
 //! # The draws
 //!
@@ -50,26 +56,23 @@
 
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, EntityType, LocalPosition, Location,
-    Millimetres, Observation, PerceivedEntity, PlaceId, SimDuration,
+    Millimetres, Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
-use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages};
+use mineworld_movement::{Destination, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::walking::{Walked, walk_to};
 use crate::{agenda, offered, social};
 use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
-/// How close an approach stops short of the person approached: near enough to talk, not on top of
-/// them. A literal from the requirement — conversation's range is three metres — not derived from
-/// anything this controller computes (`ARC-23` rule 2).
-const APPROACH_STOPS_AT: i64 = 1_000;
-
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
+/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
 const CLOSE_ENOUGH: i64 = 1_500;
 
-/// The largest offset a wander proposes on each axis. `1 400² + 1 400²` is under `MAX_STRIDE²`, so a
-/// wander is a legal stride by construction rather than by a clamp computed from the result.
+/// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
+/// movement's, which moves a goal that lies in furniture or off the floor to the nearest free point.
 const WANDER_AXIS: i64 = 1_400;
 
 /// What a person says when they speak first. A fixed set, because a rule does not compose speech.
@@ -100,8 +103,7 @@ const PASSES_THROUGH_BELOW: u64 = 80;
 
 /// How long a person keeps heading for the same door, in simulated seconds: six hours. Which door is a
 /// draw over `(seed, observer, instant ÷ this)`, so it is still a pure function of the observation —
-/// and it holds for long enough to arrive: a door eighteen metres off is nine strides away, about
-/// fifteen consults at the street's rate of walking on, under four hours at `mineworld run`'s pace.
+/// and it keeps a person from changing their mind about where they are going at every consult.
 const DOOR_WINDOW: i64 = 21_600;
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
@@ -130,8 +132,9 @@ impl PacedRuleController {
     /// In order: answer the newest line somebody said to me since my last consult, if the server
     /// says I may speak to them; then the agenda and the social initiative; then, sometimes, a
     /// complete affordance the world offers; otherwise, by the seeded draw, greet somebody I may
-    /// speak to, walk toward somebody, walk toward or through a doorway, wander a stride, or do
-    /// nothing. In a place with several doorways the draw favours walking on toward one of them.
+    /// speak to, walk to somebody, walk through a doorway, wander to a point nearby, or do nothing.
+    /// In a place with several doorways the draw favours walking on through one of them. A walk my own
+    /// disclosed walk already makes is not asked again: that consult asks for nothing.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
         // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
@@ -150,9 +153,9 @@ impl PacedRuleController {
             .is_some_and(|agenda| agenda::is_there(observation, agenda));
         if let Some(agenda) = mine.as_ref().filter(|_| !at_agenda)
             && agenda::follows(&draw)
-            && let Some(step) = self.head_for(observation, agenda.place())
+            && let Some(walked) = head_for(observation, agenda.place())
         {
-            return Some(step);
+            return walked.request();
         }
         // Part of an activity: sometimes leave it, and never head for a door — walking into another
         // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
@@ -171,11 +174,11 @@ impl PacedRuleController {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and
-        // — with an agenda elsewhere — only ever the door toward it, so a person on their way takes
-        // no detour through somebody else's door. With no agenda, the seeded door, as before.
+        // — with an agenda elsewhere — only ever toward it, so a person on their way takes no detour
+        // through somebody else's door. With no agenda, the seeded door, as before.
         let leave = |observation| match &mine {
             _ if member || at_agenda => None,
-            Some(agenda) => self.head_for(observation, agenda.place()),
+            Some(agenda) => head_for(observation, agenda.place()),
             None => self.leave(observation),
         };
         let roll = draw.below(100, 0);
@@ -186,13 +189,17 @@ impl PacedRuleController {
         if roll < GREETS_BELOW {
             greet(observation, &draw)
         } else if passing_through && roll < PASSES_THROUGH_BELOW {
-            leave(observation).or_else(|| wander(observation, &draw))
-        } else if roll < APPROACHES_BELOW {
-            approach(observation, &draw).or_else(|| wander(observation, &draw))
-        } else if roll < LEAVES_BELOW {
             leave(observation)
+                .or_else(|| wander(observation, &draw))
+                .and_then(Walked::request)
+        } else if roll < APPROACHES_BELOW {
+            approach(observation, &draw)
+                .or_else(|| wander(observation, &draw))
+                .and_then(Walked::request)
+        } else if roll < LEAVES_BELOW {
+            leave(observation).and_then(Walked::request)
         } else if roll < WANDERS_BELOW {
-            wander(observation, &draw)
+            wander(observation, &draw).and_then(Walked::request)
         } else {
             None
         }
@@ -227,7 +234,7 @@ impl PacedRuleController {
         Some(ActionRequest::new(me, record(&Talk::new(said))).with_target(*speaker))
     }
 
-    /// Toward a doorway this place discloses, or through it when it is a stride away.
+    /// A walk through a doorway this place discloses, into the place it leads to.
     ///
     /// Which doorway is a draw over `(seed, observer, instant ÷ DOOR_WINDOW)`: the same door for the
     /// whole window, so a person crossing a street keeps walking to one door rather than turning at
@@ -235,7 +242,7 @@ impl PacedRuleController {
     /// one doorway has only one to choose. The passages are disclosed in `PlaceId` order, and before
     /// S8 this always took the first — on a street of five doors that sent everybody into the
     /// lowest-numbered place and never back (`step-09-social.md` F-6).
-    fn leave(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
+    fn leave(&self, observation: &Observation<Value>) -> Option<Walked> {
         let here = *observation.self_location()?;
         let doors: Vec<Passage> = doorways(observation, here)?.iter().copied().collect();
         let window = observation
@@ -248,47 +255,16 @@ impl PacedRuleController {
             window,
         ) % (doors.len() as u64);
         let passage = *doors.get(usize::try_from(chosen).ok()?)?;
-        through(observation, here, passage)
-    }
-
-    /// Toward `place`: through the doorway that leads there if this place discloses one, otherwise
-    /// through the seeded door [`Self::leave`] would take — which in a star town is the way to the
-    /// street, and from the street every place is one door away (`step-09-social.md` L-3). The route
-    /// is never computed beyond "the disclosed door whose `to` is the place".
-    pub(crate) fn head_for(
-        &self,
-        observation: &Observation<Value>,
-        place: PlaceId,
-    ) -> Option<ActionRequest> {
-        let here = *observation.self_location()?;
-        let leads_there = doorways(observation, here)?
-            .iter()
-            .copied()
-            .find(|passage| passage.to() == place);
-        match leads_there {
-            Some(passage) => through(observation, here, passage),
-            None => self.leave(observation),
-        }
+        head_for(observation, passage.to())
     }
 }
 
-/// A stride toward `passage`'s doorway, or through it when it is a stride away.
-fn through(
-    observation: &Observation<Value>,
-    here: Location,
-    passage: Passage,
-) -> Option<ActionRequest> {
-    let from = here.local()?;
-    let door = passage.here()?;
-    if within(from, door, i64::from(MAX_STRIDE.value())) {
-        // Through: to the same doorway on the other side, which is within a stride of itself.
-        let there = passage.there()?;
-        return walk(
-            observation,
-            Location::in_place(passage.to()).with_local(there),
-        );
-    }
-    walk(observation, here.with_local(toward(from, door, 0)?))
+/// A walk into `place`, wherever it is: movement plans the way, through as many doorways as it takes
+/// (`ARC-75`; step-11 N-D15). The destination is the place itself, with no point in it, so the walk
+/// ends on entering it. Nothing here looks for a door.
+fn head_for(observation: &Observation<Value>, place: PlaceId) -> Option<Walked> {
+    observation.self_location()?;
+    walk_to(observation, Destination::Place(Location::in_place(place)))
 }
 
 /// The seeded draws for one decision: a pure function of the seed, the observer and the instant.
@@ -339,8 +315,8 @@ fn greet(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest>
     Some(ActionRequest::new(me, record(&Talk::new(said))).with_target(target))
 }
 
-/// A stride toward somebody in the same place, stopping short of them; nothing if already close.
-fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
+/// A walk to somebody in the same place, which ends near enough to talk; nothing if already close.
+fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
     let here = *observation.self_location()?;
     let from = here.local()?;
     let people: Vec<&PerceivedEntity<Value>> = others(observation)
@@ -355,12 +331,12 @@ fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<ActionReque
     if distance(from, to) <= CLOSE_ENOUGH {
         return None;
     }
-    let stride = toward(from, to, APPROACH_STOPS_AT)?;
-    walk(observation, here.with_local(stride))
+    let person = PersonId::new(target.id(), target.entity_type()).ok()?;
+    walk_to(observation, Destination::Person(person))
 }
 
-/// A stride in a seeded direction within the place.
-fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
+/// A walk to a point in a seeded direction nearby, in the same place.
+fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
     let here = *observation.self_location()?;
     let from = here.local()?;
     let (dx, dy) = (draw.offset(WANDER_AXIS, 5), draw.offset(WANDER_AXIS, 6));
@@ -368,15 +344,7 @@ fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest
         return None;
     }
     let to = LocalPosition::new(shifted(from.x(), dx)?, shifted(from.y(), dy)?, from.z());
-    walk(observation, here.with_local(to))
-}
-
-/// A `move` request to `to`, if the server offers `move` to this observer at all.
-fn walk(observation: &Observation<Value>, to: Location) -> Option<ActionRequest> {
-    let offered = observation.affordances().iter().any(|affordance| {
-        *affordance.action_type() == Move::ACTION_TYPE && affordance.is_available()
-    });
-    offered.then(|| ActionRequest::new(observation.observer(), record(&Move::new(to))))
+    walk_to(observation, Destination::Place(here.with_local(to)))
 }
 
 /// Everybody the observation lists as a person, except the observer, in the order it lists them.
@@ -406,51 +374,11 @@ fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     choices.get(usize::try_from(draw.below(choices.len() as u64, n)).ok()?)
 }
 
-/// Whether `b` is at most `limit` from `a` on the floor, decided exactly on squared integers — never
-/// on a rounded distance, which would call 2 000.4 mm "2 000" and propose a crossing the movement
-/// system refuses.
-pub(crate) fn within(a: LocalPosition, b: LocalPosition, limit: i64) -> bool {
-    let (dx, dy) = delta(a, b);
-    dx * dx + dy * dy <= limit * limit
-}
-
-/// Straight-line distance on the floor, in whole millimetres, rounded down.
+/// Straight-line distance on the floor, in whole millimetres, rounded down: only to choose whom to
+/// walk to ([`CLOSE_ENOUGH`]), never to measure a stride.
 pub(crate) fn distance(a: LocalPosition, b: LocalPosition) -> i64 {
     let (dx, dy) = delta(a, b);
     isqrt(dx * dx + dy * dy)
-}
-
-/// A stride from `from` toward `to`, ending `stop_short` short of it and never longer than
-/// [`MAX_STRIDE`]; `None` when there is nowhere to go.
-///
-/// Floor division toward zero on each axis over the distance rounded **up**, so the stride's length
-/// never exceeds the travel asked for: with `D ≥ √(dx² + dy²)`, `|dx·travel/D| ≤ |dx|·travel/D`, and
-/// the stride's length is at most `√(dx² + dy²)·travel/D ≤ travel`.
-///
-/// Rounded up, not down. Dividing by the floored root — as this did until step-09 C3 — makes `D`
-/// slightly *short* of the true distance and the stride a fraction of a millimetre *over* `travel`:
-/// (1 640, 1 145) is 2 000.16 mm, which the movement system rightly refuses `TooFarAway`. The old test
-/// measured strides with the same floored root and could not see it (`DECISIONS.md` `ARC-23`).
-pub(crate) fn toward(
-    from: LocalPosition,
-    to: LocalPosition,
-    stop_short: i64,
-) -> Option<LocalPosition> {
-    let (dx, dy) = delta(from, to);
-    let d = isqrt_up(dx * dx + dy * dy);
-    if d <= stop_short {
-        return None;
-    }
-    let travel = (d - stop_short).min(i64::from(MAX_STRIDE.value()));
-    let (sx, sy) = (dx * travel / d, dy * travel / d);
-    if sx == 0 && sy == 0 {
-        return None;
-    }
-    Some(LocalPosition::new(
-        shifted(from.x(), sx)?,
-        shifted(from.y(), sy)?,
-        from.z(),
-    ))
 }
 
 fn delta(a: LocalPosition, b: LocalPosition) -> (i64, i64) {
@@ -469,12 +397,6 @@ fn shifted(value: Millimetres, by: i64) -> Option<Millimetres> {
 /// The integer square root of a non-negative number, rounded down.
 fn isqrt(value: i64) -> i64 {
     value.max(0).cast_unsigned().isqrt().cast_signed()
-}
-
-/// The integer square root of a non-negative number, rounded up: the least `r` with `r² ≥ value`.
-fn isqrt_up(value: i64) -> i64 {
-    let root = isqrt(value);
-    if root * root < value { root + 1 } else { root }
 }
 
 /// This controller's own payload encoding, as [`RuleController`](crate::RuleController)'s.
