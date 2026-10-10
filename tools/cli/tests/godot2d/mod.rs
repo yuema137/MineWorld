@@ -325,6 +325,9 @@ pub struct StubLog {
     pub position: (i64, i64),
     /// How many connections the interaction stub ([`offering`]) seated.
     pub connections: usize,
+    /// Every frame the client sent to [`stub`], in arrival order, exactly as received (S20 SET-a,
+    /// AC-SET-5: the oracle for "settings never reach the server").
+    pub frames: Vec<Value>,
 }
 
 /// A revision-1 server that seats one client in a bare room and answers by script, so a test can
@@ -359,6 +362,7 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                 incoming = socket.next() => {
                     let Some(Ok(Message::Text(text))) = incoming else { return };
                     let frame: Value = serde_json::from_str(&text).expect("JSON");
+                    shared.lock().expect("log").frames.push(frame.clone());
                     match frame["t"].as_str() {
                         Some("join") => {
                             // Revision 2 (`PROTOCOL.md` §§2, 5): the client must present the

@@ -187,15 +187,15 @@ func _language_not_offered() -> void:
 func _unknown_key() -> void:
 	var file := _file("unknown.cfg")
 	var out := FileAccess.open(file, FileAccess.WRITE)
-	out.store_string("[meta]\nversion=1\n[general]\nlanguage=\"en\"\ninvite=\"x\"\n[launcher]\nkeep_running=true\n")
+	out.store_string("[meta]\nversion=1\n[general]\nlanguage=\"en\"\nserver_address=\"x\"\n[launcher]\nkeep_running=true\n")
 	out.close()
 	var store := _open(file)
-	_check(store.problems.size() == 1 and store.problems[0].contains("general/invite"),
+	_check(store.problems.size() == 1 and store.problems[0].contains("general/server_address"),
 		"an unknown key of an owned section is named and dropped; another module's section is not judged", "\n".join(store.problems))
 	store.save(store.settings)
 	var config := ConfigFile.new()
 	config.load(file)
-	_check(not config.has_section_key("general", "invite") and config.get_value("launcher", "keep_running", false) == true,
+	_check(not config.has_section_key("general", "server_address") and config.get_value("launcher", "keep_running", false) == true,
 		"after an apply the unknown key is gone and the other module's section is kept")
 
 

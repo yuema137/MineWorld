@@ -1,8 +1,10 @@
 # English wording of the 2D reference client (clients/2d/PRESENTATION.md §7, docs/DECISIONS.md ARC-70).
 #
-# Every key the client asks for. Keys built from data: action.<type>, action.<type>.done,
-# reason.<code>. A key missing here is shown as a readable form of its last part, so a pack that
-# words fewer things still plays. Wording holds no rule: no number, no condition.
+# The pack layer of the client's wording (clients/shared/SETTINGS.md §6.2): read after the shared layer,
+# so an entry here replaces the shared one, marked `#. override`. Keys built from data: action.<type>,
+# action.<type>.done, reason.<code> (in the shared layer). A key missing everywhere is shown as a
+# readable form of its last part, so a pack that words fewer things still plays. Wording holds no
+# rule: no number, no condition.
 msgid ""
 msgstr ""
 "Project-Id-Version: mineworld-default-2d 0.1.0\n"
@@ -11,113 +13,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-# Menu entries, one per action type a default pack offers. {target}: the person the action is
-# directed at; {item}: the thing its payload names.
+# The action.* and reason.* entries both clients use live in the shared layer,
+# clients/shared/settings/locale/ (moved there verbatim by S20 SET-a, keys unchanged). This pack keeps
+# its own wording of one of them: walking, which in this client is a click on the floor.
+#. override
 msgid "action.move"
 msgstr "Walk (click where to go)"
-
-msgid "action.talk"
-msgstr "Talk to {target}"
-
-msgid "action.talk.done"
-msgstr "You spoke to {target}"
-
-msgid "action.invite"
-msgstr "Invite {target} to…"
-
-msgid "action.invite.done"
-msgstr "You invited {target}"
-
-msgid "action.accept-invitation"
-msgstr "Accept {target}'s invitation"
-
-msgid "action.accept-invitation.done"
-msgstr "You accepted {target}'s invitation"
-
-msgid "action.decline-invitation"
-msgstr "Decline {target}'s invitation"
-
-msgid "action.decline-invitation.done"
-msgstr "You declined {target}'s invitation"
-
-msgid "action.join-group-activity"
-msgstr "Join {target}"
-
-msgid "action.join-group-activity.done"
-msgstr "You joined {target}"
-
-msgid "action.leave-group-activity"
-msgstr "Leave the activity"
-
-msgid "action.leave-group-activity.done"
-msgstr "You left the activity"
-
-msgid "action.buy"
-msgstr "Buy {item}"
-
-msgid "action.buy.done"
-msgstr "You bought {item}"
-
-msgid "action.give"
-msgstr "Give {target} {item}"
-
-msgid "action.give.done"
-msgstr "You gave {target} {item}"
-
-msgid "action.eat"
-msgstr "Eat {item}"
-
-msgid "action.eat.done"
-msgstr "You ate {item}"
-
-msgid "action.drink"
-msgstr "Drink {item}"
-
-msgid "action.drink.done"
-msgstr "You drank {item}"
-
-msgid "action.kick"
-msgstr "Kick {item}"
-
-msgid "action.kick.done"
-msgstr "You kicked {item}"
-
-msgid "action.shove"
-msgstr "Shove {target}"
-
-msgid "action.shove.done"
-msgstr "You shoved {target}"
-
-msgid "action.throw"
-msgstr "Throw {item}"
-
-msgid "action.throw.done"
-msgstr "You threw {item}"
-
-# Why not: the kernel's closed reasons (contracts Rejection), then system codes.
-msgid "reason.too_far_away"
-msgstr "too far away"
-
-msgid "reason.busy"
-msgstr "busy right now"
-
-msgid "reason.permission_denied"
-msgstr "not allowed"
-
-msgid "reason.no_supported_interaction"
-msgstr "nothing here can do that"
-
-msgid "reason.target_unavailable"
-msgstr "not available"
-
-msgid "reason.unavailable"
-msgstr "not possible"
-
-msgid "reason.precondition_failed"
-msgstr "not possible now"
-
-msgid "reason.malformed-payload"
-msgstr "the world did not understand that"
 
 # Fixed interface text.
 msgid "ui.hint"

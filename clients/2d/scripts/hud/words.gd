@@ -9,44 +9,30 @@ extends RefCounted
 ## wording does not hold is shown as a readable form of its last part, so a client with no pack still
 ## says something true; a code nobody worded is shown as the code itself.
 
-## The language 13b ships and selects; the language switch is the client-settings lane's.
+## The language selected when nothing else is; the language switch is the settings module's (S20).
 const DEFAULT_LOCALE := "en"
 
 
-## Adds the pack's wording for `locale` to the translation server and selects that language.
-## Returns what went wrong, for a warning; nothing here stops the client.
+## Loads the wording — the shared settings module's catalogs, then this pack's `i18n/`, then the user's
+## (`clients/shared/SETTINGS.md` §6.2) — and selects `locale`. Returns what went wrong, for a warning;
+## nothing here stops the client. Loading and the fallback are `MineWorldText`'s (S20 SET-a).
 static func load_pack(pack_dir: String, locale: String = DEFAULT_LOCALE) -> PackedStringArray:
-	var problems := PackedStringArray()
-	var path := pack_dir.path_join("i18n").path_join(locale + ".po")
-	if not FileAccess.file_exists(path):
-		problems.append("no wording at %s; keys fall back to their readable form" % path)
-		return problems
-	var loaded: Resource = ResourceLoader.load(path)
-	if not loaded is Translation:
-		problems.append("%s is not a gettext translation" % path)
-		return problems
-	TranslationServer.add_translation(loaded)
-	TranslationServer.set_locale((loaded as Translation).locale)
+	var problems := MineWorldText.load_layers(pack_dir)
+	if not FileAccess.file_exists(pack_dir.path_join("i18n").path_join(DEFAULT_LOCALE + ".po")):
+		problems.append("no wording at %s; keys fall back to the shared layer and their readable form" %
+			pack_dir.path_join("i18n"))
+	MineWorldText.set_language(locale)
 	return problems
 
 
 ## Whether the wording holds `key`.
 static func has(key: String) -> bool:
-	return String(TranslationServer.translate(key)) != key
+	return MineWorldText.has(key)
 
 
 ## The text of `key` with its `{name}` arguments filled in, or the readable fallback.
 static func text(key: String, args: Dictionary = {}) -> String:
-	if has(key):
-		var said := String(TranslationServer.translate(key))
-		return said.format(args) if not args.is_empty() else said
-	var fallback := readable(key)
-	if args.is_empty():
-		return fallback
-	var values := PackedStringArray()
-	for value in args.values():
-		values.append(str(value))
-	return "%s: %s" % [fallback, "  ·  ".join(values)]
+	return MineWorldText.text(key, args)
 
 
 ## A menu entry or a result for an action of `type`: `action.<type>` (or `action.<type>.done`), or,
@@ -76,7 +62,7 @@ static func code(reason: Variant) -> String:
 ## Why not, in words: `reason.<code>`, or the code made readable.
 static func reason(rejection: Variant) -> String:
 	var said := code(rejection)
-	return text("reason." + said) if said != "" else ""
+	return MineWorldText.code("reason", said) if said != "" else ""
 
 
 ## An amount of the wallet's minor units, in the pack's money format.
@@ -96,8 +82,4 @@ static func clock(seconds: int) -> String:
 
 ## A key's last part, made readable: `reason.too_far_away` → "too far away".
 static func readable(key: String) -> String:
-	var parts := key.split(".")
-	var last := parts[parts.size() - 1]
-	if last == "done" and parts.size() > 1:
-		last = parts[parts.size() - 2]
-	return last.replace("_", " ").replace("-", " ")
+	return MineWorldText.readable(key)
