@@ -643,6 +643,95 @@ than silently ignored. Applies only to the new kind; no P5a configuration change
 `anthropic_messages.py` would import `httpx2` into the bridge. The pure function lives in a module of
 its own that names no provider.
 
+### 11.4 C3 — `CliBridgeBackend` core
+
+- [x] Implementation: `backend/cli_bridge.py` — `ENVIRONMENT_ALLOWLIST` (D-B3's names), a deny pattern
+  (`*_API_KEY`, `*_TOKEN`, `OPENAI_*`, `ANTHROPIC_*`) applied even to a preset's home variable,
+  `MODEL_NAME` (`^[A-Za-z0-9._:/-]{1,128}$`), the `BridgePreset` protocol (`executable`, `home_variable`,
+  `arguments`, `schema_document`, `render_prompt`, `parse`, `classify`), `child_environment`,
+  `kill_tree` (POSIX `os.killpg(pid, SIGKILL)`; Windows `taskkill /T /F /PID`, then `kill()`; then
+  `wait()`), `CliBridgeBackend(preset, *, command, model, request_timeout_s)` following §5.2: a fresh
+  `mkdtemp` directory removed in `finally`; the schema written there as `schema.json` (UTF-8, LF); argv
+  = command + the preset's arguments; the allowlisted environment; `start_new_session=True` (POSIX) or
+  `CREATE_NEW_PROCESS_GROUP` (Windows); the prompt through `communicate(stdin)`; the bridge's own bound
+  (`request_timeout_s`, else none: the gateway's `call_timeout_s` bounds the call, D-B8); `kill_tree` in
+  `finally`, so a timeout, the gateway's cancellation or any error leaves nothing running; a non-zero
+  exit classified by the preset from stderr's first line. Tests: `tests/fakes/fake_cli.py` (modes
+  `answer`, `answer-no-usage`, `fail`, `hang`, `sleep`; one JSON record per start: argv, environment,
+  working directory and its entries, stdin as hex, pid, the grandchild's pid); `tests/test_cli_bridge.py`
+  with a test-only `FakePreset`. `pyproject.toml`'s `addopts` gains `-v` (DV-P5b-5);
+  `test_provider_scan.py` allows `cli_bridge.py` (DV-P5b-6).
+- [x] Validation (E-P5b-3): cognition suite **111 passed, 1 skipped** (the Windows-only shim test on
+  macOS); ruff, format, pyright strict clean, and pyright with `--pythonplatform Windows` and `Linux`
+  clean (the `sys.platform` branches narrow).
+  - AB-3: `MWTEST-…` values planted in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CODEX_API_KEY`,
+    `FOO_TOKEN`, and in an `env_file` the same process resolved a key from: none in the child's argv,
+    environment or stdin; no `*_API_KEY`/`*_TOKEN` name in its environment; the preset's home variable
+    passed; the working directory `mineworld-bridge-…` was empty and is gone after the call.
+  - AB-4: a user message starting `& calc.exe %PATH% $(id) "; rm -rf /` plus 300 lines (over 10 000
+    bytes) of `& | < > ^ %X% !Y!` and non-ASCII text: argv holds none of it; stdin equals the rendered
+    prompt byte for byte; the schema travels as a generated `schema.json` path; a model `m; rm -rf /`
+    is refused (`ConfigError`), `gpt-test.1:mini` accepted. The same through a launcher found by
+    `shutil.which` on a test-owned `PATH`: a shell script on POSIX (run here), a `.cmd` shim through
+    `PATHEXT` on Windows (`test_no_model_facing_text_reaches_argv_through_a_cmd_shim_on_windows`, which
+    also asserts the found path ends in `.cmd`; runs on the Windows leg only — AB-9).
+  - AB-5: through `ModelGateway` with `call_timeout_s = 1`, the fake starts a grandchild and sleeps:
+    `Failed(timeout)` in under 2 s, and both pids gone within 3 s (`_alive`: `os.kill(pid, 0)` plus the
+    Linux `/proc` zombie state; `OpenProcess` + `WaitForSingleObject` on Windows). The bridge's own
+    `request_timeout_s = 1` also kills the grandchild.
+  - AB-6: the credential scan of `src/` finds nothing; a planted `codex.py` line naming `.codex` and
+    `auth.json` is found at that line.
+  - AB-8: `calls_per_wall_hour = 20`, `FakeClock`: 20 calls complete, the 21st is
+    `Refused(calls_per_wall_hour)`, and the fake recorded **20** starts; the reported usage (11 + 4) is
+    charged unflagged, the no-usage fake's is estimated and flagged; the ledger holds 20 calls and the
+    exact token sum.
+  - Missing executable: `ConfigError` "'mwtest_absent_cli' was not found on PATH; … command = [...]"
+    (DV-P5b-4); a configured command that does not exist → `BackendFailure("unreachable")`. A failing CLI
+    (exit 3, "error: not logged in") → `unauthorized`, with no stderr text in the failure.
+  - Mutations (§11.8): M-b4 `env=dict(os.environ)` → AB-3 fails (the planted `OPENAI_API_KEY` value found
+    in the child's environment); M-b5 the prompt appended to argv → both AB-4 tests fail; M-b6
+    `process.kill()` instead of `killpg` → both tree tests fail; M-b7 the gateway spawning before it
+    returns a refusal → AB-8 fails (21 starts ≠ 20); M-b8 a `Path.home() / ".codex" / "auth.json"` line
+    planted in `cli_bridge.py` → AB-6 fails naming `backend/cli_bridge.py:71`. All reverted; `grep -rn
+    MUTATION cognition/` empty; 111 passed, 1 skipped.
+- [x] Review: argv is built from `self._command` (configuration or `shutil.which`), the preset's literals,
+  the generated schema path and the validated model only; `render_prompt` reaches `communicate` and
+  nothing else; no request text is formatted into any argument. Stderr is decoded only to give the
+  preset its first line; no stderr or stdout text enters a `BackendFailure`, a log or an exception.
+  `kill_tree` runs in a `finally`, so the gateway's cancellation path is covered (AB-5 runs through it).
+
+**F-P5b-1 (Windows: a selector event loop cannot start a subprocess).** `tests/support.run` uses
+`asyncio.SelectorEventLoop` on every platform (F-P5-4, for the network guard). On Windows,
+`SelectorEventLoop` does not implement subprocesses (`NotImplementedError`); only the default proactor
+loop does. **Decision (bounded):** the bridge tests run on the platform's default loop (`run_loop` in
+`test_cli_bridge.py`), which is safe because they open no socket. **Material for P6 (the planning
+session):** a cognition process that binds a subscription bridge must run the default (proactor) loop on
+Windows; if P6 chooses a selector loop there, as the tests do, bridges will fail to start. The module's
+docstring says so.
+
+**M-b6 observation.** With `process.kill()` alone the grandchild keeps the stdout pipe open, so
+`Process.wait()` (which waits for the pipes as well as the exit) blocks until the grandchild's 60 s
+sleep ends; the tests went red on their 30 s `run_loop` bound (`TimeoutError`), not on the pid
+assertion. The mutation is caught; the failure message does not name the pid as §6 imagined.
+
+**Deviations (bounded).**
+
+```text
+DV-P5b-2  No stderr text in a failure. §5.2 step 8 has the failure "carry the first 200 characters of
+          stderr after P5a's secret scrub". BackendFailure has no message field and P5a has no scrub
+          (C0's difference 1); adding either changes P5a's seam (a material stop). Stderr's first line
+          is used only to classify. Stricter than designed; I-16 holds by construction.
+DV-P5b-4  A missing executable is a ConfigError at construction, naming the command looked for and
+          suggesting `command = [...]` (D-B1's message), not a BackendFailure("unreachable") naming it:
+          a BackendFailure cannot name anything (DV-P5b-2's reason). Construction happens only in live
+          and record modes (I-B5). An executable that vanishes after construction is
+          BackendFailure("unreachable") at call time.
+DV-P5b-5  The member's pytest addopts gain `-v`, so CI's log names every test and AB-9's Windows-only
+          `.cmd` case is visibly run on its leg. ci_layer.py is unchanged (AB-10).
+DV-P5b-6  test_provider_scan.py's ALLOWED gains cli_bridge.py: its deny pattern names OPENAI_ and
+          ANTHROPIC_ (I-10 allows "the adapters, the presets, the registry and config.py").
+```
+
 **Process note.** Twice this session a Bash call held an empty heredoc (`<<'X' … X`) redirected to
 `/dev/null` or to `python3 -` with no body. Neither wrote a file nor ran code (`git status` unchanged);
 recorded because the brief forbids heredoc writes.

@@ -58,4 +58,6 @@ markers = [
 # The network guard (I-11, as sdk/python): pytest-socket blocks every `connect` to anything but the
 # loopback addresses, on every platform. It allows loopback, where a user's Ollama listens, which is why
 # replay mode also constructs no network client (D-P5-5, AP5-6).
-addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-m", "not live_model"]
+# `-v` names every test in CI's log, so a platform-specific case (the bridge's Windows `.cmd` shim,
+# pr-s10-p5b AB-9) is shown to have run, by name, on the leg that owns it.
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v", "-m", "not live_model"]

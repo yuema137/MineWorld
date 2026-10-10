@@ -20,6 +20,7 @@ CASSETTES = PACKAGE / "tests" / "cassettes"
 ALLOWED = {
     SOURCE / "backend" / "openai_compatible.py",
     SOURCE / "backend" / "anthropic_messages.py",
+    SOURCE / "backend" / "cli_bridge.py",  # its allowlist refuses OPENAI_* and ANTHROPIC_* by name
     SOURCE / "backend" / "registry.py",
     SOURCE / "backend" / "providers.py",
     SOURCE / "config.py",
