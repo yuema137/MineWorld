@@ -986,3 +986,8 @@ probe's `sqlite3.connect(":memory:")`; every other `open(`, `os.`, `Path(`, `sub
 `world.sqlite` is a finding.
 
 ### 14.4 CI runs per head
+
+| Head | Run | Event | Result |
+| --- | --- | --- | --- |
+| `3de3664` (C1) | 38035409127 | `pull_request`, draft | `changes`, `fast` pass; every other job skipped (draft, X-2) |
+| `84caaf1` (C8) | 38037138795 | `pull_request`; the push and `gh pr ready` landed two seconds apart, the `ready_for_review` run (38037136527) was cancelled by the workflow's concurrency group and the surviving run still read the PR as a draft | `fast` only; `python`, `test` skipped. Re-triggered by the next push (this ledger entry) |
