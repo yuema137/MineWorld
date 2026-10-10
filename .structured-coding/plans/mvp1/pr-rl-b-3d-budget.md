@@ -876,6 +876,34 @@ E-RLb-ruled  2026-10-09/10  The head after rulings R-1 to R-6: `7f37212` (C8 rev
   R-3 re-baseline: the new accepted frames are `shots/slice/rlb/ruled/frames/` (base1 vs ruled
   pairs on the branch `review/rl-b-frames`, `rl-b/ruled/`).
 
+E-RLb-final  2026-10-10  R-6 re-measure on the ruled head `661e556` (code identical to `7f37212`; the later
+                     commits change only this ledger and `docs/HUMAN_REVIEW_QUEUE.md`). Machine: Apple M5, macOS
+                     26.2 (Darwin 25.2.0), Godot 4.7.2 (`shots/slice/rlb/final-env.log`). Command:
+                     `caffeinate -d ./mineworld-slice --perf` (`shots/slice/rlb/final-perf.log`).
+  **INCONCLUSIVE — NOT MEASURED. No view has a conclusive median-of-3 p95, so no view passes or fails.**
+  Run 1, attempt 1 (`final-run1-a1.log`, `.json`): verdict INCONCLUSIVE (measured frames over 250 ms in
+  five views: interior max 8 869.48 ms, doorway 12 577.08, street east 20 635.17, south side 12 402.35,
+  florist interior 21 624.03; street wide, cafe frontage and skyline east had none). Run 1, attempt 2
+  (`final-run1-a2.log`): street wide completed (p95 14.11 ms, max 7 305.80 ms, one frame over 250 ms, so
+  it is disturbed too), then the Godot process stalled
+  at about 6–8 % CPU with no new frame for more than 6 minutes (log unchanged). I stopped the run; it
+  wrote no record. Runs 2 and 3 were not started. Stopping was my call, not a re-run: a re-run into the
+  same state would only repeat the stall.
+  Signs of the session state at the stall: `ioreg` no longer lists `CGSSessionScreenIsLocked` (absent,
+  so the operator's unlock is plausible), but the HID idle time was about 1 413 s (23 min) with no input,
+  and the Godot process had `PreventUserIdleDisplaySleep` from `caffeinate`. The cause is not confirmed.
+  The same pattern (frames of 1 s to 20 s with a locked or idle session) is what made E-RLb-ruled
+  inconclusive. A conclusive run needs the operator to keep the screen unlocked and the window
+  frontmost while the run goes.
+  Partial, not a verdict (run 1 attempt 1; disturbed, not used in any median), p95 ms: street wide 12.90,
+  cafe frontage 18.72, interior 15.91, doorway 24.06, street east 14.67, south side 13.63, florist interior
+  19.11, skyline east 11.69. Draws / primitives in the same run: street wide 3 814 / 1.99 M, cafe frontage
+  4 215 / 3.56 M, interior 3 814 / 3.67 M, doorway 3 424 / 3.16 M, street east 3 964 / 2.21 M, south side
+  614 / 0.17 M, florist interior 3 630 / 3.53 M, skyline east 3 715 / 1.97 M. Video memory 1 608.6 MB
+  (texture 1 190.1 MB, buffer 85.6 MB) (the only figure in this run that is not a frame measurement).
+  Binding verdict under R-2: **M-6 p95 and video memory: NOT DECIDED (INCONCLUSIVE).** Advisory (R-2):
+  not decided either.
+
 Material stop (§9, superseded by R-1 … R-6): M-6 was unmet after SC-2 … SC-7.
   Remaining gap at 1920x1080 (head vs bound): p95 cafe frontage +2.3 ms, doorway +5.5 ms; draw calls
   +1 425 to +2 214 in 7 views; primitives +0.16 to +0.67 M in 4 views; video memory +1.7 MB.
@@ -897,7 +925,7 @@ Material stop (§9, superseded by R-1 … R-6): M-6 was unmet after SC-2 … SC-
   The operator chooses; nothing above is applied.
 
 **Lifecycle.** READY FOR OPERATOR REVIEW, with one item INCONCLUSIVE: the R-6 re-measure of p95 and
-video memory could not be taken, because the session's screen is locked (E-RLb-ruled). DO NOT
+video memory could not be taken (E-RLb-ruled; re-attempted 2026-10-10, E-RLb-final: disturbed runs, INCONCLUSIVE). DO NOT
 MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION. (Superseded: "MATERIAL STOP
 (M-6 unmet)", resolved by rulings R-1 to R-6.)
 
