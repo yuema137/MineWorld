@@ -51,18 +51,44 @@ not broken.
 
 ## Its section of the World's Interaction List
 
-A world may set the conversation gap — the silence after which the next exchange starts a new
-conversation — in `configure/conversation.yaml` (listed in `world.yaml`'s `configure:`), for
+A world may say who talks to whom, how far a voice carries, how much a listener keeps, and what a
+line means for history, in `configure/conversation.yaml` (listed in `world.yaml`'s `configure:`), for
 everyone, for a class of speaker or listener, or in one place:
 
 ```yaml
+rules:
+  - { action: talk, actor: noble, target: commoner, effect: forbid }
 parameters:
-  - { gap: 600 }                      # whole seconds, 1 … 86 400; 300 when unset
-  - { actor: regular, gap: 3600 }     # a class from configure/classes.yaml
+  - { gap: 600, range: 3000, remembered: 32 }
+  - { actor: guard, range: 6000 }     # a class from configure/classes.yaml
+consequences:
+  - { fact: spoke, biography: on }                 # lines are not biographical unless a world says so
+  - { fact: spoke, actor: servant, biography: off }
+  - { fact: spoke, audience: participants }        # nobody overhears
+  - { fact: spoke, target: servant, remember: off }
 regions:
-  cafe: { parameters: [ { gap: 1800 } ] }
+  library: { rules: [ { action: talk, effect: forbid } ] }
 ```
 
-Roles: `actor` is the speaker, `target` the listener, `place` where they are. In this version the
-section has no rules and no consequences. The schema is
-[`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.2.
+Roles: `actor` is the speaker, `target` the listener, `place` where the speaker is.
+
+| Parameter | Unit | Default | Bound |
+| --- | --- | --- | --- |
+| `gap` | seconds of silence before a new conversation | 300 | 1 … 86 400 |
+| `range` | millimetres a voice reaches | 3 000 | 1 … 100 000 |
+| `remembered` | entries a listener's history keeps | 32 | 1 … 64 |
+
+| Fact | Audience (default → narrowest) | Biography (compiled) |
+| --- | --- | --- |
+| `spoke` | place → participants | configurable (off) |
+| `conversation-started` | participants | configurable (off) |
+
+A forbidden `talk` is refused `PermissionDenied`, and the affordance shows it unavailable for that
+reason, before distance is judged. The knob `remember: off` means the listener's history keeps
+nothing of that line; the fact is still recorded, still perceived by its audience and still counted
+by `relationships`. Because a conversation continues only while one of the two remembers the
+other, repeated lines in one direction to a listener who keeps nothing each start a new
+conversation; a reply keeps it going. `remember` governs only this pack's in-world history, never a
+mind's memory. Biography is decided per fact, not per reader: a servant's line switched off leaves
+the listener's biography too. The schema is [`../../docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md)
+§4.2.

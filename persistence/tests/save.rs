@@ -208,10 +208,19 @@ fn verification_re_executes_every_revision_and_every_snapshot_from_genesis() {
         u64::try_from(twin_facts.len()).expect("small"),
         "every fact the twin recorded was compared"
     );
+    // Retention (ARC-81): below the first anchor (64 · INTERVAL) the save keeps genesis and the
+    // newest two scheduled snapshots, and each of them equals the history's state.
+    assert!(
+        head.raw() / INTERVAL > 2,
+        "pruning has happened: head {head}"
+    );
+    assert!(
+        head.raw() < 64 * INTERVAL,
+        "and no anchor exists yet: head {head}"
+    );
     assert_eq!(
-        verified.snapshots,
-        1 + head.raw() / INTERVAL,
-        "genesis plus one every {INTERVAL} revisions, each equal to the history's state"
+        verified.snapshots, 3,
+        "genesis and the newest two scheduled snapshots, each equal to the history's state"
     );
 }
 
@@ -492,18 +501,95 @@ fn an_altered_fact_or_snapshot_is_refused_where_it_was_altered() {
         resumed.err()
     );
 
-    let scratch = Scratch::new("tamper-snapshot");
-    saved(&scratch, 40);
+    // A stored snapshot is a zstd frame of its JSON (ARC-81). (a) Bytes that are no frame at all are
+    // damage, named with the revision — by resume when it is the snapshot resume reads, and by verify.
+    let scratch = Scratch::new("tamper-snapshot-frame");
+    let head = saved(&scratch, 40);
+    let newest = open(&scratch)
+        .latest_snapshot(head)
+        .expect("reads")
+        .expect("a snapshot")
+        .0;
+    assert!(
+        newest.raw() > 1,
+        "the newest snapshot is a scheduled one: {newest}"
+    );
     sql(
         &scratch,
         &format!(
-            "UPDATE snapshots SET snapshot = CAST('{{}}' AS BLOB) WHERE revision = {INTERVAL}"
+            "UPDATE snapshots SET snapshot = CAST('{{}}' AS BLOB) WHERE revision = {}",
+            newest.raw()
+        ),
+    );
+    let not_a_frame = format!("the snapshot at {newest} does not decompress");
+    let resumed = PersistentWorld::resume(open(&scratch), composed());
+    assert!(
+        matches!(&resumed, Err(PersistError::Damaged { detail }) if detail.starts_with(&not_a_frame)),
+        "{:?}",
+        resumed.err()
+    );
+    let verified = verify(open(&scratch).as_ref(), composed());
+    assert!(
+        matches!(&verified, Err(PersistError::Damaged { detail }) if detail.starts_with(&not_a_frame)),
+        "{verified:?}"
+    );
+
+    // (b) A valid frame of other JSON — genesis' snapshot copied over a later one — decompresses and
+    // decodes, and disagrees with history at exactly that revision.
+    let scratch = Scratch::new("tamper-snapshot-state");
+    let head = saved(&scratch, 40);
+    let newest = open(&scratch)
+        .latest_snapshot(head)
+        .expect("reads")
+        .expect("a snapshot")
+        .0;
+    sql(
+        &scratch,
+        &format!(
+            "UPDATE snapshots SET snapshot = (SELECT snapshot FROM snapshots WHERE revision = 1)
+             WHERE revision = {}",
+            newest.raw()
         ),
     );
     let verified = verify(open(&scratch).as_ref(), composed());
     assert!(
-        matches!(&verified, Err(PersistError::SnapshotDisagreesWithHistory { revision }) if revision.raw() == INTERVAL),
+        matches!(&verified, Err(PersistError::SnapshotDisagreesWithHistory { revision }) if *revision == newest),
         "{verified:?}"
+    );
+}
+
+#[test]
+fn a_save_written_by_the_format_2_build_is_refused_by_name() {
+    // Written by the build before SR (pr-s6-save-retention.md §14.1): uncompressed snapshot rows and
+    // `format 2` in its manifest. Copied first, because opening a save in WAL mode writes beside it.
+    let scratch = Scratch::new("format-2");
+    let fixture = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/format-2"
+    ));
+    std::fs::copy(
+        SqliteBackend::file(fixture),
+        SqliteBackend::file(scratch.path()),
+    )
+    .expect("the fixture copies");
+    let outdated = |result: Result<(), PersistError>| {
+        assert!(
+            matches!(
+                result,
+                Err(PersistError::SaveFormatOutdated {
+                    saved: 2,
+                    supported: 3
+                })
+            ),
+            "{result:?}"
+        );
+    };
+    outdated(PersistentWorld::resume(open(&scratch), composed()).map(|_| ()));
+    outdated(verify(open(&scratch).as_ref(), composed()).map(|_| ()));
+    let stored = open(&scratch).manifest().expect("the manifest row reads");
+    assert_eq!(
+        stored.format, 2,
+        "the refusal read the fixture's own format"
     );
 }
 
@@ -511,24 +597,24 @@ fn an_altered_fact_or_snapshot_is_refused_where_it_was_altered() {
 fn a_save_of_another_format_or_another_composition_is_refused_by_name() {
     let scratch = Scratch::new("format");
     saved(&scratch, 3);
-    sql(&scratch, "UPDATE manifest SET format = 3");
+    sql(&scratch, "UPDATE manifest SET format = 4");
     assert!(matches!(
         PersistentWorld::resume(open(&scratch), composed()),
         Err(PersistError::SaveFormatTooNew {
-            saved: 3,
-            supported: 2
+            saved: 4,
+            supported: 3
         })
     ));
     // Format 1 is S5's, written before a declaration recorded the owners of borrowed vocabularies
-    // (ARC-26): refused by name rather than decoded on a guess.
-    sql(&scratch, "UPDATE manifest SET format = 1");
-    assert!(matches!(
-        PersistentWorld::resume(open(&scratch), composed()),
-        Err(PersistError::SaveFormatOutdated {
-            saved: 1,
-            supported: 2
-        })
-    ));
+    // (ARC-26); format 2 stored snapshots uncompressed (ARC-81). Both are refused by name rather than
+    // decoded on a guess.
+    for older in [1, 2] {
+        sql(&scratch, &format!("UPDATE manifest SET format = {older}"));
+        assert!(matches!(
+            PersistentWorld::resume(open(&scratch), composed()),
+            Err(PersistError::SaveFormatOutdated { saved, supported: 3 }) if saved == older
+        ));
+    }
 
     let scratch = Scratch::new("composition");
     saved(&scratch, 3);

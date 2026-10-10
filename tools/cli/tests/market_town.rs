@@ -81,6 +81,44 @@ fn killed_at(save: &Path, day: u64) {
     );
 }
 
+/// The 30-day size bound, `ASR-2` (`ARC-81`; QSR-5 made it a CI assertion): the save on disk —
+/// `world.sqlite` and any `-wal` beside it — is at most 64 MiB, and it holds exactly the snapshots the
+/// retention rule keeps for a headless run, computed here: genesis, every multiple of 4 096 up to the
+/// newest scheduled snapshot *n*, and *n* − 64 and *n*.
+fn save_is_bounded(save: &Path, tables: &Tables) {
+    const BOUND: u64 = 64 * 1024 * 1024;
+    let size = |name: &str| std::fs::metadata(save.join(name)).map_or(0, |file| file.len());
+    let bytes = size("world.sqlite") + size("world.sqlite-wal");
+    let head = u64::try_from(tables.journal.len()).expect("fits");
+    let newest = head - head % 64;
+    let mut expected: Vec<u64> = std::iter::once(1)
+        .chain((1..=newest / 4_096).map(|k| k * 4_096))
+        .chain([newest - 64, newest])
+        .collect();
+    expected.dedup();
+    let held: Vec<u64> = tables
+        .snapshots
+        .iter()
+        .map(|(revision, _)| *revision)
+        .collect();
+    let stored: usize = tables.snapshots.iter().map(|(_, bytes)| bytes.len()).sum();
+    eprintln!(
+        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), {} snapshots, {stored} B of them, head {head}",
+        bytes as f64 / 1_048_576.0,
+        held.len()
+    );
+    assert!(
+        bytes <= BOUND,
+        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), over the {} MiB bound",
+        bytes as f64 / 1_048_576.0,
+        BOUND / 1_048_576
+    );
+    assert_eq!(
+        held, expected,
+        "ASR-2: the save keeps exactly genesis, the anchors and the newest two"
+    );
+}
+
 /// Every fact of a save, decoded.
 fn facts_of(tables: &Tables) -> Vec<EventEnvelope> {
     tables
@@ -170,6 +208,7 @@ fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() 
 
     // ── Only now: AC-12 and AC-6, byte for byte. ─────────────────────────────────────────────────
     let control_tables = Tables::read(&control);
+    save_is_bounded(&control, &control_tables);
     control_tables.assert_same_history(&Tables::read(&twin), "two 30-day runs of seed 7");
     assert_eq!(
         deterministic(&control_printed),

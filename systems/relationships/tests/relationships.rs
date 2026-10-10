@@ -210,6 +210,33 @@ fn relationships_needs_neither_pack_it_listens_to() {
     assert_eq!(of_type(&facts, "became-acquainted").len(), 2);
 }
 
+/// F-IE-13: this pack looks its section up at the place of the fact it reduces. Every cause it
+/// subscribes to is stated with a place, so a configured world never falls back to the compiled
+/// default for lack of one — and this pack's own facts carry the same place.
+#[test]
+fn every_cause_this_pack_reduces_is_stated_at_a_place() {
+    let mut cafe = Cafe::new(ALL);
+    let (alice, bob) = (cafe.alice, cafe.bob);
+    let mut facts = cafe.invite(alice, bob).1;
+    facts.extend(cafe.decline(bob, alice).1);
+    facts.extend(cafe.talk(alice, bob).1);
+    facts.extend(an_hour_together(&mut cafe));
+    for kind in [
+        "spoke",
+        "invitation-accepted",
+        "invitation-declined",
+        "group-activity-ended",
+        "became-acquainted",
+    ] {
+        let found = of_type(&facts, kind);
+        assert!(!found.is_empty(), "the script states a {kind}");
+        assert!(
+            found.iter().all(|fact| fact.place().is_some()),
+            "every {kind} is stated at a place"
+        );
+    }
+}
+
 #[test]
 fn how_alice_regards_bob_is_disclosed_to_alice_only() {
     let mut cafe = Cafe::new(ALL);
