@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 440" width="1600" height="440" role="img" aria-label="接下来往哪走。现在（MVP-0）：一个会过日子的小镇，用 2D 或 3D 玩。下一步（MVP-1）：很多小镇用火车、公交和出租车连起来，有地图，每个小镇有自己的天气。再往后：真实的圣地亚哥地形、能蹚的水、自驾旅行和可视化的世界编辑器。">
+<rect width="1600" height="440" rx="24" fill="#fbfaf7"/>
+<rect x="24" y="24" width="480" height="392" rx="16" fill="#ffffff" stroke="#b8792b" stroke-width="2.5"/>
+<rect x="560" y="24" width="480" height="392" rx="16" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<rect x="1096" y="24" width="480" height="392" rx="16" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<path d="M522 204l14 16l-14 16" stroke="#b8792b" stroke-width="3" fill="none"/>
+<path d="M1058 204l14 16l-14 16" stroke="#b8792b" stroke-width="3" fill="none"/>
+<rect x="378" y="46" width="102" height="34" rx="17" fill="#fbf0d9"/>
+<rect x="924" y="46" width="92" height="34" rx="17" fill="#eceef1"/>
+<rect x="1460" y="46" width="92" height="34" rx="17" fill="#eceef1"/>
+<g fill="#faf6ee" stroke="#dfd1b9" stroke-width="1.5">
+<rect x="48" y="350" width="140" height="40" rx="8"/><rect x="198" y="350" width="104" height="40" rx="8"/><rect x="312" y="350" width="140" height="40" rx="8"/>
+<rect x="584" y="350" width="140" height="40" rx="8"/><rect x="734" y="350" width="68" height="40" rx="8"/><rect x="812" y="350" width="140" height="40" rx="8"/>
+<rect x="1120" y="350" width="122" height="40" rx="8"/><rect x="1252" y="350" width="50" height="40" rx="8"/><rect x="1312" y="350" width="104" height="40" rx="8"/>
+</g>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<g font-size="18" letter-spacing="2" fill="#b8792b">
+<text x="48" y="70">01 / 现在 · MVP-0</text>
+<text x="584" y="70">02 / 下一步 · MVP-1</text>
+<text x="1120" y="70">03 / 再往后</text>
+</g>
+<g font-size="17" text-anchor="middle">
+<text x="429" y="69" fill="#a46a00">正在做</text>
+<text x="970" y="69" fill="#5b6470">已设计</text>
+<text x="1506" y="69" fill="#5b6470">计划中</text>
+</g>
+<g font-size="30" font-weight="600" fill="#1d2433">
+<text x="48" y="130">一个会过日子的小镇</text>
+<text x="584" y="130">很多小镇，一个世界</text>
+<text x="1120" y="130">更像真实世界</text>
+</g>
+<g font-size="21" fill="#4a5568">
+<text x="48" y="180">一个咖啡馆小镇，有工作、有钱、</text>
+<text x="48" y="212">有交情，每个人有自己的一天。</text>
+<text x="48" y="244">用 2D 或 3D 玩，一个人或</text>
+<text x="48" y="276">和朋友一起。</text>
+<text x="584" y="180">小镇之间有火车、公交和出租车。</text>
+<text x="584" y="212">在车上可以走动。</text>
+<text x="584" y="244">每个小镇有地图，整个世界也有，</text>
+<text x="584" y="276">每个小镇有自己的天气。</text>
+<text x="1120" y="180">真实的圣地亚哥山地和海岸，</text>
+<text x="1120" y="212">能蹚的水，小镇之间的自驾旅行，</text>
+<text x="1120" y="244">还有可视化的世界编辑器。</text>
+</g>
+<g font-size="18" fill="#8a5a1c">
+<text x="62" y="377">会过日子</text><text x="212" y="377">2D + 3D</text><text x="326" y="377">你定的规则</text>
+<text x="598" y="377">火车和公交</text><text x="748" y="377">地图</text><text x="826" y="377">各地的天气</text>
+<text x="1134" y="377">真实地形</text><text x="1266" y="377">水</text><text x="1326" y="377">自驾</text>
+</g>
+</g>
+</svg>

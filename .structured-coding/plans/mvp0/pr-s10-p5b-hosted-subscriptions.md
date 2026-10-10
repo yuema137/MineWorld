@@ -512,10 +512,11 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ## 11. Ledger (live during implementation)
 
 ```text
-Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE, with C4 BLOCKED (the OpenAI Terms of Use
-                   re-read is INCONCLUSIVE and the `codex exec --help` paste is missing; §11.2, §11.5).
-                   Implementation context CLOSED / AWAITING OPERATOR ACTION
-Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
+Status:            MERGED without C4 — PR #126, merge commit 5f9b8bbdb99940e972780e35b24ea69e9325abc4,
+                   2026-10-10T05:29:54Z, by the operator's ruling of 2026-10-09 22:30 (§11.9). C4 moves
+                   to the follow-up PR P5c. Implementation context CLOSED
+Final heads:       9d3d2d7daebfe05f81ab926376d5dd5fe87a9594; CI run 38024427853 (pull_request) green
+                   on it: fast, test, python ×3 (ubuntu-24.04, macos-15, windows-2025), platforms ×2
 Implementation
 base:              origin/main @ 02788e6 (#123), which contains P5a's merge 60a6295 (#120)
 Worktree / branch: /Users/yuema137/mineworld-worktrees/impl-s10-p5b, mvp0/pr-s10-p5b (sole writer)
@@ -808,3 +809,31 @@ M-b8   AB-6       Path.home() / ".codex" / "auth.json" in cli_bridge.py  AB-6 FA
 **Process note.** Twice this session a Bash call held an empty heredoc (`<<'X' … X`) redirected to
 `/dev/null` or to `python3 -` with no body. Neither wrote a file nor ran code (`git status` unchanged);
 recorded because the brief forbids heredoc writes.
+
+### 11.9 Merge and close-out
+
+- **Ruling (operator, 2026-10-09 22:30, relayed by the primary session):** merge P5b without C4. The
+  Codex opt-in becomes a follow-up PR, **P5c**, once the operator supplies the OpenAI terms text and
+  the `codex exec --help` paste.
+- **Merge identity:** PR #126, merge commit `5f9b8bbdb99940e972780e35b24ea69e9325abc4`,
+  2026-10-10T05:29:54Z, of head `9d3d2d7` (CI run 38024427853 green on that head: `fast`, `test`,
+  `python` on ubuntu-24.04, macos-15 and windows-2025, `platforms` on windows-2025 and macos-26; the
+  Windows log names `test_no_model_facing_text_reaches_argv_through_a_cmd_shim_on_windows PASSED`).
+- **Reviewer's mutation (primary session):** dropping the `_NEVER_PASSED` filter in
+  `child_environment` was caught by `test_cli_bridge.py::test_the_environment_is_an_allowlist`.
+- **C4 → P5c (what it needs before it starts):**
+  1. OpenAI's Terms of Use, read from the live page by the operator or a browser session: the effective
+     date and the clauses on automatic or programmatic extraction of output and on account sharing,
+     pasted into §4.2 (two WebFetch attempts on 2026-10-09 answered HTTP 403; §11.2);
+  2. `codex exec --help` from the operator's machine, with the CLI's version, from which the preset's
+     flags are fixed (§5.4).
+  If the terms forbid the use, P5c is dropped as the Claude route was (a material stop). Otherwise P5c
+  adds `backend/presets/codex.py` (`kind = "codex-subscription"`), its registry entry, the
+  `acknowledge_terms` field and its gate in `config.py` (D-B6, I-B5), AB-7 and the recorded event stream
+  (`turn.completed`, `turn.failed`), and the README's usage; the bridge core needs no change. It stays
+  off by default and out of every example (QP5b-2).
+- **F-P5b-1 for P6:** on Windows a selector event loop cannot start a subprocess. A P6 cognition
+  process that binds a subscription bridge must run the default (proactor) loop on Windows (§11.4).
+- **Post-merge sync:** this section is the implementation session's record. Step-17 §15 and
+  `overall.md` belong to the S10 planning session; `docs/MVP_STATUS.md`'s S10 row is updated in the same
+  close-out PR, at the primary session's instruction.
