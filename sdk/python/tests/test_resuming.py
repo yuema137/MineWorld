@@ -157,6 +157,38 @@ def test_the_store_not_the_receipt_decides_where_a_rejoin_resumes() -> None:
     assert [batch.connection for batch in batches] == [1, 1, 2]
 
 
+def test_a_store_behind_what_was_delivered_never_sees_a_fact_twice() -> None:
+    # F-P3b-R1 (P3b-1, D-P3b-3; P4's R-P3b-1): facts are delivered up to 15, the store commits only
+    # up to 10, the socket drops. The rejoin presents 10, so the server re-sends 12 and 15 — once in
+    # a frame whose through is exactly the delivered 15 (every fact a duplicate), then new facts. The
+    # consumer receives only facts after 15, once, in order, and the all-duplicate frame is no batch.
+    async def scenario() -> list[PerceivedBatch]:
+        one = Link(welcome(resume=1), perceived("10", "7", "10"), perceived("15", "12", "15"))
+        two = Link(
+            welcome(resume=2, took_over="held"),
+            perceived("15", "12", "15"),
+            perceived("20", "18", "20"),
+        )
+        cell = CursorCell()
+        seat = await opened(ScriptedServer(one, two), FakeClock(), cursor=cell)
+        stream = seat.perceived()
+        batches = [await anext(stream), await anext(stream)]
+        cell.commit(batches[0])
+        one.drop()
+        batches.append(await anext(stream))
+        assert two.join()["perceived"] == {"since": "10"}, "the rejoin presents the store's cursor"
+        await seat.leave()
+        batches.extend([batch async for batch in stream])
+        return batches
+
+    batches = run(scenario)
+    assert [(b.through, [e.id for e in b.events], b.connection) for b in batches] == [
+        ("10", ["7", "10"], 1),
+        ("15", ["12", "15"], 1),
+        ("20", ["18", "20"], 2),
+    ], "after the rejoin: only facts past the delivered 15, and no batch for the duplicate frame"
+
+
 def test_a_consumer_that_falls_behind_costs_a_reconnect_never_a_fact() -> None:
     # AP3b-4: buffer 4; six facts in three frames while nothing is read. The client sends no leave,
     # closes, and rejoins with resume and the cell's cursor; drained and committed, nothing is missing.

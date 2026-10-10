@@ -908,6 +908,21 @@ F-P3b-4 (for P6). A consumer must start iterating seat.perceived() promptly. Unt
 F-P3b-5 (for P6). open() makes one attempt (DV-P3b-6): a cognition process started before its server
   retries open() itself. ResumingSeat's own patience (give_up_after) applies after a welcome.
 F-P3b-3 (restated for P6): based_on needs Seen.connection as well as seq.
+F-P3b-R1 (primary review of 269cb36; fixed in this PR). Two boundary mutations of
+  PerceivedStream.accept survived the whole SDK suite (102 passed): (1) the suppression
+  `event_order(event.id) > event_order(high)` → `>=`; (2) the empty-batch rule
+  `event_order(frame.through) <= event_order(high)` → `<`. Cause: no test re-sent a fact equal to
+  the delivered high-water mark, nor a frame whose through equals it — AP3b-3's script (B{12,15 →
+  20}) never puts a fact at its through. Added
+  test_resuming.py::test_a_store_behind_what_was_delivered_never_sees_a_fact_twice: delivered up to
+  15 (frames {7,10 → 10}, {12,15 → 15}), the CursorCell committed only 10, the socket drops; the
+  rejoin presents since 10 (asserted on the sent join); the server re-sends {12,15 → 15} (every
+  fact a duplicate, through = delivered) then {18,20 → 20}; the consumer receives exactly
+  (10, [7,10], 1), (15, [12,15], 1), (20, [18,20], 2) and nothing else.
+  Mutation (1): FAILED "At index 2 diff: ('15', ['15'], 2) != ('20', ['18', '20'], 2)" (fact 15
+  twice). Mutation (2): FAILED "At index 2 diff: ('15', [], 2) != ('20', ['18', '20'], 2)" (a batch
+  for the all-duplicate frame). Both reverted; suite then 103 passed (real_server included); ruff,
+  ruff format, pyright clean over sdk/python and cognition/lm-controller.
 R-S11-P3b-1 / F-P3b-2: unchanged, open with S11 (AP3b-12 pins today's behaviour).
 ```
 
@@ -917,7 +932,7 @@ R-S11-P3b-1 / F-P3b-2: unchanged, open with S11 (AP3b-12 pins today's behaviour)
 | --- | --- | --- |
 | AP3b-1 | PASS | red on base (E-P3b-4); session and seat halves green (E-P3b-5, E-P3b-7) |
 | AP3b-2 | PASS | 4 streams fail closed (E-P3b-5) |
-| AP3b-3 | PASS | stream and seat (E-P3b-6, E-P3b-7); literal corrected (DV-P3b-4) |
+| AP3b-3 | PASS | stream and seat (E-P3b-6, E-P3b-7); literal corrected (DV-P3b-4); the boundary case of a store behind delivery added after review (F-P3b-R1) |
 | AP3b-4 | PASS | stream and seat (E-P3b-6, E-P3b-7) |
 | AP3b-5 | PASS | every row (E-P3b-7) |
 | AP3b-6 | PASS | seeds 7/7 equal, 7/8 differ, first 0, ≤ ceiling, sum ≤ 30 (E-P3b-7) |
