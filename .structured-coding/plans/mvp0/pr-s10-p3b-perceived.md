@@ -483,10 +483,14 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 
 - **Goal.** DEP-44 exists before the loop it governs (`CLAUDE.md` §2.2).
 - **Scope.** `docs/DECISIONS.md` (DEP-44, §4.3's text). **Non-goal:** any code.
-- [ ] Implementation: the record, with `websockets` 17.2's facts cited from its source (§3's anchor).
-- [ ] Validation: `check_decision_ids.py`, `check_doc_headings.py`.
-- [ ] Review: both directions of the reuse question answered; the licence of each declined library
-  stated as read from its own metadata, not assumed.
+- [x] Implementation: `docs/DECISIONS.md` DEP-44, with `websockets` 17.2's facts cited from its
+  installed source (corrected in DV-P3b-1: `reconnect_delays` is injectable, the sleep is not).
+- [x] Validation: `check_decision_ids.py` → "105 decision ids, all distinct"; `check_doc_headings.py`
+  → clean (E-P3b-3).
+- [x] Review: both directions answered — reinventing (`websockets`' iterator, `tenacity`, `backoff`
+  considered and declined with reasons) and forcing (the iterator knows no join/resume/cursor). Licences
+  read from each distribution's own `METADATA`: websockets 17.2 `License-Expression: BSD-3-Clause`;
+  tenacity 9.1.4 `License: Apache 2.0`; backoff 2.2.1 `License: MIT` (uv's local cache, no network).
 
 ### C2 — One connection: the lagged sequence, the sink, the order checks; the test runner
 
@@ -702,8 +706,26 @@ E-P3b-1  Implementation base: origin/main @ f4ed913 (merge of #149, this design 
          Local Python 3.14 (uv's .venv); CI runs 3.12.
 E-P3b-2  C0: check_doc_headings.py → "193 numbered sections across 26 documents, none duplicated",
          rc 0; check_decision_ids.py → "104 decision ids, all distinct", rc 0.
+E-P3b-3  C1: DEP-44 appended to docs/DECISIONS.md; check_decision_ids.py → "105 decision ids, all
+         distinct"; check_doc_headings.py → "193 numbered sections across 26 documents, none
+         duplicated".
 ```
 
 ### 13.3 Deviations (filled during implementation)
+
+```text
+DV-P3b-1 (bounded; C1) — an audit fact of §3 corrected, the decision unchanged.
+  Previous assumption: websockets' reconnecting iterator draws its delays from module globals read
+    from WEBSOCKETS_BACKOFF_* (§3 anchor, §4.3 DEP-44 text).
+  Audit evidence: .venv websockets 17.2 asyncio/client.py: `connect(..., reconnect_delays=backoff)`
+    (l. 283) accepts a replacement delay generator; `__aiter__` (l. 592–631) sleeps with
+    asyncio.sleep, logs every retry through self.logger, backs off only when opening fails, and
+    reopens a connection that ended after it was yielded at once, resetting the backoff.
+  Corrected understanding: the delay *sequence* is injectable; the default still reads the
+    environment and the global generator; the sleep is not injectable; the protocol decisions are
+    still absent.
+  Implementation consequence: none. DEP-44 records the corrected facts; the choice stands.
+  Validation consequence: none.
+```
 
 ### 13.4 Mutations (filled during implementation)
