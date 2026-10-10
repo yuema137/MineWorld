@@ -953,6 +953,41 @@ The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze
 Also merged: #117 S20 SET-a, shared client settings (`44ac762`; review mutation: `action.walk-to`
 removed from `zh_Hans.po`, caught by `client_text::the_catalogs_are_complete_and_consistent`).
 
+### Late evening of 2026-10-09: merges, rulings, and a CI rule
+
+Merged after review (primary mutation in brackets, each caught by name unless noted):
+
+| PR | Merge commit | Review mutation |
+| --- | --- | --- |
+| #126 S10 P5b, Anthropic adapter and CLI bridge | `5f9b8bb` | `_NEVER_PASSED` filter dropped → `test_the_environment_is_an_allowlist` |
+| #118 S13 13w, default suite on Windows and macOS | `0345922` | `interrupt` sends SIGKILL → `admin::an_interrupt_stops_an_administered_server_gracefully`; `ended_by_kill` accepting SIGTERM survived (F-13w-R1, equivalent today) |
+| #121 S19 TW-d, San Diego record weather | `9f06d0e` | fog dropped on record days survived the default suite at first (TWd-R1); fixed before merge, now caught by `record_days_replay_their_rows_fog_thunder_and_wind` |
+| #115 README rework (WeKnora-style banner, diagrams, tour) | `37cb52a` | docs only |
+| #133 S13 13x, docs-only changes skip the build | `9f5c176` | `server/PROTOCOL.md` treated as docs → `ci_changes.py --self-test` |
+
+Closeout records: #127 (SET-a), #129 (P5b), #130 (13w), #132 (TW-d).
+
+Operator rulings:
+
+- **P5b C4 (Codex subscription opt-in):** merge P5b without it; C4 becomes P5c once the operator pastes the
+  current OpenAI Terms of Use and `codex exec --help`.
+- **TWd-F4:** one `deny.toml` licence exception for `webpki-roots` (CDLA-Permissive-2.0, root-certificate
+  data, reached only through the weather tool's off-by-default `fetch` feature); notes under DEP-22 and DEP-31.
+- **RL-b M-6 (3D budget):** accept the slight visual change — VoxelGI 256 → 128 and soft-shadow quality
+  3 → 2. Frame time p95 ≤ 16.7 ms and video memory ≤ 2048 MB stay binding; draw calls and primitives
+  become advisory. Mipmap softening (C3) accepted. The skyline preview is not kept; it returns with S22's
+  sea surface and real terrain.
+- **README and other public pages ship early:** merge a first version once it is honest (✅/🚧), iterate in
+  follow-up PRs, never hold it for review rounds.
+- **Documentation-only changes do not run the build** (operator, 2026-10-09: "纯文档更新不应该触发ci").
+  Implemented by 13x: a `changes` job classifies the diff against an audited docs set (`docs/**`,
+  `.structured-coding/plans/**`, root `README*.md`, `CLAUDE.md`); docs-only runs only the doc checks
+  (about 20 s) and the other jobs are skipped; `push` runs only for `main` and `scratch/**`. Docs-only PRs
+  may be merged as soon as `fast` passes.
+
+QB-11 (make `test-windows` and `test-macos` required) is now decidable: 13w is green on all three systems.
+`test-windows` takes about 43 minutes on a PR, which is the cost of making it required.
+
 ### Milestone F — walk, walls, interact (operator hands-on gate)
 
 Milestone F is the operator's next hands-on acceptance, named in conversation on 2026-10-08 and
