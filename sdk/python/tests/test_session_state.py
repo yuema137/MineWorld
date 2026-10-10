@@ -34,7 +34,7 @@ from mineworld_sdk.wire.contract import (
     Observation,
     SpatialRequirement,
 )
-from mineworld_sdk.wire.frames import Invite
+from mineworld_sdk.wire.frames import Invite, PerceivedJoin
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
 
 ME = EntityId("101")
@@ -78,6 +78,7 @@ def observation(seq: int, observer: str = ME) -> str:
             "t": "observation",
             "seq": seq,
             "revision": None,
+            "acted_through": None,
             "observation": {
                 "observer": observer,
                 "at": seq,
@@ -231,6 +232,77 @@ def test_the_host_clock_is_kept_and_a_paused_submit_is_refused_not_fatal() -> No
     run(scenario())
 
 
+def fact(event_id: str) -> JsonValue:
+    """A fact as a `perceived` frame or `observation.events` carries it (`PROTOCOL.md` §5.2)."""
+    return {
+        "id": event_id,
+        "at": 4,
+        "event_type": "spoke",
+        "subjects": ["5"],
+        "participants": ["5", ME],
+        "place": {"entity": "3", "entity_type": "place"},
+        "caused_by": {"action": "41"},
+        "payload": {"event_type": "spoke", "schema_version": 1, "payload": {"utterance": "hi"}},
+        "visibility": {"place": {"entity": "3", "entity_type": "place"}},
+        "provenance": {"emitted_by": "conversation", "controller_decision": "41"},
+    }
+
+
+def delta(seq: int, base: int, at: int) -> str:
+    return json.dumps(
+        {
+            "t": "delta",
+            "seq": seq,
+            "base": base,
+            "revision": None,
+            "acted_through": "41",
+            "delta": {"at": at, "events": [fact("9")]},
+        }
+    )
+
+
+def test_a_delta_is_applied_to_the_observation_held_and_one_that_does_not_fit_ends_it() -> None:
+    # S11-C (PROTOCOL.md §5.3): a caller only ever sees whole observations.
+    async def scenario() -> None:
+        script = Script(welcome(), observation(1))
+        session = await joined(script)
+        await session.changed()
+        script.say(delta(2, 1, 9))
+        seen = await session.changed(since=1)
+        assert (seen.seq, seen.observation.at, seen.acted_through) == (2, 9, "41")
+        assert [event.id for event in seen.observation.events] == ["9"]
+        assert seen.observation.observer == ME
+        script.say(delta(4, 2, 10).replace('"base": 2', '"base": 3'))
+        with pytest.raises(ProtocolViolation, match="base 3"):
+            await session.changed(since=2)
+
+    run(scenario())
+
+
+def test_the_perceived_stream_is_kept_in_order_with_its_cursor() -> None:
+    # S11-C (PROTOCOL.md §5.8): the join asks for the stream; every fact is kept, with the cursor.
+    async def scenario() -> None:
+        script = Script(welcome())
+        session = await SeatSession.join(
+            script,
+            seat=EntityKey("visitor"),
+            invite=Invite("not-a-secret"),
+            nickname="tester",
+            perceived=PerceivedJoin(since=None),
+        )
+        sent = script.sent[0]
+        assert isinstance(sent, dict) and sent.get("perceived") == {"since": None}, sent
+        for through, ids in (("12", ["7", "12"]), ("20", ["15"])):
+            script.say(
+                json.dumps({"t": "perceived", "through": through, "events": [fact(i) for i in ids]})
+            )
+        await settle()
+        assert [event.id for event in session.perceived] == ["7", "12", "15"]
+        assert session.perceived_cursor == "20"
+
+    run(scenario())
+
+
 def test_a_server_of_another_revision_is_refused() -> None:
     script = Script(welcome(protocol=3))
     with pytest.raises(ProtocolMismatch):
@@ -320,7 +392,7 @@ def offering(available: bool) -> Observation:
         self_location=None,
         entities=[],
         relations=[],
-        events=(),
+        events=[],
         affordances=[affordance],
     )
 

@@ -27,7 +27,8 @@ use mineworld_server::{
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
-use crate::perceive::PackPerception;
+use crate::history::SavedHistory;
+use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed};
 
 /// What `mineworld server` was asked.
@@ -53,6 +54,8 @@ pub struct ServeRequest {
     pub hold: u32,
     /// World seconds per wall second.
     pub time_scale: NonZeroU32,
+    /// Every how many frames a client is sent a whole observation (`DEP-15`).
+    pub keyframe_every: NonZeroU32,
     /// Where the world is kept, when it is persisted.
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
@@ -102,6 +105,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         pace,
         hold,
         time_scale,
+        keyframe_every,
         save,
         roots,
     } = request;
@@ -115,6 +119,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
+        keyframe_every,
         ..HostConfig::default()
     };
     let epoch = config.epoch;
@@ -160,12 +165,18 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         let hosted = match save {
             None => {
                 let running = pack.load(epoch).map_err(HostError::build)?.into_running();
-                HostedWorld::new(running.world).perceiving(PackPerception::new(running.providers))
+                let events = PackEventPerception::seeded(&running.world);
+                HostedWorld::new(running.world)
+                    .perceiving(PackPerception::new(running.providers))
+                    .perceiving_events(events)
             }
             Some(save) => {
                 let (persisted, providers) = persisted(&pack, &save, epoch)?;
+                let events = PackEventPerception::seeded(persisted.world());
                 HostedWorld::persisted(persisted, recent)?
                     .perceiving(PackPerception::new(providers))
+                    .perceiving_events(events)
+                    .with_history(SavedHistory::new(save))
             }
         };
         // Each seat's factory builds a fresh controller, bound at the instant it is given: at start,

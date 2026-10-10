@@ -1,6 +1,6 @@
-[mineworld] Market Town (market-town) — 13 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:54892 (ws://127.0.0.1:54892/ws), protocol 2
-[mineworld] 40 entities, 13 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dcf1f50399b3c9173f0000
+[mineworld] Market Town (market-town) — 14 system(s), 11 seat(s)
+[mineworld] listening on http://127.0.0.1:64198 (ws://127.0.0.1:64198/ws), protocol 2
+[mineworld] 40 entities, 14 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018dcf4b3d69a1bd0a0140000
 [mineworld] no admin surface (no --admin-token)
 [mineworld] hold 10 s, time scale 1, 11 seat(s) driven in-server (town: seed 0, pace 5 wall s)

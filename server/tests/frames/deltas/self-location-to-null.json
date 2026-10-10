@@ -1,0 +1,9 @@
+{ "base": { "observer": "101", "at": 4112,
+            "self_location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null },
+            "entities": [
+              { "id": "101", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } } ],
+            "relations": [], "affordances": [], "events": [] },
+  "delta": { "at": 4113, "self_location": null, "entities": { "remove": ["101"] }, "events": [] },
+  "next": { "observer": "101", "at": 4113, "self_location": null, "entities": [],
+            "relations": [], "affordances": [], "events": [] } }

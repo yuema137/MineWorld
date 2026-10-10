@@ -486,6 +486,97 @@ async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reporte
     );
 }
 
+/// CA-11, `INV-9` over S11-C's surfaces (step-12 §17.5): a client cannot send what only a server
+/// says (`perceived`, `delta`), cannot widen what it asks for with a field the protocol does not have,
+/// cannot state `acted_through`, and a cursor this world cannot serve grants nothing — the same
+/// connection then joins. The save does not move: `/status`'s revision is unchanged, and after the
+/// process dies the save holds exactly the genesis facts `validate` counts.
+#[tokio::test]
+async fn s11c_frames_a_client_may_not_send_are_refused_and_the_save_does_not_move() {
+    use mineworld_server::RefusalCode::{CursorUnavailable, MalformedFrame, UnknownFrame};
+
+    let save = support::SaveDir::new("inv9-s11c");
+    let mut server = Server::start(&["server", support::PACK, "--save", save.path()]).await;
+    let mut client = Client::connect(server.address).await;
+    let (visitor, _) = client.join("visitor").await;
+    let before = server.status().await["revision"].clone();
+    let refused = |frame: ServerFrame| match frame {
+        ServerFrame::Refused { code, .. } => Some(code),
+        _ => None,
+    };
+
+    for server_only in [
+        json!({ "t": "perceived", "through": "1", "events": [] }),
+        json!({ "t": "delta", "seq": 2, "base": 1, "revision": 1, "delta": {} }),
+    ] {
+        client.send(server_only.clone()).await;
+        assert_eq!(
+            refused(answer(&mut client).await),
+            Some(UnknownFrame),
+            "{server_only}"
+        );
+    }
+    let mut stated = json!({ "t": "submit", "token": "c1",
+                             "request": support::talk(visitor, visitor, "hello") });
+    stated["acted_through"] = json!("41");
+    client.send(stated).await;
+    assert_eq!(
+        refused(answer(&mut client).await),
+        Some(MalformedFrame),
+        "acted_through"
+    );
+
+    for extra in ["events", "observer"] {
+        let mut widening = Client::connect(server.address).await;
+        let mut join = support::join_frame("wanderer");
+        join["perceived"] = json!({ "since": null, extra: [] });
+        widening.send(join).await;
+        assert_eq!(
+            refused(widening.frame().await),
+            Some(MalformedFrame),
+            "perceived carrying {extra} is malformed, and no welcome follows"
+        );
+    }
+
+    let mut cursor = Client::connect(server.address).await;
+    let mut join = support::join_frame("wanderer");
+    join["perceived"] = json!({ "since": "1000000" });
+    cursor.send(join.clone()).await;
+    assert_eq!(refused(cursor.frame().await), Some(CursorUnavailable));
+    join["perceived"] = json!({ "since": null });
+    cursor.send(join).await;
+    assert!(
+        matches!(cursor.frame().await, ServerFrame::Welcome { .. }),
+        "the same connection joins once it asks for a cursor the world can serve"
+    );
+
+    assert_eq!(
+        server.status().await["revision"],
+        before,
+        "nothing was committed"
+    );
+    server.kill();
+
+    let (_, validated) = support::run_command(&["validate", support::PACK]);
+    let genesis = validated
+        .lines()
+        .find_map(|line| line.trim().strip_suffix(" genesis fact(s): the world's initial state, each one caused by the world coming into existence"))
+        .expect("validate counts the genesis facts")
+        .trim()
+        .to_owned();
+    let (_, inspected) = support::run_command(&["inspect", save.path()]);
+    let facts = inspected
+        .lines()
+        .find_map(|line| line.strip_prefix("facts"))
+        .expect("inspect counts the facts")
+        .trim()
+        .to_owned();
+    assert_eq!(
+        facts, genesis,
+        "the save holds the genesis facts and nothing else"
+    );
+}
+
 /// step-12 DA-9's command-line half. `--help` names `MINEWORLD_ADMIN_TOKEN` and never its value; an
 /// illegal admin token, or one equal to the invite, stops the server before it listens, non-zero,
 /// echoing neither.

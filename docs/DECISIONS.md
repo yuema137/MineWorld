@@ -4020,6 +4020,149 @@ it is chattier than a person (QS11-4), which is cognition's to tune (S10), not t
 
 ---
 
+## ARC-43 — Facts reach observers through one audience rule, judged when they are recorded
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-C · **Approved by** the primary
+session at S11-C's design freeze (QS11C-1 … QS11C-5, QS11C-7 … QS11C-9) and the operator (QS11C-6) ·
+**Relates to** `INV-13`, `ARC-28`, `ARC-29`, `ARC-40`, `ARC-41`, `ARC-42`, coordination rulings 1, 2 and
+4 of `.structured-coding/plans/mvp0/overall.md` "Parallel build-out, 2026-10-08", and "The World
+Interaction List" QIL-8 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §§4.7, 17 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.2, 5.8; [`MODULE_SPEC.md`](MODULE_SPEC.md)
+§8.1 (`mineworld perceived`)
+
+**Problem.** A fact states who *could* have learned of it — its `Visibility` — and nothing yet decides
+who *did*. Three consumers need that answer: a client's observation frame (`observation.events`), a
+cognition process that must not miss a fact and must resume after a dropped socket (S10's R-S11-1 …
+R-S11-3), and an offline reader building a Person's memory from a save (S10's IC-1). If each answered it
+for itself, a resumed stream, a live one and an offline export would disagree, and nobody could say
+which was right.
+
+**Choice.**
+
+1. **One rule, owned by the perception system.** `systems/presence/src/audience.rs`:
+   `Whereabouts` (which place each person is in — a fold of presence's own `arrived`, seeded from its
+   `Presence` components or from a world's first fact), `admits` and `perceived_by`. `SystemInternal`
+   reaches nobody; `Public` everybody; `Participants` exactly the fact's participants; `Entities(S)`
+   exactly `S`; `Place(p)` the fact's participants and subjects, and everybody whose whereabouts *after
+   the fact is applied* is `p`. Presence owns it because where people are is presence's state and
+   perception is presence's job (`INV-13`); the server names no pack (it asks an `EventPerception` seam
+   the composition root fills).
+2. **Judged at record time, fact by fact.** As each fact is recorded the fold advances past it and every
+   connection's observer is asked about it then. A `Place` fact is heard by whoever was there when it
+   happened, not by whoever is there at the next 100 ms sweep; a person's own arrival is heard by them; a
+   line said just before somebody leaves reaches them.
+3. **Delivered three ways from that one function.** `observation.events`, best effort and bounded,
+   drops counted in `events_dropped`; the `perceived` stream, reliable, ordered before the observations
+   it explains, cursor-resumable, backfilled for a persisted world from its save by `perceived_by`; and
+   `mineworld perceived`, the same `perceived_by` over a save, offline. Live, resumed and offline agree
+   by construction, and the acceptance tests check that they do.
+4. **The audience narrows at emission, not here.** A World Interaction List rule that makes a fact
+   quieter states a narrower `Visibility` when the fact is built (QIL-8); this function reads only the
+   envelope and needs no change for it. A hearing range is a later refinement behind the same seam; for
+   MVP-0 overhearing is place-level (the operator's ruling on QS11C-6): a player on market-town's street
+   hears every line said anywhere on the street.
+
+**Supersedes.** S10's plan (`step-17-cognition.md` §3.3.4) for `Observation.events` to stay empty, with
+perceived facts only in their own frame, and its check IC-9 "transcripts byte-identical": coordination
+ruling 2 delivers both from the one function, so IC-9 reduces to "the 300-day digests are unchanged" —
+`mineworld run` calls `observe`, which this decision does not touch. S10's text is amended by its owner
+at its next pull request (QS11C-1).
+
+**Rejected.**
+- *Judging at sweep time* against the world as it stands: answers where people are now, not where they
+  were when the fact happened; the "said before they left" case fails.
+- *A broadcast channel of every fact, filtered per connection*: the filter needs the whereabouts at
+  record time, which only the world thread has; and a lagging receiver on a broadcast channel loses
+  facts silently.
+- *An ephemeral world keeping a re-foldable window of recent facts* so it can serve old cursors: a
+  second log. An unsaved world serves the stream from the join on and answers older cursors
+  `cursor_unavailable` (QS11C-2).
+- *In-server controllers receiving facts* now: none reads them (the paced controller reads histories,
+  the reactive one its conversation history), and a queue nobody drains is a cost with no consumer
+  (QS11C-4). The seam is there when one does.
+
+**Limitations accepted.** A resume of a persisted world folds its whole fact log off the world thread (a
+300-day market town is about 373 000 facts); seeding the fold from a snapshot is the recorded
+optimization, taken when measured necessary (QS11C-8). A payload that is not JSON reaches the wire as
+`null` (`PROTOCOL.md` §5.2); `EventEnvelope::map_payload` is a proposed later contract change, not taken
+here (QS11C-3).
+
+---
+
+## DEP-15 — Observation deltas: the typed `ObservationDelta`, chosen by measurement
+
+**Date** 2026-10-09 · **Status** selected; shipped in S11 PR S11-C · **Approved by** the primary session
+at S11-C's design freeze (SD-C10's rule and QS11C-5, frozen before measuring) · **Relates to** `ARC-41`,
+`ARC-23`, `ARC-43`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §15 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.8, 7.3, 17 (CP-C1, E-SC8) · **Specification**
+[`server/PROTOCOL.md`](../server/PROTOCOL.md) §5.3
+
+**Problem.** A hosted world sends every connected client a whole observation ten times a second. On a
+hosted market town that is about 87 KB per client per second, almost all of it unchanged from the
+frame before: the people in the room, their components, the list of what may be attempted.
+
+**Options considered** (both directions of the reuse question).
+
+```text
+(a) the typed ObservationDelta (ours, server/src/protocol/delta.rs)   chosen, by the frozen rule
+    keyed by contract identity: entities upserted / removed by EntityId,
+    relations and affordances replaced whole when changed, events always
+(b) RFC 6902 JSON Patch (the json-patch crate 4.2.0, MIT/Apache-2.0)  measured; 13 % smaller than (a)
+    a generic diff of the observation's JSON                          on this world; no GDScript
+                                                                      applier exists
+(c) whole observations only                                           the conforming fallback
+(d) transport compression, permessage-deflate                         a dead end: Godot's
+                                                                      WebSocketPeer cannot negotiate
+                                                                      it (godot#103230, ARC-41)
+(e) a binary encoding (MessagePack)                                   a different question: ARC-41
+                                                                      keeps JSON; bytes are answered
+                                                                      by deltas, not by encoding
+```
+
+**Measurement** (step-12 E-SC8; `tools/cli/tests/deltas.rs`, run explicitly). A hosted
+`worlds/market-town --town`, four sessions (visitor, wanderer, and Alice and Bob taken over from their
+in-server controllers), 60 wall seconds, 601 whole frames per client; on the same frames, per client
+per second:
+
+```text
+client     whole       typed            json-patch
+visitor    81 993 B/s  1 141 B/s        993 B/s
+wanderer   93 733 B/s  1 161 B/s      1 012 B/s
+alice      90 487 B/s  1 155 B/s      1 007 B/s
+bob        81 552 B/s  1 140 B/s        992 B/s
+mean       86 941 B/s  1 149 B/s (1.3 %)  1 001 B/s (1.2 %)
+```
+
+Every one of the 2 400 consecutive pairs reconstructs exactly: `apply(previous, diff(previous, next))`
+equals `next` with its entities in id order (CA-9).
+
+**Choice.** The rule frozen before measuring (step-12 SD-C10) reads: *typed* if it is at most half the
+whole bytes and json-patch is not within 10 % of it; *json-patch* if within 10 % of typed and at most
+half the whole bytes; *whole observations only* otherwise. Typed is 1.3 % of whole, and json-patch is
+not within 10 % of it (it is 12.9 % smaller), so the rule selects **typed**, and it ships: `delta`
+frames between keyframes (`PROTOCOL.md` §5.3), the first frame, every `--keyframe-every`-th frame
+(default 50) and the first after a resume or a backfill being whole.
+
+**Disagreement recorded.** step-12 §4.8, written before the rule, said the typed delta is kept "only
+if it beats both". On these numbers it beats whole observations by a factor of 75 and loses to
+json-patch by 148 B/s per client; read that way, neither non-whole branch of the frozen rule applies.
+The freeze is the binding text and its rule was applied as written; the operator is told of the
+tension in S11-C's handoff. What the rule's outcome keeps: an applier a client writes in a few lines
+against `PROTOCOL.md` §5.3's table, with no RFC 6902 implementation in GDScript to adopt or write, and
+deltas keyed by contract identity rather than by JSON paths into a list. What it gives up: about
+150 B/s per client against json-patch, on a stream already 75 times smaller.
+
+**Isolating interface.** `server/src/protocol/delta.rs` (`ObservationDelta`, `diff`, `apply`,
+`canonical`); the Godot module's `mineworld/delta.gd`. `json-patch` is a dev-dependency of
+`mineworld-cli` only, for this measurement, and is in no shipped artefact.
+
+**Limitations accepted.** Measured on one town and one cadence; a world whose observations churn
+differently may weigh the encodings differently, and the measurement is re-runnable as written. A
+`delta` whose `base` is not the frame a client holds cannot occur on one WebSocket; a client that sees
+one resumes, which yields a whole observation.
+
+---
+
 ## ARC-44 — The admin surface is HTTP behind a bearer token, mounted only when configured, and changes no world state
 
 **Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-D · **Approved by** the primary

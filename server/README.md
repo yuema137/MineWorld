@@ -51,6 +51,17 @@ copy of one. It submits requests; the server allocates their identity and the wo
 happens. A client can say three things: which seat it wants, what it would like to happen, and that
 it is leaving.
 
+Each observation also carries the facts its observer learned since the last one — a line said in the
+room, an arrival — judged by the world's perception system, and `acted_through`, the newest of the
+client's own requests it already reflects. Most frames are small deltas against the previous one,
+with a whole observation every 50 (`--keyframe-every`). A client that must not miss a fact — a
+memory, a transcript — joins with `perceived: { since: <cursor> }` and gets a reliable stream it can
+resume after a dropped socket. The same facts can be read from a save, offline:
+
+```text
+mineworld perceived worlds/social-cafe --save saves/cafe --person wanderer
+```
+
 Read next:
 
 - [`PROTOCOL.md`](PROTOCOL.md) — the frames, in full. Write a client against that.

@@ -1,12 +1,12 @@
 [mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:57574 (ws://127.0.0.1:57574/ws), protocol 2
+[mineworld] listening on http://127.0.0.1:56106 (ws://127.0.0.1:56106/ws), protocol 2
 [mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dcf2b023a68bd175180000
+[mineworld] world instance 0000000018dd02d90d520fb02e490000
 [mineworld] no admin surface (no --admin-token)
 [mineworld] hold 30 s, time scale 1, 1 seat(s) driven in-server
 [mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:57628 (ws://127.0.0.1:57628/ws), protocol 2
+[mineworld] listening on http://127.0.0.1:56126 (ws://127.0.0.1:56126/ws), protocol 2
 [mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dcf2b0e7244ea975870000
+[mineworld] world instance 0000000018dd02d9db972d102e8b0000
 [mineworld] no admin surface (no --admin-token)
 [mineworld] hold 30 s, time scale 1, 1 seat(s) driven in-server
