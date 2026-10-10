@@ -44,8 +44,14 @@ static var _clock: MineWorldSettings.ClockFormat = MineWorldSettings.ClockFormat
 static var _font_installed := false
 
 
-## The module's own folder, absolute (it is reached through the client's symlink).
+## Where the module's `locale/` and `fonts/` are read from, absolute. From a checkout: the module's own
+## folder (reached through the client's symlink). In an exported client, `res://` has no folder on disk and
+## the `.gdignore`'d files are not in the pack, so the bundle ships them under `--root=<dir>` at their
+## repository path (`clients/shared/SETTINGS.md` §2; ARC-80).
 static func module_dir() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--root=") and arg.length() > 7:
+			return arg.substr(7).path_join("clients/shared/settings").simplify_path()
 	return ProjectSettings.globalize_path((MineWorldText as Script).resource_path.get_base_dir())
 
 

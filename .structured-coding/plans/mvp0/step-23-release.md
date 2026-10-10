@@ -1170,7 +1170,19 @@ C1  specs first: the 2D client's argument spec and SETTINGS.md §6 for --root; d
               pack type); every claim cites a §18.2 probe; ARC-80 states fallback behaviour without --root
 C2  probes: done in C0 (§18.2)                                                   N/A: recorded above
 C3  F-R1 (app.gd repo_path with --root) and F-R2 by D-Ra-2 (text.gd module_dir with --root); the 2D drive and
-    the shared settings checks green from the checkout, unchanged               [ ] impl  [ ] validation  [ ] review
+    the shared settings checks green from the checkout, unchanged               [x] impl  [x] validation  [x] review
+      impl: clients/2d/scripts/app.gd — repo_path(path, root = ""), _ready passes options["root"], header
+            lists --root; clients/shared/settings/text.gd — module_dir() returns <root>/clients/shared/settings
+            when a non-empty --root= user argument is present, else the globalized module folder as before
+      validation (macOS, Godot 4.7.2): ./mineworld-2d --drive → "drive complete: PASS", presentation from the
+            checkout (unchanged path); --root=<worktree> → PASS, same presentation path; --root=/nonexistent →
+            "cannot read /nonexistent/presentation/…", "presentation none", FAIL (the argument is honoured);
+            shared checks store/glyph/menu/text_check PASS; glyph_check --root=<worktree> PASS;
+            text_check --root=/nonexistent FAIL (catalogs read from the root); cargo test -p
+            mineworld-acceptance --test client_rules (3 passed) --test client_text (5 passed);
+            check_client_rules.py PASS (0 findings)
+      review: no rule, protocol or setting touched; absent --root is byte-for-byte the old expression; the text
+              module's arg read follows store.gd's precedent; no platform branch (AC-SET-16) added
 C4  export presets (2D and 3D: Linux x86_64 and arm64, Windows x86_64, macOS universal; filters; custom
     feature), the F-R4 override, D-Ra-3, and the MS-Ra-1 fix if it is ruled into R-a; headless exports
     succeed; the exported 3D link probe prints its verdict                      [ ] impl  [ ] validation  [ ] review
@@ -1193,3 +1205,47 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 | 2026-10-10 | Templates downloaded and SHA-512 checked; installed outside the repository | §18.1 |
 | 2026-10-10 | Probes P-1 … P-9; full exports measured; the exported 3D link probe crashed | §§18.2–18.3 |
 | 2026-10-10 | **Stopped** at MS-Ra-1 and MS-Ra-2; C0 committed for the primary session's review | this section |
+| 2026-10-10 | C0 frozen by the primary session; RL-b's head checked (§18.7); C1 committed | §18.7, `a5601f0` |
+
+## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
+
+A detached scratch worktree at `origin/mvp0/pr-rl-b-3d-budget @ 8f0853c` ("RL-b final re-measure on the
+ruled head"), under `/Users/yuema137/mineworld-worktrees/scratch-s23-ra/rlb`; nothing written in
+`impl-rl-b`. Scratch-only additions: the 3D presets of §18.3, the P-2 override, the P-5 setting. RL-b's
+`.import` files: 213 `compress/mode=2` (VRAM), 18 `compress/mode=0`. A full `--import` with ETC2/ASTC on
+took about 75 minutes on the operator's Mac (BC7 and ASTC encoding of 213 textures).
+
+**MS-Ra-1: resolved on RL-b's head.** RL-b's `props.gd` `gltf()` instantiates the imported scene when
+`ResourceLoader.exists(path, "PackedScene")`, keeping `GLTFDocument` as the fallback (its SD-RLb-1) — the
+same change as option (A). The exported macOS `.app`, run headless with `--slice-link` against a release
+server on `worlds/social-cafe`: **exit 0, zero `gltf load failed` / fallback lines, verdict
+`all link checks pass`.** The only errors left: `Can't open file from path
+'mineworld_settings/fonts/NotoSansSC-Regular.otf'` (fixed by D-Ra-2, C3) and `Could not create directory:
+'res://shots'` (the probe's evidence folder; harmless in an export). R-a therefore makes no `props.gd`
+change.
+
+Found on the way (bounded, R-a's presets): **`tools/*` must not be excluded wholesale.**
+`slice_probe.gd:927` names `PhysicsEngineProbe` from `tools/physics_engine.gd`; with `tools/*` excluded,
+`slice_main.gd` fails to compile and the client hangs headless with no verdict (seen, then killed). The 3D
+preset excludes `tools/blender/*` and `tools/texture_art/*` instead (A-R3's GPL folder and source art);
+the remaining `tools/*.gd` are MIT scripts, and `tools/*.py`, `*.sh` are not resources and never pack.
+Consequence for §9.1 and R-c: a headless client must run under a timeout, because a script error does not
+make it exit.
+
+**MS-Ra-2: NOT resolved on RL-b's head; the download grows.**
+
+| Artefact | `bb62edf` (lossless) | RL-b `8f0853c` (BC7 + mipmaps) |
+| --- | --- | --- |
+| `3d.pck` raw | 260 510 120 | **354 128 840** |
+| `3d.pck`, `gzip -6` | 253 213 609 | **259 509 293** |
+| 3D macOS universal `.zip` | 313 673 637 | 319 969 284 |
+| files in the pack | 649 | 655; 213 `*.bptc.ctex`, 0 `etc2`/`astc` |
+
+A 1k texture is 1 398 180 bytes as BC7 with mipmaps (every one of the 213 the same size), against 0.9–2.3 MB
+lossless, and BC7 hardly compresses further. VRAM compression cut video memory (RL-b's −466 MB) but not the
+download: `3d.pck` stays over the 250 MB hard limit and the macOS universal bundle over 400 MB. The macOS
+export carried no ETC2/ASTC copy, so P-5's concern about doubling does not apply. What would reduce the
+download, each a visual or policy decision for the operator: textures at 512 px for distant or small props
+(`process/size_limit`), Basis Universal (smaller on disk, transcoded at load), BC1 instead of BC7 for
+opaque diffuse maps, or raising §7.1's limits (D). **This remains a material item for the primary session**;
+it does not block C1, C3 or C5.

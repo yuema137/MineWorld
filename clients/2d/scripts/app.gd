@@ -17,7 +17,8 @@ extends Node2D
 ## its join line), `--nickname=NAME`, `--presentation=<dir>|none`, `--no-wording`,
 ## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`, `--settings=<path>|none`
 ## (`--drive` and `--capture` mean `none` unless a path is given: a harness never reads the player's
-## settings). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
+## settings), `--root=<dir>` (the folder standing for the repository root, for an exported client;
+## `clients/2d/PRESENTATION.md` §1). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
 const Link := preload("res://scripts/link.gd")
 const Intents := preload("res://scripts/intents.gd")
@@ -69,9 +70,10 @@ func _ready() -> void:
 	_inputs()
 	presentation = Presentation.new()
 	var pack := String(options.get("presentation", DEFAULT_PACK))
+	var root := String(options.get("root", ""))
 	if pack != "none":
-		presentation.load_pack(repo_path(pack), String(options.get("variant", "")))
-	_settings(repo_path(pack) if pack != "none" else "")
+		presentation.load_pack(repo_path(pack, root), String(options.get("variant", "")))
+	_settings(repo_path(pack, root) if pack != "none" else "")
 	for problem in presentation.errors:
 		push_warning("[mineworld-2d] %s" % problem)
 	if presentation.is_plain():
@@ -366,8 +368,11 @@ static func parse(args: PackedStringArray) -> Dictionary:
 	return out
 
 
-## A path relative to the repository root (two levels above this project), or an absolute one.
-static func repo_path(path: String) -> String:
+## A path relative to the repository root, or an absolute one. The root is `root` when given (an exported
+## client, whose `res://` has no folder on disk: ARC-80), else the checkout two levels above this project.
+static func repo_path(path: String, root: String = "") -> String:
 	if path.is_absolute_path():
 		return path
+	if root != "":
+		return root.path_join(path).simplify_path()
 	return ProjectSettings.globalize_path("res://").path_join("../..").path_join(path).simplify_path()
