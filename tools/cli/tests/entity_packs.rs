@@ -138,7 +138,12 @@ fn history(out: &str) -> (String, String) {
 fn a_world_uses_an_entity_pack_without_copying_it() {
     let scratch = Scratch::fixture("used");
     let (world, root) = (scratch.text("market-town"), scratch.text("root"));
-    let goods_dir = scratch.path("root/goods").display().to_string();
+    // A requirement's directory is printed with `/` on every OS (`packs::source`, step-16 F-Ee6).
+    let goods_dir = scratch
+        .path("root/goods")
+        .display()
+        .to_string()
+        .replace('\\', "/");
 
     let (ok, out, err) = mineworld(&["packs", "resolve", &world, "--packs", &root]);
     assert!(ok, "{err}");
