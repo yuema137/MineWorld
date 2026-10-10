@@ -165,10 +165,10 @@ fn the_composition_is_resolved_requirement_by_requirement() {
         .lines()
         .find(|line| line.contains(&format!("requires   {entity_pack} ")))
         .unwrap_or_else(|| panic!("{entity_pack} resolved: {out}"));
-    let directory = Path::new("entities").join(&entity_pack);
+    // Written with `/` on every OS, so the composition prints the same everywhere (F-Ee6).
     assert!(
         entity_line.contains("→ entity-pack 0.1.0")
-            && entity_line.contains(&directory.display().to_string()),
+            && entity_line.contains(&format!("entities/{entity_pack}")),
         "{entity_line}"
     );
     assert_eq!(
