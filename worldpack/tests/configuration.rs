@@ -64,14 +64,15 @@ impl Scratch {
 /// A key that names no system of this build is refused, listing the systems that exist.
 #[test]
 fn a_key_that_is_no_system_of_this_build_is_refused_listing_the_systems() {
-    let scratch = Scratch::new("configure-unknown", "configure:\n  - weather\n");
+    // A name no pack of this build takes (it was `weather` until S19 TW-b installed one).
+    let scratch = Scratch::new("configure-unknown", "configure:\n  - tides\n");
     match scratch.read() {
         Err(PackError::ConfigurationOfUnknownSystem {
             key,
             available,
             path,
         }) => {
-            assert_eq!(key, "weather");
+            assert_eq!(key, "tides");
             assert!(available.contains("'presence'") && available.contains("'movement'"));
             assert_eq!(path, scratch.manifest());
         }
