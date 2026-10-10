@@ -25,6 +25,9 @@ node_modules/
 # Local worlds, saves, and evidence artifacts
 *.sqlite
 *.sqlite-journal
+# The one committed save: a format-2 save written by the build before SR, which format 3 must refuse
+# (pr-s6-save-retention.md ASR-8). Tests copy it to scratch before opening it.
+!persistence/tests/fixtures/format-2/world.sqlite
 /saves/
 /artifacts/
 

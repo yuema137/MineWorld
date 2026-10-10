@@ -5,7 +5,9 @@ use mineworld_kernel::{Advanced, Dispatched, Emission, World, WorldSnapshot};
 
 use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow};
 use crate::error::PersistError;
-use crate::format::{Manifest, SAVE_FORMAT, decode, encode, instance_text};
+use crate::format::{
+    Manifest, SAVE_FORMAT, decode, decode_snapshot, encode, encode_snapshot, instance_text,
+};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 use crate::replay::{self, advanced, check_composition, dispatched};
 
@@ -126,7 +128,7 @@ impl PersistentWorld {
                 .ok_or_else(|| PersistError::Damaged {
                     detail: "the save has no snapshot, not even at genesis".to_owned(),
                 })?;
-        composed.restore(decode::<WorldSnapshot>(&bytes, "snapshot")?)?;
+        composed.restore(decode_snapshot(&bytes, snapshot)?)?;
         let (replayed, facts) =
             replay::replay_after(&mut composed, backend.as_ref(), snapshot, |_, _| Ok(()))?;
         let instance = manifest.instance_number()?;
@@ -234,7 +236,7 @@ impl PersistentWorld {
         if self.world.now() != self.committed_at {
             return Ok(false);
         }
-        let snapshot = encode(&self.world.snapshot()?)?;
+        let snapshot = encode_snapshot(&self.world.snapshot()?)?;
         self.backend.checkpoint(self.revision, &snapshot)?;
         Ok(true)
     }
@@ -308,6 +310,6 @@ fn revision_row(
                 })
             })
             .collect::<Result<_, PersistError>>()?,
-        snapshot: snapshot.map(encode).transpose()?,
+        snapshot: snapshot.map(encode_snapshot).transpose()?,
     })
 }

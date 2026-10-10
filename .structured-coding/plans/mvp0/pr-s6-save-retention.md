@@ -456,11 +456,13 @@ Targeted validation per commit; the PR's CI is the one full run.
   `error.rs` if a variant is needed; `persistence/tests/save.rs` (tamper test for ASR-9; format-2
   refusal ASR-8 with a fixture produced by the base build and committed under `persistence/tests/`);
   `tools/cli/tests/market/mod.rs` (decoder).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test market`;
-  `cargo test -p mineworld-cli --test headless` (AC-12); clippy `-D warnings`; fmt.
-- [ ] Review: no call site decodes a snapshot with the plain `decode`; journal and facts encoding
-  unchanged (diff shows no change to their paths).
+- [x] Implementation. *Evidence: §14.3.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test market`;
+  `cargo test -p mineworld-cli --test headless` (AC-12); clippy `-D warnings`; fmt. *Evidence: §14.3
+  (`market` and `headless` are modules, not test targets: their users `run`, `inspect` ran here and
+  `market_town` runs at C5).*
+- [x] Review: no call site decodes a snapshot with the plain `decode`; journal and facts encoding
+  unchanged (diff shows no change to their paths). *Evidence: §14.3.*
 
 ### C3 — The retention rule
 
@@ -692,3 +694,48 @@ python3 scripts/check_decision_ids.py      106 decision ids, all distinct       
 Review: ARC-81 lists options 5.1–5.8 with reasons and revisit triggers; DEP-43 lists zstd levels,
 deflate, lz4, ruzstd, sqlite-zstd and ZIPVFS and its re-evaluation trigger. ARC-25's text is untouched;
 the note under it extends the limitation for snapshots and restates that the log is kept whole.
+
+Three-platform build of C1 (zstd-sys's C build): CI run 38074891512 on the scratch branch
+`scratch/sr-c1-build` at 5e202e8 (draft PRs skip the build jobs) — `fast`, `test`, `test-windows`,
+`test-macos`, `platforms (macos-26)`, `platforms (windows-2025)`, `python` × 3: all success. **PASS**: the
+C2 dependency on zstd is safe on every leg.
+
+### 14.3 C2 — the snapshot codec and format 3
+
+```text
+persistence/src/format.rs   SAVE_FORMAT 3 (+ history line); SNAPSHOT_LEVEL 3; encode_snapshot (bulk
+                            Compressor, include_checksum, include_contentsize); snapshot_json
+                            (stream::decode_all; error "the snapshot at rN does not decompress: …");
+                            decode_snapshot = decode(snapshot_json(..), "snapshot")
+persistence/src/world.rs    create/commit (revision_row), checkpoint → encode_snapshot;
+                            resume → decode_snapshot(bytes, revision)
+persistence/src/replay.rs   verify compares encode(world.snapshot()) with snapshot_json(stored)
+persistence/tests/save.rs   tamper test rewritten: (a) '{}' over the newest snapshot → Damaged naming the
+                            revision, from resume and from verify; (b) genesis' frame copied over the
+                            newest → SnapshotDisagreesWithHistory at that revision. Format test: 4 is
+                            too new, 1 and 2 outdated, against 3. New: the committed base-built
+                            format-2 fixture is refused by resume and verify (copied to scratch first)
+tools/cli/tests/market/mod.rs   format::decode_snapshot for the newest snapshot
+tools/cli/tests/save_retention.rs  ASR-8 through the binary: run, replay, inspect and server refuse a
+                            format-2 save with "the save is format 2; this code reads format 3 …"
+tools/cli/Cargo.toml        rusqlite as a dev-dependency (workspace's own; marks the manifest format)
+.gitignore, .gitattributes  the fixture is committed (negated ignore) and binary
+```
+
+`ARC-81` check (I-SR-1, review): `git diff a5f5357 -- persistence/src` touches no journal or fact
+encoding path — `revision_row`'s `entry` and `facts` lines and `reproduce` are unchanged; the only
+`decode(.., "snapshot")` left is inside `decode_snapshot` (`grep '"snapshot"'` over `*.rs`).
+
+```text
+cargo test -p mineworld-persistence                     11 passed (save) + kill_and_resume cafe, clock
+                                                        PASS                                  PASS
+cargo test -p mineworld-cli --test save_retention --test inspect --test run
+                                                        1 + 3 + 3 passed (rc 0; run includes the AC-12
+                                                        300-day same-seed comparison)          PASS
+cargo fmt --all --check                                 rc 0                                   PASS
+cargo clippy -p mineworld-persistence -p mineworld-cli --all-targets -- -D warnings   rc 0    PASS
+```
+
+*Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
+tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run
+in the background above).

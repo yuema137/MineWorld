@@ -926,6 +926,7 @@ dependencies = [
  "mineworld-server",
  "mineworld-test-support",
  "mineworld-worldpack",
+ "rusqlite",
  "serde_json",
  "tokio",
  "tokio-tungstenite",

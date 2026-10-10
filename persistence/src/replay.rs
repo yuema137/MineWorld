@@ -10,7 +10,7 @@ use mineworld_kernel::{Advanced, Dispatched, InstalledSystemRecord, KernelError,
 
 use crate::backend::{FactRow, PersistenceBackend};
 use crate::error::PersistError;
-use crate::format::{Manifest, check_format, decode, encode};
+use crate::format::{Manifest, check_format, decode, encode, snapshot_json};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 
 /// What a request's dispatch amounts to in the journal: its answer, or the fault, and its facts.
@@ -222,7 +222,7 @@ pub fn verify(
         WorldRevision::from_raw(0),
         |world, revision| {
             if let Some(stored) = backend.snapshot_at(revision)? {
-                if encode(&world.snapshot()?)? != stored {
+                if encode(&world.snapshot()?)? != snapshot_json(&stored, revision)? {
                     return Err(PersistError::SnapshotDisagreesWithHistory { revision });
                 }
                 snapshots += 1;
