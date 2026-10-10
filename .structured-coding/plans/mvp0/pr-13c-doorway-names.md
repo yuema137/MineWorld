@@ -1,18 +1,25 @@
 # PR 13c (part 1) — R-PK-1: a doorway says where it leads
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-10 (primary session, operator ruling Q1)
 
 ```text
-Lifecycle:              DRAFT (not DESIGN FROZEN; implementation is not authorized by this document)
+Lifecycle:              DESIGN FROZEN 2026-10-10 (primary session, operator ruling Q1)
+Approved by:            the primary session's rulings of 2026-10-10 on §11 (Q1 by the operator; Q2–Q7 by the
+                        primary session), recorded in §11.1
 Parent:                 step-13-client-2d.md §6.3 (R-PK-1), §4.3 (point 3), §9 row 13c, QS12-7
 Audit base:             origin/main @ 98fe3e6 (Merge PR #155)
 Requirement ID:         R-PK-1 (A-23). R-PK-2 (item names, F-41) is OUT of scope: it waits for 12d.
-Branch (proposed):      docs/13c-names-design for this design; implementation branch to be named at freeze
+Decision record:        ARC-82 (docs/DECISIONS.md), recorded in C3
+Implementation branch:  mvp0/pr-13c-names
+Implementation worktree: /Users/yuema137/mineworld-worktrees/impl-13c-names
+Execution contract:     §13
 ```
 
 This document is the PR design for the first half of step-13's PR 13c, "Names for things". It is the
-single authority for this PR's scope, contract change and acceptance once it is frozen. It is not
-frozen, and every item in §§9–11 is a proposal for the operator's review.
+single authority for this PR's scope, contract change and acceptance. Its scope, invariants and
+acceptance are frozen; progress, evidence and bounded corrections stay writable (`CLAUDE.md` §3.1).
+Any change to a frozen invariant, a public contract, an ownership boundary or scope goes back to the
+operator before it is acted on.
 
 ---
 
@@ -98,7 +105,9 @@ Each entry gains exactly one field, `to_tags`:
   Tags are never absent: the field is always present, so no consumer needs an absence rule.
 - **Value.** The destination entity's tag set, read at disclosure from current state
   (`WorldRead::entity(Q)`), exactly as `perceived` reads a place's tags for the observer's own place.
-  Nothing is copied into the stored `Passage`.
+  Nothing is copied into the stored `Passage`. **Tags only**: the field carries the destination's tag
+  set and nothing else. It never carries the identity, contents, occupants or activity of the
+  destination (ruling Q1, ARC-82; pinned by T2).
 - **Ordering and the rest.** Entry order, `to`, `here` and `there` are unchanged.
 - **Construction.** The disclosure is built from a disclosure-only type in `systems/movement`
   (working name `DisclosedPassage { to, here, there, to_tags }` with a `DisclosedPassages { leads_to }`
@@ -291,8 +300,10 @@ Three commits, each with implementation, deterministic validation and LLM logic 
 
 ### C3 — `docs(movement,plan): record R-PK-1 and the perception decision`
 
-- [ ] **Implementation.** `docs/DECISIONS.md` entry for the widened place-tag disclosure (Q1); step-13 §6.3
-      R-PK-1 status and the 13c row; `systems/movement/README.md` if not done in C1.
+- [ ] **Implementation.** `docs/DECISIONS.md` **ARC-82** (the door-sign disclosure: tags only, the audience
+      rule, the decision and its alternative); `docs/MODULE_SPEC.md` short section under movement's disclosure
+      stating the `passages` shape of §4.2 (Q6); step-13 §6.3 R-PK-1 status and the 13c row; `systems/movement/
+      README.md` if not done in C1.
   - Evidence: diff.
 - [ ] **Validation.** `doc-headings` and `decision-ids` CI checks PASS (the fast layer); links resolve.
   - Evidence: `python3 scripts/ci_layer.py --list fast` output and the run result.
@@ -331,7 +342,7 @@ Three commits, each with implementation, deterministic validation and LLM logic 
 
 ## 11. Questions for the operator
 
-- **Q1 (operator-material — perception scope).** Accept that a doorway discloses its destination's *tags*
+- **Q1 — RULED: accepted (operator).** Recorded in §11.1. Original question: accept that a doorway discloses its destination's *tags*
   to a person in the neighbouring place (A-20's "other places are not perceived" is widened by one
   field)? **Recommendation: accept**, with the DECISIONS record in C3 and T2 as the pin. The alternative
   is the fallback in step-13 QS12-7: learn tags by entering, which keeps the street's doorways generic.
@@ -351,6 +362,21 @@ Three commits, each with implementation, deterministic validation and LLM logic 
 - **Q7 (golden frame).** Add one golden frame with `passages` now (§5.1), which would bring a Python
   model under R-S11-9? **Recommendation: no** in this PR.
 
+### 11.1 Rulings, 2026-10-10 (frozen)
+
+- **Q1 — accepted (operator).** A doorway's destination tags are disclosed as a **door sign**: tags only,
+  never who or what is inside. Recorded as **ARC-82** in `docs/DECISIONS.md` during C3; test T2 pins the
+  audience.
+- **Q2 — `schema_version` stays 1.** No bump.
+- **Q3 — `place.*` keys go in the shared catalog** (`clients/shared/settings/locale/{en,zh_Hans}.po`).
+  `ui.door-to` stays in the Presentation Pack's `i18n/`, as `clients/2d/PRESENTATION.md` §7 states for
+  pack wording.
+- **Q4 — `to_tags` is always present**, `[]` when the destination has no tags.
+- **Q5 — the six naming tags are confirmed:** `cafe`, `park`, `store`, `apartments`, `workplace`, `street`.
+- **Q6 — no separate spec document.** A short section is added to `docs/MODULE_SPEC.md` under movement's
+  disclosure, in C3, together with the README line in C1.
+- **Q7 — no golden frame in this PR.** §5.1 stays unproposed; R-S11-9 is not triggered.
+
 ## 12. Evidence, status and what is not claimed
 
 - Nothing in this document has been run. Every "PASS" in §§7–9 is a plan, not a result. Results are
@@ -358,4 +384,41 @@ Three commits, each with implementation, deterministic validation and LLM logic 
 - The current-label defect (§1) is read from `town.gd`, `places.gd` and the sorted tag set
   (`contracts/src/entity.rs`, `Tags`, a `BTreeSet<Tag>`); it has not been reproduced in a running client. C2 reproduces
   or refutes it before the change.
-- No file outside `.structured-coding/plans/mvp0/pr-13c-doorway-names.md` is changed by this design.
+- No file outside `.structured-coding/plans/mvp0/pr-13c-doorway-names.md` (and the step-13 link in §6.3's
+  13c row) is changed by this design.
+
+## 13. Execution contract (frozen 2026-10-10)
+
+```text
+Implementation branch:   mvp0/pr-13c-names
+Implementation worktree: /Users/yuema137/mineworld-worktrees/impl-13c-names (one working tree, one session;
+                         the execution session confirms no other session holds it before editing)
+Implementation base:     origin/main at the start of implementation (exact commit recorded in C1's evidence)
+Commits:                 C1 (§8 C1), C2 (§8 C2), C3 (§8 C3), each with implementation, validation and LLM
+                         review items tracked separately
+Design authority:        this document, PR #156 (docs/13c-names-design)
+Fresh session:           implementation runs in a fresh session; a resumed session re-reads this section and
+                         §§4, 7, 8 before continuing
+```
+
+**Allowed to change:**
+
+- `systems/movement/src/**`, `systems/movement/tests/**`, `systems/movement/README.md` (C1);
+- `clients/2d/scripts/town.gd`, `clients/2d/scripts/scene/places.gd`, `clients/2d/scripts/harness/drive.gd`,
+  `clients/2d/scripts/harness/capture.gd`, `clients/shared/settings/locale/{en,zh_Hans}.po` (and
+  `messages.pot` if the shared tooling requires it) (C2);
+- `tools/cli/tests/client_2d.rs` (C2, the report assertion only);
+- `docs/DECISIONS.md` (ARC-82 only), `docs/MODULE_SPEC.md` (movement disclosure section only),
+  `.structured-coding/plans/mvp0/step-13-client-2d.md` (§6.3 R-PK-1 status and the 13c row) (C3).
+
+**Forbidden to change:** `contracts/**`, `kernel/**`; any `cognition/**` file (PR 12n-2 is active there);
+`systems/movement/src/system.rs`'s `passage-opened` reduction and the stored `Passage`/`Passages` types;
+`server/tests/frames/**`, `server/PROTOCOL.md`, `sdk/python/**`; `clients/3d-spike/**`; `systems/item/**` and
+`worlds/**/items/**` (R-PK-2); `tools/cli/tests/run.rs` and `paced_tests.rs` (12n-2's files); any World Pack.
+
+**Stop and return to the operator** (`CLAUDE.md` §3.1) if: a golden frame or SDK model must change; the
+digest check does not hold; a file in the forbidden list must change; the disclosure needs any field beyond
+`to_tags`; a test shows the audience widened beyond T2; or the 2D label needs a rule evaluated in the client.
+
+**Validation required before any commit is marked `[x]`:** §7.1–§7.5 as written, with each result classified
+`PASS`, `FAIL` or `INCONCLUSIVE` in the evidence file. A platform not run locally is `INCONCLUSIVE` until CI.
