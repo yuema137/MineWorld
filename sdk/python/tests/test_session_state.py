@@ -43,6 +43,7 @@ WORLD: JsonValue = {
     "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9",
     "at": 0,
     "time_scale": 1,
+    "paused": False,
     "entities": 3,
     "systems": [],
     "seats": ["visitor"],
@@ -201,6 +202,31 @@ def test_the_newest_observation_wins_and_a_stale_one_is_ignored() -> None:
         assert not later.done()
         script.say(observation(3))
         assert (await later).seq == 3
+
+    run(scenario())
+
+
+def clock(paused: bool) -> str:
+    return json.dumps({"t": "clock", "at": 7, "time_scale": 1, "paused": paused})
+
+
+def test_the_host_clock_is_kept_and_a_paused_submit_is_refused_not_fatal() -> None:
+    # S11-D (PROTOCOL.md §5.9, §5.5): a clock frame follows welcome and every pause and resume; while
+    # paused a submit is refused `paused`, which answers that request and leaves the session open.
+    async def scenario() -> None:
+        script = Script(welcome(), clock(False), observation(1))
+        session = await joined(script)
+        await session.changed()
+        assert session.clock is not None and not session.clock.paused
+        script.say(clock(True))
+        await settle()
+        assert session.clock.paused
+        pending = asyncio.create_task(session.submit(request()))
+        await settle()
+        script.say(json.dumps({"t": "refused", "token": "c1", "code": "paused"}))
+        assert await pending == RefusedRequest("paused", None)
+        script.say(observation(2))
+        assert (await session.changed(since=1)).seq == 2
 
     run(scenario())
 
