@@ -46,7 +46,10 @@ pub use found::{DataPack, WORLD_FILE, packs_in};
 pub use identity::{
     Compatibility, Identity, License, PackId, PackType, Version, distinct, framework_version,
 };
-pub use manifest::{PACK_FILE, STYLE_FILE, check_style_manifest, read_pack_file};
+pub use manifest::{
+    ENTITY_ITEM_EXTENSION, ENTITY_ITEMS, PACK_FILE, STYLE_FILE, check_entity_layout,
+    check_style_manifest, read_pack_file,
+};
 pub use policy::LicencePolicy;
 pub use resolve::{
     CodePack, Composition, FoundPack, Installed, Resolved, Source, SystemPackUsed,

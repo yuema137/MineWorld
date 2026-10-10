@@ -17,6 +17,9 @@ And work, money, shops and eating (`ARC-38`):
   the shift is the work, paid by the hour and restocking the shop;
 - `consumption` lets people eat the food and drink the drinks they carry.
 
+It lives in San Diego: `calendar` gives it a date and a sun, and `weather` a climate, both configured
+in `configure/`.
+
 Every file of `worlds/social-cafe` was copied unchanged; the only differences are this README, the
 world's id and name, six appended systems, the `items` and `organizations` lists with their files,
 and blocks appended at the end of each person file (`holdings:`, `economy:`, and `job:` for two).

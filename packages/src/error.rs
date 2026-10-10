@@ -92,6 +92,36 @@ pub enum PackageError {
         /// Where that type is identified instead, or why it is not read.
         why: &'static str,
     },
+    /// An Entity Pack holding a directory of content it may not carry in MVP-0 (`ARC-71`).
+    #[error(
+        "{path}: an Entity Pack carries item kinds only in MVP-0 — places, people and organizations \
+         belong in a World Pack"
+    )]
+    EntityPackCarries {
+        /// The directory it may not have.
+        path: PathBuf,
+    },
+    /// An Entity Pack with no item kind (`ARC-71`).
+    #[error(
+        "{dir}: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, \
+         one file per item kind"
+    )]
+    EntityPackDeclaresNothing {
+        /// The pack's directory.
+        dir: PathBuf,
+    },
+    /// A data pack whose own `mineworld:` range the running framework is not in (`ARC-54` note).
+    #[error(
+        "{id} states mineworld: \"{range}\", which does not admit this framework's version, {framework}"
+    )]
+    PackFrameworkNotSupported {
+        /// The pack's id.
+        id: String,
+        /// The range as written.
+        range: String,
+        /// The framework's version.
+        framework: String,
+    },
     /// A directory holding both manifests.
     #[error("{dir} holds both world.yaml and pack.yaml: a pack has one manifest")]
     TwoManifests {

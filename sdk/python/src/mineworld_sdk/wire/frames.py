@@ -1,10 +1,11 @@
-"""The frames of protocol revision 2: three a client may send, five a server sends.
+"""The frames of protocol revision 2: three a client may send, six a server sends.
 
 Mirrors `server/src/protocol.rs` (`ClientFrame`, `ServerFrame`, `RefusalCode`) and
 `server/src/protocol/{connection,summary}.rs`. Only what `server/PROTOCOL.md` §10 lists as landed is
-modelled: S11-A and S11-B (`join.take_over`, `WorldSummary.time_scale`, seat holds and their `resume`
-secret, absorbed by P3's C6 under D-P3-5). S11-C's `delta` and `perceived` frames are absent until that
-pull request lands (D-P3-6).
+modelled: S11-A; S11-B (`join.take_over`, `WorldSummary.time_scale`, seat holds and their `resume`
+secret, absorbed by P3's C6 under D-P3-5); S11-D (the `clock` frame, `WorldSummary.paused`, the refusal
+`paused`, under R-S11-9). S11-C's `delta` and `perceived` frames are absent until that pull request
+lands (D-P3-6).
 
 `ClientFrame` is a closed union of `Join`, `Submit` and `Leave`. The encoder accepts nothing else, so
 this SDK can say exactly join, submit and leave (`INV-9`).
@@ -146,6 +147,7 @@ RefusalCode = Literal[
     "invalid_nickname",
     "seat_occupied",
     "invalid_resume",
+    "paused",
 ]
 """`RefusalCode`: the ways a frame fails to be a request at all. Not a `Rejection`."""
 
@@ -166,6 +168,7 @@ class WorldSummary(WireModel):
     instance: WorldInstanceIdField
     at: I64
     time_scale: U32
+    paused: bool
     entities: U64
     systems: list[SystemSummary]
     seats: list[EntityKeyField]
@@ -190,6 +193,17 @@ class Welcome(WireModel):
     hold_seconds: U32
     took_over: TookOver
     world: WorldSummary
+
+
+class Clock(WireModel):
+    """How the host is pacing the world's clock (`PROTOCOL.md` §5.9): sent once right after `welcome`,
+    before the first observation, and again on every pause and resume. While `paused`, every `submit`
+    is refused `paused`."""
+
+    t: Literal["clock"]
+    at: I64
+    time_scale: U32
+    paused: bool
 
 
 class ObservationFrame(WireModel):
@@ -230,6 +244,6 @@ class Closing(WireModel):
 
 
 ServerFrame = Annotated[
-    Welcome | ObservationFrame | Result | Refused | Closing, Field(discriminator="t")
+    Welcome | Clock | ObservationFrame | Result | Refused | Closing, Field(discriminator="t")
 ]
-"""Everything a client ever receives on revision 2 as landed on `main` (S11-A)."""
+"""Everything a client ever receives on revision 2 as landed on `main` (S11-A, S11-B, S11-D)."""

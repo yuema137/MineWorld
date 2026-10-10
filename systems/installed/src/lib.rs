@@ -52,4 +52,5 @@ mineworld_sdk::installed! {
     Consumption => mineworld_consumption::ConsumptionSystem,
     Bodies => mineworld_bodies::BodiesSystem,
     Calendar => mineworld_calendar::CalendarSystem,
+    Weather => mineworld_weather::WeatherSystem,
 }
