@@ -439,11 +439,12 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** `docs/DECISIONS.md` (`ARC-81`, `DEP-43`, note under `ARC-25`); `docs/ARCHITECTURE.md`
   persistence section; `persistence/README.md`; `step-06-persistence.md` L-6 note; workspace
   `Cargo.toml` `zstd = { version = "0.13", default-features = false }`; `persistence/Cargo.toml`.
-- [ ] Implementation: the files above.
-- [ ] Validation: `cargo deny check`; `cargo check --workspace`; both doc checks; push and confirm the
-  three-platform build is green before C2 depends on it.
-- [ ] Review: each decision names alternatives and revisit triggers; `ARC-25`'s wording is extended,
-  not relaxed.
+- [x] Implementation: the files above. *Evidence: §14.2.*
+- [x] Validation: `cargo deny check`; `cargo check --workspace`; both doc checks; push and confirm the
+  three-platform build is green before C2 depends on it. *Evidence: §14.2 (deny, check, doc checks
+  local; the three-platform build is the draft PR's first CI run, recorded there).*
+- [x] Review: each decision names alternatives and revisit triggers; `ARC-25`'s wording is extended,
+  not relaxed. *Evidence: §14.2.*
 - **Failure cases.** `zstd-sys` fails on a CI leg: stop, record, propose `ruzstd` (material: a
   dependency change returns to the operator).
 
@@ -628,3 +629,66 @@ are assigned by the primary session's QSR-6 ruling (§13.1), which is this PR's 
 implementation proceeds; `overall.md` is the primary session's file (§12 POST-MERGE SYNC OWNER), so this
 session does not edit it. Request R-overall (§11) stands: the primary session adds the row
 `S6 SR | ARC-81 | DEP-43 (zstd)` before merge.
+
+**Base measurements (for ASR-8 and ASR-11; release profile, `/tmp/impl-sr/base-mineworld` built from
+a5f5357, macOS 26.2 arm64).**
+
+```text
+mineworld run worlds/market-town --headless --seed 7 --days 30  --save …/base-30    wall 5.17 s
+  world.sqlite 373 882 880 B; journal 29 193 rows (head 29 193); facts 38 286; snapshots 457
+mineworld run worlds/market-town --headless --seed 7 --days 300 --save …/base-300   wall 57.30 s
+  world.sqlite 3 795 013 632 B; journal 290 995 rows; facts 375 619; snapshots 4 547
+SHA-256 over the stored rows, computed identically for base and head:
+  sqlite3 DB "SELECT event_id, revision, hex(fact) FROM facts ORDER BY event_id" | shasum -a 256
+  sqlite3 DB "SELECT revision, at, action_id, hex(entry) FROM journal ORDER BY revision" | shasum -a 256
+  base-30   facts   a1fc10a8a991e5b73a5b38f0c66e3425c39684b196fdac40296c14042f53ddfa
+            journal ae11e5fccc856a91c360ae27218b7b0164f0c5710bc5e7d0fa01754c9008ae33
+  base-300  facts   5b1dd246e35f45f81334e40c5b9c4a591f275c5b84c3a0710ed27832e86e9707
+            journal 60d8e807360e3b8545a201a6ca3b4febdea296bd9a4fda92c59d3c077aaeebd2
+```
+
+The base counts equal §4.1's (measured at bb62edf), so ASR-11's numbers stand at this base.
+
+**ASR-8 fixture.** `persistence/tests/fixtures/format-2/world.sqlite` (53 248 B, SHA-256
+`346f61f8f1e6195dcc240d4fe9782e416e0ffa69e2b0aad79057c13991118344`) was written by the base build:
+a scratch detached worktree at a5f5357 (`/tmp/impl-sr/base-tree`, never pushed) with one uncommitted
+ignored test that creates a save of the persistence test world (`support::assembled`, interval 8,
+12 scripted steps; head 20, snapshot rows at 1, 8, 16, uncompressed). It is `format 2` in its manifest
+and every row is a format-2 build's own bytes.
+
+*Deviation D-1 (bounded).* ASR-8 names `run`, `serve`, `replay` and `inspect`. Those commands open a
+save of a real World Pack, and the smallest base-built pack save (social-cafe, one day) is 4.8 MB —
+too large to commit. So the committed fixture proves a genuine format-2 save is refused by the library
+(`PersistentWorld::resume`, `verify`, `verify_from`); the four commands are shown to route that refusal
+by a CLI test that writes a social-cafe save with the head build and sets its manifest format to 2 with
+SQL (the same technique `save.rs` already uses for formats 1 and 3). Both halves are recorded under C2.
+
+### 14.2 C1 — decisions, spec edits, the dependency
+
+```text
+docs/DECISIONS.md            ARC-81 and DEP-43 appended; a dated note under ARC-25's limitations
+docs/ARCHITECTURE.md §8      snapshots retained by rule, compressed; the log kept whole
+persistence/README.md        one paragraph on retention and compression
+step-06-persistence.md L-6   dated note: snapshot pruning landed in SR; the log still whole
+Cargo.toml                   zstd = { version = "0.13", default-features = false } (workspace)
+persistence/Cargo.toml       zstd = { workspace = true }
+Cargo.lock                   + zstd 0.13.3, zstd-safe 7.3.0, zstd-sys 2.1.1+zstd.1.5.7,
+                             jobserver 0.1.35, getrandom 0.4.3, r-efi 6.0.0 (cc's `parallel`)
+```
+
+Discovery (recorded in DEP-43): `zstd-safe` and `zstd-sys` declare BSD-3-Clause, not MIT/Apache-2.0 as
+the design's §5 table said; both are on `ARC-55`'s list. `zstd-sys` turns on `cc`'s `parallel`
+feature, which brings three build-time crates (above), all admitted. `zstd-sys`'s build switches to a
+system libzstd only with its `pkg-config` feature or the `ZSTD_SYS_USE_PKG_CONFIG` variable; neither is
+set (`cargo tree -e features -i zstd-sys` shows only `std`).
+
+```text
+cargo deny check licenses sources bans     bans ok, licenses ok, sources ok           PASS
+cargo check --workspace --all-targets      Finished, no warnings                      PASS
+python3 scripts/check_doc_headings.py      193 numbered sections … none duplicated    PASS
+python3 scripts/check_decision_ids.py      106 decision ids, all distinct             PASS
+```
+
+Review: ARC-81 lists options 5.1–5.8 with reasons and revisit triggers; DEP-43 lists zstd levels,
+deflate, lz4, ruzstd, sqlite-zstd and ZIPVFS and its re-evaluation trigger. ARC-25's text is untouched;
+the note under it extends the limitation for snapshots and restates that the log is kept whole.

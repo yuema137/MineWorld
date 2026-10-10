@@ -278,6 +278,13 @@ rather than a `manifest.json` beside it, so that it is committed in the same tra
 revisions it describes ([`DECISIONS.md`](DECISIONS.md) `DEP-2`). A save whose format, composition, system
 versions or component schemas differ from the running code is refused by name, never decoded on a guess.
 
+The fact log and the journal are kept whole: no row of either is ever deleted, rewritten or
+re-encoded. Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
+`ARC-81`): genesis, an anchor every 64 scheduled snapshots, and the newest two; every other snapshot is
+deleted in the same transaction that commits the next scheduled one. A stored snapshot is a zstd frame
+of its JSON encoding (`DEP-43`); replay and verification compare the decoded JSON bytes, never the
+compressed ones.
+
 World semantics must not depend on the selected database (INV-14). A behavior that appears
 only under one backend is a defect in that backend, not a property of the world.
 
