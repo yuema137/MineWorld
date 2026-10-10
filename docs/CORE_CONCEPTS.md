@@ -243,8 +243,9 @@ summary:
     and was promoted after six months.
 ```
 
-A controller normally reads the summary. Debugging and evaluation tools follow the Event IDs
-back to the original facts. Compression therefore reduces **context**, never historical
+A controller normally reads the compression of its own perceived history; the objective biography's
+compression is a tool's view ([`DECISIONS.md`](DECISIONS.md) `ARC-59`). Debugging and evaluation
+tools follow the Event IDs back to the original facts. Compression therefore reduces **context**, never historical
 truth.
 
 ---

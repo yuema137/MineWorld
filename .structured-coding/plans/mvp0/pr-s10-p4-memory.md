@@ -536,8 +536,8 @@ full suite (test rules §8); the PR's CI is the one full run.
   - `cognition/lm-controller/pyproject.toml`: marker `real_binary`.
   - `scripts/ci_layer.py`: `python-smoke`'s cognition command gains `-m "not real_binary"`.
   - `tests/test_fts5_platform.py` and `memory/fts.py` (`available()`, the query builder).
-- [ ] Implementation: the files above.
-- [ ] Validation:
+- [x] Implementation: the files above (evidence §14.1 C1; one extra file, §14.3 X-1).
+- [ ] Validation (all local items done, §14.1 C1; the per-leg FTS5 line waits on the first CI run):
   - ruff, ruff format, pyright strict: zero findings;
   - `uv run --locked pytest cognition/lm-controller -k fts5` locally;
   - `python3 scripts/ci_layer.py --list python-smoke` shows the deselection; `--list core` and
@@ -545,10 +545,11 @@ full suite (test rules §8); the PR's CI is the one full run.
   - both doc checks;
   - **the PR's first CI run** reports FTS5 on all three legs (record per leg; this is the one place a
     pushed head is needed early — the branch is pushed after C1, and the draft PR opened).
-- [ ] Review:
+- [x] Review:
   - each DECISIONS entry names its alternatives and a revisit trigger (`REUSE_POLICY.md` §§11–12);
   - G-2 and G-6 match step-17 §12's wording;
   - the query builder quotes every term (P4-4).
+  Evidence: §14.1 C1.
 - **Failure cases.** FTS5 absent on a leg: record a bounded deviation, keep `LIKE` as that leg's path,
   continue. `--strict-markers` refuses an undeclared marker: the marker is declared in this commit.
 
@@ -759,10 +760,52 @@ Opened at C0 by the implementation session (2026-10-10), worktree
   `origin/main` has since moved to `bb62edf` (#140, `step-23-release.md` only); the base stays `573c205`,
   since nothing P4 depends on changed.
 
+**C1 — decisions, spec edits, the platform check, the marker.**
+
+- Files: `docs/DECISIONS.md` (`ARC-59`, `DEP-37`, appended after `ARC-60`); `docs/ARCHITECTURE.md` §8
+  (`cognition_cache/` removed; one paragraph: the store is the operator's, not world state, G-6);
+  `docs/CORE_CONCEPTS.md` §5.4 (G-2's sentence); `cognition/lm-controller/pyproject.toml` (marker
+  `real_binary`); `scripts/ci_layer.py` (`python-smoke`'s cognition command); `memory/__init__.py`,
+  `memory/fts.py` (`available()`, `query_terms`, `fts_string`, `like_pattern`);
+  `tests/test_fts5_platform.py`; `tests/test_structural_isolation.py` (X-1).
+- Static: `ruff check` "All checks passed!"; `ruff format --check` clean after `ruff format`; `pyright`
+  "0 errors, 0 warnings, 0 informations". PASS.
+- `uv run --locked pytest cognition/lm-controller -k "fts5 or ci_runs" -s`: 4 passed; the platform line
+  `[fts5] darwin arm64 CPython 3.14.5 SQLite 3.50.4 FTS5=True`. PASS (local leg only).
+- `python3 scripts/ci_layer.py --list` for `core`, `python` and `fast`: byte-identical to the base's
+  (`573c205`); `python-smoke` differs only in its cognition line, now
+  `uv run --locked pytest cognition/lm-controller -m 'not live_model and not real_binary'`. PASS.
+- Doc checks: 193 sections, none duplicated; 106 decision ids, all distinct (`ARC-59`, `DEP-37` added).
+- Review: `ARC-59` lists options (a)–(d) and its revisit triggers; `DEP-37` lists §4's eleven candidates
+  with verdicts, the limitation (CJK, FTS5 must be compiled in) and its triggers. G-2's sentence is step-17
+  §12's verbatim plus the `ARC-59` link; G-6 follows step-17 §12 (the store lives in the operator's
+  cognition directory because it is not world state). `fts_string` quotes and doubles; `query_terms`
+  already strips `"` (split on non-alphanumerics), so the doubling is a second guard.
+- FTS5 per CI leg: recorded in §14.4 with the PR's first run.
+
 ### 14.2 Mutations
 
 (Each planted, run, observed red, reverted.)
 
 ### 14.3 Deviations and discoveries
+
+**X-1 (bounded; C1) — `python-smoke` must restate `not live_model`.**
+
+```text
+Previous assumption: python-smoke "adds -m \"not real_binary\" to the cognition command" (§5.10).
+Audit evidence:      the member's addopts end in `-m "not live_model"` (pyproject.toml); pytest parses
+                     addopts before the command line and `-m` is a single-valued option, so a second
+                     `-m` replaces the first rather than combining with it. tests/test_structural_
+                     isolation.py::test_ci_runs_pytest_once_per_member pinned the cognition line of both
+                     layers to the bare command.
+Corrected:           the python-smoke cognition command is
+                     `-m "not live_model and not real_binary"`; the isolation test pins each layer's
+                     exact line (python: bare; python-smoke: with that expression) and still refuses any
+                     line that selects live_model.
+Impact:              none on scope: the same deselection the design asked for, without silently
+                     re-selecting live_model tests. One extra file touched, inside
+                     cognition/lm-controller/** (AP4-13).
+Validation:          `ci_layer.py --list python-smoke`; the isolation test passes.
+```
 
 ### 14.4 CI runs per head
