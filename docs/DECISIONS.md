@@ -6325,3 +6325,191 @@ drizzle and heavy-rain intensity thresholds, and the WMO okta scale (step-19 QTW
 **Accepted limitations.** One climate per world (regional weather is QTW-12). Wet-hour counts by daily
 amount are a stated design default, not a measured climatology, until the hourly layer (TW-g). Wind has
 no day-to-day noise in this version.
+
+---
+
+## ARC-57 — Cognition budgets: cost ceilings on wall time, decided before the recorder and the backend
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`mineworld-cognition`,
+`budget.py`, `gateway.py`) · **Approved by** the primary session's ruling QS10-18 (2026-10-08) and the
+P5a freeze (QP5-4, 2026-10-09) · **Relates to** `ARC-56`, `ARC-58`, `INV-4`, step-17 `I-13` · **Design**
+`.structured-coding/plans/mvp0/step-17-cognition.md` §3.10, §15.6;
+`.structured-coding/plans/mvp0/pr-s10-p5-backends.md` D-P5-8, §5.3, AP5-7 · **Placeholder**
+`ARC-S10-d`
+
+**Problem.** A model call costs wall time on a GPU, or money on a user's hosted key. S11-B's
+`time_scale` lets one wall second be N simulated seconds, so a ceiling keyed on simulated time
+(`ARCHITECTURE.md` §9.1 as first written: calls per simulated hour, tokens per simulated day) costs N
+times as much per wall hour at scale N. A ceiling must also stop a call *before* it is made, or it bounds
+nothing.
+
+**Options considered:**
+
+```text
+(a) ceilings on simulated time (the first §9.1 text)   cost grows with time_scale; rejected by QS10-18
+(b) ceilings on wall time, checked after the call      a refused call has already been paid for
+(c) ceilings on wall time, checked before the call,    chosen
+    with the actual usage charged after it
+(d) one shared ceiling per process, no per-seat one    one talkative seat starves every other seat
+```
+
+**Choice: (c).** Cost ceilings are keyed on **wall** time and read only an injected clock (UTC epoch
+seconds); no budget code reads simulated time. The **context** bound stays on simulated time, because
+memory is about a life (`I-13`); it belongs to memory and context assembly (P4, P6), not here.
+
+- **Per seat** (`EntityKey`), rolling windows: `calls_per_wall_hour` (default 20, 3 600 s) and
+  `tokens_per_wall_day` (default 30 000, 86 400 s) — `ARCHITECTURE.md` §9.1's numbers re-keyed.
+- **Per process:** `max_in_flight` (default 2, FIFO) and `call_timeout_s` (default 20).
+- **Order** (`ModelGateway.complete`): key-material check → budget pre-check → in-flight slot → timeout
+  around (recorder → backend) → charge. A refused call reaches neither the recorder nor the backend.
+- **Pre-check** reserves `ceil(utf8_bytes(messages) / 4) + max_output_tokens`, erring toward refusal; the
+  **post-charge** uses the backend's reported usage, or the estimate flagged `estimated`. A transport
+  failure charges the call and no tokens; a timeout charges the call.
+- **Ledgers:** an in-memory one for tests and a SQLite one (standard-library `sqlite3`) at a path the
+  operator configures, never inside a world save (`INV-4`), so a restart neither resets nor
+  double-counts a window.
+- **Outcomes** are typed, never exceptions: `Completed | Refused | Failed`. A controller falls back on
+  `Refused` and `Failed` (P6).
+
+**Consequences.** A world's `time_scale` changes nothing about what cognition may spend per hour of the
+operator's day. A crash-looping cognition process cannot spend again after each restart. Prices are
+never modelled: tokens are reported, never priced (step-17 §3.10.4).
+
+**Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
+no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
+
+---
+
+## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`record.py`,
+`backend/canonical.py`) · **Approved by** the primary session at the P5a freeze (2026-10-09), under the
+operator's rulings QS10-14 (recorded outputs, tests with no network) and QS10-19 (local models only)
+· **Relates to** `ARC-56`, `ARC-57`, `AC-4`, `CLAUDE.md` §4 rule 10 · **Design** step-17 §3.11, §4.5;
+`pr-s10-p5-backends.md` D-P5-5, D-P5-6, D-P5-7, AP5-1 … AP5-5, AP5-8 · **Placeholder** `ARC-S10-e`
+
+**Problem.** Core tests never need a live model (`CLAUDE.md` §4 rule 10), yet the cognition path must be
+exercised with real model outputs, deterministically, on every platform. `AC-4` requires that swapping
+the backend needs no World Pack edit, so a recording must replay under any backend.
+
+**Options considered** (P5a §4.3, with licences and maturity):
+
+```text
+vcrpy / pytest-recording (MIT)   HTTP cassettes: provider wire formats, URLs and headers to scrub; a
+                                  cassette recorded against Ollama does not replay under llama.cpp; no
+                                  httpx2 support found
+respx (BSD-3-Clause)              mocks httpx, not httpx2; HTTP-level, so provider-specific
+LiteLLM caching (MIT)             the key contains the provider-prefixed model name
+inline-snapshot (MIT)             reference only: its review-the-diff workflow is the model for re-recording
+our own interface-level cassette  chosen
+```
+
+**Choice.** A cassette records at **our** interface, above HTTP:
+
+- **The key** is `sha256` over canonical JSON of `{"key_scheme": 1, "request": CompletionRequest}`:
+  UTF-8, sorted keys, `(",", ":")` separators, no ASCII escaping, no Unicode normalization, and **no
+  floats** (a float anywhere, including inside an output schema, is refused). The request holds no
+  provider, model, URL, tier, binding or key, so one cassette replays under every backend.
+- **The format** is JSON Lines, UTF-8, LF: a header `{"cassette": "mineworld-cognition", "format": 1,
+  "key_scheme": 1}`, then entries `{key, request, completion, meta: {binding, model, recorded_at,
+  latency_ms}}`. Never a URL, a header, a key, `key_env`, or a transport failure.
+- **Replay is strict and ordered.** Entries are grouped by key in file order; the n-th call with a key
+  returns the n-th entry; one more is a miss (`exhausted`), an unknown key is a miss (`absent`, with the
+  nearest recorded request and the first differing JSON path). A miss is an exception, never a fallback,
+  and never reaches a backend. An entry whose `key` does not match its `request` is refused at load.
+- **Record is atomic**: it writes `<name>.jsonl.partial`, flushes each line, and replaces the cassette on
+  clean close; a crash leaves the old cassette and a visible `.partial`, which blocks the next record.
+- **Modes**, process-wide: `live`, `record`, `replay`, `scripted`. In `replay` and `scripted` no backend
+  object is constructed and the HTTP adapter is never imported, which is stronger than a network guard
+  that allows loopback, where a user's local model listens.
+
+**Consequences.** Redaction holds by construction rather than by scrubbing. A prompt change invalidates
+the cassettes that recorded it, and the miss names the first differing path; re-recording from a real
+model is operator work (QS10-19).
+
+**Revisit** if a provider feature the plain request cannot express (tool calls, streaming deltas) must be
+recorded, which would be a `key_scheme` or `format` bump, never a silent change.
+
+---
+
+## DEP-27 — The model HTTP client: `httpx2`, and no provider SDK
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`httpx2>=2.13,<3`; locked 2.13.1) · **Approved
+by** the primary session (QP5-1, 2026-10-09) · **Licence** BSD-3-Clause · **Supersedes** step-17 §4.1's
+placeholder `DEP-S10-a` (the `openai` SDK) · **Relates to** `ARC-58`, `DEP-24`, `DEP-32` · **Design**
+`pr-s10-p5-backends.md` §4.1, §4.2, D-P5-4, D-P5-10, AP5-6
+
+**Problem.** Every backend MineWorld targets — Ollama, llama.cpp's server, LM Studio, vLLM, and the hosted
+OpenAI-compatible APIs a user configures (OpenAI, xAI, DeepSeek, Zhipu GLM, Mistral, Kimi, DashScope,
+Gemini, OpenRouter, Groq) — speaks the OpenAI-compatible `POST /chat/completions` schema. Something must
+send that request with a cancellable timeout, and must refuse every source of configuration but the
+operator's file.
+
+**Options considered** (facts read 2026-10-09):
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| `openai` SDK (`AsyncOpenAI(base_url=…)`) | Apache-2.0; 3.27.0 | **Rejected.** With an argument omitted its constructor reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_ADMIN_KEY`, `OPENAI_WEBHOOK_SECRET` and `OPENAI_CUSTOM_HEADERS`, and defaults to `api.openai.com`: a hosted key in a user's shell could redirect local traffic, or its key, to a hosted API (QS10-19). Its retries hide calls from the budget ledger. Its value-add, typed parsing, is ours anyway (local validation) |
+| `ollama-python` | MIT; 0.6.3 | Reference only: native API only; pins the old `httpx` line |
+| LiteLLM | MIT core, proprietary `enterprise/` | Rejected: the provider lives in the model string, and the tree is large |
+| `httpx` | BSD-3-Clause; 0.28.1, no release since 2024-12 | Fallback only: unmaintained; `openai` 3.x and the Anthropic SDK moved to `httpx2` |
+| **`httpx2`** | **BSD-3-Clause; 2.13.1 (2026-09-23)**, stewarded by Pydantic Services (whose `pydantic` is `DEP-24`) | **Adopted** |
+| `aiohttp` | Apache-2.0 AND MIT; 3.14.4 | Rejected: nine runtime dependencies and a server framework, for one POST per decision |
+| standard library (`urllib.request` in a thread) | PSF | Rejected: blocking I/O in a thread cannot be cancelled when the timeout fires |
+
+**Choice.** One adapter of our own, `backend/openai_compatible.py`, about 200 lines over
+`httpx2.AsyncClient`: request mapping, response parsing, error mapping, **no retries** (one call is one
+ledger entry). It is constructed only from a typed `BackendConfig`; `base_url` has no default; it reads
+no environment variable except the one `key_env` names. It is the only module that imports `httpx2`.
+
+**Verified at P5a (C1), not assumed:**
+
+- `httpx2` 2.13.1 exposes `AsyncClient`, `Timeout` (per-phase), `MockTransport` (sync and async
+  handlers, `httpx2/_transports/mock.py`) and the `httpx` exception hierarchy (`ConnectError`,
+  `TimeoutException`, …).
+- Its dependencies (`anyio`, `httpcore2`, `h11`, `idna`, `truststore`; `typing-extensions` below 3.13)
+  are pure-Python `py3-none-any` wheels, so the universal lock serves Linux, macOS and Windows alike.
+  `httpx2-jsfetch` is locked but installed only on `emscripten`.
+- **Finding:** `AsyncClient(trust_env=True)`, the default, reads proxy variables, `.netrc` and
+  certificate-file variables from the environment (`httpx2/_client.py`). The adapter therefore passes
+  `trust_env=False`: a user who needs an HTTP proxy for a hosted API is not served by this version, which
+  is recorded as a limitation, not worked around with an implicit read.
+
+**Revisit** if the native Anthropic adapter needs the `anthropic` SDK (P5b compares it), if a needed
+provider feature (tool calls, batch, realtime) cannot be expressed in the plain schema, or if `httpx2`
+stops being maintained — the switch to `httpx` or `aiohttp` is one file.
+
+---
+
+## DEP-32 — Reading a `.env`-style key file: `python-dotenv`'s `dotenv_values`, never `load_dotenv`
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`python-dotenv>=1.2,<2`; locked 1.2.4) ·
+**Approved by** the operator's requirement of 2026-10-09 (API keys through a `.env`-style file) and the
+primary session at the P5a freeze (QP5-6, QP5-10 … QP5-12) · **Licence** BSD-3-Clause · **Relates to**
+`DEP-27`, `ARCHITECTURE.md` §9.2 · **Design** `pr-s10-p5-backends.md` §4.2b, D-P5-9, D-P5-14, AP5-9,
+AP5-13
+
+**Problem.** A user's hosted API needs a key. The configuration names only the **variable** (`key_env`);
+its value comes from the process environment, or from a `.env`-style file the operator names. That
+file's format (quoting, `export` prefixes, comments, multiline values, CRLF) is easy to get subtly wrong.
+
+**Options considered:**
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| **`python-dotenv`** | **BSD-3-Clause; 1.2.4; no runtime dependencies** | **Adopted**, one call: `dotenv_values(path, interpolate=False)`, which returns a mapping and does not touch `os.environ` |
+| our own parser | ~40 lines | Rejected: the quoting and escaping corner cases would be ours to find (`REUSE_POLICY.md` §12) |
+| `pydantic-settings` | MIT | Rejected: it binds every settings field to environment variables; our file is TOML and only key values come from the environment |
+| `environs` | MIT | Rejected: wraps `python-dotenv` and mutates `os.environ` by default |
+| process environment only | — | Kept as one of two sources, not the only one: the operator asked for `.env`-style files |
+
+**Choice.** `secrets.py` is the only importer of `dotenv` and the only reader of a key. The process
+environment wins over the file (`python-dotenv`'s own `override=False` default). Never `load_dotenv`, so
+a file's values never become ambient credentials for a child process or for another library's implicit
+read; never interpolation; never a default file location. A key file inside a directory holding a
+`world.yaml` is refused (credentials never travel with a world), and on macOS and Linux a file readable
+by group or others is refused, as `ssh` refuses a key. A key value lives in a `Secret` whose `repr` is
+redacted, and is never logged, recorded, put in an exception, or written to the ledger.
+
+**Revisit** if `python-dotenv` gains runtime dependencies or changes `dotenv_values`' contract, or if
+an OS keychain becomes a required source (a separate decision).

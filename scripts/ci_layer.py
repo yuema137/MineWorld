@@ -106,12 +106,19 @@ LAYERS: dict[str, list[list[str]]] = {
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
 # rather than the literal `python3`, which Windows does not have; these layers also run outside the
 # container, on Windows and macOS.
+# The workspace's members (root pyproject.toml): the SDK (S10 P3) and the cognition package (S10 P5a).
+PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
-    ["uv", "run", "--locked", "ruff", "check", "sdk/python"],
-    ["uv", "run", "--locked", "ruff", "format", "--check", "sdk/python"],
-    ["uv", "run", "--locked", "pyright", "sdk/python"],
+    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
 ]
+# pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
+# ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
+# and both members' `addopts` (the network guard among them) would be dropped silently
+# (pr-s10-p5-backends.md D-P5-11). The cognition member's `addopts` also deselect `live_model`; no CI
+# command selects that marker (D-P5-12).
 # The static checks are also part of `fast`: they add about 6 s to it, measured on PR #98's first run
 # (uv sync 3.0 s, ruff 0.1 s, pyright 2.5 s), well under the 60 s the ruling allows (QP3-3), so a Python
 # lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
@@ -122,12 +129,15 @@ LAYERS["python"] = [
     # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
     ["cargo", "build", "-p", "mineworld-cli"],
     ["uv", "run", "--locked", "pytest", "sdk/python"],
+    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
-# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else.
+# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else. The
+# cognition suite needs no binary and runs whole.
 LAYERS["python-smoke"] = [
     *PYTHON_STATIC,
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks

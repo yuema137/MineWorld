@@ -2133,9 +2133,10 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 
 # 16. PR E-c — a System Pack from outside the repository (PR design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — with the operator's rulings and the
-cross-platform requirement of §16.12, which binds this design and overrides it where they differ.
-Implementation runs in a fresh session under §16.11.
+**Lifecycle:** `MERGED (2026-10-10)` — PR #99, merge commit `0ba037f`, final head `adb724f`, CI run
+38013316992 (§16.8 E-Ec-final). Was `DESIGN FROZEN (2026-10-08), primary session` — with the operator's
+rulings and the cross-platform requirement of §16.12, which binds this design and overrides it where
+they differ. Implementation ran in a fresh session under §16.11.
 
 **Identifiers.** `ARC-66` is assigned (§15.0 FQ-b5): the revision of `ARC-33`'s sentence, step
 placeholder `ARC-SE-a`. `DEP-Ec-a` (`cargo-deny`) takes **DEP-22** and `DEP-Ec-b` (the third-party pack
@@ -2538,9 +2539,9 @@ size).
   passed, failed, ignored, filtered); `check_scratch.py left`; EC-3 (a), (b), (c); EC-6's M-C6 and EC-9 (both on a scratch copy of the
   workspace, rebuilt, deleted afterwards); EC-10's digests
   and `validate` comparison; both doc checks (E-Ec8; the gate re-run on the final head is recorded there).
-- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged. — **Blocked by F-Ec3** (E-Ec8): Linux `test` cannot
-  be green on this branch without an edit outside §16's paths; the PR stays a draft until the operator
-  rules.
+- [x] PR opened, READY FOR OPERATOR REVIEW. Not merged by this session. — F-Ec3 ruled (A) and applied
+  (E-Ec8); READY on head `adb724f` with `fast`/`test`/`platforms` green (run 38013316992); **MERGED** as
+  `0ba037f` on 2026-10-10 (E-Ec-final).
 
 ## 16.7 Test ownership
 
@@ -2825,21 +2826,38 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     keeps `cargo deny`. `cargo fetch --locked` was first left out, on the reasoning that EC-4's
     `--filter-platform` made it unnecessary; the PR's run 38011128259 on `2e1903e` refuted that on both
     OSes ("failed to download `glob v0.3.4`" — a dev-dependency of a workspace crate the layer never
-    builds), so it is re-added as the layer's first command, as the coordinator allowed.
+    builds), so it is re-added as the layer's first command, as the coordinator allowed. The worldpack
+    and CLI portability fixes are E-d's (same separator rule), and E-c's `packs.rs` test
+    `every_system_pack_is_listed_bundled_or_third_party…` is re-added on E-d's file. Docs: unions
+    (DECISIONS 87 ids distinct; PACKAGE_FORMAT §8 and MVP_STATUS keep E-c's and E-d's rows). **Deviation
+    from PD-p2 (bounded, coordinator)**: E-d's job uses `-latest` labels and a full checkout instead of
+    E-c's pinned labels and sparse checkout. Local checks on the merged tree: packages, worldpack,
+    installed-systems all passed (worldpack refusals 38); CLI packs 6, requirements 6, entity_packs 5,
+    third_party 3; acceptance (package_sources 11, ac1 14 …) all passed; clippy `-D warnings` clean;
+    `cargo deny check` ok; fmt, doc checks and pins pass.
   - **Merge of `origin/main` @ `cf18713`** (13b #97, TW-b #113, S10-P5 plan, S11-D fix; the PR showed
     CONFLICTING and no `pull_request` run started): unions in `systems/installed` (weather's line, then
     fishing's) and DECISIONS (90 ids, distinct); 13b's `ci.yml` and native action taken as merged (the
     `platforms` job now on 13b's pinned `macos-26`, `windows-2025`); `ci_layer.py` held two identical
     `resolved()` (13b's and E-c's), one removed; the layer action's `CARGO_HOME` change (F-Ec3) survives
     the merge. `cargo metadata --locked` ok; installed-systems and acceptance, CLI third_party 3, packs 6,
-    requirements 6, entity_packs 5 passed; clippy and `cargo deny` clean. The worldpack and CLI portability fixes are E-d's (same separator rule), and E-c's
-    `packs.rs` test `every_system_pack_is_listed_bundled_or_third_party…` is re-added on E-d's file. Docs:
-    unions (DECISIONS 87 ids distinct; PACKAGE_FORMAT §8 and MVP_STATUS keep E-c's and E-d's rows).
-    **Deviation from PD-p2 (bounded, coordinator)**: E-d's job uses `-latest` labels and a full checkout
-    instead of E-c's pinned labels and sparse checkout. Local checks on the merged tree: packages,
-    worldpack, installed-systems all passed (worldpack refusals 38); CLI packs 6, requirements 6,
-    entity_packs 5, third_party 3; acceptance (package_sources 11, ac1 14 …) all passed; clippy `-D
-    warnings` clean; `cargo deny check` ok; fmt, doc checks and pins pass.
+    requirements 6, entity_packs 5 passed; clippy and `cargo deny` clean. (Ledger note at closeout: this
+    entry and the one before were interleaved by an edit on the branch; separated in `docs/ec-closeout`,
+    wording unchanged.)
+- **E-Ec-final — MERGED.** PR #99 merged by the operator/primary session as merge commit
+  **`0ba037f9c234b1db76fa228808dbaff7614c3b86`** at 2026-10-10T01:47:49Z, after the primary session's
+  review (its own mutation — `origin_word` always `"bundled"` — was caught by
+  `tools/cli/tests/packs.rs` `every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it`).
+  Final PR head **`adb724f614c7449f4b64981ff84460346545e4f2`**; final CI run
+  <https://github.com/yuema137/MineWorld/actions/runs/38013316992>: `fast`, `test`, `platforms (macos-26)`,
+  `platforms (windows-2025)` success (and `python` on ubuntu, macOS, Windows success; 13b's
+  `mac`/`windows`/`test-windows`/`ac8`/`linux-arm`/`scenario` skipped on PRs by design). Pack
+  `yuema137/mineworld-pack-fishing` @ `b40e71f`, tag `v0.1.0`, its CI green on three OSes (run
+  37907882591). **EC-3's image check: INCONCLUSIVE** — the `image` job (`workflow_dispatch`) was never
+  dispatched, so the runtime image's `--locked` build with the git-pinned pack is unproven; the Linux
+  container layers build the same graph. Scratch branches, `/tmp` worktrees and local leftovers removed;
+  the `impl-ec` worktree is removed after this closeout; `ext-fishing` (the pack clone) is kept.
+  Parent synchronization (§9.4, the step header, `overall.md`): the primary session's.
 
 ## 16.9 Freeze questions
 
