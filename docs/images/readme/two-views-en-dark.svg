@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500" role="img" aria-label="One world, two views: clicking Alice in 2D and walking up to her in 3D send the same request to one server, which checks the rule and sends the same answer back to both views.">
+<rect width="1600" height="500" rx="24" fill="#10151c"/>
+<rect x="24" y="40" width="420" height="340" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="590" y="40" width="420" height="340" rx="18" fill="#2a2216" stroke="#e0a458" stroke-width="2.5"/>
+<rect x="1156" y="40" width="420" height="340" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<g stroke="#e0a458" stroke-width="2.5" fill="none">
+<path d="M446 170H574"/><path d="M1154 170H1026"/>
+<path d="M588 270H460"/><path d="M1012 270H1140"/>
+</g>
+<g fill="#e0a458">
+<path d="M588 170l-14-8v16z"/><path d="M1012 170l14-8v16z"/>
+<path d="M446 270l14-8v16z"/><path d="M1154 270l-14-8v16z"/>
+</g>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" letter-spacing="2" fill="#e0a458">
+<text x="52" y="82">2D VIEW</text>
+<text x="618" y="82">SERVER</text>
+<text x="1184" y="82">3D VIEW</text>
+</g>
+<g font-size="27" font-weight="600" fill="#e8ecf2">
+<text x="52" y="130">You click Alice,</text>
+<text x="52" y="166">then choose “Talk”</text>
+<text x="618" y="130">One world</text>
+<text x="1184" y="130">You walk up to Alice</text>
+<text x="1184" y="166">and press E</text>
+</g>
+<g font-size="20" fill="#a7b0bd">
+<text x="52" y="318">Seen from above,</text>
+<text x="52" y="346">in an illustrated style</text>
+<text x="618" y="176">Alice is behind the counter.</text>
+<text x="618" y="206">Talking needs you within 3 m.</text>
+<text x="618" y="318">It checks the rule, writes down</text>
+<text x="618" y="346">what happened, and answers.</text>
+<text x="1184" y="318">First or third person,</text>
+<text x="1184" y="346">in a realistic style</text>
+</g>
+<rect x="52" y="190" width="250" height="100" rx="10" fill="#202934" stroke="#2c3440" stroke-width="1.5"/>
+<rect x="58" y="225" width="238" height="30" rx="6" fill="#3a3020"/>
+<g font-size="18" fill="#e8ecf2">
+<text x="70" y="216">Walk to Alice</text>
+<text x="70" y="246">Talk to Alice</text>
+<text x="70" y="276">Invite Alice to…</text>
+</g>
+<rect x="618" y="232" width="364" height="42" rx="10" fill="#18202a" stroke="#2c3440" stroke-width="1.5"/>
+<text x="636" y="260" font-size="18" fill="#7fd19c">✓ recorded: you spoke to Alice</text>
+<rect x="1184" y="196" width="364" height="88" rx="10" fill="#05080c"/>
+<g font-size="18" fill="#e8ecf2">
+<text x="1200" y="230">You: Hello! A coffee, please.</text>
+<text x="1200" y="262">Alice: I remember you.</text>
+</g>
+<g font-size="17" fill="#e0b878" text-anchor="middle">
+<text x="517" y="156">talk to Alice</text>
+<text x="1083" y="156">talk to Alice</text>
+<text x="517" y="300">same answer</text>
+<text x="1083" y="300">same answer</text>
+</g>
+<text x="800" y="450" text-anchor="middle" font-size="22" fill="#a7b0bd">The same request goes in, the same world comes out. Neither view decides anything.</text>
+</g>
+</svg>
