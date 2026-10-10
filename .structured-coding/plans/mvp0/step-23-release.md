@@ -1186,9 +1186,49 @@ C3  F-R1 (app.gd repo_path with --root) and F-R2 by D-Ra-2 (text.gd module_dir w
 C4  export presets (2D and 3D: Linux x86_64 and arm64, Windows x86_64, macOS universal; filters; custom
     feature), the F-R4 override, D-Ra-3, and the MS-Ra-1 fix if it is ruled into R-a; headless exports
     succeed; the exported 3D link probe prints its verdict                      [ ] impl  [ ] validation  [ ] review
+C4a (the 2D half, ahead of RL-b) clients/2d/export_presets.cfg (macOS universal, Windows x86_64, Linux
+    x86_64, Linux arm64; custom feature mineworld_release; exclude shots/*, *.md; no credentials; macOS
+    built-in ad-hoc signing) and D-Ra-3 in clients/2d/project.godot               [x] impl  [x] validation  [x] review
+      validation: all four presets export headless, exit 0 (2D pack 177 048 bytes; engines 67.1–109.3 MB);
+            the exports rewrote neither project.godot nor export_presets.cfg (git diff)
 C5  scripts/package.py (build, export, assemble, budget with the top-20 report, probe, --self-test with a
     planted shots/ file and a planted oversize file) and packaging/ (PLAY.txt, BUNDLE.toml template,
-    cargo-about configuration and template); one line in ci_layer.py fast       [ ] impl  [ ] validation  [ ] review
+    cargo-about configuration and template); one line in ci_layer.py fast       [x] impl  [x] validation  [x] review
+      impl: scripts/package.py (stdlib; Python 3.9 compatible, because macOS's python3 is 3.9.6 and has no
+            tomllib); packaging/PLAY.txt, BUNDLE.toml.in, about.toml (deny.toml's licences), about.hbs;
+            scripts/ci_layer.py fast += `python3 scripts/package.py --self-test` (report to the S13 lane)
+      validation: --self-test 17/17 ok (A-R3: planted shots/x.png and a GPL path inside a pack fail; A-R4: a
+            planted oversize pack fails; zip byte-identical twice; exec bits and fixed mtime kept; join line
+            read). read_pck checked on a real pack: RL-b's 3d.pck → 655 entries, the same top files and sizes
+            as Godot's own listing; budget → 259.5 MB FAIL, equal to `gzip -6`.
+            `assemble --target macos-universal --clients 2d` (C6 rehearsal, 3D pending): exit 0; server
+            universal (lipo, x86_64 + arm64); client .app adhoc-signed, `codesign --verify --deep --strict`
+            ok after unzip; archive 88.2 MB; 2D pack + Presentation Pack 6.0 MB; LICENSES/ = THIRD_PARTY_RUST.html
+            (cargo-about 0.9.2), godot/LICENSE.txt + COPYRIGHT.txt (SHA-256 pinned), fonts/OFL.txt,
+            assets/{3D_ASSETS, 2D_ART_PROVENANCE, MESHY…, OWLISHMEDIA…, PUZZLEANDY…}.txt.
+            A-R1 (2D): the archive unzipped into "…/scratch-s23-ra/MineWorld 世界/", `package.py probe
+            --clients 2d` → exit 0, "drive complete: PASS", pack loaded from the bundle's runtime/. Mutation:
+            the same exported client without --root → "cannot read ../../presentation/…" and the CJK font
+            error, i.e. plain drawing (F-R1, F-R2 unfixed)
+      review: probe stops only the server it started (SIGINT, CTRL_BREAK on Windows, kill after 10 s);
+              scratch through tempfile, removed; no network beyond loopback and the optional `gh api` fetch of
+              Godot's two notice files, checked against pinned SHA-256
+
+Bounded deviations recorded during C4a/C5:
+
+- **D-Ra-1 detail: packs beside the executables, not embedded** (Linux, Windows). Reason: `budget` and A-R3
+  read every pack's directory (`read_pck`), which an embedded pack makes awkward; Godot loads
+  `<executable>.pck` from beside the executable by itself. So `runtime/clients/` holds `mineworld-2d[.exe]` +
+  `mineworld-2d.pck` (and the same for 3D); macOS is unchanged (`.app`s). Validation: the 2D Linux and
+  Windows exports produce exactly these two files.
+- **BUNDLE.toml names each client's executable** (`client_2d`, `client_3d`, relative to `runtime/`),
+  because a macOS client's program is named after its Godot project (`Contents/MacOS/MineWorld 2D`).
+  R-c's launcher reads these keys rather than guessing names.
+- **Asset records ship as `.txt`.** A-R3 excludes every `.md`; `clients/3d-spike/ASSETS.md` and
+  `presentation/mineworld-default/2D/art/PROVENANCE.md` are copied as `LICENSES/assets/3D_ASSETS.txt` and
+  `2D_ART_PROVENANCE.txt` so the records travel with the files they cover.
+- **`messages.pot` and `.gdignore` are not shipped** under `runtime/clients/shared/settings/` (a template and
+  a Godot marker, read by nothing at run time).
 C6  gate on macOS: assemble macos-universal; probe from a folder "MineWorld 世界" outside any checkout;
     budget report; LICENSES/ complete                                           [ ] impl  [ ] validation  [ ] review
 ```

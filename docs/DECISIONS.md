@@ -7079,7 +7079,8 @@ plainly.
 with binaries; a hand-kept file drifts from `Cargo.lock`.
 
 **Choice.** `cargo-about` (Embark Studios, MIT OR Apache-2.0), version **0.9.2** (crates.io, read
-2026-10-10), installed with `cargo install cargo-about --version 0.9.2 --locked`, run at packaging time
+2026-10-10), installed with `cargo install cargo-about --version 0.9.2 --locked --features cli` (0.9.2 builds its
+binary only with the `cli` feature), run at packaging time
 against `Cargo.lock` with the repository's configuration and template under `packaging/`. It writes
 `LICENSES/THIRD_PARTY_RUST.html`. A crate whose licence the configuration does not accept fails the run,
 so a new licence is a reviewed change, as `DEP-22`'s `deny.toml` already makes it for the graph.
