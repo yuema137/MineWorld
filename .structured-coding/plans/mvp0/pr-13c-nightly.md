@@ -1073,10 +1073,61 @@ step-13 and step-14 prose), so every audited claim of §2 stands on the implemen
 | --- | --- | --- | --- | --- |
 | N-C0 | [x] this file | [x] | [x] | PR #158 run 38089513604: `changes` classified it docs-only, `fast` (docs layer) passed; merged as `3c8bbf3`. Review: done by the primary session at freeze (§14.1) |
 | N-C1 | [x] `docs/DECISIONS.md`: `ARC-48 note` (13c), `ARC-83`, `DEP-45`, placed after the 13x note; `.structured-coding/standards.md` one prose paragraph (no declaration change) | [x] | [x] | `check_decision_ids.py`: "109 decision ids, all distinct" (107 → 109); `check_doc_headings.py`: "193 numbered sections across 26 documents, none duplicated". Review: terms as defined (Layer, World Pack, System Pack); each ARC-83 point maps to §3.1–3.7; restart client wording follows `server/PROTOCOL.md` §4.2 (D-13c-1) |
-| N-C2 | [ ] | [ ] | [ ] | — |
-| N-C3 | [ ] | [ ] | [ ] | — |
-| N-C4 | [ ] | [ ] | [ ] | — |
-| N-C5 | [ ] | [ ] | [ ] | — |
+| N-C2 | [x] `ci_parity.py`: `--profile long` (`LONG_PROFILE_DAYS`, `SAVE_LONG_DAYS`; `run_days`, `saved_run`, `record_world`), `profile` in `[source]` only when not default, G-2's profile clause, `--timings`, `baseline check\|write`, `diff`, 15 self-test cases added (29 in all); `scripts/baselines.txt` from the laptop's long record | [x] | [x] | See N-C2 evidence below |
+| N-C3 | [x] `ci_layer.py`: layers `parity-long`, `stability`, `core-repeat` (and N-C4's two), `NIGHTLY_LAYERS` result files, four self-test lines in `fast`; `ci_stability.py` (`restarts`, `replay`, `replay-check`, self-test); `ci_repeat.py` (repeat, parse, `classify`, self-test) | [ ] local stability `replay` and MN-3 pending | [x] | See N-C3 evidence below |
+| N-C4 | [x] `.github/actions/godot/action.yml`; `ci_godot.py` (`fetch`, `slice`, `coverage`, self-test); layers `clients`, `clients-probes` | [ ] local `clients` / `clients-probes` runs pending | [x] | See N-C4 evidence below |
+| N-C5 | [x] `.github/workflows/nightly.yml`; `ci_nightly.py` (`gate`, `verdict`, `report`, self-test); `ci.yml`'s five `-nightly` exclusions; `check_ci_pins.py`'s action-SHA rule | [ ] first scratch push (syntax) pending | [x] | See N-C5 evidence below |
+
+Commit mapping: N-C2 is `798ecf2`. N-C3 and N-C4's programs (`ci_stability.py`, `ci_repeat.py`,
+`ci_godot.py`, the Godot action) are one commit, `a848d36`, inert until a layer names them; the layers
+(`ci_layer.py`), `fast`'s four lines and N-C5 are the next commit, so that no commit names a script it
+does not contain.
+
+**N-C2 evidence** (laptop, Darwin arm64, release build of `c65a963`, the scripts as committed in N-C2):
+
+- `ci_parity.py --self-test`: 29 cases, "passed" (the 14 earlier cases keep their verdicts, I-13c-2).
+- A-N9 PASS: `record` (default profile) by `main`'s script (`git show origin/main:scripts/ci_parity.py`,
+  run from `scripts/`) and by the PR's: both `e8fe59de4897…0c9adf`, `cmp` identical, 1 979 lines.
+- Determinism PASS: two long records of one head, `cmp` identical, both `12427f0991…4a4616` (768 395
+  bytes). Wall 366 s and 406 s.
+- Laptop timings (`--timings`): 1 000 days in memory — bodies-yard 47.5 s, lakeside 29.9 s, market-town
+  68.6 s, social-cafe 33.1 s (§2.4 guessed 70–95 s for a town); 300 days saved — 28.0 / 18.6 / 35.0 /
+  29.6 s, saves 2.59 / 2.14 / 3.80 / 2.54 GB. §8's per-leg estimate (25–35 min) is replaced by the CI
+  measurement in N-C6 (A-N11).
+- MN-1b PASS: one hex digit of market-town `summary-300` changed in a copy → exit 1, "world market-town
+  key summary-300: baseline …ef, record …ee"; bodies-yard's section removed → exit 1, "no baseline for
+  world bodies-yard".
+- Comparator mutation: G-2's profile clause weakened (`!= 1` → `> 2`) → "FAIL a default record among long
+  ones … FAILED: 1 case(s)"; restored → passed.
+- A-N3 cross-checks: F-13c-impl-1.
+
+**N-C3 evidence:** `ci_stability.py --self-test` 13 cases passed; mutation `after.revision < seen` →
+`< 0` → "FAIL a revision behind the kill fails"; restored. `ci_repeat.py --self-test` 9 cases passed;
+mutation `len(failing) == len(usable)` → `>= 1` → "FAIL failed in one sample, passed in two"; restored.
+Local `uv run --locked python scripts/ci_stability.py restarts --binary target/release/mineworld` (laptop,
+32 s): ten cycles on market-town, one instance throughout, revision at each start = the last seen before
+the kill (5, 9, 15 … 54), perceived cursor 135 → 197, faults 0; the killed save replayed ("54 revision(s)
+re-executed from genesis, 205 fact(s) and 1 snapshot(s) reproduced byte for byte"); PASS. A-N8 static:
+`--list` of `core`, `docs`, `parity`, `platforms`, `python`, `python-smoke` identical to `main`'s; `fast`
+= `main`'s plus the four self-test lines.
+
+**N-C4 evidence:** pinned SHA-512 values = the release's `SHA512-SUMS.txt` (`gh release download
+4.7.2-stable -R godotengine/godot-builds`, 2026-10-10); `fetch` on the laptop downloaded the macOS
+archive, its SHA-512 matched the pin (the once-only cross-check), `--version` "4.7.2.stable.official.
+ed1daf0bf"; a second `fetch` used the unpacked copy (cache path). MN-10 PASS: Darwin pin's 64th hex digit
+altered → exit 1, "SHA-512 mismatch for Godot_v4.7.2-stable_macos.universal.zip: pinned …, downloaded …;
+nothing unpacked", the destination empty. Self-test 12 cases passed; mutation "no summary → PASS" →
+"FAIL no summary line is INCONCLUSIVE" and "FAIL an empty transcript is INCONCLUSIVE"; restored.
+`ci_godot.py coverage` (laptop): "25 ignored Godot tests …; skips none".
+
+**N-C5 evidence:** `ci_nightly.py --self-test` 37 cases passed (MN-6's six gate cases among them);
+mutation of the gate's comparison (`==` → `!=`) → four MN-6 cases FAIL; restored. `check_ci_pins.py`
+passes on the tree; with `ci.yml:42` changed to `actions/checkout@v7` → exit 1 ".github/workflows/
+ci.yml:42: actions/checkout@v7 is not pinned to a full commit SHA"; restored. `git diff main --
+.github/workflows/ci.yml`: the five `-nightly` clauses and one comment line only. Review: every `run:`
+takes branch names, inputs and job outputs through `env:`; `issues: write` appears on `report` only; no
+`pull_request` trigger; every job but `gate` needs it; `parity-long` and `report` run `if: always()`;
+`compare`/`baseline` use `shell: bash` so `tee` keeps the exit status (pipefail).
 | N-C6 | [ ] | [ ] | [ ] | — |
 | N-C7 | [ ] | [ ] | [ ] | — |
 
@@ -1092,9 +1143,47 @@ step-13 and step-14 prose), so every audited claim of §2 stands on the implemen
   covered by `run.sh reconnect` (`clients-probes`). Bounded: the oracle (`/status`, `replay`) is
   unchanged. Validation: N-C3's local run.
 
+- **D-13c-2 — `baseline write RECORD [FILE]` rewrites the file in place.** §3.3 showed `baseline write
+  <record> > scripts/baselines.txt`; a shell redirect truncates the file before the script can read the
+  `reason` lines it must keep. The file argument defaults to `scripts/baselines.txt`. Self-test: "a
+  reason line is kept by write and ignored by check".
+- **D-13c-3 — one artifact per job, `nightly-<job>`.** §3.1.3 named `verdict-*`, `timings-*` and
+  `repeat-*` artifacts. Every nightly job writes into `artifacts/nightly/` (git-ignored by `/artifacts/`)
+  and uploads that directory as `nightly-<job>`: verdict, timings, layer results, probe verdicts, repeat
+  summaries and, for the parity legs, the long record. The report downloads `nightly-*`, each into its
+  own directory. A long record therefore defaults to `artifacts/nightly/parity-long-<os>-<arch>.txt`
+  (the default profile's `ac8-<os>-<arch>.txt` is unchanged).
+- **D-13c-4 — the nightly layers record how they ended.** For the verdict to tell "the layer never
+  started" (INCONCLUSIVE) from "it failed at a command" (FAIL) without reading the job log,
+  `ci_layer.py` writes `artifacts/nightly/layer-<layer>.txt` (`started`, then `passed …` or `failed at:
+  <command> (exit n)`) for the layers in `NIGHTLY_LAYERS` only. Per-PR layers write nothing; `--list core`
+  is unchanged (A-N8).
+- **D-13c-5 — a background Xvfb, not `xvfb-run -a`.** The layer runs inside `.github/actions/native`,
+  which a wrapper command would have to edit; `.github/actions/godot` starts `Xvfb :99` on Linux and
+  exports `DISPLAY` instead. Same display, no edit outside A-N10's list.
+- **D-13c-6 — the Godot tests run through `ci_repeat.py --times 1`.** Only so that the verdict names a
+  failing test (MN-5): `ci_repeat.py` writes `clients-tests.txt` with the failing names; one run, nothing
+  retried.
+- **D-13c-7 — `clients-probes` is a plain `ci_layer.py clients-probes` step after the native action's
+  `clients` layer**, run when the setup succeeded even if a Godot test failed (`if: success() ||
+  steps.clients.outcome == 'failure'`); a second composite would restore and save a second cache.
+- **D-13c-8 — CA-13 runs inside `ci_stability.py replay`, on the market-town 300-day save that program
+  just made with the release binary** (`MINEWORLD_CA13_SAVE`, the test's own hook), before the save is
+  removed. §3.4's layer line `cargo test … --test perceived -- --ignored` would have made a second
+  300-day save with the debug binary. S11-C's close ran it the same way (step-12 §17, CA-13: 20 s).
+- **D-13c-9 — the Godot cache key is `hashFiles('scripts/ci_godot.py')`**, not "the version and the
+  pinned hash": YAML cannot read the pin, and the script holds it. Any script edit re-downloads once;
+  `fetch` re-verifies the pin on every run anyway (its marker file).
+
 ### 12.2 Findings during implementation
 
-None yet.
+- **F-13c-impl-1 — the market-town ledger digest is a memory run's.** §3.3 expected TW-d's
+  `d5db8988…22ee` to equal the long record's `summary-300s` (saved). Local long record at `c65a963`:
+  market-town `summary-300` (memory, header kept, 360 lines) = `d5db8988bb9d…a922ee`, `summary-300s` =
+  `beb4ec5b…` (359 lines); `facts-300s` rows 375 619 = TW-d's "375 619 facts". Lakeside `summary-300s`
+  (349 lines) = Milestone E's `97dac8fc5086…bc6fce3` and `facts-300s` rows 356 689 = its "356689 facts".
+  Both ledger values are current; §3.3's pairing for market-town was the design's error, not a stale
+  ledger. Every `summary-300` equals the same commit's default (ac8) record (local, all four worlds).
 
 ---
 

@@ -13,6 +13,11 @@ to carry an `@sha256:` digest, because a tag alone can be re-pointed
 upstream; and it requires the build and runtime stages to name the same Debian release, because the
 binary is linked against the build stage's glibc.
 
+And every action a workflow or a composite action uses must be pinned to a full 40-hex commit SHA, never a
+tag or a branch, which can be re-pointed (step-14 I-S13-7): the nightly's report job holds `issues: write`,
+so an action re-pointed upstream would run with it (`docs/DECISIONS.md` ARC-83; 13c QC-7). A local
+`./` action is the repository's own and needs no pin.
+
 Exits non-zero and names every disagreement with the values on both sides.
 """
 
@@ -32,6 +37,25 @@ RUST_TAG = re.compile(
     r"^(?:docker\.io/)?(?:library/)?rust:(?P<version>\d+\.\d+\.\d+)-slim-(?P<debian>[a-z]+)(?:@|$)"
 )
 DEBIAN_TAG = re.compile(r"^(?:docker\.io/)?(?:library/)?debian:(?P<debian>[a-z]+)-slim(?:@|$)")
+USES = re.compile(r"^\s*(?:-\s+)?uses:\s*[\"']?(?P<action>[^\s\"'#]+)")
+FULL_SHA = re.compile(r"@[0-9a-f]{40}$")
+
+
+def unpinned_actions(root: Path) -> list[str]:
+    """Every `uses:` of a workflow or composite action that is neither local nor pinned to a full SHA."""
+    files = sorted((root / ".github" / "workflows").glob("*.y*ml")) + sorted(
+        (root / ".github" / "actions").glob("*/action.y*ml")
+    )
+    problems = []
+    for file in files:
+        for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), start=1):
+            if (found := USES.match(line)) and not found.group("action").startswith("./"):
+                if not FULL_SHA.search(found.group("action")):
+                    problems.append(
+                        f"{file.relative_to(root).as_posix()}:{number}: {found.group('action')} is not pinned "
+                        "to a full commit SHA"
+                    )
+    return problems
 
 
 def main() -> int:
@@ -93,6 +117,7 @@ def main() -> int:
     releases = {debian for _, _, debian in rust_tags} | {debian for _, debian in debian_tags}
     if len(releases) > 1:
         problems.append(f"Dockerfile: base images name different Debian releases: {sorted(releases)}")
+    problems += unpinned_actions(root)
 
     if problems:
         for problem in problems:
@@ -100,7 +125,7 @@ def main() -> int:
         return 1
     print(
         f"toolchain pins agree: rust {channel} (rust-toolchain.toml, Cargo.toml, Dockerfile), "
-        f"Debian {releases.pop()}, every base and copied image pinned by digest"
+        f"Debian {releases.pop()}, every base and copied image pinned by digest, every action by full SHA"
     )
     return 0
 
