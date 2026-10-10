@@ -183,7 +183,7 @@ All pictures are taken in this project's own 2D and 3D views.
 | **Playing together** | ✅ invite codes, nicknames, a 30-second grace period to reconnect, a player taking over an AI character, a host who can pause or remove players; each person is told only what they could see or hear · 🚧 a test with four players at once |
 | **2D view** | ✅ (preview) walk, use doors, talk, invite, buy, give, eat and drink, all through menus the server provides |
 | **3D view** | ✅ walk, run, jump, enter the café and talk to Alice on a running server · 🚧 the whole street built from the server's map, bumping into things, shopping, running smoothly on ordinary computers |
-| **Settings** | 🚧 English and Simplified Chinese, resolution, window or full screen, frame-rate limit |
+| **Settings** | ✅ press Esc in either view: English or Simplified Chinese, 12- or 24-hour clock, window and display options (in 3D also VSync and a frame-rate limit). Settings stay on your computer and are shared by both views |
 | **AI characters** | ✅ the Python toolkit they connect with; one way to ask a model on your own computer or one of 11 online services with your own key · 🚧 the AI characters themselves, their memory, and Alice remembering in 3D what you told her in 2D |
 | **Computers** | ✅ the same world gives exactly the same results on macOS, Linux (Intel and ARM) and Windows, checked on every change to the main branch · 🚧 the full test suite on Windows |
 | **Many towns** | 🗺 next stage: several towns in one world, trains, buses and taxis, walking about on board, town and world maps |
@@ -200,7 +200,8 @@ You need [Rust](https://rustup.rs) (the right version installs itself) and
 # 1. Get the code
 git clone https://github.com/yuema137/MineWorld && cd MineWorld
 
-# 2. Play the market town in 2D (click to walk, click a person for a menu, Q for your own menu)
+# 2. Play the market town in 2D (click to walk, click a person for a menu, Q for your own menu,
+#    Esc for settings, including 简体中文)
 ./mineworld-2d
 
 # 3. Walk into the café in 3D and press E at the counter to talk to Alice
