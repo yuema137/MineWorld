@@ -3742,6 +3742,38 @@ D-SD5 (bounded) Paths beside §18.6's list, each a companion of a listed one or 
 D-SD6 (bounded) The design's §18.6 names `server/tests/support/mod.rs`; nothing in it needed to
       change (the admin socket tests keep their HTTP helper in server/tests/admin.rs, the only file
       that uses it). Not edited.
+F-SD1 (post-merge finding, 2026-10-09; fixed on mvp0/fix-s11d-session-race) A seated session was
+      put on the transport registry only after its `welcome` and `clock` frames had been sent:
+      server/src/session.rs `run` at main @ 3c69fac, l. 120–123 — `send(welcome)`, `send(clock)`,
+      then `connection.registry.register(..)`. A client that had read its welcome and asked
+      `GET /admin/sessions` at once could find itself missing; tools/cli/tests/admin.rs:249
+      (`a_kick_or_a_release_gives_the_seat_back_to_the_town_and_kills_the_resume`, DA-4) failed so
+      once in CI, listing one session of two. The world-side half the route joins with (the
+      subscriber's `SessionCount`) is pushed in `WorldRuntime::join`, before the join is answered,
+      so it was never the missing half. Reproduction before the fix on this machine (macOS, debug):
+      0 / 50 sequential runs and 0 / 50 runs at ten concurrent — the window is the two socket
+      writes, too short to hit locally; the CI failure is the evidence.
+      Fix: `session::greet` registers the session, then sends the welcome and the clock; if either
+      send fails the returned guard is dropped and the session is unlisted again. The invariant is
+      SD-D5's as written (the registry is "written by the session task at `welcome`"); no protocol frame, no
+      admin route or body, and no world-thread behaviour changed. `send` takes any
+      `Sink<Message> + Unpin` so `greet` can be driven by a test sink.
+      Regression: server/src/session/tests.rs — a sink that reads the registry at the moment each
+      frame is handed to it; `a_session_is_listed_before_its_welcome_is_sent` FAILED against the old
+      order (`[("welcome", []), ("clock", [])]`) and passes with the fix, deterministically;
+      `a_connection_that_goes_during_its_welcome_is_not_left_listed` pins the failure path. After the
+      fix the DA-4 test passed 50 / 50 sequential and 50 / 50 at ten concurrent.
+      F-12n-CI1 (`hosted_town`'s p99 tick budget, step-11 §21.15) examined for the same cause and
+      found not to share it: both failing CI runs (37977525973 at 19:02Z, 37981135635 at 19:34Z)
+      started before #104 merged (0744fee, 19:40Z), so neither ran S11-D's code; the registry is a
+      transport-side `std` mutex the world thread never takes, and nothing in the tick (`expire`,
+      `consult` with the journal's fsync per accepted request, `advance`, `sweep` with `try_send`)
+      waits on a session or a lock a session holds. The p99 is a wall-clock bound over ~1 200 ticks
+      in 120 s — the twelfth-longest tick — on a shared runner whose disk fsync and CPU are not the
+      server's (p50 0.3–0.4 ms in both failures; max 198 and 429 ms). Not fixed here; it stays with
+      the S11 lane as F-12n-CI1 records.
+      Gate on this branch (macOS): `scripts/ci_layer.py fast` passed, 11 commands;
+      `scripts/ci_layer.py core` passed — 186 test-result lines, none failing, hosted_town included.
 ```
 
 ## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
