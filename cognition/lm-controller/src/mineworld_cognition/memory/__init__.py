@@ -13,6 +13,7 @@ of a decision's context.
 from mineworld_cognition.memory.ingest import ConflictingFact, IngestReport, OutOfOrder, ingest
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import Citation, EventRange, StoreIdentity
+from mineworld_cognition.memory.retrieve import MemorySection, RecallQuery, SectionLine, retrieve
 from mineworld_cognition.memory.store import MemoryStore, NotAMemoryStore, StoreIdentityMismatch
 
 __all__ = [
@@ -20,11 +21,15 @@ __all__ = [
     "ConflictingFact",
     "EventRange",
     "IngestReport",
+    "MemorySection",
     "MemoryStore",
     "NameBook",
     "NotAMemoryStore",
     "OutOfOrder",
+    "RecallQuery",
+    "SectionLine",
     "StoreIdentity",
     "StoreIdentityMismatch",
     "ingest",
+    "retrieve",
 ]
