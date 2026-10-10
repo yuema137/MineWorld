@@ -1,7 +1,11 @@
 # PR RL-b — the 3D slice within the Default tier, and the San Diego skyline preview
 
-**Lifecycle:** `PR design — ready for freeze review`. Not frozen. Nothing here authorizes implementation until
-the primary session (or the operator) marks it `DESIGN FROZEN` and confirms the execution contract (§13).
+**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §0.1)`**
+
+**Lifecycle:** FROZEN. Scope (§1), the measurement rules and thresholds (§3), the decisions (§4, §5), the
+acceptance and mutation criteria (§6), the visual guards (§7) and the execution contract (§13) are frozen.
+Progress, evidence, audit findings and bounded corrections stay writable (§11 checkboxes, §14 ledger). A fresh
+session implements it in `impl-rl-b`. Superseded lifecycle: `PR design — ready for freeze review`.
 **Step:** S22 Realism, [`step-22-realism.md`](step-22-realism.md) §9.2 row RL-b, ruled 2026-10-09 (§13.1 there).
 **Runs as:** an MVP-0 visual-track PR, because the operator asked for it now (coordinator, 2026-10-09). It
 changes only presentation (`clients/3d-spike/**`, the launchers, docs).
@@ -29,6 +33,19 @@ session. The cost is that part 2 waits for part 1's review.
 - **QRL-6 (primary):** the tiers are accepted. This PR measures only on the operator's Mac. The Windows and
   Linux checks go on the operator's checklist and into S13's CI, and this PR's evidence says "measured on
   macOS".
+
+## 0.1 Freeze rulings (primary session, 2026-10-09; binding)
+
+| Question | Ruling |
+| --- | --- |
+| Q-RLb-1 | **One PR**, with the skyline preview as an isolated, separately revertible commit (C8). |
+| Q-RLb-2 | **Primitives ≤ 3 M is a pass condition** beside 16.7 ms, 2 000 draw calls and 2 048 MB (M-6). |
+| Q-RLb-3 | **Keep mipmaps.** Any visible change to distant paving goes into the operator's side-by-side at PR review (V-4); that is the default, **not a stop**. |
+| Q-RLb-4 | **If M-6 can only be met by replacing VoxelGI with SSIL, stop and show the operator** (a material stop, §9). |
+| Q-RLb-5 | **V = 80 km** as the preview's presentation default. |
+| Q-RLb-6 | **Commit the tool-written `.import` files**, owned by `tools/slice_imports.py`. |
+| Merge order | **RL-b merges first** (§10); 16c, 12e and 16d rebase onto it. |
+| CI | The `python` jobs' failure (`clock.json` has no SDK model) is a main-wide gap with an SDK fix in flight. It is **not required** and does not block RL-b. The required checks are `fast` and `test`. |
 
 ## 1. Identity, base, scope
 
@@ -459,6 +476,7 @@ E-RLb-0  2026-10-09  planning: ./mineworld-slice --perf re-run on f80bbb7 (M5): 
 E-RLb-1  2026-10-09  planning: headless API probe, Godot 4.7.2: disable_fog, measure_render_time
                      (cpu/gpu), occlusion-culling setting, visibility_parent, ImporterMesh.generate_lods
                      all present (A-7)
+FREEZE   2026-10-09  DESIGN FROZEN by the primary session; rulings §0.1
 E-RLb-2  —           C1 baseline (to be recorded before any other commit)
 ```
 

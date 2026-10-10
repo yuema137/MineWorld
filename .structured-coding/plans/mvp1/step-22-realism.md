@@ -3,7 +3,8 @@
 **Lifecycle:** `STEP DESIGN APPROVED 2026-10-09; per-PR designs follow`. The questions are ruled (§13.1).
 The step design authorizes no implementation by itself: each PR is designed, frozen and contracted in turn.
 **RL-b** (with the skyline preview of QRL-11) is designed in full in
-[`pr-rl-b-3d-budget.md`](pr-rl-b-3d-budget.md), `PR design — ready for freeze review`. Proposed edits to
+[`pr-rl-b-3d-budget.md`](pr-rl-b-3d-budget.md), `DESIGN FROZEN 2026-10-09 (primary session)`; it merges
+before 16c, 12e and 16d. Proposed edits to
 `overall.md`, `docs/DECISIONS.md` and the specifications stay in §14; the primary session applies them.
 Superseded lifecycle: `DRAFT, awaiting primary review` (2026-10-09).
 **Effort:** `mvp1` (MVP-0's non-goals exclude "photorealistic fidelity, art production", `mvp0/overall.md`
