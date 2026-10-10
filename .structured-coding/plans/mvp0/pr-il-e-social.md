@@ -548,14 +548,16 @@ pair is refused with the reason in both paths (fully proven in IE-C5).
 **Goal.** §4.2 for group-activity. **Scope.** `systems/group-activity/src/{interactions,action,event,
 perception,process,system,lib}.rs`; pinned test; the version pins in the three CLI tests.
 **Dependencies.** IE-C1 (independent of IE-C2).
-- [ ] Implementation: `ACTIONS` (three), `FACTS` (seven), parameters `invite_range`, `activity_length`;
+- [x] Implementation: `ACTIONS` (three), `FACTS` (seven), parameters `invite_range`, `activity_length`;
   `invite_requirement_within`; `permits` in validate per SD-IE-2 and in offers; emission helpers take a
   `Visibility`; `begin` reads `activity_length`; `wake`/`depart` look up the ending's consequence at the
-  process place; VERSION 3.
-- [ ] Validation: group-activity's tests (`group_activity.rs:100` unchanged); the emission-visibility unit
-  test; IE-9's scripted cases; rule-controller tests unedited and passing.
-- [ ] Review: `decline`/`leave` remain ungoverned; the accept path cannot bypass a `join` forbid when both
-  rules are written (scripted case); no `ACTIVITY_LENGTH` use remains but the default's value.
+  process place; VERSION 3 (E-IE-3).
+- [x] Validation: group-activity's tests (`group_activity.rs:100` unchanged); the emission-visibility unit
+  test; IE-9's scripted cases (in IE-C5's file, E-IE-5); rule-controller tests unedited and passing
+  (E-IE-3).
+- [x] Review: `decline`/`leave` remain ungoverned; the accept path cannot bypass a `join` forbid when both
+  rules are written (scripted case, E-IE-5); no `ACTIVITY_LENGTH` use remains but the default's value
+  (E-IE-3).
 **Failure cases.** `activity_length` lookup when the accept's place is unknown: impossible (validate requires
 `here`); `begin` errs as today (`ActionNotResolvedBySystem`).
 
@@ -760,6 +762,28 @@ E-IE-2  2026-10-10, IE-C2 (conversation): interactions.rs (ACTIONS talk, roles a
         docs, the defaults' pins, `talk_requirement()`, `remember()` and react's no-place fallback;
         validate and offers share `talk_terms` (same roles, same place); `git diff --stat --
         cognition` empty. PASS.
+E-IE-3  2026-10-10, IE-C3 (group-activity): interactions.rs (ACTIONS invite, accept-invitation,
+        join-group-activity, roles actor/target/place, regional; FACTS: invited actor→Participant(0),
+        target→Participant(1); invitation-accepted/-declined actor→Participant(1) (the invitee, who
+        answered), target→Participant(0); group-activity-started/-ended place only; joined-/left-
+        actor→Participant(0) and place; defaults Participants ×3, Place ×4, narrowest Participants,
+        biography configurable; parameters invite_range 1 … 100 000 = 3 000 and activity_length
+        60 … 86 400 = 3 600 beside invitation_lifetime; helpers pair, permits, invite_terms, answered,
+        owner_default, audience); action.rs invite_requirement_within; event.rs: the three emission
+        helpers take the audience; system.rs: validate asks `permits` for invite (via invite_terms,
+        with the looked-up range), accept (after the payload, before the open-invitation and Busy
+        checks) and join (before Busy); decline and leave untouched; resolve, begin (activity_length
+        with inviter/invitee at the place), join, depart, ended and wake (the ending looked up at the
+        process place, before the process ends) route every emission through `consequence`;
+        perception.rs: invite/accept/join offers refused through the same calls; VERSION 3. CLI pins
+        "group-activity v3" in inspect.rs and social_composition.rs.
+        cargo clippy -p mineworld-group-activity --all-targets -D warnings: clean. cargo test -p
+        mineworld-group-activity -p mineworld-rule-controller -p mineworld-relationships: all pass
+        (group-activity 3 unit + 10 + 1 + 1 integration; rule controller 35; relationships 5), 0 failed;
+        group_activity.rs unedited. CLI --test inspect 3, interactions 4, social_composition 4 pass.
+        30-day social-cafe seed 7: sha 06e2d63c…6fbe = E-IE-0. Review: `git grep
+        ACTIVITY_LENGTH\|INVITE_RANGE -- systems/group-activity/src` → only the constants, their
+        re-exports, `invite_requirement()` and the pinned test. PASS.
 ```
 
 ## 15. Deviations

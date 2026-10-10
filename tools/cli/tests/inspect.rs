@@ -33,7 +33,7 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
     assert_eq!(facts, u64::try_from(before.facts.len()).expect("fits"));
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
-        "systems    presence v3, movement v2, conversation v3, group-activity v2, relationships v1, \
+        "systems    presence v3, movement v2, conversation v3, group-activity v3, relationships v1, \
          naming v1, schedule v1\n"
     ));
     for kind in [

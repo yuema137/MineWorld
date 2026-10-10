@@ -376,7 +376,7 @@ fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
     assert_eq!(
         lines(&stdout(&inspected), "systems "),
         [
-            "systems    presence v3, movement v2, conversation v3, group-activity v2, \
+            "systems    presence v3, movement v2, conversation v3, group-activity v3, \
              relationships v1, naming v1"
         ],
     );

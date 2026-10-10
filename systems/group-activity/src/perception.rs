@@ -18,7 +18,9 @@
 //! the lifetime the world's section gave it — rather than finding out by asking (`step-09-social.md`
 //! §9 E-B2; S17's PR IL-b).
 
-use mineworld_contracts::{ComponentRecord, EntityId, EntityType, LifecycleState};
+use mineworld_contracts::{
+    Action, ActionTypeId, ComponentRecord, EntityId, EntityType, LifecycleState,
+};
 use mineworld_kernel::WorldRead;
 use mineworld_presence::{Offer, PerceptionProvider};
 use serde_json::Value;
@@ -30,7 +32,8 @@ use crate::action::{
 };
 use crate::codec;
 use crate::component::{Invitations, Participation};
-use crate::system::{GroupActivitySystem, participation, person, running};
+use crate::interactions::{answered, invite_terms, pair, permits};
+use crate::system::{GroupActivitySystem, located, participation, person, running};
 
 impl PerceptionProvider for GroupActivitySystem {
     fn offers(
@@ -61,11 +64,23 @@ impl PerceptionProvider for GroupActivitySystem {
         }
         let active = record.lifecycle() == LifecycleState::Active;
         let theirs = participation(world, target);
+        // The world's list, asked as dispatch asks it: at the observer's place, with the observer
+        // acting on the target. An observer with no place is answered with the compiled default, as
+        // its dispatch is refused `PreconditionFailed` before the list is asked.
+        let roles = pair(observer, target);
+        let here = located(world, observer).map(|here| here.place());
+        let (invite_permitted, invite) = here.map_or_else(
+            || (Ok(()), invite_requirement()),
+            |place| invite_terms(world, place, &roles),
+        );
+        let permitted = |action: &ActionTypeId| {
+            here.map_or(Ok(()), |place| permits(world, place, action, &roles))
+        };
 
-        let mut offers = vec![
-            Offer::new::<Invite>(invite_requirement())
-                .with_target_available(active && theirs.is_none()),
-        ];
+        let mut offers = vec![answered(
+            Offer::new::<Invite>(invite).with_target_available(active && theirs.is_none()),
+            invite_permitted,
+        )];
         let invited_by_them = person(world, target).is_some_and(|inviter| {
             world
                 .component::<Invitations>(me.entity_id())
@@ -73,10 +88,11 @@ impl PerceptionProvider for GroupActivitySystem {
         });
         if invited_by_them {
             if mine.is_none() {
-                offers.push(
+                offers.push(answered(
                     Offer::new::<AcceptInvitation>(accept_requirement())
                         .with_target_available(active),
-                );
+                    permitted(&AcceptInvitation::ACTION_TYPE),
+                ));
             }
             offers.push(
                 Offer::new::<DeclineInvitation>(decline_requirement())
@@ -86,10 +102,11 @@ impl PerceptionProvider for GroupActivitySystem {
         if mine.is_none()
             && let Some(theirs) = theirs
         {
-            offers.push(
+            offers.push(answered(
                 Offer::new::<JoinGroupActivity>(join_requirement())
                     .with_target_available(active && running(world, theirs.activity()).is_some()),
-            );
+                permitted(&JoinGroupActivity::ACTION_TYPE),
+            ));
         }
         offers
     }
