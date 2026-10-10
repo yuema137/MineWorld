@@ -1289,3 +1289,11 @@ download, each a visual or policy decision for the operator: textures at 512 px 
 (`process/size_limit`), Basis Universal (smaller on disk, transcoded at load), BC1 instead of BC7 for
 opaque diffuse maps, or raising §7.1's limits (D). **This remains a material item for the primary session**;
 it does not block C1, C3 or C5.
+
+**Ruling on MS-Ra-2 (operator, 2026-10-10, relayed by the primary session).** 512 px textures for small and
+distant props; near walls, characters and large surfaces keep 1k; before/after stills go to the operator.
+This is 3D-lane work on top of RL-b, delivered as a separate small PR after RL-b merges, **not part of R-a**.
+Consequence for R-a: §7.1's limits stand unchanged, and R-a's 3D budget check (`package.py budget` on the
+assembled bundle, C6) runs against the tree that includes both RL-b and that texture PR. The `ci_layer.py`
+`fast` line is accepted (the primary session notes it for S13). R-a stays a draft until RL-b and the texture
+PR merge; then C4's 3D half and C6 resume as §18.5 and the handoff describe.
