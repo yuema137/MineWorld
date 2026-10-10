@@ -33,14 +33,18 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning session: step header, overall, MVP_STATUS S15 lines; this session: §21 ledger
 ```
 
-## Current checkpoint — Phase 1 (NW-C0) committed; waiting for the primary session's approval
+## Current checkpoint — NW-C2 committed (ac9055c); MATERIAL STOP M-2 (NW-4 no-bodies cost)
 
-- §21.13.1 detailed plan, §21.13.2 questions Q-W1 … Q-W4, N-D10 … N-D22 in §21.15.
-- No code changed. Town 300-day runs used: 0 of 19.
+- f241a1b NW-C0 plan · 50685e6 merge of origin/main (#123, #124) · 4416ee8 NW-C1 (hosts pace steps;
+  byte-identical, E-NW1) · ac9055c NW-C2 (people walk there; E-NW2; NW-4 FAIL → M-2, E-NW3).
+- M-2 (§21.15): 300 d user CPU with walking 52.16 s (social-cafe) / 88.02 s (market-town) vs NW-4's
+  27.8 / 23.9 s; 1.88 × / 2.18 × today's base. Options (a) restate the bound, (b) wander stays a
+  `move`; recommendation (a). Held: NW-C3, NW-C4.
+- Binaries /tmp/s15-12n/12n2/{base,c1,c2}-mineworld; script /tmp/s15-12n/12n2/capture.sh; logs
+  cap-*.log, nw4-main.log, c2-nw7.log. Town 300-day runs used: 4 of 19.
 
 ## Next actions
 
-1. On approval (and the Q-W rulings): NW-C1 — docs notes, `PacedRuleController::step` / `walks`,
-   hosted step consults, `run`'s RUN_STEP loop and 29-seat cap, the Cargo edge; 30-day byte identity.
-2. NW-C2 — decide asks walk-to; tests; literal edits; walking_pace.rs (NW-9, M-N7); NW-10.
-3. NW-C3 — scratch merge with origin/mvp0/pr-12d-towns @ 8814aad under /tmp/s15-12n/12n2/merge.
+1. On the M-2 ruling: apply it (if (b), re-measure NW-4 with the 2 remaining NW-4 runs + debug runs).
+2. NW-C3 — scratch merge with origin/mvp0/pr-12d-towns @ 8814aad under /tmp/s15-12n/12n2/merge.
+3. NW-C4 — workspace tests once, CI on the exact head, READY FOR OPERATOR REVIEW.
