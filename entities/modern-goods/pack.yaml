@@ -1,0 +1,11 @@
+# The package identity of modern-goods, the repository's own Entity Pack (docs/DECISIONS.md ARC-71,
+# ARC-77; docs/PACKAGE_FORMAT.md §5.0). Its kinds are the files in items/, each keyed by its name; a
+# world uses them by requiring this pack (`requires: { modern-goods: "^0.1" }`) and naming this
+# directory's parent as a pack root (`--packs entities`). It is a data pack: never "bundled" (ARC-54).
+id: modern-goods
+type: entity-pack
+version: 0.1.0
+mineworld: "^0.1"
+license: MIT
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

@@ -760,6 +760,12 @@ and of §4.4: the dependency key cannot be a rename (PD-21), and a root `[patch.
 
 ## 9.6 E-e — Lakeside and Milestone E
 
+**Expanded into a PR design in §18.** Status: `MERGED` — PR #137, merge commit `8c710d1` (2026-10-10T20:18:51Z).
+S16 is complete: E-a (`1a1d08e`), E-b, E-c (`0ba037f`), E-d and E-e (`8c710d1`) are all merged; Milestone E
+awaits the operator's acceptance. It records that the
+framework version is already 0.1.0 (E-a, Ea-C3), and one bounded finding that needs a ruling: the AC-8
+and image instruments enumerate `worlds/` without pack roots (F-Ee1, FQ-e1).
+
 - **Scope.** `entities/modern-goods` (bundled Entity Pack: food, drink and everyday kinds, with
   `item:` sections), `worlds/lakeside` (a lakeside town: shore and pier where fishing is possible,
   homes, a square, a bakery; 8–12 people with names and routines; bundled presence, movement,
@@ -3574,4 +3580,634 @@ ED-13 Every platform (PD-q1 … PD-q4). On the PR's final head the `platforms` j
 | RE-q1 | `serde-saphyr` mis-reads CRLF, or reports wrong columns | **E-d** (finds it), DEP-10's owner decides the fix | ED-13's CRLF cases on all three OSes |
 | RE-q2 | Tests outside E-d's files fail on Windows | **S13** (RE-p1) | E-d's targets only in `platforms`; the gap is S13's |
 | RE-q3 | `source_path` spelled with `\` on Windows would make saves differ by OS | **E-d** | PD-q2: written with `/` always |
+
+---
+
+# 18. PR E-e — Lakeside and Milestone E (PR design)
+
+**Lifecycle:** `MERGED` — PR #137, merge commit `8c710d1` (2026-10-10T20:18:51Z), final head `cdab766`;
+closeout in §18.8 (`E-Ee-final`). Before the merge: `DESIGN FROZEN (primary, 2026-10-10)` — with the rulings in §18.0 and §18.9. Drafted by
+the E-e implementation session (Phase 1 of its kickoff, 2026-10-10) from the audit in §18.3 on
+`main @ 5ccc402`; implementation runs under §18.11 in the same session (the kickoff's Phase 2).
+
+**Identifiers.** PD-40 … PD-52, EE-1 … EE-14, M-E1 … M-E9, F-Ee1 … F-Ee5, FQ-e1 … FQ-e8 are this
+section's own labels. M-1 … M-10 are §8.2's milestone steps. The decision record is **`ARC-Ee-a`**, a
+placeholder: the next free numbers are ARC-77 and DEP-37 (`overall.md`, "Decision numbers assigned"), and
+only the primary session assigns one (FQ-e3). No dependency is added, so no DEP.
+
+## 18.0 Freeze record
+
+```text
+DESIGN FROZEN (2026-10-10), primary session
+Design revision:     §18 as committed in c1a231d (PR #137), with these rulings
+Approved by:         the coordinator's message relaying the primary session, 2026-10-10: "Primary rulings
+                     on E-e Phase 1 (#137) — approved; proceed to Phase 2 with Ee-C1…C8"
+Rulings:
+  FQ-e1  (a) — Ee-C7 is in E-e: ci_parity.py and ci_image.py pass `--packs entities --packs
+         presentation/mineworld-default` (as needed) for every world; the image carries entities/ and
+         the two presentation packs' pack.yaml + manifest.yaml; validated by one scratch/ee-…-scenario
+         push and one -image push. Bounded under F-Ec3's precedent; S13's files limited to exactly that
+  FQ-e2  not taken (Lakeside keeps its presentation requirements)
+  FQ-e3  ARC-Ee-a is ARC-77
+  FQ-e4  no tag now (the release design, S23, owns tags); row E and MVP_STATUS as stated
+  FQ-e5, FQ-e6, FQ-e8  as recommended
+  FQ-e7  QSE-15 confirmed (entities/ at top level)
+  F-Ee2, F-Ee3, F-Ee4  accepted as bounded
+Endpoint authority:  implementation, semantic commits, pushing this branch and scratch/ee-* branches,
+                     updating PR #137 and marking it ready, CI repair; CI green on the exact head (fast,
+                     test, platforms, test-windows, test-macos); READY FOR OPERATOR REVIEW. Merge NOT
+                     authorized
+Material stops:      as §18.11
+Implementation base: main @ a926fbf (merged into the branch as 5192fb6; #136 docs only)
+Execution contract:  §18.11
+Lifecycle:           FROZEN
+```
+
+## 18.1 Identity, base, approved scope
+
+```text
+PR            E-e — Lakeside and Milestone E (S16, fifth of five; content + proof)
+base          main @ 5ccc402 (E-a #70 1a1d08e, E-b #78 4bdbca1, E-c #99 0ba037f, E-d #101 68176e7
+              merged). Re-audit §18.3 if worlds/, tools/cli/tests/{packs,headless,support}, scripts/
+              ci_parity.py, scripts/ci_image.py, Dockerfile, .dockerignore, systems/installed/ or the
+              fishing pack's rev moved before Ee-C3
+branch        mvp0/pr-ee-lakeside, worktree /Users/yuema137/mineworld-worktrees/impl-ee (held by the E-e
+              session only)
+external      yuema137/mineworld-pack-fishing @ b40e71f (tag v0.1.0) — read, never written by E-e
+scope         §9.6, bounded by PD-40 … PD-52; QSE-15 (entities/, FQ-e7); AE-5, AE-6, AE-7 and the
+              milestone test §8.2 (M-1 … M-10) as read in §18.2
+decisions     ARC-Ee-a (FQ-e3): Milestone E's composition — the repository's own Entity Pack under
+              entities/, required like any data pack and never "bundled" in ARC-54's sense; every
+              command and instrument that reads a world names its pack roots
+depends on    E-a, E-b, E-c, E-d (all merged)
+```
+
+**Goal.** Milestone E's claim (§1.4) becomes a runnable fact: a new world, Lakeside, assembled from
+bundled System Packs, the third-party `fishing` System Pack, the repository's own Entity Pack
+`modern-goods` and the two default Presentation Packs, lives 300 headless days with every seat moving,
+talking and fishing in every 30-day bucket and a closed food loop; the same seed reproduces it byte for
+byte, also across SIGKILL and resume; the pack reaches a player through the unchanged server; disabling
+it changes nothing else; and one test file, `tools/cli/tests/milestone_e.rs`, shows all of it through the
+real binary.
+
+**Non-goals.** Any change to Rust production code — `kernel/`, `contracts/`, `persistence/`, `server/`,
+`clients/`, `cognition/`, `systems/`, `sdk/`, `packages/src`, `worldpack/src`, `tools/cli/src` — and to any
+`Cargo.toml` or `Cargo.lock` (PD-41); a new version of the fishing pack (the pin stays `b40e71f`); the
+2D/3D clients drawing Lakeside (QSE-9: presentation is declared and validated, not applied); economy,
+employment, calendar or weather in Lakeside (FQ-e8); recording pack versions in a save (QSE-14); a git
+tag of the framework (FQ-e4); snapshot retention for long saves (F-SAVE-1, the persistence lane's).
+
+## 18.2 Design decisions (PD-40 … PD-52)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **PD-40** | **The framework version is not bumped by E-e.** `[workspace.package] version` has been `0.1.0` since E-a (Ea-C3, `66f2d07`; `Cargo.toml:27` on `5ccc402`), and `mineworld --version` prints `mineworld 0.1.0`. `overall.md`'s "the framework version becomes 0.1.0" is therefore already true; E-e proves it again in M-1 (every bundled code pack at `CARGO_PKG_VERSION`, the binary's `--version`) and changes no manifest. A release **tag** `v0.1.0` on the framework is a publication act, the operator's (FQ-e4). | F-Ee5. No fact moves twice. |
+| **PD-41** | **E-e is content, tests, documentation and (FQ-e1) CI instruments — no product code.** A need to change any crate's source or manifest is a material stop (I-E1 widened for this PR). | §9.6 calls E-e "content + proof"; every mechanism it uses merged in E-a … E-d. |
+| **PD-42** | **`entities/modern-goods` is the repository's own Entity Pack** (QSE-15, FQ-e7): `pack.yaml` (`id: modern-goods`, `type: entity-pack`, `version: 0.1.0`, `mineworld: "^0.1"`, `license: MIT`, `authors: [Yue Ma]`, `repository: https://github.com/yuema137/MineWorld`) and `items/*.yaml` in the World Pack item-file format, every kind with an `item:` section (`category: food`, `drink` or the everyday categories `item` already defines). About twelve kinds: food (bread, apple, cheese, cake), drink (coffee, tea, juice, milk), everyday (soap, candle, notebook, umbrella) — final list fixed in Ee-C2 against `item`'s categories. Self-contained (PD-38): no `body:`, no reference outside the pack. A `README.md` (human, short). | §4.3's tree; §9.6's scope. |
+| **PD-43** | **"Bundled" keeps ARC-54's meaning (F-Ee4).** ARC-54 defines a *bundled* pack as a code pack compiled from this workspace; a data pack is never bundled and is found only through a named pack root (QSE-13). `modern-goods` is therefore described as "the repository's own Entity Pack", is required in Lakeside's `requires:` with a range like any data pack, and is found through `--packs entities`. §9.6's "bundled Entity Pack" is read this way; ARC-Ee-a says so. | `CLAUDE.md` §2.1(3): a defined term is never reused for a different concept. |
+| **PD-44** | **`worlds/lakeside`**: a lakeside village. Places (about seven): `shore` and `pier` (each with a `fishing:` section, `catch: fish`, minutes in 30..=240 fixed in Ee-C3), `square`, `bakery`, two homes (e.g. `cottages`, `boathouse`), and a `lane` joining them; passages so every place is reachable from every other (no island). People: ten, all seats, each with `name:`, `routine:` (every routine places the person at `shore` or `pier` for one part of each day, at least four hours long, boundaries inside 05:00–23:00 as the towns' fixture rule), `location:`, `holdings:` (at most three items each, mostly `modern-goods` food and drink, so nobody starts unable to carry a catch). `world.yaml`: `id: lakeside`, `version: 0.1.0`, `license: MIT`, `mineworld: "^0.1"`; `systems:` presence, movement, conversation, group-activity, relationships, naming, schedule, item, inventory, item-transfer, consumption, fishing (§9.6's list, in an order that satisfies every `depends_on`); `requires:` the located third-party pack `^0.1`, `modern-goods: "^0.1"`, `mineworld-default-2d: "^0.1"`, `mineworld-default-3d: "^0.1"`; `items: [fish]` (PD-45); `seats:` all ten. A `README.md` (human) carrying §8.3's checklist. Exact sizes are content, fixed in Ee-C3 against PD-47's criteria and recorded. | §9.6. Routines are the content remedy §9.6 names ("the remedy is what the pack offers, never the controller"): the paced controller follows an agenda 90 times in 100 (`cognition/rule-controller/src/agenda.rs` `FOLLOWS_AGENDA`). |
+| **PD-45** | **`fish` is Lakeside's own kind, not `modern-goods`'** (`worlds/lakeside/items/fish.yaml`, `item: { category: food }`; FQ-e6). The catch is the lake's produce; the shop goods are the shared pack. The `fishing:` sections then name a world key; `modern-goods` must not declare `fish` (PD-34 would refuse it). | Keeps the Entity Pack generic (usable by any world); keeps the world's local fact local. |
+| **PD-46** | **Every Lakeside command names its roots**: `--packs entities --packs presentation/mineworld-default` (from the repository root). The milestone test passes them to every child and removes `MINEWORLD_PACKS` from every child it spawns itself; `tools/cli/tests/support`'s `Server` does not remove it, so the test first asserts `MINEWORLD_PACKS` is unset in its own environment (F-Ee3) rather than editing `support/`. | QSE-13: nothing implicit; a developer's own setting cannot leak in (E-b's rule). |
+| **PD-47** | **AE-5's criteria, decided before measuring (`ARC-23`)**, over one 300-day seed-7 run with `--save`, ten 30-day buckets: (1) `faults 0`, 300 `day` lines, a `history` line whose fact count equals the save's; (2) every seat moved and talked in every bucket (the printed activity table, `headless::every_seat_active_in_every_bucket`); (3) **located** first: one accepted `fish` request of a seat whose `fishing-started` (caused by that action) leads to a `catch` process whose `fishing-ended { caught: true }` and inventory's `items-produced` for the same angler at the started catch's due instant — E-c's EC-7 chain; **then counted**: every seat has ≥ 1 accepted `fish` in every bucket ("every seat that can reach water" = every seat, because PD-44 joins every place and puts every seat's routine at the water — asserted structurally from the world before the count: every seat's `routine` names `shore` or `pier`); (4) the food loop closes: every seat has ≥ 1 `items-consumed` in every bucket, and in every bucket ≥ 1 `items-consumed` is of `fish` (eaten catch; with a six-item capacity and finite endowments, eating in all ten buckets cannot be paid from endowment alone without fish — the count makes that visible rather than assumed); (5) located: one `items-consumed` of a kind whose entity's `source_pack` is the Entity Pack (read from the loaded world's metadata, PD-36 — no kind key spelled in the test). | §8.2 M-5, §9.6's content risk ("every seat eats at least once per bucket"). Criterion (4)'s fish clause is the operational form of "fish caught and eaten". |
+| **PD-48** | **AE-6 as `market_town.rs` measures it**, in parallel with the 300-day run: three more 30-day seed-7 saves — control, twin, and one SIGKILLed after its `day 15` line (`mineworld_test_support::process::kill`, portable since 13w) then re-run with the same command — and one 30-day seed-8 save. Activity first (PD-47 (1)–(2) on each), then: twin's facts, journal and snapshots byte-identical to the control's (`headless::Tables::assert_same_history`) and its deterministic lines equal; the re-run's header says it resumed at the head the kill left, short of the control's end, and its tables equal the control's; `replay --save` of the resumed save passes; seed 8 differs from seed 7 at a located fact. The 300-day run's `history` line (fact count and fingerprint) and the sha-256 of its deterministic lines are recorded as **Lakeside's baseline** (§9.6) in the ledger and `docs/MVP_STATUS.md`, not asserted by a test (the towns' digests are kept the same way, EA-6). | §8.2 M-6. A 300-day twin would double the run's disk (PD-50) for no claim the 30-day twins do not already make. |
+| **PD-49** | **AE-7 in two halves.** **Disable (committed, M-9):** a scratch copy of Lakeside with `fishing` removed from `systems:` and every `fishing:` section removed — its `requires:` entry kept, so the pack stays installed and required but not enabled. (a) It validates and resolves; a 30-day seed-7 run has `faults 0`, every seat active in its bucket, and the **set** of fact types equal to the enabled 30-day control's set minus exactly `fishing-spot`, `fishing-started`, `fishing-ended` and `items-produced` (the only producer in Lakeside is the catch) — nothing else appears or vanishes; (b) through the server (with M-8): the same seat that is offered `fish` at the pier in Lakeside is offered no `fish` in the copy, and a submitted `fish` request is answered rejected `Unavailable` (`INV-10`). **Remove from the build (evidence, not committed):** in a scratch worktree of the final head with the pack's two `ARC-33` lines removed and rebuilt, `validate worlds/lakeside` exits 1 naming `fishing` and listing what the build provides (`UnknownSystem`), as E-c's EC-1 "before" — recorded, scratch removed. | §8.2 M-9, AE-7. A committed test cannot rebuild the binary without the pack; E-c recorded M-C6 and EC-9 the same way. |
+| **PD-50** | **The 300-day run's budget (AE-5).** Measured on `5ccc402` with a release binary: Market Town, 300 days, seed 7, `--save` → 37.6 s wall, a **3.5 GB** `world.sqlite` (F-SAVE-1's growth: a snapshot every 64 revisions, never pruned), 375 619 facts. CI precedent: `market_town.rs` runs a saved 300-day and four 30-day Market Town runs in the default suite in 45.8 s (step-14 §3). Lakeside has fewer people and systems, so its saved 300-day run is expected below that; measured in Ee-C3 and recorded (wall, facts, bytes). **Ceiling, decided now:** if the 300-day saved run exceeds 4 GB or 120 s on the Linux `test` job, or if the five runs' peak disk exceeds 6 GB, E-e stops and raises it (options: the milestone's 300-day run moved to an `#[ignore]` evidence test plus a 30-day committed run — which weakens §8.2 M-5 and is the operator's — or F-SAVE-1's retention first). Each scratch save is removed on drop (DEP-29). | Makes "300 days in the default suite" a stated cost, not a surprise on a Windows runner. |
+| **PD-51** | **Milestone test placement.** `tools/cli/tests/milestone_e.rs` is in the default suite, so it runs in Linux `test` and, on a non-draft PR, in 13w's `test-windows` and `test-macos` (the whole `core` layer) — every platform without adding it to the `platforms` layer (FQ-e5). It names no market crate in either spelling (AC-1 check 2 bullet 3: it lives under `tools/cli/`) and never the third-party crate's library spelling (EC-5); it locates the third-party pack from `packs list` and `AVAILABLE` as `third_party.rs` does, and reads the slugs it counts (`fishing-started`, `items-produced`, …) as strings, decoding payloads as JSON. Paths built with `Path::join`; CRLF-tolerant edits of scratch copies (`read_lf`), as E-c/E-d. | Portable by construction (§16.12, §17.12). |
+| **PD-52** | **What M-1, M-7 and M-10 read (bounded readings of §8.2).** M-1: the third-party pack's revision is not printed by the binary (PD-24, FQ-c3); its equality with `Cargo.lock` is EC-2 (iii) in `package_sources.rs`, which the same gate runs — M-1 cites it rather than copying it (I-E5). M-7: `inspect <save>` exits 0 (its causation check) and its `systems` line names the located system id. M-10: I-E7 and the lock guard are `package_sources.rs` (EC-2, EC-4), in the default suite; "kernel/contracts/persistence/server/clients diff empty across the S16 merges" is git-history evidence — each S16 merge's first-parent diff over those paths, recorded in the ledger (already empty for #70, #78, #99, #101 on `5ccc402`), plus this PR's own diff — not a committed test (a test that reads merge history breaks on a shallow or squashed checkout). | One statement per fact; no test duplicates a guard that already runs. |
+
+## 18.3 Audit (main @ 5ccc402)
+
+| What | Where | Finding |
+| --- | --- | --- |
+| Framework version | root `Cargo.toml:27`; `step-16` §14.5 Ea-C3 | `version = "0.1.0"` since `66f2d07` (E-a). **F-Ee5**: nothing to bump (PD-40). |
+| Installed set | `systems/installed/Cargo.toml` | 18 packs incl. `calendar`, `weather` and `acme-fishing` (git, `rev = b40e71ff…`). |
+| The pack's law | `ext-fishing` clone @ `b40e71f`: `src/offer.rs`, `src/section.rs` | `fish` is complete, `SpatialRequirement::NONE`, offered only to a living Person at a place with a `FishingSpot`, not an `Angler`, able to carry one more (`mineworld_inventory::can_take`); `fishing:` on a place: `{ catch: <Item key>, minutes: 30..=240 }`. |
+| Paced controller and agendas | `cognition/rule-controller/src/agenda.rs:23–30` | `FOLLOWS_AGENDA = 90` of 100: a routine is how content brings seats to the water (PD-44); I-E8 forbids any other route. |
+| World file conventions | `worlds/market-town/{world.yaml, people/alice.yaml, places/park.yaml, items/bread.yaml}` | `routine:` parts ≥ 4 h, boundaries 05:00–23:00 (fixture rule); `holdings:` ≤ 6 (inventory); places without drawn geometry are semantic only; passages `{ to, here, there }`. |
+| Long-run helpers | `tools/cli/tests/headless/mod.rs`, `market/mod.rs`, `market_town.rs` | `every_seat_active_in_every_bucket`, `Tables`, `assert_same_history`, `deterministic`, `fresh` (scratch!), the killed-at-day pattern with `mineworld_test_support::process::kill`. Reused; `market/` is Market-Town-specific and not used. |
+| Third-party proof | `tools/cli/tests/third_party.rs` | `located()`, `checkpoint`, `read_lf`, `edit`, the EC-7 cause chain — the patterns M-1, M-3, M-5 follow. |
+| No-rebuild proof | `tools/cli/tests/entity_packs.rs` (ED-9) | Binary length and mtime unchanged, no `cargo` spawned — M-4's pattern. |
+| Server harness | `tools/cli/tests/support/mod.rs:48–90, 400–520` | `Server::start(args)` adds the test invite and removes `MINEWORLD_INVITE`/`MINEWORLD_ADMIN_TOKEN`, **not** `MINEWORLD_PACKS` (F-Ee3, PD-46); `Client::join`, `observation`, `submit` (rejections as `ActionResult`). |
+| `inspect` | `tools/cli/src/inspect.rs:33–125` | Prints `systems …` from the save's manifest and the causes table; returns an error on a damaged save. |
+| **World enumeration in tests** | `tools/cli/tests/packs.rs:176–232` | `packs list --packs worlds --packs presentation/…` and `packs validate worlds/<w>` for **every** directory under `worlds/`, with no entities root. Once Lakeside exists, both refuse it (its `requires:` cannot be met). **F-Ee2**: the test gains `--packs entities` on `list` and the roots on `validate` — an existing-test edit, claim unchanged (bounded, EE-12). |
+| **World enumeration in CI instruments** | `scripts/ci_parity.py:74–77, 302–322` (AC-8: `validate`, 300 days in memory, 30 days saved, for every `worlds/*/world.yaml`, natively and in the image); `scripts/ci_image.py:108–123` (`validate worlds/<w>` in the image for every world); `Dockerfile:43` (runtime image copies `worlds/` only); `.dockerignore` (excludes `presentation/`) | None passes a pack root; the image holds neither `entities/` nor the presentation manifests. With Lakeside, AC-8 (`mac`, `windows`, `scenario`, `linux-arm`, `ac8`: main pushes and `scratch/*-scenario`, never PRs) and the image job (`-image` scratch, dispatch) would fail **after merge**, unseen by the PR's checks. **F-Ee1** → FQ-e1, FQ-e2. Files owned by S13. |
+| Decision ids | `scripts/check_decision_ids.py` | 104 ids, distinct; ARC-77 and DEP-37 free (`overall.md`). Headings: 193 sections / 26 documents. |
+| S16 merges and forbidden paths | `git diff --stat M^1 M -- kernel contracts persistence server clients` for `1a1d08e`, `4bdbca1`, `0ba037f`, `68176e7` | All empty (M-10's evidence, so far). |
+| 300-day cost | release binary on `5ccc402` | Market Town 300 days saved: 37.6 s, 3.5 GB, 375 619 facts (PD-50). |
+
+## 18.4 Reuse
+
+Nothing new is built: Lakeside reuses the World Pack format, `modern-goods` E-d's Entity Pack format, the
+test reuses `headless/` and `support/` and the patterns of `market_town.rs`, `third_party.rs` and
+`entity_packs.rs`. The one candidate considered and rejected: copying Market Town's twenty item files into
+`modern-goods` wholesale — rejected because Market Town keeps its own kinds (I-E2: no existing world
+changes) and a byte copy would state each kind twice (I-E5). `modern-goods`' files are authored for it.
+
+## 18.5 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it: applied in the working tree (or a scratch copy, as
+stated), observed failing by name, reverted, `git status` recorded. A test not run is not a pass.
+
+```text
+EE-1  M-1 — every pack listed, with identity. `packs list --packs worlds --packs entities --packs
+      presentation/mineworld-default` exits 0. Located first: the one third-party system-pack line
+      (cross-checked against AVAILABLE's package().bundled() == false); then: an entity-pack line
+      modern-goods, presentation-pack lines mineworld-default-2d and -3d, a world-pack line lakeside, and
+      every bundled system-pack line at CARGO_PKG_VERSION (0.1.0) — each line with an SPDX licence.
+      `mineworld --version` prints 0.1.0 (PD-40). The revision is EC-2 (iii)'s (PD-52).
+      Mutation M-E1: packs.rs `origin_word` always "bundled" → the locate step FAILS.
+EE-2  M-2 — the composition. `packs resolve worlds/lakeside <roots>` exits 0, printing the framework
+      range satisfied, one line per requirement (located: the third-party pack "→ system-pack … (this
+      build, third-party)", modern-goods "→ entity-pack 0.1.0" with its directory, both presentation
+      packs), and one `system` line per entry of world.yaml's systems (count read from the world).
+EE-3  M-3 — six refusals by name on scratch copies of Lakeside, each through `validate` and `packs
+      resolve`, exit 1: (a) the third-party requirement "^0.2" → names the pack, ^0.2, 0.1.0; (b) no
+      entities root → names modern-goods and "no pack directory was given" / the roots searched;
+      (c) a world item with a modern-goods key → names the key, world.yaml's items and modern-goods'
+      file; (d) license GPL-3.0-only → names it and the allow-list; (e) mineworld "^9" → names ^9 and
+      0.1.0; (f) fishing enabled, its requires entry removed → names fishing, the pack and requires.
+      Mutations: M-B1 (range check off) → (a) accepted, FAILS; M-D3 (one-namespace check off) → (c)
+      accepted, FAILS.
+EE-4  M-4 — no rebuild (I-E9). A new Entity Pack written into a fresh scratch root; `packs list --packs
+      <root>` lists it; a scratch Lakeside requiring it resolves and runs one day; the binary's length
+      and mtime unchanged; no `cargo` spawned (ED-9's pattern, Windows `.exe` included).
+EE-5  M-5 — Lakeside lives 300 days: PD-47 (1)–(5) over `run worlds/lakeside --headless --seed 7
+      --days 300 --save L <roots>`.
+      Mutation M-E2 (content, scratch copy of the world in the test's own mutation run): one seat's
+      routine loses its water part → the per-seat count FAILS naming that seat and a bucket.
+      Mutation M-E3: fish's `item:` category changed to a non-food category → PD-47 (4)'s fish clause
+      FAILS. (Both run as one-off evidence on scratch copies, then reverted.)
+EE-6  M-6 — determinism and persistence: PD-48. Mutation M-E4: the killed save deleted before the
+      re-run → "resumed at revision" FAILS (the re-run read nothing back). Instrument control: seed 8
+      differs at a located fact (built in).
+EE-7  M-7 — `inspect L` exits 0; its `systems` line names the located system id; `replay worlds/lakeside
+      --save <the resumed 30-day save> <roots>` exits 0.
+EE-8  M-8 — the pack reaches a player through the unchanged server. `server worlds/lakeside --save S2
+      <roots>` (support's Server); a client joins the seat located from the world's files as one whose
+      `location.place` carries a `fishing:` section; its observation carries a `fish` affordance
+      (located), and a submitted `fish` request is accepted with a `fishing-started` fact. Sockets
+      unavailable → INCONCLUSIVE, never PASS.
+EE-9  M-9 — disable: PD-49 (a) and (b). Mutation M-E5: the disabled copy keeps `fishing` in systems
+      (sections and requires kept) → "no fish affordance" FAILS and the fact-type sets differ.
+EE-10 AE-7, removal from the build: PD-49's evidence (scratch worktree, the two ARC-33 lines removed,
+      rebuilt; `validate worlds/lakeside` exit 1 naming fishing and the build's systems). Recorded only.
+EE-11 M-10 — structure: package_sources.rs (EC-2, EC-4, EC-5) and installed.rs pass unedited in the
+      gate; `git diff main -- kernel contracts persistence server clients cognition systems sdk
+      packages/src worldpack/src tools/cli/src '*Cargo.toml' Cargo.lock` empty for this PR (PD-41,
+      I-E1, I-E8); the S16 merges' first-parent diffs over kernel/contracts/persistence/server/clients
+      empty (PD-52), recorded.
+EE-12 Nothing existing moves (I-E2, I-E4). `ac1_composability`, `precursor_vocabulary`,
+      `seam_vocabulary` pass unedited; both towns' 300-day seed-7 sha (all but `wall`) and the three
+      worlds' `validate` output equal to main's binary; the only existing-test edit is packs.rs's roots
+      (F-Ee2), recorded with its unchanged claim ("every world under worlds/ is listed and validates").
+EE-13 The documents say it first: ARC-Ee-a, ARCHITECTURE §14 (`entities/`), MODULE_SPEC §2 (the
+      repository's own Entity Pack as the example), PACKAGE_FORMAT §8 (row) in Ee-C1, before content
+      and code; both doc checks pass.
+EE-14 (only if FQ-e1 puts the CI instruments in E-e) AC-8 and the image read Lakeside: `ci_parity.py
+      --self-test` passes; a `scratch/ee-…-scenario` push runs scenario, linux-arm, mac, windows and ac8
+      green with lakeside in every record; an `-image` scratch push (or dispatch) runs the image job
+      green, `validate worlds/lakeside` included. Not run → INCONCLUSIVE.
+      Mutation M-E6: ci_parity's root list emptied → record FAILS at "validate worlds/lakeside" naming
+      modern-goods (local `record --binary`, evidence).
+```
+
+## 18.6 Commit plan
+
+Evidence goes into §18.8 as `E-Ee<n>`. A planned commit may become several; the mapping is recorded.
+
+### Ee-C0 — Design (this section) — docs only
+
+- [x] Implementation: §18, from §18.3's audit on `5ccc402`; §9.6's pointer.
+- [x] Validation: `check_doc_headings` 193 sections / 26 documents, none duplicated; `check_decision_ids`
+  104 ids, distinct (E-Ee0).
+- [x] Review: self-review; every place this design reads §8.2/§9.6 differently is a PD with its reason
+  (PD-40, PD-43, PD-48, PD-49, PD-52); the finding that needs a ruling raised as FQ-e1. The primary
+  session's review pending.
+
+### Ee-C1 — Specs before content
+
+**Goal.** Milestone E's composition is specification before any file of it exists (`CLAUDE.md` §2.2).
+Markdown only.
+
+**Scope.** `docs/DECISIONS.md` **ARC-Ee-a** (number from the primary): the repository's own data packs
+live under `entities/` (Entity Packs) beside `presentation/` (Presentation Packs); they are required with
+ranges and found only through named pack roots, never "bundled" (PD-43); Lakeside is Milestone E's
+composition and its acceptance is §8.2; every command, test and CI instrument that reads a world names its
+roots (PD-46, F-Ee1 as ruled); limitations (clients do not draw Lakeside; no economy, so shop goods are
+endowments and fish is the renewable food). `docs/ARCHITECTURE.md` §14: `entities/` in the tree.
+`docs/MODULE_SPEC.md` §2: `entities/modern-goods` named as the shipped example of the MVP-0 subset.
+`docs/PACKAGE_FORMAT.md` §8: the Entity Packs row gains the shipped pack.
+
+- [x] Implementation: `docs/DECISIONS.md` **ARC-77** (six points, options, limitations), appended at
+  the end; `ARCHITECTURE.md` §14 (`entities/`, Lakeside on the `worlds/` line); `MODULE_SPEC.md` §2 (a
+  paragraph naming `entities/modern-goods`, found through a root, never "bundled"); `PACKAGE_FORMAT.md`
+  §8's Entity Packs row. ARC-77 absent from `docs/DECISIONS.md` on every `origin/*` branch (`git grep
+  "^## ARC-77\b"` per branch: none) (E-Ee1).
+- [x] Validation: `check_doc_headings` 193 sections / 26 documents, none duplicated; `check_decision_ids`
+  105 ids, all distinct (+1). ARC-77 uses "bundled" only for `ARC-54`'s code-pack sense and to reject the
+  other reading (E-Ee1).
+- [x] Review: no defined term redefined or synonym introduced (`Entity Pack`, `World Pack`,
+  `Presentation Pack`, `System Pack` as `MODULE_SPEC.md` §1; "bundled", "pack root", "third-party" as
+  ARC-54/ARC-66 define them; "the repository's own" is stated to be description, not a category).
+
+**Commit boundary.** Documentation only.
+
+### Ee-C2 — `entities/modern-goods`
+
+**Goal.** The repository's own Entity Pack exists and validates, before any world requires it.
+
+**Scope.** `entities/modern-goods/{pack.yaml, README.md, items/*.yaml}` (PD-42). Nothing else.
+
+- [x] Implementation: `pack.yaml` (PD-42's fields), `README.md`, twelve kinds — food: apple, bread,
+  cake, cheese; drink: coffee, juice, milk, tea; goods: candle, notebook, soap, umbrella. `item`'s
+  `Category` is a free slug (`systems/item/src/category.rs`), so the three slugs Market Town already uses
+  (`food`, `drink`, `goods`) are used; consumption eats `food` and drinks `drink` (E-Ee2).
+- [x] Validation: release binary of `5192fb6`: `packs validate entities/modern-goods` → exit 0, "items
+  apple, bread, cake, candle, cheese, coffee, juice, milk, notebook, soap, tea, umbrella", "is a valid
+  entity-pack"; `packs list --packs entities` → `entity-pack modern-goods 0.1.0 MIT Yue Ma
+  entities/modern-goods`, 19 packs, exit 0. The CLI tests are unaffected by construction (no test reads
+  `entities/` before Ee-C3; no source changed) and run at Ee-C3. CRLF one-off: **N/A** — the tools that
+  would write a CRLF copy here are an inline script or an in-place stream edit, which this session's
+  rules exclude; ED-13's committed LF/CRLF test (green on Windows) owns the claim for this file format.
+- [x] Review: self-contained (no section with a reference; no `body:`); no `fish`; every file one
+  `item:` section with an existing slug; the pack edits nothing outside `entities/`.
+
+### Ee-C3 — `worlds/lakeside`, measured; `packs.rs` names the entities root
+
+**Goal.** Lakeside exists, resolves, and meets PD-47's criteria in a real 300-day run before a test pins
+them — the content is sized against criteria stated in advance, never the reverse.
+
+**Scope.** `worlds/lakeside/{world.yaml, README.md, places/*.yaml, people/*.yaml, items/fish.yaml}`
+(PD-44, PD-45); `tools/cli/tests/packs.rs` (F-Ee2: `--packs entities` on the listing, the roots on each
+`packs validate` of a world; no assertion changed).
+
+- [x] Implementation: as scoped. The README carries §8.3's checklist with the real roots. Seven places
+  (`shore` `fishing: { catch: fish, minutes: 60 }`, `pier` 90 min, `square`, `bakery`, `cottages`,
+  `boathouse`, `lane` joining all six); ten seats, every routine with one ≥ 4 h part at `shore` or
+  `pier`; holdings 2–3 `modern-goods` kinds each; `nils` begins on the pier (M-8's seat) (E-Ee3).
+- [x] Validation: `validate worlds/lakeside <roots>` exit 0; `packs resolve` exit 0; then, with the
+  release binary, a 300-day seed-7 saved run checked against PD-47 (1)–(5) with Ee-C5's counting code,
+  written first in the working tree and committed in Ee-C5 (so the criteria that tune the content are
+  exactly the ones the test later pins) — **content tuning loop**: if a criterion fails, the remedy is content (routines, holdings, minutes, passages), recorded
+  run by run; at most ~20 tuning runs (each ≈ 40 s, its save removed). Measured and recorded: wall, facts,
+  save bytes (PD-50's ceiling applied here); `cargo test -p mineworld-cli --test packs` green with the
+  edit; towns' 300-day sha and `validate` of the three worlds equal to main's binary (EE-12, base build).
+  (E-Ee3: the first content passed every criterion; zero tuning runs.)
+- [x] Review: the controller untouched (`git diff main -- cognition` empty); every routine boundary in
+  05:00–23:00; every seat's routine at the water; holdings ≤ 3; `fishing` placed after `presence` and
+  `inventory` in `systems:`.
+
+### Ee-C4 — `milestone_e.rs` (1): composition and refusals (M-1 … M-4)
+
+**Scope.** `tools/cli/tests/milestone_e.rs` (new): module doc (§8.2's table, the pass rule), the shared
+helpers (roots, `mineworld` with `MINEWORLD_PACKS` removed, `located()`, scratch copies of Lakeside via
+`scratch!`), EE-1 … EE-4.
+
+- [x] Implementation: as scoped (PD-46, PD-51), with the shared helpers in a test-only module
+  `tools/cli/tests/lakeside/{mod.rs, history.rs}` (F-Ee7) (E-Ee4).
+- [x] Validation: `cargo test -p mineworld-cli --test milestone_e` (counts, wall); M-E1, M-B1, M-D3
+  observed failing and reverted; `check_scratch.py scan`; AC-1 (`-p mineworld-acceptance --test
+  ac1_composability --test package_sources`) green — no market or third-party crate name in the file
+  (E-Ee4).
+- [x] Review: every count preceded by locating; no pack identity copied into the test (I-E5): ids and
+  versions read from `packs list`, the world, or `AVAILABLE`. Spelled as strings, as PD-51 allows: the
+  action slug `fish`, the section key `fishing:`, the fact slugs; M-4's own fixture pack
+  `lake-provisions`; M-3's edits `  - fish` (the world's own kind) and `license: MIT`.
+
+### Ee-C5 — `milestone_e.rs` (2): 300 days, determinism, SIGKILL (M-5 … M-7)
+
+**Scope.** `milestone_e.rs`: one test running the 300-day saved run and the four 30-day runs in parallel
+(`std::thread::scope`, as `market_town.rs`), then EE-5, EE-6, EE-7.
+
+- [x] Implementation: as scoped (E-Ee4).
+- [x] Validation: the test's wall (debug, local) and the 300-day save's bytes recorded against PD-50;
+  M-E2, M-E3, M-E4 observed failing and reverted; Lakeside's baseline (300-day `history` line, sha-256 of
+  the deterministic lines) recorded (E-Ee4; the baseline re-recorded on the final head, E-Ee8).
+- [x] Review: activity before determinism (no comparison before PD-47 (1)–(2) hold for every compared
+  run); the kill is a real SIGKILL/TerminateProcess (portable `process::kill`, no "finished" line).
+
+### Ee-C6 — `milestone_e.rs` (3): the server and disabling (M-8, M-9); removal evidence
+
+**Scope.** `milestone_e.rs`: EE-8 and EE-9 (one async test hosting Lakeside and the disabled copy, one
+30-day disabled run against the Ee-C5 control's fact-type set — or its own enabled 30-day control if
+sharing state across tests would couple them, decided at the commit and recorded). EE-10 as evidence.
+
+- [x] Implementation: as scoped; M-9 (a) runs its own enabled 30-day control (decided: no state shared
+  across tests) (E-Ee4).
+- [x] Validation: test counts and wall; M-E5 observed failing and reverted; EE-10's scratch worktree
+  (two lines removed, rebuilt, `validate` refused by name), then removed; sockets available — M-8 PASS
+  (E-Ee4).
+- [x] Review: the server and kernel untouched; `Unavailable` is the kernel's rejection, not a test's
+  inference (`kernel/src/dispatch.rs:455`, INV-10: the request is the one accepted in Lakeside,
+  submitted unchanged; the test compares the `ActionResult` the server returned).
+
+### Ee-C7 — AC-8 and the image name Lakeside's pack roots (only as FQ-e1 rules)
+
+**Scope (recommended form, FQ-e1 (a) + FQ-e2 (a)).** `scripts/ci_parity.py` and `scripts/ci_image.py`
+pass `--packs entities --packs presentation/mineworld-default` to every world-reading command (natively
+relative to the checkout root; in the image `/opt/mineworld/…`), stated once per script as a constant
+with a comment citing ARC-Ee-a; `Dockerfile` runtime stage copies `entities/` and the two presentation
+packs' `pack.yaml` and `manifest.yaml` into `/opt/mineworld/presentation/mineworld-default/{2D,3D}/`;
+`.dockerignore` re-includes exactly those four files. `ci_parity.py --self-test` extended only if its
+fixtures need the roots.
+
+- [x] Implementation: as ruled (`36d0338`). The roots are relative (`PACK_ROOTS` in `ci_parity.py`,
+  imported by `ci_image.py`), not `/opt/mineworld/…`: the runtime image's WORKDIR is `/opt/mineworld`, so
+  the same words work natively and in the image and the record carries no host-specific root (bounded).
+- [x] Validation: self-test, local record and M-E6 PASS; first scenario push FAILED on F-Ee8 then F-Ee6
+  (E-Ee7); both ruled by the primary 2026-10-10 and fixed (`4ce50c8`, `718f630`); `scratch/ee-718f630-
+  scenario` → scenario, linux-arm, mac, windows ✓ and **ac8 PASS, four records, four worlds equal**
+  (E-Ee9).
+- [x] Review: no world-specific branch in either script (the roots are passed to every world); the image
+  gains four small files and `entities/`, nothing from `presentation/`'s art.
+
+### Ee-C8 — Close
+
+- [x] `docs/MVP_STATUS.md`: a capability row "Milestone E — Lakeside" and an evidence row (Lakeside's
+  baseline, the milestone test); `docs/HUMAN_REVIEW_QUEUE.md` row E as FQ-e4 rules; this ledger;
+  `handoff-ee.md`.
+- [x] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`; `cargo test --workspace --no-fail-fast` (passed, failed,
+  ignored, filtered); `check_scratch.py scan` and `left`; both doc checks; EE-11's diffs; EE-12's towns'
+  digests and `validate` (E-Ee8, on `36d0338`; C8 adds Markdown only).
+- [ ] PR marked ready (CI does not run on a draft): `fast`, `test`, `platforms`, `test-windows`,
+  `test-macos` green on the exact final head (run URL); READY FOR OPERATOR REVIEW with the operator's
+  runnable checklist (§8.3, real roots). Not merged.
+
+## 18.7 Test ownership
+
+```text
+STATIC      fmt, clippy; Cargo/rustc for the test file (no product code changes)
+UNIT        none new: every mechanism's unit tables are E-a … E-d's
+INTEGRATION milestone_e.rs through the real binary and the real server: M-1 … M-4, M-8, M-9
+REAL RUN    milestone_e.rs: the 300-day saved run (AE-5), four 30-day runs incl. SIGKILL and resume
+            (AE-6), the disabled 30-day run (AE-7); EE-12's towns' 300-day runs (evidence)
+EVIDENCE    EE-10 (remove from the build, scratch worktree); M-10's git diffs; EE-14 (AC-8, image)
+REGRESSION  AC-1, precursor and seam scans, package_sources, installed — unedited; packs.rs (roots only)
+GATE 1      NOT REQUIRED: nothing LM-facing (headless run never uses a model)
+GATE 2      the REAL RUN rows are the lifecycle evidence
+CI          fast, test, platforms, test-windows, test-macos on the PR's final head; scenario/ac8 and
+            image via scratch pushes if FQ-e1 puts Ee-C7 here
+```
+
+## 18.8 Live ledger and evidence
+
+*(Filled during execution: E-Ee0 … E-Ee8, deviations, findings.)*
+
+- **E-Ee0** (design, `5ccc402`): worktree `impl-ee` from `origin/main @ 5ccc402`; `git status` clean.
+  `check_doc_headings` → 193 numbered sections across 26 documents, none duplicated; `check_decision_ids`
+  → 104 ids, all distinct. Spike (release binary, `/tmp/impl-ee-target`): Market Town 300 days seed 7
+  `--save` → `faults 0`, 375 619 facts, wall 37.1 s (37.6 s real), `world.sqlite` 3 795 013 632 bytes
+  (3.5 GB); save removed. S16 merges' forbidden-path diffs (`1a1d08e`, `4bdbca1`, `0ba037f`, `68176e7`):
+  empty.
+- **E-Ee1** (`14d778a`) and **E-Ee2** (`535bf8d`): recorded in Ee-C1's and Ee-C2's items above.
+- **Resume (2026-10-10).** The first execution session stopped after `535bf8d` (unpushed) leaving an
+  untracked `worlds/lakeside/` (world.yaml, seven places, ten people, `items/fish.yaml`; no README). The
+  resumed session audited every file against PD-44/PD-45 (all match: routines 05:00–19:00 boundaries,
+  every part ≥ 4 h, one water part each, holdings ≤ 3, `fishing` last in `systems:`, minutes 60 and 90),
+  kept it, added the README, merged `origin/main @ bb62edf` (docs only: overall, P4, S23) as `3e4a638`,
+  pushed.
+- **E-Ee3** (release binary, source identical to `origin/main @ bb62edf`; `git diff origin/main --
+  '*.rs' ':!tools/cli/tests'` empty): `validate worlds/lakeside --packs entities --packs
+  presentation/mineworld-default` → exit 0, 82 genesis facts, `requires` four lines resolved;
+  `packs resolve` → exit 0, twelve `system` lines, `fishing → acme-fishing 0.1.0 (third-party)`.
+  Without roots, `packs list --packs worlds --packs presentation/…` → exit 1 naming `modern-goods`
+  (F-Ee2 reproduced), fixed in `packs.rs`; `cargo test -p mineworld-cli --test packs` → 6 passed.
+  **300 days, seed 7, `--save`** (release): exit 0, `faults 0`, 356 689 facts, wall 22.6 s (22.57 s
+  real), save 2 140 372 992 bytes (2.0 GB) — under PD-50's 4 GB / 120 s; `fish accepted 3388`,
+  `items-produced 2711`, `eat accepted 2722`, `drink accepted 9`. Ee-C5's counting code (working tree)
+  over the same run (`cargo test --test milestone_e`, debug-profile tests, five runs in parallel, 60.8 s
+  for the runs, 85.6 s the test): every PD-47 criterion PASS at the first content — fish requests per
+  bucket 309–359, eaten per bucket 260–290, the catch eaten 260–288 per bucket, every seat fished and
+  ate in every bucket, a `modern-goods` kind eaten (located: `juice`). **Tuning runs: 0.** Lakeside's
+  provisional baseline (re-recorded on the final head): `history    356689 facts, fingerprint
+  ea0415997b6d0066`; sha-256 of the 349 deterministic lines (all but header and `wall`)
+  `97dac8fc5086991af4ab33591c6e5fb446c62da4aaddb304e3d115790bc6fce3`. **EE-12:** 300-day seed-7 sha of
+  every line but `wall` (the method the recorded values use): social-cafe
+  `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` (365 330 facts), market-town
+  `d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee` (375 619 facts) — both equal to
+  main's recorded baselines (E-Ed / TW-d). `validate` of the three existing worlds: sha-256
+  social-cafe `ebcd60a0…`, market-town `6368595a…`, bodies-yard `7356b8f8…`; the binary is built from
+  source identical to main's (no Rust source changed), and the worlds are unchanged, so the outputs equal
+  main's by construction — no separate base build (bounded; saves ~5 min of build).
+- **E-Ee4** (Ee-C4 … C6 as one commit, F-Ee7; working tree on `1b483d4`): `cargo test -p mineworld-cli
+  --test milestone_e` → **7 passed, 0 failed**, 34.6 s (test profile; the five parallel runs 27.1 s;
+  60.8 s on a loaded machine earlier). The 300-day save 2 140 372 992 bytes; peak scratch ≈ 2.2 GB
+  (PD-50: under 4 GB / 6 GB). Printed evidence: 2 711 catches landed through the EC-7 chain; fish
+  requests per bucket 309–359; eaten 260–290; the catch eaten 260–288 per bucket; a `modern-goods` kind
+  eaten (`juice`; seed 8: `apple`); seed 7 and 8 first differ at fact #83 (`conversation-started` vs
+  `arrived`); `nils` (located: the seat whose `location.place` has a `fishing:` section) offered an
+  available complete `fish` through `server`, accepted, its events include one `fishing-started`; in the
+  disabled copy `nils` is offered `move, walk-to, eat, drink` and the same request is answered
+  `Unavailable`; the disabled 30-day run's fact types are the enabled run's minus exactly
+  `fishing-ended, fishing-spot, fishing-started, items-produced`. Sockets available: M-8 PASS.
+  **Mutations** (each applied, observed failing by name, reverted; `git status` after each: only the new
+  test files untracked): **M-E1** `origin_word` always "bundled" (`tools/cli/src/packs.rs`) → M-1 FAILS
+  "packs list and the installed set agree on the third-party packs" (left `[]`, right
+  `[("acme-fishing", "fishing")]`); **M-B1** `if false && !range.admits(…)` (`packages/src/resolve.rs`)
+  → M-3 FAILS at `range ["validate"]` (exit 0, not 1); **M-D3** the one-namespace check filtered off
+  (`worldpack/src/entities.rs`) → M-3 FAILS at `one-namespace ["validate"]`; **M-E2** alba's water part
+  moved to `square` → the structural check FAILS "alba's routine never reaches {"pier", "shore"}", and
+  with that check bypassed for the mutation run the count FAILS "alba never fished in bucket 1 … 10"
+  (48.5 s); **M-E3** fish `category: goods` → FAILS "nobody ate the catch in bucket 1", then every seat
+  "never fished"/"never ate" from bucket 2 (people full of uneatable fish, endowments spent — the food
+  loop is real); **M-E4** the killed save deleted before the re-run → FAILS "the re-run resumed the save
+  on disk at the head the kill left: … created …"; **M-E5** `disabled_copy` returns the unedited copy →
+  M-9 (a) FAILS (fact-type sets differ by the four) and M-9 (b) FAILS "nobody is offered fish once
+  fishing is disabled: [move, walk-to, eat, drink, fish]". **EE-10** (scratch worktree `/tmp/ee-remove`
+  of `1b483d4`, the two `ARC-33` lines removed, `Cargo.lock` −16 lines on rebuild, release 45 s):
+  `validate worlds/lakeside --packs entities --packs presentation/mineworld-default` → exit 1, "world.yaml
+  enables the system 'fishing', which this build does not provide (it has: 'presence', … 'weather')";
+  worktree and target removed. **Regression:** `ac1_composability` 15 passed, `package_sources` 11,
+  `precursor_vocabulary` 4, `seam_vocabulary` 3 — unedited; `check_scratch.py scan` → 205 test sources,
+  none makes scratch outside test-support (2 exempt, pre-existing); `cargo clippy -p mineworld-cli
+  --all-targets --all-features -D warnings` clean.
+- **E-Ee7** (Ee-C7, `36d0338`): `ci_parity.py --self-test` → passed (Python 3.12); `check_ci_pins.py` →
+  pins agree; local `record --binary` (release) → 4 worlds, 1 979 lines, lakeside recorded in 11.0 s,
+  69.4 s in all. **M-E6** (`PACK_ROOTS = []`) → record FAILS "validate worlds/lakeside: exited 1 …
+  requires: mineworld-default-2d is not in this build, and no pack directory was given" (the first
+  requirement in id order, not `modern-goods` as §18.5 guessed; reverted). Scratch push
+  `scratch/ee-36d0338-scenario` → run https://github.com/yuema137/MineWorld/actions/runs/38036440204:
+  fast ✓, **scenario ✓** (builds the runtime image and runs `ci_image.py`: every world's `validate` with
+  the roots, lakeside included — the image claim of EE-14), linux-arm ✓, **mac ✗, windows ✗** —
+  "the pack directory presentation/mineworld-default (from --packs) does not exist" (F-Ee8), so `ac8` ✗
+  (G-3: no Darwin, no Windows record); the two Linux records agree on all four worlds. The `-image`
+  push (run 38036440209) ran no image job: the image is checked inside `scenario` now, so the scenario
+  run is the image evidence. **Scratch-only evidence commit** `7f4fb6f` (F-Ee8's two-line sparse-checkout
+  re-include on the mac and windows legs; never on the PR branch) → `scratch/ee-7f4fb6f-scenario`, run
+  https://github.com/yuema137/MineWorld/actions/runs/38037163670: fast, scenario, linux-arm, mac, windows
+  ✓; **ac8 ✗**: "G-5 world lakeside differs: Windows/x86_64 ≠ {Darwin/arm64, Linux/arm64, Linux/x86_64}
+  — validate differs"; bodies-yard, market-town, social-cafe equal on 4 records; every lakeside key but
+  `validate` (both summaries, every table chunk of the save) equal on all four (F-Ee6).
+- **E-Ee8** (Ee-C8, full local gate on `36d0338`, release and test profiles in `/tmp/impl-ee-target`):
+  `cargo fmt --all --check` ✓; `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✓;
+  `cargo test --workspace --no-fail-fast` → **993 passed, 0 failed, 33 ignored, 0 filtered**;
+  `check_scratch.py scan` → 205 sources clean; `left --target-dir /tmp/impl-ee-target` → none left;
+  `check_doc_headings` 193 sections / 26 documents; `check_decision_ids` 105, distinct. **EE-11:** `git
+  diff origin/main -- kernel contracts persistence server clients cognition systems sdk packages/src
+  worldpack/src tools/cli/src '*Cargo.toml' Cargo.lock` → empty; the S16 merges' forbidden-path diffs
+  empty (E-Ee0). **EE-12:** E-Ee3's digests (no product change since). The binary is unchanged since
+  E-Ee3, so Lakeside's baseline there is final for this head.
+- **Rulings (primary, 2026-10-10, relayed by the coordinator):** F-Ee8 approved as bounded (the four
+  manifests re-included in the `mac` and `windows` legs' sparse checkout); F-Ee6 option **(b)** —
+  `packs::source` prints `/` on every OS, the E-d `source_path` precedent — **a recorded exception to
+  PD-41** (one function of `tools/cli/src/packs.rs`; no other product source, no manifest or lock);
+  merge origin/main; scratch branches deleted.
+- **E-Ee9** (after the rulings): `7f4fb6f` re-applied on the PR branch as `4ce50c8` (message reworded;
+  same four lines); origin/main @ `737e032` (#141, #142, #151: CLI test servers bind port 0) merged as
+  `1b3a236`, no conflict; `718f630`: `source()` rewrites `\` to `/` under `cfg!(windows)` only (lossless
+  there; on other OSes `\` is a name character and output is byte-identical to before, so EE-12 holds
+  unchanged), and the two tests that compared the directory now compare the `/` form —
+  `milestone_e.rs` M-2 (as ruled) and `entity_packs.rs` ED-1's `goods_dir` (an existing-test edit forced
+  by the ruled change; claim unchanged; bounded). Local: clippy clean; `milestone_e` 7, `entity_packs`
+  5, `requirements` 6, `packs` 6, `third_party` 3 — all pass. **AC-8:** `scratch/ee-718f630-scenario` →
+  https://github.com/yuema137/MineWorld/actions/runs/38065578235 success: fast, scenario (image +
+  `ci_image.py`), linux-arm, mac, windows, **ac8 "AC-8 PASS"** — 4 records (Darwin/arm64, Linux/arm64,
+  Linux/x86_64, Windows/x86_64), 4 worlds, 1 962 keys; lakeside equal on 4 records, 491 keys
+  (summary-300 `e3fdc8bd…d596`); bodies-yard, market-town (`d5db8988…22ee`), social-cafe (`ad49c723…c64b`)
+  equal. EE-14 PASS. Scratch branches `scratch/ee-36d0338-{scenario,image}`, `scratch/ee-7f4fb6f-scenario`
+  deleted; `scratch/ee-718f630-scenario` deleted after this record.
+- **E-Ee-final** (closeout, 2026-10-10). Merged: PR #137, merge commit
+  `8c710d1ca6a1bdc363a2a1df863ebd071ceb7475`, 2026-10-10T20:18:51Z; final PR head `cdab766`. PR CI run
+  `38080335312` green on the exact head: `fast`, `test`, `platforms` (`macos-26`, `windows-2025`),
+  `test-windows`, `test-macos`, `python` ×3. AC-8: run `38065578235` PASS with four records (Darwin/arm64,
+  Linux/arm64, Linux/x86_64, Windows/x86_64), as recorded in E-Ee9. Primary review mutation: lakeside's
+  `requires:` changed to `acme-fishing "^0.2"` (the pinned pack is 0.1.0) → all 7 `milestone_e` tests failed
+  by name. Rulings applied: F-Ee6 (b) and F-Ee8 (E-Ee9). Lifecycle of §18 set to `MERGED`. Milestone E
+  awaits the operator's acceptance; no tag created (FQ-e4).
+
+**Findings (bounded unless marked).**
+
+- **F-Ee1 — needs a ruling (FQ-e1, FQ-e2).** AC-8 (`ci_parity.py`) and the image check (`ci_image.py`)
+  run `validate`/`run` for every `worlds/*` with no pack root, and the runtime image carries neither
+  `entities/` nor the presentation manifests. Lakeside is the first world whose commands need roots; its
+  merge would turn `ac8` and the image job red on `main`, which PRs do not run. The files are S13's.
+- **F-Ee2.** `tools/cli/tests/packs.rs` lists and validates every world under `worlds/` without an
+  entities root; Lakeside makes it refuse. Fixed in the test (roots added), claim unchanged (EE-12).
+- **F-Ee3.** `support::Server` does not remove `MINEWORLD_PACKS`; the milestone test asserts it unset
+  rather than editing `support/` (PD-46).
+- **F-Ee4.** §9.6's "bundled Entity Pack" would reuse ARC-54's defined term for a data pack; read as "the
+  repository's own Entity Pack" (PD-43).
+- **F-Ee5.** The framework is already 0.1.0 (E-a); E-e bumps nothing (PD-40).
+- **F-Ee6 — MATERIAL; ruled (b) by the primary 2026-10-10, fixed in `718f630` (E-Ee9).** `validate` (and `packs resolve`) print a required
+  data pack's directory as `root.join(name).display()` (`tools/cli/src/packs.rs` `source`), so Windows
+  prints `entities\modern-goods` and `presentation/mineworld-default\2D` where the other platforms print
+  `/`. AC-8's record hashes `validate`'s output, so Lakeside — the first world with a data-pack
+  requirement — fails G-5 on Windows alone (run 38037163670), with every summary line and every stored
+  byte equal: the world is the same; a host path's rendering differs. Merged as is, `ac8` turns red on
+  `main`. Options: **(a)** `ci_parity.py`'s record normalizes `\` to `/` in `validate`'s output before
+  hashing (one line; an S13 instrument change beyond FQ-e1, justified as the same kind of exclusion as the
+  save-path header); **(b)** `packs::source` renders a directory with `/` on every OS, as E-d did for
+  `source_path` (one line of `tools/cli/src`, beyond PD-41; `milestone_e.rs`'s M-2 directory check then
+  compares with `/`); **(c)** Lakeside keeps no data-pack requirement in AC-8 (rejected: hides the
+  milestone world from the parity check). Recommended: **(b)** — it makes the printed composition
+  identical on every platform, which is what AC-8 claims — as a bounded exception to PD-41 inside E-e,
+  or (a) if the primary prefers no product change in E-e.
+- **F-Ee8 — MATERIAL (S13's file beyond FQ-e1); approved as bounded by the primary 2026-10-10, applied
+  as `4ce50c8` (E-Ee9).** The `mac` and `windows`
+  AC-8 legs sparse-check-out the repository without `/presentation/` (`.github/workflows/ci.yml`), so the
+  presentation root does not exist there and every world's record fails (run 38036440204). Fix shown
+  working on a scratch-only commit (`7f4fb6f`): two lines per leg re-including
+  `/presentation/mineworld-default/*/pack.yaml` and `…/manifest.yaml` — the same four files the image
+  re-includes under FQ-e1. Recommended: accept into Ee-C7.
+- **F-Ee7 (bounded, resolved).** One file holding M-1 … M-9 and its helpers measured 1 245 lines after
+  `rustfmt`, past the standards' ~800-line strong warning. The helpers moved to a test-only module beside
+  `headless/` and `market/` — `tools/cli/tests/lakeside/mod.rs` (commands and roots, locating, what the
+  world's files say, scratch copies; 403 lines) and `lakeside/history.rs` (reading a run and a save as
+  PD-47 measures it; 248 lines) — and `milestone_e.rs` keeps every test (645 lines): "one test file shows
+  all of it" still holds. Because the counting code written for Ee-C3 and those helpers serve all three
+  halves of the file, Ee-C4, C5 and C6 landed as one commit (mapping recorded; scope unchanged).
+
+## 18.9 Freeze questions
+
+**Rulings (primary, 2026-10-10; §18.0):** FQ-e1 (a); FQ-e2 not taken; FQ-e3 ARC-77; FQ-e4 no tag now
+(S23 owns tags); FQ-e5, FQ-e6, FQ-e8 as recommended; FQ-e7 confirmed. Every "ARC-Ee-a" in §18 means
+ARC-77.
+
+```text
+FQ-e1  [PRIMARY / OPERATOR — S13's files] F-Ee1: (a) E-e includes Ee-C7 — ci_parity.py and ci_image.py
+       pass the two roots to every world, the image carries entities/ and the presentation manifests —
+       validated by a -scenario and an -image scratch push (E-c's F-Ec3 precedent: a bounded CI change
+       inside the PR that needs it); (b) S13 does it in a follow-up merged before E-e (E-e waits);
+       (c) E-e merges and AC-8/image are red on main until S13 follows (rejected: a known break).
+       Recommended: (a).
+FQ-e2  Lakeside requires the two default Presentation Packs (§9.6), so the image must carry their two
+       small manifests each (Ee-C7). Alternative: Lakeside requires only its Entity Pack and the
+       third-party pack (the image then needs entities/ only), and §9.6's presentation requirement is
+       dropped. Recommended: keep the requirement (QSE-9's "declared and validated"; four small files).
+FQ-e3  The decision record ARC-Ee-a needs a number (next free: ARC-77). Recommended: assign ARC-77.
+FQ-e4  [OPERATOR] At READY, E-e writes HUMAN_REVIEW_QUEUE row E as "🚧 implemented, awaiting operator
+       acceptance" and MVP_STATUS's rows; the operator flips row E to ✅ after the hands-on checklist
+       (standing milestone rule). A framework git tag v0.1.0 on the merge commit is the operator's, after
+       acceptance; E-e creates no tag. Recommended: as stated.
+FQ-e5  milestone_e.rs runs in the default suite (Linux `test`, and 13w's `test-windows`/`test-macos` on
+       a non-draft PR), not added to the `platforms` layer (it would duplicate the 300-day run on two
+       more runners per PR). Recommended: as stated.
+FQ-e6  `fish` is Lakeside's own kind, not modern-goods' (PD-45). Recommended: as stated.
+FQ-e7  QSE-15: the repository's own Entity Packs live in a new top-level entities/ (ARCHITECTURE §14),
+       as §9.6's scope already names. It was recommended but not in the operator's 2026-10-08 list of
+       accepted QSEs. Recommended: confirm.
+FQ-e8  Lakeside uses exactly §9.6's systems — no calendar or weather (both installed). Adding them is
+       two configure files each and changes no claim; left out to keep the milestone world's composition
+       the frozen one. Recommended: as stated.
+```
+
+## 18.10 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| RE-e1 | Some seat does not fish in some bucket (the band, travel time, capacity) | PD-44's routines and holdings; Ee-C3's tuning loop on content only; I-E8 forbids touching the controller; a criterion that cannot be met by content is raised, never weakened |
+| RE-e2 | The food loop does not close (eating outpaced by catching, or fish never eaten) | PD-47 (4) measured in Ee-C3; catch minutes and the water parts of routines are the levers |
+| RE-e3 | The 300-day save's size on CI runners (F-SAVE-1: 3.5 GB for Market Town) | PD-50's ceiling and stop; scratch removed on drop; the persistence lane owns retention |
+| RE-e4 | 12n-2 / 12d (walking routes, walls) land first and change movement, re-baselining the towns and moving Lakeside's numbers | Merge `origin/main`, re-run Ee-C3's measurement and the milestone test; Lakeside's baseline is recorded on the final head only |
+| RE-e5 | A merge of main adds a world-enumerating instrument or test that needs roots | The ledger re-greps `worlds/` enumerations at every merge (§18.3's audit row) |
+| RE-e6 | The pack's repository unreachable in CI | Fails closed (RE-1); unchanged by E-e |
+
+## 18.11 Execution contract (proposed; filled at freeze)
+
+```text
+PROJECT / PR:              MVP-0 · S16 / PR E-e — Lakeside and Milestone E
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §18
+RELATED / BINDING DOCS:    this file §§1–9 (step design), §§14–17 (E-a … E-d as merged), §16.12 and §17.12
+                           (every platform); overall.md "Parallel build-out, 2026-10-08" and its later
+                           rulings; CLAUDE.md; docs/ENGINEERING_STANDARDS.md, ENGINEERING_RULES.md,
+                           MODULE_SPEC.md, PACKAGE_FORMAT.md, DECISIONS.md ARC-23, ARC-31, ARC-33, ARC-34,
+                           ARC-36, ARC-53, ARC-54, ARC-55, ARC-66, ARC-71, DEP-29
+IMPLEMENTATION BASE:       main @ 5ccc402 or later at freeze; branch mvp0/pr-ee-lakeside
+WORKTREE:                  /Users/yuema137/mineworld-worktrees/impl-ee, held by the E-e session only
+APPROVED SCOPE:            §18.1–18.6 as frozen, with FQ-e1 … FQ-e8 as ruled
+FROZEN INVARIANTS:         I-E1 widened by PD-41 (no Rust production source, no Cargo.toml, no Cargo.lock
+                           change); I-E2 (towns' digests, three worlds' validate output); I-E3 (the pack's
+                           pin unchanged); I-E4 (AC-1 and the scans unedited and passing); I-E5; I-E6; I-E7;
+                           I-E8 (controller untouched; seats fish only because fish is offered); I-E9;
+                           I-E10; QSE-14; PD-47's criteria as written; every platform
+APPROVED SEQUENCE:         Ee-C1 → C2 → C3 → C4 → C5 → C6 → (C7 as FQ-e1 rules) → C8; merges of
+                           origin/main, never rebases
+COMMANDS:                  cargo (with $HOME/.cargo/bin on PATH, CARGO_TARGET_DIR=/tmp/impl-ee-target), git,
+                           gh (PR create and update on MineWorld; scratch/ee-* branch pushes for CI;
+                           read-only elsewhere; never merge), python3 scripts/*, mkdir -p, sed -n;
+                           Read/Edit/Write for files; scratch under /tmp, removed afterwards. No sed -i, no
+                           inline python, no curl, no heredoc file writes
+VALIDATION BUDGET:         targeted per commit; Ee-C3's tuning loop ≤ ~20 release 300-day runs (≈ 40 s,
+                           ≤ 4 GB each, removed); the milestone test locally (debug) a few times; EE-10's
+                           scratch rebuild once; EE-12's towns' runs (≈ 4 per main merge); one full local
+                           gate; CI on the PR (fast, test, platforms, test-windows, test-macos) and, under
+                           FQ-e1 (a), one -scenario and one -image scratch run; ≈ 3 h in all; anything over
+                           ≈ 2 minutes in the background
+REQUIRED LIVE DOCS:        §18.8; handoff-ee.md
+ENDPOINT AUTHORITY:        to be filled from the primary session's freeze message (kickoff, 2026-10-10:
+                           "implement, validate, review, commit; CI green on the exact head; READY FOR
+                           OPERATOR REVIEW; never merge") — implementation, semantic commits, pushing this
+                           branch and scratch/ee-* branches, updating the draft PR and marking it ready, CI
+                           repair on this PR. Merge NOT authorized
+POST-MERGE SYNC OWNER:     this session: §18's ledger and merge identity; the primary session: §9.6's
+                           status, the step header, overall.md, the progress page
+MATERIAL STOPS:            any Rust production, Cargo.toml or Cargo.lock change; a new fishing-pack revision;
+                           any edit to the controller; an existing-test edit beyond F-Ee2's roots; PD-50's
+                           ceiling exceeded; a PD-47 criterion unmeetable by content; any edit to S13's
+                           files beyond what FQ-e1 rules; a digest change of an existing world
+NORMAL STOP CONDITION:     PR E-e READY FOR OPERATOR REVIEW, fast / test / platforms / test-windows /
+                           test-macos green on the exact head — DO NOT MERGE
+MERGE AUTHORITY:           never without the operator's explicit approval
+```
 

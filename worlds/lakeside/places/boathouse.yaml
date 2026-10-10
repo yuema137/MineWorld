@@ -1,0 +1,19 @@
+# The boathouse: an old boat shed turned into rooms, north of the lane.
+#
+# About 10 m by 8 m; its door onto the lane is on its south wall.
+
+tags:
+  - boathouse
+  - residential
+
+note: >-
+  A long timber shed with rooms above the boats. The fishermen live here.
+
+passages:
+  - to: lane
+    here:
+      x: 2000
+      y: 200
+    there:
+      x: 9000
+      y: 5800

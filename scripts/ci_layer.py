@@ -145,12 +145,17 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
-# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else. The
-# cognition suite needs no binary and runs whole.
+# No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
+# package's real_binary AC-10 scenario (pr-s10-p4 §5.10) — are deselected by name, visibly, here and
+# nowhere else. A `-m` on the command line replaces the member's `addopts` `-m "not live_model"` rather
+# than adding to it, so the cognition expression restates that deselection.
 LAYERS["python-smoke"] = [
     *PYTHON_STATIC,
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
-    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
+    [
+        "uv", "run", "--locked", "pytest", "cognition/lm-controller",
+        "-m", "not live_model and not real_binary",
+    ],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
