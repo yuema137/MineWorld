@@ -459,6 +459,8 @@ mod tests {
     fn a_stride_is_at_most_the_walk_stride_and_ends_at_a_near_waypoint() {
         // 3 000 mm east: 1 340 mm east exactly.
         assert_eq!(toward(p(0, 0), p(3_000, 0), WALK_STRIDE), p(1_340, 0));
+        // 2 000 mm east, between one and two strides: still one stride, 1 340 mm east.
+        assert_eq!(toward(p(0, 0), p(2_000, 0), WALK_STRIDE), p(1_340, 0));
         // 1 000 mm away: the waypoint itself.
         assert_eq!(toward(p(0, 0), p(600, 800), WALK_STRIDE), p(600, 800));
         // (3 000, 4 000), 5 000 mm: 1 340 / 5 000 of it = (804, 1 072), exactly 1 340 mm.
