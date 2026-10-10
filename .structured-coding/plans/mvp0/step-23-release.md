@@ -973,8 +973,16 @@ MERGE AUTHORITY:
 
 # 18. R-a — commit plan, engine probes and live ledger (C0)
 
-**Status: C0 drafted 2026-10-10 by the R-a implementation session; NOT FROZEN. STOPPED at material stops 1
-and 2 of §17.1 (§18.4).** Worktree `/Users/yuema137/mineworld-worktrees/impl-s23-ra`, branch
+**Status: `C0 FROZEN 2026-10-10 (primary)`, with D-Ra-1 … D-Ra-4 accepted.** Primary rulings of the same
+day, relayed to this session: **MS-Ra-2** — the operator chose VRAM texture compression (option C); it is
+being delivered by RL-b (PR #131, branch `mvp0/pr-rl-b-3d-budget`: "imported props with LODs" and "BC7
+compressed + mipmapped textures, 213 `.import` files"). **MS-Ra-1** — if it persists on RL-b's head,
+option (A) is approved inside R-a as a bounded change, with frame-diff evidence that the slice looks
+unchanged. C1, C3 and C5 proceed now; C4's 3D half and C6 wait for RL-b's merge. §18.7 records the check of
+RL-b's head. The drafting status follows, kept for history.
+
+**Drafted:** C0 drafted 2026-10-10 by the R-a implementation session, stopped at material stops 1
+and 2 of §17.1 (§18.4). Worktree `/Users/yuema137/mineworld-worktrees/impl-s23-ra`, branch
 `mvp0/pr-s23-ra`, base `origin/main @ bb62edf` (the freeze's merge, PR #140). No client, script, preset or
 decision record has been written: this section and the handoff file are the only changes. It records what
 the probes of C2 found, because three of them change the design R-a was frozen on, and proposes the smallest
@@ -1151,10 +1159,15 @@ Each commit tracks implementation, deterministic validation and LLM logic review
 ```text
 C0  this section and the handoff — Markdown only
       [x] impl  [x] validation (anchors re-verified, probes P-1…P-9, exports measured)
-      [ ] review: the primary session's freeze
+      [x] review: C0 FROZEN 2026-10-10 (primary)
 C1  specs first: the 2D client's argument spec and SETTINGS.md §6 for --root; docs/DECISIONS.md ARC-80
     (layout of D-Ra-1/D-Ra-2, per-user data, --root), DEP-38 (cargo-about, version pinned at install),
-    DEP-41 (official templates, SHA-512)                                        [ ] impl  [ ] validation  [ ] review
+    DEP-41 (official templates, SHA-512)                                        [x] impl  [x] validation  [x] review
+      impl: clients/2d/PRESENTATION.md §1 (--root row and paragraph); clients/shared/SETTINGS.md §2
+            ("In an exported client, --root"); docs/DECISIONS.md ARC-80, DEP-38 (cargo-about 0.9.2), DEP-41
+      validation: check_decision_ids 107 distinct; check_doc_headings 193 sections, none duplicated
+      review: terms checked against CORE_CONCEPTS (no new ontology term; "bundle" is packaging, not a
+              pack type); every claim cites a §18.2 probe; ARC-80 states fallback behaviour without --root
 C2  probes: done in C0 (§18.2)                                                   N/A: recorded above
 C3  F-R1 (app.gd repo_path with --root) and F-R2 by D-Ra-2 (text.gd module_dir with --root); the 2D drive and
     the shared settings checks green from the checkout, unchanged               [ ] impl  [ ] validation  [ ] review

@@ -7006,3 +7006,117 @@ preset is one file.
 **Revisit** if a vendor changes its terms or enforces against such use (remove the preset: one file and
 one registry line), or if a vendor publishes an explicit permission or prohibition for third-party
 programs running its CLI with a subscription.
+
+---
+
+## ARC-80 — The downloadable bundle: its layout, per-user data, and `--root` for exported clients
+
+**Date** 2026-10-10 · **Status** selected · **Approved by** the primary session's S23 freeze (QR-1 … QR-13)
+and its C0 freeze of R-a's plan (D-Ra-1 … D-Ra-4) · **Relates to** `ARC-6`, `ARC-78`, `ARC-79`, `DEP-36`,
+`DEP-41` · **Design** `.structured-coding/plans/mvp0/step-23-release.md` §3, §6.5, §18
+
+**Problem.** A player downloads one archive per operating system and runs MineWorld with no Godot, no
+Rust toolchain and no repository. Exported clients cannot find files the way a checkout does: in a
+release template `ProjectSettings.globalize_path("res://")` is `""` (step-23 §18.2, P-1), so the 2D
+client's "relative to the repository root" and the shared text module's own folder have no meaning, and
+Godot never packs the shared module's `.gdignore`'d catalogs and font (P-6). Official release templates
+also refuse `--main-pack` (P-3), so one engine cannot run two packs.
+
+**Choice — the layout.** One folder per target, archived as `.zip` (macOS, Windows) or `.tar.gz` (Linux):
+
+```text
+MineWorld-<version>-<target>/
+  PLAY.txt  LICENSE  NOTICE  LICENSES/            notices (Rust: DEP-38; Godot; fonts; assets)
+  <launcher entry points>                         ARC-78
+  runtime/
+    mineworld[.exe]                               the release server
+    clients/mineworld-2d[.exe|.app]               the exported 2D client, engine and pack together
+    clients/mineworld-3d[.exe|.app]               the exported 3D client (slice scene as main)
+    clients/shared/settings/locale/*.po           the shared catalog layer, as plain files
+    clients/shared/settings/fonts/NotoSansSC-Regular.otf, OFL.txt
+    presentation/mineworld-default/2D/{art,assets,i18n,renderer,manifest.yaml,pack.yaml}
+    worlds/<world>/                               as tracked
+    BUNDLE.toml                                   version, commit, target, build date, file-list digest
+```
+
+`<target>` is `macos-universal`, `windows-x86_64`, `linux-x86_64` or `linux-arm64`. Linux and Windows
+clients embed their pack in the executable; macOS clients are ad-hoc-signed `.app`s with the pack in
+`Contents/Resources`. Under `runtime/`, every file the clients read from disk keeps its path relative to
+the repository root, so one argument locates all of them.
+
+**Choice — `--root=<dir>`.** A user argument both clients accept: the absolute folder that stands for the
+repository root. The 2D client resolves a relative `--presentation=` against it
+(`clients/2d/PRESENTATION.md` §1); `MineWorldText.module_dir()` returns `<root>/clients/shared/settings`
+(`clients/shared/SETTINGS.md` §2). Absent, both behave exactly as from a checkout. It changes where files
+are read from, never what is read, in which order, or any rule.
+
+**Choice — per-user data.** Saves go to `<per-user MineWorld folder>/saves/<world>/` and logs to
+`…/logs/` (the folder of `clients/shared/SETTINGS.md` §4), never beside the executable: a quarantined
+macOS app or a Windows install under `Program Files` runs from a read-only folder.
+
+**Not shipped.** Evidence and tooling: `shots/`, `screenshots/`, `references/`, `candidates/`, `tools/`
+(which holds the GPL Blender scripts), every `.md`, and any `.env`. No language model and no cognition
+package (QR-8).
+
+**Options compared** (step-23 §3.2): one engine with two packs (impossible with official templates,
+P-3; it would need templates built from source, declined in `DEP-41`); two full exports (chosen; the
+engine is carried twice, measured at 28–60 MB compressed per copy); thin launchers over an installed
+Godot (the contributors' path, `ARC-78`, not a player's).
+
+**Limitation accepted.** Each bundle carries the engine twice. `--root` is one more argument a launcher
+must pass; a client started by hand from a bundle without it falls back to checkout behaviour and draws
+plainly.
+
+---
+
+## DEP-38 — `cargo-about` generates the Rust third-party notices of a bundle
+
+**Date** 2026-10-10 · **Status** selected · **Approved by** the S23 freeze · **Relates to** `DEP-22`,
+`ARC-80` · **Design** step-23 §3.1, §12
+
+**Problem.** A bundle redistributes the server and launcher binaries, which link every crate of
+`Cargo.lock`'s graph that they use. MIT and Apache-2.0 require the licence text and notices to travel
+with binaries; a hand-kept file drifts from `Cargo.lock`.
+
+**Choice.** `cargo-about` (Embark Studios, MIT OR Apache-2.0), version **0.9.2** (crates.io, read
+2026-10-10), installed with `cargo install cargo-about --version 0.9.2 --locked`, run at packaging time
+against `Cargo.lock` with the repository's configuration and template under `packaging/`. It writes
+`LICENSES/THIRD_PARTY_RUST.html`. A crate whose licence the configuration does not accept fails the run,
+so a new licence is a reviewed change, as `DEP-22`'s `deny.toml` already makes it for the graph.
+
+**Options compared.** `cargo-license` (lists names and SPDX ids, no licence texts: insufficient);
+`cargo-bundle-licenses` (less used; its maintenance was not verified, and nothing it adds was needed); a hand-written
+file (drifts); `cargo-deny` (already checks licences, `DEP-22`, but emits no notices).
+
+**Interface.** A packaging tool only: `scripts/package.py` calls it; no crate depends on it, and nothing
+it produces is read by MineWorld.
+
+**Limitation accepted.** It covers the Rust graph only. Godot's bundled third-party code is covered by
+Godot's own `COPYRIGHT.txt`, shipped beside it.
+
+---
+
+## DEP-41 — Official Godot 4.7.2 export templates, checksum-pinned
+
+**Date** 2026-10-10 · **Status** selected · **Approved by** the S23 freeze · **Relates to** `DEP-4`,
+`ARC-80`, `step-14-ci.md` §5.7 · **Design** step-23 §5.2, §12, §18.2
+
+**Problem.** Exporting the clients needs Godot export templates of exactly the engine version the
+projects target.
+
+**Choice.** The official `Godot_v4.7.2-stable_export_templates.tpz` from the `godotengine/godot`
+release `4.7.2-stable` (1,281,349,702 bytes), fetched by version and accepted only if its SHA-512 equals
+the line in that release's `SHA512-SUMS.txt`
+(`ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079`,
+checked 2026-10-10). Installed in the user's Godot templates folder, never in the repository; cached in
+CI by version.
+
+**Options compared.** `barichello/godot-ci` (already declined, `step-14-ci.md` §5.7: a third-party image
+for a download we can pin ourselves); building templates from source (smaller binaries through feature
+stripping and the only way to regain `--main-pack`, but hours of CI and a C++ toolchain to own: declined
+until the size budget demands it).
+
+**Limitation accepted.** Official release templates are built with `disable_path_overrides`, so
+`--main-pack` is unavailable (step-23 §18.2, P-3) and each client is exported with its own engine
+(`ARC-80`). The macOS universal and arm64 exports require the project setting
+`rendering/textures/vram_compression/import_etc2_astc=true` (P-5).
