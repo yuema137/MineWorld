@@ -337,7 +337,7 @@ MineWorld's own clients.
 | [Quality Godot First Person Controller v2](https://github.com/ColormaticStudios/quality-godot-first-person-2) | MIT | the controller. v1 is archived — take v2 |
 | [Sky3D](https://github.com/TokisanGames/Sky3D) | MIT | sky and daylight. Credit is required only if the bundled star map ships |
 | [Kenney](https://kenney.nl) | CC0 | blockout and placeholder only; the style is deliberately not ours |
-| [Noto Sans SC Regular](https://github.com/notofonts/noto-cjk) (`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit `165c01b`, SHA-256 `faa6c9df…706d5ea9`) | **OFL-1.1**, admitted only under the font exception above | the CJK fallback font of both reference clients' UI (`clients/shared/settings/fonts/`, S20 SET-a, `DEP-33`) |
+| [Noto Sans SC Regular](https://github.com/notofonts/noto-cjk) (`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit `165c01b`, SHA-256 `faa6c9df…706d5ea9`) | **OFL-1.1**, admitted only under the font exception above | the CJK fallback font of both reference clients' UI (`clients/shared/settings/fonts/`, S20 SET-a, `DEP-36`) |
 
 ### Excluded, with the reason
 
@@ -5549,11 +5549,10 @@ the next day's opening phase corrects the light.
 
 ---
 
-## ARC-72 — Client settings are a shared, presentation-only client module
+## ARC-76 — Client settings are a shared, presentation-only client module
 
 **Date** 2026-10-09 · **Approved by** the primary session at S20 PR SET-a's design freeze (2026-10-08;
-`ARC-SET-a` of step-20 §11.1; number allocated provisionally by SET-a's implementation session, to be
-confirmed by the primary session) · **Relates to** `ARC-46`, `ARC-47`, `ARC-70`, `DEP-32`, `DEP-33`,
+`ARC-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) · **Relates to** `ARC-46`, `ARC-47`, `ARC-70`, `DEP-35`, `DEP-36`,
 [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§2–3, 10–12 · **Design**
 `.structured-coding/plans/mvp0/step-20-client-settings.md` §3, §12; specification
 [`clients/shared/SETTINGS.md`](../clients/shared/SETTINGS.md)
@@ -5586,11 +5585,11 @@ change the project's global composition); a copy per client (two copies drift).
 
 ---
 
-## DEP-32 — Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined
+## DEP-35 — Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined
 
 **Date** 2026-10-09 · **Status** selected; no dependency added · **Approved by** the primary session at
-S20 PR SET-a's design freeze (`DEP-SET-a` of step-20 §11.1; number provisional, as `ARC-72`) ·
-**Relates to** `ARC-72`, `ARC-70`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** step-20 §4.1–§4.3,
+S20 PR SET-a's design freeze (`DEP-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) ·
+**Relates to** `ARC-76`, `ARC-70`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** step-20 §4.1–§4.3,
 §4.5
 
 **Options compared** (step-20 §4 holds the full tables and sources):
@@ -5627,11 +5626,11 @@ the settings file; `MineWorldDisplay` (`display.gd`) is the only code that appli
 
 ---
 
-## DEP-33 — Noto Sans SC Regular bundled as the clients' CJK fallback font
+## DEP-36 — Noto Sans SC Regular bundled as the clients' CJK fallback font
 
 **Date** 2026-10-09 · **Status** selected; one font file added under the DEP-8 font exception ·
 **Approved by** the operator (QSET-1, 2026-10-08) · **Relates to** `DEP-8` (its font exception and table
-row), `ARC-55`, `ARC-72` · **Design** step-20 §3.7, §4.4
+row), `ARC-55`, `ARC-76` · **Design** step-20 §3.7, §4.4
 
 **Problem.** Godot's default font has no CJK glyphs. Without a bundled font, Chinese text renders only
 through whatever font the operating system supplies — PingFang on macOS, Microsoft YaHei on Windows,

@@ -6,7 +6,7 @@ Upstream: https://github.com/notofonts/noto-cjk, Sans/SubsetOTF/SC/NotoSansSC-Re
 commit 165c01b46ea533872e002e0785ff17e44f6d97d8; 8,331,336 bytes;
 SHA-256 faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9. Unmodified.
 The licence text below is upstream's Sans/LICENSE, verbatim. MineWorld's MIT licence does not cover
-this font (NOTICE; docs/DECISIONS.md DEP-8's font exception, DEP-33).
+this font (NOTICE; docs/DECISIONS.md DEP-8's font exception, DEP-36).
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

@@ -931,8 +931,8 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
 - **Scope:** Markdown only. **Non-goals:** any `.gd`.
 - [x] Implementation: the files above — `clients/shared/SETTINGS.md`, `clients/shared/README.md`;
   `docs/DECISIONS.md`: DEP-8's font exception (§4.4.1, word for word) and its table row, a dated note
-  under ARC-70 (ARC-SET-b), ARC-72 (ARC-SET-a), DEP-32 (DEP-SET-a), DEP-33 (DEP-SET-b) — numbers
-  provisional (F-10); `NOTICE`; the `ADOPTION.md` §1 sentence.
+  under ARC-70 (ARC-SET-b), ARC-76 (ARC-SET-a), DEP-35 (DEP-SET-a), DEP-36 (DEP-SET-b) — numbers
+  allocated by the primary session (F-10); `NOTICE`; the `ADOPTION.md` §1 sentence.
 - [x] Validation: `check_doc_headings.py` → "192 numbered sections across 26 documents, none
   duplicated"; `check_decision_ids.py` → "86 decision ids, all distinct". PASS. No new defined term:
   "setting" and "host command" are explained in `SETTINGS.md` §1, which says they are not ontology.
@@ -1186,7 +1186,7 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
   Chinese menu), stills hooks (2D `--capture`, 3D `--stills=`), AC-SET-14's check in
   `menu_check.gd`; `clients/shared/evidence/` (stills, `.gdignore`, README); `origin/main` merged
   (`72efd61`; one conflict in `docs/DECISIONS.md`, both sides appended — kept both; ARC-68 landed on
-  main, no collision with ARC-72/DEP-32/DEP-33).
+  main; the numbers were later renumbered to ARC-76/DEP-35/DEP-36, F-10).
 - [x] Validation — the full gate, on the merged tree (macOS 26, Godot 4.7.2, Metal, 120 Hz display):
   - `cargo fmt --all --check` PASS; `cargo clippy --workspace --all-targets --all-features -D warnings`
     PASS; `cargo test --workspace` (at `72efd61` + the stills commit's non-Rust changes) → 886 passed,
@@ -1321,7 +1321,7 @@ step, and the test asserts that the stub saw the client's `leave`.
 | merge `origin/main` | done | `72efd61` |
 | C7 | done; final code head `873612b` | `ce0b4c1`, `d5921e7`, `873612b`; ledger commit after it |
 | Lifecycle | **READY FOR OPERATOR REVIEW** (PR opened; CI on the exact head recorded in the PR) — DO NOT MERGE | — |
-| Post-merge synchronization | this session: §12 lifecycle, merge identity and evidence; the primary session: step-20 §§1–11, `overall.md` (S20 row, decision numbers ARC-72/DEP-32/DEP-33 to confirm) | — |
+| Post-merge synchronization | this session: §12 lifecycle, merge identity and evidence; the primary session: step-20 §§1–11, `overall.md` (S20 row; decision numbers ARC-76, DEP-35, DEP-36) | — |
 | QSET-1 … QSET-16 | ruled 2026-10-08 (§1.5) | coordinator's relay |
 | Windows / Linux checklist (§8) | open, for the operator | — |
 
@@ -1342,7 +1342,7 @@ Handoff: [`handoff-set-a.md`](handoff-set-a.md).
 | F-7 | `server/PROTOCOL.md` lists refusal codes in a table (§5.5) but lists no rejection reasons; the kernel's closed reasons are the `Rejection` enum in `contracts/src/action.rs`. | `PROTOCOL.md` §5.5; `contracts/src/action.rs` | AC-SET-4's code families are read from both: every §5.5 refusal code and every unit variant of `Rejection` (snake_case) needs a `reason.<code>` entry in the shared `en.po` and `zh_Hans.po`. |
 | F-8 | The 2D client's own interaction menu is `scripts/menu.gd` (13b's `Menu`). | `clients/2d/scripts/menu.gd` | The settings menu is `MineWorldSettingsMenu`; the two never share a name. |
 | F-9 | The 3D `SliceIntents.DEFAULT_UTTERANCE` ("Hello! A coffee, please.") is the player's words, sent as the `talk` payload. | `clients/3d-spike/scripts/slice/intents.gd` | Not UI text: translating it would change the request (AC-SET-5). It stays as written, admitted by `client_text.rs`'s allow-list with that reason. |
-| F-10 | No decision numbers were allocated to S20 (`overall.md` "Decision numbers assigned since the parallel build-out table"). | `overall.md` §5 | Provisional: `ARC-SET-a` → **ARC-72**; `ARC-SET-b` → a dated note under `ARC-70` (§11.1 allows it); `DEP-SET-a` → **DEP-32**; `DEP-SET-b` → **DEP-33**. Recorded in each entry as provisional, for the primary session to confirm; `check_decision_ids.py` guards a collision. |
+| F-10 | No decision numbers were allocated to S20 (`overall.md` "Decision numbers assigned since the parallel build-out table"). | `overall.md` §5 | Provisional first: `ARC-SET-a` → ARC-72, `DEP-SET-a` → DEP-32, `DEP-SET-b` → DEP-33; `ARC-SET-b` → a dated note under `ARC-70` (§11.1 allows it). **Ruled by the primary session, 2026-10-09:** those numbers belong to S10 (pr-s10-p5-backends QP5-6, pr-s10-p5b QP5b-3; P5a uses DEP-32 for python-dotenv), and ARC-75/DEP-34 are 12n's; SET-a takes **ARC-76**, **DEP-35**, **DEP-36**, renumbered everywhere in this PR (`DECISIONS.md`, `NOTICE`, `OFL.txt`, `SETTINGS.md`, this file, the handoff, the PR body). The same ruling accepts F-15 and F-16 as bounded. |
 | F-11 | Godot 4.7.2's `DirAccessWindows::rename` removes an existing destination and then `MoveFileW`s the source; it does not refuse. | `godotengine/godot` tag `4.7.2-stable`, `drivers/windows/dir_access_windows.cpp` l. 339–346 (read 2026-10-09 with `gh api`) | §3.4's Windows fallback is already Godot's own behaviour. The store therefore never removes the file itself; it recovers a lone `settings.cfg.tmp` on load (the crash window between remove and move), keeps `.bak` before replacing a file that had a load problem, and states the rule in `SETTINGS.md` §4. No platform branch. |
 | F-13 | The move puts `action.*`/`reason.*` in the shared layer, so from that commit the 2D client must load it, and AC-SET-4 needs the 2D pack's `zh_Hans.po` as soon as the test exists. | C3's validation | The 2D symlink, `words.gd`'s delegation and the pack's `zh_Hans.po` land in C3 rather than C5 (a reordering inside the frozen file list). |
 | F-14 | **Session overlap, 2026-10-09 17:14–17:16.** The coordinator resumed this session twice; for a short while two copies may have run in this worktree. Audit after it: `ps` shows no other process on the worktree; the C2 commit `ff82a50` holds only this session's files and its checks passed on that content; the one foreign change in the tree was `clients/shared/SETTINGS.md` §4's `--settings=<path>` line, rewritten to "(an absolute path, or user://…)", which contradicts the code (relative paths resolve against the working directory). | `git status`, `git show --stat ff82a50`, `ps` | Reverted to the committed text (`git checkout`), and this session continues as the only writer. |

@@ -15,7 +15,7 @@ Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name "Sour
 and is licensed under the SIL Open Font License 1.1 (see OFL.txt in the same folder).
 MineWorld's MIT licence does not cover it. It is bundled, unmodified, as the clients'
 CJK fallback font and is never distributed on its own (docs/DECISIONS.md, DEP-8's font
-exception, and DEP-33).
+exception, and DEP-36).
 
 Bundled assets keep the status recorded for each of them. None is under a licence
 that forbids redistribution. Third-party assets are CC0 1.0. AI-generated assets

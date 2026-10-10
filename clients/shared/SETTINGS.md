@@ -4,8 +4,8 @@
 the 3D reference client, a third client, or a later PR (SET-b input options, SET-c the World section,
 S19 TW-e's HUD date and time). This is a specification, not an introduction; [`README.md`](README.md)
 is the orientation.
-**Authority:** `docs/DECISIONS.md` `ARC-72` (the module), `ARC-70` and its 2026-10-09 note (wording and
-its layers), `DEP-32` (engine APIs adopted), `DEP-33` and `DEP-8`'s font exception (the bundled font).
+**Authority:** `docs/DECISIONS.md` `ARC-76` (the module), `ARC-70` and its 2026-10-09 note (wording and
+its layers), `DEP-35` (engine APIs adopted), `DEP-36` and `DEP-8`'s font exception (the bundled font).
 The design and its rulings are `.structured-coding/plans/mvp0/step-20-client-settings.md` §§3, 5, 12.
 Where this document and a decision disagree, the decision governs and this document is the defect.
 

@@ -19,7 +19,9 @@ STATE               CLOSED / AWAITING OPERATOR ACTION once the PR is READY FOR O
 ## What the operator needs to know
 
 - Windows and Linux hand checks H-1 … H-10 are open (§12.13).
-- Decision numbers ARC-72, DEP-32, DEP-33 are provisional (F-10); the primary session confirms.
+- Decision numbers: ARC-76, DEP-35, DEP-36, allocated by the primary session 2026-10-09 (F-10;
+  the provisional ARC-72/DEP-32/DEP-33 belonged to S10 and were renumbered).
+- F-15 and F-16 accepted by the primary session as bounded.
 - F-15: the 3D toast's reason words follow 13b's wording (`busy` → "busy right now").
 - F-16: the clock setting governs the HUD time line; 13b's schedule rows stay 24-hour.
 - AC-SET-9's still byte-identity cannot discriminate (stills differ run to run with no settings at all).
