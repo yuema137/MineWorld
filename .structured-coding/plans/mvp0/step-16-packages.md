@@ -3908,22 +3908,25 @@ packs' `pack.yaml` and `manifest.yaml` into `/opt/mineworld/presentation/minewor
 `.dockerignore` re-includes exactly those four files. `ci_parity.py --self-test` extended only if its
 fixtures need the roots.
 
-- [ ] Implementation: as ruled.
-- [ ] Validation: `python3 scripts/ci_parity.py --self-test`; a local `record --binary` over the four
-  worlds (lakeside included) and M-E6; a `scratch/ee-…-scenario` push → scenario, linux-arm, mac,
-  windows, ac8 (run URLs); an `-image` push → image job (URL). Each not run → INCONCLUSIVE.
-- [ ] Review: no world-specific branch in either script (the roots are passed to every world); the image
+- [x] Implementation: as ruled (`36d0338`). The roots are relative (`PACK_ROOTS` in `ci_parity.py`,
+  imported by `ci_image.py`), not `/opt/mineworld/…`: the runtime image's WORKDIR is `/opt/mineworld`, so
+  the same words work natively and in the image and the record carries no host-specific root (bounded).
+- [ ] Validation: **FAIL — blocked on F-Ee6 and F-Ee8 (material, primary's ruling).** Self-test,
+  local record and M-E6 PASS; the scenario legs scenario (image + `ci_image.py`) and linux-arm PASS;
+  mac and windows FAIL (F-Ee8); with F-Ee8's fix on a scratch-only commit all four legs PASS and `ac8`
+  FAILS G-5 on Lakeside's `validate` key, Windows alone (F-Ee6). E-Ee7.
+- [x] Review: no world-specific branch in either script (the roots are passed to every world); the image
   gains four small files and `entities/`, nothing from `presentation/`'s art.
 
 ### Ee-C8 — Close
 
-- [ ] `docs/MVP_STATUS.md`: a capability row "Milestone E — Lakeside" and an evidence row (Lakeside's
+- [x] `docs/MVP_STATUS.md`: a capability row "Milestone E — Lakeside" and an evidence row (Lakeside's
   baseline, the milestone test); `docs/HUMAN_REVIEW_QUEUE.md` row E as FQ-e4 rules; this ledger;
   `handoff-ee.md`.
-- [ ] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
+- [x] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
   --all-targets --all-features -- -D warnings`; `cargo test --workspace --no-fail-fast` (passed, failed,
   ignored, filtered); `check_scratch.py scan` and `left`; both doc checks; EE-11's diffs; EE-12's towns'
-  digests and `validate`.
+  digests and `validate` (E-Ee8, on `36d0338`; C8 adds Markdown only).
 - [ ] PR marked ready (CI does not run on a draft): `fast`, `test`, `platforms`, `test-windows`,
   `test-macos` green on the exact final head (run URL); READY FOR OPERATOR REVIEW with the operator's
   runnable checklist (§8.3, real roots). Not merged.
@@ -4016,6 +4019,32 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
   `precursor_vocabulary` 4, `seam_vocabulary` 3 — unedited; `check_scratch.py scan` → 205 test sources,
   none makes scratch outside test-support (2 exempt, pre-existing); `cargo clippy -p mineworld-cli
   --all-targets --all-features -D warnings` clean.
+- **E-Ee7** (Ee-C7, `36d0338`): `ci_parity.py --self-test` → passed (Python 3.12); `check_ci_pins.py` →
+  pins agree; local `record --binary` (release) → 4 worlds, 1 979 lines, lakeside recorded in 11.0 s,
+  69.4 s in all. **M-E6** (`PACK_ROOTS = []`) → record FAILS "validate worlds/lakeside: exited 1 …
+  requires: mineworld-default-2d is not in this build, and no pack directory was given" (the first
+  requirement in id order, not `modern-goods` as §18.5 guessed; reverted). Scratch push
+  `scratch/ee-36d0338-scenario` → run https://github.com/yuema137/MineWorld/actions/runs/38036440204:
+  fast ✓, **scenario ✓** (builds the runtime image and runs `ci_image.py`: every world's `validate` with
+  the roots, lakeside included — the image claim of EE-14), linux-arm ✓, **mac ✗, windows ✗** —
+  "the pack directory presentation/mineworld-default (from --packs) does not exist" (F-Ee8), so `ac8` ✗
+  (G-3: no Darwin, no Windows record); the two Linux records agree on all four worlds. The `-image`
+  push (run 38036440209) ran no image job: the image is checked inside `scenario` now, so the scenario
+  run is the image evidence. **Scratch-only evidence commit** `7f4fb6f` (F-Ee8's two-line sparse-checkout
+  re-include on the mac and windows legs; never on the PR branch) → `scratch/ee-7f4fb6f-scenario`, run
+  https://github.com/yuema137/MineWorld/actions/runs/38037163670: fast, scenario, linux-arm, mac, windows
+  ✓; **ac8 ✗**: "G-5 world lakeside differs: Windows/x86_64 ≠ {Darwin/arm64, Linux/arm64, Linux/x86_64}
+  — validate differs"; bodies-yard, market-town, social-cafe equal on 4 records; every lakeside key but
+  `validate` (both summaries, every table chunk of the save) equal on all four (F-Ee6).
+- **E-Ee8** (Ee-C8, full local gate on `36d0338`, release and test profiles in `/tmp/impl-ee-target`):
+  `cargo fmt --all --check` ✓; `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✓;
+  `cargo test --workspace --no-fail-fast` → **993 passed, 0 failed, 33 ignored, 0 filtered**;
+  `check_scratch.py scan` → 205 sources clean; `left --target-dir /tmp/impl-ee-target` → none left;
+  `check_doc_headings` 193 sections / 26 documents; `check_decision_ids` 105, distinct. **EE-11:** `git
+  diff origin/main -- kernel contracts persistence server clients cognition systems sdk packages/src
+  worldpack/src tools/cli/src '*Cargo.toml' Cargo.lock` → empty; the S16 merges' forbidden-path diffs
+  empty (E-Ee0). **EE-12:** E-Ee3's digests (no product change since). The binary is unchanged since
+  E-Ee3, so Lakeside's baseline there is final for this head.
 
 **Findings (bounded unless marked).**
 
@@ -4030,6 +4059,26 @@ CI          fast, test, platforms, test-windows, test-macos on the PR's final he
 - **F-Ee4.** §9.6's "bundled Entity Pack" would reuse ARC-54's defined term for a data pack; read as "the
   repository's own Entity Pack" (PD-43).
 - **F-Ee5.** The framework is already 0.1.0 (E-a); E-e bumps nothing (PD-40).
+- **F-Ee6 — MATERIAL, needs the primary's ruling.** `validate` (and `packs resolve`) print a required
+  data pack's directory as `root.join(name).display()` (`tools/cli/src/packs.rs` `source`), so Windows
+  prints `entities\modern-goods` and `presentation/mineworld-default\2D` where the other platforms print
+  `/`. AC-8's record hashes `validate`'s output, so Lakeside — the first world with a data-pack
+  requirement — fails G-5 on Windows alone (run 38037163670), with every summary line and every stored
+  byte equal: the world is the same; a host path's rendering differs. Merged as is, `ac8` turns red on
+  `main`. Options: **(a)** `ci_parity.py`'s record normalizes `\` to `/` in `validate`'s output before
+  hashing (one line; an S13 instrument change beyond FQ-e1, justified as the same kind of exclusion as the
+  save-path header); **(b)** `packs::source` renders a directory with `/` on every OS, as E-d did for
+  `source_path` (one line of `tools/cli/src`, beyond PD-41; `milestone_e.rs`'s M-2 directory check then
+  compares with `/`); **(c)** Lakeside keeps no data-pack requirement in AC-8 (rejected: hides the
+  milestone world from the parity check). Recommended: **(b)** — it makes the printed composition
+  identical on every platform, which is what AC-8 claims — as a bounded exception to PD-41 inside E-e,
+  or (a) if the primary prefers no product change in E-e.
+- **F-Ee8 — MATERIAL (S13's file beyond FQ-e1), needs the primary's ruling.** The `mac` and `windows`
+  AC-8 legs sparse-check-out the repository without `/presentation/` (`.github/workflows/ci.yml`), so the
+  presentation root does not exist there and every world's record fails (run 38036440204). Fix shown
+  working on a scratch-only commit (`7f4fb6f`): two lines per leg re-including
+  `/presentation/mineworld-default/*/pack.yaml` and `…/manifest.yaml` — the same four files the image
+  re-includes under FQ-e1. Recommended: accept into Ee-C7.
 - **F-Ee7 (bounded, resolved).** One file holding M-1 … M-9 and its helpers measured 1 245 lines after
   `rustfmt`, past the standards' ~800-line strong warning. The helpers moved to a test-only module beside
   `headless/` and `market/` — `tools/cli/tests/lakeside/mod.rs` (commands and roots, locating, what the
