@@ -530,15 +530,20 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
-### `VIS-3D-GODOT-2` — RL-b: frame budget and the San Diego skyline, PREVIEW (2026-10-09)
+### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
 
-**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`): props are drawn as
-imported scenes with LODs; the slice's textures are VRAM-compressed with mipmaps; tiny objects are
-hidden below 1.5 px; occluders cull what solid walls hide; and, as a **preview** you judge (QRL-11), the
-sine-sum ridges are replaced by San Diego's real summits at their real bearings, about 1–2° high,
-layered and hazed by distance. **The Default tier is not yet met** (draw calls, primitives, and the café
-frontage and doorway frame times): the levers that would close the frame-time gap all change the
-accepted look, so the choice is yours — the options and their measured cost are in the PR.
+**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):
+- props are drawn as imported scenes with LODs;
+- the slice's textures are VRAM-compressed with mipmaps;
+- tiny objects are hidden below 1.5 px;
+- occluders cull what solid walls hide;
+- on your rulings of 2026-10-09: VoxelGI at 128 subdivisions and directional soft-shadow quality 2.
+
+You accepted that slight visual change and the mipmap softening. The accepted frames are re-baselined
+on this look. The skyline preview was **not kept** and is reverted, so the old ridges remain until RL-e.
+
+The frame-time and video-memory bounds stay binding; draw calls and primitives are advisory. The
+re-measure is pending: it needs an unlocked screen (`caffeinate -d ./mineworld-slice --perf`).
 
 **Checklist** — run `./mineworld-slice`, then `./mineworld-slice --world`:
 
@@ -551,15 +556,15 @@ accepted look, so the choice is yours — the options and their measured cost ar
    accepted; small objects on shelves and tables as before.
 4. **Through the glass.** From the street into the café and the florist: goods, tables and people
    visible (nothing culled behind glass).
-5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows unchanged.
-6. **The skyline (the preview).** Look east along the street, and west from the east end: mountains low
-   on the horizon (about a finger's width at arm's length), nearer grey-green to fainter blue-grey; no
-   seam where land meets sky; an open horizon to the west (sea, with no land drawn); nothing that moves
-   wrongly as you walk. Does it read more real than before? If not, say which single thing is most
-   wrong; the preview reverts with one commit.
+5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows keep their
+   shape, with slightly harder edges (shadow quality 2).
+6. **The florist and the café.** Under VoxelGI 128 the florist is a little warmer and brighter, and
+   the café's tone shifts slightly. You accepted this; check that nothing looks blotchy.
 7. **The old spike.** `./mineworld-3d` now says at start that it is the movement and camera spike, not
    the world.
-8. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
+8. **Frame cost.** With the screen unlocked, run `caffeinate -d ./mineworld-slice --perf`. Every
+   view should print p95 ≤ 16.7 ms and video memory ≤ 2 048 MB.
+9. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
    evidence is macOS only (QRL-6).
 
 ### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
