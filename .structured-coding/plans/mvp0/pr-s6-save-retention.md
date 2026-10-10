@@ -978,8 +978,15 @@ ASR-12  no kernel/contracts/systems/packages change                             
 ```
 
 Deviations: D-1 (ASR-8 split: library fixture + CLI with SQL-marked format), D-2 (MODULE_SPEC §8.1
-names inspect's new line), D-3 (kill test intervals 4 and 8). Findings: F-SR-0 (overall.md's table
-lacks ARC-81/DEP-43 — request to the primary session), F-SR-1 (the `≥ n` guard, per D-SR-3 and §6.6).
+names inspect's new line), D-3 (kill test intervals 4 and 8). Findings: F-SR-0 (resolved on main:
+#152 added the row "S6 save retention | ARC-81 | DEP-43" to overall.md's table, picked up by the merge
+of origin/main @ 865f2be into this branch), F-SR-1 (the `≥ n` guard, per D-SR-3 and §6.6).
+
+*Merge of origin/main @ 865f2be (2026-10-10).* GitHub reported the PR CONFLICTING, so no
+`pull_request` CI ran on 8c35887 or 7d6becf. One conflict: `docs/DECISIONS.md`, where main appended
+ARC-77, ARC-59 and DEP-37 at the end of the file as this branch appended ARC-81 and DEP-43. Resolved
+by keeping both (ours, `---`, theirs); `check_decision_ids.py` 109 distinct. No code conflict; no new
+`RevisionRow` literal, snapshot decoder or format-dependent test arrived from main.
 Survived mutation: wall-clock rule vs AC-12 (converges; caught by the K(n) oracles). No material stop
 arose. Requests for the primary session (§11): record ARC-81/DEP-43 in overall.md's table; mark
 F-SAVE-1 "SR in review" (then resolved for snapshots on merge, SR-b open); record F-SAVE-2.

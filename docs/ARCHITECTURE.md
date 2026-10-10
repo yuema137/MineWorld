@@ -269,9 +269,12 @@ Local save layout:
 
 ```text
 save/
-├── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
-└── cognition_cache/   later (S10 / MVP-1)
+└── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
 ```
+
+A cognition client's memory store is not part of the save. It lives in the operator's cognition
+directory, keyed by world instance and seat, because it is a controller's derivation of what one Person
+perceived, not world state ([`DECISIONS.md`](DECISIONS.md) `ARC-59`).
 
 The manifest — save format version, world instance, composition — is a table inside `world.sqlite`
 rather than a `manifest.json` beside it, so that it is committed in the same transaction as the
@@ -558,7 +561,8 @@ mineworld/
 ├── sdk/           python, rust
 ├── packages/      what a package is: package identity, pack.yaml, versions and licences
 │                  (a leaf crate, DECISIONS.md ARC-53)
-├── worlds/        sample World Packs
+├── worlds/        sample World Packs (Lakeside: Milestone E's composition, DECISIONS.md ARC-77)
+├── entities/      the repository's own Entity Packs, found through a named pack root (ARC-71, ARC-77)
 ├── tools/         world-validator, replay, inspector, benchmark
 └── tests/         conformance and acceptance tests
 ```

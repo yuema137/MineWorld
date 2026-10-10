@@ -918,8 +918,15 @@ MVP-0 non-preclusion audit.
 | S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5 matching) |
 | S16 E-e | ARC-77 (Lakeside, the repository's own Entity Pack) | — |
 | S23 release | ARC-78 (windowless launcher), ARC-79 (release channels and versioning), ARC-80 (bundle layout and per-user data) | DEP-38 (cargo-about), DEP-39 (butler), DEP-40 (syft), DEP-41 (Godot export templates), DEP-42 (actions/attest) |
+| S6 save retention (`pr-s6-save-retention.md`, design frozen #145, 2026-10-10) | ARC-81 (retention and codec, D-SR-1 … D-SR-9) | DEP-43 (`zstd`) |
+| S10 P3b (`pr-s10-p3b-perceived.md`, design frozen #149, 2026-10-10) | — (no ARC record) | DEP-44 (own reconnect loop; the `websockets` reconnect iterator, `tenacity` and its backoff declined) |
+| S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
+| S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
+| S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
 
-The next free numbers are ARC-81 and DEP-43. An implementation session never picks a number; it asks
+The next free numbers are ARC-82 and DEP-45. ARC-81 and DEP-43 were assigned to S6 save retention, and
+DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
+An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
 2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
 S10 PR designs) are why this table now lists reservations as well as assignments.
@@ -1019,13 +1026,49 @@ Windows and Linux, and the macOS manual items).
   (≈ 2.5 GB per 300 days). Owner: the persistence lane (S6 follow-up), to design snapshot retention and
   compaction without weakening byte-exact replay (ARC-25).
 
+### 2026-10-10: one development session, rulings and freezes
+
+Operator rules:
+
+- **One development session.** Only one Claude session develops MineWorld. Parallel sessions in the
+  folder are stopped; a second session on the same checkout overwrites uncommitted work (§3.1 of
+  `CLAUDE.md`).
+- **Model choice for subagents.** Simple, well-specified tasks go to Haiku 5.5 subagents. Only long,
+  unsplittable work goes to Opus 5.5.
+
+Operator rulings:
+
+- **12n-2, M-2.** NW-4's cost bound is restated as ≤ 2.5× against today's `main`.
+- **12n-2, M-3.** The `route.rs` start snap is fixed inside 12n-2. NW-3 is restated as: geometry-caused
+  stops ≤ 10 %, with person-caused stops printed.
+- **TW-c.** Only a `--solo` world (loopback-only) may exceed 24×. The start-time scale obeys the same rule.
+- **Save retention (S6).** Format-2 saves are refused. SR-b (log compression) is a separate, later PR.
+  There is no player or pack retention configuration.
+- **R-a.** VRAM texture compression is used to meet the size budget (RL-b's BC7 work).
+- **Recommended answers accepted** for SET-b, IL-e, P3b, save retention and TW-c.
+
+Merged:
+
+- #141: test gaps F-PRES-1 and F-12n-R1.
+- #142: the `sdk/python` selector loop; F-P5-4 closed.
+- #151: test servers bind port 0; F-13w-3 closed. A 20-iteration stress run gave 12 port collisions on
+  `main` and 0 on the branch.
+
+Design freezes: #145 (S6 save retention), #147 (S17 IL-e), #149 (S10 P3b), #150 (S19 TW-c).
+
+Finding **F-SAVE-2** (kernel lane). A Process's `state` bytes are stored as a JSON array of numbers,
+which inflates the weather series ≈ 3.7× in every snapshot.
+
+Note. R-c learned from R-a's probe that the official Godot release templates reject `--main-pack`.
+Bundles therefore ship two full client exports (D-Ra-1).
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
 | QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
-| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b` |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b`. **2026-10-10:** Ollama installed by the operator; the first spike attempt ran with no model pulled (40/40 HTTP 404) and must be re-run |
 
 
 # 6. Risks

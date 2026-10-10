@@ -3,7 +3,8 @@
 #   toolchain  the CI environment: the pinned Rust toolchain plus git and python3. It holds no source;
 #              CI mounts the checkout (with its .git) into it and runs `python3 scripts/ci_layer.py`.
 #   build      compiles the `mineworld` binary in release.
-#   runtime    hosts a world: the binary and worlds/, nothing else.
+#   runtime    hosts a world: the binary, worlds/ and the data-pack roots they require (entities/, the
+#              default Presentation Packs' two manifests each), nothing else.
 #
 # Every FROM is pinned by tag and digest. `scripts/check_ci_pins.py` fails CI unless the rust tag
 # equals rust-toolchain.toml's channel and the root Cargo.toml's rust-version, every FROM carries a
@@ -41,6 +42,11 @@ RUN useradd --system --create-home --home-dir /home/mineworld mineworld \
     && chown mineworld:mineworld /var/lib/mineworld
 COPY --from=build /work/target/release/mineworld /usr/local/bin/mineworld
 COPY worlds/ /opt/mineworld/worlds/
+# The pack roots a world's requirements are found in (docs/DECISIONS.md ARC-77): the repository's own
+# Entity Packs, and the two default Presentation Packs' identity and manifest only — none of their art.
+COPY entities/ /opt/mineworld/entities/
+COPY presentation/mineworld-default/2D/pack.yaml presentation/mineworld-default/2D/manifest.yaml /opt/mineworld/presentation/mineworld-default/2D/
+COPY presentation/mineworld-default/3D/pack.yaml presentation/mineworld-default/3D/manifest.yaml /opt/mineworld/presentation/mineworld-default/3D/
 USER mineworld
 WORKDIR /opt/mineworld
 VOLUME /var/lib/mineworld

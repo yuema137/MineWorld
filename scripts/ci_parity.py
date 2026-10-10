@@ -53,6 +53,11 @@ SAVE_DAYS = 30
 CHUNK_ROWS = 1000
 # Where a container writes its save: a host directory bind-mounted here.
 CONTAINER_SAVES = "/var/lib/mineworld/ac8"
+# The repository's data-pack roots, named on every command that reads a world (docs/DECISIONS.md
+# ARC-77): a world's required Entity and Presentation Packs are found only where a root points. Relative,
+# so the same words reach the binary natively (run from the checkout's root) and in the runtime image
+# (WORKDIR /opt/mineworld, which holds both directories).
+PACK_ROOTS = ["--packs", "entities", "--packs", "presentation/mineworld-default"]
 PLATFORM_KEYS = ("arch", "container", "emulated", "os", "rustc", "target", "translated")
 SOURCE_KEYS = ("commit", "record-format", "worlds")
 WORLD_KEYS = ("manifest", "summary-300", "summary-30s", "validate")
@@ -303,15 +308,15 @@ def save_digests(file: Path) -> dict[str, str]:
 def record_world(runner: Native | Image, world: str, scratch: Path) -> dict[str, str]:
     path = f"worlds/{world}"
     began = time.monotonic()
-    entries = {"validate": sha256(runner.run(["validate", path], f"validate {path}"))}
+    entries = {"validate": sha256(runner.run(["validate", path, *PACK_ROOTS], f"validate {path}"))}
 
-    long_args = ["run", path, "--headless", "--seed", str(SEED), "--days", str(LONG_DAYS)]
+    long_args = ["run", path, "--headless", "--seed", str(SEED), "--days", str(LONG_DAYS), *PACK_ROOTS]
     long = summary(text_lines(runner.run(long_args, f"{world}: run {LONG_DAYS} days in memory"), world), False)
     entries["summary-300"] = digest_lines(long)
     entries.update({f"line-300.{index:04d}": line for index, line in enumerate(long)})
 
     save = scratch / world
-    save_args = ["run", path, "--headless", "--seed", str(SEED), "--days", str(SAVE_DAYS)]
+    save_args = ["run", path, "--headless", "--seed", str(SEED), "--days", str(SAVE_DAYS), *PACK_ROOTS]
     saved = summary(text_lines(runner.run(save_args, f"{world}: run {SAVE_DAYS} days saved", save), world), True)
     entries["summary-30s"] = digest_lines(saved)
     entries.update({f"line-30s.{index:04d}": line for index, line in enumerate(saved)})

@@ -52,8 +52,11 @@ testpaths = ["tests"]
 # `live_model` marks a test that calls a real model server on a loopback address named by
 # MINEWORLD_LIVE_BASE_URL (D-P5-12). It is deselected here, for every run; an operator selects it with
 # `-m live_model`. A selected live test without the variable fails; it never skips itself.
+# `real_binary` marks a test that runs the real `mineworld` binary (the AC-10 scenario, pr-s10-p4 §5.10).
+# It fails, never skips, without the binary; `python-smoke`, which builds none, deselects it by name.
 markers = [
     "live_model: calls a real model server on loopback; deselected by default, never in CI",
+    "real_binary: runs the real mineworld binary; never skipped, only deselected by name",
 ]
 # The network guard (I-11, as sdk/python): pytest-socket blocks every `connect` to anything but the
 # loopback addresses, on every platform. It allows loopback, where a user's Ollama listens, which is why
