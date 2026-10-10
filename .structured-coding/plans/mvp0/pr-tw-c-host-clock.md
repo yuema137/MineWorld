@@ -1,15 +1,25 @@
 # PR S19 TW-c — The host clock: live time scale, the host journal, restart pacing, wall cadence, FX-24
 
-## DESIGN DRAFT — awaiting the primary session's review (not frozen)
+## DESIGN FROZEN 2026-10-10 (primary session)
 
 ```text
-Design revision:        revision 1 (2026-10-10), first commit on docs/tw-c-design
-Approved by / evidence: none yet. Not frozen. Implementation is NOT authorized by this document.
-Implementation base:    main at the start of implementation (C0 records it); see Q-TWc-3 for the
-                        ordering against 12n-2
-Execution contract:     §13 (proposed; filled and confirmed only at the freeze)
-Lifecycle:              DRAFT
+Design revision:        revision 2 (2026-10-10): revision 1 (PR #150, first commit) with §14.1's
+                        rulings recorded, as committed on docs/tw-c-design with this header
+Approved by / evidence: the operator's rulings on Q-TWc-1 and Q-TWc-2, and the primary session's on
+                        Q-TWc-3 … Q-TWc-9, of 2026-10-10, relayed by the coordinator (§14.1)
+Implementation base:    origin/main after 12n-2 (mvp0/pr-12n2-walk) has merged; C0 records the commit
+Start condition:        12n-2 merged. Implementation does not start before it (Q-TWc-3)
+Execution contract:     §13 (filled at freeze)
+Lifecycle:              FROZEN
 ```
+
+Scope (§3.1), invariants (§3.3), decisions SD-TWc-1 … SD-TWc-14, the acceptance and adversarial
+criteria AC-TWc-1 … AC-TWc-12 and the commit plan are frozen. Progress, evidence, findings and bounded
+corrections stay writable (§15). No TW-c question remains open. Because 12n-2 is on the base, AC-TWc-7
+applies; it is not N/A. Implementation starts in a fresh session (§13); this planning session does not
+implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's review (not frozen)`, revision 1.
 
 **Effort:** `mvp0` · **Step:** S19, [`step-19-time-weather.md`](step-19-time-weather.md) §4 (two time
 domains), §7 (the host clock), §9 (FX-24), §10 (INV-TW-1, -2, -3, -8, -9), §11.2 (the TW-c row), §14.1
@@ -703,17 +713,25 @@ CI is the one full run (test rules §8). Commands from the worktree root.
 
 ---
 
-## 12. Proposed edits to planning documents (for the primary session)
+## 12. Edits to planning documents
 
-- `step-19-time-weather.md` §11.2 TW-c row: "full design in `pr-tw-c-host-clock.md`"; the header's
-  lifecycle line.
-- `overall.md`: S19 row — TW-c designed (DRAFT), then frozen; the operator rule of 2026-10-10 (fast-forward
-  single-player only) recorded under S19 with QRT-7.
-- `step-12-server.md` §18.15 (or its closeout): QS11D-1's 409 retired by TW-c.
+Applied at the freeze, on `docs/tw-c-design`:
+
+- `step-19-time-weather.md`: the header's lifecycle line, and §11.2's TW-c row, now point to this file.
+- `step-12-server.md` §18: a dated note that TW-c retires QS11D-1's `409 time_scale_fixed`.
+
+Left to the primary session:
+
+- `overall.md`: the S19 row (TW-c frozen; waiting for 12n-2), and the operator rule of 2026-10-10
+  (fast-forward is single-player only, `--solo`) recorded under S19 beside QRT-7.
 
 ---
 
-## 13. Execution contract (proposed; confirmed only at the freeze)
+## 13. Execution contract (filled at freeze, 2026-10-10)
+
+The source of every authority line is the primary session's freeze of 2026-10-10, relayed by the
+coordinator. Endpoints it does not name individually (push, PR, CI repair) take the working rules' shipped
+defaults (§21), which the freeze does not narrow.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S19 PR TW-c — the host clock
@@ -722,12 +740,15 @@ RELATED / BINDING DOCS:  step-19-time-weather.md (§§4, 7, 9, 10, 11.2, 14.1); 
                          step-11-bodies.md SD-N14; step-20-client-settings.md §3.10; docs/DECISIONS.md
                          ARC-25, ARC-27, ARC-42, ARC-44, ARC-67; server/PROTOCOL.md; docs/MODULE_SPEC.md;
                          docs/ENGINEERING_STANDARDS.md; CLAUDE.md
-WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-tw-c, its own, one session
-BRANCH:                  mvp0/pr-tw-c-host-clock, from main
-IMPLEMENTATION BASE:     origin/main at C0 (after 12n-2 if Q-TWc-3 is ruled so)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-tw-c, its own, held by one session
+                         (CLAUDE.md §3.1)
+BRANCH:                  mvp0/pr-tw-c, created from origin/main
+START CONDITION:         12n-2 (mvp0/pr-12n2-walk) merged to main (Q-TWc-3). Before that, no
+                         implementation session starts
+IMPLEMENTATION BASE:     origin/main at C0, after 12n-2's merge; C0 records the commit
 APPROVED SCOPE:          §3.1, as frozen
-FROZEN INVARIANTS:       §3.3; SD-TWc-1 … SD-TWc-14 as ruled
-SEQUENCE:                C0 … C9
+FROZEN INVARIANTS:       §3.3; SD-TWc-1 … SD-TWc-14 as ruled (§14.1)
+SEQUENCE:                C0 … C9 (AC-TWc-7 applies: 12n-2 is on the base)
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *;
                          clients/protocol/run.sh; godot --headless (the checks); mkdir -p; sed -n
 NEVER:                   python3 -c; sed -i; heredoc writes; curl; editing kernel/, contracts/, systems/,
@@ -738,7 +759,17 @@ PLATFORMS:               Linux, macOS, Windows
 VALIDATION BUDGET:       unit, integration, binary tests: unrestricted locally; CI: the PR's runs
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-tw-c.md
-ENDPOINT AUTHORITY:      to be filled at the freeze by the primary session
+ENDPOINT AUTHORITY:      implementation + local validation: authorized, in a fresh session, once the
+                         start condition holds                   (primary session, 2026-10-10)
+                         semantic commits: authorized            (primary session; working rules §14)
+                         branch push: authorized                 (primary session; working rules §21)
+                         PR creation / update: authorized        (primary session; working rules §21)
+                         CI repair to review readiness: authorized
+                                                                 (primary session; working rules §21)
+                         merge: never by the implementation session. Only after the primary session's
+                         review, and only with explicit operator authorization (working rules §22)
+POST-MERGE SYNC OWNER:   the primary session owns overall.md and step-19 §11; the implementation
+                         session owns this document's ledger, evidence, deviations and remaining issues
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -757,6 +788,24 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Q-TWc-7 | Rename `--pace` to `--cadence` with no alias (QTW-13's ruling; `CLAUDE.md` §4 rule 12)? | **Yes.** Two in-repo users (`hosted_town.rs`, `MODULE_SPEC.md`); no launcher passes it. |
 | Q-TWc-8 | Accept L-TWc-1: after a restart of a world rescaled mid-life, one answering window may overlap or miss the last one before the stop (a fresh binding, as at a release)? | **Yes**, recorded in ARC-69; exact continuity would need the controller's last lattice instant in the save, which is controller state in world persistence (ARC-27 (c) rejected that). |
 | Q-TWc-9 | Decision ids: TW-c uses ARC-69 only and adds notes to ARC-42 and ARC-44; no DEP. Confirm none other is needed. | Confirm. |
+
+### 14.1 Rulings, 2026-10-10 (binding; relayed by the coordinator)
+
+**By the operator:**
+
+| Id | Ruling |
+| --- | --- |
+| Q-TWc-1 | (a) An explicit `--solo` flag, loopback only. A scale above 24× is refused without it. |
+| Q-TWc-2 | Yes. The start-time `--time-scale` obeys the same rule, and the tests that compress days add `--solo`. |
+
+**By the primary session:**
+
+| Id | Ruling |
+| --- | --- |
+| Q-TWc-3 | Base TW-c on main after 12n-2 merges. Implementation waits for 12n-2 (§13 START CONDITION), so AC-TWc-7 applies. |
+| Q-TWc-4 … Q-TWc-9 | Accepted as recommended: the 12× default for `market-town` and `social-cafe` (`bodies-yard` stays 1); the restated replay criterion AC-TWc-3; restoring the host clock from the `Stopped` record; `--pace` renamed `--cadence` with no alias; L-TWc-1 accepted and recorded in ARC-69; ARC-69 plus dated notes on ARC-42 and ARC-44, and no DEP. |
+
+No TW-c question remains open.
 
 ---
 
