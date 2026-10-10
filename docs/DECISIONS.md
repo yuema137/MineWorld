@@ -3527,6 +3527,17 @@ wayfinder.** Items 1–8 and the earlier notes are unchanged.
    values the first note and 12b fixed (300 mm, 200 mm), so no result changes and `bodies`' version does
    not; a different radius scales them with the body.
 
+**Note 6, 2026-10-10 (S15, PR 12n-2; step-11 §21.15 M-3, the operator's ruling) — a walk out of the
+margin.** The resolver may leave a person nearer a wall or a solid than the planner's margin
+(R + GAP + PLAN_MARGIN), though never nearer than R + GAP. From such a start the planner first steps
+to the nearest free point of the 50 mm lattice, the goal's own snap (SD-N5), when that point lies
+within the margin's width (360 mm at R 300). The route then goes on from there, and the step is a
+stride the resolver resolves like any other. A start with no free point that near keeps the core rule
+(step-11 N-D7): the box holding it is shrunk to the start for the start's own edges. Before this, a person pinned between the café's front wall and the bench's corner had no route
+out, and every walk they asked for was refused `no-route` (step-11 E-NW4). This changes routes, and so
+results, in every world with bodies and walkers, so `bodies` is version 4 and refuses a version-3 save
+by name (`ARC-25`).
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack

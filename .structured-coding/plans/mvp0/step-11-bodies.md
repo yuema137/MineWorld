@@ -9869,6 +9869,51 @@ M-3   MATERIAL STOP (§21.14: "NW-1 / NW-2 failing (no remedy is pre-approved)";
       Recommendation: 1 inside 12n-2 (path systems/bodies/src/route.rs + its tests, bodies' VERSION
       unchanged if bodies-yard's facts are unchanged, else bumped with the record); 2 (a).
       Held: NW-1's run.rs part, NW-4's TD-12a set, NW-5, NW-6, NW-10 on the merge, NW-C4.
+
+M-3 RULINGS (operator, 2026-10-10, relayed by the primary session):
+      (1) The route.rs start is fixed inside 12n-2: `systems/bodies/src/route.rs` and its tests join
+          12n-2's paths. A start that is not free first snaps to the nearest free point (SD-N5's goal
+          snap), with a unit case and an NV-5 oracle case; bodies' VERSION is bumped, with a record,
+          only if bodies-yard's facts change.
+      (2) NW-3 restated: geometry-caused stopped-short strides (walls and furniture; `by: None`) ≤ 10 %
+          of strides. Person-caused stops are printed, not bounded, and left to a later behaviour change.
+      origin/main merged (b23d8e1: #141's 2 000 mm case in walk.rs's unit test — F-12n-R1 closed by
+      main —, #151's port-0 binding in tools/cli/tests/support; no conflict).
+
+N-D25 The start snap, as built (route.rs): a start that is not free first steps to the nearest free point
+      of the 50 mm lattice when that point lies within the margin's width (GROWN, 360 mm at R 300) of it;
+      the route is planned from that point, which is its first waypoint. A start with no free point that
+      near keeps N-D7's core rule. The distance bound is this session's addition to the ruling's words.
+      Without it, the first oracle run found a margin start whose nearest free point was 4.9 m away
+      along the wall (scene 61), and the straight "step" ran past a solid. A short step out of the margin
+      is the ruling's intent ("first snaps"), and a long one would be a second, unplanned route. Every
+      stride, the step included, is still resolved by the resolver. The rest of the route's code is
+      unchanged except that the obstacle list is built by one function, `obstacles` (the same boxes).
+N-D26 Literal edits outside 12n-2's first paths, consequences of the ruled VERSION bump:
+      systems/bodies/src/system.rs (VERSION 4 and its doc), systems/bodies/tests/rapier_pin.rs (the pinned
+      pair (4, "0.36.0"): "bodies' version and the locked Rapier move together", claim unchanged),
+      docs/DECISIONS.md ARC-39 note 6. Cross-lane: 12d's WIP also takes bodies to version 4 (its literals
+      read "bodies v4"). 12d's rebase takes 5, or reconciles, and records it.
+
+E-NW5 The fix, 2026-10-10, working tree on b23d8e1.
+        unit   route.rs a_start_pinned_in_the_margin_steps_out_first: the café's front corner (bench slab and
+               door leaf as 12d draws them), start R + GAP from the wall and just over R + GAP from the
+               bench's corner — (2 087, 310) at R 300, alice's (2 192, 260) at R 250 — is not free; the
+               route's first point is free and within 360 mm; the walk ends at the goal — PASS.
+        oracle tests/route.rs a_start_in_the_margin_steps_to_the_nearest_free_point_and_goes_on (2 000
+               seeded scenes, starts R + GAP clear but not free): 801 routed, 1 094 unreachable (each with
+               a snapped start confirmed by the flood fill from it), 105 without a margin start; 1 714
+               snapped within 360 mm — 196 of those steps pass nearer than 310 mm to something on the
+               straight line, which the resolver resolves as it does any stride (counted, not claimed) —
+               181 held — PASS. NV-5's own test unchanged: 852 routed (1 310 bends, 573 goals moved), 909
+               unreachable, 239 without a start = E-NV2/E-NV5.
+        mutation the snap disabled (`if true || free(…)`) → the oracle fails at "scene 0: unreachable, but
+               the flood fill reaches (3700, 4400) from the snapped start", the unit case fails at "a short
+               step out of the margin: (2087, 310) → (2000, 1260)"; reverted.
+        bodies-yard 30 d, seed 7: before the fix (c2) 150 618 facts fa011d04…bdc8005; after (c3) 172 374
+               facts e0f5964c…8e31ed — the facts change, so bodies VERSION 3 → 4 (N-D26; ARC-39 note 6).
+        suites `cargo test -p mineworld-bodies` all pass; tools/cli walking (9), bodies_yard (4 + 1
+               ignored), bodies_yard_restart (1) pass; clippy --workspace -D warnings and fmt clean.
 ```
 
 
