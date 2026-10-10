@@ -599,9 +599,10 @@ M-IE5, M-IE6, M-IE7; IE-10's interactions/inspect cases.
 ### IE-C7 — Close: byte identity, cost, guards, gate, ledger
 
 **Scope.** IE-1 (M-IE1a–c), IE-11, IE-12, IE-13; `MVP_STATUS.md`; the ledger (§14) and handoff.
-- [ ] Implementation: as above.
-- [ ] Validation: E-IE-0 vs head; cost medians; guard diffs; full gate; CI on the exact head.
-- [ ] Review: every changed path is in §11's change set or recorded as a deviation (§15).
+- [x] Implementation: as above (E-IE-7).
+- [x] Validation: E-IE-0 vs head; cost medians; guard diffs; full gate; CI on the exact head (E-IE-7,
+  E-IE-8).
+- [x] Review: every changed path is in §11's change set or recorded as a deviation (§15) (E-IE-7).
 
 ---
 
@@ -877,6 +878,50 @@ E-IE-6  2026-10-10, IE-C6: NEW tools/cli/tests/social_interactions.rs, 3 tests, 
         After: `git status --short` = only the new file; `git grep MUTATION -- '*.rs'` → nothing. Review:
         thresholds are literals or the twin's own counts; paths built with Path::join; no wall-clock
         read. PASS.
+E-IE-7  2026-10-10, IE-C7. origin/main merged at 7538934 (main @ 865f2be: S16 E-e lakeside, S10 P4
+        memory, plan documents; on the Rust side only tools/cli/src/packs.rs and new CLI tests — no
+        simulation path, no pack, no world IE-1 measures changed; lakeside configures no section). Head
+        binary built at 7538934 (dev profile), kept as /tmp/impl-il-e-base/head-mineworld. The later
+        code commit 2e14f7f (D-IE-3) only names the text of a constant, so the binary's behaviour is
+        that of the measured head.
+        IE-1 byte identity (town runs 4 of 4 used):
+          social-cafe 300 days seed 7: exit 0, faults 0, 365 330 facts, fingerprint 59339a9c281829c9,
+            sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-IE-0
+          market-town 300 days seed 7: exit 0, faults 0, 375 619 facts, fingerprint 27693f9e0c72bc9f,
+            sha d5db8988bb9d8c33ec8e1cf1ba906d58d1fbd49d2a4ad7bc2d2a69b0b0a922ee = E-IE-0
+          bodies-yard 30 days (2 of 2): sha bd6a1002…80e6 = E-IE-0
+          validate social-cafe, market-town, bodies-yard: `cmp`-identical to E-IE-0's files
+          M-IE1a conversation range 3 000 → 2 999: 30-day social-cafe sha 06e2d63c…6fbe, UNCHANGED —
+            an equivalent mutation for this run: no talk in 30 days is attempted between people standing
+            in (2.999, 3.000] m. Strengthened M-IE1a' range → 1 500: sha ebc33f0a…625d, talk accepted
+            5 766 (vs 6 705), so the range read is seen by the instrument. Recorded as the survived
+            mutation and its strengthening; the read is also pinned at 1 mm resolution by IE-3(d)
+            (E-IE-5, M-IE3c).
+          M-IE1b relationships spoke_familiarity 10 → 9: sha 59c3d59f…5932 (differs). PASS
+          M-IE1c group-activity activity_length 3 600 → 3 599: sha 8d401d81…ab55, 37 007 facts
+            (differs). PASS
+          Each reverted (git checkout); `git grep MUTATION -- '*.rs'` → nothing.
+        IE-11 cost (social-cafe 30 days seed 7, dev profile, sequential on one machine at load ≈ 10–14,
+          `/usr/bin/time -p` real): base 1.33 / 1.31 / 1.31 s (median 1.31, spread 1.5 %); head
+          unconfigured 1.54 / 1.35 / 1.36 (median 1.36, ×1.038 ≤ 1.05 PASS); head with the IE-6
+          configuration plus a café region and group-activity `extends: default` (three sections, two
+          classes, a region; sha 29c464b3…) 1.37 / 1.38 / 1.42 (median 1.38, ×1.015 of head ≤ 1.05
+          PASS). Two more rounds agree (medians of five: 1.31, 1.35, 1.39). `wall` lines (0.1 s
+          resolution) gave 1.3 / 1.3 / 1.4 and were not used for the ratio.
+        IE-12 guards: `git diff --stat origin/main HEAD -- kernel contracts persistence server clients
+          worlds sdk authoring worldpack/src tools/cli/src cognition systems/presence Cargo.toml
+          Cargo.lock tests/acceptance` → empty. Every changed path (29 files) is in §11's change set, plus
+          tools/cli/tests/social_sections.rs (D-IE-2). ac1_composability, precursor_vocabulary,
+          seam_vocabulary, configuration_vocabulary unedited and passing in the gate below.
+        IE-13 full gate: at 7538934 cargo fmt --all --check exit 0; check_doc_headings 193 sections,
+          none duplicated; check_decision_ids 107 ids, all distinct; check_scratch.py scan 207 sources,
+          clean; `cargo test --workspace` stopped at tests/acceptance client_text (D-IE-3, fixed in
+          2e14f7f). At 2e14f7f: cargo clippy --workspace --all-targets --all-features -D warnings exit 0;
+          `cargo test --workspace --no-fail-fast` exit 0, 222 "test result: ok" lines, none FAILED;
+          check_scratch.py left: none (the six composition-* leftovers seen at 7538934 came from a test
+          process this session killed at a timeout earlier, and were removed). File sizes reviewed:
+          the two new test files are 635 and 564 lines, one PR criterion group each.
+        PASS (CI: E-IE-8).
 ```
 
 ## 15. Deviations
