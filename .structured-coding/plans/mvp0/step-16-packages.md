@@ -3815,13 +3815,19 @@ endowments and fish is the renewable food). `docs/ARCHITECTURE.md` §14: `entiti
 
 **Scope.** `entities/modern-goods/{pack.yaml, README.md, items/*.yaml}` (PD-42). Nothing else.
 
-- [ ] Implementation: as PD-42; categories taken from `systems/item`'s `Category` (read at the commit).
-- [ ] Validation: `mineworld packs validate entities/modern-goods` exits 0 listing the kinds; `packs list
-  --packs entities` lists `entity-pack modern-goods 0.1.0 MIT`; `cargo test -p mineworld-cli --test
-  packs --test entity_packs` unchanged and green (nothing reads `entities/` yet); CRLF: the pack read
-  from a CRLF copy validates identically (one-off, recorded; ED-13 owns the committed CRLF claim).
-- [ ] Review: self-contained (no reference outside the pack, no `body:`); no key equal to a Lakeside key
-  (`fish`); every file's category is one `item` decodes.
+- [x] Implementation: `pack.yaml` (PD-42's fields), `README.md`, twelve kinds — food: apple, bread,
+  cake, cheese; drink: coffee, juice, milk, tea; goods: candle, notebook, soap, umbrella. `item`'s
+  `Category` is a free slug (`systems/item/src/category.rs`), so the three slugs Market Town already uses
+  (`food`, `drink`, `goods`) are used; consumption eats `food` and drinks `drink` (E-Ee2).
+- [x] Validation: release binary of `5192fb6`: `packs validate entities/modern-goods` → exit 0, "items
+  apple, bread, cake, candle, cheese, coffee, juice, milk, notebook, soap, tea, umbrella", "is a valid
+  entity-pack"; `packs list --packs entities` → `entity-pack modern-goods 0.1.0 MIT Yue Ma
+  entities/modern-goods`, 19 packs, exit 0. The CLI tests are unaffected by construction (no test reads
+  `entities/` before Ee-C3; no source changed) and run at Ee-C3. CRLF one-off: **N/A** — the tools that
+  would write a CRLF copy here are an inline script or an in-place stream edit, which this session's
+  rules exclude; ED-13's committed LF/CRLF test (green on Windows) owns the claim for this file format.
+- [x] Review: self-contained (no section with a reference; no `body:`); no `fish`; every file one
+  `item:` section with an existing slug; the pack edits nothing outside `entities/`.
 
 ### Ee-C3 — `worlds/lakeside`, measured; `packs.rs` names the entities root
 
