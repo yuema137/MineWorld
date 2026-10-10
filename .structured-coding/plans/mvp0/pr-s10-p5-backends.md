@@ -959,7 +959,30 @@ is recorded here so that the slip is visible. No other file was edited that way.
 | QP5-8 [primary] | Should QS10-5's second real server be llama.cpp's `llama-server` (MIT), in an optional operator-run `live_model` test? | **Yes.** It shows the adapter is generic with no paid API. Never in CI. |
 | QP5-9 [primary] | Live tests (`live_model`) deselected by `addopts` and restricted to loopback URLs (D-P5-12)? | **Yes.** A hosted live test would contradict QS10-19 for any gate. A user who wants one runs it outside the suite. |
 
-## 13. Ledger
+## 13. Ledger (live during implementation)
 
-Added at C0, when the design is frozen. Until then this document is a design under review and records
-no progress.
+```text
+Status:            IN PROGRESS. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p5, branch
+                   mvp0/pr-s10-p5-backends (sole writer; fresh implementation session, 2026-10-09)
+Implementation
+base:              origin/main @ 2c6d34c (#111, the P5a freeze with the provider-preset amendment)
+Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session owns this
+                   ledger, its evidence and its deviations
+Handoff:           handoff-s10-p5.md
+```
+
+### 13.1 C0 — freeze and contract
+
+- [x] Implementation: the `DESIGN FROZEN` header and §11's contract were committed with the freeze (#111);
+  every endpoint line in §11 names its source (the primary session's freeze message, relayed by the
+  coordinator). This session records the base above (`2c6d34c`) and initializes
+  [`handoff-s10-p5.md`](handoff-s10-p5.md).
+- [x] Validation (E-P5-0): `python3 scripts/check_doc_headings.py` ("192 numbered sections across 26
+  documents, none duplicated") and `python3 scripts/check_decision_ids.py` ("85 decision ids, all
+  distinct"), both exit 0. `grep -c 'ARC-57\|ARC-58\|DEP-27\|DEP-32' docs/DECISIONS.md` = 0: the four
+  numbers are free.
+- [x] Review: every authority line in §11 has a source; none was narrowed or widened. The kickoff brief of
+  this session restates §11's NEVER list (no model run, no key file, no hosted API, no real CLI) and adds
+  only process rules (WebFetch for "verify" facts; never rename or slow `fast`/`test`), none of which
+  changes an endpoint.
