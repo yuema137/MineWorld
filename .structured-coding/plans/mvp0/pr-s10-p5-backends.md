@@ -1305,6 +1305,44 @@ DV-P5-6  the option literals (StructuredOutput, Reasoning, TemperatureMode) are 
          backend/providers.py and imported by config.py, to keep the import graph acyclic.
 ```
 
+### 13.8 C7 — the operator-run spike tool
+
+- [x] Implementation: `tools/spike_scenarios.json` (40 synthetic decisions: five personas, eight heard
+  lines each) and `tools/model_spike.py` (`run_spike(config, models, out, *, allow_remote, factory)` and
+  `main`): the `social` binding of the operator's configuration with only `model` replaced; each model,
+  listed smallest first, answers every scenario once through `ModelGateway` around a
+  `RecordingBackend` (one cassette per model, `spike-<model>.jsonl`), under the spike's own ceilings
+  (10 000 calls, 10 000 000 tokens, one in flight, 120 s per call) so a seat's everyday budget does not
+  refuse the run; first-attempt validity is checked locally (`SpikeChoice`, strict, plus
+  `words` ≤ 480 UTF-8 bytes); the report holds, per model, the valid count, completions, failures by
+  reason, p50 and nearest-rank p95 latency, the `reasoning` setting and whether the server accepted it
+  (no `http_status:400`), and `meets_criteria`; plus the criteria, the scenario file's sha256, the
+  server binding, the machine (OS, machine, processor, CPUs, memory on POSIX) and the default — the first
+  model meeting every criterion, or "no candidate meets the criteria: to the operator". A non-loopback
+  `base_url` is refused without `--allow-remote`. The README's operator section names the command.
+- [x] Validation (E-P5-7): 81 passed (4 new); static clean. The tool runs end to end against a scripted
+  factory (`small` fails the schema on 5 scenarios → 35 < 38 → not meeting; `large` 40/40 → the
+  default); `report.json` equals the returned report and carries every AP5-S field; a remote URL is
+  refused naming `--allow-remote`; no `ci_layer.py` layer names `model_spike` or `--allow-remote`.
+  **Committed before any real run (hashes):** `spike_scenarios.json`
+  `050f0b17b4200a40090874ef0a6f7f24032dba5232f83e1a824f32adb5f0eccc`; the thresholds are the literals
+  `SCENARIO_COUNT = 40`, `FIRST_ATTEMPT_VALID_MIN = 38`, `P95_LATENCY_MAX_MS = 15_000` in
+  `model_spike.py`, asserted by `test_the_thresholds_are_ap5_s_literals_and_the_scenarios_are_fixed`.
+- [x] Review: the thresholds equal AP5-S's; the tool reads a key only through `secrets.resolve_key`,
+  only when the configuration names a `key_env` (a local server needs none), and never on its own.
+- **Operator step — NOT RUN.** No agent ran the spike, pulled or downloaded a model (QP5-3). P6's freeze
+  waits for the operator's report, or an operator decision in its place. The command:
+
+  ```sh
+  uv run python cognition/lm-controller/tools/model_spike.py \
+      --config ~/Library/Application\ Support/MineWorld/cognition.toml \
+      --models qwen3.5:4b,qwen3.5:9b,gemma4:12b --out ./spike-2026-10
+  ```
+
+  with a `cognition.toml` whose `[tiers] social` binds a backend at `http://127.0.0.1:11434/v1`
+  (`key_env = ""`, `reasoning = "off"`). The agent then commits the report and the chosen cassette
+  under `tests/cassettes/spike-<date>.{json,jsonl}` and records the default in the README's example.
+
 **Process note.** While editing a test this session ran `sed -i.bak '' /dev/null` once by mistake (an
 empty `sed -i` on `/dev/null`, which the brief forbids). It touched no file: `git status` and a search for
 `*.bak` showed nothing. Recorded so the slip is visible.
