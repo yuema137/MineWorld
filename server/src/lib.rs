@@ -87,16 +87,19 @@ pub use admission::{
 };
 pub use app::Access;
 pub use host::{
-    HostConfig, HostError, HostedWorld, Perceived, SeatRoster, Seated, Streams, Submitted,
-    SubscriptionId, WorldHost,
+    Backfill, HostConfig, HostError, HostedWorld, Observations, Perceived, PerceivedStart,
+    SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId, WireFact, WorldHost,
 };
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;
 pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
-pub use perception::{PerceivesNothing, Perception, PerceptionContext};
+pub use perception::{
+    EventPerception, HistoryUnavailable, PerceivedHistory, PerceivesNoEvents, PerceivesNothing,
+    Perception, PerceptionContext,
+};
 pub use protocol::{
-    ClientFrame, ClockState, ClosingReason, CorrelationToken, PROTOCOL_VERSION, ProtocolError,
-    Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation,
-    WirePayload, WorldInstanceId, WorldSummary,
+    ClientFrame, ClockState, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm,
+    PerceivedJoin, ProtocolError, Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary,
+    TookOver, WireObservation, WirePayload, WorldInstanceId, WorldSummary, wire_fact,
 };
 pub use seats::{Departure, JoinRequest, SeatReport, SeatState};

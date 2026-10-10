@@ -53,3 +53,11 @@ spike/server/target/
 .env
 *.env
 secrets*
+# `.env.local`, `.env.production` and the like, which `*.env` does not match (R-P5-12). The example
+# file holds variable names with empty values and is tracked
+# (cognition/lm-controller/examples/.env.example).
+.env.*
+!.env.example
+# The one module that resolves a key (D-P5-9) is source code, and holds no value; `secrets*` above
+# would otherwise ignore it.
+!/cognition/lm-controller/src/mineworld_cognition/secrets.py

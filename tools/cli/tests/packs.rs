@@ -135,6 +135,42 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
     );
 }
 
+/// EC-6 (`ARC-66` point 4): every listed System Pack says, just before its system id, whether it was
+/// compiled from this workspace — `bundled` exactly when the installed set says so, `third-party`
+/// otherwise. The oracle is each capability's own `package().bundled()`, never a list written here.
+#[test]
+fn every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it() {
+    let (ok, listing, stderr) = mineworld(&["packs", "list"]);
+    assert!(ok, "packs list failed: {stderr}");
+    let listed = lines(&listing);
+    let origins: Vec<(String, String)> = listed
+        .iter()
+        .filter(|l| l.kind == "system-pack")
+        .map(|line| match line.rest.as_slice() {
+            [.., origin, "system", id] => ((*id).to_owned(), (*origin).to_owned()),
+            other => panic!("{}: no origin and system id in {other:?}", line.id),
+        })
+        .collect();
+    let expected: Vec<(String, String)> = AVAILABLE
+        .iter()
+        .map(|c| {
+            let word = if c.package().bundled() {
+                "bundled"
+            } else {
+                "third-party"
+            };
+            (c.id().to_string(), word.to_owned())
+        })
+        .collect();
+    assert_eq!(origins, expected);
+    let bundled = origins.iter().filter(|(_, o)| o == "bundled").count();
+    println!("{bundled} bundled, {} third-party", origins.len() - bundled);
+    assert!(
+        bundled > 0,
+        "the framework's own packs are located as bundled"
+    );
+}
+
 /// EA-4 and EA-5: the data packs in the named directories — every world under worlds/ and the two
 /// default presentation packs; LICENSES/ beside them is not a pack — and each validates.
 #[test]

@@ -42,9 +42,13 @@ use serde::{Deserialize, Serialize};
 /// The instant every request in these tests is made at (`AC-12`: supplied, never read from a clock).
 pub const NOW: WorldTime = WorldTime::from_seconds(3_600);
 
-/// Registers this build's one resolver; a no-op after the first call in a process.
+/// Registers this build's one resolver and its one wayfinder (step-11 RN-9: bodies refuses to join a
+/// world whose host registered either catalog without it); a no-op after the first call in a process.
 pub fn register() {
     register_resolvers(vec![Box::new(BodiesSystem) as Box<dyn ArrivalResolver>]);
+    mineworld_movement::register_wayfinders(vec![
+        Box::new(BodiesSystem) as Box<dyn mineworld_movement::Wayfinder>
+    ]);
 }
 
 /// The prototype's café room: floor and counter.

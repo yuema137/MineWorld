@@ -1,0 +1,2 @@
+{ "t": "refused", "code": "cursor_unavailable",
+  "detail": "the cursor is newer than any fact this world has recorded" }

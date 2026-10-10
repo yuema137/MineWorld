@@ -311,21 +311,69 @@ fn a_shove_from_600_mm_moves_its_target_half_a_metre() {
     holds(&yard);
 }
 
-/// TZ-6's other half: a stride *toward* a person 600 mm away is still stopped by them — a stays, b is
-/// not moved. M-Z5 (the d · (p − start) ≤ 0 test dropped) fails here.
-#[test]
-fn a_stride_toward_a_person_600_mm_away_is_still_stopped() {
-    let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
-    let to = yard.at("room", (4_400, 5_000));
+/// The radius every length below is a multiple of (step-11 §21.6, TD-D8): the scenarios keep their
+/// shape at any radius. 300 mm today, so every literal of the 12d-0 layout is unchanged.
+const R: i32 = mineworld_bodies::PERSON_RADIUS.value();
+
+/// What a stride toward person `b` within the controller's offset did: whether b stopped it, where a
+/// and b ended.
+fn toward(
+    behind: i32,
+    lateral: i32,
+) -> (Option<Option<mineworld_contracts::EntityId>>, Xy, Xy, Yard) {
+    // §18.4's layout scaled with the radius: a `behind` b along a's line (2R = 600 mm at R 300), b
+    // `lateral` off it, a 1 000 · R / 300 mm stride (1 000 at R 300).
+    let a = (4_000 - behind, 5_000);
+    let mut yard = yard(&[("a", a), ("b", (4_000, 5_000 + lateral))], vec![]);
+    let to = yard.at("room", (a.0 + 1_000 * R / 300, 5_000));
     let moved = yard.walk("a", to);
     assert!(moved.accepted(), "{:?}", moved.result);
     let by = moved.facts().iter().find_map(|fact| match fact {
         support::Fact::StoppedShort { by, .. } => Some(*by),
         _ => None,
     });
-    assert_eq!(by, Some(Some(yard.people["b"])), "stopped by b");
-    assert_eq!(yard.point("a"), Some((3_400, 5_000)));
-    assert_eq!(yard.point("b"), Some((4_000, 5_000)));
+    let (ended, b) = (
+        yard.point("a").expect("placed"),
+        yard.point("b").expect("placed"),
+    );
+    (by, ended, b, yard)
+}
+
+/// TZ-6's other half, restated for any radius (step-11 §21.6, claim 1): a stride toward a person
+/// within the offset is never passed through. (i) b dead ahead: a is stopped by b or turned by the
+/// head-on bias — either way never nearer b than CLEARANCE (2R − 5), and never at the point asked for.
+/// (ii) b offset sideways by ⌊2R/3⌋ + 1 mm, just outside the head-on band, still in a's corridor and
+/// within the offset — 19R/10 along a's line, so a and b start √((19R/10)² + (2R/3 + 1)²) apart: 604 mm
+/// at R 300, 504 at R 250, both within [2R − 5, 2R + 10]: a is stopped by b. M-Z5 (the d · (p − start) ≤
+/// 0 test dropped, or the exclusion widened to everybody within the offset) fails by name.
+#[test]
+fn a_stride_toward_a_person_within_the_offset_is_never_passed_through() {
+    let asked = (4_000 - 2 * R + 1_000 * R / 300, 5_000);
+    let (by, a, b, yard) = toward(2 * R, 0);
+    println!("dead ahead: by {by:?}, a {a:?}, b {b:?}");
+    let apart2 = i64::from(a.0 - b.0).pow(2) + i64::from(a.1 - b.1).pow(2);
+    assert!(
+        apart2 >= i64::from(2 * R - 5).pow(2),
+        "(i) never within CLEARANCE of b: a {a:?}"
+    );
+    assert_ne!(a, asked, "(i) b was not ignored by the sweep");
+    assert!(
+        by == Some(Some(yard.people["b"])) || a.1 != 5_000,
+        "(i) stopped by b, or turned: {by:?}, a {a:?}"
+    );
+    assert_eq!(b, (4_000, 5_000), "(i) b not moved");
+    holds(&yard);
+
+    let lateral = 2 * R / 3 + 1;
+    let (by, a, b, yard) = toward(19 * R / 10, lateral);
+    println!("{lateral} mm aside: by {by:?}, a {a:?}, b {b:?}");
+    assert_eq!(by, Some(Some(yard.people["b"])), "(ii) stopped by b");
+    // b may be nudged on the way to the stop — at most NUDGE_MAX + GAP = R + 10 — never pushed through.
+    let nudged2 = i64::from(b.0 - 4_000).pow(2) + i64::from(b.1 - 5_000 - lateral).pow(2);
+    assert!(
+        nudged2 <= i64::from(R + 10).pow(2),
+        "(ii) b moved at most a nudge: {b:?}"
+    );
     holds(&yard);
 }
 

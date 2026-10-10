@@ -14,14 +14,15 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
 
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
-                                                   core and parity also natively on macOS and Windows
-                                                   runners)
+                                                   parity natively on macOS and Windows runners)
     python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
-                                                   (by hand; no job since 13w: core covers it)
+                                                   (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
-    python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
+    python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
+                                                   offline with an empty CARGO_HOME (EC-3 (b))
+    python3 scripts/ci_layer.py --prune-cache     before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
                                                    compiled dependencies
 """
@@ -51,6 +52,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_parity.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+        # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
+        ["cargo", "deny", "check", "licenses", "sources", "bans"],
     ],
     # Building first and running second runs the same tests; it only makes the log say how long the
     # build took and how long the tests did, which is what CI's budget is judged by. After a passing
@@ -67,12 +70,16 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
     ],
-    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): the subset of the suite that
-    # S16's crates and commands own, run natively on macOS and Windows outside the container. No CI job
-    # runs it since 13w (step-14 §15.5, QW-4): `test-windows` and `test-macos` run the whole `core` layer
-    # there, a strict superset. It stays while a pending S16 PR names it (E-c: `third_party`, and PD-p3's
-    # offline check), and can be run by hand.
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
+    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
+    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
+    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
     "platforms": [
+        # E-c: everything the lock names, first (EC-3 (a)'s fetch). The lock guard's `cargo metadata
+        # --offline` reads every workspace crate's dependencies, dev-dependencies of crates this layer
+        # never builds included (`trybuild`'s `glob`), so nothing after this may depend on what a build
+        # happened to download.
+        ["cargo", "fetch", "--locked"],
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
         # --no-fail-fast: on a platform, one red test binary must not hide another's result.
         [
@@ -82,7 +89,15 @@ LAYERS: dict[str, list[list[str]]] = {
         [
             "cargo", "test", "--locked", "--no-fail-fast", "-p", "mineworld-cli",
             "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+            "--test", "third_party",
         ],
+        # E-c: the lock guard and the graph check over this platform's checkout (EC-13), then the build
+        # offline from a vendor directory with an empty CARGO_HOME (PD-p3).
+        [
+            "cargo", "test", "--locked", "--no-fail-fast",
+            "-p", "mineworld-acceptance", "--test", "package_sources",
+        ],
+        ["python3", "scripts/ci_layer.py", "--offline-check"],
     ],
 }
 
@@ -91,12 +106,19 @@ LAYERS: dict[str, list[list[str]]] = {
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
 # rather than the literal `python3`, which Windows does not have; these layers also run outside the
 # container, on Windows and macOS.
+# The workspace's members (root pyproject.toml): the SDK (S10 P3) and the cognition package (S10 P5a).
+PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
-    ["uv", "run", "--locked", "ruff", "check", "sdk/python"],
-    ["uv", "run", "--locked", "ruff", "format", "--check", "sdk/python"],
-    ["uv", "run", "--locked", "pyright", "sdk/python"],
+    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
 ]
+# pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
+# ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
+# and both members' `addopts` (the network guard among them) would be dropped silently
+# (pr-s10-p5-backends.md D-P5-11). The cognition member's `addopts` also deselect `live_model`; no CI
+# command selects that marker (D-P5-12).
 # The static checks are also part of `fast`: they add about 6 s to it, measured on PR #98's first run
 # (uv sync 3.0 s, ruff 0.1 s, pyright 2.5 s), well under the 60 s the ruling allows (QP3-3), so a Python
 # lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
@@ -107,12 +129,15 @@ LAYERS["python"] = [
     # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
     ["cargo", "build", "-p", "mineworld-cli"],
     ["uv", "run", "--locked", "pytest", "sdk/python"],
+    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
-# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else.
+# No Rust build: the real_server tests are deselected by name, visibly, here and nowhere else. The
+# cognition suite needs no binary and runs whole.
 LAYERS["python-smoke"] = [
     *PYTHON_STATIC,
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
@@ -127,6 +152,7 @@ ENVIRONMENT: list[list[str]] = [
     ["cargo", "-V"],
     ["cargo", "fmt", "--version"],
     ["cargo", "clippy", "--version"],
+    ["cargo", "deny", "--version"],
     ["git", "--version"],
     ["uv", "--version"],
     ["git", "rev-parse", "HEAD"],
@@ -176,6 +202,50 @@ def resolved(command: list[str]) -> list[str]:
     """`python3` is this interpreter: Windows runners have no `python3` on PATH. The listed command
     (`--list`) stays as written."""
     return [sys.executable, *command[1:]] if command[0] == "python3" else command
+
+
+def offline_check() -> int:
+    """EC-3 (b) on this runner (step-16 §16.12 PD-p3): vendor every dependency to a directory outside
+    the checkout, then check the CLI with `--offline --frozen` against it and an empty CARGO_HOME, so
+    nothing can come from the network or from a cache.
+
+    The vendor directory and the empty home are siblings of the checkout and are removed afterwards.
+    The configuration `cargo vendor` prints is written to a file with its directory as a `/` path, so
+    it needs no escaping in TOML on Windows."""
+    outside = ROOT.parent
+    vendor = outside / "mineworld-vendor"
+    home = outside / "mineworld-empty-cargo-home"
+    config = outside / "mineworld-vendor.toml"
+    for path in (vendor, home):
+        shutil.rmtree(path, ignore_errors=True)
+    home.mkdir()
+    try:
+        vendored = subprocess.run(
+            ["cargo", "vendor", "--locked", "--versioned-dirs", str(vendor)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if vendored.returncode != 0:
+            print(vendored.stderr, file=sys.stderr, flush=True)
+            return vendored.returncode
+        lines = [
+            f'directory = "{vendor.as_posix()}"' if line.startswith("directory = ") else line
+            for line in vendored.stdout.splitlines()
+        ]
+        config.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        crates = sum(1 for entry in vendor.iterdir() if entry.is_dir())
+        print(f"[ci] vendored {crates} crates to {vendor}; CARGO_HOME={home} (empty)", flush=True)
+        environment = {**os.environ, "CARGO_HOME": str(home)}
+        command = [
+            "cargo", "check", "--offline", "--frozen", "--config", str(config), "-p", "mineworld-cli",
+        ]
+        print(f"[ci] $ {shlex.join(command)}", flush=True)
+        return subprocess.run(command, cwd=ROOT, env=environment).returncode
+    finally:
+        for path in (vendor, home):
+            shutil.rmtree(path, ignore_errors=True)
+        config.unlink(missing_ok=True)
 
 
 def run(layer: str) -> int:
@@ -232,6 +302,8 @@ def main(arguments: list[str]) -> int:
     known = ", ".join(LAYERS)
     if arguments == ["--prune-cache"]:
         return prune_cache()
+    if arguments == ["--offline-check"]:
+        return offline_check()
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
         for command in LAYERS[arguments[1]]:
             print(shlex.join(command))

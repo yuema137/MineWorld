@@ -59,11 +59,10 @@ jobs:
 
   # The whole default suite on Windows and on macOS, natively: the same `core` commands as `test`, with
   # `test`'s triggers and dispatch (step-14 §15.5). They report and are not required checks; whether they
-  # become required is the operator's (QB-11, ARC-48's note of 2026-10-09 for 13w). They replace E-c/E-d's
-  # `platforms` job, of which they are a strict superset (QW-4); the `platforms` layer stays in
-  # ci_layer.py while a pending S16 PR names it. The whole checkout: its longest path is 120 characters,
-  # far inside Windows' MAX_PATH. .gitattributes checks text out with LF on every platform (step-14 W-3).
-  # Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
+  # become required is the operator's (QB-11, ARC-48's note of 2026-10-09 for 13w). The whole checkout:
+  # its longest path is 120 characters, far inside Windows' MAX_PATH. .gitattributes checks text out with
+  # LF on every platform (step-14 W-3). Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19,
+  # step-14 §13.0.3).
   test-windows:
     name: test-windows
     if: >-
@@ -101,6 +100,33 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core
+
+  # S16's packages on macOS and Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms`
+  # layer, with `test`'s triggers. Kept beside `test-windows` and `test-macos` (step-14 §15, D-13w-6):
+  # besides tests that `core` also runs, the layer runs E-c's offline vendor check (PD-p3, EC-3 (b)), which
+  # `core` does not. CRLF input is covered by tests that write CRLF themselves (ED-13, IB-10), so the
+  # action's line-endings report reads 0 by design.
+  platforms:
+    name: platforms (${{ matrix.os }})
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario'))
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: platforms
 
   # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
   # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its

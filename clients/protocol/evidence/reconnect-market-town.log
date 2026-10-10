@@ -1,6 +1,6 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[check] connecting to 127.0.0.1:54892 as seat 'visitor', reconnect on
+[check] connecting to 127.0.0.1:64198 as seat 'visitor', reconnect on
 [check] PASS the town was driving the seat: "hosted"
 [check] PASS the server holds a dropped seat for 10 s: 10
 [check] PASS a resume secret was given (not shown): true

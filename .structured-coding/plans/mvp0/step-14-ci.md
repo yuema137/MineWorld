@@ -3258,16 +3258,29 @@ Each commit tracks implementation, validation and review separately.
   - ARC-48's dated note.
   - Done: `test-windows` moved beside `test` and given `test`'s triggers plus dispatch; `test-macos`
     added (`macos-26`, `fetch-depth: 0`, `blob:none`, the `native` action with layer `core`, timeout
-    60); the `platforms` job removed (QW-4). ARC-48 note of 2026-10-09 (13w). `scripts/ci_layer.py`:
-    the `platforms` layer's comment and the usage text say no job runs it since 13w; the layer itself
-    is kept, because E-c (#99, open) names it.
+    60); ARC-48 note of 2026-10-09 (13w). First drafted with the `platforms` job removed (QW-4), then
+    restored at the merge of `origin/main` (D-13w-6).
   - **D-13w-4 (bounded): triggers.** §15.5 lists non-draft `pull_request`, push to `main` and dispatch.
     The jobs also take `test`'s `scratch/**` push route (except `-image`, `-scenario`), for two reasons:
     MW-3 … MW-6 are judged on scratch pushes, which otherwise run Linux `test` but not these two
     (a dispatch would also start the five parity jobs); and the removed `platforms` job ran on scratch
     pushes, so without the route the replacement would cover less than what it replaces.
-  - **D-13w-5 (bounded): `scripts/ci_layer.py` is touched** (comments only; `--list` of every layer
-    unchanged), a file beyond A-W5's list, because its comment named the removed job.
+  - **D-13w-5 (withdrawn at the merge of `origin/main`, see D-13w-6).** `scripts/ci_layer.py`'s comments
+    had been edited for the removed job; the file is back to `main`'s, byte for byte.
+  - **D-13w-6 (bounded; QW-4's own fallback): the `platforms` job is kept.** The merge of `origin/main`
+    (`02788e6`, 2026-10-10) brought E-c (#99, `0ba037f`), which added to the `platforms` layer
+    `cargo fetch --locked`, the `third_party` and `package_sources` targets and
+    `ci_layer.py --offline-check` (PD-p3, EC-3 (b): vendor outside the checkout, check offline with an
+    empty `CARGO_HOME`). `core` runs the two targets but **not the offline check**, so `test-windows` and
+    `test-macos` are no longer a strict superset, and QW-4 ("retire … if both are green; otherwise keep
+    it", §15.5: "keeps the layer only if another consumer names it") resolves to keeping the job. The
+    `platforms` job is restored exactly as on `main`, with one comment line saying why; ARC-48's 13w note
+    says the same. Trimming the layer to what `core` lacks is left to a later change (S16's or S13's).
+  - Also from the merge: S11-C (#95) landed CA-13 (`tools/cli/tests/perceived.rs`
+    `a_resume_of_a_long_save_does_not_stall_the_world`) behind `#[cfg(unix)]`, waiting for this helper.
+    **QW-3: 13w lands second, so the gate is removed** and its doc says "every platform"; it already uses
+    `Server::interrupt`. Its `#[ignore = "CA-13: needs a 300-day save …"]` is S11-C's cost tier, not a
+    platform gate, and is left as S11-C froze it (it runs on demand on every platform now).
 - [ ] Validation:
   - dispatch runs, then the PR's own runs (A-W1, A-W2, A-W3, A-W7);
   - **Changed route: no dispatch.** The PR's `pull_request` runs carry both jobs once W-C4 is pushed,

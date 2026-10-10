@@ -136,6 +136,11 @@ class Recording:
         marker = f'"t":"{kind}"'
         return sum(1 for frame in self.received if marker in frame.replace(" ", ""))
 
+    def stream(self) -> int:
+        """Frames of the observation stream, whole or `delta` (`PROTOCOL.md` §5.3): a session turns
+        each into a whole observation."""
+        return self.count("observation") + self.count("delta")
+
 
 async def seated(
     server: Server, seat: str, *, invite: str = INVITE

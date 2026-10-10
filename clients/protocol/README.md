@@ -40,6 +40,8 @@ godot --headless --path clients/protocol --script res://checks/reader_check.gd  
 bash clients/protocol/run.sh affordances     # against worlds/market-town, saved to a temporary directory
 bash clients/protocol/run.sh reconnect       # drop and resume a held seat
 bash clients/protocol/run.sh admin           # the clock frame; pause, resume and kick by the host
+bash clients/protocol/run.sh perceived       # facts in observations, the perceived stream, acted_through
+bash clients/protocol/run.sh deltas          # every golden delta case, then 60 s of live deltas
 ```
 
 `--flavour 2d` reports no position when it acts; `--flavour 3d` reports the one it walked to. That is

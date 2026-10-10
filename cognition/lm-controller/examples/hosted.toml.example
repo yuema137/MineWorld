@@ -1,0 +1,37 @@
+# A user's own hosted APIs, as OpenAI-compatible backends (pr-s10-p5-backends.md §5.4). Keep this file
+# outside the repository and outside any world. Never used by a test, CI or an agent.
+
+[recording]
+mode = "live"
+
+[tiers]
+social    = "deepseek"
+summarize = "none"
+
+[budgets]
+ledger              = "cognition-state/budget.sqlite"   # relative to this file
+calls_per_wall_hour = 20
+tokens_per_wall_day = 30000
+max_in_flight       = 2
+call_timeout_s      = 20
+
+[secrets]
+env_file = "mineworld.env"   # optional; relative to this file; chmod 600
+
+[backends.openai]
+preset = "openai"
+model  = "your-model-name"
+
+[backends.deepseek]
+preset = "deepseek"            # key_env = "DEEPSEEK_API_KEY", structured_output = "json_object"
+model  = "your-model-name"
+
+[backends.glm]
+preset = "glm"                 # Zhipu, China; "zai" is the international endpoint
+model  = "your-model-name"
+
+[backends.local]
+base_url  = "http://127.0.0.1:11434/v1"
+model     = "qwen3.5:4b"
+key_env   = ""
+reasoning = "off"
