@@ -35,6 +35,10 @@ const DOOR_PICK_M := 0.8
 ## is DOOR_REARM_M from where it last crossed, so arriving through one does not bounce back.
 const DOOR_STEP_M := 0.6
 const DOOR_REARM_M := 1.0
+## "Walk to <person>" stops this far short of where they are drawn: "a pace away", a destination the
+## player chose (step-13 D-b-3, QS13b-6). Not any pack's range: the server answers every stride, and
+## the next action, whatever it is.
+const APPROACH_M := 1.2
 
 var town
 var intents: Node
@@ -69,10 +73,13 @@ var _stale_until_ms := 0
 ## Whether walking onto a doorway with the keys steps through it (see DOOR_REARM_M).
 var _doors_armed := true
 var _crossed_at := Vector2.ZERO
+## The newest observation: where the people a walk may approach are.
+var _latest: MineWorldObservation = null
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
 func observe(observation: MineWorldObservation) -> void:
+	_latest = observation
 	var place := observation.place()
 	var plan: Variant = town.to_plan(place, observation.self_location().get("local"))
 	if plan == null:
@@ -109,6 +116,25 @@ func walk_to_plan(plan: Vector2) -> void:
 		walk_to(door["to"], town.to_plan(door["to"], {"x": door["there"].x, "y": door["there"].y}))
 		return
 	walk_to(town.place_at(plan, body_place), plan)
+
+
+## Walks toward a perceived person, stopping APPROACH_M short of where the newest observation puts
+## them: the menu's "walk to" entry (D-b-3). Ordinary strides; nothing else is decided here.
+func approach(id: String) -> void:
+	if _latest == null:
+		return
+	var location := _latest.location_of(id)
+	var place := body_place
+	if typeof(location.get("place")) == TYPE_DICTIONARY:
+		place = String(location["place"].get("entity", body_place))
+	var them: Variant = town.to_plan(place, location.get("local"))
+	if them == null:
+		return
+	var from: Vector2 = _goal if place == body_place else body_plan
+	var gap: Vector2 = (them as Vector2) - from
+	if gap.length() <= APPROACH_M:
+		return
+	walk_to(place, (them as Vector2) - gap.normalized() * APPROACH_M)
 
 
 ## The disclosed doorway of the body's place whose `here` lies within `radius` of `plan`, or {}.

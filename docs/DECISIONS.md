@@ -3710,6 +3710,77 @@ The client composes only the requests it knows how to ask for, decides nothing, 
 submit what the player chose, and never retries a request whose answer it did not see (a retry
 could do a thing twice; the server allocates identity, `INV-6`).
 
+**Note 1, 2026-10-08 (S12 PR 13b; step-13 §15.4 D-b-1 … D-b-6, QS13b-5) — the interaction menu is the
+observation's affordances.** No new principle; how this record applies to menus:
+
+1. A menu is about one subject — a perceived person, or the observer itself — and lists exactly the
+   affordances the newest observation offers against that subject (target-less ones for the
+   observer), **in the server's order**, one entry per affordance: nothing sorted, grouped out of
+   order, removed or invented. Several complete affordances sharing an action type and a target are
+   several entries.
+2. A **complete** affordance is submitted unchanged through the shared module's `submit_affordance`;
+   a **composable** one (its type is in `intents.gd`'s `COMPOSED`) through that file's composer, with
+   the player's input sent exactly as typed; any other is listed disabled, "not supported by this
+   client", and never sent.
+3. An entry the server marks unavailable is drawn greyed **and stays choosable**, with the server's
+   reason in the client's wording and, where declared, the requirement's range, unevaluated. Choosing
+   it submits it; the answer is the server's. No key submits "the first available" entry: selecting
+   by the server's verdict is the client deciding.
+4. The only entry a client adds is "walk to <person>", which is the offered `move` (listed only when
+   the frame offers a target-less `move`), walked as ordinary strides the server answers one by one.
+5. The scan grows with the menu: R2 admits `app.gd`'s `"invite"` (the join option) by explicit entry
+   only; R3 extends to `menu.gd` and `hud/` (a function that calls `intents.` reads no verdict); R6
+   refuses a user-visible English sentence outside the wording (`ARC-70`).
+
+---
+
+## ARC-70 — Client UI text is addressed by message keys; a Presentation Pack carries the wording as gettext files
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13b's design freeze (QS13b-1) ·
+**Relates to** `ARC-46`, `ARC-47`, `DD-13`, `DEP-16`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design**
+step-13 §15.4 D-b-9; [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) §7
+
+**Problem.** The contract carries no display text (`DD-13`): an action type, a rejection code and a
+component are identifiers, and a client words them. The 2D client's menus, results and panels add
+dozens of user-visible strings. The operator requires every client UI string to be translatable,
+with translations as standard files in the Presentation layer, so that a user adds a language
+without code ("Framework, not demo" item 4, `en` default, `zh-Hans` next).
+
+**Decided.**
+
+1. Every user-visible string of a reference client is a **message key** looked up through the
+   engine's translation server, with arguments substituted after the lookup. Keys are built from data
+   where the thing worded is data: `action.<type>`, `action.<type>.done`, `reason.<code>` — so no
+   client file holds an action type or a reason code to word it. Fixed UI text uses `ui.*`, panel
+   titles `panel.*`, suggestion lists `suggest.*`, formats `format.*`.
+2. A Presentation Pack carries the wording as **gettext `.po` files**, `i18n/<locale>.po`, loaded at
+   runtime from the pack directory (never imported into the client project). `en` is the default and
+   the one 13b ships.
+3. A key the wording does not hold falls back to a readable form of the key's last part
+   (`reason.too_far_away` → "too far away"); a client with no pack still says something true. A code
+   the wording does not know is therefore shown as the code itself.
+4. Wording holds no rule: no number, no condition, no filter. A suggestion list is a suggestion; what
+   the player types is sent unchanged and the server decides whether it is valid.
+5. The language switch, `zh-Hans` and the setting's persistence belong to the client-settings lane,
+   which may change the file format behind the same keys.
+
+**Options compared** (`REUSE_POLICY.md`, adopt → adapt → extend → build):
+
+```text
+Godot TranslationServer + gettext .po, loaded at runtime   adopt: the engine's own; .po is the standard
+                                                           translators' tools edit; Godot 4.7 loads a .po
+                                                           from an absolute path unimported (probed)
+Godot CSV translations                                     reject for packs: need the editor's import
+                                                           step, so a pack outside the project cannot be
+                                                           loaded at runtime
+our own JSON wording table                                 reject: non-standard; the operator asked for
+                                                           standard files
+third-party i18n addons                                    none needed over the engine's own
+```
+
+**Isolating interface.** One script per client reads the wording (`clients/2d/scripts/hud/words.gd`);
+every other script asks it for a key's text.
+
 ---
 
 ## DEP-16 — The 2D reference client: Godot built-ins and the shared protocol module, no addon
