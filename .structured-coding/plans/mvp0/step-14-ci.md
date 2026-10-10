@@ -3253,11 +3253,26 @@ Each commit tracks implementation, validation and review separately.
 
 ### W-C4 — The workflow: `test-macos`, both jobs' PR triggers, and `platforms` per QW-4
 
-- [ ] Implementation:
+- [x] Implementation:
   - `.github/workflows/ci.yml`;
   - ARC-48's dated note.
+  - Done: `test-windows` moved beside `test` and given `test`'s triggers plus dispatch; `test-macos`
+    added (`macos-26`, `fetch-depth: 0`, `blob:none`, the `native` action with layer `core`, timeout
+    60); the `platforms` job removed (QW-4). ARC-48 note of 2026-10-09 (13w). `scripts/ci_layer.py`:
+    the `platforms` layer's comment and the usage text say no job runs it since 13w; the layer itself
+    is kept, because E-c (#99, open) names it.
+  - **D-13w-4 (bounded): triggers.** §15.5 lists non-draft `pull_request`, push to `main` and dispatch.
+    The jobs also take `test`'s `scratch/**` push route (except `-image`, `-scenario`), for two reasons:
+    MW-3 … MW-6 are judged on scratch pushes, which otherwise run Linux `test` but not these two
+    (a dispatch would also start the five parity jobs); and the removed `platforms` job ran on scratch
+    pushes, so without the route the replacement would cover less than what it replaces.
+  - **D-13w-5 (bounded): `scripts/ci_layer.py` is touched** (comments only; `--list` of every layer
+    unchanged), a file beyond A-W5's list, because its comment named the removed job.
 - [ ] Validation:
   - dispatch runs, then the PR's own runs (A-W1, A-W2, A-W3, A-W7);
+  - **Changed route: no dispatch.** The PR's `pull_request` runs carry both jobs once W-C4 is pushed,
+    so a dispatch of the same head would duplicate them (test rules §10). The first PR run is the cold
+    run, the next the warm.
   - MW-3 … MW-6 on scratch branches, each deleted after its run, then `ls-remote` → empty.
 - [ ] Review:
   - neither job is required;

@@ -5127,6 +5127,33 @@ test-windows  the `core` layer natively on   push to main; workflow_dispatch    
 
 ---
 
+## ARC-48 note — the default suite on Windows and macOS (2026-10-09, S13 PR 13w)
+
+The decision is unchanged; its table gains or changes these rows (step-14 §15.5, QW-4, QW-5).
+
+```text
+job           layer / role                  trigger                                         merge
+test-windows  the `core` layer natively on  non-draft pull_request; push to main;          reports
+              windows-2025                  push to scratch/** (not -image, -scenario);
+                                            workflow_dispatch
+test-macos    the `core` layer natively on  the same                                       reports
+              macos-26
+platforms     (removed)                     —                                              —
+```
+
+- **`test-windows` gains its `pull_request` trigger**, in the PR that makes it green (13w), as 13b's
+  note said it would. `test-macos` is new, with the same triggers. Both carry `test`'s triggers plus
+  dispatch, so a mutation pushed to a `scratch/` branch is judged on all three operating systems.
+- **Neither is a required check.** Making them required is the operator's settings change (QB-11): the
+  recommendation is after five consecutive green `main` pushes.
+- **E-c/E-d's `platforms` job is removed** (QB-15, QW-4). Its layer ran a subset of `core` on the same
+  two runners with the same triggers, so both new jobs are a strict superset of it. The `platforms` layer
+  stays in `scripts/ci_layer.py` while a pending S16 PR (E-c, #99) names it; no job runs it.
+- Wall times are recorded in step-14 §15.8 (W-C4); both jobs have a 60-minute timeout and run in
+  parallel with `test`.
+
+---
+
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-d's design freeze (step-16 §17.0;

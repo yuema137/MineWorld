@@ -14,9 +14,10 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
 
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
-                                                   parity natively on macOS and Windows runners)
+                                                   core and parity also natively on macOS and Windows
+                                                   runners)
     python3 scripts/ci_layer.py platforms         S16's packages natively on macOS and Windows
-                                                   (`.github/actions/native`, not the container)
+                                                   (by hand; no job since 13w: core covers it)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
@@ -66,10 +67,11 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
     ],
-    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
-    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
-    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
-    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): the subset of the suite that
+    # S16's crates and commands own, run natively on macOS and Windows outside the container. No CI job
+    # runs it since 13w (step-14 §15.5, QW-4): `test-windows` and `test-macos` run the whole `core` layer
+    # there, a strict superset. It stays while a pending S16 PR names it (E-c: `third_party`, and PD-p3's
+    # offline check), and can be run by hand.
     "platforms": [
         ["cargo", "build", "--locked", "-p", "mineworld-cli"],
         # --no-fail-fast: on a platform, one red test binary must not hide another's result.

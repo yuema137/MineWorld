@@ -1,5 +1,5 @@
 # MineWorld CI: layers 1–3 of ENGINEERING_STANDARDS.md §16, AC-8's parity across macOS, Linux and
-# Windows, and the default suite on Windows.
+# Windows, and the default suite on Windows and macOS.
 #
 # Triggers, what blocks, and why are docs/DECISIONS.md ARC-48 (and its 2026-10-09 note); the service
 # and images are DEP-17 and DEP-18; AC-8's measurement and runners are ARC-49 and DEP-19. Jobs name layers; the commands of a layer live in scripts/ci_layer.py only. The job names
@@ -57,24 +57,22 @@ jobs:
         with:
           layer: core
 
-  # S16's packages on macOS and Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms`
-  # layer, with `test`'s triggers. Linux keeps its container layers. The whole checkout: its longest path
-  # is 120 characters, far inside Windows' MAX_PATH. .gitattributes checks text out with LF on every
-  # platform (step-14 W-3); CRLF input is covered by tests that write CRLF themselves (ED-13, IB-10), so
-  # the action's line-endings report reads 0 by design. Whether it blocks a merge is ARC-48's question,
-  # raised to S13. Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
-  platforms:
-    name: platforms (${{ matrix.os }})
+  # The whole default suite on Windows and on macOS, natively: the same `core` commands as `test`, with
+  # `test`'s triggers and dispatch (step-14 §15.5). They report and are not required checks; whether they
+  # become required is the operator's (QB-11, ARC-48's note of 2026-10-09 for 13w). They replace E-c/E-d's
+  # `platforms` job, of which they are a strict superset (QW-4); the `platforms` layer stays in
+  # ci_layer.py while a pending S16 PR names it. The whole checkout: its longest path is 120 characters,
+  # far inside Windows' MAX_PATH. .gitattributes checks text out with LF on every platform (step-14 W-3).
+  # Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
+  test-windows:
+    name: test-windows
     if: >-
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario'))
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-26, windows-2025]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2025
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +81,26 @@ jobs:
           filter: blob:none
       - uses: ./.github/actions/native
         with:
-          layer: platforms
+          layer: core
+
+  test-macos:
+    name: test-macos
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario'))
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core
 
   # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
   # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its
@@ -291,22 +308,3 @@ jobs:
           name: ac8-records
           path: records/
           if-no-files-found: warn
-
-  # The whole default suite on Windows, natively: the same `core` commands as `test`. It reports and is
-  # not required; it is expected red until the Windows-portability PR (13w) makes the suite compile and
-  # pass there, which also adds its pull_request trigger (step-14 §13.0.1, QB-11).
-  test-windows:
-    name: test-windows
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: windows-2025
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          filter: blob:none
-      - uses: ./.github/actions/native
-        with:
-          layer: core
