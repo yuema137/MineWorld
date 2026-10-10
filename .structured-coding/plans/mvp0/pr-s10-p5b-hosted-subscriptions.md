@@ -500,3 +500,51 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | QP5b-4 [primary] | The native Anthropic adapter over `httpx2`, with the `anthropic` SDK declined (`DEP-33`), as QP5-1's ruling asked to compare? | **Yes**, for QP5-1's reasons. The SDK's implicit environment reads are re-verified in C1. |
 | QP5b-5 [primary] | P5b after P5a, possibly in parallel with P4? | **Yes.** P5b touches no file P4 touches beyond the registry line. |
 | QP5b-6 [operator] | Present Claude by API key, OpenAI by API key, DeepSeek and GLM as the recommended hosted routes in the README, with subscriptions listed after them as a user's own opt-in? | **Yes.** It matches the vendors' own guidance and keeps the user's account safe. |
+
+---
+
+## 11. Ledger (live during implementation)
+
+```text
+Status:            IN PROGRESS (C0)
+Implementation
+base:              origin/main @ 02788e6 (#123), which contains P5a's merge 60a6295 (#120)
+Worktree / branch: /Users/yuema137/mineworld-worktrees/impl-s10-p5b, mvp0/pr-s10-p5b (sole writer)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session owns this
+                   ledger, its evidence and its deviations
+Handoff:           handoff-s10-p5b.md
+```
+
+### 11.1 C0 — freeze, contract, re-audit of P5a's merged code
+
+- [x] Implementation: the `DESIGN FROZEN` header and §9 were committed with the freeze (#111). This
+  session records the base (`02788e6`; P5a merged as `60a6295`, #120) and initializes
+  [`handoff-s10-p5b.md`](handoff-s10-p5b.md).
+- [x] Validation (E-P5b-0): `check_doc_headings.py` ("193 numbered sections across 26 documents, none
+  duplicated") and `check_decision_ids.py` ("98 decision ids, all distinct"), both exit 0; `grep -n
+  'ARC-60\|DEP-33' docs/DECISIONS.md` finds only ARC-56's note of S10's range: both numbers are free.
+  Baseline: `uv run --locked pytest cognition/lm-controller` at `02788e6`, 81 passed.
+- [x] Review: P5a's merged code against §3's assumptions (files read in full: `backend/model.py`,
+  `backend/registry.py`, `backend/openai_compatible.py`, `backend/providers.py`, `config.py`,
+  `gateway.py`, `record.py`, `budget.py`, `secrets.py`, `errors.py`, `tests/support.py`,
+  `tests/test_provider_scan.py`):
+  - `registry.FACTORIES: dict[str, Factory]`, `Factory = (BackendConfig, Secret | None) -> ModelBackend`,
+    each adapter imported inside its factory: P5b adds a kind by one entry, as assumed.
+  - `BackendConfig.kind` is `Literal["openai-compatible"]` with that default (DV-P5-3); `base_url` is
+    required and validated by `check_base_url`; `temperature` defaults to `"send"`. The `anthropic` kind
+    needs `"omit"` as its default (§5.1): a kind-dependent default in the same `before` validator that
+    fills presets.
+  - `ModelGateway.complete` runs the budget pre-check, then the limiter, then the backend under
+    `asyncio.timeout(call_timeout_s)`, which **cancels** the backend's coroutine: a bridge must kill
+    its process tree on cancellation as well as on its own bound (D-B4, D-B7 hold by placement).
+  - `RecordingBackend` computes the key **before** the call and serializes the request **after** it:
+    a backend that lowered the schema in place would leave a cassette whose key no longer matches its
+    request (the load check refuses it). AB-1's key half is tested through that path.
+  - **Difference 1:** `BackendFailure` carries only `reason` and `status`; it has no message field, and
+    P5a has no "secret scrub" (`grep -ri scrub src` finds only `record.py`'s "redaction holds by
+    construction, not by scrubbing"). §5.2 step 8's "first 200 characters of stderr after the scrub"
+    cannot be carried without changing P5a's seam (a material stop). Resolved in C3 as DV-P5b-2.
+  - **Difference 2:** `tests/support.run` runs every coroutine on `asyncio.SelectorEventLoop` (F-P5-4).
+    On Windows a selector loop cannot start a subprocess; resolved in C3 (F-P5b-1).
+  - The contract's branch name is `mvp0/pr-s10-p5b-hosted`; the primary session's kickoff of this
+    session names `mvp0/pr-s10-p5b`, which is used (DV-P5b-1).
