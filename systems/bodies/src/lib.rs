@@ -25,7 +25,9 @@
 //! provides    kick, throw    target-less, the object in the payload; shove, a person
 //! discloses   PlaceShape     and a listing of the place's objects, to whoever perceives the place
 //! resolves    arrivals       into a shaped place (presence's ArrivalResolver)
-//! depends on  presence       (the crate reads the item pack's is_declared, nothing else: ARC-39 note 2)
+//! plans       routes         through a shaped place (movement's Wayfinder; route.rs, DEP-34)
+//! depends on  presence       (the crate reads the item pack's is_declared, nothing else: ARC-39 note 2;
+//!                            and implements movement's Wayfinder: ARC-39 note 5)
 //! ```
 //!
 //! Rapier sweeps people, casts pushed objects and flies kicked and thrown ones, behind one module
@@ -45,6 +47,7 @@ mod objects;
 mod offer;
 mod push;
 mod rapier;
+mod route;
 mod section;
 mod shove;
 mod stride;
@@ -75,5 +78,6 @@ pub use geometry::{
     THROW_REACH, THROW_STEPS, TOLERANCE,
 };
 pub use resolve::{Degraded, Objects, Outcome, Route, explain};
+pub use route::{PLAN_MARGIN, WAYPOINTS_MAX, route_in};
 pub use section::{Body, Lies};
 pub use system::BodiesSystem;
