@@ -1,14 +1,25 @@
 # PR S6-SR — Save retention: pruned snapshots, compressed snapshot rows, the log kept whole (`F-SAVE-1`)
 
-## DESIGN DRAFT — awaiting the primary session's review and the operator's rulings (not frozen)
+## DESIGN FROZEN 2026-10-10 (primary session)
 
 ```text
-Design revision:        revision 1 (2026-10-10), drafted by a persistence-lane design session
-Approved by / evidence: none yet. Nothing in this document authorizes implementation.
-Implementation base:    to be recorded in C0 (planning base: origin/main @ bb62edf, #140)
-Execution contract:     §12, a template until freeze
-Lifecycle:              DRAFT
+Design revision:        revision 2 (2026-10-10): revision 1 (PR #145, first commit) with §13.1's
+                        rulings filled in and the decision numbers assigned
+Approved by / evidence: the operator's rulings on QSR-1, QSR-3, QSR-4 and the primary session's rulings
+                        on QSR-2, QSR-5, QSR-6, all of 2026-10-10, relayed by the coordinator to the
+                        persistence-lane design session (§13.1)
+Implementation base:    main at the start of implementation (exact commit recorded in C0)
+Execution contract:     §12 (filled at freeze)
+Lifecycle:              FROZEN
 ```
+
+Scope (§2.1, with QSR-5's CI assertion), invariants (§2.3), decisions D-SR-1 … D-SR-9, the acceptance
+and adversarial criteria ASR-1 … ASR-12 and the commit plan are frozen. Progress, evidence, findings and
+bounded corrections stay writable (§14). No SR question remains open. Implementation starts in a fresh
+session (§12); this planning session does not implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's review and the operator's rulings
+(not frozen)`, revision 1.
 
 **Effort:** `mvp0` · **Step:** S5/S6 persistence follow-up, [`step-06-persistence.md`](step-06-persistence.md)
 (§1.2 non-goal "log compaction, snapshot pruning", §9 L-6) · **Parent:** [`overall.md`](overall.md) §5
@@ -20,11 +31,11 @@ Lifecycle:              DRAFT
 **Planning worktree:** `/Users/yuema137/mineworld-worktrees/design-save-retention`, branch
 `docs/save-retention-design`.
 
-**Decision numbers — requested, not taken.** This design needs one architecture record and one
-dependency record. `overall.md`'s table says the next free numbers are `ARC-81` and `DEP-43`, and a scan
-of `docs/DECISIONS.md` and every plan in `mvp0/` finds neither in use. Until the primary session assigns
-them, this document writes **`ARC-SR`** (the retention rule and the snapshot codec, amending `ARC-25`'s
-accepted limitation) and **`DEP-SR`** (the `zstd` crate). Every occurrence moves with the assignment.
+**Decision numbers (QSR-6, ruled 2026-10-10 by the primary session).** **`ARC-81`** is SR's
+architecture record (the retention rule and the snapshot codec, amending `ARC-25`'s accepted
+limitation). **`DEP-43`** is the `zstd` dependency record. Revision 1 wrote them as the placeholders
+`ARC-SR` and `DEP-SR`. The primary session records both in `overall.md`'s decision-number table. An
+implementation session never picks a number.
 
 ### Binding rules this design is written under
 
@@ -37,9 +48,9 @@ accepted limitation) and **`DEP-SR`** (the `zstd` crate). Every occurrence moves
 | `DEP-2` | `rusqlite` behind `PersistenceBackend`; the backend stores opaque encoded rows and knows nothing about meaning. | D-SR-4, D-SR-7: the codec lives in `format.rs`; the backend only deletes the revisions it is told to |
 | `step-06` I-1 (`INV-11`) | No fact is ever rewritten, deleted, re-numbered or repaired. | I-SR-1; ASR-11 |
 | `step-06` I-5 / `ARC-25` | A save of another format is refused, never decoded on a guess. | D-SR-8: `SAVE_FORMAT` 3; ASR-8 |
-| `CLAUDE.md` §4.16, `REUSE_POLICY.md` | Reuse before reinvention; both adoption and rejection recorded. | §5; `DEP-SR` |
+| `CLAUDE.md` §4.16, `REUSE_POLICY.md` | Reuse before reinvention; both adoption and rejection recorded. | §5; `DEP-43` |
 | Operator, all platforms | macOS, Linux and Windows alike. | §7; ASR-7 |
-| `ARC-55` / `deny.toml` | A dependency's licence is one of MIT, Apache-2.0, BSD-2/3, ISC, Zlib, CC0, Unlicense, Unicode-3.0. | §5 (rejects LGPL and proprietary options); `DEP-SR` |
+| `ARC-55` / `deny.toml` | A dependency's licence is one of MIT, Apache-2.0, BSD-2/3, ISC, Zlib, CC0, Unlicense, Unicode-3.0. | §5 (rejects LGPL and proprietary options); `DEP-43` |
 
 ---
 
@@ -69,7 +80,10 @@ authority is stored and therefore needs its own ruling (QSR-1).
 - `verify_from`: re-execute from a retained anchor to the head, comparing every later retained snapshot
   (D-SR-6) — the instrument for "replay from any retained anchor".
 - `mineworld inspect` reports the retained snapshot revisions (D-SR-9).
-- The dependency `zstd` (`DEP-SR`), the decision `ARC-SR`, and the spec edits they require.
+- The 30-day size bound (ASR-2) as an assertion in CI (QSR-5): in `tools/cli/tests/market_town.rs`,
+  which already runs `--days 30 --save C` (and `--days 300 --save A`) in the default suite. The 300-day
+  bound (ASR-1) is a recorded measurement, not an assertion.
+- The dependency `zstd` (`DEP-43`), the decision `ARC-81`, and the spec edits they require.
 
 ### 2.2 Not in scope, and where it goes
 
@@ -230,7 +244,7 @@ Sizes are for the 300-day Market Town save, total file, computed from §4 unless
   of a hosted world. deflate 6 (pure-Rust `miniz_oxide` possible) compresses 12 % better here but is
   ≈ 13× slower; lz4 (`lz4_flex`, pure Rust) is 1.9× larger. `ruzstd` (MIT, pure Rust) has an encoder
   whose own documentation says it does not yet reach the reference library's speed or ratio; it is the
-  named fallback if the C build ever becomes a problem (re-evaluation trigger in `DEP-SR`).
+  named fallback if the C build ever becomes a problem (re-evaluation trigger in `DEP-43`).
 - **5.3, 5.6 (declined).** After 5.1 the snapshots of a 300-day save total ≈ 3.8 MiB; deltas or dedup
   would save ≈ 3 MiB of a 587 MiB file at the price of chained restore. Revisit only if anchors become
   dense (e.g. a "rewind to any hour" feature).
@@ -311,11 +325,11 @@ steady state). A backend that does not support deletion would be a defect, not a
 
 ### 6.7 Spec edits (C1)
 
-- `docs/DECISIONS.md`: `ARC-SR` (D-SR-1 … D-SR-9, the §5 comparison summary, revisit triggers); `DEP-SR`
+- `docs/DECISIONS.md`: `ARC-81` (D-SR-1 … D-SR-9, the §5 comparison summary, revisit triggers); `DEP-43`
   (`zstd`, with `lz4_flex`, `miniz_oxide`/`flate2`, `ruzstd`, `sqlite-zstd`, ZIPVFS declined, and the
   re-evaluation trigger "a platform build of `zstd-sys` fails, or `AC-8` parity differs in the
   `snapshots` table"); a dated note under `ARC-25` pointing its "pruning is later work" limitation at
-  `ARC-SR`.
+  `ARC-81`.
 - `docs/ARCHITECTURE.md` persistence section: snapshots are retained by rule; the log is kept whole.
 - `persistence/README.md`: one line on retention and compression; `persistence/src/lib.rs` and
   `sqlite.rs` module docs.
@@ -352,14 +366,15 @@ a separate ruling.
 | `verify_from` from every retained anchor | `persistence/tests/save.rs` and the 300-day measurement | this PR |
 | `AC-12` byte equality | `tools/cli/tests/headless/mod.rs` | existing, must stay green unchanged |
 | `AC-8` parity | `scripts/ci_parity.py` in CI | existing, must stay green unchanged |
-| size criteria ASR-1, ASR-2 | measured by `mineworld run … --save` and `mineworld inspect`; recorded in §14 | this PR (measurement, not a CI test; QSR-5) |
+| size criterion ASR-2 (30 days) | `tools/cli/tests/market_town.rs`: save C's `world.sqlite` (+ `-wal`) ≤ 64 MiB and its snapshot revisions exactly `K(n)`, asserted | this PR (CI assertion, QSR-5) |
+| size criterion ASR-1 (300 days) | measured by `mineworld run … --save` and `mineworld inspect`; recorded in §14 | this PR (recorded measurement, QSR-5) |
 
 ## 8. Acceptance and adversarial criteria (fixed now, before anything is measured)
 
 | ID | Criterion |
 | --- | --- |
 | ASR-1 | `mineworld run worlds/market-town --headless --seed 7 --days 300 --save D`: `D/world.sqlite` plus any `-wal` ≤ **640 MiB** after exit; `snapshots` table ≤ **8 MiB** (`dbstat`); stored snapshot revisions exactly `K(n)` for the final scheduled *n* (D-SR-3). |
-| ASR-2 | Same at `--days 30`: file ≤ **64 MiB**; snapshot rows = 1 + ⌊n/4096⌋ + 2 (deduplicated) for the final *n*. |
+| ASR-2 | Same at `--days 30`: file ≤ **64 MiB**; snapshot rows = 1 + ⌊n/4096⌋ + 2 (deduplicated) for the final *n*. Asserted in CI by `tools/cli/tests/market_town.rs` on save C (QSR-5). |
 | ASR-3 | `mineworld replay worlds/market-town --save D` on the 300-day save passes: every revision re-executed from genesis, every fact and every retained snapshot reproduced byte for byte (decoded JSON). |
 | ASR-4 | `verify_from` from **every** retained anchor of the 30-day save, and from at least 3 anchors of the 300-day save (first, middle, last), reaches the head with every fact, entry and later snapshot byte-identical. |
 | ASR-5 | `kill_and_resume`: survivor and control are equal in journal, facts and snapshot rows (stored bytes) and in the set of snapshot revisions, for kills including the revision of an anchor commit and of a commit that retires rows. |
@@ -390,10 +405,10 @@ since ≈ 2.8 GiB fewer bytes are written).
 | ID | Risk | Mitigation |
 | --- | --- | --- |
 | R-SR-1 | zstd output differs across platforms or toolchains | bundled libzstd 1.5.x pinned by `Cargo.lock`, default features off, single-threaded; `AC-8` detects; fallback: `ci_parity` hashes decoded snapshot JSON (a reviewed change to `ARC-49`) |
-| R-SR-2 | A future zstd upgrade changes stored bytes for new snapshots | it changes no decoded state and no replay result; `AC-12` compares two runs of one build, so it is unaffected; noted in `DEP-SR` |
+| R-SR-2 | A future zstd upgrade changes stored bytes for new snapshots | it changes no decoded state and no replay result; `AC-12` compares two runs of one build, so it is unaffected; noted in `DEP-43` |
 | R-SR-3 | A bug in the rule deletes the resume snapshot | I-SR-2 enforced by construction (never retire ≥ n − interval) and by ASR-10's sweep |
 | R-SR-4 | Players with format-2 saves lose them | no public release has shipped (S23 is in design); QSR-3 |
-| R-SR-5 | The log alone still grows ≈ 1.9 MiB per simulated day | stated; SR-b (§6.9) is the remedy, ruled separately |
+| R-SR-5 | The log alone still grows ≈ 1.9 MiB per simulated day | stated; SR-b (§6.9) is the remedy, approved as a separate PR after SR merges (QSR-1) |
 
 ## 10. Commit plan
 
@@ -403,10 +418,13 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 ### C0 — Freeze and contract (Markdown only)
 
-- **Goal.** Start implementation against a frozen design with assigned decision numbers.
-- **Scope.** This document (header, §12, §14 opened); `handoff-sr.md`.
-- [ ] Implementation: replace `ARC-SR` / `DEP-SR` with the assigned numbers everywhere; verify the
-  `DESIGN FROZEN` header and §12's sources; record the implementation base.
+- **Goal.** Start the implementation context against the frozen design. The freeze header, the
+  contract's authority lines and the decision numbers (`ARC-81`, `DEP-43`) were filled by the planning
+  session at freeze (§12, §13.1); C0 verifies them rather than writing them.
+- **Scope.** This document (§14 opened); a new `handoff-sr.md`.
+- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
+  that `overall.md`'s table lists `ARC-81` and `DEP-43` for SR; record the implementation base commit;
+  initialize the handoff with the contract's required fields.
 - [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
 - [ ] Review: every authority line has a source; no scope widened.
 - **Commit boundary.** Documentation only.
@@ -415,7 +433,7 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** The decisions exist before the code (`CLAUDE.md` §2.2); the dependency passes the licence
   gate on every platform before anything uses it.
-- **Scope.** `docs/DECISIONS.md` (`ARC-SR`, `DEP-SR`, note under `ARC-25`); `docs/ARCHITECTURE.md`
+- **Scope.** `docs/DECISIONS.md` (`ARC-81`, `DEP-43`, note under `ARC-25`); `docs/ARCHITECTURE.md`
   persistence section; `persistence/README.md`; `step-06-persistence.md` L-6 note; workspace
   `Cargo.toml` `zstd = { version = "0.13", default-features = false }`; `persistence/Cargo.toml`.
 - [ ] Implementation: the files above.
@@ -468,9 +486,13 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** ASR-1 … ASR-7, ASR-11 on the real binary.
 - **Scope.** `persistence/tests/kill_and_resume.rs` (kill points at an anchor and at a retiring commit);
-  §14 evidence.
-- [ ] Implementation: the kill points.
-- [ ] Validation: `cargo test -p mineworld-persistence --test kill_and_resume`; release-profile runs of
+  `tools/cli/tests/market_town.rs` (QSR-5: save C's file ≤ 64 MiB and snapshot revisions exactly
+  `K(n)`, asserted after its activity checks, with the measured size in the failure message); §14
+  evidence.
+- [ ] Implementation: the kill points; the ASR-2 assertion.
+- [ ] Validation: `cargo test -p mineworld-persistence --test kill_and_resume`;
+  `cargo test -p mineworld-cli --test market_town` (the assertion passes; mutated once to 1 MiB to see
+  it fail, recorded); release-profile runs of
   30 and 300 days with `--save`; `mineworld inspect`; `sqlite3 … dbstat` sizes; `mineworld replay` on
   the 300-day save; `verify_from` on three anchors; SHA-256 of facts/journal vs the base build
   (ASR-11); wall times; the PR's CI (`AC-8` three legs).
@@ -485,36 +507,67 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 ## 11. Requirements this PR places on other documents and lanes
 
-- **R-overall.** The primary session assigns `ARC-SR`/`DEP-SR` numbers and records them in
-  `overall.md`'s table; after merge, `F-SAVE-1` is marked resolved for snapshots, with SR-b open.
-- **R-S23.** `step-23-release.md` R-R5 can cite the bounded size (≈ 2 MiB per simulated day) once SR
-  merges; if SR merges after a release, QSR-3 decides what happens to released saves.
+- **R-overall.** The primary session records `ARC-81`/`DEP-43` (assigned, QSR-6) in `overall.md`'s
+  table, and records `F-SAVE-2` as a kernel-lane finding (ruled 2026-10-10); after merge, `F-SAVE-1` is
+  marked resolved for snapshots, with SR-b (QSR-1: approved as a separate PR after SR merges) open.
+- **R-S23.** SR lands before S23's first release (QSR-3), so no released save is format 2.
+  `step-23-release.md` R-R5 can cite the bounded size (≈ 2 MiB per simulated day) once SR merges.
+- **R-SR-b.** The SR-b design (§6.9) is written as its own PR document after SR merges, in a fresh
+  planning context; it inherits D-SR-4/D-SR-5's codec and `DEP-43`.
 - **R-kernel (`F-SAVE-2`).** Process state encoded as a JSON number array; routed to the kernel lane.
 - **R-ARC-49.** None unless R-SR-1 materializes.
 
-## 12. Execution contract (template; filled at freeze)
+## 12. Execution contract (filled at freeze, 2026-10-10)
+
+Source of every line marked "primary session": its freeze rulings of 2026-10-10, relayed by the
+coordinator to the persistence-lane design session ("FROZEN … merge only after primary review", with the
+worktree and branch named). Endpoints the rulings do not name individually (push, PR, CI repair) take
+the working rules' shipped defaults (§21). Lines marked "mvp0 convention" follow the contracts of
+P4 and P5a (`pr-s10-p4-memory.md` §12) and were not separately ruled.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, persistence PR SR — snapshot retention and compression
+                         (F-SAVE-1)
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s6-save-retention.md
-RELATED / BINDING DOCS:  step-06-persistence.md; docs/DECISIONS.md ARC-25, ARC-27, ARC-49, DEP-2, DEP-5;
-                         docs/ARCHITECTURE.md (persistence); docs/ENGINEERING_STANDARDS.md;
-                         docs/REUSE_POLICY.md; CLAUDE.md
-WORKTREE:                (to fill) its own, held by one session
-BRANCH:                  (to fill)
+RELATED / BINDING DOCS:  step-06-persistence.md; docs/DECISIONS.md ARC-25, ARC-27, ARC-49, ARC-55, DEP-2,
+                         DEP-5; docs/ARCHITECTURE.md (persistence); docs/ENGINEERING_STANDARDS.md;
+                         docs/REUSE_POLICY.md; overall.md (F-SAVE-1; decision table); CLAUDE.md
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-save-retention, its own, held by one
+                         session (CLAUDE.md §3.1)                               (primary session)
+BRANCH:                  mvp0/pr-s6-save-retention, created from main           (primary session)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
-APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-SR-1 … D-SR-9 as ruled
+APPROVED SCOPE:          §2.1, as frozen (including QSR-5's 30-day CI assertion)
+FROZEN INVARIANTS:       §2.3; D-SR-1 … D-SR-9; QSR-2's constants (anchor every 64 scheduled snapshots =
+                         4 096 revisions at the default interval; newest two kept); QSR-3 (format 2
+                         refused); QSR-4 (no player or pack configuration); every platform
 SEQUENCE:                C0 … C6
-ALLOWED COMMANDS:        (to fill)
-NEVER:                   delete or rewrite a facts or journal row; VACUUM a user's save; (to fill)
-MATERIAL STOPS:          any kernel/contracts/systems change; a dependency other than zstd; a change to
-                         D-SR-3's constants after ASR-1 has run; ASR-7 failing on any leg
-PLATFORMS:               macOS, Linux, Windows
-VALIDATION BUDGET:       (to fill)
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *;
+                         sqlite3 (read-only queries on scratch saves); mkdir -p; sed -n   (mvp0 convention)
+NEVER:                   delete, update or re-encode a facts or journal row; VACUUM or otherwise rewrite a
+                         user's save; python3 -c; sed -i; curl; heredoc writes; leave a scratch save
+                         outside the test scratch helper (DEP-29) or target/; add a dependency other than
+                         zstd                                                    (mvp0 convention)
+MATERIAL STOPS:          any kernel/contracts/systems/packages change; a dependency other than zstd, or
+                         zstd failing to build on a CI leg; a change to D-SR-3's constants or ASR-1/ASR-2's
+                         bounds after either has been measured once; ASR-7 failing on any leg; any part of
+                         SR-b (QSR-1: a separate PR)
+PLATFORMS:               macOS, Linux, Windows (ASR-7)
+VALIDATION BUDGET:       unit, static and local integration, including 30- and 300-day release runs:
+                         unrestricted. CI: the PR's runs; no manual dispatch    (mvp0 convention)
 LIVE DOCUMENTATION:      this document (§14)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-sr.md
-ENDPOINT AUTHORITY:      (to fill at freeze); merge never by the implementation session
+ENDPOINT AUTHORITY:      implementation + local validation: authorized, in a fresh session
+                                                                 (primary session, 2026-10-10)
+                         semantic commits: authorized            (primary session; working rules §14)
+                         branch push: authorized                 (primary session; working rules §21)
+                         PR creation / update: authorized        (primary session; working rules §21)
+                         CI repair to review readiness: authorized
+                                                                 (primary session; working rules §21)
+                         merge: never by the implementation session. Only after the primary session's
+                         review, and only with explicit operator authorization (working rules §22)
+POST-MERGE SYNC OWNER:   the primary session owns overall.md (F-SAVE-1, F-SAVE-2, the decision table);
+                         the implementation session owns this document's ledger, evidence, deviations
+                         and remaining issues, and the step-06 L-6 note       (mvp0 convention)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -522,6 +575,22 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 **[operator]** marks a question only the operator can answer; **[primary]** one the primary session
 decides.
+
+### 13.1 Rulings, 2026-10-10
+
+Relayed by the coordinator to the persistence-lane design session on 2026-10-10.
+
+| ID | Ruled by | Ruling | Where it lands |
+| --- | --- | --- | --- |
+| QSR-1 | operator | **Yes.** SR-b (log compression, §6.9) is built as a separate PR after SR merges. | §2.2; §11 R-SR-b; §12 MATERIAL STOPS (no SR-b work in SR) |
+| QSR-2 | primary | **Accepted.** Anchor every 4 096 revisions (64 scheduled snapshots at the default interval); keep the newest two. | D-SR-2, D-SR-3; §12 FROZEN INVARIANTS |
+| QSR-3 | operator | **Refuse** format-2 saves by name; SR lands before S23's first release. | D-SR-8; ASR-8; §11 R-S23 |
+| QSR-4 | operator | **No** player or World Pack configuration of retention yet. | §2.2; §12 FROZEN INVARIANTS |
+| QSR-5 | primary | **Yes** for 30 days: the size bound is a CI assertion. 300 days stays a recorded measurement. | §2.1; §7; ASR-2; C5 |
+| QSR-6 | primary | **`ARC-81`** (retention and codec) and **`DEP-43`** (`zstd`). | header; C1; §11 R-overall |
+| — | primary | Record **`F-SAVE-2`** (Process state as a JSON number array) as a kernel-lane finding. | §4.4; §11 R-kernel, R-overall |
+
+### 13.2 The questions as asked (kept for review)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
@@ -534,4 +603,4 @@ decides.
 
 ## 14. Ledger (live during implementation)
 
-Empty until freeze.
+Opened by C0 in the implementation session. Nothing implemented yet.
