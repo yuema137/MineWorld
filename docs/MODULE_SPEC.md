@@ -466,6 +466,18 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
+Passages are also what a **walk** follows (`DECISIONS.md` `ARC-73`). Besides `move`, the `movement`
+system provides `walk-to { to: { place: <Location> } | { person: <PersonId> } }` — go to a point in this
+place or in any place joined to it by a chain of passages, to a place without a position (enter it), or
+to within 1 200 mm of a person in this place — and `walk-step`, no payload: the next stride of the
+walker's own walk, at most 1 340 mm, or the crossing at a doorway. The walk is `movement`'s `walking`
+component, disclosed to whoever perceives the walker as its destination and its next four waypoints;
+it takes no calendar time, and its pace is the cadence at which its sender asks for steps (one a wall
+second is 1.34 m/s). A destination no passage chain reaches, or one the route planner cannot reach, is
+refused with the code `no-route`. The route inside a place is planned by whichever pack owns the place's
+geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
+and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -533,7 +545,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               the population with its objects (`bodies-capacity`).
                               A place's shape, and a listing of the objects lying in it (each one's
                               shape and position), are disclosed to whoever perceives the place
-                              (`ARC-39` notes, `DEP-13`)
+                              (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
+                              is routed round (`ARC-39` note 5, `DEP-34`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and

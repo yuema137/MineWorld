@@ -6,7 +6,8 @@ what the world is without changing anything else.
 
 ```text
 presence/        where people are, what each of them perceives, and what they may attempt
-movement/        walking: whether a `move` is allowed, and which places open onto each other
+movement/        walking: whether a `move` is allowed, which places open onto each other, and a walk
+                 (`walk-to`, then one `walk-step` per stride) routed by whoever owns the geometry
 conversation/    speaking to somebody, and remembering that they spoke to you
 group-activity/  inviting, answering, joining and leaving something done together (a Process)
 relationships/   who knows whom, and how well — changed only by reacting to the others' facts
@@ -81,7 +82,9 @@ presence's `extension` line in the installed set as well as on its own line, and
 `require_registered` in `install` ([`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1,
 [`DECISIONS.md` `ARC-39`, `ARC-62`](../docs/DECISIONS.md)). Any pack can open such a catalog for a
 trait it owns with one more `extension` line; a pack can also take a world-level configuration file
-(`configure/<id>.yaml`, `ARC-61`).
+(`configure/<id>.yaml`, `ARC-61`). `movement` owns the second such catalog, `Wayfinder`: a pack that
+knows a place's geometry plans the routes walks follow through it, as `bodies` does
+([`DECISIONS.md` `ARC-73`, `DEP-34`](../docs/DECISIONS.md)), and movement never names it.
 
 A pack whose numbers or rules a world may choose has a **section** of the World's Interaction List
 (`configure/<id>.yaml`, `ARC-63`): it implements `mineworld_sdk::interactions::InteractionSection`

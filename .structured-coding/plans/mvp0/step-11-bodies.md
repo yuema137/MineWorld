@@ -8889,9 +8889,14 @@ Goal: `ARC-W`, `DEP-P`, the `ARC-26` and `ARC-39` notes, `MODULE_SPEC.md` §4.1 
 `walk-step`, `Walking`, `Wayfinder`; bodies as wayfinder), `systems/README.md`. (The `ARC-27` / `ARC-42`
 notes and §8.1 land with 12n-2's host change.) Base captures: NV-1's digests and
 bytes on the implementation base. Non-goal: any code.
-- [ ] Implementation: the records and spec edits; E-NV-base.
-- [ ] Validation: doc checks; the captures equal the values in NV-1 or the difference is recorded.
-- [ ] Review: terminology (`Process`, `ActionIntent`, no new synonym); the records state both reuse directions.
+- [x] Implementation: the records and spec edits; E-NV-base. `ARC-73`, `DEP-34` (N-D1), `ARC-26` note,
+  `ARC-39` note 5, `MODULE_SPEC.md` §4.1 (walking paragraph; `body` row), `systems/README.md`.
+- [x] Validation: doc checks (85 decision ids, all distinct; 192 sections, none duplicated); the captures
+  equal NV-1's values except market-town, whose difference (main moved it before 12n) is recorded in
+  E-NV-base.
+- [x] Review: terminology — `Process`, `ActionIntent`, `System Pack`, `Person` used as defined; no new
+  synonym (a "walk" is named as movement's state, never a Process); DEP-34 states both reuse directions
+  (adopt the search, build the graph, with the reason).
 
 ### NV-C2 — movement: the catalog
 Goal: `Wayfinder`, `RouteAsk`, `Waypoints`, `register_wayfinders`, `registered_wayfinders`,
@@ -9067,6 +9072,33 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
            (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
            docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
+```
+
+**12n-1 implementation session (2026-10-09, worktree `impl-12n`, branch `mvp0/pr-12n-navigation` from
+`origin/main @ 551fb2c`).**
+
+```text
+N-D1  Record ids (NV-C1): ARC-W → ARC-73, DEP-P → DEP-34. ARC-72, DEP-32 and DEP-33 are provisionally
+      S20's (mvp0/pr-set-a, step-20 F-10), so the next free numbers were taken; check_decision_ids.py
+      guards a collision. overall.md's "Decision numbers assigned" table is the planning session's to
+      update (post-merge sync).
+
+E-NV-base NV-C1, 2026-10-09 17:28–17:30, on 551fb2c (= origin/main, #100 merged), before any code.
+      Machine: Apple silicon, rustc 1.97.1, other lanes running (no time here is a measurement).
+      `cargo build -p mineworld-cli` (dev) → /tmp/s15-12n/base-mineworld. /tmp/s15-12n/capture.sh base
+      … towns (cap-base.log):
+        long_run           LONG-RUN line 4 019 632 bytes, 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125
+        long_run_objects   612 428 bytes, c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4
+        bodies-yard 30 d   faults 0, 62 385 facts, bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6
+        social-cafe 300 d  faults 0, 365 330 facts, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        market-town 300 d  faults 0, 374 857 facts, 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270
+        validate           bodies-yard 7356b8f8…12063f, market-town 31fb85d4…480620, social-cafe ebcd60a0…f56a8
+      Four of five equal §21.8 NV-1's values. market-town differs from NV-1's 365b50e0…1d1d (372 755
+      facts): main moved it before this PR (4018434 "worlds: market-town lives in San Diego" enabled
+      the calendar pack with configure/calendar.yaml after ec38570; its `validate` output moved with
+      it, 64f41086… → 31fb85d4…). NV-1's
+      reference for market-town is therefore this capture, 24a95d2a…d270, as NV-1 provides ("captured
+      on the implementation base first … or the difference recorded"). Not a 12n change.
 ```
 
 

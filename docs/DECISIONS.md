@@ -1824,6 +1824,15 @@ pack yet needs another value, and a configuration mechanism built for one consta
 abstraction `CLAUDE.md` §4 rule 11 forbids. It stays a published constant until the first pack that
 needs a different stride, which introduces System Pack configuration (`MODULE_SPEC.md` §9) then.
 
+**Note, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N1, SD-N2) — walking is not the travel Process.**
+`movement` gains a second scale of the same spatial model inside a place and across adjoining places:
+`walk-to` (go to a destination) and `walk-step` (the next stride of my walk), with the walk held as
+`movement`'s `Walking` component (`ARC-73`). It is not the "Room for travel" above: a walk takes no
+calendar time and starts no `Process`; each stride is one request, at most `WALK_STRIDE` (1 340 mm),
+checked by the same rule as `move` and stated through presence's `arrivals()`. Travel between places
+that do not adjoin by a passage chain remains the later travel system's, a `Process` in calendar time.
+`move` is unchanged and still one stride: a walker's own `move` ends their walk.
+
 ---
 
 ## ARC-27 — A headless run is a pace schedule over stateless seeded controllers
@@ -3427,6 +3436,23 @@ extension line, `extension mineworld_presence::ArrivalResolver => mineworld_pres
 `Capability::register_extensions()`. No rule of this decision changes: the catalog, its write-once
 storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
 notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
+
+**Note 5, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N3, SD-N4, SD-N11) — bodies is also a
+wayfinder.** Items 1–8 and the earlier notes are unchanged.
+
+1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-73`), listed on
+   movement's own extension line of the installed set, and its `install` calls movement's
+   `require_registered` after presence's. A route is a plan, never a permission: every stride of a walk
+   is still a `walk-step` request checked by movement and resolved by this decision's resolvers. The
+   planner reads `bodies`' own state (`PlaceShape`, `LooseObjects`) and nothing else, keeps nothing, and
+   answers "not mine" for a place without a shape, so a world without `bodies` walks straight.
+2. **The crate dependency `bodies → movement`.** Implementing movement's trait needs movement's crate;
+   it is a crate dependency, not a system dependency (`bodies` still declares presence alone), like the
+   `item` read of note 2, point 4.
+3. **Two person-relative bounds are expressions of the radius** (step-11 §21.6, TD-D8): `NUDGE_MAX` is
+   `PERSON_RADIUS` and `BIAS_BAND` is ⌊2 · `PERSON_RADIUS` / 3⌋. At the radius of 300 mm both are the
+   values the first note and 12b fixed (300 mm, 200 mm), so no result changes and `bodies`' version does
+   not; a different radius scales them with the body.
 
 ---
 
@@ -5406,3 +5432,176 @@ holds it. Delta T comes from the library's own estimate at the middle of the day
 per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
 latitudes on the few days with two crossings of one horizon, the second is not an event that day and
 the next day's opening phase corrects the light.
+
+---
+
+## ARC-73 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
+
+**Date** 2026-10-09 · **Approved by** the operator ("add pathfinding; 12d waits for it", 2026-10-08;
+realistic defaults; the two time domains, QTW-13) and the primary session at PR 12n's design freeze
+(step-11 §21.0: revision 1 with R-12n-1, QN-1 … QN-13, binding note N-1) · **Implements**
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§6, 8–9, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-25`, `ARC-26`, `ARC-27`, `ARC-34`, `ARC-39`, `ARC-62`, `ARC-67`, `DEP-34` ·
+**Design** `.structured-coding/plans/mvp0/step-11-bodies.md` §21 (S15, PRs 12n-1 and 12n-2)
+
+**Problem.** `move` is one stride toward a point and sees no walls (`ARC-26`). With walls and furniture
+in the towns (`bodies`, `ARC-39`), a controller that strides straight at its target stops short at the
+first table, and a café door behind an A-board becomes unreachable (step-11 §19, TD-D7). Somebody has to
+go round things. Three rules bound where that lives: no client or controller may compute a world rule
+(`ENGINEERING_RULES.md` §8; a client only reports intent, and 2D, 3D and a Python controller must share
+the capability without duplicating it, §9); controllers are stateless (`ARC-27`); and embodied pace is
+the wall-clock cadence of requests, never a world duration and never a pack reading the time scale
+(`ARC-67`).
+
+**Options considered** (step-11 §21.3).
+
+```text
+(a) a movement Process that strides once per      wakes in calendar time, so the time scale multiplies
+    simulated second                              the walking speed (≈ 16 m/s at 12×); correcting it
+                                                  in the pack would read the scale — both rejected by
+                                                  ARC-67 (R-12n-1)
+(b) a planning library every controller and       every client and controller embeds a planner (GDScript
+    client embeds                                 2D and 3D, Python): duplicated logic; a stateless
+                                                  controller re-plans every consult
+(c) a server plan plus a client preview planner   two planners that can disagree
+(d) the walk owned by bodies, or a third pack     walking would vanish without bodies, or the stride and
+                                                  passage rule would be duplicated
+(e) the route on the server, owned by movement    chosen
+    and planned through a catalog the geometry
+    owner answers; each stride an embodied request
+```
+
+**Choice: (e).**
+
+1. **Two actions of `movement`.** `walk-to { to: Destination }` asks to go somewhere; `Destination` is
+   `place(Location)` — a point in the walker's place or in a place reachable through a chain of
+   passages, or a place without a position, meaning "enter it" — or `person(PersonId)` in the walker's
+   own place. `Destination` is `#[non_exhaustive]` and serialized with one explicit tag per arm, so a
+   later arm (a region, a remote place the travel system reaches, an object) is an addition, not a
+   breaking change. `walk-step` (no payload) asks for the next stride of one's own walk. Both are offered
+   once, against nobody, without a request, like `move` (`ARC-34`): a client or controller composes them.
+2. **The walk is world state.** `walk-to`'s resolution plans the first leg and records it as the
+   walker's `Walking` component — destination, the places still to enter, the current leg's waypoints,
+   the last stride asked, stall and re-plan counts — and states `walk-started { person, destination }`.
+   No stride, no `Process`, no world duration: a walk nobody steps waits, and takes no calendar time.
+   `Walking` is persisted, restored and replayed like every component, so a resumed world continues the
+   walk where it was.
+3. **Each stride is a request.** `walk-step` takes at most `WALK_STRIDE` (1 340 mm) toward the next
+   waypoint and never past it, or, at a doorway, the crossing into the next place, after which the next
+   leg is planned. The stride is checked by the same rule as `move` and stated through presence's
+   `arrivals()`, so the registered resolvers resolve it like any other arrival (`ARC-39`). The walk ends
+   with `walk-ended { person, destination, outcome }`, outcome `arrived`, `stalled` (three consecutive
+   steps with under 50 mm of progress, or more than eight re-plans), `no-route` (a later leg or a
+   re-plan found no way), `replaced` (a new `walk-to`) or `stopped` (the walker's own `move` — direct
+   control always wins). Arrival is recognised when presence records the walker at the leg's end (or,
+   for a person, within `PERSON_APPROACH`, 1 200 mm, of them), in the same dispatch.
+4. **The route is the geometry owner's answer.** `movement` owns a catalog (`ARC-62`):
+   `Wayfinder { wayfinder_of, route(world, RouteAsk) -> Option<RouteAnswer> }`, `RouteAsk { person,
+   place, from, to, avoid }` built only by movement, `RouteAnswer` either waypoints (non-empty, integer
+   positions ending at the possibly adjusted goal) or `unreachable`. Its rules are `ARC-62` item 4's:
+   write-once and process-wide, pure, keeps nothing, inert (`None`) where its pack holds no state for
+   the place. Asked in ascending `SystemId`; the first answer wins; with none, the leg is the straight
+   segment. `bodies` is the build's wayfinder (`DEP-34`, `ARC-39` note 5). Movement never names it.
+5. **Refusals.** `walk-to` is refused `malformed-payload` for a payload it cannot read;
+   `NoSupportedInteraction` for an actor that is not a person; `PreconditionFailed` for an actor without
+   a presence or a destination presence refuses; `TooFarAway` only for a `person` destination outside
+   the walker's place; and **`Rejection::System { code: "no-route" }`** when the destination place has no
+   passage chain from the walker's or the first leg's wayfinder answers `unreachable`. The code string
+   `no-route` is part of movement's public vocabulary and is never renamed. `walk-step` without a walk
+   is `PreconditionFailed`.
+6. **Re-planning** happens at a step when the last stride did not end where it was asked (stopped
+   short, nudged or shoved), with the person who stopped the walker given as `avoid`; or when a `person`
+   destination moved more than 500 mm from where the leg was planned to. A walk re-plans at most eight
+   times. A shove or a nudge does not end a walk.
+7. **Cadence belongs to the sender.** One `walk-step` per wall second (`EMBODIED_STEP`) is 1.34 m/s
+   — Weidmann (1993), the mean free walking speed of pedestrians; Bohannon (1997), 1.27–1.46 m/s
+   comfortable gait for adults aged 20–59. A player's client sends it on a timer while its own `walking`
+   record is disclosed; a hosted controller is stepped by the host in wall seconds (`ARC-67` item 4); a
+   headless `run` steps at a notional cadence. No System Pack reads the cadence, a wall clock or the time
+   scale: a walk at 6×, 12× or 24× covers the same ground per wall second.
+8. **Disclosure.** To whoever perceives a walking person, movement discloses `walking { destination,
+   next }` — the next four waypoints at most. Clients draw intent from the server's own plan; nobody
+   plans a route outside the server.
+
+**Accepted limitations.**
+- **A sender may step faster than a person walks**, exactly as `move` may be sent back to back
+  (`ARC-26`, L-1): a bound per request, not per second.
+- **Geometry changed after a plan is noticed only through its effect**: movement cannot see another
+  pack's state, so an object kicked across a planned leg is pushed or blocks the stride like any
+  object a `move` meets, and a blocked stride re-plans. (Step-11 §21.15 records this against SD-N9's
+  wording.)
+- **People are not planned round**, except the one who just stopped the walker: passing other people is
+  the resolver's nudging and head-on bias (`ARC-39` notes).
+- **No overhead geometry, stairs or floors**; no travel between places not joined by passages.
+
+---
+
+## DEP-34 — Route search: `pathfinding`'s A*, over a visibility graph `bodies` builds on integers
+
+**Date** 2026-10-09 · **Status** selected; one dependency added to `systems/bodies` only · **Approved by**
+the primary session at PR 12n's design freeze (step-11 §21.0, QN-4) · **Relates to** `ARC-25`,
+`ARC-39`, `ARC-55`, `ARC-73`, `DEP-13`, `REUSE_POLICY.md` §§11–12, §17 · **Design**
+`.structured-coding/plans/mvp0/step-11-bodies.md` §21.4 (S15, PR 12n-1)
+
+**Problem.** `bodies` must answer "how does a person get from here to there in this place" round the
+place's solids and loose objects, with an answer that becomes positions in the log: exact, and the
+same on every machine (`ARC-25`, `AC-8`), with no C++ toolchain (Windows) and no engine bound in. A
+place holds at most 64 solids and 32 objects, all axis-aligned boxes or discs.
+
+**Options considered** (step-11 §21.4; crates.io and the projects' pages, 2026-10-09; both directions of
+`REUSE_POLICY.md`).
+
+```text
+search
+  (a) pathfinding 4.16.0 (evenfurther), MIT / Apache-2.0 — A*, Dijkstra, BFS, fringe, IDA*, Yen;
+      generic over node and integer cost; since 2016, ≈ 3 M downloads; MSRV 1.88       chosen
+  (b) our own A*                                       a mature, small, generic search exists
+graph
+  (c) pathfinding's Grid at 50 or 100 mm               110 k–440 k cells on the street; zig-zag paths
+                                                       needing string-pulling against the same boxes;
+                                                       a second discretization. Kept as the fallback
+                                                       if the graph's cost fails (step-11 NV-10)
+  (d) landmass 0.9.2 — a navigation system with        its own agent loop, velocities and frame delta;
+      steering and avoidance                           f32 (glam), no determinism statement
+  (e) oxidized_navigation 0.12.0                       a Bevy plugin: bound to Bevy's ECS and schedule
+  (f) recastnavigation-rs 0.1.0 (Recast/Detour)        C++ on every platform; MPL-2.0 binding; floats
+  (g) polyanya 0.17.1 — any-angle paths on a mesh      f32 triangulation (glam, spade), no determinism
+                                                       statement; the reference for a later, larger
+                                                       geometry
+  (h) a visibility graph over the grown boxes, ours    chosen
+```
+
+**Choice: (a) for the search and (h) for the graph.** `pathfinding = "=4.16.0"`, an exact pin, in
+`systems/bodies/Cargo.toml` only; `systems/bodies/src/route.rs` is the only file that names it.
+The graph: every solid's footprint and every loose object's footprint (a ball as its bounding square),
+and the person who stopped the walker when there is one, each grown on every side by `PERSON_RADIUS +
+GAP + PLAN_MARGIN` (300 + 10 + 50 mm); the floor shrunk by the same. Nodes are the start, the goal and
+every grown corner strictly inside the shrunk floor and outside every other grown box, in authored
+order. An edge exists when its segment meets no grown box's open interior, decided with integer cross
+products; its cost is ⌈√(dx² + dy²)⌉ mm and the heuristic ⌊√(dx² + dy²)⌋, admissible and consistent.
+Edges are evaluated lazily as A* expands a node, successors in node order. A goal inside a grown box or
+outside the shrunk floor is moved to the nearest free point of the 50 mm lattice (distance, then y,
+then x — the entry order of `ARC-39` note 3); none, an enclosed goal, or more than `WAYPOINTS_MAX` (64)
+waypoints is `unreachable`.
+
+**Why the graph is ours** (rejecting a mature wheel needs a reason, `CLAUDE.md` §4 rule 16). Every
+navmesh candidate is float geometry whose cross-machine bit-identity is unproven, and a route's
+waypoints become positions in the log, so they must be exact (`CORE_CONCEPTS.md` §6.2). Rapier is
+admitted only behind quantization and a verify-then-degrade check (`DEP-13`); a planner's output has no
+such check to fall back on. For axis-aligned boxes the shortest path bends only at grown corners — a
+graph of at most 386 nodes — so the case our geometry is made of is the one case where a visibility
+graph is both optimal and small.
+
+**Determinism.** Pure integer code in and out. `pathfinding`'s A* keeps its parents in an `FxIndexMap`
+(a fixed hasher, insertion order) and orders its heap by estimated cost, then by cost, so equal inputs
+give equal paths on every machine; `bodies`' successor order is fixed. An upgrade may change
+tie-breaking and so results: it bumps `bodies`' `VERSION`, as a Rapier upgrade does.
+
+**Licences** (`ARC-55`): `pathfinding` is Apache-2.0 or MIT, and so are the crates it brings
+(`deprecate-until`, `indexmap`, `integer-sqrt`, `num-traits`, `rustc-hash`, `thiserror`), each recorded in
+step-11 §21.15 as `Cargo.lock` admits them.
+
+**Accepted limitations.** Grown boxes are squares, so a route keeps at least the margin from a corner
+and more than it needs diagonally. A route is planned per request from current state, so its cost is
+bounded by measurement (step-11 NV-10: a plan's maximum ≤ 5 ms, p99 ≤ 1 ms), with the grid as the named
+fallback. Overhead geometry and slopes are out of scope (`body:` has none).
