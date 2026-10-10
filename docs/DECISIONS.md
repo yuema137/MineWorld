@@ -1825,6 +1825,15 @@ pack yet needs another value, and a configuration mechanism built for one consta
 abstraction `CLAUDE.md` §4 rule 11 forbids. It stays a published constant until the first pack that
 needs a different stride, which introduces System Pack configuration (`MODULE_SPEC.md` §9) then.
 
+**Note, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N1, SD-N2) — walking is not the travel Process.**
+`movement` gains a second scale of the same spatial model inside a place and across adjoining places:
+`walk-to` (go to a destination) and `walk-step` (the next stride of my walk), with the walk held as
+`movement`'s `Walking` component (`ARC-75`). It is not the "Room for travel" above: a walk takes no
+calendar time and starts no `Process`; each stride is one request, at most `WALK_STRIDE` (1 340 mm),
+checked by the same rule as `move` and stated through presence's `arrivals()`. Travel between places
+that do not adjoin by a passage chain remains the later travel system's, a `Process` in calendar time.
+`move` is unchanged and still one stride: a walker's own `move` ends their walk.
+
 ---
 
 ## ARC-27 — A headless run is a pace schedule over stateless seeded controllers
@@ -3451,6 +3460,25 @@ extension line, `extension mineworld_presence::ArrivalResolver => mineworld_pres
 storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
 notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
 
+**Note 5, 2026-10-09 (S15, PR 12n-1; step-11 §21, SD-N3, SD-N4, SD-N11) — bodies is also a
+wayfinder.** Items 1–8 and the earlier notes are unchanged.
+
+1. **`bodies` answers route queries.** It implements `movement`'s `Wayfinder` (`ARC-75`), listed on
+   movement's own extension line of the installed set, and its `install` calls movement's
+   `require_wayfinder` after presence's `require_registered`. (Movement's guard is not named
+   `require_registered`: movement's sources name nothing of the resolver seam, `seam_vocabulary.rs`.)
+   A route is a plan, never a permission: every stride of a walk
+   is still a `walk-step` request checked by movement and resolved by this decision's resolvers. The
+   planner reads `bodies`' own state (`PlaceShape`, `LooseObjects`) and nothing else, keeps nothing, and
+   answers "not mine" for a place without a shape, so a world without `bodies` walks straight.
+2. **The crate dependency `bodies → movement`.** Implementing movement's trait needs movement's crate;
+   it is a crate dependency, not a system dependency (`bodies` still declares presence alone), like the
+   `item` read of note 2, point 4.
+3. **Two person-relative bounds are expressions of the radius** (step-11 §21.6, TD-D8): `NUDGE_MAX` is
+   `PERSON_RADIUS` and `BIAS_BAND` is ⌊2 · `PERSON_RADIUS` / 3⌋. At the radius of 300 mm both are the
+   values the first note and 12b fixed (300 mm, 200 mm), so no result changes and `bodies`' version does
+   not; a different radius scales them with the body.
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -4029,6 +4057,149 @@ or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located ev
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
 the requests. The paced controller's rates are tuned to a 900-second pace; at the hosted default of 5 s
 it is chattier than a person (QS11-4), which is cognition's to tune (S10), not the server's.
+
+---
+
+## ARC-43 — Facts reach observers through one audience rule, judged when they are recorded
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-C · **Approved by** the primary
+session at S11-C's design freeze (QS11C-1 … QS11C-5, QS11C-7 … QS11C-9) and the operator (QS11C-6) ·
+**Relates to** `INV-13`, `ARC-28`, `ARC-29`, `ARC-40`, `ARC-41`, `ARC-42`, coordination rulings 1, 2 and
+4 of `.structured-coding/plans/mvp0/overall.md` "Parallel build-out, 2026-10-08", and "The World
+Interaction List" QIL-8 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §§4.7, 17 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.2, 5.8; [`MODULE_SPEC.md`](MODULE_SPEC.md)
+§8.1 (`mineworld perceived`)
+
+**Problem.** A fact states who *could* have learned of it — its `Visibility` — and nothing yet decides
+who *did*. Three consumers need that answer: a client's observation frame (`observation.events`), a
+cognition process that must not miss a fact and must resume after a dropped socket (S10's R-S11-1 …
+R-S11-3), and an offline reader building a Person's memory from a save (S10's IC-1). If each answered it
+for itself, a resumed stream, a live one and an offline export would disagree, and nobody could say
+which was right.
+
+**Choice.**
+
+1. **One rule, owned by the perception system.** `systems/presence/src/audience.rs`:
+   `Whereabouts` (which place each person is in — a fold of presence's own `arrived`, seeded from its
+   `Presence` components or from a world's first fact), `admits` and `perceived_by`. `SystemInternal`
+   reaches nobody; `Public` everybody; `Participants` exactly the fact's participants; `Entities(S)`
+   exactly `S`; `Place(p)` the fact's participants and subjects, and everybody whose whereabouts *after
+   the fact is applied* is `p`. Presence owns it because where people are is presence's state and
+   perception is presence's job (`INV-13`); the server names no pack (it asks an `EventPerception` seam
+   the composition root fills).
+2. **Judged at record time, fact by fact.** As each fact is recorded the fold advances past it and every
+   connection's observer is asked about it then. A `Place` fact is heard by whoever was there when it
+   happened, not by whoever is there at the next 100 ms sweep; a person's own arrival is heard by them; a
+   line said just before somebody leaves reaches them.
+3. **Delivered three ways from that one function.** `observation.events`, best effort and bounded,
+   drops counted in `events_dropped`; the `perceived` stream, reliable, ordered before the observations
+   it explains, cursor-resumable, backfilled for a persisted world from its save by `perceived_by`; and
+   `mineworld perceived`, the same `perceived_by` over a save, offline. Live, resumed and offline agree
+   by construction, and the acceptance tests check that they do.
+4. **The audience narrows at emission, not here.** A World Interaction List rule that makes a fact
+   quieter states a narrower `Visibility` when the fact is built (QIL-8); this function reads only the
+   envelope and needs no change for it. A hearing range is a later refinement behind the same seam; for
+   MVP-0 overhearing is place-level (the operator's ruling on QS11C-6): a player on market-town's street
+   hears every line said anywhere on the street.
+
+**Supersedes.** S10's plan (`step-17-cognition.md` §3.3.4) for `Observation.events` to stay empty, with
+perceived facts only in their own frame, and its check IC-9 "transcripts byte-identical": coordination
+ruling 2 delivers both from the one function, so IC-9 reduces to "the 300-day digests are unchanged" —
+`mineworld run` calls `observe`, which this decision does not touch. S10's text is amended by its owner
+at its next pull request (QS11C-1).
+
+**Rejected.**
+- *Judging at sweep time* against the world as it stands: answers where people are now, not where they
+  were when the fact happened; the "said before they left" case fails.
+- *A broadcast channel of every fact, filtered per connection*: the filter needs the whereabouts at
+  record time, which only the world thread has; and a lagging receiver on a broadcast channel loses
+  facts silently.
+- *An ephemeral world keeping a re-foldable window of recent facts* so it can serve old cursors: a
+  second log. An unsaved world serves the stream from the join on and answers older cursors
+  `cursor_unavailable` (QS11C-2).
+- *In-server controllers receiving facts* now: none reads them (the paced controller reads histories,
+  the reactive one its conversation history), and a queue nobody drains is a cost with no consumer
+  (QS11C-4). The seam is there when one does.
+
+**Limitations accepted.** A resume of a persisted world folds its whole fact log off the world thread (a
+300-day market town is about 373 000 facts); seeding the fold from a snapshot is the recorded
+optimization, taken when measured necessary (QS11C-8). A payload that is not JSON reaches the wire as
+`null` (`PROTOCOL.md` §5.2); `EventEnvelope::map_payload` is a proposed later contract change, not taken
+here (QS11C-3).
+
+---
+
+## DEP-15 — Observation deltas: the typed `ObservationDelta`, chosen by measurement
+
+**Date** 2026-10-09 · **Status** selected; shipped in S11 PR S11-C · **Approved by** the primary session
+at S11-C's design freeze (SD-C10's rule and QS11C-5, frozen before measuring) · **Relates to** `ARC-41`,
+`ARC-23`, `ARC-43`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §15 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.8, 7.3, 17 (CP-C1, E-SC8) · **Specification**
+[`server/PROTOCOL.md`](../server/PROTOCOL.md) §5.3
+
+**Problem.** A hosted world sends every connected client a whole observation ten times a second. On a
+hosted market town that is about 87 KB per client per second, almost all of it unchanged from the
+frame before: the people in the room, their components, the list of what may be attempted.
+
+**Options considered** (both directions of the reuse question).
+
+```text
+(a) the typed ObservationDelta (ours, server/src/protocol/delta.rs)   chosen, by the frozen rule
+    keyed by contract identity: entities upserted / removed by EntityId,
+    relations and affordances replaced whole when changed, events always
+(b) RFC 6902 JSON Patch (the json-patch crate 4.2.0, MIT/Apache-2.0)  measured; 13 % smaller than (a)
+    a generic diff of the observation's JSON                          on this world; no GDScript
+                                                                      applier exists
+(c) whole observations only                                           the conforming fallback
+(d) transport compression, permessage-deflate                         a dead end: Godot's
+                                                                      WebSocketPeer cannot negotiate
+                                                                      it (godot#103230, ARC-41)
+(e) a binary encoding (MessagePack)                                   a different question: ARC-41
+                                                                      keeps JSON; bytes are answered
+                                                                      by deltas, not by encoding
+```
+
+**Measurement** (step-12 E-SC8; `tools/cli/tests/deltas.rs`, run explicitly). A hosted
+`worlds/market-town --town`, four sessions (visitor, wanderer, and Alice and Bob taken over from their
+in-server controllers), 60 wall seconds, 601 whole frames per client; on the same frames, per client
+per second:
+
+```text
+client     whole       typed            json-patch
+visitor    81 993 B/s  1 141 B/s        993 B/s
+wanderer   93 733 B/s  1 161 B/s      1 012 B/s
+alice      90 487 B/s  1 155 B/s      1 007 B/s
+bob        81 552 B/s  1 140 B/s        992 B/s
+mean       86 941 B/s  1 149 B/s (1.3 %)  1 001 B/s (1.2 %)
+```
+
+Every one of the 2 400 consecutive pairs reconstructs exactly: `apply(previous, diff(previous, next))`
+equals `next` with its entities in id order (CA-9).
+
+**Choice.** The rule frozen before measuring (step-12 SD-C10) reads: *typed* if it is at most half the
+whole bytes and json-patch is not within 10 % of it; *json-patch* if within 10 % of typed and at most
+half the whole bytes; *whole observations only* otherwise. Typed is 1.3 % of whole, and json-patch is
+not within 10 % of it (it is 12.9 % smaller), so the rule selects **typed**, and it ships: `delta`
+frames between keyframes (`PROTOCOL.md` §5.3), the first frame, every `--keyframe-every`-th frame
+(default 50) and the first after a resume or a backfill being whole.
+
+**Disagreement recorded.** step-12 §4.8, written before the rule, said the typed delta is kept "only
+if it beats both". On these numbers it beats whole observations by a factor of 75 and loses to
+json-patch by 148 B/s per client; read that way, neither non-whole branch of the frozen rule applies.
+The freeze is the binding text and its rule was applied as written; the operator is told of the
+tension in S11-C's handoff. What the rule's outcome keeps: an applier a client writes in a few lines
+against `PROTOCOL.md` §5.3's table, with no RFC 6902 implementation in GDScript to adopt or write, and
+deltas keyed by contract identity rather than by JSON paths into a list. What it gives up: about
+150 B/s per client against json-patch, on a stream already 75 times smaller.
+
+**Isolating interface.** `server/src/protocol/delta.rs` (`ObservationDelta`, `diff`, `apply`,
+`canonical`); the Godot module's `mineworld/delta.gd`. `json-patch` is a dev-dependency of
+`mineworld-cli` only, for this measurement, and is in no shipped artefact.
+
+**Limitations accepted.** Measured on one town and one cadence; a world whose observations churn
+differently may weigh the encodings differently, and the measurement is re-runnable as written. A
+`delta` whose `base` is not the frame a client holds cannot occur on one WebSocket; a client that sees
+one resumes, which yields a whole observation.
 
 ---
 
@@ -5910,6 +6081,179 @@ the next day's opening phase corrects the light.
 
 ---
 
+## ARC-75 — A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests
+
+**Date** 2026-10-09 · **Approved by** the operator ("add pathfinding; 12d waits for it", 2026-10-08;
+realistic defaults; the two time domains, QTW-13) and the primary session at PR 12n's design freeze
+(step-11 §21.0: revision 1 with R-12n-1, QN-1 … QN-13, binding note N-1) · **Implements**
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§6, 8–9, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 ·
+**Relates to** `ARC-25`, `ARC-26`, `ARC-27`, `ARC-34`, `ARC-39`, `ARC-62`, `ARC-67`, `DEP-34` ·
+**Design** `.structured-coding/plans/mvp0/step-11-bodies.md` §21 (S15, PRs 12n-1 and 12n-2)
+
+**Problem.** `move` is one stride toward a point and sees no walls (`ARC-26`). With walls and furniture
+in the towns (`bodies`, `ARC-39`), a controller that strides straight at its target stops short at the
+first table, and a café door behind an A-board becomes unreachable (step-11 §19, TD-D7). Somebody has to
+go round things. Three rules bound where that lives: no client or controller may compute a world rule
+(`ENGINEERING_RULES.md` §8; a client only reports intent, and 2D, 3D and a Python controller must share
+the capability without duplicating it, §9); controllers are stateless (`ARC-27`); and embodied pace is
+the wall-clock cadence of requests, never a world duration and never a pack reading the time scale
+(`ARC-67`).
+
+**Options considered** (step-11 §21.3).
+
+```text
+(a) a movement Process that strides once per      wakes in calendar time, so the time scale multiplies
+    simulated second                              the walking speed (≈ 16 m/s at 12×); correcting it
+                                                  in the pack would read the scale — both rejected by
+                                                  ARC-67 (R-12n-1)
+(b) a planning library every controller and       every client and controller embeds a planner (GDScript
+    client embeds                                 2D and 3D, Python): duplicated logic; a stateless
+                                                  controller re-plans every consult
+(c) a server plan plus a client preview planner   two planners that can disagree
+(d) the walk owned by bodies, or a third pack     walking would vanish without bodies, or the stride and
+                                                  passage rule would be duplicated
+(e) the route on the server, owned by movement    chosen
+    and planned through a catalog the geometry
+    owner answers; each stride an embodied request
+```
+
+**Choice: (e).**
+
+1. **Two actions of `movement`.** `walk-to { to: Destination }` asks to go somewhere; `Destination` is
+   `place(Location)` — a point in the walker's place or in a place reachable through a chain of
+   passages, or a place without a position, meaning "enter it" — or `person(PersonId)` in the walker's
+   own place. `Destination` is `#[non_exhaustive]` and serialized with one explicit tag per arm, so a
+   later arm (a region, a remote place the travel system reaches, an object) is an addition, not a
+   breaking change. `walk-step` (no payload) asks for the next stride of one's own walk. Both are offered
+   once, against nobody, without a request, like `move` (`ARC-34`): a client or controller composes them.
+2. **The walk is world state.** `walk-to`'s resolution plans the first leg and records it as the
+   walker's `Walking` component — destination, the places still to enter, the current leg's waypoints,
+   the last stride asked, stall and re-plan counts — and states `walk-started { person, destination }`.
+   No stride, no `Process`, no world duration: a walk nobody steps waits, and takes no calendar time.
+   `Walking` is persisted, restored and replayed like every component, so a resumed world continues the
+   walk where it was.
+3. **Each stride is a request.** `walk-step` takes at most `WALK_STRIDE` (1 340 mm) toward the next
+   waypoint and never past it, or, at a doorway, the crossing into the next place, after which the next
+   leg is planned. The stride is checked by the same rule as `move` and stated through presence's
+   `arrivals()`, so the registered resolvers resolve it like any other arrival (`ARC-39`). The walk ends
+   with `walk-ended { person, destination, outcome }`, outcome `arrived`, `stalled` (three consecutive
+   steps with under 50 mm of progress, or more than eight re-plans), `no-route` (a later leg or a
+   re-plan found no way), `replaced` (a new `walk-to`) or `stopped` (the walker's own `move` — direct
+   control always wins). Arrival is recognised when presence records the walker at the leg's end (or,
+   for a person, within `PERSON_APPROACH`, 1 200 mm, of them), in the same dispatch.
+4. **The route is the geometry owner's answer.** `movement` owns a catalog (`ARC-62`):
+   `Wayfinder { wayfinder_of, route(world, RouteAsk) -> Option<RouteAnswer> }`, `RouteAsk { person,
+   place, from, to, avoid }` built only by movement, `RouteAnswer` either waypoints (non-empty, integer
+   positions ending at the possibly adjusted goal) or `unreachable`. Its rules are `ARC-62` item 4's:
+   write-once and process-wide, pure, keeps nothing, inert (`None`) where its pack holds no state for
+   the place. Asked in ascending `SystemId`; the first answer wins; with none, the leg is the straight
+   segment. `bodies` is the build's wayfinder (`DEP-34`, `ARC-39` note 5). Movement never names it.
+5. **Refusals.** `walk-to` is refused `malformed-payload` for a payload it cannot read;
+   `NoSupportedInteraction` for an actor that is not a person; `PreconditionFailed` for an actor without
+   a presence or a destination presence refuses; `TooFarAway` only for a `person` destination outside
+   the walker's place; and **`Rejection::System { code: "no-route" }`** when the destination place has no
+   passage chain from the walker's or the first leg's wayfinder answers `unreachable`. The code string
+   `no-route` is part of movement's public vocabulary and is never renamed. `walk-step` without a walk
+   is `PreconditionFailed`.
+6. **Re-planning** happens at a step when the last stride did not end where it was asked (stopped
+   short, nudged or shoved), with the person who stopped the walker given as `avoid`; or when a `person`
+   destination moved more than 500 mm from where the leg was planned to. A walk re-plans at most eight
+   times. A shove or a nudge does not end a walk.
+7. **Cadence belongs to the sender.** One `walk-step` per wall second (`EMBODIED_STEP`) is 1.34 m/s
+   — Weidmann (1993), the mean free walking speed of pedestrians; Bohannon (1997), 1.27–1.46 m/s
+   comfortable gait for adults aged 20–59. A player's client sends it on a timer while its own `walking`
+   record is disclosed; a hosted controller is stepped by the host in wall seconds (`ARC-67` item 4); a
+   headless `run` steps at a notional cadence. No System Pack reads the cadence, a wall clock or the time
+   scale: a walk at 6×, 12× or 24× covers the same ground per wall second.
+8. **Disclosure.** To whoever perceives a walking person, movement discloses `walking { destination,
+   next }` — the next four waypoints at most. Clients draw intent from the server's own plan; nobody
+   plans a route outside the server.
+
+**Accepted limitations.**
+- **A sender may step faster than a person walks**, exactly as `move` may be sent back to back
+  (`ARC-26`, L-1): a bound per request, not per second.
+- **Geometry changed after a plan is noticed only through its effect**: movement cannot see another
+  pack's state, so an object kicked across a planned leg is pushed or blocks the stride like any
+  object a `move` meets, and a blocked stride re-plans. (Step-11 §21.15 records this against SD-N9's
+  wording.)
+- **People are not planned round**, except the one who just stopped the walker: passing other people is
+  the resolver's nudging and head-on bias (`ARC-39` notes).
+- **No overhead geometry, stairs or floors**; no travel between places not joined by passages.
+
+---
+
+## DEP-34 — Route search: `pathfinding`'s A*, over a visibility graph `bodies` builds on integers
+
+**Date** 2026-10-09 · **Status** selected; one dependency added to `systems/bodies` only · **Approved by**
+the primary session at PR 12n's design freeze (step-11 §21.0, QN-4) · **Relates to** `ARC-25`,
+`ARC-39`, `ARC-55`, `ARC-75`, `DEP-13`, `REUSE_POLICY.md` §§11–12, §17 · **Design**
+`.structured-coding/plans/mvp0/step-11-bodies.md` §21.4 (S15, PR 12n-1)
+
+**Problem.** `bodies` must answer "how does a person get from here to there in this place" round the
+place's solids and loose objects, with an answer that becomes positions in the log: exact, and the
+same on every machine (`ARC-25`, `AC-8`), with no C++ toolchain (Windows) and no engine bound in. A
+place holds at most 64 solids and 32 objects, all axis-aligned boxes or discs.
+
+**Options considered** (step-11 §21.4; crates.io and the projects' pages, 2026-10-09; both directions of
+`REUSE_POLICY.md`).
+
+```text
+search
+  (a) pathfinding 4.16.0 (evenfurther), MIT / Apache-2.0 — A*, Dijkstra, BFS, fringe, IDA*, Yen;
+      generic over node and integer cost; since 2016, ≈ 3 M downloads; MSRV 1.88       chosen
+  (b) our own A*                                       a mature, small, generic search exists
+graph
+  (c) pathfinding's Grid at 50 or 100 mm               110 k–440 k cells on the street; zig-zag paths
+                                                       needing string-pulling against the same boxes;
+                                                       a second discretization. Kept as the fallback
+                                                       if the graph's cost fails (step-11 NV-10)
+  (d) landmass 0.9.2 — a navigation system with        its own agent loop, velocities and frame delta;
+      steering and avoidance                           f32 (glam), no determinism statement
+  (e) oxidized_navigation 0.12.0                       a Bevy plugin: bound to Bevy's ECS and schedule
+  (f) recastnavigation-rs 0.1.0 (Recast/Detour)        C++ on every platform; MPL-2.0 binding; floats
+  (g) polyanya 0.17.1 — any-angle paths on a mesh      f32 triangulation (glam, spade), no determinism
+                                                       statement; the reference for a later, larger
+                                                       geometry
+  (h) a visibility graph over the grown boxes, ours    chosen
+```
+
+**Choice: (a) for the search and (h) for the graph.** `pathfinding = "=4.16.0"`, an exact pin, in
+`systems/bodies/Cargo.toml` only; `systems/bodies/src/route.rs` is the only file that names it.
+The graph: every solid's footprint and every loose object's footprint (a ball as its bounding square),
+and the person who stopped the walker when there is one, each grown on every side by `PERSON_RADIUS +
+GAP + PLAN_MARGIN` (300 + 10 + 50 mm); the floor shrunk by the same. Nodes are the start, the goal and
+every grown corner strictly inside the shrunk floor and outside every other grown box, in authored
+order. An edge exists when its segment meets no grown box's open interior, decided with integer cross
+products; its cost is ⌈√(dx² + dy²)⌉ mm and the heuristic ⌊√(dx² + dy²)⌋, admissible and consistent.
+Edges are evaluated lazily as A* expands a node, successors in node order. A goal inside a grown box or
+outside the shrunk floor is moved to the nearest free point of the 50 mm lattice (distance, then y,
+then x — the entry order of `ARC-39` note 3); none, an enclosed goal, or more than `WAYPOINTS_MAX` (64)
+waypoints is `unreachable`.
+
+**Why the graph is ours** (rejecting a mature wheel needs a reason, `CLAUDE.md` §4 rule 16). Every
+navmesh candidate is float geometry whose cross-machine bit-identity is unproven, and a route's
+waypoints become positions in the log, so they must be exact (`CORE_CONCEPTS.md` §6.2). Rapier is
+admitted only behind quantization and a verify-then-degrade check (`DEP-13`); a planner's output has no
+such check to fall back on. For axis-aligned boxes the shortest path bends only at grown corners — a
+graph of at most 386 nodes — so the case our geometry is made of is the one case where a visibility
+graph is both optimal and small.
+
+**Determinism.** Pure integer code in and out. `pathfinding`'s A* keeps its parents in an `FxIndexMap`
+(a fixed hasher, insertion order) and orders its heap by estimated cost, then by cost, so equal inputs
+give equal paths on every machine; `bodies`' successor order is fixed. An upgrade may change
+tie-breaking and so results: it bumps `bodies`' `VERSION`, as a Rapier upgrade does.
+
+**Licences** (`ARC-55`): `pathfinding` is Apache-2.0 or MIT, and so are the crates it brings
+(`deprecate-until`, `indexmap`, `integer-sqrt`, `num-traits`, `rustc-hash`, `thiserror`), each recorded in
+step-11 §21.15 as `Cargo.lock` admits them.
+
+**Accepted limitations.** Grown boxes are squares, so a route keeps at least the margin from a corner
+and more than it needs diagonally. A route is planned per request from current state, so its cost is
+bounded by measurement (step-11 NV-10: a plan's maximum ≤ 5 ms, p99 ≤ 1 ms), with the grid as the named
+fallback. Overhead geometry and slopes are out of scope (`body:` has none).
+
+---
+
 ## ARC-68 — Calendar and weather are System Packs; weather is a seeded WGEN-lite generator built from the published algorithm
 
 **Date** 2026-10-09 · **Approved by** the primary session at PR TW-b's design freeze (step-19 §17.9.1;
@@ -6085,3 +6429,191 @@ GHCNh). `overcast_morning_permille` cannot be estimated from GHCN-Daily and is c
 rules by `fit`. The record series adds about 66 KB to every world snapshot (QTWd-2, accepted; retention is
 the persistence lane's F-SAVE-1). Windows is argued from `eol=lf`, the CRLF/BOM-tolerant decoder and its
 test, not run in CI.
+
+---
+
+## ARC-57 — Cognition budgets: cost ceilings on wall time, decided before the recorder and the backend
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`mineworld-cognition`,
+`budget.py`, `gateway.py`) · **Approved by** the primary session's ruling QS10-18 (2026-10-08) and the
+P5a freeze (QP5-4, 2026-10-09) · **Relates to** `ARC-56`, `ARC-58`, `INV-4`, step-17 `I-13` · **Design**
+`.structured-coding/plans/mvp0/step-17-cognition.md` §3.10, §15.6;
+`.structured-coding/plans/mvp0/pr-s10-p5-backends.md` D-P5-8, §5.3, AP5-7 · **Placeholder**
+`ARC-S10-d`
+
+**Problem.** A model call costs wall time on a GPU, or money on a user's hosted key. S11-B's
+`time_scale` lets one wall second be N simulated seconds, so a ceiling keyed on simulated time
+(`ARCHITECTURE.md` §9.1 as first written: calls per simulated hour, tokens per simulated day) costs N
+times as much per wall hour at scale N. A ceiling must also stop a call *before* it is made, or it bounds
+nothing.
+
+**Options considered:**
+
+```text
+(a) ceilings on simulated time (the first §9.1 text)   cost grows with time_scale; rejected by QS10-18
+(b) ceilings on wall time, checked after the call      a refused call has already been paid for
+(c) ceilings on wall time, checked before the call,    chosen
+    with the actual usage charged after it
+(d) one shared ceiling per process, no per-seat one    one talkative seat starves every other seat
+```
+
+**Choice: (c).** Cost ceilings are keyed on **wall** time and read only an injected clock (UTC epoch
+seconds); no budget code reads simulated time. The **context** bound stays on simulated time, because
+memory is about a life (`I-13`); it belongs to memory and context assembly (P4, P6), not here.
+
+- **Per seat** (`EntityKey`), rolling windows: `calls_per_wall_hour` (default 20, 3 600 s) and
+  `tokens_per_wall_day` (default 30 000, 86 400 s) — `ARCHITECTURE.md` §9.1's numbers re-keyed.
+- **Per process:** `max_in_flight` (default 2, FIFO) and `call_timeout_s` (default 20).
+- **Order** (`ModelGateway.complete`): key-material check → budget pre-check → in-flight slot → timeout
+  around (recorder → backend) → charge. A refused call reaches neither the recorder nor the backend.
+- **Pre-check** reserves `ceil(utf8_bytes(messages) / 4) + max_output_tokens`, erring toward refusal; the
+  **post-charge** uses the backend's reported usage, or the estimate flagged `estimated`. A transport
+  failure charges the call and no tokens; a timeout charges the call.
+- **Ledgers:** an in-memory one for tests and a SQLite one (standard-library `sqlite3`) at a path the
+  operator configures, never inside a world save (`INV-4`), so a restart neither resets nor
+  double-counts a window.
+- **Outcomes** are typed, never exceptions: `Completed | Refused | Failed`. A controller falls back on
+  `Refused` and `Failed` (P6).
+
+**Consequences.** A world's `time_scale` changes nothing about what cognition may spend per hour of the
+operator's day. A crash-looping cognition process cannot spend again after each restart. Prices are
+never modelled: tokens are reported, never priced (step-17 §3.10.4).
+
+**Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
+no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
+
+---
+
+## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
+
+**Date** 2026-10-09 · **Status** accepted; implemented by S10 PR P5a (`record.py`,
+`backend/canonical.py`) · **Approved by** the primary session at the P5a freeze (2026-10-09), under the
+operator's rulings QS10-14 (recorded outputs, tests with no network) and QS10-19 (local models only)
+· **Relates to** `ARC-56`, `ARC-57`, `AC-4`, `CLAUDE.md` §4 rule 10 · **Design** step-17 §3.11, §4.5;
+`pr-s10-p5-backends.md` D-P5-5, D-P5-6, D-P5-7, AP5-1 … AP5-5, AP5-8 · **Placeholder** `ARC-S10-e`
+
+**Problem.** Core tests never need a live model (`CLAUDE.md` §4 rule 10), yet the cognition path must be
+exercised with real model outputs, deterministically, on every platform. `AC-4` requires that swapping
+the backend needs no World Pack edit, so a recording must replay under any backend.
+
+**Options considered** (P5a §4.3, with licences and maturity):
+
+```text
+vcrpy / pytest-recording (MIT)   HTTP cassettes: provider wire formats, URLs and headers to scrub; a
+                                  cassette recorded against Ollama does not replay under llama.cpp; no
+                                  httpx2 support found
+respx (BSD-3-Clause)              mocks httpx, not httpx2; HTTP-level, so provider-specific
+LiteLLM caching (MIT)             the key contains the provider-prefixed model name
+inline-snapshot (MIT)             reference only: its review-the-diff workflow is the model for re-recording
+our own interface-level cassette  chosen
+```
+
+**Choice.** A cassette records at **our** interface, above HTTP:
+
+- **The key** is `sha256` over canonical JSON of `{"key_scheme": 1, "request": CompletionRequest}`:
+  UTF-8, sorted keys, `(",", ":")` separators, no ASCII escaping, no Unicode normalization, and **no
+  floats** (a float anywhere, including inside an output schema, is refused). The request holds no
+  provider, model, URL, tier, binding or key, so one cassette replays under every backend.
+- **The format** is JSON Lines, UTF-8, LF: a header `{"cassette": "mineworld-cognition", "format": 1,
+  "key_scheme": 1}`, then entries `{key, request, completion, meta: {binding, model, recorded_at,
+  latency_ms}}`. Never a URL, a header, a key, `key_env`, or a transport failure.
+- **Replay is strict and ordered.** Entries are grouped by key in file order; the n-th call with a key
+  returns the n-th entry; one more is a miss (`exhausted`), an unknown key is a miss (`absent`, with the
+  nearest recorded request and the first differing JSON path). A miss is an exception, never a fallback,
+  and never reaches a backend. An entry whose `key` does not match its `request` is refused at load.
+- **Record is atomic**: it writes `<name>.jsonl.partial`, flushes each line, and replaces the cassette on
+  clean close; a crash leaves the old cassette and a visible `.partial`, which blocks the next record.
+- **Modes**, process-wide: `live`, `record`, `replay`, `scripted`. In `replay` and `scripted` no backend
+  object is constructed and the HTTP adapter is never imported, which is stronger than a network guard
+  that allows loopback, where a user's local model listens.
+
+**Consequences.** Redaction holds by construction rather than by scrubbing. A prompt change invalidates
+the cassettes that recorded it, and the miss names the first differing path; re-recording from a real
+model is operator work (QS10-19).
+
+**Revisit** if a provider feature the plain request cannot express (tool calls, streaming deltas) must be
+recorded, which would be a `key_scheme` or `format` bump, never a silent change.
+
+---
+
+## DEP-27 — The model HTTP client: `httpx2`, and no provider SDK
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`httpx2>=2.13,<3`; locked 2.13.1) · **Approved
+by** the primary session (QP5-1, 2026-10-09) · **Licence** BSD-3-Clause · **Supersedes** step-17 §4.1's
+placeholder `DEP-S10-a` (the `openai` SDK) · **Relates to** `ARC-58`, `DEP-24`, `DEP-32` · **Design**
+`pr-s10-p5-backends.md` §4.1, §4.2, D-P5-4, D-P5-10, AP5-6
+
+**Problem.** Every backend MineWorld targets — Ollama, llama.cpp's server, LM Studio, vLLM, and the hosted
+OpenAI-compatible APIs a user configures (OpenAI, xAI, DeepSeek, Zhipu GLM, Mistral, Kimi, DashScope,
+Gemini, OpenRouter, Groq) — speaks the OpenAI-compatible `POST /chat/completions` schema. Something must
+send that request with a cancellable timeout, and must refuse every source of configuration but the
+operator's file.
+
+**Options considered** (facts read 2026-10-09):
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| `openai` SDK (`AsyncOpenAI(base_url=…)`) | Apache-2.0; 3.27.0 | **Rejected.** With an argument omitted its constructor reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_ADMIN_KEY`, `OPENAI_WEBHOOK_SECRET` and `OPENAI_CUSTOM_HEADERS`, and defaults to `api.openai.com`: a hosted key in a user's shell could redirect local traffic, or its key, to a hosted API (QS10-19). Its retries hide calls from the budget ledger. Its value-add, typed parsing, is ours anyway (local validation) |
+| `ollama-python` | MIT; 0.6.3 | Reference only: native API only; pins the old `httpx` line |
+| LiteLLM | MIT core, proprietary `enterprise/` | Rejected: the provider lives in the model string, and the tree is large |
+| `httpx` | BSD-3-Clause; 0.28.1, no release since 2024-12 | Fallback only: unmaintained; `openai` 3.x and the Anthropic SDK moved to `httpx2` |
+| **`httpx2`** | **BSD-3-Clause; 2.13.1 (2026-09-23)**, stewarded by Pydantic Services (whose `pydantic` is `DEP-24`) | **Adopted** |
+| `aiohttp` | Apache-2.0 AND MIT; 3.14.4 | Rejected: nine runtime dependencies and a server framework, for one POST per decision |
+| standard library (`urllib.request` in a thread) | PSF | Rejected: blocking I/O in a thread cannot be cancelled when the timeout fires |
+
+**Choice.** One adapter of our own, `backend/openai_compatible.py`, about 200 lines over
+`httpx2.AsyncClient`: request mapping, response parsing, error mapping, **no retries** (one call is one
+ledger entry). It is constructed only from a typed `BackendConfig`; `base_url` has no default; it reads
+no environment variable except the one `key_env` names. It is the only module that imports `httpx2`.
+
+**Verified at P5a (C1), not assumed:**
+
+- `httpx2` 2.13.1 exposes `AsyncClient`, `Timeout` (per-phase), `MockTransport` (sync and async
+  handlers, `httpx2/_transports/mock.py`) and the `httpx` exception hierarchy (`ConnectError`,
+  `TimeoutException`, …).
+- Its dependencies (`anyio`, `httpcore2`, `h11`, `idna`, `truststore`; `typing-extensions` below 3.13)
+  are pure-Python `py3-none-any` wheels, so the universal lock serves Linux, macOS and Windows alike.
+  `httpx2-jsfetch` is locked but installed only on `emscripten`.
+- **Finding:** `AsyncClient(trust_env=True)`, the default, reads proxy variables, `.netrc` and
+  certificate-file variables from the environment (`httpx2/_client.py`). The adapter therefore passes
+  `trust_env=False`: a user who needs an HTTP proxy for a hosted API is not served by this version, which
+  is recorded as a limitation, not worked around with an implicit read.
+
+**Revisit** if the native Anthropic adapter needs the `anthropic` SDK (P5b compares it), if a needed
+provider feature (tool calls, batch, realtime) cannot be expressed in the plain schema, or if `httpx2`
+stops being maintained — the switch to `httpx` or `aiohttp` is one file.
+
+---
+
+## DEP-32 — Reading a `.env`-style key file: `python-dotenv`'s `dotenv_values`, never `load_dotenv`
+
+**Date** 2026-10-09 · **Status** adopted by S10 PR P5a (`python-dotenv>=1.2,<2`; locked 1.2.4) ·
+**Approved by** the operator's requirement of 2026-10-09 (API keys through a `.env`-style file) and the
+primary session at the P5a freeze (QP5-6, QP5-10 … QP5-12) · **Licence** BSD-3-Clause · **Relates to**
+`DEP-27`, `ARCHITECTURE.md` §9.2 · **Design** `pr-s10-p5-backends.md` §4.2b, D-P5-9, D-P5-14, AP5-9,
+AP5-13
+
+**Problem.** A user's hosted API needs a key. The configuration names only the **variable** (`key_env`);
+its value comes from the process environment, or from a `.env`-style file the operator names. That
+file's format (quoting, `export` prefixes, comments, multiline values, CRLF) is easy to get subtly wrong.
+
+**Options considered:**
+
+| Candidate | Licence; maturity | Verdict |
+| --- | --- | --- |
+| **`python-dotenv`** | **BSD-3-Clause; 1.2.4; no runtime dependencies** | **Adopted**, one call: `dotenv_values(path, interpolate=False)`, which returns a mapping and does not touch `os.environ` |
+| our own parser | ~40 lines | Rejected: the quoting and escaping corner cases would be ours to find (`REUSE_POLICY.md` §12) |
+| `pydantic-settings` | MIT | Rejected: it binds every settings field to environment variables; our file is TOML and only key values come from the environment |
+| `environs` | MIT | Rejected: wraps `python-dotenv` and mutates `os.environ` by default |
+| process environment only | — | Kept as one of two sources, not the only one: the operator asked for `.env`-style files |
+
+**Choice.** `secrets.py` is the only importer of `dotenv` and the only reader of a key. The process
+environment wins over the file (`python-dotenv`'s own `override=False` default). Never `load_dotenv`, so
+a file's values never become ambient credentials for a child process or for another library's implicit
+read; never interpolation; never a default file location. A key file inside a directory holding a
+`world.yaml` is refused (credentials never travel with a world), and on macOS and Linux a file readable
+by group or others is refused, as `ssh` refuses a key. A key value lives in a `Secret` whose `repr` is
+redacted, and is never logged, recorded, put in an exception, or written to the ledger.
+
+**Revisit** if `python-dotenv` gains runtime dependencies or changes `dotenv_values`' contract, or if
+an OS keychain becomes a required source (a separate decision).

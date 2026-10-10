@@ -1,0 +1,16 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[check] PASS the reviewed cases are there: true
+[check] PASS affordances-reordered.json: apply(base, delta) == next: true
+[check] PASS entity-added-before.json: apply(base, delta) == next: true
+[check] PASS entity-added.json: apply(base, delta) == next: true
+[check] PASS entity-changed.json: apply(base, delta) == next: true
+[check] PASS entity-removed.json: apply(base, delta) == next: true
+[check] PASS events-only.json: apply(base, delta) == next: true
+[check] PASS self-location-to-null.json: apply(base, delta) == next: true
+[check] connecting to 127.0.0.1:63929 as seat 'wanderer' for 60 s
+[check] PASS deltas were applied: true
+[check] PASS none refused (no base mismatch, no unknown remove): 0
+[check] PASS observations kept arriving whole: true
+[check] applied 587 deltas, 599 observations emitted
+[check] PASS — 0 failure(s)

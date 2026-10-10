@@ -23,7 +23,7 @@ from mineworld_sdk import offers
 from mineworld_sdk.session import Answered, JoinRefused, SeatSession, SessionClosed
 from mineworld_sdk.wire import codec
 from mineworld_sdk.wire.contract import Accepted, Observation
-from mineworld_sdk.wire.frames import Invite, ObservationFrame
+from mineworld_sdk.wire.frames import Delta, Invite, ObservationFrame
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
 
 TALK = ActionTypeId("talk")
@@ -175,18 +175,19 @@ def round_trips(recording: Recording, observer: EntityId) -> None:
 
 
 def covers_the_minimum(recording: Recording, who: str) -> None:
+    # "observation" counts the observation stream, whole frames and deltas alike (S11-C, §5.3).
     counts = {
-        kind: recording.count(kind) for kind in ("welcome", "observation", "result", "refused")
+        kind: recording.stream() if kind == "observation" else recording.count(kind)
+        for kind in ("welcome", "observation", "result", "refused")
     }
+    counts["delta"] = recording.count("delta")
     print(f"AP-2 coverage, {who}: {counts}, {len(recording.received)} frames round-tripped")
     for kind, least in COVERAGE.items():
-        assert recording.count(kind) >= least, (
-            f"{who} received {recording.count(kind)} {kind} frames"
-        )
+        assert counts[kind] >= least, f"{who} received {counts[kind]} {kind} frames"
 
 
 async def observations_at_least(session: SeatSession, recording: Recording, least: int) -> None:
-    await until(session, f"{least} observations", lambda _: recording.count("observation") >= least)
+    await until(session, f"{least} observations", lambda _: recording.stream() >= least)
 
 
 def test_two_seats_hold_one_conversation_and_every_frame_round_trips(
@@ -225,6 +226,12 @@ def test_two_seats_hold_one_conversation_and_every_frame_round_trips(
                     outcome
                 )
                 assert outcome.result.accepted.events, "an accepted talk causes at least one event"
+                # S11-C (PROTOCOL.md §5.2): an observation soon reflects the talk.
+                await until(
+                    visitor,
+                    f"acted_through {outcome.action_id}",
+                    lambda f, done=outcome.action_id: f.acted_through == done,
+                )
                 accepted = time.monotonic() - began
                 answered = await answer_new_lines(alice, answered)
                 replied = time.monotonic() - began
@@ -268,6 +275,21 @@ def test_two_seats_hold_one_conversation_and_every_frame_round_trips(
         ):
             covers_the_minimum(recording, who)
             round_trips(recording, session.observer)
+            # S11-C: deltas arrived and round-tripped above, and the lines said in the café reached
+            # this observer as facts in its observation frames (PROTOCOL.md §§5.2, 5.3).
+            assert recording.count("delta") >= 1, f"{who} received no delta frame"
+            spoken = [
+                event
+                for raw in recording.received
+                if isinstance(frame := codec.decode(raw), ObservationFrame | Delta)
+                for event in (
+                    frame.observation.events
+                    if isinstance(frame, ObservationFrame)
+                    else frame.delta.events
+                )
+                if event.event_type == "spoke"
+            ]
+            assert spoken, f"no spoke reached {who} in observation.events"
         return [
             frame
             for raw in visitor_frames.received + alice_frames.received

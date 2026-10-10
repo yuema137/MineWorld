@@ -5,7 +5,10 @@ stream, `submit` paired with `result` by the session's own token, and `leave` an
 
 - **Newest wins** (§8). The session keeps only the newest observation. It never queues them, because a
   controller acts on what the world looks like now, and the server drops frames for a slow reader
-  anyway.
+  anyway. A `delta` frame (§5.3) is applied to the observation held, so `newest` is always whole; one
+  that does not apply ends the session with `ProtocolViolation` (reconnecting is P3b's).
+- **Facts kept in order** (§5.8). With `perceived` on `connect`, every fact of the reliable stream is
+  kept in arrival order with its cursor: the stream is for a caller that must not miss one.
 - **One observer** (`INV-13`). Every observation must name the observer `welcome` named. A frame for
   anybody else ends the session with `ForeignObserver`; the session never shows it to its caller.
 - **No retry and no reconnect.** A dropped socket ends the session with `SessionClosed(None)`.
@@ -27,16 +30,20 @@ from websockets.exceptions import ConnectionClosed
 
 from mineworld_sdk.errors import MineWorldError
 from mineworld_sdk.wire import codec
-from mineworld_sdk.wire.contract import ActionRequest, ActionResult
+from mineworld_sdk.wire.contract import ActionRequest, ActionResult, PerceivedEvent
+from mineworld_sdk.wire.delta import DeltaMismatch, apply_delta
 from mineworld_sdk.wire.frames import (
     PROTOCOL_VERSION,
     Clock,
     Closing,
     ClosingReason,
+    Delta,
     Invite,
     Join,
     Leave,
     ObservationFrame,
+    Perceived,
+    PerceivedJoin,
     RefusalCode,
     Refused,
     Result,
@@ -44,7 +51,7 @@ from mineworld_sdk.wire.frames import (
     Submit,
     Welcome,
 )
-from mineworld_sdk.wire.ids import ActionId, CorrelationToken, EntityId, EntityKey
+from mineworld_sdk.wire.ids import ActionId, CorrelationToken, EntityId, EntityKey, EventId
 
 __all__ = [
     "Answered",
@@ -164,6 +171,8 @@ class SeatSession:
         self._welcome = welcome
         self._newest: ObservationFrame | None = None
         self._clock: Clock | None = None
+        self._perceived: list[PerceivedEvent] = []
+        self._cursor: EventId | None = None
         self._arrived = asyncio.Event()
         self._pending: dict[CorrelationToken, asyncio.Future[Outcome]] = {}
         self._issued = 0
@@ -183,14 +192,21 @@ class SeatSession:
         invite: Invite,
         nickname: str,
         take_over: bool = False,
+        perceived: PerceivedJoin | None = None,
     ) -> SeatSession:
-        """Opens a WebSocket to `url` (`ws://host:port/ws`) and joins `seat`."""
+        """Opens a WebSocket to `url` (`ws://host:port/ws`) and joins `seat`; with `perceived`, also
+        asks for the reliable `perceived` stream from its cursor (`PROTOCOL.md` §5.8)."""
         connection = await websocket_connect(
             url, compression=None, max_size=MAX_FRAME_BYTES, open_timeout=JOIN_PATIENCE
         )
         try:
             return await cls.join(
-                connection, seat=seat, invite=invite, nickname=nickname, take_over=take_over
+                connection,
+                seat=seat,
+                invite=invite,
+                nickname=nickname,
+                take_over=take_over,
+                perceived=perceived,
             )
         except BaseException:
             await connection.close()
@@ -205,11 +221,15 @@ class SeatSession:
         invite: Invite,
         nickname: str,
         take_over: bool = False,
+        perceived: PerceivedJoin | None = None,
     ) -> SeatSession:
         """Joins `seat` over an open connection and starts reading. Raises `JoinRefused` (for an occupied
-        seat, `seat_occupied`, unless `take_over` asks to take it, `PROTOCOL.md` §4.2),
-        `ProtocolMismatch` or `ProtocolViolation`, after closing the connection."""
-        frame = Join(invite=invite, nickname=nickname, seat=seat, take_over=take_over)
+        seat, `seat_occupied`, unless `take_over` asks to take it, `PROTOCOL.md` §4.2; for a cursor the
+        world cannot serve, `cursor_unavailable`, §5.8), `ProtocolMismatch` or `ProtocolViolation`,
+        after closing the connection."""
+        frame = Join(
+            invite=invite, nickname=nickname, seat=seat, take_over=take_over, perceived=perceived
+        )
         await connection.send(codec.encode(frame))
         answer = await asyncio.wait_for(_receive(connection), JOIN_PATIENCE)
         if isinstance(answer, Welcome):
@@ -256,6 +276,17 @@ class SeatSession:
         """The newest `clock` frame: whether the host has paused the world, and at what scale it runs.
         `None` before the first, which the server sends right after `welcome` (`PROTOCOL.md` §5.9)."""
         return self._clock
+
+    @property
+    def perceived(self) -> tuple[PerceivedEvent, ...]:
+        """Every fact the `perceived` stream delivered, in arrival order (ascending ids). Empty unless
+        `connect` asked for the stream."""
+        return tuple(self._perceived)
+
+    @property
+    def perceived_cursor(self) -> EventId | None:
+        """The `through` of the last `perceived` frame: the cursor to pass as `since` next time."""
+        return self._cursor
 
     @property
     def sent_frames(self) -> int:
@@ -347,6 +378,30 @@ class SeatSession:
                 if self._newest is None or frame.seq > self._newest.seq:
                     self._newest = frame
                     self._arrived.set()
+            case Delta():
+                held = self._newest
+                if held is None or frame.base != held.seq:
+                    self._end(
+                        ProtocolViolation(f"a delta on base {frame.base}, not the frame held")
+                    )
+                    return
+                try:
+                    observation = apply_delta(held.observation, frame.delta)
+                except DeltaMismatch as mismatch:
+                    self._end(ProtocolViolation(str(mismatch)))
+                    return
+                self.route(
+                    ObservationFrame(
+                        t="observation",
+                        seq=frame.seq,
+                        revision=frame.revision,
+                        acted_through=frame.acted_through,
+                        observation=observation,
+                    )
+                )
+            case Perceived():
+                self._perceived.extend(frame.events)
+                self._cursor = frame.through
             case Result():
                 self._resolve(frame.token, Answered(frame.action_id, frame.result))
             case Refused() if frame.token is not None:

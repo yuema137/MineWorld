@@ -583,6 +583,18 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
+Passages are also what a **walk** follows (`DECISIONS.md` `ARC-75`). Besides `move`, the `movement`
+system provides `walk-to { to: { place: <Location> } | { person: <PersonId> } }` — go to a point in this
+place or in any place joined to it by a chain of passages, to a place without a position (enter it), or
+to within 1 200 mm of a person in this place — and `walk-step`, no payload: the next stride of the
+walker's own walk, at most 1 340 mm, or the crossing at a doorway. The walk is `movement`'s `walking`
+component, disclosed to whoever perceives the walker as its destination and its next four waypoints;
+it takes no calendar time, and its pace is the cadence at which its sender asks for steps (one a wall
+second is 1.34 m/s). A destination no passage chain reaches, or one the route planner cannot reach, is
+refused with the code `no-route`. The route inside a place is planned by whichever pack owns the place's
+geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
+and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -650,7 +662,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               the population with its objects (`bodies-capacity`).
                               A place's shape, and a listing of the objects lying in it (each one's
                               shape and position), are disclosed to whoever perceives the place
-                              (`ARC-39` notes, `DEP-13`)
+                              (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
+                              is routed round (`ARC-39` note 5, `DEP-34`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
@@ -1127,12 +1140,13 @@ wrong and a non-zero exit status, never a panic.
 ```text
 mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
                          [--town [--seed N] [--pace SECONDS]] [--hold SECONDS] [--time-scale N]
-                         [--admin-token TOKEN] [--packs DIR]...
+                         [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
 mineworld validate <world> [--packs DIR]...
 mineworld replay <world> --save DIR [--packs DIR]...
 mineworld run <world> --headless --seed N --days N [--save DIR] [--packs DIR]...
 mineworld inspect <save-directory> [--last N]
 mineworld biography <world> --save DIR --person KEY [--json] [--packs DIR]...
+mineworld perceived <world> --save DIR --person KEY [--since ID] [--json] [--packs DIR]...
 mineworld create <directory>
 mineworld packs list [--packs DIR]...
 mineworld packs show <id> [--packs DIR]...
@@ -1150,12 +1164,13 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with the paced rule controller, seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with the paced rule controller, seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
+| `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 
@@ -1205,6 +1220,24 @@ are also shown by display name, as `key "Name"`. The names come from the save's 
 read through the `naming` pack's published projection, so the command still names no event type of
 its own (`ARC-31`). `--json` adds `name` (the Person's) and `counterpart_names` (aligned with
 `counterparts`, `null` where unnamed) and changes no existing field.
+
+**`perceived`.** Reads `DIR/world.sqlite`'s manifest and fact table, and the World Pack `<world>` for
+the authoring keys, and nothing else: it opens the save, reads it and closes it, so no handle outlives
+the command. It refuses, by name and with a non-zero exit, a missing save, a save whose manifest names
+another pack, and a KEY the pack does not declare as a Person. It folds the whole fact log from the
+first fact through the audience rule of the `presence` pack (`ARC-43`) and prints every fact the Person
+learned of, oldest first, one per line:
+
+```text
+<event id> <at> <event type> place=<place key or -> caused_by=<cause>
+```
+
+`--since ID` prints only the facts with an `EventId` greater than `ID` (the earlier facts are still
+folded, since where people were decides later judgements); it is the cursor of the server's
+`perceived` stream (`server/PROTOCOL.md` §5.8). With `--json`, each fact is one line holding the
+`PerceivedEvent` exactly as the server's `perceived` frame carries it, so a client's recorded stream and
+this export compare line for line. A world without the `presence` pack perceives only `Public`,
+`Participants` and `Entities` facts, and the `Place` facts that name the Person.
 
 **`create`.** The directory's final component becomes the world's id and must be a valid key (the
 rule `EntityKey` enforces). The pack written has one place, two people who are both seats, and the
