@@ -3273,6 +3273,35 @@ Each commit tracks implementation, validation and review separately.
   - **Changed route: no dispatch.** The PR's `pull_request` runs carry both jobs once W-C4 is pushed,
     so a dispatch of the same head would duplicate them (test rules §10). The first PR run is the cold
     run, the next the warm.
+  - **CI evidence log (2026-10-09/10).** Counted runs (any run carrying `test-windows` or
+    `test-macos`, PR runs included) are marked ●, against §15.9's cap of 14.
+    - Baseline: `main` run 38012097668 on `cf18713`: `test` PASS; `test-windows` FAIL at compile, as
+      13b recorded (W-T1); `platforms` PASS on both runners.
+    - **● 1. PR #118 run 38013867967** on `619f266`, cold: `fast`, `test` (23 min), `python` ×3 PASS;
+      **`test-macos` PASS, 17 min 14 s cold**. `test-windows` FAIL (7 min 14 s): the suite **compiled**
+      on Windows for the first time (`cargo test --workspace --no-run` exit 0, 404.7 s), then
+      `ac1_composability` `check_2_the_dependency_structure` failed — **W-13w-1** below. Cargo stops at
+      the first failing binary, so nothing after it ran.
+    - **● 2. Survey run 38014681037** (`scratch/13w-survey`, `cbed119` = `3da2628` + `core`'s `cargo
+      test --workspace` given `--no-fail-fast` in the scratch only): the complete Windows list in one run
+      instead of one repair run per failing binary. `test-windows` (29 min 54 s, cold build 641.8 s, tests
+      1118.6 s): **198 result lines, 886 passed, 1 failed, 20 ignored** — the Mac's 887/20 with one
+      failure, **W-13w-2**, the only failing target ("error: 1 target failed"). Passing on Windows:
+      `an_interrupt_stops_an_administered_server_gracefully` (SD-D13, gate removed),
+      `the_hosted_town_lives_within_its_tick_budget`, `a_killed_server_restarts_…`, the helper's MW-1
+      and MW-2 tests (so `GenerateConsoleCtrlEvent` works on the runner: **R-W1 did not occur**), the
+      junction case (D-13w-3), `[resolver-yard] PASS`, `[cafe] PASS`, `[clock] PASS`. `test-macos`,
+      `test`, `fast` PASS. Branch deleted after the run (`ls-remote` empty).
+  - **W-13w-1 (test code).** `tests/acceptance/tests/ac1_composability.rs` `workspace()` derived each
+    member's directory from `cargo metadata`'s `manifest_path`, which uses `\` on Windows, then checked
+    `starts_with("systems/")`: every `systems\…` crate was reported "only systems/ may". Fix (`3da2628`):
+    the relative directory is written with `/` (`replace('\\', "/")`), as `git` paths are; the claim is
+    unchanged. Local: 14/14.
+  - **W-13w-2 (test code).** `tools/cli/tests/commands.rs` `a_malformed_pack_is_refused_…` looked for
+    `people/alice.yaml` in the refusal; `mineworld validate` names the file by its host path,
+    `…\people\alice.yaml` on Windows, which is the right form for a Windows operator. Fix: the expected
+    name is `Path::new("people").join("alice.yaml")` as displayed. Claim unchanged (the complaint names
+    the file and the field, at line 2). Local: 4/4. No production-code cause was found: no material stop.
   - MW-3 … MW-6 on scratch branches, each deleted after its run, then `ls-remote` → empty.
 - [ ] Review:
   - neither job is required;
