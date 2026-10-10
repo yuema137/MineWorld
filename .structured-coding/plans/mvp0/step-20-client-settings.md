@@ -1215,6 +1215,11 @@ requires the work and the evidence. An item that does not apply is `N/A` with it
     `OS.get_name()` branch planted in `store.gd` → `client_text` FAIL naming
     `store.gd:61 names HTTPRequest (INV-SET-1)` and `store.gd:63 a platform branch (AC-SET-16)`.
 - [x] Review: INV-SET-1 … 10 traced in §12.12.
+- **After the renumbering (F-10) and the second merge (F-18):** on code head `7787572`,
+  `cargo fmt --check` and `clippy -D warnings` PASS; `client_text` 5/5, `client_rules` 3/3; Godot
+  `client_2d` 8/8, `client_2d_interact` 5/5, `client_2d_interact_stub` 3/3, `client_settings` 9/9
+  (`/tmp/mw-seta-logs/c7b-godot.log`); `glyph_check`, `text_check`, `menu_check` PASS;
+  `./mineworld-slice --world --link` → "all link checks pass" on the S11-C protocol module.
 
 ## 12.12 Acceptance on the final head (macOS; Windows and Linux are the operator's, §8)
 
