@@ -84,6 +84,16 @@ config/custom_user_dir_name="MineWorld"
 With it, every client that sets it shares one settings file per user (§4). Without it, a client keeps a
 file of its own in its own user directory.
 
+**In an exported client, `--root=<dir>` (S23, `docs/DECISIONS.md` ARC-80).** An export has no folder
+behind `res://` (`ProjectSettings.globalize_path("res://")` is `""` in a release template), and Godot
+never packs the `.gdignore`'d `locale/` and `fonts/` (step-23 §18.2, P-1 and P-6). A bundle therefore
+ships them as plain files at the same repository-relative path under its `runtime/` folder
+(`runtime/clients/shared/settings/locale/*.po`, `…/fonts/NotoSansSC-Regular.otf`, `…/fonts/OFL.txt`), and
+the launcher passes `--root=<absolute runtime folder>`. `MineWorldText.module_dir()` reads that user
+argument itself (the store reads `--settings=` and `--extra-locale=` the same way) and returns
+`<root>/clients/shared/settings`; without it, the module's own folder, globalized, exactly as before.
+The argument changes where the files are read from, never what is read or in which order (§6.2).
+
 **The composition root's calls,** first in `_ready`, before it builds its own nodes:
 
 ```gdscript

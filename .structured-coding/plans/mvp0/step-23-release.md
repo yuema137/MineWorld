@@ -968,3 +968,332 @@ STOP CONDITION:
 MERGE AUTHORITY:
   NEVER merge without explicit operator approval, relayed after the primary session's review.
 ```
+
+---
+
+# 18. R-a — commit plan, engine probes and live ledger (C0)
+
+**Status: `C0 FROZEN 2026-10-10 (primary)`, with D-Ra-1 … D-Ra-4 accepted.** Primary rulings of the same
+day, relayed to this session: **MS-Ra-2** — the operator chose VRAM texture compression (option C); it is
+being delivered by RL-b (PR #131, branch `mvp0/pr-rl-b-3d-budget`: "imported props with LODs" and "BC7
+compressed + mipmapped textures, 213 `.import` files"). **MS-Ra-1** — if it persists on RL-b's head,
+option (A) is approved inside R-a as a bounded change, with frame-diff evidence that the slice looks
+unchanged. C1, C3 and C5 proceed now; C4's 3D half and C6 wait for RL-b's merge. §18.7 records the check of
+RL-b's head. The drafting status follows, kept for history.
+
+**Drafted:** C0 drafted 2026-10-10 by the R-a implementation session, stopped at material stops 1
+and 2 of §17.1 (§18.4). Worktree `/Users/yuema137/mineworld-worktrees/impl-s23-ra`, branch
+`mvp0/pr-s23-ra`, base `origin/main @ bb62edf` (the freeze's merge, PR #140). No client, script, preset or
+decision record has been written: this section and the handoff file are the only changes. It records what
+the probes of C2 found, because three of them change the design R-a was frozen on, and proposes the smallest
+revisions. The commit plan of §18.5 is conditional on the rulings asked for in §18.4.
+
+The probes were run before C0, on a scratch project and a scratch copy of `clients/` outside the repository
+(`/Users/yuema137/mineworld-worktrees/scratch-s23-ra/`), because the commit plan could not be written
+honestly without them. That is investigation under the validation budget of §17.1, not implementation.
+
+## 18.1 Anchors of §2 re-verified against `bb62edf`
+
+| §2 anchor | Holds | Evidence |
+| --- | --- | --- |
+| Workspace version `0.1.0`; no tag | yes | `Cargo.toml:27`; `git tag` empty |
+| `mineworld` binary of `mineworld-cli` | yes | `tools/cli/Cargo.toml:12–13` |
+| Toolchain container `rust:1.97.1-slim-trixie` | yes | `Dockerfile:13` |
+| `app.gd` `repo_path()` globalizes `res://` and climbs `../..` | yes | `clients/2d/scripts/app.gd:370–373` |
+| The pack is read with `FileAccess` from the file system | yes | `clients/2d/scripts/presentation.gd:108, 145, 186` |
+| `text.gd` `module_dir()` globalizes the module's own folder | yes | `clients/shared/settings/text.gd:48–49`; also used for the font, `:214, :230` |
+| String-loaded 3D resources | yes, and wider than stated (F-R3b, §18.3) | `human.gd:27, 33, 37`; `props.gd:18, 52–66`; `mats.gd:14–37` |
+| The 3D playable scene is not the main scene | yes | `clients/3d-spike/project.godot` `run/main_scene="res://scenes/main.tscn"` |
+| The 3D probes exit 0 on failure | yes | `slice_probe.gd:160` `get_tree().quit(0)`; the link verdict is the line `all link checks pass` or `<n> LINK CHECKS FAILED` (`slice_probe_world.gd:424`) |
+| Graceful stop on Ctrl-C | yes | `tools/cli/src/serve.rs:244–253` |
+| No `export_presets.cfg` anywhere | yes | `ls clients/*/export_presets.cfg` → none |
+| Godot 4.7.2 template archive 1 281 349 702 bytes | yes | downloaded with `gh release download`; SHA-512 `ca4d71c4…ccb84079` equals its line in `SHA512-SUMS.txt`; installed in `~/Library/Application Support/Godot/export_templates/4.7.2.stable/` |
+| Local Godot | `4.7.2.stable.official.ed1daf0bf` | `godot --version` |
+
+New anchors this audit adds:
+
+- **Every 3D texture is imported lossless, almost all without mipmaps.** All 231 texture `.import` files
+  under `clients/3d-spike/assets` carry `compress/mode=0`; 214 of them `mipmaps/generate=false`, 17 `true`. §7.2 item 2's plan ("VRAM-compressed … with mipmaps") is therefore not today's state.
+- **The 3D props are loaded from raw glTF at run time, on purpose.** `props.gd:5–6`: "CC0 Poly Haven glTF
+  props, loaded at runtime through GLTFDocument so nothing has to go through Godot's importer";
+  `props.gd:52–66` calls `GLTFDocument.append_from_file("res://assets/models/<slug>/<slug>.gltf")`. The 40
+  model `.gltf.import` files use `importer="scene"`.
+- **The shared module's catalogs and font sit in folders Godot ignores.** `clients/shared/settings/locale/`
+  and `…/fonts/` each hold a tracked `.gdignore`.
+
+## 18.2 The four engine probes of §13.2 (C2), with output
+
+Scratch project `probe/` (a `main.tscn` and an `alt.tscn` running one reporting script, a symlinked module
+folder with a `.gdignore`'d `locale/en.po` and `fonts/probe.otf`, a non-resource `data/note.txt`, a planted
+`shots/x.txt`), exported with the official 4.7.2 templates as macOS universal, Linux x86_64 and Windows
+x86_64 (`godot --headless --path probe --export-release <preset> <path>`, all exit 0 once the macOS
+requirement of P-5 is met), run from the macOS release `.app`:
+
+```text
+$ "S23 Probe.app/Contents/MacOS/S23 Probe" --headless -- --root=/x
+PROBE scene=alt
+PROBE globalize_res=
+PROBE feature_template=true
+PROBE feature_release=true
+PROBE feature_mineworld_release=true
+PROBE display=headless
+PROBE user_args=["--root=/x"]
+PROBE locale_files=[]
+PROBE po_is_translation=false msg=
+PROBE fa_po=false
+PROBE data_txt=a non-resource file
+PROBE shots_present=false
+
+$ "S23 Probe.app/Contents/MacOS/S23 Probe" --headless --main-pack ../linux/probe.pck -- --a=1
+ERROR: `--main-pack` was specified on the command line, but this Godot binary was compiled without
+support for path overrides. Aborting.
+To be able to use it, use the `disable_path_overrides=no` SCons option when compiling Godot.
+   at: setup (main/main.cpp:1894)
+```
+
+| Probe | Result | Consequence |
+| --- | --- | --- |
+| P-1 `globalize_path("res://")` in a release template | **as feared:** it returns the empty string | F-R1 confirmed: `repo_path()` becomes a path relative to the working directory, never the bundle. The `--root` fix of §6.5 is needed as designed |
+| P-2 feature-tag override `application/run/main_scene.mineworld_release` set by the preset's custom feature | **PASS:** the release run opened `alt.tscn`; `OS.has_feature("mineworld_release")` is true | F-R4 is fixed with no code, as recommended. The editor and the bash launchers keep `main.tscn` |
+| P-3 `--main-pack` in a release template | **FAIL:** official release templates are built with `disable_path_overrides`; the run aborts | §3.2 option (a) is impossible with official templates. The recorded fallback (b) applies: two full exports, one per client (D-Ra-1) |
+| P-4 `--headless` in a release template | **PASS:** `DisplayServer.get_name()` is `headless` | §9.1 legs 4–5 can run headless; no `xvfb-run` fallback needed |
+| P-5 (found) macOS universal export | **FAIL until a project setting is on:** "Cannot export for universal or arm64 if ETC2 ASTC texture format is disabled. Enable it in the Project Settings (Rendering > Textures > VRAM Compression > Import ETC2 ASTC)" | each client's `project.godot` needs `rendering/textures/vram_compression/import_etc2_astc=true` (D-Ra-3). Because no texture in either client is VRAM-compressed, the setting changes no imported file today (measured: the 3D re-import after setting it produced no `etc2`/`astc` file and a pack of the same 260 510 120 bytes) |
+| P-6 (found) files in a `.gdignore`'d folder, with an include filter `*.po, *.otf` | **FAIL:** neither file is in the pack (`locale_files=[]`, `fa_po=false`); the whole pack is 4 384 bytes | F-R2's designed fix ("read through `res://`, include `*.po`") cannot work while the folders carry `.gdignore`; removing it would import the catalogs and the font and create new `.import` files (material stop 1). Revision D-Ra-2 |
+| P-7 (found) symlinked module folders | **PASS:** the exporter follows the directory symlink (`mineworld_settings/*.gdc` and `mineworld/*.gdc` are in the 3D pack) | §5.2's "verify" closes: no scratch copy of the modules is needed on Linux or macOS |
+| P-8 (found) non-resource file by include filter; planted `shots/` by exclude filter | **PASS:** `data/note.txt` shipped, `shots/x.txt` did not | the A-R3 exclusion holds at the preset level as well as in `assemble` |
+| P-9 macOS built-in signing | **PASS:** `codesign -dv` → `Signature=adhoc`, `flags=0x10002(adhoc,runtime)`, universal | the macOS client `.app`s come out ad-hoc signed from `--export-release`, as §5.2 assumed |
+
+## 18.3 What a full export of the real clients measured (scratch copy of `clients/`, macOS host)
+
+Presets in the scratch copy only: `export_filter="all_resources"`, `exclude_filter="shots/*, screenshots/*,
+tools/*, *.md"`, custom feature `mineworld_release`, the P-2 override and the P-5 setting. `godot --headless
+--import` then `--export-release`. A scratch GDScript (`ProjectSettings.load_resource_pack` then a walk of
+`res://`) listed each pack.
+
+| Artefact | Bytes | Notes |
+| --- | --- | --- |
+| 2D client, macOS universal `.zip` (engine and pack) | 60 628 151 | the 2D pack itself is 176 728 bytes |
+| 3D client pack (`.pck`, Linux preset) | 260 510 120 raw; **253 213 609 with `gzip -6`** | 649 files; 231 `.ctex` textures of 0.9–8.4 MB each, lossless; 43 `.scn` |
+| 3D client, macOS universal `.zip` | 313 673 637 | |
+| Engine template, `gzip -6`: Linux x86_64 / Linux arm64 / Windows x86_64 | 28 417 817 / 27 569 893 / 38 068 777 | raw 73.5 / 67.1 / 109.3 MB |
+| Release server, macOS arm64 only (`cargo build --release --locked -p mineworld-cli`) | 18 989 792 raw | a universal binary is about twice that |
+| 2D Presentation Pack runtime files (`art/`, `assets/`, `i18n/`, `renderer/`, two YAML files) | about 7.5 MB | |
+| Shared font `NotoSansSC-Regular.otf` (shipped as a file under D-Ra-2) | 8 331 336 | |
+
+**Budget against §7.1 (hard limits, compressed):** `3d.pck` 253.2 MB > **250 MB: FAIL**. Bundle estimates:
+linux-x86_64 ≈ 334 MB and windows-x86_64 ≈ 353 MB (under 400, over the 250 MB goal); **macos-universal
+≈ 405 MB > 400 MB: FAIL** (two universal engines at about 60 MB each, plus the 3D pack). The cause is not
+which files ship but how they are imported: lossless textures without mipmaps (§18.1).
+
+**F-R3b — the exported 3D client cannot load its props, and crashes.** The slice link probe, run from the
+exported macOS `.app` against a release server on `worlds/social-cafe` with a scratch save:
+
+```text
+$ "MineWorld 3D Spike.app/Contents/MacOS/MineWorld 3D Spike" --headless -- --slice-link \
+      --server=127.0.0.1:50955 --invite=… --settings=none
+exit 139 (SIGSEGV)
+36 × WARNING: gltf load failed: res://assets/models/<slug>/<slug>.gltf (7)
+ERROR: Can't open file at path "res://assets/models/bar_chair_round_01/bar_chair_round_01.gltf"   (and every other prop)
+ERROR: Attempted to push_front a variable of type 'String' into a TypedArray of type 'Transform3D'.
+```
+
+No verdict line was printed. The exporter ships the imported `.scn` of each `.gltf` (its importer is
+`scene`) and never the raw `.gltf`, which is what `props.gd` opens. An include filter
+`assets/models/*.gltf, assets/models/*.bin` shipped the 40 `.bin` files and still no `.gltf` (measured: the
+pack grew to 275 063 032 bytes; `tea_set_01.gltf` absent, `tea_set_01.gltf.import` present). Nothing in
+R-a's scope (presets, filters, `project.godot`'s main-scene override) can make the props load.
+
+## 18.4 Material stops and the smallest revisions (for the primary session and the operator)
+
+**MS-Ra-1 (§17.1 material stop 1; the fix lies outside R-a's files): the exported 3D client needs a change
+R-a may not make.**
+
+| Option | Change | Cost and risk |
+| --- | --- | --- |
+| (A) **recommended** | `clients/3d-spike/scripts/props.gd` `gltf()`: when `ResourceLoader.exists(path)` (always true in an export, and in a checkout once imported), instantiate the imported scene; otherwise keep `GLTFDocument` | one function, about ten lines, in the 3D client (S14/S15 lane). The imported scene's node names and materials must match what `retint` and `keep(...)` expect (`use_name_suffixes=true` may rename nodes), which a visual check of the slice in the editor and in the export must settle; the operator judges visuals (RL-b precedent) |
+| (B) | the 40 `assets/models/*/*.gltf.import` files to `importer="keep"`, plus an include filter for the `.bin` files | no code; `.import` edits; the unused `.scn` drop out of the pack, which also shrinks it |
+
+**MS-Ra-2 (§17.1 material stop 2): the size budget fails with file filtering alone.** `3d.pck` is 253.2 MB
+compressed against a 250 MB hard limit, and the macOS universal bundle is estimated at about 405 MB against
+400. Filtering can remove little: the slice uses both character bodies (`human.gd` `Body.TOWN` for the
+townspeople, `Body.REFERENCE` for the player) and almost every texture set; static references suggest at
+most six texture sets and four models are promenade-only (about 25–30 MB), which is unproven and would not
+approach the 150 MB goal. The revision is an import decision, which §17.1 reserves:
+
+| Option | Change | Effect (estimated, to be measured) |
+| --- | --- | --- |
+| (C) **recommended** | VRAM-compress the 3D textures with mipmaps (`compress/mode=2`, `mipmaps/generate=true`), as §7.2 item 2 already planned, in a PR owned by the 3D lane and judged visually by the operator | a 1k texture becomes roughly 0.7–1.4 MB with mipmaps against 0.9–2.3 MB lossless today; P-5's setting then adds an ETC2/ASTC copy to the macOS pack (the exporter requires it for arm64), which must be measured before choosing |
+| (D) | raise §7.1's hard limits for the pre-alpha (for example `3d.pck` 300 MB, bundle 450 MB) | no visual change; a larger download; a frozen invariant changes |
+| (E) | macOS clients as x86_64 only (Rosetta on Apple Silicon), avoiding P-5 and halving the macOS engines | no import change; slower on Apple Silicon; not recommended |
+
+**Bounded revisions inside the frozen design, proposed for the C0 freeze (not stops):**
+
+- **D-Ra-1 — §3.2 option (b) replaces (a)** (P-3). Each bundle holds two exported clients, each an engine
+  with its pack: Linux and Windows with the pack embedded (`binary_format/embed_pck=true`, one file each),
+  macOS as two ad-hoc-signed `.app`s with the pack in `Contents/Resources`. Proposed paths in `runtime/`:
+  `clients/mineworld-2d[.exe|.app]` and `clients/mineworld-3d[.exe|.app]`, and no `runtime/godot/` folder.
+  **This changes what R-c's launcher starts** (an exported client, not `godot --main-pack <pck>`); R-c must be
+  told before its C3. ARC-80 (R-a) records the layout.
+- **D-Ra-2 — F-R2 through `--root`, not through `res://`** (P-6). The bundle's `runtime/` mirrors the
+  repository's relative paths: `runtime/presentation/mineworld-default/2D/…` (already in §3.1) and
+  `runtime/clients/shared/settings/{locale/*.po, fonts/NotoSansSC-Regular.otf, fonts/OFL.txt}`. `--root=<dir>`
+  names the folder that stands for the repository root. The 2D client's `repo_path()` resolves against it, and
+  the shared text module's `module_dir()` returns `<root>/clients/shared/settings` when the argument is given
+  (it reads the user arguments itself, as `MineWorldSettingsStore.open` already parses `--settings=` and
+  `--extra-locale=`), so the 3D client needs no change for its catalogs and font. With no `--root`, both keep
+  today's behaviour exactly. `.gdignore` files and imports are untouched.
+- **D-Ra-3 — `import_etc2_astc=true` in both clients' `project.godot`** (P-5). Required for any macOS
+  universal export; no imported file changes today. `clients/2d/project.godot` is not in §17.1's file list;
+  the change is one line with no runtime effect (the 2D client imports no texture).
+- **D-Ra-4 — `.app`s come from `--export-release` to a `.zip` and are unpacked by `assemble`**, which renames
+  them to D-Ra-1's fixed names (renaming a bundle folder does not invalidate its signature). `.dmg` stays
+  declined.
+- **Finding for R-b, Linux arm64:** the Linux exporter may require P-5's setting for arm64 as well (to be
+  confirmed on R-b's arm64 export). Under option (C) without ETC2, an arm64 GPU without BC support would not
+  draw the textures.
+
+## 18.5 Commit plan (conditional on §18.4; detailed to the file once ruled)
+
+Each commit tracks implementation, deterministic validation and LLM logic review separately.
+
+```text
+C0  this section and the handoff — Markdown only
+      [x] impl  [x] validation (anchors re-verified, probes P-1…P-9, exports measured)
+      [x] review: C0 FROZEN 2026-10-10 (primary)
+C1  specs first: the 2D client's argument spec and SETTINGS.md §6 for --root; docs/DECISIONS.md ARC-80
+    (layout of D-Ra-1/D-Ra-2, per-user data, --root), DEP-38 (cargo-about, version pinned at install),
+    DEP-41 (official templates, SHA-512)                                        [x] impl  [x] validation  [x] review
+      impl: clients/2d/PRESENTATION.md §1 (--root row and paragraph); clients/shared/SETTINGS.md §2
+            ("In an exported client, --root"); docs/DECISIONS.md ARC-80, DEP-38 (cargo-about 0.9.2), DEP-41
+      validation: check_decision_ids 107 distinct; check_doc_headings 193 sections, none duplicated
+      review: terms checked against CORE_CONCEPTS (no new ontology term; "bundle" is packaging, not a
+              pack type); every claim cites a §18.2 probe; ARC-80 states fallback behaviour without --root
+C2  probes: done in C0 (§18.2)                                                   N/A: recorded above
+C3  F-R1 (app.gd repo_path with --root) and F-R2 by D-Ra-2 (text.gd module_dir with --root); the 2D drive and
+    the shared settings checks green from the checkout, unchanged               [x] impl  [x] validation  [x] review
+      impl: clients/2d/scripts/app.gd — repo_path(path, root = ""), _ready passes options["root"], header
+            lists --root; clients/shared/settings/text.gd — module_dir() returns <root>/clients/shared/settings
+            when a non-empty --root= user argument is present, else the globalized module folder as before
+      validation (macOS, Godot 4.7.2): ./mineworld-2d --drive → "drive complete: PASS", presentation from the
+            checkout (unchanged path); --root=<worktree> → PASS, same presentation path; --root=/nonexistent →
+            "cannot read /nonexistent/presentation/…", "presentation none", FAIL (the argument is honoured);
+            shared checks store/glyph/menu/text_check PASS; glyph_check --root=<worktree> PASS;
+            text_check --root=/nonexistent FAIL (catalogs read from the root); cargo test -p
+            mineworld-acceptance --test client_rules (3 passed) --test client_text (5 passed);
+            check_client_rules.py PASS (0 findings)
+      review: no rule, protocol or setting touched; absent --root is byte-for-byte the old expression; the text
+              module's arg read follows store.gd's precedent; no platform branch (AC-SET-16) added
+C4  export presets (2D and 3D: Linux x86_64 and arm64, Windows x86_64, macOS universal; filters; custom
+    feature), the F-R4 override, D-Ra-3, and the MS-Ra-1 fix if it is ruled into R-a; headless exports
+    succeed; the exported 3D link probe prints its verdict                      [ ] impl  [ ] validation  [ ] review
+C4a (the 2D half, ahead of RL-b) clients/2d/export_presets.cfg (macOS universal, Windows x86_64, Linux
+    x86_64, Linux arm64; custom feature mineworld_release; exclude shots/*, *.md; no credentials; macOS
+    built-in ad-hoc signing) and D-Ra-3 in clients/2d/project.godot               [x] impl  [x] validation  [x] review
+      validation: all four presets export headless, exit 0 (2D pack 177 048 bytes; engines 67.1–109.3 MB);
+            the exports rewrote neither project.godot nor export_presets.cfg (git diff)
+C5  scripts/package.py (build, export, assemble, budget with the top-20 report, probe, --self-test with a
+    planted shots/ file and a planted oversize file) and packaging/ (PLAY.txt, BUNDLE.toml template,
+    cargo-about configuration and template); one line in ci_layer.py fast       [x] impl  [x] validation  [x] review
+      impl: scripts/package.py (stdlib; Python 3.9 compatible, because macOS's python3 is 3.9.6 and has no
+            tomllib); packaging/PLAY.txt, BUNDLE.toml.in, about.toml (deny.toml's licences), about.hbs;
+            scripts/ci_layer.py fast += `python3 scripts/package.py --self-test` (report to the S13 lane)
+      validation: --self-test 17/17 ok (A-R3: planted shots/x.png and a GPL path inside a pack fail; A-R4: a
+            planted oversize pack fails; zip byte-identical twice; exec bits and fixed mtime kept; join line
+            read). read_pck checked on a real pack: RL-b's 3d.pck → 655 entries, the same top files and sizes
+            as Godot's own listing; budget → 259.5 MB FAIL, equal to `gzip -6`.
+            `assemble --target macos-universal --clients 2d` (C6 rehearsal, 3D pending): exit 0; server
+            universal (lipo, x86_64 + arm64); client .app adhoc-signed, `codesign --verify --deep --strict`
+            ok after unzip; archive 88.2 MB; 2D pack + Presentation Pack 6.0 MB; LICENSES/ = THIRD_PARTY_RUST.html
+            (cargo-about 0.9.2), godot/LICENSE.txt + COPYRIGHT.txt (SHA-256 pinned), fonts/OFL.txt,
+            assets/{3D_ASSETS, 2D_ART_PROVENANCE, MESHY…, OWLISHMEDIA…, PUZZLEANDY…}.txt.
+            A-R1 (2D): the archive unzipped into "…/scratch-s23-ra/MineWorld 世界/", `package.py probe
+            --clients 2d` → exit 0, "drive complete: PASS", pack loaded from the bundle's runtime/. Mutation:
+            the same exported client without --root → "cannot read ../../presentation/…" and the CJK font
+            error, i.e. plain drawing (F-R1, F-R2 unfixed)
+      review: probe stops only the server it started (SIGINT, CTRL_BREAK on Windows, kill after 10 s);
+              scratch through tempfile, removed; no network beyond loopback and the optional `gh api` fetch of
+              Godot's two notice files, checked against pinned SHA-256
+
+Bounded deviations recorded during C4a/C5:
+
+- **D-Ra-1 detail: packs beside the executables, not embedded** (Linux, Windows). Reason: `budget` and A-R3
+  read every pack's directory (`read_pck`), which an embedded pack makes awkward; Godot loads
+  `<executable>.pck` from beside the executable by itself. So `runtime/clients/` holds `mineworld-2d[.exe]` +
+  `mineworld-2d.pck` (and the same for 3D); macOS is unchanged (`.app`s). Validation: the 2D Linux and
+  Windows exports produce exactly these two files.
+- **BUNDLE.toml names each client's executable** (`client_2d`, `client_3d`, relative to `runtime/`),
+  because a macOS client's program is named after its Godot project (`Contents/MacOS/MineWorld 2D`).
+  R-c's launcher reads these keys rather than guessing names.
+- **Asset records ship as `.txt`.** A-R3 excludes every `.md`; `clients/3d-spike/ASSETS.md` and
+  `presentation/mineworld-default/2D/art/PROVENANCE.md` are copied as `LICENSES/assets/3D_ASSETS.txt` and
+  `2D_ART_PROVENANCE.txt` so the records travel with the files they cover.
+- **`messages.pot` and `.gdignore` are not shipped** under `runtime/clients/shared/settings/` (a template and
+  a Godot marker, read by nothing at run time).
+C6  gate on macOS: assemble macos-universal; probe from a folder "MineWorld 世界" outside any checkout;
+    budget report; LICENSES/ complete                                           [ ] impl  [ ] validation  [ ] review
+```
+
+C6 cannot pass while MS-Ra-1 and MS-Ra-2 stand: the exported 3D client crashes before its verdict, and the
+budget fails. C1, C3 and C5 do not depend on either ruling and can proceed once C0 is frozen with D-Ra-1 …
+D-Ra-4; C4's 3D half and C6 wait for the rulings.
+
+## 18.6 Ledger
+
+| Date | Event | Evidence |
+| --- | --- | --- |
+| 2026-10-10 | Session start; worktree clean at `bb62edf`; `origin/main` = `bb62edf`; only this session holds the worktree | `git status`, `git worktree list` |
+| 2026-10-10 | Templates downloaded and SHA-512 checked; installed outside the repository | §18.1 |
+| 2026-10-10 | Probes P-1 … P-9; full exports measured; the exported 3D link probe crashed | §§18.2–18.3 |
+| 2026-10-10 | **Stopped** at MS-Ra-1 and MS-Ra-2; C0 committed for the primary session's review | this section |
+| 2026-10-10 | C0 frozen by the primary session; RL-b's head checked (§18.7); C1 committed | §18.7, `a5601f0` |
+
+## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
+
+A detached scratch worktree at `origin/mvp0/pr-rl-b-3d-budget @ 8f0853c` ("RL-b final re-measure on the
+ruled head"), under `/Users/yuema137/mineworld-worktrees/scratch-s23-ra/rlb`; nothing written in
+`impl-rl-b`. Scratch-only additions: the 3D presets of §18.3, the P-2 override, the P-5 setting. RL-b's
+`.import` files: 213 `compress/mode=2` (VRAM), 18 `compress/mode=0`. A full `--import` with ETC2/ASTC on
+took about 75 minutes on the operator's Mac (BC7 and ASTC encoding of 213 textures).
+
+**MS-Ra-1: resolved on RL-b's head.** RL-b's `props.gd` `gltf()` instantiates the imported scene when
+`ResourceLoader.exists(path, "PackedScene")`, keeping `GLTFDocument` as the fallback (its SD-RLb-1) — the
+same change as option (A). The exported macOS `.app`, run headless with `--slice-link` against a release
+server on `worlds/social-cafe`: **exit 0, zero `gltf load failed` / fallback lines, verdict
+`all link checks pass`.** The only errors left: `Can't open file from path
+'mineworld_settings/fonts/NotoSansSC-Regular.otf'` (fixed by D-Ra-2, C3) and `Could not create directory:
+'res://shots'` (the probe's evidence folder; harmless in an export). R-a therefore makes no `props.gd`
+change.
+
+Found on the way (bounded, R-a's presets): **`tools/*` must not be excluded wholesale.**
+`slice_probe.gd:927` names `PhysicsEngineProbe` from `tools/physics_engine.gd`; with `tools/*` excluded,
+`slice_main.gd` fails to compile and the client hangs headless with no verdict (seen, then killed). The 3D
+preset excludes `tools/blender/*` and `tools/texture_art/*` instead (A-R3's GPL folder and source art);
+the remaining `tools/*.gd` are MIT scripts, and `tools/*.py`, `*.sh` are not resources and never pack.
+Consequence for §9.1 and R-c: a headless client must run under a timeout, because a script error does not
+make it exit.
+
+**MS-Ra-2: NOT resolved on RL-b's head; the download grows.**
+
+| Artefact | `bb62edf` (lossless) | RL-b `8f0853c` (BC7 + mipmaps) |
+| --- | --- | --- |
+| `3d.pck` raw | 260 510 120 | **354 128 840** |
+| `3d.pck`, `gzip -6` | 253 213 609 | **259 509 293** |
+| 3D macOS universal `.zip` | 313 673 637 | 319 969 284 |
+| files in the pack | 649 | 655; 213 `*.bptc.ctex`, 0 `etc2`/`astc` |
+
+A 1k texture is 1 398 180 bytes as BC7 with mipmaps (every one of the 213 the same size), against 0.9–2.3 MB
+lossless, and BC7 hardly compresses further. VRAM compression cut video memory (RL-b's −466 MB) but not the
+download: `3d.pck` stays over the 250 MB hard limit and the macOS universal bundle over 400 MB. The macOS
+export carried no ETC2/ASTC copy, so P-5's concern about doubling does not apply. What would reduce the
+download, each a visual or policy decision for the operator: textures at 512 px for distant or small props
+(`process/size_limit`), Basis Universal (smaller on disk, transcoded at load), BC1 instead of BC7 for
+opaque diffuse maps, or raising §7.1's limits (D). **This remains a material item for the primary session**;
+it does not block C1, C3 or C5.
+
+**Ruling on MS-Ra-2 (operator, 2026-10-10, relayed by the primary session).** 512 px textures for small and
+distant props; near walls, characters and large surfaces keep 1k; before/after stills go to the operator.
+This is 3D-lane work on top of RL-b, delivered as a separate small PR after RL-b merges, **not part of R-a**.
+Consequence for R-a: §7.1's limits stand unchanged, and R-a's 3D budget check (`package.py budget` on the
+assembled bundle, C6) runs against the tree that includes both RL-b and that texture PR. The `ci_layer.py`
+`fast` line is accepted (the primary session notes it for S13). R-a stays a draft until RL-b and the texture
+PR merge; then C4's 3D half and C6 resume as §18.5 and the handoff describe.

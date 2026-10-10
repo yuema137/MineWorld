@@ -1,0 +1,12 @@
+# What this bundle is. Written by scripts/package.py (docs/DECISIONS.md ARC-80); read by the launcher
+# and by `package.py probe`. Paths are relative to this file's folder (`runtime/`).
+version = "{version}"
+commit = "{commit}"
+target = "{target}"
+built = "{built}"
+godot = "{godot}"
+server = "{server}"
+client_2d = "{client_2d}"
+client_3d = "{client_3d}"
+# SHA-256 over the sorted lines "<sha256>  <path>" of every other file of the bundle.
+files_sha256 = "{files_sha256}"

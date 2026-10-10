@@ -53,6 +53,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_scratch.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
+        # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
+        ["python3", "scripts/package.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
