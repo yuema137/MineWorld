@@ -99,7 +99,7 @@ never appears: nobody can buy, and the rest of the town still works.
 | **Building from blocks** | ✅ checked by tests: the market town is the café town plus six extra rule modules and some settings, with no change to the core. Remove any one of those modules and the town still runs |
 | **Everyday life** | ✅ people walk, talk, meet, become friends, do things together, own and give things, work shifts, get paid, buy, eat and drink, for 300 days of game time |
 | **Bodies** | ✅ people and objects never pass through each other; you can push, kick, throw and shove · 🚧 finding a way around walls and furniture, then walls in the towns |
-| **Time and weather** | ✅ the date, the day of the week, sunrise and sunset · 🚧 weather, then weather from ten years of real records |
+| **Time and weather** | ✅ the date, the day of the week, sunrise and sunset; hour-by-hour weather on the server, based on San Diego's climate · 🚧 showing the weather in the 2D and 3D views, then weather from ten years of real records |
 | **Your own rules** | ✅ the first adjustable rules (for example, how soon someone can speak again) · 🚧 rules for the other modules, and two example worlds: a manor with strict manners, and an ice rink |
 | **Add-ons** | ✅ every module has a name, a version and a licence, and a world can say which versions it needs; new kinds of objects can be added without rebuilding · 🚧 a module from another repository |
 | **Playing together** | ✅ invite codes, nicknames, a 30-second grace period to reconnect, a player taking over an AI character, a host who can pause or remove players · 🚧 a test with four players at once |
@@ -107,7 +107,7 @@ never appears: nobody can buy, and the rest of the town still works.
 | **3D view** | ✅ walk, run, jump, enter the café and talk to Alice on a running server · 🚧 the whole street built from the server's map, bumping into things, shopping, running smoothly on ordinary computers |
 | **Settings** | 🚧 English and Simplified Chinese, resolution, window or full screen, frame-rate limit |
 | **AI characters** | ✅ the Python toolkit they connect with · 🚧 a local model by default, online services with your own key, memory, and Alice remembering in 3D what you told her in 2D |
-| **Computers** | ✅ automatic tests on Linux; the Python toolkit and the add-on tests also run on macOS and Windows · 🚧 the same results on all three, and the full test suite on Windows |
+| **Computers** | ✅ the same world gives exactly the same results on macOS, Linux (Intel and ARM) and Windows, checked on every change to the main branch · 🚧 the full test suite on Windows |
 | **Many towns** | 🗺 next stage: several towns in one world, trains, buses and taxis, walking about on board, town and world maps |
 | **Looking real** | 🗺 next stage: hills from real height data, water you can wade in and that carries things along, trees that move in the server's wind |
 | **Later** | 🗺 a visual world editor, modules shared by the community, public worlds that run all the time |
@@ -169,7 +169,7 @@ economy         money, shops and wages
 consumption     eating and drinking
 bodies          bodies that cannot overlap; push, kick, throw, shove
 calendar        the date and the sun
-weather         🚧 the weather
+weather         the weather, hour by hour
 fishing         🚧 the first module made outside this project, kept in its own repository
 transport, maps, water   🗺 next stage
 ```
@@ -236,7 +236,8 @@ The file formats are in [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) and
 [`docs/PACKAGE_FORMAT.md`](docs/PACKAGE_FORMAT.md).
 
 **Which computers.** MineWorld is meant for macOS, Linux and Windows. Today it is developed and
-played on macOS, and the automatic tests run mainly on Linux. Getting the full test suite to run on
+played on macOS. A world gives exactly the same results on all three systems, and that is
+checked automatically. Getting the full test suite to run on
 Windows is being worked on now. To host the café town in Docker:
 `docker build --target runtime -t mineworld .`, then
 `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld`.
