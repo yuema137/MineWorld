@@ -26,7 +26,13 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning (primary) session: step-19 header, overall.md
 ```
 
-## Current checkpoint — MATERIAL STOP TWd-F4 (deny.toml rejects webpki-roots' CDLA-Permissive-2.0); PR #121 open, NOT READY
+## Current checkpoint — TWd-F4 RULED (A), applied in C7; TWd-F2 accepted (step-19 §18.9.2)
+
+- C7: deny.toml crate-scoped exception for `webpki-roots`; DEP-22 and DEP-31 notes; merge 52111a0 of
+  main @ 02788e6. `cargo deny check licenses sources bans` clean. Waiting for `fast` and `test` on the
+  exact head, then READY FOR OPERATOR REVIEW.
+
+## Previous checkpoint — MATERIAL STOP TWd-F4 (deny.toml rejects webpki-roots' CDLA-Permissive-2.0); PR #121 open, NOT READY
 
 - main @ 0ba037f (#99) added `deny.toml`; `fast` fails on the `fetch` feature's `webpki-roots`. `test`
   passed. Options (A) a crate-scoped exception in deny.toml, or (B) drop `fetch`/`ureq` — §18.11 TWd-F4.

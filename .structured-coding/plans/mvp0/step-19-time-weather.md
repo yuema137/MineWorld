@@ -2413,6 +2413,13 @@ F-TWd-4  The execution contracts forbid `curl`, and the workspace has no HTTP cl
 
 These rulings settle every "after QTWd-1" and "if QTWd-1 is unruled" clause in §18.4 and §18.10. C1 lands the ARC-35 note, and C5 is not parked.
 
+### 18.9.2 Rulings during execution, 2026-10-09 (binding; relayed by the coordinator)
+
+| Id | Ruling |
+| --- | --- |
+| TWd-F4 | **Operator, 2026-10-09 21:45: option (A).** `deny.toml` gains one `[[licenses.exceptions]]` for crate `webpki-roots` only, allowing `CDLA-Permissive-2.0`, with a comment (root-certificate data; reached only through `mineworld-weather-fetch`'s off-by-default `fetch` feature; operator ruling 2026-10-09). The ruling is recorded as dated notes under DEP-22 and DEP-31. This extends §18.10's change set by `deny.toml` (that one block). |
+| TWd-F2 | **Primary session: accepted**, the same class and the same ruling as TWb-F1 — Process ids are excluded from criterion 5 (compared through the start-order bijection). E-TWd-7 is therefore PASS as the criterion now reads. |
+
 ## 18.10 Execution contract (frozen 2026-10-09)
 
 ```text
@@ -2483,6 +2490,7 @@ Handoff: [`handoff-tw-d.md`](handoff-tw-d.md).
 | C4 | [x] `target/debug/weather-fetch fetch --station USW00023188 --out target/tw-d/noaa/USW00023188.dly` (the tool built with `--features fetch`; 1 of ≤ 3 fetches); `reshape --input … --station USW00023188 --from 2015 --to 2024 --retrieved 2026-10-10 --out-dir worlds/market-town/data/weather --name san-diego-usw00023188-2015-2024`; `.gitattributes` `worlds/*/data/**/*.csv text eol=lf`; the report into E-TWd-4 | [x] E-TWd-4: (a) 3 653 data rows; (b) 116 705 bytes (< 1 MiB); (c) one gap (2018-07-06, 1 day; TMAX Q-flagged), WT01 88 … 149 and WT02 8 … 26 days every year (CP-TW-d 2 applies; R-TW-5 does not occur); (d) re-run with the same arguments → `git diff --exit-code` on the staged CSV and NOTICE clean, report identical; (e) NOTICE "116705 bytes, 3654 lines (LF)" = `wc -c -l` of the committed CSV; `git check-attr`: text set, eol lf | [x] the NOTICE carries the attribution, both Menne et al. 2012 citations with DOIs, "MODIFIED DATA … not endorsed by NOAA", the URL and "retrieved 2026-10-10 (UTC)"; the licence is CC0-1.0 as E-TWd-1 / §3.2 |
 | C5 | [x] `worlds/market-town/configure/weather.yaml` = `weather-fetch fit --input <the CSV> --base <TW-b's file> --out … --station USW00023188 --data data/weather/san-diego-usw00023188-2015-2024.csv --first-year 2015` (`source: record`, `fill: rules`, seed 19, the fitted months); `worlds/market-town/README.md` one sentence; `ac1_composability.rs` (`files_under`, `data_failures`, `data/` admitted in Market Town for allow-listed packs' attachments and their NOTICE, refused in Social Café; unit test `data_admits_only_attachments_and_their_notice`); `tools/weather-fetch/tests/market_town.rs` (criterion 7 fit-equality; criterion 5); `systems/weather/tests/record_checkpoint.rs` (CP-TW-d, opt-in) and `moves_nobody.rs` gains `the_record_moves_nobody_but_process_ids` (opt-in); `src/rules/tests.rs` and `src/fixture.rs` no longer name the old table's values (TWd-D11) | [x] E-TWd-5 … E-TWd-8: CP-TW-d PASS; criterion 5 PASS (max \|Δ\| 14 ‰; spells 1.859 vs 1.844 days); criterion 7 PASS; INV-TW-1 PASS (four digests and the validate outputs = main's); the new market-town baseline `d5db8988…22ee`; TW-b criterion 5 re-checked (process ids +1 only, the TWb-F1 class); AC-1 15/15. M-TWd-5, M-TWd-10, M-TWd-A1, M-TWd-A2 killed. Town runs 8 of 8 (counting the 200-day leg) | [x] the AC-1 change admits nothing but the attachments the allow-listed packs' configurations name (read through the loader, `FoundConfiguration::configuration.attachments()`) and a `NOTICE` in the same directory; it is Market Town only, and `data/` in Social Café is named; checks 1 and 2 untouched. The fitted file's header names the tool, its version and the data file, and the formulas; the rules still bound-check (the pack decodes the file; `validate` accepts the world). A rules world's bytes are unchanged (E-TWd-5) |
 | C6 | [x] merge of origin/main @ cf18713 (70db0b0; clean, no conflict; main's `.gitattributes` now has `* text=auto eol=lf`, and TW-d's narrower line stays as frozen); this ledger; `handoff-tw-d.md` | [x] E-TWd-9: the full gate on 70db0b0; CI on the exact final head is recorded in the PR and the handoff, not here | N/A — records only |
+| C7 | [x] TWd-F4's ruling (§18.9.2): `deny.toml` one `[[licenses.exceptions]]` (`webpki-roots`, `CDLA-Permissive-2.0`) with its comment; DEP-22 and DEP-31 dated notes; merges 376a538 (main @ 0ba037f) and 52111a0 (main @ 02788e6; conflicts resolved by keeping both sides: `.gitattributes` TW-d's CSV line beside P5's `*.jsonl` line, DECISIONS DEP-31 beside ARC-57…, `Cargo.lock` main's plus TW-d's same 22 packages) | [x] E-TWd-10 | [x] the exception names one crate, not the licence, and is reached only through the off-by-default feature (`cargo tree -e normal -i webpki-roots --workspace --all-features` → only via ureq ← mineworld-weather-fetch); ARC-55's allow-list is unchanged |
 
 ### Evidence
 
@@ -2655,6 +2663,19 @@ E-TWd-9  Full gate on 70db0b0 (C1–C5 + origin/main cf18713 merged; clean), mac
              902 passed, 0 failed, 22 ignored (the opt-in save checks among them)        PASS
            check_scratch.py left --target-dir target   no scratch left                       PASS
          Later commits change only the plan documents. Full workspace test runs: 1 of 2.
+E-TWd-10 C7 (TWd-F4's ruling) on 52111a0 + deny.toml + the DEP-22/DEP-31 notes, macOS arm64, 2026-10-09:
+           cargo deny check licenses sources bans      bans ok, licenses ok, sources ok   exit 0  PASS
+             (the same command without the exception, on 376a538: licenses FAILED, webpki-roots only)
+           cargo tree -e normal -i webpki-roots --workspace --all-features
+             webpki-roots v1.0.9 └── ureq v3.4.2 └── mineworld-weather-fetch            (one path)
+           cargo fmt --all --check; check_doc_headings (193); check_decision_ids (99); check_ci_pins PASS
+           cargo clippy --workspace --all-targets --all-features -- -D warnings      exit 0  PASS
+           cargo test -p mineworld-weather -p mineworld-weather-fetch -p mineworld-acceptance
+             -p mineworld-cli -p mineworld-installed-systems -p mineworld-worldpack -p mineworld-calendar
+                                                          exit 0, 88 result lines, all ok  PASS
+         The town runs and opt-in save checks (E-TWd-5 … 8) were made before main gained 12n-1 (#116),
+         S11-C (#95) and S10 P5 (#120); they are not re-run (town-run budget spent). CI's `test` job on the
+         final head is the whole suite on the merged code.
 ```
 
 ### Mutations
@@ -2788,7 +2809,10 @@ TWd-F4  MATERIAL STOP — the licence policy that landed on main after the freez
           (B) drop the `fetch` mode and `ureq` (QTW-14's own alternative): `reshape --input` on a file
               downloaded by hand. The data is already committed and its NOTICE records how it was
               fetched. This reverses QTWd-4, so it is the operator's decision too.
-        Not done: no edit to deny.toml, no change to the tool's TLS. The PR stays open, NOT READY.
+        Not done at the stop: no edit to deny.toml, no change to the tool's TLS.
+        RULED (operator, 2026-10-09 21:45): option (A), §18.9.2. Applied in C7: the crate-scoped exception
+        in deny.toml and the DEP-22 / DEP-31 notes; `cargo deny check licenses sources bans` → "bans ok,
+        licenses ok, sources ok" (E-TWd-10).
 TWd-F3  (process) Three forbidden-list slips by this session, all read-only or no-ops, recorded for
         honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing), an empty
         heredoc to /dev/null, and an `awk` summing the gate's test counts (read-only). No file was

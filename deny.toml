@@ -26,6 +26,14 @@ confidence-threshold = 0.9
 # ARC-55's list is kept whole even where no crate of today's graph carries one of its licences (ISC).
 unused-allowed-license = "allow"
 
+# webpki-roots: Mozilla's root certificates, as data, under CDLA-Permissive-2.0. Reached only through
+# `mineworld-weather-fetch`'s off-by-default `fetch` feature (ureq + rustls), a developer tool no world
+# build compiles. One crate, not the licence at large. Operator ruling 2026-10-09 on S19 TW-d's TWd-F4
+# (docs/DECISIONS.md DEP-22 and DEP-31 notes).
+[[licenses.exceptions]]
+crate = "webpki-roots"
+allow = ["CDLA-Permissive-2.0"]
+
 # crates.io, and git only from the third-party System Packs this build installs (ARC-66, DEP-23).
 [sources]
 unknown-registry = "deny"

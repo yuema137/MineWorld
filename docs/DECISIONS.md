@@ -5295,6 +5295,15 @@ and run by the `fast` layer (`scripts/ci_layer.py`): `cargo deny check licenses 
 **Revisit** when an advisory database can be pinned and read offline, or when the graph needs a licence
 outside the list (a reviewed addition here first).
 
+**Note, 2026-10-09 (operator ruling on S19 TW-d's TWd-F4) — one crate-scoped exception.** `deny.toml`
+gains `[[licenses.exceptions]] crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"]`. `webpki-roots`
+is Mozilla's root-certificate list as data; it is reached only through `ureq`'s `rustls` feature in
+`mineworld-weather-fetch`'s off-by-default `fetch` feature (`DEP-31`), a developer tool that no world
+build compiles. The exception names that crate only: CDLA-Permissive-2.0 is not added to the allow-list,
+and any other crate carrying it is still refused. Every rustls route to a root store carries a CDLA root
+list (`webpki-roots` or `webpki-root-certs`), and `native-tls` would need OpenSSL headers in the CI
+image (step-19 §18.11 TWd-F4); the alternative, dropping `fetch`, was not chosen.
+
 ---
 
 ## ARC-49 — How AC-8 is measured
@@ -6429,6 +6438,12 @@ GHCNh). `overcast_morning_permille` cannot be estimated from GHCN-Daily and is c
 rules by `fit`. The record series adds about 66 KB to every world snapshot (QTWd-2, accepted; retention is
 the persistence lane's F-SAVE-1). Windows is argued from `eol=lf`, the CRLF/BOM-tolerant decoder and its
 test, not run in CI.
+
+**Note, 2026-10-09 (operator ruling on TWd-F4) — `webpki-roots`' licence.** After this decision was
+frozen, `DEP-22`'s `deny.toml` (with `all-features = true`) refused `webpki-roots` (CDLA-Permissive-2.0),
+which the `fetch` feature's `ureq` + `rustls` brings. The operator chose a single crate-scoped exception
+in `deny.toml` over dropping `fetch` (`DEP-22`'s note of the same date). The tree, the pin and the
+confinement above are unchanged.
 
 ---
 
