@@ -26,7 +26,16 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 POST-MERGE SYNC     planning (primary) session: step-19 header, overall.md
 ```
 
-## Current checkpoint — READY FOR OPERATOR REVIEW (once CI is green on the final head)
+## Current checkpoint — MATERIAL STOP TWd-F4 (deny.toml rejects webpki-roots' CDLA-Permissive-2.0); PR #121 open, NOT READY
+
+- main @ 0ba037f (#99) added `deny.toml`; `fast` fails on the `fetch` feature's `webpki-roots`. `test`
+  passed. Options (A) a crate-scoped exception in deny.toml, or (B) drop `fetch`/`ureq` — §18.11 TWd-F4.
+  After the ruling: apply it, re-run `cargo deny check licenses sources bans` and the targeted tests,
+  push, and wait for `fast` and `test` on the exact head.
+- Second merge of origin/main: 376a538 (0ba037f), targeted tests green (acceptance, cli, weather,
+  weather-fetch, installed, worldpack; target/tw-d/merge2-tests.log).
+
+## Earlier checkpoint — ready apart from CI
 
 - Commits: 92ad657 C1, c1234d9 C2, 7b3f58c C3, 38ce8c6 C4, 8e4da6e C5, 70db0b0 merge of origin/main
   (cf18713), then the C6 ledger commit. The PR URL, final head and CI runs are in the PR, not here (a

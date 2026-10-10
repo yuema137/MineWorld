@@ -2762,6 +2762,33 @@ TWd-F2  (finding; the TWb-F1 class) A record world starts a second weather Proce
         every person's activity are unchanged. TW-b merged with TWb-F1 open in its ledger; the operator's
         acceptance of its proposed form is inferred from that merge, not read in a recorded ruling — this
         PR reports the re-check in both forms rather than assume it.
+TWd-F4  MATERIAL STOP — the licence policy that landed on main after the freeze rejects the `fetch` tree.
+        main @ 0ba037f (#99, S16 E-c) added `deny.toml` (DEP-22) with `[graph] all-features = true`, and
+        `fast` now runs `cargo deny check licenses sources bans`. The PR run 38015301810 on the merge
+        with main FAILS there: `webpki-roots v1.0.9` (license "CDLA-Permissive-2.0", Mozilla's CA list as
+        data) ← `ureq 3.4.2` (feature `rustls`) ← `mineworld-weather-fetch`; nothing else in the graph
+        fails (local `cargo deny check` on 376a538: "bans ok, licenses FAILED, sources ok", the one
+        rejection). `test` passed on that merge. Audited alternatives:
+          - `rustls-no-provider` + `_ring` + `platform-verifier` (tried locally, reverted): pulls
+            `webpki-root-certs v1.0.9`, also CDLA-Permissive-2.0, through rustls-platform-verifier.
+          - `native-tls`: needs OpenSSL headers in the CI image (material stop (5)).
+          - Loading the OS roots ourselves through `rustls-native-certs`: a new dependency beyond
+            ureq's tree (material stop (2)).
+        Every route to working TLS with rustls carries a CDLA-Permissive-2.0 root list, and `deny.toml`
+        is outside §18.10's change set and is the project's licence policy (DEP-22, ARC-55). Smallest
+        revisions proposed for the operator:
+          (A) one exception in deny.toml, scoped to the crate:
+                [[licenses.exceptions]]
+                crate = "webpki-roots"
+                allow = ["CDLA-Permissive-2.0"]
+              with a comment saying it is data (root certificates), reached only through the
+              off-by-default `fetch` feature of a developer tool that no world build compiles, plus a
+              DEP-31/DEP-22 note. CDLA-Permissive-2.0 is a permissive data licence with no copyleft
+              and no attribution requirement for use.
+          (B) drop the `fetch` mode and `ureq` (QTW-14's own alternative): `reshape --input` on a file
+              downloaded by hand. The data is already committed and its NOTICE records how it was
+              fetched. This reverses QTWd-4, so it is the operator's decision too.
+        Not done: no edit to deny.toml, no change to the tool's TLS. The PR stays open, NOT READY.
 TWd-F3  (process) Three forbidden-list slips by this session, all read-only or no-ops, recorded for
         honesty: an `awk` in a grep pipeline while auditing DECISIONS.md (it printed nothing), an empty
         heredoc to /dev/null, and an `awk` summing the gate's test counts (read-only). No file was
