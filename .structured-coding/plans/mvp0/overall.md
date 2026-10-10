@@ -912,6 +912,43 @@ MVP-0 non-preclusion audit.
 | S16 E-d | ARC-71 | — |
 | S11-D | ARC-44 (from S11's reserve) | — |
 | S10 P3 | ARC-56 | DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed) |
+| S10 P5a / P5b | ARC-57, ARC-58 (P5a), ARC-60 (P5b); ARC-72, ARC-73, ARC-74 reserved for P4 and P6 | DEP-27 (`httpx2`), DEP-32 (`python-dotenv`, P5a), DEP-33 (native Anthropic adapter, P5b) |
+| S15 12n-1 | ARC-75 (walking and wayfinding; first drafted as ARC-73, renumbered before merge) | DEP-34 (`pathfinding`) |
+| S20 SET-a | ARC-76 (first drafted as ARC-72, renumbered before merge) | DEP-35, DEP-36 (first drafted as DEP-32 and DEP-33) |
+
+The next free numbers are ARC-77 and DEP-37. An implementation session never picks a number; it asks
+the primary session, which records the assignment here before the PR merges. Two collisions on
+2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
+S10 PR designs) are why this table now lists reservations as well as assignments.
+
+### Evening of 2026-10-09: merges and review findings
+
+Merged after the primary session's review (gates re-run on the exact head plus one mutation of its own):
+
+| PR | Merge commit | Review mutation | Caught by |
+| --- | --- | --- | --- |
+| #99 E-c, third-party pack | `0ba037f` | `origin_word` always "bundled" | `packs::every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it` |
+| #95 S11-C, perception | `370bb38` | `Visibility::Place` admits every observer | `tools/cli/tests/facts.rs::a_line_reaches_who_was_there_and_nobody_else` only |
+| #116 12n-1, the walk | `ecc8d40` | `walk::toward` returns the target within two strides | four `tools/cli/tests/walking.rs` tests |
+| #120 S10 P5a, backends | `60a6295` | the budget window counts charges 2 s older than its edge | `test_budget.py::test_the_21st_call_in_a_wall_hour_is_refused_before_the_backend` |
+
+Closeout records: #119 (E-c), #122 (S11-C), #123 (12n-1).
+
+Operator ruling (12n-1 material stop M-1): at R 250, SD-N11 claim 2 is restated as "nudge chains are
+bounded and a stride may be blocked; a blocked walker re-plans" (option (a)); recorded in step-11 §21.15.
+
+Test-gap findings, each owned by the next PR that touches the file:
+
+- **F-SC1 / F-PRES-1.** The S11-C mutation (in `systems/presence/src/audience.rs` `admits`) survived
+  presence's own unit tests and `server/tests/facts.rs`; only the CLI end-to-end test caught it. Presence's
+  unit test needs an observer outside the place for the `Place` case.
+- **F-12n-R1.** `walk.rs`'s unit test has no case between one and two strides; add a 2 000 mm case
+  expecting exactly (1 340, 0).
+- **F-P5-4.** On Windows, asyncio's default loop connects without `socket.connect`, so pytest-socket does
+  not guard async connections. Fixed for the cognition suite (selector loop); the `sdk/python` suite (P3)
+  still has the gap. Owner: S10.
+
+The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze, not P5b.
 
 ### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
 
@@ -925,6 +962,7 @@ MVP-0 non-preclusion audit.
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
 | QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b` |
 
 
 # 6. Risks
