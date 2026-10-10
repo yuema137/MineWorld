@@ -962,8 +962,10 @@ is recorded here so that the slip is visible. No other file was edited that way.
 ## 13. Ledger (live during implementation)
 
 ```text
-Status:            IN PROGRESS. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p5, branch
-                   mvp0/pr-s10-p5-backends (sole writer; fresh implementation session, 2026-10-09)
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE. Implementation context CLOSED / AWAITING
+                   OPERATOR ACTION. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p5, branch
+                   mvp0/pr-s10-p5-backends. C7's operator step (the spike) NOT RUN: it gates P6's
+                   freeze, not this review (QP5-3)
 Implementation
 base:              origin/main @ 2c6d34c (#111, the P5a freeze with the provider-preset amendment)
 Final heads:       recorded in the handoff and the PR body (a commit cannot carry its own run)
@@ -1342,6 +1344,47 @@ DV-P5-6  the option literals (StructuredOutput, Reasoning, TemperatureMode) are 
   with a `cognition.toml` whose `[tiers] social` binds a backend at `http://127.0.0.1:11434/v1`
   (`key_env = ""`, `reasoning = "off"`). The agent then commits the report and the chosen cassette
   under `tests/cassettes/spike-<date>.{json,jsonl}` and records the default in the README's example.
+
+### 13.9 C8 — close-out
+
+- [x] Implementation: `README.md` (what the package is, the modes, the configuration and where to keep
+  it per platform, the never-in-CI rule, the provider table with the "verify" marks of §13.7, the spike
+  command); this ledger; [`handoff-s10-p5.md`](handoff-s10-p5.md) closed. origin/main merged at
+  `cf18713` (#97 13b parity, #114): no conflict; `.gitattributes` now starts with `* text=auto eol=lf`
+  (main's), and P5a's `*.jsonl text eol=lf` stays beside it; `ci_layer.py` gained main's `parity` layer
+  and keeps both pytest commands; `test_spike_tool.py` now also checks `parity`.
+- [x] Validation (E-P5-8), on the merged tree (`a718fec`, then documentation only):
+  - Rust: `cargo fmt --all --check` OK; `cargo clippy --workspace --all-targets --all-features -- -D
+    warnings` clean; `cargo test --workspace` every result `ok`, no `FAILED`, no panic (run locally on
+    the merged tree, because main moved; no Rust file changed in this PR, AP5-11).
+  - Python: `uv sync --locked`; `ruff check` and `ruff format --check` over both members clean;
+    `pyright` strict over both, 0 errors; `pytest cognition/lm-controller` 81 passed; `pytest sdk/python`
+    34 passed with the real server (binary rebuilt); `check_scratch.py left` clean.
+  - Documentation and pins: `check_doc_headings.py` (192 sections), `check_decision_ids.py` (91 ids,
+    all distinct), `check_ci_pins.py`, `check_scratch.py scan`, all exit 0.
+  - CI: a scratch branch (`scratch/s10-p5-platforms`, evidence only) ran the full matrix at `89146e4`:
+    `fast`, `test`, `platforms` ×2 and `python` on Ubuntu and macOS green; **Windows red** on AP5-10 (b)
+    (F-P5-4, below); fixed in `a718fec`. The scratch re-run at `a718fec` (run 38014270115) was red on
+    Windows again, earlier: pyright, which checks for the host platform, refused `os.sysconf` in
+    `tools/model_spike.py` (POSIX only; `hasattr` does not narrow). Fixed by `sys.platform != "win32"`,
+    which pyright narrows; checked locally with `pyright --pythonplatform Windows` and `Linux` as well as
+    the default (0 errors each). The PR's own runs are recorded in the handoff and the PR body.
+- [x] Review: the whole diff against §2.3 — no `*.rs`, nothing under `sdk/python/`, `worlds/` or
+  `.github/` (AP5-11, `git diff --stat` at the PR); no secret anywhere (AP5-9's scans); every `[x]` above
+  carries its evidence; deviations DV-P5-1 … DV-P5-6 and findings F-P5-1 … F-P5-4 recorded.
+
+**F-P5-4 (Windows: the network guard does not see the proactor loop).** CI's Windows leg (run
+38013201062) failed AP5-10 (b): a connection to `192.0.2.1:80` through the adapter took 10.0 s instead of
+being refused at once. Audit: on Windows, `asyncio` defaults to the proactor loop, whose `sock_connect`
+calls `IocpProactor.connect` (`BindLocal` + `ConnectEx`) and never `socket.socket.connect`, which is the
+only call pytest-socket patches when `--allow-hosts` is given (DV-P3-2). On macOS and Linux the selector
+loop calls `socket.connect`, so the guard holds there. **Decision (bounded):** the cognition suite runs
+every coroutine on `asyncio.SelectorEventLoop` (`tests/support.run`, `loop_factory`), on every platform;
+the test now checks the error type before the time. Replay mode's structural guarantee (no client is
+constructed, AP5-6 (a)) is unaffected and is the primary protection. **Material for the planning
+session, not fixed here:** the SDK's suite (`sdk/python`, P3) runs `asyncio.run` with the default loop, so
+on Windows its asynchronous connections are not guarded either (its own guard test uses a blocking
+`socket.create_connection`, which is). Changing `sdk/python` is outside P5a (I-1, AP5-11).
 
 ### 13.10 Mutations (each applied, run, observed red, reverted)
 

@@ -12,19 +12,18 @@ RELATED / BINDING   step-17-cognition.md §§3.5, 3.7, 3.10, 3.11, 4.1, 4.5, 5, 
                     overall.md S10 and §5; docs/ARCHITECTURE.md §9; docs/MODULE_SPEC.md §5;
                     docs/ENGINEERING_STANDARDS.md §§22–24; docs/REUSE_POLICY.md; CLAUDE.md
 BRANCH / WORKTREE   mvp0/pr-s10-p5-backends in /Users/yuema137/mineworld-worktrees/impl-s10-p5 (sole writer)
-BASE                origin/main @ 2c6d34c (#111)
+BASE                origin/main @ 2c6d34c (#111); origin/main merged at cf18713 (#97, #114), no conflict
 APPROVED SCOPE      design §2.1 (+ the amendment's providers.py); diff limited to AP5-11's list
-FROZEN INVARIANTS   §2.3 (I-1, I-2, I-7, I-10, I-11, I-16, INV-14, P5-1, P5-2, P5-3); D-P5-1 … D-P5-15;
-                    QS10-18; QS10-19; QP5-1 … QP5-12 as ruled; every platform
+FROZEN INVARIANTS   §2.3; D-P5-1 … D-P5-15; QS10-18; QS10-19; QP5-1 … QP5-12; every platform
 ENDPOINT AUTHORITY  implementation + local validation, commits, push, PR create/update, CI repair:
                     authorized (primary session freeze, design §11); merge: operator only
-SEQUENCE            C0 … C8 (C7's operator step NOT RUN at review is allowed)
-VALIDATION BUDGET   unit/static/local integration unrestricted; no model run by agents, no key, no
-                    hosted API, no key file read; CI: the PR's runs
-STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: any Rust or sdk/python
-                    change; any dependency beyond DEP-27/DEP-32/P3's toolchain; any provider SDK; any
-                    hosted-API use; a real key in a test or example; a change to AP5-S's thresholds
-CURRENT CHECKPOINT  C0 done (ledger §13.1). Next: C1
-NEXT ACTIONS        C1: workspace member, lock, DECISIONS ARC-57/ARC-58/DEP-27/DEP-32, ARCHITECTURE §9.1/§9.2,
-                    .gitignore, .gitattributes, ci_layer.py, standards.md; verify httpx2 facts
+STOP CONDITIONS     READY FOR OPERATOR REVIEW — DO NOT MERGE
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. C0 … C8 complete (§13.1 … §13.10).
+                    C7's operator step (the spike) NOT RUN. Context CLOSED / AWAITING OPERATOR ACTION.
+                    Final heads and the PR's CI runs: in the PR body (a commit cannot carry its own run).
+                    Scratch branch scratch/s10-p5-platforms is evidence only (F-P5-4); delete after review.
+NEXT ACTIONS        operator review and the merge decision. The operator runs the spike (README command)
+                    before P6 freezes; an agent then commits the report and cassette. After merge: record
+                    the merge identity in §13; the S10 planning session updates step-17 §15 and overall.md,
+                    including F-P5-4's note on the SDK suite's Windows guard.
 ```

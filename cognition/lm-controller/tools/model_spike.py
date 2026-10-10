@@ -176,7 +176,7 @@ def _live_factory(config: CognitionConfig, name: str) -> BackendFactory:
 
 def _machine() -> dict[str, JsonValue]:
     memory: int | None = None
-    if hasattr(os, "sysconf"):
+    if sys.platform != "win32":  # os.sysconf is POSIX only; pyright narrows on sys.platform
         try:
             memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
         except (ValueError, OSError):
