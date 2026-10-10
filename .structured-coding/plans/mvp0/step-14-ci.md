@@ -2163,12 +2163,16 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
   decision itself is unchanged.
 - `.structured-coding/standards.md`, prose only: the `fast` layer now includes the parity self-test.
 
-- [ ] Implementation.
-- [ ] Validation: `check_decision_ids` (ids distinct, count +2), `check_doc_headings`; every cross-reference
-  (ARC-23, ARC-30, ARC-48, DEP-17, DEP-18, I-S13-6, ZR-4, E-RS0) resolves by `git grep`.
-- [ ] Review: each record states its problem, options, choice, why not ourselves, why not the others,
-  isolating interface and accepted limitations. No defined term is redefined. ARC-48's note says what
-  changed and nothing more.
+- [x] Implementation: `ARC-49`, `DEP-19` and "ARC-48 note — the scenario group of jobs and the Windows
+  suite" appended to `docs/DECISIONS.md`; the `fast` bullet of `.structured-coding/standards.md` names
+  the self-test. ARC-49 and DEP-19 were re-checked unused on every `origin/*` branch first.
+- [x] Validation (2026-10-09, working tree on `ec38570`): `check_decision_ids` → 73 ids, all distinct
+  (main 71, +2; the note's heading is not an id, as ARC-53's note is not); `check_doc_headings` → 191
+  sections across 26 documents, none duplicated. ARC-23, ARC-27, ARC-30, ARC-48, DEP-17, DEP-18 resolve to
+  `## ` headings in `DECISIONS.md`; I-S13-6, ZR-4, E-RS0 resolve by `git grep` to step-11/12/14.
+- [x] Review: each record has problem, options, choice, why not ourselves / the others, isolating
+  interface and limitations. ARC-49 also cites ARC-27 for the excluded `instance` (an addition beyond the
+  listed references, bounded). No defined term is redefined. The ARC-48 note lists only what changed.
 
 **Commit boundary.** Documentation only.
 
@@ -2198,8 +2202,55 @@ docstring stating why it exists, verdicts read from output, and non-zero exits t
 
 **Depends on:** B-C1.
 
-- [ ] Implementation.
-- [ ] Validation, local, on the laptop:
+- [x] Implementation: `scripts/ci_parity.py` (stdlib only: `subprocess`, `sqlite3`, `hashlib`, `json`,
+  `platform`, `tomllib`, `struct`). `record`, `compare`, `--self-test` as §13.4.1–§13.4.2. Bounded
+  details, each a deviation from the letter of §13.4.1, none from its meaning:
+  - **D-13b-1, key spelling.** Keys hold no space, so a line splits on its first space: `line-300.0007`,
+    `line-30s.0007`, `table.facts.rows`, `table.facts.chunk.00003`, `manifest <format> <sha>`. Indices are
+    zero-padded, so "sorted within each section" keeps line order. `[source]` gains `record-format 1`.
+  - **D-13b-2, `line-30s` kept verbatim** beside `summary-30s` (≈ 50–75 lines a world), so a save-mode
+    difference is shown as text too, not only detected.
+  - **D-13b-3, the image's `rustc`.** The runtime image holds no `rustc`. Image mode reads the release
+    from the Dockerfile's `FROM rust:<version>-` line, which built the binary and which `check_ci_pins.py`
+    holds equal to `rust-toolchain.toml`; `target` is `<uname -m>-unknown-linux-gnu`. Native mode reads
+    `rustc -vV`'s `release` and `host`. G-4 compares releases.
+  - **D-13b-4, tables enumerated, not listed.** Every table of the save is hashed (from `sqlite_master`),
+    ordered by its primary key (`PRAGMA table_info`), so a table added later enters the record with no
+    edit (I-13b-3); `journal`, `facts`, `snapshots` are required (G-1). The row encoding is §13.4.1's for
+    integers, blobs and NULL; a TEXT value is encoded as a length-prefixed UTF-8 blob and a REAL as an f64,
+    though no column of today's schema has either type.
+  - **D-13b-5, `.exe`.** `--binary target/release/mineworld` resolves to `mineworld.exe` on Windows, so
+    the `parity` layer has one command on every OS.
+  - The compare job's step summary is written by the script when `GITHUB_STEP_SUMMARY` is set (it relaxes
+    nothing; the verdict is the exit status).
+- [x] Validation, local, on the laptop (2026-10-09, release binary of `ee1ac11`, whose Rust equals main's;
+  the host was heavily loaded by other lanes, load average 77–196, so wall times are upper bounds):
+  - **Two findings while validating, fixed before commit.** (1) The self-test's "differing facts chunk"
+    case failed: a table was located only when its `rows` digest differed, so a chunk-only difference
+    would have been reported without its chunk. Now a table is reported when any of its chunks or its
+    digest differs. (2) Duplicate platform labels were numbered `#1` and then unnumbered; fixed, and the
+    difference lines use the numbered labels too.
+  - `--self-test` → 15 cases ok, "passed", 0.2 s user (well under a second). **PM-7**: G-3's Darwin
+    check inverted → exit 1, 3 cases FAIL ("equal records of the four platforms", "a same-platform
+    pair", "a Rosetta-translated Mac"); restored → passed. **PASS.**
+  - Records `laptop-a` (59.4 s: bodies-yard 31.9, market-town 15.2, social-cafe 12.2) and `laptop-b`
+    (57.8 s) of `ee1ac11` → `cmp` **byte-identical** (B13-5, laptop half). 1 474 lines. No
+    `ac8-parity-*` scratch left in the temporary directory. **PASS.**
+  - `summary-300`: social-cafe `ad49c723…c64b` (338 lines), market-town `365b50e0…1d1d` (354), both
+    E-RS0's; bodies-yard `0bf87efc…7bbb` (330), E-13b-0's. **PASS.**
+  - `compare laptop-a laptop-a` → exit 1: "G-3 no Linux x86_64 record from the container", "G-3 no
+    Windows x86_64 record (native, not emulated)", every world equal. The self-reference guard holds on
+    real data. **PASS.**
+  - **PM-0**: `SEED = 8` as a working-tree edit (reverted at once; the committed file says 7) →
+    `compare laptop-a laptop-seed8` exit 1, G-5 for bodies-yard, market-town and social-cafe, each with
+    its first differing `summary-300` line (line 0, the header naming the seed), `summary-30s` line 0
+    (e.g. social-cafe "day 1 revision 966 facts 1368" against "… 969 … 1378"), and facts chunk 0, keys
+    1 … 1000; journal and snapshots located the same way. **PASS.**
+  - Records `a` and `b` were made before the two compare-side fixes and D-13b-5; the record-writing code
+    did not change after them (the edits touch `compare` and `Native`'s Windows suffix only).
+  - PM-6 needs a record of a second commit; it is run on this commit's head (below).
+  - Optional Docker comparison (option (g)): **NOT RUN**, the Docker Desktop daemon is not running.
+- Earlier wording of the plan, kept:
   - `--self-test` passes; PM-7 (inverted G-3 → fails; restored → passes);
   - two `record --binary target/release/mineworld` runs of one head → byte-identical files (B13-5, laptop
     half);
@@ -2243,8 +2294,147 @@ systems. The Windows state of the default suite becomes visible.
 
 **Depends on:** B-C2.
 
-- [ ] Implementation.
-- [ ] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger):
+- [x] Implementation:
+  - `.github/workflows/ci.yml`: `image` → `scenario` (`ci_image.py`, then `ci_parity.py record --image
+    mineworld:ci --platform linux/amd64`, artifact `ac8-linux-x86_64`); `linux-arm` (`ubuntu-24.04-arm`,
+    runtime image `linux/arm64`, GHA cache scope `runtime-arm64`); `mac` (`macos-26`) and `windows`
+    (`windows-2025`), each a depth-1 checkout without `clients/` and `presentation/` (non-cone sparse
+    checkout; nothing in a `src/` or build script reads them, and `validate` already passes in the runtime
+    image, which holds only `worlds/`), then the `native` action with layer `parity`, then the artifact;
+    `ac8` (`needs` the four, `if: always() && <trigger>`, downloads `ac8-*`, `ci_parity.py compare
+    records/*.txt`, uploads the records); `test-windows` (`windows-2025`, `fetch-depth: 0`, `blob:none`,
+    the `native` action with layer `core`). Triggers as §13.4.3; timeouts 30/30/30/40/10/60. `test`'s
+    `if:` gains `!endsWith(github.ref, '-scenario')`. The header comment names ARC-49 and DEP-19.
+    Artifact pins resolved 2026-10-09 (`gh api repos/<r>/releases/latest` → `commits/<tag>`):
+    `actions/upload-artifact` v7.0.2 `cf430e03…`, `actions/download-artifact` v8.0.2 `9000827c…`.
+  - `.github/actions/native/action.yml` (new; 13b lands first, §13.0.3: no `native` action on any
+    `origin/*` branch at `ec38570`): `rustup toolchain install` (no argument: rust-toolchain.toml's
+    channel, profile and components) and `rustc -vV`; `actions/cache` on `~/.cargo/registry`,
+    `~/.cargo/git`, `target`, keyed `native-<os>-<arch>-<layer>-<hash of Cargo.lock,
+    rust-toolchain.toml>`; `python`/`python3` by `RUNNER_OS`, then `ci_layer.py <layer>`;
+    `ci_layer.py --prune-cache`. `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=line-tables-only`,
+    as in the container layer.
+  - `scripts/ci_layer.py`: layer `parity` (`cargo build --release --locked -p mineworld-cli`;
+    `python3 scripts/ci_parity.py record --binary target/release/mineworld`); `fast` gains
+    `python3 scripts/ci_parity.py --self-test` after `check_scratch.py scan`; `disk()` uses
+    `shutil.disk_usage` and an `os.walk` size; a command whose first word is `python3` runs with
+    `sys.executable` (`--list` unchanged).
+  - `scripts/ci_image.py`: `WORLDS` → `ci_parity.enumerate_worlds(ROOT)` (one enumeration for both
+    scripts); a missing World Pack is a named FAIL.
+  - `.gitattributes`: `* text=auto eol=lf`; `-text` for
+    `clients/3d-spike/assets/characters/LICENSE.quaternius-ual.txt`; the two binary lines kept.
+  - **D-13b-6, the YAML anchor.** A YAML anchor for the shared trigger was drafted and replaced by the
+    expression written out in each job, to depend on no newer workflow-parser feature.
+  - **D-13b-7, `ac8`'s message for a missing leg.** A missing record reads "G-3 no Darwin arm64 record
+    (…)" (or Linux, Windows), naming the platform rather than the job ("no record from mac"). No job
+    name enters the script, which keeps it runnable on the laptop. PM-5 is judged on that line.
+- Local evidence before the first push of B-C3 (working tree on `25ed3a0`):
+  - `ci_layer.py --list core` → identical to main's (`diff` empty); `--list fast` → main's plus one line,
+    `python3 scripts/ci_parity.py --self-test`, after `check_scratch.py scan`; `--list parity` → the two
+    commands; an unknown layer → exit 2, naming `fast, core, parity`. **PASS** (B13-6, local half).
+  - `.gitattributes`: `git add --renormalize .` staged only files already edited by this commit;
+    `git ls-files --eol` → `i/crlf` only for the `-text` file (`attr/-text`). **PASS** (B13-7, W-3).
+  - Both YAML files parse (`ruby -ryaml`): jobs `fast test scenario linux-arm mac windows ac8
+    test-windows`, with §13.4.3's runners and timeouts.
+- CI evidence log (2026-10-09). Runs are counted against the 12-run cap (§13.9); a counted run is
+  marked ●. The PR's own `fast` and `test` runs are not counted.
+  - **PR #97** opened after B-C2 (https://github.com/yuema137/MineWorld/pull/97). `pull_request` run
+    37908150200 on `6818376`: `fast` and `test` **PASS**.
+  - **R1 ● dispatch 37908152878** on `6818376`, cold (https://github.com/yuema137/MineWorld/actions/runs/37908152878):
+    - `scenario` **PASS**, 5 min 16 s: `[image] every expectation held` for the three enumerated worlds;
+      record 122.2 s (bodies-yard 51.0, market-town 38.1, social-cafe 33.0). Platform `Linux / x86_64 /
+      container sha256:c15a851c… linux/amd64`, target `x86_64-unknown-linux-gnu`, rustc 1.97.1. **B13-1
+      PASS.**
+    - `mac` **PASS**, 5 min 19 s: release build 164.2 s cold, record 122.7 s. Platform `Darwin / arm64 /
+      translated 0 / container none`, `aarch64-apple-darwin`, rustc 1.97.1. **B13-2 PASS.**
+    - `windows` **PASS**, 9 min 33 s: release build 261.0 s cold, record 263.6 s. Platform `Windows /
+      x86_64 / emulated 0 / container none`, `x86_64-pc-windows-msvc`, rustc 1.97.1. Its world sections
+      are byte-identical to the others', `validate`'s output included, so the checkout's `worlds/` reads
+      the same bytes on Windows (W-3); no step lists line endings separately. **B13-2w PASS.**
+    - `linux-arm` **PASS**, 6 min 20 s: `Linux / arm64 / container sha256:5096b862… linux/arm64`.
+    - `ac8` **PASS**, 13 s: "4 records: Darwin/arm64, Linux/arm64, Linux/x86_64, Windows/x86_64; 3 worlds;
+      1458 keys compared"; every world equal on 4 records; `summary-300` social-cafe `ad49c723…c64b`,
+      market-town `365b50e0…1d1d` (main's, E-RS0), bodies-yard `0bf87efc…7bbb` (E-13b-0); "AC-8 PASS".
+      **B13-3 PASS**, and I-S13-8 shown by the same run.
+    - `fast` PASS (1 min 3 s; it ran the self-test); `test` skipped (dispatch), as designed.
+    - `test-windows` **FAIL, expected** (3 min 13 s): `cargo test --workspace --no-run` exit 101,
+      "could not compile `mineworld-acceptance` (test "configuration_seam")": E0433 `std::os::unix` at
+      `tests/acceptance/tests/configuration_seam.rs:31`, E0599 `status.signal()` at `:331`. Cargo stops
+      at the first failing target, so the log names one file. Free disk 218.6 G of 220 G. **B13-11: see
+      the finding list below.**
+    - Information: the four CI records' world sections are byte-identical to the laptop's record of
+      `25ed3a0` (same Rust sources), before P-L proper.
+  - **B13-11 finding list (test-windows, R1).** The log names one file, because cargo stops at the first
+    failing target. The complete list comes from a source audit (`git grep -l 'os::unix' -- '*.rs'` at
+    `6818376`). Every hit is W-5's `ExitStatusExt` / `signal() == Some(9)` pattern:
+    - §13.10.1's eight W-T1 files, unchanged;
+    - **W-T1b (new): `tests/acceptance/tests/configuration_seam.rs`**, which arrived with IL-a
+      (`a83b103`, 2026-10-08) after §13.10.1's audit. Owner **13w**, with W-T1.
+    - **W-6 is now on `main`.** S11-B merged `tools/cli/tests/support/mod.rs:163–164`
+      (`Command::new("sh")`, `kill -INT`; `8ecee01`). It compiles on Windows and would fail at run time.
+      Owners **S11** and **13w** (W-12's helper), as §13.10.1 says.
+    - No failure outside W-5's class was observed: compilation stopped first. Further run-time findings
+      appear only once 13w makes the suite compile.
+  - **D-13b-8, B13-11's "every one named in the log".** It cannot hold while cargo fails fast, and
+    `core`'s commands may not change (I-13b-1). The complete list rests on the source audit above, which
+    is exact for a compile error of this kind: an import that does not exist on Windows.
+  - **PM-6 (local) PASS.** Records of `25ed3a0` (`laptop-c`) and of its parent `ee1ac11` (`laptop-a`)
+    give exit 1 with "G-2 the records name different commits: … 25ed3a05… , … ee1ac11c…".
+  - **R2 ● dispatch 37975632318** on the same head `6818376`, warm
+    (https://github.com/yuema137/MineWorld/actions/runs/37975632318): `scenario`, `mac`, `linux-arm`,
+    `windows`, `fast` PASS; `ac8` **PASS**; `test-windows` FAIL, expected, this time stopping at
+    `tools/cli/tests/bodies_yard_restart.rs` (a W-T1 file: cargo's fail-fast order varies). All four
+    records are **byte-identical to R1's** (`cmp`). **B13-5, CI half: PASS.** Warm figures: `mac`
+    release build 61.1 s, record 115.7 s, job 3 min 38 s; `windows` build 74.5 s, record 431.5 s, job
+    9 min 36 s; `scenario` record 134.8 s, job 2 min 44 s; `linux-arm` job 2 min 19 s; `test-windows`
+    `--no-run` 244.1 s to its compile error.
+  - **Planted differences** (scratch commits on `relationships`, installed in both towns and not in
+    bodies-yard; or on the scratch branch's `ci.yml`). Each branch was pushed once and deleted after its
+    run. Each run's four records were compared with R1's (main's Rust) as the precondition.
+    - **PM-1 ● run 37975701919** (`scratch/13b-pm1-scenario`, `f0b648d`): `became-acquainted` is not
+      emitted under `cfg!(all(target_os = "linux", target_arch = "x86_64"))`. `ac8` red: "G-5 world
+      market-town differs: Linux/x86_64 ≠ {Darwin/arm64, Linux/arm64, Windows/x86_64}" and the same for
+      social-cafe. The first differing summary line is day 1's ("facts 1383" against "facts 1473";
+      social-cafe 1284 against 1368), and facts are located at chunk 0 (37 872 rows against 38 004).
+      "world bodies-yard: equal on 4 records". Precondition: only the Linux x86_64 record differs from R1's;
+      the other three equal it. **PASS.**
+    - **PM-3 ● run 37975724745** (`a28fb84`, `cfg!(target_os = "macos")`): "Darwin/arm64 ≠ {Linux/arm64,
+      Linux/x86_64, Windows/x86_64}" for both towns; bodies-yard equal; only the Darwin record differs
+      from R1's. **PASS.**
+    - **PM-8 ● run 37975734631** (`7080c55`, `cfg!(target_os = "windows")`): "Windows/x86_64 ≠
+      {Darwin/arm64, Linux/arm64, Linux/x86_64}" for both towns; bodies-yard equal; only the Windows
+      record differs from R1's. Windows and Linux share x86_64, so the grouping separates OS from
+      architecture. **PASS.**
+    - **PM-2 ● run 37975831040** (`923c7e6`): under the Linux x86_64 cfg, `relationships`' facts list
+      their two participants in reverse order. Stored bytes change; no count does. `ac8` red, "Linux/x86_64
+      ≠ {…}" for both towns. Facts are located at chunk 0 with equal row counts (38 004 and 37 085), and
+      journal and snapshots are equal. Every counting summary line is equal. **But one summary line
+      differs:** `history N facts, fingerprint <FNV-1a 64>`, the last line before `faults`, which
+      digests every stored fact. **Finding F-13b-5:** no planted change can alter stored fact bytes
+      without moving that line. The summary therefore always carries a weak (64-bit, "not evidence")
+      cover of the facts. Only the table digests locate the change and carry the byte-level claim
+      (I-S13-6). **PM-2 is N/A as stated** (§13.7 allows this, "recorded as a finding"). The run still
+      shows the table-level location, with journal and snapshots equal. A snapshot-only plant was not
+      attempted. It would spend a run to show the same table-level location on another table.
+    - **PM-4 ● run 37975787323** (`725150f`): the scratch `ci.yml` runs `mac` on `ubuntu-24.04` and
+      uploads its Linux record under `mac`'s artifact name. Every leg is green. `ac8` red: "G-3 no
+      Darwin arm64 record (native, not translated by Rosetta, no container)", with "4 records:
+      Linux/x86_64#1, Linux/arm64, Linux/x86_64#2, Windows/x86_64", every world equal on 4 records.
+      Equality alone never passes. **PASS.**
+    - **PM-5 ● run 37975803573** (`a7870ef`): `mac` fails at an `exit 1` step after checkout. `ac8` ran
+      (not skipped) and is red: "3 records: …; G-3 no Darwin arm64 record …". The run's conclusion is
+      `failure`. The message names the platform, not the job (D-13b-7). **PASS.**
+    - Not 13b's: the remote also holds `scratch/ec-platforms`, `scratch/ed-platforms` and
+      `scratch/s10-p3-mutation`, which belong to other lanes and were left alone. After deletion, no
+      `scratch/13b-*` branch remains, locally or remotely (`git ls-remote --heads origin 'scratch/*'`,
+      2026-10-09).
+  - **Run count: 8 of 12** (R1, R2, PM-1, PM-2, PM-3, PM-4, PM-5, PM-8). No repair run was needed. The
+    final head's dispatch makes 9. No billing sign was seen.
+  - **Main merged** at the final head: `a30755e` (#96, 13w's frozen design, this file only; a clean
+    merge). 13w's §15 counts the same ninth file (its F-13w-1). It attributes the file to E-c (#93);
+    `git log` gives `a83b103`, "IL-a IA-C7". Either way the owner is 13w.
+- [x] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger). Done: R1, R2,
+  PM-1 … PM-5, PM-8, deletions recorded above. The planned items follow:
   - `ci_layer.py --list core` diff against main → empty; `--list fast` → main's plus one line (B13-6);
   - `.gitattributes`: after the edit, `git add --renormalize .` stages nothing but `.gitattributes`, and
     `git ls-files --eol` shows `i/crlf` only for the `-text` file (B13-7);
@@ -2253,7 +2443,12 @@ systems. The Windows state of the default suite becomes visible.
     warm figures;
   - PM-1 … PM-5 and PM-8 on `scratch/13b-*-scenario` branches, each deleted after its run;
     `git ls-remote --heads origin 'scratch/*'` → empty, recorded.
-- [ ] Review:
+- [x] Review (on the B-C3 diff): every `uses:` is pinned to a full SHA with its version (a `grep`
+  for pins without one is empty); no `continue-on-error`, `|| true`, retry or `pull_request_target`;
+  `ac8` is `if: always()` and its only verdict step is `compare` (the records upload is `if: always()`
+  too, and judges nothing); no new job lists `pull_request`; no `name:` is decorated; `permissions:
+  contents: read` unchanged; the workflow's `run:` lines call `ci_image.py` and `ci_parity.py` (scripts),
+  and the action calls `ci_layer.py` (layers): no check command in YAML (I-S13-9). Planned items:
   - every `uses:` pinned to a full SHA with its version in a comment;
   - no `continue-on-error`, `|| true` or retry;
   - `ac8` is `if: always()` and judges by the script only;
@@ -2267,7 +2462,10 @@ systems. The Windows state of the default suite becomes visible.
 
 ### B-C4 — Close: laptop evidence, status, ledger, handoff
 
-- [ ] Implementation:
+- [x] Implementation (`7cec7fd` and the closing commit): the AC-8 evidence row and the S13 row of
+  `docs/MVP_STATUS.md` (13a merged; 13b awaiting review; `test-windows` red at W-T1, nine files, 13w;
+  W-6, S11 and 13w); README's CI line ("AC-8 parity on every `main` push", `ARC-49`); this ledger and
+  §13.14's handoff. Planned items:
   - `docs/MVP_STATUS.md`:
     - the AC-8 row, stating what is demonstrated (three worlds, 300 days and 30-day saves; macOS arm64,
       the Linux x86_64 container and Windows x86_64, plus Linux arm64), with the run id;
@@ -2275,17 +2473,40 @@ systems. The Windows state of the default suite becomes visible.
       owner lanes;
   - `README.md`: the CI line gains "AC-8 parity on every `main` push";
   - this section's ledger.
-- [ ] Validation:
-  - B13-4 (P-L) on the final head;
-  - B13-7 (`git diff --stat`);
-  - the final head's PR checks `fast` and `test` green, and its dispatch run green (B13-1 … B13-3 on the
-    exact final head);
-  - the doc checks.
-- [ ] Review:
-  - every B13 criterion has evidence or an explicit N/A;
-  - every PM has its outcome;
-  - deviations are numbered D-13b-n;
-  - nothing is material (§13.11 answered as frozen), or a stop is recorded.
+- [x] Validation, before the closing commit:
+  - **B13-7 PASS**: `git diff --stat origin/main...HEAD` (after merging `a30755e`) lists exactly
+    `.gitattributes`, `.github/actions/native/action.yml`, `.github/workflows/ci.yml`, this file,
+    `.structured-coding/standards.md`, `README.md`, `docs/DECISIONS.md`, `docs/MVP_STATUS.md`,
+    `scripts/ci_image.py`, `scripts/ci_layer.py` and `scripts/ci_parity.py`. There is no `.rs`,
+    `Cargo.*`, test, `worlds/` or `Dockerfile` change. `git ls-files --eol` shows `i/crlf` only for
+    the `-text` file.
+  - The doc checks: `check_doc_headings` and `check_decision_ids` pass.
+  - **Recorded outside this file, because a commit cannot hold its own run.** The final head's PR
+    checks (`fast`, `test`), its dispatch run (B13-1 … B13-3 and B13-11 on the exact final head), and
+    B13-4 (P-L: the laptop's record of the final head compared with that run's Linux x86_64 and Windows
+    records). These go in PR #97's description and the session report.
+- [x] Review:
+  - B13-1, B13-2, B13-2w, B13-3: R1 and R2, then the final head's run. B13-4: P-L on the final head.
+    B13-5: laptop `a` = `b`, CI R1 = R2. B13-6: `--list` diffs and the PR's `fast`/`test`. B13-7:
+    above. B13-8: PM-0, PM-1, PM-3 … PM-8 PASS, and PM-2 N/A with finding F-13b-5. B13-9: the
+    self-test in `fast` (every run's `fast` green), and PM-7. B13-10: the timings in R1, R2 and the
+    final run, every job under its timeout (the longest, `windows` at 9 min 36 s against 40). B13-11:
+    the finding list.
+  - Deviations D-13b-1 … D-13b-8 are recorded where they arose. Finding F-13b-5 is PM-2's.
+  - **Size.** `scripts/ci_parity.py` is about 650 lines, past the ~500-line review trigger
+    (`ENGINEERING_STANDARDS.md`). It is kept as one file: one instrument with three entry points,
+    recorded and reviewed together. The self-test is about 70 lines of it, and splitting would put
+    the comparator's guards and their self-test in different files.
+  - **Nothing material.**
+    - No platform difference was found (R-B1 did not occur).
+    - The binary built and ran on Windows (R-B10 did not occur).
+    - No billing sign was seen, and no settings were changed.
+    - No Rust, test, `Cargo.*`, `worlds/` or `Dockerfile` change is in the PR. The scratch plants
+      were never merged.
+    - `fast` and `test` keep their names and their triggers. `core` is unchanged; `fast` gains only
+      the self-test.
+    - 9 of 12 runs, counting the final head's.
+  - `test-windows` red at W-T1 is NOT A STOP (§13.12), and is recorded with owners.
 
 **Commit boundary.** Docs and ledger. A run on a commit cannot be written into that commit, so the final
 head's run ids go to the PR description and the session report (as in 13a).
@@ -2472,6 +2693,153 @@ GATE 1      NOT REQUIRED (no model)
 CI          the PR's fast/test on its final head, plus the dispatch run of scenario/mac/linux-arm/
             windows/ac8/test-windows on the same head
 ```
+
+## 13.14 Handoff for 13b (continuation aid, not a design authority)
+
+As 13a's D-13a-0, the handoff lives beside the ledger, not in `handoff.md` (§13.12 HANDOFF).
+
+```text
+PROJECT / PR       MineWorld mvp0 — S13 PR 13b, AC-8 parity (layer 3)
+PRIMARY DESIGN     this file §13 (frozen 2026-10-08); contract §13.12
+BRANCH / WORKTREE  mvp0/pr-13b-parity · /Users/yuema137/mineworld-worktrees/impl-13b-ci (sole writer)
+BASE               main @ ec38570 (#88, 13b's freeze), 2026-10-09
+RE-AUDIT (§13.1)   holds at ec38570: repository public; main protected, required ["fast","test"],
+                   strict false; ci.yml has fast, test, image and no schedule; .github/actions holds
+                   only `layer`; worlds/ = bodies-yard, market-town, social-cafe (each with world.yaml,
+                   worldpack/src/read.rs MANIFEST); save tables as §13.1; no `native` action on any
+                   origin/* branch (E-c's branch mvp0/pr-ec-third-party has touched no .github file),
+                   so 13b defines `.github/actions/native` (§13.0.3, "if 13b lands first")
+ENDPOINTS          §13.12: commits, push, PR create/update, CI repair, dispatch on this branch and
+                   scratch/13b-*-scenario, scratch push+delete: authorized; settings, spending,
+                   larger runners, Rust/Cargo/test/worlds/Dockerfile edits: NOT authorized; merge:
+                   operator only
+INVARIANTS         I-S13-1 … I-S13-9; I-13b-1 … I-13b-6
+BUDGET             ≤ 12 scenario-sized CI runs (count kept in B-C3's evidence)
+STOPS              §13.12 MATERIAL STOPS (R-B1, R-B10, billing, fast/test change, settings, budget)
+STOP               PR READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+The current checkpoint and the next actions are the first unchecked item of B-C1 … B-C4.
+
+**State at the closing commit (2026-10-09):**
+- B-C1 … B-C4 are done; PR #97 is open.
+- 8 of 12 runs are used; the final head's dispatch makes 9.
+- Every scratch branch is deleted.
+- The remaining steps run on the final head: the dispatch run and P-L, recorded in the PR
+  description.
+- Then READY FOR OPERATOR REVIEW — DO NOT MERGE. The implementation context is then CLOSED /
+  AWAITING OPERATOR ACTION.
+- **Main moved after the closing commit.** `f80bbb7` (#94, S19 TW-a) adds the `calendar` System Pack,
+  installed in market-town, with solar positions in floats (`solar-positioning` with `libm`, DEP-30),
+  and re-baselines market-town (TW-a's ledger: "market-town baseline 24a95d2a"). It is merged into
+  this branch. The only conflict was `docs/DECISIONS.md`, where both sides appended; both were kept,
+  13b's records first, and `check_decision_ids` gives 75 ids, all distinct. A re-run of the
+  `os::unix` audit finds the same nine files and W-6, nothing new. The final head's dispatch therefore
+  also checks the calendar's float path across the four platforms. The `365b50e0…1d1d` market-town
+  digest cited above is main's before TW-a.
+  - Run 10 ● (dispatch 37980642471, on `58f659c`): every leg passed and `ac8` PASSED, with 4 records and
+    1 465 keys. market-town gained 7 keys from the calendar, and its `summary-300` is
+    `24a95d2a…d270`, TW-a's baseline, equal on all four platforms. P-L on `58f659c` PASSED as well.
+- **Main moved again.** `0744fee` (#104, S11-D) was merged cleanly. `docs/DECISIONS.md` merged
+  without a conflict: 76 ids, all distinct.
+  - The `os::unix` audit finds the same nine files and W-6, at `tools/cli/tests/support/mod.rs:187–188`.
+  - It also finds `tools/cli/tests/admin.rs:557 #[cfg(unix)]`, which is S11-D's SD-D13 gate. 13w's
+    QW-3 already owns its removal, so it is a known W-item and not a new finding. Its owners are S11
+    and 13w.
+  - Run 11 ● (dispatch 37982741312, on `0e07f42`): every leg passed and `ac8` PASSED, with 4 records
+    and 1 465 keys. P-L on `0e07f42` PASSED. `test-windows` stopped at `bodies_yard_restart`. The PR
+    run 37982719791 had `fast` and `test` green.
+- **Main moved again, and this time it conflicted.** PR #97 became `CONFLICTING`, because #98
+  (S10-P3, `7a0ec69`/`6b3434a`) changed the same CI files: a `python` matrix job on Linux, Windows and
+  macOS; `uv` in the toolchain image; `python` and `python-smoke` layers; Python static checks appended
+  to `fast`; and `COMMAND_ENVIRONMENT` in `ci_layer.py`. Main (`f867b25`) was merged, and the conflicts
+  were resolved by keeping both sides:
+  - `ci_layer.py`: one command runs with `resolved(command)` and main's environment. The usage lines
+    list both sets of layers.
+  - `standards.md`: the `fast` bullet names the self-test and the Python checks.
+  - `DECISIONS.md`: 13b's records, then main's. 80 ids, all distinct.
+  - `ci.yml`: main's `python` job, then 13b's `scenario` group.
+  - **D-13b-9.** The `python` job's scratch exclusion gains `!endsWith(github.ref, '-scenario')`
+    beside its `-image`, as `test`'s did. This PR renamed the `-image` route, so without it a
+    `scratch/*-scenario` push would also run the Python matrix. It changes no trigger of a required
+    check.
+  - **§13.0.3 is not applied to the `python` job**, recorded here as a follow-up. That job installs
+    `uv` and Python on the runner and runs `uv run --locked python scripts/ci_layer.py`, so it is not a
+    plain layer-on-a-native-runner job. Moving it onto `.github/actions/native` changes S10's job and
+    belongs to S10 or 13w, not to this merge.
+  - Checks after the merge:
+    - `ci_layer.py --list core` is identical to main's; `--list fast` is main's plus the self-test line
+      (B13-6).
+    - `check_ci_pins` passes, now including the copied uv image.
+    - The self-test passes.
+    - The `os::unix` audit finds the same nine files plus the known W-6 and SD-D13 items, and nothing
+      new.
+  - This is the last merge of main before review. Protection is `strict: false`, so later movements
+    of main are recorded rather than chased, unless they conflict. Run 12 is the final head's dispatch,
+    and the cap is then reached.
+- **Run 12 ● (dispatch 38006525123, on `0df0be4`, the cap reached).** `scenario`, `mac`, `linux-arm`,
+  `windows` PASS; `ac8` **PASS** (4 records, 1 465 keys; market-town `24a95d2a…d270`); `test-windows`
+  red at W-T1 (`bodies_yard_restart`). P-L on `0df0be4` **PASS** (laptop + Linux x86_64 + Windows, exit
+  0). PR run 38006501836: `fast` and `test` **PASS**. The `python` matrix of S10-P3 FAILED on all three
+  platforms at `sdk/python/tests/test_golden_frames.py::test_every_golden_frame_has_a_model`
+  ("golden frames with no Python model: ['clock.json']"). Main fails identically (push run
+  38006324721 on `f867b25`): S11-D's new `server/tests/frames/clock.json` meets S10-P3's golden-frame
+  check. **Not 13b's; owners S10 and S11.** `python` is not a required check.
+- **MATERIAL STOP: the run cap (§13.12, "exceeding the budget").** After run 12:
+  - main moved again (`aee8290`, #102/#103), and PR #97 now conflicts in `docs/DECISIONS.md` only
+    (both sides append records);
+  - the coordinator directs that 13b build on E-d's `.github/actions/native` and `platforms` layer once
+    E-d (#101, open) merges. E-d's action has the same `layer` input; it differs in having no explicit
+    `rustup toolchain install`, a cache key without the architecture, and a line-endings report step.
+    The integration is to take E-d's file, drop 13b's, and keep `parity` beside `platforms` in
+    `ci_layer.py`.
+
+  Either change makes a new head, and the exact-head rule then needs one more dispatch: run 13, beyond
+  the frozen cap of 12 (QB-9). **Proposed to the operator:** authorize one extra dispatch run (about
+  30–60 job-minutes on standard runners, free on a public repository) after E-d merges. Then merge
+  main, integrate E-d's action, dispatch once, repeat P-L, and mark READY. Until then the branch stays
+  at `0df0be4`, whose evidence is complete.
+- **Rulings after the stop (primary session, relayed by the coordinator, 2026-10-09):**
+  - **Run 13 authorized.** The cap rises to 13 for one purpose: integrating E-d's action and main.
+  - **The plan is accepted.** Once E-d (#101) merges:
+    - merge main;
+    - take E-d's `.github/actions/native` unchanged. Parity needs no explicit `rustup toolchain
+      install` (the layer's `cargo build` installs the pinned toolchain first) and no architecture in
+      the cache key (one architecture per OS here);
+    - keep `parity` beside `platforms` in `ci_layer.py`, and keep 13b's portable `disk()`;
+    - pin E-d's `platforms` job to `macos-26` / `windows-2025` (§13.0.3) and add `-scenario` to its
+      scratch exclusion;
+    - dispatch run 13, repeat P-L, and mark the PR READY.
+  - **CRLF.** 13b's `.gitattributes`, with LF checkouts (W-3), stays. CRLF coverage comes from tests
+    that write CRLF themselves (E-d's ED-13, IL-b's IB-10, TW-d's parser tests), not from Windows
+    checkouts. E-d's "Report the checkout's line endings" step therefore shows 0 carriage returns
+    **by design**, and that is recorded here.
+- **E-d merged (`68176e7`, #101); main merged into this branch** (it also brought #105, #110 and #112,
+  the last fixing S10-P3's `clock.json` frame). The conflicts were resolved as the plan said:
+  - `.github/actions/native/action.yml` (add/add): **E-d's file taken unchanged**; 13b's version is
+    dropped. Nothing was added to it. Parity needs no explicit toolchain step, because the layer's
+    first command, `cargo build --release`, makes rustup install `rust-toolchain.toml`'s channel. It
+    needs no architecture in the cache key: each OS here has one architecture, and the layer name
+    separates `parity` from `core` and `platforms`.
+  - `scripts/ci_layer.py`: `parity` beside `platforms` in the table, both usage lines kept. 13b's
+    portable `disk()` (`shutil.disk_usage` and a walk) replaces E-d's `df`/`du` with its
+    `FileNotFoundError` guard; it prints the same information on every OS.
+  - `docs/DECISIONS.md`: 13b's records, then E-d's (ARC-71 …). 86 ids, all distinct.
+  - `ci.yml`: E-d's `platforms` job is **pinned to `macos-26` / `windows-2025`** (§13.0.3, ruled), and
+    its scratch exclusion gains `-scenario`. Its comment now says the line-endings report reads 0 by
+    design (the CRLF ruling above).
+- **Checks after the merge:**
+  - `ci_layer.py --list core` and `--list platforms` are identical to main's; `--list fast` is main's
+    plus the self-test.
+  - `check_ci_pins`, `check_decision_ids`, `check_doc_headings` and the self-test pass.
+  - Four jobs use the shared `native` action: `platforms`, `mac`, `windows`, `test-windows`.
+  - The `os::unix` audit adds one hit: `worldpack/src/configure/tests.rs:655`, a `#[cfg(unix)]`
+    symlink-escape test from IL-a (`73c478b`). It compiles on Windows and is gated out there, so it is
+    a W-item for **13w** to review (whether a Windows equivalent is needed); 13b does not touch it.
+- **E-c** will add `third_party` and `package_sources` to `platforms`. Whichever of E-c and 13b lands
+  second reconciles the table (coordinator, 2026-10-09).
+- **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
+  belong to the planning session.
 
 ---
 

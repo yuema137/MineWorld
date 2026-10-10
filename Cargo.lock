@@ -974,6 +974,7 @@ dependencies = [
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-weather",
 ]
 
 [[package]]
@@ -1184,6 +1185,24 @@ dependencies = [
 [[package]]
 name = "mineworld-test-support"
 version = "0.1.0"
+
+[[package]]
+name = "mineworld-weather"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-calendar",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
 
 [[package]]
 name = "mineworld-worldpack"

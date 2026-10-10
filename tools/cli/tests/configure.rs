@@ -103,10 +103,11 @@ impl Scratch {
 fn validate_refuses_each_configuration_mistake_by_name() {
     let cases = [
         (
+            // A name no pack of this build takes (it was `weather` until S19 TW-b installed one).
             "cli-configure-unknown",
-            "configure:\n  - weather\n",
+            "configure:\n  - tides\n",
             None,
-            "'weather', which is not a system this build provides",
+            "'tides', which is not a system this build provides",
         ),
         (
             "cli-configure-packages",

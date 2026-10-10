@@ -30,17 +30,20 @@ use std::time::Duration;
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket, close_code};
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{Sink, SinkExt, StreamExt};
 use tokio::time::Instant;
 
 use crate::admin::registry::{Joined, Registered, Registry};
-use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
+use crate::admission::{Admission, Nickname};
 use crate::host::{Seated, Streamed, Streams, SubscriptionId, WorldHost};
 use crate::protocol::{
-    ClientFrame, ClosingReason, PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, ServerFrame,
-    SessionId, delta, into_kernel_request, read_backfill,
+    ClientFrame, ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, SessionId,
+    delta, into_kernel_request,
 };
-use crate::seats::{Departure, JoinRequest};
+use crate::seats::Departure;
+use join::{Joining, Offered, join};
+
+mod join;
 
 type Outgoing = SplitSink<WebSocket, Message>;
 type Incoming = SplitStream<WebSocket>;
@@ -66,16 +69,6 @@ enum Ending {
     /// The world unbound this connection from its seat: another connection took it over or
     /// superseded it.
     Released(ClosingReason),
-}
-
-/// What one `join` came to.
-enum Joining {
-    /// The connection has its seat, and the `perceived` backfill it is owed.
-    Seated(Box<Seated>, Nickname, Vec<ServerFrame>),
-    /// Refused; the connection stays in the handshake and may join again.
-    Refused(Refusal),
-    /// Refused, and the connection ends: a mismatched protocol, or a wrong invite.
-    Closed(Refusal, ClosingReason),
 }
 
 /// What a session is given besides its socket: the world, who may join it, and its own identity.
@@ -116,19 +109,15 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         took_over: seated.took_over(),
         world: seated.world().clone(),
     };
-    // The welcome, then the clock as it stood at the welcome (`PROTOCOL.md` §5.9), then the perceived
-    // backfill (§5.8), then the stream.
     let clock = seated.clock_at_welcome().into_frame();
-    let mut said = send(&mut outgoing, &welcome).await;
-    for frame in std::iter::once(&clock).chain(&backfill) {
-        if said.is_err() {
-            break;
-        }
-        said = send(&mut outgoing, frame).await;
-    }
-    drop(backfill);
-    let ending = if said.is_ok() {
-        let listed = connection.registry.register(connection.session, joined);
+    let greeting = Greeting {
+        session: connection.session,
+        joined,
+        welcome,
+        clock,
+        backfill,
+    };
+    let ending = if let Some(listed) = greet(&mut outgoing, &connection.registry, greeting).await {
         let ending = stream(
             &mut outgoing,
             &mut incoming,
@@ -169,6 +158,37 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         }
         Ending::Released(reason) => close(&mut outgoing, &mut incoming, reason).await,
     }
+}
+
+/// What a seated connection is told first, and what it is listed as.
+struct Greeting {
+    session: SessionId,
+    joined: Joined,
+    welcome: ServerFrame,
+    clock: ServerFrame,
+    /// The `perceived` backfill (§5.8), sent after the clock and before the stream.
+    backfill: Vec<ServerFrame>,
+}
+
+/// Lists the session on the admin surface, then sends the welcome, the clock as it stood at the
+/// welcome (`PROTOCOL.md` §5.9) and the backfill. `None` if the connection went while they were being
+/// sent — and the session is off the list again, because the guard is dropped with it.
+async fn greet<S>(
+    outgoing: &mut S,
+    registry: &Arc<Registry>,
+    greeting: Greeting,
+) -> Option<Registered>
+where
+    S: Sink<Message> + Unpin,
+{
+    // Listed first: the welcome is the client's proof that it is seated, so from the moment it can
+    // be read the admin surface must list this session (F-SD1).
+    let listed = registry.register(greeting.session, greeting.joined);
+    let first = [greeting.welcome, greeting.clock];
+    for frame in first.iter().chain(&greeting.backfill) {
+        send(outgoing, frame).await.ok()?;
+    }
+    Some(listed)
 }
 
 /// Reads frames until the connection has a seat, refusing everything else.
@@ -226,75 +246,6 @@ async fn handshake(
             },
         };
         send(outgoing, &refusal.into_frame()).await.ok()?;
-    }
-}
-
-/// A join's credentials and options, before any of them is trusted.
-struct Offered {
-    protocol: u32,
-    invite: OfferedInvite,
-    nickname: String,
-    resume: Option<OfferedResume>,
-    take_over: bool,
-    perceived: Option<PerceivedJoin>,
-}
-
-/// `PROTOCOL.md` §4.1's checks, in its order. The first that fails decides the answer.
-async fn join(
-    connection: &Connection,
-    offered: Offered,
-    seat: mineworld_contracts::EntityKey,
-    arrived: Instant,
-) -> Joining {
-    if offered.protocol != PROTOCOL_VERSION {
-        return Joining::Closed(
-            Refusal::new(RefusalCode::ProtocolMismatch).detail(format!(
-                "this server speaks protocol {PROTOCOL_VERSION}, and the join speaks {}",
-                offered.protocol
-            )),
-            ClosingReason::ProtocolMismatch,
-        );
-    }
-    if connection.admission.admit(&offered.invite).is_err() {
-        // Measured from the frame's arrival, so the answer's timing says nothing about the check.
-        tokio::time::sleep_until(arrived + UNAUTHORIZED_DELAY).await;
-        return Joining::Closed(
-            Refusal::new(RefusalCode::Unauthorized).detail("that is not this server's invite"),
-            ClosingReason::Unauthorized,
-        );
-    }
-    let nickname = match Nickname::new(&offered.nickname) {
-        Ok(nickname) => nickname,
-        Err(error) => {
-            return Joining::Refused(Refusal::new(RefusalCode::InvalidNickname).detailed(error));
-        }
-    };
-    // The seat and who may have it are the world thread's to decide (`PROTOCOL.md` §4.2): the
-    // resume and the takeover flag travel with the seat, and nothing here holds a binding.
-    let request = JoinRequest {
-        seat,
-        take_over: offered.take_over,
-        resume: offered.resume,
-        session: connection.session,
-    };
-    let seated = match connection
-        .host
-        .join_perceiving(request, offered.perceived)
-        .await
-    {
-        Ok(seated) => seated,
-        Err(refusal) => return Joining::Refused(refusal),
-    };
-    // The backfill is read before the welcome, off the world's thread: a history that cannot be read
-    // now is answered `cursor_unavailable` with nothing granted, and the connection may join again.
-    match read_backfill(seated.perceived(), seated.observer()).await {
-        Ok(frames) => Joining::Seated(Box::new(seated), nickname, frames),
-        Err(refusal) => {
-            connection
-                .host
-                .leave(seated.subscription(), Departure::Left);
-            Joining::Refused(refusal)
-        }
     }
 }
 
@@ -466,7 +417,10 @@ async fn close(outgoing: &mut Outgoing, incoming: &mut Incoming, reason: Closing
 /// A frame that cannot be serialized is a defect in the server rather than in the client, so it is
 /// reported and the connection continues: the alternative is a silent disconnect whose cause is
 /// invisible at both ends.
-async fn send(outgoing: &mut Outgoing, frame: &ServerFrame) -> Result<(), ConnectionGone> {
+async fn send<S>(outgoing: &mut S, frame: &ServerFrame) -> Result<(), ConnectionGone>
+where
+    S: Sink<Message> + Unpin,
+{
     let text = match serde_json::to_string(frame) {
         Ok(text) => text,
         Err(error) => {
@@ -490,3 +444,6 @@ fn unix_seconds() -> u64 {
 
 /// The connection ended while the server was writing to it.
 struct ConnectionGone;
+
+#[cfg(test)]
+mod tests;
