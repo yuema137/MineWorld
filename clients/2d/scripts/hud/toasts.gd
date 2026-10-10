@@ -68,6 +68,14 @@ func toast(record: Dictionary, said: String, button: String = "", on_press: Call
 	toasted.emit(shown)
 
 
+## Removes every message shown: after a language change none is left in the old language (S20).
+func clear() -> void:
+	for entry in _live:
+		if is_instance_valid(entry["node"]):
+			entry["node"].queue_free()
+	_live.clear()
+
+
 func _process(_delta: float) -> void:
 	var now := _now()
 	for entry in _live.duplicate():

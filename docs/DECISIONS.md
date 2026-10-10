@@ -298,6 +298,33 @@ or training or testing any artificial intelligence"*. For a project whose purpos
 characters with recorded cognition fixtures, that constrains use even where redistribution is not
 at issue, and it needs its own decision at that point rather than being discovered later.
 
+**Amended 2026-10-08 — the font exception (operator ruling QSET-1, S20).** DEP-8's binding test is
+whether MineWorld may relicense an asset under MIT. Fonts under the SIL Open Font License 1.1
+cannot pass it, because OFL-1.1 requires the font to stay under OFL. They are the only exception to
+the test, under every one of these conditions:
+
+1. **Fonts only.** The exception covers font software (`.otf`, `.ttf`, `.otc`, `.woff2`) licensed
+   under `OFL-1.1` and nothing else: no texture, model, sound, code or data file, and no other
+   licence.
+2. **Bundled, never sold on its own.** The font ships only inside MineWorld, as a file the clients
+   load, and is never offered, sold or distributed as a product on its own (OFL-1.1 §1).
+3. **Unmodified and named as upstream.** The file is the upstream release, byte for byte. Its
+   source URL, version and SHA-256 are recorded beside it. A modified or subset font is not covered
+   without a new decision, which would also have to respect any Reserved Font Name (OFL-1.1 §3).
+4. **Its licence travels with it.** `OFL.txt`, with the upstream copyright notice, sits in the same
+   folder (OFL-1.1 §2). `NOTICE` names the font, its copyright holder and its licence, and states
+   that MineWorld's MIT licence does not cover it.
+5. **Never merged into MIT material.** The font is never embedded into, or concatenated with, a
+   file under MIT. Loading it at runtime is use, not merging.
+6. **Listed.** Every font admitted under this exception is a row of DEP-8's table. At present
+   there is one: **Noto Sans SC Regular** (`notofonts/noto-cjk`,
+   `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, 8,331,336 bytes, OFL-1.1, copyright Adobe with
+   Reserved Font Name "Source"), the CJK fallback font of both reference clients' UI (S20 SET-a).
+
+ARC-55's default pack allow-list is unchanged. A **pack** that carries an OFL font still needs a
+world-level policy that allows `OFL-1.1` (ARC-55 point 5). This exception covers fonts bundled with
+MineWorld's own clients.
+
 ### Approved, licences confirmed from primary sources
 
 | Source | Licence | For |
@@ -311,6 +338,7 @@ at issue, and it needs its own decision at that point rather than being discover
 | [Sky3D](https://github.com/TokisanGames/Sky3D) | MIT | sky and daylight. Credit is required only if the bundled star map ships |
 | [Kenney](https://kenney.nl) | CC0 | blockout and placeholder only; the style is deliberately not ours |
 | [NOAA GHCN-Daily](https://www.ncei.noaa.gov/pub/data/ghcn/daily/), station USW00023188 | CC0-1.0 / US public domain ("no restrictions on the use of the data", [NODD](https://registry.opendata.aws/noaa-ghcn/)) | Market Town's daily weather record (`DEP-31`). Attribution and both requested citations in the `NOTICE` beside the file; no implied endorsement; modified data so labelled |
+| [Noto Sans SC Regular](https://github.com/notofonts/noto-cjk) (`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit `165c01b`, SHA-256 `faa6c9df…706d5ea9`) | **OFL-1.1**, admitted only under the font exception above | the CJK fallback font of both reference clients' UI (`clients/shared/settings/fonts/`, S20 SET-a, `DEP-36`) |
 
 ### Excluded, with the reason
 
@@ -3832,6 +3860,19 @@ third-party i18n addons                                    none needed over the 
 **Isolating interface.** One script per client reads the wording (`clients/2d/scripts/hud/words.gd`);
 every other script asks it for a key's text.
 
+**Note 2026-10-09 — extended to both clients by S20 SET-a** (design step-20 §3.6, ruling QSET-11,
+QSET-16; this note stands in for the planned `ARC-SET-b`). The format and every key of point 1 are
+unchanged. Catalogs are **layered per key**: the shared settings module's `locale/` (keys both clients
+use, among them `action.*` and `reason.*`, moved verbatim from the 2D pack), then the Presentation Pack's
+`i18n/` (the pack's own wording, and any override of a shared key it marks `#. override`), then the
+user's `user://locale/`, the later layer winning. Languages are discovered from the `.po` files present
+(a language is offered when some layer gives it a `language.self_name`), so a `fr.po` dropped into any
+layer adds French with no code. The language is switched live. The fallback is English, then point 3's
+readable form; a raw key is never shown. World content, stdout logs and evidence lines are never
+translated. `words.gd` keeps its API and delegates loading and the fallback to
+`clients/shared/settings/text.gd`. The translation comparison above is confirmed for both clients by
+step-20 §4.1.
+
 ---
 
 ## DEP-16 — The 2D reference client: Godot built-ins and the shared protocol module, no addon
@@ -6087,6 +6128,113 @@ holds it. Delta T comes from the library's own estimate at the middle of the day
 per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
 latitudes on the few days with two crossings of one horizon, the second is not an event that day and
 the next day's opening phase corrects the light.
+
+---
+
+## ARC-76 — Client settings are a shared, presentation-only client module
+
+**Date** 2026-10-09 · **Approved by** the primary session at S20 PR SET-a's design freeze (2026-10-08;
+`ARC-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) · **Relates to** `ARC-46`, `ARC-47`, `ARC-70`, `DEP-35`, `DEP-36`,
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§2–3, 10–12 · **Design**
+`.structured-coding/plans/mvp0/step-20-client-settings.md` §3, §12; specification
+[`clients/shared/SETTINGS.md`](../clients/shared/SETTINGS.md)
+
+**Problem.** The operator requires an in-game settings menu in both reference clients: language (`en`
+by default, `zh-Hans`), display (window mode, resolution, VSync, frame-rate cap) and a 12-hour or
+24-hour clock, persisted per user, never reaching the server ("Framework, not demo" item 4). Two clients
+that each built their own would drift; settings placed in the protocol module or on the server would
+mix presentation with the world.
+
+**Decided.**
+
+1. Client settings are **one Godot module**, `clients/shared/settings/`, in a sibling project
+   `clients/shared/` (the protocol module's pattern, `ADOPTION.md` §1). Each client takes it by symlink
+   as `res://mineworld_settings`. No autoload, no required project setting, no import step.
+2. The module is **presentation-only and has no network code**. A setting never becomes an
+   `ActionIntent`, a frame or a request, and a client's frames are the same whatever its settings.
+3. **One per-user `ConfigFile`**, `user://settings.cfg`, shared by both clients through the custom user
+   directory `MineWorld`. It holds settings only: never an invite, an admin token, a seat, an address, a
+   nickname or a world. Every scripted and capture mode runs on defaults (`--settings=none`).
+4. **Host commands are not settings.** Pause and day length (S19 `/admin/clock`) live in a separate
+   module, `clients/shared/host/` (SET-c), which contributes a tab to the menu and never reads or writes
+   the settings file; the admin token is held in memory only.
+5. The module has **no platform branch** beyond one declared case (a Wayland tooltip); per-platform
+   behaviour is Godot's.
+
+**Rejected.** Settings in the protocol module (it is the wire, owned by S11); settings as a server- or
+world-side concept (they are one person's presentation); an autoload (a module a client adopts must not
+change the project's global composition); a copy per client (two copies drift).
+
+---
+
+## DEP-35 — Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined
+
+**Date** 2026-10-09 · **Status** selected; no dependency added · **Approved by** the primary session at
+S20 PR SET-a's design freeze (`DEP-SET-a` of step-20 §11.1; number allocated by the primary session, 2026-10-09) ·
+**Relates to** `ARC-76`, `ARC-70`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** step-20 §4.1–§4.3,
+§4.5
+
+**Options compared** (step-20 §4 holds the full tables and sources):
+
+```text
+persistence  Godot ConfigFile in user://                 adopt: typed values round-trip, readable,
+                                                         per user; our own atomic write and validation
+             ProjectSettings override.cfg                reject: per checkout, read once at start
+             JSON through FileAccess                     reject: numbers come back as floats
+             a Resource saved as .tres                   reject: a user-writable .tres can carry scripts
+             OS-native preferences                       reject: native code, three back ends
+display      DisplayServer + Engine.max_fps +            adopt: everything except changing the
+             Viewport.scaling_3d_scale                   monitor's mode, which Godot does not expose
+             project settings (display/window/*)         reject: read at start only
+             native code to change the monitor's mode    reject (QSET-3): risky, per OS
+menus        Maaack's Godot Menus / Game Template (MIT)  decline adoption, borrow the pattern
+                                                         (PlayerConfig: a ConfigFile plus static apply
+                                                         helpers): its scene and plugin flow does not
+                                                         fit two code-built clients, and it has no
+                                                         borderless/exclusive split, frame cap, render
+                                                         scale or locale setting
+             GGS — Godot Game Settings (MIT)             decline: editor-centric, saves resources, no
+                                                         localisation
+             our own small module                        build: about six short scripts over three
+                                                         engine APIs, typed, with no editor step
+text         ARC-70's TranslationServer + gettext .po    confirmed for both clients (CSV needs the
+                                                         editor's importer; P-3)
+```
+
+**Credit.** The `ConfigFile` + static-apply pattern is Maaack's (`Maaack/Godot-Menus-Template`, MIT).
+
+**Isolating interface.** `MineWorldSettingsStore` (`store.gd`) is the only code that reads or writes
+the settings file; `MineWorldDisplay` (`display.gd`) is the only code that applies display settings.
+
+---
+
+## DEP-36 — Noto Sans SC Regular bundled as the clients' CJK fallback font
+
+**Date** 2026-10-09 · **Status** selected; one font file added under the DEP-8 font exception ·
+**Approved by** the operator (QSET-1, 2026-10-08) · **Relates to** `DEP-8` (its font exception and table
+row), `ARC-55`, `ARC-76` · **Design** step-20 §3.7, §4.4
+
+**Problem.** Godot's default font has no CJK glyphs. Without a bundled font, Chinese text renders only
+through whatever font the operating system supplies — PingFang on macOS, Microsoft YaHei on Windows,
+nothing at all (tofu boxes) on a minimal Linux — so the same build looks different per machine and a
+capture cannot be compared.
+
+**Choice.** `clients/shared/settings/fonts/NotoSansSC-Regular.otf`, the unmodified upstream file
+(`notofonts/noto-cjk`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`, commit
+`165c01b46ea533872e002e0785ff17e44f6d97d8`, 8,331,336 bytes, SHA-256
+`faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9`), beside its `OFL.txt`, named in
+`NOTICE`. It is loaded at runtime and appended to the **fallbacks** of the default theme font, so Latin
+text keeps its current font glyph for glyph and only glyphs the default font lacks come from Noto Sans
+SC, before the system is asked. A check proves every character of every shipped catalog is in the
+bundled font with system fallback off (`clients/shared/checks/glyph_check.gd`).
+
+**Options compared** (step-20 §4.4): the variable Noto Sans SC (twice the size for weights the UI does
+not use); a GB 2312 subset (a build step, rare characters become tofu, and a Modified Version needs a
+new decision); Source Han Sans SC (identical glyphs, no advantage); WenQuanYi Micro Hei through its
+Apache-2.0 branch (the fallback had OFL been refused); Droid Sans Fallback (dated); the OS's own fonts
+(rejected as the mechanism: different on every machine).
+
+**Accepted cost.** 8.3 MB in Git history, once.
 
 ---
 

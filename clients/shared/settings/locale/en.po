@@ -1,0 +1,430 @@
+# English wording shared by both reference clients: the shared catalog layer (clients/shared/SETTINGS.md
+# §6.2; docs/DECISIONS.md ARC-70 and its 2026-10-09 note).
+#
+# This file is the layer's source catalog; messages.pot is generated from it by
+# tests/acceptance/tests/client_text.rs. Keys built from data: action.<type>, action.<type>.done,
+# reason.<code>. The action.* and reason.* entries moved here verbatim from the 2D pack's en.po (S12
+# 13b), keys unchanged (step-20 SD-SET-a-17), except action.move, whose text is neutral here; the 2D
+# pack keeps its own wording of it as an override (step-20 F-4). Wording holds no rule.
+msgid ""
+msgstr ""
+"Project-Id-Version: mineworld-shared-settings 0.1.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# How this language is listed, and the clock form it prefers (QTW-16).
+msgid "language.self_name"
+msgstr "English"
+
+msgid "clock.default"
+msgstr "12h"
+
+# A time of day (step-19 §8.2).
+msgid "hud.time.24h"
+msgstr "{hour24}:{minute2}"
+
+msgid "hud.time.12h"
+msgstr "{hour12}:{minute2} {ampm}"
+
+msgid "hud.day_time"
+msgstr "day {day}  {time}"
+
+msgid "hud.ampm.am"
+msgstr "AM"
+
+msgid "hud.ampm.pm"
+msgstr "PM"
+
+# The settings menu (clients/shared/SETTINGS.md §7).
+msgid "ui.settings.title"
+msgstr "Settings"
+
+msgid "ui.settings.tab.general"
+msgstr "General"
+
+msgid "ui.settings.tab.display"
+msgstr "Display"
+
+msgid "ui.settings.language"
+msgstr "Language"
+
+msgid "ui.settings.clock"
+msgstr "Clock"
+
+msgid "ui.settings.clock.auto"
+msgstr "Automatic (as the language prefers)"
+
+msgid "ui.settings.clock.12h"
+msgstr "12-hour"
+
+msgid "ui.settings.clock.24h"
+msgstr "24-hour"
+
+msgid "ui.settings.window_mode"
+msgstr "Window mode"
+
+msgid "ui.settings.window.windowed"
+msgstr "Windowed"
+
+msgid "ui.settings.window.borderless"
+msgstr "Borderless full screen"
+
+msgid "ui.settings.window.fullscreen"
+msgstr "Exclusive full screen"
+
+msgid "ui.settings.display.wayland_same"
+msgstr "On Wayland this is the same as borderless full screen."
+
+msgid "ui.settings.window_size"
+msgstr "Window size"
+
+msgid "ui.settings.size_value"
+msgstr "{width} × {height}"
+
+msgid "ui.settings.render_scale"
+msgstr "Render scale"
+
+msgid "ui.settings.percent_value"
+msgstr "{percent} %"
+
+msgid "ui.settings.vsync"
+msgstr "Vertical sync"
+
+msgid "ui.settings.vsync.off"
+msgstr "Off"
+
+msgid "ui.settings.vsync.on"
+msgstr "On"
+
+msgid "ui.settings.vsync.adaptive"
+msgstr "Adaptive"
+
+msgid "ui.settings.max_fps"
+msgstr "Frame-rate cap"
+
+msgid "ui.settings.max_fps.none"
+msgstr "No cap"
+
+msgid "ui.settings.max_fps.match"
+msgstr "Match the display"
+
+msgid "ui.settings.fps_value"
+msgstr "{fps} fps"
+
+msgid "ui.settings.refresh"
+msgstr "Display refresh rate"
+
+msgid "ui.settings.hz_value"
+msgstr "{rate} Hz"
+
+msgid "ui.settings.measured"
+msgstr "Measured frame rate"
+
+msgid "ui.settings.unknown"
+msgstr "unknown"
+
+msgid "ui.settings.hint"
+msgstr "Language and clock change at once; Apply keeps them."
+
+msgid "ui.settings.saved"
+msgstr "Saved."
+
+msgid "ui.settings.session_only"
+msgstr "Applied for this session; not saved."
+
+msgid "ui.settings.apply"
+msgstr "Apply"
+
+msgid "ui.settings.revert"
+msgstr "Revert"
+
+msgid "ui.settings.close"
+msgstr "Close"
+
+msgid "ui.settings.quit"
+msgstr "Quit the game"
+
+msgid "ui.settings.confirm"
+msgstr "Keep these display settings? Reverting in {seconds} s."
+
+msgid "ui.settings.keep"
+msgstr "Keep"
+
+msgid "ui.settings.undo"
+msgstr "Revert now"
+
+# The 3D client's own text, until it reads a Presentation Pack (S14 16f), when these move, keys
+# unchanged, to presentation/mineworld-default/3D/i18n/. In English each reads exactly as before S20.
+msgid "hint.controls"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  release mouse"
+
+msgid "hint.controls_menu"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  menu"
+
+msgid "camera.first_person"
+msgstr "First person"
+
+msgid "camera.third_rear"
+msgstr "Third person — rear"
+
+msgid "camera.third_front"
+msgstr "Third person — front"
+
+msgid "hud.camera"
+msgstr "camera: {mode}"
+
+msgid "hud.place"
+msgstr "place: {place}"
+
+msgid "hud.looking_at"
+msgstr "looking at: {who}"
+
+msgid "hud.world"
+msgstr "world: {status}"
+
+msgid "hud.world.offline"
+msgstr "world: offline  (./mineworld-slice --server=host:port)"
+
+msgid "link.you"
+msgstr "You"
+
+msgid "link.someone"
+msgstr "Someone"
+
+msgid "link.verb.talk"
+msgstr "talk to"
+
+msgid "link.connecting"
+msgstr "connecting to {address} as {seat}"
+
+msgid "link.seated"
+msgstr "seated as {seat}"
+
+msgid "link.disconnected"
+msgstr "disconnected: {reason}"
+
+msgid "link.server_closed"
+msgstr "the server closed the connection: {reason}"
+
+msgid "link.in_place"
+msgstr "in the {place}"
+
+msgid "link.in_place_undrawn"
+msgstr "in the {place} (not drawn by this slice)"
+
+msgid "link.placed"
+msgstr "placed where the world says you are"
+
+msgid "link.arrived"
+msgstr "{who} is here"
+
+msgid "link.left_view"
+msgstr "{who} is no longer in view"
+
+msgid "link.no_passage"
+msgstr "the world has disclosed no passage from here to {place}; nothing to report"
+
+msgid "link.nobody"
+msgstr "nobody in view to talk to"
+
+msgid "link.talk_unavailable"
+msgstr "the world says talking to {who} is unavailable: {reason}"
+
+msgid "link.talking_to"
+msgstr "talking to {who}"
+
+msgid "link.cant"
+msgstr "can't {verb} {who}: {reason}"
+
+msgid "link.result_accepted"
+msgstr "{action}: accepted"
+
+msgid "link.result_other"
+msgstr "{action}: {kind}, {reason}"
+
+msgid "link.kind.rejected"
+msgstr "rejected"
+
+msgid "link.kind.unavailable"
+msgstr "unavailable"
+
+msgid "link.refused"
+msgstr "refused: {reason}"
+
+msgid "link.refused_about"
+msgstr "refused ({verb} {who}): {reason}"
+
+# Menu entries, one per action type a System Pack declares. {target}: the person the action is
+# directed at; {item}: the thing its payload names.
+msgid "action.move"
+msgstr "Walk"
+
+msgid "action.walk-to"
+msgstr "Walk to {target}"
+
+msgid "action.walk-to.done"
+msgstr "You set off towards {target}"
+
+msgid "action.walk-step"
+msgstr "Take the next step"
+
+msgid "action.walk-step.done"
+msgstr "You took a step"
+
+msgid "action.talk"
+msgstr "Talk to {target}"
+
+msgid "action.talk.done"
+msgstr "You spoke to {target}"
+
+msgid "action.invite"
+msgstr "Invite {target} to…"
+
+msgid "action.invite.done"
+msgstr "You invited {target}"
+
+msgid "action.accept-invitation"
+msgstr "Accept {target}'s invitation"
+
+msgid "action.accept-invitation.done"
+msgstr "You accepted {target}'s invitation"
+
+msgid "action.decline-invitation"
+msgstr "Decline {target}'s invitation"
+
+msgid "action.decline-invitation.done"
+msgstr "You declined {target}'s invitation"
+
+msgid "action.join-group-activity"
+msgstr "Join {target}"
+
+msgid "action.join-group-activity.done"
+msgstr "You joined {target}"
+
+msgid "action.leave-group-activity"
+msgstr "Leave the activity"
+
+msgid "action.leave-group-activity.done"
+msgstr "You left the activity"
+
+msgid "action.buy"
+msgstr "Buy {item}"
+
+msgid "action.buy.done"
+msgstr "You bought {item}"
+
+msgid "action.give"
+msgstr "Give {target} {item}"
+
+msgid "action.give.done"
+msgstr "You gave {target} {item}"
+
+msgid "action.eat"
+msgstr "Eat {item}"
+
+msgid "action.eat.done"
+msgstr "You ate {item}"
+
+msgid "action.drink"
+msgstr "Drink {item}"
+
+msgid "action.drink.done"
+msgstr "You drank {item}"
+
+msgid "action.kick"
+msgstr "Kick {item}"
+
+msgid "action.kick.done"
+msgstr "You kicked {item}"
+
+msgid "action.shove"
+msgstr "Shove {target}"
+
+msgid "action.shove.done"
+msgstr "You shoved {target}"
+
+msgid "action.throw"
+msgstr "Throw {item}"
+
+msgid "action.throw.done"
+msgstr "You threw {item}"
+
+# Why not: the kernel's closed reasons (contracts Rejection), then system codes.
+msgid "reason.too_far_away"
+msgstr "too far away"
+
+msgid "reason.busy"
+msgstr "busy right now"
+
+msgid "reason.permission_denied"
+msgstr "not allowed"
+
+msgid "reason.no_supported_interaction"
+msgstr "nothing here can do that"
+
+msgid "reason.target_unavailable"
+msgstr "not available"
+
+msgid "reason.unavailable"
+msgstr "not possible"
+
+msgid "reason.precondition_failed"
+msgstr "not possible now"
+
+msgid "reason.malformed-payload"
+msgstr "the world did not understand that"
+
+# Refusal codes (server/PROTOCOL.md §5.5): the frame was not accepted at all. In English each reads as
+# the 3D client showed it before S20 (the code made readable), so its English is unchanged (INV-SET-7).
+msgid "reason.malformed_frame"
+msgstr "malformed frame"
+
+msgid "reason.unknown_frame"
+msgstr "unknown frame"
+
+msgid "reason.not_joined"
+msgstr "not joined"
+
+msgid "reason.already_joined"
+msgstr "already joined"
+
+msgid "reason.unknown_seat"
+msgstr "unknown seat"
+
+msgid "reason.seat_not_in_world"
+msgstr "seat not in world"
+
+msgid "reason.actor_not_observer"
+msgstr "actor not observer"
+
+msgid "reason.dispatch_failed"
+msgstr "dispatch failed"
+
+msgid "reason.world_stopped"
+msgstr "world stopped"
+
+msgid "reason.protocol_mismatch"
+msgstr "protocol mismatch"
+
+msgid "reason.unauthorized"
+msgstr "unauthorized"
+
+msgid "reason.invalid_nickname"
+msgstr "invalid nickname"
+
+msgid "reason.seat_occupied"
+msgstr "seat occupied"
+
+msgid "reason.invalid_resume"
+msgstr "invalid resume"
+
+msgid "reason.paused"
+msgstr "paused"
+
+msgid "reason.cursor_unavailable"
+msgstr "cursor unavailable"
+
+msgid "reason.lagged"
+msgstr "lagged"

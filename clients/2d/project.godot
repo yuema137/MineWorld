@@ -11,6 +11,9 @@ config/name="MineWorld 2D"
 run/main_scene="res://scenes/app.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/quit_on_go_back=true
+; One settings folder per user, shared with the 3D client (clients/shared/SETTINGS.md §4, S20).
+config/use_custom_user_dir=true
+config/custom_user_dir_name="MineWorld"
 
 [display]
 
