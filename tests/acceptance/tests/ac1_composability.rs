@@ -1026,8 +1026,8 @@ fn market_section(key: &str) -> bool {
 /// Generic packs a world may enable through configuration, after the six market packs (`ARC-35`'s
 /// 2026-10-09 note, the operator's ruling on S19 TW-a). Each is added by the PR that brings its pack; a
 /// pack listed here is neither the market nor Social Café, so the market delta is still measured
-/// exactly.
-const GENERIC_PACKS: [&str; 1] = ["calendar"];
+/// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date).
+const GENERIC_PACKS: [&str; 2] = ["calendar", "weather"];
 
 /// `systems`: Social Café's list, in order, then exactly the six market packs, as a set, then only
 /// allow-listed generic packs (each once). A generic pack anywhere before the end of the six is named.
@@ -1475,15 +1475,24 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         compare_manifests(&base, &calendar).is_empty(),
         "the allowed shape"
     );
+    // Both generic packs, in either order: order among allow-listed packs is free.
+    for order in [["calendar", "weather"], ["weather", "calendar"]] {
+        let both = manifest(with(&order, true), Some(json!(["calendar", "weather"])));
+        assert!(
+            compare_manifests(&base, &both).is_empty(),
+            "the allowed shape {order:?}"
+        );
+    }
 
-    // Mutation 1: a pack that is not allow-listed, after the six.
+    // Mutation 1: a pack that is not allow-listed, after the six (`bodies` is installed, generic
+    // in kind, and not on the list).
     let foreign = manifest(
-        with(&["calendar", "weather"], true),
+        with(&["calendar", "bodies"], true),
         Some(json!(["calendar"])),
     );
     let refusal = compare_manifests(&base, &foreign);
     assert_eq!(refusal.len(), 1, "{refusal:?}");
-    assert!(refusal[0].contains("`weather`") && refusal[0].contains("not an allow-listed"));
+    assert!(refusal[0].contains("`bodies`") && refusal[0].contains("not an allow-listed"));
 
     // Mutation 2: a listed pack before the six, and among them.
     let before = manifest(with(&["calendar"], false), Some(json!(["calendar"])));
