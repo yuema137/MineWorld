@@ -56,6 +56,33 @@ jobs:
         with:
           layer: core
 
+  # S16's packages on macOS and Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms`
+  # layer, with `test`'s triggers. Linux keeps its container layers. The whole checkout: its longest path
+  # is 120 characters, far inside Windows' MAX_PATH; Git's default core.autocrlf is left as the runner
+  # has it, so the layer reads CRLF files as a Windows user would. Whether it blocks a merge is ARC-48's
+  # question, raised to S13.
+  platforms:
+    name: platforms (${{ matrix.os }})
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image'))
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: platforms
+
   # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
   # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its
   # own job, so the required `fast` and `test` are neither renamed nor slowed (pr-s10-p3 QP3-3); not a
