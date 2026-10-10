@@ -1,0 +1,22 @@
+# Ines — the village nurse. Sections as in alba.yaml.
+
+name: Ines Duarte
+
+routine:
+  - { from: "07:00", place: bakery, label: breakfast }
+  - { from: "11:00", place: pier, label: fishing }
+  - { from: "15:00", place: square, label: rounds }
+  - { from: "19:00", place: cottages, label: home }
+
+tags:
+  - nurse
+
+note: Looks in on everybody, and spends her free hours with a line in the water.
+
+location:
+  place: cottages
+  position:
+    x: 4500
+    y: 2000
+
+holdings: { juice: 1, cake: 1 }

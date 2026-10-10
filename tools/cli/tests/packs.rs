@@ -173,18 +173,17 @@ fn every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it()
 
 /// EA-4 and EA-5: the data packs in the named directories — every world under worlds/ and the two
 /// default presentation packs; LICENSES/ beside them is not a pack — and each validates.
+///
+/// A world may require the repository's own Entity Packs, which are found only through a named root
+/// (`ARC-77`), so `entities/` is named too — on the listing and on each validation.
 #[test]
 fn the_data_packs_in_named_directories_are_listed_and_validate() {
     let worlds = repository("worlds");
+    let entities = repository("entities");
     let presentation = repository("presentation/mineworld-default");
-    let (ok, listing, stderr) = mineworld(&[
-        "packs",
-        "list",
-        "--packs",
-        &worlds,
-        "--packs",
-        &presentation,
-    ]);
+    let roots = ["--packs", &entities, "--packs", &presentation];
+    let (ok, listing, stderr) =
+        mineworld(&[&["packs", "list", "--packs", &worlds][..], &roots].concat());
     assert!(ok, "packs list failed: {stderr}");
     let listed = lines(&listing);
 
@@ -226,7 +225,8 @@ fn the_data_packs_in_named_directories_are_listed_and_validate() {
         .map(|name| format!("{worlds}/{name}"))
         .chain(["2D", "3D"].map(|d| format!("{presentation}/{d}")))
     {
-        let (ok, out, stderr) = mineworld(&["packs", "validate", &directory]);
+        let (ok, out, stderr) =
+            mineworld(&[&["packs", "validate", &directory][..], &roots].concat());
         assert!(ok, "{directory}: {stderr}");
         assert!(out.contains("is a valid"), "{out}");
     }

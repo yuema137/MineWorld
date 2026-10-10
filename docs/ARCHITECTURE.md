@@ -554,7 +554,8 @@ mineworld/
 ├── sdk/           python, rust
 ├── packages/      what a package is: package identity, pack.yaml, versions and licences
 │                  (a leaf crate, DECISIONS.md ARC-53)
-├── worlds/        sample World Packs
+├── worlds/        sample World Packs (Lakeside: Milestone E's composition, DECISIONS.md ARC-77)
+├── entities/      the repository's own Entity Packs, found through a named pack root (ARC-71, ARC-77)
 ├── tools/         world-validator, replay, inspector, benchmark
 └── tests/         conformance and acceptance tests
 ```

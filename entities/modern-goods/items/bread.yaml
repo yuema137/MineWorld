@@ -1,0 +1,4 @@
+# A loaf of bread. Each file here declares a kind of thing, not one object: what anybody holds is a
+# count of it (docs/DECISIONS.md ARC-36). `item` is the `item` System Pack's section.
+tags: [food, bakery]
+item: { category: food }

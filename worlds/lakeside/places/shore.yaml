@@ -1,0 +1,27 @@
+# The shore: a shingle beach on the lake, south of the lane.
+#
+# About 15 m by 10 m; its path up to the lane is on its north edge.
+
+tags:
+  - shore
+  - public
+  - outdoor
+  - water
+
+note: >-
+  A shingle beach where the lane meets the water. People wade in with a rod, or sit on the stones.
+
+passages:
+  - to: lane
+    here:
+      x: 2000
+      y: 9800
+    there:
+      x: 12000
+      y: 200
+
+# `fishing` is a section the third-party `fishing` System Pack owns (docs/DECISIONS.md ARC-66): this
+# place has water to fish, what it yields (an item key) and how long a catch takes, in minutes (30 to
+# 240, the pack's rule). Whoever stands here, is not already fishing and can carry one more is offered
+# `fish`.
+fishing: { catch: fish, minutes: 60 }

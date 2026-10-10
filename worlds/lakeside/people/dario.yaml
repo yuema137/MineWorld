@@ -1,0 +1,22 @@
+# Dario — a fisherman. Sections as in alba.yaml.
+
+name: Dario Russo
+
+routine:
+  - { from: "06:00", place: shore, label: fishing }
+  - { from: "11:00", place: bakery, label: lunch }
+  - { from: "15:00", place: square, label: talk }
+  - { from: "19:00", place: boathouse, label: home }
+
+tags:
+  - fisherman
+
+note: Out on the stones at first light, every day of the year.
+
+location:
+  place: boathouse
+  position:
+    x: 2500
+    y: 2000
+
+holdings: { bread: 1, juice: 1 }
