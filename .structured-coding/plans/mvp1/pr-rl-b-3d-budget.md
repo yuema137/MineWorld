@@ -47,6 +47,20 @@ session. The cost is that part 2 waits for part 1's review.
 | Merge order | **RL-b merges first** (§10); 16c, 12e and 16d rebase onto it. |
 | CI | The `python` jobs' failure (`clock.json` has no SDK model) is a main-wide gap with an SDK fix in flight. It is **not required** and does not block RL-b. The required checks are `fast` and `test`. |
 
+## 0.2 Operator rulings on the material stop (2026-10-09 23:00; binding; relayed by the coordinator)
+
+These amend frozen sections. They are the operator's decision on the §9 stop. They are not
+implementation choices.
+
+| Ruling | Effect on this design |
+| --- | --- |
+| R-1 | **Accept the slight visual change: apply SD-RLb-6 (a) VoxelGI 256 → 128 and (b) soft-shadow filter quality 3 → 2.** The "revert if V-1 fails" clause of SD-RLb-6 does not apply to these two. |
+| R-2 | **M-6 amended.** p95 ≤ 16.7 ms and video memory ≤ 2 048 MB stay binding. Draw calls ≤ 2 000 and primitives ≤ 3 M become **advisory**: they are reported, but they are not a gate. If any view still fails p95 with (a) and (b), stop and report the numbers; no further lever is added. |
+| R-3 | **V-gates re-baselined on the new look.** The accepted frames for V-1 and V-3 of later PRs (16c, 12e, 16d) are the frames of this PR's final head, not the 2026-10-07 frames. |
+| R-4 | **Mipmap softening (C3, V-4) accepted.** |
+| R-5 | **The skyline preview is not kept.** The C8 code is reverted, including skyline.gd, `--skyline-check`, `--hide-backdrop` and the mask options of `frame_diff.gd` that served only the preview. The old ridges return. QRL-11's preview is closed; RL-e's real terrain stays planned. The summit table in §5 and E-RLb-7 stays as research for RL-e. |
+| R-6 | Re-measure with the display awake (`caffeinate -d`), with no other Godot window: three runs, the median of p95, all eight views, pass or fail per view. |
+
 ## 1. Identity, base, scope
 
 ```text
@@ -557,7 +571,24 @@ with evidence.
   was "not needed": all three were needed and all three failed V-1. With them reverted, M-6 is unmet
   on the final head — **the §9 material stop** (see the ledger, E-RLb-final and "Material stop").
 
-### C8 — `3d: a San Diego skyline preview (QRL-11)` (isolated; revertible alone)
+### C8-R — `Revert "3d: a San Diego skyline preview (QRL-11)"` (operator ruling R-5)
+- [x] Implementation: `git revert --no-commit 58bc0c4`, keeping this plan file at HEAD so that the
+  C6/C7/C8 ledger notes that rode in 58bc0c4 stay. Conflict in `mineworld-slice`, resolved
+  mechanically: S20's `--settings` / `scripted` handling kept; `--skyline-check` and `--hide-backdrop`
+  removed. Commit `33a278c`.
+- [x] Validation: no reference to `SliceSkyline`, `hide_backdrop` or `--skyline-check` remains in the
+  scripts or the launcher (grep). `street.gd` `backdrop()`/`_ridge()` are restored as they were.
+  Frames: see E-RLb-ruled.
+- [x] Review: the `skyline east` perf view stays in M-1 (frozen), and it now looks at the old ridges.
+
+### C7-R — `3d: VoxelGI 128 subdivisions, soft-shadow filter quality 2 (operator ruling)`
+- [x] Implementation: `slice_main.gd` `_voxel_gi` `SUBDIV_128`; `project.godot`
+  `directional_shadow/soft_shadow_filter_quality=2`. Commit `7f37212`.
+- [x] Validation: E-RLb-ruled (three runs with the display awake, all eight views).
+- [x] Review: the visual cost is the one measured at C7a/C7b (florist warmer, café tone, shadow
+  penumbrae), accepted under R-1; frames re-baselined under R-3.
+
+### C8 — `3d: a San Diego skyline preview (QRL-11)` (isolated; revertible alone) — REVERTED (R-5)
 - [x] Implementation: `skyline.gd`; `street.gd`'s backdrop removed; `slice_world.gd`'s line;
   `frame_diff.gd` mask; `--skyline-check`. *Evidence:* `SliceSkyline` (Node3D following the active
   camera's position each frame, never rotating) builds three unshaded, fog-disabled, shadowless ribbon
@@ -822,7 +853,30 @@ E-RLb-final-2  2026-10-09  Second merge of origin/main (b61b4f4) as 3f5a6b5, nee
                      Known miss, stated for the preview: the open west horizon shows the 900 m
                      grass ground plane, not a sea surface (no water exists until RL-f).
 
-Material stop (§9): M-6 is unmet after SC-2 … SC-7.
+E-RLb-ruled  2026-10-09/10  The head after rulings R-1 to R-6: `7f37212` (C8 reverted in `33a278c`;
+                     VoxelGI 128 and soft-shadow quality 2 in `7f37212`), plus this ledger commit.
+  M-5 / M-6 re-measure (R-6): **INCONCLUSIVE — NOT MEASURED.** `caffeinate -d ./mineworld-slice
+  --perf` ran with no other Godot window. Every attempt had dozens of frames at about 1 000 ms
+  (street wide p95 1 011.7 ms, cafe frontage 1 011.8 ms), because the session's screen is locked:
+  `ioreg` reports `CGSSessionScreenIsLocked = true`. `caffeinate -d` keeps the display on, but it
+  cannot stop macOS throttling a locked session's window to about 1 fps. Under M-5's 250 ms rule the
+  runs are inconclusive, and I stopped them. The pass/fail per view under R-2 waits for a run on an
+  unlocked screen:
+      caffeinate -d ./mineworld-slice --perf
+  What is known from conclusive data: the C7a run on C5 gave cafe frontage 17.54 ms, doorway
+  18.59 ms (both over 16.7 ms) and video memory 1 608 MB. The C7b run gave a further −1.6 to −2.1 ms
+  on the exterior views. The two were never measured together. Projected from the separate deltas,
+  cafe frontage would be about 15.5–16 ms and doorway about 16.5–17 ms. That is a projection, not a
+  measurement: the doorway may still fail.
+  Gates on the ruled head (`shots/slice/rlb/ruled/`), timing-independent, all run: `--shots` 27
+  views; `--drive` all checks pass; `--threshold` all PASS; `--measure` as before (the one
+  pre-existing stature line); `--character` all checks pass; `--world --link` all link checks
+  pass; `--world --conversation` the door refusal and the counter conversation, "conversation on
+  screen, no ids".
+  R-3 re-baseline: the new accepted frames are `shots/slice/rlb/ruled/frames/` (base1 vs ruled
+  pairs on the branch `review/rl-b-frames`, `rl-b/ruled/`).
+
+Material stop (§9, superseded by R-1 … R-6): M-6 was unmet after SC-2 … SC-7.
   Remaining gap at 1920x1080 (head vs bound): p95 cafe frontage +2.3 ms, doorway +5.5 ms; draw calls
   +1 425 to +2 214 in 7 views; primitives +0.16 to +0.67 M in 4 views; video memory +1.7 MB.
   Options with their measured yield and visual cost (all measured on C5, all reverted here):
@@ -842,12 +896,15 @@ Material stop (§9): M-6 is unmet after SC-2 … SC-7.
     both visual costs; the draw-call and primitive bounds still need O-5.
   The operator chooses; nothing above is applied.
 
-**Lifecycle.** MATERIAL STOP (M-6 unmet) — PR opened for operator review of the preview and of the
-options; DO NOT MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+**Lifecycle.** READY FOR OPERATOR REVIEW, with one item INCONCLUSIVE: the R-6 re-measure of p95 and
+video memory could not be taken, because the session's screen is locked (E-RLb-ruled). DO NOT
+MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION. (Superseded: "MATERIAL STOP
+(M-6 unmet)", resolved by rulings R-1 to R-6.)
 
-**Handoff.** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action is the operator's:
-(1) the M-6 ruling among O-1 … O-5 (or a relaxed bound), (2) the skyline preview kept or reverted
-(revert 58bc0c4 alone; it also carries the C6/C7 ledger notes, re-add them if reverted), (3) the
-mipmap softening kept (V-4). Evidence lives under `clients/3d-spike/shots/slice/rlb/` (ignored) and
+**Handoff.** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action: with the screen
+unlocked and no other Godot window, run `caffeinate -d ./mineworld-slice --perf` on the PR head and
+record pass or fail per view against p95 ≤ 16.7 ms and video memory ≤ 2 048 MB. Draw calls and
+primitives are advisory under R-2. If any view fails p95, stop and report; no further lever (R-2).
+Rulings R-1 to R-5 are applied. Evidence lives under `clients/3d-spike/shots/slice/rlb/` (ignored) and
 on the branch `review/rl-b-frames`. Post-merge sync: the planning session owns step-22 and
 overall; this session owns this file's ledger and merge identity.
