@@ -9345,6 +9345,24 @@ E-NV6 NV-9's workspace tests, once, on 1d18757 (code = 9fbc807's; this entry and
       `scripts/check_scratch.py left --target-dir target` exit 0. CI on 1d18757 (run 38012271233):
       fast, platforms (macos-26, windows-2025) and the three python jobs passed; the exact-final-head CI
       is reported in the PR and the handoff, not here (a commit cannot carry its own CI).
+
+E-NV7 Exact-final-head CI on aed3a45 (ARC-73 → ARC-75 and the M-1 ruling applied): run 38014416639 —
+      fast, test (18m46s), platforms macos-26 and windows-2025, python ×3 all passed; run 38014413513
+      fast passed.
+
+MERGED PR #116 merged by the operator, merge commit ecc8d405472298246ec994f498549c4bab1279a4,
+      2026-10-10T02:06:41Z (head aed3a45). 12n-1 is complete; 12n-2 starts in a fresh session on
+      `mvp0/pr-12n-navigation-2` from main, and details its own design at its freeze (§21.13).
+      Post-merge sync: the step header and overall.md are the planning session's.
+
+F-12n-R1 (finding, the primary session's review mutation, 2026-10-09). Mutation: `walk::toward` returns
+      the target outright whenever it lies within two strides (2 × 1 340 mm). Caught by four tests of
+      tools/cli/tests/walking.rs (their hand-computed trails and the ≤ 1 340 mm stride bound), but not
+      by movement's unit test `a_stride_is_at_most_the_walk_stride_and_ends_at_a_near_waypoint`, whose
+      long case is 3 000 mm (> 2 × 1 340) and whose other cases are within one stride. The unit test
+      has no case between one and two strides, so the stride cap is pinned only at the integration
+      layer. Follow-up for the next PR that touches walk.rs: a unit case between 1 340 and 2 680 mm
+      (e.g. 2 000 mm east → exactly (1 340, 0)).
 ```
 
 
