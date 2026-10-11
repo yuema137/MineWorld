@@ -9058,6 +9058,300 @@ Files: `tools/cli/src/{hosted.rs,run.rs}`, `tools/cli/tests/walking_pace.rs` (ne
 ### NW-C4 — close: ledger, gate, handoff to 12d.
 - [ ] Implementation / [ ] Validation (NW-8) / [ ] Review.
 
+### 21.13.1 Detailed commit plan — 12n-2 (Phase 1 of the 12n-2 session, 2026-10-09; awaiting the primary's approval)
+
+The medium plan above is the frozen intent; this subsection details it against the source at
+`origin/main @ ecc8d40` (12n-1 merged as PR #116) and is the plan the implementation follows once the
+primary session approves it. It changes no criterion of §21.8 and no invariant of §21.14. Where the
+detail departs from the medium plan's wording it is a bounded discovery, recorded as `N-D10` … in
+§21.15 and summarized here; anything that might not be bounded is listed in §21.13.2 for a ruling
+before the dependent commit.
+
+**Identity.** Worktree `/Users/yuema137/mineworld-worktrees/impl-12n2` (this session the sole writer),
+branch `mvp0/pr-12n2-walk` from `origin/main @ ecc8d40`, draft PR "12n-2: people walk there"; cargo
+from `$HOME/.cargo/bin`, `CARGO_TARGET_DIR=/tmp/impl-12n2-target`; scratch builds and the scratch merge
+under `/tmp/s15-12n/12n2/` (`N-D10`). Evidence `E-NW<n>`, deviations `N-D<n>` continuing from N-D9.
+
+#### Source audit (`origin/main @ ecc8d40`, 2026-10-09)
+
+| ID | Finding | Evidence | Consequence |
+| --- | --- | --- | --- |
+| A-1 | The paced controller's walking is five helpers that each emit one `move`: `through` (stride to a doorway, or cross it within `MAX_STRIDE`), `leave` (seeded door over `instant ÷ DOOR_WINDOW`, then `through`), `head_for` (the door whose `to` is the agenda place, else `leave`), `approach` (stride stopping 1 000 mm short, skipped within `CLOSE_ENOUGH` 1 500), `wander` (±`WANDER_AXIS` 1 400 per axis, draws 5, 6). `walk()` gates every one on `move` being offered. `toward`, `within`, `isqrt_up`, `MAX_STRIDE` exist only for them. | `cognition/rule-controller/src/paced.rs:63–73, 220–282, 332–370, 399–444` | NW-C1 replaces the five emitters, keeps their draws and choices, and deletes the stride arithmetic. |
+| A-2 | `decide`'s fall-through: agenda branch `if let Some(step) = head_for(..)`, else social, offered, then the roll. A `None` from `head_for` falls through to the roll. | `paced.rs:135–199` | "Already walking there" needs a third answer — *continue* — that ends `decide` without falling through (`N-D14`). |
+| A-3 | `offered::attempt` draws among available **complete** affordances only; `walk-to` and `walk-step` are offered incomplete, against nobody. | `offered.rs:40–58`; `systems/movement/src/system.rs:364–394` | Draws 14, 15 unaffected by the new offers (as 12n-1 found, NV-1). |
+| A-4 | Movement discloses a walker as component type `walking` with payload `{ destination, next }` from a **private** `Disclosed` struct; `Destination` (public, `#[non_exhaustive]`, kebab-case externally tagged) and `Walking` (public, `deny_unknown_fields`, a different shape) are exported; `is_walking(world, PersonId)` is public. `walk-step` is offered only to a person with `Walking`. | `system.rs:348–360, 397–440`; `lib.rs:72–83` | The controller reads its own `walking` record through a local mirror `{ destination: Destination }` (`N-D14`); `run` asks `is_walking` (SD-N15). |
+| A-5 | `HostedController` is `next_consult(&self, after)`, `decide(&mut self, obs)`, `answered`. `HostedSlot::decide` calls the controller's `decide` and then, immediately, `next_consult(now.max(next))` — before `answered`. The runtime builds the observation at `due.max(world.now())`. A missed consult is skipped, never queued. | `server/src/hosted.rs:30–95`; `server/src/runtime.rs:404–435` | `PacedSeat` can keep its step mode in `&mut self` state set during `decide`, which `next_consult` reads: no server change (`N-D16`). |
+| A-6 | `PacedSeat`: `first = genesis + k·scale`, `pace = --pace × scale` world seconds; `next_consult` is the next `first + m·pace`. `--pace` defaults to 5 wall seconds. `ReactiveSeat` steps one wall second. A live time-scale change does not exist on main: the admin surface refuses `time_scale` (`time_scale_fixed`). | `tools/cli/src/hosted.rs:136–194`; `tools/cli/src/main.rs:124–126`; `server/src/admin.rs:236–250` | SD-N14's "S19's live-rescale pass covers step consults" is vacuous today; the step grid is derived from the same `scale` as the lattice, so a later rescale pass inherits it (`N-D21`). |
+| A-7 | `run`'s loop is rounds of `PACE` (900) over seats; `at = genesis + k + round·PACE`; a resume starts at the head's instant (`+1` when the head was a request) and computes `first_round` from `PACE`; the seat cap is `seats ≥ PACE` → refused. `PersistentWorld::advance_to` journals only an advance that produced facts. | `tools/cli/src/run.rs:38–41, 70–78, 113–161, 237–266`; `persistence/src/world.rs:216–223` | SD-N15 needs a 30-second sub-round loop, the resume arithmetic in sub-rounds, and the cap `seats ≥ RUN_STEP`. |
+| A-8 | `tools/cli` does **not** depend on `mineworld-movement` (dependencies: contracts, conversation, kernel, naming, packages, persistence, presence, rule-controller, server, worldpack). `WorldRead::component` of a type no installed system declares is `None`, not an error. | `tools/cli/Cargo.toml:15–34`; `kernel/src/view.rs:114–120` | `run` naming `is_walking` adds one workspace edge (`N-D12`); a pack without movement never step-consults. |
+| A-9 | `run`'s summary counts accepted requests per seat as `move N talk M`; `headless::every_seat_active_in_every_bucket` parses `  {seat} move N talk M` (run.rs, routines-adjacent tests, market tests). `hosted_town.rs` parses `move N` from each `[world] hosted <seat>:` line and asserts ≥ 3. | `run.rs:477–504`; `tools/cli/tests/headless/mod.rs:145–156`; `tools/cli/tests/hosted_town.rs:100–118` | After 12n-2 no seat sends `move`. `run`'s column counts strides of either kind (`N-D18`, no test edit); `hosted_town.rs` gets one literal edit. |
+| A-10 | Four tests outside §21.14's paths drive `PacedRuleController::decide` in their own loops, with movement installed and no step consults: `systems/{consumption,economy,item-transfer}/tests/paced.rs`, `tests/acceptance/tests/complete_affordances.rs`. | `git grep PacedRuleController` | After NW-C2 their people ask `walk-to` and never step. Whether any claim depends on walking is unknown until run (§21.13.2 Q-W1). |
+| A-11 | No committed test pins a town digest (`git grep` for 40–64 hex digits in `tools/cli/tests`, `tests/acceptance/tests`: only package and composability fixtures). | — | The digests move only in evidence (QN-2); no literal digest edit. |
+| A-12 | 12d's WIP head is `origin/mvp0/pr-12d-towns @ 8814aad`; 12n-1's E-NV4 showed that emptying the wayfinder line makes bodies' `install` panic (fail-closed), so "walks go straight" needs the guard removed too (M-N1b). | `git log origin/mvp0/pr-12d-towns`; §21.15 E-NV4 | NW-6 / M-N6 is applied in the M-N1b form (`N-D19`). |
+| A-13 | The 12n-1 closeout (`docs/12n-1-closeout @ 3352d19`, not yet on main) appends E-NV7, the merge record and F-12n-R1 to §21.15. F-12n-R1 asks the next PR touching `walk.rs` for a unit case between one and two strides. | `git show 3352d19` | 12n-2 does not touch `systems/movement` (outside its paths): F-12n-R1 stays open (`N-D22`). §21.15 merges are append-only, resolved by keeping both. |
+
+#### Commit order (a bounded reordering of §21.13, `N-D11`)
+
+```text
+NW-C0   this plan — docs only (Phase 1)
+NW-C1   the hosts can pace steps: PacedRuleController::step + hosted step consults + run's RUN_STEP
+        consults, the 30-seat cap, the ARC-27/ARC-42 notes and MODULE_SPEC §8.1 — nobody walks yet, so
+        every town's facts are byte-identical (a strong check that the new schedule is inert)
+NW-C2   people walk there: decide asks walk-to; the controller tests in claim-preserving form; the
+        literal edits (§21.13's NW-C2, folded in so that no commit leaves the tree red); NW-9's
+        walking_pace.rs; NW-10's walk-crossing restart assertion — the towns' digests move here
+NW-C3   the 12d WIP measurement on a scratch merge — evidence only, never committed there
+NW-C4   close: ledger, gate, handoff
+```
+
+The medium plan's NW-C1 (controller) and NW-C1b (hosts) swap, and NW-C2 joins the controller commit:
+hosts first, because a step schedule that nothing triggers can be shown byte-identical on its own;
+the literal edits with the change that needs them, because §21.13's order would leave the towns
+unable to walk (decide asking `walk-to`, nobody stepping) for one commit.
+
+#### NW-C0 — Design detail (this subsection) — docs only
+
+- [x] Implementation: §21.13.1 (this), §21.13.2, N-D10 … N-D22 in §21.15, handoff reinitialized for
+  12n-2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  on the PR head (names as `ci_layer.py --list fast` prints them) — 193 sections, 94 ids (f241a1b).
+- [x] Review: the primary session approved this plan and ruled on §21.13.2 (§21.15 RULINGS).
+
+#### NW-C1 — the hosts can pace steps (no fact of any world changes)
+
+**Goal.** Give both hosts the stride cadence SD-N14 and SD-N15 specify, and the controller the pure
+`step` SD-N16 specifies, while `decide` still sends `move`: the schedule exists, nothing triggers it.
+
+**Scope.** `cognition/rule-controller/src/{paced.rs,lib.rs,paced_tests.rs}`; `tools/cli/src/{hosted.rs,
+run.rs}`; `tools/cli/Cargo.toml` + `Cargo.lock` (one workspace edge, `N-D12`); `docs/DECISIONS.md`
+(`ARC-27` note, `ARC-42` note); `docs/MODULE_SPEC.md` §8.1 (`run` and `server` rows). Non-goals: any
+change to `decide`; any server, kernel or pack edit; any change to the reactive seat.
+
+**Implementation.**
+- [x] Docs first (`CLAUDE.md` §2.2): `ARC-27` note — `run` step-consults seat `k` at `genesis + k +
+  n·RUN_STEP` (30 world seconds, a divisor of `PACE`) while its person has a `Walking` (read with
+  movement's `is_walking`, so a resume schedules what the dead run would have); a lattice instant is
+  the lattice consult (`N-D13`); the cap becomes 29 seats. `ARC-42` note — `PacedSeat` interleaves
+  step consults every `EMBODIED_STEP × scale` world seconds (offset `k·scale`) after a consult that
+  disclosed its own walk or asked `walk-to`/`walk-step`, and stops at the first step consult that
+  returns nothing; no pack sees the scale. `MODULE_SPEC.md` §8.1: the `run` paragraph (step consults,
+  the 29-seat cap, what the `move` column counts — `N-D18`) and the `server` row (hosted walkers step
+  once a wall second).
+- [x] `paced.rs`: `pub fn step(&self, observation) -> Option<ActionRequest>` — `walk-step` (empty
+  payload, `WalkStep::default()`) iff the observer's own `walking` record is disclosed and `walk-step`
+  is offered and available; no draw, never a reply. `pub fn walks(observation) -> bool` (free function,
+  exported from `lib.rs`): whether the observer's own `walking` record is disclosed — what a host
+  reads to keep stepping, so the host never decodes a pack's component itself. (Both live in a new
+  module `walking.rs`; `PacedRuleController::step` delegates to it.)
+- [x] `hosted.rs`: `EMBODIED_STEP` (1 wall second, the host constant §21.5.1 names) with its
+  Weidmann / Bohannon reference; `PacedSeat` gains `step: i64` (= `EMBODIED_STEP × scale`), `walking:
+  bool`, `last: Option<i64>`. `next_consult`: without `walking`, the lattice as today; with it, the
+  next `first + n·step` strictly after `after` (the lattice is a subset of that grid because `pace` is
+  whole wall seconds). `decide`: at instant `at`, a **lattice consult** iff a lattice instant lies in
+  `(last, at]` (`N-D16`; the observation's instant is `due.max(world.now())`, A-5) — answered by
+  `decide(obs).or_else(|| step(obs))` (`N-D13`); otherwise a **step consult**, answered by
+  `step(obs)`. Then `walking := walks(obs) || asked ∈ {walk-to, walk-step}`, and a step consult that
+  returns nothing sets `walking := false`. `last := at`. `Counting` unchanged.
+- [x] `run.rs`: `RUN_STEP` (30 world seconds) with step-19 §4.6's reason; the cap `seats ≥ RUN_STEP`
+  refused, the message naming `RUN_STEP` and 29; the loop over sub-rounds `n`: `at = genesis + k +
+  n·RUN_STEP`, lattice iff `n % (PACE / RUN_STEP) == 0`; a non-lattice instant is consulted only if
+  `is_walking` holds **before** advancing (a `Walking` is created only by a request, so a seat not
+  walking before `at` is not walking at `at`), then the world is advanced to `at` and `is_walking`
+  checked again (a reaction during the advance may have ended the walk) — idle seats never advance the
+  clock, so the journal is unchanged (`N-D17`); the lattice consult is `decide.or_else(step)`
+  (`N-D13`); a step consult calls `step`. Resume: the first sub-round from `start` in `RUN_STEP` units.
+  `PersonId` for `is_walking` from the seat's entity, checked to be a person. The summary's `move`
+  column counts accepted `move` and `walk-step` requests (`N-D18`); `consults` counts both kinds.
+- [x] `tools/cli/Cargo.toml`: `mineworld-movement = { workspace = true }` under `[dependencies]` with a
+  one-line reason; `Cargo.lock` gains only that edge.
+
+**Validation.** (E-NW1)
+- [x] `paced_tests.rs`: `step` returns `walk-step` exactly when the own `walking` record is disclosed
+  and `walk-step` offered; nothing when either is absent, when only *another* person's `walking` is
+  disclosed, or when a line is waiting to be answered (it never answers); two calls on one
+  observation are equal; across 64 seeds `step`'s answer is seed-independent (no draw).
+- [x] `hosted.rs` unit tests: `cadence_is_wall_time_whatever_the_scale` extended — a walking seat at
+  scale 1, 12 and 60 is consulted every `scale` world seconds (one per wall second) at offset `k·scale`,
+  and its lattice instants are unchanged; a seat that is not walking is consulted on the lattice only
+  (idle seats cheap); a step consult returning nothing returns the seat to the lattice; the lattice /
+  step classification holds when the observation's instant is past the due instant (A-5).
+- [x] NW-10's unit test (`run.rs` `#[cfg(test)]`): over 29 seats and one year of instants, no two
+  (seat, instant) pairs share an instant, and every lattice instant is a step instant of its seat; the
+  30-seat refusal names `RUN_STEP` (a `tools/cli/tests/run.rs` case through the real binary — on a
+  pack `mineworld create` writes and the test widens to 30 and 29 seats, smaller than a social-cafe
+  copy and testing the same rule).
+- [x] Byte identity (nothing walks yet): `mineworld run` 30 days, seed 7, of social-cafe, market-town
+  and bodies-yard on the base binary and on NW-C1's — the saves' fact streams' sha-256 equal, and the
+  printed summaries equal except `wall`. 30-day runs are unrestricted (§21.14).
+- [x] `cargo test -p mineworld-rule-controller -p mineworld-cli` (the controller's tests, the CLI's
+  unit tests, `run`'s 30-seat test, `run_restart` and `hosted_town`; the full CLI suite runs with the
+  workspace at NW-C4); `cargo clippy --workspace
+  --all-targets --all-features -D warnings`; `cargo fmt --all --check`; the two doc checks.
+
+**Acceptance.** `step` and `walks` exist and are pure; `PacedSeat` and `run` consult a walking seat
+once per `EMBODIED_STEP` wall second / `RUN_STEP` notional seconds and an idle one on its lattice only;
+the three worlds' 30-day facts are byte-identical to the base; 30 seats are refused by name.
+
+**Failure and edge cases.** A pack without movement: `is_walking` is `None`-backed → never steps
+(A-8). A seat that is not a person: no `PersonId`, never steps. A refused `walk-to` (`no-route`):
+the next step consult answers nothing and the seat returns to its lattice. A resume between two step
+consults: the first instant is recomputed from `start`, and `is_walking` is read from the restored
+state.
+
+**Review.**
+- [x] No pack, no controller reads the scale or a wall clock (`hosted.rs` alone multiplies by
+  `scale`; `cognition/rule-controller/src` greps clean for `scale`, `Instant`, `SystemTime`, `now()`;
+  no diff under kernel/, contracts/, persistence/src/, server/, systems/, clients/, worlds/).
+- [x] Idle seats get no step consults in either host (hosted: `walking` false → `pace` period; run:
+  the pre-advance `is_walking` check); a step instant never shares an instant with another seat in
+  `run` (the unit test); `decide`'s lattice, windows and draw indices are untouched (`decide` has no
+  diff; the lattice is `round % 30 == 0` of the same instants, and E-NW1's byte identity).
+
+**Commit boundary.** Docs + controller `step` + hosts + one Cargo edge; no `decide` change.
+
+#### NW-C2 — people walk there (the towns' digests move here, QN-2)
+
+**Goal.** SD-N16's remainder: `decide`'s walking bands ask `walk-to`; the straight-stride code goes;
+every affected test keeps its claim; NW-9 and NW-10 are shown.
+
+**Scope.** `cognition/rule-controller/src/{paced.rs,agenda.rs,paced_tests.rs,agenda_tests.rs,
+social_tests.rs,offered_tests.rs}`; `tools/cli/tests/{walking_pace.rs (new),hosted_town.rs,
+run_restart.rs}` and any further literal edit NW-7 finds, each listed in §21.15 before commit; the
+four out-of-path tests of A-10 only as §21.13.2 Q-W1 rules.
+
+**Implementation.**
+- [x] `paced.rs`: one emitter `walk_to(observation, Destination)` gated on `walk-to` being offered
+  and available (replaces `walk()`); a band whose destination equals the observer's own disclosed walk
+  destination answers **continue** (`decide` returns `None` there without falling through; with
+  `N-D13` the host then steps) — `N-D14`; `head_for(place)` → `walk-to { Place(Location::in_place(place)) }`
+  directly, movement planning the passage chain (`N-D15`); `leave` keeps its seeded door over
+  `instant ÷ DOOR_WINDOW` and asks `walk-to` the chosen door's place (enter it); `approach` keeps draw
+  4 and `CLOSE_ENOUGH`, asks `walk-to { Person }`; `wander` keeps draws 5, 6 and `WANDER_AXIS`, asks
+  `walk-to { Place(here.with_local(offset)) }` (the server snaps a goal off the floor, SD-N5). Deleted:
+  `through`, `toward`, `within`, `isqrt_up`, `APPROACH_STOPS_AT`, the `MAX_STRIDE` import (`CLAUDE.md`
+  §4 rule 12). `distance` stays for `CLOSE_ENOUGH`. Module docs updated (the walking table, "a stride it
+  proposes" → "a walk it asks for"). (`walk_to`, `Walked { Ask, Continue }` and the private
+  `DisclosedWalk` copy live in `walking.rs` beside `step`; F-12n2-1.)
+- [x] `agenda.rs`: the module doc's "through `move`, one stride at a time" → "by asking `walk-to`".
+- [x] Tests, claim-preserving (each test's old and new claim listed in §21.15 at commit):
+  `paced_tests.rs` — `it_greets_only_whom_…_and_walks_only_when_walk_to_is_offered`;
+  `every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway` → "every proposed walk is a `walk-to`
+  to a doorway's place, a person in my place, or a point within `WANDER_AXIS` of me";
+  `a_stride_never_exceeds_the_published_bound…` → removed with the stride code, its claim now movement's
+  (`walk.rs`, walking.rs NV-2 (a)) — recorded, not silently dropped; the five-door test keeps "every
+  door chosen, each kept for a window" on the asked place; new: "already walking there asks for
+  nothing", "two decisions on one observation are equal". `agenda_tests.rs` — "heads for that door" →
+  "asks to walk to the agenda's place"; "on the street the door taken leads to the agenda" → "the place
+  asked is the agenda's, never another"; `with_no_move_offered…` → `with_no_walk_to_offered…`.
+  `social_tests.rs` — "part of an activity it never crosses a doorway" → "never asks a walk to another
+  place"; `with_nothing_social…` admits `walk-to`. `offered_tests.rs` — offers `walk-to` beside `move`.
+- [x] `tools/cli/tests/hosted_town.rs`: the "{seat} made N accepted move(s)" parse reads `walk-step N`
+  (same claim: every driven seat walked ≥ 3 strides).
+- [x] `tools/cli/tests/run_restart.rs`: NW-10's claim made observable — **as built (N-D24):** where a
+  SIGKILL lands is a race (three kills saw no open walk, `[0, 0, 0]`), so the killed test only prints
+  the open walks, and a new test, `a_run_stopped_mid_walk_continues_the_same_world`, makes the case:
+  a test-written street-and-shop world whose walker's day turns to the shop at 23:45, 78 m away, so a
+  `run --days 1` stops mid-walk; `--days 2` continues it, the history equals a 2-day control byte for
+  byte, and the walk ends in the first hour after midnight by the resumed run's steps.
+- [x] `tools/cli/tests/walking_pace.rs` (NW-9): the real `mineworld server --town --time-scale s`
+  on a test-time copy of social-cafe written by the test (street and one far place; two seats — the
+  walker, driven by the paced controller with an agenda in the far place whose door is ≥ 20 m from
+  its start, and an observer seat the test joins and never moves); the observer records the walker's
+  position and the wall instant of each observation frame (10 Hz); speed = displacement between
+  consecutive changed positions ÷ wall time between those frames, median per walk; runs at s = 1, 6,
+  12, 24 in sequence, each bounded to 3 wall minutes. PASS iff every median is 1.34 m/s ± 15 % and the
+  6×, 12×, 24× medians are within 10 % of each other, and strides per world second ≈ 1 / s (the scale
+  was applied, `ARC-23`). Written with `Path::join`, no Unix-only API, scratch through `scratch!`.
+  **As built (N-D23):** the world is a minimal street-and-shop pack the test writes (presence,
+  movement, schedule), not a social-cafe copy — the smallest world with a ≥ 20 m walk toward a day.
+
+**Validation.** (E-NW2)
+- [x] `cargo test -p mineworld-rule-controller` (all rewritten tests; purity; `step` never answers).
+- [x] NW-9 at 1×, 6×, 12×, 24× (one attempt each); **M-N7**: `step` stated as `EMBODIED_STEP`
+  world seconds (× scale dropped) → 6× 6 722, 12× 13 368, 24× 13 370 mm/s, the test fails naming the
+  scales; reverted; `git status` recorded.
+- [x] NW-7 on main: `run.rs`, `run_restart.rs`, `routines.rs`, `milestone_b.rs`, `milestone_c.rs`,
+  `market_town.rs`, `market_composition.rs`, `social_composition.rs`, `hosted_town.rs` pass unedited in
+  claim (literal edits only as listed); NW-10's restart claim on main.
+- [x] **PASS under the M-2 ruling (≤ 2.5 × a paired base: 1.88 ×, 2.18 ×); failed the original bound.**
+  NW-4's no-bodies half, on main: social-cafe and market-town 300 d seed 7, user
+  CPU ≤ 27.8 s and ≤ 23.9 s (two of the 19 budgeted 300-day runs); new digests recorded (QN-2's
+  re-baseline, `E-NW`). Measured 52.16 s and 88.02 s (E-NW3).
+- [x] Gate on this commit: clippy, fmt, doc checks; the workspace tests once at NW-C4.
+
+**Acceptance.** No `move` is emitted by the paced controller; every walk is `walk-to` + `walk-step`;
+NW-7, NW-9, NW-10 and NW-4's no-bodies half pass with the numbers recorded; M-N7 observed failing by
+name.
+
+**Failure and edge cases.** No `walk-to` offered (movement absent): the controller walks nowhere,
+exactly as with no `move` today. A `walk-to` refused `no-route` or `TooFarAway`: the world's answer,
+recorded in the summary; the next lattice consult decides afresh. A walk ended `stalled`: the next
+lattice consult may ask again. A person already at the destination: movement's answer (an
+immediately ended walk or a refusal) is accepted as is.
+
+**Review.**
+- [x] No geometry and no distance rule in the controller beyond choosing destinations (`CLOSE_ENOUGH`
+  chooses whom to approach; nothing measures a stride; `toward`, `within`, `isqrt_up`, `MAX_STRIDE`
+  are gone from the crate — `git grep` clean).
+- [x] Draw indices 0–15 unchanged in meaning; the doorway mix unchanged; no assertion weakened, no
+  threshold lowered; every removed test's claim is named with where it now lives (E-NW2's table).
+
+**Commit boundary.** Controller behaviour + its tests + the listed literal edits + the two CLI tests.
+
+#### NW-C3 — the 12d WIP measurement (scratch merge, never committed there)
+
+- [x] Implementation (E-NW4, E-NW6; the harness is `nw_scratch2.rs`, the counts `nw_scratch.rs`; the
+  final merge is of 25660e8, after the M-3 fix): `git worktree add --detach /tmp/s15-12n/12n2/merge <NW-C2 head>`; `git merge
+  --no-commit --no-ff 8814aad` (or 12d's successor head, named); conflicts resolved there and listed
+  (expected in bodies' `geometry.rs` and tests, where 12d's R 250 meets 12n-1's derived constants and
+  the M-1 restatement); own target `/tmp/s15-12n/12n2/target-merge`. The tree's fingerprint (`git
+  write-tree` after `git add -A` in the scratch worktree) recorded. NW-2's harness is a scratch test in
+  that tree (`tools/cli/tests/nw2_cafe_door.rs`: from each of the five street doorways and (−3 000, 600),
+  (3 000, 600), `walk-to` the café → `arrived`, `person-entered-place { café }`, ≤ 40 strides, no
+  `stalled`); its text is kept in the evidence and offered to 12d (`N-D20`).
+- [x] Validation (E-NW6, E-NW7). All PASS except TD-12b, which is INCONCLUSIVE under load (M-5 ruling);
+  NW-3 is judged as restated by M-3's ruling, NW-1 after M-3's fix. As planned: NW-1 (`routines.rs` unedited; `run.rs` on the 300-day run), NW-2, NW-3 (stopped-short
+  ≤ 10 % of the walkers' accepted arrivals over 30 days; entries ≥ 90 % of the SD-D13 copy without
+  bodies; per-bucket counts printed), NW-4 (TD-12a: 8 interleaved 300-day runs, ≤ 3.96 × and ≤ 3.30 ×,
+  per-resolution max ≤ 50 ms; contamination rule as TD-12a), NW-5 (`run_restart.rs`, `market_town.rs`,
+  two 30-day runs byte-identical, arm64 = x86_64 under Rosetta for both towns' 30-day summary sha),
+  NW-6 / M-N6 in the M-N1b form (`N-D19`: line emptied and bodies' guard removed → NW-1 names the people
+  below 90 %, NW-2 names the doorways), NW-10 on the merge. Each result `PASS` / `FAIL` /
+  `INCONCLUSIVE` with counts.
+- [x] Review: no result copied into a committed test; the merge never pushed (a detached /tmp worktree);
+  budget counted against §21.14's 19-run cap, exceeded and then accepted at 23 (M-4, M-5 rulings).
+
+#### NW-C4 — close
+
+- [x] Implementation: §21.15 ledger complete (E-NW*, N-D*), handoff, `origin/main` merged as needed (E-NW8).
+- [x] Validation (NW-8): fmt, clippy, both doc checks, `check_scratch` scan, `cargo test --workspace`
+  once on the final head, `check_scratch left` (E-NW8); CI `fast`, `test`, platforms green on the exact head
+  (F-12n-CI1 re-run once if it recurs, recorded) — in the PR and the handoff.
+- [x] Review: `git diff --name-only origin/main...HEAD` within §21.14's 12n-2 paths plus the recorded
+  N-D12 / literal-edit list; no diff under kernel/, contracts/, persistence/src/, server/, systems/,
+  clients/, worlds/; READY FOR OPERATOR REVIEW; QN-2: merges immediately before 12d.
+
+### 21.13.2 For the primary session's ruling before NW-C1 (12n-2 Phase 1)
+
+- **Q-W1 (possible material stop — paths).** A-10's four tests (`systems/consumption/tests/paced.rs`,
+  `systems/economy/tests/paced.rs`, `systems/item-transfer/tests/paced.rs`,
+  `tests/acceptance/tests/complete_affordances.rs`) drive `decide` in hand-written loops without step
+  consults. After NW-C2 their people ask `walk-to` and never step. If a claim there depends on walking,
+  the honest fix is an edit outside §21.14's paths: either a step consult in those loops (the same
+  `decide.or_else(step)` / `step` schedule as `run`) or nothing if they pass. Proposed: authorize, as
+  bounded, adding the step schedule to those loops only if they fail, claims unchanged, each listed.
+- **Q-W2 (confirm bounded).** `N-D12`: `tools/cli/Cargo.toml` gains `mineworld-movement` (and
+  `Cargo.lock` that edge) so `run` can ask `is_walking`, as SD-N15 specifies. Outside the listed
+  paths, no new external crate.
+- **Q-W3 (confirm the reading).** `N-D13`: at a lattice instant (which is always also a step instant)
+  the one consult is `decide`, and when `decide` answers nothing for a walker the host asks `step` — so
+  a walker who rolls "stand" or is "already walking there" keeps walking instead of losing a stride
+  every pace. SD-N15 says only "a step instant that is also a lattice instant is the lattice consult".
+- **Q-W4 (confirm bounded).** `N-D14` / `N-D15`: "already walking there asks for nothing" is decided
+  by `Destination` equality with the own disclosed walk (also for a person), and answers *continue*
+  rather than falling through to other bands; `head_for` asks `walk-to` the agenda's place itself,
+  movement planning the chain.
+
 ## 21.14 Execution contract for PR 12n (filled at the freeze, 2026-10-09)
 
 ```text
@@ -9363,6 +9657,449 @@ F-12n-R1 (finding, the primary session's review mutation, 2026-10-09). Mutation:
       has no case between one and two strides, so the stride cap is pinned only at the integration
       layer. Follow-up for the next PR that touches walk.rs: a unit case between 1 340 and 2 680 mm
       (e.g. 2 000 mm east → exactly (1 340, 0)).
+```
+
+**12n-2 implementation session (2026-10-09, worktree `impl-12n2`, branch `mvp0/pr-12n2-walk` from
+`origin/main @ ecc8d40`).** Phase 1 (the detailed plan, §21.13.1) recorded these bounded discoveries;
+§21.13.2 lists the four that wait for the primary session's confirmation.
+
+```text
+N-D10 Identity per the primary session's kickoff, superseding §21.14's names: worktree impl-12n2 (not
+      impl-12n, still held by the 12n-1 closeout on docs/12n-1-closeout), branch mvp0/pr-12n2-walk (not
+      mvp0/pr-12n-navigation-2), CARGO_TARGET_DIR /tmp/impl-12n2-target; scratch under /tmp/s15-12n/12n2/.
+N-D11 Commit order: hosts first (NW-C1: step + step consults, byte-identical because nobody walks),
+      then the controller with the literal edits folded in (NW-C2 = §21.13's NW-C1 + NW-C2), so no commit
+      leaves the towns unable to walk. Mapping in §21.13.1.
+N-D12 tools/cli/Cargo.toml gains mineworld-movement, for `run`'s `is_walking` (SD-N15); Cargo.lock gains
+      only that workspace edge. Outside §21.14's listed paths — confirmation asked (§21.13.2 Q-W2).
+N-D13 A lattice instant is always a step instant (RUN_STEP divides PACE; hosted pace is whole wall
+      seconds). The one consult there is `decide`, and `step` when `decide` answers nothing — in both
+      hosts. Reading of SD-N15's "is the lattice consult"; confirmation asked (Q-W3).
+N-D14 "A person whose own walking record already leads to the chosen place asks for nothing": decided by
+      `Destination` equality with the own disclosed walk, read through a controller-local mirror
+      `{ destination: Destination }` (movement's disclosed shape is private and movement is outside 12n-2's
+      paths); also applied to an approach of the person already walked to; the band answers *continue*
+      (decide returns None without falling through). Confirmation asked (Q-W4).
+N-D15 `head_for` asks walk-to the agenda's place itself (movement plans the passage chain, SD-N1) instead
+      of the adjoining door; `leave` keeps its seeded door and asks walk-to that door's place (Q-W4).
+N-D16 PacedSeat classifies a consult as a lattice consult iff a lattice instant lies in (last consult,
+      at] — the observation's instant is due.max(world.now()) (server/src/runtime.rs:413) — and keeps its
+      step mode in &mut state set during decide, which next_consult reads. No server change.
+N-D17 `run` reads is_walking before advancing to a step instant (a Walking is created only by a request),
+      advances, and reads it again; an idle seat never advances the clock, so the journal is unchanged.
+N-D18 `run`'s activity column `move` counts accepted `move` and `walk-step` requests (strides of either
+      kind), so headless::every_seat_active_in_every_bucket keeps its claim unedited; `requests` lines
+      list walk-to and walk-step separately; `consults` counts both kinds. hosted_town.rs's parse of
+      `move N` becomes `walk-step N` (literal edit, same claim).
+N-D19 NW-6 / M-N6 is applied in E-NV4's M-N1b form (the line emptied and bodies' require_wayfinder guard
+      removed), because the line alone makes bodies' install panic fail-closed rather than walk straight.
+N-D20 NW-2 is a scratch test in the scratch merge (12d's geometry is not on main); its text is kept in the
+      evidence and offered to 12d to commit.
+N-D21 SD-N14's "S19's live-rescale pass covers step consults" is vacuous on main: the admin surface
+      refuses a live time_scale change (server/src/admin.rs:244, time_scale_fixed). The step grid uses the
+      same scale as the lattice, so a later rescale inherits it.
+N-D22 F-12n-R1 (a walk.rs unit case between one and two strides) stays open: 12n-2 does not touch
+      systems/movement.
+
+RULINGS (primary session, 2026-10-09, relayed by the coordinator; bounded, within the frozen design):
+      Phase 1 approved, NW-C1 … NW-C4 in N-D11's order. Q-W1 approved as bounded: the step schedule may
+      be added to the four A-10 loops only if they fail, claims and assertions unchanged; a change to any
+      claim's wording or expected value is a material stop. Q-W2 approved (the mineworld-movement edge).
+      Q-W3 approved as read (lattice: decide, then step for a walker). Q-W4 approved, with F-12n2-1.
+      origin/main merged (50685e6: #123 closeout, #124 overall.md; both §21.15 blocks kept, no conflict).
+
+F-12n2-1 (finding, owned by whichever PR next touches movement's disclosure). The controller reads the
+      destination of its own disclosed walk through a private copy of movement's wire shape
+      `{ destination: Destination }`, because movement's disclosed type (`system.rs` `Disclosed`) is
+      private. That duplicates a wire shape across a crate boundary. Movement should export a typed
+      disclosed walk, and the controller should decode with it.
+
+E-NW-base 2026-10-09 ~21:20, on 50685e6 (= origin/main 02788e6's code + this plan). Binary
+      /tmp/s15-12n/12n2/base-mineworld (dev). /tmp/s15-12n/12n2/capture.sh base 30 (cap-base.log;
+      facts sha = sha-256 over hex(fact) in event_id order; summary sha excludes the header and `wall`):
+        social-cafe 30 d  37 085 facts  3ca3d670…73b4a2  summary 9758584b…ae0085  user 2.26 s
+        market-town 30 d  38 294 facts  7a954c82…6eda5   summary 20915535…5464f   user 3.89 s
+        bodies-yard 30 d  62 385 facts  7feed53b…ab3a48  summary a888469f…6e760   user 2.96 s
+
+E-NW1 NW-C1, working tree on 50685e6. Binary /tmp/s15-12n/12n2/c1-mineworld. Byte identity while nobody
+      walks (capture.sh c1 30): all three fact shas and summary shas equal E-NW-base — PASS (user 2.20 /
+      3.63 / 2.87 s: no measurable cost from the 30-second rounds). `cargo test -p mineworld-rule-controller`
+      37 passed (the two new step tests among them); `cargo test -p mineworld-cli --bin mineworld` 7 passed
+      (hosted: the cadence test, a walking seat stepping every `scale` world seconds at scales 1/12/60 with
+      the lattice inside, idle seats on the lattice only, the late-observed lattice consult, stepping
+      continuing and then stopping through decide; run: the 29-seat × one-year instant order and the
+      lattice); `--test run a_pack_with_thirty…` passed (30 seats refused naming RUN_STEP, 29 run).
+      clippy --workspace --all-targets --all-features -D warnings clean; fmt clean; doc checks 193 / 98.
+      Cargo.lock: only the mineworld-cli → mineworld-movement edge. `cargo test -p mineworld-cli --test
+      run_restart --test hosted_town`: 2 + 1 passed (the resume arithmetic in RUN_STEP rounds; the hosted
+      town within its tick budget), 152 s wall (c1-restart.log). Committed 4416ee8.
+
+N-D23 NW-9's world is a minimal street-and-shop pack the test writes (presence, movement, schedule; a
+      walker whose day is the shop 28 m along the street, a watcher seat the test joins), not a copy of
+      social-cafe: the smallest world with a ≥ 20 m walk toward a day, and social-cafe's street has no
+      geometry on main either. Same server path, same paced seat.
+N-D24 NW-10's restart claim, made deterministic. Where a SIGKILL lands is a race: the three kills of
+      a_killed_run… saw no open walk ([0, 0, 0]), and a day boundary of the 30-day social-cafe run has
+      none either (people are home at midnight). So the killed test prints the open walks, and a new test
+      makes the case: a test-written world whose walker's day turns to a shop 78 m away at 23:45, so
+      `run --days 1` stops mid-walk; `--days 2` continues it; byte-equal to a 2-day control; the walk
+      ends within the hour after midnight. (Routines need ≥ 2 segments that differ in place or label —
+      schedule's rule, met by a second label.)
+Q-W1 RESULT  The four A-10 tests pass unedited with NW-C2's controller (consumption 2, economy 3,
+      item-transfer 3, complete_affordances 4): no edit outside the paths.
+
+E-NW2 NW-C2, working tree on 4416ee8. `cargo test -p mineworld-rule-controller` 37 passed — prints:
+      58 of 64 seeds ask to walk to the park; walks 123 through the door, 136 to a person, 402 nearby;
+      already-walking case located; five doors all chosen, 466 crossings in 768 consults. Claims, old →
+      new: greets-only-whom… "walks only when move is offered" → "…when walk-to is offered";
+      every-walk-is-one-stride-or-a-crossing → every walk names a doorway's place (entered), a person
+      here, or a point within 1 400 mm per axis, and no `move` is asked; a-stride-never-exceeds-the-
+      bound → removed with `toward` (the bound is movement's: walk.rs, walking.rs NV-2 (a)); agenda
+      "head for that door" → "ask to walk to the agenda's place" (the park, two doors away);
+      "the door taken leads to the agenda" → "the place walked to is the agenda's, never another";
+      with-no-move-offered → with-no-walk-to-offered; social "never crosses a doorway" → "never walks to
+      another place" (a `move` would also count); with-nothing-social admits walk-to; offered_tests'
+      hall offers walk-to too. New: already_walking_there_asks_for_nothing.
+      NW-9 (walking_pace.rs, 95 s): scales 1 / 6 / 12 / 24 → median 1 340 mm per wall second each;
+      1.0 / 6.0 / 12.0 / 24.0 world s between strides; 22, 22, 24, 22 positions — PASS. M-N7 (`step:
+      EMBODIED_STEP`): 1 340 / 6 722 / 13 368 / 13 370 mm/s, fails at "scale 6: median 6722 mm/s, not
+      1 340 ± 15 %"; reverted, hosted.rs clean in `git status`.
+      NW-7 (c2-nw7.log, 499 s): run 4, run_restart 2 + 1 (the new mid-walk test after N-D24), routines 1
+      (every seat 100 % of its segments; journeys median 9 min, p90 41 min), milestone_b, milestone_c,
+      market_town, market_composition, social_composition, hosted_town (CP-B4 p99 4.9 ms, max 10 ms) —
+      all pass. run.rs: person-entered-place by place {apartments 3 310, cafe 3 000, park 2 100, store
+      1 200, street 10 509, workplace 900}.
+      clippy --workspace --all-targets --all-features -D warnings clean; fmt clean.
+
+E-NW3 NW-4's no-bodies half, on main (the PR's code, 50685e6 + NW-C2), 2026-10-09 21:50–21:54,
+      interleaved with today's base (cap-base300, cap-c2-300; nw4-main.log). Load average 12.7 at the
+      start, 5.7 at the end (other lanes running).
+        social-cafe 300 d  base 365 330 facts, user 27.81 s │ walking 837 953 facts, user 52.16 s (1.88 ×)
+                           sha (hex facts) dc97c7f2…cfcde   summary 9f9aa768…a8a6
+        market-town 300 d  base 375 527 facts, user 40.40 s │ walking 817 742 facts, user 88.02 s (2.18 ×)
+                           sha ca5433bc…d8d3                summary d4cd8fa3…1e9
+      Bound (§21.8 NW-4): ≤ 27.8 s and ≤ 23.9 s (1.5 × E-TD-base) — FAIL for both. Today's base is
+      itself at (social-cafe, 27.81) and over (market-town, 40.40: calendar and weather joined it after
+      E-TD-base) the absolute bound under this load. Against today's base the ratios are 1.88 × and
+      2.18 ×, also over 1.5 ×.
+      Why: the walking towns do about 2.3 × the work. social-cafe 300 d: consults 316 800 → 659 271
+      (lattice + 342 471 step consults); facts 365 330 → 837 953 — arrived 180 677 → 340 214 (a stride is
+      at most 1 340 mm, not 2 000, and wanders are walks), walk-started + walk-ended 238 018 new, spoke
+      67 752 → 101 339 (lattice consults no longer spent on single strides are spent talking);
+      person-entered-place 20 720 → 21 019. Faults 0, no refusal. CPU per fact is about unchanged (76 →
+      62 µs), so this is work, not overhead: a profile of a 60-day run shows perception and serialization
+      throughout, with no hot spot. Town 300-day runs used: 4 of 19 (2 NW-4, 2 re-baseline).
+
+M-2   MATERIAL STOP (§21.8: "a failure is a bounded remedy named here or a material stop with the
+      numbers"; NW-4 names no remedy). NW-4's no-bodies half fails: 52.16 s and 88.02 s against 27.8 s
+      and 23.9 s (E-NW3). Everything else measured on main passes (NW-7, NW-9, NW-10, Q-W1). Held: NW-C3
+      (the 12d scratch-merge measurements, whose TD-12 runs and digests depend on the ruling) and NW-C4.
+      Options, for the operator / primary session:
+        (a) restate NW-4's no-bodies bound against today's base and the walking design's work — e.g.
+            ≤ 2.5 × today's base user CPU (measured 1.88 × / 2.18 ×) — the cost of 2.3 × as many facts,
+            and of a world that talks 50 % more; the absolute 1.5 × E-TD-base is already unmet by main's
+            market-town;
+        (b) cut work within the design: keep `wander` a single `move` stride (it is within one
+            MAX_STRIDE by construction) instead of a walk — reverses QN-11; wanders are 61 % of the
+            walks in the controller test's café view, so perhaps half of the walks and their
+            walk-started/walk-ended pairs go; an estimate, not measured;
+        (c) a larger notional stride cadence does not help: the number of strides, not their spacing,
+            is the work.
+      Recommendation: (a); (b) if the operator wants the headless towns cheaper, measured first.
+
+M-2 RULING (operator, 2026-10-10, relayed by the primary session): option (a). NW-4's no-bodies cost
+      bound is restated against today's main: 300-day user CPU, seed 7, ≤ 2.5 × a fresh base binary run
+      paired with it on the same machine and load. Applied to E-NW3's pairs: social-cafe 52.16 / 27.81 =
+      1.88 × ≤ 2.5 — PASS; market-town 88.02 / 40.40 = 2.18 × ≤ 2.5 — PASS. NW-4's bodies half (TD-12's
+      with ÷ without bounds on the 12d merge) is unchanged. M-2 is closed; NW-C3 and NW-C4 continue.
+      origin/main merged again (a0d578a: weather records, S23/S10 plans; tools/cli/tests support and
+      run_restart's portable kill; no conflict).
+
+E-NW4 NW-C3, the scratch merge, 2026-10-10. Recipe: `git worktree add --detach /tmp/s15-12n/12n2/merge
+      1bf18cc`; `git merge --no-commit --no-ff 8814aad` (origin/mvp0/pr-12d-towns). Conflicts: bodies'
+      geometry.rs (NUDGE_MAX — kept SD-N11's `PERSON_RADIUS`; 12d's R 250 and CLEARANCE 2R − 5 merged
+      clean) and Cargo.toml (comment only) resolved by hand; DECISIONS.md, handoff.md, market-town's
+      README, bodies' four test files, ac1_composability, inspect.rs, social_composition.rs taken from
+      12n-2's side (literals and docs that no NW measurement runs; 12d resolves them on rebase). Tree
+      after `git add -A`: a407132e5712692122907a73ab4fc1dfb30abfae. Binary /tmp/s15-12n/12n2/
+      merge-mineworld (target-merge). SD-D13 copies without bodies: /tmp/s15-12n/12n2/nobodies.sh
+      (bodies dropped from systems, every `body:` section dropped from places/ and items/; both
+      validate). Never committed, never pushed.
+        NW-2  the café door, a scratch harness (tools/cli/tests/nw_scratch.rs in the merge tree): the
+              real server, the visitor walked to each start on the street, then walk-to the café —
+              apartments door 19 strides, café door 1, park door 20, store door 14, workplace door 15,
+              terrace west (−3 000, 600) 6, terrace east (3 000, 600) 8; every walk `arrived`, the
+              visitor in the café after each, no `stalled`, every one ≤ 40 strides — PASS.
+        NW-1  routines.rs (unedited) on the merge, social-cafe 30 d: FAIL — "alice reached 31 of 91"
+              (misses apartments and park every day from day 2); every other seat ≥ 119/121 or 91/91.
+              Cause: from day 1 afternoon alice stands at (2 194, 260) in the café, 260 mm from the
+              front wall and at the bench's corner — a place bodies' resolver leaves her (R + GAP from
+              both), but inside the planner's margin (route.rs grows by R + GAP + PLAN_MARGIN = 310):
+              the start is outside the shrunk floor and inside the bench's grown box, N-D7's core rule
+              blocks every edge out of it, and every walk-to is refused `no-route` ("no way leads there
+              inside the place": 1 990 refusals in 30 days, all people). A 12n-1 planner defect, in
+              systems/bodies/src/route.rs — outside 12n-2's paths.
+        NW-3  social-cafe 30 d: stopped-short 9 417 of 44 803 walk-steps = 21 % — FAIL (≤ 10 %; 12d WIP
+              62 %); entries 1 931 vs 2 119 without bodies = 91 % — PASS (≥ 90 %). By cause: 81 % a
+              person (by: Some), 19 % geometry; by place: apartments 61 %, café 27 %.
+        cost  indicative 30 d (not NW-4's TD-12a instrument): with ÷ without bodies 12.05 / 4.86 = 2.48 ×
+              (social-cafe, bound 3.96), 19.63 / 9.18 = 2.14 × (market-town, bound 3.30).
+      Scratch experiment (route.rs only, in the merge tree, never committed): a start that is not free
+      first steps to the nearest free lattice point (E3's order), then the route is planned from there.
+      social-cafe 30 d: no `no-route` refusal; NW-1 routines PASS (alice 91/91, every seat ≥ 120/121
+      but otto, whom no seat drives); entries 2 117 = 99.9 %; stopped-short 10 778 of 57 475 = 18.8 % —
+      still FAIL (geometry-caused 1 609 = 2.8 %, person-caused 9 169 = 16 %; apartments 64 %); user
+      CPU 8.05 s (was 12.05). Town 300-day runs used: still 4 of 19.
+
+M-3   MATERIAL STOP (§21.14: "NW-1 / NW-2 failing (no remedy is pre-approved)"; §21.8: a failure is a
+      named remedy or a material stop). On the 12d merge NW-1 fails (alice 31/91) and NW-3 fails
+      (stopped-short 21 %); NW-2 passes; the cost is within TD-12's bounds by a 30-day indication.
+        1 NW-1's cause is a 12n-1 planner defect: a start inside the planner's margin but where bodies
+          legally leaves a person (near a wall and a solid's corner) has no route out. The smallest
+          fix is in systems/bodies/src/route.rs (outside 12n-2's paths): a start that is not free
+          first steps to the nearest free point (the goal's own SD-N5 rule, applied to the start),
+          with a unit case and an NV-5 oracle case for starts in the margin. Shown in scratch: NW-1
+          passes, refusals vanish, the run is cheaper. It changes no existing world's facts on main
+          (no town on main has bodies; bodies-yard's digest to be checked) — proposed as a bounded
+          fix inside 12n-2 with the path added, or a 12n-1 follow-up PR merged first.
+        2 NW-3 still fails with the fix (18.8 %): 85 % of the stops are people stopping people, two
+          thirds of them in the apartments at night, where eleven residents wander one room. Walls
+          and furniture now stop 2.8 % of strides. Options: (a) restate NW-3 as geometry-caused stops
+          ≤ 10 % of strides (2.8 %, the failure the claim was written against: TD-D7's walls), with
+          person-caused stops printed; (b) keep NW-3 and treat crowding as a later behaviour change
+          (the controller's wander at home, or SD-N9's avoid widened) — not in 12n-2's scope.
+      Recommendation: 1 inside 12n-2 (path systems/bodies/src/route.rs + its tests, bodies' VERSION
+      unchanged if bodies-yard's facts are unchanged, else bumped with the record); 2 (a).
+      Held: NW-1's run.rs part, NW-4's TD-12a set, NW-5, NW-6, NW-10 on the merge, NW-C4.
+
+M-3 RULINGS (operator, 2026-10-10, relayed by the primary session):
+      (1) The route.rs start is fixed inside 12n-2: `systems/bodies/src/route.rs` and its tests join
+          12n-2's paths. A start that is not free first snaps to the nearest free point (SD-N5's goal
+          snap), with a unit case and an NV-5 oracle case; bodies' VERSION is bumped, with a record,
+          only if bodies-yard's facts change.
+      (2) NW-3 restated: geometry-caused stopped-short strides (walls and furniture; `by: None`) ≤ 10 %
+          of strides. Person-caused stops are printed, not bounded, and left to a later behaviour change.
+      origin/main merged (b23d8e1: #141's 2 000 mm case in walk.rs's unit test — F-12n-R1 closed by
+      main —, #151's port-0 binding in tools/cli/tests/support; no conflict).
+
+N-D25 The start snap, as built (route.rs): a start that is not free first steps to the nearest free point
+      of the 50 mm lattice when that point lies within the margin's width (GROWN, 360 mm at R 300) of it;
+      the route is planned from that point, which is its first waypoint. A start with no free point that
+      near keeps N-D7's core rule. The distance bound is this session's addition to the ruling's words.
+      Without it, the first oracle run found a margin start whose nearest free point was 4.9 m away
+      along the wall (scene 61), and the straight "step" ran past a solid. A short step out of the margin
+      is the ruling's intent ("first snaps"), and a long one would be a second, unplanned route. Every
+      stride, the step included, is still resolved by the resolver. The rest of the route's code is
+      unchanged except that the obstacle list is built by one function, `obstacles` (the same boxes).
+N-D26 Literal edits outside 12n-2's first paths, consequences of the ruled VERSION bump:
+      systems/bodies/src/system.rs (VERSION 4 and its doc), systems/bodies/tests/rapier_pin.rs (the pinned
+      pair (4, "0.36.0"): "bodies' version and the locked Rapier move together", claim unchanged),
+      docs/DECISIONS.md ARC-39 note 6. Cross-lane: 12d's WIP also takes bodies to version 4 (its literals
+      read "bodies v4"). 12d's rebase takes 5, or reconciles, and records it.
+
+E-NW5 The fix, 2026-10-10, working tree on b23d8e1.
+        unit   route.rs a_start_pinned_in_the_margin_steps_out_first: the café's front corner (bench slab and
+               door leaf as 12d draws them), start R + GAP from the wall and just over R + GAP from the
+               bench's corner — (2 087, 310) at R 300, alice's (2 192, 260) at R 250 — is not free; the
+               route's first point is free and within 360 mm; the walk ends at the goal — PASS.
+        oracle tests/route.rs a_start_in_the_margin_steps_to_the_nearest_free_point_and_goes_on (2 000
+               seeded scenes, starts R + GAP clear but not free): 801 routed, 1 094 unreachable (each with
+               a snapped start confirmed by the flood fill from it), 105 without a margin start; 1 714
+               snapped within 360 mm — 196 of those steps pass nearer than 310 mm to something on the
+               straight line, which the resolver resolves as it does any stride (counted, not claimed) —
+               181 held — PASS. NV-5's own test unchanged: 852 routed (1 310 bends, 573 goals moved), 909
+               unreachable, 239 without a start = E-NV2/E-NV5.
+        mutation the snap disabled (`if true || free(…)`) → the oracle fails at "scene 0: unreachable, but
+               the flood fill reaches (3700, 4400) from the snapped start", the unit case fails at "a short
+               step out of the margin: (2087, 310) → (2000, 1260)"; reverted.
+        bodies-yard 30 d, seed 7: before the fix (c2) 150 618 facts fa011d04…bdc8005; after (c3) 172 374
+               facts e0f5964c…8e31ed — the facts change, so bodies VERSION 3 → 4 (N-D26; ARC-39 note 6).
+        suites `cargo test -p mineworld-bodies` all pass; tools/cli walking (9), bodies_yard (4 + 1
+               ignored), bodies_yard_restart (1) pass; clippy --workspace -D warnings and fmt clean.
+      Committed 25660e8.
+
+E-NW6 NW-C3 on the scratch merge of 25660e8 with 8814aad, 2026-10-10. Recreated as E-NW4's recipe, at
+      /tmp/s15-12n/12n2/merge. One more conflict: bodies' system.rs VERSION, where 12n-2's 4 meets 12d's 4;
+      the scratch takes 5. Tree ef332673… (c79d6e22… with the two scratch test files nw_scratch.rs and
+      nw_scratch2.rs added later; no code differs). Binary /tmp/s15-12n/12n2/merge2-mineworld. SD-D13
+      copies /tmp/s15-12n/12n2/nb2/{social-cafe,market-town} (nobodies.sh; both validate).
+        NW-1  routines.rs, unedited: every seat ≥ 90 % — alice 91/91, bob 120/121, ivan, visitor and
+              wanderer 121/121, carol … hana 91/91 (otto, whom no seat drives, 31/61, as on main);
+              journeys median 15 min, p90 47 min — PASS. run.rs's 300-day claims: NOT RUN (budget, below).
+        NW-2  the scratch harness: apartments door 20 strides, café door 1, park door 20, store door 14,
+              workplace door 15, terrace west 6, terrace east 8; all 14 walks `arrived`, the visitor in
+              the café after each — PASS.
+        NW-3  (restated, M-3 ruling 2) social-cafe 30 d: geometry-caused stopped-short 1 463 of 55 408
+              walk-steps = 2.6 % ≤ 10 % — PASS. Printed, not bounded: person-caused 8 253 (14.9 %;
+              apartments 5 570, café 1 805). Entries 2 117 vs 2 119 without bodies = 99.9 % — PASS. No
+              `walk-to` refused; walk outcomes arrived 10 517, no-route 316 (a later leg), stalled 234,
+              replaced 2. market-town: geometry 1 137 of 53 755 = 2.1 %, person 8 411.
+        NW-4  TD-12a (bodies half), §20.6.1's instrument, user + sys CPU, 300 d seed 7, in memory:
+              first set (td12a.log; runs launched in the background):
+                social-cafe  without 24.02 / 33.91 s, with 52.72 / 64.45 s; pair ratios 2.19 / 1.90,
+                             15 % apart — contaminated
+                market-town  without 82.81 / 83.42 s, with 152.04 / 148.01 s; pair ratios 1.84 / 1.77,
+                             3.5 % apart — clean; max(with) ÷ min(without) 1.84 ≤ 3.30 — PASS
+              social-cafe re-run once (td12a-rerun3.log, in the foreground, load 3.5–5.6): without 23.54 /
+                             24.31 s, with 46.59 / 48.45 s; pair ratios 1.98 / 1.99 — clean;
+                             max(with) ÷ min(without) 2.06 ≤ 3.96 — PASS
+              faults 0 in every run; facts with bodies 1 240 225 / 1 219 332, without 877 751 / 858 406.
+              Instrument finding (N-D27): a run started with run_in_background is scheduled at background
+              QoS on this machine — two attempted re-runs took 17 to 69 wall minutes for seconds of CPU and
+              were aborted. Only foreground runs are comparable. The market-town set ran in the background,
+              but its two pairs agree within 3.5 %.
+              TD-12b (per-resolution timing): NOT RUN (budget, below).
+        NW-5  run_restart.rs on the merge: 3 passed (the killed runs, the continued run, the mid-walk
+              stop) — PASS. Two 30-day runs byte-identical: social-cafe 1096c6fc…cbb0 both, market-town
+              277add76…c2958c both — PASS. market_town.rs: NOT RUN to the end (killed at the 2-hour task
+              limit under load ≈ 200; it runs 300 days). arm64 = x86_64: the merged tree built for
+              x86_64-apple-darwin (target-x86; Mach-O x86_64), run under `arch -x86_64`, 30 d seed 7 —
+              social-cafe 122 928 facts 1096c6fc…cbb0, summary 4258eae7…a59a; market-town 120 954 facts
+              277add76…c2958c, summary fbdddcaa…3b60 — both equal arm64's — PASS.
+        NW-6  M-N1b on the merge (the wayfinder line emptied, bodies' require_wayfinder guard removed):
+              routines.rs FAILS naming ten people below 90 % (alice 35/91, bob 58/121, carol 25/91, erin
+              59/91, felix 7/91, grace 52/91, hana 47/91, ivan 91/121, visitor 60/121, wanderer 89/121);
+              the NW-2 harness FAILS naming "terrace east" (walk-to the café, 10 steps, not in the café).
+              The other six starts still reach the café: straight walks from the doorways and the west
+              terrace are not blocked. Reverted; the tree's code is the measured one again.
+        NW-10 on the merge: run_restart.rs (above) — PASS.
+
+N-D27 TD-12a's runs are made in the foreground only (see E-NW6). Background-QoS scheduling inflates user
+      CPU and wall time, unevenly.
+
+M-4   MATERIAL STOP — the validation budget (§21.14: "Reaching a cap is a material stop"). 300-day runs
+      so far: NW-4 main pair 2; TD-12a 8 + its social-cafe re-run 4; other 6 against a cap of 4 — two
+      base re-baseline runs (E-NW3), three completed runs of the two aborted background re-runs, and one
+      foreground timing check. The total, 20, is over the cap of 19 by one (the timing slot is unused).
+      Still owed, each needing 300-day runs:
+        NW-1  run.rs's claims on the 300-day run (every seat moves and talks in every bucket, all six
+              places entered): 1 run (social-cafe with --save, read with nw_scratch).
+        NW-4  TD-12b, per-resolution max ≤ 50 ms on market-town: 1 run (its own slot).
+        NW-5  market_town.rs on the merge: one 300-day and four 30-day runs.
+      Requested: authorize three more 300-day runs (NW-1, TD-12b, NW-5). All of them run in the
+      foreground.
+
+M-4 RULING (primary session, 2026-10-10): three more 300-day runs authorized (run.rs's claims, TD-12b,
+      market_town.rs on the merge), all in the foreground; "new cap 22 total". N-D25 accepted as a bounded
+      refinement of the M-3 ruling; N-D26 and N-D27 accepted.
+
+CROSS-LANE (12d; recorded at the primary session's request): 12n-2 takes `bodies` to version 4
+      (25660e8; ARC-39 note 6: the walk out of the planner's margin changes routes and results). 12d's WIP
+      (8814aad) also takes `bodies` to version 4, for its genesis doorway refusal (SD-D5, QD-6). Both are
+      changes of results, so they cannot share a number. On rebase, 12d takes version 5 (or reconciles
+      the two under one bump), updates `tests/rapier_pin.rs`'s pinned pair and its "bodies vN" literals
+      (inspect.rs, social_composition.rs), and records it. The scratch merges of E-NW4 and E-NW6 used 5.
+
+E-NW7 The three authorized runs, on the merge (25660e8 + 8814aad; binary merge2-mineworld), 2026-10-10,
+      foreground.
+        NW-1  run.rs's claims on social-cafe 300 d, seed 7, with a save (nw1-300.txt, nw1-300-save):
+              faults 0, 1 240 225 facts. Every one of the 11 seats has an accepted stride and an accepted
+              talk in every one of the 10 buckets (no `move 0` or `talk 0` in any activity line); every
+              place entered — apartments 3 306, café 2 992, park 2 092, store 1 198, street 10 487,
+              workplace 900 — PASS. (Geometry-caused stops 15 308; person-caused 87 657, printed.)
+        NW-5  market_town.rs on the merge (merge-market.log): 1 passed in 285 s (a 300-day and four
+              30-day runs in parallel, 239.5 s wall; wallet totals conserved at 2 360 000) — PASS.
+        NW-4  TD-12b. A scratch timing build: bodies' `ArrivalResolver::resolve` wrapped in a
+              wall-clock timer printing every call. It was built from the merge tree to timing-mineworld,
+              and the timer was removed from the tree right after. market-town 300 d, seed 7: faults 0,
+              1 219 332 facts with fingerprint 08f7d8c784a10912, equal to TD-12a's plain with-bodies run
+              (the timing changes nothing). Load 7.6 → 12.9.
+                calls 549 393; p50 1 µs, p99 95 µs, p99.9 272 µs, max 68 587 µs
+                over 1 ms 262, over 5 ms 86, over 10 ms 54, over 20 ms 25, over 50 ms 2 (57 205, 68 587)
+              Bound max ≤ 50 ms — FAIL by two calls. 12d-0's TZ-9b gave max 10.5 ms on its prototype.
+              The timer is wall-clock and includes descheduling. At a load of 8–13 the tail cannot be told
+              apart from off-CPU stalls, the cause step-12 E-SB9 found for every tick outlier.
+        Budget: 300-day runs now 23 = E-NW3's 2 + 2, TD-12a 8 + 4, the 4 other (3 aborted + 1 check),
+        and these 3. The primary session's "new cap 22" is 19 + 3, but M-4 stated 20 already used, so 20 +
+        3 = 23. The arithmetic differs by one; reported, not hidden.
+
+M-5   MATERIAL STOP (TD-12b, §19.4: "a maximum above 50 ms … is a material stop with the numbers";
+      §21.8 NW-4 carries it). Two of 549 393 resolutions exceeded 50 ms, measured on wall time on a loaded
+      machine. The 300-day run budget is also at 23 against the stated 22. Options:
+        (a) one more market-town 300-day timing run in the foreground on a quiet machine, timing each
+            call by both wall clock and thread CPU time (`clock_gettime(CLOCK_THREAD_CPUTIME_ID)` through
+            std is unavailable; the scratch build would read `libc::clock_gettime`, a scratch-only
+            dependency). PASS iff the CPU-time maximum ≤ 50 ms; the wall maximum is reported. This
+            separates the resolver's own cost from descheduling, as the CP-B4 ruling (D-SB12) did for
+            ticks;
+        (b) accept TD-12b as INCONCLUSIVE under load: p99.9 0.27 ms, two outliers. 12d re-measures TD-12b
+            on its final head anyway (§19.4).
+      Recommendation: (a) — one run, 24 in all.
+
+M-5 RULING (primary session, 2026-10-10): option (b). TD-12b on the scratch merge is INCONCLUSIVE under
+      load: wall-clock timer, load 8–13; p99 95 µs, p99.9 0.27 ms, max 68.6 ms (two calls over 50 ms).
+      TD-12b is 12d's criterion, and 12d re-measures it on its own final head. FOR 12d: time each
+      resolution by thread CPU time as well as by wall clock (option (a)'s method: a scratch-only
+      `libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID)` beside `Instant`), so that a load outlier can be told
+      apart from the resolver's own cost. Budget: 23 300-day runs accepted as final; no more in 12n-2.
+      M-5 is closed.
+
+E-NW8 NW-C4 / NW-8, the final gate, 2026-10-10, on f78ae67 (origin/main merged: lakeside, milestone_e,
+      packs; no conflict; this entry and later commits are Markdown only). `cargo fmt --all --check` 0;
+      `cargo clippy --workspace --all-targets --all-features -D warnings` 0; doc checks 193 sections and
+      107 decision ids, all distinct; `check_scratch.py scan` 0 (206 sources, 2 exempt); `cargo test
+      --workspace --no-fail-fast` exit 0, 221 result lines, all ok (walking_pace and hosted_town among
+      them); `check_scratch.py left --target-dir /tmp/impl-12n2-target` 0. Scope: `git diff --name-only
+      origin/main...HEAD` is exactly §21.14's 12n-2 paths plus N-D12 (tools/cli/Cargo.toml, Cargo.lock)
+      and the M-3 ruling's paths (systems/bodies/src/{route,system}.rs, systems/bodies/tests/{route,
+      rapier_pin}.rs); no diff under kernel/, contracts/, persistence/src/, server/, clients/, worlds/.
+      CI on the exact final head is reported in the PR and the handoff (a commit cannot carry its own CI).
+      QN-2: the towns' digests moved here (E-NW3: social-cafe 300 d 837 953 facts, market-town 817 742,
+      both before the route fix and before main's later merges; bodies-yard 30 d e0f5964c…, version 4).
+      12n-2 merges immediately before 12d. READY FOR OPERATOR REVIEW — withdrawn by M-6 below.
+
+E-NW9 CI on the PR head f7465e3. GitHub tests the merge ref refs/pull/125/merge, so the run also carried
+      main's work merged after f78ae67. A dispatch (run 38089604885) skips `test`, `platforms` and
+      `python` by their job conditions, so the PR was closed and reopened to give a non-draft
+      pull_request run, 38091503186: fast, changes and platforms (macos-26, windows-2025) pass; `test`
+      and `python` ×3 FAIL.
+        test     tools/cli/tests/market_town.rs: "ASR-2: the 30-day save is 117772288 B (112.3 MiB), over
+                 the 64 MiB bound". ASR-2 is the SR lane's 30-day save-size bound (ARC-81, QSR-5; PR
+                 #153, merged into main after f78ae67). Main's own measurement is 62 029 824 B (59.2 MiB;
+                 pr-s6-save-retention.md). With walks the town records about 2.2 × the facts (E-NW3), and
+                 the save grows with them.
+        python   cognition/lm-controller/tests/test_ac10.py::test_d_… (S10 P4, AC-10): "assert 2 == 5".
+                 Its harness locates five of Bob's lines that Alice never perceived and whose words she
+                 never heard, in the 100-day social-cafe history at seed 7. The walking history has two:
+                 people talk more (E-NW3), and Alice hears the fixed greetings from others.
+      Both are other lanes' criteria pinned to the towns' history or volume, which QN-2's re-baseline
+      moves. Neither was visible on f78ae67's base (ASR-2 merged later; test_ac10 needs the Python suite,
+      which `cargo test --workspace` does not run).
+      origin/main merged again (0946569: SR save retention, IL-e, S10 P3b; no conflict).
+
+M-6   MATERIAL STOP (§21.14: an edit outside the approved paths; another lane's criterion). The PR head's
+      CI is red in two places 12n-2 may not edit:
+        1 ASR-2 (SR, `ARC-81`): a 30-day market-town save is 112.3 MiB with walking against a 64 MiB bound
+          that main meets at 59.2 MiB. Options: (a) the SR owner restates the bound for walking towns (e.g.
+          ≤ 128 MiB, about 2 × main's, as the facts are); (b) 12n-2 records fewer facts — e.g. no
+          `walk-started`, which `walk-ended` and the first `arrived` imply — a change to ARC-75's
+          vocabulary and so to the frozen design; (c) both.
+        2 AC-10's test_d (S10 P4): the located count 5 is a fixture property of the old history. Options:
+          (a) the S10 owner widens the harness's search (more listeners than Alice, or more days) and
+          keeps "5"; (b) the count drops to what the new history holds (2) — a weaker located case.
+      Recommendation: 1 (a) and 2 (a), each in its own lane's PR, merged with or just before 12n-2 —
+      QN-2 already makes 12n-2 and 12d one re-baseline event. Or both edited in 12n-2, under a ruling
+      that names them.
+
+M-6 RULINGS (2026-10-10). Operator: ASR-2 option (a), ≤ 128 MiB for walking towns (the snapshot part is
+      unchanged; SR-b's log compression is expected to bring the size back down). Primary session: AC-10
+      test_d option (a), widen the search and keep 5. Then, once the evidence below showed that five do not
+      exist, option (b): four, each keeping both checks. 12n-2 makes both edits as part of the QN-2
+      re-baseline. Authorized files: tools/cli/tests/market_town.rs (the ASR-2 assertion and its message),
+      cognition/lm-controller/tests/test_ac10.py (test_d's search only), pr-s6-save-retention.md and
+      pr-s10-p4-memory.md (dated notes), and an ARC-81 note in docs/DECISIONS.md. The 300-day size of a
+      walking market-town save is recorded as a measurement, with no bound.
+N-D28 test_d, as built. The widened search (test_ac10.py: `LISTENERS`, `LOCATED` = 4, `_unperceived`) applies
+      the harness's rule to Bob's export and then the nine other listeners', deduplicated by fact id. On
+      the walking 100-day history it finds 4 distinct facts and no more (2 in Bob's), so five is
+      unreachable. ac10_harness.py is unchanged. Locally: test_ac10.py 8 passed, lm-controller 169 passed
+      and 1 skipped, sdk/python 103 passed; ruff check, ruff format and pyright clean.
+N-D29 The 300-day measurement needs no extra run. market_town.rs already makes a 300-day saved run, and it
+      now prints that save's size ("ASR-2 (measured, unbounded): the 300-day save is …"). CI's value is
+      read from the PR's test job and recorded with the CI evidence. The 23-run budget is unchanged.
+      origin/main merged (a25f0d1: #161's doorway signs in movement's disclosure — `to_tags` on each
+      disclosed passage. The paced controller decodes `Passages` from that disclosure with serde, which
+      ignores the added field; NW-7's controller tests and the workspace run cover it).
 ```
 
 

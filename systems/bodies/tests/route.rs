@@ -457,3 +457,154 @@ fn every_route_keeps_its_clearance_and_every_refusal_has_no_way() {
         "the scenes exercise both answers"
     );
 }
+
+/// A start where the resolver may leave a person — at least R + GAP (310 mm) clear of every solid,
+/// object and the floor's edge — but inside the planner's margin, so not free: [`None`] when 400 tries
+/// find none.
+fn margin_start(scene: &Scene, grown: &[Rect], cases: &mut Cases) -> Option<(i64, i64)> {
+    for _ in 0..400 {
+        let (x, y) = (
+            i64::from(cases.next(scene.floor.x1)),
+            i64::from(cases.next(scene.floor.y1)),
+        );
+        if scene.clearance_offence(x, y).is_none() && !scene.free(grown, x, y) {
+            return Some((x, y));
+        }
+    }
+    None
+}
+
+/// Whether the straight step from `a` to `b` keeps out of every obstacle grown by R + GAP (the
+/// resolver's clearance, squares for balls as the planner models them) and inside the floor shrunk by
+/// it — sampled every 10 mm, the oracle's own test.
+fn step_clear(scene: &Scene, a: (i64, i64), b: (i64, i64)) -> bool {
+    let near: Vec<Rect> = scene
+        .solids
+        .iter()
+        .map(|s| s.grown(310))
+        .chain(scene.objects.iter().map(|o| o.square().grown(310)))
+        .collect();
+    let length2 = (b.0 - a.0).pow(2) + (b.1 - a.1).pow(2);
+    let steps = (length2.isqrt() / 10).max(1) + 1;
+    (0..=steps).all(|k| {
+        let (x, y) = (a.0 + (b.0 - a.0) * k / steps, a.1 + (b.1 - a.1) * k / steps);
+        x >= R_GAP
+            && y >= R_GAP
+            && x <= i64::from(scene.floor.x1) - R_GAP
+            && y <= i64::from(scene.floor.y1) - R_GAP
+            && !near.iter().any(|rect| rect.holds_open(x, y))
+    })
+}
+
+/// Step-11 §21.15 M-3 (the operator's ruling): a start in the margin — legal for the resolver, not
+/// free for the planner — first steps to the nearest free point, the oracle's own brute-force snap
+/// (distance, then y, then x), when that point is within the margin's width (360 mm), and the route
+/// goes on from there: every later leg keeps R + GAP from everything, and a refusal is confirmed by the
+/// flood fill from the snapped start. With no free point that near the start is held (N-D7's core
+/// rule) and every leg's clearance is claimed. Before the fix every margin start was planned from where
+/// it stood, and alice at the café's bench had no way out (E-NW4).
+#[test]
+fn a_start_in_the_margin_steps_to_the_nearest_free_point_and_goes_on() {
+    let mut cases = Cases(13);
+    let (mut routed, mut unreachable, mut skipped, mut stepped, mut held) = (0, 0, 0, 0, 0);
+    let mut close_steps = 0;
+    for scene_index in 0..SCENES {
+        let mut scene = Scene::generate(&mut cases);
+        scene.avoid = None;
+        let grown = scene.grown();
+        let Some(from) = margin_start(&scene, &grown, &mut cases) else {
+            skipped += 1;
+            continue;
+        };
+        let to = (
+            i64::from(cases.next(scene.floor.x1)),
+            i64::from(cases.next(scene.floor.y1)),
+        );
+        let answer = route_in(
+            &scene.shape(),
+            &scene.bodies(),
+            ground(
+                i32::try_from(from.0).expect("small"),
+                i32::try_from(from.1).expect("small"),
+            ),
+            ground(
+                i32::try_from(to.0).expect("small"),
+                i32::try_from(to.1).expect("small"),
+            ),
+            None,
+        );
+        let snapped = scene
+            .nearest_free(&grown, from.0, from.1)
+            .filter(|s| (s.0 - from.0).pow(2) + (s.1 - from.1).pow(2) <= 360 * 360);
+        if snapped.is_some() {
+            stepped += 1;
+        } else {
+            held += 1;
+        }
+        let end = if scene.free(&grown, to.0, to.1) {
+            Some(to)
+        } else {
+            scene.nearest_free(&grown, to.0, to.1)
+        };
+        match answer {
+            RouteAnswer::Waypoints(waypoints) => {
+                routed += 1;
+                let points: Vec<(i64, i64)> = waypoints
+                    .points()
+                    .iter()
+                    .map(|p| (i64::from(p.x().value()), i64::from(p.y().value())))
+                    .collect();
+                let mut at = from;
+                let mut legs = points.clone();
+                if let Some(first) = snapped {
+                    assert_eq!(
+                        points.first().copied(),
+                        Some(first),
+                        "scene {scene_index}: from {from:?}, the first step is the nearest free point"
+                    );
+                    // The step out of the margin is a stride the resolver resolves; whether its
+                    // straight line keeps R + GAP is counted, not claimed.
+                    if !step_clear(&scene, from, first) {
+                        close_steps += 1;
+                    }
+                    at = first;
+                    legs.remove(0);
+                }
+                assert_eq!(points.last().copied(), end, "scene {scene_index}: the end");
+                for next in legs {
+                    let length2 = (next.0 - at.0).pow(2) + (next.1 - at.1).pow(2);
+                    let steps = (length2.isqrt() / 10).max(1) + 1;
+                    for k in 0..=steps {
+                        let x = at.0 + (next.0 - at.0) * k / steps;
+                        let y = at.1 + (next.1 - at.1) * k / steps;
+                        if let Some(offence) = scene.clearance_offence(x, y) {
+                            panic!(
+                                "scene {scene_index}: from {from:?} to {to:?} by {points:?}: {offence}"
+                            );
+                        }
+                    }
+                    at = next;
+                }
+            }
+            RouteAnswer::Unreachable => {
+                unreachable += 1;
+                if let (Some(start), Some(end)) = (snapped, end) {
+                    assert!(
+                        !scene.flood_reaches(&grown, start, end),
+                        "scene {scene_index}: unreachable, but the flood fill reaches {end:?} from \
+                         the snapped start {start:?}"
+                    );
+                }
+            }
+        }
+    }
+    println!(
+        "M-3: {SCENES} scenes — {routed} routed from a margin start, {unreachable} unreachable, \
+         {skipped} without one; {stepped} snapped within 360 mm ({close_steps} of their steps pass \
+         nearer than 310 to something), {held} held"
+    );
+    assert!(
+        routed > 500 && stepped > 500,
+        "margin starts are routed: {routed}"
+    );
+}

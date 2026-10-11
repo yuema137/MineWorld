@@ -1955,6 +1955,26 @@ is cognition's. Places have no extent, so wandering is bounded only by the pull 
    measured strides with the same floored root (`ARC-23`). With the fix, a 300-day run has no refusals
    at all.
 
+**Note, 2026-10-09 (S15, PR 12n-2; `step-11-bodies.md` §21 SD-N15, SD-N16; `ARC-75`).** People walk
+by asking movement for a walk (`walk-to`) and then for its strides (`walk-step`), one per request. The
+run paces those strides; nothing about the decision itself changes:
+
+1. **Step consults.** As well as the lattice `genesis + k + m·P`, seat `k` is consulted at `genesis + k
+   + n·RUN_STEP` (`RUN_STEP` = 30 world seconds, a divisor of P) whenever its person has a `Walking`
+   at that instant. The run reads that from world state through movement's `is_walking`, so a resumed
+   run schedules exactly the step consults the dead one would have, which is this decision's restart
+   property. A seat that is not walking is not consulted, and the clock is not advanced for it: a
+   `Walking` is only ever created by a request, so a seat that was not walking before the instant is
+   not walking at it. `RUN_STEP` is notional (step-19 §4.6: `run` has no time scale). A 20 m walk is
+   15 strides, 7½ notional minutes, rather than ten lattice consults.
+2. **At a step consult the controller is asked `step`**, a separate pure function that returns only
+   `walk-step`, takes no draw and never answers. `decide` is still asked only on the lattice, once per
+   pace, so "answer each line once" holds. A lattice instant is always a step instant. The one consult
+   there is `decide`, and when `decide` returns nothing for a walker, `step`, so that a walker who
+   rolls "stand" keeps walking.
+3. **A pack with `RUN_STEP` (30) seats or more is refused**, naming `RUN_STEP` (it was P). Residues
+   mod 30 keep every instant to one seat. The largest pack has eleven seats.
+
 ---
 
 ## DEP-11 — The CLI's argument parsing: `clap`
@@ -3514,6 +3534,17 @@ wayfinder.** Items 1–8 and the earlier notes are unchanged.
    values the first note and 12b fixed (300 mm, 200 mm), so no result changes and `bodies`' version does
    not; a different radius scales them with the body.
 
+**Note 6, 2026-10-10 (S15, PR 12n-2; step-11 §21.15 M-3, the operator's ruling) — a walk out of the
+margin.** The resolver may leave a person nearer a wall or a solid than the planner's margin
+(R + GAP + PLAN_MARGIN), though never nearer than R + GAP. From such a start the planner first steps
+to the nearest free point of the 50 mm lattice, the goal's own snap (SD-N5), when that point lies
+within the margin's width (360 mm at R 300). The route then goes on from there, and the step is a
+stride the resolver resolves like any other. A start with no free point that near keeps the core rule
+(step-11 N-D7): the box holding it is shrunk to the start for the start's own edges. Before this, a person pinned between the café's front wall and the bench's corner had no route
+out, and every walk they asked for was refused `no-route` (step-11 E-NW4). This changes routes, and so
+results, in every world with bodies and walkers, so `bodies` is version 4 and refuses a version-3 save
+by name (`ARC-25`).
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -4105,6 +4136,19 @@ or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located ev
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
 the requests. The paced controller's rates are tuned to a 900-second pace; at the hosted default of 5 s
 it is chattier than a person (QS11-4), which is cognition's to tune (S10), not the server's.
+
+**Note, 2026-10-09 (S15, PR 12n-2; `step-11-bodies.md` §21 SD-N14; `ARC-75` item 7).** A hosted paced
+seat steps its walks at wall cadence. `PacedSeat` keeps its lattice `genesis + (k + m·pace)·scale`
+for `decide`. After a consult whose observation disclosed the seat's own `walking` record, or whose
+request was `walk-to` or `walk-step`, it adds **step consults** every `EMBODIED_STEP × scale` world
+seconds, offset `k·scale` (QTW-13's form), each answered by the controller's pure `step`. It stops at
+the first step consult that returns nothing. `EMBODIED_STEP` is one wall second, a constant of this
+adapter: one `walk-step` of 1 340 mm per wall second is 1.34 m/s on screen at any time scale
+(Weidmann 1993). No pack and no controller sees the scale. Idle seats get no step consults. A
+consult is the lattice consult when a lattice instant lies between the seat's previous consult and
+this one, because the runtime builds the observation at `due.max(world.now())`. There it is `decide`,
+and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
+seat does not walk.
 
 ---
 
@@ -7129,6 +7173,13 @@ between scheduled snapshots, which `AC-12` does not cover (`ARC-27`).
 **Revisit** if a feature needs denser history (a "rewind to any hour" would revisit 5.3 / 5.6 and the
 anchor spacing), if `AC-8` parity ever differs in the `snapshots` table (see `DEP-43`), or when SR-b is
 designed.
+
+**Note, 2026-10-10 (S15, PR 12n-2; step-11 §21.15 M-6, the operator's ruling) — ASR-2 for walking
+towns.** Since people walk (`ARC-75`), a walk's strides are requests and facts of their own. Market Town
+records about 2.2 × the facts, and its 30-day save is 112.3 MiB, against 59.2 MiB before. ASR-2's bound
+becomes ≤ 128 MiB for walking towns; the retention rule and the snapshots it keeps are unchanged. The
+300-day size is printed by `tools/cli/tests/market_town.rs` as a measurement, not a bound. SR-b (log
+compression) is the expected remedy for the size, as above.
 
 ---
 
