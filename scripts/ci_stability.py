@@ -183,27 +183,34 @@ async def seated(server: Server, cursor: str | None) -> tuple[str, Status]:
     """Joins the server's suggested seat with its invite and the cursor reached so far, waits for an
     observation and the backfill, lets the world run, reads `/status`, and kills the server while the
     client is seated; the client must see the server go. Returns the cursor reached and that status."""
-    from mineworld_sdk.session import JoinRefused, SeatSession, SessionClosed
-    from mineworld_sdk.wire.frames import Invite, PerceivedJoin
+    from mineworld_sdk.session import JoinRefused, Perceiving, SeatSession, SessionClosed
+    from mineworld_sdk.wire.frames import Invite, Perceived
     from mineworld_sdk.wire.ids import EntityKey, EventId
+
+    # The stream's cursor is the caller's to keep (the SDK hands each frame on and keeps none): the
+    # `through` of the last frame received here.
+    throughs: list[str] = []
+
+    def deliver(frame: Perceived) -> None:
+        throughs.append(str(frame.through))
 
     since = None if cursor is None else EventId(cursor)
     try:
         session = await SeatSession.connect(
             f"ws://{server.address}/ws", seat=EntityKey(server.seat), invite=Invite(server.invite),
-            nickname="nightly", perceived=PerceivedJoin(since=since),
+            nickname="nightly", perceiving=Perceiving(since=since, deliver=deliver),
         )
     except JoinRefused as refused:
         raise Unmet(f"the client's join (seat {server.seat}, since {cursor}) was refused: {refused.code}") from refused
     try:
         await asyncio.wait_for(session.changed(), SEATED_LIMIT)
         deadline = time.monotonic() + SEATED_LIMIT
-        while session.perceived_cursor is None or (cursor is not None and int(session.perceived_cursor) < int(cursor)):
+        while not throughs or (cursor is not None and int(throughs[-1]) < int(cursor)):
             if time.monotonic() > deadline:
                 raise Unmet(f"no perceived backfill from {cursor} within {SEATED_LIMIT:.0f} s "
-                            f"(cursor {session.perceived_cursor})")
+                            f"(cursor {throughs[-1] if throughs else None})")
             await asyncio.sleep(0.1)
-        reached = str(session.perceived_cursor)
+        reached = throughs[-1]
         await asyncio.sleep(RUNNING_BEFORE_KILL)
         seen = server.status()
         server.kill()

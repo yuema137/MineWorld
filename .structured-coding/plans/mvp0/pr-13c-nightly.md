@@ -1168,6 +1168,39 @@ run          branch / head                         groups        result and use
 38095769877  13c-mn9-stability-issue @ 2e884a9     stability     (single 7) MN-8, MN-9 push 1
 ```
 
+- **R1 (A-N2, A-N4, A-N6 on `6c23476`).** parity-long: "4 records: Linux/arm64, Linux/x86_64,
+  Darwin/arm64, Windows/x86_64; 4 worlds; 10533 keys compared … AC-8 PASS", each world's `summary-300`
+  equal to the laptop's default record and the baselines ("baselines PASS"); `ci_parity.py diff` of the
+  laptop's long record (`c65a963`) and CI's Linux record → "no world differs" (I-S13-8 measurably).
+  stability: Linux, macOS, Windows PASS — ten cycles each (one instance; revision at each start = the
+  last seen before the kill, 5 … 54; perceived cursor 135 → 197; faults 0), the killed save replayed,
+  every world's 300-day save replayed ("… reproduced byte for byte"), CA-13 `1 passed` (15.8 s on
+  Linux), scratch clean. repeat: two samples per OS ran to completion, none failed ("none (2 samples)").
+  The report rendered every row, `ci.yml`'s push run for the commit, the flake list, drift "none", the
+  benchmark and the trend; it failed the run because clients was red, and touched no issue (plain
+  scratch branch).
+- **MN-1 PASS** (run 38094509802, alice's walk 14:00 → 14:30 in market-town): compare "AC-8 PASS"
+  (every platform agrees); "baselines FAIL" naming world market-town and keys summary-300,
+  summary-1000, summary-300s, facts-300s (375 619 → 375 705 rows) and journal-300s; report red; its
+  drift section diffed R1's Linux record (the last night whose parity-long passed) and named the first
+  differing line, "summary-300 first differs at line 5: old: 'day 5  revision -  facts 6582'; new: '…
+  6581'", the first differing chunk of each table, and the commits since (`git log 6c23476..9aa68a9`).
+  Precondition: the scratch record differs from the base (laptop: 375 705 facts vs 375 619).
+- **MN-2 PASS** (run 38094531811, a Windows-only change to the calendar's first sun sample after day
+  300): "G-5 world market-town differs: Windows/x86_64 ≠ {Darwin/arm64, Linux/arm64, Linux/x86_64}",
+  "summary-1000 first differs at line 1083" (the history line); no 300-day key differs (G-5 lists none),
+  and the Linux record's 300-day keys equal the baselines ("baselines PASS"): AC-8's 300-day horizon
+  cannot see it, the long one does.
+- **MN-7 PASS** (run 38094541454, a test failing only when `MINEWORLD_CI_REPETITION` is 2):
+  repeat-linux, -mac and -windows FAIL; the report lists on every OS "flake candidate
+  `…mn7_fails_only_in_the_second_repetition`, failed in 1 of 2 samples (nightly-2)" and none as a
+  failure. Finding: in the container cargo colours `Running`, so Linux named the binary `?`; fixed in
+  `6234cfe` (escape sequences stripped; self-test case added).
+- **MN-8 PASS** (run 38095769877, a step `exit 1` before stability-mac's layer): stability-mac
+  "INCONCLUSIVE · layer stability never started (a setup step failed before it)", the report red, the
+  run's conclusion `failure`; nothing reported skipped (stability-linux and -windows PASS).
+- **MN-9** push 1 (same run, branch `…-issue-nightly`): "[report] issue (nightly-scratch): create" →
+  issue #165 "Nightly CI is red on main (scratch evidence, nightly-scratch)", label `nightly-scratch`.
 - **MN-4 PASS** (run 38094677692): `slice_probe.gd`'s door check made to expect `CAFE_PLACE + "-mn4"`.
   clients-linux and clients-mac: "probe drive: FAIL (exit 0, 113 s / 138 s) · 1 DRIVE CHECKS FAILED ·
   FAIL: walking through the door did not change the semantic place" — the launcher exited 0 and the
@@ -1261,6 +1294,25 @@ run          branch / head                         groups        result and use
     hosted runners" with its evidence, reported in every night's notes, and stays with the operator's
     machine (as `ARC-17`/D-11 keep visual acceptance); the coverage check then accepts exactly that
     list. No test is edited (I-S13-1).
+- **F-13c-impl-3 — `main` moved under the PR, and the baselines caught a stored-history change.**
+  `main` gained #153 (S6 SR), #157 (S10 P3b), #159 (S17 IL-e) and docs; merged into the branch as
+  `436d905` (no conflict; decision ids 112, distinct). At the merge head, a laptop long record: every
+  summary and every `facts-300s` equal to `c65a963`'s, but `journal-300s` differs in all four worlds (same
+  row counts; `ci_parity.py diff`: "table journal … first differing chunk 0", the 30-day journal too).
+  SR's diff touches `snapshots` only (`persistence/src/sqlite.rs`: retire, zstd), so the likely source is
+  IL-e's System Pack changes (conversation, group-activity, relationships), whose journal entries moved
+  while no fact did. Not 13c's to judge: recorded for the primary session (owner IL-e/S17, or ruled
+  benign). `scripts/baselines.txt` is re-recorded at the merge head, each world with a `reason` line
+  naming this finding — the update duty of §3.3 exercised once; `baseline write` kept the reason lines
+  byte for byte (rewritten file `cmp`-identical).
+- **F-13c-impl-4 — R-14 happened: the SDK's `connect` changed under the restart loop.** P3b replaced
+  `perceived=PerceivedJoin(…)` with `perceiving=Perceiving(since, deliver)`, and the session no longer
+  keeps a cursor (`TypeError: … unexpected keyword argument 'perceived'`). `ci_stability.py` now keeps
+  the cursor itself from the frames it is handed (`through` of the last). Local re-run at the merge
+  head: ten cycles PASS, the same revisions (5 … 54) and cursors (135 → 197) as before, replay PASS.
+- **S6 SR merged before 13c** (QC-6 assumed the reverse). The 1 000-day saved run and the ASR-1 640 MiB
+  assertion are a follow-up owned by S13 (QC-6), not added here: frozen scope (§1.2). R1's numbers
+  already show SR's effect is not in this PR's base (300-day saves 2–3.5 GiB at `6c23476`).
 
 ---
 
