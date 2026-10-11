@@ -2,7 +2,8 @@
 
 use mineworld_contracts::{
     Action, ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope,
-    LifecycleState, Location, PersonId, PlaceId, Rejection, RejectionCode, SystemId,
+    LifecycleState, LocalPosition, Location, PersonId, PlaceId, Rejection, RejectionCode, SystemId,
+    Tag,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -360,6 +361,43 @@ struct Disclosed<'a> {
 /// The most waypoints a walking person discloses.
 const DISCLOSED_WAYPOINTS: usize = 4;
 
+/// One doorway as a place discloses it: the stored [`Passage`] plus the destination's tags, the door
+/// sign a person may read from the room it stands in (`DECISIONS.md` `ARC-82`).
+///
+/// Built from the stored passage at `discloses` time and never stored, so the persisted `Passages`
+/// keeps its shape. The tags are the destination's tag set and nothing else: never who or what is
+/// inside it.
+#[derive(Serialize)]
+struct DisclosedPassage {
+    to: PlaceId,
+    here: Option<LocalPosition>,
+    there: Option<LocalPosition>,
+    to_tags: Vec<Tag>,
+}
+
+/// A place's doorways as disclosed: the stored [`Passages`] with each destination's tags added.
+#[derive(Serialize)]
+struct DisclosedPassages {
+    leads_to: Vec<DisclosedPassage>,
+}
+
+/// The disclosed form of `passages`, read against the world as it is now.
+fn disclosed_passages(world: &WorldRead<'_>, passages: &Passages) -> DisclosedPassages {
+    let leads_to = passages
+        .iter()
+        .map(|passage| DisclosedPassage {
+            to: passage.to(),
+            here: passage.here(),
+            there: passage.there(),
+            to_tags: world
+                .entity(passage.to().entity_id())
+                .map(|destination| destination.tags().iter().cloned().collect())
+                .unwrap_or_default(),
+        })
+        .collect();
+    DisclosedPassages { leads_to }
+}
+
 impl PerceptionProvider for MovementSystem {
     /// Offers `move` and `walk-to` to any living person, and `walk-step` to one who is walking — each
     /// once, against nobody, without a request (step-11 SD-N7, `ARC-34`).
@@ -419,7 +457,7 @@ impl PerceptionProvider for MovementSystem {
                 .map(|passages| {
                     vec![ComponentRecord::new::<Passages>(
                         subject,
-                        codec::to_value(passages),
+                        codec::to_value(&disclosed_passages(world, passages)),
                     )]
                 })
                 .unwrap_or_default(),

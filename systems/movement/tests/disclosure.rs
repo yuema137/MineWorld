@@ -7,24 +7,34 @@
 mod support;
 
 use mineworld_contracts::{
-    Component, EntityId, LocalPosition, Millimetres, Observation, PerceivedEntity,
+    Component, EntityId, EntityKey, EntityType, LocalPosition, Location, Millimetres, Observation,
+    PerceivedEntity, PersonId, PlaceId,
 };
 use mineworld_kernel::SystemIdentity;
-use mineworld_movement::{MovementSystem, Passages};
-use serde_json::Value;
-use support::{CAFE_DOOR, Layout, Movement, STREET_DOOR, Town, at};
+use mineworld_movement::{MovementSystem, Passages, passage};
+use mineworld_presence::{PerceptionProvider, arrival, observe};
+use serde_json::{Value, json};
+use support::{CAFE_DOOR, Layout, Movement, NOW, STREET_DOOR, Town, at, compose};
 
-/// The passages record on `subject` in `observation`, decoded, if there is one.
-fn passages_on(observation: &Observation<Value>, subject: EntityId) -> Option<Passages> {
+/// The raw passages record on `subject` in `observation`, as the wire carries it, if there is one.
+fn raw_passages_on(observation: &Observation<Value>, subject: EntityId) -> Option<Value> {
     let entity: &PerceivedEntity<Value> = observation.entity(subject)?;
     let record = entity
         .components()
         .iter()
         .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)?;
-    let value = record
-        .payload_for::<Passages>()
-        .expect("labelled as passages");
-    Some(serde_json::from_value(value.clone()).expect("a passages record decodes"))
+    Some(
+        record
+            .payload_for::<Passages>()
+            .expect("labelled as passages")
+            .clone(),
+    )
+}
+
+/// The passages record on `subject` in `observation`, decoded, if there is one.
+fn passages_on(observation: &Observation<Value>, subject: EntityId) -> Option<Passages> {
+    let value = raw_passages_on(observation, subject)?;
+    Some(serde_json::from_value(value).expect("a passages record decodes"))
 }
 
 fn local((x, y): (i32, i32)) -> LocalPosition {
@@ -102,4 +112,109 @@ fn a_place_with_no_doorway_discloses_nothing_and_a_disabled_movement_discloses_n
         "the state is still there",
     );
     assert!(passages_on(&joined.observation(joined.visitor), joined.cafe.entity_id()).is_none());
+}
+
+#[test]
+fn a_person_in_the_street_is_shown_the_door_sign_of_the_cafe_and_the_street_is_shown_its_own() {
+    let outside = Town::joined(|town| at(town.street, 500, 2_000));
+    let seen = outside.observation(outside.visitor);
+    let raw = raw_passages_on(&seen, outside.street.entity_id())
+        .expect("the street's doorway is disclosed on the street");
+    let ways = raw["leads_to"].as_array().expect("a list of doorways");
+    assert_eq!(ways.len(), 1, "{ways:?}");
+    assert_eq!(
+        ways[0]["to_tags"],
+        json!(["cafe", "public"]),
+        "the café's tags, not the observer's own street's: {ways:?}",
+    );
+
+    let inside = Town::joined(|town| at(town.cafe, 4_000, 2_000));
+    let raw = raw_passages_on(&inside.observation(inside.visitor), inside.cafe.entity_id())
+        .expect("the café's doorway is disclosed on the café");
+    assert_eq!(raw["leads_to"][0]["to_tags"], json!(["public", "street"]));
+}
+
+#[test]
+fn a_person_in_the_street_perceives_no_place_but_the_street() {
+    let outside = Town::joined(|town| at(town.street, 500, 2_000));
+    let seen = outside.observation(outside.visitor);
+    for place in [outside.cafe, outside.attic] {
+        assert!(
+            seen.entity(place.entity_id()).is_none(),
+            "{place:?} is not perceived from the street: its door sign is all the street learns",
+        );
+    }
+    assert!(seen.entity(outside.street.entity_id()).is_some());
+}
+
+#[test]
+fn the_stored_passages_carry_no_destination_tags_and_genesis_is_what_persistence_records() {
+    let town = Town::joined(|town| at(town.street, 500, 2_000));
+    let stored = town
+        .world
+        .components()
+        .get::<Passages>(town.street.entity_id())
+        .expect("the street has passages");
+    let value = serde_json::to_value(stored).expect("the stored passages encode");
+    for way in value["leads_to"].as_array().expect("a list of doorways") {
+        assert!(
+            way.get("to_tags").is_none(),
+            "to_tags is a disclosure, never stored: {way:?}",
+        );
+    }
+    assert_eq!(
+        town.genesis.len(),
+        3,
+        "one passage and two placements, as persisted.rs states for the same layout",
+    );
+}
+
+#[test]
+fn the_disclosed_passages_decode_to_exactly_the_stored_passages() {
+    let town = Town::joined(|town| at(town.street, 500, 2_000));
+    let seen = town.observation(town.visitor);
+    let stored = town
+        .world
+        .components()
+        .get::<Passages>(town.street.entity_id())
+        .cloned()
+        .expect("the street has passages");
+    assert_eq!(
+        passages_on(&seen, town.street.entity_id()),
+        Some(stored),
+        "the decode paced.rs and agenda.rs use reads the same ways out, with no tags",
+    );
+}
+
+#[test]
+fn a_doorway_to_an_untagged_place_says_so_with_an_empty_list() {
+    let (mut world, providers) = compose(Movement::Enabled);
+    let mut create = |key: &str| {
+        let entity = world
+            .create_entity(EntityKey::new(key).expect("a key"), EntityType::Place)
+            .expect("created");
+        PlaceId::new(entity, EntityType::Place).expect("a place")
+    };
+    let hall = create("hall");
+    let porch = create("porch");
+    let visitor = PersonId::new(
+        world
+            .create_entity(
+                EntityKey::new("visitor").expect("a key"),
+                EntityType::Person,
+            )
+            .expect("created"),
+        EntityType::Person,
+    )
+    .expect("a person");
+    let placed = arrival(&world.read(), visitor, Location::in_place(hall))
+        .expect("presence admits the visitor");
+    world
+        .genesis(NOW, vec![passage(hall, None, porch, None), placed])
+        .expect("the town begins");
+
+    let providers: Vec<&dyn PerceptionProvider> = providers.iter().map(AsRef::as_ref).collect();
+    let seen = observe(&world, visitor.entity_id(), NOW, &providers);
+    let raw = raw_passages_on(&seen, hall.entity_id()).expect("the hall's doorway is disclosed");
+    assert_eq!(raw["leads_to"][0]["to_tags"], json!([]), "{raw:?}");
 }

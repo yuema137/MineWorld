@@ -16,9 +16,10 @@ extends RefCounted
 var instance := ""
 ## place id string → Vector2i: the place's origin in the root frame, millimetres, `+y` north.
 var origins: Dictionary = {}
-## place id string → Array of `{to: String, here: Vector2i, there: Vector2i}`.
+## place id string → Array of `{to: String, here: Vector2i, there: Vector2i, to_tags: PackedStringArray}`.
 var passages: Dictionary = {}
-## place id string → PackedStringArray of the tags the world listed when the observer stood there.
+## place id string → PackedStringArray of the tags the world listed for it: when the observer stood
+## there, and for each place a disclosed doorway leads to (ARC-82, the door sign).
 var tags: Dictionary = {}
 ## place id string → Rect2 in plan metres: the footprint the presentation drew for it. Decoration
 ## (`ARC-45` point 5): used only to tell which place a click pointed into, never to refuse a stride.
@@ -54,6 +55,13 @@ func learn(observation: MineWorldObservation) -> void:
 	if not passages.has(place) or passages[place] != learned:
 		passages[place] = learned
 		changed = true
+	# A doorway discloses the tags of the place it leads to (ARC-82): the door sign, learned here so the
+	# doorway is named and its façade chosen before the player has entered (R-PK-1).
+	for p in learned:
+		var neighbour: String = p["to"]
+		if not tags.has(neighbour) or tags[neighbour] != p["to_tags"]:
+			tags[neighbour] = p["to_tags"]
+			changed = true
 	changed = _place_origins(place) or changed
 	if changed:
 		version += 1
@@ -140,7 +148,10 @@ func _passages_of(component: Dictionary) -> Array:
 		var there: Variant = entry.get("there")
 		if target == "" or typeof(here) != TYPE_DICTIONARY or typeof(there) != TYPE_DICTIONARY:
 			continue  # A world that models no doorway position cannot be glued; nothing is guessed.
-		out.append({"to": target, "here": _mm(here), "there": _mm(there)})
+		var to_tags := PackedStringArray()
+		for tag in entry.get("to_tags", []):
+			to_tags.append(String(tag))
+		out.append({"to": target, "here": _mm(here), "there": _mm(there), "to_tags": to_tags})
 	return out
 
 
