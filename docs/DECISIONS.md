@@ -7174,6 +7174,13 @@ between scheduled snapshots, which `AC-12` does not cover (`ARC-27`).
 anchor spacing), if `AC-8` parity ever differs in the `snapshots` table (see `DEP-43`), or when SR-b is
 designed.
 
+**Note, 2026-10-10 (S15, PR 12n-2; step-11 §21.15 M-6, the operator's ruling) — ASR-2 for walking
+towns.** Since people walk (`ARC-75`), a walk's strides are requests and facts of their own. Market Town
+records about 2.2 × the facts, and its 30-day save is 112.3 MiB, against 59.2 MiB before. ASR-2's bound
+becomes ≤ 128 MiB for walking towns; the retention rule and the snapshots it keeps are unchanged. The
+300-day size is printed by `tools/cli/tests/market_town.rs` as a measurement, not a bound. SR-b (log
+compression) is the expected remedy for the size, as above.
+
 ---
 
 ## DEP-43 — Snapshot compression: `zstd` (bundled libzstd), level 3

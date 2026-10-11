@@ -10080,6 +10080,26 @@ M-6   MATERIAL STOP (§21.14: an edit outside the approved paths; another lane's
       Recommendation: 1 (a) and 2 (a), each in its own lane's PR, merged with or just before 12n-2 —
       QN-2 already makes 12n-2 and 12d one re-baseline event. Or both edited in 12n-2, under a ruling
       that names them.
+
+M-6 RULINGS (2026-10-10). Operator: ASR-2 option (a), ≤ 128 MiB for walking towns (the snapshot part is
+      unchanged; SR-b's log compression is expected to bring the size back down). Primary session: AC-10
+      test_d option (a), widen the search and keep 5. Then, once the evidence below showed that five do not
+      exist, option (b): four, each keeping both checks. 12n-2 makes both edits as part of the QN-2
+      re-baseline. Authorized files: tools/cli/tests/market_town.rs (the ASR-2 assertion and its message),
+      cognition/lm-controller/tests/test_ac10.py (test_d's search only), pr-s6-save-retention.md and
+      pr-s10-p4-memory.md (dated notes), and an ARC-81 note in docs/DECISIONS.md. The 300-day size of a
+      walking market-town save is recorded as a measurement, with no bound.
+N-D28 test_d, as built. The widened search (test_ac10.py: `LISTENERS`, `LOCATED` = 4, `_unperceived`) applies
+      the harness's rule to Bob's export and then the nine other listeners', deduplicated by fact id. On
+      the walking 100-day history it finds 4 distinct facts and no more (2 in Bob's), so five is
+      unreachable. ac10_harness.py is unchanged. Locally: test_ac10.py 8 passed, lm-controller 169 passed
+      and 1 skipped, sdk/python 103 passed; ruff check, ruff format and pyright clean.
+N-D29 The 300-day measurement needs no extra run. market_town.rs already makes a 300-day saved run, and it
+      now prints that save's size ("ASR-2 (measured, unbounded): the 300-day save is …"). CI's value is
+      read from the PR's test job and recorded with the CI evidence. The 23-run budget is unchanged.
+      origin/main merged (a25f0d1: #161's doorway signs in movement's disclosure — `to_tags` on each
+      disclosed passage. The paced controller decodes `Passages` from that disclosure with serde, which
+      ignores the added field; NW-7's controller tests and the workspace run cover it).
 ```
 
 

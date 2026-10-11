@@ -1069,3 +1069,25 @@ Applied (after merging `origin/main` at `737e032`, #141, #142, #151, which touch
   the `python` job) is the lever, and it needs a ruling.
 - Parent synchronization: step-17 §15.2's P4 row and `docs/MVP_STATUS.md`'s S10 row are updated by the
   close-out PR. `overall.md` is left to the S10 planning session. This PR context is closed.
+
+### 14.7 Note, 2026-10-10 — AC-10 (d) after people walk (step-11 §21.15 M-6; the primary session's ruling)
+
+S15's PR 12n-2 makes the paced controller walk (`ARC-75`): one `walk-to`, then a stride per request. A
+lattice consult is no longer spent on a single stride, so people talk more. That is part of the QN-2
+re-baseline event, in which every history of the towns moves. In the 100-day social-cafe history at seed
+7, Bob's export now holds **two** `spoke` facts that meet (d)'s rule: absent from Alice's export, at a
+place other than hers at that moment, and with words she never heard from anyone. The harness's
+`unperceived(5)` found 2, and `test_d` failed "assert 2 == 5" on all three platforms (CI run
+38091503186).
+
+Measured on the walking history: the same rule over all ten listeners' exports (Bob, then carol … wanderer
+in population order, deduplicated by fact id) finds **four** distinct facts, and no more. Most lines are
+fixed greetings, or replies Alice also hears somewhere.
+
+Ruling (option (b), not five where one is weaker): `test_d` searches all ten exports by the unchanged
+rule and locates **4**. Every located fact keeps **both** checks: its id is not held in her store, and its
+words appear nowhere in it. The change is confined to `test_ac10.py` (`LISTENERS`, `LOCATED`,
+`_unperceived`); `ac10_harness.py` is unchanged. Verified locally: `test_ac10.py` 8 passed, and the
+lm-controller suite 169 passed, 1 skipped. The search reads up to nine more exports until it has four,
+which adds to the Windows time this ledger tracks (§14.5); CI's measurement of it is in step-11 §21.15.
+Edited by 12n-2.
