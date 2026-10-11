@@ -53,6 +53,12 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_scratch.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
+        # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
+        # otherwise be found only by a red night that never comes.
+        ["python3", "scripts/ci_nightly.py", "--self-test"],
+        ["python3", "scripts/ci_godot.py", "--self-test"],
+        ["python3", "scripts/ci_repeat.py", "--self-test"],
+        ["python3", "scripts/ci_stability.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -112,6 +118,63 @@ LAYERS: dict[str, list[list[str]]] = {
     ],
 }
 
+# Layer 4, nightly (docs/DECISIONS.md ARC-83; .github/workflows/nightly.yml). None of these runs on a
+# pull request or in `core`; each writes its result to artifacts/nightly/ for the night's verdict.
+NIGHTLY_OUT = "artifacts/nightly"
+LAYERS.update({
+    # AC-8 at the long horizon on a native runner (macOS, Windows); the Linux legs record from the
+    # runtime image instead (ARC-49's legs, the long profile).
+    "parity-long": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld", "--profile", "long",
+         "--timings", f"{NIGHTLY_OUT}/timings-parity-long.json"],
+    ],
+    # The server killed and restarted under a seated SDK client, every world's 300-day save replayed, and
+    # CA-13 on market-town's save (ENGINEERING_STANDARDS.md §16 layer 4). The SDK runs through the lock.
+    "stability": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["uv", "run", "--locked", "python", "scripts/ci_stability.py", "restarts", "--binary", "target/release/mineworld"],
+        ["python3", "scripts/ci_stability.py", "replay", "--binary", "target/release/mineworld"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
+    "core-repeat": [
+        ["cargo", "test", "--workspace", "--no-run"],
+        ["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", f"{NIGHTLY_OUT}/repeat.txt", "--",
+         "cargo", "test", "--workspace", "--no-fail-fast"],
+    ],
+    # The 25 #[ignore]d Godot tests, one at a time (each starts Godot and a server), on every OS (DEP-45):
+    # `cargo test -p mineworld-cli` over client_2d, client_2d_interact, client_2d_interact_stub and
+    # client_settings with `--ignored --test-threads=1`, minus this OS's named skips (QC-5), which
+    # ci_godot.py holds with their reasons; it records the failing tests' names for the night's verdict.
+    "clients": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_godot.py", "tests"],
+        ["python3", "scripts/ci_godot.py", "coverage"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
+    # failure), the protocol module's live checks, and AC-13's evidence judged by its owning test.
+    "clients-probes": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_godot.py", "slice", "--drive"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
+        ["bash", "clients/protocol/run.sh", "evidence"],
+        ["bash", "clients/protocol/run.sh", "affordances"],
+        ["bash", "clients/protocol/run.sh", "reconnect"],
+        ["bash", "clients/protocol/run.sh", "perceived"],
+        ["bash", "clients/protocol/run.sh", "deltas"],
+        ["bash", "clients/protocol/run.sh", "admin"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+})
+# The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
+# `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
+# INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
+NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes"}
+
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
@@ -161,7 +224,7 @@ LAYERS["python-smoke"] = [
 COMMAND_ENVIRONMENT = {"PYRIGHT_PYTHON_GLOBAL_NODE": "0", "PYRIGHT_PYTHON_IGNORE_WARNINGS": "1"}
 
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
-MEASURES_DISK = {"core"}
+MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat"}
 
 ENVIRONMENT: list[list[str]] = [
     ["rustc", "-V"],
@@ -274,6 +337,15 @@ def offline_check() -> int:
         config.unlink(missing_ok=True)
 
 
+def result(layer: str, line: str) -> None:
+    """Appends to a nightly layer's result file; per-PR layers have none."""
+    if layer in NIGHTLY_LAYERS:
+        path = ROOT / NIGHTLY_OUT / f"layer-{layer}.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8", newline="\n") as out:
+            out.write(line + "\n")
+
+
 def run(layer: str) -> int:
     print(f"[ci] layer {layer} in {ROOT}", flush=True)
     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
@@ -281,6 +353,7 @@ def run(layer: str) -> int:
     measured = layer in MEASURES_DISK
     if measured:
         disk("before")
+    result(layer, "started")
     started = time.monotonic()
     for command in LAYERS[layer]:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
@@ -297,10 +370,12 @@ def run(layer: str) -> int:
             if measured:
                 disk("after (failed)")
             print(f"[ci] layer {layer} FAILED at: {shlex.join(command)}", flush=True)
+            result(layer, f"failed at: {shlex.join(command)} (exit {status})")
             return status
     if measured:
         disk("after")
     print(f"[ci] layer {layer} passed: {len(LAYERS[layer])} command(s) in {time.monotonic() - started:.1f} s")
+    result(layer, f"passed in {time.monotonic() - started:.0f} s")
     return 0
 
 

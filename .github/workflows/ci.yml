@@ -97,14 +97,16 @@ jobs:
   test:
     name: test
     # Non-draft PRs, main, and scratch branches pushed to show a mutation turning CI red (step-14
-    # §9.0 R-4). A `-image` scratch branch exists for the image job only.
+    # §9.0 R-4). A `-image` scratch branch exists for the image job only; a `-nightly` one for
+    # nightly.yml (ARC-83), which runs its own samples of this suite.
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -131,7 +133,8 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -152,7 +155,8 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -177,7 +181,8 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     strategy:
       fail-fast: false
       matrix:
@@ -208,7 +213,8 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     strategy:
       fail-fast: false
       matrix:

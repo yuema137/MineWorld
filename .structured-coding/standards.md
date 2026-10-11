@@ -67,6 +67,15 @@ repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
   `cargo build -p mineworld-cli`, `pytest`, `pytest-cognition`, and the scratch check; `python-smoke` is the same without
   the binary and with the `real_server` tests deselected, for a platform that cannot afford the build.
 
+Layer 4 of `docs/ENGINEERING_STANDARDS.md` §16 runs nightly, in its own workflow
+(`.github/workflows/nightly.yml`, `docs/DECISIONS.md` `ARC-83`), never on a pull request and never as a
+required check: `parity-long` (`AC-8` at 1 000 days and with 300-day saves, plus the committed
+`scripts/baselines.txt`), `stability` (the server killed and restarted, every world's 300-day save
+replayed), `clients` and `clients-probes` (the Godot tests and probes, `DEP-45`) and `core-repeat` (the
+default suite sampled twice more, for flakes). A red night opens or updates one issue labelled `nightly`.
+A PR that intends to change a world's behaviour updates `scripts/baselines.txt` with a reason line. The
+`fast` layer runs the nightly scripts' self-tests; no declaration below changes.
+
 `python3 scripts/ci_layer.py --list <layer>` prints a layer's commands, and the same command runs
 a layer locally. A command added to the declaration below that must also block is added to the
 matching layer in `ci_layer.py`.

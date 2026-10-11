@@ -736,6 +736,9 @@ A-N5   clients: on all three OSes, the 25 ignored Godot tests run (25 passed, or
        fallback names, each passed on another leg, and the coverage check PASS); on Linux and macOS the
        three slice probes PASS by parsed verdict, the protocol modes exit 0, and ac13_semantic_parity
        PASS on the regenerated evidence
+       Amended 2026-10-10 by the primary's QC-5b ruling (§14.1): "25 passed" reads "the 23 tests not
+       on the QC-5b list passed or were skipped as QC-5 names", and the two QC-5b tests are skipped on
+       every leg, reported in the notes, and accepted by the coverage check as exactly that list
 A-N6   repeat: two samples per OS ran to completion; repeat-<os>.txt lists both; the report lists flake
        candidates or "none"
 A-N7   gate: on main (after merge, primary session's check) a dispatch with force=false on an unmoved main
@@ -1065,18 +1068,330 @@ Overlap, justified: `repeat` re-runs the default suite, which `test` owns. The c
 
 # 12. Ledger (live; empty until implementation)
 
+Implementation base: `main @ 3c8bbf3` (#158's merge, 2026-10-10). Re-audit (N-C0's rule): `git diff
+--stat 98fe3e6..3c8bbf3` touches only `.structured-coding/plans/` (this file, the doorway-names design,
+step-13 and step-14 prose), so every audited claim of §2 stands on the implementation base.
+
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| N-C0 | [x] this file | [ ] | [ ] | — |
-| N-C1 | [ ] | [ ] | [ ] | — |
-| N-C2 | [ ] | [ ] | [ ] | — |
-| N-C3 | [ ] | [ ] | [ ] | — |
-| N-C4 | [ ] | [ ] | [ ] | — |
-| N-C5 | [ ] | [ ] | [ ] | — |
-| N-C6 | [ ] | [ ] | [ ] | — |
-| N-C7 | [ ] | [ ] | [ ] | — |
+| N-C0 | [x] this file | [x] | [x] | PR #158 run 38089513604: `changes` classified it docs-only, `fast` (docs layer) passed; merged as `3c8bbf3`. Review: done by the primary session at freeze (§14.1) |
+| N-C1 | [x] `docs/DECISIONS.md`: `ARC-48 note` (13c), `ARC-83`, `DEP-45`, placed after the 13x note; `.structured-coding/standards.md` one prose paragraph (no declaration change) | [x] | [x] | `check_decision_ids.py`: "109 decision ids, all distinct" (107 → 109); `check_doc_headings.py`: "193 numbered sections across 26 documents, none duplicated". Review: terms as defined (Layer, World Pack, System Pack); each ARC-83 point maps to §3.1–3.7; restart client wording follows `server/PROTOCOL.md` §4.2 (D-13c-1) |
+| N-C2 | [x] `ci_parity.py`: `--profile long` (`LONG_PROFILE_DAYS`, `SAVE_LONG_DAYS`; `run_days`, `saved_run`, `record_world`), `profile` in `[source]` only when not default, G-2's profile clause, `--timings`, `baseline check\|write`, `diff`, 15 self-test cases added (29 in all); `scripts/baselines.txt` from the laptop's long record | [x] | [x] | See N-C2 evidence below |
+| N-C3 | [x] `ci_layer.py`: layers `parity-long`, `stability`, `core-repeat` (and N-C4's two), `NIGHTLY_LAYERS` result files, four self-test lines in `fast`; `ci_stability.py` (`restarts`, `replay`, `replay-check`, self-test); `ci_repeat.py` (repeat, parse, `classify`, self-test) | [x] | [x] | See N-C3 evidence below |
+| N-C4 | [x] `.github/actions/godot/action.yml`; `ci_godot.py` (`fetch`, `slice`, `coverage`, self-test); layers `clients`, `clients-probes` | [x] | [x] | See N-C4 evidence below |
+| N-C5 | [x] `.github/workflows/nightly.yml`; `ci_nightly.py` (`gate`, `verdict`, `report`, self-test); `ci.yml`'s five `-nightly` exclusions; `check_ci_pins.py`'s action-SHA rule | [ ] first scratch push (syntax) pending | [x] | See N-C5 evidence below |
 
-Deviations: none yet (D-13c-n). Findings during implementation: none yet.
+Commit mapping: N-C2 is `798ecf2`. N-C3 and N-C4's programs (`ci_stability.py`, `ci_repeat.py`,
+`ci_godot.py`, the Godot action) are one commit, `a848d36`, inert until a layer names them; the layers
+(`ci_layer.py`), `fast`'s four lines and N-C5 are the next commit, so that no commit names a script it
+does not contain.
+
+**N-C2 evidence** (laptop, Darwin arm64, release build of `c65a963`, the scripts as committed in N-C2):
+
+- `ci_parity.py --self-test`: 29 cases, "passed" (the 14 earlier cases keep their verdicts, I-13c-2).
+- A-N9 PASS: `record` (default profile) by `main`'s script (`git show origin/main:scripts/ci_parity.py`,
+  run from `scripts/`) and by the PR's: both `e8fe59de4897…0c9adf`, `cmp` identical, 1 979 lines.
+- Determinism PASS: two long records of one head, `cmp` identical, both `12427f0991…4a4616` (768 395
+  bytes). Wall 366 s and 406 s.
+- Laptop timings (`--timings`): 1 000 days in memory — bodies-yard 47.5 s, lakeside 29.9 s, market-town
+  68.6 s, social-cafe 33.1 s (§2.4 guessed 70–95 s for a town); 300 days saved — 28.0 / 18.6 / 35.0 /
+  29.6 s, saves 2.59 / 2.14 / 3.80 / 2.54 GB. §8's per-leg estimate (25–35 min) is replaced by the CI
+  measurement in N-C6 (A-N11).
+- MN-1b PASS: one hex digit of market-town `summary-300` changed in a copy → exit 1, "world market-town
+  key summary-300: baseline …ef, record …ee"; bodies-yard's section removed → exit 1, "no baseline for
+  world bodies-yard".
+- Comparator mutation: G-2's profile clause weakened (`!= 1` → `> 2`) → "FAIL a default record among long
+  ones … FAILED: 1 case(s)"; restored → passed.
+- A-N3 cross-checks: F-13c-impl-1.
+
+**N-C3 evidence:** `ci_stability.py --self-test` 13 cases passed; mutation `after.revision < seen` →
+`< 0` → "FAIL a revision behind the kill fails"; restored. `ci_repeat.py --self-test` 9 cases passed;
+mutation `len(failing) == len(usable)` → `>= 1` → "FAIL failed in one sample, passed in two"; restored.
+Local `uv run --locked python scripts/ci_stability.py restarts --binary target/release/mineworld` (laptop,
+32 s): ten cycles on market-town, one instance throughout, revision at each start = the last seen before
+the kill (5, 9, 15 … 54), perceived cursor 135 → 197, faults 0; the killed save replayed ("54 revision(s)
+re-executed from genesis, 205 fact(s) and 1 snapshot(s) reproduced byte for byte"); PASS. Local
+`ci_stability.py replay` (laptop): every world 300 days saved and replayed ("… reproduced byte for byte"),
+CA-13 `test result: ok. 1 passed` (14.9 s) on market-town's save, "replay PASS". MN-3 PASS: a lakeside
+300-day save copied, one byte of fact 200000 flipped with `sqlite3` (`"at":14524206` → `"at":04524206`)
+→ `replay-check` exit 1, "FAIL replay lakeside: exited 1: … replay diverged at revision r149075: fact
+200000 differs from the logged fact 200000"; the untampered save → PASS. A-N8 static:
+`--list` of `core`, `docs`, `parity`, `platforms`, `python`, `python-smoke` identical to `main`'s; `fast`
+= `main`'s plus the four self-test lines.
+
+**N-C4 evidence:** pinned SHA-512 values = the release's `SHA512-SUMS.txt` (`gh release download
+4.7.2-stable -R godotengine/godot-builds`, 2026-10-10); `fetch` on the laptop downloaded the macOS
+archive, its SHA-512 matched the pin (the once-only cross-check), `--version` "4.7.2.stable.official.
+ed1daf0bf"; a second `fetch` used the unpacked copy (cache path). MN-10 PASS: Darwin pin's 64th hex digit
+altered → exit 1, "SHA-512 mismatch for Godot_v4.7.2-stable_macos.universal.zip: pinned …, downloaded …;
+nothing unpacked", the destination empty. Self-test 12 cases passed; mutation "no summary → PASS" →
+"FAIL no summary line is INCONCLUSIVE" and "FAIL an empty transcript is INCONCLUSIVE"; restored.
+`ci_godot.py coverage` (laptop): "25 ignored Godot tests …; skips none". Local `ci_layer.py clients`
+(laptop, `GODOT` = the fetched build): client_2d 8 passed, client_2d_interact 5, client_2d_interact_stub
+3, client_settings 9 (the three windowed tests among them); coverage; scratch clean; "layer clients
+passed: 4 command(s) in 598.0 s". Local `ci_layer.py clients-probes`: drive, link and target "PASS (exit
+0)" by their summary lines (64, 105, 51 s); `run.sh` evidence, affordances, reconnect, perceived, deltas,
+admin each exit 0; `ac13_semantic_parity` passed on the regenerated evidence; "layer clients-probes
+passed: 12 command(s) in 317.0 s" (the regenerated evidence was then restored with `git checkout`).
+MN-4b PASS: `ci_godot.py slice --limit 5 --drive` → "probe drive: INCONCLUSIVE (exit None, 5 s) … killed
+at the 5 s limit", exit 3, no Godot process left (the launcher's process group is killed).
+Finding during the local run: `ci_repeat.py` wrote the suite's output without flushing, so a log showed
+nothing until the run ended; fixed (flush per line) in the next commit.
+
+**N-C5 evidence:** `ci_nightly.py --self-test` 37 cases passed (MN-6's six gate cases among them);
+mutation of the gate's comparison (`==` → `!=`) → four MN-6 cases FAIL; restored. `check_ci_pins.py`
+passes on the tree; with `ci.yml:42` changed to `actions/checkout@v7` → exit 1 ".github/workflows/
+ci.yml:42: actions/checkout@v7 is not pinned to a full commit SHA"; restored. `git diff main --
+.github/workflows/ci.yml`: the five `-nightly` clauses and one comment line only. Review: every `run:`
+takes branch names, inputs and job outputs through `env:`; `issues: write` appears on `report` only; no
+`pull_request` trigger; every job but `gate` needs it; `parity-long` and `report` run `if: always()`;
+`compare`/`baseline` use `shell: bash` so `tee` keeps the exit status (pipefail).
+| N-C6 | [x] 11 nightly runs (2 full, 9 single-group); repairs `a6bd02d`, `85cb01a`, `77c4193`, `590c22a`, `6234cfe`, `d5cc82d` (each a defect of the nightly's own tools found by a run, or `main` moving) | [x] | [x] | §12.0; A-N table below. Review: every mutation's precondition held (MN-1 laptop facts 375 705 ≠ 375 619; MN-2 G-5 names only summary-1000; MN-4 and MN-5 reproduced on the laptop first); QC-5's skip names exactly the one windowed test that passed on another leg the same night, with its reason |
+| N-C7 | [x] `docs/MVP_STATUS.md` S13 row; this ledger; §16 handoff; PR #162 description | [ ] PR CI on the final head (pending at the time of writing; see the PR) | [x] | A-N8, A-N10 below |
+
+**Acceptance, at the final executable head `d5cc82d`** (later commits change this file only):
+
+```text
+A-N1  PASS        R2 run 38098788738: 14 rows with verdicts, the push-run line, benchmark, flakes, trend
+A-N2  PASS        R2 parity-long; summary-300 = main's ac8 at 9f853e1 (run 38093249025)
+A-N3  PASS        R2 "baselines PASS"; cross-checks F-13c-impl-1; re-recorded at the merge (F-13c-impl-3)
+A-N4  PASS        R2 and R1 stability on Linux, macOS, Windows; MN-3 local
+A-N5  NOT MET     two windowed tests fail on every hosted leg for display reasons (F-13c-impl-2);
+                  QC-5 cannot skip them; operator ruling QC-5b requested. Everything else in A-N5 PASS
+A-N6  PASS        R1 and R2: two complete samples per OS, "none"
+A-N7  AFTER MERGE the primary session's check (gate self-test MN-6 PASS locally)
+A-N8  PASS (static) --list core identical to main's, fast = main's + 4; PR CI on the final head: see PR
+A-N9  PASS        local, byte-identical default records
+A-N10 PASS        git diff --stat origin/main...HEAD lists exactly the files A-N10 names
+A-N11 PASS        cost measured above, every job inside its timeout
+A-N12 PASS        MN-1, MN-1b, MN-2, MN-3, MN-4, MN-4b, MN-5, MN-6, MN-7, MN-8, MN-9, MN-10 as stated
+```
+
+Review notes: `ci_parity.py` is 990 lines (past §4's ~800 warning). It is one record format's writer,
+comparator, baseline and diff, plus self-tests for each (about a third of the file); a split would put
+one format's rules in two files, and A-N10 fixes the file list. Flagged for the operator, not split.
+
+### 12.0 N-C6 — the scratch nightly runs (ledger of runs and mutations)
+
+Budget (§8, QC-8): ≤ 6 full and ≤ 12 single-group runs. Each run below is on a `scratch/13c-*-nightly`
+branch pushed from the PR head named, or from one planted scratch commit on it.
+
+```text
+run          branch / head                         groups        result and use
+38091440131  13c-full-nightly @ 6c23476            all (full 1)  R1, cold. parity-long 5/5 PASS, stability 3/3
+                                                                 PASS, repeat 3/3 PASS, clients 3/3 FAIL (R-1,
+                                                                 F-13c-impl-2; and two tool defects, fixed in
+                                                                 a6bd02d); report red, no issue (plain scratch)
+38094469538  13c-mn1-parity-long @ b0c3fbe         parity-long   cancelled before any job (single 1): the drift
+                                                                 locator needed 85cb01a first
+38094430653  13c-r2-clients @ a6bd02d              clients       (single 2) the Windows windowed failures
+                                                                 named (ci_repeat fixed); evidence for QC-5
+38094509802  13c-mn1-parity-long @ 9aa68a9         parity-long   (single 3) MN-1
+38094531811  13c-mn2-parity-long @ fce11f7         parity-long   (single 4) MN-2
+38094541454  13c-mn7-repeat @ 799e5bc              repeat        (single 5) MN-7
+38094677692  13c-mn4-mn5-clients @ 488c9c5         clients       (single 6) MN-4 and MN-5
+38095769877  13c-mn9-stability-issue @ 2e884a9     stability     (single 7) MN-8, MN-9 push 1
+38098115784  13c-mn9-stability-issue @ d18609c     stability     (single 8) MN-9 push 2 (still red)
+38098788738  13c-full-nightly @ d5cc82d            all (full 2)  R2, the final executable head: A-N1 … A-N6,
+                                                                 A-N11; red only for F-13c-impl-2's two tests
+38099806828  13c-mn9-stability-issue @ 58ef25e     stability     (single 9) MN-9 push 3 (failure removed)
+```
+
+Used: 2 of 6 full, 9 of 12 single-group runs (one cancelled before any job). No larger runner, no
+paid service; every run on standard hosted runners of the public repository.
+
+- **R2 (`d5cc82d` = `main` 9f853e1 + this PR's scripts; run 38098788738).** A-N1: every job's verdict
+  artifact present; the report's table has the 14 jobs between gate and report, each with a verdict and
+  wall time, "ci.yml's own push run for this commit: … success", flake candidates ("none (2 samples)" on
+  each OS), baseline drift ("none"), the benchmark and a trend over the earlier nights (R1, MN-1, MN-2).
+  A-N2: parity-long PASS, four long records, 4 worlds, every `summary-300` equal to `main`'s own `ac8`
+  record at 9f853e1 (run 38093249025). A-N3: "baselines PASS" against the re-recorded file
+  (F-13c-impl-3). A-N4: stability PASS on Linux, macOS and Windows. A-N5: clients-linux, -mac, -windows
+  FAIL on exactly the two tests of F-13c-impl-2 and nothing else (22 of 25 pass everywhere; the third
+  windowed test passes on macOS and is skipped by name on Linux and Windows, noted in the verdict);
+  probes and protocol checks PASS on Linux and macOS (drive, link, target "PASS (exit 0)"); the coverage
+  check passes. A-N5 is **not met** as frozen until the operator rules on QC-5b. A-N6: two samples per
+  OS, both complete, none failed.
+
+- **R1 (A-N2, A-N4, A-N6 on `6c23476`).** parity-long: "4 records: Linux/arm64, Linux/x86_64,
+  Darwin/arm64, Windows/x86_64; 4 worlds; 10533 keys compared … AC-8 PASS", each world's `summary-300`
+  equal to the laptop's default record and the baselines ("baselines PASS"); `ci_parity.py diff` of the
+  laptop's long record (`c65a963`) and CI's Linux record → "no world differs" (I-S13-8 measurably).
+  stability: Linux, macOS, Windows PASS — ten cycles each (one instance; revision at each start = the
+  last seen before the kill, 5 … 54; perceived cursor 135 → 197; faults 0), the killed save replayed,
+  every world's 300-day save replayed ("… reproduced byte for byte"), CA-13 `1 passed` (15.8 s on
+  Linux), scratch clean. repeat: two samples per OS ran to completion, none failed ("none (2 samples)").
+  The report rendered every row, `ci.yml`'s push run for the commit, the flake list, drift "none", the
+  benchmark and the trend; it failed the run because clients was red, and touched no issue (plain
+  scratch branch).
+- **MN-1 PASS** (run 38094509802, alice's walk 14:00 → 14:30 in market-town): compare "AC-8 PASS"
+  (every platform agrees); "baselines FAIL" naming world market-town and keys summary-300,
+  summary-1000, summary-300s, facts-300s (375 619 → 375 705 rows) and journal-300s; report red; its
+  drift section diffed R1's Linux record (the last night whose parity-long passed) and named the first
+  differing line, "summary-300 first differs at line 5: old: 'day 5  revision -  facts 6582'; new: '…
+  6581'", the first differing chunk of each table, and the commits since (`git log 6c23476..9aa68a9`).
+  Precondition: the scratch record differs from the base (laptop: 375 705 facts vs 375 619).
+- **MN-2 PASS** (run 38094531811, a Windows-only change to the calendar's first sun sample after day
+  300): "G-5 world market-town differs: Windows/x86_64 ≠ {Darwin/arm64, Linux/arm64, Linux/x86_64}",
+  "summary-1000 first differs at line 1083" (the history line); no 300-day key differs (G-5 lists none),
+  and the Linux record's 300-day keys equal the baselines ("baselines PASS"): AC-8's 300-day horizon
+  cannot see it, the long one does.
+- **MN-7 PASS** (run 38094541454, a test failing only when `MINEWORLD_CI_REPETITION` is 2):
+  repeat-linux, -mac and -windows FAIL; the report lists on every OS "flake candidate
+  `…mn7_fails_only_in_the_second_repetition`, failed in 1 of 2 samples (nightly-2)" and none as a
+  failure. Finding: in the container cargo colours `Running`, so Linux named the binary `?`; fixed in
+  `6234cfe` (escape sequences stripped; self-test case added).
+- **MN-8 PASS** (run 38095769877, a step `exit 1` before stability-mac's layer): stability-mac
+  "INCONCLUSIVE · layer stability never started (a setup step failed before it)", the report red, the
+  run's conclusion `failure`; nothing reported skipped (stability-linux and -windows PASS).
+- **MN-9 PASS** (branch `scratch/13c-mn9-stability-issue-nightly`): push 1 (run 38095769877, red) →
+  "[report] issue (nightly-scratch): create", issue #165 "Nightly CI is red on main (scratch evidence,
+  nightly-scratch)"; push 2 (38098115784, still red) → a comment on #165, no second issue (`gh issue list
+  --label nightly-scratch --state all` → #165 only); push 3 (38099806828, the failure removed; stability
+  3/3 PASS, report success) → comment "Green on 58ef25ef…, run 38099806828." and #165 closed. Afterwards
+  no open issue carries `nightly-scratch` or `nightly`.
+- **Clean-up (I-13c-6):** every `scratch/13c-*` branch deleted (`git ls-remote --heads origin
+  'scratch/13c-*'` → empty), the local scratch worktree and branches removed, #165 closed. No planted
+  change reached the PR branch.
+- **Cost (A-N11), measured on R2** (wall minutes per job; every job inside its timeout):
+
+  ```text
+  parity-long-linux 20.1 · parity-long-arm 19.6 · parity-long-mac 14.6 · parity-long-windows 40.1 ·
+  parity-long 0.2 · stability-linux 13.9 · stability-mac 11.6 · stability-windows 29.5 ·
+  clients-linux 22.8 · clients-mac 31.8 · clients-windows 19.4 · repeat-linux 42.7 · repeat-mac 33.8 ·
+  repeat-windows 41.4 · gate 0.1 · report 0.4
+  per night ≈ 342 job-minutes (§8 estimated 390–530): Linux ≈ 120, macOS ≈ 92, Windows ≈ 130;
+  wall 43 min (§8: 60–75). R1, cold caches: repeat-windows 64.8, parity-long-windows 46.2,
+  stability-windows 36.3 — the cold night is the expensive one, still inside every timeout.
+  ```
+
+  Windows saves are the slow part (a 300-day saved run 245–506 s against 73–151 s on Linux); SR's smaller
+  saves should shorten it. Money: $0 (standard runners, public repository†).
+- **MN-4 PASS** (run 38094677692): `slice_probe.gd`'s door check made to expect `CAFE_PLACE + "-mn4"`.
+  clients-linux and clients-mac: "probe drive: FAIL (exit 0, 113 s / 138 s) · 1 DRIVE CHECKS FAILED ·
+  FAIL: walking through the door did not change the semantic place" — the launcher exited 0 and the
+  verdict is FAIL from the parsed lines. (Precondition, laptop: the same plant → "1 DRIVE CHECKS FAILED".)
+- **MN-5 PASS** (same run): `walker.gd`'s `_end_refused` no longer clears the route. clients-linux,
+  -mac and -windows FAIL with "failed test nightly-1: client_2d::a_refused_stride_ends_the_walk".
+  (Precondition, laptop: "assertion … failed: no stride after the refused one".) Finding: without
+  `--no-fail-fast` the failing `client_2d` binary stopped cargo before `client_settings` ran, hiding
+  its results; `ci_godot.py tests` now passes `--no-fail-fast` (as `repeat` does).
+
+### 12.1 Deviations (D-13c-n)
+
+- **D-13c-1 — the restart loop's client re-joins; it does not `resume`.** Previous assumption (§3, N-C3):
+  "join and resume a seat with the SDK … the client's resume uses the protocol's `resume`". Audit:
+  `server/PROTOCOL.md` §4.2 — "After a server restart every hold and every secret is gone (none is
+  persisted): a client joins again with its invite"; the SDK's `SeatSession.connect` takes no `resume`.
+  Corrected: after each restart the client joins again with the invite and asks for the `perceived`
+  stream from the cursor (`through`) it reached before the kill (§5.8), the protocol's own continuation
+  across a restart; a `cursor_unavailable` refusal is FAIL. In-process resume within a hold stays
+  covered by `run.sh reconnect` (`clients-probes`). Bounded: the oracle (`/status`, `replay`) is
+  unchanged. Validation: N-C3's local run.
+
+- **D-13c-2 — `baseline write RECORD [FILE]` rewrites the file in place.** §3.3 showed `baseline write
+  <record> > scripts/baselines.txt`; a shell redirect truncates the file before the script can read the
+  `reason` lines it must keep. The file argument defaults to `scripts/baselines.txt`. Self-test: "a
+  reason line is kept by write and ignored by check".
+- **D-13c-3 — one artifact per job, `nightly-<job>`.** §3.1.3 named `verdict-*`, `timings-*` and
+  `repeat-*` artifacts. Every nightly job writes into `artifacts/nightly/` (git-ignored by `/artifacts/`)
+  and uploads that directory as `nightly-<job>`: verdict, timings, layer results, probe verdicts, repeat
+  summaries and, for the parity legs, the long record. The report downloads `nightly-*`, each into its
+  own directory. A long record therefore defaults to `artifacts/nightly/parity-long-<os>-<arch>.txt`
+  (the default profile's `ac8-<os>-<arch>.txt` is unchanged).
+- **D-13c-4 — the nightly layers record how they ended.** For the verdict to tell "the layer never
+  started" (INCONCLUSIVE) from "it failed at a command" (FAIL) without reading the job log,
+  `ci_layer.py` writes `artifacts/nightly/layer-<layer>.txt` (`started`, then `passed …` or `failed at:
+  <command> (exit n)`) for the layers in `NIGHTLY_LAYERS` only. Per-PR layers write nothing; `--list core`
+  is unchanged (A-N8).
+- **D-13c-5 — a background Xvfb, not `xvfb-run -a`.** The layer runs inside `.github/actions/native`,
+  which a wrapper command would have to edit; `.github/actions/godot` starts `Xvfb :99` on Linux and
+  exports `DISPLAY` instead. Same display, no edit outside A-N10's list.
+- **D-13c-6 — the Godot tests run through `ci_repeat.py --times 1`.** Only so that the verdict names a
+  failing test (MN-5): `ci_repeat.py` writes `clients-tests.txt` with the failing names; one run, nothing
+  retried.
+- **D-13c-7 — `clients-probes` is a plain `ci_layer.py clients-probes` step after the native action's
+  `clients` layer**, run when the setup succeeded even if a Godot test failed (`if: success() ||
+  steps.clients.outcome == 'failure'`); a second composite would restore and save a second cache.
+- **D-13c-8 — CA-13 runs inside `ci_stability.py replay`, on the market-town 300-day save that program
+  just made with the release binary** (`MINEWORLD_CA13_SAVE`, the test's own hook), before the save is
+  removed. §3.4's layer line `cargo test … --test perceived -- --ignored` would have made a second
+  300-day save with the debug binary. S11-C's close ran it the same way (step-12 §17, CA-13: 20 s).
+- **D-13c-9 — the Godot cache key is `hashFiles('scripts/ci_godot.py')`**, not "the version and the
+  pinned hash": YAML cannot read the pin, and the script holds it. Any script edit re-downloads once;
+  `fetch` re-verifies the pin on every run anyway (its marker file).
+
+### 12.2 Findings during implementation
+
+- **F-13c-impl-1 — the market-town ledger digest is a memory run's.** §3.3 expected TW-d's
+  `d5db8988…22ee` to equal the long record's `summary-300s` (saved). Local long record at `c65a963`:
+  market-town `summary-300` (memory, header kept, 360 lines) = `d5db8988bb9d…a922ee`, `summary-300s` =
+  `beb4ec5b…` (359 lines); `facts-300s` rows 375 619 = TW-d's "375 619 facts". Lakeside `summary-300s`
+  (349 lines) = Milestone E's `97dac8fc5086…bc6fce3` and `facts-300s` rows 356 689 = its "356689 facts".
+  Both ledger values are current; §3.3's pairing for market-town was the design's error, not a stale
+  ledger. Every `summary-300` equals the same commit's default (ac8) record (local, all four worlds).
+- **F-13c-impl-2 — R-1 happened: hosted runners cannot run two of the three windowed Godot tests on any
+  leg.** Evidence, R1 (run 38091440131, `6c23476`) and the clients-only re-run (38094430653, `a6bd02d`):
+
+  ```text
+  test (client_settings.rs)                         Linux (Xvfb,       macOS (Apple          Windows (D3D12,
+                                                    llvmpipe)          Paravirtual, Metal)   Basic Render Driver)
+  two_d_display_settings_take_effect                FAIL 18.7 fps      FAIL window           FAIL 14.1 fps
+                                                    uncapped (≤ 31)    1280x645, not 720     uncapped
+  the_language_chosen_in_2d_is_in_the_3d_clients_   FAIL "the slice    FAIL "the slice       FAIL "the slice
+  first_frame                                       hung"              hung" (build 42.8 s)  hung"
+  three_d_switches_language_live_and_settings_      FAIL "the slice    PASS                  FAIL "the slice
+  never_reach_the_server                            hung"                                    hung"
+  ```
+
+  Every one is a display or GPU reason, not a behaviour defect: a software renderer cannot exceed the
+  30 fps cap the 2D test must see lifted; the macOS runner's screen cannot hold a 1280x720 window; the
+  connected 3D slice on a software renderer (or the paravirtual GPU, where the scene builds in 43 s)
+  passes its run limit. All 22 other Godot tests pass on all three OSes; the 3D probes and protocol
+  checks pass on Linux and macOS. On the laptop all 25 pass (N-C4).
+  - **Within QC-5 (applied):** `three_d_switches_language_live_and_settings_never_reach_the_server` is
+    skipped by name on Linux and Windows (`ci_godot.py` `SKIPS`, with reasons), because it passed on
+    macOS the same night; each night's macOS leg keeps that true or turns red.
+  - **Ruled 2026-10-10 (QC-5b accepted, §14.1) and applied:** `ci_godot.py` `HOSTED_UNRUNNABLE` names
+    the two tests with their reasons; every OS skips them (`--exact --skip`), the notes say so, and the
+    coverage check accepts exactly that list (self-test: "a third name skipped everywhere, not on the
+    QC-5b list, fails coverage"; mutation removing the list's guard → two self-test cases FAIL;
+    restored). They are milestone-F hand checks N-1, N-2 in `docs/MVP_STATUS.md`.
+  - *As first raised:* **Outside QC-5 (material, raised to the operator; not applied):** the other two fail on every
+    hosted leg, so QC-5 ("skip only when the test passed on another platform that night") allows no
+    skip, and the coverage check refuses a test skipped everywhere. Until a ruling, `clients-*` is red
+    every night for these two tests. Proposed smallest revision, **QC-5b**: a windowed test that fails
+    on every hosted leg for a recorded display reason is listed by name in `ci_godot.py` as "not run on
+    hosted runners" with its evidence, reported in every night's notes, and stays with the operator's
+    machine (as `ARC-17`/D-11 keep visual acceptance); the coverage check then accepts exactly that
+    list. No test is edited (I-S13-1).
+- **F-13c-impl-3 — `main` moved under the PR, and the baselines caught a stored-history change.**
+  `main` gained #153 (S6 SR), #157 (S10 P3b), #159 (S17 IL-e) and docs; merged into the branch as
+  `436d905` (no conflict; decision ids 112, distinct). At the merge head, a laptop long record: every
+  summary and every `facts-300s` equal to `c65a963`'s, but `journal-300s` differs in all four worlds (same
+  row counts; `ci_parity.py diff`: "table journal … first differing chunk 0", the 30-day journal too).
+  SR's diff touches `snapshots` only (`persistence/src/sqlite.rs`: retire, zstd), so the likely source is
+  IL-e's System Pack changes (conversation, group-activity, relationships), whose journal entries moved
+  while no fact did. Not 13c's to judge: recorded for the primary session (owner IL-e/S17, or ruled
+  benign). `scripts/baselines.txt` is re-recorded at the merge head, each world with a `reason` line
+  naming this finding — the update duty of §3.3 exercised once; `baseline write` kept the reason lines
+  byte for byte (rewritten file `cmp`-identical).
+- **F-13c-impl-4 — R-14 happened: the SDK's `connect` changed under the restart loop.** P3b replaced
+  `perceived=PerceivedJoin(…)` with `perceiving=Perceiving(since, deliver)`, and the session no longer
+  keeps a cursor (`TypeError: … unexpected keyword argument 'perceived'`). `ci_stability.py` now keeps
+  the cursor itself from the frames it is handed (`through` of the last). Local re-run at the merge
+  head: ten cycles PASS, the same revisions (5 … 54) and cursors (135 → 197) as before, replay PASS.
+- **F-13c-impl-5 — "the slice hung" on all three hosted runners has no root cause yet** (owner: the 3D
+  lane). The two 3D settings tests time out ("the slice hung") on llvmpipe, Apple Paravirtual Metal and
+  D3D12 WARP; the 3D probes (drive, link, target) pass on Linux and macOS, and the laptop passes all.
+  Slow software rendering is the likely reason, but a hang is not assumed to be display-only (QC-5b
+  ruling); until explained, the two tests are milestone-F hand checks.
+- **F-13c-impl-6 — `scripts/ci_parity.py` is 990 lines**, past the standards' ~800-line warning (one
+  record format's writer, comparator, baselines, diff and their self-tests); not split here (A-N10's
+  file list); recorded for a later split if it grows.
+- **S6 SR merged before 13c** (QC-6 assumed the reverse). The 1 000-day saved run and the ASR-1 640 MiB
+  assertion are a follow-up owned by S13 (QC-6), not added here: frozen scope (§1.2). R1's numbers
+  already show SR's effect is not in this PR's base (300-day saves 2–3.5 GiB at `6c23476`).
 
 ---
 
@@ -1144,6 +1459,13 @@ Relayed by the coordinator. Each ruling replaces the recommendation above where 
 - **QC-11, primary:** `parity-long` reports only.
 - **QC-12, primary: yes.** CA-13 runs nightly.
 - **Decision ids, primary:** `ARC-83` (ARC-82 went to 13c R-PK-1, doorway names) and `DEP-45`.
+- **QC-5b, primary: accepted (2026-10-10, during implementation, on F-13c-impl-2's evidence).**
+  `two_d_display_settings_take_effect` and `the_language_chosen_in_2d_is_in_the_3d_clients_first_frame`
+  are listed by name as "not run on hosted runners" with the evidence; each night's notes report them;
+  the coverage check accepts exactly that list (a third name must turn it red); they move to the
+  operator's milestone-F hand checks (`docs/MVP_STATUS.md` "Carried to milestone F"). "The slice hung"
+  on all three hosted runners needs a root cause later (owner: the 3D lane): a hang is not assumed to be
+  display-only (F-13c-impl-5).
 
 ---
 
@@ -1185,4 +1507,31 @@ STOP CONDITION      A-N1 … A-N12 with evidence on the exact final head (A-N7 a
 POST-MERGE SYNC     this session: §12, merge identity, evidence; the primary session: step-14 §14,
                     overall.md, MVP_STATUS rows of other lanes
 MERGE AUTHORITY     never without explicit operator approval
+```
+
+---
+
+# 16. Handoff (continuation aid, not a design authority)
+
+```text
+PR                  #162, branch mvp0/pr-13c-nightly, worktree /Users/yuema137/mineworld-worktrees/impl-13c-nightly
+BASE                main 3c8bbf3 at the start; main 9f853e1 merged in as 436d905
+FINAL EXECUTABLE    d5cc82d (R2 ran on it); later commits change this file only
+LIFECYCLE           implementation complete; NOT "READY FOR OPERATOR REVIEW" as frozen: A-N5 needs the
+                    operator's ruling on QC-5b (F-13c-impl-2). Everything else is met (§12, A-N table).
+                    CLOSED / AWAITING OPERATOR ACTION
+OPEN FOR THE OPERATOR
+  QC-5b             two windowed Godot tests (two_d_display_settings_take_effect,
+                    the_language_chosen_in_2d_is_in_the_3d_clients_first_frame) fail on every hosted leg
+                    for display reasons; proposal in §12.2 F-13c-impl-2. Until ruled, clients-* is red
+                    every night for them, so the nightly issue would open on the first night after merge.
+OPEN FOR THE PRIMARY SESSION
+  F-13c-impl-3      journal bytes moved in every world between c65a963 and 9f853e1 with no fact or
+                    summary moving (likely IL-e #159); baselines re-recorded with reason lines
+  QC-6 follow-up    S6 SR merged first: the 1 000-day saved run and the ASR-1 640 MiB check are S13's
+                    follow-up, not in this PR
+  A-N7              after merge: a dispatch with force=false on an unmoved main skips; force=true runs
+  QB-11             test-windows required after seven clean nights (now measurable from the report)
+  step-14 §14, overall.md: post-merge sync (the primary session's)
+SCRATCH STATE       none left: no scratch/13c-* branch, issue #165 closed, scratch worktree removed
 ```
