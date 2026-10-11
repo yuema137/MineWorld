@@ -1146,6 +1146,38 @@ takes branch names, inputs and job outputs through `env:`; `issues: write` appea
 | N-C6 | [ ] | [ ] | [ ] | — |
 | N-C7 | [ ] | [ ] | [ ] | — |
 
+### 12.0 N-C6 — the scratch nightly runs (ledger of runs and mutations)
+
+Budget (§8, QC-8): ≤ 6 full and ≤ 12 single-group runs. Each run below is on a `scratch/13c-*-nightly`
+branch pushed from the PR head named, or from one planted scratch commit on it.
+
+```text
+run          branch / head                         groups        result and use
+38091440131  13c-full-nightly @ 6c23476            all (full 1)  R1, cold. parity-long 5/5 PASS, stability 3/3
+                                                                 PASS, repeat 3/3 PASS, clients 3/3 FAIL (R-1,
+                                                                 F-13c-impl-2; and two tool defects, fixed in
+                                                                 a6bd02d); report red, no issue (plain scratch)
+38094469538  13c-mn1-parity-long @ b0c3fbe         parity-long   cancelled before any job (single 1): the drift
+                                                                 locator needed 85cb01a first
+38094430653  13c-r2-clients @ a6bd02d              clients       (single 2) the Windows windowed failures
+                                                                 named (ci_repeat fixed); evidence for QC-5
+38094509802  13c-mn1-parity-long @ 9aa68a9         parity-long   (single 3) MN-1
+38094531811  13c-mn2-parity-long @ fce11f7         parity-long   (single 4) MN-2
+38094541454  13c-mn7-repeat @ 799e5bc              repeat        (single 5) MN-7
+38094677692  13c-mn4-mn5-clients @ 488c9c5         clients       (single 6) MN-4 and MN-5
+38095769877  13c-mn9-stability-issue @ 2e884a9     stability     (single 7) MN-8, MN-9 push 1
+```
+
+- **MN-4 PASS** (run 38094677692): `slice_probe.gd`'s door check made to expect `CAFE_PLACE + "-mn4"`.
+  clients-linux and clients-mac: "probe drive: FAIL (exit 0, 113 s / 138 s) · 1 DRIVE CHECKS FAILED ·
+  FAIL: walking through the door did not change the semantic place" — the launcher exited 0 and the
+  verdict is FAIL from the parsed lines. (Precondition, laptop: the same plant → "1 DRIVE CHECKS FAILED".)
+- **MN-5 PASS** (same run): `walker.gd`'s `_end_refused` no longer clears the route. clients-linux,
+  -mac and -windows FAIL with "failed test nightly-1: client_2d::a_refused_stride_ends_the_walk".
+  (Precondition, laptop: "assertion … failed: no stride after the refused one".) Finding: without
+  `--no-fail-fast` the failing `client_2d` binary stopped cargo before `client_settings` ran, hiding
+  its results; `ci_godot.py tests` now passes `--no-fail-fast` (as `repeat` does).
+
 ### 12.1 Deviations (D-13c-n)
 
 - **D-13c-1 — the restart loop's client re-joins; it does not `resume`.** Previous assumption (§3, N-C3):

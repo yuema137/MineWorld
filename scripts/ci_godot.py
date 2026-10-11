@@ -242,7 +242,8 @@ def kill_group(process: subprocess.Popen[bytes]) -> None:
 
 
 def godot_tests_command(*libtest: str) -> list[str]:
-    command = ["cargo", "test", "-p", "mineworld-cli"]
+    # --no-fail-fast: a failing client_2d must not hide client_settings' results (run 38094677692).
+    command = ["cargo", "test", "--no-fail-fast", "-p", "mineworld-cli"]
     for test in GODOT_TESTS:
         command += ["--test", test]
     return [*command, "--", "--ignored", *libtest]
