@@ -31,10 +31,11 @@ use std::process::Command;
 mod gdscript;
 use gdscript::lex;
 
-/// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families).
-const KEY_FAMILIES: [&str; 15] = [
+/// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
+/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
+const KEY_FAMILIES: [&str; 16] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock",
+    "link", "note", "door", "language", "clock", "place",
 ];
 
 /// Where UI text is set: a literal argument of one of these is UI text.
