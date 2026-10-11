@@ -3,7 +3,8 @@
 //! ```text
 //! parent      for each scenario:
 //!               control   a child runs the whole script into its own save, uninterrupted
-//!               for each kill point K (early, middle, late):
+//!               for each kill point K (early, middle, late; the first retained anchor's commit and
+//!               a commit that retires a snapshot, ARC-81):
 //!                 victim    a child runs the script into a fresh save; once it has printed
 //!                           "revision K" the parent SIGKILLs it, while it is still writing
 //!                 survivor  a NEW child process opens the same file, resumes it, and finishes the
@@ -61,7 +62,9 @@ const SCENARIO: &str = "MINEWORLD_KILL_TEST_SCENARIO";
 const DIRECTORY: &str = "MINEWORLD_KILL_TEST_DIR";
 
 const INSTANCE: u128 = 0x0000_0000_0000_0000_0000_0000_c0ff_ee01;
-const SNAPSHOT_INTERVAL: u64 = 32;
+/// How many scheduled snapshots apart two retained anchors are (`ARC-81`): the rule's constant,
+/// restated here so the expected snapshot set is the test's own arithmetic.
+const ANCHOR_EVERY: u64 = 64;
 
 fn t(seconds: i64) -> WorldTime {
     WorldTime::from_seconds(seconds)
@@ -374,6 +377,20 @@ impl Scenario {
         }
     }
 
+    /// Snapshot intervals small enough that each run crosses a retained anchor (`ARC-81`): every 256
+    /// revisions in the cafe's ≈ 300, every 512 in the clock world's ≈ 630, so kills land at an
+    /// anchor commit and at commits that retire snapshots.
+    const fn interval(self) -> u64 {
+        match self {
+            Self::Cafe => 4,
+            Self::Clock => 8,
+        }
+    }
+
+    const fn anchor(self) -> u64 {
+        ANCHOR_EVERY * self.interval()
+    }
+
     const fn durability(self) -> Durability {
         match self {
             Self::Cafe => Durability::PowerLoss,
@@ -424,7 +441,7 @@ impl Scenario {
             },
         )
         .expect("the world begins");
-        persisted.snapshot_every(SNAPSHOT_INTERVAL)
+        persisted.snapshot_every(self.interval())
     }
 
     /// Drives `world` through the rest of the script — every input the save does not hold yet —
@@ -482,12 +499,14 @@ fn child(role: &str) {
                 how.replayed,
                 how.facts
             );
-            world.snapshot_every(SNAPSHOT_INTERVAL)
+            world.snapshot_every(scenario.interval())
         }
         other => panic!("no role {other}"),
     };
     scenario.finish(&mut world);
-    world.checkpoint().expect("checkpoints");
+    // Reported, because whether a clean shutdown writes one depends on whether the clock idled past
+    // the head (F-12), and the parent's expected snapshot set depends on it.
+    println!("checkpoint {}", world.checkpoint().expect("checkpoints"));
     println!("done {}", world.revision().raw());
 }
 
@@ -668,11 +687,45 @@ fn scenario(scenario: Scenario) {
         control_rows.snapshots.len()
     );
 
+    // Retention (ARC-81), with the set computed here: genesis, every anchor and the newest two
+    // scheduled snapshots, and the clean shutdown's checkpoint at the head when it wrote one.
+    let checkpointed = control.lines.iter().any(|line| line == "checkpoint true");
+    let (interval, anchor) = (scenario.interval(), scenario.anchor());
+    assert!(
+        total > anchor + 2 * interval,
+        "{}: the run crosses an anchor ({anchor}) and retires after it ({total} revisions)",
+        scenario.name()
+    );
+    let scheduled = total - total % interval;
+    let mut expected: Vec<i64> = std::iter::once(1)
+        .chain((1..=scheduled / anchor).map(|k| k * anchor))
+        .chain([scheduled - interval, scheduled])
+        .chain(checkpointed.then_some(total))
+        .map(|revision| i64::try_from(revision).expect("small"))
+        .collect();
+    expected.sort_unstable();
+    expected.dedup();
+    let held: Vec<i64> = control_rows
+        .snapshots
+        .iter()
+        .map(|(revision, _)| *revision)
+        .collect();
+    assert_eq!(
+        held,
+        expected,
+        "{}: the control holds exactly the rule's snapshots",
+        scenario.name()
+    );
+
     let mut tails = Vec::new();
     for (label, kill_at) in [
         ("early", total / 5),
         ("middle", total / 2 + 3),
         ("late", total * 4 / 5 + 7),
+        // At the commit of the first anchor, and at a commit that retires the snapshot before it
+        // (ARC-81 D-SR-3): the kill lands as the victim reports reaching it.
+        ("anchor", anchor),
+        ("retiring", anchor + 2 * interval),
     ] {
         let dir = scratch(&format!("{}-{label}", scenario.name()));
         let victim = run("create", scenario, &dir, Some(kill_at));
@@ -705,7 +758,7 @@ fn scenario(scenario: Scenario) {
             "{label}: and re-executed the tail after its snapshot"
         );
         assert!(
-            snapshot <= on_disk && (snapshot == 1 || snapshot.is_multiple_of(SNAPSHOT_INTERVAL)),
+            snapshot <= on_disk && (snapshot == 1 || snapshot.is_multiple_of(interval)),
             "{label}: the snapshot is genesis or a scheduled one ({snapshot})"
         );
         println!(

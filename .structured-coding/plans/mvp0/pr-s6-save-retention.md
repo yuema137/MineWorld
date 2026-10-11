@@ -10,7 +10,7 @@ Approved by / evidence: the operator's rulings on QSR-1, QSR-3, QSR-4 and the pr
                         persistence-lane design session (§13.1)
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
 Execution contract:     §12 (filled at freeze)
-Lifecycle:              FROZEN
+Lifecycle:              MERGED
 ```
 
 Scope (§2.1, with QSR-5's CI assertion), invariants (§2.3), decisions D-SR-1 … D-SR-9, the acceptance
@@ -422,11 +422,14 @@ Targeted validation per commit; the PR's CI is the one full run.
   contract's authority lines and the decision numbers (`ARC-81`, `DEP-43`) were filled by the planning
   session at freeze (§12, §13.1); C0 verifies them rather than writing them.
 - **Scope.** This document (§14 opened); a new `handoff-sr.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, and
   that `overall.md`'s table lists `ARC-81` and `DEP-43` for SR; record the implementation base commit;
-  initialize the handoff with the contract's required fields.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every authority line has a source; no scope widened.
+  initialize the handoff with the contract's required fields. *Evidence: §14.1 (base a5f5357; the
+  table does not yet list SR — F-SR-0, a request to the primary session); `handoff-sr.md`.*
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  *Evidence: both exit 0 at C0 (§14.1).*
+- [x] Review: every authority line has a source; no scope widened. *Evidence: §12 re-read; C0 edits
+  only this ledger and the new handoff.*
 - **Commit boundary.** Documentation only.
 
 ### C1 — Decisions, spec edits, the dependency
@@ -436,11 +439,12 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** `docs/DECISIONS.md` (`ARC-81`, `DEP-43`, note under `ARC-25`); `docs/ARCHITECTURE.md`
   persistence section; `persistence/README.md`; `step-06-persistence.md` L-6 note; workspace
   `Cargo.toml` `zstd = { version = "0.13", default-features = false }`; `persistence/Cargo.toml`.
-- [ ] Implementation: the files above.
-- [ ] Validation: `cargo deny check`; `cargo check --workspace`; both doc checks; push and confirm the
-  three-platform build is green before C2 depends on it.
-- [ ] Review: each decision names alternatives and revisit triggers; `ARC-25`'s wording is extended,
-  not relaxed.
+- [x] Implementation: the files above. *Evidence: §14.2.*
+- [x] Validation: `cargo deny check`; `cargo check --workspace`; both doc checks; push and confirm the
+  three-platform build is green before C2 depends on it. *Evidence: §14.2 (deny, check, doc checks
+  local; the three-platform build is the draft PR's first CI run, recorded there).*
+- [x] Review: each decision names alternatives and revisit triggers; `ARC-25`'s wording is extended,
+  not relaxed. *Evidence: §14.2.*
 - **Failure cases.** `zstd-sys` fails on a CI leg: stop, record, propose `ruzstd` (material: a
   dependency change returns to the operator).
 
@@ -452,11 +456,13 @@ Targeted validation per commit; the PR's CI is the one full run.
   `error.rs` if a variant is needed; `persistence/tests/save.rs` (tamper test for ASR-9; format-2
   refusal ASR-8 with a fixture produced by the base build and committed under `persistence/tests/`);
   `tools/cli/tests/market/mod.rs` (decoder).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test market`;
-  `cargo test -p mineworld-cli --test headless` (AC-12); clippy `-D warnings`; fmt.
-- [ ] Review: no call site decodes a snapshot with the plain `decode`; journal and facts encoding
-  unchanged (diff shows no change to their paths).
+- [x] Implementation. *Evidence: §14.3.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test market`;
+  `cargo test -p mineworld-cli --test headless` (AC-12); clippy `-D warnings`; fmt. *Evidence: §14.3
+  (`market` and `headless` are modules, not test targets: their users `run`, `inspect` ran here and
+  `market_town` runs at C5).*
+- [x] Review: no call site decodes a snapshot with the plain `decode`; journal and facts encoding
+  unchanged (diff shows no change to their paths). *Evidence: §14.3.*
 
 ### C3 — The retention rule
 
@@ -465,12 +471,13 @@ Targeted validation per commit; the PR's CI is the one full run.
   `retire` computation), `backend.rs` (`RevisionRow::retire`), `sqlite.rs` (`write_revision` deletes);
   the test double in `persistence/tests/save.rs`; new `persistence/tests/retention.rs` (ASR-10 sweep,
   off-lattice checkpoint then restart, changed interval).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance` (the two
+- [x] Implementation. *Evidence: §14.4.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance` (the two
   resume comparisons); headless AC-12; the adversarial mutations "retire nothing" and "retire n"
-  run once each and recorded.
-- [ ] Review: the rule reads nothing but *n*, the interval and the stored set; deletion only in the
-  revision's transaction; `retire` never contains ≥ n − interval.
+  run once each and recorded. *Evidence: §14.4 (M1, M2 red; all green after restore).*
+- [x] Review: the rule reads nothing but *n*, the interval and the stored set; deletion only in the
+  revision's transaction; `retire` never contains ≥ n − interval. *Evidence: §14.4; the last clause
+  is F-SR-1 (the frozen D-SR-3 retires an off-lattice checkpoint above n − interval; guard is ≥ n).*
 
 ### C4 — `verify_from` and `inspect`
 
@@ -478,9 +485,10 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** `persistence/src/replay.rs` (`verify_from`), `lib.rs` export, `error.rs`
   (`NoSnapshotAt`); `tools/cli/src/inspect.rs` (one line); tests for ASR-4 (30-day scale via a fixture
   world) and the error case.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli`.
-- [ ] Review: `verify_from` shares `replay_after`; no second comparison path.
+- [x] Implementation. *Evidence: §14.5.*
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli`. *Evidence:
+  §14.5 (the CLI targets this commit touches; the whole CLI suite runs in the PR's CI).*
+- [x] Review: `verify_from` shares `replay_after`; no second comparison path. *Evidence: §14.5.*
 
 ### C5 — Kill-and-resume and the real runs (integration checkpoint)
 
@@ -489,21 +497,22 @@ Targeted validation per commit; the PR's CI is the one full run.
   `tools/cli/tests/market_town.rs` (QSR-5: save C's file ≤ 64 MiB and snapshot revisions exactly
   `K(n)`, asserted after its activity checks, with the measured size in the failure message); §14
   evidence.
-- [ ] Implementation: the kill points; the ASR-2 assertion.
-- [ ] Validation: `cargo test -p mineworld-persistence --test kill_and_resume`;
+- [x] Implementation: the kill points; the ASR-2 assertion. *Evidence: §14.6.*
+- [x] Validation (*evidence: §14.6; the PR's CI and AC-8 at C6, §14.7*): `cargo test -p mineworld-persistence --test kill_and_resume`;
   `cargo test -p mineworld-cli --test market_town` (the assertion passes; mutated once to 1 MiB to see
   it fail, recorded); release-profile runs of
   30 and 300 days with `--save`; `mineworld inspect`; `sqlite3 … dbstat` sizes; `mineworld replay` on
   the 300-day save; `verify_from` on three anchors; SHA-256 of facts/journal vs the base build
   (ASR-11); wall times; the PR's CI (`AC-8` three legs).
-- [ ] Review: every number in §14 comes from a command recorded beside it.
+- [x] Review: every number in §14 comes from a command recorded beside it. *Evidence: §14.6.*
 
 ### C6 — Close-out
 
 - **Goal.** READY FOR OPERATOR REVIEW.
 - **Scope.** §14 final; handoff; `overall.md` F-SAVE-1 entry marked "SR in review" (primary session's
   file — a request, §11).
-- [ ] Implementation / [ ] Validation (exact-head CI) / [ ] Review.
+- [x] Implementation / [x] Validation (exact-head CI: reported on PR #153 against the final SHA) /
+  [x] Review. *Evidence: §14.7.*
 
 ## 11. Requirements this PR places on other documents and lanes
 
@@ -603,4 +612,403 @@ Relayed by the coordinator to the persistence-lane design session on 2026-10-10.
 
 ## 14. Ledger (live during implementation)
 
-Opened by C0 in the implementation session. Nothing implemented yet.
+**Status: READY FOR OPERATOR REVIEW — DO NOT MERGE** (C0 … C6 done; §14.7).
+
+Opened by C0 in the implementation session (2026-10-10), worktree
+`/Users/yuema137/mineworld-worktrees/impl-save-retention`, branch `mvp0/pr-s6-save-retention`.
+
+### 14.1 C0 — freeze verification
+
+```text
+Implementation base:   origin/main @ a5f535735e31ac14ff2413df014e82bf48fb6043 (#145 merged: this design
+                       frozen). The audit anchors of §3 (bb62edf) were re-read at this base: every
+                       file and line named there is unchanged in substance.
+Freeze header:         present (revision 2, 2026-10-10), lifecycle FROZEN; §12 filled, every
+                       ENDPOINT AUTHORITY line carries its source.
+Decision numbers:      ARC-81 and DEP-43 are named by this document (QSR-6) and unused in
+                       docs/DECISIONS.md at the base.
+```
+
+**Finding F-SR-0 (bounded; a request to the primary session, not an edit).** C0 asks to verify that
+`overall.md`'s decision-number table lists `ARC-81` and `DEP-43` for SR. At the base it does not: the
+table ends with S23's row and the sentence "The next free numbers are ARC-81 and DEP-43". The numbers
+are assigned by the primary session's QSR-6 ruling (§13.1), which is this PR's authority for them, so
+implementation proceeds; `overall.md` is the primary session's file (§12 POST-MERGE SYNC OWNER), so this
+session does not edit it. Request R-overall (§11) stands: the primary session adds the row
+`S6 SR | ARC-81 | DEP-43 (zstd)` before merge.
+
+**Base measurements (for ASR-8 and ASR-11; release profile, `/tmp/impl-sr/base-mineworld` built from
+a5f5357, macOS 26.2 arm64).**
+
+```text
+mineworld run worlds/market-town --headless --seed 7 --days 30  --save …/base-30    wall 5.17 s
+  world.sqlite 373 882 880 B; journal 29 193 rows (head 29 193); facts 38 286; snapshots 457
+mineworld run worlds/market-town --headless --seed 7 --days 300 --save …/base-300   wall 57.30 s
+  world.sqlite 3 795 013 632 B; journal 290 995 rows; facts 375 619; snapshots 4 547
+SHA-256 over the stored rows, computed identically for base and head:
+  sqlite3 DB "SELECT event_id, revision, hex(fact) FROM facts ORDER BY event_id" | shasum -a 256
+  sqlite3 DB "SELECT revision, at, action_id, hex(entry) FROM journal ORDER BY revision" | shasum -a 256
+  base-30   facts   a1fc10a8a991e5b73a5b38f0c66e3425c39684b196fdac40296c14042f53ddfa
+            journal ae11e5fccc856a91c360ae27218b7b0164f0c5710bc5e7d0fa01754c9008ae33
+  base-300  facts   5b1dd246e35f45f81334e40c5b9c4a591f275c5b84c3a0710ed27832e86e9707
+            journal 60d8e807360e3b8545a201a6ca3b4febdea296bd9a4fda92c59d3c077aaeebd2
+```
+
+The base counts equal §4.1's (measured at bb62edf), so ASR-11's numbers stand at this base.
+
+**ASR-8 fixture.** `persistence/tests/fixtures/format-2/world.sqlite` (53 248 B, SHA-256
+`346f61f8f1e6195dcc240d4fe9782e416e0ffa69e2b0aad79057c13991118344`) was written by the base build:
+a scratch detached worktree at a5f5357 (`/tmp/impl-sr/base-tree`, never pushed) with one uncommitted
+ignored test that creates a save of the persistence test world (`support::assembled`, interval 8,
+12 scripted steps; head 20, snapshot rows at 1, 8, 16, uncompressed). It is `format 2` in its manifest
+and every row is a format-2 build's own bytes.
+
+*Deviation D-1 (bounded).* ASR-8 names `run`, `serve`, `replay` and `inspect`. Those commands open a
+save of a real World Pack, and the smallest base-built pack save (social-cafe, one day) is 4.8 MB —
+too large to commit. So the committed fixture proves a genuine format-2 save is refused by the library
+(`PersistentWorld::resume`, `verify`, `verify_from`); the four commands are shown to route that refusal
+by a CLI test that writes a social-cafe save with the head build and sets its manifest format to 2 with
+SQL (the same technique `save.rs` already uses for formats 1 and 3). Both halves are recorded under C2.
+
+### 14.2 C1 — decisions, spec edits, the dependency
+
+```text
+docs/DECISIONS.md            ARC-81 and DEP-43 appended; a dated note under ARC-25's limitations
+docs/ARCHITECTURE.md §8      snapshots retained by rule, compressed; the log kept whole
+persistence/README.md        one paragraph on retention and compression
+step-06-persistence.md L-6   dated note: snapshot pruning landed in SR; the log still whole
+Cargo.toml                   zstd = { version = "0.13", default-features = false } (workspace)
+persistence/Cargo.toml       zstd = { workspace = true }
+Cargo.lock                   + zstd 0.13.3, zstd-safe 7.3.0, zstd-sys 2.1.1+zstd.1.5.7,
+                             jobserver 0.1.35, getrandom 0.4.3, r-efi 6.0.0 (cc's `parallel`)
+```
+
+Discovery (recorded in DEP-43): `zstd-safe` and `zstd-sys` declare BSD-3-Clause, not MIT/Apache-2.0 as
+the design's §5 table said; both are on `ARC-55`'s list. `zstd-sys` turns on `cc`'s `parallel`
+feature, which brings three build-time crates (above), all admitted. `zstd-sys`'s build switches to a
+system libzstd only with its `pkg-config` feature or the `ZSTD_SYS_USE_PKG_CONFIG` variable; neither is
+set (`cargo tree -e features -i zstd-sys` shows only `std`).
+
+```text
+cargo deny check licenses sources bans     bans ok, licenses ok, sources ok           PASS
+cargo check --workspace --all-targets      Finished, no warnings                      PASS
+python3 scripts/check_doc_headings.py      193 numbered sections … none duplicated    PASS
+python3 scripts/check_decision_ids.py      106 decision ids, all distinct             PASS
+```
+
+Review: ARC-81 lists options 5.1–5.8 with reasons and revisit triggers; DEP-43 lists zstd levels,
+deflate, lz4, ruzstd, sqlite-zstd and ZIPVFS and its re-evaluation trigger. ARC-25's text is untouched;
+the note under it extends the limitation for snapshots and restates that the log is kept whole.
+
+Three-platform build of C1 (zstd-sys's C build): CI run 38074891512 on the scratch branch
+`scratch/sr-c1-build` at 5e202e8 (draft PRs skip the build jobs) — `fast`, `test`, `test-windows`,
+`test-macos`, `platforms (macos-26)`, `platforms (windows-2025)`, `python` × 3: all success. **PASS**: the
+C2 dependency on zstd is safe on every leg.
+
+### 14.3 C2 — the snapshot codec and format 3
+
+```text
+persistence/src/format.rs   SAVE_FORMAT 3 (+ history line); SNAPSHOT_LEVEL 3; encode_snapshot (bulk
+                            Compressor, include_checksum, include_contentsize); snapshot_json
+                            (stream::decode_all; error "the snapshot at rN does not decompress: …");
+                            decode_snapshot = decode(snapshot_json(..), "snapshot")
+persistence/src/world.rs    create/commit (revision_row), checkpoint → encode_snapshot;
+                            resume → decode_snapshot(bytes, revision)
+persistence/src/replay.rs   verify compares encode(world.snapshot()) with snapshot_json(stored)
+persistence/tests/save.rs   tamper test rewritten: (a) '{}' over the newest snapshot → Damaged naming the
+                            revision, from resume and from verify; (b) genesis' frame copied over the
+                            newest → SnapshotDisagreesWithHistory at that revision. Format test: 4 is
+                            too new, 1 and 2 outdated, against 3. New: the committed base-built
+                            format-2 fixture is refused by resume and verify (copied to scratch first)
+tools/cli/tests/market/mod.rs   format::decode_snapshot for the newest snapshot
+tools/cli/tests/save_retention.rs  ASR-8 through the binary: run, replay, inspect and server refuse a
+                            format-2 save with "the save is format 2; this code reads format 3 …"
+tools/cli/Cargo.toml        rusqlite as a dev-dependency (workspace's own; marks the manifest format)
+.gitignore, .gitattributes  the fixture is committed (negated ignore) and binary
+```
+
+`ARC-81` check (I-SR-1, review): `git diff a5f5357 -- persistence/src` touches no journal or fact
+encoding path — `revision_row`'s `entry` and `facts` lines and `reproduce` are unchanged; the only
+`decode(.., "snapshot")` left is inside `decode_snapshot` (`grep '"snapshot"'` over `*.rs`).
+
+```text
+cargo test -p mineworld-persistence                     11 passed (save) + kill_and_resume cafe, clock
+                                                        PASS                                  PASS
+cargo test -p mineworld-cli --test save_retention --test inspect --test run
+                                                        1 + 3 + 3 passed (rc 0; run includes the AC-12
+                                                        300-day same-seed comparison)          PASS
+cargo fmt --all --check                                 rc 0                                   PASS
+cargo clippy -p mineworld-persistence -p mineworld-cli --all-targets -- -D warnings   rc 0    PASS
+```
+
+### 14.4 C3 — the retention rule
+
+```text
+persistence/src/world.rs    ANCHOR_EVERY = 64; fn retired(n, interval, stored) — the pure rule D-SR-3
+                            (range ..n, keep 1, multiples of 64·interval, n − interval);
+                            PersistentWorld.stored: BTreeSet<WorldRevision> (create: {1}; resume:
+                            snapshot_revisions(); commit: + n, − retired, only after the backend
+                            committed; checkpoint: + head); commit fills RevisionRow::retire on a
+                            scheduled revision and refuses (debug_assert + Damaged) a retired ≥ n;
+                            table-driven unit test of the rule (9 cases incl. off-lattice, interval 8)
+persistence/src/backend.rs  RevisionRow::retire: Vec<WorldRevision>; commit's doc
+persistence/src/sqlite.rs   write_revision: DELETE each retired row after the INSERT, in the
+                            revision's transaction; a delete that removes ≠ 1 row is Damaged;
+                            module doc (facts/journal insert-only; no VACUUM)
+persistence/tests/retention.rs   ASR-10 sweep (interval 8, to 3·4096+5: after every commit the stored
+                            set equals an oracle K computed in the test, latest_snapshot(head) within
+                            one interval, ≥ 1 000 retiring commits, ⌊head/512⌋ anchors held, verify compares every
+                            stored snapshot); checkpoint then restart (0 replayed, then retired);
+                            interval 16 → 8 (converges on {1, 1024, m − 8, m})
+persistence/tests/save.rs   verify's snapshot count is now 3 (genesis + newest two; no anchor yet)
+tools/cli/tests/inspect.rs  RevisionRow literal gains retire: Vec::new()
+```
+
+*Finding F-SR-1 (bounded, recorded).* §10 C3's review line says "`retire` never contains ≥ n −
+interval". D-SR-3 (frozen) retires an off-lattice checkpoint *s* with n − interval < s < n at the next
+scheduled snapshot ("kept until the next scheduled snapshot and then fall under the rule"), and §6.6's
+guard is "a `retire` entry ≥ the committed revision". The implementation follows D-SR-3 and §6.6: the
+guard is `≥ n`. I-SR-2 holds either way — after the commit the newest snapshot is *n* itself — and the
+checkpoint test shows that case (checkpoint at r100, retired by the commit of r112).
+
+*Mutation note.* "Retire n" cannot be expressed through the rule: the stored set read before the commit
+never contains *n* (it is inserted after the backend commits), so the `≥ n` guard is unreachable from
+the rule today; it guards future edits. The design's "retire n − interval and n" mutation was therefore
+run as "retire n − interval, range widened to ..=n".
+
+```text
+mutations (each restored; git diff of world.rs checked clean of them after)
+M1  retired() returns nothing (filter … && false)
+      retention: 3/3 FAILED — sweep "at r24: the save holds exactly K(24)" left {1, 8, 16, 24};
+      checkpoint left {1, 16, …, 100, 112}; interval left every multiple of 16 to 1088     RED
+      (ASR-1's size consequence is shown on the real binary at C5)
+M2  n − interval not kept, range ..=n
+      retention: 3/3 FAILED — sweep "at r16 … K(16)" left {1, 16}; checkpoint left {1, 112};
+      interval left {1, 1024, 1088}                                                         RED
+after restore: cargo test -p mineworld-persistence — unit 1, kill_and_resume cafe + clock,
+      retention 3, save 11: all PASS
+```
+
+```text
+cargo test -p mineworld-acceptance --test arrival_resolvers_resume --test configuration_seam
+      resolver-yard PASS (control 401 revisions, 4 snapshots; three kills byte-identical);
+      configuration_seam 4 passed                                                          PASS
+cargo test -p mineworld-cli --test run --test inspect --test save_retention
+      3 + 3 + 1 passed (run carries AC-12's 300-day same-seed byte comparison)             PASS
+cargo fmt --all --check  rc 0;  cargo clippy -p mineworld-persistence -p mineworld-cli
+      -p mineworld-acceptance --all-targets -- -D warnings  rc 0 (after naming the unit test's
+      case tuple, clippy::type_complexity)                                                 PASS
+```
+
+Review: `retired` reads only *n*, the interval and the stored set; `stored` changes only after the
+backend reports the commit, so a failed commit leaves it as the save is; the delete runs only inside
+`write_revision`'s transaction; F-SR-1 records the `≥ n` guard.
+
+### 14.5 C4 — `verify_from` and `inspect`
+
+```text
+persistence/src/replay.rs   verify_from(backend, composed, anchor): manifest + composition checks,
+                            NoSnapshotAt when nothing is stored there, restore decode_snapshot, then the
+                            shared reexecute(backend, world, from) — the one comparison path, used by
+                            verify (from r0) too; reexecute requires from + rows = head
+persistence/src/error.rs    PersistError::NoSnapshotAt { revision, retained } ("… holds snapshots at
+                            r1, r128, …")
+persistence/src/lib.rs      export verify_from; module doc: retention and the codec
+tools/cli/src/inspect.rs    one line: "snapshots  N kept (zstd): r1 2316 B, r4096 52045 B, …"
+docs/MODULE_SPEC.md §8.1    inspect's description names the line (the spec lists what inspect prints)
+persistence/tests/retention.rs  verify_from from genesis and from each of the five anchors of an
+                            interval-2 save (head ≥ 700): revisions = head − anchor, facts = every fact
+                            after it, snapshots = every later stored one; r130 → NoSnapshotAt with the
+                            held set; genesis' frame over r512 → SnapshotDisagreesWithHistory at r512
+                            from r384
+tools/cli/tests/inspect.rs  the line equals the save's own snapshot rows and sizes
+tools/cli/tests/save_retention.rs  #[ignore] verify_from_retained_anchors_of_a_real_save: ASR-4 on a
+                            release run's save (first / middle / last anchor, or all), used at C5
+```
+
+*Deviation D-2 (bounded).* `MODULE_SPEC.md` §8.1 lists what `inspect` prints, so D-SR-9's new line is
+added there too (CLAUDE.md §2.1 rule 4: code and spec must not disagree); the design's §6.7 list did not
+name the file.
+
+```text
+cargo test -p mineworld-persistence      unit 1; kill_and_resume cafe, clock; retention 4; save 11  PASS
+cargo test -p mineworld-cli --test inspect --test save_retention   3 + 1 passed, 1 ignored         PASS
+cargo clippy -p mineworld-persistence -p mineworld-cli -p mineworld-acceptance -p mineworld-server
+      --all-targets -- -D warnings   rc 0                                                         PASS
+```
+
+Review: `verify_from` and `verify` share `reexecute` and `replay_after` (no second comparison path);
+the anchor's own snapshot is restored, not compared, and the doc says so.
+
+### 14.6 C5 — kill-and-resume and the real runs (integration checkpoint)
+
+**Test changes.**
+
+```text
+persistence/tests/kill_and_resume.rs   per-scenario interval (cafe 4 → anchor 256; clock 8 → anchor
+                         512) so both runs cross an anchor; two kill points added, "anchor" (the first
+                         anchor's commit) and "retiring" (anchor + 2·interval, a commit that retires the
+                         snapshot before it); the control's snapshot set asserted equal to K computed in
+                         the test (+ the clean-shutdown checkpoint when the child reports one wrote:
+                         "checkpoint true|false", since a clock run idles past its head, F-12)
+tools/cli/tests/market_town.rs   save_is_bounded on save C after the activity checks: world.sqlite +
+                         -wal ≤ 64 MiB, and the snapshot revisions exactly {1, 4096·k ≤ n, n − 64, n}
+```
+
+*Bounded deviation D-3.* The kill test's intervals changed from 32 to 4 (cafe) and 8 (clock); with 32
+neither run reaches an anchor (2 048 > 634 revisions), so "kill at an anchor commit" (ASR-5) could not
+be expressed otherwise. Snapshot cadence is a test parameter (`snapshot_every`), not production.
+
+```text
+cargo test -p mineworld-persistence --test kill_and_resume
+  cafe   control 301 revisions, 5 snapshots; kills early 60, middle 153 (→165 on disk), late 247,
+         anchor 256 (→257), retiring 264: every survivor's facts, journal and snapshot rows equal the
+         control's byte for byte, and verify() from genesis passes                          PASS
+  clock  control 634 revisions, 4 snapshots {1, 512, 624, 632}; kills 126, 320 (→323), 514,
+         anchor 512 (→528), retiring 528: byte-identical, verified                         PASS
+cargo test -p mineworld-cli --test market_town   1 passed (99.2 s, dev profile)
+  "ASR-2: the 30-day save is 62029824 B (59.2 MiB), 10 snapshots, 510495 B of them, head 29193"
+                                                                                           PASS
+  mutation: BOUND = 1 MiB → panicked "ASR-2: the 30-day save is 62029824 B (59.2 MiB), over the …
+  bound" (96.8 s); restored (message now prints the bound itself)                          RED
+cargo fmt --all --check rc 0; cargo clippy -p mineworld-persistence -p mineworld-cli --all-targets
+  -- -D warnings rc 0                                                                      PASS
+```
+
+**Real runs** (release profile, `/tmp/impl-sr/head-mineworld` built from 93d50a8 — production code
+identical to this commit's; macOS 26.2 arm64; host shared with other sessions' jobs, so wall times
+are indicative only).
+
+```text
+mineworld run worlds/market-town --headless --seed 7 --days 30 --save head-30
+  wall 3.83 s (base 5.17 s)
+  world.sqlite 62 029 824 B = 59.2 MiB, no -wal (base 373 882 880 B; −83.4 %)
+  dbstat: facts 41 209 856, journal 19 828 736, facts_by_revision 446 464, snapshots 524 288 B
+  snapshots r1 4096 8192 12288 16384 20480 24576 28672 29120 29184 = K(29184): 10 = 1 + 7 + 2   ASR-2 PASS
+mineworld run worlds/market-town --headless --seed 7 --days 300 --save head-300
+  wall 37.22 s (base 57.30 s)
+  world.sqlite 615 399 424 B = 586.9 MiB ≤ 640 MiB, no -wal (base 3 795 013 632 B; −83.8 %)
+  dbstat: facts 407 851 008, journal 198 516 736, facts_by_revision 5 087 232,
+          snapshots 3 932 160 B = 3.75 MiB ≤ 8 MiB; freelist 0 pages
+  snapshots: r1, 4096·k for k = 1 … 71 (r4096 … r290816), r290880, r290944 = K(290944): 74   ASR-1 PASS
+mineworld inspect head-300 --last 0
+  "save … (format 3)"; "snapshots  74 kept (zstd): r1 39985 B, r4096 52253 B, …"; AC-9 every cause
+  resolves, 375 619 facts                                                                   PASS
+mineworld replay worlds/market-town --save head-300   (4.74 s)
+  "290995 revision(s) re-executed from genesis, 375619 fact(s) and 74 snapshot(s) reproduced byte
+   for byte; head revision 290995"                                                          ASR-3 PASS
+mineworld replay … --save head-30   "29193 …, 38286 fact(s) and 10 snapshot(s) …"           PASS
+verify_from (save_retention's ignored test, release build)
+  head-30, all 7 anchors: r4096 25 097 revisions / 32 656 facts / 8 later snapshots … r28672 521 /
+  680 / 2 — every one reaches r29193                                                        ASR-4 PASS
+  head-300, first / middle / last: r4096 286 899 revisions, 369 989 facts, 72 snapshots (8.4 s);
+  r147456 143 539, 184 802, 37 (2.1 s); r290816 179, 226, 2                                 ASR-4 PASS
+the log is whole (SHA-256 commands of §14.1, head saves)
+  head-30   facts a1fc10a8…f53ddfa, journal ae11e5fc…c9008ae33 — equal to base-30
+  head-300  facts 5b1dd246…e86e9707, journal 60d8e807…aaeebd2 — equal to base-300;
+            rows 375 619 facts, 290 995 journal                                             ASR-11 PASS
+```
+
+(Full digests: head-30 facts `a1fc10a8a991e5b73a5b38f0c66e3425c39684b196fdac40296c14042f53ddfa`,
+journal `ae11e5fccc856a91c360ae27218b7b0164f0c5710bc5e7d0fa01754c9008ae33`; head-300 facts
+`5b1dd246e35f45f81334e40c5b9c4a591f275c5b84c3a0710ed27832e86e9707`, journal
+`60d8e807360e3b8545a201a6ca3b4febdea296bd9a4fda92c59d3c077aaeebd2` — each identical to the base's.)
+
+**Adversarial criteria (§8), each run once on purpose-built binaries; production source restored and
+`git diff -- persistence/src tools/cli/src` empty afterwards.**
+
+```text
+retire nothing (M1, release binary)
+  300-day save 853 458 944 B = 813.9 MiB > 640 MiB; 4 547 snapshot rows; snapshots table
+  241 991 680 B = 230.8 MiB > 8 MiB                                                         ASR-1 RED
+also retire n − interval (M2, C3)   retention sweep red at r16                              ASR-10 RED
+rule reads the wall clock (keep an odd anchor only when SystemTime's microseconds are even)
+  kill_and_resume: "cafe: the control holds exactly the rule's snapshots" left [1, 296, 300, 301]
+  right [1, 256, 296, 300, 301]                                                             ASR-5 RED
+  run's AC-12 300-day comparison (social-cafe): passed — SURVIVED. Reason: the mutation re-draws at
+  every scheduled commit, so each odd anchor is retired at the first odd microsecond and both runs
+  converge on the same final rows; AC-12 compares only final rows. The K(n) oracles (kill test above,
+  market_town's ASR-2 set assertion) are what see a rule that is not a function; recorded, no test
+  change: ASR-5's red is the criterion's "ASR-5 or ASR-6 fails".
+zstd level 9 instead of 3 (release binary)
+  30-day level-9 save: snapshot frames 32 774 … 41 683 B (vs 39 985 … 52 826 at level 3);
+  the level-3 binary replays it: 29 193 revisions, 10 snapshots reproduced                  ASR-3 PASS
+  verify_from all 7 anchors with the level-3 build                                          ASR-4 PASS
+  mixed: head-30 (level 3) resumed by the level-9 binary to day 31 → anchors at level 3 (r4096 52 253 B
+  …), newest two at level 9 (r30016 41 205 B, r30080 41 127 B); the level-3 binary replays it (30 137
+  revisions, 10 snapshots) and verify_from passes from every anchor                         PASS
+  — a codec setting never changes a replay verdict (I-SR-4)
+delete one fact row (binary that skips inserting EventId 20 000)
+  30-day save: 38 285 facts, facts SHA-256 f775a27a… ≠ base a1fc10a8…                       ASR-11 RED
+  replay: "replay diverged at revision r15127: re-execution recorded 1 facts; the save logged 0"
+                                                                                            replay RED
+```
+
+ASR-6 (`AC-12`, `tools/cli/tests/run.rs` and `market_town.rs`' same-seed comparisons) is green
+unchanged at C3 and C5. ASR-7 (`AC-8`) and ASR-12 are recorded at C6 on the PR head.
+
+### 14.7 C6 — close-out: READY FOR OPERATOR REVIEW — DO NOT MERGE
+
+```text
+PR                 #153 (mvp0/pr-s6-save-retention → main)
+commits            d573ea2 C0 · 5e202e8 C1 · ded6e73 C2 · 054bf5b C3 · 93d50a8 C4 · 8c35887 C5 ·
+                   the C6 commit carrying this section (its SHA is the PR head; CI is reported on the
+                   PR against that exact SHA, so this file does not chase its own head)
+ASR-12             git diff --stat a5f5357 -- kernel contracts systems packages: empty      PASS
+ASR-7 (AC-8)       scratch/sr-ac8-scenario pushed at the final head: the scenario, linux-arm, mac,
+                   windows and ac8 jobs (ci_parity compare over every stored byte of the 30-day
+                   save, snapshots table included); result on the PR
+```
+
+Criteria summary:
+
+```text
+ASR-1   586.9 MiB ≤ 640; snapshots 3.75 MiB ≤ 8; exactly K(290944)                 PASS (§14.6)
+ASR-2   59.2 MiB ≤ 64; 10 = 1 + 7 + 2; asserted in CI by market_town               PASS (§14.6)
+ASR-3   replay of the 300-day save: 290 995 revisions, 375 619 facts, 74 snapshots PASS (§14.6)
+ASR-4   verify_from every anchor (30-day, 7) and first/middle/last (300-day)       PASS (§14.6)
+ASR-5   kill_and_resume incl. anchor and retiring kills, byte-identical            PASS (§14.6)
+ASR-6   AC-12 tests unchanged, green                                               PASS (§14.4, §14.6)
+ASR-7   AC-8 three platforms on the final head                                     on the PR
+ASR-8   format-2 refused: base-built fixture (library); run/replay/inspect/server  PASS (§14.3)
+ASR-9   non-frame → Damaged naming the revision; foreign frame → Disagrees         PASS (§14.3)
+ASR-10  sweep to 3·4096+5 at interval 8; checkpoint → 0 replayed                   PASS (§14.4)
+ASR-11  facts/journal row counts and SHA-256 equal to the base (30 and 300 days)   PASS (§14.6)
+ASR-12  no kernel/contracts/systems/packages change                                PASS
+```
+
+Deviations: D-1 (ASR-8 split: library fixture + CLI with SQL-marked format), D-2 (MODULE_SPEC §8.1
+names inspect's new line), D-3 (kill test intervals 4 and 8). Findings: F-SR-0 (resolved on main:
+#152 added the row "S6 save retention | ARC-81 | DEP-43" to overall.md's table, picked up by the merge
+of origin/main @ 865f2be into this branch), F-SR-1 (the `≥ n` guard, per D-SR-3 and §6.6).
+
+*Merge of origin/main @ 865f2be (2026-10-10).* GitHub reported the PR CONFLICTING, so no
+`pull_request` CI ran on 8c35887 or 7d6becf. One conflict: `docs/DECISIONS.md`, where main appended
+ARC-77, ARC-59 and DEP-37 at the end of the file as this branch appended ARC-81 and DEP-43. Resolved
+by keeping both (ours, `---`, theirs); `check_decision_ids.py` 109 distinct. No code conflict; no new
+`RevisionRow` literal, snapshot decoder or format-dependent test arrived from main.
+Survived mutation: wall-clock rule vs AC-12 (converges; caught by the K(n) oracles). No material stop
+arose. Requests for the primary session (§11): record ARC-81/DEP-43 in overall.md's table; mark
+F-SAVE-1 "SR in review" (then resolved for snapshots on merge, SR-b open); record F-SAVE-2.
+
+Remaining limitation, as designed: the log grows ≈ 1.9 MiB per simulated day (300 days: facts 389 MiB,
+journal 189 MiB); SR-b is its remedy.
+
+*Note.* The host is shared with other sessions' builds and 30-day runs; one earlier attempt at the CLI
+tests was stopped by this session's own 10-minute tool limit while still compiling (no result; re-run
+in the background above).
+
+### 14.8 E-SR-final — merged
+
+```text
+merge                2026-10-10T22:06:15Z, merge commit 97e92a037a448be32f6e360c70f5f403c4216e09
+final head           a9d0508
+PR CI                run 38087899133, green: changes, fast, test, test-windows, test-macos,
+                     platforms ×2, python ×3
+AC-8                 run 38087897703, green
+review mutation      genesis dropped from the kept set in persistence/src/world.rs retired() →
+                     world::tests::the_rule_keeps_genesis_anchors_and_the_newest_two_and_retires_the_rest
+                     failed by name                                                          CAUGHT
+measured, 300 days   3 795 013 632 B → 615 399 424 B (−83.8 %)
+measured, 30 days    373 882 880 B → 62 029 824 B (−83.4 %)
+```

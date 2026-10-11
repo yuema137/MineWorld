@@ -10,7 +10,7 @@ use mineworld_kernel::{Advanced, Dispatched, InstalledSystemRecord, KernelError,
 
 use crate::backend::{FactRow, PersistenceBackend};
 use crate::error::PersistError;
-use crate::format::{Manifest, check_format, decode, encode};
+use crate::format::{Manifest, check_format, decode, decode_snapshot, encode, snapshot_json};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 
 /// What a request's dispatch amounts to in the journal: its answer, or the fault, and its facts.
@@ -214,25 +214,54 @@ pub fn verify(
 ) -> Result<Verified, PersistError> {
     let manifest = manifest(backend)?;
     check_composition(&manifest.composition, &composed.composition())?;
+    reexecute(backend, &mut composed, WorldRevision::from_raw(0))
+}
+
+/// Re-executes a save from a snapshot it holds — a retained anchor, typically — to its head, with
+/// every check [`verify`] makes: each revision after `anchor` must reproduce its logged answer and
+/// facts, and each later stored snapshot must equal the state at its revision (`ARC-81`, D-SR-6).
+///
+/// `anchor`'s own snapshot is restored, not compared: its agreement with history is what [`verify`]
+/// from genesis, or `verify_from` an earlier anchor, establishes. The returned counts cover the
+/// revisions after `anchor` only.
+pub fn verify_from(
+    backend: &dyn PersistenceBackend,
+    mut composed: World,
+    anchor: WorldRevision,
+) -> Result<Verified, PersistError> {
+    let manifest = manifest(backend)?;
+    check_composition(&manifest.composition, &composed.composition())?;
+    let Some(stored) = backend.snapshot_at(anchor)? else {
+        return Err(PersistError::NoSnapshotAt {
+            revision: anchor,
+            retained: backend.snapshot_revisions()?,
+        });
+    };
+    composed.restore(decode_snapshot(&stored, anchor)?)?;
+    reexecute(backend, &mut composed, anchor)
+}
+
+/// Re-executes every revision after `from` into `world`, comparing every stored snapshot on the way,
+/// and requires the re-execution to reach the head.
+fn reexecute(
+    backend: &dyn PersistenceBackend,
+    world: &mut World,
+    from: WorldRevision,
+) -> Result<Verified, PersistError> {
     let head = backend.head()?;
     let mut snapshots = 0;
-    let (revisions, facts) = replay_after(
-        &mut composed,
-        backend,
-        WorldRevision::from_raw(0),
-        |world, revision| {
-            if let Some(stored) = backend.snapshot_at(revision)? {
-                if encode(&world.snapshot()?)? != stored {
-                    return Err(PersistError::SnapshotDisagreesWithHistory { revision });
-                }
-                snapshots += 1;
+    let (revisions, facts) = replay_after(world, backend, from, |world, revision| {
+        if let Some(stored) = backend.snapshot_at(revision)? {
+            if encode(&world.snapshot()?)? != snapshot_json(&stored, revision)? {
+                return Err(PersistError::SnapshotDisagreesWithHistory { revision });
             }
-            Ok(())
-        },
-    )?;
-    if revisions != head.raw() {
+            snapshots += 1;
+        }
+        Ok(())
+    })?;
+    if from.raw() + revisions != head.raw() {
         return Err(PersistError::Damaged {
-            detail: format!("re-executed {revisions} revisions; the head is {head}"),
+            detail: format!("re-executed {revisions} revisions after {from}; the head is {head}"),
         });
     }
     Ok(Verified {

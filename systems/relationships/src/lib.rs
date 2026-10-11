@@ -17,6 +17,8 @@
 //!             relationship-changed     when a level is crossed, up or down — not per value change
 //! depends on  nothing                  subscribing is not emitting (ARC-26); a world without
 //!                                      conversation has relationships that hear no speech
+//! section     configure/relationships.yaml   the rule `acquaint` and the five increments above
+//!                                      (`interactions`, `ARC-63`); compiled defaults when unconfigured
 //! ```
 //!
 //! # Decoding another pack's fact
@@ -40,6 +42,7 @@ mod codec;
 
 pub mod component;
 pub mod event;
+pub mod interactions;
 pub mod level;
 pub mod system;
 

@@ -11,8 +11,8 @@ use crate::utterance::Utterance;
 ///
 /// Millimetres, as an integer, because positions reach the event log and floating point arithmetic is
 /// not reproducible across platforms (`AC-12`). Three metres is conversational distance — across a
-/// café table, not across a café — and it is this pack's policy rather than a physical constant, so it
-/// becomes a configuration field when World Packs gain a configuration schema (S7).
+/// café table, not across a café — and it is this pack's policy rather than a physical constant: since
+/// S17's PR IL-e it is the compiled default of the section's `range` ([`crate::interactions`]).
 pub const INTERACTION_RANGE: Millimetres = Millimetres::new(3_000);
 
 /// One person speaks to another.
@@ -73,9 +73,24 @@ impl Talk {
 /// declines to answer that from place identity and a distance because doing so would be a check that
 /// only looks real (`DD-7`); a world that installs a geometry provider gains the answer, and this
 /// requirement gains the clause on the same day, here, without touching a client.
+///
+/// This is the requirement of the compiled default. A world's section may give a speaker, a listener or
+/// a place another `range` (S17's PR IL-e); the pack then validates and offers
+/// [`talk_requirement_within`] that range, so the requirement shown is the one enforced.
 pub fn talk_requirement() -> SpatialRequirement {
+    talk_requirement_within(INTERACTION_RANGE)
+}
+
+/// What `talk` requires of space when a voice reaches `range`: the same place, within `range`, of
+/// somebody available. `range` is positive: the section's bound starts at one millimetre.
+pub fn talk_requirement_within(range: Millimetres) -> SpatialRequirement {
     SpatialRequirement::same_place()
-        .within(INTERACTION_RANGE)
+        .within(range)
         .expect("a positive interaction range")
         .requiring_target_available()
+}
+
+/// A `range` parameter as a distance. The section bounds it to 1 … 100 000, well inside `i32`.
+pub(crate) fn range(millimetres: u32) -> Millimetres {
+    Millimetres::new(i32::try_from(millimetres).expect("a range within the section's bound"))
 }
