@@ -1143,8 +1143,30 @@ ci.yml:42: actions/checkout@v7 is not pinned to a full commit SHA"; restored. `g
 takes branch names, inputs and job outputs through `env:`; `issues: write` appears on `report` only; no
 `pull_request` trigger; every job but `gate` needs it; `parity-long` and `report` run `if: always()`;
 `compare`/`baseline` use `shell: bash` so `tee` keeps the exit status (pipefail).
-| N-C6 | [ ] | [ ] | [ ] | — |
-| N-C7 | [ ] | [ ] | [ ] | — |
+| N-C6 | [x] 11 nightly runs (2 full, 9 single-group); repairs `a6bd02d`, `85cb01a`, `77c4193`, `590c22a`, `6234cfe`, `d5cc82d` (each a defect of the nightly's own tools found by a run, or `main` moving) | [x] | [x] | §12.0; A-N table below. Review: every mutation's precondition held (MN-1 laptop facts 375 705 ≠ 375 619; MN-2 G-5 names only summary-1000; MN-4 and MN-5 reproduced on the laptop first); QC-5's skip names exactly the one windowed test that passed on another leg the same night, with its reason |
+| N-C7 | [x] `docs/MVP_STATUS.md` S13 row; this ledger; §16 handoff; PR #162 description | [ ] PR CI on the final head (pending at the time of writing; see the PR) | [x] | A-N8, A-N10 below |
+
+**Acceptance, at the final executable head `d5cc82d`** (later commits change this file only):
+
+```text
+A-N1  PASS        R2 run 38098788738: 14 rows with verdicts, the push-run line, benchmark, flakes, trend
+A-N2  PASS        R2 parity-long; summary-300 = main's ac8 at 9f853e1 (run 38093249025)
+A-N3  PASS        R2 "baselines PASS"; cross-checks F-13c-impl-1; re-recorded at the merge (F-13c-impl-3)
+A-N4  PASS        R2 and R1 stability on Linux, macOS, Windows; MN-3 local
+A-N5  NOT MET     two windowed tests fail on every hosted leg for display reasons (F-13c-impl-2);
+                  QC-5 cannot skip them; operator ruling QC-5b requested. Everything else in A-N5 PASS
+A-N6  PASS        R1 and R2: two complete samples per OS, "none"
+A-N7  AFTER MERGE the primary session's check (gate self-test MN-6 PASS locally)
+A-N8  PASS (static) --list core identical to main's, fast = main's + 4; PR CI on the final head: see PR
+A-N9  PASS        local, byte-identical default records
+A-N10 PASS        git diff --stat origin/main...HEAD lists exactly the files A-N10 names
+A-N11 PASS        cost measured above, every job inside its timeout
+A-N12 PASS        MN-1, MN-1b, MN-2, MN-3, MN-4, MN-4b, MN-5, MN-6, MN-7, MN-8, MN-9, MN-10 as stated
+```
+
+Review notes: `ci_parity.py` is 990 lines (past §4's ~800 warning). It is one record format's writer,
+comparator, baseline and diff, plus self-tests for each (about a third of the file); a split would put
+one format's rules in two files, and A-N10 fixes the file list. Flagged for the operator, not split.
 
 ### 12.0 N-C6 — the scratch nightly runs (ledger of runs and mutations)
 
@@ -1166,7 +1188,27 @@ run          branch / head                         groups        result and use
 38094541454  13c-mn7-repeat @ 799e5bc              repeat        (single 5) MN-7
 38094677692  13c-mn4-mn5-clients @ 488c9c5         clients       (single 6) MN-4 and MN-5
 38095769877  13c-mn9-stability-issue @ 2e884a9     stability     (single 7) MN-8, MN-9 push 1
+38098115784  13c-mn9-stability-issue @ d18609c     stability     (single 8) MN-9 push 2 (still red)
+38098788738  13c-full-nightly @ d5cc82d            all (full 2)  R2, the final executable head: A-N1 … A-N6,
+                                                                 A-N11; red only for F-13c-impl-2's two tests
+38099806828  13c-mn9-stability-issue @ 58ef25e     stability     (single 9) MN-9 push 3 (failure removed)
 ```
+
+Used: 2 of 6 full, 9 of 12 single-group runs (one cancelled before any job). No larger runner, no
+paid service; every run on standard hosted runners of the public repository.
+
+- **R2 (`d5cc82d` = `main` 9f853e1 + this PR's scripts; run 38098788738).** A-N1: every job's verdict
+  artifact present; the report's table has the 14 jobs between gate and report, each with a verdict and
+  wall time, "ci.yml's own push run for this commit: … success", flake candidates ("none (2 samples)" on
+  each OS), baseline drift ("none"), the benchmark and a trend over the earlier nights (R1, MN-1, MN-2).
+  A-N2: parity-long PASS, four long records, 4 worlds, every `summary-300` equal to `main`'s own `ac8`
+  record at 9f853e1 (run 38093249025). A-N3: "baselines PASS" against the re-recorded file
+  (F-13c-impl-3). A-N4: stability PASS on Linux, macOS and Windows. A-N5: clients-linux, -mac, -windows
+  FAIL on exactly the two tests of F-13c-impl-2 and nothing else (22 of 25 pass everywhere; the third
+  windowed test passes on macOS and is skipped by name on Linux and Windows, noted in the verdict);
+  probes and protocol checks PASS on Linux and macOS (drive, link, target "PASS (exit 0)"); the coverage
+  check passes. A-N5 is **not met** as frozen until the operator rules on QC-5b. A-N6: two samples per
+  OS, both complete, none failed.
 
 - **R1 (A-N2, A-N4, A-N6 on `6c23476`).** parity-long: "4 records: Linux/arm64, Linux/x86_64,
   Darwin/arm64, Windows/x86_64; 4 worlds; 10533 keys compared … AC-8 PASS", each world's `summary-300`
@@ -1199,8 +1241,29 @@ run          branch / head                         groups        result and use
 - **MN-8 PASS** (run 38095769877, a step `exit 1` before stability-mac's layer): stability-mac
   "INCONCLUSIVE · layer stability never started (a setup step failed before it)", the report red, the
   run's conclusion `failure`; nothing reported skipped (stability-linux and -windows PASS).
-- **MN-9** push 1 (same run, branch `…-issue-nightly`): "[report] issue (nightly-scratch): create" →
-  issue #165 "Nightly CI is red on main (scratch evidence, nightly-scratch)", label `nightly-scratch`.
+- **MN-9 PASS** (branch `scratch/13c-mn9-stability-issue-nightly`): push 1 (run 38095769877, red) →
+  "[report] issue (nightly-scratch): create", issue #165 "Nightly CI is red on main (scratch evidence,
+  nightly-scratch)"; push 2 (38098115784, still red) → a comment on #165, no second issue (`gh issue list
+  --label nightly-scratch --state all` → #165 only); push 3 (38099806828, the failure removed; stability
+  3/3 PASS, report success) → comment "Green on 58ef25ef…, run 38099806828." and #165 closed. Afterwards
+  no open issue carries `nightly-scratch` or `nightly`.
+- **Clean-up (I-13c-6):** every `scratch/13c-*` branch deleted (`git ls-remote --heads origin
+  'scratch/13c-*'` → empty), the local scratch worktree and branches removed, #165 closed. No planted
+  change reached the PR branch.
+- **Cost (A-N11), measured on R2** (wall minutes per job; every job inside its timeout):
+
+  ```text
+  parity-long-linux 20.1 · parity-long-arm 19.6 · parity-long-mac 14.6 · parity-long-windows 40.1 ·
+  parity-long 0.2 · stability-linux 13.9 · stability-mac 11.6 · stability-windows 29.5 ·
+  clients-linux 22.8 · clients-mac 31.8 · clients-windows 19.4 · repeat-linux 42.7 · repeat-mac 33.8 ·
+  repeat-windows 41.4 · gate 0.1 · report 0.4
+  per night ≈ 342 job-minutes (§8 estimated 390–530): Linux ≈ 120, macOS ≈ 92, Windows ≈ 130;
+  wall 43 min (§8: 60–75). R1, cold caches: repeat-windows 64.8, parity-long-windows 46.2,
+  stability-windows 36.3 — the cold night is the expensive one, still inside every timeout.
+  ```
+
+  Windows saves are the slow part (a 300-day saved run 245–506 s against 73–151 s on Linux); SR's smaller
+  saves should shorten it. Money: $0 (standard runners, public repository†).
 - **MN-4 PASS** (run 38094677692): `slice_probe.gd`'s door check made to expect `CAFE_PLACE + "-mn4"`.
   clients-linux and clients-mac: "probe drive: FAIL (exit 0, 113 s / 138 s) · 1 DRIVE CHECKS FAILED ·
   FAIL: walking through the door did not change the semantic place" — the launcher exited 0 and the
@@ -1421,4 +1484,31 @@ STOP CONDITION      A-N1 … A-N12 with evidence on the exact final head (A-N7 a
 POST-MERGE SYNC     this session: §12, merge identity, evidence; the primary session: step-14 §14,
                     overall.md, MVP_STATUS rows of other lanes
 MERGE AUTHORITY     never without explicit operator approval
+```
+
+---
+
+# 16. Handoff (continuation aid, not a design authority)
+
+```text
+PR                  #162, branch mvp0/pr-13c-nightly, worktree /Users/yuema137/mineworld-worktrees/impl-13c-nightly
+BASE                main 3c8bbf3 at the start; main 9f853e1 merged in as 436d905
+FINAL EXECUTABLE    d5cc82d (R2 ran on it); later commits change this file only
+LIFECYCLE           implementation complete; NOT "READY FOR OPERATOR REVIEW" as frozen: A-N5 needs the
+                    operator's ruling on QC-5b (F-13c-impl-2). Everything else is met (§12, A-N table).
+                    CLOSED / AWAITING OPERATOR ACTION
+OPEN FOR THE OPERATOR
+  QC-5b             two windowed Godot tests (two_d_display_settings_take_effect,
+                    the_language_chosen_in_2d_is_in_the_3d_clients_first_frame) fail on every hosted leg
+                    for display reasons; proposal in §12.2 F-13c-impl-2. Until ruled, clients-* is red
+                    every night for them, so the nightly issue would open on the first night after merge.
+OPEN FOR THE PRIMARY SESSION
+  F-13c-impl-3      journal bytes moved in every world between c65a963 and 9f853e1 with no fact or
+                    summary moving (likely IL-e #159); baselines re-recorded with reason lines
+  QC-6 follow-up    S6 SR merged first: the 1 000-day saved run and the ASR-1 640 MiB check are S13's
+                    follow-up, not in this PR
+  A-N7              after merge: a dispatch with force=false on an unmoved main skips; force=true runs
+  QB-11             test-windows required after seven clean nights (now measurable from the report)
+  step-14 §14, overall.md: post-merge sync (the primary session's)
+SCRATCH STATE       none left: no scratch/13c-* branch, issue #165 closed, scratch worktree removed
 ```
