@@ -36,6 +36,7 @@ RUNNING = re.compile(r"^\s+Running \S.* \((?:.*[\\/])?(?P<binary>[^\\/]+?)-[0-9a
 FAILED = re.compile(r"^test (?P<test>\S+) \.\.\. FAILED\s*$")
 STARTED = re.compile(r"^running \d+ tests?\s*$")
 LISTED = re.compile(r"^    (?P<test>[A-Za-z_][\w:]*)\s*$")
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
 # `cargo test --no-fail-fast` lists failed targets at the end; a harness = false program reports here only.
 TARGET = re.compile(r"^\s+`(?P<target>-p \S+ --(?:test|lib|bin|bench|doc)(?: \S+)?)`\s*$")
 TARGET_ONE = re.compile(r"^error: test failed, to rerun pass `(?P<target>[^`]+)`\s*$")
@@ -71,7 +72,8 @@ class Transcript:
         self.listing: list[str] | None = None
 
     def read(self, line: str) -> None:
-        line = line.rstrip("\r\n")
+        # Cargo colours its status lines when it believes a terminal is attached (the toolchain container).
+        line = ANSI.sub("", line.rstrip("\r\n"))
         if self.listing is not None:
             if listed := LISTED.match(line):
                 self.listing.append(listed["test"])
@@ -251,6 +253,9 @@ def self_test() -> int:
         ("a failing test is named with its binary", failing.failed == {"market_town::b_town_resumes"}),
         ("a split FAILED line is named from libtest's failures list",
          sample_of("s", SPLIT, 101).failed == {"client_settings::two_d_display_settings_take_effect"}),
+        ("a coloured Running line still names the binary (run 38094541454)",
+         sample_of("c", "\x1b[1m\x1b[92m     Running\x1b[0m tests/mn7_flake.rs (target/debug/deps/mn7_flake-59e6f8d7)\n"
+                   "test mn7 ... FAILED\n", 101).failed == {"mn7_flake::mn7"}),
         ("failed targets are read, a harness = false program's included",
          failing.targets == {"-p mineworld-cli --test market_town", "-p mineworld-persistence --test kill_and_resume"}),
         ("a Windows path names the binary", "mineworld_kernel" in RUNNING.match(FAILING.splitlines()[0]).group("binary")),  # type: ignore[union-attr]
