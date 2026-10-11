@@ -736,6 +736,9 @@ A-N5   clients: on all three OSes, the 25 ignored Godot tests run (25 passed, or
        fallback names, each passed on another leg, and the coverage check PASS); on Linux and macOS the
        three slice probes PASS by parsed verdict, the protocol modes exit 0, and ac13_semantic_parity
        PASS on the regenerated evidence
+       Amended 2026-10-10 by the primary's QC-5b ruling (§14.1): "25 passed" reads "the 23 tests not
+       on the QC-5b list passed or were skipped as QC-5 names", and the two QC-5b tests are skipped on
+       every leg, reported in the notes, and accepted by the coverage check as exactly that list
 A-N6   repeat: two samples per OS ran to completion; repeat-<os>.txt lists both; the report lists flake
        candidates or "none"
 A-N7   gate: on main (after merge, primary session's check) a dispatch with force=false on an unmoved main
@@ -1349,7 +1352,12 @@ paid service; every run on standard hosted runners of the public repository.
   - **Within QC-5 (applied):** `three_d_switches_language_live_and_settings_never_reach_the_server` is
     skipped by name on Linux and Windows (`ci_godot.py` `SKIPS`, with reasons), because it passed on
     macOS the same night; each night's macOS leg keeps that true or turns red.
-  - **Outside QC-5 (material, raised to the operator; not applied):** the other two fail on every
+  - **Ruled 2026-10-10 (QC-5b accepted, §14.1) and applied:** `ci_godot.py` `HOSTED_UNRUNNABLE` names
+    the two tests with their reasons; every OS skips them (`--exact --skip`), the notes say so, and the
+    coverage check accepts exactly that list (self-test: "a third name skipped everywhere, not on the
+    QC-5b list, fails coverage"; mutation removing the list's guard → two self-test cases FAIL;
+    restored). They are milestone-F hand checks N-1, N-2 in `docs/MVP_STATUS.md`.
+  - *As first raised:* **Outside QC-5 (material, raised to the operator; not applied):** the other two fail on every
     hosted leg, so QC-5 ("skip only when the test passed on another platform that night") allows no
     skip, and the coverage check refuses a test skipped everywhere. Until a ruling, `clients-*` is red
     every night for these two tests. Proposed smallest revision, **QC-5b**: a windowed test that fails
@@ -1373,6 +1381,14 @@ paid service; every run on standard hosted runners of the public repository.
   keeps a cursor (`TypeError: … unexpected keyword argument 'perceived'`). `ci_stability.py` now keeps
   the cursor itself from the frames it is handed (`through` of the last). Local re-run at the merge
   head: ten cycles PASS, the same revisions (5 … 54) and cursors (135 → 197) as before, replay PASS.
+- **F-13c-impl-5 — "the slice hung" on all three hosted runners has no root cause yet** (owner: the 3D
+  lane). The two 3D settings tests time out ("the slice hung") on llvmpipe, Apple Paravirtual Metal and
+  D3D12 WARP; the 3D probes (drive, link, target) pass on Linux and macOS, and the laptop passes all.
+  Slow software rendering is the likely reason, but a hang is not assumed to be display-only (QC-5b
+  ruling); until explained, the two tests are milestone-F hand checks.
+- **F-13c-impl-6 — `scripts/ci_parity.py` is 990 lines**, past the standards' ~800-line warning (one
+  record format's writer, comparator, baselines, diff and their self-tests); not split here (A-N10's
+  file list); recorded for a later split if it grows.
 - **S6 SR merged before 13c** (QC-6 assumed the reverse). The 1 000-day saved run and the ASR-1 640 MiB
   assertion are a follow-up owned by S13 (QC-6), not added here: frozen scope (§1.2). R1's numbers
   already show SR's effect is not in this PR's base (300-day saves 2–3.5 GiB at `6c23476`).
@@ -1443,6 +1459,13 @@ Relayed by the coordinator. Each ruling replaces the recommendation above where 
 - **QC-11, primary:** `parity-long` reports only.
 - **QC-12, primary: yes.** CA-13 runs nightly.
 - **Decision ids, primary:** `ARC-83` (ARC-82 went to 13c R-PK-1, doorway names) and `DEP-45`.
+- **QC-5b, primary: accepted (2026-10-10, during implementation, on F-13c-impl-2's evidence).**
+  `two_d_display_settings_take_effect` and `the_language_chosen_in_2d_is_in_the_3d_clients_first_frame`
+  are listed by name as "not run on hosted runners" with the evidence; each night's notes report them;
+  the coverage check accepts exactly that list (a third name must turn it red); they move to the
+  operator's milestone-F hand checks (`docs/MVP_STATUS.md` "Carried to milestone F"). "The slice hung"
+  on all three hosted runners needs a root cause later (owner: the 3D lane): a hang is not assumed to be
+  display-only (F-13c-impl-5).
 
 ---
 

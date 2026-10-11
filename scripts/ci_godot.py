@@ -83,6 +83,18 @@ SKIPS: dict[str, dict[str, str]] = {
     "Windows": {"three_d_switches_language_live_and_settings_never_reach_the_server":
                 _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")},
 }
+# QC-5b (primary ruling, 2026-10-10): windowed tests that fail on EVERY hosted leg for a recorded display
+# reason are not run on hosted runners; they are the operator's milestone-F hand checks
+# (docs/MVP_STATUS.md "Carried to milestone F"). The coverage check accepts exactly this list: any other
+# test skipped everywhere is red. Evidence: pr-13c-nightly.md §12.2 F-13c-impl-2. "The slice hung" on all
+# three runners still needs a root cause (F-13c-impl-5, owner: the 3D lane).
+HOSTED_UNRUNNABLE: dict[str, str] = {
+    "two_d_display_settings_take_effect":
+        "software rendering on hosted Linux and Windows stays under the 30 fps cap uncapped (18.7, 14.1 fps); "
+        "the macOS runner's screen gives a 1280x645 window, not 1280x720",
+    "the_language_chosen_in_2d_is_in_the_3d_clients_first_frame":
+        "'the slice hung' on all three hosted runners (llvmpipe, Apple Paravirtual, D3D12 WARP)",
+}
 OSES = ("Linux", "Darwin", "Windows")
 
 SLICE_LIMIT = 900.0
@@ -249,17 +261,26 @@ def godot_tests_command(*libtest: str) -> list[str]:
     return [*command, "--", "--ignored", *libtest]
 
 
+def skips_on(system: str) -> dict[str, str]:
+    """This OS's skips: its QC-5 names and every QC-5b name, each with its reason and ruling."""
+    found = {name: f"(QC-5) {reason}" for name, reason in SKIPS.get(system, {}).items()}
+    found.update({name: f"(QC-5b, not run on hosted runners; milestone-F hand check) {reason}"
+                  for name, reason in HOSTED_UNRUNNABLE.items()})
+    return found
+
+
 def run_tests(system: str) -> int:
-    skips = SKIPS.get(system, {})
-    command = godot_tests_command("--test-threads=1", *[part for name in sorted(skips) for part in ("--skip", name)])
+    skips = skips_on(system)
+    command = godot_tests_command("--test-threads=1", "--exact",
+                                  *[part for name in sorted(skips) for part in ("--skip", name)])
     samples = repeat(1, command)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "clients-tests.txt").write_text(render_samples(samples, command), encoding="utf-8", newline="\n")
     if skips:
         with open(OUT / "notes.txt", "a", encoding="utf-8", newline="\n") as out:
-            out.writelines(f"skipped on {system} (QC-5): {name} — {reason}\n" for name, reason in sorted(skips.items()))
+            out.writelines(f"skipped on {system} {name} {reason}\n" for name, reason in sorted(skips.items()))
     failed = [sample for sample in samples if sample.status != 0 or sample.scratch != "clean"]
-    print(f"[godot] {len(skips)} test(s) skipped on {system} by name (QC-5); "
+    print(f"[godot] {len(skips)} test(s) skipped on {system} by name (QC-5, QC-5b); "
           f"{'FAILED' if failed else 'passed'}", flush=True)
     return 1 if failed else 0
 
@@ -272,20 +293,27 @@ def listed_tests() -> list[str]:
     return sorted(line[: -len(": test")] for line in result.stdout.splitlines() if line.endswith(": test"))
 
 
-def judge_coverage(tests: list[str], skips: dict[str, dict[str, str]]) -> list[str]:
+def judge_coverage(tests: list[str], skips: dict[str, dict[str, str]],
+                   unrunnable: dict[str, str] | None = None) -> list[str]:
+    """Every listed test runs on some leg, except exactly the QC-5b names, which must exist."""
+    unrunnable = unrunnable or {}
     failures = [] if tests else ["no ignored Godot test was listed"]
     for os_name, skipped in skips.items():
         failures += [f"{os_name} skips {name}, which is not an ignored Godot test" for name in skipped if name not in tests]
-    failures += [f"{name} is skipped on every OS, so it runs on no leg"
-                 for name in tests if all(name in skips.get(os_name, {}) for os_name in OSES)]
+    failures += [f"QC-5b lists {name}, which is not an ignored Godot test" for name in unrunnable if name not in tests]
+    failures += [f"{name} is skipped on every OS, so it runs on no leg (only the QC-5b list may be)"
+                 for name in tests if name not in unrunnable
+                 and all(name in skips.get(os_name, {}) for os_name in OSES)]
     return failures
 
 
 def coverage() -> int:
     tests = listed_tests()
-    failures = judge_coverage(tests, SKIPS)
+    failures = judge_coverage(tests, SKIPS, HOSTED_UNRUNNABLE)
     skipped = {os_name: sorted(names) for os_name, names in SKIPS.items() if names}
-    print(f"[godot] coverage: {len(tests)} ignored Godot tests ({', '.join(GODOT_TESTS)}); skips {skipped or 'none'}")
+    print(f"[godot] coverage: {len(tests)} ignored Godot tests ({', '.join(GODOT_TESTS)}); "
+          f"{len(tests) - len(HOSTED_UNRUNNABLE)} run on a hosted leg; skips {skipped or 'none'}; "
+          f"not run on hosted runners (QC-5b): {', '.join(sorted(HOSTED_UNRUNNABLE)) or 'none'}")
     for failure in failures:
         print(f"[godot] FAIL {failure}", file=sys.stderr)
     return 0 if not failures else 1
@@ -311,9 +339,18 @@ def self_test() -> int:
         ("two summaries are INCONCLUSIVE", judge_probe(passing + passing)[0] == "INCONCLUSIVE"),
         ("coverage with no skips passes", judge_coverage(tests, {}) == []),
         ("a test skipped on every OS fails coverage",
-         judge_coverage(tests, {o: {"client_2d::a": "no window"} for o in OSES}) == ["client_2d::a is skipped on every OS, so it runs on no leg"]),
+         judge_coverage(tests, {o: {"client_2d::a": "no window"} for o in OSES})
+         == ["client_2d::a is skipped on every OS, so it runs on no leg (only the QC-5b list may be)"]),
         ("a skip of an unknown test fails coverage", bool(judge_coverage(tests, {"Linux": {"client_2d::z": "r"}}))),
         ("no listed test fails coverage", judge_coverage([], {}) == ["no ignored Godot test was listed"]),
+        ("a QC-5b name skipped everywhere passes coverage",
+         judge_coverage(tests, {o: {"client_2d::a": "r"} for o in OSES}, {"client_2d::a": "display"}) == []),
+        ("a third name skipped everywhere, not on the QC-5b list, fails coverage",
+         judge_coverage(tests, {o: {"client_2d::a": "r", "client_2d::b": "r"} for o in OSES},
+                        {"client_2d::a": "display"}) == ["client_2d::b is skipped on every OS, so it runs on no leg "
+                                                         "(only the QC-5b list may be)"]),
+        ("a QC-5b name that is no test fails coverage", bool(judge_coverage(tests, {}, {"client_2d::z": "d"}))),
+        ("every OS skips every QC-5b name", all(set(HOSTED_UNRUNNABLE) <= set(skips_on(o)) for o in OSES)),
         ("every OS has a pinned build", set(ASSETS) == set(OSES) and all(len(pin) == 128 for _, pin, _ in ASSETS.values())),
     ]
     failed = 0

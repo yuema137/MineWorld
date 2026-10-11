@@ -5751,6 +5751,11 @@ default suite); the Godot client (heavier, and `run.sh reconnect` already covers
      bash scripts, and `clients-probes` moves onto S23 R-c's portable launcher when it merges (follow-up
      owned by S13). A windowed test that cannot show a window on one leg may be skipped there by name
      only if it passes on another leg the same night, and a coverage check refuses a test run on no leg.
+     The one exception (QC-5b, primary ruling 2026-10-10): a windowed test that fails on every hosted
+     leg for a recorded display reason is named in `ci_godot.py` as not run on hosted runners, reported
+     in each night's notes, and carried to the operator's milestone-F hand checks; the coverage check
+     accepts exactly that list, and a third name turns it red. Two tests are on it today
+     (`two_d_display_settings_take_effect`, `the_language_chosen_in_2d_is_in_the_3d_clients_first_frame`).
    - `repeat`: the unchanged default suite run twice more per OS (`scripts/ci_repeat.py`), every
      repetition run even after a failure. A test that failed in one sample and passed in another of the
      same commit and OS — the two repetitions and `main`'s own push run — is a flake candidate; a test
