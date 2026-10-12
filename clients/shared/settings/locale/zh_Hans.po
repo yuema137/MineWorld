@@ -412,3 +412,23 @@ msgstr "无法从该进度继续"
 
 msgid "reason.lagged"
 msgstr "连接落后太多"
+
+# A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
+# The first tag, in the order the world lists them, with an entry here names the place.
+msgid "place.cafe"
+msgstr "咖啡馆"
+
+msgid "place.park"
+msgstr "公园"
+
+msgid "place.store"
+msgstr "商店"
+
+msgid "place.apartments"
+msgstr "公寓"
+
+msgid "place.workplace"
+msgstr "工作地点"
+
+msgid "place.street"
+msgstr "街道"

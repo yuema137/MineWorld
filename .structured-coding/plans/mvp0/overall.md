@@ -923,8 +923,11 @@ MVP-0 non-preclusion audit.
 | S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
 | S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
 | S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
+| S12 13c doorway names (`pr-13c-doorway-names.md`, merged #161) | ARC-82 (a doorway discloses its destination's tags) | — |
+| S13 13c nightly (`pr-13c-nightly.md`, design frozen #158) | ARC-83 | DEP-45 |
+| Prior-art audit (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11) | — | DEP-46 (no shared-world or AI-NPC framework adopted) |
 
-The next free numbers are ARC-82 and DEP-45. ARC-81 and DEP-43 were assigned to S6 save retention, and
+The next free numbers are ARC-84 and DEP-47. ARC-81 and DEP-43 were assigned to S6 save retention, and
 DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
 An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
@@ -1065,6 +1068,36 @@ which inflates the weather series ≈ 3.7× in every snapshot.
 
 Note. R-c learned from R-a's probe that the official Godot release templates reject `--main-pack`.
 Bundles therefore ship two full client exports (D-Ra-1).
+
+### 2026-10-11: prior-art audit and the deferred follow-ups
+
+**Operator ruling (2026-10-11).** For now only documentation and plan updates. All implementation of
+the audit's ideas is deferred.
+
+The prior-art audit ([`PRIOR_ART_2026-10.md`](../../../docs/references/PRIOR_ART_2026-10.md), merged as
+#166; decision [`DEP-46`](../../../docs/DECISIONS.md)) reviewed shared-world and AI-NPC projects and
+proposed eleven design ideas, PA-1 to PA-11. None is adopted, and none changes a frozen contract. Each
+idea becomes binding only through its own design document and operator ruling. Priorities are those the
+audit assigns. The "before code" column states what must exist first.
+
+| ID | Idea | Priority | Owner lane | What is needed before code | State |
+| --- | --- | --- | --- | --- | --- |
+| PA-1 | Ban wall-clock and unseeded-random calls by lint in simulation crates (`clippy.toml` `disallowed-methods`) | P1 | engineering standards / CI (S13) | none; a short note in `ENGINEERING_STANDARDS.md` | deferred (operator 2026-10-11) |
+| PA-2 | An integration test that a resumed world never re-runs genesis | P1 | persistence (S6) | none; test-only | deferred (operator 2026-10-11) |
+| PA-3 | Name the world identity a save is bound to, and what a System Pack upgrade does to an existing save | P2 | persistence (S6) and packages (S16) | short design and operator ruling; needs an `ARC-` record | deferred (operator 2026-10-11) |
+| PA-4 | Declare per-component replication in the component contract | P2 | contracts / networking (S11) | short design and operator ruling; touches a public contract | deferred (operator 2026-10-11) |
+| PA-5 | Stable keys for authored entities, separate from runtime-spawned ones | P3 | packages (S16) | verify the existing `ARC-71`/`ARC-77` keys, then document the split | deferred (operator 2026-10-11) |
+| PA-6 | Hard budgets at validation and soft budgets as warnings for Presentation Pack assets | P2 | release (S23, R-b) and packages | short design and operator ruling; touches release budgets | deferred (operator 2026-10-11) |
+| PA-7 | Pack permissions declared and checked at load | P3 | packages and interaction list (S16/S17) | short design when third-party packs grow; operator ruling | deferred (operator 2026-10-11) |
+| PA-8 | Watch mode for data packs (re-validate on save) | P3 | CLI and creator tooling | none | deferred (operator 2026-10-11) |
+| PA-9 | Server roles written down, and content-addressed assets | P3 | networking docs (S11) and `DEP-8` | none; documentation | deferred (operator 2026-10-11) |
+| PA-10 | Controller made of small typed parts; the model's free text is a proposal the server validates | P1 for P6's design | S10 P6 design | inside P6's design, which must cite the audit | deferred (operator 2026-10-11) |
+| PA-11 | One bounded retrieval-count knob beside the 6 000-byte retrieval budget | P2 | S10 P6 design | inside P6's design | deferred (operator 2026-10-11) |
+
+Effect on the plan, as the audit records it: no change to MVP-0's scope or order. PA-10 and PA-11 enter
+the P6 design of [`step-17-cognition.md`](step-17-cognition.md), which carries a dated note. Per the
+audit's §6, `REUSE_POLICY.md` §19's "worth auditing next" list is updated: Concordia and AI Town are now
+audited, and AgentSociety and SimWorld remain.
 
 ## Still open
 

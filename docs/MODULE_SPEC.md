@@ -588,6 +588,14 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
+**What a place discloses about its doorways.** A person who perceives a place is told its `passages`
+(`DECISIONS.md` `ARC-82`), built from the stored passages at that moment. Each entry carries the doorway's
+`to` place and its `here` and `there` positions (each `null` where the world models none), and `to_tags`:
+the tags of the place `to`, as they stand now, in tag order and always present (`[]` when that place has
+none). Nothing else of the destination is disclosed: not its contents, occupants or activity. The stored
+`Passages` has no `to_tags`; the field exists only in the disclosure. `component_type` is `passages` and
+`schema_version` is `1`.
+
 Passages are also what a **walk** follows (`DECISIONS.md` `ARC-75`). Besides `move`, the `movement`
 system provides `walk-to { to: { place: <Location> } | { person: <PersonId> } }` — go to a point in this
 place or in any place joined to it by a chain of passages, to a place without a position (enter it), or

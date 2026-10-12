@@ -547,3 +547,27 @@ msgstr ""
 #. lagged
 msgid "reason.lagged"
 msgstr ""
+
+#. café
+msgid "place.cafe"
+msgstr ""
+
+#. park
+msgid "place.park"
+msgstr ""
+
+#. store
+msgid "place.store"
+msgstr ""
+
+#. apartments
+msgid "place.apartments"
+msgstr ""
+
+#. workplace
+msgid "place.workplace"
+msgstr ""
+
+#. street
+msgid "place.street"
+msgstr ""

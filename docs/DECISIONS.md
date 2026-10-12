@@ -7575,6 +7575,42 @@ be compiled into the interpreter; P4 checks it on every CI platform (`test_fts5_
 **Revisit** if a platform's CPython ships without FTS5, if embedding retrieval is adopted (sqlite-vec or
 LanceDB, re-evaluated then), or if CJK worlds become a demo target.
 
+## ARC-82 — A doorway discloses the tags of the place it leads to: a door sign, never its contents
+
+**Date** 2026-10-10 · **Approved by** the operator (Q1 of PR 13c's design, `.structured-coding/plans/mvp0/pr-13c-doorway-names.md` §11.1) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md), the movement system's disclosure · **Relates to** `ARC-26`, `ARC-75`, `ARC-62`, `ARC-45`
+
+**Problem.** A person perceives only the place it stands in, and its doorways (`ARC-26`); the other places
+are not perceived (`A-20`). A client therefore cannot tell which doorway leads to the café, cannot choose a
+façade before entering, and labels every neighbour alike. The 2D client named a doorway by the last tag in
+sorted order, which for most places is `public`.
+
+**Choice.** Each entry of the `passages` disclosure gains one field, `to_tags`: the destination place's tag
+set, in `Tag` order, always present (`[]` when the destination has none). It is built from current state
+when the place is disclosed (`discloses`), by a disclosure-only type; the stored `Passage` and `Passages`
+are unchanged, so no fact, persisted row or genesis changes. `component_type` stays `passages` and
+`schema_version` stays `1`.
+
+**The line.** The field carries tags and nothing else. It never carries the destination's identity beyond
+`to`, its contents, occupants or activity. The audience of the disclosure does not widen: a person still
+perceives no place as an entity except the one they stand in (pinned by the movement disclosure tests).
+
+**Alternatives.** (a) Learn tags by entering the place (the fallback in step-13 QS12-7): keeps the street's
+doorways generic, which the client needs to name them before entry. (b) Disclose the destination's full
+record: widens the audience to what is inside. (c) Store `to_tags` in `Passage`: changes persisted state and
+the genesis facts for a value that can be read from the destination at any time.
+
+**Why.** Tags are authored world data, already shown to anyone who enters, and a door sign is what a
+doorway shows from outside. Consumers that decode `passages` ignore unknown fields (the paced controller,
+the agenda, the 3D slice, the protocol demo), so no controller decision changes; the 300-day digests of
+`social-cafe` and `market-town` are the evidence (PR 13c).
+
+**Consequences.** The 2D client names a doorway by the first tag, in order, that the shared wording names
+(`place.<tag>`), else the destination's display name, else `outside`. A doorway without modelled positions is
+not glued and its destination's tags are not learned by the 2D client; no drawn label is added on the street
+(a follow-up finding).
+
+**Revisit** if a place's tags must be hidden from people outside it, or if a door sign needs more than tags.
+
 ---
 
 ## DEP-44 — The resuming seat's reconnect loop is our own, over the adopted `websockets` transport
@@ -7608,3 +7644,35 @@ library.
 
 **Revisit** when a second protocol client in Python needs the same loop: it then moves, unchanged, into a
 shared module, not into a library.
+
+---
+
+## DEP-46 — Prior-art audit, October 2026: no shared-world or AI-NPC framework is adopted
+
+**Date** 2026-10-11 · **Status** adopted (a decision not to depend; no dependency added) · **Approved by** the
+primary session on the operator's instruction of 2026-10-11 ("learn from existing frameworks; do not add
+dependencies on immature tools") · **Relates to** `REUSE_POLICY.md` §§8, 12, 17, 19; `ARC-25`, `ARC-58`, INV-9 ·
+**Evidence** `docs/references/PRIOR_ART_2026-10.md` and the four detailed audits it links
+
+**Problem.** A persistent shared world with composable behaviour, multiplayer and AI characters has been
+built in part by several projects. `REUSE_POLICY.md` §12 requires a record when MineWorld keeps its own
+implementation instead of adopting one.
+
+**Options considered** (facts as read 2026-10-11; details and sources in the audits):
+
+| Candidate | Licence | Verdict and the MineWorld rule it would break |
+| --- | --- | --- |
+| Croquet Microverse | Apache-2.0 | Reference only: authority runs on every client (INV-9); beta, no release |
+| Decentraland SDK7 | Apache-2.0 | Reference only: no single-writer rule, per-client sync, publishing tied to its platform |
+| Vircadia (native core / vircadia-world) | Apache-2.0 | Reject / reference only: deprecated lineage; pre-1.0 successor with state in Postgres rows and no event log (`ARC-25`) |
+| Concordia | Apache-2.0 | Reference only now: a model referee resolves actions (VISION: models removable); no replay (`ARC-58`). Candidate for an optional controller adapter after Milestone D, under its own design |
+| AI Town, Stanford Generative Agents | MIT; Apache-2.0 (unverified) | Reference only: the framework owns state; OpenAI-only or unseeded |
+| Inworld, Convai | proprietary, hosted | Reject as controllers: hosted, not offline, no replay |
+
+**Choice.** MineWorld keeps its own semantic layer (contracts, kernel, Systems, packs, persistence,
+server, perception, seats, cognition contracts) and continues to reuse commodity infrastructure through
+its existing `DEP-` records. Design ideas PA-1 … PA-11 are proposals, each entering through its own PR
+design.
+
+**Revisit** when any audited project reaches a stable release with a server-authoritative mode and an
+event log, or when an optional controller adapter (Concordia) is designed after Milestone D.
