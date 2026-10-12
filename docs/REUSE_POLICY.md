@@ -626,7 +626,16 @@ Audited so far:
     - T-4: scripted walkthroughs over the server's disclosed places. This goes to S14's visual review.
   - Gaussian splats (Brush, a Godot splat addon) are deferred to an MVP-1 spike, for backdrops only.
 
-Worth auditing next: AI Town, Concordia, AgentSociety, SimWorld.
+- **Prior-art audit, October 2026** (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11, `DEP-46`):
+  Croquet Microverse, Decentraland SDK7, Vircadia, and the AI NPC runtimes Inworld, Convai,
+  Concordia, AI Town and Stanford Generative Agents.
+  - None is adopted as a dependency; each is `REFERENCE ONLY` or `REJECT`, with the rule it would
+    break named.
+  - Eleven design ideas (PA-1 … PA-11) are recorded as proposals; PA-1 (lint bans on wall-clock and
+    unseeded randomness) and PA-2 (restore never re-runs genesis) close gaps in our code today, and
+    PA-10/PA-11 feed S10 P6's design.
+
+Worth auditing next: AgentSociety, SimWorld.
 
 ## 18. Final Principle
 
