@@ -923,8 +923,11 @@ MVP-0 non-preclusion audit.
 | S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
 | S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
 | S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
+| S12 13c doorway names (`pr-13c-doorway-names.md`, merged #161) | ARC-82 (a doorway discloses its destination's tags) | — |
+| S13 13c nightly (`pr-13c-nightly.md`, design frozen #158) | ARC-83 | DEP-45 |
+| Prior-art audit (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11) | — | DEP-46 (no shared-world or AI-NPC framework adopted) |
 
-The next free numbers are ARC-82 and DEP-45. ARC-81 and DEP-43 were assigned to S6 save retention, and
+The next free numbers are ARC-84 and DEP-47. ARC-81 and DEP-43 were assigned to S6 save retention, and
 DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
 An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
