@@ -10100,6 +10100,19 @@ N-D29 The 300-day measurement needs no extra run. market_town.rs already makes a
       origin/main merged (a25f0d1: #161's doorway signs in movement's disclosure — `to_tags` on each
       disclosed passage. The paced controller decodes `Passages` from that disclosure with serde, which
       ignores the added field; NW-7's controller tests and the workspace run cover it).
+
+E-NW10 CI on 0e05858 (the M-6 edits; PR run 38103621432, pull_request, non-draft): changes, fast, test,
+      test-macos, test-windows, platforms (macos-26, windows-2025), python ×3 (ubuntu, macos, windows) —
+      all success. On every platform, `test_ac10.py` passes with test_d locating 4, and `market_town.rs`
+      passes under the 128 MiB bound.
+      The 300-day measurement (N-D29) is NOT OBSERVED. `market_town.rs` prints it with `eprintln!`, and the
+      test harness shows a passing test's output only under `--nocapture`, which CI does not pass. A
+      local run would be a 300-day run, and the budget is final at 23 (M-5 ruling), so none was made. The
+      line prints whenever the test runs with `--nocapture` or fails; the first such run records it.
+      origin/main merged (2162ef5 = ea921fa: Markdown only — docs/references, plans). The code tree equals
+      0e05858's. CI on the exact final head is reported in the PR and the handoff (a commit cannot carry
+      its own CI).
+      READY FOR OPERATOR REVIEW once that run is green. QN-2: 12n-2 merges immediately before 12d.
 ```
 
 
