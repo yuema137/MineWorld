@@ -1,14 +1,26 @@
 # PR WE-a — The `happenings` System Pack: seeded world evolution without a language model
 
-## DESIGN DRAFT — awaiting operator and primary-session review (not frozen)
+## DESIGN FROZEN 2026-10-12 (primary session; operator QWE-1)
 
 ```text
-Design revision:        revision 1 (2026-10-12), this file as first committed on docs/we-a-design
-Approved by / evidence: none yet. Nothing in this file authorizes implementation (CLAUDE.md §3.1)
-Implementation base:    origin/main after DOC-24 (#175) has merged; C5 additionally after 12d (#171)
-Execution contract:     §13 (proposed; filled at freeze)
-Lifecycle:              DRAFT
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #176, commit 5d7cf8d) with §16.1's rulings
+                        recorded, as committed on docs/we-a-design with this header
+Approved by / evidence: the operator's ruling on QWE-1 ((a): Market Town opts in by configuration, re-baselined
+                        with a reason line) and the primary session's acceptance of QWE-2 … QWE-9 as recommended,
+                        2026-10-12, relayed by the primary session to this planning session (§16.1)
+Implementation base:    origin/main after DOC-24 (#175) has merged; C5 additionally after 12d (#171) has merged
+Start condition:        implementation starts only on the operator's go, in a fresh session (§13)
+Execution contract:     §13 (filled at freeze)
+Lifecycle:              FROZEN
 ```
+
+Scope (§2.1), invariants (§2.3), the acceptance criteria (§10) and the commit plan (§11) are frozen. Progress,
+evidence, findings and bounded corrections stay writable (§15). No WE-a question remains open. **Dependencies:**
+DOC-24 (#175) must merge first (it carries `ARC-88`, now with this design's wording corrections, §12); 12d (#171)
+touches `worlds/market-town` and `systems/economy/tests/support`, so C4 rebases over it and C5 starts only after
+it has merged. This planning session does not implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting operator and primary-session review (not frozen)`, revision 1.
 
 **Effort:** `mvp0` (filed here under step-24 QS24-14) · **Step:** [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md)
 §3 (the five-part pattern), §9.1, §9.2 (the WE-a design), §9.4, §10 (bounds and AC-WE-1 … AC-WE-4), §11 (the
@@ -74,7 +86,7 @@ loads and runs.
 7. The first reacting System: `economy` gains an optional `configure/economy.yaml` with `price_modifiers`, and
    states its own `prices-adjusted` / `prices-restored` facts when a configured happening begins and ends
    (§6). Opt-in; absent by default.
-8. Market Town opts in by configuration only (§7, operator question QWE-1), with a `scripts/baselines.txt`
+8. Market Town opts in by configuration only (§7; operator ruling QWE-1 (a)), with a `scripts/baselines.txt`
    reason line.
 9. Tests and mutation evidence (§9), the pack's README, the `systems/README.md` line, and a dated note to
    `ARC-88` (§12).
@@ -539,7 +551,7 @@ configure:
   - economy               # optional: configure/economy.yaml, only for price modifiers
 ```
 
-**Recommended (QWE-1): Market Town opts in, in C5, configuration only** (`ARC-35` check 3's spirit: Market Town
+**Ruled (QWE-1 (a), operator, 2026-10-12): Market Town opts in, in C5, configuration only** (`ARC-35` check 3's spirit: Market Town
 is Social Café plus installed systems and configuration). Proposed content, sized to the town:
 
 | Kind | Place | When | Effect elsewhere |
@@ -642,7 +654,7 @@ world. Not recommended.
 | AC-WE-a-6 | User-written generators: a pack implementing `HappeningGenerator` is selected by name, asked only when selected, and cannot exceed any limit or the kind's horizon | T13 |
 | AC-WE-a-7 | Single ownership: `happenings` writes only its Processes; economy's `Shop` changes only through `prices-adjusted`/`-restored`, each caused by a happening fact | review of `declaration()`s; T16 causation assertions |
 | AC-WE-a-8 | Every refusal of §5.1 is by name, with line and column where YAML is involved | T1, T17 |
-| AC-WE-a-9 | Market Town opts in by configuration only (no file under `worlds/market-town/` changes except `world.yaml`, `configure/happenings.yaml`, `configure/economy.yaml`, README); baselines move only for Market Town, with a reason line | C5 diff; E-3, E-4 (applies only if QWE-1 = (a)) |
+| AC-WE-a-9 | Market Town opts in by configuration only (no file under `worlds/market-town/` changes except `world.yaml`, `configure/happenings.yaml`, `configure/economy.yaml`, README); baselines move only for Market Town, with a reason line | C5 diff; E-3, E-4 (applies: QWE-1 ruled (a)) |
 
 ---
 
@@ -732,7 +744,7 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 8. **Commit boundary** — `feat(economy): price modifiers that react to happenings (WE-a C4)`.
    - [ ] Review: economy writes `Shop` only in reductions of its own facts; no economy code names "market"; shop encoding unchanged when unadjusted.
 
-### C5 — Market Town opts in (if QWE-1 = (a))
+### C5 — Market Town opts in (QWE-1 ruled (a); after 12d #171 merges)
 
 1. **Goal.** A real world evolves: Saturday markets, a festival, a musician; the store's prices follow.
 2. **Scope.** `worlds/market-town/{world.yaml, configure/happenings.yaml, configure/economy.yaml, README.md}`, `scripts/baselines.txt`. After 12d.
@@ -771,7 +783,7 @@ Terminal: open the PR, one canonical CI run on the final head (§9.1), operator 
 
 ---
 
-## 13. Execution contract (proposed; filled and sourced at freeze)
+## 13. Execution contract (filled at freeze, 2026-10-12)
 
 ```text
 PROJECT / PR:              MineWorld step-24 PR WE-a — the `happenings` System Pack
@@ -781,8 +793,10 @@ RELATED / BINDING DOCS:    mvp1/step-24-decision-and-memory.md §§3, 9, 10, 11,
                            docs/CORE_CONCEPTS.md (Process, Event); docs/MODULE_SPEC.md §§3.1, 4.1;
                            docs/ENGINEERING_RULES.md; docs/ENGINEERING_STANDARDS.md; .structured-coding/standards.md
 IMPLEMENTATION BRANCH:     mvp0/pr-we-a, in its own worktree (CLAUDE.md §3.1: one working tree per branch)
-IMPLEMENTATION BASE:       origin/main after DOC-24 (#175) merged; C5 after 12d (#171) merged (rebase before C5)
-APPROVED SCOPE:            §2.1 items 1–9, as ruled on QWE-1 … QWE-9
+IMPLEMENTATION BASE:       origin/main after DOC-24 (#175) merged; C4 rebased over 12d (#171); C5 after 12d merged
+START CONDITION:           the operator's go; the implementation session starts fresh (CLAUDE.md §3.1)
+APPROVED SCOPE:            §2.1 items 1–9 as ruled (§16.1): C4 economy price modifiers included (QWE-5); C5 Market
+                           Town opts in by configuration with a baselines reason line (QWE-1 (a))
 FROZEN INVARIANTS:         INV-WE-1 … INV-WE-8; no kernel, contracts, persistence, worldpack, server or client change;
                            no language model; no new third-party dependency
 APPROVED SEQUENCE:         C0 → C1 → C2 → C3 → C4 → C5 → C6 → PR → one canonical CI
@@ -791,15 +805,19 @@ VALIDATION BUDGET:         unit/integration/static: unrestricted; local full sui
                            real LLM: none; total wall time ≤ ~1 h of local validation
 REQUIRED LIVE DOC:         this file (§15 ledger)
 HANDOFF FILE:              .structured-coding/plans/mvp0/handoff-we-a.md
-ENDPOINT AUTHORITY:        implementation + local validation: proposed authorized — source: unresolved (set at freeze)
-                           semantic commits:   proposed authorized — source: unresolved
-                           branch push:        proposed authorized — source: unresolved
-                           PR creation/update: proposed authorized — source: unresolved
-                           CI repair:          proposed authorized — source: unresolved
+ENDPOINT AUTHORITY:        implementation + local validation: authorized once the operator gives the go —
+                             source: primary session's freeze instruction, 2026-10-12 ("implementation starts
+                             only on the operator's go")
+                           semantic commits:   authorized after the go (working rules §14 default) — source: the
+                             operator's standing Structured Coding workflow (CLAUDE.md §3.1: execution through
+                             commit and PR is autonomous inside an approved contract); confirmed with the go
+                           branch push:        authorized after the go (rules §21 default) — source: as above
+                           PR creation/update: authorized after the go (rules §21 default) — source: as above
+                           CI repair:          authorized after the go (rules §21 default) — source: as above
                            merge:              explicit operator authorization only
 POST-MERGE SYNC OWNER:     primary session: step-24 and overall; implementation session: this file, evidence, deviations
 NORMAL STOP CONDITION:     WE-a READY FOR OPERATOR REVIEW — DO NOT MERGE
-STOP CONDITIONS:           DOC-24 not merged; a frozen invariant falsified (e.g. E-1 shows a difference in a world
+STOP CONDITIONS:           no operator go; DOC-24 not merged; C5 reached before 12d merged; a frozen invariant falsified (e.g. E-1 shows a difference in a world
                            that does not enable happenings that cannot be removed within scope); economy's version
                            bump changes facts or journal (U-2 false); a QWE ruling contradicted by the code
 MERGE AUTHORITY:           never without the operator's explicit approval
@@ -825,13 +843,13 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            DRAFT design; no implementation
+Status:            DESIGN FROZEN 2026-10-12; implementation not started (waits for the operator's go)
 Base:              (C0)
 Commits:           (none)
 Evidence:          (none)
 Deviations:        (none)
-Findings:          F-WE-a-1 … F-WE-a-8 (§3.2)
-Open questions:    QWE-1 … QWE-9 (§16)
+Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); ARC-88 corrections being applied in DOC-24 (#175)
+Open questions:    none (QWE-1 … QWE-9 ruled, §16.1)
 ```
 
 ---
@@ -851,6 +869,14 @@ Open questions:    QWE-1 … QWE-9 (§16)
 | **QWE-9** | Defer stock (inventory/employment) and schedule reactions to later PRs? | **Yes.** One worked reaction is enough to fix the pattern; each further reaction is that owner's PR with its own configuration. |
 
 ---
+
+### 16.1 Rulings, 2026-10-12 (relayed by the primary session)
+
+| Question | Ruling |
+| --- | --- |
+| **QWE-1** | **Operator: (a).** Market Town opts in by configuration, re-baselined with a reason line (C5). AC-WE-a-9 applies. |
+| QWE-2 … QWE-9 | **Primary session: accepted as recommended.** Plain `ARC-61` configuration; kinds as content and generators as the `ARC-62` catalog; `calendar` a hard dependency; economy price modifiers included as C4; content `seed:`; `happening-withheld` facts recorded; mixer copied now, extraction later; stock and schedule reactions deferred. |
+| §12 `ARC-88` corrections | Being applied by the primary session in DOC-24 (#175); C6 reconciles rather than re-applies them. |
 
 ## 17. Prior art and sources (accessed 2026-10-12)
 
