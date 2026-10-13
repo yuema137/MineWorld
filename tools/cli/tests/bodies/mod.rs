@@ -45,8 +45,9 @@ pub const CLEARANCE: i32 = 2 * R - TOLERANCE;
 /// How far a person may be from a wall or a solid, and an object's footprint from a person: `R −
 /// TOLERANCE` (245 mm).
 pub const KEEP: i32 = R - TOLERANCE;
-/// The most a nudge moves anybody: bodies' `NUDGE_MAX + GAP` (310 mm), a policy, not a person dimension.
-pub const NUDGE_LIMIT: i32 = 300 + GAP;
+/// The most a nudge moves anybody: bodies' `NUDGE_MAX + GAP`, where `NUDGE_MAX` is the radius since
+/// step-11 §21.6 (SD-N11): 260 mm (310 while R was 300).
+pub const NUDGE_LIMIT: i32 = R + GAP;
 /// How far a shove moves its target, at most: bodies' `SHOVE_DISTANCE`.
 pub const SHOVE: i32 = 500;
 
@@ -382,6 +383,9 @@ pub struct Bucket {
     pub stopped: u64,
     /// Stopped-shorts whose `by` is a loose object.
     pub stopped_by_object: u64,
+    /// Stopped-shorts with no `by`: stopped by a wall or a solid (step-11 §21.15, the M-3 ruling's
+    /// geometry-caused stops).
+    pub stopped_by_geometry: u64,
     pub displaced: u64,
     pub crossings: BTreeMap<(String, String), u64>,
     pub kicks: u64,
@@ -582,6 +586,9 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
                 .is_some_and(|by| replay.objects.contains_key(&by))
             {
                 report.buckets[bucket].stopped_by_object += 1;
+            }
+            if stopped.by().is_none() {
+                report.buckets[bucket].stopped_by_geometry += 1;
             }
             stated("a stopped-short", &mut report);
         } else if let Ok(payload) = record.payload_for::<PersonEnteredPlace>() {

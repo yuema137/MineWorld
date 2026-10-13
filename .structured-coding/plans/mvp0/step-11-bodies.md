@@ -6729,6 +6729,53 @@ E-TD6 TD-5 diagnostics and the remedy ladder (2026-10-08, on the WIP tree at r =
 
 E-TD-runs (update) 300-day town runs: other 2 of 6 (E-TD-base); TD-12 0 of 13. The 30-day
       diagnostic and ladder runs are not 300-day runs.
+
+E-TD-base2 The resumption (2026-10-12, implementing session, after 12n-1 #116 and 12n-2 #125). The
+      implementation base is now origin/main @ adc46bd, merged into the branch as 3950381 (TD-D9). TD-1's
+      "before" is main's own towns at adc46bd (QN-2: 12n-2's and 12d's digest moves are one re-baseline
+      event, and no digest of main after 12n-2 was recorded — E-NW3's was before the route fix and
+      later merges). Base binary: `git worktree add --detach /tmp/s15-12d/base-adc46bd adc46bd`;
+      `CARGO_TARGET_DIR=/tmp/s15-12d/target-base2 cargo build -p mineworld-cli` (dev) →
+      /tmp/s15-12d/base2-mineworld; outputs /tmp/s15-12d/b2-*. Summary sha = sha-256 of every line
+      of `run`'s output but `wall` (checked against E-TD-base's files: ad49c723… and 365b50e0…
+      reproduce).
+        social-cafe 300 d  faults 0, 837 953 facts, 9500d0c80c6c979ef174be7ef9d4b5ec99b95f8912eb6d0231dc125b355e9cb5
+                           (CPU 23.86 user + 0.06 sys, wall 24.3 s; information)
+        market-town 300 d  faults 0, 817 834 facts, 146264650f4fe3cae7ff828bcf888cf25219ff6a8e7f952bcc5671914fdc7344
+                           (CPU 50.69 + 0.21, wall 51.1 s; information)
+        bodies-yard 30 d   faults 0, 172 374 facts (= E-NW5's c3, bodies v4 at R 300),
+                           4854b9cf2fe2eb3e5f2fa8f17588f29e0d70d2d13873c13e8db71b91218a3921
+        validate           social-cafe ebcd60a0… 53 genesis facts; market-town 6368595a… 134;
+                           bodies-yard 7356b8f8… 47
+      300-day town runs: other 4 of 6 (E-TD-base 2, these 2); TD-12 0 of 13.
+
+E-TD7 TD-5 / TD-6 / TD-9 on the merged tree (3950381 plus TD-D10/TD-D11's test edits, before they were
+      committed), 2026-10-12: `cargo test -p mineworld-cli --no-fail-fast --tests` once
+      (/tmp/impl-12d-cli-all.log; background, so its times are not measurements).
+        TD-5 PASS so far: run.rs 4/4 (the 300-day social-cafe run: every seat moves and talks in every
+             bucket, every place entered), routines.rs 1/1, run_restart.rs 3/3, milestone_b 1/1,
+             market_composition 1/1, social_composition 4/4, restart 3/3, ac15_one_alice 6/6,
+             ac13_semantic_parity 2/2 (frozen evidence not re-recorded), server_command 10/10,
+             hosted_town 1/1, social_interactions 3/3, interaction_runs 3/3. milestone_c failed on the
+             straight walk (TooFarAway) and facts.rs on the old door: both fixed by TD-D10 and re-run,
+             2/2 and 1/1 PASS.
+        market_town.rs FAIL at ASR-2: "the 30-day save is 170811392 B (162.9 MiB), over the 128 MiB
+             bound" (22 snapshots, 1 205 698 B of them; head 81 982). Every bucket printed before it has
+             purchases (407–441), production 300, consumption, both wages 30 and gives from every seat.
+             Main with walking: 112.3 MiB (E-NW9); bodies add ≈ 45 %.
+        TD-6 FAIL, both towns (town_bodies.rs, 300 d, seed 7): every 30-day bucket has stopped-shorts
+             (9 548–10 986) and displaced arrivals (7 420–8 137); shoves 18 822 (social-cafe) and 6 280
+             (market-town); per seat per bucket ≤ 209 (≤ 288 holds). Over the run **throws 0** in both
+             towns; kicks 3 and 1; pushes 7 and 2. The criterion "at least one accepted kick, one throw,
+             one shove, one object-moved { pushed }" fails on the throw. (market-town also tripped a
+             harness defect — a 31st 10-day bucket opened by a fact at day 300's last instant — fixed in
+             TD-D11's test; the throw count is unaffected.)
+        Milestone E / Entity Pack content FAIL (R-PK-2's required `name` meets content merged after
+             12d's freeze): lakeside (6 tests: `worlds/lakeside/items/fish.yaml` "missing field
+             `name`"), milestone_e 1, packs 1 (lists `entities/`), third_party 2 (its fixture writes
+             `item: { category: food }`).
+        Everything else in tools/cli passed (bodies_yard, bodies_yard_restart, walking, inspect,
+             commands, content_kinds, entity_packs, deltas, biography, admin, …).
 ```
 
 **E-TD1 — the geometry table of TD-3 (TD-C1).** Produced by a read-only research agent of the
@@ -7032,6 +7079,113 @@ run" as a `mineworld run worlds/<town> --days 300` launched by hand for evidence
 that run a town for 300 days (`run.rs`, `market_town.rs`, `town_bodies.rs`, …) run inside `cargo test`,
 which the contract leaves unrestricted, and are not counted. The count is kept in §19.12 (E-TD-runs).
 The contract's "stops before TD-C8's runs" line is thereby closed.
+
+**Resumption, 2026-10-12 (implementing session, fresh; the primary session's kickoff).** 12n-1 (#116)
+and 12n-2 (#125, adc46bd) merged; per QN-2, 12d merges immediately after 12n-2 as one re-baseline
+event. The kickoff relays what §21.15 left 12d, each binding here: (1) bodies takes **version 5**
+(12n-2 took 4; CROSS-LANE), with `rapier_pin.rs`'s pair and the "bodies vN" literals; (2) TD-12b is
+timed by **thread CPU time as well as wall clock** (M-5 ruling); (3) the operator's M-3 ruling:
+**geometry-caused stopped strides ≤ 10 %**, person-caused printed, not bounded; (4) the operator's M-6
+ruling: the 30-day market-town save bound is **128 MiB** for walking towns (already applied in
+`market_town.rs` by 12n-2); (5) R 250 with `NUDGE_MAX = R`, `BIAS_BAND = ⌊2R/3⌋` (SD-N11), and claim 2
+at R 250 restated as bounded nudge chains (M-1 ruling). They supersede TD-D7's open questions and
+TD-D8's two failing tests (both now pass under §21.6's restated claims).
+
+**TD-D9 — the merge of origin/main (bounded; 3950381).** Conflicts and their resolutions:
+- `geometry.rs`: 12n-1's `NUDGE_MAX = PERSON_RADIUS` kept (SD-N11), 12d's R 250 and derived `CLEARANCE`
+  kept; doc comments give the R 250 values (250/260, `BIAS_BAND` 166).
+- `system.rs` `VERSION` 5 (one bump for SD-D5's refusal and the radius, `ARC-39` note 7, point 4);
+  `rapier_pin.rs` (5, "0.36.0"); `inspect.rs`, `social_composition.rs` (×2): main's composition line
+  plus `, bodies v5`.
+- `DECISIONS.md`: 12d's `ARC-39` notes 5 and 6 become **notes 7 and 8** (12n took 5 and 6; TD-D1's
+  numbering superseded). Note 8 now states `NUDGE_MAX` and `BIAS_BAND` as person dimensions (by note
+  5) and the M-1 restatement; note 7 adds the Wayfinder beside `Passages` and version 5. The `ARC-35`
+  QD-1 note sits before S19's three allow-list notes (dated order), with one sentence saying it does
+  not change them. References renumbered in `MODULE_SPEC.md` §4.1, `genesis.rs`, `lib.rs`,
+  `Cargo.toml`, `isolation.rs`, `doorways_genesis.rs`.
+- `ac1_composability.rs`: both sides kept — S19's `configure`/`data` admission and generic-pack
+  allow-list, and SD-D9's Social Café items (`market_may_add`, items compared like places).
+- `isolation.rs`: 12d's "nothing of movement but `Passages`" guard is rewritten as **"nothing of
+  movement but the Wayfinder seam (`RouteAnswer`, `RouteAsk`, `Wayfinder`, `Waypoints`,
+  `register_wayfinders`, `require_wayfinder`) and `Passages`, the latter exactly once, in
+  `genesis.rs`"** — the claim QD-5 bounded, widened only by 12n's own ruled read.
+- `worlds/market-town/README.md`: both paragraphs (the San Diego calendar and weather; bodies copied
+  from Social Café).
+- Tests whose R 300 literals 12d's radius changes (12n's tests were written at R 300 on main, and
+  12n-1 ran its R 250 checks only in scratch, E-NV3), each re-derived by hand, claim unchanged:
+  `actions.rs` (main's restated claim 1, `R` from `support`'s literal 250), `scenarios.rs` n3
+  (spacing 13R/6, `CLEAR`), `objects.rs` (`NUDGE_MAX` = R: walker 3 290 / box 3 750, ball 3 880 /
+  4 250), `long_run.rs` N-2 (≤ R + 10 = 260, tightened from 310), `route.rs`'s NV-5 oracle (its own
+  literal R 250: R + GAP 260, grown 310, avoided 510, lattice anchored at R; 877 routed, 949
+  unreachable; M-3 844 routed, 1 771 snapped), `tools/cli/tests/walking.rs` (NV-2: every grown corner
+  50 mm nearer — (2 690, 4 210), (3 610, 4 210); the table's (6 690, 7 310); the crate's (890, 1 890),
+  (890, 3 110); NV-4's doc (10 190, 3 890), (11 410, 3 890); the ring's hollow; "not on her" 510. NV-2
+  (b) **changes route**: at grown 310 the corners along y 390 lie inside the shrunk floor, so the way
+  out of the pocket goes round the south wall (≈ 7 160 mm) rather than the north (≈ 7 450 mm), hand-
+  computed before the run and equal to it), NV-3 (social-cafe now installs bodies, so its "without
+  bodies" world is a test-time copy without them — SD-D13's counterfactual — and its doorway points are
+  12d's (1 610, 400) and (0, 2 800)), `bodies_yard.rs` capacity (244 points at R 250: 18 × 14 − 8,
+  hand-computed; 226 at R 300), `tools/cli/tests/bodies/mod.rs`'s `NUDGE_LIMIT` (R + GAP = 260,
+  tightened from 310).
+- Validation on 3950381's tree: `cargo test -p mineworld-bodies` all pass (lib 19, actions 28,
+  doorways_genesis 6, genesis 6, isolation 7, long_run 1, long_run_objects 1, objects 7, route unit
+  and oracle, scenarios, rapier_pin); `ac1_composability` 15/15, `seam_vocabulary`,
+  `precursor_vocabulary`; `-p mineworld-worldpack` all; CLI walking 9/9, bodies_yard 4 (+1 ignored),
+  inspect 3, commands 4, content_kinds 3, server_command 10; clippy `--workspace --all-targets
+  --all-features -D warnings` clean; `cargo fmt --all` applied.
+
+**TD-D10 — existing tests whose straight client walks meet 12d's furniture now walk with `walk-to`
+(bounded; claim unchanged; §19.6's "route" row, using 12n's route instead of a hand waypoint).**
+`tools/cli/tests/support/mod.rs` gains `walk_to`, `walk_step` and `Client::walk_there` (one accepted
+`walk-to`, then `walk-step`s until the server refuses one because the walk is over). Used by:
+`milestone_c.rs` `walk_into_the_cafe` (§19.6's row; the TooFarAway of E-TD6) and `facts.rs`
+`a_line_reaches_who_was_there_and_nobody_else` (main's test; the wanderer's straight line from
+(7 110, 3 900) to the old door (1 610, 200) meets the tables and the window bench, and the door moved:
+now `walk-to` the street, through the café's door). The handoff named the waypoint or "12n's route, if
+it gives the test one" — the route is what 12n built for exactly this.
+
+**TD-D11 — TD-7's nudge bound and the geometry share (bounded).** The scan's `NUDGE_LIMIT` follows
+`NUDGE_MAX = R` (260 mm, tightened from TD-7's frozen 310, which was R 300's). TD-6 in
+`town_bodies.rs` adds the operator's M-3 ruling: strides stopped by walls and furniture (`by: None`)
+≤ 10 % of strides (a request's first arrival that is not a shove), person- and object-caused stops
+printed (`Bucket::stopped_by_geometry`). The TD-6 harness now reads only the run's first thirty 10-day
+buckets (a fact at day 300's last instant opened a 31st in market-town).
+
+**TD-D12 — MATERIAL STOP (2026-10-12), three items, evidence E-TD7.** §19.9's material stops: "TD-5 or
+TD-6 failing on every rung", "an edit outside §19.1's change set", and another lane's operator-ruled
+bound. Work held: TD-C7's close, TD-C8 (TD-12, Rosetta, re-baseline, PR). No TD-12 run made; 300-day
+town runs other 4 of 6.
+
+1. **TD-6: no throw in 300 days in either town** (kicks 3 / 1, pushes 7 / 2; shoves plentiful). Reading:
+   since 12n people walk by `walk-to`, and bodies' wayfinder routes round loose objects with the
+   planner's margin (SD-N4), so strides seldom meet an object (pushes) and people seldom stand within
+   the 800 mm reach at a lattice consult, where kick and throw are drawn among the complete
+   affordances (F-D13). TD-6 was fixed before 12n existed. §19.4's ladder has no rung for it: c1
+   moves objects *out of* jams, c2 changes doors; neither adds encounters, and bodies' offer policy is
+   off-limits. Options: (a) restate TD-6's "over the run" clause for the walking towns as kicks,
+   throws and pushes printed, shoves bounded below as now — bodies-yard keeps proving all three
+   (AO-1, unchanged and passing); (b) a content change beyond c1's letter: put the café's two objects
+   where people stand (the counter's customer side, the terrace), measured first with 30-day runs;
+   (c) offer policy or the controller (excluded by SD-D11). Recommendation: (a).
+2. **ASR-2: the 30-day market-town save is 162.9 MiB against the operator's 128 MiB for walking towns**
+   (M-6). Bodies add stopped-short, displaced arrivals and shoves to every walk (≈ 45 % more bytes than
+   main's 112.3 MiB). Options: (a) the SR owner restates the bound for towns with bodies, e.g.
+   ≤ 192 MiB (snapshot part unchanged), until SR-b's log compression; (b) fewer bodies facts — a change
+   to `ARC-39`'s vocabulary, outside 12d. Recommendation: (a), edited in 12d's PR under a ruling naming
+   `tools/cli/tests/market_town.rs` and an `ARC-81` note (as M-6 did for 12n-2).
+3. **R-PK-2's required `name` (SD-D10, QD-4) meets item content merged after 12d's freeze:**
+   `entities/modern-goods/items/*.yaml` (12 kinds; an Entity Pack with a package identity, version
+   0.1.0, `ARC-71`/`ARC-77`), `worlds/lakeside/items/fish.yaml`, and three test fixtures
+   (`tools/cli/tests/{milestone_e,third_party}.rs`, possibly `worldpack/tests/entity_packs.rs`). The
+   external `acme-fishing` pack's own tests build `AuthoredItem` from `category: …` alone and would
+   break when it next updates against this item crate (a cross-lane impact; its sources do not name
+   the section). Options: (a) authorize 12d to add a `name` to each (the key in plain English, as
+   QD-15), whether modern-goods' version moves (0.1.0 → 0.2.0, a content change of a published pack)
+   being the operator's/S16's call, and the external pack told; (b) make `name` optional (no fact
+   change for kinds without one) — reverses SD-D10's "required". Recommendation: (a) with the
+   version decision named.
+
+Nothing else is blocked by these three: TD-D9 … TD-D11 are committed; TD-5's committed tests pass.
 
 ---
 

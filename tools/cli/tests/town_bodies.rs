@@ -10,7 +10,8 @@
 //! TD-13  an observer in market-town's café is disclosed `item-catalogue`: the twenty kinds, in ItemId
 //!        order, with their names; an observer in social-cafe (no `item`) is disclosed none
 //! TD-6/7 300 days of each town, seed 7: the physical actions happen and stay rare (counts printed per
-//!        30-day bucket), then the scan finds nobody overlapping, in a wall or a solid
+//!        30-day bucket), strides stopped by walls and furniture are at most 10 % (the M-3 ruling,
+//!        step-11 §21.15), then the scan finds nobody overlapping, in a wall or a solid
 //! TD-8   social-cafe without `bodies` runs, nobody is resolved, and the same scan sees the overlaps
 //! ```
 //!
@@ -361,8 +362,9 @@ fn seats_of(pack: &Path) -> Vec<String> {
 
 /// TD-6, per 30-day bucket and over the run; prints the counts first.
 fn assert_bodies_happen_and_stay_rare(name: &str, report: &Report, seats: &[String]) {
-    let thirty: Vec<Vec<&bodies::Bucket>> = report
-        .buckets
+    // The run's 300 days are the scan's first thirty 10-day buckets; a fact stated at the last instant
+    // (market-town's calendar at day 300's end) opens a 31st, which is not part of the run's days.
+    let thirty: Vec<Vec<&bodies::Bucket>> = report.buckets[..report.buckets.len().min(30)]
         .chunks(3)
         .map(|chunk| chunk.iter().collect())
         .collect();
@@ -408,6 +410,27 @@ fn assert_bodies_happen_and_stay_rare(name: &str, report: &Report, seats: &[Stri
     assert!(
         kicks > 0 && throws > 0 && shoves > 0 && pushes > 0,
         "{name}: each happens"
+    );
+    // The operator's M-3 ruling (step-11 §21.15, relayed for 12d): strides stopped by walls and
+    // furniture (`by: None`) are at most 10 % of all strides; those stopped by people or objects are
+    // printed, not bounded. A stride is a request's first arrival that is not a shove.
+    let strides: u64 = report
+        .buckets
+        .iter()
+        .flat_map(|bucket| bucket.moves.values())
+        .sum();
+    let geometry: u64 = report.buckets.iter().map(|b| b.stopped_by_geometry).sum();
+    let by_object: u64 = report.buckets.iter().map(|b| b.stopped_by_object).sum();
+    let stopped: u64 = report.buckets.iter().map(|b| b.stopped).sum();
+    println!(
+        "{name}: strides {strides}; stopped by geometry {geometry} ({:.1} %), by a person {}, by an \
+         object {by_object}",
+        100.0 * geometry as f64 / strides.max(1) as f64,
+        stopped - geometry - by_object
+    );
+    assert!(
+        geometry * 10 <= strides,
+        "{name}: {geometry} of {strides} strides stopped by walls and furniture, over 10 %"
     );
 }
 

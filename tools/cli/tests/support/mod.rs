@@ -544,6 +544,32 @@ impl Client {
         answers
     }
 
+    /// Asks the world to walk `actor` to `to` (a point of `place`, or with [`None`] into `place`
+    /// through its doorway) with one accepted [`walk_to`], then sends [`walk_step`]s until the server
+    /// refuses one because the walk is over (`ARC-75`: the server routes, the client paces). Returns
+    /// every accepted step's answer, one per stride.
+    pub async fn walk_there(
+        &mut self,
+        actor: EntityId,
+        place: EntityId,
+        to: Option<(i32, i32)>,
+    ) -> Vec<(ActionId, Vec<EventId>)> {
+        self.submit_accepted(walk_to(actor, place, to)).await;
+        let mut steps = Vec::new();
+        for _ in 0..200 {
+            match self.submit(walk_step(actor)).await {
+                (action_id, ActionResult::Accepted { events }) => steps.push((action_id, events)),
+                (_, ActionResult::Rejected(mineworld_contracts::Rejection::PreconditionFailed)) => {
+                    return steps;
+                }
+                (_, other) => {
+                    panic!("a step is accepted, or refused once the walk is over: {other:?}")
+                }
+            }
+        }
+        panic!("the walk did not end in 200 steps");
+    }
+
     /// Waits until this observer's observation satisfies `ready`, or fails the test.
     ///
     /// Polling the stream rather than sleeping: the world is swept on its own cadence, and what a
@@ -724,6 +750,35 @@ pub fn stride(actor: EntityId, place: EntityId, x: i32, y: i32) -> Value {
             "local": { "x": x, "y": y, "z": 0 },
             "facing": null,
         } } },
+        "actor_location": null,
+    })
+}
+
+/// One `walk-to` request (`ARC-75`): to a point of `place`, or, with [`None`], into `place` through
+/// the doorway its passage names. The server plans the route; the client then paces it with
+/// [`walk_step`]s.
+pub fn walk_to(actor: EntityId, place: EntityId, to: Option<(i32, i32)>) -> Value {
+    let local = to.map(|(x, y)| json!({ "x": x, "y": y, "z": 0 }));
+    json!({
+        "actor": actor,
+        "action_type": "walk-to",
+        "target": null,
+        "payload": { "action_type": "walk-to", "payload": { "to": { "place": {
+            "place": { "entity": place.to_string(), "entity_type": "place" },
+            "local": local,
+            "facing": null,
+        } } } },
+        "actor_location": null,
+    })
+}
+
+/// One `walk-step` request: the next stride of the actor's walk (`ARC-75`).
+pub fn walk_step(actor: EntityId) -> Value {
+    json!({
+        "actor": actor,
+        "action_type": "walk-step",
+        "target": null,
+        "payload": { "action_type": "walk-step", "payload": {} },
         "actor_location": null,
     })
 }
