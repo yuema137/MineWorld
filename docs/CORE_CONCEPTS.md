@@ -218,6 +218,32 @@ This is what makes limited knowledge and conflicting beliefs representable. A co
 implementation that reads world truth instead of memory has destroyed the distinction and
 violates INV-13.
 
+### Forgetting: the world log never forgets, subjective memory may
+
+Subjective memory may forget. The world's Event Log may not: it is the single source of truth
+(INV-11), so it is compacted or archived and never forgotten. Every Event ID stays resolvable in the
+save for as long as the save exists.
+
+Forgetting happens in one of two places, and ownership decides which:
+
+1. **System-owned person state** — a relationship's familiarity and regard, an acquaintance list, a
+   conversation's remembered lines — is a Component of a System. The owning System forgets it by a
+   pure rule inside its own reduction, so replay reproduces it exactly (ARC-25). Decay writes no
+   fact and starts no Process; a level change caused by decay is observed lazily, and a biographical
+   fact about it is emitted only by a reduction that touches the pair. No model may touch this place.
+2. **Controller-owned memory** — a seat's store of what it perceived — is not world state. Its
+   controller forgets it through a memory policy, under bounds the host enforces outside any policy.
+   The world never reads this store, so forgetting in it changes no byte of any save.
+
+A controller cannot forget world state for the world; it can only stop reading it.
+
+Whichever place forgets, what the person no longer holds is recorded as the **forgotten set**: the
+Event ID ranges that were perceived and are no longer held, kept sorted and bounded. A forgotten
+Event ID is never shown to the person again and is never cited by anything the person says, but it
+still resolves in the save, so tools may say that a person has forgotten a span of time. Memory
+remembers or forgot; it never deletes the truth. Its bounds are stated in
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3, and the decisions in `DECISIONS.md` `ARC-86` and `ARC-87`.
+
 ## 5.4 Hierarchical biography compression
 
 Biography must not grow without bound in an LM context window. Layers:
