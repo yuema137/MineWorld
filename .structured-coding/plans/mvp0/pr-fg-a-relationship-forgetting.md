@@ -1,14 +1,25 @@
 # PR FG-a — System-owned forgetting in `relationships`: lazy decay and an acquaintance cap
 
-## DRAFT — PR design, awaiting operator review (NOT frozen)
+## DESIGN FROZEN 2026-10-12 (primary session; operator QFGA-1)
 
 ```text
-Design revision:        revision 1 (2026-10-12), this file as first committed on docs/fg-a-design
-Approved by / evidence: none yet. Nothing here authorizes implementation (CLAUDE.md §3.1)
-Implementation base:    main after DOC-24 (#175) merges; exact commit recorded in FGA-C1's evidence
-Execution contract:     §14 (template filled; becomes binding only at freeze)
-Lifecycle:              DRAFT
+Design revision:        revision 2 (2026-10-12): revision 1 (1b80a6d on docs/fg-a-design) with §13.1's
+                        rulings recorded and §14's contract filled, as committed with this header
+Approved by / evidence: operator ruled QFGA-1 YES (read-only WorldRead::at() in the kernel); QFGA-2 …
+                        QFGA-12 accepted as recommended; relayed by the primary session on 2026-10-12
+                        (§13.1)
+Implementation base:    main after DOC-24 (#175) merges, with DOC-24 corrected per F-FGA-1 and F-FGA-8;
+                        exact commit recorded in FGA-C1's evidence
+Execution contract:     §14 (filled at the freeze)
+Lifecycle:              FROZEN — implementation starts only on the operator's go, and not before DOC-24
+                        (#175) has merged
 ```
+
+Scope (§1), section shapes (§4), design and decisions (§5), acceptance FA-1 … FA-12 and the commit plan are
+frozen. Progress, evidence, findings and bounded corrections stay writable (§10, §15, §16). No FG-a question
+remains open. Implementation runs in a fresh session (§14); this planning session does not implement.
+
+*Superseded header:* `DRAFT — PR design, awaiting operator review (NOT frozen)`, revision 1.
 
 **Effort:** `mvp0` (step-24 ruling 2026-10-12: forgetting is MVP-0; QS24-14: MVP-0 PRs are filed under
 `mvp0/`). **Step:** S24, [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md)
@@ -656,10 +667,11 @@ Each commit lists implementation, validation and review separately; each `[x]` n
 only; no other file.
 
 - [x] Implementation: written from §3's audit and §3.1's measurements (planning session, 2026-10-12).
-- [ ] Validation: `python3 scripts/check_doc_headings.py` → "220 numbered sections across 31 documents, none
+- [x] Validation: `python3 scripts/check_doc_headings.py` → "220 numbered sections across 31 documents, none
   duplicated", exit 0; `python3 scripts/check_decision_ids.py` → "114 decision ids, all distinct", exit 0
-  (planning worktree, before the first commit); CI `fast` on the design PR — pending.
-- [ ] Review (self, planning session): every finding cites a file and line or a measurement; every guarded
+  (planning worktree, before the first commit, and again at the freeze revision); CI `fast` PASS on #179 at
+  1b80a6d (run 38352358089); the freeze head's `fast` is recorded in the PR.
+- [x] Review (self, planning session): every finding cites a file and line or a measurement; every guarded
   criterion names a mutation; no decision number is taken; terms are `CORE_CONCEPTS.md`'s.
 
 ### FGA-C1 — Specs before code
@@ -863,12 +875,26 @@ No diff: `contracts/`, `persistence/`, `server/`, `clients/`, `presentation/`, `
 | **QFGA-11** | Decision records: dated notes on `ARC-62`, `ARC-63`, `ARC-28` (and the `ARC-86` correction if DOC-24 does not make it); no new number. | **Notes only.** `ARC-86` is FG-a's record. |
 | **QFGA-12** | One PR, or split: FG-a1 (K1, S1–S4, W1, decay) and FG-a2 (cap, conversation, binary proofs)? | **One PR**, nine commits, each reviewable alone; split only if the operator prefers smaller reviews. |
 
+### 13.1 Rulings (2026-10-12, operator, relayed by the primary session)
+
+| Question | Ruling |
+| --- | --- |
+| **QFGA-1** | **Yes** (operator): add the read-only `WorldRead::at()` to the kernel (K1). |
+| QFGA-2 … QFGA-12 | **Accepted as recommended**: S1–S4 approved; a user curve's pack must be enabled (S4); FA-1's refinement of AC-FG-6; `acquaintance-forgotten` compiled biographical (it enters biographies); §5.1's curve set and defaults; **the 160 KiB per-person bound is measured on component data** (FA-3(c) still reports the snapshot encoding beside it); `forget_after_days` stays in FG-a; net level facts at contact; same-shape disclosure; dated notes only, no new decision number; **one PR**. |
+| DOC-24 | The primary session is correcting DOC-24 (#175) per F-FGA-1 and F-FGA-8 (§9's preferred route), so FGA-C1 adds no `ARC-86` correction note unless the merged text still carries either premise. |
+
+Consequence: implementation starts only on the operator's go, after DOC-24 merges (§14).
+
 ---
 
-## 14. Execution contract for PR FG-a (to be confirmed at the freeze)
+## 14. Execution contract for PR FG-a (filled at the freeze, 2026-10-12)
 
 ```text
 PROJECT / PR        MVP-0 · S24 / PR FG-a — System-owned forgetting in relationships and conversation
+FREEZE              DESIGN FROZEN 2026-10-12 (primary session); operator ruled QFGA-1 yes; QFGA-2 … 12
+                    accepted as recommended (§13.1)
+START CONDITION     the operator's explicit go AND DOC-24 (#175) merged with F-FGA-1/F-FGA-8 corrected;
+                    neither alone starts implementation
 PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/pr-fg-a-relationship-forgetting.md; evidence §15
                     (E-FGA-<n>); deviations §16
 RELATED / BINDING   mvp1/step-24-decision-and-memory.md §§1.2, 2.4, 3.2, 8.2, 10, 11.2, 14.1; overall.md;
@@ -882,7 +908,8 @@ COMMANDS            cargo (fmt, check, clippy -D warnings, test, build --release
                     queries on scratch saves), shasum, mkdir -p, sed -n; no python3 -c, sed -i, awk, xargs,
                     curl or heredoc writes; files edited with the editor tools; no other worktree; no
                     .claude/settings*
-APPROVED SCOPE      §1, §4, §5 as answered by §13; FGA-C1 … FGA-C9
+APPROVED SCOPE      §1, §4, §5 as answered by §13.1; FGA-C1 … FGA-C9; kernel change limited to K1
+                    (read-only WorldRead::at()), SDK changes limited to S1–S4
 FROZEN INVARIANTS   no fact, Process, deferred event or journal row for decay; forgetting only lowers a value
                     toward its floor; known.len() ≤ known_at_most after every reduction; edges = entries;
                     disclosure holder-only and same-shaped; no model in this layer; unconfigured: every
@@ -893,17 +920,19 @@ VALIDATION BUDGET   two long parity records (E-FGA-0 base, FA-1 head), release p
                     (four worlds × base/head); 30-day scratch runs uncounted; FA-10's six 30-day walls; one
                     full workspace gate on the final head; total ≤ ~1 hour of runs. Real-model NOT REQUIRED
 LIVE DOCUMENTATION  §10 checkboxes; §15 ledger; §16 deviations; handoff-fg-a.md
-ENDPOINT AUTHORITY  implementation + local validation: authorized by the freeze message (source: operator,
-                    at freeze); semantic commits, branch push, PR creation/update, CI repair: authorized
-                    (source: working rules §§14, 21 defaults, unresolved until the freeze confirms); merge:
-                    operator only, merge commit
+ENDPOINT AUTHORITY  implementation + local validation: on the operator's go only (source: primary session's
+                    freeze message, 2026-10-12: "implementation starts only on the operator's go");
+                    semantic commits, branch push, PR creation/update marked READY FOR OPERATOR REVIEW, CI
+                    repair: authorized once started (source: working rules §§14, 21, confirmed by the
+                    freeze); merge: operator only, merge commit (source: CLAUDE.md §3.1; no value changes it)
 POST-MERGE SYNC     this session: the PR document, merge identity, evidence; the primary session: step-24
                     and overall.md
 NORMAL STOP         PR FG-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       an edit in §11's no-diff list (contracts, persistence, server, clients, cognition,
                     authoring, worlds, another pack); any summary or fact change with default content not
                     explained by main moving; an SDK or kernel change beyond §5.6; a falsified invariant
-                    above; an answer to QFGA-1 … QFGA-12 other than the freeze's
+                    above; an answer to QFGA-1 … QFGA-12 other than §13.1's; DOC-24 merging with text that
+                    contradicts §5 (stop and report, do not reconcile silently)
 ```
 
 ---
@@ -938,5 +967,6 @@ E-FGA-0   (implementation) base capture: long parity record and four 30-day save
 ## 17. Process notes (this planning session)
 
 - Measurements used the main checkout's prebuilt debug binary read-only; nothing in
-  `/Users/yuema137/MineWorld` was edited. Scratch saves live in
-  `/Users/yuema137/mineworld-worktrees/scratch-fg-a`.
+  `/Users/yuema137/MineWorld` was edited. The scratch saves in
+  `/Users/yuema137/mineworld-worktrees/scratch-fg-a` were removed at the freeze (primary session's
+  instruction); §3.1 and E-FGA-d0 keep the commands and results, and FGA-C9's E-FGA-0 re-measures.
