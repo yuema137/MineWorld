@@ -11,7 +11,7 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{Talk, talk_requirement};
-use mineworld_movement::{Move, move_offer_requirement};
+use mineworld_movement::{Move, WalkTo, move_offer_requirement};
 use serde_json::{Value, json};
 
 use crate::PacedRuleController;
@@ -61,10 +61,12 @@ fn refused(bell: &str) -> Affordance<Value> {
     .with_payload(ring(bell))
 }
 
-/// Me in the hall with Bob, whom I may talk to, `move` offered, and `extra` offered as well.
+/// Me in the hall with Bob, whom I may talk to, `move` and `walk-to` offered (incomplete, as movement
+/// offers them), and `extra` offered as well.
 fn hall(at: i64, extra: Vec<Affordance<Value>>) -> Observation<Value> {
     let mut affordances = vec![
         Affordance::available(Move::ACTION_TYPE, None, move_offer_requirement()),
+        Affordance::available(WalkTo::ACTION_TYPE, None, move_offer_requirement()),
         Affordance::available(Talk::ACTION_TYPE, Some(id(BOB)), talk_requirement()),
     ];
     affordances.extend(extra);

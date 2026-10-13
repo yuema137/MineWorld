@@ -19,11 +19,15 @@ from ac10_harness import (
     QUOTE_PREFIX,
     TRIGGER_DAYS,
     History,
+    _entity,  # pyright: ignore[reportPrivateUsage]
+    _export,  # pyright: ignore[reportPrivateUsage]
+    _payload,  # pyright: ignore[reportPrivateUsage]
     expand,
     speaker,
     unlabelled_digits,
     utterance,
 )
+from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey, EventId
 
 from mineworld_cognition.memory import (
@@ -159,9 +163,58 @@ def _uncut(text: str) -> str:
     return text.rsplit("; ", 1)[0] if text.endswith("…") and "; " in text else text
 
 
+LISTENERS = ("carol", "dev", "erin", "felix", "grace", "hana", "ivan", "visitor", "wanderer")
+"""Whose exports test_d searches after Bob's, in the pack's population order (Alice and Otto excepted:
+Otto drives no seat and hears little)."""
+
+
+LOCATED = 4
+"""How many unperceived lines test_d locates: four, not five, since people walk (step-11 §21.15 M-6, the
+primary session's ruling, 2026-10-10; pr-s10-p4-memory.md's note). Every one keeps both checks."""
+
+
+def _unperceived(history: History, count: int = LOCATED) -> list[PerceivedEvent]:
+    """Bob's lines first (the harness's own search), then other people's, by the same rule: a `spoke`
+    fact in their export, absent from Alice's, at a place other than hers at that moment, whose words she
+    never heard said by anyone. Deduplicated by fact id, since one line reaches several listeners.
+
+    Widened on step-11 §21.15 M-6. Since people walk (12n-2), they talk more, and Alice hears more of the
+    fixed lines. In the 100-day history Bob's export holds two such facts, and all ten listeners'
+    exports together hold four. The rule is unchanged; only the exports searched grow."""
+    located = history.unperceived(count)
+    if len(located) == count:
+        return located
+    mine = set(history.ids())
+    heard = "\n".join(utterance(f) for f in history.alice if f.event_type == "spoke")
+    where = [
+        (fact.at, fact.place.entity)
+        for fact in history.alice
+        if fact.event_type in ("arrived", "person-entered-place")
+        and fact.place is not None
+        and _entity(_payload(fact)["person"]) == history.me
+    ]
+    seen = {fact.id for fact in located}
+    for person in LISTENERS:
+        for fact in _export(history.save, person):
+            if fact.event_type != "spoke" or fact.id in mine or fact.id in seen:
+                continue
+            if fact.place is None:
+                continue
+            hers = [place for at, place in where if at <= fact.at]
+            if not hers or hers[-1] == fact.place.entity:
+                continue
+            if utterance(fact)[:QUOTE_PREFIX] in heard:
+                continue
+            located.append(fact)
+            seen.add(fact.id)
+            if len(located) == count:
+                return located
+    return located
+
+
 def test_d_nothing_alice_did_not_perceive_appears_anywhere(run: Run) -> None:
-    located = run.history.unperceived()
-    assert len(located) == 5
+    located = _unperceived(run.history)
+    assert len(located) == LOCATED
     held = {str(row["event_id"]) for row in _rows(run.dump, "l0")}
     joined = "\n".join(_texts(run))
     for fact in located:

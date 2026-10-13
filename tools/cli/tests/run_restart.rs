@@ -115,10 +115,13 @@ fn a_killed_run_re_run_finishes_the_same_world_byte_for_byte() {
     let control_head = u64::try_from(control.journal.len()).expect("fits");
 
     let mut tails = Vec::new();
+    let mut open_at_kill = Vec::new();
     for day in [5, 15, 25] {
         let save = fresh(&format!("run-restart-killed-{day}"));
         killed_at(&save, day);
-        let head_at_kill = u64::try_from(Tables::read(&save).journal.len()).expect("fits");
+        let at_kill = Tables::read(&save);
+        open_at_kill.push(open_walks(&at_kill));
+        let head_at_kill = u64::try_from(at_kill.journal.len()).expect("fits");
         assert!(
             head_at_kill < control_head,
             "day {day}: killed short of the end ({head_at_kill} of {control_head})"
@@ -133,6 +136,133 @@ fn a_killed_run_re_run_finishes_the_same_world_byte_for_byte() {
     assert!(
         tails.iter().any(|tail| *tail > 0),
         "at least one resume re-executed a tail after its snapshot: {tails:?}"
+    );
+    // Where a kill lands is a race, so whether somebody was walking then is printed, not claimed;
+    // `a_run_stopped_mid_walk_continues_the_same_world` locates that case deterministically.
+    eprintln!("walks open at the kills (days 5, 15, 25): {open_at_kill:?}");
+}
+
+/// How many walks were started and not yet ended before `until` (seconds; all of them if `None`).
+/// Strictly before: a run to day `d` consults only at instants before `d × DAY`.
+fn open_walks_until(tables: &Tables, until: Option<i64>) -> usize {
+    let (mut started, mut ended) = (0, 0);
+    for (_, bytes) in &tables.facts {
+        let fact: EventEnvelope = format::decode(bytes, "fact").expect("a fact decodes");
+        if until.is_some_and(|until| fact.at().seconds() >= until) {
+            continue;
+        }
+        match fact.event_type().as_str() {
+            "walk-started" => started += 1,
+            "walk-ended" => ended += 1,
+            _ => {}
+        }
+    }
+    started - ended
+}
+
+/// How many walks the save has started and not ended: people walking at its head.
+fn open_walks(tables: &Tables) -> usize {
+    open_walks_until(tables, None)
+}
+
+/// A street with a shop whose door is 78 m from where the walker stands, and a walker whose day says
+/// "the shop" from 23:45: the walk there — 59 strides, one per `RUN_STEP` of 30 s, about half an hour
+/// — is still under way at midnight, where a run to day 1 stops.
+fn late_walk_world(directory: &Path) -> std::path::PathBuf {
+    let pack = directory.join("late-walk");
+    for sub in ["places", "people"] {
+        std::fs::create_dir_all(pack.join(sub)).expect("a directory");
+    }
+    std::fs::write(
+        pack.join("world.yaml"),
+        "world:\n  id: late-walk\n  name: Late Walk\n  version: 0.1.0\n  license: MIT\n\
+         mineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\n  - schedule\nplaces:\n  \
+         - shop\n  - street\npopulation:\n  - idler\n  - walker\nseats:\n  - idler\n  - walker\n",
+    )
+    .expect("world.yaml");
+    std::fs::write(pack.join("places/street.yaml"), "tags:\n  - street\n").expect("street");
+    std::fs::write(
+        pack.join("places/shop.yaml"),
+        "tags:\n  - shop\npassages:\n  - to: street\n    here: { x: 1500, y: 200 }\n    \
+         there: { x: 2000, y: 3000 }\n",
+    )
+    .expect("shop");
+    std::fs::write(
+        pack.join("people/walker.yaml"),
+        "routine:\n  - { from: \"00:00\", place: street, label: idle }\n  \
+         - { from: \"23:45\", place: shop, label: late }\nlocation:\n  place: street\n  \
+         position:\n    x: 80000\n    y: 3000\n",
+    )
+    .expect("walker");
+    std::fs::write(
+        pack.join("people/idler.yaml"),
+        "routine:\n  - { from: \"00:00\", place: street, label: idle }\n  \
+         - { from: \"12:00\", place: street, label: rest }\nlocation:\n  \
+         place: street\n  position:\n    x: 40000\n    y: 9000\n",
+    )
+    .expect("idler");
+    pack
+}
+
+/// `run` of `pack` to `days` with this save, which must succeed; its stdout.
+fn run_pack(pack: &Path, days: u64, save: &Path) -> String {
+    let output = headless::mineworld(&[
+        "run",
+        pack.to_str().expect("a printable path"),
+        "--headless",
+        "--seed",
+        &SEED.to_string(),
+        "--days",
+        &days.to_string(),
+        "--save",
+        save.to_str().expect("a printable path"),
+    ]);
+    assert!(
+        output.status.success(),
+        "run failed: {}",
+        headless::stderr(&output)
+    );
+    headless::stdout(&output)
+}
+
+/// step-11 NW-10 (SD-N15): a run stopped while somebody is walking, and continued, finishes the same
+/// world byte for byte — the continuing process schedules the walker's step consults from the
+/// restored `Walking` (movement's `is_walking`), exactly as the uninterrupted run did. Where a kill
+/// lands is a race, so the case is made rather than hoped for: a walk that starts at 23:45 and is
+/// under way at midnight, where a run to day 1 stops.
+#[test]
+fn a_run_stopped_mid_walk_continues_the_same_world() {
+    let directory = fresh("run-mid-walk");
+    std::fs::create_dir_all(&*directory).expect("the scratch directory");
+    let pack = late_walk_world(&directory);
+    let control = directory.join("control");
+    run_pack(&pack, 2, &control);
+    let control = Tables::read(&control);
+    let open = open_walks_until(&control, Some(DAY));
+    assert!(open > 0, "located: a walk is under way at midnight");
+
+    let continued = directory.join("continued");
+    run_pack(&pack, 1, &continued);
+    assert_eq!(
+        open_walks(&Tables::read(&continued)),
+        open,
+        "the stopped save holds the open walk"
+    );
+    let second = run_pack(&pack, 2, &continued);
+    resumed(&second);
+    Tables::read(&continued).assert_same_history(&control, "stopped mid-walk and continued");
+    let ended_after_midnight = control
+        .facts
+        .iter()
+        .map(|(_, bytes)| format::decode::<EventEnvelope>(bytes, "fact").expect("a fact"))
+        .filter(|fact| {
+            fact.event_type().as_str() == "walk-ended"
+                && (DAY..DAY + 3_600).contains(&fact.at().seconds())
+        })
+        .count();
+    assert!(
+        ended_after_midnight > 0,
+        "the walk under way at midnight ended in the next hour, by the resumed run's steps"
     );
 }
 

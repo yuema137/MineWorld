@@ -1012,3 +1012,15 @@ review mutation      genesis dropped from the kept set in persistence/src/world.
 measured, 300 days   3 795 013 632 B → 615 399 424 B (−83.8 %)
 measured, 30 days    373 882 880 B → 62 029 824 B (−83.4 %)
 ```
+
+### 14.9 Note, 2026-10-10 — ASR-2 for walking towns (step-11 §21.15 M-6; the operator's ruling)
+
+S15's PR 12n-2 makes the paced controller walk: `walk-to`, then one `walk-step` per stride. Every walk
+adds `walk-started` and `walk-ended`, and a stride is at most 1 340 mm instead of 2 000. Market Town
+therefore records about 2.2 × the facts (step-11 E-NW3), and its 30-day save measured 117 772 288 B
+(112.3 MiB) in CI run 38091503186, against this PR's 62 029 824 B. The operator ruled option (a) of M-6:
+ASR-2's bound becomes **≤ 128 MiB for walking towns**. The snapshot part — exactly genesis, the anchors
+and the newest two — is unchanged. SR-b's log compression is expected to bring the size back down.
+`tools/cli/tests/market_town.rs` carries the new bound and also prints the 300-day save's size, a
+measurement with no bound; its value is in step-11 §21.15 (M-6). Edited by 12n-2 as part of the QN-2
+re-baseline event; this PR's own record above stands as merged.

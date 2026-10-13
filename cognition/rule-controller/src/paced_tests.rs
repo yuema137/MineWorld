@@ -10,11 +10,12 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, Utterance, talk_requirement};
-use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages, move_offer_requirement};
+use mineworld_movement::{
+    Destination, Move, Passage, Passages, WalkStep, WalkTo, Walking, move_offer_requirement,
+};
 use serde_json::{Value, json};
 
 use crate::PacedRuleController;
-use crate::paced::{distance, toward};
 
 const CAFE: u64 = 1;
 const STREET: u64 = 2;
@@ -50,13 +51,6 @@ fn said(speaker: u64, words: &str, at: i64) -> Heard {
     )
 }
 
-/// The exact squared floor distance between two positions — what a stride bound is checked against.
-fn squared(a: LocalPosition, b: LocalPosition) -> i64 {
-    let dx = i64::from(b.x().value()) - i64::from(a.x().value());
-    let dy = i64::from(b.y().value()) - i64::from(a.y().value());
-    dx * dx + dy * dy
-}
-
 fn controller(seed: u64) -> PacedRuleController {
     PacedRuleController::new(seed, SimDuration::from_seconds(PACE))
 }
@@ -69,9 +63,16 @@ struct View {
     heard: Vec<Heard>,
     /// Who is here, and whether the server says I may talk to them.
     people: Vec<(u64, Location, bool)>,
-    move_offered: bool,
+    /// Whether movement offers me `move` and `walk-to` (it offers both, or neither).
+    walk_offered: bool,
     /// The doorways the place I stand in discloses.
     doors: Vec<Passage>,
+    /// Whose walk is disclosed: mine, with its destination, and Bob's (movement's `walking` record,
+    /// step-11 SD-N8).
+    my_walk: Option<Destination>,
+    bobs_walk: bool,
+    /// Whether the world offers me `walk-step` (only to a walker, in the real world).
+    walk_step_offered: bool,
 }
 
 impl View {
@@ -84,12 +85,15 @@ impl View {
                 (BOB, in_cafe(2_000, 1_000), true),
                 (SUE, in_cafe(6_000, 1_000), false),
             ],
-            move_offered: true,
+            walk_offered: true,
             doors: vec![Passage::new(
                 place(STREET),
                 Some(spot(8_000, 1_000)),
                 Some(spot(0, 3_000)),
             )],
+            my_walk: None,
+            bobs_walk: false,
+            walk_step_offered: false,
         }
     }
 
@@ -111,23 +115,43 @@ impl View {
                 json!({ "leads_to": leads_to }),
             )]);
         }
+        let mut mine = vec![ComponentRecord::new::<ConversationHistory>(
+            id(ME),
+            serde_json::to_value(&history).expect("serializes"),
+        )];
+        if let Some(destination) = self.my_walk {
+            mine.push(walk_record(ME, destination));
+        }
         let me = PerceivedEntity::new(id(ME), EntityType::Person)
             .at(self.me)
-            .with_components(vec![ComponentRecord::new::<ConversationHistory>(
-                id(ME),
-                serde_json::to_value(&history).expect("serializes"),
-            )]);
+            .with_components(mine);
         let mut entities = vec![cafe, me];
         let mut affordances = Vec::new();
-        if self.move_offered {
+        if self.walk_offered {
+            for offered in [Move::ACTION_TYPE, WalkTo::ACTION_TYPE] {
+                affordances.push(Affordance::available(
+                    offered,
+                    None,
+                    move_offer_requirement(),
+                ));
+            }
+        }
+        if self.walk_step_offered {
             affordances.push(Affordance::available(
-                Move::ACTION_TYPE,
+                WalkStep::ACTION_TYPE,
                 None,
                 move_offer_requirement(),
             ));
         }
         for (person, location, may_talk) in &self.people {
-            entities.push(PerceivedEntity::new(id(*person), EntityType::Person).at(*location));
+            let mut other = PerceivedEntity::new(id(*person), EntityType::Person).at(*location);
+            if *person == BOB && self.bobs_walk {
+                other = other.with_components(vec![walk_record(
+                    BOB,
+                    Destination::Place(in_cafe(6_000, 6_000)),
+                )]);
+            }
+            entities.push(other);
             affordances.push(if *may_talk {
                 Affordance::available(Talk::ACTION_TYPE, Some(id(*person)), talk_requirement())
             } else {
@@ -146,16 +170,42 @@ impl View {
     }
 }
 
+/// `who`'s walk as movement discloses it: the destination and the next waypoints (step-11 SD-N8).
+/// The shape is written out literally — `{ destination, next }` — not taken from the controller.
+fn walk_record(who: u64, destination: Destination) -> ComponentRecord<Value> {
+    ComponentRecord::new::<Walking>(
+        id(who),
+        json!({
+            "destination": destination,
+            "next": [spot(6_000, 6_000)],
+        }),
+    )
+}
+
+/// Where a `walk-to` request asks to go, if it is one.
+fn walked_to(request: &ActionRequest) -> Option<Destination> {
+    let payload = request.payload().payload_for::<WalkTo>().ok()?;
+    let to: WalkTo = serde_json::from_slice(payload).ok()?;
+    Some(to.to())
+}
+
+/// The place a `walk-to` enters, when its destination is a place and names no point in it.
+fn enters(request: &ActionRequest) -> Option<PlaceId> {
+    match walked_to(request)? {
+        Destination::Place(location) if location.local().is_none() => Some(location.place()),
+        _ => None,
+    }
+}
+
 fn talk(request: &ActionRequest) -> Option<(Option<EntityId>, String)> {
     let payload = request.payload().payload_for::<Talk>().ok()?;
     let talk: Talk = serde_json::from_slice(payload).ok()?;
     Some((request.target(), talk.utterance().as_str().to_owned()))
 }
 
-fn moved_to(request: &ActionRequest) -> Option<Location> {
-    let payload = request.payload().payload_for::<Move>().ok()?;
-    let to: Move = serde_json::from_slice(payload).ok()?;
-    Some(to.to())
+/// No request the paced controller makes is a `move` any more: every walk is a `walk-to`.
+fn is_move(request: &ActionRequest) -> bool {
+    *request.action_type() == Move::ACTION_TYPE
 }
 
 /// Every seed's reply to Bob, if it is a reply (it quotes him).
@@ -250,7 +300,7 @@ fn the_seed_is_read_and_nobody_is_idle() {
 }
 
 #[test]
-fn it_greets_only_whom_the_server_says_it_may_and_walks_only_when_move_is_offered() {
+fn it_greets_only_whom_the_server_says_it_may_and_walks_only_when_walk_to_is_offered() {
     let mut view = View::new();
     let mut greeted = 0;
     let mut walked = 0;
@@ -262,7 +312,7 @@ fn it_greets_only_whom_the_server_says_it_may_and_walks_only_when_move_is_offere
                     assert_eq!(target, Some(id(BOB)), "Sue is too far away to talk to");
                     greeted += 1;
                 } else {
-                    assert!(moved_to(&request).is_some());
+                    assert!(walked_to(&request).is_some(), "a walk, asked as walk-to");
                     walked += 1;
                 }
             }
@@ -273,23 +323,25 @@ fn it_greets_only_whom_the_server_says_it_may_and_walks_only_when_move_is_offere
         "greeted {greeted}, walked {walked}"
     );
 
-    view.move_offered = false;
+    view.walk_offered = false;
     view.people = vec![(BOB, in_cafe(2_000, 1_000), false)];
     for seed in 0..SEEDS {
         assert_eq!(
             controller(seed).decide(&view.build()),
             None,
-            "no move offered and nobody to talk to: nothing to do"
+            "no walk-to offered and nobody to talk to: nothing to do"
         );
     }
 }
 
+/// Every walk names a destination and nothing else (SD-N16; the route and every stride are
+/// movement's, `ARC-75`): the place a doorway leads to, entered; a person in my place; or a point
+/// within `WANDER_AXIS` (1 400 mm) of me on each axis. No `move` is ever asked.
 #[test]
-fn every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway() {
+fn every_proposed_walk_names_a_doorway_s_place_a_person_here_or_a_point_nearby() {
     let view = View::new();
     let from = view.me.local().expect("positioned");
-    let stride = i64::from(MAX_STRIDE.value());
-    let mut crossings = 0;
+    let (mut doorway, mut person, mut nearby) = (0, 0, 0);
     for seed in 0..SEEDS {
         for step in 0..16 {
             let observation = View {
@@ -297,48 +349,84 @@ fn every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway() {
                 ..View::new()
             }
             .build();
-            let Some(to) = controller(seed)
-                .decide(&observation)
-                .as_ref()
-                .and_then(moved_to)
-            else {
+            let Some(request) = controller(seed).decide(&observation) else {
                 continue;
             };
-            if to.place() == place(CAFE) {
-                let landed = to.local().expect("positioned");
-                assert!(
-                    squared(from, landed) <= stride * stride,
-                    "a {} mm stride from seed {seed}",
-                    distance(from, landed)
-                );
-            } else {
-                crossings += 1;
+            assert!(!is_move(&request), "seed {seed}: a move was asked");
+            let Some(to) = walked_to(&request) else {
+                continue;
+            };
+            match to {
+                Destination::Place(location) if location.place() == place(STREET) => {
+                    assert_eq!(location.local(), None, "the street is entered, at no point");
+                    doorway += 1;
+                }
+                Destination::Place(location) => {
+                    assert_eq!(location.place(), place(CAFE), "seed {seed}");
+                    let at = location.local().expect("a wander names a point");
+                    let (dx, dy) = (
+                        i64::from(at.x().value()) - i64::from(from.x().value()),
+                        i64::from(at.y().value()) - i64::from(from.y().value()),
+                    );
+                    assert!(dx.abs() <= 1_400 && dy.abs() <= 1_400, "({dx}, {dy})");
+                    nearby += 1;
+                }
+                Destination::Person(who) => {
+                    assert!(
+                        [id(BOB), id(SUE)].contains(&who.entity_id()),
+                        "somebody in my place"
+                    );
+                    person += 1;
+                }
+                _ => panic!("seed {seed}: an unexpected destination {to:?}"),
             }
         }
     }
-    // From (1000, 1000) the door at (8000, 1000) is seven metres away: no crossing, only strides.
-    assert_eq!(crossings, 0);
+    println!("walks: {doorway} through the door, {person} to a person, {nearby} nearby");
+    assert!(
+        doorway > 0 && person > 0 && nearby > 0,
+        "each kind of walk occurs"
+    );
+}
 
-    // Standing by the door, leaving is a crossing to the street's side of it.
-    let by_the_door = View {
-        me: in_cafe(7_000, 1_000),
-        ..View::new()
-    };
-    let crossed: Vec<Location> = (0..SEEDS)
-        .filter_map(|seed| controller(seed).decide(&by_the_door.build()))
-        .filter_map(|request| moved_to(&request))
-        .filter(|to| to.place() == place(STREET))
-        .collect();
-    assert!(!crossed.is_empty(), "some seed walks out");
-    assert!(crossed.iter().all(|to| to.local() == Some(spot(0, 3_000))));
+/// A walk my own disclosed walk already makes is not asked again (step-11 §21.13 NW-C1, N-D14):
+/// where a seed would ask to walk into the street, it asks for nothing while my walk already goes
+/// there — and it asks no other walk instead, because carrying on is the decision.
+#[test]
+fn already_walking_there_asks_for_nothing() {
+    let street = Destination::Place(Location::in_place(place(STREET)));
+    let mut carried_on = 0;
+    for seed in 0..SEEDS {
+        for step in 0..16 {
+            let idle = View {
+                at: NOW + step * PACE,
+                ..View::new()
+            };
+            let asked = controller(seed).decide(&idle.build());
+            if asked.as_ref().and_then(walked_to) != Some(street) {
+                continue;
+            }
+            let walking = View {
+                my_walk: Some(street),
+                ..idle
+            };
+            assert_eq!(
+                controller(seed).decide(&walking.build()),
+                None,
+                "seed {seed} at step {step}: already on the way"
+            );
+            carried_on += 1;
+        }
+    }
+    assert!(carried_on > 0, "the case occurred: {carried_on}");
 }
 
 /// `step-09-social.md` C3 / F-6: on a street that five places open onto, a person heads for a door
 /// chosen by the draw — every door is chosen by some seed or window, the same door is kept for a
 /// whole `DOOR_WINDOW`, and walking on is what people on a street mostly do.
 ///
-/// Every door is placed within a stride of the observer, so a decision to leave is a crossing and its
-/// destination says which door was chosen; no distance is computed by the test.
+/// A decision to leave is a `walk-to` entering the door's place, so its destination says which door
+/// was chosen; no distance is computed by the test.
 #[test]
 fn on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window() {
     const DOOR_WINDOW: i64 = 21_600;
@@ -382,13 +470,13 @@ fn on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window(
             let Some(to) = controller(seed)
                 .decide(&observation)
                 .as_ref()
-                .and_then(moved_to)
+                .and_then(enters)
             else {
                 continue;
             };
-            if to.place() != place(STREET) {
+            if to != place(STREET) {
                 crossings += 1;
-                this_window.insert(to.place().entity_id().raw());
+                this_window.insert(to.entity_id().raw());
             }
         }
         assert!(
@@ -402,10 +490,10 @@ fn on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window(
             ..street.clone()
         }
         .build();
-        if let Some(to) = controller(seed).decide(&later).as_ref().and_then(moved_to)
-            && to.place() != place(STREET)
+        if let Some(to) = controller(seed).decide(&later).as_ref().and_then(enters)
+            && to != place(STREET)
         {
-            chosen.insert(to.place().entity_id().raw());
+            chosen.insert(to.entity_id().raw());
         }
     }
     println!("{crossings} crossings in {consults} consults; doors chosen {chosen:?}");
@@ -420,49 +508,73 @@ fn on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window(
     );
 }
 
+/// SD-N16: `step` asks for the next stride of *my* walk — `walk-step`, by me, with no payload but an
+/// empty one — exactly when my walk is disclosed and the world offers `walk-step`; otherwise nothing.
 #[test]
-fn a_stride_never_exceeds_the_published_bound_in_any_direction() {
-    let stride = i64::from(MAX_STRIDE.value());
-    let from = spot(0, 0);
-    let targets = [
-        (1, 0),
-        (0, 1),
-        (-1, 0),
-        (0, -1),
-        (2_001, 0),
-        (0, -2_001),
-        (5_000, 5_000),
-        (-7_123, 3_001),
-        (1_414, 1_415),
-        (2_000_000, 1),
-        (3, -4),
-        // Located in step-09 C3: the café door from (−6 232, −1 351) on the street. Divided by the
-        // floored root (7 600 for 7 600.6) this proposed (1 640, 1 145) — 2 000.16 mm, refused.
-        (6_232, 4_351),
+fn step_asks_for_my_stride_only_while_my_walk_is_disclosed_and_offered() {
+    let cases = [
+        (
+            true,
+            true,
+            false,
+            true,
+            "my walk disclosed, walk-step offered",
+        ),
+        (true, false, false, false, "walk-step not offered"),
+        (false, true, false, false, "no walk of mine disclosed"),
+        (false, true, true, false, "only Bob's walk disclosed"),
     ];
-    // And a sweep of directions and lengths, every one checked exactly.
-    let swept = (-9_000..=9_000)
-        .step_by(997)
-        .flat_map(|x| (-9_000..=9_000).step_by(1_009).map(move |y| (x, y)));
-    for (x, y) in targets.into_iter().chain(swept) {
-        let to = spot(x, y);
-        let before = distance(from, to);
-        if let Some(stepped) = toward(from, to, 0) {
-            // Exact, on squared integers: a rounded length would call 2 000.16 mm "2 000" and pass
-            // the very stride the movement system refuses (`ARC-23`).
-            assert!(
-                squared(from, stepped) <= stride * stride,
-                "{} mm toward ({x}, {y})",
-                distance(from, stepped)
-            );
-            assert!(
-                distance(stepped, to) < before,
-                "the stride toward ({x}, {y}) gets closer"
-            );
-        }
-        // Stopping short never overshoots the stop.
-        if let Some(stepped) = toward(from, to, 1_000) {
-            assert!(distance(stepped, to) >= 1_000 - 1, "toward ({x}, {y})");
+    for (my_walk, offered, bobs_walk, steps, what) in cases {
+        let view = View {
+            my_walk: my_walk.then_some(Destination::Place(in_cafe(6_000, 6_000))),
+            walk_step_offered: offered,
+            bobs_walk,
+            ..View::new()
+        };
+        let asked = controller(7).step(&view.build());
+        assert_eq!(asked.is_some(), steps, "{what}");
+        if let Some(request) = asked {
+            assert_eq!(*request.action_type(), WalkStep::ACTION_TYPE, "{what}");
+            assert_eq!(request.actor(), id(ME), "{what}: asked by me");
+            assert_eq!(request.target(), None, "{what}: against nobody");
+            assert_eq!(request.payload().payload(), b"{}", "{what}: no payload");
         }
     }
+}
+
+/// SD-N16 / F-N14: `step` never answers, greets or draws. With a line waiting in my window it still
+/// asks only for the stride; its answer is the same for every seed and at every instant; and asking
+/// it twice on one observation gives the same answer.
+#[test]
+fn step_never_answers_takes_no_draw_and_is_a_function_of_the_observation() {
+    let mut view = View {
+        my_walk: Some(Destination::Place(in_cafe(6_000, 6_000))),
+        walk_step_offered: true,
+        heard: vec![said(BOB, "hello", NOW - 30)],
+        ..View::new()
+    };
+    let mut answers = Vec::new();
+    for at in (NOW..NOW + 20 * PACE).step_by(97) {
+        view.at = at;
+        let observation = view.build();
+        for seed in 0..SEEDS {
+            let first = controller(seed).step(&observation);
+            assert_eq!(
+                first,
+                controller(seed).step(&observation),
+                "seed {seed} at {at}"
+            );
+            answers.push(first);
+        }
+    }
+    assert!(
+        answers.windows(2).all(|pair| pair[0] == pair[1]),
+        "one answer for every seed and instant"
+    );
+    assert!(
+        answers[0]
+            .as_ref()
+            .is_some_and(|request| *request.action_type() == WalkStep::ACTION_TYPE),
+        "and it is the stride, never a reply"
+    );
 }
