@@ -1,6 +1,25 @@
 # PR FG-b — The retention host: `ForgettingPolicy`, the forgotten set, bundled no-LLM policies, ledger pruning
 
-## Lifecycle: DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-12 (primary session; operator QFGb-3, QFGb-6)
+
+```text
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #180, commit 7e7540a) with §14.1's rulings
+                        recorded and §12's contract filled
+Approved by / evidence: the operator's rulings on QFGb-3 and QFGb-6 and the primary session's on QFGb-1,
+                        QFGb-2, QFGb-4, QFGb-5, QFGb-7 … QFGb-11, of 2026-10-12, relayed by the coordinator
+                        (§14.1)
+Implementation base:    origin/main at the start of implementation, with DOC-24 merged (C0 records it)
+Execution contract:     §12
+Lifecycle:              FROZEN. Implementation starts only on the operator's go, in a fresh session.
+Dependencies:           DOC-24 merged (ARC-87, CORE_CONCEPTS §5.3) before C0; DL-a for the typed JSON
+                        MemoryPolicyChoice it emits (QFGb-1) — FG-b does not wait for DL-a (its tests build
+                        the JSON literally); P6 wires the two (R-P6-FG-2)
+```
+
+Scope (§2.1), invariants (§2.3), the decisions of §5 as ruled, the acceptance criteria AFGb-1 … AFGb-14 and
+the commit plan are frozen. Progress, evidence, findings and bounded corrections stay writable (§15).
+
+*Superseded header:*
 
 ```text
 Lifecycle:              DRAFT (2026-10-12). Not frozen; nothing here authorizes implementation
@@ -79,8 +98,8 @@ cursor, and no citation's resolvability: a forgotten Event ID still resolves in 
 - `compress/chapters.py`, `compress/stable.py`, `compress/episodes.py`: the columns schema v2 adds; chapter
   citations as runs of surviving episodes.
 - `budget.py` `SqliteLedger`: pruning (G9, §5.12).
-- `memory/render/movement.py` (new, **only if QFGb-6 is accepted**): `walk-started` / `walk-ended` rendered
-  `ambient` unless mine.
+- `memory/render/movement.py` (new; QFGb-6, accepted by the operator 2026-10-12): `walk-started` /
+  `walk-ended` rendered `ambient` unless mine.
 - Tests (§8), including a deterministic synthetic perceived stream and a real-binary scenario sharing the
   AC-10 save.
 - `docs/MODULE_SPEC.md` §5 (memory policies and their host bounds) and `docs/ARCHITECTURE.md` §9 (controller
@@ -180,6 +199,14 @@ notable importance (QFGb-6). Consequences: (a) step-24's `consolidate` default `
 bound (2 × 460 KB of L0 alone, plus a day's growth); §5.9 sets detail retention in hours with default 0 and
 shows the arithmetic; (b) the bound must be stated at pass points, since one day's growth alone is ≈ 45 % of
 1 MiB (QFGb-2).
+
+**Note, 2026-10-12 (primary session's instruction) — step-24's audit figure re-measured.** Step-24 §2.3
+computes the P4 store's growth as "≈ 195 KB per seat per simulated day" (from P4's 100-day store of
+2026-10-10, before walking). Re-measured above on `origin/main @ cda4c13`: **≈ 433 KB per seat per simulated
+day** (12 996 459 B over 30 days; L0 with its participant rows 392–460 KB per day). Step-24's derived
+figures scale with it: ≈ 130 MB per seat over 300 days, ≈ 1.4 GB for 11 seats of social-cafe, without
+forgetting. Recorded here, not in step-24, by instruction; the step's conclusions (the store explodes first;
+FG-b before P6) hold more strongly.
 
 ---
 
@@ -859,10 +886,13 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **R-FGc-FG-1 (on FG-c).** FG-c adds the assisted branch to `host.py`, the assisted kind to the registry
   and the fallback rule to `selection.py`, and touches nothing else of this host's contract.
 
-## 12. Execution contract (proposed; filled at freeze)
+## 12. Execution contract (filled at freeze, 2026-10-12)
 
-Lines marked *proposed* follow the S10 convention (P4 §12) and become binding only with the operator's or
-primary session's freeze authorization, which is their source. Until then each is `unresolved`.
+Source of every line marked "freeze": the primary session's freeze of 2026-10-12, relayed by the
+coordinator: "record rulings, headers DESIGN FROZEN …, fill execution contracts, note 'implementation starts
+only on the operator's go'". Lines marked "S10 convention" follow P4 §12 and were not separately ruled; the
+freeze adopts them. Endpoints the freeze does not name individually take the working rules' shipped
+defaults (§§14, 21), which it does not narrow; they apply once the operator's go is given.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, step-24 PR FG-b — the retention host
@@ -872,7 +902,7 @@ RELATED / BINDING DOCS:  mvp1/step-24-decision-and-memory.md (§§1.2, 2.3–2.5
                          pr-fg-c-lm-summarise.md (R-FGc-FG-1); overall.md; docs/DECISIONS.md ARC-59, ARC-84,
                          ARC-87, DEP-37; docs/ENGINEERING_STANDARDS.md; docs/REUSE_POLICY.md; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-fg-b, its own, held by one session
-                                                                                 (proposed)
+                                                                 (S10 convention, adopted at freeze)
 BRANCH:                  mvp0/pr-fg-b, created from main                         (operator brief, 2026-10-12)
 IMPLEMENTATION BASE:     origin/main at the start of implementation, with DOC-24 merged; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
@@ -880,7 +910,7 @@ FROZEN INVARIANTS:       §2.3; §5 decisions as ruled in §14; STORE_BOUND 1 04
                          section ceiling (never loosened); every platform
 SEQUENCE:                C0 … C8
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv *; python3 scripts/*; target/*/mineworld *;
-                         mkdir -p; sed -n; shasum -a 256                                 (proposed)
+                         mkdir -p; sed -n; shasum -a 256         (S10 convention, adopted at freeze)
 NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading any key file or
                          secrets.env; using any API key; calling any hosted API; running, pulling or
                          downloading any model                                   (operator brief; QS10-19)
@@ -893,15 +923,17 @@ VALIDATION BUDGET:       unit, static, local integration (incl. one 300-day real
                          calls: none. CI: the PR's runs; no manual dispatch
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-fg-b.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved until freeze (proposed: authorized
-                                                                 in a fresh session)
-                         semantic commits: unresolved until freeze (proposed: authorized, rules §14)
-                         branch push: unresolved until freeze (proposed: authorized, rules §21)
-                         PR creation / update: unresolved until freeze (proposed: authorized, rules §21)
-                         CI repair to review readiness: unresolved until freeze (proposed: authorized)
-                         merge: explicit operator authorization only; rules §22
+ENDPOINT AUTHORITY:      implementation + local validation: authorized ONLY after the operator's go, in a
+                         fresh session                           (freeze, primary session 2026-10-12)
+                         semantic commits: authorized after the go (freeze; working rules §14)
+                         branch push: authorized after the go    (freeze; working rules §21)
+                         PR creation / update: authorized after the go (freeze; working rules §21)
+                         CI repair to review readiness: authorized after the go (freeze; rules §21)
+                         merge: never by the implementation session; explicit operator authorization
+                         only                                    (freeze: "Do not merge"; rules §22)
 POST-MERGE SYNC OWNER:   the primary session owns step-24 §11 and overall.md; the implementation session
-                         owns this document's ledger, evidence, deviations and remaining issues  (proposed)
+                         owns this document's ledger, evidence, deviations and remaining issues
+                                                                 (S10 convention, adopted at freeze)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -918,6 +950,19 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | R-FGb-7 | Removing the movement renderer's notable walks changes AC-10's numbers. | AC-10 has no literal counts (P4 R-P4-3); bounds and oracles are computed from the export. |
 
 ## 14. Operator questions (each with a recommendation)
+
+### 14.1 Rulings, 2026-10-12 (relayed by the coordinator)
+
+| Id | Ruling |
+| --- | --- |
+| **QFGb-3** | **Operator: accepted.** `consolidate` keeps exact detail by the hour, `l0_hours` default 0 (§5.9). |
+| **QFGb-6** | **Operator: accepted.** `memory/render/movement.py` is in scope: other people's walks are background (`ambient`) (§2.1, §5.4, C2). |
+| **QFGb-1** | **Primary: (a).** DL-a's Rust reader emits typed JSON `MemoryPolicyChoice` per seat (DL-a's design is being updated to say so). FG-b validates the policy name — and its parameters — when the cognition process starts (`resolve`, §6). FG-b's tests build the JSON literally; FG-b does not wait for DL-a. |
+| QFGb-2, QFGb-4, QFGb-5, QFGb-7 … QFGb-11 | **Primary: accepted as recommended.** |
+| Re-measurement | **Primary:** record the 433 KB per seat per day as a dated note in this document (§3.2), not in step-24. Done. |
+| Freeze | **Primary session, 2026-10-12:** FG-b DESIGN FROZEN; implementation starts only on the operator's go, in a fresh session; do not merge (§12). |
+
+### 14.2 The questions as asked (kept for review)
 
 **[operator]** marks a scope, cost or product decision; **[primary]** one the primary session decides.
 

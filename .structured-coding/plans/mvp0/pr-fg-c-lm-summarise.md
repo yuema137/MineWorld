@@ -1,6 +1,26 @@
 # PR FG-c — `lm-summarise`: LLM-assisted forgetting through P5's gateway, cassette-replayed, with a recorded fallback
 
-## Lifecycle: DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-12 (primary session; operator QFGb-3, QFGb-6)
+
+```text
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #180, commit 6a3496a) with §13.1's rulings
+                        recorded and §11's contract filled
+Approved by / evidence: the primary session's rulings of 2026-10-12, relayed by the coordinator: QFGc-1 …
+                        QFGc-7 accepted as recommended; FG-b frozen the same day with the operator's QFGb-3
+                        and QFGb-6 (§13.1)
+Implementation base:    origin/main with FG-b merged (C0 records it)
+Execution contract:     §11
+Lifecycle:              FROZEN. Implementation starts only on the operator's go, in a fresh session, after
+                        FG-b merges.
+Dependencies:           FG-b merged (which itself needs DOC-24); DL-a for the typed JSON MemoryPolicyChoice
+                        (QFGb-1), wired by P6
+```
+
+Scope (§2.1), invariants (§2.3), §5's decisions, AFGc-1 … AFGc-9 and the commit plan are frozen. Progress,
+evidence and bounded corrections stay writable (§14). FG-b was frozen together with this design, so C0's
+check of FG-b's interface is against frozen §§5.2–5.7 of `pr-fg-b-retention-host.md`.
+
+*Superseded header:*
 
 ```text
 Lifecycle:              DRAFT (2026-10-12). Not frozen; nothing here authorizes implementation
@@ -436,7 +456,12 @@ changes: that is its purpose (drift guard). Re-recording is a deliberate, review
 - **R-FGb-FGc-1 (on FG-b's freeze).** Keep `RetentionBudget.calls_left`, the async `absorb`, and the
   one-transaction pass, which FG-c relies on.
 
-## 11. Execution contract (proposed; filled at freeze)
+## 11. Execution contract (filled at freeze, 2026-10-12)
+
+Source of every line marked "freeze": the primary session's freeze of 2026-10-12, relayed by the
+coordinator ("fill execution contracts, note 'implementation starts only on the operator's go'"). Lines
+marked "S10 convention" follow P4 §12 and are adopted by the freeze. Unnamed endpoints take the working
+rules' shipped defaults (§§14, 21), which apply once the operator's go is given.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, step-24 PR FG-c — lm-summarise
@@ -445,14 +470,14 @@ RELATED / BINDING DOCS:  pr-fg-b-retention-host.md (as frozen and merged); mvp1/
                          (§§1.2, 8.3, 10, 14.1 QS24-6); pr-s10-p5-backends.md; pr-s10-p4-memory.md;
                          docs/DECISIONS.md ARC-56 … ARC-59, ARC-87; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-fg-c, its own, held by one session
-                                                                                 (proposed)
+                                                                 (S10 convention, adopted at freeze)
 BRANCH:                  mvp0/pr-fg-c, created from main after FG-b merges        (operator brief, 2026-10-12)
 IMPLEMENTATION BASE:     origin/main with FG-b merged; C0 records it
 APPROVED SCOPE:          §2.1, as frozen
 FROZEN INVARIANTS:       §2.3; FG-b's FGb-1 … FGb-7; 6 000 B per request; CALLS_CAP 24; QS24-6 as ruled
 SEQUENCE:                C0 … C5
 ALLOWED COMMANDS:        git; gh (never merge); uv *; python3 scripts/*; mkdir -p; sed -n; shasum -a 256
-                                                                                 (proposed)
+                                                                 (S10 convention, adopted at freeze)
 NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading any key file or
                          secrets.env; using any API key; calling any hosted API; running, pulling or
                          downloading any model; recording a cassette from anything but ScriptedBackend
@@ -464,14 +489,16 @@ VALIDATION BUDGET:       unit, static, scripted and replayed integration: unrest
                          CI: the PR's runs; no manual dispatch
 LIVE DOCUMENTATION:      this document (§14)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-fg-c.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved until freeze (proposed: authorized)
-                         semantic commits: unresolved until freeze (proposed: authorized, rules §14)
-                         branch push: unresolved until freeze (proposed: authorized, rules §21)
-                         PR creation / update: unresolved until freeze (proposed: authorized, rules §21)
-                         CI repair to review readiness: unresolved until freeze (proposed: authorized)
-                         merge: explicit operator authorization only; rules §22
+ENDPOINT AUTHORITY:      implementation + local validation: authorized ONLY after the operator's go and
+                         FG-b's merge, in a fresh session        (freeze, primary session 2026-10-12)
+                         semantic commits: authorized after the go (freeze; working rules §14)
+                         branch push: authorized after the go    (freeze; working rules §21)
+                         PR creation / update: authorized after the go (freeze; working rules §21)
+                         CI repair to review readiness: authorized after the go (freeze; rules §21)
+                         merge: never by the implementation session; explicit operator authorization
+                         only                                    (freeze: "Do not merge"; rules §22)
 POST-MERGE SYNC OWNER:   the primary session owns step-24 and overall.md; the implementation session owns
-                         this document's ledger                                  (proposed)
+                         this document's ledger                  (S10 convention, adopted at freeze)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -486,6 +513,16 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | R-FGc-5 | FG-b's freeze changes the interface FG-c assumed. | FG-c freezes after FG-b; C0 checks; a revision first. |
 
 ## 13. Operator questions (each with a recommendation)
+
+### 13.1 Rulings, 2026-10-12 (relayed by the coordinator)
+
+| Id | Ruling |
+| --- | --- |
+| QFGc-1 … QFGc-7 | **Primary: accepted as recommended.** |
+| FG-b's rulings that bind FG-c | QFGb-1 (a): `MemoryPolicyChoice` arrives as typed JSON from DL-a's Rust reader; `resolve` validates policy, fallback and parameters at cognition start (§6). QFGb-3: `consolidate`'s `l0_hours` default 0, so `lm-summarise`'s default groups are each closed episode's L0 records of the previous day (§5.4 "Groups"). |
+| Freeze | **Primary session, 2026-10-12:** FG-c DESIGN FROZEN; implementation starts only on the operator's go, after FG-b merges; do not merge (§11). |
+
+### 13.2 The questions as asked (kept for review)
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
