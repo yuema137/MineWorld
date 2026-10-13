@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500" role="img" aria-label="MineWorld：搭一个活的世界，再走进去。">
+<rect width="1600" height="500" rx="24" fill="#fbfaf7"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<text x="64" y="104" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" letter-spacing="3" fill="#b8792b">OPEN SOURCE · MINEWORLD</text>
+<text x="64" y="196" font-size="68" font-weight="600" fill="#1d2433">搭一个活的世界，</text>
+<text x="64" y="276" font-size="68" font-weight="600" fill="#b8792b">再走进去。</text>
+<text x="64" y="340" font-size="26" fill="#4a5568">用模块把人、地方和规则拼起来。</text>
+<text x="64" y="378" font-size="26" fill="#4a5568">一台服务器让世界一直运转，2D 和 3D 是看它的两种方式。</text>
+<path d="M64 420 H1536" stroke="#e3e0d8" stroke-width="2"/>
+<g font-size="21" fill="#4a5568">
+<text x="64" y="466">开源 · MIT 许可证</text>
+<text x="330" y="466">有没有 AI 都能运行</text>
+<text x="640" y="466">macOS · Linux · Windows</text>
+<text x="1536" y="466" text-anchor="end" fill="#b8792b">早期预览版（pre-alpha）</text>
+</g>
+<g font-size="22" fill="#1d2433">
+<rect x="1026" y="72" width="250" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1052" cy="100" r="7" fill="#2f7d4f"/><text x="1070" y="108">会过日子的小镇</text>
+<rect x="1290" y="72" width="246" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1316" cy="100" r="7" fill="#2f7d4f"/><text x="1334" y="108">2D 和 3D 视图</text>
+<rect x="1026" y="144" width="250" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1052" cy="172" r="7" fill="#2f7d4f"/><text x="1070" y="180">规则模块</text>
+<rect x="1290" y="144" width="246" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1316" cy="172" r="7" fill="#2f7d4f"/><text x="1334" y="180">你自己的规则</text>
+<rect x="1026" y="216" width="250" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1052" cy="244" r="7" fill="#2f7d4f"/><text x="1070" y="252">多人一起玩</text>
+<rect x="1290" y="216" width="246" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1316" cy="244" r="7" fill="#2f7d4f"/><text x="1334" y="252">存档与重放</text>
+<rect x="1026" y="288" width="250" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1052" cy="316" r="7" fill="#d4a017"/><text x="1070" y="324">AI 角色</text>
+<rect x="1290" y="288" width="246" height="56" rx="12" fill="#ffffff" stroke="#e3e0d8" stroke-width="2"/>
+<circle cx="1316" cy="316" r="7" fill="#d4a017"/><text x="1334" y="324">很多小镇</text>
+<g font-size="17" fill="#4a5568">
+<circle cx="1034" cy="378" r="6" fill="#2f7d4f"/><text x="1048" y="384">现在就能用</text>
+<circle cx="1182" cy="378" r="6" fill="#d4a017"/><text x="1196" y="384">即将到来</text>
+</g>
+</g>
+</g>
+</svg>

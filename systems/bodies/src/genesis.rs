@@ -140,10 +140,11 @@ pub(crate) fn fits(
     doorways_fit(world, place, &room)
 }
 
-/// SD-D5 (step-11 §19; `ARC-39` note 5): every doorway point of `place` lies where a person fits —
+/// SD-D5 (step-11 §19; `ARC-39` note 7): every doorway point of `place` lies where a person fits —
 /// inside the floor shrunk by a radius and the gap, and at least that far from every solid. Otherwise
 /// every crossing would be shifted silently by entry placement (E3) rather than land on the doorway
-/// (F-B7). Read from `movement`'s [`Passages`], the one item of that crate this pack names (QD-5).
+/// (F-B7). Read from `movement`'s [`Passages`], the one item of that crate this pack names besides the
+/// Wayfinder seam (QD-5; `ARC-39` note 5).
 fn doorways_fit(world: &WorldRead<'_>, place: PlaceId, room: &Room) -> Result<(), Rejection> {
     let keep = PERSON_RADIUS.value() + GAP.value();
     for (other, at) in doorways(world, place) {

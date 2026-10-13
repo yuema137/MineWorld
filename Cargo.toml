@@ -14,6 +14,9 @@ members = [
     "tests/acceptance",
     "tests/support",
     "tools/cli",
+    # A developer tool, never part of a world's build: the only crate allowed an HTTP client, behind
+    # its off-by-default `fetch` feature (DECISIONS.md DEP-31, step-19 INV-TW-7).
+    "tools/weather-fetch",
     "worldpack",
 ]
 resolver = "2"
@@ -58,6 +61,12 @@ trybuild = "1.0.121"
 # Durable local world state (DEP-2): SQLite compiled into the binary by the `bundled` feature, so a
 # local server has no system dependency. Named only inside `persistence/src/sqlite.rs`.
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+
+# Snapshot compression (DEP-43, ARC-81): a stored snapshot is a zstd frame of its JSON. Default features
+# off — no legacy formats, no dictionary builder, no multithreading — and libzstd built from the source
+# bundled in zstd-sys, so the stored bytes are the same on every platform. Named only inside
+# `persistence/src/format.rs`.
+zstd = { version = "0.13", default-features = false }
 
 # YAML, for World Packs. `serde_yaml` is archived and every fork of its lineage sits on the
 # archived `unsafe-libyaml`; `serde-saphyr` is a maintained parser with a stable major version, no

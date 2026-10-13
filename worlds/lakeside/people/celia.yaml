@@ -1,0 +1,22 @@
+# Celia — the schoolteacher. Sections as in alba.yaml.
+
+name: Celia Okafor
+
+routine:
+  - { from: "06:00", place: square, label: walk }
+  - { from: "10:00", place: pier, label: fishing }
+  - { from: "15:00", place: bakery, label: tea }
+  - { from: "19:00", place: cottages, label: home }
+
+tags:
+  - teacher
+
+note: Teaches the village's few children and knows everybody's business.
+
+location:
+  place: cottages
+  position:
+    x: 2500
+    y: 3000
+
+holdings: { tea: 1, cheese: 1 }

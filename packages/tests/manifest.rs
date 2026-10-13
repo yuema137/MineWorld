@@ -98,9 +98,9 @@ fn every_bad_pack_file_is_refused_naming_what_is_wrong() {
             &["type system-pack", "Cargo.toml"],
         ),
         (
-            "an entity pack, before E-d",
+            "an entity pack without items",
             GOOD.replace("presentation-pack", "entity-pack"),
-            &["type entity-pack", "E-d"],
+            &["entity-pack", "declares nothing", "items/<key>.yaml"],
         ),
         (
             "an asset pack",
@@ -150,6 +150,70 @@ fn a_style_manifest_needs_an_id_and_a_dimension() {
             refusal.contains("manifest.yaml") && refusal.contains(needle),
             "{refusal}"
         );
+    }
+}
+
+/// An Entity Pack is identified with its layout (`ARC-71` point 1, step-16 §17.5 ED-10): item kinds
+/// only, at least one. A file in `items/` that is not `.yaml` is not content, so it neither counts nor
+/// is refused; whether a file's name is a key is the loader's question, not this crate's. Written with
+/// CRLF, `pack.yaml` is the same identity (PD-q1).
+#[test]
+fn an_entity_pack_carries_item_kinds_and_nothing_else() {
+    let entity = GOOD
+        .replace("presentation-pack", "entity-pack")
+        .replace("style-pack", "goods");
+    let scratch = Scratch::new("entity");
+    scratch.write("pack.yaml", &entity);
+    scratch.write("items/README.md", "not content\n");
+    let refusal = mineworld_packages::read_pack_file(&scratch.0)
+        .expect_err("a README is not a kind")
+        .to_string();
+    assert!(refusal.contains("declares nothing"), "{refusal}");
+
+    scratch.write("items/bread.yaml", "tags: [food]\n");
+    let identity = mineworld_packages::read_pack_file(&scratch.0).expect("one kind is enough");
+    assert_eq!(identity.kind, PackType::EntityPack);
+    assert_eq!(identity.id.as_str(), "goods");
+
+    scratch.write("pack.yaml", &entity.replace('\n', "\r\n"));
+    assert_eq!(
+        mineworld_packages::read_pack_file(&scratch.0).expect("CRLF reads"),
+        identity,
+        "CRLF is not content"
+    );
+
+    for directory in ["places", "people", "organizations"] {
+        let path = scratch.write(&format!("{directory}/a.yaml"), "tags: [x]\n");
+        let refusal = mineworld_packages::read_pack_file(&scratch.0)
+            .expect_err(directory)
+            .to_string();
+        assert!(
+            refusal.contains(&scratch.0.join(directory).display().to_string())
+                && refusal.contains("item kinds only in MVP-0"),
+            "{directory}: {refusal}"
+        );
+        std::fs::remove_dir_all(path.parent().expect("its directory")).expect("removed");
+    }
+}
+
+/// A data pack's own `mineworld:` range is checked against the running framework (`ARC-54` note,
+/// F-Ed1): it was stated and never compared before E-d.
+#[test]
+fn a_data_pack_range_that_excludes_the_framework_is_refused_naming_both() {
+    // Its own texts: `read` names its scratch by the text, and another test reads `GOOD` concurrently.
+    let identity = read(&format!("{GOOD}# in range\n")).expect("reads");
+    identity.require_framework().expect("^0.1 admits 0.1.0");
+    let out_of_range = read(&GOOD.replace("\"^0.1\"", "\"^9\"")).expect("identified all the same");
+    let refusal = out_of_range
+        .require_framework()
+        .expect_err("^9 does not admit 0.1.0")
+        .to_string();
+    for needle in [
+        "style-pack",
+        "\"^9\"",
+        mineworld_packages::FRAMEWORK_VERSION,
+    ] {
+        assert!(refusal.contains(needle), "{needle:?} not in {refusal}");
     }
 }
 

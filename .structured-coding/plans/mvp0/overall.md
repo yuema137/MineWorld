@@ -823,10 +823,289 @@ level.
   `worldpack/src/{format,read}.rs` adjacently, so whichever PR merges second performs the mechanical
   merge.
 
+## Operator requirements and rulings, 2026-10-08 to 2026-10-09
+
+These are binding on every step from the date recorded. Each lane's design records how it meets them;
+this section is the index.
+
+### Every platform
+
+> "我们要保证支持全平台，mac linux windows都可以" (2026-10-08)
+
+- MineWorld supports macOS, Linux and Windows. Every design names its behaviour on each: paths,
+  signals and process control, line endings, file locking, display modes, fonts and settings folders.
+- A test that cannot run on one platform is a recorded finding with an owner lane, never a silent skip.
+- CI: S13 13b adds AC-8 parity legs (macOS runner, Linux x86_64 container, Linux arm64, Windows) and a
+  non-required `test-windows`; 13w makes the default suite portable and adds `test-macos`. Making the
+  Windows and macOS suites required checks is an open operator question (QB-11).
+
+### Realistic defaults
+
+> "我们应该跟真实世界靠拢" (2026-10-08)
+
+- Physical and behavioural defaults follow real-world values, and a design states the reference next to
+  each default. First application: `PERSON_RADIUS` 300 → 250 mm (shoulder breadth plus clothing), in 12d.
+- Defaults remain content: the World Interaction List (S17, IL-c onward) makes them configurable per world.
+
+### Classical-mechanics realism (2026-10-09)
+
+> "我们最终希望我们的这个小世界，在经典力学范围内是可以1:1复刻真实世界的，当然精度不需要那么高，但是要满足基本的
+> 真实，比如说水流，比如说，风吹的树叶动之类的，这些都需要比较真实。"
+
+- The long-term target is approximate 1:1 reproduction of the real world within classical mechanics.
+- The boundary, binding on every design:
+  - **Authoritative simulation** changes world state and is server-side and deterministic (bodies,
+    objects, and later anything a body can interact with, such as wading or floating). Its physical
+    parameters have real-world defaults and become World Interaction List content.
+  - **Presentation-only physics** changes no world state (foliage in the wind, water-surface flow, cloth,
+    hair). It may run in the client, but it is driven by disclosed server state — wind from the `weather`
+    pack (S19 TW-b), the sun from `calendar` (TW-a) — so every view and every player sees the same wind.
+    It never decides anything.
+- Visual realism is also required: the operator judged the shop goods crude and the distant mountains and
+  river "very fake" (2026-10-09). Design: S22 (`.structured-coding/plans/mvp1/step-22-realism.md`,
+  in planning), including quick wins inside current MVP-0 lanes.
+
+### Navigation before walls (2026-10-09)
+
+- With walls (12d), NPCs that walk in straight lines stop short on 62 % of moves and miss their agendas.
+  The operator ruled: add pathfinding first; 12d waits. **12n** adds server-side route planning
+  (`walk-to`, a `Wayfinder` catalog implemented by `bodies`, the `pathfinding` crate's A* over an integer
+  visibility graph). Routes are server-authoritative; strides are client- and host-paced in wall time
+  (`walk-step`), so the time scale never speeds up walking (S19 §4). Order: 12n-1 → 12n-2 → 12d.
+
+### AC-1 check 3: generic packs (2026-10-09)
+
+- Market Town is Social Café plus exactly the six market packs — the claim is unchanged — followed only
+  by packs on an explicit allow-list of generic packs (`calendar`, then `weather`, …), each enabled and
+  configured through the `configure:` seam, with their named `data/` attachments. Recorded as ARC-35 notes
+  by TW-a and TW-d.
+
+### One world of many regions, linked by transport (2026-10-09; MVP-1 main line)
+
+> "下一个我们需要解决的问题，就是怎么样才能让不同的小世界连起来，产生了一个有大世界的感觉……我们应该把不同的小世界用
+> 交通工具给联系起来，然后交通工具一律用火车或者汽车。乘坐交通工具的时候，就按照当前地点和要去的地点的风景特征之类的
+> 安插一小段……到了一个新的小世界，就可以再加载那一边的素材……我们肯定是需要有一个地图的功能"
+
+Rulings:
+
+1. **Design now, implement after MVP-0** as MVP-1's main line. MVP-0 designs must not preclude it.
+2. **One world, many regions.** One server, one timeline; every region is simulated all the time (the
+   simulation is cheap); NPCs may live across regions. A world author composes region packs into a world.
+   Clients load presentation assets per region and release them on leaving.
+3. **Transport is trains and cars**, an optional System Pack: lines, stops, timetables, fares through the
+   economy, NPCs commuting. A trip takes calendar time; the ride's window scenery, chosen from the origin
+   and destination's landscape tags, lasts the trip in wall time and doubles as the destination's loading.
+4. **The carriage is a place.** Riders can walk about and talk to NPCs and players on board.
+5. **Maps:** a local region map and a world map (regions, lines, roads), served by the server and drawn by
+   both clients.
+
+Design: S21 (`.structured-coding/plans/mvp1/step-21-regions-travel.md`, in planning), including an
+MVP-0 non-preclusion audit.
+
+### Decision numbers assigned since the parallel build-out table
+
+| Step / PR | ARC | DEP |
+| --- | --- | --- |
+| S16 E-c | ARC-66 | DEP-22 (cargo-deny), DEP-23 (the external pack) |
+| S19 | ARC-67 (time terms, TW-a), ARC-68 (weather, TW-b), ARC-69 (host clock, TW-c) | DEP-30 (solar position, TW-a), DEP-31 (weather data, TW-d) |
+| S12 13b | ARC-70 (wording and translation in packs) | — |
+| S16 E-d | ARC-71 | — |
+| S11-D | ARC-44 (from S11's reserve) | — |
+| S10 P3 | ARC-56 | DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed) |
+| S10 P5a / P5b | ARC-57, ARC-58 (P5a), ARC-60 (P5b); ARC-72, ARC-73, ARC-74 reserved for P4 and P6 | DEP-27 (`httpx2`), DEP-32 (`python-dotenv`, P5a), DEP-33 (native Anthropic adapter, P5b) |
+| S15 12n-1 | ARC-75 (walking and wayfinding; first drafted as ARC-73, renumbered before merge) | DEP-34 (`pathfinding`) |
+| S20 SET-a | ARC-76 (first drafted as ARC-72, renumbered before merge) | DEP-35, DEP-36 (first drafted as DEP-32 and DEP-33) |
+| S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5 matching) |
+| S16 E-e | ARC-77 (Lakeside, the repository's own Entity Pack) | — |
+| S23 release | ARC-78 (windowless launcher), ARC-79 (release channels and versioning), ARC-80 (bundle layout and per-user data) | DEP-38 (cargo-about), DEP-39 (butler), DEP-40 (syft), DEP-41 (Godot export templates), DEP-42 (actions/attest) |
+| S6 save retention (`pr-s6-save-retention.md`, design frozen #145, 2026-10-10) | ARC-81 (retention and codec, D-SR-1 … D-SR-9) | DEP-43 (`zstd`) |
+| S10 P3b (`pr-s10-p3b-perceived.md`, design frozen #149, 2026-10-10) | — (no ARC record) | DEP-44 (own reconnect loop; the `websockets` reconnect iterator, `tenacity` and its backoff declined) |
+| S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
+| S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
+| S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
+| S12 13c doorway names (`pr-13c-doorway-names.md`, merged #161) | ARC-82 (a doorway discloses its destination's tags) | — |
+| S13 13c nightly (`pr-13c-nightly.md`, design frozen #158) | ARC-83 | DEP-45 |
+| Prior-art audit (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11) | — | DEP-46 (no shared-world or AI-NPC framework adopted) |
+
+The next free numbers are ARC-84 and DEP-47. ARC-81 and DEP-43 were assigned to S6 save retention, and
+DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
+An implementation session never picks a number; it asks
+the primary session, which records the assignment here before the PR merges. Two collisions on
+2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
+S10 PR designs) are why this table now lists reservations as well as assignments.
+
+### Evening of 2026-10-09: merges and review findings
+
+Merged after the primary session's review (gates re-run on the exact head plus one mutation of its own):
+
+| PR | Merge commit | Review mutation | Caught by |
+| --- | --- | --- | --- |
+| #99 E-c, third-party pack | `0ba037f` | `origin_word` always "bundled" | `packs::every_system_pack_is_listed_bundled_or_third_party_as_the_build_compiled_it` |
+| #95 S11-C, perception | `370bb38` | `Visibility::Place` admits every observer | `tools/cli/tests/facts.rs::a_line_reaches_who_was_there_and_nobody_else` only |
+| #116 12n-1, the walk | `ecc8d40` | `walk::toward` returns the target within two strides | four `tools/cli/tests/walking.rs` tests |
+| #120 S10 P5a, backends | `60a6295` | the budget window counts charges 2 s older than its edge | `test_budget.py::test_the_21st_call_in_a_wall_hour_is_refused_before_the_backend` |
+
+Closeout records: #119 (E-c), #122 (S11-C), #123 (12n-1).
+
+Operator ruling (12n-1 material stop M-1): at R 250, SD-N11 claim 2 is restated as "nudge chains are
+bounded and a stride may be blocked; a blocked walker re-plans" (option (a)); recorded in step-11 §21.15.
+
+Test-gap findings, each owned by the next PR that touches the file:
+
+- **F-SC1 / F-PRES-1.** The S11-C mutation (in `systems/presence/src/audience.rs` `admits`) survived
+  presence's own unit tests and `server/tests/facts.rs`; only the CLI end-to-end test caught it. Presence's
+  unit test needs an observer outside the place for the `Place` case.
+- **F-12n-R1.** `walk.rs`'s unit test has no case between one and two strides; add a 2 000 mm case
+  expecting exactly (1 340, 0).
+- **F-P5-4.** On Windows, asyncio's default loop connects without `socket.connect`, so pytest-socket does
+  not guard async connections. Fixed for the cognition suite (selector loop); the `sdk/python` suite (P3)
+  still has the gap. Owner: S10.
+
+The operator's local-model spike (S10 C7) is now runnable; it blocks P6's freeze, not P5b.
+
+Also merged: #117 S20 SET-a, shared client settings (`44ac762`; review mutation: `action.walk-to`
+removed from `zh_Hans.po`, caught by `client_text::the_catalogs_are_complete_and_consistent`).
+
+### Late evening of 2026-10-09: merges, rulings, and a CI rule
+
+Merged after review (primary mutation in brackets, each caught by name unless noted):
+
+| PR | Merge commit | Review mutation |
+| --- | --- | --- |
+| #126 S10 P5b, Anthropic adapter and CLI bridge | `5f9b8bb` | `_NEVER_PASSED` filter dropped → `test_the_environment_is_an_allowlist` |
+| #118 S13 13w, default suite on Windows and macOS | `0345922` | `interrupt` sends SIGKILL → `admin::an_interrupt_stops_an_administered_server_gracefully`; `ended_by_kill` accepting SIGTERM survived (F-13w-R1, equivalent today) |
+| #121 S19 TW-d, San Diego record weather | `9f06d0e` | fog dropped on record days survived the default suite at first (TWd-R1); fixed before merge, now caught by `record_days_replay_their_rows_fog_thunder_and_wind` |
+| #115 README rework (WeKnora-style banner, diagrams, tour) | `37cb52a` | docs only |
+| #133 S13 13x, docs-only changes skip the build | `9f5c176` | `server/PROTOCOL.md` treated as docs → `ci_changes.py --self-test` |
+
+Closeout records: #127 (SET-a), #129 (P5b), #130 (13w), #132 (TW-d).
+
+Operator rulings:
+
+- **P5b C4 (Codex subscription opt-in):** merge P5b without it; C4 becomes P5c once the operator pastes the
+  current OpenAI Terms of Use and `codex exec --help`.
+- **TWd-F4:** one `deny.toml` licence exception for `webpki-roots` (CDLA-Permissive-2.0, root-certificate
+  data, reached only through the weather tool's off-by-default `fetch` feature); notes under DEP-22 and DEP-31.
+- **RL-b M-6 (3D budget):** accept the slight visual change — VoxelGI 256 → 128 and soft-shadow quality
+  3 → 2. Frame time p95 ≤ 16.7 ms and video memory ≤ 2048 MB stay binding; draw calls and primitives
+  become advisory. Mipmap softening (C3) accepted. The skyline preview is not kept; it returns with S22's
+  sea surface and real terrain.
+- **README and other public pages ship early:** merge a first version once it is honest (✅/🚧), iterate in
+  follow-up PRs, never hold it for review rounds.
+- **Documentation-only changes do not run the build** (operator, 2026-10-09: "纯文档更新不应该触发ci").
+  Implemented by 13x: a `changes` job classifies the diff against an audited docs set (`docs/**`,
+  `.structured-coding/plans/**`, root `README*.md`, `CLAUDE.md`); docs-only runs only the doc checks
+  (about 20 s) and the other jobs are skipped; `push` runs only for `main` and `scratch/**`. Docs-only PRs
+  may be merged as soon as `fast` passes.
+
+QB-11 (make `test-windows` and `test-macos` required) is now decidable: 13w is green on all three systems.
+`test-windows` takes about 43 minutes on a PR, which is the cost of making it required.
+
+### Milestone F — walk, walls, interact (operator hands-on gate)
+
+Milestone F is the operator's next hands-on acceptance, named in conversation on 2026-10-08 and
+defined here so later documents can cite it. It is not an MVP-0 acceptance criterion of its own; it
+is the point at which the primary session stops and hands the operator one numbered checklist
+(see the standing rule in §5: at a milestone, stop and give the operator a short runnable test list).
+
+| Prerequisite | Lane | State on 2026-10-09 |
+| --- | --- | --- |
+| 12n-1, the walk (server routes) | S15 | merged (#116) |
+| 12n-2, people walk there | S15 | in progress (#125) |
+| 12d, the towns get walls | S15 | waiting for 12n-2; merges immediately after it (QN-2) |
+| 16c, the living street in 3D | S14 | waiting for 12d |
+| SET-a, shared settings | S20 | merged (#117) |
+| 2D menus and interaction (13a / IL-b) | S12 | merged (#82, #102, #103) |
+
+The checklist covers, on the operator's own machines: walking round walls and furniture in both
+clients; doors; people walking to their agenda places at 1.34 m/s on screen at every time scale;
+the interaction menu and its refusals in 2D and 3D; the settings menu (language, clock, display); and
+the hand checks carried from SET-a (`docs/MVP_STATUS.md`, "Carried to milestone F": H-1 … H-10 on
+Windows and Linux, and the macOS manual items).
+
+### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
+
+- A 30-day Market Town save measures 266 MB: a full snapshot every 64 revisions, none ever pruned
+  (≈ 2.5 GB per 300 days). Owner: the persistence lane (S6 follow-up), to design snapshot retention and
+  compaction without weakening byte-exact replay (ARC-25).
+- 2026-10-10: snapshots resolved by #153 (merge `97e92a0`; 300-day save 3 795 013 632 B → 615 399 424 B,
+  −83.8 %; 30-day 373 882 880 B → 62 029 824 B, −83.4 %). The log still grows ≈ 1.9 MiB per simulated
+  day; SR-b (sealed-block log compression, ≈ 40 MiB per 300 days) is the follow-up per QSR-1. F-SAVE-2
+  stays with the kernel lane.
+
+### 2026-10-10: one development session, rulings and freezes
+
+Operator rules:
+
+- **One development session.** Only one Claude session develops MineWorld. Parallel sessions in the
+  folder are stopped; a second session on the same checkout overwrites uncommitted work (§3.1 of
+  `CLAUDE.md`).
+- **Model choice for subagents.** Simple, well-specified tasks go to Haiku 5.5 subagents. Only long,
+  unsplittable work goes to Opus 5.5.
+
+Operator rulings:
+
+- **12n-2, M-2.** NW-4's cost bound is restated as ≤ 2.5× against today's `main`.
+- **12n-2, M-3.** The `route.rs` start snap is fixed inside 12n-2. NW-3 is restated as: geometry-caused
+  stops ≤ 10 %, with person-caused stops printed.
+- **TW-c.** Only a `--solo` world (loopback-only) may exceed 24×. The start-time scale obeys the same rule.
+- **Save retention (S6).** Format-2 saves are refused. SR-b (log compression) is a separate, later PR.
+  There is no player or pack retention configuration.
+- **R-a.** VRAM texture compression is used to meet the size budget (RL-b's BC7 work).
+- **Recommended answers accepted** for SET-b, IL-e, P3b, save retention and TW-c.
+
+Merged:
+
+- #141: test gaps F-PRES-1 and F-12n-R1.
+- #142: the `sdk/python` selector loop; F-P5-4 closed.
+- #151: test servers bind port 0; F-13w-3 closed. A 20-iteration stress run gave 12 port collisions on
+  `main` and 0 on the branch.
+
+Design freezes: #145 (S6 save retention), #147 (S17 IL-e), #149 (S10 P3b), #150 (S19 TW-c).
+
+Finding **F-SAVE-2** (kernel lane). A Process's `state` bytes are stored as a JSON array of numbers,
+which inflates the weather series ≈ 3.7× in every snapshot.
+
+Note. R-c learned from R-a's probe that the official Godot release templates reject `--main-pack`.
+Bundles therefore ship two full client exports (D-Ra-1).
+
+### 2026-10-11: prior-art audit and the deferred follow-ups
+
+**Operator ruling (2026-10-11).** For now only documentation and plan updates. All implementation of
+the audit's ideas is deferred.
+
+The prior-art audit ([`PRIOR_ART_2026-10.md`](../../../docs/references/PRIOR_ART_2026-10.md), merged as
+#166; decision [`DEP-46`](../../../docs/DECISIONS.md)) reviewed shared-world and AI-NPC projects and
+proposed eleven design ideas, PA-1 to PA-11. None is adopted, and none changes a frozen contract. Each
+idea becomes binding only through its own design document and operator ruling. Priorities are those the
+audit assigns. The "before code" column states what must exist first.
+
+| ID | Idea | Priority | Owner lane | What is needed before code | State |
+| --- | --- | --- | --- | --- | --- |
+| PA-1 | Ban wall-clock and unseeded-random calls by lint in simulation crates (`clippy.toml` `disallowed-methods`) | P1 | engineering standards / CI (S13) | none; a short note in `ENGINEERING_STANDARDS.md` | deferred (operator 2026-10-11) |
+| PA-2 | An integration test that a resumed world never re-runs genesis | P1 | persistence (S6) | none; test-only | deferred (operator 2026-10-11) |
+| PA-3 | Name the world identity a save is bound to, and what a System Pack upgrade does to an existing save | P2 | persistence (S6) and packages (S16) | short design and operator ruling; needs an `ARC-` record | deferred (operator 2026-10-11) |
+| PA-4 | Declare per-component replication in the component contract | P2 | contracts / networking (S11) | short design and operator ruling; touches a public contract | deferred (operator 2026-10-11) |
+| PA-5 | Stable keys for authored entities, separate from runtime-spawned ones | P3 | packages (S16) | verify the existing `ARC-71`/`ARC-77` keys, then document the split | deferred (operator 2026-10-11) |
+| PA-6 | Hard budgets at validation and soft budgets as warnings for Presentation Pack assets | P2 | release (S23, R-b) and packages | short design and operator ruling; touches release budgets | deferred (operator 2026-10-11) |
+| PA-7 | Pack permissions declared and checked at load | P3 | packages and interaction list (S16/S17) | short design when third-party packs grow; operator ruling | deferred (operator 2026-10-11) |
+| PA-8 | Watch mode for data packs (re-validate on save) | P3 | CLI and creator tooling | none | deferred (operator 2026-10-11) |
+| PA-9 | Server roles written down, and content-addressed assets | P3 | networking docs (S11) and `DEP-8` | none; documentation | deferred (operator 2026-10-11) |
+| PA-10 | Controller made of small typed parts; the model's free text is a proposal the server validates | P1 for P6's design | S10 P6 design | inside P6's design, which must cite the audit | deferred (operator 2026-10-11) |
+| PA-11 | One bounded retrieval-count knob beside the 6 000-byte retrieval budget | P2 | S10 P6 design | inside P6's design | deferred (operator 2026-10-11) |
+
+Effect on the plan, as the audit records it: no change to MVP-0's scope or order. PA-10 and PA-11 enter
+the P6 design of [`step-17-cognition.md`](step-17-cognition.md), which carries a dated note. Per the
+audit's §6, `REUSE_POLICY.md` §19's "worth auditing next" list is updated: Concordia and AI Town are now
+audited, and AgentSociety and SimWorld remain.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
+| QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
+| QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b`. **2026-10-10:** Ollama installed by the operator; the first spike attempt ran with no model pulled (40/40 HTTP 404) and must be re-run |
 
 
 # 6. Risks
@@ -846,6 +1125,12 @@ level.
 ---
 
 # 7. Current position
+
+**Update 2026-10-09.** Merged since the entry below: S11-A (#76), test hygiene (#77), E-b (#78),
+16a (#79), IL-a (#80), 13a CI (#63, main protected by `fast` and `test`), 12d-0 (#84), 2D 13a (#82),
+S11-B (#83), TW-a (#94), and the frozen designs for 12d, 13b, 16c, S11-C/D, SET-a, S10 P3, E-c/E-d,
+13b CI, 13w, IL-b, 16d, 12e, TW-b/TW-d and 12n. 12d is paused for 12n (navigation). The operator
+requirements of 2026-10-08/09 are indexed in §5 "Operator requirements and rulings".
 
 **Last updated 2026-10-08** (S15: 12c merged as `889d217`; next is 12d. Before that: 12b merged as
 `9c617ed`, 12a as `03f1d7c`; the S9 closeout, 11f merged as `fea2516`, S9 complete, S15 placed).

@@ -15,7 +15,75 @@ use mineworld_kernel::{Emission, SystemIdentity};
 use serde::Deserialize;
 use serde::de::{DeserializeOwned, DeserializeSeed, Deserializer};
 
+use crate::attachment::{Attached, Attachment};
+use crate::classes::{ClassName, EntityClasses};
 use crate::section::{Reference, Seeding};
+
+/// What a configuration is handed besides the assembled world (`ARC-61` note): the world's entity
+/// classes (`ARC-64`) and the bytes of the configuration's own attachments. Read-only.
+///
+/// [`Seeding`], which sections share, does not carry these: a section is about one entity and needs
+/// neither.
+#[derive(Debug, Clone, Copy)]
+pub struct ConfigurationContext<'c> {
+    classes: &'c EntityClasses,
+    attached: &'c Attached,
+}
+
+impl<'c> ConfigurationContext<'c> {
+    /// A context over these classes and these attachments.
+    pub const fn new(classes: &'c EntityClasses, attached: &'c Attached) -> Self {
+        Self { classes, attached }
+    }
+
+    /// The world's entity classes; empty when it lists no `classes`.
+    pub const fn classes(&self) -> &'c EntityClasses {
+        self.classes
+    }
+
+    /// The bytes of this configuration's attachments.
+    pub const fn attached(&self) -> &'c Attached {
+        self.attached
+    }
+}
+
+/// Where in a configuration an entry is: its list (`rules`, `regions.cafe.parameters` …) and its index
+/// in that list. What a refusal raised after decoding names, since it has no line and column.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct EntryAt {
+    /// The list, as its keys are written.
+    pub list: String,
+    /// The entry's index in it, from 0.
+    pub index: usize,
+}
+
+impl core::fmt::Display for EntryAt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}[{}]", self.list, self.index)
+    }
+}
+
+/// What a configuration can be refused for once the world's classes are known (`ARC-63` item 3) — the
+/// refusals its own type cannot make while it decodes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigurationRefusal {
+    /// An entry names a class that is neither defined in `classes.yaml` nor an implicit class.
+    ClassUndefined {
+        /// The class.
+        class: ClassName,
+        /// The entry naming it.
+        entry: EntryAt,
+    },
+    /// Two entries of equal specificity overlap and set one field to different values.
+    Ambiguous {
+        /// One entry.
+        first: EntryAt,
+        /// The other.
+        second: EntryAt,
+        /// The field they disagree on.
+        field: String,
+    },
+}
 
 /// A world-level configuration a System Pack accepts (`ARC-61`).
 ///
@@ -44,6 +112,27 @@ pub trait PackConfiguration: SystemIdentity {
         Vec::new()
     }
 
+    /// The files under `data/` the configuration names; the loader reads each one and hands its bytes
+    /// to [`seed`](Self::seed) (`ARC-61` note).
+    fn attachments(configuration: &Self::Configuration) -> Vec<&Attachment> {
+        let _ = configuration;
+        Vec::new()
+    }
+
+    /// What the configuration is refused for once the world's classes are known: checked by the loader
+    /// after every configuration is decoded, before anything is seeded.
+    ///
+    /// # Errors
+    ///
+    /// The typed refusal, which the loader names with the file.
+    fn check(
+        configuration: &Self::Configuration,
+        context: &ConfigurationContext<'_>,
+    ) -> Result<(), ConfigurationRefusal> {
+        let _ = (configuration, context);
+        Ok(())
+    }
+
     /// The genesis facts the configuration becomes, in this pack's own vocabulary.
     ///
     /// # Errors
@@ -52,6 +141,7 @@ pub trait PackConfiguration: SystemIdentity {
     fn seed(
         seeding: &Seeding<'_, '_>,
         configuration: &Self::Configuration,
+        context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection>;
 }
 
@@ -70,12 +160,26 @@ pub trait AuthoredConfiguration: core::fmt::Debug + Send + Sync {
     /// loader admits from [`seed`](Self::seed).
     fn facts(&self) -> &'static [EventTypeId];
 
+    /// The files under `data/` it names (see [`PackConfiguration::attachments`]).
+    fn attachments(&self) -> Vec<&Attachment>;
+
+    /// Its refusal once the world's classes are known (see [`PackConfiguration::check`]).
+    ///
+    /// # Errors
+    ///
+    /// The owner's typed refusal.
+    fn check(&self, context: &ConfigurationContext<'_>) -> Result<(), ConfigurationRefusal>;
+
     /// The genesis facts it becomes (see [`PackConfiguration::seed`]).
     ///
     /// # Errors
     ///
     /// The owner's [`Rejection`].
-    fn seed(&self, seeding: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection>;
+    fn seed(
+        &self,
+        seeding: &Seeding<'_, '_>,
+        context: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection>;
 }
 
 /// One owner's decoded configuration.
@@ -104,8 +208,20 @@ impl<P: PackConfiguration + 'static> AuthoredConfiguration for Held<P> {
         P::FACTS
     }
 
-    fn seed(&self, seeding: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection> {
-        P::seed(seeding, &self.0)
+    fn attachments(&self) -> Vec<&Attachment> {
+        P::attachments(&self.0)
+    }
+
+    fn check(&self, context: &ConfigurationContext<'_>) -> Result<(), ConfigurationRefusal> {
+        P::check(&self.0, context)
+    }
+
+    fn seed(
+        &self,
+        seeding: &Seeding<'_, '_>,
+        context: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection> {
+        P::seed(seeding, &self.0, context)
     }
 }
 
@@ -191,7 +307,11 @@ mod tests {
             vec![SystemId::from_static("other")]
         }
 
-        fn seed(_: &Seeding<'_, '_>, configuration: &Settings) -> Result<Vec<Emission>, Rejection> {
+        fn seed(
+            _: &Seeding<'_, '_>,
+            configuration: &Settings,
+            _: &ConfigurationContext<'_>,
+        ) -> Result<Vec<Emission>, Rejection> {
             match configuration.values().find(|step| step.0 > 50) {
                 Some(step) => Err(Rejection::System {
                     code: RejectionCode::from_static("probe-step-too-large"),
@@ -234,11 +354,16 @@ mod tests {
         let read = world.read();
         let keys = BTreeMap::new();
         let seeding = Seeding::new(&read, &keys);
+        let (classes, attached) = (EntityClasses::default(), Attached::none());
+        let context = ConfigurationContext::new(&classes, &attached);
 
-        assert_eq!(decode(50).expect("decodes").seed(&seeding), Ok(Vec::new()));
+        assert_eq!(
+            decode(50).expect("decodes").seed(&seeding, &context),
+            Ok(Vec::new())
+        );
         let refusal = decode(51)
             .expect("decodes")
-            .seed(&seeding)
+            .seed(&seeding, &context)
             .expect_err("the owner refuses 51");
         assert_eq!(
             refusal,

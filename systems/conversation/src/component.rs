@@ -15,6 +15,9 @@ use crate::utterance::Utterance;
 /// exactly what `docs/MVP.md` §9.2 asks of MVP-0 and deliberately no more. Episodic memory,
 /// summarization, retrieval and forgetting are the MVP-1 evolution of this path and belong to a
 /// cognition pack, not to a larger number here.
+///
+/// The compiled default of the section's `remembered` since S17's PR IL-e, which a world may lower or
+/// raise for a class of listener, to at most 64 — still a projection, not a memory.
 pub const REMEMBERED_AT_MOST: usize = 32;
 
 /// One thing a person was told: who said it, when, and what.
@@ -80,14 +83,21 @@ impl ConversationHistory {
         Self { heard: vec![heard] }
     }
 
-    /// Records an exchange, dropping the oldest to stay within [`REMEMBERED_AT_MOST`].
-    ///
-    /// The loop rather than a single removal is deliberate: a history read back from a snapshot
-    /// written by a version of this pack with a larger bound is brought within the current one here,
-    /// rather than being left over-long forever.
+    /// Records an exchange under the compiled bound, [`REMEMBERED_AT_MOST`]: what a listener keeps in
+    /// a world whose section says nothing about `remembered`.
     pub fn remember(&mut self, heard: Heard) {
+        self.remember_within(heard, REMEMBERED_AT_MOST);
+    }
+
+    /// Records an exchange, dropping the oldest to keep at most `at_most` — the `remembered` the
+    /// world's section gives this listener.
+    ///
+    /// The loop rather than a single removal is deliberate: a history kept under a larger bound — a
+    /// snapshot from an older version, or a listener whose bound differs by place — is brought within
+    /// this one here, rather than being left over-long forever.
+    pub fn remember_within(&mut self, heard: Heard, at_most: usize) {
         self.heard.push(heard);
-        while self.heard.len() > REMEMBERED_AT_MOST {
+        while self.heard.len() > at_most {
             self.heard.remove(0);
         }
     }

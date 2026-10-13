@@ -1,0 +1,19 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[check] connecting to 127.0.0.1:64078 as seat 'wanderer', perceived from the beginning
+[check] perceived 20 facts so far, cursor 53
+[check] PASS stride 1 was accepted: true
+[check] PASS stride 2 was accepted: true
+[check] PASS the talk was accepted: true
+[check] an observation reflects the talk: acted_through 3
+[check] heard spoke #60 in its own observation.events
+[check] dropping the socket without leave
+[check] PASS welcomed again: the seat was held: "held"
+[check] PASS the talk's action_id reached acted_through: true
+[check] PASS a spoke this client did not cause was in its observation.events: true
+[check] PASS perceived facts arrived: true
+[check] PASS no perceived id repeated or out of order: 0
+[check] ids 1,2,3,4,5,17,18,20,22,24,26,28,30,32,34,36,38,40,41,53,54,55,56,57,58,59,60,61,68
+[check] cursor 69
+[check] PASS — 0 failure(s)
+[check] PASS the client's perceived ids equal mineworld perceived up to cursor 69

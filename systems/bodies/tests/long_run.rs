@@ -5,7 +5,8 @@
 //! ```text
 //! N-1  after every request no two people are closer than 2R − TOL = 495 mm (595 while R was 300);
 //!      the closest pair is located
-//! N-2  every nudge is at most NUDGE_MAX + GAP = 310 mm
+//! N-2  every nudge is at most NUDGE_MAX + GAP = R + 10 = 260 mm (310 while R was 300; step-11
+//!      §21.6: NUDGE_MAX is the radius)
 //! N-3  at most two generations and four people per request
 //! N-4  nobody outside the floor shrunk by R − TOL = 245 mm or within 245 mm of the counter
 //! digest  every fact and the final state are byte-identical in a second process
@@ -138,7 +139,7 @@ fn run() -> Run {
                 .1;
             let length2 = distance2(was, xy(*at));
             assert!(
-                length2 <= 310 * 310,
+                length2 <= i64::from(R + 10).pow(2),
                 "N-2, request {r}: {key} nudged {} mm",
                 length2.isqrt()
             );

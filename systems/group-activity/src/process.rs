@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::kind::ActivityKind;
 use crate::system::GroupActivitySystem;
 
-/// How long an activity runs unless it ends sooner: one simulated hour (`step-09-social.md` Q7).
+/// How long an activity runs unless it ends sooner: one simulated hour (`step-09-social.md` Q7). The
+/// compiled default of the section's `activity_length` since S17's PR IL-e.
 pub const ACTIVITY_LENGTH: SimDuration = SimDuration::from_seconds(3_600);
 
 /// The kind of process a group activity is, owned — as a type — by [`GroupActivitySystem`], so no

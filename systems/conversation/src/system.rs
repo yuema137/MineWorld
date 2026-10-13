@@ -1,8 +1,9 @@
 //! The installable system: what it declares, and the four things a world asks of it.
 
 use mineworld_contracts::{
-    ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
-    PersonId, PlaceId, Rejection, RejectionCode, SimDuration, SystemId, Visibility, WorldTime,
+    Action, ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope,
+    LifecycleState, PersonId, PlaceId, Rejection, RejectionCode, SimDuration, SpatialRequirement,
+    SystemId, WorldTime,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -10,12 +11,14 @@ use mineworld_kernel::{
 };
 use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
+use mineworld_sdk::interactions::{self, Role, Roles};
 use serde_json::Value;
 
-use crate::action::{Talk, talk_requirement};
+use crate::action::{Talk, range, talk_requirement, talk_requirement_within};
 use crate::codec;
-use crate::component::{ConversationHistory, Heard};
+use crate::component::{ConversationHistory, Heard, REMEMBERED_AT_MOST};
 use crate::event::{ConversationStarted, Spoke};
+use crate::interactions::owner_default;
 use crate::utterance::Utterance;
 
 /// How long a silence has to be before the next exchange starts a new conversation.
@@ -23,26 +26,31 @@ use crate::utterance::Utterance;
 /// Five minutes of simulated time. Without a rule of this kind
 /// [`ConversationStarted`] would either fire on every `talk` — saying nothing — or fire once and never
 /// again, which is worse, because two people who spoke yesterday and meet again today have plainly
-/// started talking. The gap is this pack's policy and becomes configuration in S7; what matters
-/// architecturally is that the rule lives in the system that owns the concept, and that it is decided
-/// from the world's clock rather than from a wall clock, so a replay makes the same decision.
+/// started talking. The rule lives in the system that owns the concept, and it is decided from the
+/// world's clock rather than from a wall clock, so a replay makes the same decision.
+///
+/// This is the compiled default. Since S17's PR IL-b a world may choose another gap — for everyone, for
+/// a class of speaker or listener, or in one place — through this pack's section of the World's
+/// Interaction List (`gap`, [`crate::interactions`], `ARC-63`).
 pub const CONVERSATION_GAP: SimDuration = SimDuration::from_seconds(300);
 
 /// Speaking, and remembering having been spoken to.
 ///
 /// A unit struct: a system holds no fields, because its mutable state is the components it owns and
 /// those live in the world behind a gated view (`INV-7`).
-#[derive(Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ConversationSystem;
 
 impl SystemIdentity for ConversationSystem {
     const ID: SystemId = SystemId::from_static("conversation");
 }
 
-/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
-/// It declares no biographical fact (`ARC-29`) and owns no authored section.
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// section of the World's Interaction List (`ARC-63`), which is its configuration. It declares no
+/// biographical fact (`ARC-29`) and owns no authored section.
 impl SystemPack for ConversationSystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+    mineworld_sdk::interactions!();
 }
 
 /// This pack's own reason for refusing a request it cannot read.
@@ -54,19 +62,25 @@ impl SystemPack for ConversationSystem {
 const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
 
 impl System for ConversationSystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// 2 since S17's PR IL-b: the declaration gained the section's component and configured fact.
+    /// 3 since PR IL-e: the section gained the `talk` rule, `range`, `remembered`, its two facts'
+    /// consequences and the `remember` knob, so a configured fact's payload changed shape (`ARC-25`).
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     fn declaration(&self) -> SystemDeclaration {
-        SystemDeclaration::of::<Self>()
-            .depending_on([PresenceSystem::ID])
-            .owning::<ConversationHistory>()
-            .providing::<Talk>()
-            .emitting::<ConversationStarted>()
-            .emitting::<Spoke>()
-            .subscribing_to::<Spoke>()
+        interactions::declare::<Self>(
+            SystemDeclaration::of::<Self>()
+                .depending_on([PresenceSystem::ID])
+                .owning::<ConversationHistory>()
+                .providing::<Talk>()
+                .emitting::<ConversationStarted>()
+                .emitting::<Spoke>()
+                .subscribing_to::<Spoke>(),
+        )
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        interactions::install::<Self>(tables)?;
         tables.component::<ConversationHistory>()
     }
 
@@ -84,6 +98,11 @@ impl System for ConversationSystem {
     /// by an unprivileged process about where it thinks it is, and `ENGINEERING_RULES.md` §8 puts the
     /// decision on the server. A world that later wants to honour an unapplied client position gains
     /// it by having a movement system apply it, not by this system trusting it.
+    ///
+    /// The world's Interaction List is asked once the request names two people and the speaker has a
+    /// place to ask it at, and before space is judged (`ARC-63` item 8): a forbidden pair is refused
+    /// `PermissionDenied` however near or far they stand, as its offer is. The range space is judged
+    /// with is the one the list gives this pair here.
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
         let _talk: Talk =
             codec::action_payload(intent.payload()).map_err(|error| Rejection::System {
@@ -105,8 +124,10 @@ impl System for ConversationSystem {
         }
 
         let here = located(world, speaker).ok_or(Rejection::PreconditionFailed)?;
+        let (permitted, requirement) = talk_terms(world, here.place(), speaker, listener);
+        permitted?;
         let there = located(world, listener);
-        talk_requirement().evaluate(
+        requirement.evaluate(
             &here,
             there.as_ref(),
             listener_record.lifecycle() == LifecycleState::Active,
@@ -128,11 +149,31 @@ impl System for ConversationSystem {
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
         let exchange = Exchange::of(&world.read(), intent)?;
+        let roles = pair(exchange.speaker.entity_id(), exchange.listener.entity_id());
+        let gap = interactions::parameters::<Self>(&world.read(), exchange.place, &roles).gap;
         let starts = !continues_a_conversation(
             &world.read(),
             exchange.speaker,
             exchange.listener,
             world.at(),
+            SimDuration::from_seconds(i64::from(gap)),
+        );
+
+        // Each fact's audience is its owner default unless the world's list narrows it here, for
+        // this pair (`ARC-65`); the default is written once, in the fact's declaration.
+        let audience = |fact| {
+            interactions::consequence::<Self>(
+                &world.read(),
+                Some(exchange.place),
+                fact,
+                &roles,
+                owner_default(fact, exchange.place),
+            )
+            .visibility
+        };
+        let (started_audience, spoke_audience) = (
+            audience(&ConversationStarted::EVENT_TYPE),
+            audience(&Spoke::EVENT_TYPE),
         );
 
         let mut emissions = Vec::new();
@@ -143,7 +184,7 @@ impl System for ConversationSystem {
                         exchange.speaker,
                         exchange.listener,
                     )),
-                    Visibility::Participants,
+                    started_audience,
                 )
                 .about(exchange.both())
                 .with_participants(exchange.both())
@@ -158,7 +199,7 @@ impl System for ConversationSystem {
                     exchange.listener,
                     exchange.utterance,
                 )),
-                Visibility::Place(exchange.place),
+                spoke_audience,
             )
             .about(vec![exchange.listener.entity_id()])
             .with_participants(both)
@@ -172,16 +213,36 @@ impl System for ConversationSystem {
     /// The whole of Alice remembering. It is one insert into one component this pack owns, from one
     /// fact this pack emitted — which is why `docs/MVP.md` §9.2 can call it a projection rather than a
     /// memory system, and why a replay of the log reproduces it.
+    ///
+    /// The world's list may say this listener keeps nothing of this line (`remember: off`), or keeps
+    /// fewer or more lines (`remembered`), both looked up with the fact's speaker, listener and place.
+    /// Neither touches the fact itself: it is recorded, perceived and reduced by other packs as before.
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
-        if *event.event_type() != Spoke::EVENT_TYPE {
+        if interactions::reduce(world, event)? || *event.event_type() != Spoke::EVENT_TYPE {
             return Ok(Vec::new());
         }
         let spoke: Spoke = codec::event_payload(event.payload())?;
         let listener = spoke.listener().entity_id();
+        let roles = pair(spoke.speaker().entity_id(), listener);
+        let read = world.read();
+        let knobs = interactions::consequence::<Self>(
+            &read,
+            event.place(),
+            &Spoke::EVENT_TYPE,
+            &roles,
+            event.visibility().clone(),
+        )
+        .knobs;
+        if knobs.remember == Some(false) {
+            return Ok(Vec::new());
+        }
+        let at_most = event.place().map_or(REMEMBERED_AT_MOST, |place| {
+            usize::from(interactions::parameters::<Self>(&read, place, &roles).remembered)
+        });
         let heard = Heard::new(spoke.speaker(), event.at(), spoke.into_utterance());
 
         // Read, change, write back, because a history that does not exist yet has to be created and a
@@ -192,7 +253,7 @@ impl System for ConversationSystem {
             .component::<ConversationHistory>(listener)
             .cloned()
             .unwrap_or_default();
-        history.remember(heard);
+        history.remember_within(heard, at_most);
         world.insert(listener, history)?;
         Ok(Vec::new())
     }
@@ -208,6 +269,12 @@ impl PerceptionProvider for ConversationSystem {
     /// It deliberately does not check distance, place or whether the action is provided in this world.
     /// Those are perception's two jobs, and duplicating either here would create a second answer that
     /// could disagree with dispatch.
+    ///
+    /// What it does answer is the world's Interaction List, through the same call `validate` makes: a
+    /// forbidden pair's `talk` is offered refused `PermissionDenied`, with its requirement still shown,
+    /// and the requirement carries the range the list gives this pair at the observer's place. An
+    /// observer with no place is answered with the compiled default, as its dispatch is refused
+    /// `PreconditionFailed` before the list is asked.
     fn offers(
         &self,
         world: &WorldRead<'_>,
@@ -227,10 +294,16 @@ impl PerceptionProvider for ConversationSystem {
         if listener.entity_type() != EntityType::Person {
             return Vec::new();
         }
-        vec![
-            Offer::new::<Talk>(talk_requirement())
-                .with_target_available(listener.lifecycle() == LifecycleState::Active),
-        ]
+        let available = listener.lifecycle() == LifecycleState::Active;
+        let Some(here) = located(world, observer) else {
+            return vec![Offer::new::<Talk>(talk_requirement()).with_target_available(available)];
+        };
+        let (permitted, requirement) = talk_terms(world, here.place(), observer, target);
+        let offer = Offer::new::<Talk>(requirement).with_target_available(available);
+        vec![match permitted {
+            Ok(()) => offer,
+            Err(reason) => offer.refused(reason),
+        }]
     }
 
     /// Discloses a person's [`ConversationHistory`] **in that person's own observation, and nowhere
@@ -336,6 +409,30 @@ fn unresolvable(intent: &ActionIntent) -> KernelError {
     }
 }
 
+/// The roles of an exchange: the speaker acts, the listener is its target.
+fn pair(speaker: EntityId, listener: EntityId) -> Roles {
+    Roles::new()
+        .with(Role::Actor, speaker)
+        .with(Role::Target, listener)
+}
+
+/// What the world's Interaction List says about `speaker` talking to `listener` at `place`: whether it
+/// is permitted, and what it requires of space there. One function for `validate` and `offers`, so a
+/// dispatch and an affordance cannot ask different questions (`ARC-63` item 8). With nothing
+/// configured: permitted, and [`talk_requirement`].
+fn talk_terms(
+    world: &WorldRead<'_>,
+    place: PlaceId,
+    speaker: EntityId,
+    listener: EntityId,
+) -> (Result<(), Rejection>, SpatialRequirement) {
+    let roles = pair(speaker, listener);
+    let permitted =
+        interactions::permits::<ConversationSystem>(world, place, &Talk::ACTION_TYPE, &roles);
+    let reach = interactions::parameters::<ConversationSystem>(world, place, &roles).range;
+    (permitted, talk_requirement_within(range(reach)))
+}
+
 /// Whether this world holds a person by that identity.
 fn is_person(world: &WorldRead<'_>, entity: EntityId) -> bool {
     world
@@ -356,12 +453,14 @@ fn located(world: &WorldRead<'_>, entity: EntityId) -> Option<mineworld_contract
 ///
 /// Both directions, because a reply is part of the same conversation: Alice's history records what Bob
 /// said to her and Bob's records what she said to him, so asking only one would make every reply start a
-/// second conversation. Checked against the world's clock and [`CONVERSATION_GAP`].
+/// second conversation. Checked against the world's clock and the gap this world's section gives the
+/// pair here ([`CONVERSATION_GAP`] when it configures none).
 fn continues_a_conversation(
     world: &WorldRead<'_>,
     speaker: PersonId,
     listener: PersonId,
     now: WorldTime,
+    gap: SimDuration,
 ) -> bool {
     [(listener, speaker), (speaker, listener)]
         .into_iter()
@@ -369,12 +468,12 @@ fn continues_a_conversation(
             world
                 .component::<ConversationHistory>(holder.entity_id())
                 .and_then(|history| history.last_heard_from(other))
-                .is_some_and(|heard| within_the_gap(heard.at(), now))
+                .is_some_and(|heard| within_the_gap(heard.at(), now, gap))
         })
 }
 
 /// Whether `then` is recent enough for a conversation to still be going on at `now`.
-fn within_the_gap(then: WorldTime, now: WorldTime) -> bool {
+fn within_the_gap(then: WorldTime, now: WorldTime, gap: SimDuration) -> bool {
     now.duration_since(then)
-        .is_some_and(|elapsed| elapsed <= CONVERSATION_GAP)
+        .is_some_and(|elapsed| elapsed <= gap)
 }

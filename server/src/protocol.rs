@@ -43,9 +43,13 @@
 //! protocol/request      a submitted request's payload and the client's correlation token
 //! protocol/summary      what a world is: its instance identity and its composition
 //! protocol/connection   what a frame says about the connection: its session, a takeover, a closing
+//! protocol/fact         a recorded fact as a client receives it (PROTOCOL.md §5.2)
+//! protocol/delta        one observation as the change from the previous one (PROTOCOL.md §5.3)
 //! ```
 
 mod connection;
+pub mod delta;
+mod fact;
 mod request;
 mod summary;
 #[cfg(test)]
@@ -54,17 +58,20 @@ mod tests;
 use std::fmt;
 
 use mineworld_contracts::{
-    ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, Observation,
+    ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, EventId,
+    Observation, PerceivedEvent, WorldTime,
 };
 use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::admission::{Nickname, OfferedInvite};
+use crate::admission::{Nickname, OfferedInvite, OfferedResume, ResumeSecret};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
+pub use fact::{PayloadForm, wire_fact};
+pub(crate) use fact::{read_backfill, report_not_json};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
-pub use summary::{SystemSummary, WorldInstanceId, WorldSummary};
+pub use summary::{ClockState, SystemSummary, WorldInstanceId, WorldSummary};
 
 /// Which revision of this protocol a server speaks. A client that does not recognize the number
 /// should refuse to connect rather than guess.
@@ -109,9 +116,15 @@ pub enum ClientFrame {
         nickname: String,
         /// The seat, named by the authoring key of the entity it belongs to.
         seat: EntityKey,
-        /// A secret from an earlier `welcome`, to re-take a held seat (meaningful from S11-B).
+        /// A secret from an earlier `welcome`, to re-take a held seat (`PROTOCOL.md` §4.2).
         #[serde(default)]
-        resume: Option<String>,
+        resume: Option<OfferedResume>,
+        /// Take the seat from the connection that holds it, or from a dropped one's hold.
+        #[serde(default)]
+        take_over: bool,
+        /// Ask for the reliable `perceived` stream, from a cursor (`PROTOCOL.md` §5.8).
+        #[serde(default)]
+        perceived: Option<PerceivedJoin>,
     },
     /// Submit a request. No identity and no instant: the server allocates both (`INV-6`).
     Submit {
@@ -122,6 +135,16 @@ pub enum ClientFrame {
     },
     /// Give the seat up at once and end the connection.
     Leave {},
+}
+
+/// A `join`'s request for the `perceived` stream (`PROTOCOL.md` §5.8): the cursor to continue from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PerceivedJoin {
+    /// The `through` of the last `perceived` frame the client processed, or `null` for "from this
+    /// world's first fact". Required: an absent `since` is malformed, not "from the beginning".
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub since: Option<EventId>,
 }
 
 /// The tags a client frame may carry, which is also the whole of what a client may say.
@@ -180,14 +203,25 @@ pub enum ServerFrame {
         nickname: Nickname,
         /// Which connection this is, for the admin surface. Not a credential.
         session: SessionId,
-        /// The secret that re-takes this seat after a dropped socket; `None` until S11-B.
-        resume: Option<String>,
-        /// How long a dropped connection's seat is held, in wall seconds; `0` until S11-B.
+        /// The secret that re-takes this seat after a dropped socket. A fresh one on every welcome;
+        /// `null` only from a server older than S11-B.
+        resume: Option<ResumeSecret>,
+        /// How long a dropped connection's seat is held, in wall seconds; `0` holds none.
         hold_seconds: u32,
-        /// Whether control of the Person changed hands; always [`TookOver::None`] until S11-B.
+        /// Whether control of the Person changed hands, and how (`PROTOCOL.md` §4.2).
         took_over: TookOver,
         /// What the world is, at the moment of joining.
         world: WorldSummary,
+    },
+    /// How the host is pacing the world's clock: right after `welcome`, then on every pause and
+    /// resume (`PROTOCOL.md` §5.9).
+    Clock {
+        /// The world's instant when the clock last changed state (or at the welcome).
+        at: WorldTime,
+        /// World seconds per wall second.
+        time_scale: u32,
+        /// Whether the host has stopped the clock.
+        paused: bool,
     },
     /// What this connection's observer perceives, and nothing else.
     Observation {
@@ -198,8 +232,32 @@ pub enum ServerFrame {
         /// The persisted revision of the state this observation was computed from, or `None` for a
         /// world that is not persisted (`PROTOCOL.md` §5). Committed before this frame was sent.
         revision: Option<WorldRevision>,
+        /// The newest request submitted on this connection that had been dispatched when this
+        /// observation was computed; `null` before the first (`PROTOCOL.md` §5.2).
+        acted_through: Option<ActionId>,
         /// The observation itself.
         observation: WireObservation,
+    },
+    /// What changed since the previous frame on this connection (`PROTOCOL.md` §5.3, `DEP-15`).
+    Delta {
+        /// As on an observation.
+        seq: u64,
+        /// The `seq` of the frame this delta applies to: always the previous one.
+        base: u64,
+        /// As on an observation.
+        revision: Option<WorldRevision>,
+        /// As on an observation, stated whole.
+        acted_through: Option<ActionId>,
+        /// The change.
+        delta: delta::ObservationDelta,
+    },
+    /// Facts this connection's observer learned, on the reliable stream it asked for
+    /// (`PROTOCOL.md` §5.8).
+    Perceived {
+        /// The newest fact the server has considered for this connection: the client's cursor.
+        through: EventId,
+        /// The facts, oldest first.
+        events: Vec<PerceivedEvent<Value>>,
     },
     /// The world's answer to one submitted request.
     Result {
@@ -268,10 +326,19 @@ pub enum RefusalCode {
     Unauthorized,
     /// The `join`'s nickname is empty once trimmed, too long, or holds a control character.
     InvalidNickname,
-    /// Another connection holds the seat (from S11-B; never sent before it).
+    /// Another connection holds the seat, or it is held, and the `join` neither resumed nor took it
+    /// over.
     SeatOccupied,
-    /// The `join`'s `resume` matches no hold. Until S11-B every non-null `resume` is answered so.
+    /// The `join`'s `resume` matches neither the seat's hold nor its live connection.
     InvalidResume,
+    /// The `join`'s `perceived.since` is a cursor this world cannot serve (`PROTOCOL.md` §5.8).
+    CursorUnavailable,
+    /// The connection's `perceived` stream fell further behind than the server holds. Followed by
+    /// `closing`.
+    Lagged,
+    /// The host has paused the world's clock: the request was refused before it was given an
+    /// identity, so nothing was half-done (`PROTOCOL.md` §5.9).
+    Paused,
 }
 
 /// One refusal, before it becomes a frame.

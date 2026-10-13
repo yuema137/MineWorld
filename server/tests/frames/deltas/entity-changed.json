@@ -1,0 +1,21 @@
+{ "base": { "observer": "101", "at": 4112,
+            "self_location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null },
+            "entities": [
+              { "id": "101", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } },
+              { "id": "102", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } } ],
+            "relations": [], "affordances": [], "events": [] },
+  "delta": { "at": 4113,
+             "entities": { "upsert": [
+               { "id": "102", "entity_type": "person", "tags": [], "components": [],
+                 "location": { "place": { "entity": "2", "entity_type": "place" }, "local": null, "facing": null } } ] },
+             "events": [] },
+  "next": { "observer": "101", "at": 4113,
+            "self_location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null },
+            "entities": [
+              { "id": "101", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } },
+              { "id": "102", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "2", "entity_type": "place" }, "local": null, "facing": null } } ],
+            "relations": [], "affordances": [], "events": [] } }

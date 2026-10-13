@@ -14,6 +14,12 @@
 #   ./mineworld-2d --drive[=scenario]           the scripted checks, headless, on a fresh world;
 #                                               exits non-zero on failure
 #   ./mineworld-2d --drive=walk --capture       the same, windowed, writing stills
+#   ./mineworld-2d --settings=<path>|none       another settings file, or the defaults; play uses the
+#                                               shared per-user file (clients/shared/SETTINGS.md §4),
+#                                               every scripted run uses none
+#   ./mineworld-2d --res=WxH                    this window size for this run (not saved)
+#
+# Esc opens the in-game settings menu (language, display, clock; Quit is in it).
 #
 # A hosted world is saved under clients/2d/.save/<world> and resumes on the next launch: the same
 # world, the same people where they were. Its server is started on a free port, with Alice driven by
@@ -42,7 +48,8 @@ fresh=0
 agent="alice"
 drive=0
 capture=0
-res="1600x900"
+res=""
+settings=""
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -59,10 +66,25 @@ while [ $# -gt 0 ]; do
     --res=*)         res="${1#--res=}" ;;
     --drive|--drive=*) drive=1; args+=("$1") ;;
     --capture)       capture=1; args+=("$1") ;;
+    --settings=*)    settings="$1"; args+=("$1") ;;
     *)               args+=("$1") ;;
   esac
   shift
 done
+
+# The shared client modules are symlinks (clients/2d/mineworld, clients/2d/mineworld_settings). A
+# checkout that did not create them (Windows without core.symlinks) has text files in their place.
+for module in mineworld mineworld_settings; do
+  if [ ! -d "$proj/$module" ]; then
+    echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
+    echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
+    exit 1
+  fi
+done
+# A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
+if [ "$drive" = "1" ] && [ -z "$settings" ]; then
+  args+=("--settings=none")
+fi
 
 # Godot resolves global class names outside the editor only from its resource cache. Build it on the
 # first run and whenever a script is newer than it (docs/ACCEPTANCE.md §4.1: a clean checkout works).
@@ -126,17 +148,21 @@ if [ "$drive" = "1" ] && [ "$capture" = "0" ]; then
   mode=(--headless)
 elif [ "$capture" = "1" ]; then
   # A window the OS considers hidden stops being drawn, and a still then waits forever for a frame:
-  # keep the capture window on top.
-  mode=(--resolution "$res" --always-on-top)
-else
+  # keep the capture window on top. Captures keep their fixed size.
+  mode=(--resolution "${res:-1600x900}" --always-on-top)
+elif [ -n "$res" ]; then
+  # A developer's --res= wins over the saved window size for this run, and is not saved.
   mode=(--resolution "$res")
+else
+  # Play: the window size is the player's setting (the settings menu), applied by the client.
+  mode=()
 fi
 if [ -z "$invite" ]; then
   echo "error: joining $server needs the invite its server printed: --invite TOKEN" >&2
   exit 1
 fi
 set +e
-"$godot_bin" "${mode[@]}" --path "$proj" -- --server="$server" --seat="$seat" --invite="$invite" \
+"$godot_bin" ${mode[@]+"${mode[@]}"} --path "$proj" -- --server="$server" --seat="$seat" --invite="$invite" \
   ${args[@]+"${args[@]}"}
 code=$?
 set -e

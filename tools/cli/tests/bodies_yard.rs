@@ -144,7 +144,9 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
     );
     // 24 more boxes half 400 in two rows along the hall's south and north walls: each can cover 9
     // capacity points, so 45 for the people + 8 × 4 for the hall's own objects + 24 × 9 = 293 points
-    // would be needed, against the hall's 226.
+    // would be needed, against the hall's 244 at R 250: the 650 mm grid from (R, R) inside the floor
+    // shrunk by R is 18 columns (x 250 … 11 300) × 14 rows (y 250 … 8 700) = 252, less the 4 × 2 the
+    // table grown by R covers (x 4 800 … 6 750, y 4 150 and 4 800). It was 226 at R 300 (18 × 13 − 8).
     refused_after(
         "capacity",
         |copy| {
@@ -172,7 +174,7 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
                 &format!("items:\n{}", keys.concat()),
             );
         },
-        &["bodies-capacity", "hall", "226 points", "12 people"],
+        &["bodies-capacity", "hall", "244 points", "12 people"],
     );
     // The loader refuses malformed object bodies at their line, with bodies' own message.
     refused_after(

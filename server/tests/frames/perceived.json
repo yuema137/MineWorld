@@ -1,0 +1,11 @@
+{ "t": "perceived", "through": "1907",
+  "events": [
+    { "id": "1890", "at": 4100, "event_type": "spoke",
+      "subjects": ["5"], "participants": ["5", "7"],
+      "place": { "entity": "3", "entity_type": "place" },
+      "caused_by": { "action": "41" },
+      "payload": { "event_type": "spoke", "schema_version": 1,
+                   "payload": { "utterance": "hello" } },
+      "visibility": { "place": { "entity": "3", "entity_type": "place" } },
+      "provenance": { "emitted_by": "conversation", "controller_decision": "41" } }
+  ] }

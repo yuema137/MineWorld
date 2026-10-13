@@ -7,6 +7,15 @@
 #   ./run.sh play         windowed, driven by the keyboard        (what a player does)
 #   ./run.sh affordances  headless: the module's live check against worlds/market-town, saved to a
 #                         temporary directory that is removed afterwards   (checks/affordances_check.gd)
+#   ./run.sh reconnect    headless: the module's opt-in reconnect against worlds/market-town with
+#                         --town --hold 10: drop, resume, held             (checks/reconnect_check.gd)
+#   ./run.sh perceived    headless: the perceived stream, overheard facts and acted_through against a
+#                         saved worlds/social-cafe --town; the ids compared with the server's own
+#                         `mineworld perceived` after it stops              (checks/perceived_check.gd)
+#   ./run.sh deltas       headless: every golden delta case, then 60 s of live deltas against
+#                         worlds/market-town --town                         (checks/delta_check.gd)
+#   ./run.sh admin       headless: the clock frame, pause, resume and kick through the admin surface,
+#                         with a generated MINEWORLD_ADMIN_TOKEN           (checks/admin_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
 # operating system chooses, and stops it afterwards — only the server it started, by its own PID, so
@@ -30,6 +39,8 @@ invite=""
 server=""
 server_log=""
 scratch=""
+# Further server flags for one mode (reconnect's --town --hold 10); none otherwise.
+server_extra=()
 
 cd "$root" || exit 1
 cargo build --quiet -p mineworld-cli || exit 1
@@ -45,7 +56,7 @@ start_server() {
 	server_log="$1"
 	scratch="$(mktemp)"
 	"$root/target/debug/mineworld" server "worlds/$world" --listen 127.0.0.1:0 --agent alice \
-		${save[@]+"${save[@]}"} > "$scratch" 2>&1 &
+		${save[@]+"${save[@]}"} ${server_extra[@]+"${server_extra[@]}"} > "$scratch" 2>&1 &
 	server=$!
 	local line=""
 	for _ in $(seq 1 150); do
@@ -127,6 +138,87 @@ affordances)
 	rm -rf "$save_dir"
 	grep '^\[check\]' "$here/evidence/affordances-market-town.log"
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/affordances-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+reconnect)
+	# Market Town hosted as a town (every seat nobody plays is driven in-server), with a 10 s hold.
+	server_extra=(--town --hold 10)
+	: > "$here/evidence/server-reconnect.log"
+	start_server "$here/evidence/server-reconnect.log" market-town
+	godot --headless --path "$here" --script res://checks/reconnect_check.gd -- \
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/reconnect-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/reconnect-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/reconnect-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+perceived)
+	# Social Café hosted as a town with Alice answering, saved (so a stream can start at its first
+	# fact), with a 10 s hold. After the client, the server is stopped and its own export of what the
+	# wanderer perceived is compared with what the client was sent, up to the client's last cursor.
+	server_extra=(--town --hold 10)
+	save_dir="$(mktemp -d)"
+	: > "$here/evidence/server-perceived.log"
+	start_server "$here/evidence/server-perceived.log" social-cafe "$save_dir/save"
+	godot --headless --path "$here" --script res://checks/perceived_check.gd -- \
+		--address "$address" --seat wanderer --invite "$invite" \
+		> "$here/evidence/perceived-social-cafe.log" 2>&1
+	outcome=$?
+	stop_server
+	received="$(sed -n 's/^\[check\] ids //p' "$here/evidence/perceived-social-cafe.log")"
+	cursor="$(sed -n 's/^\[check\] cursor //p' "$here/evidence/perceived-social-cafe.log")"
+	exported=""
+	while read -r id; do
+		[ -n "$id" ] && [ "$id" -le "${cursor:-0}" ] && exported="${exported:+$exported,}$id"
+	done < <("$root/target/debug/mineworld" perceived worlds/social-cafe --save "$save_dir/save" \
+		--person wanderer --json | sed -n 's/^{"id":"\([0-9]*\)".*/\1/p')
+	rm -rf "$save_dir"
+	if [ -n "$received" ] && [ "$received" = "$exported" ]; then
+		echo "[check] PASS the client's perceived ids equal mineworld perceived up to cursor $cursor" \
+			| tee -a "$here/evidence/perceived-social-cafe.log"
+	else
+		echo "[check] FAIL the client's perceived ids differ from mineworld perceived (cursor $cursor)" \
+			| tee -a "$here/evidence/perceived-social-cafe.log"
+		outcome=1
+	fi
+	grep '^\[check\]' "$here/evidence/perceived-social-cafe.log" | grep -v '^\[check\] ids '
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/perceived-social-cafe.log" && outcome=1
+	exit "$outcome"
+	;;
+deltas)
+	# Market Town hosted as a town, with the default --keyframe-every 50: 60 s of deltas applied by
+	# the module, after every reviewed golden case.
+	server_extra=(--town)
+	: > "$here/evidence/server-deltas.log"
+	start_server "$here/evidence/server-deltas.log" market-town
+	godot --headless --path "$here" --script res://checks/delta_check.gd -- \
+		--address "$address" --seat wanderer --invite "$invite" \
+		> "$here/evidence/deltas-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/deltas-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/deltas-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+admin)
+	# The admin surface and the clock frame from the far side (step-12 DA-10). A fresh admin token,
+	# made here and handed to the server and the check through the environment — the launcher path —
+	# so it is in no argument list, no log and no evidence file.
+	MINEWORLD_ADMIN_TOKEN="run-sh-admin-$$-$RANDOM$RANDOM"
+	export MINEWORLD_ADMIN_TOKEN
+	: > "$here/evidence/server-admin.log"
+	start_server "$here/evidence/server-admin.log"
+	godot --headless --path "$here" --script res://checks/admin_check.gd -- \
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/admin-social-cafe.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/admin-social-cafe.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/admin-social-cafe.log" && outcome=1
+	grep -l -- "$MINEWORLD_ADMIN_TOKEN" "$here/evidence/server-admin.log" "$here/evidence/admin-social-cafe.log" \
+		&& { echo "the admin token reached an evidence file" >&2; outcome=1; }
 	exit "$outcome"
 	;;
 play)

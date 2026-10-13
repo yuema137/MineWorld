@@ -25,8 +25,8 @@ use support::{
     Fact, GAP, Moved, Plan, R, Thing, Xy, Yard, assert_holds, ball, cafe, cube, object_moved, xy,
 };
 
-/// How far a stride may carry on past contact (`NUDGE_MAX`, a policy, not a person dimension).
-const NUDGE_MAX: i32 = 300;
+/// How far a stride may carry on past contact: `NUDGE_MAX`, the radius since step-11 §21.6 (SD-N11).
+const NUDGE_MAX: i32 = R;
 
 const FLOOR: (i32, i32, i32, i32) = (0, 0, 8_320, 10_320);
 const COUNTER: ((i32, i32, i32, i32), i32) = ((3_860, 6_570, 8_320, 7_170), 1_100);
@@ -114,9 +114,9 @@ fn a_push_moves_a_box_out_of_the_walkers_way() {
         vec![("box", cube(200), "room", (3_500, 5_000))],
     );
     // Contact at the box's face (3 300) − (R + GAP) = 3 300 − 260 = 3 040; the candidate rule allows
-    // NUDGE_MAX = 300 mm more, to 3 340. The walker asks for 10 mm beyond that, 3 350 (3 300 while R
-    // was 300: 2 990 + 300 + 10), so the box stops them; the box goes until its face is R + GAP from
-    // the walker: 3 340 + 260 = 3 600, its centre 3 800.
+    // NUDGE_MAX = R = 250 mm more, to 3 290. The walker asks for 10 mm beyond that, 3 300 (3 300 too
+    // while R was 300: 2 990 + 300 + 10), so the box stops them; the box goes until its face is R + GAP
+    // from the walker: 3 290 + 260 = 3 550, its centre 3 750.
     let contact = 3_300 - R - GAP;
     let moved = walk(&mut yard, "walker", (contact + NUDGE_MAX + 10, 5_000));
     let walker = yard.point("walker").expect("placed");
@@ -194,8 +194,8 @@ fn a_long_stride_at_a_ball_never_passes_over_it() {
         vec![("ball", ball(110), "room", (4_000, 5_000))],
     );
     let moved = walk(&mut yard, "walker", (5_000, 5_000));
-    // Contact at 4 000 − 110 − (R + GAP) = 4 000 − 110 − 260 = 3 630; NUDGE_MAX = 300 mm more is
-    // 3 930; the ball goes until its edge is R + GAP from the walker: 3 930 + 260 + 110 = 4 300.
+    // Contact at 4 000 − 110 − (R + GAP) = 4 000 − 110 − 260 = 3 630; NUDGE_MAX = R = 250 mm more is
+    // 3 880; the ball goes until its edge is R + GAP from the walker: 3 880 + 260 + 110 = 4 250.
     let walker_at = 4_000 - 110 - R - GAP + NUDGE_MAX;
     let walker = yard.point("walker").expect("placed");
     assert!(near(walker, (walker_at, 5_000)), "walker at {walker:?}");

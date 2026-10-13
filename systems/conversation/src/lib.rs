@@ -51,10 +51,11 @@ pub mod action;
 pub mod component;
 pub mod error;
 pub mod event;
+pub mod interactions;
 pub mod system;
 pub mod utterance;
 
-pub use action::{INTERACTION_RANGE, Talk, talk_requirement};
+pub use action::{INTERACTION_RANGE, Talk, talk_requirement, talk_requirement_within};
 pub use component::{ConversationHistory, Heard, REMEMBERED_AT_MOST};
 pub use error::ConversationError;
 pub use event::{ConversationStarted, Spoke};

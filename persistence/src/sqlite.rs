@@ -6,8 +6,12 @@
 //! manifest    one row: the save format and the encoded manifest
 //! journal     revision → instant, ActionId of a request, encoded entry
 //! facts       EventId → revision, encoded EventEnvelope
-//! snapshots   revision → encoded WorldSnapshot
+//! snapshots   revision → encoded WorldSnapshot (a zstd frame of its JSON, `ARC-81`)
 //! ```
+//!
+//! `facts` and `journal` are only ever inserted into. A row of `snapshots` is deleted only when a
+//! revision's [`RevisionRow::retire`] names it, inside that revision's transaction; the freed pages are
+//! reused by later inserts, and nothing here runs `VACUUM`.
 //!
 //! WAL mode, so a reader (a verifying tool, a test) never blocks the writer. `synchronous` is chosen
 //! by [`Durability`]: `FULL` for a hosted world, whose revisions are told to clients; `NORMAL` for a
@@ -177,6 +181,23 @@ impl SqliteBackend {
                     params![signed(row.revision.raw())?, snapshot],
                 )
                 .map_err(storage)?;
+        }
+        // Retired after the new snapshot is in, inside the same transaction: the save never holds
+        // fewer snapshots than the rule keeps, even for a moment another reader could see (`ARC-81`).
+        for retired in &row.retire {
+            let deleted = transaction
+                .execute(
+                    "DELETE FROM snapshots WHERE revision = ?1",
+                    [signed(retired.raw())?],
+                )
+                .map_err(storage)?;
+            if deleted != 1 {
+                return Err(PersistError::Damaged {
+                    detail: format!(
+                        "asked to retire the snapshot at {retired}, which is not stored"
+                    ),
+                });
+            }
         }
         Ok(())
     }

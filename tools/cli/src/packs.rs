@@ -16,14 +16,14 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use mineworld_contracts::{SystemId, WorldTime};
+use mineworld_contracts::{EntityKey, SystemId, WorldTime};
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
     check_style_manifest, distinct, read_pack_file,
 };
 use mineworld_worldpack::catalog::AVAILABLE;
-use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack};
+use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
 
 use crate::described;
 
@@ -32,22 +32,28 @@ const CONTROLLERS: [Package; 1] = [mineworld_rule_controller::PACKAGE];
 
 /// Where a listed pack comes from.
 enum Origin {
-    /// A System Pack of this build's installed set.
+    /// A System Pack of this build's installed set, bundled or third-party (`ARC-54` point 2).
     System {
         id: SystemId,
         version: SystemVersion,
+        bundled: bool,
     },
-    /// A controller this binary composes.
-    Controller,
+    /// A controller this binary composes, bundled or third-party.
+    Controller { bundled: bool },
     /// A data pack in a pack root.
     Directory(PathBuf),
+}
+
+/// A code pack's origin in one word (`ARC-66` point 4): compiled from this workspace, or not.
+const fn origin_word(bundled: bool) -> &'static str {
+    if bundled { "bundled" } else { "third-party" }
 }
 
 impl Origin {
     fn describe(&self) -> String {
         match self {
             Self::System { id, .. } => format!("this build (system {id})"),
-            Self::Controller => "this build (a controller)".to_owned(),
+            Self::Controller { .. } => "this build (a controller)".to_owned(),
             Self::Directory(dir) => dir.display().to_string(),
         }
     }
@@ -64,10 +70,16 @@ fn refused(error: PackageError) -> String {
 }
 
 /// Where a requirement was met, as `validate` and `resolve` print it.
+///
+/// A directory is written with `/` on every OS, so the printed composition is the same text on every
+/// platform (AC-8 hashes it; `source_path` follows the same rule). On Windows `\` and `/` are both
+/// separators and neither may appear in a name, so the rewrite loses nothing; elsewhere `\` is an
+/// ordinary character in a name and is left alone.
 pub fn source(source: &Source) -> String {
     match source {
         Source::Build { bundled: true } => "this build, bundled".to_owned(),
         Source::Build { bundled: false } => "this build, third-party".to_owned(),
+        Source::Directory(dir) if cfg!(windows) => dir.display().to_string().replace('\\', "/"),
         Source::Directory(dir) => dir.display().to_string(),
     }
 }
@@ -82,6 +94,7 @@ fn gather(roots: &PackRoots) -> Result<Vec<Listed>, String> {
             origin: Origin::System {
                 id: capability.id(),
                 version: capability.version(),
+                bundled: capability.package().bundled(),
             },
         });
     }
@@ -89,7 +102,9 @@ fn gather(roots: &PackRoots) -> Result<Vec<Listed>, String> {
         listed.push(Listed {
             identity: Identity::of_code_pack(controller, PackType::ControllerPack)
                 .map_err(refused)?,
-            origin: Origin::Controller,
+            origin: Origin::Controller {
+                bundled: controller.bundled(),
+            },
         });
     }
     for pack in roots.packs().map_err(refused)? {
@@ -148,8 +163,8 @@ pub fn list(roots: &PackRoots) -> Result<(), String> {
     for pack in &listed {
         let identity = &pack.identity;
         let tail = match &pack.origin {
-            Origin::System { id, .. } => format!("system {id}"),
-            Origin::Controller => String::new(),
+            Origin::System { id, bundled, .. } => format!("{}  system {id}", origin_word(*bundled)),
+            Origin::Controller { bundled } => origin_word(*bundled).to_owned(),
             Origin::Directory(dir) => dir.display().to_string(),
         };
         let line = format!(
@@ -203,12 +218,16 @@ fn described_identity(identity: &Identity, origin: &Origin) -> String {
         .map_or_else(|| "—".to_owned(), ToString::to_string);
     let _ = writeln!(out, "  mineworld   {range}");
     match origin {
-        Origin::System { id, version } => {
+        Origin::System {
+            id,
+            version,
+            bundled,
+        } => {
             let _ = writeln!(out, "  system      {id} (SystemVersion {})", version.get());
-            let _ = writeln!(out, "  source      this build");
+            let _ = writeln!(out, "  source      this build ({})", origin_word(*bundled));
         }
-        Origin::Controller => {
-            let _ = writeln!(out, "  source      this build");
+        Origin::Controller { bundled } => {
+            let _ = writeln!(out, "  source      this build ({})", origin_word(*bundled));
         }
         Origin::Directory(dir) => {
             let _ = writeln!(out, "  source      {}", dir.display());
@@ -218,7 +237,7 @@ fn described_identity(identity: &Identity, origin: &Origin) -> String {
 }
 
 /// `mineworld packs validate <directory>`: one data pack, its package fields all required, its licence
-/// judged by the default policy, then its content — a world read (its requirements resolved in the
+/// judged by the default policy (a World Pack's by its own, ARC-55 note), then its content — a world read (its requirements resolved in the
 /// roots) and loaded as `validate` does; a presentation pack's style manifest.
 pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = DataPack::of(dir).map_err(refused)?.ok_or_else(|| {
@@ -226,26 +245,45 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
             dir: dir.to_path_buf(),
         })
     })?;
-    let identity = match &pack {
+    // A World Pack is judged by its own policy (`configure/packages.yaml`, ARC-55 note), after it is
+    // read and loaded; any other pack by the default, before its content — then its own framework range
+    // (ARC-54 note, F-Ed1), then its content.
+    let (identity, kinds) = match &pack {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
-            identity
+            world
+                .licence_policy()
+                .judge(identity.id.as_str(), &identity.license)
+                .map_err(refused)?;
+            (identity, None)
         }
         DataPack::PackFile(dir) => {
             let identity = read_pack_file(dir).map_err(refused)?;
-            check_style_manifest(dir).map_err(refused)?;
-            identity
+            LicencePolicy::default()
+                .judge(identity.id.as_str(), &identity.license)
+                .map_err(refused)?;
+            identity.require_framework().map_err(refused)?;
+            let kinds = match identity.kind {
+                // An Entity Pack's kinds, read against this build's whole installed set (ARC-71).
+                PackType::EntityPack => Some(validate_entity_pack(dir).map_err(described)?),
+                _ => {
+                    check_style_manifest(dir).map_err(refused)?;
+                    None
+                }
+            };
+            (identity, kinds)
         }
     };
-    LicencePolicy::default()
-        .judge(identity.id.as_str(), &identity.license)
-        .map_err(refused)?;
     print!(
         "{}",
         described_identity(&identity, &Origin::Directory(dir.to_path_buf()))
     );
+    if let Some(kinds) = kinds {
+        let kinds: Vec<&str> = kinds.iter().map(EntityKey::as_str).collect();
+        println!("  items       {}", kinds.join(", "));
+    }
     println!("{} is a valid {}.", dir.display(), identity.kind);
     Ok(())
 }

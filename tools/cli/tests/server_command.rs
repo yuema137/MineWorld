@@ -187,11 +187,11 @@ async fn join_with(address: std::net::SocketAddr, invite: &str, nickname: &str) 
     client.frame().await
 }
 
-/// The next frame that is not an observation.
+/// The next frame that is not part of the stream (an observation or a clock).
 async fn answer(client: &mut Client) -> ServerFrame {
     loop {
         let frame = client.frame().await;
-        if !matches!(frame, ServerFrame::Observation { .. }) {
+        if !support::streamed(&frame) {
             return frame;
         }
     }
@@ -253,7 +253,7 @@ async fn a_generated_invite_is_printed_on_one_line_and_kept_out_of_everything_el
     );
 
     let status = server.kill();
-    assert!(!status.success(), "SIGKILL ended the server");
+    assert!(status.killed(), "SIGKILL ended the server: {status:?}");
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     let (stdout, stderr) = (output.stdout(), output.stderr());
     assert_eq!(
@@ -457,4 +457,179 @@ async fn status_names_each_systems_actions_and_facts() {
             .expect("health"),
     );
     assert_eq!(health["protocol"], json!(2));
+}
+
+/// step-12 SB-8. `--time-scale N` is how many world seconds pass per wall second, reported in every
+/// welcome and in `/status`; without the flag it is one.
+#[tokio::test]
+async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reported() {
+    let plain = Server::start(&["server", support::PACK]).await;
+    assert_eq!(plain.status().await["time_scale"], json!(1));
+    drop(plain);
+
+    let server = Server::start(&["server", support::PACK, "--time-scale", "60"]).await;
+    let mut client = Client::connect(server.address).await;
+    let (_, world) = client.join("visitor").await;
+    assert_eq!(world.time_scale, 60, "reported in the welcome");
+
+    let before = server.status().await;
+    let wall = std::time::Instant::now();
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let after = server.status().await;
+    let elapsed = wall.elapsed().as_secs_f64();
+    assert_eq!(before["time_scale"], json!(60), "and in /status");
+    let world_seconds =
+        after["at"].as_i64().expect("an instant") - before["at"].as_i64().expect("an instant");
+    assert!(
+        (100..=140).contains(&world_seconds),
+        "two answers {elapsed:.2} wall seconds apart differ by {world_seconds} world seconds, not \
+         about 120"
+    );
+}
+
+/// CA-11, `INV-9` over S11-C's surfaces (step-12 §17.5): a client cannot send what only a server
+/// says (`perceived`, `delta`), cannot widen what it asks for with a field the protocol does not have,
+/// cannot state `acted_through`, and a cursor this world cannot serve grants nothing — the same
+/// connection then joins. The save does not move: `/status`'s revision is unchanged, and after the
+/// process dies the save holds exactly the genesis facts `validate` counts.
+#[tokio::test]
+async fn s11c_frames_a_client_may_not_send_are_refused_and_the_save_does_not_move() {
+    use mineworld_server::RefusalCode::{CursorUnavailable, MalformedFrame, UnknownFrame};
+
+    let save = support::SaveDir::new("inv9-s11c");
+    let mut server = Server::start(&["server", support::PACK, "--save", save.path()]).await;
+    let mut client = Client::connect(server.address).await;
+    let (visitor, _) = client.join("visitor").await;
+    let before = server.status().await["revision"].clone();
+    let refused = |frame: ServerFrame| match frame {
+        ServerFrame::Refused { code, .. } => Some(code),
+        _ => None,
+    };
+
+    for server_only in [
+        json!({ "t": "perceived", "through": "1", "events": [] }),
+        json!({ "t": "delta", "seq": 2, "base": 1, "revision": 1, "delta": {} }),
+    ] {
+        client.send(server_only.clone()).await;
+        assert_eq!(
+            refused(answer(&mut client).await),
+            Some(UnknownFrame),
+            "{server_only}"
+        );
+    }
+    let mut stated = json!({ "t": "submit", "token": "c1",
+                             "request": support::talk(visitor, visitor, "hello") });
+    stated["acted_through"] = json!("41");
+    client.send(stated).await;
+    assert_eq!(
+        refused(answer(&mut client).await),
+        Some(MalformedFrame),
+        "acted_through"
+    );
+
+    for extra in ["events", "observer"] {
+        let mut widening = Client::connect(server.address).await;
+        let mut join = support::join_frame("wanderer");
+        join["perceived"] = json!({ "since": null, extra: [] });
+        widening.send(join).await;
+        assert_eq!(
+            refused(widening.frame().await),
+            Some(MalformedFrame),
+            "perceived carrying {extra} is malformed, and no welcome follows"
+        );
+    }
+
+    let mut cursor = Client::connect(server.address).await;
+    let mut join = support::join_frame("wanderer");
+    join["perceived"] = json!({ "since": "1000000" });
+    cursor.send(join.clone()).await;
+    assert_eq!(refused(cursor.frame().await), Some(CursorUnavailable));
+    join["perceived"] = json!({ "since": null });
+    cursor.send(join).await;
+    assert!(
+        matches!(cursor.frame().await, ServerFrame::Welcome { .. }),
+        "the same connection joins once it asks for a cursor the world can serve"
+    );
+
+    assert_eq!(
+        server.status().await["revision"],
+        before,
+        "nothing was committed"
+    );
+    server.kill();
+
+    let (_, validated) = support::run_command(&["validate", support::PACK]);
+    let genesis = validated
+        .lines()
+        .find_map(|line| line.trim().strip_suffix(" genesis fact(s): the world's initial state, each one caused by the world coming into existence"))
+        .expect("validate counts the genesis facts")
+        .trim()
+        .to_owned();
+    let (_, inspected) = support::run_command(&["inspect", save.path()]);
+    let facts = inspected
+        .lines()
+        .find_map(|line| line.strip_prefix("facts"))
+        .expect("inspect counts the facts")
+        .trim()
+        .to_owned();
+    assert_eq!(
+        facts, genesis,
+        "the save holds the genesis facts and nothing else"
+    );
+}
+
+/// step-12 DA-9's command-line half. `--help` names `MINEWORLD_ADMIN_TOKEN` and never its value; an
+/// illegal admin token, or one equal to the invite, stops the server before it listens, non-zero,
+/// echoing neither.
+#[test]
+fn an_unusable_admin_token_stops_the_server_and_help_shows_no_value() {
+    const SET: &str = "help-admin-token-0d9a";
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_mineworld"))
+        .args(["server", "--help"])
+        .env("MINEWORLD_ADMIN_TOKEN", SET)
+        .output()
+        .expect("the binary runs");
+    let help = String::from_utf8_lossy(&help.stdout).into_owned();
+    assert!(help.contains("MINEWORLD_ADMIN_TOKEN"), "{help}");
+    assert!(
+        !help.contains(SET),
+        "--help showed the variable's value: {help}"
+    );
+
+    const INVITE: &str = "same-secret-for-both";
+    for (case, arguments) in [
+        (
+            "equal to the invite",
+            vec!["--invite", INVITE, "--admin-token", INVITE],
+        ),
+        (
+            "illegal",
+            vec!["--invite", "an-invite-0001", "--admin-token", "short"],
+        ),
+    ] {
+        let refused = std::process::Command::new(env!("CARGO_BIN_EXE_mineworld"))
+            .args(["server", support::PACK, "--listen", "127.0.0.1:0"])
+            .args(&arguments)
+            .env_remove("MINEWORLD_INVITE")
+            .env_remove("MINEWORLD_ADMIN_TOKEN")
+            .output()
+            .expect("the binary runs");
+        assert!(
+            !refused.status.success(),
+            "an admin token {case} stops the server"
+        );
+        let said = String::from_utf8_lossy(&refused.stderr).into_owned()
+            + &String::from_utf8_lossy(&refused.stdout);
+        assert!(said.contains("--admin-token"), "{case}: {said}");
+        assert!(
+            !said.contains("listening"),
+            "{case}: the server listened: {said}"
+        );
+        for secret in [arguments[1], arguments[3]] {
+            assert!(
+                !said.contains(secret),
+                "{case}: the refusal repeated {secret:?}: {said}"
+            );
+        }
+    }
 }

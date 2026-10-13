@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 724" width="1600" height="724" role="img" aria-label="一个世界是怎么搭起来的：世界、规则模块和物品种类装进同一台服务器，服务器里有一个很小的核心。玩家、脚本和 AI 只发请求。服务器告诉 2D 和 3D 视图你能看到什么、能做什么，并保存每一次变化。">
+<rect width="1600" height="724" rx="24" fill="#10151c"/>
+<rect x="420" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="668" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="916" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="24" width="276" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="24" y="280" width="270" height="240" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="280" width="276" height="110" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="410" width="276" height="110" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="24" y="600" width="270" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="600" width="276" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="420" y="280" width="740" height="240" rx="18" fill="#2a2216" stroke="#e0a458" stroke-width="2.5"/>
+<rect x="452" y="380" width="676" height="114" rx="12" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="420" y="600" width="740" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<g stroke="#e0a458" stroke-width="2.5" fill="none">
+<path d="M542 206V266"/><path d="M790 206V266"/><path d="M1038 206V266"/><path d="M1438 206V266"/>
+<path d="M296 440H404"/><path d="M1162 335H1284"/><path d="M1162 465H1284"/><path d="M790 536V584"/>
+</g>
+<g fill="#e0a458">
+<path d="M542 278l-8-14h16z"/><path d="M790 278l-8-14h16z"/><path d="M1038 278l-8-14h16z"/><path d="M1438 278l-8-14h16z"/>
+<path d="M418 440l-14-8v16z"/><path d="M1298 335l-14-8v16z"/><path d="M1298 465l-14-8v16z"/>
+<path d="M790 522l-8 14h16z"/><path d="M790 598l-8-14h16z"/>
+</g>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<g font-size="18" letter-spacing="2" fill="#e0a458">
+<text x="444" y="60">01 / 世界</text>
+<text x="692" y="60">02 / 规则</text>
+<text x="940" y="60">03 / 物品</text>
+<text x="1324" y="60">05 / 外观</text>
+<text x="48" y="316">04 / 大脑</text>
+<text x="444" y="316">服务器</text>
+<text x="444" y="636">保存的历史</text>
+</g>
+<g font-size="25" font-weight="600" fill="#e8ecf2">
+<text x="444" y="104">里面有谁</text>
+<text x="692" y="104">能发生什么</text>
+<text x="940" y="104">有哪些东西</text>
+<text x="1324" y="104">画成什么样</text>
+<text x="48" y="360">谁来做决定</text>
+<text x="444" y="358">让世界一直运转，哪怕没有人登录</text>
+<text x="1324" y="344">2D 视图</text>
+<text x="1324" y="474">3D 视图</text>
+<text x="476" y="420" font-size="22">核心</text>
+</g>
+<g font-size="20" fill="#a7b0bd">
+<text x="444" y="144">人、地方</text>
+<text x="444" y="172">和物品</text>
+<text x="692" y="144">聊天、买东西、</text>
+<text x="692" y="172">上班、吃饭……</text>
+<text x="940" y="144">咖啡、雨伞……</text>
+<text x="940" y="172">多个世界可以共用</text>
+<text x="1324" y="144">一套 2D 画风和</text>
+<text x="1324" y="172">一套 3D 画风</text>
+<text x="48" y="404">真人玩家</text>
+<text x="48" y="438">简单的脚本</text>
+<text x="48" y="472">AI 模型</text>
+<text x="48" y="500" font-size="17" fill="#e0a458">（AI：即将到来）</text>
+<text x="476" y="452">只知道有哪些东西、在哪、几点了、发生过什么。</text>
+<text x="476" y="480">它不懂什么是工作，也不懂什么是钱。</text>
+<text x="1324" y="372">点一下就走、就做</text>
+<text x="1324" y="502">走过去按 E</text>
+<text x="444" y="676">每一次变化和它的起因都记下来。重启或重放，还是同一个世界。</text>
+<text x="48" y="640">关掉一个模块：</text>
+<text x="48" y="666">它的动作没了，</text>
+<text x="48" y="692">别的都不受影响。</text>
+<text x="1324" y="640">视图和大脑只提请求，</text>
+<text x="1324" y="668">由服务器来决定。</text>
+</g>
+<g font-size="17" fill="#e0b878">
+<text x="302" y="414">请求：</text>
+<text x="302" y="434">“买杯咖啡”</text>
+<text x="1176" y="394">你能看到的</text>
+<text x="1176" y="416">和能做的</text>
+</g>
+</g>
+</svg>

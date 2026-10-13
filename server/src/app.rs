@@ -4,6 +4,7 @@
 //! GET /health   liveness. Answered by the transport, so it stays true while a world is busy.
 //! GET /status   what the world is. Answered by the WORLD, so it is evidence that the world runs.
 //! GET /ws       the live connection: observations out, intents in.
+//! /admin/…      the admin surface (crate::admin), only when an admin token was given.
 //! ```
 //!
 //! One binary for localhost, LAN and cloud alike (`NETWORKING.md` §1): the address it listens on is
@@ -22,7 +23,8 @@ use axum::routing::{any, get};
 use serde::Serialize;
 use tokio::net::TcpListener;
 
-use crate::admission::Admission;
+use crate::admin::{self, registry::Registry};
+use crate::admission::{AdminToken, Admission};
 use crate::host::WorldHost;
 use crate::protocol::{PROTOCOL_VERSION, SessionId, WorldSummary};
 use crate::session;
@@ -48,41 +50,77 @@ struct Hosting {
     host: WorldHost,
     admission: Arc<Admission>,
     sessions: Arc<AtomicU64>,
+    registry: Arc<Registry>,
 }
 
-/// The routes, over one hosted world, admitting the holders of one invite.
-pub fn router(host: WorldHost, admission: Admission) -> Router {
-    Router::new()
+/// Who may do what on this server: the invite every player presents, and — only if the operator
+/// gave one — the admin token that opens `/admin` (`PROTOCOL.md` §11).
+///
+/// An [`Admission`] alone converts into an `Access` with no admin surface, so every existing call
+/// that passes one keeps its meaning.
+#[derive(Debug, Clone)]
+pub struct Access {
+    /// The invite check.
+    pub admission: Admission,
+    /// The admin token, or `None` for no admin surface at all.
+    pub admin: Option<AdminToken>,
+}
+
+impl From<Admission> for Access {
+    fn from(admission: Admission) -> Self {
+        Self {
+            admission,
+            admin: None,
+        }
+    }
+}
+
+/// The routes, over one hosted world, admitting the holders of one invite — and, with an admin
+/// token, the admin surface. Without one, no `/admin` path exists: each answers `404` as any
+/// unknown path does.
+pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
+    let Access { admission, admin } = access.into();
+    let registry = Arc::new(Registry::default());
+    let public = Router::new()
         .route("/health", get(health))
         .route("/status", get(status))
         .route("/ws", any(upgrade))
         .with_state(Hosting {
-            host,
+            host: host.clone(),
             admission: Arc::new(admission),
             sessions: Arc::new(AtomicU64::new(1)),
-        })
+            registry: Arc::clone(&registry),
+        });
+    match admin {
+        Some(token) => public.merge(admin::routes(admin::Admin {
+            host,
+            registry,
+            token: Arc::new(token),
+        })),
+        None => public,
+    }
 }
 
 /// Serves until the process is stopped.
 pub async fn serve(
     listener: TcpListener,
     host: WorldHost,
-    admission: Admission,
+    access: impl Into<Access>,
 ) -> std::io::Result<()> {
-    axum::serve(listener, router(host, admission)).await
+    axum::serve(listener, router(host, access)).await
 }
 
 /// Serves until `shutdown` completes, and then stops accepting connections.
 pub async fn serve_with_shutdown<S>(
     listener: TcpListener,
     host: WorldHost,
-    admission: Admission,
+    access: impl Into<Access>,
     shutdown: S,
 ) -> std::io::Result<()>
 where
     S: Future<Output = ()> + Send + 'static,
 {
-    axum::serve(listener, router(host, admission))
+    axum::serve(listener, router(host, access))
         .with_graceful_shutdown(shutdown)
         .await
 }
@@ -119,6 +157,7 @@ async fn upgrade(upgrade: WebSocketUpgrade, State(hosting): State<Hosting>) -> i
         session: SessionId::new(hosting.sessions.fetch_add(1, Ordering::Relaxed)),
         host: hosting.host,
         admission: hosting.admission,
+        registry: hosting.registry,
     };
     upgrade.on_upgrade(move |socket| session::run(socket, connection))
 }

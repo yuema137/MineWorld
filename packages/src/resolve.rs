@@ -105,8 +105,9 @@ pub struct Installed<'a> {
 
 /// Resolves `world` against `installed` under `policy`, refusing the first failure by name, in the
 /// order of `ARC-54` point 4: a duplicate id; per requirement, in id order, absent, a type a world
-/// cannot require, bundled, out of range; an enabled third-party system not required; a licence outside
-/// the policy. `enabled` is the world's `systems`, in its order.
+/// cannot require, bundled, out of range, a data pack whose own `mineworld:` range excludes the
+/// framework (`ARC-54` note); an enabled third-party system not required; a licence outside the policy.
+/// `enabled` is the world's `systems`, in its order.
 ///
 /// # Errors
 ///
@@ -179,7 +180,8 @@ pub fn resolve(
     })
 }
 
-/// One requirement: found, of a type a world may require, not bundled, in range.
+/// One requirement: found, of a type a world may require, not bundled, in range, and — for a data
+/// pack — stating a framework range this framework is in.
 fn requirement(
     id: &PackId,
     range: &Compatibility,
@@ -220,11 +222,10 @@ fn requirement(
                 "controllers are chosen by the host, not by the world (S10)",
             ));
         }
-        PackType::EntityPack => return Err(wrong("Entity Packs are read from S16's PR E-d")),
         PackType::SystemPack if matches!(source, Source::Build { bundled: true }) => {
             return Err(PackageError::BundledRequired { id: id.to_string() });
         }
-        PackType::SystemPack | PackType::PresentationPack => {}
+        PackType::SystemPack | PackType::PresentationPack | PackType::EntityPack => {}
     }
     if !range.admits(&identity.version) {
         return Err(PackageError::OutOfRange {
@@ -233,6 +234,9 @@ fn requirement(
             found: identity.version.to_string(),
         });
     }
+    // A data pack states the frameworks it works with; one this framework is not in is refused like the
+    // world's own range (`ARC-54` note, F-Ed1). A code pack states none.
+    identity.require_framework()?;
     Ok(Resolved {
         range: range.clone(),
         identity: identity.clone(),

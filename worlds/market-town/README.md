@@ -19,10 +19,15 @@ And work, money, shops and eating (`ARC-38`):
   the shift is the work, paid by the hour and restocking the shop;
 - `consumption` lets people eat the food and drink the drinks they carry.
 
+It lives in San Diego: `calendar` gives it a date and a sun, and `weather` San Diego's real weather of
+2015–2024, replayed day by day from NOAA's station record in `data/weather/` (see its `NOTICE`), both
+configured in `configure/`.
+
 Every file of `worlds/social-cafe` was copied unchanged — its walls, furniture and four loose objects
 (`bodies`) included; the only differences are this README, the world's id and name, six appended
-systems, the twenty kinds and the two organizations with their files, and blocks appended at the end
-of each person file (`holdings:`, `economy:`, and `job:` for two).
+systems (and the two generic packs above, with their configuration), the twenty kinds and the two
+organizations with their files, and blocks appended at the end of each person file (`holdings:`,
+`economy:`, and `job:` for two).
 
 Run it headless — everybody walks, talks, gives, buys, eats and drinks, and two of them work:
 

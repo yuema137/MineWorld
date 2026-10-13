@@ -52,9 +52,13 @@ pub const TOL: i32 = 5;
 /// No two people closer than this: `2R − TOL` = 495 mm.
 pub const CLEAR: i32 = 2 * R - TOL;
 
-/// Registers this build's one resolver; a no-op after the first call in a process.
+/// Registers this build's one resolver and its one wayfinder (step-11 RN-9: bodies refuses to join a
+/// world whose host registered either catalog without it); a no-op after the first call in a process.
 pub fn register() {
     register_resolvers(vec![Box::new(BodiesSystem) as Box<dyn ArrivalResolver>]);
+    mineworld_movement::register_wayfinders(vec![
+        Box::new(BodiesSystem) as Box<dyn mineworld_movement::Wayfinder>
+    ]);
 }
 
 /// The prototype's café room: floor and counter.

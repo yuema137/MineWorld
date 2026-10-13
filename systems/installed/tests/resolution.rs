@@ -5,8 +5,9 @@
 //! see is whether that type is also a pack this build installs: an implementation whose pack is not
 //! installed would be registered by every host and asked in every world, while no world could ever
 //! enable the pack whose state it reads. And one type listed twice would be refused only when a host
-//! first registers. This guard holds both on the real set — whose one line today is presence's arrival
-//! resolvers — and a stub set that lists, twice, a type it does not install is its negative control.
+//! first registers. This guard holds both on the real set — whose lines today are presence's arrival
+//! resolvers and movement's wayfinders — and a stub set that lists, twice, a type it does not install
+//! is its negative control.
 //!
 //! The file keeps its name from when the line was spelled `resolution:` (the seam scan lists it).
 
@@ -41,7 +42,11 @@ fn every_type_on_an_extension_line_is_an_installed_pack_listed_once() {
     use mineworld_installed_systems::{AVAILABLE, Capability};
 
     let lines = Capability::extension_types();
-    assert!(!lines.is_empty(), "the real set has presence's line");
+    assert_eq!(
+        lines.len(),
+        2,
+        "the real set has presence's line and movement's"
+    );
     let installed = AVAILABLE.into_iter().map(Capability::type_name).collect();
     let faults = faults(lines, installed);
     assert!(faults.is_empty(), "{faults:#?}");

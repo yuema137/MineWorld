@@ -1,0 +1,18 @@
+# The published surface (docs/DECISIONS.md ARC-66): the framework crates a System Pack from another
+# repository may depend on, by version requirement ("0.1"), each mapped here to this repository's own
+# source. Publishing one more crate to third parties is one reviewed line below.
+#
+# It lives here rather than in the root Cargo.toml because AC-1's check 2 reads every Cargo.toml outside
+# systems/ for the market's crate names, and mineworld-inventory is one (ARC-66 point 3, finding F-Ec1).
+# tests/acceptance/tests/package_sources.rs reads this table.
+#
+# Cargo reads this file from the working directory upward: run Cargo inside the repository. From
+# elsewhere a third-party pack's framework names are not found, and the build refuses (ARC-66).
+# Paths are relative, with `/`, resolved against the directory that holds `.cargo/` on every OS.
+[patch.crates-io]
+mineworld-sdk = { path = "sdk/rust" }
+mineworld-kernel = { path = "kernel" }
+mineworld-contracts = { path = "contracts" }
+mineworld-authoring = { path = "authoring" }
+mineworld-presence = { path = "systems/presence" }
+mineworld-inventory = { path = "systems/inventory" }

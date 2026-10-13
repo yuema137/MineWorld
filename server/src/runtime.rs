@@ -1,17 +1,19 @@
 //! The world thread: one loop, one world, and every access to it a message.
 //!
 //! This is the only code that touches a [`World`], and it is single-threaded by construction (see
-//! [`crate::host`] for why a `World` cannot be anything else). It holds the four things a running
-//! world needs that the kernel deliberately does not own:
+//! [`crate::host`] for why a `World` cannot be anything else). It holds the things a running world
+//! needs that the kernel deliberately does not own:
 //!
 //! ```text
-//! the pacing         how fast a hosted world's seconds pass in real time: one per wall second.
-//!                    The world's own clock and schedule are the kernel's (S4); this only says how
-//!                    far to advance them, on each tick and before each request
+//! the pacing         how fast a hosted world's seconds pass in real time: `time_scale` per wall
+//!                    second. The world's own clock and schedule are the kernel's (S4); this only
+//!                    says how far to advance them, on each tick and before each request
 //! the allocator      the server allocates every ActionId, because a client has no allocator
 //!                    (INV-6, FINDINGS.md F4)
 //! a recent window    the facts perception may look back over; the durable log is the save's
 //! the subscribers    one bounded channel per connected client
+//! the seat table     who drives each seat (crate::seats), and the in-server controllers it binds,
+//!                    consulted on each tick before the sweep (crate::hosted, ARC-42)
 //! ```
 //!
 //! # A persisted world
@@ -27,136 +29,51 @@
 //!
 //! Nothing in this module decides whether an action is admissible, and nothing in it decides what
 //! an observer may see. Those are the kernel's and the perception seam's, which is what keeps a
-//! world rule out of the server (`ENGINEERING_RULES.md` §8).
+//! world rule out of the server (`ENGINEERING_RULES.md` §8). Nothing in it waits for a client or a
+//! controller either: observations go out with `try_send`, and a hosted controller's `decide` is a
+//! bounded synchronous call (step-12 I-11).
+
+mod control;
+mod delivery;
+mod status;
+mod world;
+
+pub(crate) use control::{ControlAnswer, ControlCommand};
 
 use std::sync::Arc;
 use std::time::Instant;
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime,
+    ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, EventId, WorldTime,
 };
-use mineworld_kernel::{Advanced, Dispatched, KernelError, World};
-use mineworld_persistence::{PersistError, WorldRevision};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot, watch};
 
+use crate::admission::ResumeSecret;
 use crate::host::{
-    Command, HostConfig, Hosted, HostedWorld, Perceived, SeatRoster, Seated, Submitted,
+    Binding, Command, HostConfig, Hosted, HostedWorld, SeatRoster, Seated, Submitted,
     SubscriptionId, SubscriptionIdSource,
 };
-use crate::perception::{Perception, PerceptionContext};
-use crate::protocol::{
-    PROTOCOL_VERSION, Refusal, RefusalCode, SystemSummary, WorldInstanceId, WorldSummary,
-};
-
-/// One connected client, as the world knows it: which observer, and where to put its observations.
-struct Subscriber {
-    subscription: SubscriptionId,
-    observer: EntityId,
-    observations: mpsc::Sender<Perceived>,
-}
-
-/// The host's pacing: which instant a hosted world should have reached by now.
-///
-/// Wall time in whole simulated seconds from an epoch. Not the world's clock — that is the kernel's,
-/// moved only by advancing and dispatching (S4) — and not a scheduler: it answers "how far should the
-/// world be advanced", which is a deployment decision rather than a simulation one. A headless run
-/// that wants a hundred days in a second advances the kernel directly and has no use for this.
-struct HostClock {
-    epoch: WorldTime,
-    started: Instant,
-}
-
-impl HostClock {
-    fn new(epoch: WorldTime) -> Self {
-        Self {
-            epoch,
-            started: Instant::now(),
-        }
-    }
-
-    fn now(&self) -> WorldTime {
-        let elapsed = i64::try_from(self.started.elapsed().as_secs()).unwrap_or(i64::MAX);
-        WorldTime::from_seconds(self.epoch.seconds().saturating_add(elapsed))
-    }
-}
-
-/// The server's request-identity allocator: monotonic, never reused, consulted by nothing else.
-struct ActionIds {
-    next: u64,
-}
-
-impl ActionIds {
-    /// An allocator whose first identity is `first` — one for a world with no requests behind it,
-    /// past the journal's highest for a resumed one.
-    const fn starting_at(first: u64) -> Self {
-        Self { next: first }
-    }
-
-    /// Allocates the next identity, or `None` when the space is spent — which no world reaches, and
-    /// which must still not wrap, because a reused `ActionId` would make two requests
-    /// indistinguishable in the event log's causal chain.
-    fn allocate(&mut self) -> Option<ActionId> {
-        let id = ActionId::from_raw(self.next);
-        self.next = self.next.checked_add(1)?;
-        Some(id)
-    }
-}
-
-/// Why an input to the hosted world did not complete.
-enum Failure {
-    /// A system broke its own contract. Counted and reported; the world goes on. For a persisted
-    /// world the fault is already journaled as the input's outcome.
-    Fault(KernelError),
-    /// The save could not be written: the world is ahead of it and must stop.
-    Stopped(String),
-}
-
-impl Failure {
-    fn from_persistence(error: PersistError) -> Self {
-        match error {
-            PersistError::Kernel(fault) => Self::Fault(fault),
-            other => Self::Stopped(other.to_string()),
-        }
-    }
-}
-
-impl Hosted {
-    fn world(&self) -> &World {
-        match self {
-            Self::Ephemeral(world) => world,
-            Self::Persisted(world) => world.world(),
-        }
-    }
-
-    fn revision(&self) -> Option<WorldRevision> {
-        match self {
-            Self::Ephemeral(_) => None,
-            Self::Persisted(world) => Some(world.revision()),
-        }
-    }
-
-    fn dispatch(&mut self, intent: &ActionIntent, at: WorldTime) -> Result<Dispatched, Failure> {
-        match self {
-            Self::Ephemeral(world) => world.dispatch(intent, at).map_err(Failure::Fault),
-            Self::Persisted(world) => world
-                .dispatch(intent, at)
-                .map_err(Failure::from_persistence),
-        }
-    }
-
-    fn advance_to(&mut self, at: WorldTime) -> Result<Advanced, Failure> {
-        match self {
-            Self::Ephemeral(world) => world.advance_to(at).map_err(Failure::Fault),
-            Self::Persisted(world) => world.advance_to(at).map_err(Failure::from_persistence),
-        }
-    }
-}
+use crate::hosted::HostedAnswer;
+use crate::perception::{EventPerception, PerceivedHistory, Perception, PerceptionContext};
+use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInstanceId};
+use crate::seats::{JoinRequest, SeatTable};
+use delivery::Subscriber;
+use status::first_binding;
+use world::{ActionIds, Failure, HostClock, TickTimes};
 
 /// The world, and everything the server holds around it.
 pub(crate) struct WorldRuntime {
     world: Hosted,
     perception: Box<dyn Perception>,
+    /// Who learns of each recorded fact (`ARC-43`), asked at record time.
+    audience: Box<dyn EventPerception>,
+    /// Where a `perceived` backfill is read, off this thread; `None` keeps no history.
+    history: Option<Arc<dyn PerceivedHistory>>,
+    /// The newest fact the world has recorded, which a joining connection's live stream follows.
+    head: Option<EventId>,
     seats: SeatRoster,
+    /// Who drives each seat. Its only writer is this thread (step-12 I-3).
+    table: SeatTable,
     /// Which world this is: the save's, for a persisted world; allocated once, here, otherwise.
     /// Reported unchanged to every client and every status answer (`AC-15`, `MVP.md` §9.1).
     instance: WorldInstanceId,
@@ -169,10 +86,16 @@ pub(crate) struct WorldRuntime {
     recent: Vec<EventEnvelope>,
     /// Observations dropped because a client was not reading. Counted rather than waited on.
     dropped: u64,
+    /// Learned facts dropped from a full per-connection queue before a frame carried them.
+    events_dropped: u64,
     /// Dispatches and advances that ended in a `KernelError` — a system breaking its own contract.
     faults: u64,
     /// Set when the save could not be written. The loop ends after the command that found it.
     stopped: Option<String>,
+    ticks: TickTimes,
+    /// The host clock's state as every session reads it: written on each pause and resume, newest
+    /// wins (`PROTOCOL.md` §5.9).
+    announced: watch::Sender<ClockState>,
 }
 
 impl WorldRuntime {
@@ -184,19 +107,47 @@ impl WorldRuntime {
                 world.world().now(),
             ),
         };
+        let bound = first_binding(&hosted.world, epoch);
+        let table = SeatTable::new(
+            hosted.seats.iter().cloned(),
+            hosted.hosted,
+            config.hold,
+            bound,
+        );
+        // The kernel's next event identity, read once: the facts before it — genesis included —
+        // were recorded before this host, and a perceived stream's live part starts after them.
+        let next_event = hosted.world.world().schedule_snapshot().next_event;
+        let head = next_event
+            .checked_sub(1)
+            .filter(|last| *last > 0)
+            .map(EventId::from_raw);
+        let wall = Instant::now();
+        let clock = HostClock::new(epoch, config.time_scale, wall);
+        let (announced, _) = watch::channel(ClockState {
+            at: clock.now_at(wall),
+            time_scale: clock.scale().get(),
+            paused: clock.paused(),
+        });
         Self {
             world: hosted.world,
             perception: hosted.perception,
+            audience: hosted.events,
+            history: hosted.history,
+            head,
             seats: hosted.seats,
+            table,
             instance,
-            clock: HostClock::new(epoch),
+            clock,
+            announced,
             actions: ActionIds::starting_at(hosted.first_action),
             subscriptions: SubscriptionIdSource::new(),
             subscribers: Vec::new(),
             recent: hosted.recent,
             dropped: 0,
+            events_dropped: 0,
             faults: 0,
             stopped: None,
+            ticks: TickTimes::default(),
             config,
         }
     }
@@ -209,24 +160,31 @@ impl WorldRuntime {
                 Command::Status(reply) => {
                     let _ = reply.send(self.summary());
                 }
-                Command::Join { seat, reply } => {
-                    let _ = reply.send(self.join(seat));
+                Command::Join {
+                    request,
+                    perceived,
+                    reply,
+                } => {
+                    let _ = reply.send(self.join(&request, perceived));
                 }
-                Command::Leave(subscription) => {
-                    self.subscribers
-                        .retain(|subscriber| subscriber.subscription != subscription);
-                }
+                Command::Leave(subscription, departure) => self.depart(subscription, departure),
                 Command::Submit {
+                    subscription,
                     observer,
                     request,
                     reply,
                 } => {
-                    let answer = self.submit(observer, *request);
+                    let answer = self.submit(subscription, observer, *request);
                     let _ = reply.send(answer);
                 }
                 Command::Sweep => self.tick(),
-                Command::Shutdown => {
+                Command::Control { command, reply } => {
+                    let _ = reply.send(self.control(command));
+                }
+                Command::Shutdown(done) => {
                     self.checkpoint();
+                    println!("{}", self.ticks.report());
+                    let _ = done.send(());
                     break;
                 }
             }
@@ -249,38 +207,115 @@ impl WorldRuntime {
 
     /// Seats a connection, or refuses it.
     ///
-    /// Two refusals, and the difference matters: an unknown seat is the client asking for something
-    /// the roster does not offer, while a seat whose key this world cannot resolve is a fault in the
-    /// world's own composition — a roster naming an entity the World Pack did not create.
-    fn join(&mut self, seat: EntityKey) -> Result<Seated, Refusal> {
-        if !self.seats.contains(&seat) {
+    /// Three kinds of refusal, and the difference matters: an unknown seat is the client asking for
+    /// something the roster does not offer; a seat whose key this world cannot resolve is a fault in
+    /// the world's own composition; and a seat somebody else holds is the seat table's answer
+    /// (`PROTOCOL.md` §4.2). A granted seat changes no world state: binding is host state (`ARC-40`).
+    fn join(
+        &mut self,
+        request: &JoinRequest,
+        perceived: Option<PerceivedJoin>,
+    ) -> Result<Seated, Refusal> {
+        let seat = &request.seat;
+        if !self.seats.contains(seat) {
             return Err(Refusal::new(RefusalCode::UnknownSeat)
                 .detail("this world offers no such seat; GET /status lists the seats it has"));
         }
-        let observer = self
-            .world
-            .world()
-            .read()
-            .resolve_key(&seat)
-            .map_err(|error| Refusal::new(RefusalCode::SeatNotInWorld).detailed(error))?;
+        let observer = self.observer_of(seat)?;
+        // Before the seat table is asked, so that a cursor this world cannot serve grants nothing.
+        let start = self.perceived_start(perceived)?;
+        let resume = ResumeSecret::generate()
+            .map_err(|error| Refusal::new(RefusalCode::DispatchFailed).detailed(error))?;
+        let subscription = self.subscriptions.allocate();
+        let grant = self.table.join(
+            request,
+            subscription,
+            resume.clone(),
+            Instant::now(),
+            self.clock.now(),
+        )?;
+        // The connection that held the seat is unbound before the new one is seated: never two.
+        if let Some((displaced, reason)) = grant.displaced {
+            self.release(displaced, reason);
+        }
 
         let (sender, receiver) = mpsc::channel(self.config.observation_backlog);
-        let subscription = self.subscriptions.allocate();
-        self.subscribers.push(Subscriber {
-            subscription,
+        let (released, on_release) = oneshot::channel();
+        self.subscribers.push(Subscriber::new(
+            (subscription, request.session),
             observer,
-            observations: sender,
-        });
+            (sender, released),
+            start.as_ref().map(|start| start.head),
+        ));
+        let binding = Binding {
+            took_over: grant.took_over,
+            resume,
+            hold_seconds: u32::try_from(self.config.hold.as_secs()).unwrap_or(u32::MAX),
+            keyframe_every: self.config.keyframe_every,
+        };
         let summary = self.summary();
-        Ok(Seated::new(seat, observer, summary, subscription, receiver))
+        Ok(Seated::new(
+            seat.clone(),
+            observer,
+            summary,
+            subscription,
+            (receiver, on_release, self.announced.subscribe()),
+            binding,
+            start,
+        ))
     }
 
-    /// Allocates identity and an instant for one submitted request, and dispatches it.
+    fn observer_of(&self, seat: &EntityKey) -> Result<EntityId, Refusal> {
+        self.world
+            .world()
+            .read()
+            .resolve_key(seat)
+            .map_err(|error| Refusal::new(RefusalCode::SeatNotInWorld).detailed(error))
+    }
+
+    /// A session's request, at the host's instant; its facts are swept to every client at once.
+    /// On a connection's behalf, the dispatched request becomes its `acted_through` before any
+    /// observation reflecting it is computed.
+    ///
+    /// While the host has paused the clock it is refused before anything is allocated: no
+    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9).
+    fn submit(
+        &mut self,
+        subscription: Option<SubscriptionId>,
+        observer: EntityId,
+        request: ActionRequest,
+    ) -> Result<Submitted, Refusal> {
+        if self.clock.paused() {
+            return Err(Refusal::new(RefusalCode::Paused).detail(
+                "the host has paused the world's clock; submit again after a clock frame says \
+                 paused: false",
+            ));
+        }
+        let at = self.clock.now();
+        let (submitted, recorded) = self.submit_at(observer, request, at)?;
+        if let Some(subscription) = subscription {
+            self.acted(subscription, submitted.action_id());
+        }
+        // Straight away rather than at the next tick, so that the facts a request caused reach
+        // every client entitled to them without waiting out the cadence.
+        if recorded {
+            self.sweep();
+        }
+        Ok(submitted)
+    }
+
+    /// Allocates identity for one request and dispatches it at `at` — the one authority path, for a
+    /// session and for an in-server controller alike (step-12 I-8). Returns whether it recorded facts.
     ///
     /// The actor check is here rather than in the transport on purpose: it is an authority rule
     /// (`NETWORKING.md` §2 — a client may act, and may not assert), so it must hold for everything
     /// that reaches the world, not only for what arrives over a WebSocket.
-    fn submit(&mut self, observer: EntityId, request: ActionRequest) -> Result<Submitted, Refusal> {
+    fn submit_at(
+        &mut self,
+        observer: EntityId,
+        request: ActionRequest,
+        at: WorldTime,
+    ) -> Result<(Submitted, bool), Refusal> {
         if request.actor() != observer {
             return Err(Refusal::new(RefusalCode::ActorNotObserver).detail(
                 "a client may only ask the world to act as its own observer; the actor of this \
@@ -291,7 +326,6 @@ impl WorldRuntime {
             return Err(Refusal::new(RefusalCode::DispatchFailed)
                 .detail("this world has exhausted its request identities"));
         };
-        let at = self.clock.now();
         let intent = ActionIntent::allocate(request, action_id, at);
 
         // Whatever was due by now happens first: it was scheduled before this request arrived, and
@@ -307,12 +341,7 @@ impl WorldRuntime {
                 let (result, events, _deferred) = dispatched.into_parts();
                 let recorded = !events.is_empty();
                 self.remember(events);
-                // Straight away rather than at the next tick, so that the facts a request caused
-                // reach every client entitled to them without waiting out the cadence.
-                if recorded {
-                    self.sweep();
-                }
-                Ok(Submitted::new(action_id, result))
+                Ok((Submitted::new(action_id, result), recorded))
             }
             Err(failure) => Err(self.refusal(failure)),
         }
@@ -338,104 +367,83 @@ impl WorldRuntime {
         }
     }
 
-    /// Moves the world to the host's instant, firing whatever was scheduled up to it, and keeps the
-    /// facts that produced for perception.
+    /// Moves the world to `at`, firing whatever was scheduled up to it, and keeps the facts that
+    /// produced for perception.
     fn advance(&mut self, at: WorldTime) -> Result<(), Failure> {
         let advanced = self.world.advance_to(at)?;
         self.remember(advanced.into_events());
         Ok(())
     }
 
-    /// One tick of the host's cadence: let the world's time catch up with the host's, then show
-    /// every client what it may now perceive.
+    /// One tick of the host's cadence: holds that ended are released, due in-server controllers
+    /// are consulted, the world's time catches up with the host's, and every client is shown what it
+    /// may now perceive. Timed, for the operator's statistics.
+    ///
+    /// While the host has paused the clock, holds still end (they are wall time) and every client
+    /// is still swept, but nobody is consulted and the world is not advanced: the town does not act
+    /// and no Process wakes (`PROTOCOL.md` §5.9).
     fn tick(&mut self) {
-        let at = self.clock.now();
-        if let Err(failure) = self.advance(at) {
-            // Counted and reported, or the world stopped; either way nobody is waiting for an answer.
-            let _ = self.refusal(failure);
+        let started = Instant::now();
+        let now = self.clock.now_at(started);
+        let running = !self.clock.paused();
+        self.table.expire(started, now);
+        if running {
+            self.consult(now);
+        }
+        if self.stopped.is_none() {
+            if running && let Err(failure) = self.advance(now) {
+                // Counted and reported, or the world stopped; nobody is waiting for an answer.
+                let _ = self.refusal(failure);
+            }
+            if self.stopped.is_none() {
+                self.sweep();
+            }
+        }
+        self.ticks.record(started.elapsed());
+    }
+
+    /// Consults every in-server controller due by `now`, in instant order then seat order, each at
+    /// its own instant (or the world's, if a request already moved the world past it), through the
+    /// same perception call and the same authority path a session's request takes.
+    fn consult(&mut self, now: WorldTime) {
+        for (due, seat) in self.table.due(now) {
             if self.stopped.is_some() {
                 return;
             }
+            let at = due.max(self.world.world().now());
+            if let Err(failure) = self.advance(at) {
+                let _ = self.refusal(failure);
+                continue;
+            }
+            let Ok(observer) = self.observer_of(&seat) else {
+                continue;
+            };
+            let context = PerceptionContext::new(self.world.world(), observer, at, &self.recent);
+            let observation = self.perception.observe(&context);
+            let Some(slot) = self.table.hosted_mut(&seat) else {
+                continue;
+            };
+            let Some(request) = slot.decide(&observation, now) else {
+                continue;
+            };
+            let answer = match self.submit_at(observer, request, at) {
+                Ok((submitted, _)) => HostedAnswer::Answered(submitted),
+                Err(refusal) => HostedAnswer::Refused(refusal.code()),
+            };
+            if let Some(slot) = self.table.hosted_mut(&seat) {
+                slot.answered(&answer);
+            }
         }
-        self.sweep();
     }
 
-    /// Keeps the newest facts and forgets the rest.
+    /// Judges each new fact for every connection as it is recorded (`ARC-43`), then keeps the
+    /// newest facts for perception and forgets the rest.
     fn remember(&mut self, events: Vec<EventEnvelope>) {
+        self.learn(&events);
         self.recent.extend(events);
         let limit = self.config.recent_events;
         if self.recent.len() > limit {
             self.recent.drain(..self.recent.len() - limit);
-        }
-    }
-
-    /// Sends every connected client the observation *its* observer is entitled to.
-    ///
-    /// One perception call per subscriber, which is the whole of `INV-13` at this layer: there is no
-    /// world frame that is then filtered per client, and no client receives anything that was
-    /// computed for anybody else. Each carries the world's persisted revision, which every input
-    /// so far has already been committed to.
-    ///
-    /// `try_send`, never `send`: a client that has stopped reading loses frames, and the world does
-    /// not wait. A client whose channel has closed is dropped here, which is also how a killed
-    /// connection is reaped if its session never got to release the subscription.
-    fn sweep(&mut self) {
-        let at = self.clock.now();
-        let revision = self.world.revision();
-        let mut dropped = 0;
-        let mut closed: Vec<SubscriptionId> = Vec::new();
-
-        for subscriber in &self.subscribers {
-            let context =
-                PerceptionContext::new(self.world.world(), subscriber.observer, at, &self.recent);
-            let observation = self.perception.observe(&context);
-            match subscriber.observations.try_send(Perceived {
-                revision,
-                observation,
-            }) {
-                Ok(()) => {}
-                Err(mpsc::error::TrySendError::Full(_)) => dropped += 1,
-                Err(mpsc::error::TrySendError::Closed(_)) => closed.push(subscriber.subscription),
-            }
-        }
-
-        self.dropped += dropped;
-        if !closed.is_empty() {
-            self.subscribers
-                .retain(|subscriber| !closed.contains(&subscriber.subscription));
-        }
-    }
-
-    /// What the world is, as a status answer or a welcome states it.
-    fn summary(&self) -> WorldSummary {
-        let systems = self.world.world().systems();
-        WorldSummary {
-            protocol: PROTOCOL_VERSION,
-            instance: self.instance,
-            at: self.clock.now(),
-            entities: self.world.world().entities().len(),
-            systems: systems
-                .order()
-                .iter()
-                .map(|system| {
-                    // The declaration a system made when it was installed: its vocabulary, which is
-                    // composition rather than state, so it is public (`PROTOCOL.md` §5.7).
-                    let declaration = systems.declaration(system);
-                    SystemSummary {
-                        system: system.clone(),
-                        enabled: systems.is_enabled(system),
-                        provides: declaration.map_or_else(Vec::new, |d| d.provides().to_vec()),
-                        states: declaration.map_or_else(Vec::new, |d| d.emits().to_vec()),
-                    }
-                })
-                .collect(),
-            seats: self.seats.iter().cloned().collect(),
-            clients: self.subscribers.len(),
-            observations_dropped: self.dropped,
-            // No fact is delivered to an observer before S11-C, so none is dropped.
-            events_dropped: 0,
-            faults: self.faults,
-            revision: self.world.revision(),
         }
     }
 }

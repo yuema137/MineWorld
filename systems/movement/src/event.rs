@@ -1,13 +1,121 @@
-//! The fact this pack owns: two places open onto each other.
+//! The facts this pack owns: two places open onto each other; a walk started; a walk ended.
 
 use mineworld_contracts::{
-    Event, EventSchemaVersion, EventTypeId, LocalPosition, PlaceId, SystemId, Visibility,
+    Event, EventSchemaVersion, EventTypeId, LocalPosition, PersonId, PlaceId, SystemId, Visibility,
 };
 use mineworld_kernel::{Emission, SystemIdentity};
 use serde::{Deserialize, Serialize};
 
+use crate::action::Destination;
 use crate::codec;
 use crate::system::MovementSystem;
+
+/// A person set out on a walk (`DECISIONS.md` `ARC-75`): stated when `walk-to` is resolved, before
+/// any stride.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WalkStarted {
+    person: PersonId,
+    destination: Destination,
+}
+
+impl Event for WalkStarted {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("walk-started");
+    const OWNER: SystemId = MovementSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl WalkStarted {
+    /// Who set out.
+    pub const fn person(&self) -> PersonId {
+        self.person
+    }
+
+    /// Where to.
+    pub const fn destination(&self) -> Destination {
+        self.destination
+    }
+}
+
+/// How a walk ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Ended {
+    /// The walker got there.
+    Arrived,
+    /// The walker made no progress for `STALLS_MAX` steps, or re-planned more than `REPLANS_MAX` times.
+    Stalled,
+    /// A later leg, or a re-plan, found no way; or a person destination left the walker's place.
+    NoRoute,
+    /// The walker asked for another walk.
+    Replaced,
+    /// The walker's own `move`: direct control always wins.
+    Stopped,
+}
+
+/// A walk ended, and how (`DECISIONS.md` `ARC-75`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WalkEnded {
+    person: PersonId,
+    destination: Destination,
+    outcome: Ended,
+}
+
+impl Event for WalkEnded {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("walk-ended");
+    const OWNER: SystemId = MovementSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl WalkEnded {
+    /// Who was walking.
+    pub const fn person(&self) -> PersonId {
+        self.person
+    }
+
+    /// Where to.
+    pub const fn destination(&self) -> Destination {
+        self.destination
+    }
+
+    /// How it ended.
+    pub const fn outcome(&self) -> Ended {
+        self.outcome
+    }
+}
+
+/// The `walk-started` fact, heard in `place` — where the walker stands — about the walker.
+pub(crate) fn walk_started(person: PersonId, destination: Destination, place: PlaceId) -> Emission {
+    Emission::new::<WalkStarted>(
+        codec::encode(&WalkStarted {
+            person,
+            destination,
+        }),
+        Visibility::Place(place),
+    )
+    .about(vec![person.entity_id()])
+    .with_participants(vec![person.entity_id()])
+    .at_place(place)
+}
+
+/// The `walk-ended` fact, heard in `place` — where the walker stands — about the walker.
+pub(crate) fn walk_ended(
+    person: PersonId,
+    destination: Destination,
+    outcome: Ended,
+    place: PlaceId,
+) -> Emission {
+    Emission::new::<WalkEnded>(
+        codec::encode(&WalkEnded {
+            person,
+            destination,
+            outcome,
+        }),
+        Visibility::Place(place),
+    )
+    .about(vec![person.entity_id()])
+    .with_participants(vec![person.entity_id()])
+    .at_place(place)
+}
 
 /// Two places open onto each other through one doorway, at `a_at` in `a`'s frame and `b_at` in
 /// `b`'s.

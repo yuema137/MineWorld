@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 724" width="1600" height="724" role="img" aria-label="How a world is built: a world, rule modules and kinds of objects plug into one server with a small core. Players, scripts and AI only send requests. The server tells the 2D and 3D views what you see and what you can do, and saves every change.">
+<rect width="1600" height="724" rx="24" fill="#10151c"/>
+<rect x="420" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="668" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="916" y="24" width="244" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="24" width="276" height="180" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="24" y="280" width="270" height="240" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="280" width="276" height="110" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="410" width="276" height="110" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="24" y="600" width="270" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="1300" y="600" width="276" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="420" y="280" width="740" height="240" rx="18" fill="#2a2216" stroke="#e0a458" stroke-width="2.5"/>
+<rect x="452" y="380" width="676" height="114" rx="12" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<rect x="420" y="600" width="740" height="100" rx="16" fill="#18202a" stroke="#2c3440" stroke-width="2"/>
+<g stroke="#e0a458" stroke-width="2.5" fill="none">
+<path d="M542 206V266"/><path d="M790 206V266"/><path d="M1038 206V266"/><path d="M1438 206V266"/>
+<path d="M296 440H404"/><path d="M1162 335H1284"/><path d="M1162 465H1284"/><path d="M790 536V584"/>
+</g>
+<g fill="#e0a458">
+<path d="M542 278l-8-14h16z"/><path d="M790 278l-8-14h16z"/><path d="M1038 278l-8-14h16z"/><path d="M1438 278l-8-14h16z"/>
+<path d="M418 440l-14-8v16z"/><path d="M1298 335l-14-8v16z"/><path d="M1298 465l-14-8v16z"/>
+<path d="M790 522l-8 14h16z"/><path d="M790 598l-8-14h16z"/>
+</g>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" letter-spacing="2" fill="#e0a458">
+<text x="444" y="60">01 / WORLD</text>
+<text x="692" y="60">02 / RULES</text>
+<text x="940" y="60">03 / THINGS</text>
+<text x="1324" y="60">05 / LOOK</text>
+<text x="48" y="316">04 / MINDS</text>
+<text x="444" y="316">SERVER</text>
+<text x="444" y="636">SAVED HISTORY</text>
+</g>
+<g font-size="25" font-weight="600" fill="#e8ecf2">
+<text x="444" y="104">Who is here</text>
+<text x="692" y="104">What can happen</text>
+<text x="940" y="104">Kinds of objects</text>
+<text x="1324" y="104">How it looks</text>
+<text x="48" y="360">Who decides</text>
+<text x="444" y="358">Keeps the world going, even with nobody logged in</text>
+<text x="1324" y="344">2D view</text>
+<text x="1324" y="474">3D view</text>
+<text x="476" y="420" font-size="22">The core</text>
+</g>
+<g font-size="20" fill="#a7b0bd">
+<text x="444" y="144">People, places</text>
+<text x="444" y="172">and objects</text>
+<text x="692" y="144">Talk, buy, work,</text>
+<text x="692" y="172">eat, push…</text>
+<text x="940" y="144">Coffee, umbrella…</text>
+<text x="940" y="172">shared by worlds</text>
+<text x="1324" y="144">A 2D style and</text>
+<text x="1324" y="172">a 3D style</text>
+<text x="48" y="404">A player</text>
+<text x="48" y="438">A simple script</text>
+<text x="48" y="472">An AI model</text>
+<text x="48" y="500" font-size="17" fill="#e0a458">(AI: on the way)</text>
+<text x="476" y="452">Things, places, time, and what happened.</text>
+<text x="476" y="480">It does not know what a job or money is.</text>
+<text x="1324" y="372">Click to walk and act</text>
+<text x="1324" y="502">Walk up and press E</text>
+<text x="444" y="676">Every change and its cause. Restart or replay: the same world.</text>
+<text x="48" y="640">Switch a module off:</text>
+<text x="48" y="666">its actions disappear,</text>
+<text x="48" y="692">nothing else breaks.</text>
+<text x="1324" y="640">Views and minds ask;</text>
+<text x="1324" y="668">the server decides.</text>
+</g>
+<g font-size="17" fill="#e0b878">
+<text x="302" y="414">asks: “buy</text>
+<text x="302" y="434">a coffee”</text>
+<text x="1180" y="394">what you see</text>
+<text x="1180" y="416">and can do</text>
+</g>
+</g>
+</svg>

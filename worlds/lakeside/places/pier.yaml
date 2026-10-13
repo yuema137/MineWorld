@@ -1,0 +1,24 @@
+# The pier: a wooden jetty out over deeper water, south of the lane.
+#
+# About 4 m wide and 20 m long, running south from the lane; its foot is on its north edge.
+
+tags:
+  - pier
+  - public
+  - outdoor
+  - water
+
+note: >-
+  A wooden jetty with a bench at its end. The water under it is deep; the catch takes a little longer.
+
+passages:
+  - to: lane
+    here:
+      x: 2000
+      y: 19800
+    there:
+      x: 18000
+      y: 200
+
+# The `fishing` System Pack's section (ARC-66): deeper water, a slower catch than the shore's.
+fishing: { catch: fish, minutes: 90 }

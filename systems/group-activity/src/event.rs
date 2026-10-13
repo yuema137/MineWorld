@@ -64,10 +64,11 @@ macro_rules! invitation_fact {
                 &self.kind
             }
 
-            /// The fact, as this pack records it: heard by the two of them, at `place`.
-            pub(crate) fn emission(&self, place: PlaceId) -> Emission {
+            /// The fact, as this pack records it, at `place`, heard by `audience` — the two of them
+            /// unless the world's list says otherwise (it can only narrow).
+            pub(crate) fn emission(&self, place: PlaceId, audience: Visibility) -> Emission {
                 let both = vec![self.inviter.entity_id(), self.invitee.entity_id()];
-                Emission::new::<Self>(codec::encode(self), Visibility::Participants)
+                Emission::new::<Self>(codec::encode(self), audience)
                     .about(vec![self.invitee.entity_id()])
                     .with_participants(both)
                     .at_place(place)
@@ -142,11 +143,12 @@ macro_rules! activity_fact {
                 &self.members
             }
 
-            /// The fact, as this pack records it: seen by anyone in the place, about every member.
-            pub(crate) fn emission(&self) -> Emission {
+            /// The fact, as this pack records it: about every member, seen by `audience` — anyone in
+            /// the place unless the world's list narrows it.
+            pub(crate) fn emission(&self, audience: Visibility) -> Emission {
                 let people: Vec<EntityId> =
                     self.members.iter().map(|member| member.entity_id()).collect();
-                Emission::new::<Self>(codec::encode(self), Visibility::Place(self.place))
+                Emission::new::<Self>(codec::encode(self), audience)
                     .about(people.clone())
                     .with_participants(people)
                     .at_place(self.place)
@@ -206,9 +208,10 @@ macro_rules! membership_fact {
                 self.person
             }
 
-            /// The fact, as this pack records it: seen by anyone in the activity's place.
-            pub(crate) fn emission(&self, place: PlaceId) -> Emission {
-                Emission::new::<Self>(codec::encode(self), Visibility::Place(place))
+            /// The fact, as this pack records it, at the activity's place, seen by `audience` — anyone
+            /// there unless the world's list narrows it.
+            pub(crate) fn emission(&self, place: PlaceId, audience: Visibility) -> Emission {
+                Emission::new::<Self>(codec::encode(self), audience)
                     .about(vec![self.person.entity_id()])
                     .with_participants(vec![self.person.entity_id()])
                     .at_place(place)

@@ -29,7 +29,6 @@ mod headless;
 mod market;
 
 use std::io::{BufRead, BufReader};
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -38,6 +37,7 @@ use headless::{
 };
 use market::{MARKET_TOWN, Town, market_lives, run_market, state_matches_replay};
 use mineworld_contracts::EventEnvelope;
+use mineworld_test_support::process;
 
 const SEED: u64 = 7;
 
@@ -70,12 +70,62 @@ fn killed_at(save: &Path, day: u64) {
             break;
         }
     }
-    child.kill().expect("SIGKILL is delivered");
-    let status = child.wait().expect("reaped");
-    assert_eq!(status.signal(), Some(9), "killed by SIGKILL, not finished");
+    let killed = process::kill(&mut child);
+    assert!(
+        killed.killed(),
+        "killed by SIGKILL, not finished: {killed:?}"
+    );
     assert!(
         !printed.iter().any(|line| line.starts_with("history ")),
         "the victim did not finish: {printed:?}"
+    );
+}
+
+/// The save on disk: `world.sqlite` and any `-wal` beside it, in bytes.
+fn save_bytes(save: &Path) -> u64 {
+    let size = |name: &str| std::fs::metadata(save.join(name)).map_or(0, |file| file.len());
+    size("world.sqlite") + size("world.sqlite-wal")
+}
+
+/// The 30-day size bound, `ASR-2` (`ARC-81`; QSR-5 made it a CI assertion): the save on disk —
+/// `world.sqlite` and any `-wal` beside it — is at most 128 MiB, and it holds exactly the snapshots the
+/// retention rule keeps for a headless run, computed here: genesis, every multiple of 4 096 up to the
+/// newest scheduled snapshot *n*, and *n* − 64 and *n*.
+///
+/// 128 MiB, not 64, since people walk (the operator's ruling on step-11 M-6, 2026-10-10; `ARC-81`
+/// note): a walk's strides are requests and facts of their own, so a walking town records about 2.2 ×
+/// the facts, and its 30-day save measured 112.3 MiB against 59.2 MiB before. The snapshot rule is
+/// unchanged. SR-b's log compression is expected to bring the size back down.
+fn save_is_bounded(save: &Path, tables: &Tables) {
+    const BOUND: u64 = 128 * 1024 * 1024;
+    let bytes = save_bytes(save);
+    let head = u64::try_from(tables.journal.len()).expect("fits");
+    let newest = head - head % 64;
+    let mut expected: Vec<u64> = std::iter::once(1)
+        .chain((1..=newest / 4_096).map(|k| k * 4_096))
+        .chain([newest - 64, newest])
+        .collect();
+    expected.dedup();
+    let held: Vec<u64> = tables
+        .snapshots
+        .iter()
+        .map(|(revision, _)| *revision)
+        .collect();
+    let stored: usize = tables.snapshots.iter().map(|(_, bytes)| bytes.len()).sum();
+    eprintln!(
+        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), {} snapshots, {stored} B of them, head {head}",
+        bytes as f64 / 1_048_576.0,
+        held.len()
+    );
+    assert!(
+        bytes <= BOUND,
+        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), over the {} MiB bound",
+        bytes as f64 / 1_048_576.0,
+        BOUND / 1_048_576
+    );
+    assert_eq!(
+        held, expected,
+        "ASR-2: the save keeps exactly genesis, the anchors and the newest two"
     );
 }
 
@@ -148,6 +198,12 @@ fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() 
 
     // ── CP-4: activity first (I-7). Nothing is compared before every compared run lives. ─────────
     let long_facts = living(&town, &long_printed, &long, 300, "300 days, seed 7");
+    // A measurement, not a bound (step-11 §21.15 M-6): the 300-day save of a walking town.
+    let long_bytes = save_bytes(&long);
+    eprintln!(
+        "ASR-2 (measured, unbounded): the 300-day save is {long_bytes} B ({:.1} MiB)",
+        long_bytes as f64 / 1_048_576.0
+    );
     assert_eq!(lines(&long_printed, "day ").len(), 300, "a line per day");
     let history = lines(&long_printed, "history ");
     assert!(
@@ -168,6 +224,7 @@ fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() 
 
     // ── Only now: AC-12 and AC-6, byte for byte. ─────────────────────────────────────────────────
     let control_tables = Tables::read(&control);
+    save_is_bounded(&control, &control_tables);
     control_tables.assert_same_history(&Tables::read(&twin), "two 30-day runs of seed 7");
     assert_eq!(
         deterministic(&control_printed),

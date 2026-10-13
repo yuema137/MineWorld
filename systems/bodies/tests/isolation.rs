@@ -13,9 +13,9 @@
 //! item             the item crate is used for one read only: every `mineworld_item` in this pack's
 //!                  sources is `mineworld_item::is_declared(` (step-11 §18.0's bound on the crate
 //!                  dependency; DECISIONS.md ARC-39 note 2, point 4)
-//! movement         the movement crate is used for one type only: every `mineworld_movement` in this
-//!                  pack's sources is `mineworld_movement::Passages` (step-11 §19, SD-D5, QD-5;
-//!                  DECISIONS.md ARC-39 note 5)
+//! movement         the movement crate is used for the Wayfinder seam this pack answers through
+//!                  (DECISIONS.md ARC-39 note 5) and for `Passages`, read once by the genesis check
+//!                  (step-11 §19, SD-D5, QD-5; ARC-39 note 7), and nothing else
 //! ```
 //!
 //! The module that wraps the crate is itself called `rapier`, so `mod rapier;` and `crate::rapier`
@@ -177,47 +177,119 @@ fn this_packs_system_dependency_is_presence_and_its_pack_crates_are_presence_and
     assert_eq!(
         named,
         ["mineworld-item", "mineworld-movement", "mineworld-presence"],
-        "presence, item and movement, and no other pack crate"
+        "presence, item, and movement for its Wayfinder trait and its Passages (ARC-39 notes 5 and \
+         7) — no other pack crate"
     );
 }
 
-/// The other read (step-11 §19, SD-D5, QD-5): every use of the movement crate in this pack's sources
-/// names its `Passages` type — the doorway points the genesis check reads — and nothing else of it.
+/// NV-6 (step-11 §21.8): `pathfinding` is named only in `src/route.rs` and in this pack's manifest —
+/// no other code file of the repository names it — and movement, which owns the catalog this pack
+/// answers through, names no `bodies` anywhere in its sources (`ARC-62`: an owner never names its
+/// implementers).
 #[test]
-fn this_pack_uses_nothing_of_the_movement_crate_but_passages() {
-    const READ: &str = "mineworld_movement::Passages";
-    let mut reads = Vec::new();
+fn the_search_crate_stays_in_route_rs_and_movement_names_no_bodies() {
+    let mut files = Vec::new();
+    files_under(&root(), &mut files);
+    let found: Vec<String> = files
+        .iter()
+        .filter(|file| {
+            file.extension()
+                .is_some_and(|extension| extension == "rs" || extension == "toml")
+                && file.file_name().is_some_and(|name| name != "Cargo.lock")
+        })
+        .filter(|file| !file.ends_with("systems/bodies/src/route.rs"))
+        .filter(|file| !file.ends_with("systems/bodies/Cargo.toml"))
+        .filter(|file| !file.ends_with("systems/bodies/tests/isolation.rs"))
+        .flat_map(|file| naming(file, "pathfinding"))
+        .collect();
+    assert!(
+        found.is_empty(),
+        "pathfinding is named only in route.rs (DEP-34):\n{}",
+        found.join("\n")
+    );
+    let mut movement = Vec::new();
+    files_under(&root().join("systems/movement/src"), &mut movement);
+    assert!(movement.len() >= 7, "movement's sources are scanned");
+    let named: Vec<String> = movement
+        .iter()
+        .flat_map(|file| {
+            let mut lines = naming(file, "bodies");
+            lines.extend(naming(file, "Bodies"));
+            lines
+        })
+        .collect();
+    assert!(
+        named.is_empty(),
+        "movement never names the pack that answers its catalog:\n{}",
+        named.join("\n")
+    );
+}
+
+/// What this pack uses of the movement crate (step-11 §19, SD-D5, QD-5; ARC-39 notes 5 and 7): the
+/// Wayfinder seam it answers through, and `Passages` — the doorway points the genesis check reads —
+/// named exactly once, in `genesis.rs`. Nothing else of movement: not its stride rule, its constants or
+/// its walk.
+#[test]
+fn this_pack_uses_nothing_of_the_movement_crate_but_the_wayfinder_seam_and_passages() {
+    const CRATE: &str = "mineworld_movement::";
+    const SEAM: [&str; 6] = [
+        "RouteAnswer",
+        "RouteAsk",
+        "Wayfinder",
+        "Waypoints",
+        "register_wayfinders",
+        "require_wayfinder",
+    ];
+    let mut passages = Vec::new();
     let mut other = Vec::new();
     for file in sources() {
         let text = std::fs::read_to_string(&file).expect("a source reads");
         for (number, line) in text.lines().enumerate() {
             let place = format!("{}:{}", file.display(), number + 1);
             let mut rest = line;
-            while let Some(at) = rest.find("mineworld_movement") {
-                let tail = &rest[at..];
-                let word_ends = tail[READ.len().min(tail.len())..]
-                    .chars()
-                    .next()
-                    .is_none_or(|next| !next.is_alphanumeric() && next != '_');
-                if tail.starts_with(READ) && word_ends {
-                    reads.push(place.clone());
+            while let Some(at) = rest.find(CRATE) {
+                let tail = &rest[at + CRATE.len()..];
+                // One name, or a `{ … }` list of them.
+                let names: Vec<&str> = if let Some(list) = tail.strip_prefix('{') {
+                    list.split('}')
+                        .next()
+                        .unwrap_or("")
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|name| !name.is_empty())
+                        .collect()
                 } else {
-                    other.push(format!("{place}: {}", line.trim()));
+                    let end = tail
+                        .find(|c: char| !c.is_alphanumeric() && c != '_')
+                        .unwrap_or(tail.len());
+                    vec![&tail[..end]]
+                };
+                for name in names {
+                    if name == "Passages" {
+                        passages.push(place.clone());
+                    } else if !SEAM.contains(&name) {
+                        other.push(format!("{place}: {name}"));
+                    }
                 }
-                rest = &rest[at + "mineworld_movement".len()..];
+                rest = tail;
             }
         }
     }
-    println!("reads of Passages: {reads:?}");
+    println!("reads of Passages: {passages:?}");
     assert!(
         other.is_empty(),
-        "bodies names nothing of mineworld_movement but Passages (step-11 QD-5):\n{}",
+        "bodies names nothing of mineworld_movement but the Wayfinder seam and Passages (step-11 \
+         QD-5):\n{}",
         other.join("\n")
     );
     assert_eq!(
-        reads.len(),
+        passages.len(),
         1,
-        "exactly one, in the genesis check: {reads:?}"
+        "exactly one, in the genesis check: {passages:?}"
+    );
+    assert!(
+        passages[0].contains("genesis.rs"),
+        "Passages is read by the genesis check: {passages:?}"
     );
 }
 

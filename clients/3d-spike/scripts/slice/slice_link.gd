@@ -117,11 +117,18 @@ func _learn_passages(obs: MineWorldObservation, place: String, key: String) -> v
 			doorway[other] = p["there"]
 
 
-## A status line for the player, already in display labels: never an entity id
-## (the ids go to the log only). `notice` marks the ones worth a toast.
-signal said(text: String, notice: bool)
+## A status line for the player, as a catalog key and its arguments, already in
+## display labels: never an entity id (the ids go to the log only). The HUD words
+## it in the language selected (S20). `notice` marks the ones worth a toast.
+signal said(key: String, args: Dictionary, notice: bool)
 ## One line of conversation, as a player reads it: `Barista: words`.
 signal spoke(line: String)
+
+## The kinds of answer a result can be, by their catalog keys (S20).
+const RESULT_KINDS := {
+	"rejected": "link.kind.rejected",
+	"unavailable": "link.kind.unavailable",
+}
 
 ## Tags that say what kind of thing an entity is in general rather than who it
 ## is: skipped when a role is read from the tags (`display_label`).
@@ -197,23 +204,26 @@ func start(address: String, seat: String, invite: String, nickname: String) -> v
 	client.resolved.connect(_on_resolved)
 	client.refused.connect(_on_refused)
 	client.disconnected.connect(func(reason: String) -> void:
-		_say("disconnected: %s" % reason, "", true))
+		_say("disconnected: %s" % reason, "link.disconnected", {"reason": _shown_reason(reason)}, true))
 	client.closing.connect(func(reason: String, _detail: String) -> void:
-		_say("the server closed the connection: %s" % reason, "", true))
+		_say("the server closed the connection: %s" % reason, "link.server_closed",
+			{"reason": _shown_reason(reason)}, true))
 	client.connect_to_world(address, seat, invite, nickname)
-	_say("connecting to %s as %s" % [address, seat])
+	_say("connecting to %s as %s" % [address, seat], "link.connecting", {"address": address, "seat": seat})
 
 
-## `shown` is what the player reads, in display labels; `log_detail` adds the
-## identities and raw values for the log, and is never put on screen.
-func _say(shown: String, log_detail := "", notice := false) -> void:
-	print("[link] " + shown + ("  [%s]" % log_detail if log_detail != "" else ""))
-	said.emit(shown, notice)
+## `log_line` is the English line the log prints, exactly as before S20
+## (INV-SET-6); `key` and `args` are what the player reads, worded by the HUD in
+## the language selected. `log_detail` adds the identities and raw values for the
+## log, and is never put on screen.
+func _say(log_line: String, key: String, args: Dictionary = {}, notice := false, log_detail := "") -> void:
+	print("[link] " + log_line + ("  [%s]" % log_detail if log_detail != "" else ""))
+	said.emit(key, args, notice)
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
-	_say("seated as %s" % seat,
-		"observer %s, world %s" % [observer, world.get("instance", "?")], true)
+	_say("seated as %s" % seat, "link.seated", {"seat": seat}, true,
+		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
 
 ## THE ONE PLACE an entity is named for the player: every figure label, every
@@ -236,6 +246,37 @@ func display_label(id: String) -> String:
 		if shown != "":
 			_labels[id] = shown
 	return _labels.get(id, "Someone")
+
+
+## `display_label` as the player reads it, for a message's argument: a disclosed
+## name or role as the world states it (never translated), or "You" / "Someone"
+## as a catalog reference, worded in the language selected whenever the message
+## is rendered. The log keeps `display_label`'s English.
+func shown_label(id: String) -> Variant:
+	if client != null and id == client.observer:
+		return MineWorldText.ref("link.you")
+	var label := display_label(id)
+	return MineWorldText.ref("link.someone") if not _labels.has(id) else label
+
+
+## `shown_label` worded now, for a node's text (a figure's label).
+func shown_text(id: String) -> String:
+	var said: Variant = shown_label(id)
+	return MineWorldText.text(said.key) if said is MineWorldText.Ref else String(said)
+
+
+## A server's code as the player reads it: `reason.<code>` (S20 §3.6), as a
+## catalog reference, or the readable form when the code is not one a catalog
+## could hold.
+static func _shown_reason(code: Variant) -> Variant:
+	if typeof(code) == TYPE_DICTIONARY and not (code as Dictionary).is_empty():
+		code = (code as Dictionary).keys()[0]
+	if typeof(code) != TYPE_STRING or String(code) == "":
+		return _readable(code)
+	for c in String(code):
+		if not (c in "abcdefghijklmnopqrstuvwxyz0123456789_-"):
+			return _readable(code)
+	return MineWorldText.code_ref("reason", String(code))
 
 
 ## The name the world disclosed for a perceived entity, or "" when it disclosed
@@ -282,8 +323,9 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	if key != here_key:
 		if here_key != "":
 			place_changes.append([here_key, key])
-		_say("in the %s%s" % [display_label(place),
-			"" if key != "" else " (not drawn by this slice)"], "place %s" % place)
+		var where := "in the %s%s" % [display_label(place), "" if key != "" else " (not drawn by this slice)"]
+		_say(where, "link.in_place" if key != "" else "link.in_place_undrawn",
+			{"place": shown_label(place)}, false, "place %s" % place)
 		here_key = key
 	_hear(obs)
 	# Nothing can be drawn in a place whose doorway the world has not disclosed:
@@ -300,7 +342,8 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(key, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
-			_say("placed where the world says you are", "%s %s" % [key, JSON.stringify(me)])
+			_say("placed where the world says you are", "link.placed", {}, false,
+				"%s %s" % [key, JSON.stringify(me)])
 
 	var seen := {}
 	for id in obs.ids():
@@ -319,12 +362,13 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		# a name disclosed later replaces the role on the label
 		var label := fig.get_node_or_null("Label") as Label3D
 		if label != null:
-			label.text = display_label(id)
+			label.text = shown_text(id)
 		fig.global_position = to_scene(key, loc.get("local"))
 		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
 	for id in figures.keys():
 		if not seen.has(id):
-			_say("%s is no longer in view" % display_label(id),
+			_say("%s is no longer in view" % display_label(id), "link.left_view",
+				{"who": shown_label(id)}, false,
 				"lose %s at %s" % [id, (figures[id] as Node3D).global_position])
 			(figures[id] as Node).queue_free()
 			figures.erase(id)
@@ -347,19 +391,21 @@ func _hear(obs: MineWorldObservation) -> void:
 		var who := ""
 		if typeof(e.get("speaker")) == TYPE_DICTIONARY:
 			who = String(e["speaker"].get("entity", ""))
-		_speak(display_label(who) if who != "" else "Someone", e.get("utterance"),
-			"heard from %s" % who)
+		_speak(who, e.get("utterance"), "heard from %s" % who)
 
 
 ## Put one line of conversation on screen and in the log. The words are shown
 ## as text, never as an encoded value: an utterance is a string, and quoting or
-## escaping it is a transport's business, not the player's.
-func _speak(speaker: String, utterance: Variant, log_detail: String) -> void:
+## escaping it is a transport's business, not the player's. The speaker is named
+## in English in the log and in the language selected on screen (S20); the words
+## are the world's and are never translated.
+func _speak(who: String, utterance: Variant, log_detail: String) -> void:
 	var words := (String(utterance) if typeof(utterance) == TYPE_STRING
 		else str(utterance)).strip_edges()
-	var line := "%s: %s" % [speaker, words]
-	print("[link] %s  [%s]" % [line, log_detail])
-	spoke.emit(line)
+	var logged := display_label(who) if who != "" else "Someone"
+	var shown := shown_text(who) if who != "" else MineWorldText.text("link.someone")
+	print("[link] %s  [%s]" % ["%s: %s" % [logged, words], log_detail])
+	spoke.emit("%s: %s" % [shown, words])
 
 
 ## A perceived person, drawn from the same stand-in mannequin as the street's
@@ -375,13 +421,16 @@ func _figure(id: String) -> Node3D:
 	world_root.add_child(n)
 	var label := Label3D.new()
 	label.name = "Label"
-	label.text = display_label(id)
+	# A name or role the world disclosed: world content, never translated (SD-SET-a-9).
+	MineWorldText.mark_world_text(label)
+	label.text = shown_text(id)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 2.05, 0)
 	label.font_size = 48
 	label.pixel_size = 0.004
 	n.add_child(label)
-	_say("%s is here" % label.text, "perceive %s" % id)
+	var detail := "perceive %s" % id
+	_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false, detail)
 	return n
 
 
@@ -415,7 +464,8 @@ func _physics_process(delta: float) -> void:
 		if not place_ids.has(key) or not doorway.has(key):
 			if not _unknown_said:
 				_unknown_said = true
-				_say("the world has disclosed no passage from here to %s; nothing to report" % key)
+				_say("the world has disclosed no passage from here to %s; nothing to report" % key,
+					"link.no_passage", {"place": key})
 			return
 		if _since >= REPORT_GAP:
 			report_position(key)
@@ -458,13 +508,15 @@ func _location(key: String, local: Dictionary) -> Dictionary:
 func talk_to_facing(utterance: String) -> String:
 	var target := facing_person()
 	if target == "":
-		_say("nobody in view to talk to", "", true)
+		_say("nobody in view to talk to", "link.nobody", {}, true)
 		return ""
 	var obs := client.latest
 	if not SliceIntents.talk_offered(obs, target):
-		_say("the world says talking to %s is unavailable: %s"
-			% [display_label(target), _readable(SliceIntents.talk_reason(obs, target))],
-			"target %s" % target)
+		var reason: Variant = SliceIntents.talk_reason(obs, target)
+		var logged := "the world says talking to %s is unavailable: %s" % [display_label(target),
+			_readable(reason)]
+		_say(logged, "link.talk_unavailable", {"who": shown_label(target), "reason": _shown_reason(reason)},
+			false, "target %s" % target)
 	return intents.talk(client, target, utterance,
 		_location(here_key, to_world(here_key, player.global_position)))
 
@@ -503,18 +555,23 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 	if req.has("words"):
 		if kind == "accepted":
 			# what the player said, echoed as a line of the conversation
-			_say("talking to %s" % display_label(req["target"]))
-			_speak(display_label(client.observer), req["words"], log_detail)
+			_say("talking to %s" % display_label(req["target"]), "link.talking_to",
+				{"who": shown_label(req["target"])})
+			_speak(client.observer, req["words"], log_detail)
 			return
 		var reason: Variant = (result as Dictionary).get(kind) \
 			if typeof(result) == TYPE_DICTIONARY else result
-		_say("can't %s %s: %s" % [SliceIntents.verb(what), display_label(req["target"]),
-			_readable(reason)],
-			log_detail, true)
+		var logged := "can't %s %s: %s" % [SliceIntents.log_verb(what), display_label(req["target"]),
+			_readable(reason)]
+		_say(logged, "link.cant", {"verb": SliceIntents.verb(what), "who": shown_label(req["target"]),
+			"reason": _shown_reason(reason)}, true, log_detail)
 		return
-	_say("%s: %s" % [what, kind if kind == "accepted" else "%s, %s" % [kind, _readable(
-		(result as Dictionary).get(kind) if typeof(result) == TYPE_DICTIONARY else result)]],
-		log_detail, kind != "accepted")
+	var detail: Variant = (result as Dictionary).get(kind) if typeof(result) == TYPE_DICTIONARY else result
+	var accepted := kind == "accepted"
+	var outcome := kind if accepted else "%s, %s" % [kind, _readable(detail)]
+	_say("%s: %s" % [what, outcome], "link.result_accepted" if accepted else "link.result_other",
+		{"action": what, "kind": MineWorldText.ref(RESULT_KINDS[kind]) if RESULT_KINDS.has(kind) else kind,
+			"reason": _shown_reason(detail)}, not accepted, log_detail)
 
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
@@ -525,14 +582,19 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		_reconcile = true
 	var about := ""
 	if req.has("target"):
-		about = " (%s %s)" % [SliceIntents.verb(req["action"]), display_label(req["target"])]
-	_say("refused%s: %s" % [about, _readable(code)], "token %s" % token, true)
+		about = " (%s %s)" % [SliceIntents.log_verb(req["action"]), display_label(req["target"])]
+	var shown := {"reason": _shown_reason(code)}
+	if req.has("target"):
+		shown["verb"] = SliceIntents.verb(req["action"])
+		shown["who"] = shown_label(req["target"])
+	_say("refused%s: %s" % [about, _readable(code)],
+		"link.refused_about" if req.has("target") else "link.refused", shown, true, "token %s" % token)
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".
 func looking_at() -> String:
 	var id := facing_person()
-	return display_label(id) if id != "" else ""
+	return shown_text(id) if id != "" else ""
 
 
 func _unhandled_input(event: InputEvent) -> void:

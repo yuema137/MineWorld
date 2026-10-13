@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-07 (Milestones B and C accepted by the operator)
+**Updated:** 2026-10-10 (Milestone E implemented, awaiting operator acceptance; B and C accepted 2026-10-07)
 
 ---
 
@@ -19,7 +19,7 @@ here does not block anything else.
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
-| **E** | Package composition | a real world assembled from independently installable packs | ❌ |
+| **E** | Package composition | a real world assembled from independently installable packs | 🚧 **implemented, awaiting operator acceptance** — PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
 holds, proved against the real binary hosting the real pack. The evidence names identity rather
@@ -98,6 +98,37 @@ two lines in `systems/installed` and a rebuild), `tools/cli/tests/market_town.rs
 Watch for the known limits: people without a job live on an endowment sized for 300 days (L-13);
 items and organizations have no names, so a listing shows ids (F-41); every unavailable buy says
 `TargetUnavailable`, whatever the reason (F-48).
+
+**Milestone E, and how to see it for yourself.** Lakeside is a new world built only from packs:
+eleven bundled System Packs, the `fishing` System Pack from another repository (pinned to one
+commit), the repository's own Entity Pack `modern-goods` (the food people start with) and the two
+default Presentation Packs. The data packs are found only where you point, so every command names the
+roots. From the repository's root:
+
+```sh
+R="--packs entities --packs presentation/mineworld-default"
+mineworld packs list --packs worlds $R                     # every pack, with version and licence
+mineworld packs resolve worlds/lakeside $R                 # which pack provides what
+mineworld run worlds/lakeside --headless --seed 7 --days 30 --save /tmp/lake $R
+mineworld inspect /tmp/lake --last 0                       # every cause resolves; `fishing` listed
+mkdir -p /tmp/elsewhere && cp -R worlds/lakeside /tmp/elsewhere/
+mineworld validate /tmp/elsewhere/lakeside $R              # the world needs no place in the repo
+cargo test -p mineworld-cli --test milestone_e             # all of it, ≈ 35 s, ≈ 2.2 GB scratch
+```
+
+What to look at:
+- `packs list`: `acme-fishing` marked `third-party`, `modern-goods` as an `entity-pack` under
+  `entities/`, `lakeside` as a `world-pack`, every bundled pack at `0.1.0`.
+- The run summary: `requests fish accepted …`, `facts items-produced …` (the catch) and
+  `requests eat accepted …`; every person in the `activity` lines.
+- Take `fishing` out of a copy's `systems:` and delete the two `fishing:` lines in `places/`: it still
+  validates and runs, and only the four fishing facts are gone.
+- Leave out `--packs entities`, or require `acme-fishing: "^0.2"`: refused, naming what is missing.
+
+Known limits: the clients do not draw Lakeside yet (its Presentation Packs are declared and
+validated, not applied); there is no money, so the shop goods are what people start with and fish is
+the renewable food; the 300-day save is 2 GB because snapshots are never pruned (F-SAVE-1). No
+framework tag is made here: the release step (S23) owns tags.
 
 ## Default-style milestones — taste, and the operator decides
 

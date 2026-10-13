@@ -16,14 +16,22 @@ const TALK := "talk"
 ## the player's, and the server keeps whatever was said.
 const DEFAULT_UTTERANCE := "Hello! A coffee, please."
 
-## How each request reads in a sentence ("can't talk to Alice Moreau"). Wording
-## is the client's (`ADOPTION.md` §4); an action without an entry reads as its
-## own name.
-const VERBS := { TALK: "talk to" }
+## How each request reads in a sentence ("can't talk to Alice Moreau"): the
+## catalog key of its verb (S20; wording is the client's, `ADOPTION.md` §4). An
+## action without an entry reads as its own name, made readable.
+const VERBS := { TALK: "link.verb.talk" }
+
+## The verb as the log says it, in English whatever the language (INV-SET-6).
+const LOG_VERBS := { TALK: "talk to" }
 
 
-static func verb(action: String) -> String:
-	return VERBS.get(action, action)
+## The verb, as a catalog reference worded whenever the message holding it is rendered.
+static func verb(action: String) -> Variant:
+	return MineWorldText.ref(VERBS[action]) if VERBS.has(action) else MineWorldText.readable(action)
+
+
+static func log_verb(action: String) -> String:
+	return LOG_VERBS.get(action, action)
 
 
 ## token -> { "action", "target", "words" }, until its answer arrives

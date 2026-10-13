@@ -1,0 +1,25 @@
+{ "base": { "observer": "101", "at": 4113,
+            "self_location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null },
+            "entities": [
+              { "id": "101", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } } ],
+            "relations": [], "affordances": [], "events": [] },
+  "delta": { "at": 4113,
+             "events": [
+               { "id": "7", "at": 4113, "event_type": "rang", "subjects": [], "participants": [],
+                 "place": null, "caused_by": "world_genesis",
+                 "payload": { "event_type": "rang", "schema_version": 1, "payload": { "bell": "low" } },
+                 "visibility": "public",
+                 "provenance": { "emitted_by": "bells", "controller_decision": null } } ] },
+  "next": { "observer": "101", "at": 4113,
+            "self_location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null },
+            "entities": [
+              { "id": "101", "entity_type": "person", "tags": [], "components": [],
+                "location": { "place": { "entity": "1", "entity_type": "place" }, "local": null, "facing": null } } ],
+            "relations": [], "affordances": [],
+            "events": [
+              { "id": "7", "at": 4113, "event_type": "rang", "subjects": [], "participants": [],
+                "place": null, "caused_by": "world_genesis",
+                "payload": { "event_type": "rang", "schema_version": 1, "payload": { "bell": "low" } },
+                "visibility": "public",
+                "provenance": { "emitted_by": "bells", "controller_decision": null } } ] } }

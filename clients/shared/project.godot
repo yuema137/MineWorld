@@ -1,0 +1,12 @@
+; MineWorld shared client modules (step-20, S20): the runnable home of clients/shared/settings and its
+; checks, as clients/protocol/ is the protocol module's. The module folders are what a client takes; this
+; project only lets them run and be checked on their own (clients/shared/SETTINGS.md §2).
+
+config_version=5
+
+[application]
+
+config/name="MineWorld shared client modules"
+config/features=PackedStringArray("4.7")
+config/use_custom_user_dir=true
+config/custom_user_dir_name="MineWorld"

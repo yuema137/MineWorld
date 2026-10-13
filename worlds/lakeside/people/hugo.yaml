@@ -1,0 +1,22 @@
+# Hugo — the ferryman. Sections as in alba.yaml.
+
+name: Hugo Marchetti
+
+routine:
+  - { from: "06:00", place: shore, label: nets }
+  - { from: "11:00", place: square, label: news }
+  - { from: "15:00", place: pier, label: fishing }
+  - { from: "19:00", place: boathouse, label: home }
+
+tags:
+  - ferryman
+
+note: Rows people across the lake when anybody asks, and fishes when nobody does.
+
+location:
+  place: boathouse
+  position:
+    x: 3500
+    y: 1500
+
+holdings: { tea: 1, apple: 1 }

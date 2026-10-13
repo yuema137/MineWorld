@@ -28,8 +28,11 @@
 //! own state as an already-encoded value, `observe` produces `Observation<Value>` directly, and the
 //! conversion is deleted rather than extended.
 
+use mineworld_contracts::{EntityId, EventEnvelope};
+use mineworld_kernel::World;
+use mineworld_presence::audience::{Whereabouts, admits};
 use mineworld_presence::{PerceptionProvider, observe};
-use mineworld_server::{Perception, PerceptionContext, WireObservation};
+use mineworld_server::{EventPerception, Perception, PerceptionContext, WireObservation};
 
 /// What a loaded World Pack's observers perceive.
 ///
@@ -52,5 +55,35 @@ impl Perception for PackPerception {
         let borrowed: Vec<&dyn PerceptionProvider> =
             self.providers.iter().map(AsRef::as_ref).collect();
         observe(context.world(), context.observer(), context.at(), &borrowed)
+    }
+}
+
+/// Which recorded facts a loaded world's observers learn of: presence's audience rule
+/// (`docs/DECISIONS.md` `ARC-43`), adapted onto the server's second seam.
+///
+/// Holds presence's [`Whereabouts`], seeded from the world it is built with — on the world's own
+/// thread, at start — and advanced by every fact the server records. The fold from a save's first
+/// fact and this seed agree (step-12 E-SC2), which is what lets a live stream and a backfill read
+/// from the save judge alike. Decides nothing itself, as [`PackPerception`] does not.
+pub struct PackEventPerception {
+    whereabouts: Whereabouts,
+}
+
+impl PackEventPerception {
+    /// Judges facts from where everybody in `world` is now.
+    pub fn seeded(world: &World) -> Self {
+        Self {
+            whereabouts: Whereabouts::from_world(&world.read()),
+        }
+    }
+}
+
+impl EventPerception for PackEventPerception {
+    fn record(&mut self, fact: &EventEnvelope) {
+        self.whereabouts.apply(fact);
+    }
+
+    fn admits(&self, fact: &EventEnvelope, observer: EntityId) -> bool {
+        admits(&self.whereabouts, fact, observer)
     }
 }

@@ -355,6 +355,9 @@ mod tests {
     /// The café with the walker and the person against the wall; the walker, the person and the place.
     fn an_f_p6_request() -> (World, PersonId, PersonId, PlaceId) {
         register_resolvers(vec![Box::new(BodiesSystem) as Box<dyn ArrivalResolver>]);
+        mineworld_movement::register_wayfinders(vec![
+            Box::new(BodiesSystem) as Box<dyn mineworld_movement::Wayfinder>
+        ]);
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence installs");
         world.install(BodiesSystem).expect("bodies installs");

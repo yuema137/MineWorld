@@ -5,12 +5,30 @@
 //!
 //! ```text
 //! owns        Passages            which places a place opens onto, and where the doorway is
+//!             Walking             a walk in progress: where to, and the route the world planned
 //! provides    move                a stride within a place, or through a doorway into the next
+//!             walk-to             go somewhere: plan the route, record the walk (ARC-75)
+//!             walk-step           the next stride of one's own walk — an embodied request
 //! emits       passage-opened      the genesis fact that gives places their Passages
-//!             arrived             presence's fact, built by presence's `arrival` (ARC-26)
+//!             arrived             presence's fact, built by presence's `arrivals` (ARC-26)
+//!             stopped-short       presence's too, when a resolver ends a stride short (ARC-39)
+//!             walk-started        a walk was recorded
+//!             walk-ended          and ended: arrived, stalled, no-route, replaced or stopped
 //! subscribes  passage-opened      so Passages is a projection of the log
+//!             arrived             a walker recorded at the walk's end ends the walk
+//!             stopped-short       who stopped a walker, to plan round them
+//! catalog     Wayfinder           the packs that plan routes through places they know (ARC-62)
 //! depends on  presence            whose Presence says where a person is moving from
 //! ```
+//!
+//! # Walking somewhere
+//!
+//! A walk is this pack's state, its route is the geometry owner's answer, and its strides are
+//! embodied requests (`DECISIONS.md` `ARC-75`). `walk-to` plans the first leg — asking the registered
+//! [`Wayfinder`]s, or going straight when none answers — and records [`Walking`]; each `walk-step`
+//! takes at most [`WALK_STRIDE`] along it, checked by the same rule as `move` and stated through
+//! presence's `arrivals`, so a walk is never a way round that rule. A walk takes no calendar time:
+//! its pace is how often its sender asks for steps, and nothing here reads a clock or a time scale.
 //!
 //! # Deciding, not recording
 //!
@@ -21,7 +39,7 @@
 //!                  reducing `arrived`, whoever stated it; it can refuse a value its state may not
 //!                  hold, and it never learns this pack exists
 //! MovementSystem   decides whether a move is possible; states `arrived` through presence's
-//!                  constructor; writes only Passages
+//!                  constructor; writes only Passages and Walking
 //! ```
 //!
 //! So there is one spatial truth, and the dependency points one way: `movement → presence`. A
@@ -48,8 +66,18 @@ pub mod action;
 pub mod component;
 pub mod event;
 pub mod system;
+mod walk;
+pub mod wayfinder;
 
-pub use action::{MAX_STRIDE, Move, move_offer_requirement, stride_requirement};
-pub use component::{Passage, Passages};
-pub use event::{PassageOpened, passage};
-pub use system::MovementSystem;
+pub use action::{
+    Destination, MAX_STRIDE, Move, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
+    TARGET_MOVED, WALK_STRIDE, WalkStep, WalkTo, move_offer_requirement, stride_requirement,
+};
+pub use component::{Passage, Passages, Walking};
+pub use event::{Ended, PassageOpened, WalkEnded, WalkStarted, passage};
+pub use system::{MovementSystem, is_walking};
+pub use walk::NO_ROUTE;
+pub use wayfinder::{
+    RouteAnswer, RouteAsk, Wayfinder, Waypoints, register_wayfinders, registered_wayfinders,
+    require_wayfinder,
+};

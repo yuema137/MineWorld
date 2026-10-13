@@ -1,0 +1,35 @@
+san-diego-usw00023188-2015-2024.csv
+
+Daily weather of GHCN-Daily station USW00023188, 2015-01-01 to 2024-12-31.
+
+Source: NOAA National Centers for Environmental Information (NCEI), Global Historical
+Climatology Network - Daily (GHCN-Daily), Version 3, station file
+https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/USW00023188.dly
+retrieved 2026-10-10 (UTC).
+
+Licence: NOAA data disseminated through NOAA's Open Data Dissemination program is
+made available under the Creative Commons 1.0 Universal Public Domain Dedication
+(CC0-1.0); it is a work of the US federal government. There are no restrictions on
+the use of the data. NOAA requests attribution, which this file gives.
+
+MODIFIED DATA. This file is not original NOAA data. It was reshaped from the station
+file above by MineWorld's tools/weather-fetch: one row per day, the elements TMAX,
+TMIN, PRCP, AWND and WDF2 in GHCN-Daily's units, fog = WT01 or WT02 or WT21, thunder =
+WT03, and every missing (-9999) or quality-flagged value left empty; its gaps were
+reported, not filled. It is not endorsed by NOAA, and no affiliation with NOAA is
+stated or implied.
+
+Citations requested by NOAA:
+Menne, M.J., et al., 2012: An overview of the Global Historical Climatology
+Network-Daily Database. Journal of Atmospheric and Oceanic Technology, 29, 897-910,
+doi:10.1175/JTECH-D-11-00103.1.
+Menne, M.J., et al., 2012: Global Historical Climatology Network - Daily (GHCN-Daily),
+Version 3. NOAA National Climatic Data Center, doi:10.7289/V5D21VHZ.
+
+Provenance:
+tool       mineworld-weather-fetch 0.1.0
+command    weather-fetch reshape --input target/tw-d/noaa/USW00023188.dly --station USW00023188 --from 2015 --to 2024 --retrieved 2026-10-10 --out-dir worlds/market-town/data/weather --name san-diego-usw00023188-2015-2024
+input      USW00023188.dly, 4300290 bytes
+output     san-diego-usw00023188-2015-2024.csv, 116705 bytes, 3654 lines (LF)
+
+See docs/DECISIONS.md DEP-31 and DEP-8.

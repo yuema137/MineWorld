@@ -31,8 +31,8 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
-          .ci/cargo/registry
-          .ci/cargo/git
+          ~/.mineworld-ci-cargo/registry
+          ~/.mineworld-ci-cargo/git
           target
         key: cargo-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'Dockerfile') }}
         restore-keys: cargo-${{ inputs.layer }}-
@@ -45,14 +45,18 @@ runs:
       shell: bash
       env:
         LAYER: ${{ inputs.layer }}
+      # CARGO_HOME lies outside the checkout: a git dependency Cargo checks out there must not count as
+      # compiled from the framework workspace (DECISIONS.md ARC-54 point 2, ARC-66 point 4).
       run: |
+        mkdir -p "$HOME/.mineworld-ci-cargo"
         docker run --rm \
           --user "$(id -u):$(id -g)" \
           --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
           --volume "$RUNNER_TEMP:$RUNNER_TEMP:ro" \
+          --volume "$HOME/.mineworld-ci-cargo:$HOME/.mineworld-ci-cargo" \
           --workdir "$GITHUB_WORKSPACE" \
           --env HOME=/tmp \
-          --env CARGO_HOME="$GITHUB_WORKSPACE/.ci/cargo" \
+          --env CARGO_HOME="$HOME/.mineworld-ci-cargo" \
           --env CARGO_INCREMENTAL=0 \
           --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
           mineworld-toolchain:ci python3 scripts/ci_layer.py "$LAYER"
@@ -63,7 +67,8 @@ runs:
         docker run --rm \
           --user "$(id -u):$(id -g)" \
           --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+          --volume "$HOME/.mineworld-ci-cargo:$HOME/.mineworld-ci-cargo" \
           --workdir "$GITHUB_WORKSPACE" \
           --env HOME=/tmp \
-          --env CARGO_HOME="$GITHUB_WORKSPACE/.ci/cargo" \
+          --env CARGO_HOME="$HOME/.mineworld-ci-cargo" \
           mineworld-toolchain:ci python3 scripts/ci_layer.py --prune-cache

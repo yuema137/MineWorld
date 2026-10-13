@@ -28,7 +28,6 @@ mod market;
 mod support;
 
 use std::collections::BTreeMap;
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 
 use headless::{Tables, fresh, mineworld, stderr, stdout};
@@ -393,11 +392,7 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
     // ── SIGKILL, and the same command again. ─────────────────────────────────────────────────────
     drop((alice_client, bob_client));
     let died = first.kill();
-    assert_eq!(
-        died.signal(),
-        Some(9),
-        "the server died of SIGKILL: {died:?}"
-    );
+    assert!(died.killed(), "the server died of SIGKILL: {died:?}");
     let second = Server::start(&command).await;
     assert_eq!(
         second.status().await["instance"],

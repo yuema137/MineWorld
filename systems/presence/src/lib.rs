@@ -16,6 +16,8 @@
 //!                                    never stated or reduced here
 //! subscribes  arrived                whoever stated it, which is how the state above is a
 //!                                    projection of the log
+//! judges      who learns of a fact   [`audience`]: one rule over a fact's Visibility and where
+//!                                    people were when it was recorded (ARC-43)
 //! ```
 //!
 //! # Owning where people are, and not deciding it
@@ -72,6 +74,7 @@
 
 mod codec;
 
+pub mod audience;
 pub mod component;
 pub mod event;
 pub mod interaction;

@@ -285,8 +285,8 @@ func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
 ## The controls HUD as a player meets it: attached, the camera key pressed,
 ## captured while the toast shows and again after it has faded.
 func _hud_frames() -> void:
-	var hud := ControlsHud.attach(slice, player)
-	hud.add_line("place: %s" % SliceWorld.STREET_PLACE)
+	var hud := ControlsHud.attach(slice, player, true)
+	hud.add_line(MineWorldText.text("hud.place", {"place": SliceWorld.STREET_PLACE}))
 	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
 	await _settle(8)
 	player.cycle_camera()

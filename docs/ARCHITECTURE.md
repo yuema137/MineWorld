@@ -269,14 +269,24 @@ Local save layout:
 
 ```text
 save/
-├── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
-└── cognition_cache/   later (S10 / MVP-1)
+└── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
 ```
+
+A cognition client's memory store is not part of the save. It lives in the operator's cognition
+directory, keyed by world instance and seat, because it is a controller's derivation of what one Person
+perceived, not world state ([`DECISIONS.md`](DECISIONS.md) `ARC-59`).
 
 The manifest — save format version, world instance, composition — is a table inside `world.sqlite`
 rather than a `manifest.json` beside it, so that it is committed in the same transaction as the
 revisions it describes ([`DECISIONS.md`](DECISIONS.md) `DEP-2`). A save whose format, composition, system
 versions or component schemas differ from the running code is refused by name, never decoded on a guess.
+
+The fact log and the journal are kept whole: no row of either is ever deleted, rewritten or
+re-encoded. Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
+`ARC-81`): genesis, an anchor every 64 scheduled snapshots, and the newest two; every other snapshot is
+deleted in the same transaction that commits the next scheduled one. A stored snapshot is a zstd frame
+of its JSON encoding (`DEP-43`); replay and verification compare the decoded JSON bytes, never the
+compressed ones.
 
 World semantics must not depend on the selected database (INV-14). A behavior that appears
 only under one backend is a defect in that backend, not a property of the world.
@@ -323,9 +333,14 @@ cognition:
     model: frontier
 
 limits:
-  max_calls_per_sim_hour: 20
-  max_tokens_per_day: 30000
+  max_calls_per_wall_hour: 20
+  max_tokens_per_wall_day: 30000
 ```
+
+Cost limits (calls and tokens) are keyed on **wall** time, per seat, as rolling windows, and are decided
+before a call is made: inference costs wall time and money whatever the world's `time_scale` (ruling
+QS10-18; `docs/DECISIONS.md` `ARC-57`). The context bound — how much of a life a prompt may carry — is
+keyed on **simulated** time, because memory is about the life, not the operator's clock.
 
 The server operator decides who pays for inference. The framework itself must require no paid
 API.
@@ -341,6 +356,12 @@ llama.cpp
 vLLM
 custom HTTP
 ```
+
+Every backend is an adapter behind one provider-neutral interface, `ModelBackend`, in the cognition
+package; nothing above it names a provider, a model or an endpoint. The OpenAI-compatible chat-completions
+schema is the common interface: one adapter reaches Ollama, llama.cpp, LM Studio, vLLM and any hosted
+OpenAI-compatible API the operator configures (`docs/DECISIONS.md` `DEP-27`). A backend whose
+compatibility layer drops a feature the controller depends on gets an adapter of its own.
 
 Credentials belong to the server operator and never appear in a World Pack. A world declares
 capabilities, not secrets:
@@ -432,6 +453,9 @@ v0     trusted Rust systems, trusted Python extensions
 later  WASM component plugins
 ```
 
+Trusted in-process Rust may come from outside this repository: a System Pack compiled into the build
+from a commit pinned in the installed set, reviewed like any dependency (`DECISIONS.md` `ARC-66`).
+
 A plugin declares the capabilities it needs:
 
 ```text
@@ -452,7 +476,7 @@ Network and filesystem access are never implicit.
 | Async runtime | Tokio |
 | Public server API | HTTP + WebSocket |
 | Internal service RPC | gRPC / Protobuf where useful |
-| Contracts | Rust types in `mineworld-contracts`; Protobuf mirrored from them at the first cross-language boundary (decision D-4) |
+| Contracts | Rust types in `mineworld-contracts`; other languages mirror them as typed models held to the server's golden frames over the JSON client protocol (decision D-4; `ARC-41`; §13.1) |
 | Local persistence | SQLite |
 | Cloud persistence | Postgres, later |
 | Cognition runtime | Python |
@@ -500,6 +524,24 @@ Consequences, which are binding:
 - Until that boundary exists, there is no cross-language contract to maintain, and adding one
   "for later" is the premature work this decision exists to avoid.
 
+**What the first boundaries turned out to be (2026-10-08, S10 PR P3; step-17 G-1).** The
+direction above stands; the timing in the block above it does not, and `ARC-41` records why:
+
+```text
+first boundary    the JSON client protocol (server/PROTOCOL.md): the Godot client first (S5V),
+                  then Python (mineworld-sdk, sdk/python, S10)
+how it is kept    each language mirrors the Rust types as typed models (GDScript; Pydantic in
+                  Python), and each mirror is tested against the golden frames the Rust tests
+                  keep in server/tests/frames/, so the Rust types stay the one source
+Protobuf / gRPC   declined until an encoding need is measured (ARC-41, ARC-56); a binary
+                  encoding, if one is ever needed, starts from serde (MessagePack), not .proto
+```
+
+- A pull request that changes a golden frame updates every mirror in the same change (step-17
+  R-S11-9), so a mirror cannot drift silently: its own golden test fails first.
+- The Python mirror is hand-written while the vocabulary is small enough to review; generation
+  (JSON Schema from the Rust types) is the upgrade when it is not.
+
 ---
 
 # 14. Repository structure
@@ -519,7 +561,8 @@ mineworld/
 ├── sdk/           python, rust
 ├── packages/      what a package is: package identity, pack.yaml, versions and licences
 │                  (a leaf crate, DECISIONS.md ARC-53)
-├── worlds/        sample World Packs
+├── worlds/        sample World Packs (Lakeside: Milestone E's composition, DECISIONS.md ARC-77)
+├── entities/      the repository's own Entity Packs, found through a named pack root (ARC-71, ARC-77)
 ├── tools/         world-validator, replay, inspector, benchmark
 └── tests/         conformance and acceptance tests
 ```

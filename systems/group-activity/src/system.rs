@@ -10,10 +10,11 @@ use mineworld_kernel::{
 };
 use mineworld_presence::{PersonEnteredPlace, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
+use mineworld_sdk::interactions::{self, Role, Roles};
 
 use crate::action::{
     AcceptInvitation, DeclineInvitation, Invite, JoinGroupActivity, LeaveGroupActivity,
-    accept_requirement, decline_requirement, invite_requirement, join_requirement,
+    accept_requirement, decline_requirement, join_requirement,
 };
 use crate::codec;
 use crate::component::{Invitation, Invitations, Participation};
@@ -21,13 +22,14 @@ use crate::event::{
     GroupActivityEnded, GroupActivityStarted, InvitationAccepted, InvitationDeclined, Invited,
     JoinedGroupActivity, LeftGroupActivity,
 };
+use crate::interactions::{audience, invite_terms, pair, permits};
 use crate::kind::ActivityKind;
-use crate::process::{ACTIVITY_LENGTH, ActivityState, GroupActivity};
+use crate::process::{ActivityState, GroupActivity};
 
 /// Doing things together.
 ///
 /// A unit struct: its state is the components and processes it owns, held in the world (`INV-7`).
-#[derive(Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct GroupActivitySystem;
 
 impl SystemIdentity for GroupActivitySystem {
@@ -35,10 +37,12 @@ impl SystemIdentity for GroupActivitySystem {
 }
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
-/// biographical facts. It owns no authored section.
+/// biographical facts, and its section of the World's Interaction List (`ARC-63`), which is its
+/// configuration. It owns no authored section.
 impl SystemPack for GroupActivitySystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
+    mineworld_sdk::interactions!();
 }
 
 /// Which of this pack's facts belong in a person's objective biography (`ARC-29`): beginning,
@@ -56,36 +60,42 @@ pub const BIOGRAPHICAL: &[EventTypeId] = &[
 const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
 
 impl System for GroupActivitySystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// 2 since S17's PR IL-b: the section's component and configured fact, and `Invitations`' schema 2.
+    /// 3 since PR IL-e: the section gained three rules, `invite_range`, `activity_length` and its seven
+    /// facts' consequences, so a configured fact's payload changed shape (`ARC-25`).
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     fn declaration(&self) -> SystemDeclaration {
-        SystemDeclaration::of::<Self>()
-            .depending_on([PresenceSystem::ID])
-            .owning::<Invitations>()
-            .owning::<Participation>()
-            .providing::<Invite>()
-            .providing::<AcceptInvitation>()
-            .providing::<DeclineInvitation>()
-            .providing::<JoinGroupActivity>()
-            .providing::<LeaveGroupActivity>()
-            .emitting::<Invited>()
-            .emitting::<InvitationAccepted>()
-            .emitting::<InvitationDeclined>()
-            .emitting::<GroupActivityStarted>()
-            .emitting::<JoinedGroupActivity>()
-            .emitting::<LeftGroupActivity>()
-            .emitting::<GroupActivityEnded>()
-            .subscribing_to::<Invited>()
-            .subscribing_to::<InvitationAccepted>()
-            .subscribing_to::<InvitationDeclined>()
-            .subscribing_to::<GroupActivityStarted>()
-            .subscribing_to::<JoinedGroupActivity>()
-            .subscribing_to::<LeftGroupActivity>()
-            .subscribing_to::<GroupActivityEnded>()
-            .subscribing_to::<PersonEnteredPlace>()
+        interactions::declare::<Self>(
+            SystemDeclaration::of::<Self>()
+                .depending_on([PresenceSystem::ID])
+                .owning::<Invitations>()
+                .owning::<Participation>()
+                .providing::<Invite>()
+                .providing::<AcceptInvitation>()
+                .providing::<DeclineInvitation>()
+                .providing::<JoinGroupActivity>()
+                .providing::<LeaveGroupActivity>()
+                .emitting::<Invited>()
+                .emitting::<InvitationAccepted>()
+                .emitting::<InvitationDeclined>()
+                .emitting::<GroupActivityStarted>()
+                .emitting::<JoinedGroupActivity>()
+                .emitting::<LeftGroupActivity>()
+                .emitting::<GroupActivityEnded>()
+                .subscribing_to::<Invited>()
+                .subscribing_to::<InvitationAccepted>()
+                .subscribing_to::<InvitationDeclined>()
+                .subscribing_to::<GroupActivityStarted>()
+                .subscribing_to::<JoinedGroupActivity>()
+                .subscribing_to::<LeftGroupActivity>()
+                .subscribing_to::<GroupActivityEnded>()
+                .subscribing_to::<PersonEnteredPlace>(),
+        )
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        interactions::install::<Self>(tables)?;
         tables.component::<Invitations>()?;
         tables.component::<Participation>()
     }
@@ -96,6 +106,11 @@ impl System for GroupActivitySystem {
     /// pack publishes, with the availability this pack judges — the same two values an affordance is
     /// priced from, so a client is shown the answer dispatch gives. The client's `actor_location` is
     /// ignored: positions are presence's.
+    ///
+    /// The world's Interaction List is asked for `invite`, `accept-invitation` and
+    /// `join-group-activity` once the payload is readable and both people are known, before any
+    /// condition of this pack's own state (an open invitation, `Busy`) and before space (`ARC-63`
+    /// item 8); its offers ask the same. Declining and leaving are never governed.
     ///
     /// [`SpatialRequirement::evaluate`]: mineworld_contracts::SpatialRequirement::evaluate
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
@@ -123,9 +138,12 @@ impl System for GroupActivitySystem {
         let there = located(world, target);
         let active = target_record.lifecycle() == LifecycleState::Active;
 
+        let roles = pair(actor, target);
         if *action == Invite::ACTION_TYPE {
             readable::<Invite>(intent)?;
-            return invite_requirement().evaluate(
+            let (permitted, requirement) = invite_terms(world, here.place(), &roles);
+            permitted?;
+            return requirement.evaluate(
                 &here,
                 there.as_ref(),
                 active && participation(world, target).is_none(),
@@ -135,6 +153,7 @@ impl System for GroupActivitySystem {
             let accepting = *action == AcceptInvitation::ACTION_TYPE;
             if accepting {
                 readable::<AcceptInvitation>(intent)?;
+                permits(world, here.place(), action, &roles)?;
             } else {
                 readable::<DeclineInvitation>(intent)?;
             }
@@ -150,6 +169,7 @@ impl System for GroupActivitySystem {
         }
         if *action == JoinGroupActivity::ACTION_TYPE {
             readable::<JoinGroupActivity>(intent)?;
+            permits(world, here.place(), action, &roles)?;
             if participation(world, actor).is_some() {
                 return Err(Rejection::Busy);
             }
@@ -191,10 +211,12 @@ impl System for GroupActivitySystem {
             return depart(world, activity, actor);
         }
         let target = target.ok_or_else(unresolvable)?;
+        let roles = pair(actor.entity_id(), target.entity_id());
         if action == Invite::ACTION_TYPE {
             let invite: Invite = codec::action_payload(intent.payload())?;
+            let heard_by = audience(&world.read(), place, &Invited::EVENT_TYPE, &roles);
             return Ok(vec![
-                Invited::new(actor, target, invite.kind().clone()).emission(place),
+                Invited::new(actor, target, invite.kind().clone()).emission(place, heard_by),
             ]);
         }
         if action == DeclineInvitation::ACTION_TYPE || action == AcceptInvitation::ACTION_TYPE {
@@ -206,13 +228,27 @@ impl System for GroupActivitySystem {
             )
             .map(|invitation| invitation.kind().clone())
             .ok_or_else(unresolvable)?;
+            // The answer's roles: the one answering acts, the inviter is its target.
             if action == DeclineInvitation::ACTION_TYPE {
+                let heard_by = audience(
+                    &world.read(),
+                    place,
+                    &InvitationDeclined::EVENT_TYPE,
+                    &roles,
+                );
                 return Ok(vec![
-                    InvitationDeclined::new(target, actor, kind).emission(place),
+                    InvitationDeclined::new(target, actor, kind).emission(place, heard_by),
                 ]);
             }
-            let mut emissions =
-                vec![InvitationAccepted::new(target, actor, kind.clone()).emission(place)];
+            let heard_by = audience(
+                &world.read(),
+                place,
+                &InvitationAccepted::EVENT_TYPE,
+                &roles,
+            );
+            let mut emissions = vec![
+                InvitationAccepted::new(target, actor, kind.clone()).emission(place, heard_by),
+            ];
             let theirs =
                 participation(&world.read(), target.entity_id()).map(Participation::activity);
             match theirs {
@@ -237,14 +273,22 @@ impl System for GroupActivitySystem {
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
+        if interactions::reduce(world, event)? {
+            return Ok(Vec::new());
+        }
         let now = event.at();
         let kind = event.event_type();
         if *kind == Invited::EVENT_TYPE {
             let invited: Invited = codec::event_payload(event.payload())?;
             let invitee = invited.invitee().entity_id();
+            let until = WorldTime::from_seconds(now.seconds().saturating_add(lifetime(
+                &world.read(),
+                &invited,
+                event.place(),
+            )));
             let mut held = invitations(world, invitee);
             held.receive(
-                Invitation::new(invited.inviter(), invited.kind().clone(), now),
+                Invitation::new(invited.inviter(), invited.kind().clone(), now, until),
                 now,
             );
             world.insert(invitee, held)?;
@@ -301,8 +345,9 @@ impl System for GroupActivitySystem {
         process: &Process,
     ) -> Result<Vec<Emission>, KernelError> {
         let (state, place) = activity(&world.read(), process.id())?;
+        let ending = ended(&world.read(), process.id(), &state, place);
         world.end_process::<GroupActivity>(process.id())?;
-        Ok(vec![ended(process.id(), &state, place)])
+        Ok(vec![ending])
     }
 }
 
@@ -363,6 +408,21 @@ fn activity(world: &WorldRead<'_>, id: ProcessId) -> Result<(ActivityState, Plac
 }
 
 /// The invitations a person holds, or none yet.
+/// The seconds an invitation lasts: the world's section for this inviter, invitee and place, or the
+/// compiled [`INVITATION_LIFETIME`](crate::INVITATION_LIFETIME) when the world configures none (and for
+/// a fact with no place, which this pack never states).
+fn lifetime(world: &WorldRead<'_>, invited: &Invited, place: Option<PlaceId>) -> i64 {
+    let Some(place) = place else {
+        return crate::INVITATION_LIFETIME.seconds();
+    };
+    let roles = Roles::new()
+        .with(Role::Actor, invited.inviter().entity_id())
+        .with(Role::Target, invited.invitee().entity_id());
+    i64::from(
+        interactions::parameters::<GroupActivitySystem>(world, place, &roles).invitation_lifetime,
+    )
+}
+
 fn invitations(world: &WorldView<'_, GroupActivitySystem>, invitee: EntityId) -> Invitations {
     world
         .read()
@@ -398,7 +458,9 @@ fn forget(
     Ok(())
 }
 
-/// Starts an activity of `kind` at `place`, founded by the inviter and the person who accepted.
+/// Starts an activity of `kind` at `place`, founded by the inviter and the person who accepted. It
+/// runs for the `activity_length` the world's section gives the inviter and the invitee here
+/// ([`ACTIVITY_LENGTH`](crate::ACTIVITY_LENGTH) when it configures none).
 fn begin(
     world: &mut WorldView<'_, GroupActivitySystem>,
     kind: ActivityKind,
@@ -408,14 +470,26 @@ fn begin(
 ) -> Result<Emission, KernelError> {
     let founders = vec![inviter, invitee];
     let state = ActivityState::begun(kind.clone(), founders.clone());
-    let until = WorldTime::from_seconds(world.at().seconds() + ACTIVITY_LENGTH.seconds());
+    let length = interactions::parameters::<GroupActivitySystem>(
+        &world.read(),
+        place,
+        &pair(inviter.entity_id(), invitee.entity_id()),
+    )
+    .activity_length;
+    let until = WorldTime::from_seconds(world.at().seconds() + i64::from(length));
+    let heard_by = audience(
+        &world.read(),
+        place,
+        &GroupActivityStarted::EVENT_TYPE,
+        &Roles::new(),
+    );
     let id = world.start_process(
         ProcessStart::<GroupActivity>::new(codec::encode(&state))
             .with_participants(founders.iter().map(|founder| founder.entity_id()).collect())
             .at_place(place)
             .ending_at(until),
     )?;
-    Ok(GroupActivityStarted::new(id, kind, place, founders).emission())
+    Ok(GroupActivityStarted::new(id, kind, place, founders).emission(heard_by))
 }
 
 /// Adds a member to a running activity.
@@ -426,8 +500,29 @@ fn join(
 ) -> Result<Emission, KernelError> {
     let (mut state, place) = activity(&world.read(), id)?;
     state.join(person);
+    let heard_by = membership_audience(
+        &world.read(),
+        &JoinedGroupActivity::EVENT_TYPE,
+        person,
+        place,
+    );
     world.set_process_state::<GroupActivity>(id, codec::encode(&state))?;
-    Ok(JoinedGroupActivity::new(id, state.kind().clone(), person).emission(place))
+    Ok(JoinedGroupActivity::new(id, state.kind().clone(), person).emission(place, heard_by))
+}
+
+/// The audience of a fact about one person and an activity at `place`.
+fn membership_audience(
+    world: &WorldRead<'_>,
+    fact: &EventTypeId,
+    person: PersonId,
+    place: PlaceId,
+) -> mineworld_contracts::Visibility {
+    audience(
+        world,
+        place,
+        fact,
+        &Roles::new().with(Role::Actor, person.entity_id()),
+    )
 }
 
 /// A member leaves; below two members, the activity ends.
@@ -438,16 +533,22 @@ fn depart(
 ) -> Result<Vec<Emission>, KernelError> {
     let (mut state, place) = activity(&world.read(), id)?;
     state.leave(person);
-    let left = LeftGroupActivity::new(id, state.kind().clone(), person).emission(place);
+    let heard_by =
+        membership_audience(&world.read(), &LeftGroupActivity::EVENT_TYPE, person, place);
+    let left = LeftGroupActivity::new(id, state.kind().clone(), person).emission(place, heard_by);
     if state.is_over() {
+        let ending = ended(&world.read(), id, &state, place);
         world.end_process::<GroupActivity>(id)?;
-        return Ok(vec![left, ended(id, &state, place)]);
+        return Ok(vec![left, ending]);
     }
     world.set_process_state::<GroupActivity>(id, codec::encode(&state))?;
     Ok(vec![left])
 }
 
-/// `group-activity-ended`, naming everyone who took part.
-fn ended(id: ProcessId, state: &ActivityState, place: PlaceId) -> Emission {
-    GroupActivityEnded::new(id, state.kind().clone(), place, state.took_part().to_vec()).emission()
+/// `group-activity-ended`, naming everyone who took part, its consequence looked up at the activity's
+/// place.
+fn ended(world: &WorldRead<'_>, id: ProcessId, state: &ActivityState, place: PlaceId) -> Emission {
+    let heard_by = audience(world, place, &GroupActivityEnded::EVENT_TYPE, &Roles::new());
+    GroupActivityEnded::new(id, state.kind().clone(), place, state.took_part().to_vec())
+        .emission(heard_by)
 }

@@ -21,11 +21,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredConfiguration, Seeding};
+use mineworld_authoring::{
+    ATTACHMENT_MAX_BYTES, Attached, AuthoredConfiguration, ConfigurationContext,
+    ConfigurationRefusal, EntityClasses, Seeding,
+};
 use mineworld_contracts::{
     EntityId, EntityKey, EventEnvelope, EventRecord, EventTypeId, SystemId, Visibility,
 };
 use mineworld_kernel::{Emission, WorldRead};
+use mineworld_packages::LicencePolicy;
 
 use crate::catalog::{AVAILABLE, Capability};
 use crate::error::PackError;
@@ -38,36 +42,134 @@ pub const DIRECTORY: &str = "configure";
 /// The extension a configuration file has. Anything else in `configure/` is left alone.
 const EXTENSION: &str = "yaml";
 
-/// Keys reserved for what a later build configures, and what each is for (QIA-1). No installed pack
-/// may have one of these ids; a test holds it.
-pub const RESERVED: [(&str, &str); 2] = [
-    ("classes", "the World's Interaction List's entity classes"),
-    ("packages", "the licence policy's override"),
+/// The keys of `configure:` that name no System Pack, each owned by a framework crate, with what it
+/// is (`ARC-61` note). Never resolved against the installed set, never seeded on its own. No installed
+/// pack may have one of these ids; a test holds it.
+pub const FRAMEWORK: [(&str, &str); 2] = [
+    (CLASSES, "the world's entity classes (ARC-64)"),
+    (PACKAGES, "the world's licence policy (ARC-55)"),
 ];
+
+/// The framework key of the world's entity classes.
+const CLASSES: &str = "classes";
+
+/// The framework key of the world's licence policy.
+const PACKAGES: &str = "packages";
 
 /// Where a configuration file lives.
 fn file(root: &Path, key: &str) -> PathBuf {
     root.join(DIRECTORY).join(format!("{key}.{EXTENSION}"))
 }
 
-/// Reads `configure:`: each key resolved, each file decoded by its owner's own type, every file in
-/// `configure/` listed, every required system enabled — in that order, each check assuming the one
-/// before it.
+fn is_framework(key: &ConfigurationKey) -> bool {
+    FRAMEWORK.iter().any(|(name, _)| *name == key.as_str())
+}
+
+/// A framework key's file, or the refusal that it is listed and absent.
+fn framework_text(root: &Path, key: &'static str) -> Result<(PathBuf, String), PackError> {
+    let path = file(root, key);
+    if !path.exists() {
+        return Err(PackError::ConfigurationFileMissing {
+            system: SystemId::from_static(key),
+            path,
+        });
+    }
+    let text = std::fs::read_to_string(&path).map_err(|source| PackError::Unreadable {
+        path: path.clone(),
+        source,
+    })?;
+    Ok((path, text))
+}
+
+/// The world's licence policy (`ARC-55` note): `configure/packages.yaml` decoded straight into
+/// `LicencePolicy` when `configure:` lists `packages`, otherwise the default. Read before the world's
+/// requirements resolve; never seeded, never compared at resume.
+pub(crate) fn licence_policy(
+    root: &Path,
+    keys: &[ConfigurationKey],
+) -> Result<LicencePolicy, PackError> {
+    if !keys.iter().any(|key| key.as_str() == PACKAGES) {
+        return Ok(LicencePolicy::default());
+    }
+    let (path, text) = framework_text(root, PACKAGES)?;
+    let invalid = |detail: String| PackError::LicencePolicyInvalid {
+        path: path.clone(),
+        detail,
+    };
+    let stated: StatedPolicy = serde_saphyr::from_str(&text).map_err(|e| invalid(e.to_string()))?;
+    LicencePolicy::new(
+        stated
+            .allowed
+            .iter()
+            .map(|identifier| identifier.0.as_str()),
+    )
+    .map_err(|e| invalid(e.to_string()))
+}
+
+/// `configure/packages.yaml` as written: `LicencePolicy`'s own shape, decoded here identifier by
+/// identifier so a refusal keeps the identifier's line and column (`LicencePolicy`'s own decoding checks
+/// the list as a whole, after the decoder has left it).
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StatedPolicy {
+    allowed: Vec<Identifier>,
+}
+
+/// One SPDX licence identifier, checked by `LicencePolicy` itself as it decodes.
+#[derive(serde::Deserialize)]
+#[serde(try_from = "String")]
+struct Identifier(String);
+
+impl TryFrom<String> for Identifier {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        LicencePolicy::new([text.as_str()])
+            .map(|_| Self(text))
+            .map_err(|refusal| refusal.to_string())
+    }
+}
+
+/// The world's entity classes (`ARC-64`): `configure/classes.yaml` when `configure:` lists `classes`,
+/// otherwise none.
+fn classes(root: &Path, keys: &[ConfigurationKey]) -> Result<EntityClasses, PackError> {
+    if !keys.iter().any(|key| key.as_str() == CLASSES) {
+        return Ok(EntityClasses::default());
+    }
+    let (path, text) = framework_text(root, CLASSES)?;
+    serde_saphyr::from_str(&text).map_err(|error| PackError::ClassesInvalid {
+        path,
+        detail: error.to_string(),
+    })
+}
+
+/// Reads `configure:`: each key listed once and resolved, the classes read, each System Pack's file
+/// decoded by its owner's own type, every file in `configure/` listed, every required system enabled,
+/// every attachment read, and each configuration checked against the classes — in that order, each
+/// check assuming the one before it.
 pub(crate) fn read(
     root: &Path,
     keys: &[ConfigurationKey],
     systems: &[Capability],
-) -> Result<Vec<FoundConfiguration>, PackError> {
+) -> Result<(EntityClasses, Vec<FoundConfiguration>), PackError> {
     let owners = resolve_keys(&root.join(MANIFEST), keys, systems)?;
-    let found = read_files(root, &owners, |owner, text| {
+    let classes = classes(root, keys)?;
+    let mut found = read_files(root, &owners, |owner, text| {
         serde_saphyr::with_deserializer_from_str(text, |file| owner.decode_configuration(file))
     })?;
     check_nothing_undeclared(root, keys)?;
     check_requires(&found, systems)?;
-    Ok(found)
+    for configured in &mut found {
+        configured.attached = read_attachments(root, configured)?;
+    }
+    for configured in &found {
+        check(&classes, configured)?;
+    }
+    Ok((classes, found))
 }
 
-/// Each key's capability, in `configure:` order: listed once, then resolved.
+/// The System Pack each key configures, in `configure:` order: every key listed once, the framework
+/// keys set aside, the rest resolved.
 fn resolve_keys(
     manifest: &Path,
     keys: &[ConfigurationKey],
@@ -81,8 +183,96 @@ fn resolve_keys(
         });
     }
     keys.iter()
+        .filter(|key| !is_framework(key))
         .map(|key| resolve(manifest, key, systems))
         .collect()
+}
+
+/// The bytes of every `data/` file a configuration names: each present, inside the pack once its links
+/// are followed, and within the size the loader reads (`ARC-61` note).
+pub(crate) fn read_attachments(
+    root: &Path,
+    configured: &FoundConfiguration,
+) -> Result<Attached, PackError> {
+    let mut attached = Attached::none();
+    let system = configured.configuration.owner();
+    for attachment in configured.configuration.attachments() {
+        let refused = |kind: fn(SystemId, String, PathBuf) -> PackError| {
+            kind(
+                system.clone(),
+                attachment.to_string(),
+                configured.path.clone(),
+            )
+        };
+        let path = attachment.path_under(root);
+        let unreadable = |source| PackError::Unreadable {
+            path: path.clone(),
+            source,
+        };
+        if !path.is_file() {
+            return Err(refused(|system, attachment, path| {
+                PackError::AttachmentMissing {
+                    system,
+                    attachment,
+                    path,
+                }
+            }));
+        }
+        let real = path.canonicalize().map_err(unreadable)?;
+        let pack = root.canonicalize().map_err(unreadable)?;
+        if !real.starts_with(&pack) {
+            return Err(refused(|system, attachment, path| {
+                PackError::AttachmentOutside {
+                    system,
+                    attachment,
+                    path,
+                }
+            }));
+        }
+        let bytes = std::fs::metadata(&real).map_err(unreadable)?.len();
+        if bytes > ATTACHMENT_MAX_BYTES {
+            return Err(PackError::AttachmentTooLarge {
+                system,
+                attachment: attachment.to_string(),
+                bytes,
+                max: ATTACHMENT_MAX_BYTES,
+                path: configured.path.clone(),
+            });
+        }
+        attached.insert(
+            attachment.clone(),
+            std::fs::read(&real).map_err(unreadable)?,
+        );
+    }
+    Ok(attached)
+}
+
+/// A configuration's own refusal once the world's classes are known, named with its file.
+fn check(classes: &EntityClasses, configured: &FoundConfiguration) -> Result<(), PackError> {
+    let system = configured.configuration.owner();
+    let path = configured.path.clone();
+    configured
+        .configuration
+        .check(&ConfigurationContext::new(classes, &configured.attached))
+        .map_err(|refusal| match refusal {
+            ConfigurationRefusal::ClassUndefined { class, entry } => PackError::ClassUndefined {
+                system,
+                class: class.to_string(),
+                entry: entry.to_string(),
+                path,
+            },
+            ConfigurationRefusal::Ambiguous {
+                first,
+                second,
+                field,
+            } => PackError::AmbiguousEntries {
+                system,
+                first: first.to_string(),
+                second: second.to_string(),
+                field,
+                path,
+            },
+        })
 }
 
 /// Each owner's file, decoded by `decode` — the owner's own type, through the YAML stream, so a
@@ -106,6 +296,7 @@ fn read_files(
             owner,
             path,
             configuration,
+            attached: Attached::none(),
         });
     }
     Ok(found)
@@ -127,20 +318,12 @@ fn check_requires(found: &[FoundConfiguration], systems: &[Capability]) -> Resul
     Ok(())
 }
 
-/// The capability one key configures: not reserved, a system of this build, enabled, and
-/// configurable.
+/// The capability one key configures: a system of this build, enabled, and configurable.
 fn resolve(
     manifest: &Path,
     key: &ConfigurationKey,
     systems: &[Capability],
 ) -> Result<Capability, PackError> {
-    if let Some((_, reserved_for)) = RESERVED.iter().find(|(name, _)| *name == key.as_str()) {
-        return Err(PackError::ConfigurationReserved {
-            key: key.to_string(),
-            reserved_for,
-            path: manifest.to_path_buf(),
-        });
-    }
     let Some(capability) = Capability::resolve(key.system()) else {
         let available: Vec<String> = AVAILABLE
             .into_iter()
@@ -226,6 +409,7 @@ pub(crate) fn check_references(pack: &WorldPack) -> Result<(), PackError> {
 pub(crate) fn seed(
     world: &WorldRead<'_>,
     ids: &BTreeMap<EntityKey, EntityId>,
+    classes: &EntityClasses,
     configured: &[FoundConfiguration],
 ) -> Result<Vec<Emission>, PackError> {
     let mut facts = Vec::new();
@@ -233,7 +417,10 @@ pub(crate) fn seed(
         let configuration = &found.configuration;
         let system = configuration.owner();
         let emissions = configuration
-            .seed(&Seeding::new(world, ids))
+            .seed(
+                &Seeding::new(world, ids),
+                &ConfigurationContext::new(classes, &found.attached),
+            )
             .map_err(|reason| PackError::ConfigurationRefusedByOwner {
                 system: system.clone(),
                 reason: Box::new(reason),

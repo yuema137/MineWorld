@@ -220,6 +220,55 @@ pub enum PackError {
         second: Declared,
     },
 
+    /// A key declared by two sources: the world and a required Entity Pack, or two required Entity Packs
+    /// (`DECISIONS.md` `ARC-71` point 5). Keys are one namespace, and nothing is overridden.
+    #[error(
+        "'{key}' is declared twice: by {first}, and again by {second}; keys are one namespace across a \
+         world and the Entity Packs it requires"
+    )]
+    KeyFromTwoSources {
+        /// The key.
+        key: EntityKey,
+        /// The first source: a list of `world.yaml`, or an Entity Pack and its file.
+        first: String,
+        /// The second source: an Entity Pack and its file.
+        second: String,
+    },
+
+    /// An Entity Pack's item file whose name is not a key (`ARC-71` point 2): the file's name is the
+    /// kind's key.
+    #[error(
+        "{path}: the Entity Pack {pack} names an item kind by this file's name, which is not a key: {source}"
+    )]
+    EntityPackKeyInvalid {
+        /// The Entity Pack's id.
+        pack: String,
+        /// The file.
+        path: PathBuf,
+        /// What the contract layer said about the name.
+        #[source]
+        source: ContractError,
+    },
+
+    /// A section in an Entity Pack's item file naming a key the same pack does not declare
+    /// (`ARC-71` point 8): an Entity Pack usable by any world cannot depend on one world's content.
+    #[error(
+        "{path} gives '{subject}' a '{section}' section naming '{key}', which the Entity Pack {pack} \
+         does not declare; an Entity Pack's sections may name only its own item kinds"
+    )]
+    EntityPackReachesOut {
+        /// The Entity Pack's id.
+        pack: String,
+        /// The kind the file declares.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// The key it names.
+        key: EntityKey,
+        /// The file.
+        path: PathBuf,
+    },
+
     /// A person is placed in a place this pack does not have.
     #[error(
         "{path} puts '{person}' in the place '{place}', which this pack does not declare \
@@ -447,19 +496,6 @@ pub enum PackError {
         path: PathBuf,
     },
 
-    /// A `configure:` key is reserved for something a later build configures.
-    #[error(
-        "{path}: configure: names '{key}', which is reserved for {reserved_for}; not configurable in this build"
-    )]
-    ConfigurationReserved {
-        /// The key.
-        key: String,
-        /// What it is reserved for.
-        reserved_for: &'static str,
-        /// `world.yaml`.
-        path: PathBuf,
-    },
-
     /// A `configure:` key is listed twice.
     #[error("{path}: configure: lists '{key}' twice")]
     ConfigurationListedTwice {
@@ -575,6 +611,107 @@ pub enum PackError {
         saved: String,
         /// What this pack seeds there.
         here: String,
+    },
+
+    // ---- The Interaction List and the framework keys (`ARC-61` note, `ARC-63`, `ARC-64`). --------
+    /// `configure/classes.yaml` does not decode: a class defined twice, an implicit name reused, an
+    /// `of` that is no entity type. The decoder's report, with its line and column.
+    #[error("{path}: the world's classes are not valid: {detail}")]
+    ClassesInvalid {
+        /// `configure/classes.yaml`.
+        path: PathBuf,
+        /// The decoder's report.
+        detail: String,
+    },
+
+    /// A section's entry names a class that `classes.yaml` does not define and that is not implicit.
+    #[error(
+        "{path}: the '{system}' section's {entry} names the class '{class}', which configure/classes.yaml \
+         does not define (and which is not person, place, item or organization)"
+    )]
+    ClassUndefined {
+        /// The section's pack.
+        system: SystemId,
+        /// The class.
+        class: String,
+        /// The entry: its list and index.
+        entry: String,
+        /// The section's file.
+        path: PathBuf,
+    },
+
+    /// Two entries of equal specificity overlap and disagree on a field: which applies would depend on
+    /// the order they were written in, so neither does.
+    #[error(
+        "{path}: the '{system}' section's {first} and {second} apply to the same entities with equal \
+         specificity and disagree on '{field}'; add a more specific entry or make them agree"
+    )]
+    AmbiguousEntries {
+        /// The section's pack.
+        system: SystemId,
+        /// One entry.
+        first: String,
+        /// The other.
+        second: String,
+        /// The field.
+        field: String,
+        /// The section's file.
+        path: PathBuf,
+    },
+
+    /// A configuration names a `data/` file that does not exist.
+    #[error(
+        "{path}: the '{system}' system's configuration names {attachment}, which does not exist"
+    )]
+    AttachmentMissing {
+        /// The configured system.
+        system: SystemId,
+        /// The attachment, as named.
+        attachment: String,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A configuration names a `data/` file whose real path, its links followed, is outside the pack.
+    #[error(
+        "{path}: the '{system}' system's configuration names {attachment}, which resolves outside the \
+         World Pack"
+    )]
+    AttachmentOutside {
+        /// The configured system.
+        system: SystemId,
+        /// The attachment, as named.
+        attachment: String,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A configuration names a `data/` file larger than the loader reads.
+    #[error(
+        "{path}: the '{system}' system's configuration names {attachment}, {bytes} bytes — over the \
+         {max}-byte limit"
+    )]
+    AttachmentTooLarge {
+        /// The configured system.
+        system: SystemId,
+        /// The attachment, as named.
+        attachment: String,
+        /// Its size.
+        bytes: u64,
+        /// The limit.
+        max: u64,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// `configure/packages.yaml` does not decode into a licence policy. The decoder's report, with its
+    /// line and column.
+    #[error("{path}: the world's licence policy is not valid: {detail}")]
+    LicencePolicyInvalid {
+        /// `configure/packages.yaml`.
+        path: PathBuf,
+        /// The decoder's report.
+        detail: String,
     },
 }
 

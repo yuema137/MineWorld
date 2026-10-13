@@ -27,6 +27,16 @@ affordances-market-town.log  `../run.sh affordances`: the module's live check (`
                            unavailable `give` sent and answered `too_far_away`, an incomplete `talk`
                            not sent, the revision rising
 server-affordances.log     the server it was made against (saved to a scratch directory, since removed)
+reconnect-market-town.log  `../run.sh reconnect`: the module's opt-in reconnect
+                           (`checks/reconnect_check.gd`) against `worlds/market-town --town --hold 10`
+                           — seated as `visitor` from the town, socket dropped without `leave`,
+                           welcomed again `held` as the same Person. No resume secret is printed
+server-reconnect.log       the server it was made against
+admin-social-cafe.log      `../run.sh admin`: the `clock` frame after the welcome, the host's pause
+                           (announced, a submit refused `paused`), resume, and a kick (`closing`
+                           "kicked") — `checks/admin_check.gd`. The admin token is generated per run,
+                           passed through the environment, and in no file here
+server-admin.log           the server it was made against
 ```
 
 Each AC-13 flavour runs against a world of its own because a client walks from where the world seated

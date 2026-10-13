@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredConfiguration, AuthoredContent, SectionName};
+use mineworld_authoring::{Attached, AuthoredConfiguration, AuthoredContent, SectionName};
 use mineworld_contracts::{EntityKey, Millimetres, SystemId, Tags};
 use mineworld_packages::{Compatibility, License, PackId, Version};
 use serde::Deserialize;
@@ -87,12 +87,12 @@ pub struct WorldManifest {
 }
 
 /// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`
-/// `ARC-61`): an enabled System Pack's id, or a reserved key.
+/// `ARC-61`): an enabled System Pack's id, or a framework key.
 ///
 /// Its own type rather than a [`SystemId`], because not every key names a system: `classes` is the
-/// Interaction List's and `packages` belongs to the framework's package crate (the licence policy's
-/// override), both reserved in this build and wired by a later one. It is spelled as a system id is
-/// and validates at its line in `world.yaml`; whether it names a system is decided after.
+/// world's entity classes (`ARC-64`) and `packages` its licence policy (`ARC-55` note), each owned by a
+/// framework crate. It is spelled as a system id is and validates at its line in `world.yaml`; whether
+/// it names a system is decided after.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(transparent)]
 pub struct ConfigurationKey(SystemId);
@@ -177,6 +177,8 @@ pub struct FoundConfiguration {
     pub path: PathBuf,
     /// The decoded value.
     pub configuration: Arc<dyn AuthoredConfiguration>,
+    /// The bytes of the `data/` files it names (`ARC-61` note), read by the loader.
+    pub attached: Attached,
 }
 
 /// A file in `people/`: one Person, as authored.

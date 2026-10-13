@@ -15,11 +15,17 @@ extends Node
 ## drive complete: PASS|FAIL
 ## ```
 ##
-## Scenarios: `seated` (default), `walk`, `street`, `strides`, `idle`, `click`. Arguments:
-## `--strides=n`, `--hold=seconds`. No scenario names a world's coordinates: every waypoint is derived
-## from the disclosed passages.
+## Scenarios: `seated` (default), `walk`, `street`, `strides`, `idle`, `click`, `home`, and 13b's
+## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
+## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
+## `--apply=<language>,<clock>,<W>x<H>` applies through the menu).
+## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
+## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
+## coordinates: every waypoint is derived from the disclosed passages.
 
 const Capture := preload("res://scripts/harness/capture.gd")
+const Interact := preload("res://scripts/harness/interact.gd")
+const SettingsScenario := preload("res://scripts/harness/settings.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -41,6 +47,7 @@ var _capture: Node = null
 var _lift_s := -1.0
 var _disconnects := 0
 var _observed_since_seated := false
+var _interact: Node = null
 
 
 ## A reconciliation being timed: where the world put the body, and frames drawn since.
@@ -71,7 +78,7 @@ func _ready() -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	app.link.resolved.connect(func(token: String, _a: String, result: Dictionary) -> void:
 		_results.append(result)
-		print("RESULT ", JSON.stringify({"token": token, "result": result})))
+		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec()})))
 	app.link.observed.connect(_on_observed)
 	app.walker.reconciled.connect(_on_reconciled)
 	app.link.state_changed.connect(func(state: String, reason: String) -> void:
@@ -86,6 +93,11 @@ func _ready() -> void:
 		_capture = Capture.new()
 		_capture.app = app
 		add_child(_capture)
+	print("EVIDENCE ", SettingsScenario.evidence(app))
+	_interact = Interact.new()
+	_interact.drive = self
+	_interact.app = app
+	add_child(_interact)
 	_run.call_deferred()
 
 
@@ -110,6 +122,9 @@ func _run() -> void:
 	if not await _until(func() -> bool: return app.walker.placed, TIMEOUT_S):
 		_check(false, "seated", "no observation placed the player within %d s" % TIMEOUT_S)
 		return _finish()
+	if app.options.has("frame"):
+		# The raw observation, for pinning a component's exact JSON before a reader is written.
+		print("FRAME ", JSON.stringify(app.latest.frame))
 	match scenario:
 		"walk":
 			await _walk()
@@ -124,6 +139,19 @@ func _run() -> void:
 			await _click()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
+		"steps":
+			await _interact.steps(String(app.options.get("steps", "")))
+		"panels":
+			await _interact.panels()
+		"settings", "display":
+			var settings: Node = SettingsScenario.new()
+			settings.drive = self
+			settings.app = app
+			add_child(settings)
+			if scenario == "settings":
+				await settings.run()
+			else:
+				await settings.display()
 		_:
 			await _seconds(SETTLE_S)
 			_check_seated()
@@ -150,6 +178,8 @@ func _walk() -> void:
 	if not await _walk_done("into the street"):
 		return
 	await _seconds(SETTLE_S)
+	# From the street, before the café: what the doorways read and how the façades are drawn (R-PK-1).
+	_report_self()
 	_check_facades()
 	var door := Vector2i.ZERO
 	var target := ""
@@ -420,9 +450,10 @@ func _report_shown() -> void:
 	var people := []
 	for id in app.people.drawn_ids():
 		var drawn: Variant = app.people.drawn_plan(id)
-		people.append({"id": id, "label": app.people.label_of(id),
+		people.append({"id": id, "label": app.people.label_of(id), "activity": app.people.activity_of(id),
 			"local": null if drawn == null else app.town.local_in(here, drawn)})
-	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways, "people": people}))
+	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways,
+		"doorway_labels": app.places.door_labels(), "people": people}))
 
 
 func _report_self() -> void:

@@ -3,31 +3,39 @@
 
 Three checks, each reporting by file and line and exiting non-zero on any finding:
 
-  python3 scripts/check_client_rules.py                  R1-R5 over clients/2d/**/*.gd
+  python3 scripts/check_client_rules.py                  R1-R6 over clients/2d/**/*.gd
   python3 scripts/check_client_rules.py --scope BASE     every path the branch changed since its
                                                          merge base with BASE is in the 2D client's
-                                                         allowed set (step-13 I-4, AC-W9)
+                                                         allowed set (step-13 I-4, AC-W9, AC-I10)
   python3 scripts/check_client_rules.py --check-pack DIR a Presentation Pack's two files are
-                                                         well formed and every file they name exists
-                                                         (clients/2d/PRESENTATION.md)
+                                                         well formed, every file they name exists,
+                                                         and its i18n/*.po wording parses
+                                                         (clients/2d/PRESENTATION.md §7)
 
 The rules, on code with comments removed:
 
   R1  only scripts/intents.gd calls submit( or submit_affordance(
   R2  no .gd file but intents.gd holds a string literal equal to an action type that intents.gd
-      composes (its `const COMPOSED := [...]`, read from the file; absent is a failure)
-  R3  in intents.gd, no function that submits reads may(, "available", unavailable_reason or
-      requirement(
+      composes (its `const COMPOSED := [...]`, read from the file; absent is a failure), except a
+      (file, literal) pair ADMITTED names with its reason; an admission that admits nothing fails
+  R3  in intents.gd, menu.gd and hud/**, no function that submits or calls `intents.` reads may(,
+      "available", unavailable_reason or requirement(  (R3', step-13 13b)
   R4  distance_to(, .length() and the word `within` appear only in walker.gd, projection.gd,
       town.gd, scripts/scene/** and the test harness scripts/harness/**
   R5  only scripts/link.gd constructs MineWorldClient or calls connect_to_world(
+  R6  no .gd file but hud/words.gd and the harness passes a literal of two or more words to
+      `text =`, add_item(, note( or toast( — user-visible text is a wording key (ARC-70); the
+      harness prints evidence, not UI
 
-Standard library only. Fail-closed: a missing directory, git failure or unknown base is a failure.
+Symlinked directories are not walked (clients/2d/mineworld is the shared module), so the verdict does
+not depend on the Python version's rglob. Standard library only. Fail-closed: a missing directory, git
+failure or unknown base is a failure.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -41,6 +49,23 @@ INTENTS = SCRIPTS / "intents.gd"
 DISTANCE_ALLOWED = ("walker.gd", "projection.gd", "town.gd")
 DISTANCE_ALLOWED_DIRS = ("scene", "harness")
 
+# R2's admissions: a literal equal to a composed action type, written outside intents.gd, for a reason
+# that is not naming the action. Each must admit something.
+ADMITTED = {
+    ("scripts/app.gd", "invite"): "the --invite command-line option, the join credential handed to "
+    "link.gd (PROTOCOL.md §4.1); it shares its spelling with group-activity's action type",
+}
+
+# R3' extends R3 to these: the menu and the HUD, where a verdict is shown and an entry chosen.
+VERDICT_SCOPED_FILES = ("intents.gd", "menu.gd")
+VERDICT_SCOPED_DIRS = ("hud",)
+VERDICT = re.compile(r"\bmay\s*\(|\"available\"|\bunavailable_reason\b|\brequirement\s*\(")
+
+# R6: where user-visible text is set, and the files allowed to hold sentences.
+UI_SINK = re.compile(r"\.text\s*=(?!=)|\badd_item\s*\(|\bnote\s*\(|\btoast\s*\(")
+WORDING_FILES = ("hud/words.gd",)
+WORDING_DIRS = ("harness",)
+
 SCOPE_PREFIXES = (
     "clients/2d/",
     "presentation/mineworld-default/2D/",
@@ -51,8 +76,11 @@ SCOPE_FILES = (
     "mineworld-2d",
     "scripts/check_client_rules.py",
     "tools/cli/tests/client_2d.rs",
+    "tools/cli/tests/client_2d_interact.rs",
+    "tools/cli/tests/client_2d_interact_stub.rs",
     # S14's structural scan (merged after 13a froze) admits each client's action literals by entry;
-    # 13a adds its two (step-13 §14.10 D-14). No other line of that file is 13a's.
+    # 13a adds its two (step-13 §14.10 D-14), 13b its six composed types (QS13b-7). No other line of
+    # that file is a client PR's.
     "tests/acceptance/tests/client_rules.rs",
 )
 
@@ -117,30 +145,58 @@ def functions(lines: list[tuple[int, str]]) -> list[list[tuple[int, str]]]:
     return out
 
 
+def scripts_of_client() -> list[Path]:
+    """Every .gd under the client, not descending a symlinked directory or `.godot`."""
+    found: list[Path] = []
+    for directory, subdirectories, files in os.walk(CLIENT, followlinks=False):
+        subdirectories[:] = sorted(
+            d for d in subdirectories
+            if d != ".godot" and not (Path(directory) / d).is_symlink()
+        )
+        found.extend(Path(directory) / f for f in sorted(files) if f.endswith(".gd"))
+    return found
+
+
+def words(literal: str) -> int:
+    """Whitespace-separated words with at least two letters: a sentence has two or more; a key
+    (`ui.result.unknown`) and a format (`%s  ·  %s`) have none or one."""
+    return sum(1 for token in literal.split() if re.search(r"[A-Za-z]{2,}", token))
+
+
 def check_rules() -> list[str]:
     findings: list[str] = []
     if not SCRIPTS.is_dir():
         return [f"{rel(SCRIPTS)}: missing"]
     composed = composed_types(findings)
-    for path in sorted(CLIENT.rglob("*.gd")):
-        if ".godot" in path.parts:
-            continue
+    admitted_used = {key: False for key in ADMITTED}
+    for path in scripts_of_client():
         name = rel(path)
         lines = code_lines(path)
         is_intents = path == INTENTS
         in_scripts = SCRIPTS in path.parents
         sub = path.relative_to(SCRIPTS).parts if in_scripts else ()
+        local = "/".join(sub)
         distance_ok = in_scripts and (
             (len(sub) == 1 and sub[0] in DISTANCE_ALLOWED)
             or (len(sub) > 1 and sub[0] in DISTANCE_ALLOWED_DIRS)
         )
+        verdict_scoped = in_scripts and (
+            (len(sub) == 1 and sub[0] in VERDICT_SCOPED_FILES)
+            or (len(sub) > 1 and sub[0] in VERDICT_SCOPED_DIRS)
+        )
+        wording_ok = in_scripts and (local in WORDING_FILES or (len(sub) > 1 and sub[0] in WORDING_DIRS))
         is_link = path == SCRIPTS / "link.gd"
         for n, code in lines:
             if not is_intents and re.search(r"\bsubmit(_affordance)?\s*\(", code):
                 findings.append(f"{name}:{n}: R1 submits — only scripts/intents.gd may")
             if not is_intents:
                 for lit in literals(code):
-                    if lit in composed:
+                    if lit not in composed:
+                        continue
+                    key = (f"scripts/{local}", lit)
+                    if key in ADMITTED:
+                        admitted_used[key] = True
+                    else:
                         findings.append(
                             f"{name}:{n}: R2 names the action type \"{lit}\" — only intents.gd may"
                         )
@@ -152,16 +208,28 @@ def check_rules() -> list[str]:
                 )
             if not is_link and re.search(r"\bMineWorldClient\.new\s*\(|\bconnect_to_world\s*\(", code):
                 findings.append(f"{name}:{n}: R5 opens a connection — only scripts/link.gd may")
-        if is_intents:
+            if not wording_ok and UI_SINK.search(code):
+                for lit in literals(code):
+                    if words(lit) >= 2:
+                        findings.append(
+                            f"{name}:{n}: R6 shows the sentence \"{lit}\" — UI text is a wording key "
+                            "(ARC-70)"
+                        )
+        if verdict_scoped:
             for fn in functions(lines):
                 body = "\n".join(code for _, code in fn)
-                if not re.search(r"\bsubmit(_affordance)?\s*\(", body):
+                if not re.search(r"\bsubmit(_affordance)?\s*\(|\bintents\.", body):
                     continue
                 for n, code in fn:
-                    if re.search(r"\bmay\s*\(|\"available\"|\bunavailable_reason\b|\brequirement\s*\(", code):
+                    if VERDICT.search(code):
                         findings.append(
-                            f"{name}:{n}: R3 reads the server's verdict in a function that submits"
+                            f"{name}:{n}: R3 reads the server's verdict in a function that submits "
+                            "or chooses"
                         )
+    for (file, literal), used in admitted_used.items():
+        if not used:
+            findings.append(f"clients/2d/{file}: R2 admits \"{literal}\", which it no longer holds; "
+                            "remove the admission")
     return findings
 
 
@@ -254,6 +322,81 @@ def check_pack(directory: str) -> list[str]:
             r = str(path.relative_to(pack))
             if path.is_file() and r not in named and not r.startswith("art/provenance/") and path.suffix != ".md":
                 findings.append(f"{r}: carried but bound by no sprite")
+    wording = pack / "i18n"
+    if wording.is_dir():
+        for path in sorted(wording.glob("*.po")):
+            findings.extend(check_po(path, path.relative_to(pack).as_posix()))
+    return findings
+
+
+PO_STRING = re.compile(r'"((?:[^"\\]|\\.)*)"\s*$')
+ACTION_KEY = re.compile(r"action\.[a-z0-9]+(?:-[a-z0-9]+)*(?:\.done)?")
+REASON_KEY = re.compile(r"reason\.[a-z0-9]+(?:[_-][a-z0-9]+)*")
+
+
+def check_po(path: Path, name: str) -> list[str]:
+    """A gettext file the client loads as wording (PRESENTATION.md §7): msgid/msgstr pairs of quoted
+    strings, UTF-8, a header naming the `Language:`, no key twice, well-formed action/reason keys."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as failure:
+        return [f"{name}: not readable as UTF-8: {failure}"]
+    findings: list[str] = []
+    entries: list[tuple[int, str, str]] = []  # (line of msgid, msgid, msgstr)
+    keyword = ""
+    msgid: tuple[int, str] | None = None
+    msgstr: str | None = None
+
+    def close(at: int) -> None:
+        nonlocal msgid, msgstr
+        if msgid is not None:
+            if msgstr is None:
+                findings.append(f"{name}:{msgid[0]}: msgid \"{msgid[1]}\" has no msgstr")
+            else:
+                entries.append((msgid[0], msgid[1], msgstr))
+        msgid, msgstr = None, None
+
+    for n, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"(msgid|msgstr)\s+(.*)$", line)
+        quoted = m.group(2) if m else line
+        if not quoted.startswith('"'):
+            findings.append(f"{name}:{n}: not a gettext line: {line}")
+            continue
+        s = PO_STRING.fullmatch(quoted)
+        if s is None:
+            findings.append(f"{name}:{n}: unterminated string: {line}")
+            continue
+        value = s.group(1)
+        if m and m.group(1) == "msgid":
+            close(n)
+            msgid, keyword = (n, value), "msgid"
+        elif m:
+            if msgid is None or msgstr is not None:
+                findings.append(f"{name}:{n}: msgstr without its msgid")
+                continue
+            msgstr, keyword = value, "msgstr"
+        elif keyword == "msgid" and msgid is not None and msgstr is None:
+            msgid = (msgid[0], msgid[1] + value)
+        elif keyword == "msgstr" and msgstr is not None:
+            msgstr += value
+        else:
+            findings.append(f"{name}:{n}: a continuation string with nothing to continue")
+    close(0)
+    header = [e for e in entries if e[1] == ""]
+    if not header or not re.search(r"(^|\\n)Language: *[A-Za-z]", header[0][2]):
+        findings.append(f"{name}: no header entry (msgid \"\") naming its Language:")
+    seen: dict[str, int] = {}
+    for n, key, _ in entries:
+        if key in seen:
+            findings.append(f"{name}:{n}: \"{key}\" again (first at line {seen[key]})")
+        seen.setdefault(key, n)
+        if key.startswith("action.") and not ACTION_KEY.fullmatch(key):
+            findings.append(f"{name}:{n}: \"{key}\" is not action.<type> or action.<type>.done")
+        if key.startswith("reason.") and not REASON_KEY.fullmatch(key):
+            findings.append(f"{name}:{n}: \"{key}\" is not reason.<code>")
     return findings
 
 

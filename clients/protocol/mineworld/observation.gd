@@ -20,9 +20,31 @@ extends RefCounted
 ## The frame exactly as it arrived, for a client that wants something this reader does not expose.
 var frame: Dictionary
 
+## The frame's `acted_through`: an `ActionId` string, or `null`.
+var _acted_through: Variant = null
 
-func _init(observation: Dictionary) -> void:
+
+func _init(observation: Dictionary, acted_through_value: Variant = null) -> void:
 	frame = observation
+	_acted_through = acted_through_value
+
+
+## The newest request this connection submitted that this observation already reflects — the
+## `action_id` its `resolved` answer carried — or `null` before the first (`PROTOCOL.md` §5.2). A
+## client that moved a body ahead of the server reconciles once this reaches the request it predicted.
+func acted_through() -> Variant:
+	return null if _acted_through == null else String(_acted_through)
+
+
+## The facts in this observation of one event type, oldest first: what the observer learned since
+## its previous frame (`PROTOCOL.md` §5.2). An event type a client does not know is just "something
+## happened" — never an error.
+func events_of(event_type: String) -> Array:
+	var found := []
+	for event in events():
+		if String(event.get("event_type", "")) == event_type:
+			found.append(event)
+	return found
 
 
 ## Whose view this is.

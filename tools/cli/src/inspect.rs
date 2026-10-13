@@ -92,6 +92,7 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
     for (kind, count) in &journal.kinds {
         println!("journal    {kind} {count}");
     }
+    println!("snapshots  {}", retained(&backend)?);
 
     let mut by_type: BTreeMap<&str, u64> = BTreeMap::new();
     for fact in &facts {
@@ -134,6 +135,25 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
             shown.join("; "),
         ))
     }
+}
+
+/// The snapshots the save keeps and what each costs on disk, on one line (`ARC-81`, D-SR-9):
+/// `3 kept (zstd): r1 2316 B, r4096 52045 B, r4160 52101 B`.
+fn retained(backend: &SqliteBackend) -> Result<String, String> {
+    let revisions = backend.snapshot_revisions().map_err(damaged)?;
+    let mut kept = Vec::with_capacity(revisions.len());
+    for revision in &revisions {
+        let bytes = backend
+            .snapshot_at(*revision)
+            .map_err(damaged)?
+            .map_or(0, |stored| stored.len());
+        kept.push(format!("{revision} {bytes} B"));
+    }
+    Ok(format!(
+        "{} kept (zstd): {}",
+        revisions.len(),
+        kept.join(", ")
+    ))
 }
 
 /// The journal, counted, and the request identities it carries.

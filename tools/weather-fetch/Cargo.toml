@@ -1,0 +1,35 @@
+[package]
+name = "mineworld-weather-fetch"
+description = "Developer tool: turns a NOAA GHCN-Daily station file into a World Pack's weather record (CSV and NOTICE) and fits the weather pack's rules to it. Offline; never run by a world, CI or the server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "weather-fetch"
+path = "src/main.rs"
+
+[features]
+# The download mode (DECISIONS.md DEP-31, step-19 QTWd-4). Off by default, so no default build — and no
+# crate a world is built from — ever compiles an HTTP client (INV-TW-7).
+fetch = ["dep:ureq"]
+
+[dependencies]
+clap = { workspace = true }
+# The one authority for the record's CSV and for the rules: the tool writes what the pack decodes, and
+# fits with the pack's own types and generator (step-19 SD-TW-d-8).
+mineworld-weather = { path = "../../systems/weather" }
+# Reads `--base`, a configure/weather.yaml, as the loader would.
+serde-saphyr = { workspace = true }
+# HTTP for `fetch` only: blocking, rustls with the ring provider and webpki roots, nothing else. Pinned
+# exactly (DEP-31). Confined to this crate; nothing depends on this crate.
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls"], optional = true }
+
+[dev-dependencies]
+mineworld-test-support = { workspace = true }

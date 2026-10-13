@@ -83,6 +83,21 @@ async fn walks_from_the_apartments_into_the_cafe() {
     );
     let visited = places(&lines);
     assert_eq!(visited.len(), 3, "apartments, street, café: {visited:?}");
+    // R-PK-1: on the street, before going in, the café's doorway already reads its name.
+    let from_street = tagged(&lines, "SHOWN ")
+        .into_iter()
+        .filter(|shown| shown["place"] == visited[1].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        from_street.iter().any(|shown| {
+            shown["doorway_labels"].as_array().is_some_and(|labels| {
+                labels.iter().any(|label| {
+                    label["to"] == visited[2].as_str() && label["text"] == "door to café"
+                })
+            })
+        }),
+        "from the street the café's doorway reads 'door to café': {from_street:?}"
+    );
     let observer = evidence(&lines, "welcome")[0]["observer"]
         .as_str()
         .expect("observer")
@@ -240,7 +255,12 @@ async fn the_requests_do_not_depend_on_the_presentation() {
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
 async fn killed_mid_walk_and_relaunched() {
     let save = SaveDir::new("2d-relaunch");
-    let world = World::start(&args(&hosted(&save)), None).await;
+    // `--hold 0`: since S11-B a dropped connection's seat is held for its resume (30 s by default),
+    // and this test's "somebody else" must be able to take carol the moment the client dies — as
+    // before S11-B, which is what AC-W3 states (step-13 §15.12 E-13).
+    let mut arguments = hosted(&save);
+    arguments.extend(["--hold".to_owned(), "0".to_owned()]);
+    let world = World::start(&args(&arguments), None).await;
     let mut drive = Drive::start(world.address, "carol", &["--drive=walk"]);
     drive
         .until("an accepted stride on the street", |lines| {

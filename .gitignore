@@ -15,6 +15,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+.ruff_cache/
 venv/
 
 # Node
@@ -23,6 +25,9 @@ node_modules/
 # Local worlds, saves, and evidence artifacts
 *.sqlite
 *.sqlite-journal
+# The one committed save: a format-2 save written by the build before SR, which format 3 must refuse
+# (pr-s6-save-retention.md ASR-8). Tests copy it to scratch before opening it.
+!persistence/tests/fixtures/format-2/world.sqlite
 /saves/
 /artifacts/
 
@@ -35,7 +40,9 @@ spike/server/target/
 
 # Scratch files a shell-quoting slip can create at the repo root: a filename that
 # is itself a JSON object. Two were committed to main before this line existed.
-{"*
+# Written `[{]` rather than `{`: Git reads both the same, and ruff, which honours this
+# file, parses `{` as the start of a glob alternation and refuses the whole file.
+[{]"*
 
 # Personal, per-machine agent authorization. This is one developer's grant for their
 # own environment, never repository policy: a contributor inherits it silently
@@ -49,3 +56,11 @@ spike/server/target/
 .env
 *.env
 secrets*
+# `.env.local`, `.env.production` and the like, which `*.env` does not match (R-P5-12). The example
+# file holds variable names with empty values and is tracked
+# (cognition/lm-controller/examples/.env.example).
+.env.*
+!.env.example
+# The one module that resolves a key (D-P5-9) is source code, and holds no value; `secrets*` above
+# would otherwise ignore it.
+!/cognition/lm-controller/src/mineworld_cognition/secrets.py

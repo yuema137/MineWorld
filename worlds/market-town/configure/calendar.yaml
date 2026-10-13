@@ -1,0 +1,9 @@
+# Market Town's calendar (`calendar` System Pack; `docs/DECISIONS.md` `ARC-61`, `ARC-67`, `DEP-30`).
+#
+# Content, not code: where the town is and which date its first instant is. Instant 0 is local midnight
+# of `epoch`; the offset is fixed (no daylight saving, step-19 QTW-9). San Diego, California — the
+# operator's default (2026-10-08) — and the day the requirement was stated (QTW-17).
+epoch: 2026-10-08
+utc_offset: -08:00
+latitude: 32.7157
+longitude: -117.1611

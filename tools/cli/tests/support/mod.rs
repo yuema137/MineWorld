@@ -11,7 +11,7 @@
 
 use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -19,6 +19,7 @@ use futures_util::{SinkExt, StreamExt};
 use mineworld_contracts::{ActionId, ActionResult, EntityId, EventId, PerceivedEntity};
 use mineworld_conversation::ConversationHistory;
 use mineworld_server::{ServerFrame, WireObservation, WorldRevision, WorldSummary};
+use mineworld_test_support::process::{self, InterruptibleChild, Killed};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -26,6 +27,10 @@ use tokio_tungstenite::tungstenite::Message;
 
 /// How long a test waits for the server to come up, and for a frame to arrive.
 pub const PATIENCE: Duration = Duration::from_secs(20);
+
+/// What the server prints, followed by its bound address, once it holds its socket
+/// (`tools/cli/src/serve.rs`: `[mineworld] listening on http://ADDR (ws://ADDR/ws), protocol N`).
+const LISTENING: &str = "[mineworld] listening on http://";
 
 /// The invite every test server is started with, and every test client joins with.
 pub const INVITE: &str = "cli-test-invite-3f9c0a1b";
@@ -39,9 +44,13 @@ pub fn join_frame(seat: &str) -> Value {
 /// The pack every test is pointed at: the repository's own.
 pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social-cafe");
 
-/// The real binary, hosting the real pack, killed when the test ends.
+/// The twelve-person town, for the tests in which in-server controllers drive a whole town.
+pub const MARKET_PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
+
+/// The real binary, hosting the real pack, killed when the test ends. It is spawned so that
+/// [`Server::interrupt`] can reach it on every platform (`mineworld_test_support::process`).
 pub struct Server {
-    process: Child,
+    process: InterruptibleChild,
     pub address: SocketAddr,
 }
 
@@ -53,10 +62,10 @@ impl Drop for Server {
 }
 
 impl Server {
-    /// Starts `mineworld <arguments> --listen 127.0.0.1:<port>` and waits until it answers.
+    /// Starts `mineworld <arguments> --listen 127.0.0.1:0` and waits until it answers.
     ///
-    /// A port is chosen by binding one and letting it go, rather than by hard-coding: two test
-    /// binaries may run at once, and a fixed port makes that a flake nobody can reproduce.
+    /// The system picks the port as the server binds it, and the harness reads the address back from
+    /// the line the server prints once it holds it ([`LISTENING`]); see [`Server::launch`].
     ///
     /// Every server is started with [`INVITE`] unless the arguments name an invite themselves, so a
     /// test's [`Client::join`] is admitted (`PROTOCOL.md` §4.1).
@@ -70,51 +79,105 @@ impl Server {
             command
                 .args(arguments)
                 .args(invite)
-                .env_remove("MINEWORLD_INVITE");
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN");
         };
         Self::launch(configure, false).await.0
     }
 
-    /// Starts the binary on a free port and waits until it answers.
-    ///
-    /// A port chosen by binding and releasing it can be taken by another process before the server
-    /// binds it — another test binary, or another worktree's tests on the same machine. A server that
-    /// exits before it answers is therefore started again on another port, a bounded number of times;
-    /// one that is running but silent fails the test.
-    async fn launch(configure: impl Fn(&mut Command), capture: bool) -> (Self, Option<Captured>) {
-        const ATTEMPTS: usize = 3;
-        for _ in 0..ATTEMPTS {
-            let address = free_port().await;
-            let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
-            configure(&mut command);
-            command.args(["--listen", &address.to_string()]);
-            if capture {
-                command.stdout(Stdio::piped()).stderr(Stdio::piped());
-            } else {
-                command.stdout(Stdio::null()).stderr(Stdio::inherit());
-            }
-            let mut process = command.spawn().expect("the mineworld binary runs");
-            let captured = capture.then(|| Captured {
-                stdout: drain(process.stdout.take().expect("piped stdout")),
-                stderr: drain(process.stderr.take().expect("piped stderr")),
-            });
-            let mut server = Self { process, address };
-            if server.answers().await {
-                return (server, captured);
-            }
-        }
-        panic!("the server exited before answering /health, {ATTEMPTS} times");
+    /// Like [`Server::start`] (the test invite unless the arguments name one), with these extra
+    /// environment variables, keeping everything the server prints in memory (step-12 DA-9).
+    pub async fn start_with_env(arguments: &[&str], env: &[(&str, &str)]) -> (Self, Captured) {
+        let invite: &[&str] = if arguments.contains(&"--invite") {
+            &[]
+        } else {
+            &["--invite", INVITE]
+        };
+        let configure = |command: &mut Command| {
+            command
+                .args(arguments)
+                .args(invite)
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN")
+                .envs(env.iter().copied());
+        };
+        let (server, captured) = Self::launch(configure, true).await;
+        (server, captured.expect("captured output"))
     }
 
-    /// Polls `GET /health` until the server answers (`true`) or exits (`false`), or fails the test.
-    async fn answers(&mut self) -> bool {
+    /// Starts the binary on `127.0.0.1:0`, reads back the address it bound, and waits until it answers.
+    ///
+    /// The port is never chosen by the harness. An earlier harness bound a port, released it and
+    /// passed it on; between the two another test's server could take it, this one failed with
+    /// "Address already in use", and that other server answered `/health` in its place, so the test
+    /// joined the wrong world (step-12 D-SA5, step-14 F-13w-3). Binding port 0 lets the system choose
+    /// a port at the moment the server holds it; the server prints that address once it is bound
+    /// (`tools/cli/src/serve.rs`), and only then is it polled. The Python SDK's `realserver.py` reads
+    /// the same line.
+    async fn launch(configure: impl Fn(&mut Command), capture: bool) -> (Self, Option<Captured>) {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
+        configure(&mut command);
+        command
+            .args(["--listen", "127.0.0.1:0"])
+            .stdout(Stdio::piped());
+        if capture {
+            command.stderr(Stdio::piped());
+        } else {
+            command.stderr(Stdio::inherit());
+        }
+        let mut process = process::interruptible(command)
+            .spawn()
+            .expect("the mineworld binary runs");
+        let stdout = drain(process.stdout.take().expect("piped stdout"));
+        let stderr = capture.then(|| drain(process.stderr.take().expect("piped stderr")));
+        let address = Self::bound(&mut process, &stdout).await;
+        let mut server = Self { process, address };
+        server.answers().await;
+        let captured = stderr.map(|stderr| Captured { stdout, stderr });
+        (server, captured)
+    }
+
+    /// The address the server says it bound: the first [`LISTENING`] line it prints. A server that
+    /// exits first, or prints none within [`PATIENCE`], fails the test.
+    async fn bound(process: &mut InterruptibleChild, stdout: &Mutex<Vec<String>>) -> SocketAddr {
+        let deadline = Instant::now() + PATIENCE;
+        loop {
+            let printed = stdout
+                .lock()
+                .expect("the reader thread is sound")
+                .iter()
+                .find_map(|line| line.strip_prefix(LISTENING).map(str::to_owned));
+            if let Some(rest) = printed {
+                let address = rest.split(' ').next().unwrap_or_default();
+                return address
+                    .parse()
+                    .unwrap_or_else(|e| panic!("the listening line's address {address:?}: {e}"));
+            }
+            if let Some(status) = process.try_wait().expect("the process can be waited on") {
+                panic!("the server exited before it was listening: {status}");
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the server printed no {LISTENING:?} line within {PATIENCE:?}"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    /// Polls `GET /health` on the address this server bound until it answers; a server that exits
+    /// first, or stays silent for [`PATIENCE`], fails the test.
+    async fn answers(&mut self) {
         let deadline = Instant::now() + PATIENCE;
         while Instant::now() < deadline {
             if get(self.address, "/health").await.is_some() {
-                return true;
+                return;
             }
-            if self.process.try_wait().ok().flatten().is_some() {
-                return false;
+            if let Some(status) = self
+                .process
+                .try_wait()
+                .expect("the process can be waited on")
+            {
+                panic!("the server exited before answering /health: {status}");
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -136,7 +199,10 @@ impl Server {
     /// that read what the server prints (step-12 §15.4 SA-3, SA-5). Nothing is written to disk.
     pub async fn start_captured(arguments: &[&str], invite_env: Option<&str>) -> (Self, Captured) {
         let configure = |command: &mut Command| {
-            command.args(arguments).env_remove("MINEWORLD_INVITE");
+            command
+                .args(arguments)
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN");
             if let Some(invite) = invite_env {
                 command.env("MINEWORLD_INVITE", invite);
             }
@@ -145,12 +211,39 @@ impl Server {
         (server, captured.expect("captured output"))
     }
 
-    /// Kills the process with `SIGKILL` — no shutdown, no checkpoint, no flush — and returns how it
-    /// ended, so that a test can show the death was real.
-    pub fn kill(&mut self) -> std::process::ExitStatus {
-        self.process.kill().expect("SIGKILL is delivered");
-        self.process.wait().expect("the process is reaped")
+    /// Kills the process with `SIGKILL` (Windows: `TerminateProcess`) — no shutdown, no checkpoint, no
+    /// flush — and returns how it ended, so that a test can show the death was real
+    /// ([`Killed::killed`]).
+    pub fn kill(&mut self) -> Killed {
+        process::kill(&mut self.process)
     }
+
+    /// Stops the process with `SIGINT` (Windows: Ctrl-Break to its own process group), as an
+    /// operator's Ctrl-C does — the graceful stop that prints the shutdown statistics (step-12 SD-B11,
+    /// SD-D13) — and returns how it ended.
+    pub fn interrupt(&mut self) -> std::process::ExitStatus {
+        process::interrupt(&mut self.process).expect("the interrupt is delivered")
+    }
+}
+
+/// The first file under `directory` whose bytes contain `needle`, if any — for the claim that a
+/// secret is in no byte of a save.
+pub fn file_containing(directory: &std::path::Path, needle: &[u8]) -> Option<std::path::PathBuf> {
+    for entry in std::fs::read_dir(directory).expect("the directory exists") {
+        let path = entry.expect("an entry").path();
+        if path.is_dir() {
+            if let Some(found) = file_containing(&path, needle) {
+                return Some(found);
+            }
+        } else if std::fs::read(&path)
+            .expect("readable")
+            .windows(needle.len())
+            .any(|window| window == needle)
+        {
+            return Some(path);
+        }
+    }
+    None
 }
 
 /// What a captured server has written so far, one string per line, kept in memory.
@@ -238,14 +331,6 @@ pub fn run_command(arguments: &[&str]) -> (std::process::ExitStatus, String) {
     )
 }
 
-/// An address nothing is listening on: bound, read back, released.
-pub async fn free_port() -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("an ephemeral port");
-    listener.local_addr().expect("the port it bound")
-}
-
 /// One HTTP GET, hand-written, because these tests need no HTTP client of their own.
 pub async fn get(address: SocketAddr, path: &str) -> Option<String> {
     let mut socket = TcpStream::connect(address).await.ok()?;
@@ -259,6 +344,67 @@ pub async fn get(address: SocketAddr, path: &str) -> Option<String> {
     let mut response = String::new();
     socket.read_to_string(&mut response).await.ok()?;
     response.contains(" 200 ").then_some(response)
+}
+
+/// One HTTP answer from the admin surface: its status and its JSON body (`Null` if none).
+pub struct HttpAnswer {
+    pub status: u16,
+    pub body: Value,
+}
+
+/// One HTTP request to `path`, with `Authorization: Bearer <token>` when a token is given and a JSON
+/// body for a `POST` — the admin surface's request helper (step-12 §19.2).
+pub async fn admin(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    token: Option<&str>,
+    body: &str,
+) -> HttpAnswer {
+    let mut socket = TcpStream::connect(address).await.expect("connects");
+    let mut request =
+        format!("{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n");
+    if let Some(token) = token {
+        request.push_str(&format!("Authorization: Bearer {token}\r\n"));
+    }
+    if method == "POST" {
+        request.push_str(&format!(
+            "Content-Type: application/json\r\nContent-Length: {}\r\n",
+            body.len()
+        ));
+    }
+    request.push_str("\r\n");
+    if method == "POST" {
+        request.push_str(body);
+    }
+    socket
+        .write_all(request.as_bytes())
+        .await
+        .expect("the request is sent");
+    let mut response = String::new();
+    socket
+        .read_to_string(&mut response)
+        .await
+        .expect("the response is read");
+    let status = response
+        .split_whitespace()
+        .nth(1)
+        .and_then(|code| code.parse().ok())
+        .unwrap_or_else(|| panic!("an HTTP status line: {response}"));
+    let text = response.split_once("\r\n\r\n").map_or("", |(_, body)| body);
+    HttpAnswer {
+        status,
+        body: serde_json::from_str(text.trim()).unwrap_or(Value::Null),
+    }
+}
+
+/// Whether a frame belongs to the stream a seated connection is sent unasked — an observation, or a
+/// `clock` (`PROTOCOL.md` §5.9) — rather than answering something it said.
+pub fn streamed(frame: &ServerFrame) -> bool {
+    matches!(
+        frame,
+        ServerFrame::Observation { .. } | ServerFrame::Clock { .. }
+    )
 }
 
 /// The body of an HTTP response, as JSON.
@@ -283,6 +429,9 @@ pub struct Client {
     /// What this connection's observer is, once it has a seat.
     pub observer: Option<EntityId>,
     submitted: u32,
+    /// The whole observation this connection holds and its `seq`, which a `delta` applies to
+    /// (`PROTOCOL.md` §5.3).
+    held: Option<(u64, WireObservation)>,
 }
 
 impl Client {
@@ -295,6 +444,7 @@ impl Client {
             socket,
             observer: None,
             submitted: 0,
+            held: None,
         }
     }
 
@@ -351,7 +501,7 @@ impl Client {
                     assert_eq!(echoed.as_str(), token, "an answer carries its own token");
                     return (action_id, result);
                 }
-                ServerFrame::Observation { .. } => continue,
+                frame if streamed(&frame) => continue,
                 other => panic!("a submission is answered or refused: {other:?}"),
             }
         }
@@ -369,7 +519,7 @@ impl Client {
         loop {
             match self.frame().await {
                 ServerFrame::Refused { code, .. } => return code,
-                ServerFrame::Observation { .. } => continue,
+                frame if streamed(&frame) => continue,
                 other => panic!("expected this frame to be refused: {other:?}"),
             }
         }
@@ -423,19 +573,83 @@ impl Client {
             .expect("the frame is sent");
     }
 
-    /// The next frame the server sends, decoded.
+    /// The next frame the server sends, decoded — with a `delta` applied to the observation this
+    /// client holds and handed on as the whole observation it describes, as every client does
+    /// (`PROTOCOL.md` §5.3). A delta whose base is not the frame held fails the test.
     pub async fn frame(&mut self) -> ServerFrame {
+        let text = self.text().await;
+        let frame: ServerFrame = serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"));
+        match frame {
+            ServerFrame::Observation {
+                seq,
+                revision,
+                acted_through,
+                observation,
+            } => {
+                self.held = Some((seq, observation.clone()));
+                ServerFrame::Observation {
+                    seq,
+                    revision,
+                    acted_through,
+                    observation,
+                }
+            }
+            ServerFrame::Delta {
+                seq,
+                base,
+                revision,
+                acted_through,
+                delta,
+            } => {
+                let (held_seq, held) = self.held.as_ref().expect("a delta follows an observation");
+                assert_eq!(base, *held_seq, "a delta applies to the frame held");
+                let observation =
+                    mineworld_server::protocol::delta::apply(held, &delta).expect("it applies");
+                self.held = Some((seq, observation.clone()));
+                ServerFrame::Observation {
+                    seq,
+                    revision,
+                    acted_through,
+                    observation,
+                }
+            }
+            other => other,
+        }
+    }
+
+    /// The next frame the server sends, as the text it sent — for a test that counts bytes.
+    pub async fn text(&mut self) -> String {
         let message = tokio::time::timeout(PATIENCE, self.socket.next())
             .await
             .expect("a frame arrives")
             .expect("the socket is open")
             .expect("a readable frame");
-        let text = match message {
-            Message::Text(text) => text,
+        match message {
+            Message::Text(text) => text.to_string(),
             other => panic!("the protocol is JSON text: {other:?}"),
-        };
-        serde_json::from_str(&text)
-            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"))
+        }
+    }
+
+    /// The next frame that is not part of the stream (an observation or a clock).
+    pub async fn answer(&mut self) -> ServerFrame {
+        loop {
+            let frame = self.frame().await;
+            if !streamed(&frame) {
+                return frame;
+            }
+        }
+    }
+
+    /// Joins with a frame of the test's own making (a `resume`, a `take_over`) and returns the
+    /// server's answer to it: a welcome or a refusal. A welcome records the observer.
+    pub async fn join_as(&mut self, frame: Value) -> ServerFrame {
+        self.send(frame).await;
+        let answer = self.answer().await;
+        if let ServerFrame::Welcome { observer, .. } = &answer {
+            self.observer = Some(*observer);
+        }
+        answer
     }
 
     /// Closes the connection, as a killed client does.

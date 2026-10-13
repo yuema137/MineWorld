@@ -30,9 +30,10 @@ pub const TOLERANCE: Millimetres = Millimetres::new(5);
 pub const CLEARANCE: Millimetres = Millimetres::new(2 * PERSON_RADIUS.value() - TOLERANCE.value());
 
 /// The most one arrival moves anybody else, on top of the overlap it creates: a nudge is at most
-/// `NUDGE_MAX + GAP` = 310 mm (`ARC-39` note; step-11 QB-10, I-11). A policy on how far a stride may
-/// carry somebody, not a person dimension: it does not move with [`PERSON_RADIUS`].
-pub const NUDGE_MAX: Millimetres = Millimetres::new(300);
+/// `NUDGE_MAX + GAP` (`ARC-39` note; step-11 QB-10, I-11). A person brushed aside yields about their
+/// own half-width, so it is the radius, not a number of its own (step-11 §21.6, SD-N11, TD-D8): 250 mm
+/// at today's radius, so a nudge is at most 260 mm (it was 300 and 310 at the radius of 300 mm).
+pub const NUDGE_MAX: Millimetres = Millimetres::new(PERSON_RADIUS.value());
 
 /// Generations of nudges per arrival: a nudged person may nudge one further generation, no more.
 pub const CHAIN_MAX: usize = 2;
@@ -44,8 +45,10 @@ pub const NUDGED_MAX: usize = 4;
 pub const HALVINGS: u32 = 8;
 
 /// The head-on bias (step-11 QB-16, SD-B10): a person first met within this distance of the walker's
-/// line counts as head-on.
-pub const BIAS_BAND: Millimetres = Millimetres::new(200);
+/// line counts as head-on. A third of the shoulder breadth 2R, ⌊2 · `PERSON_RADIUS` / 3⌋ — the ratio
+/// 12b chose, kept as the body's size changes (step-11 §21.6, SD-N11, TD-D8): 166 mm at today's radius
+/// (200 mm at the radius of 300 mm).
+pub const BIAS_BAND: Millimetres = Millimetres::new(2 * PERSON_RADIUS.value() / 3);
 
 /// The head-on bias's turn, `(along, right)`: a head-on walker's stride is turned right to
 /// `along · d + right · right(d)`, scaled back to no longer than `d` — atan(1/4) ≈ 14.04°.

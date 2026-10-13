@@ -14,16 +14,17 @@
 //! ```
 //!
 //! Whether a person may be invited or joined is never worked out here — the affordance says so
-//! (`ENGINEERING_RULES.md` §8). The one thing the controller judges for itself is an invitation's age,
-//! against the lifetime group-activity publishes, because an offer cannot see the clock
-//! (`step-09-social.md` C2, D-B4).
+//! (`ENGINEERING_RULES.md` §8). The one thing the controller judges for itself is whether an
+//! invitation is still open, because an offer cannot see the clock (`step-09-social.md` C2, D-B4): it
+//! reads the instant the invitation itself says it lapses (`Invitation::until`, the world's lifetime
+//! since S17's PR IL-b), never a lifetime of its own.
 
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, Observation, PerceivedEntity,
 };
 use mineworld_group_activity::{
-    AcceptInvitation, ActivityKind, DeclineInvitation, INVITATION_LIFETIME, Invitations, Invite,
-    JoinGroupActivity, LeaveGroupActivity, Participation,
+    AcceptInvitation, ActivityKind, DeclineInvitation, Invitations, Invite, JoinGroupActivity,
+    LeaveGroupActivity, Participation,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -68,10 +69,9 @@ pub(crate) fn answer_invitation(
     let now = observation.at();
     let invitation = held.pending().iter().find(|invitation| {
         let inviter = invitation.from().entity_id();
-        let young = now
-            .duration_since(invitation.at())
-            .is_some_and(|age| age.seconds() <= INVITATION_LIFETIME.seconds());
-        young && available::<AcceptInvitation>(observation, Some(inviter))
+        // The invitation states when it lapses — the world's lifetime, not a number this controller
+        // was compiled with (S17's PR IL-b, F-IB-3).
+        invitation.is_open_at(now) && available::<AcceptInvitation>(observation, Some(inviter))
     })?;
     let inviter = invitation.from().entity_id();
     if draw.below(100, ANSWER_DRAW) < ACCEPTS {

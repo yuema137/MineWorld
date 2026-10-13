@@ -133,6 +133,29 @@ fn a_world_whose_requirements_are_met_resolves_to_its_composition() {
     assert!(bare.required.is_empty());
 }
 
+/// An Entity Pack is a requirement like a Presentation Pack (`ARC-71`): found in a root, in range, its
+/// directory carried in the composition for the World Pack loader to read its kinds from. Before E-d
+/// this row asserted the refusal "goods is a entity-pack … read from E-d" (step-16 §17.5 ED-11).
+#[test]
+fn an_entity_pack_requirement_resolves_to_its_directory() {
+    let composition = run(
+        &[("goods", "^0.1")],
+        &["presence"],
+        None,
+        &build(),
+        &roots(),
+    )
+    .expect("an entity pack resolves");
+    let [goods] = composition.required.as_slice() else {
+        panic!("one requirement: {:?}", composition.required);
+    };
+    assert_eq!(goods.identity.kind, PackType::EntityPack);
+    assert_eq!(
+        goods.source,
+        Source::Directory(PathBuf::from("/roots/goods"))
+    );
+}
+
 /// One refusal case: its name, `requires:`, the enabled systems, the world's licence, the packs found,
 /// and what the refusal must say.
 type Case = (
@@ -173,12 +196,21 @@ fn every_failed_rule_is_refused_by_name() {
             &["other-world is a world-pack"],
         ),
         (
-            "an entity pack, before E-d",
+            "a data pack whose own range excludes the framework",
             vec![("goods", "^0.1")],
             vec!["presence"],
             None,
-            roots(),
-            &["goods is a entity-pack", "E-d"],
+            vec![FoundPack {
+                identity: Identity {
+                    mineworld: Some(Compatibility::new("^9").expect("a range")),
+                    ..found("goods", PackType::EntityPack, "0.1.0", "MIT").identity
+                },
+                ..found("goods", PackType::EntityPack, "0.1.0", "MIT")
+            }],
+            &[
+                "goods states mineworld: \"^9\"",
+                "this framework's version, 0.1.0",
+            ],
         ),
         (
             "bundled",

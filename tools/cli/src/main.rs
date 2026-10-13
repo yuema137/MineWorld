@@ -1,17 +1,16 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
-//!                                       load the pack and host it; with --save, persisted;
-//!                                       clients join with the invite (generated and printed
-//!                                       when neither --invite nor MINEWORLD_INVITE gives one)
+//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [OPTIONS]   (every flag: §8.1)
+//!                                       host the pack (persisted with --save) for clients with the
+//!                                       invite; in-server controllers drive seats nobody plays
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
 //!                                       run it headless, every seat a seeded rule (ARC-27)
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
-//! mineworld biography <world> --save DIR --person KEY [--json]
-//!                                       a Person's objective biography, from the fact log (ARC-29)
+//! mineworld biography|perceived <world> --save DIR --person KEY [--json]
+//!                                       a Person's biography (ARC-29), or what they perceived (ARC-43)
 //! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
@@ -54,33 +53,32 @@
 //! into plain values before anything runs, so no other module names the parser. The command surface
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
-mod agent;
 mod biography;
 mod create;
+mod history;
+mod hosted;
 mod inspect;
+mod interactions;
 mod invite;
 mod packs;
 mod perceive;
+mod perceived;
 mod run;
+mod serve;
+
+// Where `run` and `replay` find it since it moved beside `persisted` (step-12 D-SD1).
+pub(crate) use serve::saved_genesis;
 
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
-use mineworld_persistence::{
-    Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
-    WorldRevision, format, verify,
-};
-use mineworld_presence::PerceptionProvider;
-use mineworld_server::{
-    Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
-};
+use mineworld_persistence::{Durability, SqliteBackend, verify};
 use mineworld_worldpack::{PackError, PackRoots, WorldPack};
-
-use crate::perceive::PackPerception;
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
@@ -103,8 +101,7 @@ enum Subcommand {
         /// Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it.
         #[arg(long, default_value = DEFAULT_LISTEN)]
         listen: SocketAddr,
-        /// The invite every client must present to join. Without it (and without
-        /// MINEWORLD_INVITE) one is generated and printed once.
+        /// The invite every client must present to join; else one is generated and printed once.
         #[arg(
             long,
             value_name = "TOKEN",
@@ -112,12 +109,31 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
-        /// Drive that seat with a rule controller, in this process, over the same path a client's
-        /// connection uses. Repeat it for more than one.
+        /// The bearer token that opens /admin (else none); never printed; not the invite.
+        #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
+        admin_token: Option<String>,
+        /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
-        /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
-        /// same world, where it stopped — every time after.
+        /// Drive every other seat with the paced rule controller whenever no player holds it.
+        #[arg(long)]
+        town: bool,
+        /// The paced controllers' seed.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+        /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
+        #[arg(long, value_name = "SECONDS", default_value = "5")]
+        pace: NonZeroU32,
+        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
+        #[arg(long, value_name = "SECONDS", default_value_t = 30)]
+        hold: u32,
+        /// How many world seconds pass per wall second.
+        #[arg(long, value_name = "N", default_value = "1")]
+        time_scale: NonZeroU32,
+        /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
+        #[arg(long, value_name = "N", default_value = "50")]
+        keyframe_every: NonZeroU32,
+        /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
         #[command(flatten)]
@@ -206,6 +222,22 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// Print the facts a Person perceived, from a save's fact log, by the server's audience rule.
+    Perceived(perceived::PerceivedArgs),
+    /// What a World Pack's Interaction List resolves to: each configured section, base then regions,
+    /// and each entity's class (ARC-63, ARC-64). Reads the pack only.
+    Interactions {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only the resolution that applies at this place.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        place: Option<EntityKey>,
+        /// One JSON document, keys sorted.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -281,11 +313,35 @@ async fn main() -> ExitCode {
             world,
             listen,
             invite,
+            admin_token,
             agents,
+            town,
+            seed,
+            pace,
+            hold,
+            time_scale,
+            keyframe_every,
             save,
             packs,
         } => match packs.roots() {
-            Ok(roots) => serve(world, listen, invite, agents, save, roots).await,
+            Ok(roots) => {
+                serve::serve(serve::ServeRequest {
+                    world,
+                    listen,
+                    invite,
+                    admin_token,
+                    agents,
+                    town,
+                    seed,
+                    pace,
+                    hold,
+                    time_scale,
+                    keyframe_every,
+                    save,
+                    roots,
+                })
+                .await
+            }
             Err(refusal) => Err(refusal),
         },
         Subcommand::Create { directory } => create::create(&directory),
@@ -323,6 +379,20 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Perceived(args) => perceived::perceived(args),
+        Subcommand::Interactions {
+            world,
+            place,
+            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            interactions::interactions(&interactions::InteractionsRequest {
+                world: &world,
+                place: place.as_ref(),
+                json,
+                roots: &roots,
+            })
+        }),
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {
@@ -353,8 +423,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create, \
-         mineworld packs (see mineworld --help)."
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
+         mineworld create, mineworld packs (see mineworld --help)."
     ))
 }
 
@@ -408,160 +478,12 @@ fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
     Ok(())
 }
 
-/// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
-async fn serve(
-    world: PathBuf,
-    listen: SocketAddr,
-    invite: Option<String>,
-    agents: Vec<EntityKey>,
-    save: Option<PathBuf>,
-    roots: PackRoots,
-) -> Result<(), String> {
-    // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
-    // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
-    let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
-    let invite = invite::Invite::resolve(invite)?;
-    let config = HostConfig::default();
-    let epoch = config.epoch;
-    println!(
-        "[mineworld] {} ({}) — {} system(s), {} seat(s)",
-        pack.name(),
-        pack.id(),
-        pack.systems().len(),
-        pack.seats().len(),
-    );
-
-    // The world itself is built *inside* its own thread, because a `World` is not `Send`. What crosses
-    // the boundary is the pack, which is plain data — and loading it there rather than here is also
-    // what keeps the world and its systems from ever being moved between threads.
-    // Checked against the pack before anything starts: an operator who mistyped a seat should be told
-    // so, not left watching a world in which nothing happens. The seat roster is the world's, and this
-    // is the same roster a client's `join` is answered from.
-    for seat in &agents {
-        if !pack.seats().contains(seat) {
-            return Err(format!(
-                "[mineworld] --agent {seat}: this world offers no such seat. It offers: {}",
-                listed(pack.seats().iter()),
-            ));
-        }
-    }
-
-    let recent = config.recent_events;
-    let host = WorldHost::spawn(config, move || {
-        let seats = SeatRoster::new(pack.seats().iter().cloned());
-        let hosted = match save {
-            None => {
-                let running = pack.load(epoch).map_err(HostError::build)?.into_running();
-                HostedWorld::new(running.world).perceiving(PackPerception::new(running.providers))
-            }
-            Some(save) => {
-                let (persisted, providers) = persisted(&pack, &save, epoch)?;
-                HostedWorld::persisted(persisted, recent)?
-                    .perceiving(PackPerception::new(providers))
-            }
-        };
-        Ok(hosted.seating(seats))
-    })
-    .await
-    .map_err(|error| format!("[mineworld] {error}"))?;
-
-    let (listener, address) = app::bind(listen)
-        .await
-        .map_err(|error| format!("[mineworld] cannot listen on {listen}: {error}"))?;
-    let status = host
-        .status()
-        .await
-        .map_err(|error| format!("[mineworld] {error}"))?;
-    println!(
-        "[mineworld] listening on http://{address} (ws://{address}/ws), protocol {}",
-        status.protocol,
-    );
-    println!(
-        "[mineworld] {} entities, {} system(s), seats: {}",
-        status.entities,
-        status.systems.len(),
-        listed(status.seats.iter()),
-    );
-    println!("[mineworld] world instance {}", status.instance);
-    if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
-        println!("{}", invite.join_line(address, seat));
-    }
-    let admission = Admission::new(invite.token().clone());
-
-    // Each controller is a task of its own, occupying a seat exactly as a client's connection does.
-    // In-process, so it presents no invite: admission gates the socket, not the composition root.
-    for seat in agents {
-        tokio::spawn(agent::drive(host.clone(), seat));
-    }
-
-    app::serve_with_shutdown(listener, host.clone(), admission, async {
-        let _ = tokio::signal::ctrl_c().await;
-        println!("\n[mineworld] stopping");
-    })
-    .await
-    .map_err(|error| format!("[mineworld] {error}"))?;
-
-    host.shutdown().await;
-    Ok(())
-}
-
-/// The pack's world with a save in `save`: created from the pack, beginning at `epoch`, if `save` holds
-/// none; otherwise resumed — composed from the pack, everything else from the save.
-///
-/// Runs on the world's own thread (a `World` is not `Send`), so it reports what it did on stdout
-/// itself: an operator should be able to tell a new world from a resumed one, and see that a resume
-/// read a snapshot and re-executed what came after it.
-fn persisted(
-    pack: &WorldPack,
-    save: &Path,
-    epoch: WorldTime,
-) -> Result<(PersistentWorld, Vec<Box<dyn PerceptionProvider>>), HostError> {
-    if SqliteBackend::exists(save) {
-        let backend = SqliteBackend::open(save, Durability::PowerLoss).map_err(HostError::build)?;
-        pack.check_configuration(&saved_genesis(&backend).map_err(HostError::build)?)
-            .map_err(HostError::build)?;
-        let composed = pack.compose().map_err(HostError::build)?;
-        let (world, how) =
-            PersistentWorld::resume(Box::new(backend), composed.world).map_err(HostError::build)?;
-        println!(
-            "[mineworld] resumed {}: revision {}, from the snapshot at revision {} plus {} \
-             re-executed revision(s) whose {} fact(s) reproduced byte for byte",
-            SqliteBackend::file(save).display(),
-            how.head.raw(),
-            how.snapshot.raw(),
-            how.replayed,
-            how.facts,
-        );
-        return Ok((world, composed.providers));
-    }
-    let backend = SqliteBackend::create(save, Durability::PowerLoss).map_err(HostError::build)?;
-    let assembled = pack.assemble().map_err(HostError::build)?;
-    let (world, began) = PersistentWorld::create(
-        Box::new(backend),
-        assembled.world,
-        Creation {
-            instance: WorldInstanceId::allocate().raw(),
-            pack: pack.id().to_owned(),
-            at: epoch,
-            facts: assembled.facts,
-        },
-    )
-    .map_err(HostError::build)?;
-    println!(
-        "[mineworld] created {}: a new world, {} genesis fact(s) at revision {}",
-        SqliteBackend::file(save).display(),
-        began.len(),
-        world.revision().raw(),
-    );
-    Ok((world, assembled.providers))
-}
-
 /// Re-executes a save's whole history from genesis and reports what it compared.
 fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let backend = SqliteBackend::open(save, Durability::PowerLoss)
         .map_err(|error| format!("[mineworld] {error}"))?;
-    let genesis = saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
+    let genesis = serve::saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
     pack.check_configuration(&genesis).map_err(described)?;
     let composed = pack.compose().map_err(described)?;
     let verified = verify(&backend, composed.world)
@@ -576,17 +498,6 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
         verified.head.raw(),
     );
     Ok(())
-}
-
-/// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
-/// resumes or verifies, so that a save never runs on against a configuration other than the one it was
-/// created with (`DECISIONS.md` `ARC-61` item 7).
-fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
-    backend
-        .facts_of(WorldRevision::GENESIS)?
-        .iter()
-        .map(|row| format::decode(&row.bytes, "fact"))
-        .collect()
 }
 
 /// A pack's own refusal, as a person reads it.

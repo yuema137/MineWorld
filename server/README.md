@@ -24,10 +24,43 @@ A hosted world may have a save (`HostedWorld::persisted`, `--save DIR` on the co
 every request is written to it before it is answered, and each frame tells the client which saved
 `revision` of the world it describes.
 
+One controller per seat. `--agent SEAT` and `--town` drive seats with in-server controllers on the
+world thread, so a hosted town lives with nobody connected; a player joining such a seat simply takes
+it over, and gives it back on leaving. A dropped socket's seat is held (`--hold`, 30 s) for the
+`resume` its welcome carried; `take_over: true` takes a seat from another connection.
+`--time-scale N` runs the world's clock N times faster than the wall's; NPCs still walk at wall pace.
+
+```text
+mineworld server worlds/market-town --town --save saves/town
+```
+
+The host's controls are HTTP under `/admin`, and exist only when you give the server an admin token
+(`--admin-token TOKEN` or `MINEWORLD_ADMIN_TOKEN`, different from the invite): list sessions and seats,
+kick a player, release a seat, and pause or resume the world's clock. A pause stops the town — nobody
+acts and nothing is due — while players stay connected; every client is told by a `clock` frame.
+No admin call changes the world itself.
+
+```text
+curl -H "Authorization: Bearer $MINEWORLD_ADMIN_TOKEN" http://127.0.0.1:7878/admin/seats
+curl -X POST -H "Authorization: Bearer $MINEWORLD_ADMIN_TOKEN" -d '{"paused": true}' \
+     http://127.0.0.1:7878/admin/clock
+```
+
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
 happens. A client can say three things: which seat it wants, what it would like to happen, and that
 it is leaving.
+
+Each observation also carries the facts its observer learned since the last one — a line said in the
+room, an arrival — judged by the world's perception system, and `acted_through`, the newest of the
+client's own requests it already reflects. Most frames are small deltas against the previous one,
+with a whole observation every 50 (`--keyframe-every`). A client that must not miss a fact — a
+memory, a transcript — joins with `perceived: { since: <cursor> }` and gets a reliable stream it can
+resume after a dropped socket. The same facts can be read from a save, offline:
+
+```text
+mineworld perceived worlds/social-cafe --save saves/cafe --person wanderer
+```
 
 Read next:
 

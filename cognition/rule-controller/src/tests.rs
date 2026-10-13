@@ -178,6 +178,43 @@ fn she_does_not_answer_the_same_words_twice_and_does_answer_new_ones() {
     assert!(requested(&request).2.contains("what is there to eat"));
 }
 
+/// `F-13`: a controller bound at an instant answers only what was said after it. A server restarted
+/// on a save builds Alice's controller afresh; the line she answered before the crash is still the
+/// newest in her history, and it is not hers to answer again.
+#[test]
+fn bound_at_an_instant_she_answers_only_what_is_said_after_it() {
+    let bound = WorldTime::from_seconds(3_500);
+    let mut alice = RuleController::since(bound);
+    let before = alices_view(&[said(VISITOR, "said before the crash", 3_500)], &[VISITOR]);
+    assert!(
+        alice.decide(&before).is_none(),
+        "a line heard at the binding instant was said to whoever drove her before"
+    );
+    assert!(alice.is_silent(), "and nothing was marked answered either");
+
+    let after = alices_view(
+        &[
+            said(VISITOR, "said before the crash", 3_500),
+            said(WANDERER, "said after the restart", 3_501),
+        ],
+        &[VISITOR, WANDERER],
+    );
+    let request = alice
+        .decide(&after)
+        .expect("a line one second after the binding");
+    assert_eq!(requested(&request).1, Some(id(WANDERER)));
+    assert!(
+        alice.decide(&after).is_none(),
+        "the old line is still not hers, and the new one is answered"
+    );
+
+    let mut unbound = RuleController::new();
+    assert!(
+        unbound.decide(&before).is_some(),
+        "new() answers every line, as it always did"
+    );
+}
+
 /// The server said no, so she does nothing — and nothing here measured a distance to find that out.
 #[test]
 fn she_does_not_speak_when_the_server_says_she_may_not() {

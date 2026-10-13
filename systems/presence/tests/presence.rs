@@ -789,6 +789,67 @@ fn a_disabled_packs_complete_offers_are_absent() {
     );
 }
 
+/// `Bellringer`'s offers, each refused by the pack itself: a world's list forbidding the toll.
+struct ForbiddenBells(Bellringer);
+
+impl PerceptionProvider for ForbiddenBells {
+    fn offers(
+        &self,
+        world: &mineworld_kernel::WorldRead<'_>,
+        observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<mineworld_presence::Offer> {
+        self.0
+            .offers(world, observer, target)
+            .into_iter()
+            .map(|offer| offer.refused(mineworld_contracts::Rejection::PermissionDenied))
+            .collect()
+    }
+}
+
+/// SD-IB-12 (`ARC-34` note): a pack-stated refusal is reported before the spatial evaluation — inside
+/// the belfry and outside it alike the verdict is `PermissionDenied`, not the requirement's own
+/// reason — while the requirement is still shown and a complete offer's payload still travels.
+#[test]
+fn a_refused_offer_is_unavailable_for_its_own_reason_before_any_spatial_check() {
+    let (fixture, bells) = with_bells();
+    let forbidden = ForbiddenBells(Bellringer {
+        belfry: bells.belfry,
+    });
+    let refused = |observer| {
+        mineworld_presence::observe(
+            &fixture.world,
+            observer,
+            NOW,
+            &[&PresenceSystem, &forbidden as &dyn PerceptionProvider],
+        )
+    };
+    let shown = observed(&fixture, &bells, fixture.alice);
+    for observer in [fixture.alice, fixture.bob] {
+        let observation = refused(observer);
+        let tolls: Vec<_> = observation
+            .affordances()
+            .iter()
+            .filter(|affordance| *affordance.action_type() == Toll::ACTION_TYPE)
+            .collect();
+        assert_eq!(tolls.len(), 3);
+        for (affordance, unrefused) in tolls.iter().zip(
+            shown
+                .affordances()
+                .iter()
+                .filter(|affordance| *affordance.action_type() == Toll::ACTION_TYPE),
+        ) {
+            assert_eq!(
+                affordance.unavailable_reason(),
+                Some(&mineworld_contracts::Rejection::PermissionDenied),
+                "the pack's refusal wins over space: {affordance:?}"
+            );
+            assert_eq!(affordance.requirement(), unrefused.requirement());
+            assert_eq!(affordance.payload(), unrefused.payload());
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // The structural claim.
 // ---------------------------------------------------------------------------------------------

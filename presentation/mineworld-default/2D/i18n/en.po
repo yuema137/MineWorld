@@ -1,0 +1,162 @@
+# English wording of the 2D reference client (clients/2d/PRESENTATION.md §7, docs/DECISIONS.md ARC-70).
+#
+# The pack layer of the client's wording (clients/shared/SETTINGS.md §6.2): read after the shared layer,
+# so an entry here replaces the shared one, marked `#. override`. Keys built from data: action.<type>,
+# action.<type>.done, reason.<code> (in the shared layer). A key missing everywhere is shown as a
+# readable form of its last part, so a pack that words fewer things still plays. Wording holds no
+# rule: no number, no condition.
+msgid ""
+msgstr ""
+"Project-Id-Version: mineworld-default-2d 0.1.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# The action.* and reason.* entries both clients use live in the shared layer,
+# clients/shared/settings/locale/ (moved there verbatim by S20 SET-a, keys unchanged). This pack keeps
+# its own wording of one of them: walking, which in this client is a click on the floor.
+#. override
+msgid "action.move"
+msgstr "Walk (click where to go)"
+
+# Fixed interface text.
+msgid "ui.hint"
+msgstr "click to walk, or on someone for a menu  ·  E: the person under the cursor  ·  Q: yourself  ·  I: your things  ·  H: conversations  ·  Esc: close, menu"
+
+msgid "ui.walk-to"
+msgstr "Walk to {target}"
+
+msgid "ui.unsupported"
+msgstr "{label} — not supported by this client"
+
+msgid "ui.unavailable"
+msgstr "{label} — {reason}"
+
+msgid "ui.needs-range"
+msgstr "needs {metres} m"
+
+msgid "ui.self"
+msgstr "You"
+
+msgid "ui.menu.empty"
+msgstr "Nothing is offered here"
+
+msgid "ui.item"
+msgstr "item {id}"
+
+msgid "ui.result.accepted"
+msgstr "{done}"
+
+msgid "ui.result.rejected"
+msgstr "{action}: the world said no — {reason}"
+
+msgid "ui.result.unavailable"
+msgstr "{action}: nothing in this world can do that"
+
+msgid "ui.result.refused"
+msgstr "{action}: refused ({code})"
+
+msgid "ui.result.unknown"
+msgstr "{action}: unknown — check the world (nothing was resent)"
+
+msgid "ui.walk-rejected"
+msgstr "The world stopped your walk — {reason}"
+
+msgid "ui.walk-unknown"
+msgstr "A step went unanswered — check the world (nothing was resent)"
+
+msgid "ui.participation"
+msgstr "· {kind} ·"
+
+msgid "ui.door-to"
+msgstr "door to {place}"
+
+msgid "ui.outside"
+msgstr "outside"
+
+msgid "ui.talk.prompt"
+msgstr "Say to {target}:"
+
+msgid "ui.invite.prompt"
+msgstr "Invite {target} to (an activity, in your words):"
+
+msgid "ui.input.hint"
+msgstr "Enter sends  ·  Esc cancels"
+
+msgid "ui.status.who"
+msgstr "{name}  ·  {place}"
+
+msgid "ui.status.when"
+msgstr "{clock}  ·  revision {revision}  ·  world …{instance}  ·  {state}"
+
+msgid "ui.state.connecting"
+msgstr "connecting"
+
+msgid "ui.state.seated"
+msgstr "connected"
+
+msgid "ui.state.reconnecting"
+msgstr "reconnecting"
+
+msgid "ui.state.closed"
+msgstr "disconnected"
+
+# Panels: the observer's own disclosed components, by component type.
+msgid "panel.wallet"
+msgstr "Money"
+
+msgid "panel.holdings"
+msgstr "Carrying"
+
+msgid "panel.shop"
+msgstr "For sale here"
+
+msgid "panel.conversation-history"
+msgstr "Heard lately"
+
+msgid "panel.acquaintances"
+msgstr "People you know"
+
+msgid "panel.invitations"
+msgstr "Invitations"
+
+msgid "panel.agenda"
+msgstr "Your day"
+
+msgid "panel.employment"
+msgstr "Work"
+
+msgid "panel.other"
+msgstr "Other things you were told"
+
+msgid "ui.row.holding"
+msgstr "{item} × {count}"
+
+msgid "ui.row.shop"
+msgstr "{item}  ·  {price}  ·  {stock} left"
+
+msgid "ui.row.heard"
+msgstr "{speaker}: {utterance}"
+
+msgid "ui.row.invitation"
+msgstr "{inviter} invites you: {kind}"
+
+msgid "ui.row.agenda"
+msgstr "{label} at {place}, {from}–{until}"
+
+msgid "ui.row.employment"
+msgstr "{employer} at {place}, {from}–{until}, wage {wage}"
+
+msgid "ui.row.on-shift"
+msgstr "on shift"
+
+# Suggestions while typing an activity kind: a suggestion, never a filter.
+msgid "suggest.invite-kind"
+msgstr "coffee, chat, walk"
+
+msgid "format.money"
+msgstr "{amount}"
+
+msgid "format.clock"
+msgstr "day {day}  {hh}:{mm}"

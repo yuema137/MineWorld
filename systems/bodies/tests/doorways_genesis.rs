@@ -1,4 +1,4 @@
-//! A doorway point must lie where a person fits (step-11 §19, SD-D5, F-B7; `ARC-39` note 5): at
+//! A doorway point must lie where a person fits (step-11 §19, SD-D5, F-B7; `ARC-39` note 7): at
 //! genesis, every doorway point of a shaped place — the `here` of each passage out of it and the
 //! `there` of each passage into it — lies inside the floor shrunk by R + GAP (250 + 10 = 260 mm; 310
 //! while R was 300) and at least 260 mm from every solid, or the place is refused, `bodies-doorway`,

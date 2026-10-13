@@ -25,6 +25,10 @@ pub struct RevisionRow {
     pub facts: Vec<FactRow>,
     /// The encoded world state after this revision, when this revision is checkpointed.
     pub snapshot: Option<Vec<u8>>,
+    /// Snapshot revisions to delete in this revision's transaction, after `snapshot` is written —
+    /// the ones the retention rule no longer keeps (`ARC-81`). Never this revision; never a later one.
+    /// Each must be stored: a backend refuses to retire a snapshot it does not hold.
+    pub retire: Vec<WorldRevision>,
 }
 
 /// One fact, encoded, filed under its `EventId`.
@@ -65,7 +69,8 @@ pub trait PersistenceBackend {
     /// The newest committed revision.
     fn head(&self) -> Result<WorldRevision, PersistError>;
 
-    /// Commits one revision: its journal row, its facts and its snapshot, all or nothing.
+    /// Commits one revision: its journal row, its facts, its snapshot and the retirement of the
+    /// snapshots it names, all or nothing.
     fn commit(&mut self, revision: &RevisionRow) -> Result<(), PersistError>;
 
     /// Every journal row after `after`, in revision order: `(revision, encoded entry)`.
