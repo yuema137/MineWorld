@@ -1,15 +1,24 @@
 # PR SR-b (step-24 FG-d) — Sealed-block compression of the world event log (facts and journal)
 
-## DESIGN DRAFT — awaiting the primary session's review and the operator's rulings (not frozen)
+## DESIGN FROZEN 2026-10-12 (primary session; operator QSRB-3, QSRB-4)
 
 ```text
-Design revision:        revision 1 (2026-10-12), this document's first commit
-Approved by / evidence: none yet. Building SR-b is approved (operator QSR-1, 2026-10-10; QS24-5,
-                        2026-10-12); this concrete design is not
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #178, first commit) with §13.1's rulings
+                        recorded, ARC-SRB replaced by ARC-89, and §12 filled
+Approved by / evidence: the operator's rulings on QSRB-3 and QSRB-4 and the primary session's on QSRB-1,
+                        QSRB-2, QSRB-5 … QSRB-8, all of 2026-10-12, relayed by the coordinator (§13.1)
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
-Execution contract:     §12 (drafted; unresolved lines marked)
-Lifecycle:              DRAFT
+Execution contract:     §12 (filled at freeze)
+Lifecycle:              FROZEN — implementation starts only on the operator's go
 ```
+
+Scope (§2.1), invariants (§2.3), decisions D-SRB-1 … D-SRB-11, acceptance and adversarial criteria
+ASRB-1 … ASRB-14 and the commit plan are frozen. Progress, evidence, findings and bounded corrections stay
+writable (§14). No SR-b question remains open. **Implementation starts only on the operator's go**, in a
+fresh session (§12); this planning session does not implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's review and the operator's rulings
+(not frozen)`, revision 1.
 
 **Effort:** `mvp0` (filed under `mvp0/` per QS24-14) · **Step:** step-24 FG-d,
 [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md) §8.1 item 2, §10.1
@@ -21,11 +30,11 @@ list from step-24, the 12d rulings (30-day market-town save ≤ 192 MiB for town
 **Working name:** SR-b. The PR number is assigned when the PR opens.
 **Planning worktree:** `/Users/yuema137/mineworld-worktrees/design-sr-b`, branch `docs/sr-b-design`.
 
-**Decision numbers.** This design needs one architecture record, written here as the placeholder
-**`ARC-SRB`** (sealed log blocks and the streaming read path; amends `ARC-81` rule 1 and extends `ARC-25`'s
-accepted limitation). No dependency record: SR-b uses `zstd` exactly as `DEP-43` admitted it. `overall.md`
-names `ARC-89` as the next free number; the primary session assigns it (QSRB-8). An implementation
-session never picks a number.
+**Decision numbers (QSRB-8, ruled 2026-10-12 by the primary session).** **`ARC-89`** is SR-b's
+architecture record (sealed log blocks and the streaming read path; amends `ARC-81` rule 1 and extends
+`ARC-25`'s accepted limitation). Revision 1 wrote it as the placeholder `ARC-SRB`. No dependency record:
+SR-b uses `zstd` exactly as `DEP-43` admitted it. The primary session records the number in `overall.md`'s
+table. An implementation session never picks a number.
 
 ### Binding rules this design is written under
 
@@ -35,7 +44,7 @@ session never picks a number.
 | `ARC-27` / `AC-12` | The stored bytes of a run's facts, journal and snapshots are a function of pack, seed, age, pace and code; a re-run of a killed command finishes the same world. | D-SRB-2 (sealing is a function of the revision), D-SRB-5 (block bytes a function of the row bytes); ASRB-5, ASRB-6 |
 | `ARC-49` / `AC-8` | `scripts/ci_parity.py` hashes every stored byte of a 30-day save on macOS, Linux and Windows. | D-SRB-5; §6.10; ASRB-7 |
 | `AC-9` (`docs/MVP.md`) | Every fact's cause resolves (`mineworld inspect` checks it over the whole log). | D-SRB-8 (inspect streams and still checks every fact); ASRB-3 |
-| `ARC-81` | Snapshots retained by a pure rule (genesis, an anchor every `64 × interval`, newest two), stored as zstd frames; **rule 1: `facts` and `journal` are only ever inserted into.** | Amended by `ARC-SRB` (D-SRB-1): rows move, unchanged, into sealed blocks; nothing else in `ARC-81` changes |
+| `ARC-81` | Snapshots retained by a pure rule (genesis, an anchor every `64 × interval`, newest two), stored as zstd frames; **rule 1: `facts` and `journal` are only ever inserted into.** | Amended by `ARC-89` (D-SRB-1): rows move, unchanged, into sealed blocks; nothing else in `ARC-81` changes |
 | `DEP-2` | `rusqlite` behind `PersistenceBackend`; the backend stores opaque encoded rows and knows nothing about meaning. | D-SRB-4: a block frames opaque rows; the backend still never decodes a fact or an entry |
 | `DEP-43` | `zstd` 0.13, default features off, bundled libzstd, one fixed level per stored kind, no dictionary, single-threaded. | D-SRB-5 (level 9 for blocks, QSRB-2); no new dependency |
 | Operator QSR-3 (precedent) | A save of an older format is refused by name; no migration. | D-SRB-9: `SAVE_FORMAT` 4; ASRB-8 |
@@ -88,7 +97,7 @@ save of ≈ 45 MiB (walking) or ≈ 61 MiB (bodies), growing by ≈ 0.12–0.17 
 - **CI**: `market_town.rs`'s 30-day bound tightened, a 300-day bound and a per-day growth assertion added
   (ASRB-1 … ASRB-3); `ci_parity.py` requires the `sealed` table; `scripts/baselines.txt`'s stored-table
   digests re-recorded once with a reason line; the nightly `AC-SAVE-1` (§6.11).
-- `ARC-SRB` and the spec edits it requires (§6.13).
+- `ARC-89` and the spec edits it requires (§6.13).
 
 ### 2.2 Not in scope, and where it goes
 
@@ -336,7 +345,7 @@ pub struct RevisionSpan { pub first: WorldRevision, pub last: WorldRevision }
 pub struct RevisionRow {
     // … unchanged fields, `retire` included …
     /// The span whose live rows this revision's transaction seals into one block, after the row,
-    /// its snapshot and its retirements are written (`ARC-SRB`). Always entirely below `revision`.
+    /// its snapshot and its retirements are written (`ARC-89`). Always entirely below `revision`.
     pub seal: Option<RevisionSpan>,
 }
 
@@ -409,7 +418,7 @@ recorded as a request (§11 R-server) and asked as QSRB-6.
 
 ### 6.9 `SAVE_FORMAT` 4 and the format-3 fixture
 
-`format.rs`: `SAVE_FORMAT = 4`, history line "4 — SR-b (`ARC-SRB`): journal and fact rows of each
+`format.rs`: `SAVE_FORMAT = 4`, history line "4 — SR-b (`ARC-89`): journal and fact rows of each
 completed span live in a sealed block; `snapshots` no longer references `journal`." A committed fixture
 `persistence/tests/fixtures/format-3/world.sqlite` is written by a build of the implementation base (the
 SR precedent, §14.1 of `pr-s6-save-retention.md`): the persistence test world, small, format 3 in its
@@ -442,8 +451,9 @@ manifest. The format-2 fixture stays and is refused as outdated (2 < 4).
 - **Nightly `AC-SAVE-1`** (`scripts/ci_stability.py replay`, market-town only): run to day 100, record
   `world.sqlite` + `-wal`, run on to day 300 (a resume, the same history by `ARC-27`), record again,
   assert (*S*300 − *S*100) ÷ 200 ≤ the bound, then replay and CA-13 as today. The sizes go to the
-  timings artefact. The self-test gains the verdict rule. Bound: QS24-4's step bound (0.5 MiB/day with
-  walking) unless QSRB-4 tightens it to this PR's 0.25.
+  timings artefact. The self-test gains the verdict rule. Bound: **0.5 MiB/day** (QS24-4's step bound,
+  ruled for the nightly by QSRB-4 "until stable"); the measured value is recorded each night, and a later
+  ruling tightens it towards this PR's 0.25.
 
 ### 6.12 Platforms
 
@@ -454,7 +464,7 @@ WAL read-transaction semantics are identical on all three.
 
 ### 6.13 Spec edits (C1)
 
-- `docs/DECISIONS.md`: `ARC-SRB` (D-SRB-1 … D-SRB-11, §5's comparison, revisit triggers: "a block-level
+- `docs/DECISIONS.md`: `ARC-89` (D-SRB-1 … D-SRB-11, §5's comparison, revisit triggers: "a block-level
   `AC-8` difference on any leg", "FG-e moves blocks out of the file", "a world whose span exceeds 64 MiB
   raw"); a dated note under `ARC-81` (rule 1 amended) and under `ARC-25`'s accepted limitation (the log is
   compressed, still whole, still replayed byte for byte).
@@ -551,7 +561,7 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** The decision exists before the code (`CLAUDE.md` §2.2).
 - **Scope.** §6.13's files. No code.
-- [ ] Implementation: `ARC-SRB` under its assigned number; notes under `ARC-25` and `ARC-81`;
+- [ ] Implementation: `ARC-89` (assigned, QSRB-8); notes under `ARC-25` and `ARC-81`;
   `ARCHITECTURE.md`, `MODULE_SPEC.md` §8.1, `persistence/README.md`, step-06 L-6.
 - [ ] Validation: both doc checks.
 - [ ] Review: `ARC-25`'s guarantees restated, not relaxed; `ARC-81` rule 1's amendment is the only one.
@@ -644,7 +654,8 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 ## 11. Requirements this PR places on other documents and lanes
 
-- **R-overall.** The primary session assigns `ARC-SRB`'s number (QSRB-8) and, after merge, marks
+- **R-overall.** The primary session records `ARC-89` (assigned, QSRB-8) in `overall.md`'s table (next
+  free then `ARC-90`) and, after merge, marks
   `F-SAVE-1` resolved for the log (FG-e open) and records the 30-day bound change (ASRB-3) beside the
   12d ruling it replaces.
 - **R-step-24.** FG-d's row and §8.1 item 2 point at this document; `F-S24-1` is marked "persistence and
@@ -655,7 +666,14 @@ Targeted validation per commit; the PR's CI is the one full run.
   `scripts/baselines.txt` (both change it); SR-b's ASRB-3 bound replaces 12d's 192 MiB.
 - **R-S23.** SR-b lands before S23's first release, so no released save is format 3 (QSRB-3).
 
-## 12. Execution contract (drafted; to be filled at freeze)
+## 12. Execution contract (filled at freeze, 2026-10-12)
+
+Source of every line marked "freeze rulings": the primary session's SR-b rulings of 2026-10-12, which
+carry the operator's QSRB-3 and QSRB-4, relayed by the coordinator to this planning session ("record
+rulings … fill the execution contract, note 'implementation starts only on the operator's go' … Do not
+merge"). Endpoints the rulings do not name individually (commits, push, PR, CI repair) take the working
+rules' shipped defaults (§§14, 21) once the operator gives the go. Lines marked "mvp0 convention" follow
+SR's contract (`pr-s6-save-retention.md` §12) and were not separately ruled.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, step-24 FG-d = SR-b — sealed-block compression of the world
@@ -665,11 +683,20 @@ RELATED / BINDING DOCS:  pr-s6-save-retention.md (§6.9, ARC-81); mvp1/step-24-d
                          (§2.5 F-S24-1, §8.1, §10, §11 FG-d); step-06-persistence.md; docs/DECISIONS.md
                          ARC-25, ARC-27, ARC-49, ARC-55, ARC-81, DEP-2, DEP-5, DEP-43; docs/ARCHITECTURE.md;
                          docs/ENGINEERING_STANDARDS.md; docs/REUSE_POLICY.md; overall.md; CLAUDE.md
-WORKTREE:                its own, held by one session (CLAUDE.md §3.1) — path: unresolved (primary session)
-BRANCH:                  mvp0/pr-sr-b, created from main                          (coordinator's brief)
+WORKTREE:                its own, held by one session (CLAUDE.md §3.1):
+                         /Users/yuema137/mineworld-worktrees/impl-sr-b, created from main at the go
+                                                         (mvp0 convention; SR's impl-save-retention)
+BRANCH:                  mvp0/pr-sr-b, created from main        (coordinator's brief, 2026-10-12)
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records it
-APPROVED SCOPE:          §2.1, once frozen
-FROZEN INVARIANTS:       §2.3; D-SRB-1 … D-SRB-11 as ruled; the rulings of §13
+START:                   only on the operator's go, in a fresh implementation session (freeze rulings)
+APPROVED SCOPE:          §2.1, as frozen                                            (freeze rulings)
+FROZEN INVARIANTS:       §2.3; D-SRB-1 … D-SRB-11; §13.1's rulings: anchor lattice (QSRB-1); BLOCK_LEVEL 9
+                         (QSRB-2); format 3 refused (QSRB-3); the bounds of ASRB-1 … ASRB-4 and ASRB-14 as
+                         ruled — 30-day ≤ 48 MiB, 300-day ≤ 96 MiB with bodies and ≤ 80 MiB walking, growth
+                         ≤ 0.25 MiB/day, nightly AC-SAVE-1 at 0.5 MiB/day until stable, reader peak ≤ 256 MiB,
+                         seal ≤ 100 ms per block (QSRB-4); baselines re-recorded once with a reason line
+                         (QSRB-5); no change to the server's PerceivedHistory seam (QSRB-6); ARC-89 (QSRB-8)
+                                                                                    (freeze rulings)
 SEQUENCE:                C0 … C7
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *;
                          sqlite3 (read-only queries on scratch saves); zstd (scratch measurement);
@@ -688,13 +715,17 @@ VALIDATION BUDGET:       unit, static and local integration, incl. 30/100/300-da
                                                                                    (mvp0 convention)
 LIVE DOCUMENTATION:      this document (§14)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-sr-b.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved (awaits freeze)
-                         semantic commits: unresolved (working rules §14 default once frozen)
-                         branch push: unresolved (working rules §21 default once frozen)
-                         PR creation / update: unresolved (working rules §21 default once frozen)
-                         CI repair to review readiness: unresolved (working rules §21 default once frozen)
-                         merge: never by the implementation session; only with explicit operator
-                         authorization (working rules §22)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized on the operator's go, in a fresh
+                         session                                     (freeze rulings, 2026-10-12)
+                         semantic commits: authorized after the go   (working rules §14 default)
+                         branch push: authorized after the go        (working rules §21 default)
+                         PR creation / update: authorized after the go
+                                                                     (working rules §21 default)
+                         CI repair to review readiness: authorized after the go
+                                                                     (working rules §21 default)
+                         merge: never by the implementation session; only after the primary session's
+                         review and with explicit operator authorization
+                                                     (freeze rulings "Do not merge"; working rules §22)
 POST-MERGE SYNC OWNER:   the primary session owns overall.md and step-24; the implementation session owns
                          this document's ledger, evidence, deviations, remaining issues, the step-06 L-6
                          note                                                       (mvp0 convention)
@@ -704,7 +735,24 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ## 13. Questions
 
 **[operator]** marks a question only the operator can answer; **[primary]** one the primary session
-decides. Each has a recommendation.
+decides.
+
+### 13.1 Rulings, 2026-10-12
+
+Relayed by the coordinator to the SR-b planning session on 2026-10-12.
+
+| ID | Ruled by | Ruling | Where it lands |
+| --- | --- | --- | --- |
+| QSRB-1 | primary | **Anchor lattice**: blocks on `ARC-81`'s lattice, sealed one span late. | D-SRB-2, §6.2; §12 FROZEN INVARIANTS |
+| QSRB-2 | primary | **zstd level 9** for blocks. | D-SRB-5, §6.3; §12 |
+| QSRB-3 | operator | **Refuse** format-3 saves by name; no upgrade command. | D-SRB-9, §6.9; ASRB-8; §11 R-S23 |
+| QSRB-4 | operator | **Bounds accepted**, Market Town with bodies: 30-day ≤ 48 MiB; 300-day ≤ 96 MiB (≤ 80 MiB walking); growth ≤ 0.25 MiB/day; the nightly `AC-SAVE-1` asserts 0.5 MiB/day until stable; reader peak RSS ≤ 256 MiB; seal ≤ 100 ms per block. | ASRB-1 … ASRB-4, ASRB-14; §6.11; §12 |
+| QSRB-5 | primary | **Re-record once** `facts-300s` / `journal-300s` (+ `sealed-300s`) with a reason line. | §6.10; C6 |
+| QSRB-6 | primary | **Route** the backfill interface change to the server lane, recorded as the remainder of `F-S24-1`. | §2.2, §6.8; §11 R-server; §12 MATERIAL STOPS |
+| QSRB-7 | primary | **Parallel** with 12d; the second to merge re-runs `market_town.rs` and re-records the baselines. | §11 R-12d |
+| QSRB-8 | primary | **`ARC-89`**. | header; C1; §6.13; §11 R-overall |
+
+### 13.2 The questions as asked (kept for review)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
@@ -719,7 +767,8 @@ decides. Each has a recommendation.
 
 ## 14. Ledger (live during implementation)
 
-Not started. Opened by C0 in the implementation session.
+**Status: FROZEN — not started. Implementation starts only on the operator's go.** Opened by C0 in the
+implementation session.
 
 ### 14.1 Planning-session record (2026-10-12)
 
