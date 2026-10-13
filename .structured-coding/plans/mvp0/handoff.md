@@ -44,7 +44,28 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — TD-D14 ruled (a) and applied; full local gate green (E-TD10); PR #171 ready, CI on the exact head
+## Current checkpoint — PAUSED for the operator's milestone acceptance (2026-10-12)
+
+The primary session asked all work to pause while the operator tests. The pause arrived after 03ba860
+had been pushed and #171 marked ready, so CI run 38346779547 on the exact head 03ba860 was already
+running. Nothing was started after the pause, and the local CI pollers were stopped.
+
+- State at the pause: worktree clean except this handoff note, committed locally and NOT pushed.
+- CI on 03ba860 at the pause: fast, platforms (macos-26, windows-2025), python ×3 passed; test,
+  test-macos and test-windows pending. A second run, 38346776113 (fired by the ready-for-review event),
+  shows two jobs failed in 0 s with unexpanded names ("python (${{ matrix.os }} …)", "platforms (${{
+  matrix.os }})"); inspect it on resume. It is probably a matrix that did not expand on that event, not
+  a test failure.
+- Next on resume:
+  1. Push this handoff commit only if the primary asks. It is Markdown only, and pushing it would
+     trigger a new CI run, so the exact head would change.
+  2. Read run 38346779547's test, test-macos and test-windows results. If they are green, explain
+     38346776113's 0-second jobs (or re-run them once). Then record the CI evidence in §19.12 or the
+     handoff, and declare READY FOR OPERATOR REVIEW.
+  3. If anything is red: diagnose, fix, run `cargo test --workspace --no-fail-fast` and the Python suite
+     locally, then push.
+
+## Earlier checkpoint — TD-D14 ruled (a) and applied; full local gate green (E-TD10); PR #171 ready, CI on the exact head
 
 ## Earlier checkpoint — MATERIAL STOP TD-D14 (HB-3 at R 250); PR #171 open, CI red on scenarios n2
 
