@@ -44,7 +44,16 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — MATERIAL STOP TD-D12 (three items; §19.13, evidence E-TD7)
+## Current checkpoint — TD-C8 done; PR open, CI on the exact head (see the PR)
+
+- TD-D12 ruled (all three as recommended) and applied (34bdaef); E-TD8 (AC-10 test_d passes locally).
+- origin/main merged again (e893367: 13c nightly; scripts/CI/docs only).
+- E-TD9: TD-12a PASS (1.995 ×, 1.61 ×), TD-12b PASS (max 4.61 ms wall, 1.03 ms CPU), TD-11, TD-10,
+  M-TD5, TD-14 re-captured, TD-1 after recorded. Runs: other 4 of 6, TD-12 9 of 13.
+- Scratch worktrees /tmp/s15-12d/base-adc46bd and /tmp/s15-12d/timing removed.
+- F-12d-1: scripts/baselines.txt stale for the towns (re-record from the nightly after merge).
+
+## Earlier checkpoint — MATERIAL STOP TD-D12 (three items; §19.13, evidence E-TD7)
 
 - Merged origin/main (3950381; TD-D9); straight client walks now `walk-to` (TD-D10); TD-7's nudge
   bound and the M-3 geometry share in town_bodies (TD-D11). TD-5's committed tests pass.

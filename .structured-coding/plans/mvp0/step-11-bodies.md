@@ -6283,7 +6283,7 @@ exactly as today — shown by running it on the base's two towns.
   module doc quotes QD-1; the unit test gains four cases (carried; a social item missing in Market
   Town's list; organizations in Social Café; a social item differing; a Market Town-only item with
   `body:`).
-- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` 13/13 on this commit
+- [x] Validation (completed by E-TD4: M-TD2 … M-TD4 on the real towns, TD-D5): `cargo test -p mineworld-acceptance --test ac1_composability` 13/13 on this commit
   (the towns unchanged — the base towns pass as before) **[x]**; again after TD-C5, with M-TD2, M-TD3,
   M-TD4 on the real towns — **pending TD-C5**. An early M-TD2 on the base towns (a `body:` appended to
   market-town's apple.yaml) was refused by the loader before check 3 ran ("gives 'apple' a body, which
@@ -6304,11 +6304,12 @@ person does not move (SD-D7); the solid is re-read (E-TD1) and, if the slice rea
 overlapping, that is a QD to the primary session, not an edit. A straight-walk test meeting a solid: its
 route gains a waypoint around it, the claim unchanged (§19.6).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `validate` both towns (exit 0, the six shapes, the four objects); `ac1_composability`
-  13/13+; every edited test passes; the town places' files byte-identical across the two towns (`cmp`).
-- [ ] Review: each edited test's claim is unchanged (§19.6 row by row); no person file changed; no
-  slice-matched coordinate differs from E-TD1.
+- [x] Implementation: as scoped (df6b4e5, 8814aad; with the TD-D4 and radius rulings), the route edits
+  of TD-D10 (fad22a8).
+- [x] Validation: `validate` both towns (E-TD4, E-TD9); `ac1_composability` 15/15; every edited test
+  passes (E-TD7, E-TD8); place and object files byte-identical across the towns (E-TD4).
+- [x] Review: each edited test's claim is unchanged (§19.6, TD-D5, TD-D9, TD-D10); no person file
+  changed; no slice-matched coordinate differs from E-TD1 but the ruled inset.
 
 ### TD-C6 — FU-12a-1: three comments reworded (QD-9)
 
@@ -6338,23 +6339,24 @@ with TD-6's counts **checked before** TD-7's scan, TD-8's counterfactual, TD-13'
 **Depends on:** TD-C5. **Activity first:** TD-5 and TD-6 on the first runs; on a failure, §19.4's ladder
 in order, each rung recorded with its counts; no rung passing → stop.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-cli --test town_bodies` (both towns), and run.rs, run_restart.rs,
-  routines.rs, market_town.rs, market_composition.rs, milestone_b.rs, milestone_c.rs; bodies-yard's
-  tests unchanged and green.
-- [ ] Review: the scan reads the save and the place files only; the counts printed per bucket; the
+- [x] Implementation: as scoped, with TD-D11 and the TD-D12 ruling 1 (TD-6 restated).
+- [x] Validation: town_bodies 7/7 (E-TD8); run, run_restart, routines, market_town, market_composition,
+  milestone_b, milestone_c pass (E-TD7, E-TD8); bodies-yard's tests green.
+- [x] Review: the scan reads the save and the place files only; the counts printed per bucket; the
   counterfactual's geometry is the real town's.
 
 ### TD-C8 — Close: cost, cross-architecture, the re-baseline, the gate, the ledger
 
-- [ ] TD-12a: the eight 300-day runs, interleaved per town under §20.6.1's instrument (a contaminated
-  town re-run once; INCONCLUSIVE reported, not stopped on). TD-12b: the scratch timing run of
-  market-town (E-TD).
-- [ ] TD-11: the x86_64 build and the Rosetta comparisons.
-- [ ] TD-10, TD-14, TD-15, TD-16; the full gate once on the final executable head.
-- [ ] TD-1: the after digests recorded (E-TD, MVP_STATUS, the handoff for overall §7).
-- [ ] Documentation: `docs/MVP_STATUS.md`; both READMEs; §19's checkboxes, §19.12, §19.13; the handoff.
-- [ ] Review: TD-1 … TD-16 each with evidence; deviations named; nothing of 12d-0's code touched.
+- [x] TD-12a: eight runs, both towns clean, PASS (1.995 ×, 1.61 ×). TD-12b: PASS by wall and thread CPU
+  (max 4.61 / 1.03 ms) (E-TD9).
+- [x] TD-11: PASS (E-TD9).
+- [x] TD-10 (and M-TD5), TD-14 (re-captured at R 250), TD-15, TD-16's static half (E-TD9); the full
+  suite is CI's run on the exact head (handoff, PR).
+- [x] TD-1: the after digests recorded (E-TD9, MVP_STATUS).
+- [x] Documentation: `docs/MVP_STATUS.md` evidence row; READMEs (TD-C5); §19's checkboxes, §19.12,
+  §19.13; the handoff.
+- [x] Review: TD-1 … TD-16 each with evidence; deviations TD-D1 … TD-D13; 12d-0's code untouched but the
+  ruled doc comments and literals.
 
 **Refresh note (2026-10-08).** The paragraph below is the original planning record. QD-2 was answered
 (the precursor, §20), 12d-0 merged, and its accepted numbers set TD-12 (E-TD0c): the commit plan is now
@@ -7219,6 +7221,62 @@ town_bodies.rs 7/7 (TD-2, TD-3, the wall check, TD-13, TD-6 as restated, TD-7, T
                87 187, object 8; closest pair 495 mm (bob–hana), person–object 259 mm; 0 violations
 market_town.rs 1/1 (250 s): ASR-2 30-day save 170 811 392 B (162.9 MiB) ≤ 192 MiB; 22 snapshots; the
   300-day save measured 1 749 176 320 B (1 668.1 MiB, printed, unbounded); every market claim held.
+
+E-TD9 TD-C8 on the final executable code (34bdaef's sources; e893367 merges origin/main's 13c nightly
+work — scripts, CI and Markdown only, no Rust or world file), 2026-10-12, dev binary
+/tmp/s15-12d/head-mineworld; every run in the FOREGROUND (N-D27), the machine otherwise idle (load
+1.8–6.5).
+  TD-12a (§20.6.1's instrument, user + sys, interleaved without/with; the SD-D13 copies
+          /tmp/s15-12d/nb/<town>: `bodies` dropped, every `body:` dropped, both validate)
+          social-cafe   without 24.02 / 24.22 s, with 47.93 / 47.66 s; pair ratios 1.995 / 1.968 (1.4 %
+                        apart, clean); max(with) ÷ min(without) = 47.93 / 24.02 = 1.995 ≤ 3.96   PASS
+          market-town   without 57.10 / 58.61 s, with 91.93 / 90.30 s; pair ratios 1.610 / 1.541 (4.5 %
+                        apart, clean); 91.93 / 57.10 = 1.61 ≤ 3.30                                PASS
+          faults 0 in all eight; wall 24.4–92.6 s; with-bodies facts 1 240 225 / 1 219 332.
+  TD-12b  scratch timing build (worktree /tmp/s15-12d/timing at 34bdaef, removed afterwards): bodies'
+          `resolve` wrapped with `Instant` and `libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID)` (scratch-only
+          `libc`; `forbid(unsafe_code)` relaxed there only). market-town 300 d: faults 0, 1 219 332 facts,
+          fingerprint 08f7d8c784a10912 = the plain run's. 549 393 calls:
+            wall        p50 1.25 µs, p99 73.8 µs, p99.9 112 µs, max 4.61 ms; > 1 ms 5, > 10 ms 0
+            thread CPU  p50 1.25 µs, p99 73.6 µs, p99.9 110 µs, max 1.03 ms; > 1 ms 1
+          max ≤ 50 ms by both clocks                                                           PASS
+  M-TD5   in the same scratch build, an impure resolver (a process-global counter's parity skips every
+          other resolution, under M_TD5=1): market-town's run is refused on day 1 — "dev and erin stand
+          377 mm apart in park … an arrival escaped resolution" — a survivor refused. Not committed.
+  TD-11   x86_64-apple-darwin build (/tmp/s15-12d/target-x86, Mach-O x86_64) under `arch -x86_64`, 30 d:
+          social-cafe 122 928 facts, summary 67df8ac825157a6fb804f6f56f2d9c7dafcd6656c42369a9b548eef67a9effdd
+          = arm64; market-town 120 954 facts, 6f54a33f936554a42f3a8ab07136473319de3912582c2764e7f3578458d0b51f
+          = arm64. market-town saved to day 15 on arm64 and resumed on x86_64 to day 30, and the reverse:
+          both 120 954 facts, fingerprint b1a9fd69f4f18631 = the uninterrupted run's              PASS
+  TD-10   `mineworld replay` of both resumed saves (arm64 of the first, x86_64 of the second): 81 982
+          revisions re-executed from genesis, 120 954 facts and 22 snapshots reproduced byte for byte;
+          run_restart.rs 3/3 and market_town.rs 1/1 (E-TD7, E-TD8)                                 PASS
+  TD-14   re-captured at R 250, bodies v5 (the radius amendment's new bases):
+          bodies-yard 30 d   160 958 facts, summary 0e0143110b1e2e0dd982cff42d6c6ecaf1c0c3d185153fb2c4b6efadde106e67
+          long_run line      3 829 255 bytes, c46cbe9ef3d8ccbff34af9f00e1f73ab18ecd9bd134e58d0bd8433cdd99e1c45
+          long_run_objects   708 446 bytes, 546a26d463ef9a1d5f6acbe2c3efaa07eba3de9655290d599e3257e54f726d0c
+          validate           social-cafe a54842c4… 67 genesis facts; market-town 0af0e442… 148; bodies-yard
+                             7356b8f8… 47 (unchanged)
+          No-diff sources (resolve, rapier, footprint, component): doc comments and their unit tests'
+          literals only (the radius amendment); stride, entry, push, flight, launch, shove: no diff.
+  TD-1    AFTER (the one re-baseline, QN-2 with 12n-2), from TD-12a's with-bodies runs on the final code —
+          each of the two equal, so no extra run was spent:
+          social-cafe  300 d faults 0, 1 240 225 facts, 166009843beef75b87da5c51b0a29a2388fa9276dc98f2d3d71690ce40a24c1f
+          market-town  300 d faults 0, 1 219 332 facts, f64ebd5d0566c03736992215d0198f219de0dcc7c8c314a667eb68d39229e03b
+          before (E-TD-base2, main adc46bd): 837 953 facts 9500d0c8…9cb5; 817 834 facts 14626465…7344.
+          Recorded here and in MVP_STATUS's evidence row; no code holds them. (overall §7 is the planning
+          session's to update.)
+  Gate    fmt clean; clippy --workspace --all-targets --all-features -D warnings clean; check_decision_ids
+          114 distinct; check_doc_headings 220 sections; check_client_rules PASS; check_scratch scan 0;
+          check_ci_pins agree. The full workspace suite: CI on the exact head (the canonical run).
+  Runs    300-day town runs: other 4 of 6; TD-12 9 of 13 (8 + 1).
+
+**F-12d-1 (finding, for the 13c/nightly owner): `scripts/baselines.txt` is stale for the towns.** It
+holds social-cafe's pre-walking 300-day summary `ad49c723…` (and market-town's `d5db8988…`), i.e. 12n-2
+did not update it either; after 12d every town section (and lakeside's, by the names; bodies-yard's, by
+the radius) differs. Regenerating it needs ci_parity.py's long profile (300-, 1 000- and saved 300-day
+runs of four worlds), beyond 12d's run cap. Proposed: re-record from the first nightly's long record
+after 12d merges, with the reason line "12n-2 + 12d (QN-2): walking, bodies, item names".
 
 **TD-D13 — ASR-2's snapshot list, one defect of the test (bounded; claim unchanged).** With 12d's head
 of 81 982 revisions the newest scheduled snapshot n = 81 920 is itself an anchor (20 × 4 096); the
