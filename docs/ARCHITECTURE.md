@@ -372,6 +372,37 @@ requires:
   context_window: ">=16k"
 ```
 
+## 9.3 Controller memory: retention and bounds
+
+A seat's controller-owned memory (the store of what the seat perceived, `ARC-59`) is bounded in every
+mode. Its contents are a derivation of the perceived stream, so every retention decision is a pure
+function of stored state and world time, and rebuilding the store from a null cursor reproduces it.
+The rules are in [`MODULE_SPEC.md`](MODULE_SPEC.md) §5.2; this section states the architecture they
+rest on.
+
+- **Who enforces what.** The host around each memory policy enforces the bounds below whatever the
+  policy returns. A policy is a plug-in and cannot reach past the host. No model is needed for any bound
+  to hold, and no bound is a model's decision.
+- **Store bound.** The canonical dump of one seat's store is at most 1 MiB at any age. The host enforces
+  it after every pass (`MODULE_SPEC.md` §5.2, rule 6).
+- **Context bound.** A model call receives at most 6 000 bytes of memory per section (P4 D-P4-9). An
+  assisted summarisation request is at most 6 000 bytes and contains no Event ID or entity id.
+- **Model-call bound.** Assisted forgetting makes at most `calls_per_sim_day` calls per seat per simulated
+  day (default 4, at most 24), inside the controller's wall-time and token budgets (ARC-57). A call is
+  gated before it is made.
+- **Forgetting is not deletion of truth.** A dropped item's citations join the seat's forgotten set, a
+  sorted, bounded list of Event ID ranges. The world log is not in this store and is never forgotten
+  (`CORE_CONCEPTS.md` §5.3). Compaction and archive of the log are a separate concern of persistence.
+- **Save growth is a nightly gate, not a runtime refusal.** The log is never truncated, so the per-day
+  save growth bound (0.25 MiB per simulated day on the baseline profile, 0.5 MiB with walking, for Market
+  Town) is checked by the nightly gate `AC-SAVE-1`, not by refusing facts. Truth is not rationed.
+- **Replay.** A store built by a no-LLM policy is byte-identical when rebuilt. A store built by an assisted
+  policy is byte-identical when rebuilt with its recordings; without them, the rebuild reproduces the
+  fallback's store, and the difference is recorded, never silent. A missing recording propagates as an
+  error (`CassetteMiss`).
+
+Decision: `docs/DECISIONS.md` `ARC-87`.
+
 ---
 
 # 10. Presentation boundary
