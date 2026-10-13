@@ -9,7 +9,7 @@ Approved by / evidence: the coordinator's message relaying the operator's ruling
                         primary session's rulings (QC-3 … QC-12, QC-8, decision ids), 2026-10-10 (§14.1)
 Implementation base:    main at the start of implementation (exact commit recorded in N-C0's re-audit)
 Execution contract:     §15 (filled at freeze)
-Lifecycle:              FROZEN
+Lifecycle:              MERGED (PR #162, 9483fec, 2026-10-13T01:14:57Z; §12.3)
 ```
 
 Scope (§3), invariants (§4), acceptance and mutations (§7), the commit plan (§9) and the contract (§15)
@@ -1410,6 +1410,28 @@ paid service; every run on standard hosted runners of the public repository.
 - **S6 SR merged before 13c** (QC-6 assumed the reverse). The 1 000-day saved run and the ASR-1 640 MiB
   assertion are a follow-up owned by S13 (QC-6), not added here: frozen scope (§1.2). R1's numbers
   already show SR's effect is not in this PR's base (300-day saves 2–3.5 GiB at `6c23476`).
+
+### 12.3 Merge record and closeout (E-13c-final)
+
+- **Merge identity.** PR #162 merged as `9483fec00f0024c779ed34787b852677469480d8` at 2026-10-13T01:14:57Z.
+  The final head was `7cc29e8` (the pin of the not-run list, F-13c-R1 below).
+- **Final PR CI (run 38328252388, head `7cc29e8`): green.** `changes`, `fast`, `test`, `test-macos`,
+  `test-windows`, `platforms` ×2, `python` ×3.
+- **Primary review, F-13c-R1.** A third, unruled name added to `HOSTED_UNRUNNABLE` survived
+  `--self-test`. Fixed by pinning the list to exactly the two QC-5b names. On the fixed head the same
+  mutation fails with "FAIL the not-run list is exactly the two names QC-5b ruled (F-13c-R1)".
+- **A-N7 (after merge, primary).** The first dispatch on `main` started as run 38331245496
+  (`force=true`, `groups=all`). Its result is recorded by the primary session; this ledger does not
+  claim it. The `force=false` skip check is an open follow-up below.
+- **Follow-ups (open):**
+  - A-N7's `force=false` skip check on an unmoved `main`.
+  - The 1 000-day saved run and the 640 MiB size check (ASR-1), an S13 follow-up after S6 SR merged.
+  - F-13c-impl-3: journal bytes moved in every world between `c65a963` and `9f853e1` with no fact or
+    summary moving (likely IL-e #159); baselines re-recorded with reason lines. The owner lane judges it.
+  - F-13c-impl-5: the 3D slice hang on hosted runners has no root cause; owner is the 3D lane.
+  - F-13c-impl-6: `scripts/ci_parity.py` is 990 lines, past the ~800-line warning; split is deferred.
+  - QB-11: `test-windows` becomes a required check after seven clean nightly runs (QC-2); the settings
+    change is the operator's.
 
 ---
 
