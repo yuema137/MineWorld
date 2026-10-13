@@ -1,21 +1,28 @@
 # PR S24 DL-b — `motivated`: the no-LLM integer utility decision model, calibrated from ATUS Table A-3
 
-## DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)
+## DESIGN FROZEN 2026-10-12 (primary session, operator standing instruction: recommendations accepted)
 
 ```text
-Design revision:        revision 1 (2026-10-12), this file's first commit on docs/dl-design
-Approved by / evidence: none yet. Written under step-24's approval of 2026-10-12 (§14.1 there)
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #177, first commit) with §14.1's rulings
+                        applied (QDLb-1: routine generator deferred, dated note in step-24 §11.2)
+Approved by / evidence: the primary session, 2026-10-12, under the operator's standing instruction
+                        (recommendations accepted); relayed to this planning session (§14.1)
 Implementation base:    origin/main after DL-a has merged; C0 records the commit
 Start condition:        DL-a merged (the DecisionModel trait, cognition/installed, decisions.yaml, the
-                        template determinism test exist). Not before
-Execution contract:     §13 (proposed; filled at freeze)
-Lifecycle:              DRAFT
+                        template determinism test exist) AND the operator's go. Implementation starts only
+                        on the operator's go
+Execution contract:     §13 (filled at freeze)
+Lifecycle:              FROZEN
 ```
 
-Nothing here authorizes implementation (`CLAUDE.md` §3.1). Scope, invariants, decisions SD-DLb-1 …
-SD-DLb-13, acceptance AC-DLb-1 … AC-DLb-9 (with the numeric tolerances of §8, fixed now under `ARC-23`)
-and the commit plan become frozen only under a user-approved `DESIGN FROZEN` header. Operator questions are
-in §14.
+Scope (§3.1), invariants (§3.3), decisions SD-DLb-1 … SD-DLb-12, acceptance AC-DLb-1 … AC-DLb-9 with the
+numeric thresholds of §8 (fixed before any run, `ARC-23`) and the commit plan are frozen. Progress, evidence,
+findings and bounded corrections stay writable (§15). No DL-b question remains open (§14.1).
+**Implementation starts only on the operator's go**, in a fresh session; this planning session does not
+implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)`,
+revision 1.
 
 **Effort:** `mvp0` (QS24-14) · **Step:** [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md)
 §§6 (the motivated model), 7 (reuse: `DEP-47`, `DEP-48`), 10.2 (AC-DL-2, AC-DL-4), 11.2 (the DL-b row), 12
@@ -492,7 +499,10 @@ Each commit tracks **implementation**, **deterministic validation** and **LLM lo
 - **P6** may name `motivated` as `lm`'s fallback in a world's `decisions.yaml` (step-24 §8.6).
 - **A later reference-world PR** may switch Market Town to `motivated` with a baselines reason line (QS24-3).
 
-## 13. Execution contract (proposed; filled at freeze)
+## 13. Execution contract (filled at freeze, 2026-10-12)
+
+The source of every authority line is the primary session's freeze of 2026-10-12 under the operator's
+standing instruction, relayed to this planning session. **Implementation starts only on the operator's go.**
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S24 PR DL-b — the motivated decision model
@@ -503,7 +513,8 @@ RELATED / BINDING DOCS:  pr-dl-a-decision-list.md; mvp1/step-24-decision-and-mem
                          docs/ENGINEERING_STANDARDS.md; docs/REUSE_POLICY.md; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-dl-b, its own, held by one session
 BRANCH:                  mvp0/pr-dl-b, created from origin/main
-START CONDITION:         DL-a merged
+START CONDITION:         DL-a merged AND the operator's explicit go. Before both, no implementation session
+                         starts
 IMPLEMENTATION BASE:     origin/main at C0; C0 records the commit
 APPROVED SCOPE:          §3.1, as frozen
 FROZEN INVARIANTS:       §3.3 I-DLb-1 … I-DLb-6; SD-DLb-1 … SD-DLb-12; §8 thresholds
@@ -520,8 +531,14 @@ VALIDATION BUDGET:       unit/integration unrestricted; C6 real runs ≤ 30 min 
                          at C7; CI: the PR's runs
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-dl-b.md
-ENDPOINT AUTHORITY:      as the freeze states; merge never by the implementation session, only with explicit
-                         operator authorization
+ENDPOINT AUTHORITY:      implementation + local validation: authorized, in a fresh session, once the start
+                         condition holds (operator's go)          (primary session, 2026-10-12)
+                         semantic commits: authorized             (primary session; working rules §14)
+                         branch push: authorized                  (primary session; working rules §21)
+                         PR creation / update: authorized         (primary session; working rules §21)
+                         CI repair to review readiness: authorized (primary session; working rules §21)
+                         merge: never by the implementation session; only after the primary session's
+                         review and with explicit operator authorization (working rules §22)
 POST-MERGE SYNC OWNER:   primary session: overall.md, step-24; implementation session: this ledger
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
@@ -538,6 +555,17 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **QDLb-4** [OPERATOR] | The §8 thresholds (night speech ≤ 50 ‰; TV ≤ 250 ‰ and ≥ 100 ‰ better than `rule`; night-home ≥ 850 ‰; agenda ≥ `rule` − 50 ‰; cost ≤ 2×) | **Accept as written**; they are fixed before any run and a FAIL stops for you |
 | **QDLb-5** | AC-DL-2 names "`staff` → `motivated`". social-cafe defines no classes, and adding `configure/classes.yaml` would change a reference world. Use `--seat-model` for the mixed case (as §8) and leave class assignment to DL-a's fixture tests? | **Yes** |
 | **QDLb-6** | Allow per-world `curve:` overrides in DL-b (step-24 §6.4), or named sets only? | **Allow**, bounded (≤ 24 points, typed, positioned refusals) — it is how a world author tunes rhythm without writing a model |
+
+### 14.1 Rulings, 2026-10-12 (primary session, operator standing instruction; binding)
+
+| Question | Ruling |
+| --- | --- |
+| **QDLb-1** | **Accepted: the routine generator is deferred.** DL-b ships no `tools/routine-fit`; curves are derived in-crate from the committed table. Step-24's DL-b row is narrowed by a dated note (step-24 §11.2, 2026-10-12). |
+| QDLb-2 | Accepted: `pub mod read` / `act` in `rule-controller`. |
+| QDLb-3 | Accepted: edition **`atus-a3-2025`**. |
+| QDLb-4 | Accepted: the §8 thresholds as written; a FAIL stops for the operator. |
+| QDLb-5 | Accepted: the mixed case through `--seat-model`; class assignment is DL-a's fixture test. |
+| QDLb-6 | Accepted: bounded per-world `curve:` overrides. |
 
 ---
 

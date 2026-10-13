@@ -1,19 +1,27 @@
 # PR S24 DL-a — The decision list: `decisions.yaml`, the `DecisionModel` trait, `cognition/installed`, host wiring
 
-## DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)
+## DESIGN FROZEN 2026-10-12 (primary session, operator standing instruction: recommendations accepted)
 
 ```text
-Design revision:        revision 1 (2026-10-12), this file's first commit on docs/dl-design
-Approved by / evidence: none yet. Written under step-24's approval of 2026-10-12 (§14.1 there)
+Design revision:        revision 2 (2026-10-12): revision 1 (PR #177, first commit) with §14.1's rulings
+                        and the cross-design ruling on QFGb-1 (memory: decoded and passed through as typed
+                        JSON MemoryPolicyChoice, SD-DLa-9, SD-DLa-15) applied
+Approved by / evidence: the primary session, 2026-10-12, under the operator's standing instruction
+                        (recommendations accepted); relayed to this planning session (§14.1)
 Implementation base:    origin/main after DOC-24 has merged; C0 records the commit
-Start condition:        DOC-24 merged (ARC-84 and ARC-85 exist in docs/DECISIONS.md). Not before
-Execution contract:     §13 (proposed; filled at freeze)
-Lifecycle:              DRAFT
+Start condition:        DOC-24 merged (met: #175, ARC-84 and ARC-85 are in docs/DECISIONS.md) AND the
+                        operator's go. Implementation starts only on the operator's go
+Execution contract:     §13 (filled at freeze)
+Lifecycle:              FROZEN
 ```
 
-Nothing here authorizes implementation (`CLAUDE.md` §3.1). Scope, invariants, decisions SD-DLa-1 …
-SD-DLa-14, acceptance AC-DLa-1 … AC-DLa-10 and the commit plan become frozen only under a user-approved
-`DESIGN FROZEN` header. The operator questions are in §14.
+Scope (§3.1), invariants (§3.3), decisions SD-DLa-1 … SD-DLa-15, acceptance AC-DLa-1 … AC-DLa-11 and the
+commit plan are frozen. Progress, evidence, findings and bounded corrections stay writable (§15). No DL-a
+question remains open (§14.1). **Implementation starts only on the operator's go**, in a fresh session
+(§13); this planning session does not implement.
+
+*Superseded header:* `DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)`,
+revision 1.
 
 **Effort:** `mvp0` (filed here under step-24 QS24-14) · **Step:**
 [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md) §§3, 4, 5, 10.2 (AC-DL-1,
@@ -25,7 +33,8 @@ extension points: interface, carrier, selection, parameters, host), both recorde
 (the `lm` entry and its fallback, AC-DL-5), WE-b (director seats, MVP-1).
 
 **Working name:** DL-a. The PR number is assigned when the implementation PR opens.
-**Planning base:** `origin/main @ cda4c13` (#174). Planning worktree
+**Planning base:** `origin/main @ cda4c13` (#174); frozen on `origin/main @ d14f05e` (DOC-24 #175 merged,
+F-DLa-2). Planning worktree
 `/Users/yuema137/mineworld-worktrees/design-dl`, branch `docs/dl-design`. This planning session writes
 this file and `pr-dl-b-motivated.md` only.
 
@@ -117,12 +126,17 @@ cognition crates are added by name (a `cognition/*` glob would match the Python 
 5. **`tools/cli`**: `run` and `server` resolve one model per seat; `--decisions FILE` and
    `--seat-model SEAT=MODEL` on both; `validate` decodes the pack's decision list; `run`'s header carries
    the digest **only when a decision list is in effect**; `hosted::PacedSeat` drives a `Box<dyn SeatModel>`;
-   `packs.rs` derives its controller list from `cognition/installed`.
+   `packs.rs` derives its controller list from `cognition/installed`; a new read-only subcommand
+   `mineworld decisions <world> [--decisions FILE] [--seat-model SEAT=MODEL]… --json` that prints each seat's
+   resolved model and its `MemoryPolicyChoice` as typed JSON for the cognition process (SD-DLa-15, QFGb-1).
+5a. **`memory:`** section of `decisions.yaml`: decoded structurally, resolved per seat (seat > class >
+   default), passed through uninterpreted as `MemoryPolicyChoice` (SD-DLa-9).
 6. **Template determinism test** over every installed model (R-S24-8): a CLI integration test that runs a
    reference world with every seat on each installed model twice and across a kill-and-resume, and compares
    save bytes.
 7. **Specifications:** `docs/MODULE_SPEC.md` §4.1 (`decisions:` and the file's shape; never seeded) and §5
-   (decision models, `cognition/installed`, how a user installs one); `docs/DECISIONS.md` dated notes on
+   (decision models, `cognition/installed`, how a user installs one) — DOC-24 (#175) already wrote both;
+   DL-a's C1 **amends** them where this frozen design differs (F-DLa-2), and adds a dated note on `ARC-84`; `docs/DECISIONS.md` dated notes on
    `ARC-27` (stateless seeded controllers generalised to every in-process model) and `ARC-33` (the installed
    pattern reused for models); READMEs for the two new crates (human-facing, short).
 
@@ -131,12 +145,12 @@ cognition crates are added by name (a `cognition/*` glob would match the Python 
 | Item | Where |
 | --- | --- |
 | The `motivated` model, curves, ATUS data | DL-b |
-| `memory:` section of `decisions.yaml` (forgetting policy selection) | FG-b decodes it in the cognition process; DL-a's decoder **refuses** a `memory:` key with "not yet: FG-b" (SD-DLa-9) so no file silently carries it |
+| Semantic validation of `memory:` (policy ids, their parameters, fallback rules) | FG-b's `resolve` in the cognition process, at cognition start (QFGb-1); DL-a decodes the structure, resolves per seat and passes the choice through (SD-DLa-9) |
 | The `lm` model and AC-DL-5 (fallback on a killed cognition process; cassette replay) | S10 P6, which adds an `external lm` line |
 | Director seats on Organizations | WE-b (MVP-1, QS24-2) |
 | Storing the resolved list in a save | deferred by QS24-1 |
 | A change to `RuleController` (`--agent`) | none; it stays the reactive controller |
-| Python-side decision list reading | FG-b / P6 |
+| Python-side consumption of the resolved list | FG-b (`resolve` of `MemoryPolicyChoice`) and P6 (R-P6-FG-2), reading SD-DLa-15's JSON; no Python YAML parser |
 
 ### 3.3 Invariants this PR must hold
 
@@ -254,7 +268,7 @@ assign:                          # optional
   `mineworld-authoring` depends on the kernel).
 - **SD-DLa-5 One positioned pass.** `DecisionList::read(path, &Catalog, &Roster)` decodes with a
   `DeserializeSeed` carrying the catalog and the roster, so each refusal is raised while the decoder stands on
-  the offending node: unknown top-level key; `memory:` (SD-DLa-9); unknown model id (lists the installed
+  the offending node: unknown top-level key; a structural error in `memory:` (SD-DLa-9); unknown model id (lists the installed
   ones); a model named twice; unknown parameter or out-of-bound value (through the model's decoder, §5.4);
   `seat:` naming no person; `seat:` naming a person who is not a seat (step-24 §4.2 rule 2); `class:`
   naming an undefined class; `class: person` (or any implicit class: "use `default:`"); an entry with both
@@ -269,10 +283,28 @@ assign:                          # optional
   only for models the catalog marks `External` (§5.6); on an in-process model it is refused ("an in-process
   model is always present"). An external model **must** name one. Chains are followed at resolution: at most
   4 links, no cycle, ending in an in-process model or `none`; violations are refused at the `fallback:` node.
-- **SD-DLa-9 `memory:` refused for now.** Step-24 §4.2 puts controller-memory policy selection in the same
-  file. Its decoder belongs to FG-b's retention host (Python). Until FG-b lands, DL-a refuses `memory:` by
-  name rather than ignoring it (I-DLa-5). FG-b turns the refusal into "decoded by the cognition process; the
-  Rust host checks seat names only".
+- **SD-DLa-9 `memory:` decoded structurally and passed through (ruling on QFGb-1, 2026-10-12; supersedes
+  revision 1's refusal).** The shape is FG-b's §6 (`pr-fg-b-retention-host.md`, PR #180):
+
+  ```yaml
+  memory:
+    default: { policy: consolidate }          # optional; absent → no default entry (FG-b's DEFAULT_CHOICE)
+    assign:                                   # optional; seat > class > default; one entry per seat or class
+      - { class: staff, policy: decay, parameters: { half_life_hours: 336 } }
+      - { seat: alice, policy: lm-summarise, fallback: consolidate, parameters: { calls_per_sim_day: 4 } }
+  ```
+
+  DL-a's decoder checks, with file, line and column: unknown keys under `memory`, `default` and each entry;
+  an entry with both or neither of `seat`/`class`; a non-seat or unknown person; an undefined or implicit
+  class; two entries for one seat or one class; `policy` and `fallback` spelled as a `PolicyId`
+  (`^[a-z][a-z0-9-]{0,47}$`, FG-b's rule); `parameters` a mapping with string keys, converted to a JSON
+  object (YAML scalars to JSON scalars; a non-string key, a tag, or a non-finite number refused). It does
+  **not** interpret `policy`, `fallback` or `parameters`: policy ids are Python entry points the Rust side
+  cannot see. **Recorded consequence:** an unknown policy id or invalid policy parameters fail when the
+  cognition process starts (FG-b's `resolve`, naming the file, line and column carried in `source`), not at
+  `run`'s load. Resolution per seat uses the same roster and precedence as models (SD-DLa-4, SD-DLa-6). The
+  memory choice is part of the digest (SD-DLa-14) only when a `memory:` section is present, so the absent
+  case is unchanged.
 
 **Resolution** produces `ResolvedDecisions { source: Source, per_seat: Vec<(EntityKey, Resolved)> }` in roster
 order, where `Resolved` is the in-process model that will actually drive the seat in this host plus, when it
@@ -358,6 +390,41 @@ header anyway). The server prints the same clause on its `town:` line. Rationale
 `ci_parity.py`'s `summary-300` keeps the header, so an always-printed clause would move every world's
 baseline (§2.2).
 
+### 5.9 The resolved list as typed JSON for the cognition process (SD-DLa-15; ruling on QFGb-1)
+
+`mineworld decisions <world> [--decisions FILE] [--seat-model SEAT=MODEL]… [--packs …] --json` reads the pack
+and the decision list exactly as `run` does (same decoder, same overrides, same refusals), starts no world and
+writes one JSON document to stdout:
+
+```json
+{
+  "format": 1,
+  "world": "social-cafe",
+  "digest": "00f3…",
+  "seats": [
+    { "seat": "alice",
+      "model": { "id": "rule", "assigned": "lm", "chain": ["lm", "rule"] },
+      "memory": { "policy": "lm-summarise", "fallback": "consolidate",
+                  "parameters": { "calls_per_sim_day": 4 },
+                  "source": { "file": "decisions.yaml", "line": 12, "column": 7 } } },
+    { "seat": "bob", "model": { "id": "rule" }, "memory": null }
+  ]
+}
+```
+
+- Typed on the Rust side (`ResolvedDecisionsJson`, `SeatJson`, `MemoryPolicyChoiceJson`, `SourceSpanJson`,
+  all `#[derive(Serialize)]` with no maps of free strings except `parameters`, which is the pass-through
+  object); seats in roster order; keys in a fixed order; `memory: null` when no `memory:` entry and no default
+  applies, which FG-b reads as its `DEFAULT_CHOICE`.
+- `memory` matches FG-b's `MemoryPolicyChoice` field for field (`policy`, `fallback`, `parameters`,
+  `source`); `source.file` is the path as given relative to the pack root, or as passed by `--decisions`.
+- `format: 1` is the document's version; a change to its shape bumps it, and FG-b's reader refuses an
+  unknown version.
+- Without `--json` the subcommand prints the same content as a human table. The subcommand is read-only and
+  never writes a save.
+- P6 (R-P6-FG-2) runs it (or links the same library function) at seat start; FG-b's tests use literal JSON of
+  this shape until then.
+
 ---
 
 ## 6. Determinism and replay
@@ -403,7 +470,7 @@ baseline (§2.2).
 | Id | Criterion | Counterfactual |
 | --- | --- | --- |
 | **AC-DLa-1** (= AC-DL-1) | With no `decisions:` key and no flag, `python3 scripts/ci_parity.py baseline check` on a long record of the final head passes for every world (every column of `scripts/baselines.txt` at the base), and `run`'s header line for social-cafe at seed 7 equals the base's byte for byte | M-DLa-1, M-DLa-6 |
-| **AC-DLa-2** (AC-DL-3, refusals) | Each of: uninstalled model, unknown class, implicit class, non-seat person, unknown person, unknown parameter, out-of-bound parameter, duplicate seat entry, duplicate class entry, `memory:`, fallback on an in-process model, external without fallback, chain of 5, cyclic chain — is refused at load with the file, line and column of the offending node and a message naming it | M-DLa-3 |
+| **AC-DLa-2** (AC-DL-3, refusals) | Each of: uninstalled model, unknown class, implicit class, non-seat person, unknown person, unknown parameter, out-of-bound parameter, duplicate seat entry, duplicate class entry, fallback on an in-process model, external without fallback, chain of 5, cyclic chain, and in `memory:` an unknown key, a malformed `PolicyId`, a non-seat person, an undefined class, a duplicate entry, non-mapping or non-string-keyed `parameters` — is refused at load with the file, line and column of the offending node and a message naming it | M-DLa-3 |
 | **AC-DLa-3** (AC-DL-3, removal) | Removing an assignment (or the whole `decisions:` key) from a pack that had one runs the world; with the key removed the run is AC-DLa-1's | — |
 | **AC-DLa-4** | Precedence seat > class > default holds on a fixture world with a defined class | M-DLa-2 |
 | **AC-DLa-5** | `--decisions` replaces the pack's file; `--seat-model` overrides one seat; both refuse an unknown seat/model naming the flag; `server` refuses them without `--town` | — |
@@ -411,6 +478,7 @@ baseline (§2.2).
 | **AC-DLa-7** | `run` with a decision list prints the digest clause; two files resolving alike print the same digest; changing one parameter changes it | — |
 | **AC-DLa-8** | No file under `kernel/`, `contracts/`, `systems/`, `server/`, `persistence/` changes (`git diff --stat`) | — |
 | **AC-DLa-9** | `mineworld packs` lists controller packages from `cognition/installed`; its output for the base build is unchanged | — |
+| **AC-DLa-11** (QFGb-1) | `mineworld decisions <world> --json` on a fixture pack with a `memory:` section prints, per seat in roster order, the resolved model and a `memory` object whose fields equal FG-b §6's `MemoryPolicyChoice` (`policy`, `fallback`, `parameters`, `source` with the winning entry's file, line, column); seat > class > default holds for memory; a pack without `memory:` prints `"memory": null` for every seat; an unknown policy id (e.g. `nonexistent-policy`) is **accepted** by DL-a and passed through (validation is FG-b's at cognition start); a golden JSON file pins the shape and key order | a resolver that drops `source`, or one that validates policy names in Rust |
 | **AC-DLa-10** | `MODULE_SPEC.md` §4.1 and §5 describe the key, the file, precedence, fallback, overrides and how to install a model, citing `ARC-84`/`ARC-85`; doc checks pass | — |
 
 ---
@@ -448,10 +516,12 @@ worktree root.
 ### C1 — Specifications before code
 
 - **Goal.** `CLAUDE.md` §2.2: the format and the extension point are specified before code.
-- **Scope.** `docs/MODULE_SPEC.md` §4.1 (`decisions:` key, file shape, never seeded), §5 (decision models,
-  `cognition/installed`, install steps, fallback, purity requirement), §8.1 (`--decisions`, `--seat-model`);
-  `docs/DECISIONS.md` dated notes on `ARC-27` and `ARC-33`.
-- [ ] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`.
+- **Scope.** `docs/MODULE_SPEC.md` §4.1 and §5 as DOC-24 (#175) wrote them, amended per F-DLa-2; §8.1
+  (`--decisions`, `--seat-model`, `mineworld decisions --json`); `docs/DECISIONS.md` dated notes on `ARC-84`
+  (digest printed only when a list is in effect, QDLa-5; `memory:` decoded and passed through, policy ids
+  validated by the cognition process at start, QFGb-1), `ARC-27` and `ARC-33`.
+- [ ] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`; every F-DLa-2 item fixed so
+  code and specification agree (`CLAUDE.md` §2.1 rule 4).
 - [ ] Validation: both doc checks.
 - [ ] Review: terminology fixed (`Controller Pack`, `Controller`, decision model is "a Controller Pack's
   model", never a new pack type); no rule stated only in a README.
@@ -489,7 +559,9 @@ worktree root.
 - **Scope.** `cognition/decision/src/{format.rs, read.rs, resolve.rs, digest.rs, models.rs (the
   models! macro)}`; `cognition/installed/{Cargo.toml, README.md, src/lib.rs, tests/installed.rs}`;
   `worldpack/src/{format.rs, read.rs, error.rs}` (the `decisions:` key, SD-DLa-3); `worldpack/tests/`.
-- [ ] Implementation: SD-DLa-4 … SD-DLa-9, SD-DLa-12, SD-DLa-14 (digest function only).
+- [ ] Implementation: SD-DLa-4 … SD-DLa-9 (including the `memory:` decoder, per-seat memory resolution and
+  the YAML→JSON conversion of `parameters`), SD-DLa-12, SD-DLa-14 (digest function only), and the typed
+  JSON structs of SD-DLa-15 (serialization only; the subcommand is C5).
 - [ ] Validation: table-driven refusal test (AC-DLa-2's list, each asserting path, line, column, substring);
   precedence (AC-DLa-4, fixture with `configure/classes.yaml`); chain rules with a test-only catalog
   including an external entry; digest equality/inequality; `cognition/installed` guard test (ids valid and
@@ -503,9 +575,14 @@ worktree root.
 
 - **Goal.** Both hosts drive each seat by its resolved model; the absent case is identical.
 - **Scope.** `tools/cli/{Cargo.toml, src/main.rs, src/run.rs, src/serve.rs, src/hosted.rs, src/packs.rs,
-  src/decisions.rs (new: read pack/flag, build roster, resolve)}`; `tools/cli/tests/decisions.rs` (new).
-- [ ] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause); existing `hosted.rs` unit tests
-  adapted to construct `PacedSeat` with `Arc<dyn SeatModel>` (the lattice assertions unchanged).
+  src/decisions.rs (new: read pack/flag, build roster, resolve; the `decisions` subcommand)}`;
+  `tools/cli/tests/decisions.rs` (new); `tools/cli/tests/fixtures/decisions/` (golden JSON).
+- [ ] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause), SD-DLa-15 (`mineworld decisions …
+  [--json]`); existing `hosted.rs` unit tests adapted to construct `PacedSeat` with `Arc<dyn SeatModel>` (the
+  lattice assertions unchanged).
+- [ ] Validation (QFGb-1 part): AC-DLa-11 — golden JSON for a fixture pack with `memory:` (class and seat
+  entries, a default, an unknown policy id passed through); `"memory": null` for social-cafe; the JSON parses
+  with `serde_json` back into the typed structs (round trip on the Rust side; the Python side is FG-b's test).
 - [ ] Validation: golden header + summary test for social-cafe seed 7, 30 days, captured on the base
   **before** this commit (test rules §25) and asserted equal; flag refusals; `--seat-model alice=rule` prints
   the clause; `server --town --decisions` starts (existing real-server test harness) and its `town:` line
@@ -543,7 +620,11 @@ worktree root.
   code changes. The template test covers it automatically.
 - **P6** adds `external "lm"` and turns AC-DL-5 into its own test; P6's "routine policy" becomes the seat's
   fallback chain (step-24 §8.6).
-- **FG-b** replaces SD-DLa-9's refusal with decoding in the cognition process.
+- **FG-b** (R-DLa-FG-1 answered): DL-a accepts FG-b §6's `memory:` shape unchanged, refuses structural
+  errors with line and column, and emits the per-seat `MemoryPolicyChoice` JSON through `mineworld decisions
+  --json` (SD-DLa-9, SD-DLa-15). FG-b owns semantic validation (`resolve`) at cognition start and refuses an
+  unknown `format` version.
+- **P6** (R-P6-FG-2) obtains each LM seat's choice from that JSON.
 - **WE-b** extends seat entries to Organization seats under QS24-2.
 
 ## 12. Edits to planning documents (primary session's, after merge)
@@ -553,7 +634,10 @@ under step-24 §5.1.
 
 ---
 
-## 13. Execution contract (proposed; filled at freeze)
+## 13. Execution contract (filled at freeze, 2026-10-12)
+
+The source of every authority line is the primary session's freeze of 2026-10-12 under the operator's
+standing instruction, relayed to this planning session. **Implementation starts only on the operator's go.**
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S24 PR DL-a — the decision list
@@ -561,13 +645,16 @@ PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-dl-a-decision-list.md
 RELATED / BINDING DOCS:  mvp1/step-24-decision-and-memory.md (§§3, 4, 5, 10.2, 11.2, 12, 13, 14.1);
                          overall.md 2026-10-12; docs/DECISIONS.md ARC-23, ARC-25, ARC-27, ARC-33, ARC-53,
                          ARC-61, ARC-64, ARC-84, ARC-85, DEP-10, DEP-12; docs/MODULE_SPEC.md §§4.1, 5, 8.1;
+                         pr-fg-b-retention-host.md §6 (the memory: shape and MemoryPolicyChoice, QFGb-1);
                          docs/ENGINEERING_STANDARDS.md; docs/ENGINEERING_RULES.md; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-dl-a, its own, held by one session
 BRANCH:                  mvp0/pr-dl-a, created from origin/main
-START CONDITION:         DOC-24 merged
+START CONDITION:         DOC-24 merged AND the operator's explicit go. Before both, no implementation
+                         session starts
 IMPLEMENTATION BASE:     origin/main at C0; C0 records the commit
-APPROVED SCOPE:          §3.1, as frozen
-FROZEN INVARIANTS:       §3.3 I-DLa-1 … I-DLa-7; SD-DLa-1 … SD-DLa-14 as ruled
+APPROVED SCOPE:          §3.1, as frozen (including 5a and the decisions subcommand)
+FROZEN INVARIANTS:       §3.3 I-DLa-1 … I-DLa-7; SD-DLa-1 … SD-DLa-15 as ruled (§14.1); the JSON shape of
+                         SD-DLa-15 (format 1) as agreed with FG-b
 SEQUENCE:                C0 … C7
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *; mkdir -p;
                          sed -n
@@ -575,15 +662,22 @@ NEVER:                   python3 -c; sed -i; heredoc writes; curl; edits under k
                          systems/, server/, persistence/, cognition/lm-controller/; editing
                          scripts/baselines.txt
 MATERIAL STOPS:          AC-DLa-1 FAIL; any edit outside §3.1's paths; a new external dependency; a change to
-                         a §8 criterion after it has run once; a change to PacedRuleController's behaviour
+                         a §8 criterion after it has run once; a change to PacedRuleController's behaviour;
+                         a change to the memory: shape or the MemoryPolicyChoice JSON that FG-b has not
+                         agreed
 PLATFORMS:               Linux, macOS, Windows
 VALIDATION BUDGET:       unit/integration/binary tests: unrestricted locally; one long parity record at C7
                          (expected ≤ 20 min); CI: the PR's runs
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-dl-a.md
-ENDPOINT AUTHORITY:      implementation, commits, push, PR creation/update, CI repair: as the freeze states
-                         merge: never by the implementation session; only with explicit operator
-                         authorization (working rules §22)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized, in a fresh session, once the start
+                         condition holds (operator's go)          (primary session, 2026-10-12)
+                         semantic commits: authorized             (primary session; working rules §14)
+                         branch push: authorized                  (primary session; working rules §21)
+                         PR creation / update: authorized         (primary session; working rules §21)
+                         CI repair to review readiness: authorized (primary session; working rules §21)
+                         merge: never by the implementation session; only after the primary session's
+                         review and with explicit operator authorization (working rules §22)
 POST-MERGE SYNC OWNER:   primary session: overall.md, step-24; implementation session: this ledger
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
@@ -599,7 +693,18 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **QDLa-3** [OPERATOR] | Per-seat parameter overrides (`{ seat: alice, model: motivated, parameters: {…} }`)? | **Not in DL-a.** One parameter block per model per file, as step-24 §4.2 shows. A world wanting two tunings of one model can be revisited with DL-b evidence |
 | **QDLa-4** | `mineworld-decision` depending on `mineworld-sdk` to reuse `parameters!` vs. a contracts-only trait crate | **Depend on the SDK**: reusing IL-a's bound checks beats a second implementation; the rule controller already depends on the kernel transitively |
 | **QDLa-5** | Header clause only when a list is in effect (keeps baselines) vs. always | **Only when in effect** (§5.8) |
-| **QDLa-6** | `memory:` refused until FG-b, or accepted and ignored? | **Refused by name** (I-DLa-5) |
+| **QDLa-6** | `memory:` refused until FG-b, or accepted and ignored? | **Refused by name** (I-DLa-5) — *superseded by the QFGb-1 ruling, §14.1* |
+
+### 14.1 Rulings, 2026-10-12 (primary session, operator standing instruction; binding)
+
+| Question | Ruling |
+| --- | --- |
+| QDLa-1 … QDLa-5 | **Accepted as recommended.** |
+| QDLa-6 | Accepted as recommended, then **superseded the same day** by the cross-design ruling on QFGb-1 below: `memory:` is not refused. |
+| **QFGb-1** (FG-b, PR #180; cross-design) | **(a).** DL-a's Rust reader decodes `memory:` (FG-b §6's shape), resolves each seat's block (seat > class > default) and emits typed JSON `MemoryPolicyChoice` for the cognition process; FG-b validates the policy name and parameters at cognition start. Applied as SD-DLa-9 (revised), SD-DLa-15 (new), scope 5/5a, AC-DLa-2 (revised), AC-DLa-11 (new), C4/C5, §11, §13. |
+
+Consequence recorded: an unknown memory policy id fails when the cognition process starts, naming file, line
+and column, not at `run`'s load (SD-DLa-9).
 
 ---
 
@@ -623,3 +728,13 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 - **F-DLa-1** (planning): step-24 §5.1's "the rule controller depends on contracts only" is inaccurate (§2.1);
   no design change.
+- **F-DLa-2** (planning, at freeze, after rebasing on `origin/main @ d14f05e`): DOC-24 (#175) wrote
+  `MODULE_SPEC.md` §4.1/§5 from step-24's sketch. Five statements differ from this frozen design and are
+  amended by C1: (1) `mineworld-decision` "depends on `mineworld-contracts` only" → also `mineworld-sdk`
+  (QDLa-4); (2) `decide(&self, parameters, seed, observation)` / `step(&self, parameters, observation)` →
+  both take `Consult { seed, pace, observation }` (SD-DLa-1); (3) "`run` prints the digest … in its header"
+  → only when a decision list is in effect (QDLa-5, SD-DLa-14); (4) "an unknown … policy … is refused at
+  load" → structural `memory:` errors at load, unknown policy ids at cognition start (QFGb-1, SD-DLa-9);
+  (5) the example's `curves: atus-2003-2023` → `atus-a3-2025` (QDLb-3; DL-b's C7 owns the `motivated`
+  paragraph, DL-a fixes the example). Also: "the loader refuses the `decisions:` key until that PR merges"
+  is removed by C1.

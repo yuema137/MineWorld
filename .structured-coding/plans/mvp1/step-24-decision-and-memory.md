@@ -1022,6 +1022,13 @@ MVP-1
 | **WE-b** | Organization seats (if QS24-2 is yes), director Controller Pack (Python, P5 gateway), scripted storyline double | WE-a; P6 | MVP-1 | AC-WE-5 … -7 |
 | **FG-e** | archive segments, manifest, streaming readers | FG-d; F-S24-1 | MVP-1 | full replay over archived save; resume opens no segment |
 
+*Dated note, 2026-10-12 (primary session ruling on QDLb-1, `mvp0/pr-dl-b-motivated.md` §14.1):* the DL-b row
+is narrowed. DL-b ships no `tools/routine-fit`: the `motivated` curves are derived in-crate by a pure function
+from the committed ATUS A-3 table (edition `atus-a3-2025`), and the Markov-chain **routine generator** of §6.6
+is deferred to a later PR (with DL-c or the reference-world switch of QS24-3). Also (QFGb-1, 2026-10-12):
+DL-a decodes `decisions.yaml` `memory:` and emits each seat's `MemoryPolicyChoice` as typed JSON for the
+cognition process (`mvp0/pr-dl-a-decision-list.md` SD-DLa-9, SD-DLa-15).
+
 ### 11.3 Parallelism
 
 DL-a, FG-a, FG-b, FG-d and WE-a touch disjoint crates (`cognition/decision` + hosts; `systems/relationships`
