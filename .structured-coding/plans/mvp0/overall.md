@@ -926,8 +926,9 @@ MVP-0 non-preclusion audit.
 | S12 13c doorway names (`pr-13c-doorway-names.md`, merged #161) | ARC-82 (a doorway discloses its destination's tags) | — |
 | S13 13c nightly (`pr-13c-nightly.md`, design frozen #158) | ARC-83 | DEP-45 |
 | Prior-art audit (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11) | — | DEP-46 (no shared-world or AI-NPC framework adopted) |
+| Step-24 decision and memory (`mvp1/step-24-decision-and-memory.md`, approved 2026-10-12; DOC-24 and later PRs) | ARC-84 (the decision list is host-read content, not world state); ARC-85 (behaviour extension points: interface, carrier, selection, parameters, host); ARC-86 (System-owned forgetting is lazy, pure and in the owner; no model); ARC-87 (controller-memory retention: host-computed importance, event-time recency, forgotten set, hard bounds); ARC-88 (world evolution: happenings System and directors that only propose) | DEP-47 (build our own utility core; big-brain, bonsai-bt, dogoap rejected); DEP-48 (ATUS A-3 public-domain tables via an offline fit tool) |
 
-The next free numbers are ARC-84 and DEP-47. ARC-81 and DEP-43 were assigned to S6 save retention, and
+The next free numbers are ARC-89 and DEP-49. ARC-81 and DEP-43 were assigned to S6 save retention, and
 DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
 An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
@@ -1098,6 +1099,58 @@ Effect on the plan, as the audit records it: no change to MVP-0's scope or order
 the P6 design of [`step-17-cognition.md`](step-17-cognition.md), which carries a dated note. Per the
 audit's §6, `REUSE_POLICY.md` §19's "worth auditing next" list is updated: Concordia and AI Town are now
 audited, and AgentSociety and SimWorld remain.
+
+### 2026-10-12: Milestone E accepted; decision, world-evolution and forgetting extension points (step-24)
+
+**Milestone E accepted.** The operator accepted Milestone E on 2026-10-12 (#172). The operator ran it by hand
+on `main`, and every step behaved as expected.
+
+**Operator rule.** At a milestone all work stops: no merges, and agents are paused, until the operator reports
+the result of the milestone check.
+
+**Ruling reversed: character-memory forgetting is in MVP-0.** The earlier ruling that placed it in MVP-1
+(`pr-s10-p4-memory.md` QP4-11, 2026-10-10) is superseded. Reason (operator): without forgetting, storage,
+memory and LLM tokens would all explode. The forgetting PRs are FG-a … FG-d in MVP-0 (step-24 §1.2, §8).
+
+**Operator requirement: pluggable behaviour.** World evolution, person decisions and forgetting are all
+pluggable. Users can write their own plug-ins. Each of the three ships one no-LLM example and one LLM example.
+LLMs only propose; they never mutate state. The host enforces hard bounds, and those bounds hold in every mode
+(step-24 §3, §10.1).
+
+**Step-24 approved (2026-10-12)**, with operator rulings from `step-24-decision-and-memory.md` §14.1:
+
+- QS24-2: an Organization may hold a seat, for the director only. The details are decided before the
+  director PR (WE-b, MVP-1), and `CORE_CONCEPTS.md` §14 is amended then, not now.
+- QS24-6: LLM forgetting may decide which memories survive. The host's bounds still apply, forgotten Event IDs
+  stay resolvable, and falling back to the no-LLM policy on failure is recorded.
+- QS24-8: the `needs` System Pack is in MVP-1 (DL-c).
+- QS24-1, 3, 4, 5, 7, 9, 10, 11, 12, 13 and 14 are accepted as recommended.
+
+Decision ids are recorded in the decision table above: `ARC-84` … `ARC-88`, `DEP-47`, `DEP-48`.
+
+**MVP-0 PRs from step-24** (filed under `mvp0/` when each is detailed, QS24-14):
+
+- DOC-24: spec amendments and decision records (no code)
+- DL-a: decision-list interface and seat wiring
+- DL-b: the `motivated` utility model, curves and the ATUS-derived curve set
+- FG-a: relationship decay and eviction
+- FG-b: the memory retention host, retention budgets and the forgotten set
+- FG-c: the LLM-assisted forgetting policy
+- FG-d: save retention SR-b, as designed in `pr-s6-save-retention.md` §6.9
+- WE-a: the `happenings` System Pack
+
+**MVP-1 PRs from step-24:**
+
+- DL-c: the `needs` System Pack and its `motivated` considerations
+- WE-b: the director Controller Pack, with Organization seats (QS24-2)
+- FG-e: cold archive segments, after F-S24-1's streaming readers (QS24-13)
+
+**Operator rulings from 12d (TD-D12 and TD-D14, 2026-10-12):**
+
+- Kicks, throws and pushes are printed in the walking towns, not required. `bodies-yard` proves them.
+- The 30-day market-town save bound is ≤ 192 MiB for towns with bodies.
+- modern-goods goes from 0.1.0 to 0.2.0, with item names.
+- HB-3 at R 250 is restated: a blocked walker re-plans round a standing person.
 
 ## Still open
 
