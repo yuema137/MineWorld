@@ -1395,6 +1395,15 @@ paid service; every run on standard hosted runners of the public repository.
   ruling); until explained, the two tests are milestone-F hand checks. Further evidence (run 38103771945):
   the third 3D settings test, which passed on macOS three times, hung there once too — the hang is
   intermittent on the paravirtual GPU, which is a reason to find its cause rather than widen a list.
+- **F-13c-R1 — review (primary, head `ad7bd6b`): a widened not-run list survived the self-test.** Adding
+  a third, unruled name to `HOSTED_UNRUNNABLE` kept `ci_godot.py --self-test` passing. Fixed:
+  `QC5B_RULED` holds exactly the two ruled names with a pointer to §14.1; `ruled_list_failures` is
+  checked by `coverage` and by the self-test ("the not-run list is exactly the two names QC-5b ruled").
+  Mutation: `three_d_switches_language_live_and_settings_never_reach_the_server` added to
+  `HOSTED_UNRUNNABLE` → "FAIL the not-run list is exactly the two names QC-5b ruled (F-13c-R1)";
+  reverted → passed.
+- **Ruling on the macOS hang of the third 3D test (primary, 2026-10-12):** it is **not** listed; a red
+  clients-mac night is the honest signal and feeds F-13c-impl-5.
 - **F-13c-impl-6 — `scripts/ci_parity.py` is 990 lines**, past the standards' ~800-line warning (one
   record format's writer, comparator, baselines, diff and their self-tests); not split here (A-N10's
   file list); recorded for a later split if it grows.

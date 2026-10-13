@@ -95,7 +95,20 @@ HOSTED_UNRUNNABLE: dict[str, str] = {
     "the_language_chosen_in_2d_is_in_the_3d_clients_first_frame":
         "'the slice hung' on all three hosted runners (llvmpipe, Apple Paravirtual, D3D12 WARP)",
 }
+# The names QC-5b ruled, and only those (primary ruling 2026-10-10, pr-13c-nightly.md §14.1; review
+# F-13c-R1). HOSTED_UNRUNNABLE must equal this set: widening the list is a new ruling, recorded there
+# first, never an edit here alone.
+QC5B_RULED = frozenset({"two_d_display_settings_take_effect",
+                        "the_language_chosen_in_2d_is_in_the_3d_clients_first_frame"})
 OSES = ("Linux", "Darwin", "Windows")
+
+
+def ruled_list_failures(unrunnable: dict[str, str]) -> list[str]:
+    """The not-run list must be exactly the QC-5b ruling's names."""
+    extra, missing = sorted(set(unrunnable) - QC5B_RULED), sorted(QC5B_RULED - set(unrunnable))
+    return ([f"HOSTED_UNRUNNABLE names {', '.join(extra)}, which QC-5b did not rule "
+             "(pr-13c-nightly.md §14.1): a wider list needs a new ruling first"] if extra else []) + \
+           ([f"HOSTED_UNRUNNABLE lacks {', '.join(missing)}, which QC-5b ruled"] if missing else [])
 
 SLICE_LIMIT = 900.0
 MODES = ("drive", "link", "target", "character", "scale", "settings")
@@ -309,7 +322,7 @@ def judge_coverage(tests: list[str], skips: dict[str, dict[str, str]],
 
 def coverage() -> int:
     tests = listed_tests()
-    failures = judge_coverage(tests, SKIPS, HOSTED_UNRUNNABLE)
+    failures = ruled_list_failures(HOSTED_UNRUNNABLE) + judge_coverage(tests, SKIPS, HOSTED_UNRUNNABLE)
     skipped = {os_name: sorted(names) for os_name, names in SKIPS.items() if names}
     print(f"[godot] coverage: {len(tests)} ignored Godot tests ({', '.join(GODOT_TESTS)}); "
           f"{len(tests) - len(HOSTED_UNRUNNABLE)} run on a hosted leg; skips {skipped or 'none'}; "
@@ -351,6 +364,10 @@ def self_test() -> int:
                                                          "(only the QC-5b list may be)"]),
         ("a QC-5b name that is no test fails coverage", bool(judge_coverage(tests, {}, {"client_2d::z": "d"}))),
         ("every OS skips every QC-5b name", all(set(HOSTED_UNRUNNABLE) <= set(skips_on(o)) for o in OSES)),
+        ("the not-run list is exactly the two names QC-5b ruled (F-13c-R1)",
+         ruled_list_failures(HOSTED_UNRUNNABLE) == []),
+        ("an unruled third name on the not-run list is refused",
+         bool(ruled_list_failures({**HOSTED_UNRUNNABLE, "three_d_x": "r"}))),
         ("every OS has a pinned build", set(ASSETS) == set(OSES) and all(len(pin) == 128 for _, pin, _ in ASSETS.values())),
     ]
     failed = 0
