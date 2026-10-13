@@ -1156,8 +1156,13 @@ A-N1  PASS        R2 run 38098788738: 14 rows with verdicts, the push-run line, 
 A-N2  PASS        R2 parity-long; summary-300 = main's ac8 at 9f853e1 (run 38093249025)
 A-N3  PASS        R2 "baselines PASS"; cross-checks F-13c-impl-1; re-recorded at the merge (F-13c-impl-3)
 A-N4  PASS        R2 and R1 stability on Linux, macOS, Windows; MN-3 local
-A-N5  NOT MET     two windowed tests fail on every hosted leg for display reasons (F-13c-impl-2);
-                  QC-5 cannot skip them; operator ruling QC-5b requested. Everything else in A-N5 PASS
+A-N5  PASS, as amended by QC-5b (2026-10-10), with one disclosed flake: run 38103771945 (0fbda40,
+                  clients only): clients-linux and clients-windows PASS (QC-5b names skipped, QC-5 name
+                  skipped, notes present, coverage PASS); clients-mac FAIL on
+                  three_d_switches_language_live_and_settings_never_reach_the_server, "the slice hung"
+                  (build 41 s on the paravirtual GPU) — it passed on macOS in R1, the clients re-run and
+                  R2. Not a third QC-5b name (the ruling lists two); it is evidence for F-13c-impl-5,
+                  and a night red on clients-mac for it is the nightly reporting a 3D hang to its lane
 A-N6  PASS        R1 and R2: two complete samples per OS, "none"
 A-N7  AFTER MERGE the primary session's check (gate self-test MN-6 PASS locally)
 A-N8  PASS (static) --list core identical to main's, fast = main's + 4; PR CI on the final head: see PR
@@ -1195,9 +1200,11 @@ run          branch / head                         groups        result and use
 38098788738  13c-full-nightly @ d5cc82d            all (full 2)  R2, the final executable head: A-N1 … A-N6,
                                                                  A-N11; red only for F-13c-impl-2's two tests
 38099806828  13c-mn9-stability-issue @ 58ef25e     stability     (single 9) MN-9 push 3 (failure removed)
+38103771945  13c-qc5b-clients @ 0fbda40            clients       (single 10) QC-5b applied: Linux, Windows
+                                                                 PASS; macOS one hang (F-13c-impl-5)
 ```
 
-Used: 2 of 6 full, 9 of 12 single-group runs (one cancelled before any job). No larger runner, no
+Used: 2 of 6 full, 10 of 12 single-group runs (one cancelled before any job). No larger runner, no
 paid service; every run on standard hosted runners of the public repository.
 
 - **R2 (`d5cc82d` = `main` 9f853e1 + this PR's scripts; run 38098788738).** A-N1: every job's verdict
@@ -1385,7 +1392,9 @@ paid service; every run on standard hosted runners of the public repository.
   lane). The two 3D settings tests time out ("the slice hung") on llvmpipe, Apple Paravirtual Metal and
   D3D12 WARP; the 3D probes (drive, link, target) pass on Linux and macOS, and the laptop passes all.
   Slow software rendering is the likely reason, but a hang is not assumed to be display-only (QC-5b
-  ruling); until explained, the two tests are milestone-F hand checks.
+  ruling); until explained, the two tests are milestone-F hand checks. Further evidence (run 38103771945):
+  the third 3D settings test, which passed on macOS three times, hung there once too — the hang is
+  intermittent on the paravirtual GPU, which is a reason to find its cause rather than widen a list.
 - **F-13c-impl-6 — `scripts/ci_parity.py` is 990 lines**, past the standards' ~800-line warning (one
   record format's writer, comparator, baselines, diff and their self-tests); not split here (A-N10's
   file list); recorded for a later split if it grows.
@@ -1515,17 +1524,18 @@ MERGE AUTHORITY     never without explicit operator approval
 
 ```text
 PR                  #162, branch mvp0/pr-13c-nightly, worktree /Users/yuema137/mineworld-worktrees/impl-13c-nightly
-BASE                main 3c8bbf3 at the start; main 9f853e1 merged in as 436d905
-FINAL EXECUTABLE    d5cc82d (R2 ran on it); later commits change this file only
-LIFECYCLE           implementation complete; NOT "READY FOR OPERATOR REVIEW" as frozen: A-N5 needs the
-                    operator's ruling on QC-5b (F-13c-impl-2). Everything else is met (§12, A-N table).
-                    CLOSED / AWAITING OPERATOR ACTION
-OPEN FOR THE OPERATOR
-  QC-5b             two windowed Godot tests (two_d_display_settings_take_effect,
-                    the_language_chosen_in_2d_is_in_the_3d_clients_first_frame) fail on every hosted leg
-                    for display reasons; proposal in §12.2 F-13c-impl-2. Until ruled, clients-* is red
-                    every night for them, so the nightly issue would open on the first night after merge.
+BASE                main 3c8bbf3 at the start; 9f853e1 merged in as 436d905; ea921fa merged in after
+                    QC-5b (a laptop long record at that head: "baselines PASS")
+EXECUTABLE HEADS    d5cc82d (R2, every group); 0fbda40 (QC-5b, clients run 38103771945); the final PR
+                    head adds the ea921fa merge and this file only; PR CI runs on that exact head
+LIFECYCLE           READY FOR OPERATOR REVIEW — DO NOT MERGE. CLOSED / AWAITING OPERATOR ACTION
+RULED               QC-5b (primary, 2026-10-10): applied; two tests carried to milestone F (N-1, N-2)
+OPEN FOR THE 3D LANE
+  F-13c-impl-5      "the slice hung" on every hosted runner, intermittently on macOS for a third test
+                    (run 38103771945): root cause owed; until then clients-mac may be red on that test
 OPEN FOR THE PRIMARY SESSION
+  F-13c-impl-1      ledger digests: market-town's d5db8988… is the memory run's, not the saved run's
+  F-13c-impl-6      scripts/ci_parity.py is 990 lines (past the ~800 warning); not split here
   F-13c-impl-3      journal bytes moved in every world between c65a963 and 9f853e1 with no fact or
                     summary moving (likely IL-e #159); baselines re-recorded with reason lines
   QC-6 follow-up    S6 SR merged first: the 1 000-day saved run and the ASR-1 640 MiB check are S13's
