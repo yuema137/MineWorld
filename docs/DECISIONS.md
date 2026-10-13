@@ -5858,6 +5858,14 @@ already decodes with its own type.
 - A world that adopts an Entity Pack shifts the ids of its later item kinds and organizations, as
   editing its own `items:` does today. Saves do not record which packs they used (QSE-14).
 
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — kinds carry a
+display name, and `modern-goods` is 0.2.0.** `item`'s section now requires `name` (step-11 SD-D10,
+R-PK-2; `ARC-37` note), so an Entity Pack's kinds state one like any world's. `modern-goods`' twelve
+kinds gain theirs (the key in plain English, as Market Town's: Apple, Bread, …, Umbrella), and the
+facts a world requiring the pack declares change, so its version moves **0.1.0 → 0.2.0**; a world
+requires it as `"^0.2"`. Nothing else in the rules above changes. A third-party Entity Pack written
+before this note is refused at load until each kind has a `name`, naming the file and line.
+
 ---
 
 ## ARC-54 note — a required data pack's own framework range is checked (F-Ed1, 2026-10-08)
@@ -7266,6 +7274,14 @@ becomes ≤ 128 MiB for walking towns; the retention rule and the snapshots it k
 300-day size is printed by `tools/cli/tests/market_town.rs` as a measurement, not a bound. SR-b (log
 compression) is the expected remedy for the size, as above.
 
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 2, the operator's ruling) — ASR-2 for towns
+with bodies.** With `bodies` installed in the towns (`ARC-39` note 7), every walk also meets walls,
+furniture and people: stopped-short, displaced arrivals and shoves join the log, and Market Town's
+30-day save measured 170 811 392 B (162.9 MiB), about 45 % over the walking town's 112.3 MiB. ASR-2's
+bound becomes **≤ 192 MiB for towns with bodies** (the 30-day market-town save); the retention rule and
+the snapshots it keeps are unchanged. SR-b's log compression is still expected to bring the size back
+down.
+
 ---
 
 ## DEP-43 — Snapshot compression: `zstd` (bundled libzstd), level 3
@@ -7379,6 +7395,11 @@ it would exempt exactly the composed world from the parity claim.
   holdings; fish is the only renewable food, and the milestone test measures that it closes the loop.
 - The reference clients do not draw Lakeside: a Presentation Pack is declared and validated, not yet
   applied (step-16 QSE-9).
+
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — Lakeside after
+item names.** Lakeside's own `fish` kind gains its display name (`Fish`), and its `requires` moves to
+`modern-goods: "^0.2"` (`ARC-71` note of the same date). Lakeside's facts change by the names alone;
+the composition, its packs and the milestone's claims are unchanged.
 - A saved 300-day run of a world this size is gigabytes (F-SAVE-1); the persistence lane owns retention.
 
 **Revisit** when a registry or `.mwpack` (E-C) gives data packs a place outside this repository, or when

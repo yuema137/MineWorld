@@ -9,8 +9,8 @@
 //!        leaving by the disclosed doorway still works (the operator's walk-out-through-the-wall bug)
 //! TD-13  an observer in market-town's café is disclosed `item-catalogue`: the twenty kinds, in ItemId
 //!        order, with their names; an observer in social-cafe (no `item`) is disclosed none
-//! TD-6/7 300 days of each town, seed 7: the physical actions happen and stay rare (counts printed per
-//!        30-day bucket), strides stopped by walls and furniture are at most 10 % (the M-3 ruling,
+//! TD-6/7 300 days of each town, seed 7: shoves happen and stay rare, kicks, throws and pushes are
+//!        printed (TD-6 as restated, step-11 TD-D12; counts per 30-day bucket), strides stopped by walls and furniture are at most 10 % (the M-3 ruling,
 //!        step-11 §21.15), then the scan finds nobody overlapping, in a wall or a solid
 //! TD-8   social-cafe without `bodies` runs, nobody is resolved, and the same scan sees the overlaps
 //! ```
@@ -407,10 +407,10 @@ fn assert_bodies_happen_and_stay_rare(name: &str, report: &Report, seats: &[Stri
     println!(
         "{name} over 300 days: kicks {kicks}, throws {throws}, shoves {shoves}, pushes {pushes}"
     );
-    assert!(
-        kicks > 0 && throws > 0 && shoves > 0 && pushes > 0,
-        "{name}: each happens"
-    );
+    // TD-6 as restated by the operator (step-11 §19.13 TD-D12 item 1, 2026-10-12): in the walking
+    // towns kicks, throws and pushes are printed per bucket, not required — walks are routed round
+    // loose objects — and bodies-yard remains the proof of all three (AO-1). Shoves stay required.
+    assert!(shoves > 0, "{name}: a shove happens");
     // The operator's M-3 ruling (step-11 §21.15, relayed for 12d): strides stopped by walls and
     // furniture (`by: None`) are at most 10 % of all strides; those stopped by people or objects are
     // printed, not bounded. A stride is a request's first arrival that is not a shove.

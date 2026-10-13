@@ -88,16 +88,19 @@ fn save_bytes(save: &Path) -> u64 {
 }
 
 /// The 30-day size bound, `ASR-2` (`ARC-81`; QSR-5 made it a CI assertion): the save on disk —
-/// `world.sqlite` and any `-wal` beside it — is at most 128 MiB, and it holds exactly the snapshots the
+/// `world.sqlite` and any `-wal` beside it — is at most 192 MiB, and it holds exactly the snapshots the
 /// retention rule keeps for a headless run, computed here: genesis, every multiple of 4 096 up to the
 /// newest scheduled snapshot *n*, and *n* − 64 and *n*.
 ///
 /// 128 MiB, not 64, since people walk (the operator's ruling on step-11 M-6, 2026-10-10; `ARC-81`
 /// note): a walk's strides are requests and facts of their own, so a walking town records about 2.2 ×
-/// the facts, and its 30-day save measured 112.3 MiB against 59.2 MiB before. The snapshot rule is
-/// unchanged. SR-b's log compression is expected to bring the size back down.
+/// the facts, and its 30-day save measured 112.3 MiB against 59.2 MiB before. 192 MiB since the town
+/// has bodies (the operator's ruling on step-11 TD-D12, 2026-10-12; `ARC-81` note): walls, furniture
+/// and people add stopped-short, displaced arrivals and shoves to the walks, and the 30-day save
+/// measured 162.9 MiB. The snapshot rule is unchanged. SR-b's log compression is expected to bring
+/// the size back down.
 fn save_is_bounded(save: &Path, tables: &Tables) {
-    const BOUND: u64 = 128 * 1024 * 1024;
+    const BOUND: u64 = 192 * 1024 * 1024;
     let bytes = save_bytes(save);
     let head = u64::try_from(tables.journal.len()).expect("fits");
     let newest = head - head % 64;
@@ -105,6 +108,9 @@ fn save_is_bounded(save: &Path, tables: &Tables) {
         .chain((1..=newest / 4_096).map(|k| k * 4_096))
         .chain([newest - 64, newest])
         .collect();
+    // In revision order: when the newest scheduled snapshot is itself an anchor (a multiple of 4 096),
+    // it is listed twice, around n − 64, and is kept once.
+    expected.sort_unstable();
     expected.dedup();
     let held: Vec<u64> = tables
         .snapshots

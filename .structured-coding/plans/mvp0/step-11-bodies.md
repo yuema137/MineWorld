@@ -7187,6 +7187,43 @@ town runs other 4 of 6.
 
 Nothing else is blocked by these three: TD-D9 … TD-D11 are committed; TD-5's committed tests pass.
 
+**TD-D12 RULINGS (operator, 2026-10-12, relayed by the primary session; all three as recommended;
+binding). The files below are authorized as bounded additions to §19.1's change set.**
+1. **TD-6 restated for the walking towns:** per 30-day bucket at least one `stopped-short` and one
+   displaced `arrived` (unchanged); per seat per bucket kicks + throws + shoves ≤ 288 (unchanged); at
+   least one accepted shove over the run (unchanged); **kicks, throws and pushes are printed per bucket
+   and over the run, not required**; at day 300 every object reachable (unchanged). bodies-yard remains
+   the proof of all three actions (AO-1). Applied in `town_bodies.rs`.
+2. **ASR-2 for towns with bodies: ≤ 192 MiB** (30-day market-town save). Applied in
+   `tools/cli/tests/market_town.rs`, with a dated note under `ARC-81` and §14.10 of
+   `pr-s6-save-retention.md`.
+3. **Item names in content merged after the freeze:** `name` added to the 12
+   `entities/modern-goods/items/*.yaml` kinds (Apple, Bread, Cake, Candle, Cheese, Coffee, Juice, Milk,
+   Notebook, Soap, Tea, Umbrella — the key in plain English, as QD-15), `worlds/lakeside/items/fish.yaml`
+   (Fish), the fixtures in `milestone_e.rs` (Smoked fish) and `third_party.rs` (Fish); modern-goods
+   0.1.0 → **0.2.0** (`pack.yaml`, its README, `MODULE_SPEC.md`'s example), Lakeside's `requires`
+   `modern-goods: "^0.2"`, `milestone_e.rs`'s `entity-pack 0.2.0` literal; notes under `ARC-71` and
+   `ARC-77`.
+   Also asked: the Python AC-10 `test_d` run locally before CI.
+
+E-TD8 after the rulings (working tree on fad22a8): milestone_e 7/7, packs 6/6, third_party 3/3,
+entity_packs 5/5; `uv run --locked pytest cognition/lm-controller/tests/test_ac10.py` with
+`MINEWORLD_BIN` = this tree's dev binary: 8 passed, **test_d PASS** (92 s).
+town_bodies.rs 7/7 (TD-2, TD-3, the wall check, TD-13, TD-6 as restated, TD-7, TD-8):
+  social-cafe  kicks 3, throws 0, shoves 18 822, pushes 7 (printed); strides 553 828, stopped by
+               geometry 15 308 = 2.8 % (≤ 10 %), by a person 87 503, by an object 154; 823 377 requests,
+               closest pair 495 mm (erin–felix, apartments), closest person–object 246 mm; 0 violations
+  market-town  kicks 1, throws 0, shoves 6 280, pushes 2; strides 543 101, geometry 12 076 = 2.2 %, person
+               87 187, object 8; closest pair 495 mm (bob–hana), person–object 259 mm; 0 violations
+market_town.rs 1/1 (250 s): ASR-2 30-day save 170 811 392 B (162.9 MiB) ≤ 192 MiB; 22 snapshots; the
+  300-day save measured 1 749 176 320 B (1 668.1 MiB, printed, unbounded); every market claim held.
+
+**TD-D13 — ASR-2's snapshot list, one defect of the test (bounded; claim unchanged).** With 12d's head
+of 81 982 revisions the newest scheduled snapshot n = 81 920 is itself an anchor (20 × 4 096); the
+test's expected list [… 81 920, n − 64, n] was deduplicated without sorting, so it held 81 920 twice
+while the save (correctly) held it once. `market_town.rs` now sorts before deduplicating. The
+retention rule and the claim ("exactly genesis, the anchors and the newest two") are unchanged.
+
 ---
 
 # 20. PR 12d-0 — bodies' cost (full design; DESIGN FROZEN 2026-10-08; MERGED as #84, `78ca5ae`)

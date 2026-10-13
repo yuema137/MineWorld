@@ -81,7 +81,7 @@ modern-goods/
     coffee.yaml      tags, note, and sections — e.g. `item: { category: food }`, owned by `item`
 ```
 
-A world uses it by requiring it (`requires: { modern-goods: "^0.1" }`, §4.1); its kinds then exist in
+A world uses it by requiring it (`requires: { modern-goods: "^0.2" }`, §4.1); its kinds then exist in
 that world as if the world had declared them. How a world requiring one is read, and every refusal,
 is §4.1's "Requiring an Entity Pack"; `mineworld packs validate` of one is §8.1's.
 
