@@ -32,11 +32,13 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
   **Paused** at `8814aad` on material stop TD-D7 (the walkers do not route round the new geometry), by
   the operator's ruling of 2026-10-08: "add pathfinding; 12d waits for it".
-- **PR 12n — navigation** (12n-1 the walk, 12n-2 people walk there): §21, **DESIGN FROZEN
-  (2026-10-09, primary session)**; to be implemented in a fresh session in `impl-12n` on
-  `mvp0/pr-12n-navigation` (§21.14). Drafted on `plan/s15-12n`, **revision 1** after the primary
-  session's review (R-12n-1: strides are embodied `walk-step` requests at wall cadence, not a world-time
-  Process). Also decides 12d's TD-D8 (§21.6).
+- **PR 12n — navigation — MERGED** (12n-1 the walk, 12n-2 people walk there): §21, **DESIGN FROZEN
+  (2026-10-09, primary session)**. **12n-1 — MERGED** as GitHub #116, merge commit `ecc8d40`
+  (2026-10-10). **12n-2 — MERGED** as GitHub #125, merge commit `adc46bd` (2026-10-13T00:49:36Z), final
+  head `e88dea8`; CI run 38324647984 green; post-merge record in §21.15 (E-NW-final). Implemented in
+  `impl-12n` on `mvp0/pr-12n-navigation` (§21.14). Drafted on `plan/s15-12n`, **revision 1** after the
+  primary session's review (R-12n-1: strides are embodied `walk-step` requests at wall cadence, not a
+  world-time Process). Also decides 12d's TD-D8 (§21.6).
 - **PR 12e** — bodies in the 3D client: detailed in §22, **DESIGN FROZEN (2026-10-09), primary
   session** (record §22.0); preconditions 12d and 16c merged; to be implemented in a fresh session in
   `impl-12e` on `mvp0/pr-12e-3d-bodies`. §21 is reserved for 12n.
@@ -8964,7 +8966,8 @@ Approved by / evidence primary session, 2026-10-09, relayed by the coordinator: 
 Implementation base    main at the session's start (≥ ec38570), with PR #100 merged; re-audit §21.2 if a
                        listed path moved
 Execution contract     §21.14
-Lifecycle              FROZEN — implementation in a fresh session in impl-12n
+Lifecycle              12n-1 MERGED (#116, ecc8d40); 12n-2 MERGED (#125, adc46bd, final head e88dea8).
+                       PR 12n complete. (Was: FROZEN — implementation in a fresh session in impl-12n.)
 ```
 
 **Rulings at the freeze (primary session, 2026-10-09):**
@@ -10727,6 +10730,19 @@ E-NW10 CI on 0e05858 (the M-6 edits; PR run 38103621432, pull_request, non-draft
       0e05858's. CI on the exact final head is reported in the PR and the handoff (a commit cannot carry
       its own CI).
       READY FOR OPERATOR REVIEW once that run is green. QN-2: 12n-2 merges immediately before 12d.
+
+E-NW-final Merge record and closeout. MERGED PR #125 (12n-2, people walk there) by the operator,
+      merge commit adc46bdb018ab2679da4604ca4648b5130884116, 2026-10-13T00:49:36Z. Final head e88dea8
+      (the closeout's own commits are Markdown only). CI run 38324647984 green: fast, test, test-macos,
+      test-windows, platforms ×2, python ×3 all passed. The 12n-2 code is the one E-NW10 measured on
+      0e05858; later main merges and the Markdown commits do not change it.
+      Primary review mutation: `PacedRuleController::step` made to return nothing. Caught by
+      name: `paced_tests::step_asks_for_my_stride_only_while_my_walk_is_disclosed_and_offered` and
+      `paced_tests::step_never_answers_takes_no_draw_and_is_a_function_of_the_observation` both failed.
+      OPEN ITEM: the 300-day market-town save size (N-D29) was NOT OBSERVED. CI hides the passing output
+      of `market_town.rs` (`eprintln!` without `--nocapture`), so the ASR-2 measurement is still unrecorded.
+      The first `--nocapture` run or failing run of that test records it; no bound applies (M-6 ruling).
+      12d is next: the town gets bodies (§19), on the re-baselined digests from this merge (QN-2).
 ```
 
 

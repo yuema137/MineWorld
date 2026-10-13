@@ -2853,6 +2853,10 @@ designed. It is detailed to the commit by its own planning session, after 13b's 
 > §1.3 lists (a separate `nightly.yml`; 13b's per-push jobs read, not re-run; committed baselines; the
 > 1 000-day saved run after S6). Where they differ, that document governs.
 
+**Merged (13c nightly, PR #162, `9483fec`, 2026-10-13T01:14:57Z).** The final head `7cc29e8` passed PR CI
+(run 38328252388). The merge record, the primary review (F-13c-R1), the first `main` dispatch (A-N7) and
+the open follow-ups are in [`pr-13c-nightly.md`](pr-13c-nightly.md) §12.3.
+
 ## 14.1 What 13c owns
 
 - **The `schedule:` trigger, for the whole workflow.** It is a single nightly cron, for example 03:17 UTC,
