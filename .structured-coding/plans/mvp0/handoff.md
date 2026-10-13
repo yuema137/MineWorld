@@ -44,7 +44,9 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — MATERIAL STOP TD-D14 (HB-3 at R 250); PR #171 open, CI red on scenarios n2
+## Current checkpoint — TD-D14 ruled (a) and applied; full local gate green (E-TD10); PR #171 ready, CI on the exact head
+
+## Earlier checkpoint — MATERIAL STOP TD-D14 (HB-3 at R 250); PR #171 open, CI red on scenarios n2
 
 - CI on c172d21: test and test-macos fail on bodies' scenarios n1/n2 (my TD-D9 run had skipped the
   file). n1 passes once its lengths are multiples of R (§21.6), committed; n2's HB-3 (the walker gets

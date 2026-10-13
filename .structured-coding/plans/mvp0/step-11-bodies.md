@@ -7305,6 +7305,30 @@ reproduced locally (my TD-D9 validation had not run this file — corrected abov
 - Nothing else failed in CI's first results: fast, platforms ×2, python ×3 (ubuntu, macos) green;
   test-windows and python (windows) still running at the stop.
 
+**TD-D14 RULING (operator, 2026-10-12, relayed by the primary session): option (a).** HB-3 at R 250 is
+restated like M-1: "the bias turns the walker, the standing person is nudged within bounds, a stride may
+be blocked, and a blocked walker re-plans round them". No constant changes. Applied in `scenarios.rs`
+`n2_a_standing_person_is_nudged_aside_a_little_at_a_time`: after the twelve strides (each checked by
+`bounded_stride`: ≤ 4 displaced, every nudge ≤ R + 10, nobody within CLEARANCE) it asserts ≥ 1 biased
+stride, b nudged (116 mm in 1 nudge), a still west of b (no pass-through); then `walk-to` (6 000, 5 000)
+and `walk-step`s until the walk ends, CLEARANCE checked after every step: 4 steps, a arrives at
+(6 000, 5 000), east of b (b nudged on the way to (4 026, 5 179)). scenarios.rs 17/17. F-12d-1 accepted
+by the primary session: it re-records `scripts/baselines.txt` from the first nightly long record after
+12d merges.
+
+**Lesson (TD-D14, recorded at the primary session's request).** A `cargo test` without
+`--no-fail-fast` stops at the first failing test binary, so every binary after it goes unrun; a
+targeted re-run of the one fixed binary does not cover them. I claimed "bodies all pass" from such a
+run. From here: every package-level or workspace validation is run with `--no-fail-fast`, the
+`Running …` list is checked against the package's test files, and before each push that changes
+tests the full `cargo test --workspace --no-fail-fast` and the Python suite run locally.
+
+E-TD10 the full local gate after the TD-D14 ruling (working tree on 9dd1c37 + n2's restatement and this
+entry; the same code is committed next): `cargo test --workspace --no-fail-fast` exit 0 — 227 result
+lines, 1 050 passed, 0 failed, 34 ignored (the Godot-gated tests); `uv run --locked pytest sdk/python`
+103 passed; `uv run --locked pytest cognition/lm-controller` 169 passed, 1 skipped (MINEWORLD_BIN = this
+tree's dev binary). fmt clean.
+
 **TD-D13 — ASR-2's snapshot list, one defect of the test (bounded; claim unchanged).** With 12d's head
 of 81 982 revisions the newest scheduled snapshot n = 81 920 is itself an anchor (20 × 4 096); the
 test's expected list [… 81 920, n − 64, n] was deduplicated without sorting, so it held 81 920 twice

@@ -26,6 +26,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use mineworld_bodies::{Degraded, Outcome, Route, explain};
 use mineworld_contracts::{ActionRecord, EntityType, Location, PersonId};
+use mineworld_movement::{Destination, WalkStep, WalkTo};
 use mineworld_presence::Arrived;
 use support::{
     CLEAR, Fact, GAP, Moved, Plan, Put, R, TOL, Xy, Yard, cafe, distance2, encode, shape, xy,
@@ -296,13 +297,50 @@ fn n2_a_standing_person_is_nudged_aside_a_little_at_a_time() {
         .sum();
     let (a, b) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
     let moved = distance2((4_000, 5_000 + OFFSET), b).isqrt();
-    println!("n2: b moved {moved} mm in all, in {nudges} nudges; a ends at {a:?}, b at {b:?}");
-    assert!(
-        moved >= 100,
-        "the instrument sees a nudge: b moved {moved} mm"
+    let biased = strides.iter().filter(|(outcome, _)| outcome.biased).count();
+    println!(
+        "n2: b moved {moved} mm in all, in {nudges} nudges; {biased} strides biased; a ends at {a:?}, \
+         b at {b:?}"
     );
-    // HB-3: with the bias on, the walker gets past the person standing in the way.
-    assert!(a.0 > b.0, "a ends east of b: a {a:?}, b {b:?}");
+    // HB-3 as the operator restated it for R 250 (step-11 §19.13 TD-D14, 2026-10-12, like M-1): the
+    // bias turns the walker, the standing person is nudged within bounds (every stride checked by
+    // `bounded_stride`: each nudge ≤ NUDGE_MAX + GAP = R + 10, nobody ever within CLEARANCE — no
+    // pass-through), a stride may be blocked, and a blocked walker re-plans round them.
+    assert!(biased >= 1, "the bias turns the walker");
+    assert!(nudges >= 1 && moved > 0, "the standing person is nudged");
+    assert!(a.0 < b.0, "no stride passes through b: a {a:?}, b {b:?}");
+
+    // …and a blocked walker re-plans round them: `walk-to` a point east of b, then `walk-step`s until
+    // the walk is over. The first stride may be stopped by b; the next plans round b (SD-N9).
+    let mut yard = yard;
+    let goal = (6_000, 5_000);
+    let to = yard.at("room", goal);
+    let walk = yard.submit(
+        "a",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(to)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let mut steps = 0;
+    loop {
+        let step = yard.submit(
+            "a",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        if !step.accepted() {
+            break;
+        }
+        steps += 1;
+        assert!(steps <= 40, "the walk ends");
+        let (a_now, b_now) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
+        assert!(
+            distance2(a_now, b_now) >= i64::from(CLEAR).pow(2),
+            "no pass-through on the walk: a {a_now:?}, b {b_now:?}"
+        );
+    }
+    let (a, b) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
+    println!("n2: the walk round b took {steps} steps; a at {a:?}, b at {b:?}");
+    assert_eq!(a, goal, "the walk round the standing person arrives");
+    assert!(a.0 > b.0, "a ends east of b");
 }
 
 /// Claim 2 as the operator ruled it (step-11 §21.15, M-1 ruling, 2026-10-09, option (a)): nudge chains
