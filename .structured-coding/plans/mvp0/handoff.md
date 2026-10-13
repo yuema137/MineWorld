@@ -44,7 +44,14 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — TD-C8 done; PR open, CI on the exact head (see the PR)
+## Current checkpoint — MATERIAL STOP TD-D14 (HB-3 at R 250); PR #171 open, CI red on scenarios n2
+
+- CI on c172d21: test and test-macos fail on bodies' scenarios n1/n2 (my TD-D9 run had skipped the
+  file). n1 passes once its lengths are multiples of R (§21.6), committed; n2's HB-3 (the walker gets
+  past a standing person) fails at R 250 with NUDGE_MAX = R. Recommendation (a): restate HB-3 as M-1
+  did claim 2. Waiting for the ruling.
+
+## Earlier checkpoint — TD-C8 done; PR open, CI on the exact head (see the PR)
 
 - TD-D12 ruled (all three as recommended) and applied (34bdaef); E-TD8 (AC-10 test_d passes locally).
 - origin/main merged again (e893367: 13c nightly; scripts/CI/docs only).

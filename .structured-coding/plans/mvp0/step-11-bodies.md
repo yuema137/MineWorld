@@ -7133,7 +7133,9 @@ TD-D8's two failing tests (both now pass under §21.6's restated claims).
   tightened from 310).
 - Validation on 3950381's tree: `cargo test -p mineworld-bodies` all pass (lib 19, actions 28,
   doorways_genesis 6, genesis 6, isolation 7, long_run 1, long_run_objects 1, objects 7, route unit
-  and oracle, scenarios, rapier_pin); `ac1_composability` 15/15, `seam_vocabulary`,
+  and oracle, rapier_pin); **correction (2026-10-12, TD-D14): `scenarios.rs` was not run here** —
+  `cargo test` stopped at route.rs's first failure, and after the oracle fix only `--test route` was
+  re-run; CI found n1 and n2 failing; `ac1_composability` 15/15, `seam_vocabulary`,
   `precursor_vocabulary`; `-p mineworld-worldpack` all; CLI walking 9/9, bodies_yard 4 (+1 ignored),
   inspect 3, commands 4, content_kinds 3, server_command 10; clippy `--workspace --all-targets
   --all-features -D warnings` clean; `cargo fmt --all` applied.
@@ -7277,6 +7279,31 @@ did not update it either; after 12d every town section (and lakeside's, by the n
 the radius) differs. Regenerating it needs ci_parity.py's long profile (300-, 1 000- and saved 300-day
 runs of four worlds), beyond 12d's run cap. Proposed: re-record from the first nightly's long record
 after 12d merges, with the reason line "12n-2 + 12d (QN-2): walking, bodies, item names".
+
+**TD-D14 — MATERIAL STOP (2026-10-12): HB-3 does not hold at R 250 with the derived constants.** Found by
+CI on c172d21 (PR #171, run 38342316502, `test` and `test-macos`): `scenarios.rs` n1 and n2 fail;
+reproduced locally (my TD-D9 validation had not run this file — corrected above).
+- n1 (HB-1, two walkers head-on pass each other) failed with §9.6's R-300 lengths (0.5 m strides): a and
+  b lock at (3 859, 4 948) / (4 336, 5 121) from stride 8, `nudge_failed`. **With the lengths scaled as
+  §21.6 orders ("each test scenario's lengths become multiples of R": step 5R/3 = 416 mm) n1 passes**:
+  a ends at (6 755, 4 836), b at (1 525, 5 316), 2 strides biased. That edit (`STEP`, `OFFSET` in
+  scenarios.rs) is committed with this entry; n2 is left failing, unfudged.
+- **n2 (a standing person nudged aside; HB-3 "with the bias on, the walker gets past the person
+  standing in the way") fails both unscaled and scaled.** Scaled (step 416, b offset R/3 = 83 mm): stride
+  3 is biased and nudges b 116 mm to (4 103, 5 137); from stride 4 every stride is `nudge_failed`, and a
+  stays at (3 653, 4 900), west of b — "a ends east of b" fails. Unscaled: b never moved (0 mm), a stuck
+  at (3 542, 4 879). The cause is the frozen SD-N11 derivation: `NUDGE_MAX = R` (250, so a nudge is at
+  most 260 mm) and `BIAS_BAND = 166`; at R 300 (300 / 200) the same scenario passed (12b, PB-13).
+  E-NV3 / M-1 ran only claims 1 and 2 at R 250; HB-1 … HB-3 were never checked there.
+- §21.6: "If either fails at R 250 with derived constants, that is a material stop with the numbers —
+  no constant is re-tuned to pass." By analogy this is the same class. Options: (a) restate HB-3 for
+  R 250 as M-1 restated claim 2 — "the bias turns the walker and the standing person is nudged within
+  bounds; a stride may be blocked; a blocked walker re-plans round them" (the walk's claim, SD-N9
+  `avoid`, walking.rs NV-2 (c), (f)) — and commit n1's scaling; (b) re-derive NUDGE_MAX or BIAS_BAND
+  differently (a constant change, against SD-N11 and bodies' results); (c) a bodies rule change for
+  a standing person (out of 12d). Recommendation: (a).
+- Nothing else failed in CI's first results: fast, platforms ×2, python ×3 (ubuntu, macos) green;
+  test-windows and python (windows) still running at the stop.
 
 **TD-D13 — ASR-2's snapshot list, one defect of the test (bounded; claim unchanged).** With 12d's head
 of 81 982 revisions the newest scheduled snapshot n = 81 920 is itself an anchor (20 × 4 096); the

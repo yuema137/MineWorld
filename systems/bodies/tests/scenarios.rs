@@ -34,6 +34,12 @@ use support::{
 /// n3's crowd spacing, 13R/6 (step-11 §21.6): 541 mm at R 250 (650 at R 300).
 const SPACING: i32 = 13 * R / 6;
 
+/// Every scenario's walking step, 5R/3 (step-11 §21.6): 416 mm at R 250 (500 at R 300).
+const STEP: i32 = 5 * R / 3;
+
+/// n2's standing person's offset from the walker's line, R/3: 83 mm at R 250 (100 at R 300).
+const OFFSET: i32 = R / 3;
+
 /// The floor shrunk by R − TOL = 245 mm (a radius less the tolerance), and the counter grown by it.
 fn inside_the_cafe((x, y): Xy) -> bool {
     let disc = R - TOL;
@@ -239,16 +245,16 @@ fn scenario(name: &str) -> (Yard, Vec<(Outcome, Moved)>) {
             (0..24)
                 .map(|r| {
                     if r % 2 == 0 {
-                        ("a", (500, 0))
+                        ("a", (STEP, 0))
                     } else {
-                        ("b", (-500, 0))
+                        ("b", (-STEP, 0))
                     }
                 })
                 .collect(),
         ),
         "n2" => (
-            vec![("a", (2_000, 5_000)), ("b", (4_000, 5_100))],
-            vec![("a", (500, 0)); 12],
+            vec![("a", (2_000, 5_000)), ("b", (4_000, 5_000 + OFFSET))],
+            vec![("a", (STEP, 0)); 12],
         ),
         // The crowd's spacing 13R/6 and the walker's step 5R/3 — 650 and 500 mm at R 300 — so the
         // scenario keeps its shape at any radius (step-11 §21.6, TD-D8).
@@ -261,7 +267,7 @@ fn scenario(name: &str) -> (Yard, Vec<(Outcome, Moved)>) {
                 ("c4", (5_000 + SPACING, 5_000)),
                 ("c5", (5_000 + SPACING, 5_000 + SPACING)),
             ],
-            vec![("a", (5 * R / 3, 0)); 12],
+            vec![("a", (STEP, 0)); 12],
         ),
         other => panic!("no scenario {other}"),
     };
@@ -289,7 +295,7 @@ fn n2_a_standing_person_is_nudged_aside_a_little_at_a_time() {
         .map(|(_, moved)| moved.displaced().len())
         .sum();
     let (a, b) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
-    let moved = distance2((4_000, 5_100), b).isqrt();
+    let moved = distance2((4_000, 5_000 + OFFSET), b).isqrt();
     println!("n2: b moved {moved} mm in all, in {nudges} nudges; a ends at {a:?}, b at {b:?}");
     assert!(
         moved >= 100,
