@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-10 (Milestone E implemented, awaiting operator acceptance; B and C accepted 2026-10-07)
+**Updated:** 2026-10-12 (Milestone E accepted by the operator; B and C accepted 2026-10-07)
 
 ---
 
@@ -19,7 +19,7 @@ here does not block anything else.
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
-| **E** | Package composition | a real world assembled from independently installable packs | 🚧 **implemented, awaiting operator acceptance** — PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
+| **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
 holds, proved against the real binary hosting the real pack. The evidence names identity rather
