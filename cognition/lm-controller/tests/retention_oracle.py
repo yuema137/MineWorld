@@ -1,6 +1,6 @@
 """AFGb-3's coverage oracle (pr-fg-b §9): from a store's canonical dump and the perceived ids alone.
 
-It parses the dump's JSON lines and never calls the code under test. Keys are the store's 20-digit event
+It parses the dump's JSON lines and never calls the code under test (a `MemorySection` is only read). Keys are the store's 20-digit event
 keys, made here by padding, as the dump stores them.
 """
 
@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from itertools import pairwise
 
 from mineworld_sdk.wire.ids import EventId
+
+from mineworld_cognition.memory.retrieve import MemorySection
 
 
 def key(event: str) -> str:
@@ -37,6 +39,35 @@ class Dump:
     def meta(self, name: str) -> str:
         (value,) = [str(row["value"]) for row in self.rows("meta") if row["key"] == name]
         return value
+
+
+CEILING = 6_000
+SECTIONS = {
+    "L3": ("People I know:", 16, 1600),
+    "L2": ("Recent weeks:", 4, 800),
+    "L1": ("Episodes I remember:", 8, 1600),
+    "L0": ("The last day:", 48, 2000),
+}
+"""D-P4-9's literals, written here rather than read from the code under test."""
+
+
+def check_section(section: MemorySection, dump: bytes) -> None:
+    """AFGb-7 (a): the rendered section and every section within D-P4-9's bounds; (b): no L0, L1 or L2
+    line cites a forgotten range (an L3 line may: QFGb-4)."""
+    assert len(section.render().encode("utf-8")) <= CEILING
+    for level, (header, most, limit) in SECTIONS.items():
+        lines = [line.render() for line in section.lines if line.level == level]
+        assert len(lines) <= most, level
+        if lines:
+            used = len(header.encode()) + 1 + sum(len(text.encode()) + 1 for text in lines)
+            assert used <= limit, level
+    forgotten = [_span(row) for row in Dump.parse(dump).rows("forgotten")]
+    for line in section.lines:
+        if line.level == "L3":
+            continue
+        for cited in line.citation.ranges:
+            low, high = key(cited.first), key(cited.last)
+            assert all(high < a or low > b for a, b in forgotten), (line.text, cited)
 
 
 def _span(row: dict[str, object]) -> tuple[str, str]:

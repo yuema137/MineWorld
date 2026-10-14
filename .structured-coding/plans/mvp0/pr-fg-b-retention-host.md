@@ -871,12 +871,17 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Goal.** Three useful no-LLM policies and the hostile fixture, as ordinary plug-ins.
 - **Scope.** `forgetting/*.py`; `pyproject.toml` entry points; `test_retention_policies.py`,
   `test_retention_interface.py` (AFGb-1 (a), AFGb-9).
-- [ ] Implementation: §5.9.
-- [ ] Validation: AFGb-8 literals (the `shasum -a 256` values recorded in §15 before the test is written);
+- [x] Implementation: §5.9. Evidence: `forgetting/decay.py` (`Decay`, survivors over budget get
+  `consolidate`'s defaults inline: D-11 forbids importing the sibling), `forgetting/importance_recency_cap.py`
+  (`ImportanceRecencyCap`); entry points `decay`, `importance-recency-cap`; `consolidate` and `keep-all`
+  landed in C4 (D-5). `test_memory_isolation.py`'s scan now includes `forgetting/`.
+- [x] Validation: AFGb-8 literals (the `shasum -a 256` values recorded in §15 before the test is written);
   AFGb-1 (a); AFGb-9; AFGb-4 (a) and AFGb-5 (a), (d) for every policy over the 300-day synthetic stream;
-  AFGb-7 (a), (b), (e); wall time per policy recorded.
-- [ ] Review: each policy imports only public names; every threshold comparison matches the table's `<`
-  / `≥`; no float.
+  AFGb-7 (a), (b), (e); wall time per policy recorded. Evidence: §15.6 (literals), §15.2 C5, §15.3.
+- [x] Review: each policy imports only public names; every threshold comparison matches the table's `<`
+  / `≥`; no float. Evidence: AFGb-9 (a)'s AST scan passes; `consolidate`: `last_at < now − …` three times;
+  `decay`: `importance * r // 1000 >= threshold`; IRC: integer score; `grep -n "float\|/ " forgetting/`
+  finds no float division (every division is `//`).
 
 ### C6 — Ledger pruning
 
@@ -1082,6 +1087,30 @@ AFGb-6 (a): 10+ passes, cursor ahead of newest in ≥ 5 of them, both unchanged 
 AFGb-2: each of 8 hostile policies refused with its reason, dump = consolidate's but for policy/outcome
 ```
 
+**C5** (macOS arm64, Python 3.14.5; working tree on 31c5aa3 + C5's diff):
+
+```text
+ruff / ruff format --check / pyright strict                                  clean / clean / 0 errors
+pytest cognition/lm-controller -m "not real_binary"                          231 passed, 1 skipped (114.9 s)
+AFGb-4 (a), synthetic, 302 days × 200, seed 7: every pass ≤ TARGET; dump after the first pass at or after
+  day 30 / 100 / 300, and the policy's wall time for the whole run:
+  consolidate               281 313 / 515 821 / 529 367 B    12.9 s
+  decay                     621 256 / 619 137 / 213 806 B    15.0 s
+  importance-recency-cap    279 240 / 417 576 / 440 702 B    29.3 s
+  keep-all (C4)             281 209 / 515 694 / 529 240 B    19.1 s  (the backstop's consolidate step)
+  drop-everything (C4)        7 767 /   8 401 /   8 436 B     4.8 s
+AFGb-7 (a), (b) on each day-300 store (all four bundled policies and drop-everything): section ≤ 6 000 B,
+  each section within D-P4-9, no L0/L1/L2 citation meets a forgotten range (retention_oracle.check_section)
+AFGb-7 (e): stable_facts and chapters carry LIMIT (AST check)
+AFGb-5 (a): frames of 1 and 256 = whole for consolidate, decay, importance-recency-cap, keep-all
+  (24 days × 120); (d): each policy's plan twice on one store's items is equal and non-empty
+AFGb-8: consolidate at and past each age, with the L3 exemption; curve literals (half-life 1000, 750,
+  500, 250, 0; hyperbolic 1000, 500, 250); decay kept at 300, merged at 301 on both curves; IRC tie
+  order equal to §15.6's digest order for seeds 0 and 42; k_l1 = 0 merges every episode into its chapter
+AFGb-1 (a): installed ids and the distribution's own entry points both equal the four ids
+AFGb-9 (a) import scan, (b) `__all__` exactly §5.2's list, (c) a frozen item refuses assignment
+```
+
 ### 15.3 Mutations
 
 Each planted in the source, run, seen red, reverted (the tree compared clean after each).
@@ -1108,6 +1137,15 @@ M-FGb-5    absorb never splits at a day's first fact (passes at frame starts onl
                                                                          → AFGb-5 (a) FAIL (dumps differ at byte 210)
 M-FGb-6a   the pass writes the cursor down to the newest fact             → AFGb-6 (a) FAIL ('1702' != '1708');
            see D-12 for why the design's literal mutation is equivalent here
+M-FGb-8    decay's `>=` threshold made `>`                                → AFGb-8 both "kept at 300" cases FAIL
+M-FGb-8b   consolidate's L0 age `<` made `<=`                             → AFGb-8 consolidate boundary FAIL
+M-FGb-7e   stable_facts without LIMIT                                    → AFGb-7 (e) FAIL
+M-FGb-1a   the consolidate entry point renamed (consolidate-renamed)     → AFGb-1 (a) FAIL (the registry refuses
+           an entry whose name is not the class id; the distribution no longer declares `consolidate`)
+M-FGb-9a   decay reads a wall clock (`import time`; age from time_ns)    → AFGb-9 (a) FAIL. AFGb-5 (a) and (d)
+           SURVIVED this mutation: a wall-clock age is enormous next to world seconds, so every item's
+           retention is 0 on every call and the plans agree. The class is owned by AFGb-9 (a)'s static
+           scan (test rules §24: recorded, not claimed for (a)/(d))
 ```
 
 ### 15.4 Deviations and discoveries
@@ -1216,7 +1254,23 @@ sets it from its first fact. Both are functions of the facts.
 
 ### 15.6 AFGb-8 `shasum -a 256` literals
 
-(Recorded before the test is written, C5.)
+Recorded 2026-10-13, before `test_retention_policies.py` existed. The key is the sha256 of the UTF-8
+string `"<seed>:<first Event ID>"`, read big-endian (`policy.tie_key`); equal scores are ordered by
+ascending key. Computed with `printf '%s' "<seed>:<id>" | shasum -a 256`:
+
+```text
+0:1001   147eb15c553311b106cf9b34984cd9f474f8a337dae4aa2d63494a7fb1a3ef20
+0:1002   b5908a58318c40658a883527ed1dcc2fafd8122b466cda0c993745c3165e6cd1
+0:1003   c710fb5f8f858fbb5b39c9abfd810bb9a497b4789307dfd6f03e0b0c6343c0fc
+0:1004   70330830247ccddc3297bf4925cb86470b579b73cf47a38c4d8c5cff068abace
+0:1005   41fbcd083cdb601ba3f566305119b2598cb1dd7cee128a2eee695a99529ab2a9
+42:1001  1464ba8ac8116ffea48eb3b559e51d53b743dda451236e556282d7a73a9433d2
+42:1002  f467dbc11ba5300d9f99dfa9e309272d922bbbd540c97b5cdbebcd5090fd74c8
+42:1003  941971dfb1a7165db3c8c2c7f017916069e88363a6bf7f75fa92950c7bb53e08
+
+order, seed 0:   1001, 1005, 1004, 1002, 1003
+order, seed 42:  1001, 1003, 1002
+```
 
 ### 15.7 CI runs per head
 

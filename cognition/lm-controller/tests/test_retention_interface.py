@@ -6,11 +6,15 @@ installed distribution's own group) and classes given directly (`PolicyRegistry(
 
 from __future__ import annotations
 
-from importlib.metadata import EntryPoint
+import ast
+import re
+from importlib.metadata import EntryPoint, distribution
+from pathlib import Path
 
 import pytest
 from retention_fixtures import KeepsNothingNamed, NoDefault, WrongId
 
+from mineworld_cognition.memory import retention as public
 from mineworld_cognition.memory.retention.registry import (
     GROUP,
     DuplicatePolicy,
@@ -27,6 +31,93 @@ from mineworld_cognition.memory.retention.selection import (
 )
 
 SOURCE = SourceSpan(file="worlds/x/decisions.yaml", line=12, column=7)
+PACKAGE = Path(__file__).resolve().parent.parent / "src" / "mineworld_cognition"
+BUNDLED = ("consolidate", "decay", "importance-recency-cap", "keep-all")
+PUBLIC = {
+    "MemoryItem", "ItemId", "ItemLevel", "RetentionBudget", "Keep", "Merge", "Drop",
+    "RetentionDecision", "ForgettingPolicy", "Citation", "EventRange", "half_life_permille",
+    "hyperbolic_permille", "tie_key",
+}  # fmt: skip
+"""§5.2's list, written here."""
+POLICY_IMPORTS = {
+    "__future__", "typing", "collections.abc", "hashlib", "pydantic",
+    "mineworld_cognition.memory.retention",
+}  # fmt: skip
+"""What a bundled policy may import (AFGb-9 (a), ledger D-11)."""
+FORBIDDEN = {"time", "datetime", "random", "os", "sqlite3", "pathlib"}
+FORBIDDEN_COGNITION = ("gateway", "config", "record", "budget")
+
+
+def test_the_installed_policies_are_the_distributions_entry_points() -> None:
+    # AFGb-1 (a): the registry's ids, and the entry points the installed distribution itself declares,
+    # are FG-b's four. Its mutation registers consolidate by import in the host: a renamed entry point
+    # would still look installed, but this distribution's own metadata no longer lists it.
+    declared = sorted(
+        point.name
+        for point in distribution("mineworld-cognition").entry_points
+        if point.group == GROUP
+    )
+    assert PolicyRegistry.installed().ids() == BUNDLED
+    assert tuple(declared) == BUNDLED
+
+
+def test_bundled_policies_import_only_the_public_retention_names() -> None:
+    # AFGb-9 (a): a source scan of forgetting/. Its mutation imports `time` into decay.py.
+    findings: list[str] = []
+    for path in sorted((PACKAGE / "forgetting").glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+                if node.module == "mineworld_cognition.memory.retention":
+                    hidden = {alias.name for alias in node.names} - PUBLIC
+                    findings += [f"{path.name}: {name}" for name in sorted(hidden)]
+            else:
+                continue
+            for module in modules:
+                root = module.split(".")[0]
+                if module not in POLICY_IMPORTS or root in FORBIDDEN:
+                    findings.append(f"{path.name}: {module}")
+        text = path.read_text(encoding="utf-8")
+        findings += [
+            f"{path.name}: {name}"
+            for name in FORBIDDEN_COGNITION
+            if re.search(rf"\bmineworld_cognition\.{name}\b", text)
+        ]
+    assert findings == []
+
+
+def test_the_policy_surface_is_exactly_the_designed_names() -> None:
+    # AFGb-9 (b).
+    assert set(public.__all__) == PUBLIC
+    assert len(public.__all__) == len(PUBLIC)
+
+
+def test_retrieval_reads_stable_facts_and_chapters_with_a_limit() -> None:
+    # AFGb-7 (e): no unbounded SELECT of `stable` or `chapters` in the functions retrieval calls
+    # (F-S24-2). Its mutation drops the LIMIT from `stable_facts`.
+    compress = PACKAGE / "compress"
+    for path, function in (
+        (compress / "stable.py", "stable_facts"),
+        (compress / "chapters.py", "chapters"),
+    ):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        (found,) = [
+            n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == function
+        ]
+        selects = [
+            node.value
+            for node in ast.walk(found)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and re.search(r"FROM (stable|chapters)\b", node.value)
+        ]
+        joined = [ast.unparse(n) for n in ast.walk(found) if isinstance(n, ast.JoinedStr)]
+        statements = " ".join([*selects, *joined])
+        assert selects, function
+        assert "LIMIT" in statements, function
 
 
 def _given() -> PolicyRegistry:

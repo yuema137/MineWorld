@@ -16,7 +16,7 @@ from memory_fixtures import alice_identity
 from mineworld_sdk.wire.ids import EventId
 from retention_driver import DAY, Pass, built, by_day, days, feed, frames, retention
 from retention_fixtures import DropDayOne, DropEverything, KeepsNothingNamed
-from retention_oracle import check_coverage
+from retention_oracle import check_coverage, check_section
 from retention_stream import stream
 from support import run
 
@@ -25,6 +25,7 @@ from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.host import run_pass
 from mineworld_cognition.memory.retention.registry import InvalidParameters, PolicyRegistry
 from mineworld_cognition.memory.retention.selection import Retention
+from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
 from mineworld_cognition.memory.store import MemoryStore
 
 STORE_BOUND = 1_048_576
@@ -72,6 +73,9 @@ def test_the_host_holds_the_bound_whatever_the_policy(policy: str) -> None:
     kept = _drop_everything() if policy == "drop-everything" else retention(policy)
     with MemoryStore.open(":memory:", alice_identity()) as store:
         passes = list(by_day(store, facts, kept))
+        # AFGb-7 (a), (b) on the day-300 store, as for the other bundled policies.
+        section = retrieve(store, RecallQuery(at=facts[-1].at, words="umbrella zeppelin rain"))
+        check_section(section, store.dump())
     _bounded(passes)
     print(f"\n[{policy}] dump after the passes of days 30/100/300: {at_checkpoints(passes)}")
     if policy == "keep-all":
