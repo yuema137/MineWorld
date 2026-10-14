@@ -31,6 +31,33 @@ pub struct RevisionRow {
     pub retire: Vec<WorldRevision>,
 }
 
+/// A closed range of revisions, `first ..= last` — the span of one sealed block (`ARC-89`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RevisionSpan {
+    /// The first revision of the span.
+    pub first: WorldRevision,
+    /// The last revision of the span, at or after `first`.
+    pub last: WorldRevision,
+}
+
+impl RevisionSpan {
+    /// How many revisions the span covers (never zero).
+    pub const fn revisions(self) -> u64 {
+        self.last.raw() + 1 - self.first.raw()
+    }
+
+    /// Whether `revision` lies inside the span.
+    pub fn contains(self, revision: WorldRevision) -> bool {
+        self.first <= revision && revision <= self.last
+    }
+}
+
+impl core::fmt::Display for RevisionSpan {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}–{}", self.first, self.last)
+    }
+}
+
 /// One fact, encoded, filed under its `EventId`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FactRow {

@@ -34,6 +34,7 @@
 #![warn(missing_docs)]
 
 pub mod backend;
+pub mod block;
 pub mod error;
 pub mod format;
 pub mod input;

@@ -583,11 +583,22 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** New `persistence/src/block.rs` (`encode_block(span, journal_rows, fact_rows) ->
   SealedBlock`, `decode_journal`, `decode_facts`, `BLOCK_LEVEL = 9`); `world.rs` `sealing(n, interval,
   sealed_through)`; `lib.rs` module line.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence --lib` (block round trip incl. genesis-sized row,
+- [x] Implementation. `persistence/src/block.rs` (`BLOCK_LEVEL = 9`, `JournalRow`, `SealedFact`,
+  `BlockKeys`, `SealedBlock`, `encode_block`, `decode_journal`, `decode_facts`; the encoder runs the same
+  checks as the decoder, so it refuses rows that do not fill the span); `RevisionSpan` in `backend.rs`
+  (needed by the codec one commit earlier than planned — bounded); `world.rs` `sealing(n, interval,
+  sealed_through)` (marked `expect(dead_code)` outside tests until C3 wires it).
+- [x] Validation: `cargo test -p mineworld-persistence --lib` (block round trip incl. genesis-sized row,
   empty facts span; every D-SRB-4 decode check; the rule's table: first seal at 2·*A*, steady state, changed
-  interval, never ≥ *n* − *A* + 1); clippy; fmt.
-- [ ] Review: the codec never decodes an entry or a fact; the rule reads only its three arguments.
+  interval, never ≥ *n* − *A* + 1); clippy; fmt. (6 passed — 4 block tests: round trip with keys and
+  compression; a 300 000-byte row and a span without facts; the encoder's refusals; 12 decoder damage
+  cases each naming "the sealed block r1–r10": gap, fact outside the span, unordered ids, id columns, action
+  column, trailing byte, truncated row, bad tag, not zstd, flipped byte, cut checksum — and the rule's
+  11-case table. `cargo clippy -p mineworld-persistence --all-targets -- -D warnings` clean after one
+  `type_complexity` fix; `cargo fmt --all` clean.)
+- [x] Review: the codec never decodes an entry or a fact; the rule reads only its three arguments.
+  (`block.rs` imports no contract type and calls no `serde`; `sealing` reads `n`, `interval`,
+  `sealed_through` and the constant `ANCHOR_EVERY`.)
 - **Failure cases.** Truncated / extended / reordered frames → `Damaged` naming the span, never a panic.
 
 ### C3 — Format 4: the `sealed` table, sealing in the commit, readers over both storages

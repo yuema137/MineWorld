@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use mineworld_contracts::{ActionIntent, EventEnvelope, WorldTime};
 use mineworld_kernel::{Advanced, Dispatched, Emission, World, WorldSnapshot};
 
-use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow};
+use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow, RevisionSpan};
 use crate::error::PersistError;
 use crate::format::{
     Manifest, SAVE_FORMAT, decode, decode_snapshot, encode, encode_snapshot, instance_text,
@@ -43,6 +43,29 @@ fn retired(
         .copied()
         .filter(|revision| !kept(revision.raw()))
         .collect()
+}
+
+/// The sealing rule (`ARC-89`, design D-SRB-2): which span of live rows to seal into one block when
+/// revision `n` is committed. With `A = ANCHOR_EVERY × interval`, an anchor commit `n` (a multiple of
+/// `A`, at least `2A`) seals every live revision after `sealed_through` up to `n − A`; any other commit
+/// seals nothing.
+///
+/// One span late, so that the newest block always ends below the newest anchor and a resume — which
+/// restores a snapshot at or after that anchor — reads no block. A function of its three arguments and
+/// of nothing else, so a killed and resumed run seals exactly the blocks an uninterrupted one does
+/// (`ARC-27`). Reading `sealed_through` rather than assuming `n − 2A` keeps a save resumed under another
+/// interval well-formed: its next block starts where the last one ended.
+#[cfg_attr(not(test), expect(dead_code, reason = "wired into commit by SR-b C3"))]
+fn sealing(n: WorldRevision, interval: u64, sealed_through: WorldRevision) -> Option<RevisionSpan> {
+    let anchor = ANCHOR_EVERY * interval;
+    let n = n.raw();
+    if !n.is_multiple_of(anchor) || n < 2 * anchor || n - anchor <= sealed_through.raw() {
+        return None;
+    }
+    Some(RevisionSpan {
+        first: WorldRevision::from_raw(sealed_through.raw() + 1),
+        last: WorldRevision::from_raw(n - anchor),
+    })
 }
 
 /// What a new save is created with, beyond the world itself.
@@ -420,6 +443,55 @@ mod tests {
         ];
         for (what, n, interval, stored, expected) in cases {
             assert_eq!(retired_raw(n, interval, stored), expected, "{what}");
+        }
+    }
+
+    fn sealing_raw(n: u64, interval: u64, sealed_through: u64) -> Option<(u64, u64)> {
+        sealing(
+            WorldRevision::from_raw(n),
+            interval,
+            WorldRevision::from_raw(sealed_through),
+        )
+        .map(|span| (span.first.raw(), span.last.raw()))
+    }
+
+    /// One case: what, n, interval, sealed through before the commit, expected span.
+    type SealCase = (&'static str, u64, u64, u64, Option<(u64, u64)>);
+
+    /// D-SRB-2 over the cases a save can be in, each expected value written from the rule as `ARC-89`
+    /// states it: nothing before `2A`, the first block at `2A`, the steady state one span late, nothing
+    /// off the anchor lattice, nothing twice, another interval, a save resumed under a smaller interval,
+    /// and never a span reaching past `n − A`.
+    #[test]
+    fn the_rule_seals_the_span_one_anchor_behind_each_anchor_commit_and_nothing_else() {
+        let cases: [SealCase; 11] = [
+            ("first anchor", 4_096, 64, 0, None),
+            ("below 2A", 8_000, 64, 0, None),
+            ("first seal at 2A", 8_192, 64, 0, Some((1, 4_096))),
+            ("steady state", 12_288, 64, 4_096, Some((4_097, 8_192))),
+            ("off the lattice", 12_352, 64, 4_096, None),
+            ("scheduled, not an anchor", 12_224, 64, 4_096, None),
+            ("already sealed", 12_288, 64, 8_192, None),
+            ("interval 2", 256, 2, 0, Some((1, 128))),
+            ("interval 2, later", 640, 2, 384, Some((385, 512))),
+            ("after a smaller interval", 1_536, 8, 1_024, None),
+            (
+                "resumed under interval 8",
+                2_048,
+                8,
+                1_024,
+                Some((1_025, 1_536)),
+            ),
+        ];
+        for (what, n, interval, sealed_through, expected) in cases {
+            let sealed = sealing_raw(n, interval, sealed_through);
+            assert_eq!(sealed, expected, "{what}");
+            if let Some((first, last)) = sealed {
+                assert!(
+                    first == sealed_through + 1 && last < n - 64 * interval + 1,
+                    "{what}: the span starts after the last block and ends at or before n − A"
+                );
+            }
         }
     }
 }
