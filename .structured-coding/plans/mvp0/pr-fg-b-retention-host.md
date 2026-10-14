@@ -782,10 +782,15 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
   `mineworld.forgetting` entry-point group, bound by the host's bounds (1 MiB store, 6 000 B per call),
   selected through `decisions.yaml` `memory:`. `docs/ARCHITECTURE.md` §9: controller memory retention, pass
   points, coverage, the forgotten set, the bound. Both cite `ARC-87`.
-- [ ] Implementation: the two sections.
-- [ ] Validation: both doc checks.
-- [ ] Review: terminology matches `CORE_CONCEPTS.md` (Controller Pack, Observation, Event); no synonym for a
-  defined term; nothing contradicts step-24 §8.3 except the recorded corrections (§14).
+- [x] Implementation: the two sections. Evidence: DOC-24 had already created `MODULE_SPEC.md` §5.2 and
+  `ARCHITECTURE.md` §9.3 from step-24's sketch; both rewritten in place to the frozen design (§15.4 F-FGb-6).
+- [x] Validation: both doc checks. Evidence: "223 numbered sections …, none duplicated"; "122 decision ids,
+  all distinct".
+- [x] Review: terminology matches `CORE_CONCEPTS.md` (Controller Pack, Observation, Event); no synonym for a
+  defined term; nothing contradicts step-24 §8.3 except the recorded corrections (§14). Evidence: the
+  corrections carried are QFGb-2 (post-pass target and hard bound), QFGb-3 (`l0_hours`, default 0),
+  QFGb-8 (`into` ∈ {1, 2}, top-level `Drop`), QFGb-9 (ledger prunes by wall time), QFGb-10 (no level
+  term); "memory policy", "Controller Pack", "seat" as `MODULE_SPEC` §5 already uses them.
 - **Failure cases.** DOC-24 not merged: stop (C0 checks it).
 
 ### C2 — Schema v2, importance at ingestion, retrieval without dropped rows
@@ -1015,7 +1020,26 @@ Brief additions:       the sdk/python and cognition Python suites and any affect
 
 ### 15.4 Deviations and discoveries
 
-(Each with reason, source evidence, impact and validation.)
+**F-FGb-6 (C1) — the specification sections already existed, written from step-24's sketch.**
+
+```text
+Previous assumption:  C1 adds "MODULE_SPEC §5" and "ARCHITECTURE §9" text for memory retention.
+Audit evidence:       at the base, DOC-24 (#175) had written MODULE_SPEC.md §5.2 "Memory policies and host
+                      bounds" and ARCHITECTURE.md §9.3 "Controller memory: retention and bounds" from
+                      step-24 §8.3. They disagree with the frozen design in six places: `l0_days` 1 … 30
+                      (2) vs `l0_hours` 0 … 720 (0) (QFGb-3); a merge of items "sharing a counterpart set
+                      or a week" vs one container (QFGb-8); a merge "building a summary" vs a container
+                      that already exists; the backstop "drops the oldest L0 then L1 rows" vs §5.7.3's six
+                      steps; the bound "1 MiB after every pass" vs TARGET 768 KiB post-pass and 1 MiB hard
+                      (QFGb-2); ledger pruning "in the same pass" vs by wall time at charge (QFGb-9); and
+                      importance with a relationship-level term (QFGb-10).
+Corrected:            both sections rewritten in place to the frozen design; the `lm-summarise` row and
+                      the model-calls paragraph (FG-c's) left as DOC-24 wrote them.
+Remaining:            docs/DECISIONS.md ARC-87's "Choice" paragraph keeps step-24's sketch (level term,
+                      "dropping the oldest L0 and L1 rows", "bound-enforced"). ARC-87 is DOC-24's record
+                      and outside AFGb-13's file list, so FG-b does not edit it; reported to the primary
+                      session to amend with a pointer to this design's §14.1 rulings.
+```
 
 ### 15.5 Gate 2 specification and result
 
