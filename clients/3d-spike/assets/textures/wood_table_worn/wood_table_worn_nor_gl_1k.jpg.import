@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://i3k4kp7op1s3"
-path="res://.godot/imported/wood_table_worn_nor_gl_1k.jpg-31c255d862224f5b24c4a3c79ccdc3c7.ctex"
+path.bptc="res://.godot/imported/wood_table_worn_nor_gl_1k.jpg-31c255d862224f5b24c4a3c79ccdc3c7.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/wood_table_worn/wood_table_worn_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/wood_table_worn_nor_gl_1k.jpg-31c255d862224f5b24c4a3c79ccdc3c7.ctex"]
+dest_files=["res://.godot/imported/wood_table_worn_nor_gl_1k.jpg-31c255d862224f5b24c4a3c79ccdc3c7.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

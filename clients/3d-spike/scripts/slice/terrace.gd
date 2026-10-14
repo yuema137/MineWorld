@@ -30,6 +30,9 @@ const HOUSE_DOOR := [Color(0.420, 0.118, 0.110), Color(0.140, 0.200, 0.330),
 ## façade's yaw, a label] -- so `--doors` can photograph each one from the
 ## pavement where a first-time player would look for it.
 static var doors: Array = []
+## Every unit's solid massing, as [global transform, width, height to the eaves,
+## depth, enterable], for the occluders (RL-b SD-RLb-5, `occluders.gd`).
+static var massing: Array = []
 
 ## One building. `origin` is the facade line; `yaw` turns it to face the street.
 class Unit extends RefCounted:
@@ -87,6 +90,7 @@ static func build(parent: Node3D, u: Unit, face_z: float, yaw: float) -> Node3D:
 	var w := u.width()
 	var ground_h := 4.30 if u.shopfront else u.storey_h
 	var top := ground_h + (u.storeys - 1) * u.storey_h
+	massing.append([g.global_transform, w, top, u.depth, u.enterable])
 
 	# Every builder below reports the openings it puts in the façade, and the
 	# façade is then built with those openings cut through it. The first build

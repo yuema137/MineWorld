@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cqdl3xuy3hkl4"
-path="res://.godot/imported/sandstone_blocks_05_nor_gl_1k.jpg-bdc03f7afea5e1a373507c1d9beb5d6a.ctex"
+path.bptc="res://.godot/imported/sandstone_blocks_05_nor_gl_1k.jpg-bdc03f7afea5e1a373507c1d9beb5d6a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/sandstone_blocks_05/sandstone_blocks_05_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/sandstone_blocks_05_nor_gl_1k.jpg-bdc03f7afea5e1a373507c1d9beb5d6a.ctex"]
+dest_files=["res://.godot/imported/sandstone_blocks_05_nor_gl_1k.jpg-bdc03f7afea5e1a373507c1d9beb5d6a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
