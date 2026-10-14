@@ -22,6 +22,7 @@
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, Observation, PerceivedEntity,
 };
+use mineworld_decision::Draw;
 use mineworld_group_activity::{
     AcceptInvitation, ActivityKind, DeclineInvitation, Invitations, Invite, JoinGroupActivity,
     LeaveGroupActivity, Participation,
@@ -29,8 +30,6 @@ use mineworld_group_activity::{
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-
-use crate::paced::Draw;
 
 /// Out of 100: how often an invitation the controller may accept is accepted; otherwise declined.
 const ACCEPTS: u64 = 70;

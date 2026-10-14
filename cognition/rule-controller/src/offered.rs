@@ -20,9 +20,8 @@
 //! retuned for a world that behaves badly: the remedy for that is in what its packs offer.
 
 use mineworld_contracts::{ActionRequest, Affordance, Observation};
+use mineworld_decision::Draw;
 use serde_json::Value;
-
-use crate::paced::Draw;
 
 /// Out of 100: how often a consult that is offered something complete attempts one of the offers.
 pub(crate) const ATTEMPTS_OFFERED: u64 = 20;

@@ -546,12 +546,12 @@ worktree root.
 
 - **Goal.** The rule controller implements the trait without changing a draw.
 - **Scope.** `cognition/rule-controller/{Cargo.toml, clippy.toml, src/paced.rs, src/model.rs, src/lib.rs}`.
-- [ ] Implementation: `paced.rs` uses `mineworld_decision::{Draw, mix}`; `agenda.rs`/`social.rs`/`offered.rs`
-  import paths updated; `Rule` model (SD-DLa-2).
-- [ ] Validation: existing `cargo test -p mineworld-rule-controller` unchanged and green; new parity test
+- [x] Implementation: `paced.rs` uses `mineworld_decision::{Draw, mix}`; `agenda.rs`/`social.rs`/`offered.rs`
+  import paths updated; `Rule` model (SD-DLa-2). *E-DLa-3.*
+- [x] Validation: existing `cargo test -p mineworld-rule-controller` unchanged and green; new parity test
   `Rule` via `SeatModel` vs `PacedRuleController` over the paced test fixtures; `Draw` goldens green;
-  M-DLa-1 and M-DLa-4 run and reverted.
-- [ ] Review: diff of `paced.rs` is imports and the removed `Draw`/`mix` only.
+  M-DLa-1 and M-DLa-4 run and reverted. *E-DLa-3; M-DLa-1, M-DLa-4.*
+- [x] Review: diff of `paced.rs` is imports and the removed `Draw`/`mix` only. *E-DLa-3.*
 
 ### C4 — The format: `decisions.yaml` decoding, resolution, digest; `cognition/installed`
 
@@ -717,7 +717,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | C0 | (this commit) | [x] | [x] | [x] |
 | C1 | (this commit) | [x] | [x] | [x] |
 | C2 | (this commit) | [x] | [x] | [x] |
-| C3 … C7 | — | [ ] | [ ] | [ ] |
+| C3 | (this commit) | [x] | [x] | [x] |
+| C4 … C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -778,10 +779,23 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   unchanged with the decoder's own position. `()` refuses with `unknown_field` for the same reason. The
   decision-list reader (C4) therefore positions its own semantic refusals from `serde_saphyr::Spanned`
   values rather than from `custom` errors.
+- **E-DLa-3 (C3).** `cognition/rule-controller`: `src/paced.rs` diff is one import (`mineworld_decision::{Draw,
+  mix}`) and the deleted `Draw`/`mix` (37 lines) — nothing else; `agenda.rs`, `social.rs`, `offered.rs`,
+  `offered_tests.rs` import `mineworld_decision::Draw`; new `src/model.rs`: zero-sized `Rule` (`ID = "rule"`,
+  `PACKAGE = crate::PACKAGE`, `Parameters = ()`), `decide`/`step` building `PacedRuleController::new(seed,
+  pace)` per consult; `pub use model::Rule`; `clippy.toml` (the model-crate list); `Cargo.toml` names
+  `mineworld-decision`. `PacedRuleController`'s API and behaviour unchanged. New test
+  `paced_tests::rule_as_a_seat_model_is_the_paced_controller`: `&dyn SeatModel` over `Configured<Rule>` equals
+  `PacedRuleController` on `decide` and `step` across 4 views × 2 paces × 36 instants × 64 seeds, with more
+  than 1 000 non-empty decisions compared. `cargo test -p mineworld-decision -p mineworld-rule-controller` →
+  9 + 38 passed (37 existing unchanged + 1); clippy `--all-targets -D warnings` clean on both (PASS).
 
 ### Mutations
 
-(none run yet)
+| Id | Mutation, as run | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- |
+| M-DLa-1 (part 1, C3) | `RULE_SALT` `…726c` → `…726d` in `cognition/decision/src/draw.rs` | `Draw` goldens red | `draw_tests::the_rule_s_draws_are_the_base_s_draws` and `a_salted_draw_is_a_different_stream` FAILED (7 passed, 2 failed); reverted, 9 passed | red by name (PASS). Part 2 (AC-DLa-1's golden) at C5 |
+| M-DLa-4 (C3) | a counter field in `Rule`. As `std::cell::Cell<u64>` the **compiler** refuses it first (`DecisionModel: Sync`); as `std::sync::atomic::AtomicU64`, which is `Sync`, clippy refuses it: "use of a disallowed type `std::sync::atomic::AtomicU64` … a decision model holds no state across consults (ARC-27)" | clippy `disallowed-types` | as expected; reverted, clippy clean | red by name (PASS); a `Cell` cannot even reach the lint |
 
 ### Deviations and findings
 
