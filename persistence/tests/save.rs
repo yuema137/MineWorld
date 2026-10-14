@@ -19,7 +19,7 @@ use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
 };
-use mineworld_persistence::backend::{FactRow, ManifestRow, RevisionRow};
+use mineworld_persistence::backend::{FactRow, ManifestRow, RevisionRow, SealedSpan};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, verify,
@@ -559,60 +559,61 @@ fn an_altered_fact_or_snapshot_is_refused_where_it_was_altered() {
 }
 
 #[test]
-fn a_save_written_by_the_format_2_build_is_refused_by_name() {
-    // Written by the build before SR (pr-s6-save-retention.md §14.1): uncompressed snapshot rows and
-    // `format 2` in its manifest. Copied first, because opening a save in WAL mode writes beside it.
-    let scratch = Scratch::new("format-2");
-    let fixture = std::path::Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/format-2"
-    ));
-    std::fs::copy(
-        SqliteBackend::file(fixture),
-        SqliteBackend::file(scratch.path()),
-    )
-    .expect("the fixture copies");
-    let outdated = |result: Result<(), PersistError>| {
-        assert!(
-            matches!(
-                result,
-                Err(PersistError::SaveFormatOutdated {
-                    saved: 2,
-                    supported: 3
-                })
-            ),
-            "{result:?}"
+fn saves_written_by_the_format_2_and_format_3_builds_are_refused_by_name() {
+    // Format 2 was written by the build before SR (pr-s6-save-retention.md §14.1): uncompressed
+    // snapshot rows. Format 3 by the build before SR-b (pr-sr-b-log-compression.md §14.2): no `sealed`
+    // table, and snapshots referencing the journal. Each is copied first, because opening a save in WAL
+    // mode writes beside it.
+    for older in [2, 3] {
+        let scratch = Scratch::new(&format!("format-{older}"));
+        let fixture = std::path::PathBuf::from(format!(
+            "{}/tests/fixtures/format-{older}",
+            env!("CARGO_MANIFEST_DIR")
+        ));
+        std::fs::copy(
+            SqliteBackend::file(&fixture),
+            SqliteBackend::file(scratch.path()),
+        )
+        .expect("the fixture copies");
+        let outdated = |result: Result<(), PersistError>| {
+            assert!(
+                matches!(
+                    result,
+                    Err(PersistError::SaveFormatOutdated { saved, supported: 4 }) if saved == older
+                ),
+                "format {older}: {result:?}"
+            );
+        };
+        outdated(PersistentWorld::resume(open(&scratch), composed()).map(|_| ()));
+        outdated(verify(open(&scratch).as_ref(), composed()).map(|_| ()));
+        let stored = open(&scratch).manifest().expect("the manifest row reads");
+        assert_eq!(
+            stored.format, older,
+            "the refusal read the fixture's own format"
         );
-    };
-    outdated(PersistentWorld::resume(open(&scratch), composed()).map(|_| ()));
-    outdated(verify(open(&scratch).as_ref(), composed()).map(|_| ()));
-    let stored = open(&scratch).manifest().expect("the manifest row reads");
-    assert_eq!(
-        stored.format, 2,
-        "the refusal read the fixture's own format"
-    );
+    }
 }
 
 #[test]
 fn a_save_of_another_format_or_another_composition_is_refused_by_name() {
     let scratch = Scratch::new("format");
     saved(&scratch, 3);
-    sql(&scratch, "UPDATE manifest SET format = 4");
+    sql(&scratch, "UPDATE manifest SET format = 5");
     assert!(matches!(
         PersistentWorld::resume(open(&scratch), composed()),
         Err(PersistError::SaveFormatTooNew {
-            saved: 4,
-            supported: 3
+            saved: 5,
+            supported: 4
         })
     ));
     // Format 1 is S5's, written before a declaration recorded the owners of borrowed vocabularies
-    // (ARC-26); format 2 stored snapshots uncompressed (ARC-81). Both are refused by name rather than
-    // decoded on a guess.
-    for older in [1, 2] {
+    // (ARC-26); format 2 stored snapshots uncompressed (ARC-81); format 3 kept every log row live
+    // (ARC-89). Each is refused by name rather than decoded on a guess.
+    for older in [1, 2, 3] {
         sql(&scratch, &format!("UPDATE manifest SET format = {older}"));
         assert!(matches!(
             PersistentWorld::resume(open(&scratch), composed()),
-            Err(PersistError::SaveFormatOutdated { saved, supported: 3 }) if saved == older
+            Err(PersistError::SaveFormatOutdated { saved, supported: 4 }) if saved == older
         ));
     }
 
@@ -769,6 +770,9 @@ impl PersistenceBackend for Failing {
     }
     fn highest_action_id(&self) -> Result<Option<u64>, PersistError> {
         self.inner.highest_action_id()
+    }
+    fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError> {
+        self.inner.sealed()
     }
     fn checkpoint(&mut self, revision: WorldRevision, snapshot: &[u8]) -> Result<(), PersistError> {
         self.inner.checkpoint(revision, snapshot)

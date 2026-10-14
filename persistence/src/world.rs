@@ -55,7 +55,6 @@ fn retired(
 /// of nothing else, so a killed and resumed run seals exactly the blocks an uninterrupted one does
 /// (`ARC-27`). Reading `sealed_through` rather than assuming `n − 2A` keeps a save resumed under another
 /// interval well-formed: its next block starts where the last one ended.
-#[cfg_attr(not(test), expect(dead_code, reason = "wired into commit by SR-b C3"))]
 fn sealing(n: WorldRevision, interval: u64, sealed_through: WorldRevision) -> Option<RevisionSpan> {
     let anchor = ANCHOR_EVERY * interval;
     let n = n.raw();
@@ -110,6 +109,9 @@ pub struct PersistentWorld {
     /// The revisions the save holds a snapshot at — read once when the world is created or resumed,
     /// then kept in step with every commit and checkpoint, so that retention needs no query.
     stored: BTreeSet<WorldRevision>,
+    /// The last revision the newest sealed block holds, or revision 0 when nothing is sealed — read once
+    /// when the world is created or resumed, then kept in step with every commit (`ARC-89`).
+    sealed_through: WorldRevision,
     /// Set when a commit failed: the world in memory is then ahead of its save, and refuses
     /// every further input.
     ahead_of_save: Option<(WorldRevision, String)>,
@@ -162,6 +164,7 @@ impl PersistentWorld {
                 instance: creation.instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
                 stored: BTreeSet::from([WorldRevision::GENESIS]),
+                sealed_through: WorldRevision::from_raw(0),
                 ahead_of_save: None,
             },
             began,
@@ -191,6 +194,10 @@ impl PersistentWorld {
             replay::replay_after(&mut composed, backend.as_ref(), snapshot, |_, _| Ok(()))?;
         let instance = manifest.instance_number()?;
         let stored = backend.snapshot_revisions()?.into_iter().collect();
+        let sealed_through = backend
+            .sealed()?
+            .last()
+            .map_or(WorldRevision::from_raw(0), |sealed| sealed.span.last);
         Ok((
             Self {
                 committed_at: composed.now(),
@@ -200,6 +207,7 @@ impl PersistentWorld {
                 instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
                 stored,
+                sealed_through,
                 ahead_of_save: None,
             },
             Resumed {
@@ -312,6 +320,34 @@ impl PersistentWorld {
         }
     }
 
+    /// Fills a scheduled revision's storage work: the snapshots the retention rule retires (`ARC-81`)
+    /// and the span the sealing rule seals (`ARC-89`). Both rules are below the revision by
+    /// construction; the checks keep a future edit of either from deleting the snapshot a resume would
+    /// read, or sealing rows a resume would re-execute.
+    fn schedule_storage(&self, row: &mut RevisionRow) -> Result<(), PersistError> {
+        let revision = row.revision;
+        row.retire = retired(revision, self.snapshot_interval, &self.stored);
+        if let Some(late) = row.retire.iter().find(|retired| **retired >= revision) {
+            debug_assert!(false, "the rule retired {late} at {revision}");
+            return Err(PersistError::Damaged {
+                detail: format!("the retention rule retired {late} at {revision}"),
+            });
+        }
+        row.seal = sealing(revision, self.snapshot_interval, self.sealed_through);
+        let anchor = ANCHOR_EVERY * self.snapshot_interval;
+        if let Some(span) = row.seal
+            && span.last.raw() + anchor > revision.raw()
+        {
+            debug_assert!(false, "the rule sealed {span} at {revision}");
+            return Err(PersistError::Damaged {
+                detail: format!(
+                    "the sealing rule sealed {span} at {revision}, within one anchor of it"
+                ),
+            });
+        }
+        Ok(())
+    }
+
     /// Commits the next revision, or marks the world as ahead of its save.
     fn commit(
         &mut self,
@@ -329,21 +365,13 @@ impl PersistentWorld {
             };
             let mut row = revision_row(revision, input, outcome, facts, snapshot.as_ref())?;
             if scheduled {
-                row.retire = retired(revision, self.snapshot_interval, &self.stored);
-                // By construction every retired revision is below this one; the check keeps a
-                // future edit of the rule from ever deleting the snapshot a resume would read.
-                if let Some(late) = row.retire.iter().find(|retired| **retired >= revision) {
-                    debug_assert!(false, "the rule retired {late} at {revision}");
-                    return Err(PersistError::Damaged {
-                        detail: format!("the retention rule retired {late} at {revision}"),
-                    });
-                }
+                self.schedule_storage(&mut row)?;
             }
             self.backend.commit(&row)?;
-            Ok(row.retire)
+            Ok::<_, PersistError>((row.retire, row.seal))
         })();
         match committed {
-            Ok(retire) => {
+            Ok((retire, seal)) => {
                 self.revision = revision;
                 self.committed_at = self.world.now();
                 if scheduled {
@@ -351,6 +379,9 @@ impl PersistentWorld {
                 }
                 for retired in retire {
                     self.stored.remove(&retired);
+                }
+                if let Some(span) = seal {
+                    self.sealed_through = span.last;
                 }
                 Ok(())
             }
@@ -392,6 +423,7 @@ fn revision_row(
             .collect::<Result<_, PersistError>>()?,
         snapshot: snapshot.map(encode_snapshot).transpose()?,
         retire: Vec::new(),
+        seal: None,
     })
 }
 

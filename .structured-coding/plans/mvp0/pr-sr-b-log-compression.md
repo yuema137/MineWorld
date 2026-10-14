@@ -610,12 +610,37 @@ Targeted validation per commit; the PR's CI is the one full run.
   over blocks + tail); `backend.rs` (`RevisionSpan`, `RevisionRow::seal`); `world.rs` (`sealed_through`,
   `seal` filled on anchor commits, guard); test doubles and `RevisionRow` literals (`save.rs`,
   `tools/cli/tests/inspect.rs`); format-3 fixture from the base build + refusal tests (library and CLI).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test save_retention
-  --test inspect --test run`; `cargo test -p mineworld-acceptance`; mutation "never seal" and "seal one
-  revision too far" run once each.
-- [ ] Review: no path deletes a log row except the seal step; the seal runs after insert and retirement
-  in the same transaction; deleted counts checked.
+- [x] Implementation. `format.rs` (`SAVE_FORMAT = 4`, history line); `sqlite.rs` (schema with `sealed`, the
+  `snapshots → journal` FK dropped; `seal` step after retirement in `write_revision`: read the span's live
+  rows, `encode_block`, decode and compare, insert, delete facts then journal, compare counts; `head` and
+  `highest_action_id` over both tables; `facts_of` decodes the one block holding the revision;
+  `last_facts` reads the tail newest-first and decodes blocks backwards only for what it lacks;
+  `journal_after` over blocks then tail (removed at C4); multi-query reads in one read transaction unless
+  already inside one; a `blocks_decoded()` counter); `backend.rs` (`RevisionRow::seal`, `SealedSpan`, trait
+  method `sealed()`); `world.rs` (`sealed_through`, read at resume from `sealed()`; `schedule_storage`
+  fills `retire` and `seal` with both guards); `save.rs` (`Failing::sealed`, formats 4/5 and 1–3, both
+  fixtures refused); `tools/cli/tests/inspect.rs` (`seal: None`); `save_retention.rs` (format 3 marked;
+  `perceived` and `biography` added to the commands); `.gitignore` admits the format-3 fixture.
+- [x] Validation: `cargo test -p mineworld-persistence` → lib 6, kill_and_resume cafe + clock PASS,
+  retention 4, save 11, all passed (the retention sweep at interval 8 now seals 22 blocks and verifies
+  from genesis through them; `verify_from` at interval 2 reads anchors 128 and 256 out of blocks).
+  `cargo clippy --workspace --all-targets -- -D warnings` clean. Mutation "seal one revision too far"
+  (`last = n − A + 1`): RED — unit table fails; `retention.rs` sweep and verify_from panic "the rule sealed
+  r1–r513 at r1024" / "r1–r129 at r256" (the guard); reverted. Mutation "never seal": deferred to C6/C7,
+  where the size criteria it must turn red (ASRB-1, ASRB-3) first exist. CLI targets and
+  `mineworld-acceptance`: deferred to C4 — see finding F-SRB-1.
+- [x] Review: no path deletes a log row except the seal step; the seal runs after insert and retirement
+  in the same transaction; deleted counts checked. (`grep -n "DELETE FROM" persistence/src/sqlite.rs`: the
+  snapshot retirement and the two deletes inside `seal`, both `BETWEEN` the span, after the `sealed` insert,
+  their counts compared.)
+
+**Finding F-SRB-1 (C3, bounded).** *Previous assumption:* C3 keeps every consumer green with
+`Vec`-shaped methods, so the CLI targets can be validated at C3. *Evidence:* `cargo test -p mineworld-cli
+--test run` ran a `mineworld replay` of a social-cafe save for > 15 min CPU before it was stopped:
+`replay::reproduce` calls `facts_of(revision)` once per revision, and over sealed storage each call decodes
+the whole 4 096-revision block — the quadratic cost §3's audit row for `replay.rs` predicted.
+*Consequence:* the CLI and acceptance validation listed for C3 moves to C4, where replay reads the cursor
+(D-SRB-7). No design change.
 
 ### C4 — Streaming cursors and replay on them
 

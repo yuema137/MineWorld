@@ -29,6 +29,20 @@ pub struct RevisionRow {
     /// the ones the retention rule no longer keeps (`ARC-81`). Never this revision; never a later one.
     /// Each must be stored: a backend refuses to retire a snapshot it does not hold.
     pub retire: Vec<WorldRevision>,
+    /// The span whose live rows this revision's transaction seals into one block, after the row, its
+    /// snapshot and its retirements are written (`ARC-89`). Always entirely below `revision`; every row
+    /// of it must be live, and a backend refuses the revision otherwise.
+    pub seal: Option<RevisionSpan>,
+}
+
+/// A sealed block as a person reading the save sees it: the revisions it covers and what it costs on
+/// disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SealedSpan {
+    /// The revisions the block holds.
+    pub span: RevisionSpan,
+    /// Its two compressed frames, in bytes.
+    pub stored_bytes: u64,
 }
 
 /// A closed range of revisions, `first ..= last` — the span of one sealed block (`ARC-89`).
@@ -96,8 +110,8 @@ pub trait PersistenceBackend {
     /// The newest committed revision.
     fn head(&self) -> Result<WorldRevision, PersistError>;
 
-    /// Commits one revision: its journal row, its facts, its snapshot and the retirement of the
-    /// snapshots it names, all or nothing.
+    /// Commits one revision: its journal row, its facts, its snapshot, the retirement of the
+    /// snapshots it names and the seal of the span it names, all or nothing.
     fn commit(&mut self, revision: &RevisionRow) -> Result<(), PersistError>;
 
     /// Every journal row after `after`, in revision order: `(revision, encoded entry)`.
@@ -126,6 +140,9 @@ pub trait PersistenceBackend {
 
     /// The highest `ActionId` any journaled request carried.
     fn highest_action_id(&self) -> Result<Option<u64>, PersistError>;
+
+    /// The sealed blocks, in revision order (`ARC-89`). The live tail starts after the last one.
+    fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError>;
 
     /// Writes a snapshot for a revision already committed — a checkpoint, as at a clean shutdown.
     fn checkpoint(&mut self, revision: WorldRevision, snapshot: &[u8]) -> Result<(), PersistError>;
