@@ -269,7 +269,7 @@ Local save layout:
 
 ```text
 save/
-└── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
+└── world.sqlite       manifest · journal · facts · sealed · snapshots, one transaction per revision
 ```
 
 A cognition client's memory store is not part of the save. It lives in the operator's cognition
@@ -281,8 +281,17 @@ rather than a `manifest.json` beside it, so that it is committed in the same tra
 revisions it describes ([`DECISIONS.md`](DECISIONS.md) `DEP-2`). A save whose format, composition, system
 versions or component schemas differ from the running code is refused by name, never decoded on a guess.
 
-The fact log and the journal are kept whole: no row of either is ever deleted, rewritten or
-re-encoded. Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
+The fact log and the journal are kept whole: no row of either is ever dropped, rewritten or
+re-encoded. They are stored in two places ([`DECISIONS.md`](DECISIONS.md) `ARC-89`): a **live tail** of
+the newest revisions, one row per fact and per journal entry, and **sealed blocks** behind it. At each
+anchor commit the rows of the span one anchor interval behind it (4 096 revisions by default) move,
+byte for byte, into one block — two zstd frames, journal and facts, of a length-prefixed framing of the
+rows — in that commit's own transaction. A row is live or in exactly one block, never both and never
+neither. Every reader of history is a stream that holds one block at a time; replay decodes the rows of
+a block and compares re-executed entries and facts with those bytes, exactly as with live rows. A resume
+reads no block: the snapshot it restores is always newer than every sealed revision.
+
+Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
 `ARC-81`): genesis, an anchor every 64 scheduled snapshots, and the newest two; every other snapshot is
 deleted in the same transaction that commits the next scheduled one. A stored snapshot is a zstd frame
 of its JSON encoding (`DEP-43`); replay and verification compare the decoded JSON bytes, never the

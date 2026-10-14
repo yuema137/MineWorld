@@ -565,10 +565,16 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** The decision exists before the code (`CLAUDE.md` §2.2).
 - **Scope.** §6.13's files. No code.
-- [ ] Implementation: `ARC-89` (assigned, QSRB-8); notes under `ARC-25` and `ARC-81`;
-  `ARCHITECTURE.md`, `MODULE_SPEC.md` §8.1, `persistence/README.md`, step-06 L-6.
-- [ ] Validation: both doc checks.
-- [ ] Review: `ARC-25`'s guarantees restated, not relaxed; `ARC-81` rule 1's amendment is the only one.
+- [x] Implementation: `ARC-89` (assigned, QSRB-8); notes under `ARC-25` and `ARC-81`;
+  `ARCHITECTURE.md`, `MODULE_SPEC.md` §8.1, `persistence/README.md`, step-06 L-6. (ARC-89 pre-existed
+  from DOC-24: its `a − interval` corrected to `a − A`, its level made explicit (9), and a dated
+  implementation note added with D-SRB-1 … D-SRB-11, §5's comparison, QSRB-4's bounds and §6.13's three
+  revisit triggers. `persistence/src/lib.rs` and `sqlite.rs` module docs change with the code at C3/C4.)
+- [x] Validation: both doc checks. ("223 numbered sections across 31 documents, none duplicated";
+  "122 decision ids, all distinct".)
+- [x] Review: `ARC-25`'s guarantees restated, not relaxed; `ARC-81` rule 1's amendment is the only one.
+  (ARC-25 note repeats each guarantee — no row dropped, resume reads live rows, replay compares bytes;
+  ARC-81 note amends rule 1 only, records rule 7's format number and the FK removal as consequences.)
 - **Commit boundary.** Documentation only.
 
 ### C2 — The block codec (`block.rs`) and the sealing rule (pure)
