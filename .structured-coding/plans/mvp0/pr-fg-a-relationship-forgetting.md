@@ -684,10 +684,16 @@ notes on `ARC-62` (third line), `ARC-63` (S1–S4), `ARC-28` (decay by configura
 DOC-24 did not correct it (§9); `docs/MVP_STATUS.md` S24 row; `handoff-fg-a.md` created.
 **Non-goals.** No code. No new decision number (QFGA-11). **Dependencies.** DOC-24 merged.
 
-- [ ] Implementation: the README sections and notes, worded from §4–§5.
-- [ ] Validation: both doc scripts; every term is `MODULE_SPEC.md` §4.2's or `CORE_CONCEPTS.md`'s.
-- [ ] Review: README tables equal §4's (field, type, default, bound, roles); no README carries a rule the specs
-  lack (`CLAUDE.md` §2.1).
+- [x] Implementation: relationships README (decay table, curves, cap, levels, "Writing your own curve" with
+  §5.1's five steps; the "Known gap" paragraph replaced), conversation README (`forget_after_days` row and
+  roles), `MODULE_SPEC.md` §4.2 (bounds as values, per-field roles, place-free lookups, required systems;
+  refusal list), `DECISIONS.md` dated notes on `ARC-28`, `ARC-62`, `ARC-63`, and on `ARC-86` (E-FGA-1);
+  `handoff-fg-a.md` created. The `MVP_STATUS.md` row moved to FGA-C9 (DV-7).
+- [x] Validation: `check_doc_headings.py` → "223 numbered sections across 31 documents, none duplicated";
+  `check_decision_ids.py` → "122 decision ids, all distinct" (E-FGA-1).
+- [x] Review: README tables equal §4.1/§4.2 field by field (type, default, bound, roles); every README rule
+  is in `MODULE_SPEC.md` §4.2, `ARC-86` or this design; terms are `CORE_CONCEPTS.md`'s and §4.2's ("section",
+  "parameter", "role", "region", "extension catalog").
 **Acceptance.** A reader can configure decay and write a curve from the README alone, and every rule there
 is in a spec. **Failure cases.** A term conflict with `CORE_CONCEPTS.md` is a stop (terminology law).
 **Commands.** the two doc scripts. **Boundary.** Markdown only.
@@ -947,6 +953,13 @@ E-FGA-d0  2026-10-12, planning session. §3.1's measurements: binary /Users/yuem
           writefile, zstd -d) and read with jq. Results as tabulated in §3.1. Run walls 5.6 / 9.6 / 4.2 s,
           faults 0; fingerprints af1927a1e2182bcd / 346dcaa6291381a0 / 60fd886043b1436a (FNV, for reading).
 E-FGA-0   (implementation) base capture: long parity record and four 30-day saves, base release binary.
+          Base: origin/main @ 6306977 (DOC-24 #175 merged at baa0d33; §3 re-audit: none of §1's base paths
+          changed between cda4c13 and 6306977 except Markdown). Binary `cargo build --release -p
+          mineworld-cli` (1 m 58 s) copied to /Users/yuema137/mineworld-worktrees/scratch-fg-a-impl/base/.
+E-FGA-1   2026-10-13, FGA-C1. Merged ARC-86 audit: F-FGA-1 corrected by DOC-24 ("no component encoding
+          changes"); F-FGA-8 still unqualified ("Defaults change no reference world's bytes") and the
+          clock described as "available only during disclosure" → one dated note on ARC-86 (§13.1's
+          DOC-24 row allows it). Doc scripts: 223 sections / 122 ids, exit 0.
 ```
 
 ---
@@ -961,6 +974,12 @@ E-FGA-0   (implementation) base capture: long parity record and four 30-day save
 | DV-4 | `familiarity_half_life_days` | `*_decay_days`, one time constant per value for every curve | D-FGA-3, D-FGA-4 |
 | DV-5 | "A synthetic 300-person world (test-only pack)" | A scripted 300-person world in relationships' tests | D-FGA-10 |
 | DV-6 | Parameters "scoped by class like every IL parameter" | Scoped by actor/target class only; place and regions refused for these fields | F-FGA-6 |
+
+Implementation deviations (bounded, recorded during execution):
+
+| ID | Plan says | Done | Why / impact |
+| --- | --- | --- | --- |
+| DV-7 | FGA-C1 updates the `docs/MVP_STATUS.md` S24 row | No S24 row exists on main; the row is added in FGA-C9, when the PR's state is known | A status row written before the code would state an untrue state; one file, no scope change |
 
 ---
 
