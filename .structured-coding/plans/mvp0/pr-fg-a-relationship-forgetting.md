@@ -863,9 +863,27 @@ only.
 `tools/cli/tests` or `worldpack/tests` file following `social_sections.rs`'s scratch pattern.
 **Dependencies.** C4–C6.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: FA-7, FA-8; M-FA7, M-FA8 observed.
-- [ ] Review: the test performs the README's steps; no global state leaks between test binaries.
+- [x] Implementation: NEW `tools/cli/tests/forgetting_sections.rs` (FA-7: scratch social-cafe copies through
+  `WorldPack::read`/`load`, nine refusals + two accepted sections); NEW
+  `systems/relationships/tests/curve_catalog.rs` (FA-8: one `#[test]`, its own process).
+- [x] Validation: FA-7 — each refusal by its literal words at `error: line 2 column …` (line 3 for the
+  region): unknown curve ("'familiarity_decay' is one of none, linear, half-life, power, not fast"),
+  malformed name, `place: place` setting `familiarity_decay_days`, a region setting `known_at_most`,
+  `target:` setting `known_at_most`, conversation's `actor:` setting `forget_after_days`, `known_at_most` 4
+  and 1 501, `familiarity_decay_days` 0; the same fields scoped as allowed (base, `target:`, `actor:`, a
+  region setting an increment) read and load. FA-8 — impostor `half-life` panics naming it before anything
+  registers; `[step-down, greedy]` registers (same list again a no-op; `registered_curves` sorted); a
+  different list panics naming both lists; the section naming `step-down` requires `test-step-down`
+  (through `decode_configuration(..).requires()`, what `check_requires` asks), a bundled curve requires
+  nothing; an unknown name is refused listing all six curves; the scripted café discloses 300 a second
+  before the time constant and 150 at it; greedy is clamped to 300. S4's refusal by name is the loader's
+  existing `check_requires` (worldpack `configure/tests.rs`), reached through `requires()` as shown — the
+  real installed set has no user curve, so a real-loader run with an unenabled curve pack is not
+  constructible without a test-only installed set (DV-12). M-FA7, M-FA8 red by name (E-FGA-7).
+- [x] Review: the test follows the README's five steps (pack + `Default`, registration standing in for the
+  installed line, the requirement that enables the pack, the name, refusals) minus the rebuild; the catalog
+  is process-wide, and only `curve_catalog.rs` registers a non-empty list — every other test binary that
+  registers uses the real installed set's empty line.
 **Acceptance.** FA-7, FA-8 pass.
 
 ### FGA-C8 — Through the binary
@@ -1065,6 +1083,13 @@ E-FGA-5   FGA-C5 mutations:
           After: `git grep MUTATION -- '*.rs'` empty; `cargo test -p mineworld-relationships` all ok.
 E-FGA-6   FGA-C6: M-FA9 (disclosure not filtered): conversation forgetting.rs:201 "older than a day: never
           shown" left ["first"], right [] — FAILED; reverted, `git grep MUTATION` empty.
+E-FGA-7   FGA-C7: M-FA7 (S2's `field_roles` call skipped): forgetting_sections.rs:133 "fa7-place-decay:
+          accepted" — FAILED (with `place: cafe` the copy was refused for an undefined class instead,
+          still red but for another reason; the case was changed to the implicit class `place` so the
+          mutation makes it load). M-FA8 (host clamp `.min(excess)` → `.min(u32::MAX)`):
+          curve_catalog.rs:117 left 1000 right 300 (re-basing with greedy inflates every contact) and
+          decay::tests::the_host_clamps_… left 5600 right 600 — FAILED. Reverted; `git grep MUTATION`
+          empty; relationships and CLI suites ok.
 ```
 
 ---
@@ -1088,6 +1113,7 @@ Implementation deviations (bounded, recorded during execution):
 | DV-8 | FGA-C3's SDK unit tests decode a test section (named choice, place entry, region, `requires`) | The SDK unit tests cover the bound, `set_names` and `field_roles` directly; decoding through YAML at line and column is proven with the real sections through the loader (FGA-C7, FA-7) | The SDK has no YAML or JSON decoder among its dependencies; adding one changes `Cargo.lock` (FA-11). Its existing tests say the same: "decoding with line and column is proven through the loader" |
 | DV-10 | §11 lists `systems/installed/src/lib.rs` only | `systems/installed/tests/resolution.rs` pins the number of extension lines; 2 → 3 with its message | A pinned fact that I1 moves on purpose (D-IB-12 precedent); no behaviour |
 | DV-11 | FA-3: "person i talks to 200 distinct others" (all 300) | 100 speakers each talk to the same 200 listeners, once per pair | 300 people × 200 distinct partners is 60 000 talks over 44 850 pairs, so pairs repeat and the forgotten count could only be predicted by re-implementing the ranking; the chosen layout keeps 300 people, 200 contacts per speaker, 100 days and the default cap, and gives the hand-derived literal 5 000 |
+| DV-12 | FA-7: "a catalog curve whose pack the world does not enable: refused by name (S4)" through the loader | FA-8 shows the section's `requires()` (what `check_requires` reads) naming the curve's pack; the refusal by name is `check_requires`'s existing, tested behaviour | The real installed set's curve line is empty and a process registers one catalog; a real-loader run with a user curve needs a test-only installed set, which `ARC-62`'s per-process rule makes a separate binary with its own `installed!` — more machinery than the claim needs |
 | DV-9 | FA-1(a): head summaries and facts "equal to scripts/baselines.txt" | Equal to E-FGA-0's base record (main @ 6306977) | F-FGA-16: `baselines.txt` is stale on main for every key (nightly red, issue #170); the base record equals the nightly's own record of the same commit digest for digest |
 
 ---
