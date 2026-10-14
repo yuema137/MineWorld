@@ -46,13 +46,23 @@ def _between(
     return f"{names.person(speaker)} {verb} {names.person(listener)}"
 
 
+SPOKEN_TO_ME = 700
+SPOKEN_BY_ME = 600
+OVERHEARD = 200
+STARTED_WITH_ME = 400
+STARTED_WITHOUT_ME = 150
+"""Base importance (pr-fg-b §5.4): a line addressed to me, said by me, overheard; a conversation I am in,
+or one between others."""
+
+
 def spoke(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     payload = decode(Spoke, fact)
     if payload is None:
         return fallback(fact, me, names)
     speaker, listener = payload.speaker.entity, payload.listener.entity
     gist = f"{_between(speaker, listener, me, names, 'said to')}: {quote(payload.utterance)}"
-    return Rendered(gist, counterparts(fact, me), "notable", speaker == me)
+    importance = SPOKEN_TO_ME if listener == me else SPOKEN_BY_ME if speaker == me else OVERHEARD
+    return Rendered(gist, counterparts(fact, me), "notable", speaker == me, importance)
 
 
 def conversation_started(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
@@ -61,4 +71,5 @@ def conversation_started(fact: PerceivedEvent, me: EntityId, names: NameBook) ->
         return fallback(fact, me, names)
     speaker, listener = payload.speaker.entity, payload.listener.entity
     gist = _between(speaker, listener, me, names, "started talking with")
-    return Rendered(gist, counterparts(fact, me), "notable", speaker == me)
+    importance = STARTED_WITH_ME if me in (speaker, listener) else STARTED_WITHOUT_ME
+    return Rendered(gist, counterparts(fact, me), "notable", speaker == me, importance)

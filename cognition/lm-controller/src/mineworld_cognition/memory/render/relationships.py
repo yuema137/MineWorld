@@ -19,6 +19,13 @@ from mineworld_cognition.memory.render import (
 from mineworld_cognition.memory.render.conversation import PersonRef
 
 MAX_LEVEL_LENGTH = 40
+CONCERNING_ME = 800
+BETWEEN_OTHERS = 300
+"""Base importance (pr-fg-b §5.4): a relationship of mine (either side), and one between others."""
+
+
+def _importance(person: EntityId, other: EntityId, me: EntityId) -> int:
+    return CONCERNING_ME if me in (person, other) else BETWEEN_OTHERS
 
 
 class Acquainted(Payload):
@@ -43,7 +50,8 @@ def became_acquainted(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Re
         gist = f"{names.person(person)} got to know me"
     else:
         gist = f"{names.person(person)} got to know {names.person(other)}"
-    return Rendered(gist, counterparts(fact, me), "notable", only_me(fact, me))
+    importance = _importance(person, other, me)
+    return Rendered(gist, counterparts(fact, me), "notable", only_me(fact, me), importance)
 
 
 def relationship_changed(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
@@ -60,4 +68,7 @@ def relationship_changed(fact: PerceivedEvent, me: EntityId, names: NameBook) ->
         gist = f"{names.person(person)} now feels {level} towards me"
     else:
         gist = f"{names.person(person)} now feels {level} towards {names.person(other)}"
-    return Rendered(gist, counterparts(fact, me), "notable", only_me(fact, me), level=change)
+    importance = _importance(person, other, me)
+    return Rendered(
+        gist, counterparts(fact, me), "notable", only_me(fact, me), importance, level=change
+    )

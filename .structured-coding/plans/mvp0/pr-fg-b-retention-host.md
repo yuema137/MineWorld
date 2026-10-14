@@ -800,12 +800,24 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
   `render/__init__.py` and each plug-in (base importance; `involved`), `render/movement.py` (QFGb-6),
   `compress/episodes.py`, `chapters.py`, `stable.py`, `retrieve.py` (§5.10); P4 tests touched only where
   schema v2 or the refined re-delivery rule requires (each recorded).
-- [ ] Implementation: as scoped. `chapters()` reads `chapter_ranges`; L3 lines read `first_at`/`last_at`.
-- [ ] Validation: AFGb-6 (b), (c); AFGb-7 (c), (d) on hand-built stores with rows deleted by the test;
+- [x] Implementation: as scoped. `chapters()` reads `chapter_ranges`; L3 lines read `first_at`/`last_at`.
+  Evidence: `records.py` (`SCHEMA_VERSION = 2`, `ItemId`, `Chapter.ranges`, `StableFact.first_at/last_at`);
+  `store.py` (§5.5 schema, `_META`, `auto_vacuum`, `row_bytes`, `reclaim`); `ingest.py` (importance,
+  `involved`, strict ascent per call, `_represented`, `forgotten_redeliveries`); `render/*` (base
+  importance per §5.4's table), `render/movement.py`; `compress/episodes.py` (importance and `mine` at
+  close), `chapters.py` (`consecutive_runs`, stored keys, times, importance, `chapters(store, limit)`),
+  `stable.py` (`first_at/last_at`, `stable_facts(store, limit)`, `stable_text` moved here from
+  `retrieve.py` so retrieval and retention render one L3 line); `retrieve.py` (no `l0` read for L3,
+  limits, `_episode_text_matching`). Deviations D-1 … D-4 (§15.4).
+- [x] Validation: AFGb-6 (b), (c); AFGb-7 (c), (d) on hand-built stores with rows deleted by the test;
   AFGb-11 (a), (b); importance literals per renderer; P4's unit suites; `test_ac10.py` locally (AFGb-14).
-- [ ] Review: no `int(` of an id (P4 AP4-2 (c) scan); every chapter range is a run of consecutive episode
+  Evidence: §15.2 C2.
+- [x] Review: no `int(` of an id (P4 AP4-2 (c) scan); every chapter range is a run of consecutive episode
   numbers; no read of `l0` remains in L3 rendering; the re-delivery rule cannot skip an id above the
-  call-start cursor.
+  call-start cursor. Evidence: the scan finds one new conversion, `int(involved)` (a boolean); the scan's
+  set is updated with that reason. `consecutive_runs` breaks a run exactly where `number != previous + 1`.
+  `stable_text` reads `fact.first_at/last_at`; `_at` is gone. The skip is guarded by `key <= cursor_key`,
+  the cursor read before the loop.
 - **Failure cases.** A P4 test whose expectation encodes v1 layout: updated with the reason recorded, never
   weakened. `test_ac10.py` red: stop and audit (FGb-7).
 
@@ -1012,11 +1024,37 @@ Brief additions:       the sdk/python and cognition Python suites and any affect
 
 ### 15.2 Per-commit evidence
 
-(Filled as each commit lands.)
+**C2** (macOS arm64, Python 3.14.5 from `uv run --locked`, working tree on d37efde + C1 + C2's diff):
+
+```text
+uv run --locked ruff check / ruff format --check cognition/lm-controller     clean
+uv run --locked pyright cognition/lm-controller                              0 errors
+uv run --locked pytest cognition/lm-controller -m "not real_binary"          170 passed, 1 skipped
+  new: test_retention_store.py (7), test_retention_retrieve.py (2)
+cargo build -p mineworld-cli; pytest tests/test_ac10.py -s                    8 passed in 91.4 s
+  [ac10] wall run 27.8 s, export 12.5 s, ingest 6.2 s; section bytes {10: 4599, 30: 4990, 60: 4943,
+  100: 4991}; store 40 714 240 B on disk (P4 alone, no retention: the size FG-b exists to bound)
+P4 test edits (schema v2 only, AFGb-14): test_memory_store.py — the foreign-schema case uses 3 (2 is now
+  the store's), stored/recorded "2"; the AP4-2 (c) scan's set gains "int(involved)". test_memory_compress.py
+  — Bob's stable row gains first_at 0 and last_at 16·DAY + T + 60 (facts 2 and 16). test_memory_retrieve.py
+  unchanged and green with episode-text matching added.
+```
 
 ### 15.3 Mutations
 
-(M-FGb-n, one per AFGb row's mutation; planted, seen red, reverted.)
+Each planted in the source, run, seen red, reverted (the tree compared clean after each).
+
+```text
+M-FGb-6b   ingest's forgotten-redelivery skip disabled (P4's rule)      → both AFGb-6 (b) tests FAIL (OutOfOrder)
+M-FGb-7c   L3 line reads l0.at of its first fact again                   → AFGb-7 (c) FAIL (TypeError: None)
+M-FGb-7d   episode-text matching removed                                 → AFGb-7 (d) FAIL (episode not found)
+M-FGb-11b  PRAGMA auto_vacuum omitted                                    → AFGb-11 (b) FAIL (mode 0)
+M-FGb-imp  overheard speech given 700                                    → importance-literal test FAIL
+M-FGb-mov  movement renderer unregistered                                → walk test and importance test FAIL
+M-FGb-1c   bind ignores unknown keys (C3)                                → AFGb-1 (d) "days" case FAIL; needed a
+           fixture Parameters without extra="forbid" (Pydantic alone refused the key first: the
+           mutation survived until the fixture was written as a user might write it)
+```
 
 ### 15.4 Deviations and discoveries
 
@@ -1040,6 +1078,31 @@ Remaining:            docs/DECISIONS.md ARC-87's "Choice" paragraph keeps step-2
                       and outside AFGb-13's file list, so FG-b does not edit it; reported to the primary
                       session to amend with a pointer to this design's §14.1 rulings.
 ```
+
+**D-1 (C2, bounded) — `episodes.mine` and `chapters.mine`.**
+Deviation: two columns beyond §5.5's list. Reason: §5.2's `MemoryItem.mine` is "L1/L2: any member was
+mine"; once retention merges an episode's records (or a chapter's episodes) the members are gone, so the
+value must be written when the unit closes, as importance is (§5.4). Impact: two integer columns in the
+store's private layout; no interface change. Validation: AFGb-5's determinism runs cover their values.
+
+**D-2 (C2, bounded) — the re-delivery skip is limited to where retention removed facts.**
+Previous assumption (§5.11): "a fact not held, at or below the cursor stored when the call began … is
+skipped and counted". Audit: P4's `test_facts_out_of_order_are_refused` sends a fact below the cursor that
+was never delivered and requires `OutOfOrder`; FGb-7 requires P4 unchanged without `absorb`. Corrected: the
+skip applies when the fact lies inside an episode's span, a chapter range, a forgotten range or at or below
+the watermark (`ingest._represented`); any other fact below the bound is `OutOfOrder` as in P4. Without
+retention a never-delivered id outside every episode still raises; one numerically inside a held
+episode's span (a protocol violation) is skipped rather than refused — R-FGb-5's limitation, recorded.
+Validation: AFGb-6 (b) both halves; P4's test unchanged and green; `test_order_and_conflicts_are_still_refused`.
+Also: ascent within a call is now checked for held facts too (P4 let `[5, 5]` of a held fact pass as two
+re-deliveries); §5.11 states "within one call, ids must ascend strictly". No P4 test relied on it.
+
+**D-3 (C2, bounded) — `stable_text` moved to `compress/stable.py`.** Retrieval's L3 line and a stable
+item's `text` (§5.2) are one function, beside the table they render. No behaviour change.
+
+**D-4 (C2, bounded) — test file for the store-side criteria.** AFGb-6 (b), (c), AFGb-11 (a), (b), the
+importance literals and the movement renderer are in `tests/test_retention_store.py` (not in §5.1's list,
+which assigns no file to them); AFGb-7 (c), (d) in `test_retention_retrieve.py` as planned.
 
 ### 15.5 Gate 2 specification and result
 
