@@ -890,9 +890,21 @@ only.
 
 **Goal.** FA-2 and FA-6. **Scope.** NEW `tools/cli/tests/forgetting_runs.rs`. **Dependencies.** C4–C6.
 
-- [ ] Implementation: scratch copies; one unconfigured twin shared by the cases.
-- [ ] Validation: FA-2, FA-6 with INCONCLUSIVE rules as written; M-FA6 observed.
-- [ ] Review: no assertion depends on a wall clock or a platform path; scratch through `scratch!`.
+- [x] Implementation: NEW `tools/cli/tests/forgetting_runs.rs`, one `#[test]` (the twin shared): scratch
+  social-cafe copies through `scratch!`, the real binary, saves read with `Tables`.
+- [x] Validation: FA-2 — the explicit-default copy has the twin's facts plus exactly two genesis
+  `*-interactions-configured` facts; with those removed and every id (and `caused_by.event`) at or past the
+  first moved down by 2, the remaining facts equal the twin's as JSON; `requests …` lines equal. FA-6 — (a)
+  widest list in the last snapshot ≤ 5; (b) 5 196 `acquaintance-forgotten`; (c) `mineworld replay` succeeds;
+  (d) `--days 15` then `--days 30` on one save: fact table byte-equal to the uninterrupted save; (e) fact
+  types = twin's ∪ {acquaintance-forgotten, relationships-interactions-configured}; (f) 923
+  `relationship-changed` against the twin's 363 (became-acquainted 5 256 against 132). 30.4 s. M-FA6 red by
+  name (E-FGA-8). Both INCONCLUSIVE conditions are assertions that fail with "INCONCLUSIVE: …", so a run that
+  does not exercise the cap or decay can never pass.
+- [x] Review: no wall clock or platform path in an assertion (paths only build arguments; `wall` lines are
+  never compared); every scratch is a `scratch!` guard held for the test; FA-6(e)'s expected set adds the
+  configured fact, which the design's wording left implicit (it is a genesis configuration fact, not a decay
+  fact).
 **Acceptance.** FA-2, FA-6 pass.
 
 ### FGA-C9 — Close: byte identity, cost, guards, gate, ledger
@@ -1090,6 +1102,10 @@ E-FGA-7   FGA-C7: M-FA7 (S2's `field_roles` call skipped): forgetting_sections.r
           curve_catalog.rs:117 left 1000 right 300 (re-basing with greedy inflates every contact) and
           decay::tests::the_host_clamps_… left 5600 right 600 — FAILED. Reverted; `git grep MUTATION`
           empty; relationships and CLI suites ok.
+E-FGA-8   FGA-C8: `cargo test -p mineworld-cli --test forgetting_runs -- --nocapture` → ok, 30.4 s,
+          "FA-6: acquaintance-forgotten 5196, relationship-changed 923 (twin 363), became-acquainted 5256
+          (twin 132)". M-FA6 (`beyond_the_cap` never evicts): forgetting_runs.rs:230 "assertion failed:
+          widest_list_in_the_last_snapshot(&save) <= 5" — FAILED; reverted, `git grep MUTATION` empty.
 ```
 
 ---
