@@ -766,10 +766,13 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 
 - **Goal.** Start the implementation context against the frozen design.
 - **Scope.** This document (§15 opened), `handoff-fg-b.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, that
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, that
   DOC-24 is merged (`ARC-87` present in `docs/DECISIONS.md`); record the base commit; initialize the handoff.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no authority line widened; every one has a source.
+  Evidence: §15.1 (base 6306977; ARC-87 at line 7799); `handoff-fg-b.md` created.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  Evidence: "223 numbered sections across 31 documents, none duplicated"; "122 decision ids, all distinct".
+- [x] Review: no authority line widened; every one has a source. Evidence: §12 unchanged; the handoff's
+  endpoint line cites §12 and the go of 2026-10-13.
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specification edits
@@ -984,6 +987,44 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## 15. Ledger (live during implementation)
 
-Empty until C0. Sections to open: per-commit evidence; mutations (M-FGb-n, one per AFGb row's mutation);
-deviations and discoveries; CI runs per head; the Gate 2 specification and result; the `shasum -a 256`
-literals of AFGb-8.
+Opened at C0, 2026-10-13, by the implementation session (worktree
+`/Users/yuema137/mineworld-worktrees/impl-fg-b`, branch `mvp0/pr-fg-b`). The operator's go was given on
+2026-10-13 and relayed in this session's brief.
+
+### 15.1 Base and authority (C0)
+
+```text
+Implementation base:   origin/main @ 6306977 (Merge #177, docs/dl-design)
+DOC-24:                merged (#175): docs/DECISIONS.md holds "ARC-87 — Controller-memory retention …"
+                       (line 7799 at the base)
+DESIGN FROZEN header:  present (revision 2, 2026-10-12); §12's endpoint lines each carry a source
+                       ("freeze" or "S10 convention, adopted at freeze"); none widened here
+Handoff:               handoff-fg-b.md
+Brief additions:       the sdk/python and cognition Python suites and any affected Rust tests run locally
+                       before pushing (the operator's brief of 2026-10-13; this narrows test rules §8's
+                       "no local full suite" default for this PR, with that brief as its source)
+```
+
+### 15.2 Per-commit evidence
+
+(Filled as each commit lands.)
+
+### 15.3 Mutations
+
+(M-FGb-n, one per AFGb row's mutation; planted, seen red, reverted.)
+
+### 15.4 Deviations and discoveries
+
+(Each with reason, source evidence, impact and validation.)
+
+### 15.5 Gate 2 specification and result
+
+(Written before the run, C7.)
+
+### 15.6 AFGb-8 `shasum -a 256` literals
+
+(Recorded before the test is written, C5.)
+
+### 15.7 CI runs per head
+
+(Filled at C8.)
