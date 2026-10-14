@@ -707,12 +707,17 @@ it; `WorldView::read` passes `parts.at`); `kernel/src/dispatch.rs:463` (passes `
 `kernel/src/world.rs:557` (`World::read` passes `self.now()`); `kernel/src/system/tests.rs:227`.
 **Non-goals.** No other kernel change; no caller changes behaviour.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: a kernel test per site — a reaction's `read().at()` equals the event's instant; a validate
-  read's equals the dispatch instant; `World::read().at()` equals `now()` after an advance;
-  `cargo test -p mineworld-kernel`; `cargo clippy -p mineworld-kernel -- -D warnings`.
-- [ ] Review: no site passes a wall clock; `WorldRead` stays `Copy`-cheap; the doc says "world time, not a
-  wall clock" (`INV-12`).
+- [x] Implementation: `WorldRead` gains `at: WorldTime` and `pub const fn at()`; `new` takes it;
+  `WorldView::read` passes `parts.at`, the dispatcher's validate read `self.at`, `World::read` `self.now()`,
+  the unit bench `WorldTime::EPOCH` (its request instant).
+- [x] Validation: NEW `kernel/tests/read_instant.rs`, three tests: validate's read reports 4 321 for a request
+  dispatched at 4 321 (through a rejection detail); resolve's and a subscriber's react read report 86 400 for
+  a dispatch at 86 400 (through payloads); `World::read().at()` is the epoch, then 7 200 after
+  `advance_to(7 200)`. `cargo test -p mineworld-kernel`: every suite ok; `cargo clippy -p mineworld-kernel
+  --all-targets -- -D warnings` clean (E-FGA-2).
+- [x] Review: no site reads a wall clock (each passes the instant it already holds); `WorldRead` adds one
+  `i64`-sized field; the doc says "world time, never a wall clock (`INV-12`)"; `new` stays crate-private,
+  so no caller outside the kernel changes.
 **Acceptance.** The three sites return the instants named. **Failure cases.** None at run time (a field read).
 **Boundary.** kernel only; workspace builds.
 
