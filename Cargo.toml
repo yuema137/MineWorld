@@ -1,6 +1,9 @@
 [workspace]
 members = [
     "authoring",
+    # Cognition crates are named one by one: `cognition/lm-controller` is a Python package, so a
+    # `cognition/*` glob would make Cargo look for a manifest that is not there.
+    "cognition/decision",
     "cognition/rule-controller",
     "contracts",
     "kernel",
@@ -35,6 +38,7 @@ authors = ["Yue Ma"]
 [workspace.dependencies]
 mineworld-authoring = { path = "authoring" }
 mineworld-contracts = { path = "contracts" }
+mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }

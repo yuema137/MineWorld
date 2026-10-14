@@ -532,14 +532,14 @@ worktree root.
 - **Goal.** The extension point exists and is pure by signature.
 - **Scope.** `cognition/decision/{Cargo.toml, README.md, clippy.toml, src/lib.rs, src/model.rs,
   src/draw.rs, src/parameters.rs}`; root `Cargo.toml` members + `[workspace.dependencies]`.
-- [ ] Implementation: `Seed`, `Consult`, `ModelId`, `DecisionModel`, `SeatModel`, `Configured`; `Draw`/`mix`
-  copied verbatim (not yet used by the rule controller); `ModelParameters`, `()` impl, `bounded`.
-- [ ] Validation: **first**, on the base, capture `Draw` golden values (seed, observer, instant, n → value)
+- [x] Implementation: `Seed`, `Consult`, `ModelId`, `DecisionModel`, `SeatModel`, `Configured`; `Draw`/`mix`
+  copied verbatim (not yet used by the rule controller); `ModelParameters`, `()` impl, `bounded`. *E-DLa-2.*
+- [x] Validation: **first**, on the base, capture `Draw` golden values (seed, observer, instant, n → value)
   for 32 tuples by a test against `paced.rs`'s private `Draw` (temporary `#[cfg(test)]` in rule-controller,
   recorded then removed) and freeze them in `cognition/decision/src/draw_tests.rs`; `cargo test -p
-  mineworld-decision`; `cargo clippy -p mineworld-decision --all-targets -- -D warnings`.
-- [ ] Review: no `Cell`/`RefCell`/`Mutex` reachable in trait signatures; object safety of `SeatModel`;
-  golden values not produced by the code under test (test rules §25).
+  mineworld-decision`; `cargo clippy -p mineworld-decision --all-targets -- -D warnings`. *E-DLa-0, E-DLa-2.*
+- [x] Review: no `Cell`/`RefCell`/`Mutex` reachable in trait signatures; object safety of `SeatModel`;
+  golden values not produced by the code under test (test rules §25). *E-DLa-2.*
 - **Failure cases.** A `parameters!` block decode error must carry position (unit test asserts line/column).
 
 ### C3 — `rule` becomes a model, byte-identical
@@ -716,7 +716,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] | [x] | [x] |
 | C1 | (this commit) | [x] | [x] | [x] |
-| C2 … C7 | — | [ ] | [ ] | [ ] |
+| C2 | (this commit) | [x] | [x] | [x] |
+| C3 … C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -755,6 +756,28 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   a decision model is "a Controller Pack's model" throughout; no new pack type. Checks:
   `check_doc_headings.py` → 223 sections, none duplicated; `check_decision_ids.py` → 122 ids, all distinct
   (PASS). D-DLa-1 … D-DLa-4 recorded below.
+- **E-DLa-2 (C2).** New crate `cognition/decision` (`mineworld-decision`): `src/model.rs` (`Seed`, `Consult`,
+  `ModelId` over the system-id rule, `DecisionModel` with `ID`/`PACKAGE`/`Parameters`/`decide`/`step`,
+  object-safe `SeatModel` — pinned by a compile-time `const _: Option<&dyn SeatModel>` —, `Configured<M>`),
+  `src/draw.rs` (`Draw::new`, `Draw::salted`, `below`, `offset`, `mix`, salt `0x6d69_6e65_776f_726c`),
+  `src/parameters.rs` (`ModelParameters`, `()`, `bounded`), `clippy.toml` (workspace entries plus every
+  interior-mutability type and atomic), `README.md`; root `Cargo.toml` member (named, with the reason a
+  `cognition/*` glob cannot be used) and `[workspace.dependencies]` entry. No new external dependency.
+  `cargo test -p mineworld-decision` → 9 passed (PASS): the 32 `Draw` goldens and 4 `mix` goldens from
+  E-DLa-0, a salted stream independent of the rule's, and parameter decoding (defaults; out-of-bound
+  refused at its key `(2, 1)`; wrong type keeps the decoder's `(2, 11)`; unknown key at `(3, 1)` listing
+  the known keys; twice-written key; `()` refuses any key at `(2, 3)`). `cargo clippy -p mineworld-decision
+  --all-targets -- -D warnings` clean (PASS). Review: the trait signatures name `&self`, contract types and
+  the model's own `Parameters` only; the goldens are literals printed by the base's code.
+  *Finding F-DLa-3 (serde-saphyr positions):* `serde_saphyr::Error::custom` is locationless by design
+  (`de/error.rs`: "keep custom errors locationless"); the decoder attaches the innermost value's position to
+  a locationless error raised *inside* a value, and serde's own constructors (`invalid_value`,
+  `unknown_field`, …) receive the current key's position. The SDK's `parameters!` refuses a bound with
+  `custom`, after the value is consumed, so `bounded` restates exactly that refusal (recognised by the SDK's
+  "'<field>' is " prefix) as `invalid_value`, which is positioned at the field's key; a type error passes
+  unchanged with the decoder's own position. `()` refuses with `unknown_field` for the same reason. The
+  decision-list reader (C4) therefore positions its own semantic refusals from `serde_saphyr::Spanned`
+  values rather than from `custom` errors.
 
 ### Mutations
 
