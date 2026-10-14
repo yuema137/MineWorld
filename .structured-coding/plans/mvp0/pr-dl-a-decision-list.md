@@ -520,11 +520,11 @@ worktree root.
   (`--decisions`, `--seat-model`, `mineworld decisions --json`); `docs/DECISIONS.md` dated notes on `ARC-84`
   (digest printed only when a list is in effect, QDLa-5; `memory:` decoded and passed through, policy ids
   validated by the cognition process at start, QFGb-1), `ARC-27` and `ARC-33`.
-- [ ] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`; every F-DLa-2 item fixed so
-  code and specification agree (`CLAUDE.md` §2.1 rule 4).
-- [ ] Validation: both doc checks.
-- [ ] Review: terminology fixed (`Controller Pack`, `Controller`, decision model is "a Controller Pack's
-  model", never a new pack type); no rule stated only in a README.
+- [x] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`; every F-DLa-2 item fixed so
+  code and specification agree (`CLAUDE.md` §2.1 rule 4). *E-DLa-1.*
+- [x] Validation: both doc checks. *E-DLa-1.*
+- [x] Review: terminology fixed (`Controller Pack`, `Controller`, decision model is "a Controller Pack's
+  model", never a new pack type); no rule stated only in a README. *E-DLa-1.*
 - **Commit boundary.** Documentation only.
 
 ### C2 — `cognition/decision`: trait, `Draw`, parameters
@@ -715,7 +715,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] | [x] | [x] |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | (this commit) | [x] | [x] | [x] |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -739,6 +740,21 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   memory`; fingerprint `af1927a1e2182bcd`). (3) The base binary's `packs list` (controller line
   `controller-pack mineworld-rule-controller 0.1.0 MIT Yue Ma bundled`) and `validate` outputs, kept in
   scratch for AC-DLa-9.
+- **E-DLa-1 (C1).** `docs/MODULE_SPEC.md` §4.1 rewritten for the implemented format: F-DLa-2 items (1)–(5)
+  fixed (the trait crate's dependencies; `Consult`; the digest only when a list is in effect; structural
+  `memory:` errors at load, policy ids at cognition start; `atus-a3-2025`), "the loader refuses the
+  `decisions:` key" removed, the key's path rules, rules 1–8 (refusals, seats/classes, precedence, chains,
+  overrides, absent = today, digest, `memory:` pass-through); §5.1 the trait as implemented, `SeatModel`,
+  `ModelParameters`/`bounded`, the model crates' `clippy.toml`, `Draw::salted`, out-of-process hosting in
+  `run`/`server --town`, `models!` registration, the guard and template tests; §8.1 the synopsis, `server`
+  (`--decisions`/`--seat-model`, refused without `--town`, `--agent` wins, `none` seats undriven, the
+  `town:` clause), `validate`'s decisions line, `run` (models, header clauses, list never stored),
+  `decisions` (the JSON document, format 1), `packs list` (controllers from `cognition/installed`).
+  `docs/DECISIONS.md` dated notes on `ARC-27` (stateless seeded controllers generalised to every in-process
+  model), `ARC-33` (the installed pattern reused for models) and `ARC-84` (QDLa-5; QFGb-1). Terminology:
+  a decision model is "a Controller Pack's model" throughout; no new pack type. Checks:
+  `check_doc_headings.py` → 223 sections, none duplicated; `check_decision_ids.py` → 122 ids, all distinct
+  (PASS). D-DLa-1 … D-DLa-4 recorded below.
 
 ### Mutations
 
@@ -758,3 +774,23 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   (5) the example's `curves: atus-2003-2023` → `atus-a3-2025` (QDLb-3; DL-b's C7 owns the `motivated`
   paragraph, DL-a fixes the example). Also: "the loader refuses the `decisions:` key until that PR merges"
   is removed by C1.
+
+Implementation-time deviations (all bounded; none touches a frozen invariant, a public contract under
+`contracts/`, an ownership boundary, a dependency or scope):
+
+- **D-DLa-1 (C1, C2) — `DecisionModel` gains `const PACKAGE: Package`.** *Previous assumption:* §5.1's trait has
+  `ID`, `Parameters`, `decide`, `step`; §5.7 has `packs.rs` derive its controller list as
+  "`Model::packages()` from `cognition/installed`". *Audit:* nothing in §5.1's trait carries a package, and a
+  `models!` line names only a type, so the catalog cannot know a model's package (`ARC-53`) unless the type
+  states it. *Resolution:* the trait states it, as `SystemPack::PACKAGE` does (`mineworld_sdk::Package`, a
+  re-export the trait crate already reaches through the SDK, QDLa-4). *Consequence:* `Rule::PACKAGE` is
+  `mineworld_rule_controller::PACKAGE`, so AC-DLa-9's list is unchanged. Specified in `MODULE_SPEC.md` §5.1.
+- **D-DLa-2 (C1, C4) — an external model takes no `parameters` in DL-a.** step-24 §5.3 says an external
+  entry carries "only `fallback` and model-specific parameters"; the Rust side cannot type an external
+  model's parameters, and I-DLa-5 forbids accepting what is not understood. DL-a refuses `parameters` on an
+  external entry by name; the PR that installs the first external model (P6) defines how they are carried.
+- **D-DLa-3 (C1, C4) — "at most 4 links" counts `fallback:` steps.** A chain `m0 → m1 → … → mk` has `k`
+  links; `k ≤ 4` is accepted, `k = 5` refused (AC-DLa-2's "chain of 5" is tested as five links).
+- **D-DLa-4 (C1, C4) — `none` is reserved.** `fallback: none` ends a chain, so no installed model may have
+  the id `none`; the `cognition/installed` guard test refuses it. In `mineworld decisions --json` a seat
+  whose chain ends at `none` has `"model": { "id": null, … }`.
