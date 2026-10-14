@@ -827,9 +827,22 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Scope.** `retention/policy.py`, `registry.py`, `selection.py`, `retention/__init__.py`; `pyproject.toml`
   entry-point table (bundled ids pointing at stub-free classes landing in C5 — the table lands in C5 if a
   dangling entry would break discovery; the implementing session decides and records); tests AFGb-1 (b)–(d).
-- [ ] Implementation: §5.2, §5.3, §6.
-- [ ] Validation: AFGb-1 (b)–(d); pyright strict over the generic protocol.
-- [ ] Review: no `Any`; parameters are decoded once, at `bind`; errors never echo input values.
+- [x] Implementation: §5.2, §5.3, §6. Evidence: `memory/retention/policy.py` (`MemoryItem`,
+  `RetentionBudget`, `Keep`/`Merge`/`Drop`, `ForgettingPolicy[P]`, `half_life_permille`,
+  `hyperbolic_permille`, `tie_key`), `registry.py` (`PolicyRegistry.installed`, `from_entry_points`,
+  `bind`; `SourceSpan`; the refusals), `selection.py` (`MemoryPolicyChoice`, `DEFAULT_CHOICE`, `resolve`,
+  `FallbackNotAllowed`, `Retention`), `retention/__init__.py` (§5.2's names exactly). The entry-point table
+  lands in C4 (D-5). D-6, D-7 (§15.4).
+- [x] Validation: AFGb-1 (b)–(d); pyright strict over the generic protocol. Evidence:
+  `test_retention_interface.py` 9 passed — (c) unknown id with the installed ids, wrong id, missing default,
+  duplicate entry points, an unimportable entry point; (d) out of bounds, unknown key, string for integer,
+  each naming policy, field and source, never the value; `resolve` and `FallbackNotAllowed`. (b) needs
+  `absorb`: C4. (d) on `consolidate`'s own `l0_hours`: C4, once `consolidate` is installed. pyright strict
+  0 errors. M-FGb-1c red (§15.3).
+- [x] Review: no `Any`; parameters are decoded once, at `bind`; errors never echo input values. Evidence:
+  no `Any` in the package; the plug-in boundary is typed `object` and checked at load (`_check`), the plan
+  result is `object` and validated by the host; `ParameterError` carries `loc` and `msg` from
+  `errors(include_input=False)`; the "721" case asserts the value is absent from the message.
 
 ### C4 — The host: items, validation, execution, forgotten set, bound, `absorb`
 
@@ -1103,6 +1116,26 @@ item's `text` (§5.2) are one function, beside the table they render. No behavio
 **D-4 (C2, bounded) — test file for the store-side criteria.** AFGb-6 (b), (c), AFGb-11 (a), (b), the
 importance literals and the movement renderer are in `tests/test_retention_store.py` (not in §5.1's list,
 which assigns no file to them); AFGb-7 (c), (d) in `test_retention_retrieve.py` as planned.
+
+**D-5 (C3/C4, bounded) — the entry-point table and `consolidate` land in C4.** The host's fallback for a
+refused plan and its backstop's first step are `consolidate` with its defaults, found through the
+entry-point group like every policy (AFGb-1 (a)'s mutation forbids a direct import). C4's validation
+(AFGb-2, AFGb-4) therefore needs `consolidate` installed. C4 adds `forgetting/consolidate.py`,
+`forgetting/keep_all.py` and the table with those two entries; C5 adds `decay` and
+`importance-recency-cap` and their entries. C3 lands no table, so no entry dangles (§10 C3 left this to
+the implementing session).
+
+**D-6 (C3, bounded) — `JsonObject` and `SourceSpan` live in `registry.py`.** The SDK's `wire.ids` has
+`JsonValue` but no `JsonObject` (audited at the base); `registry.py` defines `type JsonObject = dict[str,
+JsonValue]`. `SourceSpan` is defined beside `bind`, which reports it, and `selection.py` imports both, so
+the two modules have no import cycle.
+
+**D-7 (C3, bounded) — `ForgettingPolicy.Parameters` is a plain protocol attribute.** §5.2 writes
+`Parameters: ClassVar[type[P]]`; a `ClassVar` may not contain a type variable (PEP 526; pyright refuses
+it). `Parameters: type[P]` keeps the protocol generic in its parameters; implementing classes still
+declare it as a class attribute, and the registry checks it at load. The registry's constructor takes
+`Mapping[str, object]` and checks every class at runtime (it must, for entry points), so `Any` never
+appears.
 
 ### 15.5 Gate 2 specification and result
 
