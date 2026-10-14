@@ -552,10 +552,14 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** Start the implementation context against the frozen design.
 - **Scope.** This document (§14 opened); new `handoff-sr-b.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and sources, the
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and sources, the
   assigned decision number; record the base commit; initialize the handoff with the contract's fields.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every authority line has a source; no scope widened.
+  (§14.2 C0; base 6306977; `handoff-sr-b.md`.)
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  (Both clean, §14.2.)
+- [x] Review: every authority line has a source; no scope widened. (§12 lines each carry "freeze
+  rulings", a working-rules default or "mvp0 convention"; ARC-89 pre-exists and is completed, not
+  duplicated.)
 
 ### C1 — Decision record and spec edits
 
@@ -767,8 +771,8 @@ Relayed by the coordinator to the SR-b planning session on 2026-10-12.
 
 ## 14. Ledger (live during implementation)
 
-**Status: FROZEN — not started. Implementation starts only on the operator's go.** Opened by C0 in the
-implementation session.
+**Status: IN IMPLEMENTATION** (operator's go 2026-10-13, relayed by the coordinator). Opened by C0 in
+the implementation session (`/Users/yuema137/mineworld-worktrees/impl-sr-b`, branch `mvp0/pr-sr-b`).
 
 ### 14.1 Planning-session record (2026-10-12)
 
@@ -779,3 +783,28 @@ Measured:            §4 (walking main; 12d branch @ 4e4ce10 in a scratch detach
 Not measured:        the framing overhead of D-SRB-4 (estimated ≈ 20–30 B per row before compression);
                      seal timing inside a commit (CLI timings only); bodies 30-day head (estimated)
 ```
+
+### 14.2 Implementation record
+
+```text
+Implementation base:  origin/main @ 6306977 (Merge pull request #177), fetched 2026-10-13
+Worktree / branch:    /Users/yuema137/mineworld-worktrees/impl-sr-b, mvp0/pr-sr-b (one session)
+Handoff:              handoff-sr-b.md
+Environment:          macOS 26.2 arm64 (operator's laptop), rustc per rust-toolchain.toml,
+                      CARGO_TARGET_DIR=/tmp/impl-sr-b-target
+```
+
+**C0 — freeze verification (done).** Header `DESIGN FROZEN 2026-10-12`, revision 2; §12 filled with a
+source on every endpoint line; decision number `ARC-89` (QSRB-8) — found already present in
+`docs/DECISIONS.md` (added by DOC-24, commit 203095b, as the design-level record); C1 completes it rather
+than adding a second record. `python3 scripts/check_doc_headings.py` → "223 numbered sections across 31
+documents, none duplicated"; `python3 scripts/check_decision_ids.py` → "122 decision ids, all distinct".
+No scope widened.
+
+**Format-3 fixture (written at C0, before any code edit, committed at C3).** The worktree at the base
+commit 6306977, with one uncommitted, ignored test (`persistence/tests/make_format_3.rs`, deleted after
+use) that creates a save of the persistence test world (`support::assembled`, interval 8, 12 scripted
+steps; head 20, snapshot rows at 1, 8, 16), written under `$CARGO_TARGET_DIR` and copied to
+`persistence/tests/fixtures/format-3/world.sqlite` (40 960 B, SHA-256
+`6c8242af66ac191725f9a6a866ef37a466554349cd7d9d6df63802db02fa2f17`; `format 3` in its manifest; every row
+a format-3 build's own bytes). The scratch copy was deleted.
