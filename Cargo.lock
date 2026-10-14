@@ -1043,6 +1043,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-installed-models"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-decision",
+ "mineworld-rule-controller",
+]
+
+[[package]]
 name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [

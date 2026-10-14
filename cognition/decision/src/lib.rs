@@ -18,15 +18,39 @@
 #![warn(missing_docs)]
 
 mod draw;
+mod format;
+mod json;
 mod model;
+mod models;
 mod parameters;
+mod read;
+mod resolve;
 
 pub use draw::{Draw, mix};
+pub use format::{ClassRef, JsonObject, PolicyId, Position, Roster, SeatEntry};
+pub use json::{
+    JSON_FORMAT, MemoryPolicyChoiceJson, ModelJson, ResolvedDecisionsJson, SeatJson, SourceSpanJson,
+};
+pub use mineworld_sdk::Package;
 pub use model::{Configured, Consult, DecisionModel, ModelId, SeatModel, Seed};
+pub use models::{Catalog, Decoded};
 pub use parameters::{ModelParameters, bounded};
+pub use read::{CHAIN_LINKS, DecisionList, DecisionsError, Fallback, MemoryChoice};
+pub use resolve::{
+    MemoryPolicyChoice, Origin, ResolvedDecisions, ResolvedSeat, SeatOverride, Source, SourceSpan,
+};
+
+/// What the [`models!`] macro expands to. Not part of the API.
+#[doc(hidden)]
+pub mod __private {
+    pub use serde::de::{Deserializer, Error as DeError};
+}
 
 #[cfg(test)]
 mod draw_tests;
 
 #[cfg(test)]
 mod parameters_tests;
+
+#[cfg(test)]
+mod read_tests;

@@ -4,6 +4,7 @@ members = [
     # Cognition crates are named one by one: `cognition/lm-controller` is a Python package, so a
     # `cognition/*` glob would make Cargo look for a manifest that is not there.
     "cognition/decision",
+    "cognition/installed",
     "cognition/rule-controller",
     "contracts",
     "kernel",
@@ -52,6 +53,7 @@ mineworld-sdk = { path = "sdk/rust" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-group-activity = { path = "systems/group-activity" }
 mineworld-installed-systems = { path = "systems/installed" }
+mineworld-installed-models = { path = "cognition/installed" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
 # Test support only (DEP-29): a test's scratch directory, removed when the test ends. Never a

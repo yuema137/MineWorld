@@ -559,17 +559,19 @@ worktree root.
 - **Scope.** `cognition/decision/src/{format.rs, read.rs, resolve.rs, digest.rs, models.rs (the
   models! macro)}`; `cognition/installed/{Cargo.toml, README.md, src/lib.rs, tests/installed.rs}`;
   `worldpack/src/{format.rs, read.rs, error.rs}` (the `decisions:` key, SD-DLa-3); `worldpack/tests/`.
-- [ ] Implementation: SD-DLa-4 … SD-DLa-9 (including the `memory:` decoder, per-seat memory resolution and
+- [x] Implementation: SD-DLa-4 … SD-DLa-9 (including the `memory:` decoder, per-seat memory resolution and
   the YAML→JSON conversion of `parameters`), SD-DLa-12, SD-DLa-14 (digest function only), and the typed
-  JSON structs of SD-DLa-15 (serialization only; the subcommand is C5).
-- [ ] Validation: table-driven refusal test (AC-DLa-2's list, each asserting path, line, column, substring);
+  JSON structs of SD-DLa-15 (serialization only; the subcommand is C5). *E-DLa-4.*
+- [x] Validation: table-driven refusal test (AC-DLa-2's list, each asserting path, line, column, substring);
   precedence (AC-DLa-4, fixture with `configure/classes.yaml`); chain rules with a test-only catalog
   including an external entry; digest equality/inequality; `cognition/installed` guard test (ids valid and
   unique; manifest dependencies equal to listed models, as `systems/installed/tests/installed.rs`);
   worldpack: missing file, path escaping the pack, absent key reads as today; M-DLa-2, M-DLa-3 run and
   reverted; `cargo test -p mineworld-decision -p mineworld-installed-models -p mineworld-worldpack`.
-- [ ] Review: worldpack parses nothing inside the file; no `HashMap`; error messages name nodes as
-  worldpack's do.
+  *E-DLa-4; M-DLa-2, M-DLa-3. The precedence fixture is the unit roster (a defined class `staff`); the
+  CLI fixture pack with `configure/classes.yaml` is C5's.*
+- [x] Review: worldpack parses nothing inside the file; no `HashMap`; error messages name nodes as
+  worldpack's do. *E-DLa-4.*
 
 ### C5 — Hosts: `run`, `server --town`, `validate`, flags, `packs`
 
@@ -718,7 +720,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | C1 | (this commit) | [x] | [x] | [x] |
 | C2 | (this commit) | [x] | [x] | [x] |
 | C3 | (this commit) | [x] | [x] | [x] |
-| C4 … C7 | — | [ ] | [ ] | [ ] |
+| C4 | (this commit) | [x] | [x] | [x] |
+| C5 … C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -789,6 +792,41 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   `PacedRuleController` on `decide` and `step` across 4 views × 2 paces × 36 instants × 64 seeds, with more
   than 1 000 non-empty decisions compared. `cargo test -p mineworld-decision -p mineworld-rule-controller` →
   9 + 38 passed (37 existing unchanged + 1); clippy `--all-targets -D warnings` clean on both (PASS).
+- **E-DLa-4 (C4).** `cognition/decision`: `src/format.rs` (`ClassRef`, `PolicyId` with FG-b's spelling,
+  `SeatEntry`, `Roster { seats, classes, implicit, people }`, `Position`, `JsonObject` — string keys only,
+  JSON scalars, tags refused), `src/models.rs` (`Decoded` = `Arc<dyn SeatModel>` + canonical parameter JSON;
+  `Catalog`; the `models!` macro, a token muncher so `Name => Type,` and `external "id",` lines mix),
+  `src/read.rs` (`DecisionList::read/parse`, `DecisionsError { path, line, column, detail }`, the positioned
+  pass and the checks), `src/resolve.rs` (`SeatOverride`, `Origin`/`Source`, `ResolvedDecisions`, chains,
+  memory per seat, `digest()` FNV-1a 64, `clause()`), `src/json.rs` (`ResolvedDecisionsJson` …,
+  `JSON_FORMAT = 1`). New crate `cognition/installed` (`mineworld-installed-models`: `models! { Rule =>
+  mineworld_rule_controller::Rule, }`, guard test, README). `worldpack`: `WorldManifest.decisions:
+  Option<DecisionsFile>` (decode-time path rules), `check_decisions_file` (exists, real path inside the pack),
+  `PackError::{DecisionsFileMissing, DecisionsOutsidePack}`, `WorldPack::decisions()`; the file's content is
+  never opened by worldpack. Tests: `read_tests` 7 tests — the refusal table (38 cases: every AC-DLa-2 item,
+  plus default, entry shape, unknown top-level/entry keys, external parameters, an unknown fallback target,
+  an unlisted external link, a tagged parameter; each asserting path, line, column and message; columns
+  counted by hand from the text, four of my counts corrected after the first run by re-counting the text,
+  never by copying output), precedence (seat > class > default > rule; `--seat-model` above; no list → all
+  `rule`, no clause), chains (4 links accepted ending in `probe`, `none` leaves the seat idle, the header
+  clause wording), overrides refused naming the flag, digest equal for `{}`/explicit defaults/key order/class
+  vs per-seat entries/positions and unequal for a parameter change or a memory section, memory resolution and
+  pass-through (an unknown policy id accepted; parameters with int, string, bool, list with a float, null;
+  sources at the winning entry), the JSON shape and key order with a round trip, the catalog's order and
+  kinds. `cognition/installed/tests/installed.rs` 3 tests (manifest = list; ids valid, unique, not `none`,
+  `rule` first; the negative control sees a duplicate and `none`). `worldpack/tests/decisions_key.rs` 5 tests
+  (absent key; present, content never read; missing file; `..`/absolute/`\`/drive refused at decode; a symlink
+  out of the pack, Unix). `cargo test -p mineworld-decision -p mineworld-installed-models -p
+  mineworld-worldpack -p mineworld-rule-controller` → all green; clippy `--all-targets -D warnings` clean
+  (PASS). Review: worldpack names no decision type; `BTreeMap`/`Vec` only; refusals name the node
+  (`assign entry 2: …`, `models.lm.fallback: …`, `memory.assign entry 1.policy: …`).
+  *Bounded deviations:* (a) the digest lives in `resolve.rs` beside the resolution it hashes, not a
+  separate `digest.rs`; (b) `DecisionList::read::<C: Catalog>(path, file, roster)` takes the catalog as a type
+  parameter (the macro's enum) rather than a `&Catalog` value; (c) semantic refusals are positioned from
+  `serde_saphyr::Spanned` after the pass (F-DLa-3), structural ones by serde's positioned constructors in the
+  pass — the user-visible result SD-DLa-5 asks for (file, line, column, the node named); (d) tags in
+  `memory:` parameters are detected through serde-saphyr's `__yaml_tagged` newtype protocol (its `Tagged`
+  wrapper's), the only way the decoder reports a tag; `.nan`/`.inf` are refused by the decoder itself.
 
 ### Mutations
 
@@ -796,6 +834,8 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 | --- | --- | --- | --- | --- |
 | M-DLa-1 (part 1, C3) | `RULE_SALT` `…726c` → `…726d` in `cognition/decision/src/draw.rs` | `Draw` goldens red | `draw_tests::the_rule_s_draws_are_the_base_s_draws` and `a_salted_draw_is_a_different_stream` FAILED (7 passed, 2 failed); reverted, 9 passed | red by name (PASS). Part 2 (AC-DLa-1's golden) at C5 |
 | M-DLa-4 (C3) | a counter field in `Rule`. As `std::cell::Cell<u64>` the **compiler** refuses it first (`DecisionModel: Sync`); as `std::sync::atomic::AtomicU64`, which is `Sync`, clippy refuses it: "use of a disallowed type `std::sync::atomic::AtomicU64` … a decision model holds no state across consults (ARC-27)" | clippy `disallowed-types` | as expected; reverted, clippy clean | red by name (PASS); a `Cell` cannot even reach the lint |
+| M-DLa-2 (C4) | resolution reads `classes` before `seats` in `resolve.rs` | the precedence test | `read_tests::a_seat_entry_beats_its_class_which_beats_the_default` FAILED; reverted, green | red by name (PASS) |
+| M-DLa-3 (C4) | `#[serde(deny_unknown_fields)]` removed from `RawAssign` | the refusal table | `every_refusal_names_its_node_with_line_and_column` FAILED: "an unknown key in an assignment: accepted"; reverted, green | red by name (PASS) |
 
 ### Deviations and findings
 
