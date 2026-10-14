@@ -690,19 +690,66 @@ Every commit lists implementation, validation and review as separate items. `[ ]
    `happenings-configured`, and starts the almanac — no days yet.
 2. **Scope.** New `systems/happenings/{Cargo.toml, README.md, src/{lib,configuration,kind,entry,event,process,system}.rs}`; `systems/installed/{Cargo.toml,src/lib.rs}` (one line each). Non-goals: the pass, generators, economy. Unchanged: every other crate.
 3. **Implementation**
-   - [ ] Types of §5.1 with `deny_unknown_fields`, `TryFrom` raw-file validation, bounds.
-   - [ ] `PackConfiguration` (`FACTS`, `references`, `seed`), `configures!()`, `SystemPack` (no biographical facts).
-   - [ ] `System::declaration` (§5.2) and `install`; reaction to `happenings-configured` starts the almanac; refusal of a second configuration.
-   - [ ] Install lines.
+   - [x] Types of §5.1 with `deny_unknown_fields`, `TryFrom` raw-file validation, bounds. —
+     `src/kind.rs` (`HappeningKindId`, `Title`, `Hours`, `Days`, `AnnounceDays`, `Audience`,
+     `HappeningKind<P>`, `KindCatalog<P>`, `RawKind`; a crate-private `bounded!` macro for the bounded
+     integers), `src/entry.rs` (`WeekdaySet`, `MonthSet`, `Recurrence`, `CalendarEntry<P>` decoded through
+     `RawCalendarEntry`/`FileCalendarEntry`, `PerMille`, `RandomEntry<P>`), `src/configuration.rs`
+     (`HappeningsConfiguration` via `RawConfiguration`, `Limits`, `PerDay`, `PerPlaceRunning`). Kinds,
+     entries and the fact are generic over how a place is named (`EntityKey` in the file, `PlaceId` once
+     seeded), so file and fact share one validated shape.
+   - [x] `PackConfiguration` (`FACTS`, `references`, `seed`), `configures!()`, `SystemPack` (no biographical
+     facts). — `src/system.rs`; `seed` resolves keys through `Seeding::resolve` and states
+     `happenings-configured` (`src/event.rs`, `HappeningsConfigured` + `KeyedRandom`), SystemInternal, no
+     subjects. Each random entry's FNV-1a draw key is computed here and carried in the fact
+     (`src/draw.rs` `key`, pinned by FNV's published vectors).
+   - [x] `System::declaration` (§5.2) and `install`; reaction to `happenings-configured` starts the
+     almanac; refusal of a second configuration (`happenings-configured-twice`). — `src/process.rs`
+     (`AlmanacProcess`, `AlmanacState { configured }`; `open` arrives with C2). No component yet, so no
+     `install` override in C1.
+   - [x] Install lines. — `systems/installed/Cargo.toml`, `systems/installed/src/lib.rs`
+     (`Happenings => mineworld_happenings::HappeningsSystem`).
 4. **Validation**
-   - [ ] T1 (configuration refusals through the real loader), T12 (a) and (c).
-   - [ ] E-1 on this head: equal to `base.txt` (U-1).
-   - [ ] `cargo clippy -p mineworld-happenings --all-targets -- -D warnings`; `cargo test -p mineworld-happenings -p mineworld-installed-systems`.
-5. **Acceptance** — each §5.1 refusal names its key/line/column; a world not enabling the pack is unchanged (E-1).
-6. **Edge cases** — empty `kinds` refused; `hours: "24:00-24:00"` refused; `until: 24:00` accepted.
-7. **Evidence** — test counts, wall time, E-1 diff output.
+   - [x] T1 (configuration refusals through the real loader), T12 (a) and (c). — `tests/configuration.rs`
+     (5 tests: valid incl. `until 24:00`; without calendar → "system 'happenings' depends on 'calendar',
+     which is not installed in this world"; 13 single-value refusals each naming file, line, column and
+     key — e.g. `line 17 column 64: per_mille_per_day is 0 to 1000, not 1001`; 6 between-entry refusals
+     naming the entry — e.g. `calendar[0] puts 'market-day' at 'park', which is not one of its kind's
+     places`; an unknown place → "configuration names 'pier', which is not a declared Place");
+     `tests/removable.rs` (2 tests: unconfigured → no fact/process/disclosure over 10 days, and other
+     packs' facts equal to a world without the pack). Unit: `src/entry/tests.rs` (5, T2), `src/draw/tests.rs`
+     (1, FNV part of T3). PASS.
+   - [x] E-1 on this head: equal to `base.txt` (U-1). — tested state: HEAD `e729586` + the uncommitted C1
+     diff (this commit's content less this ledger entry and the README); `cargo build --release -p
+     mineworld-cli` (30 s), `ci_parity.py record` (237.5 s) → `/tmp/impl-we-a-scratch/c1.txt`;
+     `ci_parity.py diff base.txt c1.txt` → **"no world differs"**. U-1 resolved: installing the pack changes
+     no world that does not enable it. PASS.
+   - [x] `cargo clippy -p mineworld-happenings --all-targets -- -D warnings`; `cargo test -p
+     mineworld-happenings -p mineworld-installed-systems`. — clippy clean (also with
+     `-p mineworld-installed-systems`); tests: happenings 6 unit + 5 + 2, installed 3 + 2, all PASS;
+     `cargo fmt --all --check` clean.
+5. **Acceptance** — each §5.1 refusal names its key/line/column; a world not enabling the pack is unchanged (E-1). Met.
+6. **Edge cases** — empty `kinds` refused; `hours: "24:00-24:00"` refused; `until: 24:00` accepted. All
+   three in T1.
+7. **Evidence** — test counts, wall time, E-1 diff output (above). Mutation **M1** (T1's counterfactual):
+   `admitted` made to skip the place check (`if false && !declared.admits(place)`) →
+   `a_disagreement_between_entries_is_refused_naming_the_entry` FAILED (wandering-town); reverted.
+   Behaviour-changing, killed.
 8. **Commit boundary** — `feat(happenings): the pack, its configuration and genesis (WE-a C1)`.
-   - [ ] Review: ownership (`owning`, `emitting` lists exact), `deny_unknown_fields` everywhere, no float, no kernel/worldpack edit, file sizes.
+   - [x] Review: ownership (`owning`, `emitting` lists exact), `deny_unknown_fields` everywhere, no float,
+     no kernel/worldpack edit, file sizes. — declaration: depends on presence + calendar, emits and
+     subscribes `happenings-configured` only, owns nothing yet. Every file-facing struct
+     (`RawConfiguration`, `RawKind`, `RawCalendarEntry`, `RandomEntry`, `Limits`) is
+     `deny_unknown_fields`; enums are closed by serde. No float token. Files changed outside the crate:
+     only the two installed-set lines (and `Cargo.lock`). Largest file `kind.rs` ≈ 390 lines.
+     **Bounded decisions recorded:** (D-1) `calendar:` and `random:` capped at `ENTRIES_MAX = 64` each —
+     the design bounds kinds (64) and places (16) but not entries; an unbounded list would make the
+     almanac's snapshot and a day's withheld facts unbounded. (D-2) the draw key is computed at seed and
+     carried in the fact (`KeyedRandom`), so the pass never needs the place's key text.
+     **Found for C5:** `tests/acceptance/tests/ac1_composability.rs` `GENERIC_PACKS` allow-lists the
+     generic packs Market Town may enable beyond Social Café's (`["calendar", "weather"]`, "each is added
+     by the PR that brings its pack"); C5 must add `happenings` there — a file outside §11 C5's scope list,
+     recorded now as a bounded deviation to make in C5.
 
 ### C2 — The daily pass, the happenings and their disclosure
 

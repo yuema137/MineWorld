@@ -1032,6 +1032,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-happenings"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-calendar",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [
@@ -1044,6 +1062,7 @@ dependencies = [
  "mineworld-economy",
  "mineworld-employment",
  "mineworld-group-activity",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-item-transfer",
