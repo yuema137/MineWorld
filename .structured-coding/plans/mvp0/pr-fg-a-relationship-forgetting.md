@@ -727,16 +727,28 @@ it; `WorldView::read` passes `parts.at`); `kernel/src/dispatch.rs:463` (passes `
 **Scope.** `sdk/rust/src/interactions/{section,lookup,mod}.rs` (and `decl.rs` if `FIELD_ROLES` lives there);
 SDK tests. **Dependencies.** none (independent of C2).
 
-- [ ] Implementation: `ParameterBound<T>` and its `RangeInclusive` impl; `parameters!` grammar
-  `$default:expr, $bound:expr`; `Fields::set_names`; `FIELD_ROLES` and its decode-time check (entries and
-  regions); `parameters_unplaced`; `InteractionSection::requires` and `HeldSection::requires`.
-- [ ] Validation: SDK unit tests with a test section — a named-choice field refused with its message; a
-  restricted field refused in a `place:` entry and in a region, at line and column; `parameters_unplaced`
-  ignores place entries and returns defaults unconfigured; `requires` reaches `check_requires`. Message
-  parity: every existing refusal test unedited and passing. `cargo test -p mineworld-sdk`; workspace
-  `cargo check --all-targets` (every pack's `parameters!` still expands).
-- [ ] Review: no existing `parameters!` invocation edited; refusals keep `DEP-10`'s line/column; nothing names
-  a pack.
+- [x] Implementation: `section.rs` — `ParameterBound<T>` (`admits`, `describe`) with the `RangeInclusive`
+  impl (`"{start} … {end}"`); `parameters!` grammar `$default:expr, $bound:expr`, refusal
+  `'{field}' is {describe}, not {value}`; `Fields::set_names` (macro and `()`); `param()` collects named
+  roles and calls `field_roles::<S>(set, named, in_region)` after the entry; region parameter lists decode
+  with `in_region = true`. `mod.rs` — `FIELD_ROLES` (default `&[]`), `requires(section)` (default none),
+  `HeldSection::requires` forwards; exports `ParameterBound`, `parameters_unplaced`. `lookup.rs` —
+  `parameters_unplaced` (base resolution, place unfilled; compiled defaults when unconfigured).
+- [x] Validation: two SDK unit tests — the range bound admits its ends and describes itself `1 … 100`,
+  `-1000 … 1000`, `false … true`; `field_roles` refuses `reach` under `target` and in a region with the
+  literal messages, accepts it under `actor`, and leaves an unlisted field free; `set_names` literal.
+  Message parity, unedited and passing: `tests/acceptance` `interaction_schema` (4) and
+  `configuration_seam` (8) (both pin `'step' is 1 … 100, not …`), `tools/cli --test interactions` (4,
+  pins `'gap' is 1 … 86400, not 0` at line and column), `mineworld-worldpack` all suites; `cargo test -p
+  mineworld-sdk` all ok; workspace `cargo check --all-targets` clean (every `parameters!` expands);
+  `cargo clippy -p mineworld-sdk --all-targets -D warnings` clean. The decode-time refusals through YAML
+  (named choice, restricted field in an entry and a region at line and column, `requires` reaching
+  `check_requires`) and `parameters_unplaced` on a configured world are proven with the real packs in
+  FGA-C4 … C7 (DV-8) (E-FGA-3).
+- [x] Review: no existing `parameters!` invocation edited (`git diff` touches none); the new refusal is raised
+  inside the entry's `visit_map`, so it keeps `DEP-10`'s position as the existing post-loop refusals do;
+  nothing in the SDK names a pack; `FIELD_ROLES` empty by default, so every existing section decodes as
+  before.
 **Acceptance.** Existing sections decode, resolve and refuse byte-identically; the new refusals fire.
 **Failure cases.** A bound's `describe` differing from today's for ranges → caught by the unedited message
 tests. **Boundary.** SDK only.
@@ -965,6 +977,25 @@ E-FGA-1   2026-10-13, FGA-C1. Merged ARC-86 audit: F-FGA-1 corrected by DOC-24 (
           changes"); F-FGA-8 still unqualified ("Defaults change no reference world's bytes") and the
           clock described as "available only during disclosure" → one dated note on ARC-86 (§13.1's
           DOC-24 row allows it). Doc scripts: 223 sections / 122 ids, exit 0.
+E-FGA-0   (cont.) Long record: `uv run --locked python scripts/ci_parity.py record --binary <base>/mineworld
+          --profile long --out <base>/long.record`, 995 s (bodies-yard 322, lakeside 111, market-town 332,
+          social-cafe 229), Darwin/arm64, rustc 1.97.1. `baseline check` → FAIL on every key of every
+          world (F-FGA-16 below). 30-day saves, base binary, seed 7: social-cafe (5.2 s), market-town (8.0
+          s), bodies-yard (9.2 s), lakeside with `--packs entities --packs presentation/mineworld-default`
+          (3.9 s), into <base>/<world>-30.
+F-FGA-16  baselines.txt is stale on main. The base record's digests equal, key for key, the drift printed
+          by the nightly of the same commit (run 38440079845 on 6306977; issue #170 "Nightly CI is red on
+          main", "step baseline failed"): e.g. social-cafe summary-300 341 9500d0c8…, facts-300s 837953
+          c0d3050f… (baseline 338 ad49c723…, 365330 9ffcfcb1…). Cause outside FG-a (walking towns, 12n-2,
+          merged without a re-record). Consequence: FA-1(a)'s oracle is E-FGA-0's base record, not
+          baselines.txt (DV-9); who re-records baselines.txt follows §9's rule (the second of FG-a and 12d
+          to merge), decided at FGA-C9 against main at that time.
+E-FGA-2   FGA-C2: `cargo test -p mineworld-kernel` (all suites ok, incl. NEW read_instant 3/3);
+          `cargo clippy -p mineworld-kernel --all-targets -- -D warnings` clean. Commit 7d6c0c4.
+E-FGA-3   FGA-C3: `cargo test -p mineworld-sdk` (lib 11 incl. 2 new; integration suites ok);
+          `cargo test -p mineworld-acceptance --test interaction_schema --test configuration_seam` 4 + 8 ok;
+          `cargo test -p mineworld-worldpack` all ok; `cargo test -p mineworld-cli --test interactions` 4 ok;
+          `cargo check --workspace --all-targets` clean; SDK clippy clean.
 ```
 
 ---
@@ -985,6 +1016,8 @@ Implementation deviations (bounded, recorded during execution):
 | ID | Plan says | Done | Why / impact |
 | --- | --- | --- | --- |
 | DV-7 | FGA-C1 updates the `docs/MVP_STATUS.md` S24 row | No S24 row exists on main; the row is added in FGA-C9, when the PR's state is known | A status row written before the code would state an untrue state; one file, no scope change |
+| DV-8 | FGA-C3's SDK unit tests decode a test section (named choice, place entry, region, `requires`) | The SDK unit tests cover the bound, `set_names` and `field_roles` directly; decoding through YAML at line and column is proven with the real sections through the loader (FGA-C7, FA-7) | The SDK has no YAML or JSON decoder among its dependencies; adding one changes `Cargo.lock` (FA-11). Its existing tests say the same: "decoding with line and column is proven through the loader" |
+| DV-9 | FA-1(a): head summaries and facts "equal to scripts/baselines.txt" | Equal to E-FGA-0's base record (main @ 6306977) | F-FGA-16: `baselines.txt` is stale on main for every key (nightly red, issue #170); the base record equals the nightly's own record of the same commit digest for digest |
 
 ---
 
