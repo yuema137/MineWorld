@@ -887,9 +887,14 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 
 - **Goal.** The P5 ledger stops growing (G9).
 - **Scope.** `budget.py` `SqliteLedger.charge`; `tests/test_ledger_prune.py`.
-- [ ] Implementation: §5.12.
-- [ ] Validation: AFGb-10; P5's `test_budget.py` unchanged and green.
-- [ ] Review: the delete is in the same commit as the insert; `MemoryLedger` unchanged.
+- [x] Implementation: §5.12. Evidence: `budget.py` `KEEP_S = 2 * DAY_S`; `SqliteLedger.charge` deletes
+  `at < charged_at - KEEP_S` after its insert, before its one `commit()`.
+- [x] Validation: AFGb-10; P5's `test_budget.py` unchanged and green. Evidence: `test_ledger_prune.py` 1
+  passed (two seats, charges at 0, 1 h, 1 d, 2 d + 1, 3 d; hour and day windows equal to `MemoryLedger`
+  after every charge; six rows left, at 1 d, 2 d + 1, 3 d); `test_budget.py` 8 passed, unchanged.
+  M-FGb-10 red (§15.3).
+- [x] Review: the delete is in the same commit as the insert; `MemoryLedger` unchanged. Evidence: the
+  diff of `budget.py` touches `charge` and adds `KEEP_S` only.
 
 ### C7 — Real lifecycle over the binary (Gate 2)
 
@@ -1146,6 +1151,8 @@ M-FGb-9a   decay reads a wall clock (`import time`; age from time_ns)    → AFG
            SURVIVED this mutation: a wall-clock age is enormous next to world seconds, so every item's
            retention is 0 on every call and the plans agree. The class is owned by AFGb-9 (a)'s static
            scan (test rules §24: recorded, not claimed for (a)/(d))
+M-FGb-10   the ledger prunes at latest − DAY_S/2                          → AFGb-10 FAIL (alice's day window at 1 d:
+           1 call / 300 tokens against the oracle's 2 / 500)
 ```
 
 ### 15.4 Deviations and discoveries
