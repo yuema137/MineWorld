@@ -17,6 +17,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use mineworld_contracts::{EntityKey, SystemId, WorldTime};
+use mineworld_installed_models::Catalog as _;
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
@@ -27,8 +28,25 @@ use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
 
 use crate::described;
 
-/// The Controller Packs this binary composes (it is the composition root, `main.rs`).
-const CONTROLLERS: [Package; 1] = [mineworld_rule_controller::PACKAGE];
+/// The Controller Packs this binary composes (it is the composition root, `main.rs`): every in-process
+/// decision model's package from the installed models (`cognition/installed`), in its order, then the
+/// rule controller's (the reactive `--agent` controller's crate, which is also `rule`'s), each package
+/// once by name.
+fn controllers() -> Vec<Package> {
+    let mut packages: Vec<Package> = Vec::new();
+    let models = mineworld_installed_models::AVAILABLE
+        .iter()
+        .filter_map(|model| model.package());
+    for package in models.chain([mineworld_rule_controller::PACKAGE]) {
+        if !packages
+            .iter()
+            .any(|listed| listed.name() == package.name())
+        {
+            packages.push(package);
+        }
+    }
+    packages
+}
 
 /// Where a listed pack comes from.
 enum Origin {
@@ -98,7 +116,7 @@ fn gather(roots: &PackRoots) -> Result<Vec<Listed>, String> {
             },
         });
     }
-    for controller in &CONTROLLERS {
+    for controller in &controllers() {
         listed.push(Listed {
             identity: Identity::of_code_pack(controller, PackType::ControllerPack)
                 .map_err(refused)?,

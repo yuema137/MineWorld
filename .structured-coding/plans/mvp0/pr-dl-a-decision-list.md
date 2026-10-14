@@ -579,19 +579,19 @@ worktree root.
 - **Scope.** `tools/cli/{Cargo.toml, src/main.rs, src/run.rs, src/serve.rs, src/hosted.rs, src/packs.rs,
   src/decisions.rs (new: read pack/flag, build roster, resolve; the `decisions` subcommand)}`;
   `tools/cli/tests/decisions.rs` (new); `tools/cli/tests/fixtures/decisions/` (golden JSON).
-- [ ] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause), SD-DLa-15 (`mineworld decisions …
+- [x] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause), SD-DLa-15 (`mineworld decisions …
   [--json]`); existing `hosted.rs` unit tests adapted to construct `PacedSeat` with `Arc<dyn SeatModel>` (the
-  lattice assertions unchanged).
-- [ ] Validation (QFGb-1 part): AC-DLa-11 — golden JSON for a fixture pack with `memory:` (class and seat
+  lattice assertions unchanged). *E-DLa-5.*
+- [x] Validation (QFGb-1 part), *E-DLa-5*: AC-DLa-11 — golden JSON for a fixture pack with `memory:` (class and seat
   entries, a default, an unknown policy id passed through); `"memory": null` for social-cafe; the JSON parses
   with `serde_json` back into the typed structs (round trip on the Rust side; the Python side is FG-b's test).
-- [ ] Validation: golden header + summary test for social-cafe seed 7, 30 days, captured on the base
+- [x] Validation (*E-DLa-5; M-DLa-6*): golden header + summary test for social-cafe seed 7, 30 days, captured on the base
   **before** this commit (test rules §25) and asserted equal; flag refusals; `--seat-model alice=rule` prints
   the clause; `server --town --decisions` starts (existing real-server test harness) and its `town:` line
   carries the digest; `--decisions` without `--town` refused; `cargo test -p mineworld-cli`; M-DLa-6 run and
   reverted.
-- [ ] Review: `serve.rs` still never names a model type (only `SeatModel`); `mineworld-server` untouched
-  (AC-DLa-8).
+- [x] Review: `serve.rs` still never names a model type (only `SeatModel`); `mineworld-server` untouched
+  (AC-DLa-8). *E-DLa-5.*
 
 ### C6 — Template determinism test over installed models
 
@@ -721,7 +721,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | C2 | (this commit) | [x] | [x] | [x] |
 | C3 | (this commit) | [x] | [x] | [x] |
 | C4 | (this commit) | [x] | [x] | [x] |
-| C5 … C7 | — | [ ] | [ ] | [ ] |
+| C5 | (this commit) | [x] | [x] | [x] |
+| C6 … C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -827,6 +828,36 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   pass — the user-visible result SD-DLa-5 asks for (file, line, column, the node named); (d) tags in
   `memory:` parameters are detected through serde-saphyr's `__yaml_tagged` newtype protocol (its `Tagged`
   wrapper's), the only way the decoder reports a tag; `.nan`/`.inf` are refused by the decoder itself.
+- **E-DLa-5 (C5).** `tools/cli`: new `src/decisions.rs` (`DecisionArgs`, `seat_model` parser, `roster(pack)`
+  — seats in `pack.seats()` order, each seat's `class_of`, the person classes, the four implicit names, the
+  people —, `list` (`--decisions` > pack > none), `resolve`, the `decisions` subcommand with `--json` and a
+  human table); `run.rs` resolves before the world begins, holds `Vec<Option<Arc<dyn SeatModel>>>` in roster
+  order, skips a `none` seat before advancing, consults through `mineworld_decision::Consult { seed, pace:
+  PACE, observation }`, appends `clause(RUN_HOSTS_NONE)` to the header only when a list is in effect;
+  `hosted.rs` `PacedSeat` holds `Arc<dyn SeatModel>`, `Seed` and the answer window, lattice/walking logic
+  unchanged, unit tests construct it with `Configured<Rule>` (assertions unchanged); `serve.rs`
+  `Driver::Modelled { k, model }`, `check_decision_flags` (refused without `--town`; a seat in both `--agent`
+  and `--seat-model`), the list resolved even without `--town` so a bad pack file is refused alike, `none`
+  seats not hosted, the `town:` statement's clause; `packs.rs` `controllers()` from
+  `mineworld_installed_models::AVAILABLE` plus the rule controller's package, deduplicated by name;
+  `main.rs` `DecisionFlags` flattened into `run`/`server`/`decisions`, the `Decisions` subcommand,
+  `validate`'s decisions line. `mineworld-server` untouched; `serve.rs` names `SeatModel` and
+  `ResolvedDecisions`, never a model type. Base-binary comparisons (the debug build of this head vs the
+  E-DLa-0 captures): `run worlds/social-cafe --seed 7 --days 30` minus `wall` → `cmp` identical to the golden;
+  `packs list` identical (AC-DLa-9); `validate` of social-cafe, market-town, bodies-yard identical (PASS).
+  New `tools/cli/tests/decisions.rs`, 7 tests: AC-DLa-1's golden (header and summary, byte for byte);
+  a flag, an operator file and a pack file that resolve every seat to `rule` print one digest and run the same
+  world as no list (AC-DLa-3, -5, -7), a memory parameter change moves the digest; refusals through the binary
+  (`--decisions` with file:2:3, `--seat-model` unknown seat/model, a pack's bad file under `validate` and
+  `decisions` at `:2:13`, a missing file); `validate`'s line only with a key; the AC-DLa-11 golden
+  (`tests/fixtures/decisions/memory.{yaml,json}`: a copy of Social Café with `configure/classes.yaml`
+  `residents`, a class and a seat memory entry, a default, `nonexistent-policy` passed through; the JSON golden
+  written by hand from the fixture's text, its digest checked equal to `run`'s for the same list instead of
+  being hand-computed); `server` refusals before binding; `server --town --decisions` started for real, its
+  `town:` statement ending with the clause `run` prints. `cargo test -p mineworld-cli --test decisions` → 7
+  passed (PASS). Mutations M-DLa-6 and M-DLa-1 part 2 red by name. `cargo test -p mineworld-cli` (whole
+  crate, every existing CLI test with the rewired hosts) and `cargo clippy -p mineworld-cli --all-targets -D
+  warnings`: no failure, no warning (PASS, exit 0).
 
 ### Mutations
 
@@ -835,6 +866,8 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 | M-DLa-1 (part 1, C3) | `RULE_SALT` `…726c` → `…726d` in `cognition/decision/src/draw.rs` | `Draw` goldens red | `draw_tests::the_rule_s_draws_are_the_base_s_draws` and `a_salted_draw_is_a_different_stream` FAILED (7 passed, 2 failed); reverted, 9 passed | red by name (PASS). Part 2 (AC-DLa-1's golden) at C5 |
 | M-DLa-4 (C3) | a counter field in `Rule`. As `std::cell::Cell<u64>` the **compiler** refuses it first (`DecisionModel: Sync`); as `std::sync::atomic::AtomicU64`, which is `Sync`, clippy refuses it: "use of a disallowed type `std::sync::atomic::AtomicU64` … a decision model holds no state across consults (ARC-27)" | clippy `disallowed-types` | as expected; reverted, clippy clean | red by name (PASS); a `Cell` cannot even reach the lint |
 | M-DLa-2 (C4) | resolution reads `classes` before `seats` in `resolve.rs` | the precedence test | `read_tests::a_seat_entry_beats_its_class_which_beats_the_default` FAILED; reverted, green | red by name (PASS) |
+| M-DLa-6 (C5) | the `in_effect()` guard removed from `ResolvedDecisions::clause`, so the clause always prints | AC-DLa-1's golden header test | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED (and the unit `a_seat_entry_beats_its_class_which_beats_the_default`, whose no-list case asserts no clause); reverted, green | red by name (PASS) |
+| M-DLa-1 (part 2, C5) | `RULE_SALT` `…726c` → `…726d` again | AC-DLa-1's golden | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED; reverted | red by name (PASS) |
 | M-DLa-3 (C4) | `#[serde(deny_unknown_fields)]` removed from `RawAssign` | the refusal table | `every_refusal_names_its_node_with_line_and_column` FAILED: "an unknown key in an assignment: accepted"; reverted, green | red by name (PASS) |
 
 ### Deviations and findings

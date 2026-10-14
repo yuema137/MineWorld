@@ -1,0 +1,191 @@
+{
+  "format": 1,
+  "world": "social-cafe",
+  "digest": "<digest>",
+  "seats": [
+    {
+      "seat": "alice",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "nonexistent-policy",
+        "fallback": "consolidate",
+        "parameters": {
+          "calls_per_sim_day": 4
+        },
+        "source": {
+          "file": "decisions.yaml",
+          "line": 11,
+          "column": 7
+        }
+      }
+    },
+    {
+      "seat": "bob",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "carol",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "decay",
+        "fallback": null,
+        "parameters": {
+          "half_life_hours": 336
+        },
+        "source": {
+          "file": "decisions.yaml",
+          "line": 10,
+          "column": 7
+        }
+      }
+    },
+    {
+      "seat": "dev",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "decay",
+        "fallback": null,
+        "parameters": {
+          "half_life_hours": 336
+        },
+        "source": {
+          "file": "decisions.yaml",
+          "line": 10,
+          "column": 7
+        }
+      }
+    },
+    {
+      "seat": "erin",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "decay",
+        "fallback": null,
+        "parameters": {
+          "half_life_hours": 336
+        },
+        "source": {
+          "file": "decisions.yaml",
+          "line": 10,
+          "column": 7
+        }
+      }
+    },
+    {
+      "seat": "felix",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "grace",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "hana",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "ivan",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "visitor",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    },
+    {
+      "seat": "wanderer",
+      "model": {
+        "id": "rule"
+      },
+      "memory": {
+        "policy": "consolidate",
+        "fallback": null,
+        "parameters": {},
+        "source": {
+          "file": "decisions.yaml",
+          "line": 8,
+          "column": 12
+        }
+      }
+    }
+  ]
+}
