@@ -806,11 +806,30 @@ record withheld (§5.3). `elapsed` negative → 0. **Boundary.** No cap yet; no 
 `lib.rs`.
 **Dependencies.** C4.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: FA-3 (`tests/forgetting.rs`), M-FA3a–c observed; "the edge and the entry agree" test
-  unedited and passing; `cargo test -p mineworld-relationships`.
-- [ ] Review: the victim set is computed from current readings at the causing fact's instant; the fact is
-  caused by and placed at the causing fact; audience goes through `consequence` like the other two facts.
+- [x] Implementation: `event.rs` (`AcquaintanceForgotten { person, counterpart }`; `BecameAcquainted` "once
+  per formation"); `interactions.rs` (`known_at_most: u16 = 150, 5 ..= 1_500`, `FIELD_ROLES` actor only, the
+  third `FactDecl`, `known_at_most()` lookup with the holder alone, place-free; module doc; pinned test
+  150); `component.rs` (`Acquaintances::evict_beyond(at_most, rule_of, at, keep)` — rank (current
+  familiarity, last contact, counterpart id), the newcomer excluded); `system.rs` (declaration
+  `.emitting::<AcquaintanceForgotten>()`, `BIOGRAPHICAL` all three, `apply` step 9 through
+  `beyond_the_cap` and `unknow` — the edge removed or `FactRefusedByOwner { acquaintance-without-edge }`;
+  forgotten facts after the other two, through `fact()`); `lib.rs` (table, export).
+- [x] Validation: FA-3 in `tests/forgetting.rs` with NEW `tests/support/crowd.rs`: (a)–(c) a 300-person crowd
+  (100 speakers × 200 listeners, DV-11), 20 000 talks over 100 simulated days: after every talk both
+  holders ≤ 150 and edges = entries; exactly 5 000 `acquaintance-forgotten`, each `(speaker, listener
+  r − 150)`, caused by the spoke, the victim gone from entries and edges; at the end each speaker knows
+  listeners 150 … 299; widest person 29 561 B of component data (bound 163 840 B), p000's acquaintances
+  ≤ 118 247 B as the snapshot encodes them. (d) cap 5, eight people: victims p1 (tie on familiarity and
+  instant → lower id), p3 (tie on familiarity → older contact; newcomer p7 at 10 kept), p7 (no longer the
+  newcomer); p1 met again states `became-acquainted` again. "The edge and the entry agree" unedited and
+  passing; `cargo test -p mineworld-relationships` all ok (3.5 s for FA-3); workspace clippy clean.
+  Mutations M-FA3a, M-FA3b, M-FA3c red by name (E-FGA-5).
+- [x] Review: the victim is ranked by `RelationshipValues::reading` at the causing fact's instant; the fact
+  goes through `fact()` — about the holder, participants holder and victim, at the cause's place, audience
+  via `consequence` — and the kernel records it as caused by the cause (asserted); ranking runs only when a
+  new entry takes the list past the cap. Finding F-FGA-18: the script's first oracle for (d) step E was
+  wrong (it kept protecting p7 after the reduction that formed it); the run followed §5.5, the oracle was
+  corrected and the correction is written in the test's doc.
 **Acceptance.** FA-3 passes. **Failure cases.** `known_at_most` below the current size cannot happen (fixed at
 genesis); `unrelate` reporting "absent" is a broken invariant → `KernelError`. **Boundary.** relationships
 only.
@@ -1025,6 +1044,14 @@ E-FGA-4   FGA-C4 mutations, each applied in the working tree, run, reverted:
           M-FA5b no rebase before adjust: forgetting.rs:132 left (310, 140, …), right (160, 140, …) — FAILED
           M-FA5c stated level read after the rebase: forgetting.rs:143 left [] (no crossing) — FAILED
           After: `git grep MUTATION -- '*.rs'` empty; relationships suites ok.
+E-FGA-5   FGA-C5 mutations:
+          M-FA3a rank by highest familiarity: the_cap_evicts_… FAILED at forgetting.rs:348 (p1 never
+                 evicted, so no second became-acquainted)
+          M-FA3b no unrelate: a_crowd_of_300_… FAILED at :218 (edges ≠ entries) and the_cap_evicts_…
+                 FAILED at :353
+          M-FA3c the newcomer eligible: the_cap_evicts_… FAILED at :351, victims [p1, p7, p1] for
+                 [p1, p3, p7]
+          After: `git grep MUTATION -- '*.rs'` empty; `cargo test -p mineworld-relationships` all ok.
 ```
 
 ---
@@ -1047,6 +1074,7 @@ Implementation deviations (bounded, recorded during execution):
 | DV-7 | FGA-C1 updates the `docs/MVP_STATUS.md` S24 row | No S24 row exists on main; the row is added in FGA-C9, when the PR's state is known | A status row written before the code would state an untrue state; one file, no scope change |
 | DV-8 | FGA-C3's SDK unit tests decode a test section (named choice, place entry, region, `requires`) | The SDK unit tests cover the bound, `set_names` and `field_roles` directly; decoding through YAML at line and column is proven with the real sections through the loader (FGA-C7, FA-7) | The SDK has no YAML or JSON decoder among its dependencies; adding one changes `Cargo.lock` (FA-11). Its existing tests say the same: "decoding with line and column is proven through the loader" |
 | DV-10 | §11 lists `systems/installed/src/lib.rs` only | `systems/installed/tests/resolution.rs` pins the number of extension lines; 2 → 3 with its message | A pinned fact that I1 moves on purpose (D-IB-12 precedent); no behaviour |
+| DV-11 | FA-3: "person i talks to 200 distinct others" (all 300) | 100 speakers each talk to the same 200 listeners, once per pair | 300 people × 200 distinct partners is 60 000 talks over 44 850 pairs, so pairs repeat and the forgotten count could only be predicted by re-implementing the ranking; the chosen layout keeps 300 people, 200 contacts per speaker, 100 days and the default cap, and gives the hand-derived literal 5 000 |
 | DV-9 | FA-1(a): head summaries and facts "equal to scripts/baselines.txt" | Equal to E-FGA-0's base record (main @ 6306977) | F-FGA-16: `baselines.txt` is stale on main for every key (nightly red, issue #170); the base record equals the nightly's own record of the same commit digest for digest |
 
 ---

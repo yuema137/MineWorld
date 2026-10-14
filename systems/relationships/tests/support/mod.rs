@@ -5,6 +5,8 @@
 
 #![allow(dead_code)]
 
+pub mod crowd;
+
 use mineworld_contracts::Visibility;
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,

@@ -13,12 +13,16 @@
 //!             invitation-declined      group-activity's: the inviter's regard for the decliner −30
 //!             group-activity-ended     group-activity's: per ordered pair of members, familiarity +50,
 //!                                      regard +20, an activity shared
-//! emits       became-acquainted        when an edge first forms, once per direction
+//! emits       became-acquainted        when an edge forms, once per formation
 //!             relationship-changed     when a level is crossed, up or down — not per value change
+//!             acquaintance-forgotten   when a new acquaintance takes a person past known_at_most and
+//!                                      the weakest tie is evicted, its edge removed
 //! depends on  nothing                  subscribing is not emitting (ARC-26); a world without
 //!                                      conversation has relationships that hear no speech
-//! section     configure/relationships.yaml   the rule `acquaint` and the five increments above
-//!                                      (`interactions`, `ARC-63`); compiled defaults when unconfigured
+//! section     configure/relationships.yaml   the rule `acquaint`, the five increments above, decay and
+//!                                      the cap (`interactions`, `ARC-63`, `ARC-86`); compiled
+//!                                      defaults when unconfigured
+//! catalog     DecayCurve               user curves, on this pack's ARC-62 extension line
 //! ```
 //!
 //! # Decoding another pack's fact
@@ -52,7 +56,7 @@ pub mod system;
 
 pub use component::{Acquaintance, Acquaintances, RelationshipValues};
 pub use decay::{CurveCatalog, CurveName, DecayCurve, register_curves, registered_curves};
-pub use event::{BecameAcquainted, RelationshipChanged};
+pub use event::{AcquaintanceForgotten, BecameAcquainted, RelationshipChanged};
 pub use level::{Level, level};
 pub use system::{
     ACCEPTED_REGARD, ACTIVITY_FAMILIARITY, ACTIVITY_REGARD, BIOGRAPHICAL, DECLINED_REGARD,

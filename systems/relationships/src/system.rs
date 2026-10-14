@@ -18,8 +18,10 @@ use serde_json::Value;
 use crate::codec;
 use crate::component::{Acquaintances, RelationshipValues};
 use crate::decay::CurveName;
-use crate::event::{BecameAcquainted, RelationshipChanged};
-use crate::interactions::{RelationshipParameters, audience, decay_rule, increments, may_acquaint};
+use crate::event::{AcquaintanceForgotten, BecameAcquainted, RelationshipChanged};
+use crate::interactions::{
+    RelationshipParameters, audience, decay_rule, increments, known_at_most, may_acquaint,
+};
 
 /// What one exchange of words adds to familiarity, in both directions (SD-6 (1)).
 pub const SPOKE_FAMILIARITY: i32 = 10;
@@ -34,10 +36,12 @@ pub const ACTIVITY_REGARD: i32 = 20;
 // Since S17's PR IL-e the five values above are the compiled defaults of the section's parameters
 // (`spoke_familiarity` … `activity_regard`, `crate::interactions`), which a world may change.
 
-/// Which of this pack's facts belong in a person's objective biography (`ARC-29`): both of them.
+/// Which of this pack's facts belong in a person's objective biography (`ARC-29`): all three (QFGA-5:
+/// forgetting somebody is part of a life, as meeting them is).
 pub const BIOGRAPHICAL: &[EventTypeId] = &[
     BecameAcquainted::EVENT_TYPE,
     RelationshipChanged::EVENT_TYPE,
+    AcquaintanceForgotten::EVENT_TYPE,
 ];
 
 /// Who knows whom.
@@ -84,6 +88,7 @@ impl System for RelationshipsSystem {
                 .owning::<Acquaintances>()
                 .emitting::<BecameAcquainted>()
                 .emitting::<RelationshipChanged>()
+                .emitting::<AcquaintanceForgotten>()
                 .subscribing_to::<Spoke>()
                 .subscribing_to::<InvitationAccepted>()
                 .subscribing_to::<InvitationDeclined>()
@@ -242,7 +247,15 @@ fn apply(
         values.shared_an_activity();
     }
     let after = values.level();
+    let forgotten = if new {
+        beyond_the_cap(&world.read(), event, change, &mut known)?
+    } else {
+        Vec::new()
+    };
     world.relate(&knows(), holder, change.counterpart.entity_id())?;
+    for victim in &forgotten {
+        unknow(world, event, holder, *victim)?;
+    }
     world.insert(holder, known)?;
 
     let mut emissions = Vec::new();
@@ -262,8 +275,74 @@ fn apply(
             &RelationshipChanged::new(change.person, change.counterpart, before, after),
         ));
     }
+    for victim in forgotten {
+        emissions.push(fact(
+            &world.read(),
+            event,
+            &Change::new(change.person, victim),
+            &AcquaintanceForgotten::new(change.person, victim),
+        ));
+    }
     Ok(emissions)
 }
+
+/// The cap (§5.5): with a new acquaintance just formed, evicts from `known` the weakest ties beyond
+/// the number the holder keeps, never the one just met; whom, in order.
+fn beyond_the_cap(
+    world: &WorldRead<'_>,
+    event: &EventEnvelope,
+    change: &Change,
+    known: &mut Acquaintances,
+) -> Result<Vec<PersonId>, KernelError> {
+    let at_most = known_at_most(world, change.person);
+    if known.len() <= at_most {
+        return Ok(Vec::new());
+    }
+    known
+        .evict_beyond(
+            at_most,
+            |counterpart| decay_rule(world, change.person, counterpart),
+            event.at(),
+            change.counterpart,
+        )
+        .map_err(|curve| unknown_curve(event, &curve))
+}
+
+/// Removes `holder → victim`'s `knows` edge, which every entry has (the edge and the entry are written
+/// together); one that is not there is a broken invariant, named.
+fn unknow(
+    world: &mut WorldView<'_, RelationshipsSystem>,
+    event: &EventEnvelope,
+    holder: EntityId,
+    victim: PersonId,
+) -> Result<(), KernelError> {
+    let edge = world
+        .read()
+        .relations_touching(holder)
+        .find(|edge| {
+            *edge.relation_type() == knows()
+                && edge.from() == holder
+                && edge.to() == victim.entity_id()
+        })
+        .cloned();
+    match edge {
+        Some(edge) if world.unrelate(&edge)? => Ok(()),
+        _ => Err(KernelError::FactRefusedByOwner {
+            system: RelationshipsSystem::ID,
+            event_type: event.event_type().clone(),
+            reason: Rejection::System {
+                code: EDGELESS,
+                detail: Some(format!(
+                    "the acquaintance {holder} → {} had no knows edge to remove",
+                    victim.entity_id()
+                )),
+            },
+        }),
+    }
+}
+
+/// The code of [`unknow`]'s refusal.
+const EDGELESS: RejectionCode = RejectionCode::from_static("acquaintance-without-edge");
 
 /// The fault a reduction raises for a curve this build does not know, naming it (§5.3): journaled as a
 /// fault, never reduced with undecayed values.

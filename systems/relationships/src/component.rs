@@ -212,6 +212,37 @@ impl Acquaintances {
         Ok(Self { known })
     }
 
+    /// Removes entries until at most `at_most` remain, the weakest tie first, and says whom, in order
+    /// (`ARC-86`, §5.5, D-FGA-5). The weakest is the lowest familiarity as read at `at` — each by its
+    /// own pair's rule — then the oldest last contact, then the lowest counterpart id: a total order,
+    /// so the victim is the same on every platform. `keep`, the person just met, is never a candidate:
+    /// evicting them would form and forget in one reduction. `Err` names an unknown curve.
+    pub(crate) fn evict_beyond(
+        &mut self,
+        at_most: usize,
+        rule_of: impl Fn(PersonId) -> Result<DecayRule, CurveName>,
+        at: WorldTime,
+        keep: PersonId,
+    ) -> Result<Vec<PersonId>, CurveName> {
+        let mut evicted = Vec::new();
+        while self.known.len() > at_most {
+            let mut weakest: Option<(i32, WorldTime, PersonId)> = None;
+            for entry in self.known.iter().filter(|entry| entry.counterpart != keep) {
+                let read = entry.values.reading(&rule_of(entry.counterpart)?, at);
+                let rank = (read.familiarity, read.last_contact, entry.counterpart);
+                if weakest.is_none_or(|current| rank < current) {
+                    weakest = Some(rank);
+                }
+            }
+            let Some((_, _, victim)) = weakest else {
+                break;
+            };
+            self.known.retain(|entry| entry.counterpart != victim);
+            evicted.push(victim);
+        }
+        Ok(evicted)
+    }
+
     /// How many people are known.
     pub fn len(&self) -> usize {
         self.known.len()
