@@ -839,10 +839,21 @@ only.
 **Goal.** §5.7. **Scope.** `systems/conversation/src/{interactions,component,system}.rs`; pinned test
 (VERSION 4); the CLI pins. **Dependencies.** C2, C3.
 
-- [ ] Implementation: the field with `FIELD_ROLES` (target); `forget_older_than`; `react` and `discloses`.
-- [ ] Validation: FA-9, M-FA9 observed; existing conversation tests unedited and passing;
-  `cargo test -p mineworld-conversation`.
-- [ ] Review: `in_conversation` untouched; default 0 adds no lookup cost beyond one place-free default read.
+- [x] Implementation: `interactions.rs` (`forget_after_days: u16 = 0, 0 ..= 3_650`, `FIELD_ROLES` target only,
+  `kept_for(read, listener)` — place-free, `None` at 0; module doc; pinned test VERSION 4 and default 0);
+  `component.rs` (`ConversationHistory::forget_older_than(cutoff)`, `pub(crate)`); `system.rs` (VERSION 4;
+  `react` drops lines older than `at − kept` after `remember_within`; `discloses` shows a filtered copy at
+  `world.at()` and nothing when every line aged out); CLI pins conversation v4.
+- [x] Validation: FA-9 — NEW `systems/conversation/tests/forgetting.rs` (sam, resident rita, commuter carl;
+  `{ target: resident, forget_after_days: 1 }`): shown at t0 + 1 d, not shown at t0 + 1 d + 1 s, still stored,
+  dropped by the next line; carl keeps both; the unconfigured twin keeps everything; conversation-started per
+  line equal to the twin's, `[true, true, false, true, true]`. Existing conversation tests unedited and
+  passing (14 + 2 lib + 1); CLI `inspect` 3, `social_composition` 4; workspace clippy clean. M-FA9 red by
+  name (E-FGA-6).
+- [x] Review: `continues_a_conversation` / `within_the_gap` untouched (a dropped line is older than a day ≥
+  every legal `gap`); default 0: one `parameters_unplaced` per reduction and per disclosure, which returns
+  the compiled default without reading state when unconfigured; the only new mutator is called only from
+  `react` (disclosure filters a clone).
 **Acceptance.** FA-9 passes. **Boundary.** conversation only.
 
 ### FGA-C7 — The catalog and the loader, scripted
@@ -1052,6 +1063,8 @@ E-FGA-5   FGA-C5 mutations:
           M-FA3c the newcomer eligible: the_cap_evicts_… FAILED at :351, victims [p1, p7, p1] for
                  [p1, p3, p7]
           After: `git grep MUTATION -- '*.rs'` empty; `cargo test -p mineworld-relationships` all ok.
+E-FGA-6   FGA-C6: M-FA9 (disclosure not filtered): conversation forgetting.rs:201 "older than a day: never
+          shown" left ["first"], right [] — FAILED; reverted, `git grep MUTATION` empty.
 ```
 
 ---
