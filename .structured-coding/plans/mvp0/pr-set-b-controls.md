@@ -1,8 +1,10 @@
 # PR SET-b — basic input options: the Controls tab (mouse sensitivity, invert Y, read-only key map)
 
-**Status: DRAFT (2026-10-10).** Not `DESIGN FROZEN`. Implementation does not start until the operator
-freezes this design (`CLAUDE.md` §3.1). This is the single design authority for SET-b. It is linked
-from `step-20-client-settings.md` §6 (SET-b row); the step file is not edited by this PR.
+**`DESIGN FROZEN 2026-10-10 (primary session, on operator rulings Q-SETb-1..7)`**
+
+Frozen means scope, invariants, acceptance and the execution contract (§15) are frozen. Progress,
+evidence, audit findings and bounded corrections stay writable (`CLAUDE.md` §3.1). This is the single
+design authority for SET-b. It is linked from `step-20-client-settings.md` §6 (SET-b row).
 
 **Parent documents (binding):** `CLAUDE.md` §§1.1, 2–4; `.structured-coding/standards.md`
 (`review.conventions`); `step-20-client-settings.md` §§1.5 (QSET-7, all-platform requirement), §3.2,
@@ -330,7 +332,7 @@ commit is C0.
 - [ ] Review (LLM): every AC-SETb-n has a result, `PASS`, `FAIL` or `INCONCLUSIVE`, from evidence; the
   Windows and Linux items of §12 are listed for the operator.
 
-## 11. Decision records (for the primary session to apply)
+## 11. Decision records (ruled: a dated note under `ARC-76`, no new number; the primary session applies it)
 
 - **A dated note under `ARC-76` (no new number):** "Extended by S20 SET-b: `[input]` holds
   `mouse_sensitivity` (percent, allow-listed) and `invert_y`; the Controls tab is added by each client
@@ -364,7 +366,9 @@ headless CI check can stand in for them (step-20 §8).
 
 ## 14. Operator questions
 
-These need an operator ruling before the design is frozen. Each has a recommendation.
+**Ruled by the operator on 2026-10-10: every recommendation below is accepted** (Q-SETb-1 … 7). The
+"Recommendation" column is therefore the ruling. Each ruling is binding as written, with the rider
+noted in the table.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
@@ -376,12 +380,12 @@ These need an operator ruling before the design is frozen. Each has a recommenda
 | **Q-SETb-6** | The step's oracle for SET-b (a frame capture equal under changed settings) is replaced by the request transcript and the measured yaw, because captures are not byte-identical between runs (A-SETb-13). | **Accept the replacement.** |
 | **Q-SETb-7** | Should the 3D client's key map also list the mouse buttons (click to interact)? | **No** for SET-b: the mouse buttons are not bindings in `InputMap`; listing them would make the map describe something the client does not read. Revisit with rebinding. |
 
-## 15. Execution contract (proposed; takes effect at freeze)
+## 15. Execution contract (frozen 2026-10-10)
 
 | Item | Contract |
 | --- | --- |
-| Worktree | `/Users/yuema137/mineworld-worktrees/impl-set-b` (held by one session), created at implementation. |
-| Branch | `mvp0/pr-set-b` from `origin/main` after this design is frozen. |
+| Worktree | `/Users/yuema137/mineworld-worktrees/impl-set-b` (held by one session only, `CLAUDE.md` §3.1). |
+| Branch | `mvp0/pr-set-b` from `origin/main`, created at implementation in a fresh session. |
 | Platforms | The gate runs on macOS. Windows and Linux items of §12 are the operator's checklist and go into the PR body. |
 | Allowed commands | `cargo *`; `git`; `gh` (PR create and view, never merge); `godot *`; `./mineworld-2d`, `./mineworld-slice`, `./mineworld-3d`; the CLI binary under `target/`. |
 | Not allowed | `python3 -c`, `sed -i`, `awk`, `xargs`, `curl`, heredoc writes. File changes go through Read, Edit and Write. |
@@ -393,7 +397,7 @@ These need an operator ruling before the design is frozen. Each has a recommenda
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C0 (this design) | DRAFT; not frozen | this PR |
+| C0 (this design) | DESIGN FROZEN 2026-10-10 | this PR (#144) |
 | C1 … C6 | not started | — |
-| Operator questions Q-SETb-1 … 7 | open | §14 |
+| Operator questions Q-SETb-1 … 7 | ruled 2026-10-10, all as recommended | §14 |
 | H-11 … H-13 | open (operator checklist) | §12 |
