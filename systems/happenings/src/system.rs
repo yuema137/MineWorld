@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::catalog;
 use crate::component::{HappeningsAnnounced, HappeningsHere, ShownHappening};
 use crate::configuration::HappeningsConfiguration;
 use crate::event::{
@@ -79,11 +80,31 @@ impl PackConfiguration for HappeningsSystem {
                     detail: Some(format!("'{}' is no place of this world", key.as_str())),
                 })
         };
+        if let Err(missing) = catalog::selected(configuration.generators()) {
+            return Err(unregistered(&missing));
+        }
         let configured = HappeningsConfigured::of(configuration, resolve)?;
         Ok(vec![Emission::new::<HappeningsConfigured>(
             encode(&configured),
             Visibility::SystemInternal,
         )])
+    }
+
+    /// The packs of the generators the world selects: each must be enabled in the same world, so the
+    /// loader refuses a selection whose pack is not, by name (design §5.1, §5.5).
+    fn requires(configuration: &HappeningsConfiguration) -> Vec<SystemId> {
+        configuration.generators().to_vec()
+    }
+}
+
+/// The refusal of a selected generator this process never registered.
+fn unregistered(generator: &SystemId) -> Rejection {
+    Rejection::System {
+        code: RejectionCode::from_static("happenings-generator-unknown"),
+        detail: Some(format!(
+            "'{generator}' is not a happening generator of this build: list its pack on \
+             happenings' extension line in the installed set (DECISIONS.md ARC-62)"
+        )),
     }
 }
 
@@ -258,7 +279,13 @@ impl System for HappeningsSystem {
         if kind == DayBegan::EVENT_TYPE {
             let began: DayBegan = payload(event.payload())?;
             let (now, read) = (world.at(), world.read());
-            return Ok(pass(&read, now, almanac.started, &almanac.state, &began));
+            return pass(&read, now, almanac.started, &almanac.state, &began).map_err(|missing| {
+                KernelError::FactRefusedByOwner {
+                    system: Self::ID,
+                    event_type: kind,
+                    reason: unregistered(&missing),
+                }
+            });
         }
         if kind == HappeningAnnounced::EVENT_TYPE {
             let announced: HappeningAnnounced = payload(event.payload())?;

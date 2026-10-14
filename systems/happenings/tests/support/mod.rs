@@ -134,7 +134,7 @@ pub fn providers() -> [&'static dyn PerceptionProvider; 4] {
     [&PresenceSystem, &CalendarSystem, &HappeningsSystem, &Placer]
 }
 
-fn decoded<P: SystemPack>(
+pub fn decoded<P: SystemPack>(
     text: &str,
 ) -> std::sync::Arc<dyn mineworld_authoring::AuthoredConfiguration> {
     serde_saphyr::with_deserializer_from_str(text, |file| P::decode_configuration(file))

@@ -838,15 +838,56 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 1. **Goal.** External packs can contribute generators (`ARC-62`), selected per world.
 2. **Scope.** `src/catalog.rs`, `generators:` selection check in `seed()`, the installed set's extension line (empty), `tests/catalog.rs` with a test-only generator pack.
 3. **Implementation**
-   - [ ] `register_generators`, `registered_generators` (wayfinder shape).
-   - [ ] Pass asks selected registered generators in id order, caps drafts, admits each.
-   - [ ] `extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];`.
-4. **Validation** — [ ] T13; `systems/installed` tests (`tests/resolution.rs` guard) pass; E-1 equal.
-5. **Acceptance** — AC-WE-a-6.
-6. **Edge cases** — a different list registered first panics naming both (catalog rule); generator returning drafts for a disabled pack's state → none.
-7. **Evidence** — counts; U-3 outcome.
+   - [x] `register_generators`, `registered_generators` (wayfinder shape). — `src/catalog.rs` (static
+     `OnceLock`, sorted by id, duplicate id panics, a different list panics naming both, the same list
+     again is a no-op) plus crate-private `selected(ids)` → the selected registered generators in id
+     order, or the first unregistered id.
+   - [x] Pass asks selected registered generators in id order, caps drafts, admits each. — `src/pass.rs`:
+     after `calendar` and `random`, each selected generator is asked with `DraftAsk::for_generator(id)`
+     (draws keyed by FNV-1a of `"generator" 0 id`); drafts beyond `MAX_DRAFTS_PER_GENERATOR = 16` are
+     withheld together in **one** `happening-withheld` naming the first excess draft, `reason:
+     over-generator-cap`, with a new optional `excess` count (absent on every other withheld fact).
+   - [x] `extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];`
+     — `systems/installed/src/lib.rs` (+ the doc paragraph listing the lines).
+4. **Validation** — [x] T13; `systems/installed` tests (`tests/resolution.rs` guard) pass; E-1 equal. —
+   `tests/catalog.rs` 5 tests PASS: sorted catalog and idempotent re-registration; a selected generator's
+   18 daily drafts → 1 announced + `UnknownKind` 1, `PlaceNotAdmitted` 1, `OutsideWindow` 2 (past, beyond
+   horizon), `Duplicate` 11, `OverGeneratorCap` 1 (`excess: 2`) per day, ×3 days; an unselected generator
+   never asked (no fact from it); `[ghost-maker]` refused at seeding with `happenings-generator-unknown`
+   naming it; the configuration `requires` each selected generator's pack; a generator whose pack is not
+   installed drafts nothing. `systems/installed` 3 + 2 PASS after updating `tests/resolution.rs`'s pinned
+   line count 2 → 3 (expected: a new catalog line). E-1: tested state HEAD `8360d88` + the uncommitted C3
+   diff (this commit's content less this ledger entry); `ci_parity.py record` 177.3 s →
+   `/tmp/impl-we-a-scratch/c3.txt`; `diff base.txt c3.txt` → **"no world differs"** (also covers C2's
+   head). Crate total 43 tests (+ installed) PASS; clippy, fmt clean.
+5. **Acceptance** — AC-WE-a-6 met (T13).
+6. **Edge cases** — a different list registered first panics naming both (catalog rule: copied from
+   `register_wayfinders`; this binary registers one list from every test, so the panic path is not
+   exercised here — the same code path is pinned by movement's catalog tests); generator returning drafts
+   for a disabled pack's state → none (`a_generator_without_its_pack_is_inert`).
+7. **Evidence** — counts above. **U-3 outcome:** confirmed — `tests/catalog.rs` registers its own list and
+   composes by hand; the crate's other test binaries go through `worldpack::compose`, which registers the
+   installed set's empty list, in their own processes; no binary meets both. **Mutations:** M15 (each
+   generator draft admitted against a fresh, empty admission whose window starts 1 000 days back — window,
+   duplicate and limits bypassed) → `a_selected_generator_drafts_through_admission` FAILED, killed; M16 (cap
+   removed) → same test FAILED, killed; both reverted (grep clean).
 8. **Commit boundary** — `feat(happenings): user generators through an ARC-62 catalog (WE-a C3)`.
-   - [ ] Review: generator cannot reach `WorldView`; `DraftAsk` exposes no mutable state; selection unknown id refused by name.
+   - [x] Review: generator cannot reach `WorldView`; `DraftAsk` exposes no mutable state; selection unknown
+     id refused by name. — `HappeningGenerator::drafts(&WorldRead, &DraftAsk)`: read-only by type.
+     `DraftAsk`'s public fields are `Copy` values and a shared `&KindCatalog`; its seed and generator key
+     are private and only readable through `permille`. Unknown id: refused at seeding by name; a world
+     resumed in a build that lacks a selected generator **fails closed** — the pass refuses `day-began`
+     with the same `happenings-generator-unknown` rather than silently drafting less (a bounded addition,
+     D-8 below).
+     **Bounded deviations recorded:**
+     (D-7) *Previous assumption (§5.1 table):* "a `generators` id … whose pack the world does not enable" is
+     refused at `seed()`, and `requires()` returns nothing. *Audit evidence:* `Seeding` exposes the world's
+     entities but not its enabled systems; `ARC-61`'s own `requires()` is exactly "the other systems the
+     configuration needs enabled", refused by the loader by name. *Corrected:* `requires()` returns the
+     selected generator ids; `seed()` checks only registration. *Validation:* T13 asserts `requires()`.
+     (D-8) The pass fails closed on an unregistered selected generator (above).
+     (D-9) `happening-withheld` gains an optional `excess` (serialized only with `over-generator-cap`), so
+     "counted in one fact" (§5.3) carries the count.
 
 ### C4 — Economy reacts: price modifiers
 

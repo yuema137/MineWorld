@@ -119,6 +119,18 @@ impl<'a> DraftAsk<'a> {
         }
     }
 
+    /// The same ask, its draws keyed by `generator`, so two generators never share a draw.
+    pub(crate) fn for_generator(&self, generator: &SystemId) -> Self {
+        Self {
+            day: self.day,
+            date: self.date,
+            first_pass: self.first_pass,
+            catalog: self.catalog,
+            seed: self.seed,
+            generator: draw::key(&["generator", generator.as_str()]),
+        }
+    }
+
     /// Draw `index` for target day `t`, per mille: counter-based over (the world's seed, `t`, the
     /// generator's id, `index`), so a generator never needs, or keeps, a random source.
     pub const fn permille(&self, t: DayIndex, index: u64) -> u16 {

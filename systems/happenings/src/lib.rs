@@ -17,6 +17,8 @@
 //!             happening-ended             at its end; as began
 //!             happening-withheld          the daily pass refused a draft, and why; SystemInternal
 //! subscribes  calendar's day-began, and its own five facts
+//! extension   HappeningGenerator          other packs' generators (ARC-62), registered once per
+//!                                         process, asked only where a world selects them
 //! owns        one `almanac` Process        the configuration and the open happenings, folded from facts
 //!             one `happening` Process      per announced happening, at its place: announced → running
 //! discloses   happenings-here             running at the observer's place   ┐ about the observer's
@@ -34,6 +36,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod catalog;
 pub mod component;
 pub mod configuration;
 mod draw;
@@ -46,6 +49,7 @@ mod pass;
 pub mod process;
 pub mod system;
 
+pub use catalog::{register_generators, registered_generators};
 pub use component::{HappeningsAnnounced, HappeningsHere, ShownHappening};
 pub use configuration::{HappeningsConfiguration, Limits};
 pub use entry::{CalendarEntry, MonthSet, RandomEntry, Recurrence, WeekdaySet};

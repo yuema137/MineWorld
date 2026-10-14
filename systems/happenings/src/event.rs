@@ -134,6 +134,9 @@ pub struct HappeningWithheld {
     day: DayIndex,
     reason: WithheldReason,
     source: DraftSource,
+    /// With `over-generator-cap`, how many drafts the cap withheld in this one fact; absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    excess: Option<u32>,
 }
 
 impl Event for HappeningWithheld {
@@ -143,14 +146,25 @@ impl Event for HappeningWithheld {
 }
 
 impl HappeningWithheld {
-    pub(crate) fn new(draft: &HappeningDraft, reason: WithheldReason, source: DraftSource) -> Self {
+    pub(crate) fn new(
+        draft: &HappeningDraft,
+        reason: WithheldReason,
+        source: DraftSource,
+        excess: Option<usize>,
+    ) -> Self {
         Self {
             kind: draft.kind().clone(),
             place: draft.place(),
             day: draft.day(),
             reason,
             source,
+            excess: excess.map(|count| u32::try_from(count).unwrap_or(u32::MAX)),
         }
+    }
+
+    /// With `over-generator-cap`, how many drafts were withheld together.
+    pub const fn excess(&self) -> Option<u32> {
+        self.excess
     }
 
     /// The kind proposed.
