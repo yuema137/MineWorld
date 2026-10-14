@@ -756,18 +756,82 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 1. **Goal.** Calendar-aware integer generation with the bundled `calendar` and `random` generators, admission and limits, the `happening` Process lifecycle, the five facts, disclosure.
 2. **Scope.** `src/{draw,generate,host,component,system}.rs` and tests; `HappeningGenerator` defined here (crate-internal impls only, catalog in C3).
 3. **Implementation**
-   - [ ] `draw.rs` (restated mixer, `FNV-1a` key), pinned (T3).
-   - [ ] `generate.rs`: `HappeningGenerator`, `DraftAsk`, bundled `CalendarGenerator`, `RandomGenerator`.
-   - [ ] `host.rs`: `admit` with §5.3's order and `WithheldReason`.
-   - [ ] Reaction to `day-began`: catch-up on first pass; one target day per entry otherwise.
-   - [ ] Reactions to the four lifecycle facts; `wake` for start and end; almanac fold.
-   - [ ] `PerceptionProvider::discloses` for the two records.
-4. **Validation** — [ ] T2 … T11, T12 (b), T14, T15, T18.
-5. **Acceptance** — §10 AC-WE-1 (local platform), AC-WE-3, AC-WE-4 green; E-1 still equal.
-6. **Edge cases** — a happening whose `from` is 00:00 on day `d` (began stated at once); multi-day happening across resume; `per_mille 0/1000`; `02-29`; last-day-of-month `monthday` refused at load.
-7. **Evidence** — counts, wall time; T8's observed count.
+   - [x] `draw.rs` (restated mixer, `FNV-1a` key), pinned (T3). — `mix`, `permille`, `draw(seed, day, key,
+     index)`, `DRAW_FIRES = 0`, `key` (C1).
+   - [x] `generate.rs`: `HappeningGenerator`, `DraftAsk`, bundled `CalendarGenerator`, `RandomGenerator`. —
+     plus `DayIndex` (a newtype, not a bare `i64`, typed-boundary rule), `HappeningDraft` (public
+     constructor, for external generators), `DraftSource { Calendar, Random, Generator(SystemId) }`;
+     `DraftAsk::{permille, date_of, targets}` (`targets` is the look-ahead / catch-up rule, one place).
+     `DraftAsk::for_generator` arrives with C3 (unused before it).
+   - [x] `host.rs`: `admit` with §5.3's order and `WithheldReason`. — `Admission`, `HappeningRef`,
+     `OpenHappening`, `span`, `MAX_DRAFTS_PER_GENERATOR`; `WithheldReason` includes `OverGeneratorCap`
+     (used in C3). Spans are `[start, until)`, so back-to-back happenings do not overlap.
+   - [x] Reaction to `day-began`: catch-up on first pass; one target day per entry otherwise. — `src/pass.rs`
+     (split out of `system.rs` to keep it under the 500-line review bound and to give C3's generator step
+     one home).
+   - [x] Reactions to the four lifecycle facts; `wake` for start and end; almanac fold. — `system.rs`
+     `react` / `announce` / `wake`; `process.rs` `AlmanacState { configured, open }`,
+     `HappeningProcess`, `HappeningState { happening, until, phase }`, `HappeningPhase`.
+   - [x] `PerceptionProvider::discloses` for the two records. — `component.rs` (`HappeningsHere`,
+     `HappeningsAnnounced`, `ShownHappening`), declared and installed, carried by no entity.
+4. **Validation** — [x] T2 … T11, T12 (b), T14, T15, T18. — `cargo test -p mineworld-happenings`: unit 13
+   (T2 5, T3 3, host 5), `configuration` 5, `disclosure` 1 (T14), `happenings` 7 (T4, T5, T6, T11, T15,
+   visibility/subjects/place of every fact, midnight start), `limits` 1 (T9), `no_float` 1 (T18),
+   `persisted` 1 (T10), `random` 2 (T7, T8), `removable` 3 (T12 a, a', b); all PASS; ≈ 12 s wall for the
+   crate. Clippy `-D warnings` and `fmt --check` clean.
+5. **Acceptance** — §10 AC-WE-1 (local platform: T5, T10, T11), AC-WE-3 (T12 a), AC-WE-4 (T9) green. E-1 for
+   this head is covered by the C3 head's record (budget: one default record per behaviour-changing stage;
+   C2 and C3 both touch only the new crate, which no recorded world enables).
+6. **Edge cases** — a happening whose `from` is 00:00 on day `d` (began stated at once:
+   `a_happening_from_midnight_begins_when_it_is_announced`); multi-day happening across resume (T10's
+   three-day `fete`, stopped on its second day); `per_mille 0/1000` (T8); `02-29` (T2); last-day-of-month
+   `monthday` refused at load (T1). Also: a pass that opens mid-day (a world begun at 10:00) withholds a
+   happening that would already have begun (`OutsideWindow`, host unit test).
+7. **Evidence** — T8 observed: 150 ‰ → **1 544** firings in 10 000 days (tolerance 1 395 … 1 605, fixed
+   before the run); 0 ‰ → 0; 1 000 ‰ → 10 000. T9: 3 000 announced, 4 000 withheld (2 000
+   `OverDailyLimit`, 2 000 `PlaceBusy`) over 1 000 days, every day ≤ 3 begun, no overlap at any place.
+   T15: largest almanac 13 723 B (budget 16 384 B) with three 30-byte kind ids, each announced 30 days
+   ahead, three a day for 120 days. T5: 57 Saturday markets in 400 days, festivals announced on days 16 and
+   381. **Mutations** (each applied, the crate's tests run `--no-fail-fast`, reverted; no residue, checked
+   by grep):
+
+   | Id | Mutation | Expected red | Observed |
+   | --- | --- | --- | --- |
+   | M2 | weekday with Sunday = 0 (`(weekday + 1) % 7`) | T2 | `a_weekday_entry_fires_on_its_weekdays_only` FAILED — killed |
+   | M3 | γ changed (`…7C17`) | T3 | `mix_is_splitmix64` FAILED — killed |
+   | M4 | `day-began` at the almanac's start instant ignored (day 0 missed) | T4 | `genesis_then_day_zero`, `catch_up_…`, `limits_…`, `frequency_…` FAILED — killed |
+   | M5 | look-ahead one day short for `announce_days > 0` | T5 | `a_year_of_happenings_matches_its_calendar` FAILED — killed |
+   | M6 | catch-up removed (`first_pass` always false) | T6 | `catch_up_announces_late_inside_the_first_horizon` FAILED — killed |
+   | M7 | random draws keyed by entry index | T7 | `rolls_are_stable_under_reordering_and_additions` FAILED — killed |
+   | M8 | `<=` instead of `<` | T8 | `frequency_is_within_tolerance` FAILED (0 ‰ fired 8 times) — killed |
+   | M9 | per-place check disabled | T9 | `limits_hold_for_a_thousand_days` (and two others) FAILED — killed |
+   | M10 | (designed) a draw counter kept in process state | T10 | **Equivalent for T10, not run**: process state rides the save, so a counter there still resumes equal by construction; T10's failure class is state kept *outside* the save. The designed counterfactual's real failure class — draws that depend on prior draws — is owned by T7 (M7 killed). Recorded rather than claimed. |
+   | M11 | random seed mixed with the number of placed people (draws depend on what people do) | T11 | `controller_seed_does_not_change_happenings` FAILED — killed |
+   | M12 | almanac started on `day-began` when unconfigured | T12 (a) | both unconfigured tests FAILED — killed |
+   | M13 | disclosure guard removed (every observer told) | T14 | `only_an_observer_at_a_place_is_told_its_happenings` FAILED — killed |
+   | M14 | `with_ended` keeps ended happenings (`open` never shrinks) | T15 | `almanac_within_budget` FAILED (61 553 B) — killed |
 8. **Commit boundary** — `feat(happenings): seeded calendar-aware happenings (WE-a C2)`.
-   - [ ] Review: every state write in a reaction to an own fact; no draw depends on prior draws; ordering is total (no `HashMap`); function sizes; `system.rs` ≤ 500 lines.
+   - [x] Review: every state write in a reaction to an own fact; no draw depends on prior draws; ordering
+     is total (no `HashMap`); function sizes; `system.rs` ≤ 500 lines. — Writes: the almanac's state in
+     reactions to `happenings-configured` (start), `happening-announced`, `happening-ended`; a happening's
+     process started in the reaction to `happening-announced`, set running and rescheduled in the
+     reaction to `happening-began`, ended in the reaction to `happening-ended`; `wake` only states facts.
+     Draws: `draw(seed, t, key, index)` only. Collections: `BTreeMap`, sorted `Vec`; no `HashMap`/`HashSet`
+     in `src/`. Sizes: `system.rs` 430, `pass.rs` 91; `react` ≈ 65 lines and `discloses` ≈ 70 (questioned
+     per the ~50 trigger: each is one dispatch over its cases, kept whole for locality).
+     **Bounded deviations recorded:**
+     (D-3) *Previous assumption:* the almanac folds `started: bool` from the first `happening-announced`.
+     *Audit evidence:* a first pass that announces nothing would leave `started` false, so the catch-up
+     would repeat every day until something is announced, re-withholding the same drafts.
+     *Corrected:* the first pass is the pass on the day the almanac was started — the kernel's
+     `Process::started()` instant, which every snapshot keeps; no flag is folded. *Consequence:* catch-up
+     exactly once per world, across resume (T6, T10). *Validation:* T6, T10, M6.
+     (D-4) Admission's window also refuses a start before the pass's instant (`start < now` →
+     `OutsideWindow`): §5.3's "never the past" made exact for a world whose first day begins mid-day.
+     (D-5) A disclosed record is sent only when it lists something (an empty list is not news).
+     (D-6) T15's budget is measured on a run as busy as the defaults allow (three a day, 30 days ahead,
+     30-byte kind ids, 120 days), not at a theoretical 135-entry state; at the default
+     `per_place_running = 1` and three places, the run's state is the fullest reachable in the fixture.
 
 ### C3 — The generator catalog
 

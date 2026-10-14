@@ -89,3 +89,20 @@ fn an_unconfigured_pack_changes_no_other_fact() {
     let (_, _, with) = run(None, end);
     assert_eq!(projection(&with), projection(&without_happenings(end)));
 }
+
+/// (b) Configured and busy for 30 days — markets begin and end — every fact that is not the pack's is
+/// the same as in the world without the pack: removing it leaves the rest of the world deciding
+/// exactly as before (AC-WE-2).
+#[test]
+fn a_configured_pack_changes_no_other_fact() {
+    let end = 30 * DAY;
+    let (_, _, with) = run(Some(MARKET), end);
+    assert!(
+        with.iter()
+            .filter(|fact| fact.event_type().as_str() == "happening-began")
+            .count()
+            >= 4,
+        "four Saturdays of markets"
+    );
+    assert_eq!(projection(&with), projection(&without_happenings(end)));
+}
