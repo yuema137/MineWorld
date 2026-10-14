@@ -27,11 +27,14 @@
 //! vocabulary, never a registry dependency, and never a local struct shaped like another pack's
 //! payload, which would drift silently and skip the schema-version refusals (`step-09-social.md` Q6).
 //!
-//! # Values never decay
+//! # Forgetting, by configuration
 //!
-//! A pair that keeps meeting reaches its top level within weeks and stays there: a long world's social
-//! graph saturates. That is a known living-world gap (`ARC-28`, `step-09-social.md` QB-2), not a
-//! property this pack hides.
+//! Without configuration nothing fades: a pair that keeps meeting reaches its top level within weeks
+//! and stays there (`ARC-28`'s saturation). A world may make familiarity and regard fade by a named,
+//! pure, integer [`DecayCurve`] with time since the last contact, read lazily wherever a value is read
+//! — no Process, no timer, no fact — and bound how many people a person keeps (`ARC-86`; the
+//! [`decay`] module, `README.md`). A curve of one's own is a pack on this pack's `ARC-62` extension
+//! line ([`register_curves`]).
 //!
 //! [`EventRecord::payload_for`]: mineworld_contracts::EventRecord::payload_for
 
@@ -41,15 +44,17 @@
 mod codec;
 
 pub mod component;
+pub mod decay;
 pub mod event;
 pub mod interactions;
 pub mod level;
 pub mod system;
 
 pub use component::{Acquaintance, Acquaintances, RelationshipValues};
+pub use decay::{CurveCatalog, CurveName, DecayCurve, register_curves, registered_curves};
 pub use event::{BecameAcquainted, RelationshipChanged};
 pub use level::{Level, level};
 pub use system::{
     ACCEPTED_REGARD, ACTIVITY_FAMILIARITY, ACTIVITY_REGARD, BIOGRAPHICAL, DECLINED_REGARD,
-    RelationshipsSystem, SPOKE_FAMILIARITY, knows, knows_declaration,
+    RelationshipsSystem, SPOKE_FAMILIARITY, current, knows, knows_declaration,
 };

@@ -138,6 +138,9 @@ impl WorldPack {
             roots,
             &licence_policy,
         )?;
+        // A section may name an extension catalog's entry (a decay curve, `ARC-86`), checked while it
+        // decodes, so the build's catalogs are registered first — as `compose` does, idempotently.
+        Capability::register_extensions();
         let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
         check_keys_are_declared_once(&manifest)?;
 

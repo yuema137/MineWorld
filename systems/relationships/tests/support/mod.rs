@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 
+use mineworld_contracts::Visibility;
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,
     EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, SystemId,
@@ -15,11 +16,12 @@ use mineworld_group_activity::{
     AcceptInvitation, ActivityKind, DeclineInvitation, GroupActivitySystem, Invite,
     LeaveGroupActivity,
 };
-use mineworld_kernel::{SystemIdentity, World};
+use mineworld_kernel::{Emission, SystemIdentity, World};
 use mineworld_movement::MovementSystem;
 use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
 use mineworld_relationships::{Acquaintances, RelationshipValues, RelationshipsSystem, knows};
-use serde::Serialize;
+use mineworld_sdk::interactions::{self, InteractionSection, Section, SectionConfigured};
+use serde::{Deserialize, Serialize};
 
 pub const GENESIS: WorldTime = WorldTime::from_seconds(3_600);
 
@@ -49,8 +51,33 @@ fn record<A: Action + Serialize>(action: &A) -> ActionRecord {
     ActionRecord::new::<A>(serde_json::to_vec(action).expect("encodes"))
 }
 
+/// The genesis fact a configured `configure/relationships.yaml` becomes, built as the loader does it:
+/// the section decoded by its owner's type (here from JSON, which the crate already depends on),
+/// resolved against `classes`, encoded by the pack.
+pub fn configured(section: &str, classes: &str) -> Emission {
+    let section: Section<RelationshipsSystem> =
+        Section::deserialize(&mut serde_json::Deserializer::from_str(section))
+            .expect("the test's section decodes");
+    let classes = serde_json::from_str(classes).expect("the test's classes decode");
+    let resolved = interactions::resolve(&section, &classes).expect("resolves");
+    Emission::new::<SectionConfigured<RelationshipsSystem>>(
+        <RelationshipsSystem as InteractionSection>::encode(&resolved),
+        Visibility::SystemInternal,
+    )
+}
+
 impl Cafe {
     pub fn new(packs: Packs) -> Self {
+        Self::with_section(packs, None)
+    }
+
+    /// A café whose world configures relationships' section (a JSON rendering of
+    /// `configure/relationships.yaml`), with no classes.
+    pub fn configured(packs: Packs, section: &str) -> Self {
+        Self::with_section(packs, Some(configured(section, "[]")))
+    }
+
+    fn with_section(packs: Packs, section: Option<Emission>) -> Self {
         let mut world = World::new();
         let mut providers: Vec<Box<dyn PerceptionProvider>> = Vec::new();
         world.install(PresenceSystem).expect("presence");
@@ -89,6 +116,7 @@ impl Cafe {
             ));
             facts.push(arrival(&world.read(), person, spot).expect("admitted"));
         }
+        facts.extend(section);
         world.genesis(GENESIS, facts).expect("begins");
         Self {
             world,
@@ -105,6 +133,20 @@ impl Cafe {
     fn tick(&mut self) -> WorldTime {
         self.clock += 1;
         WorldTime::from_seconds(self.clock)
+    }
+
+    /// The instant of the last request, or of the last [`pass`](Self::pass).
+    pub fn now(&self) -> WorldTime {
+        WorldTime::from_seconds(self.clock)
+    }
+
+    /// Lets `seconds` pass with no request, firing whatever falls due; the facts it caused.
+    pub fn pass(&mut self, seconds: i64) -> Vec<EventEnvelope> {
+        self.clock += seconds;
+        self.world
+            .advance_to(WorldTime::from_seconds(self.clock))
+            .expect("advances")
+            .into_events()
     }
 
     pub fn submit(

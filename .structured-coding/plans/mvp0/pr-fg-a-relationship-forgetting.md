@@ -764,13 +764,35 @@ never decay" section rewritten; `systems/installed/src/lib.rs` (I1); `worldpack/
 relationships' pinned test (VERSION 3); `tools/cli/tests/{inspect,social_composition}.rs` pins.
 **Dependencies.** C2, C3.
 
-- [ ] Implementation: as scoped; VERSION 3 with its comment.
-- [ ] Validation: FA-4 (unit, `src/decay.rs`); FA-5 (`tests/forgetting.rs`); existing relationships tests
-  unedited and passing (defaults); `cargo test -p mineworld-relationships`, the two CLI pin tests;
-  `cargo clippy -p mineworld-relationships -- -D warnings`; M-FA4, M-FA5a–c observed.
-- [ ] Review: no float; `none` short-circuits before any lookup when the pack is unconfigured; disclosure
-  shape equals the stored record's; every read path (contact, disclosure, eviction ranking) uses one reading
-  function.
+- [x] Implementation: NEW `decay.rs` (`CurveName` — `Cow<'static, str>`, form-checked by `new`/`Deserialize`,
+  `const` bundled names; `DecayCurve` object-safe; `register_curves`/`registered_curves` with presence's
+  write-once rules plus a bundled-name collision panic; `Curve` (bundled or `&'static dyn` catalog entry);
+  `HALF` 65 literals computed to 60 digits (scratch `half_table.py`, no ties); `Decay`/`DecayRule` — the host
+  clamp `remaining(..).min(excess)`; `CurveCatalog` bound "one of none, linear, half-life, power[, …]");
+  `component.rs` (`RelationshipValues::reading`/`rebase`, `Acquaintances::reading`); `interactions.rs` (six
+  decay fields, `FIELD_ROLES` actor+target, `requires` → catalog curves' packs, `decay_rule` via
+  `parameters_unplaced`, pinned test VERSION 3 + decay defaults); `system.rs` (VERSION 3; `apply`: rule
+  lookup after `acquaint`, stated level before `rebase`, `rebase` before `adjust`; unknown curve →
+  `FactRefusedByOwner { relationships, <cause>, System { unknown-decay-curve, "<curve> …" } }`; `discloses`
+  as-of `world.at()`, withheld on an unknown curve; public `current`); `lib.rs` (docs, exports);
+  `systems/installed` I1 line and docs; `worldpack/src/read.rs` W1; CLI pins relationships v3;
+  `systems/installed/tests/resolution.rs` line count 2 → 3 (DV-10).
+- [x] Validation: FA-4 — `src/decay/tests.rs` 9 tests, every literal of §6 FA-4 plus `65 536 → 46 341` at
+  T/2 (see M-FA4 below), the monotone grid (4 curves × 5 excesses × 3 T × 141 steps), the host clamp with a
+  greedy (+5 000) and an eager (0 at t = 0) curve, and name form. FA-5 — NEW `tests/forgetting.rs`
+  (scripted café, half-life 1 day): (a) 150 disclosed, (b) 300 stored / last contact t0, (c) no relationships
+  fact in the day, (d) 160 stored at t0 + 1 d + 1 s and `relationship-changed` Friendly → Acquaintance both
+  ways caused by the spoke, (e) unconfigured twin discloses 300, same record shape. Existing relationships
+  tests unedited and passing (6 + 11 lib); `tools/cli --test inspect --test social_composition` 3 + 4 ok;
+  `mineworld-installed-systems` ok; workspace clippy `-D warnings` clean. Mutations (E-FGA-4): M-FA4 red by
+  name, M-FA5a, M-FA5b, M-FA5c red by name; all reverted, `git grep MUTATION -- '*.rs'` empty.
+- [x] Review: no float anywhere (`i128`/`u64` integer arithmetic); unconfigured, `parameters_unplaced` returns
+  the compiled defaults (curves `none`) and `reading`/`rebase` return before computing, so stored values are
+  disclosed and reduced unchanged; disclosure re-encodes the same `Acquaintances` type (shape asserted in
+  FA-5(e)); contact, disclosure and (C5) ranking all go through `RelationshipValues::reading`. Finding
+  F-FGA-17: M-FA4 as designed (T/2 at excess 1 000) survives arithmetically — 1 000 × 46 340 >> 16 is still
+  707 — and was caught only by the table literal; the added excess-65 536 case makes the arithmetic itself
+  red.
 **Acceptance.** FA-4 and FA-5 pass; unconfigured, every relationships test's literals hold unchanged.
 **Failure cases.** Unknown curve at reduction → `KernelError` naming it (journaled fault); at disclosure →
 record withheld (§5.3). `elapsed` negative → 0. **Boundary.** No cap yet; no conversation.
@@ -996,6 +1018,13 @@ E-FGA-3   FGA-C3: `cargo test -p mineworld-sdk` (lib 11 incl. 2 new; integration
           `cargo test -p mineworld-acceptance --test interaction_schema --test configuration_seam` 4 + 8 ok;
           `cargo test -p mineworld-worldpack` all ok; `cargo test -p mineworld-cli --test interactions` 4 ok;
           `cargo check --workspace --all-targets` clean; SDK clippy clean.
+E-FGA-4   FGA-C4 mutations, each applied in the working tree, run, reverted:
+          M-FA4  HALF[32] 46 341 → 46 340: decay::tests::half_life_… (the 65 536 case, tests.rs:29) and
+                 …the_table_has_its_literal_… FAILED; the 1 000-at-T/2 literal alone survives (F-FGA-17)
+          M-FA5a disclosure encodes the stored record: forgetting.rs:118 left 300, right 150 — FAILED
+          M-FA5b no rebase before adjust: forgetting.rs:132 left (310, 140, …), right (160, 140, …) — FAILED
+          M-FA5c stated level read after the rebase: forgetting.rs:143 left [] (no crossing) — FAILED
+          After: `git grep MUTATION -- '*.rs'` empty; relationships suites ok.
 ```
 
 ---
@@ -1017,6 +1046,7 @@ Implementation deviations (bounded, recorded during execution):
 | --- | --- | --- | --- |
 | DV-7 | FGA-C1 updates the `docs/MVP_STATUS.md` S24 row | No S24 row exists on main; the row is added in FGA-C9, when the PR's state is known | A status row written before the code would state an untrue state; one file, no scope change |
 | DV-8 | FGA-C3's SDK unit tests decode a test section (named choice, place entry, region, `requires`) | The SDK unit tests cover the bound, `set_names` and `field_roles` directly; decoding through YAML at line and column is proven with the real sections through the loader (FGA-C7, FA-7) | The SDK has no YAML or JSON decoder among its dependencies; adding one changes `Cargo.lock` (FA-11). Its existing tests say the same: "decoding with line and column is proven through the loader" |
+| DV-10 | §11 lists `systems/installed/src/lib.rs` only | `systems/installed/tests/resolution.rs` pins the number of extension lines; 2 → 3 with its message | A pinned fact that I1 moves on purpose (D-IB-12 precedent); no behaviour |
 | DV-9 | FA-1(a): head summaries and facts "equal to scripts/baselines.txt" | Equal to E-FGA-0's base record (main @ 6306977) | F-FGA-16: `baselines.txt` is stale on main for every key (nightly red, issue #170); the base record equals the nightly's own record of the same commit digest for digest |
 
 ---

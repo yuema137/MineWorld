@@ -1,9 +1,10 @@
 //! The state this pack owns: whom a person knows, and how well.
 
-use mineworld_contracts::{EventId, PersonId, WorldTime};
+use mineworld_contracts::{EventId, PersonId, SimDuration, WorldTime};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
+use crate::decay::{CurveName, DecayRule};
 use crate::level::{Level, level};
 use crate::system::RelationshipsSystem;
 
@@ -76,6 +77,31 @@ impl RelationshipValues {
     /// The level these values read as.
     pub const fn level(&self) -> Level {
         level(self.familiarity, self.regard)
+    }
+
+    /// These values as read at `at`: familiarity and regard faded by `rule` for the time since the last
+    /// contact (`ARC-86`); everything else as stored. The one reading every read path uses — contact,
+    /// disclosure, the cap's ranking.
+    pub(crate) fn reading(&self, rule: &DecayRule, at: WorldTime) -> Self {
+        if rule.is_none() {
+            return self.clone();
+        }
+        let elapsed = at
+            .duration_since(self.last_contact)
+            .unwrap_or(SimDuration::ZERO);
+        Self {
+            familiarity: rule.familiarity.familiarity(self.familiarity, elapsed),
+            regard: rule.regard.regard(self.regard, elapsed),
+            ..self.clone()
+        }
+    }
+
+    /// Replaces the stored familiarity and regard by their reading at `at`, before a contact adds to
+    /// them. `last_contact` is left for [`adjust`](Self::adjust) to move.
+    pub(crate) fn rebase(&mut self, rule: &DecayRule, at: WorldTime) {
+        if !rule.is_none() {
+            *self = self.reading(rule, at);
+        }
     }
 
     /// Adds to familiarity and regard, saturating at their bounds, and records the contact.
@@ -165,6 +191,25 @@ impl Acquaintances {
             }
         };
         (&mut self.known[position.0].values, position.1)
+    }
+
+    /// Every entry read at `at`, each by its own pair's rule; `Err` names the first unknown curve.
+    pub(crate) fn reading(
+        &self,
+        rule_of: impl Fn(PersonId) -> Result<DecayRule, CurveName>,
+        at: WorldTime,
+    ) -> Result<Self, CurveName> {
+        let known = self
+            .known
+            .iter()
+            .map(|entry| {
+                Ok(Acquaintance {
+                    counterpart: entry.counterpart,
+                    values: entry.values.reading(&rule_of(entry.counterpart)?, at),
+                })
+            })
+            .collect::<Result<_, CurveName>>()?;
+        Ok(Self { known })
     }
 
     /// How many people are known.
