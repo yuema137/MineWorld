@@ -850,11 +850,21 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Scope.** `retention/items.py`, `plan.py`, `forgotten.py`, `bound.py`, `host.py`, `absorb.py`;
   `tests/retention_stream.py`, `retention_fixtures.py`, `test_retention_plan.py`, `test_retention_host.py`.
   Policies used here: `KeepAll` and test-only ones (C5 brings the rest).
-- [ ] Implementation: §5.6–§5.8.
-- [ ] Validation: AFGb-2; AFGb-3 (a)–(c) on the synthetic stream; AFGb-4 (a) with `keep-all` and
-  "drop everything"; AFGb-5 (a)–(c) with `keep-all`; AFGb-6 (a); mutations M-FGb-2 … -6.
-- [ ] Review: one transaction per pass; no partial plan is ever applied; the structural check raises,
-  never falls back; split points are facts; a pass never reads a clock.
+- [x] Implementation: §5.6–§5.8. Evidence: `retention/items.py` (`extract`: items from dump rows, bytes,
+  overhead, importance with the L3 bonus), `plan.py` (`validate`, `execute`, `remove`), `forgotten.py`
+  (`ForgottenSet`, `normalize`), `bound.py` (`TARGET`, `STORE_BOUND`, `enforce`, the fallback through the
+  entry point), `host.py` (`run_pass`, `check_structure`, `PassReport`), `absorb.py`; `forgetting/
+  consolidate.py`, `forgetting/keep_all.py` and the entry-point table (D-5); `MemoryStore.size()` and
+  one shared JSON encoder (measured: the dump was the pass's cost). D-8 … D-12 (§15.4).
+- [x] Validation: AFGb-2; AFGb-3 (a)–(c) on the synthetic stream; AFGb-4 (a) with `keep-all` and
+  "drop everything"; AFGb-5 (a)–(c) with `keep-all`; AFGb-6 (a); mutations M-FGb-2 … -6. Evidence:
+  §15.2 C4; §15.3.
+- [x] Review: one transaction per pass; no partial plan is ever applied; the structural check raises,
+  never falls back; split points are facts; a pass never reads a clock. Evidence: `run_pass` is one
+  `store.transaction()`; `validate` returns removals only after every rule passed, and `execute` runs on
+  the `Resolved` of either the policy or the fallback, never both; `check_structure` raises
+  `RetentionInvariantBroken` inside the transaction (M-FGb-3c showed it firing); `absorb` splits on
+  `fact.at // DAY_S > day` per fact; no `time`, `datetime` or `random` import under `memory/retention/`.
 
 ### C5 — The bundled policies
 
@@ -1053,6 +1063,25 @@ P4 test edits (schema v2 only, AFGb-14): test_memory_store.py — the foreign-sc
   unchanged and green with episode-text matching added.
 ```
 
+**C4** (macOS arm64, Python 3.14.5; working tree on 57aef0f + C4's diff):
+
+```text
+ruff check / ruff format --check / pyright (strict)                         clean / clean / 0 errors
+pytest cognition/lm-controller -m "not real_binary"                         204 passed, 1 skipped (105 s; the
+                                                                            machine was loaded; 46 s earlier)
+new: test_retention_plan.py (10), test_retention_host.py (16 incl. parameters)
+AFGb-4 (a), synthetic, 302 days at 200 facts/day, seed 7, dump after the first pass at or after day:
+  keep-all          day 30: 281 209 B   day 100: 515 694 B   day 300: 529 240 B   (20.6 s; forced > 0)
+  drop-everything   day 30:   7 767 B   day 100:   8 401 B   day 300:   8 436 B   (6.0 s)
+  every pass ≤ TARGET 786 432 B and ≤ STORE_BOUND 1 048 576 B
+AFGb-3 (a)–(c) at every pass of 40 days: keep-all, drop-everything, consolidate, and drop-day-one (a
+  chapter written over a forgotten episode: 2 ranges for week 0)
+AFGb-5: frames of 1 and 256 = whole (24 days × 120, keep-all); rebuilt file store = first; crash between
+  the day-9 trigger's ingest and its pass = uninterrupted
+AFGb-6 (a): 10+ passes, cursor ahead of newest in ≥ 5 of them, both unchanged by every pass
+AFGb-2: each of 8 hostile policies refused with its reason, dump = consolidate's but for policy/outcome
+```
+
 ### 15.3 Mutations
 
 Each planted in the source, run, seen red, reverted (the tree compared clean after each).
@@ -1067,6 +1096,18 @@ M-FGb-mov  movement renderer unregistered                                → wal
 M-FGb-1c   bind ignores unknown keys (C3)                                → AFGb-1 (d) "days" case FAIL; needed a
            fixture Parameters without extra="forbid" (Pydantic alone refused the key first: the
            mutation survived until the fixture was written as a user might write it)
+M-FGb-2    validate accepts a Drop of a nested item                      → AFGb-2 drop-nested case FAIL ('ok')
+M-FGb-3a   Drop adds no ranges to the forgotten set                      → AFGb-3 (a) FAIL ("perceived … is
+           unrepresented") for drop-everything and drop-day-one
+M-FGb-3c   chapter ranges written as one span (consecutive_runs ignores gaps)
+                                                                         → drop-day-one test FAIL: the host's own
+           check_structure raised RetentionInvariantBroken ("a surviving unit meets forgotten …") first
+M-FGb-4    backstop disabled                                             → AFGb-4 keep-all FAIL at day 9
+           (859 608 B > 786 432), as §9 predicted
+M-FGb-5    absorb never splits at a day's first fact (passes at frame starts only)
+                                                                         → AFGb-5 (a) FAIL (dumps differ at byte 210)
+M-FGb-6a   the pass writes the cursor down to the newest fact             → AFGb-6 (a) FAIL ('1702' != '1708');
+           see D-12 for why the design's literal mutation is equivalent here
 ```
 
 ### 15.4 Deviations and discoveries
@@ -1136,6 +1177,38 @@ it). `Parameters: type[P]` keeps the protocol generic in its parameters; impleme
 declare it as a class attribute, and the registry checks it at load. The registry's constructor takes
 `Mapping[str, object]` and checks every class at runtime (it must, for entry points), so `Any` never
 appears.
+
+**D-8 (C4, bounded) — a 512-byte reserve under `TARGET`.** The backstop runs while the dump exceeds
+`TARGET − 512` (`bound.LIMIT`): the pass's own log row (under 400 B) and `meta.retention_day` are written
+after the bound is checked, and AFGb-4 requires the dump the pass leaves to be ≤ `TARGET`. Neither
+constant changed (§12's material stop concerns `STORE_BOUND`, `TARGET` and D-P4-9).
+
+**D-9 (C4, bounded) — two test helpers beyond §5.1's list.** `tests/retention_driver.py` (frames, the
+day-by-day driver that measures `dump()` right after each pass, the JSON-choice helper) and
+`tests/retention_oracle.py` (AFGb-3's oracle, from the dump and the perceived ids only).
+
+**D-10 (C4, bounded) — chapters carry no counterparts.** §5.5 gives chapters no participant rows, so a
+chapter item's `counterparts` is `()` and its importance is its stored base (no reinforcement bonus). A
+bonus from the surviving episodes would change as they merge into it. Recorded; no policy relies on
+chapter counterparts.
+
+**D-11 (C4/C5, interpretation) — what a bundled policy may import.** AFGb-9 (a) says "only
+`mineworld_cognition.memory.retention` (public names) and `hashlib`". A policy's `Parameters` is a strict
+Pydantic model (§5.2), and its signatures use `typing` and `collections.abc`. The scan therefore allows,
+and only allows: `__future__`, `typing`, `collections.abc`, `hashlib`, `pydantic`, and
+`mineworld_cognition.memory.retention`; the forbidden list of AFGb-9 (a) is checked by name as well.
+
+**D-12 (C4, bounded) — AFGb-6 (a)'s mutation and seam.** The design's mutation ("the pass rewrites
+`newest` to the newest surviving L0 key") is equivalent under this host: `newest` is always the open
+episode's last record, which no pass shows or removes. The substitute mutation writes the cursor down to
+`newest` and is red. The test calls `run_pass` itself after a plain `ingest`, because `absorb`'s closing
+`ingest(…, through)` re-sets the cursor and would hide a pass that moved it; `through` is placed past the
+trigger where ids leave room, so cursor ≠ newest in at least five passes.
+
+**Finding (C4) — a store filled by plain `ingest` and then given to `absorb`.** `meta.retention_day` is
+`""` until `absorb` first sees the store; it is then set to the day of the store's newest fact (no pass
+for history ingested without retention until the next day starts). A store `absorb` builds from empty
+sets it from its first fact. Both are functions of the facts.
 
 ### 15.5 Gate 2 specification and result
 

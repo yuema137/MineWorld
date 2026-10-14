@@ -126,6 +126,23 @@ class DropEverything:
         return [Drop(item=item.item) for item in _top(items)]
 
 
+class DropDayOne:
+    """Forgets every chapterless episode of day 1 and keeps the rest, so that week 0's chapter is written
+    later over a week with a hole in it."""
+
+    id: ClassVar[str] = "drop-day-one"
+    Parameters = NoParameters
+
+    def plan(
+        self, items: Sequence[MemoryItem], budget: RetentionBudget, params: NoParameters
+    ) -> Sequence[Keep | Merge | Drop]:
+        return [
+            Drop(item=item.item)
+            for item in items
+            if item.level == 1 and item.container is None and item.day == 1
+        ]
+
+
 class Mutates:
     """Keeps everything, after trying to lower what the host computed: the item is frozen."""
 

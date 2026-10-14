@@ -93,6 +93,11 @@ _DUMPED: tuple[tuple[str, str], ...] = (
 )
 
 
+_ENCODER = json.JSONEncoder(sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+"""One dump line per row: sorted keys, UTF-8, no spaces. One encoder, built once: retention measures the
+dump at every pass, and `json.dumps` with these options would build an encoder per row."""
+
+
 class StoreIdentityMismatch(ValueError):
     """The file is another seat's, another world's, or another schema's memory. Nothing was changed."""
 
@@ -187,6 +192,10 @@ class MemoryStore:
         lines = [line for table, _ in _DUMPED for _, line in self._lines(table)]
         return ("\n".join(lines) + "\n").encode("utf-8")
 
+    def size(self) -> int:
+        """`len(dump())`, without building it."""
+        return sum(size for table, _ in _DUMPED for _, size in self.row_bytes(table))
+
     def row_bytes(self, table: str) -> list[tuple[dict[str, Cell], int]]:
         """Every row of a dumped table, in dump order, with the bytes its dump line takes, newline
         included: exactly what removing the row subtracts from `dump()` (pr-fg-b §5.4)."""
@@ -199,10 +208,7 @@ class MemoryStore:
         out: list[tuple[dict[str, Cell], str]] = []
         for row in cursor:
             cells: dict[str, Cell] = dict(zip(columns, row, strict=True))
-            line = json.dumps(
-                {**cells, "table": table}, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-            )
-            out.append((cells, line))
+            out.append((cells, _ENCODER.encode({**cells, "table": table})))
         return out
 
     def reclaim(self) -> None:
