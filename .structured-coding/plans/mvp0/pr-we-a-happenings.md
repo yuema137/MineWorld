@@ -667,14 +667,22 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 1. **Goal.** Record the implementation base and the reference record E-1 compares against.
 2. **Scope.** This file's ledger only.
 3. **Implementation**
-   - [ ] Confirm DOC-24 (#175) merged; record base SHA; note 12d (#171) state.
-   - [ ] Build the base binary; record `base.txt` (E-1) in a scratch directory outside the repository.
-4. **Validation** — [ ] `base.txt` exists and lists all four worlds.
+   - [x] Confirm DOC-24 (#175) merged; record base SHA; note 12d (#171) state. — #175 MERGED (merge
+     `baa0d33`); base `origin/main @ 6306977` (#177); 12d #171 OPEN (2026-10-13), so C5 waits.
+   - [x] Build the base binary; record `base.txt` (E-1) in a scratch directory outside the repository. —
+     `cargo build --release -p mineworld-cli` (1 min 50 s), binary copied to
+     `/tmp/impl-we-a-scratch/mineworld-base`; `python3.12 scripts/ci_parity.py record --binary
+     /tmp/impl-we-a-scratch/mineworld-base --out /tmp/impl-we-a-scratch/base.txt` (195.5 s).
+4. **Validation** — [x] `base.txt` exists and lists all four worlds (`bodies-yard`, `lakeside`,
+   `market-town`, `social-cafe`; 2 392 lines; sha256 `856cbde7…c0990ee5c829e48338494cd6f99d4fbc435`).
 5. **Acceptance** — base SHA and record digest written in §15.
-6. **Edge cases** — DOC-24 not merged → stop (§13 stop condition).
-7. **Evidence** — command lines, wall time.
+6. **Edge cases** — DOC-24 not merged → stop (§13 stop condition). Not hit.
+7. **Evidence** — command lines, wall time (above). `scripts/ci_parity.py` needs Python ≥ 3.11 (`tomllib`);
+   the host's `/usr/bin/python3` is older, so `python3.12` runs it, and `rustc` must be on `PATH`.
 8. **Commit boundary** — ledger-only commit `docs(we-a): C0 base and reference record`.
-   - [ ] Review: the base contains `ARC-88`; nothing else to review.
+   - [x] Review: the base contains `ARC-88` (`docs/DECISIONS.md`, line 7815). Its text still says
+     "owns `Happenings` on places"; F-WE-a-6 replaced that with Process state, and C6's dated note
+     reconciles it (not rewritten here).
 
 ### C1 — The pack, its configuration and its genesis fact
 
@@ -843,9 +851,11 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            DESIGN FROZEN 2026-10-12; implementation not started (waits for the operator's go)
-Base:              (C0)
-Commits:           (none)
+Status:            IMPLEMENTING (operator go 2026-10-13); session in worktree impl-we-a, branch mvp0/pr-we-a
+Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
+                   /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
+12d (#171):        OPEN at C0 (2026-10-13)
+Commits:           C0 (ledger)
 Evidence:          (none)
 Deviations:        (none)
 Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); ARC-88 corrections being applied in DOC-24 (#175)
