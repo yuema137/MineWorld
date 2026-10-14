@@ -32,8 +32,11 @@ use std::time::Duration;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::backend::{
-    FactRow, ManifestRow, PersistenceBackend, RevisionRow, RevisionSpan, SealedSpan,
+    FactRow, Facts, ManifestRow, PersistenceBackend, RevisionRow, RevisionSpan, Revisions,
+    SealedSpan,
 };
+
+mod cursor;
 use crate::block::{self, BlockKeys, JournalRow, SealedFact};
 use crate::error::PersistError;
 use crate::input::WorldRevision;
@@ -387,31 +390,6 @@ impl SqliteBackend {
         self.decoded.set(self.decoded.get() + 1);
         block::decode_journal(keys, frame)
     }
-
-    /// The blocks whose span ends after `after`, in revision order, with their journal frames.
-    fn blocks_after(
-        &self,
-        after: WorldRevision,
-    ) -> Result<Vec<(BlockKeys, Vec<u8>)>, PersistError> {
-        let mut statement = self
-            .connection
-            .prepare(&format!(
-                "SELECT {BLOCK_KEYS}, journal FROM sealed WHERE last_revision > ?1
-                 ORDER BY first_revision"
-            ))
-            .map_err(storage)?;
-        let rows = statement
-            .query_map([signed(after.raw())?], |row| {
-                Ok((raw_keys(row)?, row.get(5)?))
-            })
-            .map_err(storage)?;
-        let mut blocks = Vec::new();
-        for row in rows {
-            let (keys, journal) = row.map_err(storage)?;
-            blocks.push((block_keys(keys)?, journal));
-        }
-        Ok(blocks)
-    }
 }
 
 /// Up to `limit` live journal rows of revisions `first ..= last`, in revision order.
@@ -566,29 +544,12 @@ impl PersistenceBackend for SqliteBackend {
         transaction.commit().map_err(storage)
     }
 
-    fn journal_after(
-        &self,
-        after: WorldRevision,
-    ) -> Result<Vec<(WorldRevision, Vec<u8>)>, PersistError> {
-        let _read = self.reading()?;
-        let mut entries = Vec::new();
-        for (keys, journal) in self.blocks_after(after)? {
-            for row in self.decode_journal(&keys, &journal)? {
-                if row.revision > after {
-                    entries.push((row.revision, row.entry));
-                }
-            }
-        }
-        let from = entries.last().map_or(after, |(revision, _)| *revision);
-        for row in live_journal(
-            &self.connection,
-            signed(from.raw())? + 1,
-            i64::MAX,
-            usize::MAX,
-        )? {
-            entries.push((row.revision, row.entry));
-        }
-        Ok(entries)
+    fn revisions_after(&self, after: WorldRevision) -> Result<Revisions<'_>, PersistError> {
+        Ok(Box::new(cursor::RevisionCursor::open(self, after)?))
+    }
+
+    fn facts_after(&self, after: Option<u64>) -> Result<Facts<'_>, PersistError> {
+        Ok(Box::new(cursor::FactCursor::open(self, after)?))
     }
 
     fn facts_of(&self, revision: WorldRevision) -> Result<Vec<FactRow>, PersistError> {

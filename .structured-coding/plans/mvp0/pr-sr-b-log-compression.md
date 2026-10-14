@@ -651,13 +651,35 @@ the whole 4 096-revision block — the quadratic cost §3's audit row for `repla
   `journal_after` (`headless/mod.rs` `Tables::read` + raw `sealed` rows in `assert_same_history`,
   `configuration_seam.rs`, `arrival_resolvers_resume.rs`, `tools/cli/tests/inspect.rs`); concurrent-seal
   test.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance`;
+- [x] Implementation. `backend.rs` (`StoredRevision`, type aliases `Revisions<'_>` / `Facts<'_>` for the
+  design's boxed iterators, trait methods `revisions_after`, `facts_after`; `journal_after` removed); new
+  `persistence/src/sqlite/cursor.rs` (a submodule of the one SQL file, keeping `sqlite.rs` under 800 lines:
+  `RevisionCursor`, `FactCursor`, one read transaction each via `SqliteBackend::reading`, the block found by
+  key (`last_revision >= next`, `first_revision > last AND last_event_id > floor`), one decoded block at a
+  time, the tail paged 1 024 rows per query, a skip or a block that goes back reported as `Damaged`, the
+  cursor ending after its first error); `replay.rs` (`replay_after` iterates `revisions_after`; `reproduce`
+  takes the `StoredRevision` — no `facts_of`); call sites forced by the removal, converted one commit early
+  (bounded): `run.rs` `genesis_instant`, `head_input`; `inspect.rs` `Journal::read`; test helpers
+  `headless/mod.rs` `Tables::read` (cursors + raw `sealed` rows, compared in `assert_same_history`),
+  `arrival_resolvers_resume.rs`, `configuration_seam.rs`; `save.rs` `Failing`; the concurrent-seal test
+  `a_cursor_reads_one_history_while_another_connection_seals_the_rows_ahead_of_it` (interval 16: the
+  reader opens at r2 040, the writer seals 1–1 024 and 1 025–2 048 under it).
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance`;
   `cargo test -p mineworld-cli --test run --test inspect --test save_retention` (the targets that use
   `Tables::read` and the cursors; the rest run in the PR's CI); mutation "cursor without read
-  transaction" red on the concurrent-seal test.
-- [ ] Review: no per-revision `facts_of` left in replay; one comparison path for resume, verify and
-  `verify_from`.
+  transaction" red on the concurrent-seal test. (Persistence: lib 6, cafe + clock PASS, retention 4 (2.73 s
+  at C3 → 0.57 s), save 12 — all passed. CLI: save_retention 1 + 1 ignored, inspect 3, run 4 (102.8 s);
+  acceptance: every target passed (15 result lines, exit 0; log `/tmp/impl-sr-b-target/c4-tests.log`).
+  ASRB-8's six-command refusal passed inside `save_retention`. `cargo clippy --workspace --all-targets
+  -- -D warnings` clean. Mutation: `Reading::open` with no transaction → RED, "the cursor reads on:
+  Damaged { detail: "the log skips from r1024 to r2049" }"; reverted, green.)
+- [x] Review: no per-revision `facts_of` left in replay; one comparison path for resume, verify and
+  `verify_from`. (`grep facts_of persistence/src/replay.rs` → none; `resume` and `reexecute` both call
+  `replay_after`.)
+
+*Correction to C3's evidence:* "the retention sweep … seals 22 blocks" was a miscount written without a
+measurement; the rule gives 23 blocks for head 12 293 at interval 8 (anchors 1 024 … 12 288). C6's sweep
+asserts the count against the oracle.
 
 ### C5 — Production readers on the stream (`F-S24-1`)
 

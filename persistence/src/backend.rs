@@ -35,6 +35,28 @@ pub struct RevisionRow {
     pub seal: Option<RevisionSpan>,
 }
 
+/// One stored revision as a reader of history receives it: the journal row and the facts it recorded,
+/// with their bytes exactly as committed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredRevision {
+    /// Which revision.
+    pub revision: WorldRevision,
+    /// The instant of its input, in simulated seconds.
+    pub at: i64,
+    /// The request's `ActionId`, when the input is a request.
+    pub action_id: Option<u64>,
+    /// The encoded journal entry.
+    pub entry: Vec<u8>,
+    /// The facts it recorded, in `EventId` order.
+    pub facts: Vec<FactRow>,
+}
+
+/// A stream of stored revisions, in revision order. It stops after the first error it yields.
+pub type Revisions<'a> = Box<dyn Iterator<Item = Result<StoredRevision, PersistError>> + 'a>;
+
+/// A stream of facts, in `EventId` order. It stops after the first error it yields.
+pub type Facts<'a> = Box<dyn Iterator<Item = Result<FactRow, PersistError>> + 'a>;
+
 /// A sealed block as a person reading the save sees it: the revisions it covers and what it costs on
 /// disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,11 +136,14 @@ pub trait PersistenceBackend {
     /// snapshots it names and the seal of the span it names, all or nothing.
     fn commit(&mut self, revision: &RevisionRow) -> Result<(), PersistError>;
 
-    /// Every journal row after `after`, in revision order: `(revision, encoded entry)`.
-    fn journal_after(
-        &self,
-        after: WorldRevision,
-    ) -> Result<Vec<(WorldRevision, Vec<u8>)>, PersistError>;
+    /// Every revision after `after`, in revision order, each with its journal row and its facts — a
+    /// stream, not a list (`ARC-89`, D-SRB-6). The cursor reads one consistent history for its whole
+    /// life, whatever another connection commits meanwhile, and holds at most one decoded block.
+    fn revisions_after(&self, after: WorldRevision) -> Result<Revisions<'_>, PersistError>;
+
+    /// Every fact after the `EventId` `after` (every fact, for `None`), in `EventId` order — a stream,
+    /// with the same consistency and memory as [`revisions_after`](Self::revisions_after).
+    fn facts_after(&self, after: Option<u64>) -> Result<Facts<'_>, PersistError>;
 
     /// The facts one revision recorded, in `EventId` order.
     fn facts_of(&self, revision: WorldRevision) -> Result<Vec<FactRow>, PersistError>;

@@ -19,7 +19,9 @@ use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
 };
-use mineworld_persistence::backend::{FactRow, ManifestRow, RevisionRow, SealedSpan};
+use mineworld_persistence::backend::{
+    FactRow, Facts, ManifestRow, RevisionRow, Revisions, SealedSpan,
+};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, verify,
@@ -713,6 +715,81 @@ fn a_save_is_never_created_over_another_nor_opened_where_there_is_none() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// a reader sees one history while the writer seals (ARC-89 I-SRB-5)
+// ---------------------------------------------------------------------------------------------
+
+/// Drives `persisted` with the script's next steps until its head reaches `head`.
+fn drive_to<'a>(
+    persisted: &mut PersistentWorld,
+    people: &[EntityId],
+    steps: &mut impl Iterator<Item = &'a Step>,
+    head: u64,
+) {
+    while persisted.revision().raw() < head {
+        let Some(step) = steps.next() else {
+            panic!("the script ended before r{head}");
+        };
+        let _ = persisted.advance_to(t(step.at)).expect("advances");
+        let _ = persisted.dispatch(&step.intent(people), t(step.at));
+    }
+}
+
+#[test]
+fn a_cursor_reads_one_history_while_another_connection_seals_the_rows_ahead_of_it() {
+    // Interval 16: anchors every 1 024 revisions, so the live tail outgrows one page of the cursor
+    // (1 024 rows) before the first seal at 2 048 — the reader has rows left to read in the tail when
+    // the writer moves them into a block.
+    let scratch = Scratch::new("concurrent-seal");
+    let (mut persisted, people) = create(&scratch);
+    let script = script(4_000, 10, 1);
+    let mut steps = script.iter();
+    drive_to(&mut persisted, &people, &mut steps, 2_040);
+    let opened_at = persisted.revision().raw();
+    assert!(
+        open(&scratch).sealed().expect("reads").is_empty(),
+        "nothing is sealed yet at r{opened_at}"
+    );
+
+    let reader = open(&scratch);
+    let mut cursor = reader
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("a cursor");
+    let first = cursor.next().expect("a revision").expect("reads");
+    assert_eq!(first.revision, WorldRevision::GENESIS);
+
+    // The writer seals 1–1 024 at r2 048 and 1 025–2 048 at r3 072, while the cursor is open.
+    drive_to(&mut persisted, &people, &mut steps, 3_080);
+    let sealed = open(&scratch).sealed().expect("reads");
+    assert_eq!(
+        sealed
+            .iter()
+            .map(|block| block.span.to_string())
+            .collect::<Vec<_>>(),
+        ["r1–r1024", "r1025–r2048"],
+        "the rows ahead of the cursor were sealed meanwhile"
+    );
+
+    let rest: Vec<u64> = cursor
+        .map(|stored| stored.expect("the cursor reads on").revision.raw())
+        .collect();
+    assert_eq!(
+        rest,
+        (2..=opened_at).collect::<Vec<_>>(),
+        "every revision of the history the cursor opened on, once, in order — none missed, none \
+         repeated, none from after it opened"
+    );
+
+    // A cursor opened now reads the new history: two blocks, then the tail, to the new head.
+    let head = persisted.revision().raw();
+    let now: Vec<u64> = reader
+        .revisions_after(WorldRevision::from_raw(1_000))
+        .expect("a cursor")
+        .map(|stored| stored.expect("reads").revision.raw())
+        .collect();
+    assert_eq!(now, (1_001..=head).collect::<Vec<_>>());
+}
+
+// ---------------------------------------------------------------------------------------------
 // a world that cannot save stops
 // ---------------------------------------------------------------------------------------------
 
@@ -744,11 +821,11 @@ impl PersistenceBackend for Failing {
         }
         self.inner.commit(revision)
     }
-    fn journal_after(
-        &self,
-        after: WorldRevision,
-    ) -> Result<Vec<(WorldRevision, Vec<u8>)>, PersistError> {
-        self.inner.journal_after(after)
+    fn revisions_after(&self, after: WorldRevision) -> Result<Revisions<'_>, PersistError> {
+        self.inner.revisions_after(after)
+    }
+    fn facts_after(&self, after: Option<u64>) -> Result<Facts<'_>, PersistError> {
+        self.inner.facts_after(after)
     }
     fn facts_of(&self, revision: WorldRevision) -> Result<Vec<FactRow>, PersistError> {
         self.inner.facts_of(revision)

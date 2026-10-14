@@ -170,11 +170,13 @@ impl Journal {
             actions: BTreeSet::new(),
             head_at: 0,
         };
-        for (_, bytes) in backend
-            .journal_after(WorldRevision::from_raw(0))
+        for stored in backend
+            .revisions_after(WorldRevision::from_raw(0))
             .map_err(damaged)?
         {
-            let entry: JournalEntry = format::decode(&bytes, "journal entry").map_err(damaged)?;
+            let stored = stored.map_err(damaged)?;
+            let entry: JournalEntry =
+                format::decode(&stored.entry, "journal entry").map_err(damaged)?;
             journal.head_at = entry.input.at().seconds();
             let kind = match (&entry.input, &entry.outcome) {
                 (WorldInput::Genesis { .. }, _) => "genesis".to_owned(),
