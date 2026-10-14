@@ -507,10 +507,10 @@ worktree root.
 
 - **Goal.** Start implementation against the frozen design. **Scope.** This file (ledger opened),
   `handoff-dl-a.md` (new).
-- [ ] Implementation: verify the `DESIGN FROZEN` header and §13; record the base commit; confirm DOC-24 is on
-  it (`grep -n "ARC-84" docs/DECISIONS.md`); initialize the handoff.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no authority line widened; rulings copied verbatim.
+- [x] Implementation: verify the `DESIGN FROZEN` header and §13; record the base commit; confirm DOC-24 is on
+  it (`grep -n "ARC-84" docs/DECISIONS.md`); initialize the handoff. *Evidence E-DLa-0.*
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`. *E-DLa-0.*
+- [x] Review: no authority line widened; rulings copied verbatim. *E-DLa-0.*
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specifications before code
@@ -714,11 +714,31 @@ and column, not at `run`'s load (SD-DLa-9).
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] | [x] | [x] |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
+
+Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
+`/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
+(#177). Handoff: [`handoff-dl-a.md`](handoff-dl-a.md).
 
 ### Evidence
 
-(none yet)
+- **E-DLa-0 (C0).** `DESIGN FROZEN 2026-10-12` header and §13 filled, verified. `grep -n "^## ARC-84"
+  docs/DECISIONS.md` → line 7733 (DOC-24 #175 is on the base). `check_doc_headings.py` → "223 numbered
+  sections across 31 documents, none duplicated"; `check_decision_ids.py` → "122 decision ids, all distinct"
+  (PASS). Authority lines copied from §13 into the handoff unchanged; the operator's kickoff adds one
+  obligation (full local workspace test and Python suites before a push that changes tests), recorded as
+  such, widening nothing.
+- **Goldens frozen on the base, before any code change (test rules §25).** (1) `Draw`: 32 tuples
+  `(seed, observer, instant, n, bound) → (below, offset(1 400))` and four `mix` values, printed by a temporary
+  `#[cfg(test)]` module placed inside `paced.rs` at `6306977` (so it could reach the private `Draw`), then
+  deleted uncommitted; C2 freezes them in `cognition/decision/src/draw_tests.rs`. (2) The base binary's
+  `run worlds/social-cafe --headless --seed 7 --days 30` output minus its `wall` line, frozen as
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (header line
+  `[mineworld] run Social Café (social-cafe): seats alice, …, wanderer; seed 7; to day 30; pace 900s; in
+  memory`; fingerprint `af1927a1e2182bcd`). (3) The base binary's `packs list` (controller line
+  `controller-pack mineworld-rule-controller 0.1.0 MIT Yue Ma bundled`) and `validate` outputs, kept in
+  scratch for AC-DLa-9.
 
 ### Mutations
 
