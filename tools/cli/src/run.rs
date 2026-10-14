@@ -465,10 +465,9 @@ impl Fingerprint {
     fn of_save(save: &Path) -> Result<Self, String> {
         let backend = SqliteBackend::open(save, Durability::ProcessCrash).map_err(stopped)?;
         let mut fingerprint = Self::new();
-        // "All of them": the largest count the backend can state as a stored (signed) integer.
-        let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-        for fact in backend.last_facts(all).map_err(stopped)? {
-            fingerprint.add(&fact.bytes);
+        // Streamed, one sealed block at a time (`ARC-89`): the log is never held whole.
+        for fact in backend.facts_after(None).map_err(stopped)? {
+            fingerprint.add(&fact.map_err(stopped)?.bytes);
         }
         Ok(fingerprint)
     }

@@ -90,23 +90,23 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
             )
         })?;
 
-    let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-    let facts: Vec<EventEnvelope> = backend
-        .last_facts(all)
-        .map_err(damaged)?
-        .iter()
-        .map(|fact| format::decode(&fact.bytes, "fact"))
-        .collect::<Result<_, _>>()
-        .map_err(damaged)?;
     let configured = configured(&backend, &manifest, &loaded)?;
-    let entries: Vec<&EventEnvelope> = facts
-        .iter()
-        .filter(|fact| interactions::biography::selected(fact, person, &selected, &configured))
-        .collect();
-
-    // Display names, from the save's own `named` facts through naming's projection of them, so this
-    // command still decodes no pack's payload itself (ARC-31). A world without naming names nobody.
-    let names = mineworld_naming::names_in(&facts);
+    // One streamed pass over the log (`ARC-89`, `F-S24-1`): the person's entries are kept, and the
+    // display names the save's own `named` facts give, through naming's projection of them one fact at
+    // a time — so this command still decodes no pack's payload itself (ARC-31). A world without naming
+    // names nobody.
+    let mut entries: Vec<EventEnvelope> = Vec::new();
+    let mut names = BTreeMap::new();
+    let mut facts: usize = 0;
+    for row in backend.facts_after(None).map_err(damaged)? {
+        let fact: EventEnvelope =
+            format::decode(&row.map_err(damaged)?.bytes, "fact").map_err(damaged)?;
+        facts += 1;
+        names.extend(mineworld_naming::names_in(std::slice::from_ref(&fact)));
+        if interactions::biography::selected(&fact, person, &selected, &configured) {
+            entries.push(fact);
+        }
+    }
     let display = |id: EntityId| names.get(&id).map(|name| name.as_str().to_owned());
     let name = |id: EntityId| {
         keys.get(&id)
@@ -124,11 +124,11 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
             person.raw(),
             pack.id(),
             entries.len(),
-            facts.len(),
+            facts,
             types.join(", "),
         );
     }
-    for fact in entries {
+    for fact in &entries {
         let place = fact.place().map(|place| name(place.entity_id()));
         let met = counterparts(fact, person);
         if request.json {

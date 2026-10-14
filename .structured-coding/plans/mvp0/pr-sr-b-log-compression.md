@@ -687,12 +687,33 @@ asserts the count against the oracle.
 - **Scope.** `tools/cli/src/history.rs`, `perceived.rs`, `inspect.rs` (+ `log` line), `biography.rs`,
   `run.rs` (`Fingerprint::of_save`, `genesis_instant`); `tools/cli/tests/perceived.rs`, `inspect.rs`,
   biography and lakeside history tests as touched.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-cli --test perceived --test inspect --test run --test
+- [x] Implementation. `history.rs`: `saved_facts` replaced by `with_saved_facts(save, read)` — a
+  `Decoded` adapter over `facts_after(None)` that decodes one envelope at a time, ends at the first error
+  and returns it after `read` (D-SRB-8's adapter); `SavedHistory::perceived` = `perceived_by(facts
+  .take_while(id ≤ through), …)` (the raw stream stops at `through`, so a backfill reads no later block;
+  same output since later facts are never returned); `perceived.rs` checks the save, then prints as the
+  stream goes; `inspect.rs` streams the journal once (kinds, actions, sealed row bytes) and the facts once
+  (type counts, `Causes::add` with the seen-id set, a ring of the newest `--last`), and prints the `log`
+  line; `biography.rs` one pass (selected entries kept; names through `names_in` one fact at a time, so it
+  still names no event type); `run.rs` `Fingerprint::of_save` streams. `tools/cli/tests/perceived.rs`
+  CA-6's per-revision `facts_of` loop (quadratic over blocks) moved to the revision cursor.
+- [x] Validation: `cargo test -p mineworld-cli --test perceived --test inspect --test run --test
   milestone_e`; outputs compared with the base build on a 30-day save (identical but for the `log` line
   and the format number); mutation "collect all then filter" shows ASRB-4's measurement fail at C7.
-- [ ] Review: no `last_facts(i64::MAX)` or whole-journal read remains in `tools/cli/src` or `server/src`
-  (`grep`); error from the stream surfaces, never a truncated success.
+  (Tests, with `--test biography` added: biography 2, inspect 3, milestone_e 7, perceived 3 + 1 ignored
+  (re-run after the CA-6 edit: 3 passed), run 4 — all passed, log `c5-tests.log`. Outputs, release
+  builds of base 6306977 (`scratch-srb-base` worktree, own target dir) and head, Market Town seed 7,
+  30 days: `run`'s printed lines identical but for the header path and `wall` (incl. `history 82298
+  facts, fingerprint 346dcaa6291381a0`); `perceived --person alice` (34 698 lines), `perceived --json
+  --since 5000` (32 665 lines) and `biography --person alice` (736 lines) byte-identical (`cmp`);
+  `inspect --last 50` differs only in the format number, the random instance and the added line
+  `log        13 block(s) sealed r1–r53248 (3.6 MB stored, 90.1 MB of rows); live r53249–r60331`. The
+  "collect all then filter" mutation is run at C7 with the memory measurement.)
+- [x] Review: no `last_facts(i64::MAX)` or whole-journal read remains in `tools/cli/src` or `server/src`
+  (`grep`); error from the stream surfaces, never a truncated success. (`grep -rn "last_facts\|
+  journal_after" tools/cli/src server/src` → none; `last_facts(64)` stays in `PersistentWorld::
+  recent_facts`, live tail first. Every streaming reader returns the stream's error: `with_saved_facts`
+  checks the adapter's error after `read`; inspect, biography and the fingerprint `?` each row.)
 
 ### C6 — Kill-and-resume, sweeps, raw-SQL tests, CI assertions, parity and nightly
 
