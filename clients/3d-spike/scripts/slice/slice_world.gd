@@ -2,7 +2,8 @@
 ##
 ## Everything here is the scope `docs/VISUAL_SLICE.md` sec.4 fixes, and nothing
 ## beyond it. One cafe, five other north-side facades, four lower south-side
-## ones, street furniture, planting, a backdrop and two ends. Adding a second
+## ones, street furniture, planting, two ends, and the far field the Presentation
+## Pack declares (RL-e0). Adding a second
 ## street or a second interior here is what would make the Godot and Unreal
 ## slices stop comparing, so the list is short on purpose.
 ##
@@ -28,14 +29,14 @@ const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0
 
 
-static func build(parent: Node3D) -> Node3D:
+static func build(parent: Node3D, far_field: MineWorldFarField) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Slice"
 	parent.add_child(g)
 
 	var t0 := Time.get_ticks_msec()
 	SliceStreet.build(g);                                        _tick("street", t0)
-	SliceStreet.backdrop(g);                                     _tick("backdrop", t0)
+	SliceFarFieldView.build(g, far_field);                       _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
 	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))

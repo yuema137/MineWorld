@@ -70,6 +70,16 @@ C0 — ledger and handoff opened against origin/main @ 2d07c6c0. PR #200 (S25 25
 C2 step 7 (the generated reference entry) is N/A in RL-e0 and moves to whichever of #200 / RL-e0 merges
 second (§14.2). RL-b2 (#212) is an open draft: overlaps per §14.1, mechanical.
 
+### 2026-10-15, after C4 (HEAD d8c7482b)
+
+C0 80afda22 · C1 2b554ed5 · C2 2b6ff714 · C3 2edc512e · C3b 152eba80 · C4 d8c7482b. Working tree clean.
+Findings to carry to the report: F-FF-1 (X-2a literal survives: skyline sectors close 360° under the frozen
+GAP rule; X-2a′ fails by name), D-FF-1…6 (ledger). Host load 30–120 from other sessions: cargo runs in the
+background; Godot one process at a time; a `--script` that fails to compile hangs, so wrap Godot runs in a
+kill-after loop (no `timeout` binary on this Mac).
+
 ## Next actions
 
-C1 (Appendix A texts into the five specification files), then C2 … C10 in order.
+C5 (3D far-field view; design note: proxies must lie beyond the 1 450 m foreground or the near ribbon hides
+the bay — record as a deviation), then C6 (with the R-FF-1 hosted-runner dispatch), C7, C8, C9, C10, push,
+PR, CI.

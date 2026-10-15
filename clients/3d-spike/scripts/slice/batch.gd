@@ -77,6 +77,9 @@ static func merge(root: Node3D) -> Dictionary:
 
 static func _collect(node: Node, root: Node3D, groups: Dictionary,
 		victims: Array[MeshInstance3D]) -> void:
+	# The far field keeps its own meshes (RL-e0): some follow the camera, none is a primitive.
+	if str(node.get_meta("mw_category", "")).begins_with("farfield."):
+		return
 	for c in node.get_children():
 		_collect(c, root, groups, victims)
 	if not (node is MeshInstance3D):
