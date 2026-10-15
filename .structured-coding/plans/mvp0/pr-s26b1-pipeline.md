@@ -1181,7 +1181,7 @@ or `tools/asset_generation/` changed.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| B0 | — | [ ] | [ ] | [ ] |
+| B0 | this commit (base `f772a18`) | [x] steps 1–4; handoff created; scratch `/Users/yuema137/mineworld-demos/cast-scratch/s26b1` created | [x] doc checks (see Evidence) | [x] no authority widened; I-B1-2 copied into handoff |
 | B1 | — | [ ] | [ ] | [ ] |
 | B2 | — | [ ] | [ ] | [ ] |
 | B3 | — | [ ] | [ ] | [ ] |
@@ -1215,3 +1215,7 @@ or `tools/asset_generation/` changed.
 ### Deviations and findings
 
 (none yet; planning findings are §3.4)
+
+- **B0 evidence (2026-10-14):** `check_doc_headings.py` PASS (223 sections, 32 documents); `check_decision_ids.py`
+  PASS (122 ids, all distinct). Blender `--version` = `Blender 5.2.2 LTS`; Godot `4.7.2.stable.official`.
+  Scratch root created, empty.
