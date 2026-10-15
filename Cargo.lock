@@ -1073,6 +1073,7 @@ name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [
  "acme-fishing",
+ "mineworld-appearance",
  "mineworld-bodies",
  "mineworld-calendar",
  "mineworld-consumption",
