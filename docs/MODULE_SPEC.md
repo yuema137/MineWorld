@@ -1190,6 +1190,19 @@ the no-LLM utility model (step-24 DL-b). `lm` is the LM Controller (step-17 P6),
 A director is a Controller Pack seated on an Organization; it is valid only once the Organization-seat rule
 is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCEPTS.md` §14 is amended then.
 
+**The bundled no-LLM model, `motivated`** (`cognition/motivated`, DL-b, `DECISIONS.md` `DEP-47`, `DEP-48`).
+- **What it is.** A pure, stateless, integer utility model. It scores every option the observation offers by
+  integer response curves, combines them through Mark's compensation factor, and chooses by a seeded draw
+  among the top band.
+- **Its daily rhythm** comes from the curve set `atus-a3-2025`. That set is derived from BLS American Time Use
+  Survey Table A-3 (2025), which is public domain. Source: U.S. Bureau of Labor Statistics, American Time Use
+  Survey. The credit is in `cognition/motivated/data/NOTICE`.
+- **Parameters.** `curves`, `top_band`, `commit_minutes`, `social_need_hours`, `reply_floor`, `base`, `roles`
+  and per-curve `curve` overrides (≤ 24 points each).
+- **Status.** It is installed but is never a default. A world selects it through a decision list, such as
+  the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
+  (F-DLb-5, `pr-dl-b-motivated.md` §15).
+
 ## 5.2 Memory policies and host bounds
 
 **Field reference.** This section states the shape and the rules. The field-level reference for the
@@ -1313,8 +1326,10 @@ mode a missing recording raises `CassetteMiss`, which the pass propagates; no po
 back silently. In live mode, a refusal, a failure, an unbound tier, or `calls_left = 0` makes the host apply
 the policy's declared `fallback` to the remaining groups. The seat's store records which policy produced each
 decision. Rebuilding a store with its recordings reproduces it byte for byte. Rebuilding without them
-reproduces the fallback's store and says so. An LM policy names a no-model `fallback`. Forgotten Event IDs
-stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
+reproduces the fallback's store and says so. An assisted policy names a no-model `fallback`, and it reaches a
+model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
+before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
+Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ---
 
