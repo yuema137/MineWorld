@@ -640,8 +640,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C1 | 400901c | [x] | [x] | [x] |
 | C2 | f8e30c6 | [x] | [x] | [x] |
 | C3 | e9b73ad | [x] | [x] | [x] |
-| C4 | (this commit) | [x] | [x] | [x] |
-| C5 | — | [ ] | [ ] | [ ] |
+| C4 | 63dae68 | [x] | [x] | [x] |
+| C5 | (this commit) | [x] | [x] | [x] |
 | C6 | — | [ ] | [ ] | [ ] |
 | C7 | — | [ ] | [ ] | [ ] |
 | C8 | — | [ ] | [ ] | [ ] |
@@ -705,6 +705,14 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   `test_world_text.py::test_world_authored_text_only_in_world_text` red, naming the leaked strings; reverted,
   green. Review: every expected value is read from the raw fixture JSON (`recorded.py`), never from `view.py`;
   the view computes no distance and evaluates no requirement.
+- **E-C5 (inbox).** `inbox.py`: `Inbox` (bound 1..512, oldest dropped and counted, `F<n>` in arrival order,
+  subjects and place given the handle's refs; `events(after, limit, detail)`, `since`, `caused_by` (shown once,
+  then hidden from `events`), `matches` for `any_event`/`spoken_to`/`walk_ended`), `offered` for
+  `offer_available` against the newest observation; `changed` event for `wait`. `test_inbox.py` 7 passed;
+  pyright, ruff clean. Review: the bound and the drop count are exact (514 facts at 512 → 2 dropped, F1 and
+  F2); `spoke` (`speaker`, `listener`, `utterance`) and `walk-ended` (`person`) are the only payloads read
+  by name; persons decode as `{ entity, entity_type }` (`contracts/src/ids.rs` `PersonId` via
+  `TypedEntityRef`), a bare id tolerated.
 - **F-S27c-8 (finding, for S27-d / the primary session; no change here).** The recorded café offers six `buy`
   and two `give` per person whose only difference is the item in the complete payload (`{item: ItemId}`);
   `OfferLine` (step-27 §5.3, frozen) shows `action_type`, `target`, the verdict and the requirement, so an
