@@ -16,10 +16,10 @@ ENDPOINT:              READY FOR OPERATOR REVIEW — DO NOT MERGE
 ENDPOINT SOURCE:       design §12 ENDPOINT AUTHORITY (operator dispatch, 2026-10-15)
 COMMIT ATTRIBUTION:    per the operator's dispatch, commits end with Co-Authored-By: Claude Opus 5.5 (see final report)
 
-CURRENT CHECKPOINT:    C0 (5686137d), C1 (7c03d972), C2 (d7339dca), C3 (047f2a0f) committed. C4 done in the working tree
-                       (CLI, script entry, golden, README, docstring and argument-description fixes), commit pending.
-                       Next: C5 (stdio play-test: `mcp_relay.py`, `test_play_mcp.py`, realserver grant lines).
-                       Design §15 records the discipline breach (sed -i, python -c) across C1–C3.
+CURRENT CHECKPOINT:    C0–C6 committed (5686137d, 7c03d972, d7339dca, 047f2a0f, c4ac3a44, 923e98a0, 3770281d), the play-test
+                       additions 67968b31. C7 close-out written in the ledger; next: push, open the PR, wait for CI on the
+                       exact head, repair, report READY FOR OPERATOR REVIEW. DO NOT MERGE. Design §15 records the
+                       discipline breaches (sed -i, python -c, a heredoc append) and the open items (biography, TooFarAway).
 SEQUENCE:              C0 ledger+DEP-56 · C1 dependency + SDK prototype (STOP if P-1/P-2 fail) · C2 library additions ·
                        C3 MCP server · C4 CLI + golden · C5 stdio play-test · C6 same answers/guard/admin · C7 close-out, PR, CI
 
