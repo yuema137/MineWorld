@@ -8,12 +8,16 @@
 > check) and `--farfield-shots` (the regression views).
 > The protocol is `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md` §3.
 
-The spike is a runnable walking demo, built to answer one question: **does this feel like the
+The spike was a runnable walking demo, built to answer one question: **does this feel like the
 walking, travel and life-simulation experience we want?** Three camera modes,
-one movement controller.
+one movement controller. It has no far field, so since 2026-10-15 it is no longer walked (operator
+ruling Q-FF-3; every walkable scene closes every view on a far field, `docs/MODULE_SPEC.md` §6.1.1):
+`./mineworld-3d` alone says so and points at `./mineworld-slice`. Its harness modes stay:
 
 ```sh
-./mineworld-3d            # from the repository root -- walk around it
+./mineworld-3d --drive    # from the repository root -- the movement and collision test
+./mineworld-3d --shots    # its reference screenshots
+./mineworld-3d --portrait # the default character's review frames
 ```
 
 Needs **Godot 4.7** on `PATH` (`brew install godot`). Nothing else. The first
