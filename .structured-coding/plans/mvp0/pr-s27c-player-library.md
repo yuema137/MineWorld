@@ -639,8 +639,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C0 | 5f3d48e | [x] | [x] | [x] |
 | C1 | 400901c | [x] | [x] | [x] |
 | C2 | f8e30c6 | [x] | [x] | [x] |
-| C3 | (this commit) | [x] | [x] | [x] |
-| C4 | — | [ ] | [ ] | [ ] |
+| C3 | e9b73ad | [x] | [x] | [x] |
+| C4 | (this commit) | [x] | [x] | [x] |
 | C5 | — | [ ] | [ ] | [ ] |
 | C6 | — | [ ] | [ ] | [ ] |
 | C7 | — | [ ] | [ ] | [ ] |
@@ -691,6 +691,29 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   schema generates and is a closed object (S27-d's `inputSchema`/`outputSchema`). `models.py` is 673 lines
   (past the ~500 review trigger): one coherent responsibility, the schema of the surface; kept whole so
   S27-d registers from one module.
+- **E-C4 (recorded observations, views).** `fixtures/record.py` run by hand against the real binary
+  (`SOURCE.md`: command, source `f8e30c6` = `f772a18` for server/systems/worlds, sha256 of each file): three
+  observations (`start`, `walking`, `street`). `view.py`: `render` → `Rendered`; `view_of`, `page_of`
+  (paging 24/24/40 then `PageRef`s, fitted under 8 KiB by shortening the largest list one entry at a time),
+  `delta_of`, `relocate` (`StaleOffer`, `Incomplete`), `components_of`/`cut` (inspect), `calendar_of`.
+  New test helper `tests/recorded.py` (raw fixtures, the synthetic `crowd`). Tests: `test_view.py` 15,
+  `test_relocate.py` 5, `test_caps.py` 5, `test_world_text.py` 5 (the behavioural half added:
+  `test_world_authored_text_only_in_world_text`, world text planted in every name, tag and door sign).
+  Mutations: **M-c-5** (`render` keeps only available offers) → `test_every_affordance_is_listed[*]` and
+  `test_requirements_are_shown_as_the_server_wrote_them[*]` red (6 of 15); reverted, green. **M-c-4** (a
+  target's display name copied into `OfferLine.action_type` via `model_copy`, bypassing validation) →
+  `test_world_text.py::test_world_authored_text_only_in_world_text` red, naming the leaked strings; reverted,
+  green. Review: every expected value is read from the raw fixture JSON (`recorded.py`), never from `view.py`;
+  the view computes no distance and evaluates no requirement.
+- **F-S27c-8 (finding, for S27-d / the primary session; no change here).** The recorded café offers six `buy`
+  and two `give` per person whose only difference is the item in the complete payload (`{item: ItemId}`);
+  `OfferLine` (step-27 §5.3, frozen) shows `action_type`, `target`, the verdict and the requirement, so an
+  agent cannot tell which `buy` is coffee — items are not perceived entities (no name reaches the
+  observation), and the café's `shop` component, readable by `inspect`, names items by raw id. `attempt` is
+  correct and safe (re-location matches the payload, D-c-6), but choosing *what* to buy is guesswork.
+  A resolution needs a surface change (for example an `OfferLine.about: [Ref]` for the entities a complete
+  payload names, with item names once a pack discloses them), which is outside this frozen design; recorded
+  for S27-d's design and the step.
 
 ### Implementation decisions (bounded, within step-27 §5)
 
@@ -700,6 +723,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | D-c-2 | `observe` returns `View \| ViewDelta`; a union is not an object schema | `ObserveResult { view: View \| ViewDelta }`, discriminated on `kind` (`"view"`/`"delta"`) |
 | D-c-3 | Tags (`cafe`, `barista`) are strings a world author wrote | Shown as `labels: [WorldText(kind="label")]` — the `label` kind step-27 §6.6 defines — never as plain strings (INV-S27-12) |
 | D-c-4 | An `inspect`/`events(detail)` envelope is a pack's raw JSON (step-27 §5.1's bounded exception), and strings inside it may be world-authored | In `render_text`, every string value inside an envelope is quoted and neutralised as world text; keys and numbers stay. The structured result carries the payload unchanged |
+| D-c-6 | Re-location by `(position, action_type, target)` would, for two `buy` offers with no target, take another item's offer when the list shifts (R-c-3) | The key also requires the same payload: at the shown position if `(action_type, target, payload)` match there, else the first offer in the newest observation that matches all three; otherwise `stale_offer`. Stricter than the key alone, never sends what was not shown. An incomplete offer is `not_offered` ("needs its own operation"), not `stale_offer` (§5.5) |
+| D-c-7 | The busiest-hour café fixture (C4, R-S27-3) | Not reachable in a bounded recording (`fixtures/SOURCE.md`); the genesis café is the densest recorded observation, and the cap is also tested on a synthetic 200-entry crowd |
 | D-c-5 | Unavailable reason field name | `OfferLine.unavailable: ReasonLine { reason, system_code? }` (the §5.3 `unavailable_reason?`, with a System's own code beside the kind) |
 
 ### Process deviations

@@ -13,6 +13,7 @@ import inspect as pyinspect
 import json
 
 from mineworld_sdk.wire.ids import JsonValue
+from recorded import Raw, decoded, raw
 
 from mineworld_agent import models
 from mineworld_agent.models import (
@@ -25,6 +26,8 @@ from mineworld_agent.models import (
     WorldText,
     render_text,
 )
+from mineworld_agent.refs import RefTable
+from mineworld_agent.view import Caps, Moment, render, view_of
 
 ALL_MODELS = sorted(
     (
@@ -109,3 +112,58 @@ def test_the_text_rendering_neutralises_quotation_marks_inside_world_text() -> N
 
 def test_the_text_rendering_leaves_out_empty_fields_and_is_compact() -> None:
     assert render_text(InboxCounts(unread=0, dropped=2)) == '{"unread":0,"dropped":2}'
+
+
+# ── The behavioural half ──────────────────────────────────────────────────────────────────────────
+
+MARK = "zzmark"
+"""Planted in names and tags; a valid identifier, so a mutation that copies it into a code field passes
+that field's own validation and is caught here, by where it appears."""
+
+
+def outside_world_text(value: JsonValue) -> list[str]:
+    """Every string of a result's JSON that is not the `text` of a `WorldText` object."""
+    found: list[str] = []
+    if isinstance(value, dict):
+        is_text = set(value) == {"text", "by", "kind"}
+        for key, item in value.items():
+            if not (is_text and key == "text"):
+                found += outside_world_text(item)
+    elif isinstance(value, list):
+        for item in value:
+            found += outside_world_text(item)
+    elif isinstance(value, str):
+        found.append(value)
+    return found
+
+
+def hostile_town() -> Raw:
+    value = raw("market-town-start")
+    people = [e for e in value["entities"] if e["entity_type"] == "person"]
+    for n, person in enumerate(people):
+        person["tags"] = [*person["tags"], f"{MARK}tag{n}"]
+        for record in person["components"]:
+            if record["component_type"] == "display-name":
+                record["payload"] = {"name": f"{MARK}{n}" if n % 2 else f"{MARK} {HOSTILE}"}
+    for place in (e for e in value["entities"] if e["entity_type"] == "place"):
+        for record in place["components"]:
+            if record["component_type"] == "passages":
+                for passage in record["payload"]["leads_to"]:
+                    passage["to_tags"] = [*passage["to_tags"], f"{MARK}door"]
+    return value
+
+
+def test_world_authored_text_only_in_world_text() -> None:
+    # M-c-4's target: world text planted in every name, tag and door sign of the recorded café reaches
+    # the result only inside WorldText; the text rendering quotes every occurrence.
+    rendered = render(decoded(hostile_town()), RefTable(), 1, True)
+    view = view_of(rendered, Moment(0, 1, False, None), InboxCounts(unread=0, dropped=0), Caps())
+    leaked = [s for s in outside_world_text(json.loads(view.model_dump_json())) if MARK in s]
+    assert not leaked, f"world text outside WorldText: {leaked}"
+    planted = json.dumps(json.loads(view.model_dump_json())).count(MARK)
+    # Four names (me among them), the three others' tags, and every door sign.
+    assert planted == 4 + 3 + len(view.here.exits), planted
+    text = render_text(view)
+    assert text.count(MARK) == planted
+    assert text.count(OPEN) == text.count(CLOSE) >= planted
+    assert ">>>" not in text.replace(CLOSE, "") and "<<<" not in text.replace(OPEN, "")

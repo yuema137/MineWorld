@@ -149,10 +149,14 @@ class Point(AgentModel):
     z_mm: int | None = None
 
 
+ListName = Literal["people", "things", "offers"]
+"""A paged list of a view."""
+
+
 class PageRef(AgentModel):
     """Where a paged list of a view continues: pass it back as `observe(page=…)`."""
 
-    list: Literal["people", "things", "offers"]
+    list: ListName
     view: Annotated[int, Field(ge=1)]
     start: Annotated[int, Field(ge=0)]
 
