@@ -43,5 +43,6 @@ CURRENT CHECKPOINT  C0 committed (00a5a50); C1 done (b9ef144: MODULE_SPEC §4.1 
                     C3 done (installed + refusals tests green; M-S26a-1 red-then-green; commit 318f6ff);
                     C4 done (looks in three worlds, F-S26a-3 literals, golden re-captured; counts 65/146/92/47);
                     C5 done (wire tests 3/3, without_appearance 1/1; M-S26a-4 red-then-green);
-                    C6 next (baselines: long record one at a time, load recorded)
-NEXT ACTIONS        C6 … C9 per §9.0 procedure; C9 pushes and opens the PR
+                    C6 in progress (300-day base-vs-new runs; ci_parity record not yet); C7 done (pytest 7/7,
+                    stub panels test PASS under Godot 4.7.2; M-S26a-5/6 red-then-green)
+NEXT ACTIONS        C6 finish, then C8, C9 per §9.0 procedure; C9 pushes and opens the PR
