@@ -1,6 +1,8 @@
-"""The host bound (pr-fg-b §5.7.3): the backstop that holds the store under `TARGET` whatever a policy did.
+"""The host bound (pr-fg-b §5.7.3; pr-fg-b2 §4.1): the backstop that holds the store under its target
+whatever a policy did.
 
-After a plan is executed, while the canonical dump is over the limit, the host applies these steps in
+The bound is per person: 20 MiB by default, raisable by a world, never lower (`StoreBounds`; operator
+rulings of 2026-10-14). After a plan is executed, while the canonical dump is over the limit, the host applies these steps in
 order until it is under: `consolidate` with its defaults; every remaining record of a closed episode
 merged into it, oldest episode first; the episodes of weeks with a chapter merged into it, oldest first;
 chapters dropped, oldest first; chapterless closed episodes dropped, oldest first; stable facts dropped,
@@ -12,6 +14,7 @@ forced. A store still over after the last step is a defect or a pathological wor
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import cache
 
 from mineworld_cognition.memory.records import ItemId
@@ -19,18 +22,74 @@ from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract, l3_item
 from mineworld_cognition.memory.retention.plan import execute, nested, remove, validate
 from mineworld_cognition.memory.retention.policy import RetentionBudget
-from mineworld_cognition.memory.retention.registry import PolicyRegistry, RegisteredPolicy
+from mineworld_cognition.memory.retention.registry import (
+    PolicyError,
+    PolicyRegistry,
+    RegisteredPolicy,
+    SourceSpan,
+)
 from mineworld_cognition.memory.store import MemoryStore
 
-TARGET = 786_432
-"""768 KiB: the dump after every pass is at most this. Not a parameter (step-24 §1.2 ruling 2 (4))."""
-STORE_BOUND = 1_048_576
-"""1 MiB: the hard bound. `TARGET` leaves room for one simulated day of perception before the next pass."""
+MIB = 1_048_576
+FLOOR_MIB = 20
+"""The default and the smallest bound a store may have (operator ruling of 2026-10-14: default 20 MB, a
+world may raise it; pr-fg-b2 §1.1 R-FGb2-2)."""
+CEILING_MIB = 1_024
+"""An upper sanity bound: `dump()` holds the whole store in memory."""
 LOG_RESERVE = 512
-"""Bytes kept free under `TARGET` for the pass's own log row and meta update, written after the bound is
-checked, so that the dump the pass leaves is under `TARGET` too."""
-LIMIT = TARGET - LOG_RESERVE
+"""Bytes kept free under the target for the pass's own log row and meta update, written after the bound
+is checked, so that the dump the pass leaves is under the target too."""
 FALLBACK = "consolidate"
+
+
+class StoreBoundOutOfRange(PolicyError):
+    """A `store_bound_mib` below the floor or above the ceiling (pr-fg-b2 §4.1)."""
+
+    def __init__(self, given: int, source: SourceSpan | None = None) -> None:
+        where = f" ({source})" if source is not None else ""
+        super().__init__(
+            f"memory store_bound_mib {given}{where} is outside {FLOOR_MIB} … {CEILING_MIB}: a world may "
+            f"raise the per-person bound, never set it below {FLOOR_MIB} MiB"
+        )
+        self.given = given
+        self.floor = FLOOR_MIB
+        self.ceiling = CEILING_MIB
+        self.source = source
+
+
+@dataclass(frozen=True)
+class StoreBounds:
+    """One store's bound and the figures derived from it (pr-fg-b2 §4.1). It cannot be built below the
+    floor, so no `Retention` has a smaller bound."""
+
+    mib: int = FLOOR_MIB
+
+    def __post_init__(self) -> None:
+        if isinstance(self.mib, bool) or not FLOOR_MIB <= self.mib <= CEILING_MIB:
+            raise StoreBoundOutOfRange(self.mib)
+
+    @property
+    def bound(self) -> int:
+        """The hard bound: no committed state `absorb` leaves exceeds it (pr-fg-b2 §4.6)."""
+        return self.mib * MIB
+
+    @property
+    def target(self) -> int:
+        """75 % of the bound: the dump after every pass is at most this."""
+        return self.bound * 3 // 4
+
+    @property
+    def trigger(self) -> int:
+        """A size pass runs when the store's content exceeds this (93.75 % of the bound)."""
+        return self.bound - self.bound // 16
+
+    @property
+    def limit(self) -> int:
+        """What the backstop drives the dump to: the target less the pass log's reserve."""
+        return self.target - LOG_RESERVE
+
+
+DEFAULT_BOUNDS = StoreBounds()
 
 
 class RetentionBoundUnreachable(RuntimeError):
@@ -48,24 +107,25 @@ def fallback() -> RegisteredPolicy:
     return PolicyRegistry.installed().bind(FALLBACK, {})
 
 
-def consolidated(store: MemoryStore, now: int) -> int:
+def consolidated(store: MemoryStore, now: int, bounds: StoreBounds) -> int:
     """`consolidate`'s defaults applied to the current items; the number of items removed."""
     extracted = extract(store)
     budget = RetentionBudget.model_construct(
-        store_bytes=max(0, TARGET - extracted.overhead), now=now, calls_left=0
+        store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
     )
     resolved = validate(fallback().plan(extracted.items, budget), extracted)
     outcome = execute(store.connection, resolved, extracted, fts=store.fts)
     return outcome.merged + outcome.dropped
 
 
-def enforce(store: MemoryStore, now: int) -> tuple[int, int]:
-    """Applies the backstop until the dump is at most `LIMIT`; returns the items it removed and the
-    dump's size it leaves."""
+def enforce(store: MemoryStore, now: int, bounds: StoreBounds) -> tuple[int, int]:
+    """Applies the backstop until the dump is at most `bounds.limit`; returns the items it removed and
+    the dump's size it leaves."""
+    limit = bounds.limit
     size = store.size()
-    if size <= LIMIT:
+    if size <= limit:
         return 0, size
-    forced = consolidated(store, now)
+    forced = consolidated(store, now, bounds)
     normalize(store.connection)
     size = store.size()
     steps: tuple[Callable[[Extracted, MemoryStore], list[tuple[ItemId, bool]]], ...] = (
@@ -76,28 +136,32 @@ def enforce(store: MemoryStore, now: int) -> tuple[int, int]:
         _stable_facts,
     )
     for step in steps:
-        if size <= LIMIT:
+        if size <= limit:
             return forced, size
         extracted = extract(store)
-        removed, size = _shed(store, extracted, step(extracted, store), size)
+        removed, size = _shed(store, extracted, step(extracted, store), size, limit)
         forced += removed
-    if size > LIMIT:
-        raise RetentionBoundUnreachable(size, LIMIT)
+    if size > limit:
+        raise RetentionBoundUnreachable(size, limit)
     return forced, size
 
 
 def _shed(
-    store: MemoryStore, extracted: Extracted, order: list[tuple[ItemId, bool]], size: int
+    store: MemoryStore,
+    extracted: Extracted,
+    order: list[tuple[ItemId, bool]],
+    size: int,
+    limit: int,
 ) -> tuple[int, int]:
-    """Removes candidates in order (each `(item, forget)`) until the accounted size is under `LIMIT`, then
+    """Removes candidates in order (each `(item, forget)`) until the accounted size is under `limit`, then
     confirms with one dump, and goes on if the dump says otherwise."""
     removed = 0
     estimate = size
     for item, forget in order:
-        if estimate <= LIMIT:
+        if estimate <= limit:
             normalize(store.connection)
             size = store.size()
-            if size <= LIMIT:
+            if size <= limit:
                 return removed, size
             estimate = size
         estimate -= sum(extracted.by_id[each].bytes for each in nested(extracted, item))

@@ -5,6 +5,10 @@ validated whole, and a refused plan, or a policy that raised, is replaced by `co
 recorded as `fallback:<reason>`. The bound is the host's (FGb-2). A breach of the store-side coverage
 invariant (FGb-1) is a defect: it raises, and the pass rolls back. A pass never writes `cursor` or
 `newest` (P4-2) and reads no clock: `now` is fixed by the triggering fact (FGb-5).
+
+A pass has a cause (pr-fg-b2 §4.3): `day`, at the first perceived fact of a new day, or `size`, after the
+fact that took the store's content over its trigger. Both are the same pass; only a day pass advances
+`meta.retention_day`. The log is keyed by the triggering fact, the newest ingested at the pass.
 """
 
 from __future__ import annotations
@@ -12,9 +16,10 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from itertools import pairwise
+from typing import Literal
 
 from mineworld_cognition.compress.summarize import DAY_S
-from mineworld_cognition.memory.retention.bound import TARGET, enforce, fallback
+from mineworld_cognition.memory.retention.bound import enforce, fallback
 from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
@@ -23,6 +28,8 @@ from mineworld_cognition.memory.retention.selection import Retention
 from mineworld_cognition.memory.store import MemoryStore
 
 PASS_LOG_ROWS = 32
+
+type PassCause = Literal["day", "size"]
 
 
 @dataclass(frozen=True)
@@ -40,19 +47,26 @@ class PassReport:
     bytes_after: int
     """The dump before the pass and after its bound, before the pass's own log row."""
     forgotten_ranges: int
+    cause: PassCause = "day"
+    """Why the pass ran: the day's first fact, or the store nearing its bound (pr-fg-b2 §4.3)."""
+    trigger: str = ""
+    """The event key of the newest fact ingested at the pass: the pass log's key."""
 
 
 class RetentionInvariantBroken(RuntimeError):
     """The store-side half of FGb-1 failed after a pass: a defect, never a fallback."""
 
 
-def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassReport:
+def run_pass(
+    store: MemoryStore, retention: Retention, now: int, cause: PassCause = "day"
+) -> PassReport:
     day = now // DAY_S
+    bounds = retention.bounds
     with store.transaction() as db:
         extracted = extract(store)
         before = extracted.total
         budget = RetentionBudget.model_construct(
-            store_bytes=max(0, TARGET - extracted.overhead), now=now, calls_left=0
+            store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
         )
         outcome = "ok"
         resolved: Resolved | None = None
@@ -68,7 +82,7 @@ def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassReport:
             resolved = validate(fallback().plan(extracted.items, budget), extracted)
         counts = execute(db, resolved, extracted, fts=store.fts)
         normalize(db)
-        forced, after = enforce(store, now)
+        forced, after = enforce(store, now, bounds)
         check_structure(db)
         (ranges,) = db.execute("SELECT count(*) FROM forgotten").fetchone()
         report = PassReport(
@@ -82,6 +96,8 @@ def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassReport:
             before,
             after,
             ranges,
+            cause,
+            store.newest() or "",
         )
         _log(db, report)
     store.reclaim()
@@ -90,10 +106,13 @@ def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassReport:
 
 def _log(db: sqlite3.Connection, report: PassReport) -> None:
     db.execute(
-        "INSERT INTO retention_passes (day, policy, outcome, kept, merged, dropped, forced, "
-        "bytes_before, bytes_after, forgotten_ranges) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO retention_passes (trigger, day, cause, policy, outcome, kept, merged, dropped, "
+        "forced, bytes_before, bytes_after, forgotten_ranges) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
+            report.trigger,
             report.day,
+            report.cause,
             report.policy,
             report.outcome,
             report.kept,
@@ -106,11 +125,12 @@ def _log(db: sqlite3.Connection, report: PassReport) -> None:
         ),
     )
     db.execute(
-        "DELETE FROM retention_passes WHERE day NOT IN "
-        "(SELECT day FROM retention_passes ORDER BY day DESC LIMIT ?)",
+        "DELETE FROM retention_passes WHERE trigger NOT IN "
+        "(SELECT trigger FROM retention_passes ORDER BY trigger DESC LIMIT ?)",
         (PASS_LOG_ROWS,),
     )
-    db.execute("UPDATE meta SET value = ? WHERE key = 'retention_day'", (str(report.day),))
+    if report.cause == "day":
+        db.execute("UPDATE meta SET value = ? WHERE key = 'retention_day'", (str(report.day),))
 
 
 def check_structure(db: sqlite3.Connection) -> None:

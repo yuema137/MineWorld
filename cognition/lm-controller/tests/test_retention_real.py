@@ -4,7 +4,7 @@ Alice's real export (`mineworld perceived`, shared with `test_ac10.py` through `
 goes through `absorb` under `consolidate` and `keep-all`: AFGb-3 (coverage, against the export), AFGb-4
 (a) to (c) (the bound after every pass; before every pass under `consolidate`; the host's own removals under
 `keep-all`), AFGb-5 (a) real half (day by day = frames of 256), AFGb-11 (c) (the file on disk). The save is
-read only through the CLI. Bounds are §5.7's literals.
+read only through the CLI. Bounds are the 20 MiB default and its 15 MiB target (pr-fg-b2 §4.1, §7).
 """
 
 from __future__ import annotations
@@ -27,9 +27,10 @@ from mineworld_cognition.memory.store import MemoryStore
 
 pytestmark = pytest.mark.real_binary
 
-TARGET = 786_432
-STORE_BOUND = 1_048_576
-ON_DISK = 4 * 1_048_576
+MIB = 1_048_576
+STORE_BOUND = 20 * MIB  # the default per-person bound (pr-fg-b2 §4.1; operator, 2026-10-14)
+TARGET = STORE_BOUND * 3 // 4  # 15 MiB: the dump after every pass
+ON_DISK = 4 * MIB  # the consolidate store's file: far under the bound, which it never nears
 CHECKPOINTS = (30, 100)
 
 
@@ -40,14 +41,16 @@ def _identity(history: History) -> StoreIdentity:
 
 
 def _day_by_day(
-    store: MemoryStore, history: History, kept: Retention
+    store: MemoryStore, history: History, kept: Retention, *, through_day: int | None = None
 ) -> list[tuple[int, int, int, int]]:
     """Each day's frame ingested up to its first fact by plain `ingest`, the dump measured (just before
     the pass), then `absorb` runs the due pass, the dump measured again (just after it), and coverage is
-    checked against the export. Returns (day, before, after, forced) per pass."""
+    checked against the export. Returns (day, before, after, forced) per pass, for the whole history or
+    for its days up to `through_day`."""
     perceived = history.ids()
     measured: list[tuple[int, int, int, int]] = []
-    for frame in days(history.alice):
+    facts = [f for f in history.alice if through_day is None or f.at // DAY <= through_day]
+    for frame in days(facts):
         ingest(store, frame, frame[-1].id)
         before = len(store.dump())
         report = run(absorb(store, [], frame[-1].id, kept), timeout_s=120)
@@ -84,7 +87,7 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
     assert len(measured) >= 95
     for day, before, after, _ in measured:
         assert after <= TARGET, (day, after)  # AFGb-4 (a)
-        assert before <= STORE_BOUND, (day, before)  # AFGb-4 (b)
+        assert before <= STORE_BOUND, (day, before)  # AFGb-4 (b), now held by the size trigger
     assert on_disk <= ON_DISK  # AFGb-11 (c)
     # AFGb-5 (a), real half: frames of 256 through absorb's main path give the same store.
     with MemoryStore.open(":memory:", _identity(history)) as store:
@@ -92,15 +95,25 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert store.dump() == day_by_day
 
 
+KEEP_ALL_DAYS = 40
+"""AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7): at ≈ 433 KB a day keep-all reaches the
+15 MiB target after ≈ 36 days, so the host's own removals begin before day 40. Beyond it every pass
+works on a store of ≈ 15 MiB (≈ 1 s each here): days 40 to 99 would add minutes per platform and prove
+nothing the busy stream (test_retention_size.py) does not."""
+
+
 def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: History) -> None:
     history = social_cafe_100
     started = time.monotonic()
     with MemoryStore.open(":memory:", _identity(history)) as store:
-        measured = _day_by_day(store, history, retention("keep-all"))
+        measured = _day_by_day(store, history, retention("keep-all"), through_day=KEEP_ALL_DAYS)
+    first = next((day for day, _, _, forced in measured if forced > 0), None)
     print(
         f"\n[retention-real keep-all] {len(measured)} passes, {time.monotonic() - started:.1f} s; "
-        f"(day, before, after, forced) at 30/100: {[_at(measured, d) for d in CHECKPOINTS]}"
+        f"(day, before, after, forced) at 30/40: {[_at(measured, d) for d in (30, 40)]}; "
+        f"first forced pass: day {first}"
     )
-    for day, _, after, _ in measured:
+    for day, before, after, _ in measured:
         assert after <= TARGET, (day, after)  # AFGb-4 (a)
-    assert any(forced > 0 for day, _, _, forced in measured if day <= 30)  # AFGb-4 (c)
+        assert before <= STORE_BOUND, (day, before)
+    assert first is not None and 30 < first <= KEEP_ALL_DAYS, first  # AFGb-4 (c)

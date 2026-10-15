@@ -15,6 +15,12 @@ from mineworld_sdk.wire.ids import JsonValue
 from pydantic import Field
 
 from mineworld_cognition.backend.model import CognitionModel
+from mineworld_cognition.memory.retention.bound import (
+    DEFAULT_BOUNDS,
+    FLOOR_MIB,
+    StoreBoundOutOfRange,
+    StoreBounds,
+)
 from mineworld_cognition.memory.retention.registry import (
     JsonObject,
     PolicyError,
@@ -31,6 +37,10 @@ class MemoryPolicyChoice(CognitionModel):
     fallback: PolicyId | None = None
     """Only an assisted policy (FG-c) takes one."""
     parameters: JsonObject = Field(default_factory=dict[str, JsonValue])
+    store_bound_mib: int | None = None
+    """The per-person store bound in MiB; `None` is the 20 MiB default. A world may raise it, never lower
+    it: `resolve` refuses a value outside 20 … 1 024 (pr-fg-b2 §4.1). The host's bound, not a policy's
+    parameter: no policy sees it."""
     source: SourceSpan | None = None
     """Where the winning entry was written."""
 
@@ -54,12 +64,19 @@ class Retention:
     """What `absorb` runs at every pass. FG-c adds the assisted alternative (R-FGc-FG-1)."""
 
     policy: RegisteredPolicy
+    bounds: StoreBounds = DEFAULT_BOUNDS
+    """The store's bound, target and size trigger (pr-fg-b2 §4.1)."""
 
 
 def resolve(choice: MemoryPolicyChoice, registry: PolicyRegistry) -> Retention:
     """The choice bound to an installed policy, or a refusal by name (`UnknownPolicy`,
-    `InvalidParameters`, `FallbackNotAllowed`)."""
+    `InvalidParameters`, `FallbackNotAllowed`, `StoreBoundOutOfRange`)."""
     bound = registry.bind(choice.policy, choice.parameters, source=choice.source)
     if choice.fallback is not None:
         raise FallbackNotAllowed(choice.policy, choice.source)
-    return Retention(bound)
+    mib = FLOOR_MIB if choice.store_bound_mib is None else choice.store_bound_mib
+    try:
+        bounds = StoreBounds(mib)
+    except StoreBoundOutOfRange:
+        raise StoreBoundOutOfRange(mib, choice.source) from None
+    return Retention(bound, bounds)
