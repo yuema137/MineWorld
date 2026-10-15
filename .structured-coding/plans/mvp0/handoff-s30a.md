@@ -15,8 +15,12 @@ FROZEN 2026-10-15), its §15 ledger in particular.
 
 ## State
 
-- C0 committed: base, ids, merge states (#206 OPEN, P6a unpushed), rulings, deviations D-a-1, D-a-2.
-- Next: C1 (`docs/CORE_CONCEPTS.md` §4.5), C2–C3 (`docs/MODULE_SPEC.md`), C4 (`docs/DECISIONS.md`), C4b (step-30
-  reconciliation), C5 (`overall.md`, review table, push, PR).
+- C0, C1, C2, C3, C4, C4b, C5 committed (see the ledger's commit table). Docs only.
+- Findings recorded during implementation: F-S30a-7 … F-S30a-11 (bounded, each decided in the spec), with
+  requirements R-S30c-a-1, R-S30e-a-2, R-S30h-a-1, R-S30k-a-1, R-S31-a-2 and four primary edits in §11.
+- After push: the PR number, the exact head SHA and its CI result are reported to the primary; the session then
+  closes as AWAITING OPERATOR ACTION. Merge is not this session's.
+- Post-merge (primary): ledger → MERGED; step-30 and `overall.md` S30-a merged; R-S26a-a-1 / R-P6a-a-1 notes
+  under `ARC-91` / `ARC-74` by whichever merges second.
 
 ## No background jobs.

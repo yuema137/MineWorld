@@ -389,6 +389,22 @@ exact head is the gate.
   `Employment { job }` and a declaration shipped with `ships_data!`; nothing else in `employment` changes.
 - **R-S31-a-1 (S31).** `economy.wealth-band` as `ARC-124` states it.
 
+Added during implementation (2026-10-15; §15 F-S30a-7 … F-S30a-10):
+
+- **R-S30c-a-1 (S30-c).** Decide how a world that enables an owner pack but not `attributes` reads the owner's
+  shipped declarations (F-S30a-10), and record it as a dated note under `ARC-120`.
+- **R-S30e-a-2 (S30-e).** Decide how the seam carries a backend pack's root file `backend.yaml` (F-S30a-9) —
+  a bounded extension recorded under `ARC-121`, or the contract moved into an owned directory with
+  `MODULE_SPEC` §§2, 4.1 corrected by a dated note.
+- **R-S30h-a-1 (S30-h).** The optional backend pack's `LICENSE`, `NOTICE` and import tooling must pass the
+  seam's directory rule (a `tools/` directory is refused as `UnknownDirectory` unless it begins with `.` or is
+  owned); fix the layout in S30-h's design (F-S30a-9).
+- **R-S30k-a-1 (S30-k).** Locale labels are `labels/<locale>.yaml`, a directory `attributes` owns, not
+  `attributes/labels/` (F-S30a-8).
+- **R-S31-a-2 (S31).** Use S30's kind name `category` for `economy.wealth-band` (step-31 §7.4 says
+  `categorical`), and declare `notices.topics` either as a shipped `vocabularies/` file or from
+  `configure/notices.yaml` through the owner interface — both are admitted (F-S30a-7).
+
 ## 11. Edits to parent documents (owner: the primary session)
 
 | Document | Edit |
@@ -396,7 +412,10 @@ exact head is the gate.
 | `step-30-person-attributes.md` §2 | repair the outcome table (F-S30a-6). **Applied in PR #234, 2026-10-15** |
 | `step-30-person-attributes.md` §§6.1, 6.6, 9.6 | `economy.wealth-band`, `employment.occupation` (F-S30a-2); `natal-sex` per Q-S30a-1; row 32's owner per Q-S30a-2. **Notes applied in PR #234 (§§6.1, 9.4); the §6.6 and §9.6 wording stays the primary's to reconcile** |
 | `step-30-person-attributes.md` §4.3 item 3 | "optional `type Context`" → "decoded in its owner's context" (F-S30a-4). **Note applied in PR #234** |
-| `step-31-wealth-prices.md` §19.6 | acknowledged: S30's example updated |
+| `step-31-wealth-prices.md` §19.6 | acknowledged: S30's example updated (step-30 §4.5 note, 2026-10-15, this PR's C4b) |
+| `step-31-wealth-prices.md` §7.4 | `categorical` → `category` (F-S30a-7, R-S31-a-2). **Found in S30-a; the primary's** |
+| `step-30-person-attributes.md` §6.4 | "masks `core` (all 94)" → 93 `core` rows (F-S30a-2, Q-S30a-1); §13.1's S30-k row `attributes/labels/` → `labels/` (F-S30a-8). **Found in S30-a; the primary's** |
+| `CLAUDE.md` §2.1 rule 3 | the defined-terms list could add `Attribute` ([`CORE_CONCEPTS.md`](../../../docs/CORE_CONCEPTS.md) §4.5). **Found in S30-a; outside I-a-1, the primary's** |
 | `overall.md` | S30-a merged |
 
 ---
@@ -486,7 +505,7 @@ No question remains open.
 | C3 `MODULE_SPEC` §4.1 | this commit | [x] person-file block gains `attributes:` (a category, a quantity, a set over a vocabulary, a `between:` and an `allowed:` restriction); the eighth-section note after the sections table; the dated Entity Pack amendment ("declares nothing", S30-b §5.7); "Attributes": where-written table, declarations (example, fields, kinds, units, absent, derived, versioning), namespaces and short slugs, overrides, vocabularies, rendering, the person section, `configure/attributes.yaml`, profiles (format, semantics, algorithm, nothing reads a name, origins, guarantee, `verify`, reserved `authored`), the lock and precedence, backends and masks, disclosure, persistence, one refusal table (31 rows) | [x] `ci_layer.py docs`: PASS | [x] all 27 refusals of §5.4 present, plus four named here (F-S30a-11); no key named `population` (only `world.yaml`'s own, and the sentence saying so); every example value inside its declared domain (`hair-colour: auburn`, `chronotype` levels, `core.stature: 1.660` in 0.500–2.500, `core.mass` 55.0–70.0 in 2–300, `news.daily` in `notices.topics`); `matraix` not named in §4.1 |
 | C4 `DECISIONS` | this commit | [x] `ARC-120` … `ARC-126`, `DEP-66` … `DEP-68` appended in §5.5's order, each in the file's format; `ARC-125` written in full with `ARC-91` item 3's amended text (F-S30a-1, #206 open); `ARC-120` Consequences carry the note on ids cited before their records exist (`ARC-74`, `ARC-91`, `ARC-92`, `ARC-95`, `ARC-114`, `ARC-115`) | [x] `check_decision_ids.py`: "148 decision ids, all distinct"; `ci_layer.py docs`: PASS; per-record section scan: every record has Problem, Options considered, Choice, Consequences, Revisit (DEP-66, DEP-67 also "Why not"); `ARC-127` … `ARC-129`, `DEP-69`: 0 headings | [x] Options are the step's (§4.1 for `ARC-120`; §8.6 for `DEP-67`; §16.2's RR-S30-1 … 5 for `ARC-126`/`DEP-66`); every approval line cites ruling ids and 2026-10-15; `DEP-66` keeps the superseded texts (Q-S30-7, RR-S30-1, RR-S30-3, RR-S30-4) with their status; F-S30a-2's names and Q-S30a-1/2 applied (93 `core`, `employment.occupation` via S30-f) |
 | C4b step-30 reconciliation (D-a-2) | this commit | [x] step-30 §4.5 table: `economy.wealth-band` (economy's wealth) with a dated note; §6.6 mapping: `economy.wealth-band ← socioeconomic_band` with a dated note; §9.6 N-6: `employment.occupation` with a dated note. The dispatch's "§9.6 `core.wealth-band`" is, on the tree, §9.6's `core.occupation` (N-6); both F-S30a-2 names are reconciled | [x] `grep -n "core.wealth-band\|core.occupation"` on the step: only the two notes quoting the old text (lines 894, 1317); `ci_layer.py docs`: PASS | [x] each note dated, citing F-S30a-2 and the dispatch; old wording kept visible in the note; no other step text changed |
-| C5 | — | [ ] | [ ] | [ ] |
+| C5 `overall.md` and close-out | this commit | [x] `overall.md`: the S30 row reconciled (designs frozen, S30-a in review, every S30 PR MVP-0 and release-blocking), the S26/S30-g dependency note, a §4 coverage row for `AC-S30-1` … `AC-S30-17`; §10 gains R-S30c-a-1, R-S30e-a-2, R-S30h-a-1, R-S30k-a-1, R-S31-a-2; §11 gains four primary edits; the AC-a-2 table; the handoff | [x] AC-a-1: `python3 scripts/ci_layer.py docs` PASS locally on this commit's tree; CI on the exact PR head recorded in the handoff (a commit cannot carry its own SHA) | [x] AC-a-2 table complete (§§4–12 placed, §13 N/A); AC-a-3 (C4 scan); AC-a-4 and AC-a-5 below |
 
 ### C0 — the base (recorded 2026-10-15)
 
@@ -517,7 +536,27 @@ No question remains open.
 
 ### AC-a-2 review table (one row per step section)
 
-(none yet)
+| Step-30 section | Where the specification states it |
+| --- | --- |
+| §4 Ownership (4.1 options, 4.2 rule, 4.3 code and seam, 4.4 `appearance`/`naming`/`persona`, 4.5 change over time) | `CORE_CONCEPTS` §4.5 (definition, one owner, not a Component, mutability, not-attributes, kernel); `MODULE_SPEC` §3.1 "A pack that owns data" (§4.3 seam items 1–5, as semantics, F-S30a-4) and "Attributes a pack reads, proposes or owns" (§4.2 items 3–5, §4.5 proposals); `ARC-120`, `ARC-121`, `ARC-125` (§4.4) |
+| §5 The model (5.1–5.6) | `MODULE_SPEC` §4.1 "Attribute declarations", "Rendering", "The person file's section", "Disclosure"; `CORE_CONCEPTS` §4.5 kinds and visibility; `ARC-122` items 1–6. The Rust sketch of §5.3 is stated as semantics (typed handle, no `Handle<Text>`), its form left to S30-c (R-a-1) |
+| §6 The catalogue (6.1–6.7) | `MODULE_SPEC` §2 (the three Entity Packs, 93 `core`, the optional backend with its attribution) and §4.1 "Backends and masks", "Versioning"; `ARC-122` item 8; `ARC-126`; `DEP-66` (6.6–6.7); `DEP-68` (6.2). §6.1's row-by-row table is catalogue **data**, S30-e's (R-S30e-a-1): N/A as specification text |
+| §7 User-defined (7.1–7.4) | `MODULE_SPEC` §4.1 "Namespaces and short slugs", "Overrides"; `ARC-122` item 7 and Consequences (`freckles`, what still needs code) |
+| §8 Profiles and the sampler (8.1–8.6) | `MODULE_SPEC` §4.1 "The world's configuration", "Population profiles", "The lock file"; `ARC-123`; `DEP-67`; `DEP-68`. §8.6's CLI commands: N/A here — `MODULE_SPEC` §8.1 lists commands as implemented (S30-c, S30-d; §2.2) |
+| §9 Use in the world (9.1–9.6) | `CORE_CONCEPTS` §15.1 example; `MODULE_SPEC` §4.1 "Disclosure", §3.1 "Reads"; `ARC-122` Consequences (cognition, MCP, both clients, learned attributes as memory, §§9.2–9.5); `ARC-124` and `MODULE_SPEC` §3.1 "Owns", §4.1 "Vocabularies" (§9.6 N-1 … N-6); §9.4's named exception in `ARC-120` Consequences |
+| §10 The S26 interface | `ARC-123` item 7 (C-1 … C-7, `resolve --json`), item 5 (the lock binds a casting ruling); `ARC-125` Consequences; `MODULE_SPEC` §4.1 "The lock file", "The world's configuration" (`sampling: none` = no profile) |
+| §11 Persistence | `MODULE_SPEC` §4.1 "Persistence" (facts table, byte-identity, re-baseline, no migration layer); `ARC-123` item 6 |
+| §12 Invariants | I-S30-1 `ARC-120` items 2, 6; I-S30-2 `CORE_CONCEPTS` §4.5 mutability; I-S30-3 visibility tables; I-S30-4 `MODULE_SPEC` §4.1 person section; I-S30-5 §3.1 "Reads"; I-S30-6, I-S30-7 §4.1 profiles algorithm and precedence; I-S30-8 `CORE_CONCEPTS` §4.5 last paragraph, `ARC-120` item 7; I-S30-9 §4.5 "What is not an attribute"; I-S30-10 §4.1 "Persistence", `ARC-121` Consequences |
+| §13 PR split | N/A: plan, not specification; `overall.md`'s S30 row and coverage row point to it |
+
+**AC-a-4.** F-S30a-1: `ARC-125` written in full, R-S26a-a-1 / R-P6a-a-1 stand (#206 open, P6a unpushed).
+F-S30a-2: `economy.wealth-band`, `employment.occupation` throughout (C1–C4b). F-S30a-3 / Q-S30a-1:
+`core.natal-sex` in `MODULE_SPEC` §2 and `ARC-122` item 8. F-S30a-4: seam item 2 as semantics. F-S30a-5 /
+Q-S30b-1: seam item 4. Q-S30a-2: `MODULE_SPEC` §3.1 "Owns" and `ARC-120` Consequences.
+
+**AC-a-5 / I-a-1.** `git diff --name-only origin/main...HEAD` at C5 lists `docs/CORE_CONCEPTS.md`,
+`docs/DECISIONS.md`, `docs/MODULE_SPEC.md`, `.structured-coding/plans/mvp0/handoff-s30a.md`, `overall.md`,
+`pr-s30a-attribute-specs.md` and, under D-a-2, `step-30-person-attributes.md` — nothing else.
 
 ### Deviations and findings
 
