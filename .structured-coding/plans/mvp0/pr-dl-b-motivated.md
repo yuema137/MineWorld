@@ -830,6 +830,17 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
       `cargo test -p mineworld-cli --test motivated` gave 2 passed. fmt rc 0; clippy `-D warnings` clean.
     - Where §3.1 item 5, §8 and C4 name the old path, read the new one. This is a path change inside scope,
       not a scope change. It is recorded rather than silently applied.
+  - **F-DLb-8 (CI repair, bounded).** PR CI run 38689825887 found two tests that assumed `rule` was the only
+    installed model.
+    - `tools/cli/tests/decisions.rs` used `alice=motivated` as an uninstalled model, with the expected list
+      "it installs: rule". It now uses `alice=mystery` (the convention of `read_tests.rs`) and expects
+      "rule, motivated".
+    - `tools/cli/tests/packs.rs` expected only `mineworld-rule-controller`. It now expects
+      `["mineworld-rule-controller", "mineworld-motivated"]` (installed order) and a total of systems plus
+      controllers.
+    - Both changes are expected consequences of §3.1 item 4, and neither changes behaviour.
+    - `cargo test -p mineworld-cli --test decisions --test decision_models --test packs --test requirements
+      --test entity_packs --test third_party`: all passed. clippy `-D warnings` clean.
   - **Process deviation:** this commit's message was passed to `git commit -F -` through a heredoc. No file
     was written by it, but heredocs are on the brief's NEVER list. It is recorded here.
 

@@ -248,11 +248,12 @@ fn refusals_name_the_file_line_and_column_or_the_flag() {
         "--days",
         "1",
         "--seat-model",
-        "alice=motivated",
+        "alice=mystery",
     ]);
     assert!(!ok);
     assert!(
-        stderr.contains("'motivated' is not a model this build installs; it installs: rule"),
+        stderr
+            .contains("'mystery' is not a model this build installs; it installs: rule, motivated"),
         "{stderr}"
     );
     let cafe = Cafe::new(
