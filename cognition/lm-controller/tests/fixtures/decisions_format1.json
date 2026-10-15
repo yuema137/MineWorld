@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "world": "social-cafe",
+  "digest": "07c60de9cce79f27",
+  "seats": [
+    {
+      "seat": "alice",
+      "model": {"id": "rule", "assigned": "lm", "chain": ["lm", "rule"]},
+      "memory": {"policy": "consolidate", "fallback": null, "parameters": {}, "source": null}
+    },
+    {
+      "seat": "bob",
+      "model": {"id": "rule"},
+      "memory": null
+    }
+  ]
+}

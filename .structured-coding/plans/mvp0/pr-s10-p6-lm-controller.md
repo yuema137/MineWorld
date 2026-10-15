@@ -1598,7 +1598,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C0 | — | [x] | [x] | [x] |
 | C1 | — | [x] | [x] | [x] |
 | C2 | — | [x] | [x] | [x] |
-| C3 | — | [ ] | [ ] | [ ] |
+| C3 | — | [x] | [x] | [x] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
 | C6 | — | [ ] | [ ] | [ ] |
@@ -1673,6 +1673,21 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   4 passed (PASS); `cargo test -p mineworld-cli --test decision_models` 1 passed in 185 s (PASS);
   `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-installed-models --all-targets -- -D warnings` PASS.
   Review: no Rust file other than `cognition/installed` changed.
+- **C3 (2026-10-14).** Step 1: `config.py` gains `ControllerConfig`, `ControllerOverrides`, `LayerConfig`,
+  `RetryConfig`, `SeatOverrides`, `BUNDLED_RETRY`; `CognitionConfig` gains `server`, `invite_env` (validated as
+  a variable name), `nickname`, `store`, `decisions_json`, `seats`, `controller`, `retry`, `breaker`,
+  `seat_overrides` (D-P6b-3); `BackendConfig` gains `retry`. All optional with defaults. Step 2: `load()`
+  resolves `store` and `decisions_json` against the file and refuses a `store` inside a world. Step 3:
+  `layer_policy(config, seat, backend, layer)` and `controller_for(config, seat)`. Step 4:
+  `controller/assignment.py` reads format 1 (`read_assignment`), refuses an unknown format, a narrowed key that
+  is not an lm seat, and "no lm seat". Step 5: `tests/fixtures/decisions_format1.json`. Step 6: tests
+  `test_controller_config.py` (17 passed: refusals by name, planted invite never echoed, store refusal,
+  precedence table, seat override) and `test_assignment.py` (7 passed, incl. one `real_binary` test over
+  `mineworld decisions … --json`). `test_config_router.py` 14 passed. Static: ruff format/check PASS, pyright 0
+  errors. Tools: `tools/reference.py` gained support for top-level scalar keys, optional model tables and
+  pattern-keyed model tables (the S25 generator had none of these); `docs/reference` regenerated;
+  `test_reference.py` 6 passed (PASS). Review: no YAML parsed in Python; error text names a key or file and no
+  value. `mineworld_cognition.controller` is created with a docstring only.
 - **D-P6b-2 (C2) FIXED 2026-10-14 under the primary's ruling.** The stale doc comment in
   `cognition/installed/src/lib.rs` ("none in this build; step-17 P6 adds `lm`") now reads that `lm` is the one
   external model in this build. One-line edit, in C2's area.
