@@ -143,7 +143,7 @@ P6 is **two PRs** (QP6-1, ruled 2026-10-14: split), designed together here:
    the decision log and counters, the assignment reader (§5.1).
 6. `mineworld_cognition/__main__.py`: `python -m mineworld_cognition --config FILE`.
 7. `config.py` extended (R-P6-1): `server`, `invite_env`, `nickname`, `store`, `decisions_json`,
-   `[controller]`, `[retry.transport|content|semantic]`, `[breaker]`, `[seats.<key>]` overrides (§5.13).
+   `[controller]`, `[retry.transport|content|semantic]`, `[breaker]`, `[seat_overrides.<key>]` overrides (§5.13; D-P6b-3).
 8. Two additive P5a changes (QP6-6): `BackendFailure.retry_after_s` (set by both HTTP adapters from a
    delta-seconds `Retry-After`), and an optional `timeout_s` on `ModelGateway.complete` so a deadline-cut
    call is charged like a timeout (§5.7).
@@ -731,9 +731,9 @@ parameters = { attempts = 2 }
 policy = "failure-rate"
 parameters = { window = 20, min_consults = 10, threshold_permille = 200, cooldown_world_s = 3600 }
 
-[seats.alice.controller]                  # optional per-seat overrides of [controller]
+[seat_overrides.alice.controller]         # optional per-seat overrides of [controller] (D-P6b-3)
 recall_episodes = 6
-[seats.alice.retry.content]               # optional per-seat override of one layer
+[seat_overrides.alice.retry.content]      # optional per-seat override of one layer
 policy = "fixed"
 parameters = { attempts = 2 }
 
@@ -741,7 +741,7 @@ parameters = { attempts = 2 }
 policy = "none"
 ```
 
-- **Precedence**, most specific first: `[seats.<key>.retry.<class>]` > `[backends.<name>.retry.<class>]` (the
+- **Precedence**, most specific first: `[seat_overrides.<key>.retry.<class>]` > `[backends.<name>.retry.<class>]` (the
   backend bound to `social`) > `[retry.<class>]` > the bundled default. Per world means per configuration
   file; per seat and per backend are the tables above (ruling (3b)). `decisions.yaml` carries no retry
   setting in P6 (QP6-5).
@@ -1086,7 +1086,7 @@ this design's section, and uses `CognitionModel` (strict, frozen, `extra="forbid
      transport, content, semantic: LayerConfig | None }`, `BreakerConfig` (a `LayerConfig`), `SeatOverrides
      { controller: partial ControllerConfig, retry: RetryConfig }`. Add to `CognitionConfig`: `server`,
      `invite_env` (validated like `key_env`), `nickname`, `store`, `decisions_json`, `seats: list[EntityKey]
-     | None`, `controller`, `retry`, `breaker`, `seats_overrides` (TOML table `[seats.<key>]`), and on
+     | None`, `controller`, `retry`, `breaker`, `seat_overrides` (TOML table `[seat_overrides.<key>]`, D-P6b-3), and on
      `BackendConfig` an optional `retry: RetryConfig`. All optional, so every existing P5a configuration
      still loads.
   2. Resolve `store` and `decisions_json` relative to the file in `load()`, and refuse a `store` inside a
@@ -1673,9 +1673,9 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   4 passed (PASS); `cargo test -p mineworld-cli --test decision_models` 1 passed in 185 s (PASS);
   `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-installed-models --all-targets -- -D warnings` PASS.
   Review: no Rust file other than `cognition/installed` changed.
-- **D-P6b-2 (C2, recorded, not changed).** The doc comment at the top of `cognition/installed/src/lib.rs` still
-  says "(none in this build; step-17 P6 adds `lm`)". It is now stale. Editing it is outside C2's line, so it is
-  left for the primary session's post-merge sync (or a later P6b commit with the primary's approval).
+- **D-P6b-2 (C2) FIXED 2026-10-14 under the primary's ruling.** The stale doc comment in
+  `cognition/installed/src/lib.rs` ("none in this build; step-17 P6 adds `lm`") now reads that `lm` is the one
+  external model in this build. One-line edit, in C2's area.
 - **D-P6b-3 (C3, MATERIAL STOP, not implemented).** The frozen §5.13 and C3 step 1 use one TOML key for two
   shapes. The narrowing list is `seats = ["alice"]` (top level, an array), and the per-seat overrides are the
   tables `[seats.<key>.controller]` and `[seats.<key>.retry.<class>]`, which the design's C3 step 1 calls
@@ -1686,4 +1686,8 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   `lm_seats = [...]`. Both are a change to a configuration key name before any release. C3 and every commit that
   reads the narrowing list (C11, C12) wait for the operator's choice. C4–C10 touch no file in this conflict and
   are not started, to keep the commit order; the branch stops at C2.
+  **RULED by the primary session 2026-10-14: option (a).** The narrowing list stays `seats = [...]`; the per-seat
+  tables become `[seat_overrides.<key>.controller]` and `[seat_overrides.<key>.retry.<class>]`, and the field
+  `seat_overrides`. Every occurrence in this document is amended in the same commit (§§2.1 item 7, 5.13, 5.13
+  precedence, C3 step 1). Behaviour is unchanged. This is recorded here and in the PR body.
 - (planning findings are §3.2 and §0.1)
