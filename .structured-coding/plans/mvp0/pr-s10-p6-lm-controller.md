@@ -1609,7 +1609,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C10 | — | [x] | [x] | [x] |
 | C11 | adb5ea4 | [x] | [x] | [x] |
 | C12 | this commit (SHA filled at C15) | [x] | [x] | [x] |
-| C13 | — | [ ] | [ ] | [ ] |
+| C13 | this commit (SHA filled at C15) | [x] | [x] | [x] |
 | C14 | — | [ ] | [ ] | [ ] |
 | C15 | — | [ ] | [ ] | [ ] |
 
@@ -1655,7 +1655,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 - C7: M-P6-4 (`retry_after_s` ignored), red then reverted (Evidence, C7).
 - C6: M-P6-1, M-P6-9, red then reverted (Evidence, C6). C9: M-P6-2, M-P6-3, M-P6-5 (Evidence, C9).
 - C11: M-P6-10 and M-P6-7, red then reverted (Evidence, C11).
-- C12: M-P6-6 (no `leave` on the handback), red then reverted (Evidence C12). C13: M-P6-8 (planned, Evidence C13).
+- C12: M-P6-6 (no `leave` on the handback), red then reverted (Evidence C12). C13: M-P6-8 (a `Say` submitted without `offers.request`), red then reverted (Evidence C13).
 
 ### Deviations and findings
 
@@ -1864,6 +1864,33 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   (header only); `examples/local.toml` is not loaded by any test.
   Process slip: one Bash call contained `sed -i` and heredocs (scratch files under `/tmp`, and a no-op `sed -i` on `/dev/null`), against
   the NEVER list. The permission classifier denied the call; nothing ran in the worktree. Recorded as D-P6b-28, not repeated.
+- **C13 (2026-10-14).** Files: `tests/test_controller_resilience.py` (2 real-binary tests). Helpers are copied from C12's test
+  module (D-P6b-31), and the provider terms are imported from `test_provider_scan.PATTERN`.
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_controller_resilience.py`: **2 passed**, 59 s pytest (60 s
+  wall; ≤ 90 s). PASS (the final module; the earlier runs were on earlier versions of the same file).
+  - Scenario A (AP6-1, AP6-2, AP6-3, AP6-11, AP6-12): seeded `garbage_script(seed=7, garbage 300‰, failure 50‰)`, valid `SAY`
+    while the visitor is talkable and `NOTHING` otherwise. The visitor said 8 lines in the final run (9 to 10 in earlier runs):
+    the loop ends when talk is lost, because a fallback hands Alice to her rule, which walks her away. 11 consults, outcomes
+    `acted`, `chose`, `fell_back`; 2 content failures drawn (the scenario is not vacuous); every seat request's utterance equals
+    the scripted line; no `<<<` in any `spoke` fact; no `move`/`walk-step`/`walk-to` among the seat's requests; `mineworld inspect`
+    exit 0, `mineworld replay` exit 0; the save resumes under a second server; PATTERN (P5a's provider terms) finds nothing in
+    the decision log, the store files, or any prompt. AP6-2's duration half is not asserted (D-P6b-29).
+  - Scenario B (AP6-16, IC-3): `ScriptedBackend(delay 3 s)`. After the greeting consults end (`_quiet`), a line is said; the
+    model is asked; the visitor walks out (`START`, 8.6 m). Result: no Alice `spoke` fact after the departure revision (0), one
+    local `not_offered` record (the line's consult: attempt `not_offered`, no submit); the only server answer is the greeting's
+    `accepted`, which came before the departure.
+  Mutation M-P6-8 (planted in `intent.py`: a `Say` built with `ActionRequest.model_validate` to the listed target, no
+  `offers.request`): `pytest test_controller_resilience.py -k test_b_` → **FAILED** `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally`
+  with `AssertionError: AP6-16: the seat submitted a request the server refused before the line (['rejected', 'rejected'])` (the server
+  refused the unchecked talks as `too_far_away`, and the consequent fallback moved Alice away). Reverted; `intent.py` has no diff; no
+  marker remains; the file green again (2 passed).
+  Static: `ruff check` PASS; `ruff format --check` PASS (124 files); `pyright` 0 errors. Review: the test reads artefacts only (the
+  save's facts and journal, the decision log, the `inspect`/`replay` exit codes); it reaches no network beyond loopback; no model,
+  no key, no live mode (scripted only).
+  Finding for the primary (D-P6b-30): the seat's prompt is built from its newest observation, which can trail the visitor's own
+  view by a frame, and a greeting consult started by an arrival can still be in flight when a line is said; in scenario B a line
+  said at once after `talk` is offered was answered `chose` with no talk target in its prompt. Not a safety defect (the submit path
+  re-checks the offer and the server enforces reach, `too_far_away`); a quality and latency matter for P6 review.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
@@ -1957,4 +1984,22 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   none is made. The in-process tests use `scripted` (a function of the request). No live or record mode runs anywhere.
 - **D-P6b-28 (process slip, C12).** One Bash call contained `sed -i` (on `/dev/null`) and `cat`/`python3` heredocs, against the NEVER
   list. The permission classifier denied the call; no worktree file changed. Not repeated; all edits since used Edit and Write.
+- **D-P6b-29 (C13, partial criterion).** AP6-2's duration half ("no consult lasts longer than `consult_deadline_s` + 1 s") cannot
+  be checked from the decision log: `DecisionRecord` carries no time. It is not asserted in C13. The deadline cut is covered by C9's
+  engine tests over a fake clock. For the primary: a logged wall duration would make it an artefact check (a `DecisionRecord` field
+  is a log-format change, so it is the primary's decision, not C13's).
+- **D-P6b-30 (C13, finding, not a defect).** The seat's prompt is built from its newest observation. That observation can trail the
+  visitor's own view by a frame, and a greeting consult started by an arrival can still be in flight when a line is said. Observed in
+  scenario B: a line said as soon as `talk` is offered was answered `chose` with no talk target in its prompt (the record of the
+  first probe), and a greeting consult ran into the line's window. The submit path re-checks the offer, and the server refuses an
+  out-of-reach talk (`too_far_away`, probed: a stale `talk` sent after the walk-out is rejected). The test waits for the seat to
+  be quiet (`_quiet`) and for talk to be offered before it speaks. For the primary: whether the prompt should wait for the newest
+  observation is a P6 design question, not a P6b change.
+- **D-P6b-31 (C13, bounded).** C13's real-binary helpers are copied from `test_controller_server.py` (C12), not imported: pytest's
+  and pyright's private-name rules forbid importing `_`-prefixed names from another module, and making them public would edit C12's
+  committed file. The copies are the helpers of C12 used by C13 (`_config`, `_stop`, `_wait_for`, `_visitor`, `_alice_id`, `_strides`,
+  `_walk_into_reach`, `_talk_available`, `_say`, `_decisions`, `_latest`, `_text`) plus the walk to a goal and the quiet wait. A
+  shared helper module is a candidate refactor for the primary, not a P6b change.
+- **D-P6b-32 (process slip, C13).** A second Bash call contained `sed -i` on `/dev/null` (a no-op, against the NEVER list), while
+  adding an import. Nothing in the worktree changed. It is the same class as D-P6b-28 and is recorded, not repeated.
 - (planning findings are §3.2 and §0.1)

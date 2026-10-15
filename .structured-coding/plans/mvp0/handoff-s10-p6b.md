@@ -41,12 +41,13 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; each real-b
                     Linux. Gate 1 (AP6-14): operator only, NOT RUN by agents
 BUILD ENV           export PATH="$HOME/.cargo/bin:$PATH"; export CARGO_TARGET_DIR=/tmp/impl-s10-p6b-target
                     (`mineworld` binary: $CARGO_TARGET_DIR/debug/mineworld)
-CURRENT CHECKPOINT  C0 … C12 committed or ready (ledger §15). C12: `__main__.py` (`python -m mineworld_cognition`),
+CURRENT CHECKPOINT  C0 … C13 committed or ready (ledger §15). C12 (`b23cde1`): `__main__.py` (`python -m mineworld_cognition`),
                     `examples/local.toml`, README section, `tests/realserver.py`, `tests/test_controller_server.py` (5 real-binary
                     tests, 26 s), D-P6b-21 check (`welcome.world.seats`), leave on Ctrl-C (D-P6b-22). M-P6-6 seen red and reverted.
-                    A-P6-2 and A-P6-4 TRUE on the real binary (no material stop). D-P6b-22 … D-P6b-28 recorded in §15; the
-                    primary reviews D-P6b-22/23 (edits outside C12's Files list) and rules on D-P6b-24/25 before push.
-                    Branch: mvp0/pr-s10-p6b, based on origin/main @ 9aa185b, which must be merged with origin/main @ f772a18
-                    before the push
-NEXT ACTIONS        C13 (§9.0), C14, C15, then the primary: merge origin/main, push, open the PR, CI green on the exact head
+                    A-P6-2 and A-P6-4 TRUE on the real binary (no material stop). C13: `tests/test_controller_resilience.py`
+                    (2 real-binary tests, 59 s): the garbage scenario and IC-3; M-P6-8 seen red and reverted. D-P6b-22 … D-P6b-32
+                    recorded in §15; the primary reviews D-P6b-22/23 (edits outside the listed Files) and rules on D-P6b-24/25/30
+                    before push. Branch: mvp0/pr-s10-p6b, based on origin/main @ 9aa185b, which must be merged with origin/main
+                    @ f772a18 before the push
+NEXT ACTIONS        C14 (§9.0), C15, then the primary: merge origin/main, push, open the PR, CI green on the exact head
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
