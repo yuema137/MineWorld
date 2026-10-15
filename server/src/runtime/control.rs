@@ -9,7 +9,8 @@
 use std::num::NonZeroU32;
 use std::time::Instant;
 
-use mineworld_contracts::EntityKey;
+use mineworld_contracts::{EntityKey, WorldTime};
+use mineworld_persistence::PacingChange;
 
 use super::WorldRuntime;
 use crate::protocol::{ClockState, ClosingReason, SessionId};
@@ -119,16 +120,23 @@ impl WorldRuntime {
     /// that alters neither the scale nor the pause state records and announces nothing.
     fn change_clock(&mut self, change: ClockChange, wall: Instant) -> ControlAnswer {
         let before = self.clock_state(wall);
-        if let Some(to) = change.time_scale {
-            self.rescale(to, wall);
+        if let Some(to) = change.time_scale
+            && let Some(at) = self.rescale(to, wall)
+        {
+            self.journal_or_stop(PacingChange::Scaled { to }, at);
         }
         if let Some(paused) = change.paused
             && paused != self.clock.paused()
         {
+            // Recorded at the reading the change was made at: the pause's own instant, which is also the
+            // resume's, since a paused clock stands still (`ARC-69` item 6).
+            let at = self.clock.now_at(wall);
             if paused {
                 self.clock.pause_at(wall);
+                self.journal_or_stop(PacingChange::Paused, at);
             } else {
                 self.clock.resume_at(wall);
+                self.journal_or_stop(PacingChange::Resumed, at);
             }
         }
         let after = self.clock_state(wall);
@@ -143,14 +151,16 @@ impl WorldRuntime {
     /// Changes the scale at the instant the clock reads now, rescheduling every hosted consult in the
     /// same command (`ARC-69` item 2). A paused clock's reading is frozen, so the rule applies at the
     /// frozen instant and the scale takes effect from the resume.
-    fn rescale(&mut self, to: NonZeroU32, wall: Instant) {
+    /// Returns the instant the change was made at, or `None` when the scale was already `to`.
+    fn rescale(&mut self, to: NonZeroU32, wall: Instant) -> Option<WorldTime> {
         let from = self.clock.scale();
         if from == to {
-            return;
+            return None;
         }
         let at = self.clock.now_at(wall);
         self.clock.rescale_at(wall, to);
         self.table.rescale(at, from, to);
+        Some(at)
     }
 
     fn seat_now(&self, seat: &EntityKey, wall: Instant) -> Option<SeatReport> {

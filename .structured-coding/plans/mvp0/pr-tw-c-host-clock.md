@@ -819,7 +819,8 @@ No TW-c question remains open.
 | C1 | (this commit) | done (docs): ARC-69 (new), notes on ARC-42 and ARC-44, PROTOCOL §§5.9, 10, 11.2, 11.3, MODULE_SPEC §§4.1, 8.1 |
 | C2 | (this commit) | done: `persistence/src/host.rs`, backend `HostRow` and two methods, lazy `host_journal`, `verify` coherence check |
 | C3 | (this commit) | done: rescale_at, seam `rescaled` + `HostedBinding`, SD-TWc-3/4, `SeatTable::rescale`, admin `time_scale` and 409/400, `Access.solo`, `host/config.rs` move, tests |
-| C4 … C9 | — | not started |
+| C4 | (this commit) | done: `runtime/pacing.rs` (resolution), Started at start, Scaled/Paused/Resumed per effective change, Stopped at shutdown; a failed write stops the world |
+| C5 … C9 | — | not started |
 
 ### Evidence
 
@@ -848,6 +849,18 @@ No TW-c question remains open.
   `--solo` check) → `server/tests/admin.rs` red at `{"time_scale": 25}` (answered 200); M-TWc-7 (tick-based next
   instant) → `in_server_consult_instants_do_not_follow_tick_jitter` red and the `hosted.rs` tests red.
   M-TWc-8, -9, -10 are not C3's (M-TWc-10 was C2; -8 is C7; -9 is C4).
+- C4: `cargo test -p mineworld-server --no-fail-fast` green (lib 59 incl. pacing 3 and the persisted AC-TWc-3;
+  integration as C3); clippy `-D warnings` clean. AC-TWc-3 persisted half in `runtime/tests.rs`: a persisted
+  town (two paced probes and a reactive one that ask the world something at every consult; the kernel refuses
+  the unknown `probe-ask` action, and every such input is journaled), 60 wall seconds, two rescales and a pause.
+  Run 1 (steady ticks) and run 2 (ticks jittered 0–39 ms, same wall instants of changes): identical host
+  journals (5 records, asserted in order) and identical consult instants and answers. Run 3 (steady ticks, the
+  changes at the wall instants that read the **journal's** recorded world instants, computed by `wall_for`):
+  identical journal and identical consults/answers. Checked: each seat's answers are non-empty.
+  Fact envelopes: this probe world produces no facts (refusals only), so the fact comparison in AC-TWc-3 is
+  vacuous here; the binary-level test (C7) compares the facts of a real world. Reported as a limitation.
+  Mutations (unit level, red by name then reverted): M-TWc-5 (stop ignored) → `a_restart_resumes_no_earlier_than_the_last_stop`
+  red; M-TWc-9 (no day-length range on the save) → `a_fast_forward_scale_in_the_save_never_survives_a_restart` red.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the

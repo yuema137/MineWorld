@@ -31,14 +31,26 @@ pub struct HostConfig {
     /// How long a seat whose connection dropped is held for its resume, in wall time
     /// (`PROTOCOL.md` §4.2). Zero holds none.
     pub hold: Duration,
-    /// How many world seconds pass per wall second.
-    pub time_scale: NonZeroU32,
+    /// Which time scale the world starts at, as its host states it (`ARC-69` item 8). The save's journal is
+    /// the third source, read by the runtime itself.
+    pub time_scale: TimeScaleChoice,
     /// Learned facts that may wait for a connection's next frame; past it they drop (§5.2).
     pub event_backlog: usize,
     /// Facts that may wait for a connection's `perceived` stream; past it, `lagged` (§5.8).
     pub perceived_backlog: usize,
     /// Every Nth frame to a connection is a whole observation, the others deltas (§5.3, DEP-15).
     pub keyframe_every: NonZeroU32,
+}
+
+/// The time scale a hosted world starts at, as its host states it: a flag the operator gave, the world's own
+/// default (`world.yaml` `hosting.time_scale`), or neither. The save's journal comes before the default, and
+/// 1 after it (`ARC-69` item 8; `pacing.rs`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TimeScaleChoice {
+    /// `--time-scale`, if given.
+    pub flag: Option<NonZeroU32>,
+    /// `world.yaml`'s `hosting.time_scale`, if the world declares one.
+    pub pack: Option<NonZeroU32>,
 }
 
 impl Default for HostConfig {
@@ -49,7 +61,7 @@ impl Default for HostConfig {
             observation_backlog: 8,
             recent_events: 64,
             hold: Duration::from_secs(30),
-            time_scale: NonZeroU32::MIN,
+            time_scale: TimeScaleChoice::default(),
             event_backlog: 256,
             perceived_backlog: 4_096,
             keyframe_every: NonZeroU32::new(50).unwrap_or(NonZeroU32::MIN),

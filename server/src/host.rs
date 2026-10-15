@@ -56,7 +56,7 @@ use mineworld_kernel::{KernelError, World};
 use mineworld_persistence::PersistentWorld;
 use tokio::sync::{mpsc, oneshot};
 
-pub use config::HostConfig;
+pub use config::{HostConfig, TimeScaleChoice};
 
 use crate::hosted::{HostedBinding, HostedController, HostedFactory};
 use crate::perception::{
@@ -274,12 +274,18 @@ impl WorldHost {
         std::thread::Builder::new()
             .name("mineworld-world".to_owned())
             .spawn(move || match build() {
-                Ok(hosted) => {
-                    if ready.send(Ok(())).is_err() {
-                        return;
+                Ok(hosted) => match WorldRuntime::new(hosted, thread_config) {
+                    Ok(runtime) => {
+                        if ready.send(Ok(())).is_err() {
+                            return;
+                        }
+                        runtime.run(receiver);
                     }
-                    WorldRuntime::new(hosted, thread_config).run(receiver);
-                }
+                    // A world whose start cannot be journaled never begins (`ARC-69` item 6).
+                    Err(error) => {
+                        let _ = ready.send(Err(error));
+                    }
+                },
                 Err(error) => {
                     let _ = ready.send(Err(error));
                 }

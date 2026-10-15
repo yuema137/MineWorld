@@ -291,7 +291,10 @@ async fn a_hosted_request_meets_the_actor_check_and_the_sessions_allocator() {
     let (answers, received) = std_mpsc::channel();
     let config = HostConfig {
         // A second of world time every few milliseconds, so the controller is due on every tick.
-        time_scale: std::num::NonZeroU32::new(600).expect("non-zero"),
+        time_scale: mineworld_server::TimeScaleChoice {
+            flag: Some(std::num::NonZeroU32::new(600).expect("non-zero")),
+            pack: None,
+        },
         ..brisk()
     };
     let address = start_with(config, move || {

@@ -35,6 +35,7 @@
 
 mod control;
 mod delivery;
+mod pacing;
 mod status;
 #[cfg(test)]
 mod tests;
@@ -52,7 +53,7 @@ use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::admission::ResumeSecret;
 use crate::host::{
-    Binding, Command, HostConfig, Hosted, HostedWorld, SeatRoster, Seated, Submitted,
+    Binding, Command, HostConfig, HostError, Hosted, HostedWorld, SeatRoster, Seated, Submitted,
     SubscriptionId, SubscriptionIdSource,
 };
 use crate::hosted::HostedAnswer;
@@ -60,6 +61,7 @@ use crate::perception::{EventPerception, PerceivedHistory, Perception, Perceptio
 use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInstanceId};
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
+use mineworld_persistence::{PacingChange, PersistError};
 use status::first_binding;
 use world::{ActionIds, Failure, HostClock, TickTimes};
 
@@ -101,22 +103,31 @@ pub(crate) struct WorldRuntime {
 }
 
 impl WorldRuntime {
-    pub(crate) fn new(hosted: HostedWorld, config: Arc<HostConfig>) -> Self {
+    pub(crate) fn new(hosted: HostedWorld, config: Arc<HostConfig>) -> Result<Self, HostError> {
         Self::new_at(hosted, config, Instant::now())
     }
 
     /// [`new`](Self::new) with the host clock started at the wall instant `wall`: the entry the tests drive
-    /// with an injected clock.
-    pub(crate) fn new_at(hosted: HostedWorld, config: Arc<HostConfig>, wall: Instant) -> Self {
-        let (instance, epoch) = match &hosted.world {
-            Hosted::Ephemeral(_) => (WorldInstanceId::allocate(), config.epoch),
+    /// with an injected clock. A persisted world's start is journaled here, before the first command
+    /// (`ARC-69` item 6); a save that cannot take the record does not start.
+    pub(crate) fn new_at(
+        hosted: HostedWorld,
+        config: Arc<HostConfig>,
+        wall: Instant,
+    ) -> Result<Self, HostError> {
+        let (instance, now, journal) = match &hosted.world {
+            Hosted::Ephemeral(_) => (WorldInstanceId::allocate(), config.epoch, Vec::new()),
             Hosted::Persisted(world) => (
                 WorldInstanceId::from_raw(world.instance()),
                 world.world().now(),
+                world.host_records().map_err(HostError::build)?,
             ),
         };
+        let start = pacing::resolve(config.time_scale, &journal, now);
+        let epoch = start.at;
+        println!("[world] time scale {} ({})", start.scale, start.source);
         let bound = first_binding(&hosted.world, epoch);
-        let clock = HostClock::new(epoch, config.time_scale, wall);
+        let clock = HostClock::new(epoch, start.scale, wall);
         let table = SeatTable::new(
             hosted.seats.iter().cloned(),
             hosted.hosted,
@@ -136,7 +147,7 @@ impl WorldRuntime {
             time_scale: clock.scale().get(),
             paused: clock.paused(),
         });
-        Self {
+        let mut runtime = Self {
             world: hosted.world,
             perception: hosted.perception,
             audience: hosted.events,
@@ -157,6 +168,36 @@ impl WorldRuntime {
             stopped: None,
             ticks: TickTimes::default(),
             config,
+        };
+        if matches!(runtime.world, Hosted::Persisted(_)) {
+            runtime
+                .journal(
+                    PacingChange::Started {
+                        scale: start.scale,
+                        paused: false,
+                    },
+                    start.at,
+                )
+                .map_err(HostError::build)?;
+        }
+        Ok(runtime)
+    }
+
+    /// Writes one pacing change to the host journal of a persisted world (`ARC-69` item 6). Not a fact and not
+    /// a revision: the input journal, the facts and the snapshots are untouched.
+    fn journal(&mut self, change: PacingChange, at: WorldTime) -> Result<(), PersistError> {
+        match &mut self.world {
+            Hosted::Ephemeral(_) => Ok(()),
+            Hosted::Persisted(world) => world.record_host(change, at),
+        }
+    }
+
+    /// [`journal`](Self::journal) for a change the world has already made. A save that cannot take the record
+    /// stops the world, like a failed commit (`Failure::Stopped`): the clock has moved, and the save must not
+    /// go on without the record of it.
+    fn journal_or_stop(&mut self, change: PacingChange, at: WorldTime) {
+        if let Err(error) = self.journal(change, at) {
+            self.stopped = Some(error.to_string());
         }
     }
 
@@ -191,6 +232,10 @@ impl WorldRuntime {
                 }
                 Command::Shutdown(done) => {
                     self.checkpoint();
+                    // After the checkpoint, with the clock's reading now: the instant a restart resumes no
+                    // earlier than (`ARC-69` item 8).
+                    let now = self.clock.now();
+                    self.journal_or_stop(PacingChange::Stopped, now);
                     println!("{}", self.ticks.report());
                     let _ = done.send(());
                     break;

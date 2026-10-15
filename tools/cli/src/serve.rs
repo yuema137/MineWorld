@@ -23,7 +23,7 @@ use mineworld_persistence::{
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
     Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, InviteToken, SeatRoster,
-    WorldHost, WorldInstanceId, app,
+    TimeScaleChoice, WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
@@ -118,7 +118,10 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         .transpose()?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
-        time_scale,
+        time_scale: TimeScaleChoice {
+            flag: Some(time_scale),
+            pack: None,
+        },
         keyframe_every,
         ..HostConfig::default()
     };
