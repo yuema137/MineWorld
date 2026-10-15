@@ -1368,7 +1368,7 @@ presentation/<style-id>/
 
 Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
 contain for the 2D reference client is specified in
-[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). A style that covers more than one dimension is more than
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). What `characters/cast.yaml` contains for the 3D reference client — which character draws a person with a given disclosed `look`, and the extras that draw everyone else — is specified in [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) (`DECISIONS.md` `ARC-92`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
 whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default:
 
@@ -1376,7 +1376,7 @@ whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default
 presentation/mineworld-default/
 ├── README.md     what the family is, and what the packs must share
 ├── 2D/           manifest.yaml · ART_DIRECTION.md · references/
-└── 3D/           manifest.yaml · ART_DIRECTION.md · references/
+└── 3D/           manifest.yaml · ART_DIRECTION.md · references/ · characters/cast.yaml
 ```
 
 Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECISIONS.md` `ARC-53`,
