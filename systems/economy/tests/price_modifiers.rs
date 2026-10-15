@@ -65,8 +65,8 @@ fn pack(id: &str, systems: &[&str], configure: &[(&str, &str)]) -> Scratch {
         "tags: [store]\npassages:\n  - to: street\n",
     );
     write("places/street.yaml", "tags: [street]\n");
-    write("items/apple.yaml", "item: { category: food }\n");
-    write("items/bread.yaml", "item: { category: food }\n");
+    write("items/apple.yaml", "item: { category: food, name: Apple }\n");
+    write("items/bread.yaml", "item: { category: food, name: Bread }\n");
     write(
         "organizations/corner-store.yaml",
         "holdings: { apple: 20, bread: 10 }\neconomy:\n  wallet: 1000\n  shop: { at: store, prices: \

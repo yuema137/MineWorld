@@ -17,7 +17,21 @@ calendar:
   - { kind: market-day, place: street, weekdays: [saturday] }
 ```
 
-Enabled without that file, the pack does nothing.
+Enabled without that file, the pack does nothing. [`worlds/market-town`](../../worlds/market-town)
+has a full example.
+
+## Make other things follow
+
+`happenings` only announces, begins and ends happenings. Another pack decides what they change, in its
+own configuration. For example, `configure/economy.yaml` lowers a shop's prices while one runs:
+
+```yaml
+price_modifiers:
+  - { during: market-day, shop: store, permille: 900 }
+```
+
+To decide *when* things happen in code, write a System Pack that implements `HappeningGenerator`,
+add it to the installed set's `happenings` extension line, and list its id under `generators:`.
 
 ## Specification
 

@@ -30,12 +30,13 @@ reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #15
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason 12d #171 (S15, step-11 §19, QB-5): the town gets walls, furniture and bodies (bodies installed, R 250) and named item kinds, so walks are routed round solids and stop short or displace: every summary, facts-300s, journal-300s and sealed-300s moved; re-recorded from a long record of 12d's merge with main e67af07 (a9c3b38, Darwin/arm64)
-summary-300 371 f64ebd5d0566c03736992215d0198f219de0dcc7c8c314a667eb68d39229e03b
-summary-1000 1097 d937e62d1ea213286224eb353184ac84c540a5e299597dedf77f75b53ca8c2f6
-summary-300s 370 76201a974e5b786cd354e550bf3c8956372cb8376c155f937a3adb5de376739d
-facts-300s 8396 889370777ee74ea66925d08c922d01e64478df2546aef8bf6fc70b4903ffdc61
-journal-300s 5729 1199a0f998cab2a24ec6cbd01953aee48ca8ec3339a7f95b6f0828e46a2f98e0
-sealed-300s 202 fdb59295f10af14ef25be1b147f746b9fea69431827d52c2a99c7cc5a24a9edd
+reason WE-a #189: happenings and market-day prices enabled in Market Town (configure/happenings.yaml, configure/economy.yaml; QWE-1 (a)), and economy's declaration at version 2 in the genesis composition (F-WE-a-9): every summary, facts-300s, journal-300s and sealed-300s moved; no other world moved; re-recorded from a long record of WE-a's merge with 12d (4ff4856) and main 5cbb469 (fa84340 with the C5 world files, Darwin/arm64)
+summary-300 379 82637fe56e9e714085d3dce046747d84f554a04233a74c857a82d0fbd138f958
+summary-1000 1105 d00dfc0fbec5ad35346bdd67a8dd0b515d8d0d94030a18a916f3c45bde21e39a
+summary-300s 378 2d1cd1779f3445c7fd67fc00861afbeae06c674998dbf7bbdd5003b73a26eec0
+facts-300s 8401 dc0db10bd4ac34331b54c055b1276441b317c13008bece60ce81eaf9c759a017
+journal-300s 5730 9532adb8a8e97c389e797143d58a83fbd215092a1189e095fd2ab2db0d6358a3
+sealed-300s 202 8f472835c3a4224e58fee42fc5ea23bbb01672ce89b9a03c201279bb9b2d2eff
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)

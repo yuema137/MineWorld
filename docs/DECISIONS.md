@@ -2917,6 +2917,21 @@ Social Café is refused. **The claim is unchanged: the market delta is measured 
 gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
 stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
 
+**Note, 2026-10-15 (WE-a, PR #189; the operator's ruling on S31-a Q-S31a-1, option (a)) — a market pack's
+configuration, and `happenings` on the allow-list.** A market pack's configuration is part of the market
+delta, so admitting it keeps the delta measured exactly. Check 3 (as the 2026-10-09 notes read it) now
+also admits, **in Market Town only**, the `configure:` entry and the `configure/<key>.yaml` file of any of
+the six market packs that `systems` enables. Such a pack still stands among the six in `systems`, not
+after them. `configure` and `configure/` stay absent in Social Café, and a market pack configured but not
+enabled is refused by name. `data/` is unchanged: it still admits only an allow-listed generic pack's
+attachments. The first such file is Market Town's `configure/economy.yaml` (WE-a C5: the store's
+market-day price modifier, `ARC-88`). The same PR adds `happenings` to `GENERIC_PACKS`, which is now
+`["calendar", "weather", "happenings"]`: a world's happenings are neither Social Café nor the market, so
+the pack is generic by the 2026-10-09 rule. Checks 1 and 2 are untouched. A unit test holds the ruling's
+two mutations: a market pack's configuration in Social Café, and a market pack configured but not enabled.
+This note implements Q-S31a-1 (a) once; S31-a uses it as it stands and does not repeat the change in
+`ac1_composability.rs` or here.
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -8052,6 +8067,27 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** `CORE_CONCEPTS.md` §14 ("a Controller decides what a Person attempts") is amended by WE-b, not by this record, and WE-b's PR design states the exact wording. No `worldpack` change: `happenings` is an ordinary enabled system and its file is an ordinary configure entry.
 
 **Revisit** when WE-b's Organization-seat rule is recorded (the amendment of `CORE_CONCEPTS.md` §14), or when a director must act on world state beyond proposals, which would require a new decision.
+
+**Note, 2026-10-15 (WE-a, PR #189, as built; `.structured-coding/plans/mvp0/pr-we-a-happenings.md` §§5–7, 11).**
+- **State.** `happenings` owns no component on places. Its state lives in Processes, as calendar's does:
+  one `almanac` Process per world and one `happening` Process per announced happening. It discloses two
+  records that no entity carries, `happenings-here` and `happenings-announced`, to an observer in a place
+  (F-WE-a-6). "Owns `Happenings` on places" above is superseded by this.
+- **Facts.** It also states `happenings-configured` at genesis, and `happening-withheld` for each refused
+  draft. Both are `SystemInternal` with no subjects, so an author can see why a happening never happened.
+- **Limits.** WE-a's `limits` are `per_day` and `per_place_running`. `per actor per day` is a proposals limit
+  and arrives with WE-b's `propose-happening`.
+- **Dependencies.** `happenings` depends on `presence` and `calendar` (a world without calendar is refused
+  naming it). A selected generator's pack is a configuration `requires` (`ARC-61`), checked by the loader.
+- **Reuse considered.** `rrule` (RFC 5545 recurrence) was declined: three recurrence forms over calendar's
+  `CalendarDate` are a few dozen lines, and `rrule` would bring `chrono` and wall-clock types into a System
+  Pack. `rand` was declined: counter-based draws (SplitMix64, pinned to its reference vector, as weather's)
+  are required for resume equality. No third-party crate was added.
+- **The first reaction.** `economy` gained an optional `configure/economy.yaml` with `price_modifiers`. It
+  states its own `prices-adjusted` / `prices-restored`, caused by `happening-began` / `happening-ended`, and
+  reduces them into `Shop.adjustments`. Its `SystemVersion` is 2.
+- **Market Town opts in by configuration** (QWE-1 (a)), with the store at 900 ‰ on market days. AC-1
+  admits that file under `ARC-35`'s note of 2026-10-15.
 
 ---
 

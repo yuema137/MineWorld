@@ -956,25 +956,109 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 
 1. **Goal.** A real world evolves: Saturday markets, a festival, a musician; the store's prices follow.
 2. **Scope.** `worlds/market-town/{world.yaml, configure/happenings.yaml, configure/economy.yaml, README.md}`, `scripts/baselines.txt`. After 12d.
-3. **Implementation** — [ ] §7's content; header comments in the files' existing style; README "what changes".
-4. **Validation** — [ ] E-3, E-4, E-5; `mineworld validate worlds/market-town`.
-5. **Acceptance** — AC-WE-a-9.
-6. **Edge cases** — Market Town's restart fixture rule (routine boundaries 05:00–23:00) is unaffected; record any summary column that moves unexpectedly.
-7. **Evidence** — run summaries, baseline diff, client observation.
+0. **Base (2026-10-15, operator via the primary session).** The operator asked for maximum parallelism:
+   C5 builds on 12d **before** 12d merges, superseding §13's stop condition "C5 reached before 12d merged"
+   for this one case. `origin/mvp0/pr-12d-towns @ 4ff4856` was merged into `mvp0/pr-we-a` (`8482f2d`;
+   conflicts only in `systems/installed/{src/lib.rs, tests/resolution.rs}` — relationships' `DecayCurve`
+   line and happenings' line both kept, the pinned line count now 4 — and `Cargo.lock`, taken from 12d and
+   re-resolved offline: the difference from 12d's lock is exactly WE-a's crate and economy's two dev
+   dependencies). Then `origin/main @ 5cbb469` (`fa84340`, clean). PR #189's base stays `main`, so it
+   shows 12d's commits until 12d merges.
+3. **Implementation**
+   - [x] §7's content. — `worlds/market-town/configure/happenings.yaml` (seed 7; `market-day` street
+     08:00–14:00 every Saturday; `harvest-festival` park 16:00–22:00 on 10-31, announced 7 days ahead;
+     `street-musician` street/park 11:00–13:00, `audience: place`, 150 ‰ on the street, 60 ‰ in the park on
+     weekends May–September; default limits); `configure/economy.yaml` (`market-day` at `store`, 900 ‰);
+     `world.yaml` (`happenings` appended after `weather`; `configure:` gains `happenings`, `economy`;
+     header and comments in the file's style); README "Things happen in town".
+   - [x] AC-1 (bounded, approved in §16.1 and by the Q-S31a-1 ruling). — `ac1_composability.rs`:
+     `GENERIC_PACKS` gains `happenings`; new `configurable(key)` = market pack ∪ allow-listed generic pack,
+     used by `compare_configure` and the `configure/` loop (Q-S31a-1 (a): an enabled market pack's
+     configuration is admitted in Market Town only); `data/` unchanged. The unit test's "unlisted" example
+     becomes `bodies` (economy is now admissible) and gains the ruling's two mutations. Dated note under
+     `ARC-35` (2026-10-15), which also says S31-a must not repeat the change.
+   - [x] **Bounded deviation D-11** — `tools/cli/tests/market_composition.rs` `without(pack)`.
+     *Previous assumption:* C5 touches only `worlds/market-town`, `scripts/baselines.txt` and AC-1.
+     *Audit evidence:* `without("economy")` asserted `  - economy` occurs once in `world.yaml`; with
+     `configure: [.., economy]` it occurs twice, and a copy without economy that kept
+     `configure/economy.yaml` would be refused by the loader. *Corrected:* a pack's `configure:` line and
+     `configure/<pack>.yaml` are removed with it, and the "differs by exactly the pack" assertion accounts
+     for them. This is S31-a's F-S31a-7 (its C2 step 8), done here once; S31-a must not duplicate it.
+   - [x] **Bounded deviation D-12** — `docs/guide/features.toml` `happenings = true` and
+     `docs/GUIDE_FORMAT.md` §9 / §9.1 in step. *Audit evidence:* `tools/cli/tests/guide/features.rs`
+     fails a `false` flag whose probe pack (`mineworld-happenings`) is in the build (§9 rule 3), so the
+     flag must flip in the PR that merges the pack. No guide page `requires happenings` yet.
+   - [x] **Bounded fix D-13** — `systems/economy/tests/price_modifiers.rs`: its two item files gain `name:`.
+     12d made an item kind's `name` required (TD-C2); the C4 fixture predates it and failed to load after
+     the merge ("missing field `name`").
+4. **Validation**
+   - [x] `mineworld validate worlds/market-town` — valid, 150 genesis facts, rc 0.
+   - [x] Targeted tests (R-LOAD-1; each under `cast-slots/with-slot.sh`): `-p mineworld-happenings -p
+     mineworld-economy -p mineworld-installed-systems` all PASS (happenings 13 unit + 26 integration,
+     economy 3 + 16, installed 3 + 2; `price_modifiers` 3 PASS after D-13, FAILED 2 before it);
+     `-p mineworld-acceptance --test ac1_composability` 15 PASS; `-p mineworld-cli --test
+     market_composition` 1 PASS (26.9 s; six 30-day copies). `cargo fmt --all --check` clean.
+     Mutation **M20**: `configurable` restricted to `GENERIC_PACKS` → `check_3_the_world_delta` FAILED
+     ("`configure` names `economy`, neither a market pack nor an allow-listed generic pack";
+     "configure/economy.yaml: …") and the unit test FAILED; reverted (file restored from a copy).
+   - [x] **E-3.** `mineworld run worlds/market-town --headless --seed 7 --days 30` (26.7 s): happening-announced
+     13, began 12, ended 12, withheld 1; prices-adjusted 4, prices-restored 4 (Saturdays days 2, 9, 16,
+     23). `--days 300 --save` (6 min 0 s, load average 54.9 at start): announced 93, began 93, ended 93,
+     withheld 8; prices-adjusted 43 = prices-restored 43 (the 43 Saturdays in 300 days, §9.3); one
+     festival; 49 musicians (≈ 150 ‰ of 300 days, less those withheld as `PlaceBusy` under the market);
+     no `wage-unpaid` (R-WE-a-2); `buy` accepted 4 121. `mineworld replay --save` of the 300-day save:
+     "833122 revision(s) re-executed from genesis, 1219707 fact(s) and 206 snapshot(s) reproduced byte
+     for byte", rc 0. PASS.
+   - [x] **E-4 — the one Market Town re-baseline.** Tested state: HEAD `fa84340` plus the C5 world files
+     (the release binary `/tmp/impl-we-a-scratch/mineworld-c5`, built after them; the later edits are
+     tests and Markdown, not in the binary). `with-slot.sh python3.12 scripts/ci_parity.py record --binary
+     … --profile long --out /tmp/impl-we-a-scratch/c5/long.txt`, run alone: 1 134.3 s (bodies-yard 275.8,
+     lakeside 129.0, market-town 468.6, social-cafe 260.7), rc 0; load average 8.52 / 7.07 / 8.32 at the
+     start and 3.07 / 4.06 / 5.35 at the end. `baseline check` against the merged `baselines.txt`: only
+     Market Town's six keys differ (summary-300 371 → 379 lines, summary-1000 1097 → 1105, summary-300s
+     370 → 378, facts-300s, journal-300s, sealed-300s digests); bodies-yard, lakeside and social-cafe
+     equal. `baseline write` with the reason line `reason WE-a #189: happenings and market-day prices
+     enabled in Market Town … and economy's declaration at version 2 in the genesis composition
+     (F-WE-a-9) …`; the diff is the `[world market-town]` section only; `baseline check` then PASS.
+   - [x] **E-5 / U-4 — by source audit; the Godot client was not run (INCONCLUSIVE for a live view).**
+     The 2D HUD (`clients/2d/scripts/hud/readers.gd` `panels`) shows the observer's own components and the
+     place's `shop` listing, and no fact log. So a player at the store sees the market-day prices (the
+     listing is computed by `Shop::effective_price`), but the `happenings-here` / `happenings-announced`
+     records and the `happening-*` facts are not shown. Recorded as presentation follow-up **F-WE-a-10**
+     (a HUD reader for the two records), not fixed here (§2.2).
+5. **Acceptance** — AC-WE-a-9: under `worlds/market-town/` only `world.yaml`, `configure/happenings.yaml`,
+   `configure/economy.yaml` and `README.md` change; baselines move for Market Town only (E-4).
+6. **Edge cases** — the restart fixture rule (routine boundaries 05:00–23:00) is untouched (no person file
+   changes). Day 23 (2026-10-31) is both a Saturday and the festival: different places, both run.
+7. **Evidence** — above; scratch `/tmp/impl-we-a-scratch/c5/` (run30, run300, replay300, long record).
 8. **Commit boundary** — `feat(market-town): happenings and market-day prices (WE-a C5)`.
-   - [ ] Review: configuration only; reason line present; nothing outside Market Town moved.
+   - [x] Review: configuration only (no place or person file touched); `economy.yaml` names a Place
+     key with a shop (`store`); `happenings` after its dependency `calendar`; the AC-1 widening admits only
+     an enabled market pack's configuration and keeps every other refusal; the reason line is present;
+     nothing outside Market Town moved (E-4).
 
 ### C6 — Documentation and ledger
 
 1. **Goal.** The specifications say what the code does.
 2. **Scope.** `systems/happenings/README.md` (human, short), `systems/README.md` (one line), `docs/DECISIONS.md` `ARC-88` dated note (§12), `docs/MODULE_SPEC.md` §3.1 catalog list if it enumerates catalogs, this file's ledger.
-3. **Implementation** — [ ] the edits of §12 marked "WE-a".
-4. **Validation** — [ ] `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+3. **Implementation**
+   - [x] `ARC-88` dated note (2026-10-15): state in Processes (supersedes "owns `Happenings` on places"),
+     the two extra facts, WE-a's two limits (per-actor is WE-b's), dependencies and `requires`, reuse
+     (`rrule`, `rand` declined), economy's reaction, Market Town's opt-in. DOC-24 had already applied
+     §12's other corrections (kinds as content, generators as the catalog, plain `ARC-61` file, content
+     seed, no `worldpack` change); reconciled, not rewritten.
+   - [x] `systems/happenings/README.md` (a "Make other things follow" section: economy's file, writing a
+     generator); `systems/README.md` (one line, and "All fourteen").
+   - [x] `docs/MODULE_SPEC.md` §3.1 — **N/A**: it explains presence's extension line by example and does
+     not enumerate catalogs or configure files (audited by grep for `Wayfinder`, `DecayCurve`,
+     `configure/`).
+4. **Validation** — [x] `python3.12 scripts/check_doc_headings.py` → "239 numbered sections across 33
+   documents, none duplicated"; `check_decision_ids.py` → "138 decision ids, all distinct".
 5. **Acceptance** — no code/spec contradiction left unrecorded (`CLAUDE.md` §2.1 rule 4).
-6. **Edge cases** — DOC-24 wording already changed by the primary session → reconcile, do not overwrite.
-7. **Evidence** — check outputs.
-8. **Commit boundary** — `docs(happenings): README, ARC-88 note, ledger (WE-a C6)`.
-   - [ ] Review: terminology (`System Pack`, `Process`, `Event`) exact; README stays short.
+6. **Edge cases** — DOC-24 wording already changed → reconciled by a dated note.
+7. **Evidence** — check outputs above.
+8. **Commit boundary** — committed with C5 as one commit (the docs describe C5's content).
+   - [x] Review: terminology (`System Pack`, `Process`, `Event`) exact; READMEs stay short.
 
 Terminal: open the PR, one canonical CI run on the final head (§9.1), operator review in parallel.
 
@@ -1051,7 +1135,10 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            F-WE-a-9 ruled (2026-10-14, §16.1). C0–C4 pushed as a draft PR; C5 waits for 12d (#171).
+Status:            2026-10-15: 12d (#171, unmerged, 4ff4856) and main 5cbb469 merged in (8482f2d, fa84340);
+                   C5 + C6 done in one commit; PR #189 marked ready; READY FOR OPERATOR REVIEW — DO NOT
+                   MERGE (CI on the final head: see the handoff and the PR). Until then:
+                   F-WE-a-9 ruled (2026-10-14, §16.1). C0–C4 pushed as a draft PR.
 Full local suite:  `cargo test --workspace --no-fail-fast` on 4dca864 + ledger (macOS arm64): 1 079 passed,
                    0 failed, 34 ignored, exit 101 from one target — `persistence --test kill_and_resume`,
                    "retiring: the save stops mid-run (301, killed at 264, full run 301)" in the cafe world,
@@ -1061,12 +1148,15 @@ Full local suite:  `cargo test --workspace --no-fail-fast` on 4dca864 + ledger (
                    -D warnings, fmt, doc-headings, decision-ids and scratch-scan are clean.
 Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
                    /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
-12d (#171):        OPEN at C0 (2026-10-13) and at C4 (2026-10-14)
-Commits:           C0 e729586, C1 d8a2bff, C2 8360d88, C3 bce32bc, C4 (this commit)
-Evidence:          per commit in §11; default ci_parity records used 4 of 4 (base, C1, C3, C4)
-Deviations:        D-1 … D-10 (bounded, recorded in §11 C1 … C4)
+12d (#171):        OPEN at C0 (2026-10-13), at C4 (2026-10-14) and at C5 (2026-10-15, merged in by ruling)
+Commits:           C0 e729586, C1 d8a2bff, C2 8360d88, C3 bce32bc, C4 4dca864; merges 8482f2d (12d),
+                   fa84340 (main); C5+C6 (this commit)
+Evidence:          per commit in §11; default ci_parity records used 4 of 4 (base, C1, C3, C4); long
+                   record used 1 of 1 (E-4). Full local suite: not re-run at C5 (R-LOAD-1: CI is the gate)
+Deviations:        D-1 … D-13 (bounded, recorded in §11 C1 … C5)
 Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); F-WE-a-9 (§11 C4: a declaration change also moves the genesis
-                   journal entry and the snapshots' composition)
+                   journal entry and the snapshots' composition); F-WE-a-10 (§11 C5: the 2D HUD does not
+                   show the happenings records — presentation follow-up)
 Open questions:    none (F-WE-a-9 ruled, §16.1); M10 recorded as equivalent for T10 (§11 C2)
 ```
 
@@ -1095,6 +1185,8 @@ Open questions:    none (F-WE-a-9 ruled, §16.1); M10 recorded as equivalent for
 | **QWE-1** | **Operator: (a).** Market Town opts in by configuration, re-baselined with a reason line (C5). AC-WE-a-9 applies. |
 | QWE-2 … QWE-9 | **Primary session: accepted as recommended.** Plain `ARC-61` configuration; kinds as content and generators as the `ARC-62` catalog; `calendar` a hard dependency; economy price modifiers included as C4; content `seed:`; `happening-withheld` facts recorded; mixer copied now, extraction later; stock and schedule reactions deferred. |
 | §12 `ARC-88` corrections | Being applied by the primary session in DOC-24 (#175); C6 reconciles rather than re-applies them. |
+| **C5 base** (2026-10-15) | **Operator, relayed by the primary session:** maximum parallelism — merge 12d (#171, unmerged) and current main into WE-a and do C5 on 12d's towns now; #189's base stays main. Supersedes §13's "C5 reached before 12d merged" stop for this case. |
+| **Q-S31a-1** (2026-10-15, S31-a's ruling) | **Operator: (a).** AC-1 check 3 admits an enabled market pack's configuration in Market Town only. WE-a lands the change (with the `ARC-35` note) so its `configure/economy.yaml` passes; **S31-a must not duplicate it**, nor D-11's `market_composition.rs` change (its F-S31a-7). |
 | **F-WE-a-9** (2026-10-14) | **Primary session: accepted as proposed.** U-2 is corrected to "economy's version bump changes the manifest and the composition in the genesis journal entry and snapshots, nothing else" (the pattern IL-e and FG-a recorded). Facts, summaries and every other journal entry byte-identical is the evidence (§11 C4). Market Town's journal move is covered by C5's baseline reason line. Also approved as a bounded C5 edit: `happenings` added to `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. Until 12d merges, C0–C4 may be pushed as a draft PR. |
 
 ## 17. Prior art and sources (accessed 2026-10-12)

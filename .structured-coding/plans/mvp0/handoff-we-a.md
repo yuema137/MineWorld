@@ -24,21 +24,19 @@ BUDGET:                default ci_parity records 4 of 4 USED; long profile once 
 STOP CONDITIONS:       C5 before 12d merged; frozen invariant falsified; U-2 false; QWE ruling contradicted
 ```
 
-## Current checkpoint (2026-10-14)
+## Current checkpoint (2026-10-15)
 
-C0 … C4 committed locally, not pushed. STOPPED: E-2 met the stop condition "U-2 false" in its literal
-text. A declaration change also moves Market Town's genesis journal entry and its snapshots'
-composition, by exactly economy's added declaration (150 bytes). Facts, summaries and every other journal
-entry are byte-identical (F-WE-a-9, §11 C4). The ruling is proposed there. 12d (#171) is still open,
-so C5 waits as well.
+C0 … C6 done. 12d (#171, unmerged, `4ff4856`) and main `5cbb469` were merged in on the operator's
+instruction (maximum parallelism), then C5 + C6 were committed as one commit and pushed. PR #189 is
+marked ready, with base `main`; it shows 12d's commits until 12d merges. Evidence is in the design's §11
+C5/C6 and §15. Scratch: `/tmp/impl-we-a-scratch/c5/` (run30, run300, save300, replay300, long.txt).
+Lifecycle: READY FOR OPERATOR REVIEW — DO NOT MERGE. CI on the final head is tracked on the PR.
 
-## Next actions (after the operator's ruling and 12d's merge)
+## Requirements left for other PRs
 
-1. Record the F-WE-a-9 ruling in §16.1 and U-2's corrected wording.
-2. Rebase onto origin/main with 12d. Re-run economy tests. C5: Market Town configuration, plus
-   `happenings` in `tests/acceptance/tests/ac1_composability.rs` `GENERIC_PACKS` (found in C1). Then E-3,
-   E-4 (long profile, baseline write, with a reason line covering C4's journal move), E-5.
-3. C6: README, `systems/README.md` line, ARC-88 dated note (reconcile "owns Happenings on places" with
-   F-WE-a-6), MODULE_SPEC §3.1 catalog list.
-4. Run the full local `cargo test --workspace --no-fail-fast`, push, open the PR, and get one canonical
-   CI run. Then READY FOR OPERATOR REVIEW. Do not merge.
+- **S31-a** must not repeat the AC-1 change (Q-S31a-1 (a): `configurable` in `ac1_composability.rs`
+  and the `ARC-35` note of 2026-10-15), nor the `market_composition.rs` `without()` change (F-S31a-7).
+  It extends WE-a's `EconomyConfiguration` and Market Town's `configure/economy.yaml` (R-WEa-a-1).
+- **12d** merging first changes nothing here. If 12d changes again before merging, WE-a re-merges it
+  and re-checks Market Town's baseline section.
+- **F-WE-a-10** (presentation): a 2D/3D HUD reader for `happenings-here` / `happenings-announced`.
