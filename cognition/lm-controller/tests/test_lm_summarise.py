@@ -256,7 +256,7 @@ def _constant_backend(importance: int) -> ScriptedBackend:
 
 def _citations(dump: bytes) -> list[tuple[object, object]]:
     return [
-        (row.get("episode", row.get("week")), row.get("citation"))
+        (row.get("episode", row.get("week")), row.get("citation"), row.get("text"))
         for row in _rows(dump)
         if row["table"] in ("episodes", "chapters")
     ]
