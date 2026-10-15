@@ -21,7 +21,10 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
                                                    (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
-    python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
+    python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
+                                                   says which tests): the `test-windows` shards
+    python3 scripts/ci_layer.py --list <layer> [--shard K/N]
+                                                   print a layer's commands without running them
     python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
                                                    offline with an empty CARGO_HOME (EC-3 (b))
     python3 scripts/ci_layer.py --prune-cache     before CI saves target/: drop the workspace's own
@@ -41,6 +44,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import ci_shard  # noqa: E402  (beside this script; the shards of `core`, ARC-110)
 
 # The declared checks of `.structured-coding/standards.md`, split by layer (ARC-48). Order matters
 # only for speed of the verdict: the cheapest checks first.
@@ -59,6 +64,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_godot.py", "--self-test"],
         ["python3", "scripts/ci_repeat.py", "--self-test"],
         ["python3", "scripts/ci_stability.py", "--self-test"],
+        # The partition of `core` into `test-windows`'s shards (ARC-110): complete and deterministic.
+        ["python3", "scripts/ci_shard.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -349,8 +356,23 @@ def result(layer: str, line: str) -> None:
             out.write(line + "\n")
 
 
-def run(layer: str) -> int:
-    print(f"[ci] layer {layer} in {ROOT}", flush=True)
+# Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
+# still closes the layer, so each shard leaves nothing behind.
+SHARDABLE = {"core"}
+
+
+def commands_of(layer: str, shard: str | None) -> list[list[str]]:
+    """A layer's commands, or shard K/N's of it: ci_shard.py's cargo commands, then the layer's
+    non-cargo-test commands in their order."""
+    if shard is None:
+        return LAYERS[layer]
+    cargo, account = ci_shard.shard_commands(shard)
+    print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
+    return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
+
+
+def run(layer: str, shard: str | None = None) -> int:
+    print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
         report(resolved(command))
     measured = layer in MEASURES_DISK
@@ -358,7 +380,8 @@ def run(layer: str) -> int:
         disk("before")
     result(layer, "started")
     started = time.monotonic()
-    for command in LAYERS[layer]:
+    commands = commands_of(layer, shard)
+    for command in commands:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
@@ -377,7 +400,7 @@ def run(layer: str) -> int:
             return status
     if measured:
         disk("after")
-    print(f"[ci] layer {layer} passed: {len(LAYERS[layer])} command(s) in {time.monotonic() - started:.1f} s")
+    print(f"[ci] layer {layer} passed: {len(commands)} command(s) in {time.monotonic() - started:.1f} s")
     result(layer, f"passed in {time.monotonic() - started:.0f} s")
     return 0
 
@@ -408,14 +431,26 @@ def main(arguments: list[str]) -> int:
         return prune_cache()
     if arguments == ["--offline-check"]:
         return offline_check()
+    shard = None
+    if len(arguments) >= 2 and arguments[-2] == "--shard":
+        shard, arguments = arguments[-1], arguments[:-2]
+        if not (arguments and arguments[-1] in SHARDABLE):
+            print(f"ci_layer.py: only {', '.join(sorted(SHARDABLE))} runs as shards", file=sys.stderr)
+            return 2
+        try:
+            ci_shard.parse_shard(shard)
+        except ValueError as error:
+            print(f"ci_layer.py: {error}", file=sys.stderr)
+            return 2
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
-        for command in LAYERS[arguments[1]]:
+        for command in commands_of(arguments[1], shard):
             print(shlex.join(command))
         return 0
     if len(arguments) == 1 and arguments[0] in LAYERS:
-        return run(arguments[0])
+        return run(arguments[0], shard)
     print(
-        f"usage: ci_layer.py <layer> | --list <layer> | --prune-cache   (layers: {known})",
+        f"usage: ci_layer.py <layer> [--shard K/N] | --list <layer> [--shard K/N] | --prune-cache"
+        f"   (layers: {known})",
         file=sys.stderr,
     )
     return 2

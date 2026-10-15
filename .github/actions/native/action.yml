@@ -12,6 +12,12 @@ inputs:
   layer:
     description: A layer of scripts/ci_layer.py (platforms).
     required: true
+  shard:
+    description: >-
+      Optional K/N: run shard K of N of the layer (`core` only; docs/DECISIONS.md ARC-110). The Cargo
+      cache key stays the layer's, so every shard restores the same dependencies.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -36,15 +42,20 @@ runs:
         crs=$({ od -An -c worlds/market-town/world.yaml | grep -o '\\r' || true; } | wc -l | tr -d ' ')
         echo "worlds/market-town/world.yaml: $crs carriage returns"
 
-    - name: Run layer ${{ inputs.layer }}
+    - name: Run layer ${{ inputs.layer }} ${{ inputs.shard }}
       shell: bash
       env:
         LAYER: ${{ inputs.layer }}
+        SHARD: ${{ inputs.shard }}
         CARGO_INCREMENTAL: "0"
         CARGO_PROFILE_DEV_DEBUG: line-tables-only
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
-        "$python" scripts/ci_layer.py "$LAYER"
+        if [ -n "$SHARD" ]; then
+          "$python" scripts/ci_layer.py "$LAYER" --shard "$SHARD"
+        else
+          "$python" scripts/ci_layer.py "$LAYER"
+        fi
 
     - name: Prune target/ before the cache is saved
       shell: bash

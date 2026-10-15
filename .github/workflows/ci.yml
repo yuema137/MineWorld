@@ -108,8 +108,9 @@ jobs:
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
-    # 60, like test-macos and test-windows: with walls and walking (12d) the Linux suite passed 45 min
-    # and was cancelled by the job timeout (run 38348684873, 2026-10-14), not by a failing test.
+    # 60, like test-macos: with walls and walking (12d) the Linux suite passed 45 min and was cancelled by
+    # the job timeout (run 38348684873, 2026-10-14), not by a failing test. (test-windows is sharded
+    # instead, ARC-110.)
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -126,8 +127,16 @@ jobs:
   # its longest path is 120 characters, far inside Windows' MAX_PATH. .gitattributes checks text out with
   # LF on every platform (step-14 W-3). Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19,
   # step-14 §13.0.3).
-  test-windows:
-    name: test-windows
+  #
+  # Windows runs `core` as three parallel shards (docs/DECISIONS.md ARC-110): the whole suite took ~54 min
+  # of tests after a ~13 min build on windows-2025, past the 60-minute cap (PR #200's run 38787218062 and
+  # #206's run 38782285755 were cancelled with every test that ran green). scripts/ci_shard.py partitions
+  # the workspace's test targets by measured weight, deterministically and completely (a new test lands in
+  # exactly one shard); each shard builds and runs only its own targets, ~18 min of tests, and its cap is
+  # 45 min so drift shows as a red shard long before the budget is gone. `test-windows` itself is the
+  # gate over the shards, so the check name a branch rule would match does not change.
+  test-windows-shard:
+    name: test-windows (${{ matrix.shard }})
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
@@ -137,8 +146,12 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/3", "2/3", "3/3"]
     runs-on: windows-2025
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -147,6 +160,30 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core
+          shard: ${{ matrix.shard }}
+
+  # Green only when every shard is: a failed, cancelled or skipped shard turns it red. Skipped (as every
+  # job is) when the change is documentation only or the trigger does not run the suite.
+  test-windows:
+    name: test-windows
+    needs: [changes, test-windows-shard]
+    if: >-
+      always() && needs.changes.outputs.code == 'true' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard green
+        env:
+          RESULT: ${{ needs.test-windows-shard.result }}
+        run: |
+          echo "test-windows shards: $RESULT"
+          test "$RESULT" = success
 
   test-macos:
     name: test-macos
