@@ -219,3 +219,25 @@ FACT_COLUMNS = ("event_id", "at", "kind", "place", "digest")
 """A `fact` line of the home dump: the id once (the key's number is the id's), then the envelope fields."""
 ACCESS_COLUMNS = ("event_id", "gist", "salience", "mine", "importance")
 """An `access` line of the home dump, inside its seat's section: the seat is the section's header."""
+
+ID_DIGITS = 20
+"""The longest `EventId` and `EntityId`: u64's 20 decimal digits."""
+K_ACCESS_OVERHEAD_BYTES = (len('["fact",') + len('["access",') - len('["l0",') + ID_DIGITS + 2) + (
+    len('["fact_who",') + ID_DIGITS + len("]\n") + len(',1,""') + ID_DIGITS
+)
+"""`K` (QS28a-1; I-a-6 (b)): the most bytes a one-seat home's dump spends on one held record beyond that record's
+lines in the seat view, derived from the grammar of §5.4 (`ARC-101`'s note) alone. 93.
+
+- `fact` + `access` against `l0`: the two tags less one (`["fact",` 8 + `["access",` 10 less `["l0",` 6), the id
+  written twice where the view writes it once (≤ 20 digits), and one more `]` and newline (2); every other cell
+  appears once in each, with as many commas: 12 + 20 + 2 = 34.
+- `fact_who` against `l0_who`: the record's one `fact_who` line costs `["fact_who",` 12, the id (≤ 20), `]` and
+  newline (2), and `,role,"entity"` (5 + the entity's digits) per row; the view costs `["l0_who",` 10, the id,
+  `,"entity"]` and newline (15 + the id's and entity's digits) per counterpart. So every counterpart costs the home
+  ≥ 10 bytes less than the view, and the line's worst case is a record with no counterpart and one row the view
+  does not show (the seat's own, or one subject that is not a participant): 12 + 20 + 2 + 5 + 20 = 59.
+
+The seat's identity costs the home 20 bytes less than the view (`["seat", key, self]` and two `home_meta` lines
+against four `meta` identity lines, whatever the seat key's length), so a seat with no record is within `K * 0`.
+A record whose envelope names more than one entity the view does not show costs 5 + its digits more per further
+such entity (ledger F-S28a-9)."""

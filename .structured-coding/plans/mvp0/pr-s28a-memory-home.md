@@ -803,8 +803,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C4 | `7ec76cfd` | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
 | C5 | `419df400` | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
 | C6 | `e7b35625` | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: 1); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
-| C7 | (this commit) | [x] `home_kill.py kill` (three seams, patched in the child), `drive` (re-delivery from each seat's cursor), `test_home_kill.py` | [x] 50 kills PASS (17/17/16); M-a-10 red | [x] seams patched only in the child (and, for counting, by the test's `MonkeyPatch`); nothing in `memory/` names a kill point or reads the environment |
-| C8 … C9 | — | [ ] | [ ] | [ ] |
+| C8 | (this commit) | [x] `K_ACCESS_OVERHEAD_BYTES` = 93 derived and pinned; `test_home_scale.py`; writers and save scans | [x] 4 + 5 tests PASS; AC-a-9 ratio 0.257; M-a-11 red | [x] AC-a-9's baseline is C1's recorded schema-3 figure |
+| C7 | `24c5ca07` | [x] `home_kill.py kill` (three seams, patched in the child), `drive` (re-delivery from each seat's cursor), `test_home_kill.py` | [x] 50 kills PASS (17/17/16); M-a-10 red | [x] seams patched only in the child (and, for counting, by the test's `MonkeyPatch`); nothing in `memory/` names a kill point or reads the environment |
+| C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -952,6 +953,29 @@ re-delivers in-process from the persisted cursors, and compares `MemoryHome.dump
 - Review: `grep` of `src/` for `_exit`, `environ`, `kill` finds nothing; the only production seam is the module
   function `home._commit`, which names no kill point (it is the home's one `COMMIT`).
 
+**C8 (2026-10-15).** `memory/home/schema.py::K_ACCESS_OVERHEAD_BYTES` = **93**, derived in its docstring from the
+grammar alone (34 for `fact` + `access` against `l0`; 59 for the `fact_who` line of a record with no counterpart
+and one row the view does not show, ids and entities of 20 digits); `tests/test_home_scale.py`;
+`tests/test_memory_isolation.py` (`test_only_the_home_writes_the_shared_records_and_the_access_index`,
+`test_memory_reads_no_save_and_no_world_log`).
+- `test_home_scale.py` under `with-slot.sh` (load 4.5): **4 passed in 25.97 s** — PASS.
+  - AC-a-8 synthetic (frames of 7, 494 frame ends): (a) and (b) hold at every frame end; every view ≤ 20 MiB;
+    largest average overhead per held record of a one-seat home over its view **40 B** (K = 93).
+  - AC-a-8 real (frames of 64, 498 frame ends): (a) and (b) hold; largest average overhead **27 B**.
+  - AC-a-1: every access key and every citation end of 200 queries per seat lies in that seat's export: 0
+    exceptions.
+  - **AC-a-9: home 3 012 914 B against 11 712 772 B for the twelve schema-3 stores (C1): ratio 0.257 ≤ 0.30**
+    — 1 506 457 B per world-day; seat-view bytes per held record 150.9 (recorded, not gated); the busiest seat
+    perceives 217 324 B of seat view a day, so 20 MiB holds ≈ 96 days of it in full detail (recorded).
+  - F-S28a-8's margin in positional bytes: FG-b2's trigger margin is bound/16 = 1.25 MiB; a counterpart's
+    `l0_who` line is 15 + id + entity digits (≈ 30 B on social-cafe), so the largest single fact the margin
+    absorbs names ≈ 43 000 participants (≈ 3 000 in schema 3's objects). The check under the forced backstop is
+    S28-b's (R-S28b-a-1).
+- `test_memory_isolation.py`: 5 passed — PASS. ruff, ruff format, pyright strict: PASS.
+- Review: AC-a-9 reads `cafe12_schema3` from the golden captured at C1 on the schema-3 code; nothing re-measures it.
+  K is asserted only as the bound of (b); the measured overheads (40 B, 27 B) are printed beside it, and the
+  design's ≤ 48 B expectation for realistic keys holds.
+
 ### Mutations
 
 | Id | Planted | Expected red | Observed | Restored |
@@ -964,6 +988,7 @@ re-delivers in-process from the persisted cursors, and compares `MemoryHome.dump
 | M-a-7 | `SeatView.release` deletes access rows with `? IS NOT NULL` in place of `seat = ?` | `test_home_gc.py::test_a_pass_touches_only_its_seat` | **red**: that test, and the three other multi-seat GC tests | byte copy, `cmp` clean, 5 passed |
 | M-a-8 | the view's `l0_who` keeps the seat's own row (`w.entity <> (? \|\| '#')`) | red by name in C6's harness | **red**: all 6 of `test_home_transparency_frames.py` (the meter, which `hold` keeps without the seat's row, no longer matches the rows `row_bytes` reads at the first pass); also `test_home_store.py::test_the_view_shows_its_held_facts_…` and `::test_the_meter_is_the_dump`, and `test_home_golden.py`'s three golden tests (episode texts name the seat). Note: the harness alone catches it through the meter, not through a `none`/`home` difference — the mutation is symmetric between the arms | byte copy, `cmp` clean; 6, 11 and 5 passed |
 | M-a-9 | `MemoryHome.dump()` orders seats by `seats.seat` instead of `key` | the interleaving test | **red**: `test_home_isolation.py::test_the_home_dump_is_the_same_for_every_interleaving_and_frame` | byte copy, `cmp` clean, 1 passed |
+| M-a-11 | an `INSERT INTO access` string in `compress/episodes.py` | the writers scan | **red**: `test_memory_isolation.py::test_only_the_home_writes_the_shared_records_and_the_access_index` | byte copy, `cmp` clean, 5 passed |
 | M-a-10 | the record committed in its own transaction before the access row (`COMMIT; BEGIN IMMEDIATE` at the end of `world.insert_or_verify`) | AC-a-7 | **red**: every `record` case of `test_home_kill.py` (the killed file holds a committed record no seat holds) | byte copy, `cmp` clean, 17 passed |
 | M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
