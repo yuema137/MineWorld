@@ -618,8 +618,9 @@ No question remains open.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 base and ledger | `0a11d021` | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
-| C1 `authoring` | this commit | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
-| C2 … C7 | — | [ ] | [ ] | [ ] |
+| C1 `authoring` | `9797ecd7` | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
+| C2 `sdk` | this commit | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
+| C3 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -646,11 +647,19 @@ No question remains open.
 -p mineworld-authoring --all-targets -- -D warnings`: clean. `cargo fmt --all --check`: clean. `cargo check -p mineworld-sdk`: clean (its
 `HeldSection` implements `AuthoredConfiguration` and compiles unchanged, D-b-2).
 
+**E-2 (C2).** `cargo test -p mineworld-sdk --lib`: 12 passed (new: `a_silent_pack_decodes_in_context_as_it_decodes`);
+`--test data`: 2 passed (`each_macro_defines_its_items_together_and_the_installed_set_dispatches_them`,
+`a_section_is_not_decoded_in_another_owners_context`); `--test compile_fail`: 1 passed (the trybuild snapshot unchanged);
+`--test extensions`, `--test interactions`: 1 + 1 passed. `cargo build -p mineworld-installed-systems` (every installed pack,
+`acme-fishing` included): Finished. `cargo clippy -p mineworld-authoring -p mineworld-sdk --all-targets -- -D warnings`: clean;
+`cargo fmt --all --check`: clean.
+
 ### Mutations
 
 | Id | Planted | Test | Red | Restored (`cmp`) | Green |
 | --- | --- | --- | --- | --- | --- |
 | M-b-1 | `data_context` hands the owner `Vec::new()` instead of the decoded files (the realised form of "a fresh context", D-b-4) | `decode_in_context_sees_the_context` | FAILED at `tests.rs:236` (files the context saw) | yes | ok |
+| M-b-2 | `SystemPack::decode_section_in`'s default returns `Err("mutated")` instead of `decode_section(map)` | `a_silent_pack_decodes_in_context_as_it_decodes` | FAILED at `pack.rs:514` (the `owns_section!` pack no longer decodes) | yes | ok |
 
 ### Deviations and findings
 
@@ -681,3 +690,15 @@ F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
   (`people`, `places`, `items`, `organizations`, `configure`, `data`: `MODULE_SPEC` §3.1 item 1 "distinct from the
   format's own directories"); `ShippedData::new` checks `<directory>/<file>.yaml` at compile time (flat, `.yaml`,
   a valid directory). Uniqueness across packs is the build's guard (C4).
+- **D-b-6 (bounded; names in §5.5).** (a) §5.5's `SystemPack::resolve` is named **`resolve_subjects`**: every pack
+  is a `System`, whose `resolve` resolves an action, and the compiler refused `Plain::resolve` as ambiguous
+  (E0034) — a pack calling `Self::resolve` in its own code would have stopped compiling, which I-b-2 forbids.
+  `Capability`'s dispatch is `resolve_subjects` too, since `Capability::resolve` already resolves an id. The
+  `ResolvesSubjects::resolve` the pack implements keeps its name (a definition is never ambiguous; the seam
+  calls it through the trait bound). (b) The context parameter of `decode_section_in` and `resolve_subjects`
+  is `Option<&dyn OwnerContext>`, not `Option<&Arc<dyn OwnerContext>>`. (c) `owns_section_in_context!` needs
+  `owns_data!` beside it; written without it, the section is refused at read, naming the system ("has no
+  context of its own to decode its section in") rather than silently decoded. (d) `sdk/rust/tests/data.rs`
+  states `SHIPS` with inline text; `ships_data!`'s `include_str!` runs in C6, whose crate holds a real file.
+  `MODULE_SPEC` §3.1's declares block names `RESOLVES, resolve`: corrected in C7 with a dated note
+  (R-S30a-b-1).
