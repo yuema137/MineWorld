@@ -1,0 +1,1467 @@
+{
+ "seed": 7,
+ "days": 10,
+ "people": [
+  "7000000001",
+  "7100000001",
+  "7100000002",
+  "7100000003",
+  "7100000004",
+  "7100000005",
+  "7100000006",
+  "7100000007",
+  "7100000008",
+  "7100000009",
+  "7100000010",
+  "7100000011"
+ ],
+ "ingest": {
+  "alice": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "7228e2323e208b6c004f77765f0365657383d1b7757df909b56633d1364f7378"
+   },
+   {
+    "point": 1,
+    "through": "1364",
+    "sections": "786d665768d07940fa0d8e30a0e1abad90c0136622c464b39f59849c5202c0e6"
+   },
+   {
+    "point": 2,
+    "through": "1563",
+    "sections": "8fc7a3224b7ff50d3b9eb2f7536bbdbddc24ddf22c85f9fe683360c48cd1da33"
+   },
+   {
+    "point": 3,
+    "through": "1743",
+    "sections": "218e49ff10baa4853fee86a037469715debe8d607b598fbac4f18f2e9dbe4d7b"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "458b0e25e088c354dc803ec3d9c9f0009834db9751c5295bab50c7150663218f"
+   },
+   {
+    "point": 5,
+    "through": "2083",
+    "sections": "2c5f861d17a013124fc9642d151f84912e60781d6f0fdaa1a3d3ff6138076308"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "91e43461f98ccbfed26f897be2e862edf4b65700bd0a0d4fbb067321be62b8d8"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "fd63d1cd57ddad721494749c4092773e54736f7f671bc0cd9edb7c303483608f"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "e8f5343f927c2dadc5ee786ec6c0665aec9c64357af8b812dcc18370de713ae0"
+   }
+  ],
+  "bob": [
+   {
+    "point": 0,
+    "through": "1206",
+    "sections": "2f2490cc63da96207384ac47456b212c04a0f31106c3e6e2db9cf3544eec19c9"
+   },
+   {
+    "point": 1,
+    "through": "1368",
+    "sections": "4a82e77ef9fd962e6bf55d9ecdb6d30e5c766ea171286380fdeba4b619dc739c"
+   },
+   {
+    "point": 2,
+    "through": "1556",
+    "sections": "7d01a9122e6215fe0cb458353097675a8f553badeaf0e51e982512e4d64414db"
+   },
+   {
+    "point": 3,
+    "through": "1721",
+    "sections": "90d51d9b5c275815d375adabb757ff42be66daceda5e370e43ab14df8432cc1a"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "a4f3f0cff8d6a71ceac731691cd9270ed489dff0afa9366b109225f1aa2c67c0"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "65a051ca3eb567b0461ab8d8f9d9c54b2bed9da485c28f935717e7492f227d48"
+   },
+   {
+    "point": 6,
+    "through": "2250",
+    "sections": "130e6c3d1bf6f0511367bfbe921e4cf5ac30467a47fa0c44cd28cc8c88f0801e"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "6a8d3c067e29cb159498328bde51b3d2813eb4ccb20ec060ba62f65e3df826b6"
+   },
+   {
+    "point": 8,
+    "through": "2606",
+    "sections": "0e591992160111caf2d09b1a295baa70099798a896ce22213c64afc8a101575c"
+   }
+  ],
+  "carol": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "42e552e5e3516710f3f6d8cf4178eebfe4b3f6d207856d7c0a10730092d432d0"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "c64d5ce08c4e7ade0bdcb8cd495e38e2313182acc82c13f518caae6885137842"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "cb58e24ce9719ec0a933d2709195aa55392339b8dc01e256e1c3d4dbaee51a9a"
+   },
+   {
+    "point": 3,
+    "through": "1736",
+    "sections": "fa2ce9e92c337b5ce48edd15a983b7b1b22b65dc28fc1de136eee301cef4b8dc"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "30da50d5232a6dacbf067cfce0ed9585000409d8c5eb4317be49894acdfb1e28"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "7d9317118272a8ffa97e3fae873ecd675d9c9bb5ed2a1e451ec55c72e0c84790"
+   },
+   {
+    "point": 6,
+    "through": "2250",
+    "sections": "4e65a8ccfed851e8ea888d09035de771290a055622e67f6f08387e9fabfd9b70"
+   },
+   {
+    "point": 7,
+    "through": "2425",
+    "sections": "cb99635b3dd2caa4f6653d2025e7d8bec0bac5c8c8caf8282c1b511a23976a59"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "011418bc40c9e1a1076854dd7a2165891ae6a6f0634aaae6acc2e533971e8f46"
+   }
+  ],
+  "dev": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "14640b4be5a399abe8532c76d38d756429634124cb080115c5f4f255647a65a6"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "8cb81198efd365562d8f0cf5e3eaa1f1c869083f49d3cda2c8d149f535d96a9e"
+   },
+   {
+    "point": 2,
+    "through": "1560",
+    "sections": "7f1c07f73252b74abad3dc4de93409ac1a9cb35f59cc35c0ede7202c0faf5ec9"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "dd6f5d2f32dc90bddecd1ad93d4c1a4d9f570482104b1fc218ad99260a8f3786"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "ad2ce0da9cb0d9171c1e787c3be8273e9573a2e73a747ba1ecf935a22041a7fe"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "1467b6860dba02c3c9dfafb02635b8d9a5afa148a447e081ffc102aa7f8c84ac"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "15898b129b229c2a46853ab10298237c5d67b827e386c756e2a6ea7480c278de"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "58cf9022b2a820f9895fe8108c2dd3678c177566f0fb2d73342aade47dacc86b"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "23bc79fe21eb006fda047929ba068a20ac976347dfa34980f685ae8d44248f9f"
+   }
+  ],
+  "erin": [
+   {
+    "point": 0,
+    "through": "1203",
+    "sections": "ced6c8f84635ad43cc9f74548c2e0224e40c4fd661e9e36bc7318f523de3222b"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "ce1222ef651fe8abcb238af372babb238ad1a114c291dad5dade6c3bd6d15e3b"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "2c69a0a6a563d419d23a7b5f81425669c1d434f6135afafbcbe3cec3df93e15a"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "a31be4dff4596fea3f117f2ca37b15bc8831da5142c4ce1c120323fd34e015b4"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "a041d223097a7480d6542f94077f507087a3aab00cc1960face1793737aa0f8e"
+   },
+   {
+    "point": 5,
+    "through": "2083",
+    "sections": "b7e93d4b786408b370141f9546b43ae2f1d4ce09bcdab78a83da7a6a8b8f525a"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "2123c0a9ac8c2bcb2c19878689421220fd7d0224890b555026a6ebb605a97e64"
+   },
+   {
+    "point": 7,
+    "through": "2421",
+    "sections": "f3779a1d66067473b9d9525893150238cc8010e9ec823165ee0630b2bfd017b8"
+   },
+   {
+    "point": 8,
+    "through": "2595",
+    "sections": "3be3d62b0887b1c4420dac763607d7565b93b74483eb68306c1f4ef6757e7cad"
+   }
+  ],
+  "felix": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "c8d74b13eabe67ece5e053ad5bd3b8891e6b9b1c44f87658c4253e30ac820400"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "4f1a8ec8309ffd45edaad2fb425ae70355ccaa154e06a3363a65be396657ed9c"
+   },
+   {
+    "point": 2,
+    "through": "1556",
+    "sections": "5a566103f16b9bc20cb6092b6ebd96b93a7bf1353b2af1094fcebca84c959d95"
+   },
+   {
+    "point": 3,
+    "through": "1736",
+    "sections": "ca60cb792b4a65e37bd259490872ef735eda9a301528f135cf5a616df792fbb6"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "c0a22bb1340a09c27836aa546825e82e8000a6368feb2854499b98e5e8dac3a4"
+   },
+   {
+    "point": 5,
+    "through": "2083",
+    "sections": "12d8d5efa98ed86560ae3e78a999a3fa5a6c3586eec0a81d5eb89e65d9f00ee8"
+   },
+   {
+    "point": 6,
+    "through": "2239",
+    "sections": "9ef31eb908fb74554bec40cf713cf18eb9fcf63fca8d0c2f7b7f74f03bb3b27c"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "97a2197323050bbce6839dcb3f108b77510508f95ecb52a80466cec03d44aa67"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "ea66181d1b317a5054058170ebd4a5ced031aaafbbaec4402c1b4a2d6cab7db8"
+   }
+  ],
+  "grace": [
+   {
+    "point": 0,
+    "through": "1201",
+    "sections": "bdf526706b8a77aa56f72dfe8b53c5105931a9e826f242c486cc34428b72859e"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "db8ceef3091dd18fa078080435c3ddc45877f1214bfec9b0edeff11fc721ec02"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "cbbf819e34b35a8076e34ac3259f6109861964a73964188ac3b74da42d2699ba"
+   },
+   {
+    "point": 3,
+    "through": "1718",
+    "sections": "aaf35a26b3a3af4f677f44c18726153de275c6c666b9e1b2b87604f40006149b"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "5ab7cf065a0e1121b2ea8f2ad1f522931b57cbd591ee26f7ab833734b918db8e"
+   },
+   {
+    "point": 5,
+    "through": "2078",
+    "sections": "424a49f42717f923c3e2ae339c5a9a4a121ba32a531703673da506117a45dc3d"
+   },
+   {
+    "point": 6,
+    "through": "2241",
+    "sections": "27b5979965fd85f4d89604dab779f3da2e975d8cbff8d2eff1228f25cab46acb"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "36fb86f62a079318692f142c72c5d1a1c4a5cb08d0a649511ae39604b549386a"
+   },
+   {
+    "point": 8,
+    "through": "2606",
+    "sections": "aec6477d0767333b2fa50eaf41a7dd7bb82f1218d6f80d553b5a8ece4824f616"
+   }
+  ],
+  "hana": [
+   {
+    "point": 0,
+    "through": "1201",
+    "sections": "806993645fccf5c3f04bea55c4e5934c1a3b0f566d5f7a06e64956ac5d679be4"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "a926e9c8e9c42e06166a969a1d556a61f3952f44088c43f1ec87ffde7f4ba81e"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "3a1231f67481d74ef20a92a94c62839c7df5357680fc81abfd541fc011ccd0a0"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "2321a42133fcc6a80786ba84d9aa7974853b4d76e211ed316cd8afde7ee40be1"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "5c2e191a4f18d493624b295fab4d932e1ead4ce2f6af19a3c3e5ed20aa2db2e7"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "ff4f85b691cb600f1bbe0a0cd36d662799c7d6336b8072a5610de10236b988f5"
+   },
+   {
+    "point": 6,
+    "through": "2250",
+    "sections": "7f0d02dfaaa172b112c5b18880beca21004d40f26c08e1c9d752ed65b286fe26"
+   },
+   {
+    "point": 7,
+    "through": "2421",
+    "sections": "386e609825d4e82405b9bf009bbe92adec32c0d40cbedec96232efc70e137a2e"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "22a3e145b17ee998383854562b316ba1ac81a91156953460c8fb85e3ea33e00b"
+   }
+  ],
+  "ivan": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "70e77128e2383cc3bc4654e87215f3d75287f58fe0dea318df89d67a3143403c"
+   },
+   {
+    "point": 1,
+    "through": "1364",
+    "sections": "7dfb47333a0aa1c502a6746db0f20eb80476bfd7df648b5f5645f38024d2ce25"
+   },
+   {
+    "point": 2,
+    "through": "1560",
+    "sections": "a50adbdf2ea702d8775ebe670a71e79b90d44ab42c5a8fab71631847c594953b"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "b936a375b946a33bfdc6c503a07ef8452314091ad3179f549ee08a8962754350"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "1677eadc6390d952a8cf98060551a622f1528b8860fa852fe67018204ce6cd31"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "157620b263e8f921b83fea917affc354966ee7d8ecac68b1f86266681a50a835"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "774d273c3ac4924ef13b870a6ec0123b1153c0595b6af2a743e3e56d807c7891"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "a8010ae0c5911b872ac549739e0911f893426e2f88bd31a481bdd0e90f81b4af"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "24a4ae38d2e0323b0d54dae36267cbd7c858a87c9cbd89af318c6df2794b8f01"
+   }
+  ],
+  "jun": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "a00e4ce6221f56c7fc6f4f3abf72e053892fee576225561c36decba999dad995"
+   },
+   {
+    "point": 1,
+    "through": "1378",
+    "sections": "7c88ede82250ed7b807262dabb2cb9ef07ba46a8a50cca84e8ac66f6cb36c930"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "237c469aecc04e6bf67f7dfc1017ba5e204db12ba5b31193b0fdec1d7458fde0"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "9d47b955209338e3af1780bc8bb1dd50f90a438eaa726ceea324160a47267fd1"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "47f72b2733898406b03bc1f848a7b3b240ef413a0300314ac6246e33c24b9e65"
+   },
+   {
+    "point": 5,
+    "through": "2085",
+    "sections": "6c5830f2e43c7b51929f8b4a2045e9e057ef24c49786516acf185a2cfda8555d"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "01a117629fecb5328acc038a616d9b9213cc7383a5f9bbb36cff9b2e6bbbb401"
+   },
+   {
+    "point": 7,
+    "through": "2417",
+    "sections": "3be0886f5c8bb29b84cc003681318f4fd886159b7d8cbb88e5c7b96aa7ec81f3"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "9fa236d96fc45ba567735907401f9d2398136d545a734b00e31ad5ae112977d1"
+   }
+  ],
+  "kofi": [
+   {
+    "point": 0,
+    "through": "1201",
+    "sections": "b779f210260962d5f4f508a8ec06ad02470183d181a469f2126dcfaec665b89f"
+   },
+   {
+    "point": 1,
+    "through": "1364",
+    "sections": "36b968aa047b34d0dbf2678789bb6b22a959667ad142948d47b17e754f1d0373"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "da06cc1408672c935d4e11c0cb5b60596ee8c1ed232bfd377d8ffc7ec88f4b84"
+   },
+   {
+    "point": 3,
+    "through": "1736",
+    "sections": "7c22fa3f8e5dea726f95e0a0063e095398673e81ada65e7a30ea074821741b5d"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "27700deb43099206ecf9ef5ce08ece79ad16ea48f12303faab286b2cf4c21ded"
+   },
+   {
+    "point": 5,
+    "through": "2078",
+    "sections": "b0f5421fc01be16ac0569ef04ba8f770701f2c5d58e6a3b001da17bcfd802bab"
+   },
+   {
+    "point": 6,
+    "through": "2250",
+    "sections": "3e01c69e952218da295c1e659121bd16805b61a0fb7aeae4a1520b4339f55689"
+   },
+   {
+    "point": 7,
+    "through": "2421",
+    "sections": "61465c277d234da4b4bd07ae82694f10af1335cecf7c924c67cf03088e0457b0"
+   },
+   {
+    "point": 8,
+    "through": "2603",
+    "sections": "172dc248ce32387bba0a923703d70af951b0d95181762651fe674145bf438db5"
+   }
+  ],
+  "lena": [
+   {
+    "point": 0,
+    "through": "1196",
+    "sections": "b935a0f691df17910f4270c93b5dbb38aca292d6e2213bd77c0121bb9bf340dd"
+   },
+   {
+    "point": 1,
+    "through": "1360",
+    "sections": "49d6cc1c4c7d6185db6dc034bd17e67a545a4b5b18803f168ebe44d3dcce1de1"
+   },
+   {
+    "point": 2,
+    "through": "1552",
+    "sections": "ca153591de77ae24e69d24c25861fb666c459b90ceb3098b9397e9aceec4894c"
+   },
+   {
+    "point": 3,
+    "through": "1725",
+    "sections": "276ab29e8ba5a9389df0ad49e56e1d1ae294cff53a5f8573510c4edba525cda8"
+   },
+   {
+    "point": 4,
+    "through": "1890",
+    "sections": "2542aa0c8b3c51baed9813399c216423185c964a5076e2ae6a6d1de50cedf948"
+   },
+   {
+    "point": 5,
+    "through": "2077",
+    "sections": "8c40aacff1073f084f5e40acabb693e433d9e5395fe0f65d8b42a9a11966e260"
+   },
+   {
+    "point": 6,
+    "through": "2248",
+    "sections": "b09d3c523822bae74426d91998086768af3d365417acd684ef2d2b1118939bb0"
+   },
+   {
+    "point": 7,
+    "through": "2421",
+    "sections": "ed05b72c9d90865e3ca865935c4b22ea68a3c2f43d91ff20397673912ef01d90"
+   },
+   {
+    "point": 8,
+    "through": "2606",
+    "sections": "272cff097f72b356574168190f46e382e1f3fe1cb6a479099c163e4362e8afae"
+   }
+  ]
+ },
+ "absorb": {
+  "alice": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "670fc3d9868ad9112db00151bac58be3ac84c5d4ea378d228196f90559183f0c"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001364",
+    "passes": 1,
+    "forced": 0,
+    "sections": "90f918d9aa99e1bad3762b187f9608dd5e0f5ccb242fc0ee3cc45921d65c5648"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001563",
+    "passes": 1,
+    "forced": 0,
+    "sections": "95c78aa11b32638b5ba32f0f0cc320bd5b2fa4e736e0ab6269a82105704fee52"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001743",
+    "passes": 1,
+    "forced": 0,
+    "sections": "45caf91c8f49fba27d4cd4a415d2ae18b5c5f2a49f21664cda1977e767512be6"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "b2e2fa2bb19d67d27e67d147450c189abecf50abc7ac1fc7bb3411271acce7bf"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002083",
+    "passes": 1,
+    "forced": 0,
+    "sections": "c5cdba4fc7f583041a24c18cdb28eab14a00731f3f32bcb63205790077b582e4"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "28ce43d68087bd9a752b3a2a3d3dd2b28f8260db308355ce744d63f9bbeb59dc"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "388c7d47390d7d524687ee64a0f5b8b724b509366e2288985780d3dd6e867e93"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "5dd4b7dfc0546a52bdf6f35719a1946f16cdd3fff8bd2a78a547642d87605b4f"
+   }
+  ],
+  "bob": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001206",
+    "passes": 1,
+    "forced": 0,
+    "sections": "da9a3ba1b1b11641394d04f74f044b76e974e5e603365ebf7dd684958f6485ba"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001368",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8772864b2acd9bb10cf704a1c34ee8df57b6ab48f64c51ace12ea4ee1847386d"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001556",
+    "passes": 1,
+    "forced": 0,
+    "sections": "e057dc0fdb2df8f2fb862c1a0eb315deadbd14f48ad913ccc5bc098deff5e15f"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001721",
+    "passes": 1,
+    "forced": 0,
+    "sections": "0bd814d456a7f81ebbc880021d9b6bc83d4128e6ffb217aed3c6b1cfb6bc1600"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "9011a10dcdcab2e462184f3ee4a49af45c4ae1123b5dc62676bea838f08aa343"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "e279e115f75c44f9f37b53c42e85522deb8cb3bf081091b8cf6e47c54c6af473"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002250",
+    "passes": 1,
+    "forced": 0,
+    "sections": "fad98a406b89c57dc24176c2bbe3bd010ace6e3ca744eedd8b8f4cfa65429f51"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "61fb749efbca529bb60cf6c1cd97c79d4cef23bc0c930be7febaf69866be4fb7"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "647485566e86dd9a853541b3f66409a9f833a17b1ef9dc364c0da86845b4561c"
+   }
+  ],
+  "carol": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "c82e7860611a5b961b35be19ce87a7e789cf842e69a9eedcd0f0235cc255ac10"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "99c724dbe74518688ca02d60b347afd0021c313c70be61c8e2a9c7a7ec4179aa"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "c14e76ff2f39093d8f40f950ea6c1ce28af922162ff469f74373cc74b04c155d"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001736",
+    "passes": 1,
+    "forced": 0,
+    "sections": "318cfbed40f6c07eadcb263e9f41a33848f5aa7acb224fbd7acaa035738351e5"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "cdfa0960e55c09cfcfa1462b7065ee042f86be2781149f2a53a7c65c0d4e76e5"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "9f56bfc92aa45ba8b3334b59d7e4028cdecc5e7ecf72882cd5598fa0ca9d276f"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002250",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8428f4cad87c6fb4f8ced8836f44f4c6d555bcadeab0aa34178fad3c2a52d457"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002425",
+    "passes": 1,
+    "forced": 0,
+    "sections": "311540efdfe1997b7de6a20fd1c7f2a885fb4da711ac6be8fdb3c1a6be2991ba"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "39bf431ef4b259ccd5252327c5554d76b74274e2c0cd65cc47124935a70ac558"
+   }
+  ],
+  "dev": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "b4388139f6316e4193c20ee575e0cf1bbd95d56eda0770d6319465bef74bf192"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "67f009032e7804011991ce200f0ddc2a82367654fccb4267971125e228056e3b"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001560",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5cb0cce28a5c521fb0cdd6f21035abd7a344397d119d39d0f88e6f9443183547"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "84aa3405bee6fbc18f6084a93bb6425f4619de2c3fc51d3e4c14800aaae63bff"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "034830edb31a0f5ce73bbaae1cc79d67fbb6a3c04b532885f11f8a815d7e506b"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "e75e0f35d998c3350a24e4ffbd93d108ca7a5a36cb56c7b5ee05f7aac0e9bb66"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "844e36ab24ad7f47102ad6ed32d639fd545bf39665e5988a6f295b089ed6952b"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "ccf53dfa2e302830d40c263731f52206c48174ebab077173cf7219dee81f01f3"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "525ab094872d75b63612643fd507bf67c32ae3ab8c06138b8f0dd21328d5f789"
+   }
+  ],
+  "erin": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001203",
+    "passes": 1,
+    "forced": 0,
+    "sections": "52c4117bbd135cafeb54ba870a700d8d80d050c2791b73d5b5c0b21c0fa7629d"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "0f21e0159f61207e53ab34d0d32d425b5f5613d9e8ad32075d5b13420a160cef"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "529bc41d45d5f7ba9cabcc122dff5c16d4435e12445cfd676ec4b18258c38c38"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "2b2f6dc8533d21c64b075e28e1190155a5f139192a33a3b4cb8571748930fb51"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "904f79b52375ce4de726c95ed346abdd02e1a21b0d6c8b9d81e5b33276a25294"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002083",
+    "passes": 1,
+    "forced": 0,
+    "sections": "71c1606df7d5e61723992f4c297ebda2be40e14e6511eb45bfa215edccc41460"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "7375831f4e56c02c7136c2e4969ec43da8c367b18ac11ce14767b63025193c33"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002421",
+    "passes": 1,
+    "forced": 0,
+    "sections": "a0422f545b479f4baf3627d07c1789b97af04843d2aaa8360bba922c3ca76f3c"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "e8e58244dd7250fe572b3dc4704be80d76d8f372ed7cd36403384d457f478477"
+   }
+  ],
+  "felix": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "0e159145d6f1fa17929d0fd3e5ccf008e2fd92a9be6097d90b5f0e9b5ba744a5"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "31d3cd3c34e32497c9de30f4d1dad93f243c246d9f02be6fe07794c92a13679b"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001556",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5775640c74da06392d9f1b950f70d487f25443d7b6d5ca68324e75ff5fe7d351"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001736",
+    "passes": 1,
+    "forced": 0,
+    "sections": "cd473064e95cfc76768dfddb9d713c3813ffec6a1a2c3f0c1273a3813fb1cc47"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5e4db05bccfa7568c339d3d60f2598e0506d7f3047544f593d19975235139a93"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002083",
+    "passes": 1,
+    "forced": 0,
+    "sections": "c0c1fca5c971d22c5b5e50d9cf367c72de49f186ff2274d0f1646bad534a029a"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002239",
+    "passes": 1,
+    "forced": 0,
+    "sections": "2b5063e2a33f754f6c975db6c8ffcaab6b6b25193a41ddf5da1c8c069b8dadb3"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8e3f29da5aeab0383cb5cda2bd40b2b5ceb9e6cc8b594c090b0d1f587681676b"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "28c3f0810743f17a0ed149e5c2e6e104b49b3c87a09993869e283a2c5c4cf951"
+   }
+  ],
+  "grace": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001201",
+    "passes": 1,
+    "forced": 0,
+    "sections": "014c92c97ccb8990481c2c83588fbc698574bd4529bb64c7cfe9af653333a7e4"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "fe7690d7bebc7614a9de779f699ecd2df44a2dd70c8f1318d56fe6444209efe2"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "69ec6e3b91b412dd0c41ba5cd4c65695331e3b126f507fb478ce74be554a067d"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001718",
+    "passes": 1,
+    "forced": 0,
+    "sections": "68736f204b43f6a8957e1a17d61adfe4f014c7bab99b0d50d28a8ad6a1b31e3e"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8cae9deac988b082e8a434113ff03b26861ddb14950f9d2b9b676571568bb3ae"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002078",
+    "passes": 1,
+    "forced": 0,
+    "sections": "74a4d2362309a9fb041cb4d0a0f27d30317b2c737441b19626d542283eb45862"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002241",
+    "passes": 1,
+    "forced": 0,
+    "sections": "d013058a97a5c13c6052a938cd73440a7f2c5a5f98b2f186de7a6cd7b923703c"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8103e83751fd1304f073f0365df74ae5bda145954e00323f0f54a6b4f1c60503"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "22e6a5056756953b8109cefab3e8b2ff14c03ad3c2a109d278f10a0e2a73e78c"
+   }
+  ],
+  "hana": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001201",
+    "passes": 1,
+    "forced": 0,
+    "sections": "21aa4d390cec8ae8e895c47c4f1fb70f34f181bfbf0aedacfbcf6193f6a6b318"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "56c8d8a927396dd204abcf24dc391e1f605ec3d1785ee11a53e7c4113496ec82"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "9d1f2ba4824962bb4c9d9465793f4d3beb793d7ef21888be501a6a4c246498d0"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5d4cf46397a2bcad73f901769231b8330bb726a647ed0d21e4319c4afa5a1cdb"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "802164b77c1c2130c2f35db0bb4db0fd6af0f6e9f58cb513eab78cc76f887cc8"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "d17cd503c80497e80ae1cff6ff05125e2ad8874964bb5c43a2dda357407dea27"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002250",
+    "passes": 1,
+    "forced": 0,
+    "sections": "a9498d18eb75e051b53793229294f8fb4c801dd0f888660620fe30d972accf89"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002421",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8813a03d894f6ce72d7e7b80a88131bd8629894747978ff0ee488cc302813db0"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "2543b2c9e0736d6f356c7281ec2d99892e2071f13fe06224552c8c1bdc4b0d36"
+   }
+  ],
+  "ivan": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "f6d3b8b5ac778d95d3e66432dc98dcd6213a334a67bc0ac09bf310dcd7eef2d8"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001364",
+    "passes": 1,
+    "forced": 0,
+    "sections": "50b308bef98765fd9f16d895c542e201de6c90d5aafdbf6209675f586009471b"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001560",
+    "passes": 1,
+    "forced": 0,
+    "sections": "d6d51a5e7901864568ecaf10e77051edb0f4989154589503da8a8c66b74ee9a2"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "77dc3f41fb13dd3253dd89de8bf8f5b22af91295147758928ac82ae4b339217d"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "9adcf889680e03044651ac1b7b9848d25a7bf7f9e36576c0d67a077a6face8d9"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "670ce00d70ce57d7893c3603becb8c8db67ca7f18046433c816f03588b1d05b0"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "6ab28f3190345419b276c966a5d197502e2096af912a57c6a3fc08a241cbeb15"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "0d3ca582b4eba28058e41f3f8c0f84c44c01c86a287310ac7d173bd74a8863a2"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "e3a1ebe3506ae1a1fd6d36dc6561f15d93aad2d951e49185e592e7b0290de6f9"
+   }
+  ],
+  "jun": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "8609e7ee08ac66f4873f72c2943ce4ba12ebc1fddfee4836070337c9da8adf20"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001378",
+    "passes": 1,
+    "forced": 0,
+    "sections": "2c7d83f2d285ba4d87887756772484d7f1ac3d86985ba9f40995efe2e44dd7ff"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5ea85d39b6b892d9a7dd43f2072114e2791d64d833d775afdafaa774782cad72"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "e6cb51a7cb70990c01f93870764197bb7427733cb5d92334e53562e87f792d9f"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "b7dedd90d1856cd0650943ca456d593df26e5e76424ca6cd1ff73f57bf93188a"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002085",
+    "passes": 1,
+    "forced": 0,
+    "sections": "21e8dd45d2d8c8e5eb82e0350f0f22fab9cdabe0977950358675db2694917ecc"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "39e810e12225c791a7201a2f3f30929e91115a9a306645ecc5a7dad530bc230a"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002417",
+    "passes": 1,
+    "forced": 0,
+    "sections": "beb0a276ca952f05762c66b8da5a776ae739d7a6b4f0511d63688bc5dcb413df"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "f0b5384ac1a86211b873fdabbe310d6f73a9641fc6207ec9e6170942de72d32a"
+   }
+  ],
+  "kofi": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001201",
+    "passes": 1,
+    "forced": 0,
+    "sections": "12ee1f15227e727a5275d1c7c395337a039e94337b372d3be9e9c594c9ea84d7"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001364",
+    "passes": 1,
+    "forced": 0,
+    "sections": "17907b896c121debcabd08f653a13393e462bcd75a4ae6d0d04274e1516601e8"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "f5fa809f1614281ec56bf4f2c942095747295ed8b162ea44551323893d2fbc82"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001736",
+    "passes": 1,
+    "forced": 0,
+    "sections": "1e7c1f40af87df426bd9cf9e458eedf0830dfc17aec7d31da95ce253b0a9b105"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "5efb9091666e3a858506c39356b040ba5fc1818b64de10203685ccda7176407a"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002078",
+    "passes": 1,
+    "forced": 0,
+    "sections": "b0ca7e7588c6bcfc16bc5ebcaae4a884fed301afab3a0c84c38bacf66c62d5a7"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002250",
+    "passes": 1,
+    "forced": 0,
+    "sections": "da0c5f72c7a7c5fa0c575c5e4d9e1ddd476fec12f1bd53a425697bf93e9dda13"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002421",
+    "passes": 1,
+    "forced": 0,
+    "sections": "cd6432e3a2ea58f67cf3044b7278b03f2028ebbff0ddf6cbd5454362b30c93e1"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "5f51c8c6ab02f9b90d2c6dd5c3af67156621872ad643e992060fc4d2a3630090"
+   }
+  ],
+  "lena": [
+   {
+    "point": 0,
+    "trigger": "00000000000000001196",
+    "passes": 1,
+    "forced": 0,
+    "sections": "575b15b45c012500effc6f7e2243a20f4ddd79155c08d724c5d92e7584d99d77"
+   },
+   {
+    "point": 1,
+    "trigger": "00000000000000001360",
+    "passes": 1,
+    "forced": 0,
+    "sections": "572367ffcd1ea88633f7cf8bb9ecac95ffebe49d48639ee22b5a15da6ec83015"
+   },
+   {
+    "point": 2,
+    "trigger": "00000000000000001552",
+    "passes": 1,
+    "forced": 0,
+    "sections": "178a494ea3f4c79539447fbf95397e182267703c941b7f58921171938e752af7"
+   },
+   {
+    "point": 3,
+    "trigger": "00000000000000001725",
+    "passes": 1,
+    "forced": 0,
+    "sections": "c6248f61e630ce2e9706251a25671af477a595fb6365a4f3e9bfe18ed977af52"
+   },
+   {
+    "point": 4,
+    "trigger": "00000000000000001890",
+    "passes": 1,
+    "forced": 0,
+    "sections": "6ea76b7265fa3c28ae463b09b28c0921a33b01f4ad4f9b1311b35101ac74c79d"
+   },
+   {
+    "point": 5,
+    "trigger": "00000000000000002077",
+    "passes": 1,
+    "forced": 0,
+    "sections": "ef045fc9b10fa48b6dbb9004afe300410330590e3d924cb2daf68446e92f7df6"
+   },
+   {
+    "point": 6,
+    "trigger": "00000000000000002248",
+    "passes": 1,
+    "forced": 0,
+    "sections": "d94e23ea52fd7a08ad3122716489b96cf351b271bb60fa69fa55fcaeb40e466a"
+   },
+   {
+    "point": 7,
+    "trigger": "00000000000000002421",
+    "passes": 1,
+    "forced": 0,
+    "sections": "9ece21297983530f039b756a2613aa585e5212f026a0bbf2eaf7f616a78e729e"
+   },
+   {
+    "point": 999,
+    "trigger": "end",
+    "passes": 0,
+    "forced": 0,
+    "sections": "11930d02b841abcae124d67181e967f0b37bce4200377b9b857b3d10158f07fa"
+   }
+  ]
+ },
+ "fgc": [
+  {
+   "point": 0,
+   "trigger": "00000000000000001834",
+   "passes": 1,
+   "forced": 0,
+   "sections": "61e10d57139a32cb7cda1c2f16fba94fa70362acb1a47afcc3a901eb26573cd4"
+  },
+  {
+   "point": 1,
+   "trigger": "00000000000000002642",
+   "passes": 1,
+   "forced": 0,
+   "sections": "2010188d65fc84fa1c4e5b7d6ffa7514281493b299aa11a5d1ceab08c1784dab"
+  },
+  {
+   "point": 2,
+   "trigger": "00000000000000003452",
+   "passes": 1,
+   "forced": 0,
+   "sections": "a296661004b3c050d3270783085d85ac77fce5fe7ed287c91b79ddc7230fd975"
+  },
+  {
+   "point": 3,
+   "trigger": "00000000000000004237",
+   "passes": 1,
+   "forced": 0,
+   "sections": "d26750530b58f0fc728659dbcb2bf30eb998824e7e306467b87a6427bd36c732"
+  },
+  {
+   "point": 4,
+   "trigger": "00000000000000005109",
+   "passes": 1,
+   "forced": 0,
+   "sections": "7f8f612bdd0752d6eda4c3e41fb440c2b5d17163ec312bffbebd3aa7c6e8df7b"
+  },
+  {
+   "point": 5,
+   "trigger": "00000000000000005915",
+   "passes": 1,
+   "forced": 0,
+   "sections": "aeadac940a817ea672e49804887aefe1d7070ae63decbf60dca57d45c81d6793"
+  },
+  {
+   "point": 6,
+   "trigger": "00000000000000006699",
+   "passes": 1,
+   "forced": 0,
+   "sections": "62a3459cf69480a0b5104f7e4b07dd09ed3305bcb302c556f83420399096fa20"
+  },
+  {
+   "point": 7,
+   "trigger": "00000000000000007511",
+   "passes": 1,
+   "forced": 0,
+   "sections": "48ffd76408a117fd03694288aba702ca1f58551c052b3a223287183bad554729"
+  },
+  {
+   "point": 8,
+   "trigger": "00000000000000008307",
+   "passes": 1,
+   "forced": 0,
+   "sections": "93ea24469a59819644adf7734260145586940a2a82cebb4a297dabe1e9c9eff2"
+  },
+  {
+   "point": 9,
+   "trigger": "00000000000000009120",
+   "passes": 1,
+   "forced": 0,
+   "sections": "f46277e4fff8fedd36ff3dfec6ce8d92816ec653e626537637b03356cf961168"
+  },
+  {
+   "point": 999,
+   "trigger": "end",
+   "passes": 0,
+   "forced": 0,
+   "sections": "d9777e202429dbdcc952848045640ac78d82ce724a1c1fa13b33b5782f33da21"
+  }
+ ],
+ "samples": [
+  {
+   "seat": "alice",
+   "query": "0",
+   "text": "People I know:\nHana: met on day 1, last seen day 10, met 30 times, 3 exchanges. [#1008,#2595]\nDev: met on day 1, last seen day 10, met 28 times, 4 exchanges. [#1004,#2572]\nCarol: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1003,#2555]\nJun: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1010,#2575]\nKofi: met on day 1, last seen day 10, met 25 times, 10 exchanges. [#1011,#2461]\nLena: met on day 1, last seen day 10, met 25 times, 5 exchanges. [#1012,#2602]\nErin: met on day 1, last seen day 10, met 23 times, 3 exchanges. [#1005,#2584]\nFelix: met on day 1, last seen day 10, met 23 times, 6 exchanges, friend. [#1006,#2398,#2603]\nBob: met on day 1, last seen day 10, met 21 times, 6 exchanges. [#1002,#2603]\nGrace: met on day 1, last seen day 10, met 21 times, 6 exchanges, friendly. [#1007,#1442,#2600]\nIvan: met on day 1, last seen day 10, met 16 times, 2 exchanges. [#1009,#2602]\nOona: met on day 3, last seen day 10, met 7 times, 5 exchanges, close friend. [#1364,#1603,#2557]\nQuinn: met on day 1, last seen day 10, met 5 times, 2 exchanges. [#1029,#2584]\nNils: met on day 1, last seen day 10, met 5 times, 1 exchange. [#1179,#2595]\nMara: met on day 2, last seen day 8, met 5 times, 2 exchanges. [#1228,#2128]\nsomeone: met on day 1, last seen day 9, met 4 times, 1 exchange. [#1037,#2356]\nRecent weeks:\nWeek 1: 54 episodes, mostly at somewhere; most often with Dev (23), Hana (22), Felix (19); first met Bob, Carol, Dev and others. [#1001-2074]\nEpisodes I remember:\nDay 10, 13:32–14:42, somewhere: with Lena, Erin, Jun; 2 notable moments, 0 mine; 1 other came and went; Jun said to Lena: «été tomorrow gar… [#2506-2528]\nDay 9, 11:26–12:36, somewhere: with Erin, Hana, Lena and someone else; 3 notable moments, 0 mine; 2 others came and went; Lena started talking… [#2296-2306]\nDay 9, 10:16–10:44, somewhere: with Bob, Dev; 2 notable moments, 0 mine; Bob said to Dev: «café river rain tomorrow noon letter umbrella ét… [#2280-2288]\nDay 8, 19:50–20:46, somewhere: with Bob, Carol, Hana; 3 notable moments, 1 mine; Carol started talking with Hana [#2225-2238]\nDay 8, 17:30–17:30, somewhere: with Dev, Felix; 1 notable moment, 0 mine; Dev said to Felix: «bread 雨 garden music café music lamp été rain g… [#2205]\nDay 8, 16:34–16:48, somewhere: with Grace, Hana; 2 notable moments, 0 mine; Hana said to Grace: «lamp garden zeppelin bread market zeppelin c… [#2188-2192]\nDay 8, 15:52–15:52, somewhere: with Jun, Kofi; 1 notable moment, 0 mine; Jun said to Kofi: «bread lamp umbrella été 雨 lamp music letter umbrel… [#2183]\nDay 8, 10:30–12:36, somewhere: with Grace, Erin, Mara and others; 8 notable moments, 4 mine; 1 other came and went; fished at somewhere, with… [#2116-2148]\nThe last day:\nDay 10 19:50: fished at somewhere, with Hana, Lena, Nils [#2595]\nDay 10 19:22: lamp-lit at somewhere [#2590]\nDay 10 19:08: Felix said to me: «coffee coffee market lamp garden umbrella zeppelin coffee lamp letter music été river lamp music ga…» [#2585]\nDay 10 18:54: fished at somewhere, with Erin, Grace, Quinn [#2584]\nDay 10 18:26: fished at somewhere, with Jun, Ivan, Nils [#2575]\nDay 10 18:12: Bob now feels close friend towards Dev [#2572]\nDay 10 17:44: I learned the name Nils [#2563]\nDay 10 16:48: I learned the name Oona [#2557]\nDay 10 16:34: Carol now feels friendly towards Jun [#2555]\nDay 10 16:20: Hana started talking with Felix [#2552]\nDay 10 15:24: lamp-lit at somewhere [#2541]\nDay 10 12:50: I arrived at somewhere [#2501]\nDay 10 12:08: Bob said to Erin: «rain garden umbrella» [#2492]\nDay 10 11:54: Carol said to Ivan: «river market été bread letter river lamp bread music music bread river music river river été music…» [#2488]\nDay 10 11:40: I arrived at somewhere [#2486]\nDay 10 10:02: I got to know Kofi [#2461]\nDay 10 09:34: I went to somewhere [#2454]\nDay 10 09:06: Jun said to Hana: «tomorrow tomorrow été rain rain letter bread river café lamp zeppelin zeppelin market noon umbrella…» [#2449]\nDay 10 08:52: Kofi got to know Lena [#2445]\nDay 10 07:56: I set out walking [#2430]\nDay 10 07:00: fished at somewhere, with Jun, Ivan, Pavel [#2417]\nDay 9 20:32: I got to know Carol [#2408]\nDay 9 20:18: I arrived at somewhere [#2403]\nDay 9 20:04: I now feel friend towards Felix [#2398]\n"
+  },
+  {
+   "seat": "alice",
+   "query": "1",
+   "text": "People I know:\nHana: met on day 1, last seen day 10, met 30 times, 3 exchanges. [#1008,#2595]\nDev: met on day 1, last seen day 10, met 28 times, 4 exchanges. [#1004,#2572]\nCarol: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1003,#2555]\nJun: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1010,#2575]\nKofi: met on day 1, last seen day 10, met 25 times, 10 exchanges. [#1011,#2461]\nLena: met on day 1, last seen day 10, met 25 times, 5 exchanges. [#1012,#2602]\nErin: met on day 1, last seen day 10, met 23 times, 3 exchanges. [#1005,#2584]\nFelix: met on day 1, last seen day 10, met 23 times, 6 exchanges, friend. [#1006,#2398,#2603]\nBob: met on day 1, last seen day 10, met 21 times, 6 exchanges. [#1002,#2603]\nGrace: met on day 1, last seen day 10, met 21 times, 6 exchanges, friendly. [#1007,#1442,#2600]\nIvan: met on day 1, last seen day 10, met 16 times, 2 exchanges. [#1009,#2602]\nOona: met on day 3, last seen day 10, met 7 times, 5 exchanges, close friend. [#1364,#1603,#2557]\nQuinn: met on day 1, last seen day 10, met 5 times, 2 exchanges. [#1029,#2584]\nNils: met on day 1, last seen day 10, met 5 times, 1 exchange. [#1179,#2595]\nMara: met on day 2, last seen day 8, met 5 times, 2 exchanges. [#1228,#2128]\nsomeone: met on day 1, last seen day 9, met 4 times, 1 exchange. [#1037,#2356]\nRecent weeks:\nWeek 1: 54 episodes, mostly at somewhere; most often with Dev (23), Hana (22), Felix (19); first met Bob, Carol, Dev and others. [#1001-2074]\nEpisodes I remember:\nDay 9, 16:20–16:34, somewhere: with Kofi, Hana and someone else; 1 notable moment, 0 mine; fished at somewhere, with Kofi, Hana and someone else [#2355-2356]\nDay 6, 18:40–19:22, somewhere: with Bob, Erin, Ivan and others; 4 notable moments, 0 mine; Lena said to Felix: «雨 zeppelin coffee music riv… [#1862-1871]\nDay 3, 09:48–10:16, somewhere: with Lena, Erin, Felix and others; 3 notable moments, 0 mine; I learned the name Tove [#1405-1410]\nDay 1, 07:14–09:20, somewhere: with Jun, Grace, Erin and others; 6 notable moments, 1 mine; Dev started talking with Erin [#1018-1048]\nThe last day:\nDay 9 20:32: I got to know Carol [#2408]\nDay 9 20:18: I arrived at somewhere [#2403]\nDay 9 20:04: I now feel friend towards Felix [#2398]\nDay 9 19:22: Dev got to know Ivan [#2394]\nDay 9 19:08: I arrived at somewhere [#2392]\nDay 9 18:40: lamp-lit at somewhere [#2383]\nDay 9 18:12: fished at somewhere, with Carol, Erin, Nils [#2379]\nDay 9 17:44: I arrived at somewhere [#2373]\nDay 9 17:30: I learned the name Tove [#2369]\nDay 9 15:38: fished at somewhere, with me and Lena and someone else [#2347]\nDay 9 15:10: Erin now feels acquaintance towards Carol [#2339]\nDay 9 13:04: Felix said to Carol: «tomorrow lamp music letter river lamp music river tomorrow rain tomorrow tomorrow letter river 雨 la…» [#2315]\nDay 9 12:50: I said to Kofi: «market river café zeppelin zeppelin letter zeppelin tomorrow letter lamp bread rain market music ca…» [#2310]\nDay 9 12:22: Lena started talking with Grace [#2305]\nDay 9 12:08: lamp-lit at somewhere [#2303]\nDay 9 11:26: Erin said to Hana: «coffee bread music umbrella river umbrella 雨 été garden tomorrow café river rain été umbrella lette…» [#2296]\nDay 9 10:44: Bob said to Dev: «café river rain tomorrow noon letter umbrella été coffee bread market tomorrow umbrella été market…» [#2288]\nDay 9 10:16: lamp-lit at somewhere [#2280]\nDay 9 09:34: Hana now feels friend towards me [#2271]\nDay 9 09:06: Lena now feels friendly towards Ivan [#2265]\nDay 9 08:24: I set out walking [#2257]\nDay 9 08:10: Lena started talking with Hana [#2253]\nDay 9 07:56: Jun started talking with Bob [#2250]\nDay 9 07:42: I arrived after a walk [#2248]\n"
+  },
+  {
+   "seat": "alice",
+   "query": "2",
+   "text": "People I know:\nHana: met on day 1, last seen day 10, met 30 times, 3 exchanges. [#1008,#2595]\nDev: met on day 1, last seen day 10, met 28 times, 4 exchanges. [#1004,#2572]\nCarol: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1003,#2555]\nJun: met on day 1, last seen day 10, met 27 times, 2 exchanges. [#1010,#2575]\nKofi: met on day 1, last seen day 10, met 25 times, 10 exchanges. [#1011,#2461]\nLena: met on day 1, last seen day 10, met 25 times, 5 exchanges. [#1012,#2602]\nErin: met on day 1, last seen day 10, met 23 times, 3 exchanges. [#1005,#2584]\nFelix: met on day 1, last seen day 10, met 23 times, 6 exchanges, friend. [#1006,#2398,#2603]\nBob: met on day 1, last seen day 10, met 21 times, 6 exchanges. [#1002,#2603]\nGrace: met on day 1, last seen day 10, met 21 times, 6 exchanges, friendly. [#1007,#1442,#2600]\nIvan: met on day 1, last seen day 10, met 16 times, 2 exchanges. [#1009,#2602]\nOona: met on day 3, last seen day 10, met 7 times, 5 exchanges, close friend. [#1364,#1603,#2557]\nQuinn: met on day 1, last seen day 10, met 5 times, 2 exchanges. [#1029,#2584]\nNils: met on day 1, last seen day 10, met 5 times, 1 exchange. [#1179,#2595]\nMara: met on day 2, last seen day 8, met 5 times, 2 exchanges. [#1228,#2128]\nsomeone: met on day 1, last seen day 9, met 4 times, 1 exchange. [#1037,#2356]\nRecent weeks:\nWeek 1: 54 episodes, mostly at somewhere; most often with Dev (23), Hana (22), Felix (19); first met Bob, Carol, Dev and others. [#1001-2074]\nEpisodes I remember:\nDay 9, 17:16–17:44, somewhere: with Tove; 2 notable moments, 1 mine; 1 other came and went; I learned the name Tove [#2366-2373]\nDay 8, 18:12–19:08, somewhere: with Jun, Tove, Carol and someone else; 3 notable moments, 1 mine; Carol started talking with Erin [#2211-2217]\nDay 3, 09:48–10:16, somewhere: with Lena, Erin, Felix and others; 3 notable moments, 0 mine; I learned the name Tove [#1405-1410]\nDay 2, 13:18–15:38, somewhere: with Dev, Jun, Nils and others; 5 notable moments, 0 mine; 1 other came and went; fished at somewhere, with Dev… [#1273-1299]\nDay 10, 13:32–14:42, somewhere: with Lena, Erin, Jun; 2 notable moments, 0 mine; 1 other came and went; Jun said to Lena: «été tomorrow gar… [#2506-2528]\nDay 10, 11:12–12:08, somewhere: with Carol, Ivan, Bob and someone else; 3 notable moments, 1 mine; Bob said to Erin: «rain garden umbrella» [#2480-2492]\nDay 10, 08:52–09:34, somewhere: with Kofi, Lena, Jun and someone else; 3 notable moments, 1 mine; Jun said to Hana: «tomorrow tomorrow été… [#2445-2454]\nDay 9, 11:26–12:36, somewhere: with Erin, Hana, Lena and someone else; 3 notable moments, 0 mine; 2 others came and went; Lena started talking… [#2296-2306]\nThe last day:\nDay 9 20:32: I got to know Carol [#2408]\nDay 9 20:18: I arrived at somewhere [#2403]\nDay 9 20:04: I now feel friend towards Felix [#2398]\nDay 9 19:22: Dev got to know Ivan [#2394]\nDay 9 19:08: I arrived at somewhere [#2392]\nDay 9 18:40: lamp-lit at somewhere [#2383]\nDay 9 18:12: fished at somewhere, with Carol, Erin, Nils [#2379]\nDay 9 16:34: fished at somewhere, with Kofi, Hana and someone else [#2356]\nDay 9 15:38: fished at somewhere, with me and Lena and someone else [#2347]\nDay 9 15:10: Erin now feels acquaintance towards Carol [#2339]\nDay 9 13:04: Felix said to Carol: «tomorrow lamp music letter river lamp music river tomorrow rain tomorrow tomorrow letter river 雨 la…» [#2315]\nDay 9 12:50: I said to Kofi: «market river café zeppelin zeppelin letter zeppelin tomorrow letter lamp bread rain market music ca…» [#2310]\nDay 9 10:44: Bob said to Dev: «café river rain tomorrow noon letter umbrella été coffee bread market tomorrow umbrella été market…» [#2288]\nDay 9 10:16: lamp-lit at somewhere [#2280]\nDay 9 09:34: Hana now feels friend towards me [#2271]\nDay 9 09:06: Lena now feels friendly towards Ivan [#2265]\nDay 9 08:24: I set out walking [#2257]\nDay 9 08:10: Lena started talking with Hana [#2253]\nDay 9 07:56: Jun started talking with Bob [#2250]\nDay 9 07:42: I arrived after a walk [#2248]\n"
+  }
+ ],
+ "cafe12_schema3": {
+  "seats": 12,
+  "days": 2,
+  "dump_bytes": 11712772
+ }
+}

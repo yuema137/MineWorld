@@ -796,7 +796,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base, decisions, A-1 … A-15 re-read, handoff | [x] doc scripts PASS | [x] §2.3 satisfied |
-| C1 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | `817d202b` | [x] | [x] | [x] |
+| C1 | (this commit) | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
+| C2 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -810,6 +812,25 @@ since the audit** (P6b merged after `2d07c6c`): `controller/seat.py` (opens `Mem
 (an annotation), and `tests/{test_controller_parts.py, test_controller_seat.py, test_assignment.py}` — see D-a-1.
 Validation: `python3 scripts/check_doc_headings.py` → "239 numbered sections across 33 documents, none
 duplicated" PASS; `python3 scripts/check_decision_ids.py` → "138 decision ids, all distinct" PASS.
+
+**C1 (2026-10-15).** `tests/home_streams.py` (synthetic `world(seed, days)`, 60 facts a day, one quiet day in about
+nine; `seat_streams`; `day_frames`; `queries`; the real `cafe12`), `tests/conftest.py::social_cafe_12`,
+`tests/capture_golden_renders.py`, `tests/golden/{s28a_renders.json, SOURCE.md}`, `tests/test_home_golden.py`.
+- Capture: `uv run --locked python cognition/lm-controller/tests/capture_golden_renders.py --cafe` on the schema-3
+  code (C0 head `817d202b`): 21.9 s wall, load 2.8. AC-a-9's baseline: Σ of the 12 schema-3 plain-`ingest`
+  dumps on `social_cafe_12` = **11 712 772 B** (2 world-days; 5 964 facts in the world, 31 651 perceived).
+- `uv run --locked pytest cognition/lm-controller/tests/test_home_golden.py`: 4 passed in 18.95 s (load 3.9) —
+  **PASS**: the golden reproduces on the base code; the stream check holds (same seed, same streams; one
+  `PerceivedEvent` object per fact across its audience; holder counts 1 … 12 all present; 8–18 % singly held).
+- ruff check, ruff format --check, pyright (strict, `cognition/lm-controller`): PASS (0 errors).
+- Review: every draw is SplitMix64 of `(seed, index, salt)` (`retention_stream.draw`); `queries` draws from
+  `(seed, seat, point)`; no clock and no `random` import. The three sample renders (Alice, end of `ingest`)
+  were read by hand: names learned from `named` facts (strangers named mid-stream are known only to their
+  audience, unnamed ones are `someone`), places are `somewhere` (no place is named), every line ends with its
+  citation, the four headers appear in P4's order.
+- Real-stream probe (scratch, not evidence for a criterion): 5 964 facts, every envelope identical across its
+  perceivers; holders 1: 794, 2: 1 796, …, 12: 1 289; **5 facts (`passage-opened`) have two subjects and no
+  participant** (F-S28a-9).
 
 ### Mutations
 
@@ -831,3 +852,15 @@ surface (C4/C5).
 
 **D-a-2 (bounded).** The design's §9.0 and §12 name the worktree `impl-s28-a`; the dispatch assigned
 `/Users/yuema137/mineworld-worktrees/impl-s28a`. Every command runs from the dispatch's path.
+
+**D-a-3 (procedural slip, recorded).** At C1 one import line of `tests/home_streams.py` (a file this PR creates)
+was edited with `sed -i` against the contract's NEVER list. The edit was the intended one (adding `JsonValue` to
+an import) and the file was re-read; every later edit uses the editor or `ruff format`.
+
+**D-a-4 (bounded; C1 step 3, C4 step 3, C5 step 2).** The golden has three arms: `ingest` (plain ingest in day
+frames — the "plain-ingest points" C4 reproduces before retention is ported), `absorb` (C1 step 3's pass points)
+and `fgc` (the FG-c cassette's stream, C5 step 2's capture, added to C1's script as C5 asks). Each point keeps the
+sha256 of its 200 renders. The computation lives in `capture_golden_renders.py` and `test_home_golden.py` imports
+it, so the script and the test cannot drift; the JSON is the oracle. `cafe12` (the real 12-seat builder) lives in
+`home_streams.py` beside the synthetic world, so the script and `conftest.social_cafe_12` share it. A pass point is
+taken after each day frame that ran a pass (each ran exactly one; `passes` is recorded).
