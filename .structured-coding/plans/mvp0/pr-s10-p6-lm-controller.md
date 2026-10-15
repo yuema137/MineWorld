@@ -1596,7 +1596,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | A2 | — | [ ] | [ ] | [ ] |
 | A3 | — | [ ] | [ ] | [ ] |
 | C0 | — | [x] | [x] | [x] |
-| C1 | — | [ ] | [ ] | [ ] |
+| C1 | — | [x] | [x] | [x] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
@@ -1631,6 +1631,14 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   - Step 4: handoff created (`handoff-s10-p6b.md`). Result: PASS.
 - Doc checks (both run in C0, see the commit): `python3 scripts/check_doc_headings.py`,
   `python3 scripts/check_decision_ids.py`.
+- **C1 (2026-10-14).** Step 1: `MODULE_SPEC.md` §5.1 "LM Controller" paragraph added after the Out-of-process
+  bullet. Step 2: `ARC-72` and `ARC-73` appended to `DECISIONS.md`. Step 3: dated note under `ARC-57`
+  (`timeout_s`, `retry_after_s`). Step 4: licences read from PyPI metadata (WebFetch, 2026-10-14): tenacity
+  Apache-2.0 (9.2.1); backoff MIT (2.2.1); stamina MIT (26.1.0); pybreaker BSD, no licence field, classifier
+  "BSD License" (1.4.1); aiobreaker BSD (1.2.0); purgatory MIT (3.0.1). Dated note under `DEP-44` declines
+  all six. Licence files of pybreaker and aiobreaker not read (recorded in the note). Validation: both doc
+  checks PASS (223 sections; 124 decision ids distinct). Review: `Controller`, `Controller Pack`,
+  `ActionIntent` used as defined; the hand-back is written as host state, never a fact.
 
 ### Assumptions to verify in implementation
 

@@ -7138,6 +7138,14 @@ never modelled: tokens are reported, never priced (step-17 §3.10.4).
 **Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
 no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
 
+**Dated note, 2026-10-14 (S10 P6b, C4): two additive interface changes.** `ModelGateway.complete` gains an
+optional keyword `timeout_s`; the call's timeout is the smaller of `call_timeout_s` and `timeout_s`, so a
+consult deadline cut by the caller is charged like a timeout (one call, no tokens), where cancelling from
+outside would skip the charge. `BackendFailure` gains `retry_after_s` (an integer, 0 to 3 600, or absent),
+set by both HTTP adapters from a delta-seconds `Retry-After` on any non-2xx response; an HTTP date is
+ignored. The gateway still never retries (`ARC-73`). Failures are never recorded, so cassette format and
+keys are unchanged. Ruled by QP6-6 (2026-10-14).
+
 ---
 
 ## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
@@ -7762,6 +7770,23 @@ library.
 **Revisit** when a second protocol client in Python needs the same loop: it then moves, unchanged, into a
 shared module, not into a library.
 
+**Dated note, 2026-10-14 (S10 P6b, C1): retry and breaker libraries declined.** For the LM controller's
+layered retries (`ARC-73`) and its per-seat circuit breaker, the following are declined, and our own code
+is built instead (`pr-s10-p6-lm-controller.md` §4). Licences were read on 2026-10-14 from each project's
+PyPI metadata; none was installed or added, and `uv.lock` is unchanged.
+
+| Candidate | Licence (PyPI metadata, 2026-10-14); latest version | Verdict |
+| --- | --- | --- |
+| `tenacity` | Apache-2.0; 9.2.1 | **Declined.** It owns the loop and the sleep, while the controller needs per-class budgets under one deadline and attempt cap, seeded jitter, an injected clock, and a record per attempt |
+| `backoff` | MIT; 2.2.1 | **Declined**, for the same reasons |
+| `stamina` | MIT; 26.1.0 (wraps `tenacity`) | **Declined**, for the same reasons as `tenacity` |
+| `pybreaker` | BSD (classifier "BSD License", no licence field); 1.4.1 | **Declined.** It counts HTTP-call failures; the controller's breaker counts consult outcomes, excludes budget refusals, and runs its cooldown in simulated time |
+| `aiobreaker` | BSD; 1.2.0 | **Declined**, for the same reason as `pybreaker` |
+| `purgatory` | MIT; 3.0.1 | **Declined**, for the same reason as `pybreaker` |
+
+The licence of `pybreaker` and `aiobreaker` is taken from their PyPI metadata as written; their licence
+files were not read in this session.
+
 ---
 
 ## DEP-46 — Prior-art audit, October 2026: no shared-world or AI-NPC framework is adopted
@@ -7969,3 +7994,88 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** `ARC-81` rule 1 ("`facts` and `journal` are only ever inserted into") is amended to "inserted into, and moved unchanged into a sealed block". No other row is deleted. Stored bytes remain a function of pack, seed, age, pace and code (`ARC-27`), so `ARC-49`'s parity hashes continue to hold on all three platforms. The per-day save bound is checked nightly (`AC-SAVE-1`), not by refusing facts.
 
 **Revisit** if a block-level read cannot meet the streaming bound, if a sealed span must be rewritten for a correction (which this record forbids), or when FG-e's archive segments need a manifest format, which a successor record decides.
+
+---
+
+## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
+· **Approved by** the primary session's freeze of `pr-s10-p6-lm-controller.md` (2026-10-14; operator
+QP6-1, QP6-3, QP6-7; QP6-12 on the number) · **Relates to** `ARC-56`, `ARC-58`, `ARC-59`, `ARC-34`,
+`ARC-85`, `INV-10`, step-17 I-10, I-15 · **Design** `pr-s10-p6-lm-controller.md` §§5.1–5.4, §5.9 ·
+**Prior art** `docs/references/PRIOR_ART_2026-10.md` PA-10, PA-11 (reference only)
+
+**Problem.** A language model asked "what does this character do next" returns free text. Treated as a
+command, that text can name people who are not there, invent offers, forge memories, or move a person. A
+controller that is one prompt and one parse has no place to put the rules, the tests or the failure
+handling.
+
+**Options considered:**
+
+```text
+(a) one prompt, one parse; the reply is sent as the action            open to every failure above
+(b) an agent framework (Concordia, LangGraph, AI Town) as the loop   the framework owns the execution and
+                                                                      the memory model; reference only (DEP-46)
+(c) small typed parts (persona, situation, memory view, choice
+    prompt, parser, validator, intent builder); the reply is a         chosen
+    proposal the owning contracts check
+```
+
+**Choice: (c).** The controller is a Python Controller Pack. Its parts are frozen Pydantic models or pure
+functions, with no clock, randomness, environment or other seat's store read. A model's answer becomes a
+`talk` utterance or the unchanged payload of a complete affordance the server offered, and nothing else.
+The controller builds an `ActionRequest` only through `mineworld_sdk.offers`, which refuses any affordance
+not offered by the newest observation. It never builds a movement request (`ARC-32`, step-17 I-15). The
+prompt holds no entity id and no provider concept; the request's canonical JSON is the cassette key
+(`ARC-58`).
+
+**Consequences.** A model that "decides" anything else has no representable proposal (`INV-10`). Every
+answer is validated before it becomes an intent. A new social choice needs a `SocialChoice` value and a
+validation row, not a change to the kernel or the server. Nothing in the world reads the controller.
+
+**Revisit** when a second model-driven controller needs the same parts, which then move into a shared
+module, or when the offer protocol (`ARC-34`) gains a movement affordance that the controller must decide.
+
+---
+
+## ARC-73 — Failure containment: layered retry above a retry-free gateway, a per-consult deadline and cap, a per-seat breaker, and fallback by handing the seat back
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b · **Approved by** the primary session's freeze
+(2026-10-14; operator QP6-7 on the thresholds, QP6-6 on the two P5a changes, QP6-8 and QP6-9 on the
+fallback and the hold) · **Relates to** `ARC-57`, `ARC-58`, `ARC-56`, `ARC-72`, `DEP-44`, `ARC-33`,
+step-24 §8.6 · **Design** `pr-s10-p6-lm-controller.md` §§5.5–5.8, §5.13, §4
+
+**Problem.** A model fails in three different ways: the transport fails (rate limits, server errors, timeouts),
+the content is unusable (invalid JSON, a schema mismatch, an unknown person), or the world refuses a valid
+proposal (an offer that moved). Each deserves its own response. The world must never wait for a model,
+and every model call must be charged to a budget.
+
+**Options considered:**
+
+```text
+(a) one retry loop in the gateway                       breaks ARC-57: the gateway would make calls the ledger
+                                                        has not budgeted for the retry's class
+(b) one retry policy for all failures                   content and transport need different budgets
+(c) three retry layers in the controller host, above a
+    gateway that never retries; each layer has its own
+    pluggable policy; one deadline, one call cap, one
+    per-seat breaker; fallback by handing the seat back  chosen
+(d) a retry or breaker library                          DEP-44: they own the loop and the clock; declined
+```
+
+**Choice: (c).** Layers: transport (`exponential-backoff`, honouring `Retry-After`), content (`fixed`, two
+re-asks with the validation error), semantic (`fixed`, one re-plan from the newest observation). Every model
+call is one gateway call and one ledger charge. A consult ends in exactly one terminal outcome. A
+per-consult deadline (20 wall s), a cap of five calls, and the P5 budgets bound it. A `failure-rate` breaker
+per seat (window 20, minimum 10, more than 20 %, cooldown one simulated hour) stops a failing model. When
+the controller cannot decide, the seat is handed back with `leave` (only where the welcome said
+`took_over: "hosted"`), and the server's fallback model drives it. Where no in-server fallback exists, the
+seat stands for that consult and sends nothing (QP6-8). The hand-back is host state and writes no fact.
+Counters go to the controller's own log.
+
+**Consequences.** The world's facts stay valid under any model behaviour, because the world validates every
+request at dispatch (step-17 §3.6). A failing model costs at most five calls per consult and one handback
+per breaker trip. The fallback share is an acceptance criterion (AP6-4, AP6-14), not an assumption.
+
+**Revisit** when a second model seat needs a different breaker or retry shape, which becomes a registered
+policy rather than a code change, or when an idle handback (QP6-3's follow-up) is decided.
