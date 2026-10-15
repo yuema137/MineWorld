@@ -536,5 +536,27 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## 14. Ledger (live during implementation)
 
-Empty until C0. Sections to open: per-commit evidence; mutations; deviations; CI runs per head; the
-committed cassette's dump digest (AFGc-4 (b)).
+Sections: C0 (below); per-commit evidence; mutations; deviations; CI runs per head; the committed cassette's
+dump digest (AFGc-4 (b)).
+
+### 14.1 C0 — freeze and contract (2026-10-14)
+
+- Freeze header: DESIGN FROZEN 2026-10-12, revision 2, verified on main (`9aa185b`).
+- Implementation base: `origin/main` @ `9aa185b`; FG-b merged as `31ba514` (#186); DL-a `#191`; FG-a `#188`.
+- FG-b's interface against §§5.1–5.7 of `pr-fg-b-retention-host.md`: `Retention`, `absorb` (async), `RetentionBudget.calls_left`, the one-transaction pass and `MemoryPolicyChoice.fallback` match. R-FGc-FG-1 is the only change, plus the deviations below.
+- Doc checks (C0 validation): `scripts/check_doc_headings.py` rc 0 (223 sections, none duplicated); `scripts/check_decision_ids.py` rc 0 (122 ids, all distinct).
+- Baseline before FG-c edits: `ruff check`, `ruff format --check`, `pyright` green on `cognition/lm-controller`.
+
+### 14.2 Deviations (ruled by the primary on 2026-10-14)
+
+| Id | Deviation | Ruling |
+| --- | --- | --- |
+| F-FGc-1 | AFGc-7(a)'s import list omits `Consolidate`/`ConsolidateParameters` (the grouping rule of §5.4 needs them) and P4's `INSTRUCTIONS`/`SAMPLING`. | Accepted as a bounded revision, 2026-10-14. |
+| F-FGc-2 | `run_pass` is async, because `absorb` awaits an assisted pass; one FG-b test wraps the call in `run()`. `absorb`'s signature is unchanged. | Accepted, 2026-10-14. |
+| F-FGc-3 | The two pass-log columns (`model_decisions`, `fallback_decisions`) live in `store.py`'s v2 DDL, outside §2.1's file list; QFGc-7 requires them there. | Accepted, 2026-10-14. |
+| F-FGc-4 | `memory/retention/__init__.py` exports the assisted names; `forgetting/__init__.py`'s docstring is updated. | Accepted, 2026-10-14. |
+| F-FGc-5 | Rule slip: one `sed -i` (an en-dash fix in a new test file) was run against the NEVER list. No other shell edit was made. | Noted by the primary; not to be repeated. |
+
+### 14.3 Load (R-LOAD-1, 2026-10-14)
+
+The host ran at load about 190–230. Local runs are for the fast, targeted files only; `tests/test_retention_host.py` (the FG-b hour-long suite) is CI's. Each recorded result carries the load average at the time.
