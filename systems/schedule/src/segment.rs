@@ -179,8 +179,9 @@ impl<'de, P: Deserialize<'de> + PartialEq> Deserialize<'de> for Segments<P> {
     }
 }
 
-/// One part of a person's day, as a routine authors it: [`Segment`]'s fields, places by key — what the
-/// generated reference describes (`ARC-90`).
+/// One part of a person's day: from when, where, and what for.
+///
+/// [`Segment`]'s fields with the place by key — what the generated reference describes (`ARC-90`).
 #[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]

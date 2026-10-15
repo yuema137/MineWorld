@@ -58,7 +58,9 @@ impl CalendarConfiguration {
     }
 }
 
-/// A date of 1901 … 2099 (the range NOAA's equations are stated for, step-19 §5.4), `YYYY-MM-DD`.
+/// A date written YYYY-MM-DD, such as "2026-10-08" — quoted in YAML — from 1901-01-01 to 2099-12-31.
+///
+/// 1901 … 2099 is the range NOAA's equations are stated for (step-19 §5.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
 #[schemars(with = "String", extend("pattern" = "^(19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}$"))]
@@ -93,7 +95,9 @@ impl TryFrom<String> for Epoch {
     }
 }
 
-/// A fixed UTC offset in seconds, `±HH:MM`, within ±14:00.
+/// A fixed offset from UTC, written ±HH:MM such as "-08:00" — quoted in YAML — within ±14:00.
+///
+/// Held in seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
 #[schemars(with = "String", extend("pattern" = "^[+-][0-9]{2}:[0-5][0-9]$"))]
@@ -140,7 +144,7 @@ fn micro(key: &str, degrees: f64, bound: f64) -> Result<MicroDegrees, String> {
     }
 }
 
-/// −90 … 90, north positive.
+/// A latitude in decimal degrees, from -90 to 90, north positive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "f64")]
 #[schemars(with = "f64", extend("minimum" = -90, "maximum" = 90))]
@@ -154,7 +158,7 @@ impl TryFrom<f64> for Latitude {
     }
 }
 
-/// −180 … 180, east positive.
+/// A longitude in decimal degrees, from -180 to 180, east positive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "f64")]
 #[schemars(with = "f64", extend("minimum" = -180, "maximum" = 180))]

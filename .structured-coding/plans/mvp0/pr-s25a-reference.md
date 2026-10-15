@@ -229,7 +229,51 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
   fishing). Finding F-25a-3: `acme-fishing` names `String` for `catch` (not `schema::Key`), because its
   standalone build pins MineWorld @ 6ca763d, which has no `schema` module; the fishing pack's own
   `[patch]` pin moves when 25a merges (follow-up, outside MineWorld)
-- **C4** — [ ] Implementation · [ ] Validation · [ ] LLM review
+- **C4** — [x] Implementation: `tools/cli/src/reference.rs` (`Target`, `reference`, `generate`, `write`
+  with SD-25a-9's ownership rule, `check`, `listed`, `is_generated`) and `tools/cli/src/reference/`
+  (`entries.rs`: what is documented, through `catalog::AVAILABLE` and the framework's schema functions,
+  with `normalized` — first paragraphs, and refusal of an undescribed field or a missing example;
+  `markdown.rs`: an entry's field table, the types it names, its example; `yaml.rs`: SD-25a-7's printer;
+  `cli_page.rs`: clap's `Command` walked, `help` and `--help` left out; `pages.rs`: the seven pages, 22
+  schema files, the index); `Reference { out, check }` in `main.rs` (an `ArgGroup` requires exactly
+  one); `mineworld-cli` names `schemars` (DEP-49), `serde`, and `serde-saphyr` as a dev-dependency (all
+  three already in the workspace and its lock); `StyleManifest` gains its example; author-facing first
+  paragraphs for `AuthoredSegment`, calendar's `Epoch`, `UtcOffset`, `Latitude`, `Longitude`, weather's
+  `Quintiles`, conversation's `remember` knob, and the SDK's section description ("keeps the pack's own
+  defaults") · [x] Validation: `tools/cli/tests/reference.rs` (6 tests, 2.1 s): determinism (two `--out`
+  byte-equal, no `\r`, `--check` clean), `--check` naming `differs`/`missing`/`extra` with exit code 1,
+  `--out` ownership (a foreign `notes.txt` refuses and writes nothing; a stale banner page and a stale
+  `$comment` schema are removed), AC-25a-4 (headings of `sections.md`, `configure.md`,
+  `interaction-list.md` equal to `AVAILABLE`'s sections, configurations and Interaction List sections,
+  `fishing` among them), AC-25a-6 (every section example decoded by `owning_section` +
+  `decode_section`, every configuration by `decode_configuration`, classes by `EntityClasses`, all from
+  a `serde-saphyr` stream; each predicted refusal holds with one unlisted key: 10 entries), the World
+  Pack page's examples composed into a world that `mineworld validate` accepts (with `classes` and
+  `packages` from `configure.md`) and the `pack.yaml` example into an Entity Pack `mineworld packs
+  validate` accepts, each refusing one unlisted key with the predicted message; unit tests in the binary
+  (4): AC-25a-3 `a_field_without_a_description_refuses_generation_by_name` (a nested type's undescribed
+  field, named `Inner.depth`), first-paragraph rewriting (examples untouched), the YAML printer read back
+  through `serde-saphyr`, two in-process generations equal; `cargo test` of sdk, calendar, weather,
+  conversation, schedule, packages all ok; `cargo clippy --workspace --all-targets --all-features -D
+  warnings` clean; `cargo fmt --check` clean · [x] LLM review: the command reads types only — no
+  `WorldPack` is read or loaded (`entries.rs` imports `schema`, `catalog`, `Capability`); it writes only
+  under `--out`, after listing it, and writes nothing when a foreign file is there; `--check` writes
+  nothing; output is a function of the build (BTreeMap order, `serde_json` without `preserve_order`,
+  the version, no time, no commit). Findings F-25a-4…F-25a-7 below
+- **C4** findings:
+  - F-25a-4 — an Interaction List section's decoder refuses an unlisted key with its own words
+    (`'x' is not a key of a section (…)`, `sdk/rust/src/interactions/section.rs` `SectionKey`), not
+    serde's `unknown field`. The page states the decoder's words; the test reads the predicted message
+    off the page and holds the decoder to it, so a reworded decoder turns the test red. No decoder changed.
+  - F-25a-5 — an enum variant written `{ box: … }` is an object of one property whose doc comment is
+    the object's (`bodies::BodyShape`); inside a `oneOf`/`anyOf` such a property needs no description of
+    its own. Everywhere else a property without one refuses generation.
+  - F-25a-6 — every root schema must state an example (the generator refuses one without, naming it);
+    only `StyleManifest` had none, and gained one.
+  - F-25a-7 — an Interaction List section's full schema walk repeats the shared shape once per pack and
+    once more per region (~500 lines for three packs). The page states the shared shape once, from the
+    first section's own schema, then per pack only its declarations (actions, facts, roles, parameters,
+    knobs, reference lists) and its example; the JSON Schema under `schema/` keeps the whole shape.
 - **C5** — [ ] Implementation · [ ] Validation · [ ] LLM review
 
 ### Evidence

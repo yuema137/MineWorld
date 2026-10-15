@@ -64,6 +64,7 @@ fn example_pack_file() -> serde_json::Value {
 /// What `mineworld packs` needs of a style manifest; the rest of its schema is `ART_DIRECTION.md`'s,
 /// so other fields are not this crate's to refuse.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(example = serde_json::json!({ "id": "cosy-town", "dimension": ["2d", "3d"] }))]
 struct StyleManifest {
     /// The style's id.
     id: String,

@@ -20,4 +20,8 @@ TOOL DISCIPLINE     no sed -i, no inline python, no curl, no heredoc writes
 
 ## Current checkpoint
 
-C0 (specs and decisions) in progress. Next: C1 (schemars on the framework's own files).
+C0, C1, C2+C3 committed by the first implementer (stopped, cancelled 2026-10-14; this session replaced
+it in the same worktree, sole writer). C4 (`mineworld reference`) committed by this session. Next: C5 —
+generate `docs/reference/`, the checked-in `--check` test, `scripts/ci_changes.py` (its edit was found
+uncommitted in the tree and kept: it classifies `docs/reference/` as generated), `scripts/ci_layer.py`,
+AC-25a-2 mutation, AC-25a-5 parity, `cargo deny`, merge origin/main, full workspace test, push, PR, CI.

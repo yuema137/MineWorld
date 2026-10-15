@@ -137,7 +137,9 @@ impl From<Month> for RawMonth {
     }
 }
 
-/// Five amounts, counted while decoding so a list of the wrong length names its key.
+/// Exactly five amounts, in 0.1 mm.
+///
+/// Counted while decoding, so a list of the wrong length names its key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<i64>", into = "Vec<i64>")]
 #[schemars(extend("minItems" = 5, "maxItems" = 5))]

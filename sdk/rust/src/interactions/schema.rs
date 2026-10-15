@@ -315,7 +315,7 @@ impl<S: InteractionSection> JsonSchema for Section<S> {
             "type": ["object", "null"],
             "description": format!(
                 "configure/{}.yaml: this pack's section of the World's Interaction List. Every key is \
-                 optional; an empty file is today's behaviour.",
+                 optional; an empty file keeps the pack's own defaults.",
                 <S as crate::__private::SystemIdentity>::ID
             ),
             "properties": properties,
