@@ -534,7 +534,7 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 | --- | --- | --- | --- | --- |
 | B0 | — (this commit) | [x] | [x] | [x] |
 | B1 | — (this commit) | [x] | [x] | [x] |
-| B2 | — | [ ] | [ ] | [ ] |
+| B2 | — (held at step 8, material stop D-b-2) | [ ] | [ ] (steps 1–7 evidence recorded) | [ ] |
 | B3 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -555,6 +555,34 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   - `check_doc_headings.py`, `check_decision_ids.py`: PASS.
   - Test names: `the_four_answers_are_offered_complete_and_attempted_unchanged` (Rust),
     `test_an_invitation_is_answered_and_left_through_complete_affordances` (Python).
+- Merge (2026-10-15, resume): `origin/main` 5cbb4697 merged (`8418682f`), then `origin/main` 8c5d3598 (`44a56e33`,
+  design documents only). No conflicts in either; recorded as auto-merged. The merged base is `8c5d3598`.
+- Fix D-b-1 (`7c544451`): `cargo test -p mineworld-group-activity` 3 + 12 + 1 + 0 PASS after the fix; the regression
+  test `an_expired_invitation_is_not_offered_as_an_answer` FAILED before the fix (at "an expired invitation is not
+  offered accept") and passes after. `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-group-activity
+  --all-targets -- -D warnings` PASS.
+- B2 steps 1–3 (2026-10-15, on `44a56e33`, targeted only): `cargo test -p mineworld-rule-controller` 38 PASS;
+  `mineworld-acceptance` `ac1_composability` 15 PASS, `complete_affordances` 4 PASS; `mineworld-cli`
+  `interaction_runs` 3 PASS (the earlier failure at `:253` under load did not reproduce; not attributed),
+  `market_town` 1 PASS, `milestone_c` 1 PASS, `routines` 1 PASS, `social_composition` 4 PASS, `social_sections` 9 PASS.
+- B2 step 5 (reference): `origin/main` 8c5d3598 carries no 12d re-record (`git log -- scripts/baselines.txt` names
+  SR-b, FG-a and 13c only). Its committed `scripts/baselines.txt` PASSES on its own long record, so the reference is
+  the committed file. The base record was still taken for attribution.
+- B2 step 6 (long profile, `python3.11 scripts/ci_parity.py record --profile long`, wall times 988.6 s, 814.6 s, 862.4 s):
+  `target/scratch-s27b/s27b.long` (HEAD `44a56e33`), `base.long` (`8c5d3598`), `b1.long` (`8c5d3598` plus B1's three
+  files only, see D-b-2). `baseline check` on `s27b.long`: **FAIL** for `lakeside`, `market-town`, `social-cafe`
+  (six keys each); `bodies-yard` unchanged. `baseline check` on `base.long`: PASS.
+- B2 attribution: `diff base.long b1.long` moves the same three worlds, `bodies-yard` unchanged (the F-S27b-1 cause).
+  `diff b1.long s27b.long` shows that D-b-1 changes the moved outcome further (for example `lakeside` `summary-300`
+  facts 2473 in B1 and 2476 in the full branch; `market-town` table `facts` rows 9410 and 9154). So the full branch
+  moves keys for two causes; QS27b-1 authorizes only F-S27b-1's cause.
+- B2 step 7 (sanity, 300-day save, `mineworld run --headless --seed 7 --days 300`, `inspect --last 0`):
+  `group-activity-started` = 9793 (`lakeside`), 9760 (`market-town`), 9736 (`social-cafe`); every seat moved and talked in
+  every 30-day bucket of `market-town` and `lakeside` (the run output's existing lines).
+- B2 step 8: **NOT RUN. Material stop (§12).** `baseline write` was not run. The moved keys have two causes; the second
+  (D-b-1) is outside QS27b-1's ruling. Decision needed from the primary session (see D-b-2).
+- Python CP-b (`test_an_invitation_is_answered_and_left_through_complete_affordances`, release binary of `44a56e33`):
+  1 PASS. `check_doc_headings.py`: PASS (239 sections, 33 documents). `check_decision_ids.py`: PASS (138 ids).
 
 ### Assumptions to verify in implementation
 
@@ -590,3 +618,16 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   takes an `at` that its providers do not see (the observation's `at` and the read's `at` can differ in tests).
   This correction may move the B2 long-run measurement for a cause other than F-S27b-1 (an expired accept
   is no longer attempted); B2 must attribute every moved key before any re-record (§5.3).
+
+- **D-b-2 (B2, material stop, 2026-10-15).** The long-profile records move `lakeside`, `market-town` and
+  `social-cafe` (not `bodies-yard`). The F-S27b-1 cause (B1's four complete offers) alone moves the same worlds
+  (`b1.long`); the full branch also carries D-b-1, which changes the offered band's draws further. QS27b-1 rules only
+  F-S27b-1's cause, so no baseline section is rewritten. Options for the primary session, with the smallest revision:
+  (a) rule D-b-1's cause as a second authorized cause and re-record the three sections with two reason lines;
+  (b) move D-b-1 to its own bounded fix PR, rebase this PR without it, then re-record for F-S27b-1 alone (the
+  `b1.long` evidence already shows that cause moves only these three worlds, with the sanity rule met).
+  Scratch worktrees: the design's `target/scratch-s27b/base` path failed (`cargo`: "package collision in the
+  lockfile", because a worktree inside the workspace is a second `mineworld-authoring`), so the base and B1-only trees
+  are at `/Users/yuema137/mineworld-worktrees/s27b-base-scratch` and `/Users/yuema137/mineworld-worktrees/s27b-b1-scratch`
+  (both removable). The records used `/opt/homebrew/bin/python3.11` (the default `python3` lacks `tomllib`). `compare`
+  takes one commit only, so the cross-commit comparison used `ci_parity.py diff`.
