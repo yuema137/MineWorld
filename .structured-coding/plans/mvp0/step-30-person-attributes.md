@@ -20,12 +20,15 @@ It ends with a PR split, the invariants, the risks and the questions only the op
 because its first PRs gate S26's casting, which is MVP-0 work (§13.2 explains the placement).
 **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `STEP DESIGN (DRAFT)`.
+**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered Q-S30-1…8
+directly in the primary session on 2026-10-15, every one as recommended (§16.1).
+
+- Superseded lifecycle: `STEP DESIGN (DRAFT)`, PR #223 revision 1.
 
 - Nothing in this file authorizes implementation, a paid API call or a merge.
 - Each PR is detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). Only a PR
   design carries `DESIGN FROZEN`.
-- Approval of this step would fix its scope, its invariants (§12) and its step acceptance (§13.4). Progress,
+- Approval fixes this step's scope, its invariants (§12) and its step acceptance (§13.4). Progress,
   evidence, findings and bounded corrections stay writable.
 
 **Author:** S30 design session (Opus), 2026-10-15.
@@ -34,10 +37,16 @@ because its first PRs gate S26's casting, which is MVP-0 work (§13.2 explains t
 - Branch: `docs/s30-person-attributes`, from `origin/main @ 58a6f55f` (#204, S27-c merged).
 - One writer: this file is the only file this session writes.
 
-**Ids.** Placeholders, to be replaced by the primary session after it checks that real ids are still free
-on `origin/main`: `ARC-S30-a` … `ARC-S30-f` and `DEP-S30-a` … `DEP-S30-c` (§15.5). At the audit base the
-newest ids on `main` are `ARC-108` and `DEP-60`. `origin/mvp0/pr-s26a` adds `ARC-91` and `ARC-92`, the
-unpushed P6a branch adds `ARC-74`, and `docs/s28a-s27d-designs` reserves `ARC-109` and `DEP-61`.
+**Ids.** Assigned 2026-10-15 from the range the primary session reserved for S30 (`ARC-120`…`ARC-129`,
+`DEP-66`…`DEP-69`), used from the bottom up. They replace the draft placeholders:
+
+| Draft placeholder | Assigned id |
+| --- | --- |
+| `ARC-120` … `ARC-125` | `ARC-120` … `ARC-125` |
+| `DEP-66` … `DEP-68` | `DEP-66` … `DEP-68` |
+
+`ARC-126`…`ARC-129` and `DEP-69` stay reserved and unused. The records are written into `docs/DECISIONS.md`
+by S30-a (§15.5).
 
 Local ids in this file:
 
@@ -135,7 +144,7 @@ Local ids in this file:
 
    In MVP-1: S30-h, the MatrAIx import pack; S30-i, learning attributes in conversation; S30-j, runtime
    sampling for newcomers; S30-k, localisation.
-9. **The MatrAIx verdict** (§6.4, `DEP-S30-a`).
+9. **The MatrAIx verdict** (§6.4, `DEP-66`).
    - **Adapt the taxonomy.** Its schema file is MIT. MineWorld uses its five groups and aligns ids with
      it, and an optional generated import pack comes in MVP-1.
    - **Take the sampling formula as inspiration.** Prior × source likelihood × compatibility mask
@@ -283,7 +292,7 @@ In English:
 | # | Finding | Consequence |
 | --- | --- | --- |
 | F-S30-1 | Nothing in the world holds a person's attributes. Casting keeps appearance in Presentation Pack briefs, `persona` keeps prose, and cognition has nothing typed to read | the requirement is new capability, not a refactor |
-| F-S30-2 | `ARC-31`'s static decode cannot validate a data-declared schema at the author's line (A-1), and no section can see the whole population at once (A-2, A-3). Stratified sampling needs both | an additive authoring seam (§4.3, `ARC-S30-b`), not a kernel change |
+| F-S30-2 | `ARC-31`'s static decode cannot validate a data-declared schema at the author's line (A-1), and no section can see the whole population at once (A-2, A-3). Stratified sampling needs both | an additive authoring seam (§4.3, `ARC-121`), not a kernel change |
 | F-S30-3 | `ARC-91` item 3 holds that apparent age, stature, build, skin and hair "are not world facts: no System consumes them". AC-16 (A-13) is a stronger consumer than a System: an agent must learn what a human sees. Today it learns a look key | `ARC-91` item 3 is amended (§4.4, Q-S30-1) |
 | F-S30-4 | The interim sampler uses `random.Random` and floats (A-9). That is reproducible on one CPython, but it is not one implementation shared with the world's genesis, and casting and the world can drift | one Rust sampler, two entry points (§8.6) |
 | F-S30-5 | The interim profile mixes data (ACS, NHANES) with casting conventions (MST ranges per ancestry, hair-style lists constrained by route D+'s limits) in one file (A-10) | profiles separate cited distributions from authored conventions, and provider limits stay S26's `unsupported` declarations (§8.2, §10) |
@@ -294,7 +303,7 @@ In English:
 
 ---
 
-## 4. Ownership (`ARC-S30-a`)
+## 4. Ownership (`ARC-120`)
 
 ### 4.1 Options
 
@@ -335,7 +344,7 @@ In English:
 ```text
 contracts/ (unchanged)
    ▲
-authoring/                       mineworld-authoring: ARC-31 seam, extended by ARC-S30-b (below)
+authoring/                       mineworld-authoring: ARC-31 seam, extended by ARC-121 (below)
    ▲
 authoring/attributes/            mineworld-attributes-model  (new, S30-c)
    │  Catalogue, AttributeId, AttributeValue, Handle<K>, AttributeOwner,
@@ -351,7 +360,7 @@ tools/cli                        `mineworld attributes …` (catalogue, show, re
 - Owner packs depend on the model crate, not on `attributes`. A world may therefore have owned attributes
   without the `attributes` pack, for example only S31's subscriptions.
 
-**The authoring seam (`ARC-S30-b`, S30-b).** This is additive. No existing section changes, and no
+**The authoring seam (`ARC-121`, S30-b).** This is additive. No existing section changes, and no
 existing world's bytes move.
 
 1. **A System Pack may own a data directory** in World Packs and Entity Packs. `attributes` owns
@@ -419,7 +428,7 @@ cognition and AC-16's agent view rather than a System. The amendment keeps `ARC-
 
 ---
 
-## 5. The attribute model (`ARC-S30-c`)
+## 5. The attribute model (`ARC-122`)
 
 ### 5.1 A declaration
 
@@ -614,7 +623,7 @@ That makes about 200 attributes in v1. That is "most of what a walking, living w
 - A save records the catalogue pack's version in its composition, as for every pack. Resuming under
   another major version is refused by name, as an incompatible pack is today.
 
-### 6.4 MatrAIx: the reuse verdict (`DEP-S30-a`)
+### 6.4 MatrAIx: the reuse verdict (`DEP-66`)
 
 | Part | Licence and fit | Verdict |
 | --- | --- | --- |
@@ -622,7 +631,7 @@ That makes about 200 attributes in v1. That is "most of what a walking, living w
 | **Sampling formula** (M-2) | an idea, not code | **inspiration.** Our profile semantics are exactly prior × likelihood adjustment × mask (§8.3), on a strict DAG |
 | **DAG parameters** (`full_dag.json`, M-7) | MIT, but 5,432 of its 6,999 edges are transferred likelihood ratios with generic rationales. Its priors are world-level, not a place's. It is not strictly a DAG, and it repairs with energy | **declined as data.** A MineWorld world's distributions must be the place's, and cited (§8.2). The import pack ships with no profile. A user may hand-convert a MatrAIx table into a profile, citing it |
 | **Persona-1M coreset** (M-8) | `matraix-research-only`, and derived from real people's records | **declined.** The licence is incompatible with an open-source distribution, and MineWorld does not cast real individuals |
-| **The sampler code** (`persona/synthesis/sampler/sampler.py`) | MIT, Python, float-based, and it includes repair/refinement | **declined.** Our sampler must run inside Rust genesis, deterministically on three platforms, with integer arithmetic (§8.6, `DEP-S30-b`) |
+| **The sampler code** (`persona/synthesis/sampler/sampler.py`) | MIT, Python, float-based, and it includes repair/refinement | **declined.** Our sampler must run inside Rust genesis, deterministically on three platforms, with integer arithmetic (§8.6, `DEP-67`) |
 
 ---
 
@@ -705,7 +714,7 @@ Everything else is data.
 
 ---
 
-## 8. Population profiles and the sampler (`ARC-S30-d`)
+## 8. Population profiles and the sampler (`ARC-123`)
 
 ### 8.1 What a profile is
 
@@ -880,7 +889,7 @@ target by less than one person within each parent group. For N = 1,000 that is w
 marginal for unconditioned attributes. Conditionals are within 2 pp for any group of at least 50 people
 (AC-S30-5).
 
-### 8.6 One implementation, two entry points (`DEP-S30-b`)
+### 8.6 One implementation, two entry points (`DEP-67`)
 
 - **At genesis**, `attributes`'s `resolve` (seam item 4) runs the sampler and hands each owner its typed
   values for seeding.
@@ -987,7 +996,7 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
   state. It is MVP-1, because MVP-0's controllers can already speak the phrase.
 - **The world records no knowledge state.** Who knows what about whom is cognition's.
 
-### 9.6 The worked example: public-notice subscriptions (S31 interface, `ARC-S30-e`)
+### 9.6 The worked example: public-notice subscriptions (S31 interface, `ARC-124`)
 
 This is the attribute a System, not cognition, reads (§1.2 item 3). S31 owns the System. S30 owns the
 schema, the defaults and the reading path. The interface S31 consumes:
@@ -1104,11 +1113,11 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial criteria | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S30-a** specs and records | `CORE_CONCEPTS.md` §4 (new §4.5 "Attributes", §15); `MODULE_SPEC.md` §§2, 3, 4.1 (the `attributes:` section, `configure/attributes.yaml`, data directories); `DECISIONS.md` (`ARC-S30-a…f`, `DEP-S30-a…c`, the dated amendment to `ARC-91` item 3); `overall.md` S30 entry | step approval | documents agree with each other (the doc checks pass; a review against §§4–11) | none (docs only) | Opus |
+| **S30-a** specs and records | `CORE_CONCEPTS.md` §4 (new §4.5 "Attributes", §15); `MODULE_SPEC.md` §§2, 3, 4.1 (the `attributes:` section, `configure/attributes.yaml`, data directories); `DECISIONS.md` (`ARC-120…f`, `DEP-66…c`, the dated amendment to `ARC-91` item 3); `overall.md` S30 entry | step approval | documents agree with each other (the doc checks pass; a review against §§4–11) | none (docs only) | Opus |
 | **S30-b** authoring seam | `authoring/`: data directories, context-seeded decode, owner `resolve`; `worldpack/` loader wiring; no pack uses it except a test fixture pack | S30-a | a fixture pack owning a data directory and a configuration loads; a person-file value is refused at its own line against a data-declared schema | X-S30-9 every reference world byte-identical; an unknown data directory refused naming known ones; a seeded fact from another vocabulary still refused (`ARC-31` item 3) | Opus |
 | **S30-c** `attributes` pack and model crate | `authoring/attributes/` (catalogue, kinds, values, handles, `AttributeOwner`, renderer, filter); `systems/attributes/` (section, `traits`, facts, proposals, disclosure, derived age); `mineworld attributes catalogue/show/check`; a minimal test catalogue | S30-b | `mineworld server` on a fixture world: Alice's own observation lists her attributes, Bob's lists Alice's perceivable ones only; a save/restart keeps them; a proposal changes an `evolving` trait with a cited cause | X-S30-1…4, X-S30-7, X-S30-8, X-S30-10, X-S30-11 | Opus (design) → Haiku (implementation from a commit plan), Opus review |
 | **S30-d** profiles and sampler | sampler in the model crate (integer weights, masks, adjustments, normal table, largest remainder, lock, roles); `configure/attributes.yaml`; `mineworld attributes resolve/lock`; synthetic-N report | S30-c | `resolve --json` on a fixture world prints C-1…C-7; a 1,000-person synthetic run matches within AC-S30-5 | X-S30-5, X-S30-6, X-S30-12…14; X-24/X-25 over the output | Opus |
-| **S30-e** catalogue v1 and cited profiles | `entities/person-attributes` (≈ 200 attributes, six groups, phrases, `see_also`); `entities/populations-us` (San Diego County v3 from A-10 with each figure re-read or kept `verify`; lakeside); `DEP-S30-c` sources | S30-c (format); S30-d (profile format) | `attributes check` on both packs is clean except listed `verify` marks; the San Diego profile reproduces A-10's marginals | X-S30-15 a profile figure without a source refused; X-S30-16 two catalogue entries sharing an id refused | Haiku for catalogue entry from S30-e's table; Opus for sources |
+| **S30-e** catalogue v1 and cited profiles | `entities/person-attributes` (≈ 200 attributes, six groups, phrases, `see_also`); `entities/populations-us` (San Diego County v3 from A-10 with each figure re-read or kept `verify`; lakeside); `DEP-68` sources | S30-c (format); S30-d (profile format) | `attributes check` on both packs is clean except listed `verify` marks; the San Diego profile reproduces A-10's marginals | X-S30-15 a profile figure without a source refused; X-S30-16 two catalogue entries sharing an id refused | Haiku for catalogue entry from S30-e's table; Opus for sources |
 | **S30-f** consumers | cognition (`mineworld_cognition` attribute renderer, persona `Attributes` part, perceived-person phrases, budgets, golden tests mirroring the Rust renderer); SDK typed reader for decision models; MCP `description` and `me.attributes` (S27-d's or a successor's surface); 2D and 3D inspect panels | S30-c; S27-d merged (MCP); P6b merged (persona block) | one scenario: an agent, an LM-free controller and both clients see the same phrases for Alice; Bob's private attributes absent everywhere | X-S30-4 across all four surfaces; X-S30-17 the prompt stays within its byte budget with 200 attributes | Haiku (Python, clients) from a commit plan; Opus review |
 | **S30-g** reference worlds and the S26 switch | `attributes` and `person-attributes` and a profile in `social-cafe`, `market-town`, `lakeside` (not `bodies-yard`); `attributes.lock.yaml` with S26's ruled values; one re-baseline per world; S26 casting reads `resolve --json`; interim Python sampler removed | S30-d, S30-e; S26-cast merged (its ruled briefs become lock entries) | `mineworld attributes resolve social-cafe` equals the briefs' ruled values; the casting page's distribution table regenerates from S30 output | AC-S30-13; X-S26src-13 (ruled survive); only the expected baseline columns move | Haiku from a commit plan; Opus review |
 | S30-h (MVP-1) MatrAIx import pack | `mineworld attributes import-matraix`; `entities/matraix-persona` from a pinned commit, MIT attribution, 50 dims excluded | S30-e | the pack loads beside `core`, and `see_also` alignments resolve | an excluded dimension present fails the check | Haiku |
@@ -1237,19 +1246,19 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
   `stable` fact is S30-i's (MVP-1).
 - S31: §9.6 N-1…N-6.
 
-### 15.5 `docs/DECISIONS.md` (placeholders; the primary assigns ids)
+### 15.5 `docs/DECISIONS.md` (ids assigned 2026-10-15; entries written by S30-a)
 
-| Placeholder | Record |
+| Id | Record |
 | --- | --- |
-| `ARC-S30-a` | attributes are declared data with one owner each; `attributes` owns plain traits; views, not copies (§4) |
-| `ARC-S30-b` | the authoring seam: data directories, context-seeded decode, owner resolve (§4.3) |
-| `ARC-S30-c` | the attribute model: kinds, typed values, handles, visibility, mutability, rendering (§5) |
-| `ARC-S30-d` | population profiles and the deterministic stratified sampler; population seed ≠ run seed; lock file (§8) |
-| `ARC-S30-e` | the owner interface, with S31's subscriptions as its first user (§9.6) |
-| `ARC-S30-f` | dated amendment to `ARC-91` item 3: apparent descriptors are perceivable attributes; `look` stays opaque (§4.4) |
-| `DEP-S30-a` | MatrAIx: taxonomy adapted, an optional import pack (MIT, 50 dimensions excluded), formula as inspiration, DAG parameters and coreset declined (§6.4) |
-| `DEP-S30-b` | the sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler declined (§8.6) |
-| `DEP-S30-c` | population data sources: ACS (public domain), NHANES (public domain), Monk Skin Tone (CC BY 4.0, attribution in the pack) (§8.2) |
+| `ARC-120` | attributes are declared data with one owner each; `attributes` owns plain traits; views, not copies (§4) |
+| `ARC-121` | the authoring seam: data directories, context-seeded decode, owner resolve (§4.3) |
+| `ARC-122` | the attribute model: kinds, typed values, handles, visibility, mutability, rendering (§5) |
+| `ARC-123` | population profiles and the deterministic stratified sampler; population seed ≠ run seed; lock file (§8) |
+| `ARC-124` | the owner interface, with S31's subscriptions as its first user (§9.6) |
+| `ARC-125` | dated amendment to `ARC-91` item 3: apparent descriptors are perceivable attributes; `look` stays opaque (§4.4) |
+| `DEP-66` | MatrAIx: taxonomy adapted, an optional import pack (MIT, 50 dimensions excluded), formula as inspiration, DAG parameters and coreset declined (§6.4) |
+| `DEP-67` | the sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler declined (§8.6) |
+| `DEP-68` | population data sources: ACS (public domain), NHANES (public domain), Monk Skin Tone (CC BY 4.0, attribution in the pack) (§8.2) |
 
 ### 15.6 `overall.md`
 
@@ -1259,13 +1268,13 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 
 ---
 
-## 16. Questions for the operator
+## 16. Questions for the operator (each with a recommendation; all ruled 2026-10-15)
 
 Each question has a recommendation. They are limited to what the rules do not settle.
 
 | # | Question | Recommendation |
 | --- | --- | --- |
-| Q-S30-1 | `ARC-91` item 3 says apparent age, stature, build, skin and hair are not world facts. Should they become perceivable attributes owned by `attributes`, so that agents and LM controllers are told what a human sees (AC-16), while `look` stays the only key a renderer binds? | **Yes**, as a dated amendment (`ARC-S30-f`) |
+| Q-S30-1 | `ARC-91` item 3 says apparent age, stature, build, skin and hair are not world facts. Should they become perceivable attributes owned by `attributes`, so that agents and LM controllers are told what a human sees (AC-16), while `look` stays the only key a renderer binds? | **Yes**, as a dated amendment (`ARC-125`) |
 | Q-S30-2 | Population profiles currently live in the 3D Presentation Pack. Should they move to a data pack the world requires (`entities/populations-us`), so that the world, cognition and casting read one source? | **Yes**. A population is world content, and casting reads the world's resolution |
 | Q-S30-3 | Placement: S30-a…g in MVP-0 and S30-h…k in MVP-1? | **Yes**. The fallback is the minimal MVP-0 subset of §13.2 |
 | Q-S30-4 | `persona` (P6a): merge it as frozen and catalogue its fields as `persona`-owned text attributes now, reviewing the overlap of `persona.traits` with the typed Psychology group after S30-f? Or fold `persona` into `attributes` before P6a merges? | **Merge P6a as frozen; review after S30-f** (`CLAUDE.md` §4 rule 11) |
@@ -1273,3 +1282,18 @@ Each question has a recommendation. They are limited to what the rules do not se
 | Q-S30-6 | Wealth: should S31 seed opening balances from a sampled `wealth-band` attribute (`economy` owns it, sampled through §4.2 item 4), or keep balances authored in economy's own section? | **Sample through the owner interface**, so a world's wealth distribution is data like every other distribution. S31 decides the bands |
 | Q-S30-7 | Built-in catalogue v1 size: about 200 MineWorld-authored attributes now, with MatrAIx's ≈ 1,240 as an optional MVP-1 import? | **Yes** |
 | Q-S30-8 | Sensitive attributes (ancestry, religion, sexual orientation, disability, income): built in as `private` by default, never in others' views or the MCP description, sampled only from cited profiles? | **Yes**. Worlds may narrow them further but never widen them |
+
+### 16.1 Rulings, 2026-10-15
+
+| # | Ruling |
+| --- | --- |
+| Q-S30-1 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Yes: the `ARC-125` amendment. Appearance descriptors become perceivable attributes; `look` stays the renderer key |
+| Q-S30-2 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Yes: populations move to a data pack the world requires |
+| Q-S30-3 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Yes: S30-a…g are MVP-0; S30-h…k are MVP-1 |
+| Q-S30-4 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Merge P6a as frozen; review the overlap after S30-f |
+| Q-S30-5 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Yes for figures marked as data; no for authored conventions |
+| Q-S30-6 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Sample wealth through the owner interface: `economy` owns `wealth-band`; S31 decides the bands |
+| Q-S30-7 | **Ruled 2026-10-15 (operator answered directly in the primary session).** About 200 built-in attributes now; the MatrAIx import is an optional MVP-1 pack |
+| Q-S30-8 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Sensitive attributes are `private` by default; worlds may narrow, never widen |
+
+The questions table above is kept as asked. Where §§4–13 state a recommendation that one of these settles, it now reads as a ruling.
