@@ -41,10 +41,12 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; each real-b
                     Linux. Gate 1 (AP6-14): operator only, NOT RUN by agents
 BUILD ENV           export PATH="$HOME/.cargo/bin:$PATH"; export CARGO_TARGET_DIR=/tmp/impl-s10-p6b-target
                     (`mineworld` binary: $CARGO_TARGET_DIR/debug/mineworld)
-CURRENT CHECKPOINT  C0 … C9 committed (ledger §15). D-P6b-3 ruled option (a) and applied (`seat_overrides`).
-                    C10 committed in the same step (decision log, counters, replay). C11–C15 are the next
-                    commits. Branch: mvp0/pr-s10-p6b, based on origin/main @ 9aa185b, which must be merged
-                    with origin/main @ f772a18 before the push
-NEXT ACTIONS        resume at C11 with the §9.0 procedure; then C12–C15; then merge origin/main, push, open the PR,
-                    and get CI green on the exact head
+CURRENT CHECKPOINT  C0 … C11 committed (ledger §15). D-P6b-3 ruled option (a) and applied (`seat_overrides`).
+                    C10: decision log, counters, replay. C11: the seat runner (`controller/seat.py`,
+                    `triggers.py`, `resume_file.py`), 10 tests green, M-P6-10 and M-P6-7 seen red and reverted.
+                    D-P6b-15 … D-P6b-20 recorded in §15. C12–C15 are the next commits. Branch: mvp0/pr-s10-p6b,
+                    based on origin/main @ 9aa185b, which must be merged with origin/main @ f772a18 before the push
+NEXT ACTIONS        resume at C12 with the §9.0 procedure (`__main__.py`, `examples/local.toml`, README,
+                    `tests/realserver.py`, `tests/test_controller_server.py`; the four mutations M-P6-6 etc. as
+                    listed); then C13–C15; then merge origin/main, push, open the PR, and get CI green on the exact head
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

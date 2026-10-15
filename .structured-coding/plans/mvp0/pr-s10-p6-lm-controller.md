@@ -1606,7 +1606,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C8 | — | [x] | [x] | [x] |
 | C9 | — | [x] | [x] | [x] |
 | C10 | — | [x] | [x] | [x] |
-| C11 | — | [ ] | [ ] | [ ] |
+| C11 | this commit (`git log --oneline -1`) | [x] | [x] | [x] |
 | C12 | — | [ ] | [ ] | [ ] |
 | C13 | — | [ ] | [ ] | [ ] |
 | C14 | — | [ ] | [ ] | [ ] |
@@ -1651,7 +1651,10 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Mutations
 
-(none run yet)
+- C7: M-P6-4 (`retry_after_s` ignored), red then reverted (Evidence, C7).
+- C6: M-P6-1, M-P6-9, red then reverted (Evidence, C6). C9: M-P6-2, M-P6-3, M-P6-5 (Evidence, C9).
+- C11: M-P6-10 and M-P6-7, red then reverted (Evidence, C11).
+- C12: M-P6-6 (planned, Evidence C12). C13: M-P6-8 (planned, Evidence C13).
 
 ### Deviations and findings
 
@@ -1795,6 +1798,32 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   and requests, which do not depend on it). **D-P6b-14** (AP6-8's resume-secret half: C10 writes no resume file, so the
   planted-secret scan is deferred to C11, the first commit that writes one; C10 plants the fake key in the environment
   and scans both written files).
+- **C11 (2026-10-14).** Files: `controller/resume_file.py` (`read`, `write` with `<path>.tmp`, `0o600` on POSIX,
+  `os.replace`, and `delete`; a malformed file reads as `None`), `controller/triggers.py` (`detect` for T1 and T3 over a
+  batch the store has absorbed, `Pending` with one waiting trigger, `body_of`, `person_of`), `controller/seat.py`
+  (`SeatRunner`: the join with retries, the store opened after the first welcome, the ingest, watch and consult tasks,
+  the handback by `leave` only when the current welcome said `hosted`, the `handback_s` wait, the `seat_occupied` and
+  `taken_over` retry, the resume file written on every welcome and on every connection number that grows),
+  `controller/__init__.py` (exports `SeatRunner`), `tests/scripted_seat.py` (a copy of P3b's fake server helper, origin
+  recorded in its docstring, D-P6b-19), `tests/test_controller_seat.py` (10 tests: T1 consult; absorb before detect;
+  a trigger during a consult runs once after it; a hosted fallback hands back and rejoins after the handback period; a
+  non-hosted fallback stands and sends no `leave`; the resume file follows the connection number; a leave deletes it and
+  nothing writes it back while away; `seat_occupied` retried at `seat_retry_s`; the secret-leak scan over every written
+  artefact and `repr`; T3 once per cooldown via `detect`). Result: `uv run --locked pytest
+  cognition/lm-controller/tests/test_controller_seat.py` 10 passed in 0.23 s (PASS, first run after the fixes listed
+  below). `test_controller_log.py` 5 passed (PASS; re-run because `controller/__init__.py` now imports the seat module).
+  Static: `uv run --locked ruff check cognition/lm-controller` PASS; `ruff format --check` PASS (120 files);
+  `uv run --locked pyright cognition/lm-controller/src cognition/lm-controller/tests` 0 errors.
+  Mutations (each planted, the named test seen red, reverted; no marker left):
+  - **M-P6-10** (`_ingest` absorbs after the trigger loop): `test_absorb_runs_to_its_end_before_triggers_are_detected`
+    red (1 failed, 9 passed); reverted.
+  - **M-P6-7** (`_watch` never rewrites the resume file on a connection change):
+    `test_the_resume_file_is_rewritten_when_the_connection_number_grows` red (1 failed, 9 passed); reverted.
+  Review: the runner writes only its own store, decision log and resume file; no path writes world state; it imports
+  from `backend.model` only the `CompletionRequest` type and receives the gateway from the router. Only `leave` ends the
+  hosted seat (never on the stand path). A killed process sending no `leave` is C12's test (c), not C11's.
+  Fixes made during validation (no test weakened): the test helpers' imports (`Budget` from `gateway`, `CognitionConfig`
+  needs a `recording` table), and pyright's private-import error on `seat_module.absorb`.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
@@ -1818,4 +1847,25 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 - **D-P6b-3 amendment (applied 2026-10-14).** The ruled option (a) is applied in this document: §2.1 item 7, §5.13
   (the sample file, the precedence paragraph) and C3 step 1 read `[seat_overrides.<key>]`; `seats = [...]` is unchanged.
   The C3 record above keeps the stop as it was. The fix of D-P6b-2 is in place in `cognition/installed/src/lib.rs`.
+- **D-P6b-15 (C11, bounded).** The store and the resume file are not under `store/<instance>/`. The store's identity
+  needs the world instance and the observer, known only from the first welcome, and the resume file is read before the
+  join, so both paths are `<store_dir>/<seat>.sqlite` and `<store_dir>/<seat>.resume`. Consequence: the first join of a
+  process presents no cursor (`_StoreCursor` answers `None` until the store is open), so the server backfills from the
+  world's first fact; ingest must then take redelivered facts without changing the store. That is relied on and not yet
+  shown: C12's test (f) (a null-cursor rejoin, structural dump equal) is the check.
+- **D-P6b-16 (C11, bounded).** `SeatRunner`'s constructor takes `config, seat, *, router, connector, invite, nickname,
+  store_dir, clock, sleep`: the design's `assignment_entry` is the `LmSeat`, and the connector and the invite are explicit so
+  tests can fake the server. `__main__` (C12) reads the invite from its environment variable and builds the connector.
+- **D-P6b-17 (C11, interpretation).** §9 C11 step 3 says the first join is retried "with the P3b policy's delays up to
+  `seat_retry_s`". Implemented: a transport failure on the first join is retried with delays of 1 s, doubled, capped at
+  `seat_retry_s`, without a count limit. A `SeatLost` the SDK raises after its own rejoin policy (`gave_up`) ends `run()`
+  and is not retried by the runner.
+- **D-P6b-18 (C11, scope).** §5.12 lists `PassReport` summaries in the decision log. C11 writes none: `absorb`'s report is
+  not logged. The passes are persisted by FG-b in the store's `retention_passes` table, so they are readable there. Left
+  for the operator to rule if the log must carry them.
+- **D-P6b-19 (C11).** (a) "hosted" is read from the current connection's welcome: after a rejoin the welcome decides, so a
+  seat re-taken by `held` stands rather than leaves. (b) `tests/scripted_seat.py` is a new file in C11, not in the listed
+  Files: §9 C11 step 4 directs a copy of P3b's fake, and the copy's origin is recorded in its docstring.
+- **D-P6b-20 (process slip, C11).** One heredoc (`cat > /tmp/... <<EOF`) was run by mistake, against the NEVER list, to
+  create a scratch file; it wrote nothing in the worktree and the file was removed. Recorded, not repeated.
 - (planning findings are §3.2 and §0.1)

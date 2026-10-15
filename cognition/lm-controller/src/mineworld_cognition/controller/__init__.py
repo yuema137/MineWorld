@@ -6,6 +6,7 @@ are added as each part lands (C3 to C11).
 
 from mineworld_cognition.controller.memory_view import memory_view
 from mineworld_cognition.controller.persona import Persona
+from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.situation import Offer, Person, Situation
 
-__all__ = ["Offer", "Person", "Persona", "Situation", "memory_view"]
+__all__ = ["Offer", "Person", "Persona", "SeatRunner", "Situation", "memory_view"]
