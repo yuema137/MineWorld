@@ -143,13 +143,15 @@ func _run() -> void:
 			await _interact.steps(String(app.options.get("steps", "")))
 		"panels":
 			await _interact.panels()
-		"settings", "display":
+		"settings", "display", "controls":
 			var settings: Node = SettingsScenario.new()
 			settings.drive = self
 			settings.app = app
 			add_child(settings)
 			if scenario == "settings":
 				await settings.run()
+			elif scenario == "controls":
+				await settings.controls()
 			else:
 				await settings.display()
 		_:
