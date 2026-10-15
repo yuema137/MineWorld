@@ -51,7 +51,11 @@ This file is a continuation aid. The authority is `pr-s26b1-pipeline.md` (DESIGN
   (design §14.1). Run r1 then exited 1 at `fit_bind` (F-B1-B10-2: `vitruvian.glb`'s Body has no vertices at the head top,
   z 1.092; `body_g5` has 16). Stopped again, awaiting the primary's decision (options and recommendation in the ledger).
   No push, no PR, no CI. Opus review of B3, B7 and B10 is required before ready.
-- **Next action:** none until the primary decides F-B1-B10-2.
+- **Next action (superseded):** none until the primary decides F-B1-B10-2.
+- **State after F-B1-B10-3 (2026-10-14, Opus session, sole writer of this worktree):** cause found (stage 6's transform
+  handed to `fit_bind` at full precision; D+ typed the 4-decimal print). Fix `c588946`; AB1-11 fix in the same commit. Gate
+  re-run once (`r3`): AB1-7, -8, -9, -11, -12, -13 and AC-S26-3 PASS; AB1-10 FAIL on G-6(b) only, with a measured finding
+  for the primary (design §15). Next: B11 close-out, push, PR, CI on the exact head; READY FOR OPERATOR REVIEW, DO NOT MERGE.
 - **Load rule (coordinator R-LOAD-1, 2026-10-14):** no workspace cargo test locally; the full gate is CI on the exact
   head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)"; parity and perf runs one at a time with the
   load average recorded; no interim reports; report once at READY or at a real blocker.

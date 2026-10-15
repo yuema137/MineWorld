@@ -1195,6 +1195,8 @@ or `tools/asset_generation/` changed.
 | B8 | this commit | [x] steps 1–5: `mwcast/blender.py` (find, pin check, command), `mwcast/pipeline.py` (`plan`, `stage_params`, `Job`, `run` with the SHA-256 stop and the run manifest), `mwcast/compare.py` (§5.7 rows), `cli.py` (`run`, `compare`), `standard.py` (PARITY_* literals), `tests/test_compare.py` (7), `tests/test_pipeline.py` (+7) | [x] 65 pytest passed; ruff check and format clean; pyright 0 errors; mutation (`PARITY_JOINT_M = 0.002`) → the 1.1 mm test red, reverted green; the accepted asset compares equal to itself | [x] subprocess only with argument lists; no stage reads an environment variable; `UrllibTransport` untouched. Deviations: `check_pin` returns whether the named version was used (not `None`); `compare --json` not added (the rows print as text). Procedural: one empty `cat >>` heredoc was run by mistake against `tests/test_pipeline.py` (it wrote nothing; the file was then edited with Edit only; recorded, not repeated) |
 | B9 | this commit | [x] steps 1–6: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/{fit.yaml, generation_log.yaml}`; `tools/character_pipeline/godot/{character.gltf.import, inspect_import.gd}`; `tools/character_pipeline/templates/MESHY_CAST_BATCH.txt`; `tests/test_records.py` (+2 Vera tests, +1 check-characters test) | [x] 68 pytest passed; ruff check and format clean; pyright 0 errors; `cast.py check-characters` → `vera-lindgren: records only (no character.yaml); overrides ['flecks.enabled']`, 0 failing. The Godot files are not run yet (B10 step 6) | [x] trace table below; no `task.json` URL copied; `charmorph_front_y_at_hips` kept at −0.045356 (see F-B1-B9-1) |
 | B10 | RUN, PARITY FAIL (AB1-8): weights 0.0932 max, 115 vertices over 0.005; stopped for the primary (F-B1-B10-3). Rulings F-B1-B10-1 and -2 applied (§14.1). Steps 2–10 run once; B11 and the PR not started | [x] steps 1–2, 4, 7–9 run; step 3 final parity run, localization in progress; step 5 gate run; step 6 Godot run (decision not taken) | AB1-7 PASS (95,000 / 47,142 / 44,143 + 2,999 / 0 non-manifold). AB1-8 FAIL (weights only; triangles, vertices, joints 3.0e-5 m, positions and UVs exact). AB1-9 PASS (4,194,304 of 4,194,304 texels within 2/255). AB1-10: G-1…G-5, G-14 PASS; G-6 FAIL (the two spine joints, the same as the accepted asset, F-B1-B3-1). AB1-11 INCONCLUSIVE (Godot: albedo `res://base_color.png`). AB1-12 PASS (LeftArm 9.3 mm FAILS). AB1-13 PASS (alpha IoU 1.00000, RGB difference 0). AC-S26-3 determinism PASS (r2 = r1, all diffs 0) | [x] no bound changed; the rulings are recorded in §14.1; the B10 results are recorded below |
+| B10-fix | `c588946` | [x] F-B1-B10-3 ruling (a): `GAMEREADY_HANDOFF_DECIMALS = 4` for `fit_bind`; AB1-11 ruling: the separate PNG named `<id>_base_color.png`, `check_stored_once`; PIPELINE §2.4, §9 | [x] 71 pytest passed; ruff, format, pyright clean; mutation (decimals 5) red then green; bisection run `S/f3` against `i23d/rig/` weights 0 | [x] cause found, not a bound change; the port stays statement-for-statement apart from the hand-off precision, which is now a recorded method constant |
+| B10 (re-run) | this commit | [x] steps 6 (PIPELINE §9 §14 outcome) and 10 (`rederive_report.json`) | [x] Gate re-run once as `r3` (with `r4`, `x3`, the Godot and mask checks): AB1-7, AB1-8, AB1-9, AB1-11, AB1-12, AB1-13 and AC-S26-3 PASS; AB1-10 FAIL on G-6(b) only (F-B1-B3-1, finding below, ruling the primary's) | [x] no bound changed after a run; every report value is backed by a log under `S/logs/` |
 | B11 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1393,6 +1395,57 @@ or `tools/asset_generation/` changed.
   `..._named_after_the_character_holds_the_stored_once_rule`. Trial export on `S/f3`: `"uri":"vera-lindgren_base_color.png"`,
   SHA-256 `8117f2b7…` identical to r1's `base_color.png`. Targeted validation: `pytest tools/character_pipeline/tests` 71
   passed (0.63 s); ruff check and format clean; pyright 0 errors. Load average before the first Blender run 2.92 / 6.00 / 9.17.
+- **B10 Gate re-run once after `c588946` (2026-10-14; Blender 5.2.2 LTS, Metal; Godot 4.7.2; one Blender job at a time,
+  R-LOAD-1; load average 1.55 / 3.50 / 7.16 at the start of `r3`, 8.36 / 5.27 / 7.23 after `r4`, the rise from other
+  processes; all eight runs took about 3 minutes of wall time).** Logs in `S/logs/` (`*_r3*`, `r4.log`, `x3.log`).
+  - Step 2 `r3`: exit 0; `fit_bind` printed `2550 verts of backpack` and `33974 vertex weights limited` (D+ §8.2: 2,550).
+  - Step 3: `compare r3 meshy_d.glb` PASS on every row: triangles 95000 = 95000, vertices 65176 = 65176, joint names 52 =
+    52, joints 1e-6 m (`RightToeBase`), positions 0, UVs 0, **weights 0.0000**; `weight_diff.py`: 0 pairs over 0.005. Against
+    `i23d/rig7/meshy_char.glb`: PASS (byte-identical to `meshy_d.glb`, `cmp`). Stage by stage (`S/stage-check-r3/`):
+    `fit_bind` against `i23d/rig/meshy_char.glb` PASS, weights 0.0000; `weights_fingers` against `i23d/rig4/meshy_char.glb`
+    PASS, weights 0.0000. **AB1-8 PASS.**
+  - Step 4: 4,194,304 of 4,194,304 texels within 2/255 (1.00000). **AB1-9 PASS.** The re-derived PNG is byte-identical
+    to `meshy_d_base_color.png` (SHA-256 `8117f2b7…`).
+  - Step 5 (`gate_r3.txt`): G-1…G-5 and G-14 PASS (G-4 sole-to-eye 1.65500 m against 1.65497 m; G-5 rolls 2.10e-5 rad);
+    **G-6 FAIL**, `Spine` −63.5 mm and `Spine2` −46.9 mm, as the accepted asset (F-B1-B3-1). **AB1-10 FAIL on G-6(b) only.**
+  - Step 6 (`S/godot-check-r3/`, `godot_inspect_r3.log`): `surfaces=1`, `material=MW_Cast`,
+    `albedo=res://vera-lindgren_base_color.png`, `bones=52 first=["Hips", "LeftUpperLeg", "LeftLowerLeg"]`, base-colour files
+    `res://vera-lindgren_base_color.png` and its `.import` only. **GLTF_SEPARATE is the stored-once format; AB1-11 PASS.**
+    (The first inspect call omitted `-- res://vera-lindgren.gltf` and printed `load failed`; re-run with the argument.)
+  - Step 7 (`mask_r3_compare.txt`): alpha IoU 1.00000, RGB mean absolute difference 0.0000 / 255. **AB1-13 PASS.**
+  - Step 8 (`x3`, `run --from fit_bind` on a copy of `r3`'s stage 6): compare FAIL naming `mixamorig:LeftArm` at 9.339 mm.
+    **AB1-12 PASS.**
+  - Step 9 (`r4` from stage 6 against `r3`): every row 0; the two GLBs are byte-identical. **AC-S26-3 PASS.**
+  - Step 10: `rederive_report.json` written with these values.
+- **F-B1-B3-1 / AB1-10, G-6(b) on the spine: finding for the primary (ruling stays with the primary; G-6 unchanged).**
+  Measured by `S/tools/g6_spine.py` (mwcast's reader; `S/logs/g6_spine_meshy_d.txt`, identical on `r3`). G-6(b) takes the
+  vertices in a ±10 mm slab at the joint's height **within 150 mm horizontally** and asks that the joint lie inside their
+  axis-aligned x/z extent. On this rig the two failing joints are inside the body; the neighbourhood does not reach the back:
+  | Joint | height (Winter frame) | G-6 margins left / right / back / front (mm) | nearest slab vertex behind | mid-line shell back … front, joint position |
+  | --- | --- | --- | --- | --- |
+  | `Spine` | 1.108 m above the sole = 0.627 H | 108.8 / 90.9 / **−63.5** / 125.9 | 162.8 mm (x 0.147, z −0.124) | 411 mm deep; joint 285 mm in front of the back, 126 mm behind the front |
+  | `Spine2` | 1.352 m = 0.765 H | 135.1 / 141.8 / **−46.9** / 118.8 | 160.6 mm (x 0.121, z −0.170) | 307 mm deep; joint 219 mm in front of the back, 88.5 mm behind the front |
+  | `Spine1` (passes) | 1.222 m = 0.692 H | 148.2 / 149.2 / 83.7 / 123.1 | 124.0 mm | 382 mm deep; 266 / 116 mm |
+  | `Hips` (passes) | 1.013 m = 0.574 H | 127.3 / 127.3 / 148.8 / 110.1 | 145.1 mm | 263 mm deep; 165 / 98 mm |
+  The generated mesh is one fused shell: the back and the backpack are a single outer surface, so at the mid-line there is
+  no vertex between the pack's outer face (z −0.34 m) and the hoodie front (z +0.06…+0.07 m). Where the decimated mesh has
+  no side vertex within 150 mm behind the joint (`Spine`, `Spine2`), every neighbour is in front of it and the extent test
+  reads "outside" although the joint is 126 mm and 88.5 mm behind the front surface of a closed 411 mm / 307 mm section.
+  Sensitivity: with the radius at 250 mm both pass (margins 125.9 and 118.8 mm); with the slab at ±20 mm and the radius at
+  150 mm they still fail (−63.4 and −26.0 mm), so the radius, not the slab, decides it. Joint heights against Winter's trunk
+  landmarks (Fig. 4.1 values as commonly cited: greater trochanter 0.530 H, nipple 0.720 H, shoulder 0.818 H, chin
+  0.870 H; not re-read from the book, the B1 status of Winter stays INCONCLUSIVE): `Hips` 0.574 H above the trochanter,
+  `Spine2` 0.765 H between the nipple line and the shoulder, `Neck` 0.845 H between the shoulder and the chin; no landmark
+  places a spine joint outside the trunk. **Reading:** the two failures are a property of how G-6(b) measures a fused
+  body-plus-pack shell (a 150 mm neighbourhood is not an inside test when the nearest surface behind the joint is more than
+  150 mm away), not a misplaced joint; the bound is wrong for this shape, not the rig. Options for the ruling: (i) an inside
+  test that does not clip, e.g. the joint between the unclipped mid-line front and back of its slab; (ii) a larger
+  `NEIGHBOUR_M` (≥ 250 mm measured here); (iii) keep G-6(b) and accept these two joints for Vera by record. Not decided here.
+- **F-B1-B10-4 (minor, recorded, not fixed; for the primary):** `gameready.py:191` records `dec.ratio` after
+  `modifier_apply` removed the modifier, a dangling RNA read inherited from `gameready_mesh.py:93`'s print. The recorded
+  `decimate_ratio` is garbage and differs between runs (`r1` 2.65e20, `r3` 0.0); nothing reads it and the geometry is
+  identical (AB1-7, AC-S26-3). A fix (record `TARGET / tris`) is a `blender/` change and needs a Gate re-run, so it is left to
+  a ruling rather than made after the one allowed re-run.
 - **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
   to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
   used; the B8 empty append wrote nothing.

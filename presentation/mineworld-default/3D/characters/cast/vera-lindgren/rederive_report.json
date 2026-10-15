@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "character": "vera-lindgren",
+  "date": "2026-10-14",
+  "claim": "stages 6-10 of tools/character_pipeline re-derive the accepted protagonist (meshy_d.glb) from her recorded inputs within PIPELINE.md section 7",
+  "head": "c588946eeb9a938ccbc101c14c1f96517becabb4",
+  "run_id": "r3",
+  "blender": "Blender 5.2.2 LTS",
+  "godot": "4.7.2.stable.official",
+  "bake_device": "METAL",
+  "spending": {"meshy_credits": 0, "openai_usd": 0},
+  "inputs": {
+    "download_sha256": "3de801cdb7dcf34d21ee45758982319096bd62f3a111ab354c46fb2eeb586ef7",
+    "fit_sha256": "1f0f6427b589a7168ec011871039a8a53d44dc4e3e606c229c286efabb50486e",
+    "accepted_glb_sha256": "4bc1280fd5134d15c849c216175e2fc0f56f935894dc8d4f8345460829178d95",
+    "accepted_base_color_sha256": "8117f2b7628b2ef5b34e09ea0ee316b34cc148ca268bfaa73e9fe03b78ea20c1"
+  },
+  "gameready": {
+    "criterion": "AB1-7",
+    "triangles": 95000,
+    "vertices": 47142,
+    "parts": [44143, 2999],
+    "non_manifold_edges": 0,
+    "verdict": "PASS"
+  },
+  "parity": {
+    "criterion": "AB1-8",
+    "candidate": "vera-lindgren.glb (r3)",
+    "accepted": "clients/3d-spike/assets/characters/meshy_d/meshy_d.glb",
+    "rows": [
+      {"row": "triangles", "value": "95000 vs 95000", "bound": "equal", "verdict": "PASS"},
+      {"row": "vertices", "value": "65176 vs 65176", "bound": "equal", "verdict": "PASS"},
+      {"row": "joint names", "value": "52 vs 52", "bound": "equal sets", "verdict": "PASS"},
+      {"row": "joint positions (m)", "value": 1e-06, "at": "mixamorig:RightToeBase", "bound": 0.001, "verdict": "PASS"},
+      {"row": "vertex positions (m)", "value": 0.0, "bound": 1e-05, "verdict": "PASS"},
+      {"row": "uv", "value": 0.0, "bound": 1e-06, "verdict": "PASS"},
+      {"row": "weights", "value": 0.0, "bound": 0.005, "verdict": "PASS"}
+    ],
+    "verdict": "PASS",
+    "stages": [
+      {"stage": "fit_bind", "against": "i23d/rig/meshy_char.glb", "joints_m": 1e-06, "weights": 0.0, "verdict": "PASS"},
+      {"stage": "weights_fingers", "against": "i23d/rig4/meshy_char.glb", "joints_m": 1e-06, "weights": 0.0, "verdict": "PASS"},
+      {"stage": "export", "against": "i23d/rig7/meshy_char.glb (byte-identical to meshy_d.glb)", "verdict": "PASS"}
+    ],
+    "fix": "F-B1-B10-3: fit_bind receives stage 6's scale and sole_raw at the 4 decimals D+ handed over (pipeline.GAMEREADY_HANDOFF_DECIMALS)"
+  },
+  "texture": {
+    "criterion": "AB1-9",
+    "texels_within_2_of_255": 4194304,
+    "texels": 4194304,
+    "share": 1.0,
+    "bound": 0.999,
+    "note": "the re-derived base-colour PNG is byte-identical to meshy_d_base_color.png (SHA-256 above)",
+    "verdict": "PASS"
+  },
+  "gates": {
+    "criterion": "AB1-10",
+    "G-1": "PASS",
+    "G-2": "PASS",
+    "G-3": "PASS",
+    "G-4": "PASS",
+    "G-5": "PASS",
+    "G-6": "FAIL",
+    "G-6_reasons": [
+      "mixamorig:Spine lies outside the body by 63.5 mm",
+      "mixamorig:Spine2 lies outside the body by 46.9 mm"
+    ],
+    "G-6_note": "the same as the operator-accepted asset (F-B1-B3-1); measurement finding in the PR design section 15; the ruling is the primary session's",
+    "G-14": "PASS",
+    "G-8…G-13": "by parity (AB1-8)",
+    "verdict": "FAIL (G-6(b) only)"
+  },
+  "stored_once": {
+    "criterion": "AB1-11",
+    "format": "GLTF_SEPARATE",
+    "godot_printed": [
+      "surfaces=1",
+      "material=MW_Cast",
+      "albedo=res://vera-lindgren_base_color.png",
+      "bones=52 first=[\"Hips\", \"LeftUpperLeg\", \"LeftLowerLeg\"]",
+      "base_color file: res://vera-lindgren_base_color.png",
+      "base_color file: res://vera-lindgren_base_color.png.import"
+    ],
+    "decision": "GLTF_SEPARATE is the stored-once format (PIPELINE.md section 9 rule holds)",
+    "verdict": "PASS"
+  },
+  "counterfactual": {
+    "criterion": "AB1-12",
+    "change": "fit.picks.l_shoulder [606, 228] -> [611, 228] in a scratch copy",
+    "compare": "FAIL",
+    "named": "mixamorig:LeftArm",
+    "drift_m": 0.009339,
+    "verdict": "PASS"
+  },
+  "mask": {
+    "criterion": "AB1-13",
+    "alpha_iou": 1.0,
+    "rgb_mean_abs_diff_255": 0.0,
+    "verdict": "PASS"
+  },
+  "determinism": {
+    "criterion": "AC-S26-3",
+    "runs": "r4 against r3, both from stage 6",
+    "maxima": {"joints_m": 0.0, "positions_m": 0.0, "uv": 0.0, "weights": 0.0},
+    "note": "the two exported GLBs are byte-identical",
+    "verdict": "PASS"
+  }
+}

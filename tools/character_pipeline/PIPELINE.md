@@ -283,7 +283,11 @@ with `base_color` in their name.
   `gltf/embedded_image_handling=3`) moves the texture's import policy out of a per-PNG `.import`, which touches Q-S26-5, so
   it is not chosen autonomously.
 
-**§14 (stored-once outcome):** decided in B10 and recorded in `rederive_report.json`.
+**§14 (stored-once outcome):** decided in B10 (run `r3`, 2026-10-14) and recorded in `rederive_report.json`.
+**GLTF_SEPARATE is the stored-once format.** Godot 4.7.2 printed `surfaces=1`, `material=MW_Cast`,
+`albedo=res://vera-lindgren_base_color.png`, `bones=52 first=["Hips", "LeftUpperLeg", "LeftLowerLeg"]`, and the only
+project files holding the base colour were `res://vera-lindgren_base_color.png` and its `.import`. (The first run, `r1`,
+before the export named the image's path, printed `albedo=res://base_color.png`.)
 
 ## 10. Scratch, and what is never committed
 
