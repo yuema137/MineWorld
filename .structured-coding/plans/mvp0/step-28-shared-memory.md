@@ -1,20 +1,23 @@
 # Step 28 — S28: shared, access-controlled, modular memory
 
-**Lifecycle:** `STEP DESIGN — DRAFT (2026-10-14)`. Step-level design only. It is not frozen, and nothing here
-authorizes implementation or a merge (`CLAUDE.md` §3.1). Freezing it needs the operator's rulings on §14 and an
-approved `STEP DESIGN FROZEN` header written by the primary session. Each PR in §11 then gets its own PR
-design, detailed to the commit and frozen on its own.
+**Lifecycle:** `STEP DESIGN — DRAFT (2026-10-14), rulings recorded`. Step-level design only. It is not
+frozen, and nothing here authorizes implementation or a merge (`CLAUDE.md` §3.1).
+- The operator ruled on every question of §14 on 2026-10-14. The rulings are recorded verbatim in §14.1, and
+  the proposals they settle are now written as rulings throughout.
+- The `STEP DESIGN FROZEN` header is written by the primary session itself, not by this session.
+- Each PR in §11 then gets its own PR design, detailed to the commit and frozen on its own.
 **Author:** the S28 planning session (Opus), 2026-10-14. Worktree
 `/Users/yuema137/mineworld-worktrees/design-s28`, branch `docs/s28-shared-memory`, from
 `origin/main @ f772a18` (#197). One writer.
-**Effort:** `mvp0` (proposed; QS28-1 decides the MVP-0 / MVP-1 split). **Parent:** [`overall.md`](overall.md).
+**Effort:** `mvp0`. Per QS28-1, S28-0 and S28-a … S28-f land in MVP-0, S28-g is MVP-0's nightly gate, and
+S28-h plus the `organization` example are MVP-1. **Parent:** [`overall.md`](overall.md).
 **Siblings it builds on or coordinates with:**
 [`step-17-cognition.md`](step-17-cognition.md) (S10: P4 memory, `AC-10`, the 6 000-byte context),
 [`../mvp1/step-24-decision-and-memory.md`](../mvp1/step-24-decision-and-memory.md) (forgetting layers, §8.3,
 §10), [`pr-s10-p4-memory.md`](pr-s10-p4-memory.md) (the store, `ARC-59`, `DEP-37`),
 [`pr-fg-b-retention-host.md`](pr-fg-b-retention-host.md) (retention host, schema v2),
 FG-b2 (in progress, no PR yet: the 20 MiB default bound, raise-only, and a size-triggered pass),
-[`pr-fg-c-lm-summarise.md`](pr-fg-c-lm-summarise.md) (#201), [`pr-fg-a-relationship-forgetting.md`](pr-fg-a-relationship-forgetting.md)
+[`pr-fg-c-lm-summarise.md`](pr-fg-c-lm-summarise.md) (#201, merged 2026-10-14), [`pr-fg-a-relationship-forgetting.md`](pr-fg-a-relationship-forgetting.md)
 (System-owned forgetting, untouched here), [`pr-sr-b-log-compression.md`](pr-sr-b-log-compression.md) (#203, the
 sealed world log), [`pr-s10-p6-lm-controller.md`](pr-s10-p6-lm-controller.md) (P6b, #207),
 [`step-25-creator-docs.md`](step-25-creator-docs.md) (the generated reference, 25a #200 / 25b).
@@ -22,9 +25,20 @@ sealed world log), [`pr-s10-p6-lm-controller.md`](pr-s10-p6-lm-controller.md) (P
 §§2 (INV-4, INV-6, INV-11, INV-13), 5.1–5.3, 11, 14, 15; `docs/ARCHITECTURE.md` §9.3; `docs/MODULE_SPEC.md` §5.2;
 `server/PROTOCOL.md` §§5.2, 5.8; `docs/DECISIONS.md` `ARC-25`, `ARC-27`, `ARC-43`, `ARC-57`, `ARC-58`, `ARC-59`,
 `ARC-86`, `ARC-87`, `ARC-89`, `DEP-37`.
-**Decision ids:** placeholders only — `ARC-S28-a` … `ARC-S28-d`, `DEP-S28-a` (§12). The next free real ids are
-`ARC-98` and `DEP-58`; the primary session assigns them.
-**PR labels:** placeholders `S28-0`, `S28-a` … `S28-h` (§11).
+**Decision ids:** assigned by the primary session on 2026-10-14. They replace the draft placeholders:
+
+| Draft placeholder | Assigned id |
+| --- | --- |
+| `ARC-S28-a` | `ARC-98` |
+| `ARC-S28-b` | `ARC-99` |
+| `ARC-S28-c` | `ARC-100` |
+| `ARC-S28-d` | `ARC-101` |
+| `DEP-S28-a` | `DEP-58` |
+
+The records are in §12, and S28-0 writes them into `docs/DECISIONS.md`. The next free ids are `ARC-102` and
+`DEP-59`.
+**Base:** `origin/main` merged in at `85a91d0` (#201 FG-c, #202 kill/resume fix).
+**PR labels:** `S28-0`, `S28-a` … `S28-h` (§11); start conditions and implementers in §11.1.
 **Scope of this file.** It is the only file this session writes. Edits to the specifications, `docs/DECISIONS.md`
 and `overall.md` are listed in §13 for the primary session to apply.
 
@@ -73,7 +87,7 @@ before its own freeze.
    Each scope owns its tables, parameters, recall section, named errors, inspection view and isolated
    tests. A scope can index and recall; it can never grant access.
 7. **Efficiency** (§8). Shared records and derivable counterparts cut world bytes by 41 % at today's
-   canonical encoding. A positional canonical encoding (QS28-5) cuts them by 77 %, and lets 20 MiB hold
+   canonical encoding. The positional canonical encoding (QS28-5, ruled: adopted in S28-a) cuts them by 77 %, and lets 20 MiB hold
    ≈ 106 days of full detail instead of ≈ 45.
 8. **There is no kernel, contract, server or protocol change in MVP-0.** Sharing across processes and
    machines is MVP-1. Its recommended path is the server serving already-perceived facts by id under the
@@ -623,8 +637,8 @@ parameters (FGb-5). The home dump is therefore a function of the seats (I-S28-5)
 - **Moving a seat between processes:** `mineworld-memory export HOME --seat alice > alice.v3` writes the seat
   view, the standalone v3 store. `import` splits it into records (insert-or-verify) and private rows. Export
   then import is byte-identical by I-S28-2 (AS28-11). Rebuild from the perceived stream also works.
-- **MVP-1, two candidate paths** (QS28-2):
-  - **(i) The server as the cold tier (recommended).** A protocol addition (not kernel): a seat may ask
+- **MVP-1 (QS28-2, ruled: path (i))**. The two paths considered:
+  - **(i) The server as the cold tier (ruled).** A protocol addition (not kernel): a seat may ask
     `perceived_by_id { ids }` and receives the facts **it already perceived**. The server checks each id with
     the audience rule it already applies to `perceived` (`ARC-43`). What crosses is ids out and the seat's own
     perceived envelopes back, nothing new. The world log is already the one place every fact is stored, once
@@ -718,7 +732,7 @@ Worked bounds:
 | Reference index | **Adopt**: `access(event_key)`, the holder relation, with no separate refcount (§6.4) |
 | Compaction | Retention's merges (FG-b) plus GC plus incremental vacuum. A size-triggered pass (FG-b2) on the seat view |
 | Tiered loading | **Hot:** the SQLite page cache plus the record LRU, with bounded joins at recall (§4.5). **Cold (MVP-1):** fact records older than `hot_days` evicted and fetched by id from the server under the audience rule (§6.6 (i)) |
-| Canonical encoding | **Positional rows (QS28-5, recommended):** `[table, c1, c2, …]` in schema order, ids unpadded, digest 128-bit in the record (the full 256-bit digest stays the re-delivery check in the transaction, where it is not dumped). Defined once in `memory.home`, used for the bound and for determinism |
+| Canonical encoding | **Positional rows (QS28-5, ruled 2026-10-14: adopted in S28-a):** `[table, c1, c2, …]` in schema order, ids unpadded, digest 128-bit in the record (the full 256-bit digest stays the re-delivery check in the transaction, where it is not dumped). Defined once in `memory.home`, used for the bound and for determinism |
 
 ### 8.2 Measured bytes, before forgetting (12 persons, 30 days; §2.1 method)
 
@@ -768,7 +782,7 @@ is the table's 41 % or 77 %. AS28-12 fixes the targets before measuring.
 | **C-1 Sharing is invisible** | The surface (1) request bytes, the surface (2) sections and the surface (3) report are identical with `sharing: none` and `home`, for every seat, for 200 seeded queries per seat at every pass point | LLM and non-LLM |
 | **C-2 Migration keeps the context** | The rendered sections of the default stack equal the v2 golden renders captured at S28-a's C0 from the same perceived streams, for every query, at every pass point at which v2 performed no bound-forced removal | LLM and non-LLM |
 | **C-3 Place recall agrees with the place and the log** | Every line of a `place` section cites only held facts whose envelope anchors that place in a selected role. Its `visits`, `first_at` and `last_at` equal a recount over the person's `mineworld perceived` export filtered by that place, up to the forgotten set. Every cited fact appears in the objective place history derived from the log by the test oracle (a test-side filter over `mineworld perceived` and the save, never memory's input) | Both |
-| **C-4 Summaries never contradict retained detail** | For every episode and chapter: (a) its structural fields (day, place, counterparts, record count) equal a recomputation from its cited facts when it was written; (b) no retained L0 record lies inside a merged container's ranges (FGb-1); (c) a retained record and the unit covering it agree on day and place. For FG-c prose (d): every person name in the prose is a known name of a counterpart of the group, and every place name is the group's place. Otherwise the host takes the fallback for that group and records `prose-contradiction` (a requirement placed on FG-c's valid-prose check, R-S28-FGc) | Both; (d) only LLM |
+| **C-4 Summaries never contradict retained detail** | For every episode and chapter: (a) its structural fields (day, place, counterparts, record count) equal a recomputation from its cited facts when it was written; (b) no retained L0 record lies inside a merged container's ranges (FGb-1); (c) a retained record and the unit covering it agree on day and place. For FG-c prose (d): every person name in the prose is a known name of a counterpart of the group, and every place name is the group's place. Otherwise the host takes the fallback for that group and records `prose-contradiction` (FU-S28-1, applied by S28-b in FG-c's merged code, §11.1) | Both; (d) only LLM |
 | **C-5 One fact, one truth** | Two persons who recall the same fact see the same time, place and participants in their lines' citations. This holds trivially through one record, and is checked against digests | Both |
 | **C-6 Persistence** | After a kill at any of 50 seeded points and resume, every seat view and section equals the uninterrupted run's | Both |
 | **C-7 Forgetting is coherent** | Every perceived id is held, merged into a surviving unit, or forgotten (FGb-1) per seat view. A forgotten id is never cited. `inspect access --event` explains every id of a sample of 1 000 | Both |
@@ -798,40 +812,76 @@ is frozen at commit level, with the primary session reviewing (memory: *design o
 
 | PR | Scope | Depends on | Implementer | MVP (QS28-1) |
 | --- | --- | --- | --- | --- |
-| **S28-0** | Spec edits (§13): CORE_CONCEPTS §5.3 (shared storage is not shared knowledge), ARCHITECTURE §9.3 (homes, seat views, the size rule), MODULE_SPEC §5.2 and a new §5.3 (memory scopes), DECISIONS `ARC-S28-a…d`, `DEP-S28-a`. Docs only | this step frozen | Opus / primary | 0 |
-| **S28-a** | `memory.home` and `memory.scopes.world`: schema v3, the fact, fact_who and access tables, insert-or-verify, `SeatView` and its dump, positional canonical form (if QS28-5), one transaction per ingest, GC, `verify`, `HomeBusy`, v2 refusal. The transparency harness (12 seats, `none` vs `home`, frames, interleavings, kills). Golden v2 renders | FG-b2 merged | **Opus** | 0 |
-| **S28-b** | The retention host on seat views: items, execution with GC, FG-b2's size trigger on the seat view, FG-c prose in the home, forgotten-range attribution, C-4 (a)–(c) | S28-a; FG-c (#201) merged | **Opus** | 0 |
+| **S28-0** | Spec edits (§13): CORE_CONCEPTS §5.3 (shared storage is not shared knowledge), ARCHITECTURE §9.3 (homes, seat views, the size rule), MODULE_SPEC §5.2 and a new §5.3 (memory scopes), DECISIONS `ARC-98` … `ARC-101`, `DEP-58`. Docs only | this step frozen | Opus / primary | 0 |
+| **S28-a** | `memory.home` and `memory.scopes.world`: schema v3, the fact, fact_who and access tables, insert-or-verify, `SeatView` and its dump, positional canonical form (QS28-5, ruled), one transaction per ingest, GC, `verify`, `HomeBusy`, v2 refusal. The transparency harness (12 seats, `none` vs `home`, frames, interleavings, kills). Golden v2 renders | FG-b2 merged | **Opus** | 0 |
+| **S28-b** | The retention host on seat views: items, execution with GC, FG-b2's size trigger on the seat view, FG-c prose in the home, forgotten-range attribution, C-4 (a)–(c). **Plus the FG-c follow-up FU-S28-1** (C-4 (d), below) in FG-c's merged code | S28-a; FG-c (#201, merged) | **Opus** | 0 |
 | **S28-c** | `MemoryScope` interface, `ScopeRegistry` (entry points), `person` and `world` as scopes, selection through `decisions.yaml` `memory.scopes` (a small Rust reader addition beside DL-a's `MemoryPolicyChoice`), parameter models, named errors, section ceiling checks, the generated reference pages (25b) | S28-b; 25a (#200) | Haiku | 0 |
 | **S28-d** | The `anchored` scope with `place` and `item` entry points; `Rendered.anchors`; the recall section; C-3 with its test oracle | S28-c | Haiku | 0 |
 | **S28-e** | `mineworld-memory inspect` (access, forgotten, bytes, recall --trace, scopes) and `export` / `import`; the one-step-to-cause tests (AS28-16) | S28-b (views grow with S28-c and S28-d) | Haiku | 0 |
 | **S28-f** | P6b wiring: the controller opens the home, `sharing` and `cache` from `cognition.toml`, cassette replay criterion AS28-10, the README lines | S28-c; P6b (#207) merged | Haiku | 0 |
 | **S28-g** | Scale gates: 12 × 300 days in nightly CI, and 100 × 300 days on a generated fixture World Pack (`tests/fixtures/worlds/town-100`, generated by a committed tool) in nightly CI on all three platforms; cost-formula checks (AS28-17) | S28-d, S28-f | Haiku | 0 (nightly) |
-| **S28-h** | The cold tier through the server (`perceived_by_id`, §6.6 (i)): a protocol addition, a server handler, and the SDK. `organization` as an external example scope package | S28-g; operator QS28-2 | Opus | **1** |
+| **S28-h** | The cold tier through the server (`perceived_by_id`, §6.6 (i)): a protocol addition, a server handler, and the SDK. `organization` as an external example scope package | S28-g; QS28-2 ruled path (i) | Opus | **1** |
 
 Order: S28-0 → S28-a → S28-b → (S28-c → S28-d) ∥ S28-e → S28-f → S28-g; S28-h in MVP-1. Parallel lanes: S28-d
 and S28-e in separate worktrees after S28-c merges; S28-e may begin on S28-b's views.
+
+### 11.1 Start conditions and implementers (QS28-1 ruled; filled 2026-10-14)
+
+Common to every PR:
+
+- The step is frozen by the primary session.
+- The PR's own design is frozen with a filled execution contract.
+- The primary session dispatches the PR to a **fresh** implementation session in its **own worktree**
+  (`/Users/yuema137/mineworld-worktrees/impl-s28-<x>`), one writer, from `origin/main` at dispatch.
+- CI on the exact head is the gate. No local full-workspace runs while other agents run (R-LOAD-1).
+- No merge without the operator's authorization, except that S28-0 is a design-document-only PR, which the
+  primary session may merge after review under the standing ruling.
+
+| PR | Start condition (all must hold) | PR design by | Implementer | Reviewer | MVP | Parallel with |
+| --- | --- | --- | --- | --- | --- | --- |
+| S28-0 | Step frozen | — (step doc is its design) | Opus (primary or a docs agent) | primary | 0 | S28-a's PR design |
+| S28-a | S28-0 merged. **FG-b2 merged** (bound, size trigger). Golden v2 renders captured at C0 from that `main` | Opus | **Opus** | primary + an Opus logic review | 0 | — |
+| S28-b | S28-a merged. FG-c already merged (#201, `85a91d0`) | Opus | **Opus** | primary + an Opus logic review | 0 | S28-c's PR design |
+| S28-c | S28-b merged. S25 25a (#200) merged (generated-reference machinery). 25b's page list known (coordinate with S25) | Opus | Haiku | primary | 0 | S28-e |
+| S28-d | S28-c merged | Opus | Haiku | primary | 0 | S28-e |
+| S28-e | S28-b merged. The views of S28-c and S28-d are added as each merges (the commit plan says which) | Opus | Haiku | primary | 0 | S28-c, S28-d |
+| S28-f | S28-c merged. **P6b (#207) merged** | Opus | Haiku | primary | 0 | S28-d, S28-e |
+| S28-g | S28-d and S28-f merged. The nightly workflow exists (S14) | Opus | Haiku | primary | 0 (nightly gate) | — |
+| S28-h | S28-g green on nightly. MVP-1 opened by the operator | Opus | Opus | primary | 1 | `organization` example |
+
+**FU-S28-1 — the FG-c follow-up that S28-b applies in FG-c's code (C-4 (d)).** FG-c merged with `valid_prose`
+(`compress/model_summarizer.py`) checking only length, digits and the delimiter, and `lm_summarise.py`
+accepting any prose that passes it (audited at `85a91d0`). S28-b adds the name check:
+
+- prose for a group may name only known names of that group's counterparts, and the group's place;
+- any other known person or place name makes the answer invalid for that group, so the group keeps the
+  fallback's decisions;
+- the host records the reason as `prose-contradiction`.
+
+Recorded answers that break the rule now take the fallback on replay. S28-b states which cassettes change and
+re-records none silently. FG-c's design document gets a pointer to this follow-up, applied by S28-b's C1.
 
 **Integration checkpoint per PR.** Every PR ends with the transparency harness green (12 seats, `none` vs
 `home`). From S28-b on, it also runs FG-b's real-binary Gate 2 scenario on seat views.
 
 ---
 
-## 12. Decision records (placeholders; the primary session assigns `ARC-98`, `ARC-99`, … and `DEP-58`)
+## 12. Decision records (ids assigned 2026-10-14; written into `docs/DECISIONS.md` by S28-0)
 
-- **`ARC-S28-a` — Shared controller memory is a cognition-side home of perceived envelopes, and perception is
+- **`ARC-98` — Shared controller memory is a cognition-side home of perceived envelopes, and perception is
   the only access right.** Fact records are stored once per home, keyed by `EventId` and verified by digest.
   Access rows are per person. GC is the anti-join in the releasing transaction. There is no kernel, server or
   protocol change in MVP-0.
-- **`ARC-S28-b` — A person's size is the seat view, counting shared records in full.** Sharing is transparent
+- **`ARC-99` — A person's size is the seat view, counting shared records in full.** Sharing is transparent
   (I-S28-2, I-S28-3) and is a deployment setting, not a world rule.
-- **`ARC-S28-c` — Memory scopes:** one typed interface, entry-point registration, host-written tables,
+- **`ARC-100` — Memory scopes:** one typed interface, entry-point registration, host-written tables,
   `SeatView`-only reads, no access grants. Entity-anchored memory is fed from perception, not the log.
-- **`ARC-S28-d` — Canonical v3 encoding** (if QS28-5 is accepted): positional rows, which the bound and
+- **`ARC-101` — Canonical v3 encoding** (QS28-5, ruled 2026-10-14): positional rows, which the bound and
   determinism are defined on.
-- **`DEP-S28-a` — Reuse verdicts** (§16): build on SQLite and P4/FG-b; adopt the methods of content addressing
+- **`DEP-58` — Reuse verdicts** (§16): build on SQLite and P4/FG-b; adopt the methods of content addressing
   and tiered memory; decline Letta, Zep, Graphiti and mem0 as runtime dependencies.
 
-## 13. Edits proposed to other documents (applied by S28-0 or the primary session)
+## 13. Edits to other documents (S28-0 applies the specification edits; the primary session applies `overall.md`)
 
 - `CORE_CONCEPTS.md` §5.3: add "Storing a perceived fact once for several persons is a storage detail. Each
   person still remembers only what they perceived, in their own rendering. Shared storage is not shared
@@ -842,13 +892,44 @@ and S28-e in separate worktrees after S28-c merges; S28-e may begin on S28-b's v
   registry, selection, parameters and errors.
 - `overall.md`: the S28 entry, PR list, and ids after assignment. The progress page is updated per the
   primary's practice.
-- `pr-fg-c-lm-summarise.md` (or its follow-up): R-S28-FGc, prose names checked against the group (C-4 (d)).
+- `pr-fg-c-lm-summarise.md`: a pointer to FU-S28-1 (§11.1), the prose-names check that S28-b applies in FG-c's
+  code (C-4 (d)).
 
 ---
 
-## 14. Operator questions (each with a recommendation)
+## 14. Operator questions and rulings
 
-| ID | Question | Recommendation |
+### 14.1 Rulings, 2026-10-14 (operator, in the primary session; relayed by the coordinator)
+
+Verbatim:
+
+> **QS28-1:** "MVP-0 做主体，跨进程共享放 MVP-1"
+>
+> **QS28-5:** "换"
+>
+> **QS28-2, 3, 4, 6, 7, 8, 9, 10:** "全部按推荐"
+
+How each ruling reads, and where it is applied:
+
+| ID | Ruling | Applied in |
+| --- | --- | --- |
+| QS28-1 | The main body is MVP-0: S28-0 and S28-a … S28-f, with S28-g as MVP-0's nightly gate. Cross-process sharing (S28-h) and the `organization` example are MVP-1 | header, §11, §11.1 |
+| QS28-2 | Share per controller process in MVP-0. Per world in MVP-1 through the server as the cold tier (§6.6 (i)). A cognition-side shared service is not the default | §5.4 (`service` refused before MVP-1), §6.6, S28-h |
+| QS28-3 | Inner notes are always private. No scope may share them | §5.2.5 |
+| QS28-4 | Per-person size counts the seat view, with shared records in full | §7.1, `ARC-99` |
+| QS28-5 | Adopt the positional canonical encoding, in S28-a | §8.1, S28-a, `ARC-101`, AS28-12 |
+| QS28-6 | Entity-anchored memory is fed from perception only. The log-derived place history is a test and tool oracle only | §5.2.3, C-3 |
+| QS28-7 | A scope never grants access beyond perception. Knowledge reaches others as world facts | §5.1, §5.2.4, `ARC-100` |
+| QS28-8 | Refuse v2 and rebuild from the perceived stream. There is no importer | §10 |
+| QS28-9 | The 100-person world is a generated fixture under `tests/fixtures/`, used by the nightly gate only | S28-g |
+| QS28-10 | The memory stack lives in `decisions.yaml` `memory:` per seat; placement and cache live in `cognition.toml` | §5.3, §5.4 |
+
+The decision ids were assigned the same day: `ARC-98` … `ARC-101` and `DEP-58` (header). No question remains
+open.
+
+### 14.2 The questions as asked (kept for review)
+
+| ID | Question | Recommendation (accepted) |
 | --- | --- | --- |
 | **QS28-1** | **MVP-0 or MVP-1?** Which S28 PRs land before the MVP-0 release? | **MVP-0: S28-0, a, b, c, d, e, f, with g as a nightly gate. MVP-1: S28-h (cross-process sharing and the cold tier) and the `organization` example.** FG-b2's 20 MiB makes duplication 20× larger in absolute bytes now, and the scope interface is cheapest to establish before users write stacks. |
 | **QS28-2** | **What scope of sharing?** Per controller process (one home per process and world instance) or per world (every seat of a world, across processes and machines)? | **Per process in MVP-0.** It is atomic in one SQLite file, needs no protocol change, and is proven transparent. **Per world in MVP-1 through the server as the cold tier** (§6.6 (i)): the server is the only party that can verify perception, and the log already stores each fact once. Decline a cognition-side shared service as the default (it cannot verify access). |
@@ -878,7 +959,7 @@ and S28-e in separate worktrees after S28-c merges; S28-e may begin on S28-b's v
 | **AS28-9 Physical ≤ logical** | At every pass point, `MemoryHome.dump()` length ≤ Σ seat-view dump lengths, and every seat view ≤ its bound. With `keep-all` everywhere, the bound holds and physical ≤ N × bound. |
 | **AS28-10 Cassettes** | P6b's recorded cassettes (recorded with v2, or with `sharing: none`) replay under `home` with zero `CassetteMiss` and identical decision logs. |
 | **AS28-11 Export / import** | `export` then `import` of every seat into a fresh home gives a home dump equal to the original's. |
-| **AS28-12 Efficiency targets** | On social-cafe, seed 7, 30 days, before retention, the home's world-day bytes are ≤ 0.65 × v2's (canonical objects) or ≤ 0.30 × v2's (positional, if QS28-5). Steady state at 300 days (nightly): physical ≤ 0.70 × Σ logical. |
+| **AS28-12 Efficiency targets** | On social-cafe, seed 7, 30 days, before retention, the home's world-day bytes in the v3 positional encoding (QS28-5, ruled) are ≤ 0.30 × v2's; the canonical-objects layout is not built. Steady state at 300 days (nightly): physical ≤ 0.70 × Σ logical. |
 | **AS28-13 No truth, no kernel** | Source scan: no import of `persistence`, no save path and no `sqlite3.connect` outside `memory.home` in `memory/` or `forgetting/`. Diff scan: no change under `kernel/`, `contracts/`, `server/` or `server/PROTOCOL.md` in S28-a … S28-g. |
 | **AS28-14 Scopes write nothing** | Scope modules receive no connection, path, clock or gateway (signature scan). Only the home executes SQL writes (grep for `INSERT` / `DELETE` outside `memory.home` and the person scope's ingest). |
 | **AS28-15 Degradation** | Removing `place` from a stack, uninstalling its package (`UnknownScope` named with the installed ids), and reinstalling it all behave as §5.7 states. A rebuilt index is identical to an uninterrupted one. The world's save and `mineworld replay` are unaffected throughout. |
