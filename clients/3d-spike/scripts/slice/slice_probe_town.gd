@@ -527,7 +527,8 @@ func _street_check() -> void:
 					if fig == null or fastest.get(id, 0.0) <= 0.6:
 						continue
 					var at := fig.global_position
-					var to := _nearest_door_point(link, at)
+					var near := _nearest_door_point(link, at)
+					var to: Vector3 = near[0]
 					var was: float = door_dist.get(id, INF)
 					door_dist[id] = _flat_len(to - at)
 					if door_dist[id] > 1.5 or door_dist[id] >= was:
@@ -536,10 +537,10 @@ func _street_check() -> void:
 					var cam := Camera3D.new()
 					cam.fov = 55.0
 					slice.add_child(cam)
-					var out := Vector3(to.x - at.x, 0.0, to.z - at.z)
-					out = out.normalized() if out.length() > 0.2 else Vector3(0, 0, -1)
-					cam.look_at_from_position(to - out * 4.0 + out.cross(Vector3.UP) * 1.5 + Vector3.UP * 1.6,
-						to + Vector3.UP * 1.0)
+					# on the side of the doorway the person stands on, 4 m out and 1.5 m aside
+					var facing: Vector3 = near[1]
+					cam.look_at_from_position(to + facing * 4.0 + facing.cross(Vector3.UP) * 1.5
+						+ Vector3.UP * 1.6, to + Vector3.UP * 1.0)
 					cam.make_current()
 					await _settle(4)
 					await _save("street_4_into_a_door")
@@ -619,18 +620,19 @@ func _nearest_point(link: SliceLink, at: Vector3) -> Array:
 	return best
 
 
-## The nearest in- or out-point of a bound door, by the plan's rule (as _nearest_point).
-func _nearest_door_point(link: SliceLink, at: Vector3) -> Vector3:
-	var best := Vector3.INF
+## The nearest in- or out-point of a bound door, by the plan's rule (as _nearest_point):
+## [the point, the horizontal direction from the door toward that point's side].
+func _nearest_door_point(link: SliceLink, at: Vector3) -> Array:
+	var best := [Vector3.INF, Vector3.ZERO]
 	for place in link.layout.doors:
 		var d: Array = SliceTerrace.doors[link.layout.doors[place]]
 		var yaw: float = d[1]
 		var n := Vector3(sin(yaw), 0.0, cos(yaw))
-		var points := [(d[0] as Vector3) + n * PLAN_INSET]
+		var points := [[(d[0] as Vector3) + n * PLAN_INSET, n]]
 		if d.size() > 5 and d[3] != "":
-			points.append((d[0] as Vector3) - n * (float(d[4]) + PLAN_INSET))
+			points.append([(d[0] as Vector3) - n * (float(d[4]) + PLAN_INSET), -n])
 		for q in points:
-			if best == Vector3.INF or _flat_len(at - q) < _flat_len(at - best):
+			if best[0] == Vector3.INF or _flat_len(at - (q[0] as Vector3)) < _flat_len(at - (best[0] as Vector3)):
 				best = q
 	return best
 
