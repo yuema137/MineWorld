@@ -1,10 +1,15 @@
-//! Snapshot retention on a real save (`docs/DECISIONS.md` `ARC-81`; design
-//! `.structured-coding/plans/mvp0/pr-s6-save-retention.md` D-SR-3, ASR-10).
+//! Snapshot retention and log sealing on a real save (`docs/DECISIONS.md` `ARC-81`, `ARC-89`; designs
+//! `.structured-coding/plans/mvp0/pr-s6-save-retention.md` D-SR-3, ASR-10 and
+//! `pr-sr-b-log-compression.md` D-SRB-2, ASRB-10).
 //!
 //! ```text
 //! the sweep        interval 8 (anchors every 512) through 3 · 4 096 + 5 revisions: after every commit
 //!                  the stored snapshots are exactly the rule's set, and resume's snapshot is never
 //!                  more than one interval behind the head
+//! sealing sweep    interval 2 (anchors every 128) through 3 000 revisions: after every commit the
+//!                  sealed blocks are exactly the sealing rule's, the live tail is every later revision
+//!                  once, and a resume at that head decodes no block; around every anchor, every
+//!                  revision and every fact appears exactly once across blocks and tail
 //! a checkpoint     a clean shutdown's off-lattice snapshot resumes with nothing re-executed, and is
 //!                  retired by the next scheduled snapshot
 //! a new interval   a save resumed under another interval keeps genesis and the anchors both
@@ -13,14 +18,18 @@
 //!                  a revision not kept is refused by name; a bad later snapshot is seen
 //! ```
 //!
-//! The expected sets are computed here from the rule as `ARC-81` states it, not by the crate's own
-//! function, and compared with what the save actually holds.
+//! The expected sets are computed here from the rules as `ARC-81` and `ARC-89` state them, not by the
+//! crate's own functions, and compared with what the save actually holds.
 
 mod support;
 
 use std::collections::BTreeSet;
+use std::rc::Rc;
 
 use mineworld_contracts::EntityId;
+use mineworld_persistence::backend::{
+    FactRow, Facts, ManifestRow, RevisionRow, Revisions, SealedSpan,
+};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, verify, verify_from,
@@ -158,6 +167,184 @@ fn every_commit_leaves_exactly_the_rule_s_snapshots_and_resume_s_one_is_always_n
         u64::try_from(stored(&reader).len()).expect("small"),
         "every snapshot the save still holds was compared"
     );
+}
+
+/// A read-only backend sharing one connection with the test, so that after a resume the test can ask
+/// that connection how many block frames it decompressed (`ARC-89` I-SRB-4). Resume only reads.
+struct Shared(Rc<SqliteBackend>);
+
+impl PersistenceBackend for Shared {
+    fn initialize(&mut self, _: &ManifestRow, _: &RevisionRow) -> Result<(), PersistError> {
+        unreachable!("resume never initializes")
+    }
+    fn manifest(&self) -> Result<ManifestRow, PersistError> {
+        self.0.manifest()
+    }
+    fn head(&self) -> Result<WorldRevision, PersistError> {
+        self.0.head()
+    }
+    fn commit(&mut self, _: &RevisionRow) -> Result<(), PersistError> {
+        unreachable!("resume never commits")
+    }
+    fn revisions_after(&self, after: WorldRevision) -> Result<Revisions<'_>, PersistError> {
+        self.0.revisions_after(after)
+    }
+    fn facts_after(&self, after: Option<u64>) -> Result<Facts<'_>, PersistError> {
+        self.0.facts_after(after)
+    }
+    fn facts_of(&self, revision: WorldRevision) -> Result<Vec<FactRow>, PersistError> {
+        self.0.facts_of(revision)
+    }
+    fn last_facts(&self, count: usize) -> Result<Vec<FactRow>, PersistError> {
+        self.0.last_facts(count)
+    }
+    fn latest_snapshot(
+        &self,
+        at_most: WorldRevision,
+    ) -> Result<Option<(WorldRevision, Vec<u8>)>, PersistError> {
+        self.0.latest_snapshot(at_most)
+    }
+    fn snapshot_revisions(&self) -> Result<Vec<WorldRevision>, PersistError> {
+        self.0.snapshot_revisions()
+    }
+    fn snapshot_at(&self, revision: WorldRevision) -> Result<Option<Vec<u8>>, PersistError> {
+        self.0.snapshot_at(revision)
+    }
+    fn highest_action_id(&self) -> Result<Option<u64>, PersistError> {
+        self.0.highest_action_id()
+    }
+    fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError> {
+        self.0.sealed()
+    }
+    fn checkpoint(&mut self, _: WorldRevision, _: &[u8]) -> Result<(), PersistError> {
+        unreachable!("resume never checkpoints")
+    }
+}
+
+/// `ARC-89`'s blocks for head `n` at anchor interval `anchor`, from the rule as stated:
+/// (k·A, (k + 1)·A] for every k with (k + 2)·A ≤ n.
+fn sealing_rule(n: u64, anchor: u64) -> Vec<(u64, u64)> {
+    (0..)
+        .take_while(|k| (k + 2) * anchor <= n)
+        .map(|k| (k * anchor + 1, (k + 1) * anchor))
+        .collect()
+}
+
+/// Where every row of the log is, read by raw SQL: the live journal's first and last revision and its
+/// row count.
+fn live_journal(scratch: &Scratch) -> (Option<u64>, Option<u64>, u64) {
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    let (first, last, count): (Option<i64>, Option<i64>, i64) = connection
+        .query_row(
+            "SELECT MIN(revision), MAX(revision), COUNT(*) FROM journal",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .expect("reads");
+    let raw = |value: i64| u64::try_from(value).expect("a revision");
+    (first.map(raw), last.map(raw), raw(count))
+}
+
+/// The whole log through both cursors: every revision 1 … `head` once and in order, and every fact once
+/// — the facts of the revision stream, in order, are exactly the fact stream. Returns the fact count.
+fn every_row_once(reader: &SqliteBackend, head: u64) -> u64 {
+    let mut facts_by_revision = Vec::new();
+    let mut revisions = 0;
+    for stored in reader
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("a cursor")
+    {
+        let stored = stored.expect("reads");
+        revisions += 1;
+        assert_eq!(stored.revision.raw(), revisions, "revision order, no gap");
+        facts_by_revision.extend(stored.facts.into_iter().map(|fact| fact.id));
+    }
+    assert_eq!(revisions, head, "every revision to the head");
+    let facts: Vec<u64> = reader
+        .facts_after(None)
+        .expect("a cursor")
+        .map(|fact| fact.expect("reads").id)
+        .collect();
+    assert_eq!(
+        facts, facts_by_revision,
+        "every fact once, in EventId order"
+    );
+    assert!(
+        facts.windows(2).all(|pair| pair[0] < pair[1]),
+        "strictly increasing ids"
+    );
+    facts.len() as u64
+}
+
+#[test]
+fn every_commit_leaves_exactly_the_sealing_rule_s_blocks_and_resume_reads_none() {
+    // ASRB-10: interval 2, so anchors every 128 revisions and the first seal at 256.
+    const INTERVAL: u64 = 2;
+    const ANCHOR: u64 = 64 * INTERVAL;
+    const END: u64 = 3_000;
+    let scratch = Scratch::new("sealing-sweep");
+    let (mut persisted, people) = create(&scratch, INTERVAL);
+    let reader = Rc::new(open(&scratch));
+    let steps = script(usize::try_from(END).expect("small"), 10, 1);
+    let (mut commits, mut resumes, mut full_checks) = (0_u64, 0_u64, 0_u64);
+    for each in &steps {
+        if persisted.revision().raw() >= END {
+            break;
+        }
+        step(&mut persisted, &people, each, |persisted| {
+            let head = persisted.revision().raw();
+            let spans: Vec<(u64, u64)> = reader
+                .sealed()
+                .expect("reads")
+                .iter()
+                .map(|block| (block.span.first.raw(), block.span.last.raw()))
+                .collect();
+            assert_eq!(
+                spans,
+                sealing_rule(head, ANCHOR),
+                "at r{head}: the rule's blocks"
+            );
+            let sealed_through = spans.last().map_or(0, |(_, last)| *last);
+            assert_eq!(
+                live_journal(&scratch),
+                (Some(sealed_through + 1), Some(head), head - sealed_through),
+                "at r{head}: the live tail is every revision after the blocks, once"
+            );
+            if head.is_multiple_of(ANCHOR) || head % ANCHOR == 1 {
+                every_row_once(&reader, head);
+                full_checks += 1;
+            }
+            let before = reader.blocks_decoded();
+            let (_, how) =
+                PersistentWorld::resume(Box::new(Shared(Rc::clone(&reader))), composed())
+                    .expect("resumes");
+            assert_eq!(how.head.raw(), head);
+            assert_eq!(
+                reader.blocks_decoded(),
+                before,
+                "at r{head}: resume decoded no block (snapshot {})",
+                how.snapshot
+            );
+            resumes += 1;
+            commits += 1;
+        });
+    }
+    let head = persisted.revision().raw();
+    drop(persisted);
+    // Located: the sweep sealed many blocks and checked every commit.
+    assert!(head >= END, "the sweep reached r{head}");
+    assert_eq!(commits, head - 1);
+    assert_eq!(resumes, commits);
+    let blocks = reader.sealed().expect("reads").len() as u64;
+    assert_eq!(blocks, head / ANCHOR - 1, "{blocks} blocks at r{head}");
+    assert!(
+        blocks >= 20 && full_checks >= 40,
+        "{blocks} blocks, {full_checks} full checks"
+    );
+    let facts = every_row_once(&reader, head);
+    let verified = verify(&open(&scratch), composed()).expect("the sealed save verifies");
+    assert_eq!((verified.revisions, verified.facts), (head, facts));
 }
 
 #[test]

@@ -1612,7 +1612,9 @@ the winning entry's mapping. The command is read-only.
 
 **`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
 head revision and its instant, the journal counted by input kind and outcome, the snapshots the save
-retains with each one's stored size on one line (`DECISIONS.md` `ARC-81`), the facts counted by
+retains with each one's stored size on one line (`DECISIONS.md` `ARC-81`), the log's storage on one
+`log` line — how many blocks are sealed, the revisions they cover, their stored bytes and the bytes of
+the rows they hold, and the revisions of the live tail (`DECISIONS.md` `ARC-89`), the facts counted by
 event type and by cause kind, the result of the causation check, and the last N facts
 (default 20) with their causes. The causation check (`MVP.md` §9 `AC-9`) requires every fact
 caused by an action to name an `ActionId` some journaled request carried, every fact caused by an
