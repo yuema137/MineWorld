@@ -1,13 +1,17 @@
 # Step 27 — S27: agents as first-class players, starting with an MCP adapter
 
-**Lifecycle:** `STEP DESIGN — DRAFT (2026-10-14)`. Not frozen. Nothing here authorizes implementation or a
-merge. Scope, invariants, the PR split and the adversarial criteria are proposed for the operator's review
-(§14). Each PR is detailed to the commit and frozen on its own by the primary session after this step is
-approved (`overall.md` §5 ruling 9).
+**Lifecycle:** `STEP DESIGN FROZEN 2026-10-14 (operator QS27-1…10)`. The operator accepted every
+recommendation of §14 as written (rulings in §14.1, relayed by the coordinator). Scope, invariants
+(§3), the PR split (§11), the decision records (§12) and the adversarial criteria (§16) are frozen. **This step
+freeze authorizes no implementation and no merge.** Each PR (S27-a … S27-f) gets its own PR design, detailed to
+the commit, frozen on its own by the primary session (`overall.md` §5 ruling 9), and executed in a fresh
+implementation session in its own worktree, started only on the primary session's dispatch (§11.4). Progress,
+evidence, findings and bounded corrections stay writable.
+*Superseded header:* `STEP DESIGN — DRAFT (2026-10-14)`, PR #194 commit `362c957`.
 **Author:** the S27 planning session (Opus), 2026-10-14. Worktree
 `/Users/yuema137/mineworld-worktrees/design-s27`, branch `docs/s27-agent-players`, from
 `origin/main @ 31ba514`.
-**Effort:** `mvp0` (placement is operator question QS27-1) · **Parent:** [`overall.md`](overall.md) ·
+**Effort:** `mvp0` (QS27-1: S27-a … S27-f in MVP-0, before R-d; S27-g in the next milestone's batch) · **Parent:** [`overall.md`](overall.md) ·
 **Siblings it depends on or coordinates with:** [`step-12-server.md`](step-12-server.md) (S11: seats,
 invites, holds, admin, perception), [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md) and
 [`pr-s10-p3b-perceived.md`](pr-s10-p3b-perceived.md) (the Python SDK, resume, exactly-once delivery),
@@ -23,9 +27,11 @@ test).
 (revision 2, whole); `docs/DECISIONS.md` `ARC-34`, `ARC-40`, `ARC-41`, `ARC-44`, `ARC-56`, `ARC-60`, `ARC-67`,
 `ARC-75`, `DEP-14`, `DEP-24`, `DEP-25`, `DEP-44`.
 **Scope of this file.** It is the only file this session writes. Edits to the specifications,
-`docs/DECISIONS.md`, `overall.md` and `step-25-creator-docs.md` are proposed in §13 for the primary session
-to apply. Decision numbers are placeholders (`ARC-S27-a` …, `DEP-S27-a` …); the primary session assigns real
-ones (the next free are `ARC-96` and `DEP-56`).
+`docs/DECISIONS.md`, `overall.md` and `step-25-creator-docs.md` are listed in §13 for the primary session
+to apply. Decision numbers were assigned by the primary session on 2026-10-14: `ARC-96` (placement,
+draft placeholder `ARC-S27-a`), `ARC-97` (grants and budget, `ARC-S27-b`), `DEP-56` (`mcp`, `DEP-S27-a`),
+`DEP-57` (`governor` or our own bucket, `DEP-S27-b`). Next free: `ARC-98`, `DEP-58`. The records are written
+into `docs/DECISIONS.md` by the implementing PRs named in §12.
 
 Every statement about an external tool carries the date it was read (2026-10-14) and its source (§17). A
 statement not confirmed from a primary source is marked **verify**; the PR that first relies on it confirms
@@ -174,13 +180,13 @@ a very, very useful feature; in this virtual world, humans and agents are both f
 
 ### 2.2 Findings, recorded rather than worked around (`CLAUDE.md` §2.1(4))
 
-| ID | Finding | Consequence for S27 | Owner and proposed resolution |
+| ID | Finding | Consequence for S27 | Owner and resolution (frozen) |
 | --- | --- | --- | --- |
-| **F-S27-1** | Fairness of request rate is not a server rule: nothing bounds how often any connection submits (A-9), and walking speed is whatever cadence the sender keeps (A-14, A-15). A client that sends `walk-step` ten times a second walks at 13.4 m/s. This is true for every client today, human or agent. | "An agent cannot act faster than the server's per-seat budget" (operator brief) has no budget to point at. | S27-a adds a generic per-seat request budget in the host (§7.2). It bounds abuse to a constant factor and is identical for every connection. A tight bound on *walking speed* is a movement question that `ARC-67` deliberately left to cadence; it is raised as QS27-7, not solved here. |
+| **F-S27-1** | Fairness of request rate is not a server rule: nothing bounds how often any connection submits (A-9), and walking speed is whatever cadence the sender keeps (A-14, A-15). A client that sends `walk-step` ten times a second walks at 13.4 m/s. This is true for every client today, human or agent. | "An agent cannot act faster than the server's per-seat budget" (operator brief) has no budget to point at. | S27-a adds a generic per-seat request budget in the host (§7.2). It bounds abuse to a constant factor and is identical for every connection. A tight bound on *walking speed* is a movement question that `ARC-67` deliberately left to cadence; it is not solved here: QS27-7 ruled it a separate design after S27-a. |
 | **F-S27-2** | Four `group-activity` offers have an empty payload but are not offered complete (A-23), so a generic client cannot attempt them without knowing the pack. | An agent cannot accept or decline an invitation or join/leave an activity through `attempt`. | `group-activity` (the owner) offers them complete (`ARC-34`). Additive; S27-b. `invite` stays name-known (its `kind` is free text). |
 | **F-S27-3** | Any invite holder may take any seat, including a seat a human is playing (A-4). | Handing an agent the invite hands it the right to displace every human. | S27-a adds seat grants: a narrower credential (§6.4). The invite keeps its meaning. |
-| **F-S27-4** | Adding a refusal code breaks an older client that decodes codes as a closed set (A-22); the Godot protocol module is the same. | S27-a's two codes must land in the SDK and the Godot module in the same PR, and in `PROTOCOL.md` §10's landing table. | Bounded; S27-a scope. A rule "treat an unknown refusal code as a generic refusal" is proposed for the next protocol revision (§13), not retrofitted. |
-| **F-S27-5** | `CORE_CONCEPTS.md` §14 lists Controller kinds but has no word for a Controller that runs outside MineWorld and reaches the world through a client process it does not own. | Without it, documents will drift into synonyms ("bot", "AI player", "external agent"). | Propose one sentence and one list entry in §14 (§13.1). The term used everywhere is **agent player**: a Person whose Controller is an external agent reaching its seat through the agent adapter. |
+| **F-S27-4** | Adding a refusal code breaks an older client that decodes codes as a closed set (A-22); the Godot protocol module is the same. | S27-a's two codes must land in the SDK and the Godot module in the same PR, and in `PROTOCOL.md` §10's landing table. | Bounded; S27-a scope. A rule "treat an unknown refusal code as a generic refusal" is recorded for the next protocol revision (§13), not retrofitted. |
+| **F-S27-5** | `CORE_CONCEPTS.md` §14 lists Controller kinds but has no word for a Controller that runs outside MineWorld and reaches the world through a client process it does not own. | Without it, documents will drift into synonyms ("bot", "AI player", "external agent"). | One sentence and one list entry in §14 (§13.1), applied by the primary session. The term used everywhere is **agent player**: a Person whose Controller is an external agent reaching its seat through the agent adapter. |
 
 ### 2.3 What does not exist
 
@@ -192,7 +198,7 @@ guide chapter for agents. Nothing in `contracts/`, `kernel/`, `server/` or `syst
 
 ## 3. What "first-class" means: the invariants
 
-Each invariant is checkable, and §9 and §16 name the test that checks it. They are proposed for freeze.
+Each invariant is checkable, and §9 and §16 name the test that checks it. They are frozen (§14.1).
 
 | ID | Invariant | Checked by |
 | --- | --- | --- |
@@ -253,7 +259,7 @@ SDK stays vocabulary-free (`ARC-56`).
 
 | Option | What it is | Reuse it gets | What it costs or breaks | Verdict |
 | --- | --- | --- | --- | --- |
-| **P — Python client, official `mcp` SDK, on `mineworld-sdk`** | `clients/agent/` as a `uv` workspace member; `mcp` 2.x (`MCPServer`, stdio and Streamable HTTP); `ResumingSeat` for the protocol | The proven protocol client: resume within the hold, `lagged` recovery, exactly-once perceived facts behind a cursor, at-most-once submits, golden-frame-tested codec (A-20). Pydantic (`DEP-24`) already in the graph; `mcp` 2.x is built on it, so tool schemas come from the same models. The Python CI legs on three OSes already run real-server tests (A-29). | Not in the release bundle (A-28): a player needs `uv` and Python ≥ 3.12. `mcp` 2.3.0 brings `starlette`, `uvicorn`, `sse-starlette`, `pyjwt[crypto]`, `httpx2`, `jsonschema`, `opentelemetry-api` and, on Windows, `pywin32` (§17, read 2026-10-14). | **Chosen** (`DEP-S27-a`) |
+| **P — Python client, official `mcp` SDK, on `mineworld-sdk`** | `clients/agent/` as a `uv` workspace member; `mcp` 2.x (`MCPServer`, stdio and Streamable HTTP); `ResumingSeat` for the protocol | The proven protocol client: resume within the hold, `lagged` recovery, exactly-once perceived facts behind a cursor, at-most-once submits, golden-frame-tested codec (A-20). Pydantic (`DEP-24`) already in the graph; `mcp` 2.x is built on it, so tool schemas come from the same models. The Python CI legs on three OSes already run real-server tests (A-29). | Not in the release bundle (A-28): a player needs `uv` and Python ≥ 3.12. `mcp` 2.3.0 brings `starlette`, `uvicorn`, `sse-starlette`, `pyjwt[crypto]`, `httpx2`, `jsonschema`, `opentelemetry-api` and, on Windows, `pywin32` (§17, read 2026-10-14). | **Chosen** (`DEP-56`) |
 | R-in — `rmcp` inside the server process | an MCP endpoint mounted on the server's axum router | `rmcp` 3.5.1 (Apache-2.0, official Rust SDK); axum already in the server | The server would speak a second client vocabulary beside `join`/`submit`/`leave`, which `PROTOCOL.md` §2 forbids by construction ("the authority model is … the absence of the vocabulary"); MCP types would enter `server/` (INV-S27-9); an adapter fault would share the world's process (`ARC-56` option (a), `hosted.rs:16-20`); every MCP SDK upgrade would be a server change. | **Rejected** |
 | R-beside — `rmcp` in a separate Rust client binary | a crate under `clients/` (or a `mineworld agent` subcommand) that connects as a WebSocket client using the server's own protocol types and `tokio-tungstenite` | One binary; could ship in the bundle; the contract types are the real ones, not mirrors | The resuming client (cursor, holds, lagged, backoff, exactly-once) would be written a second time in Rust (`DEP-44` chose our own loop in Python; duplicating it is two implementations of one client semantics to keep in step). `rmcp`'s support for MCP revision 2026-07-28 is **verify**. The bundle has no other client-side Rust beyond the CLI. | **Declined for S27; revisit** if the live check (S27-g) shows that installing `uv` is the main obstacle for players of the bundle (QS27-8) |
 | T — TypeScript SDK | `@modelcontextprotocol/sdk` 1.32.1 (MIT, Node ≥ 18) | the most widely used MCP SDK | TypeScript is for web clients and admin tooling only (`ENGINEERING_STANDARDS.md` §3); no TypeScript protocol client exists, so the resuming client would be written a third time; a Node runtime for players | **Declined** |
@@ -276,7 +282,7 @@ over stdio and over stateless HTTP, and nothing depends on a transport session.
 weeks on this date). The lock takes the newest release at least 14 days old at S27-d's first commit
 (**verify** against the lock at that time). `mcp-types` is pinned by `mcp` itself.
 
-### 4.3 Placement decision (`ARC-S27-a`)
+### 4.3 Placement decision (`ARC-96`)
 
 An agent player is a client: an external Controller reaches its seat through `mineworld-agent`, a Python
 client of the public protocol built on `mineworld-sdk`; the MCP SDK is confined to one module of that package;
@@ -294,7 +300,7 @@ no MCP concept enters any other package (INV-S27-9). Recorded in §12.
 operations to keep in step, and a stateful seat cannot be held by stateless REST calls without re-inventing
 the handle that MCP 2026-07-28 already standardises. An agent that can POST JSON can POST MCP's JSON-RPC
 `tools/call` to the Streamable HTTP endpoint; nothing about that is MCP-product-specific. Revisit only if a
-named agent cannot speak either (recorded under `ARC-S27-a`).
+named agent cannot speak either (recorded under `ARC-96`).
 
 ### 4.5 What is shared with P6, and what is not
 
@@ -448,7 +454,7 @@ free-form and has no tool here (`invite`, whose `kind` is free text) is not reac
 S27; that is listed in the guide, not hidden. A generic "send any action with any payload" tool is declined:
 its payload would be an untyped blob. It becomes possible once action payload schemas are published in the
 generated reference (an S25 follow-up), at which point `act(action_type, target, payload)` can validate the
-payload against the owning pack's schema before sending (QS27-9).
+payload against the owning pack's schema before sending (QS27-9, ruled: not until those schemas are published).
 
 Each `bodies` action named `kick` is the world's kick (a foot on a ball), offered by the `bodies` System Pack. It
 has nothing to do with the admin route `POST /admin/sessions/{session}/kick`, which the adapter cannot reach
@@ -528,7 +534,7 @@ tool call ─► adapter ─► newest observation (never a queued old one) ─�
   keyboard. For resident seats that would stop a resident's life, so the adapter's `--idle-release S` (default
   600 wall seconds, `0` = never) sends `leave` after S wall seconds without a tool call on that handle,
   returning the seat to its default; the next call answers `seat_lost { reason: idle_released }`. This is a
-  client policy, as a game client's away-from-keyboard timeout is (QS27-3).
+  client policy, as a game client's away-from-keyboard timeout is (QS27-3, ruled).
 
 ### 5.10 The token-economy model
 
@@ -585,7 +591,7 @@ A credential is never a tool argument, never in a result, a resource, a log line
 Guide examples use environment-variable expansion in the agent client's configuration (`${MINEWORLD_GRANT}`),
 never a literal token.
 
-### 6.4 Seat grants (S27-a, `ARC-S27-b`)
+### 6.4 Seat grants (S27-a, `ARC-97`)
 
 `mineworld server WORLD --grant visitor --grant wanderer --grant alice:take-over …`
 
@@ -659,7 +665,7 @@ adapter process are two handles over two WebSockets; nothing is shared between t
   same "nothing half-done" property as `paused` (A-9) — with `retry_after_ms` in the refusal. It applies to
   every connection identically (INV-S27-13) and not to in-server controllers, which the host already paces at
   its consult cadence.
-- **The numbers are decided before measuring.** Proposed default `R = 10`, `B = 20`. S27-a's first commit
+- **The numbers are decided before measuring.** Default floor `R = 10`, `B = 20`. S27-a's first commit
   measures the per-second submit count of the 2D walker (A-17: ≈ 3.2 while walking, plus turns, talk and
   offers) and of the 3D client's harness traces, and the frozen rule is `R = max(10, 2 × measured p99)`,
   `B = 2R`, configurable by `--request-budget R/B` with `0` meaning "no budget" for a host that wants none.
@@ -667,7 +673,7 @@ adapter process are two handles over two WebSockets; nothing is shared between t
   walking speed tightly needs either movement to know embodied time — which `ARC-67` forbids — or the host to
   enforce a per-action cadence that a System Pack declares (for example "`walk-step`: at most 1 per wall second,
   burst 2"), keeping the host ignorant of what the action means. That is a design change to `ARC-67`/`ARC-75`,
-  raised as QS27-7.
+  ruled by QS27-7 a separate design after S27-a.
 - **Adapter.** The pacer never exceeds one step per wall second and one in-flight submit per handle, so an
   agent through the adapter is never faster than a 2D client; the server's budget is what makes that true for
   a client that is not the adapter.
@@ -679,7 +685,7 @@ protocol can already express by not submitting, and it occupies the seat — or 
 is a perception that belongs to no Person and edges toward the "dashboard for watching agents move" that
 `VISION.md` rules out and toward the omniscience `INV-13` forbids. An agent that wants to watch joins a seat
 and watches what that Person perceives. A read-only grant (`--grant visitor:watch`, whose `submit`s are refused)
-is a small, coherent extension of §6.4 if the operator wants it (QS27-6); it would still see only one Person's
+is a small, coherent extension of §6.4 left for later (QS27-6 ruled no watch role in S27); it would still see only one Person's
 view.
 
 ---
@@ -688,10 +694,10 @@ view.
 
 | Component | Decision | Why |
 | --- | --- | --- |
-| MCP server framework | adopt `mcp` (Python, official, MIT) behind one module (`DEP-S27-a`) | §4.2; reinventing the stateless 2026-07-28 protocol is unjustified; declining `rmcp` is recorded with its revisit trigger |
+| MCP server framework | adopt `mcp` (Python, official, MIT) behind one module (`DEP-56`) | §4.2; reinventing the stateless 2026-07-28 protocol is unjustified; declining `rmcp` is recorded with its revisit trigger |
 | Protocol client | reuse `mineworld-sdk` (`ResumingSeat`, `offers`) unchanged | the proven client; a second implementation is the duplication `DEP-44` avoided |
 | Typed schemas | reuse Pydantic (`DEP-24`); `outputSchema` from the models | one source for validation, schema and the generated reference |
-| Per-seat request budget | adopt `governor` (0.10.4, MIT per crates.io, 2025-12-16) for one direct limiter per seat, with its fake clock for tests (**verify** clock injection and licence file at S27-a C0); if the prototype shows its clock cannot be driven from the seat table's injected `Instant`, a ~40-line token bucket in `seats.rs` with the decline recorded (`DEP-S27-b`). `DEP-14` already names `governor` as the adopt route for public hosting | prototype before committing (`REUSE_POLICY.md` §15) |
+| Per-seat request budget | adopt `governor` (0.10.4, MIT per crates.io, 2025-12-16) for one direct limiter per seat, with its fake clock for tests (**verify** clock injection and licence file at S27-a C0); if the prototype shows its clock cannot be driven from the seat table's injected `Instant`, a ~40-line token bucket in `seats.rs` with the decline recorded (`DEP-57`). `DEP-14` already names `governor` as the adopt route for public hosting | prototype before committing (`REUSE_POLICY.md` §15) |
 | HTTP server for Streamable HTTP | whatever `mcp` brings (`starlette`, `uvicorn`); no second web stack | the SDK owns its transport |
 | Agent frameworks (LangChain tools, AutoGen, etc.) | not adopted; the `Player` library is framework-neutral | `REUSE_POLICY.md` §8: references, not foundations; an adapter for one is a thin module later |
 
@@ -799,7 +805,7 @@ description, argument and result schema from the Pydantic models. A test regener
 difference (the S25 drift rule, `ARC-90`). It is linked from S25's reference index. The reference has no
 `zh-CN` mirror (QS25-6's rule).
 
-### 10.3 Coordination with step-25 (proposed in §13.3)
+### 10.3 Coordination with step-25 (§13.3)
 
 - **Commands.** S25's runner executes only `mineworld …` (A-30). Chapter 14's `mineworld server … --grant`
   blocks run; everything else is `operator-only`. S27 does not ask S25 to widen the runner.
@@ -809,8 +815,8 @@ difference (the S25 drift rule, `ARC-90`). It is linked from S25's reference ind
   `<!-- guide: equals examples/agent-session.json -->`-style directive if 25c's grammar allows it, otherwise by
   a byte-equality test in S27-f.
 - **Onboarding.** S25's onboarding test drives a fresh agent through world *creation*. A second onboarding
-  scenario — "connect to this world and buy a coffee" with only chapter 14 and the tool reference — is proposed
-  as an S27-g round, batched with S25's rounds, with the same "every place it gets stuck is a guide defect"
+  scenario — "connect to this world and buy a coffee" with only chapter 14 and the tool reference — is
+  an S27-g round (QS27-10, ruled), batched with S25's rounds, with the same "every place it gets stuck is a guide defect"
   rule (QS27-10).
 
 ---
@@ -847,7 +853,7 @@ now:   S27-a server grants + request budget (Rust, Opus) ───────�
 `rate_limited`, `retry_after_ms`), `server/src/admin.rs` (credential kind in `/admin/sessions`), `tools/cli`
 (`--grant`, `--request-budget`), `server/PROTOCOL.md` (§§4.1, 4.2, 5.5, 10, 11), `server/tests/frames/` (new
 goldens), the SDK's `wire/frames.py` literals, the Godot protocol module's code table, `docs/NETWORKING.md` §9
-(one paragraph), `docs/DECISIONS.md` (`ARC-S27-b`, `DEP-S27-b`).
+(one paragraph), `docs/DECISIONS.md` (`ARC-97`, `DEP-57`).
 **Not in scope.** Per-action embodied cadence (QS27-7); bans; durable identity; any change to the invite's
 meaning.
 **Integration checkpoint CP-a.** Against the real binary: a grant for `visitor` joins `visitor`; the same grant
@@ -888,7 +894,7 @@ every affordance of it (count equality), so the adapter cannot silently filter o
 **Scope.** `clients/agent/src/mineworld_agent/mcp_server.py` (the only module importing `mcp`: tool
 registration with `outputSchema`, resources, the `play` prompt, `subscriptions/listen` for the inbox),
 `__main__.py` (`mineworld-agent mcp …`), `mineworld-agent schema`, `tests/test_play_market_town.py` (§9.2 with
-the official MCP client), the closed-tool-list and no-secret tests, `docs/DECISIONS.md` `DEP-S27-a`,
+the official MCP client), the closed-tool-list and no-secret tests, `docs/DECISIONS.md` `DEP-56`,
 `clients/agent/README.md` (short, human).
 **Checkpoint CP-d.** §9.2 complete over stdio on Linux, macOS and Windows; the published tool list equals the
 golden; the transcript contains no credential; the dependency scan shows `mcp` only under `clients/agent`.
@@ -924,20 +930,38 @@ defects become fix commits in a small follow-up PR.
 S27 is complete when S27-a … S27-f are merged with their checkpoints evidenced on their PR heads, S27-g's live
 check has passed for the agents QS27-2 names, and `overall.md` records the step.
 
+### 11.4 Start conditions and implementers (frozen 2026-10-14)
+
+Every PR starts only on the primary session's dispatch, in a fresh implementation session and its own
+worktree, after its own PR design has been written to the commit and frozen. The step freeze authorizes none of
+them. "Base" is `origin/main` at the PR's first commit, recorded in its C0.
+
+| PR | Implementer | Start condition | Must merge before | Decision records it writes |
+| --- | --- | --- | --- | --- |
+| S27-a Seat grants and per-seat request budget | Opus-class | Now. No S27 dependency; S11-E not required (A-26) | S27-d's grant variant of §9.2 steps 2 and 9 (added by whichever lands second); R-d | `ARC-97`, `DEP-57` (C0, after the `governor` prototype) |
+| S27-b `group-activity` complete offers | Haiku-class | Now. Independent | S27-d's invitation step, if S27-d includes one; R-d | none (dated note under `ARC-34`) |
+| S27-c `Player` core library | Opus-class | Now. Needs only the merged SDK (P3, P3b) | S27-d | `ARC-96` (C0) |
+| S27-d stdio MCP adapter and CI play-test | Haiku-class | S27-c merged | S27-e, S27-f; R-d | `DEP-56` (C0) |
+| S27-e Streamable HTTP and several agents | Haiku-class, Opus-class review | S27-d merged | R-d | none |
+| S27-f Guide chapter 14 and tool reference | Haiku-class | S27-d merged, and S25's 25a, 25c and 25d merged | R-d | none |
+| S27-g Operator live check (no code) | operator | S27-d merged (S27-e for an HTTP check), batched into the next milestone's hands-on list (QS27-1) | — | none; evidence and any guide fixes in a follow-up PR |
+
+R-a, R-b and R-c do not wait for any S27 PR (QS27-1).
+
 ---
 
-## 12. Decision records proposed (placeholders)
+## 12. Decision records (numbers assigned 2026-10-14)
 
-| Placeholder | Decision | Written by |
+| Number (draft placeholder) | Decision | Written by |
 | --- | --- | --- |
-| **ARC-S27-a** | Agent players are clients: an external Controller reaches its seat through `mineworld-agent` (`clients/agent/`), a Python client of the public protocol on `mineworld-sdk`; MCP is confined to one module of it; no MCP concept below it; no separate REST agent API (a library and the public protocol serve non-MCP agents); the adapter knows `talk` and movement by name, everything else through complete affordances; credentials are launch configuration, never tool data; in-world text is typed untrusted. Options P, R-in, R-beside, T, H as §4.2 | S27-c C0 |
-| **ARC-S27-b** | Seat grants and the per-seat request budget: a grant is a host-generated credential naming seats and an optional take-over right, presented in `join.invite`; `not_granted`; a per-seat token bucket refusing `rate_limited` before an `ActionId`; both host state (`ARC-40`), applied identically to every connection; per-action embodied cadence left open (QS27-7). Amends `ARC-40`'s and `ARC-44`'s "one level of trust" limitation by adding a narrower credential, not by changing the invite | S27-a C0 |
-| **DEP-S27-a** | `mcp` (Python, official, MIT, `>=2.2,<3`) adopted for `clients/agent` only; `rmcp` 3.5.1 (Apache-2.0) declined for now with its revisit trigger (bundle UX, QS27-8); `@modelcontextprotocol/sdk` 1.32.1 (MIT) declined (language rule); own JSON-RPC rejected | S27-d C0 |
-| **DEP-S27-b** | `governor` adopted for the per-seat bucket if the C0 prototype shows its clock can be injected from the seat table; otherwise our own bucket, with the decline recorded | S27-a C0 |
+| **ARC-96** (ARC-S27-a) | Agent players are clients: an external Controller reaches its seat through `mineworld-agent` (`clients/agent/`), a Python client of the public protocol on `mineworld-sdk`; MCP is confined to one module of it; no MCP concept below it; no separate REST agent API (a library and the public protocol serve non-MCP agents); the adapter knows `talk` and movement by name, everything else through complete affordances; credentials are launch configuration, never tool data; in-world text is typed untrusted. Options P, R-in, R-beside, T, H as §4.2 | S27-c C0 |
+| **ARC-97** (ARC-S27-b) | Seat grants and the per-seat request budget: a grant is a host-generated credential naming seats and an optional take-over right, presented in `join.invite`; `not_granted`; a per-seat token bucket refusing `rate_limited` before an `ActionId`; both host state (`ARC-40`), applied identically to every connection; per-action embodied cadence a separate design after S27-a (QS27-7, ruled). Amends `ARC-40`'s and `ARC-44`'s "one level of trust" limitation by adding a narrower credential, not by changing the invite | S27-a C0 |
+| **DEP-56** (DEP-S27-a) | `mcp` (Python, official, MIT, `>=2.2,<3`) adopted for `clients/agent` only; `rmcp` 3.5.1 (Apache-2.0) declined for now with its revisit trigger (bundle UX, QS27-8); `@modelcontextprotocol/sdk` 1.32.1 (MIT) declined (language rule); own JSON-RPC rejected | S27-d C0 |
+| **DEP-57** (DEP-S27-b) | `governor` adopted for the per-seat bucket if the C0 prototype shows its clock can be injected from the seat table; otherwise our own bucket, with the decline recorded | S27-a C0 |
 
 ---
 
-## 13. Proposed edits to documents this session may not edit
+## 13. Edits to documents this session may not edit (owner: the primary session)
 
 ### 13.1 Specifications
 
@@ -945,14 +969,14 @@ check has passed for the agents QS27-2 names, and `overall.md` records the step.
   "An **agent player** is a Person whose Controller is an agent MineWorld does not run, reaching its seat through
   a client process (the agent adapter, `clients/agent/`). It is a Controller like any other: it receives that
   Person's Observations and emits ActionIntents through the same seat, the same validation and the same
-  persistence as a human's client; the server cannot tell the two apart (`ARC-S27-a`)." (F-S27-5)
+  persistence as a human's client; the server cannot tell the two apart (`ARC-96`)." (F-S27-5)
 - **`docs/NETWORKING.md` §9.** After "server invite token + player nickname": "A host may also issue seat grants:
   narrower credentials that admit named seats only, with or without the right to take a seat over
-  (`ARC-S27-b`). A grant is not an account and not durable identity." And in §2's diagram, "AI Controller
+  (`ARC-97`). A grant is not an account and not durable identity." And in §2's diagram, "AI Controller
   Worker" gains "/ agent adapter".
 - **`docs/MODULE_SPEC.md` §5.** One sentence after the hard constraints: "An agent that MineWorld does not run is
   not a Controller Pack; it plays through the agent adapter, a client, under the same constraints 1–4."
-- **`docs/ARCHITECTURE.md` §14.** `clients/  godot, admin-web, agent (the MCP adapter, ARC-S27-a)`.
+- **`docs/ARCHITECTURE.md` §14.** `clients/  godot, admin-web, agent (the MCP adapter, ARC-96)`.
 - **`server/PROTOCOL.md`.** By S27-a: grants in §4.1/§4.2, `not_granted` and `rate_limited` (with
   `retry_after_ms`) in §5.5, the landing-table rows in §10, credential kind in §11.2. For the next revision
   (not now): "a client treats a refusal code it does not know as a generic refusal" (F-S27-4).
@@ -960,18 +984,18 @@ check has passed for the agents QS27-2 names, and `overall.md` records the step.
 ### 13.2 `overall.md`
 
 A §3 step entry "S27 — Agents as first-class players (MCP adapter)" with output, dependencies and acceptance
-checkpoint from §0 and §11.3; the decision-number row once assigned; the operator requirement of 2026-10-14
+checkpoint from §0 and §11.3; the decision-number row `S27 | ARC-96, ARC-97 | DEP-56, DEP-57`; the operator requirement of 2026-10-14
 quoted in §5 under its own dated heading.
 
 ### 13.3 `step-25-creator-docs.md`
 
 - §6.3: chapter 14 "Play as an agent" (S27-f), feature `agent-players` in `features.toml`.
-- §9: a second onboarding scenario (connect and buy) proposed for S27-g's rounds (QS27-10).
+- §9: a second onboarding scenario (connect and buy) as S27-g's rounds (QS27-10).
 - No change to the runner's command rule (A-30).
 
 ---
 
-## 14. Operator questions (each with a recommendation)
+## 14. Operator questions (each with a recommendation; all ruled 2026-10-14, §14.1)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
@@ -986,6 +1010,28 @@ quoted in §5 under its own dated heading.
 | **QS27-9** | A generic `act(action_type, target, payload)` tool for free-form actions? | **Not until action payload schemas are published in the generated reference.** Until then free-form actions are reached only through named tools (`say`, movement), and `invite` is listed as not yet reachable |
 | **QS27-10** | Add an agent-play onboarding round to S25's onboarding test? | **Yes, as part of S27-g**, same container, same budget rule as QS25-3, gated on chapter 14 and the tool reference only |
 
+### 14.1 Rulings, 2026-10-14 (operator, relayed by the coordinator; binding)
+
+The coordinator relayed, verbatim: "The operator ruled on 2026-10-14 and accepted every §14 recommendation,
+QS27-1 through QS27-10, as written. QS27-1 is MVP-0 for S27-a through S27-f, landing before R-d without blocking
+R-a through R-c. S27-g joins the next milestone's batched hands-on checklist." Each recommendation above is
+therefore a ruling, recorded here as written:
+
+| ID | Ruling | By |
+| --- | --- | --- |
+| QS27-1 | **MVP-0 for S27-a … S27-f, landing before step-23's publishing PR R-d, and not blocking R-a … R-c.** The release then ships the claim "humans and agents are both first-class" with a tested path behind it. Remote exposure stays out of MVP-0 (QS27-5). S27-g joins the next milestone's hands-on batch | operator |
+| QS27-2 | **Claude Code first (stdio), then Codex (stdio); both operator-run in S27-g.** The official MCP SDK client is CI's deterministic stand-in. Others (Gemini CLI, IDE agents) are documented by the generic stdio stanza and verified only when someone asks | operator |
+| QS27-3 | **Both, under the same rule as a human: whatever its credential names.** First-class means a human and an agent may each take over Alice exactly when their credential allows; the guide recommends granting agents visitor seats and granting resident seats deliberately. The adapter's `--idle-release` (default 600 wall s) hands an idle agent's seat back to its default so a resident's life does not stop | operator |
+| QS27-4 | **No, not through MCP, in any phase of S27.** Pacing is host state behind the admin token for everyone (INV-S27-10). A user running a private world who wants their agent to pause it can call the admin route themselves; giving a player tool host powers is the omission `PROTOCOL.md` §9 makes on purpose | operator |
+| QS27-5 | **Loopback only in MVP-0.** S27-e ships Streamable HTTP bound to `127.0.0.1` with `Origin` checks and bearer grants; `--allow-remote` exists but the guide documents it only behind a TLS tunnel or gateway, and a public-internet agent endpoint is MVP-1 with durable identity | operator |
+| QS27-6 | **No in S27.** An agent watches through a seat it holds. A `:watch` grant is a small later extension if wanted; a seat-less spectator is declined (omniscience, dashboard) | operator |
+| QS27-7 | **Yes, but as its own design after S27-a**: a per-action cadence a System Pack declares (e.g. `walk-step` ≤ 1/s) and the host enforces on wall time without knowing the action's meaning, amending `ARC-67`/`ARC-75`. S27-a's generic budget is the MVP-0 floor and applies equally to humans and agents | operator |
+| QS27-8 | **Accept.** The guide gives the one-line `uv` install. Revisit a Rust single-binary adapter (`rmcp`, option R-beside) only if S27-g shows installation is the main obstacle | operator |
+| QS27-9 | **Not until action payload schemas are published in the generated reference.** Until then free-form actions are reached only through named tools (`say`, movement), and `invite` is listed as not yet reachable | operator |
+| QS27-10 | **Yes, as part of S27-g**, same container, same budget rule as QS25-3, gated on chapter 14 and the tool reference only | operator |
+
+Decision numbers assigned by the primary session the same day: `ARC-96`, `ARC-97`, `DEP-56`, `DEP-57` (§12).
+
 ---
 
 ## 15. Risks
@@ -998,7 +1044,7 @@ quoted in §5 under its own dated heading.
 | R-S27-4 | Adding refusal codes breaks older clients (F-S27-4). | S27-a updates the SDK and Godot module in the same PR; the landing table marks the codes. |
 | R-S27-5 | An agent spams the world (talk floods). | The per-seat budget; conversation's own gap rules; the host's kick and grant rotation. |
 | R-S27-6 | `View` duplicates P6's `Situation`. | Accepted until both ship; a review then decides on a lift into the SDK (§4.5). |
-| R-S27-7 | `governor`'s clock cannot be driven by the seat table's injected time. | C0 prototype; fall back to our own bucket with the decline recorded (`DEP-S27-b`). |
+| R-S27-7 | `governor`'s clock cannot be driven by the seat table's injected time. | C0 prototype; fall back to our own bucket with the decline recorded (`DEP-57`). |
 | R-S27-8 | The pacer makes an agent's walk look like an autopilot humans lack. | It is the 2D client's rule (A-15), documented in the guide side by side. |
 | R-S27-9 | Windows: stdio subprocess and `pywin32` in the `mcp` graph. | The Python CI legs run the full play-test on Windows (A-29); selector event loop as the SDK already does. |
 
