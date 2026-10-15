@@ -941,7 +941,7 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | base adf6d49 (commit recorded in the handoff) | [x] | [x] | [x] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
@@ -956,8 +956,8 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 
 | Id | What | Value |
 | --- | --- | --- |
-| E-S26a-1 | base behaviour line counts per world (C0) | — |
-| E-S26a-2 | genesis counts, base (C0) and new (C4) | — |
+| E-S26a-1 | base behaviour line counts per world (C0), base `origin/main @ adf6d49`, seed 7, 300 days: social-cafe 20, market-town 24, lakeside 24 (`target/scratch-s26a/<w>.base.behaviour`); wall: social-cafe 617.9 s, market-town 1172.3 s, lakeside 114.4 s (lakeside's first run was killed at day 163 by an external signal, exit 144, and rerun alone to completion; load average was 90–180 on the shared machine, R-LOAD-1: timings unreliable) | C0 |
+| E-S26a-2 | genesis counts, base (C0) and new (C4): base social-cafe 53, market-town 134, lakeside 82, bodies-yard 47 (`mineworld validate`, base) | C0 (base); C4 (new) |
 | E-S26a-3 | behaviour diffs empty, per world (C6 step 3) | — |
 | E-S26a-4 | `baseline check` verdicts before and after the re-record (C6) | — |
 
