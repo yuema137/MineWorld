@@ -50,7 +50,8 @@ fn read_features(guide: &Path) -> Result<Features, String> {
 }
 
 /// Every English page, in file-name order. A page is a Markdown file directly in the guide folder, other than
-/// `README.md` and mirrors. A mirror without its English page is a failure (§1.2).
+/// the index (`README.md` and its mirror `README.zh-CN.md`) and mirrors. A mirror without its English page is
+/// a failure (§1.2).
 fn english_pages(guide: &Path) -> Result<Vec<PathBuf>, String> {
     let entries = fs::read_dir(guide)
         .map_err(|error| format!("{} cannot be read: {error}", guide.display()))?;
@@ -61,7 +62,7 @@ fn english_pages(guide: &Path) -> Result<Vec<PathBuf>, String> {
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if !path.is_file() || !name.ends_with(".md") || name == "README.md" {
+        if !path.is_file() || !name.ends_with(".md") || INDEX.contains(&name) {
             continue;
         }
         if let Some(stem) = name.strip_suffix(".zh-CN.md") {
@@ -78,6 +79,9 @@ fn english_pages(guide: &Path) -> Result<Vec<PathBuf>, String> {
     }
     Ok(english)
 }
+
+/// The guide's index and its mirror: read by people, never executed, and not pages (§1).
+const INDEX: [&str; 2] = ["README.md", "README.zh-CN.md"];
 
 fn page_name(path: &Path) -> &str {
     path.file_stem()
@@ -188,10 +192,28 @@ fn guard_pages(guide: &Path, pages: &[PathBuf], repo: &Path, summary: &mut Summa
         };
         let english = mirror::outline(&source);
         let mirror_path = guide.join(format!("{name}.zh-CN.md"));
+        let mut problems = mirror::link_problems(
+            &mirror::normalise(path),
+            &english,
+            &reference,
+            reference_present,
+        );
         let mirror_verdict = match fs::read_to_string(&mirror_path) {
             Err(_) => Verdict::Fail(format!("{name}.md has no mirror {name}.zh-CN.md")),
             Ok(mirror_source) => {
-                match mirror::mirror_problem(&english, &mirror::outline(&mirror_source)) {
+                let translated = mirror::outline(&mirror_source);
+                // §7 rule 4: the mirror's own links resolve too, by the same rule as the page's.
+                problems.extend(
+                    mirror::link_problems(
+                        &mirror::normalise(&mirror_path),
+                        &translated,
+                        &reference,
+                        reference_present,
+                    )
+                    .into_iter()
+                    .map(|problem| format!("{name}.zh-CN.md: {problem}")),
+                );
+                match mirror::mirror_problem(&english, &translated) {
                     None => Verdict::Pass,
                     Some(problem) => Verdict::Fail(problem),
                 }
@@ -200,12 +222,6 @@ fn guard_pages(guide: &Path, pages: &[PathBuf], repo: &Path, summary: &mut Summa
         summary
             .checks
             .push((format!("mirror of {name}"), mirror_verdict));
-        let problems = mirror::link_problems(
-            &mirror::normalise(path),
-            &english,
-            &reference,
-            reference_present,
-        );
         let links = if problems.is_empty() {
             Verdict::Pass
         } else {

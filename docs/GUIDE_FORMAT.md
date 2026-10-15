@@ -17,6 +17,7 @@ runner executes, which it only shows, and which it refuses.
 | Path | What it is |
 | --- | --- |
 | `docs/guide/README.md` | The human index of the guide. Not a page: it is never executed. |
+| `docs/guide/README.zh-CN.md` | The index's Chinese mirror. Not a page and not a page's mirror: it is never executed and not held to §7's parity. (Bounded correction, PR 25d: the runner of 25c treated it as a mirror without an English page.) |
 | `docs/guide/NN-name.md` | An English page. Executed. Pages are named with a two-digit prefix and a hyphenated name. |
 | `docs/guide/NN-name.zh-CN.md` | The Chinese mirror of the page with the same name (§7). Never executed; it is checked for parity. |
 | `docs/guide/compare/…` | Comparison pages (PR 25e). Same rules as chapter pages. |
@@ -32,8 +33,8 @@ directory of the same shape.
 
 ### 1.1 Page discovery and order
 
-1. A page is a file directly inside the guide root whose name ends in `.md`, excluding `README.md` and any name
-   ending in `.zh-CN.md`. Subdirectories are not pages; `compare/` is walked by its own index in PR 25e and
+1. A page is a file directly inside the guide root whose name ends in `.md`, excluding `README.md`,
+   `README.zh-CN.md` and any other name ending in `.zh-CN.md`. Subdirectories are not pages; `compare/` is walked by its own index in PR 25e and
    its pages are added to the run order there.
 2. Pages run in ascending order of their file name (byte order). The two-digit prefix makes that the reading order.
 3. A page whose file name has no two-digit prefix is refused: the run fails naming the file.

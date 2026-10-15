@@ -600,6 +600,23 @@ fn a_mirror_missing_its_english_page_or_its_mirror_turns_the_run_red() {
 }
 
 #[test]
+fn the_index_and_its_mirror_are_neither_run_nor_held_to_page_parity() {
+    // A block that would fail if it ran, and a mirror whose English page is the index: both are the
+    // index's, which is read by people and never executed (§1).
+    let index = "```console\n$ ls\n```\n";
+    let repo = repo_with(
+        "guide-index",
+        vec![
+            ("docs/guide/README.md".to_owned(), index.to_owned()),
+            ("docs/guide/README.zh-CN.md".to_owned(), "索引\n".to_owned()),
+        ],
+    );
+    let summary = run_repo("guide-index-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert_eq!(summary.passed, 0, "{}", summary.render());
+}
+
+#[test]
 fn a_link_to_a_missing_reference_anchor_turns_the_run_red() {
     let text = "[corner](../reference/index.md#missing)\n";
     let repo = repo_with(
@@ -614,6 +631,25 @@ fn a_link_to_a_missing_reference_anchor_turns_the_run_red() {
     );
     let found = failures(&run_repo("guide-anchor-run", &repo));
     assert!(found.contains("no heading with that anchor"), "{found}");
+}
+
+#[test]
+fn a_broken_link_in_a_mirror_turns_the_run_red_and_names_the_mirror() {
+    // §7 rule 4: a mirror's prose may differ, so its links are its own, and each must resolve.
+    let repo = repo_with(
+        "guide-mirror-link",
+        vec![
+            ("docs/guide/a.md".to_owned(), "[b](b.md)\n".to_owned()),
+            (
+                "docs/guide/a.zh-CN.md".to_owned(),
+                "[b](b.zh-CN.md#无)\n".to_owned(),
+            ),
+            ("docs/guide/b.md".to_owned(), "## B\n".to_owned()),
+            ("docs/guide/b.zh-CN.md".to_owned(), "## 乙\n".to_owned()),
+        ],
+    );
+    let found = failures(&run_repo("guide-mirror-link-run", &repo));
+    assert!(found.contains("a.zh-CN.md: b.zh-CN.md#无"), "{found}");
 }
 
 #[test]
