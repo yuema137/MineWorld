@@ -548,14 +548,15 @@ Steps:
   (before | after, one PNG each, with the existing tooling or by placing both files in the same folder),
   and push the folders `rlb2/base1`, `rlb2/c2` and the pairs to the branch `review/rl-b2-frames` (images
   only; not part of this PR's diff; create it as an orphan branch in a separate scratch worktree).
-- [ ] **2.11 Pack size on the head (record).** Repeat 2.1 on this commit's tree. A-3: gzipped ≤ 250 MB.
+- [x] **2.11 Pack size on the head (record).** Evidence: E-B2-6. A-3 PASS (240.3 MB gzipped). Repeat 2.1 on this commit's tree. A-3: gzipped ≤ 250 MB.
   Record raw, gzipped, and Δ vs 2.1. If over 250 MB → §9.
 - [x] **2.12 A-7 (record).** Evidence: E-B2-5. `--drive`, `--threshold`, `--measure`, `--character`, `--world --link`,
   `--world --conversation` each as on the base.
 - [x] **2.13 Review.** Evidence: E-B2-5. `git diff --name-only origin/main`: no character, HDRI, `assets/textures/` or
   promenade-only model file; floors cite step-22 §6.4 and DEP-8 in code comments.
-- [ ] **2.14 Commit** `3d: 512 px textures for small and distant props (MS-Ra-2)`. Push. Then **stop and
-  ask the primary session to schedule operator session 1 (§8.1)**; give the exact command.
+- [x] **2.14 Commit** (`a5b9558`) `3d: 512 px textures for small and distant props (MS-Ra-2)`. Push. Then **stop and
+  ask the primary session to schedule operator session 1 (§8.1)**; give the exact command. Under the
+  coordinator's batching rule the session is parked (table below), not waited for.
 
 ### C2-E — operator session 1 (§8.1), ledger only
 - [ ] **E.1** Record the operator's pasted output (the `perf_compare.py` table) as E-B2-trials in §14.
@@ -583,10 +584,11 @@ Only after E.2 chose a trial.
 - [ ] **3.3 Commit** `3d: <lever> (cafe frontage and doorway within 16.7 ms)`. Push.
 
 ### C4 — `docs: RL-b2 review package` and operator session 2 (§8.2)
-- [ ] **4.1** `P/README.md`: one paragraph for `--trial`, `--trials`, `--texel-density` and
+- [x] **4.1** (E-B2-6) `P/README.md`: one paragraph for `--trial`, `--trials`, `--texel-density` and
   `perf_compare.py`. `docs/HUMAN_REVIEW_QUEUE.md`: a dated `VIS-3D-GODOT-2` line for RL-b2 with §8.3's
   checklist and the `review/rl-b2-frames` link.
-- [ ] **4.2** Commit `docs: RL-b2 review package`, push, open the PR (draft) with the ledger summary.
+- [x] **4.2** (E-B2-6; taken before C2-E/C3 because both operator sessions are parked) Commit
+  `docs: RL-b2 review package`, push, open the PR (draft) with the ledger summary.
   Ask the primary session to schedule operator session 2 (§8.2).
 - [ ] **4.3** Record the operator's output as E-B2-final. A-1 PASS → mark the PR ready (`gh pr ready`),
   lifecycle READY FOR OPERATOR REVIEW — DO NOT MERGE. A-1 FAIL → §9 stop with the numbers.
@@ -819,6 +821,21 @@ E-B2-5   2026-10-14  C2 (agent; takeover session, Opus, after the Haiku implemen
                      promenade-only file; floors cite step-22 §6.4 and DEP-8 in both files.
 ```
 
+```text
+E-B2-6   2026-10-14  2.11 head pack (SD-B2-8): the same scratch worktree checked out at a5b9558 (C2), same
+                     preset; `--import` EXIT 0 (the 29 changed textures), `--export-pack "Linux"` EXIT 0.
+                     raw 323 771 700 B (−30 402 984 vs base, = 29 x ~1 048 k), gzip -6 240 317 698 B
+                     (−19 233 524 vs base). A-3: 240.3 MB <= 250 MB. PASS. The design's ~177 MB estimate assumed
+                     79 textures; 29 remain after the floors, and BC7 gzips a little, so the gzipped saving is
+                     smaller than the raw one. Load average 17-40 during the import (other sessions' cargo
+                     builds); sizes do not depend on load.
+                     C4 4.1: README paragraph (--trial, --trials, --texel-density, perf_compare.py);
+                     HUMAN_REVIEW_QUEUE dated VIS-3D-GODOT-2 RL-b2 entry, the checklist reflecting the 8 slugs
+                     actually downsized. 4.2: the PR is opened as a draft now, because C2-E, C3, 4.3 need the
+                     two parked operator sessions. Local cargo checks not run (no Rust change; R-LOAD-1: CI on
+                     the exact head is the gate).
+```
+
 **Parked operator checks (batched to milestone).** Coordinator ruling: the two operator perf sessions are
 batched into the milestone. The tables below are parked, not run. Each row begins with an explicit `cd`.
 
@@ -837,10 +854,25 @@ Operator session 2 (§8.2, the C3 head, after E.2 chose a lever and C3 is commit
 | --- | --- | --- |
 | 1 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && caffeinate -d ./mineworld-slice --perf` | one `perf session:` line; three conclusive runs |
 | 2 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && ls clients/3d-spike/shots/slice/perf` | the probe lines at the top of the run output: `croissant_diff_1k.jpg BPTC_RGBA 512x512, 10 mip level(s)` and `cobblestone_floor_08_diff_1k.jpg BPTC_RGBA 1024x1024, 11` |
-| 3 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` | `R-2 PASS` with every view's median p95 at or below 16.7 ms and video memory about 1 520 MB; draws and primitives listed as advisory |
+| 3 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` | `R-2 PASS` with every view's median p95 at or below 16.7 ms and video memory about 1 578 MB (1 608 minus ~30 MB for the 29 textures at 512 px, E-B2-5; this also decides A-6); draws and primitives listed as advisory |
 | 4 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` (the operator pastes the output) | recorded as E-B2-final; A-1 decided |
 
-**Handoff.** Superseded: see E-B2-4. Next action: the C1 commit, then the rebase onto origin/main, then C2.
+Session 2 can only run after session 1's numbers are back and the agent has committed C3 (the chosen
+lever); if session 1 finds no eligible and sufficient trial, session 2 is not run and §9's stop applies.
+
+Visual checklist (§8.3, with the stills on `review/rl-b2-frames`, any time; about 10 min):
+
+| Step | Command or action | Expected result |
+| --- | --- | --- |
+| 1 | `cd /Users/yuema137/mineworld-worktrees && git -C impl-rl-b2 fetch origin review/rl-b2-frames && git -C impl-rl-b2 worktree add --detach /Users/yuema137/mineworld-worktrees/view-rl-b2-frames origin/review/rl-b2-frames && open /Users/yuema137/mineworld-worktrees/view-rl-b2-frames/pairs` | a Finder window with 14 PNGs: seven views, each as `-1-before` and `-2-after` |
+| 2 | look at `26_counter_goods_close`, `10b_counter_goods_detail`, `21b_florist_shelf_detail`, before and after | croissants, carrot cakes, apples, the florist's clay pots and calathea: no visible blur or blockiness at a shopper's distance. Name any item that reads worse (it goes back to 1k) |
+| 3 | look at `05_interior_wide`, `12_back_wall`, `10_interior_counter`, before and after | the pipe lamp, the wall clock and the picture frame read the same |
+| 4 | `open /Users/yuema137/mineworld-worktrees/view-rl-b2-frames/heat` | red pixels only on the downsized props (in `26`, only the two carrot cakes); walls, paving, roofs, furniture unchanged |
+| 5 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && ./mineworld-slice` ; walk the street, enter the café, stand at the counter | no popping of objects or shadows as you move; goods at the counter look as before |
+| 6 | `cd /Users/yuema137/mineworld-worktrees && git -C impl-rl-b2 worktree remove /Users/yuema137/mineworld-worktrees/view-rl-b2-frames` | the viewing worktree is gone |
+
+**Handoff.** Superseded: see E-B2-6. Next action: wait for the batched operator session 1 (table above),
+then C2-E (E.1, E.2 by the mechanical rule), C3, session 2, 4.3, 4.4.
 
 Note on order (bounded, recorded at freeze): the trials' frames (step 1.9) are taken on C1, before the
 texture commit, while operator session 1 runs on C2. The texture change touches only downsized props, and
