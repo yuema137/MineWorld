@@ -573,11 +573,17 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] | [x] | [x] |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+- **C0 (2026-10-14).** Base: `origin/main` = `9aa185b1b32d60dbee991b9a1c35a5d0f544ba60` (merge of #192). DL-a
+  merged as #191 (`1be87e4`), operator's go 2026-10-14. DL-a API checked against §2.1: `DecisionModel { ID,
+  PACKAGE, type Parameters: ModelParameters, decide, step }`, `Consult { seed, pace, observation }`,
+  `Draw::salted`, `bounded`, `mineworld_decision::models!`, `cognition/installed` one-line model list: all
+  present as designed; no mismatch, so no stop. `python3 scripts/check_doc_headings.py`: 223 sections, none
+  duplicated (rc 0). `python3 scripts/check_decision_ids.py`: 122 ids, all distinct (rc 0).
 
 ### Deviations and findings
 
