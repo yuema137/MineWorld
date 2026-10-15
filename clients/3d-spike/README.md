@@ -4,7 +4,8 @@
 > and the visual standard (`VIS-3D-GODOT-2`). `./mineworld-3d` is the movement and
 > camera spike (accepted 2026-09): not the world, and not the visual standard.
 > Frame cost: `./mineworld-slice --perf` (three runs, the Default tier's verdict)
-> and `--perf --breakdown`; the far skyline: `./mineworld-slice --skyline-check`.
+> and `--perf --breakdown`; the far field: `./mineworld-slice --farfield` (the rendered
+> check) and `--farfield-shots` (the regression views).
 > The protocol is `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md` §3.
 
 The spike is a runnable walking demo, built to answer one question: **does this feel like the
@@ -32,7 +33,8 @@ In the slice (`./mineworld-slice`), Esc opens the settings menu: language (Engli
 24-hour clock, window mode and size, render scale, VSync and frame cap, mouse sensitivity and invert vertical
 look (the Controls tab, which also shows the key map read-only); Quit is there too. Settings stay
 on your machine and are shared with the 2D client. On Windows, clone with `git config core.symlinks
-true` (Developer Mode): `mineworld` and `mineworld_settings` here are symlinks to the shared modules.
+true` (Developer Mode): `mineworld`, `mineworld_settings` and `mineworld_environment` here are symlinks to the
+shared modules.
 
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has
