@@ -1601,7 +1601,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C3 | — | [x] | [x] | [x] |
 | C4 | — | [x] | [x] | [x] |
 | C5 | — | [x] | [x] | [x] |
-| C6 | — | [ ] | [ ] | [ ] |
+| C6 | — | [x] | [x] | [x] |
 | C7 | — | [ ] | [ ] | [ ] |
 | C8 | — | [ ] | [ ] | [ ] |
 | C9 | — | [ ] | [ ] | [ ] |
@@ -1708,6 +1708,30 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   (the golden is used only for the empty case). (2) The `persona` payload keys (`summary`, `traits`, `speech`)
   are assumed from the design's `Persona` struct and must match P6a's codec; checked at A2 or on the merge of P6a.
   (3) `Persona` decodes with `strict=False` only to accept JSON lists for tuples; every other rule stays strict.
+- **C6 (2026-10-14).** Files: `controller/choice.py` (`SocialChoice`, `ContentFailure`, `SOCIAL_CHOICE_SCHEMA`
+  written by hand, `parse_choice(completion)`: finish first, then at most one fence, then strict model),
+  `controller/validate.py` (`Say`, `Attempt`, `Nothing`, `Proposal`, `validate`: table order, ids not labels,
+  forged-recall rule), `controller/prompt.py` (`Trigger`, `Reask`, `Replan`, `sampling_seed`, `build_request`),
+  `controller/intent.py` (`SemanticFailure`, `build`: `offers.request` for talk, `offers.attempt` for an offer,
+  `NotOffered` to `not_offered`), goldens `tests/fixtures/social_choice.schema.json` and
+  `tests/fixtures/prompt_request.json`, `tests/test_controller_choice.py` (9 passed). With C5's file: 16 passed.
+  Static: ruff check and format PASS, pyright 0 errors. Seed `sha256("alice:1907")` first 4 bytes = 158080199,
+  computed with `shasum -a 256` and checked against `sampling_seed`.
+  Mutations: M-P6-1 (`validate` skips `forged_recall`) turned `test_each_reason_of_the_table...` red; M-P6-9
+  (entity id in the prompt's people line) turned `test_the_prompt_golden...` red. Both reverted; grep finds no
+  `MUTATION` marker.
+  Deviations: **D-P6b-4**: the design's C6 says "nine reasons" but §5.2.6's table has ten rows (not_json, schema,
+  truncated, refused, unknown_person, empty_words, words_too_long, unknown_offer, forged_recall, leak). The
+  table is the authority; all ten are implemented. **D-P6b-5**: `build_request` takes the `seat` argument, which
+  the sampling seed needs (the design's signature omits it). **D-P6b-6**: `parse_choice` makes prose that is
+  not JSON `not_json`, and `refused` comes only from the finish; the table's "act cannot be read and text is
+  prose" row would otherwise overlap `not_json`. **D-P6b-7** (limit, recorded for C9/C13): `unknown_person`
+  covers a talk target that is not in `present`; `Situation` carries labels for present people only in
+  `present`, so a talk target elsewhere is refused. **D-P6b-8** (limit): `intent._attempt` re-locates the offer
+  by position and action type; the target label is not re-checked against the newest observation (the engine
+  re-derives the situation from the newest observation, C9).
+  Process slip: one `sed -i` was attempted by mistake (a no-op that failed on its arguments; no file changed).
+  It is against the NEVER list and is recorded here, not repeated.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
