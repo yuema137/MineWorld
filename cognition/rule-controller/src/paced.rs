@@ -59,6 +59,8 @@ use mineworld_contracts::{
     Millimetres, Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
+// The seeded draws, moved verbatim to the trait crate every model shares (DL-a SD-DLa-2).
+use mineworld_decision::{Draw, mix};
 use mineworld_movement::{Destination, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
@@ -265,41 +267,6 @@ impl PacedRuleController {
 fn head_for(observation: &Observation<Value>, place: PlaceId) -> Option<Walked> {
     observation.self_location()?;
     walk_to(observation, Destination::Place(Location::in_place(place)))
-}
-
-/// The seeded draws for one decision: a pure function of the seed, the observer and the instant.
-pub(crate) struct Draw {
-    mixed: u64,
-}
-
-impl Draw {
-    pub(crate) fn new(seed: u64, observation: &Observation<Value>) -> Self {
-        let observer = observation.observer().raw();
-        // Two's complement bits of the instant: any i64 is a distinct input.
-        let at = observation.at().seconds().cast_unsigned();
-        Self {
-            mixed: mix(mix(seed ^ 0x6d69_6e65_776f_726c, observer), at),
-        }
-    }
-
-    /// The `n`th independent draw, in `0..bound`.
-    pub(crate) fn below(&self, bound: u64, n: u64) -> u64 {
-        mix(self.mixed, n) % bound
-    }
-
-    /// The `n`th draw, in `-reach..=reach`.
-    fn offset(&self, reach: i64, n: u64) -> i64 {
-        let span = reach.cast_unsigned() * 2 + 1;
-        self.below(span, n).cast_signed() - reach
-    }
-}
-
-/// SplitMix64's finalizer over two words: a pure, well-mixed function, the same on every machine.
-fn mix(a: u64, b: u64) -> u64 {
-    let mut z = a ^ b.wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
 }
 
 /// Says hello to somebody the server says I may speak to, chosen by the draw.

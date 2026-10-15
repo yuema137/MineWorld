@@ -22,6 +22,14 @@ dependencies = [
     "python-dotenv>=1.2,<2",
 ]
 
+# Retention policies (pr-fg-b §5.3): the bundled ones are found through this group exactly as a user's
+# package would publish one; the entry name is the policy's id. Standard metadata, no dependency.
+[project.entry-points."mineworld.forgetting"]
+consolidate = "mineworld_cognition.forgetting.consolidate:Consolidate"
+decay = "mineworld_cognition.forgetting.decay:Decay"
+importance-recency-cap = "mineworld_cognition.forgetting.importance_recency_cap:ImportanceRecencyCap"
+keep-all = "mineworld_cognition.forgetting.keep_all:KeepAll"
+
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
 

@@ -10,7 +10,8 @@ interface, within wall-time budgets, with recorded replay for tests. Specificati
 supplies. Tests and CI use only `replay` and `scripted`: no model, no key, no hosted API, ever.
 
 **Configuration** is a TOML file of yours, never inside a world (see
-[`examples/hosted.toml.example`](examples/hosted.toml.example)). A key appears only as the **name** of an
+[`examples/hosted.toml.example`](examples/hosted.toml.example)); every field it accepts is listed in the
+generated [`cognition-toml` reference](../../docs/reference/cognition-toml.md). A key appears only as the **name** of an
 environment variable (`key_env`). Its value comes from your environment, or from a `.env`-style file you
 name in `[secrets] env_file` ([`examples/.env.example`](examples/.env.example)); that file is read without
 touching the environment, must be `chmod 600` on macOS and Linux, and is never read unless named.
@@ -69,6 +70,14 @@ IDs it stands for. The memory part of a decision's context stays under 6 000 byt
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
 a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
+
+**Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
+memory policy merge old detail into summaries or forget it; the store then stays under 768 KiB whatever
+the policy does, and every forgotten Event ID still resolves in the save (`mineworld perceived`). The
+default, `consolidate`, and `decay`, `importance-recency-cap` and the test fixture `keep-all` are plug-ins
+of the entry-point group `mineworld.forgetting`; a policy of your own is a package with one entry point.
+No model is involved. Specification:
+[`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md).
 
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 

@@ -1,0 +1,11 @@
+# A decision list for the AC-DLa-11 golden (tools/cli/tests/decisions.rs): classes and seats, a memory default
+models:
+  rule: {}
+default: rule
+assign:
+  - { class: residents, model: rule }
+memory:
+  default: { policy: consolidate }
+  assign:
+    - { class: residents, policy: decay, parameters: { half_life_hours: 336 } }
+    - { seat: alice, policy: nonexistent-policy, fallback: consolidate, parameters: { calls_per_sim_day: 4 } }
