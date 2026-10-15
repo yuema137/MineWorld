@@ -262,13 +262,16 @@ commit is C0.
 ### C1 — specs before code (Markdown only)
 
 - Goal: a reviewer can check the code against `SETTINGS.md` alone.
-- [ ] Implementation: `clients/shared/SETTINGS.md` §3 (the two fields), §4 (`[input]` file rules and
-  the unknown-key rule), §6.1 (new keys), §7 (the Controls tab and the `applied` signal), §8 (INV-SET-2
-  and -3 hold for `[input]`), §9 (checks); `docs/DECISIONS.md` dated note under `ARC-76` (applied by the
-  primary session).
-- [ ] Validation: the two heading and decision-id checks pass; `SETTINGS.md` names every key of §4.1.
-- [ ] Review (LLM): `SETTINGS.md` uses the terms of `CORE_CONCEPTS.md` (Presentation, Observation,
-  ActionIntent) unchanged; no defined term is added.
+- [x] Implementation: `clients/shared/SETTINGS.md` §2 (layout, `controls_tab.gd`, capabilities), §3 (the
+  two fields, `look_scale()`), §4 (`[input]` file block, save rule), §6.1 (keys), §7 (the Controls tab,
+  the `applied` and `rendered` signals, §7.1), §8 (INV-SET-2 for `[input]`), §9 (checks).
+  `docs/DECISIONS.md` note under `ARC-76` NOT applied here: §6 assigns it to the primary session (D-SETb-4).
+- [x] Validation: `python3 scripts/check_doc_headings.py` → "223 numbered sections across 31 documents,
+  none duplicated" (exit 0); `python3 scripts/check_decision_ids.py` → "122 decision ids, all distinct"
+  (exit 0). `SETTINGS.md` names both keys of §4.1 in §3 and §4 (grep-checked).
+- [x] Review (LLM): the text uses Setting, Presentation, Observation and ActionIntent as defined; "Controls
+  tab", "key map" and "key row" are descriptive, not added to the ontology (§1 "No defined term ... is
+  extended" still holds).
 - Commit boundary: documentation only.
 
 ### C2 — the settings value and the store (no UI, no client)
@@ -397,7 +400,20 @@ noted in the table.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C0 (this design) | DESIGN FROZEN 2026-10-10 | this PR (#144) |
-| C1 … C6 | not started | — |
+| C0 (this design) | DESIGN FROZEN 2026-10-10 | this PR (#144), on `main`; implementation branch `mvp0/pr-set-b` from `origin/main` (171ea06) |
+| C1 | done | commit on `mvp0/pr-set-b` (SETTINGS.md); checks in §10 C1 |
+| C2 … C6 | in progress / not started | — |
 | Operator questions Q-SETb-1 … 7 | ruled 2026-10-10, all as recommended | §14 |
 | H-11 … H-13 | open (operator checklist) | §12 |
+
+## 17. Findings and deviations at implementation (session of 2026-10-14, branch `mvp0/pr-set-b`)
+
+Recorded as they were met. Each is bounded unless marked; none changes a frozen invariant, a server or
+protocol file, or a platform path.
+
+| Id | Finding / deviation | Source | Decision |
+| --- | --- | --- | --- |
+| D-SETb-1 | `menu.gd` `apply()` saves through one path, `store.save(general)`, which copies the display fields from the store. Input has to be saved on Apply too (SD-SETb-6), so `apply()` now also writes `[input]` in the same save. The design's file list said "signal only" for `menu.gd`. | `menu.gd` `apply()`; SD-SETb-6 | Bounded. The same single save path; no second writer. Recorded here. |
+| D-SETb-2 | SD-SETb-7 gives the menu "one signal". The Controls tab must re-read the draft after Open, Apply and Revert, which the tab cannot observe otherwise (the menu replaces `draft` on each). A second additive signal `rendered`, emitted at the end of `_render()`, is the smallest way. | `menu.gd` `_render`, `open`, `revert`; R-SETb-7 | Flagged for the operator review: a second signal is a change to a frozen SD line. It is additive and one line. Not a server, protocol or invariant change. |
+| D-SETb-3 | SD-SETb-8 gives the tab `(store, capabilities, key_rows)`. The tab edits and re-reads the menu's `draft`, and needs no store. | §7.1 of SETTINGS.md | Bounded: `MineWorldControlsTab.new(menu, capabilities, key_rows)`. The store is not reachable from the tab. |
+| D-SETb-4 | §6 and §11 assign the `docs/DECISIONS.md` note under `ARC-76` to the primary session. | §6, §11 | Not applied in this PR. The PR body names it for the primary session. |
