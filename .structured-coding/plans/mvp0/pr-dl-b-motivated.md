@@ -729,6 +729,10 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
     - AC-DLb-6 **PASS**: agenda kept motivated 930, rule 937 (limit ≥ rule − 50).
     - AC-DLb-9 **PASS**: wall motivated 12.4 s, rule 9.0 s, 1.38× (limit ≤ 2×). Measured under load ≈ 30–50, so this
       is a ratio on one machine, not a benchmark.
+  - Clippy `-D warnings` on `--test motivated --test rhythm` clean after two lint fixes (checked division; enumerate).
+    Re-run after those edits: identical four measures (AC-DLb-3/-4/-5/-6 unchanged); wall 12.3 s rule and 5.7 s
+    motivated, so the AC-DLb-9 ratio flipped between runs under load. AC-DLb-9 is not stable on this machine and
+    needs a quiet run before it can be read as evidence.
   - Reading the table (not a retune): the motivated run has no speech in the morning and the speech it has is
     concentrated in the evening. The night criterion passes because nobody talks at night, not because the rhythm
     follows ATUS. The shape failure is the model's morning speech, which no curve currently produces. Whether that

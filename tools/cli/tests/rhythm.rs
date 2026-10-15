@@ -205,7 +205,7 @@ fn slot_at(items: &[(i64, String, String)], at: i64) -> &(i64, String, String) {
 
 /// Integer per-mille share of `part` in `whole`.
 fn permille(part: u64, whole: u64) -> u64 {
-    if whole == 0 { 0 } else { part * 1_000 / whole }
+    (part * 1_000).checked_div(whole).unwrap_or(0)
 }
 
 /// The socializing row of the ATUS table, normalised to sum 1 000 per hour (`A(h)`).
@@ -322,7 +322,7 @@ fn motivated_keeps_the_atus_rhythm_and_the_agenda() {
     let atus = atus_socializing();
 
     println!("hour  S_m  S_r   A");
-    for hour in 0..24 {
+    for (hour, reference) in atus.iter().enumerate() {
         println!(
             "{hour:>4}  {:>3}  {:>3}  {:>3}",
             permille(
@@ -330,7 +330,7 @@ fn motivated_keeps_the_atus_rhythm_and_the_agenda() {
                 motivated.spoke_by_hour.iter().sum()
             ),
             permille(rule.spoke_by_hour[hour], rule.spoke_by_hour.iter().sum()),
-            atus[hour]
+            reference
         );
     }
     println!(
