@@ -901,15 +901,19 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Goal.** The bound, coverage and determinism on a real 100-day history, on three platforms.
 - **Scope.** `tests/conftest.py` (the fixture moved from `test_ac10.py`), `test_ac10.py` (uses it),
   `test_retention_real.py`.
-- [ ] Implementation: §8.4.
-- [ ] Validation:
+- [x] Implementation: §8.4. Evidence: `tests/conftest.py` (`social_cafe_100`, session-scoped, the old
+  fixture's `History.build(scratch)` moved; the store's own scratch stays in `test_ac10.py`'s `run`),
+  `test_ac10.py` (takes the fixture), `test_retention_real.py`.
+- [x] Validation (300-day run and CI times recorded in §15.2 C7/C8):
   - Gate 2 specification written in §15 before the run (claim, owner, command, PASS evidence, mutations);
   - `cargo build -p mineworld-cli`; `uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real"`;
     AFGb-3, AFGb-4 (a)–(c), AFGb-5 (a) (real half), AFGb-11 (c); wall time;
   - one local 300-day real run under `consolidate`: dumps at days 30, 100, 300 recorded (QFGb-5);
   - the PR's CI: per-leg wall time of `test_retention_real.py` and `test_ac10.py`.
-- [ ] Review: no oracle calls `mineworld_cognition`; the save is read only through the CLI; the moved fixture
-  is byte-for-byte the old body.
+- [x] Review: no oracle calls `mineworld_cognition`; the save is read only through the CLI; the moved fixture
+  is byte-for-byte the old body. Evidence: `retention_oracle.check_coverage` parses the dump; the export
+  comes from `ac10_harness._export` (CLI); the moved body is the one call `History.build(scratch)`, now
+  in `conftest.py`; `run` keeps everything else unchanged.
 - **Failure cases.** Windows over 180 s for `test_retention_real.py`, or `test_ac10.py` over its 300 s
   ceiling because of the shared fixture: stop with the measurement (§13).
 
@@ -1116,6 +1120,25 @@ AFGb-1 (a): installed ids and the distribution's own entry points both equal the
 AFGb-9 (a) import scan, (b) `__all__` exactly §5.2's list, (c) a frozen item refuses assignment
 ```
 
+**C7, Gate 2 — PASS** (macOS arm64, Python 3.14.5, debug `mineworld` built in this worktree; working tree
+on d8d331d + C7's diff; the host was heavily loaded by other sessions, load average 38–60, so wall times
+are upper bounds):
+
+```text
+uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real" -s
+  test_ac10.py: 8 passed (fixture shared; section bytes {10: 4599, 30: 4990, 60: 4943, 100: 4991})
+  first run: test_retention_real.py 2 FAILED with StopIteration — the test asked for a pass at day ≥ 100
+  of a history whose days are 0–99 (test defect; `_at` now takes the last pass for day 100); rerun:
+  test_retention_real.py 2 passed: consolidate 33.4 s, keep-all 24.6 s (+ 65 s shared fixture setup)
+consolidate, 98 passes, (day, before pass, after pass, forced):
+  day 30: (30, 607 678, 187 310, 0)    day 100 (last pass, day 99): (99, 799 191, 329 854, 0)
+  largest dump before a pass 960 176 B ≤ 1 048 576 (AFGb-4 (b)); largest after 333 231 B ≤ 786 432
+  coverage against the export at every pass (AFGb-3); day by day = frames of 256 (AFGb-5 (a) real)
+  file on disk 778 240 B ≤ 4 MiB (AFGb-11 (c)); P4 alone left 40 714 240 B
+keep-all, 98 passes: day 30: (30, 1 077 314, 187 234, 2 436 forced); day 99: (99, 799 110, 329 772, 1 270)
+  every post-pass dump ≤ TARGET; forced > 0 by day 30 (AFGb-4 (c))
+```
+
 ### 15.3 Mutations
 
 Each planted in the source, run, seen red, reverted (the tree compared clean after each).
@@ -1257,7 +1280,29 @@ sets it from its first fact. Both are functions of the facts.
 
 ### 15.5 Gate 2 specification and result
 
-(Written before the run, C7.)
+Written 2026-10-14, before the first run (test rules §15).
+
+```text
+Claim:        on a real 100-day social-cafe history (seed 7), Alice's store under `absorb` (a) never
+              exceeds TARGET after a pass nor STORE_BOUND before one under `consolidate`; (b) keeps exact,
+              disjoint coverage of her real export at every pass; (c) under `keep-all` the host itself
+              holds the bound (forced > 0 by day 30); (d) is byte-identical whether built day by day or in
+              frames of 256; (e) leaves a file ≤ 4 MiB on disk.
+Owner:        Gate 2 (real binary, real export; AFGb-3, -4 (a)–(c), -5 (a) real half, -11 (c))
+Head:         the C7 commit (working tree on d8d331d + C7's diff for the local run)
+Command:      cargo build -p mineworld-cli;
+              uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real" -s
+Budget:       one 100-day world, shared with test_ac10 through conftest's session fixture; two policies
+              on the real export, frames of 256 once more for (d); ≤ 180 s for test_retention_real.py
+              per CI leg (§12 material stop)
+PASS:         every assertion of test_retention_real.py green, sizes at days 30 and 100 printed and
+              recorded, test_ac10.py's eight criteria green unchanged
+FAIL/counter: M-FGb-4 (backstop off) would show keep-all over TARGET; a frame-split mutation (M-FGb-5)
+              would break (d)
+Why bounded is enough: the 100-day export holds every event type of the reference world and ≈ 100
+              passes; the 300-day claim is the local run below (QFGb-5) and the nightly later.
+Evidence:     this section and §15.2 C7.
+```
 
 ### 15.6 AFGb-8 `shasum -a 256` literals
 
