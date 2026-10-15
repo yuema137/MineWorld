@@ -1428,6 +1428,15 @@ Recommendation: (b), then (a) for whatever OS still cannot finish.
 *State.* Everything else is implemented and committed; the PR is **not** READY FOR OPERATOR REVIEW until the
 operator rules on R-FF-1.
 
+**R-FF-1 — Ruled 2026-10-15 (operator answered directly in the primary session): (b), then (a).**
+(b) For the check frames only, directional shadows, SSAO and glow are off (`SliceFarFieldCheck._cost_effects_off`,
+restored afterwards; `--farfield-shots` keeps the full look); §6's viewpoints, sizes, bands and thresholds are
+unchanged. (a) Any OS whose job still cannot finish the 3D check within its limit runs it on hosted macOS only
+(and locally); the 2D check and the validators' agreement stay on all three OSes. Local after (b): 112 verdict
+lines, all pass; X-1 still `36 FARFIELD CHECKS FAILED`. Per-OS hosted timings and the resulting CI layout:
+E-FF-CI-2 below. *Dated note on §6.2/§6.5 (2026-10-15):* the renders of §6.2 are taken with those three effects
+off; where §6.5 says the 3D check runs on all three runners, read the OSes E-FF-CI-2 names.
+
 ```text
 E-FF-CI  2026-10-15
   PR #220, head 1bf3cff8 (CI run 38803249486): changes, fast, test (44 min; the client_rules fix of

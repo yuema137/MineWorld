@@ -74,6 +74,7 @@ func _init(p: SliceProbe) -> void:
 ## The check: 7 viewpoints x 8 azimuths x (S, H) + 8 x E = 120 renders.
 func run() -> void:
 	_setup(Vector2i(W, H))
+	var restore := _cost_effects_off()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH
 	_cam.fov = HFOV
 	var datum := probe.slice.far_field.datum_m()
@@ -96,6 +97,7 @@ func run() -> void:
 			else:
 				var above := _band(shown, hidden, sky[i], e_h, e_h + ABOVE_TO)
 				fails += _judge(where, "above", above, N_ABOVE)
+	restore.call()
 	_teardown()
 	print("\n%s" % ("all farfield checks pass" if fails == 0 else "%d FARFIELD CHECKS FAILED" % fails))
 
@@ -136,6 +138,28 @@ func _setup(size: Vector2i) -> void:
 	probe.add_child(_sv)
 	_cam.current = true
 	_view.anchor_camera = _cam
+
+
+## R-FF-1, ruled 2026-10-15 (operator answered directly in the primary session; option (b)): for the
+## check frames only, the slice's cost-only effects are off -- directional shadows, SSAO and glow. None
+## decides where the far field is drawn (it casts no shadow, and its ribbons are unshaded and fog-free),
+## and S and H are rendered alike, so the criteria are unchanged; on a software renderer they made each
+## render take about a minute. The regression views (`shots`) keep the full look. Returns the restorer.
+func _cost_effects_off() -> Callable:
+	var env: Environment = probe.slice._env
+	var lights: Array = probe.slice.find_children("*", "DirectionalLight3D", true, false).filter(
+		func(l: DirectionalLight3D) -> bool: return l.shadow_enabled)
+	var was := [env.ssao_enabled, env.glow_enabled]
+	env.ssao_enabled = false
+	env.glow_enabled = false
+	for l in lights:
+		(l as DirectionalLight3D).shadow_enabled = false
+	print("[farfield] check frames: shadows (%d lights), SSAO and glow off (R-FF-1 (b))" % lights.size())
+	return func() -> void:
+		env.ssao_enabled = was[0]
+		env.glow_enabled = was[1]
+		for l in lights:
+			(l as DirectionalLight3D).shadow_enabled = true
 
 
 func _teardown() -> void:
