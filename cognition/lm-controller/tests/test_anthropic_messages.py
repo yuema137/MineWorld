@@ -57,14 +57,17 @@ def _config(**overrides: object) -> BackendConfig:
 
 
 class Recorder:
-    def __init__(self, status: int = 200, body: bytes | None = None) -> None:
+    def __init__(
+        self, status: int = 200, body: bytes | None = None, headers: dict[str, str] | None = None
+    ) -> None:
         self.status = status
         self.body = _answer() if body is None else body
+        self.headers = headers or {}
         self.seen: list[httpx2.Request] = []
 
     def __call__(self, sent: httpx2.Request) -> httpx2.Response:
         self.seen.append(sent)
-        return httpx2.Response(self.status, content=self.body)
+        return httpx2.Response(self.status, content=self.body, headers=self.headers)
 
 
 def _bounded_request() -> CompletionRequest:
@@ -221,6 +224,18 @@ def test_error_statuses_map_to_typed_failures_with_one_request(
     handler = Recorder(status=status, body=b'{"type":"error"}')
     assert _ask(_config(), handler) == failure
     assert len(handler.seen) == 1  # no retry
+
+
+@pytest.mark.parametrize(
+    ("header", "seconds"),
+    [("3", 3), ("99999", 3600), ("Wed, 21 Oct 2026 07:28:00 GMT", None)],
+)
+def test_retry_after_is_kept_only_as_whole_delta_seconds(header: str, seconds: int | None) -> None:
+    # F-P6-2, as the OpenAI-compatible adapter: the same rule in both HTTP adapters.
+    handler = Recorder(status=429, body=b'{"type":"error"}', headers={"retry-after": header})
+    assert _ask(_config(), handler) == BackendFailure(
+        reason="http_status", status=429, retry_after_s=seconds
+    )
 
 
 def test_lowering_is_schema_aware_and_pure() -> None:

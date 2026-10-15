@@ -1151,6 +1151,20 @@ property, and it never changes who a Person is (INV-1).
   out-of-process model)`), and `server --town` as the seat's in-server controller until the external
   process takes the seat over through the existing take-over path (S11-B).
 
+- **LM Controller (S10 P6b; `ARC-72`, `ARC-73`).** The `lm` model is the one out-of-process model this build
+  installs (`external "lm"`). The LM Controller is a Python Controller Pack and a protocol client (`ARC-56`):
+  it joins each seat that `mineworld decisions --json` assigns to `lm`, and it is the only process that
+  holds such a seat while it runs. Its social choices (what to say, to whom, which offered affordance to
+  attempt) come from a language model through the P5 gateway; a model's text is a proposal that the
+  controller validates, and a request is built only through `mineworld_sdk.offers`. It never chooses
+  movement. When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
+  breaker), it gives the seat back with `leave`, and the server's fallback model for that seat drives it
+  (`took_over: "hosted"`). The hand-back is host state: no fact is written and no world state changes.
+  Retry layers (transport, content, semantic), the per-seat circuit breaker, the consult deadline and the
+  call cap are configured in `cognition.toml`, never in a decision list. Counters go to the controller's
+  own decision log, never to world facts. Where no in-server fallback exists, the seat stands for that
+  consult and sends nothing.
+
 **Registration.** `cognition/installed` (`mineworld-installed-models`) lists every model this build
 provides, one line each, through the `models!` macro of `mineworld-decision`:
 

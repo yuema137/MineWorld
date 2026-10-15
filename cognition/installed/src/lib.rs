@@ -5,7 +5,7 @@
 //! else learns the model: `decisions.yaml` model ids resolve through the [`Model`] catalog this expands to,
 //! the hosts drive each seat through it, and `mineworld packs list` lists its packages. An in-process line
 //! names a `DecisionModel` type; an `external "<id>"` line names a model that runs out of process and joins
-//! a seat over the protocol (none in this build; step-17 P6 adds `lm`).
+//! a seat over the protocol (`lm`, the LM controller of S10 P6b, is the one in this build).
 //!
 //! A test (`tests/installed.rs`) holds this list and the manifest's dependencies equal, and refuses two
 //! models with one id, an id outside the identifier rule, and the reserved `none`. The template test in
@@ -20,4 +20,5 @@ pub use mineworld_decision::Catalog;
 mineworld_decision::models! {
     Rule => mineworld_rule_controller::Rule,
     Motivated => mineworld_motivated::Motivated,
+    external "lm",
 }
