@@ -88,12 +88,15 @@ structure, and do not assume this sentence is current either.
 Documentation is not an afterthought in this project. It is the reviewable artifact that
 makes the architecture auditable, and it is written *before* the code it governs.
 
-### 2.1 Two kinds of Markdown, and only two
+### 2.1 Three kinds of Markdown, and only three
 
 | File | Audience | Requirement |
 | --- | --- | --- |
 | Any file named `README.md`, at any depth | **humans** | Short, clear, one obvious main line. Low reading burden. It orients a person and links onward; it does not carry the specification. |
+| Any file under `docs/guide/` | **humans creating worlds** | A tutorial. It may be long. Plain language; every step is "Do this → You should see this" and shows whole files; every command and file in it is executed by CI on all three platforms, so the guide can always be followed exactly. It teaches; it never becomes the authority for a design, and it links to the generated reference and the specifications for the rules. |
 | **Every other** `.md` file | **coding agents** | A specification. Complete, precise, unambiguous, terminologically exact, conceptually aligned with every other spec in the repository. Length is not a defect; vagueness is. |
+
+The guide class was added by operator ruling QS25-1 (2026-10-14, step 25).
 
 Rules that follow from that split:
 
