@@ -971,9 +971,14 @@ No TW-c question remains open.
   - Local gate under R-LOAD-1 (load average above 200): `cargo fmt --all -- --check` 0; `cargo clippy --workspace
     --all-targets -- -D warnings` 0. No local `cargo test --workspace`: stopped; the test gate is CI.
   - **workspace gate: CI run <pending> on <sha-pending> (R-LOAD-1).** Filled in on the PR; see the PR body.
-  - AC-TWc-8 (300-day digests, base vs TW-c): not measured locally under R-LOAD-1. Local evidence: `run --pace 900`
-    output identical to the default (`cmp`, wall line excluded, social-cafe seed 7, 20 days). The 300-day parity
-    record (`scripts/ci_parity.py record`) runs on the CI platforms for the nightly and is not a local gate here.
+  - AC-TWc-8 (300-day digests, base vs TW-c): **PASS**, measured once 2026-10-14 on Darwin/arm64 (load average
+    16.3 / 35.0 / 30.0 at start, 6.2 / 12.0 / 19.8 at end; other agents' builds on the host). Release binaries of
+    base `9d43087` (origin/main, the merge base) and head `3189f6d`; `scripts/ci_parity.py record` (Python 3.11) on
+    each, then `ci_parity.py diff base head` → `no world differs` over all four worlds and every key (`validate`,
+    `summary-300` seed 7, `summary-30s` and every stored byte of the 30-day save, which pins the save schema too).
+    Head `summary-300`: bodies-yard `bf056cd8…`, lakeside `c25f113e…`, market-town `14626465…`, social-cafe
+    `9500d0c8…`. `run --pace 900` vs `run` (head, 300 days, seed 7, wall line excluded, `cmp`): identical for all
+    four worlds, with the same sha256 prefixes as `summary-300`.
   - **F-TWc-4 (AC-TWc-7 borderline).** Live walker, 6× → 24× (after stride 7) → 12× (after stride 14): run 1 measured
     6× 1343.7 mm/s, 24× 1220.6, 12× 1339.0; the within-10 % spread check failed by 0.04 points (1343.7 vs
     1.10 × 1220.6 = 1342.7). Run 2, unchanged, passed. Thresholds unchanged (a threshold change after a run is
@@ -990,7 +995,7 @@ No TW-c question remains open.
   Recorded for review; not an invariant (INV-TWc-1, -2 hold).
 - Deviation D-TWc-2 (C3): the route names its control command `ControlCommand::Change(ClockChange)` and
   keeps `ControlCommand::Clock` for the read (SD-TWc-7 said `Clock(ClockChange)`); no behaviour depends on it.
-- Deviation D-TWc-3 (post-C9, cross-PR): DL-a (#on main) added `tools/cli/tests/decisions.rs`
+- Deviation D-TWc-3 (post-C9, cross-PR): DL-a (on main) added `tools/cli/tests/decisions.rs`
   `a_hosted_town_with_a_decision_list_states_its_digest`, which pinned the hosted startup line's town clause
   as `(town: seed 0, pace 5 wall s<clause>)`. TW-c renamed that word to `cadence` on purpose (QTW-13,
   Q-TWc-7, SD-TWc-11), so after merging main the test failed on all three CI platforms (run 38678120749).
