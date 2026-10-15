@@ -220,11 +220,42 @@ def gate_g5(glb: Glb, repo_root: Path, run_dir: Path | None) -> GateResult:
     return _result(GateId.G5, looked, reasons)
 
 
+@dataclass(frozen=True)
+class DepthSpan:
+    """The body along a joint's depth ray: the back-most and front-most surface (glTF z; +z is the front)."""
+
+    vertices: int
+    back_z: float
+    front_z: float
+
+    def margin(self, joint_z: float) -> float:
+        """How far the joint lies inside the span, in metres; negative when it is in front of or behind it."""
+        return min(joint_z - self.back_z, self.front_z - joint_z)
+
+
+def depth_span(
+    points: list[tuple[float, float, float]], joint: tuple[float, float, float]
+) -> DepthSpan | None:
+    """G-6(b)'s inside test (R-B1-G6): the vertices in the joint's slab (±SLAB_HALF_M in y) whose x lies
+    within DEPTH_RAY_HALF_M of the joint's, i.e. a ray cast along the depth axis through the joint. None when
+    the ray meets no surface. Nothing is clipped by distance, so a deep section (a body fused with a backpack)
+    is measured whole."""
+    jx, jy, _ = joint
+    zs = [
+        z
+        for x, y, z in points
+        if abs(y - jy) <= standard.SLAB_HALF_M and abs(x - jx) <= standard.DEPTH_RAY_HALF_M
+    ]
+    if not zs:
+        return None
+    return DepthSpan(vertices=len(zs), back_z=min(zs), front_z=max(zs))
+
+
 def gate_g6(glb: Glb, fit: FitParams) -> GateResult:
     """G-6: (a) the four limb segments on each side, as a fraction of stature, within ±WINTER_TOL of Winter.
 
-    (b) Every BODY_JOINT lies horizontally inside the vertices in a SLAB_HALF_M slab at its height, within
-    NEIGHBOUR_M of it. Margins are printed per joint."""
+    (b) Every BODY_JOINT lies inside the body: between the back-most and the front-most surface on a ray cast
+    along the depth axis through it (`depth_span`, R-B1-G6). Margins are printed per joint."""
     world = joint_world_positions(glb)
     stature = fit.stature_m
     looked: list[str] = []
@@ -242,22 +273,16 @@ def gate_g6(glb: Glb, fit: FitParams) -> GateResult:
             )
     points = positions(glb)
     for joint in standard.BODY_JOINTS:
-        jx, jy, jz = world[joint]
-        near = [
-            (x, z)
-            for x, y, z in points
-            if abs(y - jy) <= standard.SLAB_HALF_M and math.hypot(x - jx, z - jz) <= standard.NEIGHBOUR_M
-        ]
-        if not near:
-            looked.append(f"{joint}: no vertices in the slab")
-            reasons.append(f"{joint}: no mesh vertices within the slab of {standard.SLAB_HALF_M} m")
+        span = depth_span(points, world[joint])
+        if span is None:
+            looked.append(f"{joint}: the depth ray meets no surface")
+            reasons.append(f"{joint}: no mesh surface on the depth ray through it (outside the body)")
             continue
-        min_x = min(x for x, _ in near)
-        max_x = max(x for x, _ in near)
-        min_z = min(z for _, z in near)
-        max_z = max(z for _, z in near)
-        margin = min(jx - min_x, max_x - jx, jz - min_z, max_z - jz)
-        looked.append(f"{joint}: margin {margin * 1000:.1f} mm over {len(near)} vertices")
+        margin = span.margin(world[joint][2])
+        looked.append(
+            f"{joint}: margin {margin * 1000:.1f} mm; back z {span.back_z:.4f}, front z {span.front_z:.4f} "
+            f"over {span.vertices} vertices"
+        )
         if margin < 0.0:
             reasons.append(f"{joint} lies outside the body by {-margin * 1000:.1f} mm")
     return _result(GateId.G6, looked, reasons)

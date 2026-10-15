@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from gltf_fixture import build_glb
 from test_records import vera_fit_object
 
@@ -191,6 +193,54 @@ def test_g6_a_hips_joint_0_3_m_behind_the_body_fails_and_prints_the_joint() -> N
 
     assert _verdict(result) is Verdict.FAIL
     assert any("mixamorig:Hips" in reason for reason in result.reasons)
+
+
+def _fused_shell(y: float) -> list[tuple[float, float, float]]:
+    """A body fused with a backpack, as Meshy makes it (F-B1-B3-1): one closed elliptical section at height
+    `y`, centre z -0.13, half-width 0.17 m, half-depth 0.205 m (front z +0.075, the pack's back z -0.335),
+    sampled every 30 degrees like a decimated mesh. There is no inner back surface between pack and chest."""
+    return [
+        (0.17 * math.sin(math.radians(a)), y, -0.13 + 0.205 * math.cos(math.radians(a)))
+        for a in range(0, 360, 30)
+    ]
+
+
+def _clipped_extent_margin(
+    points: list[tuple[float, float, float]], joint: tuple[float, float, float]
+) -> float:
+    """The B3 rule R-B1-G6 replaced: the x/z extent of the slab's vertices within 0.15 m horizontally."""
+    jx, jy, jz = joint
+    near = [(x, z) for x, y, z in points if abs(y - jy) <= 0.010 and math.hypot(x - jx, z - jz) <= 0.15]
+    return min(
+        jx - min(x for x, _ in near),
+        max(x for x, _ in near) - jx,
+        jz - min(z for _, z in near),
+        max(z for _, z in near) - jz,
+    )
+
+
+def test_g6_a_spine_inside_a_fused_body_and_pack_shell_passes_where_the_clipped_rule_failed() -> None:
+    # Vera's Spine: 126 mm behind the front of a 411 mm section; nothing behind it within 150 mm.
+    shell = _fused_shell(1.09)
+    spine = (0.0, 1.09, -0.053)
+
+    assert _clipped_extent_margin(shell, spine) < 0.0
+    span = gates.depth_span(shell, spine)
+    assert span is not None
+    assert span.back_z == pytest.approx(-0.335)
+    assert span.front_z == pytest.approx(0.075)
+    assert span.margin(spine[2]) == pytest.approx(0.128)
+
+
+def test_g6_a_joint_in_front_of_the_shell_or_beside_it_is_outside_the_body() -> None:
+    shell = _fused_shell(1.09)
+
+    in_front = gates.depth_span(shell, (0.0, 1.09, 0.10))
+    assert in_front is not None and in_front.margin(0.10) == pytest.approx(-0.025)
+    behind = gates.depth_span(shell, (0.0, 1.09, -0.36))
+    assert behind is not None and behind.margin(-0.36) == pytest.approx(-0.025)
+    assert gates.depth_span(shell, (0.25, 1.09, -0.13)) is None
+    assert gates.depth_span(shell, (0.0, 1.20, -0.13)) is None
 
 
 def test_g14_the_accepted_mesh_fails_naming_exactly_the_three_missing_keys() -> None:

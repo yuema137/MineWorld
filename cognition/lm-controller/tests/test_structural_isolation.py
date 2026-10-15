@@ -128,7 +128,22 @@ def _contains(error: BaseException, kind: type[BaseException]) -> bool:
 
 
 def test_ci_runs_pytest_once_per_member() -> None:
-    # AP5-10 (c), D-P5-11.
+    # AP5-10 (c), D-P5-11. Robust to pytest lines for paths that are not workspace members (D-B1-1, S26-b1:
+    # `tools/character_pipeline/tests`; S27-c: `clients/agent`): every pytest line is unique, every member is
+    # tested exactly once, and any other pytest line names a path that exists in the repository.
+    import importlib.util
+    import shlex
+    from typing import cast
+
+    spec = importlib.util.spec_from_file_location(
+        "ci_layer", REPOSITORY / "scripts" / "ci_layer.py"
+    )
+    assert spec is not None and spec.loader is not None
+    ci_layer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ci_layer)
+    members: object = ci_layer.PYTHON_MEMBERS
+    assert isinstance(members, list) and members, members
+    member_paths = [str(member) for member in cast(list[object], members)]
     for layer in ("python", "python-smoke"):
         listed = subprocess.run(
             [sys.executable, "scripts/ci_layer.py", "--list", layer],
@@ -137,16 +152,22 @@ def test_ci_runs_pytest_once_per_member() -> None:
             text=True,
             check=True,
         ).stdout.splitlines()
-        pytest_lines = [line for line in listed if " pytest " in line]
-        assert len(pytest_lines) == 2, listed
-        assert pytest_lines[0].startswith("uv run --locked pytest sdk/python")
-        assert (
-            pytest_lines[1]
-            == {
+        pytest_lines = [line for line in listed if line.startswith("uv run --locked pytest ")]
+        assert len(pytest_lines) == len(set(pytest_lines)), listed
+        paths = [shlex.split(line)[4] for line in pytest_lines]
+        for member in member_paths:
+            assert paths.count(member) == 1, (member, listed)
+        for path in paths:
+            if path not in member_paths:
+                assert (REPOSITORY / path).exists(), (path, listed)
+        assert [
+            line for line in pytest_lines if shlex.split(line)[4] == "cognition/lm-controller"
+        ] == [
+            {
                 "python": "uv run --locked pytest cognition/lm-controller",
                 # pr-s10-p4 §5.10: a command-line `-m` replaces the addopts one, so it restates it.
                 "python-smoke": "uv run --locked pytest cognition/lm-controller "
                 "-m 'not live_model and not real_binary'",
             }[layer]
-        )
+        ]
         assert not any("live_model" in line and "not live_model" not in line for line in listed)

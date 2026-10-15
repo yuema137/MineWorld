@@ -49,7 +49,10 @@ WINTER_RATIOS: dict[
 }
 WINTER_TOL = 0.12  # step-26 G-6: relative (±12 % of Winter's ratio); the reading is recorded in PIPELINE §6
 SLAB_HALF_M = 0.010  # step-26 G-6: half-height of the slab of mesh vertices around a joint
-NEIGHBOUR_M = 0.15  # step-26 G-6: horizontal reach of the neighbourhood around a joint
+# R-B1-G6 (primary, 2026-10-14): G-6(b) casts along the depth axis instead of clipping a 150 mm
+# neighbourhood. The depth ray is the joint's slab narrowed to |x - joint x| <= DEPTH_RAY_HALF_M; the
+# half-width is D+'s own front-surface probe (rig_meshy.py:57, `front_y(..., half=0.03)`).
+DEPTH_RAY_HALF_M = 0.03
 
 # Joint names carry the Mixamo prefix in the reference skeleton (verified in B3 against vitruvian.glb).
 _M = "mixamorig:"

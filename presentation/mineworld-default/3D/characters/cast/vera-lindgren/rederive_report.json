@@ -60,15 +60,11 @@
     "G-3": "PASS",
     "G-4": "PASS",
     "G-5": "PASS",
-    "G-6": "FAIL",
-    "G-6_reasons": [
-      "mixamorig:Spine lies outside the body by 63.5 mm",
-      "mixamorig:Spine2 lies outside the body by 46.9 mm"
-    ],
-    "G-6_note": "the same as the operator-accepted asset (F-B1-B3-1); measurement finding in the PR design section 15; the ruling is the primary session's",
+    "G-6": "PASS",
+    "G-6_note": "G-6(b) measured by the depth-ray inside test of ruling R-B1-G6 (2026-10-14), re-run alone on the r3 export; smallest margins Neck 26.0 mm, RightHand 37.4 mm, Spine2 88.5 mm, Spine 125.9 mm. Under the B3 clipped rule Spine (-63.5 mm) and Spine2 (-46.9 mm) failed, as on the accepted asset (F-B1-B3-1). Winter's figure itself stays INCONCLUSIVE (not re-read)",
     "G-14": "PASS",
     "G-8…G-13": "by parity (AB1-8)",
-    "verdict": "FAIL (G-6(b) only)"
+    "verdict": "PASS"
   },
   "stored_once": {
     "criterion": "AB1-11",
