@@ -115,6 +115,14 @@ enum Subcommand {
         /// The bearer token that opens /admin (else none); never printed; not the invite.
         #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
         admin_token: Option<String>,
+        /// Issue a seat grant admitting only these seats (seat or seat+seat), with :take-over the
+        /// right to take a held one; its token is generated and printed once; repeatable.
+        #[arg(long = "grant", value_name = "SEATS[:take-over]", value_parser = invite::grant_flag)]
+        grants: Vec<invite::GrantFlag>,
+        /// Each seat's request budget: R submits a second sustained, B at once (B ≥ R); 0: none.
+        #[arg(long, value_name = "R/B", value_parser = request_budget,
+              default_value_t = Budget(Some(mineworld_server::RequestBudget::DEFAULT)))]
+        request_budget: Budget,
         /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
@@ -334,6 +342,49 @@ impl DecisionFlags {
     }
 }
 
+/// `--request-budget`, parsed: a budget, or none (`docs/DECISIONS.md` `ARC-97`).
+#[derive(Debug, Clone, Copy)]
+struct Budget(Option<mineworld_server::RequestBudget>);
+
+/// The flag's own form, so `--help` shows the server's default from its one definition.
+impl std::fmt::Display for Budget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(budget) => write!(f, "{}/{}", budget.per_second, budget.burst),
+            None => f.write_str("0"),
+        }
+    }
+}
+
+/// `R/B` — two positive integers, `B ≥ R` — or `0` alone for no budget. Anything else is refused,
+/// and clap's message names the value.
+fn request_budget(text: &str) -> Result<Budget, String> {
+    if text == "0" {
+        return Ok(Budget(None));
+    }
+    let malformed = || {
+        "a request budget is R/B — requests a second and a burst, positive integers with B ≥ R — or 0 \
+         for none"
+            .to_owned()
+    };
+    let (rate, burst) = text.split_once('/').ok_or_else(malformed)?;
+    let positive = |part: &str| -> Result<NonZeroU32, String> {
+        if part.bytes().all(|b| b.is_ascii_digit()) {
+            part.parse().map_err(|_| malformed())
+        } else {
+            Err(malformed())
+        }
+    };
+    let (per_second, burst) = (positive(rate)?, positive(burst)?);
+    if burst < per_second {
+        return Err(malformed());
+    }
+    Ok(Budget(Some(mineworld_server::RequestBudget {
+        per_second,
+        burst,
+    })))
+}
+
 /// A seat name on the command line, checked as the key it must be.
 fn seat(text: &str) -> Result<EntityKey, String> {
     EntityKey::new(text).map_err(|error| format!("'{text}' is not a seat name: {error}"))
@@ -353,6 +404,8 @@ async fn main() -> ExitCode {
             listen,
             invite,
             admin_token,
+            grants,
+            request_budget,
             agents,
             town,
             seed,
@@ -370,6 +423,8 @@ async fn main() -> ExitCode {
                     listen,
                     invite,
                     admin_token,
+                    grants,
+                    request_budget: request_budget.0,
                     agents,
                     town,
                     seed,

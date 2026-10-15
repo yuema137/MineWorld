@@ -1,0 +1,25 @@
+NOTICE: calibration data in mineworld-motivated
+
+Table:        Table A-3, "Percent of the population engaging in selected activities by time of day"
+Source:       U.S. Bureau of Labor Statistics, American Time Use Survey (ATUS)
+Edition:      2025 annual averages (curve set name: atus-a3-2025)
+Published at: https://www.bls.gov/tus/tables/a3-2025.htm (HTML); the same table is published as PDF on
+              https://www.bls.gov/tus/tables.htm (the PDF URL was not separately verified)
+Retrieved:    2026-10-14 (transcription of the HTML table, Tables A-3A and A-3B)
+Credit:       Source: U.S. Bureau of Labor Statistics, American Time Use Survey
+Licence:      BLS publications are in the public domain. BLS requests credit; see
+              https://www.bls.gov/opub/copyright-information.htm
+
+Rows transcribed: Sleeping; Eating and drinking; Working (the indented row under "Working and
+work-related activities"); Socializing and communicating; Leisure and sports; Purchasing goods and
+services. Each value is the published percent, one decimal, multiplied by 10 to give a per-mille
+integer, so the conversion is exact. "-" is written as 0 and listed in the zero_markers line of
+atus-a3-2025.tsv.
+
+Verification status: the transcription was made from the HTML table. The PDF cross-check
+(three randomly chosen cells, recorded in pr-dl-b-motivated.md section 15) is a reviewer's step and
+is not yet recorded. The checksum line in the TSV is each row's sum over the 24 hours, computed from
+this transcription.
+
+No microdata is included. This directory holds aggregate published values only. The IPUMS ATUS-X,
+MTUS and HETUS microdata are not used.

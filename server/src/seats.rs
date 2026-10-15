@@ -12,15 +12,24 @@
 //! owned by the world thread, which is the only caller, so there is one writer of bindings and two
 //! controllers can never drive one seat (step-12 I-3). Time is injected — a wall-clock `Instant` for
 //! holds, a `WorldTime` for binding a controller — so every transition is testable with no thread.
+//!
+//! The table also keeps each seat's request bucket (`docs/DECISIONS.md` `ARC-97`, `DEP-57`), keyed by
+//! seat rather than by binding so that no transition refills it. It is host state too, never saved.
 
+use std::cell::Cell;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
+use governor::clock::Clock;
+use governor::middleware::NoOpMiddleware;
+use governor::state::{InMemoryState, NotKeyed};
+use governor::{Quota, RateLimiter};
 use mineworld_contracts::{EntityKey, WorldTime};
 use serde::Serialize;
 
-use crate::admission::{OfferedResume, ResumeSecret};
-use crate::host::SubscriptionId;
+use crate::admission::{OfferedResume, ResumeSecret, SeatRights};
+use crate::host::{RequestBudget, SubscriptionId};
 use crate::hosted::{HostedFactory, HostedSlot};
 use crate::protocol::{ClosingReason, Refusal, RefusalCode, SessionId, TookOver};
 
@@ -35,16 +44,20 @@ pub struct JoinRequest {
     pub resume: Option<OfferedResume>,
     /// Which connection is asking.
     pub session: SessionId,
+    /// What the credential the connection was admitted with allows: seat names and a take-over
+    /// right, never the credential itself (`PROTOCOL.md` §§4.1, 4.2).
+    pub rights: SeatRights,
 }
 
 impl JoinRequest {
-    /// A plain join: no takeover, no resume.
+    /// A plain join with every right the invite has: no takeover, no resume.
     pub const fn plain(seat: EntityKey, session: SessionId) -> Self {
         Self {
             seat,
             take_over: false,
             resume: None,
             session,
+            rights: SeatRights::Any,
         }
     }
 }
@@ -117,9 +130,10 @@ struct Held {
     resume: ResumeSecret,
 }
 
-/// A granted join: what changed hands, and which older connection, if any, must now be closed.
+/// A granted join: what changed hands, and which older connection, if any, must now be closed. (Not
+/// a seat grant, which is a credential: `crate::admission::SeatGrant`.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Grant {
+pub(crate) struct JoinGranted {
     pub(crate) took_over: TookOver,
     pub(crate) displaced: Option<(SubscriptionId, ClosingReason)>,
 }
@@ -129,6 +143,52 @@ pub(crate) struct SeatTable {
     seats: BTreeMap<EntityKey, Binding>,
     factories: BTreeMap<EntityKey, HostedFactory>,
     hold: Duration,
+    /// The per-seat request budget, if the host set one (`ARC-97`).
+    budget: Option<RequestBudget>,
+    /// Each seat's bucket, made on its first spend. Keyed by seat and kept outside [`Binding`], so no
+    /// join, departure, kick, release, hold or expiry refills it.
+    buckets: BTreeMap<EntityKey, Bucket>,
+}
+
+/// One seat's token bucket: a `governor` GCRA limiter (`DEP-57`) whose clock is the instant the seat
+/// table was handed, so the bucket never reads a clock of its own. `governor` is named nowhere else.
+struct Bucket {
+    now: Rc<Cell<Instant>>,
+    limiter: Limiter,
+}
+
+type Limiter = RateLimiter<NotKeyed, InMemoryState, TableClock, NoOpMiddleware<Instant>>;
+
+/// The wall instant the table was given, as `governor` reads time.
+#[derive(Clone)]
+struct TableClock(Rc<Cell<Instant>>);
+
+impl Clock for TableClock {
+    type Instant = Instant;
+
+    fn now(&self) -> Instant {
+        self.0.get()
+    }
+}
+
+impl Bucket {
+    fn new(budget: RequestBudget, now: Instant) -> Self {
+        let cell = Rc::new(Cell::new(now));
+        let quota = Quota::per_second(budget.per_second).allow_burst(budget.burst);
+        Self {
+            limiter: RateLimiter::direct_with_clock(quota, TableClock(Rc::clone(&cell))),
+            now: cell,
+        }
+    }
+
+    /// Takes one request at `now`, or says how long until one is available.
+    fn spend(&self, now: Instant) -> Result<(), Duration> {
+        // The wall clock never runs backwards; an earlier instant is read as the latest one seen.
+        self.now.set(self.now.get().max(now));
+        self.limiter
+            .check()
+            .map_err(|not_until| not_until.wait_time_from(self.now.get()))
+    }
 }
 
 impl SeatTable {
@@ -143,12 +203,51 @@ impl SeatTable {
             seats: BTreeMap::new(),
             factories,
             hold,
+            budget: None,
+            buckets: BTreeMap::new(),
         };
         for seat in seats {
             let default = table.default(&seat, at);
             table.seats.insert(seat, default);
         }
         table
+    }
+
+    /// The same table, bounding each seat's requests by `budget` (`None`: no budget).
+    pub(crate) const fn with_budget(mut self, budget: Option<RequestBudget>) -> Self {
+        self.budget = budget;
+        self
+    }
+
+    /// One request on behalf of `subscription` at the wall instant `now` (`PROTOCOL.md` §8): taken
+    /// from the bucket of the seat it is connected to, or refused with how long until the bucket has
+    /// one. With no budget, or no seat connected to `subscription` (nothing seated can act), it is
+    /// allowed.
+    pub(crate) fn spend(
+        &mut self,
+        subscription: SubscriptionId,
+        now: Instant,
+    ) -> Result<(), Duration> {
+        let Some(budget) = self.budget else {
+            return Ok(());
+        };
+        let Some(seat) = self.seat_of(subscription) else {
+            return Ok(());
+        };
+        self.buckets
+            .entry(seat)
+            .or_insert_with(|| Bucket::new(budget, now))
+            .spend(now)
+    }
+
+    /// The seat connected to `subscription`, if any.
+    fn seat_of(&self, subscription: SubscriptionId) -> Option<EntityKey> {
+        self.seats.iter().find_map(|(seat, binding)| match binding {
+            Binding::Connected(connected) if connected.subscription == subscription => {
+                Some(seat.clone())
+            }
+            _ => None,
+        })
     }
 
     /// The binding a seat returns to: its controller, built afresh at `at`, or nobody.
@@ -167,7 +266,7 @@ impl SeatTable {
         resume: ResumeSecret,
         now: Instant,
         at: WorldTime,
-    ) -> Result<Grant, Refusal> {
+    ) -> Result<JoinGranted, Refusal> {
         self.expire_seat(&request.seat, now, at);
         let binding = self
             .seats
@@ -194,15 +293,7 @@ impl SeatTable {
         now: Instant,
         at: WorldTime,
     ) -> Option<EntityKey> {
-        let seat = self
-            .seats
-            .iter()
-            .find_map(|(seat, binding)| match binding {
-                Binding::Connected(connected) if connected.subscription == subscription => {
-                    Some(seat.clone())
-                }
-                _ => None,
-            })?;
+        let seat = self.seat_of(subscription)?;
         let next = match departure {
             Departure::Dropped if !self.hold.is_zero() => {
                 let Some(Binding::Connected(connected)) = self.seats.remove(&seat) else {
@@ -339,9 +430,9 @@ impl SeatTable {
 }
 
 /// `PROTOCOL.md` §4.2's join rules over one seat's binding, in order.
-fn decide(binding: &Binding, request: &JoinRequest) -> Result<Grant, Refusal> {
+fn decide(binding: &Binding, request: &JoinRequest) -> Result<JoinGranted, Refusal> {
     let granted = |took_over, displaced| {
-        Ok(Grant {
+        Ok(JoinGranted {
             took_over,
             displaced,
         })
@@ -360,6 +451,13 @@ fn decide(binding: &Binding, request: &JoinRequest) -> Result<Grant, Refusal> {
     match binding {
         Binding::Free => granted(TookOver::None, None),
         Binding::Hosted(_) => granted(TookOver::Hosted, None),
+        // Rule 4's narrowing (S27-a): a grant without take-over displaces nobody.
+        Binding::Connected(_) | Binding::Held(_)
+            if request.take_over && !request.rights.may_take_over() =>
+        {
+            Err(Refusal::new(RefusalCode::NotGranted)
+                .detail("this credential may not take a seat another player holds"))
+        }
         Binding::Connected(connected) if request.take_over => granted(
             TookOver::Connection,
             Some((connected.subscription, ClosingReason::TakenOver)),
@@ -372,3 +470,6 @@ fn decide(binding: &Binding, request: &JoinRequest) -> Result<Grant, Refusal> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod budget_tests;

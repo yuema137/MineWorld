@@ -5,7 +5,7 @@
 use tokio::time::Instant;
 
 use super::Connection;
-use crate::admission::{Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
+use crate::admission::{Credential, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
 use crate::host::Seated;
 use crate::protocol::{
     ClosingReason, PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, ServerFrame,
@@ -15,8 +15,9 @@ use crate::seats::{Departure, JoinRequest};
 
 /// What one `join` came to.
 pub(super) enum Joining {
-    /// The connection has its seat, and the `perceived` backfill it is owed.
-    Seated(Box<Seated>, Nickname, Vec<ServerFrame>),
+    /// The connection has its seat, the credential that admitted it, and the `perceived` backfill it
+    /// is owed.
+    Seated(Box<Seated>, Nickname, Credential, Vec<ServerFrame>),
     /// Refused; the connection stays in the handshake and may join again.
     Refused(Refusal),
     /// Refused, and the connection ends: a mismatched protocol, or a wrong invite.
@@ -49,14 +50,14 @@ pub(super) async fn join(
             ClosingReason::ProtocolMismatch,
         );
     }
-    if connection.admission.admit(&offered.invite).is_err() {
+    let Ok(credential) = connection.admission.admit(&offered.invite) else {
         // Measured from the frame's arrival, so the answer's timing says nothing about the check.
         tokio::time::sleep_until(arrived + UNAUTHORIZED_DELAY).await;
         return Joining::Closed(
             Refusal::new(RefusalCode::Unauthorized).detail("that is not this server's invite"),
             ClosingReason::Unauthorized,
         );
-    }
+    };
     let nickname = match Nickname::new(&offered.nickname) {
         Ok(nickname) => nickname,
         Err(error) => {
@@ -64,12 +65,14 @@ pub(super) async fn join(
         }
     };
     // The seat and who may have it are the world thread's to decide (`PROTOCOL.md` §4.2): the
-    // resume and the takeover flag travel with the seat, and nothing here holds a binding.
+    // resume, the takeover flag and the credential's rights travel with the seat — seat names and a
+    // boolean, never the token (`ARC-40`, step-12 I-5) — and nothing here holds a binding.
     let request = JoinRequest {
         seat,
         take_over: offered.take_over,
         resume: offered.resume,
         session: connection.session,
+        rights: credential.rights.clone(),
     };
     let seated = match connection
         .host
@@ -82,7 +85,7 @@ pub(super) async fn join(
     // The backfill is read before the welcome, off the world's thread: a history that cannot be read
     // now is answered `cursor_unavailable` with nothing granted, and the connection may join again.
     match read_backfill(seated.perceived(), seated.observer()).await {
-        Ok(frames) => Joining::Seated(Box::new(seated), nickname, frames),
+        Ok(frames) => Joining::Seated(Box::new(seated), nickname, credential, frames),
         Err(refusal) => {
             connection
                 .host
