@@ -57,6 +57,8 @@ impl InteractionSection for Probe {
         biography_configurable: true,
     }];
     const PARAMETER_ROLES: &'static [Role] = &[Role::Actor, Role::Target];
+    // `reach` is about the actor alone: no target, no place, no region.
+    const FIELD_ROLES: &'static [(&'static str, &'static [Role])] = &[("reach", &[Role::Actor])];
 
     fn reference_lists() -> Vec<(&'static str, Section<Self>)> {
         let mut default = Section::empty();
@@ -346,4 +348,54 @@ fn the_resolved_section_copies_what_its_selectors_can_be_decided_by() {
         .map(|definition| definition.class.as_str())
         .collect();
     assert_eq!(kept, ["noble", "servant"]);
+}
+
+/// A range bound words its refusal exactly as every refusal was worded before named choices (S1,
+/// R-FGA-1): `low … high`, and admits both ends.
+#[test]
+fn a_range_bound_admits_its_ends_and_words_itself_as_before() {
+    let bound = 1_u32..=100;
+    assert!(ParameterBound::admits(&bound, &1) && ParameterBound::admits(&bound, &100));
+    assert!(!ParameterBound::admits(&bound, &0) && !ParameterBound::admits(&bound, &101));
+    assert_eq!(ParameterBound::<u32>::describe(&bound), "1 … 100");
+    assert_eq!(
+        ParameterBound::<i32>::describe(&(-1_000..=1_000)),
+        "-1000 … 1000"
+    );
+    assert_eq!(
+        ParameterBound::<bool>::describe(&(false..=true)),
+        "false … true"
+    );
+}
+
+/// Per-field roles (S2): a field its owner lists may be scoped only by its roles and set in a region
+/// only if `place` is one; an unlisted field keeps every parameter role; an entry setting nothing
+/// restricted is never refused.
+#[test]
+fn a_restricted_field_is_refused_under_another_role_and_in_a_region() {
+    let set = |step, reach| ProbePartial { step, reach }.set_names();
+    assert_eq!(set(Some(1), Some(2)), ["step", "reach"]);
+    assert_eq!(set(None, None), Vec::<&str>::new());
+
+    let reach = set(None, Some(2));
+    assert_eq!(
+        section::field_roles::<Probe>(&reach, &[Role::Actor], false),
+        Ok(())
+    );
+    assert_eq!(
+        section::field_roles::<Probe>(&reach, &[Role::Actor, Role::Target], false),
+        Err(
+            "'reach' of 'probe' may not be scoped by the role 'target' (its roles: actor)"
+                .to_owned()
+        )
+    );
+    assert_eq!(
+        section::field_roles::<Probe>(&reach, &[], true),
+        Err("a region may not set 'reach': 'probe' does not let a place scope it (its roles: actor)".to_owned())
+    );
+    let step = set(Some(1), None);
+    assert_eq!(
+        section::field_roles::<Probe>(&step, &[Role::Target], true),
+        Ok(())
+    );
 }

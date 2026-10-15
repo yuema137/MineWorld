@@ -77,6 +77,13 @@ Roles: `actor` is the speaker, `target` the listener, `place` where the speaker 
 | `gap` | seconds of silence before a new conversation | 300 | 1 … 86 400 |
 | `range` | millimetres a voice reaches | 3 000 | 1 … 100 000 |
 | `remembered` | entries a listener's history keeps | 32 | 1 … 64 |
+| `forget_after_days` | days a listener keeps a line; 0 = for ever | 0 | 0 … 3 650 |
+
+`forget_after_days` is about the listener, so it may be scoped by `target` only: an entry with
+`actor:` or `place:`, or a region, that sets it is refused at load. A line older than that many days
+is dropped from the history the next time the listener hears something, and is never disclosed after
+it has aged out, even before then. A conversation continues only within `gap` (at most one day), so
+aging out never changes who is in a conversation.
 
 | Fact | Audience (default → narrowest) | Biography (compiled) |
 | --- | --- | --- |

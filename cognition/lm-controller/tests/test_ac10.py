@@ -71,9 +71,9 @@ def _dump(history: History, frame: int) -> bytes:
 
 
 @pytest.fixture(scope="module")
-def run(tmp_path_factory: pytest.TempPathFactory) -> Run:
-    scratch = tmp_path_factory.mktemp("ac10")
-    history = History.build(scratch)
+def run(social_cafe_100: History, tmp_path_factory: pytest.TempPathFactory) -> Run:
+    scratch = tmp_path_factory.mktemp("ac10-store")
+    history = social_cafe_100
     triggers = {day: fact for day, fact in zip(TRIGGER_DAYS, history.triggers(), strict=True)}
     cuts = {fact.id: day for day, fact in triggers.items()}
     sections: dict[int, MemorySection] = {}

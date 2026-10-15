@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_decision::{ResolvedDecisions, SeatModel};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, format,
@@ -27,6 +28,7 @@ use mineworld_server::{
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
+use crate::decisions::{self, DecisionArgs};
 use crate::history::SavedHistory;
 use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed};
@@ -60,21 +62,28 @@ pub struct ServeRequest {
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
     pub roots: PackRoots,
+    /// `--decisions` and `--seat-model`: which model drives each `--town` seat (`ARC-84`).
+    pub decisions: DecisionArgs,
 }
 
 /// Which controller drives a seat nobody plays.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Driver {
     Reactive,
-    /// The paced controller, as seat number `k` in roster order.
-    Paced(usize),
+    /// The seat's resolved decision model, as seat number `k` in roster order.
+    Modelled {
+        k: usize,
+        model: Arc<dyn SeatModel>,
+    },
 }
 
-/// The seats in-server controllers drive, with the tally each one's statistics go to.
+/// The seats in-server controllers drive, with the tally each one's statistics go to. A `--town` seat
+/// whose fallback chain ends at `none` is not driven in-server.
 fn drivers(
     seats: &[EntityKey],
     agents: &[EntityKey],
     town: bool,
+    resolved: &ResolvedDecisions,
 ) -> Vec<(EntityKey, Driver, hosted::Tally)> {
     seats
         .iter()
@@ -83,13 +92,46 @@ fn drivers(
             let driver = if agents.contains(seat) {
                 Driver::Reactive
             } else if town {
-                Driver::Paced(k)
+                let model = Arc::clone(resolved.drives(k)?.model());
+                Driver::Modelled { k, model }
             } else {
                 return None;
             };
             Some((seat.clone(), driver, hosted::Tally::default()))
         })
         .collect()
+}
+
+/// The operator's decision flags checked against the rest of the command line (QDLa-1): they choose how
+/// in-server seats decide, so without `--town` they would do nothing, and a seat cannot be both an
+/// `--agent` and a `--seat-model`.
+fn check_decision_flags(
+    decisions: &DecisionArgs,
+    agents: &[EntityKey],
+    town: bool,
+) -> Result<(), String> {
+    if decisions.given() && !town {
+        let flag = if decisions.file.is_some() {
+            "--decisions"
+        } else {
+            "--seat-model"
+        };
+        return Err(format!(
+            "[mineworld] {flag}: decisions choose how in-server seats decide; add --town"
+        ));
+    }
+    if let Some(both) = decisions
+        .seat_models
+        .iter()
+        .find(|given| agents.contains(&given.seat))
+    {
+        return Err(format!(
+            "[mineworld] --seat-model {}={}: seat '{}' is also an --agent, which drives it with the \
+             reactive controller; name it once",
+            both.seat, both.model, both.seat
+        ));
+    }
+    Ok(())
 }
 
 /// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
@@ -108,10 +150,15 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         keyframe_every,
         save,
         roots,
+        decisions,
     } = request;
+    check_decision_flags(&decisions, &agents, town)?;
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
+    // Read whether or not --town drives anything, so a pack's bad decision list is refused the same way
+    // by every command that reads the pack.
+    let resolved = decisions::resolve(&pack, &decisions)?;
     let invite = invite::Invite::resolve(invite)?;
     let admin = admin_token
         .map(|token| admin_access(token, invite.token()))
@@ -147,7 +194,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     }
 
     let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
-    let driven = drivers(&roster, &agents, town);
+    let driven = drivers(&roster, &agents, town, &resolved);
     let tallies: Vec<(EntityKey, hosted::Tally)> = driven
         .iter()
         .map(|(seat, _, tally)| (seat.clone(), Arc::clone(tally)))
@@ -189,8 +236,14 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                     Driver::Reactive => hosted.hosting(seat, move |bound| {
                         Box::new(hosted::ReactiveSeat::bound(bound, time_scale, &tally))
                     }),
-                    Driver::Paced(k) => hosted.hosting(seat, move |_bound| {
-                        Box::new(hosted::PacedSeat::new(pacing, epoch, k, &tally))
+                    Driver::Modelled { k, model } => hosted.hosting(seat, move |_bound| {
+                        Box::new(hosted::PacedSeat::new(
+                            pacing,
+                            epoch,
+                            k,
+                            Arc::clone(&model),
+                            &tally,
+                        ))
                     }),
                 });
         Ok(hosted.seating(seats))
@@ -235,7 +288,13 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         status.time_scale,
         tallies.len(),
         if town {
-            format!(" (town: seed {seed}, pace {pace} wall s)")
+            // The decisions clause only when a list is in effect (`MODULE_SPEC.md` §4.1 rule 7).
+            format!(
+                " (town: seed {seed}, pace {pace} wall s{})",
+                resolved
+                    .clause(decisions::SERVER_FALLBACK)
+                    .unwrap_or_default()
+            )
         } else {
             String::new()
         },

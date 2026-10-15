@@ -383,8 +383,22 @@ rest on.
 - **Who enforces what.** The host around each memory policy enforces the bounds below whatever the
   policy returns. A policy is a plug-in and cannot reach past the host. No model is needed for any bound
   to hold, and no bound is a model's decision.
-- **Store bound.** The canonical dump of one seat's store is at most 1 MiB at any age. The host enforces
-  it after every pass (`MODULE_SPEC.md` §5.2, rule 6).
+- **Pass points.** A retention pass runs once per simulated day, at the seat's first perceived fact of a
+  new day, after that fact is ingested and before anything later is. The point is fixed by the perceived
+  sequence, never by how facts were batched, so the store remains a function of the facts and of the
+  policy's parameters: rebuilding from a null cursor reproduces its canonical dump byte for byte. Plain
+  ingestion never forgets; the host's `absorb` is the only caller of a pass.
+- **Coverage.** At every pass, every perceived id is represented by exactly one surviving top-level unit
+  (a chapter, an episode of a week without a chapter, the open episode's record) or by the forgotten set,
+  and no remembered line's citation intersects the forgotten set. A pass is one transaction; a breach of
+  this invariant rolls it back. A pass never moves the store's perceived cursor, which stays the seat's
+  only cursor authority (`pr-s10-p3b-perceived.md` D-P3b-2): a fact the store has since merged or
+  forgotten, re-delivered at or below that cursor, is skipped.
+- **Store bound.** The canonical dump of one seat's store is at most 768 KiB after every pass, enforced by
+  the host after whatever the policy did, and at most 1 MiB (the hard bound) at the pass points of the
+  reference worlds, the difference being one simulated day of perception (`MODULE_SPEC.md` §5.2, host
+  rule 7). Neither number is a parameter. The file on disk reclaims freed pages through SQLite's
+  incremental vacuum.
 - **Context bound.** A model call receives at most 6 000 bytes of memory per section (P4 D-P4-9). An
   assisted summarisation request is at most 6 000 bytes and contains no Event ID or entity id.
 - **Model-call bound.** Assisted forgetting makes at most `calls_per_sim_day` calls per seat per simulated

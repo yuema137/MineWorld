@@ -40,6 +40,9 @@ class Rendered:
     counterparts: tuple[EntityId, ...]
     salience: Salience
     mine: bool
+    importance: int
+    """The record's base importance, 0 … 1 000: structural, per event type and my part in it, fixed in
+    pr-fg-b §5.4 and never fitted to an outcome (ARC-23). Retention adds a reinforcement bonus at a pass."""
     level: LevelChange | None = None
     names: tuple[tuple[EntityId, str], ...] = ()
     """Names the fact disclosed, which ingestion teaches the `NameBook`."""
@@ -80,25 +83,46 @@ def quote(text: str) -> str:
     return f"«{clean}»"
 
 
+GENERIC_WITH_ME = 500
+GENERIC_WITHOUT_ME = 300
+"""The generic renderer's base importance: a notable fact I took part in, and one I did not. Every
+generic rendering is notable; an `ambient` record of any renderer below is worth 50 or less."""
+
+
 def generic(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     """`<event type> at <place>, with <people>`: the envelope only (I-9)."""
     who = counterparts(fact, me)
     gist = f"{fact.event_type} at {names.place(None if fact.place is None else fact.place.entity)}"
     together = names.people(who)
-    if me in fact.participants:
+    involved = me in fact.participants
+    if involved:
         gist += f", with me and {together}" if together else ", with me"
     elif together:
         gist += f", with {together}"
-    return Rendered(gist, who, "notable", only_me(fact, me))
+    importance = GENERIC_WITH_ME if involved else GENERIC_WITHOUT_ME
+    return Rendered(gist, who, "notable", only_me(fact, me), importance)
 
 
 def fallback(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     rendered = generic(fact, me, names)
-    return Rendered(rendered.gist, rendered.counterparts, "notable", rendered.mine, fallback=True)
+    return Rendered(
+        rendered.gist,
+        rendered.counterparts,
+        "notable",
+        rendered.mine,
+        rendered.importance,
+        fallback=True,
+    )
 
 
 def _registry() -> dict[str, Renderer]:
-    from mineworld_cognition.memory.render import conversation, naming, presence, relationships
+    from mineworld_cognition.memory.render import (
+        conversation,
+        movement,
+        naming,
+        presence,
+        relationships,
+    )
 
     return {
         "spoke": conversation.spoke,
@@ -108,6 +132,8 @@ def _registry() -> dict[str, Renderer]:
         "became-acquainted": relationships.became_acquainted,
         "relationship-changed": relationships.relationship_changed,
         "named": naming.named,
+        "walk-started": movement.walk_started,
+        "walk-ended": movement.walk_ended,
     }
 
 

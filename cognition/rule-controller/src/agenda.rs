@@ -16,10 +16,9 @@
 //! taken and nothing is suppressed.
 
 use mineworld_contracts::{Component, Observation};
+use mineworld_decision::Draw;
 use mineworld_schedule::Agenda;
 use serde_json::Value;
-
-use crate::paced::Draw;
 
 /// Out of 100, at a consult away from the agenda's place: how often the person heads there. Below
 /// 100 so that someone on their way still sometimes greets, invites or wanders — a literal, never
