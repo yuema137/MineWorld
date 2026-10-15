@@ -987,9 +987,20 @@ as the authority for the added fields.
     asserted exactly two pytest lines in `ci_layer.py --list python|python-smoke`; §2.1 item 2's member makes
     three. The fix lies under `cognition/`, which the contract forbids, so this was a material stop.
     **Ruled by the primary, 2026-10-14, relayed by the coordinator: a bounded, test-only scope exception.**
-    Only that test changes: it asserts one pytest line per `PYTHON_MEMBERS` entry, in order, the third
-    `uv run --locked pytest clients/agent` (in smoke `… -m 'not real_server'`). Nothing else under
-    `cognition/` is touched. The test passed locally; ruff, format and pyright are clean over `cognition/lm-controller`.
+    Only that test changes. Revised at the coordinator's request so that it also holds for S26-b1 (#211),
+    which adds a `tools/character_pipeline/tests` pytest line. Whichever of #204 and #211 merges second
+    rebases onto the other. The test now reads `PYTHON_MEMBERS` from `scripts/ci_layer.py` by `ast`, without
+    importing it, and asserts in both the `python` and `python-smoke` layers that:
+    - every pytest line is unique;
+    - every `PYTHON_MEMBERS` entry has exactly one line;
+    - any other line names a path that exists in the repository.
+
+    It keeps the cognition line's marker check. Nothing else under `cognition/` is touched. The test passed
+    locally; ruff, format and pyright are clean over `cognition/lm-controller`.
+  - *CI on `45ebab4`.* `python (ubuntu-24.04)` passed, so the member's tests, real binary included, ran on
+    Linux. `test` failed in `tools/cli/tests/hosted_town.rs::the_hosted_town_lives_within_its_tick_budget`:
+    "the p99 tick took 51.7 ms, over 50 ms (p50 0.6 ms, max 175 ms)". This PR changes no Rust, so this is a
+    timing budget on a loaded shared runner (an environment flake). The next push reruns it.
   - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
     §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
     F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.
