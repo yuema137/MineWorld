@@ -29,7 +29,12 @@ mod attachment;
 mod classes;
 mod configuration;
 mod content;
+pub mod schema;
 mod section;
+
+/// The schema crate the bounds below name, so a pack can derive `JsonSchema` with the build's own
+/// version (`docs/DECISIONS.md` `DEP-49`).
+pub use schemars;
 
 pub use attachment::{ATTACHMENT_DIRECTORY, ATTACHMENT_MAX_BYTES, Attached, Attachment};
 pub use classes::{ClassDefinition, ClassName, Classed, EntityClasses};

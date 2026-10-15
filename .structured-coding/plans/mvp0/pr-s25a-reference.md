@@ -179,7 +179,22 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
   1.2.3, `cargo info` licence MIT (licence check `cargo deny` runs at C1, with the add) · [x] LLM review:
   `DEP-49` states both halves of the reuse question (adopt `schemars`; decline `clap-markdown` and our own
   derive); no field rule moved out of a spec — §4.1's examples and rules stay, the reference adds detail
-- **C1** — [ ] Implementation · [ ] Validation · [ ] LLM review
+- **C1** — [x] Implementation: `schemars` workspace entry (DEP-49); `authoring/src/schema.rs` (`Key`,
+  `SystemName`, `TagName`, `TagList`, `Length`, `EntityTypeName`, `IDENTIFIER_PATTERN`), `JsonSchema` for
+  `Attachment`, `ClassName`, `ClassDefinition` (derived), `EntityClasses`; `packages/src/schema.rs`
+  (`PackId`, `PackType`, `Version`, `Compatibility`, `License`), `PackFile`, `StyleManifest`,
+  `pack_file_schema`, `style_manifest_schema`; `worldpack/src/format.rs` derives on `WorldManifest`,
+  `WorldIdentity`, `AuthoredPassage`, `AuthoredLocation`, `AuthoredPosition`, manual `ConfigurationKey`;
+  `worldpack/src/configure.rs` `StatedPolicy` (the real decoder of `configure/packages.yaml`, not
+  `LicencePolicy`, which is untouched: finding F-25a-1); `worldpack/src/schema.rs` (`world_manifest`,
+  `content_file`, `classes`, `packages`, the four content-file mirrors) · [x] Validation:
+  `each_content_files_schema_lists_exactly_the_fields_its_reader_accepts` (mirror keys = `content::fields`
+  per kind, none required), `the_schemas_state_the_contracts_own_rules` (every listed entity type decodes
+  by the contract, the identifier bound is the contract's constant); `cargo test -p mineworld-authoring -p
+  mineworld-packages -p mineworld-worldpack` all ok; clippy `-D warnings` clean on the three; `cargo deny
+  check`: licenses ok, bans ok, sources ok (advisories FAIL on `rustls` 0.23.45 via `ureq` in
+  `tools/weather-fetch`, unrelated and present on the base) · [x] LLM review: the diff adds derives,
+  attributes, doc wording and schema impls only; no `Deserialize` attribute or decoder changed
 - **C2+C3** — [ ] Implementation · [ ] Validation · [ ] LLM review
 - **C4** — [ ] Implementation · [ ] Validation · [ ] LLM review
 - **C5** — [ ] Implementation · [ ] Validation · [ ] LLM review

@@ -39,6 +39,7 @@ mod manifest;
 mod policy;
 mod resolve;
 mod roots;
+mod schema;
 
 pub use declared::{Package, compiled_under};
 pub use error::PackageError;
@@ -48,7 +49,7 @@ pub use identity::{
 };
 pub use manifest::{
     ENTITY_ITEM_EXTENSION, ENTITY_ITEMS, PACK_FILE, STYLE_FILE, check_entity_layout,
-    check_style_manifest, read_pack_file,
+    check_style_manifest, pack_file_schema, read_pack_file, style_manifest_schema,
 };
 pub use policy::LicencePolicy;
 pub use resolve::{
