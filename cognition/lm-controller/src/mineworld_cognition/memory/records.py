@@ -24,9 +24,11 @@ from pydantic import Field, model_validator
 
 from mineworld_cognition.backend.model import CognitionModel
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """2 since FG-b: importance, involvement, chapter ranges, stable times, the forgotten set and the pass log
-(pr-fg-b §5.5). A store of another version is refused by name; memory is rebuilt, never migrated."""
+(pr-fg-b §5.5); 3 since FG-b2: the pass log is keyed by its triggering fact and records its cause, so a
+day may hold several passes (pr-fg-b2 §4.5). A store of another version is refused by name; memory is
+rebuilt, never migrated."""
 KEY_WIDTH = 20
 """Decimal digits of u64's maximum, 18446744073709551615."""
 

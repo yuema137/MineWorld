@@ -2,7 +2,7 @@
 //! (`docs/MODULE_SPEC.md` §8.1; `pr-dl-a-decision-list.md` SD-DLa-15, ruling on QFGb-1).
 //!
 //! Typed, keys in a fixed order, seats in roster order. `memory` matches FG-b's `MemoryPolicyChoice`
-//! field for field (`policy`, `fallback`, `parameters`, `source`); `parameters` is the only free-form
+//! field for field (`policy`, `fallback`, `parameters`, `store_bound_mib`, `source`); `parameters` is the only free-form
 //! object, passed through. `format` is the document's version: a change to its shape bumps it.
 
 use serde::{Deserialize, Serialize};
@@ -10,8 +10,8 @@ use serde_json::{Map, Value};
 
 use crate::resolve::ResolvedDecisions;
 
-/// The document's version.
-pub const JSON_FORMAT: u32 = 1;
+/// The document's version: 2 since `memory.store_bound_mib` (`pr-fg-b2-size-trigger.md` §5).
+pub const JSON_FORMAT: u32 = 2;
 
 /// The whole document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +64,8 @@ pub struct MemoryPolicyChoiceJson {
     pub fallback: Option<String>,
     /// Its parameters, passed through; `{}` when none were written.
     pub parameters: Map<String, Value>,
+    /// The per-person store bound in MiB, passed through; `null` when not written (the host's 20 MiB).
+    pub store_bound_mib: Option<u64>,
     /// Where the winning entry was written.
     pub source: SourceSpanJson,
 }
@@ -104,6 +106,7 @@ impl ResolvedDecisions {
                         policy: memory.choice.policy.to_string(),
                         fallback: memory.choice.fallback.as_ref().map(ToString::to_string),
                         parameters: memory.choice.parameters.clone(),
+                        store_bound_mib: memory.choice.store_bound_mib,
                         source: SourceSpanJson {
                             file: memory.source.file.clone(),
                             line: memory.source.line,

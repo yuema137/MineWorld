@@ -32,13 +32,17 @@ from mineworld_cognition.memory.retention.selection import (
 
 SOURCE = SourceSpan(file="worlds/x/decisions.yaml", line=12, column=7)
 PACKAGE = Path(__file__).resolve().parent.parent / "src" / "mineworld_cognition"
-BUNDLED = ("consolidate", "decay", "importance-recency-cap", "keep-all")
+# FG-c adds `lm-summarise` (§2.1, its entry point); its surface is AFGc-7(a)'s, not this scan's.
+BUNDLED = ("consolidate", "decay", "importance-recency-cap", "keep-all", "lm-summarise")
 PUBLIC = {
     "MemoryItem", "ItemId", "ItemLevel", "RetentionBudget", "Keep", "Merge", "Drop",
     "RetentionDecision", "ForgettingPolicy", "Citation", "EventRange", "half_life_permille",
     "hyperbolic_permille", "tie_key",
+    # FG-c (F-FGc-4, F-FGc-7): the assisted names, and the two that lm-summarise reads.
+    "AssistedForgettingPolicy", "AssistedPlan", "GroupAnswer", "StopReason", "SummaryGateway",
+    "SummaryOutcome", "Exhausted", "MESSAGE_BYTES",
 }  # fmt: skip
-"""§5.2's list, written here."""
+"""§5.2's list, written here, extended by FG-c's assisted names."""
 POLICY_IMPORTS = {
     "__future__", "typing", "collections.abc", "hashlib", "pydantic",
     "mineworld_cognition.memory.retention",
@@ -65,6 +69,8 @@ def test_bundled_policies_import_only_the_public_retention_names() -> None:
     # AFGb-9 (a): a source scan of forgetting/. Its mutation imports `time` into decay.py.
     findings: list[str] = []
     for path in sorted((PACKAGE / "forgetting").glob("*.py")):
+        if path.name == "lm_summarise.py":
+            continue  # an assisted policy: its imports are AFGc-7(a)'s (test_lm_summarise.py), not these
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

@@ -15,7 +15,7 @@ use mineworld_contracts::{EntityId, EntityKey, WorldTime};
 
 use super::{Greeting, greet};
 use crate::admin::registry::{Joined, Registry};
-use crate::admission::Nickname;
+use crate::admission::{Credential, CredentialKind, Nickname, SeatRights};
 use crate::protocol::{
     PROTOCOL_VERSION, ServerFrame, SessionId, TookOver, WorldInstanceId, WorldSummary,
 };
@@ -34,6 +34,10 @@ fn greeting() -> Greeting {
             seat: seat.clone(),
             observer,
             connected_at: 1_791_441_600,
+            credential: Credential {
+                kind: CredentialKind::Invite,
+                rights: SeatRights::Any,
+            },
         },
         welcome: ServerFrame::Welcome {
             protocol: PROTOCOL_VERSION,

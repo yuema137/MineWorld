@@ -10,6 +10,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from mineworld_sdk.wire.ids import JsonValue
 from support import completion
 
 from mineworld_cognition.backend.model import CompletionRequest
@@ -97,6 +98,73 @@ def test_a_remote_server_is_refused_without_allow_remote(tmp_path: Path) -> None
     config = load(_config(tmp_path, "https://api.example.com/v1"))
     with pytest.raises(SystemExit, match="allow-remote"):
         spike.run_spike(config, ["m"], tmp_path / "out")
+
+
+FIXTURE: dict[str, JsonValue] = {
+    "criteria": {
+        "first_attempt_schema_valid_min": 38,
+        "latency_p95_max_ms": 15000,
+        "scenarios": 40,
+        "scenarios_sha256": "0123456789abcdef" * 4,
+    },
+    "server": {"backend": "local", "structured_output": "none"},
+    "models": [
+        {
+            "model": "qwen3.5:4b",
+            "scenarios": 40,
+            "first_attempt_schema_valid": 39,
+            "completed": 40,
+            "failures": {},
+            "latency_p50_ms": 2600,
+            "latency_p95_ms": 4800,
+            "meets_criteria": True,
+        },
+        {
+            "model": "gpt-5-nano",
+            "scenarios": 40,
+            "first_attempt_schema_valid": 0,
+            "completed": 0,
+            "failures": {"http_status:400": 40},
+            "latency_p50_ms": None,
+            "latency_p95_ms": None,
+            "meets_criteria": False,
+        },
+    ],
+    "default": "qwen3.5:4b",
+    "verdict": "default chosen",
+}
+"""A two-model report, written by hand: one admitted, one refused by the runtime (C14)."""
+
+GOLDEN = (
+    "model                  output       valid done failures             p50 ms p95 ms meets\n"
+    "qwen3.5:4b             none         39/40   40 -                      2600   4800 yes\n"
+    "gpt-5-nano             none          0/40    0 http_status:400 x 40      -      - no\n"
+    "default: qwen3.5:4b   criteria: valid >= 38/40, p95 <= 15000 ms   scenarios sha256 0123456789ab\n"
+)
+"""The table of `FIXTURE`, by column: each row's cells start at the columns of the heading (C14, §5.15)."""
+
+
+def test_the_summary_table_is_the_hand_written_golden() -> None:
+    spike = _tool()
+    assert spike.summary_table(FIXTURE) == GOLDEN
+
+
+def test_main_prints_the_table_before_the_unchanged_json_line(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spike = _tool()
+
+    def fake_run(*args: object, **kwargs: object) -> dict[str, JsonValue]:
+        return FIXTURE
+
+    monkeypatch.setattr(spike, "run_spike", fake_run)
+    config = _config(tmp_path, "http://127.0.0.1:11434/v1")
+    assert (
+        spike.main(["--config", str(config), "--models", "qwen3.5:4b", "--out", str(tmp_path)]) == 0
+    )
+    lines = capsys.readouterr().out.splitlines()
+    assert "\n".join(lines[:4]) + "\n" == GOLDEN
+    assert lines[-1] == json.dumps({"default": "qwen3.5:4b", "verdict": "default chosen"})
 
 
 def test_no_ci_command_runs_the_spike_or_allows_a_remote_server() -> None:

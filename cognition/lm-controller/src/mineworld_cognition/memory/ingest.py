@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from mineworld_sdk.wire.contract import PerceivedEvent
@@ -57,6 +57,8 @@ class IngestReport:
     forgotten_redeliveries: int = 0
     """Facts re-delivered at or below the stored cursor that retention has since merged or forgotten:
     skipped, and their content can no longer be compared (pr-fg-b §5.11, R-FGb-5)."""
+    stopped: EventId | None = None
+    """The fact after which `stop_when` stopped the call (the cursor is then that fact), or `None`."""
 
 
 def digest(fact: PerceivedEvent) -> str:
@@ -67,9 +69,20 @@ def digest(fact: PerceivedEvent) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def ingest(store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId) -> IngestReport:
+def ingest(
+    store: MemoryStore,
+    facts: Sequence[PerceivedEvent],
+    through: EventId,
+    *,
+    stop_when: Callable[[], bool] | None = None,
+) -> IngestReport:
+    """`stop_when`, which only `absorb` passes (pr-fg-b2 §4.3), is asked after every fact this call
+    writes; when it answers yes the call stops after that fact, which becomes the cursor. With it, a
+    week's chapter is written right after the fact that closes an episode of a later week, so the store
+    after each fact is a function of the facts up to it, however the facts were framed."""
     me = store.me
     records = redeliveries = fallbacks = forgotten = 0
+    stopped: EventId | None = None
     with store.transaction() as db:
         names = NameBook.load(store)
         stable = Stable(store)
@@ -79,6 +92,7 @@ def ingest(store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId
         cursor_key = "" if cursor is None else event_key(cursor)
         bound = max(store.newest() or "", cursor_key)
         previous = ""
+        closed = weeks = 0
         for fact in facts:
             key = event_key(fact.id)
             if key <= previous:
@@ -106,15 +120,26 @@ def ingest(store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId
             records += 1
             fallbacks += int(rendered.fallback)
             bound = key
+            if stop_when is not None:
+                if episodes.closed > closed:
+                    closed = episodes.closed
+                    weeks += close_weeks(store, names, summarizer)
+                if stop_when():
+                    stopped = fact.id
+                    break
+        if stopped is not None:
+            through = stopped
         through_key = event_key(through)
         if through_key < bound and records:
             raise OutOfOrder(event_of(bound), through)
-        written = close_weeks(store, names, summarizer)
+        written = weeks + close_weeks(store, names, summarizer)
         if cursor is None or through_key > event_key(cursor):
             store.set_meta("cursor", through)
         if records:
             store.set_meta("newest", bound)
-    return IngestReport(records, redeliveries, fallbacks, episodes.closed, written, forgotten)
+    return IngestReport(
+        records, redeliveries, fallbacks, episodes.closed, written, forgotten, stopped
+    )
 
 
 def _represented(store: MemoryStore, key: str) -> bool:

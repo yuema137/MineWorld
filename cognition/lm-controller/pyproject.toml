@@ -29,6 +29,21 @@ consolidate = "mineworld_cognition.forgetting.consolidate:Consolidate"
 decay = "mineworld_cognition.forgetting.decay:Decay"
 importance-recency-cap = "mineworld_cognition.forgetting.importance_recency_cap:ImportanceRecencyCap"
 keep-all = "mineworld_cognition.forgetting.keep_all:KeepAll"
+# The assisted policy (pr-fg-c): the same group, found the same way; it asks a model only through the host's
+# summary gateway, and names `consolidate` as its no-model fallback.
+lm-summarise = "mineworld_cognition.forgetting.lm_summarise:LmSummarise"
+
+# Retry policies of the LM controller's transport, content and semantic layers (pr-s10-p6 §5.5.2). The entry
+# name is the policy's id, as for the forgetting policies above. Standard metadata, no dependency.
+[project.entry-points."mineworld.retry"]
+exponential-backoff = "mineworld_cognition.controller.retry:ExponentialBackoff"
+fixed = "mineworld_cognition.controller.retry:Fixed"
+none = "mineworld_cognition.controller.retry:NoRetry"
+
+# The per-seat circuit breakers (pr-s10-p6 §5.6). Same conventions as the retry group above.
+[project.entry-points."mineworld.breaker"]
+failure-rate = "mineworld_cognition.controller.breaker:FailureRate"
+never = "mineworld_cognition.controller.breaker:Never"
 
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }

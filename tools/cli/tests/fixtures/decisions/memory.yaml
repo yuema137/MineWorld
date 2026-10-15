@@ -8,4 +8,4 @@ memory:
   default: { policy: consolidate }
   assign:
     - { class: residents, policy: decay, parameters: { half_life_hours: 336 } }
-    - { seat: alice, policy: nonexistent-policy, fallback: consolidate, parameters: { calls_per_sim_day: 4 } }
+    - { seat: alice, policy: nonexistent-policy, fallback: consolidate, parameters: { calls_per_sim_day: 4 }, store_bound_mib: 40 }
