@@ -3,11 +3,14 @@
 ## DRAFT — PR DESIGN, NOT FROZEN
 
 ```text
-Design revision:        revision 1 (2026-10-15), drafted for the primary session's freeze review
+Design revision:        revision 2 (2026-10-15): revision 1 (PR #215, 1f4d342) with §17.1's rulings applied;
+                        origin/main merged and the anchors re-checked (§3.0)
 Author:                 RL-e0 design agent, worktree /Users/yuema137/mineworld-worktrees/design-rl-e0,
-                        branch docs/rl-e0-design, planning base origin/main @ 4c59cdb0
-Approved by / evidence: NOT APPROVED. The primary session freezes this design; the operator rules the
-                        [OPERATOR] questions of §17 first
+                        branch docs/rl-e0-design, planning base origin/main @ 4c59cdb0, re-checked against
+                        the merged origin/main of 2026-10-15 (§3.0)
+Approved by / evidence: questions ruled 2026-10-15 (operator: Q-FF-1, 2, 3, 5, 6, 7, 8 "全部按推荐";
+                        primary: Q-FF-4, 9, 10; §17.1). The design is NOT yet frozen: the primary session
+                        flips this header to DESIGN FROZEN
 Implementation base:    origin/main at C0 (C0 records the commit)
 Start condition:        the primary session's dispatch after freeze; before Milestone F's checklist is
                         handed to the operator (§14.3)
@@ -29,8 +32,8 @@ step keeps one directory, so a reader who opens S22 finds all of its PRs togethe
 lands before Milestone F) is stated in §2.3 and proposed for `../mvp0/overall.md` in §15; it does not need
 the file to move.
 
-**Placeholder ids.** Decisions `ARC-RLe0-a`, `ARC-RLe0-b`, `ARC-RLe0-c` (the next free ARC numbers on
-`origin/main @ 4c59cdb0` are `ARC-102` …; the primary confirms the numbers at freeze). No new `DEP`: RL-e0
+**Ids.** Decisions `ARC-102`, `ARC-103`, `ARC-104`, assigned by the primary session on 2026-10-15 (they
+replace the placeholders ARC-RLe0-a, -b, -c; the next free are ARC-105 and DEP-60). No new `DEP`: RL-e0
 adds no dependency (§4). Within this file: SD-FF-n (design decisions), A-n (audit anchors), AC-FF-n
 (acceptance), X-n (mutations), V-n (visual guards), I-FF-n (invariants), Q-FF-n (questions), E-FF-n
 (evidence), R-FF-n (risks).
@@ -118,7 +121,8 @@ the check can fail.
 8. **The generated reference** (§5.8): a `far-field` entry on S25 25a's pack-manifest page, conditional on
    PR #200's merge order.
 9. **Housekeeping the operator named:** the stale `--skyline-check` line in `clients/3d-spike/README.md:7`;
-   the promenade spike `./mineworld-3d` per Q-FF-3.
+   the promenade spike `./mineworld-3d` stops being walkable and keeps its harness modes (Q-FF-3).
+11. **A per-PR Linux far-field job**, path-filtered to client and presentation changes (Q-FF-5).
 10. **Performance counts** against RL-b/RL-b2's budget, and an operator perf item in Milestone F's batched list
     (§8).
 
@@ -131,9 +135,9 @@ the check can fail.
 | The station and the landmark (Santa Fe Depot) | a later PR after F; RL-e0 reserves `skyline.slots.station` and `.landmark` |
 | Fog, sky and sun driven by the world clock | TW-e |
 | A general 3D Presentation Pack loader (rooms, bindings) | 16f. RL-e0 reads only `far_field/` from the 3D pack |
-| The world's pack id in the protocol's `WorldSummary` | Q-FF-4 (recommended later, with S21); RL-e0 identifies the world by a launcher argument (SD-FF-7) |
+| The world's pack id in the protocol's `WorldSummary` | S21 (Q-FF-4, ruled 2026-10-15); RL-e0 identifies the world by a launcher argument (SD-FF-7) |
 | Regions | S21. The schema accepts a `region` scope (§5.1.2); no client resolves one yet |
-| Per-PR CI job for the rendered check | Q-FF-5 (recommended: yes, Linux, path-filtered); the nightly runs it on all three OSes regardless |
+| Making the per-PR far-field job a required check | the operator; RL-e0 adds the job (Q-FF-5) but not as required |
 
 ### 2.3 Dependencies and ordering
 
@@ -154,6 +158,16 @@ No prerequisite must merge first. RL-e0 depends only on `origin/main`.
 
 ## 3. Audit (`origin/main @ 4c59cdb0`, 2026-10-15)
 
+### 3.0 Re-check after merging `origin/main @ e67af075` (2026-10-15; SR-b, FG-b2, 25c, DL-b)
+
+`git diff --stat 4c59cdb0 e67af075` over every path this design anchors — `clients/`, `mineworld-slice`,
+`mineworld-2d`, `mineworld-3d`, `.github/`, `packages/`, `presentation/`, `worlds/`, `server/src/protocol*`,
+`scripts/ci_godot.py`, `scripts/ci_layer.py`, `scripts/ci_changes.py` — is **empty**. `docs/MODULE_SPEC.md`
+changed (§§4, 5.2, 8 for DL-b and FG-b2) but not §6.1: its anchors moved to lines 1385 (`## 6.1`), 1401 (the
+`renderer/` layout line), 1405 ("Not every pack needs every directory") and 1422 (the `dimension` sentence),
+with the text Appendix A.1 edits unchanged. `tools/cli/src/packs.rs` and `packages/src/resolve.rs` are
+unchanged. Every A-n below holds; line numbers outside MODULE_SPEC are as cited.
+
 ### 3.1 Source anchors
 
 | Id | Fact | Source | Consequence |
@@ -170,7 +184,7 @@ No prerequisite must merge first. RL-e0 depends only on `origin/main`.
 | A-10 | `slice_probe.gd` is 1 278 lines (past the ~800-line strong warning) | `wc -l` | The check lives in its own file, `slice_far_field_check.gd`, as `SlicePerf` does (`slice_perf.gd`) |
 | A-11 | Nightly `clients` layer runs the `#[ignore]`d Godot tests on ubuntu-24.04 (Xvfb + Mesa lavapipe), macos-26 (Apple Paravirtual) and windows-2025 (D3D12 WARP); `clients-probes` (bash launchers) runs on Linux and macOS only; per-PR CI runs no Godot | `.github/workflows/nightly.yml:355-450`; `.github/actions/godot/action.yml`; `scripts/ci_layer.py:146-170`; `scripts/ci_godot.py:73-105` | The rendered check is a Rust `#[ignore]` test (runs on all three OSes), not a launcher probe (§6.5) |
 | A-12 | The **connected** 3D slice "hung" on all three hosted runners (F-13c-impl-5, root cause open); offline modes were not reported hanging | `scripts/ci_godot.py:78-99` | The 3D check runs the slice **offline** with `--gi=none` and offscreen `SubViewport`s (§6.2); hosted-runner viability is C6's first validation step (R-FF-1) |
-| A-13 | `DEP-45`'s accepted limitation: windowed tests on Linux "judge behaviour, never frames (`ARC-17`)" | `docs/DECISIONS.md:5904-5950` | The rendered check judges frames **only against frames of the same run** (shown vs hidden), never against a stored image. This needs a dated note on `DEP-45` (ARC-RLe0-b) |
+| A-13 | `DEP-45`'s accepted limitation: windowed tests on Linux "judge behaviour, never frames (`ARC-17`)" | `docs/DECISIONS.md:5904-5950` | The rendered check judges frames **only against frames of the same run** (shown vs hidden), never against a stored image. This needs a dated note on `DEP-45` (ARC-103) |
 | A-14 | 2D: clear colour from the pack (`#e0ecee`), `camera.zoom` fixed from the pack (1.55), no zoom control; `land` = paved hub rect grown by `ground.land_margin_m` (60 m); stretch `canvas_items`, aspect `expand`; window size bounds 640×360 … 7 680×4 320 | `clients/2d/scripts/app.gd:82,105`; `scripts/scene/places.gd:179-194`; `scripts/scene/ground.gd:35-48`; `clients/2d/project.godot:20-23`; `clients/shared/SETTINGS.md:135` | With aspect `expand`, a 7 680×360 window shows a 19 200 × 900 base-pixel view (21.3 : 1). The surround must cover that (SD-FF-9) |
 | A-15 | 2D stills: `harness/capture.gd` `shoot()` — needs a window, waits `frame_post_draw` | `clients/2d/scripts/harness/capture.gd` | The 2D check renders offscreen `SubViewport`s sharing the main `world_2d` |
 | A-16 | Pack validation: `mineworld packs validate` reads `pack.yaml` and the style manifest (`id`, `dimension`); world resolution `packages/src/resolve.rs` `resolve` (l.115) and `requirement` (l.185) accept a `presentation-pack` requirement; errors are `PackageError` (`packages/src/error.rs`) | `tools/cli/src/packs.rs:259-300`; `packages/src/manifest.rs:45-170`; `packages/src/resolve.rs` | The far-field refusals join `PackageError`; `validate` checks every pack directory; `resolve` checks the world's own far field in each required Presentation Pack |
@@ -218,7 +232,7 @@ check of any kind in CI (DEP-45: "never frames"); no water in the slice; no comm
 | Typed parse in Rust | **Reuse** `serde` + `serde-saphyr` (DEP in force, `packages` already uses it) | — |
 
 No new dependency is adopted and none is rejected in favour of our own code, so no `DEP` record is needed;
-the reuse of `58bc0c4` is recorded in ARC-RLe0-a's consequences.
+the reuse of `58bc0c4` is recorded in ARC-102's consequences.
 
 ---
 
@@ -387,7 +401,7 @@ for each.
 **Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
 drawing with no Presentation Pack* (A-14, `presentation.is_plain()`); it is not a presentation and has no
 far field. It prints `[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`.
-Q-FF-7 asks the operator to confirm.
+The operator ruled it so (Q-FF-7, 2026-10-15).
 
 #### 5.1.5 How the rule reads in the specification (summary; full text Appendix A.1)
 
@@ -398,13 +412,14 @@ directory" gains "except `far_field/`". A new §6.1.1 carries §5.1.2–§5.1.4 
 
 `skyline.slots.station` and `skyline.slots.landmark` exist in every 3D far field. RL-e0 sets `station` to
 `reserved` at the real Santa Fe Depot's bearing and distance from the slice origin (A-25), with a 120 m
-footprint kept clear of massing, and `landmark` to `unplaced` (Q-FF-8 asks which landmark). The station PR
+footprint kept clear of massing, and `landmark` to `unplaced` (Q-FF-8, ruled 2026-10-15: **the station is the landmark**; the landmark slot stays `unplaced` for the
+station-and-landmark PR to decide). The station PR
 after F adds the `filled` state with its model reference.
 
 ### 5.2 Rust: `packages/src/far_field.rs`
 
 ```rust
-//! A Presentation Pack's far field (`MODULE_SPEC.md` §6.1.1; ARC-RLe0-a).
+//! A Presentation Pack's far field (`MODULE_SPEC.md` §6.1.1; ARC-102).
 pub const FAR_FIELD_DIR: &str = "far_field";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -483,7 +498,7 @@ winding assertion (F-FF-1: an assertion of a convention is exactly what failed).
 coupling. Fresnel is capped at 0.6 because a wind-roughened sea near the horizon is darker than the sky
 behind it — which is why the real sea horizon is a visible line — and because an uncapped grazing Fresnel
 would render the water sky-coloured exactly where the check needs it to differ from the sky (R-FF-3).
-Q-FF-2 asks the operator.
+The operator accepted this (Q-FF-2, 2026-10-15).
 
 ### 5.5 2D: the surround (`clients/2d/scripts/scene/ground.gd`, `places.gd`)
 
@@ -511,7 +526,7 @@ discovery).
 ### 5.6 Default content (values in Appendix B)
 
 - **3D `social-cafe`** (the slice depicts `social-cafe`'s street; the location is Market Town's,
-  32.7157 N −117.1611 W, per QRL-2/QRL-3 — Q-FF-9 confirms that the slice may claim it): datum 18 m;
+  32.7157 N −117.1611 W, per QRL-2/QRL-3 — ruled by Q-FF-9): datum 18 m;
   V = 80 km; panorama `qwantani_puresky_2k`; foreground `dry_grass`, drop 18 m over 300 m (the bay lies
   ≈ 18 m below the street); silhouettes: Balboa/Bankers Hill mesas (near), Mount Soledad, Cowles, Helix and
   San Miguel (mid), Cuyamaca, Monument Peak and Otay (far), Point Loma and Coronado (near, across the bay),
@@ -538,7 +553,7 @@ generalises the 3D pack). *Alternative recommended for later:* `WorldSummary.pac
 
 **SD-FF-8 — no fallback far field.** A pack-wide default would make the refusal unreachable for the shipped
 packs and would draw San Diego's bay behind an alpine world. Every presented world names its far field.
-Q-FF-7 lets the operator choose otherwise.
+Ruled by the operator (Q-FF-7, 2026-10-15).
 
 ### 5.8 The generated reference (S25 25a, PR #200)
 
@@ -638,8 +653,8 @@ At each viewpoint, **8 azimuths** at bearings 0°, 45°, …, 315°, pitch 0.
   headless display server uses a dummy renderer and draws no pixels.
 - Locally: `./mineworld-slice --farfield` and `./mineworld-2d --drive=farfield --capture` print the same
   verdicts.
-- Per PR: Q-FF-5 (recommended: a Linux job, path-filtered to `clients/**`, `presentation/**` and the
-  launchers).
+- Per PR (Q-FF-5, ruled 2026-10-15): a Linux job, path-filtered to `clients/**`, `presentation/**` and the
+  launchers (C8 step 4).
 
 ### 6.6 Verdict lines
 
@@ -745,7 +760,7 @@ p95 increment above +1.0 ms in any view is a material stop.
 | AC-FF-8 | The committed shots exist (7 + 20), and `ff_6` shows the bay and Point Loma across the drop beyond the parapet with no apron edge | files; the operator's look (§14.3) |
 | AC-FF-9 | V-1 passes (§7) | `frame_diff` output |
 | AC-FF-10 | Counts within §8's caps on the M5; operator timings recorded or the item handed to F's list | ledger |
-| AC-FF-11 | `clients/3d-spike/README.md` no longer mentions `--skyline-check`; the promenade per Q-FF-3's ruling | grep |
+| AC-FF-11 | `clients/3d-spike/README.md` no longer mentions `--skyline-check`; `./mineworld-3d` with no harness flag refuses to start a walk and points at the slice, while `--drive`, `--shots` and `--portrait` still work (Q-FF-3) | grep; the launcher's output |
 | AC-FF-12 | The client-rules scan (`tests/acceptance/tests/client_rules.rs`, `scripts/check_client_rules.py`) passes with the new module | test log |
 
 ---
@@ -823,7 +838,7 @@ Run every command from the worktree root named in §13. Never `cd` elsewhere.
      → far field row, out-of-scope line, §12 view 11). Keep the file engine-neutral (its §0): no renderer,
      node or shader names.
   4. `clients/2d/PRESENTATION.md`: apply Appendix A.4.
-  5. `DECISIONS.md`: append ARC-RLe0-a, -b, -c (Appendix A.5) with the numbers the primary confirmed at freeze,
+  5. `DECISIONS.md`: append ARC-102, ARC-103 and ARC-104 (Appendix A.5),
      and the dated note on `DEP-45` (Appendix A.5, last block).
 - [ ] Implementation: steps 1–5.
 - [ ] Validation: both doc checks; `grep -n "far_field" docs/MODULE_SPEC.md docs/VISUAL_SLICE.md` shows the new text.
@@ -1001,9 +1016,11 @@ Run every command from the worktree root named in §13. Never `cd` elsewhere.
      tests: `three_d_far_field_closes_every_open_sector`, `two_d_clear_colour_is_never_visible` (loops the four
      worlds), `the_two_validators_agree` (runs C4's check, compares with `mineworld_packages`' codes).
   3. `GODOT_TESTS.append("client_far_field")`; `python3 scripts/ci_godot.py coverage` stays green.
-  4. Q-FF-5 (if ruled yes): a `farfield` job in `ci.yml` on ubuntu-24.04 using `./.github/actions/godot`, run only
-     when `ci_changes.py` classifies a change under `clients/**`, `presentation/**`, `mineworld-2d`,
-     `mineworld-slice`.
+  4. Q-FF-5 (ruled yes, 2026-10-15): a `farfield` job in `ci.yml` on ubuntu-24.04 using `./.github/actions/godot`,
+     run only when `ci_changes.py` classifies a change under `clients/**`, `presentation/**`, `mineworld-2d`,
+     `mineworld-slice` (read `ci_changes.py`'s classification and its self-test first; add the class and a
+     self-test row for it). It runs `cargo test -p mineworld-cli --test client_far_field -- --ignored
+     --test-threads=1` and is not a required check until the operator says so.
 - [ ] Implementation: steps 1–4.
 - [ ] Validation: `cargo test -p mineworld-cli --test client_far_field -- --ignored --test-threads=1` on macOS;
   `python3 scripts/ci_godot.py coverage`; one dispatched nightly `clients` run on the branch head, all three
@@ -1022,7 +1039,7 @@ Run every command from the worktree root named in §13. Never `cd` elsewhere.
      --shots=clients/2d/shots/<w>/farfield` for the four worlds.
   3. README line 7: replace `the far skyline: ./mineworld-slice --skyline-check` by `the far field:
      ./mineworld-slice --farfield (the rendered check) and --farfield-shots (the regression views)`.
-  4. Q-FF-3 as ruled. Recommended (a): `mineworld-3d` without a harness flag prints "the promenade spike has no
+  4. Q-FF-3 (ruled (a), 2026-10-15): `mineworld-3d` without a harness flag prints "the promenade spike has no
      far field (operator ruling 2026-10-15); walk the world in ./mineworld-slice" and exits 2; `--drive`,
      `--shots`, `--portrait` keep working.
 - [ ] Implementation: steps 1–4.
@@ -1145,7 +1162,7 @@ FF-6  Windows and Linux machines when available: FF-1 and FF-4
 | Id | Risk | Mitigation |
 | --- | --- | --- |
 | R-FF-1 | Hosted software renderers (lavapipe, WARP, Apple Paravirtual) cannot render 120 frames of the full slice within the job's 75 min, or hang as the connected slice did (A-12) | offline slice, `--gi=none`, small offscreen viewports; C6 step 3 tests viability on all three before the rest is built on it; if one OS cannot, material stop with options (lower resolution; a far-field-only scene — which would no longer test near occlusion) |
-| R-FF-2 | Real angles make the far field thin at eye height (sub-degree), and the operator rejected a low skyline once (R-5) | R-5's stated reason was the missing sea, now present; mesas at ≈ 2° N–E are real; Q-FF-1 asks before freeze |
+| R-FF-2 | Real angles make the far field thin at eye height (sub-degree), and the operator rejected a low skyline once (R-5) | R-5's stated reason was the missing sea, now present; mesas at ≈ 2° N–E are real; the thresholds were ruled by the operator (Q-FF-1); the look is judged at F (FF-1 … FF-3) |
 | R-FF-3 | Grazing Fresnel renders distant water sky-coloured, so FF-BELOW fails over the bay | SD-FF-5's cap at 0.6 (physically motivated) |
 | R-FF-4 | Koschmieder haze at 72 km makes the far layer differ from the sky by < 8/255 | FF-ABOVE does not depend on the far layer: near and mid layers exist in every land sector (Appendix B.1) |
 | R-FF-5 | Hand-estimated mesa and lowland heights are wrong | marked approximate in every `source`; RL-e replaces them from 3DEP; the summits are re-read values |
@@ -1156,7 +1173,7 @@ FF-6  Windows and Linux machines when available: FF-1 and FF-4
 
 ---
 
-## 17. Operator questions (each with a recommendation)
+## 17. Operator questions (each with a recommendation; all ruled 2026-10-15, §17.1)
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
@@ -1173,7 +1190,25 @@ FF-6  Windows and Linux machines when available: FF-1 and FF-4
 
 ### 17.1 Rulings
 
-*(empty until the operator and the primary session rule)*
+Answered 2026-10-15; relayed by the coordinator. **Binding.** The operator answered in the primary session:
+"全部按推荐" (everything as recommended).
+
+| Question | Ruled by | Ruling | Applied in |
+| --- | --- | --- | --- |
+| Q-FF-1 | operator | **N_below = 90 %** over `[e_h − 1.0°, e_h − 0.1°]`, **N_above = 25 %** over `[e_h, e_h + 0.25°]` (land sectors only); the seven viewpoints of §6.1; 8/255 per pixel | §6 (now frozen content) |
+| Q-FF-2 | operator | The bay uses `water.gdshader` with San Diego Bay colours, **Fresnel ≤ 0.6**, **no reflections of the town** | §5.4, SD-FF-5 |
+| Q-FF-3 | operator | **(a)** The promenade spike stops being walkable; `--drive`, `--shots`, `--portrait` stay | §2.1 item 9, C9 step 4, AC-FF-11 |
+| Q-FF-4 | primary | `WorldSummary` pack id **later, with S21**; RL-e0 uses `--world-key` | §2.2, SD-FF-7 |
+| Q-FF-5 | operator | **Yes:** a per-PR Linux far-field job, filtered to client and presentation changes (not required until the operator says so) | §2.1 item 11, §6.5, C8 step 4 |
+| Q-FF-6 | operator | **Low-rise** distant massing (6–14 m) | §5.6, Appendix B.1 |
+| Q-FF-7 | operator | **No fallback** far field; the 2D `--presentation=none` diagnostic mode is **exempt** and says so | §5.1.4, SD-FF-8, I-FF-1 |
+| Q-FF-8 | operator | RL-e0 **reserves `station`** at the Santa Fe Depot (277°, 790 m) and leaves **`landmark` unplaced**. The station-and-landmark PR comes **after F**; **the station is the landmark** | §5.1.6, Appendix B.1 |
+| Q-FF-9 | primary | **Yes:** the slice (`social-cafe`) uses Market Town's San Diego location | §5.6, Appendix B.1 |
+| Q-FF-10 | primary | **Accept:** the slice keeps its natural terminations; RL-e0 adds no invisible wall | Appendix B.1 (`boundary: natural`) |
+| Ids | primary | ARC-RLe0-a/b/c → **ARC-102, ARC-103, ARC-104**; next free ARC-105; DEP-59 is taken by the F-tick-1 fix, so a DEP here would be DEP-60 (none is needed) | header, C1, Appendix A.5 |
+
+The coordinator's relay named this record "§14.1"; in this file §14.1 is the file-overlap table, so the rulings
+live here, in §17.1, beside the questions they answer.
 
 ---
 
@@ -1221,7 +1256,7 @@ New subsection after §6.1 (before §6.2):
 > ## 6.1.1 The far field (required)
 >
 > **However small the world, every presented view closes on a far field** (operator ruling 2026-10-15,
-> `DECISIONS.md` ARC-RLe0-a). An invisible wall is allowed; a view with no far field is not.
+> `DECISIONS.md` ARC-102). An invisible wall is allowed; a view with no far field is not.
 >
 > A Presentation Pack carries `far_field/<world-key>.yaml` for every world it presents, and
 > `far_field/region-<region-key>.yaml` for a region (read from S21). Each file is YAML's JSON subset
@@ -1232,7 +1267,7 @@ New subsection after §6.1 (before §6.2):
 > System and never part of an `ActionIntent`. A far field that suggests a walkable approach beyond the
 > boundary is a defect even if it validates.
 >
-> The reference clients prove the far field by rendering (`DECISIONS.md` ARC-RLe0-b): the 3D client compares
+> The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
 > frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
 > pixels at the reachable extremes.
 
@@ -1272,9 +1307,9 @@ and `surround` (`MODULE_SPEC.md` §6.1.1); the client draws the surround past th
 clamps the camera, and is checked to draw no clear-colour pixel at any reachable extreme at the widest aspect
 the settings allow. `clear_color` remains in `renderer/godot.yaml` but must never be visible.
 
-### A.5 `docs/DECISIONS.md` (append; numbers confirmed at freeze)
+### A.5 `docs/DECISIONS.md` (append; numbers assigned 2026-10-15)
 
-> **ARC-RLe0-a — Every presented world has a far field; a Presentation Pack without one is refused.**
+> **ARC-102 — Every presented world has a far field; a Presentation Pack without one is refused.**
 > Date 2026-10-15 · Approved by the operator (ruling 2026-10-15, quoted) and the primary session (freeze) ·
 > Design `pr-rl-e0-far-field-mandatory.md`. *Problem:* E-FF-1…8. *Options:* (a) a required, typed `far_field`
 > per world in each dimension pack, refused by name at authoring and at load — chosen; (b) a client-side
@@ -1283,18 +1318,18 @@ the settings allow. `clear_color` remains in `renderer/godot.yaml` but must neve
 > reverted skyline technique is reused; RL-e fills the same schema from 3DEP; the clients take `--world-key`
 > until the protocol carries a pack id (revisit with S21).
 
-> **ARC-RLe0-b — The far field is proven by rendering, against the same run's own frames.**
+> **ARC-103 — The far field is proven by rendering, against the same run's own frames.**
 > *Problem:* a winding assertion passed while the GPU culled the faces (F-FF-1); schema and ray-cast checks
 > cannot see render-time culling. *Choice:* shown-vs-hidden-vs-sky renders from fixed viewpoints with two fixed
 > criteria (FF-BELOW 90 %, FF-ABOVE 25 %), and two-sentinel clear-colour counts in 2D, on all three hosted
 > runners; planted mutations prove failure. *Not chosen:* golden images (renderer-dependent, `ARC-17`'s
 > vagueness in pixel form); a ray-cast check (blind to culling).
 
-> **ARC-RLe0-c — Invisible boundaries are allowed; open views without a far field are not.** Amends
+> **ARC-104 — Invisible boundaries are allowed; open views without a far field are not.** Amends
 > `VISUAL_SLICE.md` §4 (A.3) on the operator's ruling.
 
 > **DEP-45, dated note 2026-10-15:** the accepted limitation "judge behaviour, never frames" is narrowed: the
-> far-field checks judge frames **only against frames rendered in the same run** (ARC-RLe0-b), never against a
+> far-field checks judge frames **only against frames rendered in the same run** (ARC-103), never against a
 > stored image; every other windowed test is unchanged.
 
 ---
