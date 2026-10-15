@@ -1,0 +1,122 @@
+# Population profile — San Diego County, California (step-26 §7.4a item 4).
+#
+# The setting of the café town (social-cafe) and the market town (market-town): market-town's calendar and
+# weather are San Diego's (worlds/market-town/README.md, configure/calendar.yaml; TW-b), and social-cafe
+# is the same town without those packs. Every figure below carries its source. `status: read` means the
+# figure was read at the source on the date given; `status: verify` means it was not.
+#
+# The sampler (tools/character_pipeline/casting/cast_director.py) reads only the `sampler:` section. Its
+# shape is deliberately flat: maps of `key: number` or `key: [numbers]`, so the tool needs no YAML library.
+profile: san-diego-county
+version: 1
+date: '2026-10-15'
+
+sources:
+  acs:
+    title: American Community Survey 2024 1-year estimates, tables B01001 (sex by age) and B03002 (Hispanic or Latino origin by race), San Diego County, CA (05000US06073)
+    url: https://api.censusreporter.org/1.0/data/show/latest?table_ids=B03002,B01001&geo_ids=05000US06073
+    publisher_url: https://data.census.gov/table/ACSDT1Y2024.B03002?g=050XX00US06073
+    read: '2026-10-15'
+    status: read
+    note: Read through Census Reporter's API, which republishes the Census Bureau tables unchanged
+      (release "ACS 2024 1-year"). §7.4a names the 5-year estimates as an example; the 1-year release was the
+      one reachable without an API key. The 5-year figures (ACS 2019-2023) are status verify — the Census
+      Bureau's own API requires a key and QuickFacts returned 403 to the fetcher.
+  nhanes:
+    title: Fryar CD, Carroll MD, Gu Q, Afful J, Ogden CL. Anthropometric reference data for children and adults, United States, 2015-2018. National Center for Health Statistics, Vital Health Stat 3(46), 2021
+    url: https://www.cdc.gov/nchs/data/series/sr_03/sr03-046-508.pdf
+    read: '2026-10-15'
+    status: read
+    tables: Table 9 (height, adult females, cm), Table 11 (height, adult males, cm), Table 14 (BMI, adult females), Table 15 (BMI, adult males); "All race and Hispanic-origin groups" rows
+    note: National, not county, figures — NHANES publishes no county estimates. The report gives the mean,
+      the standard error of the mean and percentiles, not the population SD; the sampler derives
+      SD = (P95 - P5) / 3.29 (normal approximation), stated as derived, not read.
+  county_obesity:
+    title: California Health Interview Survey (CHIS), adult obesity, San Diego County
+    url: https://ask.chis.ucla.edu/
+    status: verify
+    note: Not opened (interactive query tool). Expected to show the county leaner than the national NHANES
+      figure (a county adult obesity share near one in four rather than NHANES's ~42 %); if confirmed, the
+      build distribution below over-represents the heavy class for this county. Finding F-CAST-4.
+
+# Figures as read (counts; shares are computed from them).
+figures:
+  population_total: 3298799                       # B03002_001 = B01001_001, ACS 2024 1-year
+  sex:
+    male: 1664886                                 # B01001_002
+    female: 1633913                               # B01001_026
+    male_share_all_ages: 0.5047
+    male_share_adults_20_plus: 0.5014             # summed from B01001 age columns
+  adult_age_counts_20_plus:                       # both sexes, B01001 columns summed per decade
+    20s: 472001
+    30s: 519120
+    40s: 434681
+    50s: 381349
+    60s: 358889
+    70s: 246285
+    80_plus: 120076
+  race_hispanic_origin:                           # B03002
+    hispanic_or_latino_any_race: 1162725
+    nh_white_alone: 1362010
+    nh_black_alone: 141681
+    nh_american_indian_alaska_native_alone: 7387
+    nh_asian_alone: 414900
+    nh_native_hawaiian_pacific_islander_alone: 11274
+    nh_some_other_race_alone: 17998
+    nh_two_or_more_races: 180824
+  stature_cm:                                     # NHANES 2015-2018, [mean, P5, P95], Tables 9 and 11
+    female: { 20s: [162.6, 151.0, 172.8], 30s: [162.7, 151.2, 173.4], 40s: [162.3, 150.7, 174.2], 50s: [161.3, 150.7, 171.4], 60s: [160.7, 149.3, 171.7], 70s: [158.2, 147.5, 168.1], 80_plus: [155.6, 145.3, 166.7] }
+    male:   { 20s: [175.8, 164.5, 187.1], 30s: [176.3, 163.5, 188.7], 40s: [176.3, 163.6, 188.4], 50s: [175.4, 162.8, 187.7], 60s: [174.4, 162.5, 185.0], 70s: [173.0, 161.5, 184.7], 80_plus: [170.4, 157.4, 182.3] }
+  bmi_percentiles_20_plus:                        # NHANES Tables 14, 15: P5 P10 P15 P25 P50 P75 P85 P90 P95
+    female: [19.7, 21.2, 22.1, 23.9, 28.4, 33.9, 37.5, 40.3, 44.6]
+    male:   [20.8, 22.4, 23.3, 25.0, 28.5, 32.8, 35.3, 37.1, 41.0]
+
+# What the sampler draws from. Shares are computed from `figures` (rounded to 4 places); build shares are
+# linear interpolations between the NHANES BMI percentiles at the class bounds 22, 25 and 30.
+sampler:
+  sex:                  # adults 20+
+    female: 0.4986
+    male: 0.5014
+  age_band:             # adults 20+, both sexes
+    20s: 0.1864
+    30s: 0.2050
+    40s: 0.1716
+    50s: 0.1506
+    60s: 0.1417
+    70s: 0.0973
+    80_plus: 0.0474
+  ancestry:             # ACS race and Hispanic-origin categories; the four smallest NH groups pooled
+    hispanic_or_latino: 0.3525
+    nh_white: 0.4129
+    nh_asian: 0.1258
+    nh_black: 0.0429
+    nh_multiracial_or_other: 0.0659   # two or more 0.0548 + some other 0.0055 + NHPI 0.0034 + AIAN 0.0022
+  build:                # BMI classes: slim < 22, average 22-25, solid 25-30, heavy >= 30
+    female: { slim: 0.144, average: 0.167, solid: 0.262, heavy: 0.427 }
+    male:   { slim: 0.088, average: 0.162, solid: 0.337, heavy: 0.413 }
+  stature_cm:           # see figures.stature_cm; SD = (P95 - P5) / 3.29; draws clipped to mean +/- 2 SD
+    female: { 20s: [162.6, 151.0, 172.8], 30s: [162.7, 151.2, 173.4], 40s: [162.3, 150.7, 174.2], 50s: [161.3, 150.7, 171.4], 60s: [160.7, 149.3, 171.7], 70s: [158.2, 147.5, 168.1], 80_plus: [155.6, 145.3, 166.7] }
+    male:   { 20s: [175.8, 164.5, 187.1], 30s: [176.3, 163.5, 188.7], 40s: [176.3, 163.6, 188.4], 50s: [175.4, 162.8, 187.7], 60s: [174.4, 162.5, 185.0], 70s: [173.0, 161.5, 184.7], 80_plus: [170.4, 157.4, 182.3] }
+
+# Authored, not cited: how an ancestry stratum becomes something an image can show. These are casting
+# conventions for the operator to gate at the casting page (Q-S26-7, ARC-95), not data. Skin tone uses the
+# Monk Skin Tone scale (MST 1-10; Monk, E. 2019; https://skintone.google/, CC BY 4.0). Ranges are wide on
+# purpose: an ancestry category is not a skin colour, and the sampler draws within the range.
+appearance_conventions:
+  skin_mst_range:
+    hispanic_or_latino: [2, 7]
+    nh_white: [1, 4]
+    nh_asian: [2, 6]
+    nh_black: [5, 10]
+    nh_multiracial_or_other: [3, 8]
+  hair_colour_pool:
+    hispanic_or_latino: [black, dark brown, brown]
+    nh_white: [blond, light brown, brown, dark brown, auburn, red]
+    nh_asian: [black, dark brown]
+    nh_black: [black, dark brown]
+    nh_multiracial_or_other: [black, dark brown, brown, light brown]
+  grey_by_age:          # probability the hair is grey or white instead of the pool colour
+    50s: 0.35
+    60s: 0.7
+    70s: 0.95
+    80_plus: 1.0
