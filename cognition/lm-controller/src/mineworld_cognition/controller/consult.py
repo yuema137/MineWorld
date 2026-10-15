@@ -11,7 +11,8 @@ never submits an unvalidated proposal (`ARC-72`). It ends in exactly one termina
     disconnected the seat ended or was lost mid-consult (not counted by the breaker)
     dropped      a newer line arrived before the submit, so the proposal is not sent (not counted)
 
-A frame refusal (`paused`) is `fell_back` with cause `frame`, which the breaker does not count.
+A frame refusal (`paused`) is `fell_back` with cause `frame`, which the breaker does not count. A `rate_limited`
+refusal is the one exception: the same request is sent again after the transport layer's wait (D-P6b-35).
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from mineworld_cognition.backend.model import CognitionModel, CompletionRequest
 from mineworld_cognition.controller.breaker import BreakerOutcome
 from mineworld_cognition.controller.choice import ContentFailure, SocialChoice, parse_choice
 from mineworld_cognition.controller.failures import (
+    RATE_LIMITED,
     FailureRecord,
     from_content,
     from_gate,
@@ -229,13 +231,26 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
                 return ended
             continue
 
-        if not deps.current():
-            attempts.append(AttemptRecord(layer="none", key=key, failure=None, text=text))
-            return _end("dropped", None, attempts, proposal=proposal)
-        try:
-            answer = await deps.submit(built)
-        except MineWorldError:
-            return _end("disconnected", "disconnected", attempts, proposal=proposal)
+        while True:
+            if not deps.current():
+                attempts.append(AttemptRecord(layer="none", key=key, failure=None, text=text))
+                return _end("dropped", None, attempts, proposal=proposal)
+            try:
+                answer = await deps.submit(built)
+            except MineWorldError:
+                return _end("disconnected", "disconnected", attempts, proposal=proposal)
+            if not (isinstance(answer, RefusedRequest) and answer.code == RATE_LIMITED):
+                break
+            # The seat's request budget is spent (S27-a): wait as the transport layer says, at least
+            # `retry_after_ms`, and send the same request again. No model call, so the call cap does not
+            # apply; running out ends like any frame refusal, which the breaker does not count (D-P6b-35).
+            failure = from_refused(answer)
+            attempts.append(AttemptRecord(layer="transport", key=key, failure=failure, text=text))
+            counts["transport"] += 1
+            decision = bound["transport"].decide(counts["transport"], failure, jitter["transport"])
+            if not decision.retry or decision.delay_s > remaining():
+                return _end("fell_back", "frame", attempts, proposal=proposal)
+            await deps.sleep(decision.delay_s)
         if isinstance(answer, RefusedRequest):
             attempts.append(
                 AttemptRecord(layer="none", key=key, failure=from_refused(answer), text=text)

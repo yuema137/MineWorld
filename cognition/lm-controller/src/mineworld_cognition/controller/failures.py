@@ -25,11 +25,17 @@ RETRYABLE_STATUS: frozenset[int] = frozenset({408, 409, 425, 429, 500, 502, 503,
 TRANSPORT_RETRYABLE: frozenset[str] = frozenset({"timeout", "unreachable", "malformed_response"})
 
 
+RATE_LIMITED = "rate_limited"
+"""The server's per-seat request budget refusal (S27-a, `ARC-97`; `PROTOCOL.md` §§5.5, 8)."""
+
+
 class FailureRecord(CognitionModel):
     cls: FailureClass
     reason: str
     retryable: bool
-    retry_after_s: int | None = None
+    retry_after_s: float | None = None
+    """The least wait the other side asked for: an HTTP `Retry-After` (whole seconds), or a `rate_limited`
+    refusal's `retry_after_ms` (D-P6b-35)."""
 
 
 def from_gate(outcome: Failed | Refused) -> FailureRecord:
@@ -74,7 +80,14 @@ def from_semantic(failure: SemanticFailure) -> FailureRecord:
 
 
 def from_refused(refused: RefusedRequest) -> FailureRecord:
-    """A frame refusal (such as `paused`): not the model's fault, and not retried (§5.5.1)."""
+    """A frame refusal: not the model's fault (§5.5.1). `paused` and every other code are not retried.
+    `rate_limited` is a transport failure of the submit: retryable after at least `retry_after_ms`, by
+    sending the same request again, never by asking the model again (D-P6b-35)."""
+    if refused.code == RATE_LIMITED:
+        wait = None if refused.retry_after_ms is None else refused.retry_after_ms / 1000.0
+        return FailureRecord(
+            cls="transport", reason=RATE_LIMITED, retryable=True, retry_after_s=wait
+        )
     return FailureRecord(cls="frame", reason=refused.code, retryable=False)
 
 

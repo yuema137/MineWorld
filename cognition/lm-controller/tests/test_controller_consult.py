@@ -296,6 +296,62 @@ def test_a_frame_refusal_falls_back_with_cause_frame_and_is_not_retried() -> Non
     assert len(record.attempts) == 1
 
 
+def _rate_limited(retry_after_ms: int) -> RefusedRequest:
+    return RefusedRequest(code="rate_limited", detail=None, retry_after_ms=retry_after_ms)
+
+
+def test_a_rate_limited_submit_waits_at_least_retry_after_and_sends_the_same_request_again() -> (
+    None
+):
+    """D-P6b-35: the server's per-seat budget (S27-a) is transport backoff on the submit. The model is
+    asked once, the request is sent again unchanged after at least `retry_after_ms`, and it acts."""
+    clock = FakeClock()
+    seen: list[CompletionRequest] = []
+    submitted: list[ActionRequest] = []
+    answers = iter([_rate_limited(7_250), _accepted()])
+
+    async def limited_then_accept(request: ActionRequest) -> Answered | RefusedRequest:
+        submitted.append(request)
+        return next(answers)
+
+    record = _go(_deps(clock, _answer_ask(ANSWER_SAY, seen), submit=limited_then_accept))
+    assert record.outcome == "acted"
+    assert len(seen) == 1  # never a content re-ask, never a second model call
+    assert len(submitted) == 2 and submitted[0] == submitted[1]
+    assert len(clock.sleeps) == 1 and clock.sleeps[0] >= 7.25
+    assert [attempt.layer for attempt in record.attempts] == ["transport", "none"]
+    failure = record.attempts[0].failure
+    assert failure is not None and (failure.cls, failure.reason) == ("transport", "rate_limited")
+    assert breaker_outcome(record) == "success"
+
+
+def test_a_rate_limit_that_outlasts_the_transport_layer_falls_back_uncounted_by_the_breaker() -> (
+    None
+):
+    clock = FakeClock()
+    seen: list[CompletionRequest] = []
+
+    async def always_limited(request: ActionRequest) -> Answered | RefusedRequest:
+        return _rate_limited(100)
+
+    record = _go(_deps(clock, _answer_ask(ANSWER_SAY, seen), submit=always_limited))
+    assert (record.outcome, record.cause) == ("fell_back", "frame")
+    assert len(seen) == 1
+    assert len(clock.sleeps) == 2  # the transport layer's three attempts: two waits
+    assert breaker_outcome(record) is None
+
+
+def test_a_retry_after_beyond_the_deadline_falls_back_without_waiting() -> None:
+    clock = FakeClock()
+
+    async def limited(request: ActionRequest) -> Answered | RefusedRequest:
+        return _rate_limited(60_000)
+
+    record = _go(_deps(clock, _answer_ask(ANSWER_SAY), submit=limited))
+    assert (record.outcome, record.cause) == ("fell_back", "frame")
+    assert clock.sleeps == []
+
+
 def test_a_replan_is_built_with_the_refusal_as_feedback() -> None:
     seen: list[CompletionRequest] = []
     answers = iter([_rejected(), _accepted()])

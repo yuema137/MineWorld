@@ -88,6 +88,12 @@ CLASSIFICATION: list[tuple[str, FailureRecord, str, bool]] = [
         True,
     ),
     ("frame refusal", from_refused(RefusedRequest(code="paused", detail=None)), "frame", False),
+    (
+        "rate limited (D-P6b-35)",
+        from_refused(RefusedRequest(code="rate_limited", detail=None, retry_after_ms=250)),
+        "transport",
+        True,
+    ),
     ("seat ended", from_seat(MineWorldError("gone")), "seat", False),
 ]
 

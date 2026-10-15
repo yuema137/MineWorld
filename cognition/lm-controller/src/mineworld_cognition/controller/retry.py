@@ -76,7 +76,7 @@ class ExponentialBackoff:
         scale = 1.0 - settings.jitter + 2.0 * settings.jitter * jitter.random()
         delay = base * scale
         if failure.retry_after_s is not None:
-            delay = max(delay, float(failure.retry_after_s))
+            delay = max(delay, failure.retry_after_s)
         return RetryDecision(retry=True, delay_s=delay)
 
 
