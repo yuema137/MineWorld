@@ -22,6 +22,8 @@ from mineworld_cognition.backend.model import CompletionRequest, estimate_tokens
 
 HOUR_S = 3600
 DAY_S = 86400
+KEEP_S = 2 * DAY_S
+"""How far back `SqliteLedger` keeps rows: twice the longest window (wall time, QFGb-9)."""
 
 
 class Clock(Protocol):
@@ -127,10 +129,14 @@ class SqliteLedger:
         return Window(row[0], row[1])
 
     def charge(self, seat: EntityKey, at: int, *, calls: int, tokens: int, estimated: bool) -> None:
+        """Records a charge, and in the same commit forgets every row older than `KEEP_S` before it:
+        no window reads further back than a day, so no window's sum changes, and the ledger stops
+        growing (pr-fg-b §5.12; G9). The margin of a second day tolerates a wall clock stepped back."""
         self._connection.execute(
             "INSERT INTO budget_ledger (seat, at, calls, tokens, estimated) VALUES (?, ?, ?, ?, ?)",
             (seat, at, calls, tokens, int(estimated)),
         )
+        self._connection.execute("DELETE FROM budget_ledger WHERE at < ?", (at - KEEP_S,))
         self._connection.commit()
 
     def close(self) -> None:

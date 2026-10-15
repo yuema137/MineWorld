@@ -1,0 +1,161 @@
+"""A policy's plan: validated whole (§5.7.1), then executed by the host alone (§5.7.2).
+
+Validation refuses the whole plan by a typed reason; a refused plan is never partly applied. Execution
+deletes rows of the seat's own store only, inside the pass's transaction, so every perceived fact stays
+represented exactly once: by a surviving unit, or by the forgotten set (FGb-1, FGb-6).
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from typing import Literal
+
+from mineworld_cognition.memory.records import ItemId, event_key
+from mineworld_cognition.memory.retention.items import Extracted
+from mineworld_cognition.memory.retention.policy import Drop, Keep, Merge
+
+Reason = Literal[
+    "unknown-item", "duplicate", "merge-mismatch", "drop-nested", "keep-under-removed", "malformed"
+]
+
+
+class PlanRejected(Exception):
+    """The plan breaks a rule of §5.7.1; nothing of it is applied."""
+
+    def __init__(self, reason: Reason, detail: str) -> None:
+        super().__init__(f"{reason}: {detail}")
+        self.reason: Reason = reason
+
+
+@dataclass
+class Resolved:
+    """What a valid plan removes, directly named (nested items follow their container)."""
+
+    into_episodes: list[ItemId] = field(default_factory=list[ItemId])
+    into_chapters: list[ItemId] = field(default_factory=list[ItemId])
+    dropped: list[ItemId] = field(default_factory=list[ItemId])
+
+
+@dataclass(frozen=True)
+class Outcome:
+    kept: int
+    merged: int
+    dropped: int
+
+
+def validate(plan: object, extracted: Extracted) -> Resolved:
+    """The plan as removals, or `PlanRejected` with the first rule it breaks."""
+    if not isinstance(plan, list | tuple):
+        raise PlanRejected(
+            "malformed", f"a plan is a sequence of decisions, not {type(plan).__name__}"
+        )
+    decisions: list[Keep | Merge | Drop] = []
+    entries: list[object] = list(plan)  # pyright: ignore[reportUnknownArgumentType] - checked below
+    for decision in entries:
+        if not isinstance(decision, Keep | Merge | Drop):
+            raise PlanRejected("malformed", f"{type(decision).__name__} is not a decision")
+        decisions.append(decision)
+    items = extracted.by_id
+    named: set[ItemId] = set()
+    for decision in decisions:
+        for item in decision.items if isinstance(decision, Merge) else (decision.item,):
+            if item not in items:
+                raise PlanRejected("unknown-item", item)
+            if item in named:
+                raise PlanRejected("duplicate", item)
+            named.add(item)
+    resolved = Resolved()
+    for decision in decisions:
+        if isinstance(decision, Merge):
+            levels = {items[item].level for item in decision.items}
+            containers = {items[item].container for item in decision.items}
+            if levels != {decision.into - 1} or len(containers) != 1 or None in containers:
+                raise PlanRejected("merge-mismatch", ", ".join(decision.items))
+            target = resolved.into_episodes if decision.into == 1 else resolved.into_chapters
+            target.extend(decision.items)
+        elif isinstance(decision, Drop):
+            if items[decision.item].container is not None:
+                raise PlanRejected("drop-nested", decision.item)
+            resolved.dropped.append(decision.item)
+    removed = {*resolved.into_episodes, *resolved.into_chapters, *resolved.dropped}
+
+    def gone(item: ItemId | None) -> bool:
+        while item is not None:
+            if item in removed:
+                return True
+            item = items[item].container
+        return False
+
+    for decision in decisions:
+        if isinstance(decision, Merge) and gone(items[decision.items[0]].container):
+            raise PlanRejected("merge-mismatch", f"{decision.items[0]}'s container is removed")
+        if isinstance(decision, Keep) and gone(items[decision.item].container):
+            raise PlanRejected("keep-under-removed", decision.item)
+    return resolved
+
+
+def execute(
+    db: sqlite3.Connection, resolved: Resolved, extracted: Extracted, *, fts: bool
+) -> Outcome:
+    """Deletes what the plan removes and forgets what it drops; counts every item kept, merged, dropped."""
+    merged = dropped = 0
+    for item in resolved.into_episodes:
+        merged += remove(db, extracted, item, fts=fts, forget=False)
+    for item in resolved.into_chapters:
+        merged += remove(db, extracted, item, fts=fts, forget=False)
+    for item in resolved.dropped:
+        dropped += remove(db, extracted, item, fts=fts, forget=True)
+    return Outcome(len(extracted.items) - merged - dropped, merged, dropped)
+
+
+def nested(extracted: Extracted, item: ItemId) -> list[ItemId]:
+    """The item and everything nested in it, container first."""
+    found = [item]
+    for child in extracted.children.get(item, ()):
+        found += nested(extracted, child)
+    return found
+
+
+def remove(
+    db: sqlite3.Connection, extracted: Extracted, item: ItemId, *, fts: bool, forget: bool
+) -> int:
+    """Deletes one item's rows and those of everything nested in it; with `forget`, adds its citation to
+    the forgotten set (a stable fact cites and covers nothing, so it adds nothing). Returns the number of
+    items removed."""
+    removed = nested(extracted, item)
+    for each in removed:
+        ref = extracted.refs[each]
+        if ref.level == 0:
+            delete_records(db, (ref.key,), fts=fts)
+        elif ref.level == 1:
+            db.execute("DELETE FROM episode_who WHERE episode = ?", (ref.number,))
+            db.execute("DELETE FROM episodes WHERE episode = ?", (ref.number,))
+        elif ref.level == 2:
+            db.execute("DELETE FROM chapters WHERE week = ?", (ref.number,))
+        else:
+            db.execute("DELETE FROM stable WHERE entity = ?", (ref.key,))
+    level = extracted.refs[item].level
+    if forget and level in (1, 2):
+        db.executemany(
+            "INSERT INTO forgotten (first_key, last_key) VALUES (?, ?)",
+            [
+                (event_key(r.first), event_key(r.last))
+                for r in extracted.by_id[item].citation.ranges
+            ],
+        )
+    if level == 2:
+        db.execute("DELETE FROM chapter_ranges WHERE week = ?", (extracted.refs[item].number,))
+    return len(removed)
+
+
+def delete_records(db: sqlite3.Connection, keys: Iterable[str], *, fts: bool) -> None:
+    """L0 rows, their participants and their lexical index entries."""
+    rows = [(key,) for key in keys]
+    if fts:
+        db.executemany(
+            "DELETE FROM l0_text WHERE rowid = (SELECT rowid FROM l0 WHERE event_key = ?)", rows
+        )
+    db.executemany("DELETE FROM l0_who WHERE event_key = ?", rows)
+    db.executemany("DELETE FROM l0 WHERE event_key = ?", rows)
