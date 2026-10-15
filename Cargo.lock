@@ -914,7 +914,6 @@ dependencies = [
  "json-patch",
  "mineworld-contracts",
  "mineworld-conversation",
- "mineworld-employment",
  "mineworld-group-activity",
  "mineworld-kernel",
  "mineworld-movement",
