@@ -385,6 +385,12 @@ looked (the region, the extrema, the vertex counts) before its verdict (`ARC-23`
 | G-13 Seated (if the person sits in any world or decor) | the `Sit` pose: thighs, hips and garment hem without tear; seat contact within ± 20 mm of the seat height | A-4 (people sit at tables, benches, a counter stool) | sit runner |
 | G-14 Provenance | `scenes[0].extras.mineworld_provenance` with `source_type: generated`, `ai_generated: true`, generator and model, Meshy task id, the reference images by path and SHA-256, the OpenAI model, the post-processing; a `LICENSES/` entry per batch; an `ASSETS.md` row; no key-shaped string | `ARC-9`; `DEP-8`; D+ §4 | GLB reader; scan |
 
+**Bounded correction under `ARC-95` (operator ruling F-CAST-5, 2026-10-15; operator answered directly in the
+primary session).** G-4's last clause, "the brief's stature itself within §7.2's realistic range", is read
+as: within the world's population profile's band for the same sex and age band, mean ± 2 SD (the profile's
+stature attribute, e.g. NHANES 2015–2018 in `characters/populations/san-diego-county.yaml`). §7.2's fixed
+windows (women 1.55–1.78 m, men 1.66–1.92 m) are superseded for that check by §7.4a's real-world profile.
+
 ### 6.2 The scorecard (agent, then operator)
 
 Per character, against **that person's approved reference** (`ARC-17`: the reference is the identity source
@@ -540,6 +546,9 @@ reference cited):
   members are briefed shorter accordingly, and slightly stooped where the biography says so.
 - **Segments.** G-6's Winter ratios. Route D+'s body measured 0.56 m shoulder to wrist at 1.767 m
   (D+ §8.2), close to Winter's 0.332 H = 0.587 m; CharMorph's 0.48 m was the short one.
+- **Dated note (`ARC-95`, 2026-10-15, operator ruling F-CAST-5).** For a cast drawn from a population profile
+  (§7.4a), the realistic range is the profile's band for the person's sex and age band, mean ± 2 SD; G-4
+  checks that (§6.1, dated note). The windows above remain the default only where no profile is named.
 
 ### 7.3 The distinctness rule
 
