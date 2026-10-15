@@ -1167,6 +1167,7 @@ STOP CONDITION:          S26-b1 READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Q-B1-4 | **Yes.** No Blender in CI; the local Gate is re-run whenever the Blender scripts change | primary session |
 | Q-B1-5 | **Yes.** Fleck repair on by default, off for Vera | primary session |
 | F-B1-B10-2 | **Option (b): commit `body_g5.glb`** (CharMorph's CC0 body export, 6,360,660 bytes, SHA-256 `75b9380681342538a80b1dbe2d0140b1a60d5043badc9fa3d9142654b2bb5a4d`) under `tools/character_pipeline/rig_source/`, with `PROVENANCE.txt`. It is the ruled fallback of `Q-B1-2`. Stage 7 reads its `cm_vitruvian` front surface at both the hips and the head top. `fit.yaml`'s `charmorph_front_y_at_hips` is retired and replaced by `charmorph_body`. This is a ruled exception to I-B1-4 for this one file, and it is a binary. F-B1-B7-1's "same front surface" premise is superseded: it held at the hips only. F-B1-B9-1 is superseded with it, and the file's value is no longer needed | primary session, coordinator message 2026-10-14 |
+| F-B1-B10-3 | **Option (a):** investigate `fit_bind` as one bounded fix commit and re-run the Gate once; AB1-8's bound is not widened; a non-reproducible Blender difference stops with the evidence. **AB1-11:** the export names the separate PNG `<character>_base_color.png` so the stored-once rule holds as written, with a test. **AB1-10 G-6(b):** investigate how G-6 measures the spine on this rig and report with numbers; the ruling stays with the primary, G-6 is not changed here | primary session, 2026-10-14 |
 | F-B1-B10-1 | **Accept the vitruvian armature as built** (Q-B1-2 stands). For the four named bones only (`mixamorig:LeftFoot`, `RightFoot`, `LeftToeBase`, `RightToeBase`) the recorded roll tolerance is ≤ 2.5e-4 rad; the 1e-5 bound stays for every other bone. Heads and tails stay within 1e-5 m; `front_y` matches. The real test is B10's own parity gate (AB1-8, AB1-10). If parity fails at the feet or toes, stop: switch to Q-B1-2 option (b) and commit `body_g5.glb` | primary session, coordinator message 2026-10-14 |
 
 **Audit re-check after these rulings** (origin/main after #195 (S26-a design), DL-a, FG-a, 25b, SET-b, merged
@@ -1367,6 +1368,31 @@ or `tools/asset_generation/` changed.
   "fix(character-pipeline): …" and a Gate re-run; (b) a ruled change to AB1-8's weight bound (ARC-23 amendment), which I
   do not recommend since 0.09 is not a rounding effect; (c) the stored-once rule's file-name finding goes to the primary
   with the Godot evidence above. Also: G-6(b) (F-B1-B3-1) remains an open decision that AB1-10 needs.
+- **F-B1-B10-3 resolved (ruling (a), bounded fix commit `fix(character-pipeline)`, 2026-10-14, Opus session taking over the
+  worktree):** the cause is the precision of stage 6's transform at the hand-off to stage 7. D+'s `rig_meshy.py:26` types
+  `S, SOLE_M = 0.9563, -0.9516` with the comment "gameready_mesh.py's transform (printed there)": the values printed by
+  `gameready_mesh.py:45` with `:.4f`. The port passed `gameready.json`'s full values (`scale 0.9563008000190869`,
+  `sole_raw -0.9516270160675049`). The difference moves every fitted joint by about 2.6e-5 m in z (the 3.0e-5 m joint
+  maximum of r1), which moves one vertex into the pack core (r1 printed `2551 verts of backpack`; D+ §8.2 records 2,550)
+  and changes the heat bind near limit-4 ties. Bisection on D+'s own intermediate: `fit_bind.py` on r1's `gameready.blend`
+  with only `scale` and `sole_raw` replaced by D+'s typed values (`S/f3/params_fit_bind.json`, log `S/f3/fit_bind.log`:
+  `2550 verts of backpack`, `33974 vertex weights limited` against r1's 33975), exported by `export.py`, against
+  `i23d/rig/meshy_char.glb`: 0 (vertex, joint) pairs over 0.005 (`weight_diff.py`), and `compare` PASS on every row with
+  weights 0.0000 and joints 1e-6 m (`RightToeBase`, the F-B1-B10-1 rolls). Excluded by the same run: Blender version (every
+  D+ and port `.blend` header reads `BLENDER17-01v0502`), the heat-bind inputs, the selection, existing groups, the pose,
+  the object transforms and the modifier order (the port is otherwise statement-for-statement and needs no other change).
+  Fix: `mwcast/pipeline.py` `GAMEREADY_HANDOFF_DECIMALS = 4`, applied to `fit_bind`'s `scale` and `sole_raw` parameters
+  only (a method constant, PIPELINE §2.4; `gameready.json` keeps the full values; G-4 still reads them). Test
+  `test_fit_bind_receives_the_transform_at_the_four_decimals_dplus_handed_over`; mutation `GAMEREADY_HANDOFF_DECIMALS = 5`
+  turned it red, reverted green. No bound changed. The Gate is re-run once after this commit.
+- **AB1-11 fix (ruling, same commit):** `export.py` packs the base-colour image (the exporter then writes the packed bytes
+  unchanged) and sets its path to `//<id>_base_color.png` before the `GLTF_SEPARATE` export, because Blender's glTF
+  exporter names a separate image after the basename of the image's file path (`io_scene_gltf2/blender/exp/material/
+  image.py:185-192`), not after the datablock. The driver checks it after stage 10 (`pipeline.check_stored_once`); tests
+  `test_a_separate_export_whose_png_keeps_the_bake_name_breaks_the_stored_once_rule` and
+  `..._named_after_the_character_holds_the_stored_once_rule`. Trial export on `S/f3`: `"uri":"vera-lindgren_base_color.png"`,
+  SHA-256 `8117f2b7…` identical to r1's `base_color.png`. Targeted validation: `pytest tools/character_pipeline/tests` 71
+  passed (0.63 s); ruff check and format clean; pyright 0 errors. Load average before the first Blender run 2.92 / 6.00 / 9.17.
 - **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
   to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
   used; the B8 empty append wrote nothing.

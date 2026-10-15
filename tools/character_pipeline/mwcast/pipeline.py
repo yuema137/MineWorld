@@ -124,6 +124,14 @@ def read_gameready(path: Path) -> GameReady:
 # The CharMorph mesh whose front surface the centre points read, in `charmorph_body` (D+ rig_meshy.py:99).
 CM_FRONT_MESH = "cm_vitruvian"
 
+# The precision at which stage 6's transform reaches the fit (F-B1-B10-3). D+ handed the scale and the raw
+# sole to rig_meshy.py as gameready_mesh.py printed them, `f"{s:.4f}"` and `f"{sole:.4f}"`
+# (gameready_mesh.py:45), typed into rig_meshy.py:26 as 0.9563 and -0.9516. The full-precision values move
+# every joint by about 2.6e-5 m, which moves one pack-core vertex across its bound and changes the heat
+# weights by up to 0.18. A method constant, not a per-character value: gameready.json keeps the full values,
+# and only the fit_bind parameters are rounded.
+GAMEREADY_HANDOFF_DECIMALS = 4
+
 
 def _pack_core(fit: FitParams) -> dict[str, float]:
     core = fit.weights.pack_core
@@ -175,8 +183,8 @@ def stage_params(
         return {
             "rig_source": str((repo_root / fit.fit.rig_source).resolve()),
             "out_dir": str(out),
-            "scale": gameready.scale,
-            "sole_raw": gameready.sole_raw,
+            "scale": round(gameready.scale, GAMEREADY_HANDOFF_DECIMALS),
+            "sole_raw": round(gameready.sole_raw, GAMEREADY_HANDOFF_DECIMALS),
             "sole_z_m": g.sole_z_m,
             "picks": {key: list(value) for key, value in fit.fit.picks.items()},
             "px_per_raw_unit": fit.fit.px_per_raw_unit,
@@ -269,6 +277,26 @@ def provenance_block(
         ),
         "pipeline": {"version": PIPELINE_VERSION, "fit_sha256": fit_sha256, "blender": blender_version},
     }
+
+
+def check_stored_once(export_dir: Path, character: str) -> None:
+    """The stored-once rule of PIPELINE.md §9: the separate export's only image is `<id>_base_color.png`, and
+    that file exists beside `<id>.gltf`. Godot extracts a texture once under the name the glTF gives it, so
+    any other name (Blender's default is the bake's file name, `base_color.png`) breaks the rule."""
+    expected = f"{character}_base_color.png"
+    gltf = export_dir / f"{character}.gltf"
+    raw: object = json.loads(gltf.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise PipelineError(f"{gltf}: not an object")
+    images = cast(dict[str, object], raw).get("images")
+    uris: list[object] = []
+    if isinstance(images, list):
+        for image in cast(list[object], images):
+            uris.append(cast(dict[str, object], image).get("uri") if isinstance(image, dict) else None)
+    if uris != [expected]:
+        raise PipelineError(f"{gltf}: image uris {uris}; the stored-once rule needs ['{expected}']")
+    if not (export_dir / expected).is_file():
+        raise PipelineError(f"{export_dir / expected} is missing")
 
 
 class ExecResult(Protocol):
@@ -370,6 +398,8 @@ def run(
         if stage == "gameready":
             gameready = read_gameready(run_dir / "gameready" / "gameready.json")
             shutil.copy2(run_dir / "gameready" / "gameready.json", run_dir / "gameready.json")
+        if stage == "export":
+            check_stored_once(run_dir / "export", fit.character)
         if stage == "dump_rig":
             shutil.copy2(run_dir / "dump_rig" / "dump_rig.json", run_dir / "dump_rig.json")
             shutil.copy2(run_dir / "reference" / "dump_rig.json", run_dir / "reference_dump_rig.json")

@@ -26,8 +26,10 @@ p = common.params()
 CM = p["rig_source"]
 # The CharMorph mesh whose front surface the centre points read: "cm_vitruvian" in body_g5.glb (D+ rig_meshy.py:99).
 CM_FRONT_MESH = p["cm_front_mesh"]
-S = p["scale"]  # gameready.json: the uniform scale of stage 6
-SOLE_M = p["sole_raw"]  # gameready.json: the lowest raw z
+# gameready.json's scale and lowest raw z, at the 4 decimals D+ handed over (rig_meshy.py:26; the driver rounds,
+# pipeline.GAMEREADY_HANDOFF_DECIMALS, F-B1-B10-3)
+S = p["scale"]
+SOLE_M = p["sole_raw"]
 SOLE_Z = p["sole_z_m"]  # fit.gameready.sole_z_m
 PICKS = p["picks"]  # fit.fit.picks, the 2D picks on the frontal ortho render
 PX = p["px_per_raw_unit"]  # 1 px = 1/PX unit on the render

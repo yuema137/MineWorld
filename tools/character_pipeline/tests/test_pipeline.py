@@ -138,3 +138,54 @@ def test_a_download_whose_sha256_differs_stops_before_any_subprocess(tmp_path: P
             executor=Recorder(),
         )
     assert calls == []
+
+
+def test_fit_bind_receives_the_transform_at_the_four_decimals_dplus_handed_over(tmp_path: Path) -> None:
+    # F-B1-B10-3: Vera's stage 6 decided these full-precision values (gameready.json, B10 r1); D+'s
+    # rig_meshy.py:26 typed 0.9563 and -0.9516, and only those reproduce the accepted heat weights.
+    gameready = pipeline.GameReady(
+        scale=0.9563008000190869, sole_raw=-0.9516270160675049, triangles=95000, bake_device="METAL"
+    )
+
+    params = pipeline.stage_params(
+        "fit_bind",
+        _fit(accessories=["backpack"], flecks=False),
+        repo_root=tmp_path,
+        run_dir=tmp_path / "run",
+        download_file=tmp_path / "model_glb.glb",
+        gameready=gameready,
+        provenance=None,
+    )
+
+    assert params["scale"] == 0.9563
+    assert params["sole_raw"] == -0.9516
+
+
+def _separate_export(directory: Path, uri: str) -> Path:
+    directory.mkdir()
+    gltf = directory / "vera-lindgren.gltf"
+    gltf.write_text(
+        '{"asset": {"version": "2.0"}, "images": [{"uri": "' + uri + '", "mimeType": "image/png"}]}',
+        encoding="utf-8",
+    )
+    (directory / uri).write_bytes(b"\x89PNG")
+    return directory
+
+
+def test_a_separate_export_whose_png_keeps_the_bake_name_breaks_the_stored_once_rule(tmp_path: Path) -> None:
+    # The B10 r1 export: Blender named the PNG after the bake's file, so Godot imported res://base_color.png.
+    export = _separate_export(tmp_path / "export", "base_color.png")
+
+    with pytest.raises(
+        pipeline.PipelineError, match=r"\['base_color.png'\].*\['vera-lindgren_base_color.png'\]"
+    ):
+        pipeline.check_stored_once(export, "vera-lindgren")
+
+
+def test_a_separate_export_named_after_the_character_holds_the_stored_once_rule(tmp_path: Path) -> None:
+    export = _separate_export(tmp_path / "export", "vera-lindgren_base_color.png")
+
+    pipeline.check_stored_once(export, "vera-lindgren")
+    (export / "vera-lindgren_base_color.png").unlink()
+    with pytest.raises(pipeline.PipelineError, match="missing"):
+        pipeline.check_stored_once(export, "vera-lindgren")

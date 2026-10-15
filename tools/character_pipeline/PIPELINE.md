@@ -80,6 +80,11 @@ the Blender scripts, each with its D+ line in a comment:
   midpoint of the elbow and the wrist when no elbow pick exists.
 - `fit_bind.py` reads the CharMorph front surface from the mesh named by `cm_front_mesh`: `cm_vitruvian` in D+'s
   `body_g5.glb`; `Body` in `vitruvian.glb`, which measured the same hip front within 1.0e-7 m (F-B1-B7-1).
+- The driver's `GAMEREADY_HANDOFF_DECIMALS = 4` (`mwcast/pipeline.py`, F-B1-B10-3): `fit_bind` receives stage 6's
+  `scale` and `sole_raw` rounded to 4 decimals, as D+ handed them over (`gameready_mesh.py:45` printed them with
+  `:.4f`; `rig_meshy.py:26` typed `0.9563` and `-0.9516`). `gameready.json` keeps the full values. With the full
+  values every joint moves by about 2.6e-5 m, the pack core gains one vertex (2,551 against D+'s 2,550), and the heat
+  weights differ from `i23d/rig/meshy_char.glb` by up to 0.18 on 317 vertices; with the rounded values they differ by 0.
 - `export.py`: the `EXPORT_SETTINGS` dict of `A-B1-8` (`:259-262`), verbatim.
 
 Any other number in a Blender script is a parameter, and a review question (B7) checks it.
@@ -260,8 +265,11 @@ removing them, so the pipeline never strips a metadata chunk from the download.
 `export.py` writes two outputs from the same `.blend`:
 
 1. `<id>.glb`: embedded PNG, the D+ export settings, for the parity comparison with `meshy_d.glb`.
-2. `<id>.gltf` with `<id>.bin` and `<id>_base_color.png`: Blender's `GLTF_SEPARATE`, the image datablock named so the
-   PNG file is `<id>_base_color.png`.
+2. `<id>.gltf` with `<id>.bin` and `<id>_base_color.png`: Blender's `GLTF_SEPARATE`. The glTF exporter names a separate
+   image after the basename of the image's file path, not after the datablock, so `export.py` packs the base-colour
+   image (the packed bytes are written unchanged) and sets its path to `//<id>_base_color.png` before this export. The
+   driver checks the result after stage 10 (`check_stored_once`): the `.gltf`'s only image URI is `<id>_base_color.png`
+   and the file exists; otherwise the run stops.
 
 **Decision (recorded in B10):** the decision rule is fixed here. Godot 4.7.2 headless, in a scratch project under
 `S/godot-check/` (never in `clients/3d-spike`), imports the three files, `vitruvian_bonemap.tres`,

@@ -44,6 +44,12 @@ glb_path = os.path.join(OUT_DIR, f"{CHAR_ID}.glb")
 bpy.ops.export_scene.gltf(filepath=glb_path, **common.EXPORT_SETTINGS)
 print("wrote", glb_path, f"{os.path.getsize(glb_path) / 1e6:.2f} MB")
 
+# Stored once (PIPELINE.md §9, ruling 2026-10-14 on AB1-11): the glTF exporter names a separate image after the
+# basename of the image's file path (the bake's `base_color.png`), not after the datablock. The image is packed, so
+# the exporter writes the packed bytes unchanged, and its path is renamed to `<id>_base_color.png`.
+if base_image.packed_file is None:
+    base_image.pack()
+base_image.filepath_raw = f"//{CHAR_ID}_base_color.png"
 gltf_path = os.path.join(OUT_DIR, f"{CHAR_ID}.gltf")
 separate = dict(common.EXPORT_SETTINGS, export_format="GLTF_SEPARATE")
 bpy.ops.export_scene.gltf(filepath=gltf_path, **separate)
@@ -51,7 +57,7 @@ print("wrote", gltf_path)
 
 files = {}
 for name in sorted(os.listdir(OUT_DIR)):
-    if name.startswith(CHAR_ID) or name == f"{CHAR_ID}_base_color.png":
+    if name.startswith(CHAR_ID):
         path = os.path.join(OUT_DIR, name)
         with open(path, "rb") as handle:
             files[name] = hashlib.sha256(handle.read()).hexdigest()
