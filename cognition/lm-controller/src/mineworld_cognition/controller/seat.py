@@ -277,11 +277,20 @@ class SeatRunner:
     async def _ingest(self, seat: ResumingSeat, store: MemoryStore) -> None:
         """Absorbs each batch, then detects triggers in it (R-P6-FG-1, I-P6-6), then offers them to the pending slot."""
         async for batch in seat.perceived():
+            # A process's first join presents no cursor (D-P6b-15), so a restarted process is sent the world's
+            # history again; the store takes it without change, and a fact it already held is no trigger: it
+            # was answered, or let pass, before the restart (S10 P7 F-P7-3, the F-13 rule for an lm seat).
+            held = store.cursor()
+            fresh = tuple(
+                fact
+                for fact in batch.events
+                if held is None or event_key(fact.id) > event_key(held)
+            )
             await absorb(store, batch.events, batch.through, self._retention)
             self._note_lines(batch.events)
             here, now_at = self._here()
             for trigger in detect(
-                batch.events,
+                fresh,
                 seat.observer,
                 store,
                 here,

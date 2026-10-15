@@ -206,7 +206,20 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
+    # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
+    # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
+    # unplugged half is an ordinary test and runs in `core`.
+    [
+        "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
+        "--ignored", "--exact", "she_remembers_across_the_two_views",
+    ],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+]
+# IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
+# syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
 # package's real_binary AC-10 scenario (pr-s10-p4 §5.10) — are deselected by name, visibly, here and
