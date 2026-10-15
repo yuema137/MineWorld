@@ -1,7 +1,7 @@
 """`MemoryStore`: one seat's memory, one SQLite file at a path the caller gives (D-P4-3; DEP-37).
 
 The store never chooses a directory and never sits in a world's save (QS10-17). It opens a file with
-schema v2, or refuses, by name and with both values, a file whose world instance, seat, self entity or
+schema v3, or refuses, by name and with both values, a file whose world instance, seat, self entity or
 schema differ. `":memory:"` is the in-memory store tests use; there is no second implementation
 (D-P4-13).
 
@@ -65,7 +65,8 @@ _SCHEMA = (
     "first_at INTEGER NOT NULL, last_at INTEGER NOT NULL)",
     "CREATE TABLE names (entity TEXT PRIMARY KEY, name TEXT NOT NULL, source_key TEXT)",
     "CREATE TABLE forgotten (first_key TEXT PRIMARY KEY, last_key TEXT NOT NULL)",
-    "CREATE TABLE retention_passes (day INTEGER PRIMARY KEY, policy TEXT NOT NULL, "
+    "CREATE TABLE retention_passes (trigger TEXT PRIMARY KEY, day INTEGER NOT NULL, "
+    "cause TEXT NOT NULL CHECK (cause IN ('day', 'size')), policy TEXT NOT NULL, "
     "outcome TEXT NOT NULL, kept INTEGER NOT NULL, merged INTEGER NOT NULL, dropped INTEGER NOT NULL, "
     "forced INTEGER NOT NULL, bytes_before INTEGER NOT NULL, bytes_after INTEGER NOT NULL, "
     "forgotten_ranges INTEGER NOT NULL, model_decisions INTEGER NOT NULL, "
@@ -90,13 +91,29 @@ _DUMPED: tuple[tuple[str, str], ...] = (
     ("chapter_ranges", "week, first_key"),
     ("stable", "entity"),
     ("forgotten", "first_key"),
-    ("retention_passes", "day"),
+    ("retention_passes", "trigger"),
 )
+_METERED = tuple(table for table, _ in _DUMPED if table != "meta")
+"""The tables `content_size()` measures: every dumped table but `meta`, whose cursor and newest key are
+written per ingest call, not per fact (pr-fg-b2 §4.2)."""
+_METER_PUT = "mineworld_meter_put"
+_METER_GONE = "mineworld_meter_gone"
+"""The connection functions the meter's `TEMP` triggers call (`MemoryStore.content_size`)."""
 
 
 _ENCODER = json.JSONEncoder(sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 """One dump line per row: sorted keys, UTF-8, no spaces. One encoder, built once: retention measures the
 dump at every pass, and `json.dumps` with these options would build an encoder per row."""
+
+
+def _line(table: str, cells: dict[str, Cell]) -> str:
+    """A row's dump line, without its newline."""
+    return _ENCODER.encode({**cells, "table": table})
+
+
+def _line_bytes(table: str, cells: dict[str, Cell]) -> int:
+    """The bytes a row's dump line takes, newline included."""
+    return len(_line(table, cells).encode("utf-8")) + 1
 
 
 class StoreIdentityMismatch(ValueError):
@@ -124,6 +141,10 @@ class MemoryStore:
         self._connection: sqlite3.Connection | None = connection
         self.identity = identity
         self.fts = fts.available() and _has_table(connection, "l0_text")
+        self._sizes: dict[tuple[str, int], int] | None = None
+        """`content_size()`'s line size per (table, rowid); `None` until measured, and after a rollback."""
+        self._content = 0
+        self._columns: dict[str, list[str]] = {}
 
     @staticmethod
     def open(path: Path | Literal[":memory:"], identity: StoreIdentity) -> MemoryStore:
@@ -160,6 +181,7 @@ class MemoryStore:
             yield connection
         except BaseException:
             connection.execute("ROLLBACK")
+            self._sizes = None  # the rolled-back rows were measured: measure again in full
             raise
         connection.execute("COMMIT")
 
@@ -194,13 +216,80 @@ class MemoryStore:
         return ("\n".join(lines) + "\n").encode("utf-8")
 
     def size(self) -> int:
-        """`len(dump())`, without building it."""
+        """`len(dump())`, without building it: once `content_size()` is in use, its total and `meta`'s
+        lines."""
+        if self._sizes is not None:
+            return self.content_size() + sum(size for _, size in self.row_bytes("meta"))
         return sum(size for table, _ in _DUMPED for _, size in self.row_bytes(table))
+
+    def content_size(self) -> int:
+        """`size()` less `meta`'s lines, kept incrementally (pr-fg-b2 §4.2). SQLite `TEMP` triggers, in
+        this connection only and never in the file, hand every row a write puts or removes to the store,
+        which encodes it as `dump()` would and keeps the total. The first call on a connection, and the
+        first after a rollback, measure in full."""
+        if self._sizes is None:
+            return self._measure(self.connection)
+        return self._content
+
+    def _measure(self, connection: sqlite3.Connection) -> int:
+        connection.create_function(_METER_PUT, -1, self._put)
+        connection.create_function(_METER_GONE, 2, self._gone)
+        self._columns = {}
+        for table in _METERED:
+            info: list[tuple[int, str, str, int, Cell, int]] = connection.execute(
+                f"PRAGMA main.table_info({table})"
+            ).fetchall()
+            columns = [column[1] for column in info]
+            self._columns[table] = columns
+            new = ", ".join(f"NEW.{column}" for column in columns)
+            put = f"SELECT {_METER_PUT}('{table}', NEW.rowid, {new});"
+            gone = f"SELECT {_METER_GONE}('{table}', OLD.rowid);"
+            for event, body in (("INSERT", put), ("UPDATE", gone + " " + put), ("DELETE", gone)):
+                connection.execute(
+                    f"CREATE TEMP TRIGGER IF NOT EXISTS meter_{table}_{event.lower()} AFTER {event} "
+                    f"ON main.{table} BEGIN {body} END"
+                )
+        sizes: dict[tuple[str, int], int] = {}
+        for table in _METERED:
+            cursor = connection.execute(f"SELECT rowid, * FROM main.{table}")
+            columns = [column[0] for column in cursor.description][1:]
+            for rid, *values in cursor:
+                sizes[(table, rid)] = _line_bytes(table, dict(zip(columns, values, strict=True)))
+        self._sizes = sizes
+        self._content = sum(sizes.values())
+        return self._content
+
+    def _put(self, table: str, rid: int, *values: Cell) -> None:
+        """A metered row was written: its line's size replaces any it had."""
+        sizes = self._sizes
+        if sizes is None:
+            return  # invalidated: the next `content_size()` measures in full
+        size = _line_bytes(table, dict(zip(self._columns[table], values, strict=True)))
+        self._content += size - sizes.get((table, rid), 0)
+        sizes[(table, rid)] = size
+
+    def _gone(self, table: str, rid: int) -> None:
+        """A metered row was removed (or is about to be written again by an update)."""
+        sizes = self._sizes
+        if sizes is not None:
+            self._content -= sizes.pop((table, rid), 0)
 
     def row_bytes(self, table: str) -> list[tuple[dict[str, Cell], int]]:
         """Every row of a dumped table, in dump order, with the bytes its dump line takes, newline
-        included: exactly what removing the row subtracts from `dump()` (pr-fg-b §5.4)."""
-        return [(cells, len(line.encode("utf-8")) + 1) for cells, line in self._lines(table)]
+        included: exactly what removing the row subtracts from `dump()` (pr-fg-b §5.4). Once
+        `content_size()` is in use, a metered table's sizes are its, not encoded again."""
+        if self._sizes is None or table not in _METERED:
+            return [(cells, len(line.encode("utf-8")) + 1) for cells, line in self._lines(table)]
+        self.content_size()
+        sizes = self._sizes
+        assert sizes is not None  # content_size() measured, or kept, every metered row
+        order = dict(_DUMPED)[table]
+        cursor = self.connection.execute(f"SELECT rowid, * FROM {table} ORDER BY {order}")
+        columns = [column[0] for column in cursor.description][1:]
+        return [
+            (dict(zip(columns, values, strict=True)), sizes[(table, rid)])
+            for rid, *values in cursor
+        ]
 
     def _lines(self, table: str) -> list[tuple[dict[str, Cell], str]]:
         order = dict(_DUMPED)[table]
@@ -209,7 +298,7 @@ class MemoryStore:
         out: list[tuple[dict[str, Cell], str]] = []
         for row in cursor:
             cells: dict[str, Cell] = dict(zip(columns, row, strict=True))
-            out.append((cells, _ENCODER.encode({**cells, "table": table})))
+            out.append((cells, _line(table, cells)))
         return out
 
     def reclaim(self) -> None:

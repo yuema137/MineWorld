@@ -605,12 +605,16 @@ Rules:
    the header of every invocation shows which list was in effect. Storing it in a save as
    non-authoritative host metadata is deferred until a resume needs it (step-24 QS24-1).
 8. **`memory:` is passed through, not interpreted** (QFGb-1). Its shape is the controller memory
-   selection of §5.2: `default:` and each `assign:` entry carry `policy`, optional `fallback` and
-   optional `parameters`; an entry names a `seat` or a `class` as rule 2 says. The decoder refuses, at
+   selection of §5.2: `default:` and each `assign:` entry carry `policy`, optional `fallback`,
+   optional `parameters` and optional `store_bound_mib` (the seat's memory store bound in MiB, §5.2 host
+   rule 7); an entry names a `seat` or a `class` as rule 2 says. The decoder refuses, at
    load and with line and column, an unknown key, a `policy` or `fallback` not spelled as a policy id
-   (`^[a-z][a-z0-9-]{0,47}$`), a seat or class rule 2 refuses, a duplicate entry, and `parameters`
-   that are not a mapping with string keys or that hold a tag or a non-finite number. It does not judge
-   whether a policy exists or its parameters are valid: policy ids are Python entry points. Each seat's
+   (`^[a-z][a-z0-9-]{0,47}$`), a seat or class rule 2 refuses, a duplicate entry, `parameters`
+   that are not a mapping with string keys or that hold a tag or a non-finite number, and a
+   `store_bound_mib` that is not an unsigned integer. It does not judge whether a policy exists or its
+   parameters are valid, nor whether the bound is in range: policy ids are Python entry points, and the
+   bound's floor and ceiling are the cognition host's. The bound travels with the winning entry; it is
+   not merged across seat, class and default. Each seat's
    choice is resolved seat > class > default and emitted by `mineworld decisions <world> --json`
    (§8.1) as the `MemoryPolicyChoice` the cognition process validates when it starts; an unknown policy
    id therefore fails then, naming the file, line and column, not at `run`'s load.
@@ -1237,8 +1241,8 @@ no `dict[str, Any]`. A policy is a class with a constant `id` (equal to its entr
   and `day` in world time; its kind; its counterparts and place; whether the seat was the actor; its
   host-computed `importance`; its `Citation`; its names-only text; and its own size in the canonical dump;
 - a `RetentionBudget`: the bytes the surviving items should fit in, `now` (world seconds at the start of
-  the day whose first fact triggered the pass), and the model calls this pass may make (0 for every no-LLM
-  policy).
+  the day whose first fact triggered the pass, or, for a size pass, the world time of the fact that took
+  the store over its trigger; rule 1), and the model calls this pass may make (0 for every no-LLM policy).
 
 It returns a sequence of decisions: `Keep(item)`; `Merge(items, into=1)`, L0 records of one episode into
 that episode; `Merge(items, into=2)`, episodes of one chapter into that chapter; `Drop(item)` of a
@@ -1265,9 +1269,17 @@ and a policy cannot bypass them.
    and including that fact, and runs the pass, so the pass point is fixed by the perceived facts alone,
    never by batch boundaries; a jump over several silent days is one pass. A crash between the ingest and
    the pass is repaired by the next `absorb`, which runs the due pass first. Ingestion alone (`ingest`)
-   never forgets.
+   never forgets. A pass also runs **early, when the store nears its bound** (a size pass): `absorb`
+   stops each ingest call after the fact that takes the store's content (its canonical dump without
+   `meta`, measured exactly after every fact) over the trigger of rule 7, and runs a pass there before
+   ingesting the next fact. The measure after a fact is a function of the facts up to it, so size passes
+   too fall on the same facts however the batches were cut. At a day's first fact only the daily pass
+   runs, so a fact triggers at most one pass; a size pass does not move the day of the last daily pass,
+   and it never calls a model: an assisted policy's size passes are decided by its fallback alone and
+   recorded `fallback:size`. A
+   stop whose pass did not commit is repaired like a due daily pass: the next `absorb` runs it first.
 2. **Eligibility.** Every L0 record of a closed episode, every closed episode, every chapter and every
-   stable fact. The open episode and its record are never shown and never removed.
+   stable fact. The open episode and its records are never shown and never removed.
 3. **Validation.** The plan is refused whole, by a typed reason, when a decision names an unknown item
    (`unknown-item`), names an item twice (`duplicate`), merges items that are not of the level below `into`
    or do not share one surviving container (`merge-mismatch`, which also covers a stable fact in a merge),
@@ -1283,7 +1295,7 @@ and a policy cannot bypass them.
    dropped stable fact adds nothing, because a stable fact cites its establishing facts and covers none.
 5. **Coverage invariant.** At every pass, every perceived id up to the newest ingested is represented by
    exactly one top-level unit (a chapter's ranges, an episode of a week with no chapter, the open
-   episode's record) or by the forgotten set; nested units lie inside their container; no L0, L1 or L2
+   episode's records) or by the forgotten set; nested units lie inside their container; no L0, L1 or L2
    citation intersects the forgotten set (AC-FG-3). A stable fact's citation may point into the forgotten
    set: what established it still resolves in the save. The host checks the store-side half of this after
    every pass and rolls the pass back on a breach (a defect, never a fallback).
@@ -1292,29 +1304,43 @@ and a policy cannot bypass them.
    rises to their end, meaning "every perceived id at or below the watermark that no surviving unit
    represents is forgotten". The set is bounded by construction, and every forgotten id still resolves in
    the save (`mineworld perceived`).
-7. **Hard bounds.** After executing a plan, while the canonical dump exceeds the host target of 786 432 B
-   (768 KiB), the host applies, in order and until it is under: `consolidate` with its defaults; merging
-   every remaining L0 record of a closed episode into its episode, oldest first; merging the episodes of
-   weeks with a chapter into it, oldest first; dropping chapters, oldest first; dropping chapterless closed
+7. **Hard bounds.** Each seat's store has a **bound**: 20 MiB (20 971 520 B) by default, which a world may
+   raise per seat or class with `store_bound_mib` in its `memory:` entry, up to 1 024 MiB, and never set
+   lower (operator rulings of 2026-10-14). From it the host derives a **target**, 75 % of the bound
+   (15 728 640 B at the default), and a **trigger**, the bound less a sixteenth (19 660 800 B). After
+   executing a plan, while the canonical dump exceeds the target less 512 B kept for the pass's own log
+   row, the host applies, in order and until it is under: `consolidate` with its defaults; merging every
+   remaining L0 record of a closed episode into its episode, oldest first; merging the episodes of weeks
+   with a chapter into it, oldest first; dropping chapters, oldest first; dropping chapterless closed
    episodes, oldest first; dropping stable facts, fewest meetings first. Every such removal is counted as
-   forced in the pass log. The post-pass dump is therefore at most the target, and the gap to the hard
-   bound of 1 048 576 B (1 MiB) is room for one simulated day of ingestion before the next pass. If the
-   store is still over after the last step, the pass raises `RetentionBoundUnreachable` and rolls back.
-   Neither number is a parameter: no world or policy can loosen them.
+   forced in the pass log. The post-pass dump is therefore at most the target. Between passes the size
+   trigger (rule 1) holds every state `absorb` commits under the bound: the content after every fact is at
+   most the trigger, except after the one fact that crossed it, whose pass follows at once; the sixteenth
+   between trigger and bound holds that fact's growth and `meta`. A single fact that grows the store by more
+   than that margin is committed over the bound until its pass, which the pass log's `bytes_before` shows.
+   If the store is still over the target after the last step — the open episode alone, which no pass
+   removes, being too large — the pass raises `RetentionBoundUnreachable` and rolls back, and the next
+   `absorb` retries it before ingesting anything, so the store does not grow past that point. No policy
+   sees or changes the bound, the target or the trigger.
 8. **Context bound.** A retrieval for a model call is at most 6 000 bytes, per section, as P4 D-P4-9 defines
-   it. This bound is not changed by any policy. Retrieval reads no row a policy may have removed.
-9. **Pass log.** Each pass records its day, policy, outcome, the counts kept, merged, dropped and forced,
-   the dump size before and after, and the number of forgotten ranges; the newest 32 rows only.
+   it. This bound is not changed by any policy, nor by the store's bound. Retrieval reads no row a policy
+   may have removed.
+9. **Pass log.** Each pass records the event key of its triggering fact (the newest ingested, the log's
+   key), its day, its cause (`day` or `size`), its policy, outcome, the counts kept, merged, dropped and
+   forced, the dump size before and after, and the number of forgotten ranges; the newest 32 rows only.
 
 The cognition budget ledger is not memory and is not pruned by a pass: it prunes itself, by wall time,
 when it records a charge, keeping two wall days, twice its longest window (ARC-57, `ARCHITECTURE.md` §9.1).
 
 **Selection.** A world selects a policy per seat through `memory:` in `decisions.yaml` (§4.1). The Rust
 reader resolves seat > class > default and emits, per seat, a typed JSON `MemoryPolicyChoice` (`policy`,
-optional `fallback`, `parameters`, and the source span of the winning entry). The cognition process
-resolves it when it starts: an unknown policy is refused with the installed ids; invalid parameters are
-refused with the policy, the field and the source span (never the given value); a `fallback` on a policy
-that is not assisted is refused. With no `memory:` the choice is `{ policy: consolidate }`.
+optional `fallback`, `parameters`, optional `store_bound_mib`, and the source span of the winning entry).
+The cognition process resolves it when it starts: an unknown policy is refused with the installed ids;
+invalid parameters are refused with the policy, the field and the source span (never the given value); a
+`fallback` on a policy that is not assisted is refused; a `store_bound_mib` outside 20 … 1 024 is refused
+as `StoreBoundOutOfRange`, naming the value, the floor, the ceiling and the source span. The bound is the
+host's, not a policy parameter: it is a field of the choice, and no policy sees it. With no `memory:` the
+choice is `{ policy: consolidate }` with the 20 MiB bound.
 
 **Bundled policies.** Each is an ordinary entry point of the group `mineworld.forgetting` in
 `mineworld-cognition`, imports only the public names of `mineworld_cognition.memory.retention`, and none
@@ -1596,14 +1622,14 @@ cognition process reads (QFGb-1):
 
 ```json
 {
-  "format": 1,
+  "format": 2,
   "world": "social-cafe",
   "digest": "00f3…",
   "seats": [
     { "seat": "alice",
       "model": { "id": "rule", "assigned": "lm", "chain": ["lm", "rule"] },
       "memory": { "policy": "lm-summarise", "fallback": "consolidate",
-                  "parameters": { "calls_per_sim_day": 4 },
+                  "parameters": { "calls_per_sim_day": 4 }, "store_bound_mib": 40,
                   "source": { "file": "decisions.yaml", "line": 12, "column": 7 } } },
     { "seat": "bob", "model": { "id": "rule" }, "memory": null }
   ]
@@ -1615,9 +1641,10 @@ does not know. Keys appear in the order shown. `model.id` is the in-process mode
 `run` (`null` when its chain ends at `none`); `assigned` and `chain` appear only when the seat is assigned
 an external model. `digest` is §4.1 rule 7's. `memory` is `null` when no `memory:` entry and no `memory:`
 default applies (the cognition process then uses its default); otherwise it is the winning entry's
-`policy`, `fallback` (`null` when absent), `parameters` (`{}` when absent; keys sorted) and `source`: the
+`policy`, `fallback` (`null` when absent), `parameters` (`{}` when absent; keys sorted),
+`store_bound_mib` (`null` when absent: the host's 20 MiB; §5.2 host rule 7) and `source`: the
 file as written in `world.yaml`'s `decisions:` or as passed to `--decisions`, and the line and column of
-the winning entry's mapping. The command is read-only.
+the winning entry's mapping. `format` 2 added `store_bound_mib`. The command is read-only.
 
 **`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
 head revision and its instant, the journal counted by input kind and outcome, the snapshots the save

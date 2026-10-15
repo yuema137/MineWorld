@@ -395,24 +395,31 @@ rest on.
 - **Pass points.** A retention pass runs once per simulated day, at the seat's first perceived fact of a
   new day, after that fact is ingested and before anything later is. The point is fixed by the perceived
   sequence, never by how facts were batched, so the store remains a function of the facts and of the
-  policy's parameters: rebuilding from a null cursor reproduces its canonical dump byte for byte. Plain
-  ingestion never forgets; the host's `absorb` is the only caller of a pass.
+  policy's parameters: rebuilding from a null cursor reproduces its canonical dump byte for byte. A pass
+  also runs early, after the fact that takes the store near its bound (a size pass), measured exactly after
+  every fact on a quantity that is itself a function of the facts so far, so size passes are as
+  batch-independent as daily ones; a fact triggers at most one pass. Plain ingestion never forgets; the
+  host's `absorb` is the only caller of a pass.
 - **Coverage.** At every pass, every perceived id is represented by exactly one surviving top-level unit
   (a chapter, an episode of a week without a chapter, the open episode's record) or by the forgotten set,
   and no remembered line's citation intersects the forgotten set. A pass is one transaction; a breach of
   this invariant rolls it back. A pass never moves the store's perceived cursor, which stays the seat's
   only cursor authority (`pr-s10-p3b-perceived.md` D-P3b-2): a fact the store has since merged or
   forgotten, re-delivered at or below that cursor, is skipped.
-- **Store bound.** The canonical dump of one seat's store is at most 768 KiB after every pass, enforced by
-  the host after whatever the policy did, and at most 1 MiB (the hard bound) at the pass points of the
-  reference worlds, the difference being one simulated day of perception (`MODULE_SPEC.md` §5.2, host
-  rule 7). Neither number is a parameter. The file on disk reclaims freed pages through SQLite's
-  incremental vacuum.
+- **Store bound.** Each seat's store has a bound of 20 MiB by default; a world may raise it per seat or
+  class in `decisions.yaml`, never lower it, and no policy sees it (operator rulings of 2026-10-14,
+  `pr-fg-b2-size-trigger.md`). The canonical dump is at most 75 % of the bound after every pass, enforced
+  by the host after whatever the policy did, and the size-triggered pass keeps every state the host
+  commits under the bound, whatever the world's perception rate (`MODULE_SPEC.md` §5.2, host rules 1 and
+  7). The bound is a ceiling, not a size: under the default policy a reference-world store stays under
+  1 MB. The file on disk reclaims freed pages through SQLite's incremental vacuum; it holds indexes beside
+  the rows and may reach about three times the dump.
 - **Context bound.** A model call receives at most 6 000 bytes of memory per section (P4 D-P4-9). An
   assisted summarisation request is at most 6 000 bytes and contains no Event ID or entity id.
 - **Model-call bound.** Assisted forgetting makes at most `calls_per_sim_day` calls per seat per simulated
   day (default 4, at most 24), inside the controller's wall-time and token budgets (ARC-57). A call is
-  gated before it is made.
+  gated before it is made. A size pass never calls a model: an assisted seat's size passes are decided by
+  its no-model fallback alone, so early passes add no calls (`pr-fg-b2-size-trigger.md` §4.9).
 - **Forgetting is not deletion of truth.** A dropped item's citations join the seat's forgotten set, a
   sorted, bounded list of Event ID ranges. The world log is not in this store and is never forgotten
   (`CORE_CONCEPTS.md` §5.3). Compaction and archive of the log are a separate concern of persistence.

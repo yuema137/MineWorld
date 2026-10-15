@@ -36,8 +36,10 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "8f3ca66799fcd938c7ee9514e5c008c44a5ffc5756ba195a76f15ba8dd9cbc44"
-"""AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4."""
+DIGEST = "c3624e035b7a8044a932bc217ba5bc51ee11e2f6732e49a9500015f423a106a4"
+"""AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
+FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
+and `meta.schema` reads 3. The cassette is unchanged and still replays without a miss: no request moved."""
 
 
 def _facts() -> list[PerceivedEvent]:
