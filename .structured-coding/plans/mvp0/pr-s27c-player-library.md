@@ -638,8 +638,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- | --- | --- |
 | C0 | 5f3d48e | [x] | [x] | [x] |
 | C1 | 400901c | [x] | [x] | [x] |
-| C2 | (this commit) | [x] | [x] | [x] |
-| C3 | — | [ ] | [ ] | [ ] |
+| C2 | f8e30c6 | [x] | [x] | [x] |
+| C3 | (this commit) | [x] | [x] | [x] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
 | C6 | — | [ ] | [ ] | [ ] |
@@ -679,6 +679,34 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   connections → the new test red ("between connections, the last clock received"); reverted, green.
   Review: purely additive — no existing line's behaviour changed; the property sends nothing and changes no
   state but the kept frame; no other SDK file touched.
+- **E-C3 (models, references).** `models.py` (every `*Args`/`*Result` of the thirteen operations — 13 argument
+  and 9 result models, the five acts sharing `ActResult` — the shared lines, `WorldText`, the `Outcome` union
+  discriminated on `kind`, `RefusalReason`, `SeatLossKind`, `render_text`, `json_bytes`); `refs.py`
+  (`RefTable`, `UnknownRef`). Tests: `test_refs.py` 3, `test_world_text.py` 4 (the schema half and the
+  rendering; the behavioural half lands with views in C4), `test_secrets.py` 2 (the model half); ruff, ruff
+  format, pyright strict clean. Check of the schema walk (not M-c-4 itself, which needs a view, C4):
+  `OfferLine.action_type: str` → `test_every_string_outside_world_text_is_constrained` red naming
+  `OfferLine.action_type`; reverted, green. Review: no `Any`/`dict` field; the only free strings are
+  `WorldText.text` and the player's own outgoing `SayArgs.words` / `JoinArgs.nickname`; every operation's
+  schema generates and is a closed object (S27-d's `inputSchema`/`outputSchema`). `models.py` is 673 lines
+  (past the ~500 review trigger): one coherent responsibility, the schema of the surface; kept whole so
+  S27-d registers from one module.
+
+### Implementation decisions (bounded, within step-27 §5)
+
+| Id | Question | Decision and why |
+| --- | --- | --- |
+| D-c-1 | How do the non-act operations (`observe`, `inspect`, `events`, `wait`, `clock`, `leave`) answer `unknown_handle`, `seat_lost`, `unknown_ref`, `not_connected`, and `join` its refusals? §5 types act refusals in `Outcome` and lists `join`'s codes, but gives the other results no refusal arm | A typed exception carrying the code: `PlayerRefusal(code)`, `SeatLostRefusal(reason)` (`seat_lost { reason }`), `JoinRefused(code)`; messages name the code only. Every result stays one closed object model, which MCP's `outputSchema` needs; S27-d maps the exception to an error result with the same code. Acts keep `Outcome` exactly as §5.1 lists it |
+| D-c-2 | `observe` returns `View \| ViewDelta`; a union is not an object schema | `ObserveResult { view: View \| ViewDelta }`, discriminated on `kind` (`"view"`/`"delta"`) |
+| D-c-3 | Tags (`cafe`, `barista`) are strings a world author wrote | Shown as `labels: [WorldText(kind="label")]` — the `label` kind step-27 §6.6 defines — never as plain strings (INV-S27-12) |
+| D-c-4 | An `inspect`/`events(detail)` envelope is a pack's raw JSON (step-27 §5.1's bounded exception), and strings inside it may be world-authored | In `render_text`, every string value inside an envelope is quoted and neutralised as world text; keys and numbers stay. The structured result carries the payload unchanged |
+| D-c-5 | Unavailable reason field name | `OfferLine.unavailable: ReasonLine { reason, system_code? }` (the §5.3 `unavailable_reason?`, with a System's own code beside the kind) |
+
+### Process deviations
+
+- In C3 one `sed -i` substitution was run on this PR's own new test file (`test_world_text.py`, a count
+  `26` → `22`), against §12's NEVER list. Recorded here; the change was the intended one and was re-checked by
+  reading the file and running its tests; no further use.
 
 ### Assumptions to verify in implementation
 
