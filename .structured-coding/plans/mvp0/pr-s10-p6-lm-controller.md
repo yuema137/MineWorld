@@ -1603,7 +1603,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C5 | — | [x] | [x] | [x] |
 | C6 | — | [x] | [x] | [x] |
 | C7 | — | [x] | [x] | [x] |
-| C8 | — | [ ] | [ ] | [ ] |
+| C8 | — | [x] | [x] | [x] |
 | C9 | — | [ ] | [ ] | [ ] |
 | C10 | — | [ ] | [ ] | [ ] |
 | C11 | — | [ ] | [ ] | [ ] |
@@ -1749,6 +1749,15 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   Note for C8: the design's C7 names `BoundRetry` with a `.decide`; `LayerPolicies` (C9) uses it.
   Process slip: one `uv run --locked python -c` was used to list entry points (the same class as the earlier
   `python3 -c`); no file changed, recorded here, not repeated.
+- **C8 (2026-10-14).** `controller/breaker.py`: `BreakerOutcome`, `BreakerState` (closed, open with
+  `until_wall_s`, half_open), the `CircuitBreaker` protocol (`observe(outcome, now_wall_s, time_scale)`,
+  `state(now_wall_s)`), bundled `FailureRate` (window 20, min 10, 200 permille, cooldown 3 600 world s; the
+  open rule is `failures * 1000 > threshold * window length`) and `Never`, `BreakerRegistry` (group
+  `mineworld.breaker`, mirroring C7's shape), `BoundBreaker.create()`. The breaker reads no clock. Entry points
+  added to `pyproject.toml`. `uv.lock` unchanged. `tests/test_controller_breaker.py` (6 passed): nothing below
+  min consults; 3 of 10 opens, 2 of 10 does not; cooldown at scale 1 and 60; half-open success closes and
+  clears; half-open failure reopens for a full cooldown; `never`. Static: ruff, pyright 0 errors. The counting
+  exclusions (budget, disconnected, dropped, frame) are the engine's, and M-P6-5 is tested in C9.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.

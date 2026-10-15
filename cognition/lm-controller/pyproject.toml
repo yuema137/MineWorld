@@ -37,6 +37,11 @@ exponential-backoff = "mineworld_cognition.controller.retry:ExponentialBackoff"
 fixed = "mineworld_cognition.controller.retry:Fixed"
 none = "mineworld_cognition.controller.retry:NoRetry"
 
+# The per-seat circuit breakers (pr-s10-p6 §5.6). Same conventions as the retry group above.
+[project.entry-points."mineworld.breaker"]
+failure-rate = "mineworld_cognition.controller.breaker:FailureRate"
+never = "mineworld_cognition.controller.breaker:Never"
+
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
 
