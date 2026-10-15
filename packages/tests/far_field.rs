@@ -210,3 +210,42 @@ fn a_missing_far_field_names_the_pack_and_the_world() {
         "{message}"
     );
 }
+
+/// AC-FF-4: where a world has both a 2D and a 3D far field in the shipped packs, they describe the
+/// same water — each body's sector within 1° and its shore within 1 m — so the two clients never
+/// disagree about where the bay is. Every shipped file also validates for its own dimension.
+#[test]
+fn two_d_and_three_d_water_agree() {
+    let family = Path::new(env!("CARGO_MANIFEST_DIR")).join("../presentation/mineworld-default");
+    let two = far_field::check_pack(&family.join("2D"), &[Dimension::TwoD]).expect("2D validates");
+    let three =
+        far_field::check_pack(&family.join("3D"), &[Dimension::ThreeD]).expect("3D validates");
+    let mut compared = 0;
+    for world in three.iter().filter(|world| two.contains(world)) {
+        let file = |dimension: &str| {
+            family
+                .join(dimension)
+                .join(format!("far_field/{world}.yaml"))
+        };
+        let two = far_field::read(&file("2D"), &[Dimension::TwoD]).expect("2D");
+        let three = far_field::read(&file("3D"), &[Dimension::ThreeD]).expect("3D");
+        assert_eq!(two.water.len(), three.water.len(), "{world}: water bodies");
+        for (a, b) in two.water.iter().zip(&three.water) {
+            let name = a.name.as_str();
+            assert_eq!(name, b.name.as_str(), "{world}");
+            let angle = |x: f64, y: f64| (x - y).rem_euclid(360.0).min((y - x).rem_euclid(360.0));
+            assert!(
+                angle(a.sector.from_deg, b.sector.from_deg) <= 1.0,
+                "{world} {name} from"
+            );
+            assert!(
+                angle(a.sector.to_deg, b.sector.to_deg) <= 1.0,
+                "{world} {name} to"
+            );
+            assert!((a.shore_m - b.shore_m).abs() <= 1.0, "{world} {name} shore");
+            assert_eq!(a.horizon, b.horizon, "{world} {name} horizon");
+        }
+        compared += 1;
+    }
+    assert_eq!(compared, 2, "social-cafe and lakeside have both");
+}

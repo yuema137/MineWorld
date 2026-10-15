@@ -313,6 +313,46 @@ fn a_bad_pack_in_a_named_directory_is_refused_by_name() {
     }
 }
 
+/// RL-e0 (ARC-102, MODULE_SPEC §6.1.1): a Presentation Pack with no `far_field/` is refused by
+/// `packs validate` with FAR_FIELD_MISSING naming the pack; with a valid far field it is a valid pack;
+/// a faulty far-field file is refused by its own code, naming the file.
+#[test]
+fn a_presentation_pack_without_a_far_field_is_refused_by_name() {
+    let scratch = Scratch::new("no-far-field");
+    scratch.write("style-a/pack.yaml", PACK_FILE);
+    scratch.write("style-a/manifest.yaml", "id: style-a\ndimension: [2d]\n");
+    let pack = format!("{}/style-a", scratch.path());
+
+    let (ok, _, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(!ok, "accepted without a far field");
+    assert!(
+        stderr.starts_with("[mineworld] FAR_FIELD_MISSING")
+            && stderr.contains("style-a")
+            && stderr.contains("no far_field/"),
+        "{stderr}"
+    );
+
+    let shipped = std::fs::read_to_string(repository(
+        "presentation/mineworld-default/2D/far_field/bodies-yard.yaml",
+    ))
+    .expect("the shipped 2D far field");
+    scratch.write("style-a/far_field/bodies-yard.yaml", &shipped);
+    let (ok, out, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(ok, "{stderr}");
+    assert!(out.contains("is a valid presentation-pack"), "{out}");
+
+    scratch.write(
+        "style-a/far_field/bodies-yard.yaml",
+        &shipped.replace("\"extent_m\": 400", "\"extent_m\": 0"),
+    );
+    let (ok, _, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(!ok, "accepted a surround with no extent");
+    assert!(
+        stderr.starts_with("[mineworld] FAR_FIELD_GAP") && stderr.contains("bodies-yard.yaml"),
+        "{stderr}"
+    );
+}
+
 /// EA-5 end to end: a world without its package fields still runs and validates as a world, and is
 /// refused as a pack, naming the field.
 #[test]

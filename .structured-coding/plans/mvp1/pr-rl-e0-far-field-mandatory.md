@@ -1224,7 +1224,8 @@ setup command replaces it). Worktree `/Users/yuema137/mineworld-worktrees/impl-r
 | --- | --- | --- | --- | --- |
 | C0 | 80afda22 | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
 | C1 | 2b554ed5 | [x] A.1 → `MODULE_SPEC.md` §6.1 + new §6.1.1 (schema, codes, refusal points, exemption verbatim); A.2 → `ART_DIRECTION.md` §12 layout + exception, §21 Environment; A.3 → `VISUAL_SLICE.md` §1 note, §4 terminations, far-field row, out-of-scope line, §12 view 11; A.4 → `clients/2d/PRESENTATION.md` new §8; A.5 → `DECISIONS.md` ARC-102/103/104 appended, DEP-45 dated note | [x] `check_doc_headings.py` 239 sections, none duplicated PASS; `check_decision_ids.py` 128 ids distinct PASS; `grep far_field docs/MODULE_SPEC.md` shows the layout line, the exception and §6.1.1 (VISUAL_SLICE's A.3 text says "far field" in words, no `far_field` token, by design) | [x] terms exact (`Presentation Pack`, `World Pack`, `ActionIntent`, `System`); the rule lives in MODULE_SPEC §6.1.1, no README carries it; VISUAL_SLICE additions name no engine, node or shader |
-| C2 | (this commit) | [x] `packages/src/far_field.rs` (codes, `Dimension`, `read`, `check_pack`, `require_for_world`, `uncovered`, `missing_message`), `far_field_schema.rs` (every type of §5.1.2, `deny_unknown_fields`, newtypes `Key`/`AssetName`/`Colour`, `Slots`/`Slot` with their own deserializer so slot faults are `FAR_FIELD_SLOT`), `far_field_check.rs` (the ordered rules); `error.rs` `FarField`/`FarFieldMissing` (Display starts with the code); `manifest.rs` `check_style_manifest → Vec<Dimension>` (unknown dimension → `Malformed`); `lib.rs` exports; corpus `packages/tests/fixtures/far_field/` (16 files); `packages/tests/far_field.rs` (5 tests). Step 7 N/A: #200 not merged (§14.2) | [x] `cargo test -p mineworld-packages` 9 binaries, 28 tests PASS (load ≈ 117, wall time dominated by other sessions' builds); `cargo clippy -p mineworld-packages --all-targets -- -D warnings` clean PASS; `cargo fmt --all --check` PASS. Mutation (step 0.1° → 1.0°): `gap-half-degree` validated, both corpus tests FAILED by that name → reverted → 5/5 PASS | [x] no `HashMap`/`Value`/map in the public types (the slot deserializer reads keys as strings and builds the typed `Slots`); every refusal is `PackageError::FarField { path, code, detail }` whose Display is `<CODE>: <path>: <detail>`, or `FarFieldMissing` starting `FAR_FIELD_MISSING` |
+| C2 | 2b6ff714 | [x] `packages/src/far_field.rs` (codes, `Dimension`, `read`, `check_pack`, `require_for_world`, `uncovered`, `missing_message`), `far_field_schema.rs` (every type of §5.1.2, `deny_unknown_fields`, newtypes `Key`/`AssetName`/`Colour`, `Slots`/`Slot` with their own deserializer so slot faults are `FAR_FIELD_SLOT`), `far_field_check.rs` (the ordered rules); `error.rs` `FarField`/`FarFieldMissing` (Display starts with the code); `manifest.rs` `check_style_manifest → Vec<Dimension>` (unknown dimension → `Malformed`); `lib.rs` exports; corpus `packages/tests/fixtures/far_field/` (16 files); `packages/tests/far_field.rs` (5 tests). Step 7 N/A: #200 not merged (§14.2) | [x] `cargo test -p mineworld-packages` 9 binaries, 28 tests PASS (load ≈ 117, wall time dominated by other sessions' builds); `cargo clippy -p mineworld-packages --all-targets -- -D warnings` clean PASS; `cargo fmt --all --check` PASS. Mutation (step 0.1° → 1.0°): `gap-half-degree` validated, both corpus tests FAILED by that name → reverted → 5/5 PASS | [x] no `HashMap`/`Value`/map in the public types (the slot deserializer reads keys as strings and builds the typed `Slots`); every refusal is `PackageError::FarField { path, code, detail }` whose Display is `<CODE>: <path>: <detail>`, or `FarFieldMissing` starting `FAR_FIELD_MISSING` |
+| C3 | (this commit) | [x] `presentation/mineworld-default/3D/far_field/{social-cafe,lakeside}.yaml` (B.1, B.2), `2D/far_field/{market-town,social-cafe,lakeside,bodies-yard}.yaml` (B.3), JSON subset; `2D/renderer/godot.yaml` palette `water: #5f8f9a`; `tools/cli/src/packs.rs` `validate` (presentation branch): `check_style_manifest` → dimensions, no `far_field/` → `FarFieldMissing { pack: <id>, scope: "no far_field/" }`, then `far_field::check_pack`; `tools/cli/tests/packs.rs` `a_presentation_pack_without_a_far_field_is_refused_by_name` (missing → valid with a file → `FAR_FIELD_GAP` with extent 0); `packages/tests/far_field.rs` `two_d_and_three_d_water_agree` (AC-FF-4) | [x] `cargo build -p mineworld-cli` PASS; `mineworld packs validate presentation/mineworld-default/2D` and `…/3D`: identity printed, "is a valid presentation-pack", rc 0 PASS; `cargo test -p mineworld-packages --test far_field` 6/6 PASS; `cargo test -p mineworld-cli --test packs` 7/7 PASS (80 s, load ≈ 50–70; the tree also held C3b's uncommitted `resolve.rs` edit, which `packs validate` does not reach). Mutation X-2a: see the table and F-FF-1 | [x] every `source` is a citation or says "approximate; replaced by RL-e (USGS 3DEP)" / "design content; lakeside declares no real location" (Appendix B; the "approx." strings carry the full suffix B's preamble requires); bearings are true bearings from B, unconverted |
 
 ### Evidence
 
@@ -1240,6 +1241,8 @@ E-FF-C0      2026-10-15  base 2d07c6c0; PR #200 OPEN (not merged) → C2 step 7 
 | Id | Commit | Plant | Expected | Observed | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | C2-M1 | C2 | `uncovered` steps 1.0° instead of 0.1° | `gap-half-degree.yaml` validates; its row turns red | `every_corpus_file_gives_the_code_its_name_says … FAILED: gap-half-degree`; `every_planted_far_field_is_refused… FAILED (gap-half-degree: FarField {…})` | killed; reverted, 5/5 PASS |
+| X-2a | C3 | remove `south-hills` (the silhouette whose sector covers 180°) from `3D/far_field/social-cafe.yaml` | `FAR_FIELD_GAP [a, b)` | `mineworld packs validate presentation/mineworld-default/3D` → "is a valid presentation-pack", rc 0 | **SURVIVED, by the frozen rule** (F-FF-1); restored |
+| X-2a′ | C3 | as X-2a, and also remove the skyline sector 170→300 | `FAR_FIELD_GAP` naming the gap | `[mineworld] FAR_FIELD_GAP: presentation/mineworld-default/3D/far_field/social-cafe.yaml: the far field leaves [170.0, 195.0) open`, rc 1 | killed; restored, rc 0 |
 
 ### Deviations and findings
 
@@ -1261,6 +1264,23 @@ E-FF-C0      2026-10-15  base 2d07c6c0; PR #200 OPEN (not merged) → C2 step 7 
   MALFORMED; an empty `terrain_silhouettes` or `skyline.sectors` → SECTION_MISSING; `from_deg == to_deg`, haze
   `to_m ≤ from_m`, massing `to_m ≤ from_m` → OUT_OF_RANGE; `shore_m == reach_m` → INSIDE_BOUNDARY (§5.1.3's "≤"
   governs §5.1.2's "≥"); a gap through north is reported as one run (`[350.0, 10.0)`).
+- **F-FF-1 (C3, finding for the primary; no frozen rule changed).** *Previous assumption:* X-2a (§6.7) —
+  removing the silhouette that covers 180° from `social-cafe.yaml` — makes `packs validate` refuse
+  `FAR_FIELD_GAP`. *Audit evidence:* §5.1.3 (frozen, now `MODULE_SPEC.md` §6.1.1) counts `skyline.sectors[]`
+  in the coverage union, and Appendix B.1's two skyline sectors (300→170, 170→300) cover 360° on their own
+  (B.1's own note: "skyline sectors also cover 360°"). The literal X-2a therefore validates (table above).
+  *Corrected understanding:* the schema check proves that *something* is declared in every direction; a
+  missing terrain band behind declared massing is caught by the rendered check (X-2b, FF-ABOVE), which is
+  the reason §6.3 gives FF-ABOVE. *Implementation consequence:* none; the frozen rule and content are kept.
+  *Validation consequence:* X-2a′ (the band **and** the skyline sector over the same bearings) proves the
+  content-level GAP refusal on the shipped file; X-2b carries the deleted-band case. Recorded for the primary
+  session to acknowledge; if the operator wants X-2a literal to fail, the smallest revision is to drop
+  `skyline.sectors` from the GAP union (a §6.1.1 rule change, not made here).
+- **D-FF-5 (C3/C3b, bounded).** Tests that build a scratch Presentation Pack a world requires now give it a
+  far-field file: `tools/cli/tests/requirements.rs` and `worldpack/tests/requirements.rs` (`style()`), and
+  `packages/tests/resolve.rs` points a found Presentation Pack at `packages/tests/fixtures/roots/<id>/`
+  (with `far_field/the-world.yaml`) instead of the virtual `/roots/<id>`. Outside C3b's file list; needed
+  because C3b makes the far field a resolution rule, as designed.
 
 ---
 
