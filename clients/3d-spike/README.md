@@ -1,6 +1,13 @@
 # MineWorld 3D presentation spike
 
-A runnable walking demo, built to answer one question: **does this feel like the
+> **Two scenes live in this project.** `./mineworld-slice` is the current 3D client
+> and the visual standard (`VIS-3D-GODOT-2`). `./mineworld-3d` is the movement and
+> camera spike (accepted 2026-09): not the world, and not the visual standard.
+> Frame cost: `./mineworld-slice --perf` (three runs, the Default tier's verdict)
+> and `--perf --breakdown`; the far skyline: `./mineworld-slice --skyline-check`.
+> The protocol is `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md` §3.
+
+The spike is a runnable walking demo, built to answer one question: **does this feel like the
 walking, travel and life-simulation experience we want?** Three camera modes,
 one movement controller.
 

@@ -352,7 +352,10 @@ func _voxel_gi() -> void:
 	v.name = "CafeGI"
 	var d := VoxelGIData.new()
 	v.data = d
-	v.subdiv = VoxelGI.SUBDIV_256
+	# 128, was 256: the Default tier's frame budget (RL-b SD-RLb-6a). The visible
+	# change -- a warmer, brighter florist, a small tone shift in the café -- was
+	# accepted by the operator on 2026-10-09 and the frames re-baselined on it.
+	v.subdiv = VoxelGI.SUBDIV_128
 	var depth := SliceCafe.DEPTH + 9.0
 	v.size = Vector3(SliceCafe.W + 5.0, 9.0, depth)
 	v.position = Vector3(6.0, 4.0,
