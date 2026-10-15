@@ -244,6 +244,17 @@ still resolves in the save, so tools may say that a person has forgotten a span 
 remembers or forgot; it never deletes the truth. Its bounds are stated in
 [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3, and the decisions in `DECISIONS.md` `ARC-86` and `ARC-87`.
 
+### Shared storage is not shared knowledge
+
+Storing a perceived fact once for several persons is a storage detail. Each person still remembers
+only what they perceived, in their own rendering. Shared storage is not shared knowledge.
+
+A fact record may therefore be held in one place for every person who perceived that fact, but a
+person's access to it is their perception and nothing else: no scope, policy, query, cache or
+service may grant a person access to a fact they did not perceive. How a controller's memory is
+stored, shared and sized is stated in [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3, and the decisions
+are `DECISIONS.md` `ARC-98` and `ARC-99`.
+
 ## 5.4 Hierarchical biography compression
 
 Biography must not grow without bound in an LM context window. Layers:

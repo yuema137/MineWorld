@@ -180,8 +180,9 @@ NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
 # rather than the literal `python3`, which Windows does not have; these layers also run outside the
 # container, on Windows and macOS.
-# The workspace's members (root pyproject.toml): the SDK (S10 P3) and the cognition package (S10 P5a).
-PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller"]
+# The workspace's members (root pyproject.toml): the SDK (S10 P3), the cognition package (S10 P5a) and the
+# agent player library (S27-c).
+PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
     ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
@@ -204,6 +205,7 @@ LAYERS["python"] = [
     ["cargo", "build", "-p", "mineworld-cli"],
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
+    ["uv", "run", "--locked", "pytest", "clients/agent"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
@@ -217,6 +219,7 @@ LAYERS["python-smoke"] = [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
         "-m", "not live_model and not real_binary",
     ],
+    ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks

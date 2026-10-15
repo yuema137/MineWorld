@@ -7240,6 +7240,14 @@ never modelled: tokens are reported, never priced (step-17 §3.10.4).
 **Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
 no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
 
+**Dated note, 2026-10-14 (S10 P6b, C4): two additive interface changes.** `ModelGateway.complete` gains an
+optional keyword `timeout_s`; the call's timeout is the smaller of `call_timeout_s` and `timeout_s`, so a
+consult deadline cut by the caller is charged like a timeout (one call, no tokens), where cancelling from
+outside would skip the charge. `BackendFailure` gains `retry_after_s` (an integer, 0 to 3 600, or absent),
+set by both HTTP adapters from a delta-seconds `Retry-After` on any non-2xx response; an HTTP date is
+ignored. The gateway still never retries (`ARC-73`). Failures are never recorded, so cassette format and
+keys are unchanged. Ruled by QP6-6 (2026-10-14).
+
 ---
 
 ## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
@@ -7886,6 +7894,23 @@ library.
 **Revisit** when a second protocol client in Python needs the same loop: it then moves, unchanged, into a
 shared module, not into a library.
 
+**Dated note, 2026-10-14 (S10 P6b, C1): retry and breaker libraries declined.** For the LM controller's
+layered retries (`ARC-73`) and its per-seat circuit breaker, the following are declined, and our own code
+is built instead (`pr-s10-p6-lm-controller.md` §4). Licences were read on 2026-10-14 from each project's
+PyPI metadata; none was installed or added, and `uv.lock` is unchanged.
+
+| Candidate | Licence (PyPI metadata, 2026-10-14); latest version | Verdict |
+| --- | --- | --- |
+| `tenacity` | Apache-2.0; 9.2.1 | **Declined.** It owns the loop and the sleep, while the controller needs per-class budgets under one deadline and attempt cap, seeded jitter, an injected clock, and a record per attempt |
+| `backoff` | MIT; 2.2.1 | **Declined**, for the same reasons |
+| `stamina` | MIT; 26.1.0 (wraps `tenacity`) | **Declined**, for the same reasons as `tenacity` |
+| `pybreaker` | BSD (classifier "BSD License", no licence field); 1.4.1 | **Declined.** It counts HTTP-call failures; the controller's breaker counts consult outcomes, excludes budget refusals, and runs its cooldown in simulated time |
+| `aiobreaker` | BSD; 1.2.0 | **Declined**, for the same reason as `pybreaker` |
+| `purgatory` | MIT; 3.0.1 | **Declined**, for the same reason as `pybreaker` |
+
+The licence of `pybreaker` and `aiobreaker` is taken from their PyPI metadata as written; their licence
+files were not read in this session.
+
 ---
 
 ## DEP-46 — Prior-art audit, October 2026: no shared-world or AI-NPC framework is adopted
@@ -8174,6 +8199,37 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 **Revisit triggers added:** a block-level `AC-8` difference on any leg; FG-e moving blocks out of the file; a world whose span exceeds 64 MiB of raw rows.
 
+---
+
+## ARC-96 — Agent players are clients: `mineworld-agent`, a Python client of the public protocol, with MCP confined to one module of it
+
+**Date** 2026-10-14 · **Status** accepted (step-27 design, operator QS27-1 … QS27-10 of 2026-10-14); written by S27-c C0, which builds the transport-free core (`mineworld_agent.Player`); the MCP module is S27-d's · **Approved by** the operator (step-27 §14.1, every recommendation accepted as written) · **Relates to** `ARC-34`, `ARC-56`, `ARC-67`, `ARC-75`, `DEP-24`, `DEP-26`, `DEP-44`; `DEP-56` (the `mcp` dependency, S27-d), `ARC-97` (seat grants and the per-seat budget, S27-a) · **Design** `.structured-coding/plans/mvp0/step-27-agent-players.md` §§3, 4.1–4.4, 5, 6; `pr-s27c-player-library.md` · **Placeholder** `ARC-S27-a`
+
+**Problem.** Humans and agents are both to be first-class players of a MineWorld world (the operator, 2026-10-14). An **agent player** is a Person whose Controller is an agent MineWorld does not run — Claude Code, Codex, a script — reaching its seat through a client process it does not own (step-27 F-S27-5). The question is where that agent's adapter lives, in which language, and what it may know, such that the server cannot tell an agent from a person (`ARC-56`), omniscience stays impossible (`INV-13`), no MCP concept enters a world, kernel, server or cognition contract, and removing the adapter leaves a valid world.
+
+**Options considered** (step-27 §4.2; external facts read 2026-10-14, step-27 §17):
+
+| Option | Verdict |
+| --- | --- |
+| **P** — a Python client under `clients/agent/` (`mineworld-agent`), on `mineworld-sdk`'s `ResumingSeat` (`DEP-44`), with the official `mcp` Python SDK confined to one module of it | **Chosen.** It reuses the proven resuming client (resume, `lagged` recovery, exactly-once perceived facts behind a caller-owned cursor, at-most-once submits) and Pydantic (`DEP-24`), from which the tool schemas also come; the Python CI legs already run real-server tests on three platforms. Cost accepted: the release bundle ships no Python (QS27-8) |
+| R-in — Rust `rmcp` inside the server process | **Rejected.** The server would speak a second client vocabulary beside `join`/`submit`/`leave`, which `server/PROTOCOL.md` §2 forbids by construction; MCP types would enter `server/`; an adapter fault would share the world's process |
+| R-beside — `rmcp` in a separate Rust client binary | **Declined for now.** The resuming client would be written a second time in Rust; revisit if the operator's live check (S27-g) shows that installing `uv` is the main obstacle for players of the bundle (QS27-8) |
+| T — the TypeScript MCP SDK | **Declined.** TypeScript is for web clients and admin tooling only (`ENGINEERING_STANDARDS.md` §3), and the resuming client would be written a third time |
+| H — no MCP library, our own JSON-RPC | **Rejected.** Rebuilding a maintained official SDK of a moving protocol needs a reason (`REUSE_POLICY.md` §12), and there is none |
+
+**Choice.**
+
+1. The adapter is a **client** in `server/PROTOCOL.md`'s sense, not a Controller Pack: it decides nothing. The Controller is the external agent; the adapter renders that Person's own `Observation` for it and turns its choices into `ActionRequest`s, one seat per connection, through `ResumingSeat`. It lives under `clients/`, is installed into no world, and no World Pack, decision list or cognition configuration names it.
+2. **MCP is a skin over a typed library.** `mineworld_agent.Player` (`seats`, `join`, `observe`, `inspect`, `events`, `wait`, `say`, `walk_to`, `move`, `stop`, `attempt`, `clock`, `leave`) takes and returns Pydantic models (strict, frozen, `extra="forbid"`), the same models the MCP module publishes as each tool's `inputSchema` and `outputSchema`. Only that one module imports `mcp`; no other package of the repository depends on it or names an MCP concept.
+3. **No REST agent API.** A non-MCP agent uses the `Player` library or the public WebSocket protocol, both first-class; a REST surface would be a second schema of the same operations, and a stateful seat cannot be held by stateless calls without re-inventing MCP's handles.
+4. **Names the adapter knows**, like every client (`ARC-34`): `talk`'s utterance payload and the payloads of `move`, `walk-to` and `walk-step` (free-form, so never offered complete). Every other action is reached through `attempt` on a complete affordance, unchanged. The adapter evaluates no requirement and adds no rule; its only local refusals are what the newest observation does not offer (exactly `offers.request`'s check), a stale offer, an unknown reference and an unknown handle, each with its own code. It paces a walk as the 2D client does, one `walk-step` per wall second while the seat's own `walking` is disclosed (`ARC-67`, `ARC-75`), and plans no route.
+5. **Credentials are launch configuration.** The invite (or, after S27-a, a seat grant) is given to the adapter when it starts; it is never a tool argument, a result, a log line or an error, and neither is the welcome's resume secret, which only the optional state directory holds.
+6. **In-world text is typed untrusted.** Every string written inside the world — an utterance, a display name, an item name — reaches the agent only as `WorldText { text, by, kind }`, and in the text rendering it is quoted between `<<<world` and `world>>>` with every `<<<` and `>>>` inside it neutralised.
+
+**Consequences.** The server is unchanged by this record (S27-a's grants and budget are `ARC-97`'s, and apply to every connection alike). `mineworld-sdk` gains one additive read-only property, `ResumingSeat.clock` (S27-c, QS27c-1), and otherwise is reused as it is. Removing `clients/agent/` changes no World Pack, System, contract, test outside the adapter's own, or recorded digest. P6's `Situation` and the adapter's `View` solve one presentation problem for two readers; when both have shipped, a review decides whether to lift the shared re-location rule into `mineworld-sdk` (step-27 R-S27-6).
+
+**Revisit** if a named agent can speak neither MCP nor the library nor the public protocol (then a further thin module over `Player`, never a server change), or under QS27-8's trigger for a single-binary adapter.
+
 ## DEP-50 — The executable guide: `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli`
 
 **Date** 2026-10-14 · **Status** accepted (design, step-25 §4.2 option E2); implemented by PR S25c (dev-dependencies only, no runtime edge) · **Approved by** the operator's step-25 rulings of 2026-10-14 (QS25-1 to QS25-10; the design's §4.2 recommendation accepted under the standing instruction) · **Relates to** `ARC-90`, `DEP-29`, `DEP-49`, `CLAUDE.md` §4 rule 16, `REUSE_POLICY.md` §§1–4, 11–12 · **Design** `.structured-coding/plans/mvp0/step-25-creator-docs.md` §§4.2, 8, 16 · **Specification** [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md)
@@ -8196,6 +8252,91 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 **Consequences.** The guide runner adds two crates to the test graph of `mineworld-cli` only. `cargo deny check licenses` must still pass (both are on the existing allow-list: MIT, Apache-2.0). The runner's TOML reading of `features.toml` uses the `toml` crate already present in `Cargo.lock`, so it adds no new crate; the workspace entry is recorded when C1 adds it.
 
 **Revisit** if `pulldown-cmark` or `snapbox` leaves maintenance, or if the guide's block grammar needs a construct CommonMark cannot express (then the grammar changes first, in `GUIDE_FORMAT.md`).
+
+---
+
+## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
+· **Approved by** the primary session's freeze of `pr-s10-p6-lm-controller.md` (2026-10-14; operator
+QP6-1, QP6-3, QP6-7; QP6-12 on the number) · **Relates to** `ARC-56`, `ARC-58`, `ARC-59`, `ARC-34`,
+`ARC-85`, `INV-10`, step-17 I-10, I-15 · **Design** `pr-s10-p6-lm-controller.md` §§5.1–5.4, §5.9 ·
+**Prior art** `docs/references/PRIOR_ART_2026-10.md` PA-10, PA-11 (reference only)
+
+**Problem.** A language model asked "what does this character do next" returns free text. Treated as a
+command, that text can name people who are not there, invent offers, forge memories, or move a person. A
+controller that is one prompt and one parse has no place to put the rules, the tests or the failure
+handling.
+
+**Options considered:**
+
+```text
+(a) one prompt, one parse; the reply is sent as the action            open to every failure above
+(b) an agent framework (Concordia, LangGraph, AI Town) as the loop   the framework owns the execution and
+                                                                      the memory model; reference only (DEP-46)
+(c) small typed parts (persona, situation, memory view, choice
+    prompt, parser, validator, intent builder); the reply is a         chosen
+    proposal the owning contracts check
+```
+
+**Choice: (c).** The controller is a Python Controller Pack. Its parts are frozen Pydantic models or pure
+functions, with no clock, randomness, environment or other seat's store read. A model's answer becomes a
+`talk` utterance or the unchanged payload of a complete affordance the server offered, and nothing else.
+The controller builds an `ActionRequest` only through `mineworld_sdk.offers`, which refuses any affordance
+not offered by the newest observation. It never builds a movement request (`ARC-32`, step-17 I-15). The
+prompt holds no entity id and no provider concept; the request's canonical JSON is the cassette key
+(`ARC-58`).
+
+**Consequences.** A model that "decides" anything else has no representable proposal (`INV-10`). Every
+answer is validated before it becomes an intent. A new social choice needs a `SocialChoice` value and a
+validation row, not a change to the kernel or the server. Nothing in the world reads the controller.
+
+**Revisit** when a second model-driven controller needs the same parts, which then move into a shared
+module, or when the offer protocol (`ARC-34`) gains a movement affordance that the controller must decide.
+
+---
+
+## ARC-73 — Failure containment: layered retry above a retry-free gateway, a per-consult deadline and cap, a per-seat breaker, and fallback by handing the seat back
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b · **Approved by** the primary session's freeze
+(2026-10-14; operator QP6-7 on the thresholds, QP6-6 on the two P5a changes, QP6-8 and QP6-9 on the
+fallback and the hold) · **Relates to** `ARC-57`, `ARC-58`, `ARC-56`, `ARC-72`, `DEP-44`, `ARC-33`,
+step-24 §8.6 · **Design** `pr-s10-p6-lm-controller.md` §§5.5–5.8, §5.13, §4
+
+**Problem.** A model fails in three different ways: the transport fails (rate limits, server errors, timeouts),
+the content is unusable (invalid JSON, a schema mismatch, an unknown person), or the world refuses a valid
+proposal (an offer that moved). Each deserves its own response. The world must never wait for a model,
+and every model call must be charged to a budget.
+
+**Options considered:**
+
+```text
+(a) one retry loop in the gateway                       breaks ARC-57: the gateway would make calls the ledger
+                                                        has not budgeted for the retry's class
+(b) one retry policy for all failures                   content and transport need different budgets
+(c) three retry layers in the controller host, above a
+    gateway that never retries; each layer has its own
+    pluggable policy; one deadline, one call cap, one
+    per-seat breaker; fallback by handing the seat back  chosen
+(d) a retry or breaker library                          DEP-44: they own the loop and the clock; declined
+```
+
+**Choice: (c).** Layers: transport (`exponential-backoff`, honouring `Retry-After`), content (`fixed`, two
+re-asks with the validation error), semantic (`fixed`, one re-plan from the newest observation). Every model
+call is one gateway call and one ledger charge. A consult ends in exactly one terminal outcome. A
+per-consult deadline (20 wall s), a cap of five calls, and the P5 budgets bound it. A `failure-rate` breaker
+per seat (window 20, minimum 10, more than 20 %, cooldown one simulated hour) stops a failing model. When
+the controller cannot decide, the seat is handed back with `leave` (only where the welcome said
+`took_over: "hosted"`), and the server's fallback model drives it. Where no in-server fallback exists, the
+seat stands for that consult and sends nothing (QP6-8). The hand-back is host state and writes no fact.
+Counters go to the controller's own log.
+
+**Consequences.** The world's facts stay valid under any model behaviour, because the world validates every
+request at dispatch (step-17 §3.6). A failing model costs at most five calls per consult and one handback
+per breaker trip. The fallback share is an acceptance criterion (AP6-4, AP6-14), not an assumption.
+
+**Revisit** when a second model seat needs a different breaker or retry shape, which becomes a registered
+policy rather than a code change, or when an idle handback (QP6-3's follow-up) is decided.
 
 ---
 
@@ -8264,3 +8405,246 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
 
 **Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
+
+---
+
+## ARC-105 — Towns declare `settlement:`; every town has a station group and a landmark, carried by role tags on plain Places
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-a · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-2, Q-S29-3, Q-S29-7, Q-S29-9) · **Relates to** `ARC-53`, `ARC-82`, `ARC-26`, `ARC-37`, `ARC-38`, `ARC-107`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6 · **Design** `.structured-coding/plans/mvp0/step-29-station-landmark.md` §§3, 4
+
+**Problem.** The operator requires a train station in every town, and a signature landmark for each (2026-10-15). No world has a station. The framework also has no way to say whether a world is a town, so it cannot refuse a town that lacks either.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Infer "town" from a tag on some place | Declined: a world that forgot the tag would silently stop being a town |
+| (b) Every world is a town, with no opt-out | Declined: test yards are not settlements, and a station there would be fake content |
+| (c) A `settlement:` key that the loader requires | Declined: every inline fixture world would change, with no safety beyond (d)'s gate |
+| (d) **A `settlement:` key, required by `mineworld validate` / `packs validate` and validated by the loader whenever present** (the `ARC-53` precedent) | **Chosen** |
+| (e) A new Entity type or System for stations | Declined: Places, tags and passages already express it. Behaviour arrives with S21's `transport` |
+
+**Choice.**
+
+1. `world.yaml` gains `settlement: { kind: town, station: <place>, landmark: <place> }` or `settlement: { kind: none }`. The World Pack loader owns it; no System or kernel does.
+2. **Role tags** have fixed meanings: `station`, `stop`, `platform`, `ticket-office` and `landmark`. A station is the group of `station`-tagged Places joined by passages to the declared hall. It contains a `stop` + `platform` Place, which is S21's stop, and a `ticket-office` Place. The origin of a stop is its platform anchor.
+3. Ten named refusals cover the contract: `SETTLEMENT_UNDECLARED`, `SETTLEMENT_MALFORMED`, `TOWN_STATION_UNKNOWN`, `TOWN_LANDMARK_UNKNOWN`, `TOWN_STATION_UNTAGGED`, `TOWN_LANDMARK_UNTAGGED`, `TOWN_STATION_NO_STOP`, `TOWN_STATION_NO_TICKET_OFFICE`, `TOWN_STATION_SCATTERED`, `TOWN_STATION_UNREACHABLE` and `TOWN_PLATFORM_ANCHOR`. The last two are checked when `movement` and `bodies`, respectively, are enabled.
+4. Reference worlds:
+   - `market-town`, `social-cafe` and `lakeside` are towns.
+   - The station is the landmark in the first two.
+   - Lakeside has a small halt, and `pier` is its landmark.
+   - `bodies-yard` declares `none`.
+5. Adding the station's places, an organization and routines shifts allocated ids. This takes **one recorded digest re-baseline**, in S29-a's C5, after 12d (Q-S29-7).
+
+**Consequences.** There is no kernel, contract or System change. A role tag grants no behaviour. S21's `transport` attaches `StopInfo` to the existing stop, and `fares` attaches its ticket shop to the `ticket-office` Place. `atlas` may seed `contains` from the station group.
+
+**Revisit** when regions (S21) allow more than one station per world, or when a settlement kind finer than `town` is needed.
+
+---
+
+## ARC-106 — The town's landmark station: the Santa Fe Depot, at real size, at the street's end, built with the town's own method
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-d, S29-e and S29-f · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1, Q-S29-4, Q-S29-5, Q-S29-8, Q-S29-10) · **Relates to** `DEP-8`, `ARC-102`, `ARC-105`, `ARC-107`, [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §§3, 4, 11, [`ART_DIRECTION.md`](ART_DIRECTION.md) §4 · **Design** step-29 §§6, 8
+
+**Problem.** The operator asked for a station that is the town's signature building, modelled on San Diego's Santa Fe Depot. It must sit in the far field's view, at street level, and be reachable on foot from spawn. The real depot is 790 m from the slice's origin, and the walkable area has a radius of 60 m. A building that can be seen but never reached is forbidden (`VISUAL_SLICE.md` §4).
+
+**Options considered.** (P-1) **At the street's west end, at real size, with the distance compressed (chosen).** (P-2) At the real 790 m, with a ≈ 700 m walkable approach: declined, because it is region scale, needs ≈ 700 m of frontage, and breaks the perf budget. (P-3) A silhouette at 790 m plus a separate near station: declined, because it draws one Place group twice and the far one is unreachable.
+
+**Choice.**
+
+1. **Placement.**
+   - The forecourt replaces the west parapet.
+   - The arch stands on the street's axis, with the east façade at about x = −62 m. This mirrors the real Broadway axis ending at the depot.
+   - The compression from 790 m is recorded in the far field's `source`.
+2. **Size.** The hall is at real size, 51.8 × 16.8 m, with a tile wainscot 2.59 m high (Wikipedia; Gaslamp Foundation). The tower height is measured from **HABS CA-1965**'s public-domain photographs, which may be committed to the 3D pack's `references/`. CC BY-SA photographs are linked, never committed.
+3. **Method and style.**
+   - One method: the slice's procedural builder and its shipped CC0 materials. The glazed tile of the domes and wainscot is our own shader.
+   - The depot is the **one sanctioned Mission Revival exception** beside the lakeside-referenced street, rendered with the same materials, palette, light and precision.
+4. **Budget.**
+   - ≤ 6 MB of new data in `3d.pck`, with a target of 0 new textures.
+   - At most +0.8 ms p95 in each existing view, and the absolute 16.7 ms and 2 048 MB gates in the new station views.
+   - A reduced hall is the reserved lever, used only at a material stop.
+
+**Consequences.** `VISUAL_SLICE.md` §4 is amended: the station becomes a required third enterable building, and the forecourt becomes the west termination. RL-e0's far-field shots are re-shot as an intended change. A rendered landmark check (LM-1, LM-2) runs on all three OSes. The 2D client binds `facade:station` to a sprite from the existing image pipeline.
+
+**Revisit** if the hall view cannot meet 16.7 ms with the built-in levers, or when S21 regions make a real-distance station reachable by travel.
+
+---
+
+## ARC-107 — The far field's `filled` slot: a reachable building recorded where it stands
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-c · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1); dated note on `ARC-102` · **Relates to** `ARC-102`, `ARC-105`, `ARC-106`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Design** step-29 §6.7; `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §5.1.6
+
+**Problem.** RL-e0's slots are `unplaced` or `reserved`. A reserved slot must lie beyond `boundary.reach_m`. The station now stands inside the boundary (`ARC-106`), and a town's far field must agree with its declared station and landmark.
+
+**Choice.**
+
+1. Format 1 gains a slot state, `{"state": "filled", "place", "bearing_deg", "distance_m", "footprint_m", "source"}`. The change is additive.
+2. A filled slot is the one far-field entry allowed inside the boundary. Massing keeps clear of its footprint.
+3. In a town's 3D far field, both slots are `filled`, and their places equal `settlement.station` and `settlement.landmark`. Otherwise the file is refused `FAR_FIELD_SLOT_TOWN { pack, world, slot }`, at validate and at client load. Under `kind: none`, `filled` is refused (`FAR_FIELD_SLOT`).
+4. Social Café's 3D `reach_m` grows from 60 to 100 m.
+
+**Consequences.** The Rust and GDScript validators change together, and RL-e0's agreement corpus gains one file per new refusal. Lakeside's 3D slots carry design content until 16f draws Lakeside in 3D.
+
+---
+
+## ARC-108 — Station fixtures show only disclosed state
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-e, S29-f and S29-g · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 approval) · **Relates to** `ARC-67`, `ARC-105`, `INV-S27-2`, step-21 §§5.3, 5.7 · **Design** step-29 §§5, 9.4
+
+**Problem.** Before trains exist (S21), a station could easily pretend: an invented timetable, an open ticket window, people waiting for a train that cannot come.
+
+**Choice.**
+
+1. **One pure rule, from disclosed components.** It is written once in `clients/shared/station/station_state.gd` and used by both clients; the agent view renders the same Observation.
+   - **The departures board** lists lines only when a `departures` record is disclosed. Otherwise it reads "No service yet".
+   - **The ticket window** is open only when its place discloses a `shop` listing a `ticket`-tagged kind.
+   - **The kiosk** is open only when the hall discloses a `shop`.
+   - **The clock** shows the disclosed world time, or nothing.
+2. **No fakes.** No routine label waits for a train before `transport` exists, and no train is drawn before S21's carriage.
+
+**Consequences.** When S21 lands, the board and window come alive with no client change. S21 must disclose `departures` to observers in `station`-tagged places, because a board in the hall cannot perceive the platform's `StopInfo` (a non-preclusion item for RT-c).
+
+---
+
+## DEP-60 — Reserved: one new CC0 texture for the station, only if a reviewed frame needs it
+
+**Date** 2026-10-15 · **Status** reserved; withdrawn at S29-d's merge if unused · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-10: ≤ 6 MB, target 0 new textures) · **Relates to** `DEP-8`, `ARC-106` · **Design** step-29 §6.4
+
+**Problem.** The depot is built from the shipped Poly Haven CC0 set. A reviewed frame might show that a material cannot be read from that set.
+
+**Choice.** At most two Poly Haven CC0 1k textures, each ≤ 3 MB and each checked under `DEP-8`. Each is added only on that evidence, and S29-d records it here, replacing this entry's status. If none is added, this entry is marked withdrawn and the number is not reused.
+
+---
+
+## ARC-98 — Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a · **Approved by** the operator's step-28 rulings QS28-1 … QS28-10 (2026-10-14) · **Relates to** `ARC-25`, `ARC-27`, `ARC-43`, `ARC-57`, `ARC-58`, `ARC-59`, `ARC-86`, `ARC-87`, `ARC-89`, `ARC-99`, `ARC-100`, `ARC-101`, `DEP-37`, `DEP-58`, `INV-4`, `INV-11`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §5.3, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§4, 6; `.structured-coding/plans/mvp0/pr-s28a-memory-home.md`
+
+**Problem.** Today each seat stores its own copy of every fact it perceived. In the 12-person `social-cafe` at seed 7 over 30 days, 86.7 % of the 84 639 distinct facts are perceived by more than one person, and the seats hold 449 726 copies, 5.3 per fact (step-28 §2, F-S28-1 and F-S28-2). Shared events must be stored once, and a person's access to them must be a right, loaded when needed (operator, 2026-10-14). The world log cannot be the shared store: a controller is a client that sees only its perceived stream (INV-6, INV-13), and the log is world truth, not a subjective layer (INV-4).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) One store per seat, as today | Declined: 5.3 copies per fact; the 20 MiB bound would hold about 45 days of undigested detail |
+| (b) Shared records in the kernel or in the world log, read by controllers | Declined: the kernel would learn what memory and a holder are (INV-12, `CLAUDE.md` §4.2), and a controller would read truth it must not read (INV-13) |
+| (c) **One cognition-side home per process: fact records keyed by `EventId` and verified by digest, and one access row per person** | **Chosen** |
+| (d) Content-addressed records keyed by a hash of the content | Declined as the key: the world already gives each fact a stable, unique id (INV-11), and a hash would add a second identity. The method is adopted (`DEP-58`) |
+| (e) Gists deduplicated by content hash | Declined: a gist is the person's own rendering and depends on that person and their name book at ingestion (I-S28-2); the saving is under 4 % of world bytes |
+| (f) Per-seat files joined by `ATTACH` in one connection | Declined: atomic commit across attached files holds only in rollback-journal mode, a restriction to defend indefinitely. One file per home gives one transaction |
+| (g) A reference count stored on each record | Declined: a stored count can drift from its rows. The anti-join over the access rows is exact by construction |
+
+**Choice.** Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right. Fact records are stored once per home, keyed by `EventId` and verified by digest. Access rows are per person. GC is the anti-join in the releasing transaction. There is no kernel, server or protocol change in MVP-0.
+
+The concrete rules that follow, stated in step-28 §§4 and 6: the home is one SQLite database per world instance and cognition process, and it is the only writer of its tables. A fact record exists exactly while at least one access row cites its key (I-S28-1, I-S28-4). Insert-or-verify raises `ConflictingFact` on a digest difference. Each ingest call and each retention pass is one `BEGIN IMMEDIATE` transaction. Forgetting removes an access row or demotes it into a private summary; it never redirects to a peer's copy.
+
+**Why not ourselves, and why not them.** Storage and transactions are commodity, so SQLite is reused (`DEP-37`, `DEP-58`). The access rule, the garbage-collection rule and the determinism contract are MineWorld's own, because no framework's execution model may own them (`REUSE_POLICY.md`).
+
+**Interface that isolates it.** `mineworld_cognition.memory.home` (`MemoryHome`, `SeatView`). The fact and access tables are written only by the home.
+
+**Limitation accepted.** Sharing is per process in MVP-0. Seats in different processes have different homes, so duplication is bounded by the number of processes, not of persons (step-28 §6.6). Cross-process sharing is MVP-1, through the server as the cold tier (QS28-2, path (i)). A cognition-side shared service is declined as the default because it cannot verify perception.
+
+**Revisit** when MVP-1 opens cross-process sharing (S28-h), or when a world needs more than one process per instance.
+
+---
+
+## ARC-99 — A person's size is the seat view, counting shared records in full
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a and S28-b · **Approved by** the operator's ruling QS28-4 (2026-10-14) and the 20 MiB default (operator, 2026-10-14) · **Relates to** `ARC-59`, `ARC-86`, `ARC-87`, `ARC-98`, `ARC-100`, `INV-13`, `pr-fg-b2-size-trigger.md`, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3, [`MODULE_SPEC.md`](MODULE_SPEC.md) §5.2 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§3 (I-S28-2, I-S28-3, I-S28-6), 7
+
+**Problem.** Once a fact record is shared, the bound must say what it measures. A fair share (bytes divided by holders) couples one person's memory to everyone else's perception: Alice's size would fall when Bob perceives a scene and rise when he forgets it, which could trigger Alice's size pass and change what Alice remembers because of Bob. That breaks I-S28-3, makes Alice's memory a function of the town rather than of her perception (`ARC-59`), and makes a shared Alice differ from a standalone Alice (I-S28-2).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Fair share of each shared record (bytes ÷ holders) | Declined: the coupling above |
+| (b) Count only the private rows | Declined: the records a person holds would be uncharged, and the 20 MiB promise would not bound what the person remembers |
+| (c) **The seat view, with every held record counted in full** | **Chosen** |
+
+**Choice.** A person's size is the seat view, counting shared records in full. Sharing is transparent (I-S28-2, I-S28-3) and is a deployment setting, not a world rule. The bound applies to that size. Physical bytes are at most the sum of the seat views, and that sum is at most the number of seats times the bound (I-S28-6). The physical share of a record is reported by `inspect bytes` as a diagnostic and is never charged.
+
+**Consequences.** The 20 MiB promise keeps its literal meaning: each person may remember up to 20 MiB, measured as if alone. At the positional encoding of `ARC-101` that is about 106 days of undigested detail, against about 45 at today's encoding (step-28 §8.3). Sharing still saves the world's disk: measured on social-cafe at seed 7 over 30 days, the world's physical bytes are 59 % of the logical sum at today's encoding and 23 % with `ARC-101` (step-28 §§7.1, 8.2).
+
+**Limitation accepted.** The saving is measured only on 12-person worlds. No World Pack on `main` has more than 12 people (F-S28-11), so the saving at 100 people is unmeasured until the S28-g fixture exists.
+
+**Revisit** when a world with more than 12 people is measured (AS28-17), or when a world-level budget is proposed, which would need its own decision.
+
+---
+
+## ARC-100 — Memory scopes: one typed interface, entry-point registration, host-written tables, `SeatView`-only reads, no access grants
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-c and S28-d · **Approved by** the operator's rulings QS28-3, QS28-6, QS28-7 and QS28-10 (2026-10-14) · **Relates to** `ARC-85`, `ARC-86`, `ARC-98`, `ARC-99`, `FGb-3`, `FGb-4`, P4 invariants I-3 and I-10, `INV-4`, `INV-13`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §5.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§5, 12, 15 (AS28-2, AS28-14, AS28-15)
+
+**Problem.** Operators ask for person, town, place and item, and user-defined memory (for example `organization`). Each is a different way of organising what a person perceived, and none is a different source of knowledge. A "town memory" that a person could read without perceiving it would be INV-13's omniscience by another name. A user-defined scope must also be able to extend memory without editing the kernel or cognition internals (R-11).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Each scope a bespoke module with its own write path and access rule | Declined: each would be a second access rule |
+| (b) A scope may grant access beyond perception, for example an organization's archive readable by all members | Declined (QS28-7): knowledge reaches a member as a world fact that a System decides and perception delivers |
+| (c) **A scope is indices, private rows and a recall section over `SeatView`, behind one typed interface and an entry point** | **Chosen** |
+| (d) Scopes as application tenancy, with model-decided writes (mem0) | Declined (`DEP-58`) |
+| (e) Model-managed paging between memory tiers (Letta) | Declined (`DEP-58`): not a deterministic derivation (`ARC-59`) |
+
+**Choice.** Memory scopes: one typed interface, entry-point registration, host-written tables, `SeatView`-only reads, no access grants. Entity-anchored memory is fed from perception, not the log.
+
+The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scopes`, with `index` (pure), `recall` (reads only through the seat view) and `account` (the scope's share of the seat view). Registration is through the group `mineworld.memory_scopes`. A scope receives no connection, path, clock or gateway, and only the home writes (AS28-14). The log-derived place history is a test and tool oracle only (QS28-6).
+
+**Limitation accepted.** A scope can organise only what perception delivered. Information that reaches people outside perception does so as a world fact, decided by a System and kept by the log (step-28 §5.1). An anchored scope therefore shows what a person saw happen at a place, not the place's objective history.
+
+**Revisit** when a scope needs a write that the home cannot express, or when a scope package must read something other than a seat view.
+
+---
+
+## ARC-101 — Canonical schema-4 encoding: positional rows, on which the bound and determinism are defined
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a. The schema number 4 follows the 2026-10-15 dated note of step-28 (F-S28a-1), because FG-b2 shipped schema 3 after the step was written · **Approved by** the operator's ruling QS28-5 (2026-10-14: "换") · **Relates to** `ARC-25`, `ARC-27`, `ARC-86`, `ARC-87`, `ARC-98`, `ARC-99`, `DEP-37`, `DEP-58` · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§8.1, 8.2, 10, 15 (AS28-12); the concrete grammar is fixed by `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §5.4
+
+**Problem.** The v2 canonical form writes sorted-key JSON objects with a table name on every row. About 41 % of each `l0` line is syntax (step-28 F-S28-9), and the memory bound and the determinism contract are both defined on those bytes. At the v2 encoding, 20 MiB holds about 45 days of undigested detail per person.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Keep sorted-key JSON objects (the v2 form, or a canonical-objects layout) | Declined: about 3.3 MB per world-day against 1.29 MB, and the bound holds about 45 days |
+| (b) **Positional rows: `[table, c1, c2, …]` in schema order, ids unpadded, a 128-bit digest in the record** | **Chosen** (QS28-5) |
+| (c) A binary serialization library's format | Declined: the library would own the determinism contract (`REUSE_POLICY.md`), and the canonical form is ours to define |
+| (d) The full 256-bit digest in each record | Declined for the record: the 128-bit digest is kept, and the full digest remains the re-delivery check inside the transaction, where it is not dumped (≈ 90 KB per world-day, +7 %, if dumped) |
+
+**Choice.** Canonical schema-4 encoding (QS28-5, ruled 2026-10-14): positional rows, which the bound and determinism are defined on. Each row is `[table, c1, c2, …]` in schema order. The encoding is defined once in `memory.home`, and it is used for the bound and for determinism.
+
+**Consequences.** On social-cafe at seed 7 over 30 days, the world-day total falls to 1 291 514 B against 5 588 338 B at v2 (−77 %), and 20 MiB holds about 106 days of full detail instead of about 45 (step-28 §§8.2, 8.3). The dump is a determinism artefact and is harder to read by hand; `mineworld-memory inspect` is the readable surface.
+
+**Limitation accepted.** The record keeps a 128-bit digest, not the full 256-bit digest. The full digest is checked in every transaction, so a difference is still caught when a seat is delivered, but it is not in the dump.
+
+**Revisit** when a schema change is needed, or when a tool outside MineWorld must read the dump.
+
+---
+
+## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
+
+**Date** 2026-10-14 · **Status** accepted (considered 2026-10-14, step-28 §16); no new dependency is added by this record. Each licence marked **verify** in step-28 §16 is confirmed by the PR that first relies on it · **Approved by** the step-28 frozen design · **Relates to** `DEP-37`, `ARC-98`, `ARC-100`, `ARC-101`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §§11–12, 15 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §16
+
+**Problem.** Shared memory needs storage, content addressing, tiered loading and pluggable scopes. `CLAUDE.md` §4 (rule 16) requires each candidate to be checked in both directions: whether a mature wheel is being reinvented, and whether an existing wheel is being forced where it does not fit.
+
+**Options considered** (verdicts from step-28 §16).
+
+| Candidate | Verdict |
+| --- | --- |
+| SQLite (`sqlite3`, `DEP-37`) | **Keep.** One file per home, FTS5, incremental vacuum |
+| Content-addressed stores (Git objects, IPFS / `multiformats`, Perkeep, restic, borg) | **Adopt the method, decline the code.** Objects already have a stable world id (`EventId`); a hash key would add a second identity |
+| Ref-counted blob stores (`diskcache`, LMDB-backed stores) | **Decline.** A stored refcount can drift from its references; the anti-join over access rows is exact |
+| Generative Agents memory stream (Park et al., 2023) | **Reference only**; each agent's stream is its own |
+| MemGPT / Letta tiered memory | **Adopt the method, decline the dependency.** Hot and cold tiers and load-when-needed are the method. Shared blocks are agent-writable text, a knowledge channel outside the world, and model-managed paging is not deterministic |
+| Zep / Graphiti | **Decline.** Model-extracted triples are not a deterministic derivation, it needs a graph server, and its sharing is by tenant, not by perception |
+| mem0 | **Decline.** Its scopes are application tenancy and its writes are model-decided. Scopes as first-class configuration are adopted (`ARC-100`) |
+| Forcing an existing wheel | Not done. No framework's execution model owns our transactions, access rule or determinism |
+
+**Choice.** Build on SQLite and P4/FG-b; adopt the methods of content addressing and tiered memory; decline Letta, Zep, Graphiti and mem0 as runtime dependencies.
+
+**Why not them.** Each declined candidate either makes model output the source of stored knowledge, or gives access by tenant rather than by perception. Both conflict with INV-13 and `ARC-59`.
+
+**Revisit** when the MVP-1 cold tier (S28-h) or an embedding-based scope is proposed (step-28 §18). Either needs a `DEP` record of its own.

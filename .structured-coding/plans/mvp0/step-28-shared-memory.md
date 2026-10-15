@@ -39,6 +39,11 @@ sealed world log), [`pr-s10-p6-lm-controller.md`](pr-s10-p6-lm-controller.md) (P
 The records are in §12, and S28-0 writes them into `docs/DECISIONS.md`. The next free ids are `ARC-102` and
 `DEP-59`.
 **Base:** `origin/main` merged in at `85a91d0` (#201 FG-c, #202 kill/resume fix).
+**Dated note, 2026-10-15 (bounded wording correction, S28-a design F-S28a-1; requested by the primary).** FG-b2
+(#213) shipped the per-seat store as schema 3 after this step was written. The home is therefore **schema 4**
+throughout. Schemas 2 and 3 are refused with `UnsupportedStoreSchema(found, wanted=4)`, and C-2's golden
+renders come from the schema-3 code. Rows that record measurements of the schema-2 store (§2, §8.2) keep their
+"v2" labels, because those are what was measured. The questions as asked (§14.2) are kept verbatim.
 **PR labels:** `S28-0`, `S28-a` … `S28-h` (§11); start conditions and implementers in §11.1.
 **Scope of this file.** It is the only file this session writes. Edits to the specifications, `docs/DECISIONS.md`
 and `overall.md` are listed in §13 for the primary session to apply.
@@ -93,7 +98,7 @@ before its own freeze.
 8. **There is no kernel, contract, server or protocol change in MVP-0.** Sharing across processes and
    machines is MVP-1. Its recommended path is the server serving already-perceived facts by id under the
    audience rule it already applies (§6.6). No new knowledge crosses that boundary.
-9. **Migration.** Schema v2 is refused by name and the store is rebuilt from the perceived stream, as
+9. **Migration.** Schemas 2 and 3 (the per-seat stores of FG-b and FG-b2) are refused by name and the store is rebuilt from the perceived stream, as
    QFGb-7 did. There is no importer and no compatibility layer (§10).
 10. **Debuggability is a deliverable.** `mineworld-memory inspect` shows four things: what a person can
     access and why; what was forgotten, and by which policy and pass; the bytes per scope; and every recalled
@@ -244,7 +249,7 @@ document's meaning: a Person's subjective memory, controller-owned (§5.3). `Eve
 | **fact record** | The shared, perspective-free index of one perceived fact, keyed by `EventKey`. It is a cognition-side copy of envelope fields, not world state. |
 | **access row** | One person's holding of one fact record, carrying that person's rendering of it. This is P4's L0 record minus the shared columns. |
 | **private layer** | A person's own rows: access rows, episodes, chapters, stable facts, names, forgotten set, pass log, summaries' prose, and scope-private rows. |
-| **seat view** | The projection of a home onto one person: their private layer joined with the fact records they hold. It is canonically dumpable, and its dump is the standalone v3 store. |
+| **seat view** | The projection of a home onto one person: their private layer joined with the fact records they hold. It is canonically dumpable, and its dump is the standalone schema-4 seat view. |
 | **memory scope** | A plug-in that adds indices, private rows and a recall section over a seat view (§5). |
 | **memory stack** | The scopes, policy and parameters a world selects per person (§5.3). |
 
@@ -295,8 +300,8 @@ view(s).l0_who  = fact_who(k, i, e) for k held by s, e ≠ me(s)    → counterp
 view(s).<t>     = <t> rows with seat = s, seat column removed     for every private table t
 ```
 
-`SeatView.dump()` writes these tables, in v3 canonical form (§8.2), in the order P4's `_DUMPED` fixes. It
-**is** the standalone v3 store's dump. This is what I-S28-2 compares, what the bound measures (§7), and what
+`SeatView.dump()` writes these tables, in schema 4's positional canonical form (§8.2), in the order P4's `_DUMPED` fixes. It
+**is** the standalone schema-4 seat view's dump. This is what I-S28-2 compares, what the bound measures (§7), and what
 `export` writes (§6.6).
 
 ### 4.5 Dynamic loading: the context builder
@@ -351,7 +356,7 @@ tables, the errors and the tests.
 
 - **Owner:** `mineworld_cognition.memory.scopes.world` (`fact`, `fact_who`, insert-or-verify, GC).
 - **Placement parameter `sharing`:**
-  - `none`: each seat gets its own home, and the result is identical to a standalone v3 store;
+  - `none`: each seat gets its own home, and the result is identical to a standalone schema-4 seat view;
   - `home` (default): all seats of the process share one home;
   - `service`: MVP-1, §6.6.
 - **Uninstalling it is not possible.** Envelope fields must live somewhere. "Turning the town memory off" is
@@ -635,8 +640,8 @@ parameters (FGb-5). The home dump is therefore a function of the seats (I-S28-5)
 
 - **MVP-0:** one home per cognition process. Seats in different processes have different homes, each with its
   own fact records. That duplication is bounded by the number of processes, not of persons.
-- **Moving a seat between processes:** `mineworld-memory export HOME --seat alice > alice.v3` writes the seat
-  view, the standalone v3 store. `import` splits it into records (insert-or-verify) and private rows. Export
+- **Moving a seat between processes:** `mineworld-memory export HOME --seat alice > alice.seat` writes the seat
+  view, the standalone schema-4 seat view. `import` splits it into records (insert-or-verify) and private rows. Export
   then import is byte-identical by I-S28-2 (AS28-11). Rebuild from the perceived stream also works.
 - **MVP-1 (QS28-2, ruled: path (i))**. The two paths considered:
   - **(i) The server as the cold tier (ruled).** A protocol addition (not kernel): a seat may ask
@@ -740,8 +745,8 @@ Worked bounds:
 | Layout | Private per person-day | Shared per world-day | **World-day total** | vs v2 |
 | --- | --- | --- | --- | --- |
 | v2 today (P4/FG-b, per-seat copies) | 465 695 B (all) | — | **5 588 338 B** | 1.00 |
-| v3, shared records, canonical objects | 210 776 B | 789 849 B | **3 319 161 B** | 0.59 |
-| v3, shared records, positional (QS28-5) | 86 927 B | 248 385 B | **1 291 514 B** | 0.23 |
+| schema 4, shared records, canonical objects | 210 776 B | 789 849 B | **3 319 161 B** | 0.59 |
+| schema 4, shared records, positional (QS28-5) | 86 927 B | 248 385 B | **1 291 514 B** | 0.23 |
 
 The positional row's shared column uses a 128-bit digest. With the full 256-bit digest add ≈ 90 KB per
 world-day (+7 %).
@@ -781,7 +786,7 @@ is the table's 41 % or 77 %. AS28-12 fixes the targets before measuring.
 | ID | Criterion | Applies to |
 | --- | --- | --- |
 | **C-1 Sharing is invisible** | The surface (1) request bytes, the surface (2) sections and the surface (3) report are identical with `sharing: none` and `home`, for every seat, for 200 seeded queries per seat at every pass point | LLM and non-LLM |
-| **C-2 Migration keeps the context** | The rendered sections of the default stack equal the v2 golden renders captured at S28-a's C0 from the same perceived streams, for every query, at every pass point at which v2 performed no bound-forced removal | LLM and non-LLM |
+| **C-2 Migration keeps the context** | The rendered sections of the default stack equal the golden renders captured from the schema-3 code at S28-a's C1 from the same perceived streams, for every query, at every pass point at which schema 3 performed no bound-forced removal | LLM and non-LLM |
 | **C-3 Place recall agrees with the place and the log** | Every line of a `place` section cites only held facts whose envelope anchors that place in a selected role. Its `visits`, `first_at` and `last_at` equal a recount over the person's `mineworld perceived` export filtered by that place, up to the forgotten set. Every cited fact appears in the objective place history derived from the log by the test oracle (a test-side filter over `mineworld perceived` and the save, never memory's input) | Both |
 | **C-4 Summaries never contradict retained detail** | For every episode and chapter: (a) its structural fields (day, place, counterparts, record count) equal a recomputation from its cited facts when it was written; (b) no retained L0 record lies inside a merged container's ranges (FGb-1); (c) a retained record and the unit covering it agree on day and place. For FG-c prose (d): every person name in the prose is a known name of a counterpart of the group, and every place name is the group's place. Otherwise the host takes the fallback for that group and records `prose-contradiction` (FU-S28-1, applied by S28-b in FG-c's merged code, §11.1) | Both; (d) only LLM |
 | **C-5 One fact, one truth** | Two persons who recall the same fact see the same time, place and participants in their lines' citations. This holds trivially through one record, and is checked against digests | Both |
@@ -791,17 +796,17 @@ is the table's 41 % or 77 %. AS28-12 fixes the targets before measuring.
 
 ---
 
-## 10. Migration from P4/FG-b schema v2
+## 10. Migration from P4/FG-b schemas 2 and 3
 
-- **Clean change, no compatibility debt** (`CLAUDE.md` §4.12; precedent QFGb-7). The home is schema v3. A v2
-  per-seat file is refused by name with `UnsupportedStoreSchema(found=2, wanted=3)`, and the message gives the
+- **Clean change, no compatibility debt** (`CLAUDE.md` §4.12; precedent QFGb-7). The home is schema 4 (FG-b2 shipped schema 3, so the next number is 4; F-S28a-1). A schema-2 or schema-3
+  per-seat file is refused by name with `UnsupportedStoreSchema(found, wanted=4)` (found ∈ {2, 3}), and the message gives the
   rebuild instruction. Memory is a derivation, so rebuilding from a null cursor (`perceived: { since: null }`)
   reproduces it, and FG-c prose is reproduced with its recordings.
 - **No importer.** An importer would be code kept for a format that has no stable contract.
 - **P6's paths:** `store/<instance>/<seat>.sqlite` becomes one `store/<instance>/memory.sqlite`. P6's
   `<seat>.resume` and `<seat>.decisions.jsonl` are unchanged (they are not memory). S28-f wires it.
-- **Golden renders** (C-2) are captured from v2 code at S28-a's C0 and committed as test fixtures, so the
-  oracle survives v2's deletion.
+- **Golden renders** (C-2) are captured from the schema-3 code at S28-a's C1 and committed as test fixtures, so the
+  oracle survives the per-seat store's deletion.
 
 ---
 
@@ -814,7 +819,7 @@ is frozen at commit level, with the primary session reviewing (memory: *design o
 | PR | Scope | Depends on | Implementer | MVP (QS28-1) |
 | --- | --- | --- | --- | --- |
 | **S28-0** | Spec edits (§13): CORE_CONCEPTS §5.3 (shared storage is not shared knowledge), ARCHITECTURE §9.3 (homes, seat views, the size rule), MODULE_SPEC §5.2 and a new §5.3 (memory scopes), DECISIONS `ARC-98` … `ARC-101`, `DEP-58`. Docs only | this step frozen | Opus / primary | 0 |
-| **S28-a** | `memory.home` and `memory.scopes.world`: schema v3, the fact, fact_who and access tables, insert-or-verify, `SeatView` and its dump, positional canonical form (QS28-5, ruled), one transaction per ingest, GC, `verify`, `HomeBusy`, v2 refusal. The transparency harness (12 seats, `none` vs `home`, frames, interleavings, kills). Golden v2 renders | FG-b2 merged | **Opus** | 0 |
+| **S28-a** | `memory.home` and `memory.scopes.world`: schema 4, the fact, fact_who and access tables, insert-or-verify, `SeatView` and its dump, positional canonical form (QS28-5, ruled), one transaction per ingest, GC, `verify`, `HomeBusy`, refusal of schemas 2 and 3. The transparency harness (12 seats, `none` vs `home`, frames, interleavings, kills). Golden renders from the schema-3 code | FG-b2 merged | **Opus** | 0 |
 | **S28-b** | The retention host on seat views: items, execution with GC, FG-b2's size trigger on the seat view, FG-c prose in the home, forgotten-range attribution, C-4 (a)–(c). **Plus the FG-c follow-up FU-S28-1** (C-4 (d), below) in FG-c's merged code | S28-a; FG-c (#201, merged) | **Opus** | 0 |
 | **S28-c** | `MemoryScope` interface, `ScopeRegistry` (entry points), `person` and `world` as scopes, selection through `decisions.yaml` `memory.scopes` (a small Rust reader addition beside DL-a's `MemoryPolicyChoice`), parameter models, named errors, section ceiling checks, the generated reference pages (25b) | S28-b; 25a (#200) | Haiku | 0 |
 | **S28-d** | The `anchored` scope with `place` and `item` entry points; `Rendered.anchors`; the recall section; C-3 with its test oracle | S28-c | Haiku | 0 |
@@ -841,7 +846,7 @@ Common to every PR:
 | PR | Start condition (all must hold) | PR design by | Implementer | Reviewer | MVP | Parallel with |
 | --- | --- | --- | --- | --- | --- | --- |
 | S28-0 | Step frozen | — (step doc is its design) | Opus (primary or a docs agent) | primary | 0 | S28-a's PR design |
-| S28-a | S28-0 merged. **FG-b2 merged** (bound, size trigger). Golden v2 renders captured at C0 from that `main` | Opus | **Opus** | primary + an Opus logic review | 0 | — |
+| S28-a | S28-0 merged. **FG-b2 merged** (bound, size trigger). Golden renders captured from the schema-3 code at C1 from that `main` | Opus | **Opus** | primary + an Opus logic review | 0 | — |
 | S28-b | S28-a merged. FG-c already merged (#201, `85a91d0`) | Opus | **Opus** | primary + an Opus logic review | 0 | S28-c's PR design |
 | S28-c | S28-b merged. S25 25a (#200) merged (generated-reference machinery). 25b's page list known (coordinate with S25) | Opus | Haiku | primary | 0 | S28-e |
 | S28-d | S28-c merged | Opus | Haiku | primary | 0 | S28-e |
@@ -877,7 +882,7 @@ re-records none silently. FG-c's design document gets a pointer to this follow-u
   (I-S28-2, I-S28-3) and is a deployment setting, not a world rule.
 - **`ARC-100` — Memory scopes:** one typed interface, entry-point registration, host-written tables,
   `SeatView`-only reads, no access grants. Entity-anchored memory is fed from perception, not the log.
-- **`ARC-101` — Canonical v3 encoding** (QS28-5, ruled 2026-10-14): positional rows, which the bound and
+- **`ARC-101` — Canonical schema-4 encoding** (QS28-5, ruled 2026-10-14): positional rows, which the bound and
   determinism are defined on.
 - **`DEP-58` — Reuse verdicts** (§16): build on SQLite and P4/FG-b; adopt the methods of content addressing
   and tiered memory; decline Letta, Zep, Graphiti and mem0 as runtime dependencies.
@@ -960,7 +965,7 @@ open.
 | **AS28-9 Physical ≤ logical** | At every pass point, `MemoryHome.dump()` length ≤ Σ seat-view dump lengths, and every seat view ≤ its bound. With `keep-all` everywhere, the bound holds and physical ≤ N × bound. |
 | **AS28-10 Cassettes** | P6b's recorded cassettes (recorded with v2, or with `sharing: none`) replay under `home` with zero `CassetteMiss` and identical decision logs. |
 | **AS28-11 Export / import** | `export` then `import` of every seat into a fresh home gives a home dump equal to the original's. |
-| **AS28-12 Efficiency targets** | On social-cafe, seed 7, 30 days, before retention, the home's world-day bytes in the v3 positional encoding (QS28-5, ruled) are ≤ 0.30 × v2's; the canonical-objects layout is not built. Steady state at 300 days (nightly): physical ≤ 0.70 × Σ logical. |
+| **AS28-12 Efficiency targets** | On social-cafe, seed 7, 30 days, before retention, the home's world-day bytes in the schema-4 positional encoding (QS28-5, ruled) are ≤ 0.30 × the per-seat stores'; the canonical-objects layout is not built. Steady state at 300 days (nightly): physical ≤ 0.70 × Σ logical. |
 | **AS28-13 No truth, no kernel** | Source scan: no import of `persistence`, no save path and no `sqlite3.connect` outside `memory.home` in `memory/` or `forgetting/`. Diff scan: no change under `kernel/`, `contracts/`, `server/` or `server/PROTOCOL.md` in S28-a … S28-g. |
 | **AS28-14 Scopes write nothing** | Scope modules receive no connection, path, clock or gateway (signature scan). Only the home executes SQL writes (grep for `INSERT` / `DELETE` outside `memory.home` and the person scope's ingest). |
 | **AS28-15 Degradation** | Removing `place` from a stack, uninstalling its package (`UnknownScope` named with the installed ids), and reinstalling it all behave as §5.7 states. A rebuilt index is identical to an uninterrupted one. The world's save and `mineworld replay` are unaffected throughout. |
