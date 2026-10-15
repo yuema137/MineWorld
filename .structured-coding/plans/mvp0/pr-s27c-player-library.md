@@ -1,13 +1,15 @@
 # PR S27-c — The `Player` core library (`clients/agent/`, `mineworld-agent`, no MCP)
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary session; operator QS27c-2; rulings §14.1)
 
 ```text
-Design revision:        revision 1 (2026-10-14), DRAFT
+Design revision:        revision 2 (2026-10-14), FROZEN: revision 1 with §14.1's rulings applied
 Author:                 S27-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s27abc, branch docs/s27abc-designs,
                         planning base origin/main @ df77b27
-Approved by / evidence: — (not frozen; the primary session freezes, overall.md §5 ruling 9)
+Approved by / evidence: the operator answered QS27c-2 directly in the primary session on 2026-10-14
+                        ("换成新标准"); the primary session ruled QS27c-1 and QS27c-3 and froze this
+                        design itself (§14.1)
 Implementation base:    origin/main at C0; C0 records the commit and whether S27-a / S27-b have merged
 Start condition:        now (step-27 §11.4: "Needs only the merged SDK (P3, P3b)"), on the primary
                         session's dispatch, after this design is frozen

@@ -1,13 +1,15 @@
 # PR S27-b — `group-activity` offers its four empty-payload actions complete
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary session; operator QS27b-1; rulings §14.1)
 
 ```text
-Design revision:        revision 1 (2026-10-14), DRAFT
+Design revision:        revision 2 (2026-10-14), FROZEN: revision 1 with §14.1's rulings applied
 Author:                 S27-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s27abc, branch docs/s27abc-designs,
                         planning base origin/main @ df77b27
-Approved by / evidence: — (not frozen; the primary session freezes, overall.md §5 ruling 9)
+Approved by / evidence: the operator answered QS27b-1 directly in the primary session on 2026-10-14
+                        ("允许，只限这个原因"); the primary session ruled QS27b-2, accepted B2's added
+                        stale-section stop rule, and froze this design itself (§14.1)
 Implementation base:    origin/main at B0; B0 records the commit
 Start condition:        now (step-27 §11.4: "Now. Independent"), on the primary session's dispatch, after
                         this design is frozen

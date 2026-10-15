@@ -1,13 +1,14 @@
 # PR S27-a — Seat grants and a per-seat request budget (server, protocol)
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary session; rulings §14.1)
 
 ```text
-Design revision:        revision 1 (2026-10-14), DRAFT
+Design revision:        revision 2 (2026-10-14), FROZEN: revision 1 with §14.1's rulings applied
 Author:                 S27-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s27abc, branch docs/s27abc-designs,
                         planning base origin/main @ df77b27
-Approved by / evidence: — (not frozen; the primary session freezes, overall.md §5 ruling 9)
+Approved by / evidence: the primary session ruled QS27a-1 and QS27a-2 and froze this design itself,
+                        2026-10-14 (§14.1); the step's rulings QS27-1…10 are the operator's
 Implementation base:    origin/main at C0; C0 records the commit
 Start condition:        now (step-27 §11.4: "No S27 dependency; S11-E not required"), on the primary
                         session's dispatch, after this design is frozen
