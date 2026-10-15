@@ -15,10 +15,11 @@ use headless::{PACK, Tables, deterministic, fresh, lines, mineworld, stderr, std
 
 const SEED: &str = "7";
 
-/// The opt-in decision list that puts every seat on `motivated` (`worlds/social-cafe/decisions-motivated.yaml`).
+/// The opt-in decision list that puts every seat on `motivated`
+/// (`cognition/motivated/examples/social-cafe-all-motivated.yaml`).
 const ALL_MOTIVATED: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../worlds/social-cafe/decisions-motivated.yaml"
+    "/../../cognition/motivated/examples/social-cafe-all-motivated.yaml"
 );
 
 /// `run` for `days` with alice and bob on `motivated`, kept in `save` when given; its stdout.

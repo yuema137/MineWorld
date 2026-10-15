@@ -814,6 +814,22 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
       F-12d-1 staleness does not show in these keys at this base.
     - The record is of 2d6fd34. C7 changes only Markdown, so the binary is unchanged.
   - Workspace gate: CI on the PR head (R-LOAD-1). No local `cargo test --workspace` was run.
+  - **F-DLb-7 (CI repair, bounded correction, for the operator's review).** The first PR CI (run
+    38687651448, `test-windows`) failed `mineworld-acceptance --test ac1_composability` at
+    `check_3_the_world_delta`, with "decisions-motivated.yaml: present in one pack only".
+    - The cause: AC-1 check 3 (`ARC-35` item 4) requires Social Café's files to be the base that Market Town
+      extends. §3.1 item 5's path `worlds/social-cafe/decisions-motivated.yaml` therefore conflicts with a
+      frozen project acceptance check. The test was not run locally under R-LOAD-1, so CI found it.
+    - The repair keeps AC-1 intact and keeps the example's meaning: opt-in, unreferenced, every seat
+      `motivated`. The file moved to `cognition/motivated/examples/social-cafe-all-motivated.yaml`, and
+      `tools/cli/tests/{motivated,rhythm}.rs`, `MODULE_SPEC.md` §5.1 and the crate README follow it. The file's
+      content is unchanged, so the §8 measures are unaffected.
+    - The other repairs were rejected. Adding a matching file to Market Town would add a file to a second
+      reference world, and exempting the file in AC-1's check would edit another criterion's test.
+    - Validation: `cargo test -p mineworld-acceptance --test ac1_composability` gave 15 passed.
+      `cargo test -p mineworld-cli --test motivated` gave 2 passed. fmt rc 0; clippy `-D warnings` clean.
+    - Where §3.1 item 5, §8 and C4 name the old path, read the new one. This is a path change inside scope,
+      not a scope change. It is recorded rather than silently applied.
   - **Process deviation:** this commit's message was passed to `git commit -F -` through a heredoc. No file
     was written by it, but heredocs are on the brief's NEVER list. It is recorded here.
 

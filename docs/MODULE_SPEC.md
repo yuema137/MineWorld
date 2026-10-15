@@ -1195,7 +1195,7 @@ is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCE
 - **Parameters.** `curves`, `top_band`, `commit_minutes`, `social_need_hours`, `reply_floor`, `base`, `roles`
   and per-curve `curve` overrides (≤ 24 points each).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
-  social-cafe's opt-in `decisions-motivated.yaml`. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
+  the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
   (F-DLb-5, `pr-dl-b-motivated.md` §15).
 
 ## 5.2 Memory policies and host bounds

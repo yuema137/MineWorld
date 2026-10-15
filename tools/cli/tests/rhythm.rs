@@ -43,7 +43,7 @@ const DAY: i64 = 86_400;
 const LATTICE: i64 = 900;
 const ALL_MOTIVATED: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../worlds/social-cafe/decisions-motivated.yaml"
+    "/../../cognition/motivated/examples/social-cafe-all-motivated.yaml"
 );
 /// The ATUS table the oracle reads; the test does not depend on the model crate for it.
 const ATUS: &str = include_str!(concat!(
