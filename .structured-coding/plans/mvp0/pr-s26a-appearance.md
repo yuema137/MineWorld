@@ -942,7 +942,7 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | base adf6d49 (commit recorded in the handoff) | [x] | [x] | [x] |
-| C1 | — | [ ] | [ ] | [ ] |
+| C1 | (this commit) | [x] | [x] doc checks PASS (headings, decision ids); `grep -n "^## ARC-91"` 1 line | [x] terms exact; section and ARC-91 carry no renderer concept in the world's half |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |

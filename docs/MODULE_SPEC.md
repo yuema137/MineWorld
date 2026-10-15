@@ -630,6 +630,7 @@ location:                  # optional. Requires the `presence` system.
     z: 0
   facing: 180000           # optional: integer millidegrees
 name: Alice Moreau         # a section owned by the `naming` system (below)
+appearance: { look: alice-moreau }   # a section owned by the `appearance` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
@@ -717,11 +718,15 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has seven sections:
+or the pack is refused. MVP-0 has eight sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+appearance appearance people  { look: <key> }: 1–48 bytes of a–z, 0–9 and '-'; unknown keys refused.
+                              An opaque key naming the person's appearance, which a Presentation Pack
+                              resolves (`ARC-92`); never a mesh, file, colour or height. Public:
+                              disclosed to whoever perceives the person (`ARC-91`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
