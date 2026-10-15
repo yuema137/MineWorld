@@ -14,11 +14,13 @@ the gates and acceptance are frozen at step level; progress, evidence, findings 
 writable. The step freeze does not authorize implementation, a Meshy call or an OpenAI call: each PR is
 detailed to the commit and frozen in turn (`CLAUDE.md` §3.1), and starts under §12.1's start condition, in
 a fresh session. Superseded lifecycle: `STEP DESIGN (DRAFT) — awaiting primary-session and operator review`.
-**Amendment (2026-10-15): `DRAFT` — pluggable character sources and per-world casting data** (§§5.6–5.8, 7.4b,
-12.3, AC-S26-11…13, §15 amendment records, §16.2; operator principle of 2026-10-15). Not frozen; the frozen
-step stands unchanged until the operator rules on §16.2 and the primary session freezes the amendment. Author:
-design session, worktree `/Users/yuema137/mineworld-worktrees/design-s26-sources`, branch
-`docs/s26-character-sources`, base `origin/main @ 58a6f55f`.
+**Amendment (2026-10-15): `APPROVED 2026-10-15` — pluggable character sources and per-world casting data**
+(§§5.6–5.8, 7.4b, 12.3, AC-S26-11…13, §15 amendment records, §16.2; operator principle of 2026-10-15; rulings
+Q-S26src-1…4 in §16.2, operator answered directly in the primary session). Scope, invariants and acceptance of
+the amendment are frozen with the step; S26-src1 and S26-src2 are each detailed to the commit and frozen in
+turn before they start. Ids `ARC-130…ARC-134`, `DEP-70`, `DEP-71`. Superseded amendment lifecycle: `DRAFT`.
+Author: design session, worktree `/Users/yuema137/mineworld-worktrees/design-s26-sources`, branch
+`docs/s26-character-sources`, base `origin/main @ 58a6f55f`, `origin/main @ 4457ad47` merged.
 **Author:** design session, 2026-10-14, worktree `/Users/yuema137/mineworld-worktrees/design-s26`, branch
 `docs/s26-cast`. Audit base: `origin/main @ adf5d2c`.
 **Ids** (assigned by the primary session at freeze, 2026-10-14):
@@ -364,7 +366,7 @@ the hair). meshoptimizer is already in Godot's importer for LODs (A-9) and is no
   `worldpack/`, `persistence/`, `cognition/` or `sdk/` names the secrets path; the pipeline works with the
   variables exported by any means. Both are checked by a scan in CI (AC-S26-9).
 
-### 5.6 Character sources: pluggable providers (amendment, operator 2026-10-15; DRAFT)
+### 5.6 Character sources: pluggable providers (amendment, operator 2026-10-15; APPROVED 2026-10-15)
 
 **Operator, 2026-10-15, verbatim (binding):** "我们这些都要做成模块化的，而不是hard code，这样用户可以根据他们喜欢的方式（不一定要是meshy，自己导入也可以），喜欢的特征分布（年龄体重族裔）来搭建自己的世界". *Gloss:* all of this must be
 modular, not hard-coded, so that users can build their worlds with the method they prefer (not necessarily
@@ -372,10 +374,9 @@ Meshy; importing their own models is fine) and the feature distribution they pre
 **Addition, same day:** "年龄体重族裔也不一定是所有特征，其实还可以有很多很多" — age, weight and ethnicity are not all the
 traits; there can be many more (§7.4b).
 
-This section, §§5.7–5.8, §7.4b, §12.3 and §16.2 are an **amendment in `DRAFT`** to the frozen step. They
+This section, §§5.7–5.8, §7.4b, §12.3 and §16.2 are an **amendment to the frozen step, APPROVED 2026-10-15** (operator rulings Q-S26src-1…4, §16.2). They
 change no frozen gate bound and no runtime contract; where they generalise a frozen text (G-14, `fit.yaml`'s
-`source` block, §7.3, §7.4) the change is listed in §5.6.9 and goes to the operator with the freeze of this
-amendment. Placeholder ids: `ARC-S26src-n`, `DEP-S26src-n`, `X-S26src-n`, `Q-S26src-n`, `F-S26src-n`.
+`source` block, §7.3, §7.4) the change is listed in §5.6.9 and was approved with this amendment. Ids: `ARC-130…ARC-134`, `DEP-70`, `DEP-71` (assigned 2026-10-15 from the range reserved for this amendment); local: `X-S26src-n`, `Q-S26src-n`, `F-S26src-n`, `C-n`.
 
 #### 5.6.1 Audit of the as-built pipeline (`origin/mvp0/pr-s26b1 @ 121662c9`, `origin/mvp0/s26-cast-director @ 7d54b4c1`)
 
@@ -394,7 +395,7 @@ Conclusion: the pipeline is already shaped as *acquire a candidate mesh → dete
 amendment names the first step a **source provider**, generalises the two Meshy-shaped records (F-S26src-2,
 -3), and moves the casting director's hard-coded attribute knowledge into data (F-S26src-6, §7.4b).
 
-#### 5.6.2 What a source is, and where it enters (`ARC-S26src-1`)
+#### 5.6.2 What a source is, and where it enters (`ARC-130`)
 
 A **character source provider** (short: *source*) is a tooling module that yields one candidate humanoid
 mesh for one character, with its provenance. It is not a MineWorld pack type and not a runtime module
@@ -423,7 +424,7 @@ passes the same gates, G-1…G-14 and §6.2–6.4, whatever its source (§1 part
   clips at import (A-9) — is rejected: it would give each source its own bone map, rolls and clip speeds, make
   G-5 and G-8 per source, and depend on an import-time feature the runtime pack cannot carry (F-S26-3).
 
-#### 5.6.3 The provider interface (`ARC-S26src-2`)
+#### 5.6.3 The provider interface (`ARC-130`)
 
 A source is one Python module plus one data manifest. The interface is a `typing.Protocol` in
 `mwcast/sources/base.py`; nothing else in `mwcast` imports a concrete source.
@@ -525,7 +526,7 @@ Stage 7′ for a `rigged` entry:
 4. **G-6 applies unchanged**: a source skeleton whose joints sit outside the body or off Winter's ratios fails
    G-6 by location, like a bad pick.
 
-#### 5.6.5 The reuse comparison, both ways (`DEP-S26src-1`)
+#### 5.6.5 The reuse comparison, both ways (`DEP-70`, `DEP-71`)
 
 **Image-to-3D generators** (each behind the same `image-to-3d` / `raw` interface; none is adopted beyond
 Meshy in S26; facts marked **verify** were not read at their source by this session):
@@ -551,7 +552,7 @@ providers use it unchanged.
 
 #### 5.6.6 Selection, registry and records
 
-- **Registry** (`ARC-S26src-3`): `tools/character_pipeline/mwcast/sources/` holds the built-in sources —
+- **Registry** (`ARC-131`): `tools/character_pipeline/mwcast/sources/` holds the built-in sources —
   `meshy` (wrapping today's `meshy.py`, behaviour unchanged), `import-mesh`, `import-rigged`, `import-vrm`,
   `import-final` and `fixture` — and a registry that also loads out-of-tree sources from the Python entry-point
   group `mineworld.cast_sources` (`importlib.metadata`, standard library; the reuse of Python's own plug-in
@@ -578,10 +579,10 @@ providers use it unchanged.
 | Fixed for every source, world and pack (the standard) | A parameter (data, per world or per character) |
 | --- | --- |
 | the 52-joint skeleton, names, parents, rolls (G-5); one material `MW_Cast`; one 2048² base colour; ≤ 100,000 triangles (G-1…G-3) | the source provider and its params (pinned model, pose mode, texture options) |
-| every gate G-1…G-14 and every bound in `standard.py` (`ARC-23` rule 2) — except G-4's *realistic range*, which reads the declared stature support of the world's profile (§7.4b) | the reference provider, through the style template version (§5.7) |
+| every gate G-1…G-14 and every bound in `standard.py` (`ARC-23` rule 2) — except G-4's *realistic range*, which reads the declared support of `core.stature` in the world's profile (C-7, §7.4b) | the reference provider, through the style template version (§5.7) |
 | the stage order from the entry on; the deterministic stages' reproducibility (AC-S26-3) | the bone-map scheme of a rigged source; `fit.joint_source`; `fit.weights_from` |
 | provenance is mandatory; candidate → asset only by a person's acceptance (`ARC-9`) | the pack's licence policy (default `DEP-8`; Q-S26src-1) |
-| the two review gates (§6.4) and the scorecard (§6.2) | the style template and anchor; the population profile; the sampler seed; the distinctness rule (§7.4b) |
+| the two review gates (§6.4) and the scorecard (§6.2) | the style template and anchor; the distinctness rule (§7.4b); the population profile, seed and salt are the world's, through S30 |
 | §5.5's secrets rule; nothing at runtime names a source (§5.8) | the retry budget and the credit cap of a batch |
 | the runtime formats `cast.yaml`, `character.yaml`, GLB (`ARC-92`, `ARC-93`) | the quality-tier control character and the §7.4a consistency band, for packs other than `mineworld-default` (Q-S26src-2) |
 
@@ -598,7 +599,7 @@ providers use it unchanged.
 | X-S26src-7 | A source with `needs.network: false` that opens a socket fails its CI test; a source module that reads a file under `~/.config/mineworld/` fails the §5.5 scan | the injected transport; the secrets scan |
 | X-S26src-8 | **No provider name in runtime code.** A CI scan over `clients/`, `server/`, `systems/`, `kernel/`, `contracts/`, `worldpack/`, `persistence/`, `cognition/` and `sdk/` finds no registered source id, no generator name (`meshy`, `openai`, `vrm`, `mpfb`, `charmorph`, `tripo`, `rodin`, `trellis`, `hunyuan`) and no key of `fit.yaml`'s `source` block; the id list is read from the registry, so a new source extends the scan automatically. Allow-list until S26-c1 merges: the `meshy_d` paths and `_meshy` of A-1/A-6 (F-S26src-8); until S26-f: `vitruvian` on the `--town-body` path | a planted `if provider == "meshy"` in `human.gd` turns the scan red |
 
-#### 5.6.9 Frozen texts this amendment generalises (for the operator's review)
+#### 5.6.9 Frozen texts this amendment generalises (approved with the amendment, 2026-10-15)
 
 | Frozen text | Change | Why it is not a relaxation |
 | --- | --- | --- |
@@ -608,7 +609,7 @@ providers use it unchanged.
 | §7.4a item 3 "every Meshy run uses the same model version"; "the same tool versions … Meshy model" | "every character of a batch uses the same source and source version", for `meshy` the same model (Q-S26src-3) | identical for today's casts |
 | §7.4 avoid list | becomes the selected source's `unsupported` declarations, refused by name (§7.4b) | the list is kept verbatim in `meshy`'s manifest |
 
-### 5.7 Reference-image providers (amendment; DRAFT; `ARC-S26src-4`)
+### 5.7 Reference-image providers (amendment; APPROVED 2026-10-15; `ARC-132`)
 
 Stage 2 gets the same treatment: a **reference provider** yields the identity reference images of §5.2 stage 2
 for one brief, under the style template.
@@ -631,15 +632,15 @@ for one brief, under the style template.
   declares `unsupported: [{feature: style-anchor}]`, and a template that names it with an anchor is refused by
   name rather than silently dropping the anchor.
 
-### 5.8 Layering and ownership (amendment; DRAFT; `ARC-S26src-5`)
+### 5.8 Layering and ownership (amendment; APPROVED 2026-10-15; `ARC-130`)
 
 ```text
 tooling (operator's machine, on demand; ARC-9, §5.1)               runtime (every client, server, System)
   sources/*, references/*, bonemaps/*, casting director,
-  S30's sampler (appearance subset, §7.4b), stages 6–12, gates
+  `mineworld attributes resolve/lock` (S30, appearance facet), stages 6–12, gates
         │ writes, as candidates, into the Presentation Pack
         ▼
-  characters/casting.yaml, populations/*, style/*, cast/<id>/brief.yaml, fit.yaml, generation_log.yaml,
+  characters/casting.yaml, style/*, cast/<id>/brief.yaml, fit.yaml, generation_log.yaml,
   scorecard.md, references              ── never read at runtime ──
   characters/cast.yaml, cast/<id>/character.yaml, the GLB and texture  ─────────────▶ read by the 3D client
 ```
@@ -650,8 +651,9 @@ tooling (operator's machine, on demand; ARC-9, §5.1)               runtime (eve
 - **The kernel and the Systems stay ignorant of all of it.** The world holds one opaque `look` key per person
   (`ARC-91`); the `appearance` System Pack never learns a source, a profile, an attribute distribution or a
   brief. Whether a character came from Meshy, a VRM or a parametric body changes no event, no component, no
-  digest. If S30 (§7.4b) makes some person attributes world facts, S26's runtime still reads only `look`; any
-  appearance attribute a System later needs enters as that System's section, never through the cast files.
+  digest. S30 makes appearance attributes world facts (its amendment of `ARC-91` item 3); they are S30's
+  world data, and S26's clients still choose a character only by `look`. Nothing in the cast files ever enters
+  the world.
 - **The tooling never becomes a runtime dependency**, of a source or of anything else: the CI scans of §5.5 and
   X-S26src-8 hold for every source, in-tree or out-of-tree.
 
@@ -898,6 +900,9 @@ governs. It amends §7.2's default population (`ARC-95` dated note, written by S
    - The casting page prints the cast's realised distribution against the profile.
 6. **Infra, not a fixed cast.**
    - The profile, the template, the anchor and the sampler seed are parameters of the Presentation Pack.
+     *(Amended 2026-10-15, §7.4b: the profile, the population seed and the salt are the world's, in a data
+     pack the world requires (S30, Q-S30-2); the template, the anchor and the rest of casting stay the
+     Presentation Pack's, in `characters/casting.yaml`.)*
    - A user's world may name a different profile, for example another city or a fantasy setting with
      its own cited or authored figures, without code changes.
    - A missing or malformed profile fails by name.
@@ -912,68 +917,82 @@ them for each batch. The acceptance tests are X-22 to X-25:
 - **X-25.** For a synthetic 1 000-person cast, the realised distribution is within 2 percentage points
   of the profile on every stratum.
 
-### 7.4b Casting data is per world, and the attribute set is open (amendment, operator 2026-10-15; DRAFT)
+### 7.4b Casting data is per world, and the attribute set is open (amendment, operator 2026-10-15; APPROVED 2026-10-15)
 
 Item 6 of §7.4a ("infra, not a fixed cast") expanded under the operator's principle of §5.6 and the addition
 "年龄体重族裔也不一定是所有特征，其实还可以有很多很多" (age, weight and ethnicity are not all the traits; there can be many
 more).
 
-**Scope split with S30 (coordinator, 2026-10-15).** The general **attribute catalogue** (built-in and
-user-defined attributes), the **population-profile schema** and the **dependency-aware sampler** are owned
-by step **S30 — person attributes** (`step-30-person-attributes.md`, branch `docs/s30-person-attributes`,
-being designed in parallel). S26 does not define them. S26 owns the appearance *consumer*: the contract below
-(what casting needs from S30), the per-world casting config, the style template and anchor, the providers,
-and the gates. Where §7.4a items 4–5 describe the profile and the sampler, S30's schema governs once it is
-frozen; until then the profile format of the in-flight casting work (`populations/san-diego-county.yaml`
-version 1) stands as the bounded interim (`F-S26src-9`).
+**Scope split with S30.** The general **attribute catalogue** (built-in and user-defined attributes), the
+**population-profile schema**, the **dependency-aware sampler** and the **lock file** are owned by step **S30 —
+person attributes** ([`step-30-person-attributes.md`](step-30-person-attributes.md), PR #223; its §10 is the
+S26 interface). S26 does not define them. S26 owns the appearance *consumer*: the contract below, the casting
+config, the style template and anchor, the providers and the gates. Where §7.4a items 4–5 describe the profile
+and the sampler, S30 governs:
 
-#### 7.4b.1 What S26 needs from S30 (the consumer contract, `ARC-S26src-6`)
+- **Population profiles live in a data pack the world requires** (S30's ruling Q-S30-2; for the default
+  worlds `entities/populations-us`, S30-e), not in the 3D Presentation Pack. A population is world content that
+  cognition, agents and clients read, not art. The world names its profile, population seed and salt in
+  `worlds/<w>/configure/attributes.yaml` (S30 §8.1). The casting config therefore names **no profile and no
+  seed**: casting reads the world's own resolution.
+- **Interim (`F-S26src-9`).** Until S30's sampler ships, the in-flight casting's profile
+  (`presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml`) and its Python sampler
+  stand. S30's migration moves the profile into the data pack and replaces the sampler (S30 §10, S30-g).
 
-S26 consumes, per world, a **resolved appearance cast**: the S30 sampler's output restricted to the
-attributes S30 marks as perceivable appearance. The contract, stated as requirements on S30's output, not on
-its internals:
+#### 7.4b.1 What S26 needs from S30 (the consumer contract, `ARC-133`)
 
-| # | S26 needs | Why |
-| --- | --- | --- |
-| C-1 | **Attribute declarations** for the appearance subset: a stable attribute id (slug), a human label, the value kind (categorical with a closed value set; numeric with unit; boolean), and the value domain. S26 reads the subset by a facet S30 defines (e.g. `facets: [appearance]`); it never lists attribute ids itself | briefs, prompts and the distinctness rule are generated from declarations, so a new attribute needs no code (X-S26src-10) |
-| C-2 | **Per person, a resolved value for every appearance attribute**, keyed by the person's `look` key, each with its origin: `biography` (with the reason), `sampled` (with the stratum and the draw's key), `ruled` (fixed by the operator at a casting gate) or `authored` (a user's hand-written value) | §7.4a item 5 requires each brief to record what came from where; a ruled brief must never be re-drawn (§7.4b.4) |
-| C-3 | **Determinism**: the same profile version, seed and person set give byte-identical resolved values; a different seed changes only `sampled` values | X-24 is kept as an S26 acceptance test over S30's output |
-| C-4 | **The profile's identity**: id, version, seed, and the citation or `authored` status of each distribution | the brief records them; the casting page prints them |
-| C-5 | **The realised distribution against the target**, per declared stratum, for the cast and for a synthetic large cast | the casting page (§7.4a item 5) and X-25 |
-| C-6 | **Named failure**: a missing profile, an unknown attribute, a malformed distribution or a dependency cycle fails by name, before any brief is written | §7.4a item 6 |
-| C-7 | **Declared numeric support** for every numeric attribute a gate binds (today `stature_m`: per stratum, the range the sampler can return) | G-4's realistic-range check reads it (§7.4b.3) |
+S26 consumes, per world, a **resolved appearance cast**: the output of
+`mineworld attributes resolve <world> --json --facet appearance`, plus the declarations from
+`mineworld attributes catalogue <world> --json --facet appearance` (S30 §10). The contract is stated as
+requirements on that output, not on S30's internals:
 
-S26 does **not** need: how S30 conditions one attribute on another, which distribution kinds it offers, or
-whether some attributes are also world facts. If S30 makes appearance attributes world data (a trait owned by a
-System Pack), the contract is unchanged — casting reads the same resolved values, and the runtime still reads
-only `look` (§5.8).
+| # | S26 needs | S30 output (S30 §10) | Why |
+| --- | --- | --- | --- |
+| C-1 | **Attribute declarations** for the appearance subset, selected by the `appearance` facet: qualified id (e.g. `core.stature`), label, kind and domain, unit and scale, `phrase` and `words`. S26 never lists attribute ids itself | `catalogue --json --facet appearance` | briefs, prompts and the distinctness rule are generated from declarations, so a new attribute needs no code (X-S26src-10) |
+| C-2 | **Per person, a resolved value for every appearance attribute**, keyed by the person's `look` key, each with its origin. S30's origins are `authored`, `ruled`, `locked`, `role`, `sampled { stratum, draw }` and `default` | `resolve`, per person | §7.4a item 5 requires each brief to record what came from where; a ruled value must never be re-drawn (§7.4b.4) |
+| C-3 | **Determinism**: the same profile version, population seed, salt and people give byte-identical values; a different seed or salt changes only `sampled` values | S30 §8.5 | X-24 is kept as an S26 acceptance test over S30's output |
+| C-4 | **The profile's identity**: id, version, seed and salt, and each distribution's source and status (`read` / `verify` / authored) | `resolve` header | the brief records them; the casting page prints them, `verify` marks included |
+| C-5 | **The realised distribution against the target**, per stratum, for the cast and for `--synthetic <N>` | `resolve` | the casting page (§7.4a item 5) and X-25 |
+| C-6 | **Named failure**: a missing profile, an unknown attribute, a malformed distribution or a dependency cycle fails by name, before any output | S30 §8.2's errors | §7.4a item 6 |
+| C-7 | **Declared numeric support** for every `quantity` a gate binds (today `core.stature`): per stratum, the range returnable after `clip_sd` | `resolve` | G-4's realistic-range check reads it (§7.4b.3) |
 
-#### 7.4b.2 The casting config, per world, in the Presentation Pack (`ARC-S26src-7`)
+- **Ruled values flow back through S30's lock.** When the operator rules a person at the casting gate, the
+  casting tool calls `mineworld attributes lock <world> --person <key> --attribute <id>` for each ruled
+  appearance value, so the world's attributes and the look's brief can never diverge (S30 §8.4). This is
+  authoring of World Pack data by a tool, exactly as a person file is authored; nothing at runtime calls the
+  casting tool.
+- **Distinctness re-draws use S30's `--salt`** (A-9's "attempt" of the interim sampler). The salt that produced
+  a ruled cast is recorded in the world's `configure/attributes.yaml`.
+- **Appearance attributes become world facts in S30** (its amendment of `ARC-91` item 3, F-S30-3). That does not
+  change S26: casting reads the same resolved values, and the clients still choose a character only by `look`
+  (§5.8).
 
-`presentation/<pack>/3D/characters/casting.yaml` (JSON-compatible YAML) gathers every per-world casting
-parameter that F-S26src-7 found split across three files and code:
+#### 7.4b.2 The casting config, per Presentation Pack (`ARC-134`)
+
+`presentation/<pack>/3D/characters/casting.yaml` (JSON-compatible YAML) gathers every casting parameter that is
+presentation's — the world-level ones F-S26src-7 found split across files and code, less the profile and the
+seed, which are the world's (§7.4b):
 
 ```json
 {
   "format": 1,
   "licence_policy": "DEP-8",
   "control": "vera-lindgren",
+  "band": "vera-lindgren",
   "casts": {
     "cafe-town": {
       "worlds": ["social-cafe", "market-town"],
-      "profile": "san-diego-county",
-      "seed": "mineworld-s26-cast-v1",
       "style": { "template": "style/template.yaml", "version": 1 },
       "source": { "provider": "meshy", "params": { "ai_model": "<pinned by S26-b1>", "pose_mode": "a-pose" } },
       "distinctness": {
         "scope": "world", "min_score": 3,
         "categories": [
-          { "id": "age",     "attribute": "age_band",  "rule": "unequal",       "weight": 1 },
-          { "id": "stature", "attribute": "stature_m", "rule": "delta", "at_least": 0.05, "weight": 1 },
-          { "id": "build",   "attribute": "build",     "rule": "unequal",       "weight": 1 },
-          { "id": "skin",    "attribute": "skin_mst",  "rule": "delta", "at_least": 2, "weight": 1 },
-          { "id": "hair",    "attributes": ["hair_style", "hair_colour"], "rule": "any-unequal", "weight": 1 },
-          { "id": "outer",   "field": "outfit.outer",  "rule": "unequal",       "weight": 1 }
+          { "id": "age",     "attribute": "core.age-band",  "rule": "unequal",       "weight": 1 },
+          { "id": "stature", "attribute": "core.stature",   "rule": "delta", "at_least": 0.05, "weight": 1 },
+          { "id": "build",   "attribute": "core.build",     "rule": "unequal",       "weight": 1 },
+          { "id": "skin",    "attribute": "core.skin-tone", "rule": "delta", "at_least": 2, "weight": 1 },
+          { "id": "hair",    "attributes": ["core.hair-style", "core.hair-colour"], "rule": "any-unequal", "weight": 1 },
+          { "id": "outer",   "field": "outfit.outer",       "rule": "unequal",       "weight": 1 }
         ]
       },
       "substitutions": [],
@@ -987,78 +1006,100 @@ parameter that F-S26src-7 found split across three files and code:
 }
 ```
 
-- Attribute ids in the example (`age_band`, `hair_style`, …) are illustrative; S30's catalogue names them.
-- **What each key is.** `profile` names a population profile (S30's schema); `seed` the sampler seed; `style`
-  the template and its version (and through it the reference provider, §5.7, and the anchor); `source` the
-  default character source and its params (§5.6.6); `distinctness` the rule (§7.4b.3); `substitutions` the
-  explicit answers to unsupported values (§7.4b.3); `prompt.phrases` the prompt phrasing of the appearance
-  attributes (below); `people` per-character overrides of source or reference; `control` the quality-tier
-  control of §6.3 (Q-S26src-2); `licence_policy` §5.6.3's.
-- **A World Pack names nothing of this.** The pack resolves its casts by world id; the world keeps only `look`
-  keys (`ARC-91`). One pack can cast several worlds; a second pack can cast the same world differently, which
-  is exactly `ARC-3`'s "the packs share meaning, not art".
-- **Missing or malformed data fails by name**, naming the file and key path: no `casting.yaml` when a cast is
-  requested; a cast with no `profile` and no `sampling: none` (§7.4b.4); an unknown profile, template, source,
-  attribute or field path; a distinctness category naming an attribute the profile does not declare; a weight
-  or threshold of the wrong type; a template version that does not match the file's.
-- **Prompt phrasing is data.** `style/phrases.yaml` maps an attribute and value to the words the prompt uses
-  (e.g. `skin_mst: { 5: "medium skin tone (Monk Skin Tone 5 of 10)" }`, `sex: { female: { noun: woman, poss:
-  her } }`), and the style template's person block is a format string over attribute words
-  (`{sex.noun}`, `{stature_m:.2f} m tall`). An appearance attribute the template does not reference is
-  appended as one generic line, `<label>: <value words>.`, so a new attribute reaches the prompt with no edit at
-  all, and the template author may later give it a better sentence. The words move verbatim out of
-  `cast_director.py`'s constants (F-S26src-6), so the in-flight prompts are reproduced.
+- Attribute ids in the example are illustrative; S30's catalogue names them, and S30's `UnknownAttribute`
+  refuses a stale one.
+- **What each key is.** `casts.<id>.worlds` the worlds the cast serves (their profiles and seeds are read from
+  each world); `style` the template and its version (and through it the reference provider, §5.7, and the
+  anchor); `source` the default character source and its params (§5.6.6); `distinctness` the rule (§7.4b.3);
+  `substitutions` the explicit answers to unsupported values (§7.4b.3); `prompt.phrases` an optional per-style
+  override of the catalogue's phrasing (below); `people` per-character overrides of reference, and of source only
+  through `method_exception` (ruled Q-S26src-3); `control` the quality-tier control of §6.3 and `band` the
+  character whose record fixes §7.4a item 2's consistency band (ruled Q-S26src-2); `licence_policy` §5.6.3's
+  (ruled Q-S26src-1).
+- **`mineworld-default` is pinned**: `control` and `band` are `vera-lindgren`, `licence_policy` is `DEP-8`, and
+  it has no `method_exception` and no other `licence_policy`. A check refuses any other value in that pack by
+  name.
+- **One source per cast** (ruled Q-S26src-3). A per-person source needs
+  `"people": { "<look>": { "method_exception": { "source": "<id>", "reason": "<why>" } } }`. The casting page
+  shows every exception with its reason, and the runtime lineup shows that person beside the control. A source
+  override without `method_exception` is refused by name.
+- **A World Pack names nothing of this.** The pack resolves its casts by world id; the world keeps its `look` keys
+  (`ARC-91`) and S30's attributes. One pack can cast several worlds, and a second pack can cast the same world
+  differently, which is exactly `ARC-3`'s "the packs share meaning, not art".
+- **Missing or malformed data fails by name**, naming the file and key path:
+  - no `casting.yaml` when a cast is requested;
+  - an unknown template, source or field path;
+  - a distinctness category naming an attribute that is not in the catalogue's appearance facet;
+  - a weight or threshold of the wrong type;
+  - a template version that does not match the file's;
+  - S30's errors (C-6), passed through unchanged.
+- **Prompt phrasing is data.** The prompt writer renders each appearance attribute with S30's declared `phrase`
+  and `words` (C-1; for example `phrase: "{value} m tall"`). A pack may override those words for its style in
+  `style/phrases.yaml` (for example `core.skin-tone: { 5: "medium skin tone (Monk Skin Tone 5 of 10)" }`). The
+  style template's person block is a format string over attribute words, such as `{core.stature}`. An
+  appearance attribute the template does not reference is appended as one line built from its phrase (or
+  `<label>: <value words>.` if it declares none). So a new attribute reaches the prompt with no edit at all, and
+  the template author may later give it a better sentence. The in-flight director's words move verbatim into
+  `style/phrases.yaml` (F-S26src-6), so the in-flight prompts are reproduced (X-S26src-15).
 - **Defaults.** A cast with no `distinctness` block uses §7.3's frozen rule, which the block above writes out.
 
 #### 7.4b.3 Gates bind attributes explicitly; unsupported values are refused by name
 
-- **Gate bindings** are literals in `standard.py`, beside the bounds, each with its source: G-4 binds the
-  numeric appearance attribute `stature_m` (unit m) — a cast whose profile and briefs give no `stature_m` is
-  refused naming "G-4 binds stature_m"; G-4's realistic-range sub-check reads that attribute's declared support
-  in the profile (C-7) instead of §7.2's European band, which stays the default profile's figure; the
-  eye-ratio and sole bounds are unchanged. G-12 binds the brief's `accessories` entries whose phrase entry
-  carries `carrier: pack` or `carrier: bag`; G-13 binds the brief's `sits`. No other gate reads an attribute.
-  These bindings are the only attribute ids S26 code names, and they are gate inputs, not an enumeration of the
-  attribute set.
-- **Unsupported values** (the selected source's and reference provider's `unsupported` lists, §§5.6.3, 5.7)
-  are checked against every resolved value and authored field before any image or credit is spent. A match is
-  refused naming the person, attribute, value, provider and reason — never silently dropped and never silently
-  re-drawn. Two ways forward, both explicit and both printed on the casting page:
-  - a `substitutions` entry in `casting.yaml` (`{attribute: eyewear, value: transparent-lenses, becomes: none,
-    reason: …}`), applied after sampling, so the realised distribution on the casting page shows the deviation
-    from the profile; or
-  - another source for that person, under §7.4a item 3 and Q-S26src-3.
-- **The distinctness rule reads declarations.** A category is an attribute (or a set of attributes, or an
-  authored brief field) with a rule kind the code knows — `unequal`, `any-unequal`, `delta` with `at_least` — and
-  a weight; two people pass when the weighted count of differing categories reaches `min_score`. The code knows
+- **Gate bindings** are literals in `standard.py`, beside the bounds, each with its source.
+  - **G-4** binds the appearance `quantity` `core.stature` (unit m). A cast whose resolution gives no stature is
+    refused naming "G-4 binds core.stature". G-4's realistic-range sub-check reads that attribute's declared
+    support (C-7) instead of §7.2's European band; §7.2's band stays the default profile's figure. The eye-ratio
+    and sole bounds are unchanged.
+  - **G-12** binds the brief's `accessories` entries whose phrase entry carries `carrier: pack` or `carrier: bag`.
+  - **G-13** binds the brief's `sits`.
+  - No other gate reads an attribute. These bindings are the only attribute ids S26 code names. They are gate
+    inputs, not an enumeration of the attribute set.
+- **Unsupported values.** Every resolved value and authored field is checked against the selected source's and
+  reference provider's `unsupported` lists (§§5.6.3, 5.7) before any image or credit is spent. S30 keeps provider
+  limits out of profiles (S30 F-S30-5). A match is refused naming the person, attribute, value, provider and
+  reason. It is never silently dropped and never silently re-drawn. There are two ways forward, both explicit and
+  both printed on the casting page:
+  - a `substitutions` entry in `casting.yaml`, such as
+    `{attribute: core.glasses, value: transparent-lenses, becomes: none, reason: …}`. It is applied after
+    resolution, so the realised distribution on the casting page shows the deviation from the profile;
+  - another source for that person, through a `method_exception`.
+- **The distinctness rule reads declarations.** A category is an attribute, a set of attributes, or an authored
+  brief field, with a rule kind the code knows — `unequal`, `any-unequal`, or `delta` with `at_least` — and a
+  weight. Two people pass when the weighted count of differing categories reaches `min_score`. The code knows
   the rule kinds, never the categories.
 
 #### 7.4b.4 Skipping the sampler: hand-authored briefs and finished imports
 
-- **`sampling: none`** on a cast: no profile is read; every appearance attribute S26 needs is authored in
-  each brief, marked `authored`. The brief checks still run: every value in its declared domain, the gate
-  bindings present (`stature_m` for G-4), unsupported values refused, the distinctness rule over the cast. The
-  casting page prints "no profile" instead of the realised distribution — nothing to judge, nothing faked.
-- **A ruled brief is authored data.** Once the operator rules a person at the casting gate, that brief's
-  values are recorded as `ruled`; a later re-run of the sampler (a new seed, a new profile version, S30's
-  generic sampler replacing the interim one) never re-draws them. This is what lets the in-flight casting of
-  §7.4a proceed now and survive the change to S30's sampler unchanged.
-- **A finished import** (`import-final`, or any `import-*`) still has a brief: the identity contract the
-  scorecard reads (§6.2), with `stature_m` measured from the import and checked by G-4 like any other.
-  Its reference is `supplied` or `render-of-source` (§5.7). It passes G-1…G-14, the scorecard, the parity
-  sheet beside the control and both review gates — the same as a Meshy character.
+- **No sampling.** A world whose `configure/attributes.yaml` names no profile is not sampled (S30 §10). Every
+  appearance value comes from the people files and the lock, marked `authored` or `locked`, and `resolve`
+  reports `no profile`. The brief checks still run:
+  - every value is in its declared domain;
+  - the gate bindings are present (`core.stature` for G-4);
+  - unsupported values are refused;
+  - the distinctness rule holds over the cast.
+
+  The casting page prints "no profile" instead of the realised distribution. There is nothing to judge, and
+  nothing is faked.
+- **A ruled value is authored data.** Once the operator rules a person at the casting gate, their appearance
+  values are locked (`ruled`, §7.4b.1). A later re-resolution never re-draws them: not with a new seed or salt,
+  not with a new profile version, and not when S30's sampler replaces the interim one. That is what lets the
+  in-flight casting of §7.4a proceed now and survive the switch to S30 unchanged.
+- **A finished import** (`import-final`, or any `import-*`) still has a brief: it is the identity contract the
+  scorecard reads (§6.2). Its stature is measured from the import, written as an `authored` value, and checked by
+  G-4 like any other. Its reference is `supplied` or `render-of-source` (§5.7). It passes G-1…G-14, the
+  scorecard, the parity sheet beside the control and both review gates — the same as a Meshy character.
 
 #### 7.4b.5 Acceptance and adversarial criteria for casting data
 
 | | Criterion | How it is shown to fail when broken |
 | --- | --- | --- |
 | X-S26src-9 | **A fantasy profile changes only sampled attributes.** The cafe-town cast re-run with a fixture profile `harbour-of-elsewhere` (authored, not cited: its own ancestry values, hair colours including `teal`, stature support within G-6's human proportions) changes only values marked `sampled`; `biography`, `ruled` and authored brief fields (outfit, accessories, manner) are byte-identical; the gates bind the same attributes | a diff of the two brief sets restricted to non-`sampled` values is non-empty |
-| X-S26src-10 | **A new appearance attribute flows with zero code change.** A fixture profile adding `freckles` (`none`, `light`, `pronounced`) produces briefs carrying `freckles` with its origin, prompts carrying the generic line `Freckles: light.`, the casting page's distribution table carrying a `freckles` row, and — when one distinctness category names it — distinctness counting it; `git diff --stat tools/` is empty for the test | any hard-coded attribute list (F-S26src-6) drops the attribute from one of the four outputs |
-| X-S26src-11 | **An unsupported value is refused by name.** A profile giving `eyewear: transparent-lenses` mass, cast with source `meshy`, is refused naming person, attribute, value, provider and reason; with a `substitutions` entry it is accepted and the casting page shows the deviation | a silently dropped or re-drawn value passes the run |
-| X-S26src-12 | Malformed casting data fails by name: no `casting.yaml`; an unknown profile; a distinctness category naming an undeclared attribute; a cast without `stature_m` ("G-4 binds stature_m"); a template version mismatch | the error names the file and key path |
-| X-S26src-13 | **Ruled briefs survive a re-cast.** After a ruled casting gate, re-running with a new seed leaves every ruled value unchanged | a ruled value differs |
+| X-S26src-10 | **A new appearance attribute flows with zero code change.** A fixture catalogue entry `freckles` (facet `appearance`; `none`, `light`, `pronounced`) with a fixture profile distribution for it produces briefs carrying `freckles` with its origin, prompts carrying the generic line `Freckles: light.`, the casting page's distribution table carrying a `freckles` row, and — when one distinctness category names it — distinctness counting it; `git diff --stat tools/` is empty for the test | any hard-coded attribute list (F-S26src-6) drops the attribute from one of the four outputs |
+| X-S26src-11 | **An unsupported value is refused by name.** A profile giving `core.glasses: transparent-lenses` mass, cast with source `meshy`, is refused naming person, attribute, value, provider and reason; with a `substitutions` entry it is accepted and the casting page shows the deviation | a silently dropped or re-drawn value passes the run |
+| X-S26src-12 | Malformed casting data fails by name: no `casting.yaml`; a distinctness category naming an attribute outside the appearance facet; a source override without `method_exception`; `control` other than `vera-lindgren` in `mineworld-default`; a cast without a stature ("G-4 binds core.stature"); a template version mismatch | the error names the file and key path |
+| X-S26src-13 | **Ruled briefs survive a re-cast.** After a ruled casting gate, re-resolving with a new seed or salt leaves every ruled (locked) value unchanged | a ruled value differs |
 | X-S26src-14 | **Thresholds are data.** Setting `min_score` to 4 in a fixture `casting.yaml` flags exactly the pairs the §7.3 table shows with three differences | the code's rule ignores the file |
-| X-S26src-15 | **Equivalence of the de-hard-coding.** On the interim sampler's output (format-1 profile, same seed), the prompt writer and the distinctness check driven by `style/phrases.yaml` and the `distinctness` block reproduce the committed 21 prompt packs and the §7.3 table byte-for-byte. (Replacing the interim sampler by S30's is covered by X-S26src-13, not by this test: a new sampler may draw different values, and only unruled briefs may change) | any drift in the moved words or rule |
+| X-S26src-15 | **Equivalence of the de-hard-coding.** On the interim sampler's output (the in-flight profile, same seed), the prompt writer and the distinctness check driven by `style/phrases.yaml` and the `distinctness` block reproduce the committed 21 prompt packs and the §7.3 table byte-for-byte. (Replacing the interim sampler by S30's is covered by X-S26src-13, not by this test: a new sampler may draw different values, and only unruled briefs may change) | any drift in the moved words or rule |
 
 ### 7.5 A first casting sketch (for the casting PR to refine; skin and hair set per person at casting, Q-S26-7)
 
@@ -1269,11 +1310,11 @@ single checklist, and the characters they cover stay candidates until then (`ARC
 | AC-S26-8 | Release size and perf within the ruled budgets | R-a's size gate; X-21; §11 |
 | AC-S26-9 | No key in the repository; no runtime path names the secrets file | CI scan; X-8 |
 | AC-S26-10 | A world without `appearance` behaves exactly as before | X-3: digests unchanged |
-| AC-S26-11 (amendment, DRAFT) | Every source passes the same gates; the pipeline after the entry is provider-blind | X-S26src-1…7 |
-| AC-S26-12 (amendment, DRAFT) | No runtime path depends on which source made a character | X-S26src-8 |
-| AC-S26-13 (amendment, DRAFT) | Casting is per-world data with an open appearance attribute set; a new attribute flows into briefs and prompts with zero code change; unsupported values are refused by name | X-S26src-9…15 |
+| AC-S26-11 (amendment, APPROVED 2026-10-15) | Every source passes the same gates; the pipeline after the entry is provider-blind | X-S26src-1…7 |
+| AC-S26-12 (amendment, APPROVED 2026-10-15) | No runtime path depends on which source made a character | X-S26src-8 |
+| AC-S26-13 (amendment, APPROVED 2026-10-15) | Casting is per-world data with an open appearance attribute set; a new attribute flows into briefs and prompts with zero code change; unsupported values are refused by name | X-S26src-9…15 |
 
-### 12.3 PR split impact of the amendment (§§5.6–5.8, 7.4b; DRAFT)
+### 12.3 PR split impact of the amendment (§§5.6–5.8, 7.4b; APPROVED 2026-10-15)
 
 Rule for the split: **nothing in flight is blocked**. Today's Meshy runs and today's casting director simply
 become the first users of the `meshy` source and of the interim casting data; the generalisation lands in two
@@ -1282,11 +1323,11 @@ small new PRs, each mergeable on its own.
 | PR | Change from this amendment |
 | --- | --- |
 | **S26-b1** (#211, open) | **none required to merge.** It ships `meshy.py`, `fit.yaml` format 1 and G-14 as frozen. Its `PIPELINE.md` gains one forward pointer to §5.6 if it is still open when this amendment freezes (a sentence, no code) |
-| **S26-src1** (**new**, small) — sources | `mwcast/sources/` (base protocol, registry with the entry-point group, manifests), `meshy` as a thin wrapper of `meshy.py` (no behaviour change), `fixture`, `import-mesh`, `import-rigged`, `import-vrm`, `import-final`; `bonemaps/` (`mixamorig`, `vrm0`, `vrm1`); `fit.yaml` format 2 and Vera's migration; G-14 generalised; `mwcast/references/` with `openai-images` (wrapping `mineworld_gen`), `supplied`, `render-of-source`; `cast.py providers`, `cast.py source`; the X-S26src-8 runtime scan in CI; `PIPELINE.md` §§2, 4, 6 updated; records `ARC-S26src-1…5`, `DEP-S26src-1`. Depends on S26-b1 merged. Implementer: Haiku from a commit plan; Opus review. Stage 7′'s `source-skeleton` joint source and `fit.weights_from` land here, since the VRM fixture (X-S26src-3) needs them; `landmarks` and `meshy-rig` stay S26-b2's |
+| **S26-src1** (**new**, small) — sources | `mwcast/sources/` (base protocol, registry with the entry-point group, manifests), `meshy` as a thin wrapper of `meshy.py` (no behaviour change), `fixture`, `import-mesh`, `import-rigged`, `import-vrm`, `import-final`; `bonemaps/` (`mixamorig`, `vrm0`, `vrm1`); `fit.yaml` format 2 and the one-commit migration of every committed `fit.yaml` (Vera's and the people built on `meshy.py` meanwhile, ruled Q-S26src-4); G-14 generalised; `mwcast/references/` with `openai-images` (wrapping `mineworld_gen`), `supplied`, `render-of-source`; `cast.py providers`, `cast.py source`; the X-S26src-8 runtime scan in CI; `PIPELINE.md` §§2, 4, 6 updated; records `ARC-130`, `ARC-131`, `ARC-132`, `DEP-70`, `DEP-71`. Depends on S26-b1 merged. Implementer: Haiku from a commit plan; Opus review. Stage 7′'s `source-skeleton` joint source and `fit.weights_from` land here, since the VRM fixture (X-S26src-3) needs them; `landmarks` and `meshy-rig` stay S26-b2's |
 | **S26-b2** (pilot B0) | absorbs only `fit.joint_source` as the switch for its own comparison (§5.4 R, L), whichever of b2 and src1 merges first defines the field and the other rebases; no dependency on src1 for the pilot |
 | **S26-cast** (`mvp0/s26-cast-director`, in flight) | **none required to merge.** Its v1 profile, template and 21 briefs stand as the interim (F-S26src-9); casting gates ruled on them make those briefs `ruled` (§7.4b.4) |
-| **S26-src2** (**new**, small) — casting data | `characters/casting.yaml` (world-level keys moved out of `casting_inputs.json`; per-person biography inputs stay there), `style/phrases.yaml` (the words moved verbatim from `cast_director.py`), the director's prompt writer and distinctness check driven by data, `--pack <dir>` instead of the fixed `mineworld-default` path, the unsupported/substitution check against the selected providers' manifests, the G-4/G-12/G-13 bindings in `standard.py`; X-S26src-9…15. Consumes S30's resolved appearance cast through the C-1…C-7 contract once S30 ships it; until then it reads the interim format-1 profile through a small adapter that satisfies the same contract (removed when S30 lands — no compatibility layer kept, `CLAUDE.md` §4 rule 12). Depends on S26-cast merged; its X-S26src-10 runs on the interim adapter and again on S30's sampler. Implementer: Haiku from a commit plan; Opus review |
-| **S26-d** (B1, B2) | B1 and B2 run `cast.py source --provider meshy` once S26-src1 has merged; if a batch starts before, it runs `meshy.py` directly and its `fit.yaml` files are migrated by src1's one-commit migration (Q-S26src-4) |
+| **S26-src2** (**new**, small) — casting data | `characters/casting.yaml` (`template_version` and the world → cast grouping moved out of `casting_inputs.json`; the profile and seed go to each world's `configure/attributes.yaml` under S30, not to `casting.yaml`; per-person biography inputs move to the people files' `attributes:` sections under S30's migration), `style/phrases.yaml` (the words moved verbatim from `cast_director.py`), the director's prompt writer and distinctness check driven by data, `--pack <dir>` instead of the fixed `mineworld-default` path, the unsupported/substitution check against the selected providers' manifests, the G-4/G-12/G-13 bindings in `standard.py`; X-S26src-9…15. Consumes `mineworld attributes resolve <world> --json --facet appearance` and writes ruled values with `mineworld attributes lock` (C-1…C-7, §7.4b.1) once S30 ships them; until then it reads the interim profile through a small adapter that produces the same JSON (removed when S30 lands — no compatibility layer kept, `CLAUDE.md` §4 rule 12). Depends on S26-cast merged; its X-S26src-10 runs on the interim adapter and again on S30's output. Implementer: Haiku from a commit plan; Opus review |
+| **S26-d** (B1, B2) | **Ruled Q-S26src-4: do not wait.** The current 21 people are built on `meshy.py` now, with `fit.yaml` format 1. S26-src1 migrates every committed `fit.yaml` (Vera's and theirs) to format 2 in one commit, and the b1 parity and G-1…G-14 must pass unchanged on every one of them after the migration. Batches after src1 merges run `cast.py source --provider meshy` |
 | **S26-a, S26-c1, S26-c2, S26-e, S26-f** | none. S26-c1 removing `meshy_d`/`_meshy` closes X-S26src-8's allow-list; S26-f removing CharMorph from the release closes the `vitruvian` entry |
 
 ## 13. Risks
@@ -1328,10 +1369,11 @@ small new PRs, each mergeable on its own.
   operator's. Ruled 2026-10-14: widen it (Q-S26-7, ARC-95).
 - **F-S26src-1…8** (amendment audit, §5.6.1): the pipeline after acquisition is already provider-blind except
   for the Meshy-shaped `source` block and G-14; the casting director hard-codes its attribute set and words.
-- **F-S26src-9** (amendment) The population-profile schema and the sampler move to S30 (coordinator,
-  2026-10-15). Until S30's schema is frozen, the in-flight casting's format-1 profile
-  (`populations/san-diego-county.yaml` version 1) and its sampler are the bounded interim; S26 depends only on
-  the C-1…C-7 contract (§7.4b.1).
+- **F-S26src-9** (amendment) The attribute catalogue, the population-profile schema, the sampler, the lock
+  and the location of profiles (a data pack the world requires, `entities/populations-us`) are S30's
+  (`step-30-person-attributes.md`, PR #223, §§8, 10; Q-S30-2). Until S30's sampler ships, the in-flight
+  casting's profile in `presentation/mineworld-default/3D/characters/populations/` and its Python sampler are
+  the bounded interim. S26 depends only on the C-1…C-7 contract (§7.4b.1).
 
 ## 15. Records and edits (ids assigned 2026-10-14; all ten used)
 
@@ -1348,18 +1390,18 @@ small new PRs, each mergeable on its own.
 | **DEP-54** | Landmarks: MediaPipe adopted or declined against geometric fitting, with the measured result | S26-b2 |
 | **DEP-55** | Rigging: our fitted armature kept; Meshy rigging, Mixamo, AccuRIG, UniRig/RigNet declined as the rig, with reasons (§5.4) | S26-b1 |
 
-**Amendment records (placeholders, DRAFT; ids assigned by the primary session at freeze):**
+**Amendment records (ids assigned 2026-10-15, bottom up from the range reserved for this amendment,
+`ARC-130…ARC-134`, `DEP-70…DEP-71`; all seven used):**
 
-| Placeholder | Content | Written by |
+| Id | Content | Written by |
 | --- | --- | --- |
-| **ARC-S26src-1** | A character's mesh comes from a pluggable **character source** with a declared entry (`raw`, `rigged`, `final`); every source passes the same stages from its entry and the same gates; the 52-joint profile is never relaxed for a source (§5.6.2) | S26-src1 |
-| **ARC-S26src-2** | The source interface: manifest + module, typed request/result, provenance by `source_type` (`generated`, `imported`, `procedural`), secrets by environment only, `unsupported` declarations (§5.6.3) | S26-src1 |
-| **ARC-S26src-3** | The source registry in `tools/character_pipeline/mwcast/sources/`, with out-of-tree sources through the `mineworld.cast_sources` entry-point group; `fit.yaml` format 2; G-14 generalised (§5.6.6) | S26-src1 |
-| **ARC-S26src-4** | Reference-image providers (`openai-images`, `supplied`, `render-of-source`, any other); the provider is part of the style template (§5.7) | S26-src1 |
-| **ARC-S26src-5** | Layering: the tooling writes candidates into the Presentation Pack; runtime reads only `cast.yaml`, `character.yaml`, the GLB; no runtime path names a source (§5.8) | S26-src1 |
-| **ARC-S26src-6** | Casting consumes S30's resolved appearance cast through the C-1…C-7 contract; S30 owns the catalogue, profile schema and sampler (§7.4b.1) | S26-src2 (with S30's own record) |
-| **ARC-S26src-7** | Per-world casting config `characters/casting.yaml`: profile, seed, style, source, distinctness, substitutions, phrases, control, licence policy; gates bind attributes explicitly; unsupported values refused by name (§§7.4b.2–7.4b.4) | S26-src2 |
-| **DEP-S26src-1** | Sources and their reuse comparison: Meshy kept; other image-to-3D generators and parametric bodies (CharMorph, MPFB2) admitted by the interface, not adopted; VRM read as glTF plus its extension, FBX/OBJ through Blender's bundled importers, no VRM add-on or FBX SDK adopted (§5.6.5) | S26-src1 |
+| **ARC-130** | Character sources. A character's mesh comes from a pluggable source with a declared entry (`raw`, `rigged`, `final`). Every source runs the same stages from its entry and passes the same gates, and the 52-joint profile is never relaxed for a source (§5.6.2). The interface is a manifest plus a module: a typed request and result, provenance by `source_type` (`generated`, `imported`, `procedural`), secrets from the environment only, and `unsupported` declarations (§5.6.3). Layering: the runtime reads only `cast.yaml`, `character.yaml` and the GLB, and no runtime path names a source (§5.8) | S26-src1 |
+| **ARC-131** | The source registry in `tools/character_pipeline/mwcast/sources/`, with out-of-tree sources through the `mineworld.cast_sources` entry-point group; `fit.yaml` format 2; G-14 generalised; licence policy per pack, with published packs on `DEP-8` and a VRM that forbids modification refused everywhere (§§5.6.3, 5.6.6; ruled Q-S26src-1) | S26-src1 |
+| **ARC-132** | Reference-image providers (`openai-images`, `supplied`, `render-of-source`, any other); the provider is part of the style template (§5.7) | S26-src1 |
+| **ARC-133** | Casting consumes S30's resolved appearance cast (`mineworld attributes resolve --json --facet appearance`) through the C-1…C-7 contract; ruled values flow back through S30's lock; S30 owns the catalogue, the profile schema, the sampler and where profiles live (§7.4b.1) | S26-src2 (with S30's own record) |
+| **ARC-134** | The per-pack casting config `characters/casting.yaml`: style, source, distinctness, substitutions, phrases, control, band and licence policy, with `mineworld-default` pinned to Vera and `DEP-8`. One source per cast, with a per-person `method_exception` that gives a reason and is shown on the casting page. Gates bind attributes explicitly, and unsupported values are refused by name (§§7.4b.2–7.4b.4; ruled Q-S26src-2, Q-S26src-3) | S26-src2 |
+| **DEP-70** | Mesh sources compared both ways: Meshy kept; the other image-to-3D generators (Tripo, Rodin, TRELLIS, Hunyuan3D, SF3D) and the parametric bodies (CharMorph, MPFB2) are admitted by the interface but not adopted in S26; MB-Lab is declined (§5.6.5) | S26-src1 |
+| **DEP-71** | Import readers: VRM read as glTF plus its `VRM` / `VRMC_vrm` extension through `mwcast/glb.py`; glTF, FBX and OBJ through Blender's bundled importers. No VRM add-on and no FBX SDK are adopted. Bone-map schemes are data (§5.6.4) | S26-src1 |
 
 Amendment document edits: `docs/MODULE_SPEC.md` §6.1 names `characters/casting.yaml` (this PR, one paragraph);
 `tools/character_pipeline/PIPELINE.md` §§2, 4, 6 (S26-src1); the casting director's `CASTING.md` (S26-src2).
@@ -1449,7 +1491,7 @@ per-person generated casts; `DEP-51` Meshy image-to-3D at cast scale; `DEP-52` h
 `DEP-53` skin weights; `DEP-54` landmarks; `DEP-55` rigging. All ten are used; each is written into
 `docs/DECISIONS.md` by the PR §15 names. `DEP-53` and `DEP-54` record S26-b2's measured choice.
 
-### 16.2 Questions for the operator on the amendment (§§5.6–5.8, 7.4b; DRAFT)
+### 16.2 Questions for the operator on the amendment (§§5.6–5.8, 7.4b; ruled 2026-10-15)
 
 Only what the rules do not settle. Everything else in the amendment is resolved from `CLAUDE.md`,
 `REUSE_POLICY.md`, `ARC-9`, `DEP-8` and the frozen gates, and is stated in the sections above.
@@ -1474,3 +1516,13 @@ Only what the rules do not settle. Everything else in the amendment is resolved 
 4. **Q-S26src-4 — Should S26-d B1 wait for S26-src1?** *Recommendation:* **yes, if src1 is merged within a day of
    B1's casting gate being ruled; otherwise B1 starts on `meshy.py` directly** and src1 migrates its `fit.yaml`
    files in its one migration commit. The pilot (S26-b2) does not wait in either case.
+
+**Rulings (operator, 2026-10-15; binding).** Ruled 2026-10-15 (operator answered directly in the primary
+session). All four were accepted as recommended:
+
+| Question | Ruling |
+| --- | --- |
+| Q-S26src-1 | A user's pack may declare its own `licence_policy`; the checker records the licence and does not judge it. Every pack MineWorld publishes, `mineworld-default` included, stays on `DEP-8`. A VRM whose metadata forbids modification is refused by every pack (`ARC-131`) |
+| Q-S26src-2 | Each pack declares its own quality-tier `control` and consistency `band`. G-1…G-14 stay fixed for everyone. `mineworld-default` is pinned to Vera (`ARC-134`) |
+| Q-S26src-3 | One source per cast by default. A per-person exception needs a `method_exception` entry with a reason, shown on the casting page. `mineworld-default` uses none (`ARC-134`) |
+| Q-S26src-4 | Do not wait. The current 21 people are built on `meshy.py` now, and S26-src1 migrates their `fit.yaml` files to format 2 in one commit (§12.3) |
