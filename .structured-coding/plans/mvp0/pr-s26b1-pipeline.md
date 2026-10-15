@@ -1,17 +1,18 @@
 # PR S26-b1 — Route D+ in the repository: the protagonist's character pipeline, ported and parameterized
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary session; operator Q-B1-3; rulings §14.1)
 
 ```text
-Design revision:        revision 2 (2026-10-14), DRAFT: revision 1 (PR #197, commit ad23a1a) with §14.1's
+Design revision:        revision 2 (2026-10-14), FROZEN: revision 1 (PR #197, commit ad23a1a) with §14.1's
                         rulings applied and the audit anchors re-checked on origin/main after #195
 Author:                 S26-b1 PR-design agent, worktree /Users/yuema137/mineworld-worktrees/design-s26b1,
                         branch docs/s26b1-design, planning base origin/main @ 3ada60a
-Approved by / evidence: none yet (the header stays DRAFT; the primary session freezes it). Q-B1-1…5
-                        ruled 2026-10-14 (§14.1); revision 2 applies them
+Approved by / evidence: the operator answered Q-B1-3 directly in the primary session on 2026-10-14
+                        ("150 美元上限"); the primary session ruled Q-B1-1, -2, -4, -5, accepted the
+                        check-characters rename, and froze this design itself (§14.1)
 Implementation base:    origin/main at B0 (B0 records the commit)
 Start condition:        this design frozen; nothing else (step-26 §12.1)
-Execution contract:     §12, to be confirmed at freeze
+Execution contract:     §12, confirmed at freeze (primary, 2026-10-14)
 Lifecycle:              DRAFT. Not frozen. No implementation, no Meshy call and no OpenAI call is authorized
                         by this document
 ```
