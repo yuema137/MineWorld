@@ -551,7 +551,9 @@ def test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins(tmp_path:
                     "the runner rejoined after the handback period",
                     within=30,
                 )
-            rejoined = (store / "alice.resume").exists()
+                # Seen once is the rejoin (D-P6b-40): the script refuses every consult, so a later one may
+                # hand the seat back again and delete the secret before a second read.
+                rejoined = True
             await _stop(task)
             return (
                 len(_decisions(store)),

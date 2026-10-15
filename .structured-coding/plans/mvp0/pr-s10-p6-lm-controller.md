@@ -2113,4 +2113,13 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   string bound refused by location) and `test_controller_seat.py`
   (`test_a_seats_configured_store_bound_reaches_its_retention_host`: 40 MiB → bound 41 943 040, target 31 457 280,
   trigger 39 321 600; no choice → 20 MiB; 19 refused before joining). The real-binary test reads the format 2 output.
+- **D-P6b-40 (CI finding, test race; bounded fix).** On head 730455b9, `python (windows-2025)` failed
+  `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` with `rejoined False` while counting 2 handbacks
+  (run 38773828090, first attempt). The test waited for `alice.resume` to reappear, then closed the visitor and read the
+  file a second time; its script refuses every consult, so the rejoined runner can fall back and hand the seat back again
+  (deleting the secret) inside that window — locally every run counts 2 handbacks too. The rejoin is now the wait's
+  success, not a second read. The rerun of that leg did not fail this way but hung inside the same test until the job
+  timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
+  the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
+  (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
 - (planning findings are §3.2 and §0.1)
