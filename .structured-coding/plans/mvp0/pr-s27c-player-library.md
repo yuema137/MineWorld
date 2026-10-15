@@ -723,6 +723,42 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   payload names, with item names once a pack discloses them), which is outside this frozen design; recorded
   for S27-d's design and the step.
 
+### Information-richness gap table (coordinator, 2026-10-14; operator principle "给agent的接口是信息丰富的")
+
+Checked after C5 (`4b94d28`) against the recorded observations (`fixtures/`) and the packs' `discloses`
+functions. "Wire" means a client receives it today on `main @ f772a18`, within its own perception.
+
+| Item | On the wire? (source) | Player view today | Status |
+| --- | --- | --- | --- |
+| Current place | the place entity: tags, `passages`, `shop`, `place-shape`, `calendar-*`, `weather-*` | `me.place` (ref, tags as `labels`); the rest through `inspect(place)` as raw envelopes | covered for identity; place components omitted from the view |
+| People present | person entities: `display-name`, tags, location, `walking` | `here.people` (name, labels, position, walking) | covered |
+| What they are doing | group-activity `participation` is disclosed for every perceived subject (`perception.rs:130`) | not shown (inspect only) | **missing, on the wire** |
+| What I can do here, and why not | affordances with verdict and requirement | `offers` (every one, numbered, reason, requirement, `complete`) | covered |
+| — which item a `buy`/`give`/`eat` offer is | the item's **id** is in the complete payload; the price in the place's `shop` | not shown (F-S27c-8) | id and price **missing, on the wire**; the item's **name is not on the wire** — `item` discloses nothing (`systems/item/src/lib.rs:11`, items are never perceived); the 2D client sees only the id too (`clients/protocol/evidence/affordances-market-town.log`); open PR #171 (S15 12d) mentions item names |
+| My money | `wallet { balance }`, disclosed to self | not shown (inspect only) | **missing, on the wire** |
+| My items | `holdings { held: [{ item: ItemId, count }] }`, to self | not shown (inspect only) | counts **missing, on the wire**; item names **not on the wire** (as above) |
+| My job | `employment`, disclosed to the employee only (`employment/src/system.rs:257`) | not shown | **missing, on the wire** (visitor has none; Alice would) |
+| My schedule | `agenda { label, place, since, until }`, to self | not shown | **missing, on the wire** |
+| Relationships I know | `acquaintances`, disclosed to self only (`relationships/src/system.rs:418`) | not shown | **missing, on the wire** (none at genesis) |
+| Invitations to me | group-activity `invitations`, to self | not shown | **missing, on the wire** |
+| Time | `at`, `time_scale`, `paused` (observation, `clock` frame) | every result's time fields; `clock()` adds `calendar` (date, time of day, light) | covered (calendar only through `clock`) |
+| Weather | `weather-now { condition, hour }`, `weather-today { hours[…] }` on the place | not shown | **missing, on the wire** |
+| Recent events | the perceived stream | `inbox` counts in every view; `events`, `wait`; `spoke` words | covered |
+| Where I can go | my place's `passages` (door, the place each leads to, its tags) | `here.exits` | covered (only adjacent places are perceived; a place further on is not on the wire for any client) |
+
+**8 KiB.** The raw observation is ~25 KiB, mostly `calendar-day.track` and `weather-today.hours`; typed
+summaries of the missing items (wallet, holdings counts, employment, agenda, acquaintances, invitations,
+participation, weather-now, calendar) are small at genesis, but `acquaintances` and `participation` grow with
+play and have not been measured against the cap.
+
+**Stop (coordinator's rule).** One item is not on the wire: the **names of items** (what a `buy` offer sells,
+what my holdings are). Per the instruction, implementation stops after C5 and the table goes to the
+coordinator. Proposed bounded revision for the on-wire gaps, not yet made: `MeLine` gains typed `wallet`,
+`holdings` (item ref + count), `job`, `agenda`, `acquaintances`, `invitations`; `PersonLine` gains
+`doing` (participation); `View` gains `weather` and `calendar`; `OfferLine` gains `about: [Ref]` and `price`
+for a complete payload's item and the shop's price — item refs assigned from ids in payloads, names left
+`None` until a pack discloses them.
+
 ### Implementation decisions (bounded, within step-27 §5)
 
 | Id | Question | Decision and why |

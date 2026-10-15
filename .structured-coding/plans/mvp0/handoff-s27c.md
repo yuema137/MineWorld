@@ -30,8 +30,14 @@ STOP                 S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-C0 (ledger, handoff, `ARC-96`).
+C0–C5 committed (`5f3d48e` … `4b94d28`): ledger and ARC-96, the member, `ResumingSeat.clock`, models and
+refs, recorded fixtures and views, the inbox. **STOPPED** on the coordinator's information-richness rule:
+item names are not on the wire (ledger §15 "Information-richness gap table"). Coordinator ruling R-LOAD-1
+in force (no local `cargo test --workspace`; workspace gate is CI's).
 
 ## Next actions
 
-C1: the workspace member, empty (§9 C1).
+1. Wait for the coordinator's answer on the gap table (item names; the proposed bounded revision of
+   `MeLine`/`PersonLine`/`View`/`OfferLine`).
+2. Then: apply the revision to `models.py`/`view.py` with tests; C6 pacer; C7 Player; C8 real binary;
+   C9 close-out (AC-c-12 without local `cargo test`, per R-LOAD-1).
