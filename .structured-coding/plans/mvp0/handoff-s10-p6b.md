@@ -41,6 +41,10 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; each real-b
                     Linux. Gate 1 (AP6-14): operator only, NOT RUN by agents
 BUILD ENV           export PATH="$HOME/.cargo/bin:$PATH"; export CARGO_TARGET_DIR=/tmp/impl-s10-p6b-target
                     (`mineworld` binary: $CARGO_TARGET_DIR/debug/mineworld)
-CURRENT CHECKPOINT  C0 in progress (the ledger in §15 is the record)
-NEXT ACTIONS        C1 … C15 in order, each with the §9.0 procedure
+CURRENT CHECKPOINT  C0, C1, C2 complete (ledger §15). C3 MATERIAL STOP, awaiting the operator: the frozen
+                    config uses `seats` both as a top-level array and as the `[seats.<key>]` table prefix,
+                    which TOML cannot express (§15 D-P6b-3). C4–C15 not started. Branch: mvp0/pr-s10-p6b at
+                    the C2 commit plus the stop record
+NEXT ACTIONS        operator: choose D-P6b-3 option (a) `[seat_overrides.<key>]` or (b) `lm_seats = [...]`;
+                    then resume at C3 with the §9.0 procedure
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

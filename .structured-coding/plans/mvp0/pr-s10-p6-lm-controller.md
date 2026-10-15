@@ -1676,4 +1676,14 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 - **D-P6b-2 (C2, recorded, not changed).** The doc comment at the top of `cognition/installed/src/lib.rs` still
   says "(none in this build; step-17 P6 adds `lm`)". It is now stale. Editing it is outside C2's line, so it is
   left for the primary session's post-merge sync (or a later P6b commit with the primary's approval).
+- **D-P6b-3 (C3, MATERIAL STOP, not implemented).** The frozen §5.13 and C3 step 1 use one TOML key for two
+  shapes. The narrowing list is `seats = ["alice"]` (top level, an array), and the per-seat overrides are the
+  tables `[seats.<key>.controller]` and `[seats.<key>.retry.<class>]`, which the design's C3 step 1 calls
+  `seats_overrides`. TOML 1.0 does not allow a key to be an array and also the prefix of a table. The loader
+  would refuse any file that uses both, and a file that uses only one shape loses the other. Smallest revision for
+  the operator to choose (the design is not changed here): (a) rename the per-seat table to
+  `[seat_overrides.<key>]` and keep `seats = [...]`; or (b) keep `[seats.<key>]` and move the narrowing list to
+  `lm_seats = [...]`. Both are a change to a configuration key name before any release. C3 and every commit that
+  reads the narrowing list (C11, C12) wait for the operator's choice. C4–C10 touch no file in this conflict and
+  are not started, to keep the commit order; the branch stops at C2.
 - (planning findings are §3.2 and §0.1)
