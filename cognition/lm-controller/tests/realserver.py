@@ -52,8 +52,10 @@ class Server:
 
     A server started again on the same save resumes that world (`PROTOCOL.md` §5.7: the same instance)."""
 
-    def __init__(self, save: Path, *, hold: int = 3, pace: int = 1) -> None:
+    def __init__(self, save: Path, *, hold: int = 3, pace: int = 1, town: bool = True) -> None:
+        """`town=False` starts the plain server: no in-server controller drives any seat (S10 P7, Milestone D)."""
         executable = require_binary()
+        hosted = ["--town", "--decisions", str(DECISIONS)] if town else []
         self.save = save
         environment = dict(os.environ)
         environment["MINEWORLD_INVITE"] = INVITE
@@ -62,9 +64,7 @@ class Server:
                 str(executable),
                 "server",
                 str(REPOSITORY / "worlds" / "social-cafe"),
-                "--town",
-                "--decisions",
-                str(DECISIONS),
+                *hosted,
                 "--save",
                 str(save),
                 "--hold",
