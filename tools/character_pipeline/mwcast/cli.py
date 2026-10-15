@@ -14,7 +14,8 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from mwcast import identifiers, mask, meshy, standard, texture
+from mwcast import blender as blender_cli
+from mwcast import compare, identifiers, mask, meshy, pipeline, standard, texture
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
@@ -53,6 +54,17 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--cap", type=int, required=True)
             subparser.add_argument("--run-id", default=time.strftime("%Y%m%dT%H%M%S"))
             subparser.add_argument("--dry-run", action="store_true")
+        if name == "run":
+            subparser.add_argument("--fit", type=Path, required=True)
+            subparser.add_argument("--download", type=Path, required=True)
+            subparser.add_argument("--scratch", type=Path, default=None)
+            subparser.add_argument("--from", dest="start", default=None, metavar="STAGE")
+            subparser.add_argument("--to", dest="stop", default=None, metavar="STAGE")
+            subparser.add_argument("--run-id", default=time.strftime("%Y%m%dT%H%M%S"))
+            subparser.add_argument("--allow-blender", default=None, metavar="FIRST_LINE")
+        if name == "compare":
+            subparser.add_argument("candidate", type=Path)
+            subparser.add_argument("accepted", type=Path)
         if name == "identifiers":
             subparser.add_argument("files", nargs="+", type=Path)
         if name == "mask":
@@ -214,9 +226,58 @@ def _compare_texture(args: argparse.Namespace) -> int:
     return 0 if verdict == "PASS" else 1
 
 
+def _run(args: argparse.Namespace) -> int:
+    fit_path = Path(args.fit)
+    try:
+        fit = parse_fit(load_record(fit_path), fit_path)
+        scratch = resolve_scratch(str(args.scratch) if args.scratch else None, os.environ, REPO_ROOT)
+        blender_path = blender_cli.find_blender(os.environ, sys.platform)
+        version = blender_cli.read_version_line(blender_path)
+        allowed = blender_cli.check_pin(version, args.allow_blender)
+        result = pipeline.run(
+            fit=fit,
+            fit_path=fit_path,
+            download_dir=Path(args.download),
+            scratch=scratch,
+            run_id=str(args.run_id),
+            start=args.start,
+            stop=args.stop,
+            blender=blender_path,
+            blender_version=version,
+            allowed_non_pin=allowed,
+            executor=blender_cli.run_command,
+        )
+    except (RecordError, ScratchError, blender_cli.BlenderError, pipeline.PipelineError) as exc:
+        print(f"run: {exc}", file=sys.stderr)
+        return 1
+    print(f"run: stages {', '.join(result.stages_run)}; manifest {result.manifest}")
+    for stage, reason in result.skipped:
+        print(f"run: skipped {stage}: {reason}")
+    return 0
+
+
+def _compare(args: argparse.Namespace) -> int:
+    try:
+        report = compare.compare_files(Path(args.candidate), Path(args.accepted))
+    except GlbError as exc:
+        print(f"compare: {exc}", file=sys.stderr)
+        return 1
+    for row in report.rows:
+        for reason in row.reasons:
+            print(f"compare: {row.quantity}: {reason}")
+        print(f"{row.quantity}: {row.worst} (bound {row.bound}); {row.verdict.value}")
+    print("compare: material name and provenance reported, not compared (F-B1-6)")
+    print(f"compare: {'PASS' if report.passed else 'FAIL'}")
+    return 0 if report.passed else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
+    if command == "run":
+        return _run(args)
+    if command == "compare":
+        return _compare(args)
     if command == "gate":
         return _gate(args)
     if command == "check-characters":

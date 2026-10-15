@@ -91,8 +91,13 @@ LIMB_SEGMENTS: tuple[tuple[str, str, str], ...] = (
     ("shank", _M + "RightLeg", _M + "RightFoot"),
 )
 
-# Parity (design §5.7, AB1-8 and AB1-9): the texel bounds of the base-colour comparison. Positions, joints and
-# weights are bounded with the compare command's rows (added with B8).
+# Parity (design §5.7, AB1-8): the bounds of `compare`, one literal per row, fixed before any run (ARC-23).
+PARITY_JOINT_M = 0.001# step-26 §6 "within 1 mm": Euclidean distance of each joint's world position
+PARITY_POSITION_M = 1e-05  # design §5.7: max abs component difference of each vertex, by index
+PARITY_UV = 1e-06  # design §5.7: max abs difference of each UV, by index
+PARITY_WEIGHT = 0.005  # design §5.7: "equal after rounding" to two decimals, read as half a step
+
+# Parity: the texel bounds of the base-colour comparison.
 PARITY_TEXEL_TOLERANCE = 2  # of 255, per channel (design §5.7: "every channel differs by ≤ 2/255")
 PARITY_TEXEL_SHARE = (
     0.999  # design §5.7 and AB1-9: the share of texels within the tolerance, same device only
