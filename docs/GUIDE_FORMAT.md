@@ -20,6 +20,7 @@ runner executes, which it only shows, and which it refuses.
 | `docs/guide/NN-name.md` | An English page. Executed. Pages are named with a two-digit prefix and a hyphenated name. |
 | `docs/guide/NN-name.zh-CN.md` | The Chinese mirror of the page with the same name (§7). Never executed; it is checked for parity. |
 | `docs/guide/compare/…` | Comparison pages (PR 25e). Same rules as chapter pages. |
+| `tools/cli/tests/guide/fixture.md` | The runner's own fixture page (create, check, run one day). Not a guide page: it is run by a test, not listed by the guide. |
 | `docs/guide/examples/corner-shop/` | The committed example world the runner compares a scratch folder with (`equals`, §6.1). Not a page. |
 | `docs/guide/features.toml` | Which guide features are merged (§9). |
 | `docs/reference/` | The generated reference (`mineworld reference`, PR 25a). Never hand-edited. Link target only. |
@@ -114,11 +115,12 @@ written as an empty expectation.
 1. The command is split into words on ASCII spaces. No shell is involved: the runner calls the binary directly.
 2. The first word must be exactly `mineworld`. The runner runs the `mineworld` binary built for the test
    (`CARGO_BIN_EXE_mineworld`), not whatever `mineworld` is on the path. Any other first word fails the page.
-3. These characters are refused anywhere in a command line, and the page fails naming the character: `|`, `&`, `;`,
+3. These characters are refused anywhere in a command line (the runner names the first one it finds), and the page fails naming the character: `|`, `&`, `;`,
    `<`, `>`, `*`, `?`, `$`, `` ` ``, `(`, `)`, `{`, `}`, `~`, `"` and `'`. A command therefore never depends on a shell,
    so it runs the same on every OS.
-4. A path argument uses `/` as its separator and is relative to the page's scratch folder. The same confinement
-   as §3.2 applies to any argument that names a path.
+4. A path argument uses `/` as its separator and is relative to the page's scratch folder. The runner cannot tell
+   which arguments name paths, so it refuses every argument that contains `\`, begins with `/`, or has a `..`
+   component. (A colon is not refused: `--listen 127.0.0.1:7878` is a valid argument.)
 5. The working directory of every command is the page's scratch folder.
 6. Commands in one block run in order. A command that exits with a code other than the expected one stops the block.
    Expected output of a command is matched even when its exit code is wrong, so the failure report shows both.
@@ -142,6 +144,8 @@ expected and actual code.
    order or number fails the page.
 4. A reader is shown the lines the page quotes. Every line the page quotes must match, in order, and the output must
    not contain extra lines where the page quotes none, unless the page uses `...`.
+5. snapbox's other filters (`[EXE]`, JSON wildcards) are also in force. No guide page uses them, and a page that
+   does is a review finding.
 
 ### 4.5 Other blocks
 
@@ -177,7 +181,7 @@ does not know fails the page, naming it.
 | `continues PAGE` | page; must appear before the first block | Reuse `PAGE`'s scratch folder (§5). `PAGE` is a file name in the guide root, without `.md`. |
 | `requires FEATURE` | the next block (§8) | The block depends on `FEATURE`. If `FEATURE` is `false` in `features.toml`, the block is pending. |
 | `operator-only` | the next block | The block needs a live model or a display. It is never run in CI; it is listed in every run. |
-| `equals PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder equals `PATH` file by file (§6.1). `PATH` is relative to the repository root. |
+| `equals PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder equals `PATH` file by file (§6.1). A symbolic link in a `copy` source is refused, not copied. `PATH` is relative to the repository root. |
 | `copy SOURCE DEST` | standalone, between blocks | Copy the folder `SOURCE` to `DEST` inside the scratch folder, recursively. Both are confined as §3.2. The page shows the per-OS commands as text; the runner does the copy. |
 | `packs DIR` | the next command block | Each command in the next block receives `--packs DIR` appended after its arguments. `DIR` is relative to the scratch folder and confined as §3.2. The page does not show the flag. |
 
@@ -317,6 +321,8 @@ These are the author's rules for every page. The runner enforces the parts marke
 
 For each run the runner prints, in order:
 
+0. A failed block does not stop its page. Later blocks still run, each with its own outcome, so one run shows every
+   defect a writer must fix. A pending block does stop the blocks after it (§8.1), because they depend on it.
 1. Each page: blocks run, blocks passed, blocks pending (with the page, the step and the feature), blocks failed.
 2. Each failure: the page, the step heading it sits under, the block's first line, and the expected and actual
    output (or the refusal reason). A writer must be able to find and fix the defect from the message alone.

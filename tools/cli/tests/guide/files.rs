@@ -32,6 +32,37 @@ pub fn confine(relative: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// Copies the folder `from` to `to`, both inside `scratch` (§6, `copy`). A symbolic link in the source is
+/// refused rather than copied: the copy must hold only what the page wrote.
+pub fn copy_tree(scratch: &Path, from: &str, to: &str) -> Result<(), String> {
+    let from = scratch.join(confine(from)?);
+    let to = scratch.join(confine(to)?);
+    copy_folder(&from, &to)
+}
+
+fn copy_folder(from: &Path, to: &Path) -> Result<(), String> {
+    fs::create_dir_all(to).map_err(|error| format!("{} cannot be made: {error}", to.display()))?;
+    let entries = fs::read_dir(from)
+        .map_err(|error| format!("{} cannot be read: {error}", from.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let kind = entry.file_type().map_err(|error| error.to_string())?;
+        let target = to.join(entry.file_name());
+        if kind.is_symlink() {
+            return Err(format!(
+                "{} is a symbolic link; it is not copied",
+                entry.path().display()
+            ));
+        } else if kind.is_dir() {
+            copy_folder(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)
+                .map_err(|error| format!("{} cannot be copied: {error}", entry.path().display()))?;
+        }
+    }
+    Ok(())
+}
+
 /// Writes `text` to `relative` inside `scratch`, creating its parent folders and replacing a file that
 /// is there. A symbolic link on the way is refused rather than followed: it could lead outside (§3.2).
 pub fn write(scratch: &Path, relative: &str, text: &str) -> Result<(), String> {
