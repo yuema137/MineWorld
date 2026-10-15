@@ -1,6 +1,6 @@
 {
  "_doc": "Casting inputs of the mineworld-default pack (step-26 §7.4a item 5), read through casting.yaml. Per person: `fixed` (what the biography, an identity source or an operator ruling fixes, each with why), `allowed` (values the biography restricts an attribute to) and `fields` (the director's outfit and prompt-ready lines). Every attribute not fixed is drawn from the world's population profile. Never add a value here because of a surname. `fixed_members` are counted in a world's strata and distinctness table but never re-cast.",
- "template_version": 2,
+ "template_version": 3,
  "fixed_members": {
   "cafe-town": [
    {
@@ -341,7 +341,7 @@
      "feet": "black low-heeled loafers"
     },
     "accessories": [
-     "tan leather shoulder bag (G-12)"
+     "tan leather cross-body bag worn at the back hip (G-12)"
     ],
     "manner": "composed and quick",
     "avoid": [
@@ -352,7 +352,7 @@
     "wear": "navy single-breasted tailored blazer over a white silk-look blouse",
     "wear_lower": "grey tailored trousers; black low-heeled loafers",
     "headwear_line": "",
-    "carried_line": "Carrying or wearing: tan leather shoulder bag — worn on the body, hands still empty.",
+    "carried_line": "Carrying or wearing: a small tan leather cross-body bag, its thin strap running diagonally across the chest and the bag resting behind the hip — worn on the body, hands still empty.",
     "avoid_line": "glasses; hand-held props (no phone or cup)"
    }
   },

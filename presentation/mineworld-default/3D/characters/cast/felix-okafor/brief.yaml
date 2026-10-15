@@ -13,12 +13,12 @@ stature_m: 1.80
 skin_mst: 2
 hair_texture: wavy
 hair_colour: red
-hair_style: buzz cut
+hair_style: short side part
 facial_hair: none
 face_shape: heart-shaped
 eyes: deep-set
 nose: wide-bridged
-lips: wide
+lips: full
 outfit: { outer: mid-blue denim trucker jacket, under: plain white crew-neck tee, legs: khaki cargo trousers, feet: grey trainers }
 accessories: []
 manner: cheerful and a little scattered
@@ -27,7 +27,7 @@ sits: true                 # every cast member may sit (A-4 decor, E-2 extras): 
 casting:
   world: cafe-town
   profile: presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
-  template_version: 2
+  template_version: 3
   seed: mineworld-s26-cast-v1
   attempt: 0
   outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)
@@ -41,9 +41,9 @@ sources:
   skin_mst: "sampler (authored MST range per stratum)"
   hair_texture: "sampler (authored weights per stratum)"
   hair_colour: "sampler (authored colour pool per stratum; grey by age)"
-  hair_style: "sampler (authored style list by sex)"
+  hair_style: "sampler (authored style list by sex and hair texture)"
   facial_hair: "sampler (authored weights by sex)"
   face_shape: "sampler (authored, independent of every other attribute)"
-  eyes: "sampler (authored, independent of every other attribute)"
-  nose: "sampler (authored, independent of every other attribute)"
-  lips: "sampler (authored, independent of every other attribute)"
+  eyes: "sampler (authored weights per stratum)"
+  nose: "sampler (authored weights per stratum)"
+  lips: "sampler (authored weights per stratum)"

@@ -1,18 +1,22 @@
 The FIRST attached image is this person's approved full-body reference: keep the same person exactly —
-face, skin tone, age, hair style and colour, and the same garments and colours. The SECOND attached image
-is a STYLE REFERENCE ONLY: match its art style and quality, not its person. Style: grounded
-semi-realistic 3D character render, realistic proportions, soft natural skin with subtle texture, hair
-as soft detailed locks, believable everyday fabrics; warm, natural colour.
+face, skin tone and its depth, age, body, hair style and colour, and the same garments and colours. The
+SECOND attached image is a STYLE REFERENCE ONLY: a style sheet of other people; copy its rendering style
+and quality, never any person in it (not their faces, eyes, hair, skin or clothes). Style: a stylised 3D game-character render, not a
+photograph; realistic proportions; smooth, clean skin with soft shading and no pores or fine skin texture;
+eyes a little larger than life with clear irises and calm, relaxed eyelids; age shown by shape, not skin detail; hair as soft sculpted
+locks; believable everyday fabrics; warm, natural colour.
 
 Chest-up portrait of this one person: from the top of the hair to mid-chest, the body turned slightly to
 the person's left and the face toward the camera, eyes level with the upper third of the frame, camera
 at eye level with a long lens. Neutral, relaxed expression. Soft even studio light from the front-left
 with a gentle fill; plain seamless light warm-grey backdrop; no props, no text, no logos, no watermark.
 
-THE PERSON: a woman, apparent age about 51, a heavy-set, full-figured build.
-Skin: light-medium skin tone (Monk Skin Tone 4 of 10), natural and even.
-Face: square face, deep-set eyes, wide-bridged nose, wide lips; an ordinary, individual real face, never a caricature.
-Hair: black, straight hair, low tied-back bun, kept clear of the shoulders.
+THE PERSON: a woman, apparent age 51.
+Age, clearly visible: a face in the fifties: clear crow’s feet, defined smile lines from nose to mouth, faint forehead lines, a softening jawline, slightly thinner lips.
+Body: HEAVY-SET and FULL-FIGURED, clearly overweight (BMI about 34): a large rounded belly that pushes the front of the clothes outward, a thick waist wider than the chest, wide hips, heavy soft upper arms and thick thighs that touch, a round full face with a soft double chin and a short-looking neck; clothes in a plus size (US 2XL-3XL).
+Skin: light-medium beige skin with a golden undertone (Monk swatch #EADABA), Monk Skin Tone 4 of 10; do not lighten it.
+Face: a square face with a broad forehead and a wide, angular jaw; almond-shaped eyes with an epicanthic fold covering the inner corners and a low, barely visible inner crease; a straight nose with a medium bridge; thin lips. An ordinary, individual real face, respectful and never a caricature.
+Hair: black; straight hair (type 1): smooth, sleek strands with no wave; styled as a low tied-back bun, kept clear of the shoulders.
 Wearing: olive hip-length cotton utility jacket over a navy-and-white striped breton top.
 Manner, shown only through a calm neutral face and posture: quiet and absorbed.
-AVOID: glasses (reading glasses replaced by none); hand-held props (no book in hand); long coat (she sits on a bench, G-13); no text or logos on clothing.
+AVOID: glasses (reading glasses replaced by none); hand-held props (no book in hand); long coat (she sits on a bench, G-13); no text or logos on clothing; nothing copied from the style reference person.

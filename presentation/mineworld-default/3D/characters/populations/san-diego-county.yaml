@@ -29,7 +29,7 @@
 #   only from the allowed values. A missing table entry for a `given` value fails by name.
 # ---------------------------------------------------------------------------------------------------------
 profile: san-diego-county
-version: 2
+version: 3   # v3 (2026-10-15): template-v3 calibration — visible-feature phrases, face features by stratum, hair-style mask by texture, nh_black MST from 6
 date: '2026-10-15'
 
 sources:
@@ -66,7 +66,17 @@ attributes:
     kind: categorical
     stratify: true
     weights: { 20s: 0.1864, 30s: 0.2050, 40s: 0.1716, 50s: 0.1506, 60s: 0.1417, 70s: 0.0973, 80_plus: 0.0474 }   # ACS adults 20+
-    labels: { 20s: { posture: '' }, 30s: { posture: '' }, 40s: { posture: '' }, 50s: { posture: '' }, 60s: { posture: '' }, 70s: { posture: ' with a slight forward stoop of age' }, 80_plus: { posture: ' with a slight forward stoop of age' } }
+    # v3 (template v3 calibration, 2026-10-15): `markers` are concrete, shape-level signs of age that a stylised
+    # render can carry (phase 1 drew an 82-year-old as about 75 from the number alone); `posture` is appended
+    # to the build sentence.
+    labels:
+      20s: { posture: '', markers: 'a young adult face: smooth, firm skin with no wrinkles, full cheeks, a crisp jawline' }
+      30s: { posture: '', markers: 'an adult face in the thirties: smooth skin, at most the faintest smile lines, a firm jawline' }
+      40s: { posture: '', markers: 'a face in the forties: fine lines at the outer eye corners, light smile lines beside the mouth, a slightly less sharp jawline' }
+      50s: { posture: '', markers: 'a face in the fifties: clear crow’s feet, defined smile lines from nose to mouth, faint forehead lines, a softening jawline, slightly thinner lips' }
+      60s: { posture: '', markers: 'a face in the sixties: forehead lines, deep crow’s feet, deep folds from nose to mouth corners, a softened jaw with the start of jowls, slightly drooping upper eyelids, thinner lips and eyebrows' }
+      70s: { posture: '; posture: shoulders slightly rounded forward and the head carried a little forward', markers: 'an elderly face in the seventies: deep forehead lines, deep folds from nose to mouth, visible jowls and loose skin under the chin, drooping upper eyelids, thin lips, thin sparse eyebrows, larger ears and nose, a few age spots on the temples and the backs of the hands' }
+      80_plus: { posture: '; posture: a rounded upper back with the shoulders slumped forward, the head carried forward and the knees very slightly bent', markers: 'a clearly very old face in the eighties: broad sculpted wrinkle lines across the forehead and around the eyes, sunken cheeks and temples, deep folds from nose to mouth, sagging jowls and loose wrinkled neck skin, heavy drooping upper eyelids, thin lips, thin white eyebrows, noticeably large ears and nose, age spots on the temples and the backs of the hands' }
     source: sampler (ACS adults 20+, stratified, largest remainder)
   apparent_age:
     kind: integer_range
@@ -83,7 +93,13 @@ attributes:
     stratify: true
     given: sex
     weights: { female: { slim: 0.144, average: 0.167, solid: 0.262, heavy: 0.427 }, male: { slim: 0.088, average: 0.162, solid: 0.337, heavy: 0.413 } }
-    labels: { slim: { words: slim, article: a }, average: { words: average, article: an }, solid: { words: 'solid, sturdy', article: a }, heavy: { words: 'heavy-set, full-figured', article: a } }
+    # v3: `body` is concrete shape wording (phase 1 drew "heavy-set" and "solid" as average in every case). The
+    # BMI and US clothing-size hints come from this attribute's own class bounds.
+    labels:
+      slim: { words: slim, article: a, body: 'SLIM and lean (BMI about 20): narrow waist and hips, flat stomach, thin arms and legs, slender neck, visible collarbones, a lean face with defined cheekbones; clothes in a small size (US XS-S) hang loosely' }
+      average: { words: average, article: an, body: 'AVERAGE (BMI about 23-24): neither slim nor heavy, a natural waist, moderate hips and limbs, a slight softness at the stomach; clothes in a medium size (US M)' }
+      solid: { words: 'solid, stocky', article: a, body: 'SOLID and STOCKY, clearly more than average (BMI about 28): a thick waist with a soft rounded belly that the clothes curve over, broad shoulders and hips, thick upper arms and thighs, a full face with a soft jawline; clothes in a large size (US L-XL), fitting snugly' }
+      heavy: { words: 'heavy-set, full-figured', article: a, body: 'HEAVY-SET and FULL-FIGURED, clearly overweight (BMI about 34): a large rounded belly that pushes the front of the clothes outward, a thick waist wider than the chest, wide hips, heavy soft upper arms and thick thighs that touch, a round full face with a soft double chin and a short-looking neck; clothes in a plus size (US 2XL-3XL)' }
     source: sampler (NHANES 2015-2018 national BMI percentiles, interpolated; county figure verify)
   stature_m:                                       # NHANES Tables 9 and 11, [mean, P5, P95] in cm
     kind: normal
@@ -95,16 +111,39 @@ attributes:
     source: sampler (NHANES 2015-2018 by sex and age band, clipped to +/- 2 SD)
 
   # ---- Authored casting conventions below, not data: gated by the operator at casting (Q-S26-7, ARC-95).
+  # v3 (2026-10-15, template v3 calibration): every visible feature has a `labels` phrase that an image model
+  # acts on (phase 1 showed bare words such as "medium" skin or "deep-set" eyes were rendered lighter or
+  # generic), and the face features are weighted by the sampled stratum instead of drawn independently, so a
+  # brief's visible features agree with each other (phase 1: an nh_asian brief drew deep-set eyes and a
+  # wide-bridged nose and read as Mediterranean). Prompts still name only what a camera sees (ruling F-CAST-7).
   skin_mst:                                        # Monk Skin Tone scale 1-10 (https://skintone.google/, CC BY 4.0)
     kind: integer_range
     given: ancestry
-    ranges: { hispanic_or_latino: [2, 7], nh_white: [1, 4], nh_asian: [2, 6], nh_black: [5, 10], nh_multiracial_or_other: [3, 8] }
-    labels: { 1: very fair, 2: fair, 3: light, 4: light-medium, 5: medium, 6: medium-tan, 7: tan-brown, 8: brown, 9: deep brown, 10: very deep brown }
+    # v3: nh_black starts at MST 6. MST 5's swatch (#D7BD96) is a light golden tan, and phase 1's MST-5 brief
+    # for an nh_black stratum read as light-medium; a calibration of the authored range, not a census figure.
+    ranges: { hispanic_or_latino: [2, 7], nh_white: [1, 4], nh_asian: [2, 6], nh_black: [6, 10], nh_multiracial_or_other: [3, 8] }
+    # Each phrase names the Monk swatch (hex from skintone.google) and a depth word the model does not lighten.
+    labels:
+      1: "very fair, pale porcelain skin with cool pink undertones (Monk swatch #F6EDE4)"
+      2: "fair, light ivory skin (Monk swatch #F3E7DB)"
+      3: "light, warm beige skin (Monk swatch #F7EAD0)"
+      4: "light-medium beige skin with a golden undertone (Monk swatch #EADABA)"
+      5: "medium golden-tan skin, olive to honey (Monk swatch #D7BD96)"
+      6: "medium-deep warm brown skin, clearly brown rather than tanned (Monk swatch #A07E56)"
+      7: "warm mid-brown skin, a rich caramel-to-chestnut brown (Monk swatch #825C43)"
+      8: "deep brown skin, a dark chestnut to cocoa brown (Monk swatch #604134)"
+      9: "very deep brown skin, dark cocoa to espresso (Monk swatch #3A312A)"
+      10: "the deepest brown skin, near-black espresso (Monk swatch #292420)"
     source: sampler (authored MST range per stratum)
   hair_texture:
     kind: categorical
     given: ancestry
     weights: { hispanic_or_latino: { straight: 0.4, wavy: 0.4, curly: 0.15, coily: 0.05 }, nh_white: { straight: 0.5, wavy: 0.35, curly: 0.15 }, nh_asian: { straight: 0.75, wavy: 0.2, curly: 0.05 }, nh_black: { wavy: 0.05, curly: 0.25, coily: 0.7 }, nh_multiracial_or_other: { straight: 0.3, wavy: 0.3, curly: 0.25, coily: 0.15 } }
+    labels:
+      straight: "straight hair (type 1): smooth, sleek strands with no wave"
+      wavy: "wavy hair (type 2): loose S-shaped waves"
+      curly: "curly hair (type 3): springy, defined spiral curls about the width of a marker pen, with volume"
+      coily: "coily, afro-textured hair (type 4): dense, tight small coils and zig-zags with a soft matte look and lots of volume, never loose ringlets"
     source: sampler (authored weights per stratum)
   hair_colour:
     kind: categorical
@@ -114,9 +153,22 @@ attributes:
     source: sampler (authored colour pool per stratum; grey by age)
   hair_style:                                      # all short or tied: §7.4, no loose long hair over the shoulders
     kind: categorical
-    given: sex
-    options: { female: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut], male: [short crop, buzz cut, short side part, short textured top, shaved head, short swept-back hair, close fade] }
-    source: sampler (authored style list by sex)
+    # v3 compatibility mask: a man's style is drawn given his hair texture, so a buzz cut or a shaved head (which
+    # show no texture) is never paired with wavy or curly hair (phase 1: felix-okafor drew "wavy" + "buzz cut").
+    # Women's lists are the same for every texture.
+    given: [sex, hair_texture]
+    options:
+      female:
+        straight: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut]
+        wavy: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut]
+        curly: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut]
+        coily: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut]
+      male:
+        straight: [short crop, buzz cut, short side part, short textured top, shaved head, short swept-back hair, close fade]
+        wavy: [short crop, short side part, short textured top, short swept-back hair, close fade]
+        curly: [short crop, short textured top, close fade, short side part]
+        coily: [short crop, buzz cut, shaved head, close fade, short twists]
+    source: sampler (authored style list by sex and hair texture)
   facial_hair:
     kind: categorical
     given: sex
@@ -126,16 +178,64 @@ attributes:
   face_shape:
     kind: categorical
     options: [oval, round, square, heart-shaped, long, diamond-shaped]
+    labels:
+      oval: "an oval face, a little longer than wide, with a gently rounded jaw"
+      round: "a round face, about as wide as long, with full cheeks and a soft rounded jaw"
+      square: "a square face with a broad forehead and a wide, angular jaw"
+      heart-shaped: "a heart-shaped face with a wide forehead and cheekbones tapering to a narrow chin"
+      long: "a long face, clearly longer than wide, with a tall forehead and a long chin"
+      diamond-shaped: "a diamond-shaped face with high wide cheekbones and a narrow forehead and chin"
     source: sampler (authored, independent of every other attribute)
+  # v3: eyes, nose and lips weighted by stratum (authored convention, operator-gated like the rest of this block).
   eyes:
     kind: categorical
-    options: [almond-shaped, round, hooded, deep-set, wide-set, downturned]
-    source: sampler (authored, independent of every other attribute)
+    given: ancestry
+    weights:
+      hispanic_or_latino: { almond-shaped: 0.3, round: 0.15, hooded: 0.15, deep-set: 0.1, wide-set: 0.1, downturned: 0.1, epicanthic: 0.1 }
+      nh_white: { almond-shaped: 0.25, round: 0.15, hooded: 0.2, deep-set: 0.2, wide-set: 0.1, downturned: 0.1 }
+      nh_asian: { monolid: 0.3, epicanthic: 0.35, almond-shaped: 0.1, hooded: 0.1, round: 0.05, wide-set: 0.05, downturned: 0.05 }
+      nh_black: { almond-shaped: 0.3, round: 0.25, wide-set: 0.15, hooded: 0.1, downturned: 0.1, deep-set: 0.1 }
+      nh_multiracial_or_other: { almond-shaped: 0.25, round: 0.15, hooded: 0.15, deep-set: 0.1, wide-set: 0.1, downturned: 0.1, epicanthic: 0.1, monolid: 0.05 }
+    labels:
+      almond-shaped: "almond-shaped eyes with a clearly defined upper-eyelid crease"
+      round: "large round eyes with a visible upper-eyelid crease"
+      hooded: "hooded eyes, the upper lid partly covered by a soft fold under the brow"
+      deep-set: "deep-set eyes under a pronounced brow ridge"
+      wide-set: "wide-set almond eyes with a broad space between them"
+      downturned: "gently downturned eyes, the outer corners lower than the inner"
+      monolid: "monolid eyes: no visible upper-eyelid crease, a smooth flat lid, a gently narrow eye opening and a low, flat brow area"
+      epicanthic: "almond-shaped eyes with an epicanthic fold covering the inner corners and a low, barely visible inner crease"
+    source: sampler (authored weights per stratum)
   nose:
     kind: categorical
-    options: [straight, broad, narrow, aquiline, short upturned, wide-bridged]
-    source: sampler (authored, independent of every other attribute)
+    given: ancestry
+    weights:
+      hispanic_or_latino: { straight: 0.3, broad: 0.25, aquiline: 0.15, wide-bridged: 0.1, low-bridged: 0.1, short upturned: 0.1 }
+      nh_white: { straight: 0.35, narrow: 0.2, aquiline: 0.15, short upturned: 0.2, wide-bridged: 0.1 }
+      nh_asian: { low-bridged: 0.45, short upturned: 0.15, broad: 0.15, straight: 0.2, wide-bridged: 0.05 }
+      nh_black: { broad: 0.6, wide-bridged: 0.2, straight: 0.1, short upturned: 0.1 }
+      nh_multiracial_or_other: { straight: 0.25, broad: 0.25, low-bridged: 0.15, short upturned: 0.15, aquiline: 0.1, narrow: 0.1 }
+    labels:
+      straight: "a straight nose with a medium bridge"
+      broad: "a broad nose with wide, rounded nostrils, a low soft bridge and a rounded tip"
+      narrow: "a narrow nose with a high, thin bridge"
+      aquiline: "an aquiline nose with a high bridge and a slight downward curve"
+      short upturned: "a short, slightly upturned nose"
+      wide-bridged: "a nose with a wide, fairly flat bridge and a broad tip"
+      low-bridged: "a small nose with a low, flat bridge between the eyes and a soft rounded tip"
+    source: sampler (authored weights per stratum)
   lips:
     kind: categorical
-    options: [full, medium, thin, wide]
-    source: sampler (authored, independent of every other attribute)
+    given: ancestry
+    weights:
+      hispanic_or_latino: { medium: 0.4, full: 0.35, thin: 0.1, wide: 0.15 }
+      nh_white: { medium: 0.45, thin: 0.3, full: 0.15, wide: 0.1 }
+      nh_asian: { medium: 0.5, full: 0.25, thin: 0.15, wide: 0.1 }
+      nh_black: { full: 0.65, wide: 0.2, medium: 0.15 }
+      nh_multiracial_or_other: { medium: 0.4, full: 0.35, wide: 0.15, thin: 0.1 }
+    labels:
+      full: "full, plump lips"
+      medium: "medium lips"
+      thin: "thin lips"
+      wide: "a wide mouth with medium-full lips"
+    source: sampler (authored weights per stratum)

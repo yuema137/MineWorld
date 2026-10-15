@@ -1,8 +1,8 @@
 # Cast reference-image style template — step-26 §7.4a item 1 (one art style).
 #
-# Every cast reference image is generated from this fixed preamble plus one person's brief. The anchor
-# image (anchor.png, Vera's approved reference) is passed to the image model with every request, for
-# quality tier and style only — never for identity (§5.2 stage 2). Changing any field below is a new
+# Every cast reference image is generated from this fixed preamble plus one person's brief. The style
+# anchor (`anchors.full_body`; v3: a style sheet derived from Vera's approved reference) is passed to the
+# image model with every request, for quality tier and style only — never for identity (§5.2 stage 2). Changing any field below is a new
 # template version; every brief records the version it was cast with, and a batch with mixed versions is
 # refused (X-22).
 #
@@ -13,21 +13,38 @@
 # full-body framing, pose, lighting and background below therefore come from what route D+ needs of a
 # Meshy input (CHARACTER_ROUTE_D_PLUS.md §3: apose_v3 chosen because the arms were clear of the body and
 # the straps; stage 3 masks the figure, stage 4 runs with remove_lighting), not from the anchor.
-version: 2
+#
+# Derivation (v3, calibration 2026-10-15). Phase 1 (10 people x 3 candidates under v2) drifted to
+# near-photographic faces, under-delivered build and age, rendered skin lighter than the brief, and copied
+# Vera's freckles, updo strands and eyes onto other people. 22 calibration calls (REPORT in
+# /Users/yuema137/mineworld-worktrees/cast-out/calibration/, not committed) compared three style anchors with
+# the same person paragraph: Vera's full-body illustration (v2), an in-game render of the 3D Vera, and a
+# STYLE SHEET of four non-Vera people generated in Vera's style from the v2 anchor. The style sheet gave the
+# most consistent stylised finish across ages and skin tones and removed the Vera leakage; the 3D render
+# tinted the backdrop and stayed half-photographic. v3 therefore conditions full-body references on the style
+# sheet (pending operator ruling F-CAST-8), states the rendering style explicitly, forbids copying any
+# reference person, and writes every visible feature through the profile's calibrated phrases.
+version: 3
 date: '2026-10-15'
 author: S26 casting director (Opus session, branch mvp0/s26-cast-director)
 history:
   - { version: 1, date: '2026-10-15', change: first template; chest-up anchor only }
   - { version: 2, date: '2026-10-15', change: 'full-body style anchor added (operator ruling F-CAST-1); prompts describe only visible features, never a census category (ruling F-CAST-7); person paragraphs moved here from code' }
+  - { version: 3, date: '2026-10-15', change: 'calibration: style-sheet anchor (four non-Vera people in Vera style) replaces Vera as the cast style anchor (F-CAST-8, operator to rule); explicit stylised-render paragraph; do-not-copy-the-reference wording; age markers, body shape, calibrated skin, hair-texture and face-feature phrases from the profile (v3); closing CHECK line; 35-degree arm wording; bag at the back hip; candidate_variants for distinct candidates' }
 anchors:
   identity:                 # Vera's identity source of truth (ARC-19); unchanged
     path: presentation/mineworld-default/3D/characters/style/anchor.png
     sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
     role: identity of the protagonist; style and quality-tier reference for portraits
-  full_body:                # anchor v2: a full-body A-pose Vera generated from the identity anchor
+  full_body:                # anchor v3: a style sheet of four non-Vera people, generated from the v2 anchor
+    path: presentation/mineworld-default/3D/characters/style/anchor_stylesheet.png
+    sha256: 446c4f812103e9e7d0203cdd9210195fd32293d3bb920c98c48b1838931116bf
+    role: rendering style and quality tier for every full-body cast reference and every portrait (never identity)
+    provenance: presentation/mineworld-default/3D/characters/style/anchor_stylesheet.provenance.yaml
+  vera_full_body:           # anchor v2, kept: Vera's own full-body reference; the style sheet's source
     path: presentation/mineworld-default/3D/characters/style/anchor_fullbody.png
     sha256: c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32
-    role: style, quality tier, framing, pose, lighting and backdrop for every full-body cast reference
+    role: Vera's full-body reference and the control on every review sheet (§6.3); no longer attached to cast requests
     provenance: presentation/mineworld-default/3D/characters/style/anchor_fullbody.provenance.yaml
 
 image_model:
@@ -55,29 +72,53 @@ full_body:
     right, a faint rim from behind; no hard cast shadows on the body, no coloured light, no lens flare.
   background: plain seamless light warm-grey studio backdrop (about #C8C4BE), no floor line, no props
   preamble: |
-    The attached image is a STYLE REFERENCE ONLY: match its art style, quality, framing, pose, lighting and
-    backdrop, not its person or clothes. Style: grounded semi-realistic 3D character render, in the look of a polished
-    modern story-driven game's character art; realistic human proportions and anatomy (no anime or cartoon
-    proportions); soft natural skin with subtle texture and gentle subsurface warmth; hair rendered as soft
-    detailed locks; clean, believable everyday fabrics with natural folds and seams; warm, natural colour.
-    An ordinary person who could live in a real small town, attractive in an everyday way, not glamorous.
+    The attached image is a STYLE REFERENCE ONLY: a style sheet showing several different people in the target
+    art style. Copy its RENDERING STYLE, finish and quality, and the pose, lighting and backdrop described below.
+    Do NOT copy any person in it: not their faces, hair, skin, clothes or bodies. The subject is ONE new person,
+    described below, alone in the frame; draw only what the description says (no freckles, no loose
+    face-framing strands unless it names them).
+
+    RENDERING STYLE — this matters most, and it is the same for every age, body and skin tone: a STYLISED 3D
+    game character with exactly the finish of the attached reference: a hand-sculpted, slightly idealised
+    character model with soft painted textures, as in a polished modern story-driven adventure game. NOT a
+    photograph, NOT a photo-scan, NOT hyper-realistic. Realistic body proportions (no anime, chibi or cartoon
+    anatomy), but the face is stylised like the reference: eyes a little larger than a real person’s, with
+    bright clear irises, a soft catchlight and relaxed, calm eyelids (never wide-open or staring); nose and mouth simplified in form while keeping the shapes
+    described below; smooth matte skin with soft gradient shading and no pores, blemishes, fine wrinkles or
+    skin texture. Older people keep this same smooth stylised finish: their age is shown by grey or white
+    hair, a sagging jaw and neck, a few broad simplified folds and their posture, never by photographic
+    wrinkles. Hair as soft, clean, sculpted locks; fabrics clean and believable with soft folds; warm, natural
+    colour. An ordinary person who could live in a real small town, attractive in an everyday way, not
+    glamorous.
 
     One person only, alone. Straight-on FRONT VIEW of the WHOLE BODY, from the top of the head to the soles
     of the shoes, centred, with a small empty margin above the head and below the feet; the camera is level
     at navel height with a long lens, so there is very little perspective distortion.
-    Pose: a relaxed A-pose, standing straight with weight on both feet, feet hip-width apart, toes forward;
-    both arms held down and away from the body at about 35 degrees, elbows nearly straight, with clear
-    background visible between each arm and the torso and between each arm and any strap or bag; palms
-    facing the thighs, fingers relaxed and slightly apart. Both hands are EMPTY.
+    Pose: a relaxed A-pose, standing with weight on both feet, feet hip-width apart, toes forward; both arms
+    held down and out from the body at about 35 degrees, like an upside-down V, elbows nearly straight, the
+    hands about a hand's width away from the thighs, with clear background visible between each arm and the
+    torso and between each arm and any strap or bag; palms facing the thighs, fingers relaxed and slightly
+    apart. Both hands are EMPTY. Any bag hangs at the back of the hip on a strap across the body, never
+    between an arm and the torso.
     Expression: neutral and calm, mouth closed, looking straight into the camera, head level.
     Lighting: soft even studio light from the front-left with a gentle fill; no hard shadows, no coloured
-    light. Background: a plain seamless light warm-grey studio backdrop, nothing else: no floor, no props,
-    no scenery, no text, no logos, no watermark. Hair stays clear of the shoulders and arms.
+    light; skin rendered at its true depth, not brightened. Background: a plain seamless light warm-grey
+    studio backdrop, nothing else: no floor, no props, no scenery, no text, no logos, no watermark. Hair stays
+    clear of the shoulders and arms.
+  # Stage 2 asks for 2-4 candidates per person (§5.2). Candidate N's prompt is reference_prompt.txt followed by
+  # candidate_variants[N-1], so the operator chooses between different faces that all fit the brief (phase 1's
+  # three candidates per person were one face). A variant only touches details no brief attribute sets.
+  candidate_variants:
+    1: "Individual detail for this candidate: straight, fairly thick eyebrows; a slightly wider jaw within the stated face shape; a small mole on the left cheek; hair parted on the left."
+    2: "Individual detail for this candidate: softly arched, thinner eyebrows; slightly higher cheekbones; a narrower chin within the stated face shape; ears close to the head; hair parted on the right."
+    3: "Individual detail for this candidate: low, gently rounded eyebrows; fuller cheeks; a slightly longer upper lip; slightly prominent ears; no visible parting."
+    4: "Individual detail for this candidate: angled eyebrows; a slightly longer nose tip within the stated nose; a small dimple in the chin; a few loose short hairs at the hairline."
 
 portrait:
   output_size: 1024x1024
   conditioning: the approved full-body reference of the same person, attached FIRST (identity), then the
-    identity anchor anchor.png (style); the portrait must show the same person, hair and garments
+    style sheet anchor_stylesheet.png (style); the portrait must show the same person, hair and garments
+    (v3: untested in calibration, which generated full-body references only)
   camera:
     height: at eye level
     focal_length: 85 mm full-frame equivalent
@@ -88,10 +129,12 @@ portrait:
   background: same plain light warm-grey backdrop
   preamble: |
     The FIRST attached image is this person's approved full-body reference: keep the same person exactly —
-    face, skin tone, age, hair style and colour, and the same garments and colours. The SECOND attached image
-    is a STYLE REFERENCE ONLY: match its art style and quality, not its person. Style: grounded
-    semi-realistic 3D character render, realistic proportions, soft natural skin with subtle texture, hair
-    as soft detailed locks, believable everyday fabrics; warm, natural colour.
+    face, skin tone and its depth, age, body, hair style and colour, and the same garments and colours. The
+    SECOND attached image is a STYLE REFERENCE ONLY: a style sheet of other people; copy its rendering style
+    and quality, never any person in it (not their faces, eyes, hair, skin or clothes). Style: a stylised 3D game-character render, not a
+    photograph; realistic proportions; smooth, clean skin with soft shading and no pores or fine skin texture;
+    eyes a little larger than life with clear irises and calm, relaxed eyelids; age shown by shape, not skin detail; hair as soft sculpted
+    locks; believable everyday fabrics; warm, natural colour.
 
     Chest-up portrait of this one person: from the top of the hair to mid-chest, the body turned slightly to
     the person's left and the face toward the camera, eyes level with the upper third of the frame, camera
@@ -101,29 +144,37 @@ portrait:
 # The person paragraph, appended to each preamble. Placeholders: {attr} is the person's value of a profile
 # attribute or a casting-input field; {attr|label} and {attr|label.key} are the profile's words for that value.
 # A line whose placeholders all resolve to empty text is dropped. No census category is ever named here
-# (operator ruling F-CAST-7): only what a camera sees.
+# (operator ruling F-CAST-7): only what a camera sees. v3: every visible feature is written through the
+# profile's calibrated phrase (`labels`), and the lines most often under-delivered in phase 1 (age, body,
+# skin depth, hair texture) are stated as concrete visible facts and repeated in the closing CHECK line.
 person_full: |
-  THE PERSON: a {sex|label.noun}, apparent age about {apparent_age}, {stature_m} m tall, {build|label.article} {build|label.words} build{age_band|label.posture}.
-  Skin: {skin_mst|label} skin tone (Monk Skin Tone {skin_mst} of 10), natural and even.
-  Face: {face_shape} face, {eyes} eyes, {nose} nose, {lips} lips; an ordinary, individual real face, never a caricature.
-  Hair: {hair_colour}, {hair_texture} hair, {hair_style}, kept clear of the shoulders.
+  THE PERSON: a {sex|label.noun}, apparent age {apparent_age}, {stature_m} m tall.
+  Age, clearly visible: {age_band|label.markers}.
+  Body: {build|label.body}{age_band|label.posture}.
+  Skin: {skin_mst|label}, Monk Skin Tone {skin_mst} of 10, the same depth on the face, neck and hands; do not lighten it.
+  Face: {face_shape|label}; {eyes|label}; {nose|label}; {lips|label}. An ordinary, individual real face, respectful and never a caricature.
+  Hair: {hair_colour}; {hair_texture|label}; styled as a {hair_style}, kept clear of the shoulders.
   {facial_hair|label}
   {headwear_line}
   Wearing: {wear}; {wear_lower}.
   {carried_line}
   Manner, shown only through a calm neutral face and posture: {manner}.
-  AVOID: {avoid_line}; no text or logos on clothing.
+  AVOID: {avoid_line}; no text or logos on clothing; nothing copied from the reference person.
+  CHECK before finishing: apparent age {apparent_age}; {build|label.words} body; Monk Skin Tone {skin_mst} skin; {hair_texture} hair; arms clear of the body.
 person_portrait: |
-  THE PERSON: a {sex|label.noun}, apparent age about {apparent_age}, {build|label.article} {build|label.words} build.
-  Skin: {skin_mst|label} skin tone (Monk Skin Tone {skin_mst} of 10), natural and even.
-  Face: {face_shape} face, {eyes} eyes, {nose} nose, {lips} lips; an ordinary, individual real face, never a caricature.
-  Hair: {hair_colour}, {hair_texture} hair, {hair_style}, kept clear of the shoulders.
+  THE PERSON: a {sex|label.noun}, apparent age {apparent_age}.
+  Age, clearly visible: {age_band|label.markers}.
+  Body: {build|label.body}.
+  Skin: {skin_mst|label}, Monk Skin Tone {skin_mst} of 10; do not lighten it.
+  Face: {face_shape|label}; {eyes|label}; {nose|label}; {lips|label}. An ordinary, individual real face, respectful and never a caricature.
+  Hair: {hair_colour}; {hair_texture|label}; styled as a {hair_style}, kept clear of the shoulders.
   {facial_hair|label}
   {headwear_line}
   Wearing: {wear}.
   Manner, shown only through a calm neutral face and posture: {manner}.
-  AVOID: {avoid_line}; no text or logos on clothing.
+  AVOID: {avoid_line}; no text or logos on clothing; nothing copied from the style reference person.
 
 # How a prompt is assembled (tools/character_pipeline/casting/cast_director.py):
 #   reference_prompt.txt = full_body.preamble + "\n" + person_full, filled from the brief
 #   portrait_prompt.txt  = portrait.preamble + "\n" + person_portrait, filled from the brief
+# Candidate N of stage 2 = reference_prompt.txt + "\n" + full_body.candidate_variants[N] (data, not code).

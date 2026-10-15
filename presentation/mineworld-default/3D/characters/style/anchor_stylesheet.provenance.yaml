@@ -1,0 +1,96 @@
+source_type: generated
+generation:
+  tool: tools/asset_generation (openai-images)
+  provider: openai-images
+  model: gpt-image-2.5-sunburst
+  workflow_version: 1.0.0
+  date: '2026-10-15'
+  prompt_summary: 'The attached image defines the art style: a stylised 3D game-character render with
+    smooth matte skin, soft gradient sha…'
+  prompt: 'The attached image defines the art style: a stylised 3D game-character render with smooth matte
+    skin, soft gradient shading, eyes noticeably larger than a real person''s with bright clear irises,
+    gently simplified features, hair as soft sculpted locks, clean believable fabrics, warm natural colour.
+    Keep exactly that finish. Do NOT draw the woman in the attached image; she is not in this picture.
+
+
+    Create a CHARACTER STYLE SHEET for the same game: FOUR different ordinary people standing side by
+    side in one row, evenly spaced with clear space between them, all at the same scale, each a straight-on
+    front view of the whole body from the top of the head to the soles of the shoes, each in the same
+    relaxed A-pose with both arms held down and out from the body at about 35 degrees, hands empty, neutral
+    calm expression, looking into the camera. Plain seamless light warm-grey studio backdrop, soft even
+    studio light from the front-left, no floor line, no props, no text, no labels, no logos.
+
+
+    Every one of the four has the same stylised finish (larger eyes, smooth matte skin without pores or
+    photographic wrinkles); age is shown only by hair colour, broad simplified folds, sagging jaw and
+    posture.
+
+    1. A very old man of about 85: white hair, a few broad simplified wrinkle lines, sagging jowls, slightly
+    stooped; heavy-set with a round belly; light skin; grey cardigan, white shirt, charcoal trousers,
+    black shoes.
+
+    2. A woman of about 55: deep brown skin (Monk Skin Tone 8), short coily afro-textured hair, broad
+    nose, full lips; solid, stocky build; teal blouse, black trousers, white sneakers.
+
+    3. A slim man of about 30: light-medium skin, monolid eyes, a low nose bridge, short straight black
+    hair; plain grey t-shirt, dark jeans, white sneakers.
+
+    4. A heavy-set woman of about 40: medium golden-tan skin, wavy dark-brown hair in a low bun, a round
+    face; plum long-sleeved top, navy trousers, brown flat shoes.
+
+    None of them has freckles; none resembles the attached woman.'
+  parameters:
+    size: 1536x1024
+    quality: high
+    background: opaque
+    output_format: png
+    endpoint: images.edit
+    revised_prompt: null
+  seed: null
+  reference_images:
+  - path: presentation/mineworld-default/3D/characters/style/anchor_fullbody.png
+    digest: sha256:c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32
+  human_curated: false
+  runtime:
+    wall_seconds: 31.38
+    cost_usd_estimate: 0.05578
+    usage:
+      input_tokens: 2003
+      input_tokens_details:
+        image_tokens: 1536
+        text_tokens: 467
+      output_tokens: 1372
+      total_tokens: 3375
+      output_tokens_details:
+        image_tokens: 1372
+        text_tokens: 0
+postprocess:
+  cleaned: false
+  retopology: false
+  texture_adjusted: false
+  background_removed: false
+approval:
+  status: candidate
+  approved_by: null
+  approved_date: null
+license:
+  redistribution_allowed: true
+  note: Generated with the OpenAI Images API. Under OpenAI's terms of use the customer owns the output
+    images and may use and redistribute them commercially, so these candidates may be committed to and
+    redistributed from MineWorld's MIT-licensed repository. No model weights are redistributed. Reference
+    images are MineWorld's own committed style references.
+# Added by the S26 template-v3 calibration (2026-10-15), ARC-9:
+sha256: 446c4f812103e9e7d0203cdd9210195fd32293d3bb920c98c48b1838931116bf
+conditioned_on:
+  path: presentation/mineworld-default/3D/characters/style/anchor_fullbody.png
+  sha256: c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32
+  used_for: art style only (Vera Lindgren's full-body reference); the prompt forbids drawing Vera
+role:
+  used_as: template v3 full-body and portrait style anchor for every cast reference (rendering style and tier only)
+  ruling: pending — operator ruling F-CAST-8 (replace Vera as the cast style anchor)
+  why: four people of different ages, builds and skin tones in Vera's stylised finish; conditioning on it kept the
+    finish stylised for elderly and deep-skinned people and removed Vera's freckles, updo and eyes from the cast
+    (calibration REPORT, cast-out/calibration, not committed)
+  scratch_copy: /Users/yuema137/mineworld-worktrees/cast-out/calibration/anchors/style_sheet.png (not committed)
+  known_misses: crowns close to the top edge (the sheet is a style reference, not a framing reference); the
+    eyes are a little larger than Vera's, so the template asks for eyes only "a little larger than life"

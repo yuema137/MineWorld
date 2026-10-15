@@ -1,26 +1,44 @@
-The attached image is a STYLE REFERENCE ONLY: match its art style, quality, framing, pose, lighting and
-backdrop, not its person or clothes. Style: grounded semi-realistic 3D character render, in the look of a polished
-modern story-driven game's character art; realistic human proportions and anatomy (no anime or cartoon
-proportions); soft natural skin with subtle texture and gentle subsurface warmth; hair rendered as soft
-detailed locks; clean, believable everyday fabrics with natural folds and seams; warm, natural colour.
-An ordinary person who could live in a real small town, attractive in an everyday way, not glamorous.
+The attached image is a STYLE REFERENCE ONLY: a style sheet showing several different people in the target
+art style. Copy its RENDERING STYLE, finish and quality, and the pose, lighting and backdrop described below.
+Do NOT copy any person in it: not their faces, hair, skin, clothes or bodies. The subject is ONE new person,
+described below, alone in the frame; draw only what the description says (no freckles, no loose
+face-framing strands unless it names them).
+
+RENDERING STYLE — this matters most, and it is the same for every age, body and skin tone: a STYLISED 3D
+game character with exactly the finish of the attached reference: a hand-sculpted, slightly idealised
+character model with soft painted textures, as in a polished modern story-driven adventure game. NOT a
+photograph, NOT a photo-scan, NOT hyper-realistic. Realistic body proportions (no anime, chibi or cartoon
+anatomy), but the face is stylised like the reference: eyes a little larger than a real person’s, with
+bright clear irises, a soft catchlight and relaxed, calm eyelids (never wide-open or staring); nose and mouth simplified in form while keeping the shapes
+described below; smooth matte skin with soft gradient shading and no pores, blemishes, fine wrinkles or
+skin texture. Older people keep this same smooth stylised finish: their age is shown by grey or white
+hair, a sagging jaw and neck, a few broad simplified folds and their posture, never by photographic
+wrinkles. Hair as soft, clean, sculpted locks; fabrics clean and believable with soft folds; warm, natural
+colour. An ordinary person who could live in a real small town, attractive in an everyday way, not
+glamorous.
 
 One person only, alone. Straight-on FRONT VIEW of the WHOLE BODY, from the top of the head to the soles
 of the shoes, centred, with a small empty margin above the head and below the feet; the camera is level
 at navel height with a long lens, so there is very little perspective distortion.
-Pose: a relaxed A-pose, standing straight with weight on both feet, feet hip-width apart, toes forward;
-both arms held down and away from the body at about 35 degrees, elbows nearly straight, with clear
-background visible between each arm and the torso and between each arm and any strap or bag; palms
-facing the thighs, fingers relaxed and slightly apart. Both hands are EMPTY.
+Pose: a relaxed A-pose, standing with weight on both feet, feet hip-width apart, toes forward; both arms
+held down and out from the body at about 35 degrees, like an upside-down V, elbows nearly straight, the
+hands about a hand's width away from the thighs, with clear background visible between each arm and the
+torso and between each arm and any strap or bag; palms facing the thighs, fingers relaxed and slightly
+apart. Both hands are EMPTY. Any bag hangs at the back of the hip on a strap across the body, never
+between an arm and the torso.
 Expression: neutral and calm, mouth closed, looking straight into the camera, head level.
 Lighting: soft even studio light from the front-left with a gentle fill; no hard shadows, no coloured
-light. Background: a plain seamless light warm-grey studio backdrop, nothing else: no floor, no props,
-no scenery, no text, no logos, no watermark. Hair stays clear of the shoulders and arms.
+light; skin rendered at its true depth, not brightened. Background: a plain seamless light warm-grey
+studio backdrop, nothing else: no floor, no props, no scenery, no text, no logos, no watermark. Hair stays
+clear of the shoulders and arms.
 
-THE PERSON: a woman, apparent age about 51, 1.58 m tall, a heavy-set, full-figured build.
-Skin: light-medium skin tone (Monk Skin Tone 4 of 10), natural and even.
-Face: square face, deep-set eyes, wide-bridged nose, wide lips; an ordinary, individual real face, never a caricature.
-Hair: black, straight hair, low tied-back bun, kept clear of the shoulders.
+THE PERSON: a woman, apparent age 51, 1.58 m tall.
+Age, clearly visible: a face in the fifties: clear crow’s feet, defined smile lines from nose to mouth, faint forehead lines, a softening jawline, slightly thinner lips.
+Body: HEAVY-SET and FULL-FIGURED, clearly overweight (BMI about 34): a large rounded belly that pushes the front of the clothes outward, a thick waist wider than the chest, wide hips, heavy soft upper arms and thick thighs that touch, a round full face with a soft double chin and a short-looking neck; clothes in a plus size (US 2XL-3XL).
+Skin: light-medium beige skin with a golden undertone (Monk swatch #EADABA), Monk Skin Tone 4 of 10, the same depth on the face, neck and hands; do not lighten it.
+Face: a square face with a broad forehead and a wide, angular jaw; almond-shaped eyes with an epicanthic fold covering the inner corners and a low, barely visible inner crease; a straight nose with a medium bridge; thin lips. An ordinary, individual real face, respectful and never a caricature.
+Hair: black; straight hair (type 1): smooth, sleek strands with no wave; styled as a low tied-back bun, kept clear of the shoulders.
 Wearing: olive hip-length cotton utility jacket over a navy-and-white striped breton top; dark-wash straight jeans; tan suede ankle boots.
 Manner, shown only through a calm neutral face and posture: quiet and absorbed.
-AVOID: glasses (reading glasses replaced by none); hand-held props (no book in hand); long coat (she sits on a bench, G-13); no text or logos on clothing.
+AVOID: glasses (reading glasses replaced by none); hand-held props (no book in hand); long coat (she sits on a bench, G-13); no text or logos on clothing; nothing copied from the reference person.
+CHECK before finishing: apparent age 51; heavy-set, full-figured body; Monk Skin Tone 4 skin; straight hair; arms clear of the body.

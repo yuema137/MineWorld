@@ -1,19 +1,23 @@
 The FIRST attached image is this person's approved full-body reference: keep the same person exactly —
-face, skin tone, age, hair style and colour, and the same garments and colours. The SECOND attached image
-is a STYLE REFERENCE ONLY: match its art style and quality, not its person. Style: grounded
-semi-realistic 3D character render, realistic proportions, soft natural skin with subtle texture, hair
-as soft detailed locks, believable everyday fabrics; warm, natural colour.
+face, skin tone and its depth, age, body, hair style and colour, and the same garments and colours. The
+SECOND attached image is a STYLE REFERENCE ONLY: a style sheet of other people; copy its rendering style
+and quality, never any person in it (not their faces, eyes, hair, skin or clothes). Style: a stylised 3D game-character render, not a
+photograph; realistic proportions; smooth, clean skin with soft shading and no pores or fine skin texture;
+eyes a little larger than life with clear irises and calm, relaxed eyelids; age shown by shape, not skin detail; hair as soft sculpted
+locks; believable everyday fabrics; warm, natural colour.
 
 Chest-up portrait of this one person: from the top of the hair to mid-chest, the body turned slightly to
 the person's left and the face toward the camera, eyes level with the upper third of the frame, camera
 at eye level with a long lens. Neutral, relaxed expression. Soft even studio light from the front-left
 with a gentle fill; plain seamless light warm-grey backdrop; no props, no text, no logos, no watermark.
 
-THE PERSON: a man, apparent age about 24, an average build.
-Skin: fair skin tone (Monk Skin Tone 2 of 10), natural and even.
-Face: round face, wide-set eyes, straight nose, medium lips; an ordinary, individual real face, never a caricature.
-Hair: reddish brown, wavy hair, short tousled crop, kept clear of the shoulders.
+THE PERSON: a man, apparent age 24.
+Age, clearly visible: a young adult face: smooth, firm skin with no wrinkles, full cheeks, a crisp jawline.
+Body: AVERAGE (BMI about 23-24): neither slim nor heavy, a natural waist, moderate hips and limbs, a slight softness at the stomach; clothes in a medium size (US M).
+Skin: fair, light ivory skin (Monk swatch #F3E7DB), Monk Skin Tone 2 of 10; do not lighten it.
+Face: a round face, about as wide as long, with full cheeks and a soft rounded jaw; wide-set almond eyes with a broad space between them; a straight nose with a medium bridge; medium lips. An ordinary, individual real face, respectful and never a caricature.
+Hair: reddish brown; wavy hair (type 2): loose S-shaped waves; styled as a short tousled crop, kept clear of the shoulders.
 Clean-shaven.
 Wearing: warm amber-orange zip-front casual jacket over a cream crew-neck shirt.
 Manner, shown only through a calm neutral face and posture: relaxed and curious, a traveller.
-AVOID: glasses; hand-held props; no text or logos on clothing.
+AVOID: glasses; hand-held props; no text or logos on clothing; nothing copied from the style reference person.

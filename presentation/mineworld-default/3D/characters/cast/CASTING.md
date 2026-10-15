@@ -13,10 +13,10 @@ top of `populations/san-diego-county.yaml`.
 | vera-lindgren | female | 20s | 1.77 | slim | nh_white | 3 | brown | wavy | messy high updo with face-framing strands | open burgundy zip hoodie |
 | alice-moreau | female | 46 | 1.61 | solid | nh_white | 4 | auburn | straight | high top knot | forest green bib apron |
 | bob-achterberg | male | 82 | 1.81 | solid | nh_multiracial_or_other | 3 | silver-grey | straight | close fade | heather brown button-front knitted cardigan |
-| carol-mensah | female | 58 | 1.60 | solid | nh_black | 5 | dark brown | curly | high top knot | mustard yellow hip-length open cardigan |
+| carol-mensah | female | 58 | 1.60 | solid | nh_black | 6 | dark brown | curly | high top knot | mustard yellow hip-length open cardigan |
 | dev-raman | male | 67 | 1.69 | slim | nh_white | 3 | grey | wavy | short textured top | electric blue fitted long-sleeve running top |
 | erin-walsh | female | 51 | 1.58 | heavy | nh_asian | 4 | black | straight | low tied-back bun | olive hip-length cotton utility jacket |
-| felix-okafor | male | 64 | 1.80 | solid | nh_white | 2 | red | wavy | buzz cut | mid-blue denim trucker jacket |
+| felix-okafor | male | 64 | 1.80 | solid | nh_white | 2 | red | wavy | short side part | mid-blue denim trucker jacket |
 | grace-liu | female | 37 | 1.54 | average | hispanic_or_latino | 6 | brown | straight | braided crown updo | navy single-breasted tailored blazer |
 | hana-sato | female | 30 | 1.68 | heavy | hispanic_or_latino | 4 | black | straight | pixie cut | sage green cropped lightweight jacket |
 | ivan-petrov | male | 70 | 1.67 | heavy | hispanic_or_latino | 5 | white | straight | close fade | stone beige unstructured linen-blend sport jacket |
@@ -39,7 +39,7 @@ top of `populations/san-diego-county.yaml`.
 | vera-lindgren / otto-brandt | age, stature, build, skin, hair, outer | 6 | PASS |
 | vera-lindgren / wes-calloway | stature, build, hair, outer | 4 | PASS |
 | alice-moreau / bob-achterberg | age, stature, hair, outer | 4 | PASS |
-| alice-moreau / carol-mensah | age, hair, outer | 3 | PASS |
+| alice-moreau / carol-mensah | age, skin, hair, outer | 4 | PASS |
 | alice-moreau / dev-raman | age, stature, build, hair, outer | 5 | PASS |
 | alice-moreau / erin-walsh | age, build, hair, outer | 4 | PASS |
 | alice-moreau / felix-okafor | age, stature, skin, hair, outer | 5 | PASS |
@@ -58,12 +58,12 @@ top of `populations/san-diego-county.yaml`.
 | bob-achterberg / otto-brandt | age, stature, build, skin, hair, outer | 6 | PASS |
 | bob-achterberg / wes-calloway | age, stature, build, hair, outer | 5 | PASS |
 | carol-mensah / dev-raman | age, stature, build, skin, hair, outer | 6 | PASS |
-| carol-mensah / erin-walsh | build, hair, outer | 3 | PASS |
+| carol-mensah / erin-walsh | build, skin, hair, outer | 4 | PASS |
 | carol-mensah / felix-okafor | age, stature, skin, hair, outer | 5 | PASS |
 | carol-mensah / grace-liu | age, stature, build, hair, outer | 5 | PASS |
-| carol-mensah / hana-sato | age, stature, build, hair, outer | 5 | PASS |
+| carol-mensah / hana-sato | age, stature, build, skin, hair, outer | 6 | PASS |
 | carol-mensah / ivan-petrov | age, stature, build, hair, outer | 5 | PASS |
-| carol-mensah / otto-brandt | age, stature, build, skin, hair, outer | 6 | PASS |
+| carol-mensah / otto-brandt | age, stature, build, hair, outer | 5 | PASS |
 | carol-mensah / wes-calloway | age, stature, build, skin, hair, outer | 6 | PASS |
 | dev-raman / erin-walsh | age, stature, build, hair, outer | 5 | PASS |
 | dev-raman / felix-okafor | stature, build, hair, outer | 4 | PASS |
@@ -242,6 +242,27 @@ session.
 - **F-CAST-7 — Prompts. RULED: prompts describe only visible features** — skin tone (MST level in words),
   hair colour, texture and style, face shape and features. No census category appears in any prompt; the
   sampled ancestry stratum stays in the briefs and in this file, for the distribution only.
+- **F-CAST-8 — Template v3 calibration (2026-10-15). OPEN: the operator rules on the style anchor.** Phase 1
+  under v2 drew near-photographic faces, average bodies for "solid" and "heavy", 80-year-olds as about 75,
+  skin lighter than the brief, and Vera's freckles, updo strands and eyes on other people. Template v3 and
+  profile v3 fix the words (calibrated skin, hair-texture, eye, nose, lip, face-shape, body and age phrases;
+  a closing CHECK line; per-candidate `candidate_variants`). The anchor question is the operator's: v3
+  attaches `../style/anchor_stylesheet.png` (four non-Vera people generated in Vera's style from
+  `anchor_fullbody.png`) instead of Vera herself, because it was the only anchor of the three tested that
+  kept the finish stylised for the elderly and removed the Vera leakage. Rejecting it means reverting
+  `anchors.full_body` and the preamble's first paragraph to v2's, and accepting more photographic elderly
+  faces.
+  **Sampled values re-drawn by v3's compatibility masks** (same seed, attempt 0 in both worlds; no other
+  attribute moved): eyes, nose and lips are now weighted by stratum (an `nh_asian` brief drew deep-set eyes
+  and a wide-bridged nose under v2 and read as Mediterranean), so they re-drew for alba-ferreira (nose,
+  lips), bob-achterberg (nose, lips), bruno-lindqvist (lips), carol-mensah (lips), celia-okafor (lips),
+  dario-russo (lips), elin-berg (eyes, nose, lips), erin-walsh (eyes, nose, lips), felix-okafor (lips),
+  grace-liu (nose, lips), greta-novak (eyes, nose, lips), hana-sato (nose, lips), hugo-marchetti (eyes),
+  ines-duarte (eyes, nose), ivan-petrov (lips), nils-aaltonen (eyes, nose, lips), otto-brandt (eyes); a
+  man's hair style is drawn given his hair texture, so felix-okafor's "wavy" + "buzz cut" became "short side
+  part"; the `nh_black` skin range starts at MST 6 (MST 5's swatch is a light golden tan), so carol-mensah's
+  skin moved 5 → 6. grace-liu's shoulder bag became a cross-body bag worn at the back hip
+  (`casting_inputs.json`, director's field).
 
 ## Modularity (operator principle, 2026-10-15)
 

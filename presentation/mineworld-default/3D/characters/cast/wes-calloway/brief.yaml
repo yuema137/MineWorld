@@ -28,7 +28,7 @@ identity_source: "presentation/mineworld-default/2D/art/generated/gen_player_fro
 casting:
   world: cafe-town
   profile: presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
-  template_version: 2
+  template_version: 3
   seed: mineworld-s26-cast-v1
   attempt: 0
   outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)
@@ -45,6 +45,6 @@ sources:
   hair_texture: "biography: the 2D identity source (tousled)"
   apparent_age: "sampler (uniform within the age band)"
   face_shape: "sampler (authored, independent of every other attribute)"
-  eyes: "sampler (authored, independent of every other attribute)"
-  nose: "sampler (authored, independent of every other attribute)"
-  lips: "sampler (authored, independent of every other attribute)"
+  eyes: "sampler (authored weights per stratum)"
+  nose: "sampler (authored weights per stratum)"
+  lips: "sampler (authored weights per stratum)"
