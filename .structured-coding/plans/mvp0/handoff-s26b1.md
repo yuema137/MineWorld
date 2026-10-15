@@ -40,7 +40,11 @@ This file is a continuation aid. The authority is `pr-s26b1-pipeline.md` (DESIGN
 - **Open finding for the primary (F-B1-B3-1):** the accepted `meshy_d.glb` fails G-6(b) under the frozen bounds
   (`mixamorig:Spine` 63.5 mm and `mixamorig:Spine2` 46.9 mm outside the body). Bounds are not changed. Decision needed
   before B10 step 5 (AB1-10).
-- **Stopped:** B10 step 1 is a MATERIAL STOP (F-B1-B10-1, design §15): the `vitruvian.glb` and `body_g5.glb` armatures
+- **Current state (2026-10-14, after ruling F-B1-B10-2 option (b)):** `body_g5.glb` committed under `rig_source/` with
+  PROVENANCE; stage 7 reads its front surface. B10 run once: AB1-8 weights FAIL (0.0932; F-B1-B10-3), AB1-10 FAIL on G-6(b)
+  (F-B1-B3-1), AB1-11 INCONCLUSIVE on the albedo name (Godot). Determinism, counterfactual, mask and texture PASS. Stopped
+  for the primary. No B11, no push, no PR, no CI, no READY.
+- **Previously (historical):** B10 step 1 is a MATERIAL STOP (F-B1-B10-1, design §15): the `vitruvian.glb` and `body_g5.glb` armatures
   differ in four foot and toe rolls (worst 2.14e-4 rad against the 1e-5 bound). Waiting for the primary session's
   decision. No further Blender or Godot step, no PR, no push.
 - **Ruling F-B1-B10-1 (primary, 2026-10-14) applied:** accept the vitruvian armature; four-bone roll tolerance ≤ 2.5e-4 rad

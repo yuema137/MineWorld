@@ -1166,6 +1166,7 @@ STOP CONDITION:          S26-b1 READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Q-B1-3 | **$150 OpenAI cap for the whole of S26**, reported at 50 % and 100 %, hard stop at the cap. Answered directly in the primary session: "150 美元上限" | operator |
 | Q-B1-4 | **Yes.** No Blender in CI; the local Gate is re-run whenever the Blender scripts change | primary session |
 | Q-B1-5 | **Yes.** Fleck repair on by default, off for Vera | primary session |
+| F-B1-B10-2 | **Option (b): commit `body_g5.glb`** (CharMorph's CC0 body export, 6,360,660 bytes, SHA-256 `75b9380681342538a80b1dbe2d0140b1a60d5043badc9fa3d9142654b2bb5a4d`) under `tools/character_pipeline/rig_source/`, with `PROVENANCE.txt`. It is the ruled fallback of `Q-B1-2`. Stage 7 reads its `cm_vitruvian` front surface at both the hips and the head top. `fit.yaml`'s `charmorph_front_y_at_hips` is retired and replaced by `charmorph_body`. This is a ruled exception to I-B1-4 for this one file, and it is a binary. F-B1-B7-1's "same front surface" premise is superseded: it held at the hips only. F-B1-B9-1 is superseded with it, and the file's value is no longer needed | primary session, coordinator message 2026-10-14 |
 | F-B1-B10-1 | **Accept the vitruvian armature as built** (Q-B1-2 stands). For the four named bones only (`mixamorig:LeftFoot`, `RightFoot`, `LeftToeBase`, `RightToeBase`) the recorded roll tolerance is ≤ 2.5e-4 rad; the 1e-5 bound stays for every other bone. Heads and tails stay within 1e-5 m; `front_y` matches. The real test is B10's own parity gate (AB1-8, AB1-10). If parity fails at the feet or toes, stop: switch to Q-B1-2 option (b) and commit `body_g5.glb` | primary session, coordinator message 2026-10-14 |
 
 **Audit re-check after these rulings** (origin/main after #195 (S26-a design), DL-a, FG-a, 25b, SET-b, merged
@@ -1192,7 +1193,7 @@ or `tools/asset_generation/` changed.
 | B7 | this commit | [x] steps 1–6: `blender/{LICENSE (cmp-identical), README.md, common.py, gameready.py, fit_bind.py, weights_fingers.py, weights_pack.py, flecks.py, export.py, render_ortho.py, render_bones.py, dump_rig.py}`; ruff check and format clean under the `blender/*` rule relaxation (F-B1-B7-2) | [x] step 7 smoke: real `blender 5.2.2` on `vitruvian.glb` via `dump_rig.py`, exit 0, 52 bone lines (log read in full, `smoke.log`); I-B1-9 literal scan recorded in §2.4; `cmp` of LICENSE | [x] per-script port diff recorded in the deviations list; no script imports another except `common` |
 | B8 | this commit | [x] steps 1–5: `mwcast/blender.py` (find, pin check, command), `mwcast/pipeline.py` (`plan`, `stage_params`, `Job`, `run` with the SHA-256 stop and the run manifest), `mwcast/compare.py` (§5.7 rows), `cli.py` (`run`, `compare`), `standard.py` (PARITY_* literals), `tests/test_compare.py` (7), `tests/test_pipeline.py` (+7) | [x] 65 pytest passed; ruff check and format clean; pyright 0 errors; mutation (`PARITY_JOINT_M = 0.002`) → the 1.1 mm test red, reverted green; the accepted asset compares equal to itself | [x] subprocess only with argument lists; no stage reads an environment variable; `UrllibTransport` untouched. Deviations: `check_pin` returns whether the named version was used (not `None`); `compare --json` not added (the rows print as text). Procedural: one empty `cat >>` heredoc was run by mistake against `tests/test_pipeline.py` (it wrote nothing; the file was then edited with Edit only; recorded, not repeated) |
 | B9 | this commit | [x] steps 1–6: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/{fit.yaml, generation_log.yaml}`; `tools/character_pipeline/godot/{character.gltf.import, inspect_import.gd}`; `tools/character_pipeline/templates/MESHY_CAST_BATCH.txt`; `tests/test_records.py` (+2 Vera tests, +1 check-characters test) | [x] 68 pytest passed; ruff check and format clean; pyright 0 errors; `cast.py check-characters` → `vera-lindgren: records only (no character.yaml); overrides ['flecks.enabled']`, 0 failing. The Godot files are not run yet (B10 step 6) | [x] trace table below; no `task.json` URL copied; `charmorph_front_y_at_hips` kept at −0.045356 (see F-B1-B9-1) |
-| B10 | STOPPED at step 2 (run r1, `fit_bind`): F-B1-B10-2 (Gate 2 spec below); ruling F-B1-B10-1 applied (§14.1) | [x] step 1 measured; [ ] steps 2–10 not complete (r1 exited 1 at `fit_bind`) | [ ] no Gate verdict; AB1-7…AB1-11 not evaluated | [x] no bound changed; the four-bone roll tolerance is a ruled, recorded tolerance, not a bound change |
+| B10 | RUN, PARITY FAIL (AB1-8): weights 0.0932 max, 115 vertices over 0.005; stopped for the primary (F-B1-B10-3). Rulings F-B1-B10-1 and -2 applied (§14.1). Steps 2–10 run once; B11 and the PR not started | [x] steps 1–2, 4, 7–9 run; step 3 final parity run, localization in progress; step 5 gate run; step 6 Godot run (decision not taken) | AB1-7 PASS (95,000 / 47,142 / 44,143 + 2,999 / 0 non-manifold). AB1-8 FAIL (weights only; triangles, vertices, joints 3.0e-5 m, positions and UVs exact). AB1-9 PASS (4,194,304 of 4,194,304 texels within 2/255). AB1-10: G-1…G-5, G-14 PASS; G-6 FAIL (the two spine joints, the same as the accepted asset, F-B1-B3-1). AB1-11 INCONCLUSIVE (Godot: albedo `res://base_color.png`). AB1-12 PASS (LeftArm 9.3 mm FAILS). AB1-13 PASS (alpha IoU 1.00000, RGB difference 0). AC-S26-3 determinism PASS (r2 = r1, all diffs 0) | [x] no bound changed; the rulings are recorded in §14.1; the B10 results are recorded below |
 | B11 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1321,6 +1322,51 @@ or `tools/asset_generation/` changed.
   ruled fallback for F-B1-B10-1, which also supplies the head surface; (c) a bounded port change that takes the head
   point from another vertex set (a D+ change, not allowed without a ruling). Recommendation: (b), because it also
   removes the hips constant. Steps 3–10 were not run; no verdict was reached.
+- **B10 Gate 2 results (2026-10-14; Blender 5.2.2 LTS, Godot 4.7.2.stable; load average 6.5/10.8/12.2 before the first
+  run; the whole run set took about 15 minutes of wall time):** logs in `S/logs/`.
+  - Step 2 `r1` (after F-B1-B10-2): `gameready` numbers as AB1-7; `fit_bind` exits 0; all eight stages run; `flecks` skipped.
+  - Step 3 parity, final export `S/vera-lindgren/r1/export/vera-lindgren.glb` against `meshy_d.glb`
+    (`S/logs/compare_r1_accepted.txt`): triangles 95000 = 95000; vertices 65176 = 65176; joint names 52 = 52; joint
+    positions max 3.0e-5 m (LeftFoot), within 1 mm; vertex positions 0; UVs 0; **weights max 0.0932** (vertex 59666,
+    `mixamorig:LeftUpLeg`, candidate 0.0932, accepted 0), bound 0.005: **FAIL**.
+  - Localization (`S/tools/weight_diff.py`): final vs accepted: 222 (vertex, joint) pairs over 0.005, 115 vertices;
+    worst joints `Spine2` (65), `RightArm` (35), `RightShoulder` (34), `RightLeg` (29), `RightFoot` (29).
+    Intermediate exports (`export.py` on each stage blend, `S/stage-check/`): `fit_bind` against D+ `i23d/rig/meshy_char.glb`:
+    667 pairs over 0.005 on 317 vertices, mostly the right hand (`RightHandThumb2` 187, `RightHandIndex1` 90), worst 0.18;
+    `weights_fingers` against D+ `i23d/rig4/meshy_char.glb`: 165 pairs over 0.005 on 81 vertices (legs, `Spine2`), worst 0.071.
+    So the first divergence is inside `fit_bind` (the heat bind's hand weights), not in the finger stage.
+  - Diagnostics on the `fit_bind` divergence: (i) run without `--factory-startup` (R-B1-3's first experiment): identical
+    667 pairs; (ii) `fit_bind` with `rig_source` = `body_g5.glb` (the armature D+ used): identical 667 pairs. So neither the
+    startup flag nor the armature file explains it. Determinism: r2 = r1 exactly (AC-S26-3 PASS). The divergence is
+    therefore deterministic and sits in the port or in a difference between the D+ run and these inputs. The port's hand
+    code (`fit_bind.py:164-189`) reads line-for-line the same as `rig_meshy.py:140-163`; not yet explained.
+  - Step 4 texture: `compare-texture` of `base_color.png` against `meshy_d_base_color.png`: 4,194,304 of 4,194,304 texels
+    within 2/255 (1.00000) — PASS (AB1-9).
+  - Step 5 gate on the re-derived export: G-1 PASS (95000); G-2 PASS (`MW_Cast`, one material, base
+    colour); G-3 PASS (2048², 8-bit RGB); G-4 PASS (sole-to-eye 1.65500 m, target 1.65497 m); G-5 PASS (52 joints, 0 parent
+    mismatches, 0 unweighted, rolls largest difference 2.15e-05 rad); **G-6 FAIL** (both spine joints, `Spine` −63.5 mm and
+    `Spine2` −46.9 mm, outside the body, the same as the accepted asset: F-B1-B3-1; the limb ratios 3.8 % to 11.7 %, inside
+    the 12 % bound); G-14 PASS. The AB1-10 claim (G-1…G-6 and G-14 PASS) does not hold.
+  - Step 6 Godot 4.7.2 (`S/godot-check/`, scratch project; `godot --headless --import` exit 0; the inspect script exit 0):
+    `surfaces=1`, `material=MW_Cast`, `albedo=res://base_color.png`, `bones=52 first=["Hips", "LeftUpperLeg", "LeftLowerLeg"]`,
+    base-colour files `res://base_color.png` and its `.import`. The §5.9 rule needs `res://vera-lindgren_base_color.png`;
+    the GLTF_SEPARATE export named the file `base_color.png`, because Blender took the image's file name from the bake's
+    `base_color.png` and not from the datablock name `vera-lindgren_base_color`. The decision is not taken here.
+  - Step 7 mask: `cast.py mask` (tool venv) wrote `S/mask/in_chest_rgba.png`; `compare-texture --alpha-iou` against
+    `i23d/work/in_chest_rgba.png`: alpha IoU 1.00000, RGB mean absolute difference 0.0000 / 255 — PASS (AB1-13).
+  - Step 8 counterfactual (`S/x1/fit.yaml`, `l_shoulder` [611, 228], `run --from fit_bind`): `mixamorig:LeftArm` 9.339 mm,
+    compare FAIL naming LeftArm (AB1-12 PASS).
+  - Step 9 determinism: `r2` against `r1`: every row 0 (AC-S26-3 PASS).
+  - Step 10: `rederive_report.json` NOT written (the Gate is not complete; the PR is not ready).
+- **F-B1-B10-3 (PARITY FAIL, MATERIAL STOP, for the primary; not decided autonomously):** the re-derived export fails the
+  AB1-8 weight bound (0.0932 against 0.005; 115 vertices, mostly the right hand and the spine) and the first divergent stage
+  is `fit_bind`'s heat bind (317 vertices, the hand, 0.18). The accepted asset was made by D+ scripts that the port reads
+  line for line, and two controlled re-runs (no startup flag; the D+ armature) reproduce the divergence exactly. Geometry,
+  joints, positions and UVs match, so the port is close but not identical. Options: (a) a bounded port investigation of
+  `fit_bind` (the bind's inputs; the `parent_set` order; the vertex-group creation order), which would be a new commit
+  "fix(character-pipeline): …" and a Gate re-run; (b) a ruled change to AB1-8's weight bound (ARC-23 amendment), which I
+  do not recommend since 0.09 is not a rounding effect; (c) the stored-once rule's file-name finding goes to the primary
+  with the Godot evidence above. Also: G-6(b) (F-B1-B3-1) remains an open decision that AB1-10 needs.
 - **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
   to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
   used; the B8 empty append wrote nothing.
