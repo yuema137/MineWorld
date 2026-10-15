@@ -7353,6 +7353,44 @@ freeze and that pin the pre-12d social-cafe history:
    1 048 576). Ruling (operator, "快满了就提前整理"): a size-triggered retention pass, in FG-b's lane (PR
    FG-b2), not in 12d. 12d waits for FG-b2 to merge, then merges main and confirms test_retention_real.
 
+**TD-D16 — main merged after FG-b2 (2026-10-15).** Merge of origin/main e67af07 (FG-b2 #213, SR-b #203,
+DL-b, FG-c, S25-c, S27-a, docs) as a9c3b38. Conflicts were text only: `docs/DECISIONS.md` (`ARC-81`: 12d's
+note of 2026-10-12 and SR-b's rule-1 amendment of 2026-10-13, both kept in date order) and
+`market_town.rs` `save_is_bounded` (main's `ASRB-3` 48 MiB and its sealed-block check taken; 12d's
+sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactions found by running:
+1. **`ASRB-1` (SR-b, `ARC-89`).** Market Town's 300-day save with bodies is 84 160 512 B (80.3 MiB). That
+   is over the walking town's 80 MiB, and equal to SR-b's own scratch-merge measurement
+   (pr-sr-b §ASRB-1 bodies). QSRB-7 assigns the bound change to whichever lane merges second, so
+   `growth_is_bounded` is now 96 MiB (0bb8b27). 30-day: 23 678 976 B (22.6 MiB) ≤ 48 MiB; growth 0.214
+   MiB/day ≤ 0.25. market_town.rs 1/1.
+2. **S27-a's per-seat request budget (`ARC-97`, 10/s, burst 20) refused 12d's `walk_there`.** The helper
+   sent `walk-step`s back to back, and milestone_c's town crossing was refused `rate_limited` at its
+   21st submit. Bounded fix in 12d's own helper: each step waits `STEP_PACE` = 110 ms, as a paced
+   client does. milestone_c 1/1, facts 2/2. No claim changed.
+3. **DL-a golden**: `decisions.rs` 7/7 on the merged head, so the fixture was not regenerated (DL-b did
+   not move it).
+4. **Long record and baselines.** One `ci_parity.py record --profile long` of the release binary at
+   a9c3b38 on Darwin/arm64: 2 422 s. The load average was 42.3 at the start (another lane's long record
+   was running in parallel) and 7.6 at the end. Against main's file every key moved except lakeside's
+   facts-300s and journal-300s. Every move traces to 12d's diff: social-cafe and market-town (walls,
+   furniture, objects, bodies installed, doorways moved, item names), bodies-yard (R 250 and its derived
+   constants, the item pack's version), lakeside (item names: summaries plus genesis composition in
+   sealed block 1). Main's file was current for main: nightly 38757085415 on 3a9b9ef reported no baseline
+   drift, and SR-b re-recorded the file afterwards. Each world gets one reason line naming 12d #171.
+   `baseline check` PASS.
+5. **MATERIAL STOP — FG-b Gate 2 AFGb-4 (c) fails on 12d's history.** `test_retention_real.py`
+   ran with MINEWORLD_BIN set to this head's dev binary. `consolidate` PASSED: the 20 MiB bound and the
+   15 MiB target held at every pass, which is what FG-b2 fixed. `keep-all` FAILED at line 135,
+   `first forced pass: day None`. FG-b2's calibration (pr-fg-b2 §7, D-FGb2-2) reached the 15 MiB target
+   at about 433 KB a day on main's history: day 30 after = 13 948 340 B, first forced pass day 34. On
+   12d's history Alice's store is 1 094 367 B at day 31 and 7 923 192 B at day 40, so the target is not
+   reached inside the test's (30, 40] window. The cause is 12d's history: walls and bodies change what
+   Alice perceives. The bound itself is not at fault. The window is FG-b2's frozen acceptance, so 12d
+   leaves it unedited. Options: (a) re-derive `KEEP_ALL_FROM`/`KEEP_ALL_DAYS` in 12d from 12d's history,
+   with the same claim, as DL-a's golden was re-recorded (TD-D15); (b) FG-b's lane re-derives the window
+   after 12d merges; (c) select the window by the measured store size instead of a fixed day.
+   Recommendation: (a), as the TD-D15 precedent.
+
 ---
 
 # 20. PR 12d-0 — bodies' cost (full design; DESIGN FROZEN 2026-10-08; MERGED as #84, `78ca5ae`)

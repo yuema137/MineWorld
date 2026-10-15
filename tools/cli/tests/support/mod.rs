@@ -28,6 +28,10 @@ use tokio_tungstenite::tungstenite::Message;
 /// How long a test waits for the server to come up, and for a frame to arrive.
 pub const PATIENCE: Duration = Duration::from_secs(20);
 
+/// The wait before each `walk-step` [`Client::walk_there`] sends: just over one token of the default
+/// request budget's 10 a second (`ARC-97`), so a walk of any length stays inside it.
+const STEP_PACE: Duration = Duration::from_millis(110);
+
 /// What the server prints, followed by its bound address, once it holds its socket
 /// (`tools/cli/src/serve.rs`: `[mineworld] listening on http://ADDR (ws://ADDR/ws), protocol N`).
 const LISTENING: &str = "[mineworld] listening on http://";
@@ -548,6 +552,10 @@ impl Client {
     /// through its doorway) with one accepted [`walk_to`], then sends [`walk_step`]s until the server
     /// refuses one because the walk is over (`ARC-75`: the server routes, the client paces). Returns
     /// every accepted step's answer, one per stride.
+    ///
+    /// The steps are paced under the host's default request budget (`ARC-97`: 10 submits a second
+    /// sustained, 20 at once), one every [`STEP_PACE`], as a real client paces a walk; a town crossing
+    /// takes more strides than the burst holds, and an unpaced loop is refused `rate_limited`.
     pub async fn walk_there(
         &mut self,
         actor: EntityId,
@@ -557,6 +565,7 @@ impl Client {
         self.submit_accepted(walk_to(actor, place, to)).await;
         let mut steps = Vec::new();
         for _ in 0..200 {
+            tokio::time::sleep(STEP_PACE).await;
             match self.submit(walk_step(actor)).await {
                 (action_id, ActionResult::Accepted { events }) => steps.push((action_id, events)),
                 (_, ActionResult::Rejected(mineworld_contracts::Rejection::PreconditionFailed)) => {
