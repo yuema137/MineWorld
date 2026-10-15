@@ -68,10 +68,17 @@ Constraint: an Entity Pack declares structure. Behavior requires a System Pack. 
 `Vehicle` without a transport system yields an object that exists and does nothing — which is
 correct, not broken.
 
-**The subset MVP-0 implements: item kinds** (`DECISIONS.md` `ARC-71`). Of the contents above, MVP-0
-reads **item types** only. New entity types would extend the closed `EntityType` of the contracts, and
-component schemas belong to System Packs in MVP-0 (their sections, `ARC-31`); authoring templates are
-not read. An MVP-0 Entity Pack is:
+**The subset MVP-0 implements: item kinds and owned data directories** (`DECISIONS.md` `ARC-71`, amended
+2026-10-15 by `ARC-121`). Of the contents above, MVP-0 reads **item types** and the **data directories an
+installed System Pack owns** (`ARC-121`; implemented by S30-b). New entity types would extend the closed
+`EntityType` of the contracts, and component schemas belong to System Packs in MVP-0 (their sections,
+`ARC-31`); authoring templates are not read.
+
+*Amended 2026-10-15 (S30-a, `ARC-121`).* The sentence read, until then: ~~"Of the contents above, MVP-0
+reads **item types** only."~~ A data directory is not a component schema: its files are data that the
+owning System Pack decodes and validates, and the Entity Pack still makes nothing happen.
+
+An MVP-0 Entity Pack that declares item kinds is:
 
 ```text
 modern-goods/
@@ -89,6 +96,63 @@ The repository ships one: `entities/modern-goods`, shop goods (food, drink, ever
 `worlds/lakeside` requires (`DECISIONS.md` `ARC-77`). It is found like any data pack, through a named
 pack root (`--packs entities`), and is never "bundled": that word means a code pack compiled from this
 workspace (`ARC-54`).
+
+**Data directories** (`DECISIONS.md` `ARC-121`; implemented by S30-b). An Entity Pack may also carry, beside
+or instead of `items/`, a directory that an **installed** System Pack owns (§3.1, "A pack that owns data"). The
+loader collects its `.yaml` files and hands them to the owner, which decodes and validates them with line and
+column; the loader never learns what they mean. Two rules hold for every Entity Pack:
+
+- **Only an installed owner's directory.** A directory that is neither `items/`, nor a directory some installed
+  System Pack owns, nor one whose name begins with `.` (ignored, as non-`.yaml` files are) is refused as
+  `UnknownDirectory`, listing every directory this build knows. A directory whose owner is installed but not
+  enabled by the requiring world is refused naming the owner (`DataNeedsASystem`), as a section of a disabled
+  pack is (§4.1 rule 6).
+- **Flat.** A data directory holds files only; a subdirectory inside it is refused as `UnknownDirectory`.
+
+The data directories the `attributes` System Pack owns, and the format of each, are §4.1's "Attributes"
+(`ARC-120` … `ARC-126`):
+
+| Directory | Holds | Format |
+| --- | --- | --- |
+| `attributes/` | attribute declarations and overrides | §4.1 "Attribute declarations", "Overrides" |
+| `populations/` | population profiles | §4.1 "Population profiles" |
+| `vocabularies/` | value vocabularies a `set` or `category` attribute draws from | §4.1 "Vocabularies" |
+| `masks/` | masks: named selections over a backend's catalogue | §4.1 "Backends and masks" |
+| `mappings/` | a backend's views of built-in attributes | §4.1 "Backends and masks" |
+| `labels/` | per-locale labels, phrases and words (S30-k) | §4.1 "Rendering" |
+
+A **backend pack** also carries `backend.yaml` at its root, the backend contract (`ARC-126`; §4.1 "Backends
+and masks").
+
+Three Entity Packs of this shape are specified (none is shipped before its PR):
+
+```text
+entities/person-attributes/     the built-in catalogue: backend `mineworld`, namespace `core` (S30-e)
+  pack.yaml                     id, type: entity-pack, version, mineworld, license: CC0-1.0, authors
+  backend.yaml                  the backend contract (ARC-126)
+  attributes/<group>.yaml       the declarations, one file per group: appearance, background,
+                                psychology, capability, behaviour, lifestyle (at most 100 in all)
+  masks/core.yaml               every built-in
+  masks/appearance.yaml         the appearance group only, for casting-only use
+entities/populations-us/        cited population profiles (S30-e; Q-S30-2)
+  pack.yaml
+  populations/san-diego-county.yaml
+entities/attributes-matraix/    an optional backend pack, not installed by default (S30-h)
+```
+
+- **`entities/person-attributes`** is the default backend, and every reference world and test uses it. Its
+  catalogue is curated: at most 100 attributes, each read by something the player notices, each with the
+  reader that makes it noticeable (`ARC-122`, `ARC-126`). It declares 93 `core` attributes: step-30 §6.1's 94
+  rows, plus `core.natal-sex` (step-30 Q-S30a-1), minus the two rows that are other packs' views —
+  `employment.occupation` and `economy.wealth-band` — which their owners declare in their own namespaces.
+- **`entities/populations-us`** holds profiles a world names in its configuration. A population is world
+  content that the world, cognition, agents and casting read, so profiles live in a data pack the world
+  requires, never in a Presentation Pack (`ARC-123`).
+- **`entities/attributes-matraix`** is an optional person-generation backend. *Optional person-generation
+  backend built on the MatrAIx persona schema (Li, Hao et al., 2026, arXiv 2608.04205; MIT), imported
+  unchanged.* It is the only pack that names that schema, the workspace builds and passes every test without
+  it, and its contents — the verbatim import, the overlay, the licence exclusions, its masks and mapping — are
+  recorded in `DEP-66`.
 
 ---
 
@@ -165,6 +229,17 @@ decode_section   how that section is decoded from a content file; default: refus
 CONFIGURATION, CONFIGURATION_FACTS, decode_configuration
                  whether the pack takes a world-level configuration (ARC-61), defined together by
                  configures!(); default: not configurable (below)
+DATA, decode_data_file, data_context
+                 the data directories the pack owns and how their files become its context (ARC-121),
+                 defined together by owns_data!(); default: owns none (below; implemented by S30-b)
+decode_section_in
+                 how the pack's section is decoded in its context (ARC-121), defined by
+                 owns_section_in_context!(); default: decode_section, the context ignored (S30-b)
+RESOLVES, resolve
+                 whether the pack resolves across subjects before seeding (ARC-121), defined by
+                 resolves!(); default: does not (S30-b)
+SHIPS            data files the pack ships, compiled in, for an owner's directories (ARC-121 item 4),
+                 declared by ships_data!(); default: none (S30-b)
 ```
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
@@ -279,6 +354,85 @@ decode_configuration   decodes configure/<id>.yaml into its own type; default: r
 
 A pack states its configuration facts `Visibility::SystemInternal` with no subjects: a world's
 configuration is nobody's perception and nobody's biography.
+
+**A pack that owns data** ([`DECISIONS.md`](DECISIONS.md) `ARC-121`; specified by S30-a, implemented by S30-b,
+`.structured-coding/plans/mvp0/pr-s30b-authoring-seam.md` §5). The authoring seam of `ARC-31` and `ARC-61`
+gains four general capabilities. Each is additive: a pack that uses none of them, and a world that carries no
+data directory, read, load and run exactly as before.
+
+1. **A pack may own data directories** in World Packs and Entity Packs (`owns_data!()`). A directory name is one
+   word of 1–32 bytes of `a`–`z`, `0`–`9` and `-`, unique among every pack this build provides and distinct
+   from the format's own directories. The loader collects the `.yaml` files of the owner's directories in one
+   deterministic order — files the enabled packs **ship** (item 4), in the world's `systems:` order; then each
+   required Entity Pack, in id order; then the world itself; within each source, directories in the owner's
+   declared order and files by name, byte order — and the owner decodes each file, a refusal keeping its line
+   and column. The owner then builds one **context** from all its files and its own world configuration
+   (`ARC-61`), once, checking what spans files (duplicates, namespaces). An owner with no files still gets a
+   context, built from none. The loader never learns what a file means. Refused, naming the file: a directory
+   no installed pack owns (`UnknownDirectory`, listing every directory this build knows, sorted); an installed
+   owner's directory in a world that does not enable the owner (`DataNeedsASystem`); a subdirectory inside a
+   data directory (`UnknownDirectory`); a file that does not decode (`Malformed`, with line and column); a
+   context the owner refuses (`DataRefused`, naming the system and the file). Directories whose name begins
+   with `.` are not content and are ignored; so is the directory holding the `decisions:` file.
+2. **A section may be decoded in its owner's context** (`owns_section_in_context!()`). The owner's decoded data
+   and its world configuration are available while its section is decoded, so a value is checked against a
+   schema declared in data, at the value's own line and column. The Rust form is a sibling trait of
+   `AuthoredSection`; a pack owns one section either way (`ARC-31`), and its seeding obligations are
+   unchanged.
+3. **An owner may resolve across subjects before seeding** (`resolves!()`). Once, after every section is
+   decoded and every reference checked and before any genesis fact is seeded, the owner receives every file of
+   the kinds its section is carried by — each subject's key, kind and tags, and its decoded section if the file
+   carries one; never a display name, a `note` or a location — and returns at most one seed per subject. Each
+   seed then becomes that subject's genesis facts, in the owner's own vocabulary, exactly where the owner's
+   section facts would have been seeded: seeding order is unchanged (`ARC-31` item 4). Refused, naming the
+   system: a resolution the owner refuses (`ResolveRefused`, naming the subject when there is one); a seed for
+   a key that is not one of the subjects; a seeded fact outside the owner's vocabulary, as for a section.
+4. **A pack may ship data files for an owner's directory** (`ships_data!("<directory>/<file>.yaml", …)`;
+   step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
+   directory and travel with its code and version. They are collected first (item 1) whenever the shipping
+   pack is enabled, and every refusal about one names the shipping pack and the file's crate-relative path.
+
+A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
+owner's directories alike.
+
+**Attributes a pack reads, proposes or owns** ([`DECISIONS.md`](DECISIONS.md) `ARC-120`, `ARC-122`, `ARC-124`;
+specified by S30-a, implemented by S30-c; the vocabulary is [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5). A
+pack that uses a Person's attributes declares it, by qualified id (§4.1 "Attributes"); it never looks an
+attribute up by a string at run time. The exact Rust form is S30-c's; what is declared, and what is refused, is
+this:
+
+- **Reads.** A pack lists the attributes it reads (`reads_attributes: [<qualified id>, …]`). For each, it
+  obtains a typed handle once, when it is installed, and reads only through that handle afterwards. Refused at
+  install, by name: an attribute the world's catalogue does not hold (`Missing`), one of another kind than the
+  handle's (`WrongKind { declared, requested }`), and a built-in that the world's backend neither provides nor
+  maps (`MissingUnderBackend { attribute, backend }`), unless the read is declared optional. A handle to a
+  `text` attribute cannot be obtained at all: no System reads prose.
+- **Proposes.** A pack that changes a plain trait (one `attributes` owns) lists the attributes it may propose
+  changes to (`proposes: [<qualified id>, …]`), declares `attributes`' vocabulary and depends on `attributes`
+  (`ARC-26`), and emits `attribute-change-proposed { person, attribute, to, because }`. `attributes` accepts
+  only an `evolving` attribute, a value in its domain and a proposer that listed the attribute, stating
+  `trait-changed { person, attribute, from, to, because }`, or refuses by name.
+- **Owns.** A pack that already models some state of a Person and exposes it as attributes is an **owner**
+  (`AttributeOwner`, in `mineworld-attributes-model`, `ARC-124`). It depends on that model crate, not on the
+  `attributes` System Pack. It:
+  1. declares each attribute it owns in its own namespace, with `owner:` its own id, in an `attributes/` file
+     it ships (item 4 above);
+  2. projects each owned attribute from its own component when the attribute is read or disclosed — a view,
+     never a copy, so nothing else stores it;
+  3. receives, at genesis, each person's resolved initial value of each owned attribute (authored, locked,
+     from a role, sampled or defaulted, §4.1 "Population profiles") as a typed value, and states it in its own
+     vocabulary;
+  4. discloses its attributes within its own component, through the model crate's visibility filter and
+     renderer, so no owner writes its own visibility rules.
+
+  The owners named so far: `economy` (`economy.wealth-band`, a `derived` projection of the person's wealth;
+  S31, `ARC-114`); `employment` (`employment.occupation`, a projection of its own `Employment { job }` to the
+  job's label; added by S30-f, the one named exception to step-30 §9.4's "no existing System is changed by
+  S30", step-30 Q-S30a-2, ruled 2026-10-15); `notices` (`notices.subscriptions`; S31, `ARC-115`); and
+  `persona` (`persona.summary`, `persona.traits`, `persona.speech`, `text` and `private`; P6a, `ARC-74`,
+  reviewed after S30-f, step-30 Q-S30-4).
+- **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load, naming
+  the attribute and the owner (`OwnerNotInstalled`).
 
 **A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
 `mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
