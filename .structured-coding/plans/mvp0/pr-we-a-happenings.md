@@ -1052,6 +1052,13 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 
 ```text
 Status:            F-WE-a-9 ruled (2026-10-14, §16.1). C0–C4 pushed as a draft PR; C5 waits for 12d (#171).
+Full local suite:  `cargo test --workspace --no-fail-fast` on 4dca864 + ledger (macOS arm64): 1 079 passed,
+                   0 failed, 34 ignored, exit 101 from one target — `persistence --test kill_and_resume`,
+                   "retiring: the save stops mid-run (301, killed at 264, full run 301)" in the cafe world,
+                   which enables neither happenings nor economy. Re-run alone three times: exit 0 each.
+                   Classified as an unrelated kill-timing race under full-suite load, not a WE-a defect.
+                   Then origin/main 0b242c8 merged (19513e7). It changes no Rust crate; workspace clippy
+                   -D warnings, fmt, doc-headings, decision-ids and scratch-scan are clean.
 Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
                    /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
 12d (#171):        OPEN at C0 (2026-10-13) and at C4 (2026-10-14)
