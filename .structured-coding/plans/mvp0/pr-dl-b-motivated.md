@@ -578,7 +578,8 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C2 | bc6a85c | [x] | [x] | [~] (three-cell PDF check INCONCLUSIVE, see evidence) |
 | C3 | ea58b11 | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
 | C4 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
-| C5 … C7 | — | [ ] | [ ] | [ ] |
+| C5 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
+| C6 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -688,6 +689,25 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
       `model.rs`, and a heredoc append added the `mineworld-packages` line to `motivated/Cargo.toml`. Both are on
       the contract's NEVER list. The resulting text is what was intended and is checked by the tests above. No
       further heredocs or `sed -i` are used. Reported to the operator.
+  - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace`.
+- **C5 (2026-10-14).** `tools/cli/tests/motivated.rs` (new, untracked until this commit): AC-DLb-2 mixed seats
+  (alice, bob on `motivated`, two in-memory 30-day runs compared by `deterministic`; a 15-day save resumed to 30
+  against an uninterrupted 30-day save, compared by `Tables::assert_same_history` on the saves' stored facts and
+  journal) and AC-DLb-7 (all seats on `motivated` from `worlds/social-cafe/decisions-motivated.yaml`, 30 days: zero
+  `requests … unavailable`, `faults 0`).
+  - Implementation: `cargo fmt --check -p mineworld-cli` rc 0.
+  - Validation: `cargo test -p mineworld-cli --test motivated`: 2 passed, 0 failed (PASS), 52 s wall at load
+    average ≈ 30–55 (the 90 s debug budget holds).
+  - Mutations (each planted, run, reverted; `git status` clean after each):
+    - M-DLb-4 (a thread-local consult counter salting `decide`'s draw): **red by name**,
+      `mixed_seats_reproduce_their_history_in_memory_and_across_a_resume` ("facts row counts differ").
+    - M-DLb-5 (`if true || read::may_talk_to(…)` in `options.rs`'s greet offer): **not red at integration level**;
+      `an_all_motivated_run_submits_nothing_the_world_does_not_offer` stayed green, and the mutation is caught by
+      the unit test `tests::a_person_the_server_will_not_let_me_address_is_never_greeted` (C3). Recorded as
+      **F-DLb-4**: the social-cafe run never selects a greet to a person the server does not let it address, so
+      AC-DLb-7's counterfactual is not exercised by this world. Not retuned; the criterion is unchanged (§8). Operator
+      decides whether to add a non-talkable setup (a scenario fixture) or accept the unit-level catch.
+  - Review: pending (LLM logic review, not self-marked).
   - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace`.
 
 ### Deviations and findings
