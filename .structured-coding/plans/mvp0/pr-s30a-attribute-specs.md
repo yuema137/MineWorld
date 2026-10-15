@@ -483,7 +483,8 @@ No question remains open.
 | C0 base and ledger | this commit | [x] base, ids, merge states and rulings recorded below; handoff opened | [x] `python3 scripts/ci_layer.py docs`: PASS (3 commands, 0.1 s) | [x] every ruling quoted from §14.1 and S30-b §14.1; branch of F-S30a-1 chosen from evidence |
 | C1 `CORE_CONCEPTS` §4.5 | this commit | [x] §4.5 "Attributes" (definition and the three classes, qualified ids, one owner; not a Component; kinds; visibility table; mutability table; generation; what is not an attribute; kernel ignorance); §4.2 pointer; §15.1 example paragraph | [x] `check_doc_headings.py`: "240 numbered sections across 33 documents, none duplicated" | [x] `grep -n -i attribute docs/CORE_CONCEPTS.md` read in full (29 lines): `Attribute` never names a Component; `traits` is named as the component that holds plain traits; INV-4, INV-7, INV-12, INV-13, INV-15 cited; nothing places attribute vocabulary in the kernel or contracts; F-S30a-2's `economy.wealth-band` and `employment.occupation` used |
 | C2 `MODULE_SPEC` §§2–3 | this commit | [x] §2: amended MVP-0 sentence (old text struck through, dated), "Data directories" rules and table, the three Entity Packs (layout block, 93 `core` rows, the optional backend with the attribution line); §3.1: the seam's `SystemPack` items in the declares block, "A pack that owns data" (seam items 1–4, refusals named, Q-S30b-1), "Attributes a pack reads, proposes or owns" (reads, proposes, owns, the four named owners, `OwnerNotInstalled`) | [x] `ci_layer.py docs`: PASS | [x] the seam paragraph grepped for `attribute|catalogue|traits|population|profile`: no match (rc 1); `matraix` appears only in the backend pack's layout line and its bullet with the attribution line; F-S30a-2's names used; the seam text follows `pr-s30b-authoring-seam.md` §§5.2–5.6 (order I-b-7, refusals `UnknownDirectory`, `DataNeedsASystem`, `Malformed`, `DataRefused`, `ResolveRefused`; `Subject` without name, note, location) |
-| C3 … C5 | — | [ ] | [ ] | [ ] |
+| C3 `MODULE_SPEC` §4.1 | this commit | [x] person-file block gains `attributes:` (a category, a quantity, a set over a vocabulary, a `between:` and an `allowed:` restriction); the eighth-section note after the sections table; the dated Entity Pack amendment ("declares nothing", S30-b §5.7); "Attributes": where-written table, declarations (example, fields, kinds, units, absent, derived, versioning), namespaces and short slugs, overrides, vocabularies, rendering, the person section, `configure/attributes.yaml`, profiles (format, semantics, algorithm, nothing reads a name, origins, guarantee, `verify`, reserved `authored`), the lock and precedence, backends and masks, disclosure, persistence, one refusal table (31 rows) | [x] `ci_layer.py docs`: PASS | [x] all 27 refusals of §5.4 present, plus four named here (F-S30a-11); no key named `population` (only `world.yaml`'s own, and the sentence saying so); every example value inside its declared domain (`hair-colour: auburn`, `chronotype` levels, `core.stature: 1.660` in 0.500–2.500, `core.mass` 55.0–70.0 in 2–300, `news.daily` in `notices.topics`); `matraix` not named in §4.1 |
+| C4 … C5 | — | [ ] | [ ] | [ ] |
 
 ### C0 — the base (recorded 2026-10-15)
 
@@ -527,3 +528,32 @@ F-S30a-1 … F-S30a-6 (§3.2), recorded at design time.
   the §4.5 example the same finding touches), which I-a-1 did not list. Reason: the primary's dispatch, which
   owns §11's parent edits, assigned the reconciliation to this PR. Impact: one extra file, one extra commit
   (C4b); no frozen invariant changes. Validation: C5's `git diff --name-only`.
+
+Found during implementation (each bounded: the step's intent kept, the specification made consistent, and the
+owner of the follow-up named):
+
+- **F-S30a-7. Vocabularies.** Step-30 §5.2 admits `vocabulary:` for `set` only, but step-31 §7.4 declares
+  `economy.wealth-band` as `kind: { categorical: { vocabulary: economy.wealth-bands } }` — a single value from a
+  vocabulary, under a kind name S30 does not define. Step-30 §9.6 N-1 and S30-b R-S31-b-1 put the topic
+  vocabulary in `vocabularies/topics.yaml`; step-31 §8.5 says it is "the `topics:` keys of
+  `configure/notices.yaml`". **Decided:** `category` and `set` both take `vocabulary:`; step-31's `categorical`
+  is S30's `category`; a vocabulary is declared by its owner either as a `vocabularies/` file or from its own
+  world configuration through the owner interface (`MODULE_SPEC` §4.1 "Vocabularies", `ARC-122`, `ARC-124`).
+  For the primary: step-31 §7.4's `categorical` → `category` (§11 below).
+- **F-S30a-8. Locale labels are a top-level directory.** Step-30 §13.1's S30-k row says
+  `attributes/labels/<locale>.yaml`; S30-b refuses a subdirectory inside a data directory (§5.6 step 2).
+  **Decided:** `labels/<locale>.yaml`, a directory `attributes` owns (`MODULE_SPEC` §2 table). R-S30k-a-1.
+- **F-S30a-9. Root files of a backend pack.** `backend.yaml` sits at a backend pack's root (step-30 §6.4), and
+  S30-h's pack carries `LICENSE`, `NOTICE` and `tools/import.py`; the seam collects only owned directories, and
+  its directory rule would refuse `tools/` (S30-b F-S30b-3). **Decided in the spec:** `backend.yaml` stays at
+  the root as the step says; how the seam carries it is S30-e's to fix against `ARC-121` (R-S30e-a-2), and
+  S30-h's tooling directory is S30-h's (R-S30h-a-1). Neither is a change to S30-b's frozen scope.
+- **F-S30a-10. Owned attributes without the `attributes` pack.** Step-30 §4.3 says "a world may have owned
+  attributes without the `attributes` pack"; under the seam the `attributes/` directory (and the shipped files
+  that land in it) is the `attributes` System Pack's. **Decided:** the spec keeps both statements (owners
+  depend on the model crate, not on the pack; the directory is `attributes`'), and `ARC-120`'s Consequences
+  names the mechanism as S30-c's decision (R-S30c-a-1).
+- **F-S30a-11. Refusal names and the `authored` source.** Four refusals the step states in prose are named:
+  `BadDeclaration` (§§5.1–5.6 field rules), `UnknownProfile` (§8.1), `NotCovered` (§8.2 `covers:`), `Missing`
+  (§5.3 `AttributeError::Missing`). Step-30 §§7.3 and 8.2 write `source: authored` with no `sources:` entry;
+  the spec makes `authored` a reserved source.
