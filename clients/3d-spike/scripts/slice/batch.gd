@@ -69,6 +69,7 @@ static func merge(root: Node3D) -> Dictionary:
 		mi.mesh = st.commit()
 		mi.material_override = g["mat"]
 		mi.cast_shadow = g["shadow"]
+		mi.set_meta("mw_category", _category(g))
 		root.add_child(mi)
 		made += 1
 	return {"merged_from": before, "merged_into": made, "triangles": tris}
@@ -94,9 +95,26 @@ static func _collect(node: Node, root: Node3D, groups: Dictionary,
 		mi.cast_shadow, int(cell.x), int(cell.y), int(cell.z)]
 	if not groups.has(key):
 		groups[key] = {"mat": mi.material_override, "shadow": mi.cast_shadow,
-			"items": []}
+			"items": [], "ground": 0}
 	groups[key]["items"].append([mi.mesh, xf])
+	# `Build.ground` names its plane "ground"; the name is lost in the merge, so
+	# the count is carried for the cell's category (RL-b M-7)
+	if str(mi.name).contains("ground"):
+		groups[key]["ground"] += 1
 	victims.append(mi)
+
+
+## A merged cell's `mw_category` for the frame-cost breakdown (RL-b M-7):
+## "ground" when every member was a `Build.ground` plane, "foliage" when the
+## cell's material is an alpha-cut card (`Mats.card`: leaves, flowers, grass),
+## else "merged".
+static func _category(g: Dictionary) -> String:
+	if int(g["ground"]) == (g["items"] as Array).size():
+		return "ground"
+	var m := g["mat"] as BaseMaterial3D
+	if m != null and m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		return "foliage"
+	return "merged"
 
 
 ## Append one mesh's triangles, transformed. Normals go through the basis
