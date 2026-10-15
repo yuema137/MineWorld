@@ -96,14 +96,14 @@ for a in "$@"; do
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
     --trials=*)                            trials="${a#--trials=}"; continue ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings|--texel-density)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--texel-density" ]; } && headless=1
 done
 if [ -n "$trials" ] && [ "$perf" != "1" ]; then
   echo "error: --trials= needs --perf" >&2
