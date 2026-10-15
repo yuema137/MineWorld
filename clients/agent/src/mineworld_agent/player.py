@@ -212,7 +212,8 @@ class Player:
     # ── Seats and joining ─────────────────────────────────────────────────────────────────────────
 
     async def seats(self, args: SeatsArgs) -> SeatsResult:
-        """The world's composition and its seats, from public `GET /status`."""
+        """The world and the seats in it that a player can join, from the server's public status. Needs no
+        credential."""
         del args
         summary = await fetch_status(self._config.server)
         return SeatsResult(
@@ -229,7 +230,8 @@ class Player:
         )
 
     async def join(self, args: JoinArgs) -> JoinResult:
-        """Joins `args.seat` with the credential this Player was built with, as one more connection."""
+        """Join the seat named `seat` under `nickname`. The credential is configured outside this call and is
+        never an argument. `take_over` asks to take the seat from its current player."""
         key = EntityKey(args.seat)
         saved = None
         if self._states is not None and self._states.path(key).exists():
@@ -325,7 +327,7 @@ class Player:
         return handle
 
     async def leave(self, args: LeaveArgs) -> LeaveResult:
-        """Gives the seat back (`leave`): it returns to its default at once."""
+        """Give this seat back to the world now. The seat returns to its default at once, and the handle ends."""
         handle = self._seated(args.handle)
         del self._handles[args.handle]
         await handle.stop(give_back=True)
@@ -363,7 +365,7 @@ class Player:
         return InboxStatus(unread=held.unread, dropped=held.dropped, newest=held.newest)
 
     async def inspect(self, args: InspectArgs) -> InspectResult:
-        """What perception disclosed about one listed entity, component by component."""
+        """What this seat perceives about one entity, `ref`, component by component."""
         handle = self._seated(args.handle)
         entity = _listed(handle, args.ref)
         moment = self._moment(handle)
@@ -407,9 +409,9 @@ class Player:
         return result(lines, following)
 
     async def wait(self, args: WaitArgs) -> WaitResult:
-        """Returns at the first fact or observation `args.until` waits for, or at the timeout. Facts
-        not yet read count: one that arrived since the previous call wakes it at once (D-c-21). It holds
-        nothing on the server."""
+        """Wait until the condition `until` holds, or for `timeout_s` seconds. A fact that arrived since the
+        previous call counts at once, so nothing that happened in between is missed. The server keeps no
+        wait for this call; the next call starts fresh."""
         handle = self._seated(args.handle)
         start = handle.inbox.read_through
         base = handle.shown
@@ -467,8 +469,8 @@ class Player:
     # ── Acts ──────────────────────────────────────────────────────────────────────────────────────
 
     async def attempt(self, args: AttemptArgs) -> ActResult:
-        """Offer `args.offer` of view `args.view`, re-located in the newest observation and sent as the
-        world offered it (`offers.attempt`)."""
+        """Take offer `offer` of the view numbered `view`, as the world offered it. The offer is matched against
+        the newest observation; when the world no longer offers it, the answer says so as an outcome."""
         handle = self._seated(args.handle)
         newest = handle.rendered()
         shown = handle.held(args.view)
@@ -487,7 +489,8 @@ class Player:
         return self._act_result(handle, await self._submit(handle, request))
 
     async def say(self, args: SayArgs) -> ActResult:
-        """`talk` to `args.to` with the player's own words, when the newest observation offers it."""
+        """Say `words` to the person `to`, when the newest view offers talking to that person. The answer says
+        whether the world took it; a reply, if any, arrives as an event (see `wait`)."""
         handle = self._seated(args.handle)
         try:
             to = handle.refs.resolve(args.to)
@@ -496,7 +499,8 @@ class Player:
         return await self._request(handle, TALK, to, {"utterance": args.words})
 
     async def walk_to(self, args: WalkToArgs) -> ActResult:
-        """One `walk-to`; once accepted, the pacer steps the walk once a wall second."""
+        """Walk to the place, person or point `to`. Once the world accepts the walk, it goes on one step a second
+        until the seat arrives or the walk is stopped."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         try:
@@ -509,7 +513,7 @@ class Player:
         return result
 
     async def move(self, args: MoveArgs) -> ActResult:
-        """One `move` (one stride); it ends any walk."""
+        """Take one stride toward the point `to`, with an optional facing in degrees. It ends any walk."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         try:
@@ -519,7 +523,7 @@ class Player:
         return await self._request(handle, MOVE, None, {"to": to})
 
     async def stop(self, args: StopArgs) -> ActResult:
-        """A `move` to where I am, facing as I face: it ends a walk."""
+        """Stop where this seat is, keeping its facing. It ends any walk."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         here = handle.rendered().observation.self_location

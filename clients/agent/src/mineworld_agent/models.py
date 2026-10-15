@@ -559,33 +559,43 @@ class JoinArgs(AgentModel):
     """`join`: take a seat of the world by its authoring key, under a nickname the server shows."""
 
     seat: SeatName
+    """The seat's name in the world, as `seats` lists it."""
     nickname: Nickname
+    """The name the world shows for this connection: 1 to 32 characters."""
     take_over: bool = False
+    """Take the seat from the connection that holds it now, when the grant allows it."""
 
 
 class Seated(AgentModel):
     handle: Handle
+    """The seat's handle, as `join` returned it: 32 hexadecimal characters. It is not a credential."""
 
 
 class ObserveArgs(Seated):
     """`observe`: the newest view, a page of one, or a delta since a view still held."""
 
     since_view: Annotated[int, Field(ge=1)] | None = None
+    """Only the changes since this view number, when that view is still held; otherwise the whole view."""
     page: PageRef | None = None
+    """Continue a paged list of the view: the page reference a view gave."""
 
 
 class InspectArgs(Seated):
     """`inspect`: one entity by its reference, as this seat perceives it."""
 
     ref: Ref
+    """The entity's reference, such as `E4`, as a view lists it."""
 
 
 class EventsArgs(Seated):
     """`events`: a page of this handle's inbox, after a fact reference, at most 20 facts."""
 
     after: EventRef | None = None
+    """The reference of the last fact already read, such as `F3`; omit it for the oldest fact held."""
     limit: Annotated[int, Field(ge=1, le=EVENTS_MAX)] = 10
+    """At most this many facts, from 1 to 20."""
     detail: bool = False
+    """Include each fact's payload, capped at 1 KiB."""
 
 
 class AnyEvent(AgentModel):
@@ -630,13 +640,16 @@ class WaitArgs(Seated):
     """`wait`: block until the named condition holds, for at most `timeout_s` wall seconds (25 at most)."""
 
     until: WaitFor
+    """What to wait for: `any_event`, `spoken_to`, `walk_ended`, `view_changed` or `offer_available`."""
     timeout_s: Annotated[int, Field(ge=1, le=WAIT_MAX_S)] = 20
+    """Wall seconds to wait at most, from 1 to 25."""
 
 
 class SayArgs(Seated):
     """`say`: speak to a person in the seat's place, by reference."""
 
     to: Ref
+    """The reference, such as `E2`, of the person to speak to."""
     words: str
     """The player's own words, 1 to 480 UTF-8 bytes."""
 
@@ -652,13 +665,16 @@ class WalkToArgs(Seated):
     """`walk_to`: walk to a place, a person or a point."""
 
     to: Destination
+    """Where to walk: a place (`place`), a person (`person`) or a point (`point`)."""
 
 
 class MoveArgs(Seated):
     """`move`: a continuous step toward a point, and optionally a facing."""
 
     to: Point
+    """The point to step toward, in the place's own frame: `place`, `x_mm`, `y_mm` and `z_mm`."""
     facing_deg: int | None = None
+    """The facing to take, in degrees; omit it to keep the current facing."""
 
 
 class StopArgs(Seated):
@@ -671,7 +687,9 @@ class AttemptArgs(Seated):
     """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
 
     view: Annotated[int, Field(ge=1)]
+    """The number of the view the offer was read from, 1 or more."""
     offer: Annotated[int, Field(ge=1)]
+    """The number of the offer in that view, 1 or more."""
 
 
 class ClockArgs(Seated):

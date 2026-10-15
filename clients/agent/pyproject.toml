@@ -21,6 +21,9 @@ dependencies = [
     "mcp>=2.2,<2.3",
 ]
 
+[project.scripts]
+mineworld-agent = "mineworld_agent.__main__:main"
+
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
 
