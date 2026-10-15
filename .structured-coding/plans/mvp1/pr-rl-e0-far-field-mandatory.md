@@ -1397,6 +1397,53 @@ E-FF-perf    2026-10-15  §8 counts, one run per side (`--slice-perf --res=1920x
   `three_d_settings_never_reach_the_server`, `two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept`)
   are pre-existing: main's nightly 38757085415 (3a9b9eff) fails the same three plus a fourth.
 
+### MATERIAL STOP — R-FF-1 (2026-10-15): the 3D rendered check does not finish on the hosted Linux runner
+
+*Evidence.* PR CI run 38803249486, job `farfield` (ubuntu-24.04, Xvfb + Mesa lavapipe, head 1bf3cff8):
+`the_two_validators_agree` ok (6 s); `two_d_clear_colour_is_never_visible` ok (≈ 3.5 min, four worlds);
+`three_d_far_field_closes_every_open_sector` **INCONCLUSIVE: the slice did not finish in 2400 s** — it printed 26
+of its 112 verdict lines (VP-spawn complete, VP-street to S), every one agreeing with macOS (e.g. `VP-spawn E
+below 3521/30720 open, 3521 differ (100.0%)` against 3 523 locally): the renders are correct, about a minute
+each, so the 120 renders need about two hours. The scratch nightly 38793596092 (head 8bc55052): `clients-linux`
+ran 80 min and was cancelled at the job's 75-min limit (main's `clients-linux` takes 34 min); `clients-windows`
+(D3D12 WARP): the 2D check and the validators **passed**, the 3D check never started (its first import of the 3D
+project exceeded the 600 s limit, since raised, D-FF-16); `clients-mac`: see E-FF-CI. Locally (Apple GPU) the
+same check takes 18 s.
+
+*Why it is material.* R-FF-1 names this case (§16) and §13 lists it as a material stop; the remedies change
+§6.2's frozen renders or §6.5's where-it-runs, which are the operator's.
+
+*Options (smallest first).*
+(a) Keep §6 as frozen and run the 3D rendered check on hosted **macOS** only (and locally), with the 2D check
+    and the validators on all three OSes; the per-PR `farfield` job runs the 2D check and the validators on
+    Linux, and a macOS per-PR job (or the nightly's `clients-mac`) runs the 3D check.
+(b) Render the check frames with the slice's cost-only effects off (shadows, SSAO, glow — none decides where
+    the far field is drawn; the far field casts no shadow and is unshaded or fog-free), keeping §6's
+    viewpoints, size, bands and thresholds; re-measure the hosted time.
+(c) §16's own fallbacks: a lower check resolution, or a far-field-only scene (which would no longer test near
+    occlusion).
+(d) Give the Linux and Windows legs a 2–3 hour budget for this one test (nightly only).
+Recommendation: (b), then (a) for whatever OS still cannot finish.
+
+*State.* Everything else is implemented and committed; the PR is **not** READY FOR OPERATOR REVIEW until the
+operator rules on R-FF-1.
+
+```text
+E-FF-CI  2026-10-15
+  PR #220, head 1bf3cff8 (CI run 38803249486): changes, fast, test (44 min; the client_rules fix of
+           D-FF-16 confirmed), test-windows, platforms (macos-26, windows-2025), python ×3: PASS;
+           test-macos: pending at the stop; farfield: FAIL — INCONCLUSIVE 3D check (R-FF-1, above);
+           its 2D check and validators PASS on Linux
+  scratch nightly 38793596092 (head 8bc55052, import limit 600 s):
+           clients-windows: client_far_field 2/3 (2D, validators PASS; 3D: import > 600 s);
+             client_settings: 3 failures, pre-existing on main (nightly 38757085415)
+           clients-mac (Apple Paravirtual): client_far_field 2/3 (2D, validators PASS; 3D: import > 600 s);
+             the job cancelled at its 75-min limit
+           clients-linux: cancelled at 75 min (logs not retained)
+  scratch nightly 38803248313 (head 1bf3cff8, import limit 30 min): running at the stop — it will show
+           whether hosted macOS and Windows finish the 3D check
+```
+
 ---
 
 ## Appendix A — Specification texts (C1 pastes these)

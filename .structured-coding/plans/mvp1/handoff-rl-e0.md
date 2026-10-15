@@ -86,7 +86,15 @@ C5 41742fe7 · C6 5db6539c · C7 5e3e0b1d · C8 8bc55052 · C9 78fc189e · C10 (
 equivalent); deviations D-FF-1 … D-FF-15. `target` in the worktree is a local symlink to
 /tmp/impl-rl-e0-target (untracked; never staged). Base worktree for V-1/perf: impl-rl-e0-base (2d07c6c0).
 
+### 2026-10-15, MATERIAL STOP (R-FF-1)
+
+PR #220 open (head 1bf3cff8 + this ledger commit). The 3D rendered check takes ~1 min per render on the hosted
+Linux runner (lavapipe): 26 of 112 lines in 40 min. Options (a)–(d) and the evidence are in the design's
+ledger, "MATERIAL STOP — R-FF-1". Scratch nightly 38803248313 (import limit 30 min) was still running at the stop.
+
 ## Next actions
 
-Open the PR; watch CI on the exact head and the scratch nightly; record E-FF-CI; mark READY FOR OPERATOR
-REVIEW. Never merge. After review: delete `scratch/rl-e0-clients-nightly`, remove impl-rl-e0-base.
+Wait for the operator's ruling on R-FF-1. Then: implement the ruled option, re-run the per-PR `farfield` job and
+one nightly `clients` run on the exact head, record E-FF-CI, mark READY FOR OPERATOR REVIEW. Never merge.
+After review: delete `scratch/rl-e0-clients-nightly`, remove the impl-rl-e0-base worktree and the local
+`target` symlink.
