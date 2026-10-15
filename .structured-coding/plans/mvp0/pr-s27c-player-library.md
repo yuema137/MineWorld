@@ -637,8 +637,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | 5f3d48e | [x] | [x] | [x] |
-| C1 | (this commit) | [x] | [x] | [x] |
-| C2 | — | [ ] | [ ] | [ ] |
+| C1 | 400901c | [x] | [x] | [x] |
+| C2 | (this commit) | [x] | [x] | [x] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
@@ -669,6 +669,16 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   `pydantic>=2.13,<3` only; the network guard in `addopts` (`--allow-hosts=127.0.0.1,::1`). Bounded
   deviation: `tests/support.py` (the selector-loop runner, as the SDK's) is added beside `conftest.py`; the
   member's `addopts` adds `-v` as cognition's does.
+- **E-C2 (`ResumingSeat.clock`, QS27c-1).** `resuming.py`: a read-only `clock` property (the current
+  session's `SeatSession.clock` when it has one, else `_ended_clock`, the last frame of an ended connection,
+  kept by `_keep_clock()` where the supervisor and `_finish` drop the session). Test
+  `test_resuming.py::test_the_host_clock_is_the_current_connections_and_survives_a_rejoin` (scripted: the
+  golden paused `clock.json`, a drop held at a gate, a resumed `clock` at scale 12 on the rejoin, after
+  `leave`). `pytest sdk/python/tests/test_resuming.py` 35 passed; pyright `sdk/python` 0 errors; ruff clean.
+  Mutation (not in the design's list, run as a check of the test): `clock` returning `None` between
+  connections → the new test red ("between connections, the last clock received"); reverted, green.
+  Review: purely additive — no existing line's behaviour changed; the property sends nothing and changes no
+  state but the kept frame; no other SDK file touched.
 
 ### Assumptions to verify in implementation
 
