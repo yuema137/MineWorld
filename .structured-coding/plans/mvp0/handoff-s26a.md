@@ -46,6 +46,7 @@ CURRENT CHECKPOINT  C0 committed (00a5a50); C1 done (b9ef144: MODULE_SPEC §4.1 
                     C6 in progress (300-day base-vs-new runs; ci_parity record not yet); C7 done (pytest 7/7,
                     stub panels test PASS under Godot 4.7.2; M-S26a-5/6 red-then-green)
                     C8 done (ARC-92, cast.yaml, check_cast.py, PRESENTATION docs; CC-3 mutant red-then-green)
-                    C6 done (baselines re-recorded, check PASS; behaviour diffs empty)
+                    C6 done (baselines re-recorded, check PASS; behaviour diffs empty; commit 0b3ddab)
+                    C7 95f9fbb, C8 45aeef2, C5 5964e5c, C4 0466441, C3 318f6ff, C2 7496847; C9 close-out next
 NEXT ACTIONS        C6 finish (ci_parity long record running; then baseline check, baseline write, reason
                     lines, baseline check PASS), C9 pushes and opens the PR
