@@ -455,7 +455,7 @@ func _street_check() -> void:
 	var over: Array = []     # [id, speed, at] frames over SPEED_BOUND
 	var walls: Array = []    # S-4 overlaps
 	var samples := 0
-	var seen_leaving := {}
+	var door_dist := {}      # id -> how far the figure stood from its nearest door last frame
 	var shots := 0
 	var door_shot := false
 	var placed_at := {}
@@ -520,17 +520,33 @@ func _street_check() -> void:
 				last_drawn.clear()
 				break
 			if not door_shot:
-				for id in figs._going.keys():
-					var n := figs.going(id)
-					if n == null or seen_leaving.has(id):
+				# someone still perceived, walking toward a bound door's point and within
+				# 1.5 m of it: a person going into a door, framed from in front of that door
+				for id in link.figures.keys():
+					var fig := link.figures.get(id) as Node3D
+					if fig == null or fastest.get(id, 0.0) <= 0.6:
 						continue
-					seen_leaving[id] = true
-					var at := n.global_position
-					var door: String = figs._going[id]["door"]
-					await _aim_at(at + Vector3.UP * 1.2)
+					var at := fig.global_position
+					var to := _nearest_door_point(link, at)
+					var was: float = door_dist.get(id, INF)
+					door_dist[id] = _flat_len(to - at)
+					if door_dist[id] > 1.5 or door_dist[id] >= was:
+						continue
+					var door := String(_nearest_point(link, to)[0])
+					var cam := Camera3D.new()
+					cam.fov = 55.0
+					slice.add_child(cam)
+					var out := Vector3(to.x - at.x, 0.0, to.z - at.z)
+					out = out.normalized() if out.length() > 0.2 else Vector3(0, 0, -1)
+					cam.look_at_from_position(to - out * 4.0 + out.cross(Vector3.UP) * 1.5 + Vector3.UP * 1.6,
+						to + Vector3.UP * 1.0)
+					cam.make_current()
+					await _settle(4)
 					await _save("street_4_into_a_door")
-					print("frame    street_4_into_a_door: %s (%s) going into %s, aimed at %s"
-						% [link.display_label(id), id, door, at])
+					print("frame    street_4_into_a_door: %s (%s) at %s, %.2f m from %s; fixed camera at %s"
+						% [link.display_label(id), id, at, _flat_len(to - at), door, cam.global_position])
+					cam.queue_free()
+					player.set_camera(FP)
 					door_shot = true
 					last_drawn.clear()
 					break
@@ -600,6 +616,22 @@ func _nearest_point(link: SliceLink, at: Vector3) -> Array:
 			var dd := _flat_len(at - q)
 			if dd < best[1]:
 				best = [d[2], dd]
+	return best
+
+
+## The nearest in- or out-point of a bound door, by the plan's rule (as _nearest_point).
+func _nearest_door_point(link: SliceLink, at: Vector3) -> Vector3:
+	var best := Vector3.INF
+	for place in link.layout.doors:
+		var d: Array = SliceTerrace.doors[link.layout.doors[place]]
+		var yaw: float = d[1]
+		var n := Vector3(sin(yaw), 0.0, cos(yaw))
+		var points := [(d[0] as Vector3) + n * PLAN_INSET]
+		if d.size() > 5 and d[3] != "":
+			points.append((d[0] as Vector3) - n * (float(d[4]) + PLAN_INSET))
+		for q in points:
+			if best == Vector3.INF or _flat_len(at - q) < _flat_len(at - best):
+				best = q
 	return best
 
 
