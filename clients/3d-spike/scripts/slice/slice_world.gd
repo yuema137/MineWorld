@@ -34,7 +34,10 @@ const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0
 
 
-static func build(parent: Node3D) -> Node3D:
+## `connected`: the slice draws a world's people (`SliceLink`), so the
+## streetscape's decorative townspeople are not built (D-16c-6). Standalone
+## builds exactly as before.
+static func build(parent: Node3D, connected := false) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Slice"
 	parent.add_child(g)
@@ -46,7 +49,7 @@ static func build(parent: Node3D) -> Node3D:
 	_south_frontage(g);                                          _tick("south", t0)
 	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
 	_tick("cafe", t0)
-	SliceStreetscape.build(g);                                   _tick("streetscape", t0)
+	SliceStreetscape.build(g, not connected);                    _tick("streetscape", t0)
 	_place_volumes(g)
 	# Static batching, after everything is placed and before anything is drawn.
 	# See batch.gd: the slice is thousands of small boxes, and a frame that

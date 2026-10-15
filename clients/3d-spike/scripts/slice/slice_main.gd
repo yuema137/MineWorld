@@ -59,7 +59,8 @@ func _ready() -> void:
 	gi_mode = _gi_from_args()
 	_environment()
 	_sun()
-	world = SliceWorld.build(self)
+	# connected or not is known from the arguments before anything is built
+	world = SliceWorld.build(self, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
 	_spawn_player()
