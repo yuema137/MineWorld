@@ -1,9 +1,10 @@
 # Handoff — S27-b (group-activity offers complete)
 
 **Resume (2026-10-15): done** — expired-invitation fix `7c544451` (D-b-1); `origin/main` merged (`8418682f`,
-`44a56e33`); B2 steps 1–7 evidence in the ledger. **HELD at B2 step 8 (material stop, D-b-2):** the long-profile
-baseline check fails for `lakeside`, `market-town`, `social-cafe`; D-b-1 moves them too, and QS27b-1 rules only
-F-S27b-1's cause. No baseline was written. Primary session decides (ledger D-b-2). Status below is pre-resume.
+`44a56e33`); B2 steps 1–7 evidence in the ledger. **D-b-2 ruled 2026-10-15 (primary): option (a).** Baselines
+re-recorded once for `lakeside`, `market-town`, `social-cafe` with two reason lines each (F-S27b-1, D-b-1);
+`baseline check` PASS. B3 close-out committed; PR #241 marked ready so CI runs. Stop condition:
+`S27-b READY FOR OPERATOR REVIEW — DO NOT MERGE`. Status below is pre-resume.
 
 **Status (pre-resume): PARKED at B2 step 1 (R-LOAD-1, F-12d-1).** B0 (`cf3f088`) and B1 (`d9705fd`) are committed locally, not
 pushed. B2 has not produced a verdict: `cargo test -p mineworld-rule-controller` passed (38); the CLI and

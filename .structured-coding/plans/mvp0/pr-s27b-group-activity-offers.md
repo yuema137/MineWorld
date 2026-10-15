@@ -534,8 +534,8 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 | --- | --- | --- | --- | --- |
 | B0 | — (this commit) | [x] | [x] | [x] |
 | B1 | — (this commit) | [x] | [x] | [x] |
-| B2 | — (held at step 8, material stop D-b-2) | [ ] | [ ] (steps 1–7 evidence recorded) | [ ] |
-| B3 | — | [ ] | [ ] | [ ] |
+| B2 | 8789f535 (evidence); baselines in the B3 commit (step 8, ruled D-b-2 option (a)) | [x] | [x] | [x] |
+| B3 | close-out commit (see Evidence, B3) | [x] | [ ] (CI on the exact head, see Evidence, B3) | [x] |
 
 ### Evidence
 
@@ -581,6 +581,11 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   every 30-day bucket of `market-town` and `lakeside` (the run output's existing lines).
 - B2 step 8: **NOT RUN. Material stop (§12).** `baseline write` was not run. The moved keys have two causes; the second
   (D-b-1) is outside QS27b-1's ruling. Decision needed from the primary session (see D-b-2).
+- B3 (2026-10-15): I-b-4 check, `git diff --name-only origin/main...HEAD`: the §2.1 paths (`perception.rs`,
+  `group_activity.rs`, `test_real_server.py`, `DECISIONS.md`, the README, `scripts/baselines.txt`) plus the two plan
+  documents (ledger, handoff). No other code path. `#<PR>` replaced by `#241` in the reason lines (written directly).
+  PR #241 opened as a draft, then marked ready on the operator-coordinator's instruction so CI's Rust and Python layers
+  run. CI results on the exact head: see the PR and the handoff report.
 - Python CP-b (`test_an_invitation_is_answered_and_left_through_complete_affordances`, release binary of `44a56e33`):
   1 PASS. `check_doc_headings.py`: PASS (239 sections, 33 documents). `check_decision_ids.py`: PASS (138 ids).
 
@@ -615,7 +620,7 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   red on the pre-fix code (FAIL at "an expired invitation is not offered accept"), green after. The test moves
   the world's clock with `World::advance_to` before observing, because perception reads `WorldRead::at`
   (= `World::now`) and not the `at` argument of `observe`. Finding for the kernel/presence owner: `observe`
-  takes an `at` that its providers do not see (the observation's `at` and the read's `at` can differ in tests).
+  takes an `at` that its providers do not see (recorded as F-S27b-4 below) (the observation's `at` and the read's `at` can differ in tests).
   This correction may move the B2 long-run measurement for a cause other than F-S27b-1 (an expired accept
   is no longer attempted); B2 must attribute every moved key before any re-record (§5.3).
 
@@ -631,3 +636,20 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   are at `/Users/yuema137/mineworld-worktrees/s27b-base-scratch` and `/Users/yuema137/mineworld-worktrees/s27b-b1-scratch`
   (both removable). The records used `/opt/homebrew/bin/python3.11` (the default `python3` lacks `tomllib`). `compare`
   takes one commit only, so the cross-commit comparison used `ci_parity.py diff`.
+  **Ruled 2026-10-15 (primary): option (a).** The expired-invitation fix (D-b-1, `7c544451`) is a second authorized
+  cause. It is a correctness fix that belongs to S27-b's own offers. Action: the three moved sections are re-recorded
+  once from the S27-b long record (`44a56e33`, which carries the same code as the head), with two reason lines each
+  (F-S27b-1 and D-b-1). Recorded in B2 step 8 and B3 below.
+
+- **B2 step 8 (2026-10-15, after the ruling).** `python3.11 scripts/ci_parity.py baseline write
+  target/scratch-s27b/s27b.long`; `git diff scripts/baselines.txt` touches only the keys of `lakeside`, `market-town`
+  and `social-cafe` (`bodies-yard` untouched, no existing reason line dropped). Two reason lines per moved section
+  (`#241`), each with its cause and the sanity count. `baseline check target/scratch-s27b/s27b.long` → **PASS**.
+
+- **F-S27b-4 (finding, for the presence owner, 2026-10-15).** `observe(world, observer, at, providers)`
+  (`systems/presence/src/observe.rs`) takes an `at` for the observation, but the providers' offers are computed
+  from `world.read()`, whose `WorldRead::at()` is `World::now()`. The observation's `at` and the offers' instant
+  can therefore differ (in tests, `cafe.observation(observer, when)` does not advance the clock). Consequence:
+  time-dependent offers (D-b-1) read the clock, not the `at` argument. In production the server observes at
+  `now`, so the two agree there. Not fixed here (presence is not in §2.1); the presence owner should either pass
+  `at` to the providers or require `at == now`.
