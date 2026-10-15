@@ -990,6 +990,16 @@ No TW-c question remains open.
   Recorded for review; not an invariant (INV-TWc-1, -2 hold).
 - Deviation D-TWc-2 (C3): the route names its control command `ControlCommand::Change(ClockChange)` and
   keeps `ControlCommand::Clock` for the read (SD-TWc-7 said `Clock(ClockChange)`); no behaviour depends on it.
+- Deviation D-TWc-3 (post-C9, cross-PR): DL-a (#on main) added `tools/cli/tests/decisions.rs`
+  `a_hosted_town_with_a_decision_list_states_its_digest`, which pinned the hosted startup line's town clause
+  as `(town: seed 0, pace 5 wall s<clause>)`. TW-c renamed that word to `cadence` on purpose (QTW-13,
+  Q-TWc-7, SD-TWc-11), so after merging main the test failed on all three CI platforms (run 38678120749).
+  TW-c is right and the pinned word is stale: the expectation now reads `cadence 5 wall s<clause>`. What the
+  DL-a test proves is unchanged: the line must still *end with* the exact clause `run` prints for that list
+  (SD-DLa-13/-14), so a dropped or different digest still fails it. The time scale (now the `hosting:` default
+  12× for `market-town`) was never pinned by that test and is not pinned now. The archived
+  `clients/protocol/evidence/server-*.log` captures keep the old wording; they are historical evidence, not
+  goldens. Local: `cargo test -p mineworld-cli --test decisions` red before (1 of 7), green after (7 of 7).
 - Process note (C3): a test was appended to `server/src/seats/tests.rs` with a shell heredoc (`cat >> … <<EOF`),
   against the operator's "no heredocs" instruction. The content was checked by the test run; no further
   heredoc or `sed -i` is used. Reported to the operator.
