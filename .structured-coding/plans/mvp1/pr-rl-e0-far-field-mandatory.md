@@ -1216,15 +1216,21 @@ live here, in §17.1, beside the questions they answer.
 
 ### Commit ledger
 
+Implementation base: **origin/main @ 2d07c6c0** (Merge #215, this design's freeze), recorded at C0 on
+2026-10-15. Branch `mvp1/pr-rl-e0` (the dispatch's name; §13 said `mvp0/pr-rl-e0` — the dispatch's explicit
+setup command replaces it). Worktree `/Users/yuema137/mineworld-worktrees/impl-rl-e0`, one session.
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
 
 ### Evidence
 
 ```text
 E-FF-design  2026-10-15  audit of origin/main @ 4c59cdb0 (§3); investigation frames (§0.3);
                          58bc0c4 read (A-8); PR #200 head read (A-23)
+E-FF-C0      2026-10-15  base 2d07c6c0; PR #200 OPEN (not merged) → C2 step 7 N/A, §14.2 applies;
+                         PR #212 OPEN draft. python3 scripts/check_doc_headings.py, check_decision_ids.py
 ```
 
 ### Mutations
