@@ -1599,7 +1599,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C1 | — | [x] | [x] | [x] |
 | C2 | — | [x] | [x] | [x] |
 | C3 | — | [x] | [x] | [x] |
-| C4 | — | [ ] | [ ] | [ ] |
+| C4 | — | [x] | [x] | [x] |
 | C5 | — | [ ] | [ ] | [ ] |
 | C6 | — | [ ] | [ ] | [ ] |
 | C7 | — | [ ] | [ ] | [ ] |
@@ -1688,6 +1688,16 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   pattern-keyed model tables (the S25 generator had none of these); `docs/reference` regenerated;
   `test_reference.py` 6 passed (PASS). Review: no YAML parsed in Python; error text names a key or file and no
   value. `mineworld_cognition.controller` is created with a docstring only.
+- **C4 (2026-10-14).** Step 1: `BackendFailure.retry_after_s` (0 to 3 600, optional). Step 2:
+  `retry_after_seconds(header)` in `backend/model.py`, used by both HTTP adapters on every non-2xx response
+  (401/403 included). Step 3: `ModelGateway.complete(..., *, timeout_s=None)`, the timeout is the smaller of
+  `call_timeout_s` and `timeout_s`. Step 4: tests: `test_openai_compatible.py` (4 cases) and
+  `test_anthropic_messages.py` (3 cases) for `Retry-After` 3, 99999 (to 3 600), an HTTP date and an empty
+  value; `test_budget.py` for the caller's 0.5 s bound on a 5 s backend (one call, zero tokens). Results:
+  openai 21 passed incl. the new cases (PASS), anthropic in the same run (PASS), budget 8 passed (PASS), plus
+  `test_record_replay` 12 and `test_provider_scan` 5 and `test_model_and_key` 5 PASS. Static: ruff format and
+  check, pyright 0 errors. Review: only the integer reaches a type (AP5-9); cassette format and keys unchanged;
+  the gateway still never retries. Mutation M-P6-4 (ignore `retry_after_s`) is C7's and is not run here.
 - **D-P6b-2 (C2) FIXED 2026-10-14 under the primary's ruling.** The stale doc comment in
   `cognition/installed/src/lib.rs` ("none in this build; step-17 P6 adds `lm`") now reads that `lm` is the one
   external model in this build. One-line edit, in C2's area.

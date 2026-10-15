@@ -88,7 +88,11 @@ class ModelGateway:
         self._backend = backend
         self._budget = budget
 
-    async def complete(self, seat: EntityKey, request: CompletionRequest) -> GateOutcome:
+    async def complete(
+        self, seat: EntityKey, request: CompletionRequest, *, timeout_s: float | None = None
+    ) -> GateOutcome:
+        """One call. `timeout_s`, when given, is the caller's own bound (a consult deadline); the timeout
+        used is the smaller of it and `call_timeout_s`, so a cut call is charged like a timeout (F-P6-1)."""
         canonical_json(request)
         budget = self._budget
         now = budget.clock.now()
@@ -97,10 +101,13 @@ class ModelGateway:
         if refusal is not None:
             return Refused(refusal)
         budget.reservations.hold(seat, held)
+        limit = budget.policy.call_timeout_s
+        if timeout_s is not None:
+            limit = min(limit, timeout_s)
         try:
             async with budget.limiter:
                 try:
-                    async with asyncio.timeout(budget.policy.call_timeout_s):
+                    async with asyncio.timeout(limit):
                         answer = await self._backend.complete(request)
                 except TimeoutError:
                     answer = BackendFailure(reason="timeout")
