@@ -1595,7 +1595,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | A1 | — | [ ] | [ ] | [ ] |
 | A2 | — | [ ] | [ ] | [ ] |
 | A3 | — | [ ] | [ ] | [ ] |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | — | [x] | [x] | [x] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
@@ -1615,6 +1615,22 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Evidence
 
 - **E-P6-spike** (operator, 2026-10-13): §0.1. Not re-run by any agent.
+- **C0 (2026-10-14), base `origin/main` @ 9aa185b.**
+  - Step 1 (DL-a): `cognition/decision/` and `cognition/installed/` exist; `cargo build -p mineworld-cli`
+    finished (5m 29s, debug); `target/debug/mineworld decisions --help` runs and lists `--json`, `--decisions`,
+    `--seat-model`. DL-a merged in `1be87e4` (PR #191). Result: PASS.
+  - Step 2 (FG-b): merged in `31ba514` (PR #186). `mineworld_cognition.memory.retention` exports `absorb`
+    (`absorb.py`: `async def absorb(store, facts, through, retention) -> AbsorbReport`), `resolve`
+    (`selection.py`: `def resolve(choice: MemoryPolicyChoice, registry: PolicyRegistry) -> Retention`),
+    `MemoryPolicyChoice` and `DEFAULT_CHOICE` (`MemoryPolicyChoice(policy="consolidate")`). A-P6-3: the
+    names exist with the arities the C3/C11 call sites need. Line-by-line comparison with FG-b §5.6/§6 was
+    not repeated in C0; C9's call sites will show any difference.
+    Result: PASS.
+  - Step 3 (FG-c): NOT merged. `git log origin/main` shows the FG-c design commits only (`e8abdda`,
+    `6a3496a`); `resolve` has no `summarize` parameter. Consequence recorded in §15 deviations (D-P6b-1).
+  - Step 4: handoff created (`handoff-s10-p6b.md`). Result: PASS.
+- Doc checks (both run in C0, see the commit): `python3 scripts/check_doc_headings.py`,
+  `python3 scripts/check_decision_ids.py`.
 
 ### Assumptions to verify in implementation
 
@@ -1631,4 +1647,11 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2 and §0.1)
+- **D-P6b-1 (C0, bounded).** FG-c is not merged, so `memory.retention.selection.resolve` takes no
+  `summarize` argument. R-P6-FGc-1 is not wired in P6b. Under the design's rule ("whichever of FG-c and P6
+  merges second wires it"), P6b is the first to merge and does not wire it; the FG-c PR wires
+  `Router.for_tier("summarize")` when it lands (R-FGc-P6-1). Until then, a seat whose assigned choice is
+  an assisted policy is refused at start by FG-b's own resolution error, which is the design's behaviour
+  for an unresolvable choice. The default choice (`consolidate`) is not assisted, so the default path is
+  unaffected. The operator sees this in the README.
+- (planning findings are §3.2 and §0.1)
