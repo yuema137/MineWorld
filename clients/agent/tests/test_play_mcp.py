@@ -17,13 +17,12 @@ import json
 import os
 import sys
 import time
-from collections.abc import AsyncGenerator, Awaitable, Callable, Iterator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
-import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import CallToolResult, TextContent
@@ -33,7 +32,6 @@ from realserver import (
     ADMIN_CANARY,
     INVITE,
     Server,
-    market_town,
     seated,
 )
 from support import run_default
@@ -169,32 +167,6 @@ async def walk(
     await until(arrived, patience=WALK_PATIENCE, what="the walk ended")
 
 
-@pytest.fixture
-def town(tmp_path: Path) -> Iterator[Server]:
-    """The market-town of §8: the grants, the save the oracles read, a hold of 10 seconds at time-scale 1."""
-    server = Server(
-        "market-town",
-        *market_town(
-            "--save",
-            str(tmp_path / "save"),
-            "--grant",
-            "visitor",
-            "--grant",
-            "visitor:take-over",
-            "--grant",
-            "alice",
-            "--hold",
-            "10",
-            "--time-scale",
-            "1",
-        ),
-    )
-    try:
-        yield server
-    finally:
-        server.stop()
-
-
 def test_the_play_test_over_stdio(town: Server, tmp_path: Path) -> None:
     """AC-d-1 (§9.2's steps through the adapter), AC-d-2 (frames), AC-d-3 (the grant is the only right),
     AC-d-4 (no secret), AC-d-5 (pacing), each on the one real server."""
@@ -308,7 +280,9 @@ async def _play(town: Server, tmp_path: Path) -> None:
                 assert lost[-1].seat_lost == "taken_over", lost[-1]
                 async with adapter(relay_url, state, grants["visitor"], logs / "b.log") as other:
                     # A plain join onto a held seat is `seat_occupied`: a grant does not turn a join into a takeover.
-                    held = await refused(other, transcript, "join", {"seat": "visitor", "nickname": "Ada"})
+                    held = await refused(
+                        other, transcript, "join", {"seat": "visitor", "nickname": "Ada"}
+                    )
                     assert held.join == "seat_occupied", held
                     refusal = await refused(
                         other,

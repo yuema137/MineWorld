@@ -52,6 +52,11 @@ _GRANT = re.compile(
 )
 
 
+def world_path(world: str) -> Path:
+    """A world of the repository by its name (`market-town`), or a scratch copy by its absolute path."""
+    return Path(world) if Path(world).is_absolute() else REPOSITORY / "worlds" / world
+
+
 def binary() -> Path:
     """`MINEWORLD_BIN`, or the debug build under the repository's `target/`."""
     named = os.environ.get("MINEWORLD_BIN")
@@ -79,7 +84,7 @@ class Server:
             [
                 str(executable),
                 "server",
-                str(REPOSITORY / "worlds" / world),
+                str(world_path(world)),
                 "--listen",
                 "127.0.0.1:0",
                 *flags,
@@ -112,6 +117,13 @@ class Server:
         """The grant tokens the server printed at start, keyed by seats and suffix: `visitor` for a grant of
         `--grant visitor`, `visitor take-over` for `--grant visitor:take-over` (S27-a's line format). The
         tokens are the test's own secrets; they are never printed by the test."""
+        deadline = time.monotonic() + STARTUP_PATIENCE
+        while time.monotonic() < deadline and not any(
+            line.startswith("[mineworld] hold ") for line in list(self.lines)
+        ):
+            time.sleep(
+                0.05
+            )  # the start-up lines follow the listening line; the hold line is the last of them
         found: dict[str, str] = {}
         for line in list(self.lines):
             if match := _GRANT.match(line):
