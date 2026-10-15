@@ -153,6 +153,15 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
+    # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml); the nightly
+    # `clients` layer runs the same tests on Linux, macOS and Windows (ci_godot.py GODOT_TESTS).
+    "farfield": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
     # failure), the protocol module's live checks, and AC-13's evidence judged by its owning test.
     "clients-probes": [

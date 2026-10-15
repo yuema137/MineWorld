@@ -74,7 +74,9 @@ ASSETS = {
 # (QC-5: only a test that cannot show a window on that leg, and only while it passes on another leg the
 # same night; the coverage check refuses a test skipped everywhere). Evidence: pr-13c-nightly.md §12.2
 # F-13c-impl-2 (runs 38091440131 and 38094430653).
-GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings"]
+GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings",
+               # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
+               "client_far_field"]
 _SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
                 "limit ('the slice hung'); it passes on macOS")
 SKIPS: dict[str, dict[str, str]] = {

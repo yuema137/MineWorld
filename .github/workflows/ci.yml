@@ -38,6 +38,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.classify.outputs.code }}
+      clients: ${{ steps.classify.outputs.clients }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -199,6 +200,32 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: platforms
+
+  # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux -- the 3D rendered check,
+  # the 2D clear-colour check and the two validators' agreement (tools/cli/tests/client_far_field.rs) --
+  # when scripts/ci_changes.py says a client, a Presentation Pack, a launcher or the harness changed.
+  # Godot under Xvfb with Mesa (.github/actions/godot, DEP-45). Not a required check until the operator
+  # makes it one; the nightly `clients` group runs the same tests on Linux, macOS and Windows.
+  farfield:
+    name: farfield
+    needs: changes
+    if: >-
+      needs.changes.outputs.clients == 'true' && (
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: farfield
 
   # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
   # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its
