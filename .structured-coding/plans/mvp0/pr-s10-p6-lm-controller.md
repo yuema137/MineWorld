@@ -1597,7 +1597,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | A3 | — | [ ] | [ ] | [ ] |
 | C0 | — | [x] | [x] | [x] |
 | C1 | — | [x] | [x] | [x] |
-| C2 | — | [ ] | [ ] | [ ] |
+| C2 | — | [x] | [x] | [x] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
@@ -1662,4 +1662,18 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   an assisted policy is refused at start by FG-b's own resolution error, which is the design's behaviour
   for an unresolvable choice. The default choice (`consolidate`) is not assisted, so the default path is
   unaffected. The operator sees this in the README.
+- **C2 (2026-10-14).** Step 1: `external "lm",` added to `models!` in `cognition/installed/src/lib.rs`. Step 2:
+  the guard test lists no expected ids, so a new test `the_lm_controller_is_the_one_installed_external_model`
+  in `cognition/installed/tests/installed.rs` asserts the external list is `["lm"]`. Step 3:
+  `cognition/lm-controller/examples/alice-lm.decisions.yaml` written from §5.9 step 1. Step 4: `cargo build -p
+  mineworld-cli` finished; `mineworld decisions worlds/social-cafe --decisions …alice-lm.decisions.yaml --json`
+  gives alice `{"id":"rule","assigned":"lm","chain":["lm","rule"]}`, bob…ivan `rule` with no assignment. Result
+  PASS. Step 5: `mineworld run worlds/social-cafe --days 1 --headless --seed 1` (no `--decisions`) runs, header
+  names the seats with no lm assignment. Result PASS. Validation: `cargo test -p mineworld-installed-models`
+  4 passed (PASS); `cargo test -p mineworld-cli --test decision_models` 1 passed in 185 s (PASS);
+  `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-installed-models --all-targets -- -D warnings` PASS.
+  Review: no Rust file other than `cognition/installed` changed.
+- **D-P6b-2 (C2, recorded, not changed).** The doc comment at the top of `cognition/installed/src/lib.rs` still
+  says "(none in this build; step-17 P6 adds `lm`)". It is now stale. Editing it is outside C2's line, so it is
+  left for the primary session's post-merge sync (or a later P6b commit with the primary's approval).
 - (planning findings are §3.2 and §0.1)
