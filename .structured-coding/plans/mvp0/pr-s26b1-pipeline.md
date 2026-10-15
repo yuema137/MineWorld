@@ -1185,7 +1185,7 @@ or `tools/asset_generation/` changed.
 | B1 | this commit | [x] steps 1–5: `PIPELINE.md`, `README.md`, DECISIONS `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; step 2 verifications recorded below | [x] doc checks (see Evidence) | [x] terms exact; no rule only in the README; the Winter and AccuRIG verifications are INCONCLUSIVE, named for S26-b2 |
 | B2 | this commit | [x] steps 1–11: `cast.py`, `ruff.toml`, `mwcast/{__init__,cli,glb,records,scratch}.py`, tests `{conftest,gltf_fixture,test_glb,test_records}.py` | [x] pytest 19 passed (2.0 s); ruff check and format clean; pyright strict 0 errors; mutation (drop `// 3` in `triangle_count`) red on 3 tests, reverted green | [x] no third-party import in `glb.py`/`records.py`; all public functions typed; `Mapping[str, object]` only at the JSON document |
 | B3 | this commit | [x] steps 1–4: `standard.py`, `gates.py`, `cli.py` (`gate`, `check-characters`), `test_gates.py`; 40 pytest passed; ruff, format, pyright strict clean | [x] mutations (a) MAX_TRIANGLES 100_001 → X-5 red; (b) G-5 parent comparison off → re-parented test red; (c) G-14 key scan off → key-shaped test red; all reverted green. Frozen evidence pinned (G-1 95000, G-2 `MW_Meshy`, G-5 PASS, G-6a PASS, G-14 exactly `references`, `reference_generator`, `pipeline`) | [ ] Opus review pending (contract requires Opus review of B3 before ready); see finding F-B1-B3-1 |
-| B4 | — | [ ] | [ ] | [ ] |
+| B4 | this commit | [x] steps 1–4: `scripts/check_secrets.py` (scan, self-test); `scripts/ci_layer.py` (fast: two secrets commands; pipeline ruff/pyright in `PYTHON_STATIC`; pytest and `check-characters` in `python` and `python-smoke`); `pyproject.toml` `executionEnvironments`; `uv sync --locked` exit 0 | [x] `--self-test` PASS; `scan` 0 findings (1,903 tracked text files at the time); pipeline pytest 41 passed; ruff and pyright clean; mutation (remove `msy_` pattern) → self-test FAIL, reverted PASS | [x] no existing command changed or reordered; allowlist empty; scanner prints no matched text |
 | B5 | — | [ ] | [ ] | [ ] |
 | B6 | — | [ ] | [ ] | [ ] |
 | B7 | — | [ ] | [ ] | [ ] |
@@ -1234,6 +1234,9 @@ or `tools/asset_generation/` changed.
   10.5–11.7 % against the 12 % relative bound; G-14 FAIL naming exactly `references`, `reference_generator`,
   `pipeline`. Consequence: AB1-10 (G-6 (a, b) PASS on the re-derived export) cannot hold if the accepted asset itself
   fails G-6(b) under the frozen bounds. The bounds are not changed (I-B1-6, §12 "changing a bound after a Gate run").
+  **B4 notes:** `check_secrets.py` has no shebang (ruff EXE001 would fail it; the file is run by `python3` and I could
+  not set its mode under the allowed-command rule). Its pattern list is kept equal to `standard.KEY_PATTERNS` by
+  `tools/character_pipeline/tests/test_secrets_rule.py`.
   **Open: the primary session must decide before B10 step 5 is recorded as PASS**, with these numbers; B10's FAIL
   policy applies (localize, no bound change, material stop if AB1-8 cannot hold).
 - **B2 record scope:** `records.py` types every section of `fit.yaml` as a frozen dataclass; the schema is the
