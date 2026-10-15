@@ -21,6 +21,16 @@ the amendment are frozen with the step; S26-src1 and S26-src2 are each detailed 
 turn before they start. Ids `ARC-130…ARC-134`, `DEP-70`, `DEP-71`. Superseded amendment lifecycle: `DRAFT`.
 Author: design session, worktree `/Users/yuema137/mineworld-worktrees/design-s26-sources`, branch
 `docs/s26-character-sources`, base `origin/main @ 58a6f55f`, `origin/main @ 4457ad47` merged.
+**Pending amendment proposal (2026-10-15, S32 wardrobe; not in force until the operator rules):**
+- the operator's wardrobe requirement means a fused route D+ character cannot serve a Person;
+- [`step-32-wardrobe.md`](step-32-wardrobe.md) §15 proposes:
+  - cancel the fused Meshy phase 2;
+  - modular characters (body, fitting template, garments, hair, on the same 52 joints);
+  - G-gates per assembled outfit, plus W-gates;
+  - Vera kept as the fused control until her modular character passes parity;
+  - S26-b2, S26-d and S26-e re-scoped into S32-p, S32-d and S32-e.
+
+Until it is ruled, this document stands unchanged, and the Meshy phase-2 hold continues.
 **Author:** design session, 2026-10-14, worktree `/Users/yuema137/mineworld-worktrees/design-s26`, branch
 `docs/s26-cast`. Audit base: `origin/main @ adf5d2c`.
 **Ids** (assigned by the primary session at freeze, 2026-10-14):
