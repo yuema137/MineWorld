@@ -860,6 +860,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-appearance"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-authoring"
 version = "0.1.0"
 dependencies = [

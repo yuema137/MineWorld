@@ -943,7 +943,7 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 | --- | --- | --- | --- | --- |
 | C0 | base adf6d49 (commit recorded in the handoff) | [x] | [x] | [x] |
 | C1 | (this commit) | [x] | [x] doc checks PASS (headings, decision ids); `grep -n "^## ARC-91"` 1 line | [x] terms exact; section and ARC-91 carry no renderer concept in the world's half |
-| C2 | — | [ ] | [ ] | [ ] |
+| C2 | (this commit) | [x] crate per §5.1 (files, README, look/section/component/event/system, tests a–d); codec.rs identical to naming's (diff empty); Cargo.toml naming's with the two fields changed | [x] `cargo test -p mineworld-appearance`: 4 passed (0.00 s). Clippy `-D warnings` clean; `cargo fmt --all --check` clean. Mutations: M-S26a-1 → test (c) red at line 221 (`a look must`), reverted green; M-S26a-2 `discloses` empty → test (b) red at line 166, self-only variant → (b) red at line 166, reverted green; M-S26a-3 `react` skipped → (a) red at line 142 (`alice's Look is the authored key`), reverted green. Vocabulary grep: only the sentences that say a look is not a mesh/texture | [x] no action, process or dependency declared beyond `presence`/`sdk` seams; no `HashMap`; the value type refuses (`LookKey::new`); doc sentences say what a look is not |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
