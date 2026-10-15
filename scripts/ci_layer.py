@@ -22,7 +22,7 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
-                                                   says which tests): the `test-windows` shards
+                                                   says which tests): the shards of `test`, `test-macos`, `test-windows`
     python3 scripts/ci_layer.py --list <layer> [--shard K/N]
                                                    print a layer's commands without running them
     python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
@@ -64,7 +64,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_godot.py", "--self-test"],
         ["python3", "scripts/ci_repeat.py", "--self-test"],
         ["python3", "scripts/ci_stability.py", "--self-test"],
-        # The partition of `core` into `test-windows`'s shards (ARC-110): complete and deterministic.
+        # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
         ["python3", "scripts/ci_shard.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],

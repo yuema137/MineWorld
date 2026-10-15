@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Partition the `core` layer's default suite into N shards: deterministic, complete, and balanced.
 
-`docs/DECISIONS.md` ARC-110. `test-windows` runs `core` as three parallel jobs because the whole suite
-outgrew one job's cap on windows-2025; each job runs `python scripts/ci_layer.py core --shard K/N`, and
-`ci_layer.py` asks this module which cargo commands shard K is.
+`docs/DECISIONS.md` ARC-110. `test`, `test-macos` and `test-windows` run `core` as parallel shards because
+the whole suite outgrew one job's cap on every OS; each shard runs `scripts/ci_layer.py core --shard K/N`,
+and `ci_layer.py` asks this module which cargo commands shard K is.
 
 The unit of partition is a test target *name*, across the workspace: `cargo test --workspace --test NAME`
 runs every package's integration test of that name, from that package's directory, exactly as the whole
@@ -33,52 +33,54 @@ LIB_BINS = "<lib+bins>"
 DOC = "<doc>"
 
 # Seconds per unit on windows-2025: the wall time between cargo's `Running` lines, summed over the
-# packages sharing the name. Measured on PR #200's run 38787218062 and PR #206's run 38782285755 (both
-# cancelled at 60 min after 78 and 80 of 250 binaries, every one passing); the targets neither run reached
-# are Linux's time in run 38787218062 x 1.27, the Windows/Linux ratio over the targets both ran. Units under
-# 3 s are left to DEFAULT_WEIGHT. Re-measure when a shard's run passes 35 min (ARC-110).
+# packages sharing the name, from the first complete sharded run (PR #224's run 38804018898, main at
+# 4457ad47; 2855 s in all). `town_bodies` (12d, #171) is not on main yet: 480 s is its share of
+# `market_town` on #171's green run 38664714380 (421 s of 456 s on Windows, 437 of 458 on Linux) scaled to
+# this table, rounded up; #171's run 38786685064 was cancelled 4 min into it on macOS. One table serves
+# every OS: only the proportions matter for balance, and they agree across the three within the noise of
+# one run. Units under 3 s are left to DEFAULT_WEIGHT. Re-measure when a shard passes 35 min (ARC-110).
 WEIGHTS: dict[str, int] = {
-    "market_town": 487,
-    "run": 472,
-    "milestone_e": 304,
-    "bodies_yard_restart": 264,
-    "social_interactions": 192,
-    "social_composition": 126,
-    "walking_pace": 121,
+    "market_town": 491,
+    "town_bodies": 480,
+    "run": 415,
+    "social_interactions": 208,
+    "milestone_e": 206,
+    "bodies_yard_restart": 163,
     "hosted_town": 120,
-    "forgetting_runs": 119,
-    "run_restart": 115,
-    "interaction_runs": 96,
-    "third_party": 92,
-    "market_composition": 75,
-    "motivated": 73,
-    "milestone_b": 62,
-    "bodies_yard": 61,
+    "social_composition": 119,
+    "forgetting_runs": 117,
+    "walking_pace": 95,
+    "interaction_runs": 95,
+    "third_party": 91,
+    "run_restart": 79,
+    "motivated": 72,
+    "market_composition": 70,
     "deltas": 60,
-    "perceived": 46,
-    "entity_packs": 40,
-    "decision_models": 40,
-    "biography": 32,
-    "inspect": 30,
-    "routines": 29,
-    "content_kinds": 23,
+    "milestone_b": 59,
+    "perceived": 40,
+    "entity_packs": 39,
+    "bodies_yard": 38,
+    "inspect": 29,
+    "routines": 28,
+    "decision_models": 25,
+    "biography": 20,
     "restart": 16,
+    "content_kinds": 16,
     "facts": 15,
-    "admin": 15,
-    "ac3_reconnect": 13,
+    "admin": 13,
+    "ac3_reconnect": 12,
+    "decisions": 12,
     "compile_fail": 11,
-    "decisions": 10,
-    "handshake": 10,
-    "forgetting": 7,
-    "kill_and_resume": 7,
+    DOC: 8,
+    "forgetting": 8,
+    "handshake": 8,
+    "kill_and_resume": 5,
     "walking": 5,
-    "interactions": 5,
-    "retention": 5,
-    DOC: 4,
-    "route": 4,
+    "retention": 4,
+    "record": 4,
     "ac5_takeover": 4,
-    "record": 3,
     "milestone_c": 3,
+    "interactions": 3,
 }
 DEFAULT_WEIGHT = 1
 
