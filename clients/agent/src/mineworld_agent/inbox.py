@@ -110,6 +110,13 @@ class Inbox:
         """Facts ever added: the number of the newest."""
         return self._arrived
 
+    @property
+    def read_through(self) -> int:
+        """The number just before the oldest fact not yet read or shown (`arrived` when every fact
+        has been): where `wait` starts looking, so a fact that arrived between two calls is not missed."""
+        unread = next((e.number for e in self._entries if not e.read and not e.shown), None)
+        return self._arrived if unread is None else unread - 1
+
     # ── Reading ───────────────────────────────────────────────────────────────────────────────────
 
     def line(self, entry: _Entry, detail: bool = False) -> EventLine:
@@ -187,7 +194,7 @@ class Inbox:
     def matches(self, until: WaitFor, after: int) -> bool:
         """Whether a fact that arrived after fact `after` is what `until` waits for (the fact-shaped
         conditions; `view_changed` and `offer_available` are the observation's, `offered`)."""
-        fresh = [e.event for e in self._entries if e.number > after]
+        fresh = [e.event for e in self._entries if e.number > after and not e.shown]
         match until:
             case AnyEvent():
                 return bool(fresh)

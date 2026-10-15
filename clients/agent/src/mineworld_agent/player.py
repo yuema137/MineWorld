@@ -18,6 +18,7 @@ releases or grants (INV-S27-10).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import secrets
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -129,6 +130,9 @@ JOIN_PATIENCE: Final = 15.0
 CAUSED_PATIENCE: Final = 1.0
 """Wall seconds an accepted act waits for the facts it caused to arrive (pr-s27c §5.6)."""
 
+FACT_TO_VIEW_PATIENCE: Final = 1.0
+"""Wall seconds a `wait` woken by a fact gives the observation that reflects it to arrive."""
+
 WAIT_EVENTS: Final = 10
 """The most facts one `wait` returns (step-27 §5.4)."""
 
@@ -226,21 +230,34 @@ class Player:
         connect: Connector = (
             self._connector() if self._connector is not None else (lambda: open_socket(server))
         )
-        try:
-            seat = await ResumingSeat.open(
+
+        async def opened(streamed: bool) -> ResumingSeat:
+            return await ResumingSeat.open(
                 connect,
                 seat=key,
                 invite=self._credential,
                 nickname=args.nickname,
-                cursor=cursor,
+                cursor=cursor if streamed else None,
                 take_over=args.take_over,
                 resume=None if saved is None else saved.secret,
             )
+
+        streamed = True
+        try:
+            try:
+                seat = await opened(streamed)
+            except SdkSeatLost as lost:
+                if lost.reason != "cursor_unavailable" or saved is not None:
+                    raise
+                # A world without a save keeps no history to stream from its beginning (§5.8):
+                # play it as a client without the stream does (D-c-19). The refusal granted nothing.
+                streamed = False
+                seat = await opened(streamed)
         except SdkSeatLost as lost:
             raise JoinRefused(_join_code(lost.reason)) from None
         except TRANSPORT_FAILURES:
             raise PlayerRefusal("not_connected", "the server could not be reached") from None
-        handle = self._handle(seat, key, cursor)
+        handle = self._handle(seat, key, cursor, streamed=streamed, fresh=saved is None)
         try:
             await handle.first_observation(JOIN_PATIENCE)
         except TimeoutError:
@@ -261,7 +278,9 @@ class Player:
             view=self._show(handle, view_of, handle.rendered()),
         )
 
-    def _handle(self, seat: ResumingSeat, key: EntityKey, cursor: CursorCell) -> Handle:
+    def _handle(
+        self, seat: ResumingSeat, key: EntityKey, cursor: CursorCell, *, streamed: bool, fresh: bool
+    ) -> Handle:
         refs = RefTable()
         handle = Handle(
             seat=seat,
@@ -273,6 +292,8 @@ class Player:
             sleep=self._sleep,
             idle_release_s=self._config.idle_release_s,
             states=self._states,
+            streamed=streamed,
+            fresh=fresh,
         )
         handle.pacer = Pacer(
             walking=lambda: _walking(handle),
@@ -360,10 +381,11 @@ class Player:
         return result(lines, following)
 
     async def wait(self, args: WaitArgs) -> WaitResult:
-        """Returns at the first fact or observation `args.until` waits for, or at the timeout. It holds
+        """Returns at the first fact or observation `args.until` waits for, or at the timeout. Facts
+        not yet read count: one that arrived since the previous call wakes it at once (D-c-21). It holds
         nothing on the server."""
         handle = self._seated(args.handle)
-        start = handle.inbox.arrived
+        start = handle.inbox.read_through
         base = handle.shown
         loop = asyncio.get_running_loop()
         deadline = loop.time() + args.timeout_s
@@ -387,9 +409,14 @@ class Player:
                 for waiter in (facts, seen):
                     waiter.cancel()
                 await asyncio.gather(facts, seen, return_exceptions=True)
+        if woke in ("any_event", "spoken_to", "walk_ended"):
+            # A fact is sent before the observation that reflects it (`PROTOCOL.md` §5.8): give that
+            # observation a moment to arrive, so the result's view_changed and the next observe agree
+            # with the fact (D-c-20).
+            await _next_observation(handle, FACT_TO_VIEW_PATIENCE)
         handle.touch()
         if handle.lost is not None:
-            self._seated(args.handle)
+            self._seated(args.handle)  # raises SeatLostRefusal: the seat ended while waiting
         moment = self._moment(handle)
         changed = handle.newest is not None and handle.newest.after(base)
 
@@ -501,6 +528,7 @@ class Player:
             if isinstance(answer.result, WireAccepted):
                 await handle.delivered_through(answer.result.accepted.events, CAUSED_PATIENCE)
                 caused = handle.inbox.caused_by(answer.action_id)
+            await handle.reflecting(CAUSED_PATIENCE)
         return outcome_of(answer, caused)
 
     async def _step(self, handle: Handle) -> Step:
@@ -651,6 +679,20 @@ def _woken(handle: Handle, until: WaitFor, start: int, base: Seen | None) -> boo
         case OfferAvailable():
             newest = handle.newest
             return newest is not None and offered(until, newest.frame.observation, handle.refs)
+
+
+async def _next_observation(handle: Handle, patience: float) -> None:
+    """Waits for an observation newer than the one held now, at most `patience` wall seconds."""
+    held = handle.newest
+    with contextlib.suppress(TimeoutError):
+        async with asyncio.timeout(patience):
+            while True:
+                signal = handle.signal()
+                if handle.lost is not None or (
+                    handle.newest is not None and handle.newest.after(held)
+                ):
+                    return
+                await signal.wait()
 
 
 async def _stop_pacing(handle: Handle) -> None:

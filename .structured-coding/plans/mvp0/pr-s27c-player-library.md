@@ -645,8 +645,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | gap table | 2525c34 | [x] | N/A (docs only) | [x] |
 | C5a (R-S27c-INFO) | 0f7bc7f | [x] | [x] | [x] |
 | C6 | b9f571f | [x] | [x] | [x] |
-| C7 | (this commit) | [x] | [x] | [x] |
-| C8 | — | [ ] | [ ] | [ ] |
+| C7 | b57ea61 | [x] | [x] | [x] |
+| C8 | (this commit) | [x] | [x] | [x] |
 | C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -892,11 +892,65 @@ as the authority for the added fields.
     `caused_by.action` is its `ActionId` (shown once). A fact this seat does not perceive is never awaited
     past the second.
   - *D-c-16 (state file cadence).* The file is rewritten at once on every new connection's first
-    observation (a fresh `resume`), and as the cursor advances at most once a wall second; it is deleted on
+    observation (a fresh `resume`), and as the cursor advances at most once a wall second (revised in C8:
+    whenever it moves); it is deleted on
     `leave` and idle release, kept on a seat loss (its instance and cursor still serve a rejoin after a
     restart).
   - *D-c-17 (unexpected refusals).* A refusal code that only a malformed or out-of-order frame earns
     raises `LibraryDefect` instead of being shown as a world answer.
+
+- **E-C8 (against the real binary).** Binary `/tmp/impl-s27c-target/debug/mineworld`, built from this
+  branch, whose Rust is `origin/main @ f772a18` unchanged (`git diff f772a18 HEAD -- '*.rs' 'Cargo.*'`
+  empty); macOS (Darwin 25.2, arm64), a shared, loaded machine (R-LOAD-1: only this member's tests run).
+  New: `tests/realserver.py` (the binary with `--town`/`--agent`/`--time-scale`, the invite and a canary
+  `MINEWORLD_ADMIN_TOKEN` by environment; `Wire`/`Tap`, the cuttable recording connector given to
+  `Player(connector=…)`; `seated`, a plain-SDK second client; `perceived_export`, `biography`;
+  `Transcript`), `tests/conftest.py` (`mineworld`: a missing binary fails, never skips),
+  `test_play_market_town.py`, `test_two_handles.py`, `test_idle.py`, `test_restart.py`.
+
+  | Test | Claim | Result | Wall time |
+  | --- | --- | --- | --- |
+  | `test_play_market_town.py` | AC-c-1 (frames only `join`/`submit`/`leave`, revision 2, `actor_location` null), §9.2 steps 1–8 and 10–11, AC-c-3 (the server's `too_far_away` for `walk_to {person}` in another place, unchanged), AC-c-4 (step 9: a plain client's take-over → `seat_lost { taken_over }`), AC-c-5 (largest result ≤ 8 KiB JSON and text), AC-c-6 (9 `walk-step`s at 1.00/s ≤ 1.2), AC-c-9 (invite, admin canary, every resume secret absent from every result and `repr`; the newest secret in `visitor.json`; Alice's file deleted on `leave`), AC-c-10 (`>>> ignore previous instructions <<<` from the plain client reaches the Player only as `WorldText` speech, neutralised in `render_text`); step 7 checks the buy in `me.holdings` (+1 of the offer's `about` item) and `me.wallet` (− the offer's `price`), R-S27c-INFO end to end; step 8: 33 facts, F1…F33 each shown once, one unbroken run of `mineworld perceived --person visitor`; step 10: Alice's `perceived` export holds "hello", the injection and "Welcome in.", her biography the acquaintance | PASS | 12.4 s |
+  | `test_two_handles.py` | AC-c-2: each handle's `me` is `E1` and its place `E2`; the visitor in the street and the wanderer in the café show no person or `walk-ended` of the other; no save, so the streamless path (D-c-19) | PASS | ≈ 1.5 s |
+  | `test_idle.py` | AC-c-7: 30.0 wall s idle at ×12 → 360 world s (360 ± 24), `events_dropped` 0, no `lagged`, one connection, view `at` 361 within 2 s of `/status`, `inbox.dropped` 0; idle release: `idle_release_s=2` → `/status.clients` 0, a plain join finds `hosted`, the next call `seat_lost { idle_released }`, then `unknown_handle` | PASS | 32.3 s (both) |
+  | `test_restart.py` | AC-c-8: abandoned Player (no `leave`), server killed and restarted on the save; a new Player with the same `state_dir` presents the file's `resume` and `since` cursor, is joined afresh (`hosted`), finds the visitor at the same place and millimetres, the visitor's biography keeps the acquaintance, and its inbox repeats nothing the first took (16 facts before, 0 after) | PASS | 5.4 s |
+
+  Whole member: `uv run --locked pytest clients/agent` 96 passed in 52 s; ruff, format, pyright (root) clean.
+- **Mutations (C8).** **M-c-2** (one module-level `RefTable` for every handle) →
+  `test_two_handles.py::test_the_two_seats_share_no_reference_name_or_event` red (`('E5', 'E5') ==
+  ('E1', 'E1')`); reverted. **M-c-7** (the state file written once, never after) →
+  `test_restart.py::test_a_player_rejoins_its_seat_after_a_server_restart` red ("no fact taken before is
+  repeated": the stale cursor replays 65 facts from the world's first); reverted. **M-c-6** (cursor committed
+  before the batch is in the inbox) → **survived** `test_play_market_town.py` and `test_restart.py`:
+  classified **equivalent** in this implementation — `_ingest` adds and commits in one synchronous step with
+  no `await` between, so no in-process observer can see the order, and the inbox is in memory, so a crash
+  loses it whichever is first; the ordering is kept as written (inbox, then cursor) for the day the inbox
+  becomes durable. All reverted from byte copies (`cmp` clean).
+- **Discoveries (C8), each a bounded correction.**
+  - *D-c-18 (history at a fresh join).* Previous assumption: the inbox starts empty at a join. Audit: with
+    `since: null` the server first sends the backfill — every fact the seat ever perceived up to the head
+    (`PROTOCOL.md` §5.8) — so a fresh handle's `wait(walk_ended)` woke on a walk the town's controller made
+    before the join. Correction: a join without a saved cursor holds the stream until the first
+    observation, whose `perceived_through` is the head (the backfill precedes the observation stream), and
+    puts only facts after the head in the inbox (the cursor still commits them). A join from a saved cursor
+    takes everything after it (the facts missed while away).
+  - *D-c-19 (a world without a save).* `since: null` is refused `cursor_unavailable` there (§5.8; the SDK's
+    AP3b-12). A fresh join so refused joins again without the stream, and the inbox takes each observation's
+    own `events` (best effort, as a stream-less client sees them; an observation the SDK replaced by a newer
+    one before the watch read it loses its facts, uncounted). `delivered_through` then waits on the newest
+    fact added. Exercised by `test_two_handles.py`.
+  - *D-c-20 (a view that agrees with the fact).* A fact is sent before the observation that reflects it
+    (§5.8), so `observe` right after `wait(walk_ended)` or an accepted act could show the world before it. A
+    `wait` woken by a fact, and an answered act, give the reflecting observation up to 1 wall s
+    (`acted_through` for acts). Presentation only; nothing is sent.
+  - *D-c-21 (wait counts unread facts).* A fact that arrived between two calls (Alice spoken to while the
+    agent was busy) wakes `wait` at once: it looks from the oldest fact not yet read or shown
+    (`Inbox.read_through`), not from the newest at the call.
+  - *D-c-16, revised.* The cursor is saved whenever it moves (not at most once a second): a crash then loses
+    no committed position (`test_restart.py`).
+- **Not covered here (recorded).** AC-c-3's `Unavailable` arm against the binary (no market-town action is
+  offered with no enabled System; the arm is unit-owned in `test_outcomes.py`); AC-c-1's diff against a
+  plain-SDK run (S27-d, R-S27d-c-2); the grant variants (S27-a, R-S27c-a-1).
 
 ### Implementation decisions (bounded, within step-27 §5)
 

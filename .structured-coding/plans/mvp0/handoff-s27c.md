@@ -38,6 +38,7 @@ writer). Coordinator ruling R-LOAD-1 in force (only touched tests locally, ruff/
 
 ## Next actions
 
-1. C6 pacer; C7 Player; C8 real binary (`CARGO_TARGET_DIR=/tmp/impl-s27c-target`); C9 close-out
-   (AC-c-12 without local `cargo test`, per R-LOAD-1).
-2. Before C9: if PR #171 (12d) has merged, merge `origin/main` and check item names (ruling 2); else F-S27c-9.
+1. C6 (`b9f571f`), C7 (`b57ea61`), C8 (real binary, all four files PASS on macOS) done.
+2. C9: PR #171 (12d) check (ruling 2) → item names or F-S27c-9; AC-c-12 per R-LOAD-1 (CI is the
+   workspace gate); push; `gh pr create`; CI on the exact head (fast, test, test-macos, test-windows,
+   platforms, python ×3); READY FOR OPERATOR REVIEW; never merge.

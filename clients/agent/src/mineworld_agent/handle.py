@@ -24,7 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from mineworld_sdk.errors import SessionClosed
-from mineworld_sdk.perceived import CursorCell
+from mineworld_sdk.perceived import CursorCell, PerceivedBatch
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
 from mineworld_sdk.resuming import ResumingSeat, Seen
 from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
@@ -40,10 +40,6 @@ __all__ = ["VIEWS_KEPT", "Handle"]
 
 VIEWS_KEPT = 8
 """Rendered views a handle keeps for deltas, pages and `attempt` (step-27 §5.10)."""
-
-CURSOR_SAVE_EVERY = 1.0
-"""Wall seconds between two saves of an advancing cursor; a welcome is saved at once. A program that dies
-between two saves rejoins from a slightly older cursor and is sent those facts again."""
 
 type Wall = Callable[[], float]
 type Sleep = Callable[[float], Awaitable[None]]
@@ -81,18 +77,28 @@ class Handle:
     _next_view: int = 1
     _observed: asyncio.Event = field(default_factory=asyncio.Event)
     _tasks: list[asyncio.Task[None]] = field(default_factory=list[asyncio.Task[None]])
+    streamed: bool = True
+    """Whether the seat has the reliable `perceived` stream. A world without a save serves none from the
+    beginning (`cursor_unavailable`, `PROTOCOL.md` §5.8); the inbox is then fed from each observation's
+    own `events`, best effort, as a client without a stream sees them (D-c-19)."""
+    fresh: bool = True
+    """Joined without a saved cursor: the backfill up to the connection's head is the world's past, not
+    news, and is not put in the inbox (D-c-18)."""
+    _head: EventId | None = None
+    _head_known: bool = False
+    _held: list[PerceivedBatch] = field(default_factory=list[PerceivedBatch])
+    _added_through: EventId | None = None
     _saved_connection: int = 0
-    _saved_at: float | None = None
+    _saved_cursor: EventId | None = None
 
     # ── Life ──────────────────────────────────────────────────────────────────────────────────────
 
     def start(self) -> None:
         self.last_call = self.wall()
         self._save(force=True)
-        self._tasks = [
-            asyncio.create_task(self._drain()),
-            asyncio.create_task(self._watch()),
-        ]
+        self._tasks = [asyncio.create_task(self._watch())]
+        if self.streamed:
+            self._tasks.append(asyncio.create_task(self._drain()))
         if self.idle_release_s > 0:
             self._tasks.append(asyncio.create_task(self._idle()))
 
@@ -167,6 +173,17 @@ class Handle:
         """Whether the newest observation reflects the newest answered request."""
         return self.newest is not None and self._acted_through(self.newest)
 
+    async def reflecting(self, patience: float) -> None:
+        """Waits, at most `patience` wall seconds, for an observation that reflects the newest answered
+        request (`acted_through`), so that the view after an act shows the act (D-c-20)."""
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(patience):
+                while True:
+                    signal = self.signal()
+                    if self.lost is not None or self.reflected():
+                        return
+                    await signal.wait()
+
     # ── Facts an act caused ───────────────────────────────────────────────────────────────────────
 
     async def delivered_through(self, events: list[EventId], patience: float) -> None:
@@ -179,8 +196,8 @@ class Handle:
             async with asyncio.timeout(patience):
                 while True:
                     self.inbox.changed.clear()
-                    cursor = self.cursor.cursor()
-                    if cursor is not None and event_order(cursor) >= event_order(newest):
+                    through = self.cursor.cursor() if self.streamed else self._added_through
+                    if through is not None and event_order(through) >= event_order(newest):
                         return
                     await self.inbox.changed.wait()
 
@@ -189,19 +206,41 @@ class Handle:
     async def _drain(self) -> None:
         try:
             async for batch in self.seat.perceived():
-                self.inbox.add(batch.events)
-                self.cursor.commit(batch)
-                self._save(force=False)
+                if self.fresh and not self._head_known:
+                    self._held.append(batch)
+                else:
+                    self._ingest(batch)
         except SdkSeatLost as lost:
             self._lose(lost.reason)
         except SessionClosed:
             return
 
+    def _ingest(self, batch: PerceivedBatch) -> None:
+        """Into the inbox, then the cursor (never the other way round: M-c-6)."""
+        head = self._head
+        news = [
+            event
+            for event in batch.events
+            if not (self.fresh and head is not None and event_order(event.id) <= event_order(head))
+        ]
+        self.inbox.add(news)
+        self.cursor.commit(batch)
+        self._save(force=False)
+
     async def _watch(self) -> None:
         try:
             while True:
                 seen = await self.seat.changed(self.newest)
-                self.newest = seen
+                first, self.newest = self.newest is None, seen
+                if first and self.fresh and self.streamed:
+                    # The backfill ends at the connection's head, and is sent before the first
+                    # observation (`PROTOCOL.md` §5.8): what came through by then is the past.
+                    self._head, self._head_known = seen.perceived_through, True
+                    held, self._held = self._held, []
+                    for batch in held:
+                        self._ingest(batch)
+                if not self.streamed:
+                    self._take(seen)
                 if seen.connection != self._saved_connection:
                     self._save(force=True)
                 self._bump()
@@ -209,6 +248,17 @@ class Handle:
             self._lose(lost.reason)
         except SessionClosed:
             return
+
+    def _take(self, seen: Seen) -> None:
+        """Without a stream: the facts this observation says I learned since the previous frame."""
+        events = seen.frame.observation.events
+        if events:
+            self.inbox.add(events)
+            newest = max((event.id for event in events), key=event_order)
+            if self._added_through is None or event_order(newest) > event_order(
+                self._added_through
+            ):
+                self._added_through = newest
 
     async def _idle(self) -> None:
         while True:
@@ -235,19 +285,20 @@ class Handle:
     # ── The state file ────────────────────────────────────────────────────────────────────────────
 
     def _save(self, *, force: bool) -> None:
+        """Rewrites the state file when a new connection's welcome brought a fresh `resume`
+        (`force`), or when the committed cursor moved on (D-c-16)."""
         if self.states is None or self.lost is not None:
             return
-        now = self.wall()
-        if not force and self._saved_at is not None and now - self._saved_at < CURSOR_SAVE_EVERY:
+        cursor = self.cursor.cursor()
+        if not force and cursor == self._saved_cursor:
             return
         welcome = self.seat.welcome
-        cursor = self.cursor.cursor()
         self.states.write(
             self.key,
             SeatState(instance=welcome.world.instance, resume=welcome.resume, cursor=cursor),
         )
         self._saved_connection = self.seat.connection
-        self._saved_at = now
+        self._saved_cursor = cursor
 
     def __repr__(self) -> str:
         return f"Handle(seat={self.key!r}, views={len(self._renders)}, lost={self.lost!r})"
