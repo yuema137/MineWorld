@@ -108,7 +108,9 @@ jobs:
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # 60, like test-macos and test-windows: with walls and walking (12d) the Linux suite passed 45 min
+    # and was cancelled by the job timeout (run 38348684873, 2026-10-14), not by a failing test.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
