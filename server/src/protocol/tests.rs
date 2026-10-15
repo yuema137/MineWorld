@@ -200,6 +200,30 @@ fn a_refusal_recovers_the_token_of_a_frame_that_failed() {
     );
 }
 
+/// `retry_after_ms` is the wait rounded up, never 0 — a client that waits that long is admitted —
+/// and absent from every refusal that did not say one.
+#[test]
+fn retry_after_rounds_up_to_a_whole_millisecond_and_appears_only_when_given() {
+    use std::time::Duration;
+    for (wait, millis) in [
+        (Duration::from_millis(100), 100),
+        (Duration::from_micros(100_001), 101),
+        (Duration::from_nanos(1), 1),
+        (Duration::ZERO, 1),
+    ] {
+        let ServerFrame::Refused { retry_after_ms, .. } = super::Refusal::new(RefusalCode::RateLimited)
+            .retry_after(wait)
+            .into_frame()
+        else {
+            panic!("a refused frame");
+        };
+        assert_eq!(retry_after_ms, Some(millis), "{wait:?}");
+    }
+    let plain = serde_json::to_value(super::Refusal::new(RefusalCode::Paused).into_frame())
+        .expect("serializes");
+    assert!(plain.get("retry_after_ms").is_none(), "{plain}");
+}
+
 // -------------------------------------------------------------------------------------------
 // Identity on the wire. The transport writes none of this: the contract does.
 // -------------------------------------------------------------------------------------------

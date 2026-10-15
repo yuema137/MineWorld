@@ -195,6 +195,7 @@ fn refused_cursor_unavailable() {
         &ServerFrame::Refused {
             token: None,
             code: RefusalCode::CursorUnavailable,
+            retry_after_ms: None,
             detail: Some("the cursor is newer than any fact this world has recorded".to_owned()),
         },
     );
@@ -207,9 +208,40 @@ fn refused_lagged() {
         &ServerFrame::Refused {
             token: None,
             code: RefusalCode::Lagged,
+            retry_after_ms: None,
             detail: Some(
                 "the perceived stream fell too far behind; rejoin with resume and your cursor"
                     .to_owned(),
+            ),
+        },
+    );
+}
+
+/// From S27-a: a `join` whose seat grant does not admit the seat (`PROTOCOL.md` §§4.1, 5.5).
+#[test]
+fn refused_not_granted() {
+    server_frame_matches(
+        "refused-not_granted",
+        &ServerFrame::Refused {
+            token: None,
+            code: RefusalCode::NotGranted,
+            retry_after_ms: None,
+            detail: Some("this credential does not admit this seat".to_owned()),
+        },
+    );
+}
+
+/// From S27-a: a `submit` beyond the seat's request budget, with the one frame field only it carries.
+#[test]
+fn refused_rate_limited() {
+    server_frame_matches(
+        "refused-rate_limited",
+        &ServerFrame::Refused {
+            token: Some(token("c9")),
+            code: RefusalCode::RateLimited,
+            retry_after_ms: Some(100),
+            detail: Some(
+                "this seat's request budget is spent; submit again after retry_after_ms".to_owned(),
             ),
         },
     );
@@ -310,6 +342,7 @@ fn refused() {
         &ServerFrame::Refused {
             token: Some(token("c1")),
             code: RefusalCode::ActorNotObserver,
+            retry_after_ms: None,
             detail: Some("a connection acts only as its own observer".to_owned()),
         },
     );

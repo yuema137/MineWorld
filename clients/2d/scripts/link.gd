@@ -22,8 +22,9 @@ const RETRY_FIRST_S := 0.5
 const RETRY_MAX_S := 8.0
 ## Refusals and closing reasons that end the attempt for good: asking again would be refused again
 ## (§4.6 point 4). `world_stopped` is not among them: a world that stopped may be started again.
+## `not_granted` (S27-a): a credential that does not admit this seat will not admit it on retry.
 const FINAL := ["unknown_seat", "seat_not_in_world", "already_joined", "unauthorized",
-	"protocol_mismatch", "invalid_nickname", "left"]
+	"protocol_mismatch", "invalid_nickname", "left", "not_granted"]
 
 var address := ""
 var seat := ""

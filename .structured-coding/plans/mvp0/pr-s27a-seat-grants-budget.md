@@ -635,8 +635,8 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | this commit (`docs(plan): S27-a — measured request rate, ARC-97, DEP-57`) | [x] | [x] | [x] |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
+| C1 | `ead62c2` | [x] | [x] doc-headings 223 sections, decision-ids distinct | [x] terms exact; §5.5 rows parse (`client_text.rs` reads both new codes, see C2) |
+| C2 | this commit (`feat(protocol): not_granted and rate_limited …`) | [x] | [x] SDK ruff/format/pyright clean; `test_golden_frames.py` 31 passed, `test_resuming.py` 34 passed; `client_text` 5 passed, `client_rules` 3 passed; M-a-6, M-a-7 red by name. Rust `--test frames` and the protocol unit test run at C3 (D-a-5) | [x] no existing golden changed; `retry_after_ms` only via `Refusal::retry_after`; `not_granted` final in SDK and 2D |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
@@ -721,6 +721,10 @@ Planning findings are §3.3. Implementation:
   trigger applies when the 3D client gains a timestamped harness.
 - **D-a-4 (bounded, C1).** `PROTOCOL.md` §9's "an invite and a nickname are the whole of MVP
   authentication" amended to name seat grants, so the file does not contradict §4.1.
+- **D-a-5 (bounded, C2).** C2's Rust tests (`server/tests/frames.rs`, the protocol unit test) were run
+  on the C3 working tree, because C3's library edits were already in progress; `protocol.rs` is
+  byte-identical between the two, so the evidence transfers. C1 alone leaves `client_text.rs` red (it
+  reads §5.5's new rows before C2 adds the catalog entries); C2 makes it green.
 - **R-LOAD-1 (coordinator ruling, 2026-10-14).** Locally only the touched crates' tests, fmt and clippy;
   no local `cargo test --workspace`. The workspace gate is CI's `test`, `test-macos`, `test-windows` on the
   exact head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)". This replaces the dispatch

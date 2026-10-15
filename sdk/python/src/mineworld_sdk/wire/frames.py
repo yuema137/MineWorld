@@ -6,7 +6,8 @@ is modelled: S11-A; S11-B (`join.take_over`, `WorldSummary.time_scale`, seat hol
 secret, absorbed by P3's C6 under D-P3-5); S11-D (the `clock` frame, `WorldSummary.paused`, the refusal
 `paused`, under R-S11-9); S11-C (`join.perceived`, the `perceived` and `delta` frames, `acted_through`,
 `observation.events`, the refusals `cursor_unavailable` and `lagged`, the closing reason `lagged`,
-modelled in S11-C's own pull request under R-S11-9).
+modelled in S11-C's own pull request under R-S11-9); S27-a (the refusals `not_granted` and
+`rate_limited`, and `refused.retry_after_ms`, in S27-a's own pull request under F-S27-4).
 
 `ClientFrame` is a closed union of `Join`, `Submit` and `Leave`. The encoder accepts nothing else, so
 this SDK can say exactly join, submit and leave (`INV-9`).
@@ -165,6 +166,8 @@ RefusalCode = Literal[
     "paused",
     "cursor_unavailable",
     "lagged",
+    "not_granted",
+    "rate_limited",
 ]
 """`RefusalCode`: the ways a frame fails to be a request at all. Not a `Rejection`."""
 
@@ -266,13 +269,15 @@ class Result(WireModel):
 
 
 class Refused(WireModel):
-    """A frame was not accepted, and nothing happened. `token` and `detail` are omitted when absent."""
+    """A frame was not accepted, and nothing happened. `token`, `retry_after_ms` and `detail` are
+    omitted when absent; `retry_after_ms` is on a `rate_limited` refusal only (wall milliseconds, ≥ 1)."""
 
     t: Literal["refused"]
     token: CorrelationTokenField | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
     code: RefusalCode
+    retry_after_ms: U64 | None = Field(default=None, exclude_if=lambda value: value is None)
     detail: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
