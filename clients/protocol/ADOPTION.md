@@ -347,8 +347,10 @@ while your own `walking` record is disclosed: one walk-step every 1 s of wall ti
 
 Each step carries the person at most 1 340 mm along the route — 1.34 m/s, a person's walking pace — and
 the server answers it like a `move`. The timer is pacing, the same kind of rule as the `move` reporting
-rule above: it is never a rule about the world, and the server neither knows nor checks how often you
-send. Stop when the record is gone (the walk ended: arrived, stalled, no route, replaced or stopped). A
+rule above: it is never a rule about the world, and the server does not check how often you step. It
+does bound how many requests each seat sends — a per-seat request budget, the same for every
+connection, refusing a flood `rate_limited` with `retry_after_ms` (`PROTOCOL.md` §§5.5, 8) — far above
+this cadence; walking speed is still the sender's to keep. Stop when the record is gone (the walk ended: arrived, stalled, no route, replaced or stopped). A
 `move` of your own — WASD — ends the walk. Draw the record if you like (a route line, a heading); never
 compute one.
 

@@ -12,7 +12,7 @@ draws the town that Person can see, in the default isometric `town` style.
 ```
 
 Click to walk, or use WASD / the arrow keys. Esc opens the settings menu: language (English or 简体中文),
-12- or 24-hour clock, window and display; Quit is there too. Settings stay on your machine and are
+12- or 24-hour clock, window and display, and a Controls tab with the key map (read-only); Quit is there too. Settings stay on your machine and are
 shared with the 3D client. Walk out of the apartments, along the street and into the café. Close the
 window and open it again: you are where the world left you.
 

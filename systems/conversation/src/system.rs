@@ -18,7 +18,7 @@ use crate::action::{Talk, range, talk_requirement, talk_requirement_within};
 use crate::codec;
 use crate::component::{ConversationHistory, Heard, REMEMBERED_AT_MOST};
 use crate::event::{ConversationStarted, Spoke};
-use crate::interactions::owner_default;
+use crate::interactions::{kept_for, owner_default};
 use crate::utterance::Utterance;
 
 /// How long a silence has to be before the next exchange starts a new conversation.
@@ -65,7 +65,8 @@ impl System for ConversationSystem {
     /// 2 since S17's PR IL-b: the declaration gained the section's component and configured fact.
     /// 3 since PR IL-e: the section gained the `talk` rule, `range`, `remembered`, its two facts'
     /// consequences and the `remember` knob, so a configured fact's payload changed shape (`ARC-25`).
-    const VERSION: SystemVersion = SystemVersion::new(3);
+    /// 4 since S24's PR FG-a: the section gained `forget_after_days` (D-FGA-9).
+    const VERSION: SystemVersion = SystemVersion::new(4);
 
     fn declaration(&self) -> SystemDeclaration {
         interactions::declare::<Self>(
@@ -254,6 +255,9 @@ impl System for ConversationSystem {
             .cloned()
             .unwrap_or_default();
         history.remember_within(heard, at_most);
+        if let Some(kept) = kept_for(&world.read(), listener) {
+            history.forget_older_than(before(event.at(), kept));
+        }
         world.insert(listener, history)?;
         Ok(Vec::new())
     }
@@ -347,16 +351,32 @@ impl PerceptionProvider for ConversationSystem {
         if subject != observer {
             return Vec::new();
         }
-        world
-            .component::<ConversationHistory>(observer)
-            .map(|history| {
-                vec![ComponentRecord::new::<ConversationHistory>(
-                    observer,
-                    codec::to_value(history),
-                )]
-            })
-            .unwrap_or_default()
+        let Some(history) = world.component::<ConversationHistory>(observer) else {
+            return Vec::new();
+        };
+        // A line older than the world lets this listener keep is never shown, even before the next
+        // line heard drops it from the state (`forget_after_days`, `ARC-86`).
+        let Some(kept) = kept_for(world, observer) else {
+            return vec![ComponentRecord::new::<ConversationHistory>(
+                observer,
+                codec::to_value(history),
+            )];
+        };
+        let mut now = history.clone();
+        now.forget_older_than(before(world.at(), kept));
+        if now.is_empty() {
+            return Vec::new();
+        }
+        vec![ComponentRecord::new::<ConversationHistory>(
+            observer,
+            codec::to_value(&now),
+        )]
     }
+}
+
+/// The instant `span` before `at`.
+const fn before(at: WorldTime, span: SimDuration) -> WorldTime {
+    WorldTime::from_seconds(at.seconds() - span.seconds())
 }
 
 /// What `resolve` needs, established once from state `validate` has already checked.

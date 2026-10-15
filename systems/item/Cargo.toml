@@ -12,8 +12,8 @@ authors.workspace = true
 mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
-# For PerceptionProvider, which every installed pack implements. No system dependency, and nothing
-# is disclosed: items are never perceived (ARC-37).
+# For PerceptionProvider, which every installed pack implements: a place discloses the catalogue of
+# kinds (ARC-37 note). No system dependency; items are never perceived as entities.
 mineworld-presence = { workspace = true }
 # What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
 mineworld-sdk = { workspace = true }

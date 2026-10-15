@@ -1,0 +1,68 @@
+[mineworld] run Social Café (social-cafe): seats alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer; seed 7; to day 30; pace 900s; in memory
+day 1  revision -  facts 4360
+day 2  revision -  facts 8436
+day 3  revision -  facts 12482
+day 4  revision -  facts 16721
+day 5  revision -  facts 20799
+day 6  revision -  facts 24952
+day 7  revision -  facts 29173
+day 8  revision -  facts 33517
+day 9  revision -  facts 37341
+day 10  revision -  facts 41430
+day 11  revision -  facts 45739
+day 12  revision -  facts 50073
+day 13  revision -  facts 54239
+day 14  revision -  facts 58089
+day 15  revision -  facts 62121
+day 16  revision -  facts 66237
+day 17  revision -  facts 70324
+day 18  revision -  facts 74176
+day 19  revision -  facts 78018
+day 20  revision -  facts 82194
+day 21  revision -  facts 86215
+day 22  revision -  facts 90444
+day 23  revision -  facts 94286
+day 24  revision -  facts 98462
+day 25  revision -  facts 102459
+day 26  revision -  facts 106508
+day 27  revision -  facts 110777
+day 28  revision -  facts 114868
+day 29  revision -  facts 118894
+day 30  revision -  facts 122928
+consults   86797
+requests   accept-invitation accepted 974
+requests   decline-invitation accepted 422
+requests   invite accepted 1575
+requests   join-group-activity accepted 491
+requests   leave-group-activity accepted 458
+requests   shove accepted 1844
+requests   talk accepted 9270
+requests   walk-step accepted 55408
+requests   walk-to accepted 11069
+facts      agenda-changed 1182
+facts      arrived 63955
+facts      became-acquainted 132
+facts      body-formed 4
+facts      conversation-started 6126
+facts      group-activity-ended 970
+facts      group-activity-started 971
+facts      invitation-accepted 974
+facts      invitation-declined 422
+facts      invited 1575
+facts      joined-group-activity 494
+facts      left-group-activity 631
+facts      named 12
+facts      object-placed 4
+facts      passage-opened 5
+facts      person-entered-place 2117
+facts      person-shoved 1844
+facts      place-shaped 6
+facts      relationship-changed 368
+facts      routine-assigned 12
+facts      spoke 9270
+facts      stopped-short 9716
+facts      walk-ended 11069
+facts      walk-started 11069
+activity   days 1-30  alice move 5367 talk 868  bob move 5276 talk 905  carol move 4807 talk 870  dev move 4625 talk 848  erin move 5063 talk 950  felix move 4934 talk 830  grace move 4726 talk 918  hana move 4495 talk 758  ivan move 5568 talk 804  visitor move 5550 talk 846  wanderer move 4997 talk 673
+faults     0
+history    122928 facts, fingerprint 03f9a754bcbfa88a (FNV-1a 64, for reading; not evidence)

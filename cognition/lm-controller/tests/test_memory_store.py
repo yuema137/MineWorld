@@ -49,7 +49,7 @@ def _ingested(path: Path, facts: list[PerceivedEvent]) -> bytes:
         ("world_instance", {"world_instance": OTHER_INSTANCE}),
         ("seat", {"seat": EntityKey("bob")}),
         ("self_entity", {"self_entity": BOB}),
-        ("schema", {"schema_version": 2}),
+        ("schema", {"schema_version": 4}),
     ],
 )
 def test_a_foreign_identity_is_refused_by_name_and_changes_nothing(
@@ -62,7 +62,7 @@ def test_a_foreign_identity_is_refused_by_name_and_changes_nothing(
     with pytest.raises(StoreIdentityMismatch) as raised:
         MemoryStore.open(path, foreign)
     assert raised.value.field == field
-    stored = {"world_instance": INSTANCE, "seat": "alice", "self_entity": ALICE, "schema": "1"}
+    stored = {"world_instance": INSTANCE, "seat": "alice", "self_entity": ALICE, "schema": "3"}
     assert raised.value.stored == stored[field]
     assert stored[field] in str(raised.value)
     assert raised.value.given in str(raised.value)
@@ -81,7 +81,7 @@ def test_a_new_store_records_its_identity_and_keeps_it_with_the_cursor(tmp_path:
             "world_instance": INSTANCE,
             "seat": "alice",
             "self_entity": ALICE,
-            "schema": "1",
+            "schema": "3",
         }
         assert store.cursor() == "9"
 
@@ -143,8 +143,8 @@ def test_facts_out_of_order_are_refused() -> None:
 
 
 def test_no_id_is_ever_converted_to_a_number() -> None:
-    # AP4-2 (c): no int( or float( in memory/ or compress/ but three conversions of a boolean to
-    # SQLite's 0/1.
+    # AP4-2 (c): no int( or float( in memory/ (retention included) or compress/ but four conversions of
+    # a boolean to SQLite's 0/1; the fourth, `involved`, is schema v2's column (pr-fg-b §5.4).
     found: set[str] = set()
     for package in ("memory", "compress"):
         for path in sorted((SOURCE / package).rglob("*.py")):
@@ -153,6 +153,7 @@ def test_no_id_is_ever_converted_to_a_number() -> None:
     assert found == {
         "int(rendered.mine)",
         "int(rendered.fallback)",
+        "int(involved)",
         'int(involved and record.salience == "notable")',
     }
 

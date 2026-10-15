@@ -1,0 +1,19 @@
+[package]
+name = "mineworld-installed-models"
+description = "The decision models this build provides, one line each — the build's only list of models, expanded by mineworld-decision's models! into the catalog decisions.yaml resolves through."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-decision = { workspace = true }
+# The installed in-process models, one line each, and each listed once in src/lib.rs (DECISIONS.md
+# ARC-33 note of 2026-10-13). A model is installed by one line here and one there.
+mineworld-rule-controller = { workspace = true }
+mineworld-motivated = { workspace = true }
+
+[dev-dependencies]
+# The consistency guard's negative control installs two stub models, which return contract requests.
+mineworld-contracts = { workspace = true }

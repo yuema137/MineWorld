@@ -22,6 +22,8 @@ from mineworld_cognition.backend.model import CompletionRequest, estimate_tokens
 
 HOUR_S = 3600
 DAY_S = 86400
+KEEP_S = 2 * DAY_S
+"""How far back `SqliteLedger` keeps rows: twice the longest window (wall time, QFGb-9)."""
 
 
 class Clock(Protocol):
@@ -40,10 +42,37 @@ class BudgetPolicy(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
-    calls_per_wall_hour: Annotated[int, Field(ge=1)] = 20
-    tokens_per_wall_day: Annotated[int, Field(ge=1)] = 30000
-    max_in_flight: Annotated[int, Field(ge=1)] = 2
-    call_timeout_s: Annotated[int, Field(ge=1)] = 20
+    calls_per_wall_hour: Annotated[
+        int,
+        Field(
+            ge=1,
+            description=(
+                "The most model calls one person's seat may make in any rolling hour of real time. "
+                "Real time is wall-clock seconds, not simulated days."
+            ),
+        ),
+    ] = 20
+    tokens_per_wall_day: Annotated[
+        int,
+        Field(
+            ge=1,
+            description=("The most tokens one seat may use in any rolling 24 hours of real time."),
+        ),
+    ] = 30000
+    max_in_flight: Annotated[
+        int,
+        Field(
+            ge=1,
+            description="The most model calls that may run at the same time in this process.",
+        ),
+    ] = 2
+    call_timeout_s: Annotated[
+        int,
+        Field(
+            ge=1,
+            description="Seconds to wait for one model call before it is abandoned.",
+        ),
+    ] = 20
 
 
 Limit = Literal["calls_per_wall_hour", "tokens_per_wall_day"]
@@ -127,10 +156,14 @@ class SqliteLedger:
         return Window(row[0], row[1])
 
     def charge(self, seat: EntityKey, at: int, *, calls: int, tokens: int, estimated: bool) -> None:
+        """Records a charge, and in the same commit forgets every row older than `KEEP_S` before it:
+        no window reads further back than a day, so no window's sum changes, and the ledger stops
+        growing (pr-fg-b §5.12; G9). The margin of a second day tolerates a wall clock stepped back."""
         self._connection.execute(
             "INSERT INTO budget_ledger (seat, at, calls, tokens, estimated) VALUES (?, ?, ?, ?, ?)",
             (seat, at, calls, tokens, int(estimated)),
         )
+        self._connection.execute("DELETE FROM budget_ledger WHERE at < ?", (at - KEEP_S,))
         self._connection.commit()
 
     def close(self) -> None:

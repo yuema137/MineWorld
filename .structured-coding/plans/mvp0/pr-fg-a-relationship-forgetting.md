@@ -684,10 +684,16 @@ notes on `ARC-62` (third line), `ARC-63` (S1–S4), `ARC-28` (decay by configura
 DOC-24 did not correct it (§9); `docs/MVP_STATUS.md` S24 row; `handoff-fg-a.md` created.
 **Non-goals.** No code. No new decision number (QFGA-11). **Dependencies.** DOC-24 merged.
 
-- [ ] Implementation: the README sections and notes, worded from §4–§5.
-- [ ] Validation: both doc scripts; every term is `MODULE_SPEC.md` §4.2's or `CORE_CONCEPTS.md`'s.
-- [ ] Review: README tables equal §4's (field, type, default, bound, roles); no README carries a rule the specs
-  lack (`CLAUDE.md` §2.1).
+- [x] Implementation: relationships README (decay table, curves, cap, levels, "Writing your own curve" with
+  §5.1's five steps; the "Known gap" paragraph replaced), conversation README (`forget_after_days` row and
+  roles), `MODULE_SPEC.md` §4.2 (bounds as values, per-field roles, place-free lookups, required systems;
+  refusal list), `DECISIONS.md` dated notes on `ARC-28`, `ARC-62`, `ARC-63`, and on `ARC-86` (E-FGA-1);
+  `handoff-fg-a.md` created. The `MVP_STATUS.md` row moved to FGA-C9 (DV-7).
+- [x] Validation: `check_doc_headings.py` → "223 numbered sections across 31 documents, none duplicated";
+  `check_decision_ids.py` → "122 decision ids, all distinct" (E-FGA-1).
+- [x] Review: README tables equal §4.1/§4.2 field by field (type, default, bound, roles); every README rule
+  is in `MODULE_SPEC.md` §4.2, `ARC-86` or this design; terms are `CORE_CONCEPTS.md`'s and §4.2's ("section",
+  "parameter", "role", "region", "extension catalog").
 **Acceptance.** A reader can configure decay and write a curve from the README alone, and every rule there
 is in a spec. **Failure cases.** A term conflict with `CORE_CONCEPTS.md` is a stop (terminology law).
 **Commands.** the two doc scripts. **Boundary.** Markdown only.
@@ -701,12 +707,17 @@ it; `WorldView::read` passes `parts.at`); `kernel/src/dispatch.rs:463` (passes `
 `kernel/src/world.rs:557` (`World::read` passes `self.now()`); `kernel/src/system/tests.rs:227`.
 **Non-goals.** No other kernel change; no caller changes behaviour.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: a kernel test per site — a reaction's `read().at()` equals the event's instant; a validate
-  read's equals the dispatch instant; `World::read().at()` equals `now()` after an advance;
-  `cargo test -p mineworld-kernel`; `cargo clippy -p mineworld-kernel -- -D warnings`.
-- [ ] Review: no site passes a wall clock; `WorldRead` stays `Copy`-cheap; the doc says "world time, not a
-  wall clock" (`INV-12`).
+- [x] Implementation: `WorldRead` gains `at: WorldTime` and `pub const fn at()`; `new` takes it;
+  `WorldView::read` passes `parts.at`, the dispatcher's validate read `self.at`, `World::read` `self.now()`,
+  the unit bench `WorldTime::EPOCH` (its request instant).
+- [x] Validation: NEW `kernel/tests/read_instant.rs`, three tests: validate's read reports 4 321 for a request
+  dispatched at 4 321 (through a rejection detail); resolve's and a subscriber's react read report 86 400 for
+  a dispatch at 86 400 (through payloads); `World::read().at()` is the epoch, then 7 200 after
+  `advance_to(7 200)`. `cargo test -p mineworld-kernel`: every suite ok; `cargo clippy -p mineworld-kernel
+  --all-targets -- -D warnings` clean (E-FGA-2).
+- [x] Review: no site reads a wall clock (each passes the instant it already holds); `WorldRead` adds one
+  `i64`-sized field; the doc says "world time, never a wall clock (`INV-12`)"; `new` stays crate-private,
+  so no caller outside the kernel changes.
 **Acceptance.** The three sites return the instants named. **Failure cases.** None at run time (a field read).
 **Boundary.** kernel only; workspace builds.
 
@@ -716,16 +727,28 @@ it; `WorldView::read` passes `parts.at`); `kernel/src/dispatch.rs:463` (passes `
 **Scope.** `sdk/rust/src/interactions/{section,lookup,mod}.rs` (and `decl.rs` if `FIELD_ROLES` lives there);
 SDK tests. **Dependencies.** none (independent of C2).
 
-- [ ] Implementation: `ParameterBound<T>` and its `RangeInclusive` impl; `parameters!` grammar
-  `$default:expr, $bound:expr`; `Fields::set_names`; `FIELD_ROLES` and its decode-time check (entries and
-  regions); `parameters_unplaced`; `InteractionSection::requires` and `HeldSection::requires`.
-- [ ] Validation: SDK unit tests with a test section — a named-choice field refused with its message; a
-  restricted field refused in a `place:` entry and in a region, at line and column; `parameters_unplaced`
-  ignores place entries and returns defaults unconfigured; `requires` reaches `check_requires`. Message
-  parity: every existing refusal test unedited and passing. `cargo test -p mineworld-sdk`; workspace
-  `cargo check --all-targets` (every pack's `parameters!` still expands).
-- [ ] Review: no existing `parameters!` invocation edited; refusals keep `DEP-10`'s line/column; nothing names
-  a pack.
+- [x] Implementation: `section.rs` — `ParameterBound<T>` (`admits`, `describe`) with the `RangeInclusive`
+  impl (`"{start} … {end}"`); `parameters!` grammar `$default:expr, $bound:expr`, refusal
+  `'{field}' is {describe}, not {value}`; `Fields::set_names` (macro and `()`); `param()` collects named
+  roles and calls `field_roles::<S>(set, named, in_region)` after the entry; region parameter lists decode
+  with `in_region = true`. `mod.rs` — `FIELD_ROLES` (default `&[]`), `requires(section)` (default none),
+  `HeldSection::requires` forwards; exports `ParameterBound`, `parameters_unplaced`. `lookup.rs` —
+  `parameters_unplaced` (base resolution, place unfilled; compiled defaults when unconfigured).
+- [x] Validation: two SDK unit tests — the range bound admits its ends and describes itself `1 … 100`,
+  `-1000 … 1000`, `false … true`; `field_roles` refuses `reach` under `target` and in a region with the
+  literal messages, accepts it under `actor`, and leaves an unlisted field free; `set_names` literal.
+  Message parity, unedited and passing: `tests/acceptance` `interaction_schema` (4) and
+  `configuration_seam` (8) (both pin `'step' is 1 … 100, not …`), `tools/cli --test interactions` (4,
+  pins `'gap' is 1 … 86400, not 0` at line and column), `mineworld-worldpack` all suites; `cargo test -p
+  mineworld-sdk` all ok; workspace `cargo check --all-targets` clean (every `parameters!` expands);
+  `cargo clippy -p mineworld-sdk --all-targets -D warnings` clean. The decode-time refusals through YAML
+  (named choice, restricted field in an entry and a region at line and column, `requires` reaching
+  `check_requires`) and `parameters_unplaced` on a configured world are proven with the real packs in
+  FGA-C4 … C7 (DV-8) (E-FGA-3).
+- [x] Review: no existing `parameters!` invocation edited (`git diff` touches none); the new refusal is raised
+  inside the entry's `visit_map`, so it keeps `DEP-10`'s position as the existing post-loop refusals do;
+  nothing in the SDK names a pack; `FIELD_ROLES` empty by default, so every existing section decodes as
+  before.
 **Acceptance.** Existing sections decode, resolve and refuse byte-identically; the new refusals fire.
 **Failure cases.** A bound's `describe` differing from today's for ranges → caught by the unedited message
 tests. **Boundary.** SDK only.
@@ -741,13 +764,35 @@ never decay" section rewritten; `systems/installed/src/lib.rs` (I1); `worldpack/
 relationships' pinned test (VERSION 3); `tools/cli/tests/{inspect,social_composition}.rs` pins.
 **Dependencies.** C2, C3.
 
-- [ ] Implementation: as scoped; VERSION 3 with its comment.
-- [ ] Validation: FA-4 (unit, `src/decay.rs`); FA-5 (`tests/forgetting.rs`); existing relationships tests
-  unedited and passing (defaults); `cargo test -p mineworld-relationships`, the two CLI pin tests;
-  `cargo clippy -p mineworld-relationships -- -D warnings`; M-FA4, M-FA5a–c observed.
-- [ ] Review: no float; `none` short-circuits before any lookup when the pack is unconfigured; disclosure
-  shape equals the stored record's; every read path (contact, disclosure, eviction ranking) uses one reading
-  function.
+- [x] Implementation: NEW `decay.rs` (`CurveName` — `Cow<'static, str>`, form-checked by `new`/`Deserialize`,
+  `const` bundled names; `DecayCurve` object-safe; `register_curves`/`registered_curves` with presence's
+  write-once rules plus a bundled-name collision panic; `Curve` (bundled or `&'static dyn` catalog entry);
+  `HALF` 65 literals computed to 60 digits (scratch `half_table.py`, no ties); `Decay`/`DecayRule` — the host
+  clamp `remaining(..).min(excess)`; `CurveCatalog` bound "one of none, linear, half-life, power[, …]");
+  `component.rs` (`RelationshipValues::reading`/`rebase`, `Acquaintances::reading`); `interactions.rs` (six
+  decay fields, `FIELD_ROLES` actor+target, `requires` → catalog curves' packs, `decay_rule` via
+  `parameters_unplaced`, pinned test VERSION 3 + decay defaults); `system.rs` (VERSION 3; `apply`: rule
+  lookup after `acquaint`, stated level before `rebase`, `rebase` before `adjust`; unknown curve →
+  `FactRefusedByOwner { relationships, <cause>, System { unknown-decay-curve, "<curve> …" } }`; `discloses`
+  as-of `world.at()`, withheld on an unknown curve; public `current`); `lib.rs` (docs, exports);
+  `systems/installed` I1 line and docs; `worldpack/src/read.rs` W1; CLI pins relationships v3;
+  `systems/installed/tests/resolution.rs` line count 2 → 3 (DV-10).
+- [x] Validation: FA-4 — `src/decay/tests.rs` 9 tests, every literal of §6 FA-4 plus `65 536 → 46 341` at
+  T/2 (see M-FA4 below), the monotone grid (4 curves × 5 excesses × 3 T × 141 steps), the host clamp with a
+  greedy (+5 000) and an eager (0 at t = 0) curve, and name form. FA-5 — NEW `tests/forgetting.rs`
+  (scripted café, half-life 1 day): (a) 150 disclosed, (b) 300 stored / last contact t0, (c) no relationships
+  fact in the day, (d) 160 stored at t0 + 1 d + 1 s and `relationship-changed` Friendly → Acquaintance both
+  ways caused by the spoke, (e) unconfigured twin discloses 300, same record shape. Existing relationships
+  tests unedited and passing (6 + 11 lib); `tools/cli --test inspect --test social_composition` 3 + 4 ok;
+  `mineworld-installed-systems` ok; workspace clippy `-D warnings` clean. Mutations (E-FGA-4): M-FA4 red by
+  name, M-FA5a, M-FA5b, M-FA5c red by name; all reverted, `git grep MUTATION -- '*.rs'` empty.
+- [x] Review: no float anywhere (`i128`/`u64` integer arithmetic); unconfigured, `parameters_unplaced` returns
+  the compiled defaults (curves `none`) and `reading`/`rebase` return before computing, so stored values are
+  disclosed and reduced unchanged; disclosure re-encodes the same `Acquaintances` type (shape asserted in
+  FA-5(e)); contact, disclosure and (C5) ranking all go through `RelationshipValues::reading`. Finding
+  F-FGA-17: M-FA4 as designed (T/2 at excess 1 000) survives arithmetically — 1 000 × 46 340 >> 16 is still
+  707 — and was caught only by the table literal; the added excess-65 536 case makes the arithmetic itself
+  red.
 **Acceptance.** FA-4 and FA-5 pass; unconfigured, every relationships test's literals hold unchanged.
 **Failure cases.** Unknown curve at reduction → `KernelError` naming it (journaled fault); at disclosure →
 record withheld (§5.3). `elapsed` negative → 0. **Boundary.** No cap yet; no conversation.
@@ -761,11 +806,30 @@ record withheld (§5.3). `elapsed` negative → 0. **Boundary.** No cap yet; no 
 `lib.rs`.
 **Dependencies.** C4.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: FA-3 (`tests/forgetting.rs`), M-FA3a–c observed; "the edge and the entry agree" test
-  unedited and passing; `cargo test -p mineworld-relationships`.
-- [ ] Review: the victim set is computed from current readings at the causing fact's instant; the fact is
-  caused by and placed at the causing fact; audience goes through `consequence` like the other two facts.
+- [x] Implementation: `event.rs` (`AcquaintanceForgotten { person, counterpart }`; `BecameAcquainted` "once
+  per formation"); `interactions.rs` (`known_at_most: u16 = 150, 5 ..= 1_500`, `FIELD_ROLES` actor only, the
+  third `FactDecl`, `known_at_most()` lookup with the holder alone, place-free; module doc; pinned test
+  150); `component.rs` (`Acquaintances::evict_beyond(at_most, rule_of, at, keep)` — rank (current
+  familiarity, last contact, counterpart id), the newcomer excluded); `system.rs` (declaration
+  `.emitting::<AcquaintanceForgotten>()`, `BIOGRAPHICAL` all three, `apply` step 9 through
+  `beyond_the_cap` and `unknow` — the edge removed or `FactRefusedByOwner { acquaintance-without-edge }`;
+  forgotten facts after the other two, through `fact()`); `lib.rs` (table, export).
+- [x] Validation: FA-3 in `tests/forgetting.rs` with NEW `tests/support/crowd.rs`: (a)–(c) a 300-person crowd
+  (100 speakers × 200 listeners, DV-11), 20 000 talks over 100 simulated days: after every talk both
+  holders ≤ 150 and edges = entries; exactly 5 000 `acquaintance-forgotten`, each `(speaker, listener
+  r − 150)`, caused by the spoke, the victim gone from entries and edges; at the end each speaker knows
+  listeners 150 … 299; widest person 29 561 B of component data (bound 163 840 B), p000's acquaintances
+  ≤ 118 247 B as the snapshot encodes them. (d) cap 5, eight people: victims p1 (tie on familiarity and
+  instant → lower id), p3 (tie on familiarity → older contact; newcomer p7 at 10 kept), p7 (no longer the
+  newcomer); p1 met again states `became-acquainted` again. "The edge and the entry agree" unedited and
+  passing; `cargo test -p mineworld-relationships` all ok (3.5 s for FA-3); workspace clippy clean.
+  Mutations M-FA3a, M-FA3b, M-FA3c red by name (E-FGA-5).
+- [x] Review: the victim is ranked by `RelationshipValues::reading` at the causing fact's instant; the fact
+  goes through `fact()` — about the holder, participants holder and victim, at the cause's place, audience
+  via `consequence` — and the kernel records it as caused by the cause (asserted); ranking runs only when a
+  new entry takes the list past the cap. Finding F-FGA-18: the script's first oracle for (d) step E was
+  wrong (it kept protecting p7 after the reduction that formed it); the run followed §5.5, the oracle was
+  corrected and the correction is written in the test's doc.
 **Acceptance.** FA-3 passes. **Failure cases.** `known_at_most` below the current size cannot happen (fixed at
 genesis); `unrelate` reporting "absent" is a broken invariant → `KernelError`. **Boundary.** relationships
 only.
@@ -775,10 +839,21 @@ only.
 **Goal.** §5.7. **Scope.** `systems/conversation/src/{interactions,component,system}.rs`; pinned test
 (VERSION 4); the CLI pins. **Dependencies.** C2, C3.
 
-- [ ] Implementation: the field with `FIELD_ROLES` (target); `forget_older_than`; `react` and `discloses`.
-- [ ] Validation: FA-9, M-FA9 observed; existing conversation tests unedited and passing;
-  `cargo test -p mineworld-conversation`.
-- [ ] Review: `in_conversation` untouched; default 0 adds no lookup cost beyond one place-free default read.
+- [x] Implementation: `interactions.rs` (`forget_after_days: u16 = 0, 0 ..= 3_650`, `FIELD_ROLES` target only,
+  `kept_for(read, listener)` — place-free, `None` at 0; module doc; pinned test VERSION 4 and default 0);
+  `component.rs` (`ConversationHistory::forget_older_than(cutoff)`, `pub(crate)`); `system.rs` (VERSION 4;
+  `react` drops lines older than `at − kept` after `remember_within`; `discloses` shows a filtered copy at
+  `world.at()` and nothing when every line aged out); CLI pins conversation v4.
+- [x] Validation: FA-9 — NEW `systems/conversation/tests/forgetting.rs` (sam, resident rita, commuter carl;
+  `{ target: resident, forget_after_days: 1 }`): shown at t0 + 1 d, not shown at t0 + 1 d + 1 s, still stored,
+  dropped by the next line; carl keeps both; the unconfigured twin keeps everything; conversation-started per
+  line equal to the twin's, `[true, true, false, true, true]`. Existing conversation tests unedited and
+  passing (14 + 2 lib + 1); CLI `inspect` 3, `social_composition` 4; workspace clippy clean. M-FA9 red by
+  name (E-FGA-6).
+- [x] Review: `continues_a_conversation` / `within_the_gap` untouched (a dropped line is older than a day ≥
+  every legal `gap`); default 0: one `parameters_unplaced` per reduction and per disclosure, which returns
+  the compiled default without reading state when unconfigured; the only new mutator is called only from
+  `react` (disclosure filters a clone).
 **Acceptance.** FA-9 passes. **Boundary.** conversation only.
 
 ### FGA-C7 — The catalog and the loader, scripted
@@ -788,18 +863,48 @@ only.
 `tools/cli/tests` or `worldpack/tests` file following `social_sections.rs`'s scratch pattern.
 **Dependencies.** C4–C6.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: FA-7, FA-8; M-FA7, M-FA8 observed.
-- [ ] Review: the test performs the README's steps; no global state leaks between test binaries.
+- [x] Implementation: NEW `tools/cli/tests/forgetting_sections.rs` (FA-7: scratch social-cafe copies through
+  `WorldPack::read`/`load`, nine refusals + two accepted sections); NEW
+  `systems/relationships/tests/curve_catalog.rs` (FA-8: one `#[test]`, its own process).
+- [x] Validation: FA-7 — each refusal by its literal words at `error: line 2 column …` (line 3 for the
+  region): unknown curve ("'familiarity_decay' is one of none, linear, half-life, power, not fast"),
+  malformed name, `place: place` setting `familiarity_decay_days`, a region setting `known_at_most`,
+  `target:` setting `known_at_most`, conversation's `actor:` setting `forget_after_days`, `known_at_most` 4
+  and 1 501, `familiarity_decay_days` 0; the same fields scoped as allowed (base, `target:`, `actor:`, a
+  region setting an increment) read and load. FA-8 — impostor `half-life` panics naming it before anything
+  registers; `[step-down, greedy]` registers (same list again a no-op; `registered_curves` sorted); a
+  different list panics naming both lists; the section naming `step-down` requires `test-step-down`
+  (through `decode_configuration(..).requires()`, what `check_requires` asks), a bundled curve requires
+  nothing; an unknown name is refused listing all six curves; the scripted café discloses 300 a second
+  before the time constant and 150 at it; greedy is clamped to 300. S4's refusal by name is the loader's
+  existing `check_requires` (worldpack `configure/tests.rs`), reached through `requires()` as shown — the
+  real installed set has no user curve, so a real-loader run with an unenabled curve pack is not
+  constructible without a test-only installed set (DV-12). M-FA7, M-FA8 red by name (E-FGA-7).
+- [x] Review: the test follows the README's five steps (pack + `Default`, registration standing in for the
+  installed line, the requirement that enables the pack, the name, refusals) minus the rebuild; the catalog
+  is process-wide, and only `curve_catalog.rs` registers a non-empty list — every other test binary that
+  registers uses the real installed set's empty line.
 **Acceptance.** FA-7, FA-8 pass.
 
 ### FGA-C8 — Through the binary
 
 **Goal.** FA-2 and FA-6. **Scope.** NEW `tools/cli/tests/forgetting_runs.rs`. **Dependencies.** C4–C6.
 
-- [ ] Implementation: scratch copies; one unconfigured twin shared by the cases.
-- [ ] Validation: FA-2, FA-6 with INCONCLUSIVE rules as written; M-FA6 observed.
-- [ ] Review: no assertion depends on a wall clock or a platform path; scratch through `scratch!`.
+- [x] Implementation: NEW `tools/cli/tests/forgetting_runs.rs`, one `#[test]` (the twin shared): scratch
+  social-cafe copies through `scratch!`, the real binary, saves read with `Tables`.
+- [x] Validation: FA-2 — the explicit-default copy has the twin's facts plus exactly two genesis
+  `*-interactions-configured` facts; with those removed and every id (and `caused_by.event`) at or past the
+  first moved down by 2, the remaining facts equal the twin's as JSON; `requests …` lines equal. FA-6 — (a)
+  widest list in the last snapshot ≤ 5; (b) 5 196 `acquaintance-forgotten`; (c) `mineworld replay` succeeds;
+  (d) `--days 15` then `--days 30` on one save: fact table byte-equal to the uninterrupted save; (e) fact
+  types = twin's ∪ {acquaintance-forgotten, relationships-interactions-configured}; (f) 923
+  `relationship-changed` against the twin's 363 (became-acquainted 5 256 against 132). 30.4 s. M-FA6 red by
+  name (E-FGA-8). Both INCONCLUSIVE conditions are assertions that fail with "INCONCLUSIVE: …", so a run that
+  does not exercise the cap or decay can never pass.
+- [x] Review: no wall clock or platform path in an assertion (paths only build arguments; `wall` lines are
+  never compared); every scratch is a `scratch!` guard held for the test; FA-6(e)'s expected set adds the
+  configured fact, which the design's wording left implicit (it is a genesis configuration fact, not a decay
+  fact).
 **Acceptance.** FA-2, FA-6 pass.
 
 ### FGA-C9 — Close: byte identity, cost, guards, gate, ledger
@@ -807,11 +912,15 @@ only.
 **Goal.** FA-1, FA-10, FA-11, FA-12; `baselines.txt`; ledger and handoff.
 **Scope.** `scripts/baselines.txt` (journal-300s, reason line); `docs/MVP_STATUS.md`; §15; handoff.
 
-- [ ] Implementation: E-FGA-0 (captured before C2 on the base: a long record and four 30-day saves with the
-  base release binary); the head's long record; `baseline check`; the row-level proof; `baseline write`.
-- [ ] Validation: FA-1 (M-FA1a, M-FA1b), FA-10 medians, FA-11 guard diffs, FA-12 full gate; CI on the exact
-  head.
-- [ ] Review: every changed path is in §11 or recorded in §16; every `[x]` has evidence.
+- [x] Implementation: E-FGA-0 (base long record, four base 30-day saves); head long record; FA-1 row-level
+  proof; `baseline write` + reason lines; `docs/MVP_STATUS.md` S24 row (DV-7); handoff refreshed.
+- [x] Validation: FA-1 PASS against the base record (DV-9), M-FA1a and M-FA1b red (E-FGA-9); FA-10
+  INCONCLUSIVE (load 19–31, base spread ≫ 5 % twice; reported); FA-11 PASS; FA-12 local gate: `cargo fmt
+  --check` ok, workspace clippy `-D warnings` clean, both doc scripts ok, `check_scratch.py scan` ok, full
+  `cargo test --workspace --no-fail-fast` exit 0, 1 056 passed, 0 failed, 34 ignored (E-FGA-10). CI on the
+  exact PR head: recorded in the PR and the handoff (a commit cannot carry its own hash).
+- [x] Review: every changed path is in §11 or recorded in §16 (DV-10; the kernel test per §8); every `[x]`
+  above carries evidence in §15.
 **Acceptance.** FA-1 … FA-12 PASS on the exact head.
 
 ---
@@ -947,6 +1056,106 @@ E-FGA-d0  2026-10-12, planning session. §3.1's measurements: binary /Users/yuem
           writefile, zstd -d) and read with jq. Results as tabulated in §3.1. Run walls 5.6 / 9.6 / 4.2 s,
           faults 0; fingerprints af1927a1e2182bcd / 346dcaa6291381a0 / 60fd886043b1436a (FNV, for reading).
 E-FGA-0   (implementation) base capture: long parity record and four 30-day saves, base release binary.
+          Base: origin/main @ 6306977 (DOC-24 #175 merged at baa0d33; §3 re-audit: none of §1's base paths
+          changed between cda4c13 and 6306977 except Markdown). Binary `cargo build --release -p
+          mineworld-cli` (1 m 58 s) copied to /Users/yuema137/mineworld-worktrees/scratch-fg-a-impl/base/.
+E-FGA-1   2026-10-13, FGA-C1. Merged ARC-86 audit: F-FGA-1 corrected by DOC-24 ("no component encoding
+          changes"); F-FGA-8 still unqualified ("Defaults change no reference world's bytes") and the
+          clock described as "available only during disclosure" → one dated note on ARC-86 (§13.1's
+          DOC-24 row allows it). Doc scripts: 223 sections / 122 ids, exit 0.
+E-FGA-0   (cont.) Long record: `uv run --locked python scripts/ci_parity.py record --binary <base>/mineworld
+          --profile long --out <base>/long.record`, 995 s (bodies-yard 322, lakeside 111, market-town 332,
+          social-cafe 229), Darwin/arm64, rustc 1.97.1. `baseline check` → FAIL on every key of every
+          world (F-FGA-16 below). 30-day saves, base binary, seed 7: social-cafe (5.2 s), market-town (8.0
+          s), bodies-yard (9.2 s), lakeside with `--packs entities --packs presentation/mineworld-default`
+          (3.9 s), into <base>/<world>-30.
+F-FGA-16  baselines.txt is stale on main. The base record's digests equal, key for key, the drift printed
+          by the nightly of the same commit (run 38440079845 on 6306977; issue #170 "Nightly CI is red on
+          main", "step baseline failed"): e.g. social-cafe summary-300 341 9500d0c8…, facts-300s 837953
+          c0d3050f… (baseline 338 ad49c723…, 365330 9ffcfcb1…). Cause outside FG-a (walking towns, 12n-2,
+          merged without a re-record). Consequence: FA-1(a)'s oracle is E-FGA-0's base record, not
+          baselines.txt (DV-9); who re-records baselines.txt follows §9's rule (the second of FG-a and 12d
+          to merge), decided at FGA-C9 against main at that time.
+E-FGA-2   FGA-C2: `cargo test -p mineworld-kernel` (all suites ok, incl. NEW read_instant 3/3);
+          `cargo clippy -p mineworld-kernel --all-targets -- -D warnings` clean. Commit 7d6c0c4.
+E-FGA-3   FGA-C3: `cargo test -p mineworld-sdk` (lib 11 incl. 2 new; integration suites ok);
+          `cargo test -p mineworld-acceptance --test interaction_schema --test configuration_seam` 4 + 8 ok;
+          `cargo test -p mineworld-worldpack` all ok; `cargo test -p mineworld-cli --test interactions` 4 ok;
+          `cargo check --workspace --all-targets` clean; SDK clippy clean.
+E-FGA-4   FGA-C4 mutations, each applied in the working tree, run, reverted:
+          M-FA4  HALF[32] 46 341 → 46 340: decay::tests::half_life_… (the 65 536 case, tests.rs:29) and
+                 …the_table_has_its_literal_… FAILED; the 1 000-at-T/2 literal alone survives (F-FGA-17)
+          M-FA5a disclosure encodes the stored record: forgetting.rs:118 left 300, right 150 — FAILED
+          M-FA5b no rebase before adjust: forgetting.rs:132 left (310, 140, …), right (160, 140, …) — FAILED
+          M-FA5c stated level read after the rebase: forgetting.rs:143 left [] (no crossing) — FAILED
+          After: `git grep MUTATION -- '*.rs'` empty; relationships suites ok.
+E-FGA-5   FGA-C5 mutations:
+          M-FA3a rank by highest familiarity: the_cap_evicts_… FAILED at forgetting.rs:348 (p1 never
+                 evicted, so no second became-acquainted)
+          M-FA3b no unrelate: a_crowd_of_300_… FAILED at :218 (edges ≠ entries) and the_cap_evicts_…
+                 FAILED at :353
+          M-FA3c the newcomer eligible: the_cap_evicts_… FAILED at :351, victims [p1, p7, p1] for
+                 [p1, p3, p7]
+          After: `git grep MUTATION -- '*.rs'` empty; `cargo test -p mineworld-relationships` all ok.
+E-FGA-6   FGA-C6: M-FA9 (disclosure not filtered): conversation forgetting.rs:201 "older than a day: never
+          shown" left ["first"], right [] — FAILED; reverted, `git grep MUTATION` empty.
+E-FGA-7   FGA-C7: M-FA7 (S2's `field_roles` call skipped): forgetting_sections.rs:133 "fa7-place-decay:
+          accepted" — FAILED (with `place: cafe` the copy was refused for an undefined class instead,
+          still red but for another reason; the case was changed to the implicit class `place` so the
+          mutation makes it load). M-FA8 (host clamp `.min(excess)` → `.min(u32::MAX)`):
+          curve_catalog.rs:117 left 1000 right 300 (re-basing with greedy inflates every contact) and
+          decay::tests::the_host_clamps_… left 5600 right 600 — FAILED. Reverted; `git grep MUTATION`
+          empty; relationships and CLI suites ok.
+E-FGA-8   FGA-C8: `cargo test -p mineworld-cli --test forgetting_runs -- --nocapture` → ok, 30.4 s,
+          "FA-6: acquaintance-forgotten 5196, relationship-changed 923 (twin 363), became-acquainted 5256
+          (twin 132)". M-FA6 (`beyond_the_cap` never evicts): forgetting_runs.rs:230 "assertion failed:
+          widest_list_in_the_last_snapshot(&save) <= 5" — FAILED; reverted, `git grep MUTATION` empty.
+E-FGA-9   FGA-C9, head eadc5df (C8 + merge of origin/main 171ea06: RL-b #131 and docs; `git diff --stat
+          6306977 origin/main` outside clients/presentation/Markdown touches only the launcher scripts
+          mineworld-3d, mineworld-slice — no simulation change). Head release binary copied to
+          scratch-fg-a-impl/head/.
+          FA-1(a): head long record (767 s, Darwin/arm64) against E-FGA-0's base record: summary-300,
+          summary-1000, summary-300s, summary-30s equal for all four worlds; every table-300s.facts chunk
+          equal (digest of all facts chunk lines d18d09f81142 both). PASS (DV-9 oracle).
+          FA-1(b): `ci_parity.py diff base head`: journal (and table-300s journal) "first differing chunk
+          0" in all four worlds, no other journal chunk differs; manifests differ (they carry the
+          composition). Snapshots differ too — F-FGA-19.
+          FA-1(c): 30-day saves base vs head, `sqlite3 … "SELECT revision, at, action_id, hex(entry) FROM
+          journal WHERE revision >= 2 ORDER BY revision" | shasum -a 256`: social-cafe d9585d712ad4b626,
+          market-town 52a5ea86353f8dd1, bodies-yard eb9aafe813b35503, lakeside e35cf9b8586360a0 — equal
+          base and head; revision-1 rows differ in all four; journal row counts equal (61 724, 60 331,
+          96 395, 50 424); whole fact tables equal (eb5581c8…, 3db574a1…, 087e1060…, b016d27d…). PASS.
+          FA-1(d): `mineworld validate` for the four worlds (lakeside with its --packs): byte-identical
+          base and head — no line names a version, so none is listed. PASS.
+          FA-1(e): `ci_parity.py baseline write <head record> scripts/baselines.txt` plus one reason line
+          per world ("reason FG-a: …"); `baseline check <head record>` PASS; `baseline check <base
+          record>` against the new file fails on journal-300s only, in all four worlds — the exact claim
+          of FA-1. Because baselines.txt was stale on main for every key (F-FGA-16), this re-record also
+          brings summaries and facts-300s to main's own record; the reason line says so. 12d (#171) is
+          still open, so by §9 it re-records second.
+          M-FA1a (compiled known_at_most 150 → 10, dev binary): social-cafe 30 days, summary differs from
+          day 1; "facts acquaintance-forgotten 256" appears — red. M-FA1b (compiled half-life, 1 day):
+          day 30 facts 85 626 vs 84 639, relationship-changed 1 350 vs 363 — red. Both reverted, `git
+          grep MUTATION` empty.
+          FA-10: release binaries (no base dev build exists outside this worktree; the ratio is what is
+          judged), social-cafe 30 days seed 7, base/head/configured interleaved, 3 each, twice. Walls
+          run 1: base 2.1 1.8 4.5, head 1.8 2.6 6.3, configured 1.7 2.7 5.3; run 2: base 5.8 4.9 2.1, head
+          2.3 3.5 2.4, configured 4.8 2.3 3.1 s. Load average 19 → 31 during the runs (other sessions on
+          the machine). Base spread ≫ 5 % twice: INCONCLUSIVE, reported, not retried further.
+          FA-11: `git diff --name-only origin/main HEAD` lists only §11's paths plus
+          systems/installed/tests/resolution.rs (DV-10) and kernel/tests/read_instant.rs (§8's kernel
+          test); root Cargo.toml and Cargo.lock unchanged; tests/acceptance/** unedited. PASS.
+F-FGA-19  Snapshots of an unconfigured world are not byte-identical: `WorldSnapshot.composition` records each
+          system's declaration and version, so it moves exactly as the genesis journal row does (F-FGA-8).
+          Decoding social-cafe's last 30-day snapshot base vs head (sqlite3 writefile, zstd -d, jq):
+          composition differs; entities, components, relations, time equal. §5.3's "the snapshot of an
+          unconfigured world is byte-identical" holds for the state, not the composition header; the
+          frozen invariant (every summary and fact) is unaffected.
+E-FGA-10  FGA-C9 local gate on the working tree eadc5df + C9 docs/baselines (no code change after):
+          `cargo test --workspace --no-fail-fast` exit 0 — 1 056 passed, 0 failed, 34 ignored (log
+          scratch-fg-a-impl/full-test.log; machine load up to 88, so wall times are not meaningful);
+          fmt --check, clippy -D warnings, check_doc_headings, check_decision_ids, check_scratch scan ok.
+          Then origin/main 0b242c8 (#182, ci.yml test timeout only) merged before the push.
 ```
 
 ---
@@ -961,6 +1170,17 @@ E-FGA-0   (implementation) base capture: long parity record and four 30-day save
 | DV-4 | `familiarity_half_life_days` | `*_decay_days`, one time constant per value for every curve | D-FGA-3, D-FGA-4 |
 | DV-5 | "A synthetic 300-person world (test-only pack)" | A scripted 300-person world in relationships' tests | D-FGA-10 |
 | DV-6 | Parameters "scoped by class like every IL parameter" | Scoped by actor/target class only; place and regions refused for these fields | F-FGA-6 |
+
+Implementation deviations (bounded, recorded during execution):
+
+| ID | Plan says | Done | Why / impact |
+| --- | --- | --- | --- |
+| DV-7 | FGA-C1 updates the `docs/MVP_STATUS.md` S24 row | No S24 row exists on main; the row is added in FGA-C9, when the PR's state is known | A status row written before the code would state an untrue state; one file, no scope change |
+| DV-8 | FGA-C3's SDK unit tests decode a test section (named choice, place entry, region, `requires`) | The SDK unit tests cover the bound, `set_names` and `field_roles` directly; decoding through YAML at line and column is proven with the real sections through the loader (FGA-C7, FA-7) | The SDK has no YAML or JSON decoder among its dependencies; adding one changes `Cargo.lock` (FA-11). Its existing tests say the same: "decoding with line and column is proven through the loader" |
+| DV-10 | §11 lists `systems/installed/src/lib.rs` only | `systems/installed/tests/resolution.rs` pins the number of extension lines; 2 → 3 with its message | A pinned fact that I1 moves on purpose (D-IB-12 precedent); no behaviour |
+| DV-11 | FA-3: "person i talks to 200 distinct others" (all 300) | 100 speakers each talk to the same 200 listeners, once per pair | 300 people × 200 distinct partners is 60 000 talks over 44 850 pairs, so pairs repeat and the forgotten count could only be predicted by re-implementing the ranking; the chosen layout keeps 300 people, 200 contacts per speaker, 100 days and the default cap, and gives the hand-derived literal 5 000 |
+| DV-12 | FA-7: "a catalog curve whose pack the world does not enable: refused by name (S4)" through the loader | FA-8 shows the section's `requires()` (what `check_requires` reads) naming the curve's pack; the refusal by name is `check_requires`'s existing, tested behaviour | The real installed set's curve line is empty and a process registers one catalog; a real-loader run with a user curve needs a test-only installed set, which `ARC-62`'s per-process rule makes a separate binary with its own `installed!` — more machinery than the claim needs |
+| DV-9 | FA-1(a): head summaries and facts "equal to scripts/baselines.txt" | Equal to E-FGA-0's base record (main @ 6306977) | F-FGA-16: `baselines.txt` is stale on main for every key (nightly red, issue #170); the base record equals the nightly's own record of the same commit digest for digest |
 
 ---
 

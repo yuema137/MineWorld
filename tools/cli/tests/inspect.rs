@@ -52,8 +52,8 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
     assert_eq!(facts, u64::try_from(before.facts.len()).expect("fits"));
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
-        "systems    presence v3, movement v2, conversation v3, group-activity v3, relationships v2, \
-         naming v1, schedule v1\n"
+        "systems    presence v3, movement v2, conversation v4, group-activity v3, relationships v3, \
+         naming v1, schedule v1, bodies v5\n"
     ));
     for kind in [
         "causes     action ",
@@ -117,6 +117,7 @@ fn a_fact_whose_cause_no_request_carried_fails_the_check_by_name() {
             }],
             snapshot: None,
             retire: Vec::new(),
+            seal: None,
         })
         .expect("the backend stores rows it is given");
     drop(backend);

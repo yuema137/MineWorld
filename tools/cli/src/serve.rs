@@ -16,17 +16,19 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_decision::{ResolvedDecisions, SeatModel};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, format,
 };
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
-    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, InviteToken, SeatRoster,
+    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, RequestBudget, SeatRoster,
     WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
+use crate::decisions::{self, DecisionArgs};
 use crate::history::SavedHistory;
 use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed};
@@ -42,6 +44,10 @@ pub struct ServeRequest {
     /// The admin surface's bearer token, from `--admin-token` or `MINEWORLD_ADMIN_TOKEN`; `None`
     /// mounts no admin surface.
     pub admin_token: Option<String>,
+    /// The `--grant`s, as typed; each is issued a generated token once the roster is known.
+    pub grants: Vec<invite::GrantFlag>,
+    /// Each seat's request budget (`--request-budget`); `None`: no budget.
+    pub request_budget: Option<RequestBudget>,
     /// The seats the reactive rule controller drives.
     pub agents: Vec<EntityKey>,
     /// Whether the paced rule controller drives every other seat.
@@ -60,21 +66,28 @@ pub struct ServeRequest {
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
     pub roots: PackRoots,
+    /// `--decisions` and `--seat-model`: which model drives each `--town` seat (`ARC-84`).
+    pub decisions: DecisionArgs,
 }
 
 /// Which controller drives a seat nobody plays.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Driver {
     Reactive,
-    /// The paced controller, as seat number `k` in roster order.
-    Paced(usize),
+    /// The seat's resolved decision model, as seat number `k` in roster order.
+    Modelled {
+        k: usize,
+        model: Arc<dyn SeatModel>,
+    },
 }
 
-/// The seats in-server controllers drive, with the tally each one's statistics go to.
+/// The seats in-server controllers drive, with the tally each one's statistics go to. A `--town` seat
+/// whose fallback chain ends at `none` is not driven in-server.
 fn drivers(
     seats: &[EntityKey],
     agents: &[EntityKey],
     town: bool,
+    resolved: &ResolvedDecisions,
 ) -> Vec<(EntityKey, Driver, hosted::Tally)> {
     seats
         .iter()
@@ -83,13 +96,46 @@ fn drivers(
             let driver = if agents.contains(seat) {
                 Driver::Reactive
             } else if town {
-                Driver::Paced(k)
+                let model = Arc::clone(resolved.drives(k)?.model());
+                Driver::Modelled { k, model }
             } else {
                 return None;
             };
             Some((seat.clone(), driver, hosted::Tally::default()))
         })
         .collect()
+}
+
+/// The operator's decision flags checked against the rest of the command line (QDLa-1): they choose how
+/// in-server seats decide, so without `--town` they would do nothing, and a seat cannot be both an
+/// `--agent` and a `--seat-model`.
+fn check_decision_flags(
+    decisions: &DecisionArgs,
+    agents: &[EntityKey],
+    town: bool,
+) -> Result<(), String> {
+    if decisions.given() && !town {
+        let flag = if decisions.file.is_some() {
+            "--decisions"
+        } else {
+            "--seat-model"
+        };
+        return Err(format!(
+            "[mineworld] {flag}: decisions choose how in-server seats decide; add --town"
+        ));
+    }
+    if let Some(both) = decisions
+        .seat_models
+        .iter()
+        .find(|given| agents.contains(&given.seat))
+    {
+        return Err(format!(
+            "[mineworld] --seat-model {}={}: seat '{}' is also an --agent, which drives it with the \
+             reactive controller; name it once",
+            both.seat, both.model, both.seat
+        ));
+    }
+    Ok(())
 }
 
 /// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
@@ -99,6 +145,8 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         listen,
         invite,
         admin_token,
+        grants,
+        request_budget,
         agents,
         town,
         seed,
@@ -108,18 +156,31 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         keyframe_every,
         save,
         roots,
+        decisions,
     } = request;
+    check_decision_flags(&decisions, &agents, town)?;
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
+    // Read whether or not --town drives anything, so a pack's bad decision list is refused the same way
+    // by every command that reads the pack.
+    let resolved = decisions::resolve(&pack, &decisions)?;
     let invite = invite::Invite::resolve(invite)?;
-    let admin = admin_token
-        .map(|token| admin_access(token, invite.token()))
-        .transpose()?;
+    let admin = admin_token.map(admin_token_checked).transpose()?;
+    // Generated once the roster is known, and before anything binds: a grant naming a seat this world
+    // does not offer refuses to start.
+    let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
+    let issued = invite::issue(grants, &roster)?;
+    let admission = Admission::new(invite.token().clone())
+        .with_grants(issued.iter().map(|issued| issued.grant().clone()))
+        .map_err(|refusal| format!("[mineworld] --grant: {refusal}"))?;
+    // Checked before anything binds: an admin token equal to the invite or a grant refuses to start.
+    let access = access(admission, admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
         keyframe_every,
+        request_budget,
         ..HostConfig::default()
     };
     let epoch = config.epoch;
@@ -146,8 +207,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         }
     }
 
-    let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
-    let driven = drivers(&roster, &agents, town);
+    let driven = drivers(&roster, &agents, town, &resolved);
     let tallies: Vec<(EntityKey, hosted::Tally)> = driven
         .iter()
         .map(|(seat, _, tally)| (seat.clone(), Arc::clone(tally)))
@@ -189,8 +249,14 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                     Driver::Reactive => hosted.hosting(seat, move |bound| {
                         Box::new(hosted::ReactiveSeat::bound(bound, time_scale, &tally))
                     }),
-                    Driver::Paced(k) => hosted.hosting(seat, move |_bound| {
-                        Box::new(hosted::PacedSeat::new(pacing, epoch, k, &tally))
+                    Driver::Modelled { k, model } => hosted.hosting(seat, move |_bound| {
+                        Box::new(hosted::PacedSeat::new(
+                            pacing,
+                            epoch,
+                            k,
+                            Arc::clone(&model),
+                            &tally,
+                        ))
                     }),
                 });
         Ok(hosted.seating(seats))
@@ -219,10 +285,10 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
         println!("{}", invite.join_line(address, seat));
     }
-    let access = Access {
-        admission: Admission::new(invite.token().clone()),
-        admin,
-    };
+    // Each grant's token is printed here, once, and nowhere else (`PROTOCOL.md` §4.1 "Seat grants").
+    for issued in &issued {
+        println!("{}", issued.line(address));
+    }
     // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
     if access.admin.is_some() {
         println!("[mineworld] admin surface: http://{address}/admin (bearer token as given)");
@@ -231,11 +297,24 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     }
 
     println!(
-        "[mineworld] hold {hold} s, time scale {}, {} seat(s) driven in-server{}",
+        "[mineworld] hold {hold} s, time scale {}, {}, {} seat(s) driven in-server{}",
         status.time_scale,
+        request_budget.map_or_else(
+            || "no request budget".to_owned(),
+            |budget| format!(
+                "request budget {}/s burst {} per seat",
+                budget.per_second, budget.burst
+            ),
+        ),
         tallies.len(),
         if town {
-            format!(" (town: seed {seed}, pace {pace} wall s)")
+            // The decisions clause only when a list is in effect (`MODULE_SPEC.md` §4.1 rule 7).
+            format!(
+                " (town: seed {seed}, pace {pace} wall s{})",
+                resolved
+                    .clause(decisions::SERVER_FALLBACK)
+                    .unwrap_or_default()
+            )
         } else {
             String::new()
         },
@@ -255,19 +334,15 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     Ok(())
 }
 
-/// The operator's admin token, checked: legal under the invite's rules and not the invite itself —
-/// an admin token equal to the invite would make every player the host. Neither is echoed.
-fn admin_access(token: String, invite: &InviteToken) -> Result<AdminToken, String> {
-    let token = AdminToken::given(token)
-        .map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))?;
-    if token.is_invite(invite) {
-        return Err(
-            "[mineworld] --admin-token: the admin token must differ from the invite; a player who \
-             holds the invite would otherwise be the host"
-                .to_owned(),
-        );
-    }
-    Ok(token)
+/// The operator's admin token, checked under the invite's rules — legal, never echoed.
+fn admin_token_checked(token: String) -> Result<AdminToken, String> {
+    AdminToken::given(token).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
+}
+
+/// Who may join and who is the host: refused when the admin token equals the invite or a seat grant,
+/// which would make every holder of that credential the host (`PROTOCOL.md` §11.1). Nothing is echoed.
+fn access(admission: Admission, admin: Option<AdminToken>) -> Result<Access, String> {
+    Access::new(admission, admin).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
 }
 
 /// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as

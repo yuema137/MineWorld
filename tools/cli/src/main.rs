@@ -6,8 +6,10 @@
 //!                                       invite; in-server controllers drive seats nobody plays
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
-//! mineworld run <world> --headless --seed N --days N [--save DIR]
-//!                                       run it headless, every seat a seeded rule (ARC-27)
+//! mineworld run <world> --headless --seed N --days N [--save DIR] [--decisions FILE]
+//!               [--seat-model SEAT=MODEL]...
+//!                                       run it headless, every seat its decision model (ARC-27, 84)
+//! mineworld decisions <world> [--json]  each seat's decision model and memory choice (ARC-84)
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
 //! mineworld biography|perceived <world> --save DIR --person KEY [--json]
 //!                                       a Person's biography (ARC-29), or what they perceived (ARC-43)
@@ -55,6 +57,7 @@
 
 mod biography;
 mod create;
+mod decisions;
 mod history;
 mod hosted;
 mod inspect;
@@ -112,6 +115,14 @@ enum Subcommand {
         /// The bearer token that opens /admin (else none); never printed; not the invite.
         #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
         admin_token: Option<String>,
+        /// Issue a seat grant admitting only these seats (seat or seat+seat), with :take-over the
+        /// right to take a held one; its token is generated and printed once; repeatable.
+        #[arg(long = "grant", value_name = "SEATS[:take-over]", value_parser = invite::grant_flag)]
+        grants: Vec<invite::GrantFlag>,
+        /// Each seat's request budget: R submits a second sustained, B at once (B ≥ R); 0: none.
+        #[arg(long, value_name = "R/B", value_parser = request_budget,
+              default_value_t = Budget(Some(mineworld_server::RequestBudget::DEFAULT)))]
+        request_budget: Budget,
         /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
@@ -136,6 +147,8 @@ enum Subcommand {
         /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        #[command(flatten)]
+        decisions: DecisionFlags,
         #[command(flatten)]
         packs: PackDirs,
     },
@@ -202,6 +215,20 @@ enum Subcommand {
         /// age, so re-running a killed command finishes the same world.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        #[command(flatten)]
+        decisions: DecisionFlags,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Each seat's decision model and memory choice, read as `run` reads them; starts no world.
+    Decisions {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        decisions: DecisionFlags,
+        /// One JSON document, the form the cognition process reads.
+        #[arg(long)]
+        json: bool,
         #[command(flatten)]
         packs: PackDirs,
     },
@@ -295,6 +322,69 @@ impl PackDirs {
     }
 }
 
+/// The decision-list flags of `run`, `server` and `decisions` (`MODULE_SPEC.md` §4.1 rule 5).
+#[derive(Debug, clap::Args)]
+struct DecisionFlags {
+    /// A decision list to use instead of the pack's decisions.yaml.
+    #[arg(long = "decisions", value_name = "FILE")]
+    file: Option<PathBuf>,
+    /// Drive that seat with that installed decision model; repeatable.
+    #[arg(long = "seat-model", value_name = "SEAT=MODEL", value_parser = decisions::seat_model)]
+    seat_models: Vec<mineworld_decision::SeatOverride>,
+}
+
+impl DecisionFlags {
+    fn args(self) -> decisions::DecisionArgs {
+        decisions::DecisionArgs {
+            file: self.file,
+            seat_models: self.seat_models,
+        }
+    }
+}
+
+/// `--request-budget`, parsed: a budget, or none (`docs/DECISIONS.md` `ARC-97`).
+#[derive(Debug, Clone, Copy)]
+struct Budget(Option<mineworld_server::RequestBudget>);
+
+/// The flag's own form, so `--help` shows the server's default from its one definition.
+impl std::fmt::Display for Budget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(budget) => write!(f, "{}/{}", budget.per_second, budget.burst),
+            None => f.write_str("0"),
+        }
+    }
+}
+
+/// `R/B` — two positive integers, `B ≥ R` — or `0` alone for no budget. Anything else is refused,
+/// and clap's message names the value.
+fn request_budget(text: &str) -> Result<Budget, String> {
+    if text == "0" {
+        return Ok(Budget(None));
+    }
+    let malformed = || {
+        "a request budget is R/B — requests a second and a burst, positive integers with B ≥ R — or 0 \
+         for none"
+            .to_owned()
+    };
+    let (rate, burst) = text.split_once('/').ok_or_else(malformed)?;
+    let positive = |part: &str| -> Result<NonZeroU32, String> {
+        if part.bytes().all(|b| b.is_ascii_digit()) {
+            part.parse().map_err(|_| malformed())
+        } else {
+            Err(malformed())
+        }
+    };
+    let (per_second, burst) = (positive(rate)?, positive(burst)?);
+    if burst < per_second {
+        return Err(malformed());
+    }
+    Ok(Budget(Some(mineworld_server::RequestBudget {
+        per_second,
+        burst,
+    })))
+}
+
 /// A seat name on the command line, checked as the key it must be.
 fn seat(text: &str) -> Result<EntityKey, String> {
     EntityKey::new(text).map_err(|error| format!("'{text}' is not a seat name: {error}"))
@@ -314,6 +404,8 @@ async fn main() -> ExitCode {
             listen,
             invite,
             admin_token,
+            grants,
+            request_budget,
             agents,
             town,
             seed,
@@ -322,6 +414,7 @@ async fn main() -> ExitCode {
             time_scale,
             keyframe_every,
             save,
+            decisions,
             packs,
         } => match packs.roots() {
             Ok(roots) => {
@@ -330,6 +423,8 @@ async fn main() -> ExitCode {
                     listen,
                     invite,
                     admin_token,
+                    grants,
+                    request_budget: request_budget.0,
                     agents,
                     town,
                     seed,
@@ -339,6 +434,7 @@ async fn main() -> ExitCode {
                     keyframe_every,
                     save,
                     roots,
+                    decisions: decisions.args(),
                 })
                 .await
             }
@@ -354,6 +450,7 @@ async fn main() -> ExitCode {
             seed,
             days,
             save,
+            decisions,
             packs,
         } => packs.roots().and_then(|roots| {
             run::run(&run::RunRequest {
@@ -362,6 +459,20 @@ async fn main() -> ExitCode {
                 days,
                 save,
                 roots,
+                decisions: decisions.args(),
+            })
+        }),
+        Subcommand::Decisions {
+            world,
+            decisions,
+            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            decisions::decisions(&decisions::DecisionsRequest {
+                world: &world,
+                args: decisions.args(),
+                json,
+                roots: &roots,
             })
         }),
         Subcommand::Biography {
@@ -459,6 +570,17 @@ fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
             required.range,
             required.identity.version,
             packs::source(&required.source),
+        );
+    }
+    // Only for a world that names a decision list, by the same rule (MODULE_SPEC §8.1): decoded and
+    // checked against this world as run decodes it.
+    if pack.decisions().is_some() {
+        let roster = decisions::roster(&pack);
+        let (list, _) = decisions::list(&pack, &roster, None)?;
+        println!(
+            "  decisions  {} assignment(s), default {}",
+            list.assignments(),
+            list.default_model(),
         );
     }
     println!();

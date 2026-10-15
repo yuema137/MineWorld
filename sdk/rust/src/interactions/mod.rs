@@ -33,11 +33,12 @@ pub use biography::{Configured, ConsequenceTable, Known, consequences, selected}
 pub use decl::{ActionDecl, Audience, Effect, FactDecl, Position, Role, SectionDecl};
 pub use lookup::{
     Consequence, Interactions, SectionConfigured, consequence, declare, install, parameters,
-    permits, reduce,
+    parameters_unplaced, permits, reduce,
 };
 pub use resolve::{Chosen, Resolution, Resolved, resolve};
 pub use section::{
-    ConsEntry, EXTENDS_MAX, Entries, Fields, ParamEntry, Parameters, Partial, RuleEntry, Section,
+    ConsEntry, EXTENDS_MAX, Entries, Fields, ParamEntry, ParameterBound, Parameters, Partial,
+    RuleEntry, Section,
 };
 pub use selector::{RoleSubjects, Roles, Selector, Selectors};
 
@@ -73,9 +74,24 @@ pub trait InteractionSection:
     /// The roles a parameter entry may scope by.
     const PARAMETER_ROLES: &'static [Role] = &[];
 
+    /// Per parameter field, the subset of [`PARAMETER_ROLES`](Self::PARAMETER_ROLES) that may scope an
+    /// entry setting it (`ARC-63` note of 2026-10-13). A field not listed may be scoped by every
+    /// parameter role. An entry setting a listed field under another role, or a region entry setting
+    /// a listed field whose roles exclude `place`, is refused at its line and column. A field no place
+    /// may scope is looked up with [`parameters_unplaced`].
+    const FIELD_ROLES: &'static [(&'static str, &'static [Role])] = &[];
+
     /// Its compiled reference lists (`ARC-63` item 4): always `default`, today's behaviour.
     fn reference_lists() -> Vec<(&'static str, Section<Self>)> {
         vec![("default", Section::empty())]
+    }
+
+    /// The systems a section, as written, requires the world to enable — the packs whose code it
+    /// selects by name. The loader refuses, by name, a section requiring a system the world does not
+    /// enable (`ARC-61`). None by default.
+    fn requires(section: &Section<Self>) -> Vec<SystemId> {
+        let _ = section;
+        Vec::new()
     }
 
     /// Its configured fact's payload, with the pack's own codec.
@@ -126,7 +142,7 @@ impl<S: InteractionSection> AuthoredConfiguration for HeldSection<S> {
     }
 
     fn requires(&self) -> Vec<SystemId> {
-        Vec::new()
+        S::requires(&self.0)
     }
 
     fn facts(&self) -> &'static [EventTypeId] {

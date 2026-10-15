@@ -215,14 +215,32 @@ fn every_persons_day_is_kept_by_their_routine_process_and_the_seats_follow_it() 
     );
 
     // ── It moves nobody: otto is no seat, and stays where he was put. ────────────────────────
+    // With bodies (step-11 §19.6), otto may be nudged aside by somebody walking past him: an arrival
+    // caused by another person's request, never by schedule. Otto is no seat, so he never asks.
     let otto = id("otto");
-    let moved = facts
+    let arrivals: Vec<&Causation> = facts
         .iter()
         .filter(|fact| fact.event_type().as_str() == "arrived")
-        .filter_map(decoded::<Arrived>)
-        .filter(|arrived| arrived.person().entity_id() == otto)
-        .count();
-    assert_eq!(moved, 1, "otto arrived once, at genesis, and never moved");
+        .filter(|fact| {
+            decoded::<Arrived>(fact).is_some_and(|arrived| arrived.person().entity_id() == otto)
+        })
+        .map(|fact| fact.caused_by())
+        .collect();
+    assert_eq!(
+        arrivals
+            .iter()
+            .filter(|cause| matches!(cause, Causation::WorldGenesis))
+            .count(),
+        1,
+        "otto arrived once at genesis"
+    );
+    assert!(
+        arrivals
+            .iter()
+            .all(|cause| matches!(cause, Causation::WorldGenesis | Causation::Action(_))),
+        "every later arrival of otto is caused by another person's request, never by his agenda: \
+         {arrivals:?}"
+    );
     let away: Vec<&(PlaceId, bool)> = segments[&otto]
         .iter()
         .filter(|(place, _)| Some(place) != place_of.get(&otto))

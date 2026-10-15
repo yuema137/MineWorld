@@ -16,6 +16,9 @@ from mineworld_cognition.memory.render import (
 )
 from mineworld_cognition.memory.render.conversation import PersonRef
 
+NAMED = 500
+"""Base importance of learning a name, mine or anyone's (pr-fg-b §5.4)."""
+
 
 class Named(Payload):
     person: PersonRef
@@ -29,5 +32,10 @@ def named(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     person, name = payload.person.entity, one_line(payload.name)
     gist = f"I am called {name}" if person == me else f"I learned the name {name}"
     return Rendered(
-        gist, counterparts(fact, me), "notable", only_me(fact, me), names=((person, name),)
+        gist,
+        counterparts(fact, me),
+        "notable",
+        only_me(fact, me),
+        NAMED,
+        names=((person, name),),
     )

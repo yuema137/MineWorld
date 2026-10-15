@@ -22,13 +22,13 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from mineworld_sdk.wire.ids import EntityId, EventId
+from mineworld_sdk.wire.ids import EntityId
 
 from mineworld_cognition.backend.model import CognitionModel
 from mineworld_cognition.compress.chapters import chapters
 from mineworld_cognition.compress.episodes import load_episodes
-from mineworld_cognition.compress.stable import stable_facts
-from mineworld_cognition.compress.summarize import DAY_S, clock, counted, day_number
+from mineworld_cognition.compress.stable import stable_facts, stable_text
+from mineworld_cognition.compress.summarize import DAY_S, clock, day_number
 from mineworld_cognition.memory import fts
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import (
@@ -37,7 +37,6 @@ from mineworld_cognition.memory.records import (
     EventKey,
     EventRange,
     Level,
-    StableFact,
     event_key,
     event_of,
 )
@@ -146,30 +145,15 @@ def retrieve(store: MemoryStore, query: RecallQuery) -> MemorySection:
 
 def _stable(store: MemoryStore, names: NameBook) -> list[SectionLine]:
     section = _Section("L3")
-    for fact in stable_facts(store):
-        if not section.offer(_stable_text(store, fact, names), fact.citation()):
+    for fact in stable_facts(store, BUDGETS["L3"].lines):
+        if not section.offer(stable_text(fact, names), fact.citation()):
             break
     return section.lines
 
 
-def _stable_text(store: MemoryStore, fact: StableFact, names: NameBook) -> str:
-    first, last = _at(store, fact.first), _at(store, fact.last)
-    text = f"{names.person(fact.entity)}: met on day {day_number(first)}, "
-    text += f"last seen day {day_number(last)}, met {counted(fact.times_met, 'time')}, "
-    text += counted(fact.exchanges, "exchange")
-    return text + (f", {fact.level}." if fact.level else ".")
-
-
-def _at(store: MemoryStore, event: EventId) -> int:
-    row: tuple[int] = store.connection.execute(
-        "SELECT at FROM l0 WHERE event_key = ?", (event_key(event),)
-    ).fetchone()
-    return row[0]
-
-
 def _chapters(store: MemoryStore) -> list[SectionLine]:
     section = _Section("L2")
-    for chapter in chapters(store):
+    for chapter in chapters(store, BUDGETS["L2"].lines):
         if not section.offer(chapter.prose or chapter.text, chapter.citation()):
             break
     return section.lines
@@ -212,11 +196,14 @@ def _episodes(store: MemoryStore, query: RecallQuery) -> _Shown:
 
 
 def _matching(store: MemoryStore, terms: Sequence[str]) -> list[Episode]:
-    """Closed episodes holding a notable record that matches a term, most distinct terms first, then
-    newest, then by first Event ID."""
+    """Closed episodes holding a notable record that matches a term, or whose own text or prose holds
+    it, most distinct terms first, then newest, then by first Event ID. The second set reaches an episode
+    whose records retention merged into it (pr-fg-b §5.10)."""
     matched: dict[int, int] = {}
     for term in terms:
-        for number in _episodes_matching(store, term):
+        found = set(_episodes_matching(store, term))
+        found |= set(_episode_text_matching(store, term))
+        for number in found:
             matched[number] = matched.get(number, 0) + 1
     if not matched:
         return []
@@ -241,6 +228,18 @@ def _episodes_matching(store: MemoryStore, term: str) -> list[int]:
         )
         argument = fts.like_pattern(term)
     rows: list[tuple[int]] = store.connection.execute(sql, (argument,)).fetchall()
+    return [number for (number,) in rows]
+
+
+def _episode_text_matching(store: MemoryStore, term: str) -> list[int]:
+    """Closed episodes whose summary text or prose holds `term` literally (`LIKE … ESCAPE`, P4-4). Over at
+    most the store's episodes, which the retention bound limits."""
+    pattern = fts.like_pattern(term)
+    rows: list[tuple[int]] = store.connection.execute(
+        "SELECT episode FROM episodes WHERE closed = 1 AND "
+        "(text LIKE ? ESCAPE '\\' OR prose LIKE ? ESCAPE '\\')",
+        (pattern, pattern),
+    ).fetchall()
     return [number for (number,) in rows]
 
 

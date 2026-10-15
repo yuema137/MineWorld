@@ -20,6 +20,10 @@ path = "src/main.rs"
 clap = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
+# The decision list and the models that drive each seat: the trait hosts hold seats by, and this build's
+# installed models (`MODULE_SPEC.md` §5.1; pr-dl-a-decision-list.md SD-DLa-13).
+mineworld-decision = { workspace = true }
+mineworld-installed-models = { workspace = true }
 mineworld-kernel = { workspace = true }
 # `run` steps a seat while movement says its person is walking (`is_walking`), and a hosted seat knows
 # which requests are walking ones (`step-11-bodies.md` SD-N14, SD-N15; N-D12).
@@ -52,6 +56,11 @@ mineworld-test-support = { workspace = true }
 # The save-format refusal test (SR ASR-8) marks a save as format 2 directly, as an older build's file
 # would read; the workspace's own SQLite binding, already a dependency of the binary.
 rusqlite = { workspace = true }
+# The executable guide (DEP-50, ARC-90): `tests/guide*` parses each page, writes its files and matches
+# its command output. Never a dependency of the binary.
+pulldown-cmark = { workspace = true }
+snapbox = { workspace = true }
+toml = { workspace = true }
 # CP-C1's measurement only: RFC 6902 patches of recorded frames, the comparison DEP-15 is decided by.
 # Never a dependency of the server or the binary.
 json-patch = { version = "=4.2.0", default-features = false, features = ["diff"] }

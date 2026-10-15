@@ -10,7 +10,8 @@ interface, within wall-time budgets, with recorded replay for tests. Specificati
 supplies. Tests and CI use only `replay` and `scripted`: no model, no key, no hosted API, ever.
 
 **Configuration** is a TOML file of yours, never inside a world (see
-[`examples/hosted.toml.example`](examples/hosted.toml.example)). A key appears only as the **name** of an
+[`examples/hosted.toml.example`](examples/hosted.toml.example)); every field it accepts is listed in the
+generated [`cognition-toml` reference](../../docs/reference/cognition-toml.md). A key appears only as the **name** of an
 environment variable (`key_env`). Its value comes from your environment, or from a `.env`-style file you
 name in `[secrets] env_file` ([`examples/.env.example`](examples/.env.example)); that file is read without
 touching the environment, must be `chmod 600` on macOS and Linux, and is never read unless named.
@@ -69,6 +70,21 @@ IDs it stands for. The memory part of a decision's context stays under 6 000 byt
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
 a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
+
+**Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
+memory policy merge old detail into summaries or forget it, and a pass also runs early whenever the store
+nears its bound: 20 MiB per person by default, which a world may raise (`store_bound_mib` in
+`decisions.yaml`). Every forgotten Event ID still resolves in the save (`mineworld perceived`). The
+default, `consolidate`, and `decay`, `importance-recency-cap` and the test fixture `keep-all` are plug-ins
+of the entry-point group `mineworld.forgetting`; a policy of your own is a package with one entry point.
+No model is involved. Specification:
+[`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md), with the
+bound and the early pass in
+[`pr-fg-b2-size-trigger.md`](../../.structured-coding/plans/mvp0/pr-fg-b2-size-trigger.md).
+
+**Assisted forgetting** (`lm-summarise`, `pr-fg-c`). `lm-summarise` asks the `summarize` tier, through the
+host's summary gateway, for one sentence and an importance per group, and falls back to `consolidate` for any
+group it cannot ask. Its tests replay a recorded cassette and never reach a model.
 
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 

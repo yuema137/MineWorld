@@ -155,6 +155,71 @@ msgstr "Keep"
 msgid "ui.settings.undo"
 msgstr "Revert now"
 
+# The Controls tab (clients/shared/SETTINGS.md §7.1; SET-b). The key-map rows' names are added with the
+# client that declares them (ui.settings.key.*), because each key must be asked for by a script.
+msgid "ui.settings.tab.controls"
+msgstr "Controls"
+
+msgid "ui.settings.controls.sensitivity"
+msgstr "Mouse sensitivity"
+
+msgid "ui.settings.controls.invert_y"
+msgstr "Invert vertical look"
+
+msgid "ui.settings.controls.invert_y.on"
+msgstr "On"
+
+msgid "ui.settings.controls.invert_y.off"
+msgstr "Off"
+
+msgid "ui.settings.controls.keys"
+msgstr "Key map"
+
+msgid "ui.settings.controls.keys.none"
+msgstr "no key"
+
+msgid "ui.settings.controls.read_only"
+msgstr "Key bindings are fixed for now."
+
+msgid "ui.settings.key.menu"
+msgstr "Open the menu"
+
+msgid "ui.settings.key.move_forward"
+msgstr "Walk forward"
+
+msgid "ui.settings.key.move_left"
+msgstr "Walk left"
+
+msgid "ui.settings.key.move_back"
+msgstr "Walk back"
+
+msgid "ui.settings.key.move_right"
+msgstr "Walk right"
+
+msgid "ui.settings.key.jump"
+msgstr "Jump"
+
+msgid "ui.settings.key.jog"
+msgstr "Hold to run"
+
+msgid "ui.settings.key.camera_cycle"
+msgstr "Change camera"
+
+msgid "ui.settings.key.walk"
+msgstr "Walk"
+
+msgid "ui.settings.key.spot_menu"
+msgstr "Open the action menu here"
+
+msgid "ui.settings.key.person_menu"
+msgstr "Open the menu for the latest person"
+
+msgid "ui.settings.key.things"
+msgstr "Show things"
+
+msgid "ui.settings.key.conversations"
+msgstr "Show conversations"
+
 # The 3D client's own text, until it reads a Presentation Pack (S14 16f), when these move, keys
 # unchanged, to presentation/mineworld-default/3D/i18n/. In English each reads exactly as before S20.
 msgid "hint.controls"
@@ -428,6 +493,12 @@ msgstr "cursor unavailable"
 
 msgid "reason.lagged"
 msgstr "lagged"
+
+msgid "reason.not_granted"
+msgstr "not granted"
+
+msgid "reason.rate_limited"
+msgstr "too many requests"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.

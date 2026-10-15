@@ -269,7 +269,7 @@ Local save layout:
 
 ```text
 save/
-└── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
+└── world.sqlite       manifest · journal · facts · sealed · snapshots, one transaction per revision
 ```
 
 A cognition client's memory store is not part of the save. It lives in the operator's cognition
@@ -281,8 +281,17 @@ rather than a `manifest.json` beside it, so that it is committed in the same tra
 revisions it describes ([`DECISIONS.md`](DECISIONS.md) `DEP-2`). A save whose format, composition, system
 versions or component schemas differ from the running code is refused by name, never decoded on a guess.
 
-The fact log and the journal are kept whole: no row of either is ever deleted, rewritten or
-re-encoded. Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
+The fact log and the journal are kept whole: no row of either is ever dropped, rewritten or
+re-encoded. They are stored in two places ([`DECISIONS.md`](DECISIONS.md) `ARC-89`): a **live tail** of
+the newest revisions, one row per fact and per journal entry, and **sealed blocks** behind it. At each
+anchor commit the rows of the span one anchor interval behind it (4 096 revisions by default) move,
+byte for byte, into one block — two zstd frames, journal and facts, of a length-prefixed framing of the
+rows — in that commit's own transaction. A row is live or in exactly one block, never both and never
+neither. Every reader of history is a stream that holds one block at a time; replay decodes the rows of
+a block and compares re-executed entries and facts with those bytes, exactly as with live rows. A resume
+reads no block: the snapshot it restores is always newer than every sealed revision.
+
+Snapshots, being checkpoints, are **retained by rule** ([`DECISIONS.md`](DECISIONS.md)
 `ARC-81`): genesis, an anchor every 64 scheduled snapshots, and the newest two; every other snapshot is
 deleted in the same transaction that commits the next scheduled one. A stored snapshot is a zstd frame
 of its JSON encoding (`DEP-43`); replay and verification compare the decoded JSON bytes, never the
@@ -383,13 +392,34 @@ rest on.
 - **Who enforces what.** The host around each memory policy enforces the bounds below whatever the
   policy returns. A policy is a plug-in and cannot reach past the host. No model is needed for any bound
   to hold, and no bound is a model's decision.
-- **Store bound.** The canonical dump of one seat's store is at most 1 MiB at any age. The host enforces
-  it after every pass (`MODULE_SPEC.md` §5.2, rule 6).
+- **Pass points.** A retention pass runs once per simulated day, at the seat's first perceived fact of a
+  new day, after that fact is ingested and before anything later is. The point is fixed by the perceived
+  sequence, never by how facts were batched, so the store remains a function of the facts and of the
+  policy's parameters: rebuilding from a null cursor reproduces its canonical dump byte for byte. A pass
+  also runs early, after the fact that takes the store near its bound (a size pass), measured exactly after
+  every fact on a quantity that is itself a function of the facts so far, so size passes are as
+  batch-independent as daily ones; a fact triggers at most one pass. Plain ingestion never forgets; the
+  host's `absorb` is the only caller of a pass.
+- **Coverage.** At every pass, every perceived id is represented by exactly one surviving top-level unit
+  (a chapter, an episode of a week without a chapter, the open episode's record) or by the forgotten set,
+  and no remembered line's citation intersects the forgotten set. A pass is one transaction; a breach of
+  this invariant rolls it back. A pass never moves the store's perceived cursor, which stays the seat's
+  only cursor authority (`pr-s10-p3b-perceived.md` D-P3b-2): a fact the store has since merged or
+  forgotten, re-delivered at or below that cursor, is skipped.
+- **Store bound.** Each seat's store has a bound of 20 MiB by default; a world may raise it per seat or
+  class in `decisions.yaml`, never lower it, and no policy sees it (operator rulings of 2026-10-14,
+  `pr-fg-b2-size-trigger.md`). The canonical dump is at most 75 % of the bound after every pass, enforced
+  by the host after whatever the policy did, and the size-triggered pass keeps every state the host
+  commits under the bound, whatever the world's perception rate (`MODULE_SPEC.md` §5.2, host rules 1 and
+  7). The bound is a ceiling, not a size: under the default policy a reference-world store stays under
+  1 MB. The file on disk reclaims freed pages through SQLite's incremental vacuum; it holds indexes beside
+  the rows and may reach about three times the dump.
 - **Context bound.** A model call receives at most 6 000 bytes of memory per section (P4 D-P4-9). An
   assisted summarisation request is at most 6 000 bytes and contains no Event ID or entity id.
 - **Model-call bound.** Assisted forgetting makes at most `calls_per_sim_day` calls per seat per simulated
   day (default 4, at most 24), inside the controller's wall-time and token budgets (ARC-57). A call is
-  gated before it is made.
+  gated before it is made. A size pass never calls a model: an assisted seat's size passes are decided by
+  its no-model fallback alone, so early passes add no calls (`pr-fg-b2-size-trigger.md` §4.9).
 - **Forgetting is not deletion of truth.** A dropped item's citations join the seat's forgotten set, a
   sorted, bounded list of Event ID ranges. The world log is not in this store and is never forgotten
   (`CORE_CONCEPTS.md` §5.3). Compaction and archive of the log are a separate concern of persistence.
