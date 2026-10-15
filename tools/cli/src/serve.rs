@@ -28,6 +28,9 @@ use mineworld_server::{
 use mineworld_worldpack::{PackRoots, WorldPack};
 
 use crate::history::SavedHistory;
+
+/// The largest scale that is a day in 24 hours (`ARC-69` item 5): above it, only `--solo` may run.
+const DAY_LENGTH_SCALE: u32 = 24;
 use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed};
 
@@ -48,12 +51,15 @@ pub struct ServeRequest {
     pub town: bool,
     /// The paced controllers' seed.
     pub seed: u64,
-    /// How often each paced seat is consulted, in wall seconds (QTW-13).
-    pub pace: NonZeroU32,
+    /// How often each paced seat is consulted, in wall seconds (QTW-13; `--cadence`).
+    pub cadence: NonZeroU32,
     /// How long a dropped connection's seat is held, in wall seconds.
     pub hold: u32,
-    /// World seconds per wall second.
-    pub time_scale: NonZeroU32,
+    /// World seconds per wall second, if the operator gave one (`--time-scale`); else the save's journal, then
+    /// the World Pack's `hosting:`, then 1 (`ARC-69` item 8).
+    pub time_scale: Option<NonZeroU32>,
+    /// Whether this is a single-player world (`--solo`): loopback only, and the only kind that may fast-forward.
+    pub solo: bool,
     /// Every how many frames a client is sent a whole observation (`DEP-15`).
     pub keyframe_every: NonZeroU32,
     /// Where the world is kept, when it is persisted.
@@ -102,13 +108,32 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         agents,
         town,
         seed,
-        pace,
+        cadence,
         hold,
         time_scale,
+        solo,
         keyframe_every,
         save,
         roots,
     } = request;
+    // Refused before anything else, and before anything binds a socket: a fast-forward is a single-player
+    // world's and only that (`ARC-69` item 5). A single-player world listens on loopback alone, because
+    // nobody off the machine can join one (`ARC-69` item 5, Q-TWc-1).
+    if let Some(scale) = time_scale
+        && scale.get() > DAY_LENGTH_SCALE
+        && !solo
+    {
+        return Err(format!(
+            "[mineworld] --time-scale {scale}: above {DAY_LENGTH_SCALE} world seconds per wall second \
+             is a fast-forward, which only a world started --solo may run"
+        ));
+    }
+    if solo && !listen.ip().is_loopback() {
+        return Err(format!(
+            "[mineworld] --solo: a single-player world listens on a loopback address only, and {listen} \
+             is not one; use 127.0.0.1 or ::1, or drop --solo"
+        ));
+    }
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
@@ -119,8 +144,8 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale: TimeScaleChoice {
-            flag: Some(time_scale),
-            pack: None,
+            flag: time_scale,
+            pack: pack.hosting_time_scale(),
         },
         keyframe_every,
         ..HostConfig::default()
@@ -155,13 +180,6 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         .iter()
         .map(|(seat, _, tally)| (seat.clone(), Arc::clone(tally)))
         .collect();
-    // Cadence is wall time (QTW-13): the adapters scale it into world seconds themselves.
-    let pacing = hosted::Pacing {
-        seed,
-        pace,
-        scale: time_scale,
-    };
-
     let recent = config.recent_events;
     let host = WorldHost::spawn(config, move || {
         let seats = SeatRoster::new(pack.seats().iter().cloned());
@@ -194,9 +212,12 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                         Box::new(hosted::ReactiveSeat::bound(bound.at, bound.scale, &tally))
                     }),
                     Driver::Paced(k) => hosted.hosting(seat, move |bound| {
+                        // Cadence is wall time (QTW-13): the adapter scales it into world seconds itself,
+                        // at the scale in force when this controller is bound.
                         let pacing = hosted::Pacing {
+                            seed,
+                            pace: cadence,
                             scale: bound.scale,
-                            ..pacing
                         };
                         Box::new(hosted::PacedSeat::new(pacing, epoch, k, &tally))
                     }),
@@ -230,7 +251,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let access = Access {
         admission: Admission::new(invite.token().clone()),
         admin,
-        solo: false,
+        solo,
     };
     // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
     if access.admin.is_some() {
@@ -239,12 +260,17 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         println!("[mineworld] no admin surface (no --admin-token)");
     }
 
+    if solo {
+        println!(
+            "[mineworld] --solo: a single-player world on loopback; a scale above {DAY_LENGTH_SCALE}x may be set"
+        );
+    }
     println!(
         "[mineworld] hold {hold} s, time scale {}, {} seat(s) driven in-server{}",
         status.time_scale,
         tallies.len(),
         if town {
-            format!(" (town: seed {seed}, pace {pace} wall s)")
+            format!(" (town: seed {seed}, cadence {cadence} wall s)")
         } else {
             String::new()
         },

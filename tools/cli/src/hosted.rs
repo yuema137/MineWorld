@@ -153,8 +153,7 @@ const EMBODIED_STEP: i64 = 1;
 /// `--town`: the paced rule controller, on `run`'s consult lattice with the server's pace, and asked
 /// for its walk's strides once a wall second while it walks.
 pub struct PacedSeat {
-    controller: PacedRuleController,
-    /// The seed the controller was built with, kept so that a rescale can build it again at the new pace.
+    /// The seed the paced rule controller is built with, at each consult's own answering window.
     seed: u64,
     /// `--cadence` in wall seconds: the lattice's period in wall time, which never changes with the scale.
     cadence: i64,
@@ -174,10 +173,15 @@ pub struct PacedSeat {
     /// The instant of the last consult, to tell a lattice consult from a step consult when the world
     /// had already moved past the due instant (the runtime observes at `due.max(now)`).
     last: Option<i64>,
+    /// The instant of the last **lattice** consult: the answering window of the next one ends where this
+    /// one's begins, so the first lattice consult after a rescale can span the real gap (F-TWc-2).
+    last_lattice: Option<i64>,
+    /// Set by a rescale and cleared by the first lattice consult after it (`ARC-69` item 4, SD-TWc-5).
+    straddling: bool,
     counting: Counting,
 }
 
-/// What a paced seat is told: the seed, `--pace` in wall seconds, and the time scale.
+/// What a paced seat is told: the seed, `--cadence` in wall seconds, and the time scale.
 #[derive(Clone, Copy)]
 pub struct Pacing {
     pub seed: u64,
@@ -195,7 +199,6 @@ impl PacedSeat {
         let cadence = i64::from(pacing.pace.get());
         let pace = cadence * scale;
         Self {
-            controller: PacedRuleController::new(pacing.seed, SimDuration::from_seconds(pace)),
             seed: pacing.seed,
             cadence,
             // Seat k's offset is k wall seconds too, so seats stay spread across ticks at any scale.
@@ -206,7 +209,19 @@ impl PacedSeat {
             step: EMBODIED_STEP * scale,
             walking: false,
             last: None,
+            last_lattice: None,
+            straddling: false,
             counting: Counting::new(tally),
+        }
+    }
+
+    /// The answering window of the lattice consult at `at` (SD-TWc-5, F-TWc-2): one pace, except for the first
+    /// lattice consult after a rescale, which spans exactly the real gap since the last lattice consult, so that
+    /// every line heard lies in exactly one consult's window.
+    fn lattice_window(&self, at: i64) -> i64 {
+        match self.last_lattice {
+            Some(last) if self.straddling => at - last,
+            _ => self.pace,
         }
     }
 
@@ -243,11 +258,18 @@ impl HostedController for PacedSeat {
         let lattice = self.on_lattice(at);
         self.last = Some(at);
         let decided = if lattice {
-            self.controller
+            // Stateless (ARC-27): the controller is built for this consult's window, which is the only thing
+            // the adapter chooses (F-TWc-2).
+            let window = self.lattice_window(at);
+            let controller = PacedRuleController::new(self.seed, SimDuration::from_seconds(window));
+            self.last_lattice = Some(at);
+            self.straddling = false;
+            controller
                 .decide(observation)
-                .or_else(|| self.controller.step(observation))
+                .or_else(|| controller.step(observation))
         } else {
-            self.controller.step(observation)
+            PacedRuleController::new(self.seed, SimDuration::from_seconds(self.pace))
+                .step(observation)
         };
         let asked_to_walk = decided.as_ref().is_some_and(|request| {
             *request.action_type() == WalkTo::ACTION_TYPE
@@ -267,14 +289,14 @@ impl HostedController for PacedSeat {
     }
 
     /// The server moved the pending consult to `pending` at a rescale (`ARC-69` item 2). The lattice and the
-    /// strides restart from it at the new scale: consults stay one cadence of wall time apart, and the
-    /// controller is built again at the new pace. (The straddling answer window is set in the next step.)
+    /// strides restart from it at the new scale: consults stay one cadence of wall time apart. The first
+    /// lattice consult after it answers the real gap since the last lattice consult (`lattice_window`).
     fn rescaled(&mut self, pending: WorldTime, scale: NonZeroU32) {
         let scale = i64::from(scale.get());
         self.first = pending.seconds();
         self.pace = self.cadence * scale;
         self.step = EMBODIED_STEP * scale;
-        self.controller = PacedRuleController::new(self.seed, SimDuration::from_seconds(self.pace));
+        self.straddling = true;
     }
 }
 
@@ -453,5 +475,57 @@ mod tests {
             1_084,
             "back on the lattice"
         );
+    }
+
+    /// AC-TWc-12 (F-TWc-2, SD-TWc-5): a paced seat at 12× is rescaled to 24× and then to 6× between its lattice
+    /// consults, and is consulted as the server schedules it. Every line heard — one every world second for
+    /// twenty minutes — lies in exactly one lattice consult's answering window: none is answered twice, none is
+    /// skipped. M-TWc-11: a straddling consult that used `pace × s₁` would double-count or miss a line.
+    #[test]
+    fn a_line_heard_across_a_rescale_lies_in_exactly_one_answering_window() {
+        let mut seat = paced(1, 5, 12);
+        let mut scale: i64 = 12;
+        let mut pending = seat.next_consult(WorldTime::from_seconds(999)).seconds();
+        let rescales = [(1_100_i64, 24_i64), (1_400, 6)];
+        let mut next_rescale = 0;
+        let mut consults: Vec<(i64, i64)> = Vec::new();
+        while pending <= 2_200 {
+            if let Some(&(at, to)) = rescales.get(next_rescale).filter(|(at, _)| *at < pending) {
+                // The server's rule (`SeatTable::rescale`): the same wall wait, in the new world seconds.
+                let wait = pending - at;
+                let moved = at + (wait * to + scale - 1) / scale;
+                seat.rescaled(
+                    WorldTime::from_seconds(moved),
+                    NonZeroU32::new(u32::try_from(to).expect("small")).expect("non-zero"),
+                );
+                next_rescale += 1;
+                scale = to;
+                pending = moved;
+                continue;
+            }
+            let window = seat.lattice_window(pending);
+            consults.push((pending, window));
+            seat.decide(&alone(pending, false));
+            pending = seat
+                .next_consult(WorldTime::from_seconds(pending))
+                .seconds();
+        }
+        assert!(
+            consults
+                .iter()
+                .any(|(_, window)| *window != 60 && *window != 120 && *window != 30),
+            "the straddling consults span the real gaps: {consults:?}"
+        );
+        let (first, first_window) = consults[0];
+        for line in (first - first_window + 1)..=consults.last().expect("consulted").0 {
+            let answering = consults
+                .iter()
+                .filter(|(at, window)| at - window < line && line <= *at)
+                .count();
+            assert_eq!(
+                answering, 1,
+                "the line heard at {line} is answered by {answering} consults, not one"
+            );
+        }
     }
 }

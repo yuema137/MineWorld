@@ -123,13 +123,17 @@ enum Subcommand {
         seed: u64,
         /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
         #[arg(long, value_name = "SECONDS", default_value = "5")]
-        pace: NonZeroU32,
+        cadence: NonZeroU32,
         /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
         #[arg(long, value_name = "SECONDS", default_value_t = 30)]
         hold: u32,
-        /// How many world seconds pass per wall second.
-        #[arg(long, value_name = "N", default_value = "1")]
-        time_scale: NonZeroU32,
+        /// How many world seconds pass per wall second. Default: the save's last day-length scale, then the
+        /// World Pack's `hosting:`, then 1. Above 24 only with --solo.
+        #[arg(long, value_name = "N")]
+        time_scale: Option<NonZeroU32>,
+        /// A single-player world: it listens on loopback only, and only it may fast-forward above 24x.
+        #[arg(long)]
+        solo: bool,
         /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
         #[arg(long, value_name = "N", default_value = "50")]
         keyframe_every: NonZeroU32,
@@ -317,9 +321,10 @@ async fn main() -> ExitCode {
             agents,
             town,
             seed,
-            pace,
+            cadence,
             hold,
             time_scale,
+            solo,
             keyframe_every,
             save,
             packs,
@@ -333,9 +338,10 @@ async fn main() -> ExitCode {
                     agents,
                     town,
                     seed,
-                    pace,
+                    cadence,
                     hold,
                     time_scale,
+                    solo,
                     keyframe_every,
                     save,
                     roots,

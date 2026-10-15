@@ -820,7 +820,8 @@ No TW-c question remains open.
 | C2 | (this commit) | done: `persistence/src/host.rs`, backend `HostRow` and two methods, lazy `host_journal`, `verify` coherence check |
 | C3 | (this commit) | done: rescale_at, seam `rescaled` + `HostedBinding`, SD-TWc-3/4, `SeatTable::rescale`, admin `time_scale` and 409/400, `Access.solo`, `host/config.rs` move, tests |
 | C4 | (this commit) | done: `runtime/pacing.rs` (resolution), Started at start, Scaled/Paused/Resumed per effective change, Stopped at shutdown; a failed write stops the world |
-| C5 … C9 | — | not started |
+| C5 | (this commit) | done: `--cadence` (no alias), optional `--time-scale`, `--solo` (loopback, >24 refused), `world.yaml hosting:`, the adapters' straddle window (AC-TWc-12, M-TWc-11) |
+| C6 … C9 | — | not started |
 
 ### Evidence
 
@@ -861,6 +862,19 @@ No TW-c question remains open.
   vacuous here; the binary-level test (C7) compares the facts of a real world. Reported as a limitation.
   Mutations (unit level, red by name then reverted): M-TWc-5 (stop ignored) → `a_restart_resumes_no_earlier_than_the_last_stop`
   red; M-TWc-9 (no day-length range on the save) → `a_fast_forward_scale_in_the_save_never_survives_a_restart` red.
+- C5: `cargo test -p mineworld-cli --test server_command --test admin --test walking --test hosted_town` green
+  (server_command 10, admin 6, walking 9, hosted_town 1 in 120 s); `cargo test -p mineworld-cli --bins hosted` 7 green;
+  `cargo test -p mineworld-worldpack` green (new `tests/hosting.rs`: 4); clippy `-D warnings` clean for
+  mineworld-cli and mineworld-worldpack; `cargo fmt --all -- --check` clean.
+  AC-TWc-12 (`tools/cli/src/hosted.rs` tests): a paced seat at 12× rescaled to 24× and 6× between its lattice
+  consults, over 2 200 world seconds (more than twenty minutes), every line in exactly one window. Its check is on the
+  windows the adapter chooses (the controller is stateless, so its answer is a function of its window); the
+  answering draw itself is the controller's (ARC-27) and is not re-tested here.
+  M-TWc-11 (straddle disabled) → the AC-TWc-12 test red, reverted, green.
+  Existing tests edited (C5): `tools/cli/tests/walking.rs` (`--solo` added to the 28 800× test),
+  `tools/cli/tests/server_command.rs` (`--solo` added to the 60× test), `tools/cli/tests/hosted_town.rs` (`--pace`
+  → `--cadence`), `tools/cli/tests/admin.rs` (DA-8 binary row `{"time_scale": 12}` → `{"time_scale": 25}`, 409).
+  Note: `tools/cli/tests/hosted_town.rs` takes 120 s (its design wall budget).
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the

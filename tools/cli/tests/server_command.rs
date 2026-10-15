@@ -466,7 +466,8 @@ async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reporte
     assert_eq!(plain.status().await["time_scale"], json!(1));
     drop(plain);
 
-    let server = Server::start(&["server", support::PACK, "--time-scale", "60"]).await;
+    // A fast-forward (above 24x) is a single-player world's: `--solo` (`ARC-69` item 5, Q-TWc-2).
+    let server = Server::start(&["server", support::PACK, "--time-scale", "60", "--solo"]).await;
     let mut client = Client::connect(server.address).await;
     let (_, world) = client.join("visitor").await;
     assert_eq!(world.time_scale, 60, "reported in the welcome");

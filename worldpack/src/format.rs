@@ -84,6 +84,21 @@ pub struct WorldManifest {
     /// Each key names a file in `configure/`, which its owner decodes and seeds. Absent means none.
     #[serde(default)]
     pub configure: Vec<ConfigurationKey>,
+    /// How a host paces this world when it serves it (`DECISIONS.md` `ARC-69` item 9). Host pacing
+    /// content: never seeded, never read by a pack or a controller, ignored by `run`.
+    #[serde(default)]
+    pub hosting: Option<Hosting>,
+}
+
+/// `world.yaml`'s `hosting:` block: how a host paces the world it serves (`ARC-69`, step-19 QTW-4).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hosting {
+    /// World seconds per wall second when the host does not say otherwise: a whole number from 1 to 24,
+    /// so a day lasts 24 h ÷ `time_scale`. Absent: the host's own default, 1. A fast-forward is never a
+    /// pack's to state (`ARC-69` item 5), so a larger value is refused at load, naming this key.
+    #[serde(default)]
+    pub time_scale: Option<u32>,
 }
 
 /// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`
