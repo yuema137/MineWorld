@@ -829,8 +829,8 @@ server whose `PROTOCOL.md` lists it as landed.
 | the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
 | `time_scale` in `POST /admin/clock` (a live scale change) | TW-c (`step-19-time-weather.md` §§4.3, 7.3) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process |
-| seat grants (`mineworld server --grant`, presented in `join.invite`, §4.1); refusal `not_granted` (checks 4a and 6); `credential` in `GET /admin/sessions` (§11.2) | S27-a (`ARC-97`) | no grant exists, so `not_granted` is never sent; no `credential` field |
-| the per-seat request budget (§8, `--request-budget`); refusal `rate_limited`; `refused.retry_after_ms`, on `rate_limited` only | S27-a (`ARC-97`) | no budget: `rate_limited` is never sent and no `refused` frame carries `retry_after_ms` |
+| seat grants (`mineworld server --grant`, presented in `join.invite`, §4.1); refusal `not_granted` (checks 4a and 6); `credential` in `GET /admin/sessions` (§11.2) | S27-a (`ARC-97`) — **landed** | no grant exists, so `not_granted` is never sent; no `credential` field |
+| the per-seat request budget (§8, `--request-budget`); refusal `rate_limited`; `refused.retry_after_ms`, on `rate_limited` only | S27-a (`ARC-97`) — **landed** | no budget: `rate_limited` is never sent and no `refused` frame carries `retry_after_ms` |
 
 **Within revision 2, an additive refusal code reaches only a client that causes it.** S27-a's two codes
 are added to revision 2 rather than raising `protocol`, because neither can reach a client that keeps

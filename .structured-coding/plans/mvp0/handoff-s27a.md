@@ -31,4 +31,5 @@ C0–C3 implementer stopped; a replacement session continues from C4 in this wor
 
 1. C5 committed (the per-seat budget, `--request-budget`). M-a-3 and M-a-4 INCONCLUSIVE: the session's
    permission classifier denied running tests against a planted mutation (ledger, Mutations).
-2. C6: merge origin/main, close-out, push, PR, CI on the exact head. No background jobs are running.
+2. C6 committed (close-out). Push, PR, CI on the exact head; then READY FOR OPERATOR REVIEW — DO NOT
+   MERGE. Open items for the operator: M-a-3/M-a-4 runs; MODULE_SPEC §8 flags (primary).
