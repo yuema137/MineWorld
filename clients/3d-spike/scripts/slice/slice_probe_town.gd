@@ -516,6 +516,8 @@ func _street_check() -> void:
 				print("frame    street_%d_walking: %s (%s), aimed at %s" % [shots + 1, who, id, at])
 				shots += 1
 				next_shot += FRAME_EVERY_S
+				# the frame's awaits span several frames: no speed is read across them
+				last_drawn.clear()
 				break
 			if not door_shot:
 				for id in figs._going.keys():
@@ -530,6 +532,7 @@ func _street_check() -> void:
 					print("frame    street_4_into_a_door: %s (%s) going into %s, aimed at %s"
 						% [link.display_label(id), id, door, at])
 					door_shot = true
+					last_drawn.clear()
 					break
 	print("watch    %.0f s in %.1f s wall; %d S-4 samples" % [secs, (Time.get_ticks_msec() - wall0) / 1000.0,
 		samples])
@@ -643,6 +646,10 @@ func _check_shown_standing(link: SliceLink) -> void:
 				moving = true
 		if moving:
 			print("shown    (walking, not held to %d mm) %s" % [SHOWN_MM, p])
+		elif p.begins_with("person %s (" % obs.observer()) and p.contains("drawn at local"):
+			# a passer-by can nudge the standing player; adopting the server's position after
+			# an accepted move is S15 12e's correction rule, not 16c's (step-15 R-16c-5)
+			print("shown    (the observer, not corrected before 12e) %s" % p)
 		else:
 			kept.append(p)
 	for p in kept:
