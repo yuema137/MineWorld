@@ -1,5 +1,5 @@
-The attached image is a STYLE REFERENCE ONLY: match its art style and quality, not its person, clothes,
-setting or composition. Style: grounded semi-realistic 3D character render, in the look of a polished
+The attached image is a STYLE REFERENCE ONLY: match its art style, quality, framing, pose, lighting and
+backdrop, not its person or clothes. Style: grounded semi-realistic 3D character render, in the look of a polished
 modern story-driven game's character art; realistic human proportions and anatomy (no anime or cartoon
 proportions); soft natural skin with subtle texture and gentle subsurface warmth; hair rendered as soft
 detailed locks; clean, believable everyday fabrics with natural folds and seams; warm, natural colour.
@@ -17,11 +17,11 @@ Lighting: soft even studio light from the front-left with a gentle fill; no hard
 light. Background: a plain seamless light warm-grey studio backdrop, nothing else: no floor, no props,
 no scenery, no text, no logos, no watermark. Hair stays clear of the shoulders and arms.
 
-THE PERSON: a man in his eighties, apparent age about 83, 1.74 m tall, a solid, sturdy build with a slight forward stoop of age.
-Ancestry, as the US census would record it: non-Hispanic multiracial or other. Natural, individual facial features; an ordinary real face, never a caricature or a stereotype.
-Skin: brown skin tone (Monk Skin Tone 8 of 10), natural and even.
-Hair: white hair, short side part, kept clear of the shoulders.
-Facial hair: moustache, grey.
+THE PERSON: a man, apparent age about 82, 1.81 m tall, a solid, sturdy build with a slight forward stoop of age.
+Skin: light skin tone (Monk Skin Tone 3 of 10), natural and even.
+Face: long face, deep-set eyes, aquiline nose, wide lips; an ordinary, individual real face, never a caricature.
+Hair: silver-grey, straight hair, close fade, kept clear of the shoulders.
+Facial hair: a short trimmed beard.
 Headwear: navy tweed flat cap.
 Wearing: heather brown button-front knitted cardigan over a blue-and-white checked collared shirt; tan chinos; brown leather loafers.
 Manner, shown only through a calm neutral face and posture: unhurried and settled.

@@ -1,5 +1,5 @@
-The attached image is a STYLE REFERENCE ONLY: match its art style and quality, not its person, clothes,
-setting or composition. Style: grounded semi-realistic 3D character render, in the look of a polished
+The attached image is a STYLE REFERENCE ONLY: match its art style, quality, framing, pose, lighting and
+backdrop, not its person or clothes. Style: grounded semi-realistic 3D character render, in the look of a polished
 modern story-driven game's character art; realistic human proportions and anatomy (no anime or cartoon
 proportions); soft natural skin with subtle texture and gentle subsurface warmth; hair rendered as soft
 detailed locks; clean, believable everyday fabrics with natural folds and seams; warm, natural colour.
@@ -17,10 +17,10 @@ Lighting: soft even studio light from the front-left with a gentle fill; no hard
 light. Background: a plain seamless light warm-grey studio backdrop, nothing else: no floor, no props,
 no scenery, no text, no logos, no watermark. Hair stays clear of the shoulders and arms.
 
-THE PERSON: a woman in her early 50s, apparent age about 52, 1.60 m tall, a solid, sturdy build.
-Ancestry, as the US census would record it: Hispanic or Latino. Natural, individual facial features; an ordinary real face, never a caricature or a stereotype.
-Skin: light-medium skin tone (Monk Skin Tone 4 of 10), natural and even.
-Hair: dark brown hair, pixie cut, kept clear of the shoulders.
+THE PERSON: a woman, apparent age about 52, 1.68 m tall, a solid, sturdy build.
+Skin: medium-tan skin tone (Monk Skin Tone 6 of 10), natural and even.
+Face: oval face, almond-shaped eyes, wide-bridged nose, thin lips; an ordinary, individual real face, never a caricature.
+Hair: brown, straight hair, pixie cut, kept clear of the shoulders.
 Wearing: white knee-length bib baker's apron over a rolled-sleeve chambray shirt; dark grey work trousers; black work clogs.
 Manner, shown only through a calm neutral face and posture: practical and warm, an early riser.
 AVOID: glasses; hand-held props (no bread or rod); loose long hair over the shoulders; no text or logos on clothing.

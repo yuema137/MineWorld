@@ -5,7 +5,7 @@
 # therefore no real population to cite for it, and inventing one (a Nordic lake, an Alpine lake, a lake in
 # the American West) would be the casting director choosing a setting the world's author did not.
 #
-# Decision (S26 casting director, 2026-10-15; finding F-CAST-2 for the operator to rule):
+# Decision (S26 casting director, 2026-10-15; RULED by the operator 2026-10-15, F-CAST-2):
 #   Lakeside's cast is drawn from the San Diego County profile, unchanged.
 # Why this is the most defensible choice:
 #   1. Lakeside's only 3D use in MVP-0 is as the café street's extras (E-2, Q-S26-8): its ten people walk
@@ -21,4 +21,5 @@ profile: lakeside
 version: 1
 date: '2026-10-15'
 setting: undeclared
-profile_of: san-diego-county
+profile_of: san-diego-county.yaml   # a file in this directory
+ruling: operator ruling F-CAST-2, 2026-10-15 — Lakeside uses the San Diego County profile

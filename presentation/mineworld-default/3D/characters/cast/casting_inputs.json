@@ -1,223 +1,1033 @@
 {
-  "_doc": "Inputs to tools/character_pipeline/casting/cast_director.py (step-26 §7.4a item 5). Per person: what the biography (the person files) or the identity source fixes, and the director's outfit. Everything not fixed here is drawn by the seeded sampler from the world's population profile. Never add an attribute here because of a surname.",
-  "seed": "mineworld-s26-cast-v1",
-  "template_version": 1,
-  "work_age_bands": ["20s", "30s", "40s", "50s", "60s"],
-  "worlds": {
-    "cafe-town": {
-      "profile": "san-diego-county",
-      "worlds": ["social-cafe", "market-town"],
-      "fixed_members": [
-        {
-          "key": "vera-lindgren",
-          "why": "the accepted protagonist (VIS-3D-GODOT-1); counted in the world's strata and the distinctness table, never re-cast",
-          "sex": "female", "age_band": "20s", "stature_m": 1.767, "build": "slim", "ancestry": "nh_white", "skin_mst": 3,
-          "hair": {"category": "messy high updo with face-framing strands", "colour": "brown"},
-          "outer": "open burgundy zip hoodie"
-        }
-      ]
-    },
-    "lakeside": {
-      "profile": "lakeside",
-      "worlds": ["lakeside"],
-      "fixed_members": []
+ "_doc": "Casting inputs of the mineworld-default pack (step-26 §7.4a item 5), read through casting.yaml. Per person: `fixed` (what the biography, an identity source or an operator ruling fixes, each with why), `allowed` (values the biography restricts an attribute to) and `fields` (the director's outfit and prompt-ready lines). Every attribute not fixed is drawn from the world's population profile. Never add a value here because of a surname. `fixed_members` are counted in a world's strata and distinctness table but never re-cast.",
+ "template_version": 2,
+ "fixed_members": {
+  "cafe-town": [
+   {
+    "key": "vera-lindgren",
+    "why": "the accepted protagonist (VIS-3D-GODOT-1); counted in the world's strata and the distinctness table, never re-cast",
+    "values": {
+     "sex": "female",
+     "age_band": "20s",
+     "apparent_age": "20s",
+     "stature_m": 1.767,
+     "build": "slim",
+     "ancestry": "nh_white",
+     "skin_mst": 3,
+     "hair_style": "messy high updo with face-framing strands",
+     "hair_colour": "brown",
+     "hair_texture": "wavy",
+     "outer": "open burgundy zip hoodie"
     }
+   }
+  ],
+  "lakeside": []
+ },
+ "people": [
+  {
+   "key": "alice-moreau",
+   "world": "cafe-town",
+   "file": "alice.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronouns she/her in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "staff at the café counter (tags barista, staff)"
+    },
+    "hair_style": {
+     "value": [
+      "low tied-back bun",
+      "low ponytail tied at the nape",
+      "braided crown updo",
+      "high top knot",
+      "pixie cut"
+     ],
+     "why": "works behind a food counter; tied back"
+    }
+   },
+   "fields": {
+    "role": "barista",
+    "tags": [
+     "barista",
+     "staff"
+    ],
+    "note": "Runs the counter. Speaks to whoever comes in.",
+    "outfit": {
+     "outer": "bib apron",
+     "outer_colour": "forest green",
+     "under": "rolled-sleeve oatmeal cotton shirt",
+     "legs": "charcoal straight trousers",
+     "feet": "black leather clogs"
+    },
+    "accessories": [
+     "apron"
+    ],
+    "manner": "brisk and friendly",
+    "avoid": [
+     "glasses",
+     "hand-held props",
+     "loose long hair over the shoulders"
+    ],
+    "outer": "forest green bib apron",
+    "wear": "forest green bib apron over a rolled-sleeve oatmeal cotton shirt",
+    "wear_lower": "charcoal straight trousers; black leather clogs",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props; loose long hair over the shoulders"
+   }
   },
-  "people": [
-    {
-      "key": "alice-moreau", "world": "cafe-town", "file": "alice.yaml", "role": "barista", "tags": ["barista", "staff"],
-      "note": "Runs the counter. Speaks to whoever comes in.",
-      "sex": {"value": "female", "why": "pronouns she/her in the person file"},
-      "age_allowed": {"value": "work", "why": "staff at the café counter (tags barista, staff)"},
-      "hair_tied": {"value": true, "why": "works behind a food counter; tied back"},
-      "outfit": {"outer": "bib apron", "outer_colour": "forest green", "under": "rolled-sleeve oatmeal cotton shirt", "legs": "charcoal straight trousers", "feet": "black leather clogs"},
-      "accessories": ["apron"], "manner": "brisk and friendly",
-      "avoid": ["glasses", "hand-held props", "loose long hair over the shoulders"]
-    },
-    {
-      "key": "bob-achterberg", "world": "cafe-town", "file": "bob.yaml", "role": "counter regular", "tags": ["regular"],
-      "note": "Comes in most days and sits at the counter.",
-      "sex": {"value": "male", "why": "pronoun his in the person file"},
-      "outfit": {"outer": "button-front knitted cardigan", "outer_colour": "heather brown", "under": "blue-and-white checked collared shirt", "legs": "tan chinos", "feet": "brown leather loafers"},
-      "headwear": "navy tweed flat cap",
-      "accessories": ["flat cap"], "manner": "unhurried and settled",
-      "avoid": ["glasses", "hand-held props (no coffee cup)", "long coat (he sits on a counter stool, G-13)"]
-    },
-    {
-      "key": "carol-mensah", "world": "cafe-town", "file": "carol.yaml", "role": "apartment resident who knows everybody", "tags": ["resident"],
-      "note": "Lives in the apartments. Knows everybody on the stairs by sight.",
-      "sex": {"value": "female", "why": "pronoun her in the person file"},
-      "outfit": {"outer": "hip-length open cardigan", "outer_colour": "mustard yellow", "under": "small-print navy and white blouse", "legs": "navy straight trousers", "feet": "white canvas slip-on shoes"},
-      "accessories": [], "manner": "warm and observant",
-      "avoid": ["glasses", "hand-held props", "long cardigan below the hip (she lunches at the café, G-13)"]
-    },
-    {
-      "key": "dev-raman", "world": "cafe-town", "file": "dev.yaml", "role": "morning runner, works in the office", "tags": ["resident", "runner"],
-      "note": "Runs round the park most mornings.",
-      "sex": {"value": "male", "why": "pronoun his in the person file"},
-      "age_allowed": {"value": "work", "why": "routine includes work at the workplace"},
-      "build_allowed": {"value": ["slim", "average"], "why": "a regular runner (tag runner, note)"},
-      "outfit": {"outer": "fitted long-sleeve running top", "outer_colour": "electric blue", "under": "none", "legs": "black running tights under black running shorts", "feet": "white running shoes with neon-yellow soles"},
-      "accessories": ["sports watch"], "manner": "energetic and easygoing",
-      "avoid": ["glasses", "hand-held props (no water bottle)", "headphones over the ears"]
-    },
-    {
-      "key": "erin-walsh", "world": "cafe-town", "file": "erin.yaml", "role": "reads on a park bench", "tags": ["resident"],
-      "note": "Reads on the same bench whenever it is dry.",
-      "sex": {"value": "female", "why": "pronoun her in the person file"},
-      "outfit": {"outer": "hip-length cotton utility jacket", "outer_colour": "olive", "under": "navy-and-white striped breton top", "legs": "dark-wash straight jeans", "feet": "tan suede ankle boots"},
-      "accessories": [], "manner": "quiet and absorbed",
-      "avoid": ["glasses (reading glasses replaced by none)", "hand-held props (no book in hand)", "long coat (she sits on a bench, G-13)"]
-    },
-    {
-      "key": "felix-okafor", "world": "cafe-town", "file": "felix.yaml", "role": "neighbour who pops into the store", "tags": ["neighbour"],
-      "note": "Pops into the store for whatever he forgot.",
-      "sex": {"value": "male", "why": "pronouns he/his in the person file"},
-      "outfit": {"outer": "denim trucker jacket", "outer_colour": "mid-blue", "under": "plain white crew-neck tee", "legs": "khaki cargo trousers", "feet": "grey trainers"},
-      "accessories": [], "manner": "cheerful and a little scattered",
-      "avoid": ["glasses", "hand-held props (no shopping bag in hand)"]
-    },
-    {
-      "key": "grace-liu", "world": "cafe-town", "file": "grace.yaml", "role": "office worker across the street", "tags": ["commuter"],
-      "note": "Works across the street from the café, and knows its menu by heart.",
-      "sex": {"value": "female", "why": "pronoun her in the person file"},
-      "age_allowed": {"value": "work", "why": "office worker (tag commuter, routine work)"},
-      "outfit": {"outer": "single-breasted tailored blazer", "outer_colour": "navy", "under": "white silk-look blouse", "legs": "grey tailored trousers", "feet": "black low-heeled loafers"},
-      "accessories": ["tan leather shoulder bag (G-12)"], "manner": "composed and quick",
-      "avoid": ["glasses", "hand-held props (no phone or cup)"]
-    },
-    {
-      "key": "hana-sato", "world": "cafe-town", "file": "hana.yaml", "role": "office worker, shares the office with Grace", "tags": ["commuter"],
-      "note": "Shares the office with Grace.",
-      "sex": {"value": "female", "why": "pronoun her in the person file"},
-      "age_allowed": {"value": "work", "why": "office worker (tag commuter, routine work)"},
-      "outfit": {"outer": "cropped lightweight jacket", "outer_colour": "sage green", "under": "pale blue collared shirt", "legs": "knee-length pleated charcoal skirt over dark opaque tights", "feet": "black ballet flats"},
-      "accessories": [], "manner": "attentive and reserved",
-      "avoid": ["glasses", "hand-held props", "skirt below the knee (she sits at the meeting table, G-13)"]
-    },
-    {
-      "key": "ivan-petrov", "world": "cafe-town", "file": "ivan.yaml", "role": "talkative passer-by", "tags": ["passerby"],
-      "note": "Walks the street a lot, and stops to talk to anyone who will.",
-      "sex": {"value": "male", "why": "pronoun his in the person file"},
-      "outfit": {"outer": "unstructured linen-blend sport jacket", "outer_colour": "stone beige", "under": "burgundy polo shirt", "legs": "dark brown trousers", "feet": "brown leather walking shoes"},
-      "headwear": "straw panama hat with a dark band",
-      "accessories": ["panama hat"], "manner": "talkative and expansive",
-      "avoid": ["glasses", "hand-held props", "overcoat (San Diego's climate; §7.5's overcoat replaced)"]
-    },
-    {
-      "key": "otto-brandt", "world": "cafe-town", "file": "otto.yaml", "role": "top-floor resident who rarely comes down", "tags": ["resident"],
-      "note": "Lives on the top floor. Rarely comes down.",
-      "sex": {"value": "male", "why": "pronouns he/his/him in the person file"},
-      "outfit": {"outer": "knitted sweater vest", "outer_colour": "bottle green", "under": "red-and-grey plaid flannel shirt", "legs": "grey slacks", "feet": "brown lace-up shoes"},
-      "accessories": [], "manner": "slow and private",
-      "avoid": ["glasses", "hand-held props (no walking stick)"]
-    },
-    {
-      "key": "wes-calloway", "world": "cafe-town", "file": "wanderer.yaml", "role": "second player seat, passing through", "tags": ["visitor"],
-      "note": "Passing through. Comes in after the visitor.",
-      "identity_source": "presentation/mineworld-default/2D/art/generated/gen_player_front.png and its provenance JSON (Q-S26-9): a man in his twenties, warm amber-orange jacket over a cream shirt, teal-blue trousers, dark brown boots, short reddish-brown hair, slightly taller than everyone else",
-      "sex": {"value": "male", "why": "pronoun his in the person file; the 2D identity source"},
-      "age_band": {"value": "20s", "why": "the 2D identity source: a man in his twenties"},
-      "stature_m": {"value": 1.86, "why": "the 2D identity source: slightly taller than everyone else; §7.5 sketch 1.86"},
-      "build": {"value": "average", "why": "§7.5 sketch (tall, not heavy); the 2D sprite"},
-      "ancestry": {"value": "nh_white", "why": "counted in the stratum the identity source's light skin is proxied by; operator gates (Q-S26-7)"},
-      "skin_mst": {"value": 2, "why": "the 2D identity source: light skin"},
-      "hair": {"value": {"category": "short tousled crop", "colour": "reddish brown"}, "why": "the 2D identity source"},
-      "facial_hair": {"value": "none", "why": "the 2D identity source"},
-      "outfit": {"outer": "zip-front casual jacket", "outer_colour": "warm amber-orange", "under": "cream crew-neck shirt", "legs": "teal-blue trousers", "feet": "dark brown lace-up boots"},
-      "accessories": ["travel backpack, both straps (G-12)"], "manner": "relaxed and curious, a traveller",
-      "avoid": ["glasses", "hand-held props"]
-    },
-    {
-      "key": "alba-ferreira", "world": "lakeside", "file": "alba.yaml", "role": "village baker", "tags": ["baker"],
-      "note": "Bakes before dawn, then comes down to the water in the afternoon.",
-      "sex": {"value": "female", "why": "pronouns she/her in the person file"},
-      "age_allowed": {"value": "work", "why": "runs the bakery"},
-      "hair_tied": {"value": true, "why": "a baker; tied back"},
-      "outfit": {"outer": "knee-length bib baker's apron", "outer_colour": "white", "under": "rolled-sleeve chambray shirt", "legs": "dark grey work trousers", "feet": "black work clogs"},
-      "accessories": ["apron"], "manner": "practical and warm, an early riser",
-      "avoid": ["glasses", "hand-held props (no bread or rod)", "loose long hair over the shoulders"]
-    },
-    {
-      "key": "bruno-lindqvist", "world": "lakeside", "file": "bruno.yaml", "role": "carpenter", "tags": ["carpenter"],
-      "note": "Mends the benches on the square and anything else made of wood.",
-      "sex": {"value": "male", "why": "given name Bruno (the person file states no pronoun; finding F-CAST-3)"},
-      "outfit": {"outer": "flannel overshirt", "outer_colour": "red-and-black buffalo check", "under": "heather grey tee", "legs": "tan canvas work trousers", "feet": "brown leather work boots"},
-      "accessories": [], "manner": "patient and steady",
-      "avoid": ["glasses", "hand-held props (no tools)", "tool belt with hanging tools"]
-    },
-    {
-      "key": "celia-okafor", "world": "lakeside", "file": "celia.yaml", "role": "schoolteacher", "tags": ["teacher"],
-      "note": "Teaches the village's few children and knows everybody's business.",
-      "sex": {"value": "female", "why": "given name Celia (the person file states no pronoun; finding F-CAST-3)"},
-      "age_allowed": {"value": "work", "why": "the village's teacher"},
-      "outfit": {"outer": "hip-length button cardigan", "outer_colour": "teal", "under": "cream floral-print blouse", "legs": "navy chinos", "feet": "brown leather loafers"},
-      "accessories": [], "manner": "brisk and curious",
-      "avoid": ["glasses", "hand-held props"]
-    },
-    {
-      "key": "dario-russo", "world": "lakeside", "file": "dario.yaml", "role": "fisherman", "tags": ["fisherman"],
-      "note": "Out on the stones at first light, every day of the year.",
-      "sex": {"value": "male", "why": "given name Dario and the tag fisherman (no pronoun; finding F-CAST-3)"},
-      "outfit": {"outer": "hip-length waterproof jacket", "outer_colour": "signal yellow", "under": "charcoal crew-neck jumper", "legs": "dark navy waterproof trousers", "feet": "dark green rubber boots"},
-      "headwear": "navy knit watch cap",
-      "accessories": ["knit cap"], "manner": "weathered, few words",
-      "avoid": ["glasses", "hand-held props (no rod)"]
-    },
-    {
-      "key": "elin-berg", "world": "lakeside", "file": "elin.yaml", "role": "summer painter, a visitor", "tags": ["painter", "visitor"],
-      "note": "Paints the lake from the end of the pier, a rod propped beside the easel.",
-      "sex": {"value": "female", "why": "given name Elin (no pronoun; finding F-CAST-3)"},
-      "outfit": {"outer": "oversized paint-flecked linen shirt worn open", "outer_colour": "off-white", "under": "sage green fitted tank top", "legs": "rolled cream cotton trousers", "feet": "white canvas sneakers"},
-      "headwear": "wide-brimmed natural straw sun hat",
-      "accessories": ["sun hat"], "manner": "dreamy and easygoing",
-      "avoid": ["glasses", "hand-held props (no brush, palette or easel)", "loose long hair over the shoulders"]
-    },
-    {
-      "key": "finn-halvorsen", "world": "lakeside", "file": "finn.yaml", "role": "boatbuilder", "tags": ["boatbuilder"],
-      "note": "Builds and patches the village's rowing boats.",
-      "sex": {"value": "male", "why": "given name Finn (no pronoun; finding F-CAST-3)"},
-      "age_allowed": {"value": "work", "why": "builds the boats"},
-      "outfit": {"outer": "canvas bib overalls (dungarees)", "outer_colour": "navy", "under": "rust long-sleeve henley", "legs": "the overalls' legs", "feet": "tan leather work boots"},
-      "accessories": [], "manner": "strong and cheerful",
-      "avoid": ["glasses", "hand-held props (no tools)"]
-    },
-    {
-      "key": "greta-novak", "world": "lakeside", "file": "greta.yaml", "role": "retired, the village's oldest fisher", "tags": ["retired"],
-      "note": "Has fished from the same stone for fifty years.",
-      "sex": {"value": "female", "why": "given name Greta (no pronoun; finding F-CAST-3)"},
-      "age_allowed": {"value": ["60s", "70s", "80_plus"], "why": "retired (tag) and fifty years of fishing from the same stone"},
-      "outfit": {"outer": "hip-length knitted cardigan", "outer_colour": "plum", "under": "cream round-collared blouse", "legs": "brown wool trousers", "feet": "dark red rubber boots"},
-      "headwear": "blue patterned headscarf tied under the chin, some hair visible at the front",
-      "accessories": ["headscarf"], "manner": "sharp-eyed and patient",
-      "avoid": ["glasses", "hand-held props (no rod, no stick)", "long skirt (she sits on the shore stones, G-13)"]
-    },
-    {
-      "key": "hugo-marchetti", "world": "lakeside", "file": "hugo.yaml", "role": "ferryman", "tags": ["ferryman"],
-      "note": "Rows people across the lake when anybody asks, and fishes when nobody does.",
-      "sex": {"value": "male", "why": "given name Hugo and the tag ferryman (no pronoun; finding F-CAST-3)"},
-      "outfit": {"outer": "cable-knit fisherman's jumper", "outer_colour": "cream", "under": "none visible", "legs": "navy work trousers", "feet": "brown leather deck shoes"},
-      "headwear": "black peaked sailor's cap",
-      "accessories": ["peaked cap"], "manner": "genial and unhurried",
-      "avoid": ["glasses", "hand-held props (no oar)"]
-    },
-    {
-      "key": "ines-duarte", "world": "lakeside", "file": "ines.yaml", "role": "village nurse, off duty", "tags": ["nurse"],
-      "note": "Looks in on everybody, and spends her free hours with a line in the water.",
-      "sex": {"value": "female", "why": "pronoun her in the person file"},
-      "age_allowed": {"value": "work", "why": "the village nurse"},
-      "outfit": {"outer": "light hip-length rain jacket", "outer_colour": "coral", "under": "ceil-blue scrub-style tunic", "legs": "slim black trousers", "feet": "white trainers"},
-      "accessories": [], "manner": "kind and alert",
-      "avoid": ["glasses", "hand-held props", "stethoscope (a hanging loose prop)"]
-    },
-    {
-      "key": "nils-aaltonen", "world": "lakeside", "file": "nils.yaml", "role": "fisherman who sleeps little", "tags": ["fisherman"],
-      "note": "Sleeps little and fishes a lot.",
-      "sex": {"value": "male", "why": "pronoun He in the person file"},
-      "outfit": {"outer": "multi-pocket fishing vest", "outer_colour": "khaki", "under": "charcoal long-sleeve thermal top", "legs": "olive cargo trousers", "feet": "black rubber boots"},
-      "headwear": "burnt-orange knit beanie",
-      "accessories": ["beanie"], "manner": "restless and wry",
-      "avoid": ["glasses", "hand-held props (no rod)"]
+  {
+   "key": "bob-achterberg",
+   "world": "cafe-town",
+   "file": "bob.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronoun his in the person file"
     }
-  ]
+   },
+   "allowed": {},
+   "fields": {
+    "role": "counter regular",
+    "tags": [
+     "regular"
+    ],
+    "note": "Comes in most days and sits at the counter.",
+    "outfit": {
+     "outer": "button-front knitted cardigan",
+     "outer_colour": "heather brown",
+     "under": "blue-and-white checked collared shirt",
+     "legs": "tan chinos",
+     "feet": "brown leather loafers"
+    },
+    "headwear": "navy tweed flat cap",
+    "accessories": [
+     "flat cap"
+    ],
+    "manner": "unhurried and settled",
+    "avoid": [
+     "glasses",
+     "hand-held props (no coffee cup)",
+     "long coat (he sits on a counter stool, G-13)"
+    ],
+    "outer": "heather brown button-front knitted cardigan",
+    "wear": "heather brown button-front knitted cardigan over a blue-and-white checked collared shirt",
+    "wear_lower": "tan chinos; brown leather loafers",
+    "headwear_line": "Headwear: navy tweed flat cap.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no coffee cup); long coat (he sits on a counter stool, G-13)"
+   }
+  },
+  {
+   "key": "carol-mensah",
+   "world": "cafe-town",
+   "file": "carol.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronoun her in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "apartment resident who knows everybody",
+    "tags": [
+     "resident"
+    ],
+    "note": "Lives in the apartments. Knows everybody on the stairs by sight.",
+    "outfit": {
+     "outer": "hip-length open cardigan",
+     "outer_colour": "mustard yellow",
+     "under": "small-print navy and white blouse",
+     "legs": "navy straight trousers",
+     "feet": "white canvas slip-on shoes"
+    },
+    "accessories": [],
+    "manner": "warm and observant",
+    "avoid": [
+     "glasses",
+     "hand-held props",
+     "long cardigan below the hip (she lunches at the café, G-13)"
+    ],
+    "outer": "mustard yellow hip-length open cardigan",
+    "wear": "mustard yellow hip-length open cardigan over a small-print navy and white blouse",
+    "wear_lower": "navy straight trousers; white canvas slip-on shoes",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props; long cardigan below the hip (she lunches at the café, G-13)"
+   }
+  },
+  {
+   "key": "dev-raman",
+   "world": "cafe-town",
+   "file": "dev.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronoun his in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "routine includes work at the workplace"
+    },
+    "build": {
+     "value": [
+      "slim",
+      "average"
+     ],
+     "why": "a regular runner (tag runner, note)"
+    }
+   },
+   "fields": {
+    "role": "morning runner, works in the office",
+    "tags": [
+     "resident",
+     "runner"
+    ],
+    "note": "Runs round the park most mornings.",
+    "outfit": {
+     "outer": "fitted long-sleeve running top",
+     "outer_colour": "electric blue",
+     "under": "none",
+     "legs": "black running tights under black running shorts",
+     "feet": "white running shoes with neon-yellow soles"
+    },
+    "accessories": [
+     "sports watch"
+    ],
+    "manner": "energetic and easygoing",
+    "avoid": [
+     "glasses",
+     "hand-held props (no water bottle)",
+     "headphones over the ears"
+    ],
+    "outer": "electric blue fitted long-sleeve running top",
+    "wear": "electric blue fitted long-sleeve running top",
+    "wear_lower": "black running tights under black running shorts; white running shoes with neon-yellow soles",
+    "headwear_line": "",
+    "carried_line": "Carrying or wearing: sports watch — worn on the body, hands still empty.",
+    "avoid_line": "glasses; hand-held props (no water bottle); headphones over the ears"
+   }
+  },
+  {
+   "key": "erin-walsh",
+   "world": "cafe-town",
+   "file": "erin.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronoun her in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "reads on a park bench",
+    "tags": [
+     "resident"
+    ],
+    "note": "Reads on the same bench whenever it is dry.",
+    "outfit": {
+     "outer": "hip-length cotton utility jacket",
+     "outer_colour": "olive",
+     "under": "navy-and-white striped breton top",
+     "legs": "dark-wash straight jeans",
+     "feet": "tan suede ankle boots"
+    },
+    "accessories": [],
+    "manner": "quiet and absorbed",
+    "avoid": [
+     "glasses (reading glasses replaced by none)",
+     "hand-held props (no book in hand)",
+     "long coat (she sits on a bench, G-13)"
+    ],
+    "outer": "olive hip-length cotton utility jacket",
+    "wear": "olive hip-length cotton utility jacket over a navy-and-white striped breton top",
+    "wear_lower": "dark-wash straight jeans; tan suede ankle boots",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses (reading glasses replaced by none); hand-held props (no book in hand); long coat (she sits on a bench, G-13)"
+   }
+  },
+  {
+   "key": "felix-okafor",
+   "world": "cafe-town",
+   "file": "felix.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronouns he/his in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "neighbour who pops into the store",
+    "tags": [
+     "neighbour"
+    ],
+    "note": "Pops into the store for whatever he forgot.",
+    "outfit": {
+     "outer": "denim trucker jacket",
+     "outer_colour": "mid-blue",
+     "under": "plain white crew-neck tee",
+     "legs": "khaki cargo trousers",
+     "feet": "grey trainers"
+    },
+    "accessories": [],
+    "manner": "cheerful and a little scattered",
+    "avoid": [
+     "glasses",
+     "hand-held props (no shopping bag in hand)"
+    ],
+    "outer": "mid-blue denim trucker jacket",
+    "wear": "mid-blue denim trucker jacket over a plain white crew-neck tee",
+    "wear_lower": "khaki cargo trousers; grey trainers",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no shopping bag in hand)"
+   }
+  },
+  {
+   "key": "grace-liu",
+   "world": "cafe-town",
+   "file": "grace.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronoun her in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "office worker (tag commuter, routine work)"
+    }
+   },
+   "fields": {
+    "role": "office worker across the street",
+    "tags": [
+     "commuter"
+    ],
+    "note": "Works across the street from the café, and knows its menu by heart.",
+    "outfit": {
+     "outer": "single-breasted tailored blazer",
+     "outer_colour": "navy",
+     "under": "white silk-look blouse",
+     "legs": "grey tailored trousers",
+     "feet": "black low-heeled loafers"
+    },
+    "accessories": [
+     "tan leather shoulder bag (G-12)"
+    ],
+    "manner": "composed and quick",
+    "avoid": [
+     "glasses",
+     "hand-held props (no phone or cup)"
+    ],
+    "outer": "navy single-breasted tailored blazer",
+    "wear": "navy single-breasted tailored blazer over a white silk-look blouse",
+    "wear_lower": "grey tailored trousers; black low-heeled loafers",
+    "headwear_line": "",
+    "carried_line": "Carrying or wearing: tan leather shoulder bag — worn on the body, hands still empty.",
+    "avoid_line": "glasses; hand-held props (no phone or cup)"
+   }
+  },
+  {
+   "key": "hana-sato",
+   "world": "cafe-town",
+   "file": "hana.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronoun her in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "office worker (tag commuter, routine work)"
+    }
+   },
+   "fields": {
+    "role": "office worker, shares the office with Grace",
+    "tags": [
+     "commuter"
+    ],
+    "note": "Shares the office with Grace.",
+    "outfit": {
+     "outer": "cropped lightweight jacket",
+     "outer_colour": "sage green",
+     "under": "pale blue collared shirt",
+     "legs": "knee-length pleated charcoal skirt over dark opaque tights",
+     "feet": "black ballet flats"
+    },
+    "accessories": [],
+    "manner": "attentive and reserved",
+    "avoid": [
+     "glasses",
+     "hand-held props",
+     "skirt below the knee (she sits at the meeting table, G-13)"
+    ],
+    "outer": "sage green cropped lightweight jacket",
+    "wear": "sage green cropped lightweight jacket over a pale blue collared shirt",
+    "wear_lower": "knee-length pleated charcoal skirt over dark opaque tights; black ballet flats",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props; skirt below the knee (she sits at the meeting table, G-13)"
+   }
+  },
+  {
+   "key": "ivan-petrov",
+   "world": "cafe-town",
+   "file": "ivan.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronoun his in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "talkative passer-by",
+    "tags": [
+     "passerby"
+    ],
+    "note": "Walks the street a lot, and stops to talk to anyone who will.",
+    "outfit": {
+     "outer": "unstructured linen-blend sport jacket",
+     "outer_colour": "stone beige",
+     "under": "burgundy polo shirt",
+     "legs": "dark brown trousers",
+     "feet": "brown leather walking shoes"
+    },
+    "headwear": "straw panama hat with a dark band",
+    "accessories": [
+     "panama hat"
+    ],
+    "manner": "talkative and expansive",
+    "avoid": [
+     "glasses",
+     "hand-held props",
+     "overcoat (San Diego's climate; §7.5's overcoat replaced)"
+    ],
+    "outer": "stone beige unstructured linen-blend sport jacket",
+    "wear": "stone beige unstructured linen-blend sport jacket over a burgundy polo shirt",
+    "wear_lower": "dark brown trousers; brown leather walking shoes",
+    "headwear_line": "Headwear: straw panama hat with a dark band.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props; overcoat (San Diego's climate; §7.5's overcoat replaced)"
+   }
+  },
+  {
+   "key": "otto-brandt",
+   "world": "cafe-town",
+   "file": "otto.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronouns he/his/him in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "top-floor resident who rarely comes down",
+    "tags": [
+     "resident"
+    ],
+    "note": "Lives on the top floor. Rarely comes down.",
+    "outfit": {
+     "outer": "knitted sweater vest",
+     "outer_colour": "bottle green",
+     "under": "red-and-grey plaid flannel shirt",
+     "legs": "grey slacks",
+     "feet": "brown lace-up shoes"
+    },
+    "accessories": [],
+    "manner": "slow and private",
+    "avoid": [
+     "glasses",
+     "hand-held props (no walking stick)"
+    ],
+    "outer": "bottle green knitted sweater vest",
+    "wear": "bottle green knitted sweater vest over a red-and-grey plaid flannel shirt",
+    "wear_lower": "grey slacks; brown lace-up shoes",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no walking stick)"
+   }
+  },
+  {
+   "key": "wes-calloway",
+   "world": "cafe-town",
+   "file": "wanderer.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronoun his in the person file; the 2D identity source"
+    },
+    "age_band": {
+     "value": "20s",
+     "why": "the 2D identity source: a man in his twenties"
+    },
+    "stature_m": {
+     "value": 1.86,
+     "why": "the 2D identity source: slightly taller than everyone else; §7.5 sketch 1.86"
+    },
+    "build": {
+     "value": "average",
+     "why": "§7.5 sketch (tall, not heavy); the 2D sprite"
+    },
+    "ancestry": {
+     "value": "nh_white",
+     "why": "counted in the stratum the identity source's light skin is proxied by; operator gates (Q-S26-7)"
+    },
+    "skin_mst": {
+     "value": 2,
+     "why": "the 2D identity source: light skin"
+    },
+    "facial_hair": {
+     "value": "none",
+     "why": "the 2D identity source"
+    },
+    "hair_style": {
+     "value": "short tousled crop",
+     "why": "the 2D identity source"
+    },
+    "hair_colour": {
+     "value": "reddish brown",
+     "why": "the 2D identity source"
+    },
+    "hair_texture": {
+     "value": "wavy",
+     "why": "the 2D identity source (tousled)"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "second player seat, passing through",
+    "tags": [
+     "visitor"
+    ],
+    "note": "Passing through. Comes in after the visitor.",
+    "outfit": {
+     "outer": "zip-front casual jacket",
+     "outer_colour": "warm amber-orange",
+     "under": "cream crew-neck shirt",
+     "legs": "teal-blue trousers",
+     "feet": "dark brown lace-up boots"
+    },
+    "accessories": [
+     "travel backpack, both straps (G-12)"
+    ],
+    "manner": "relaxed and curious, a traveller",
+    "avoid": [
+     "glasses",
+     "hand-held props"
+    ],
+    "identity_source": "presentation/mineworld-default/2D/art/generated/gen_player_front.png and its provenance JSON (Q-S26-9): a man in his twenties, warm amber-orange jacket over a cream shirt, teal-blue trousers, dark brown boots, short reddish-brown hair, slightly taller than everyone else",
+    "outer": "warm amber-orange zip-front casual jacket",
+    "wear": "warm amber-orange zip-front casual jacket over a cream crew-neck shirt",
+    "wear_lower": "teal-blue trousers; dark brown lace-up boots",
+    "headwear_line": "",
+    "carried_line": "Carrying or wearing: travel backpack, both straps — worn on the body, hands still empty.",
+    "avoid_line": "glasses; hand-held props"
+   }
+  },
+  {
+   "key": "alba-ferreira",
+   "world": "lakeside",
+   "file": "alba.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronouns she/her in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "runs the bakery"
+    },
+    "hair_style": {
+     "value": [
+      "low tied-back bun",
+      "low ponytail tied at the nape",
+      "braided crown updo",
+      "high top knot",
+      "pixie cut"
+     ],
+     "why": "a baker; tied back"
+    }
+   },
+   "fields": {
+    "role": "village baker",
+    "tags": [
+     "baker"
+    ],
+    "note": "Bakes before dawn, then comes down to the water in the afternoon.",
+    "outfit": {
+     "outer": "knee-length bib baker's apron",
+     "outer_colour": "white",
+     "under": "rolled-sleeve chambray shirt",
+     "legs": "dark grey work trousers",
+     "feet": "black work clogs"
+    },
+    "accessories": [
+     "apron"
+    ],
+    "manner": "practical and warm, an early riser",
+    "avoid": [
+     "glasses",
+     "hand-held props (no bread or rod)",
+     "loose long hair over the shoulders"
+    ],
+    "outer": "white knee-length bib baker's apron",
+    "wear": "white knee-length bib baker's apron over a rolled-sleeve chambray shirt",
+    "wear_lower": "dark grey work trousers; black work clogs",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no bread or rod); loose long hair over the shoulders"
+   }
+  },
+  {
+   "key": "bruno-lindqvist",
+   "world": "lakeside",
+   "file": "bruno.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a man; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "carpenter",
+    "tags": [
+     "carpenter"
+    ],
+    "note": "Mends the benches on the square and anything else made of wood.",
+    "outfit": {
+     "outer": "flannel overshirt",
+     "outer_colour": "red-and-black buffalo check",
+     "under": "heather grey tee",
+     "legs": "tan canvas work trousers",
+     "feet": "brown leather work boots"
+    },
+    "accessories": [],
+    "manner": "patient and steady",
+    "avoid": [
+     "glasses",
+     "hand-held props (no tools)",
+     "tool belt with hanging tools"
+    ],
+    "outer": "red-and-black buffalo check flannel overshirt",
+    "wear": "red-and-black buffalo check flannel overshirt over a heather grey tee",
+    "wear_lower": "tan canvas work trousers; brown leather work boots",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no tools); tool belt with hanging tools"
+   }
+  },
+  {
+   "key": "celia-okafor",
+   "world": "lakeside",
+   "file": "celia.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a woman; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "the village's teacher"
+    }
+   },
+   "fields": {
+    "role": "schoolteacher",
+    "tags": [
+     "teacher"
+    ],
+    "note": "Teaches the village's few children and knows everybody's business.",
+    "outfit": {
+     "outer": "hip-length button cardigan",
+     "outer_colour": "teal",
+     "under": "cream floral-print blouse",
+     "legs": "navy chinos",
+     "feet": "brown leather loafers"
+    },
+    "accessories": [],
+    "manner": "brisk and curious",
+    "avoid": [
+     "glasses",
+     "hand-held props"
+    ],
+    "outer": "teal hip-length button cardigan",
+    "wear": "teal hip-length button cardigan over a cream floral-print blouse",
+    "wear_lower": "navy chinos; brown leather loafers",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props"
+   }
+  },
+  {
+   "key": "dario-russo",
+   "world": "lakeside",
+   "file": "dario.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a man; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "fisherman",
+    "tags": [
+     "fisherman"
+    ],
+    "note": "Out on the stones at first light, every day of the year.",
+    "outfit": {
+     "outer": "hip-length waterproof jacket",
+     "outer_colour": "signal yellow",
+     "under": "charcoal crew-neck jumper",
+     "legs": "dark navy waterproof trousers",
+     "feet": "dark green rubber boots"
+    },
+    "headwear": "navy knit watch cap",
+    "accessories": [
+     "knit cap"
+    ],
+    "manner": "weathered, few words",
+    "avoid": [
+     "glasses",
+     "hand-held props (no rod)"
+    ],
+    "outer": "signal yellow hip-length waterproof jacket",
+    "wear": "signal yellow hip-length waterproof jacket over a charcoal crew-neck jumper",
+    "wear_lower": "dark navy waterproof trousers; dark green rubber boots",
+    "headwear_line": "Headwear: navy knit watch cap.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no rod)"
+   }
+  },
+  {
+   "key": "elin-berg",
+   "world": "lakeside",
+   "file": "elin.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a woman; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "summer painter, a visitor",
+    "tags": [
+     "painter",
+     "visitor"
+    ],
+    "note": "Paints the lake from the end of the pier, a rod propped beside the easel.",
+    "outfit": {
+     "outer": "oversized paint-flecked linen shirt worn open",
+     "outer_colour": "off-white",
+     "under": "sage green fitted tank top",
+     "legs": "rolled cream cotton trousers",
+     "feet": "white canvas sneakers"
+    },
+    "headwear": "wide-brimmed natural straw sun hat",
+    "accessories": [
+     "sun hat"
+    ],
+    "manner": "dreamy and easygoing",
+    "avoid": [
+     "glasses",
+     "hand-held props (no brush, palette or easel)",
+     "loose long hair over the shoulders"
+    ],
+    "outer": "off-white oversized paint-flecked linen shirt worn open",
+    "wear": "off-white oversized paint-flecked linen shirt worn open over a sage green fitted tank top",
+    "wear_lower": "rolled cream cotton trousers; white canvas sneakers",
+    "headwear_line": "Headwear: wide-brimmed natural straw sun hat.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no brush, palette or easel); loose long hair over the shoulders"
+   }
+  },
+  {
+   "key": "finn-halvorsen",
+   "world": "lakeside",
+   "file": "finn.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a man; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "builds the boats"
+    }
+   },
+   "fields": {
+    "role": "boatbuilder",
+    "tags": [
+     "boatbuilder"
+    ],
+    "note": "Builds and patches the village's rowing boats.",
+    "outfit": {
+     "outer": "canvas bib overalls (dungarees)",
+     "outer_colour": "navy",
+     "under": "rust long-sleeve henley",
+     "legs": "the overalls' legs",
+     "feet": "tan leather work boots"
+    },
+    "accessories": [],
+    "manner": "strong and cheerful",
+    "avoid": [
+     "glasses",
+     "hand-held props (no tools)"
+    ],
+    "outer": "navy canvas bib overalls (dungarees)",
+    "wear": "navy canvas bib overalls (dungarees) over a rust long-sleeve henley",
+    "wear_lower": "the overalls' legs; tan leather work boots",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no tools)"
+   }
+  },
+  {
+   "key": "greta-novak",
+   "world": "lakeside",
+   "file": "greta.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a woman; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "60s",
+      "70s",
+      "80_plus"
+     ],
+     "why": "retired (tag) and fifty years of fishing from the same stone"
+    }
+   },
+   "fields": {
+    "role": "retired, the village's oldest fisher",
+    "tags": [
+     "retired"
+    ],
+    "note": "Has fished from the same stone for fifty years.",
+    "outfit": {
+     "outer": "hip-length knitted cardigan",
+     "outer_colour": "plum",
+     "under": "cream round-collared blouse",
+     "legs": "brown wool trousers",
+     "feet": "dark red rubber boots"
+    },
+    "headwear": "blue patterned headscarf tied under the chin, some hair visible at the front",
+    "accessories": [
+     "headscarf"
+    ],
+    "manner": "sharp-eyed and patient",
+    "avoid": [
+     "glasses",
+     "hand-held props (no rod, no stick)",
+     "long skirt (she sits on the shore stones, G-13)"
+    ],
+    "outer": "plum hip-length knitted cardigan",
+    "wear": "plum hip-length knitted cardigan over a cream round-collared blouse",
+    "wear_lower": "brown wool trousers; dark red rubber boots",
+    "headwear_line": "Headwear: blue patterned headscarf tied under the chin, some hair visible at the front.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no rod, no stick); long skirt (she sits on the shore stones, G-13)"
+   }
+  },
+  {
+   "key": "hugo-marchetti",
+   "world": "lakeside",
+   "file": "hugo.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "operator ruling 2026-10-15 (F-CAST-3): a man; the person file states no pronoun (follow-up: S26-cast PR adds it and re-baselines)"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "ferryman",
+    "tags": [
+     "ferryman"
+    ],
+    "note": "Rows people across the lake when anybody asks, and fishes when nobody does.",
+    "outfit": {
+     "outer": "cable-knit fisherman's jumper",
+     "outer_colour": "cream",
+     "under": "none visible",
+     "legs": "navy work trousers",
+     "feet": "brown leather deck shoes"
+    },
+    "headwear": "black peaked sailor's cap",
+    "accessories": [
+     "peaked cap"
+    ],
+    "manner": "genial and unhurried",
+    "avoid": [
+     "glasses",
+     "hand-held props (no oar)"
+    ],
+    "outer": "cream cable-knit fisherman's jumper",
+    "wear": "cream cable-knit fisherman's jumper",
+    "wear_lower": "navy work trousers; brown leather deck shoes",
+    "headwear_line": "Headwear: black peaked sailor's cap.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no oar)"
+   }
+  },
+  {
+   "key": "ines-duarte",
+   "world": "lakeside",
+   "file": "ines.yaml",
+   "fixed": {
+    "sex": {
+     "value": "female",
+     "why": "pronoun her in the person file"
+    }
+   },
+   "allowed": {
+    "age_band": {
+     "value": [
+      "20s",
+      "30s",
+      "40s",
+      "50s",
+      "60s"
+     ],
+     "why": "the village nurse"
+    }
+   },
+   "fields": {
+    "role": "village nurse, off duty",
+    "tags": [
+     "nurse"
+    ],
+    "note": "Looks in on everybody, and spends her free hours with a line in the water.",
+    "outfit": {
+     "outer": "light hip-length rain jacket",
+     "outer_colour": "coral",
+     "under": "ceil-blue scrub-style tunic",
+     "legs": "slim black trousers",
+     "feet": "white trainers"
+    },
+    "accessories": [],
+    "manner": "kind and alert",
+    "avoid": [
+     "glasses",
+     "hand-held props",
+     "stethoscope (a hanging loose prop)"
+    ],
+    "outer": "coral light hip-length rain jacket",
+    "wear": "coral light hip-length rain jacket over a ceil-blue scrub-style tunic",
+    "wear_lower": "slim black trousers; white trainers",
+    "headwear_line": "",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props; stethoscope (a hanging loose prop)"
+   }
+  },
+  {
+   "key": "nils-aaltonen",
+   "world": "lakeside",
+   "file": "nils.yaml",
+   "fixed": {
+    "sex": {
+     "value": "male",
+     "why": "pronoun He in the person file"
+    }
+   },
+   "allowed": {},
+   "fields": {
+    "role": "fisherman who sleeps little",
+    "tags": [
+     "fisherman"
+    ],
+    "note": "Sleeps little and fishes a lot.",
+    "outfit": {
+     "outer": "multi-pocket fishing vest",
+     "outer_colour": "khaki",
+     "under": "charcoal long-sleeve thermal top",
+     "legs": "olive cargo trousers",
+     "feet": "black rubber boots"
+    },
+    "headwear": "burnt-orange knit beanie",
+    "accessories": [
+     "beanie"
+    ],
+    "manner": "restless and wry",
+    "avoid": [
+     "glasses",
+     "hand-held props (no rod)"
+    ],
+    "outer": "khaki multi-pocket fishing vest",
+    "wear": "khaki multi-pocket fishing vest over a charcoal long-sleeve thermal top",
+    "wear_lower": "olive cargo trousers; black rubber boots",
+    "headwear_line": "Headwear: burnt-orange knit beanie.",
+    "carried_line": "",
+    "avoid_line": "glasses; hand-held props (no rod)"
+   }
+  }
+ ]
 }
