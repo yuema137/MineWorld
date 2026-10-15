@@ -79,13 +79,17 @@ class OpenAIImageProvider:
         reference_images: Sequence[Path] = (),
         params: GenerationParams | None = None,
     ) -> GenerationResult:
-        from .provenance import build_provenance
+        from .provenance import build_provenance, reference_record
 
         params = params or GenerationParams()
         refs = [Path(p) for p in reference_images]
         for ref in refs:
             if not ref.is_file():
                 raise FileNotFoundError(f"reference image not found: {ref}")
+        # Everything provenance needs from the references is read now, before the paid call, so
+        # nothing about a reference can fail after an image has been paid for.
+        root = _repo_root()
+        ref_records = [reference_record(ref, root) for ref in refs]
 
         request: dict[str, object] = {
             "model": self.model_id,
@@ -142,8 +146,7 @@ class OpenAIImageProvider:
             # The Images API exposes no seed, so candidates are not bit-reproducible. Recording
             # null states that honestly rather than inventing a number that reproduces nothing.
             seed=params.seed,
-            reference_images=refs,
-            repo_root=_repo_root(),
+            reference_records=ref_records,
             license_note=LICENSE_NOTE,
             redistribution_allowed=True,
         )

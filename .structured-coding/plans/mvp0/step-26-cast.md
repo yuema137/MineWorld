@@ -385,6 +385,12 @@ looked (the region, the extrema, the vertex counts) before its verdict (`ARC-23`
 | G-13 Seated (if the person sits in any world or decor) | the `Sit` pose: thighs, hips and garment hem without tear; seat contact within ± 20 mm of the seat height | A-4 (people sit at tables, benches, a counter stool) | sit runner |
 | G-14 Provenance | `scenes[0].extras.mineworld_provenance` with `source_type: generated`, `ai_generated: true`, generator and model, Meshy task id, the reference images by path and SHA-256, the OpenAI model, the post-processing; a `LICENSES/` entry per batch; an `ASSETS.md` row; no key-shaped string | `ARC-9`; `DEP-8`; D+ §4 | GLB reader; scan |
 
+**Bounded correction under `ARC-95` (operator ruling F-CAST-5, 2026-10-15; operator answered directly in the
+primary session).** G-4's last clause, "the brief's stature itself within §7.2's realistic range", is read
+as: within the world's population profile's band for the same sex and age band, mean ± 2 SD (the profile's
+stature attribute, e.g. NHANES 2015–2018 in `characters/populations/san-diego-county.yaml`). §7.2's fixed
+windows (women 1.55–1.78 m, men 1.66–1.92 m) are superseded for that check by §7.4a's real-world profile.
+
 ### 6.2 The scorecard (agent, then operator)
 
 Per character, against **that person's approved reference** (`ARC-17`: the reference is the identity source
@@ -441,6 +447,45 @@ used as **candidates** (`ARC-9`), and later batches proceed; nothing is called a
 operator says so. The verdicts are recorded in `HUMAN_REVIEW_QUEUE.md` under a
 new `VIS-3D-CAST-<batch>` milestone, and an accepted character's `ASSETS.md` row changes from candidate to
 asset only then (`ARC-9`).
+
+**Pose sheet per person (operator, 2026-10-15; binding).** The operator's words: "npc人物形象设计好之后，你需要截图给我看，
+每个npc都要换几个不同动作截一下图，而且最好有坐在椅子上等等不同姿势". In English: once each NPC's look is done, the operator
+wants screenshots of every NPC in several different actions and poses, including sitting on a chair.
+
+Every person's runtime sheet therefore adds a **pose row**: in-client screenshots from the 3D client at
+the reference framing and lighting, using the same clips and rig as Vera. The row has these frames:
+
+| # | Pose / action | Framing |
+| --- | --- | --- |
+| P-1 | idle stand (A-pose relaxed) | front, three-quarter, rear |
+| P-2 | walk, mid-stride (contact and passing frames) | side |
+| P-3 | run or brisk walk, mid-stride | side |
+| P-4 | **seated on a café chair** at a table (G-13), hands on the table | three-quarter |
+| P-5 | seated on a bench or counter stool, whichever the person's world has | three-quarter |
+| P-6 | talking / gesturing to another person (the conversation pose) | two-shot with Vera |
+| P-7 | reaching or handing an item over the counter (the buy/give interaction) | three-quarter |
+| P-8 | face close-up at conversation distance (2.5 m) | front |
+
+Rules for the pose row:
+- Every frame is rendered by a scripted, deterministic probe (`--cast-sheet <look>`), not hand-posed, so
+  it can be re-shot after any change.
+- Every frame is checked for clipping and tearing by the same detectors as G-9 and G-13 before it reaches
+  the sheet. A frame that fails is shown, red-flagged, never hidden.
+- A person whose world has no seat (none at present) still gets P-4, because seats are common decor.
+- The pose sheet is part of the runtime gate, so it is batched into the big milestone like the rest of
+  that gate. The pilot's three people (S26-b2) get their pose sheets first.
+- Acceptance additions:
+  - X-26: a planted missing seat-contact fails P-4 and is flagged red on the sheet.
+  - X-27: the sheet for a person is byte-identical when re-shot at the same commit.
+
+**Dated ruling note (operator, 2026-10-15; binding; operator answered directly in the primary session).**
+The operator's words: "人物设计你完全可以派subagent并行去做，每个人物一个agent" and "请你立刻开始派出subagent干这个事情，
+完成以后每个人物，至少3个不同姿势，截图给我看". In English: character design may be done by subagents in parallel, one
+agent per person; start now; and when each person is done, show the operator screenshots of at least three
+different poses. Amendment to this section: for the cast, a person's pose screenshots (at least three
+distinct frames of the pose row above, for example P-1, P-2 and P-4) are shown to the operator **as soon as
+that person is done**, instead of being parked for the big milestone's single checklist. The rest of the
+runtime gate (the side-by-side sheet, scorecard and verdict) is unchanged by this note.
 
 ### 6.5 A failed generation (a run is a sample)
 
@@ -501,6 +546,9 @@ reference cited):
   members are briefed shorter accordingly, and slightly stooped where the biography says so.
 - **Segments.** G-6's Winter ratios. Route D+'s body measured 0.56 m shoulder to wrist at 1.767 m
   (D+ §8.2), close to Winter's 0.332 H = 0.587 m; CharMorph's 0.48 m was the short one.
+- **Dated note (`ARC-95`, 2026-10-15, operator ruling F-CAST-5).** For a cast drawn from a population profile
+  (§7.4a), the realistic range is the profile's band for the person's sex and age band, mean ± 2 SD; G-4
+  checks that (§6.1, dated note). The windows above remain the default only where no profile is named.
 
 ### 7.3 The distinctness rule
 
@@ -777,6 +825,18 @@ OpenAI call outside the caps of Q-S26-3, and every call follows §5.5.
 | S26-d B2 (lakeside, 10) | MVP-0 **as café-street extras only** (E-2); their own world's 3D use is MVP-1 (Q-S26-1) | B1's generation finished; B2's casting pages ruled; the re-estimate still inside the cap | Opus, as B1 |
 | S26-e | MVP-0 | S26-a merged; per batch, that batch's casting gate ruled (the 2D sprite is conditioned on the approved reference) | Haiku |
 | S26-f | MVP-0 | R-a merged; RL-b2 merged; S26-c2 and S26-d B1 merged; the UASTC before/after portraits ruled (else the ~350 MB limit applies, Q-S26-5) | Haiku |
+
+**Dated ruling note (operator, 2026-10-15; binding; operator answered directly in the primary session).**
+The operator's words: "人物设计你完全可以派subagent并行去做，每个人物一个agent" and "请你立刻开始派出subagent干这个事情，
+完成以后每个人物，至少3个不同姿势，截图给我看". In English: one agent per person, all in parallel, starting now; when
+a person is done, at least three different poses are screenshotted and shown to the operator (§6.4, dated
+note). Amendments to the table above: (1) the pilot-first ordering no longer serialises the cast — a
+casting director first produces the shared casting inputs (style template v1 and anchor, the population
+profiles, the seeded assignment and every brief and prompt pack), and then every person of B0, B1 and B2 is
+built in parallel; (2) the implementer of the per-person work in S26-b2, S26-cast and S26-d is **one agent
+per person**, each in its own worktree, with the primary session assigning, reviewing and scheduling. The
+caps of Q-S26-3, the casting gate before any Meshy credit (§6.4 gate 1) and §5.5 still apply to every one
+of those agents.
 
 Runtime review pages (§6.4 gate 2) never hold a PR's start: they are parked for the next big milestone's
 single checklist, and the characters they cover stay candidates until then (`ARC-9`).

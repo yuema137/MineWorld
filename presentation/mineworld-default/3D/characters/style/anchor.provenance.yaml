@@ -1,0 +1,31 @@
+# ARC-9 provenance sidecar for anchor.png — the style anchor of step-26 §7.4a item 1.
+#
+# anchor.png is a byte-for-byte copy of the approved identity and style reference of the protagonist
+# (Vera Lindgren). Its full provenance record is the source's: references/PROVENANCE.md §§1-3. Nothing in
+# the file was changed; the C2PA manifest is kept (do not strip it when re-saving).
+source_type: generated
+copy_of:
+  path: presentation/mineworld-default/3D/references/04_character_closeup.png
+  sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
+  provenance: presentation/mineworld-default/3D/references/PROVENANCE.md
+sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
+generation:
+  tool: ChatGPT (operator-produced)
+  model: gpt-image (C2PA software agent ChatGPT, version gpt-image)
+  date: '2026-09-26'
+  prompt: null   # not recorded at generation time (PROVENANCE.md, header); never reconstructed
+human_curated: true
+role:
+  used_as: style anchor for every cast reference image (template v1), for quality tier and style only,
+    never for identity (step-26 §5.2 stage 2)
+  why_this_image: Vera has no approved full-body front reference. Her identity source of truth (ARC-19)
+    and the input of her accepted Meshy run apose_v3 (CHARACTER_ROUTE_D_PLUS.md §3, fit.yaml
+    source.reference) is this chest-up street illustration. It is therefore the only approved image of
+    her; see CASTING.md finding F-CAST-1.
+approval:
+  status: approved
+  approved_by: operator (as the character reference, 2026-09-26; as accepted VIS-3D-GODOT-1, 2026-10-07)
+license:
+  redistribution_allowed: true
+  note: OpenAI Output assigned to the user (docs/DECISIONS.md DEP-8); distributed under the repository's MIT
+    licence; disclosed as AI-generated.

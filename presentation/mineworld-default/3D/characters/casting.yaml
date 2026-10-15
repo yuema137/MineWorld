@@ -1,0 +1,37 @@
+# Casting configuration of the mineworld-default Presentation Pack (step-26 §7.4a item 6: infra, not a
+# fixed cast). Read by tools/character_pipeline/casting/cast_director.py --config <this file>.
+#
+# Every path is relative to the repository root. A user's pack writes its own casting.yaml: other worlds,
+# another population profile (another city, a fantasy setting, authored figures), another template, another
+# seed and other distinctness categories — without code changes. The tool knows no attribute name; the
+# profile defines the attributes, the template phrases them, and this file says which to compare.
+version: 1
+seed: mineworld-s26-cast-v1
+template: presentation/mineworld-default/3D/characters/style/template.yaml
+inputs: presentation/mineworld-default/3D/characters/cast/casting_inputs.json
+output_dir: presentation/mineworld-default/3D/characters/cast
+max_attempts: 200
+
+worlds:
+  cafe-town:
+    profile: presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
+    worlds: [social-cafe, market-town]
+  lakeside:
+    profile: presentation/mineworld-default/3D/characters/populations/lakeside.yaml
+    worlds: [lakeside]
+
+# §7.3: any two people of one world differ in at least `min_categories` of these categories. A category
+# differs when any listed attribute (or casting-input field) differs, or, with `min_diff`, when the numeric
+# difference reaches it.
+distinctness:
+  min_categories: 3
+  categories:
+    age: { attrs: [age_band] }
+    stature: { attrs: [stature_m], min_diff: 0.05 }
+    build: { attrs: [build] }
+    skin: { attrs: [skin_mst], min_diff: 2 }
+    hair: { attrs: [hair_style, hair_colour] }
+    outer: { attrs: [outer] }
+
+# Columns of CASTING.md's cast table, in order.
+table: [sex, apparent_age, stature_m, build, ancestry, skin_mst, hair_colour, hair_texture, hair_style, outer]
