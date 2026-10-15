@@ -92,7 +92,7 @@ LIMB_SEGMENTS: tuple[tuple[str, str, str], ...] = (
 )
 
 # Parity (design §5.7, AB1-8): the bounds of `compare`, one literal per row, fixed before any run (ARC-23).
-PARITY_JOINT_M = 0.001# step-26 §6 "within 1 mm": Euclidean distance of each joint's world position
+PARITY_JOINT_M = 0.001  # step-26 §6 "within 1 mm": Euclidean distance of each joint's world position
 PARITY_POSITION_M = 1e-05  # design §5.7: max abs component difference of each vertex, by index
 PARITY_UV = 1e-06  # design §5.7: max abs difference of each UV, by index
 PARITY_WEIGHT = 0.005  # design §5.7: "equal after rounding" to two decimals, read as half a step

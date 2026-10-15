@@ -1190,7 +1190,7 @@ or `tools/asset_generation/` changed.
 | B6 | this commit | [x] steps 1–6: `mwcast/mask.py` (`alpha_bbox`, `run_mask`), `mwcast/texture.py` (`compare_texels`, `compare_masks`), `requirements.txt` (the four pins), `cli.py` (`mask`, `compare-texture [--alpha-iou]`), `tests/test_pipeline.py` (3 tests); texel bounds in `standard.py` | [x] 52 pytest passed; ruff and format clean; pyright 0 errors; imports of `rembg`, `PIL`, `numpy` are inside functions (the tests import the modules with none installed) | [x] no third-party import at module level; deviation F-B1-B6-1 recorded below |
 | B7 | this commit | [x] steps 1–6: `blender/{LICENSE (cmp-identical), README.md, common.py, gameready.py, fit_bind.py, weights_fingers.py, weights_pack.py, flecks.py, export.py, render_ortho.py, render_bones.py, dump_rig.py}`; ruff check and format clean under the `blender/*` rule relaxation (F-B1-B7-2) | [x] step 7 smoke: real `blender 5.2.2` on `vitruvian.glb` via `dump_rig.py`, exit 0, 52 bone lines (log read in full, `smoke.log`); I-B1-9 literal scan recorded in §2.4; `cmp` of LICENSE | [x] per-script port diff recorded in the deviations list; no script imports another except `common` |
 | B8 | this commit | [x] steps 1–5: `mwcast/blender.py` (find, pin check, command), `mwcast/pipeline.py` (`plan`, `stage_params`, `Job`, `run` with the SHA-256 stop and the run manifest), `mwcast/compare.py` (§5.7 rows), `cli.py` (`run`, `compare`), `standard.py` (PARITY_* literals), `tests/test_compare.py` (7), `tests/test_pipeline.py` (+7) | [x] 65 pytest passed; ruff check and format clean; pyright 0 errors; mutation (`PARITY_JOINT_M = 0.002`) → the 1.1 mm test red, reverted green; the accepted asset compares equal to itself | [x] subprocess only with argument lists; no stage reads an environment variable; `UrllibTransport` untouched. Deviations: `check_pin` returns whether the named version was used (not `None`); `compare --json` not added (the rows print as text). Procedural: one empty `cat >>` heredoc was run by mistake against `tests/test_pipeline.py` (it wrote nothing; the file was then edited with Edit only; recorded, not repeated) |
-| B9 | — | [ ] | [ ] | [ ] |
+| B9 | this commit | [x] steps 1–6: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/{fit.yaml, generation_log.yaml}`; `tools/character_pipeline/godot/{character.gltf.import, inspect_import.gd}`; `tools/character_pipeline/templates/MESHY_CAST_BATCH.txt`; `tests/test_records.py` (+2 Vera tests, +1 check-characters test) | [x] 68 pytest passed; ruff check and format clean; pyright 0 errors; `cast.py check-characters` → `vera-lindgren: records only (no character.yaml); overrides ['flecks.enabled']`, 0 failing. The Godot files are not run yet (B10 step 6) | [x] trace table below; no `task.json` URL copied; `charmorph_front_y_at_hips` kept at −0.045356 (see F-B1-B9-1) |
 | B10 | — | [ ] | [ ] | [ ] |
 | B11 | — | [ ] | [ ] | [ ] |
 
@@ -1264,6 +1264,28 @@ or `tools/asset_generation/` changed.
   F (pyflakes) still applies.
   **Open: the primary session must decide before B10 step 5 is recorded as PASS**, with these numbers; B10's FAIL
   policy applies (localize, no bound change, material stop if AB1-8 cannot hold).
+- **B9 finding F-B1-B9-1 (resolved from the design text, recorded):** F-B1-B7-1 says the measured −0.0453563 replaces
+  −0.045356 "at B9". The design's B9 step 1 and AB1-14 (0 overrides beyond `flecks.enabled`) require −0.045356 at B9,
+  and B10 step 1 replaces it only when the measured value differs by more than 1e-5. The measurement differs by
+  3.1e-7 (body_g5 `cm_vitruvian` −0.04535631090; vitruvian `Body` −0.04535621032), so the file keeps −0.045356. The
+  B10 measurement is still taken and recorded.
+- **B9 trace table (every number of `fit.yaml` to its D+ line, read 2026-10-14 from `/Users/yuema137/mineworld-demos/i23d/`
+  and `docs/references/CHARACTER_ROUTE_D_PLUS.md`):** `target_triangles` 95000 `gameready_mesh.py:22`; `eye_z_raw` 0.779
+  `:23`; `sole_z_m` −0.0177 `:24`; `eye_from_sole_m` 1.655 `:25`; `centre_band_z_raw` 0.05 and `centre_band_half_raw`
+  0.03 `:39`; `weld_m` 1e-06 `:54`; `bake.size_px` 2048 `:119`; `bake.samples` 1 `:135`; `bake.margin_px` 8 `:144`;
+  `bake.extrusion_m` 0.015 and `bake.ray_m` 0.04 `:139-140`; `bake.device` auto (`gameready_mesh.py:126-131`, Metal when
+  available); `mask.crop_box` [230, 40, 860, 1086] `prep_inputs.py:47`; `mask.fg_ratio` 0.85 `:22`; `mask.alpha_threshold`
+  16 `:24`; `mask.size_px` 1024 `:31`; `mask.session` `birefnet-portrait` `:42`; `charmorph_landmarks_z` `rig_meshy.py:85`;
+  `picks` (all sixteen) `rig_meshy.py:36-46`; `px_per_raw_unit` 512 `rig_meshy.py:30`; `head_rigid` 0.01 and 0.16
+  `rig_meshy.py:215`; `pack_core` 0.075, 0.02, 0.10, 0.12 `rig_meshy.py:218-219`; `smooth` 0.5, 4, 4 `rig_meshy.py:238-240`;
+  `fingers` 0.95, power 6, keep 2 `reweight_fingers.py:9, 42, 51-53`; `pack_panels` x_in 0.12 `reweight_pack.py:20`, x_out 0.21
+  `:20` (env default), sleeve share 0.5 `:9`, smooth repeat 8 `:76`; `flecks` z_min 1.65, dark 0.30, lighter 0.12
+  `fix_flecks.py:21-22`; `source.download_sha256` and `input_sha256` and `meshy_task` from `apose_v3/task.json` and the
+  B1 hashes (PIPELINE §14); `export.material` `MW_Cast` (step-26 §4.5). The `generation_log.yaml` runs follow D+ §3's table
+  (`docs/references/CHARACTER_ROUTE_D_PLUS.md:45-47`); `consumed_credits` 30 from `apose_v3/task.json`.
+- **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
+  to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
+  used; the B8 empty append wrote nothing.
 - **B2 record scope:** `records.py` types every section of `fit.yaml` as a frozen dataclass; the schema is the
   PIPELINE §4.1 table. `generation_log.yaml` run params are `raw` or `remesh` with a target polycount (D+ §3).
 - **B0 evidence (2026-10-14):** `check_doc_headings.py` PASS (223 sections, 32 documents); `check_decision_ids.py`

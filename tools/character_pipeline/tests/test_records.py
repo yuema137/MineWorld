@@ -240,3 +240,32 @@ def test_scratch_accepts_a_path_outside_the_repository(tmp_path: Path) -> None:
     outside = tmp_path / "scratch"
 
     assert resolve_scratch(None, {"MINEWORLD_CAST_SCRATCH": str(outside)}, repo) == outside.resolve()
+
+
+REPO = Path(__file__).resolve().parents[3]
+VERA_DIR = REPO / "presentation/mineworld-default/3D/characters/cast/vera-lindgren"
+
+
+def test_vera_committed_records_load_with_one_override() -> None:
+    fit = parse_fit(load_record(VERA_DIR / "fit.yaml"), VERA_DIR / "fit.yaml")
+
+    assert overrides(fit) == ["flecks.enabled"]
+
+
+def test_vera_committed_generation_log_totals_three_runs_ninety_credits_one_kept() -> None:
+    log = parse_generation_log(
+        load_record(VERA_DIR / "generation_log.yaml"), VERA_DIR / "generation_log.yaml"
+    )
+
+    assert len(log.runs) == 3
+    assert log.total_credits == 90
+    assert log.kept == 1
+
+
+def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from mwcast.cli import main
+
+    assert main(["check-characters"]) == 0
+    assert "vera-lindgren: records only (no character.yaml)" in capsys.readouterr().out
