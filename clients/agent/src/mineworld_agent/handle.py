@@ -27,6 +27,9 @@ from mineworld_sdk.errors import SessionClosed
 from mineworld_sdk.perceived import CursorCell, PerceivedBatch
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
 from mineworld_sdk.resuming import ResumingSeat, Seen
+from mineworld_sdk.session import Outcome as SdkOutcome
+from mineworld_sdk.session import RefusedRequest
+from mineworld_sdk.wire.contract import ActionRequest
 from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
 
 from mineworld_agent.inbox import Inbox
@@ -88,6 +91,7 @@ class Handle:
     _head_known: bool = False
     _held: list[PerceivedBatch] = field(default_factory=list[PerceivedBatch])
     _added_through: EventId | None = None
+    _not_before: float = 0.0
     _saved_connection: int = 0
     _saved_cursor: EventId | None = None
 
@@ -172,6 +176,27 @@ class Handle:
     def reflected(self) -> bool:
         """Whether the newest observation reflects the newest answered request."""
         return self.newest is not None and self._acted_through(self.newest)
+
+    # ── Sending ───────────────────────────────────────────────────────────────────────────────────
+
+    async def send(self, request: ActionRequest) -> tuple[int, SdkOutcome]:
+        """One request on this seat, one in flight (the lock), never sooner than the server's last
+        `rate_limited { retry_after_ms }` allows (R-S27c-a-1; step-27 §6.5). Returns the connection it
+        went on and the answer; raises what `ResumingSeat.submit` raises."""
+        async with self.lock:
+            wait = self.backoff()
+            if wait > 0:
+                await self.sleep(wait)
+            connection = self.seat.connection
+            answer = await self.seat.submit(request)
+            if isinstance(answer, RefusedRequest) and answer.code == "rate_limited":
+                after = answer.retry_after_ms if answer.retry_after_ms is not None else 1000
+                self._not_before = self.wall() + after / 1000
+            return connection, answer
+
+    def backoff(self) -> float:
+        """Wall seconds before this handle may submit again (0 when it may now)."""
+        return max(0.0, self._not_before - self.wall())
 
     async def reflecting(self, patience: float) -> None:
         """Waits, at most `patience` wall seconds, for an observation that reflects the newest answered

@@ -102,9 +102,11 @@ SeatLossKind = Literal[
     "world_changed",
     "protocol_violation",
     "gave_up",
+    "not_granted",
     "idle_released",
 ]
-"""Why a seat ended for good: the SDK's `SeatLossReason`, plus `idle_released` (step-27 §5.9)."""
+"""Why a seat ended for good: the SDK's `SeatLossReason` (with S27-a's `not_granted`), plus
+`idle_released` (step-27 §5.9)."""
 
 JoinRefusalCode = Literal[
     "unknown_seat",

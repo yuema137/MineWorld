@@ -1001,6 +1001,23 @@ as the authority for the added fields.
     Linux. `test` failed in `tools/cli/tests/hosted_town.rs::the_hosted_town_lives_within_its_tick_budget`:
     "the p99 tick took 51.7 ms, over 50 ms (p50 0.6 ms, max 175 ms)". This PR changes no Rust, so this is a
     timing budget on a loaded shared runner (an environment flake). The next push reruns it.
+  - *No CI on `7a17552`; merge of `origin/main` (`858a8b0`).* No workflow ran on `7a17552` because the PR
+    could not be merged: `origin/main` had moved on (S27-a #205, S25c #198, DL-b #210, FG-c #201, S28 docs),
+    and `docs/DECISIONS.md` conflicted (`ARC-96` against `DEP-50`, `ARC-97`, `DEP-57`). The resolution keeps
+    both: `ARC-96`, then main's records. Main's file ends with a stray `>` line, which is kept as main has it.
+    `check_decision_ids` reports 126 ids, all distinct; `check_doc_headings` 238 sections, none duplicated.
+  - *R-S27c-a-1 wired (S27-a merged first).*
+    - The SDK now carries `refused.retry_after_ms` and the codes `rate_limited` and `not_granted`.
+    - `SeatLossKind` gains `not_granted`, as the SDK's `SeatLossReason` does. A join refused `not_granted` is
+      `JoinRefused("not_granted")`.
+    - Every submit of a handle (acts and the pacer) goes through `Handle.send`. It holds the lock and waits
+      until the last `rate_limited { retry_after_ms }` has elapsed (1 s when the server gave no figure). The
+      act's outcome is `refused { rate_limited }`, and the pacer carries on after the wait.
+    - `test_courtesy.py` (2 tests) checks this. With the wait removed,
+      `test_the_next_submit_waits_what_the_server_asked` goes red; it was reverted (`cmp` clean).
+    - The grant variant of the play-test is S27-d's (S27-a R-S27d-a-2).
+    - The real-binary files were not re-run locally against the merged server (R-LOAD-1: no local rebuild on
+      the loaded machine). CI on the exact head runs them on three OSes.
   - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
     §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
     F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.

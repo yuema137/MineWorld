@@ -517,14 +517,12 @@ class Player:
 
     async def _submit(self, handle: Handle, request: ActionRequest) -> Outcome:
         """One request on the handle's own seat, one in flight (the submit lock)."""
-        async with handle.lock:
-            connection = handle.seat.connection
-            try:
-                answer = await handle.seat.submit(request)
-            except (AnswerLost, NotConnected, SdkSeatLost) as error:
-                if isinstance(error, SdkSeatLost):
-                    handle.lost = handle.lost or error.reason
-                return unanswered(error)
+        try:
+            connection, answer = await handle.send(request)
+        except (AnswerLost, NotConnected, SdkSeatLost) as error:
+            if isinstance(error, SdkSeatLost):
+                handle.lost = handle.lost or error.reason
+            return unanswered(error)
         caused: list[EventLine] = []
         if isinstance(answer, Answered):
             handle.last_action = (connection, answer.action_id)
@@ -544,23 +542,21 @@ class Player:
             )
         except NotOffered:
             return "stop"
-        async with handle.lock:
-            connection = handle.seat.connection
-            try:
-                answer = await handle.seat.submit(request)
-            except (AnswerLost, NotConnected):
-                return "stepped"
-            except SdkSeatLost as lost:
-                handle.lost = handle.lost or lost.reason
-                return "stop"
+        try:
+            connection, answer = await handle.send(request)
+        except (AnswerLost, NotConnected):
+            return "stepped"
+        except SdkSeatLost as lost:
+            handle.lost = handle.lost or lost.reason
+            return "stop"
         if isinstance(answer, RefusedRequest):
-            # Paused: the pacer sees the clock and sends nothing until the resume. Rate limited (S27-a):
-            # a courtesy wait; `retry_after_ms` is wired when S27-a lands (R-S27c-a-1). Anything else
-            # ends the walk.
+            # Paused: the pacer sees the clock and sends nothing until the resume. Rate limited
+            # (S27-a, R-S27c-a-1): the handle's next submit already waits `retry_after_ms`; the walk
+            # goes on after it. Anything else ends the walk.
             if answer.code == "paused":
                 return "stepped"
-            if str(answer.code) == "rate_limited":
-                return Wait(1.0)
+            if answer.code == "rate_limited":
+                return Wait(handle.backoff())
             return "stop"
         handle.last_action = (connection, answer.action_id)
         return "stepped" if isinstance(answer.result, WireAccepted) else "stop"
