@@ -38,7 +38,8 @@ writer). Coordinator ruling R-LOAD-1 in force (only touched tests locally, ruff/
 
 ## Next actions
 
-1. C6 (`b9f571f`), C7 (`b57ea61`), C8 (real binary, all four files PASS on macOS) done.
-2. C9: PR #171 (12d) check (ruling 2) → item names or F-S27c-9; AC-c-12 per R-LOAD-1 (CI is the
-   workspace gate); push; `gh pr create`; CI on the exact head (fast, test, test-macos, test-windows,
-   platforms, python ×3); READY FOR OPERATOR REVIEW; never merge.
+1. C6 (`b9f571f`), C7 (`b57ea61`), C8 (`abd37a4`, real binary, all four files PASS on macOS), C9 ledger
+   (F-S27c-9: 12d not merged; AC-c-12 per R-LOAD-1) done.
+2. Push; `gh pr create`; CI on the exact head (fast, test, test-macos, test-windows, platforms, python ×3);
+   repair if red; then READY FOR OPERATOR REVIEW — never merge.
+3. After 12d merges (separately authorised): merge `origin/main`, check item names (ruling 2).

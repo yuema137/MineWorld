@@ -646,8 +646,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C5a (R-S27c-INFO) | 0f7bc7f | [x] | [x] | [x] |
 | C6 | b9f571f | [x] | [x] | [x] |
 | C7 | b57ea61 | [x] | [x] | [x] |
-| C8 | (this commit) | [x] | [x] | [x] |
-| C9 | — | [ ] | [ ] | [ ] |
+| C8 | abd37a4 | [x] | [x] | [x] |
+| C9 | (this commit) | [x] | [ ] CI on the exact head: in the PR | [x] |
 
 ### Evidence
 
@@ -952,6 +952,36 @@ as the authority for the added fields.
   offered with no enabled System; the arm is unit-owned in `test_outcomes.py`); AC-c-1's diff against a
   plain-SDK run (S27-d, R-S27d-c-2); the grant variants (S27-a, R-S27c-a-1).
 
+- **E-C9 (close-out).**
+  - *Ruling 2, item names.* PR #171 (S15 12d) is **open, not merged** at close-out (`gh pr view 171`:
+    `OPEN`, `mergedAt: null`; `origin/main` still `f772a18`). Item names are therefore not perceivable on
+    this base: **F-S27c-9 "item names not disclosed by any pack" — primary follow-up, not a stop.**
+    `ItemCount.name` and the item a `buy` sells (`OfferLine.about`) stay typed and `None`/by reference.
+    When 12d merges: merge `origin/main`, check whether an item's name reaches the observation (or the shop's
+    listing) for this observer, populate `ItemCount.name` (and a name beside `about`) as `WorldText`, and add
+    the test; if 12d names items only in content the server never discloses, F-S27c-9 stays open for the pack.
+  - *Scope.* `git diff --name-only origin/main...HEAD` outside `clients/agent/`: the two plan documents,
+    `.structured-coding/standards.md`, `docs/DECISIONS.md` (`ARC-96`), `pyproject.toml`, `scripts/ci_layer.py`,
+    `sdk/python/src/mineworld_sdk/resuming.py` and its test (C2, QS27c-1), `uv.lock` — §2.1 exactly; nothing
+    under `server/`, `contracts/`, `kernel/`, `systems/`, `worlds/`, `cognition/`. No new dependency
+    (`clients/agent/pyproject.toml`: `mineworld-sdk`, `pydantic`).
+  - *AC-c-12 (removable), under R-LOAD-1.* `git grep` for `mineworld_agent`, `mineworld-agent`,
+    `clients/agent` outside the member and its plans finds only the wiring (`pyproject.toml` `members` and
+    pyright `include`, `scripts/ci_layer.py`, `uv.lock`): nothing imports the member. The design's local run
+    (remove the member, `uv lock`, the SDK and cognition suites and `cargo test`) is **not run locally**: the
+    coordinator's R-LOAD-1 forbids a local `cargo test --workspace` or whole-repository suite on the shared
+    machine and makes CI on the exact head the workspace gate. Classification: INCONCLUSIVE locally; the
+    other members' suites and `cargo test` run green with the member present in CI (the PR's `fast`, `test*`
+    and `python` jobs), and the grep shows no inbound dependency.
+  - *§8 acceptance, as measured.* AC-c-1 PASS (frames), AC-c-2 PASS, AC-c-3 PASS for `TooFarAway`
+    (`Unavailable` unit-owned, recorded), AC-c-4 PASS, AC-c-5 PASS, AC-c-6 PASS (1.00/s), AC-c-7 PASS
+    (360 world s), AC-c-8 PASS, AC-c-9 PASS, AC-c-10 PASS, AC-c-11 PASS with M-c-6 classified equivalent
+    (E-C8), AC-c-12 as above. Each real-binary file ≤ 90 s on this machine (12.4, 1.5, 32.3, 5.4 s); the
+    Linux and Windows timings are the PR's CI.
+  - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
+    §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
+    F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.
+
 ### Implementation decisions (bounded, within step-27 §5)
 
 | Id | Question | Decision and why |
@@ -987,8 +1017,12 @@ as the authority for the added fields.
 
 ### Mutations
 
-(none run yet)
+Recorded with each commit's evidence: M-c-5, M-c-4 (E-C4); M-i-1 … M-i-11 (C5a); M-c-3 and pause (E-C6); the
+outcome table (E-C7); M-c-2, M-c-7 red and M-c-6 equivalent (E-C8).
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2)
+Bounded, each recorded where it arose: R-S27c-INFO's revision (C5a, D-c-8 … D-c-11), D-c-12 … D-c-21
+(C6–C8), the modules `disclosed.py`, `handle.py`, `outcomes.py` beside §5.1's list (D-c-14). Findings for
+others: F-S27c-8 (resolved but for names), **F-S27c-9** (item names, primary follow-up). No material
+deviation.
