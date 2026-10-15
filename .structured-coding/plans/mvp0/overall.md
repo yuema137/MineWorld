@@ -401,7 +401,7 @@ All are MVP-0. S29–S33 are release-blocking under the operator's principle of 
 | S29 | [step-29-station-landmark.md](step-29-station-landmark.md) | APPROVED 2026-10-15 | every town's train station and signature landmark; after Milestone F, before the first public release |
 | S30 | [step-30-person-attributes.md](step-30-person-attributes.md) | APPROVED 2026-10-15 | person attributes and dependency-aware population sampling |
 | S31 | [step-31-wealth-prices.md](step-31-wealth-prices.md) | APPROVED 2026-10-15 | wealth, seller-set prices, the notice board and the price reporter |
-| S32 | [step-32-wardrobe.md](step-32-wardrobe.md) | APPROVED 2026-10-15 | changeable hair and clothing, starting outfits, buying clothes; the modular cast route |
+| S32 | [step-32-wardrobe.md](step-32-wardrobe.md) | APPROVED 2026-10-15 | changeable hair and clothing, starting outfits, buying clothes; the modular cast route; S32-p (wardrobe pilot) PR design FROZEN 2026-10-15 ([`pr-s32p-wardrobe-pilot.md`](pr-s32p-wardrobe-pilot.md), #231), implementation awaits the tooling on main |
 | S33 | [step-33-lakeside-3d.md](step-33-lakeside-3d.md) | APPROVED 2026-10-15 | the Lakeside world in 3D: Lake Cuyamaca setting and far field, the pier landmark and the halt, interiors, sit points, its own cast, `3d-lakeside.pck`; after Milestone F's checklist |
 
 **Re-ruling recorded (2026-10-15, S33 Q-S33-10).** Lakeside's own 3D world is MVP-0 and release-blocking. This

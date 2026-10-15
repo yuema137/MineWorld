@@ -1,18 +1,20 @@
 # PR S32-p — The wardrobe pilot: route B on Vera, Ivan and Hana
 
-## Lifecycle: DRAFT — PR design, awaiting primary-session and operator review (not frozen)
+## DESIGN FROZEN — 2026-10-15 (operator approved the freeze in the primary session: "同意冻结并实施")
 
 ```text
-Design revision:        revision 0 (2026-10-15), DRAFT
+Design revision:        revision 1 (2026-10-15), FROZEN 2026-10-15
 Author:                 S32-p PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s32p, branch docs/pr-design-s32p,
                         planning base origin/main @ 5d901e85 (#226, step-32 APPROVED, merged)
-Approved by / evidence: none yet. The freeze header is the primary session's to write, after §15 is ruled
+Approved by / evidence: §15.1 ruled 2026-10-15: Q-S32p-2…6 by the operator (answered directly in the
+                        primary session), Q-S32p-1 and Q-S32p-7 by the primary; freeze "同意冻结并实施";
+                        relayed by the coordinator
 Implementation base:    origin/main at C0, with the tooling base of §14 on it; C0 records the commit
 Start condition:        §14 (honest state on 5d901e85: NOT startable today)
 Execution contract:     §12 (filled, endpoint authority included)
 Implementer:            Opus-class (step-32 §16, the S32-p row: research and vision judgement)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-15
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-32-wardrobe.md`](step-32-wardrobe.md) (`APPROVED 2026-10-15`; rulings §20.1)
@@ -34,7 +36,7 @@ hidden tool), `DEP-73` (garment generation and fitting tools), `DEP-74` (rejecte
 id is needed. `ARC-135…137`, `ARC-139`, `ARC-142`, `DEP-75` and `DEP-76` belong to other S32 PRs.
 
 **Money.** This design spends nothing. Its implementation spends Meshy credits (hard cap **1,200**, §4.6) and
-OpenAI image calls (cap asked in Q-S32p-6, §4.7), and only after the start condition of §14 holds.
+OpenAI image calls (≤ 70, ruled in Q-S32p-6, §4.7), and only after the start condition of §14 holds.
 
 ---
 
@@ -452,7 +454,7 @@ Rules, enforced by `mwcast/wardrobe/budget.py` and the generalised ledger (C1):
 | --- | --- |
 | R-1 base-layer: 3 subjects × 3 candidates, ≤ 2 replacements each | 9 + ≤ 6 |
 | R-7 garment and hair references: 17 Meshy assets × 2 candidates, plus the tight-fit garment's front and back views; ≤ 1 replacement per asset | 36 + ≤ 18 |
-| **Cap asked (Q-S32p-6)** | **≤ 70 calls** ≈ $3.9 at the measured $0.0563 per 1024×1536 high call (A-p-23) |
+| **Cap (Q-S32p-6, ruled 2026-10-15)** | **≤ 70 calls** ≈ $3.9 at the measured $0.0563 per 1024×1536 high call (A-p-23) |
 
 Every call: `mineworld_gen` from the tree that contains `bd7bc92f`, `--model gpt-image-2.5-sunburst` passed
 explicitly, `--size 1024x1536 --quality high`, the sidecar checked after the call (I-p-2). The call count and the
@@ -852,13 +854,13 @@ VALIDATION BUDGET:       unit files unrestricted, one at a time; Gate 2 runs bou
                          (Blender stage ≤ 15 min, a pose sheet ≤ 10 min, a W-sweep per subject ≤ 30 min);
                          total wall time for the live pilot ≈ 2 working days, much of it Meshy wait.
                          MONEY: Meshy ≤ 1,200 credits (ruled, inside S26's 3,000); OpenAI ≤ the cap ruled in
-                         Q-S32p-6 (asked: 70 calls ≈ $3.9). Gate 1: NOT REQUIRED
+                         Q-S32p-6 (ruled: ≤ 70 calls ≈ $3.9). Gate 1: NOT REQUIRED
 LIVE DOCUMENTATION:      this document (§16)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s32p.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                       (source: unresolved until the primary's dispatch)
+                                                       (operator, 2026-10-15: "同意冻结并实施"; starts on the primary's dispatch)
                          spend: Meshy ≤ 1,200 credits   (operator ruling Q-S32-1, 2026-10-15)
-                                OpenAI ≤ Q-S32p-6's cap  (unresolved until ruled)
+                                OpenAI ≤ 70 calls       (operator ruling Q-S32p-6, 2026-10-15)
                          semantic commits: authorized   (working rules §14)
                          branch push: authorized        (working rules §21)
                          PR creation / update: authorized (working rules §21)
@@ -925,6 +927,22 @@ STOP CONDITION:          S32-p READY FOR OPERATOR REVIEW with VIS-3D-WARDROBE-P 
 | **Q-S32p-5 [operator — skin-tight garments]** | Tights (and a close fade's sides) cannot be cut out of a Meshy mannequin (F-S32p-7). Make them a **tight-fit class**: a 0.8 mm shell offset from the wearer's own Meshy body, textured from the v2 garment reference image — no Meshy run, no MPFB2 asset? | **Yes.** Every pixel still comes from the v2 image model and every surface from the person's Meshy body; it saves ≈ 30–90 credits per skin-tight garment, and a Meshy run would be cut away by the subtraction anyway. Alternative: one Meshy run of tights on bare clay legs, expected to fail R-8a |
 | **Q-S32p-6 [operator — OpenAI cap]** | The pilot needs ≤ 70 image calls with `gpt-image-2.5-sunburst` (≈ $3.9 at the measured $0.0563 per 1024×1536 high call; §4.7). Approve that cap? | **Approve ≤ 70 calls.** It is the base-layer images (≤ 15) and the garment and hair references (≤ 54); a cap reached stops the image stage and is reported |
 | **Q-S32p-7 [primary — S26-b2's spike]** | Step-32 §15.3 folds S26-b2's landmark, weights and Meshy-rig comparisons into S32-p; §4.2 says the Meshy rig is "not used". Here: no Meshy-rig evaluation (no credits), RSWT evaluated on Vera (D-p-4), landmarks hand-supplied on the ortho render as #211 does, automation evaluated at S32-d's start (R-S32d-p-1). Accept? | **Yes.** Three bodies do not need automated landmarks; eighteen do, and S32-d is where that pays. No credit goes to a rig the step already declined |
+
+
+### 15.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
+
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S32p-1 | **Own PRs first** for the pose-sheet and cast-director branches; the primary opens them. Applied: §2.3, §14, C0 step 1 | Ruled 2026-10-15 (primary) |
+| Q-S32p-2 | **Yes:** Vera starts once the design is frozen and the tooling is on `main`; Ivan and Hana follow their casting picks. Applied: §14, C5, C6 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S32p-3 | **The agent's raw gate** decides garment references; every reference is shown on the final page. Applied: R-7, §4.9 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S32p-4 | **Continue after Vera; stop only on a Vera failure.** Applied: C5 review, §12 material stops | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S32p-5 | **The tight-fit class is approved.** Applied: R-8b, §4.5, step-32 §6.6 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S32p-6 | **≤ 70 image calls approved.** Applied: §4.7, §12 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S32p-7 | **Yes:** no Meshy-rig evaluation; RSWT evaluated on Vera; landmarks hand-supplied; automation at S32-d's start. Applied: F-S32p-9, R-3, R-S32d-p-1, step-32 §15.3 | Ruled 2026-10-15 (primary) |
+
+Freeze: "同意冻结并实施" (operator, 2026-10-15, in the primary session). No question remains open. Parent edits of §11
+to `step-32-wardrobe.md` and `overall.md` applied with the freeze.
 
 ---
 
