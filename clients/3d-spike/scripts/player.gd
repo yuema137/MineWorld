@@ -63,6 +63,16 @@ var scripted_look := false
 ## capture: the slice's frames and its talk target varied from run to run with
 ## every person in the same place (2026-10-07).
 var ignore_mouse_look := false
+## The player's look settings (SET-b; `clients/shared/SETTINGS.md` §3). The defaults are today's look, so a
+## client that never calls `set_look` (the promenade) looks exactly as before.
+var look_scale := 1.0
+var invert_look_y := false
+
+## The two look settings, from the settings value (`look_scale()`, `invert_y`): called at start and on every
+## Apply. Nothing else reads a setting here.
+func set_look(scale: float, invert_y: bool) -> void:
+	look_scale = scale
+	invert_look_y = invert_y
 
 ## The three cameras. Not a movement system -- a passive observer.
 var rig: CameraRig
@@ -146,9 +156,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var looking := scripted_look or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if event is InputEventMouseMotion and looking and not ignore_mouse_look:
-		var mm := event as InputEventMouseMotion
-		rotate_y(-mm.relative.x * MOUSE_SENS)
-		rig.pitch = clampf(rig.pitch - mm.relative.y * MOUSE_SENS, -PITCH_LIMIT, PITCH_LIMIT)
+		look((event as InputEventMouseMotion).relative)
 	elif event.is_action_pressed("camera_cycle"):
 		cycle_camera()
 	elif event.is_action_pressed("ui_cancel"):
@@ -157,6 +165,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			else Input.MOUSE_MODE_CAPTURED)
 	elif event is InputEventMouseButton and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Turns the view by one mouse motion of `relative` counts, scaled by the look settings (SET-b). Mouse
+## motion reaches this through `_unhandled_input`; a probe drives it directly, so OS cursor motion cannot
+## add to a measurement.
+func look(relative: Vector2) -> void:
+	var sense := MOUSE_SENS * look_scale
+	var pitch_sign := -1.0 if invert_look_y else 1.0
+	rotate_y(-relative.x * sense)
+	rig.pitch = clampf(rig.pitch - relative.y * sense * pitch_sign, -PITCH_LIMIT, PITCH_LIMIT)
 
 
 ## Jumps made since start, for the drive test's "no jump in mid-air" check.

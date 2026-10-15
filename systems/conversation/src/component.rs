@@ -102,6 +102,13 @@ impl ConversationHistory {
         }
     }
 
+    /// Drops every line heard before `cutoff` — strictly older than the world lets a listener keep one
+    /// (`forget_after_days`, `ARC-86`). Called only while reducing `spoke`, and on a copy for
+    /// disclosure.
+    pub(crate) fn forget_older_than(&mut self, cutoff: WorldTime) {
+        self.heard.retain(|heard| heard.at >= cutoff);
+    }
+
     /// Everything remembered, oldest first.
     pub fn heard(&self) -> &[Heard] {
         &self.heard

@@ -88,6 +88,12 @@ pub struct WorldManifest {
     /// content: never seeded, never read by a pack or a controller, ignored by `run`.
     #[serde(default)]
     pub hosting: Option<Hosting>,
+    /// The decision list: which decision model drives each seat (`DECISIONS.md` `ARC-84`,
+    /// `MODULE_SPEC.md` §4.1). A file of this pack that this crate checks exists and lies inside the
+    /// pack, and never parses: its format belongs to `mineworld-decision`, read by hosts. Never world
+    /// state. Absent means every seat `rule`.
+    #[serde(default)]
+    pub decisions: Option<DecisionsFile>,
 }
 
 /// `world.yaml`'s `hosting:` block: how a host paces the world it serves (`ARC-69`, step-19 QTW-4).
@@ -99,6 +105,55 @@ pub struct Hosting {
     /// pack's to state (`ARC-69` item 5), so a larger value is refused at load, naming this key.
     #[serde(default)]
     pub time_scale: Option<u32>,
+}
+
+/// `world.yaml`'s `decisions:`: a file of the pack, relative to its root, written with `/` on every
+/// platform (`MODULE_SPEC.md` §4.1). A `\`, an absolute path, an empty, `.` or `..` component and a drive
+/// (`:`) are refused as it decodes, so the same text names the same file on macOS, Linux and Windows and
+/// cannot climb out of the pack; that its real path, links followed, stays inside is checked at read.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(try_from = "String")]
+pub struct DecisionsFile(Vec<String>);
+
+impl TryFrom<String> for DecisionsFile {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        let refused = |why: &str| format!("decisions: '{text}' {why}");
+        if text.contains('\\') {
+            return Err(refused("uses '\\'; write paths with '/' on every platform"));
+        }
+        if text.starts_with('/') {
+            return Err(refused(
+                "is absolute; name a file of this pack, relative to its root",
+            ));
+        }
+        let components: Vec<String> = text.split('/').map(str::to_owned).collect();
+        for component in &components {
+            if component.is_empty() || component == "." || component == ".." {
+                return Err(refused("has an empty, '.' or '..' component"));
+            }
+            if component.contains(':') {
+                return Err(refused("names a drive or a stream (':')"));
+            }
+        }
+        Ok(Self(components))
+    }
+}
+
+impl DecisionsFile {
+    /// The file under a pack's root, in the platform's own form.
+    pub fn path_under(&self, root: &std::path::Path) -> PathBuf {
+        self.0
+            .iter()
+            .fold(root.to_path_buf(), |path, component| path.join(component))
+    }
+}
+
+impl core::fmt::Display for DecisionsFile {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.0.join("/"))
+    }
 }
 
 /// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`

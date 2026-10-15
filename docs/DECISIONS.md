@@ -1975,6 +1975,19 @@ run paces those strides; nothing about the decision itself changes:
 3. **A pack with `RUN_STEP` (30) seats or more is refused**, naming `RUN_STEP` (it was P). Residues
    mod 30 keep every instant to one seat. The largest pack has eleven seats.
 
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-1, SD-DLa-2, I-DLa-3; `ARC-85`).**
+"Stateless seeded controllers" is generalised from the paced rule controller to **every in-process
+decision model**. The headless run now consults each seat through the model its decision list resolves
+(`ARC-84`); a model is a `DecisionModel` (`cognition/decision`) whose `decide` and `step` take `&self`,
+its typed parameters and a `Consult { seed, pace, observation }`, so what it attempts is a pure function
+of `(parameters, seed, pace, observation)` and a model rebuilt after a restart decides exactly as the one
+that died. The pace travels in `Consult` because it is the answer window, host context a model cannot
+know otherwise. Model crates forbid interior mutability by their own `clippy.toml`, and a template test
+runs every installed in-process model twice and across a kill-and-resume against the save's bytes.
+`Draw` and `mix` moved verbatim from `paced.rs` to `mineworld-decision`, salt included; the rule
+controller, `rule`, is the first model and the default, and with no decision list every seat is `rule`
+and every byte as before. The lattice, `RUN_STEP` and everything above are unchanged.
+
 ---
 
 ## DEP-11 — The CLI's argument parsing: `clap`
@@ -2074,6 +2087,15 @@ pair that keeps meeting reaches its top level within weeks and stops changing. T
 gap, recorded for a later step, not hidden by the tests (`step-09-social.md` QB-2). The constants are
 published and not world configuration yet (the `ARC-26` note's rule). Only `knows` exists; romance and
 typed relationships are later packs (`MVP.md` §4).
+
+**Note, 2026-10-13 (S24, PR FG-a; `ARC-86`) — values may now decay, by configuration.** The limitation
+"values never decay" is closed for a world that configures it: `configure/relationships.yaml` may name a
+`DecayCurve` and a time constant and floor for familiarity and for regard, read lazily from the stored
+`(value, last_contact)` (`ARC-86`), and a per-person cap `known_at_most` (default 150) evicts the lowest
+current familiarity and states `acquaintance-forgotten`. Item 4's "`became-acquainted` … once per
+direction" becomes **once per formation**: a counterpart evicted by the cap and met again forms a new
+entry and is stated again. The defaults (`none`, 150) leave every reference world's facts unchanged, so a
+world that configures nothing still saturates as described above. `relationships` is version 3.
 
 ---
 
@@ -2405,6 +2427,16 @@ what `ARC-35` measures. The operator approved this placement at S9's freeze (ste
 - Revisit this decision together with `DEP-12` when the first build installs packs it does not
   compile from this repository: that is `ARC-8`'s Tier 1. The question each catalog method answers
   stays the same; the catalog becomes a registry populated at startup.
+
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-12; `ARC-85`).** The same pattern is
+reused for decision models. `cognition/installed` (`mineworld-installed-models`) is the build's list of
+models, written with `mineworld-decision`'s `models!` macro: one `Name => crate::Type` line per
+in-process `DecisionModel`, and one `external "<id>"` line per out-of-process model, which has no Rust
+type. The macro expands to a monomorphic catalog enum, as `installed!` does (`DEP-12`); `decisions.yaml`
+model ids resolve through it, and `mineworld packs list` lists its in-process models' packages.
+Installing a model is one `Cargo.toml` line and one `models!` line, then a rebuild. Its guard test holds
+the list and the manifest's dependencies equal and refuses a duplicate id, as this crate's does. It lives
+under `cognition/`, so installing a model is an edit there and nowhere else.
 
 ---
 
@@ -4676,6 +4708,18 @@ per-world applicability comes from the world enabling the implementing pack, or 
 (`ARC-61`). Disabling a pack at run time while its implementation is registered is not supported
 (QB-17).
 
+**Note, 2026-10-13 (S24, PR FG-a; `ARC-86`, QFGA-3) — a third line, selected by configuration, and the
+loader registers earlier.** `relationships` owns the trait `DecayCurve` and its register function
+`register_curves`; `systems/installed` carries
+`extension mineworld_relationships::DecayCurve => mineworld_relationships::register_curves: [];`, empty
+today. Unlike the first two lines, a curve is not applied wherever its pack's state is present: a world
+**selects** it by name in `configure/relationships.yaml`, and must enable the curve's pack in `systems:`
+(the section requires it, refused by name otherwise), so the curve's identity and version are part of the
+save's composition. A name colliding with a bundled curve (`none`, `linear`, `half-life`, `power`) or
+listed twice panics naming both, as item 4's rules. Because a curve name is checked while the section
+decodes, `WorldPack::read_with` now calls `Capability::register_extensions()` before it decodes
+configuration, as `compose` already did (idempotent for the same list).
+
 ---
 
 ## DEP-17 — CI runs on GitHub Actions hosted Linux runners, inside the repository's own toolchain container
@@ -6164,6 +6208,28 @@ reduces another pack's fact, before any state is written; forbidden, that direct
 acquaintance, no `knows` edge and no fact. The name is declared through the same `ActionDecl` (the SDK
 keys rules by `ActionTypeId`); it **names no action type a client can send**, and a test pins that no
 installed pack provides an action type `acquaint`. No SDK type is added.
+
+**Note, 2026-10-13 (S24, PR FG-a; QFGA-2, D-FGA-8) — four additions to the shape.** Item 2's "every
+field with a bound" is generalised and three seams are added, each generic and none naming a pack
+(`MODULE_SPEC.md` §4.2):
+
+1. **A bound is a value.** `parameters!` declares each field as `name: Type = default, bound;`, where the
+   bound implements `ParameterBound<Type>` (`admits`, `describe`). `RangeInclusive` implements it with
+   today's message byte for byte, so every existing section decodes and refuses unchanged; a pack may
+   supply a named-choice bound (`relationships`' curve catalog).
+2. **Per-field roles.** `InteractionSection::FIELD_ROLES` lists, per field, the subset of
+   `PARAMETER_ROLES` that may scope an entry setting it (unlisted: all of them). The decoder refuses, at
+   the entry's line and column, an entry that sets such a field under another role, and a region entry
+   that sets a field whose roles exclude `place`.
+3. **A place-free lookup**, `parameters_unplaced`: the base resolution with the place role unfilled, or
+   the compiled defaults reading nothing when unconfigured. It is correct for exactly the fields item 2
+   makes unplaceable.
+4. **A section's required systems.** `InteractionSection::requires(section)` (default none) is what the
+   held section answers to the loader's existing requires check (`ARC-61`), so a section can require
+   the packs whose code it selects.
+
+New fields grow a pack's configured fact, so the pack's version is raised (`relationships` 3,
+`conversation` 4), as item "Converting a pack raises its `SystemVersion`" already states.
 
 ---
 
@@ -7858,6 +7924,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when a resume needs the resolved list recorded in the save, or when a world needs a decision list that must travel with the save as authored content.
 
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-9, SD-DLa-14, SD-DLa-15; QDLa-5, QFGb-1).** Two refinements, implemented by DL-a, neither changing the choice. (1) `run` prints the digest of the resolved list **only when a decision list is in effect** (a `decisions:` key, `--decisions` or `--seat-model`), as `; decisions <digest> (<counts>)` at the end of its header line; with none, the header is byte for byte what it was, because the parity record keeps that line and an always-printed clause would move every reference world's baseline. (2) `decisions.yaml`'s `memory:` section is decoded structurally by the Rust reader (unknown keys, entry shape, seats and classes, policy-id spelling, `parameters` as a string-keyed mapping, each refused with line and column), resolved per seat seat > class > default, and passed through uninterpreted as a typed `MemoryPolicyChoice` by `mineworld decisions <world> --json` (format 1, `MODULE_SPEC.md` §8.1). The cognition process validates the policy id and its parameters when it starts (FG-b's `resolve`), so an unknown policy id fails then, naming the file, line and column it was written at, not at `run`'s load. One YAML parser reads the file; the cognition process reads JSON.
+
 ---
 
 ## ARC-85 — Behaviour extension points share one pattern: interface, carrier, selection, parameters, host
@@ -7901,6 +7969,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** Decay adds zero facts, zero journal rows and zero save growth, and replay reproduces it exactly. `last_contact` is already stored (`RelationshipValues::last_contact`), so no component encoding changes. The configuration payload grows, which bumps the System's version and refuses older saves by name (PA-3), and the new fact `acquaintance-forgotten` is declared. Read-time decay uses the operator-approved read-only clock `WorldRead::at()` (2026-10-12), a kernel addition available only during disclosure.
 
 **Revisit** when a biographical decay must be visible without a reduction touching the pair, or when a System needs per-person state beyond `(value, last_contact)`.
+
+**Note, 2026-10-13 (S24, PR FG-a; F-FGA-8, QFGA-4, QFGA-1) — two precisions.** (1) "Defaults change no reference world's bytes" means every fact and every run summary: a save's genesis journal row records the composition (each installed system's declaration and version), so raising `relationships` to 3 and `conversation` to 4 and declaring `acquaintance-forgotten` moves that one row, and `scripts/baselines.txt`'s `journal-300s` is re-recorded with a reason line while every later journal row, every fact and every summary stay byte-identical (`pr-fg-a-relationship-forgetting.md` FA-1). (2) `WorldRead::at()` is the world-time instant of whatever read holds it — a reaction's event instant, a validation's dispatch instant, `World::read()`'s `now()` — not something available only to disclosure; disclosure is its first user. It is never a wall clock (`INV-12`).
 
 ---
 

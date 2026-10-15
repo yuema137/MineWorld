@@ -914,7 +914,9 @@ dependencies = [
  "json-patch",
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-decision",
  "mineworld-group-activity",
+ "mineworld-installed-models",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
@@ -976,6 +978,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-decision"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-economy"
 version = "0.1.0"
 dependencies = [
@@ -1029,6 +1042,15 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mineworld-installed-models"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-decision",
+ "mineworld-rule-controller",
 ]
 
 [[package]]
@@ -1206,6 +1228,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-decision",
  "mineworld-group-activity",
  "mineworld-movement",
  "mineworld-naming",

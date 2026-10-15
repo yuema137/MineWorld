@@ -3,7 +3,8 @@
 //! ```text
 //! --agent SEAT   ReactiveSeat   RuleController::since(bound): answers what it hears while bound,
 //!                               consulted every wall second (F-13)
-//! --town         PacedSeat      PacedRuleController::new(seed, pace × scale): seat k consulted at
+//! --town         PacedSeat      the seat's decision model (default `rule`, PacedRuleController) with
+//!                               Consult { seed, pace × scale, observation }: seat k consulted at
 //!                               genesis + k + m·pace·scale — `run`'s lattice, with --pace in wall
 //!                               seconds — and, while its person walks, asked for the next stride
 //!                               at genesis + k + n·scale: once a wall second (ARC-75)
@@ -28,8 +29,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use mineworld_contracts::{
     Action, ActionRequest, ActionResult, ActionTypeId, EntityKey, SimDuration, WorldTime,
 };
+use mineworld_decision::{Consult, SeatModel, Seed};
 use mineworld_movement::{WalkStep, WalkTo};
-use mineworld_rule_controller::{PacedRuleController, RuleController, walks};
+use mineworld_rule_controller::{RuleController, walks};
 use mineworld_server::{HostedAnswer, HostedController, WireObservation};
 
 /// What one hosted seat's controllers did, across every rebinding of the seat.
@@ -134,8 +136,7 @@ impl HostedController for ReactiveSeat {
         self.counting.answered(answer);
     }
 
-    /// The server has moved the pending consult to `pending`, and the chain goes on one wall second of the
-    /// new scale at a time from there (`ARC-69` item 2): only the step changes.
+    /// The host changed the scale: one wall second is now `scale` world seconds (`ARC-69` item 2).
     fn rescaled(&mut self, _pending: WorldTime, scale: NonZeroU32) {
         self.step = i64::from(scale.get());
     }
@@ -150,18 +151,17 @@ impl HostedController for ReactiveSeat {
 /// seconds, QTW-13's form (`step-11-bodies.md` SD-N14; `DECISIONS.md` `ARC-42` note, `ARC-75`).
 const EMBODIED_STEP: i64 = 1;
 
-/// `--town`: the paced rule controller, on `run`'s consult lattice with the server's pace, and asked
-/// for its walk's strides once a wall second while it walks.
+/// `--town`: the seat's resolved decision model (by default the paced rule controller), on `run`'s consult
+/// lattice with the server's pace, and asked for its walk's strides once a wall second while it walks.
+/// The lattice and walking logic are the adapter's and model-independent (SD-DLa-13).
 pub struct PacedSeat {
-    /// The seed the paced rule controller is built with, at each consult's own answering window.
-    seed: u64,
-    /// `--cadence` in wall seconds: the lattice's period in wall time, which never changes with the scale.
-    cadence: i64,
-    /// The lattice's origin: `genesis + k` at the binding, and the instant the server moved the pending
-    /// consult to at a rescale (`ARC-69` item 2). Consults are at `first + m·pace` and, while walking,
-    /// `first + n·step`.
+    model: Arc<dyn SeatModel>,
+    seed: Seed,
+    /// The model's answer window: the pace in world seconds.
+    answer: SimDuration,
+    /// `genesis + k`: this seat's first instant on the lattice.
     first: i64,
-    /// The pace in world seconds: the cadence in wall seconds times the time scale in force.
+    /// The pace in world seconds: `--pace` wall seconds times the time scale.
     pace: i64,
     /// [`EMBODIED_STEP`] in world seconds: one wall second times the time scale. `pace` is a whole
     /// number of these, so every lattice instant is also a step instant.
@@ -178,10 +178,12 @@ pub struct PacedSeat {
     last_lattice: Option<i64>,
     /// Set by a rescale and cleared by the first lattice consult after it (`ARC-69` item 4, SD-TWc-5).
     straddling: bool,
+    /// `--cadence` in wall seconds: the lattice's period in wall time, which never changes with the scale.
+    cadence: i64,
     counting: Counting,
 }
 
-/// What a paced seat is told: the seed, `--cadence` in wall seconds, and the time scale.
+/// What a paced seat is told: the seed, `--pace` in wall seconds, and the time scale.
 #[derive(Clone, Copy)]
 pub struct Pacing {
     pub seed: u64,
@@ -190,17 +192,23 @@ pub struct Pacing {
 }
 
 impl PacedSeat {
-    /// Seat number `k` (roster order) of a world whose lattice begins at `genesis`.
+    /// Seat number `k` (roster order) of a world whose lattice begins at `genesis`, driven by `model`.
     ///
-    /// The controller is told its pace in world seconds, because its answering window is one pace of
-    /// the world's time long (`PacedRuleController::new`).
-    pub fn new(pacing: Pacing, genesis: WorldTime, k: usize, tally: &Tally) -> Self {
+    /// The model is told its pace in world seconds, because its answering window is one pace of the
+    /// world's time long (`mineworld_decision::Consult::pace`).
+    pub fn new(
+        pacing: Pacing,
+        genesis: WorldTime,
+        k: usize,
+        model: Arc<dyn SeatModel>,
+        tally: &Tally,
+    ) -> Self {
         let scale = i64::from(pacing.scale.get());
-        let cadence = i64::from(pacing.pace.get());
-        let pace = cadence * scale;
+        let pace = i64::from(pacing.pace.get()) * scale;
         Self {
-            seed: pacing.seed,
-            cadence,
+            model,
+            seed: Seed::new(pacing.seed),
+            answer: SimDuration::from_seconds(pace),
             // Seat k's offset is k wall seconds too, so seats stay spread across ticks at any scale.
             first: genesis
                 .seconds()
@@ -211,17 +219,8 @@ impl PacedSeat {
             last: None,
             last_lattice: None,
             straddling: false,
+            cadence: i64::from(pacing.pace.get()),
             counting: Counting::new(tally),
-        }
-    }
-
-    /// The answering window of the lattice consult at `at` (SD-TWc-5, F-TWc-2): one pace, except for the first
-    /// lattice consult after a rescale, which spans exactly the real gap since the last lattice consult, so that
-    /// every line heard lies in exactly one consult's window.
-    fn lattice_window(&self, at: i64) -> i64 {
-        match self.last_lattice {
-            Some(last) if self.straddling => at - last,
-            _ => self.pace,
         }
     }
 
@@ -241,6 +240,16 @@ impl PacedSeat {
             Some(last) => self.next_on(self.pace, last) <= at,
         }
     }
+
+    /// The answering window of the lattice consult at `at` (SD-TWc-5, F-TWc-2): one pace, except for the first
+    /// lattice consult after a rescale, which spans exactly the real gap since the last lattice consult, so that
+    /// every line heard lies in exactly one consult's window.
+    fn lattice_window(&self, at: i64) -> i64 {
+        match self.last_lattice {
+            Some(last) if self.straddling => at - last,
+            _ => self.pace,
+        }
+    }
 }
 
 impl HostedController for PacedSeat {
@@ -258,18 +267,25 @@ impl HostedController for PacedSeat {
         let lattice = self.on_lattice(at);
         self.last = Some(at);
         let decided = if lattice {
-            // Stateless (ARC-27): the controller is built for this consult's window, which is the only thing
-            // the adapter chooses (F-TWc-2).
+            // The window is the adapter's choice (F-TWc-2): the model is stateless and answers for the window it is given.
             let window = self.lattice_window(at);
-            let controller = PacedRuleController::new(self.seed, SimDuration::from_seconds(window));
             self.last_lattice = Some(at);
             self.straddling = false;
-            controller
-                .decide(observation)
-                .or_else(|| controller.step(observation))
+            let asked = Consult {
+                seed: self.seed,
+                pace: SimDuration::from_seconds(window),
+                observation,
+            };
+            self.model
+                .decide(&asked)
+                .or_else(|| self.model.step(&asked))
         } else {
-            PacedRuleController::new(self.seed, SimDuration::from_seconds(self.pace))
-                .step(observation)
+            let asked = Consult {
+                seed: self.seed,
+                pace: self.answer,
+                observation,
+            };
+            self.model.step(&asked)
         };
         let asked_to_walk = decided.as_ref().is_some_and(|request| {
             *request.action_type() == WalkTo::ACTION_TYPE
@@ -296,6 +312,7 @@ impl HostedController for PacedSeat {
         self.first = pending.seconds();
         self.pace = self.cadence * scale;
         self.step = EMBODIED_STEP * scale;
+        self.answer = SimDuration::from_seconds(self.pace);
         self.straddling = true;
     }
 }
@@ -322,7 +339,16 @@ mod tests {
             pace: non_zero(pace),
             scale: non_zero(scale),
         };
-        PacedSeat::new(pacing, WorldTime::from_seconds(1_000), k, &Tally::default())
+        let rule: Arc<dyn SeatModel> = Arc::new(mineworld_decision::Configured::<
+            mineworld_rule_controller::Rule,
+        >::default());
+        PacedSeat::new(
+            pacing,
+            WorldTime::from_seconds(1_000),
+            k,
+            rule,
+            &Tally::default(),
+        )
     }
 
     fn consults(seat: &dyn HostedController, from: i64, count: usize) -> Vec<i64> {

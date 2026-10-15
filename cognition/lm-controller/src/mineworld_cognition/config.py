@@ -94,17 +94,75 @@ def _is_anthropic_host(host: str) -> bool:
 class BackendConfig(ConfigModel):
     """One `[backends.<name>]` table (D-P5-10, D-P5-15). Typed options only: no free-form map."""
 
-    kind: Kind = "openai-compatible"
-    preset: PresetName | None = None
+    kind: Kind = Field(
+        default="openai-compatible",
+        description=(
+            "`openai-compatible` for a server that speaks the OpenAI chat API: a local server or a "
+            "hosted provider. `anthropic` for Claude, through Anthropic's Messages API."
+        ),
+    )
+    preset: PresetName | None = Field(
+        default=None,
+        description=(
+            "A named hosted provider. It fills `base_url`, `key_env`, `structured_output` and "
+            '`temperature` when this table leaves them out. Not allowed with `kind = "anthropic"`.'
+        ),
+    )
     """A named provider (`backend/providers.py`): fills every field this table leaves out."""
-    base_url: str
-    model: Annotated[str, Field(min_length=1, max_length=200)]
-    key_env: str = ""
+    base_url: str = Field(
+        description=(
+            "The address of the server, for example `http://127.0.0.1:11434/v1` for a local server. "
+            "Required unless `preset` supplies it. Use `https` unless the host is a loopback address. "
+            "It must not carry a user name, a password, a query or a fragment."
+        ),
+    )
+    model: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=200,
+            description="The model name the server expects, for example `qwen3.5:4b`.",
+        ),
+    ]
+    key_env: str = Field(
+        default="",
+        description=(
+            "The NAME of the environment variable that holds the API key, for example "
+            "`DEEPSEEK_API_KEY`: upper-case letters, digits and `_`, not starting with a digit. Empty "
+            "when the server needs no key. A preset fills it when this table leaves it out. The key "
+            "itself is never written in this file."
+        ),
+    )
     """The NAME of the environment variable holding the key, or empty when the server needs none."""
-    structured_output: StructuredOutput = "json_schema"
-    reasoning: Reasoning = "unset"
-    temperature: TemperatureMode = "send"
-    request_timeout_s: Annotated[int, Field(ge=1, le=3600)] | None = None
+    structured_output: StructuredOutput = Field(
+        default="json_schema",
+        description=(
+            "How the server is asked for structured output. `json_schema`: the server enforces the "
+            "output schema. `json_object`: the server returns any JSON object, and MineWorld checks "
+            "it against the schema. `none`: no structured-output request is sent."
+        ),
+    )
+    reasoning: Reasoning = Field(
+        default="unset",
+        description=(
+            "The reasoning effort the server should use: `off`, `low`, `medium` or `high`. `unset` "
+            'sends no reasoning setting. Not allowed with `kind = "anthropic"`.'
+        ),
+    )
+    temperature: TemperatureMode = Field(
+        default="send",
+        description=(
+            "`send` sends the sampling temperature with each request. `omit` leaves it out, for a "
+            "model that refuses a temperature."
+        ),
+    )
+    request_timeout_s: Annotated[int, Field(ge=1, le=3600)] | None = Field(
+        default=None,
+        description=(
+            "Seconds to wait for one answer from this backend, from 1 to 3600. Unset means this "
+            "table sets no request timeout."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -168,27 +226,81 @@ class BackendConfig(ConfigModel):
 
 
 class RecordingConfig(ConfigModel):
-    mode: Mode
-    cassette: str | None = None
+    """The `[recording]` table: where answers come from, and whether they are recorded."""
+
+    mode: Mode = Field(
+        description=(
+            "Where answers come from. `live`: the configured backend answers. `record`: the backend "
+            "answers and each answer is written to the cassette. `replay`: answers are read from the "
+            "cassette, and no network client is built. `scripted`: a backend supplied in code, for tests."
+        ),
+    )
+    cassette: str | None = Field(
+        default=None,
+        description=(
+            "The cassette file, which `record` writes and `replay` reads. Required for `record` and "
+            "`replay`. A relative path is resolved against this configuration file."
+        ),
+    )
 
 
 class BudgetConfig(BudgetPolicy):
-    ledger: str | None = None
+    """The `[budgets]` table: the limits of `BudgetPolicy`, and where the spend is kept."""
+
+    ledger: str | None = Field(
+        default=None,
+        description=(
+            "A SQLite file that keeps the spend, so a restart neither resets it nor counts a call "
+            "twice. Unset keeps the spend in memory only. A relative path is resolved against this "
+            "configuration file."
+        ),
+    )
     """A SQLite file, so a restart neither resets nor double-counts; unset keeps the ledger in memory."""
 
 
 class SecretsConfig(ConfigModel):
-    env_file: str | None = None
+    """The `[secrets]` table: an optional `.env`-style file that holds API keys."""
+
+    env_file: str | None = Field(
+        default=None,
+        description=(
+            "A `.env`-style file that holds API keys, read only when named here. A relative path is "
+            "resolved against this configuration file. On macOS and Linux the file must not be "
+            "readable by its group or by others (`chmod 600`); the loader refuses it otherwise."
+        ),
+    )
 
 
 class CognitionConfig(ConfigModel):
-    recording: RecordingConfig
-    tiers: dict[Tier, str] = Field(default_factory=dict[Tier, str])
-    budgets: BudgetConfig = Field(default_factory=BudgetConfig)
-    backends: dict[Annotated[str, Field(pattern=BACKEND_NAME)], BackendConfig] = Field(
-        default_factory=dict[str, BackendConfig]
+    """The whole `cognition.toml` file: one table per section below, and the backends it names."""
+
+    recording: RecordingConfig = Field(
+        description="The `[recording]` table. Required: it names the mode every answer comes from.",
     )
-    secrets: SecretsConfig = Field(default_factory=SecretsConfig)
+    tiers: dict[Tier, str] = Field(
+        default_factory=dict[Tier, str],
+        description=(
+            "The `[tiers]` table: which backend answers each decision tier. Keys are tier names "
+            "(`ordinary_decision`, `social`, `major_decision`, `summarize`; their meaning is in "
+            "ARCHITECTURE.md §9.1). Values are a backend name from `[backends.<name>]`, or `none` for a "
+            "tier that uses no model. A tier left out uses no model, the same as `none`."
+        ),
+    )
+    budgets: BudgetConfig = Field(
+        default_factory=BudgetConfig,
+        description="The `[budgets]` table: the most calls and tokens the client may spend.",
+    )
+    backends: dict[Annotated[str, Field(pattern=BACKEND_NAME)], BackendConfig] = Field(
+        default_factory=dict[str, BackendConfig],
+        description=(
+            "The `[backends.<name>]` tables: one per backend, named by you. A name uses lowercase "
+            "letters, digits, `-` and `_`, and does not start or end with `-` or `_`."
+        ),
+    )
+    secrets: SecretsConfig = Field(
+        default_factory=SecretsConfig,
+        description="The `[secrets]` table: where API keys are read from.",
+    )
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:

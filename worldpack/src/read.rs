@@ -54,8 +54,8 @@ use crate::content::ContentFile;
 use crate::entities::{self, ItemSource};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
-    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundConfiguration,
-    FoundSection, SectionState, WorldManifest,
+    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, DecisionsFile,
+    FoundConfiguration, FoundSection, SectionState, WorldManifest,
 };
 
 /// The file every World Pack has.
@@ -102,6 +102,7 @@ pub struct WorldPack {
     licence_policy: LicencePolicy,
     /// `world.yaml`'s `hosting: time_scale`, if stated (`ARC-69` item 9): host pacing, never read by a pack.
     hosting_time_scale: Option<NonZeroU32>,
+    decisions: Option<DecisionsFile>,
 }
 
 /// The largest scale a World Pack may state: a day in 24 hours (`ARC-69` item 5).
@@ -158,6 +159,9 @@ impl WorldPack {
                 })?;
         }
         let systems = resolve_systems(&manifest.systems)?;
+        if let Some(decisions) = &manifest.decisions {
+            check_decisions_file(&root, &manifest_path, decisions)?;
+        }
         let licence_policy = configure::licence_policy(&root, &manifest.configure)?;
         let composition = crate::requirements::resolve(
             &manifest_path,
@@ -166,6 +170,9 @@ impl WorldPack {
             roots,
             &licence_policy,
         )?;
+        // A section may name an extension catalog's entry (a decay curve, `ARC-86`), checked while it
+        // decodes, so the build's catalogs are registered first — as `compose` does, idempotently.
+        Capability::register_extensions();
         let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
         check_keys_are_declared_once(&manifest)?;
 
@@ -237,6 +244,7 @@ impl WorldPack {
             classes,
             licence_policy,
             hosting_time_scale,
+            decisions: manifest.decisions,
         };
         check_sections(&pack)?;
         configure::check_references(&pack)?;
@@ -340,6 +348,15 @@ impl WorldPack {
         &self.configuration
     }
 
+    /// The decision list `world.yaml` names (`DECISIONS.md` `ARC-84`), as written and as a path under
+    /// the pack's root — checked to exist inside the pack, never parsed here. Not world state: hosts
+    /// read it through `mineworld-decision`.
+    pub fn decisions(&self) -> Option<(&DecisionsFile, PathBuf)> {
+        self.decisions
+            .as_ref()
+            .map(|file| (file, file.path_under(&self.root)))
+    }
+
     /// The world's entity classes (`DECISIONS.md` `ARC-64`): `configure/classes.yaml`, or none.
     pub fn classes(&self) -> &EntityClasses {
         &self.classes
@@ -414,6 +431,7 @@ impl WorldPack {
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
             hosting_time_scale: None,
+            decisions: None,
         }
     }
 
@@ -471,6 +489,35 @@ pub(crate) fn parse_with<T>(
         kind,
         detail: error.to_string(),
     })
+}
+
+/// `decisions:` names a file of this pack: present, and inside the pack once its links are followed. Its
+/// content is not this crate's (`pr-dl-a-decision-list.md` SD-DLa-3).
+fn check_decisions_file(
+    root: &Path,
+    manifest: &Path,
+    decisions: &DecisionsFile,
+) -> Result<(), PackError> {
+    let path = decisions.path_under(root);
+    if !path.is_file() {
+        return Err(PackError::DecisionsFileMissing {
+            file: decisions.to_string(),
+            path: manifest.to_path_buf(),
+        });
+    }
+    let unreadable = |source| PackError::Unreadable {
+        path: path.clone(),
+        source,
+    };
+    let real = path.canonicalize().map_err(unreadable)?;
+    let pack = root.canonicalize().map_err(unreadable)?;
+    if !real.starts_with(&pack) {
+        return Err(PackError::DecisionsOutsidePack {
+            file: decisions.to_string(),
+            path: manifest.to_path_buf(),
+        });
+    }
+    Ok(())
 }
 
 /// A pack's id is its directory's name, or it has two identities and therefore none.

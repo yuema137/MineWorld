@@ -1,12 +1,14 @@
-//! `mineworld run` — a World Pack run headless, every seat driven by a seeded rule (`ARC-27`).
+//! `mineworld run` — a World Pack run headless, every seat driven by its resolved decision model, by
+//! default the seeded paced rule (`ARC-27`, `ARC-84`).
 //!
 //! ```text
 //! for each consult instant t, in time order       seat k at genesis + k + m·PACE, and at
 //!                                                  genesis + k + n·RUN_STEP while its person walks
 //!     advance the world to t                       whatever was due fires first
 //!     observe(world, seat, t)                      the pack's own perception
-//!     PacedRuleController::decide(observation)     a pure function of seed and observation; between
-//!       or ::step(observation)                     lattice instants only the walk's next stride
+//!     SeatModel::decide(seed, PACE, observation)   a pure function of its parameters, the seed and the
+//!       or ::step(…)                               observation; between lattice instants only the
+//!                                                  walk's next stride
 //!     ActionIntent::allocate(request, id, t)       the server's step, with this run's allocator
 //!     dispatch(intent, t)                          journaled first when the world is saved
 //! ```
@@ -19,12 +21,14 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Instant;
 
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionResult, EntityId, EntityKey, EventEnvelope, PersonId,
     SimDuration, WorldTime,
 };
+use mineworld_decision::{SeatModel, Seed};
 use mineworld_kernel::{Dispatched, KernelError, World};
 use mineworld_movement::is_walking;
 use mineworld_persistence::{
@@ -32,10 +36,10 @@ use mineworld_persistence::{
     SqliteBackend, WorldInput, WorldRevision, format,
 };
 use mineworld_presence::{PerceptionProvider, observe};
-use mineworld_rule_controller::PacedRuleController;
 use mineworld_server::WorldInstanceId;
 use mineworld_worldpack::{PackRoots, WorldPack};
 
+use crate::decisions::{self, DecisionArgs};
 use crate::{described, saved_genesis};
 
 /// How often each seat is consulted: every fifteen simulated minutes. Ten in S7 (step-08 HD-2); raised
@@ -68,6 +72,8 @@ pub struct RunRequest {
     /// World seconds between a paced seat's consults (`--pace`, default [`PACE`]). A measurement knob for the
     /// FX-24 feasibility test (`ARC-69` item 11); a multiple of [`RUN_STEP`].
     pub pace: SimDuration,
+    /// `--decisions` and `--seat-model` (`ARC-84`). Never saved: a resume reads the list it is given.
+    pub decisions: DecisionArgs,
 }
 
 /// Runs the world and prints what happened.
@@ -104,12 +110,19 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         .ok()
         .filter(|days| *days >= 1 && days.checked_mul(DAY).is_some())
         .ok_or_else(|| format!("[mineworld] --days {} is out of range", request.days))?;
+    // Each seat's model, in roster order — the order `seats` is in. `None`: a chain ending at `none`.
+    let resolved = decisions::resolve(&pack, &request.decisions)?;
+    let models: Vec<Option<Arc<dyn SeatModel>>> = (0..seats.len())
+        .map(|k| resolved.drives(k).map(|drives| Arc::clone(drives.model())))
+        .collect();
 
     let mut begun = Begun::new(&pack, request.save.as_deref())?;
     let genesis = begun.genesis;
     let end = genesis + days * DAY;
+    // The decisions clause only when a list is in effect: with none, the header is what it always was
+    // (`MODULE_SPEC.md` §4.1 rule 7).
     println!(
-        "[mineworld] run {} ({}): seats {}; seed {}; to day {}; pace {}; {}",
+        "[mineworld] run {} ({}): seats {}; seed {}; to day {}; pace {}; {}{}",
         pack.name(),
         pack.id(),
         listed(&seats),
@@ -117,6 +130,9 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         days,
         pace,
         begun.how,
+        resolved
+            .clause(decisions::RUN_HOSTS_NONE)
+            .unwrap_or_default(),
     );
 
     let observers: Vec<EntityId> = seats
@@ -134,7 +150,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         .iter()
         .map(|observer| person_of(begun.driven.world(), *observer))
         .collect();
-    let controller = PacedRuleController::new(request.seed, pace);
+    let seed = Seed::new(request.seed);
     let mut tally = Tally::new(&begun.began);
     let seat_count = i64::try_from(seats.len()).unwrap_or(i64::MAX);
 
@@ -149,6 +165,10 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
             if at >= end {
                 break 'rounds;
             }
+            // A seat whose fallback chain ends at `none` is never consulted.
+            let Some(model) = &models[k] else {
+                continue;
+            };
             // Between lattice instants only a walker is consulted. A Walking is created only by a
             // request, so a seat not walking now is not walking at `at`, and its clock need not move.
             if at < begun.start || (!lattice && !walking(&begun.driven, persons[k])) {
@@ -171,7 +191,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
                 lattice,
                 bucket: (at - genesis) / (BUCKET_DAYS * DAY),
             };
-            consult.run(&controller, &mut begun, &mut tally)?;
+            consult.run(&**model, seed, pace, &mut begun, &mut tally)?;
         }
     }
     let fired = begun.driven.advance_to(WorldTime::from_seconds(end))?;
@@ -211,7 +231,9 @@ struct Consult<'a> {
 impl Consult<'_> {
     fn run(
         &self,
-        controller: &PacedRuleController,
+        model: &dyn SeatModel,
+        seed: Seed,
+        pace: SimDuration,
         begun: &mut Begun,
         tally: &mut Tally,
     ) -> Result<(), String> {
@@ -220,10 +242,16 @@ impl Consult<'_> {
             begun.providers.iter().map(AsRef::as_ref).collect();
         let seen = observe(begun.driven.world(), self.observer, at, &borrowed);
         tally.consults += 1;
+        // The pace is the answer window: a line heard since the last lattice consult is this one's.
+        let asked = mineworld_decision::Consult {
+            seed,
+            pace,
+            observation: &seen,
+        };
         let decided = if self.lattice {
-            controller.decide(&seen).or_else(|| controller.step(&seen))
+            model.decide(&asked).or_else(|| model.step(&asked))
         } else {
-            controller.step(&seen)
+            model.step(&asked)
         };
         let Some(decided) = decided else {
             return Ok(());

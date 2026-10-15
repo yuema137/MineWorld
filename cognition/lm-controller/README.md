@@ -10,7 +10,8 @@ interface, within wall-time budgets, with recorded replay for tests. Specificati
 supplies. Tests and CI use only `replay` and `scripted`: no model, no key, no hosted API, ever.
 
 **Configuration** is a TOML file of yours, never inside a world (see
-[`examples/hosted.toml.example`](examples/hosted.toml.example)). A key appears only as the **name** of an
+[`examples/hosted.toml.example`](examples/hosted.toml.example)); every field it accepts is listed in the
+generated [`cognition-toml` reference](../../docs/reference/cognition-toml.md). A key appears only as the **name** of an
 environment variable (`key_env`). Its value comes from your environment, or from a `.env`-style file you
 name in `[secrets] env_file` ([`examples/.env.example`](examples/.env.example)); that file is read without
 touching the environment, must be `chmod 600` on macOS and Linux, and is never read unless named.

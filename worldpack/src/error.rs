@@ -351,6 +351,24 @@ pub enum PackError {
         seat: EntityKey,
     },
 
+    /// `decisions:` names a file the pack does not have (`MODULE_SPEC.md` §4.1).
+    #[error("{path}: decisions: names {file}, which does not exist")]
+    DecisionsFileMissing {
+        /// The file, as named.
+        file: String,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// `decisions:` names a file whose real path, its links followed, is outside the pack.
+    #[error("{path}: decisions: names {file}, which resolves outside the World Pack")]
+    DecisionsOutsidePack {
+        /// The file, as named.
+        file: String,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
     /// Authored content needs a capability the pack did not enable.
     ///
     /// A `location` is state the `presence` system owns, so a pack that places its people without

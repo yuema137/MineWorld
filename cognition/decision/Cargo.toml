@@ -1,0 +1,21 @@
+[package]
+name = "mineworld-decision"
+description = "The decision-model extension point: the DecisionModel trait every in-process model implements, the seeded Draw, model parameters, and the decisions.yaml decision list."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# An observation in, a request out (`MODULE_SPEC.md` §5): the trait names contract types only.
+mineworld-contracts = { workspace = true }
+# The `parameters!` machinery and `Package`, reused rather than reimplemented, so a model's bounds are
+# checked by the same code as an Interaction List section's (pr-dl-a-decision-list.md QDLa-4).
+mineworld-sdk = { workspace = true }
+serde = { workspace = true }
+# A model's canonical parameters for the digest, `memory:` parameters passed through, and the JSON the
+# cognition process reads (`mineworld decisions --json`).
+serde_json = { workspace = true }
+# decisions.yaml, decoded with positions as World Pack files are (DEP-10).
+serde-saphyr = { workspace = true }
