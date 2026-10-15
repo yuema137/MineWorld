@@ -48,7 +48,10 @@ page, and an English page without its mirror, both fail the run naming the file.
 
 Only **backtick fences** (three or more backticks, as CommonMark defines them) are read. A tilde fence (`~~~`) or
 an indented code block fails the page, naming the line, because a reader and the runner must agree on what a block
-is. Every fence has an **info string**. Its first word is the language. The rest of the info string is a list of
+is. Every fence has an **info string**. Its first word is the language, unless that first word contains `=`: then the
+block has no language word and every word is a token (so `file=PATH` alone is a valid info string). The page is read
+with CRLF line endings converted to LF before parsing, so a checkout made with CRLF runs the same blocks and writes
+LF files on every platform (`.gitattributes` checks text out as LF). The rest of the info string is a list of
 space-separated tokens. The runner recognises exactly these tokens:
 
 | Token | Valid on | Meaning |
@@ -91,7 +94,9 @@ written byte for byte, with its own line endings. The runner never adds, trims o
 5. Once joined to the scratch folder, it resolves to a path inside that folder. (The runner checks the joined
    path's components, so a symbolic link already present in the scratch folder cannot be followed out.)
 
-A file block never writes outside its page's scratch folder. A test asserts that `../x` is refused (AC-25c-2).
+A colon anywhere in a path is also refused (it names a drive or an alternate stream on Windows). A file block never
+writes outside its page's scratch folder, and a symbolic link already on the way to `PATH` is refused rather than
+followed. A test asserts that `../x` is refused (AC-25c-2).
 
 ---
 
