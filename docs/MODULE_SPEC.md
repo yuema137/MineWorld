@@ -1151,6 +1151,20 @@ property, and it never changes who a Person is (INV-1).
   out-of-process model)`), and `server --town` as the seat's in-server controller until the external
   process takes the seat over through the existing take-over path (S11-B).
 
+- **LM Controller (S10 P6b; `ARC-72`, `ARC-73`).** The `lm` model is the one out-of-process model this build
+  installs (`external "lm"`). The LM Controller is a Python Controller Pack and a protocol client (`ARC-56`):
+  it joins each seat that `mineworld decisions --json` assigns to `lm`, and it is the only process that
+  holds such a seat while it runs. Its social choices (what to say, to whom, which offered affordance to
+  attempt) come from a language model through the P5 gateway; a model's text is a proposal that the
+  controller validates, and a request is built only through `mineworld_sdk.offers`. It never chooses
+  movement. When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
+  breaker), it gives the seat back with `leave`, and the server's fallback model for that seat drives it
+  (`took_over: "hosted"`). The hand-back is host state: no fact is written and no world state changes.
+  Retry layers (transport, content, semantic), the per-seat circuit breaker, the consult deadline and the
+  call cap are configured in `cognition.toml`, never in a decision list. Counters go to the controller's
+  own decision log, never to world facts. Where no in-server fallback exists, the seat stands for that
+  consult and sends nothing.
+
 **Registration.** `cognition/installed` (`mineworld-installed-models`) lists every model this build
 provides, one line each, through the `models!` macro of `mineworld-decision`:
 
@@ -1225,7 +1239,9 @@ no `dict[str, Any]`. A policy is a class with a constant `id` (equal to its entr
   episode, 2 a chapter, 3 a stable fact); its `container` (the unit it nests in: an L0 record's episode, an
   episode's week chapter if one exists, otherwise none, which makes it top-level); `first_at`, `last_at`
   and `day` in world time; its kind; its counterparts and place; whether the seat was the actor; its
-  host-computed `importance`; its `Citation`; its names-only text; and its own size in the canonical dump;
+  host-computed `importance`; its `Citation`; its names-only text; and its own size in the seat view, the
+  bytes it contributes to the canonical dump of that seat view with any shared record it cites counted in
+  full (`ARC-99`);
 - a `RetentionBudget`: the bytes the surviving items should fit in, `now` (world seconds at the start of
   the day whose first fact triggered the pass, or, for a size pass, the world time of the fact that took
   the store over its trigger; rule 1), and the model calls this pass may make (0 for every no-LLM policy).
@@ -1290,7 +1306,7 @@ and a policy cannot bypass them.
    rises to their end, meaning "every perceived id at or below the watermark that no surviving unit
    represents is forgotten". The set is bounded by construction, and every forgotten id still resolves in
    the save (`mineworld perceived`).
-7. **Hard bounds.** Each seat's store has a **bound**: 20 MiB (20 971 520 B) by default, which a world may
+7. **Hard bounds.** Each person's size has a **bound**: 20 MiB (20 971 520 B) by default, which a world may
    raise per seat or class with `store_bound_mib` in its `memory:` entry, up to 1 024 MiB, and never set
    lower (operator rulings of 2026-10-14). From it the host derives a **target**, 75 % of the bound
    (15 728 640 B at the default), and a **trigger**, the bound less a sixteenth (19 660 800 B). After
@@ -1307,7 +1323,9 @@ and a policy cannot bypass them.
    If the store is still over the target after the last step — the open episode alone, which no pass
    removes, being too large — the pass raises `RetentionBoundUnreachable` and rolls back, and the next
    `absorb` retries it before ingesting anything, so the store does not grow past that point. No policy
-   sees or changes the bound, the target or the trigger.
+   sees or changes the bound, the target or the trigger. A person's size is the canonical dump of their seat
+   view, with every shared record they hold counted in full (`ARC-99`, `ARCHITECTURE.md` §9.3); each
+   "canonical dump" in this rule means that dump, and the physical share of a shared record is never charged.
 8. **Context bound.** A retrieval for a model call is at most 6 000 bytes, per section, as P4 D-P4-9 defines
    it. This bound is not changed by any policy, nor by the store's bound. Retrieval reads no row a policy
    may have removed.
@@ -1351,6 +1369,159 @@ reproduces the fallback's store and says so. An assisted policy names a no-model
 model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
 before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
 Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
+
+## 5.3 Memory scopes
+
+**Status:** design (step 28, `ARC-98` … `ARC-101`). Not yet implemented; S28-c implements the interface,
+registry, selection and parameters, and S28-d the anchored scope. **Field reference:** the parameters of each
+scope are generated into `reference/memory-scopes.md` (S25 PR 25b) and the `[memory]` table of `cognition.toml`
+into `reference/cognition-toml.md`; a generated page is never edited by hand.
+
+A **memory scope** is a plug-in that organises and recalls what a person perceived. It adds indices, private
+rows and one recall section over a **seat view** (`ARCHITECTURE.md` §9.3). It is part of a Controller Pack or
+of a user's own package, and it is selected per person in `decisions.yaml` `memory:` (§4.1), like a memory
+policy (§5.2). A scope never grants access. Access is the **memory home**'s, and it comes only from perception:
+a person can read a fact record only if their access row holds its key (`ARC-100`, `ARC-98`).
+
+### Scopes
+
+| Scope id | Owner module | Role |
+| --- | --- | --- |
+| `person` | `mineworld_cognition.memory.scopes.person` | Required. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. Its recall is the four sections L3, L2, L1 and L0 of P4, unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
+| `world` | `mineworld_cognition.memory.scopes.world` | Required. The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
+| `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation configured per anchor kind. Rows derive purely from the envelope of a shared fact record (`place` gives role `at`, `subjects` give `subject`, `participants` give `participant`), and the recall section `About <name>:` is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
+| user-defined, for example `organization` | the user's package | Any package exposing one entry point of the group `mineworld.memory_scopes`. An anchor scope is implemented as `place` is, outside the cognition package, to prove that a scope can be added without editing the kernel or cognition (`ARCHITECTURE.md` §9.3). |
+
+Inner notes, reflections and any other model-written private text belong to the `person` scope's private layer.
+No scope may index them as shared, and they are never written into a fact record. A belief reaches another
+person only by being said or written in the world, which makes it a world fact that a System decides and
+perception delivers (`ARC-100`).
+
+Information that should reach someone who did not witness it reaches them as a world fact. A System decides
+that someone was told, briefed, read a notice or heard a rumour, and perception then delivers that fact. A scope
+organises what was perceived; it never widens who perceived it.
+
+### Interface
+
+Scopes are strict typed objects of `mineworld_cognition.memory.scopes`, checked by pyright in strict mode. The
+shape follows the policy interface of §5.2 (`ARC-85`: interface, carrier, selection, parameters, host):
+
+```python
+class MemoryScope(Protocol):
+    id: ClassVar[str]                                 # equal to the entry-point name; ^[a-z][a-z0-9-]{0,47}$
+    Parameters: ClassVar[type[ScopeParameters]]       # strict, frozen; every field bounded and defaulted
+    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; keyed by event_key and/or seat
+
+    def index(self, fact: FactRecord, reading: Reading, params: Parameters) -> tuple[ScopeRow, ...]: ...
+    def recall(self, view: SeatView, query: RecallQuery, budget: SectionBudget,
+               params: Parameters) -> tuple[SectionLine, ...]: ...
+    def account(self, view: SeatView) -> ScopeBytes: ...
+```
+
+- `index` is pure. It returns the rows to add when a seat first holds a fact. It receives the fact record and the
+  seat's `Reading` (its gist, salience, `mine` flag and anchors), and never a store, connection, clock, path or
+  gateway.
+- `recall` reads only through `SeatView`, whose every method is filtered by the seat's access index. Every returned
+  line carries a citation of held keys, and the host checks it.
+- `account` reports the scope's share of the seat view, by table, for the size rule.
+- **The host writes.** The memory home creates and drops the scope's tables, inserts the rows `index` returns,
+  deletes them by `event_key` when a fact record is collected, and by `seat` when a seat leaves the home. A scope
+  never deletes and never executes SQL writes (`ARC-100`).
+- **The host checks every line.** A citation outside the seat's held keys is `AccessDenied`: a defect, named with
+  the scope, the seat and the key, and never shown to a model. A section over its budget is
+  `ScopeSectionOverBudget`.
+
+### Registry and selection
+
+- **Registry.** `ScopeRegistry` reads the entry points of the group `mineworld.memory_scopes` with
+  `importlib.metadata`. It applies the same load checks as the policy registry of §5.2, and refuses duplicate ids,
+  unknown ids and invalid parameters with the named errors below. The bundled `person`, `world`, `place` and `item`
+  are ordinary entry points, and none is privileged.
+- **Selection.** The memory stack is chosen per person: seat > class > default, in `decisions.yaml` `memory:` beside
+  `policy` and `bound_mib`:
+
+  ```yaml
+  memory:
+    default:
+      policy: consolidate
+      bound_mib: 20
+      scopes:
+        - id: person
+          parameters: { sections: { L0: { lines: 48, bytes: 2000 } } }
+        - id: place
+          parameters: { section_lines: 4, section_bytes: 0, anchors_max: 256 }
+  ```
+
+  The Rust reader passes `scopes` through as typed JSON, `MemoryScopeChoice { id, parameters, span }`, as it passes
+  `MemoryPolicyChoice` today. With no `scopes` key the stack is `[person]`. `person` is required and must be listed
+  first; ids are unique.
+- **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`; `service` is refused before MVP-1 with
+  `SharingModeUnavailable`), `home` (a path template, default `store/<instance>/memory.sqlite`), `cache_records`
+  (0 … 1 000 000; default 4 096), `page_cache_kib` (256 … 1 048 576; default 8 192) and `verify` (`off` \| `pass` \|
+  `every-commit`; default `off`, for debugging: it recomputes the invariants and sizes and raises on a mismatch). A
+  stack changes what a person recalls, so it is the world author's; placement provably does not change it
+  (`ARC-98`, `ARCHITECTURE.md` §9.3), so it is the operator's.
+
+### Parameters
+
+Every parameter model is a strict Pydantic model with bounded, defaulted fields. The defaults reproduce today's
+context byte for byte.
+
+| Scope | Parameter | Range | Default |
+| --- | --- | --- | --- |
+| `person` | `sections.<L>.lines` / `.bytes` | L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 2 000 | P4's budgets. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9) |
+| `person` | `l0_window_s` | 3 600 … 86 400 | 86 400 (D-P4-11) |
+| `place`, `item` | `roles` | a subset of `at`, `subject`, `participant` | `place`: `[at]`; `item`: `[subject, participant]` |
+| `place`, `item` | `granularity` | `event` \| `episode` | `event`. In `episode` mode the index is per seat, `(seat, episode, entity)` rows, and recall cites the episode |
+| `place`, `item` | `anchors_max` | 1 … 10 000 | 256 |
+| `place`, `item` | `section_lines` / `section_bytes` | 0 … 16 / 0 … 1 600 | 4 / 0 (indexed, not recalled) |
+
+A scope's sections count against the 6 000 B ceiling together with every other scope's sections; a stack whose
+sections sum above it is refused with `TotalSectionsOverCeiling`.
+
+### Named errors
+
+Each error is raised by the module it names, and its message begins with that module's tag. No error echoes a
+parameter's value.
+
+| Module | Errors |
+| --- | --- |
+| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path, holder_pid)`, an OS lock on all three platforms; `SeatNotInHome(seat)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
+| `memory.scopes` | `ScopeLoadError`; `DuplicateScope`; `UnknownScope(id, installed)`, naming the installed ids; `ScopeParameterError(scope, field, span)`; `PersonScopeRequired`; `ScopeSectionOverBudget(scope, section, bytes, limit)`; `TotalSectionsOverCeiling(total)`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key the seat does not hold |
+| `memory.scopes.world` | `ConflictingFact(event)`, when a second holder's digest differs; `FactRecordMissing(seat, event)`; `HolderInvariantBroken(keys)`, when `verify` finds an orphan or a dangling key |
+| `memory.retention` | `RetentionBoundUnreachable` (`BoundBelowDefault(seat, given_mib)` for a bound under 20 MiB, naming the source span) |
+| `memory.config` | `SharingModeUnavailable(mode)` |
+
+### Inspection and degradation
+
+- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and
+  `MemoryHome.inspect()` share one implementation and one typed `InspectReport`. The command opens the home
+  read-only, never writes, and runs while the cognition process is stopped. It answers four questions: what a person
+  can access and why (`--seat S access [--event N]`); what was forgotten, by which policy and pass (`forgotten`);
+  where the bytes are, by scope and table, and which scope overran (`bytes`); and every recalled line traced back to
+  its facts (`recall --at T [--trace]`). `scopes` shows the installed and selected scopes, with the source span of
+  each parameter.
+- **Removing a scope from a stack.** Its section is gone, its private rows for that seat are dropped at the next open
+  and recorded in the pass log as `scope-removed:<id>`, and shared index rows are dropped when no remaining seat
+  selects the scope. Memory and the world are unaffected.
+- **Uninstalling a scope a stack still names.** The home refuses to open with `UnknownScope`, naming the installed ids.
+  The home is never opened with a scope it cannot run, so no table is silently stale.
+- **Reinstalling a scope.** The home rebuilds the scope's rows from the held fact records and access rows, in key
+  order. `index` is pure, so the rebuilt rows are byte-identical to those of an uninterrupted run.
+- **No home.** A controller without `cognition.toml` memory, or a non-cognition controller, runs as it does today. The
+  world never reads memory.
+
+### Testing each scope in isolation
+
+Each scope has, without a home or a binary:
+
+- a property test of `index`: the same fact and reading give the same rows, and no row cites another key;
+- a recall test against a `SeatView` fake that holds a fixed key set and raises on any other key;
+- a budget test: every line is ≤ 160 B and every section is within its bytes.
+
+The memory home's own tests use a hostile fixture scope that cites unheld keys, returns oversized sections and
+raises. Every scope is covered by the isolation and provider scans of `ENGINEERING_STANDARDS.md` (no provider concept
+in memory, no connection, path or clock in a scope's signature).
 
 ---
 
@@ -1424,6 +1595,24 @@ package fields, and that the style manifest has an `id` and a `dimension` list.
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
 (§16).
+
+A 3D pack that casts characters may also carry `characters/casting.yaml`. Per cast it holds:
+
+- the worlds the cast serves;
+- the style template;
+- the character source and its parameters;
+- the distinctness rule;
+- substitutions and prompt phrasing;
+- the quality-tier control and band;
+- the licence policy.
+
+The rules are in `.structured-coding/plans/mvp0/step-26-cast.md` §7.4b.2 (`ARC-134`, which S26-src2 writes into `DECISIONS.md`).
+
+The population profile and its seed are not in it. They are the world's own data, read through the
+`attributes` pack (step 30).
+
+It is production data read only by `tools/character_pipeline/`. No client, server or System reads it, and no
+runtime file names which character source made a character (`ARC-130`).
 
 ## 6.2 Authoring a style
 

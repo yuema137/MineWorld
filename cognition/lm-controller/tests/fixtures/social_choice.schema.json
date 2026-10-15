@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["act", "to", "words", "offer", "recalls"],
+  "properties": {
+    "act": {"type": "string", "enum": ["say", "attempt", "nothing"]},
+    "to": {"type": ["string", "null"]},
+    "words": {"type": "string", "maxLength": 480},
+    "offer": {"type": ["integer", "null"]},
+    "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": 8}
+  }
+}
