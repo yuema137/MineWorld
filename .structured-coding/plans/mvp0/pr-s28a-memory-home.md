@@ -802,8 +802,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C3 | `402426b5` | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
 | C4 | `7ec76cfd` | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
 | C5 | `419df400` | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
-| C6 | (this commit) | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: see evidence); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
-| C7 … C9 | — | [ ] | [ ] | [ ] |
+| C6 | `e7b35625` | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: 1); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
+| C7 | (this commit) | [x] `home_kill.py kill` (three seams, patched in the child), `drive` (re-delivery from each seat's cursor), `test_home_kill.py` | [x] 50 kills PASS (17/17/16); M-a-10 red | [x] seams patched only in the child (and, for counting, by the test's `MonkeyPatch`); nothing in `memory/` names a kill point or reads the environment |
+| C8 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -937,6 +938,20 @@ so the internal seat numbers follow the interleaving), and four test files (D-a-
 - Review: every assertion compares the `home` arm with the `none` arm computed in the same test (or the home dumps
   of several runs with each other); no value the home reports about itself is asserted.
 
+**C7 (2026-10-15).** `tests/home_kill.py` gains `drive` (the kill world: 4 seats of `world(7, 3)`, frames of 64,
+interleaving 5, `absorb` under `consolidate`, into a file home; each seat delivered what lies above its persisted
+cursor) and `kill` (`os._exit(137)` at the n-th call of a seam: `record` after `world.insert_or_verify` returns
+inside `SeatView.hold`, `release` before `world.collect` inside `SeatView.release`, `commit` before the home's
+`_commit`). `tests/test_home_kill.py`: the uninterrupted run once (in the test's process, seams counted through
+`MonkeyPatch`), then 50 cases, the n-th call drawn by SplitMix64 of `(28, case)` over that seam's call count; each
+case kills a child, opens the killed file and checks I-S28-4 on its committed state with `world.check_holders`,
+re-delivers in-process from the persisted cursors, and compares `MemoryHome.dump()` with the uninterrupted run's.
+- `uv run --locked pytest …/test_home_kill.py`, under `cast-slots/with-slot.sh`, load average 4.05 at start: **50
+  passed in 9.78 s** — PASS (17 at `record`, 17 at `release`, 16 at `commit`).
+- ruff, ruff format, pyright strict: PASS.
+- Review: `grep` of `src/` for `_exit`, `environ`, `kill` finds nothing; the only production seam is the module
+  function `home._commit`, which names no kill point (it is the home's one `COMMIT`).
+
 ### Mutations
 
 | Id | Planted | Expected red | Observed | Restored |
@@ -949,6 +964,7 @@ so the internal seat numbers follow the interleaving), and four test files (D-a-
 | M-a-7 | `SeatView.release` deletes access rows with `? IS NOT NULL` in place of `seat = ?` | `test_home_gc.py::test_a_pass_touches_only_its_seat` | **red**: that test, and the three other multi-seat GC tests | byte copy, `cmp` clean, 5 passed |
 | M-a-8 | the view's `l0_who` keeps the seat's own row (`w.entity <> (? \|\| '#')`) | red by name in C6's harness | **red**: all 6 of `test_home_transparency_frames.py` (the meter, which `hold` keeps without the seat's row, no longer matches the rows `row_bytes` reads at the first pass); also `test_home_store.py::test_the_view_shows_its_held_facts_…` and `::test_the_meter_is_the_dump`, and `test_home_golden.py`'s three golden tests (episode texts name the seat). Note: the harness alone catches it through the meter, not through a `none`/`home` difference — the mutation is symmetric between the arms | byte copy, `cmp` clean; 6, 11 and 5 passed |
 | M-a-9 | `MemoryHome.dump()` orders seats by `seats.seat` instead of `key` | the interleaving test | **red**: `test_home_isolation.py::test_the_home_dump_is_the_same_for_every_interleaving_and_frame` | byte copy, `cmp` clean, 1 passed |
+| M-a-10 | the record committed in its own transaction before the access row (`COMMIT; BEGIN IMMEDIATE` at the end of `world.insert_or_verify`) | AC-a-7 | **red**: every `record` case of `test_home_kill.py` (the killed file holds a committed record no seat holds) | byte copy, `cmp` clean, 17 passed |
 | M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
