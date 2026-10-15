@@ -499,6 +499,16 @@ parameters: a world or a policy cannot loosen them (step-24 §1.2 ruling 2 (4)).
 room for one simulated day of ingestion before the next pass (QFGb-2). `overhead` = the dump bytes of
 `meta`, `names`, `forgotten`, `retention_passes` and the open episode with its record.
 
+**Note, 2026-10-14 — revised by FG-b2 under the operator's rulings ([`pr-fg-b2-size-trigger.md`](pr-fg-b2-size-trigger.md)).**
+The paragraph above is superseded in three points; the rest of §5.6–§5.7 stands. (1) The bound is 20 MiB
+per person by default (20 971 520 B), raisable by a world through `store_bound_mib`, never lower; `TARGET`
+is 75 % of it (15 728 640 B at the default) and both live in `StoreBounds` on `Retention`, not as module
+constants. (2) A size pass runs after the fact that takes the store's content over `bound − bound / 16`
+(19 660 800 B), so the hard bound holds between passes in any world, not only at the reference worlds' pass
+points (QFGb-2's reading and R-FGb-2 are superseded). (3) The pass log is keyed by its triggering fact and
+records its cause (schema v3). PR 12d (#171) measured 1 496 077 B before a daily pass, which FG-b's 1 MiB
+reading could not hold. AFGb-4's figures are re-derived in FG-b2 §7.
+
 #### 5.7.0 Eligible items
 
 Every L0 record inside a **closed** episode; every closed episode; every chapter; every L3 row. The open
@@ -766,10 +776,13 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 
 - **Goal.** Start the implementation context against the frozen design.
 - **Scope.** This document (§15 opened), `handoff-fg-b.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, that
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and their sources, that
   DOC-24 is merged (`ARC-87` present in `docs/DECISIONS.md`); record the base commit; initialize the handoff.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no authority line widened; every one has a source.
+  Evidence: §15.1 (base 6306977; ARC-87 at line 7799); `handoff-fg-b.md` created.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  Evidence: "223 numbered sections across 31 documents, none duplicated"; "122 decision ids, all distinct".
+- [x] Review: no authority line widened; every one has a source. Evidence: §12 unchanged; the handoff's
+  endpoint line cites §12 and the go of 2026-10-13.
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specification edits
@@ -779,10 +792,15 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
   `mineworld.forgetting` entry-point group, bound by the host's bounds (1 MiB store, 6 000 B per call),
   selected through `decisions.yaml` `memory:`. `docs/ARCHITECTURE.md` §9: controller memory retention, pass
   points, coverage, the forgotten set, the bound. Both cite `ARC-87`.
-- [ ] Implementation: the two sections.
-- [ ] Validation: both doc checks.
-- [ ] Review: terminology matches `CORE_CONCEPTS.md` (Controller Pack, Observation, Event); no synonym for a
-  defined term; nothing contradicts step-24 §8.3 except the recorded corrections (§14).
+- [x] Implementation: the two sections. Evidence: DOC-24 had already created `MODULE_SPEC.md` §5.2 and
+  `ARCHITECTURE.md` §9.3 from step-24's sketch; both rewritten in place to the frozen design (§15.4 F-FGb-6).
+- [x] Validation: both doc checks. Evidence: "223 numbered sections …, none duplicated"; "122 decision ids,
+  all distinct".
+- [x] Review: terminology matches `CORE_CONCEPTS.md` (Controller Pack, Observation, Event); no synonym for a
+  defined term; nothing contradicts step-24 §8.3 except the recorded corrections (§14). Evidence: the
+  corrections carried are QFGb-2 (post-pass target and hard bound), QFGb-3 (`l0_hours`, default 0),
+  QFGb-8 (`into` ∈ {1, 2}, top-level `Drop`), QFGb-9 (ledger prunes by wall time), QFGb-10 (no level
+  term); "memory policy", "Controller Pack", "seat" as `MODULE_SPEC` §5 already uses them.
 - **Failure cases.** DOC-24 not merged: stop (C0 checks it).
 
 ### C2 — Schema v2, importance at ingestion, retrieval without dropped rows
@@ -792,12 +810,24 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
   `render/__init__.py` and each plug-in (base importance; `involved`), `render/movement.py` (QFGb-6),
   `compress/episodes.py`, `chapters.py`, `stable.py`, `retrieve.py` (§5.10); P4 tests touched only where
   schema v2 or the refined re-delivery rule requires (each recorded).
-- [ ] Implementation: as scoped. `chapters()` reads `chapter_ranges`; L3 lines read `first_at`/`last_at`.
-- [ ] Validation: AFGb-6 (b), (c); AFGb-7 (c), (d) on hand-built stores with rows deleted by the test;
+- [x] Implementation: as scoped. `chapters()` reads `chapter_ranges`; L3 lines read `first_at`/`last_at`.
+  Evidence: `records.py` (`SCHEMA_VERSION = 2`, `ItemId`, `Chapter.ranges`, `StableFact.first_at/last_at`);
+  `store.py` (§5.5 schema, `_META`, `auto_vacuum`, `row_bytes`, `reclaim`); `ingest.py` (importance,
+  `involved`, strict ascent per call, `_represented`, `forgotten_redeliveries`); `render/*` (base
+  importance per §5.4's table), `render/movement.py`; `compress/episodes.py` (importance and `mine` at
+  close), `chapters.py` (`consecutive_runs`, stored keys, times, importance, `chapters(store, limit)`),
+  `stable.py` (`first_at/last_at`, `stable_facts(store, limit)`, `stable_text` moved here from
+  `retrieve.py` so retrieval and retention render one L3 line); `retrieve.py` (no `l0` read for L3,
+  limits, `_episode_text_matching`). Deviations D-1 … D-4 (§15.4).
+- [x] Validation: AFGb-6 (b), (c); AFGb-7 (c), (d) on hand-built stores with rows deleted by the test;
   AFGb-11 (a), (b); importance literals per renderer; P4's unit suites; `test_ac10.py` locally (AFGb-14).
-- [ ] Review: no `int(` of an id (P4 AP4-2 (c) scan); every chapter range is a run of consecutive episode
+  Evidence: §15.2 C2.
+- [x] Review: no `int(` of an id (P4 AP4-2 (c) scan); every chapter range is a run of consecutive episode
   numbers; no read of `l0` remains in L3 rendering; the re-delivery rule cannot skip an id above the
-  call-start cursor.
+  call-start cursor. Evidence: the scan finds one new conversion, `int(involved)` (a boolean); the scan's
+  set is updated with that reason. `consecutive_runs` breaks a run exactly where `number != previous + 1`.
+  `stable_text` reads `fact.first_at/last_at`; `_at` is gone. The skip is guarded by `key <= cursor_key`,
+  the cursor read before the loop.
 - **Failure cases.** A P4 test whose expectation encodes v1 layout: updated with the reason recorded, never
   weakened. `test_ac10.py` red: stop and audit (FGb-7).
 
@@ -807,9 +837,22 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Scope.** `retention/policy.py`, `registry.py`, `selection.py`, `retention/__init__.py`; `pyproject.toml`
   entry-point table (bundled ids pointing at stub-free classes landing in C5 — the table lands in C5 if a
   dangling entry would break discovery; the implementing session decides and records); tests AFGb-1 (b)–(d).
-- [ ] Implementation: §5.2, §5.3, §6.
-- [ ] Validation: AFGb-1 (b)–(d); pyright strict over the generic protocol.
-- [ ] Review: no `Any`; parameters are decoded once, at `bind`; errors never echo input values.
+- [x] Implementation: §5.2, §5.3, §6. Evidence: `memory/retention/policy.py` (`MemoryItem`,
+  `RetentionBudget`, `Keep`/`Merge`/`Drop`, `ForgettingPolicy[P]`, `half_life_permille`,
+  `hyperbolic_permille`, `tie_key`), `registry.py` (`PolicyRegistry.installed`, `from_entry_points`,
+  `bind`; `SourceSpan`; the refusals), `selection.py` (`MemoryPolicyChoice`, `DEFAULT_CHOICE`, `resolve`,
+  `FallbackNotAllowed`, `Retention`), `retention/__init__.py` (§5.2's names exactly). The entry-point table
+  lands in C4 (D-5). D-6, D-7 (§15.4).
+- [x] Validation: AFGb-1 (b)–(d); pyright strict over the generic protocol. Evidence:
+  `test_retention_interface.py` 9 passed — (c) unknown id with the installed ids, wrong id, missing default,
+  duplicate entry points, an unimportable entry point; (d) out of bounds, unknown key, string for integer,
+  each naming policy, field and source, never the value; `resolve` and `FallbackNotAllowed`. (b) needs
+  `absorb`: C4. (d) on `consolidate`'s own `l0_hours`: C4, once `consolidate` is installed. pyright strict
+  0 errors. M-FGb-1c red (§15.3).
+- [x] Review: no `Any`; parameters are decoded once, at `bind`; errors never echo input values. Evidence:
+  no `Any` in the package; the plug-in boundary is typed `object` and checked at load (`_check`), the plan
+  result is `object` and validated by the host; `ParameterError` carries `loc` and `msg` from
+  `errors(include_input=False)`; the "721" case asserts the value is absent from the message.
 
 ### C4 — The host: items, validation, execution, forgotten set, bound, `absorb`
 
@@ -817,46 +860,70 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 - **Scope.** `retention/items.py`, `plan.py`, `forgotten.py`, `bound.py`, `host.py`, `absorb.py`;
   `tests/retention_stream.py`, `retention_fixtures.py`, `test_retention_plan.py`, `test_retention_host.py`.
   Policies used here: `KeepAll` and test-only ones (C5 brings the rest).
-- [ ] Implementation: §5.6–§5.8.
-- [ ] Validation: AFGb-2; AFGb-3 (a)–(c) on the synthetic stream; AFGb-4 (a) with `keep-all` and
-  "drop everything"; AFGb-5 (a)–(c) with `keep-all`; AFGb-6 (a); mutations M-FGb-2 … -6.
-- [ ] Review: one transaction per pass; no partial plan is ever applied; the structural check raises,
-  never falls back; split points are facts; a pass never reads a clock.
+- [x] Implementation: §5.6–§5.8. Evidence: `retention/items.py` (`extract`: items from dump rows, bytes,
+  overhead, importance with the L3 bonus), `plan.py` (`validate`, `execute`, `remove`), `forgotten.py`
+  (`ForgottenSet`, `normalize`), `bound.py` (`TARGET`, `STORE_BOUND`, `enforce`, the fallback through the
+  entry point), `host.py` (`run_pass`, `check_structure`, `PassReport`), `absorb.py`; `forgetting/
+  consolidate.py`, `forgetting/keep_all.py` and the entry-point table (D-5); `MemoryStore.size()` and
+  one shared JSON encoder (measured: the dump was the pass's cost). D-8 … D-12 (§15.4).
+- [x] Validation: AFGb-2; AFGb-3 (a)–(c) on the synthetic stream; AFGb-4 (a) with `keep-all` and
+  "drop everything"; AFGb-5 (a)–(c) with `keep-all`; AFGb-6 (a); mutations M-FGb-2 … -6. Evidence:
+  §15.2 C4; §15.3.
+- [x] Review: one transaction per pass; no partial plan is ever applied; the structural check raises,
+  never falls back; split points are facts; a pass never reads a clock. Evidence: `run_pass` is one
+  `store.transaction()`; `validate` returns removals only after every rule passed, and `execute` runs on
+  the `Resolved` of either the policy or the fallback, never both; `check_structure` raises
+  `RetentionInvariantBroken` inside the transaction (M-FGb-3c showed it firing); `absorb` splits on
+  `fact.at // DAY_S > day` per fact; no `time`, `datetime` or `random` import under `memory/retention/`.
 
 ### C5 — The bundled policies
 
 - **Goal.** Three useful no-LLM policies and the hostile fixture, as ordinary plug-ins.
 - **Scope.** `forgetting/*.py`; `pyproject.toml` entry points; `test_retention_policies.py`,
   `test_retention_interface.py` (AFGb-1 (a), AFGb-9).
-- [ ] Implementation: §5.9.
-- [ ] Validation: AFGb-8 literals (the `shasum -a 256` values recorded in §15 before the test is written);
+- [x] Implementation: §5.9. Evidence: `forgetting/decay.py` (`Decay`, survivors over budget get
+  `consolidate`'s defaults inline: D-11 forbids importing the sibling), `forgetting/importance_recency_cap.py`
+  (`ImportanceRecencyCap`); entry points `decay`, `importance-recency-cap`; `consolidate` and `keep-all`
+  landed in C4 (D-5). `test_memory_isolation.py`'s scan now includes `forgetting/`.
+- [x] Validation: AFGb-8 literals (the `shasum -a 256` values recorded in §15 before the test is written);
   AFGb-1 (a); AFGb-9; AFGb-4 (a) and AFGb-5 (a), (d) for every policy over the 300-day synthetic stream;
-  AFGb-7 (a), (b), (e); wall time per policy recorded.
-- [ ] Review: each policy imports only public names; every threshold comparison matches the table's `<`
-  / `≥`; no float.
+  AFGb-7 (a), (b), (e); wall time per policy recorded. Evidence: §15.6 (literals), §15.2 C5, §15.3.
+- [x] Review: each policy imports only public names; every threshold comparison matches the table's `<`
+  / `≥`; no float. Evidence: AFGb-9 (a)'s AST scan passes; `consolidate`: `last_at < now − …` three times;
+  `decay`: `importance * r // 1000 >= threshold`; IRC: integer score; `grep -n "float\|/ " forgetting/`
+  finds no float division (every division is `//`).
 
 ### C6 — Ledger pruning
 
 - **Goal.** The P5 ledger stops growing (G9).
 - **Scope.** `budget.py` `SqliteLedger.charge`; `tests/test_ledger_prune.py`.
-- [ ] Implementation: §5.12.
-- [ ] Validation: AFGb-10; P5's `test_budget.py` unchanged and green.
-- [ ] Review: the delete is in the same commit as the insert; `MemoryLedger` unchanged.
+- [x] Implementation: §5.12. Evidence: `budget.py` `KEEP_S = 2 * DAY_S`; `SqliteLedger.charge` deletes
+  `at < charged_at - KEEP_S` after its insert, before its one `commit()`.
+- [x] Validation: AFGb-10; P5's `test_budget.py` unchanged and green. Evidence: `test_ledger_prune.py` 1
+  passed (two seats, charges at 0, 1 h, 1 d, 2 d + 1, 3 d; hour and day windows equal to `MemoryLedger`
+  after every charge; six rows left, at 1 d, 2 d + 1, 3 d); `test_budget.py` 8 passed, unchanged.
+  M-FGb-10 red (§15.3).
+- [x] Review: the delete is in the same commit as the insert; `MemoryLedger` unchanged. Evidence: the
+  diff of `budget.py` touches `charge` and adds `KEEP_S` only.
 
 ### C7 — Real lifecycle over the binary (Gate 2)
 
 - **Goal.** The bound, coverage and determinism on a real 100-day history, on three platforms.
 - **Scope.** `tests/conftest.py` (the fixture moved from `test_ac10.py`), `test_ac10.py` (uses it),
   `test_retention_real.py`.
-- [ ] Implementation: §8.4.
-- [ ] Validation:
+- [x] Implementation: §8.4. Evidence: `tests/conftest.py` (`social_cafe_100`, session-scoped, the old
+  fixture's `History.build(scratch)` moved; the store's own scratch stays in `test_ac10.py`'s `run`),
+  `test_ac10.py` (takes the fixture), `test_retention_real.py`.
+- [x] Validation (300-day run and CI times recorded in §15.2 C7/C8):
   - Gate 2 specification written in §15 before the run (claim, owner, command, PASS evidence, mutations);
   - `cargo build -p mineworld-cli`; `uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real"`;
     AFGb-3, AFGb-4 (a)–(c), AFGb-5 (a) (real half), AFGb-11 (c); wall time;
   - one local 300-day real run under `consolidate`: dumps at days 30, 100, 300 recorded (QFGb-5);
   - the PR's CI: per-leg wall time of `test_retention_real.py` and `test_ac10.py`.
-- [ ] Review: no oracle calls `mineworld_cognition`; the save is read only through the CLI; the moved fixture
-  is byte-for-byte the old body.
+- [x] Review: no oracle calls `mineworld_cognition`; the save is read only through the CLI; the moved fixture
+  is byte-for-byte the old body. Evidence: `retention_oracle.check_coverage` parses the dump; the export
+  comes from `ac10_harness._export` (CLI); the moved body is the one call `History.build(scratch)`, now
+  in `conftest.py`; `run` keeps everything else unchanged.
 - **Failure cases.** Windows over 180 s for `test_retention_real.py`, or `test_ac10.py` over its 300 s
   ceiling because of the shared fixture: stop with the measurement (§13).
 
@@ -864,9 +931,11 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 
 - **Goal.** Review readiness.
 - **Scope.** README paragraph; this ledger; `handoff-fg-b.md`; parent synchronization marked pending.
-- [ ] Implementation: ledger complete, deviations recorded.
+- [x] Implementation: ledger complete, deviations recorded. Evidence: README "Forgetting" paragraph;
+  §15.2–§15.6; D-1 … D-12; parent synchronization pending (§15.8).
 - [ ] Validation: doc checks; the final head's CI green on every job (recorded in the handoff and PR).
-- [ ] Review: AFGb-13's diff gate; every `[x]` carries evidence.
+  Doc checks clean (§15.2 C8 local); CI: §15.7.
+- [x] Review: AFGb-13's diff gate; every `[x]` carries evidence. Evidence: §15.2 C8 local (scope clean).
 
 ---
 
@@ -984,6 +1053,321 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## 15. Ledger (live during implementation)
 
-Empty until C0. Sections to open: per-commit evidence; mutations (M-FGb-n, one per AFGb row's mutation);
-deviations and discoveries; CI runs per head; the Gate 2 specification and result; the `shasum -a 256`
-literals of AFGb-8.
+Opened at C0, 2026-10-13, by the implementation session (worktree
+`/Users/yuema137/mineworld-worktrees/impl-fg-b`, branch `mvp0/pr-fg-b`). The operator's go was given on
+2026-10-13 and relayed in this session's brief.
+
+### 15.1 Base and authority (C0)
+
+```text
+Implementation base:   origin/main @ 6306977 (Merge #177, docs/dl-design)
+DOC-24:                merged (#175): docs/DECISIONS.md holds "ARC-87 — Controller-memory retention …"
+                       (line 7799 at the base)
+DESIGN FROZEN header:  present (revision 2, 2026-10-12); §12's endpoint lines each carry a source
+                       ("freeze" or "S10 convention, adopted at freeze"); none widened here
+Handoff:               handoff-fg-b.md
+Brief additions:       the sdk/python and cognition Python suites and any affected Rust tests run locally
+                       before pushing (the operator's brief of 2026-10-13; this narrows test rules §8's
+                       "no local full suite" default for this PR, with that brief as its source)
+```
+
+### 15.2 Per-commit evidence
+
+**C2** (macOS arm64, Python 3.14.5 from `uv run --locked`, working tree on d37efde + C1 + C2's diff):
+
+```text
+uv run --locked ruff check / ruff format --check cognition/lm-controller     clean
+uv run --locked pyright cognition/lm-controller                              0 errors
+uv run --locked pytest cognition/lm-controller -m "not real_binary"          170 passed, 1 skipped
+  new: test_retention_store.py (7), test_retention_retrieve.py (2)
+cargo build -p mineworld-cli; pytest tests/test_ac10.py -s                    8 passed in 91.4 s
+  [ac10] wall run 27.8 s, export 12.5 s, ingest 6.2 s; section bytes {10: 4599, 30: 4990, 60: 4943,
+  100: 4991}; store 40 714 240 B on disk (P4 alone, no retention: the size FG-b exists to bound)
+P4 test edits (schema v2 only, AFGb-14): test_memory_store.py — the foreign-schema case uses 3 (2 is now
+  the store's), stored/recorded "2"; the AP4-2 (c) scan's set gains "int(involved)". test_memory_compress.py
+  — Bob's stable row gains first_at 0 and last_at 16·DAY + T + 60 (facts 2 and 16). test_memory_retrieve.py
+  unchanged and green with episode-text matching added.
+```
+
+**C4** (macOS arm64, Python 3.14.5; working tree on 57aef0f + C4's diff):
+
+```text
+ruff check / ruff format --check / pyright (strict)                         clean / clean / 0 errors
+pytest cognition/lm-controller -m "not real_binary"                         204 passed, 1 skipped (105 s; the
+                                                                            machine was loaded; 46 s earlier)
+new: test_retention_plan.py (10), test_retention_host.py (16 incl. parameters)
+AFGb-4 (a), synthetic, 302 days at 200 facts/day, seed 7, dump after the first pass at or after day:
+  keep-all          day 30: 281 209 B   day 100: 515 694 B   day 300: 529 240 B   (20.6 s; forced > 0)
+  drop-everything   day 30:   7 767 B   day 100:   8 401 B   day 300:   8 436 B   (6.0 s)
+  every pass ≤ TARGET 786 432 B and ≤ STORE_BOUND 1 048 576 B
+AFGb-3 (a)–(c) at every pass of 40 days: keep-all, drop-everything, consolidate, and drop-day-one (a
+  chapter written over a forgotten episode: 2 ranges for week 0)
+AFGb-5: frames of 1 and 256 = whole (24 days × 120, keep-all); rebuilt file store = first; crash between
+  the day-9 trigger's ingest and its pass = uninterrupted
+AFGb-6 (a): 10+ passes, cursor ahead of newest in ≥ 5 of them, both unchanged by every pass
+AFGb-2: each of 8 hostile policies refused with its reason, dump = consolidate's but for policy/outcome
+```
+
+**C5** (macOS arm64, Python 3.14.5; working tree on 31c5aa3 + C5's diff):
+
+```text
+ruff / ruff format --check / pyright strict                                  clean / clean / 0 errors
+pytest cognition/lm-controller -m "not real_binary"                          231 passed, 1 skipped (114.9 s)
+AFGb-4 (a), synthetic, 302 days × 200, seed 7: every pass ≤ TARGET; dump after the first pass at or after
+  day 30 / 100 / 300, and the policy's wall time for the whole run:
+  consolidate               281 313 / 515 821 / 529 367 B    12.9 s
+  decay                     621 256 / 619 137 / 213 806 B    15.0 s
+  importance-recency-cap    279 240 / 417 576 / 440 702 B    29.3 s
+  keep-all (C4)             281 209 / 515 694 / 529 240 B    19.1 s  (the backstop's consolidate step)
+  drop-everything (C4)        7 767 /   8 401 /   8 436 B     4.8 s
+AFGb-7 (a), (b) on each day-300 store (all four bundled policies and drop-everything): section ≤ 6 000 B,
+  each section within D-P4-9, no L0/L1/L2 citation meets a forgotten range (retention_oracle.check_section)
+AFGb-7 (e): stable_facts and chapters carry LIMIT (AST check)
+AFGb-5 (a): frames of 1 and 256 = whole for consolidate, decay, importance-recency-cap, keep-all
+  (24 days × 120); (d): each policy's plan twice on one store's items is equal and non-empty
+AFGb-8: consolidate at and past each age, with the L3 exemption; curve literals (half-life 1000, 750,
+  500, 250, 0; hyperbolic 1000, 500, 250); decay kept at 300, merged at 301 on both curves; IRC tie
+  order equal to §15.6's digest order for seeds 0 and 42; k_l1 = 0 merges every episode into its chapter
+AFGb-1 (a): installed ids and the distribution's own entry points both equal the four ids
+AFGb-9 (a) import scan, (b) `__all__` exactly §5.2's list, (c) a frozen item refuses assignment
+```
+
+**C7, Gate 2 — PASS** (macOS arm64, Python 3.14.5, debug `mineworld` built in this worktree; working tree
+on d8d331d + C7's diff; the host was heavily loaded by other sessions, load average 38–60, so wall times
+are upper bounds):
+
+```text
+uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real" -s
+  test_ac10.py: 8 passed (fixture shared; section bytes {10: 4599, 30: 4990, 60: 4943, 100: 4991})
+  first run: test_retention_real.py 2 FAILED with StopIteration — the test asked for a pass at day ≥ 100
+  of a history whose days are 0–99 (test defect; `_at` now takes the last pass for day 100); rerun:
+  test_retention_real.py 2 passed: consolidate 33.4 s, keep-all 24.6 s (+ 65 s shared fixture setup)
+consolidate, 98 passes, (day, before pass, after pass, forced):
+  day 30: (30, 607 678, 187 310, 0)    day 100 (last pass, day 99): (99, 799 191, 329 854, 0)
+  largest dump before a pass 960 176 B ≤ 1 048 576 (AFGb-4 (b)); largest after 333 231 B ≤ 786 432
+  coverage against the export at every pass (AFGb-3); day by day = frames of 256 (AFGb-5 (a) real)
+  file on disk 778 240 B ≤ 4 MiB (AFGb-11 (c)); P4 alone left 40 714 240 B
+keep-all, 98 passes: day 30: (30, 1 077 314, 187 234, 2 436 forced); day 99: (99, 799 110, 329 772, 1 270)
+  every post-pass dump ≤ TARGET; forced > 0 by day 30 (AFGb-4 (c))
+```
+
+**C7, the local 300-day real run (QFGb-5)** — scratch outside the repository
+(`/Users/yuema137/mineworld-worktrees/fgb-scratch`), 2026-10-14, macOS arm64, debug binary:
+
+```text
+mineworld run worlds/social-cafe --headless --seed 7 --days 301 --save …/save301     1 min 19 s
+mineworld perceived … --person alice --json > alice.jsonl                            373 360 facts
+uv run --locked python -I run300.py alice.jsonl <instance> 7   (absorb, consolidate, frames of 256)
+  300 passes, 42 s; dump measured at the end of the frame holding the pass (≤ 255 later facts included):
+  day 30: 264 228 B   day 100: 413 021 B   day 300: 355 331 B   final (end of day 300): 784 757 B
+  largest bytes_before 849 121 B (≤ 1 048 576), largest bytes_after 358 578 B (≤ 786 432)
+  (the host-reported figures are recorded as a measurement only; the CI criteria read dump())
+Without retention the same seat grows ≈ 433 KB per day (§3.2): ≈ 130 MB at day 300.
+```
+
+**C8 local, before pushing** (the brief's requirement; same machine, loaded):
+
+```text
+uv run --locked pytest sdk/python                          103 passed
+uv run --locked pytest cognition/lm-controller             242 passed, 1 skipped in 642.6 s (real_binary incl.)
+ruff check / ruff format --check / pyright (sdk + cognition) clean / clean / 0 errors
+check_doc_headings / check_decision_ids                    clean
+Rust tests: not affected (no *.rs, Cargo or world file in the diff); not run
+AFGb-13: git diff --name-only 6306977..HEAD outside cognition/lm-controller/**, MODULE_SPEC, ARCHITECTURE,
+  .structured-coding/**: none
+```
+
+### 15.3 Mutations
+
+Each planted in the source, run, seen red, reverted (the tree compared clean after each).
+
+```text
+M-FGb-6b   ingest's forgotten-redelivery skip disabled (P4's rule)      → both AFGb-6 (b) tests FAIL (OutOfOrder)
+M-FGb-7c   L3 line reads l0.at of its first fact again                   → AFGb-7 (c) FAIL (TypeError: None)
+M-FGb-7d   episode-text matching removed                                 → AFGb-7 (d) FAIL (episode not found)
+M-FGb-11b  PRAGMA auto_vacuum omitted                                    → AFGb-11 (b) FAIL (mode 0)
+M-FGb-imp  overheard speech given 700                                    → importance-literal test FAIL
+M-FGb-mov  movement renderer unregistered                                → walk test and importance test FAIL
+M-FGb-1c   bind ignores unknown keys (C3)                                → AFGb-1 (d) "days" case FAIL; needed a
+           fixture Parameters without extra="forbid" (Pydantic alone refused the key first: the
+           mutation survived until the fixture was written as a user might write it)
+M-FGb-2    validate accepts a Drop of a nested item                      → AFGb-2 drop-nested case FAIL ('ok')
+M-FGb-3a   Drop adds no ranges to the forgotten set                      → AFGb-3 (a) FAIL ("perceived … is
+           unrepresented") for drop-everything and drop-day-one
+M-FGb-3c   chapter ranges written as one span (consecutive_runs ignores gaps)
+                                                                         → drop-day-one test FAIL: the host's own
+           check_structure raised RetentionInvariantBroken ("a surviving unit meets forgotten …") first
+M-FGb-4    backstop disabled                                             → AFGb-4 keep-all FAIL at day 9
+           (859 608 B > 786 432), as §9 predicted
+M-FGb-5    absorb never splits at a day's first fact (passes at frame starts only)
+                                                                         → AFGb-5 (a) FAIL (dumps differ at byte 210)
+M-FGb-6a   the pass writes the cursor down to the newest fact             → AFGb-6 (a) FAIL ('1702' != '1708');
+           see D-12 for why the design's literal mutation is equivalent here
+M-FGb-8    decay's `>=` threshold made `>`                                → AFGb-8 both "kept at 300" cases FAIL
+M-FGb-8b   consolidate's L0 age `<` made `<=`                             → AFGb-8 consolidate boundary FAIL
+M-FGb-7e   stable_facts without LIMIT                                    → AFGb-7 (e) FAIL
+M-FGb-1a   the consolidate entry point renamed (consolidate-renamed)     → AFGb-1 (a) FAIL (the registry refuses
+           an entry whose name is not the class id; the distribution no longer declares `consolidate`)
+M-FGb-9a   decay reads a wall clock (`import time`; age from time_ns)    → AFGb-9 (a) FAIL. AFGb-5 (a) and (d)
+           SURVIVED this mutation: a wall-clock age is enormous next to world seconds, so every item's
+           retention is 0 on every call and the plans agree. The class is owned by AFGb-9 (a)'s static
+           scan (test rules §24: recorded, not claimed for (a)/(d))
+M-FGb-10   the ledger prunes at latest − DAY_S/2                          → AFGb-10 FAIL (alice's day window at 1 d:
+           1 call / 300 tokens against the oracle's 2 / 500)
+```
+
+### 15.4 Deviations and discoveries
+
+**F-FGb-6 (C1) — the specification sections already existed, written from step-24's sketch.**
+
+```text
+Previous assumption:  C1 adds "MODULE_SPEC §5" and "ARCHITECTURE §9" text for memory retention.
+Audit evidence:       at the base, DOC-24 (#175) had written MODULE_SPEC.md §5.2 "Memory policies and host
+                      bounds" and ARCHITECTURE.md §9.3 "Controller memory: retention and bounds" from
+                      step-24 §8.3. They disagree with the frozen design in six places: `l0_days` 1 … 30
+                      (2) vs `l0_hours` 0 … 720 (0) (QFGb-3); a merge of items "sharing a counterpart set
+                      or a week" vs one container (QFGb-8); a merge "building a summary" vs a container
+                      that already exists; the backstop "drops the oldest L0 then L1 rows" vs §5.7.3's six
+                      steps; the bound "1 MiB after every pass" vs TARGET 768 KiB post-pass and 1 MiB hard
+                      (QFGb-2); ledger pruning "in the same pass" vs by wall time at charge (QFGb-9); and
+                      importance with a relationship-level term (QFGb-10).
+Corrected:            both sections rewritten in place to the frozen design; the `lm-summarise` row and
+                      the model-calls paragraph (FG-c's) left as DOC-24 wrote them.
+Remaining:            docs/DECISIONS.md ARC-87's "Choice" paragraph keeps step-24's sketch (level term,
+                      "dropping the oldest L0 and L1 rows", "bound-enforced"). ARC-87 is DOC-24's record
+                      and outside AFGb-13's file list, so FG-b does not edit it; reported to the primary
+                      session to amend with a pointer to this design's §14.1 rulings.
+```
+
+**D-1 (C2, bounded) — `episodes.mine` and `chapters.mine`.**
+Deviation: two columns beyond §5.5's list. Reason: §5.2's `MemoryItem.mine` is "L1/L2: any member was
+mine"; once retention merges an episode's records (or a chapter's episodes) the members are gone, so the
+value must be written when the unit closes, as importance is (§5.4). Impact: two integer columns in the
+store's private layout; no interface change. Validation: AFGb-5's determinism runs cover their values.
+
+**D-2 (C2, bounded) — the re-delivery skip is limited to where retention removed facts.**
+Previous assumption (§5.11): "a fact not held, at or below the cursor stored when the call began … is
+skipped and counted". Audit: P4's `test_facts_out_of_order_are_refused` sends a fact below the cursor that
+was never delivered and requires `OutOfOrder`; FGb-7 requires P4 unchanged without `absorb`. Corrected: the
+skip applies when the fact lies inside an episode's span, a chapter range, a forgotten range or at or below
+the watermark (`ingest._represented`); any other fact below the bound is `OutOfOrder` as in P4. Without
+retention a never-delivered id outside every episode still raises; one numerically inside a held
+episode's span (a protocol violation) is skipped rather than refused — R-FGb-5's limitation, recorded.
+Validation: AFGb-6 (b) both halves; P4's test unchanged and green; `test_order_and_conflicts_are_still_refused`.
+Also: ascent within a call is now checked for held facts too (P4 let `[5, 5]` of a held fact pass as two
+re-deliveries); §5.11 states "within one call, ids must ascend strictly". No P4 test relied on it.
+
+**D-3 (C2, bounded) — `stable_text` moved to `compress/stable.py`.** Retrieval's L3 line and a stable
+item's `text` (§5.2) are one function, beside the table they render. No behaviour change.
+
+**D-4 (C2, bounded) — test file for the store-side criteria.** AFGb-6 (b), (c), AFGb-11 (a), (b), the
+importance literals and the movement renderer are in `tests/test_retention_store.py` (not in §5.1's list,
+which assigns no file to them); AFGb-7 (c), (d) in `test_retention_retrieve.py` as planned.
+
+**D-5 (C3/C4, bounded) — the entry-point table and `consolidate` land in C4.** The host's fallback for a
+refused plan and its backstop's first step are `consolidate` with its defaults, found through the
+entry-point group like every policy (AFGb-1 (a)'s mutation forbids a direct import). C4's validation
+(AFGb-2, AFGb-4) therefore needs `consolidate` installed. C4 adds `forgetting/consolidate.py`,
+`forgetting/keep_all.py` and the table with those two entries; C5 adds `decay` and
+`importance-recency-cap` and their entries. C3 lands no table, so no entry dangles (§10 C3 left this to
+the implementing session).
+
+**D-6 (C3, bounded) — `JsonObject` and `SourceSpan` live in `registry.py`.** The SDK's `wire.ids` has
+`JsonValue` but no `JsonObject` (audited at the base); `registry.py` defines `type JsonObject = dict[str,
+JsonValue]`. `SourceSpan` is defined beside `bind`, which reports it, and `selection.py` imports both, so
+the two modules have no import cycle.
+
+**D-7 (C3, bounded) — `ForgettingPolicy.Parameters` is a plain protocol attribute.** §5.2 writes
+`Parameters: ClassVar[type[P]]`; a `ClassVar` may not contain a type variable (PEP 526; pyright refuses
+it). `Parameters: type[P]` keeps the protocol generic in its parameters; implementing classes still
+declare it as a class attribute, and the registry checks it at load. The registry's constructor takes
+`Mapping[str, object]` and checks every class at runtime (it must, for entry points), so `Any` never
+appears.
+
+**D-8 (C4, bounded) — a 512-byte reserve under `TARGET`.** The backstop runs while the dump exceeds
+`TARGET − 512` (`bound.LIMIT`): the pass's own log row (under 400 B) and `meta.retention_day` are written
+after the bound is checked, and AFGb-4 requires the dump the pass leaves to be ≤ `TARGET`. Neither
+constant changed (§12's material stop concerns `STORE_BOUND`, `TARGET` and D-P4-9).
+
+**D-9 (C4, bounded) — two test helpers beyond §5.1's list.** `tests/retention_driver.py` (frames, the
+day-by-day driver that measures `dump()` right after each pass, the JSON-choice helper) and
+`tests/retention_oracle.py` (AFGb-3's oracle, from the dump and the perceived ids only).
+
+**D-10 (C4, bounded) — chapters carry no counterparts.** §5.5 gives chapters no participant rows, so a
+chapter item's `counterparts` is `()` and its importance is its stored base (no reinforcement bonus). A
+bonus from the surviving episodes would change as they merge into it. Recorded; no policy relies on
+chapter counterparts.
+
+**D-11 (C4/C5, interpretation) — what a bundled policy may import.** AFGb-9 (a) says "only
+`mineworld_cognition.memory.retention` (public names) and `hashlib`". A policy's `Parameters` is a strict
+Pydantic model (§5.2), and its signatures use `typing` and `collections.abc`. The scan therefore allows,
+and only allows: `__future__`, `typing`, `collections.abc`, `hashlib`, `pydantic`, and
+`mineworld_cognition.memory.retention`; the forbidden list of AFGb-9 (a) is checked by name as well.
+
+**D-12 (C4, bounded) — AFGb-6 (a)'s mutation and seam.** The design's mutation ("the pass rewrites
+`newest` to the newest surviving L0 key") is equivalent under this host: `newest` is always the open
+episode's last record, which no pass shows or removes. The substitute mutation writes the cursor down to
+`newest` and is red. The test calls `run_pass` itself after a plain `ingest`, because `absorb`'s closing
+`ingest(…, through)` re-sets the cursor and would hide a pass that moved it; `through` is placed past the
+trigger where ids leave room, so cursor ≠ newest in at least five passes.
+
+**Finding (C4) — a store filled by plain `ingest` and then given to `absorb`.** `meta.retention_day` is
+`""` until `absorb` first sees the store; it is then set to the day of the store's newest fact (no pass
+for history ingested without retention until the next day starts). A store `absorb` builds from empty
+sets it from its first fact. Both are functions of the facts.
+
+### 15.5 Gate 2 specification and result
+
+Written 2026-10-14, before the first run (test rules §15).
+
+```text
+Claim:        on a real 100-day social-cafe history (seed 7), Alice's store under `absorb` (a) never
+              exceeds TARGET after a pass nor STORE_BOUND before one under `consolidate`; (b) keeps exact,
+              disjoint coverage of her real export at every pass; (c) under `keep-all` the host itself
+              holds the bound (forced > 0 by day 30); (d) is byte-identical whether built day by day or in
+              frames of 256; (e) leaves a file ≤ 4 MiB on disk.
+Owner:        Gate 2 (real binary, real export; AFGb-3, -4 (a)–(c), -5 (a) real half, -11 (c))
+Head:         the C7 commit (working tree on d8d331d + C7's diff for the local run)
+Command:      cargo build -p mineworld-cli;
+              uv run --locked pytest cognition/lm-controller -k "ac10 or retention_real" -s
+Budget:       one 100-day world, shared with test_ac10 through conftest's session fixture; two policies
+              on the real export, frames of 256 once more for (d); ≤ 180 s for test_retention_real.py
+              per CI leg (§12 material stop)
+PASS:         every assertion of test_retention_real.py green, sizes at days 30 and 100 printed and
+              recorded, test_ac10.py's eight criteria green unchanged
+FAIL/counter: M-FGb-4 (backstop off) would show keep-all over TARGET; a frame-split mutation (M-FGb-5)
+              would break (d)
+Why bounded is enough: the 100-day export holds every event type of the reference world and ≈ 100
+              passes; the 300-day claim is the local run below (QFGb-5) and the nightly later.
+Evidence:     this section and §15.2 C7.
+```
+
+### 15.6 AFGb-8 `shasum -a 256` literals
+
+Recorded 2026-10-13, before `test_retention_policies.py` existed. The key is the sha256 of the UTF-8
+string `"<seed>:<first Event ID>"`, read big-endian (`policy.tie_key`); equal scores are ordered by
+ascending key. Computed with `printf '%s' "<seed>:<id>" | shasum -a 256`:
+
+```text
+0:1001   147eb15c553311b106cf9b34984cd9f474f8a337dae4aa2d63494a7fb1a3ef20
+0:1002   b5908a58318c40658a883527ed1dcc2fafd8122b466cda0c993745c3165e6cd1
+0:1003   c710fb5f8f858fbb5b39c9abfd810bb9a497b4789307dfd6f03e0b0c6343c0fc
+0:1004   70330830247ccddc3297bf4925cb86470b579b73cf47a38c4d8c5cff068abace
+0:1005   41fbcd083cdb601ba3f566305119b2598cb1dd7cee128a2eee695a99529ab2a9
+42:1001  1464ba8ac8116ffea48eb3b559e51d53b743dda451236e556282d7a73a9433d2
+42:1002  f467dbc11ba5300d9f99dfa9e309272d922bbbd540c97b5cdbebcd5090fd74c8
+42:1003  941971dfb1a7165db3c8c2c7f017916069e88363a6bf7f75fa92950c7bb53e08
+
+order, seed 0:   1001, 1005, 1004, 1002, 1003
+order, seed 42:  1001, 1003, 1002
+```
+
+### 15.7 CI runs per head
+
+The final head's run id and per-job result are recorded in the handoff and the PR (a commit cannot carry
+its own hash; working rules §22).
+
+### 15.8 Parent synchronization
+
+Pending, owner the primary session (§12): step-24 §11 and `overall.md` after merge; also ARC-87's choice
+paragraph (F-FGb-6).

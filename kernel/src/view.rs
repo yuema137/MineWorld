@@ -56,11 +56,16 @@ use crate::system::{Cause, Deferral, Emission};
 /// because it has nothing to write through (`BD-6`). Also reachable from a writable view through
 /// [`WorldView::read`], so that a system reasoning about state before changing it writes the same
 /// reads either way.
+///
+/// It carries the world-time instant the read is taken at ([`WorldRead::at`]), so a system that
+/// keeps lazily derived state — a value that fades with time since it was written — reads it as of
+/// that instant without consulting any clock (`DECISIONS.md` `ARC-86`).
 pub struct WorldRead<'a> {
     entities: &'a EntityRegistry,
     components: &'a ComponentStore,
     relations: &'a RelationStore,
     processes: &'a ProcessStore,
+    at: WorldTime,
 }
 
 impl<'a> WorldRead<'a> {
@@ -69,13 +74,25 @@ impl<'a> WorldRead<'a> {
         components: &'a ComponentStore,
         relations: &'a RelationStore,
         processes: &'a ProcessStore,
+        at: WorldTime,
     ) -> Self {
         Self {
             entities,
             components,
             relations,
             processes,
+            at,
         }
+    }
+
+    /// The instant this read is taken at: world time, never a wall clock (`INV-12`).
+    ///
+    /// A reaction's or a resolution's read is at the instant its call works in, a validation's at
+    /// the instant of the request being dispatched, and [`World::read`](crate::World::read)'s at the
+    /// world's [`now`](crate::World::now). Simulated seconds and nothing else: what elapsed time
+    /// *means* is a system's.
+    pub const fn at(&self) -> WorldTime {
+        self.at
     }
 
     /// A running or suspended process, if there is one with this identity.
@@ -249,6 +266,7 @@ impl<'a, S: SystemIdentity> WorldView<'a, S> {
             self.parts.components,
             self.parts.relations,
             self.parts.processes,
+            self.parts.at,
         )
     }
 

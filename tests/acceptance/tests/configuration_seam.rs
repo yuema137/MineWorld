@@ -363,20 +363,15 @@ type Stored = Vec<(u64, Vec<u8>)>;
 /// Every journal row, fact and snapshot of a save, as stored.
 fn rows(directory: &Path) -> (Stored, Stored, Stored) {
     let backend = SqliteBackend::open(directory, DURABILITY).expect("opens");
-    let journal: Stored = backend
-        .journal_after(WorldRevision::from_raw(0))
-        .expect("reads")
-        .into_iter()
-        .map(|(revision, entry)| (revision.raw(), entry))
-        .collect();
+    let mut journal: Stored = Vec::new();
     let mut facts = Vec::new();
-    for (revision, _) in &journal {
-        for fact in backend
-            .facts_of(WorldRevision::from_raw(*revision))
-            .expect("reads")
-        {
-            facts.push((fact.id, fact.bytes));
-        }
+    for stored in backend
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("reads")
+    {
+        let stored = stored.expect("reads");
+        facts.extend(stored.facts.into_iter().map(|fact| (fact.id, fact.bytes)));
+        journal.push((stored.revision.raw(), stored.entry));
     }
     let snapshots = backend
         .snapshot_revisions()

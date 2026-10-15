@@ -55,17 +55,20 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRecord, ActionRequest, Component, EntityId, EntityType, LocalPosition, Location,
-    Millimetres, Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
+    ActionRequest, EntityId, LocalPosition, Millimetres, Observation, PerceivedEntity, PersonId,
+    SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
-use mineworld_movement::{Destination, Passage, Passages};
-use serde::Serialize;
+// The seeded draws, moved verbatim to the trait crate every model shares (DL-a SD-DLa-2).
+use mineworld_decision::{Draw, mix};
+use mineworld_movement::{Destination, Passage};
 use serde_json::Value;
 
-use crate::walking::{Walked, walk_to};
+use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
+use crate::read::{
+    disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
+};
 use crate::{agenda, offered, social};
-use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
 /// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
@@ -74,16 +77,6 @@ const CLOSE_ENOUGH: i64 = 1_500;
 /// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
 /// movement's, which moves a goal that lies in furniture or off the floor to the nearest free point.
 const WANDER_AXIS: i64 = 1_400;
-
-/// What a person says when they speak first. A fixed set, because a rule does not compose speech.
-const GREETINGS: [&str; 6] = [
-    "Good morning.",
-    "Lovely day, isn't it?",
-    "Have you been here long?",
-    "Hello again.",
-    "Busy in here today.",
-    "Nice to see you.",
-];
 
 /// Out of 100: how often an in-window line is answered at all. Below 100 so that conversations end
 /// and people get on with walking — a rule's version of losing interest.
@@ -159,7 +152,7 @@ impl PacedRuleController {
         }
         // Part of an activity: sometimes leave it, and never head for a door — walking into another
         // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
-        let member = social::in_activity(observation);
+        let member = in_activity(observation);
         let social = if member {
             social::maybe_leave(observation, &draw)
         } else {
@@ -212,7 +205,7 @@ impl PacedRuleController {
     /// pace apart for "answer each line once" to hold. `step` answers nothing, greets nobody and takes
     /// no draw, so asking it at any instant changes nothing `decide` relies on.
     pub fn step(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
-        crate::walking::step(observation)
+        crate::act::step(observation)
     }
 
     /// The reply to the lowest-id speaker whose newest line was heard in this consult's window and
@@ -257,49 +250,6 @@ impl PacedRuleController {
         let passage = *doors.get(usize::try_from(chosen).ok()?)?;
         head_for(observation, passage.to())
     }
-}
-
-/// A walk into `place`, wherever it is: movement plans the way, through as many doorways as it takes
-/// (`ARC-75`; step-11 N-D15). The destination is the place itself, with no point in it, so the walk
-/// ends on entering it. Nothing here looks for a door.
-fn head_for(observation: &Observation<Value>, place: PlaceId) -> Option<Walked> {
-    observation.self_location()?;
-    walk_to(observation, Destination::Place(Location::in_place(place)))
-}
-
-/// The seeded draws for one decision: a pure function of the seed, the observer and the instant.
-pub(crate) struct Draw {
-    mixed: u64,
-}
-
-impl Draw {
-    pub(crate) fn new(seed: u64, observation: &Observation<Value>) -> Self {
-        let observer = observation.observer().raw();
-        // Two's complement bits of the instant: any i64 is a distinct input.
-        let at = observation.at().seconds().cast_unsigned();
-        Self {
-            mixed: mix(mix(seed ^ 0x6d69_6e65_776f_726c, observer), at),
-        }
-    }
-
-    /// The `n`th independent draw, in `0..bound`.
-    pub(crate) fn below(&self, bound: u64, n: u64) -> u64 {
-        mix(self.mixed, n) % bound
-    }
-
-    /// The `n`th draw, in `-reach..=reach`.
-    fn offset(&self, reach: i64, n: u64) -> i64 {
-        let span = reach.cast_unsigned() * 2 + 1;
-        self.below(span, n).cast_signed() - reach
-    }
-}
-
-/// SplitMix64's finalizer over two words: a pure, well-mixed function, the same on every machine.
-fn mix(a: u64, b: u64) -> u64 {
-    let mut z = a ^ b.wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
 }
 
 /// Says hello to somebody the server says I may speak to, chosen by the draw.
@@ -347,25 +297,6 @@ fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
     walk_to(observation, Destination::Place(here.with_local(to)))
 }
 
-/// Everybody the observation lists as a person, except the observer, in the order it lists them.
-fn others(observation: &Observation<Value>) -> impl Iterator<Item = &PerceivedEntity<Value>> {
-    let me = observation.observer();
-    observation
-        .entities()
-        .iter()
-        .filter(move |entity| entity.entity_type() == EntityType::Person && entity.id() != me)
-}
-
-/// The doorways the place I stand in discloses, as the observation carries them.
-fn doorways(observation: &Observation<Value>, here: Location) -> Option<Passages> {
-    let place = observation.entity(here.place().entity_id())?;
-    let record = place
-        .components()
-        .iter()
-        .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)?;
-    serde_json::from_value(record.payload_for::<Passages>().ok()?.clone()).ok()
-}
-
 /// One of `choices`, by the `n`th draw.
 fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     if choices.is_empty() {
@@ -374,35 +305,8 @@ fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     choices.get(usize::try_from(draw.below(choices.len() as u64, n)).ok()?)
 }
 
-/// Straight-line distance on the floor, in whole millimetres, rounded down: only to choose whom to
-/// walk to ([`CLOSE_ENOUGH`]), never to measure a stride.
-pub(crate) fn distance(a: LocalPosition, b: LocalPosition) -> i64 {
-    let (dx, dy) = delta(a, b);
-    isqrt(dx * dx + dy * dy)
-}
-
-fn delta(a: LocalPosition, b: LocalPosition) -> (i64, i64) {
-    (
-        i64::from(b.x().value()) - i64::from(a.x().value()),
-        i64::from(b.y().value()) - i64::from(a.y().value()),
-    )
-}
-
 fn shifted(value: Millimetres, by: i64) -> Option<Millimetres> {
     i32::try_from(i64::from(value.value()) + by)
         .ok()
         .map(Millimetres::new)
-}
-
-/// The integer square root of a non-negative number, rounded down.
-fn isqrt(value: i64) -> i64 {
-    value.max(0).cast_unsigned().isqrt().cast_signed()
-}
-
-/// This controller's own payload encoding, as [`RuleController`](crate::RuleController)'s.
-fn record<A: Action + Serialize>(action: &A) -> ActionRecord {
-    ActionRecord::new::<A>(
-        serde_json::to_vec(action)
-            .expect("a request payload is JSON-representable by construction"),
-    )
 }

@@ -3,6 +3,13 @@
 A week's chapter is written once the week is fully past: when a closed episode exists in a later week.
 Episodes are consecutive, so every episode of the earlier week is closed by then, and the chapter is a
 function of the facts alone.
+
+Its citation is stored with it (pr-fg-b §5.5): one range per run of consecutive episode numbers among the
+week's episodes when it is written. Consecutive episodes are adjacent in the perceived sequence (D-P4-7),
+so a gap in the numbers is an episode retention forgot before the chapter existed, and the chapter must
+not cite it. Its first and last keys and times, its importance (the largest of its episodes') and whether
+any episode was mine are stored too, so retention can merge its episodes into it and nothing about it
+changes.
 """
 
 from __future__ import annotations
@@ -12,7 +19,7 @@ from mineworld_sdk.wire.ids import EntityId
 from mineworld_cognition.compress.episodes import load_episodes
 from mineworld_cognition.compress.summarize import Summarizer
 from mineworld_cognition.memory.names import NameBook
-from mineworld_cognition.memory.records import Chapter, event_key, event_of
+from mineworld_cognition.memory.records import Chapter, Episode, EventRange, event_key, event_of
 from mineworld_cognition.memory.store import MemoryStore
 
 
@@ -37,30 +44,76 @@ def close_weeks(store: MemoryStore, names: NameBook, summarizer: Summarizer) -> 
         text = summarizer.chapter(
             episodes, names, newcomers=[EntityId(entity) for (entity,) in newcomers]
         )
+        numbers = [episode.number for episode in episodes]
+        importance, mine = db.execute(
+            "SELECT max(importance), max(mine) FROM episodes WHERE closed = 1 AND day / 7 = ?",
+            (week,),
+        ).fetchone()
         db.execute(
-            "INSERT INTO chapters (week, first_episode, last_episode, text, prose, prose_key) "
-            "VALUES (?, ?, ?, ?, NULL, NULL)",
-            (week, episodes[0].number, episodes[-1].number, text),
+            "INSERT INTO chapters (week, first_episode, last_episode, text, prose, prose_key, "
+            "first_key, last_key, first_at, last_at, importance, mine) "
+            "VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)",
+            (
+                week,
+                numbers[0],
+                numbers[-1],
+                text,
+                first,
+                last,
+                episodes[0].opened_at,
+                episodes[-1].closed_at,
+                importance,
+                mine,
+            ),
+        )
+        db.executemany(
+            "INSERT INTO chapter_ranges (week, first_key, last_key) VALUES (?, ?, ?)",
+            [
+                (week, event_key(run.first), event_key(run.last))
+                for run in consecutive_runs(episodes)
+            ],
         )
     return len(weeks)
 
 
-def chapters(store: MemoryStore) -> list[Chapter]:
-    """Every chapter, newest week first."""
-    rows: list[tuple[int, int, int, str, str | None, str, str]] = store.connection.execute(
-        "SELECT c.week, c.first_episode, c.last_episode, c.text, c.prose, f.first_key, l.last_key "
-        "FROM chapters c JOIN episodes f ON f.episode = c.first_episode "
-        "JOIN episodes l ON l.episode = c.last_episode ORDER BY c.week DESC"
+def consecutive_runs(episodes: list[Episode]) -> list[EventRange]:
+    """One range per run of consecutive episode numbers, in order."""
+    runs: list[EventRange] = []
+    start = previous = episodes[0]
+    for episode in episodes[1:]:
+        if episode.number != previous.number + 1:
+            runs.append(EventRange(first=start.first, last=previous.last))
+            start = episode
+        previous = episode
+    runs.append(EventRange(first=start.first, last=previous.last))
+    return runs
+
+
+def chapters(store: MemoryStore, limit: int) -> list[Chapter]:
+    """The `limit` newest chapters, newest week first, with their stored ranges: no `episodes` row is
+    read (F-FGb-3), and the read is bounded (F-S24-2)."""
+    db = store.connection
+    rows: list[tuple[int, int, int, str, str | None]] = db.execute(
+        "SELECT week, first_episode, last_episode, text, prose FROM chapters "
+        "ORDER BY week DESC LIMIT ?",
+        (limit,),
     ).fetchall()
-    return [
-        Chapter(
-            week=week,
-            first_episode=first_episode,
-            last_episode=last_episode,
-            first=event_of(first),
-            last=event_of(last),
-            text=text,
-            prose=prose,
+    found: list[Chapter] = []
+    for week, first_episode, last_episode, text, prose in rows:
+        ranges: list[tuple[str, str]] = db.execute(
+            "SELECT first_key, last_key FROM chapter_ranges WHERE week = ? ORDER BY first_key",
+            (week,),
+        ).fetchall()
+        found.append(
+            Chapter(
+                week=week,
+                first_episode=first_episode,
+                last_episode=last_episode,
+                ranges=tuple(
+                    EventRange(first=event_of(first), last=event_of(last)) for first, last in ranges
+                ),
+                text=text,
+                prose=prose,
+            )
         )
-        for week, first_episode, last_episode, text, prose, first, last in rows
-    ]
+    return found

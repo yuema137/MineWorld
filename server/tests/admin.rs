@@ -493,6 +493,8 @@ async fn a_kick_and_a_release_close_the_connection_kicked_and_free_the_seat() {
         ]
     );
     assert_eq!(listed[0]["observations_dropped"], json!(0));
+    // S27-a (QS27a-1): which credential admitted it — the invite here — and never a token.
+    assert_eq!(listed[0]["credential"], json!({ "kind": "invite" }));
     assert!(
         listed[0]["connected_at"]
             .as_u64()

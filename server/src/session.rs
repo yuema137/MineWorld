@@ -34,7 +34,7 @@ use futures_util::{Sink, SinkExt, StreamExt};
 use tokio::time::Instant;
 
 use crate::admin::registry::{Joined, Registered, Registry};
-use crate::admission::{Admission, Nickname};
+use crate::admission::{Admission, Credential, Nickname};
 use crate::host::{Seated, Streamed, Streams, SubscriptionId, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, SessionId,
@@ -86,7 +86,7 @@ pub(crate) struct Connection {
 /// Runs one connection to completion, then releases its subscription.
 pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     let (mut outgoing, mut incoming) = socket.split();
-    let Some((mut seated, nickname, backfill)) =
+    let Some((mut seated, nickname, credential, backfill)) =
         handshake(&mut outgoing, &mut incoming, &connection).await
     else {
         return;
@@ -97,6 +97,7 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         seat: seated.seat().clone(),
         observer: seated.observer(),
         connected_at: unix_seconds(),
+        credential,
     };
     let welcome = ServerFrame::Welcome {
         protocol: PROTOCOL_VERSION,
@@ -196,7 +197,7 @@ async fn handshake(
     outgoing: &mut Outgoing,
     incoming: &mut Incoming,
     connection: &Connection,
-) -> Option<(Seated, Nickname, Vec<ServerFrame>)> {
+) -> Option<(Seated, Nickname, Credential, Vec<ServerFrame>)> {
     loop {
         let received = receive(incoming).await;
         let arrived = Instant::now();
@@ -223,8 +224,8 @@ async fn handshake(
                         perceived,
                     };
                     match join(connection, offered, seat, arrived).await {
-                        Joining::Seated(seated, nickname, backfill) => {
-                            return Some((*seated, nickname, backfill));
+                        Joining::Seated(seated, nickname, credential, backfill) => {
+                            return Some((*seated, nickname, credential, backfill));
                         }
                         Joining::Refused(refusal) => refusal,
                         Joining::Closed(refusal, reason) => {

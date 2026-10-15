@@ -163,6 +163,9 @@ def test_stable_facts_about_a_counterpart_match_the_hand_computed_values() -> No
         "exchanges": 5,
         "level": "friend",
         "level_key": "00000000000000000016",
+        # Schema v2 (pr-fg-b §5.5): the world times of facts 2 (genesis, 0) and 16.
+        "first_at": 0,
+        "last_at": 16 * DAY + T + 60,
     }
     assert ALICE not in stable
 

@@ -909,28 +909,34 @@ Commit plan:
 
 Commit plan:
 
-- **C0 — Spec and decision.** [ ] `docs/GUIDE_FORMAT.md`: block grammar, directives, page rules 1–8 of §6.2, mirror
-  parity, the pending rule; `DEP-50`'s record; `docs/README.md` row. [ ] doc checks; `cargo search` for
-  `pulldown-cmark` and `snapbox` versions, `cargo deny check licenses` after the add (licences verified at freeze, §16). [ ] Review: the grammar is unambiguous (every
-  info string form listed; what happens to an unlisted one).
-- **C1 — Parsing and file blocks.** [ ] dev-dependencies on `pulldown-cmark` and `snapbox` in
-  `tools/cli/Cargo.toml` (workspace entries with DEP comments); `tools/cli/tests/guide/` module: page walk,
-  `file=` writing with path confinement, directive parsing, `features.toml` reading (TOML: use the `toml` crate only
-  if already in the lock; otherwise the format is a list of `name = true|false` lines parsed by hand — record).
-  [ ] Unit-level tests of the parser on inline strings, including CRLF input. [ ] Review: path confinement
-  (absolute paths, `..`, Windows drive letters refused).
-- **C2 — Command blocks and matching.** [ ] Run `CARGO_BIN_EXE_mineworld` with word-split arguments, cwd = scratch
-  folder, merged stdout/stderr (in order: run with stderr redirected into the same pipe — check `std::process` on
-  Windows); `exit=N`; `snapbox` matching. [ ] The fixture page `tools/cli/tests/guide/fixture.md`
-  (create → validate → run 1 day → `equals`). [ ] Review: output normalisation is limited to line endings and
-  path separators; nothing else is rewritten.
-- **C3 — Guards.** [ ] `equals`, mirror parity, reference-anchor check (skipped with a pending note until 25a has
-  merged — then mandatory), features-versus-build check (asks `mineworld reference` or, before 25a, `mineworld
-  packs list`). [ ] AC-25c-2's planted defects as tests that assert failure. [ ] Review: each guard's message
-  tells a writer what to fix.
-- **C4 — CI and cost.** [ ] The guide test runs in `test`, `test-macos`, `test-windows` (already `cargo test`;
-  confirm it is not filtered out); wall time recorded per OS. [ ] AC-25c-1 evidence (run ids). [ ] Review: §8.5
-  budget met or the nightly move recorded.
+- **C0 — Spec and decision.** [x] `docs/GUIDE_FORMAT.md`: block grammar, directives, page rules 1–8 of §6.2, mirror
+  parity, the pending rule; `DEP-50`'s record; `docs/README.md` row (commit 489012b). [x] doc checks; versions
+  declared in the root `Cargo.toml` (`pulldown-cmark` 0.13.4, `snapbox` 1.2.2, `toml` 1.1.6); `cargo deny check
+  licenses` → `licenses ok` on the merged head (R-LOAD-1 local gate). [x] Review: the grammar is unambiguous (every
+  info string form listed; an unlisted one fails the page naming its line — test
+  `an_info_string_token_the_guide_does_not_list_fails_the_page_naming_its_line`).
+- **C1 — Parsing and file blocks.** [x] dev-dependencies on `pulldown-cmark` and `snapbox` in `tools/cli/Cargo.toml`
+  (workspace entries with DEP comments); `tools/cli/tests/guide/` module: page walk, `file=` writing with path
+  confinement, directive parsing, `features.toml` reading. `toml` crate used (already in the lock, DEP recorded).
+  (commit d30f121). [x] Unit-level tests of the parser on inline strings, including CRLF input
+  (`crlf_pages_are_read_as_lf_so_the_same_blocks_run_on_every_checkout`). [x] Review: path confinement (absolute
+  paths, `..`, symlinks refused — tests `a_block_path_outside_the_scratch_folder_is_refused_by_the_page_reader`,
+  `a_symbolic_link_already_in_the_scratch_folder_is_not_followed`).
+- **C2 — Command blocks and matching.** [x] Run `CARGO_BIN_EXE_mineworld` with word-split arguments, cwd = scratch
+  folder, merged stdout/stderr; `exit=N`; `snapbox` matching (commit d555f79). [x] The fixture page
+  `tools/cli/tests/guide/fixture.md` (create → validate → run 1 day → `equals`);
+  `the_fixture_page_runs_green_against_the_real_binary`. [x] Review: output normalisation is limited to line endings
+  and path separators.
+- **C3 — Guards.** [x] `equals`, mirror parity, reference-anchor check (pending note until 25a has merged — test
+  `a_link_into_a_reference_that_is_not_yet_generated_is_inconclusive_not_passed`), features-versus-build check (via
+  `mineworld reference`/`packs list`). [x] AC-25c-2's planted defects as tests that assert failure (commit 4742d4e;
+  34/34 PASS on the merged head). [x] Review: each guard's message names the page, step or folder to fix.
+- **C4 — CI and cost.** [x] The guide test runs in `test`, `test-macos`, `test-windows`: `cargo test --workspace` is
+  the `core` layer (`scripts/ci_layer.py`), and `tools/cli/tests/guide.rs` is discovered without filtering; local
+  guide wall time 0.5–1.0 s. [ ] Workspace gate: CI run <id> on <sha> (R-LOAD-1), pending. Local full workspace run
+  was started and stopped under R-LOAD-1 (load average above 200): before the stop, 49 suites, 241 passed, 0 failed,
+  so it is superseded by CI. [ ] AC-25c-1 evidence (CI run ids for `test`, `test-macos`, `test-windows`), pending.
+  [x] Review: §8.5 budget met locally; the nightly move is not needed for the PR leg.
 
 #### PR 25d — The tutorial and the tiny example world
 
@@ -1192,3 +1198,29 @@ the primary session's dispatch.
   C1.
 - Agent CLI isolation, turn and budget flags: **verify** at 25f C0 against the CLI's own `--help` and documentation.
 - Repository audit: `origin/main @ 171ea06`, paths and line numbers as cited in §2.
+
+---
+
+## 17. Evidence ledger — PR 25b (`mvp0/pr-s25b`)
+
+Recorded by the implementing session (Haiku-class, 2026-10-14). Results are `PASS`, `FAIL` or `INCONCLUSIVE`
+from actual output. Mutations are applied one at a time and reverted; the failing test name is the evidence.
+
+| Commit | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| C0 | Implementation: `MODULE_SPEC.md` §5.2 and `cognition/lm-controller/README.md` link the generated pages | PASS | the two edits; the `cognition-toml.md` link is valid only once C1 lands (same PR head) |
+| C0 | Validation: `check_doc_headings.py`, `check_decision_ids.py` | PASS | `223 numbered sections across 31 documents, none duplicated`; `122 decision ids, all distinct` |
+| C0 | LLM review: README stays short | PASS | one added clause and a link; no rule moved out of the spec |
+| C1 | Verify item (design "verify"): Pydantic `model_json_schema()` on the locked 2.14.0 | PASS | probe of `CognitionConfig`: `Field(description=)` lands on the property; `dict[Annotated[str, Field(pattern)], ...]` emits `patternProperties`; `dict[Literal, str]` emits `propertyNames.enum`; `Annotated[int, Field(le)] \| None` puts bounds inside `anyOf`; a description written inside that `Annotated` does **not** reach the property, so it goes on the outer `Field(...)` (found by the generator, which refused `BackendConfig.request_timeout_s`) |
+| C1 | Implementation: `Field(description=...)` on every field of `CognitionConfig`, its nested models and `BudgetPolicy` (`config.py`, `budget.py`) | PASS | ruff check, ruff format --check, pyright strict: `All checks passed`, `63 files already formatted`, `0 errors` |
+| C1 | Implementation: `cognition/lm-controller/tools/reference.py`; `docs/reference/cognition-toml.md` and `docs/reference/schema/cognition-toml.schema.json` generated | PASS | `uv run --locked --package mineworld-cognition python cognition/lm-controller/tools/reference.py --out docs/reference` writes 2 files (exit 0). Deviation: the design's bare `uv run --locked python ...` is not enough to import `mineworld_cognition` from the virtual root; `--package mineworld-cognition` is needed |
+| C1 | Validation AC-25b-1 (drift): `test_checked_in_reference_matches_the_models`, `test_generation_is_deterministic` | PASS | `pytest cognition/lm-controller/tests/test_reference.py`: 6 passed (with the other 4 below) |
+| C1 | Validation AC-25b-2 (every field described): `test_every_field_of_the_configuration_models_has_a_description`, `test_a_field_without_a_description_stops_generation_naming_it` | PASS | `undescribed_fields(CognitionConfig) == []` |
+| C1 | Validation AC-25b-3 (examples load): `test_every_example_on_the_page_is_loaded_by_the_loader`, `test_an_example_the_loader_refuses_stops_generation` | PASS | the page's TOML blocks load through `config.load`; the refusal test passes |
+| C1 | Validation: full cognition suite | PASS | `pytest cognition/lm-controller`: 175 passed, 1 skipped (baseline before C1: 161 passed, 1 skipped, 8 errors from the missing `mineworld` binary, which is now built with `cargo build -p mineworld-cli`) |
+| C1 | Mutation M1: a planted description change in `budget.py` | PASS (bites) | `FAILED test_checked_in_reference_matches_the_models`; restored |
+| C1 | Mutation M2: a field's description removed (`BudgetConfig.call_timeout_s`) | PASS (bites) | generator and `test_a_field_without_...` name `BudgetConfig.call_timeout_s`; restored |
+| C1 | Mutation M3: an unknown key added to an example in `reference.py` | PASS (bites) | `example 'A local model' is refused by the loader: ... backends.local.colour: Extra inputs are not permitted`; restored |
+| C1 | LLM review: no secret or key value is an example; `key_env` examples are variable names | PASS | the examples use `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` names only; the `key_env` text states the key is never written in the file |
+| C2 | Memory policies (`memory-policies.md`, after FG-b) | BLOCKED, not implemented | FG-b is design-only on `origin/main` (`e8abdda` freezes the design; no policy code exists under `cognition/lm-controller/src/mineworld_cognition/memory/`). The design makes C2 wait for FG-b's merge, so this PR does not contain it; `memory-policies.md` is absent from `docs/reference/` |
+| C1 | Open issue for the primary (not resolved here): `mineworld reference --check docs/reference` (25a) treats extra files as drift. Once 25b lands, 25a's check on the same directory must know `cognition-toml.md` and `schema/cognition-toml.schema.json` (or the Python pages move to a subdirectory). Recorded, not changed: it crosses the 25a/25b file layout | open | — |
