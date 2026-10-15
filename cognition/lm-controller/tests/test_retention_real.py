@@ -41,15 +41,27 @@ def _identity(history: History) -> StoreIdentity:
 
 
 def _day_by_day(
-    store: MemoryStore, history: History, kept: Retention, *, through_day: int | None = None
+    store: MemoryStore,
+    history: History,
+    kept: Retention,
+    *,
+    from_day: int = 0,
+    through_day: int | None = None,
 ) -> list[tuple[int, int, int, int]]:
     """Each day's frame ingested up to its first fact by plain `ingest`, the dump measured (just before
     the pass), then `absorb` runs the due pass, the dump measured again (just after it), and coverage is
     checked against the export. Returns (day, before, after, forced) per pass, for the whole history or
-    for its days up to `through_day`."""
+    for its days up to `through_day`. Days before `from_day` are ingested at once without retention, and
+    `absorb` first sees the store at their end (no pass for them)."""
     perceived = history.ids()
     measured: list[tuple[int, int, int, int]] = []
-    facts = [f for f in history.alice if through_day is None or f.at // DAY <= through_day]
+    head = [f for f in history.alice if f.at // DAY < from_day]
+    if head:
+        ingest(store, head, head[-1].id)
+        run(absorb(store, [], head[-1].id, kept), timeout_s=120)
+    facts = [
+        f for f in history.alice[len(head) :] if through_day is None or f.at // DAY <= through_day
+    ]
     for frame in days(facts):
         ingest(store, frame, frame[-1].id)
         before = len(store.dump())
@@ -95,18 +107,22 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert store.dump() == day_by_day
 
 
+KEEP_ALL_FROM = 30
 KEEP_ALL_DAYS = 40
 """AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7): at ≈ 433 KB a day keep-all reaches the
-15 MiB target after ≈ 36 days, so the host's own removals begin before day 40. Beyond it every pass
-works on a store of ≈ 15 MiB (≈ 1 s each here): days 40 to 99 would add minutes per platform and prove
-nothing the busy stream (test_retention_size.py) does not."""
+15 MiB target after ≈ 36 days (day 34 measured), so the host's own removals begin between days 30 and
+40. Before day 30 a keep-all pass removes nothing (the store is under the target), so those days are
+ingested at once, without passes; after day 40 every pass works on a store of ≈ 15 MiB. Both cuts keep
+the test within FG-b's 180 s per CI leg (Windows took 90 s for days 0 … 40 at first)."""
 
 
 def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: History) -> None:
     history = social_cafe_100
     started = time.monotonic()
     with MemoryStore.open(":memory:", _identity(history)) as store:
-        measured = _day_by_day(store, history, retention("keep-all"), through_day=KEEP_ALL_DAYS)
+        measured = _day_by_day(
+            store, history, retention("keep-all"), from_day=KEEP_ALL_FROM, through_day=KEEP_ALL_DAYS
+        )
     first = next((day for day, _, _, forced in measured if forced > 0), None)
     print(
         f"\n[retention-real keep-all] {len(measured)} passes, {time.monotonic() - started:.1f} s; "

@@ -567,6 +567,12 @@ a `keep-all` store makes every pass ≈ 1 s here. `keep-all` therefore left the 
 AFGb2-1 runs `keep-all` and `consolidate` only. FG-b's §12 stop (`test_retention_real.py` ≤ 180 s per leg)
 is kept: 77 s of test calls here (plus the shared 100-day fixture), the CI legs are recorded on the PR.
 
+**D-FGb2-2, continued (after CI run 38696439495 on aa207a6, all jobs green).** The Windows python leg ran
+`test_retention_real.py` in 210 s (`consolidate` 120 s, `keep-all` days 0 … 40 90 s), over the 180 s stop.
+`keep-all` now ingests days 0 … 29 at once with no pass (a keep-all pass under the target removes nothing)
+and passes day by day from day 30 to 40: 10 passes, 9.6 s here against 36.4 s; first forced pass still
+day 34, every pass ≤ target, coverage at every pass. The next head's Windows time is recorded on the PR.
+
 **F-FGb2-1 — larger budgets make `decay` and `importance-recency-cap` keep more** (§12.2), and their 302-day
 tests take ≈ 2 × longer (35 s and 31 s). Expected under a 20 MiB bound; recorded.
 
