@@ -927,6 +927,7 @@ dependencies = [
  "clap",
  "futures-util",
  "json-patch",
+ "mineworld-appearance",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",
