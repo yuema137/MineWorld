@@ -705,3 +705,84 @@ fn the_catalog_lists_in_order_and_knows_each_kind() {
         Some("mineworld_decision::read_tests::Probe")
     );
 }
+
+/// `decisions.yaml`'s schema states what the reader accepts (`ARC-90`, step-25 C6): its example is
+/// read and checked against a roster; its keys are the pass's own; each installed model is listed, an
+/// in-process one with its parameters' defaults and bounds, an external one with its fallback.
+#[test]
+fn the_schema_states_what_the_reader_accepts() {
+    let schema = crate::file_schema::<Model>().to_value();
+    let example = schema["examples"][0].to_string();
+    let read = parse(&example).expect("the example is accepted");
+    assert_eq!((read.assignments(), read.has_memory()), (1, true));
+
+    let keys = |pointer: &str| -> Vec<String> {
+        let mut keys: Vec<String> = schema
+            .pointer(pointer)
+            .and_then(serde_json::Value::as_object)
+            .unwrap_or_else(|| panic!("{pointer}"))
+            .keys()
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    };
+    let sorted = |names: &[&str]| -> Vec<String> {
+        let mut names: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+        names.sort();
+        names
+    };
+    assert_eq!(keys("/properties"), sorted(crate::read::FILE_KEYS));
+    assert_eq!(
+        keys("/properties/models/properties"),
+        sorted(&Model::AVAILABLE.iter().map(|m| m.id()).collect::<Vec<_>>())
+    );
+    assert_eq!(
+        keys("/properties/models/properties/probe/properties"),
+        ["parameters"]
+    );
+    let patience = &schema["properties"]["models"]["properties"]["probe"]["properties"]["parameters"]
+        ["properties"]["patience"];
+    assert_eq!(
+        (
+            &patience["default"],
+            &patience["minimum"],
+            &patience["maximum"]
+        ),
+        (&json!(3), &json!(1), &json!(10))
+    );
+    assert_eq!(
+        keys("/properties/models/properties/lm/properties"),
+        ["fallback"]
+    );
+    // The pass reads both keys on every entry; the checks then refuse a fallback on an in-process
+    // model and parameters on an external one (MODULE_SPEC §4.1 rules 1, 4), so each states one.
+    let mut either = [
+        keys("/properties/models/properties/probe/properties"),
+        keys("/properties/models/properties/lm/properties"),
+    ]
+    .concat();
+    either.sort();
+    assert_eq!(either, sorted(crate::read::ENTRY_KEYS));
+    assert_eq!(
+        keys("/$defs/Assignment/properties"),
+        ["class", "model", "seat"]
+    );
+    assert_eq!(keys("/$defs/Memory/properties"), ["assign", "default"]);
+    assert_eq!(
+        keys("/$defs/MemoryPolicy/properties"),
+        ["fallback", "parameters", "policy"]
+    );
+    assert_eq!(
+        keys("/$defs/MemoryAssignment/properties"),
+        ["class", "fallback", "parameters", "policy", "seat"]
+    );
+
+    let unknown = example.replacen('{', "{\"not_a_field\":1,", 1);
+    let refused = parse(&unknown).expect_err("an unlisted key is refused");
+    assert!(
+        refused.detail.contains("unknown field"),
+        "{}",
+        refused.detail
+    );
+}

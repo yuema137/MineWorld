@@ -46,7 +46,7 @@ Example:
 
 ```yaml
 parameters:
-  - gap: 300
+  - forget_after_days: 0
 rules:
   - action: talk
     effect: permit
@@ -71,6 +71,7 @@ A parameter entry may name `actor`, `target`, `place`.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `forget_after_days` | whole number | no | `0` | 0 to 3650 | Days a listener keeps a line; 0 keeps it until `remembered` pushes it out (`ARC-86`). |
 | `gap` | whole number | no | `300` | 1 to 86400 | Seconds of silence after which the next exchange starts a new conversation. |
 | `range` | whole number | no | `3000` | 1 to 100000 | Millimetres a voice reaches: how close a listener must be. |
 | `remembered` | whole number | no | `32` | 1 to 64 | How many exchanges a listener's history keeps. |
@@ -171,6 +172,7 @@ rules:
 | --- | --- | --- | --- | --- |
 | `became-acquainted` | `actor`, `target`, `place` | `participants` | `participants` | yes |
 | `relationship-changed` | `actor`, `target`, `place` | `participants` | `participants` | yes |
+| `acquaintance-forgotten` | `actor`, `target`, `place` | `participants` | `participants` | yes |
 
 ### Parameters of `configure/relationships.yaml`
 
@@ -182,6 +184,23 @@ A parameter entry may name `actor`, `target`, `place`.
 | `activity_familiarity` | whole number | no | `50` | 0 to 1000 | What an activity done together adds to familiarity, per ordered pair of members. |
 | `activity_regard` | whole number | no | `20` | -1000 to 1000 | What an activity done together adds to regard, per ordered pair of members. |
 | `declined_regard` | whole number | no | `-30` | -1000 to 1000 | What a declined invitation does to the inviter's regard for the person who declined. |
+| `familiarity_decay` | one of `none`, `linear`, `half-life`, `power` | no | `"none"` | — | The curve familiarity fades by with time since the last contact (`ARC-86`). |
+| `familiarity_decay_days` | whole number | no | `365` | 1 to 3650 | Its time constant, in days. Not calibrated; inert while the curve is `none`. |
+| `familiarity_floor` | whole number | no | `0` | 0 to 1000 | Familiarity never fades below this. |
+| `known_at_most` | whole number | no | `150` | 5 to 1500 | How many people a person keeps; a new acquaintance beyond it evicts the weakest tie. |
+| `regard_decay` | one of `none`, `linear`, `half-life`, `power` | no | `"none"` | — | The curve regard fades toward zero by, from either side. |
+| `regard_decay_days` | whole number | no | `365` | 1 to 3650 | Its time constant, in days. |
+| `regard_floor` | whole number | no | `0` | 0 to 1000 | Regard's magnitude never fades below this. |
 | `spoke_familiarity` | whole number | no | `10` | 0 to 1000 | What one exchange of words adds to familiarity, each way. |
+
+### Types used above
+
+<a id="configure-relationships-block-curvename"></a>
+
+#### `CurveName`
+
+The name of a curve, such as none, linear, half-life or power: 1 to 32 of a-z, 0-9 and -.
+
+**Type:** text. **Bounds:** matches `^[a-z0-9-]{1,32}$`.
 
 **Reference lists** a section may `extends`: `default`.

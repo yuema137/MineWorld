@@ -24,6 +24,8 @@ Host a World Pack for clients
 | `--time-scale N` | no | `1` | How many world seconds pass per wall second. |
 | `--keyframe-every N` | no | `50` | Every Nth frame to a client is a whole observation; the others are deltas (DEP-15) |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after. |
+| `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
+| `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
 ## `mineworld validate`
@@ -73,6 +75,20 @@ Run a World Pack headless — no renderer, no network, no model — every seat d
 | `--seed SEED` | yes | — | The controllers' seed. The same seed reproduces the run exactly. |
 | `--days DAYS` | yes | — | The age to run the world to, in simulated days since its genesis. |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same age, so re-running a killed command finishes the same world. |
+| `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
+| `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld decisions`
+
+Each seat's decision model and memory choice, read as `run` reads them; starts no world
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
+| `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
+| `--json` | no | `false` | One JSON document, the form the cognition process reads. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
 ## `mineworld biography`

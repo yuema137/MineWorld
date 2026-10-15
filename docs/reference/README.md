@@ -12,11 +12,14 @@ Every field a World Pack's files may set, generated from the code that reads the
 | [sections.md](sections.md) | `name`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing` |
 | [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml` |
 | [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
+| [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
+| [cognition-toml.md](cognition-toml.md) | the operator's cognition configuration, `cognition.toml` (generated from the cognition package's models) |
 
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 
+- [`schema/cognition-toml.schema.json`](schema/cognition-toml.schema.json)
 - [`schema/configure-calendar.schema.json`](schema/configure-calendar.schema.json)
 - [`schema/configure-classes.schema.json`](schema/configure-classes.schema.json)
 - [`schema/configure-conversation.schema.json`](schema/configure-conversation.schema.json)
@@ -24,6 +27,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
+- [`schema/decisions.schema.json`](schema/decisions.schema.json)
 - [`schema/item.schema.json`](schema/item.schema.json)
 - [`schema/organization.schema.json`](schema/organization.schema.json)
 - [`schema/pack.schema.json`](schema/pack.schema.json)

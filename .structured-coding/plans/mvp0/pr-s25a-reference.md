@@ -132,7 +132,8 @@ without a description, a pack without a schema: each red) and A-S25-4 (AC-8 base
   `main.rs`, `tools/cli/tests/reference.rs`.
 - **C5 — The checked-in reference and CI.** `docs/reference/`; `scripts/ci_layer.py` and
   `scripts/ci_changes.py`; AC-25a-2 mutation; AC-25a-5 parity.
-- **C6 — after DL-a merges.** Not in this PR's head unless DL-a merges first (step §10.3).
+- **C6 — after DL-a merges.** Not in this PR's head unless DL-a merges first (step §10.3). DL-a merged
+  first (#191), so C6 is in this head (ledger §9).
 
 ## 7. Risks
 
@@ -292,6 +293,47 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
   says what to write and what it means, without a code name; the earlier developer-facing first
   paragraphs (`AuthoredSegment`, `Epoch`, `UtcOffset`, `Quintiles`, the `remember` knob) were rewritten at
   C4
+
+- **Merge of origin/main @ f772a18** (`54ec37d`; DL-a, FG-a, 25b, SET-b, S26/S27 designs) — found
+  half-done by the third session (MERGE_HEAD present, three files unmerged with their conflicts already
+  resolved in the tree but not staged); inspected, kept and concluded. `parameters!` now takes FG-a's
+  `ParameterBound` (`$bound:expr`), and its schema comes from `ParameterBound::schema` (a range's
+  `minimum`/`maximum`; FG-a's `CurveCatalog` its `enum`); `relationships::CurveName` and DL-a's
+  `DecisionsFile` gained schemas (the build failed without them, the bound biting as designed).
+- **C6** (DL-a merged before this PR, so C6 is in this head per §6) — [x] Implementation:
+  `ModelParameters` requires `JsonSchema` and answers `schema` (`()`: an empty mapping); `Catalog` gains
+  `parameters_schema`, written by `models!`; `cognition/decision/src/schema.rs` `file_schema::<C>()`,
+  hand-written beside the hand-written reader (`models` per installed model: in-process with its
+  `parameters`, external with its required `fallback`; `default`; `assign`; `memory`); `decisions.md`
+  and `schema/decisions.schema.json` (entries `decisions`, page and index row); `MODULE_SPEC.md` §§4.1,
+  5.1, 8.1 · [x] Validation: `the_schema_states_what_the_reader_accepts` (mineworld-decision: the example
+  read and checked by `DecisionList::parse` against a roster; the schema's keys equal the reader's
+  `FILE_KEYS`, `ENTRY_KEYS` split by kind, and each raw struct's fields; a `parameters!` model's default
+  and bounds; an unlisted key refused with `unknown field`);
+  `the_decision_lists_example_is_read_and_an_unlisted_key_is_refused_as_predicted` (tools/cli: AC-25a-1,
+  -4, -6 for `decisions.yaml` with the installed models); the generator refused `DecisionList.memory`
+  until it had a description (AC-25a-3 biting on a hand-written schema) · [x] LLM review: the page names
+  models (`rule`), never a backend, provider, URL or key (MODULE_SPEC §4.1); no decoder changed (the
+  reader's two key lists became `pub(crate)` for the test only)
+- **Bounded correction (after the merge) — the cognition half's files.** 25b put `cognition-toml.md`
+  and `schema/cognition-toml.schema.json` into `docs/reference/`, which `--check` called `extra` (step-25
+  §17's open row). Step §5.1 places both halves' pages in the one directory and the index is 25a's, so:
+  `pages::COGNITION` names those two files; neither `--out` nor `--check` writes, removes or compares them
+  (their drift test is 25b's pytest); the index links them. Test
+  `the_cognition_halfs_files_are_left_to_it`; `MODULE_SPEC.md` §8.1 says so. A later 25b page
+  (`memory-policies.md`) adds its name to `COGNITION`.
+- **Bounded correction — a named choice is shown as its choices.** A field whose bound narrows its type
+  (`familiarity_decay`: `$ref CurveName` + `enum`) printed only the type's link; `type_of` now prefers
+  `enum` over `$ref` ("one of `none`, `linear`, `half-life`, `power`").
+- Post-merge validation (R-LOAD-1: touched crates only): `cargo check --workspace --all-targets`,
+  `cargo clippy --workspace --all-targets --all-features -D warnings` clean, `cargo fmt --check` clean,
+  `cargo deny check licenses sources bans` ok; `cargo test` of mineworld-decision (18),
+  mineworld-installed-models, mineworld-rule-controller, mineworld-relationships, mineworld-sdk all ok;
+  `mineworld-cli --test reference` 9 passed, its binary's reference unit tests 4 passed; `mineworld
+  reference --check docs/reference` → "matches this build (31 file(s))"; `check_doc_headings.py` (223
+  sections, 40 documents), `check_decision_ids.py` (124 ids), `ci_changes.py --self-test` (22) pass.
+  Stale objects of two crates in the shared target directory (linker errors in group-activity and
+  weather rlibs from an interrupted build) were cleaned with `cargo clean -p`; environment, not code.
 
 ### Evidence
 

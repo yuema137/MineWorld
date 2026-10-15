@@ -7,7 +7,7 @@
     {
       "parameters": [
         {
-          "gap": 300
+          "forget_after_days": 0
         }
       ],
       "rules": [
@@ -108,6 +108,14 @@
             "description": "* for anyone, or an entity class: one defined in configure/classes.yaml, or an implicit class (person, place, item, organization).",
             "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
             "type": "string"
+          },
+          "forget_after_days": {
+            "default": 0,
+            "description": "Days a listener keeps a line; 0 keeps it until `remembered` pushes it out (`ARC-86`).",
+            "format": "uint16",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
           },
           "gap": {
             "default": 300,
@@ -226,6 +234,14 @@
                   "description": "* for anyone, or an entity class: one defined in configure/classes.yaml, or an implicit class (person, place, item, organization).",
                   "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
                   "type": "string"
+                },
+                "forget_after_days": {
+                  "default": 0,
+                  "description": "Days a listener keeps a line; 0 keeps it until `remembered` pushes it out (`ARC-86`).",
+                  "format": "uint16",
+                  "maximum": 3650,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "gap": {
                   "default": 300,

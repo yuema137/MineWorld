@@ -33,6 +33,7 @@ pub(super) struct Entries {
     pub sections: Vec<Entry>,
     pub configure: Vec<Entry>,
     pub interaction_list: Vec<Entry>,
+    pub decisions: Vec<Entry>,
     pub pack_manifest: Vec<Entry>,
 }
 
@@ -103,6 +104,19 @@ pub(super) fn collect() -> Result<Entries, String> {
         }
     }
 
+    let decisions = vec![entry(
+        "decisions",
+        "`decisions.yaml`",
+        vec![
+            "The decision list, at the path `world.yaml` names under `decisions:`; `--decisions FILE` \
+             replaces it for one run (`docs/MODULE_SPEC.md` §4.1 states its rules)."
+                .to_owned(),
+            "Read by the hosts with the models this build installs, never seeded into world state."
+                .to_owned(),
+        ],
+        mineworld_decision::file_schema::<mineworld_installed_models::Model>().to_value(),
+    )?];
+
     let pack_manifest = vec![
         entry(
             "pack",
@@ -130,6 +144,7 @@ pub(super) fn collect() -> Result<Entries, String> {
         sections,
         configure,
         interaction_list,
+        decisions,
         pack_manifest,
     })
 }

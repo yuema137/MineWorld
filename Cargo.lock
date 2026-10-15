@@ -998,6 +998,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",

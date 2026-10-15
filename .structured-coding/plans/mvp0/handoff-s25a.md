@@ -27,3 +27,8 @@ Next: push, open the PR, CI green on the exact head (fast, test, test-macos, tes
 python), record the run ids in the ledger, READY FOR OPERATOR REVIEW. Never merge. A detached worktree
 `/Users/yuema137/mineworld-worktrees/s25a-parity-base` (origin/main @ 31ba514) was used for the base
 parity record and can be removed.
+
+Third session (2026-10-14, sole writer after the second was confirmed stopped): concluded the
+half-done merge of origin/main @ f772a18 (`54ec37d`), added C6 (`decisions.md`, DL-a having merged
+first) and the cognition half's files (25b) to the reference's ownership rule. Next: push, PR, CI green
+on the exact head, READY FOR OPERATOR REVIEW.

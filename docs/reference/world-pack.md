@@ -17,6 +17,7 @@ The World Pack's manifest, at the root of its directory.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `configure` | list of [ConfigurationKey](#world-configurationkey) | no | — | — | The files in `configure/` this world has, in seeding order: each key names `configure/<key>.yaml` — an enabled System Pack's id, or `classes` or `packages`. |
+| `decisions` | [DecisionsFile](#world-decisionsfile) | no | — | — | The decision list: a file of this pack, such as decisions.yaml, saying which decision model drives each seat. Absent, every seat is driven by the rule model. |
 | `items` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The item kinds this world has. Each key names a file in `items/`: a kind of thing, not one object. |
 | `mineworld` | [Compatibility](#world-compatibility) | no | — | — | The framework versions this world is authored for, such as "^0.1"; when stated, a framework outside it is refused by name. |
 | `organizations` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The organizations this world has. Each key names a file in `organizations/`. |
@@ -66,6 +67,14 @@ A semver range with Cargo's meaning, such as "^0.1" (0.1.x and nothing else). Qu
 An enabled System Pack's id (such as calendar), or classes (the world's entity classes) or packages (its licence policy). Each names configure/<key>.yaml and is listed once.
 
 **Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="world-decisionsfile"></a>
+
+#### `DecisionsFile`
+
+A file of the pack, relative to its root, written with / on every platform, such as decisions.yaml: no \, no leading /, no empty, . or .. part, no :.
+
+**Type:** text.
 
 <a id="world-entitykey"></a>
 

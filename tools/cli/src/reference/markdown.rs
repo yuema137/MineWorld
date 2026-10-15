@@ -258,16 +258,18 @@ impl<'a> Types<'a> {
 
     /// What a schema is, in words, linking the named types it refers to.
     fn type_of(&mut self, schema: &Value) -> String {
-        if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
-            let name = reference.rsplit('/').next().unwrap_or(reference);
-            return format!("[{name}](#{})", self.anchor(name));
-        }
         if let Some(value) = schema.get("const") {
             return format!("`{}`", plain(value));
         }
+        // Before a `$ref`: a field whose bound names its choices (a named-choice `ParameterBound`)
+        // narrows its type's schema to them, and the choices are what an author writes.
         if let Some(values) = schema.get("enum").and_then(Value::as_array) {
             let values: Vec<String> = values.iter().map(|v| format!("`{}`", plain(v))).collect();
             return format!("one of {}", values.join(", "));
+        }
+        if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
+            let name = reference.rsplit('/').next().unwrap_or(reference);
+            return format!("[{name}](#{})", self.anchor(name));
         }
         for key in ["anyOf", "oneOf"] {
             if let Some(alternatives) = schema.get(key).and_then(Value::as_array) {

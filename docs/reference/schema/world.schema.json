@@ -12,6 +12,10 @@
       "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
       "type": "string"
     },
+    "DecisionsFile": {
+      "description": "A file of the pack, relative to its root, written with / on every platform, such as decisions.yaml: no \\, no leading /, no empty, . or .. part, no :.",
+      "type": "string"
+    },
     "EntityKey": {
       "description": "An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.",
       "maxLength": 64,
@@ -110,6 +114,17 @@
         "$ref": "#/$defs/ConfigurationKey"
       },
       "type": "array"
+    },
+    "decisions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DecisionsFile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The decision list: a file of this pack, such as decisions.yaml, saying which decision model drives each seat. Absent, every seat is driven by the rule model."
     },
     "items": {
       "default": [],

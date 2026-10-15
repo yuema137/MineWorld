@@ -487,7 +487,7 @@ and §4.2 state the shape of each file and the rules every file shares. Every fi
 type, whether it is required, its default, its bounds and what it means — is in
 [`docs/reference/`](reference/), which `mineworld reference` derives from the types that decode the files
 (`world.yaml` and the content files' own fields, every section a pack owns, every `configure/` file, the
-Interaction List sections, a data pack's `pack.yaml`, and the command line). It is never edited by hand,
+Interaction List sections, the decision list, a data pack's `pack.yaml`, and the command line). It is never edited by hand,
 and CI fails when it differs from what the build generates. Where this specification and the generated
 reference disagree about a field, the decoding type is the fact and the specification is corrected.
 
@@ -1144,7 +1144,10 @@ property, and it never changes who a Person is (INV-1).
   each seat's model as the object-safe `SeatModel` (`Configured<M>`: the model with its decoded
   parameters). `ModelParameters::decode` decodes a parameter block at the decoder's position, refusing an
   unknown key and an out-of-bound value there; a block made by `mineworld_sdk::parameters!` implements it
-  as `mineworld_decision::bounded`, and `()` refuses every key. The signatures carry no clock, no network
+  as `mineworld_decision::bounded`, and `()` refuses every key. `ModelParameters` requires
+  `schemars::JsonSchema` (a `parameters!` block has it), and the catalog `models!` writes answers each
+  in-process model's parameter schema, from which `docs/reference/decisions.md` is generated (`ARC-90`).
+  The signatures carry no clock, no network
   and no world handle. The receiver is `&self`, and a model crate may not use interior mutability: its own
   `clippy.toml` repeats the workspace's disallowed types and adds `Cell`, `RefCell`, `OnceCell`,
   `UnsafeCell`, `Mutex`, `RwLock`, `OnceLock`, `LazyLock` and the atomics. Randomness comes only from the
@@ -1582,14 +1585,18 @@ type's fields in name order, no timestamp and no commit hash, `\n` line endings 
 are `README.md` (the index), `world-pack.md` (`world.yaml` and the content files' own fields),
 `sections.md` (each section an installed pack owns), `configure.md` (each `configure/` file other than an
 Interaction List section, the framework keys `classes` and `packages` included), `interaction-list.md`
-(the section shape and each pack's declarations), `pack-manifest.md` (a data pack's `pack.yaml` and a
+(the section shape and each pack's declarations), `decisions.md` (`decisions.yaml`, with each installed
+decision model and the parameters it takes, from the installed models' catalog), `pack-manifest.md` (a data pack's `pack.yaml` and a
 style manifest) and `cli.md` (every visible subcommand and argument, walked from the parser), plus the
 JSON Schemas under `schema/`. Every Markdown page begins with a generated banner. A field's description
 is the first paragraph of its doc comment; generation is refused, naming the type and the field, when a
 field has none. `--out DIR` writes the files, creating `DIR` if needed, removes generated files it no
 longer writes, and refuses — writing nothing — when `DIR` holds a file it did not generate.
 `--check DIR` writes nothing; it exits 0 when `DIR` holds exactly what this build generates, and
-otherwise exits 1 naming every file that differs, is missing, or is extra.
+otherwise exits 1 naming every file that differs, is missing, or is extra. The same directory holds the
+cognition half's files, `cognition-toml.md` and `schema/cognition-toml.schema.json`, generated from the
+cognition package's models and drift-checked by that package's own test (§5.2): neither `--out` nor
+`--check` writes, removes or compares them, and the index links them.
 
 **`decisions`.** Prints each seat's resolved decision model and memory choice (§4.1), in roster order.
 Without `--json`, one line per seat for a person. With `--json`, one JSON document on stdout, the form the

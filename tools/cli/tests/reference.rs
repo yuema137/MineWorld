@@ -257,6 +257,25 @@ fn out_owns_only_what_it_generates() {
     assert!(checked.status.success(), "{}", stderr(&checked));
 }
 
+/// The cognition half's files (PR 25b) share the directory: `--out` keeps them as they are, `--check`
+/// does not call them extra, and the index links them.
+#[test]
+fn the_cognition_halfs_files_are_left_to_it() {
+    let dir = generated("reference-cognition");
+    std::fs::write(dir.join("cognition-toml.md"), "the cognition page\n").expect("written");
+    std::fs::write(dir.join("schema/cognition-toml.schema.json"), "{}\n").expect("written");
+    let checked = mineworld(&["reference", "--check", text(&dir)]);
+    assert!(checked.status.success(), "{}", stderr(&checked));
+    let rewritten = mineworld(&["reference", "--out", text(&dir)]);
+    assert!(rewritten.status.success(), "{}", stderr(&rewritten));
+    assert_eq!(page(&dir, "cognition-toml.md"), "the cognition page\n");
+    assert_eq!(page(&dir, "schema/cognition-toml.schema.json"), "{}\n");
+    let index = page(&dir, "README.md");
+    for link in ["(cognition-toml.md)", "(schema/cognition-toml.schema.json)"] {
+        assert!(index.contains(link), "{link}: {index}");
+    }
+}
+
 /// AC-25a-4: every section, configuration and Interaction List section of every pack in the installed
 /// set has its entry, on the page for its kind, and no entry names anything else.
 #[test]
@@ -347,6 +366,53 @@ fn every_printed_example_decodes_and_an_unlisted_key_is_refused_as_predicted() {
         }
         assert!(refused > 0, "{name} predicts a refusal");
     }
+}
+
+/// AC-25a-1, -4, -6 for `decisions.yaml` (step-25 C6): the page has the one entry; its printed example
+/// is read and checked by the decision list's own reader, with this build's installed models, against a
+/// world whose seat is the example's; the same example with one unlisted key is refused as predicted.
+#[test]
+fn the_decision_lists_example_is_read_and_an_unlisted_key_is_refused_as_predicted() {
+    use mineworld_contracts::EntityKey;
+    use mineworld_decision::{ClassRef, DecisionList, Roster, SeatEntry};
+
+    let dir = generated("reference-decisions");
+    let entries = documented(&page(&dir, "decisions.md"));
+    let headings: Vec<&str> = entries.iter().map(|entry| entry.heading.as_str()).collect();
+    assert_eq!(headings, ["decisions.yaml"]);
+    let entry = &entries[0];
+
+    let alice = EntityKey::new("alice").expect("a key");
+    let class = |name: &str| ClassRef::new(name).expect("a class");
+    let roster = Roster {
+        seats: vec![SeatEntry {
+            seat: alice.clone(),
+            class: class("person"),
+        }],
+        classes: std::collections::BTreeSet::new(),
+        implicit: ["person", "place", "item", "organization"]
+            .into_iter()
+            .map(class)
+            .collect(),
+        people: std::collections::BTreeSet::from([alice]),
+    };
+    let read = |yaml: &str| {
+        DecisionList::<mineworld_installed_models::Model>::parse(
+            yaml,
+            Path::new("decisions.yaml"),
+            "decisions.yaml",
+            &roster,
+        )
+        .map(drop)
+        .map_err(|error| error.to_string())
+    };
+    read(&entry.example).unwrap_or_else(|error| panic!("{error}\n{}", entry.example));
+    let predicted = entry
+        .refused_with
+        .as_ref()
+        .expect("the page predicts a refusal");
+    let error = read(&with_unknown_key(&entry.example, false)).expect_err("refused");
+    assert!(error.contains(predicted.as_str()), "{error}");
 }
 
 /// AC-25a-6 for the World Pack page and the data pack page: the printed examples, composed, are a

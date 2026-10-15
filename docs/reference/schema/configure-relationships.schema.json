@@ -56,7 +56,8 @@
             "description": "The fact the entry is about: one this pack lets a list govern.",
             "enum": [
               "became-acquainted",
-              "relationship-changed"
+              "relationship-changed",
+              "acquaintance-forgotten"
             ],
             "type": "string"
           },
@@ -136,10 +137,72 @@
             "minimum": -1000,
             "type": "integer"
           },
+          "familiarity_decay": {
+            "$ref": "#/$defs/CurveName",
+            "default": "none",
+            "description": "The curve familiarity fades by with time since the last contact (`ARC-86`).",
+            "enum": [
+              "none",
+              "linear",
+              "half-life",
+              "power"
+            ]
+          },
+          "familiarity_decay_days": {
+            "default": 365,
+            "description": "Its time constant, in days. Not calibrated; inert while the curve is `none`.",
+            "format": "uint16",
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "familiarity_floor": {
+            "default": 0,
+            "description": "Familiarity never fades below this.",
+            "format": "uint16",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "known_at_most": {
+            "default": 150,
+            "description": "How many people a person keeps; a new acquaintance beyond it evicts the weakest tie.",
+            "format": "uint16",
+            "maximum": 1500,
+            "minimum": 5,
+            "type": "integer"
+          },
           "place": {
             "description": "* for anyone, or an entity class: one defined in configure/classes.yaml, or an implicit class (person, place, item, organization).",
             "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
             "type": "string"
+          },
+          "regard_decay": {
+            "$ref": "#/$defs/CurveName",
+            "default": "none",
+            "description": "The curve regard fades toward zero by, from either side.",
+            "enum": [
+              "none",
+              "linear",
+              "half-life",
+              "power"
+            ]
+          },
+          "regard_decay_days": {
+            "default": 365,
+            "description": "Its time constant, in days.",
+            "format": "uint16",
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "regard_floor": {
+            "default": 0,
+            "description": "Regard's magnitude never fades below this.",
+            "format": "uint16",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
           },
           "spoke_familiarity": {
             "default": 10,
@@ -200,7 +263,8 @@
                   "description": "The fact the entry is about: one this pack lets a list govern.",
                   "enum": [
                     "became-acquainted",
-                    "relationship-changed"
+                    "relationship-changed",
+                    "acquaintance-forgotten"
                   ],
                   "type": "string"
                 },
@@ -265,10 +329,72 @@
                   "minimum": -1000,
                   "type": "integer"
                 },
+                "familiarity_decay": {
+                  "$ref": "#/$defs/CurveName",
+                  "default": "none",
+                  "description": "The curve familiarity fades by with time since the last contact (`ARC-86`).",
+                  "enum": [
+                    "none",
+                    "linear",
+                    "half-life",
+                    "power"
+                  ]
+                },
+                "familiarity_decay_days": {
+                  "default": 365,
+                  "description": "Its time constant, in days. Not calibrated; inert while the curve is `none`.",
+                  "format": "uint16",
+                  "maximum": 3650,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "familiarity_floor": {
+                  "default": 0,
+                  "description": "Familiarity never fades below this.",
+                  "format": "uint16",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "known_at_most": {
+                  "default": 150,
+                  "description": "How many people a person keeps; a new acquaintance beyond it evicts the weakest tie.",
+                  "format": "uint16",
+                  "maximum": 1500,
+                  "minimum": 5,
+                  "type": "integer"
+                },
                 "place": {
                   "description": "* for anyone, or an entity class: one defined in configure/classes.yaml, or an implicit class (person, place, item, organization).",
                   "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
                   "type": "string"
+                },
+                "regard_decay": {
+                  "$ref": "#/$defs/CurveName",
+                  "default": "none",
+                  "description": "The curve regard fades toward zero by, from either side.",
+                  "enum": [
+                    "none",
+                    "linear",
+                    "half-life",
+                    "power"
+                  ]
+                },
+                "regard_decay_days": {
+                  "default": 365,
+                  "description": "Its time constant, in days.",
+                  "format": "uint16",
+                  "maximum": 3650,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "regard_floor": {
+                  "default": 0,
+                  "description": "Regard's magnitude never fades below this.",
+                  "format": "uint16",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "spoke_familiarity": {
                   "default": 10,
