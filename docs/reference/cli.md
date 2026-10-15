@@ -16,6 +16,8 @@ Host a World Pack for clients
 | `--listen LISTEN` | no | `127.0.0.1:7878` | Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it. |
 | `--invite TOKEN` | no | — | The invite every client must present to join; else one is generated and printed once. Also read from `MINEWORLD_INVITE`. |
 | `--admin-token ADMIN_TOKEN` | no | — | The bearer token that opens /admin (else none); never printed; not the invite. Also read from `MINEWORLD_ADMIN_TOKEN`. |
+| `--grant SEATS[:take-over]` … | no | — | Issue a seat grant admitting only these seats (seat or seat+seat), with :take-over the right to take a held one; its token is generated and printed once; repeatable. |
+| `--request-budget R/B` | no | `10/20` | Each seat's request budget: R submits a second sustained, B at once (B ≥ R); 0: none. |
 | `--agent SEAT` … | no | — | Drive that seat with the reactive rule controller whenever no player holds it; repeatable. |
 | `--town` | no | `false` | Drive every other seat with the paced rule controller whenever no player holds it. |
 | `--seed SEED` | no | `0` | The paced controllers' seed. |
