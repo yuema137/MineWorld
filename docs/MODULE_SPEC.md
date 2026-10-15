@@ -1187,6 +1187,12 @@ is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCE
 
 ## 5.2 Memory policies and host bounds
 
+**Field reference.** This section states the shape and the rules. The field-level reference for the
+operator's cognition configuration (`cognition.toml`) is generated from its Pydantic models into
+[`reference/cognition-toml.md`](reference/cognition-toml.md); the parameters of each memory policy are
+generated into `reference/memory-policies.md` once the policies exist (S25 PR 25b, `CLAUDE.md` §2.1). A
+generated page is never edited by hand.
+
 A **memory policy** decides which items of a seat's controller-owned memory are kept, dropped or merged
 into a summary. It is part of a Controller Pack. It is selected per seat by `memory:` in `decisions.yaml`
 (§4.1), never by `configure/`, because a controller file may not configure world state. System-owned
