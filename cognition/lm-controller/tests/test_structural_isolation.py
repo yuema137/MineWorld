@@ -138,7 +138,9 @@ def test_ci_runs_pytest_once_per_member() -> None:
             check=True,
         ).stdout.splitlines()
         pytest_lines = [line for line in listed if " pytest " in line]
-        assert len(pytest_lines) == 2, listed
+        # One pytest line per member of `PYTHON_MEMBERS`, in its order (pr-s27c D-c-22: the
+        # `clients/agent` member joined it).
+        assert len(pytest_lines) == 3, listed
         assert pytest_lines[0].startswith("uv run --locked pytest sdk/python")
         assert (
             pytest_lines[1]
@@ -147,6 +149,13 @@ def test_ci_runs_pytest_once_per_member() -> None:
                 # pr-s10-p4 §5.10: a command-line `-m` replaces the addopts one, so it restates it.
                 "python-smoke": "uv run --locked pytest cognition/lm-controller "
                 "-m 'not live_model and not real_binary'",
+            }[layer]
+        )
+        assert (
+            pytest_lines[2]
+            == {
+                "python": "uv run --locked pytest clients/agent",
+                "python-smoke": "uv run --locked pytest clients/agent -m 'not real_server'",
             }[layer]
         )
         assert not any("live_model" in line and "not live_model" not in line for line in listed)

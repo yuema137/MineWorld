@@ -982,6 +982,14 @@ as the authority for the added fields.
     seat's pacer stop, a lost handle's stop) are now held — in the handle's task list and in
     `Player._ending`, which `close()` awaits — so the event loop cannot drop them (asyncio keeps only weak
     references to tasks). Member suite 96 passed again; ruff, format, pyright clean.
+  - *D-c-22 (the stop and its ruling).* CI on `94e5b70` failed `python (ubuntu-24.04)` at
+    `cognition/lm-controller/tests/test_structural_isolation.py::test_ci_runs_pytest_once_per_member`, which
+    asserted exactly two pytest lines in `ci_layer.py --list python|python-smoke`; §2.1 item 2's member makes
+    three. The fix lies under `cognition/`, which the contract forbids, so this was a material stop.
+    **Ruled by the primary, 2026-10-14, relayed by the coordinator: a bounded, test-only scope exception.**
+    Only that test changes: it asserts one pytest line per `PYTHON_MEMBERS` entry, in order, the third
+    `uv run --locked pytest clients/agent` (in smoke `… -m 'not real_server'`). Nothing else under
+    `cognition/` is touched. The test passed locally; ruff, format and pyright are clean over `cognition/lm-controller`.
   - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
     §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
     F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.

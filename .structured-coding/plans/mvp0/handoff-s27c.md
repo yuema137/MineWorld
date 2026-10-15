@@ -40,7 +40,8 @@ writer). Coordinator ruling R-LOAD-1 in force (only touched tests locally, ruff/
 
 1. C6 (`b9f571f`), C7 (`b57ea61`), C8 (`abd37a4`, real binary, all four files PASS on macOS), C9 ledger
    (F-S27c-9: 12d not merged; AC-c-12 per R-LOAD-1) done.
-0. **MATERIAL STOP (CI, head 94e5b70, PR #204).** `python (ubuntu-24.04)` failed at
+0. **Resolved by D-c-22 (primary ruling, 2026-10-14): the test-only edit was made; CI is rerunning.** The stop was:
+   **MATERIAL STOP (CI, head 94e5b70, PR #204).** `python (ubuntu-24.04)` failed at
    `cognition/lm-controller/tests/test_structural_isolation.py::test_ci_runs_pytest_once_per_member`:
    it asserts exactly 2 pytest lines in `ci_layer.py --list python|python-smoke`, and the member makes 3.
    The fix is in `cognition/`, which the contract forbids. It needs the operator's authorization (or another
