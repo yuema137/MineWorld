@@ -607,11 +607,14 @@ worktree root.
 
 - **Goal.** AC-DLa-1 evidence on the final head; ledger complete.
 - **Scope.** This file (§15), `handoff-dl-a.md`.
-- [ ] Implementation: `cargo build --release -p mineworld-cli`; `python3 scripts/ci_parity.py record --binary
+- [x] Implementation: `cargo build --release -p mineworld-cli`; `python3 scripts/ci_parity.py record --binary
   target/release/mineworld --profile long --out <scratch>/dl-a.long`; `python3 scripts/ci_parity.py baseline
-  check <scratch>/dl-a.long`.
-- [ ] Validation: classify PASS/FAIL/INCONCLUSIVE from the check's verdict lines; record wall time.
-- [ ] Review: every §8 criterion has evidence or is explicitly open; deviations recorded.
+  check <scratch>/dl-a.long`. *E-DLa-7.*
+- [x] Validation: classify PASS/FAIL/INCONCLUSIVE from the check's verdict lines; record wall time. *E-DLa-7:
+  the check's verdict is FAIL on all 20 keys, proved pre-existing on `main` (F-DLa-4); byte-identity of DL-a's
+  record to `main`'s own record PASS, 20 of 20.*
+- [x] Review: every §8 criterion has evidence or is explicitly open; deviations recorded. *E-DLa-7, §8 table
+  below.*
 - **Commit boundary.** Documentation only; then push, open the PR, one CI.
 
 ---
@@ -723,7 +726,10 @@ and column, not at `run`'s load (SD-DLa-9).
 | C4 | (this commit) | [x] | [x] | [x] |
 | C5 | (this commit) | [x] | [x] | [x] |
 | C6 | (this commit) | [x] | [x] | [x] |
-| C7 | — | [ ] | [ ] | [ ] |
+| C7 | (this commit) | [x] | [x] | [x] |
+
+Commit SHAs: C0 `a7f44de`, C1 `c176773`, C2 `434333c`, C3 `fb06ea1`, C4 `c685b3c`, C5 `d319c3a`, C6 `cfbf364`;
+`origin/main` merged at `3578f83` and again before the push.
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -865,6 +871,48 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   (created, then resumed); `Tables::assert_same_history` (facts, journal, snapshots, byte for byte) A = B and
   A = C. Green: `rule: 28521 facts, 6.3 s` debug (budget ≤ 60 s, PASS). The model list comes from the catalog;
   installing a model adds it here with no edit. Runs in the `test`, `test-macos`, `test-windows` CI jobs.
+- **E-DLa-7 (C7).** Head `3578f83` (C6 plus `origin/main @ 171ea06` merged; between the base `6306977` and
+  `171ea06` main changed only `clients/`, `.structured-coding/`, `docs/HUMAN_REVIEW_QUEUE.md` and the
+  `mineworld-3d`/`mineworld-slice` launchers — no Rust, no world, no `scripts/baselines.txt`). Release build;
+  `python3.12 scripts/ci_parity.py record --binary <target>/release/mineworld --profile long` (macOS arm64,
+  rustc 1.97.1): 4 worlds in 2 424 s (run concurrently with the workspace test suite; the first attempt
+  failed at once because `rustc` was not on `PATH` and recorded nothing). `baseline check` verdict:
+  **`baselines FAIL`**, all 20 keys (e.g. social-cafe summary-300 baseline `338 ad49c723…`, record `341
+  9500d0c8…`; facts-300s `365330` vs `837953`).
+  **F-DLa-4 (the failure is `main`'s, not DL-a's).** *Audit:* `main`'s own nightly, run `38587126996` on
+  `171ea06` — a commit with no DL-a code — fails `parity-long` (and has since at least 2026-10-13, runs
+  `38440079845`, `38331245496`). Its 20 recorded `(world, key, bytes, sha256)` values, taken from that run's log,
+  equal this head's 20 recorded values exactly (`diff` empty, 20/20). *Conclusion:* `scripts/baselines.txt`
+  (last re-recorded by #162 on 2026-10-10) is stale against `main`; DL-a's absent-case history is byte for byte
+  `main`'s on every world and every column, which is what AC-DL-1 protects. DL-a may not edit
+  `scripts/baselines.txt` (§13 NEVER), so the stale file is reported for the operator, not fixed here.
+  *Classification of AC-DLa-1:* the "baseline check passes" clause is **FAIL, pre-existing and not caused by
+  DL-a** (proved against `main`'s record); the byte-identity it stands for is **PASS** (20/20 equal to `main`'s
+  record; social-cafe header and 30-day summary equal to the base binary's, E-DLa-5); `run`'s header for
+  social-cafe at seed 7 equals the base's byte for byte (PASS). §13 lists "AC-DLa-1 FAIL" as a material stop:
+  this is surfaced to the operator in the review handoff, with the evidence above, rather than resolved by
+  this session.
+- **E-DLa-8 (full local suites before the push, operator's kickoff instruction).** On `3578f83`: `cargo fmt
+  --all -- --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test
+  --workspace --no-fail-fast` exit 0, 1 068 passed, 0 failed; `uv run --locked pytest sdk/python` 103 passed
+  (with `MINEWORLD_BIN` = this head's debug binary); `uv run --locked pytest cognition/lm-controller` 169
+  passed, 1 skipped (PASS).
+
+### §8 criteria at close
+
+| Criterion | Verdict | Evidence |
+| --- | --- | --- |
+| AC-DLa-1 | byte-identity PASS; baseline-check clause FAIL, pre-existing on `main` (F-DLa-4) — operator item | E-DLa-5, E-DLa-7; M-DLa-1, M-DLa-6 |
+| AC-DLa-2 | PASS | E-DLa-4 (38-case table), E-DLa-5 (through the binary); M-DLa-3 |
+| AC-DLa-3 | PASS | E-DLa-5 (`lists_that_resolve_alike…`: the pack's file vs no list) |
+| AC-DLa-4 | PASS | E-DLa-4; M-DLa-2 |
+| AC-DLa-5 | PASS | E-DLa-4, E-DLa-5 |
+| AC-DLa-6 | PASS locally (macOS); Linux/Windows in the PR's CI | E-DLa-6; M-DLa-5 |
+| AC-DLa-7 | PASS | E-DLa-4 (parameter change), E-DLa-5 (three lists alike; memory parameter change) |
+| AC-DLa-8 | PASS | `git diff --stat origin/main...HEAD -- kernel contracts systems server persistence` empty |
+| AC-DLa-9 | PASS | E-DLa-5 (`packs list` identical to the base binary's) |
+| AC-DLa-10 | PASS | E-DLa-1 |
+| AC-DLa-11 | PASS | E-DLa-4, E-DLa-5 (golden) |
 
 ### Mutations
 

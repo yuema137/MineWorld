@@ -26,7 +26,13 @@ VALIDATION BUDGET    unit/integration unrestricted; one long parity record at C7
 STOP                 PR DL-a READY FOR OPERATOR REVIEW — DO NOT MERGE; material stops per §13
 ```
 
-## Lifecycle: IMPLEMENTING
+## Lifecycle: C0 … C7 committed; pushing, PR, CI
+
+- Every commit's three items checked with evidence E-DLa-0 … E-DLa-8; mutations M-DLa-1 … M-DLa-6 all red
+  by name and reverted.
+- **Operator item F-DLa-4:** `scripts/baselines.txt` is stale on `main` (nightly `parity-long` red since
+  2026-10-13); DL-a's long record equals `main`'s own record on all 20 keys, so the AC-DLa-1 baseline-check
+  clause fails for a reason that is not DL-a's. DL-a may not edit the file.
 
 ## Goldens captured on the base (before any code change, test rules §25)
 
