@@ -91,6 +91,13 @@ LIMB_SEGMENTS: tuple[tuple[str, str, str], ...] = (
     ("shank", _M + "RightLeg", _M + "RightFoot"),
 )
 
+# Parity (design §5.7, AB1-8 and AB1-9): the texel bounds of the base-colour comparison. Positions, joints and
+# weights are bounded with the compare command's rows (added with B8).
+PARITY_TEXEL_TOLERANCE = 2  # of 255, per channel (design §5.7: "every channel differs by ≤ 2/255")
+PARITY_TEXEL_SHARE = (
+    0.999  # design §5.7 and AB1-9: the share of texels within the tolerance, same device only
+)
+
 # G-14: the provenance keys required, and the AI-identifier key patterns. The patterns are copied from
 # scripts/check_secrets.py (AC-S26-9); the two lists are one rule, and a test keeps them equal.
 PROVENANCE_KEYS: tuple[str, ...] = (

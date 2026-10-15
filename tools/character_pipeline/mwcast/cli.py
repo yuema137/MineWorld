@@ -14,7 +14,7 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from mwcast import identifiers, meshy
+from mwcast import identifiers, mask, meshy, standard, texture
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
@@ -55,6 +55,14 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--dry-run", action="store_true")
         if name == "identifiers":
             subparser.add_argument("files", nargs="+", type=Path)
+        if name == "mask":
+            subparser.add_argument("--fit", type=Path, required=True)
+            subparser.add_argument("--reference", type=Path, required=True)
+            subparser.add_argument("--out", type=Path, required=True)
+        if name == "compare-texture":
+            subparser.add_argument("candidate", type=Path)
+            subparser.add_argument("accepted", type=Path)
+            subparser.add_argument("--alpha-iou", action="store_true")
     return parser
 
 
@@ -172,6 +180,40 @@ def _identifiers(args: argparse.Namespace) -> int:
     return 0
 
 
+def _mask(args: argparse.Namespace) -> int:
+    fit_path = Path(args.fit)
+    try:
+        fit = parse_fit(load_record(fit_path), fit_path)
+    except RecordError as exc:
+        print(f"mask: {exc}", file=sys.stderr)
+        return 1
+    box = mask.run_mask(fit, Path(args.reference), Path(args.out))
+    print(f"mask: wrote {args.out} from crop {box}")
+    return 0
+
+
+def _compare_texture(args: argparse.Namespace) -> int:
+    candidate = Path(args.candidate)
+    accepted = Path(args.accepted)
+    try:
+        if args.alpha_iou:
+            report = texture.compare_masks(candidate, accepted)
+            print(
+                f"mask: alpha IoU {report.alpha_iou:.5f}; RGB mean absolute difference "
+                f"{report.rgb_mean_absolute_difference:.4f} / 255"
+            )
+            return 0
+        texels = texture.compare_texels(candidate, accepted)
+    except ValueError as exc:
+        print(f"compare-texture: {exc}", file=sys.stderr)
+        return 1
+    verdict = "PASS" if texels.share >= standard.PARITY_TEXEL_SHARE else "FAIL"
+    print(
+        f"texels: {texels.within_tolerance} of {texels.texels} within 2/255 ({texels.share:.5f}); {verdict}"
+    )
+    return 0 if verdict == "PASS" else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -183,5 +225,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _meshy(args)
     if command == "identifiers":
         return _identifiers(args)
+    if command == "mask":
+        return _mask(args)
+    if command == "compare-texture":
+        return _compare_texture(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2
