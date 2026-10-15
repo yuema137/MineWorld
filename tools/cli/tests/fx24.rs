@@ -116,6 +116,18 @@ fn names() -> BTreeMap<u64, String> {
         .collect()
 }
 
+/// The entity ids of the seats: the people some client or controller drives.
+fn seated_ids() -> std::collections::BTreeSet<u64> {
+    let pack = WorldPack::read(MARKET).expect("reads");
+    let loaded = pack
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    pack.seats()
+        .iter()
+        .map(|key| loaded.id(key).expect("a seat is a key of the pack").raw())
+        .collect()
+}
+
 /// `day D hh:mm` of a world instant, for reading.
 fn clock(at: i64) -> String {
     let day = at.div_euclid(86_400) + 1;
@@ -150,10 +162,19 @@ fn measure(pace: &str, scale: &str) -> (String, bool) {
     let names = names();
     let name = |id: u64| names.get(&id).cloned().unwrap_or_else(|| format!("#{id}"));
 
+    // Only the people someone drives are measured. A Person left out of the seats has no controller to walk
+    // them, so an agenda cannot move them: `routines.rs` asserts that otto, who is no seat, never moves. Those
+    // parts are excluded and counted, not judged.
+    let seated = seated_ids();
     let parts = journeys(&facts);
+    let undriven = parts
+        .iter()
+        .filter(|part| !part.already && part.ends.is_some() && !seated.contains(&part.person))
+        .count();
+    println!("  excluded {undriven} journeys of Persons no seat drives (they never move)");
     let measured: Vec<&Part> = parts
         .iter()
-        .filter(|part| !part.already && part.ends.is_some())
+        .filter(|part| !part.already && part.ends.is_some() && seated.contains(&part.person))
         .collect();
     let within_25 = measured
         .iter()

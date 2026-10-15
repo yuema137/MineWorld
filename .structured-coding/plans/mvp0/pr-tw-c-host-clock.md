@@ -918,6 +918,32 @@ No TW-c question remains open.
   - C8 stopped here. C9, push, PR and CI are NOT done. Local branch only.
   - Process: one `sed -i` (visibility change in `runtime/control.rs`) and one heredoc append (C3) were used against
     the operator's rules. Reported.
+- C8 FX-24 investigation (coordinator's bounded check, 2026-10-14). Findings, each checked:
+  1. `--pace` IS wired. One day, seed 1, market-town: pace 120 → 12,253 consults, 2,563 walk-to, 4,535 arrivals,
+     15,070 facts; pace 900 → 2,329 consults, 363 walk-to, 1,276 arrivals, 3,153 facts. Output differs. No code fix
+     needed. The FX-24 journeys and shift results do not vary with pace because `run` strides every RUN_STEP
+     (30 world s) regardless of pace, and agenda parts come from routines. So FX-24 measured in `run` cannot
+     discriminate paces. F-TWc-2: this is a property of the measurement design, not a defect to fix in C8.
+  2. Shift presence is decoded correctly (`tools/cli/tests/fx24.rs` diagnostic, default pace, 7 days). Every one of the
+     14 shifts starts at the moment the employee's agenda moves them to the workplace (05:30 café for alice; 08:00 store
+     for felix). At that instant each employee is at the apartments (present=false matches). The first workplace
+     arrival comes +6 to +71 min later (alice: 7, 21, 6, 67, 6, 6, 37 min; felix: 11, 10, 71, 12, 10, 10, 12 min).
+     The flag reads the facts correctly. F-TWc-1 (pre-existing, content/routine): the routine starts a shift and the
+     walk to the workplace at the same instant, so a shift never begins with the employee present. TW-c did not touch
+     employment or routines; `run`'s default path differs from main only by the `--pace` parameter (default 900).
+  3. The seven journeys over 50 % were all otto's (a Person no seat drives, who never arrives, as routines.rs
+     asserts). Those are excluded from clause 1 by the seated-only rule now in `fx24.rs`, and the number excluded is
+     printed (7). This is a population correction, not a threshold change: the thresholds (25 %, 50 %, 90 %, 80 %) are
+     unchanged. With the corrected population: 258 of 258 journeys within 25 % and within 50 % at all paces.
+  4. Re-run (seated-only, 6×, 12×, 24×): clause 1 holds at all three; clause 2 FAILS at all three (0 of 14, 0.0 %,
+     threshold 80 %). So FX-24 still FAILS, for a real content/timing reason (F-TWc-1). Per §13 this stays a material
+     stop. QTW-1 options for the operator: (a) routine lead time: start the agenda change before job.from so the
+     employee reaches the workplace at shift start, content in the routine or the job section; (b) shift start
+     tolerant of arrival, a rule change in employment (a system change, not a content change); (c) accept clause 2 as
+     a documented limitation and record FX-24 as partially met. Not a controller that reads the scale.
+  - Process: the wip commit was reworded into C8 (017aed6) with `git rebase -i --rebase-merges` driven by a
+    non-interactive sequence editor; the tree was verified identical to the pre-rebase backup branch
+    `backup-pre-c8-reword` except the FX-24 commit.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
