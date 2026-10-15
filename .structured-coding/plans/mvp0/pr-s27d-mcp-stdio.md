@@ -696,7 +696,7 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] `DEP-56` written; handoff `handoff-s27d.md` created | [x] `check_doc_headings.py` (238 sections, none duplicated), `check_decision_ids.py` (134 ids, all distinct) | [x] see C0 evidence |
-| C1 | — | [ ] | [ ] | [ ] |
+| C1 | (this commit) | [x] `mcp>=2.2,<2.3` (locked 2.2.0) in the member; `mcp_server.py` stub; `test_no_mcp.py` replaced | [x] `test_mcp_confined.py` 6 passed (P-1, P-2 PASS); M-d-1 red then green; ruff, format, pyright 0 errors | [x] see C1 evidence |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
@@ -714,6 +714,19 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 - `DEP-56` written at the end of `docs/DECISIONS.md`, with the §4.2 options, the §4.1 version rule (2.2.0 on 2026-10-15, since 2.3.0 is 13 days old) and sources.
 - Validation: `python3 scripts/check_doc_headings.py` PASS (exit 0); `python3 scripts/check_decision_ids.py` PASS (exit 0; `DEP-56` appears once).
 - Review: `DEP-56` uses "client", "adapter" and "agent player" as `ARC-96` defines them (`ARC-96` names the adapter as a module of the client, and `mineworld-agent` as the client). **Yes.**
+
+**C1 (2026-10-15).**
+- Version rule (§4.1): C1 ran on 2026-10-15, before 2026-10-16, so the requirement is `mcp>=2.2,<2.3`; `uv lock` resolved **mcp 2.2.0** (`mcp-types` 2.2.0). The member's pyproject comment names `DEP-56`.
+- Packages `uv.lock` added (`uv lock`: 46 packages resolved in the workspace; 18 added, the rest already locked), version and licence from the installed `METADATA` (`.venv`, macOS arm64; `License-Expression` / `License`):
+  `mcp` 2.2.0 MIT; `mcp-types` 2.2.0 MIT; `jsonschema` 4.26.0 MIT; `jsonschema-specifications` 2025.9.1 MIT; `referencing` 0.37.0 MIT; `rpds-py` 2026.9.1 MIT; `attrs` 26.1.0 MIT; `pyjwt` 2.15.1 MIT; `typing-inspection` 0.4.4 MIT (already locked); `cffi` 2.1.1 MIT-0; `cryptography` 50.0.2 Apache-2.0 OR BSD-3-Clause; `pycparser` 3.11 BSD-3-Clause; `click` 8.5.0 BSD-3-Clause; `opentelemetry-api` 1.45.1 Apache-2.0; `python-multipart` 0.0.32 Apache-2.0; `sse-starlette` 3.5.0 BSD-3-Clause; `starlette` 1.8.0 BSD-3-Clause; `uvicorn` 0.54.0 BSD-3-Clause; `pywin32` 312 **PSF** (Windows only; read from PyPI JSON, first upload 2026-06-04). `anyio` and `httpx2` 2.13.1 (BSD-3-Clause) were already locked or shared. **No GPL-family licence: no material stop.**
+- Import paths in the installed 2.2.0 (the design's "verify" list, §3.2): `mcp.server.lowlevel.Server` (its `__init__` takes `on_list_tools`, `on_call_tool`, `on_subscriptions_listen`, …); `mcp_types` re-exported as `mcp.types` (`Tool`, `TextContent`, `CallToolResult`, `ListToolsResult`, `CallToolRequestParams`); `mcp.server.context.ServerRequestContext`; `mcp.server.subscriptions.InMemorySubscriptionBus`, `mcp.server.subscriptions.ListenHandler`; `mcp.shared.subscriptions.ResourceUpdated`; `mcp.server.stdio.stdio_server`; `mcp.client.client.Client` (accepts a `Server` in-process); `mcp.client.stdio.stdio_client`. **Design drift, recorded:** the design's X-6 quotes `on_list_resources`, `on_read_resource`, `on_list_prompts`, `on_get_prompt`; 2.2.0 also has `on_list_resource_templates` and `on_subscribe_resource`/`on_unsubscribe_resource`. C3 uses what 2.2.0 provides.
+- P-1 PASS: `Tool(input_schema=S, output_schema=T)` is listed unchanged through `Client(server)` (`test_p1_the_low_level_server_publishes_the_declared_schemas`).
+- P-2 PASS: an `isError: true` result with text content only, from a tool with an `outputSchema`, reaches the official client with no exception and `structured_content is None`. The SDK's `Client.call_tool` validates output only when `not result.is_error` (`mcp/client/client.py` ~l.821; `mcp/client/session.py` ~l.1101). **So no material stop; QS27d-1's shape is accepted by the official client.**
+- Confinement tests (`test_mcp_confined.py`, 6 tests, replacing `test_no_mcp.py`): `test_mcp_is_imported_only_by_the_adapter_module`, `test_mcp_is_a_dependency_of_the_member_alone`, `test_no_file_outside_the_member_imports_mcp`, `test_the_adapter_reaches_the_world_only_through_player` (I-d-5's static part), P-1, P-2. Result: **6 passed** (0.4 s).
+- Mutation **M-d-1** (`import mcp  # M-d-1 planted` appended to `player.py`): `test_mcp_is_imported_only_by_the_adapter_module` **FAILED**; the file restored from a byte copy, `cmp` clean, the 6 tests green again.
+- Static: `uv run --locked ruff check clients/agent` All checks passed; `ruff format --check clients/agent` 37 files formatted (after one format of `test_mcp_confined.py`); `uv run --locked pyright clients/agent` 0 errors.
+- Deviation (bounded, recorded): during the review fix of `requirement_names`'s typing, I edited `test_mcp_confined.py`'s import with `sed -i ''`, which the brief's NEVER list forbids. The edit was one line (`from typing import Any, cast`), checked by the test run and the file's diff; no further `sed -i` is used in this PR.
+- Review: the confinement scan limits `mcp` to `src/mineworld_agent/mcp_server.py` (`ADAPTER`) and asserts the member's pyproject is the only manifest that names it; P-1 and P-2 are the SDK-behaviour pins QS27d-1 relies on. **Yes, no issue with the design's scope.**
 
 ### Mutations
 

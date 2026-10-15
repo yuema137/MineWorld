@@ -1,9 +1,9 @@
 # mineworld-agent: play a seat of a MineWorld world from a program, as a client (S27).
 #
 # Design: .structured-coding/plans/mvp0/pr-s27c-player-library.md (S27-c, the transport-free `Player`) under
-# step-27-agent-players.md; placement recorded in docs/DECISIONS.md ARC-96. Two dependencies and no more:
-# the SDK (the protocol client, DEP-44) and Pydantic (DEP-24). No MCP here: the MCP module is S27-d's, and
-# adding a dependency is a decision, not an edit.
+# step-27-agent-players.md; placement recorded in docs/DECISIONS.md ARC-96. Three dependencies and no more:
+# the SDK (the protocol client, DEP-44), Pydantic (DEP-24) and the official MCP SDK (DEP-56), which only
+# `src/mineworld_agent/mcp_server.py` may import (ARC-96, S27-d). Adding a dependency is a decision, not an edit.
 
 [project]
 name = "mineworld-agent"
@@ -16,6 +16,9 @@ dependencies = [
     # ResumingSeat, offers and the wire models; one way: mineworld-sdk never imports this package.
     "mineworld-sdk",
     "pydantic>=2.13,<3",
+    # The official MCP SDK, for the stdio adapter only (DEP-56, S27-d): the newest release at least 14 days
+    # old on 2026-10-15 is 2.2.0 (2.3.0 was uploaded 2026-10-02). From 2026-10-16 it is `mcp>=2.3,<3`.
+    "mcp>=2.2,<2.3",
 ]
 
 [tool.uv.sources]
