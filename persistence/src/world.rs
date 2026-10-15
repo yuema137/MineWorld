@@ -10,6 +10,7 @@ use crate::error::PersistError;
 use crate::format::{
     Manifest, SAVE_FORMAT, decode, decode_snapshot, encode, encode_snapshot, instance_text,
 };
+use crate::host::{HostRecord, PacingChange, read_journal};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 use crate::replay::{self, advanced, check_composition, dispatched};
 
@@ -277,6 +278,24 @@ impl PersistentWorld {
         self.backend.checkpoint(self.revision, &snapshot)?;
         self.stored.insert(self.revision);
         Ok(true)
+    }
+
+    /// Records a pacing change in the host journal, at the head revision (`ARC-69`). A host record is
+    /// not a revision: nothing is committed to the input journal, the facts or the snapshots, and the
+    /// world's state is untouched.
+    pub fn record_host(&mut self, change: PacingChange, at: WorldTime) -> Result<(), PersistError> {
+        self.refuse_if_ahead()?;
+        let record = HostRecord {
+            at,
+            revision: self.revision,
+            change,
+        };
+        self.backend.append_host_record(&record.row()?)
+    }
+
+    /// The host journal, in the order it was written, checked for coherence (`ARC-69` item 7).
+    pub fn host_records(&self) -> Result<Vec<HostRecord>, PersistError> {
+        read_journal(self.backend.as_ref(), self.revision)
     }
 
     fn refuse_if_ahead(&self) -> Result<(), PersistError> {

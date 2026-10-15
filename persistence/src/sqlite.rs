@@ -23,7 +23,7 @@ use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow};
+use crate::backend::{FactRow, HostRow, ManifestRow, PersistenceBackend, RevisionRow};
 use crate::error::PersistError;
 use crate::input::WorldRevision;
 
@@ -67,6 +67,17 @@ const SCHEMA: &str = "
     CREATE TABLE snapshots (
         revision  INTEGER PRIMARY KEY REFERENCES journal (revision),
         snapshot  BLOB    NOT NULL
+    );
+";
+
+/// The host journal's table (`ARC-69`). Not in [`SCHEMA`]: created by the first append, so that a save
+/// that is never hosted has no such table. Append-only; `seq` is the record's position.
+const HOST_JOURNAL: &str = "
+    CREATE TABLE IF NOT EXISTS host_journal (
+        seq       INTEGER PRIMARY KEY,
+        revision  INTEGER NOT NULL,
+        at        INTEGER NOT NULL,
+        record    BLOB    NOT NULL
     );
 ";
 
@@ -375,5 +386,56 @@ impl PersistenceBackend for SqliteBackend {
             )
             .map_err(storage)?;
         Ok(())
+    }
+
+    fn append_host_record(&mut self, row: &HostRow) -> Result<(), PersistError> {
+        let transaction = self.connection.transaction().map_err(storage)?;
+        // Created here, not by `SCHEMA`: a save that is never hosted keeps exactly the four tables it
+        // was created with (`ARC-69`, INV-TW-1). `IF NOT EXISTS` makes every later append a no-op here.
+        transaction.execute_batch(HOST_JOURNAL).map_err(storage)?;
+        transaction
+            .execute(
+                "INSERT INTO host_journal (revision, at, record) VALUES (?1, ?2, ?3)",
+                params![signed(row.revision.raw())?, row.at, row.record],
+            )
+            .map_err(storage)?;
+        transaction.commit().map_err(storage)
+    }
+
+    fn host_records(&self) -> Result<Vec<HostRow>, PersistError> {
+        let present: i64 = self
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'host_journal'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(storage)?;
+        if present == 0 {
+            return Ok(Vec::new());
+        }
+        let mut statement = self
+            .connection
+            .prepare("SELECT revision, at, record FROM host_journal ORDER BY seq")
+            .map_err(storage)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Vec<u8>>(2)?,
+                ))
+            })
+            .map_err(storage)?;
+        let mut records = Vec::new();
+        for row in rows {
+            let (revision, at, record) = row.map_err(storage)?;
+            records.push(HostRow {
+                revision: WorldRevision::from_raw(unsigned(revision)?),
+                at,
+                record,
+            });
+        }
+        Ok(records)
     }
 }

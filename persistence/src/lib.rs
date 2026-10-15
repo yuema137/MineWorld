@@ -36,6 +36,7 @@
 pub mod backend;
 pub mod error;
 pub mod format;
+pub mod host;
 pub mod input;
 pub mod replay;
 pub mod sqlite;
@@ -44,6 +45,7 @@ pub mod world;
 pub use backend::PersistenceBackend;
 pub use error::PersistError;
 pub use format::{Manifest, SAVE_FORMAT};
+pub use host::{HostRecord, PacingChange};
 pub use input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 pub use replay::{Verified, verify, verify_from};
 pub use sqlite::{Durability, SAVE_FILE, SqliteBackend};

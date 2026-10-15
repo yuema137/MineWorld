@@ -817,19 +817,29 @@ No TW-c question remains open.
 | --- | --- | --- |
 | C0 | 181278a | done: base origin/main @ 171ea06, 12n-2 on base (#125), AC-TWc-7 applies |
 | C1 | (this commit) | done (docs): ARC-69 (new), notes on ARC-42 and ARC-44, PROTOCOL §§5.9, 10, 11.2, 11.3, MODULE_SPEC §§4.1, 8.1 |
-| C2 … C9 | — | not started |
+| C2 | (this commit) | done: `persistence/src/host.rs`, backend `HostRow` and two methods, lazy `host_journal`, `verify` coherence check |
+| C3 … C9 | — | not started |
 
 ### Evidence
 
 - C0 (2026-10-14): freeze header verified; base `origin/main @ 171ea06`; 12n-2 merged as #125
   (`adc46bd`), so AC-TWc-7 applies. `check_doc_headings.py`: 223 sections, none duplicated;
   `check_decision_ids.py`: 122 ids, all distinct. Handoff `handoff-tw-c.md` initialized.
+- C1 (8671883): ARC-69 written; notes on ARC-42 and ARC-44; PROTOCOL §§5.9, 10, 11.2, 11.3; MODULE_SPEC §§4.1, 8.1.
+  `check_doc_headings.py`: 223 sections; `check_decision_ids.py`: 123 ids, all distinct.
+- C2: `cargo test -p mineworld-persistence` all green (lib 1, unit 6 host-journal + others, save 4,
+  kill_and_resume/retention 11); `cargo clippy -p mineworld-persistence --all-targets -- -D warnings` clean;
+  `cargo fmt` applied. New tests in `persistence/tests/host_journal.rs` (6): no journal in a never-hosted save
+  (exactly 4 tables + index); lazy creation and in-order readback; pinned bytes of each variant; verify refuses a
+  decreasing instant naming record 2; damaged record refused by name; coherent journal leaves verification as it was.
+  `persistence/tests/save.rs` `Failing` backend gained the two trait methods (delegation only, no edit to its test).
 
 ### Mutations
 
 | Id | Mutation | Expected | Observed |
 | --- | --- | --- | --- |
 | M-TWc-1 … M-TWc-11 | §8 | red | — |
+| M-TWc-10 (C2, persistence level) | `host_journal` created in `SCHEMA` | `a_save_that_is_never_hosted_has_no_host_journal` red | red by name (`host_journal` listed), reverted, green |
 
 ### Existing tests edited (filled by C3, C5, C6, C7)
 
