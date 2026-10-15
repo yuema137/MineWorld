@@ -795,11 +795,21 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, decisions, A-1 … A-15 re-read, handoff | [x] doc scripts PASS | [x] §2.3 satisfied |
+| C1 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-15).** Implementation base `origin/main @ b37733b9` (#227, S28-0). `docs/DECISIONS.md` holds
+`ARC-98` (l. 8414), `ARC-99` (8446), `ARC-100` (8470), `ARC-101` (8496), `DEP-58` (8521); `ARC-109` and `DEP-61`
+are absent (free). FG-b2 is on the base (`dffe8458` merges #213; the size trigger is in
+`memory/retention/{absorb,bound}.py`). P6b **merged** as #207 (`574e5eeb`); S28-b not merged.
+A-1 … A-15 re-read on the base: every statement holds; line numbers are unchanged within ±2 lines. **New sites
+since the audit** (P6b merged after `2d07c6c`): `controller/seat.py` (opens `MemoryStore` at
+`<store_dir>/<seat>.sqlite`), `controller/triggers.py` (`SELECT entity FROM stable`), `controller/memory_view.py`
+(an annotation), and `tests/{test_controller_parts.py, test_controller_seat.py, test_assignment.py}` — see D-a-1.
+Validation: `python3 scripts/check_doc_headings.py` → "239 numbered sections across 33 documents, none
+duplicated" PASS; `python3 scripts/check_decision_ids.py` → "138 decision ids, all distinct" PASS.
 
 ### Mutations
 
@@ -808,3 +818,16 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 ### Deviations and findings
 
 F-S28a-1 … F-S28a-8 (§3.2), recorded at design time.
+
+**D-a-1 (bounded; R-P6b-a-1).** Previous assumption: P6b (#207) open, adapted by whichever merges second.
+Audit evidence: #207 merged at `574e5eeb` before this PR's base. Corrected understanding: this PR is second, so it
+adapts `controller/` (R-P6b-a-1). Implementation consequence: `SeatRunner` opens a `MemoryHome` and its one
+`SeatView`; `detect`/`memory_view` take a `SeatView`; `_stable_people` gains the seat predicate. The home stays
+at the seat's existing path `<store_dir>/<seat>.sqlite`, one seat per home (the `none` arm), because each
+`SeatRunner` opens its own home and two runners of one process opening `store/<instance>/memory.sqlite` would
+meet `HomeBusy`; one home shared by a process's runners is S28-f's `sharing` wiring (§2.2). Validation
+consequence: `test_controller_parts.py`, `test_controller_seat.py`, `test_assignment.py` join the port's test
+surface (C4/C5).
+
+**D-a-2 (bounded).** The design's §9.0 and §12 name the worktree `impl-s28-a`; the dispatch assigned
+`/Users/yuema137/mineworld-worktrees/impl-s28a`. Every command runs from the dispatch's path.
