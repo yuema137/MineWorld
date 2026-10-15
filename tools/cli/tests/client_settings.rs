@@ -35,6 +35,15 @@ fn run_slice(
     server: std::net::SocketAddr,
     arguments: &[&str],
 ) -> (std::process::ExitStatus, Vec<String>) {
+    run_slice_as("--slice-settings", server, arguments)
+}
+
+/// Runs one of the 3D slice's probe modes (`mode`, a `--slice-*` flag) against `server` in a window.
+fn run_slice_as(
+    mode: &str,
+    server: std::net::SocketAddr,
+    arguments: &[&str],
+) -> (std::process::ExitStatus, Vec<String>) {
     use std::io::{BufRead, BufReader};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -52,7 +61,7 @@ fn run_slice(
             "res://scenes/slice.tscn",
             "--",
         ])
-        .arg("--slice-settings")
+        .arg(mode)
         .arg(format!("--server={server}"))
         .arg(format!("--invite={INVITE}"))
         .args(arguments)
@@ -724,4 +733,163 @@ async fn the_language_chosen_in_2d_is_in_the_3d_clients_first_frame() {
     assert_eq!(shown["language"], "zh_Hans", "{shown}");
     assert_eq!(shown["clock"], 2, "24-hour: {shown}");
     assert_eq!(shown["window"], serde_json::json!([1280, 720]), "{shown}");
+}
+
+// --- SET-b: the Controls tab and the 3D look ----------------------------------------------------
+
+/// Whether a controls run's own checks all passed.
+fn controls_passed(lines: &[String]) -> bool {
+    lines.iter().any(|l| l == "all controls checks pass")
+        && !lines.iter().any(|l| l.contains("[FAIL]"))
+}
+
+/// One connected `--slice-controls` run against a fresh social-cafe world, with `arguments`.
+async fn controls_run(arguments: &[&str]) -> (bool, Vec<String>) {
+    let save = SaveDir::new("controls-3d-world");
+    let world = World::start(
+        &[
+            "server",
+            SOCIAL_CAFE,
+            "--agent",
+            "alice",
+            "--save",
+            save.path(),
+        ],
+        None,
+    )
+    .await;
+    let (status, lines) = run_slice_as("--slice-controls", world.address, arguments);
+    (status.success() && controls_passed(&lines), lines)
+}
+
+/// Whether a measured value is within 1 % of its expectation (AC-SETb-1).
+fn within_one_percent(got: f64, want: f64) -> bool {
+    (got - want).abs() <= want.abs() * 0.01 + 1e-6
+}
+
+/// AC-SETb-1, -2, -4, -6, -10 and -11 in the connected 3D slice (social-cafe). A run on defaults applies
+/// 50 %, 100 %, 100 % inverted, 200 % and 200 % inverted through the menu's Apply and measures 100 mouse
+/// counts of yaw and of pitch after each; the defaults give the accepted look and inversion flips only the
+/// pitch. The last value is saved to a file, and a later run reads it back in its first frame.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_settings -- --ignored"]
+async fn three_d_controls_apply_live_and_persist() {
+    let scratch = SaveDir::new("controls-3d-file");
+    let file = Path::new(scratch.path()).join("controls.cfg");
+    let file_arg = format!("--settings={}", file.display());
+
+    let (ok, sweep) = controls_run(&["--settings=none", "--sweep"]).await;
+    assert!(ok, "the sweep run:\n{}", sweep.join("\n"));
+    require(
+        &sweep,
+        &[
+            "seated",
+            "the look at apply_low matches its setting",
+            "the look at apply_default matches its setting",
+            "the look at apply_default_inverted matches its setting",
+            "the look at apply_high matches its setting",
+            "the look at apply_high_inverted matches its setting",
+            "the key map shows the bindings the client uses",
+            "the file holds only the two [input] keys",
+            "an open menu takes gameplay input",
+        ],
+    );
+    let looks = evidence(&sweep, "look");
+    assert_eq!(looks.len(), 5, "five measured looks: {looks:?}");
+    for look in &looks {
+        let yaw = look["yaw"].as_array().expect("yaw");
+        let pitch = look["pitch"].as_array().expect("pitch");
+        assert!(
+            within_one_percent(yaw[0].as_f64().unwrap(), yaw[1].as_f64().unwrap()),
+            "yaw within 1 %: {look}"
+        );
+        assert!(
+            within_one_percent(pitch[0].as_f64().unwrap(), pitch[1].as_f64().unwrap()),
+            "pitch within 1 %: {look}"
+        );
+    }
+    // AC-SETb-2: inversion flips the pitch with the same magnitude and leaves the yaw alone.
+    let (default, inverted) = (&looks[1], &looks[2]);
+    let pitch_of = |look: &Value| look["pitch"][0].as_f64().unwrap();
+    assert!(
+        (pitch_of(default) + pitch_of(inverted)).abs() <= pitch_of(default).abs() * 0.01 + 1e-6,
+        "inverted pitch is the negated default: {default} / {inverted}"
+    );
+    assert!(
+        (default["yaw"][0].as_f64().unwrap() - inverted["yaw"][0].as_f64().unwrap()).abs() < 1e-6,
+        "inversion does not touch the yaw"
+    );
+
+    // AC-SETb-6, -11: the file the sweep saved holds the two [input] keys, and a later run starts with them.
+    let (ok, saved) = controls_run(&[&file_arg, "--sweep"]).await;
+    assert!(ok, "the saving run:\n{}", saved.join("\n"));
+    let text = std::fs::read_to_string(&file).expect("the file was saved");
+    assert!(
+        text.contains("mouse_sensitivity=200") && text.contains("invert_y=true"),
+        "{text}"
+    );
+    assert!(!text.contains("key_"), "no key binding in the file: {text}");
+    let (ok, again) = controls_run(&[&file_arg]).await;
+    assert!(ok, "the next run:\n{}", again.join("\n"));
+    let shown = first(&again, "first_frame");
+    assert_eq!(shown["look_scale"], serde_json::json!(2.0), "{shown}");
+    assert_eq!(shown["invert_y"], serde_json::json!(true), "{shown}");
+    require(&again, &["the look at loaded matches its setting"]);
+}
+
+/// AC-SETb-3: the request transcript of the same run is equal on defaults and on a file of 200 % and
+/// inverted look (the transcript analogue of AC-SET-5; captures are not byte-identical, step-20 A-SETb-13).
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_settings -- --ignored"]
+async fn three_d_settings_never_reach_the_server() {
+    let scratch = SaveDir::new("controls-3d-transcript");
+    let file = settings_file(
+        &scratch,
+        "inverted.cfg",
+        "[meta]\nversion=1\n[input]\nmouse_sensitivity=200\ninvert_y=true\n",
+    );
+    let file_arg = format!("--settings={}", file.display());
+    let (ok, defaults) = controls_run(&["--settings=none"]).await;
+    assert!(ok, "{}", defaults.join("\n"));
+    let (ok, inverted) = controls_run(&[&file_arg]).await;
+    assert!(ok, "{}", inverted.join("\n"));
+    assert!(
+        !requests(&defaults).is_empty(),
+        "the probe sent its requests"
+    );
+    assert_eq!(
+        requests(&defaults),
+        requests(&inverted),
+        "the input settings do not reach a request (AC-SETb-3)"
+    );
+}
+
+/// AC-SETb-4 and AC-SETb-5 in the connected 2D client: the Controls tab's key rows are the rows of the
+/// client's own binding table (`controls.gd`), and the tab has no sensitivity or invert control.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_settings -- --ignored"]
+async fn two_d_controls_tab_shows_key_map_and_no_look_controls() {
+    let save = SaveDir::new("controls-2d");
+    let world = World::start(
+        &[
+            "server",
+            MARKET_TOWN,
+            "--agent",
+            "alice",
+            "--save",
+            save.path(),
+        ],
+        None,
+    )
+    .await;
+    let drive = Drive::start(world.address, "carol", &["--drive=controls"]);
+    let (status, lines) = drive.finish().await;
+    assert!(status.success() && passed(&lines), "{}", lines.join("\n"));
+    require(
+        &lines,
+        &[
+            "the key map rows equal the binding table",
+            "the tab shows no sensitivity or invert control",
+        ],
+    );
 }

@@ -184,6 +184,42 @@ msgstr "Key bindings are fixed for now."
 msgid "ui.settings.key.menu"
 msgstr "Open the menu"
 
+msgid "ui.settings.key.move_forward"
+msgstr "Walk forward"
+
+msgid "ui.settings.key.move_left"
+msgstr "Walk left"
+
+msgid "ui.settings.key.move_back"
+msgstr "Walk back"
+
+msgid "ui.settings.key.move_right"
+msgstr "Walk right"
+
+msgid "ui.settings.key.jump"
+msgstr "Jump"
+
+msgid "ui.settings.key.jog"
+msgstr "Hold to run"
+
+msgid "ui.settings.key.camera_cycle"
+msgstr "Change camera"
+
+msgid "ui.settings.key.walk"
+msgstr "Walk"
+
+msgid "ui.settings.key.spot_menu"
+msgstr "Open the action menu here"
+
+msgid "ui.settings.key.person_menu"
+msgstr "Open the menu for the latest person"
+
+msgid "ui.settings.key.things"
+msgstr "Show things"
+
+msgid "ui.settings.key.conversations"
+msgstr "Show conversations"
+
 # The 3D client's own text, until it reads a Presentation Pack (S14 16f), when these move, keys
 # unchanged, to presentation/mineworld-default/3D/i18n/. In English each reads exactly as before S20.
 msgid "hint.controls"
