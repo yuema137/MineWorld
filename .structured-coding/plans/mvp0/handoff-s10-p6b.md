@@ -41,7 +41,7 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; each real-b
                     Linux. Gate 1 (AP6-14): operator only, NOT RUN by agents
 BUILD ENV           export PATH="$HOME/.cargo/bin:$PATH"; export CARGO_TARGET_DIR=/tmp/impl-s10-p6b-target
                     (`mineworld` binary: $CARGO_TARGET_DIR/debug/mineworld)
-CURRENT CHECKPOINT  C0 … C13 committed or ready (ledger §15). C12 (`b23cde1`): `__main__.py` (`python -m mineworld_cognition`),
+CURRENT CHECKPOINT  C0 … C15 committed (ledger §15; HEAD at the C15 commit). C12 (`b23cde1`): `__main__.py` (`python -m mineworld_cognition`),
                     `examples/local.toml`, README section, `tests/realserver.py`, `tests/test_controller_server.py` (5 real-binary
                     tests, 26 s), D-P6b-21 check (`welcome.world.seats`), leave on Ctrl-C (D-P6b-22). M-P6-6 seen red and reverted.
                     A-P6-2 and A-P6-4 TRUE on the real binary (no material stop). C13: `tests/test_controller_resilience.py`
@@ -51,6 +51,10 @@ CURRENT CHECKPOINT  C0 … C13 committed or ready (ledger §15). C12 (`b23cde1`)
                     @ f772a18 before the push
                     C14: `summary_table` in `tools/model_spike.py` (ASCII `reason x count`, D-P6b-33), 6 spike tests green,
                     the README's admitted-models table (no report-hash column yet, D-P6b-34), P5a's ledger line (§13.11).
-NEXT ACTIONS        C15 (§9.0 and §15's close-out: `git diff --stat origin/main...HEAD`, I-P6-1, I-P6-9, §8 evidence, AP6-14
-                    NOT RUN), then the primary: merge origin/main, push, open the PR, CI green on the exact head
+CLOSE-OUT           C15 done (§8.1 evidence; I-P6-1 and I-P6-9 PASS). Open halves, for the primary to rule on before push:
+                    AP6-2 duration (D-P6b-29), AP6-5 ledger equality, AP6-8 replay over an integration log, AP6-9 whole-process
+                    restart (D-P6b-24), AP6-11/12 journal and entity-id halves, AP6-13 status line, AP6-15 structural dump
+                    (D-P6b-25). AP6-14 NOT RUN (operator Gate 1). Findings: F-P6b-21 (P6b, for the primary), D-P6b-30 (prompt
+                    observation lag). NEXT ACTIONS: the primary merges origin/main @ f772a18, pushes, opens the PR, and waits for
+                    CI on the exact head; parent synchronisation (§11) follows the merge
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

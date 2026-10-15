@@ -877,6 +877,47 @@ QP6-7: accepted as written); the rest follow from the design.
 
 ---
 
+### 8.1 Evidence at the P6b close-out (C15, 2026-10-14)
+
+Recorded per criterion, on the P6b branch at C14 (`961fa54`). PASS means a test or audit with recorded evidence in §15;
+PARTIAL names the half that is not evidenced; NOT RUN is an operator task or was not run. Nothing here is a threshold
+change (§14.1 applies unchanged).
+
+| Id | Status | Evidence, or what is missing |
+| --- | --- | --- |
+| AP6-1 | PASS | C13 scenario A: every request the seat submitted carries the scripted line; no `<<<` marker in any `spoke` fact. Counterfactual M-P6-1 at C6 (red, reverted). |
+| AP6-2 | PARTIAL | Terminal outcome per consult and at most `max_calls` attempts: PASS (C13 A). The deadline cut and the call cap: PASS (C9; M-P6-2 red). **Missing:** the wall duration bound (D-P6b-29). |
+| AP6-3 | PASS | C13 A: garbage 300 ‰ and failure 50 ‰, seeded; 11 consults, every one terminal; `mineworld inspect` exit 0; `mineworld replay` exit 0; a second server resumes the save. **Note:** the visitor said 8 to 10 of the 15 lines: the loop ends when a fallback walks Alice away. |
+| AP6-4 | PASS | C9 `test_seeded_thirty_percent_garbage_resolves_every_consult_within_bounds` (1 000 consults, independent 30 % per attempt, every consult resolved, fallback share within the ruled bound). |
+| AP6-5 | PARTIAL | Each class retries through its own policy; seeded jitter; `Retry-After` lengthens and ends the consult: PASS (C4, C7, C9; M-P6-4 red). **Missing:** `Counters.model_calls` equal to the ledger's charges (C10 checks it against the attempts, not the ledger). |
+| AP6-6 | PASS | C8 breaker tests (6 passed); the exclusions in C9; M-P6-5 red (C9). |
+| AP6-7 | PASS | C9 deadline test over a fake clock (a slow model is cut; no sleep passes the deadline). **Not run:** the visitor's own requests answered during the timeout, against the real server. |
+| AP6-8 | PARTIAL | Kill: C12 test (c), Alice's in-server request 3.53 s after SIGKILL (bound 6 s): PASS. Replay: `replay_log` over C10's recorded run (20 consults): PASS. **Missing:** replay over a scripted integration run's log and cassette. |
+| AP6-9 | PARTIAL | A rejoin with the persisted secret inside the hold is `held` (C12 test (d), SDK level): PASS. The secret, the invite and a planted key in no artefact: PASS (C10, C11). **Missing:** the whole-process restart (D-P6b-24). |
+| AP6-10 | PASS | C3 (`test_controller_config.py`, 17 passed; `test_assignment.py`, 7 passed, including the real `mineworld decisions --json`), refusals by name. C11 `test_an_lm_seat_the_welcome_does_not_list_is_refused_by_name` (D-P6b-21). FG-b resolution errors refused by name (C3). |
+| AP6-11 | PARTIAL | The seat's requests never include `move`, `walk-step` or `walk-to` (C13 A). **Missing:** the journal over the LM-held intervals. |
+| AP6-12 | PARTIAL | P5a's provider terms over the decision log, the store and every prompt: PASS (C13 A). P5a's source and cassette scan: PASS (C4). **Missing:** the entity-id check on each `CompletionRequest`. |
+| AP6-13 | PARTIAL | Counters recomputed from the decision log: PASS (C10, `test_controller_log.py`, 5 passed). **Missing:** the shutdown status line equal to the last counters record (`__main__._status` has no test). |
+| AP6-14 | NOT RUN | Gate 1, operator only (`examples/local.toml` with `qwen3.5:4b`, 100 consults). No agent ran it. |
+| AP6-15 | PARTIAL | I-6: the save's bytes are unchanged after the store is deleted (C12 test (c)): PASS. Triggers never read before `absorb` returns: PASS (C11; M-P6-10 red). **Missing:** I-5, the structural dump equal after a null-cursor rejoin (D-P6b-25). |
+| AP6-16 | PASS | C13 B: no Alice `spoke` after the visitor's departure; one local `not_offered` drop; M-P6-8 red (the server refuses the unchecked talks), reverted, green. |
+| AP6-17 | PASS | C12 test (e): a second join for Alice is refused `seat_occupied`; C11: `seat_occupied` is retried at `seat_retry_s`. |
+| AP6-18 | PASS | C14: `test_the_summary_table_is_the_hand_written_golden` and `test_main_prints_the_table_before_the_unchanged_json_line` (6 passed). |
+| AP6a-1 … 3 | N/A | The `persona` pack is P6a, a separate PR on `mvp0/pr-s10-p6a`; not on this branch. |
+| P7-owned | N/A | The 100-day replayed bound, Milestone D, IC-6, IC-7, the 1 MiB store at day 100: P7. |
+
+Invariants at close-out: **I-P6-1 PASS**: `git diff --name-only origin/main...HEAD` (merge-base `9aa185b`) has no path under
+`kernel/`, `contracts/`, `server/`, `persistence/` or `systems/`, and no `PROTOCOL.md`. `origin/main` is now `f772a18`; the
+merge of it is the primary's step. **I-P6-9 PASS**: `uv.lock` has no change in that diff (0 files). **I-P6-2 PASS (audit)**:
+the only `ActionRequest` constructions under `controller/` are the `offers.request` calls in `intent.py` (the other uses are
+types). The rest are as in the table above.
+
+Mutations: M-P6-1 (C6), M-P6-2, M-P6-3, M-P6-5 (C9), M-P6-4 (C7), M-P6-7, M-P6-10 (C11), M-P6-6 (C12), M-P6-8 (C13), M-P6-9 (C6). Each red
+and reverted, with no marker left. M-P6-6 and M-P6-8 were re-run green on their final files.
+
+Gate 1 (AP6-14) is operator-run and recorded NOT RUN. Parent synchronisation (§11: step-17, `overall.md`, the decision-number
+table) is left to the primary session.
+
 ## 9. Commit plan
 
 Each commit tracks **implementation**, **deterministic validation** and **LLM logic review** separately;
@@ -1608,10 +1649,10 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C9 | — | [x] | [x] | [x] |
 | C10 | — | [x] | [x] | [x] |
 | C11 | adb5ea4 | [x] | [x] | [x] |
-| C12 | this commit (SHA filled at C15) | [x] | [x] | [x] |
-| C13 | this commit (SHA filled at C15) | [x] | [x] | [x] |
-| C14 | this commit (SHA filled at C15) | [x] | [x] | [x] |
-| C15 | — | [ ] | [ ] | [ ] |
+| C12 | b23cde1 | [x] | [x] | [x] |
+| C13 | 881ddcc | [x] | [x] | [x] |
+| C14 | 961fa54 | [x] | [x] | [x] |
+| C15 | this commit | [x] | [x] | [x] |
 
 ### Evidence
 
@@ -1910,6 +1951,11 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   encode when a report is piped on Windows. The layout is otherwise §5.15's. **D-P6b-34** (the README table has no report-hash
   column yet): §5.15 asks for each row's `scenarios_sha256`, but the operator's reports are not in the repository, so the hashes
   cannot be recorded by an agent. The README says so; the operator adds them when the reports are archived.
+- **C15 (2026-10-14).** Close-out: §8.1 records each criterion's status (PASS, PARTIAL with the missing half named, NOT RUN for
+  AP6-14, N/A for P6a and P7). `git fetch origin` (the tree untouched) then `git diff --name-only origin/main...HEAD` (merge-base
+  `9aa185b`): 59 files, no path under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, and no `PROTOCOL.md` (I-P6-1,
+  PASS). `uv.lock`: no change (I-P6-9, PASS). Doc checks PASS. `origin/main` is `f772a18` (the merge is the primary's). Parent
+  synchronisation (§11) is pending for the primary.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
