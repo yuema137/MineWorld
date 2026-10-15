@@ -20,7 +20,7 @@ from typing import Sequence
 
 import yaml
 
-__all__ = ["build_provenance", "write_sidecar", "SIDECAR_SUFFIX"]
+__all__ = ["build_provenance", "reference_record", "write_sidecar", "SIDECAR_SUFFIX"]
 
 SIDECAR_SUFFIX = ".provenance.yaml"
 
@@ -35,6 +35,21 @@ def _digest(path: Path) -> str:
     return f"sha256:{h.hexdigest()}"
 
 
+def reference_record(ref: Path, repo_root: Path | None = None) -> dict[str, str]:
+    """`{path, digest}` for one reference image. The path is repo-relative when the file lies inside
+    `repo_root` and absolute otherwise; the content digest identifies it either way. Never raises for
+    a reference outside the repository: the provider calls this *before* the paid request, and a
+    provenance detail must never be the reason a generated image is lost."""
+    resolved = ref.resolve()
+    path = str(resolved)
+    if repo_root is not None:
+        try:
+            path = str(resolved.relative_to(repo_root.resolve()))
+        except ValueError:
+            pass  # outside the repository: keep the absolute path
+    return {"path": path, "digest": _digest(ref)}
+
+
 def build_provenance(
     *,
     provider_name: str,
@@ -45,16 +60,16 @@ def build_provenance(
     seed: int,
     reference_images: Sequence[Path] = (),
     repo_root: Path | None = None,
+    reference_records: Sequence[dict[str, str]] | None = None,
     license_note: str = "",
     redistribution_allowed: bool = True,
 ) -> dict[str, object]:
     """Assemble the ARC-9 record. Reference images are recorded by repo-relative path *and*
     content hash, so a later style audit can tell whether the references themselves moved."""
-    refs = []
-    for ref in reference_images:
-        ref = Path(ref)
-        rel = str(ref.resolve().relative_to(repo_root.resolve())) if repo_root else str(ref)
-        refs.append({"path": rel, "digest": _digest(ref)})
+    if reference_records is not None:
+        refs = list(reference_records)  # read before the paid call (see reference_record)
+    else:
+        refs = [reference_record(Path(ref), repo_root) for ref in reference_images]
 
     summary = " ".join(prompt.split())
     if len(summary) > _PROMPT_SUMMARY_CHARS:
