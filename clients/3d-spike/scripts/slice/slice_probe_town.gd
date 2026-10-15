@@ -458,6 +458,9 @@ func _street_check() -> void:
 	var door_shot := false
 	var placed_at := {}
 	var t := 0.0
+	# the frame time the figures moved with: the displacement seen at one
+	# process_frame was made by the previous frame's _process, with its delta
+	var moved_dt := 0.0
 	var next_sample := 0.0
 	var next_shot := secs * 0.25
 	var wall0 := Time.get_ticks_msec()
@@ -480,13 +483,14 @@ func _street_check() -> void:
 		placed0 = figs.placements.size()
 		for id in link.figures:
 			var at: Vector3 = (link.figures[id] as Node3D).global_position
-			if last_drawn.has(id) and not placed_at.has(id) and dt > 0.0:
-				var v := _flat_len(at - (last_drawn[id] as Vector3)) / dt
+			if last_drawn.has(id) and not placed_at.has(id) and moved_dt > 0.0:
+				var v := _flat_len(at - (last_drawn[id] as Vector3)) / moved_dt
 				fastest[id] = maxf(fastest.get(id, 0.0), v)
 				if v > SPEED_BOUND:
 					over.append([id, v, at])
 			last_drawn[id] = at
 		placed_at.clear()
+		moved_dt = dt
 		# S-4, at 1 Hz
 		if t >= next_sample:
 			next_sample += 1.0
@@ -588,7 +592,9 @@ func _nearest_point(link: SliceLink, at: Vector3) -> Array:
 
 
 ## S-4: whether the person's capsule, less DEPTH_M and above STEP_M, overlaps
-## the scene's geometry; the colliders met, or "".
+## the scene's geometry other than what is walked on -- a contact whose normal
+## is mostly vertical is a floor, a step or the café's ramp (the convention of
+## `SliceProbe._sample_block`); the colliders met, with where, or "".
 func _in_wall(fig: Node3D) -> String:
 	var shape := CapsuleShape3D.new()
 	shape.radius = Player.CAPSULE_RADIUS - DEPTH_M
@@ -597,13 +603,21 @@ func _in_wall(fig: Node3D) -> String:
 	q.shape = shape
 	q.collision_mask = Build.LAYER_WORLD
 	q.transform = Transform3D(Basis(), fig.global_position + Vector3(0, STEP_M + shape.height * 0.5, 0))
-	var hits := fig.get_world_3d().direct_space_state.intersect_shape(q, 4)
+	var space := fig.get_world_3d().direct_space_state
 	var names := PackedStringArray()
-	for h in hits:
-		var c := h["collider"] as Node
-		if c != null:
-			names.append(String(c.get_path()))
-	return ", ".join(names)
+	var skip: Array[RID] = []
+	for i in 6:
+		q.exclude = skip
+		var rest := space.get_rest_info(q)
+		if rest.is_empty():
+			break
+		skip.append(rest["rid"])
+		if absf((rest["normal"] as Vector3).y) > 0.7:
+			continue
+		var c := instance_from_id(rest["collider_id"]) as Node
+		names.append("%s, contact %s normal %s" % [c.get_path() if c != null else "?", rest["point"],
+			rest["normal"]])
+	return "; ".join(names)
 
 
 ## S-5: L-3's checks, with the 50 mm bound on the people who stand.

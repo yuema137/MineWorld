@@ -25,9 +25,17 @@ const PLACE_GAP := 4.0
 ## How far a person who leaves view may be from a bound door and still be
 ## walked into it: longer than any one crossing stride.
 const DOOR_WALK := 2.5
-## A figure behind its observed position catches up within about this long, if
-## the person's own observed speed would take longer (never faster than a jog).
-const CATCH_UP := 0.5
+## A figure never falls further behind its observed position than about this
+## long at the person's observed speed: past it, it walks faster to catch up
+## (never faster than a jog). Long enough that a person walking in strides is
+## drawn walking steadily, not dashing and waiting (E16c-5).
+const CATCH_UP := 2.0
+## The observed speed is a stride over the time since the previous one, that
+## time taken as at least STEP_GAP_SHORTEST and at most STEP_GAP_LONGEST: a
+## first stride after standing is not read as a crawl, nor two observations
+## close together as a dash.
+const STEP_GAP_SHORTEST := 0.1
+const STEP_GAP_LONGEST := 1.0
 ## Closer than this to its goal, a figure stands on it.
 const ON_GOAL := 0.01
 
@@ -80,7 +88,7 @@ func observe(seen: Dictionary) -> Dictionary:
 		var speed: float = g["speed"]
 		var changed: float = g["changed"]
 		if moved > 0.0005:
-			speed = minf(moved / maxf(now - changed, 0.001), Player.JOG_SPEED)
+			speed = minf(moved / clampf(now - changed, STEP_GAP_SHORTEST, STEP_GAP_LONGEST), Player.JOG_SPEED)
 			changed = now
 		_goal[id] = {"at": at, "yaw": s["yaw"], "speed": speed, "changed": changed}
 	var left := []
