@@ -1605,7 +1605,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C7 | — | [x] | [x] | [x] |
 | C8 | — | [x] | [x] | [x] |
 | C9 | — | [x] | [x] | [x] |
-| C10 | — | [ ] | [ ] | [ ] |
+| C10 | — | [x] | [x] | [x] |
 | C11 | — | [ ] | [ ] | [ ] |
 | C12 | — | [ ] | [ ] | [ ] |
 | C13 | — | [ ] | [ ] | [ ] |
@@ -1777,6 +1777,24 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   session type. **D-P6b-11**: content re-asks accumulate in the feedback, matching the prompt layout of §5.2.4 (one
   assistant and one user message per re-ask). **M-P6-2 note**: the loop check is redundant with the retry check
   for every path that reaches it; the mutation was planted in both places.
+- **C10 (2026-10-14).** Files: `controller/log.py` (`DecisionInput`, `DecisionRecord`, `Counters`, `counters_from`,
+  `DecisionLog` with rotation at `rotate_bytes` to `<path>.1`, `read_decisions`, `replay_log`), `tests/test_controller_log.py`
+  (5 passed in 0.8 s; rotation test, counters test, replay test over 20 recorded consults with 30 % garbage,
+  decision lines read back). Step 2 replay uses `ReplayBackend` over the cassette, a submit that answers from the logged
+  kinds, and a clock that never expires. Static: ruff check and format PASS; pyright (`src` and `tests`) 0 errors.
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_controller_log.py` 5 passed (PASS).
+  Mutations: none in C10's list. Review: the log module holds only the controller's own types (grep for
+  key, base URL, provider and invite names finds only the module docstring); `ReplayBackend` constructs no client.
+  Deviations: **D-P6b-12** (`Counters` aligned to §5.12's field list: `budget_refusals` removed; `breaker_trips`,
+  `stale_triggers` and `handbacks` added as seat-runner counts that `counters_from` leaves at zero; `fallbacks`
+  counts fell_back, budget and disconnected outcomes, the cause breakdown is recomputable from the records;
+  `model_calls` is derived from the attempts, since one attempt per model call holds except a budget refusal (no call)
+  and a disconnect (the call's submit failed before an attempt was written; counted once). `server_refusals` counts
+  the logged answers `rejected` and `unavailable`). **D-P6b-13** (replay of answers: the consult branches on the answer
+  kind only, so the replayed `rejected` answer carries a placeholder rejection code; compared fields are keys, outcome
+  and requests, which do not depend on it). **D-P6b-14** (AP6-8's resume-secret half: C10 writes no resume file, so the
+  planted-secret scan is deferred to C11, the first commit that writes one; C10 plants the fake key in the environment
+  and scans both written files).
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
@@ -1797,4 +1815,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   tables become `[seat_overrides.<key>.controller]` and `[seat_overrides.<key>.retry.<class>]`, and the field
   `seat_overrides`. Every occurrence in this document is amended in the same commit (§§2.1 item 7, 5.13, 5.13
   precedence, C3 step 1). Behaviour is unchanged. This is recorded here and in the PR body.
+- **D-P6b-3 amendment (applied 2026-10-14).** The ruled option (a) is applied in this document: §2.1 item 7, §5.13
+  (the sample file, the precedence paragraph) and C3 step 1 read `[seat_overrides.<key>]`; `seats = [...]` is unchanged.
+  The C3 record above keeps the stop as it was. The fix of D-P6b-2 is in place in `cognition/installed/src/lib.rs`.
 - (planning findings are §3.2 and §0.1)
