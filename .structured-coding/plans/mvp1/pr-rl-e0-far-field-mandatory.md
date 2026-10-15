@@ -1,6 +1,6 @@
 # PR RL-e0 — The far field is mandatory: every presented world closes every view on a far field
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-15 (primary session; operator Q-FF-1, 2, 3, 5, 6, 7, 8)
 
 ```text
 Design revision:        revision 2 (2026-10-15): revision 1 (PR #215, 1f4d342) with §17.1's rulings applied;
@@ -9,13 +9,13 @@ Author:                 RL-e0 design agent, worktree /Users/yuema137/mineworld-w
                         branch docs/rl-e0-design, planning base origin/main @ 4c59cdb0, re-checked against
                         the merged origin/main of 2026-10-15 (§3.0)
 Approved by / evidence: questions ruled 2026-10-15 (operator: Q-FF-1, 2, 3, 5, 6, 7, 8 "全部按推荐";
-                        primary: Q-FF-4, 9, 10; §17.1). The design is NOT yet frozen: the primary session
-                        flips this header to DESIGN FROZEN
+                        primary: Q-FF-4, 9, 10; §17.1). Frozen by the primary session itself, 2026-10-15;
+                        the operator answered directly in the primary session
 Implementation base:    origin/main at C0 (C0 records the commit)
 Start condition:        the primary session's dispatch after freeze; before Milestone F's checklist is
                         handed to the operator (§14.3)
 Execution contract:     §13 (template filled where the design can fill it; the rest is the primary's)
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN (2026-10-15)
 ```
 
 **Effort:** `mvp1` · **Step:** [`step-22-realism.md`](step-22-realism.md) (S22), a new row **RL-e0** before
