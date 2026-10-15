@@ -6,14 +6,19 @@ tooling and the size and performance budgets, the architecture of per-person app
 brought into the repository, the per-person standard written as checkable gates, the review protocol, the
 budget, a PR split with integration checkpoints and adversarial criteria, risks, findings, proposed
 decision records and the questions only the operator can answer.
-**Effort:** `mvp0` (MVP-0 or MVP-1 is question Q-S26-1) · parent: [`overall.md`](overall.md).
-**Lifecycle:** `STEP DESIGN (DRAFT) — awaiting primary-session and operator review`. Nothing here is frozen
-and nothing here authorizes implementation, a Meshy call or an OpenAI call. Each PR is detailed to the
-commit and frozen in turn (`CLAUDE.md` §3.1).
+**Effort:** `mvp0` for S26-a, S26-b1, S26-b2 (pilot), S26-cast, S26-c1, S26-c2, S26-d B1, S26-e and
+S26-f; lakeside's 3D cast (B2) is MVP-1, except as café-street extras under E-2 (ruled, Q-S26-1) · parent:
+[`overall.md`](overall.md).
+**Lifecycle:** `STEP DESIGN FROZEN 2026-10-14 (operator Q-S26-1…12)`. Rulings in §16.1. Scope, invariants,
+the gates and acceptance are frozen at step level; progress, evidence, findings and bounded corrections stay
+writable. The step freeze does not authorize implementation, a Meshy call or an OpenAI call: each PR is
+detailed to the commit and frozen in turn (`CLAUDE.md` §3.1), and starts under §12.1's start condition, in
+a fresh session. Superseded lifecycle: `STEP DESIGN (DRAFT) — awaiting primary-session and operator review`.
 **Author:** design session, 2026-10-14, worktree `/Users/yuema137/mineworld-worktrees/design-s26`, branch
 `docs/s26-cast`. Audit base: `origin/main @ adf5d2c`.
-**Placeholder ids** (the primary session assigns real numbers; next free are `ARC-91` and `DEP-51`):
-`ARC-S26-a…e` (architecture records), `DEP-S26-a…e` (dependency records), `SD-S26-n` (step decisions),
+**Ids** (assigned by the primary session at freeze, 2026-10-14):
+`ARC-91…ARC-95` (architecture records), `DEP-51…DEP-55` (dependency records), all ten used (§15); local:
+`SD-S26-n` (step decisions),
 `G-n` (per-character gates), `AC-S26-n` (step acceptance), `X-n` (planted mutations), `Q-S26-n` (operator
 questions), `R-S26-n` (risks), `F-S26-n` (findings), `B0…B3` (generation batches).
 **Parallel-safety:** this file is the only file this session writes. Edits it needs elsewhere
@@ -124,7 +129,7 @@ entity id, the display name, the tags. None of them identifies a person's appear
 | K-4 | a tag (`tags: [barista, look:alice]`) | tags are semantic, read by Systems and by controllers; a presentation handle in them pollutes every consumer and has no owner |
 | K-5 | **a disclosed `look` component, owned by a System Pack** | chosen (SD-S26-1) |
 
-### 4.2 Decision: appearance is a perceivable trait of a Person, owned by an `appearance` System Pack (`ARC-S26-a`)
+### 4.2 Decision: appearance is a perceivable trait of a Person, owned by an `appearance` System Pack (`ARC-91`)
 
 ```text
 section     appearance             a person file's  appearance: { look: alice-moreau }
@@ -164,7 +169,7 @@ depends on  nothing
   A world that enables the pack but omits a person's section gives that person no `look` — legitimate, the
   fallback draws them.
 
-### 4.3 The cast binding, in the Presentation Pack (`ARC-S26-b`)
+### 4.3 The cast binding, in the Presentation Pack (`ARC-92`)
 
 **3D** — `presentation/mineworld-default/3D/characters/cast.yaml` (the `characters/` directory
 `MODULE_SPEC.md` §6.1 already lists), written in YAML's JSON-compatible subset like `ARC-46`'s files:
@@ -209,7 +214,7 @@ the same pipeline and passing the same gates. The CharMorph tint body leaves eve
 the repository only as the rig source the pipeline fits from (§5.2 stage 7) and behind the existing
 `--town-body` diagnostic until S26-f removes it from the release (§10.3).
 
-### 4.5 The per-character manifest replaces `Human.Body` (`ARC-S26-c`)
+### 4.5 The per-character manifest replaces `Human.Body` (`ARC-93`)
 
 Everything A-6 keys by `Body.REFERENCE` becomes data in `character.yaml`, written by the pipeline and
 checked by the gates:
@@ -327,7 +332,7 @@ iteration), not silently accumulated.
 | Option | Verdict |
 | --- | --- |
 | Blender heat weights + scripted fixes (D+) | the baseline; it worked for one character with five hand iterations |
-| **Robust skin weight transfer** (Abdrashitov et al., SIGGRAPH Asia 2023 Technical Communications; reference implementation on libigl — **verify** the code's licence and libigl's Python binding licence before use): transfer CharMorph's production weights, fingers included, from the CharMorph body onto the fitted Meshy body by closest point with normal agreement, and inpaint where no match is confident (hair, pack) | **prototyped in S26-b2** against the baseline on the protagonist and the pilot; adopted only if it passes the same gates with fewer `fit.yaml` overrides (`DEP-S26-c`) |
+| **Robust skin weight transfer** (Abdrashitov et al., SIGGRAPH Asia 2023 Technical Communications; reference implementation on libigl — **verify** the code's licence and libigl's Python binding licence before use): transfer CharMorph's production weights, fingers included, from the CharMorph body onto the fitted Meshy body by closest point with normal agreement, and inpaint where no match is confident (hair, pack) | **prototyped in S26-b2** against the baseline on the protagonist and the pilot; adopted only if it passes the same gates with fewer `fit.yaml` overrides (`DEP-53`) |
 | Meshy rig's weights | evaluated with R above; weights for a different skeleton must be remapped bone by bone, and it lacks our finger chain if it has no finger bones (**verify**) |
 
 **L — landmarks (replacing the hand picks of A-11).**
@@ -354,7 +359,7 @@ the hair). meshoptimizer is already in Godot's importer for LODs (A-9) and is no
   `worldpack/`, `persistence/`, `cognition/` or `sdk/` names the secrets path; the pipeline works with the
   variables exported by any means. Both are checked by a scan in CI (AC-S26-9).
 
-## 6. The per-character standard (`ARC-S26-d`)
+## 6. The per-character standard (`ARC-94`)
 
 The standard is `VIS-3D-GODOT-1`'s, as accepted on 2026-10-07, written as gates. **A gate's bound is a
 fixed literal taken from the protagonist's accepted record or from a stated real-world reference, never
@@ -421,14 +426,19 @@ the expensive or irreversible step they protect:
    (role, apparent age, stature, build, palette, outfit, accessories, one-line manner) and 2–4 reference
    candidates side by side, plus the batch's distinctness lineup (§7.3). The operator picks one candidate
    per person, or asks for a redo with a reason. Expected time: under a minute per person.
-2. **Runtime gate — after §§6.1–6.3.** One page per batch: an orientation index (all characters at street
+2. **Runtime gate — after §§6.1–6.3. Parked by operator rule (2026-10-14, Q-S26-6):** every hands-on
+   and visual check is batched into one big milestone, so this page is prepared when a batch is ready and
+   **delivered with the next big milestone's single checklist**, not asked on its own. One page per batch: an orientation index (all characters at street
    distance with Vera, a contact sheet — for orientation only, never a verdict, `VISUAL_FIDELITY.md` §8),
    then **one full-resolution side-by-side sheet per person** (reference portrait | runtime three-quarter
    portrait | front | full body | rear | a walk frame at 2×), each carrying the scorecard and the known
    misses, and one accept / redo / reject per person.
 
-The format of the page (an HTML review page with a per-person verdict, or rows in
-`HUMAN_REVIEW_QUEUE.md`) is Q-S26-6. Either way the verdicts are recorded in `HUMAN_REVIEW_QUEUE.md` under a
+**Ruled (Q-S26-6):** two review pages per batch. The casting page is a pre-spend decision and is asked
+as soon as it is ready. Each page is a private HTML review page recording a per-person verdict, mirrored
+into `HUMAN_REVIEW_QUEUE.md`. Until the runtime verdict arrives, a batch's characters may be merged and
+used as **candidates** (`ARC-9`), and later batches proceed; nothing is called accepted before the
+operator says so. The verdicts are recorded in `HUMAN_REVIEW_QUEUE.md` under a
 new `VIS-3D-CAST-<batch>` milestone, and an accepted character's `ASSETS.md` row changes from candidate to
 asset only then (`ARC-9`).
 
@@ -465,7 +475,7 @@ role: barista                   # from tags and note
 apparent_age: 30-35
 stature_m: 1.66                 # sole to crown, hair excluded (HUMANOID_PROFILE.md §2)
 build: slim-average
-skin: <chosen at casting, Q-S26-7>
+skin: <set from the biography, gated by the operator at casting (Q-S26-7, ARC-95)>
 hair: { category: tied-back bun, colour: dark brown }
 outfit: { outer: bib apron, under: rolled-sleeve oatmeal shirt, legs: dark trousers, feet: clogs }
 accessories: [apron]
@@ -508,7 +518,7 @@ glasses lenses (Meshy fuses them), hand-held props (no attachment system, and a 
 hair over the shoulders (rigid to the head, D+ §8.2), long skirts or coats for people who sit (one fused
 surface with the legs; G-13). Where the biography wants one of these, the brief says what replaces it.
 
-### 7.5 A first casting sketch (for the casting PR to refine; skin and hair at Q-S26-7)
+### 7.5 A first casting sketch (for the casting PR to refine; skin and hair set per person at casting, Q-S26-7)
 
 | Look | Role (source) | Age | Stature | Build | Outfit direction |
 | --- | --- | --- | --- | --- | --- |
@@ -523,7 +533,7 @@ surface with the legs; G-13). Where the biography wants one of these, the brief 
 | hana-sato | office commuter | 20s | 1.58 | slim | shirt, knee-length skirt, bob cut |
 | ivan-petrov | talkative passer-by | 70s | 1.72 | stocky | overcoat, scarf |
 | otto-brandt | top-floor resident, rarely down | 80s | 1.69 | thin, slight stoop | cardigan, slacks |
-| wes-calloway | second player seat, "passing through" | 20s–30s | 1.86 | tall | amber jacket, travel pack (G-12) — from the 2D `gen_player` if Q-S26-9 says so |
+| wes-calloway | second player seat, "passing through" | 20s–30s | 1.86 | tall | amber jacket, travel pack (G-12) — from the 2D `gen_player` (ruled, Q-S26-9) |
 | alba-ferreira | baker | 40s | 1.60 | sturdy | apron, rolled sleeves |
 | bruno-lindqvist | carpenter | 50s | 1.84 | broad | work trousers, flannel shirt |
 | celia-okafor | schoolteacher | 40s | 1.70 | average | cardigan, trousers |
@@ -538,11 +548,11 @@ surface with the legs; G-13). Where the biography wants one of these, the brief 
 ## 8. Decorative figures and the fallback pool
 
 The 12 promenade figures and the 4 slice figures (A-4) and every person without a bound look draw from
-`extras` (§4.3). Two ways to fill it, both on the same pipeline and standard (Q-S26-8):
+`extras` (§4.3). Two ways to fill it, both on the same pipeline and standard; **ruled E-2** (Q-S26-8):
 
 - **E-1 — dedicated extras.** About 8 more characters made for the pool. Clean semantics (an extra is
   nobody), but +8 generations and +8 characters in the release.
-- **E-2 — the other world's cast** (recommended). The café street's extras are the lakeside people, and a
+- **E-2 — the other world's cast** (ruled). The café street's extras are the lakeside people, and a
   future 3D lakeside's extras are the café town's. No named person of the present world ever appears twice
   (the pools are disjoint from the world's looks), no extra generation, and the lakeside 3D cast is used
   from the first day instead of waiting for a 3D lakeside (A-22). Its limit: a world that is neither needs
@@ -550,7 +560,7 @@ The 12 promenade figures and the 4 slice figures (A-4) and every person without 
 
 Decor that sits (A-4: café tables, bench, terrace chair) draws only from extras that passed G-13.
 `bodies-yard` (12 unnamed test persons, no `appearance` section) exercises the fallback path with real
-characters (Q-S26-4).
+characters (ruled, Q-S26-4).
 
 ## 9. 2D parity
 
@@ -564,7 +574,7 @@ characters (Q-S26-4).
 - **The player follows the Person, not the client** (INV-1): the observer is drawn with the look of the
   Person it occupies — Vera for `visitor`, Wes for `wanderer` — in 2D and 3D. The `player` role stays
   only as the fallback for an observer with no bound look. Consequence: today's `gen_player` (a man in an
-  amber jacket, A-19) stops being Vera's 2D image (Q-S26-9).
+  amber jacket, A-19) stops being Vera's 2D image and becomes Wes's 2D look and the identity source of his 3D brief (ruled, Q-S26-9).
 - Bindings: `look:<key>` roles in the `people` set (§4.3); `person:<n>` stays for unbound persons.
   The 2D bundle stays far inside its 40 MB limit (sprites are ~110 px tall after normalization).
 
@@ -578,9 +588,9 @@ characters (Q-S26-4).
 | Runs per accepted character | D+ retained 1 of 3 → geometric mean 3 runs (**the pilot replaces this with its own rate**) | ≈ 90 |
 | Pilot B0, 3 characters | 3 × 90, plus S26-b2's rigging comparison (Meshy rig on ≤ 3 models, **verify** its price) | ≈ 300 |
 | Named cast after the pilot: 21 new − 3 = 18 | 18 × 90 | ≈ 1,620 |
-| E-1 extras (only if chosen) | 8 × 90 | ≈ 720 |
+| E-1 extras (not built: E-2 ruled, Q-S26-8) | 8 × 90 | ≈ 720 |
 | **Total** E-2 / E-1 | | **≈ 1,920 / ≈ 2,640** |
-| Proposed cap (Q-S26-3) | E-2 with ~50 % headroom for a worse retention rate; report at 50 % and 100 %, hard stop at the cap | **3,000** |
+| **Ruled cap** (Q-S26-3) | hard cap for the whole step; reported at 50 % and 100 %; the pilot's measured rate re-estimates B1 and B2 before they start | **3,000** |
 
 The monetary price per credit depends on the operator's Meshy plan (**verify**; not assumed here).
 
@@ -589,7 +599,7 @@ The monetary price per credit depends on the operator's Meshy plan (**verify**; 
 Per person: 2–4 full-body candidates + 1–2 portraits (3D reference) + 4 sprites (2D), each possibly
 redone once → about 10–20 images per person at 1024×1536 high. At a per-image price the S26-b1 PR reads
 from OpenAI's current price list (**verify**; not recalled here), 22–30 people × 20 images is the
-ceiling to budget. Proposed cap: the operator states it in Q-S26-3 once the price is read.
+ceiling to budget. **Ruled (Q-S26-3):** S26-b1 reads the current per-image price and states a dollar cap in its PR for the primary session to confirm; no image is generated before it is confirmed.
 
 ### 10.3 Release size against the 250 MB `3d.pck` (estimates, flagged)
 
@@ -623,12 +633,14 @@ The options, each shown to the operator with numbers measured on the pilot (Q-S2
 - **O-5. Exclude CharMorph from the release** (≈ 11 MB) — S26-f does this regardless; the rig source
   stays in the repository.
 
-Recommendation: **O-1 + O-3 + O-5**, with O-4 as the fallback if O-1's stills are not accepted. The
-triangle budget and the 2048² texture stay the standard.
+**Ruled (Q-S26-5):** **O-1 + O-3 + O-5**. Basis Universal UASTC for cast textures, subject to the
+operator's before/after portraits at the reference framing (delivered with the big milestone's checklist,
+§6.4); if they are rejected, **O-4: the `3d.pck` hard limit rises to about 350 MB**. The triangle budget and
+the 2048² texture stay the standard.
 
 **Repository growth.** An accepted character commits ≈ 10 MB once (texture stored once, A-7 fixed); 21
 characters ≈ 210 MB of history, against `.git`'s 654 MB today (A-27). Rejected runs never enter the
-repository. No Git LFS proposed (it would make a fresh clone depend on a quota); Q-S26-10.
+repository. **Ruled (Q-S26-10):** accepted characters only, the texture stored once, no Git LFS.
 
 ## 11. Performance
 
@@ -665,21 +677,43 @@ S26-e  2D sprites per person (after S26-a and each batch's casting gate) ──�
 
 | PR | Scope (files) | Depends on | Integration checkpoint | Adversarial criteria | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S26-a** binding contract | `systems/appearance/` (crate on the `naming` template: section, `Look` component, `appeared` event, public disclosure); `systems/installed`; `appearance:` lines and `systems:` entries in `market-town`, `social-cafe`, `lakeside`; golden fixtures that move; `presentation/mineworld-default/3D/characters/cast.yaml` format (spec + empty-but-valid file); `clients/2d/PRESENTATION.md` §3.1 `look:<key>` role; cognition check (§4.2); records `ARC-S26-a/b` | none (no RL-b2, R-a or 16c dependency) | `mineworld server worlds/social-cafe` and a scripted client observation shows `look` on every named person; `bodies-yard` shows none; a save/restart keeps it | X-1 an invalid slug is refused at the section's line; X-2 a world with the section but without the pack in `systems:` is refused by name (the `naming` precedent); X-3 a world without the pack loads with unchanged digests; X-4 `look` is not rendered as a name by the perceived formatter | **Haiku**, from a commit-level plan mirroring `naming` |
+| **S26-a** binding contract | `systems/appearance/` (crate on the `naming` template: section, `Look` component, `appeared` event, public disclosure); `systems/installed`; `appearance:` lines and `systems:` entries in `market-town`, `social-cafe`, `lakeside`; golden fixtures that move; `presentation/mineworld-default/3D/characters/cast.yaml` format (spec + empty-but-valid file); `clients/2d/PRESENTATION.md` §3.1 `look:<key>` role; cognition check (§4.2); records `ARC-91/92` | none (no RL-b2, R-a or 16c dependency) | `mineworld server worlds/social-cafe` and a scripted client observation shows `look` on every named person; `bodies-yard` shows none; a save/restart keeps it | X-1 an invalid slug is refused at the section's line; X-2 a world with the section but without the pack in `systems:` is refused by name (the `naming` precedent); X-3 a world without the pack loads with unchanged digests; X-4 `look` is not rendered as a name by the perceived formatter | **Haiku**, from a commit-level plan mirroring `naming` |
 | **S26-b1** pipeline import | `tools/character_pipeline/` (§5.1): the eight scripts ported, constants into `fit.yaml`, landmarks still hand-supplied; stages 3, 6–12; static gates G-1…G-6, G-14 as a CI check on committed characters; secret handling (§5.5); `PIPELINE.md` | none | **the pipeline re-derives the protagonist** from her kept download (`out/meshy/apose_v3`) and her `fit.yaml`: G-1…G-14 pass, joints within 1 mm of `meshy_d.glb`'s, weights equal after rounding | X-5 a 100,001-triangle mesh fails G-1; X-6 a second material fails G-2; X-7 a renamed bone fails G-5; X-8 a key-shaped string in a sidecar fails the scan; X-9 a bound computed from the candidate is rejected in review (`ARC-23` rule 2) | **Haiku** for the port; Opus reviews |
 | **S26-b2** automation spike + pilot B0 | landmark detection (§5.4 L), weight transfer vs heat weights (W), Meshy rig as a joint source (R); runtime runners G-7…G-13 automated; the pilot: three briefs, references through a casting gate, Meshy runs, gates, one runtime review | S26-b1; S26-c1 for in-client gates; operator casting gate | three pilot characters through every gate with ≤ 3 `fit.yaml` overrides each; **measured** retention rate, credits per accepted character, bytes per character in an exported pack — the numbers §10 replaces its estimates with | X-10 a landmark moved 5 cm fails G-6 by location; X-11 a sleeve forced into the torso fails G-9 and prints where; X-12 the head-steady disabled fails G-10 | **Opus** (research and vision judgement) |
-| **S26-cast** casting | every brief of §7 for the chosen worlds; the distinctness table; reference images per batch; casting-gate pages | S26-a (look keys); operator rulings Q-S26-7 | operator casting verdicts recorded | X-13 two briefs that differ in two categories only are flagged by the table | **Opus** (briefs), images by tooling |
+| **S26-cast** casting | every brief of §7 for the chosen worlds; the distinctness table; reference images per batch; casting-gate pages | S26-a (look keys); ruled Q-S26-7 (widen, gated at casting) | operator casting verdicts recorded | X-13 two briefs that differ in two categories only are flagged by the table | **Opus** (briefs), images by tooling |
 | **S26-c1** 3D characters as data | `human.gd`, `posture.gd`, `npc.gd`: `character.yaml` loading, `Human.Body` removed, Vera's constants moved verbatim; `town.gd` and `streetscape.gd` draw from `extras`; `--perf` crowd view | RL-b2 merged (perf baseline, shared files) | **the protagonist is unchanged**: `--portrait` frames pixel-equal to `main`'s within the frame-diff tolerance, `--headtrace` within 0.5° of `main`'s; promenade and street figures are pilot characters | X-14 a manifest missing `stature_m` fails at load naming the field; X-15 `vitruvian.glb` is loaded on no person path (scan, only `--town-body`) | **Haiku** with a commit plan; Opus review |
 | **S26-c2** connected figures | `slice_link.gd` figure creation resolves `look` → `cast.yaml` → character, fallback §4.4; the player's body follows the observer's look | **16c merged** (it rewrites this path); S26-a; S26-c1 | `./mineworld-slice --world`: Alice, Bob and every disclosed person is their own character; an unknown person is an extra | X-16 a person whose `look` the pack does not bind is drawn as an extra, never CharMorph; X-17 two connected players see each other with their own looks | **Haiku** after 16c's shape is known; else Opus |
-| **S26-d** batches | B1 café town (the 8 not in the pilot), B2 lakeside (10): generation, gates, runtime review pages, accepted assets, `HUMAN_REVIEW_QUEUE.md` `VIS-3D-CAST-B1/B2` | S26-b2, S26-cast, S26-c1 | operator runtime verdicts; every accepted character passes G-1…G-14 in CI | X-18 a character marked accepted without an operator verdict fails the review-queue check | **Opus** for gates and scorecards; mechanical stages may be delegated |
+| **S26-d** batches | B1 café town (the 8 not in the pilot), B2 lakeside (10): generation, gates, runtime review pages, accepted assets, `HUMAN_REVIEW_QUEUE.md` `VIS-3D-CAST-B1/B2` | S26-b2, S26-cast, S26-c1 | runtime verdicts (parked for the big milestone, §6.4); meanwhile every accepted character passes G-1…G-14 in CI | X-18 a character marked accepted without an operator verdict fails the review-queue check | **Opus** for gates and scorecards; mechanical stages may be delegated |
 | **S26-e** 2D sprites | `mineworld_gen` recipe `cast_2d.yaml`; sprites, sidecars, normalization; `look:<key>` bindings; the 2D client's role lookup | S26-a; each batch's casting gate | `./mineworld-2d` on `social-cafe` and `lakeside`: every named person their own sprite, Vera as the visitor | X-19 a 13th person in a world draws a `person:<n>` sprite, not a crash; X-20 a sprite whose normalized height disagrees with its brief fails AC-W12's height check | **Haiku** |
-| **S26-f** release packing | R-a's export filters for cast characters per the size ruling; texture import policy (Q-S26-5); CharMorph out of the release; final perf session (§11) | **R-a merged**, RL-b2 merged, S26-c2, S26-d | exported `3d.pck` within the ruled limit; perf PASS on the operator's machine | X-21 a planted extra character over budget turns the size gate red | **Haiku** after the ruling |
+| **S26-f** release packing | R-a's export filters for cast characters per the size ruling (Q-S26-5); texture import policy (Q-S26-5); CharMorph out of the release; final perf session (§11) | **R-a merged**, RL-b2 merged, S26-c2, S26-d | exported `3d.pck` within the ruled limit; perf PASS on the operator's machine | X-21 a planted extra character over budget turns the size gate red | **Haiku** (size ruled, Q-S26-5) |
 
 **Integration checkpoint of the step** (AC-S26 below): `./mineworld-slice --world` with every social-cafe
 person their own accepted character, the decor and an unknown person drawn from extras, both clients
 showing the same people, the exported release inside the ruled budget and the perf views inside 16.7 ms.
 
-### 12.1 Step acceptance (adversarial)
+### 12.1 Start conditions and implementers (frozen with the step)
+
+Every PR is detailed to the commit and frozen by the primary session before it starts, and starts in a
+fresh session in its own worktree. "Merged" means merged on `main`. No PR spends a Meshy credit or makes an
+OpenAI call outside the caps of Q-S26-3, and every call follows §5.5.
+
+| PR | MVP | Starts when | Implementer |
+| --- | --- | --- | --- |
+| S26-a | MVP-0 | its PR design is frozen; nothing else (no RL-b2, R-a or 16c dependency) | Haiku, from a commit-level plan mirroring `naming`; Opus review |
+| S26-b1 | MVP-0 | its PR design is frozen; nothing else. Its PR states the OpenAI dollar cap for the primary to confirm (Q-S26-3) | Haiku for the port; Opus review |
+| S26-b2 + pilot B0 | MVP-0 | S26-b1 merged; S26-c1 merged (in-client gates); the OpenAI cap confirmed; the pilot's three casting pages ruled by the operator before any Meshy run (pre-spend decision, asked when ready) | Opus |
+| S26-cast | MVP-0 | S26-a merged (look keys). Café town (B1) first; lakeside's briefs for E-2's extras next | Opus (briefs); images by the tooling |
+| S26-c1 | MVP-0 | RL-b2 merged (perf baseline; shared files) | Haiku, from a commit plan; Opus review |
+| S26-c2 | MVP-0 | 16c merged; S26-a and S26-c1 merged | Haiku once 16c's figure path is known; Opus if 16c leaves it unsettled |
+| S26-d B1 (café town, 8 after the pilot) | MVP-0 | S26-b2 merged with the pilot's re-estimate of B1/B2 credits inside the 3,000 cap; S26-c1 merged; B1's casting pages ruled | Opus for gates and scorecards; mechanical stages may be delegated to Haiku |
+| S26-d B2 (lakeside, 10) | MVP-0 **as café-street extras only** (E-2); their own world's 3D use is MVP-1 (Q-S26-1) | B1's generation finished; B2's casting pages ruled; the re-estimate still inside the cap | Opus, as B1 |
+| S26-e | MVP-0 | S26-a merged; per batch, that batch's casting gate ruled (the 2D sprite is conditioned on the approved reference) | Haiku |
+| S26-f | MVP-0 | R-a merged; RL-b2 merged; S26-c2 and S26-d B1 merged; the UASTC before/after portraits ruled (else the ~350 MB limit applies, Q-S26-5) | Haiku |
+
+Runtime review pages (§6.4 gate 2) never hold a PR's start: they are parked for the next big milestone's
+single checklist, and the characters they cover stay candidates until then (`ARC-9`).
+
+### 12.2 Step acceptance (adversarial)
 
 | | Criterion | How it is shown to fail when broken |
 | --- | --- | --- |
@@ -700,16 +734,16 @@ showing the same people, the exported release inside the ruled budget and the pe
 | --- | --- | --- |
 | R-S26-1 | Retention worse than 1 in 3 for some people (older faces, unusual garments) — credits burn | the pilot measures it; per-person retry budget; the reference is fixed before more runs (§6.5); hard cap |
 | R-S26-2 | Automation does not replace the hand fixes; each character needs D+'s days of iteration | S26-b2 is a measured spike; `fit.yaml` overrides counted and reported; if > 3 per character persist, the operator is told the real per-character cost before B1 |
-| R-S26-3 | Release size (§10.3) | ruling Q-S26-5 before B1; pilot measures bytes |
+| R-S26-3 | Release size (§10.3) | ruled (Q-S26-5): UASTC subject to stills, else ~350 MB limit; pilot measures bytes |
 | R-S26-4 | 16c reshapes `SliceLink`'s figures | S26-c split into c1 (independent) and c2 (after 16c) |
 | R-S26-5 | Golden digests move when the `appearance` section adds genesis facts | S26-a updates them in one reviewed commit; X-3 proves worlds without the pack are unchanged |
 | R-S26-6 | Two generated reference images of one person disagree (full body vs portrait) | the portrait is conditioned on the approved full body; the casting gate sees both |
-| R-S26-7 | Casting from surnames stereotypes people | briefs are chosen for each person and reviewed by the operator; Q-S26-7 |
+| R-S26-7 | Casting from surnames stereotypes people | briefs are chosen for each person and reviewed by the operator at casting (ruled, Q-S26-7) |
 | R-S26-8 | Seated poses tear fused garments | G-13; briefs avoid long hems for people who sit (§7.4) |
 | R-S26-9 | Look keys leak names if names are later gated by acquaintance | recorded; a one-file-per-world migration to opaque keys |
 | R-S26-10 | Video memory with many distinct textures | §11 step 4; only resident worlds' characters load |
 | R-S26-11 | Meshy changes its model, terms or prices mid-step | `ai_model` pinned per batch and recorded; terms re-read at each batch's start (D+ §4 practice); a model change is a new pilot, not a silent swap |
-| R-S26-12 | Repository growth (§10.3) | accepted-only commits, texture once; Q-S26-10 |
+| R-S26-12 | Repository growth (§10.3) | accepted-only commits, texture once (ruled, Q-S26-10) |
 
 ## 14. Findings
 
@@ -730,32 +764,32 @@ showing the same people, the exported release inside the ruled budget and the pe
 - **F-S26-8** 9 sprites serve 12 people in 2D (A-18): the 2D cast already fails "each person distinct".
 - **F-S26-9** `ARC-22`'s premise — one albedo — does not hold for per-person generated characters; its own
   text says widening then "is a palette change and needs no new decision", and also that widening is the
-  operator's. Q-S26-7 asks.
+  operator's. Ruled 2026-10-14: widen it (Q-S26-7, ARC-95).
 
-## 15. Records and edits proposed (placeholders; the primary assigns numbers)
+## 15. Records and edits (ids assigned 2026-10-14; all ten used)
 
 | Placeholder | Content | Written by |
 | --- | --- | --- |
-| **ARC-S26-a** | Appearance is a perceivable trait owned by the `appearance` System Pack; `look` is an opaque disclosed key; no renderer concept, no descriptors in the world (§4.2) | S26-a |
-| **ARC-S26-b** | The cast binding lives in the Presentation Pack: 3D `characters/cast.yaml`, 2D `look:<key>` roles (amends `ARC-46`'s role list); one resolution order; the fallback is the extras pool, never a cruder class (§§4.3–4.4) | S26-a |
-| **ARC-S26-c** | A character is data (`character.yaml`), authored at true stature, instance scale 1; `Human.Body` removed (§4.5) | S26-c1 |
-| **ARC-S26-d** | The per-character standard (G-1…G-14, §6.2 scorecard, quality-tier parity), the two-gate review, the failed-generation policy (§6) | S26-b1 |
-| **ARC-S26-e** | `ARC-22` amended: the default cast's range follows per-person briefs once each person has their own generated texture — **only if the operator rules so** (Q-S26-7) | S26-cast |
-| **DEP-S26-a** | Meshy image-to-3D as the cast's mesh source at scale; the paid-plan ownership record extended; model pinned per batch | S26-b1 |
-| **DEP-S26-b** | Blender, headless, as the pipeline's mesh runtime (a tool, never distributed; its outputs are ours) | S26-b1 |
-| **DEP-S26-c** | Skin weights: robust weight transfer adopted or declined against heat weights, with the measured result | S26-b2 |
-| **DEP-S26-d** | Landmarks: MediaPipe adopted or declined against geometric fitting, with the measured result | S26-b2 |
-| **DEP-S26-e** | Rigging: our fitted armature kept; Meshy rigging, Mixamo, AccuRIG, UniRig/RigNet declined as the rig, with reasons (§5.4) | S26-b1 |
+| **ARC-91** | Appearance is a perceivable trait owned by the `appearance` System Pack; `look` is an opaque disclosed key; no renderer concept, no descriptors in the world (§4.2) | S26-a |
+| **ARC-92** | The cast binding lives in the Presentation Pack: 3D `characters/cast.yaml`, 2D `look:<key>` roles (amends `ARC-46`'s role list); one resolution order; the fallback is the extras pool, never a cruder class (§§4.3–4.4) | S26-a |
+| **ARC-93** | A character is data (`character.yaml`), authored at true stature, instance scale 1; `Human.Body` removed (§4.5) | S26-c1 |
+| **ARC-94** | The per-character standard (G-1…G-14, §6.2 scorecard, quality-tier parity), the two-gate review, the failed-generation policy (§6) | S26-b1 |
+| **ARC-95** | `ARC-22` amended: the default cast's range follows per-person briefs once each person has their own generated texture, set from each biography and gated by the operator at casting (ruled, Q-S26-7) | S26-cast |
+| **DEP-51** | Meshy image-to-3D as the cast's mesh source at scale; the paid-plan ownership record extended; model pinned per batch | S26-b1 |
+| **DEP-52** | Blender, headless, as the pipeline's mesh runtime (a tool, never distributed; its outputs are ours) | S26-b1 |
+| **DEP-53** | Skin weights: robust weight transfer adopted or declined against heat weights, with the measured result | S26-b2 |
+| **DEP-54** | Landmarks: MediaPipe adopted or declined against geometric fitting, with the measured result | S26-b2 |
+| **DEP-55** | Rigging: our fitted armature kept; Meshy rigging, Mixamo, AccuRIG, UniRig/RigNet declined as the rig, with reasons (§5.4) | S26-b1 |
 
 Document edits: `HUMANOID_PROFILE.md` §5 ("What a second character costs") and §6 rewritten for the cast
 pipeline; `VISUAL_FIDELITY.md` gains the cast's per-person reference rule (§6.2) as a pointer to
-`ARC-S26-d`; `MODULE_SPEC.md` §6.1 names `characters/cast.yaml`; `clients/3d-spike/ASSETS.md` one row per
+`ARC-94`; `MODULE_SPEC.md` §6.1 names `characters/cast.yaml`; `clients/3d-spike/ASSETS.md` one row per
 character; `HUMAN_REVIEW_QUEUE.md` `VIS-3D-CAST-*`; `overall.md` gains S26.
 
 ## 16. Questions for the operator
 
-Each with a recommendation. Nothing in S26 starts before Q-S26-1, -3 and -5 are answered; the others can
-be answered at the gate they govern.
+As asked, each with its recommendation. **All twelve were accepted as recommended on 2026-10-14**; the
+rulings, with the operator's qualifications, are in §16.1 and govern where this list and they differ.
 
 1. **Q-S26-1 — MVP-0 or MVP-1?** *Recommendation:* **MVP-0** for S26-a, S26-b1/b2 with the pilot, S26-c1,
    the café-town cast (B1) and its 2D sprites — the crude crowd is in every 3D frame of the release, and the
@@ -804,3 +838,30 @@ be answered at the gate they govern.
 12. **Q-S26-12 — Blink and expression.** The cast inherits route D+'s limits: painted eyes, no blink, no
     mouth movement while speaking. *Recommendation:* accept for S26 — it is the protagonist's standard —
     and plan faces as a later step for the whole cast at once.
+
+### 16.1 Rulings (operator, 2026-10-14; binding)
+
+Relayed by the coordinator on 2026-10-14: the operator accepted every recommendation of §16, with the
+qualifications below. Recorded as relayed.
+
+| Question | Ruling |
+| --- | --- |
+| Q-S26-1 | MVP-0 for S26-a, S26-b1/b2 with the 3-person pilot, S26-c1, the café-town cast (B1) and its 2D sprites. Lakeside's 3D cast is MVP-1, except as café-street extras under E-2 |
+| Q-S26-2 | Café town first; the pilot of three chosen to stress the pipeline as recommended |
+| Q-S26-3 | A hard cap of 3,000 Meshy credits for the whole step, reported at 50 % and 100 %. The pilot re-estimates B1 and B2. OpenAI: S26-b1 reads the current per-image price and states a dollar cap in its PR for the primary to confirm |
+| Q-S26-4 | As recommended: no `appearance` section and no characters for `bodies-yard`; it exercises the fallback |
+| Q-S26-5 | Basis UASTC for cast textures, subject to the operator's before/after portraits. If rejected, raise the `3d.pck` limit to about 350 MB |
+| Q-S26-6 | Two review pages per batch. By a new operator rule, all hands-on and visual checks are batched into one big milestone: the casting page is a pre-spend decision and may be asked when ready; the runtime review page is parked and delivered with the next big milestone's single checklist |
+| Q-S26-7 | Widen the range, set from each person's biography, with the operator gating it at casting (`ARC-95`) |
+| Q-S26-8 | E-2: the café street's extras are the lakeside cast |
+| Q-S26-9 | Appearance follows the Person: Vera is the visitor, Wes the wanderer |
+| Q-S26-10 | Accepted characters only, no LFS |
+| Q-S26-11 | The `appearance` System Pack, with one look line per person file (`ARC-91`) |
+| Q-S26-12 | Accept route D+'s face limits |
+
+**Ids assigned** (primary session, 2026-10-14), in order: `ARC-91` appearance System Pack and `look`;
+`ARC-92` cast binding in the Presentation Pack and the extras fallback; `ARC-93` the per-character
+manifest; `ARC-94` the per-character standard and review protocol; `ARC-95` `ARC-22` amended for
+per-person generated casts; `DEP-51` Meshy image-to-3D at cast scale; `DEP-52` headless Blender;
+`DEP-53` skin weights; `DEP-54` landmarks; `DEP-55` rigging. All ten are used; each is written into
+`docs/DECISIONS.md` by the PR §15 names. `DEP-53` and `DEP-54` record S26-b2's measured choice.
