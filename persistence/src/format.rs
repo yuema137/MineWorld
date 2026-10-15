@@ -25,8 +25,10 @@ use crate::input::WorldRevision;
 ///
 /// History: 1 — S5. 2 — S6 (`ARC-26`): a `SystemDeclaration`, stored in every snapshot's composition
 /// and in the manifest, gained the owners of the vocabularies it borrows. 3 — SR (`ARC-81`): a stored
-/// snapshot is a zstd frame of its JSON, and snapshots are retained by rule.
-pub const SAVE_FORMAT: u32 = 3;
+/// snapshot is a zstd frame of its JSON, and snapshots are retained by rule. 4 — SR-b (`ARC-89`): the
+/// journal and fact rows of each completed span live in a sealed block (table `sealed`), and `snapshots`
+/// no longer references `journal`.
+pub const SAVE_FORMAT: u32 = 4;
 
 /// The zstd level a snapshot is compressed at (`DEP-43`): one level, fixed, so the stored bytes are a
 /// function of the JSON alone.

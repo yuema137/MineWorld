@@ -2,13 +2,15 @@
 //! `.structured-coding/plans/mvp0/pr-s6-save-retention.md`).
 //!
 //! ```text
-//! ASR-8   a format-2 save is refused by run, server, replay and inspect, naming formats 2 and 3
+//! ASRB-8  a format-3 save is refused by run, server, replay, inspect, perceived and biography, naming
+//!         formats 3 and 4 (SR-b, `ARC-89`; it replaced SR's ASR-8 check of format 2 against 3)
 //! ASR-4   verify_from on a real save's anchors (ignored; run by hand against a long run's save)
 //! ```
 //!
-//! The format-2 save itself — rows written by the build before SR — is refused in
-//! `persistence/tests/save.rs`; here a social-cafe save written by this build is marked format 2, so
-//! that each command reaches the refusal past its own pack and configuration checks (design §14.1, D-1).
+//! The format-2 and format-3 saves themselves — rows written by the builds before SR and before SR-b —
+//! are refused in `persistence/tests/save.rs`; here a social-cafe save written by this build is marked
+//! format 3, so that each command reaches the refusal past its own pack and configuration checks (SR
+//! design §14.1, D-1; SR-b design ASRB-8).
 
 mod headless;
 
@@ -20,7 +22,7 @@ use mineworld_persistence::{
     Durability, PersistenceBackend, SqliteBackend, WorldRevision, verify_from,
 };
 
-const REFUSAL: &str = "the save is format 2; this code reads format 3 and does not migrate";
+const REFUSAL: &str = "the save is format 3; this code reads format 4 and does not migrate";
 
 /// ASR-4 on a real save, run by hand: `verify_from` from the first, middle and last retained anchor
 /// (or from every one) of the save in `MINEWORLD_SR_SAVE`, composed from the pack in
@@ -85,12 +87,12 @@ fn verify_from_retained_anchors_of_a_real_save() {
 }
 
 #[test]
-fn every_command_that_opens_a_save_refuses_format_2_by_name() {
-    let save = fresh("sr-format-2");
+fn every_command_that_opens_a_save_refuses_format_3_by_name() {
+    let save = fresh("srb-format-3");
     run(7, 1, Some(&save));
     let connection = rusqlite::Connection::open(SqliteBackend::file(&save)).expect("opens");
     let changed = connection
-        .execute("UPDATE manifest SET format = 2", [])
+        .execute("UPDATE manifest SET format = 3", [])
         .expect("executes");
     assert_eq!(changed, 1, "the manifest row was marked");
     drop(connection);
@@ -110,6 +112,8 @@ fn every_command_that_opens_a_save_refuses_format_2_by_name() {
         ],
         vec!["replay", PACK, "--save", path],
         vec!["inspect", path],
+        vec!["perceived", PACK, "--save", path, "--person", "alice"],
+        vec!["biography", PACK, "--save", path, "--person", "alice"],
     ] {
         let output = mineworld(&arguments);
         let complaint = stderr(&output);
@@ -146,7 +150,7 @@ fn every_command_that_opens_a_save_refuses_format_2_by_name() {
         if started.elapsed() > Duration::from_secs(60) {
             let _ = server.kill();
             let _ = server.wait();
-            panic!("the server accepted a format-2 save and kept running");
+            panic!("the server accepted a format-3 save and kept running");
         }
         std::thread::sleep(Duration::from_millis(50));
     };
