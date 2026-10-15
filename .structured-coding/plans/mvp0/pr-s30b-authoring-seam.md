@@ -617,11 +617,27 @@ No question remains open.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 base and ledger | this commit | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**E-0 (C0, 2026-10-15).**
+
+- Implementation base: `origin/main @ 38323d4c` (merge of #238, S30-a). Worktree
+  `/Users/yuema137/mineworld-worktrees/impl-s30b`, branch `mvp0/pr-s30b` (deviation D-b-1 below).
+- S30-a merged: `ARC-121` is `docs/DECISIONS.md:8586`; `MODULE_SPEC.md` §3.1 "A pack that owns data" is at
+  `:358`, its §2 "Data directories" at `:100`, the `SystemPack` declares block (DATA … SHIPS) at `:233-242`.
+- S29-a **not** merged: no `worldpack/src/settlement.rs`, no step 9b in `read.rs`'s module doc. This PR adds
+  steps 4d and 10b alone.
+- Q-S30b-1: ruled (§14.1), nothing supersedes it (`ARC-121` item 4 states the ruling).
+- Anchors re-read at the base: A-1 (`section.rs:172-203`), A-4, A-5 (`pack.rs:25-180`), A-6, A-7
+  (`read.rs:115-224`, steps at `:133`, `:148`, `:150-180`, `:192`, `:220`), A-9, A-10 (`load.rs:63-91`), A-11
+  (`manifest.rs:26, 120-147`; `entities.rs:62-101, 143-227`), A-12, A-13 hold. Moved: A-8's section arm is
+  `content.rs:182-197` (not 172-205).
+- Parent-doc edits assigned by the dispatch, each with a dated note: step-31 §7.4 `categorical` → `category`;
+  step-30 §6.4 "masks `core` (all 94)" → 93; step-30 §13.1 S30-k row `attributes/labels/` → `labels/`.
+- No other session holds this worktree (`ps`: none).
 
 ### Mutations
 
@@ -630,3 +646,6 @@ No question remains open.
 ### Deviations and findings
 
 F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
+
+- **D-b-1 (bounded).** §9.0 and §12 name the worktree `impl-s30-b`; the primary's dispatch created
+  `impl-s30b`. Same branch, same single-session rule; no other effect.
