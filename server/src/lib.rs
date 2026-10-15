@@ -82,8 +82,9 @@ pub mod seats;
 mod session;
 
 pub use admission::{
-    AdminToken, Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, OfferedResume,
-    ResumeSecret, UNAUTHORIZED_DELAY, Unauthorized,
+    AdminToken, Admission, AdmissionError, Credential, CredentialKind, GrantToken, InviteToken,
+    Nickname, OfferedInvite, OfferedResume, ResumeSecret, SeatGrant, SeatRights,
+    UNAUTHORIZED_DELAY, Unauthorized,
 };
 pub use app::Access;
 pub use host::{

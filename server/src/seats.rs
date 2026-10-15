@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 use mineworld_contracts::{EntityKey, WorldTime};
 use serde::Serialize;
 
-use crate::admission::{OfferedResume, ResumeSecret};
+use crate::admission::{OfferedResume, ResumeSecret, SeatRights};
 use crate::host::SubscriptionId;
 use crate::hosted::{HostedFactory, HostedSlot};
 use crate::protocol::{ClosingReason, Refusal, RefusalCode, SessionId, TookOver};
@@ -35,16 +35,20 @@ pub struct JoinRequest {
     pub resume: Option<OfferedResume>,
     /// Which connection is asking.
     pub session: SessionId,
+    /// What the credential the connection was admitted with allows: seat names and a take-over
+    /// right, never the credential itself (`PROTOCOL.md` §§4.1, 4.2).
+    pub rights: SeatRights,
 }
 
 impl JoinRequest {
-    /// A plain join: no takeover, no resume.
+    /// A plain join with every right the invite has: no takeover, no resume.
     pub const fn plain(seat: EntityKey, session: SessionId) -> Self {
         Self {
             seat,
             take_over: false,
             resume: None,
             session,
+            rights: SeatRights::Any,
         }
     }
 }
@@ -117,9 +121,10 @@ struct Held {
     resume: ResumeSecret,
 }
 
-/// A granted join: what changed hands, and which older connection, if any, must now be closed.
+/// A granted join: what changed hands, and which older connection, if any, must now be closed. (Not
+/// a seat grant, which is a credential: `crate::admission::SeatGrant`.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Grant {
+pub(crate) struct JoinGranted {
     pub(crate) took_over: TookOver,
     pub(crate) displaced: Option<(SubscriptionId, ClosingReason)>,
 }
@@ -167,7 +172,7 @@ impl SeatTable {
         resume: ResumeSecret,
         now: Instant,
         at: WorldTime,
-    ) -> Result<Grant, Refusal> {
+    ) -> Result<JoinGranted, Refusal> {
         self.expire_seat(&request.seat, now, at);
         let binding = self
             .seats
@@ -339,9 +344,9 @@ impl SeatTable {
 }
 
 /// `PROTOCOL.md` §4.2's join rules over one seat's binding, in order.
-fn decide(binding: &Binding, request: &JoinRequest) -> Result<Grant, Refusal> {
+fn decide(binding: &Binding, request: &JoinRequest) -> Result<JoinGranted, Refusal> {
     let granted = |took_over, displaced| {
-        Ok(Grant {
+        Ok(JoinGranted {
             took_over,
             displaced,
         })
@@ -360,6 +365,13 @@ fn decide(binding: &Binding, request: &JoinRequest) -> Result<Grant, Refusal> {
     match binding {
         Binding::Free => granted(TookOver::None, None),
         Binding::Hosted(_) => granted(TookOver::Hosted, None),
+        // Rule 4's narrowing (S27-a): a grant without take-over displaces nobody.
+        Binding::Connected(_) | Binding::Held(_)
+            if request.take_over && !request.rights.may_take_over() =>
+        {
+            Err(Refusal::new(RefusalCode::NotGranted)
+                .detail("this credential may not take a seat another player holds"))
+        }
         Binding::Connected(connected) if request.take_over => granted(
             TookOver::Connection,
             Some((connected.subscription, ClosingReason::TakenOver)),

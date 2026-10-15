@@ -637,7 +637,7 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C0 | this commit (`docs(plan): S27-a — measured request rate, ARC-97, DEP-57`) | [x] | [x] | [x] |
 | C1 | `ead62c2` | [x] | [x] doc-headings 223 sections, decision-ids distinct | [x] terms exact; §5.5 rows parse (`client_text.rs` reads both new codes, see C2) |
 | C2 | this commit (`feat(protocol): not_granted and rate_limited …`) | [x] | [x] SDK ruff/format/pyright clean; `test_golden_frames.py` 31 passed, `test_resuming.py` 34 passed; `client_text` 5 passed, `client_rules` 3 passed; M-a-6, M-a-7 red by name. Rust `--test frames` and the protocol unit test run at C3 (D-a-5) | [x] no existing golden changed; `retry_after_ms` only via `Refusal::retry_after`; `not_granted` final in SDK and 2D |
-| C3 | — | [ ] | [ ] | [ ] |
+| C3 | this commit (`feat(server): seat grants …`) | [x] `GrantToken`, `SeatGrant`, `SeatRights`, `Credential`/`CredentialKind`, `Admission::{with_grants, holds, admit → Credential}`, `AdminToken::is_a_credential_of` (replaces `is_invite`), `Access::new`; check 4a in `runtime.rs::join`; rule 4's narrowing in `seats.rs::decide`; `Grant` → `JoinGranted`; `JoinRequest.rights`; `Joined.credential`; `SessionView.credential` (`CredentialView`) | [x] `cargo test -p mineworld-server`: all binaries green (lib 53 incl. the new decision table and 3 admission tests; `grants` 6; `seats`, `handshake`, `admin`, `facts`, `frames` 16 incl. both new goldens, `two_clients`, `deltas`, `headless`); clippy `-p mineworld-server -p mineworld-cli --all-targets -D warnings` clean; M-a-1 red (`a_grant_refused_a_seat_displaces_nobody`, also `the_same_grant_is_answered_the_same_whoever_presents_it`); M-a-2 red (`the_join_decision_table_under_every_credential`, `a_grant_without_take_over_cannot_displace_a_player`, `a_hold_is_resumed_with_any_credential_and_not_taken_without_the_right`) | [x] the token never crosses into `runtime/` (only `SeatRights`); `admit` folds every comparison, no early return (M-a-5, review-owned); both `not_granted` paths return before `SeatTable::join` inserts or `release` runs; no `agent` identifier added under `server/src` |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
 | C6 | — | [ ] | [ ] | [ ] |
@@ -725,6 +725,12 @@ Planning findings are §3.3. Implementation:
   on the C3 working tree, because C3's library edits were already in progress; `protocol.rs` is
   byte-identical between the two, so the evidence transfers. C1 alone leaves `client_text.rs` red (it
   reads §5.5's new rows before C2 adds the catalog entries); C2 makes it green.
+- **D-a-6 (bounded, C3).** `serve.rs::admin_access` → `Access::new` moved from C4 into C3, because C3
+  replaces `AdminToken::is_invite` (which `admin_access` called) with `is_a_credential_of`; without it C3
+  would not compile the CLI. `cargo fmt` also reflowed one line of C2's protocol unit test, carried here.
+- **D-a-7 (bounded, C3).** AA-7's library half is `grants.rs::an_admin_token_equal_to_any_player_credential_refuses_access`
+  (admin token = invite or grant) plus `admission.rs::a_grant_that_collides_with_another_credential_is_refused`
+  (grant = invite, grant = grant; the only place a colliding grant can be built).
 - **R-LOAD-1 (coordinator ruling, 2026-10-14).** Locally only the touched crates' tests, fmt and clippy;
   no local `cargo test --workspace`. The workspace gate is CI's `test`, `test-macos`, `test-windows` on the
   exact head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)". This replaces the dispatch

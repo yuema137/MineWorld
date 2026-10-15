@@ -211,9 +211,10 @@ fn retry_after_rounds_up_to_a_whole_millisecond_and_appears_only_when_given() {
         (Duration::from_nanos(1), 1),
         (Duration::ZERO, 1),
     ] {
-        let ServerFrame::Refused { retry_after_ms, .. } = super::Refusal::new(RefusalCode::RateLimited)
-            .retry_after(wait)
-            .into_frame()
+        let ServerFrame::Refused { retry_after_ms, .. } =
+            super::Refusal::new(RefusalCode::RateLimited)
+                .retry_after(wait)
+                .into_frame()
         else {
             panic!("a refused frame");
         };

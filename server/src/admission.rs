@@ -9,13 +9,15 @@
 //! ```text
 //! InviteToken     the server's invite. Given by the operator or generated here. Printed once, by
 //!                 the composition root, on the startup join line (the only call to `reveal`).
-//! OfferedInvite   what a client sent. Possibly a near miss of the real invite, so treated as one.
+//! GrantToken      a seat grant's secret (S27-a, `ARC-97`). Only ever generated here; printed once,
+//!                 by the composition root, on the grant's startup line.
+//! OfferedInvite   what a client sent. Possibly a near miss of a real credential, so treated as one.
 //! ```
 //!
-//! Neither implements `Serialize` or `Display`, and both print as `<redacted>` under `Debug`, so
-//! neither can reach a frame, a fact, a save, an observation or a log line by accident (step-12 I-5).
-//! The world thread never sees either: admission is decided in the connection's own task, before
-//! the world is asked for a seat.
+//! None implements `Serialize` or `Display`, and all print as `<redacted>` under `Debug`, so none can
+//! reach a frame, a fact, a save, an observation or a log line by accident (step-12 I-5). The world
+//! thread never sees any: admission is decided in the connection's own task, before the world is
+//! asked for a seat, and what crosses to it is a [`SeatRights`] — seat names and a boolean.
 //!
 //! # The nickname
 //!
@@ -27,9 +29,11 @@
 //! `getrandom` makes an invite from the operating system's random source; `subtle` compares an
 //! offered invite in constant time. This is the only file that names either.
 
+use std::collections::BTreeSet;
 use std::fmt;
 use std::time::Duration;
 
+use mineworld_contracts::EntityKey;
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
@@ -129,10 +133,10 @@ impl AdminToken {
         bool::from(self.0.as_bytes().ct_eq(offered))
     }
 
-    /// Whether this token is the server's invite too — which a server refuses, because every player
-    /// would then be the host (step-12 QS11D-4).
-    pub fn is_invite(&self, invite: &InviteToken) -> bool {
-        self.admits(invite.0.as_bytes())
+    /// Whether this token is also a player's credential — the invite or a seat grant — which a server
+    /// refuses, because every holder of it would then be the host (step-12 QS11D-4, `ARC-97`).
+    pub fn is_a_credential_of(&self, admission: &Admission) -> bool {
+        admission.holds(self.0.as_bytes())
     }
 }
 
@@ -284,28 +288,204 @@ impl From<Nickname> for String {
     }
 }
 
+/// A seat grant's secret (`PROTOCOL.md` §4.1 "Seat grants", `docs/DECISIONS.md` `ARC-97`).
+///
+/// Only ever generated — 16 bytes from the operating system's random source, as 32 lowercase
+/// hexadecimal characters — never given by an operator, never parsed from an argument or the
+/// environment. Like the invite it has a redacted `Debug` and neither `Serialize` nor `Display`;
+/// `reveal` is called once, by the composition root, for the grant's startup line.
+#[derive(Clone, PartialEq, Eq)]
+pub struct GrantToken(String);
+
+impl GrantToken {
+    /// A fresh grant token.
+    pub fn generate() -> Result<Self, AdmissionError> {
+        random_hex().map(Self)
+    }
+
+    /// The token's text: for the grant's one startup line, and for a test that joins with it.
+    pub fn reveal(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for GrantToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("GrantToken(<redacted>)")
+    }
+}
+
+/// A narrower credential than the invite: it admits only the seats it names, and takes over a seat
+/// another player holds only if it carries take-over (`PROTOCOL.md` §§4.1, 4.2).
+///
+/// Host state (`ARC-40`): it lives in the connection task's [`Admission`] and nowhere else. Nothing in
+/// it says what kind of Controller will present it.
+#[derive(Debug, Clone)]
+pub struct SeatGrant {
+    seats: BTreeSet<EntityKey>,
+    take_over: bool,
+    token: GrantToken,
+}
+
+impl SeatGrant {
+    /// A grant for these seats, with a freshly generated token. A grant names at least one seat.
+    pub fn generate(seats: BTreeSet<EntityKey>, take_over: bool) -> Result<Self, AdmissionError> {
+        if seats.is_empty() {
+            return Err(AdmissionError::GrantNamesNoSeat);
+        }
+        Ok(Self {
+            seats,
+            take_over,
+            token: GrantToken::generate()?,
+        })
+    }
+
+    /// The seats it admits, in key order.
+    pub const fn seats(&self) -> &BTreeSet<EntityKey> {
+        &self.seats
+    }
+
+    /// Whether it may take over a connected or held seat.
+    pub const fn take_over(&self) -> bool {
+        self.take_over
+    }
+
+    /// Its secret.
+    pub const fn token(&self) -> &GrantToken {
+        &self.token
+    }
+
+    fn rights(&self) -> SeatRights {
+        SeatRights::Named {
+            seats: self.seats.clone(),
+            take_over: self.take_over,
+        }
+    }
+}
+
+/// What a credential lets its holder do with seats. Carries no secret, so it may cross to the world
+/// thread inside a [`JoinRequest`](crate::seats::JoinRequest).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SeatRights {
+    /// The invite: every seat, and the takeover of any.
+    Any,
+    /// A seat grant: these seats only; the takeover of a connected or held one only if `take_over`.
+    Named {
+        /// The seats admitted.
+        seats: BTreeSet<EntityKey>,
+        /// Whether a connected or held seat may be taken over.
+        take_over: bool,
+    },
+}
+
+impl SeatRights {
+    /// Whether these rights admit `seat` at all (`PROTOCOL.md` §4.1 check 4a).
+    pub fn names(&self, seat: &EntityKey) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Named { seats, .. } => seats.contains(seat),
+        }
+    }
+
+    /// Whether these rights may take a seat another player holds (`PROTOCOL.md` §4.2 rule 4).
+    pub const fn may_take_over(&self) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Named { take_over, .. } => *take_over,
+        }
+    }
+}
+
+/// Which kind of credential admitted a connection, as the admin surface names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialKind {
+    /// The server's invite.
+    Invite,
+    /// A seat grant.
+    Grant,
+}
+
+/// The credential a `join` presented, once admitted: its kind and its rights, never its token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Credential {
+    /// Which kind it is.
+    pub kind: CredentialKind,
+    /// What it lets its holder do with seats.
+    pub rights: SeatRights,
+}
+
 /// The check every `join` passes before the world is asked for anything.
 #[derive(Debug, Clone)]
 pub struct Admission {
     invite: InviteToken,
+    grants: Vec<SeatGrant>,
 }
 
 impl Admission {
-    /// Admits the holders of this invite.
+    /// Admits the holders of this invite, and nobody else.
     pub const fn new(invite: InviteToken) -> Self {
-        Self { invite }
+        Self {
+            invite,
+            grants: Vec::new(),
+        }
     }
 
-    /// Whether the offered invite is the server's, compared in constant time.
+    /// Also admits the holders of these grants, each to the seats it names. Refuses a grant whose
+    /// token equals the invite or another grant's: one secret must never mean two credentials.
+    pub fn with_grants(
+        mut self,
+        grants: impl IntoIterator<Item = SeatGrant>,
+    ) -> Result<Self, AdmissionError> {
+        for grant in grants {
+            if self.holds(grant.token.0.as_bytes()) {
+                return Err(AdmissionError::CredentialsNotDistinct);
+            }
+            self.grants.push(grant);
+        }
+        Ok(self)
+    }
+
+    /// The grants, in the order they were given.
+    pub fn grants(&self) -> &[SeatGrant] {
+        &self.grants
+    }
+
+    /// Whether `text` is the invite or any grant's token — for refusing an admin token that would
+    /// make a player the host. Compared in constant time.
+    pub fn holds(&self, text: &[u8]) -> bool {
+        let mut any = self.invite.0.as_bytes().ct_eq(text);
+        for grant in &self.grants {
+            any |= grant.token.0.as_bytes().ct_eq(text);
+        }
+        bool::from(any)
+    }
+
+    /// Which credential the offered text is — the invite or one grant — compared in constant time
+    /// with every one of them, always: the comparisons are folded, never cut short at a match.
     ///
-    /// `subtle` returns at once when the lengths differ. The length of an invite is not a secret — a
-    /// generated one is always 32 characters — so that early answer tells a guesser nothing it could
-    /// not read in `PROTOCOL.md`.
-    pub fn admit(&self, offered: &OfferedInvite) -> Result<(), Unauthorized> {
-        if bool::from(self.invite.0.as_bytes().ct_eq(offered.0.as_bytes())) {
-            Ok(())
-        } else {
-            Err(Unauthorized)
+    /// `subtle` returns at once when the lengths differ. The length of a credential is not a secret —
+    /// a generated one is always 32 characters — so that early answer tells a guesser nothing it could
+    /// not read in `PROTOCOL.md`. A wrong offer is one answer, [`Unauthorized`], whichever kinds of
+    /// credential this server has.
+    pub fn admit(&self, offered: &OfferedInvite) -> Result<Credential, Unauthorized> {
+        let offered = offered.0.as_bytes();
+        let invite = bool::from(self.invite.0.as_bytes().ct_eq(offered));
+        let mut granted: Option<&SeatGrant> = None;
+        for grant in &self.grants {
+            let hit = bool::from(grant.token.0.as_bytes().ct_eq(offered));
+            granted = if hit { Some(grant) } else { granted };
+        }
+        match (invite, granted) {
+            (true, _) => Ok(Credential {
+                kind: CredentialKind::Invite,
+                rights: SeatRights::Any,
+            }),
+            (false, Some(grant)) => Ok(Credential {
+                kind: CredentialKind::Grant,
+                rights: grant.rights(),
+            }),
+            (false, None) => Err(Unauthorized),
         }
     }
 }
@@ -355,6 +535,18 @@ pub enum AdmissionError {
     /// A nickname containing a control character.
     #[error("a nickname must not contain control characters")]
     NicknameControl,
+    /// A seat grant that names no seat.
+    #[error("a seat grant names at least one seat")]
+    GrantNamesNoSeat,
+    /// A seat grant's token equal to the invite or to another grant's.
+    #[error("the invite and every seat grant must be distinct credentials")]
+    CredentialsNotDistinct,
+    /// An admin token equal to the invite or to a seat grant.
+    #[error(
+        "the admin token must differ from the invite and from every seat grant; a player who holds \
+         one would otherwise be the host"
+    )]
+    AdminTokenNotDistinct,
 }
 
 #[cfg(test)]
@@ -405,7 +597,10 @@ mod tests {
     #[test]
     fn only_the_invite_itself_is_admitted() {
         let admission = admission();
-        assert_eq!(admission.admit(&OfferedInvite::new(INVITE)), Ok(()));
+        assert_eq!(
+            admission.admit(&OfferedInvite::new(INVITE)).map(|c| c.kind),
+            Ok(CredentialKind::Invite)
+        );
         let mut last_changed = INVITE.to_owned();
         last_changed.pop();
         last_changed.push('8');
@@ -471,8 +666,119 @@ mod tests {
         }
         assert!(!format!("{token:?}").contains("admin-token-7c1e"));
         let same = InviteToken::given("admin-token-7c1e").expect("a legal invite");
-        assert!(token.is_invite(&same));
-        assert!(!token.is_invite(&InviteToken::given(INVITE).expect("a legal invite")));
+        assert!(token.is_a_credential_of(&Admission::new(same)));
+        assert!(!token.is_a_credential_of(&admission()));
+    }
+
+    fn seats(names: &[&str]) -> BTreeSet<EntityKey> {
+        names
+            .iter()
+            .map(|name| EntityKey::new(*name).expect("a key"))
+            .collect()
+    }
+
+    fn grant(names: &[&str], take_over: bool) -> SeatGrant {
+        SeatGrant::generate(seats(names), take_over).expect("random bytes")
+    }
+
+    #[test]
+    fn a_grant_token_is_fresh_hexadecimal_and_never_printed() {
+        let first = grant(&["visitor"], false);
+        let second = grant(&["visitor"], false);
+        assert_ne!(first.token(), second.token(), "two grants are two secrets");
+        for grant in [&first, &second] {
+            let text = grant.token().reveal();
+            assert_eq!(text.len(), 32);
+            assert!(
+                text.bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            );
+            assert!(!format!("{grant:?}").contains(text), "{grant:?}");
+        }
+        let admission = admission().with_grants([first.clone()]).expect("distinct");
+        assert!(!format!("{admission:?}").contains(first.token().reveal()));
+        assert_eq!(
+            SeatGrant::generate(BTreeSet::new(), false).expect_err("no seat"),
+            AdmissionError::GrantNamesNoSeat
+        );
+    }
+
+    #[test]
+    fn the_invite_and_each_grant_admit_with_their_own_rights() {
+        let visitor = grant(&["visitor"], false);
+        let both = grant(&["alice", "wanderer"], true);
+        let admission = admission()
+            .with_grants([visitor.clone(), both.clone()])
+            .expect("distinct");
+        let invite = admission
+            .admit(&OfferedInvite::new(INVITE))
+            .expect("the invite");
+        assert_eq!(invite.kind, CredentialKind::Invite);
+        assert_eq!(invite.rights, SeatRights::Any);
+        let narrow = admission
+            .admit(&OfferedInvite::new(visitor.token().reveal()))
+            .expect("the grant");
+        assert_eq!(narrow.kind, CredentialKind::Grant);
+        assert!(
+            narrow
+                .rights
+                .names(&EntityKey::new("visitor").expect("key"))
+        );
+        assert!(!narrow.rights.names(&EntityKey::new("alice").expect("key")));
+        assert!(!narrow.rights.may_take_over());
+        let wide = admission
+            .admit(&OfferedInvite::new(both.token().reveal()))
+            .expect("the other grant");
+        assert_eq!(
+            wide.rights,
+            SeatRights::Named {
+                seats: seats(&["alice", "wanderer"]),
+                take_over: true
+            }
+        );
+        let mut near = visitor.token().reveal().to_owned();
+        let last = near.pop().expect("a character");
+        near.push(if last == '0' { '1' } else { '0' });
+        for wrong in [near.as_str(), &visitor.token().reveal()[..31], ""] {
+            assert_eq!(
+                admission.admit(&OfferedInvite::new(wrong)),
+                Err(Unauthorized),
+                "{wrong:?} was admitted"
+            );
+        }
+    }
+
+    #[test]
+    fn a_grant_that_collides_with_another_credential_is_refused() {
+        let collides_with_invite = SeatGrant {
+            seats: seats(&["visitor"]),
+            take_over: false,
+            token: GrantToken(INVITE.to_owned()),
+        };
+        assert_eq!(
+            admission()
+                .with_grants([collides_with_invite])
+                .expect_err("equal to the invite"),
+            AdmissionError::CredentialsNotDistinct
+        );
+        let one = grant(&["visitor"], false);
+        let twin = SeatGrant {
+            seats: seats(&["alice"]),
+            take_over: true,
+            token: one.token().clone(),
+        };
+        assert_eq!(
+            admission()
+                .with_grants([one.clone(), twin])
+                .expect_err("two grants, one secret"),
+            AdmissionError::CredentialsNotDistinct
+        );
+        let admission = admission().with_grants([one.clone()]).expect("distinct");
+        let admin = AdminToken::given(one.token().reveal()).expect("a legal token");
+        assert!(
+            admin.is_a_credential_of(&admission),
+            "an admin token equal to a grant"
+        );
     }
 
     #[test]

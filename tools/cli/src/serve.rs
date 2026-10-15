@@ -23,8 +23,8 @@ use mineworld_persistence::{
 };
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
-    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, InviteToken, SeatRoster,
-    WorldHost, WorldInstanceId, app,
+    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost,
+    WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
@@ -160,9 +160,9 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     // by every command that reads the pack.
     let resolved = decisions::resolve(&pack, &decisions)?;
     let invite = invite::Invite::resolve(invite)?;
-    let admin = admin_token
-        .map(|token| admin_access(token, invite.token()))
-        .transpose()?;
+    let admin = admin_token.map(admin_token_checked).transpose()?;
+    // Checked before anything binds: an admin token equal to the invite refuses to start.
+    let access = access(Admission::new(invite.token().clone()), admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
@@ -272,10 +272,6 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
         println!("{}", invite.join_line(address, seat));
     }
-    let access = Access {
-        admission: Admission::new(invite.token().clone()),
-        admin,
-    };
     // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
     if access.admin.is_some() {
         println!("[mineworld] admin surface: http://{address}/admin (bearer token as given)");
@@ -314,19 +310,15 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     Ok(())
 }
 
-/// The operator's admin token, checked: legal under the invite's rules and not the invite itself —
-/// an admin token equal to the invite would make every player the host. Neither is echoed.
-fn admin_access(token: String, invite: &InviteToken) -> Result<AdminToken, String> {
-    let token = AdminToken::given(token)
-        .map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))?;
-    if token.is_invite(invite) {
-        return Err(
-            "[mineworld] --admin-token: the admin token must differ from the invite; a player who \
-             holds the invite would otherwise be the host"
-                .to_owned(),
-        );
-    }
-    Ok(token)
+/// The operator's admin token, checked under the invite's rules — legal, never echoed.
+fn admin_token_checked(token: String) -> Result<AdminToken, String> {
+    AdminToken::given(token).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
+}
+
+/// Who may join and who is the host: refused when the admin token equals the invite or a seat grant,
+/// which would make every holder of that credential the host (`PROTOCOL.md` §11.1). Nothing is echoed.
+fn access(admission: Admission, admin: Option<AdminToken>) -> Result<Access, String> {
+    Access::new(admission, admin).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
 }
 
 /// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as
