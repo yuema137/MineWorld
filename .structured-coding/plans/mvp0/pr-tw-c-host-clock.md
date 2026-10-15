@@ -963,6 +963,25 @@ No TW-c question remains open.
 - **F-TWc-3 (measurement defect, fixed).** The 7 journeys over 50 % were otto's. He is a Person no seat drives and never
   moves (`routines.rs` asserts it). FX-24 now measures seated people only and prints the excluded count (7). This is a
   population correction, not a threshold change. Thresholds (25 %, 50 %, 90 %, 80 %) unchanged.
+- **C9 close-out (2026-10-14).**
+  - Scope check (AC-TWc-10): `git diff origin/main` under kernel/, contracts/, systems/, cognition/, sdk/, authoring/,
+    clients/protocol/mineworld/ is empty. Cargo.lock changes are only the workspace crates' own entries (the
+    employment entry was removed, see the merge). Server sizes: host.rs 457, runtime.rs 489, session.rs 449,
+    protocol.rs 420, app.rs 173 (all under 500).
+  - Local gate under R-LOAD-1 (load average above 200): `cargo fmt --all -- --check` 0; `cargo clippy --workspace
+    --all-targets -- -D warnings` 0. No local `cargo test --workspace`: stopped; the test gate is CI.
+  - **workspace gate: CI run <pending> on <sha-pending> (R-LOAD-1).** Filled in on the PR; see the PR body.
+  - AC-TWc-8 (300-day digests, base vs TW-c): not measured locally under R-LOAD-1. Local evidence: `run --pace 900`
+    output identical to the default (`cmp`, wall line excluded, social-cafe seed 7, 20 days). The 300-day parity
+    record (`scripts/ci_parity.py record`) runs on the CI platforms for the nightly and is not a local gate here.
+  - **F-TWc-4 (AC-TWc-7 borderline).** Live walker, 6× → 24× (after stride 7) → 12× (after stride 14): run 1 measured
+    6× 1343.7 mm/s, 24× 1220.6, 12× 1339.0; the within-10 % spread check failed by 0.04 points (1343.7 vs
+    1.10 × 1220.6 = 1342.7). Run 2, unchanged, passed. Thresholds unchanged (a threshold change after a run is
+    material, §13). Reported as borderline for the operator. The 24× segment has six pairs and is the noisy one.
+  - F-persist-1 (known flake, `persistence` kill_and_resume): not observed in this PR's local runs; the local
+    workspace test run was stopped before it reached that test. CI is the place to see it.
+  - Status: pushed to `mvp0/pr-tw-c` with a PR; READY FOR OPERATOR REVIEW only when the CI jobs (fast, test,
+    test-macos, test-windows, platforms, python) are green on the exact head.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
