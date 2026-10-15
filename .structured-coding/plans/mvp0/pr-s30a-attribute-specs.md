@@ -480,7 +480,35 @@ No question remains open.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C5 | — | [ ] | [ ] | [ ] |
+| C0 base and ledger | this commit | [x] base, ids, merge states and rulings recorded below; handoff opened | [x] `python3 scripts/ci_layer.py docs`: PASS (3 commands, 0.1 s) | [x] every ruling quoted from §14.1 and S30-b §14.1; branch of F-S30a-1 chosen from evidence |
+| C1 … C5 | — | [ ] | [ ] | [ ] |
+
+### C0 — the base (recorded 2026-10-15)
+
+- **Session.** Implementation session (Opus), dispatched by the primary session on 2026-10-15.
+- **Worktree and branch, as dispatched.** `/Users/yuema137/mineworld-worktrees/impl-s30a`, branch `mvp0/pr-s30a`,
+  from `origin/main`. §8.0 and §12 name `impl-s30-a` and `docs/pr-s30a-attribute-specs`; the dispatch's names
+  are used (bounded deviation D-a-1 below). `git worktree list`: no other worktree holds this branch.
+- **Implementation base.** `origin/main @ 8c5d3598` (Merge pull request #234, `docs/pr-designs-s29a-s30ab`: S30-a
+  and S30-b DESIGN FROZEN, step-30 notes applied). The audit base of §3 was `e6030a36`; the step text this PR
+  reads is the one #234 left.
+- **Ids free.** `git grep -n "^## ARC-91\|^## ARC-74\|^## ARC-12[0-9]\|^## DEP-6[6-9]" origin/main --
+  docs/DECISIONS.md` printed nothing: `ARC-120` … `ARC-129` and `DEP-66` … `DEP-69` are free, and `ARC-91` and
+  `ARC-74` are absent.
+- **F-S30a-1's branch.** S26-a (#206, `mvp0/pr-s26a`) is **OPEN** (`gh pr list`), and P6a's `ARC-74` is not on
+  `main`. C4 therefore writes `ARC-125` in full, stating `ARC-91` item 3's amended text itself and naming
+  `ARC-91` as the record it amends on S26-a's merge; R-S26a-a-1 and R-P6a-a-1 stand for whichever merges second.
+- **`overall.md` (A-13).** Superseded by the tree: `overall.md` §"S26–S33" already lists S30 (row "S30 …
+  APPROVED 2026-10-15 … person attributes and dependency-aware population sampling") and states that S29–S33 are
+  MVP-0 and release-blocking. C5 is therefore a **reconciliation** (§2.1 item 6), not a new entry.
+- **Rulings confirmed.** Q-S30a-1 ("Add `core.natal-sex` as a built-in"), Q-S30a-2 ("`employment.occupation` is
+  added by S30-f, as a named exception to step-30 §9.4") and, in `pr-s30b-authoring-seam.md` §14.1, Q-S30b-1
+  ("Declarations are compiled in through `SystemPack::SHIPS` / `ships_data!`") — each "Ruled 2026-10-15 (operator
+  answered directly in the primary session)". No commit is blocked.
+- **Scope added by the dispatch (D-a-2).** The primary's dispatch makes one parent reconciliation part of this
+  PR: step-30 §§6.6 and 9.6 still name `core.wealth-band` / `core.occupation`; they become `economy.wealth-band`
+  / `employment.occupation` with a dated note (F-S30a-2). §11 lists that edit as the primary's; the primary
+  delegated it here. It is commit C4b, and I-a-1's file list gains `step-30-person-attributes.md` for it.
 
 ### AC-a-2 review table (one row per step section)
 
@@ -489,3 +517,11 @@ No question remains open.
 ### Deviations and findings
 
 F-S30a-1 … F-S30a-6 (§3.2), recorded at design time.
+
+- **D-a-1 (bounded).** Deviation: worktree `impl-s30a` and branch `mvp0/pr-s30a` instead of §12's `impl-s30-a`
+  and `docs/pr-s30a-attribute-specs`. Reason: the primary's dispatch names them. Impact: none on scope; the PR's
+  head branch is `mvp0/pr-s30a`. Validation: `git status` in the worktree.
+- **D-a-2 (bounded, primary-authorized).** Deviation: `step-30-person-attributes.md` is edited (§§6.6, 9.6, and
+  the §4.5 example the same finding touches), which I-a-1 did not list. Reason: the primary's dispatch, which
+  owns §11's parent edits, assigned the reconciliation to this PR. Impact: one extra file, one extra commit
+  (C4b); no frozen invariant changes. Validation: C5's `git diff --name-only`.
