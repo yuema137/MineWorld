@@ -46,7 +46,7 @@ def welcome(
         "paused": False,
         "entities": 3,
         "systems": [],
-        "seats": ["wanderer"],
+        "seats": ["alice", "wanderer"],
         "clients": 1,
         "observations_dropped": 0,
         "events_dropped": 0,

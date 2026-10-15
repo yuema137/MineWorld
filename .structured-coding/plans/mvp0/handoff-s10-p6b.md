@@ -41,13 +41,12 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; each real-b
                     Linux. Gate 1 (AP6-14): operator only, NOT RUN by agents
 BUILD ENV           export PATH="$HOME/.cargo/bin:$PATH"; export CARGO_TARGET_DIR=/tmp/impl-s10-p6b-target
                     (`mineworld` binary: $CARGO_TARGET_DIR/debug/mineworld)
-CURRENT CHECKPOINT  C0 … C11 committed (ledger §15). D-P6b-3 ruled option (a) and applied (`seat_overrides`).
-                    C10: decision log, counters, replay. C11: the seat runner (`controller/seat.py`,
-                    `triggers.py`, `resume_file.py`), 10 tests green, M-P6-10 and M-P6-7 seen red and reverted.
-                    D-P6b-15 … D-P6b-20 recorded in §15. C12–C15 are the next commits. Branch: mvp0/pr-s10-p6b,
-                    based on origin/main @ 9aa185b, which must be merged with origin/main @ f772a18 before the push
-NEXT ACTIONS        PAUSED at a MATERIAL STOP before C12 (D-P6b-21): the design's `welcome.world.id` check cannot
-                    be done, because the welcome has no world id. Waiting for the operator's ruling (option (a):
-                    check `lm` seat keys against `welcome.world.seats`; option (b): a server change, not in P6).
-                    After the ruling: C12 (§9.0), then C13–C15, then merge origin/main, push, open the PR, CI green
+CURRENT CHECKPOINT  C0 … C12 committed or ready (ledger §15). C12: `__main__.py` (`python -m mineworld_cognition`),
+                    `examples/local.toml`, README section, `tests/realserver.py`, `tests/test_controller_server.py` (5 real-binary
+                    tests, 26 s), D-P6b-21 check (`welcome.world.seats`), leave on Ctrl-C (D-P6b-22). M-P6-6 seen red and reverted.
+                    A-P6-2 and A-P6-4 TRUE on the real binary (no material stop). D-P6b-22 … D-P6b-28 recorded in §15; the
+                    primary reviews D-P6b-22/23 (edits outside C12's Files list) and rules on D-P6b-24/25 before push.
+                    Branch: mvp0/pr-s10-p6b, based on origin/main @ 9aa185b, which must be merged with origin/main @ f772a18
+                    before the push
+NEXT ACTIONS        C13 (§9.0), C14, C15, then the primary: merge origin/main, push, open the PR, CI green on the exact head
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

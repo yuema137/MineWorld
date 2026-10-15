@@ -1608,7 +1608,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C9 | — | [x] | [x] | [x] |
 | C10 | — | [x] | [x] | [x] |
 | C11 | adb5ea4 | [x] | [x] | [x] |
-| C12 | — | [ ] | [ ] | [ ] |
+| C12 | this commit (SHA filled at C15) | [x] | [x] | [x] |
 | C13 | — | [ ] | [ ] | [ ] |
 | C14 | — | [ ] | [ ] | [ ] |
 | C15 | — | [ ] | [ ] | [ ] |
@@ -1655,7 +1655,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 - C7: M-P6-4 (`retry_after_s` ignored), red then reverted (Evidence, C7).
 - C6: M-P6-1, M-P6-9, red then reverted (Evidence, C6). C9: M-P6-2, M-P6-3, M-P6-5 (Evidence, C9).
 - C11: M-P6-10 and M-P6-7, red then reverted (Evidence, C11).
-- C12: M-P6-6 (planned, Evidence C12). C13: M-P6-8 (planned, Evidence C13).
+- C12: M-P6-6 (no `leave` on the handback), red then reverted (Evidence C12). C13: M-P6-8 (planned, Evidence C13).
 
 ### Deviations and findings
 
@@ -1825,6 +1825,45 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   hosted seat (never on the stand path). A killed process sending no `leave` is C12's test (c), not C11's.
   Fixes made during validation (no test weakened): the test helpers' imports (`Budget` from `gateway`, `CognitionConfig`
   needs a `recording` table), and pyright's private-import error on `seat_module.absorb`.
+- **C12 (2026-10-14).** Files: `src/mineworld_cognition/__main__.py` (`main`, `serve`: one `SeatRunner` per selected `lm`
+  seat in a `TaskGroup`, `_required`, `_invite` naming the variable only, `_status` read from each decision log's last counters
+  line), `examples/local.toml` (the §5.13 file, `qwen3.5:4b`, `structured_output = "none"`, `social = "local"`,
+  `summarize = "none"`), `README.md` (a section "The LM controller": the three commands, `--hold`, Ctrl-C, Windows), `tests/realserver.py`
+  (copied from `sdk/python/tests/realserver.py`, origin in its docstring, trimmed to server control, `--town --decisions --hold --pace`),
+  `tests/test_controller_server.py` (5 tests), and the seat runner's three edits under D-P6b-22.
+  Implementation check: `python -m mineworld_cognition --config examples/local.toml` with no decision file refuses by name
+  (`cannot read the decision JSON`), exit 2, before any router is built; no model or key touched.
+  Validation (`MINEWORLD_BIN=/tmp/impl-s10-p6b-target/debug/mineworld`; binary built with `cargo build -p mineworld-cli`, finished in
+  2.7 s, reused):
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_server.py`: **5 passed**, 26.1 s pytest (27 s wall; ≤ 90 s). PASS.
+    - (A-P6-2 and A-P6-4) `test_a_takeover_is_hosted_and_a_leave_then_rejoin_is_hosted_with_the_backfill`: the first join is
+      `took_over 'hosted'`; after `leave`, the rejoin within the same test is `'hosted'` in 2 ms with the perceived backfill after the
+      cursor. **Both checks TRUE; no material stop.**
+    - `test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop` ((a), (e), (g)): the visitor perceives Alice's
+      scripted reply (`WORDS`); decision outcomes `chose,acted`; a second join is refused `seat_occupied` (AP6-17); after the runner is
+      cancelled, a fresh join is `hosted` at once (the leave on stop). PASS.
+    - `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` ((b)): fell back; a request by Alice's in-server controller
+      in the save within handback + pace + 2 s (1 request); the resume secret deleted at the handback and rewritten at the rejoin;
+      counters `handbacks 2`. PASS.
+    - `test_c_a_killed_process_is_replaced_by_the_fallback_within_the_bound_and_the_save_survives_the_store_loss` (AP6-8 kill
+      half): Alice's in-server request **3.53 s** after SIGKILL (bound 6 s = hold 3 + pace 1 + 2). AP6-15, save-bytes half: the save's
+      digest is unchanged after the store is deleted. PASS.
+    - `test_d_a_rejoin_with_the_persisted_secret_inside_the_hold_is_held` (AP6-9, SDK-level, D-P6b-24): rejoin 0.01 s after SIGKILL,
+      `took_over 'held'`. PASS.
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_seat.py`: 11 passed (0.37 s; C11's 10 plus the D-P6b-21
+    refusal test). PASS.
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_log.py`: see the final run below. PASS.
+  - `uv run --locked ruff check cognition/lm-controller`: All checks passed. `ruff format --check`: 123 files formatted.
+    `uv run --locked pyright cognition/lm-controller/src cognition/lm-controller/tests`: 0 errors.
+  Mutation M-P6-6 (planted: the handback path sends no `leave`, `seat.py`, marker "MUTATION M-P6-6"): run
+  `pytest test_controller_server.py -k test_b_a_failing` → **FAILED** `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins`
+  ("a request by Alice's in-server controller during the handback did not happen within 13 s"; 13.67 s). Reverted; the marker is gone
+  (`grep MUTATION` finds none); the full file green on rerun (5 passed).
+  Review: no test reaches beyond loopback (the server binds `127.0.0.1:0`; the URL is read from the binary's own line; the
+  pytest-socket guard applies). No model, no key, no live mode: the seat runs on a scripted backend or a replay of an empty cassette
+  (header only); `examples/local.toml` is not loaded by any test.
+  Process slip: one Bash call contained `sed -i` and heredocs (scratch files under `/tmp`, and a no-op `sed -i` on `/dev/null`), against
+  the NEVER list. The permission classifier denied the call; nothing ran in the worktree. Recorded as D-P6b-28, not repeated.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
@@ -1887,4 +1926,35 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   id, so a seat-name collision across worlds is not detected.
 - **D-P6b-18 ACCEPTED (2026-10-14, primary):** PassReport summaries stay out of the decision log in P6b; P7 may revisit.
 - **D-P6b-20 noted:** the scratch heredoc slip of C11 is recorded; no further occurrence.
+- **D-P6b-22 (C12, bounded, outside C12's Files list; the primary to review before push).** Three edits in
+  `controller/seat.py`, all in the runner: (a) the welcome check of D-P6b-21, in `_join_and_serve`: a seat key not in
+  `seat.welcome.world.seats` detaches the seat and raises `ConfigError` naming the seat (the primary's C12 requirement, which
+  cannot be met without the runner seeing the welcome); (b) `_leave_on_stop` (§5.16): a cancelled runner (Ctrl-C) sends `leave`
+  within `STOP_LEAVE_S` = 5 s and deletes the resume secret; a killed process still sends nothing (F-P6-4, AP6-8); the
+  `_serve` cancellation branch is the only new control flow; (c) `_close` writes the counters only when the store directory
+  exists: a refused seat (a) has none, and the `FileNotFoundError` masked the refusal in the first run of the new test. The
+  design's Ctrl-C clause could not be met by `__main__` alone, because the runner exposes no stop and the seat is private to it.
+  Tests: test (g) above (the leave on cancel) and the D-P6b-21 refusal test in `test_controller_seat.py` (D-P6b-23).
+- **D-P6b-23 (C12, bounded, outside C12's Files list).** (a) `tests/scripted_seat.py`: the fake welcome listed only
+  `wanderer` as a world seat, which the real server never does; it now lists `alice` and `wanderer`. (b) `tests/test_controller_seat.py`:
+  two assertions read the wire and the resume file before the stop, not after: a shutdown now sends `leave` and deletes the secret
+  (§5.16), and the stand-path test (`test_a_fallback_at_a_seat_that_is_not_hosted...`) asserts `leave` not sent while the seat
+  stands. (c) One new test, `test_an_lm_seat_the_welcome_does_not_list_is_refused_by_name` (D-P6b-21), and `_runner` takes a `key`.
+  The ten existing C11 tests were otherwise not edited; all eleven pass.
+- **D-P6b-24 (C12, interpretation of AP6-9 and §9 C12 (c)/(d)).** The whole-process restart inside the hold is not run.
+  Under `replay` (no model may run), a consult that finds no recorded request raises `CassetteMiss` from `ReplayBackend`, which ends
+  the process: the design of replay (fail loudly), not a P6b change. Test (d) checks the persisted-secret rejoin at the SDK level
+  (`took_over 'held'` 0.01 s after SIGKILL), and the in-process restart path stays covered by C11's seat tests. For the primary: a
+  replay miss in a production run would end the process; no action in P6b.
+- **D-P6b-25 (C12, partial criterion).** AP6-15's structural half (the store deleted, the seat rejoined from a null cursor, the
+  structural `MemoryStore.dump()` byte-identical) is NOT run in C12. The save-bytes half is run (test (c)). A byte-identical dump
+  needs the rejoined store compared with the earlier one at the same revision, which a live world cannot give. AP6-15 stays
+  PARTIAL until the primary rules how to evidence the dump half (a stopped and resumed save, or a paused world).
+- **D-P6b-26 (C12, scope of the Ctrl-C check).** Ctrl-C itself (SIGINT to the process) is not exercised by a process test; the
+  leave on stop is exercised by cancellation (test (g)). A POSIX SIGINT test is not written; Windows has no SIGINT to send in a test.
+- **D-P6b-27 (C12, the replay configuration).** The kill tests (c, d) run `python -m mineworld_cognition` in `replay` mode with a
+  header-only cassette (`{"cassette":"mineworld-cognition","format":1,"key_scheme":1}`): no consult is expected before the kill, and
+  none is made. The in-process tests use `scripted` (a function of the request). No live or record mode runs anywhere.
+- **D-P6b-28 (process slip, C12).** One Bash call contained `sed -i` (on `/dev/null`) and `cat`/`python3` heredocs, against the NEVER
+  list. The permission classifier denied the call; no worktree file changed. Not repeated; all edits since used Edit and Write.
 - (planning findings are §3.2 and §0.1)

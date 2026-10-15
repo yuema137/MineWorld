@@ -79,6 +79,35 @@ of the entry-point group `mineworld.forgetting`; a policy of your own is a packa
 No model is involved. Specification:
 [`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md).
 
+**The LM controller** (`python -m mineworld_cognition`; `ARC-72`, `ARC-73`) makes one of a world's people
+decide through a language model, while the world stays valid without any model. The decisions are social
+only: what Alice says, to whom, and which offer she takes. Her fallback model drives her whenever no
+process holds her seat. Specification:
+[`pr-s10-p6-lm-controller.md`](../../.structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md).
+
+Run it from the repository root, after `cargo build -p mineworld-cli`:
+
+```sh
+target/debug/mineworld server worlds/social-cafe --town --decisions cognition/lm-controller/examples/alice-lm.decisions.yaml --save <dir>
+target/debug/mineworld decisions worlds/social-cafe --decisions cognition/lm-controller/examples/alice-lm.decisions.yaml --json > seats.json
+MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config cognition/lm-controller/examples/local.toml
+```
+
+- The configuration names the server, the store, and `seats.json` (`decisions_json`). The invite is read
+  from the environment variable the file names (`invite_env`); its value is never printed.
+- The process refuses to start, naming the file, when `seats.json` has no `lm` seat, or when an `lm` seat
+  is not one of the world's seats in the server's welcome (`D-P6b-21`). The welcome carries no world
+  identifier, so a seat name that two worlds share is not told apart (`F-P6b-21`).
+- `--hold` (the server's seat hold, default 30 s; `QP6-9`) is the time a killed process's seat stays held
+  before Alice's fallback drives her again. The examples use 3 s so that a test can see it.
+- Ctrl-C leaves every seat within 5 s and deletes its resume secret; a killed process leaves nothing
+  behind, and the seat returns to its fallback after the hold. Each seat prints one status line at exit,
+  from its decision log's last counters line.
+- Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits
+  your profile's permissions. Paths are resolved against the configuration file on every platform.
+- The admitted-model table and the procedure for admitting another model are added with the spike tool
+  (C14).
+
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 
 ```sh

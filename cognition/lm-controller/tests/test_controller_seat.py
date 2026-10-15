@@ -41,6 +41,7 @@ from mineworld_cognition.controller.log import DecisionRecord, read_decisions
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.triggers import detect
+from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
@@ -110,12 +111,13 @@ def _runner(
     server: ScriptedServer,
     clock: FakeClock,
     backend: ScriptedAnswers,
+    key: EntityKey = ALICE,
 ) -> SeatRunner:
     budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
     router = Router({"social": ModelGateway(backend, budget)}, budget)
     return SeatRunner(
         _config(),
-        LmSeat(key=ALICE, memory=None),
+        LmSeat(key=key, memory=None),
         router=router,
         connector=server,
         invite=Invite(INVITE),
@@ -270,8 +272,9 @@ def test_a_fallback_at_a_seat_that_is_not_hosted_stands_and_sends_nothing(tmp_pa
         await until(lambda: "join" in link.kinds(), "the join")
         link.say(perceived("2", spoke("2", speaker="5")))
         await _logged(tmp_path, 1)
+        kinds = link.kinds()  # read while the seat stands: a shutdown's leave (§5.16) comes after
         await _cancel(task)
-        return link.kinds()
+        return kinds
 
     kinds = run(scenario())
     assert "leave" not in kinds
@@ -347,22 +350,41 @@ def test_a_seat_that_is_occupied_is_retried_at_seat_retry_s(tmp_path: Path) -> N
 def test_no_secret_reaches_the_decision_log_the_store_or_a_repr(tmp_path: Path) -> None:
     planted = secret(0xC0FFEE)
 
-    async def scenario() -> SeatRunner:
+    async def scenario() -> tuple[SeatRunner, str]:
         link = Link(welcome(resume=0xC0FFEE, took_over="none"), observation(1))
         runner = _runner(tmp_path, ScriptedServer(link), FakeClock(), ScriptedAnswers(_nothing))
         task = asyncio.create_task(runner.run())
         await until(lambda: "join" in link.kinds(), "the join")
         link.say(perceived("2", spoke("2", speaker="5")))
         await _logged(tmp_path, 1)
+        written = (tmp_path / "store" / "alice.resume").read_text()
         await _cancel(task)
-        return runner
+        return runner, written
 
-    runner = run(scenario())
-    assert planted in (tmp_path / "store" / "alice.resume").read_text()
+    runner, written = run(scenario())
+    assert planted in written
+    assert not (tmp_path / "store" / "alice.resume").exists(), (
+        "a shutdown deletes the secret (§5.16)"
+    )
     for path in (tmp_path / "store").iterdir():
-        if path.name != "alice.resume":
-            assert planted.encode() not in path.read_bytes(), path.name
+        assert planted.encode() not in path.read_bytes(), path.name
     assert planted not in repr(runner)
+
+
+def test_an_lm_seat_the_welcome_does_not_list_is_refused_by_name(tmp_path: Path) -> None:
+    """D-P6b-21: at the welcome, the runner's own seat must be one of `welcome.world.seats`; a key that is not
+    refuses to run, with the seat named, and the seat is detached rather than held."""
+    link = Link(welcome(resume=1, took_over="none"), observation(1))
+    runner = _runner(
+        tmp_path,
+        ScriptedServer(link),
+        FakeClock(),
+        ScriptedAnswers(_nothing),
+        key=EntityKey("bob"),
+    )
+    with pytest.raises(ConfigError, match="seat bob: the decision file names an lm seat"):
+        run(runner.run())
+    assert "leave" not in link.kinds()
 
 
 def _arrival(event: str) -> PerceivedEvent:

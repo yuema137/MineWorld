@@ -87,6 +87,8 @@ FALLBACK_OUTCOMES = frozenset({"fell_back", "budget", "disconnected"})
 SEAT_CHANGED = frozenset({"taken_over", "seat_occupied"})
 """The losses after which the runner waits `seat_retry_s` and joins again (§5.8)."""
 SPOKE = "spoke"
+STOP_LEAVE_S = 5
+"""The bound of a shutdown's `leave` (§5.16: every seat leaves within 5 s on Ctrl-C)."""
 
 
 class _StoreCursor:
@@ -181,6 +183,12 @@ class SeatRunner:
                 await self._sleep(float(self._controller.seat_retry_s))
                 continue
             break
+        if self._key not in seat.welcome.world.seats:
+            await seat.detach()
+            raise ConfigError(
+                f"seat {self._key}: the decision file names an lm seat the world does not have "
+                "(the welcome's seats; D-P6b-21)"
+            )
         self._open_store(seat)
         self._persist(seat)
         return await self._serve(seat)
@@ -241,6 +249,9 @@ class SeatRunner:
         consults = asyncio.create_task(self._consults(seat))
         try:
             await asyncio.wait({ingest, watch, consults}, return_when=asyncio.FIRST_COMPLETED)
+        except asyncio.CancelledError:
+            await self._leave_on_stop(seat)
+            raise
         finally:
             for task in (ingest, watch, consults):
                 task.cancel()
@@ -302,6 +313,16 @@ class SeatRunner:
             record = await self._consult_once(seat, trigger)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
+
+    async def _leave_on_stop(self, seat: ResumingSeat) -> None:
+        """A shutdown (Ctrl-C, §5.16) gives the seat back at once, within `STOP_LEAVE_S`, and deletes the
+        secret. A killed process sends nothing: the hold runs out instead (F-P6-4)."""
+        try:
+            async with asyncio.timeout(STOP_LEAVE_S):
+                await seat.leave()
+        except Exception:
+            pass
+        resume_file.delete(self._resume_path)
 
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
@@ -435,7 +456,9 @@ class SeatRunner:
         return counters_from(self._records).model_copy(update=self._runner_counts)
 
     def _close(self) -> None:
-        self._log.counters(self._counters())
+        # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.
+        if self._store_dir.is_dir():
+            self._log.counters(self._counters())
         if self._store is not None:
             self._store.close()
             self._store = None
