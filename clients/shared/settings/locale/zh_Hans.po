@@ -146,6 +146,33 @@ msgstr "保留"
 msgid "ui.settings.undo"
 msgstr "立即还原"
 
+msgid "ui.settings.tab.controls"
+msgstr "控制"
+
+msgid "ui.settings.controls.sensitivity"
+msgstr "鼠标灵敏度"
+
+msgid "ui.settings.controls.invert_y"
+msgstr "反转纵向视角"
+
+msgid "ui.settings.controls.invert_y.on"
+msgstr "开"
+
+msgid "ui.settings.controls.invert_y.off"
+msgstr "关"
+
+msgid "ui.settings.controls.keys"
+msgstr "按键映射"
+
+msgid "ui.settings.controls.keys.none"
+msgstr "未设置"
+
+msgid "ui.settings.controls.read_only"
+msgstr "目前按键不可更改。"
+
+msgid "ui.settings.key.menu"
+msgstr "打开菜单"
+
 msgid "hint.controls"
 msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  释放鼠标"
 

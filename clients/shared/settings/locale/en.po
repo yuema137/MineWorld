@@ -155,6 +155,35 @@ msgstr "Keep"
 msgid "ui.settings.undo"
 msgstr "Revert now"
 
+# The Controls tab (clients/shared/SETTINGS.md §7.1; SET-b). The key-map rows' names are added with the
+# client that declares them (ui.settings.key.*), because each key must be asked for by a script.
+msgid "ui.settings.tab.controls"
+msgstr "Controls"
+
+msgid "ui.settings.controls.sensitivity"
+msgstr "Mouse sensitivity"
+
+msgid "ui.settings.controls.invert_y"
+msgstr "Invert vertical look"
+
+msgid "ui.settings.controls.invert_y.on"
+msgstr "On"
+
+msgid "ui.settings.controls.invert_y.off"
+msgstr "Off"
+
+msgid "ui.settings.controls.keys"
+msgstr "Key map"
+
+msgid "ui.settings.controls.keys.none"
+msgstr "no key"
+
+msgid "ui.settings.controls.read_only"
+msgstr "Key bindings are fixed for now."
+
+msgid "ui.settings.key.menu"
+msgstr "Open the menu"
+
 # The 3D client's own text, until it reads a Presentation Pack (S14 16f), when these move, keys
 # unchanged, to presentation/mineworld-default/3D/i18n/. In English each reads exactly as before S20.
 msgid "hint.controls"

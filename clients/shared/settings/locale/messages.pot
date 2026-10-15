@@ -192,6 +192,42 @@ msgstr ""
 msgid "ui.settings.undo"
 msgstr ""
 
+#. Controls
+msgid "ui.settings.tab.controls"
+msgstr ""
+
+#. Mouse sensitivity
+msgid "ui.settings.controls.sensitivity"
+msgstr ""
+
+#. Invert vertical look
+msgid "ui.settings.controls.invert_y"
+msgstr ""
+
+#. On
+msgid "ui.settings.controls.invert_y.on"
+msgstr ""
+
+#. Off
+msgid "ui.settings.controls.invert_y.off"
+msgstr ""
+
+#. Key map
+msgid "ui.settings.controls.keys"
+msgstr ""
+
+#. no key
+msgid "ui.settings.controls.keys.none"
+msgstr ""
+
+#. Key bindings are fixed for now.
+msgid "ui.settings.controls.read_only"
+msgstr ""
+
+#. Open the menu
+msgid "ui.settings.key.menu"
+msgstr ""
+
 #. W A S D  move     Shift  jog     Space  jump     V  camera     Esc  release mouse
 msgid "hint.controls"
 msgstr ""
