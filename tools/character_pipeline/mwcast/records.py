@@ -191,7 +191,7 @@ class GameReady:
 @dataclass(frozen=True)
 class Fit:
     rig_source: str
-    charmorph_front_y_at_hips: float
+    charmorph_body: str
     charmorph_landmarks_z: tuple[float, ...]
     frame: str
     view_px: int
@@ -329,7 +329,7 @@ def parse_fit(raw: object, source: Path) -> FitParams:
     picks: dict[str, tuple[int, int]] = {}
     fit_model = Fit(
         rig_source=fit_s.text("rig_source"),
-        charmorph_front_y_at_hips=fit_s.number("charmorph_front_y_at_hips"),
+        charmorph_body=fit_s.text("charmorph_body"),
         charmorph_landmarks_z=fit_s.numbers("charmorph_landmarks_z", 7),
         frame=picks_s.text("frame"),
         view_px=picks_s.integer("view_px", low=1),
@@ -531,7 +531,7 @@ DEFAULTS: dict[str, object] = {
     "gameready.bake.ray_m": 0.04,
     "gameready.bake.device": "auto",
     "fit.rig_source": "clients/3d-spike/assets/characters/vitruvian/vitruvian.glb",
-    "fit.charmorph_front_y_at_hips": -0.045356,
+    "fit.charmorph_body": "tools/character_pipeline/rig_source/body_g5.glb",
     "fit.charmorph_landmarks_z": (-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637),
     "fit.frame": "dplus-v1",
     "fit.view_px": 1024,
@@ -588,7 +588,7 @@ def flatten(fit: FitParams) -> dict[str, object]:
         "gameready.bake.ray_m": b.ray_m,
         "gameready.bake.device": b.device,
         "fit.rig_source": fit.fit.rig_source,
-        "fit.charmorph_front_y_at_hips": fit.fit.charmorph_front_y_at_hips,
+        "fit.charmorph_body": fit.fit.charmorph_body,
         "fit.charmorph_landmarks_z": fit.fit.charmorph_landmarks_z,
         "fit.frame": fit.fit.frame,
         "fit.view_px": fit.fit.view_px,

@@ -8041,7 +8041,7 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 | UniRig (`VAST-AI-Research/UniRig`) | MIT licence; README requires a CUDA GPU with at least 8 GB VRAM and Python 3.11 with PyTorch >= 2.3.1 | Declined for the cast's CI-free local path and for the hardware floor; evaluated in S26-b2 only if its weight quality is shown |
 | RigNet (`zhan-xu/RigNet`) | GPL-3.0 (`LICENSE-GPLv3`) | Declined: a GPL-3.0 dependency in the mesh path would bind the pipeline's licence; not used |
 
-**Choice.** Our fitted armature is kept. The per-character number is the one recorded value (`charmorph_front_y_at_hips`), not a new rig source. A binary rig body (`body_g5.glb`, 6.4 MB) is not committed (`Q-B1-2`); S26-b2's weight-transfer prototype asks for it with its measured need, under `DEP-53`.
+**Choice.** Our fitted armature is kept. **Amended 2026-10-14 (primary ruling F-B1-B10-2, option (b) of `Q-B1-2`):** the one recorded number is retired, because the CharMorph front surface is read from the committed CC0 body export `tools/character_pipeline/rig_source/body_g5.glb` (6.4 MB; SHA-256 `75b93806…`, provenance in `rig_source/PROVENANCE.txt`). The armature still comes from `vitruvian.glb`. S26-b2's weight-transfer prototype may still ask for the body's own weights under `DEP-53`.
 
 **Consequences.** The rig owns a 52-joint skeleton whose bone names G-5 checks; Meshy's rig is not a joint source in this PR.
 

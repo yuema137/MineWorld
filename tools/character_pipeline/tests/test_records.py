@@ -64,7 +64,7 @@ def _vera_fit() -> dict[str, object]:
         },
         "fit": {
             "rig_source": "clients/3d-spike/assets/characters/vitruvian/vitruvian.glb",
-            "charmorph_front_y_at_hips": -0.045356,
+            "charmorph_body": "tools/character_pipeline/rig_source/body_g5.glb",
             "charmorph_landmarks_z": [-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637],
             "picks": {
                 "frame": "dplus-v1",

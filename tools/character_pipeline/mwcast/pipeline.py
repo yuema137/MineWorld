@@ -121,11 +121,8 @@ def read_gameready(path: Path) -> GameReady:
     )
 
 
-def front_mesh_for_rig(rig_source: str) -> str:
-    """The CharMorph mesh whose front surface fit_bind reads (F-B1-B7-1).
-
-    `vitruvian.glb` keeps the same surface as its `Body` mesh; D+'s `body_g5.glb` names it `cm_vitruvian`."""
-    return "Body" if Path(rig_source).name == "vitruvian.glb" else "cm_vitruvian"
+# The CharMorph mesh whose front surface the centre points read, in `charmorph_body` (D+ rig_meshy.py:99).
+CM_FRONT_MESH = "cm_vitruvian"
 
 
 def _pack_core(fit: FitParams) -> dict[str, float]:
@@ -184,8 +181,8 @@ def stage_params(
             "picks": {key: list(value) for key, value in fit.fit.picks.items()},
             "px_per_raw_unit": fit.fit.px_per_raw_unit,
             "charmorph_landmarks_z": list(fit.fit.charmorph_landmarks_z),
-            "charmorph_front_y_at_hips": fit.fit.charmorph_front_y_at_hips,
-            "cm_front_mesh": front_mesh_for_rig(fit.fit.rig_source),
+            "charmorph_body": str((repo_root / fit.fit.charmorph_body).resolve()),
+            "cm_front_mesh": CM_FRONT_MESH,
             "head_rigid": {
                 "above_chin_m": w.head_rigid.above_chin_m,
                 "half_width_m": w.head_rigid.half_width_m,

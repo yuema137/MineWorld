@@ -145,7 +145,7 @@ override count. More than three overrides is a finding (step-26 §5.3). Hand-sup
 | `gameready.bake.extrusion_m`, `ray_m` | numbers | 0.015, 0.04 | `gameready_mesh.py` |
 | `gameready.bake.device` | `"auto"`, `"metal"`, `"cuda"`, `"optix"`, `"hip"` or `"cpu"` | `"auto"` | §5.13 |
 | `fit.rig_source` | repository path | `clients/3d-spike/assets/characters/vitruvian/vitruvian.glb` | `rig_meshy.py` |
-| `fit.charmorph_front_y_at_hips` | number, metres | −0.045356 (B10 measures it; ≤ 1e-5 difference is kept as measured) | A-B1-9 |
+| `fit.charmorph_body` | repository path to the CharMorph body export whose mesh `cm_vitruvian` gives the front surface at the hips and the head top (F-B1-B10-2) | `tools/character_pipeline/rig_source/body_g5.glb` (CC0; `rig_source/PROVENANCE.txt`) | D+ `rig_meshy.py:99-100` |
 | `fit.charmorph_landmarks_z` | list of 7 numbers | `[-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637]` | `rig_meshy.py` |
 | `fit.picks` | object: `frame` (`"dplus-v1"`), `view_px` (1024), `px_per_raw_unit` (512), and the 2D picks `r_shoulder` … `eye` as `[x, y]` integers | Vera's picks | D+ §8.2 |
 | `weights.head_rigid.above_chin_m`, `half_width_m` | numbers | 0.01, 0.16 | `reweight` head block |

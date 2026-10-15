@@ -6,7 +6,7 @@ Run by the driver as: blender --background --factory-startup <gameready.blend> -
 
 Statement for statement the D+ code, except where a value is read from params.json (PIPELINE.md §2.3, §4):
 the gameready transform (scale, sole raw and sole height), the picks, the pixel divisor, the CharMorph landmark
-heights, the hip front (measured once; `charmorph_front_y_at_hips`), the head and pack bounds, the smoothing
+heights, the CharMorph body that supplies the front surface (`charmorph_body`), the head and pack bounds, the smoothing
 settings, and whether the pack core applies. The method constants of `rig_meshy.py` (slab half-widths, the
 x filters, the toe offset, the foot selector) stay here, each with its D+ line (PIPELINE.md §2.4).
 
@@ -24,8 +24,7 @@ import common  # noqa: E402
 
 p = common.params()
 CM = p["rig_source"]
-# The CharMorph mesh whose front surface the centre points read (D+: "cm_vitruvian" in body_g5.glb). In
-# vitruvian.glb the same surface is its "Body" mesh; the driver passes the name (PIPELINE.md §2.4, F-B1-B7-1).
+# The CharMorph mesh whose front surface the centre points read: "cm_vitruvian" in body_g5.glb (D+ rig_meshy.py:99).
 CM_FRONT_MESH = p["cm_front_mesh"]
 S = p["scale"]  # gameready.json: the uniform scale of stage 6
 SOLE_M = p["sole_raw"]  # gameready.json: the lowest raw z
@@ -33,7 +32,7 @@ SOLE_Z = p["sole_z_m"]  # fit.gameready.sole_z_m
 PICKS = p["picks"]  # fit.fit.picks, the 2D picks on the frontal ortho render
 PX = p["px_per_raw_unit"]  # 1 px = 1/PX unit on the render
 CM_LM = p["charmorph_landmarks_z"]
-HIP_FRONT = p["charmorph_front_y_at_hips"]
+CM_BODY = p["charmorph_body"]  # the CharMorph body export whose "cm_vitruvian" front surface the centres read
 HEAD_ABOVE_CHIN = p["head_rigid"]["above_chin_m"]
 HEAD_HALF = p["head_rigid"]["half_width_m"]
 PACK = p["pack_core"]
@@ -68,19 +67,27 @@ def front_y(mesh_co, z, half=0.03, band=0.01):
     return float(mesh_co[sel, 1].min()) if sel.sum() else None
 
 
-# --- CharMorph armature and body, for its bone layout and its own front surface
+# --- CharMorph armature (the rig source) for its bone layout
 before = set(bpy.data.objects)
 bpy.ops.import_scene.gltf(filepath=CM)
 new_objs = [o for o in bpy.data.objects if o not in before]
 arm = next(o for o in new_objs if o.type == "ARMATURE")
-# Blender renames an imported object that collides with the scene's "Body" to "Body.001": match the base name.
-cm_mesh = next(o for o in new_objs if o.type == "MESH" and o.name.split(".")[0] == CM_FRONT_MESH)
 arm.matrix_world.identity()
-cm_mesh.matrix_world.identity()
-cm_co = np.array([v.co[:] for v in cm_mesh.data.vertices])
 for o in new_objs:
     if o.type == "MESH":
         bpy.data.objects.remove(o, do_unlink=True)
+
+# --- CharMorph body (PIPELINE.md §2.4, F-B1-B10-2): its own front surface, read at every centre point. It is
+# imported, read and removed; only the armature above stays. Blender renames an object that collides with the
+# scene's "Body" to "Body.001", so the mesh is matched by its base name.
+before_body = set(bpy.data.objects)
+bpy.ops.import_scene.gltf(filepath=CM_BODY)
+body_objs = [o for o in bpy.data.objects if o not in before_body]
+cm_mesh = next(o for o in body_objs if o.type == "MESH" and o.name.split(".")[0] == CM_FRONT_MESH)
+cm_mesh.matrix_world.identity()
+cm_co = np.array([v.co[:] for v in cm_mesh.data.vertices])
+for o in body_objs:
+    bpy.data.objects.remove(o, do_unlink=True)
 
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.mode_set(mode="EDIT")
@@ -109,14 +116,11 @@ x_scale = (J["l_shoulder"][0] - J["r_shoulder"][0]) / (cm["LeftArm"][0].x - cm["
 print(f"shoulder width ratio {x_scale:.3f}")
 
 
-def centre(p_cm, front_cm=None):
-    """A centre-line point: z mapped, x scaled, y kept at its offset behind the front surface.
-
-    `front_cm` is the CharMorph front at this height. For the hips it is the measured value from the parameters,
-    because the CharMorph body itself is not in the repository (PIPELINE.md §4.1, A-B1-9). Every centre point still
-    needs the new body's front surface."""
+def centre(p_cm):
+    """A centre-line point: z mapped, x scaled, y kept at its offset behind the CharMorph front surface at its
+    height and behind the new body's front surface at the mapped height (D+ rig_meshy.py:99-100)."""
     z = zmap(p_cm.z)
-    fc = front_cm if front_cm is not None else front_y(cm_co, p_cm.z)
+    fc = front_y(cm_co, p_cm.z)
     fn = front_y(co, z)
     if fc is None or fn is None:
         raise SystemExit(f"no front surface near z {p_cm.z:.3f}/{z:.3f}")
@@ -125,7 +129,7 @@ def centre(p_cm, front_cm=None):
 
 new_head = {}
 for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
-    new_head[n] = centre(cm[n][0], HIP_FRONT if n == "Hips" else None)
+    new_head[n] = centre(cm[n][0])
 head_tail = centre(cm["Head"][1])
 # Above the hips the front-surface offset is unreliable: the open hoodie and the tee stand off the
 # chest, and the backpack hides the back, so the spine landed on the back surface (rig/bones_side).
