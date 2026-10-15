@@ -1192,3 +1192,16 @@ the primary session's dispatch.
   C1.
 - Agent CLI isolation, turn and budget flags: **verify** at 25f C0 against the CLI's own `--help` and documentation.
 - Repository audit: `origin/main @ 171ea06`, paths and line numbers as cited in §2.
+
+---
+
+## 17. Evidence ledger — PR 25b (`mvp0/pr-s25b`)
+
+Recorded by the implementing session (Haiku-class, 2026-10-14). Results are `PASS`, `FAIL` or `INCONCLUSIVE`
+from actual output. Mutations are applied one at a time and reverted; the failing test name is the evidence.
+
+| Commit | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| C0 | Implementation: `MODULE_SPEC.md` §5.2 and `cognition/lm-controller/README.md` link the generated pages | PASS | the two edits; the `cognition-toml.md` link is valid only once C1 lands (same PR head) |
+| C0 | Validation: `check_doc_headings.py`, `check_decision_ids.py` | PASS | `223 numbered sections across 31 documents, none duplicated`; `122 decision ids, all distinct` |
+| C0 | LLM review: README stays short | PASS | one added clause and a link; no rule moved out of the spec |
