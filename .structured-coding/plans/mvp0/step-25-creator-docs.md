@@ -1,9 +1,13 @@
 # Step 25 — S25: creator documentation, tutorials and an onboarding test
 
-**Lifecycle:** `DRAFT (2026-10-14)`. Not frozen. Nothing here authorizes implementation. The step plan
-(scope, invariants, PR split, adversarial criteria) is frozen only by the operator's rulings on §13, recorded
-by the primary session. Each PR is then detailed to the commit and frozen on its own, in the usual way
-(`overall.md` §5 ruling 9).
+**Lifecycle:** `STEP DESIGN FROZEN 2026-10-14 (operator QS25-1/2/3/9/10; others as recommended)`. The step
+plan (scope, invariants, PR split, adversarial criteria) is frozen on the rulings recorded in §13.1. Each PR is
+still detailed to the commit in its implementing session's first commit and frozen on its own by the primary
+session (`overall.md` §5 ruling 9). Nothing here authorizes a merge. **Implementers:** 25a goes to an
+Opus-class implementer; 25b, 25c, 25d, 25e and 25f go to Haiku-class implementers. Each starts only on the
+primary session's dispatch, in a fresh session and its own worktree. Progress, evidence and bounded corrections
+stay writable.
+*Superseded header:* `DRAFT (2026-10-14)`, PR #185 commit `bf6a8d4`.
 **Author:** the S25 planning session, 2026-10-14. Worktree `/Users/yuema137/mineworld-worktrees/design-s25`,
 branch `docs/s25-design`, from `origin/main @ 171ea06`.
 **Effort:** `mvp0` · **Parent:** [`overall.md`](overall.md) · **Siblings it depends on:**
@@ -18,13 +22,14 @@ rulings); `docs/REUSE_POLICY.md`; `docs/MODULE_SPEC.md` §§4, 4.1, 4.2, 5.1, 5.
 ARC-31, ARC-33, ARC-53, ARC-54, ARC-61 … ARC-65, ARC-84 … ARC-88, DEP-10, DEP-11.
 **Scope of this file.** It is the only file this session writes. Edits to `CLAUDE.md`, `overall.md`,
 `docs/DECISIONS.md` and the specifications are proposed in §12 for the primary session (and, for `CLAUDE.md`,
-the operator) to apply. Decision numbers are **requested, not taken**: this document uses the placeholders
-`ARC-S25-a`, `DEP-S25-a` and `DEP-S25-b` (§11). The primary session's next free numbers on 2026-10-14 are
-`ARC-90` and `DEP-49`.
+the operator) to apply; the primary applies the `CLAUDE.md` §2.1 edit in its own PR. Decision numbers were
+assigned by the primary session on 2026-10-14: `ARC-90`, `DEP-49` (`schemars`) and `DEP-50` (`pulldown-cmark` +
+`snapbox`) (§11). Next free: `ARC-91`, `DEP-51`. The records are written into `docs/DECISIONS.md` by the
+implementing PRs named in §11.
 
-Every statement about an external tool carries the date it was read (2026-10-14) and its source. A statement
-this session could not confirm from a primary source is marked **verify**, and the PR that first relies on it
-confirms it before freezing.
+Every statement about an external tool carries the date it was read (2026-10-14) and its source. Crate licences
+and maintenance were verified at freeze (§16). A statement still unconfirmed from a primary source is marked
+**verify**, and the PR that first relies on it confirms it before freezing.
 
 ---
 
@@ -33,7 +38,7 @@ confirms it before freezing.
 1. **The reference is generated from the types that decode the files.** Every file a creator writes is
    already decoded by a typed Rust (or Pydantic) type: `deny_unknown_fields` structs, `AuthoredSection::Authored`,
    `PackConfiguration::Configuration`, the SDK's `parameters!` blocks and `InteractionSection` declarations.
-   S25 derives a JSON Schema from each of those types with **`schemars`** (adopted, `DEP-S25-a`), reads the
+   S25 derives a JSON Schema from each of those types with **`schemars`** (adopted, `DEP-49`), reads the
    Interaction List declarations from the constants packs already compile, and renders both into Markdown with
    a new read-only subcommand, **`mineworld reference`**. The Python half (`cognition.toml`, memory policies)
    comes from Pydantic's own `model_json_schema()`. CI regenerates the reference and fails on any difference,
@@ -253,8 +258,9 @@ therefore cannot ship as Markdown inside the bundle without changing a frozen cr
 
 **`schemars`** (crates.io, read 2026-10-14 via `cargo search`: version `1.2.3`; "Generate JSON Schemas from Rust
 code"). It reads serde attributes and doc comments, supports `#[schemars(range(min, max))]`, `with`, and manual
-`impl JsonSchema`. Licence MIT (**verify** at 25a C0 with `cargo deny check licenses`). Maintenance and the 1.x
-API stability are **verify** items for 25a C0.
+`impl JsonSchema`. Licence MIT (`cargo info schemars`, 2026-10-14; repository `GREsau/schemars`, licence MIT, not
+archived, last push 2026-10-12, ~1.4k stars, MSRV 1.74). 25a C0 still runs `cargo deny check licenses` after the
+add, as for every dependency (DEP-22).
 
 **Why JSON Schema and not only Markdown.** The same generated schemas give editors completion and inline errors
 for the YAML (any YAML language server reads JSON Schema). That is a second use for the same artefact, not a
@@ -282,7 +288,7 @@ dependency.
 | E4 Python script (`scripts/`) with `markdown-it-py` | Same idea in Python | Yes | Declined: the binary's tests run under `cargo test` on all three OSes already (`test`, `test-windows`, `test-macos`); a Python runner would need a new job and a new dependency |
 | E5 Example worlds only, no page execution | Test the finished example world; leave the page untested | No: a page can say something the world no longer does | Declined |
 
-Both crates are test-only (`[dev-dependencies]` of `mineworld-cli`). `DEP-S25-b` records them (§11).
+Both crates are test-only (`[dev-dependencies]` of `mineworld-cli`). `DEP-50` records them (§11).
 
 ### 4.3 Where the guide lives, and which documentation-law class it is
 
@@ -738,7 +744,7 @@ earlier chapter unnoticed. A "real product gap" stops the round; it is not fixed
 
 ### 9.7 Cost bound
 
-- Per run: at most 80 agent turns and a dollar or token ceiling the operator sets (proposed: USD 5 per run on a
+- Per run: at most 80 agent turns and a dollar or token ceiling the operator sets (ruled QS25-3: at most USD 5 per run on a
   Sonnet-class model; **verify** the agent CLI's budget flag at 25f C0). The harness refuses to start without a
   ceiling.
 - Per step: at most **5 rounds** of ON-1 before S25 stops and returns to the operator with the ledger. ON-2/ON-3
@@ -769,9 +775,9 @@ and 25a (to link the reference). 25e is split by feature: each comparison and ch
 ### 10.2 Implementer guidance (applies to every PR)
 
 - Each PR is one fresh implementation session in its own worktree, after its own freeze; its first commit details
-  it to the commit in its PR design (`overall.md` §5 ruling 9). The commit plans below are detailed enough for a
-  Haiku-class implementer for 25b, 25c, 25d and 25e; 25a touches the SDK's macros and a public contract and is
-  recommended for an Opus-class implementer.
+  it to the commit in its PR design (`overall.md` §5 ruling 9). Ruled 2026-10-14: 25a (SDK macros, a public
+  contract) goes to an **Opus-class** implementer; 25b, 25c, 25d, 25e and 25f go to **Haiku-class** implementers.
+  Each starts only on the primary session's dispatch.
 - Every commit tracks **Implementation**, **Validation** and **LLM logic review** as separate `[ ]` items with
   evidence (`CLAUDE.md` §3.1).
 - Standard checks per commit: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
@@ -803,12 +809,12 @@ economy configuration appear automatically; the commit only regenerates and revi
 Commit plan:
 
 - **C0 — Specs and decisions first (Markdown only).**
-  - [ ] Implementation (`docs/GUIDE_FORMAT.md` belongs to 25c, not here): write `ARC-S25-a`'s reference part and
-    `DEP-S25-a`'s records into `docs/DECISIONS.md` under the numbers the primary session assigns; amends
+  - [ ] Implementation (`docs/GUIDE_FORMAT.md` belongs to 25c, not here): write `ARC-90`'s reference part and
+    `DEP-49`'s records into `docs/DECISIONS.md` under the numbers the primary session assigns; amends
     `MODULE_SPEC.md` §4.1 and §4.2 to say the field-level reference is generated at `docs/reference/` and that
     the spec states shape and rules, not every field; adds `docs/reference/` to `docs/README.md`.
   - [ ] Validation: `check_doc_headings.py`, `check_decision_ids.py`; `cargo search schemars` and `cargo deny
-    check licenses` after a scratch add, recording version, licence, last release date (the **verify** items).
+    check licenses` after the add, recording version and licence (licence and maintenance verified at freeze, §16).
   - [ ] LLM review: the records state both halves of the reuse question; no field rule moved out of a spec.
 - **C1 — schemars on the framework's own files.**
   - [ ] Implementation: add `schemars = { version = "<C0's>", default-features = false, features = ["derive"] }`
@@ -904,8 +910,8 @@ Commit plan:
 Commit plan:
 
 - **C0 — Spec and decision.** [ ] `docs/GUIDE_FORMAT.md`: block grammar, directives, page rules 1–8 of §6.2, mirror
-  parity, the pending rule; `DEP-S25-b`'s record; `docs/README.md` row. [ ] doc checks; `cargo search` for
-  `pulldown-cmark` and `snapbox` versions and licences (**verify**). [ ] Review: the grammar is unambiguous (every
+  parity, the pending rule; `DEP-50`'s record; `docs/README.md` row. [ ] doc checks; `cargo search` for
+  `pulldown-cmark` and `snapbox` versions, `cargo deny check licenses` after the add (licences verified at freeze, §16). [ ] Review: the grammar is unambiguous (every
   info string form listed; what happens to an unlisted one).
 - **C1 — Parsing and file blocks.** [ ] dev-dependencies on `pulldown-cmark` and `snapbox` in
   `tools/cli/Cargo.toml` (workspace entries with DEP comments); `tools/cli/tests/guide/` module: page walk,
@@ -1051,15 +1057,16 @@ Proposed as an `overall.md` §3 step entry (§12.2).
 
 ---
 
-## 11. Decision records requested
+## 11. Decision records (numbers assigned 2026-10-14)
 
 | Placeholder | Decision | Alternatives recorded | Written by |
 | --- | --- | --- | --- |
-| **ARC-S25-a** | Creator documentation: `docs/guide/` is a third documentation class (guides: human and newcomer-agent audience, plain language, executed by CI, never an authority); the field-level reference is generated from the decoding types into `docs/reference/` and never hand-edited; `mineworld reference` is a read-only subcommand; guide pages execute in CI with pending features listed, not skipped; the onboarding test is S25's acceptance procedure | G2, G3 (§4.3); R2–R5 (§4.1); H2, H3 (§4.4) | 25a C0 (reference part), 25c C0 (guide part) |
-| **DEP-S25-a** | Adopt `schemars` (1.x) for JSON Schema derivation from the decoding types; the contracts crate stays free of it; `clap-markdown` declined in favour of walking clap's model | R2 own derive (reinvention), R3 rustdoc JSON (nightly), R5 schema-first (inverts the seam); `clap-markdown` 0.1 | 25a C0 |
-| **DEP-S25-b** | Adopt `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli` for the executable guide; `trycmd` declined as the runner (per-case sandboxes do not model a cumulative tutorial), mdBook test and a Python runner declined | E1, E3, E4, E5 (§4.2) | 25c C0 |
+| **ARC-90** | Creator documentation: `docs/guide/` is a third documentation class (guides: human and newcomer-agent audience, plain language, executed by CI, never an authority); the field-level reference is generated from the decoding types into `docs/reference/` and never hand-edited; `mineworld reference` is a read-only subcommand; guide pages execute in CI with pending features listed, not skipped; the onboarding test is S25's acceptance procedure | G2, G3 (§4.3); R2–R5 (§4.1); H2, H3 (§4.4) | 25a C0 (reference part), 25c C0 (guide part) |
+| **DEP-49** | Adopt `schemars` (1.x) for JSON Schema derivation from the decoding types; the contracts crate stays free of it; `clap-markdown` declined in favour of walking clap's model | R2 own derive (reinvention), R3 rustdoc JSON (nightly), R5 schema-first (inverts the seam); `clap-markdown` 0.1 | 25a C0 |
+| **DEP-50** | Adopt `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli` for the executable guide; `trycmd` declined as the runner (per-case sandboxes do not model a cumulative tutorial), mdBook test and a Python runner declined | E1, E3, E4, E5 (§4.2) | 25c C0 |
 
-The primary session assigns numbers (next free on 2026-10-14: `ARC-90`, `DEP-49`, `DEP-50`).
+Assigned by the primary session on 2026-10-14 (placeholders `ARC-S25-a`, `DEP-S25-a`, `DEP-S25-b` of revision 1).
+Next free: `ARC-91`, `DEP-51`.
 
 ---
 
@@ -1114,6 +1121,24 @@ the shape and the rules. §8.1: `mineworld reference --out DIR | --check DIR`. W
 | **QS25-9** | S25's acceptance needs P6 (one person on the local model), which is not yet designed and waits on QB-15. Hold S25's acceptance until P6 merges, or accept S25 on ON-1 without the model clause and re-run when P6 lands? | **Hold the acceptance; build everything else now.** The operator's example names the local model; accepting without it would accept a different test. 25a–25e proceed and the harness is ready the day P6 merges |
 | **QS25-10** | Should a person also follow chapters 01–05 by hand at the milestone handoff (AC-25d-4)? | **Yes, once, on one OS**: an agent reads literally; a person catches what is confusing rather than wrong |
 
+### 13.1 Rulings, 2026-10-14 (relayed by the primary session)
+
+| Id | Ruling | By |
+| --- | --- | --- |
+| QS25-1 | **Yes (G1):** `docs/guide/` becomes a third documentation class. The primary session applies the `CLAUDE.md` §2.1 edit (§12.1) in its own PR; no S25 PR edits `CLAUDE.md`. 25d C0 depends on that PR having merged, or links it | operator |
+| QS25-2 | **Yes:** the SDK requires `JsonSchema` on `AuthoredSection::Authored` and `PackConfiguration::Configuration`; `acme-fishing` is updated in its own repository and re-pinned in 25a (C3) | operator |
+| QS25-3 | **As recommended:** a Sonnet-class model through the Claude Code CLI in a container (H1); at most USD 5 and 80 turns per run; at most 5 gating rounds; one Haiku-class run per round, reported only; operator-started, never in CI | operator |
+| QS25-4 | As recommended: ON-1 gating; ON-2 and ON-3 reported; the sample worlds are not in the allowed set | primary |
+| QS25-5 | As recommended: editor completion is an optional note in chapter 12 only | primary |
+| QS25-6 | As recommended: the generated reference is English-only | primary |
+| QS25-7 | As recommended: the example world lives in `docs/guide/examples/corner-shop/` | primary |
+| QS25-8 | As recommended: the guide is published from the repository at the tag and linked from `PLAY.txt` | primary |
+| QS25-9 | **Yes:** S25's acceptance (AC-25f-5) is held until P6 merges; 25a–25e and 25f's code proceed now | operator |
+| QS25-10 | **Yes:** the operator follows chapters 01–05 by hand once, on one OS, at the milestone handoff (AC-25d-4) | operator |
+
+Decision ids assigned: `ARC-90`, `DEP-49`, `DEP-50`. Implementers: 25a Opus-class; 25b–25f Haiku-class; each on
+the primary session's dispatch.
+
 ---
 
 ## 14. Risks
@@ -1149,7 +1174,20 @@ the shape and the rules. §8.1: `mineworld reference --out DIR | --check DIR`. W
 ## 16. Sources (accessed 2026-10-14)
 
 - crates.io via `cargo search`: `schemars 1.2.3`, `trycmd 1.2.1`, `snapbox 1.2.2`, `pulldown-cmark 0.13.4`,
-  `clap-markdown 0.1.5`. Licences, maintenance and exact feature sets: **verify** at 25a C0 and 25c C0.
+  `clap-markdown 0.1.5`.
+- Licences and maintenance, verified 2026-10-14 with `cargo info <crate>` (crates.io metadata) and `gh api
+  repos/<owner>/<repo>` (archived flag, last push):
+
+  | Crate | Version | Licence (crates.io) | Repository | Archived | Last push | MSRV |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `schemars` | 1.2.3 | MIT | `GREsau/schemars` | no | 2026-10-12 | 1.74 |
+  | `pulldown-cmark` | 0.13.4 | MIT | `pulldown-cmark/pulldown-cmark` | no | 2026-10-12 | 1.71.1 |
+  | `snapbox` | 1.2.2 | MIT OR Apache-2.0 | `assert-rs/snapbox` | no | 2026-10-04 | 1.85 |
+  | `trycmd` (declined) | 1.2.1 | MIT OR Apache-2.0 | `assert-rs/snapbox` | no | 2026-10-04 | 1.85 |
+  | `clap-markdown` (declined) | 0.1.5 | MIT OR Apache-2.0 | `ConnorGray/clap-markdown` | — | — | unknown |
+
+  All are within the workspace toolchain (1.97.1) and `deny.toml`'s permissive licences. Exact feature sets
+  stay to be chosen at 25a C1 and 25c C1.
 - Pydantic v2 `model_json_schema()`: already adopted (DEP-24); behaviour **verify** against the locked version at 25b
   C1.
 - Agent CLI isolation, turn and budget flags: **verify** at 25f C0 against the CLI's own `--help` and documentation.
