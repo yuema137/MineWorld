@@ -1,6 +1,7 @@
 # Ines — the village nurse. Sections as in alba.yaml.
 
 name: Ines Duarte
+appearance: { look: ines-duarte }
 
 routine:
   - { from: "07:00", place: bakery, label: breakfast }

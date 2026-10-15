@@ -118,7 +118,8 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 
 /// AC-DLa-1 (= AC-DL-1): with no decisions: key and no flag, everything `run` prints before `wall` is
 /// what the base binary printed — header line included, byte for byte. The golden was captured from
-/// `origin/main @ 6306977` before any DL-a code existed (test rules §25).
+/// `origin/main @ 6306977` before any DL-a code existed (test rules §25). Re-captured by S26-a
+/// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =

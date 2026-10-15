@@ -40,5 +40,7 @@ BASE CAPTURES       C0 done: target/scratch-s26a/{social-cafe,market-town,lakesi
 CURRENT CHECKPOINT  C0 committed (00a5a50); C1 done (b9ef144: MODULE_SPEC §4.1 appearance row and example,
                     ARC-91); origin/main merged into mvp0/pr-s26a (ee7a361, no conflicts); C2 done
                     (systems/appearance crate, 4 tests green, M-S26a-1/2/3 red-then-green, commit 7496847);
-                    C3 done (installed + refusals tests green; M-S26a-1 red-then-green); C4 next
-NEXT ACTIONS        C4 … C9 per §9.0 procedure; C9 pushes and opens the PR
+                    C3 done (installed + refusals tests green; M-S26a-1 red-then-green; commit 318f6ff);
+                    C4 done (looks in three worlds, F-S26a-3 literals, golden re-captured; counts 65/146/92/47);
+                    C5 next
+NEXT ACTIONS        C5 … C9 per §9.0 procedure; C9 pushes and opens the PR

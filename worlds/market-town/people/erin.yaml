@@ -1,6 +1,7 @@
 # Erin — on a bench in the park, 1.6 m from Dev's path.
 
 name: Erin Walsh
+appearance: { look: erin-walsh }
 
 # Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
