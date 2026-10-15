@@ -73,7 +73,10 @@ var world_root: Node3D
 
 var layout := SliceLayout.new()    ## where each of the world's places is drawn
 var here := ""                     ## the place the world last put the body in, as the world named it
-var figures := {}                  ## EntityId string -> the figure drawn for it
+## EntityId string -> the figure drawn for every person perceived now; the
+## dictionary `SliceFigures` keeps, which builds and moves them (D-16c-8)
+var figures := {}
+var _figures: SliceFigures
 var last_sent_local := {}          ## the last position reported, as sent
 var answers: Array[Dictionary] = []
 ## Every entry of the observer's own disclosed conversation history, in order.
@@ -125,6 +128,12 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
+	_figures = SliceFigures.new()
+	_figures.name = "Figures"
+	_figures.world_root = world_root
+	_figures.layout = layout
+	add_child(_figures)
+	figures = _figures.nodes
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -241,6 +250,8 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	if place != here:
 		if here != "":
 			place_changes.append([here, place])
+			# the old place's people are no longer perceived, and not by a door
+			_figures.clear()
 		# A place the scene has not bound -- a seat that starts outside the
 		# café, or a doorway that lands on no drawn door -- is said, not drawn.
 		var drawn := layout.is_drawn(place)
@@ -274,24 +285,20 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			continue
 		if String(loc["place"].get("entity", "")) != place:
 			continue
-		seen[id] = true
-		var fig: Node3D = figures.get(id)
-		if fig == null:
-			fig = _figure(id)
-			figures[id] = fig
 		# a name disclosed later replaces the role on the label
-		var label := fig.get_node_or_null("Label") as Label3D
-		if label != null:
-			label.text = shown_text(id)
-		fig.global_position = to_scene(place, loc.get("local"))
-		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
-	for id in figures.keys():
+		seen[id] = {"at": to_scene(place, loc.get("local")),
+			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
+	var gone := {}
+	for id in figures:
 		if not seen.has(id):
-			_say("%s is no longer in view" % display_label(id), "link.left_view",
-				{"who": shown_label(id)}, false,
-				"lose %s at %s" % [id, (figures[id] as Node3D).global_position])
-			(figures[id] as Node).queue_free()
-			figures.erase(id)
+			gone[id] = (figures[id] as Node3D).global_position
+	var change := _figures.observe(seen)
+	for id in change["arrived"]:
+		_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false,
+			"perceive %s" % id)
+	for id in change["left"]:
+		_say("%s is no longer in view" % display_label(id), "link.left_view",
+			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
 
 
 ## What the observer has been told. Protocol revision 1 sends no event bodies;
@@ -326,32 +333,6 @@ func _speak(who: String, utterance: Variant, log_detail: String) -> void:
 	var shown := shown_text(who) if who != "" else MineWorldText.text("link.someone")
 	print("[link] %s  [%s]" % ["%s: %s" % [logged, words], log_detail])
 	spoke.emit("%s: %s" % [shown, words])
-
-
-## A perceived person, drawn from the same stand-in mannequin as the street's
-## figures. Appearance is chosen here from tags, which are world data.
-func _figure(id: String) -> Node3D:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(id)
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
-	n.name = "Person_" + id
-	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
-	# what the targeting ray meets; nothing collides with it (step-15 §19)
-	n.add_child(SliceTargeting.person_collider())
-	world_root.add_child(n)
-	var label := Label3D.new()
-	label.name = "Label"
-	# A name or role the world disclosed: world content, never translated (SD-SET-a-9).
-	MineWorldText.mark_world_text(label)
-	label.text = shown_text(id)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 2.05, 0)
-	label.font_size = 48
-	label.pixel_size = 0.004
-	n.add_child(label)
-	var detail := "perceive %s" % id
-	_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false, detail)
-	return n
 
 
 ## World millimetres in a bound place's frame -> a point in this scene.

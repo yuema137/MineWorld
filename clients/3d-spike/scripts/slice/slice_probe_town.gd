@@ -5,6 +5,11 @@
 ##   --slice-layout   L-1 every doorway on a real door; L-2 the florist is its
 ##                    shop; L-3 what is shown (SHOWN); L-4 only the world's
 ##                    people (§20.4)
+##   --slice-street   S-1 people walk; S-2 no jumps; S-3 into doors, not walls;
+##                    S-4 nobody in a wall; S-5 SHOWN (§20.4), against a server
+##                    hosting the town's paced controllers (`--town`).
+##                    `--watch=<s>` (default 60); `--frames` saves three frames
+##                    of people walking and one of a person going into a door
 ##
 ## A sibling of `slice_probe_world.gd`, as 16a split the connected modes off
 ## `slice_probe.gd` (§20.7 C3: that file is past ~800 lines). It names no world
@@ -13,7 +18,7 @@
 class_name SliceProbeTown
 extends SliceProbeWorld
 
-const TOWN_MODES := ["layout"]
+const TOWN_MODES := ["layout", "street"]
 ## The plan's doorway rule, held here independently of `SliceLayout.DOOR_INSET`
 ## so that the measurement does not take its yardstick from the code under test
 ## (step-11 SD-D3; step-15 A16c-6, M16c-2): a doorway point stands 0.40 m in
@@ -42,6 +47,7 @@ func _modes() -> Array:
 func _run(mode: String) -> void:
 	match mode:
 		"layout": await _layout_check()
+		"street": await _street_check()
 		_: await super(mode)
 
 
@@ -371,7 +377,262 @@ func _npcs(n: Node) -> Array:
 	return out
 
 
-func _finish(link: SliceLink) -> void:
-	print("\n%s" % ("all layout checks pass" if _fails == 0 else "%d LAYOUT CHECKS FAILED" % _fails))
+func _finish(link: SliceLink, what := "layout") -> void:
+	print("\n%s" % ("all %s checks pass" % what if _fails == 0 else "%d %s CHECKS FAILED" % [_fails,
+		what.to_upper()]))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+# --- --street -----------------------------------------------------------------------
+
+## S-2's bound: a figure's drawn speed in any frame, outside a placement, is at
+## most the player's jog with 5 % for the frame clock (step-15 §20.4).
+const SPEED_BOUND := Player.JOG_SPEED * 1.05
+## S-1: a person counts as walking after an observed change of position of this.
+const WALKED_M := 1.0
+## S-3: a figure that leaves view is removed this close to a bound door's point.
+const AT_DOOR_M := 0.15
+## S-4: the capsule a person is (r 0.30, h 1.72, as the player's), less this
+## depth: an overlap deeper than it is a figure inside a wall. The lowest
+## STEP_M is left out, because kerbs, steps and the café's ramp are walked on.
+const DEPTH_M := 0.05
+const STEP_M := 0.15
+## S-5: a figure counts as standing once its observed position has not changed
+## for this long; L-3's 50 mm applies to the people standing (a walking figure
+## is drawn behind the person it follows, by design).
+const STANDING_S := 1.0
+
+
+## S-1 ... S-5 from a fixed spot on the pavement, standing still, while the
+## hosted town walks (step-15 §20.4).
+func _street_check() -> void:
+	print("== step-15 §20.4 -- the living street ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	link.client.observed.connect(_record_disclosure)
+	var secs := 60.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--watch="):
+			secs = float(a.substr(8))
+	var frames := "--frames" in OS.get_cmdline_user_args()
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var lay := link.layout
+	if lay.anchor == "" or link.here != lay.anchor:
+		_verdict_line("S-0", false, "the seat starts in the place tagged %s" % SliceWorld.ANCHOR_TAG)
+		_finish(link, "street")
+		return
+	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
+	player.rotation.y = PI
+	await _walk_dist(3.2, 6.0)
+	await _hold(1.5)
+	if link.here != lay.street:
+		_verdict_line("S-0", false, "the server did not put the player on the street")
+		_finish(link, "street")
+		return
+	player.rotation.y = -PI * 0.5
+	player.set_camera(FP)
+	await _settled_report(link)
+	var figs: SliceFigures = link._figures
+	var placed0 := figs.placements.size()
+	var placed_start := placed0
+	var leaves0 := figs.leaves.size()
+	print("watch    %.0f s from %s, facing east, in %s; %d people in view"
+		% [secs, player.global_position, _where(link), link.figures.size()])
+
+	var first := {}          # id -> the first observed local position on the street
+	var farthest := {}       # id -> the largest observed change of position, metres
+	var last_drawn := {}     # id -> the drawn position last frame
+	var fastest := {}        # id -> the largest drawn speed outside a placement
+	var over: Array = []     # [id, speed, at] frames over SPEED_BOUND
+	var walls: Array = []    # S-4 overlaps
+	var samples := 0
+	var seen_leaving := {}
+	var shots := 0
+	var door_shot := false
+	var placed_at := {}
+	var t := 0.0
+	var next_sample := 0.0
+	var next_shot := secs * 0.25
+	var wall0 := Time.get_ticks_msec()
+	while t < secs:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		var obs := link.client.latest
+		for id in obs.ids():
+			var loc := obs.location_of(id)
+			if id == obs.observer() or typeof(loc.get("place")) != TYPE_DICTIONARY \
+					or String(loc["place"].get("entity", "")) != lay.street:
+				continue
+			var p := MineWorldSpace.to_3d(loc.get("local"))
+			if not first.has(id):
+				first[id] = p
+			farthest[id] = maxf(farthest.get(id, 0.0), _flat_len(p - (first[id] as Vector3)))
+		for i in range(placed0, figs.placements.size()):
+			placed_at[figs.placements[i]["id"]] = true
+		placed0 = figs.placements.size()
+		for id in link.figures:
+			var at: Vector3 = (link.figures[id] as Node3D).global_position
+			if last_drawn.has(id) and not placed_at.has(id) and dt > 0.0:
+				var v := _flat_len(at - (last_drawn[id] as Vector3)) / dt
+				fastest[id] = maxf(fastest.get(id, 0.0), v)
+				if v > SPEED_BOUND:
+					over.append([id, v, at])
+			last_drawn[id] = at
+		placed_at.clear()
+		# S-4, at 1 Hz
+		if t >= next_sample:
+			next_sample += 1.0
+			samples += 1
+			for id in link.figures:
+				var hit := _in_wall(link.figures[id] as Node3D)
+				if hit != "":
+					walls.append("%s (%s) at %s: %s" % [link.display_label(id), id,
+						(link.figures[id] as Node3D).global_position, hit])
+		if frames:
+			for id in link.figures:
+				if shots < 3 and t >= next_shot and fastest.get(id, 0.0) > 0.6 \
+						and _flat_len((last_drawn.get(id, Vector3.ZERO) as Vector3) - player.global_position) < 14.0:
+					await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * 1.2)
+					await _save("street_%d_walking" % (shots + 1))
+					print("frame    street_%d_walking: %s (%s) at %s" % [shots + 1, link.display_label(id), id,
+						(link.figures[id] as Node3D).global_position])
+					shots += 1
+					next_shot += secs * 0.25
+					break
+			if not door_shot:
+				for id in figs._going:
+					var n := figs.going(id)
+					if n != null and not seen_leaving.has(id):
+						seen_leaving[id] = true
+						await _aim_at(n.global_position + Vector3.UP * 1.2)
+						await _save("street_4_into_a_door")
+						print("frame    street_4_into_a_door: %s going into %s, at %s"
+							% [id, figs._going[id]["door"] if figs._going.has(id) else "?", n.global_position])
+						door_shot = true
+						break
+	print("watch    %.0f s in %.1f s wall; %d S-4 samples" % [secs, (Time.get_ticks_msec() - wall0) / 1000.0,
+		samples])
+
+	# S-1: people walk
+	var walkers := []
+	for id in farthest:
+		print("person   %s (%s): observed moving up to %.2f m; drawn at most %.2f m/s"
+			% [link.display_label(id), id, farthest[id], fastest.get(id, 0.0)])
+		if farthest[id] >= WALKED_M:
+			walkers.append(id)
+	var active := walkers.size() >= 3
+	print("S-1 %s  %d distinct people on the street moved %.0f m or more (3 needed)"
+		% ["PASS" if active else "INCONCLUSIVE", walkers.size(), WALKED_M])
+	# S-2: no jumps
+	var watched: Array = figs.placements.slice(placed_start)
+	var later := watched.filter(func(p): return not p["first"])
+	for o in over:
+		print("jump     %s drawn at %.2f m/s at %s" % [o[0], o[1], o[2]])
+	for p in watched:
+		print("placed   %s %s, gap %.2f m, at %s" % [p["id"], "on first sight" if p["first"] else "after a gap",
+			p["gap"], p["at"]])
+	_verdict_line("S-2", over.is_empty() and later.size() <= 2,
+		"%d frames over %.2f m/s outside a placement; %d placements after first sight (at most 2)"
+		% [over.size(), SPEED_BOUND, later.size()])
+	# S-3: into doors, not walls
+	var leaves := figs.leaves.slice(leaves0)
+	var at_doors := 0
+	for l in leaves:
+		var near := _nearest_point(link, l["at"])
+		print("leave    %s removed at %s, %.2f m from %s%s" % [l["id"], l["at"], near[1], near[0],
+			" (walked in)" if l["walked"] else " (removed where it stood)"])
+		if near[1] <= AT_DOOR_M:
+			at_doors += 1
+	if leaves.is_empty():
+		print("S-3 INCONCLUSIVE  nobody left view during the watch")
+	else:
+		_verdict_line("S-3", at_doors == leaves.size(), "%d of %d leaves at a bound door, within %.2f m"
+			% [at_doors, leaves.size(), AT_DOOR_M])
+	# S-4: nobody in a wall
+	for w in walls:
+		print("wall     %s" % w)
+	_verdict_line("S-4", walls.is_empty(), "%d overlaps deeper than %.2f m in %d samples"
+		% [walls.size(), DEPTH_M, samples])
+	# S-5: what is shown at the end
+	await _settled_report(link)
+	_check_shown_standing(link)
+	if not active:
+		print("S-1 found fewer than 3 walking: S-2 ... S-4 are not claimed (step-15 §20.4)")
+	_finish(link, "street")
+
+
+## S-3's yardstick: the nearest in- or out-point of a door the layout bound, by
+## the plan's 0.40 m rule (the registry gives each room's depth and floor).
+func _nearest_point(link: SliceLink, at: Vector3) -> Array:
+	var best := ["none", INF]
+	for place in link.layout.doors:
+		var d: Array = SliceTerrace.doors[link.layout.doors[place]]
+		var yaw: float = d[1]
+		var n := Vector3(sin(yaw), 0.0, cos(yaw))
+		var points := [(d[0] as Vector3) + n * PLAN_INSET]
+		if d.size() > 5 and d[3] != "":
+			points.append((d[0] as Vector3) - n * (float(d[4]) + PLAN_INSET))
+		for q in points:
+			var dd := _flat_len(at - q)
+			if dd < best[1]:
+				best = [d[2], dd]
+	return best
+
+
+## S-4: whether the person's capsule, less DEPTH_M and above STEP_M, overlaps
+## the scene's geometry; the colliders met, or "".
+func _in_wall(fig: Node3D) -> String:
+	var shape := CapsuleShape3D.new()
+	shape.radius = Player.CAPSULE_RADIUS - DEPTH_M
+	shape.height = Player.CAPSULE_HEIGHT - STEP_M - DEPTH_M
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.collision_mask = Build.LAYER_WORLD
+	q.transform = Transform3D(Basis(), fig.global_position + Vector3(0, STEP_M + shape.height * 0.5, 0))
+	var hits := fig.get_world_3d().direct_space_state.intersect_shape(q, 4)
+	var names := PackedStringArray()
+	for h in hits:
+		var c := h["collider"] as Node
+		if c != null:
+			names.append(String(c.get_path()))
+	return ", ".join(names)
+
+
+## S-5: L-3's checks, with the 50 mm bound on the people who stand.
+func _check_shown_standing(link: SliceLink) -> void:
+	var report := _print_shown(link)
+	var problems := _shown_problems(link, report)
+	var obs := link.client.latest
+	var kept := PackedStringArray()
+	for p in problems:
+		var moving := false
+		for id in link.figures:
+			if p.begins_with("person %s (" % id) and p.contains("drawn at local") \
+					and not _standing(link, id):
+				moving = true
+		if moving:
+			print("shown    (walking, not held to %d mm) %s" % [SHOWN_MM, p])
+		else:
+			kept.append(p)
+	for p in kept:
+		print("shown    %s" % p)
+	_verdict_line("S-5", kept.is_empty(), "SHOWN at the end: %d places, %d doorways, %d people"
+		% [report["places"].size(), report["doorways"].size(), report["people"].size()])
+
+
+## Whether a perceived person's observed position has stood still for STANDING_S.
+func _standing(link: SliceLink, id: String) -> bool:
+	var g: Variant = link._figures._goal.get(id)
+	return g != null and Time.get_ticks_msec() / 1000.0 - float(g["changed"]) >= STANDING_S
+
+
+static func _flat_len(v: Vector3) -> float:
+	return Vector2(v.x, v.z).length()
