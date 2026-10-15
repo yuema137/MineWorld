@@ -1222,7 +1222,8 @@ setup command replaces it). Worktree `/Users/yuema137/mineworld-worktrees/impl-r
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | (this commit) | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
+| C0 | 80afda22 | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
+| C1 | (this commit) | [x] A.1 → `MODULE_SPEC.md` §6.1 + new §6.1.1 (schema, codes, refusal points, exemption verbatim); A.2 → `ART_DIRECTION.md` §12 layout + exception, §21 Environment; A.3 → `VISUAL_SLICE.md` §1 note, §4 terminations, far-field row, out-of-scope line, §12 view 11; A.4 → `clients/2d/PRESENTATION.md` new §8; A.5 → `DECISIONS.md` ARC-102/103/104 appended, DEP-45 dated note | [x] `check_doc_headings.py` 239 sections, none duplicated PASS; `check_decision_ids.py` 128 ids distinct PASS; `grep far_field docs/MODULE_SPEC.md` shows the layout line, the exception and §6.1.1 (VISUAL_SLICE's A.3 text says "far field" in words, no `far_field` token, by design) | [x] terms exact (`Presentation Pack`, `World Pack`, `ActionIntent`, `System`); the rule lives in MODULE_SPEC §6.1.1, no README carries it; VISUAL_SLICE additions name no engine, node or shader |
 
 ### Evidence
 

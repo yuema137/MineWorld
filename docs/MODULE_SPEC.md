@@ -1399,10 +1399,12 @@ presentation/<style-id>/
   characters/character_style.yaml
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
+  far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
   generation/optional_prompt_guidelines.md
 ```
 
-Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
+Not every pack needs every directory, except `far_field/`, which every Presentation Pack carries
+(§6.1.1). What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
 contain for the 2D reference client is specified in
 [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
@@ -1419,11 +1421,176 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0): `id` (`mineworld-default-2d`, `mineworld-default-3d`),
 `type: presentation-pack`, `version`, `mineworld`, `license`, `authors`. The style manifest keeps its
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
-package fields, and that the style manifest has an `id` and a `dimension` list.
+package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
+file under `far_field/` (§6.1.1).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
 (§16).
+
+## 6.1.1 The far field (required)
+
+**However small the world, every presented view closes on a far field** (operator ruling 2026-10-15,
+`DECISIONS.md` ARC-102). An invisible wall is allowed; a view with no far field is not.
+
+A Presentation Pack carries `far_field/<world-key>.yaml` for every world it presents, and
+`far_field/region-<region-key>.yaml` for a region (read from S21). Each file is YAML's JSON subset
+(`DEP-16`).
+
+```text
+presentation/<family>/<dimension pack>/
+  pack.yaml                 package identity (unchanged)
+  manifest.yaml             style manifest; its `dimension` list says 2d or 3d (unchanged)
+  far_field/                REQUIRED
+    <world-key>.yaml        one per presented world; the file name is the scope's key
+    region-<region-key>.yaml  one per S21 region (accepted now, resolved by no client until S21)
+```
+
+**Schema (format 1).** Every field is required unless marked *optional*. Unknown keys are refused. Angles
+are **true bearings in degrees, clockwise from north, in `[0, 360)`**. A **sector** `{from_deg, to_deg}`
+runs clockwise from `from_deg` to `to_deg` and may wrap through 0 (`{315, 45}` is the 90° around north);
+`from_deg == to_deg` is refused (use two sectors for a full ring). Distances are metres from the presented
+area's **origin** (3D: the scene origin, the street's centre; 2D: the centre of the hub's extent). Heights
+are metres **above sea level** unless the field says otherwise.
+
+```text
+FarField
+  format              1                                   (only 1 exists)
+  scope               {"world": WorldKey} | {"region": RegionKey}
+                      WorldKey is a World Pack directory name; it must equal the file's stem.
+                      RegionKey must equal the stem after "region-".
+  boundary            Boundary
+  water               [Water]                             (may be [] — a world with no water in sight)
+  --- 3D packs (manifest dimension contains "3d"): all four required ---
+  datum_m             f64 in [-430, 5000]                 the presented ground's elevation above sea level
+  datum_source        string, non-empty                   its citation
+  sky                 Sky
+  foreground          Foreground
+  terrain_silhouettes [Silhouette], at least one
+  skyline             Skyline
+  --- 2D packs (manifest dimension contains "2d"): required ---
+  surround            Surround
+  A section of the other dimension present in a file is refused (FAR_FIELD_SECTION_FOREIGN).
+
+Boundary
+  kind                "invisible_wall" | "natural"
+                      natural = built or landscape terminations (parapet, bank, façades, dense planting)
+  reach_m             f64 > 0      radius from the origin containing every reachable point AND every near
+                                   construction of the presentation; every far-field element lies beyond it
+  beyond              "drop" | "water" | "scrub" | "planting" | "rough_ground"
+                      what the ground just past the boundary is. No value names paving, a path, steps,
+                      a road or a bridge: nothing beyond the boundary suggests a walkable approach
+
+Sky (3D)
+  kind                "panorama" | "procedural"
+  panorama            AssetName                           required iff kind = panorama; the client
+                                                          resolves it in its own asset catalogue
+  procedural          {"top": Colour, "horizon": Colour}  required iff kind = procedural
+  visibility_m        f64 in [1000, 300000]               meteorological optical range V (Koschmieder)
+  visibility_source   string, non-empty
+
+Foreground (3D)    the ground from boundary.reach_m outward to the client's far distance
+  surface             "scrub" | "dry_grass" | "grass" | "rough_ground"
+  drop_m              f64 in [0, 500]   how far the ground falls below the datum, reached over run_m
+  run_m               f64 in [10, 2000] the horizontal distance over which it falls
+                      (In a water sector the ground ends at the shore, at the water's level instead.)
+
+Silhouette (3D)    one band of distant terrain
+  name                Key
+  layer               "near" | "mid" | "far"              draw order and proxy distance
+  sector              Sector                              where the band exists
+  albedo              Colour                              surface colour before haze
+  profile             [ProfilePoint], ≥ 2, bearings strictly increasing along the sector (wrap allowed),
+                      first point at sector.from_deg and last at sector.to_deg
+  source              string, non-empty
+ProfilePoint
+  bearing_deg         f64
+  height_m            f64 in [-430, 9000]   crest height above sea level at that bearing
+  distance_m          f64 > boundary.reach_m
+
+Water
+  name                Key
+  kind                "sea" | "bay" | "lake" | "river"
+  sector              Sector
+  shore_m             f64 ≥ boundary.reach_m   nearest shoreline in the sector
+  level_m             f64 in [-430, 5000]      surface above sea level (sea and bay: 0)
+  horizon             "open" | "closed"        open = water to the horizon with nothing behind it
+  colour              {"deep": Colour, "shallow": Colour}
+  source              string, non-empty
+  --- river only ---
+  width_m             f64 in [1, 5000]
+  course              [{"bearing_deg": f64, "distance_m": f64}], ≥ 2
+
+Skyline (3D)       the town's distant massing
+  sectors             [MassingSector], ≥ 1
+  seed                u32       the massing's deterministic layout
+  slots               {"station": Slot, "landmark": Slot}   both keys required, no others
+MassingSector
+  sector              Sector
+  from_m, to_m        f64, boundary.reach_m < from_m < to_m
+  height_m            {"min": f64, "max": f64}, 0 < min ≤ max ≤ 400, above the ground it stands on
+  density             f64 in (0, 1]   share of plan area covered by buildings
+  source              string, non-empty
+Slot
+  {"state": "unplaced"}
+  | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
+     "source": string}
+  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
+  adds it (an additive change, not a format bump).
+
+Surround (2D)
+  extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
+  base                "land" | "water"   the kind that fills the surround where no water body is declared
+  haze                {"colour": Colour, "from_m": f64 ≥ 0, "to_m": f64 > from_m}
+                      blend toward this colour with distance beyond the land rectangle
+
+Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1–64 of a-z, 0-9, _, -
+```
+
+**Validation rules (beyond types), each with its refusal code:**
+
+| Code | Refused when |
+| --- | --- |
+| `FAR_FIELD_MISSING` | a presented world (or a world that `requires` the pack) has no `far_field/<world-key>.yaml` in the pack |
+| `FAR_FIELD_WORLD_UNKNOWN` | a client was started without a world key it can resolve |
+| `FAR_FIELD_MALFORMED` | not parseable, an unknown key, a wrong type or enum value (with line and column where the parser gives them) |
+| `FAR_FIELD_SCOPE_MISMATCH` | `scope` disagrees with the file name |
+| `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
+| `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
+| `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
+| `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
+| `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+
+The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
+GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
+same code for each.
+
+**Where a missing far field is refused:**
+
+1. **Authoring:** `mineworld packs validate <pack-dir>` checks every file under `far_field/` (and refuses a
+   Presentation Pack with **no** `far_field/` directory: `FAR_FIELD_MISSING` naming the pack and "no
+   far_field/"). `mineworld validate <world>` (through `packages::resolve`) refuses a world that `requires`
+   a Presentation Pack lacking `far_field/<world-key>.yaml`: `FAR_FIELD_MISSING { pack, world }`.
+2. **Client load:** before drawing anything, each client resolves `<pack>/far_field/<world-key>.yaml`, parses
+   and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
+   <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
+   Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+
+**Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
+drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints
+`[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`. The operator ruled it
+so (2026-10-15).
+
+The far field is decoration. It lies beyond `boundary.reach_m`, is never reachable, never disclosed by a
+System and never part of an `ActionIntent`. A far field that suggests a walkable approach beyond the
+boundary is a defect even if it validates.
+
+The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
+frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
+pixels at the reachable extremes.
 
 ## 6.2 Authoring a style
 
