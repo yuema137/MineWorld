@@ -385,14 +385,14 @@ async fn a_resumed_stream_equals_the_offline_export() {
 
     // CA-6.
     let backend = SqliteBackend::open(&save, Durability::ProcessCrash).expect("opens");
-    let head = backend.head().expect("a head").raw();
     let mut revision_of: BTreeMap<u64, u64> = BTreeMap::new();
-    for revision in 0..=head {
-        for row in backend
-            .facts_of(WorldRevision::from_raw(revision))
-            .expect("readable")
-        {
-            revision_of.insert(row.id, revision);
+    for stored in backend
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("a cursor")
+    {
+        let stored = stored.expect("readable");
+        for row in stored.facts {
+            revision_of.insert(row.id, stored.revision.raw());
         }
     }
     drop(backend);
