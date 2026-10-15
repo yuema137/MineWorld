@@ -24,9 +24,10 @@ mod social;
 use std::collections::BTreeMap;
 
 use mineworld_contracts::EventEnvelope;
-use mineworld_employment::ShiftStarted;
+use mineworld_employment::{Hired, ShiftStarted};
 use mineworld_presence::Arrived;
 use mineworld_schedule::AgendaChanged;
+use mineworld_worldpack::WorldPack;
 
 use headless::{Tables, fresh, mineworld};
 use social::decoded;
@@ -38,6 +39,7 @@ const PACES: [(&str, u32, &str); 3] = [("120", 24, "24×"), ("60", 12, "12×"), 
 
 /// One agenda part of one person: where it is, when it began, and when they first arrived there.
 struct Part {
+    person: u64,
     place: u64,
     began: i64,
     /// Whether the person was already at the place when the part began: then there is no journey.
@@ -50,7 +52,7 @@ struct Part {
 /// The journeys of one run, as parts: every part of every person whose place was elsewhere when it began.
 fn journeys(facts: &[EventEnvelope]) -> Vec<Part> {
     let mut at_place: BTreeMap<u64, u64> = BTreeMap::new();
-    let mut parts: Vec<(u64, Part)> = Vec::new();
+    let mut parts: Vec<Part> = Vec::new();
     let mut last: BTreeMap<u64, usize> = BTreeMap::new();
     for fact in facts {
         match fact.event_type().as_str() {
@@ -60,7 +62,7 @@ fn journeys(facts: &[EventEnvelope]) -> Vec<Part> {
                 let place = arrived.location().place().entity_id().raw();
                 at_place.insert(person, place);
                 if let Some(&index) = last.get(&person) {
-                    let part = &mut parts[index].1;
+                    let part = &mut parts[index];
                     if part.place == place && !part.already && part.arrived.is_none() {
                         part.arrived = Some(fact.at().seconds());
                     }
@@ -72,25 +74,23 @@ fn journeys(facts: &[EventEnvelope]) -> Vec<Part> {
                 let place = changed.place().entity_id().raw();
                 let began = fact.at().seconds();
                 if let Some(&index) = last.get(&person) {
-                    parts[index].1.ends = Some(began);
+                    parts[index].ends = Some(began);
                 }
                 let already = at_place.get(&person) == Some(&place);
                 last.insert(person, parts.len());
-                parts.push((
+                parts.push(Part {
                     person,
-                    Part {
-                        place,
-                        began,
-                        already,
-                        arrived: None,
-                        ends: None,
-                    },
-                ));
+                    place,
+                    began,
+                    already,
+                    arrived: None,
+                    ends: None,
+                });
             }
             _ => {}
         }
     }
-    parts.into_iter().map(|(_, part)| part).collect()
+    parts
 }
 
 /// The fraction of `numerator` in `denominator`, in per cent; 100 when there is nothing to judge.
@@ -101,6 +101,26 @@ fn per_cent(numerator: usize, denominator: usize) -> f64 {
     #[allow(clippy::cast_precision_loss)]
     let fraction = numerator as f64 * 100.0 / denominator as f64;
     fraction
+}
+
+/// Entity ids of the market town, back to their authored keys, for a person reading the output.
+fn names() -> BTreeMap<u64, String> {
+    let loaded = WorldPack::read(MARKET)
+        .expect("reads")
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    loaded
+        .ids()
+        .iter()
+        .map(|(key, id)| (id.raw(), format!("{key}")))
+        .collect()
+}
+
+/// `day D hh:mm` of a world instant, for reading.
+fn clock(at: i64) -> String {
+    let day = at.div_euclid(86_400) + 1;
+    let minute = at.rem_euclid(86_400) / 60;
+    format!("day {day} {:02}:{:02}", minute / 60, minute % 60)
 }
 
 /// Runs the world at one pace and measures the three clauses. Returns the printed line and whether it holds.
@@ -127,6 +147,8 @@ fn measure(pace: &str, scale: &str) -> (String, bool) {
     );
     let tables = Tables::read(&save);
     let facts = social::facts_of(&tables);
+    let names = names();
+    let name = |id: u64| names.get(&id).cloned().unwrap_or_else(|| format!("#{id}"));
 
     let parts = journeys(&facts);
     let measured: Vec<&Part> = parts
@@ -153,6 +175,32 @@ fn measure(pace: &str, scale: &str) -> (String, bool) {
         .count();
     let journeys_total = measured.len();
     let clause_1 = per_cent(within_25, journeys_total) >= 90.0 && within_50 == journeys_total;
+    for part in measured.iter().filter(|part| {
+        !part.arrived.is_some_and(|arrived| {
+            (arrived - part.began) * 2 <= part.ends.expect("measured") - part.began
+        })
+    }) {
+        let length = part.ends.expect("measured") - part.began;
+        match part.arrived {
+            Some(arrived) => println!(
+                "  over 50 %: {} began {} for {}; arrived {} after {} min of a {} min part ({:.0} %)",
+                name(part.person),
+                clock(part.began),
+                name(part.place),
+                clock(arrived),
+                (arrived - part.began) / 60,
+                length / 60,
+                (arrived - part.began) as f64 * 100.0 / length as f64,
+            ),
+            None => println!(
+                "  over 50 %: {} began {} for {}; never arrived in a {} min part",
+                name(part.person),
+                clock(part.began),
+                name(part.place),
+                length / 60,
+            ),
+        }
+    }
 
     let shifts: Vec<ShiftStarted> = facts.iter().filter_map(decoded::<ShiftStarted>).collect();
     let present = shifts.iter().filter(|shift| shift.present()).count();
@@ -189,4 +237,84 @@ fn agendas_stay_feasible_at_24_12_and_6_times() {
         "FX-24 fails at {failing:?}× — a material stop (§13), never retuned:\n{}",
         lines.join("\n")
     );
+}
+
+/// Diagnostic for the shift clause (not a threshold), at the default pace: every `shift-started`, whether its
+/// `present` flag is true, the employee's workplace (from `hired`), where the employee was at the shift's start
+/// (their last arrival at or before it), and when they first arrived at the workplace afterwards.
+#[test]
+#[ignore = "diagnostic: one seven-day run at the default pace (ARC-69 item 11 investigation)"]
+fn shift_presence_diagnostic_at_the_default_pace() {
+    let save = fresh("fx24-shifts-900");
+    let save_text = save.to_str().expect("a printable path").to_owned();
+    let output = mineworld(&[
+        "run",
+        MARKET,
+        "--headless",
+        "--seed",
+        SEED,
+        "--days",
+        DAYS,
+        "--save",
+        &save_text,
+    ]);
+    assert!(output.status.success(), "{}", headless::stderr(&output));
+    let facts = social::facts_of(&Tables::read(&save));
+    let names = names();
+    let name = |id: u64| names.get(&id).cloned().unwrap_or_else(|| format!("#{id}"));
+
+    let mut workplace: BTreeMap<u64, u64> = BTreeMap::new();
+    let mut location: BTreeMap<u64, u64> = BTreeMap::new();
+    let mut arrivals: Vec<(i64, u64, u64)> = Vec::new();
+    let mut shifts: Vec<(i64, u64, bool, Option<u64>)> = Vec::new();
+    for fact in &facts {
+        match fact.event_type().as_str() {
+            "hired" => {
+                let hired: Hired = decoded(fact).expect("employment's fact");
+                workplace.insert(
+                    hired.employee().entity_id().raw(),
+                    hired.job().workplace().entity_id().raw(),
+                );
+            }
+            "arrived" => {
+                let arrived: Arrived = decoded(fact).expect("presence's fact");
+                let person = arrived.person().entity_id().raw();
+                let place = arrived.location().place().entity_id().raw();
+                location.insert(person, place);
+                arrivals.push((fact.at().seconds(), person, place));
+            }
+            "shift-started" => {
+                let shift: ShiftStarted = decoded(fact).expect("employment's fact");
+                let person = shift.employee().entity_id().raw();
+                shifts.push((
+                    fact.at().seconds(),
+                    person,
+                    shift.present(),
+                    location.get(&person).copied(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    for (at, person, present, at_start) in &shifts {
+        let work = workplace.get(person).copied();
+        let first_there = work.and_then(|work| {
+            arrivals
+                .iter()
+                .find(|(when, who, place)| who == person && place == &work && when >= at)
+                .map(|(when, ..)| *when)
+        });
+        println!(
+            "shift {} at {}: present={present}; workplace {}; at the start {}; first at the workplace {}",
+            name(*person),
+            clock(*at),
+            work.map_or("none".to_owned(), name),
+            at_start.map_or("unknown".to_owned(), name),
+            first_there.map_or("never".to_owned(), |when| format!(
+                "{} (+{} min)",
+                clock(when),
+                (when - at) / 60
+            )),
+        );
+    }
 }
