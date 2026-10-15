@@ -482,6 +482,15 @@ it accepts. Fields of §4's model that MVP-0 does not implement — `era`, `cale
 `presentation_profile`, are **refused by name**, not ignored: a silently accepted field is a world its
 author believes they authored.
 
+**The field-level reference is generated** ([`DECISIONS.md`](DECISIONS.md) `ARC-90`). This subsection
+and §4.2 state the shape of each file and the rules every file shares. Every field of every file — its
+type, whether it is required, its default, its bounds and what it means — is in
+[`docs/reference/`](reference/), which `mineworld reference` derives from the types that decode the files
+(`world.yaml` and the content files' own fields, every section a pack owns, every `configure/` file, the
+Interaction List sections, a data pack's `pack.yaml`, and the command line). It is never edited by hand,
+and CI fails when it differs from what the build generates. Where this specification and the generated
+reference disagree about a field, the decoding type is the fact and the specification is corrected.
+
 ```yaml
 # world.yaml
 world:
@@ -903,6 +912,10 @@ A world says what its installed interactions may do — who may do what to whom,
 what a fact means for history — through one document shared by every pack (`DECISIONS.md` `ARC-63`,
 `ARC-64`, `ARC-65`, `DEP-28`). The list is **not** a new carrier: it is `configure/classes.yaml` plus
 each pack's section, `configure/<pack id>.yaml`, all carried by §4.1's configuration seam.
+
+This subsection states the list's shape and its rules. Which actions, roles, facts, parameters (with
+their defaults and bounds) and knobs each installed pack declares is generated from the packs' own
+declarations into [`docs/reference/interaction-list.md`](reference/interaction-list.md) (`ARC-90`).
 
 **Vocabulary.** These terms are defined here and nowhere else; none reuses a term of
 [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md).
@@ -1342,6 +1355,7 @@ mineworld packs list [--packs DIR]...
 mineworld packs show <id> [--packs DIR]...
 mineworld packs validate <directory> [--packs DIR]...
 mineworld packs resolve <world> [--packs DIR]...
+mineworld reference (--out DIR | --check DIR)
 ```
 
 **Pack roots** (`DECISIONS.md` `ARC-54`). Every command that reads a world takes `--packs DIR`,
@@ -1363,6 +1377,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
+| `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 
 **`run`.** `--headless` is required: it states the only mode `run` has in MVP-0, and leaves a
 non-headless `run` possible later without changing what an existing invocation means. `--seed N`
@@ -1387,6 +1402,21 @@ fingerprint, which always covers the world's whole history; and last, on its own
 before the `wall` line is a function of the pack, the seed, the age and the code. The fingerprint
 (`FNV-1a 64` over every fact's stored encoding in `EventId` order, printed with the number of facts
 it covers) is for a person comparing two runs by eye; it is not a proof of equality.
+
+**`reference`.** Exactly one of `--out DIR` and `--check DIR`. It loads no World Pack and starts no
+world; what it generates is a function of the build alone: the installed set's packs in its order, each
+type's fields in name order, no timestamp and no commit hash, `\n` line endings on every OS. The pages
+are `README.md` (the index), `world-pack.md` (`world.yaml` and the content files' own fields),
+`sections.md` (each section an installed pack owns), `configure.md` (each `configure/` file other than an
+Interaction List section, the framework keys `classes` and `packages` included), `interaction-list.md`
+(the section shape and each pack's declarations), `pack-manifest.md` (a data pack's `pack.yaml` and a
+style manifest) and `cli.md` (every visible subcommand and argument, walked from the parser), plus the
+JSON Schemas under `schema/`. Every Markdown page begins with a generated banner. A field's description
+is the first paragraph of its doc comment; generation is refused, naming the type and the field, when a
+field has none. `--out DIR` writes the files, creating `DIR` if needed, removes generated files it no
+longer writes, and refuses — writing nothing — when `DIR` holds a file it did not generate.
+`--check DIR` writes nothing; it exits 0 when `DIR` holds exactly what this build generates, and
+otherwise exits 1 naming every file that differs, is missing, or is extra.
 
 **`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
 head revision and its instant, the journal counted by input kind and outcome, the snapshots the save

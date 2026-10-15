@@ -8,6 +8,7 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) | the ontology and the hard invariants |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | the five layers, kernel scope, action pipeline |
 | [`MODULE_SPEC.md`](MODULE_SPEC.md) | the six kinds of installable pack |
+| [`reference/`](reference/) | every field a World Pack's files may set — generated from the code, never edited by hand |
 | [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) | how packs are published: `.mwpack`, glTF, extension tiers |
 | [`NETWORKING.md`](NETWORKING.md) | server authority, hosting, transport |
 | [`MVP.md`](MVP.md) | what the first milestone must prove |
