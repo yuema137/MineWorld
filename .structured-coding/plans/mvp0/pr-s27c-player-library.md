@@ -643,8 +643,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C4 | 63dae68 | [x] | [x] | [x] |
 | C5 | 4b94d28 | [x] | [x] | [x] |
 | gap table | 2525c34 | [x] | N/A (docs only) | [x] |
-| C5a (R-S27c-INFO) | (this commit) | [x] | [x] | [x] |
-| C6 | — | [ ] | [ ] | [ ] |
+| C5a (R-S27c-INFO) | 0f7bc7f | [x] | [x] | [x] |
+| C6 | (this commit) | [x] | [x] | [x] |
 | C7 | — | [ ] | [ ] | [ ] |
 | C8 | — | [ ] | [ ] | [ ] |
 | C9 | — | [ ] | [ ] | [ ] |
@@ -842,6 +842,21 @@ as the authority for the added fields.
 - **Item names (ruling 2).** PR #171 (S15 12d) is **open, not merged** at this commit; the check after its
   merge is pending (C9 re-checks before the close-out, F-S27c-9 otherwise).
 
+- **E-C6 (pacer).** `pacer.py`: `Pacer(walking, paused, step, wall, sleep, interval=1.0)` with `start`
+  (ends a paced walk first; the interval holds across a restart), `stop`, `wait`, `running`. `walking()` is
+  three-valued — `walking`, `gone`, `unseen` (the newest observation does not yet reflect the last request,
+  `acted_through`) — so the pacer never decides on an observation older than its own last step; `unseen`
+  past 5 wall s stops it without sending (D-c-12). Paused → look again every 0.25 wall s, sending nothing.
+  `step` (the Player's, under the submit lock) answers `stepped`, `stop` or `Wait(seconds)` (`rate_limited`'s
+  `retry_after_ms`, F-S27c-6). `test_pacer.py` 8 passed (virtual wall clock: cadence, one in flight, gone,
+  an ending answer, paused, the courtesy wait, unseen, stop and restart); ruff, format, pyright clean. The
+  tests state the 1 s rule themselves (`SECOND`), not from `pacer.INTERVAL` (test rules §25).
+  Mutations: **M-c-3** (`INTERVAL = 0.1`) → `test_at_most_one_step_per_wall_second` and
+  `test_stop_ends_the_walk_and_a_new_one_keeps_the_interval` red; reverted. Pause ignored →
+  `test_nothing_is_sent_while_paused` red; reverted (`cmp` clean). Review: no route, no distance, no
+  stride splitting; stops on a walk gone, any ending answer, `stop()`/a new `start()`; one loop, one step in
+  flight (sequential `await step()`; the Player's lock serialises it with the handle's other submits).
+
 ### Implementation decisions (bounded, within step-27 §5)
 
 | Id | Question | Decision and why |
@@ -863,6 +878,8 @@ as the authority for the added fields.
   against §12's NEVER list ("heredoc writes"). It was deleted unexecuted; every edit was then made with the
   editor. Mutations were planted with the editor and reverted by copying a byte backup (`cp`, `cmp` clean),
   never `sed -i`.
+- In C6 (same session) one read-only `python3 -I -c` printed the walking fixture's affordances, against §12's
+  NEVER list ("python3 -c"). Nothing was written; later inspection uses `grep`/the editor.
 
 ### Assumptions to verify in implementation
 
