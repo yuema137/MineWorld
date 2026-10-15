@@ -640,9 +640,10 @@ welcomed `took_over: "hosted"`, receives every fact it missed from its cursor (P
 5. Per seat, `memory` (or `DEFAULT_CHOICE` when `null`) goes to FG-b's `resolve` with the policy registry and,
    when FG-c is present, `Router.for_tier("summarize")` (R-P6-FG-2, R-P6-FGc-1). A resolution error refuses
    to start that seat, naming the file, line and column from `source`.
-6. At each welcome, the runner checks `welcome.world.id` equals the JSON's `world`; a mismatch ends the seat
-   with a named error. The server's resolved list cannot be read over the wire, so a different `--decisions`
-   on the server and in step 3 is detectable only by its effect — recorded as R-P6-7.
+6. At each welcome, the runner checks that every `lm` seat key of the JSON is among `welcome.world.seats`; a key
+   that is not refuses to start (or ends the seat) with a named error. The welcome carries no world or pack id, so a
+   seat-name collision across worlds is not detected: finding F-P6b-21 (ruled, D-P6b-21 option (a)). A different
+   `--decisions` on the server and in step 3 is detectable only by its effect — recorded as R-P6-7.
 
 The Rust side gains one line, `external "lm"` in `cognition/installed` (DL-a §5.6), with no other Rust change
 in P6b.
@@ -860,7 +861,7 @@ QP6-7: accepted as written); the rest follow from the design.
 | **AP6-7** | Deadline: a scripted backend that delays 30 s makes the consult fall back by `consult_deadline_s` + 1 s, and the visitor's own requests during that time are answered by the server as usual | — |
 | **AP6-8** | **AC-DL-5.** (kill) With the cognition process SIGKILLed, Alice's seat is driven by her fallback model within `hold_seconds` + one pace + 2 s (a request from Alice by the in-server controller appears); (replay) `replay_log` over a scripted integration run's log and cassette reproduces every cassette key and every `ActionRequest` | M-P6-6 |
 | **AP6-9** | Resume: restarting the cognition process inside the hold rejoins with the persisted secret (`took_over: "held"`), after at least one earlier rejoin (so the rewrite is exercised); the secret, the invite and a planted fake key appear in no log, decision log, store or cassette | M-P6-7 |
-| **AP6-10** | Assignment: only seats whose resolved model is assigned `lm` are joined; an unknown `format`, a `seats` entry that is not an `lm` seat, a world id that differs from the welcome, and a FG-b resolution error each refuse to start with a message naming the file (and line and column where FG-b gives them) | — |
+| **AP6-10** | Assignment: only seats whose resolved model is assigned `lm` are joined; an unknown `format`, a `seats` entry that is not an `lm` seat, an lm seat key that is not in `welcome.world.seats` (D-P6b-21 (a); the world-id clause is dropped), and a FG-b resolution error each refuse to start with a message naming the file (and line and column where FG-b gives them) | — |
 | **AP6-11** | No request built under `controller/` has action type `move` or `walk-step` (source scan of `intent.py` plus an integration assertion over the scenario's journal for Alice's LM-driven intervals) | — |
 | **AP6-12** | The provider-concept scan (P5a's `test_provider_scan.py`, extended to `controller/`, the decision log and the store schema) finds no provider or model name, URL or key; no entity id in any `CompletionRequest` of the scenario | M-P6-9 |
 | **AP6-13** | Observability: the shutdown status line and the last `counters` record agree; their fields equal the counts recomputed from the decision log's consult records | — |
@@ -1880,4 +1881,10 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   step 6 and AP6-10's "world id" clause; (b) the server adds the pack id to `WorldSummary` (a protocol and server change,
   out of P6's scope, and a material stop by itself). Recommendation: (a). C12 is paused at this point; C0 to C11 are
   unaffected. Nothing was run for C12 and no C12 file was created.
+- **D-P6b-21 RULED (2026-10-14, primary): option (a).** Every `lm` seat key of the decision JSON must be in
+  `welcome.world.seats`; a key that is not is refused by name. §5.9 step 6 and AP6-10 are amended as above; R-P6-7 stands.
+  **F-P6b-21 (finding, for the primary, protocol follow-up after S27-a, not P6b):** the welcome carries no world or pack
+  id, so a seat-name collision across worlds is not detected.
+- **D-P6b-18 ACCEPTED (2026-10-14, primary):** PassReport summaries stay out of the decision log in P6b; P7 may revisit.
+- **D-P6b-20 noted:** the scratch heredoc slip of C11 is recorded; no further occurrence.
 - (planning findings are §3.2 and §0.1)
