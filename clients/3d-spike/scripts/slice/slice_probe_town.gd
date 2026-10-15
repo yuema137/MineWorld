@@ -398,6 +398,8 @@ const AT_DOOR_M := 0.15
 ## STEP_M is left out, because kerbs, steps and the café's ramp are walked on.
 const DEPTH_M := 0.05
 const STEP_M := 0.15
+## --frames: a frame of someone walking every this many seconds, three in all.
+const FRAME_EVERY_S := 4.0
 ## S-5: a figure counts as standing once its observed position has not changed
 ## for this long; L-3's 50 mm applies to the people standing (a walking figure
 ## is drawn behind the person it follows, by design).
@@ -462,7 +464,7 @@ func _street_check() -> void:
 	# process_frame was made by the previous frame's _process, with its delta
 	var moved_dt := 0.0
 	var next_sample := 0.0
-	var next_shot := secs * 0.25
+	var next_shot := FRAME_EVERY_S
 	var wall0 := Time.get_ticks_msec()
 	while t < secs:
 		await get_tree().process_frame
@@ -501,27 +503,34 @@ func _street_check() -> void:
 					walls.append("%s (%s) at %s: %s" % [link.display_label(id), id,
 						(link.figures[id] as Node3D).global_position, hit])
 		if frames:
-			for id in link.figures:
-				if shots < 3 and t >= next_shot and fastest.get(id, 0.0) > 0.6 \
-						and _flat_len((last_drawn.get(id, Vector3.ZERO) as Vector3) - player.global_position) < 14.0:
-					await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * 1.2)
-					await _save("street_%d_walking" % (shots + 1))
-					print("frame    street_%d_walking: %s (%s) at %s" % [shots + 1, link.display_label(id), id,
-						(link.figures[id] as Node3D).global_position])
-					shots += 1
-					next_shot += secs * 0.25
-					break
+			# a snapshot of who is where: the frame's own awaits can see a figure leave
+			for id in link.figures.keys():
+				var fig := link.figures.get(id) as Node3D
+				if fig == null or shots >= 3 or t < next_shot or fastest.get(id, 0.0) <= 0.6 \
+						or _flat_len(fig.global_position - player.global_position) >= 14.0:
+					continue
+				var at := fig.global_position
+				var who := link.display_label(id)
+				await _aim_at(at + Vector3.UP * 1.2)
+				await _save("street_%d_walking" % (shots + 1))
+				print("frame    street_%d_walking: %s (%s), aimed at %s" % [shots + 1, who, id, at])
+				shots += 1
+				next_shot += FRAME_EVERY_S
+				break
 			if not door_shot:
-				for id in figs._going:
+				for id in figs._going.keys():
 					var n := figs.going(id)
-					if n != null and not seen_leaving.has(id):
-						seen_leaving[id] = true
-						await _aim_at(n.global_position + Vector3.UP * 1.2)
-						await _save("street_4_into_a_door")
-						print("frame    street_4_into_a_door: %s going into %s, at %s"
-							% [id, figs._going[id]["door"] if figs._going.has(id) else "?", n.global_position])
-						door_shot = true
-						break
+					if n == null or seen_leaving.has(id):
+						continue
+					seen_leaving[id] = true
+					var at := n.global_position
+					var door: String = figs._going[id]["door"]
+					await _aim_at(at + Vector3.UP * 1.2)
+					await _save("street_4_into_a_door")
+					print("frame    street_4_into_a_door: %s (%s) going into %s, aimed at %s"
+						% [link.display_label(id), id, door, at])
+					door_shot = true
+					break
 	print("watch    %.0f s in %.1f s wall; %d S-4 samples" % [secs, (Time.get_ticks_msec() - wall0) / 1000.0,
 		samples])
 
