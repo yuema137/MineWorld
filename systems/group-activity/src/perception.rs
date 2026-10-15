@@ -12,12 +12,12 @@
 //!                              anyone who can see them (SD-11)
 //! ```
 //!
-//! An offer carries the availability only this pack can judge; perception prices space. An offer
-//! cannot see the clock (`PerceptionProvider` is handed no instant), so an invitation past its
-//! [`Invitation::until`](crate::Invitation::until) that has not been written over yet is still offered
-//! and is refused `PreconditionFailed` at dispatch. A controller reads the invitation's own `until` —
-//! the lifetime the world's section gave it — rather than finding out by asking (`step-09-social.md`
-//! §9 E-B2; S17's PR IL-b).
+//! An offer carries the availability only this pack can judge; perception prices space. Perception
+//! reads the instant of the observation (`WorldRead::at`), so an invitation past its
+//! [`Invitation::until`](crate::Invitation::until) is not offered accept or decline, even if it has
+//! not been written over yet: an offer and its answer share one bound. A controller reads the
+//! invitation's own `until` — the lifetime the world's section gave it — rather than finding out by
+//! asking (`step-09-social.md` §9 E-B2; S17's PR IL-b).
 
 use mineworld_contracts::{
     Action, ActionTypeId, ComponentRecord, EntityId, EntityType, LifecycleState,
@@ -85,10 +85,12 @@ impl PerceptionProvider for GroupActivitySystem {
             Offer::new::<Invite>(invite).with_target_available(active && theirs.is_none()),
             invite_permitted,
         )];
+        let now = world.at();
         let invited_by_them = person(world, target).is_some_and(|inviter| {
             world
                 .component::<Invitations>(me.entity_id())
-                .is_some_and(|held| held.from(inviter).is_some())
+                .and_then(|held| held.from(inviter))
+                .is_some_and(|invitation| invitation.is_open_at(now))
         });
         if invited_by_them {
             if mine.is_none() {

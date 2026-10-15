@@ -1,5 +1,15 @@
 # Handoff — S27-b (group-activity offers complete)
 
+**Resume (2026-10-15): first the expired-invitation fix (D-b-1, `perception.rs` + regression test), then merge
+`origin/main` (S27-c #204 and P6b #207 merged since the pause). The status below is from before the resume.**
+
+**Status (pre-resume): PARKED at B2 step 1 (R-LOAD-1, F-12d-1).** B0 (`cf3f088`) and B1 (`d9705fd`) are committed locally, not
+pushed. B2 has not produced a verdict: `cargo test -p mineworld-rule-controller` passed (38); the CLI and
+acceptance suites ran with exit 101, and `tools/cli/tests/interaction_runs.rs:253`
+(`a_longer_gap_and_a_shorter_lifetime_change_the_world_as_configured`) FAILED. The failure is not yet attributed.
+Resume at B2 step 1 once load is lower; `main`'s baselines are still stale (F-12d-1), so use the base-record
+reference of design §9 B2 step 5.
+
 Continuation aid only. The authority is `pr-s27b-group-activity-offers.md` (§12 contract, §15 ledger).
 
 ## Project and PR

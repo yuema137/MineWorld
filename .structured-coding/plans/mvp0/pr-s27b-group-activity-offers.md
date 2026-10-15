@@ -576,3 +576,17 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   line `Lifecycle: DRAFT` was not updated at freeze. The operator's dispatch states the design is frozen and
   §12 is filled, so B0 proceeds; the stale `Lifecycle` line is for the primary session to correct in its
   next design-side commit. No authority line was changed by the implementer.
+
+- **D-b-1 (bounded correction, recorded, 2026-10-15; operator dispatch on resume).** Pre-existing defect found
+  when the lane resumed: `perception.rs` offered `accept-invitation` and `decline-invitation` as available for
+  an invitation past its `until`, although dispatch refuses it (`PreconditionFailed`). The module doc claimed
+  perception could not see the clock; `WorldRead::at` exists and is the world's clock. Fix: the invitation
+  must be open at `world.at()` to be offered (`invited_by_them`). Effect on I-b-2: the availability of the
+  two answers changes for expired invitations only; requirements, refusals and the other offers are unchanged.
+  Regression test `an_expired_invitation_is_not_offered_as_an_answer` (`systems/group-activity/tests/group_activity.rs`):
+  red on the pre-fix code (FAIL at "an expired invitation is not offered accept"), green after. The test moves
+  the world's clock with `World::advance_to` before observing, because perception reads `WorldRead::at`
+  (= `World::now`) and not the `at` argument of `observe`. Finding for the kernel/presence owner: `observe`
+  takes an `at` that its providers do not see (the observation's `at` and the read's `at` can differ in tests).
+  This correction may move the B2 long-run measurement for a cause other than F-S27b-1 (an expired accept
+  is no longer attempted); B2 must attribute every moved key before any re-record (§5.3).

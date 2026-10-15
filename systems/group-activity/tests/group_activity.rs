@@ -397,6 +397,53 @@ fn offers_and_disclosure_say_what_the_pack_knows_and_no_more() {
 }
 
 #[test]
+fn an_expired_invitation_is_not_offered_as_an_answer() {
+    // Regression (S27-b, pre-existing): perception was handed the clock, yet offered accept and
+    // decline for an invitation past its `until`; dispatch then refused it. The offer must follow
+    // the same bound as the answer: at exactly the lifetime it is offered, one second later it is not.
+    let mut cafe = Cafe::new();
+    cafe.invite(10, cafe.alice, cafe.bob);
+    // Perception reads the world's clock, so the clock is moved to each instant before observing.
+    let _due = cafe
+        .world
+        .advance_to(t(10 + 1_800))
+        .expect("the clock advances");
+    let open = cafe.observation(cafe.bob, 10 + 1_800);
+    assert!(
+        offered(
+            &open,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_some_and(Affordance::is_available),
+        "at exactly the lifetime the invitation is still offered"
+    );
+    let _due = cafe
+        .world
+        .advance_to(t(10 + 1_801))
+        .expect("the clock advances");
+    let late = cafe.observation(cafe.bob, 10 + 1_801);
+    assert!(
+        offered(
+            &late,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "an expired invitation is not offered accept"
+    );
+    assert!(
+        offered(
+            &late,
+            DeclineInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "an expired invitation is not offered decline"
+    );
+}
+
+#[test]
 fn the_four_answers_are_offered_complete_and_attempted_unchanged() {
     let empty = serde_json::json!({});
     let mut cafe = Cafe::new();
