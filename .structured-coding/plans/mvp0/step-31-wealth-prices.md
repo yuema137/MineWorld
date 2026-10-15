@@ -15,16 +15,20 @@ It records two operator requirements of 2026-10-15. It audits what the market pa
 It ends with the invariants, the acceptance and adversarial criteria, a PR split, the risks and the questions
 only the operator can answer.
 
-**Effort:** `mvp0` (placement argued in §16.3; Q-S31-1 asks the operator to confirm it).
+**Effort:** `mvp0`. Placement is ruled (Q-S31-1): S31-a…S31-g are in MVP-0 and S31-h is in MVP-1. The
+release subset is S31-a, S31-e and S31-g.
 **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `STEP DESIGN (DRAFT)`, revision 1, awaiting operator review.
+**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered
+Q-S31-1…8 directly in the primary session on 2026-10-15, every one as recommended (§18.1). The same day, S30's
+ruling on Q-S30-6 added a scope item, the `wealth-band` attribute (§7.4).
 
-- Approval would fix this step's scope, invariants (§14) and step acceptance (§15.1). Progress, evidence,
+- Approval fixes this step's scope, invariants (§14) and step acceptance (§15.1). Progress, evidence,
   findings and bounded corrections stay writable.
 - Each PR is detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). Only a PR
   design carries `DESIGN FROZEN`.
 - Nothing in this file authorizes implementation, a paid model call or a merge.
+- Superseded lifecycle: `STEP DESIGN (DRAFT)`, PR #222 revision 1 (`6e4e9e76`).
 
 **Author:** S31 design session (Opus), 2026-10-15.
 
@@ -32,10 +36,10 @@ only the operator can answer.
 - Branch: `docs/s31-wealth-prices`.
 - Audit base: `origin/main @ 58a6f55f` (#204, S27-c merged).
 
-**Ids.** Placeholders only, until the step is approved: `ARC-S31-a` … `ARC-S31-h` and `DEP-S31-a`. On
-2026-10-15 the highest ids on `main` are `ARC-108` and `DEP-60`. `ARC-109` and `DEP-61` are already claimed
-on the pushed branch `docs/s28a-s27d-designs` (`pr-s28a-memory-home.md`). The first free ids are therefore
-`ARC-110` and `DEP-62`, to be re-checked when the step is approved (§19.5).
+**Ids.** Assigned 2026-10-15 from the range the coordinator reserved for S31 (`ARC-111` … `ARC-119`,
+`DEP-63` … `DEP-65`), used from the bottom up: `ARC-111` … `ARC-118` replace the placeholders ARC-S31-a…h,
+and `DEP-63` replaces DEP-S31-a. `ARC-119`, `DEP-64` and `DEP-65` stay unused. The entries are written into
+`docs/DECISIONS.md` by the PRs named in §19.4. Revision 1 used placeholders.
 
 Local ids in this file:
 
@@ -226,7 +230,7 @@ Each is a Component, Event or action of a named System Pack.
 
 ---
 
-## 4. The currency as data (`ARC-S31-a`)
+## 4. The currency as data (`ARC-111`)
 
 ### 4.1 Where it is declared (SD-S31-1)
 
@@ -273,7 +277,7 @@ changes only `currency-declared` and the display: no amount, no code (AC-S31-6).
 
 ---
 
-## 5. Every item has a price, set by its seller (`ARC-S31-b`)
+## 5. Every item has a price, set by its seller (`ARC-112`)
 
 ### 5.1 The model (SD-S31-3)
 
@@ -474,7 +478,7 @@ show converging prices, and it doubles economy's action surface.
 
 ---
 
-## 6. Reference value vs asking price (`ARC-S31-c`)
+## 6. Reference value vs asking price (`ARC-113`)
 
 ### 6.1 The reference value (SD-S31-8)
 
@@ -502,7 +506,7 @@ over MCP. Economy validates only the bounds. §10 specifies the pluggable polici
 
 ---
 
-## 7. Wealth (`ARC-S31-d`)
+## 7. Wealth (`ARC-114`)
 
 ### 7.1 The view (SD-S31-9)
 
@@ -535,9 +539,63 @@ receipt (I-S28-1). With S28-d's `Rendered.anchors`, economy's renderer anchors e
 place, so the `item` scope recalls "coffee: 300 at the café (2 days ago), 260 from Grace (today)". No new
 memory mechanism is added. Recall shows how old a seen price is, from the record's `at`.
 
+### 7.4 The `wealth-band` attribute, and sampled opening balances (S30 ruling Q-S30-6; part of `ARC-114`)
+
+S30 ruled that initial wealth is sampled through the owner interface. `economy` owns the attribute, and S31
+decides the bands (SD-S31-13).
+
+- **Bands are economy configuration**, beside the currency:
+
+  ```yaml
+  # configure/economy.yaml
+  wealth_bands:                 # 2 … 8 bands, ascending; band i covers [from_i, from_{i+1}); the last is open
+    - { id: modest,      from: 0,      opening: 20000 }
+    - { id: comfortable, from: 100000, opening: 200000 }
+    - { id: wealthy,     from: 500000, opening: 800000 }
+  ```
+
+  - `id` is a slug.
+  - `from` and `opening` are amounts in minor units.
+  - The first `from` must be 0, and the `from` values must strictly increase.
+  - Each `opening` must lie inside its own band.
+
+  The refusals are named: `economy-bands-count`, `economy-bands-first-not-zero`, `economy-bands-unordered`,
+  `economy-band-opening-outside`, and `economy-band-id-duplicate`. The bands are optional. Without them,
+  the attribute is not declared, and every wallet must be authored, as today.
+- **The attribute.** `economy` declares `economy.wealth-band` in its pack's `attributes/`:
+  - group `background`;
+  - `kind: { categorical: { vocabulary: economy.wealth-bands } }`, the band ids of the world's
+    configuration;
+  - `visibility: private`;
+  - `mutability: derived`;
+  - `owner: economy`.
+
+  It is S30's `derived` class: never stored, and projected when read.
+- **The projection** is the band containing the person's **wealth** (§7.1: wallet plus reference values).
+  S30's attribute table names "economy's balance" as the example source. S31 chooses wealth, so that a person
+  who holds valuables but little cash is not ranked as poor. S30's owner updates that example (§19.6). The
+  projection is computed in economy's `AttributeOwner` implementation, from economy's own state and the
+  `Holdings` it already reads.
+- **Seeding** (S30 §4.2 item 4):
+  1. **An authored `wallet` wins.** The person's own `economy.wallet` is authored data, and economy states
+     `funded` from it. The band is then whatever the projection gives.
+  2. **Otherwise economy uses the resolved band.** When the person file has no `wallet`, economy's
+     `AttributeOwner` seed receives that person's resolved `wealth-band` from S30, whether authored, locked,
+     from a role, sampled or defaulted. Economy states `funded { balance: band.opening }`. Economy draws
+     nothing itself: any randomness is S30's seeded sampler (`sampled { stratum, draw }`).
+  3. **A person with neither is refused** by name, with `economy-wallet-unresolved`.
+
+  Organizations always author their wallet.
+- **Market Town** declares bands, with the boundaries' source cited in the file. It keeps its authored
+  wallets, which are E-9's sizing (A-23), so the bands do not move its wallets. The sampled path is exercised
+  by a fixture world, `tests/fixtures/worlds/market-sampled`, in which the people's files carry no `wallet`.
+- **Placement.** This goes in S31-f, because economy implements S30-c's `AttributeOwner` from
+  `mineworld-attributes-model`. If S30-c has not merged when S31-f starts, the band commit moves into a
+  follow-up PR, S31-f2, and S31-f proceeds without it.
+
 ---
 
-## 8. Public notices: a publish/subscribe System Pack (`ARC-S31-e`)
+## 8. Public notices: a publish/subscribe System Pack (`ARC-115`)
 
 ### 8.1 The pack (SD-S31-10)
 
@@ -615,9 +673,23 @@ the board record (§8.6).
 - **Genesis:** the person's `notices.subscribe` if present, otherwise the union of `defaults.by_tag` over the
   person's tags. That is how a cook subscribes to ingredient prices: a role tag, not code.
 - **Disclosed to the holder only.** Others cannot see what someone reads.
-- **S30 interface.** S30 shows it as the person attribute `subscriptions: [topic]`. The writer is `notices`.
-  If S30 rules that every person attribute is owned by one attributes pack, `notices` reads it read-only
-  instead and keeps the actions. Either way there is one writer (Q-S31-7).
+- **S30 interface (ruled, Q-S31-7: `notices` owns it, S30 shows it).** This follows S30's §9.6, N-1…N-6, on
+  `docs/s30-person-attributes`:
+  - `notices` declares the attribute `notices.subscriptions`: group `behaviour`,
+    `kind: { set: { vocabulary: notices.topics, max: 32 } }`, `visibility: private`, `mutability: evolving`,
+    `owner: notices`.
+  - `notices` implements `AttributeOwner` from `mineworld-attributes-model`. At genesis it receives each
+    person's resolved set and states its own `subscribed` facts.
+  - The resolution order is S30's: the person's file, then the lock, then roles (for example
+    `{ when: { tags: [cook] }, add: { notices.subscriptions: [<topic>] } }`), then the profile, then the
+    default. When S30-c's crate is present, it replaces `notices`' own `defaults.by_tag` and person section
+    above.
+  - The topic vocabulary is the `topics:` keys of `configure/notices.yaml`, exposed to S30 as
+    `notices.topics`. S30's examples use dotted ids such as `prices.ingredients`. S31-b adopts that form, so
+    Market Town's topic becomes `prices.ingredients`, while `market-prices` remains this file's descriptive
+    name for the same topic.
+  - **Order.** If S31-b freezes before S30-c merges, S31-b ships its own section and tag defaults, and adopts
+    the crate in the PR that follows S30-c (S30 §13.3). There is still one writer throughout.
 
 ### 8.6 Current vs remembered
 
@@ -645,7 +717,7 @@ the board record (§8.6).
 
 ---
 
-## 9. The market price reporter (`ARC-S31-f`)
+## 9. The market price reporter (`ARC-116`)
 
 ### 9.1 The role, and the real practice it follows
 
@@ -715,7 +787,7 @@ another model may publish a mean, a trimmed median or an LM's judgement.
 
 ---
 
-## 10. Pricing policies and convergence (`ARC-S31-g`)
+## 10. Pricing policies and convergence (`ARC-117`)
 
 ### 10.1 Pricing is a decision-model concern (SD-S31-12; Q-S31-5)
 
@@ -838,7 +910,7 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | I-S31-6 | **The reference value is never charged.** No settlement path reads it |
 | I-S31-7 | **Notices reach exactly the subscribers.** A `notice-published` audience equals the topic's subscribers at that instant plus the publisher |
 | I-S31-8 | **The current board never shows an expired notice.** Memory and inbox may keep it, marked by time |
-| I-S31-9 | **Nothing private leaks.** Wallets, wealth, holdings counts, subscriptions and price books are disclosed to their holder only |
+| I-S31-9 | **Nothing private leaks.** Wallets, wealth, the wealth band, holdings counts, subscriptions and price books are disclosed to their holder only |
 | I-S31-10 | **Optional throughout.** A world without `economy`, `notices` or `price-survey`, or without a reporter, loads and runs. Its behaviour is unchanged for packs it does not enable |
 | I-S31-11 | **No currency name in code.** A grep of `systems/`, `clients/`, `cognition/` and `server/` for the reference worlds' currency names and symbols finds only tests and fixtures |
 | I-S31-12 | **Rules on the server only.** The client-rules scan passes with its two new patterns |
@@ -866,6 +938,9 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | AC-S31-13 | **Integration checkpoint: prices converge with supply.** Market Town, 30 days, seed 7, S31-f content. (a) At least 20 `market-prices` notices. (b) A subscribed NPC's inbox (agent library) and S28 memory (`mineworld-memory inspect`) show a bulletin, and the board shows it only while current. (c) At least one keeper's ask moves toward the current suggestion at least twice. (d) Under the supply-shock fixture (bread production halved from day 10), bread's suggested price on day 20–30 exceeds the control run's, and the store's bread ask follows it within `ceiling`. (e) At least 10 person-to-person sales |
 | AC-S31-14 | **E-9 still holds** over 300 days (zero `wage-unpaid`, money conserved, nobody above six, no wallet below the cheapest price), with the criteria test updated for S29-b and S31-f content |
 | AC-S31-15 | **Both clients.** 2D and 3D drives: walk to the store, read the price tag, buy, see the wallet drop by the price. Walk to Grace, buy flowers. Refusals show their words. Recorded shots on three OSes |
+| AC-S31-16 | **Bands validate by name.** Each of `economy-bands-count`, `economy-bands-first-not-zero`, `economy-bands-unordered`, `economy-band-opening-outside` and `economy-band-id-duplicate` is produced by one planted `configure/economy.yaml`, at `mineworld validate`. A world without `wealth_bands` declares no `economy.wealth-band` attribute and behaves as today |
+| AC-S31-17 | **Sampled opening balances.** In `market-sampled` (people without `wallet`), every person's `funded.balance` equals the `opening` of the band S30 resolved for them, and `mineworld attributes resolve` shows that band with origin `sampled`. The same seed gives byte-identical wallets. A new seed changes only sampled people's wallets. An authored `wallet` on one person is kept exactly. A person with neither is refused `economy-wallet-unresolved` |
+| AC-S31-18 | **Derived and private.** After purchases move a person's wealth across a band boundary, the disclosed `economy.wealth-band` changes, and the save holds no `wealth-band` component. No other seat's Observation, and no MCP `inspect` of another person, contains the attribute |
 
 ### 15.2 Planted mutations (each must fail by name, then be reverted)
 
@@ -882,6 +957,7 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | X-9 | economy discloses `Wallet` to any observer | AC-S31-8 |
 | X-10 | the 2D formatter keeps `/100` | AC-S31-6's `exponent: 0` shot shows "0.03 cr" |
 | X-11 | inventory's reduction refuses a transfer that `admit_transfer` admitted (test-only) | `FactRefusedByOwner { system: inventory }` reported, and the I-S31-3 scan names the revision |
+| X-12 | economy stores the band as a component at genesis instead of projecting it | AC-S31-18: the band stays at its genesis value after the boundary crossing, and the save scan finds a `wealth-band` component |
 
 ---
 
@@ -913,12 +989,12 @@ S31-b  notices pack ───────────────┼────
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S31-a** asks and settlement | <ul><li>C1, specification first: MODULE_SPEC §4.1 economy row, CORE_CONCEPTS §8 note, `ARC-S31-a`/`-b`/`-c`/`-d`, the `ARC-38` amendment (item 5 lifted; QS-44 superseded).</li><li>C2: currency configuration, `currency-declared`, the record.</li><li>C3: `Asks`, `Shop{operator, keepers}`, the section keys, `listed`.</li><li>C4: the four actions, codes, offers, disclosure, the wealth record.</li><li>C5: `sold`, settlement, the §5.7 property test and X-11.</li><li>C6: Market Town `configure/economy.yaml` (currency only); the re-baseline</li></ul> | WE-a C4 if merged (rebase); 12d merged | fixture world AC-S31-1…3, AC-S31-6, AC-S31-7; Market Town 30 d replays; AC-S31-4 | X-1, X-2, X-3, X-9 | **Opus** (contract reshaping, settlement proof, many consumers) |
-| **S31-b** notices | `systems/notices`: configuration, section, three actions, `notice-published`, `subscribed`/`unsubscribed`, board record, S28 renderer (Python, with `Rendered.anchors` once S28-d lands), `ARC-S31-e` | none (parallel with S31-a) | fixture world: publisher, two subscribers, one non-subscriber; expiry at the boundary; kill-and-resume | X-4, X-5 | **Opus** (new pack; audience and time semantics) |
-| **S31-c** price-survey | `systems/price-survey`: section, `PriceBook`, `survey`, witnessed `sold`, `ARC-S31-f` (book half) | S31-a | fixture world: AC-S31-10 | X-7 | **Haiku** (well-specified pack on a frozen pattern) |
-| **S31-d** reporter and policies | `cognition/price-reporter` (`models!` line); `mineworld_rule_controller::price` (`hold`, `toward-suggestion`, `scarcity`, `list-goods`, `buyer`); the `pricing:` block in `rule` and `motivated`; template determinism test (AC-6); LM cassette for AC-S31-11; `ARC-S31-f` (backend half), `ARC-S31-g` | S31-a, S31-b, S31-c | fixture world 10 d: notices published, a policy follows; backend swap | X-6 | **Haiku** for the deterministic model and policies from a commit plan; **Opus** for the LM cassette wiring |
+| **S31-a** asks and settlement | <ul><li>C1, specification first: MODULE_SPEC §4.1 economy row, CORE_CONCEPTS §8 note, `ARC-111`…`ARC-114`, the `ARC-38` amendment (item 5 lifted; QS-44 superseded).</li><li>C2: currency configuration, `currency-declared`, the record.</li><li>C3: `Asks`, `Shop{operator, keepers}`, the section keys, `listed`.</li><li>C4: the four actions, codes, offers, disclosure, the wealth record.</li><li>C5: `sold`, settlement, the §5.7 property test and X-11.</li><li>C6: Market Town `configure/economy.yaml` (currency only); the re-baseline</li></ul> | WE-a C4 if merged (rebase); 12d merged | fixture world AC-S31-1…3, AC-S31-6, AC-S31-7; Market Town 30 d replays; AC-S31-4 | X-1, X-2, X-3, X-9 | **Opus** (contract reshaping, settlement proof, many consumers) |
+| **S31-b** notices | `systems/notices`: configuration, section, three actions, `notice-published`, `subscribed`/`unsubscribed`, board record, S28 renderer (Python, with `Rendered.anchors` once S28-d lands), `ARC-115` | none (parallel with S31-a) | fixture world: publisher, two subscribers, one non-subscriber; expiry at the boundary; kill-and-resume | X-4, X-5 | **Opus** (new pack; audience and time semantics) |
+| **S31-c** price-survey | `systems/price-survey`: section, `PriceBook`, `survey`, witnessed `sold`, `ARC-116` (book half) | S31-a | fixture world: AC-S31-10 | X-7 | **Haiku** (well-specified pack on a frozen pattern) |
+| **S31-d** reporter and policies | `cognition/price-reporter` (`models!` line); `mineworld_rule_controller::price` (`hold`, `toward-suggestion`, `scarcity`, `list-goods`, `buyer`); the `pricing:` block in `rule` and `motivated`; template determinism test (AC-6); LM cassette for AC-S31-11; `ARC-116` (backend half), `ARC-117` | S31-a, S31-b, S31-c | fixture world 10 d: notices published, a policy follows; backend swap | X-6 | **Haiku** for the deterministic model and policies from a commit plan; **Opus** for the LM cassette wiring |
 | **S31-e** clients | shared formatter; HUD; tags; sale panel; stall; notice board; i18n; client-rules patterns; drives and shots | S31-a (S31-b for the board) | AC-S31-15 | X-8, X-10 | **Haiku** (2D); **Opus** review of 3D frames |
-| **S31-f** Market Town | reference values with sources; keepers; Grace and two others list goods; reporter person, routine and book; `configure/notices.yaml`; subscriptions by tag; pricing policies in `decisions.yaml`; supply-shock fixture; criteria test update; the content re-baseline | S31-a…d; S29-b if merged | **AC-S31-13** (30-day convergence), AC-S31-12, AC-S31-14 (300 d in nightly), AC-S31-5 | the AC-S31-12 removal runs | **Haiku** (content and measurement against fixed criteria) |
+| **S31-f** Market Town | reference values with sources; keepers; Grace and two others list goods; reporter person, routine and book; `configure/notices.yaml`; subscriptions by tag; pricing policies in `decisions.yaml`; supply-shock fixture; criteria test update; the `wealth-band` attribute, bands and the `market-sampled` fixture (§7.4; S31-f2 if S30-c has not merged); the content re-baseline | S31-a…d; S29-b if merged; S30-c for §7.4 | **AC-S31-13** (30-day convergence), AC-S31-12, AC-S31-14 (300 d in nightly), AC-S31-5, AC-S31-16…18 | the AC-S31-12 removal runs; X-12 | **Haiku** (content and measurement against fixed criteria) |
 | **S31-g** agent view | §11 surfaces and tools; the AC-S31-8 scenario over MCP | S31-a, S31-b; **S27-d merged** | AC-S31-8 over MCP | X-9 (through the agent) | **Haiku** |
 | **S31-h** haggling | §5.9 | S31-f | MVP-1 | | Opus |
 
@@ -940,7 +1016,7 @@ S31-b  notices pack ───────────────┼────
 | **S29** | S29-b's newsstand becomes a normal shop with a keeper, so its seller may change the paper's price. F-S31-6 is resolved by lifting `ARC-38` item 5 in S31-a. If S29-b merges first, S31-a's C3 converts its `prices` like the others, with no content change. The newsstand seller is a natural `town-news` publisher (§8.7). `departures` is a future body kind |
 | **S27** | S27-c's `price` on offers is kept. S27-d's inbox and `subscriptions/listen` are reused unchanged. S31-g adds typed tools following S27-d's conventions |
 | **S28** | Notices, sales and price changes are perceived facts, so they become shared records by receipt. S28-d's `Rendered.anchors` gives item-anchored price memory. The renderers are S31-b's (notices) and S31-a's (economy, filed with S31-g if S28-d is later) |
-| **S30** | S30 owns the person-attribute view. Wealth is a derived attribute read from economy's `wealth` record. `subscriptions` is an attribute whose writer is `notices` (Q-S31-7). Role-based default subscriptions read person tags today, and S30's role attribute if S30 defines one |
+| **S30** | S30 owns the attribute schema and the reading path. Economy owns `economy.wealth-band` (derived from §7.1 wealth, and sampled for opening balances through `AttributeOwner`, §7.4, ruled Q-S30-6). `notices` owns `notices.subscriptions` (ruled Q-S31-7, §8.5), and its role defaults come from S30's `roles`. Both packs depend on `mineworld-attributes-model`, not on the `attributes` pack |
 | **WE-a** | §5.8: modifiers apply to Organization asks through `effective_price`. Both share `configure/economy.yaml` |
 | **S21 / step-21** | `fares` are asks of a transport Organization at a ticket office. `fare-due` is answered like `wage-due`. Remote purchase plus delivery is a future pack on §5.7's settlement |
 | **DL-c (needs, MVP-1)** | Hunger makes food purchases needs-driven, so the "essential consumables" topic gains real demand |
@@ -963,18 +1039,26 @@ S31-b  notices pack ───────────────┼────
 
 ---
 
-## 18. Questions for the operator (each with a recommendation)
+## 18. Questions for the operator (each with a recommendation; all ruled 2026-10-15)
 
-| Id | Question | Recommendation |
-| --- | --- | --- |
-| **Q-S31-1** | **Placement.** Is S31 in MVP-0 (after Milestone F's checklist, before the first public release), or in MVP-1? | **MVP-0**, with S31-h (haggling) in MVP-1. If the release must not wait for all of it, the release subset is S31-a + S31-e + S31-g (§16.3) |
-| **Q-S31-2** | **One currency per world**, and no barter in S31? | **Yes.** One general equivalent. Multiple currencies and barter are later packs that need nothing from S31 (§4.2) |
-| **Q-S31-3** | **Re-baselines.** Two recorded Market Town re-baselines (S31-a vocabulary, S31-f content), or one, through an integration branch? | **Two**, each one commit rebased last with a reason line. An integration branch delays review of S31-a's settlement change for weeks (§13) |
-| **Q-S31-4** | **The reporter.** An existing seated person without a job (as Q-S29-6 ruled for the newsstand), or a new person? | **An existing person**, not the S29-b seller: no new character (S26 bytes), no new seat, fewer moving ids. S31-f names them |
-| **Q-S31-5** | **Pricing policies.** Bundled policies as a `pricing:` parameter block shared by `rule` and `motivated`, with anything else a new decision model; or only new decision models? | **The shared block**, defaulting to `hold`, so that the town's existing models can trade without a third model per seat. A custom algorithm is still a model in `models!` (§10.1) |
-| **Q-S31-6** | **Haggling** (propose, accept, decline): in S31 (MVP-0), or MVP-1? | **MVP-1.** Convergence does not need it, and it doubles economy's action surface. The design (§5.9) keeps the settlement unchanged |
-| **Q-S31-7** | **Subscriptions under S30.** Does `notices` own the `subscriptions` component (S30 shows it as an attribute), or does S30's attributes pack own it (`notices` reads it)? | **`notices` owns it.** The pack that acts on a datum writes it (single ownership), and a world without S30 still has subscriptions. S30's view reads it, as it reads wealth from economy |
-| **Q-S31-8** | **Shop keepers.** Organizations change prices only through named keepers standing in the shop (until WE-b's Organization seats, MVP-1)? | **Yes.** `keepers:` in the shop section: economy-owned authority, with no dependency on employment. Market Town: Alice for the café, Felix for the store |
+| Id | Question | Recommendation | Ruling |
+| --- | --- | --- | --- |
+| **Q-S31-1** | **Placement.** Is S31 in MVP-0 (after Milestone F's checklist, before the first public release), or in MVP-1? | **MVP-0**, with S31-h (haggling) in MVP-1. If the release must not wait for all of it, the release subset is S31-a + S31-e + S31-g (§16.3) | **Ruled 2026-10-15** (operator answered directly in the primary session): MVP-0, with S31-h (haggling) in MVP-1. The release subset is S31-a, S31-e and S31-g. |
+| **Q-S31-2** | **One currency per world**, and no barter in S31? | **Yes.** One general equivalent. Multiple currencies and barter are later packs that need nothing from S31 (§4.2) | **Ruled 2026-10-15** (operator answered directly in the primary session): one currency per world, and no barter. |
+| **Q-S31-3** | **Re-baselines.** Two recorded Market Town re-baselines (S31-a vocabulary, S31-f content), or one, through an integration branch? | **Two**, each one commit rebased last with a reason line. An integration branch delays review of S31-a's settlement change for weeks (§13) | **Ruled 2026-10-15** (operator answered directly in the primary session): two recorded re-baselines. |
+| **Q-S31-4** | **The reporter.** An existing seated person without a job (as Q-S29-6 ruled for the newsstand), or a new person? | **An existing person**, not the S29-b seller: no new character (S26 bytes), no new seat, fewer moving ids. S31-f names them | **Ruled 2026-10-15** (operator answered directly in the primary session): an existing seated person without a job, not the S29-b seller. |
+| **Q-S31-5** | **Pricing policies.** Bundled policies as a `pricing:` parameter block shared by `rule` and `motivated`, with anything else a new decision model; or only new decision models? | **The shared block**, defaulting to `hold`, so that the town's existing models can trade without a third model per seat. A custom algorithm is still a model in `models!` (§10.1) | **Ruled 2026-10-15** (operator answered directly in the primary session): the shared `pricing:` block, default `hold`. |
+| **Q-S31-6** | **Haggling** (propose, accept, decline): in S31 (MVP-0), or MVP-1? | **MVP-1.** Convergence does not need it, and it doubles economy's action surface. The design (§5.9) keeps the settlement unchanged | **Ruled 2026-10-15** (operator answered directly in the primary session): haggling is MVP-1. |
+| **Q-S31-7** | **Subscriptions under S30.** Does `notices` own the `subscriptions` component (S30 shows it as an attribute), or does S30's attributes pack own it (`notices` reads it)? | **`notices` owns it.** The pack that acts on a datum writes it (single ownership), and a world without S30 still has subscriptions. S30's view reads it, as it reads wealth from economy | **Ruled 2026-10-15** (operator answered directly in the primary session): `notices` owns subscriptions; S30 shows them. |
+| **Q-S31-8** | **Shop keepers.** Organizations change prices only through named keepers standing in the shop (until WE-b's Organization seats, MVP-1)? | **Yes.** `keepers:` in the shop section: economy-owned authority, with no dependency on employment. Market Town: Alice for the café, Felix for the store | **Ruled 2026-10-15** (operator answered directly in the primary session): keepers, as `keepers:` in the shop section. |
+
+### 18.1 Rulings, 2026-10-15
+
+The operator answered Q-S31-1…8 directly in the primary session on 2026-10-15, each one as recommended. The
+coordinator relayed the rulings to this session. The coordinator also relayed one ruling from S30's step
+design: Q-S30-6, "initial wealth is sampled through the owner interface". Under it, `economy` owns a
+`wealth-band` attribute that is sampled via S30, and S31 decides the bands. That ruling adds §7.4 to S31-f's
+scope, with acceptance AC-S31-16…18 and mutation X-12. It needs no new operator question.
 
 ---
 
@@ -986,7 +1070,8 @@ S31-b  notices pack ───────────────┼────
   - `currency` (configuration);
   - `shop: { at, prices, keepers }` on organizations;
   - `asks: { item: price }` on people;
-  - `reference: <amount>` on items.
+  - `reference: <amount>` on items;
+  - `wallet` optional on people when `wealth_bands` is configured (S31-f, §7.4).
 - **New rows:** `notices` (people: `{ subscribe: [topic] }`) and `price-survey` (people).
 - **`configure/notices.yaml` and `configure/economy.yaml`:** the field references, generated per S25 25b.
 
@@ -1002,19 +1087,19 @@ Neither note adds an ontology term.
 One paragraph in the systems section: a settling owner may state another owner's fact in one dispatch. This
 is `ARC-26` restated for exchanges, with §5.7's three-reason argument.
 
-### 19.4 `docs/DECISIONS.md` (placeholders; real ids at approval, from `ARC-110` / `DEP-62`)
+### 19.4 `docs/DECISIONS.md` (ids assigned 2026-10-15; each entry is written by the PR that implements it)
 
-| Placeholder | Title |
+| Id | Title |
 | --- | --- |
-| `ARC-S31-a` | The currency is economy configuration: one per world, ISO-4217-shaped, required with economy |
-| `ARC-S31-b` | Seller-set asks for Persons and Organizations; `buy` carries the observed price; named refusals; one settling owner (amends `ARC-38` items 3 and 5, step-10 QS-44) |
-| `ARC-S31-c` | An optional authored reference value, never charged |
-| `ARC-S31-d` | Wealth is a holder-only view, never stored |
-| `ARC-S31-e` | `notices`: topics, subscriptions, audience = subscribers, lazy expiry |
-| `ARC-S31-f` | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
-| `ARC-S31-g` | Pricing policies are decision-model parameters and models, defaulting to `hold` |
-| `ARC-S31-h` | Haggling settles at acceptance without escrow (MVP-1) |
-| `DEP-S31-a` | Money libraries (`rusty-money`, `iso_currency`) declined: amounts are bare `u64` and formatting is presentation, so a dependency would add ISO tables that a fantasy currency cannot use. Order-book and matching-engine crates declined: MineWorld has posted prices, not an exchange |
+| `ARC-111` | The currency is economy configuration: one per world, ISO-4217-shaped, required with economy |
+| `ARC-112` | Seller-set asks for Persons and Organizations; `buy` carries the observed price; named refusals; one settling owner (amends `ARC-38` items 3 and 5, step-10 QS-44) |
+| `ARC-113` | An optional authored reference value, never charged |
+| `ARC-114` | Wealth is a holder-only view, never stored; `economy.wealth-band` is derived from it and samples opening balances through S30's owner interface (S30 ruling Q-S30-6) |
+| `ARC-115` | `notices`: topics, subscriptions, audience = subscribers, lazy expiry |
+| `ARC-116` | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
+| `ARC-117` | Pricing policies are decision-model parameters and models, defaulting to `hold` |
+| `ARC-118` | Haggling settles at acceptance without escrow (MVP-1) |
+| `DEP-63` | Money libraries (`rusty-money`, `iso_currency`) declined: amounts are bare `u64` and formatting is presentation, so a dependency would add ISO tables that a fantasy currency cannot use. Order-book and matching-engine crates declined: MineWorld has posted prices, not an exchange |
 
 ### 19.5 `overall.md` (the primary session)
 
@@ -1027,7 +1112,7 @@ is `ARC-26` restated for exchanges, with §5.7's three-reason argument.
 ### 19.6 Other designs (their owners)
 
 - **S29-b:** F-S31-6 and the keeper key.
-- **S30:** the `wealth` record and the `subscriptions` attribute shape (§8.5, Q-S31-7).
+- **S30:** the `economy.wealth-band` declaration and bands (§7.4); its attribute-table example becomes "economy's wealth (wallet plus reference values)" rather than "balance"; the `notices.subscriptions` declaration and the topic id form (§8.5).
 - **S27-d:** nothing changes; S31-g extends after it merges.
 - **WE-a C4:** if it lands after S31-a, it rebases onto `Asks`, and `effective_price` reads the operator's
   asks.
