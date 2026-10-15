@@ -42,6 +42,7 @@ SeatLossReason = Literal[
     "seat_not_in_world",
     "invalid_nickname",
     "cursor_unavailable",
+    "not_granted",
     "world_changed",
     "protocol_violation",
     "gave_up",
@@ -64,6 +65,8 @@ _FINAL_REFUSALS: dict[str, SeatLossReason] = {
     "unknown_seat": "unknown_seat",
     "seat_not_in_world": "seat_not_in_world",
     "invalid_nickname": "invalid_nickname",
+    # A credential that does not admit this seat will not admit it on retry (S27-a).
+    "not_granted": "not_granted",
 }
 
 

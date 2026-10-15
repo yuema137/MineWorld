@@ -10,6 +10,16 @@ The host itself is imported from its modules: `absorb.absorb` (the only caller o
 """
 
 from mineworld_cognition.memory.records import Citation, EventRange, ItemId
+from mineworld_cognition.memory.retention.assisted import (
+    MESSAGE_BYTES,
+    AssistedForgettingPolicy,
+    AssistedPlan,
+    Exhausted,
+    GroupAnswer,
+    StopReason,
+    SummaryGateway,
+    SummaryOutcome,
+)
 from mineworld_cognition.memory.retention.policy import (
     Drop,
     ForgettingPolicy,
@@ -25,10 +35,15 @@ from mineworld_cognition.memory.retention.policy import (
 )
 
 __all__ = [
+    "MESSAGE_BYTES",
+    "AssistedForgettingPolicy",
+    "AssistedPlan",
     "Citation",
     "Drop",
     "EventRange",
+    "Exhausted",
     "ForgettingPolicy",
+    "GroupAnswer",
     "ItemId",
     "ItemLevel",
     "Keep",
@@ -36,6 +51,9 @@ __all__ = [
     "Merge",
     "RetentionBudget",
     "RetentionDecision",
+    "StopReason",
+    "SummaryGateway",
+    "SummaryOutcome",
     "half_life_permille",
     "hyperbolic_permille",
     "tie_key",

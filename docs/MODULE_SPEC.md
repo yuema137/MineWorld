@@ -1322,8 +1322,10 @@ mode a missing recording raises `CassetteMiss`, which the pass propagates; no po
 back silently. In live mode, a refusal, a failure, an unbound tier, or `calls_left = 0` makes the host apply
 the policy's declared `fallback` to the remaining groups. The seat's store records which policy produced each
 decision. Rebuilding a store with its recordings reproduces it byte for byte. Rebuilding without them
-reproduces the fallback's store and says so. An LM policy names a no-model `fallback`. Forgotten Event IDs
-stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
+reproduces the fallback's store and says so. An assisted policy names a no-model `fallback`, and it reaches a
+model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
+before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
+Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ---
 

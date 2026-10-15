@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use mineworld_contracts::{EntityId, EntityKey};
 
-use crate::admission::Nickname;
+use crate::admission::{Credential, Nickname};
 use crate::protocol::SessionId;
 
 /// Every seated connection the transport is serving.
@@ -31,6 +31,8 @@ pub(crate) struct Joined {
     pub(crate) observer: EntityId,
     /// Wall-clock Unix seconds at the welcome: host state, never a `WorldTime`.
     pub(crate) connected_at: u64,
+    /// Which credential admitted it, and its rights — never its token (S27-a, QS27a-1).
+    pub(crate) credential: Credential,
 }
 
 #[derive(Debug)]

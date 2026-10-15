@@ -79,6 +79,10 @@ of the entry-point group `mineworld.forgetting`; a policy of your own is a packa
 No model is involved. Specification:
 [`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md).
 
+**Assisted forgetting** (`lm-summarise`, `pr-fg-c`). `lm-summarise` asks the `summarize` tier, through the
+host's summary gateway, for one sentence and an importance per group, and falls back to `consolidate` for any
+group it cannot ask. Its tests replay a recorded cassette and never reach a model.
+
 **The LM controller** (`python -m mineworld_cognition`; `ARC-72`, `ARC-73`) makes one of a world's people
 decide through a language model, while the world stays valid without any model. The decisions are social
 only: what Alice says, to whom, and which offer she takes. Her fallback model drives her whenever no
@@ -105,6 +109,7 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
   from its decision log's last counters line.
 - Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits
   your profile's permissions. Paths are resolved against the configuration file on every platform.
+
 **Admitted models.** A model is admitted as a triple: the runtime and its version, the model build, and the
 `structured_output` setting. An admission is a property of the triple, not of the model's name: the same model
 fails under one setting and passes under another. The spike's results are in
