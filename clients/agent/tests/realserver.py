@@ -46,6 +46,10 @@ ADMIN_CANARY = "mwagent-admin-canary-8e1f4c2a9b3d"
 STARTUP_PATIENCE = 30.0
 PATIENCE = 30.0
 _LISTENING = re.compile(r"listening on (?P<http>http://\S+) \((?P<url>ws://[^)\s]+)\)")
+"""The server's grant line (`tools/cli/src/invite.rs`): seats, an optional take-over, the token."""
+_GRANT = re.compile(
+    r"^\[mineworld\] grant (?P<seats>\S+)(?P<takeover> take-over)? (?P<token>\S+) — "
+)
 
 
 def binary() -> Path:
@@ -90,6 +94,8 @@ class Server:
             errors="replace",
         )
         self._stdout: queue.Queue[str | None] = queue.Queue()
+        self.lines: list[str] = []
+        """Every line the server printed to stdout, in order (the grant lines among them)."""
         self.stderr: list[str] = []
         threading.Thread(target=self._drain_stdout, daemon=True).start()
         threading.Thread(target=self._drain_stderr, daemon=True).start()
@@ -98,8 +104,20 @@ class Server:
     def _drain_stdout(self) -> None:
         assert self._process.stdout is not None
         for line in self._process.stdout:
+            self.lines.append(line)
             self._stdout.put(line)
         self._stdout.put(None)
+
+    def grants(self) -> dict[str, str]:
+        """The grant tokens the server printed at start, keyed by seats and suffix: `visitor` for a grant of
+        `--grant visitor`, `visitor take-over` for `--grant visitor:take-over` (S27-a's line format). The
+        tokens are the test's own secrets; they are never printed by the test."""
+        found: dict[str, str] = {}
+        for line in list(self.lines):
+            if match := _GRANT.match(line):
+                key = match.group("seats") + (" take-over" if match.group("takeover") else "")
+                found[key] = match.group("token")
+        return found
 
     def _drain_stderr(self) -> None:
         assert self._process.stderr is not None
