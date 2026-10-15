@@ -815,11 +815,14 @@ No TW-c question remains open.
 
 | Commit | Hash | Status |
 | --- | --- | --- |
-| C0 … C9 | — | not started (design not frozen) |
+| C0 | — | C0 in progress: base origin/main @ 171ea06, 12n-2 on base (#125), AC-TWc-7 applies |
+| C1 … C9 | — | not started |
 
 ### Evidence
 
-None yet.
+- C0 (2026-10-14): freeze header verified; base `origin/main @ 171ea06`; 12n-2 merged as #125
+  (`adc46bd`), so AC-TWc-7 applies. `check_doc_headings.py`: 223 sections, none duplicated;
+  `check_decision_ids.py`: 122 ids, all distinct. Handoff `handoff-tw-c.md` initialized.
 
 ### Mutations
 
