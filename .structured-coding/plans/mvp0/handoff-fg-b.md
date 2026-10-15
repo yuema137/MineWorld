@@ -28,6 +28,11 @@ VALIDATION BUDGET   unit, static, local integration (incl. one 300-day real run)
                     cognition suites and any affected Rust tests to run locally before pushing
 STOP CONDITIONS     READY FOR OPERATOR REVIEW — DO NOT MERGE; material stops per §12; a milestone pause
                     announced by the operator: commit locally and stop
-CURRENT CHECKPOINT  C0 (freeze verified, ledger opened)
-NEXT ACTIONS        C1 (MODULE_SPEC §5, ARCHITECTURE §9), then C2
+CURRENT CHECKPOINT  C0–C7 committed (C7 = 62b71cd, Gate 2 PASS); C8 in progress: README paragraph,
+                    local 300-day real run (scratch /Users/yuema137/mineworld-worktrees/fgb-scratch,
+                    outside the repository: save301/, alice.jsonl, run300.py), push, PR, CI
+NEXT ACTIONS        Record the 300-day sizes in §15.2; commit C8; push mvp0/pr-fg-b; open the PR;
+                    watch CI (fast, test, test-macos, test-windows, platforms, python ×3) on the exact
+                    head; record per-leg times of test_retention_real.py / test_ac10.py; stop at READY
+                    FOR OPERATOR REVIEW. Resumed once on 2026-10-14 after a session limit (coordinator)
 ```

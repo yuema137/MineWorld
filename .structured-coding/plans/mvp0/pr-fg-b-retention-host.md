@@ -921,9 +921,11 @@ local full suite (test rules §8); the PR's CI is the one full run. Commands ass
 
 - **Goal.** Review readiness.
 - **Scope.** README paragraph; this ledger; `handoff-fg-b.md`; parent synchronization marked pending.
-- [ ] Implementation: ledger complete, deviations recorded.
+- [x] Implementation: ledger complete, deviations recorded. Evidence: README "Forgetting" paragraph;
+  §15.2–§15.6; D-1 … D-12; parent synchronization pending (§15.8).
 - [ ] Validation: doc checks; the final head's CI green on every job (recorded in the handoff and PR).
-- [ ] Review: AFGb-13's diff gate; every `[x]` carries evidence.
+  Doc checks clean (§15.2 C8 local); CI: §15.7.
+- [x] Review: AFGb-13's diff gate; every `[x]` carries evidence. Evidence: §15.2 C8 local (scope clean).
 
 ---
 
@@ -1139,6 +1141,32 @@ keep-all, 98 passes: day 30: (30, 1 077 314, 187 234, 2 436 forced); day 99: (99
   every post-pass dump ≤ TARGET; forced > 0 by day 30 (AFGb-4 (c))
 ```
 
+**C7, the local 300-day real run (QFGb-5)** — scratch outside the repository
+(`/Users/yuema137/mineworld-worktrees/fgb-scratch`), 2026-10-14, macOS arm64, debug binary:
+
+```text
+mineworld run worlds/social-cafe --headless --seed 7 --days 301 --save …/save301     1 min 19 s
+mineworld perceived … --person alice --json > alice.jsonl                            373 360 facts
+uv run --locked python -I run300.py alice.jsonl <instance> 7   (absorb, consolidate, frames of 256)
+  300 passes, 42 s; dump measured at the end of the frame holding the pass (≤ 255 later facts included):
+  day 30: 264 228 B   day 100: 413 021 B   day 300: 355 331 B   final (end of day 300): 784 757 B
+  largest bytes_before 849 121 B (≤ 1 048 576), largest bytes_after 358 578 B (≤ 786 432)
+  (the host-reported figures are recorded as a measurement only; the CI criteria read dump())
+Without retention the same seat grows ≈ 433 KB per day (§3.2): ≈ 130 MB at day 300.
+```
+
+**C8 local, before pushing** (the brief's requirement; same machine, loaded):
+
+```text
+uv run --locked pytest sdk/python                          103 passed
+uv run --locked pytest cognition/lm-controller             242 passed, 1 skipped in 642.6 s (real_binary incl.)
+ruff check / ruff format --check / pyright (sdk + cognition) clean / clean / 0 errors
+check_doc_headings / check_decision_ids                    clean
+Rust tests: not affected (no *.rs, Cargo or world file in the diff); not run
+AFGb-13: git diff --name-only 6306977..HEAD outside cognition/lm-controller/**, MODULE_SPEC, ARCHITECTURE,
+  .structured-coding/**: none
+```
+
 ### 15.3 Mutations
 
 Each planted in the source, run, seen red, reverted (the tree compared clean after each).
@@ -1326,4 +1354,10 @@ order, seed 42:  1001, 1003, 1002
 
 ### 15.7 CI runs per head
 
-(Filled at C8.)
+The final head's run id and per-job result are recorded in the handoff and the PR (a commit cannot carry
+its own hash; working rules §22).
+
+### 15.8 Parent synchronization
+
+Pending, owner the primary session (§12): step-24 §11 and `overall.md` after merge; also ARC-87's choice
+paragraph (F-FGb-6).
