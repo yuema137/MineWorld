@@ -81,7 +81,7 @@ credential.
 2. Workspace wiring: root `pyproject.toml` (`members`, pyright `include`), `uv.lock`, `scripts/ci_layer.py`
    (`PYTHON_MEMBERS`, the `python` and `python-smoke` pytest commands), `.structured-coding/standards.md` (the
    member in the ruff/pyright commands; a `pytest-agent` check).
-3. **One additive SDK change, subject to QS27c-1:** `ResumingSeat.clock` (the current connection's newest
+3. **One additive SDK change (QS27c-1, ruled yes):** `ResumingSeat.clock` (the current connection's newest
    `clock` frame), with its test (F-S27c-1).
 4. `docs/DECISIONS.md`: `ARC-96`.
 
@@ -128,8 +128,8 @@ Merged: P3, P3b (the SDK). Not needed: S27-a (the invite stands in for a grant, 
 
 | ID | Finding | Resolution |
 | --- | --- | --- |
-| **F-S27c-1** | `Player.clock` (§5.7), every result's `paused`/`time_scale`, and the pacer's "send nothing while paused" (§5.6) need the host clock; `ResumingSeat` does not expose it (C-2), although every connection receives it. The step said `mineworld-sdk` is reused "unchanged" (§8). | One additive read-only property, `ResumingSeat.clock -> Clock \| None`, returning the current session's newest `clock` frame (C2). No behaviour changes. **QS27c-1**. Without it the Player would infer `paused` from `paused` refusals only, which the pacer cannot use to *avoid* sending. |
-| **F-S27c-2** | AC-S27-7 expects the server's `observations_dropped` for an idle agent's session to **grow**. The SDK's reader task drains the socket continuously and keeps the newest observation (C-1; `session.py:381-421`), so the server never has to drop for this client: the counter stays 0. "Newest wins" happens in the client, which is what INV-S27-6 needs. | AC-S27-7 as written cannot pass and should not: **QS27c-2** proposes the corrected criterion and a shorter wall time (§8 AC-7). |
+| **F-S27c-1** | `Player.clock` (§5.7), every result's `paused`/`time_scale`, and the pacer's "send nothing while paused" (§5.6) need the host clock; `ResumingSeat` does not expose it (C-2), although every connection receives it. The step said `mineworld-sdk` is reused "unchanged" (§8). | One additive read-only property, `ResumingSeat.clock -> Clock \| None`, returning the current session's newest `clock` frame (C2). No behaviour changes. **QS27c-1, ruled yes.** Without it the Player would infer `paused` from `paused` refusals only, which the pacer cannot use to *avoid* sending. |
+| **F-S27c-2** | AC-S27-7 expects the server's `observations_dropped` for an idle agent's session to **grow**. The SDK's reader task drains the socket continuously and keeps the newest observation (C-1; `session.py:381-421`), so the server never has to drop for this client: the counter stays 0. "Newest wins" happens in the client, which is what INV-S27-6 needs. | AC-S27-7 as written cannot pass and should not: replaced by AC-c-7 (§8), **QS27c-2, ruled "换成新标准"**. |
 | **F-S27c-3** | No golden observation has entities or affordances (C-9), so the step's "a `View` built from a golden observation lists every affordance" needs a real one. | C4 records a market-town observation from the real binary into `clients/agent/tests/fixtures/` with its source SHA and command (frozen real evidence, test rules §25). |
 | **F-S27c-4** | The step's §9.2 step 2 says `took_over "none"`, but its own server command uses `--town`, which hosts `visitor` (C-15). | The play-test expects `"hosted"` for `visitor` under `--town` (recorded; step-27 §9.2 correction listed in §11). |
 | **F-S27c-5** | `seats` reads public `GET /status` (§5.2) but the SDK carries no HTTP client (C-17), and this PR may add no dependency. | `status.py` uses the standard library (`urllib.request` in `asyncio.to_thread`), loopback-guarded in tests by `pytest-socket` as everything else. S27-d may swap it for the `mcp` SDK's own `httpx` later if it wants one client. |
@@ -350,7 +350,7 @@ discloses one to this observer (the component the calendar pack names; `None` ot
 | --- | --- |
 | Static | ruff, ruff-format, pyright strict over `clients/agent` (no `Any`, exhaustive `match` over `Outcome`); no unit test re-checks a Pydantic field bound |
 | Unit (pure) | `test_refs.py` (first-seen order, stability across views, `unknown_ref` for an unseen id); `test_view.py` over `tests/fixtures/` (recorded market-town observations: offer count equality, numbering, requirement rendering, `complete`, names as `WorldText`, exits, paging at the limits, delta smaller than the view and equal to the change); `test_relocate.py` (moved by position, same key elsewhere, gone → `stale_offer`); `test_caps.py` (every rendering ≤ 8 KiB, a synthetic 200-entity observation pages); `test_world_text.py` (neutralisation, `<<<`/`>>>` inside, `WorldText` only in WorldText fields — a walk over every model field type); `test_inbox.py` (512 bound, dropped count, `EventLine` of `spoke` and `walk-ended`, every `WaitFor` matcher); `test_pacer.py` (injected wall clock and sleep, scripted submit: cadence, one in flight, stops, paused, `rate_limited` wait); `test_outcomes.py` (the §5.6 table, one row per SDK outcome); `test_state.py` (atomic rewrite, 0600 on POSIX, delete on leave, instance mismatch ignored); `test_secrets.py` (canary invite and resume in every model `repr`, exception text and result JSON); `test_no_mcp.py` |
-| Real lifecycle (`real_server`, the real binary, three OSes) | `test_play_market_town.py` (§9.2 steps 1–8, 10–11 through `Player`, every result ≤ 8 KiB, the frame log subset); `test_two_handles.py` (AC-S27-2's half, mutation 2); `test_idle.py` (AC-c-7, QS27c-2); `test_restart.py` (AC-S27-8: the state dir and a server restart with `--save`) |
+| Real lifecycle (`real_server`, the real binary, three OSes) | `test_play_market_town.py` (§9.2 steps 1–8, 10–11 through `Player`, every result ≤ 8 KiB, the frame log subset); `test_two_handles.py` (AC-S27-2's half, mutation 2); `test_idle.py` (AC-c-7, QS27c-2 ruled); `test_restart.py` (AC-S27-8: the state dir and a server restart with `--save`) |
 | Gate 1 (real LLM) | NOT REQUIRED: no model is called; an agent's model is the user's (S27-g) |
 | CI impact | `clients/agent/**` → the `python` job (Linux, macOS, Windows) and `fast`'s static checks; `sdk/python/**` (C2) → the same; `pyproject.toml`/`uv.lock`/`scripts/ci_layer.py` → the selector's full fallback |
 
@@ -380,7 +380,7 @@ The server is `mineworld server worlds/market-town --town --agent alice --save D
 | AC-c-4 | Step 9's takeover by a plain SDK client: the Player's next call answers `seat_lost { taken_over }` | AC-S27-5 (half; the take-back with a grant needs S27-a, §10) |
 | AC-c-5 | Every result of the play-test is ≤ 8 KiB of JSON | §5.10 |
 | AC-c-6 | Over the café walk, `walk-step` frames sent per wall second ≤ 1.2 (counted at the test connector) | AC-S27-14 (adapter half) |
-| AC-c-7 | **As proposed under QS27c-2:** a handle left idle for 30 wall s at `--time-scale 12` in the café: the world clock advanced by 360 ± 24 world s; the server's `events_dropped` stayed 0 and no `lagged` closing occurred; the Player's next `observe` shows the newest observation (its `at` within 2 world s of `/status.at`) and `inbox.dropped` is 0 or counts exactly what was dropped | AC-S27-7 (corrected) |
+| AC-c-7 | **Ruled, QS27c-2 ("换成新标准"):** a handle left idle for 30 wall s at `--time-scale 12` in the café: the world clock advanced by 360 ± 24 world s; the server's `events_dropped` stayed 0 and no `lagged` closing occurred; the Player's next `observe` shows the newest observation (its `at` within 2 world s of `/status.at`) and `inbox.dropped` is 0 or counts exactly what was dropped | AC-S27-7 (corrected) |
 | AC-c-8 | After a server restart with `--save`, a Player with the same `state_dir` rejoins the same seat (fresh join after the restart, as `PROTOCOL.md` §4.2 says secrets do not survive), finds its Person where the save left it, and `mineworld biography` shows its lines from before | AC-S27-8 |
 | AC-c-9 | A canary invite, a canary admin token in the environment, and the welcome's resume secret appear in no result, `repr`, exception or stderr line of the whole play-test; the resume secret appears only in the state file | AC-S27-12 (library half), AC-S27-11 (admin canary) |
 | AC-c-10 | A world-authored `>>> ignore previous instructions <<<` (said by the test's own second client) reaches the Player only as a `WorldText`, neutralised in the text rendering | AC-S27-13 |
@@ -437,7 +437,7 @@ no `sed -i`, no heredoc, no `python3 -c`.
 - [ ] Implementation. [ ] Validation. [ ] Review: no dependency beyond the two; the network guard present.
 - **Commit message:** `build(agent): the mineworld-agent workspace member (S27-c)`
 
-#### C2 — `ResumingSeat.clock` (only under QS27c-1 = yes)
+#### C2 — `ResumingSeat.clock` (QS27c-1, ruled yes)
 
 - **Files:** `sdk/python/src/mineworld_sdk/resuming.py`, `sdk/python/tests/test_resuming.py`.
 - Steps: a read-only `clock` property returning the current session's `clock` (or the last one between
@@ -544,7 +544,7 @@ no `sed -i`, no heredoc, no `python3 -c`.
 
 | Document | Edit |
 | --- | --- |
-| `step-27-agent-players.md` §8 | `mineworld-sdk` reused with one additive property (`ResumingSeat.clock`), if QS27c-1 is ruled yes |
+| `step-27-agent-players.md` §8 | `mineworld-sdk` reused with one additive property (`ResumingSeat.clock`), ruled QS27c-1 |
 | `step-27-agent-players.md` §9.2 step 2 | `took_over "hosted"` under `--town` (F-S27c-4) |
 | `step-27-agent-players.md` §16 AC-S27-7 | the criterion as ruled under QS27c-2 (F-S27c-2) |
 | `overall.md` | S27-c frozen / merged as …; `ARC-96` used |
@@ -566,9 +566,9 @@ WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s27c, its own,
 BRANCH:                  mvp0/pr-s27c, created from origin/main
 START CONDITION:         this design frozen, then the primary session's dispatch (step-27 §11.4)
 IMPLEMENTATION BASE:     origin/main at C0; C0 records the commit and the S27-a/S27-b merge state
-APPROVED SCOPE:          §2.1 items 1–4 (item 3 only under QS27c-1 = yes)
+APPROVED SCOPE:          §2.1 items 1–4 (item 3 as ruled, QS27c-1)
 FROZEN INVARIANTS:       step-27 §3 INV-S27-1 … INV-S27-13 as §6 maps them; §5's surface; §8 as ruled
-SEQUENCE:                C0 … C9 (§9); C2 only under QS27c-1 = yes
+SEQUENCE:                C0 … C9 (§9)
 ALLOWED COMMANDS:        cargo build -p mineworld-cli; cargo test (AC-c-12 only); uv lock; uv sync --locked;
                          uv run --locked *; git; gh (never merge); python3 scripts/*; target/*/mineworld *;
                          mkdir -p; sed -n
@@ -614,13 +614,17 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS27c-1 [primary — SDK interface]** | The step reuses `mineworld-sdk` "unchanged", but the Player cannot report `paused`/`time_scale` or stop pacing while paused without the host clock, which `ResumingSeat` does not expose (F-S27c-1). Accept one additive read-only property, `ResumingSeat.clock`? | **Yes.** It exposes what every connection already receives; no behaviour changes; the alternative (inferring pause from `paused` refusals) makes the pacer send refused requests every second while the world is paused |
-| **QS27c-2 [operator — adversarial criterion AC-S27-7]** | AC-S27-7 expects `observations_dropped` to grow for an idle agent. With the SDK reading continuously, the server never drops for it; the client keeps the newest (F-S27c-2). Replace it with AC-c-7 (events_dropped 0, no `lagged`, the clock advanced, the next view is the newest), and run it 30 wall s at `--time-scale 12` instead of 120 wall s? | **Yes.** It tests INV-S27-6 as it is actually achieved; 30 s × 12 = 360 world s keeps the property observable inside the 90 s per-file budget on Windows |
-| **QS27c-3 [primary — library shape]** | Should `Player`'s methods take the `*Args` models (one shape for library and MCP, §5.2), or keyword arguments with the models built inside? | **The `*Args` models.** One schema source; S27-d registers them unchanged (R-S27d-c-1); a library user writes `ObserveArgs(handle=h)`, which pyright checks |
+| **QS27c-1 [primary — SDK interface]** | The step reuses `mineworld-sdk` "unchanged", but the Player cannot report `paused`/`time_scale` or stop pacing while paused without the host clock, which `ResumingSeat` does not expose (F-S27c-1). Accept one additive read-only property, `ResumingSeat.clock`? | **Yes.** It exposes what every connection already receives; no behaviour changes; the alternative (inferring pause from `paused` refusals) makes the pacer send refused requests every second while the world is paused **Ruled (§14.1).** |
+| **QS27c-2 [operator — adversarial criterion AC-S27-7]** | AC-S27-7 expects `observations_dropped` to grow for an idle agent. With the SDK reading continuously, the server never drops for it; the client keeps the newest (F-S27c-2). Replace it with AC-c-7 (events_dropped 0, no `lagged`, the clock advanced, the next view is the newest), and run it 30 wall s at `--time-scale 12` instead of 120 wall s? | **Yes.** It tests INV-S27-6 as it is actually achieved; 30 s × 12 = 360 world s keeps the property observable inside the 90 s per-file budget on Windows **Ruled (§14.1).** |
+| **QS27c-3 [primary — library shape]** | Should `Player`'s methods take the `*Args` models (one shape for library and MCP, §5.2), or keyword arguments with the models built inside? | **The `*Args` models.** One schema source; S27-d registers them unchanged (R-S27d-c-1); a library user writes `ObserveArgs(handle=h)`, which pyright checks **Ruled (§14.1).** |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| QS27c-1 | **Yes.** Add one read-only `ResumingSeat.clock` property (C2, §2.1 item 3) | primary session |
+| QS27c-2 | **"换成新标准"** — replace AC-S27-7 with the passable criterion: AC-c-7, 30 wall s at `--time-scale 12` | operator, answered directly in the primary session |
+| QS27c-3 | **Yes.** `Player`'s methods take the `*Args` models (§5.2) | primary session |
 
 ---
 

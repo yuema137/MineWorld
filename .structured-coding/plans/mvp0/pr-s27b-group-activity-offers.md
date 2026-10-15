@@ -41,8 +41,8 @@ Lifecycle:              DRAFT
   covers observations, the change is reviewed and re-recorded in the same PR)."
 - **Adversarial (step-27 §11.2):** "Review plants a payload `{ "x": 1 }`; the pack's own decode test fails."
 
-This design finds that the last two statements do not hold as written (F-S27b-1, F-S27b-2, §3.2) and asks the
-operator to rule before freeze (§14).
+This design finds that the last two statements do not hold as written (F-S27b-1, F-S27b-2, §3.2); both were
+ruled on 2026-10-14 (§14.1: QS27b-1 by the operator, QS27b-2 by the primary session).
 
 ---
 
@@ -64,7 +64,7 @@ the same requirements, the same verdicts, the same validation at dispatch.
 3. `sdk/python/tests/test_real_server.py`: one new real-server test, CP-b (§7).
 4. `docs/DECISIONS.md`: a dated note under `ARC-34`.
 5. `systems/group-activity/README.md`: one line naming which offers are complete.
-6. `scripts/baselines.txt`: **only if** QS27b-1 is ruled "yes" and only the columns §5.3 allows.
+6. `scripts/baselines.txt`: only the `group-activity` world sections §5.3 allows (QS27b-1, ruled).
 
 ### 2.2 Not in scope
 
@@ -157,7 +157,7 @@ generically. The 2D client's request bytes for these actions are unchanged (B-14
 | Artefact | Expected | Rule |
 | --- | --- | --- |
 | `scripts/baselines.txt` `[world bodies-yard]` | unchanged (no `group-activity`) | any move: **material stop** |
-| `[world lakeside]`, `[world market-town]`, `[world social-cafe]` | may move (F-S27b-1) | moved only for the cause "the paced rule controller's `offered` band draws among the four new complete affordances"; allowed **only if QS27b-1 is ruled yes**, then re-recorded with the reason line below; otherwise **material stop** |
+| `[world lakeside]`, `[world market-town]`, `[world social-cafe]` | may move (F-S27b-1) | moved only for the cause "the paced rule controller's `offered` band draws among the four new complete affordances"; allowed (QS27b-1, ruled 2026-10-14: "允许，只限这个原因"), re-recorded with the reason line below; any other cause: **material stop** |
 | `summary-*`, `facts-300s`, `journal-300s` of a moving world | all may move together | a world whose `summary-*` moves but whose cause is not the one above: material stop |
 | Golden frames (`server/tests/frames/`), SDK golden tests | unchanged (B-13) | any change: material stop |
 | `ac1_composability`, `milestone_c` | pass unchanged (they do not pin these worlds' social histories; audited `tests/acceptance/tests/ac1_composability.rs`, `tools/cli/tests/milestone_c.rs`) | a failure: audit; if caused by F-S27b-1 behaviour, record and stop |
@@ -216,14 +216,14 @@ Mutations (plant, see red with the test's name, revert, see green; never commit 
 | AB-2 | For each of the four, `Affordance::request(observer, encode)` submitted unchanged is `Accepted` and has the effect of AB-test (c). |
 | AB-3 | Against the real market-town binary, a plain SDK client answers an invitation and leaves the activity with `offers.attempt` only; both are `Answered` with `accepted`. |
 | AB-4 | `cargo test -p mineworld-group-activity`, `-p mineworld-rule-controller`, and the listed `mineworld-cli` tests (B2 step 3) pass. |
-| AB-5 | §5.3 holds: `bodies-yard` unchanged; any moved section is moved only for F-S27b-1's cause, under QS27b-1 = yes, with the reason line; each moved world still starts activities. |
+| AB-5 | §5.3 holds against B2's reference (§14.1 note): `bodies-yard` unchanged; any moved section is moved only for F-S27b-1's cause (QS27b-1, ruled), with the reason line; each moved world still starts activities. |
 | AB-6 | M-b-1, M-b-2 (and M-b-3 or its recorded equivalent) each turned a named test red. |
 
 ---
 
 ## 8a. Integration checkpoint CP-b (as this design restates it)
 
-AB-3 plus AB-5. The step's "digests unchanged" half is replaced by AB-5 pending QS27b-1 (F-S27b-1).
+AB-3 plus AB-5. The step's "digests unchanged" half is replaced by AB-5, as ruled under QS27b-1 (F-S27b-1, §14.1).
 
 ---
 
@@ -363,7 +363,7 @@ Run every command from the worktree root `/Users/yuema137/mineworld-worktrees/im
 #### B2 — Behaviour impact: targeted suites and the long-run baselines
 
 - **Goal.** Measure F-S27b-1 and apply §5.3. **Files:** this file (§15), `handoff-s27b.md`, and
-  `scripts/baselines.txt` **only** under QS27b-1 = yes.
+  `scripts/baselines.txt` only for §5.3's allowed cause (QS27b-1, ruled).
 - Steps:
   1. `cargo test -p mineworld-rule-controller` → record.
   2. `cargo test -p mineworld-acceptance --test ac1_composability --test complete_affordances` → record.
@@ -372,19 +372,40 @@ Run every command from the worktree root `/Users/yuema137/mineworld-worktrees/im
   4. If step 3 fails: read the failing assertion. If it fails because residents now leave/join/decline
      differently (F-S27b-1), record it and **stop** (material: a test's expectation of town behaviour). If it
      fails for any other reason, it is a defect of B1: fix B1's change, re-run, record.
-  5. `cargo build --release -p mineworld-cli`; `mkdir -p target/scratch-s27b`;
+  5. **Choose the reference** (coordinator note of 2026-10-14, §14.1: `main`'s baselines are stale, F-12d-1).
+     Read `git log --oneline -- scripts/baselines.txt` on the base. If the base contains the post-12d re-record
+     of `main` (its reason lines name 12d / F-12d-1), the reference is `scripts/baselines.txt` as committed.
+     Otherwise the reference is a long record of **this PR's base commit**: `git worktree add
+     target/scratch-s27b/base <B0's base SHA>`, `cargo build --release -p mineworld-cli --manifest-path
+     target/scratch-s27b/base/Cargo.toml`, and `python3 scripts/ci_parity.py record --binary
+     target/scratch-s27b/base/target/release/mineworld --profile long --out target/scratch-s27b/base.long`
+     (≤ 20 min); remove that worktree afterwards (`git worktree remove target/scratch-s27b/base`). Record which
+     reference was used.
+  6. `cargo build --release -p mineworld-cli`; `mkdir -p target/scratch-s27b`;
      `python3 scripts/ci_parity.py record --binary target/release/mineworld --profile long --out target/scratch-s27b/s27b.long`
-     (≤ 20 min); `python3 scripts/ci_parity.py baseline check target/scratch-s27b/s27b.long`.
-  6. Read the verdict lines. Record every moved key per world.
-  7. Apply §5.3: `bodies-yard` moved → **stop**. A `group-activity` world moved and QS27b-1 ≠ yes → **stop**.
-     A `group-activity` world moved and QS27b-1 = yes → check the sanity rule of §5.3 (count
+     (≤ 20 min). Compare with the reference: committed baselines → `python3 scripts/ci_parity.py baseline check
+     target/scratch-s27b/s27b.long`; the base record → `python3 scripts/ci_parity.py compare
+     target/scratch-s27b/base.long target/scratch-s27b/s27b.long` (read the script's usage first; if `compare`
+     takes other arguments, use its documented form and record it). Read the verdict lines; record every moved
+     key per world. A key that differs between the committed baselines and the base record is F-12d-1's
+     staleness, not this PR's: never attribute it to S27-b and never re-baseline it here.
+  7. Apply §5.3 to the keys step 6 attributes to this PR: `bodies-yard` moved → **stop**. A `group-activity`
+     world moved → (QS27b-1 ruled yes, only for this cause) check the sanity rule of §5.3 (count
      `group-activity-started` facts in that world's 300-day save with `target/release/mineworld inspect
      <save> --last 0` or the record's own counts; read `scripts/ci_parity.py` to find where the 300-day save
      is kept, record how you counted). Zero → **stop**.
   8. Only when step 7 allows: `python3 scripts/ci_parity.py baseline write target/scratch-s27b/s27b.long
      scripts/baselines.txt`, then open `scripts/baselines.txt` and add the reason line of §5.3 (with `<PR>`
      left as `#<PR>` until the PR exists; B3 fills it) to each moved world's section, keeping every existing
-     reason line. `python3 scripts/ci_parity.py baseline check target/scratch-s27b/s27b.long` → PASS.
+     reason line. `git diff scripts/baselines.txt` must touch **only** the moved `group-activity` world sections
+     (and only their keys and the added reason line): if `baseline write` also rewrote a section for F-12d-1's
+     staleness, restore that section by hand from `origin/main` and record it. If a moved `group-activity` section is
+     itself also stale (it differs between the committed file and the base record), the two causes cannot be
+     separated in one rewrite: **stop** and report to the primary session (re-baseline after the 12d re-record
+     lands, or on its instruction). Then, if the reference was the
+     committed file, `python3 scripts/ci_parity.py baseline check target/scratch-s27b/s27b.long` → PASS; if it
+     was the base record, the check may still report the stale sections — record them as F-12d-1, not as a
+     failure of this PR.
   9. Optional, recorded either way: if `godot` is on PATH, `cargo test -p mineworld-cli --test client_2d_interact
      -- --ignored --test-threads=1` → PASS / FAIL / NOT RUN (no Godot).
 - [ ] Implementation: steps 7–8 (or `N/A`: no column moved).
@@ -487,12 +508,19 @@ STOP CONDITION:          S27-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS27b-1 [operator — resident behaviour, baselines]** | Making the four offers complete lets the paced rule controller's `offered` band (20 % of consults that reach it) attempt them, so residents of `lakeside`, `market-town` and `social-cafe` will sometimes leave, join or decline through that band, and those worlds' long-run baselines will likely move (F-S27b-1). The step expected "unchanged". May S27-b re-record exactly those sections with the §5.3 reason line? | **Yes, narrowly**, as QP6-2 was ruled for P6a: only `group-activity` worlds, only for this cause, with the reason line, and only while each moved world still starts activities (§5.3). The alternative — keeping the four incomplete and teaching the adapter their payloads by name — would make the agent player depend on a pack's vocabulary, which `ARC-34` and step-27 §4.1 exist to avoid; the other alternative — changing the rule controller to ignore them — edits a frozen controller (`offered.rs:17-20`) for a world-content reason |
-| **QS27b-2 [primary — adversarial criterion]** | The step's adversarial "plant `{ "x": 1 }`; the decode test fails" cannot fail (F-S27b-2). Accept M-b-1 … M-b-3 in its place, and the `deny_unknown_fields` hardening as follow-up R-GA-b-1 rather than in this PR? | **Yes.** Hardening the four structs changes what the pack accepts at dispatch, a separate behaviour decision; the mutations here prove the new test is load-bearing |
+| **QS27b-1 [operator — resident behaviour, baselines]** | Making the four offers complete lets the paced rule controller's `offered` band (20 % of consults that reach it) attempt them, so residents of `lakeside`, `market-town` and `social-cafe` will sometimes leave, join or decline through that band, and those worlds' long-run baselines will likely move (F-S27b-1). The step expected "unchanged". May S27-b re-record exactly those sections with the §5.3 reason line? | **Yes, narrowly**, as QP6-2 was ruled for P6a: only `group-activity` worlds, only for this cause, with the reason line, and only while each moved world still starts activities (§5.3). The alternative — keeping the four incomplete and teaching the adapter their payloads by name — would make the agent player depend on a pack's vocabulary, which `ARC-34` and step-27 §4.1 exist to avoid; the other alternative — changing the rule controller to ignore them — edits a frozen controller (`offered.rs:17-20`) for a world-content reason **Ruled: allowed, only for this cause (§14.1).** |
+| **QS27b-2 [primary — adversarial criterion]** | The step's adversarial "plant `{ "x": 1 }`; the decode test fails" cannot fail (F-S27b-2). Accept M-b-1 … M-b-3 in its place, and the `deny_unknown_fields` hardening as follow-up R-GA-b-1 rather than in this PR? | **Yes.** Hardening the four structs changes what the pack accepts at dispatch, a separate behaviour decision; the mutations here prove the new test is load-bearing **Ruled yes (§14.1).** |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| QS27b-1 | **"允许，只限这个原因"** — allowed, only for this cause: re-baseline the `group-activity` worlds only for F-S27b-1's cause, with §5.3's reason line and its sanity rule (each moved world still starts activities) | operator, answered directly in the primary session |
+| QS27b-2 | **Yes.** M-b-1 … M-b-3 replace the step's `{ "x": 1 }` mutation; `deny_unknown_fields` on the four structs is a follow-up finding (R-GA-b-1) | primary session |
+
+Coordinator note, same day (binding on B2): `main`'s long-run baselines are stale (F-12d-1); a re-record of
+`main` lands after 12d. B2's measure-first comparison is made against that re-recorded baseline when it is on
+the base, and otherwise against a long record of B2's own base commit (§9 B2 steps 5–8).
 
 ---
 

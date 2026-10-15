@@ -202,7 +202,8 @@ SeatGrant      { seats: BTreeSet<EntityKey> (non-empty), take_over: bool, token:
 SeatRights     Any                                   (the invite: every seat, take-over of any)
                Named { seats: BTreeSet<EntityKey>, take_over: bool }   (a grant; no token inside)
 Credential     { kind: CredentialKind, rights: SeatRights }   CredentialKind = Invite | Grant (Serialize,
-               snake_case, for /admin/sessions)
+               snake_case); /admin/sessions serializes kind plus, for a grant, rights.seats and
+               rights.take_over as `CredentialView` (QS27a-1), never a token
 Admission      { invite: InviteToken, grants: Vec<SeatGrant> }
   new(invite)                         as today (no grants)
   with_grants(self, grants) -> Result<Self, AdmissionError>   refuses a grant whose token equals the invite
@@ -279,8 +280,10 @@ Wording (catalog; the English `msgstr` is the readable code where nothing better
 
 ### 5.5 Admin and startup
 
-- `Joined.credential: CredentialKind`; `SessionView` gains `"credential": "invite" | "grant"`. The token never
-  appears. `GET /admin/seats` is unchanged.
+- `Joined.credential: Credential` (no token inside), serialized as `CredentialView` (ruled, QS27a-1); `SessionView` gains
+  `"credential": { "kind": "invite" }` or `"credential": { "kind": "grant", "seats": ["visitor"], "take_over":
+  false }` — the grant's seat list and take-over right, never the token, and no controller kind (INV-S27-4).
+  `GET /admin/seats` is unchanged.
 - `--grant SEATS[:take-over]` (repeatable; `SEATS` = `seat` or `seat+seat+…`; any other suffix, an empty
   seat, a seat not in the roster, or a seat named twice in one grant refuses to start with a message naming
   the flag's value, which is not secret). Grant tokens are generated after the roster is known; each is printed
@@ -299,7 +302,7 @@ sentence ("… unless take_over is true **and the credential may take over** …
 §5.5 two rows (`not_granted`; `rate_limited` with `retry_after_ms`, "refused before the server allocates an
 `ActionId`; submit again after `retry_after_ms`") and the `refused` example field list; §8 a "request budget"
 row; §10 two rows plus the next-revision requirement; §11.1 the distinctness sentence extended to grants;
-§11.2 the `credential` field. `NETWORKING.md` §9 the step's paragraph (§13.1). `ADOPTION.md` §4.2 the corrected
+§11.2 the `credential` field (kind, and for a grant its seat list and take-over right; ruled QS27a-1). `NETWORKING.md` §9 the step's paragraph (§13.1). `ADOPTION.md` §4.2 the corrected
 sentence (F-S27a-2).
 
 ---
@@ -360,7 +363,7 @@ Mutations (planted in review, seen red by name, reverted):
 | AA-5 | Reconnecting (resume or fresh join), or being taken over, does not refill a seat's bucket. |
 | AA-6 | The 2D client's recorded walking trace (C0), replayed at its recorded times, is never refused `rate_limited`. |
 | AA-7 | A grant token equal to the invite, to the admin token, or to another grant refuses to construct the server's `Access`/`Admission` (library test; grant tokens are generated, so the CLI cannot be given one). |
-| AA-8 | No grant token appears in any stdout/stderr line other than its own startup line, in the save's bytes, in `/status`, or in `/admin/sessions`; `/admin/sessions` shows `credential: "grant"` for a grant session and `"invite"` for an invite session. |
+| AA-8 | No grant token appears in any stdout/stderr line other than its own startup line, in the save's bytes, in `/status`, or in `/admin/sessions`; `/admin/sessions` shows `credential: { kind: "grant", seats, take_over }` for a grant session (its seat list, ruled QS27a-1) and `{ kind: "invite" }` for an invite session. |
 | AA-9 | The same join and submit sequence presented with the same grant by two connections answers identically (AC-S27-6's shape, without the adapter). |
 | AA-10 | `server/tests/frames/*.json` client goldens unchanged; the two new server goldens round-trip in Rust and Python; `client_text.rs` passes; the 2D `FINAL` list contains `not_granted`. |
 | AA-11 | Mutations M-a-1 … M-a-4, M-a-6, M-a-7 each turned a named test red; M-a-5 is recorded as review-owned. |
@@ -405,7 +408,8 @@ the session's attribution line. No `git add -A`, no `sed -i`, no heredoc, no `py
      flight; `1.6 m/s ÷ 0.5 m` = 3.2 moves/s walking (A-a-24).
   4. The 3D client: look for a runnable 3D harness (`clients/3d-spike/scripts/slice/`,
      `tools/cli/tests/*` naming the slice). If one prints per-request timestamps, measure it the same way;
-     otherwise record **INCONCLUSIVE (no timestamped 3D harness)** and use the 3D slice's documented cadence
+     otherwise record **INCONCLUSIVE (no timestamped 3D harness)** (ruled, QS27a-2: the recorded 2D trace is
+     the evidence for `R`) and use the 3D slice's documented cadence
      (the walker's "the 3D slice's cadence", `walker.gd:22`) as its bound.
   5. Fix `R = max(10, 2 × p99)`, `B = 2R` and record them in §15 (frozen from here; a later change is a
      material stop).
@@ -472,7 +476,7 @@ the session's attribution line. No `git add -A`, no `sed -i`, no heredoc, no `py
   `server/src/admin/registry.rs`, `server/src/admin.rs`, `server/src/lib.rs`, `server/tests/facts.rs`,
   `server/tests/admin.rs`, `server/tests/grants.rs` (new), `server/tests/support/mod.rs` (a grant helper).
 - Steps: §5.1, §5.2, §5.5's admin field; rename `Grant` → `JoinGranted`; `JoinRequest.rights`
-  (`plain` = `Any`); fix `facts.rs:307`'s literal; `server/tests/admin.rs` expects `credential: "invite"`.
+  (`plain` = `Any`); fix `facts.rs:307`'s literal; `server/tests/admin.rs` expects `credential: { "kind": "invite" }` (QS27a-1).
   `grants.rs` covers AA-1, AA-2, AA-3, AA-9 and M-a-1/M-a-2 over real sockets with `Admission::new(..)
   .with_grants(..)` (the support module's pattern, `support/mod.rs:61-70`).
 - Validation: `cargo test -p mineworld-server` (lib + `grants`, `seats`, `handshake`, `admin`, `facts`);
@@ -611,12 +615,15 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS27a-1 [primary — admin surface]** | `GET /admin/sessions` gains `credential: "invite" \| "grant"`. Should it also say **which** grant (e.g. its seat list, never the token), so a host who issued several can tell sessions apart? | **Yes, the seat list only**: `"credential": { "kind": "grant", "seats": ["visitor"], "take_over": false }`. It names no secret and is what a host needs to rotate the right grant; still no "agent"/"human" kind (INV-S27-4). If declined, the plain kind of §5.5 |
-| **QS27a-2 [primary — measurement]** | No CI runner has Godot, so C0's measurement runs on the implementer's (operator's) machine once, and CI replays the recorded trace (AA-6). Accept a one-time recorded trace as the evidence for `R`, with the 3D side INCONCLUSIVE if no timestamped 3D harness exists? | **Yes.** The trace is frozen real evidence (test rules §25); re-measure when the 3D client gains a request-timestamped harness |
+| **QS27a-1 [primary — admin surface]** | `GET /admin/sessions` gains `credential: "invite" \| "grant"`. Should it also say **which** grant (e.g. its seat list, never the token), so a host who issued several can tell sessions apart? | **Yes, the seat list only**: `"credential": { "kind": "grant", "seats": ["visitor"], "take_over": false }`. It names no secret and is what a host needs to rotate the right grant; still no "agent"/"human" kind (INV-S27-4). **Ruled yes (§14.1).** |
+| **QS27a-2 [primary — measurement]** | No CI runner has Godot, so C0's measurement runs on the implementer's (operator's) machine once, and CI replays the recorded trace (AA-6). Accept a one-time recorded trace as the evidence for `R`, with the 3D side INCONCLUSIVE if no timestamped 3D harness exists? | **Yes.** The trace is frozen real evidence (test rules §25); re-measure when the 3D client gains a request-timestamped harness **Ruled yes (§14.1).** |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| QS27a-1 | **Yes.** `/admin/sessions` shows the grant's seat list, never the token (§5.5 as amended) | primary session |
+| QS27a-2 | **Yes.** A recorded 2D trace is the evidence for `R`; the 3D side is INCONCLUSIVE if no timestamped 3D harness exists | primary session |
 
 ---
 
