@@ -158,15 +158,15 @@ The trigger is evaluated after every fact, so it needs the dump's size without e
 - `content_size()` is the exact byte length of the canonical dump's lines **of every dumped table except
   `meta`**, each with its newline: `size() − meta's lines`. It equals that value at every call (a test
   checks it after every ingest call and pass of a stream, §8 AFGb2-6).
-- It is maintained incrementally. On first use on a connection, the store creates a `TEMP` table
-  `meter_dirty (tbl, rid)` and `TEMP` triggers `AFTER INSERT / UPDATE / DELETE` on each metered table that
-  record the touched `rowid` (old and new for an update). Then it measures every metered row once, keeping
-  each row's line size by `(table, rowid)`. Each later call re-encodes only the dirty rows (absent → its size
-  is removed), clears the dirty set and returns the running total. Encoding is the dump's own encoder and
-  cell decoding, so a line has the same bytes as in `dump()`.
+- It is maintained incrementally. On first use on a connection, the store registers two connection
+  functions and creates `TEMP` triggers `AFTER INSERT / UPDATE / DELETE` on each metered table that call
+  them with the row's `rowid` and, for a write, its new values; the store encodes that row with the dump's
+  own encoder and keeps each row's line size by `(table, rowid)` and the running total. Then it measures
+  every metered row once. A call is then O(1): the total. Once the meter is in use, `size()` and
+  `row_bytes()` read its sizes instead of encoding again (D-FGb2-1).
 - `TEMP` objects live in SQLite's per-connection temp schema: nothing enters the file, the schema or the
-  dump. A transaction that rolls back also rolls back the dirty rows, so `MemoryStore.transaction` drops the
-  cached sizes on rollback; the next call measures in full.
+  dump. The sizes the triggers reported inside a transaction that rolls back are no longer true, so
+  `MemoryStore.transaction` drops the cached sizes on rollback; the next call measures in full.
 - Why `meta` is excluded: `meta.cursor` is each ingest call's `through` and `meta.newest` is written at the
   end of a call, so mid-call they depend on where frames began. Every other metered write happens per fact
   (with §4.3's `close_weeks`), so the measure after fact *k* is a function of the facts up to *k*. `meta`
@@ -261,9 +261,9 @@ not doing it; it is a recorded limitation (R-FGb2-2).
 
 ### 4.8 Cost
 
-- **Per fact:** one `content_size()` refresh: the rows the fact touched (an `l0` row, one `l0_who` and one
-  `stable` row per participant, the open episode, rarely `names`, `episode_who`, `chapters`), each one indexed
-  `SELECT` by rowid and one encode. Measured in §12.
+- **Per fact:** one encode per row the fact writes (an `l0` row, one `l0_who` and one `stable` row per
+  participant, the open episode, rarely `names`, `episode_who`, `chapters`), done by the triggers; the
+  check itself reads a counter. Measured in §12.
 - **Per size pass:** the pass's cost is FG-b's, O(store) at ≤ `bound`.
 - **Per burst:** a burst of perception adding `G` bytes within one simulated day causes at most
   `⌈G / (trigger − target)⌉` size passes (each pass leaves ≤ `target`; the next needs `trigger − target` of
@@ -317,8 +317,9 @@ memory:
 | --- | --- | --- | --- |
 | `test_retention_host.py`, `test_retention_policies.py`, `test_retention_real.py` `TARGET` / `STORE_BOUND` | 786 432 / 1 048 576 | 15 728 640 / 20 971 520 | §4.1 at `FLOOR_MIB`, computed in the test from `20 × 1 048 576` and `× 3 // 4`, not imported |
 | AFGb-4 (a) mutation "backstop off: `keep-all` over by day 9" | day 9 of the 120 KB/day stream | the heavy stream (§8.2), first size pass | at 120 KB/day `keep-all` reaches 15 MiB only after ≈ 130 days; the heavy stream crosses `target` within its first day |
+| AFGb-4 (a) `keep-all` over the 302-day synthetic stream (`test_retention_host.py`) | `keep-all` and drop-everything | drop-everything only; `keep-all`'s half is AFGb2-1 on the busy stream | measured 150 s locally at 20 MiB (170 passes over a ≈ 15 MiB store: FG-b's per-pass extraction is O(store)), minutes more per CI leg, for a property the busy stream proves in one day (D-FGb2-2) |
 | AFGb-4 (b) "before every pass ≤ 1 MiB, a measured property of the reference world" | measured property | guaranteed by the trigger; asserted ≤ `bound` | §4.6 |
-| AFGb-4 (c) "`keep-all` forced > 0 by day 30 of the real export" | day 30 | by day 100 | 15 MiB at ≈ 433 KB/day is reached after ≈ 36 days |
+| AFGb-4 (c) "`keep-all` forced > 0 by day 30 of the real export" | day 30, over 100 days | first forced pass in (30, 40], over days 0 … 40 | 15 MiB at ≈ 433 KB/day is reached after ≈ 36 days (measured: day 34); days 40 … 99 at ≈ 15 MiB per pass would cost ≈ 100 s more per leg against FG-b's 180 s stop (D-FGb2-2) |
 | AFGb-11 (c) "file ≤ 4 MiB after the real 100-day `consolidate`" | 4 MiB | unchanged | `consolidate` never nears the bound (778 240 B measured); the figure is the file, not the bound |
 | `MODULE_SPEC.md` §5.2 rule 7, `ARCHITECTURE.md` §9.3, README | 768 KiB / 1 MiB, "not a parameter" | 15 MiB / 20 MiB default, raisable, the size trigger | §4.1, §4.3 |
 
@@ -356,13 +357,13 @@ it cannot exercise the change; FG-b's 100-day real export stays Gate 2 for the r
 
 | ID | Criterion | Planted mutation that must fail it |
 | --- | --- | --- |
-| **AFGb2-1** Bound | On the heavy stream under `keep-all`, `consolidate` and `decay`, fed in frames of 256: after every pass `len(dump()) ≤ target` (15 728 640); after every `absorb` call `len(dump()) ≤ bound` (20 971 520); at least two size passes occur, and on day 1 the dump just before the daily pass is ≤ `bound`. | M-FGb2-1: no size trigger (`stop_when` never fires) → the after-call dump exceeds `bound`. M-FGb2-1b: backstop disabled → `keep-all`'s post-pass dump exceeds `target`. |
-| **AFGb2-2** Coverage | AFGb-3's oracle (perceived ids = the generator's) holds after every pass of the heavy stream. | M-FGb2-2: a size pass shows the open episode's records as closed (eligible) → the structural check or the oracle fails. |
-| **AFGb2-3** Determinism | Frames of 1, of 256 and the whole heavy stream give byte-identical dumps under `keep-all` and `consolidate`; so does the 300-day FG-b stream (AFGb-5, unchanged). | M-FGb2-3: the trigger measures the whole dump including `meta` → frames of 1 differ (or, if the run happens not to differ, the static AFGb2-6 check owns it; recorded). M-FGb2-3b: `close_weeks` only at the end of a call. |
+| **AFGb2-1** Bound | On the heavy stream under `keep-all` and `consolidate` (`decay` dropped for CI time, D-FGb2-2), fed in frames of 256: after every pass `len(dump()) ≤ target` (15 728 640); after every `absorb` call `len(dump()) ≤ bound` (20 971 520); at least two size passes occur, and on day 1 the dump just before the daily pass is ≤ `bound`. | M-FGb2-1: no size trigger (`stop_when` never fires) → the after-call dump exceeds `bound`. M-FGb2-1b: backstop disabled → `keep-all`'s post-pass dump exceeds `target`. |
+| **AFGb2-2** Coverage | AFGb-3's oracle (perceived ids = the generator's) holds after every pass of the heavy stream. | owned by FG-b's M-FGb-3a/3c (the oracle is FG-b's); not re-planted (§12.3) |
+| **AFGb2-3** Determinism | (a) Frames of 1, of 256 and the whole heavy stream give byte-identical dumps under `keep-all` and `consolidate`; so does FG-b's stream (AFGb-5, unchanged). (b) The trigger's measure, read after every fact of a 23-day stream (chapters written mid-call), is the same sequence in frames of 1, 7, 256 and whole. | M-FGb2-3: the measure includes `meta` → (b) differs. M-FGb2-3b: `close_weeks` only at the end of a call → (b) differs. ((a) alone would rarely see either: a crossing must fall within a few bytes.) |
 | **AFGb2-4** Resume | A run whose first size pass raises after its stop committed (simulated crash), resumed by a new `absorb` of the remaining facts, ends with the same dump as an uninterrupted run. | M-FGb2-4: `absorb` skips the entry size check → dumps differ. |
-| **AFGb2-5** One pass per fact; log | The pass log's triggers are distinct; no fact has a `day` and a `size` pass; every pass log row's `cause` is `day` or `size`; size passes exist only where the content exceeded `trigger`; the daily pass still runs on every day with facts. | M-FGb2-5: a size pass also at the day's first fact → two passes for one trigger (IntegrityError) or a duplicate. |
+| **AFGb2-5** One pass per fact; log | The pass log's triggers are distinct; every row's `cause` is `day` or `size`; size passes exist only where the dump exceeded `trigger`; the daily pass still runs. A stream whose crossing fact is moved to be a day's first fact gets exactly one pass there, the daily one, which leaves ≤ `target`. | M-FGb2-5: a size pass also at the day's first fact → two passes for one trigger (IntegrityError). |
 | **AFGb2-6** The measure | After every ingest call and every pass of a stream with merges and drops, `content_size()` equals `size()` minus `meta`'s lines; after a rolled-back transaction it is still exact. | M-FGb2-6: the UPDATE trigger omitted → mismatch. M-FGb2-6b: no invalidation on rollback → mismatch. |
-| **AFGb2-7** Configuration | `store_bound_mib` 19 and 1 025 are refused by `resolve` as `StoreBoundOutOfRange` naming the value, the floor, the ceiling and the source span; 20 (and absent) give 20 971 520; 40 gives 41 943 040, target 31 457 280, trigger 39 321 600; `StoreBounds(19)` cannot be constructed. The Rust reader passes `store_bound_mib: 40` per seat, refuses `"40"` and `-1` with line and column; `--json` shows `format: 2`. | M-FGb2-7: the floor check removed → 19 accepted. |
+| **AFGb2-7** Configuration | `store_bound_mib` 19 and 1 025 are refused by `resolve` as `StoreBoundOutOfRange` naming the value, the floor, the ceiling and the source span; 20 (and absent) give 20 971 520; 40 gives 41 943 040, target 31 457 280, trigger 39 321 600; `StoreBounds(19)` cannot be constructed; a string is refused by the Python model. The Rust reader passes `store_bound_mib: 40` per seat (and into the digest), refuses `big` and `-1` with line and column; `--json` shows `format: 2` (CLI golden). | M-FGb2-7: the floor check removed → 19 accepted. M-FGb2-7r: the Rust reader drops the value → the pass-through and digest tests fail. |
 | **AFGb2-8** Unchanged elsewhere | FG-b's suites pass with the re-derived numbers only (each change recorded); `test_ac10.py` unchanged; the memory section ≤ 6 000 B (AFGb-7). | — |
 
 ---
@@ -386,30 +387,44 @@ it cannot exercise the change; FG-b's 100-day real export stays Gate 2 for the r
 
 ### C0 — This design (Markdown only)
 
-- [x] Implementation: this document. Evidence: the file.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: terminology; every rule has a source; no new decision id.
+- [x] Implementation: this document. Evidence: commit 183f428.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  Evidence: "223 numbered sections across 32 documents, none duplicated"; "122 decision ids, all distinct".
+- [x] Review: terminology; every rule has a source; no new decision id. Evidence: §1.1 quotes both rulings;
+  ARC-87 gains a dated note (C3), no new id.
 
 ### C1 — Bounds, the measure, the trigger, schema v3 (Python)
 
-- [ ] Implementation: §4.1–4.5 (`bound.py`, `selection.py`, `absorb.py`, `host.py`, `ingest.py`, `store.py`,
-  `records.py`).
-- [ ] Validation: ruff, pyright strict; AFGb2-1 … AFGb2-7 (Python half), AFGb2-8 targeted files; mutations.
-- [ ] Review: determinism argument (§4.2–4.3) against the code; no wall clock; `ingest` without `stop_when`
-  unchanged.
+- [x] Implementation: §4.1–4.5 (`bound.py`, `selection.py`, `absorb.py`, `host.py`, `ingest.py`, `store.py`,
+  `records.py`). Evidence: commit 2326484; D-FGb2-1 (the meter's mechanism) recorded in §12.4.
+- [x] Validation: ruff, pyright strict; AFGb2-1 … AFGb2-7 (Python half), AFGb2-8 targeted files; mutations.
+  Evidence: §12.2, §12.3.
+- [x] Review: determinism argument (§4.2–4.3) against the code; no wall clock; `ingest` without `stop_when`
+  unchanged. Evidence: every metered write is per fact (`_write`, `Episodes.feed/_join/_close`,
+  `Stable.feed/met`, `NameBook.learn`), and `close_weeks` runs after each closing fact when `stop_when` is
+  given; `meta` is excluded; AFGb2-3 (b) checks the measure's sequence directly. `ingest` without
+  `stop_when` takes no new branch (the per-fact block is guarded by `stop_when is not None`);
+  `test_ac10.py` 8 passed unchanged. No `time`, `datetime` or `random` import added.
 
 ### C2 — The Rust reader and the JSON form
 
-- [ ] Implementation: §5 (`read.rs`, `resolve.rs`, `json.rs`, CLI fixture).
-- [ ] Validation: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test -p mineworld-decision` and the
-  CLI's `decisions` test.
-- [ ] Review: pass-through only; digest unchanged without the key.
+- [x] Implementation: §5 (`read.rs`, `resolve.rs`, `json.rs`, CLI fixture). Evidence: commit 41b00ac.
+- [x] Validation: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test -p mineworld-decision` and the
+  CLI's `decisions` test. Evidence: fmt clean; clippy (decision, cli, all targets) clean; 17 passed; CLI
+  `--test decisions` 7 passed.
+- [x] Review: pass-through only; digest unchanged without the key. Evidence: `choice()` copies the value;
+  `CanonicalMemory.store_bound_mib` is `skip_serializing_if = "Option::is_none"`; the existing digest
+  assertions pass unchanged and a new one shows a written bound changes it. Finding F-FGb2-2 (§12.4).
 
 ### C3 — Docs and close-out
 
-- [ ] Implementation: §2.1's doc edits; FG-b's ledger note; §12 evidence.
-- [ ] Validation: doc checks; CI green on the exact head.
-- [ ] Review: no stale 768 KiB / 1 MiB claim remains outside history notes.
+- [x] Implementation: §2.1's doc edits; FG-b's ledger note; §12 evidence. Evidence: `MODULE_SPEC.md` §4.1
+  rule 8, §5.2 (budget `now`, host rules 1, 2, 5, 7, 8, 9, Selection), §8.1; `ARCHITECTURE.md` §9.3;
+  ARC-87 note; README; FG-b §5.7 note.
+- [ ] Validation: doc checks; CI green on the exact head. Doc checks clean (§12.2); CI: the PR.
+- [x] Review: no stale 768 KiB / 1 MiB claim remains outside history notes. Evidence: `git grep "768 KiB\|786
+  432\|1 048 576\|1 MiB" -- docs cognition/lm-controller/README.md` finds only ARC-87's original text, which
+  its new note supersedes.
 
 ---
 
@@ -441,4 +456,104 @@ STOP CONDITION:        READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### 12.2 Evidence
 
-(filled during implementation)
+macOS arm64, Python 3.14.5 (`uv run --locked`), the host shared with other sessions (load 4–20), so wall
+times are upper bounds. Targeted files only (R-LOAD-1); CI on the exact head is the gate.
+
+```text
+ruff check / ruff format --check / pyright (strict) cognition/lm-controller    clean / clean / 0 errors
+pytest test_memory_store, test_retention_store, _plan, _interface, test_memory_compress, _retrieve,
+       _isolation, test_retention_retrieve, test_memory_render, _summarizers, test_retention_size
+                                                                               92 passed (99.6 s)
+pytest test_retention_host, _policies, _size                                   51 passed (217 s)
+pytest test_retention_real, test_ac10 (real binary, debug, built in this worktree)
+                                                                               10 passed
+  consolidate, 98 passes: day 30 (before 608 994, after 188 673), day 99 (800 695, 331 358); largest
+    before 960 176, after 334 735; file 765 952 B; frames of 256 = day by day                 40.6 s
+  keep-all, days 0 … 40, 39 passes: day 30 after 13 948 340; first forced pass day 34      36.4 s
+  (final code, load 2.5; the first run, with §4.2's frozen temp-table meter, took 49.5 s and 55.7 s)
+  test_ac10: section bytes {10: 4599, 30: 4990, 60: 4943, 100: 4991}, unchanged
+cargo test -p mineworld-decision 17 passed; cargo test -p mineworld-cli --test decisions 7 passed
+cargo fmt --all --check, cargo clippy -p mineworld-decision -p mineworld-cli --all-targets -D warnings
+                                                                               clean
+check_doc_headings / check_decision_ids                                        clean
+```
+
+The busy stream (`heavy(7, 2, 2800, 100)`, 5 612 facts, two days), frames of 256 — (cause, dump before,
+dump after, forced):
+
+```text
+plain ingest of day 0 alone                         dump 23 933 151 B  > bound 20 971 520 (precondition)
+keep-all     size (19 663 152 → 1 608 527, 2 292)  day (5 892 824 → 5 893 055, 0)
+             size (19 663 279 → 2 877 875, 2 120)  largest dump after an absorb call 19 623 272
+consolidate  size (19 663 152 → 1 608 529, 0)      day (5 892 826 → 1 776 221, 0)
+             size (19 661 577 → 3 192 021, 0)      largest dump after an absorb call 19 623 272
+```
+
+Every `before` exceeds the trigger (19 660 800) by less than one fact (≤ 2 801 B over it) and is under the
+bound; every `after` is under the target (15 728 640).
+
+FG-b's 302-day synthetic stream at 20 MiB, dump at days 30 / 100 / 300: drop-everything 9 179 / 9 909 /
+9 944; consolidate 282 723 / 517 325 / 530 871; decay 1 600 924 / 1 619 394 / 1 543 513; importance-recency-cap
+1 169 396 / 1 309 642 / 1 331 251. `decay` and `importance-recency-cap` keep more than at 1 MiB (FG-b
+§15.2: 619 137 and 417 576 at day 100) because their budget is now `target − overhead`: the bound is a
+ceiling a policy may use, and both still end far under it.
+
+Cost of the measure: the busy stream's two days (≈ 1.24 M row writes) spend ≈ 5 s in the triggers' encoding
+under the profiler; the 100-day real export (124 207 facts) through day-by-day ingest and `absorb` under
+`consolidate` takes 13.5 s in all (scratch run, `fgb2-scratch/keepall_real.py`, outside the repository).
+
+### 12.3 Mutations
+
+Each planted in the source, the named test run, seen red, reverted (`git checkout` / restored copy; tree
+compared clean after each).
+
+```text
+M-FGb2-1   absorb's trigger predicate always false              → test_size_passes…[keep-all] FAIL
+           (25 629 272 > 20 971 520 after an absorb call)
+M-FGb2-1b  the backstop returns at once                         → test_size_passes…[keep-all] FAIL
+           (a pass cannot get under the trigger, the next absorb's entry check passes again at the same
+           fact: IntegrityError on the trigger key; 8 min of size passes on every fact first)
+M-FGb2-3   meta metered too                                     → test_the_incremental_measure… FAIL and
+           test_the_measure_after_each_fact… FAIL (frames of 1)
+M-FGb2-3b  no close_weeks after a closing fact                  → test_the_measure_after_each_fact… FAIL
+           (frames of 1, index 333: 160 734 != 160 270)
+M-FGb2-4   absorb's entry size check removed                    → test_a_crash_between_a_stop… FAIL (dumps
+           differ: the pass ran three facts later)
+M-FGb2-5   a size pass also at a day's first fact               → test_a_crossing_at_a_days_first_fact… FAIL
+           (IntegrityError: one trigger, two passes)
+M-FGb2-6   the UPDATE triggers omitted                          → test_the_incremental_measure… FAIL
+M-FGb2-6b  no invalidation on rollback                          → test_the_incremental_measure… FAIL (both
+           policies, after the rolled-back transaction)
+M-FGb2-7   the floor check removed (0 … 1 024)                   → two configuration tests FAIL
+M-FGb2-7r  the Rust reader drops store_bound_mib                 → memory_is_resolved_per_seat… and
+           the_digest_follows_the_resolution… FAIL
+```
+
+### 12.4 Deviations and findings
+
+**D-FGb2-1 (C1, bounded) — the meter calls into the store instead of marking rows.** §4.2 as frozen had the
+triggers record touched rowids in a `TEMP` table that each call re-read. Measured: ≈ 7 SQL statements per fact
+(the real `consolidate` test took 49.5 s against FG-b's 33.4 s; 40.6 s after this change, on a lighter
+host), and a trigger's `OR IGNORE` yields to the outer statement's conflict policy (`UNIQUE constraint
+failed` on upserts). The triggers now call two connection
+functions with the row's values, so a check is O(1) and no statement is added per fact; `size()` and
+`row_bytes()` reuse the sizes once the meter runs. Same exactness (AFGb2-6), same mutations red.
+
+**D-FGb2-2 (C1, bounded) — test budget at 20 MiB.** FG-b's per-pass extraction is O(store); at a 15 MiB target
+a `keep-all` store makes every pass ≈ 1 s here. `keep-all` therefore left the 302-day synthetic bound test
+(its claim moved to AFGb2-1) and runs on the real export through day 40 (AFGb-4 (c) holds by day 34);
+AFGb2-1 runs `keep-all` and `consolidate` only. FG-b's §12 stop (`test_retention_real.py` ≤ 180 s per leg)
+is kept: 77 s of test calls here (plus the shared 100-day fixture), the CI legs are recorded on the PR.
+
+**F-FGb2-1 — larger budgets make `decay` and `importance-recency-cap` keep more** (§12.2), and their 302-day
+tests take ≈ 2 × longer (35 s and 31 s). Expected under a 20 MiB bound; recorded.
+
+**F-FGb2-2 (C2) — the YAML decoder reads a quoted `"40"` as the integer 40** for an unsigned-integer field
+(`serde-saphyr`'s scalar resolution). The reader refuses a non-numeric scalar (`big`) and `-1` with line and
+column; the quoted case passes through as 40, which the host then validates. Recorded, not changed: it is the
+decoder's behaviour for every integer field of the file, not this field's.
+
+**F-FGb2-3 — a pass log key collision is the symptom of a pass that did not reach its target.** Under
+M-FGb2-1b the next `absorb` re-ran a size pass at the same fact. In the real code a pass either ends ≤ target
+(< trigger) or raises `RetentionBoundUnreachable`, so the entry check cannot repeat a fact; the unique key
+turns any future violation into a loud error rather than a silent second pass.
