@@ -799,8 +799,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C0 | `817d202b` | [x] | [x] | [x] |
 | C1 | `e2e5dab9` | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
 | C2 | `1cc4ce33` | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
-| C3 | (this commit) | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
-| C4 … C9 | — | [ ] | [ ] | [ ] |
+| C3 | `402426b5` | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
+| C4 | (this commit) | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
+| C5 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -865,6 +866,25 @@ test_home_gc.py}`; `tests/test_home_open.py` (one line reformatted: C2 committed
   (`_L0_SELECT`, `_WHO_SELECT`, `held_digest`, `records_between`); `world.collect` is called only from
   `SeatView.release`, inside the caller's transaction; `MemoryHome.remove_seat` releases inside its own.
 
+**C4 (2026-10-15).** Ported by §5.8: `memory/{ingest, names, retrieve, records, __init__}.py`,
+`compress/{episodes, chapters, stable, model_summarizer}.py`, `controller/{seat, triggers, memory_view}.py` (D-a-1);
+`memory/store.py` deleted (no alias); `memory/retention/{absorb, bound, forgotten, host, items}.py` import-only
+(D-a-9). Tests: `memory_fixtures.py` (`seat_view`, `open_view`, `rows`, `all_rows`), `test_memory_{compress,
+render, retrieve, summarizers, isolation}.py`, `test_home_store.py` (P4's ingestion tests moved in, D-a-10),
+`capture_golden_renders.py` and `test_home_golden.py` (seat views; `test_sections_name_only_held_facts`),
+`golden/SOURCE.md`; `test_memory_store.py` deleted.
+- One file at a time (load 8.4–23 from other sessions): `test_home_store` 11 passed; `test_home_gc` 4; `test_home_open`
+  8; `test_home_encoding` 4; `test_memory_compress` 9; `test_memory_render` 6; `test_memory_retrieve` 10;
+  `test_memory_summarizers` 7; `test_memory_isolation` 3 — all PASS. `test_home_golden`: 3 passed, 2 failed in
+  16.9 s — the plain-ingest golden (`test_plain_ingest_renders_the_golden_sections`) and the held-facts test
+  **PASS**; `test_retention_renders_the_golden_sections` and `test_the_fgc_cassette_replays_to_the_golden_sections`
+  **FAIL** with `no such table: l0_text` in `retention/plan.py` — the retention host is ported at C5 (§9 C4 step 3:
+  "the pass points need C5"; D-a-9).
+- ruff, ruff format: PASS. pyright: `src/` 0 errors; the errors left are all in C5's test files (§3.3's retention
+  and controller tests, which still name `MemoryStore`).
+- Review: `grep` of the changed modules for `FROM|INTO|UPDATE` on a private table without `seat` lists only
+  statements whose seat predicate is on the next line (read); every `fact` read joins `access` on the seat.
+
 ### Mutations
 
 | Id | Planted | Expected red | Observed | Restored |
@@ -872,6 +892,7 @@ test_home_gc.py}`; `tests/test_home_open.py` (one line reformatted: C2 committed
 | M-a-2 | `world.collect` deletes without `NOT EXISTS (… access …)` | `test_the_last_holder_collects` | **red**: `test_the_last_holder_collects`, `test_after_every_commit_the_records_are_exactly_the_held_keys`, `test_a_seat_that_leaves_takes_only_what_no_one_else_holds` (raised by `verify` before the test's own assertions) | byte copy, `cmp` clean, 4 passed |
 | M-a-3 | `hold` inserts the access row first and calls `insert_or_verify` only when no record exists | `test_a_peers_record_is_verified_not_trusted` | **red**: that test | byte copy, `cmp` clean, 4 passed |
 | M-a-4 | `hold` adds the `l0` line but not the `l0_who` lines to the meter | `test_the_meter_is_the_dump` | **red**: that test | byte copy, `cmp` clean, 7 passed |
+| M-a-5 | `retrieve._recent`'s L0 query with `? IS NOT NULL` in place of `a.seat = ?` | `test_home_golden.py::test_sections_name_only_held_facts` | **red**: that test | byte copy, `cmp` clean, 1 passed |
 | M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
@@ -923,6 +944,21 @@ at C3).
 
 **D-a-8 (bounded).** C2 committed `tests/test_home_open.py` with one line `ruff format` would rewrap (a trailing
 comment); C3 moves the comment above the line. CI's format check would have caught it; no behaviour changed.
+
+**D-a-9 (bounded; C4/C5 boundary).** Deleting `store.py` at C4 (as §9 orders) leaves the retention host, which
+C5 ports, without its import. C4 renames the import and annotations only (`MemoryStore` → `SeatView`) in
+`memory/retention/{absorb, bound, forgotten, host, items}.py`, so the package imports and `src/` type-checks at
+C4; their SQL and signatures are C5's. At the C4 commit the retention tests and the golden's retention arms
+fail (recorded above), as §9 C4 step 3 anticipates.
+
+**D-a-10 (bounded).** `test_memory_store.py` is deleted at C4 as §9 says; its tests that need ingestion
+(re-delivery, order, the no-number scan, atomicity) move into `test_home_store.py` with the API rename, the
+others were ported at C3. `capture_golden_renders.py` builds its FG-c replay gateway itself instead of importing
+`test_lm_summarise.py` (a C5 file), and lost its writer and `--cafe` with the schema-3 store (`SOURCE.md` says
+so); the schema-3 baseline stays in the JSON.
+
+**D-a-11 (bounded).** The AP4-2 (c) scan's allowed set (D-a-7) loses `int(involved)`: `involved` is derived and
+no longer stored (F-S28a-7).
 
 **F-S28a-9 (finding for the operator; I-a-6 (b), QS28a-1 × QS28a-3).** I-a-6 (b) bounds a one-seat home's dump by
 its seat view's plus `K` per held record. The home also stores every `fact_who` row the view does not show: the

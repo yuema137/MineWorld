@@ -11,8 +11,12 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-from capture_golden_renders import GOLDEN, SEED, absorb_arm, fgc_arm, ingest_arm
-from home_streams import SEATS, seat_streams, world
+from capture_golden_renders import CAST_IDS, GOLDEN, SEED, absorb_arm, fgc_arm, identity, ingest_arm
+from home_streams import CAST, SEATS, queries, seat_streams, world
+from memory_fixtures import INSTANCE
+
+from mineworld_cognition.memory import MemoryHome, RecallQuery, ingest, retrieve
+from mineworld_cognition.memory.records import event_key
 
 
 def _golden() -> dict[str, object]:
@@ -46,3 +50,28 @@ def test_retention_renders_the_golden_sections() -> None:
 
 def test_the_fgc_cassette_replays_to_the_golden_sections() -> None:
     assert fgc_arm() == _golden()["fgc"]
+
+
+def test_sections_name_only_held_facts() -> None:
+    # I-S28-1 in retrieval: two seats of one home with disjoint streams (the world's facts alternately);
+    # every line of 200 queries per seat cites only facts that seat perceived. Its mutation (M-a-5) drops the
+    # seat predicate from the L0 query: a home-mate's records reach the section.
+    heard = world(SEED, 3)
+    seats = SEATS[:2]
+    streams = {
+        seat: [one for n, (one, _) in enumerate(heard) if n % 2 == k]
+        for k, seat in enumerate(seats)
+    }
+    with MemoryHome.open(":memory:", INSTANCE) as home:
+        for seat in seats:
+            view = home.seat(identity(seat, CAST[seat]))
+            ingest(view, streams[seat], streams[seat][-1].id)
+        for index, seat in enumerate(seats):
+            view = home.seat(identity(seat, CAST[seat]))
+            perceived = {event_key(one.id) for one in streams[seat]}
+            now = streams[seat][-1].at
+            for at, who, words in queries(SEED, index, 0, now, CAST_IDS):
+                section = retrieve(view, RecallQuery(at=at, counterparts=who, words=words))
+                for cited in section.citations():
+                    assert event_key(cited.first) in perceived, (seat, cited)
+                    assert event_key(cited.last) in perceived, (seat, cited)

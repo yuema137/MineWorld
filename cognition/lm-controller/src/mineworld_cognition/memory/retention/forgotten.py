@@ -15,8 +15,8 @@ from dataclasses import dataclass
 
 from mineworld_sdk.wire.ids import EventId
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import EventRange, event_key, event_of
-from mineworld_cognition.memory.store import MemoryStore
 
 MAX_RANGES = 256
 
@@ -27,7 +27,7 @@ class ForgottenSet:
     _watermark: EventId | None
 
     @staticmethod
-    def load(store: MemoryStore) -> ForgottenSet:
+    def load(store: SeatView) -> ForgottenSet:
         rows: list[tuple[str, str]] = store.connection.execute(
             "SELECT first_key, last_key FROM forgotten ORDER BY first_key"
         ).fetchall()

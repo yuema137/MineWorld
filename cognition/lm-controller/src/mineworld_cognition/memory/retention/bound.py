@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId
 from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract, l3_item
@@ -28,7 +29,6 @@ from mineworld_cognition.memory.retention.registry import (
     RegisteredPolicy,
     SourceSpan,
 )
-from mineworld_cognition.memory.store import MemoryStore
 
 MIB = 1_048_576
 FLOOR_MIB = 20
@@ -107,7 +107,7 @@ def fallback() -> RegisteredPolicy:
     return PolicyRegistry.installed().bind(FALLBACK, {})
 
 
-def consolidated(store: MemoryStore, now: int, bounds: StoreBounds) -> int:
+def consolidated(store: SeatView, now: int, bounds: StoreBounds) -> int:
     """`consolidate`'s defaults applied to the current items; the number of items removed."""
     extracted = extract(store)
     budget = RetentionBudget.model_construct(
@@ -118,7 +118,7 @@ def consolidated(store: MemoryStore, now: int, bounds: StoreBounds) -> int:
     return outcome.merged + outcome.dropped
 
 
-def enforce(store: MemoryStore, now: int, bounds: StoreBounds) -> tuple[int, int]:
+def enforce(store: SeatView, now: int, bounds: StoreBounds) -> tuple[int, int]:
     """Applies the backstop until the dump is at most `bounds.limit`; returns the items it removed and
     the dump's size it leaves."""
     limit = bounds.limit
@@ -128,7 +128,7 @@ def enforce(store: MemoryStore, now: int, bounds: StoreBounds) -> tuple[int, int
     forced = consolidated(store, now, bounds)
     normalize(store.connection)
     size = store.size()
-    steps: tuple[Callable[[Extracted, MemoryStore], list[tuple[ItemId, bool]]], ...] = (
+    steps: tuple[Callable[[Extracted, SeatView], list[tuple[ItemId, bool]]], ...] = (
         _closed_records,
         _chaptered_episodes,
         _chapters,
@@ -147,7 +147,7 @@ def enforce(store: MemoryStore, now: int, bounds: StoreBounds) -> tuple[int, int
 
 
 def _shed(
-    store: MemoryStore,
+    store: SeatView,
     extracted: Extracted,
     order: list[tuple[ItemId, bool]],
     size: int,
@@ -170,31 +170,31 @@ def _shed(
     return removed, store.size()
 
 
-def _closed_records(extracted: Extracted, store: MemoryStore) -> list[tuple[ItemId, bool]]:
+def _closed_records(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     """Every record of a closed episode, oldest episode first (records follow in order)."""
     return [(item.item, False) for item in extracted.items if item.level == 0]
 
 
-def _chaptered_episodes(extracted: Extracted, store: MemoryStore) -> list[tuple[ItemId, bool]]:
+def _chaptered_episodes(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     episodes = [item for item in extracted.items if item.level == 1 and item.container is not None]
     weeks = sorted(episodes, key=lambda item: (item.day // 7, extracted.refs[item.item].number))
     return [(item.item, False) for item in weeks]
 
 
-def _chapters(extracted: Extracted, store: MemoryStore) -> list[tuple[ItemId, bool]]:
+def _chapters(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     chapters = [item for item in extracted.items if item.level == 2]
     return [
         (item.item, True) for item in sorted(chapters, key=lambda i: extracted.refs[i.item].number)
     ]
 
 
-def _chapterless_episodes(extracted: Extracted, store: MemoryStore) -> list[tuple[ItemId, bool]]:
+def _chapterless_episodes(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     return [
         (item.item, True) for item in extracted.items if item.level == 1 and item.container is None
     ]
 
 
-def _stable_facts(extracted: Extracted, store: MemoryStore) -> list[tuple[ItemId, bool]]:
+def _stable_facts(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     rows: list[tuple[str]] = store.connection.execute(
         "SELECT entity FROM stable ORDER BY times_met, first_key, entity"
     ).fetchall()

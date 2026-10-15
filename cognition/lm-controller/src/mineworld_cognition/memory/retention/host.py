@@ -25,6 +25,7 @@ from typing import Literal, cast
 from mineworld_cognition.backend.canonical import CassetteKey
 from mineworld_cognition.compress.model_summarizer import valid_prose
 from mineworld_cognition.compress.summarize import DAY_S
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId
 from mineworld_cognition.memory.retention.assisted import (
     CALLS_CAP,
@@ -41,7 +42,6 @@ from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, ex
 from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, RetentionDecision
 from mineworld_cognition.memory.retention.registry import RegisteredPolicy
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 PASS_LOG_ROWS = 32
 
@@ -92,7 +92,7 @@ class _Decided:
 
 
 async def run_pass(
-    store: MemoryStore, retention: Retention, now: int, cause: PassCause = "day"
+    store: SeatView, retention: Retention, now: int, cause: PassCause = "day"
 ) -> PassReport:
     day = now // DAY_S
     bounds = retention.bounds
@@ -131,7 +131,7 @@ async def run_pass(
 
 
 async def _decide(
-    store: MemoryStore,
+    store: SeatView,
     retention: Retention,
     extracted: Extracted,
     budget: RetentionBudget,
@@ -165,7 +165,7 @@ def _plain(policy: RegisteredPolicy, extracted: Extracted, budget: RetentionBudg
 
 
 async def _assisted(
-    store: MemoryStore, retention: Retention, extracted: Extracted, budget: RetentionBudget
+    store: SeatView, retention: Retention, extracted: Extracted, budget: RetentionBudget
 ) -> _Decided:
     """The assisted branch (pr-fg-c §5.2): the fallback's plan first, then the policy's answers, merged
     group by group into the fallback's plan and validated whole. Every await precedes every write."""

@@ -1,14 +1,15 @@
-"""A seat view's own behaviour (pr-s28a C3; the store half of `test_memory_store.py`, P4's AP4-1 … AP4-3, on a
-home): identity, cursor, id order, the canonical dump, and the meter that keeps `content_size()` equal to the
-dump without building it (FG-b2 §4.2, now per seat).
+"""A seat view's own behaviour and ingestion into it (pr-s28a C3, C4; `test_memory_store.py`'s P4 AP4-1 … AP4-3,
+on a home): identity, cursor, id order, re-delivery, order, atomicity, the canonical dump, and the meter that
+keeps `content_size()` equal to the dump without building it (FG-b2 §4.2, now per seat).
 
-Facts are held here directly, with a hand-written rendering, so the view is tested without ingestion; the byte
-oracle is always `dump()`, read back in the test, never a size the view reports about itself.
+The first tests hold facts directly, with a hand-written rendering, so the view is tested without ingestion; the
+byte oracle is always `dump()`, read back in the test, never a size the view reports about itself.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -23,15 +24,20 @@ from memory_fixtures import (
     alice_identity,
     arrived,
     fact,
+    names_of_everyone,
+    seat_view,
     spoke,
 )
 from mineworld_sdk.wire.contract import PerceivedEvent
-from mineworld_sdk.wire.ids import EntityKey
+from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId
 
+from mineworld_cognition.memory import ConflictingFact, OutOfOrder, ingest, render
 from mineworld_cognition.memory.home import HomeIdentityMismatch, MemoryHome, SeatView
+from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity, event_key
 from mineworld_cognition.memory.render import Rendered
 
+SOURCE = Path(__file__).resolve().parent.parent / "src" / "mineworld_cognition"
 U64_MAX = "18446744073709551615"
 
 
@@ -197,3 +203,78 @@ def test_a_home_releases_its_file_when_closed(tmp_path: Path) -> None:
     assert not path.exists()
     with one_seat(path) as reopened:
         assert reopened.cursor() is None
+
+
+# ── Ingestion into a seat view (P4's AP4-2, AP4-3; moved from test_memory_store.py at C4) ─────────────
+
+
+def test_a_redelivery_is_a_no_op_and_a_changed_one_is_refused() -> None:
+    # AP4-2 (b). Its mutation lets a re-delivery overwrite: the conflict passes silently.
+    with seat_view() as store:
+        ingest(store, [spoke(5, 100, BOB, ALICE, "Hello.", CAFE)], EventId("5"))
+        before = store.dump()
+        report = ingest(store, [spoke(5, 100, BOB, ALICE, "Hello.", CAFE)], EventId("5"))
+        assert (report.records, report.redeliveries) == (0, 1)
+        assert store.dump() == before
+        with pytest.raises(ConflictingFact) as raised:
+            ingest(store, [spoke(5, 100, BOB, ALICE, "Goodbye.", CAFE)], EventId("5"))
+        assert raised.value.event == "5"
+        assert store.dump() == before
+
+
+def test_facts_out_of_order_are_refused() -> None:
+    # AP4-2 (b): a batch [5, 3]; and a fact below the acknowledged cursor that was never delivered.
+    with seat_view() as store:
+        with pytest.raises(OutOfOrder):
+            ingest(
+                store,
+                [spoke(5, 100, BOB, ALICE, "a", CAFE), spoke(3, 99, BOB, ALICE, "b", CAFE)],
+                EventId("5"),
+            )
+        assert store.cursor() is None
+        ingest(store, [spoke(5, 100, BOB, ALICE, "a", CAFE)], EventId("20"))
+        with pytest.raises(OutOfOrder):
+            ingest(store, [spoke(12, 101, BOB, ALICE, "c", CAFE)], EventId("20"))
+
+
+def test_no_id_is_ever_converted_to_a_number() -> None:
+    # AP4-2 (c): no int( or float( in memory/ (retention included) or compress/ but three conversions of a
+    # boolean to SQLite's 0/1 (`involved` is derived and no longer stored, F-S28a-7), and the canonical
+    # dump's writing of an id as its number (`memory/home/encoding.py`, ARC-101), the one place an id becomes
+    # a number, on its way into a dump line and never back.
+    found: set[str] = set()
+    for package in ("memory", "compress"):
+        for path in sorted((SOURCE / package).rglob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            found.update(m.group(0) for m in re.finditer(r"\b(?:int|float)\([^)]*\)", text))
+    assert found == {
+        "int(rendered.mine)",
+        "int(rendered.fallback)",
+        'int(involved and record.salience == "notable")',
+        "int(value)",
+    }
+
+
+def test_a_failure_inside_ingestion_leaves_the_seat_and_its_cursor_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # AP4-3: a renderer raises on the 3rd of 5 facts. Its mutation moves the cursor before the records,
+    # outside the transaction: the cursor moves.
+    def explode(_fact: PerceivedEvent, _me: EntityId, _names: NameBook) -> Rendered:
+        raise RuntimeError("a renderer failed")
+
+    monkeypatch.setitem(render.RENDERERS, "exploding", explode)
+    facts = [
+        arrived(20, 100, BOB, CAFE),
+        spoke(21, 101, BOB, ALICE, "one", CAFE),
+        fact(22, 102, "exploding", None, subjects=[BOB], participants=[BOB], place=CAFE),
+        spoke(23, 103, BOB, ALICE, "three", CAFE),
+        spoke(24, 104, BOB, ALICE, "four", CAFE),
+    ]
+    with seat_view() as store:
+        ingest(store, names_of_everyone(), EventId("4"))
+        before = store.dump()
+        with pytest.raises(RuntimeError):
+            ingest(store, facts, EventId("24"))
+        assert store.dump() == before
+        assert store.cursor() == "4"

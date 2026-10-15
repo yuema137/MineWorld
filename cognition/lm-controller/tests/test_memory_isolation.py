@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from memory_fixtures import ALICE, BOB, CAFE, alice_identity, named, spoke
+from memory_fixtures import ALICE, BOB, CAFE, named, rows, seat_view, spoke
 from mineworld_sdk.wire.ids import EntityKey
 from support import completion, run
 from test_provider_scan import ALLOWED, PATTERN, SOURCE
@@ -15,7 +15,6 @@ from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.compress.model_summarizer import ModelSummarizer, embellish
 from mineworld_cognition.gateway import Budget, ModelGateway
 from mineworld_cognition.memory.ingest import ingest
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import RecordingBackend
 
 PACKAGES = ("memory", "compress", "forgetting")
@@ -35,7 +34,7 @@ def _sources() -> list[Path]:
 
 
 def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_adapter() -> None:
-    # AP4-11 (a). `sqlite3.connect` appears once, in the store, at the path its caller gives.
+    # AP4-11 (a). `sqlite3.connect` appears once, in the home, at the path its caller gives.
     findings: list[str] = []
     imported: set[str] = set()
     for path in _sources():
@@ -48,9 +47,11 @@ def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_ad
             r"\bPath\(",
         ):
             findings += [f"{path.name}: {m.group(0)}" for m in re.finditer(pattern, text)]
-        # The store connects to its caller's path; the FTS5 probe to a throwaway in-memory database.
+        # The home connects to its caller's path (pr-s28a I-a-7); the FTS5 probe to a throwaway in-memory
+        # database.
         for connect in re.findall(r"sqlite3\.connect\([^)]*\)", text):
-            if path.name != "store.py" and connect != 'sqlite3.connect(":memory:")':
+            home = path == SOURCE / "memory" / "home" / "home.py"
+            if not home and connect != 'sqlite3.connect(":memory:")':
                 findings.append(f"{path.name}: {connect}")
         imported.update(
             re.findall(r"^\s*(?:from|import) (mineworld_cognition\.\S+)", text, re.MULTILINE)
@@ -92,14 +93,14 @@ def test_an_embellished_store_holds_no_provider_concept(tmp_path: Path) -> None:
         model="qwen-test",
     )
     gateway = ModelGateway(recorder, Budget.of(BudgetPolicy(), MemoryLedger(), _Clock()))
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, facts, facts[-1].id)
         run(embellish(store, ModelSummarizer(gateway, EntityKey("alice")), limit=100))
         run(gateway.aclose())
-        dump = store.dump().decode("utf-8")
+        dump = store.dump()
     assert "qwen-test" in cassette.read_text(encoding="utf-8")
-    assert '"prose":"A quiet morning with Bob."' in dump
-    assert PATTERN.findall(dump) == []
+    assert "A quiet morning with Bob." in {row["prose"] for row in rows(dump, "episodes")}
+    assert PATTERN.findall(dump.decode("utf-8")) == []
 
 
 class _Clock:

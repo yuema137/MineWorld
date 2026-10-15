@@ -22,8 +22,8 @@ from mineworld_sdk.wire.ids import EntityKey
 from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import CompletionRequest, Message, Sampling
 from mineworld_cognition.gateway import Completed, Failed, ModelGateway, Refused
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import one_line
-from mineworld_cognition.memory.store import MemoryStore
 
 PROSE_BYTES = 160
 INSTRUCTIONS = (
@@ -74,9 +74,7 @@ def valid_prose(text: str) -> str | None:
     return prose
 
 
-async def embellish(
-    store: MemoryStore, summarizer: ModelSummarizer, *, limit: int
-) -> EmbellishReport:
+async def embellish(store: SeatView, summarizer: ModelSummarizer, *, limit: int) -> EmbellishReport:
     """Prose for up to `limit` closed summaries that have none: episodes in order, then chapters."""
     gateway = summarizer.gateway
     if gateway is None:
@@ -94,8 +92,9 @@ async def embellish(
                     continue
                 with store.transaction() as db:
                     db.execute(
-                        f"UPDATE {table} SET prose = ?, prose_key = ? WHERE {_KEY[table]} = ?",
-                        (prose, cassette_key(request), key),
+                        f"UPDATE {table} SET prose = ?, prose_key = ? "
+                        f"WHERE seat = ? AND {_KEY[table]} = ?",
+                        (prose, cassette_key(request), store.seat_id, key),
                     )
                 stored += 1
             case Refused():
@@ -110,16 +109,16 @@ async def embellish(
 _KEY: dict[Table, str] = {"episodes": "episode", "chapters": "week"}
 
 
-def _without_prose(store: MemoryStore, limit: int) -> list[tuple[Table, int, str]]:
+def _without_prose(store: SeatView, limit: int) -> list[tuple[Table, int, str]]:
     db = store.connection
     episodes: list[tuple[int, str]] = db.execute(
-        "SELECT episode, text FROM episodes WHERE closed = 1 AND prose IS NULL "
+        "SELECT episode, text FROM episodes WHERE seat = ? AND closed = 1 AND prose IS NULL "
         "ORDER BY episode LIMIT ?",
-        (limit,),
+        (store.seat_id, limit),
     ).fetchall()
     chapters: list[tuple[int, str]] = db.execute(
-        "SELECT week, text FROM chapters WHERE prose IS NULL ORDER BY week LIMIT ?",
-        (max(0, limit - len(episodes)),),
+        "SELECT week, text FROM chapters WHERE seat = ? AND prose IS NULL ORDER BY week LIMIT ?",
+        (store.seat_id, max(0, limit - len(episodes))),
     ).fetchall()
     targets: list[tuple[Table, int, str]] = [("episodes", n, text) for n, text in episodes]
     targets.extend(("chapters", week, text) for week, text in chapters)

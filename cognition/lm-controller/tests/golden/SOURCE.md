@@ -34,6 +34,7 @@ clock and no `random`.
 
 ## When it may change
 
-Never by re-running the script after C1: from C4 on the script runs the schema-4 code, so its output is what the
-test compares, not a new oracle. A deliberate change to what memory renders is a design change; it re-captures
-from the code before that change and records the commit here.
+Never by re-running the module after C1. At C4 the schema-3 store was deleted, and the module's writer and its
+`--cafe` measurement went with it: since then the module only computes what `test_home_golden.py` compares with
+this file, on the schema-4 code. A deliberate change to what memory renders is a design change; it re-captures
+from the code before that change, and records the commit here.

@@ -1,12 +1,10 @@
 """The golden renders of pr-s28a C-2: what memory shows each seat, captured once from the schema-3 code.
 
-Run by hand from the repository root (the command and the base commit are in `tests/golden/SOURCE.md`):
-
-    uv run --locked python cognition/lm-controller/tests/capture_golden_renders.py [--cafe]
-
-It writes `tests/golden/s28a_renders.json`. `test_home_golden.py` recomputes the same renders with the code under
-test and compares them with that file, so the file is the oracle and this module only computes. Three arms, each
-over seats opened one per store (P4's layout, the `none` arm of step-28):
+The file `tests/golden/s28a_renders.json` was written by this module at C1, on the schema-3 `MemoryStore`, with
+the command and the base commit `tests/golden/SOURCE.md` records (`--cafe` then also measured AC-a-9's schema-3
+baseline, which the file keeps). Since C4 this module runs the schema-4 code: `test_home_golden.py` recomputes
+every render through it and compares them with the file, so the file is the oracle and this module only
+computes. Three arms, each over seats with a home of their own (the `none` arm of step-28):
 
 - `ingest`: the synthetic 12-seat world (seed 7, 10 days, `home_streams.world`) through plain `ingest`, in day
   frames, rendered after every frame;
@@ -16,36 +14,32 @@ over seats opened one per store (P4's layout, the `none` arm of step-28):
   in day frames, rendered after every pass and at the end (AC-a-13).
 
 At every point each seat renders the 200 queries `home_streams.queries` draws; the point keeps the sha256 of the
-concatenated `MemorySection.render()` outputs. Three full texts are kept for a human to read. `--cafe` also
-records the sum of the twelve plain-`ingest` stores' dump lengths on the real 12-seat stream (AC-a-9's baseline).
+concatenated `MemorySection.render()` outputs. Three full texts are kept for a human to read.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
-import sys
-import tempfile
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from home_streams import CAST, SEATS, STRANGERS, cafe12, day_frames, queries, seat_streams, world
-from memory_fixtures import INSTANCE, alice_identity
+from home_streams import CAST, SEATS, STRANGERS, day_frames, queries, seat_streams, world
+from memory_fixtures import INSTANCE, alice_identity, seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EntityKey, WorldInstanceId
-from retention_stream import PEOPLE
 from retention_stream import stream as single_stream
 from support import run
-from test_lm_summarise import GENEROUS, gateway, retention
 
+from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
+from mineworld_cognition.gateway import Budget, ModelGateway
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import Cassette, ReplayBackend
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "s28a_renders.json"
@@ -67,13 +61,13 @@ def identity(seat: EntityKey, me: EntityId, instance: WorldInstanceId = INSTANCE
 
 
 @contextmanager
-def opened(who: StoreIdentity) -> Generator[MemoryStore]:
-    """One seat's memory, alone (the `none` arm)."""
-    with MemoryStore.open(":memory:", who) as store:
+def opened(who: StoreIdentity) -> Generator[SeatView]:
+    """One seat's memory, alone in its home (the `none` arm)."""
+    with seat_view(who) as store:
         yield store
 
 
-def sections(store: MemoryStore, seat: int, point: int, now: int) -> tuple[str, list[str]]:
+def sections(store: SeatView, seat: int, point: int, now: int) -> tuple[str, list[str]]:
     """The sha256 of the seat's 200 renders at a point, and the renders themselves."""
     texts = [
         retrieve(store, RecallQuery(at=at, counterparts=who, words=words)).render()
@@ -100,7 +94,7 @@ def ingest_arm(streams: dict[EntityKey, list[PerceivedEvent]]) -> Arm:
 
 
 def absorbed(
-    store: MemoryStore, facts: Sequence[PerceivedEvent], kept: Retention, seat: int
+    store: SeatView, facts: Sequence[PerceivedEvent], kept: Retention, seat: int
 ) -> list[Point]:
     """`facts` through `absorb` in day frames; a point after every frame that ran a pass, and the end."""
     points: list[Point] = []
@@ -133,10 +127,21 @@ def absorb_arm(streams: dict[EntityKey, list[PerceivedEvent]]) -> Arm:
     return arm
 
 
+class _Clock:
+    def now(self) -> int:
+        return 1_760_000_000
+
+
 def fgc_arm() -> list[Point]:
-    """The FG-c cassette's stream replayed (no model is reached: a `ReplayBackend`)."""
+    """The FG-c cassette's stream replayed (no model is reached: a `ReplayBackend`), with the gateway and the
+    `lm-summarise` parameters `test_lm_summarise_replay.py` replays it with."""
     replay = ReplayBackend(Cassette.load(CASSETTE))
-    kept = retention(gateway(replay, **GENEROUS), calls_per_sim_day=24)
+    policy = BudgetPolicy(calls_per_wall_hour=10_000_000, tokens_per_wall_day=1_000_000_000)
+    gateway = ModelGateway(replay, Budget.of(policy, MemoryLedger(), _Clock()))
+    choice = MemoryPolicyChoice.model_validate(
+        {"policy": "lm-summarise", "parameters": {"calls_per_sim_day": 24}}
+    )
+    kept = resolve(choice, PolicyRegistry.installed(), gateway)
     with opened(alice_identity()) as store:
         return absorbed(store, list(single_stream(FGC_SEED, FGC_DAYS)), kept, 0)
 
@@ -152,17 +157,6 @@ def samples(streams: dict[EntityKey, list[PerceivedEvent]]) -> list[dict[str, st
     return [{"seat": seat, "query": str(n), "text": texts[n]} for n in range(3)]
 
 
-def cafe_bytes(scratch: Path) -> dict[str, int]:
-    """AC-a-9's baseline: Σ of the twelve plain-`ingest` stores' dump lengths on the real stream."""
-    real = cafe12(scratch)
-    total = 0
-    for seat, facts in real.streams.items():
-        with opened(identity(seat, real.me[seat], real.instance)) as store:
-            ingest(store, facts, facts[-1].id)
-            total += len(store.dump())
-    return {"seats": len(real.streams), "days": 2, "dump_bytes": total}
-
-
 def compute() -> dict[str, object]:
     streams = seat_streams(world(SEED, DAYS))
     return {
@@ -171,21 +165,3 @@ def compute() -> dict[str, object]:
         "fgc": fgc_arm(),
         "samples": samples(streams),
     }
-
-
-def main(arguments: Sequence[str]) -> None:
-    golden: dict[str, object] = {"seed": SEED, "days": DAYS, "people": [str(p) for p in PEOPLE]}
-    golden.update(compute())
-    if "--cafe" in arguments:
-        with tempfile.TemporaryDirectory() as scratch:
-            golden["cafe12_schema3"] = cafe_bytes(Path(scratch))
-    elif GOLDEN.is_file():
-        kept: object = json.loads(GOLDEN.read_text(encoding="utf-8")).get("cafe12_schema3")
-        if kept is not None:
-            golden["cafe12_schema3"] = kept
-    GOLDEN.parent.mkdir(parents=True, exist_ok=True)
-    GOLDEN.write_text(json.dumps(golden, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

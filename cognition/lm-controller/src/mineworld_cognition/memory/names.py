@@ -12,8 +12,8 @@ from collections.abc import Iterable
 
 from mineworld_sdk.wire.ids import EntityId, EventId
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import event_key
-from mineworld_cognition.memory.store import MemoryStore
 
 SOMEONE = "someone"
 SOMEWHERE = "somewhere"
@@ -27,16 +27,16 @@ def one_line(text: str) -> str:
 
 
 class NameBook:
-    """Names, read from the store and written through it."""
+    """A seat's names, read from its view and written through it."""
 
-    def __init__(self, store: MemoryStore, names: dict[EntityId, str]) -> None:
+    def __init__(self, store: SeatView, names: dict[EntityId, str]) -> None:
         self._store = store
         self._names = names
 
     @staticmethod
-    def load(store: MemoryStore) -> NameBook:
+    def load(store: SeatView) -> NameBook:
         rows: list[tuple[str, str]] = store.connection.execute(
-            "SELECT entity, name FROM names"
+            "SELECT entity, name FROM names WHERE seat = ?", (store.seat_id,)
         ).fetchall()
         return NameBook(store, {EntityId(entity): name for entity, name in rows})
 
@@ -47,10 +47,10 @@ class NameBook:
             return
         self._names[entity] = clean
         self._store.connection.execute(
-            "INSERT INTO names (entity, name, source_key) VALUES (?, ?, ?) "
-            "ON CONFLICT (entity) DO UPDATE SET name = excluded.name, "
+            "INSERT INTO names (seat, entity, name, source_key) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (seat, entity) DO UPDATE SET name = excluded.name, "
             "source_key = excluded.source_key",
-            (entity, clean, None if source is None else event_key(source)),
+            (self._store.seat_id, entity, clean, None if source is None else event_key(source)),
         )
 
     def name(self, entity: EntityId) -> str | None:
