@@ -367,12 +367,12 @@ fn genesis_instant(backend: &SqliteBackend) -> Result<i64, String> {
         return Ok(fact.at().seconds());
     }
     let first = backend
-        .journal_after(WorldRevision::from_raw(0))
+        .revisions_after(WorldRevision::from_raw(0))
         .map_err(stopped)?
-        .into_iter()
         .next()
-        .ok_or_else(|| "[mineworld] the save has no genesis".to_owned())?;
-    let entry: JournalEntry = format::decode(&first.1, "journal entry").map_err(stopped)?;
+        .ok_or_else(|| "[mineworld] the save has no genesis".to_owned())?
+        .map_err(stopped)?;
+    let entry: JournalEntry = format::decode(&first.entry, "journal entry").map_err(stopped)?;
     Ok(entry.input.at().seconds())
 }
 
@@ -381,13 +381,13 @@ fn head_input(backend: &SqliteBackend, head: WorldRevision) -> Result<bool, Stri
     if head == WorldRevision::GENESIS {
         return Ok(false);
     }
-    let rows = backend
-        .journal_after(WorldRevision::from_raw(head.raw() - 1))
+    let row = backend
+        .revisions_after(WorldRevision::from_raw(head.raw() - 1))
+        .map_err(stopped)?
+        .next()
+        .ok_or_else(|| "[mineworld] the save's head has no journal row".to_owned())?
         .map_err(stopped)?;
-    let (_, bytes) = rows
-        .first()
-        .ok_or_else(|| "[mineworld] the save's head has no journal row".to_owned())?;
-    let entry: JournalEntry = format::decode(bytes, "journal entry").map_err(stopped)?;
+    let entry: JournalEntry = format::decode(&row.entry, "journal entry").map_err(stopped)?;
     Ok(matches!(entry.input, WorldInput::Dispatch { .. }))
 }
 
@@ -492,10 +492,9 @@ impl Fingerprint {
     fn of_save(save: &Path) -> Result<Self, String> {
         let backend = SqliteBackend::open(save, Durability::ProcessCrash).map_err(stopped)?;
         let mut fingerprint = Self::new();
-        // "All of them": the largest count the backend can state as a stored (signed) integer.
-        let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-        for fact in backend.last_facts(all).map_err(stopped)? {
-            fingerprint.add(&fact.bytes);
+        // Streamed, one sealed block at a time (`ARC-89`): the log is never held whole.
+        for fact in backend.facts_after(None).map_err(stopped)? {
+            fingerprint.add(&fact.map_err(stopped)?.bytes);
         }
         Ok(fingerprint)
     }
