@@ -61,7 +61,7 @@ use crate::perception::{EventPerception, PerceivedHistory, Perception, Perceptio
 use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInstanceId};
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
-use mineworld_persistence::{PacingChange, PersistError};
+use mineworld_persistence::PacingChange;
 use status::first_binding;
 use world::{ActionIds, Failure, HostClock, TickTimes};
 
@@ -181,24 +181,6 @@ impl WorldRuntime {
                 .map_err(HostError::build)?;
         }
         Ok(runtime)
-    }
-
-    /// Writes one pacing change to the host journal of a persisted world (`ARC-69` item 6). Not a fact and not
-    /// a revision: the input journal, the facts and the snapshots are untouched.
-    fn journal(&mut self, change: PacingChange, at: WorldTime) -> Result<(), PersistError> {
-        match &mut self.world {
-            Hosted::Ephemeral(_) => Ok(()),
-            Hosted::Persisted(world) => world.record_host(change, at),
-        }
-    }
-
-    /// [`journal`](Self::journal) for a change the world has already made. A save that cannot take the record
-    /// stops the world, like a failed commit (`Failure::Stopped`): the clock has moved, and the save must not
-    /// go on without the record of it.
-    fn journal_or_stop(&mut self, change: PacingChange, at: WorldTime) {
-        if let Err(error) = self.journal(change, at) {
-            self.stopped = Some(error.to_string());
-        }
     }
 
     /// The loop. Blocking, because this thread is not part of the async runtime: it owns a world

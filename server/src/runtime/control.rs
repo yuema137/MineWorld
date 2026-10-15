@@ -10,9 +10,10 @@ use std::num::NonZeroU32;
 use std::time::Instant;
 
 use mineworld_contracts::{EntityKey, WorldTime};
-use mineworld_persistence::PacingChange;
+use mineworld_persistence::{PacingChange, PersistError};
 
 use super::WorldRuntime;
+use crate::host::Hosted;
 use crate::protocol::{ClockState, ClosingReason, SessionId};
 use crate::seats::SeatReport;
 
@@ -161,6 +162,28 @@ impl WorldRuntime {
         self.clock.rescale_at(wall, to);
         self.table.rescale(at, from, to);
         Some(at)
+    }
+
+    /// Writes one pacing change to the host journal of a persisted world (`ARC-69` item 6). Not a fact and not
+    /// a revision: the input journal, the facts and the snapshots are untouched.
+    pub(super) fn journal(
+        &mut self,
+        change: PacingChange,
+        at: WorldTime,
+    ) -> Result<(), PersistError> {
+        match &mut self.world {
+            Hosted::Ephemeral(_) => Ok(()),
+            Hosted::Persisted(world) => world.record_host(change, at),
+        }
+    }
+
+    /// [`journal`](Self::journal) for a change the world has already made. A save that cannot take the record
+    /// stops the world, like a failed commit (`Failure::Stopped`): the clock has moved, and the save must not
+    /// go on without the record of it.
+    pub(super) fn journal_or_stop(&mut self, change: PacingChange, at: WorldTime) {
+        if let Err(error) = self.journal(change, at) {
+            self.stopped = Some(error.to_string());
+        }
     }
 
     fn seat_now(&self, seat: &EntityKey, wall: Instant) -> Option<SeatReport> {

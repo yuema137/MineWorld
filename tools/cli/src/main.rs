@@ -206,6 +206,10 @@ enum Subcommand {
         /// age, so re-running a killed command finishes the same world.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// World seconds between a seat's consults (default 900). A measurement knob for FX-24
+        /// (`ARC-69` item 11): a multiple of the run's stride step, 30.
+        #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
+        pace: Option<u64>,
         #[command(flatten)]
         packs: PackDirs,
     },
@@ -360,6 +364,7 @@ async fn main() -> ExitCode {
             seed,
             days,
             save,
+            pace,
             packs,
         } => packs.roots().and_then(|roots| {
             run::run(&run::RunRequest {
@@ -368,6 +373,11 @@ async fn main() -> ExitCode {
                 days,
                 save,
                 roots,
+                pace: pace.map_or(run::PACE, |seconds| {
+                    mineworld_contracts::SimDuration::from_seconds(
+                        i64::try_from(seconds).unwrap_or(i64::MAX),
+                    )
+                }),
             })
         }),
         Subcommand::Biography {

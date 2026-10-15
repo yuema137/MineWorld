@@ -65,11 +65,23 @@ pub struct RunRequest {
     pub save: Option<PathBuf>,
     /// Where the world's requirements are resolved (`ARC-54`). Never saved: a resume resolves again.
     pub roots: PackRoots,
+    /// World seconds between a paced seat's consults (`--pace`, default [`PACE`]). A measurement knob for the
+    /// FX-24 feasibility test (`ARC-69` item 11); a multiple of [`RUN_STEP`].
+    pub pace: SimDuration,
 }
 
 /// Runs the world and prints what happened.
 pub fn run(request: &RunRequest) -> Result<(), String> {
     let started = Instant::now();
+    let pace = request.pace;
+    if pace.seconds() < RUN_STEP.seconds() || pace.seconds() % RUN_STEP.seconds() != 0 {
+        return Err(format!(
+            "[mineworld] --pace {} is not a multiple of RUN_STEP {}: a run's stride rounds fall on the pace's \
+             lattice only in whole rounds",
+            pace.seconds(),
+            RUN_STEP.seconds(),
+        ));
+    }
     let pack = WorldPack::read_with(&request.world, &request.roots).map_err(described)?;
     let seats: Vec<EntityKey> = pack.seats().iter().cloned().collect();
     if seats.is_empty() {
@@ -103,7 +115,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         listed(&seats),
         request.seed,
         days,
-        PACE,
+        pace,
         begun.how,
     );
 
@@ -122,13 +134,13 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         .iter()
         .map(|observer| person_of(begun.driven.world(), *observer))
         .collect();
-    let controller = PacedRuleController::new(request.seed, PACE);
+    let controller = PacedRuleController::new(request.seed, pace);
     let mut tally = Tally::new(&begun.began);
     let seat_count = i64::try_from(seats.len()).unwrap_or(i64::MAX);
 
     let mut next_day = ((begun.start - genesis) / DAY + 1).max(1);
     // Rounds of RUN_STEP: every PACE / RUN_STEP-th round is the lattice (ARC-27 note, 2026-10-09).
-    let per_pace = PACE.seconds() / RUN_STEP.seconds();
+    let per_pace = pace.seconds() / RUN_STEP.seconds();
     let first_round = ((begun.start - genesis - seat_count) / RUN_STEP.seconds()).max(0);
     'rounds: for round in first_round.. {
         let lattice = round % per_pace == 0;
