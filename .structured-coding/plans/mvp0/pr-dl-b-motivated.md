@@ -579,7 +579,8 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C3 | ea58b11 | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
 | C4 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
 | C5 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
-| C6 … C7 | — | [ ] | [ ] | [ ] |
+| C6 | (this commit) | [x] | [~] (AC-DLb-4 FAIL: material stop, see evidence) | [ ] |
+| C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -709,6 +710,37 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
       decides whether to add a non-talkable setup (a scenario fixture) or accept the unit-level catch.
   - Review: pending (LLM logic review, not self-marked).
   - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace`.
+
+- **C6 (2026-10-14). MATERIAL STOP: AC-DLb-4 FAIL.** `tools/cli/tests/rhythm.rs` (new, `#[ignore]`): two
+  30-day social-cafe runs at seed 7 (all `rule`; all `motivated` through `decisions-motivated.yaml`), each read back
+  from its save's stored facts (`spoke` by hour; `person-entered-place` arrivals), with the authored routines and
+  places read from `worlds/social-cafe`; the socializing row read from the TSV. Each AC printed as PASS or FAIL
+  before the assertion.
+  - Implementation: `cargo fmt -p mineworld-cli` applied; `cargo test --release -p mineworld-cli --test rhythm --
+    --ignored --nocapture`: ran to completion (log `/tmp/impl-dl-b-rhythm.log`), load average ≈ 30–50, release build
+    3 m 16 s.
+  - Measured (per mille unless stated; S_m / S_r / A by hour, 00 … 23):
+    - S_m is 0 for hours 00–15 and 22–23, and is 216, 30, 268, 247, 123, 113 at 16–21. S_r is 32–48 at every hour.
+      A (ATUS) is 12 at 00, 5, 1, 3, 0, 0 at 01–05, and 75–102 at 15–19.
+    - AC-DLb-3 **PASS**: night speech motivated 0, rule 225 (limit 50).
+    - AC-DLb-4 **FAIL**: TV(S_m, A) = 513 (limit ≤ 250); TV(S_r, A) = 382; the gap is −131 (required ≥ 100).
+      Motivated is further from the data than rule, not closer.
+    - AC-DLb-5 **PASS**: night at home motivated 972, rule 1000 (limits ≥ 850 and ≥ rule − 50).
+    - AC-DLb-6 **PASS**: agenda kept motivated 930, rule 937 (limit ≥ rule − 50).
+    - AC-DLb-9 **PASS**: wall motivated 12.4 s, rule 9.0 s, 1.38× (limit ≤ 2×). Measured under load ≈ 30–50, so this
+      is a ratio on one machine, not a benchmark.
+  - Reading the table (not a retune): the motivated run has no speech in the morning and the speech it has is
+    concentrated in the evening. The night criterion passes because nobody talks at night, not because the rhythm
+    follows ATUS. The shape failure is the model's morning speech, which no curve currently produces. Whether that
+    comes from the curves, from the social consideration's inputs in this world, or from the authored routines (R-DLb-3)
+    is not yet diagnosed.
+  - **Not done, because of the stop:** M-DLb-2 and M-DLb-3 reruns on the measure (the discrimination check), and
+    the M-DLb-1 … M-DLb-6 real-run mutations. No curve, threshold, or default was changed after the first run (§8,
+    R-S24-2). The §8 thresholds are unchanged.
+  - Validation verdicts: AC-DLb-3 PASS, AC-DLb-4 FAIL, AC-DLb-5 PASS, AC-DLb-6 PASS, AC-DLb-9 PASS (each from the printed
+    measures above). AC-DLb-1 (long parity) and AC-DLb-2/-7/-8 are not part of this stop.
+  - Review: pending.
+  - Workspace gate: not run locally (R-LOAD-1); CI run `<pending>` on `<head>` when the branch is pushed.
 
 ### Deviations and findings
 
