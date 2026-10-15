@@ -18,31 +18,31 @@ reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #15
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S26-a (pr-s26a-appearance.md), re-recorded on top of SR-b's sealed format (ARC-89): the appearance pack's genesis appeared facts (10 at the lake) shift every later event id and add one facts line; requests, activity, consults and faults unchanged (E-S26a-3)
-summary-300 353 c25f113e20b36cfb123565fe9d82f615d823cddc136f304481f7450a7291a343
-summary-1000 1077 4a44100ffdaa213363782c79234913facee55431749f9c4d6068e6e5342ebb1b
-summary-300s 352 e141fc7d91d98d562a775bfc5c061c22872ae19fb3e3a72399711f48023581b1
-facts-300s 6864 ec36836a6a4258859b6e09d28a6db5620f3382c0303ff4085f909c308a7c0ce3
-journal-300s 4887 86f1210d356fde9f1dfd53342c994fee08653e22ac0318519b861cfeb85f3cbc
-sealed-300s 123 86178c00473424e133420eb4e407ce56816cef2f6e468768a2c43361291c40ba
+summary-300 354 ac9899e94b2393dad87044ee1fb5b1a46db2f2f8388da1625685fb2eafab08a4
+summary-1000 1078 96247c4959e4fb198b56c2fdf1fdb8037ded5bf85dfb7b0584cebdd044807bb0
+summary-300s 353 a0ddc96459e1044f38701aefecc2b7aad5ac0a22836de257c2f606c4327fdff8
+facts-300s 6864 c2513e641f4b1471cacfea3e58e9a66412e78a0257ca06d4f34717455e5d2b5c
+journal-300s 4887 ca3b929302fc1ebe4e42b69ccc55ce63bdc53b1eda5276fdd72d1faad1f24a6f
+sealed-300s 123 32a33432d7f1c37020db12d0ade3414ae3bb77eeb88a913440c09f03f0e1c354
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S26-a (pr-s26a-appearance.md), re-recorded on top of SR-b's sealed format (ARC-89): the appearance pack's genesis appeared facts (12 per town, 10 at the lake) shift every later event id and add one facts line; requests, activity, consults and faults unchanged (E-S26a-3)
-summary-300 363 146264650f4fe3cae7ff828bcf888cf25219ff6a8e7f952bcc5671914fdc7344
-summary-1000 1088 0e6adc22cf8bc80227d798fc6a573ea2b690cc758c042e6bb93874af86b9995b
-summary-300s 362 f6a3bb734706f29661cd10cd1bc69661b45f51b66164e2464371f6e134bdff92
-facts-300s 7637 021477ff54f4b66440c170a2d295692923abf357556be7edd81230023dfb2e4f
-journal-300s 5617 71147cf70ff66178a275d1126e8967bcaaaafb4f1878c7765306c5cd76279681
-sealed-300s 146 9b9d950695d952e820e52db7be1d9211ed204ac3622034dbb0959548693d30a4
+summary-300 364 275aff663560eb705a99601076555ef0bba24e08da88126646acc2410cd7d8e6
+summary-1000 1089 ab8fa616fd6e83a2af44ecd4a48326ff4d4f1bedd47597eb3b4e78cf0f84c1db
+summary-300s 363 efd8b197b76d4cdaa40adff97ffaac16ce5ea3dc647f3e997e7e58983567de75
+facts-300s 7637 691914379f0746b4b0888703ff9053d1025a02211392aa0a3803b932ebbf9ace
+journal-300s 5617 c54817dd4b2314a72075c01f2464f5fa9e633cd71698f03486554c34526aacf2
+sealed-300s 146 3d943ba9d430f119a0633c5d96a56bdcdfd36bbfd734779fee3be0482e67087d
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S26-a (pr-s26a-appearance.md), re-recorded on top of SR-b's sealed format (ARC-89): the appearance pack's genesis appeared facts (12 per town, 10 at the lake) shift every later event id and add one facts line; requests, activity, consults and faults unchanged (E-S26a-3)
-summary-300 341 9500d0c80c6c979ef174be7ef9d4b5ec99b95f8912eb6d0231dc125b355e9cb5
-summary-1000 1065 b87fcc4419b46c1685eff09ba11090350e6059203be0d0838023cb0865682a64
-summary-300s 340 9f9aa76862a3cef6b2094c0f4caea44c2cc734addcccc9ad90fd838208e5a8a6
-facts-300s 5762 bba3db1b53d825bf66bc64ea41bc7e825c993136ac8edeb7808d727ea96c7535
-journal-300s 4198 62884c024ef58adade9eea0daa2f783ed2ef5923b749ab404132c9ce33fac4e5
-sealed-300s 149 2e7ffeaafbfb526fd02e594a9f20b655e5011a53e2bf4d89941fae99f895ddd2
+summary-300 342 a849b9d87bbce46126ea192bcf64e076f369d87ec414d2905aab5eb336877d4c
+summary-1000 1066 fb99a59cb0ff114dbae8d4c981e4066f4889d4936e2bad15f3be523c9bd352f0
+summary-300s 341 c5060b905e9bd3e63a7a5d0cc1e8b0da61ba8b40626203bb0037df02e5fdf14b
+facts-300s 5762 ed6c6bb9db4b3f1264f140dec88d776ed0b387f948324d603772553e47035df6
+journal-300s 4198 75af6a632c4f219886d81fad7ee09da1c1a9e781a1a784ff76b77ea9cb71a95f
+sealed-300s 149 5e2a27667a997018cfe6d740414a3922a6b69a2d55117c7f948c5787d95fb595
