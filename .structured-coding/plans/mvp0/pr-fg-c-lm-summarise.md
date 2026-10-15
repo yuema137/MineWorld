@@ -571,9 +571,20 @@ The host ran at load about 190–230. Local runs are for the fast, targeted file
 | C3 | `3bd10a8` | `forgetting/lm_summarise.py`, entry point, exports | §§5.4–5.5 | `tests/test_lm_summarise.py` 11/11 (load ≈190) | decision table reviewed cell by cell (9/1/5 constants); truncation deterministic |
 | C3b | `7524e9c` | the (d) oracle compares `text` too | — | `test_importance_nine…` passes; M8 fails it | N/A |
 | C4 | `d3e907e` | `tests/test_lm_summarise_replay.py`, `tests/cassettes/lm-summarise.jsonl` | §§7.2–7.3 | 4 passed, 1 skipped (recording), 7.3 s (load ≈140) | cassette holds no URL or key; LF endings (written from Python bytes, `\n` only) |
-| C5 | this commit | README (two lines), ledger | — | see §14.5 | — |
+| C5 | `33fba6f` | README (two lines), ledger | — | see §14.5 | — |
+| merge | `origin/main` @ `f772a18` merged into the branch (plan documents only: S26a/S26b1/S27a–c) | — | — | no code change from main; `ruff`, `pyright`, doc checks and the targeted files re-run on the merge (§14.8) | — |
 
 Full-workspace gate: CI only (R-LOAD-1). `workspace gate: CI run <id> on <sha> (R-LOAD-1)` is recorded in §14.6 once the run exists.
+
+### 14.8 Close-out checks on the merged head (2026-10-14, load 7–11 at run time)
+
+- `uv run --locked pyright` at the root: 0 errors, 0 warnings.
+- `uv run --locked ruff check sdk/python cognition/lm-controller`: all checks passed.
+- `uv run --locked ruff format --check sdk/python cognition/lm-controller`: 123 files already formatted.
+- `scripts/check_doc_headings.py`: 223 sections across 32 documents, none duplicated (rc 0).
+- `scripts/check_decision_ids.py`: 122 decision ids, all distinct (rc 0).
+- `pytest tests/test_assisted_host.py tests/test_lm_summarise.py tests/test_lm_summarise_replay.py` in `cognition/lm-controller`: 24 passed, 1 skipped (the `LMS_RECORD` recording test, skipped by design), 5.0 s.
+- Not run locally, by R-LOAD-1: `tests/test_retention_host.py` and the rest of the suites; these are CI's. Evidence owed remains §14.6.
 
 ### 14.5 Mutations (AFGc, planted one at a time, restored; load ≈180)
 
