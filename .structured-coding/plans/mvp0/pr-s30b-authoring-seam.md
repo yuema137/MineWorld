@@ -617,8 +617,9 @@ No question remains open.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 base and ledger | this commit | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C0 base and ledger | `0a11d021` | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
+| C1 `authoring` | this commit | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -639,9 +640,17 @@ No question remains open.
   step-30 §6.4 "masks `core` (all 94)" → 93; step-30 §13.1 S30-k row `attributes/labels/` → `labels/`.
 - No other session holds this worktree (`ps`: none).
 
+**E-1 (C1).** `cargo test -p mineworld-authoring --lib`: 11 passed (5 new: `a_data_directory_is_one_word_and_none_of_the_formats`,
+`decode_in_context_sees_the_context`, `a_context_refusal_is_the_owners_and_names_the_file`,
+`a_resolution_covers_every_subject_and_names_no_stranger`, `a_shipped_file_lies_directly_in_an_owners_directory`). `cargo clippy
+-p mineworld-authoring --all-targets -- -D warnings`: clean. `cargo fmt --all --check`: clean. `cargo check -p mineworld-sdk`: clean (its
+`HeldSection` implements `AuthoredConfiguration` and compiles unchanged, D-b-2).
+
 ### Mutations
 
-(none yet; M-b-1 … M-b-7 as §9 lists them)
+| Id | Planted | Test | Red | Restored (`cmp`) | Green |
+| --- | --- | --- | --- | --- | --- |
+| M-b-1 | `data_context` hands the owner `Vec::new()` instead of the decoded files (the realised form of "a fresh context", D-b-4) | `decode_in_context_sees_the_context` | FAILED at `tests.rs:236` (files the context saw) | yes | ok |
 
 ### Deviations and findings
 
@@ -649,3 +658,26 @@ F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
 
 - **D-b-1 (bounded).** §9.0 and §12 name the worktree `impl-s30-b`; the primary's dispatch created
   `impl-s30b`. Same branch, same single-session rule; no other effect.
+- **D-b-2 (bounded; A-4 corrected).** A-4 says `AuthoredConfiguration` is implemented only inside `authoring`.
+  Audit: `sdk/rust/src/interactions/mod.rs:128` implements it too (`HeldSection`), and both traits are public, so an
+  external pack could. `as_any` is therefore a **provided** method on both erased traits, answering `()` by default;
+  `authoring`'s own holders override it with the owner's value. A holder that does not answer is not downcastable,
+  and every downcast failure is a named refusal. No implementor changes; the pinned `acme-fishing` implements
+  neither trait (`~/.cargo/git/checkouts/mineworld-pack-fishing-*/b40e71f`: no match).
+- **D-b-3 (bounded, additive to §5.2–5.4).** (a) `OwnerContext` has a third, `#[doc(hidden)]` method `shared()`
+  returning the owner's context as `Arc<dyn Any + Send + Sync>`, so `DecodeIn::from_erased` and `resolve_erased`
+  keep a typed `Arc<S::Context>` without copying; `as_any()` answers the owner's own `Context` (not the holder), so
+  S30-c's CLI downcasts to its own type. (b) `ResolvedSeeds` also answers `section()` (the refusal of a resolved
+  seed names the section, as a section's does) and `as_any()` (the owner's seed map, for S30-d's `attributes
+  resolve`). (c) `ErasedSubject::authored` is `Option<&dyn AuthoredContent>` rather than `Option<&Arc<…>>`. (d) The
+  erasing glue the macros call is three public functions in `authoring` (`decode_data_file::<S>`,
+  `data_context::<S>`, `resolve_erased::<S>`), as `Decode<S>` is for sections. (e) `decode_data_file` refuses a
+  directory the owner does not own, and `data_context` / `resolve_erased` refuse another owner's configuration,
+  section or context by name (fail closed).
+- **D-b-4 (bounded; M-b-1's form).** M-b-1 as written ("a fresh default context") does not type-check: the seam puts
+  no `Default` bound on `OwnsData::Context`, and should not. The planted mutation is the realised equivalent: the
+  context is built from no files instead of the given ones.
+- **D-b-5 (bounded).** `DataDirectory::from_static` also refuses, at compile time, the format's own directories
+  (`people`, `places`, `items`, `organizations`, `configure`, `data`: `MODULE_SPEC` §3.1 item 1 "distinct from the
+  format's own directories"); `ShippedData::new` checks `<directory>/<file>.yaml` at compile time (flat, `.yaml`,
+  a valid directory). Uniqueness across packs is the build's guard (C4).
