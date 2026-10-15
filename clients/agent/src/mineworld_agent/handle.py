@@ -276,7 +276,7 @@ class Handle:
         self._bump()
         if self.pacer is not None:
             # The pacer's next step meets the same loss and stops; nothing more is sent.
-            asyncio.get_running_loop().create_task(self.pacer.stop())
+            self._tasks.append(asyncio.create_task(self.pacer.stop()))
 
     def _bump(self) -> None:
         observed, self._observed = self._observed, asyncio.Event()

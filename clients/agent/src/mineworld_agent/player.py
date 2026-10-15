@@ -184,6 +184,8 @@ class Player:
         self._wall = wall
         self._sleep = sleep or asyncio.sleep
         self._handles: dict[str, Handle] = {}
+        self._ending: set[asyncio.Task[None]] = set()
+        """Lost handles being cleaned up: held so the loop does not drop the tasks."""
         self._states = None if config.state_dir is None else StateDir(config.state_dir)
         self._caps = Caps(max_bytes=config.max_result_bytes - WRAPPER_BYTES)
 
@@ -317,6 +319,7 @@ class Player:
         handles, self._handles = list(self._handles.values()), {}
         for handle in handles:
             await handle.stop(give_back=handle.lost is None)
+        await asyncio.gather(*self._ending, return_exceptions=True)
 
     # ── Observe ───────────────────────────────────────────────────────────────────────────────────
 
@@ -586,7 +589,9 @@ class Player:
             raise PlayerRefusal("unknown_handle")
         if handle.lost is not None:
             del self._handles[name]
-            asyncio.get_running_loop().create_task(handle.stop(give_back=False))
+            ending = asyncio.create_task(handle.stop(give_back=False))
+            self._ending.add(ending)
+            ending.add_done_callback(self._ending.discard)
             raise SeatLostRefusal(handle.lost)
         handle.touch()
         return handle

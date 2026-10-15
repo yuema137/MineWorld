@@ -978,6 +978,10 @@ as the authority for the added fields.
     (360 world s), AC-c-8 PASS, AC-c-9 PASS, AC-c-10 PASS, AC-c-11 PASS with M-c-6 classified equivalent
     (E-C8), AC-c-12 as above. Each real-binary file ≤ 90 s on this machine (12.4, 1.5, 32.3, 5.4 s); the
     Linux and Windows timings are the PR's CI.
+  - *Review fix after the PR opened.* The two clean-up tasks started without an awaiting caller (a lost
+    seat's pacer stop, a lost handle's stop) are now held — in the handle's task list and in
+    `Player._ending`, which `close()` awaits — so the event loop cannot drop them (asyncio keeps only weak
+    references to tasks). Member suite 96 passed again; ruff, format, pyright clean.
   - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
     §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
     F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.
