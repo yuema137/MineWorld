@@ -35,8 +35,15 @@ This file is a continuation aid. The authority is `pr-s26b1-pipeline.md` (DESIGN
   $0 OpenAI. Gate 1 not required (no LLM-facing change).
 - **Scratch root for B7 and B10:** `/Users/yuema137/mineworld-demos/cast-scratch/s26b1` (outside the repository; created).
 - **Checkpoint:** READY FOR OPERATOR REVIEW after CI is green on the final head. DO NOT MERGE.
-- **Progress:** B0 (`ff0cab0`), B1 (`f8b64cc`) done. B2 committed in the next commit.
-- **Next action:** B3 — static gates G-1…G-6 and G-14 (design §9, B3). Opus review of B3 is required before ready.
+- **Progress:** B0 (`ff0cab0`), B1 (`f8b64cc`), B2 (`9673735`) done. B3 committed in the next commit.
+- **Open finding for the primary (F-B1-B3-1):** the accepted `meshy_d.glb` fails G-6(b) under the frozen bounds
+  (`mixamorig:Spine` 63.5 mm and `mixamorig:Spine2` 46.9 mm outside the body). Bounds are not changed. Decision needed
+  before B10 step 5 (AB1-10).
+- **Next action:** B4 — secrets scan and CI wiring (design §9, B4). Opus review of B3, B7 and B10 is required before
+  ready.
+- **Load rule (coordinator R-LOAD-1, 2026-10-14):** no workspace cargo test locally; the full gate is CI on the exact
+  head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)"; parity and perf runs one at a time with the
+  load average recorded; no interim reports; report once at READY or at a real blocker.
 - **Standing verification notes (B1, 2026-10-14):** Meshy §2.4 unchanged in substance; Winter INCONCLUSIVE; AccuRIG
   INCONCLUSIVE (404); RigNet is GPL-3.0; these are recorded in the design §15 evidence.
 - **Stop conditions (design §12, MATERIAL STOPS):**

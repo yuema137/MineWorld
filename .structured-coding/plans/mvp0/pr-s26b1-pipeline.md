@@ -1184,7 +1184,7 @@ or `tools/asset_generation/` changed.
 | B0 | this commit (base `f772a18`) | [x] steps 1–4; handoff created; scratch `/Users/yuema137/mineworld-demos/cast-scratch/s26b1` created | [x] doc checks (see Evidence) | [x] no authority widened; I-B1-2 copied into handoff |
 | B1 | this commit | [x] steps 1–5: `PIPELINE.md`, `README.md`, DECISIONS `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; step 2 verifications recorded below | [x] doc checks (see Evidence) | [x] terms exact; no rule only in the README; the Winter and AccuRIG verifications are INCONCLUSIVE, named for S26-b2 |
 | B2 | this commit | [x] steps 1–11: `cast.py`, `ruff.toml`, `mwcast/{__init__,cli,glb,records,scratch}.py`, tests `{conftest,gltf_fixture,test_glb,test_records}.py` | [x] pytest 19 passed (2.0 s); ruff check and format clean; pyright strict 0 errors; mutation (drop `// 3` in `triangle_count`) red on 3 tests, reverted green | [x] no third-party import in `glb.py`/`records.py`; all public functions typed; `Mapping[str, object]` only at the JSON document |
-| B3 | — | [ ] | [ ] | [ ] |
+| B3 | this commit | [x] steps 1–4: `standard.py`, `gates.py`, `cli.py` (`gate`, `check-characters`), `test_gates.py`; 40 pytest passed; ruff, format, pyright strict clean | [x] mutations (a) MAX_TRIANGLES 100_001 → X-5 red; (b) G-5 parent comparison off → re-parented test red; (c) G-14 key scan off → key-shaped test red; all reverted green. Frozen evidence pinned (G-1 95000, G-2 `MW_Meshy`, G-5 PASS, G-6a PASS, G-14 exactly `references`, `reference_generator`, `pipeline`) | [ ] Opus review pending (contract requires Opus review of B3 before ready); see finding F-B1-B3-1 |
 | B4 | — | [ ] | [ ] | [ ] |
 | B5 | — | [ ] | [ ] | [ ] |
 | B6 | — | [ ] | [ ] | [ ] |
@@ -1225,6 +1225,17 @@ or `tools/asset_generation/` changed.
   "defaults are Vera's values" is read with this one exception, recorded here.
 - **B2 finding F-B1-B2-2 (exempt keys):** the override rule exempts `character`, `stature_m`, `accessories`,
   `source.*` and `fit.picks` (PIPELINE §4.2 now lists them), which the design's §5.4 names as not overrides.
+- **B3 finding F-B1-B3-1 (material, for the primary session; not decided autonomously):** the static gates run on
+  the accepted protagonist mesh `meshy_d.glb` with Vera's stature 1.767 (read-only scratch run, 2026-10-14, load
+  average ~200): G-1 PASS (95000); G-2 FAIL (`MW_Meshy`, expected, the export renames it); G-3 PASS (2048², 8-bit RGB);
+  G-4 FAIL only because (b) needs the run directory (not yet run); G-5 PASS (52 joints, 0 mismatched parents, 0
+  unweighted vertices); **G-6 FAIL on (b): `mixamorig:Spine` lies outside the body by 63.5 mm and `mixamorig:Spine2` by
+  46.9 mm** (the other 16 body joints inside, margins 35–110 mm); G-6(a) PASS, but the arm and shank ratios sit at
+  10.5–11.7 % against the 12 % relative bound; G-14 FAIL naming exactly `references`, `reference_generator`,
+  `pipeline`. Consequence: AB1-10 (G-6 (a, b) PASS on the re-derived export) cannot hold if the accepted asset itself
+  fails G-6(b) under the frozen bounds. The bounds are not changed (I-B1-6, §12 "changing a bound after a Gate run").
+  **Open: the primary session must decide before B10 step 5 is recorded as PASS**, with these numbers; B10's FAIL
+  policy applies (localize, no bound change, material stop if AB1-8 cannot hold).
 - **B2 record scope:** `records.py` types every section of `fit.yaml` as a frozen dataclass; the schema is the
   PIPELINE §4.1 table. `generation_log.yaml` run params are `raw` or `remesh` with a target polycount (D+ §3).
 - **B0 evidence (2026-10-14):** `check_doc_headings.py` PASS (223 sections, 32 documents); `check_decision_ids.py`

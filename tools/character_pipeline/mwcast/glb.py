@@ -379,3 +379,52 @@ def png_size(data: bytes) -> tuple[int, int, int, int]:
         raise GlbError("the bytes are not a PNG with an IHDR chunk")
     width, height = struct.unpack_from(">II", data, 16)
     return width, height, data[24], data[25]
+
+
+def skinned_mesh_count(glb: Glb) -> int:
+    """The number of distinct meshes referenced by a node that carries a skin."""
+    meshes = {_int(glb, node, "mesh", "node") for node in _nodes(glb) if "skin" in node and "mesh" in node}
+    return len(meshes)
+
+
+def primitive_count(glb: Glb) -> int:
+    """The number of primitives across every mesh."""
+    return len(_primitives(glb))
+
+
+def material_documents(glb: Glb) -> list[Mapping[str, object]]:
+    """Every material object, in document order."""
+    return [_at(glb, item, "material") for item in _document_list(glb, "materials")]
+
+
+def texture_slots(glb: Glb, material_index: int) -> dict[str, bool]:
+    """Which PBR texture slots material `material_index` fills.
+
+    Keys: base colour, normal, occlusion, emissive, metallic-roughness. A missing material is an error."""
+    material = _index(glb, _document_list(glb, "materials"), material_index, "material")
+    pbr_raw = material.get("pbrMetallicRoughness", {})
+    pbr = _at(glb, pbr_raw, "pbrMetallicRoughness")
+    return {
+        "base colour": "baseColorTexture" in pbr,
+        "normal": "normalTexture" in material,
+        "occlusion": "occlusionTexture" in material,
+        "emissive": "emissiveTexture" in material,
+        "metallic-roughness": "metallicRoughnessTexture" in pbr,
+    }
+
+
+def base_colour_image_index(glb: Glb, material_index: int) -> int:
+    """The image index behind material `material_index`'s base-colour texture."""
+    material = _index(glb, _document_list(glb, "materials"), material_index, "material")
+    pbr = _at(glb, material.get("pbrMetallicRoughness", {}), "pbrMetallicRoughness")
+    info = _at(glb, pbr.get("baseColorTexture"), "baseColorTexture")
+    texture = _index(
+        glb, _document_list(glb, "textures"), _int(glb, info, "index", "baseColorTexture"), "texture"
+    )
+    return _int(glb, texture, "source", "texture")
+
+
+def attribute_names(glb: Glb) -> list[str]:
+    """Attribute names of the first skinned primitive, sorted."""
+    attributes = _at(glb, _skinned_primitive(glb).get("attributes"), "attributes")
+    return sorted(attributes)

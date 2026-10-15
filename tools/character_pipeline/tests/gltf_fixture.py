@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import struct
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 _IDENTITY_COLUMN_MAJOR = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
@@ -24,13 +25,14 @@ def build_glb(
     weights_u16: bool = False,
     extras: Mapping[str, object] | None = None,
     image_png: bytes | None = None,
+    base_y: float = 0.0,
 ) -> bytes:
     """A skinned GLB with `triangles` triangles per material (one primitive per material).
 
     Joint `i` is node `i`, named and parented as `joints` says. Each vertex is bound to joint 0 with weight 1.
     Inverse bind matrices are translations to `joint_positions` (default: the origin), unless `ibm_overrides`
     gives a column-major 4×4 for a joint by name. `weights_u16` writes WEIGHTS_0 as normalised
-    UNSIGNED_SHORT."""
+    UNSIGNED_SHORT. `image_png` is embedded as material 0's base colour. `base_y` shifts every vertex in y."""
     positions_map = dict(joint_positions or {})
     overrides = dict(ibm_overrides or {})
     vertex_count = 3 * triangles
@@ -60,7 +62,7 @@ def build_glb(
         accessors.append(entry)
         return len(accessors) - 1
 
-    positions = b"".join(struct.pack("<3f", k * 0.001, 0.0, 0.0) for k in range(vertex_count))
+    positions = b"".join(struct.pack("<3f", k * 0.001, base_y, 0.0) for k in range(vertex_count))
     position_acc = add_accessor(positions, component=5126, count=vertex_count, kind="VEC3")
     uv_acc = add_accessor(
         b"".join(struct.pack("<2f", 0.5, 0.5) for _ in range(vertex_count)),
@@ -150,6 +152,9 @@ def build_glb(
     }
     if images:
         document["images"] = images
+        document["textures"] = [{"source": 0}]
+        material_docs = cast(list[dict[str, object]], document["materials"])
+        material_docs[0]["pbrMetallicRoughness"] = {"baseColorTexture": {"index": 0}}
     return _assemble(document, bytes(binary))
 
 

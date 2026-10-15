@@ -112,6 +112,11 @@ def _vera_fit() -> dict[str, object]:
     }
 
 
+def vera_fit_object() -> dict[str, object]:
+    """Vera's record as a fresh object, for other test modules (gates, pipeline)."""
+    return _vera_fit()
+
+
 def _child(parent: dict[str, object], key: str) -> dict[str, object]:
     value = parent[key]
     assert isinstance(value, dict)
