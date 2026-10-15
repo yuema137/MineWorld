@@ -75,11 +75,12 @@ fn godot(arguments: &[&str], limit: Duration) -> (Option<bool>, Vec<String>) {
     (status, printed)
 }
 
+/// A first import of the 3D project (every texture and model) took more than 10 minutes on the hosted
+/// Windows runner (nightly run 38793596092); the other Godot tests import without a limit.
+const IMPORT_LIMIT: Duration = Duration::from_secs(30 * 60);
+
 fn import(project: &str) {
-    let (done, _) = godot(
-        &["--headless", "--path", project, "--import"],
-        Duration::from_secs(600),
-    );
+    let (done, _) = godot(&["--headless", "--path", project, "--import"], IMPORT_LIMIT);
     assert_eq!(done, Some(true), "{project} imports");
 }
 

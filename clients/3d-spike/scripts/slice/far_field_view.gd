@@ -153,9 +153,9 @@ static func _steps(sector: Dictionary, per_deg: int) -> PackedFloat64Array:
 
 ## The ground's height (scene y) at radius `r` from the origin, outside the boundary.
 func _ground_y(r: float) -> float:
-	var reach: float = _field.boundary()["reach_m"]
+	var edge_m: float = _field.boundary()["reach_m"]
 	var fg := _field.foreground()
-	return GROUND_Y - float(fg["drop_m"]) * smoothstep(reach, reach + float(fg["run_m"]), r)
+	return GROUND_Y - float(fg["drop_m"]) * smoothstep(edge_m, edge_m +float(fg["run_m"]), r)
 
 
 ## The water body whose sector holds `bearing`, or {}.
@@ -190,7 +190,7 @@ static func _ring_quad(st: SurfaceTool, a0: Vector3, a1: Vector3, b0: Vector3, b
 ## The ground under the street, out to the boundary: what the 900 m apron was for (no frame shows
 ## the void under the slice), now ending where the foreground begins. Walkable, as the apron was.
 func _near_ground() -> void:
-	var reach: float = _field.boundary()["reach_m"]
+	var edge_m: float = _field.boundary()["reach_m"]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var c := Vector3(0.0, GROUND_Y, 0.0)
@@ -198,7 +198,7 @@ func _near_ground() -> void:
 		var b0 := 360.0 * i / FG_SEGMENTS
 		var b1 := 360.0 * (i + 1) / FG_SEGMENTS
 		# centre, then outward and clockwise: clockwise from above, the front face up
-		for v in [c, _dir(b0) * reach + c, _dir(b1) * reach + c]:
+		for v in [c, _dir(b0) * edge_m + c, _dir(b1) * edge_m + c]:
 			st.set_uv(Vector2(v.x, v.z))
 			st.add_vertex(v)
 	# the old apron's grass, unchanged: accepted near views must not change (V-1)
@@ -208,7 +208,7 @@ func _near_ground() -> void:
 	body.collision_layer = Build.LAYER_WORLD
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(2.0 * reach, 0.4, 2.0 * reach)
+	box.size = Vector3(2.0 * edge_m, 0.4, 2.0 * edge_m)
 	shape.shape = box
 	body.add_child(shape)
 	body.position = Vector3(0.0, GROUND_Y - 0.2, 0.0)
@@ -344,7 +344,7 @@ static func _horizon_sampler(root: Node) -> Callable:
 ## The ground from the boundary to OUTER_M (or to the shore, in a water sector), falling to the
 ## datum's drop. Angular edges include every water sector's edges, so ground and water meet exactly.
 func _build_foreground() -> void:
-	var reach: float = _field.boundary()["reach_m"]
+	var edge_m: float = _field.boundary()["reach_m"]
 	var run: float = _field.foreground()["run_m"]
 	var surface := _surface_tint(SURFACE_TINT[_field.foreground()["surface"]])
 	# The ground starts as the near grass at the boundary and is the declared surface once it has
@@ -374,7 +374,7 @@ func _build_foreground() -> void:
 		var y_shore := 0.0 if body.is_empty() else float(body["level_m"]) - _datum
 		var radii := PackedFloat64Array()
 		for k in range(FG_RINGS + 1):
-			radii.append(reach * pow(outer / reach, float(k) / FG_RINGS))
+			radii.append(edge_m * pow(outer / edge_m, float(k) / FG_RINGS))
 		for k in FG_RINGS:
 			var y0 := _fg_y(radii[k], outer, body, y_shore)
 			var y1 := _fg_y(radii[k + 1], outer, body, y_shore)
@@ -384,7 +384,7 @@ func _build_foreground() -> void:
 			var c1 := _dir(b1) * radii[k + 1] + Vector3(0, y1, 0)
 			# same order as _ring_quad: clockwise from above, front face up
 			for v in [a0, c0, c1, a0, c1, a1]:
-				st.set_color(near.lerp(far, smoothstep(reach, reach + run, Vector2(v.x, v.z).length())))
+				st.set_color(near.lerp(far, smoothstep(edge_m, edge_m +run, Vector2(v.x, v.z).length())))
 				st.set_uv(Vector2(v.x, v.z))
 				st.add_vertex(v)
 	var mat := (Mats.pbr("leafy_grass", 2.2, base, 0.97) as BaseMaterial3D).duplicate() \

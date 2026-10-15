@@ -67,9 +67,9 @@ func _surround() -> void:
 	var water_c := _c("water", Color("5f8f9a"))
 	var base_c := water_c if spec["base"] == "water" else _c("grass_lo", Color("7d9a63"))
 	draw_colored_polygon(_rect_poly(surround), base_c)
-	var reach := surround.size.length()
+	var outer_m := surround.size.length()
 	for body in far_field.water():
-		var wedge := _wedge(body["sector"], float(body["shore_m"]), reach)
+		var wedge := _wedge(body["sector"], float(body["shore_m"]), outer_m)
 		for piece in Geometry2D.intersect_polygons(wedge, _rect_points(surround)):
 			draw_colored_polygon(_poly(Array(piece)), water_c)
 			_ripples(piece, water_c)

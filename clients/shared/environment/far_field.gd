@@ -281,7 +281,7 @@ func _check_ranges() -> void:
 
 
 func _check_boundary() -> void:
-	var reach: float = _data["boundary"]["reach_m"]
+	var edge_m: float = _data["boundary"]["reach_m"]
 	var distances := []
 	for band in _bands():
 		for point in band["profile"]:
@@ -298,9 +298,9 @@ func _check_boundary() -> void:
 			if slot["state"] == "reserved":
 				distances.append(["slot %s distance_m" % name, slot["distance_m"]])
 	for entry in distances:
-		if float(entry[1]) <= reach:
+		if float(entry[1]) <= edge_m:
 			_refuse("FAR_FIELD_INSIDE_BOUNDARY", "%s %s is not beyond boundary.reach_m %s"
-				% [entry[0], entry[1], reach])
+				% [entry[0], entry[1], edge_m])
 			return
 
 
