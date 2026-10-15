@@ -213,6 +213,11 @@ MVP scope:
 server invite token  +  player nickname
 ```
 
+A host may also issue seat grants: narrower credentials that admit named seats only, with or without
+the right to take a seat over (`ARC-97`; [`server/PROTOCOL.md`](../server/PROTOCOL.md) §4.1). A grant is
+not an account and not durable identity. The server also bounds how many requests each seat may send
+(a per-seat request budget, `ARC-97`), identically for every connection.
+
 Explicitly out of MVP scope:
 
 ```text
