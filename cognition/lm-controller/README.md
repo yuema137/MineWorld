@@ -70,6 +70,14 @@ world has run, and is written with no model; optional prose through the `summari
 a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
 
+**Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
+memory policy merge old detail into summaries or forget it; the store then stays under 768 KiB whatever
+the policy does, and every forgotten Event ID still resolves in the save (`mineworld perceived`). The
+default, `consolidate`, and `decay`, `importance-recency-cap` and the test fixture `keep-all` are plug-ins
+of the entry-point group `mineworld.forgetting`; a policy of your own is a package with one entry point.
+No model is involved. Specification:
+[`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md).
+
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 
 ```sh

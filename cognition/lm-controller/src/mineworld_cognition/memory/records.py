@@ -24,7 +24,9 @@ from pydantic import Field, model_validator
 
 from mineworld_cognition.backend.model import CognitionModel
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+"""2 since FG-b: importance, involvement, chapter ranges, stable times, the forgotten set and the pass log
+(pr-fg-b §5.5). A store of another version is refused by name; memory is rebuilt, never migrated."""
 KEY_WIDTH = 20
 """Decimal digits of u64's maximum, 18446744073709551615."""
 
@@ -36,6 +38,10 @@ Salience = Literal["notable", "ambient"]
 shown line by line (another person's comings and goings, F-P4-2)."""
 
 Level = Literal["L3", "L2", "L1", "L0"]
+
+ItemId = NewType("ItemId", str)
+"""A retention item's id, opaque to policies: `l0:<event key>`, `l1:<episode>`, `l2:<week>`, `l3:<entity>`
+(pr-fg-b §5.2). Never an `EventId` or an `EntityId`: pyright keeps the three apart."""
 
 NonNegative = Annotated[int, Field(ge=0)]
 
@@ -131,19 +137,20 @@ class Episode(CognitionModel):
 
 
 class Chapter(CognitionModel):
-    """L2: the closed episodes of one simulated week (`day // 7`)."""
+    """L2: the closed episodes of one simulated week (`day // 7`) that survived until it was written."""
 
     week: NonNegative
     first_episode: Annotated[int, Field(ge=1)]
     last_episode: Annotated[int, Field(ge=1)]
-    first: EventIdField
-    last: EventIdField
+    ranges: Annotated[tuple[EventRange, ...], Field(min_length=1)]
+    """One range per run of consecutive episode numbers among the week's episodes when it was written:
+    consecutive episodes are adjacent in the perceived sequence (D-P4-7), and a gap is an episode that
+    was forgotten first (pr-fg-b §5.5). Stored, so merging the episodes into it keeps it."""
     text: str
     prose: str | None
 
     def citation(self) -> Citation:
-        # Consecutive episodes are adjacent in the perceived sequence (D-P4-7), so a week is one range.
-        return Citation.span(self.first, self.last)
+        return Citation(ranges=self.ranges)
 
 
 class StableFact(CognitionModel):
@@ -153,6 +160,9 @@ class StableFact(CognitionModel):
     first: EventIdField
     """The first perceived fact naming them (as a participant)."""
     last: EventIdField
+    first_at: int
+    last_at: int
+    """The world times of `first` and `last`, stored with them: their L0 rows may be gone (F-FGb-2)."""
     times_met: NonNegative
     """Closed episodes they were part of."""
     exchanges: NonNegative

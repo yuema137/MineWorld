@@ -1091,52 +1091,106 @@ into a summary. It is part of a Controller Pack. It is selected per seat by `mem
 person state is not controller memory and is never governed by a memory policy; its forgetting rules are
 configured in the owning System (`CORE_CONCEPTS.md` §5.3).
 
-**Interface.** Inputs and outputs are strict Pydantic models; no `dict[str, Any]`. A policy receives the
-seat's `MemoryItem`s (item id, level, `first_at` and `last_at` in world time, kind, counterparts, place,
-whether the seat was the actor, importance, citations, byte size) and a `RetentionBudget` (store bytes
-allowed after the pass, the day boundary, and the model calls left). It returns one `Keep`, `Drop` or
-`Merge` decision per item. A `Merge` names items of one level and merges them into a summary at a higher
-level. An assisted policy also receives the `ModelGateway` and returns its decisions with optional prose
-per `Merge`, each prose at most 160 bytes.
+**Interface.** Inputs and outputs are strict, frozen Pydantic models (`mineworld_cognition.memory.retention`);
+no `dict[str, Any]`. A policy is a class with a constant `id` (equal to its entry-point name, matching
+`^[a-z][a-z0-9-]{0,47}$`), a `Parameters` model (strict, every field bounded and defaulted) and a pure
+`plan(items, budget, params)`. It receives:
 
-**Importance and recency belong to the host.** `importance` (0 … 1 000) is computed by the host as a pure
-function of the item: a per-kind table, the seat's current relationship level with its counterparts, and
-reinforcement by later facts that cite the same counterpart. No model assigns it. Recency is event time,
-`now − last_at`, never time of last retrieval, because a store whose contents depended on retrieval
-history would no longer derive from what the seat perceived (ARC-59, ARC-87).
+- a tuple of `MemoryItem`s, one per eligible item: an opaque `ItemId`; its level (0 an L0 record, 1 an
+  episode, 2 a chapter, 3 a stable fact); its `container` (the unit it nests in: an L0 record's episode, an
+  episode's week chapter if one exists, otherwise none, which makes it top-level); `first_at`, `last_at`
+  and `day` in world time; its kind; its counterparts and place; whether the seat was the actor; its
+  host-computed `importance`; its `Citation`; its names-only text; and its own size in the canonical dump;
+- a `RetentionBudget`: the bytes the surviving items should fit in, `now` (world seconds at the start of
+  the day whose first fact triggered the pass), and the model calls this pass may make (0 for every no-LLM
+  policy).
+
+It returns a sequence of decisions: `Keep(item)`; `Merge(items, into=1)`, L0 records of one episode into
+that episode; `Merge(items, into=2)`, episodes of one chapter into that chapter; `Drop(item)` of a
+top-level item. A policy never receives a store, a connection, a clock, a path or a gateway, and only the
+host deletes rows. An assisted policy (FG-c) is a separate kind with a separate host branch; its prose per
+`Merge` is at most 160 bytes.
+
+**Importance and recency belong to the host.** `importance` (0 … 1 000) is computed by the host, never by
+a policy or a model. Each L0 record's base importance is fixed at ingestion by its event type's renderer
+(for example, a line addressed to me 700, another person's walk 30; an unknown event type gets the generic
+renderer's value). An episode's base is the maximum of its records', a chapter's the maximum of its
+episodes', both written when the unit closes so that they survive the removal of their members. At a pass
+the host adds a reinforcement bonus of `min(200, 2 × the largest exchange count among the item's
+counterparts)`, read from the stable facts at that moment. A stable fact's importance is
+`min(1000, exchanges + 10 × times_met)`. Recency is event time, `now − last_at`, computed by the policy,
+never time of last retrieval, because a store whose contents depended on retrieval history would no longer
+derive from what the seat perceived (ARC-59, ARC-87).
 
 **Host responsibilities.** These hold for every policy, including user policies and the hostile fixture,
 and a policy cannot bypass them.
 
-1. **When.** A pass runs at each simulated-day boundary crossed during ingestion, as a pure function of
-   the store's state at that boundary.
-2. **Validation.** Every item receives exactly one decision; a missing item is kept. A `Merge` names items
-   of one level below `into` that share a counterpart set or a week. Unknown item ids refuse the whole plan,
-   and the pass then falls back.
-3. **Execution.** `Keep` keeps. `Merge` builds the summary through the structural summariser. A policy
-   never writes the index. The summary's citations are the union of its members' citations. `Drop` removes
-   the item and adds its citations to the seat's forgotten set.
-4. **Coverage invariant.** At every day boundary, the perceived set is the disjoint union of the L0 and L1
-   members, the merged summaries' citations, and the forgotten set (AC-FG-3).
-5. **Forgotten set.** A sorted list of Event ID ranges; adjacent ranges merge. Beyond 256 ranges, the host
-   collapses the oldest into a single watermark, meaning "everything perceived before Event ID N that is
-   not cited elsewhere is forgotten". The forgotten set is bounded by construction.
-6. **Hard bounds.** After executing a plan, if the seat's canonical dump exceeds 1 MiB, the host applies
-   `consolidate` with its defaults. If it is still over, the host drops the oldest L0 rows, then the oldest
-   L1 rows, until it is under, and records `bound-enforced` with counts in the seat's decision log.
-7. **Context bound.** A retrieval for a model call is at most 6 000 bytes, per section, as P4 D-P4-9 defines
-   it. This bound is not changed by any policy.
-8. **Ledger pruning.** Budget-ledger rows older than the longest budget window are deleted in the same pass.
+1. **When.** A pass is due when the newest ingested fact falls on a later simulated day than the last
+   pass. The host (`absorb`) splits each perceived batch at every first fact of a new day, ingests up to
+   and including that fact, and runs the pass, so the pass point is fixed by the perceived facts alone,
+   never by batch boundaries; a jump over several silent days is one pass. A crash between the ingest and
+   the pass is repaired by the next `absorb`, which runs the due pass first. Ingestion alone (`ingest`)
+   never forgets.
+2. **Eligibility.** Every L0 record of a closed episode, every closed episode, every chapter and every
+   stable fact. The open episode and its record are never shown and never removed.
+3. **Validation.** The plan is refused whole, by a typed reason, when a decision names an unknown item
+   (`unknown-item`), names an item twice (`duplicate`), merges items that are not of the level below `into`
+   or do not share one surviving container (`merge-mismatch`, which also covers a stable fact in a merge),
+   drops a nested item (`drop-nested`), explicitly keeps an item whose container it removes
+   (`keep-under-removed`), or is not a sequence of decisions at all (`malformed`). A policy that raises is
+   refused too. An item no decision names is kept, unless its container is removed, which it then follows.
+   A refused plan is never partly applied: the pass applies `consolidate` with its defaults, found through
+   the same entry-point group as every policy, and records `fallback:<reason>`.
+4. **Execution.** `Merge(into=1)` deletes the L0 records; their episode keeps its text and its citation,
+   which already is the run of its members. `Merge(into=2)` deletes the episodes and any record still in
+   them; the chapter's citation is stored as the runs of consecutive episodes it was written from.
+   `Drop` deletes the unit and everything nested in it and adds its citation ranges to the forgotten set; a
+   dropped stable fact adds nothing, because a stable fact cites its establishing facts and covers none.
+5. **Coverage invariant.** At every pass, every perceived id up to the newest ingested is represented by
+   exactly one top-level unit (a chapter's ranges, an episode of a week with no chapter, the open
+   episode's record) or by the forgotten set; nested units lie inside their container; no L0, L1 or L2
+   citation intersects the forgotten set (AC-FG-3). A stable fact's citation may point into the forgotten
+   set: what established it still resolves in the save. The host checks the store-side half of this after
+   every pass and rolls the pass back on a breach (a defect, never a fallback).
+6. **Forgotten set.** Sorted, disjoint ranges of event ids over the seat's perceived sequence. Two ranges
+   with no surviving unit between them merge. Beyond 256 ranges the oldest are removed and the watermark
+   rises to their end, meaning "every perceived id at or below the watermark that no surviving unit
+   represents is forgotten". The set is bounded by construction, and every forgotten id still resolves in
+   the save (`mineworld perceived`).
+7. **Hard bounds.** After executing a plan, while the canonical dump exceeds the host target of 786 432 B
+   (768 KiB), the host applies, in order and until it is under: `consolidate` with its defaults; merging
+   every remaining L0 record of a closed episode into its episode, oldest first; merging the episodes of
+   weeks with a chapter into it, oldest first; dropping chapters, oldest first; dropping chapterless closed
+   episodes, oldest first; dropping stable facts, fewest meetings first. Every such removal is counted as
+   forced in the pass log. The post-pass dump is therefore at most the target, and the gap to the hard
+   bound of 1 048 576 B (1 MiB) is room for one simulated day of ingestion before the next pass. If the
+   store is still over after the last step, the pass raises `RetentionBoundUnreachable` and rolls back.
+   Neither number is a parameter: no world or policy can loosen them.
+8. **Context bound.** A retrieval for a model call is at most 6 000 bytes, per section, as P4 D-P4-9 defines
+   it. This bound is not changed by any policy. Retrieval reads no row a policy may have removed.
+9. **Pass log.** Each pass records its day, policy, outcome, the counts kept, merged, dropped and forced,
+   the dump size before and after, and the number of forgotten ranges; the newest 32 rows only.
 
-**Bundled policies.** Each is an ordinary entry point in `mineworld-cognition`, and none is privileged. A
-user policy is a Python package that exposes the entry point group `mineworld.forgetting`, loaded by
-`importlib.metadata`.
+The cognition budget ledger is not memory and is not pruned by a pass: it prunes itself, by wall time,
+when it records a charge, keeping two wall days, twice its longest window (ARC-57, `ARCHITECTURE.md` §9.1).
+
+**Selection.** A world selects a policy per seat through `memory:` in `decisions.yaml` (§4.1). The Rust
+reader resolves seat > class > default and emits, per seat, a typed JSON `MemoryPolicyChoice` (`policy`,
+optional `fallback`, `parameters`, and the source span of the winning entry). The cognition process
+resolves it when it starts: an unknown policy is refused with the installed ids; invalid parameters are
+refused with the policy, the field and the source span (never the given value); a `fallback` on a policy
+that is not assisted is refused. With no `memory:` the choice is `{ policy: consolidate }`.
+
+**Bundled policies.** Each is an ordinary entry point of the group `mineworld.forgetting` in
+`mineworld-cognition`, imports only the public names of `mineworld_cognition.memory.retention`, and none
+is privileged. A user policy is a Python package that exposes one entry point of that group, loaded by
+`importlib.metadata`. All arithmetic is integer.
 
 | Policy | Uses a model | Rule | Parameters (bounded; default) |
 | --- | --- | --- | --- |
-| `consolidate` (default) | no | L0 rows older than `l0_days` merge into their L1 episode. L1 older than `l1_weeks` merge into the week's L2 chapter. L2 older than `l2_years` drop, except those citing an L3 line. | `l0_days` 1 … 30 (2); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5) |
-| `decay` | no | An item survives while `importance × retention(now − last_at)` is at least a threshold. Retention is a power-law or half-life table; the power-law fit is the default shape. Survivors over budget fall to `consolidate`. | curve id; half-life in days; threshold |
-| `importance-recency-cap` | no | Score = `w_i · importance + w_r · recency`. Keep the top `k` per level within `store_bytes`. Ties are broken by a seeded hash of the first Event ID, so selection is a pure function. | weights; `k` per level |
+| `consolidate` (default) | no | L0 records with `last_at < now − l0_hours · 3 600` merge into their episode. Episodes in a chapter with `last_at < now − l1_weeks · 604 800` merge into it. Chapters with `last_at < now − l2_years · 31 536 000` drop, except a chapter whose ranges hold a stable fact's first, last or level fact. Stable facts are kept. | `l0_hours` 0 … 720 (0); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5) |
+| `decay` | no | Retention `r` (per mille) of `now − last_at`: `half-life` halves per whole half-life, linear between; `hyperbolic` is `1000 · s / (s + Δ)`. An L0, L1 or L2 item survives while `importance · r / 1000 ≥ threshold`; a nested non-survivor merges into its container, a top-level one drops. Survivors over `store_bytes` get `consolidate`'s defaults. Stable facts are kept. | `curve` `half-life` \| `hyperbolic` (`half-life`); `half_life_hours` 1 … 87 600 (168); `scale_hours` 1 … 87 600 (72); `threshold` 0 … 1 000 (100) |
+| `importance-recency-cap` | no | Score = `(w_importance · importance + w_recency · r) / 1000`, `r` by half-life. Greedy by score, top-down: top-level units, then episodes inside chosen chapters, then records inside chosen episodes, then stable facts, each level up to its `k` and all within `store_bytes`. Ties are broken by the sha256 of the seed and the item's first Event ID, so selection is a pure function. Unchosen nested items merge; unchosen top-level items and stable facts drop. | `w_importance` 0 … 1 000 (700); `w_recency` 0 … 1 000 (300); `half_life_hours` 1 … 87 600 (168); `k_l0` 0 … 100 000 (2 000); `k_l1` 0 … 100 000 (400); `k_l2` 0 … 100 000 (260); `k_l3` 0 … 10 000 (150); `seed` 0 … 2³² − 1 (0) |
 | `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
 | `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
 

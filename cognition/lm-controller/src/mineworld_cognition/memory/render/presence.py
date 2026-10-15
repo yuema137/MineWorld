@@ -29,15 +29,21 @@ class Entered(Payload):
     place: PlaceRef
 
 
+MINE = 100
+AMBIENT = 50
+"""Base importance (pr-fg-b §5.4): my own comings and goings, and another person's."""
+
+
 def arrived(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     payload = decode(Arrived, fact)
     if payload is None:
         return fallback(fact, me, names)
     person = payload.person.entity
+    who = counterparts(fact, me)
     if person == me:
         gist = f"I arrived at {names.place(payload.location.place.entity)}"
-        return Rendered(gist, counterparts(fact, me), "notable", True)
-    return Rendered(f"{names.person(person)} arrived", counterparts(fact, me), "ambient", False)
+        return Rendered(gist, who, "notable", True, MINE)
+    return Rendered(f"{names.person(person)} arrived", who, "ambient", False, AMBIENT)
 
 
 def person_entered_place(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
@@ -45,7 +51,8 @@ def person_entered_place(fact: PerceivedEvent, me: EntityId, names: NameBook) ->
     if payload is None:
         return fallback(fact, me, names)
     person = payload.person.entity
+    who = counterparts(fact, me)
     if person == me:
         gist = f"I went to {names.place(payload.place.entity)}"
-        return Rendered(gist, counterparts(fact, me), "notable", True)
-    return Rendered(f"{names.person(person)} came in", counterparts(fact, me), "ambient", False)
+        return Rendered(gist, who, "notable", True, MINE)
+    return Rendered(f"{names.person(person)} came in", who, "ambient", False, AMBIENT)
