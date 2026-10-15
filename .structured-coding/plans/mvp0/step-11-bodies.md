@@ -7335,6 +7335,24 @@ test's expected list [… 81 920, n − 64, n] was deduplicated without sorting,
 while the save (correctly) held it once. `market_town.rs` now sorts before deduplicating. The
 retention rule and the claim ("exactly genesis, the anchors and the newest two") are unchanged.
 
+**TD-D15 — main merged after the freeze pins the pre-12d town (2026-10-14; rulings by the coordinator,
+binding).** The merge of origin/main f772a18 into this branch (22c5f91: DL-a #191, FG-a #188, 25b #190,
+SET-b #192) had text conflicts only on the systems line of `inspect.rs` and `social_composition.rs` (×2),
+resolved as both sides (conversation v4, relationships v3, bodies v5). 12d's own columns did not move:
+the 30-day seed-7 summaries equal E-TD9 (social-cafe 67df8ac8…effdd, market-town 6f54a33f…0b51f,
+bodies-yard 0e014311…06e67). CI run 38682551556 on 22c5f91 failed two tests that main added after 12d's
+freeze and that pin the pre-12d social-cafe history:
+1. DL-a AC-DLa-1 (`tools/cli/tests/decisions.rs` `with_no_decision_list_run_prints_what_the_base_printed`).
+   Ruling: re-record `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` in 12d (that
+   file only). Cause: 12d's walls and bodies change social-cafe's 30-day history (122 928 facts, = E-TD9).
+   Re-recorded from this branch's run, stdout without the `wall` line, byte for byte; the header line is
+   byte-identical; the file's sha-256 is 67df8ac8…effdd = E-TD9's summary sha (was d3d1d983…, 84 639
+   facts, main @ 6306977). The test's doc comment naming 6306977 is now historical; it was left
+   unedited, because the ruling names the fixture file only.
+2. FG-b Gate 2 AFGb-4 (b) (`cognition/lm-controller/tests/test_retention_real.py:87`, (2, 1 496 077) >
+   1 048 576). Ruling (operator, "快满了就提前整理"): a size-triggered retention pass, in FG-b's lane (PR
+   FG-b2), not in 12d. 12d waits for FG-b2 to merge, then merges main and confirms test_retention_real.
+
 ---
 
 # 20. PR 12d-0 — bodies' cost (full design; DESIGN FROZEN 2026-10-08; MERGED as #84, `78ca5ae`)
