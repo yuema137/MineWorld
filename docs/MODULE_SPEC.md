@@ -1425,6 +1425,12 @@ The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
 (§16).
 
+A 3D pack that casts characters may also carry `characters/casting.yaml`: per cast, the population
+profile, sampler seed, style template, character source and its parameters, distinctness rule, prompt
+phrasing and licence policy (`.structured-coding/plans/mvp0/step-26-cast.md` §7.4b.2, **DRAFT**, placeholder
+`ARC-S26src-7`). It is production data read only by `tools/character_pipeline/`; no client, server or System
+reads it, and no runtime file names which character source made a character (§5.8 of that step).
+
 ## 6.2 Authoring a style
 
 Creating a style does not mean writing that manifest by hand

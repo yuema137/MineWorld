@@ -14,6 +14,11 @@ the gates and acceptance are frozen at step level; progress, evidence, findings 
 writable. The step freeze does not authorize implementation, a Meshy call or an OpenAI call: each PR is
 detailed to the commit and frozen in turn (`CLAUDE.md` §3.1), and starts under §12.1's start condition, in
 a fresh session. Superseded lifecycle: `STEP DESIGN (DRAFT) — awaiting primary-session and operator review`.
+**Amendment (2026-10-15): `DRAFT` — pluggable character sources and per-world casting data** (§§5.6–5.8, 7.4b,
+12.3, AC-S26-11…13, §15 amendment records, §16.2; operator principle of 2026-10-15). Not frozen; the frozen
+step stands unchanged until the operator rules on §16.2 and the primary session freezes the amendment. Author:
+design session, worktree `/Users/yuema137/mineworld-worktrees/design-s26-sources`, branch
+`docs/s26-character-sources`, base `origin/main @ 58a6f55f`.
 **Author:** design session, 2026-10-14, worktree `/Users/yuema137/mineworld-worktrees/design-s26`, branch
 `docs/s26-cast`. Audit base: `origin/main @ adf5d2c`.
 **Ids** (assigned by the primary session at freeze, 2026-10-14):
@@ -359,6 +364,297 @@ the hair). meshoptimizer is already in Godot's importer for LODs (A-9) and is no
   `worldpack/`, `persistence/`, `cognition/` or `sdk/` names the secrets path; the pipeline works with the
   variables exported by any means. Both are checked by a scan in CI (AC-S26-9).
 
+### 5.6 Character sources: pluggable providers (amendment, operator 2026-10-15; DRAFT)
+
+**Operator, 2026-10-15, verbatim (binding):** "我们这些都要做成模块化的，而不是hard code，这样用户可以根据他们喜欢的方式（不一定要是meshy，自己导入也可以），喜欢的特征分布（年龄体重族裔）来搭建自己的世界". *Gloss:* all of this must be
+modular, not hard-coded, so that users can build their worlds with the method they prefer (not necessarily
+Meshy; importing their own models is fine) and the feature distribution they prefer (age, weight, ethnicity).
+**Addition, same day:** "年龄体重族裔也不一定是所有特征，其实还可以有很多很多" — age, weight and ethnicity are not all the
+traits; there can be many more (§7.4b).
+
+This section, §§5.7–5.8, §7.4b, §12.3 and §16.2 are an **amendment in `DRAFT`** to the frozen step. They
+change no frozen gate bound and no runtime contract; where they generalise a frozen text (G-14, `fit.yaml`'s
+`source` block, §7.3, §7.4) the change is listed in §5.6.9 and goes to the operator with the freeze of this
+amendment. Placeholder ids: `ARC-S26src-n`, `DEP-S26src-n`, `X-S26src-n`, `Q-S26src-n`, `F-S26src-n`.
+
+#### 5.6.1 Audit of the as-built pipeline (`origin/mvp0/pr-s26b1 @ 121662c9`, `origin/mvp0/s26-cast-director @ 7d54b4c1`)
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| F-S26src-1 | Stages 6–12 do not call Meshy. They consume a download directory and `fit.yaml`; the only Meshy-specific inputs are `meshy_generator_string(download_dir)` (reads `request.json`) and the `source` block | `mwcast/pipeline.py:241-280` |
+| F-S26src-2 | `fit.yaml`'s `source` block is Meshy-shaped: `source.meshy_task` is **required** and must be a UUID; `download_file` defaults to Meshy's `model_glb.glb` | `mwcast/records.py:152-160,372-384`; `PIPELINE.md` §4.1 |
+| F-S26src-3 | G-14 hard-codes the generated case: `source_type == "generated"`, `meshy_task` a UUID. A user-imported character could not pass G-14 truthfully | `mwcast/gates.py:312-340`; `PIPELINE.md` §6 |
+| F-S26src-4 | Stage 4 is already isolated (`mwcast/meshy.py`: `Transport` protocol, ledger, cap, redaction, `KEY_ENV`); it is a provider in all but name | `mwcast/meshy.py:32-140` |
+| F-S26src-5 | Stage 7 reads joint positions from hand picks (`fit.picks`, frame `dplus-v1`); S26-b2 already evaluates a second joint source (Meshy's rig, §5.4 R) | `PIPELINE.md` §4.1; §5.4 |
+| F-S26src-6 | The casting director hard-codes the attribute set and its words: `ANCESTRY_WORDS`, `MST_WORDS`, `BUILD_WORDS`, `HAIR_STYLES`, `TIED`, `FACIAL`; `differences()` names six categories; `person_paragraph()` writes the prompt sentence by sentence; `CHARS` is fixed to `presentation/mineworld-default` | `casting/cast_director.py:31-56,315-330,385-420` |
+| F-S26src-7 | World-level casting parameters are split across three files: `seed`, `template_version` and world → profile in `casting_inputs.json`; the image model in `style/template.yaml` (`image_model.provider: openai-images`); the distinctness thresholds in code | `characters/cast/casting_inputs.json`; `characters/style/template.yaml` |
+| F-S26src-8 | The runtime already depends on no provider except by name: `clients/3d-spike` loads `res://assets/characters/meshy_d/meshy_d.glb` and `human.gd` has `_meshy`; S26-c1 removes both (`Human.Body` → `character.yaml`, §4.5) | A-1, A-6 |
+
+Conclusion: the pipeline is already shaped as *acquire a candidate mesh → deterministic stages → gates*. The
+amendment names the first step a **source provider**, generalises the two Meshy-shaped records (F-S26src-2,
+-3), and moves the casting director's hard-coded attribute knowledge into data (F-S26src-6, §7.4b).
+
+#### 5.6.2 What a source is, and where it enters (`ARC-S26src-1`)
+
+A **character source provider** (short: *source*) is a tooling module that yields one candidate humanoid
+mesh for one character, with its provenance. It is not a MineWorld pack type and not a runtime module
+(`ARC-9`, §5.1): it is a plug-in of `tools/character_pipeline/`. A source declares its **entry**, the first
+pipeline stage its output needs; every stage from the entry on is the common pipeline, and every character
+passes the same gates, G-1…G-14 and §6.2–6.4, whatever its source (§1 part 2).
+
+| Entry | The source's output | Common stages it then runs | Sources of this entry |
+| --- | --- | --- | --- |
+| `raw` | an unrigged, textured humanoid mesh in A-pose or T-pose (glTF/GLB, OBJ+MTL, or FBX read by Blender's bundled importer), any triangle count, any number of materials | 5 raw gate, 6 game-ready (scale to stature, weld, decimate, **re-bake every source material into the one 2048² base colour**), 7 fit, 8 bind, 9 fleck repair, 10 export, 11 tuning, 12 gates | `meshy` (image-to-3D, today), any other image-to-3D provider, `import-mesh` (a user's unrigged model) |
+| `rigged` | a rigged, skinned humanoid whose skeleton is mapped to the 52-joint profile by a **bone-map scheme** (§5.6.4) | 5, 6, **7′ fit from the mapped skeleton**, 8 (rebind by default, §5.6.4), 9–12 | `import-rigged` (glTF/GLB, FBX via Blender), `import-vrm` (VRM 0.x and 1.0), `mpfb` / `charmorph` (parametric, §5.6.5) |
+| `final` | a finished export **already on the 52 bones of the CharMorph export**, one material, one texture (for example a character a user built with our rig, or one of ours re-imported) | 10 re-export (normalises the stored-once format and writes provenance), 11, 12 | `import-final`, `fixture` (tests) |
+
+- **Stage 1 (brief) and stage 2 (references) are not source stages.** Every character, whatever its source, has
+  a brief (§7.1) and an approved identity reference (`ARC-17`), because the scorecard (§6.2) compares against
+  one. For an import with no reference image, stage 2's provider is `render-of-source` (§5.7): the pipeline
+  renders the import at the style template's framing, and the operator approves that render at the casting gate
+  as the identity reference.
+- **Stage 3 (mask) belongs to image-to-3D sources** that take an image input; it is a step of those providers,
+  not of the common pipeline.
+- **Stage 5 (raw gate) applies to every entry**: an imported model is judged against its brief and reference
+  for the hard-fail categories before any work is spent on it.
+- **The 52-joint profile is never relaxed for a source.** The output skeleton is always the CharMorph export's
+  52 bones (`HUMANOID_PROFILE.md` §1, G-5); a source's own skeleton is an *input* to stage 7′, never a second
+  runtime skeleton. The alternative — keep the import's skeleton and let the Godot importer's BoneMap retarget
+  clips at import (A-9) — is rejected: it would give each source its own bone map, rolls and clip speeds, make
+  G-5 and G-8 per source, and depend on an import-time feature the runtime pack cannot carry (F-S26-3).
+
+#### 5.6.3 The provider interface (`ARC-S26src-2`)
+
+A source is one Python module plus one data manifest. The interface is a `typing.Protocol` in
+`mwcast/sources/base.py`; nothing else in `mwcast` imports a concrete source.
+
+**Manifest** (`mwcast/sources/<id>.yaml`, JSON-compatible YAML like every pipeline record; read without
+importing the module, so `cast.py providers` and the brief checks of §7.4b never load network code):
+
+```json
+{
+  "format": 1,
+  "id": "meshy",
+  "kind": "image-to-3d",
+  "entry": "raw",
+  "version": "meshy-provider-1",
+  "needs": { "secrets": ["MESHY_API_KEY"], "network": true, "tools": [], "inputs": ["reference_full"] },
+  "cost": { "unit": "credits", "per_run": 30, "ledger": true },
+  "provenance": {
+    "source_type": "generated", "ai_generated": true,
+    "required": { "task": "uuid", "ai_model": "string", "pose_mode": "string" }
+  },
+  "params": { "ai_model": "string", "pose_mode": "string", "texture_size": "integer", "remove_lighting": "boolean" },
+  "unsupported": [
+    { "attribute": "eyewear", "values": ["transparent-lenses"], "reason": "image-to-3D fuses the lenses into the face (§7.4)" },
+    { "feature": "hand-held-prop",  "reason": "no attachment system; the hand is welded (§7.4)" },
+    { "feature": "loose-long-hair", "reason": "hair is rigid to the head (D+ §8.2)" }
+  ]
+}
+```
+
+**Module** (`mwcast/sources/<id>.py`):
+
+```text
+acquire(request: SourceRequest) -> SourceResult
+    request   character id; the brief (path, sha256); the approved references (path, sha256), where the
+              manifest's needs.inputs names them; the provider params (from casting.yaml, §7.4b, validated
+              against manifest.params); the scratch directory (§5.1); the credit cap and ledger where
+              manifest.cost.ledger; for imports, the user's file path
+    result    artifact: the candidate file in scratch, its sha256, its entry
+              record:   the provider's provenance fields, validated against manifest.provenance.required
+              cost:     the measured cost of this run (credits, or 0)
+              log:      one generation_log.yaml entry (§6.5): run, provider, provider record, cost, verdict
+                        left for stage 5
+plan(request) -> SourcePlan        what acquire would send and cost, without calling anything (the
+                                   generalisation of today's `meshy --dry-run`)
+```
+
+- **Inputs and outputs are files and typed records**, never a provider object handed to a stage: the common
+  stages read only `SourceResult.artifact` and the `source` block of `fit.yaml` (§5.6.6).
+- **Provenance obligations (G-14, `ARC-9`, `DEP-8`).** Every source declares its `source_type` —
+  `generated`, `imported` or `procedural` — and the fields it must record. The common fields are written by
+  the pipeline for every source: `provider`, `provider_version`, `entry`, the artifact's SHA-256, the brief
+  and every reference by path and SHA-256, the post-processing, the pipeline version. `imported` adds
+  `origin` (a URL or `user-authored`), `author`, `licence` (an SPDX id, or a file in the pack's `LICENSES/`)
+  and an explicit `ai_generated` boolean — `unknown` is refused by name (`ARC-9` requires it be stated).
+  `procedural` adds the tool and version, the full parameter set, and the licence of every asset the tool
+  combined (MPFB community assets carry per-asset licences, `DEP-8`).
+- **Secrets (§5.5) apply unchanged.** A source names the environment variables it needs in
+  `needs.secrets`; it reads them from the environment only; it never reads a secrets file, and nothing it
+  writes contains a key (the §5.5 scan runs over every source module and every `SourceResult`). A source
+  with `needs.network: false` is refused if it opens a socket in the CI test (the transport is the injected
+  `Transport` protocol of `meshy.py`, generalised).
+- **Licence policy.** Provenance is mandatory for every source and every pack. Whether a recorded licence is
+  *acceptable* is the pack's policy: `presentation/mineworld-default` and any pack MineWorld publishes apply
+  `DEP-8` (relicensable under MIT), so a CC-BY-NC or "no modification" import is refused there by name;
+  another pack states its own policy in `casting.yaml` (`licence_policy`, §7.4b), default `DEP-8`
+  (Q-S26src-1). A VRM whose own metadata forbids modification (`meta.modification` in VRM 1.0,
+  `licenseName`/`allowedUserName` in VRM 0.x — **verify** the field names against the VRM specifications)
+  is refused by every pack, because the pipeline decimates, re-bakes and re-rigs it.
+
+#### 5.6.4 Imports: formats, entry, and mapping onto the 52-joint profile
+
+| Format | Read by | Entry | Notes |
+| --- | --- | --- | --- |
+| glTF 2.0 / GLB, unrigged | Blender's bundled glTF importer (the one stage 10 already exports through) | `raw` | the commonest case; materials are merged by stage 6's re-bake |
+| glTF 2.0 / GLB, rigged | same | `rigged` | skeleton mapped by a bone-map scheme; an unmapped skeleton may enter as `raw` by `--as raw` (its skeleton then ignored) |
+| VRM 0.x / 1.0 | the same glTF importer for mesh and skin; the humanoid bone table read from the `VRM` / `VRMC_vrm` extension by `mwcast/glb.py` (VRM is a glTF 2.0 binary with an extension — no VRM add-on is needed for what stage 7′ uses) | `rigged` | MToon materials are not reproduced; stage 6 re-bakes their base colour under neutral light, and the scorecard judges the result (a toon-shaded VRM will usually fail §6.3's quality tier in `mineworld-default`, honestly, not by a special rule) |
+| FBX | Blender's bundled FBX importer, headless | `raw` or `rigged` | FBX is read only by Blender; no FBX SDK is adopted |
+| OBJ + MTL | Blender's bundled OBJ importer | `raw` | |
+
+**Bone-map schemes** are data, `tools/character_pipeline/bonemaps/<scheme>.yaml`: a map from a source
+skeleton's joint names to the 52 `mixamorig:*` names, with the joints the scheme lacks listed explicitly.
+Shipped schemes: `mixamorig` (identity; our own exports and CharMorph), `vrm1` and `vrm0` (VRM humanoid bone
+names; **verify** both tables against the VRM specifications, including which finger bones are optional),
+`mpfb-game-engine` (**verify** MPFB2's game-engine skeleton names). A new skeleton is a new file, not code.
+
+Stage 7′ for a `rigged` entry:
+
+1. **Joint positions** come from the mapped source joints (each joint's rest head in world space, after
+   stage 6's scale). Joints the scheme lacks — commonly the finger chain, `Spine2`, the toes — come from the
+   joint source of §5.4 L (landmarks or geometry), exactly as for a `raw` entry. The **joint source** becomes a
+   per-character `fit.yaml` field, `fit.joint_source` ∈ `picks` (today), `landmarks`, `source-skeleton`,
+   `meshy-rig` — the same field S26-b2 needs for its own comparison (§5.4 R, L).
+2. **Names, parents and rolls** are always the CharMorph export's (G-5). A mapped source joint contributes a
+   position only.
+3. **Weights.** Default `fit.weights_from: rebind` — stage 8's heat weights and fixes, the path proven on Vera.
+   `keep-mapped` (the source's own weights renamed through the scheme) is allowed only when the scheme maps all
+   52 joints and the source has no joint the scheme leaves unmapped; otherwise it is refused by name. Either way
+   G-5, G-9, G-11 and G-12 decide, not the option.
+4. **G-6 applies unchanged**: a source skeleton whose joints sit outside the body or off Winter's ratios fails
+   G-6 by location, like a bad pick.
+
+#### 5.6.5 The reuse comparison, both ways (`DEP-S26src-1`)
+
+**Image-to-3D generators** (each behind the same `image-to-3d` / `raw` interface; none is adopted beyond
+Meshy in S26; facts marked **verify** were not read at their source by this session):
+
+| Option | What it is | Fit for MineWorld | Verdict |
+| --- | --- | --- | --- |
+| Meshy (`DEP-51`) | hosted image-to-3D, REST, paid-plan Customer Output | the accepted protagonist's route | **kept; becomes the `meshy` source** |
+| Tripo, Hyper3D Rodin | hosted image-to-3D APIs (**verify** terms, ownership of output, A-pose control) | same interface as Meshy; would need their own pilot against the gates | **not adopted**; the interface admits them as a manifest plus a module |
+| TRELLIS (Microsoft), Hunyuan3D (Tencent), Stable Fast 3D (Stability) | open-weight image-to-3D models | a local, key-free source; **verify** each licence (Hunyuan3D's community licence restricts territories; Stability's community licence has a revenue threshold), and they need a CUDA GPU this Mac lacks (as UniRig, §5.4 R) | **not adopted**; a user world may plug one in |
+
+**Parametric bodies:**
+
+| Option | What it is | Honest fit | Verdict |
+| --- | --- | --- | --- |
+| CharMorph | Blender add-on; morphable bodies; the Vitruvian body we fit from (CC0 data, GPL code — a tool, never distributed, its outputs not covered by the code's licence) | its body *is* our rig source; but CharMorph clothing and hair are what A-3 calls the crude crowd, and §6.3's parity beside Vera is the bar | **interface only**: a `charmorph` source at `rigged` entry with scheme `mixamorig` is possible and cheap, and would fail §6.3 in `mineworld-default` with today's garments; not built in S26 |
+| MakeHuman / MPFB2 | Blender add-on; parametric body by age, weight, proportions, ethnicity sliders; CC0 core assets, AGPL/GPL code (`DEP-8` row) | parameters map one-to-one onto sampled appearance attributes (stature, build, age) — the closest match to "the distribution users like"; garments and hair from the community repository carry per-asset licences and are below the protagonist's tier | **interface only; not built in S26** (no world uses it, `CLAUDE.md` §4 rule 11). Recorded as the first candidate for a parametric source; its natural use is a body prior (multi-view input to an image-to-3D source) or a stylised user world |
+| MB-Lab | Blender add-on | output licence unconfirmed (`DEP-8`) | declined |
+
+Why an interface now, against `REUSE_POLICY.md` §6 ("do not abstract prematurely"): its first condition holds —
+**multiple implementations are already needed**: the operator requires user import alongside Meshy, and the
+tests need a fixture source (§5.6.8). The interface is the smallest one that admits those three; parametric
+providers use it unchanged.
+
+#### 5.6.6 Selection, registry and records
+
+- **Registry** (`ARC-S26src-3`): `tools/character_pipeline/mwcast/sources/` holds the built-in sources —
+  `meshy` (wrapping today's `meshy.py`, behaviour unchanged), `import-mesh`, `import-rigged`, `import-vrm`,
+  `import-final` and `fixture` — and a registry that also loads out-of-tree sources from the Python entry-point
+  group `mineworld.cast_sources` (`importlib.metadata`, standard library; the reuse of Python's own plug-in
+  mechanism, not a MineWorld loader). An unknown id, two sources with one id, or a manifest that fails its
+  schema is refused by name. `cast.py providers` lists every source with its kind, entry, needs and
+  unsupported list.
+- **Selection.** A world's casting block in the Presentation Pack's `characters/casting.yaml` (§7.4b) names a
+  default source and its params; a per-character entry in the same file may name another source (subject to
+  §7.4a item 3 and Q-S26src-3). The selection is written into the character's `fit.yaml`; the pipeline never
+  chooses a source on its own.
+- **`fit.yaml` format 2** (`source` generalised; F-S26src-2): `source.provider`, `source.provider_version`,
+  `source.entry`, `source.artifact {file, sha256}`, `source.inputs[] {path, sha256}`, `source.record {…}`
+  validated by the provider's manifest. Format 1 files are read as `provider: meshy` with `record.task` =
+  `meshy_task`; Vera's `fit.yaml` is migrated in one commit and the b1 parity test (her re-derivation) must
+  still pass byte-for-byte on the export.
+- **G-14 generalised** (F-S26src-3): `source_type` ∈ {`generated`, `imported`, `procedural`} matching the
+  provider's manifest; the common fields of §5.6.3 present; the provider's required fields present and of
+  their declared shape (for `meshy`: `task` a UUID — the frozen check, unchanged in substance); the pack's
+  licence policy satisfied; no key-shaped string. A `meshy` character's G-14 verdict is identical before and
+  after.
+
+#### 5.6.7 What is fixed and what is a parameter
+
+| Fixed for every source, world and pack (the standard) | A parameter (data, per world or per character) |
+| --- | --- |
+| the 52-joint skeleton, names, parents, rolls (G-5); one material `MW_Cast`; one 2048² base colour; ≤ 100,000 triangles (G-1…G-3) | the source provider and its params (pinned model, pose mode, texture options) |
+| every gate G-1…G-14 and every bound in `standard.py` (`ARC-23` rule 2) — except G-4's *realistic range*, which reads the declared stature support of the world's profile (§7.4b) | the reference provider, through the style template version (§5.7) |
+| the stage order from the entry on; the deterministic stages' reproducibility (AC-S26-3) | the bone-map scheme of a rigged source; `fit.joint_source`; `fit.weights_from` |
+| provenance is mandatory; candidate → asset only by a person's acceptance (`ARC-9`) | the pack's licence policy (default `DEP-8`; Q-S26src-1) |
+| the two review gates (§6.4) and the scorecard (§6.2) | the style template and anchor; the population profile; the sampler seed; the distinctness rule (§7.4b) |
+| §5.5's secrets rule; nothing at runtime names a source (§5.8) | the retry budget and the credit cap of a batch |
+| the runtime formats `cast.yaml`, `character.yaml`, GLB (`ARC-92`, `ARC-93`) | the quality-tier control character and the §7.4a consistency band, for packs other than `mineworld-default` (Q-S26src-2) |
+
+#### 5.6.8 Acceptance and adversarial criteria for sources
+
+| | Criterion | How it is shown to fail when broken |
+| --- | --- | --- |
+| X-S26src-1 | **A planted second source goes through the gates unchanged.** A `fixture` source whose `acquire` returns a committed GLB (entry `final`: Vera's accepted export copied under provider id `fixture`) runs stages 10–12; its G-1…G-13 verdicts and printed measurements equal the same export's verdicts under `meshy`; only G-14's provider fields differ | a stage or gate that branches on the provider id produces a different verdict or measurement; a diff of `gates.py`, `pipeline.py` and the Blender scripts between the two runs is empty by construction |
+| X-S26src-2 | **The raw entry is provider-blind.** On the operator's machine, the `fixture` source returns Vera's kept Meshy download (`out/meshy/apose_v3`) as a `raw` artifact; the re-derivation equals b1's parity result (joints within 1 mm, weights equal after rounding) | any Meshy-only input left in stages 6–12 (F-S26src-1's `request.json` read) fails the run by name |
+| X-S26src-3 | **An imported VRM passes or fails by named gate.** A synthetic VRM 1.0 fixture, built by a test helper from Vera's export (bones renamed to VRM humanoid names, a `VRMC_vrm` humanoid table and a `meta` added; our own asset, MIT), enters at `rigged` with scheme `vrm1`, and passes G-1…G-14 | (a) the same fixture with `meta.modification` forbidding modification is refused before stage 6, naming the field; (b) with `leftLowerArm` removed from the humanoid table, stage 7′ takes that joint from the joint source and prints it; with the joint source disabled it fails G-6 naming `mixamorig:LeftForeArm`; (c) with a second material and 140,000 triangles it still passes after stage 6, and with stage 6 skipped it fails G-1 and G-2 |
+| X-S26src-4 | An unrigged GLB import (`import-mesh`) with three materials reaches one `MW_Cast` material and one 2048² texture | G-2 / G-3 fail by name if stage 6's re-bake is skipped |
+| X-S26src-5 | An import whose `ai_generated` is `unknown`, or whose licence is missing, or (in `mineworld-default`) is `CC-BY-NC-4.0`, is refused by name | G-14 / the licence policy check |
+| X-S26src-6 | An unknown source id in `casting.yaml`, two sources with one id, or a manifest param of the wrong type, is refused naming the file and key | registry and manifest validation |
+| X-S26src-7 | A source with `needs.network: false` that opens a socket fails its CI test; a source module that reads a file under `~/.config/mineworld/` fails the §5.5 scan | the injected transport; the secrets scan |
+| X-S26src-8 | **No provider name in runtime code.** A CI scan over `clients/`, `server/`, `systems/`, `kernel/`, `contracts/`, `worldpack/`, `persistence/`, `cognition/` and `sdk/` finds no registered source id, no generator name (`meshy`, `openai`, `vrm`, `mpfb`, `charmorph`, `tripo`, `rodin`, `trellis`, `hunyuan`) and no key of `fit.yaml`'s `source` block; the id list is read from the registry, so a new source extends the scan automatically. Allow-list until S26-c1 merges: the `meshy_d` paths and `_meshy` of A-1/A-6 (F-S26src-8); until S26-f: `vitruvian` on the `--town-body` path | a planted `if provider == "meshy"` in `human.gd` turns the scan red |
+
+#### 5.6.9 Frozen texts this amendment generalises (for the operator's review)
+
+| Frozen text | Change | Why it is not a relaxation |
+| --- | --- | --- |
+| §1 part 1 "every person is made by route D+ — a reference image, one Meshy image-to-3D generation …" | route D+ is the `meshy` source plus the common stages; another source replaces only the acquisition | the operator's principle (2026-10-15) supersedes "one Meshy generation" as the only acquisition; part 2 (same standard) is untouched |
+| §5.2 stages 3–4 | become steps of image-to-3D sources | same code, same order, for `meshy` |
+| `PIPELINE.md` §4.1 `source.*`, G-14 (§6.1, `PIPELINE.md` §6) | generalised (§5.6.6) | every check on a `meshy` character is kept; imported and procedural characters gain checks they would otherwise evade |
+| §7.4a item 3 "every Meshy run uses the same model version"; "the same tool versions … Meshy model" | "every character of a batch uses the same source and source version", for `meshy` the same model (Q-S26src-3) | identical for today's casts |
+| §7.4 avoid list | becomes the selected source's `unsupported` declarations, refused by name (§7.4b) | the list is kept verbatim in `meshy`'s manifest |
+
+### 5.7 Reference-image providers (amendment; DRAFT; `ARC-S26src-4`)
+
+Stage 2 gets the same treatment: a **reference provider** yields the identity reference images of §5.2 stage 2
+for one brief, under the style template.
+
+| Id | What it is | Notes |
+| --- | --- | --- |
+| `openai-images` | `mineworld_gen`'s OpenAI provider, reused (§5.4 I, A-20) | today's provider; `OPENAI_API_KEY` from the environment |
+| `supplied` | the user's own images: a full-body image and, optionally, a portrait, each with a sidecar (`origin`, `author`, `licence`, `ai_generated`) | checked automatically for what can be checked (size, aspect, an opaque or alpha background the stage-3 mask accepts); framing and pose are judged at the casting gate |
+| `render-of-source` | renders of an imported model at the template's framing and lighting | for `import-*` sources without a reference image; approved at the casting gate as the identity reference |
+| any other image model | a module plus a manifest under `mwcast/references/`, same registry rule (entry-point group `mineworld.cast_references`) | e.g. another hosted image API, or a local diffusion pipeline; **verify** licences before any use |
+
+- **The interface** mirrors §5.6.3: `render(brief, template, anchor, kind ∈ {full, portrait}, n) → images in
+  scratch + ARC-9 sidecars`, with `needs.secrets`, `needs.network`, `cost` and `unsupported` in its manifest.
+- **The reference provider and its model are part of the style template**, not chosen per character: the template
+  already records `image_model.provider` (F-S26src-7), and §7.4a item 1's "one art style" means that changing
+  the image model is a new template version. So a world selects its reference provider by naming a template
+  (§7.4b); `supplied` and `render-of-source` are per-character overrides allowed in `casting.yaml`, shown as such
+  on the casting page.
+- The style anchor is passed by every provider that accepts an image condition; a provider that cannot take one
+  declares `unsupported: [{feature: style-anchor}]`, and a template that names it with an anchor is refused by
+  name rather than silently dropping the anchor.
+
+### 5.8 Layering and ownership (amendment; DRAFT; `ARC-S26src-5`)
+
+```text
+tooling (operator's machine, on demand; ARC-9, §5.1)               runtime (every client, server, System)
+  sources/*, references/*, bonemaps/*, casting director,
+  S30's sampler (appearance subset, §7.4b), stages 6–12, gates
+        │ writes, as candidates, into the Presentation Pack
+        ▼
+  characters/casting.yaml, populations/*, style/*, cast/<id>/brief.yaml, fit.yaml, generation_log.yaml,
+  scorecard.md, references              ── never read at runtime ──
+  characters/cast.yaml, cast/<id>/character.yaml, the GLB and texture  ─────────────▶ read by the 3D client
+```
+
+- **Runtime sees only `cast.yaml`, `character.yaml` and the GLB** (and, in 2D, `asset_bindings.yaml`'s `look:<key>`
+  roles and the sprites). None of them names a source: `character.yaml` (§4.5) has no source field, and the GLB's
+  `scenes[0].extras.mineworld_provenance` is metadata no runtime path reads (X-S26src-8 scans for a reader).
+- **The kernel and the Systems stay ignorant of all of it.** The world holds one opaque `look` key per person
+  (`ARC-91`); the `appearance` System Pack never learns a source, a profile, an attribute distribution or a
+  brief. Whether a character came from Meshy, a VRM or a parametric body changes no event, no component, no
+  digest. If S30 (§7.4b) makes some person attributes world facts, S26's runtime still reads only `look`; any
+  appearance attribute a System later needs enters as that System's section, never through the cast files.
+- **The tooling never becomes a runtime dependency**, of a source or of anything else: the CI scans of §5.5 and
+  X-S26src-8 hold for every source, in-tree or out-of-tree.
+
 ## 6. The per-character standard (`ARC-94`)
 
 The standard is `VIS-3D-GODOT-1`'s, as accepted on 2026-10-07, written as gates. **A gate's bound is a
@@ -616,6 +912,154 @@ them for each batch. The acceptance tests are X-22 to X-25:
 - **X-25.** For a synthetic 1 000-person cast, the realised distribution is within 2 percentage points
   of the profile on every stratum.
 
+### 7.4b Casting data is per world, and the attribute set is open (amendment, operator 2026-10-15; DRAFT)
+
+Item 6 of §7.4a ("infra, not a fixed cast") expanded under the operator's principle of §5.6 and the addition
+"年龄体重族裔也不一定是所有特征，其实还可以有很多很多" (age, weight and ethnicity are not all the traits; there can be many
+more).
+
+**Scope split with S30 (coordinator, 2026-10-15).** The general **attribute catalogue** (built-in and
+user-defined attributes), the **population-profile schema** and the **dependency-aware sampler** are owned
+by step **S30 — person attributes** (`step-30-person-attributes.md`, branch `docs/s30-person-attributes`,
+being designed in parallel). S26 does not define them. S26 owns the appearance *consumer*: the contract below
+(what casting needs from S30), the per-world casting config, the style template and anchor, the providers,
+and the gates. Where §7.4a items 4–5 describe the profile and the sampler, S30's schema governs once it is
+frozen; until then the profile format of the in-flight casting work (`populations/san-diego-county.yaml`
+version 1) stands as the bounded interim (`F-S26src-9`).
+
+#### 7.4b.1 What S26 needs from S30 (the consumer contract, `ARC-S26src-6`)
+
+S26 consumes, per world, a **resolved appearance cast**: the S30 sampler's output restricted to the
+attributes S30 marks as perceivable appearance. The contract, stated as requirements on S30's output, not on
+its internals:
+
+| # | S26 needs | Why |
+| --- | --- | --- |
+| C-1 | **Attribute declarations** for the appearance subset: a stable attribute id (slug), a human label, the value kind (categorical with a closed value set; numeric with unit; boolean), and the value domain. S26 reads the subset by a facet S30 defines (e.g. `facets: [appearance]`); it never lists attribute ids itself | briefs, prompts and the distinctness rule are generated from declarations, so a new attribute needs no code (X-S26src-10) |
+| C-2 | **Per person, a resolved value for every appearance attribute**, keyed by the person's `look` key, each with its origin: `biography` (with the reason), `sampled` (with the stratum and the draw's key), `ruled` (fixed by the operator at a casting gate) or `authored` (a user's hand-written value) | §7.4a item 5 requires each brief to record what came from where; a ruled brief must never be re-drawn (§7.4b.4) |
+| C-3 | **Determinism**: the same profile version, seed and person set give byte-identical resolved values; a different seed changes only `sampled` values | X-24 is kept as an S26 acceptance test over S30's output |
+| C-4 | **The profile's identity**: id, version, seed, and the citation or `authored` status of each distribution | the brief records them; the casting page prints them |
+| C-5 | **The realised distribution against the target**, per declared stratum, for the cast and for a synthetic large cast | the casting page (§7.4a item 5) and X-25 |
+| C-6 | **Named failure**: a missing profile, an unknown attribute, a malformed distribution or a dependency cycle fails by name, before any brief is written | §7.4a item 6 |
+| C-7 | **Declared numeric support** for every numeric attribute a gate binds (today `stature_m`: per stratum, the range the sampler can return) | G-4's realistic-range check reads it (§7.4b.3) |
+
+S26 does **not** need: how S30 conditions one attribute on another, which distribution kinds it offers, or
+whether some attributes are also world facts. If S30 makes appearance attributes world data (a trait owned by a
+System Pack), the contract is unchanged — casting reads the same resolved values, and the runtime still reads
+only `look` (§5.8).
+
+#### 7.4b.2 The casting config, per world, in the Presentation Pack (`ARC-S26src-7`)
+
+`presentation/<pack>/3D/characters/casting.yaml` (JSON-compatible YAML) gathers every per-world casting
+parameter that F-S26src-7 found split across three files and code:
+
+```json
+{
+  "format": 1,
+  "licence_policy": "DEP-8",
+  "control": "vera-lindgren",
+  "casts": {
+    "cafe-town": {
+      "worlds": ["social-cafe", "market-town"],
+      "profile": "san-diego-county",
+      "seed": "mineworld-s26-cast-v1",
+      "style": { "template": "style/template.yaml", "version": 1 },
+      "source": { "provider": "meshy", "params": { "ai_model": "<pinned by S26-b1>", "pose_mode": "a-pose" } },
+      "distinctness": {
+        "scope": "world", "min_score": 3,
+        "categories": [
+          { "id": "age",     "attribute": "age_band",  "rule": "unequal",       "weight": 1 },
+          { "id": "stature", "attribute": "stature_m", "rule": "delta", "at_least": 0.05, "weight": 1 },
+          { "id": "build",   "attribute": "build",     "rule": "unequal",       "weight": 1 },
+          { "id": "skin",    "attribute": "skin_mst",  "rule": "delta", "at_least": 2, "weight": 1 },
+          { "id": "hair",    "attributes": ["hair_style", "hair_colour"], "rule": "any-unequal", "weight": 1 },
+          { "id": "outer",   "field": "outfit.outer",  "rule": "unequal",       "weight": 1 }
+        ]
+      },
+      "substitutions": [],
+      "prompt": { "phrases": "style/phrases.yaml" }
+    },
+    "lakeside": { "...": "..." }
+  },
+  "people": {
+    "wes-calloway": { "reference": "supplied", "reason": "identity source is the 2D gen_player (Q-S26-9)" }
+  }
+}
+```
+
+- Attribute ids in the example (`age_band`, `hair_style`, …) are illustrative; S30's catalogue names them.
+- **What each key is.** `profile` names a population profile (S30's schema); `seed` the sampler seed; `style`
+  the template and its version (and through it the reference provider, §5.7, and the anchor); `source` the
+  default character source and its params (§5.6.6); `distinctness` the rule (§7.4b.3); `substitutions` the
+  explicit answers to unsupported values (§7.4b.3); `prompt.phrases` the prompt phrasing of the appearance
+  attributes (below); `people` per-character overrides of source or reference; `control` the quality-tier
+  control of §6.3 (Q-S26src-2); `licence_policy` §5.6.3's.
+- **A World Pack names nothing of this.** The pack resolves its casts by world id; the world keeps only `look`
+  keys (`ARC-91`). One pack can cast several worlds; a second pack can cast the same world differently, which
+  is exactly `ARC-3`'s "the packs share meaning, not art".
+- **Missing or malformed data fails by name**, naming the file and key path: no `casting.yaml` when a cast is
+  requested; a cast with no `profile` and no `sampling: none` (§7.4b.4); an unknown profile, template, source,
+  attribute or field path; a distinctness category naming an attribute the profile does not declare; a weight
+  or threshold of the wrong type; a template version that does not match the file's.
+- **Prompt phrasing is data.** `style/phrases.yaml` maps an attribute and value to the words the prompt uses
+  (e.g. `skin_mst: { 5: "medium skin tone (Monk Skin Tone 5 of 10)" }`, `sex: { female: { noun: woman, poss:
+  her } }`), and the style template's person block is a format string over attribute words
+  (`{sex.noun}`, `{stature_m:.2f} m tall`). An appearance attribute the template does not reference is
+  appended as one generic line, `<label>: <value words>.`, so a new attribute reaches the prompt with no edit at
+  all, and the template author may later give it a better sentence. The words move verbatim out of
+  `cast_director.py`'s constants (F-S26src-6), so the in-flight prompts are reproduced.
+- **Defaults.** A cast with no `distinctness` block uses §7.3's frozen rule, which the block above writes out.
+
+#### 7.4b.3 Gates bind attributes explicitly; unsupported values are refused by name
+
+- **Gate bindings** are literals in `standard.py`, beside the bounds, each with its source: G-4 binds the
+  numeric appearance attribute `stature_m` (unit m) — a cast whose profile and briefs give no `stature_m` is
+  refused naming "G-4 binds stature_m"; G-4's realistic-range sub-check reads that attribute's declared support
+  in the profile (C-7) instead of §7.2's European band, which stays the default profile's figure; the
+  eye-ratio and sole bounds are unchanged. G-12 binds the brief's `accessories` entries whose phrase entry
+  carries `carrier: pack` or `carrier: bag`; G-13 binds the brief's `sits`. No other gate reads an attribute.
+  These bindings are the only attribute ids S26 code names, and they are gate inputs, not an enumeration of the
+  attribute set.
+- **Unsupported values** (the selected source's and reference provider's `unsupported` lists, §§5.6.3, 5.7)
+  are checked against every resolved value and authored field before any image or credit is spent. A match is
+  refused naming the person, attribute, value, provider and reason — never silently dropped and never silently
+  re-drawn. Two ways forward, both explicit and both printed on the casting page:
+  - a `substitutions` entry in `casting.yaml` (`{attribute: eyewear, value: transparent-lenses, becomes: none,
+    reason: …}`), applied after sampling, so the realised distribution on the casting page shows the deviation
+    from the profile; or
+  - another source for that person, under §7.4a item 3 and Q-S26src-3.
+- **The distinctness rule reads declarations.** A category is an attribute (or a set of attributes, or an
+  authored brief field) with a rule kind the code knows — `unequal`, `any-unequal`, `delta` with `at_least` — and
+  a weight; two people pass when the weighted count of differing categories reaches `min_score`. The code knows
+  the rule kinds, never the categories.
+
+#### 7.4b.4 Skipping the sampler: hand-authored briefs and finished imports
+
+- **`sampling: none`** on a cast: no profile is read; every appearance attribute S26 needs is authored in
+  each brief, marked `authored`. The brief checks still run: every value in its declared domain, the gate
+  bindings present (`stature_m` for G-4), unsupported values refused, the distinctness rule over the cast. The
+  casting page prints "no profile" instead of the realised distribution — nothing to judge, nothing faked.
+- **A ruled brief is authored data.** Once the operator rules a person at the casting gate, that brief's
+  values are recorded as `ruled`; a later re-run of the sampler (a new seed, a new profile version, S30's
+  generic sampler replacing the interim one) never re-draws them. This is what lets the in-flight casting of
+  §7.4a proceed now and survive the change to S30's sampler unchanged.
+- **A finished import** (`import-final`, or any `import-*`) still has a brief: the identity contract the
+  scorecard reads (§6.2), with `stature_m` measured from the import and checked by G-4 like any other.
+  Its reference is `supplied` or `render-of-source` (§5.7). It passes G-1…G-14, the scorecard, the parity
+  sheet beside the control and both review gates — the same as a Meshy character.
+
+#### 7.4b.5 Acceptance and adversarial criteria for casting data
+
+| | Criterion | How it is shown to fail when broken |
+| --- | --- | --- |
+| X-S26src-9 | **A fantasy profile changes only sampled attributes.** The cafe-town cast re-run with a fixture profile `harbour-of-elsewhere` (authored, not cited: its own ancestry values, hair colours including `teal`, stature support within G-6's human proportions) changes only values marked `sampled`; `biography`, `ruled` and authored brief fields (outfit, accessories, manner) are byte-identical; the gates bind the same attributes | a diff of the two brief sets restricted to non-`sampled` values is non-empty |
+| X-S26src-10 | **A new appearance attribute flows with zero code change.** A fixture profile adding `freckles` (`none`, `light`, `pronounced`) produces briefs carrying `freckles` with its origin, prompts carrying the generic line `Freckles: light.`, the casting page's distribution table carrying a `freckles` row, and — when one distinctness category names it — distinctness counting it; `git diff --stat tools/` is empty for the test | any hard-coded attribute list (F-S26src-6) drops the attribute from one of the four outputs |
+| X-S26src-11 | **An unsupported value is refused by name.** A profile giving `eyewear: transparent-lenses` mass, cast with source `meshy`, is refused naming person, attribute, value, provider and reason; with a `substitutions` entry it is accepted and the casting page shows the deviation | a silently dropped or re-drawn value passes the run |
+| X-S26src-12 | Malformed casting data fails by name: no `casting.yaml`; an unknown profile; a distinctness category naming an undeclared attribute; a cast without `stature_m` ("G-4 binds stature_m"); a template version mismatch | the error names the file and key path |
+| X-S26src-13 | **Ruled briefs survive a re-cast.** After a ruled casting gate, re-running with a new seed leaves every ruled value unchanged | a ruled value differs |
+| X-S26src-14 | **Thresholds are data.** Setting `min_score` to 4 in a fixture `casting.yaml` flags exactly the pairs the §7.3 table shows with three differences | the code's rule ignores the file |
+| X-S26src-15 | **Equivalence of the de-hard-coding.** On the interim sampler's output (format-1 profile, same seed), the prompt writer and the distinctness check driven by `style/phrases.yaml` and the `distinctness` block reproduce the committed 21 prompt packs and the §7.3 table byte-for-byte. (Replacing the interim sampler by S30's is covered by X-S26src-13, not by this test: a new sampler may draw different values, and only unruled briefs may change) | any drift in the moved words or rule |
+
 ### 7.5 A first casting sketch (for the casting PR to refine; skin and hair set per person at casting, Q-S26-7)
 
 | Look | Role (source) | Age | Stature | Build | Outfit direction |
@@ -825,6 +1269,25 @@ single checklist, and the characters they cover stay candidates until then (`ARC
 | AC-S26-8 | Release size and perf within the ruled budgets | R-a's size gate; X-21; §11 |
 | AC-S26-9 | No key in the repository; no runtime path names the secrets file | CI scan; X-8 |
 | AC-S26-10 | A world without `appearance` behaves exactly as before | X-3: digests unchanged |
+| AC-S26-11 (amendment, DRAFT) | Every source passes the same gates; the pipeline after the entry is provider-blind | X-S26src-1…7 |
+| AC-S26-12 (amendment, DRAFT) | No runtime path depends on which source made a character | X-S26src-8 |
+| AC-S26-13 (amendment, DRAFT) | Casting is per-world data with an open appearance attribute set; a new attribute flows into briefs and prompts with zero code change; unsupported values are refused by name | X-S26src-9…15 |
+
+### 12.3 PR split impact of the amendment (§§5.6–5.8, 7.4b; DRAFT)
+
+Rule for the split: **nothing in flight is blocked**. Today's Meshy runs and today's casting director simply
+become the first users of the `meshy` source and of the interim casting data; the generalisation lands in two
+small new PRs, each mergeable on its own.
+
+| PR | Change from this amendment |
+| --- | --- |
+| **S26-b1** (#211, open) | **none required to merge.** It ships `meshy.py`, `fit.yaml` format 1 and G-14 as frozen. Its `PIPELINE.md` gains one forward pointer to §5.6 if it is still open when this amendment freezes (a sentence, no code) |
+| **S26-src1** (**new**, small) — sources | `mwcast/sources/` (base protocol, registry with the entry-point group, manifests), `meshy` as a thin wrapper of `meshy.py` (no behaviour change), `fixture`, `import-mesh`, `import-rigged`, `import-vrm`, `import-final`; `bonemaps/` (`mixamorig`, `vrm0`, `vrm1`); `fit.yaml` format 2 and Vera's migration; G-14 generalised; `mwcast/references/` with `openai-images` (wrapping `mineworld_gen`), `supplied`, `render-of-source`; `cast.py providers`, `cast.py source`; the X-S26src-8 runtime scan in CI; `PIPELINE.md` §§2, 4, 6 updated; records `ARC-S26src-1…5`, `DEP-S26src-1`. Depends on S26-b1 merged. Implementer: Haiku from a commit plan; Opus review. Stage 7′'s `source-skeleton` joint source and `fit.weights_from` land here, since the VRM fixture (X-S26src-3) needs them; `landmarks` and `meshy-rig` stay S26-b2's |
+| **S26-b2** (pilot B0) | absorbs only `fit.joint_source` as the switch for its own comparison (§5.4 R, L), whichever of b2 and src1 merges first defines the field and the other rebases; no dependency on src1 for the pilot |
+| **S26-cast** (`mvp0/s26-cast-director`, in flight) | **none required to merge.** Its v1 profile, template and 21 briefs stand as the interim (F-S26src-9); casting gates ruled on them make those briefs `ruled` (§7.4b.4) |
+| **S26-src2** (**new**, small) — casting data | `characters/casting.yaml` (world-level keys moved out of `casting_inputs.json`; per-person biography inputs stay there), `style/phrases.yaml` (the words moved verbatim from `cast_director.py`), the director's prompt writer and distinctness check driven by data, `--pack <dir>` instead of the fixed `mineworld-default` path, the unsupported/substitution check against the selected providers' manifests, the G-4/G-12/G-13 bindings in `standard.py`; X-S26src-9…15. Consumes S30's resolved appearance cast through the C-1…C-7 contract once S30 ships it; until then it reads the interim format-1 profile through a small adapter that satisfies the same contract (removed when S30 lands — no compatibility layer kept, `CLAUDE.md` §4 rule 12). Depends on S26-cast merged; its X-S26src-10 runs on the interim adapter and again on S30's sampler. Implementer: Haiku from a commit plan; Opus review |
+| **S26-d** (B1, B2) | B1 and B2 run `cast.py source --provider meshy` once S26-src1 has merged; if a batch starts before, it runs `meshy.py` directly and its `fit.yaml` files are migrated by src1's one-commit migration (Q-S26src-4) |
+| **S26-a, S26-c1, S26-c2, S26-e, S26-f** | none. S26-c1 removing `meshy_d`/`_meshy` closes X-S26src-8's allow-list; S26-f removing CharMorph from the release closes the `vitruvian` entry |
 
 ## 13. Risks
 
@@ -863,6 +1326,12 @@ single checklist, and the characters they cover stay candidates until then (`ARC
 - **F-S26-9** `ARC-22`'s premise — one albedo — does not hold for per-person generated characters; its own
   text says widening then "is a palette change and needs no new decision", and also that widening is the
   operator's. Ruled 2026-10-14: widen it (Q-S26-7, ARC-95).
+- **F-S26src-1…8** (amendment audit, §5.6.1): the pipeline after acquisition is already provider-blind except
+  for the Meshy-shaped `source` block and G-14; the casting director hard-codes its attribute set and words.
+- **F-S26src-9** (amendment) The population-profile schema and the sampler move to S30 (coordinator,
+  2026-10-15). Until S30's schema is frozen, the in-flight casting's format-1 profile
+  (`populations/san-diego-county.yaml` version 1) and its sampler are the bounded interim; S26 depends only on
+  the C-1…C-7 contract (§7.4b.1).
 
 ## 15. Records and edits (ids assigned 2026-10-14; all ten used)
 
@@ -878,6 +1347,22 @@ single checklist, and the characters they cover stay candidates until then (`ARC
 | **DEP-53** | Skin weights: robust weight transfer adopted or declined against heat weights, with the measured result | S26-b2 |
 | **DEP-54** | Landmarks: MediaPipe adopted or declined against geometric fitting, with the measured result | S26-b2 |
 | **DEP-55** | Rigging: our fitted armature kept; Meshy rigging, Mixamo, AccuRIG, UniRig/RigNet declined as the rig, with reasons (§5.4) | S26-b1 |
+
+**Amendment records (placeholders, DRAFT; ids assigned by the primary session at freeze):**
+
+| Placeholder | Content | Written by |
+| --- | --- | --- |
+| **ARC-S26src-1** | A character's mesh comes from a pluggable **character source** with a declared entry (`raw`, `rigged`, `final`); every source passes the same stages from its entry and the same gates; the 52-joint profile is never relaxed for a source (§5.6.2) | S26-src1 |
+| **ARC-S26src-2** | The source interface: manifest + module, typed request/result, provenance by `source_type` (`generated`, `imported`, `procedural`), secrets by environment only, `unsupported` declarations (§5.6.3) | S26-src1 |
+| **ARC-S26src-3** | The source registry in `tools/character_pipeline/mwcast/sources/`, with out-of-tree sources through the `mineworld.cast_sources` entry-point group; `fit.yaml` format 2; G-14 generalised (§5.6.6) | S26-src1 |
+| **ARC-S26src-4** | Reference-image providers (`openai-images`, `supplied`, `render-of-source`, any other); the provider is part of the style template (§5.7) | S26-src1 |
+| **ARC-S26src-5** | Layering: the tooling writes candidates into the Presentation Pack; runtime reads only `cast.yaml`, `character.yaml`, the GLB; no runtime path names a source (§5.8) | S26-src1 |
+| **ARC-S26src-6** | Casting consumes S30's resolved appearance cast through the C-1…C-7 contract; S30 owns the catalogue, profile schema and sampler (§7.4b.1) | S26-src2 (with S30's own record) |
+| **ARC-S26src-7** | Per-world casting config `characters/casting.yaml`: profile, seed, style, source, distinctness, substitutions, phrases, control, licence policy; gates bind attributes explicitly; unsupported values refused by name (§§7.4b.2–7.4b.4) | S26-src2 |
+| **DEP-S26src-1** | Sources and their reuse comparison: Meshy kept; other image-to-3D generators and parametric bodies (CharMorph, MPFB2) admitted by the interface, not adopted; VRM read as glTF plus its extension, FBX/OBJ through Blender's bundled importers, no VRM add-on or FBX SDK adopted (§5.6.5) | S26-src1 |
+
+Amendment document edits: `docs/MODULE_SPEC.md` §6.1 names `characters/casting.yaml` (this PR, one paragraph);
+`tools/character_pipeline/PIPELINE.md` §§2, 4, 6 (S26-src1); the casting director's `CASTING.md` (S26-src2).
 
 Document edits: `HUMANOID_PROFILE.md` §5 ("What a second character costs") and §6 rewritten for the cast
 pipeline; `VISUAL_FIDELITY.md` gains the cast's per-person reference rule (§6.2) as a pointer to
@@ -963,3 +1448,29 @@ manifest; `ARC-94` the per-character standard and review protocol; `ARC-95` `ARC
 per-person generated casts; `DEP-51` Meshy image-to-3D at cast scale; `DEP-52` headless Blender;
 `DEP-53` skin weights; `DEP-54` landmarks; `DEP-55` rigging. All ten are used; each is written into
 `docs/DECISIONS.md` by the PR §15 names. `DEP-53` and `DEP-54` record S26-b2's measured choice.
+
+### 16.2 Questions for the operator on the amendment (§§5.6–5.8, 7.4b; DRAFT)
+
+Only what the rules do not settle. Everything else in the amendment is resolved from `CLAUDE.md`,
+`REUSE_POLICY.md`, `ARC-9`, `DEP-8` and the frozen gates, and is stated in the sections above.
+
+1. **Q-S26src-1 — Licence policy for imported characters in a pack MineWorld does not publish.** Provenance is
+   mandatory everywhere. Should a user's own pack be allowed to declare a licence policy other than `DEP-8` (for
+   example accepting a CC-BY-NC model for a private world), with the checker recording the licence but not
+   judging it? *Recommendation:* **yes** — `licence_policy` in that pack's `casting.yaml`, default `DEP-8`;
+   `presentation/mineworld-default` and every pack MineWorld publishes stay on `DEP-8`; a VRM whose own metadata
+   forbids modification is refused by every pack.
+2. **Q-S26src-2 — The quality-tier control and the consistency band for other packs.** §6.3 compares every
+   person with Vera; §7.4a item 2 fixes a batch band from Vera's record (85,000–100,000 triangles, texel density
+   ±15 %). For a user's world — say a stylised low-poly town of imported models — should the control be that
+   pack's own declared protagonist (`control` in `casting.yaml`) and the band that pack's own, while G-1…G-14 stay
+   fixed for everyone? *Recommendation:* **yes**, with `mineworld-default` pinned to Vera and her band; G-1…G-14
+   (including the ≤ 100,000 ceiling and 2048²) never become parameters.
+3. **Q-S26src-3 — Mixed sources in one world.** §7.4a item 3 requires one method per batch. May a world mix sources
+   (for example Meshy for most people and an imported model for one)? *Recommendation:* **one source per cast by
+   default**; a per-person source is allowed only with an explicit `method_exception` entry in `casting.yaml`,
+   with a reason, shown on the casting page and the runtime lineup beside the control; `mineworld-default` uses
+   none.
+4. **Q-S26src-4 — Should S26-d B1 wait for S26-src1?** *Recommendation:* **yes, if src1 is merged within a day of
+   B1's casting gate being ruled; otherwise B1 starts on `meshy.py` directly** and src1 migrates its `fit.yaml`
+   files in its one migration commit. The pilot (S26-b2) does not wait in either case.
