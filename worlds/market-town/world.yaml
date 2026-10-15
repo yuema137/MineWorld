@@ -168,6 +168,11 @@ items:
 #
 # Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
 # offer has a subject (`people/otto.yaml`).
+#
+# How a host paces this world when it serves it: a day lasts 2 h (`ARC-69` item 9; TW-c Q-TWc-4). Never
+# read by a pack, and ignored by `run`.
+hosting:
+  time_scale: 12
 seats:
   - visitor
   - wanderer

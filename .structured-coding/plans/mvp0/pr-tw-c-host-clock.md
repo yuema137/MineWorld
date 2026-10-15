@@ -821,7 +821,8 @@ No TW-c question remains open.
 | C3 | (this commit) | done: rescale_at, seam `rescaled` + `HostedBinding`, SD-TWc-3/4, `SeatTable::rescale`, admin `time_scale` and 409/400, `Access.solo`, `host/config.rs` move, tests |
 | C4 | (this commit) | done: `runtime/pacing.rs` (resolution), Started at start, Scaled/Paused/Resumed per effective change, Stopped at shutdown; a failed write stops the world |
 | C5 | (this commit) | done: `--cadence` (no alias), optional `--time-scale`, `--solo` (loopback, >24 refused), `world.yaml hosting:`, the adapters' straddle window (AC-TWc-12, M-TWc-11) |
-| C6 … C9 | — | not started |
+| C6 | (this commit) | done: `hosting: time_scale: 12` in `market-town` and `social-cafe` (`bodies-yard` stays 1); `server_command.rs` bare-start assertion now expects 12 from world.yaml (reason: C6's default) |
+| C7 … C9 | — | not started |
 
 ### Evidence
 
@@ -875,6 +876,11 @@ No TW-c question remains open.
   `tools/cli/tests/server_command.rs` (`--solo` added to the 60× test), `tools/cli/tests/hosted_town.rs` (`--pace`
   → `--cadence`), `tools/cli/tests/admin.rs` (DA-8 binary row `{"time_scale": 12}` → `{"time_scale": 25}`, 409).
   Note: `tools/cli/tests/hosted_town.rs` takes 120 s (its design wall budget).
+- C6: `worlds/market-town/world.yaml` and `worlds/social-cafe/world.yaml` gain `hosting: time_scale: 12` with a
+  comment (no other line changed). `mineworld validate` on both: valid. `cargo test -p mineworld-cli --no-fail-fast`
+  (full CLI suite, 44 test binaries incl. hosted_town 120 s): exit 0, no FAILED. The one test that assumed scale 1
+  from a bare start (`server_command.rs` `time_scale_sets_how_fast…`) now asserts 12 from world.yaml. Reason: the
+  default changed by design. AC-TWc-8 digests (run ignores `hosting:`) are validated in C7 with the 300-day runs.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
