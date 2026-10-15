@@ -8194,3 +8194,112 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15, quoted in `ARC-102`) · **Relates to** `ARC-102` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` Appendix A.3
 
 Amends [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §4 on the operator's ruling: an invisible boundary is an acceptable termination; a view that does not close on a far field is not.
+
+---
+
+## ARC-105 — Towns declare `settlement:`; every town has a station group and a landmark, carried by role tags on plain Places
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-a · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-2, Q-S29-3, Q-S29-7, Q-S29-9) · **Relates to** `ARC-53`, `ARC-82`, `ARC-26`, `ARC-37`, `ARC-38`, `ARC-107`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6 · **Design** `.structured-coding/plans/mvp0/step-29-station-landmark.md` §§3, 4
+
+**Problem.** The operator requires a train station in every town, and a signature landmark for each (2026-10-15). No world has a station. The framework also has no way to say whether a world is a town, so it cannot refuse a town that lacks either.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Infer "town" from a tag on some place | Declined: a world that forgot the tag would silently stop being a town |
+| (b) Every world is a town, with no opt-out | Declined: test yards are not settlements, and a station there would be fake content |
+| (c) A `settlement:` key that the loader requires | Declined: every inline fixture world would change, with no safety beyond (d)'s gate |
+| (d) **A `settlement:` key, required by `mineworld validate` / `packs validate` and validated by the loader whenever present** (the `ARC-53` precedent) | **Chosen** |
+| (e) A new Entity type or System for stations | Declined: Places, tags and passages already express it. Behaviour arrives with S21's `transport` |
+
+**Choice.**
+
+1. `world.yaml` gains `settlement: { kind: town, station: <place>, landmark: <place> }` or `settlement: { kind: none }`. The World Pack loader owns it; no System or kernel does.
+2. **Role tags** have fixed meanings: `station`, `stop`, `platform`, `ticket-office` and `landmark`. A station is the group of `station`-tagged Places joined by passages to the declared hall. It contains a `stop` + `platform` Place, which is S21's stop, and a `ticket-office` Place. The origin of a stop is its platform anchor.
+3. Ten named refusals cover the contract: `SETTLEMENT_UNDECLARED`, `SETTLEMENT_MALFORMED`, `TOWN_STATION_UNKNOWN`, `TOWN_LANDMARK_UNKNOWN`, `TOWN_STATION_UNTAGGED`, `TOWN_LANDMARK_UNTAGGED`, `TOWN_STATION_NO_STOP`, `TOWN_STATION_NO_TICKET_OFFICE`, `TOWN_STATION_SCATTERED`, `TOWN_STATION_UNREACHABLE` and `TOWN_PLATFORM_ANCHOR`. The last two are checked when `movement` and `bodies`, respectively, are enabled.
+4. Reference worlds:
+   - `market-town`, `social-cafe` and `lakeside` are towns.
+   - The station is the landmark in the first two.
+   - Lakeside has a small halt, and `pier` is its landmark.
+   - `bodies-yard` declares `none`.
+5. Adding the station's places, an organization and routines shifts allocated ids. This takes **one recorded digest re-baseline**, in S29-a's C5, after 12d (Q-S29-7).
+
+**Consequences.** There is no kernel, contract or System change. A role tag grants no behaviour. S21's `transport` attaches `StopInfo` to the existing stop, and `fares` attaches its ticket shop to the `ticket-office` Place. `atlas` may seed `contains` from the station group.
+
+**Revisit** when regions (S21) allow more than one station per world, or when a settlement kind finer than `town` is needed.
+
+---
+
+## ARC-106 — The town's landmark station: the Santa Fe Depot, at real size, at the street's end, built with the town's own method
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-d, S29-e and S29-f · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1, Q-S29-4, Q-S29-5, Q-S29-8, Q-S29-10) · **Relates to** `DEP-8`, `ARC-102`, `ARC-105`, `ARC-107`, [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §§3, 4, 11, [`ART_DIRECTION.md`](ART_DIRECTION.md) §4 · **Design** step-29 §§6, 8
+
+**Problem.** The operator asked for a station that is the town's signature building, modelled on San Diego's Santa Fe Depot. It must sit in the far field's view, at street level, and be reachable on foot from spawn. The real depot is 790 m from the slice's origin, and the walkable area has a radius of 60 m. A building that can be seen but never reached is forbidden (`VISUAL_SLICE.md` §4).
+
+**Options considered.** (P-1) **At the street's west end, at real size, with the distance compressed (chosen).** (P-2) At the real 790 m, with a ≈ 700 m walkable approach: declined, because it is region scale, needs ≈ 700 m of frontage, and breaks the perf budget. (P-3) A silhouette at 790 m plus a separate near station: declined, because it draws one Place group twice and the far one is unreachable.
+
+**Choice.**
+
+1. **Placement.**
+   - The forecourt replaces the west parapet.
+   - The arch stands on the street's axis, with the east façade at about x = −62 m. This mirrors the real Broadway axis ending at the depot.
+   - The compression from 790 m is recorded in the far field's `source`.
+2. **Size.** The hall is at real size, 51.8 × 16.8 m, with a tile wainscot 2.59 m high (Wikipedia; Gaslamp Foundation). The tower height is measured from **HABS CA-1965**'s public-domain photographs, which may be committed to the 3D pack's `references/`. CC BY-SA photographs are linked, never committed.
+3. **Method and style.**
+   - One method: the slice's procedural builder and its shipped CC0 materials. The glazed tile of the domes and wainscot is our own shader.
+   - The depot is the **one sanctioned Mission Revival exception** beside the lakeside-referenced street, rendered with the same materials, palette, light and precision.
+4. **Budget.**
+   - ≤ 6 MB of new data in `3d.pck`, with a target of 0 new textures.
+   - At most +0.8 ms p95 in each existing view, and the absolute 16.7 ms and 2 048 MB gates in the new station views.
+   - A reduced hall is the reserved lever, used only at a material stop.
+
+**Consequences.** `VISUAL_SLICE.md` §4 is amended: the station becomes a required third enterable building, and the forecourt becomes the west termination. RL-e0's far-field shots are re-shot as an intended change. A rendered landmark check (LM-1, LM-2) runs on all three OSes. The 2D client binds `facade:station` to a sprite from the existing image pipeline.
+
+**Revisit** if the hall view cannot meet 16.7 ms with the built-in levers, or when S21 regions make a real-distance station reachable by travel.
+
+---
+
+## ARC-107 — The far field's `filled` slot: a reachable building recorded where it stands
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-c · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1); dated note on `ARC-102` · **Relates to** `ARC-102`, `ARC-105`, `ARC-106`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Design** step-29 §6.7; `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §5.1.6
+
+**Problem.** RL-e0's slots are `unplaced` or `reserved`. A reserved slot must lie beyond `boundary.reach_m`. The station now stands inside the boundary (`ARC-106`), and a town's far field must agree with its declared station and landmark.
+
+**Choice.**
+
+1. Format 1 gains a slot state, `{"state": "filled", "place", "bearing_deg", "distance_m", "footprint_m", "source"}`. The change is additive.
+2. A filled slot is the one far-field entry allowed inside the boundary. Massing keeps clear of its footprint.
+3. In a town's 3D far field, both slots are `filled`, and their places equal `settlement.station` and `settlement.landmark`. Otherwise the file is refused `FAR_FIELD_SLOT_TOWN { pack, world, slot }`, at validate and at client load. Under `kind: none`, `filled` is refused (`FAR_FIELD_SLOT`).
+4. Social Café's 3D `reach_m` grows from 60 to 100 m.
+
+**Consequences.** The Rust and GDScript validators change together, and RL-e0's agreement corpus gains one file per new refusal. Lakeside's 3D slots carry design content until 16f draws Lakeside in 3D.
+
+---
+
+## ARC-108 — Station fixtures show only disclosed state
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-e, S29-f and S29-g · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 approval) · **Relates to** `ARC-67`, `ARC-105`, `INV-S27-2`, step-21 §§5.3, 5.7 · **Design** step-29 §§5, 9.4
+
+**Problem.** Before trains exist (S21), a station could easily pretend: an invented timetable, an open ticket window, people waiting for a train that cannot come.
+
+**Choice.**
+
+1. **One pure rule, from disclosed components.** It is written once in `clients/shared/station/station_state.gd` and used by both clients; the agent view renders the same Observation.
+   - **The departures board** lists lines only when a `departures` record is disclosed. Otherwise it reads "No service yet".
+   - **The ticket window** is open only when its place discloses a `shop` listing a `ticket`-tagged kind.
+   - **The kiosk** is open only when the hall discloses a `shop`.
+   - **The clock** shows the disclosed world time, or nothing.
+2. **No fakes.** No routine label waits for a train before `transport` exists, and no train is drawn before S21's carriage.
+
+**Consequences.** When S21 lands, the board and window come alive with no client change. S21 must disclose `departures` to observers in `station`-tagged places, because a board in the hall cannot perceive the platform's `StopInfo` (a non-preclusion item for RT-c).
+
+---
+
+## DEP-60 — Reserved: one new CC0 texture for the station, only if a reviewed frame needs it
+
+**Date** 2026-10-15 · **Status** reserved; withdrawn at S29-d's merge if unused · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-10: ≤ 6 MB, target 0 new textures) · **Relates to** `DEP-8`, `ARC-106` · **Design** step-29 §6.4
+
+**Problem.** The depot is built from the shipped Poly Haven CC0 set. A reviewed frame might show that a material cannot be read from that set.
+
+**Choice.** At most two Poly Haven CC0 1k textures, each ≤ 3 MB and each checked under `DEP-8`. Each is added only on that evidence, and S29-d records it here, replacing this entry's status. If none is added, this entry is marked withdrawn and the number is not reused.
