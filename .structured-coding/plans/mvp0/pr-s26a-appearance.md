@@ -1,21 +1,27 @@
 # PR S26-a — The `appearance` System Pack and the cast binding contract
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary; operator Q-S26a-2)
 
 ```text
-Design revision:        revision 1 (2026-10-14), draft for the primary session and the operator
+Design revision:        revision 2 (2026-10-14): revision 1 (PR #195, commit f7be4bd) with §14.1's rulings
+                        recorded and the audit re-anchored on origin/main @ 9aa185b
 Author:                 S26-a PR-design agent, worktree /Users/yuema137/mineworld-worktrees/design-s26a,
-                        branch docs/s26a-design, planning base origin/main @ 3ada60a (#193)
-Approved by / evidence: — (not frozen; §14 lists the open questions)
+                        branch docs/s26a-design, planning base origin/main @ 3ada60a (#193); re-audited on
+                        origin/main @ 9aa185b (DL-a #191, FG-a #188, 25b #190, SET-b #192 merged)
+Approved by / evidence: the operator answered Q-S26a-2 directly in the primary session on 2026-10-14
+                        ("藏掉，顺手改"); the primary session ruled Q-S26a-1, -3, -4, -5 and froze this
+                        design itself (§14.1)
 Implementation base:    origin/main at C0 (C0 records the commit)
 Start condition:        this design frozen; nothing else (step-26 §12.1: no RL-b2, R-a or 16c dependency)
-Execution contract:     §12, filled at drafting; it takes effect only at freeze
-Lifecycle:              DRAFT. Implementer: Haiku (step-26 §12.1), one session, worktree impl-s26a; Opus
+Execution contract:     §12, filled at drafting, in effect from this freeze
+Lifecycle:              FROZEN. Implementer: Haiku (step-26 §12.1), one session, worktree impl-s26a; Opus
                         review
 ```
 
 Scope (§2.1), invariants (§6), acceptance (§8) and the commit plan (§9) are frozen at freeze. Progress,
 evidence, findings and bounded corrections stay writable (§15).
+
+*Superseded header:* `DRAFT — PR DESIGN, NOT FROZEN`, revision 1.
 
 **Effort:** `mvp0` · **Step:** [`step-26-cast.md`](step-26-cast.md) (STEP DESIGN FROZEN 2026-10-14,
 operator Q-S26-1…12) §§2 (A-14…A-18, A-21, A-29), 4.1–4.4, 4.6, 8, 9, 12 (the S26-a row), 12.1, 12.2
@@ -104,10 +110,10 @@ changes.
 
 ### 2.3 Dependencies
 
-None. `origin/main @ 3ada60a` holds everything S26-a needs. Concurrent PRs that touch the same files are
+None. `origin/main @ 9aa185b` holds everything S26-a needs. Concurrent PRs that touch the same files are
 in §13 (R-S26a-1) and Q-S26a-5.
 
-## 3. Audit (`origin/main @ 3ada60a`)
+## 3. Audit (`origin/main @ 3ada60a`, anchors re-checked on `9aa185b`)
 
 ### 3.1 Source anchors
 
@@ -120,10 +126,10 @@ in §13 (R-S26a-1) and Q-S26a-5.
 | S-5 | `discloses` returns the component to every observer who perceives the subject; `react` inserts the component on its own fact only | `systems/naming/src/system.rs:55-93` |
 | S-6 | A mapping section with `#[serde(deny_unknown_fields)]` is the `bodies` precedent | `systems/bodies/src/section.rs:28-58` |
 | S-7 | `AuthoredSection::Authored: DeserializeOwned + Debug + Send + Sync + 'static`; decoding it is the owner's validation, located by the loader | `authoring/src/section.rs:172-203` |
-| S-8 | The installed set: `installed!` list `systems/installed/src/lib.rs:36-57` (last line `Fishing => acme_fishing::FishingSystem,`); dependencies `systems/installed/Cargo.toml:15-31`; a test holds the two equal | `systems/installed/tests/installed.rs` |
+| S-8 | The installed set: `installed!` list `systems/installed/src/lib.rs:38-60` (last line `Fishing => acme_fishing::FishingSystem,`); dependencies `systems/installed/Cargo.toml:15-31`; a test holds the two equal | `systems/installed/tests/installed.rs` |
 | S-9 | `systems/*` is a workspace member glob; workspace dependencies list `mineworld-naming = { path = "systems/naming" }` | `Cargo.toml:2-21,38` |
 | S-10 | Sections are seeded after passages and arrivals, per file in composition order (the `systems:` order) | `worldpack/src/load.rs:344-366`; `ARC-31` point 4 |
-| S-11 | A section whose owner is not enabled is `PackError::ContentNeedsASystem { subject, content, system, path }`; an invalid one is `PackError::Malformed` with the owner's message and `line L column C` | `worldpack/tests/refusals.rs:717-831`; `worldpack/src/error.rs:351` |
+| S-11 | A section whose owner is not enabled is `PackError::ContentNeedsASystem { subject, content, system, path }`; an invalid one is `PackError::Malformed` with the owner's message and `line L column C` | `worldpack/tests/refusals.rs:717-831`; `worldpack/src/error.rs:369` |
 | S-12 | **AC-1 check 3**: Market Town's `systems:` must *begin with* Social Café's list, in order, then the six market packs, then only `calendar`/`weather`; each Social Café key of a person file must be present in Market Town with an equal value | `tests/acceptance/tests/ac1_composability.rs:1031-1080` (`compare_systems`), `1158-1185` (`compare_content`) |
 | S-13 | Systems lists: social-cafe `presence … naming, schedule` (7); market-town the same 7, then `item, inventory, item-transfer, economy, employment, consumption, calendar, weather`; lakeside the same 7, then `item, inventory, item-transfer, consumption, fishing`; bodies-yard `presence, movement, conversation, bodies` | `worlds/*/world.yaml` |
 | S-14 | People: social-cafe and market-town the same 12 keys and names; lakeside 10; bodies-yard 12 unnamed | `worlds/*/people/`; step-26 A-21 |
@@ -133,9 +139,9 @@ in §13 (R-S26a-1) and Q-S26a-5.
 | S-18 | **The 2D HUD shows every own component without a reader raw**, in an "other" panel, except `SHOWN_ELSEWHERE = ["display-name", "participation", "passages"]` | `clients/2d/scripts/hud/readers.gd:9-16,77-104` |
 | S-19 | The stub panels test (AC-I12) feeds own components and asserts the panels; `#[ignore]`d, needs Godot 4.7 | `tools/cli/tests/client_2d_interact_stub.rs:288-413` |
 | S-20 | 2D roles: `player`, `person:<n>`, `facade:*`, `prop:*`, `texture:*`; "The client never asks for a role by a world key … only by tag, index or hash" | `clients/2d/PRESENTATION.md:69-81` |
-| S-21 | `ARC-46`'s role list; it has no notes yet | `docs/DECISIONS.md:3770-3806` |
-| S-22 | `MODULE_SPEC.md` §4.1 "MVP-0 has seven sections", the table from `name` to `body` | `docs/MODULE_SPEC.md:684-731` |
-| S-23 | `MODULE_SPEC.md` §6.1 names `characters/character_style.yaml`, not `characters/cast.yaml`; the 3D pack has `pack.yaml`, `manifest.yaml`, `ART_DIRECTION.md`, `CHARACTER_IDENTITY.md`, `FIDELITY_REVIEW.md`, `references/`, `candidate/` and no `characters/` | `docs/MODULE_SPEC.md:1236-1272`; `ls presentation/mineworld-default/3D` |
+| S-21 | `ARC-46`'s role list; it has no notes yet | `docs/DECISIONS.md:3802-3834` |
+| S-22 | `MODULE_SPEC.md` §4.1 "MVP-0 has seven sections", the table from `name` to `body` | `docs/MODULE_SPEC.md:720-775` |
+| S-23 | `MODULE_SPEC.md` §6.1 names `characters/character_style.yaml`, not `characters/cast.yaml`; the 3D pack has `pack.yaml`, `manifest.yaml`, `ART_DIRECTION.md`, `CHARACTER_IDENTITY.md`, `FIDELITY_REVIEW.md`, `references/`, `candidate/` and no `characters/` | `docs/MODULE_SPEC.md:1344-1380`; `ls presentation/mineworld-default/3D` |
 | S-24 | The 3D client has no Presentation Pack specification (`clients/3d-spike/` holds `README.md`, `ASSETS.md`) | `ls clients/3d-spike/*.md` |
 | S-25 | Baselines: 5 keys per world (`summary-300`, `summary-1000`, `summary-300s`, `facts-300s`, `journal-300s`), reason lines kept by `baseline write`; read by the nightly only | `scripts/baselines.txt:1-33`; `scripts/ci_parity.py:33-37,733-760` |
 | S-26 | A headless run's summary prints `day N revision R facts F`, `facts <type> <count>` per type and `history <n> facts, fingerprint …` — so every summary key moves when genesis gains facts | `tools/cli/src/run.rs:533-575` |
@@ -158,14 +164,15 @@ in §13 (R-S26a-1) and Q-S26a-5.
   | File:line | Literal today | After C4 |
   | --- | --- | --- |
   | `worldpack/tests/social_cafe.rs:66-77` | systems list ending `Capability::Schedule,` | `…, Capability::Schedule, Capability::Appearance,` |
-  | `worldpack/tests/social_cafe.rs:217-222` | `first.genesis().len()` = `53` | `65`, message gains "and their look" |
+  | `worldpack/tests/social_cafe.rs:218-223` | `first.genesis().len()` = `53` | `65`, message gains "and their look" |
   | `worldpack/tests/social_cafe.rs:338-380` | strips `name:`, `routine:`, `  - { from:` lines and `  - naming\n`, `  - schedule\n` | also strips `appearance:` lines and `  - appearance\n`; `17` stays |
   | `tools/cli/tests/commands.rs:34,40` | `"…, naming, schedule\n"`, `"53 genesis fact(s)"` | `"…, naming, schedule, appearance\n"`, `"65 genesis fact(s)"` |
   | `tools/cli/tests/content_kinds.rs:136` | `"\n53 genesis fact(s)"` | `"\n65 genesis fact(s)"` |
-  | `tools/cli/tests/inspect.rs:55-56` | `…, naming v1, schedule v1\n` | `…, naming v1, schedule v1, appearance v1\n` |
-  | `tools/cli/tests/social_composition.rs:378-381` | `…, relationships v2, naming v1` | `…, relationships v2, naming v1, appearance v1` |
+  | `tools/cli/tests/inspect.rs:55-56` | `…, conversation v4, group-activity v3, relationships v3, naming v1, schedule v1\n` (as of FG-a #188) | `…, naming v1, schedule v1, appearance v1\n` |
+  | `tools/cli/tests/social_composition.rs:378-381` | `…, relationships v3, naming v1` (as of FG-a) | `…, relationships v3, naming v1, appearance v1` |
   | `tools/cli/tests/social_composition.rs:417-421` | `…, naming v1, schedule v1` | `…, naming v1, schedule v1, appearance v1` |
   | `tools/cli/tests/server_command.rs:43-53` | `[… "naming", "schedule"]` | `[… "naming", "schedule", "appearance"]` |
+  | `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (DL-a #191; read by `tools/cli/tests/decisions.rs:121-133`, AC-DLa-1) | social-cafe 30-day run output without `wall`, captured on base: `day N … facts F`, no `facts      appeared` line, `history    84639 facts, fingerprint af1927a1e2182bcd …` | regenerated in C4 step 8; only the `facts F` count of `day` lines, one new `facts      appeared 12` line (between `agenda-changed` and `arrived`) and the `history` line may differ — any other line differing is a material stop |
 
   A literal this search missed fails in CI; it is updated under §12's CI-repair authority **only** if it
   moved because of `appeared` facts, the `look` component or the `appearance` entry, with the reason in
@@ -510,8 +517,8 @@ relative to that root.
 - **Goal.** The section and its owner are specified before the crate (`CLAUDE.md` §2.2). **Files:**
   `docs/MODULE_SPEC.md`, `docs/DECISIONS.md`.
 - Steps:
-  1. Read `docs/MODULE_SPEC.md` §4.1 from line 676 ("**Sections: content a System Pack owns**") to the
-     end of the sections table (line ~731), and `docs/DECISIONS.md` `ARC-31` (line 2172) as the model.
+  1. Read `docs/MODULE_SPEC.md` §4.1 from line 706 ("**Sections: content a System Pack owns**") to the
+     end of the sections table (line ~775), and `docs/DECISIONS.md` `ARC-31` (line 2194) as the model.
   2. In `docs/MODULE_SPEC.md`, change "MVP-0 has seven sections:" to "MVP-0 has eight sections:".
   3. Insert, directly below the `name` row (after its two lines, before `routine`), the `appearance` row
      of Appendix B.1, keeping the table's column alignment.
@@ -619,6 +626,7 @@ relative to that root.
   `worlds/lakeside/world.yaml`, `worlds/lakeside/people/*.yaml` (10), `worlds/lakeside/README.md`,
   `worldpack/Cargo.toml` (dev-dependency), `worldpack/tests/social_cafe.rs`,
   `tools/cli/tests/{commands.rs, content_kinds.rs, inspect.rs, social_composition.rs, server_command.rs}`,
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt`, `tools/cli/tests/decisions.rs` (doc comment),
   `Cargo.lock`.
 - Steps:
   1. Edit the three `world.yaml` files exactly as §5.3 (positions, comments).
@@ -640,9 +648,17 @@ relative to that root.
      presentation/mineworld-default` for each named world and for `bodies-yard`; record each genesis
      count (E-S26a-2, new): social-cafe must be 65; market-town base + 12; lakeside base + 10;
      bodies-yard unchanged.
-- [ ] Implementation: steps 1–6.
+  8. The AC-DLa-1 golden (F-S26a-3, last row): `target/debug/mineworld run worlds/social-cafe --headless
+     --seed 7 --days 30 | grep -v "^wall " > target/scratch-s26a/golden.new.txt`; then `diff
+     tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt target/scratch-s26a/golden.new.txt`
+     and record every differing line in §15. Only `day` lines' `facts` counts, one added `facts      appeared 12`
+     line and the `history` line may differ; otherwise stop. Then `cp target/scratch-s26a/golden.new.txt
+     tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt`. The test's doc comment names the
+     base it was captured from; add one sentence: "Re-captured by S26-a (appearance's genesis facts); the
+     diff is recorded in pr-s26a-appearance.md §15."
+- [ ] Implementation: steps 1–6 and 8.
 - [ ] Validation: step 7; `cargo test -p mineworld-worldpack`; `cargo test -p mineworld-cli --test
-  commands --test content_kinds --test inspect --test server_command`; `cargo test -p mineworld-cli
+  commands --test content_kinds --test inspect --test server_command --test decisions`; `cargo test -p mineworld-cli
   --test social_composition` (real runs; record wall time); `cargo test -p mineworld-acceptance --test
   ac1_composability` (needs full git history; if the worktree's clone is shallow, record INCONCLUSIVE and
   rely on CI); `cargo test -p mineworld-cli --test market_composition`. Mutation: M-S26a-3 → 
@@ -848,8 +864,8 @@ APPROVED SCOPE:          §2.1 items 1–9, as ruled in §14.1                  
 FROZEN INVARIANTS:       §0 rulings; §6 I-S26a-1 … I-S26a-10; §8 AS26a-1 … AS26a-13
 SEQUENCE:                C0 … C9 (§9)
 ALLOWED COMMANDS:        cargo *; uv run --locked *; uv sync --locked; git; gh (never merge);
-                         python3 scripts/*; target/*/mineworld *; mkdir -p; grep; diff; sed -n; godot (only
-                         through C7's cargo test)
+                         python3 scripts/*; target/*/mineworld *; mkdir -p; grep; diff; sed -n; cp (C4 step 8 only);
+                         godot (only through C7's cargo test)
 NEVER:                   python3 -c; sed -i; heredoc writes; curl; git add -A / git add .; sourcing or reading
                          ~/.config/mineworld/secrets.env or any key or .env file; any Meshy or OpenAI call;
                          edits outside §9's file lists; editing a baseline by hand except C6 step 8's reason
@@ -905,9 +921,17 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 | **Q-S26a-4 [primary — cognition]** | The memory renderer stores each `appeared` generically as `notable` ("appeared at somewhere, with Bob Achterberg"); the slug never shows. Keep that in S26-a (test only), or add an `appeared` renderer that files it as `ambient`? | **Keep generic in S26-a**; no cognition code changes, X-4 is pinned by the test, and P6b, which owns retrieval quality, may add a renderer if its retrieval needs it |
 | **Q-S26a-5 [primary — sequencing]** | P6a (`persona`) is frozen and not started, and edits the same `systems:` lists, people files, installed set and baselines. Rule: whichever of P6a and S26-a merges second rebases and re-records? | **Yes**, with market-town keeping Social Café's list as its prefix in either order |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S26a-1 | **Yes.** `appearance` goes directly after `schedule` in market-town; AC-1's allow-list (`GENERIC_PACKS`) stays unchanged | primary session |
+| Q-S26a-2 | **Yes.** Add `"look"` to the 2D HUD's `SHOWN_ELSEWHERE` in S26-a (C7), pinned by the stub panels test | operator |
+| Q-S26a-3 | **Yes.** `scripts/check_cast.py` and its self-test run in the `fast` layer (C8) | primary session |
+| Q-S26a-4 | **Keep the generic rendering**; no `appeared` renderer now (C7 is a test only) | primary session |
+| Q-S26a-5 | **Yes.** Whichever of P6a and S26-a merges second rebases and re-records the baselines (market-town keeping Social Café's list as its prefix) | primary session |
+
+**Re-audit at freeze (origin/main @ 9aa185b).** DL-a, FG-a, 25b and SET-b merged after the planning base. Anchors re-checked and updated in §3.1, §9 and F-S26a-3: `systems/installed/src/lib.rs:38-60` (FG-a added a `DecayCurve` extension line; `Fishing` is still the last entry), `worldpack/src/error.rs:369`, `docs/MODULE_SPEC.md:706-775` and `1344-1380`, `docs/DECISIONS.md` `ARC-31` at 2194 and `ARC-46` at 3802-3834; FG-a bumped `conversation` to v4 and `relationships` to v3 in the `inspect` systems lines (F-S26a-3 rows updated); DL-a added the golden `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt`, which S26-a's genesis facts move (new F-S26a-3 row; C4 step 8). `worldpack/src/read.rs` gained DL-a's `decisions:` key; the section path S26-a relies on (`load.rs:344-366`) is unchanged. No other anchor moved.
 
 ---
 
