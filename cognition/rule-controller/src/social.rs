@@ -19,17 +19,16 @@
 //! reads the instant the invitation itself says it lapses (`Invitation::until`, the world's lifetime
 //! since S17's PR IL-b), never a lifetime of its own.
 
-use mineworld_contracts::{
-    Action, ActionRecord, ActionRequest, Component, EntityId, Observation, PerceivedEntity,
-};
+use mineworld_contracts::{ActionRequest, EntityId, Observation};
 use mineworld_decision::Draw;
 use mineworld_group_activity::{
     AcceptInvitation, ActivityKind, DeclineInvitation, Invitations, Invite, JoinGroupActivity,
-    LeaveGroupActivity, Participation,
+    LeaveGroupActivity,
 };
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use serde_json::Value;
+
+use crate::act::request;
+use crate::read::{available, disclosed, people_offering};
 
 /// Out of 100: how often an invitation the controller may accept is accepted; otherwise declined.
 const ACCEPTS: u64 = 70;
@@ -49,14 +48,6 @@ const INITIATIVE_DRAW: u64 = 9;
 const INVITEE_DRAW: u64 = 10;
 const KIND_DRAW: u64 = 11;
 const JOINED_DRAW: u64 = 12;
-
-/// Whether this observer is part of an activity, by its own disclosed `Participation`.
-pub(crate) fn in_activity(observation: &Observation<Value>) -> bool {
-    observation
-        .entity(observation.observer())
-        .and_then(disclosed::<Participation>)
-        .is_some()
-}
 
 /// The answer to the oldest-by-inviter open invitation the server says I may accept, if any.
 pub(crate) fn answer_invitation(
@@ -108,48 +99,9 @@ pub(crate) fn initiative(observation: &Observation<Value>, draw: &Draw) -> Optio
     None
 }
 
-/// Everybody the server says `A` is available against right now, in the order the observation lists.
-fn people_offering<A: Action>(observation: &Observation<Value>) -> Vec<EntityId> {
-    observation
-        .entities()
-        .iter()
-        .map(PerceivedEntity::id)
-        .filter(|entity| *entity != observation.observer())
-        .filter(|entity| available::<A>(observation, Some(*entity)))
-        .collect()
-}
-
-/// Whether the server offers `A` against `target` and says it is possible now.
-fn available<A: Action>(observation: &Observation<Value>, target: Option<EntityId>) -> bool {
-    observation.affordances().iter().any(|affordance| {
-        *affordance.action_type() == A::ACTION_TYPE
-            && affordance.target() == target
-            && affordance.is_available()
-    })
-}
-
-/// A component this entity's record discloses, decoded with its owner's type.
-fn disclosed<C: Component + DeserializeOwned>(entity: &PerceivedEntity<Value>) -> Option<C> {
-    let record = entity
-        .components()
-        .iter()
-        .find(|record| *record.component_type() == C::COMPONENT_TYPE)?;
-    serde_json::from_value(record.payload_for::<C>().ok()?.clone()).ok()
-}
-
 fn pick<'a>(choices: &'a [EntityId], draw: &Draw, n: u64) -> Option<&'a EntityId> {
     if choices.is_empty() {
         return None;
     }
     choices.get(usize::try_from(draw.below(choices.len() as u64, n)).ok()?)
-}
-
-fn request<A: Action + Serialize>(actor: EntityId, action: &A) -> ActionRequest {
-    ActionRequest::new(
-        actor,
-        ActionRecord::new::<A>(
-            serde_json::to_vec(action)
-                .expect("a request payload is JSON-representable by construction"),
-        ),
-    )
 }

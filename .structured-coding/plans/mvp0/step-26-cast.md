@@ -518,6 +518,74 @@ glasses lenses (Meshy fuses them), hand-held props (no attachment system, and a 
 hair over the shoulders (rigid to the head, D+ §8.2), long skirts or coats for people who sit (one fused
 surface with the legs; G-13). Where the biography wants one of these, the brief says what replaces it.
 
+### 7.4a One style, one precision, one method; real-world diversity (operator, 2026-10-15; binding)
+
+The operator, verbatim: "我们一定要保证所有人物画风一致，但是特征有多样性（高矮胖瘦，性别 族裔，符合真实世界分布），
+然后精度一致，建模方法和工具一致". In English: every character must share one art style, while their features are
+diverse (tall/short, slim/heavy, sex, ethnicity) **following real-world distributions**, with one precision and
+one modelling method and toolset. This section makes that checkable. Where it is stricter than §7.2 or §7.3, it
+governs. It amends §7.2's default population (`ARC-95` dated note, written by S26-cast).
+
+1. **One art style.**
+   - Every reference image is generated from **one style template**: a fixed prompt preamble covering
+     rendering style, A-pose, neutral expression, camera height, focal length, framing, lighting rig,
+     background and output size. Vera's approved reference image is passed as the **style anchor** to
+     the image model for every person.
+   - The template and the anchor are versioned files in the Presentation Pack
+     (`characters/style/template.yaml`, `characters/style/anchor.png`). Changing either is a new
+     template version, and every character records the version it was cast with.
+   - Every Meshy run uses the same model version and settings as Vera's (route D+, `DEP-51`).
+   - The casting page and the runtime lineup show each person beside Vera at the same framing. The
+     operator's verdict on style is recorded per person (`ARC-94` review protocol).
+2. **One precision.**
+   - The gates G-1…G-14 apply unchanged to every person.
+   - A batch also fails if its people diverge more than Vera's own record allows, on any of:
+     - triangle count: 85 000–100 000;
+     - texture size: 2048²;
+     - texel density on the body: within ±15 % of Vera's;
+     - material count: 1;
+     - skeleton: the same 52 joints.
+   - These numbers are fixed from Vera's record before any generation, and never from a candidate.
+3. **One method and toolset.**
+   - Every character in a batch carries the same pipeline version and the same tool versions in its
+     provenance (G-14): `mwcast`, Blender, Godot importer, Meshy model, image model.
+   - A batch with mixed versions is refused by `cast.py check-characters` with a named error.
+   - Re-casting one person under a newer pipeline re-runs the whole batch's gates, never that person alone.
+4. **Real-world diversity, by data.**
+   - A world's cast is drawn from a **population profile**: a versioned data file per setting, with
+     every figure cited. Examples: `characters/populations/san-diego-county.yaml` for the café town and
+     market town, whose weather already comes from San Diego (TW-b).
+   - The profile states:
+     - the sex ratio;
+     - the adult age distribution;
+     - the ethnicity / ancestry mix: for the United States, the census race and Hispanic-origin
+       categories, for example ACS 5-year estimates for the county;
+     - stature by sex and age band, mean and SD: for example NHANES anthropometric reference data;
+     - a build (BMI) distribution by sex: for example NHANES.
+   - Every figure is marked **verify** until read at its source by S26-cast.
+5. **A seeded, stratified sampler.** It assigns the attributes a person's biography does not fix, so
+   that even a 12-person cast approximates the profile:
+   - it is deterministic from the world seed and the look key;
+   - its strata are allocated by largest remainder;
+   - it never stereotypes from a surname, and the biography wins where it specifies.
+   - Each brief records which attributes came from the biography and which came from the sampler.
+   - The casting page prints the cast's realised distribution against the profile.
+6. **Infra, not a fixed cast.**
+   - The profile, the template, the anchor and the sampler seed are parameters of the Presentation Pack.
+   - A user's world may name a different profile, for example another city or a fantasy setting with
+     its own cited or authored figures, without code changes.
+   - A missing or malformed profile fails by name.
+
+`S26-cast` owns items 4–5 and the profile file. `S26-b2` owns items 1–3 for the pilot, and `S26-d` owns
+them for each batch. The acceptance tests are X-22 to X-25:
+
+- **X-22.** A batch with one person cast under a different template version is refused.
+- **X-23.** A candidate with 70 000 triangles fails the precision band.
+- **X-24.** The sampler, re-run with the same seed, reproduces the briefs byte for byte. A different
+  seed changes only sampled attributes.
+- **X-25.** For a synthetic 1 000-person cast, the realised distribution is within 2 percentage points
+  of the profile on every stratum.
+
 ### 7.5 A first casting sketch (for the casting PR to refine; skin and hair set per person at casting, Q-S26-7)
 
 | Look | Role (source) | Age | Stature | Build | Outfit direction |

@@ -1,0 +1,9 @@
+# Opt-in: every seat of Social Café decided by the `motivated` model (pr-dl-b-motivated.md QS24-3).
+#
+# Kept beside the model, not inside the World Pack: Social Café's files must stay the base Market Town
+# extends (AC-1 check 3, ARC-35; F-DLb-7). No world.yaml references this file, and the default world keeps
+# every seat on `rule`. Use it with the decision-list flag, from the repository root:
+#   mineworld run worlds/social-cafe --decisions cognition/motivated/examples/social-cafe-all-motivated.yaml ...
+models:
+  motivated: {}
+default: motivated

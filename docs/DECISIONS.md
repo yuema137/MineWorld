@@ -7943,6 +7943,29 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when Systems publish effect declarations for multi-step goals (DL-d), or when a candidate crate's core is shown to be independent of its engine.
 
+**Note, 2026-10-14 (DL-b, the core as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §§5, 15).**
+- **Where it lives.** `cognition/motivated` (`mineworld-motivated`) holds the core and adds no external
+  dependency.
+- **Scoring.** Every option is offered only from what the observation discloses. Its score is its base weight
+  multiplied, in the listed order, by its considerations. Each consideration is a piecewise-linear integer
+  curve (≤ 24 points) over one input, adjusted by Mark's compensation factor `1 000 − 1 000 / k`. All
+  arithmetic is floor division in `u64`, and the crate denies `clippy::float_arithmetic`.
+- **Choice.** A seeded draw, weighted by score, chooses among the options within `top_band` ‰ of the best,
+  using `Draw::salted` with the model's own salt. A door is re-drawn per commitment window.
+- **Shared code.** The observation readers and request builders are shared with `rule` through
+  `mineworld_rule_controller::{read, act}` (SD-DLb-1).
+- **Measured result (social-cafe, 30 days, seed 7, every seat `motivated`).**
+  - AC-DLb-3: night speech 0 ‰ (PASS).
+  - AC-DLb-4: TV against ATUS 513 ‰ against the limit of ≤ 250, and `rule`'s TV is 382 (**FAIL**).
+  - AC-DLb-5: night at home 972 ‰ (PASS).
+  - AC-DLb-6: agenda kept 930 ‰ against `rule`'s 937 (PASS).
+- **Why AC-DLb-4 fails.** The diagnosis (F-DLb-5) is a limitation of the frozen defaults, not a defect. Away
+  from home `stay`'s base equals `greet`'s, considerations only lower a score, and the top band is 10 %. So a
+  greeting is drawable only at 16:00–20:59 or at home in the evening, and the run speaks 97 lines in 30 days,
+  against `rule`'s ≈ 10 159.
+- **Status.** `motivated` therefore ships as an optional, non-default model. `rule` stays the default
+  (QS24-3), and the revision of model or criterion is the operator's (R-DLb-6).
+
 ---
 
 ## DEP-48 — Daily-rhythm calibration: BLS ATUS A-3 public-domain tables, committed as derived integer tables through an offline fit tool
@@ -7964,6 +7987,23 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** The acceptance of rhythm (AC-DL-4) is measured against the fitted curve, with its tolerances written in the PR design before the run. A future calibration from a different source is a new record.
 
 **Revisit** when a European world needs calibration from HETUS aggregates, or when the BLS terms of use change.
+
+**Note, 2026-10-14 (DL-b, the calibration as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §7,
+§15).**
+- **Edition and rows.** The edition is `atus-a3-2025`: BLS ATUS Table A-3, 2025 annual averages (QDLb-3). The
+  six rows are Sleeping, Eating and drinking, Working, Socializing and communicating, Leisure and sports, and
+  Purchasing goods and services.
+- **The committed file.** `cognition/motivated/data/atus-a3-2025.tsv` holds the rows as per-mille integers
+  (percent × 10, so the conversion is exact), with a `zero_markers` line and a per-row `checksum` line. The
+  credit and public-domain statement are in `cognition/motivated/data/NOTICE`. No microdata is committed.
+- **Derivation.** It is in the crate and pure, and there is no offline `routine-fit` tool: the routine
+  generator is deferred (QDLb-1). `curves::from_a3` maps each row to a 24-point curve with
+  `y(h) = ⌊v(h) × 1 000 / max v⌋`, and `restless` = `1 000 − rest`. The table is compiled in and derived when
+  parameters are decoded, so a run never opens a file.
+- **Transcription.** The values were transcribed from the HTML table, read through a summarising fetch. The
+  reviewer's three-cell check against the PDF is still open (§15, C2).
+- **The acceptance oracle.** `A(h)` is the socializing row normalised to sum 1 000, read from the TSV. It is
+  not the model's curve output. The measured results are in `DEP-47`'s note of the same date.
 
 ---
 
@@ -8025,6 +8065,29 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 **Bounds** (operator QSRB-4): 30-day Market Town save ≤ 48 MiB; 300-day ≤ 96 MiB with bodies and ≤ 80 MiB walking; growth ≤ 0.25 MiB per simulated day (CI, every PR), and the nightly `AC-SAVE-1` at 0.5 MiB per day until stable; peak memory of a history reader on a 300-day save ≤ 256 MiB; a seal ≤ 100 ms per block.
 
 **Revisit triggers added:** a block-level `AC-8` difference on any leg; FG-e moving blocks out of the file; a world whose span exceeds 64 MiB of raw rows.
+
+## DEP-50 — The executable guide: `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli`
+
+**Date** 2026-10-14 · **Status** accepted (design, step-25 §4.2 option E2); implemented by PR S25c (dev-dependencies only, no runtime edge) · **Approved by** the operator's step-25 rulings of 2026-10-14 (QS25-1 to QS25-10; the design's §4.2 recommendation accepted under the standing instruction) · **Relates to** `ARC-90`, `DEP-29`, `DEP-49`, `CLAUDE.md` §4 rule 16, `REUSE_POLICY.md` §§1–4, 11–12 · **Design** `.structured-coding/plans/mvp0/step-25-creator-docs.md` §§4.2, 8, 16 · **Specification** [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md)
+
+**Problem.** Every page in `docs/guide/` must be executed against the real `mineworld` binary, in order, on Linux, macOS and Windows, so that a page which stops working is a red test. The runner needs a CommonMark parser that yields fenced blocks with their info strings and line numbers, and an output matcher with line elision and in-line wildcards.
+
+**Options considered** (verified 2026-10-14 with `cargo info` and the repository metadata, step-25 §16).
+
+| Option | Verdict |
+| --- | --- |
+| E1 `trycmd` 1.2.1 (MIT OR Apache-2.0) | Declined as the runner. Its per-case sandbox does not model a tutorial whose steps are cumulative; its file steps need a second copy of every file in an `.in/` directory. Its matching rules are adopted through `snapbox`, which is the library `trycmd` itself uses. |
+| E2 `pulldown-cmark` 0.13.4 (MIT, not archived, last push 2026-10-12, MSRV 1.71.1) plus `snapbox` 1.2.2 (MIT OR Apache-2.0, not archived, last push 2026-10-04, MSRV 1.85) | **Adopted.** A test in `mineworld-cli` walks each page, writes file blocks, runs command blocks with the binary and matches output. Both are test-only and never enter a build. |
+| E3 mdBook `test` | Declined: it runs Rust code blocks; the guide's blocks are YAML and shell. |
+| E4 Python runner with `markdown-it-py` | Declined: the binary's tests already run on all three operating systems under `cargo test`; a Python runner would need a new job and a new dependency. |
+| E5 Test the example world only | Declined: a page can describe what the world no longer does. |
+| Hand-written Markdown scanner | Declined: a CommonMark fence rule (the fence length, indentation, and `~~~` fences) is exactly what a maintained parser already gets right, and a bespoke one would drift from what GitHub renders. |
+
+**Choice.** `pulldown-cmark` (parsing) and `snapbox` (matching) as `[dev-dependencies]` of `mineworld-cli`, each with a workspace entry in the root `Cargo.toml` carrying this record's id. Neither crate is named outside `tools/cli/tests/`. Feature sets are chosen at C1 and recorded there.
+
+**Consequences.** The guide runner adds two crates to the test graph of `mineworld-cli` only. `cargo deny check licenses` must still pass (both are on the existing allow-list: MIT, Apache-2.0). The runner's TOML reading of `features.toml` uses the `toml` crate already present in `Cargo.lock`, so it adds no new crate; the workspace entry is recorded when C1 adds it.
+
+**Revisit** if `pulldown-cmark` or `snapbox` leaves maintenance, or if the guide's block grammar needs a construct CommonMark cannot express (then the grammar changes first, in `GUIDE_FORMAT.md`).
 
 ---
 
