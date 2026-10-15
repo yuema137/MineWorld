@@ -40,8 +40,9 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; one long pa
 STOP CONDITIONS     any moved baseline column other than a social-cafe column that moves because people
                     perceive their own persona (A3 step 7); any change to an existing System's code; any
                     change outside APPROVED SCOPE; a new external dependency
-CURRENT CHECKPOINT  A0 in progress
-NEXT ACTIONS        A0: doc checks, ledger row, commit. Then A1 (read naming's section and MODULE_SPEC §4.1
-                    entry, write persona: entry and ARC-74), then A2, then A3.
+CURRENT CHECKPOINT  A0 committed (7dcb1ac). A1 spec edits made (MODULE_SPEC §4.1 persona row; ARC-74);
+                    A1 commit in progress.
+NEXT ACTIONS        A1 commit, then A2 (read all of systems/naming; record A-P6-1 in §15; build
+                    systems/persona mirroring naming; discloses to holder only; mutation test), then A3.
 POST-MERGE SYNC     primary session: step-17, overall.md. This session: the P6a rows of the §15 ledger.
 READY STATE         P6a READY FOR OPERATOR REVIEW — DO NOT MERGE

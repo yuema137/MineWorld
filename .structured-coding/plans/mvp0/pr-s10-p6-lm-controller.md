@@ -1592,7 +1592,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
-| A1 | — | [ ] | [ ] | [ ] |
+| A1 | (this commit) | [x] `docs/MODULE_SPEC.md` §4.1: `persona:` row after `name:`, example line, "eight sections"; `docs/DECISIONS.md` ARC-74 appended; `name` entry read as the model first | [x] `check_doc_headings.py` 223 sections (PASS); `check_decision_ids.py` 123 ids, all distinct (PASS) | [x] terms exact (System Pack, Component, Person); the rule "shapes speech, grants nothing" is stated in MODULE_SPEC §4.1 and ARC-74, not only in a README |
 | A2 | — | [ ] | [ ] | [ ] |
 | A3 | — | [ ] | [ ] | [ ] |
 | C0 | — | [ ] | [ ] | [ ] |
