@@ -50,7 +50,7 @@ pub const fn buy_requirement(shop: PlaceId) -> SpatialRequirement {
 /// to the operator, and inventory would move one from the operator to the buyer (the operator holds
 /// one, the buyer can carry it).
 pub fn purchasable(world: &WorldRead<'_>, buyer: EntityId, shop: &Shop, item: ItemId) -> bool {
-    let Some(price) = shop.price(item) else {
+    let Some(price) = shop.effective_price(item) else {
         return false;
     };
     let operator = shop.operator().entity_id();

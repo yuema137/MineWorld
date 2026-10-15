@@ -11,25 +11,34 @@ BINDING DOCS:          mvp1/step-24-decision-and-memory.md §§3, 9, 10, 11, 14.
 BRANCH / WORKTREE:     mvp0/pr-we-a at /Users/yuema137/mineworld-worktrees/impl-we-a (this session only)
 BASE:                  origin/main @ 6306977 (contains DOC-24 #175, merge baa0d33)
 ENV:                   PATH="$HOME/.cargo/bin:$PATH"; CARGO_TARGET_DIR=/tmp/impl-we-a-target; python3.12 for
-                       scripts/ci_parity.py (system python3 lacks tomllib)
-SCRATCH:               /tmp/impl-we-a-scratch (mineworld-base binary, base.txt record)
+                       scripts/ci_parity.py (system python3 lacks tomllib); rustc on PATH for record
+SCRATCH:               /tmp/impl-we-a-scratch (binaries base/c1/c3/c4; records base/c1/c3/c4.txt; e2/ saves)
 APPROVED SCOPE:        §2.1 items 1–9; C4 economy price modifiers; C5 Market Town opt-in (after 12d #171 merges)
 FROZEN INVARIANTS:     INV-WE-1 … INV-WE-8; no kernel/contracts/persistence/worldpack/server/client change; no LM;
                        no new third-party dependency
 ENDPOINT AUTHORITY:    implementation, commits, push, PR create/update, CI repair: authorized (operator go
                        2026-10-13, relayed by the primary session); merge: explicit operator authorization only
 SEQUENCE:              C0 → C1 → C2 → C3 → C4 → C5 → C6 → PR → one canonical CI
-BUDGET:                unit/integration/static unrestricted; ci_parity default record ≤ 4 runs (1 used: base);
-                       long profile once (E-4); local full workspace test before any push that changes tests
-STOP CONDITIONS:       C5 before 12d merged; frozen invariant falsified; U-2 false; QWE ruling contradicted;
-                       operator milestone pause → commit locally and stop
+BUDGET:                default ci_parity records 4 of 4 USED; long profile once (E-4, C5); local full
+                       workspace test before any push that changes tests (not yet run)
+STOP CONDITIONS:       C5 before 12d merged; frozen invariant falsified; U-2 false; QWE ruling contradicted
 ```
 
-## Current checkpoint
+## Current checkpoint (2026-10-14)
 
-C0 done (base recorded). Next: C1.
+C0 … C4 committed locally, not pushed. STOPPED: E-2 met the stop condition "U-2 false" in its literal
+text. A declaration change also moves Market Town's genesis journal entry and its snapshots'
+composition, by exactly economy's added declaration (150 bytes). Facts, summaries and every other journal
+entry are byte-identical (F-WE-a-9, §11 C4). The ruling is proposed there. 12d (#171) is still open,
+so C5 waits as well.
 
-## Next actions
+## Next actions (after the operator's ruling and 12d's merge)
 
-1. C1: crate `systems/happenings` (configuration, kinds, entries, genesis fact, almanac start), install lines,
-   T1 + T12 (a)(c), E-1.
+1. Record the F-WE-a-9 ruling in §16.1 and U-2's corrected wording.
+2. Rebase onto origin/main with 12d. Re-run economy tests. C5: Market Town configuration, plus
+   `happenings` in `tests/acceptance/tests/ac1_composability.rs` `GENERIC_PACKS` (found in C1). Then E-3,
+   E-4 (long profile, baseline write, with a reason line covering C4's journal move), E-5.
+3. C6: README, `systems/README.md` line, ARC-88 dated note (reconcile "owns Happenings on places" with
+   F-WE-a-6), MODULE_SPEC §3.1 catalog list.
+4. Run the full local `cargo test --workspace --no-fail-fast`, push, open the PR, and get one canonical
+   CI run. Then READY FOR OPERATOR REVIEW. Do not merge.

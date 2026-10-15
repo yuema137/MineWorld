@@ -894,15 +894,63 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 1. **Goal.** The worked example of §6: the owner decides prices from happening facts.
 2. **Scope.** `systems/economy/{Cargo.toml (+ mineworld-happenings), src/{configuration (new), component, event, system, offer, action, lib}.rs, tests/price_modifiers.rs, tests/removable.rs}`; `SystemVersion` 2. Rebased over 12d's economy test-support changes.
 3. **Implementation**
-   - [ ] `EconomyConfiguration`, `PriceModifier`, `requires()`, `economy-configured`.
-   - [ ] Subscriptions; `prices-adjusted`/`prices-restored`; `Shop.adjustments` with `skip_serializing_if`.
-   - [ ] `Shop::effective_price` used by validate, resolve and listing.
-4. **Validation** — [ ] T16, T17; existing economy tests unchanged and green; E-2.
+   - [x] `EconomyConfiguration`, `PriceModifier`, `requires()`, `economy-configured`. — `src/configuration.rs`
+     (`Permille` 100 … 10 000, ≤ 32 modifiers, `(during, shop)` unique, `deny_unknown_fields`);
+     `PackConfiguration` + `configures!()` beside `owns_section!()` in `src/system.rs`.
+   - [x] Subscriptions; `prices-adjusted`/`prices-restored`; `Shop.adjustments` with `skip_serializing_if`.
+     — `src/event.rs` (`EconomyConfigured`, `PricesAdjusted`, `PricesRestored`), `src/component.rs`
+     (`Adjustment`, `Shop::{adjusted, restored, is_adjusted_by}`), `src/book.rs` (the `price-book` Process,
+     D-10), `system.rs` `react_to_prices`; `SystemVersion` 2.
+   - [x] `Shop::effective_price` used by validate, resolve and listing. — `action.rs` `purchasable` (validate
+     and offers), `system.rs` `resolve`, `component.rs` `Listing::of`; `Shop::price` stays the authored
+     price.
+4. **Validation** — [x] T16, T17; existing economy tests unchanged and green; E-2 — **E-2 tripped a stop
+   condition; see the finding below.** `cargo test -p mineworld-economy`: unit 3 (rounding, product of two
+   adjustments in happening order, unadjusted encoding), existing `buy` 6, `paced` 3, `removable` 3, `wages`
+   1 unchanged and PASS, `price_modifiers` 3 PASS (T16: 100/333 before, 90/300 at 08:00 and during, 100/333
+   after, at the till and in the listing; causation `Event(happening-began)` / `Event(happening-ended)`; a
+   modifier for a kind that never occurs states nothing; unconfigured economy states nothing new and
+   charges 100 during the market. T17: modifiers without happenings refused — "the 'economy' system's
+   configuration needs 'happenings', which this world does not enable"; bad `permille` and an unknown key
+   refused with file, line and column; a duplicate `(during, shop)` refused naming `price_modifiers[2]`).
+   T17 sits in `tests/price_modifiers.rs` (it needs the same loader fixture), not in `tests/removable.rs`.
+   Mutations, each reverted (grep clean): M17 (the modifier applies at all times) → T16 and two existing
+   `buy` tests FAILED, killed; M18 (`prices-restored` never stated) → T16 FAILED, killed; M19 (`requires()`
+   dropped) → T17 FAILED, killed.
+
+   **Finding F-WE-a-9 — E-2: U-2 is false as worded (stop condition).** `ci_parity.py diff base.txt c4.txt`
+   (C4 working tree on `bce32bc`, 150.2 s): "world market-town differs — table journal: first differing chunk
+   0; table snapshots: first differing chunk 0; manifest differs". No other world differs; facts and every
+   summary are equal. *Audit:* one-day Market Town saves from the base and C4 binaries
+   (`/tmp/impl-we-a-scratch/e2`). The genesis journal entry (revision 1) embeds the world's composition, which
+   is every system's declaration; it is 150 bytes longer with C4, and those 150 bytes are exactly economy's
+   new `version: 2`, three `emits` and five `subscribes` entries. Every other journal entry (2 152) is
+   byte-identical (equal SHA3 over all of them). Every snapshot, once zstd-decompressed, is 150 bytes longer
+   at the same offset and identical outside the composition (revisions 1, 2048, 2112). *Conclusion:* the
+   design assumed a declaration change shows only in the manifest. It also shows in the composition, which
+   the genesis journal entry and every snapshot carry. Nothing that economy decides changed. *Consequence:*
+   Market Town's `journal-300s` baseline moves with C4 alone, before C5. C5 re-baselines Market Town anyway
+   (QWE-1 (a)). The contract lists "economy's version bump changes facts or journal (U-2 false)" as a stop
+   condition. Its literal text is met, so C4 is committed locally and nothing dependent proceeds until the
+   operator rules. *Proposed ruling (smallest revision):* correct U-2 to "changes the manifest and the
+   composition recorded in the genesis journal entry and in snapshots, and nothing else". Accept the
+   evidence above as the check. Fold Market Town's journal/snapshot move into C5's baseline reason line.
 5. **Acceptance** — AC-WE-a-7 for economy; E-2's expected difference only.
 6. **Edge cases** — two modifiers on one shop (product, in happening order); modifier for a kind that never occurs; a purchase in the instant of `happening-began`.
 7. **Evidence** — counts; E-2 diff.
 8. **Commit boundary** — `feat(economy): price modifiers that react to happenings (WE-a C4)`.
-   - [ ] Review: economy writes `Shop` only in reductions of its own facts; no economy code names "market"; shop encoding unchanged when unadjusted.
+   - [x] Review: economy writes `Shop` only in reductions of its own facts; no economy code names "market";
+     shop encoding unchanged when unadjusted. — `Shop` is inserted only in the reductions of `shop-opened`,
+     `prices-adjusted` and `prices-restored`. The happening reactions only state facts. "market" appears
+     only in doc examples and tests. The unadjusted encoding is pinned by a unit test. `system.rs` is 466
+     lines. **Bounded decision (D-10):** §6.2 left "a `shop` place with no shop" to C4's audit. The loader
+     seeds configuration before sections (`worldpack/src/load.rs` `initial_facts`), so no shop exists when
+     `economy-configured` is reduced, and genesis has no "after all facts" hook. That refusal therefore
+     cannot be made at load without a loader change (frozen out). A modifier for a place where no shop
+     opens never adjusts (documented in `configuration.rs`, like R-WE-a-4). The modifiers live in a
+     `price-book` Process started from `economy-configured`, calendar's and weather's precedent for
+     configuration kept in a Process. **12d:** not merged at C4 (2026-10-14); C4 does not touch
+     `systems/economy/tests/support`, so it rebases over 12d without conflict there.
 
 ### C5 — Market Town opts in (QWE-1 ruled (a); after 12d #171 merges)
 
@@ -1003,15 +1051,17 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            IMPLEMENTING (operator go 2026-10-13); session in worktree impl-we-a, branch mvp0/pr-we-a
+Status:            STOPPED for an operator ruling on F-WE-a-9 (the E-2 stop condition), after C4 committed
+                   locally (2026-10-14); C5 also waits for 12d. Branch not pushed; no PR yet.
 Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
                    /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
-12d (#171):        OPEN at C0 (2026-10-13)
-Commits:           C0 (ledger)
-Evidence:          (none)
-Deviations:        (none)
-Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); ARC-88 corrections being applied in DOC-24 (#175)
-Open questions:    none (QWE-1 … QWE-9 ruled, §16.1)
+12d (#171):        OPEN at C0 (2026-10-13) and at C4 (2026-10-14)
+Commits:           C0 e729586, C1 d8a2bff, C2 8360d88, C3 bce32bc, C4 (this commit)
+Evidence:          per commit in §11; default ci_parity records used 4 of 4 (base, C1, C3, C4)
+Deviations:        D-1 … D-10 (bounded, recorded in §11 C1 … C4)
+Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); F-WE-a-9 (§11 C4: a declaration change also moves the genesis
+                   journal entry and the snapshots' composition)
+Open questions:    F-WE-a-9 ruling (proposed in §11 C4); M10 recorded as equivalent for T10 (§11 C2)
 ```
 
 ---
