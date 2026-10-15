@@ -1604,7 +1604,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C6 | — | [x] | [x] | [x] |
 | C7 | — | [x] | [x] | [x] |
 | C8 | — | [x] | [x] | [x] |
-| C9 | — | [ ] | [ ] | [ ] |
+| C9 | — | [x] | [x] | [x] |
 | C10 | — | [ ] | [ ] | [ ] |
 | C11 | — | [ ] | [ ] | [ ] |
 | C12 | — | [ ] | [ ] | [ ] |
@@ -1758,6 +1758,25 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   min consults; 3 of 10 opens, 2 of 10 does not; cooldown at scale 1 and 60; half-open success closes and
   clears; half-open failure reopens for a full cooldown; `never`. Static: ruff, pyright 0 errors. The counting
   exclusions (budget, disconnected, dropped, frame) are the engine's, and M-P6-5 is tested in C9.
+- **C9 (2026-10-14).** `controller/consult.py`: `consult(input, deps) -> ConsultRecord` with one terminal outcome
+  (`acted`, `chose`, `fell_back` with cause, `budget`, `disconnected`, `dropped`), the three layers
+  (`LayerPolicies`), the per-(seat, trigger, layer) seeded jitter, the deadline and the call cap checked before
+  each call and before each sleep, every model call through `deps.ask`, `breaker_outcome` (the exclusions).
+  `tests/garbage.py`: `garbage_script(seed, garbage_permille, failure_permille, valid)` (a pure function of the
+  seed and the cassette key) and `as_gate`. `tests/test_controller_consult.py` (15 passed, including the
+  1 000-consult run of AP6-4, about 8 s): one test per outcome and cause, the re-plan feedback, the 30 % garbage
+  bound. With C7 and C8: 47 passed. Static: ruff, pyright 0 errors.
+  Mutations: M-P6-2 (cap ignored in the loop and in the retry path) turned `test_the_call_cap...` red; M-P6-3
+  (attempts bound ignored: every failure retried until the cap) turned `test_transport_failures...` and
+  `test_content_failures...` red; M-P6-5 (budget counted as a breaker failure) turned
+  `test_breaker_counts...` red. All reverted; no `MUTATION` marker remains.
+  Deviations: **D-P6b-9**: the design's breaker failure list omits the cap, but the cap follows repeated content
+  or semantic failure, so a `cap` fallback counts as a failure. **D-P6b-10**: `ConsultDeps` carries `current`
+  (the pre-submit "no newer line" check, so `dropped` is produced inside the engine), and `newest` returns a
+  `NewestState` (situation and observation) instead of a `Seen`, which keeps the engine free of the SDK's
+  session type. **D-P6b-11**: content re-asks accumulate in the feedback, matching the prompt layout of §5.2.4 (one
+  assistant and one user message per re-ask). **M-P6-2 note**: the loop check is redundant with the retry check
+  for every path that reaches it; the mutation was planted in both places.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
