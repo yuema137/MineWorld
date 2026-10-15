@@ -14,11 +14,18 @@ The document contains:
 
 **Effort:** `mvp0`, **release-blocking** (operator, 2026-10-15; §0.1). **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `STEP DESIGN (DRAFT) — awaiting primary-session and operator review`.
+**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered Q-S33-1…11
+directly in the primary session on 2026-10-15, every one as recommended (§14.1).
 
-- Nothing in this file authorizes implementation, a Meshy call, an OpenAI call, a purchase or a merge.
-- After approval, each PR is detailed to the commit in its own PR design and frozen in turn
-  (`CLAUDE.md` §3.1). Only a PR design carries `DESIGN FROZEN`.
+- Approval fixes this step's scope, invariants (§10) and step acceptance (§11). Progress, evidence,
+  findings and bounded corrections stay writable.
+- Each PR is detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). Only a PR
+  design carries `DESIGN FROZEN`.
+- **Start condition (Q-S33-10):** nothing starts until Milestone F's checklist has been handed to the
+  operator.
+- Nothing in this file authorizes implementation, a Meshy call, an OpenAI call, a purchase or a merge. S33
+  spends **0 Meshy credits**; S33-h's OpenAI cap is set at its freeze; nothing is bought (Q-S33-7).
+- Superseded lifecycle: `STEP DESIGN (DRAFT)`, PR #228 revision 1 (`e56634ba`).
 
 **Author:** S33 design session (Opus), 2026-10-15.
 
@@ -26,7 +33,12 @@ The document contains:
 - Branch: `docs/s33-lakeside-3d`.
 - Audit base: `origin/main @ 5d901e85` (S32 approved and merged, #226).
 
-**Ids.** Placeholders only, replaced by the primary session: `ARC-S33-a…d` and `DEP-S33-a…d` (§15).
+**Ids.** Assigned 2026-10-15 from the range the primary session reserved for this step (`ARC-143…ARC-148`,
+`DEP-77…DEP-80`), bottom up. They replace the placeholders ARC-S33-a…d and DEP-S33-a…d:
+`ARC-143…ARC-146` and `DEP-77…DEP-79` are used; `ARC-147` is reserved for the `posture` System step that
+Q-S33-6 makes a required follow-up (§14.2); `ARC-148` is unused and returned; `DEP-80` (a paid asset) is
+withdrawn because Q-S33-7(c) ruled that nothing is bought (§15). Each record is written into
+`docs/DECISIONS.md` by the PR named in §15.
 Local ids in this file:
 
 | Prefix | Meaning |
@@ -41,13 +53,15 @@ Local ids in this file:
 | `Q-S33-n` | operator questions |
 | `VP-L-n` | 3D viewpoints in Lakeside |
 
-**Parallel-safety.** This file is the only file this session writes. The edits it needs elsewhere are
-**proposed** in §16 and made by the PRs that own those files:
+**Parallel-safety.** Revision 1 wrote only this file. At approval the coordinator directed this session to
+apply the plan-file edits of §16 in the same PR (#228), as dated notes:
 
-- `overall.md`;
+- `overall.md` (S26–S33 entries, 16f's placement);
 - `step-26-cast.md`, `step-29-station-landmark.md`;
-- the RL-e0 design (`../mvp1/pr-rl-e0-far-field-mandatory.md`);
-- `docs/MODULE_SPEC.md`, `docs/VISUAL_SLICE.md`, `docs/ART_DIRECTION.md`, `docs/DECISIONS.md`.
+- the RL-e0 design (`../mvp1/pr-rl-e0-far-field-mandatory.md`).
+
+`docs/MODULE_SPEC.md`, `docs/VISUAL_SLICE.md`, `docs/ART_DIRECTION.md` and `docs/DECISIONS.md` are edited by
+the S33 PRs named in §§15–16.
 
 ---
 
@@ -184,7 +198,7 @@ Local ids in this file:
 
 ---
 
-## 3. Location and far field (`ARC-S33-a`)
+## 3. Location and far field (`ARC-143`)
 
 ### 3.1 The constraint
 
@@ -297,18 +311,18 @@ where the world's passages already put things; S33-b's bodies make it exact.
 - **Spawn** is the observer's disclosed position (Elin, the visitor, starts in `cottages`). There is no
   scene spawn constant for Lakeside.
 
-### 4.1 Terrain and water (SD-S33-2; `DEP-S33-a`, `DEP-S33-b`)
+### 4.1 Terrain and water (SD-S33-2; `DEP-77`, `DEP-78`)
 
 | Element | Specification | Source / status |
 | --- | --- | --- |
-| Near terrain | One heightfield over the near field (≈ 200 × 200 m, 1 m cells), built by our builder from a small **authored height grid** (graded lane, yard, square, the shore's fall to the water, wooded rises behind the village), shaded with the slice's `leafy_grass`/`forest ground`/`cobblestone_floor_08` by a splat of at most four layers | own work; Godot `ArrayMesh` + `HeightMapShape3D` (DEP-S33-a) |
+| Near terrain | One heightfield over the near field (≈ 200 × 200 m, 1 m cells), built by our builder from a small **authored height grid** (graded lane, yard, square, the shore's fall to the water, wooded rises behind the village), shaded with the slice's `leafy_grass`/`forest ground`/`cobblestone_floor_08` by a splat of at most four layers | own work; Godot `ArrayMesh` + `HeightMapShape3D` (DEP-77) |
 | Water line | Full pool at y = −2.0 m (the lane 2 m above the lake, §3.4) | approximate; S33-b's floors and S33-d's grading fix it |
-| Near lake surface | A world-anchored surface from the shore line to `reach_m`, continuing into RL-e0's far-field water sector at the same level and colours. Shader: `water.gdshader` (RL-e0's version) **extended** with a depth fade at the shore and round the pier posts (from the depth texture), and lily pads as a decal layer near the shore (06). No flow, no foam simulation | own shader, MIT (DEP-S33-b) |
+| Near lake surface | A world-anchored surface from the shore line to `reach_m`, continuing into RL-e0's far-field water sector at the same level and colours. Shader: `water.gdshader` (RL-e0's version) **extended** with a depth fade at the shore and round the pier posts (from the depth texture), and lily pads as a decal layer near the shore (06). No flow, no foam simulation | own shader, MIT (DEP-78) |
 | Reflections | (a) a reflection probe over the near lake and the sky radiance (static, cheap); (b) SSR as a measured option for the pier views. **Planar reflection** (a second camera) is rejected: it doubles the scene's draw cost (§8.1) | measured in S33-d |
 | Shore | Granite boulders (the spike's and Poly Haven's `boulder_01`, CC0), a packed-earth trail (06), reeds at the water line (procedural cards) | reuse |
 | Lane | `cobblestone_floor_08` setts (01), a low stone kerb, a timber railing where the lane is above the shore | reuse |
 
-### 4.2 Vegetation and the far-field ring (SD-S33-3; `DEP-S33-c`)
+### 4.2 Vegetation and the far-field ring (SD-S33-3; `DEP-79`)
 
 - **Species follow the setting** (L-1): Jeffrey pine and Coulter pine, incense cedar, black oak on the slopes
   (Cuyamaca Peak, Wikipedia). The square's **lime tree** stays, because the world says so; it reads as a
@@ -346,7 +360,7 @@ platform ≈ 40 × 4 m). S33-e builds it in 3D with S29-e's pieces:
 - the platform with a track and **a buffer stop** (a terminus), no train (S29 §5.2);
 - benches in the waiting room and on the platform (sit points, §4.5).
 
-### 4.5 Interiors, seats and sit points (`ARC-S33-c`; Q-S33-5, Q-S33-6)
+### 4.5 Interiors, seats and sit points (`ARC-145`; Q-S33-5, Q-S33-6)
 
 **Interiors.** An interior is drawn where the world has an indoor Place a person enters:
 
@@ -402,7 +416,7 @@ south), the halt (≈ 15–35 m east, platform ≈ 40 m along z). S33-a confirms
 position, and raises it only if the platform's far end lies outside. Air walls stand at the woods; the lake is
 closed by the bodies floors and a low rail where the lane is above the water.
 
-### 4.8 One server-authoritative path; semantic places apart from geometry (`ARC-S33-b`)
+### 4.8 One server-authoritative path; semantic places apart from geometry (`ARC-144`)
 
 - **Same path.** `./mineworld-slice --world=lakeside` hosts `mineworld server worlds/lakeside` exactly as
   `--world` hosts `social-cafe`; `--server=host:port --invite=…` joins any server and requires
@@ -423,16 +437,16 @@ closed by the bodies floors and a low rail where the lane is above the water.
   loaded from a Presentation Pack and walls built from disclosure; S33-c's interface is written to be that
   seam's first implementation (Q-S33-4).
 
-### 4.9 Reuse, both ways (`REUSE_POLICY.md`; `DEP-S33-a…c`)
+### 4.9 Reuse, both ways (`REUSE_POLICY.md`; `DEP-77…DEP-79`)
 
 | Need | Options compared | Decision | Why |
 | --- | --- | --- | --- |
-| Near terrain | **Terrain3D** (TokisanGames; MIT; C++ GDExtension; up to 32 textures, 10 LODs, sculpting) · **HTerrain** (Zylann `godot_heightmap_plugin`; GDScript; "Godot 4.6+"; maintained for bug fixes only) · **Godot built-ins** (`ArrayMesh` from a height grid, `HeightMapShape3D`) | **Built-ins, our builder** (`DEP-S33-a` records both rejections) | The near field is ≈ 0.04 km². Terrain3D's strengths (large worlds, painting tools) do not apply, and a GDExtension adds per-platform binaries to three export targets. HTerrain is in maintenance mode. Neither changes the far field, which RL-e0 draws as silhouettes. Revisit at S21's region scale. Facts to re-verify at S33-d: Terrain3D's platform list and Godot 4.7 support; HTerrain's licence file |
-| Water | **Our `water.gdshader`** (exists; RL-e0 extends it) · community Godot 4 water shaders (ocean FFT and stylised lake shaders on the Godot Shaders site and GitHub) | **Ours, extended** (`DEP-S33-b` records the comparison) | A still lake needs normals, a depth fade, Fresnel and colour, which ours has or gains in ≈ 40 lines. FFT oceans solve waves we do not have. S33-d records each candidate's licence and Godot 4.7 status, and adopts one only if a reviewed frame shows ours cannot read as 06's water |
-| Trees, ground cover | **The spike's procedural cards** (`props.gd`, `procgen.gd`) · Poly Haven CC0 tree models (`tree_small_02`, `jacaranda_tree`: ASSETS.md notes the look is right but the cost is high for thirty trees) · CC0 low-poly nature packs (a second style) · commercial tree packs and generators (paid) | **The spike's cards, reused** (`DEP-S33-c`); Poly Haven models only for one or two hero trees if a reviewed frame needs them | Zero texture bytes, one method, already the project's. Paid packs are an operator question with no recommendation to buy (Q-S33-7) |
+| Near terrain | **Terrain3D** (TokisanGames; MIT; C++ GDExtension; up to 32 textures, 10 LODs, sculpting) · **HTerrain** (Zylann `godot_heightmap_plugin`; GDScript; "Godot 4.6+"; maintained for bug fixes only) · **Godot built-ins** (`ArrayMesh` from a height grid, `HeightMapShape3D`) | **Built-ins, our builder** (`DEP-77` records both rejections) | The near field is ≈ 0.04 km². Terrain3D's strengths (large worlds, painting tools) do not apply, and a GDExtension adds per-platform binaries to three export targets. HTerrain is in maintenance mode. Neither changes the far field, which RL-e0 draws as silhouettes. Revisit at S21's region scale. Facts to re-verify at S33-d: Terrain3D's platform list and Godot 4.7 support; HTerrain's licence file |
+| Water | **Our `water.gdshader`** (exists; RL-e0 extends it) · community Godot 4 water shaders (ocean FFT and stylised lake shaders on the Godot Shaders site and GitHub) | **Ours, extended** (`DEP-78` records the comparison) | A still lake needs normals, a depth fade, Fresnel and colour, which ours has or gains in ≈ 40 lines. FFT oceans solve waves we do not have. S33-d records each candidate's licence and Godot 4.7 status, and adopts one only if a reviewed frame shows ours cannot read as 06's water |
+| Trees, ground cover | **The spike's procedural cards** (`props.gd`, `procgen.gd`) · Poly Haven CC0 tree models (`tree_small_02`, `jacaranda_tree`: ASSETS.md notes the look is right but the cost is high for thirty trees) · CC0 low-poly nature packs (a second style) · commercial tree packs and generators (paid) | **The spike's cards, reused** (`DEP-79`); Poly Haven models only for one or two hero trees if a reviewed frame needs them | Zero texture bytes, one method, already the project's. Paid packs are an operator question with no recommendation to buy (Q-S33-7) |
 | Buildings | **Our builder** (S29 §6.1: one method) | build ours | the town's one method |
 | Rocks, boats, jetty | the spike's and Poly Haven's CC0 | reuse | already shipped |
-| New CC0 textures | at most four Poly Haven 1k sets (bark, forest ground, granite, shingle) only if a reviewed frame shows the shipped sets cannot read as the material; each with a DEP-8 row; ≤ 3 MB each | `DEP-S33-c` holds them | the byte budget (§8.2) |
+| New CC0 textures | at most four Poly Haven 1k sets (bark, forest ground, granite, shingle) only if a reviewed frame shows the shipped sets cannot read as the material; each with a DEP-8 row; ≤ 3 MB each | `DEP-79` holds them | the byte budget (§8.2) |
 | Generated 3D (Meshy) | — | **not used** for environment | a second method (S29 §6.1) |
 
 ---
@@ -514,7 +528,7 @@ with the levers measured.
 **Measurement:** locally counts only (R-LOAD-1); the operator's three-run protocol on the S33-d, S33-f and
 S33-g heads.
 
-### 8.2 Release size and packaging (`ARC-S33-d`; Q-S33-3)
+### 8.2 Release size and packaging (`ARC-146`; Q-S33-3)
 
 **Increment.** No new characters (F-S33-5). New data: builder scripts, the height grid, sit points, at most
 four CC0 texture sets (§4.9). **Target ≤ 12 MB, gate ≤ 16 MB**, measured by R-a's export.
@@ -649,12 +663,12 @@ R-a, S32-h ───────────────────────
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial criteria | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S33-a** setting and far field | C1 spec: `ARC-S33-a`; a dated amendment note on RL-e0 App. B.2/B.3 and S29 §6.7. C2: 3DEP and NHD reads by RL-b C8's method, the profile table with sources. C3: `far_field/lakeside.yaml` in 3D and 2D, lake south, slots filled | RL-e0 merged; S29-a (halt place); S29-c (`filled`); Q-S33-1/2 ruled | `mineworld validate worlds/lakeside --packs …` passes; the far-field check runs on a stub Lakeside depiction (S33-c) or on RL-e0's harness | X-1, X-2 | **Haiku** (data by a fixed method); **Opus** reviews the profile against the map |
+| **S33-a** setting and far field | C1 spec: `ARC-143`; a dated amendment note on RL-e0 App. B.2/B.3 and S29 §6.7. C2: 3DEP and NHD reads by RL-b C8's method, the profile table with sources. C3: `far_field/lakeside.yaml` in 3D and 2D, lake south, slots filled | RL-e0 merged; S29-a (halt place); S29-c (`filled`); Q-S33-1/2 ruled | `mineworld validate worlds/lakeside --packs …` passes; the far-field check runs on a stub Lakeside depiction (S33-c) or on RL-e0's harness | X-1, X-2 | **Haiku** (data by a fixed method); **Opus** reviews the profile against the map |
 | **S33-b** Lakeside bodies | `bodies` in `systems:`; `body:` on all Lakeside places at real dimensions (the halt's from S29-a); NW-3 walks; one recorded re-baseline of Lakeside's digests and Milestone E expectations | **12d merged**; S29-a | `mineworld run worlds/lakeside 30d` seeded: no person in the lake or off the pier; save, restart and resume identical; `milestone_e` green with recorded new values | a stride off the pier deck is stopped by `bodies`; removing `bodies` from `systems:` restores the old digests | **Haiku** from a commit plan (12d's pattern) |
-| **S33-c** 3D world selection and the per-world seam (`ARC-S33-b`) | `--world=lakeside`, `--world-key` in 3D; the world registry; `SliceWorld` refactored behind the interface with **no visual change**; a Lakeside depiction stub (flat ground, boxes at the places' footprints) bound by tag; `SHOWN` on Lakeside; probe/perf viewpoints per world | **16c merged**; RL-e0 merged | social-cafe shots pixel-equal (I-S33-2); `--world=lakeside --link` walks the stub with server place changes | X-6; a world key with no depiction refuses `PRESENTATION_WORLD_MISSING` | **Opus** (architecture; 16f's seed) |
+| **S33-c** 3D world selection and the per-world seam (`ARC-144`) | `--world=lakeside`, `--world-key` in 3D; the world registry; `SliceWorld` refactored behind the interface with **no visual change**; a Lakeside depiction stub (flat ground, boxes at the places' footprints) bound by tag; `SHOWN` on Lakeside; probe/perf viewpoints per world | **16c merged**; RL-e0 merged | social-cafe shots pixel-equal (I-S33-2); `--world=lakeside --link` walks the stub with server place changes | X-6; a world key with no depiction refuses `PRESENTATION_WORLD_MISSING` | **Opus** (architecture; 16f's seed) |
 | **S33-d** terrain, water, exterior | the height grid and terrain mesh; the near lake and shader extension; shore, lane, trail, boulders; cottages, bakery and boathouse exteriors; the woods (`MultiMesh` cards); GI volume and probes; far-field views; `farfield` shots; perf views | S33-a, S33-b, S33-c; **12e merged** (disclosed walls) | AC-S33-1 on three OSes; counts within §8; first `VIS-3D-LAKESIDE` preview to the operator (ARC-24) | X-1 holds; X-8 | **Opus** (art judgement); mechanical parts to **Haiku** |
 | **S33-e** pier and halt | pier, rails, pavilion, moored boats; the halt building, window bay, platform, track and buffer stop with S29-e's shared pieces; `--slice-landmark` for Lakeside | S33-d; **S29-e merged** | LM-1/LM-2 pass; the route reaches the pier head and the platform; the board reads `no_service` | X-3, X-7, X-9 | **Opus** for the pier; **Haiku** for the halt (S29-e pattern) |
-| **S33-f** interiors and sit points (`ARC-S33-c`) | bakery and boathouse-shed interiors; sit points in all seats; the shared sit rule in `clients/shared/`; `--seat` probe; threshold light at the bakery door | S33-d; S26-c1/S32-c bodies for the probe | AC-S33-3 on the bodies available; interiors walkable, server place changes | X-4; two clients agree on a contested seat | **Haiku** from a commit plan; **Opus** frame review |
+| **S33-f** interiors and sit points (`ARC-145`) | bakery and boathouse-shed interiors; sit points in all seats; the shared sit rule in `clients/shared/`; `--seat` probe; threshold light at the bakery door | S33-d; S26-c1/S32-c bodies for the probe | AC-S33-3 on the bodies available; interiors walkable, server place changes | X-4; two clients agree on a contested seat | **Haiku** from a commit plan; **Opus** frame review |
 | **S33-g** people | Lakeside's cast bound in its own world; extras = café cast; ≤ 6 decor figures; the fishing pose tied to the disclosed Process; the `lakeside crowd` perf view | **S32-c merged**; S32-d's Lakeside batch accepted; S26-c2 | every Lakeside person is their own character in their outfit; an unknown person is an extra | S26 X-16 on Lakeside; no Lakeside person drawn as an extra | **Haiku** |
 | **S33-h** 2D parity | façade and prop bindings (new `sib_*` by the existing pipeline, operator contact sheet); place-name keys in every locale; the 2D far field's lake; `SHOWN` parity test | S29-f; S33-a; S33-c; Q-S33-7 (images) | `./mineworld-2d` on Lakeside: named places, bound façades, the halt and pavilion; parity test green | the 2D far-field clear-colour check; a missing binding falls back, never crashes | **Haiku** (pipeline run) |
 | **S33-i** agents | the §7 scenario in `clients/agent` over MCP with a 3D observer | S27-d; S29-g; S33-c | AC-S33-8 | an agent away from the halt sees no `roles: station` exit leading there | **Haiku** |
@@ -688,63 +702,92 @@ R-a, S32-h ───────────────────────
 
 ---
 
-## 14. Questions for the operator (each with a recommendation)
+## 14. Questions for the operator (each with a recommendation; all ruled 2026-10-15)
 
-| Id | Question | Recommendation | Cost |
-| --- | --- | --- | --- |
-| **Q-S33-1** | **Where is Lakeside?** Lake Cuyamaca (L-1), Lindo Lake in Lakeside, CA (L-2), Lake Hodges (L-3), or keep design content (L-4)? | **L-1, Lake Cuyamaca**, village on the north shore, the lake to the south. It has the fishing, boats, conifers, granite and a peak across the water that 06 shows, inside San Diego County, with real elevation (1 406 m) and cited terrain | none (public USGS data) |
-| **Q-S33-2** | **The halt's history.** No railway ever reached Lake Cuyamaca (the San Diego, Cuyamaca and Eastern stopped at Foster, 1889–1916). Record the halt as that line carried to the lake, a stated departure in the far field's `source`? | **Yes**, stated as a departure, like the depot's compressed distance (Q-S29-1). If a historical halt matters more than the setting, choose L-2 instead | none |
-| **Q-S33-3** | **How does a second 3D world ship?** One `3d.pck` (PK-1), one pack with a per-world export file (PK-2), or a separate Presentation Pack (PK-3)? | **PK-2**: `3d-lakeside.pck` beside `3d.pck`. It keeps each file inside a budget, makes "a world without the Lakeside 3D pack" a real test, and is the pattern later worlds follow. PK-3 comes with 16f | R-a's packaging script grows slightly |
-| **Q-S33-4** | **16f.** `overall.md` has 16f in MVP-0 (QPL-17); S29 and RL-e0 say MVP-1; no design exists. May S33-c build the per-world seam (world selection, depiction by tag) as 16f's seed now, and the primary resolve 16f's placement in `overall.md`? | **Yes.** S33-c delivers only what Lakeside needs and is written as 16f's first implementation | none |
-| **Q-S33-5** | **Interiors:** the bakery, the boathouse's boat shed and the halt; the cottages' doors closed (the world has no cottage interior)? | **Yes.** An interior exists wherever the world has an indoor place. Adding cottage interiors would need new places, a simulation change | none |
-| **Q-S33-6** | **Sitting.** A shared presentation rule (a still person at a sit point is drawn seated, both clients alike), or a new `posture` System Pack with a `sit` action that every client and agent sees? | **The shared rule now; a `posture` System as its own later step** for all worlds (café, station, Lakeside), not inside S33. The rule is written so that a disclosed posture overrides it | none now |
-| **Q-S33-7** | **Spending.** (a) Meshy: S33 needs **0 credits** (no new character, no generated building). (b) OpenAI images for Lakeside's 2D façades and props (≈ 5 bindings × 2–4 candidates × possibly one redo ≈ 20–40 images), at the per-image price read when S33-h is frozen? (c) Paid terrain, tree or water assets? | (a) **0.** (b) **Approve a cap at S33-h's freeze**, stated in dollars from the current price list, under the standing "call, never read" rule. (c) **None.** The free options are sufficient; nothing is bought | (a) 0; (b) price read at freeze (**verify**); (c) 0 |
-| **Q-S33-8** | **Re-baselines.** S33-b adds `bodies` to Lakeside, which moves its digests and Milestone E's expected values once | **Accept one recorded re-baseline in S33-b**, rebased last, after S29-a's | none |
-| **Q-S33-9** | **The boundary:** keep `reach_m` 80 with air walls behind the first rank of woods? | **Yes**, raised only if the halt's platform end lies outside | none |
-| **Q-S33-10** | **Placement:** S33 in MVP-0, release-blocking, starting after Milestone F's checklist, superseding Q-S26-1's MVP-1 placement and S29 §11.2? | **Yes**, as the re-ruling says | none |
-| **Q-S33-11** | **Location in world data:** should `worlds/lakeside` itself declare Lake Cuyamaca (calendar location, weather station), or only the presentation? | **Presentation only in S33.** A world-data location changes the simulation and belongs to the time and weather packs' own change | none |
+| Id | Question | Recommendation | Cost | Ruling |
+| --- | --- | --- | --- | --- |
+| **Q-S33-1** | **Where is Lakeside?** Lake Cuyamaca (L-1), Lindo Lake in Lakeside, CA (L-2), Lake Hodges (L-3), or keep design content (L-4)? | **L-1, Lake Cuyamaca**, village on the north shore, the lake to the south. It has the fishing, boats, conifers, granite and a peak across the water that 06 shows, inside San Diego County, with real elevation (1 406 m) and cited terrain | none (public USGS data) | **Ruled 2026-10-15** (operator answered directly in the primary session): L-1, Lake Cuyamaca; the village on the north shore, the lake to the south. |
+| **Q-S33-2** | **The halt's history.** No railway ever reached Lake Cuyamaca (the San Diego, Cuyamaca and Eastern stopped at Foster, 1889–1916). Record the halt as that line carried to the lake, a stated departure in the far field's `source`? | **Yes**, stated as a departure, like the depot's compressed distance (Q-S29-1). If a historical halt matters more than the setting, choose L-2 instead | none | **Ruled 2026-10-15** (operator answered directly in the primary session): the halt is a stated departure from history, recorded in the far field's `source`. |
+| **Q-S33-3** | **How does a second 3D world ship?** One `3d.pck` (PK-1), one pack with a per-world export file (PK-2), or a separate Presentation Pack (PK-3)? | **PK-2**: `3d-lakeside.pck` beside `3d.pck`. It keeps each file inside a budget, makes "a world without the Lakeside 3D pack" a real test, and is the pattern later worlds follow. PK-3 comes with 16f | R-a's packaging script grows slightly | **Ruled 2026-10-15** (operator answered directly in the primary session): PK-2: `3d-lakeside.pck` ships beside `3d.pck`. |
+| **Q-S33-4** | **16f.** `overall.md` has 16f in MVP-0 (QPL-17); S29 and RL-e0 say MVP-1; no design exists. May S33-c build the per-world seam (world selection, depiction by tag) as 16f's seed now, and the primary resolve 16f's placement in `overall.md`? | **Yes.** S33-c delivers only what Lakeside needs and is written as 16f's first implementation | none | **Ruled 2026-10-15** (operator answered directly in the primary session): yes: S33-c builds the per-world seam as 16f's seed; the primary session fixes 16f's placement in `overall.md` (MVP-0). |
+| **Q-S33-5** | **Interiors:** the bakery, the boathouse's boat shed and the halt; the cottages' doors closed (the world has no cottage interior)? | **Yes.** An interior exists wherever the world has an indoor place. Adding cottage interiors would need new places, a simulation change | none | **Ruled 2026-10-15** (operator answered directly in the primary session): interiors only where the world has an indoor place (bakery, boathouse shed, halt); cottage doors closed. |
+| **Q-S33-6** | **Sitting.** A shared presentation rule (a still person at a sit point is drawn seated, both clients alike), or a new `posture` System Pack with a `sit` action that every client and agent sees? | **The shared rule now; a `posture` System as its own later step** for all worlds (café, station, Lakeside), not inside S33. The rule is written so that a disclosed posture overrides it | none now | **Ruled 2026-10-15** (operator answered directly in the primary session): the shared sit rule now. A `posture` System Pack is its own later step, and it is a **required follow-up before the public release**, not optional (operator principle "我们要发布就得把这些功能全部做好"; §14.2). |
+| **Q-S33-7** | **Spending.** (a) Meshy: S33 needs **0 credits** (no new character, no generated building). (b) OpenAI images for Lakeside's 2D façades and props (≈ 5 bindings × 2–4 candidates × possibly one redo ≈ 20–40 images), at the per-image price read when S33-h is frozen? (c) Paid terrain, tree or water assets? | (a) **0.** (b) **Approve a cap at S33-h's freeze**, stated in dollars from the current price list, under the standing "call, never read" rule. (c) **None.** The free options are sufficient; nothing is bought | (a) 0; (b) price read at freeze (**verify**); (c) 0 | **Ruled 2026-10-15** (operator answered directly in the primary session): (a) 0 Meshy credits; (b) the OpenAI cap for 2D façades is set at S33-h's freeze; (c) nothing is bought. |
+| **Q-S33-8** | **Re-baselines.** S33-b adds `bodies` to Lakeside, which moves its digests and Milestone E's expected values once | **Accept one recorded re-baseline in S33-b**, rebased last, after S29-a's | none | **Ruled 2026-10-15** (operator answered directly in the primary session): one recorded re-baseline in S33-b. |
+| **Q-S33-9** | **The boundary:** keep `reach_m` 80 with air walls behind the first rank of woods? | **Yes**, raised only if the halt's platform end lies outside | none | **Ruled 2026-10-15** (operator answered directly in the primary session): `reach_m` 80 with air walls. |
+| **Q-S33-10** | **Placement:** S33 in MVP-0, release-blocking, starting after Milestone F's checklist, superseding Q-S26-1's MVP-1 placement and S29 §11.2? | **Yes**, as the re-ruling says | none | **Ruled 2026-10-15** (operator answered directly in the primary session): MVP-0, release-blocking, after Milestone F's checklist. |
+| **Q-S33-11** | **Location in world data:** should `worlds/lakeside` itself declare Lake Cuyamaca (calendar location, weather station), or only the presentation? | **Presentation only in S33.** A world-data location changes the simulation and belongs to the time and weather packs' own change | none | **Ruled 2026-10-15** (operator answered directly in the primary session): the location is used in presentation only. |
+
+### 14.1 Rulings, 2026-10-15
+
+The operator answered Q-S33-1…11 directly in the primary session on 2026-10-15, every question as
+recommended. The coordinator relayed the rulings to this session. The step is approved as a step plan; PR
+designs follow, each frozen in turn.
+
+### 14.2 Required follow-up before release: the `posture` System Pack (Q-S33-6)
+
+The ruling keeps S33's sitting a shared presentation rule (§4.5, `ARC-145`) and makes a **`posture` System
+Pack its own step**. Under the operator's principle "我们要发布就得把这些功能全部做好" that step is
+**release-blocking**: it is a required follow-up before the public release, not an optional one.
+
+- **Owner:** the primary session adds the step to `overall.md` (§16.1) and assigns its designer. Its record is
+  `ARC-147` (reserved here).
+- **What it must deliver** (the requirement, not the design): a `posture` System that owns whether a person is
+  standing or seated at a seat, with a `sit`/`stand` action that a human, an NPC controller and an MCP agent
+  all use; seat exclusivity decided by the server; posture disclosed to every observer, so both clients and the
+  agent view show it from the world rather than from a client rule; all worlds (the café, the station halls,
+  Lakeside).
+- **What S33 guarantees for it:** the shared sit rule yields to a disclosed posture (§4.5); sit points are pack
+  data, which the System's seats can be bound to by tag; no S33 code needs to change when it lands except the
+  rule's override branch.
 
 ---
 
-## 15. Records (placeholders; the primary assigns ids)
+## 15. Records (ids assigned 2026-10-15; written into `docs/DECISIONS.md` by the PR named)
 
-| Placeholder | Content |
+| Id | Content |
 | --- | --- |
-| `ARC-S33-a` | Lakeside's real setting (Q-S33-1/2) and far field; the lake south; the halt's stated departure from history |
-| `ARC-S33-b` | 3D world selection and the per-world depiction seam, bound by tag; 16f's seed |
-| `ARC-S33-c` | Sit points as presentation data and the shared sit rule; a disclosed posture overrides it |
-| `ARC-S33-d` | How a second 3D world ships (Q-S33-3) |
-| `DEP-S33-a` | Terrain: Godot built-ins over Terrain3D and HTerrain (rejections recorded) |
-| `DEP-S33-b` | Water: our shader over community water shaders (comparison recorded) |
-| `DEP-S33-c` | Vegetation: the spike's procedural cards; reserved for at most four CC0 texture sets |
-| `DEP-S33-d` | Reserved for a paid asset only if the operator rules one (Q-S33-7c); withdrawn otherwise |
+| `ARC-143` | Lakeside's real setting, Lake Cuyamaca (Q-S33-1/2), and its far field; the lake south; the halt's stated departure from history. Written by S33-a C1 |
+| `ARC-144` | 3D world selection and the per-world depiction seam, bound by tag; 16f's seed (Q-S33-4). Written by S33-c |
+| `ARC-145` | Sit points as presentation data and the shared sit rule; a disclosed posture overrides it (Q-S33-6). Written by S33-f |
+| `ARC-146` | How a second 3D world ships: one Presentation Pack, per-world export files, `3d-lakeside.pck` (Q-S33-3, PK-2). Written by S33-c (the refusal) and S33-j (the export) |
+| `ARC-147` | **Reserved** for the `posture` System Pack step, the required follow-up before release (§14.2). Written by that step |
+| `ARC-148` | Unused; returned to the primary session |
+| `DEP-77` | Terrain: Godot built-ins over Terrain3D and HTerrain (rejections recorded). Written by S33-d |
+| `DEP-78` | Water: our shader over community water shaders (comparison recorded). Written by S33-d |
+| `DEP-79` | Vegetation: the spike's procedural cards; at most four CC0 texture sets if a reviewed frame needs them. Written by S33-d |
+| `DEP-80` | **Withdrawn**: it was reserved for a paid asset, and Q-S33-7(c) ruled that nothing is bought |
 
 ---
 
-## 16. Proposed edits elsewhere (made by the PRs named)
+## 16. Edits elsewhere
 
-### 16.1 `overall.md` (primary session)
+§§16.1–16.4's plan-file edits were **applied in this PR** (#228, 2026-10-15) on the coordinator's instruction;
+the `MODULE_SPEC.md`, `VISUAL_SLICE.md` and `ART_DIRECTION.md` edits stay with the PRs named.
+
+### 16.1 `overall.md` (applied)
 
 - Add S33 after S29 and S32, MVP-0, release-blocking, with this file linked.
 - Record that Q-S26-1's Lakeside placement and S29 §11.2's "Lakeside in 3D with 16f (MVP-1)" are superseded
   by the 2026-10-15 re-ruling.
-- Resolve 16f's placement (F-S33-1).
+- 16f placed in MVP-0 (QPL-17 stands), with S33-c as its seed (Q-S33-4; F-S33-1 resolved).
+- The `posture` System step listed as a required follow-up before release (§14.2).
 
-### 16.2 `step-29-station-landmark.md` (non-preclusion items for S29-a, S29-c, S29-e)
+### 16.2 `step-29-station-landmark.md` (applied as a dated note; non-preclusion items for S29-a, S29-c, S29-e)
 
 - S29-a: place Lakeside's halt at the lane's **east end**, with a north–south platform ending at a buffer stop
   near the shore (§4.0), unless S29-a's audit shows a reason against.
-- S29-c: Lakeside's 3D slots carry S33-a's positions once ruled; until then its design content stands.
+- S29-c: Lakeside's 3D slots carry S33-a's positions (Lake Cuyamaca, ruled); S29-c's design content stands only until S33-a lands.
 - S29-e: the halt pieces (window bay, board, bench row) are written so that a second world's building can use
   them at village scale.
 - §11.2: "Lakeside in 3D … come with 16f (MVP-1)" → "come with S33 (MVP-0)".
 
-### 16.3 `step-26-cast.md`
+### 16.3 `step-26-cast.md` (applied)
 
 - A dated note in the header: Q-S26-1's "Lakeside's 3D cast is MVP-1" is superseded; Lakeside's cast is drawn
   in its own world in MVP-0 (S33-g); E-2 runs both ways.
 
-### 16.4 RL-e0 design and `MODULE_SPEC.md` §6.1.1
+### 16.4 RL-e0 design (applied) and `MODULE_SPEC.md` §6 (S33-c)
 
 - A dated note on App. B.2/B.3: replaced by S33-a; the lake moves south (F-S33-2).
 - With PK-2 (Q-S33-3): `MODULE_SPEC.md` §6 gains a sentence on per-world export files of one Presentation Pack
