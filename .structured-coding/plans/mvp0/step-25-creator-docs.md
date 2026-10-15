@@ -957,41 +957,50 @@ Commit plan:
   every "You should see" — the human check that the CI check cannot make.
 - AC-25d-5 No page states a field rule without a reference link (review checklist over every page).
 
-Commit plan (one chapter per commit keeps each reviewable; Haiku-sized):
+Commit plan (one chapter per commit keeps each reviewable; Haiku-sized). **Progress (PR 25d, implementing session
+2026-10-15, Opus-class by the primary's dispatch):** every item below is marked against the evidence ledger, §18.
+The chapters were committed together rather than one per commit (deviation D-25d-5, §18.2).
 
-- **C0 — Index, page template, example skeleton.** [ ] `docs/guide/README.md` (+ zh-CN) with the chapter table and
-  "coming when <feature> lands" rows; the `CLAUDE.md` §2.1 class amendment applied if the operator ruled G1
-  (QS25-1); index links from `README.md` and `docs/README.md`. [ ] doc checks; guide test (index only). [ ] Review:
-  the README is short (one screen) and has one main line.
-- **C1 — Chapter 01.** [ ] Page + mirror. Getting the binary: bundle (link to the release page) or `cargo build
-  --release -p mineworld-cli` (non-executed text; the runner uses the test binary); `mineworld --version` with
-  `[..]` for the version; `run worlds/market-town`: since the sandbox has no `worlds/`, the executed step uses
-  `create` first — or the page directive `packs`/a copy of the bundled world; decide in C1 and record.
-  [ ] Guide test. [ ] Review: works for someone who has never used a terminal (each command explained once).
-- **C2 — Chapter 02.** [ ] `create corner-shop`, `validate`, `run --days 1`; one step per file explaining
-  `world.yaml`, `places/`, `people/` in plain words. [ ] Guide test. [ ] Review: terms match CORE_CONCEPTS.
-- **C3 — Chapter 03.** [ ] Rename `home`→ two places, passage, positions in millimetres with the realistic
-  defaults and their sources. [ ] Guide test; first `equals` checkpoint of the partial example if useful.
-  [ ] Review.
-- **C4 — Chapter 04.** [ ] Three people, `name:`, `routine:`, seats, `relationships`; a saved 1-day run and
-  `biography --person ana`. [ ] Guide test. [ ] Review.
-- **C5 — Chapter 05.** [ ] Items, organization, shop, wallets, job, consumption; `run --days 3`; `equals
-  examples/corner-shop`. [ ] Guide test; AC-25d-2. [ ] Review: amounts sized so the 3-day run shows a purchase
-  (state the sizing reason in one sentence).
-- **C6 — Chapter 06.** [ ] Server and clients; executed: `mineworld server corner-shop --listen 127.0.0.1:0` is not
-  possible in a blocking block — mark `operator-only`, plus an executed `validate` of the seat list.
-  [ ] Guide test lists the operator-only steps. [ ] Review: per-OS client launch text matches the bundle's
-  `PLAY.txt` (step-23).
-- **C7 — Chapter 07.** [ ] Classes, a `conversation` rule, a region, a parameter; `interactions --place shop`;
-  run before/after. [ ] Guide test. [ ] Review: only actions and parameters the reference lists.
-- **C8 — Chapter 08.** [ ] `calendar`, `weather`, their `configure/` files and attached data. [ ] Guide test.
-  [ ] Review: climate data's licence/notice shown as Market Town does.
-- **C9 — Chapters 12 and 13; template comments.** [ ] `packs list|resolve`, requiring `modern-goods`; chapter 13
-  seeded with every refusal the earlier chapters' "If you see" lines mention; `tools/cli/templates/new-world/*`
-  comments point at `docs/guide/02-your-first-world.md` and the reference. [ ] Guide test; the `create` tests still
-  green (template text is asserted by `tools/cli/tests`? audit and update). [ ] Review.
-- **C10 — zh-CN pass and close.** [ ] All mirrors reviewed together for consistent terms (a short term table at the
-  top of `README.zh-CN.md`, English term in brackets). [ ] Mirror parity; AC-25d-3 sign-off. [ ] Review.
+- **C0 — Index, page template, example skeleton.** [x] `docs/guide/README.md` + `README.zh-CN.md` with the
+  chapter table and "coming" rows for 09–11; the `CLAUDE.md` §2.1 class was already applied by the primary
+  (QS25-1); index links from `README.md`, `README.zh-CN.md`, `docs/README.md`, `tools/cli/README.md`. [x] doc
+  checks; guide test (§18.1 E-1, E-4). [x] Review: the index is one screen with one main line (E-9).
+- **C1 — Chapter 01.** [x] Page + mirror. No release bundle exists yet, so the binary is built from source
+  (non-executed text, per-OS `PATH` lines); `mineworld --version` with `[..]`; decided: the scratch folder has no
+  `worlds/`, so chapter 01 runs a `create`d world `hello` for two days instead of `market-town` (D-25d-1).
+  [x] Guide test (E-1). [x] Review: each command and each run flag explained once (E-9).
+- **C2 — Chapter 02.** [x] Corner Shop is written by hand from an empty folder, one file per step, `validate`
+  after each (the refusals name the next file), then `run --days 1` (D-25d-2: not `create corner-shop`).
+  [x] Guide test (E-1). [x] Review: terms match CORE_CONCEPTS, each linked at first use (E-9).
+- **C3 — Chapter 03.** [x] `shop` place, a passage with both ends in millimetres, Ana moved into the shop.
+  Realistic-default note: no field takes a person radius or a doorway width (`AuthoredPassage` has `to`, `here`,
+  `there` only), so the guide states only positions (D-25d-3). [x] Guide test (E-1); no partial `equals`
+  checkpoint (not useful: the next chapter rewrites the same files). [x] Review (E-9).
+- **C4 — Chapter 04.** [x] Cai; `name:`, `routine:`; `relationships`, `naming`, `schedule`; a saved 1-day run
+  and `biography --person ana` (her acquaintances at 01:30 and 02:00, each listed once per direction, which
+  `systems/relationships/src/event.rs` `BecameAcquainted` confirms). [x] Guide test (E-1). [x] Review (E-9).
+- **C5 — Chapter 05.** [x] Items, organization, shop, wallets, Ana's job, consumption; `run --days 3`; `equals
+  corner-shop docs/guide/examples/corner-shop` on step 5.7. [x] Guide test; AC-25d-2 (E-1, E-2). [x] Review: the
+  sizing sentence is in step 5.8 (E-9).
+- **C6 — Chapter 06.** [x] Executed `validate` of the seat list; `mineworld server corner-shop --town` and the
+  2D client are `operator-only`/shown text. [x] Guide test lists the operator-only block (E-1). [x] Review:
+  `PLAY.txt` does not exist yet (step-23 R-d not merged), so the client text follows `clients/2d/README.md`
+  and was checked against a real join (E-6); the 3D client is marked "coming" (D-25d-4).
+- **C7 — Chapter 07.** [x] Class `shopkeeper`, a `gap` parameter, a `shop` region forbidding `talk` by a
+  shopkeeper; `interactions --place shop`; run before/after with exact numbers. [x] Guide test (E-1).
+  [x] Review: only actions, roles and parameters `interaction-list.md` lists (E-9).
+- **C8 — Chapter 08.** [x] `calendar` (San Diego) and `weather` (`source: rules`, Market Town's fitted San
+  Diego months); `run --save`, `perceived --json`. [x] Guide test (E-1). [x] Review: no data file is attached
+  (`source: rules`), so the NOAA credit is carried by the file's header comment and the page; Market Town's
+  `data/weather/NOTICE` covers the record itself (E-9).
+- **C9 — Chapters 12 and 13; template comments.** [x] `packs list|resolve`; a reader-made Entity Pack
+  `corner-goods` required with `--packs` (D-25d-6: `modern-goods` is described, not executed); chapter 13 is an
+  executed break-and-fix page covering every "If you see" message plus a table of the rest; template comments
+  point at the guide and the reference. [x] Guide test; `create` and `packs` tests green (E-1, E-5).
+  [x] Review (E-9).
+- **C10 — zh-CN pass and close.** [x] All mirrors written together with one term table in `README.zh-CN.md`
+  (English term in brackets). [x] Mirror parity (E-1); AC-25d-3's Chinese sign-off is the primary's (pending,
+  §18.3). [x] Review (E-9).
 
 #### PR 25e — Comparison examples and the feature chapters
 
@@ -1224,3 +1233,80 @@ from actual output. Mutations are applied one at a time and reverted; the failin
 | C1 | LLM review: no secret or key value is an example; `key_env` examples are variable names | PASS | the examples use `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` names only; the `key_env` text states the key is never written in the file |
 | C2 | Memory policies (`memory-policies.md`, after FG-b) | BLOCKED, not implemented | FG-b is design-only on `origin/main` (`e8abdda` freezes the design; no policy code exists under `cognition/lm-controller/src/mineworld_cognition/memory/`). The design makes C2 wait for FG-b's merge, so this PR does not contain it; `memory-policies.md` is absent from `docs/reference/` |
 | C1 | Open issue for the primary (not resolved here): `mineworld reference --check docs/reference` (25a) treats extra files as drift. Once 25b lands, 25a's check on the same directory must know `cognition-toml.md` and `schema/cognition-toml.schema.json` (or the Python pages move to a subdirectory). Recorded, not changed: it crosses the 25a/25b file layout | open | — |
+
+---
+
+## 18. Evidence ledger — PR 25d (`mvp0/pr-25d`)
+
+Recorded by the implementing session (Opus-class, dispatched by the primary, 2026-10-15). Worktree
+`/Users/yuema137/mineworld-worktrees/impl-25d`, branch `mvp0/pr-25d` from `origin/mvp0/pr-s25a @ 589998e2` (25a's
+head; 25c merged on `main` through it). Rust code on `origin/main` beyond 25a's base was audited: no change under
+`tools/cli`, `systems`, `worldpack`, `kernel`, `authoring`, `sdk/rust` or `server` (`git diff --stat HEAD...origin/main`),
+so every quoted output is the output of today's `main` plus 25a. Results are `PASS`, `FAIL` or `INCONCLUSIVE` from
+actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the gate.
+
+### 18.1 Evidence
+
+| Id | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| E-1 | The whole guide against the real binary (`cargo test -p mineworld-cli --test guide`) | PASS (macOS, local) | `guide: 105 block(s) passed, 1 pending, 29 check(s)`; the one pending block is step 6.2 (`operator-only`); every page's mirror and links `PASS`; `test result: ok. 36 passed` (34 of 25c + 2 new); wall 1.3–1.6 s, inside §8.5's 60 s |
+| E-2 | AC-25d-2: `equals corner-shop docs/guide/examples/corner-shop` after step 5.7 | PASS | part of E-1; the example was extracted from the chapters' `file=` blocks in page order, and the runner compares it byte for byte |
+| E-3 | Mutation: the index exclusion removed (`INDEX` second entry renamed) | PASS (bites) | `the_index_and_its_mirror_are_neither_run_nor_held_to_page_parity ... FAILED`, `README.zh-CN.md has no English page README.md`; restored |
+| E-3b | Mirror links are checked (new) | PASS (bites) | before the zh-CN chapter 13 existed, `03-two-rooms.zh-CN.md: 13-when-something-is-refused.zh-CN.md#step-134--人在一个不存在的地方: … has no heading with that anchor`; `a_broken_link_in_a_mirror_turns_the_run_red_and_names_the_mirror` passes |
+| E-4 | Doc checks | PASS | `check_doc_headings.py`: `238 numbered sections across 63 documents, none duplicated`; `check_decision_ids.py`: `127 decision ids, all distinct` |
+| E-5 | Static checks and the touched crate's targeted tests | PASS | `cargo fmt --all -- --check` clean; `cargo clippy -p mineworld-cli --all-targets -- -D warnings` clean; `cargo test -p mineworld-cli --test create` 2 passed (template comments changed); `--test packs` 6 passed |
+| E-6 | Chapter 06's operator-only steps, checked once by this session | PASS (macOS, headless) | `mineworld server corner-shop` (and `--town`) printed the lines step 6.2 quotes; `./mineworld-2d --server 127.0.0.1:7878 --invite … --seat ben --drive` against the example world: `welcomed into a world`, Ben and Cai drawn and labelled, one doorway, `drive complete: PASS`. Not a substitute for AC-25d-4 |
+| E-7 | `scripts/ci_changes.py --self-test` with the guide classified as executed | PASS | `[self-test] passed: 24 case(s)`, incl. `docs/guide/02-your-first-world.md: code=true` and `docs/guide/examples/corner-shop/world.yaml: code=true` |
+| E-8 | AC-25d-1 on the three OSes: CI on the exact PR head | pending | filled from the PR's CI run (`test`, `test-macos`, `test-windows`) |
+| E-9 | Review read-through (English plain-language rule 7, rule 8, AC-25d-5) | PASS | no decision id, plan name or PR in any page body (`grep` over `docs/guide/*.md`); no prose sentence above 27 words (a paragraph-mode `awk` count over every English page); every field, bound or default the guide mentions links its reference entry (`world-pack.md`, `sections.md`, `configure.md`, `interaction-list.md`, `pack-manifest.md`, `cli.md`); every defined term is explained at first use on its page and linked to `CORE_CONCEPTS.md` |
+
+### 18.2 Deviations (bounded, recorded)
+
+- **D-25d-1 Chapter 01 runs a `create`d world, not `market-town`.** Reason: the runner's scratch folder has no
+  `worlds/`, and no release bundle exists yet (step-23 R-d). Impact: chapter 01 shows `create hello` and a two-day
+  run of it; the sample towns are not mentioned as a command. Validation: E-1.
+- **D-25d-2 Chapter 02 writes Corner Shop by hand instead of `mineworld create corner-shop`.** Previous assumption:
+  §6.3 row 02 starts from `create`. Audit evidence: the template's people are `first` and `second`; the loader
+  refuses a person file `world.yaml` does not list (`… describes a person that world.yaml does not list; add
+  'zoe' to population, or remove the file`), and the runner has no delete, so the template's files could never
+  be replaced by `ana` and `ben` in an executed page. Corrected: chapter 01 uses `create`; chapter 02 builds from
+  an empty folder, one file per step, each `validate` naming the next missing file. Validation: E-1, E-2.
+- **D-25d-3 No person radius or doorway width in chapter 03.** §6.1 asks for a 250 mm radius and a 900 mm doorway;
+  no authored field takes either (`docs/reference/world-pack.md`: a passage has `to`, `here`, `there`). Stating
+  them would document behaviour that does not exist. The page states positions in millimetres only.
+- **D-25d-4 Chapter 06: `--town`, and the 3D client marked "coming".** Without `--town` the server drives no seat
+  (`0 seat(s) driven in-server`), so Ana and Cai would stand still. The 3D slice (`mineworld-slice`) draws the
+  sample town's café only, so playing your own world in 3D is marked as coming. `PLAY.txt` does not exist yet.
+- **D-25d-5 Chapters committed together.** Chapters link forward (03 → 13, 05 → 06, 08 → 12), and the runner
+  checks every link, so one chapter per commit would leave red intermediate heads. The guide is one commit; the
+  runner corrections, the CI classification, and the links/template are separate commits.
+- **D-25d-6 Chapter 12 makes its own Entity Pack.** `modern-goods` lives at `entities/modern-goods` in the
+  repository and is not reachable from the runner's scratch folder (no directive copies from outside it). The
+  chapter builds `packs/corner-goods` (one item, `jam`), requires it, and resolves it with `--packs packs`, all
+  executed; `modern-goods` is described in prose, with no command.
+- **D-25d-7 Chapter 08 shows the weather through `perceived --json`.** §6.3 says "day lines show weather"; `run`
+  prints no weather on its day lines. The executed evidence is the run summary's `day-began`, `daylight-changed`,
+  `weather-*` counts and one `day-began` and one `weather-changed` line of `perceived --json`.
+- **Runner corrections (25c code, bounded, within INV-S25-3):** (a) `README.zh-CN.md`, the index's mirror, was
+  treated as a mirror with no English page and failed the run; it is now excluded like `README.md`
+  (`run_guide.rs` `INDEX`; `GUIDE_FORMAT.md` §1, §1.1 rule 1), test
+  `the_index_and_its_mirror_are_neither_run_nor_held_to_page_parity`. (b) `GUIDE_FORMAT.md` §7 rule 4 requires
+  a mirror's links to resolve, but only the English page's links were checked; the mirror's are now checked and
+  reported under `links of <page>` with the mirror's name, test
+  `a_broken_link_in_a_mirror_turns_the_run_red_and_names_the_mirror`. (c) `scripts/ci_changes.py` classified
+  `docs/guide/**` as documentation, so a guide-only PR would have skipped the build and the guide test; it is now
+  classified like `docs/reference/**` (two self-test cases).
+
+### 18.3 Open items and findings for the primary
+
+- **F-25d-1 Stale feature flags.** `docs/guide/features.toml` says `decisions`, `motivated`, `relationship-decay` and
+  `lm-controller` are `false`, but this build has `mineworld decisions`, the bundled `mineworld-motivated`
+  controller pack, `familiarity_decay`/`regard_decay` in `configure/relationships.yaml`, and P6b is merged on
+  `main`. Those flags have no presence probe, so the runner reports them `INCONCLUSIVE`. Flipping them is 25e's
+  (AC-25e-3); not changed here. Chapters 09–11 are listed in the index as coming.
+- **F-25d-2 Spec headings are link targets.** Guide pages link `CORE_CONCEPTS.md` and `MODULE_SPEC.md` headings.
+  A docs-only PR that renames one does not run the build (ARC-48 note), so the broken link turns red only at the
+  next code or guide PR. Not changed here (it would widen the code set to all of `docs/`); recorded.
+- **AC-25d-3** Chinese plain-language sign-off of the mirrors: the primary's (or a Chinese-reading reviewer's).
+- **AC-25d-4** The operator follows chapters 01–05 by hand at the milestone handoff (QS25-10).
+- **E-8** CI on the exact head.
