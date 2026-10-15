@@ -14,6 +14,9 @@ GET /ws       the live connection
 
 Every client joins with the server's invite and a nickname — on loopback too. Give one with
 `--invite TOKEN` or `MINEWORLD_INVITE`, or let the server make one and print it, as above.
+`--grant visitor` prints a narrower credential that admits only the seats it names
+(`--grant alice:take-over` may also take a seat over); `--request-budget R/B` bounds each seat's
+requests (default 10/20). See [`PROTOCOL.md`](PROTOCOL.md) §§4.1, 8.
 
 The binary is [`tools/cli`](../tools/cli), not this crate, and deliberately: hosting a world means
 loading a World Pack, which means installing System Packs, and a transport that depended on those

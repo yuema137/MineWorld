@@ -132,16 +132,20 @@ A `join` is answered by these checks, in this order. The first that fails decide
 ```text
 1  protocol   not 2            refused protocol_mismatch, closing {protocol_mismatch}, closed
 2  invite     wrong or absent  after a fixed delay of 500 ms from the frame's arrival:
-                               refused unauthorized, closing {unauthorized}, closed
+              (the invite or   refused unauthorized, closing {unauthorized}, closed
+              a seat grant)
 3  nickname   not a nickname   refused invalid_nickname; the connection stays, and may join again
 4  seat       the roster's     refused unknown_seat / seat_not_in_world, as in revision 1; the
                                connection stays
+4a grant      a seat the       from S27-a, only when check 2 admitted a seat grant: refused
+              credential       not_granted; nothing is granted, the connection stays, and may
+              names            join again (with a seat the grant names)
 5  perceived  a cursor this    from S11-C, only when the join carries perceived (§5.8): refused
               world can serve  cursor_unavailable; nothing is granted, the connection stays, and
                                may join again. Before control, so that a refused cursor never
                                displaces or resumes anybody
-6  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
-                               may join again
+6  control    §4.2's rules     refused invalid_resume / seat_occupied / not_granted; the
+                               connection stays, and may join again
    all pass                    welcome, then (§5.8) the perceived backfill, then the observation
                                stream
 ```
@@ -164,6 +168,31 @@ invite you gave>` instead. The invite is compared in constant time, appears in n
 observation, fact, `/status` answer or log line other than that one startup line, and a connection gets
 one guess: a wrong invite ends it. A generated invite is 32 lowercase hexadecimal characters; one an
 operator gives is 8 to 128 printable ASCII characters without whitespace.
+
+**Seat grants** (from S27-a, `docs/DECISIONS.md` `ARC-97`). A host may also issue narrower
+credentials: `mineworld server WORLD --grant visitor --grant wanderer+carol --grant alice:take-over`.
+Each `--grant SEATS[:take-over]` names one seat, or several joined by `+`, and optionally the right to
+take over a seat another player holds. For each, the server generates a token from the operating
+system's random source (32 lowercase hexadecimal characters) and prints it once, when it starts, as a
+ready join line:
+
+```text
+[mineworld] grant <seats joined by +>[ take-over] <token> — join with: <address> seat=<first seat> invite=<token>
+```
+
+A launcher may read the token after the seats (and `take-over`, when present) on the line that begins
+`[mineworld] grant`. A grant token is never given by an operator — not on the command line, where
+process lists show it, and not in the environment — never printed again, never persisted, and appears
+in no save, observation, fact, `/status` answer, admin answer or other log line; a restart makes new
+ones. A `join` presents a grant token in the existing `invite` field: there is no new field and no new
+frame. Check 2 admits the invite or any grant; a wrong token is one answer, `unauthorized`, whichever
+kinds of credential exist. Check 4a then refuses, with `not_granted`, a seat the grant does not name,
+and check 6 (§4.2 rule 4) refuses a takeover the grant does not carry. The invite admits every seat and
+every takeover, as before. The invite, the admin token (§11.1) and every grant token are distinct; a
+server whose credentials would collide refuses to start. Grants are host state (`ARC-40`): no grant,
+join or refusal is journaled, states a fact or moves the world's revision. A grant is not an account and
+not durable identity, and nothing in it says what kind of Controller presents it: a grant binds a person
+with a 2D client exactly as it binds an agent.
 
 **The nickname** labels the *player*, never the Person: the Person's name is world data
 (`naming`'s `display-name`). It is 1 to 32 Unicode scalar values after trimming leading and trailing
@@ -188,7 +217,7 @@ otherwise. A seat returns to its default with a controller **built afresh** at t
 resumed from memory — so a controller handed a Person back does not answer what was said to whoever
 drove it in between.
 
-**Joining (check 5 of §4.1).** After the seat is found in the roster, a `join` is decided by the first of
+**Joining (check 6 of §4.1).** After the seat is found in the roster, a `join` is decided by the first of
 these rules that applies:
 
 ```text
@@ -199,14 +228,21 @@ these rules that applies:
 2  free              granted, took_over "none"
 3  hosted            granted, took_over "hosted": the in-server controller yields to a person, with
                      no flag — it is not a connection
-4  connected / held  refused seat_occupied — unless take_over is true: then granted, took_over
+4  connected / held  refused seat_occupied — unless take_over is true and the credential may take
+                     over (the invite, or a grant that carries take-over): then granted, took_over
                      "connection"; the connection holding it, if live, is sent closing {taken_over}
-                     and closed, and a held seat's secret stops working
+                     and closed, and a held seat's secret stops working. take_over true with a
+                     grant that does not carry take-over: refused not_granted, and nobody is
+                     displaced
 ```
 
-Any holder of the server's invite may take any seat with `take_over: true`, a held seat included: MVP-0
-has one level of trust, the invite (`NETWORKING.md` §9; `ARC-40`'s limitation). A seat is never driven
-by two controllers at once: the displaced connection is unbound before the new one is welcomed.
+Rule 1 comes first whatever the credential, so a player resumes its own held seat with its `resume`
+whether it joined with the invite or a grant; a hosted seat (rule 3) is joined without a flag, so a grant
+that names a resident's seat may take that resident over from its in-server controller exactly as the
+invite may. Any holder of the server's invite may take any seat with `take_over: true`, a held seat
+included; a seat grant narrows that (§4.1, "Seat grants"; `NETWORKING.md` §9; `ARC-40`'s limitation,
+amended by `ARC-97`). A seat is never driven by two controllers at once: the displaced connection is
+unbound before the new one is welcomed.
 
 **Leaving and dropping.** A connection that sends `leave` gives its seat back at once: the seat returns
 to its default. A connection whose socket ends without `leave` leaves its seat **held** for the
@@ -428,8 +464,14 @@ matching their `Causation` against this `action_id`.
 { "t": "refused", "token": "c1", "code": "actor_not_observer", "detail": "…" }
 ```
 
+```json
+{ "t": "refused", "token": "c9", "code": "rate_limited", "retry_after_ms": 100, "detail": "…" }
+```
+
 `token` appears when one could be recovered from the offending frame. `detail` is for a developer;
-a client branches on `code` and never on `detail`.
+a client branches on `code` and never on `detail`. `retry_after_ms` (from S27-a) appears on a
+`rate_limited` refusal and on no other: a whole number of wall milliseconds, at least 1, after which
+the seat's budget will admit one request.
 
 | `code` | Meaning |
 | --- | --- |
@@ -450,6 +492,8 @@ a client branches on `code` and never on `detail`.
 | `cursor_unavailable` | From S11-C: a `join`'s `perceived.since` is a cursor this world cannot serve — older than what it can replay (a world with no save serves only from the join on), newer than the newest fact it has recorded, or one whose history could not be read just now (`detail` says which). Nothing is granted; the connection stays and may join again, for example with `since` set to `null` on a persisted world. |
 | `lagged` | From S11-C: this connection's `perceived` stream fell further behind than the server holds for it. Followed by `closing { reason: "lagged" }`; the client rejoins with its `resume` and its last `perceived` cursor, and loses nothing. |
 | `paused` | The host has paused the world's clock (§5.9, §11.3): a `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled. The client may submit again after a `clock` frame says `paused: false`. From S11-D. |
+| `not_granted` | From S27-a: the `join` presented a seat grant (§4.1) that does not name this seat (check 4a), or asked `take_over: true` of a connected or held seat with a grant that does not carry take-over (§4.2 rule 4). Nothing is granted and nobody is displaced; the connection stays and may join again. Retrying the same join with the same grant gets the same answer. |
+| `rate_limited` | From S27-a: this seat's request budget (§8) is spent. The `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled; `retry_after_ms` says when the budget will admit one request, and the client may submit again after it. Not final: the next request after the wait is answered as usual. |
 
 A refusal is **not** a `Rejection`. A rejection means the world considered a well-formed request and
 said no, and it arrives inside a `result`. A refusal means the frame was not a request at all. Being
@@ -718,7 +762,19 @@ observation cadence   the server's, configurable, 10 Hz by default
 world clock           whole simulated seconds; several frames share one instant; time_scale (§5.7)
                       world seconds pass per wall second
 rendering             the client's own business entirely
+request budget        from S27-a: per seat, R requests per wall second sustained and B burst
+                      (mineworld server --request-budget R/B; default 10/20; 0 = none); a submit
+                      beyond it is refused rate_limited with retry_after_ms (§5.5)
 ```
+
+**The request budget** (`ARC-97`) is a token bucket kept by the server's seat table for each seat, keyed
+by the seat and not by the connection: a reconnect, a resume, a takeover, a kick or a release does not
+refill it. It is spent by every `submit` a connection sends for its seat, after the `paused` check and
+before the request is given an `ActionId`, and it is the same for every connection, whatever drives it;
+in-server controllers, which the host already paces, do not spend it. It bounds how many requests a seat
+may send, not what they mean: how fast a Person may walk is the movement rule's and the sender's
+(`ADOPTION.md` §4.2). The default is fixed from the measured cadence of the reference 2D client
+(`ARC-97`): a client that walks, turns and talks as a person does is never refused.
 
 `NETWORKING.md` §4 forbids conflating these. An observation is not a tick, a tick is not a frame,
 and nothing in this protocol replicates at a rendering rate. A client that stops reading loses
@@ -738,8 +794,8 @@ binary or compressed frames    JSON only (ARC-41); Godot's WebSocketPeer cannot 
                                permessage-deflate
 an observer-naming field       there is none, and a join that tries to carry one is malformed
 other players' nicknames       a nickname is not world data (§4.1)
-accounts, matchmaking          NETWORKING.md §9: an invite and a nickname are the whole of MVP
-                               authentication
+accounts, matchmaking          NETWORKING.md §9: an invite (or, from S27-a, a seat grant) and a
+                               nickname are the whole of MVP authentication
 ```
 
 ## 10. Revisions, and the landing table
@@ -773,6 +829,19 @@ server whose `PROTOCOL.md` lists it as landed.
 | the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
 | `time_scale` in `POST /admin/clock` (a live scale change) | TW-c (`step-19-time-weather.md` §§4.3, 7.3) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process |
+| seat grants (`mineworld server --grant`, presented in `join.invite`, §4.1); refusal `not_granted` (checks 4a and 6); `credential` in `GET /admin/sessions` (§11.2) | S27-a (`ARC-97`) — **landed** | no grant exists, so `not_granted` is never sent; no `credential` field |
+| the per-seat request budget (§8, `--request-budget`); refusal `rate_limited`; `refused.retry_after_ms`, on `rate_limited` only | S27-a (`ARC-97`) — **landed** | no budget: `rate_limited` is never sent and no `refused` frame carries `retry_after_ms` |
+
+**Within revision 2, an additive refusal code reaches only a client that causes it.** S27-a's two codes
+are added to revision 2 rather than raising `protocol`, because neither can reach a client that keeps
+doing what it did before: `not_granted` answers only a `join` that presented a seat grant, a credential
+that did not exist before it, and `rate_limited` only a seat that spent the budget, which the reference
+clients' measured cadence never does (§8). Every client in this repository decodes and words both codes
+in the pull request that lands them. A client built against an earlier `main` that met one anyway would
+fail closed — the Python SDK treats an unknown code as a malformed frame and ends the session — never
+silently. **Required of the next revision (3):** a client treats a refusal code it does not know as a
+generic refusal of that frame, so that a later additive code need not be landed in every client at
+once.
 
 ## 11. The admin surface (from S11-D)
 
@@ -786,8 +855,9 @@ The admin surface is HTTP on the same listener as `/status`, under `/admin`. It 
 server was started with an admin token (`mineworld server --admin-token TOKEN`, or the environment
 variable `MINEWORLD_ADMIN_TOKEN`); without one, every `/admin` path answers `404` exactly as an unknown
 path does. The token follows the invite's rules (8 to 128 printable ASCII characters, no whitespace), is
-never printed, and must differ from the invite: a server given an admin token equal to its invite
-refuses to start, because every player would then be the host.
+never printed, and must differ from the invite and from every seat grant (§4.1): a server given an
+admin token equal to its invite or to a grant refuses to start, because every player — or every holder
+of that grant — would then be the host.
 
 Every request carries `Authorization: Bearer <token>`. The token is compared in constant time. Any
 failure — no header, another scheme, a wrong token, a token with trailing whitespace, a token in the
@@ -805,7 +875,9 @@ admin token per process and one level of host trust; an invite holder is not the
 ```json
 GET  /admin/sessions   → 200 { "sessions": [ { "session": "7", "nickname": "Yue", "seat": "visitor",
                                   "observer": "101", "connected_at": 1791441600, "seq": 312,
-                                  "observations_dropped": 0 } ] }
+                                  "observations_dropped": 0,
+                                  "credential": { "kind": "grant", "seats": ["visitor"],
+                                                  "take_over": false } } ] }
 GET  /admin/seats      → 200 { "seats": [ { "seat": "alice", "state": "hosted" },
                                   { "seat": "visitor", "state": "connected", "session": "7" },
                                   { "seat": "wanderer", "state": "held", "seconds_left": 21 },
@@ -818,7 +890,7 @@ POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "pau
 
 | Route | Answer |
 | --- | --- |
-| `GET /admin/sessions` | Every seated connection: its `session`, the `nickname` it joined with, its `seat`, its `observer`, `connected_at` (wall-clock Unix seconds at its welcome — host state, never a `WorldTime`), `seq` (the last stream frame it was sent) and `observations_dropped` (frames the world dropped because it was not reading). A connection still in its handshake, or an in-server controller, is not listed. |
+| `GET /admin/sessions` | Every seated connection: its `session`, the `nickname` it joined with, its `seat`, its `observer`, `connected_at` (wall-clock Unix seconds at its welcome — host state, never a `WorldTime`), `seq` (the last stream frame it was sent) and `observations_dropped` (frames the world dropped because it was not reading), and, from S27-a, `credential`: which credential admitted it — `{ "kind": "invite" }`, or `{ "kind": "grant", "seats": [...], "take_over": bool }` with the grant's seats in key order and its take-over right — never a token, and nothing about what kind of Controller drives the connection. A connection still in its handshake, or an in-server controller, is not listed. |
 | `GET /admin/seats` | Every seat, in key order, with its state (§4.2): `free`, `hosted`, `connected` with its `session`, or `held` with `seconds_left` (wall seconds, rounded up). |
 | `POST /admin/sessions/{session}/kick` | The connection is sent `closing { reason: "kicked" }` and closed; its seat returns to its default at once, **with no hold**, and its `resume` is dead. Answers the seat and its new state. A session that holds no seat: `404 unknown_session`. |
 | `POST /admin/seats/{seat}/release` | Returns the seat to its default. A connected seat's connection is sent `closing { reason: "kicked" }` and closed; a held seat's `resume` dies. A seat already `free` or `hosted` is unchanged: `200` with `"released": false` (no controller is rebuilt). A seat the roster does not offer: `404 unknown_seat`. |
