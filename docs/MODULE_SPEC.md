@@ -528,30 +528,34 @@ decisions: decisions.yaml  # optional. The decision list (below): which decision
 
 **The decision list (`decisions:`, `decisions.yaml`).** Specified by [`ARC-84`](DECISIONS.md) and
 [`ARC-85`](DECISIONS.md); implemented by the DL-a PR of step-24
-(`.structured-coding/plans/mvp1/step-24-decision-and-memory.md` §4). Until that PR merges, the loader
-refuses the `decisions:` key by name, as it refuses every field MVP-0 does not implement. The file
-is World Pack content read by hosts (`run`, `server --town`, the cognition process). It is **never
-seeded**: which model decides a Person is not a fact about the Person (INV-1). The operator may
-override it.
+(`.structured-coding/plans/mvp0/pr-dl-a-decision-list.md`; step-24 §4). The file is World Pack content
+read by hosts (`run`, `server --town`, `mineworld decisions`, and through it the cognition process). It is
+**never seeded**, journaled, compared at resume or stored in a save: which model decides a Person is not
+a fact about the Person (INV-1). The operator may override it.
+
+**The key.** `decisions:` is a path relative to the pack root, written with `/` on every platform. The
+World Pack loader (`worldpack/`) owns only the key: it refuses an absolute path, a `\`, an empty, `.` or
+`..` component and a drive (`:`), a file that does not exist, and a file whose real path, its links
+followed, lies outside the pack. It never parses the file. The format belongs to `mineworld-decision`
+(`cognition/decision`), and the host (`tools/cli`) hands that crate the build's installed models
+(§5.1) and the world's roster: its seats in roster order, each seat's class (`ARC-64`), the defined
+classes of persons, and its people.
 
 ```yaml
-# decisions.yaml
-models:                            # the models this world uses; each id names a model a Controller Pack provides
+# decisions.yaml — every key optional
+models:                            # the models this file uses, each once; a model not listed runs with defaults
   rule: {}                         # the paced rule controller, as today; no parameters
-  motivated:
-    parameters:                    # typed by the model; unknown keys are refused with line and column
+  motivated:                       # DL-b's model; not installed before DL-b merges
+    parameters:                    # typed by the model; unknown keys and out-of-bound values refused there
       social_need_hours: 3
-      curves: atus-2003-2023       # a named parameter set the model's pack ships
-  lm:
+      curves: atus-a3-2025         # a named parameter set the model's pack ships
+  lm:                              # an external (out-of-process) model; installed by step-17 P6
     fallback: motivated            # used when the model's process is absent or its budget is exhausted
-  director:                        # valid only on an Organization seat (ARC-88); MVP-1
-    fallback: none
-default: rule
-assign:                            # seat > class > default; two entries for one seat at one level are refused
-  - { class: staff,  model: motivated }        # ARC-64 classes, from configure/classes.yaml
+default: rule                      # absent: rule
+assign:                            # seat > class > default; one entry per seat and one per class
+  - { class: staff,  model: motivated }        # an ARC-64 class of persons, from configure/classes.yaml
   - { seat: alice,   model: lm }
-  - { seat: council, model: director }         # MVP-1
-memory:                            # controller-owned memory policies (MODULE_SPEC §5.2); for seats whose model keeps a store
+memory:                            # controller-owned memory policies (§5.2); decoded, not interpreted
   default: { policy: consolidate }
   assign:
     - { seat: alice, policy: lm-summarise, fallback: consolidate,
@@ -560,24 +564,56 @@ memory:                            # controller-owned memory policies (MODULE_SP
 
 Rules:
 
-1. **Typed and refused by name.** `models.<id>` must be a model that a registered Controller Pack
-   provides (MODULE_SPEC §5.1). Its `parameters` decode into that model's typed `Parameters`, with
-   bounds and defaults. An unknown model, class, person, policy or key is refused at load, with line
-   and column, as `configure/` is refused (ARC-61).
-2. **Seats only.** An assignment names a seat (`seats:`). A person who is not a seat is refused,
-   because nothing would drive it.
-3. **Fallback chain.** Every model that can be absent at run time (out-of-process, or budgeted)
-   names a `fallback`. A chain ends at an in-process model or at `none`, where the seat stays idle.
-   A chain has at most four links and no cycles.
-4. **Operator override.** `mineworld run … --decisions FILE` and `mineworld server … --decisions FILE`
-   replace the pack's file. `--seat-model SEAT=MODEL` overrides one seat. The operator's file is
-   validated against the same world.
-5. **Absent means today.** With no `decisions:` key and no flag, every seat is `rule`, and every byte
-   of every reference world's output is unchanged.
-6. **Reproducibility without seeding.** `run` prints the digest of the resolved decision list in its
-   header beside the seed, and its fingerprint tests include that digest. A save does not store the
-   list. Storing it in a save as non-authoritative host metadata is deferred until a resume needs it
-   (step-24 QS24-1).
+1. **Typed and refused by name.** Every model id the file names (under `models:`, as `default:`, in an
+   assignment, as a `fallback:`) must be a model this build installs (§5.1); a refusal lists the
+   installed ids. Under `models:` each id appears once; its entry takes only `parameters` and
+   `fallback`. `parameters` decode into that model's typed `Parameters`, with bounds and defaults; a
+   model without parameters refuses any key. An unknown key anywhere, an unknown model, a seat that
+   names no person, a class that is undefined, and an out-of-bound value are refused **at load**, with
+   the file, line and column of the offending node, as `configure/` is refused (ARC-61). An external
+   model takes no `parameters` until the PR that installs it defines how they are carried.
+2. **Seats only, and one class.** An assignment is `{ seat: <key>, model: <id> }` or
+   `{ class: <class>, model: <id> }`, never both, never neither. A `seat:` that names no person, or a
+   person who is not a seat (`seats:`), is refused, because nothing would drive it. A `class:` must be a
+   class of persons defined in `configure/classes.yaml`; an implicit class (`person`, `place`, `item`,
+   `organization`) is refused with "use `default:`". Two entries for one seat, or two for one class, are
+   refused at the second. A person is in at most one defined class (`ARC-64`), so no other ambiguity
+   exists.
+3. **Precedence.** A seat's model is its seat entry, else its class's entry, else `default:`, else
+   `rule`. Parameters are per model, not per seat: one parameter block per model per file.
+4. **Fallback chain.** `fallback: <id | none>` is accepted only on an external model, and an external
+   model must name one; on an in-process model it is refused ("an in-process model is always present").
+   An external model that is assigned but not listed under `models:` has no fallback and is refused at
+   the assignment. Chains are followed at load: at most four links (four `fallback:` steps), no cycle,
+   ending at an in-process model or at `none`, where the seat stays idle; a violation is refused at the
+   `fallback:` node that starts it.
+5. **Operator override.** `mineworld run … --decisions FILE`, `mineworld server … --decisions FILE` and
+   `mineworld decisions … --decisions FILE` replace the pack's file; the file is decoded against the
+   same world. `--seat-model SEAT=MODEL`, repeatable, then overrides one seat each: the seat must be a
+   seat, the model installed, an external model listed under the file's `models:` with its fallback;
+   its parameters are the file's block for that model, else defaults; one seat named twice is refused.
+   A refusal names the flag.
+6. **Absent means today.** With no `decisions:` key and no flag, every seat is `rule`, and every byte of
+   every reference world's output — saves and `run`'s printed lines — is unchanged.
+7. **Reproducibility without seeding.** When a decision list is in effect (a key or a flag), `run`
+   appends `; decisions <digest> (<n> <model>, …)` to its header line, and `server --town` the same
+   clause to its `town:` statement. The digest is FNV-1a 64 over the resolved list's canonical encoding
+   (each seat's key, effective model, canonical parameters, chain, and, when `memory:` is present, its
+   memory choice without source positions), for reading, not evidence, so two files that resolve alike
+   print alike. With no list in effect nothing is printed, so every reference world's output is
+   unchanged (QDLa-5). A save does not store the list, and resuming with a different list is allowed;
+   the header of every invocation shows which list was in effect. Storing it in a save as
+   non-authoritative host metadata is deferred until a resume needs it (step-24 QS24-1).
+8. **`memory:` is passed through, not interpreted** (QFGb-1). Its shape is the controller memory
+   selection of §5.2: `default:` and each `assign:` entry carry `policy`, optional `fallback` and
+   optional `parameters`; an entry names a `seat` or a `class` as rule 2 says. The decoder refuses, at
+   load and with line and column, an unknown key, a `policy` or `fallback` not spelled as a policy id
+   (`^[a-z][a-z0-9-]{0,47}$`), a seat or class rule 2 refuses, a duplicate entry, and `parameters`
+   that are not a mapping with string keys or that hold a tag or a non-finite number. It does not judge
+   whether a policy exists or its parameters are valid: policy ids are Python entry points. Each seat's
+   choice is resolved seat > class > default and emitted by `mineworld decisions <world> --json`
+   (§8.1) as the `MemoryPolicyChoice` the cognition process validates when it starts; an unknown policy
+   id therefore fails then, naming the file, line and column, not at `run`'s load.
 
 A world does not name a provider, a model name, a URL or a key in this file. The decision list names
 models, never backends; the backend binding stays in the operator's `cognition.toml`.
@@ -960,12 +996,37 @@ reducing another pack's fact rather than while validating an action — `relatio
 per directed pair before an acquaintance forms — and a rule about it is written, resolved and refused
 like any other, but it names no action a client can send (`ARC-63` note of 2026-10-10).
 
+**Parameter bounds, per-field roles, place-free lookups, required systems** (`ARC-63` note of
+2026-10-13, S24 PR FG-a). Four additions to the shape, each generic:
+
+- *A bound is a value, not only a range.* Each parameter field declares a bound that admits or refuses
+  a value and describes itself for the refusal; an inclusive range is the common bound and keeps the
+  message `'<field>' is <low> … <high>, not <value>`. A **named choice** is a bound over a typed name
+  (`relationships`' `familiarity_decay`: one of the bundled curves or one its extension catalog lists),
+  refused as `'<field>' is one of <names>, not <value>`.
+- *A field may narrow the roles that scope it.* A pack declares, per parameter field, the subset of its
+  parameter roles that may scope an entry setting that field; a field not declared may be scoped by
+  every parameter role. An entry that sets a field and names a role outside that field's subset is
+  refused at its line and column; so is a region entry that sets a field whose roles exclude `place`.
+  (`relationships`' decay fields: `actor`, `target`; `known_at_most`: `actor`; `conversation`'s
+  `forget_after_days`: `target`.)
+- *A place-free lookup.* For exactly those fields, a pack looks parameters up with the place role
+  unfilled: the base resolution with the given roles, or the compiled defaults, reading nothing, when
+  the pack is unconfigured. A disclosure, which has no causing place, uses it.
+- *A section may require systems.* A pack may state that its section, as written, requires other
+  systems to be enabled (`relationships`: the pack implementing each catalog curve the section names);
+  the loader refuses, by name, a section requiring a system the world does not enable, as for any
+  configuration (§4.1). The loader registers the build's extension catalogs before it decodes
+  configuration, so a catalog name is known at decode.
+
 **What a section is refused for**, by name, naming the file:
 
 - at its line and column, while its owner's type decodes it: an undeclared action, fact or role; a
-  parameter outside its bound or unknown; an audience wider than the owner's default or narrower than
-  its narrowest; `biography` on a fact whose owner does not allow it; a region rule for an action that
-  is not regional; an `extends` naming no reference list, or a cyclic or over-long chain;
+  parameter outside its bound or unknown; a parameter field set under a role its owner does not let
+  scope it, or in a region when its owner does not let a place scope it; an audience wider than the
+  owner's default or narrower than its narrowest; `biography` on a fact whose owner does not allow it;
+  a region rule for an action that is not regional; an `extends` naming no reference list, or a cyclic
+  or over-long chain;
 - with the list and the index of each entry, once the classes are read: a selector naming a class that
   is neither defined nor implicit (`ClassUndefined`); two ambiguous entries (`AmbiguousEntries`);
 - a region naming no declared place, as any configuration naming an unknown entity (§4.1).
@@ -979,7 +1040,8 @@ perceives — never the list.
 
 **At run time.** A configured section is one genesis fact `<pack>-interactions-configured`
 (`SystemInternal`, no subjects), reduced by its pack into a component `<pack>-interactions` on every
-Place. The pack looks up `permits`, `parameters` and `consequence` on the place it is deciding at; a pack
+Place. The pack looks up `permits`, `parameters` and `consequence` on the place it is deciding at (or,
+for fields no place may scope, place-free); a pack
 the world does not configure answers its compiled defaults without reading state, so an unconfigured
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
@@ -1045,25 +1107,65 @@ property, and it never changes who a Person is (INV-1).
 
 **Two kinds.**
 
-- **In-process (Rust).** A model implements the `DecisionModel` trait in the crate `cognition/decision`
-  (`mineworld-decision`), which depends on `mineworld-contracts` only. The trait has an associated
-  `Parameters` type (typed, bounded, with defaults, decoded from `decisions.yaml` by the same machinery
-  as `configure/`), a constant `ID` that `decisions.yaml` names, `decide(&self, parameters, seed,
-  observation) -> Option<ActionRequest>`, and `step(&self, parameters, observation) -> Option<ActionRequest>`
-  for the next stride of a disclosed walk between consults. The signatures carry no clock, no network
-  and no world handle. The receiver is `&self`, and a model crate may not use interior mutability
-  (`Cell`, `RefCell`, `Mutex` are on the clippy disallowed-types list for model crates). Randomness comes
-  only from the provided `Seed` and the counter-based `Draw`; a model documents the draw indices it
-  uses. A model that keeps state across consults is not conformant.
+- **In-process (Rust).** A model implements the `DecisionModel` trait of the crate `cognition/decision`
+  (`mineworld-decision`). That crate depends on `mineworld-contracts`, on `mineworld-sdk` for the
+  `parameters!` machinery only (so a model's bounds are checked by the same code as an Interaction List
+  section's, QDLa-4), and on `serde`, `serde_json` and `serde-saphyr` to read `decisions.yaml`. The trait:
+
+  ```rust
+  pub struct Consult<'a> {                  // host context, never preferences
+      pub seed: Seed,                       // the run's seed, the same for every seat
+      pub pace: SimDuration,                // the answer window: the host's consult period, world seconds
+      pub observation: &'a Observation<Value>,
+  }
+  pub trait DecisionModel: Default + Send + Sync + 'static {
+      const ID: &'static str;               // the id decisions.yaml names; the identifier rule; not "none"
+      const PACKAGE: Package;               // the model crate's package identity (ARC-53)
+      type Parameters: ModelParameters;     // typed, bounded, with defaults; () for none
+      fn decide(&self, parameters: &Self::Parameters, consult: &Consult<'_>) -> Option<ActionRequest>;
+      fn step(&self, parameters: &Self::Parameters, consult: &Consult<'_>) -> Option<ActionRequest>;
+  }
+  ```
+
+  `decide` is the consult; `step` is the next stride of a disclosed walk between consults. A host holds
+  each seat's model as the object-safe `SeatModel` (`Configured<M>`: the model with its decoded
+  parameters). `ModelParameters::decode` decodes a parameter block at the decoder's position, refusing an
+  unknown key and an out-of-bound value there; a block made by `mineworld_sdk::parameters!` implements it
+  as `mineworld_decision::bounded`, and `()` refuses every key. The signatures carry no clock, no network
+  and no world handle. The receiver is `&self`, and a model crate may not use interior mutability: its own
+  `clippy.toml` repeats the workspace's disallowed types and adds `Cell`, `RefCell`, `OnceCell`,
+  `UnsafeCell`, `Mutex`, `RwLock`, `OnceLock`, `LazyLock` and the atomics. Randomness comes only from the
+  provided `Seed` and the counter-based `Draw` (`Draw::new(seed, observation)` for the rule controller's
+  stream, `Draw::salted(salt, seed, observation)` for a model's own); a model documents the draw indices
+  it uses. A model that keeps state across consults is not conformant, and the template test below
+  refuses it.
 - **Out-of-process (any language).** A model is a Controller Pack running as a protocol client
   (step-17 §3.2): it joins a seat with the same frames as any client. Its `decisions.yaml` entry carries
-  only `fallback` and model-specific parameters. While its process is absent, the seat's host runs the
-  fallback within one consult. The external process yields the seat on `take_over` (S11-B).
+  its `fallback` (and, once the PR that installs it defines them, model-specific parameters). While its
+  process is absent, the seat's host runs the end of the fallback chain: `run` always (it hosts no
+  out-of-process model in MVP-0, QS24-12, and its header says so: `; alice: lm → rule (run hosts no
+  out-of-process model)`), and `server --town` as the seat's in-server controller until the external
+  process takes the seat over through the existing take-over path (S11-B).
 
-**Registration.** `cognition/installed` lists every in-process model this build provides, one line each.
+**Registration.** `cognition/installed` (`mineworld-installed-models`) lists every model this build
+provides, one line each, through the `models!` macro of `mineworld-decision`:
+
+```text
+mineworld_decision::models! {
+    Rule => mineworld_rule_controller::Rule,      // in-process: a DecisionModel type
+    external "lm",                                // out-of-process: an id only (step-17 P6 adds it)
+}
+```
+
 `decisions.yaml` model ids resolve through that list, as System ids resolve through `systems/installed`
-(ARC-33). Each model crate is a Controller Pack with its own package identity (ARC-53). Installing a
-model is adding its line and rebuilding; no existing model, System, contract or host changes.
+(ARC-33). Each model crate is a Controller Pack with its own package identity (ARC-53); `mineworld packs
+list` lists the in-process models' packages from this list. Installing a model is one line in
+`cognition/installed/Cargo.toml` and one line in its `models!`, then a rebuild; no existing model,
+System, contract or host changes. A guard test holds the list and the manifest's dependencies equal and
+refuses an id listed twice, an id outside the identifier rule, and the reserved id `none`. A template
+test in `tools/cli/tests` runs a reference world with every seat on each installed in-process model,
+twice and across a kill-and-resume, and compares the saves byte for byte (AC-6), so a new model is held
+to determinism with no test edited.
 
 **What a model may attempt.** A model chooses only among affordances an installed System offered, after
 the world's Interaction List has filtered them (ARC-63, ARC-34). Every request is revalidated at dispatch.
@@ -1074,7 +1176,7 @@ offered options; they cannot make an option available.
 
 | Host | Model kind | Guarantee |
 | --- | --- | --- |
-| `mineworld run` | in-process | Each model is a pure function of `(seed, parameters, observation)`. The same pack, seed, decision list and code give the same history. Kill-and-resume equals an uninterrupted run (AC-6). |
+| `mineworld run` | in-process | Each model is a pure function of `(parameters, seed, pace, observation)`. The same pack, seed, decision list and code give the same history. Kill-and-resume equals an uninterrupted run (AC-6). |
 | `mineworld run` | out-of-process | Not hosted in MVP-0. The seat uses its fallback, and the run header says so (step-24 QS24-12). |
 | hosted server | any | Requests are journaled. Replay re-executes the journal and never calls a controller (ARC-25). Re-running an LM seat reproduces its decisions only under cassette replay (ARC-58). |
 
@@ -1084,6 +1186,12 @@ A director is a Controller Pack seated on an Organization; it is valid only once
 is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCEPTS.md` §14 is amended then.
 
 ## 5.2 Memory policies and host bounds
+
+**Field reference.** This section states the shape and the rules. The field-level reference for the
+operator's cognition configuration (`cognition.toml`) is generated from its Pydantic models into
+[`reference/cognition-toml.md`](reference/cognition-toml.md); the parameters of each memory policy are
+generated into `reference/memory-policies.md` once the policies exist (S25 PR 25b, `CLAUDE.md` §2.1). A
+generated page is never edited by hand.
 
 A **memory policy** decides which items of a seat's controller-owned memory are kept, dropped or merged
 into a summary. It is part of a Controller Pack. It is selected per seat by `memory:` in `decisions.yaml`
@@ -1383,11 +1491,14 @@ wrong and a non-zero exit status, never a panic.
 
 ```text
 mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
-                         [--town [--seed N] [--pace SECONDS]] [--hold SECONDS] [--time-scale N]
+                         [--town [--seed N] [--pace SECONDS] [--decisions FILE]
+                         [--seat-model SEAT=MODEL]...] [--hold SECONDS] [--time-scale N]
                          [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
 mineworld validate <world> [--packs DIR]...
 mineworld replay <world> --save DIR [--packs DIR]...
-mineworld run <world> --headless --seed N --days N [--save DIR] [--packs DIR]...
+mineworld run <world> --headless --seed N --days N [--save DIR] [--decisions FILE]
+                      [--seat-model SEAT=MODEL]... [--packs DIR]...
+mineworld decisions <world> [--decisions FILE] [--seat-model SEAT=MODEL]... [--json] [--packs DIR]...
 mineworld inspect <save-directory> [--last N]
 mineworld biography <world> --save DIR --person KEY [--json] [--packs DIR]...
 mineworld perceived <world> --save DIR --person KEY [--since ID] [--json] [--packs DIR]...
@@ -1408,10 +1519,11 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with the paced rule controller, seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
-| `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
-| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
+| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). Described below. |
+| `decisions` | Reads a World Pack and its decision list exactly as `run` does (the same decoder, `--decisions` and `--seat-model`, the same refusals), starts no world and writes nothing. Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
@@ -1433,7 +1545,14 @@ cadence, because `run` has no time scale (`ARC-27` note of 2026-10-09; `ARC-75`)
 the controller is asked only for the next stride of its walk. A pack with 30 or more seats is refused
 naming `RUN_STEP`.
 
-`run` prints, in this order: one line naming the world and its seats; one `day` line per completed
+Each seat is consulted through its resolved decision model with the run's seed and the pace 900 as the
+answer window (§5.1); a seat whose fallback chain ends at `none` is never consulted. `--decisions FILE`
+and `--seat-model SEAT=MODEL` override the pack's decision list (§4.1 rule 5). The list is read afresh by
+every invocation and never stored in the save, so a resumed run uses the list it is given.
+
+`run` prints, in this order: one line naming the world and its seats (ending, only when a decision list
+is in effect, with the decisions clause of §4.1 rule 7, and one `; <seat>: <assigned> → <runs> (run hosts
+no out-of-process model)` clause per seat assigned an external model); one `day` line per completed
 simulated day (`day D  revision R  facts F`; revision `-` without `--save`; F counts the facts
 this invocation recorded); a summary of consults (lattice and step), requests by action type and outcome, facts by
 event type, accepted strides (`move` — a `move` or a `walk-step`) and `talk` per seat in each 30-day bucket, faults, and the history
@@ -1441,6 +1560,35 @@ fingerprint, which always covers the world's whole history; and last, on its own
 before the `wall` line is a function of the pack, the seed, the age and the code. The fingerprint
 (`FNV-1a 64` over every fact's stored encoding in `EventId` order, printed with the number of facts
 it covers) is for a person comparing two runs by eye; it is not a proof of equality.
+
+**`decisions`.** Prints each seat's resolved decision model and memory choice (§4.1), in roster order.
+Without `--json`, one line per seat for a person. With `--json`, one JSON document on stdout, the form the
+cognition process reads (QFGb-1):
+
+```json
+{
+  "format": 1,
+  "world": "social-cafe",
+  "digest": "00f3…",
+  "seats": [
+    { "seat": "alice",
+      "model": { "id": "rule", "assigned": "lm", "chain": ["lm", "rule"] },
+      "memory": { "policy": "lm-summarise", "fallback": "consolidate",
+                  "parameters": { "calls_per_sim_day": 4 },
+                  "source": { "file": "decisions.yaml", "line": 12, "column": 7 } } },
+    { "seat": "bob", "model": { "id": "rule" }, "memory": null }
+  ]
+}
+```
+
+`format` is the document's version; a change to its shape bumps it, and a reader refuses a version it
+does not know. Keys appear in the order shown. `model.id` is the in-process model that drives the seat in
+`run` (`null` when its chain ends at `none`); `assigned` and `chain` appear only when the seat is assigned
+an external model. `digest` is §4.1 rule 7's. `memory` is `null` when no `memory:` entry and no `memory:`
+default applies (the cognition process then uses its default); otherwise it is the winning entry's
+`policy`, `fallback` (`null` when absent), `parameters` (`{}` when absent; keys sorted) and `source`: the
+file as written in `world.yaml`'s `decisions:` or as passed to `--decisions`, and the line and column of
+the winning entry's mapping. The command is read-only.
 
 **`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
 head revision and its instant, the journal counted by input kind and outcome, the snapshots the save
@@ -1499,7 +1647,8 @@ reports success. An existing directory is refused and left untouched.
 - `list` prints one line per pack — type, id, version, licence, authors (`—` for a world, which has
   none), then for a System Pack `system <id>` and for a data pack its directory — and last a count.
   It reads the build's code packs (every System Pack of the installed set in its order, then the
-  controllers this binary composes) and then, for each `--packs DIR` in the order given, every
+  Controller Packs of the in-process decision models `cognition/installed` lists, in its order, each
+  package once) and then, for each `--packs DIR` in the order given, every
   immediate subdirectory of `DIR` holding `world.yaml` or `pack.yaml`, by name. A subdirectory holding
   neither is not a pack and is not listed; one holding both is refused; a `DIR` that is itself a pack
   is refused. Nothing is read from a directory that was not named.

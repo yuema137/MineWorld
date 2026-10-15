@@ -64,6 +64,34 @@ func run() -> void:
 	await drive._seconds(0.5)
 
 
+## The `controls` scenario (SET-b, AC-SETb-4, AC-SETb-5): the Controls tab of the connected 2D client. Its key
+## rows are the rows of `Controls2D`'s table, read by the client itself; it has no mouse-look control, which
+## the 2D capability set hides.
+func controls() -> void:
+	await drive._seconds(1.0)
+	app.settings_menu.open()
+	await _frames(3)
+	var tab := app.settings_menu._tabs.get_child(2) as MineWorldControlsTab
+	var rows := Controls2D.key_rows()
+	var equal := rows.size() == tab._key_rows.size()
+	for i in rows.size():
+		equal = equal and rows[i].action == tab._key_rows[i].action and rows[i].keys == tab._key_rows[i].keys
+	var shown := PackedStringArray()
+	for i in rows.size():
+		shown.append("%s = %s" % [tab._map_cells[2 * i].text, tab._map_cells[2 * i + 1].text])
+	print("EVIDENCE ", JSON.stringify({"key_map": {"rows": rows.size(), "shown": shown}}))
+	drive._check(equal and rows.size() == Controls2D.ACTIONS.size() + 1, "the key map rows equal the binding table",
+		"%d rows" % rows.size())
+	var look_hidden := true
+	for node in tab._look_rows:
+		look_hidden = look_hidden and not node.visible
+	drive._check(look_hidden, "the tab shows no sensitivity or invert control", "")
+	app.settings_menu.close()
+	await drive._seconds(0.5)
+	app.link.client.leave_world()
+	await drive._seconds(0.5)
+
+
 ## The `display` scenario (AC-SET-11, windowed): what the window and the engine say after the settings
 ## were applied, and the mean frame rate over five seconds, counted frame by frame.
 func display() -> void:

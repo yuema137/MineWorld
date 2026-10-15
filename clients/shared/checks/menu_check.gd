@@ -88,6 +88,8 @@ func _run() -> void:
 	menu._tab_keys.pop_back()
 	extra.free()
 
+	await _controls_tab(menu, file)
+
 	# AC-SET-2 on the menu alone: under the marker catalog every text is a marked catalog entry.
 	var marker_dir := _scratch.path_join("marker")
 	_check(write_marker(marker_dir) > 50, "the marker catalog is generated from en.po")
@@ -108,6 +110,69 @@ func _run() -> void:
 	_clear(_scratch)
 	print("menu_check: %s" % ("PASS" if _fails == 0 else "FAIL"))
 	quit(0 if _fails == 0 else 1)
+
+
+## SET-b: the Controls tab (AC-SETb-5, AC-SETb-8). Its texts turn Chinese with the whole menu and come back
+## exactly; the key map is read-only and its key labels are not translated; Apply saves the two input
+## values and emits `applied`; Revert and Close emit nothing and drop the draft; without the look capability
+## the two look controls are hidden.
+func _controls_tab(menu: MineWorldSettingsMenu, file: String) -> void:
+	var rows: Array[MineWorldKeyRow] = [MineWorldKeyRow.new("ui.settings.key.menu", PackedInt32Array([KEY_ESCAPE]))]
+	var controls := MineWorldControlsTab.new(menu, PackedStringArray([MineWorldControlsTab.CAP_MOUSE_LOOK]), rows)
+	menu.add_tab("ui.settings.tab.controls", controls)
+	var applied_values := []
+	menu.applied.connect(func(value: MineWorldSettings) -> void: applied_values.append(value))
+	menu._on_language(menu._locales.find("en"))
+	await process_frame
+	var english := _texts(menu)
+	_check(_any(english, "Mouse sensitivity") and _any(english, "Invert vertical look") and _any(english, "Key map")
+		and _any(english, "Open the menu") and _any(english, "Key bindings are fixed for now."),
+		"the Controls tab shows its texts in English")
+	menu._on_language(menu._locales.find("zh_Hans"))
+	await process_frame
+	var chinese := _texts(menu)
+	_compare(english, chinese)
+	_check(_any(chinese, "鼠标灵敏度") and _any(chinese, "反转纵向视角") and _any(chinese, "打开菜单"),
+		"the Controls tab's texts are Chinese with the menu")
+	var plain := MineWorldControlsTab.new(menu, PackedStringArray(), rows)
+	_check(plain._look_rows.all(func(node: Control) -> bool: return not node.visible),
+		"without CAP_MOUSE_LOOK the sensitivity and invert controls are hidden")
+	plain.free()
+
+	# Nothing is saved until Apply: a draft is dropped by Revert, and Revert and Close emit nothing.
+	controls._on_sensitivity(MineWorldSettings.MOUSE_SENSITIVITIES.find(200))
+	controls._on_invert(0)
+	_check(_read(file).get_value("input", "mouse_sensitivity", 100) == 100 and applied_values.is_empty(),
+		"an unapplied input draft is not saved and emits nothing")
+	menu.revert()
+	_check(menu.draft.mouse_sensitivity == 100 and not menu.draft.invert_y and applied_values.is_empty(),
+		"Revert drops the input draft and emits nothing")
+	controls._on_sensitivity(MineWorldSettings.MOUSE_SENSITIVITIES.find(200))
+	controls._on_invert(0)
+	menu.close()
+	menu.open()
+	_check(menu.draft.mouse_sensitivity == 100 and applied_values.is_empty(),
+		"Close drops the input draft; the reopened menu shows the saved values")
+
+	# Apply saves both values at once, with no display confirmation, and emits `applied` with them.
+	controls._on_sensitivity(MineWorldSettings.MOUSE_SENSITIVITIES.find(200))
+	controls._on_invert(0)
+	menu.apply()
+	var saved := _read(file)
+	_check(saved.get_value("input", "mouse_sensitivity") == 200 and saved.get_value("input", "invert_y") == true
+		and menu.confirm_left < 0.0, "Apply saves the input values, with no display confirmation")
+	_check(applied_values.size() == 1 and applied_values[0].mouse_sensitivity == 200
+		and applied_values[0].invert_y and is_equal_approx(applied_values[0].look_scale(), 2.0),
+		"Apply emits applied once, with the values in effect")
+	menu._on_language(menu._locales.find("en"))
+	menu._on_language(menu._locales.find("zh_Hans"))
+	await process_frame
+	_check(_texts(menu) == chinese, "the tab's texts are the same after a second switch")
+	controls._on_sensitivity(MineWorldSettings.MOUSE_SENSITIVITIES.find(100))
+	controls._on_invert(1)
+	menu.apply()
+	_check(_read(file).get_value("input", "mouse_sensitivity") == 100 and _read(file).get_value("input", "invert_y") == false,
+		"a second Apply saves the defaults again")
 
 
 ## AC-SET-14: a `.po` dropped into the user's layer (`user://locale/xx_test.po`) with a self-name and

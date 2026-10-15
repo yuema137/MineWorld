@@ -20,6 +20,10 @@ path = "src/main.rs"
 clap = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
+# The decision list and the models that drive each seat: the trait hosts hold seats by, and this build's
+# installed models (`MODULE_SPEC.md` §5.1; pr-dl-a-decision-list.md SD-DLa-13).
+mineworld-decision = { workspace = true }
+mineworld-installed-models = { workspace = true }
 mineworld-kernel = { workspace = true }
 # `run` steps a seat while movement says its person is walking (`is_walking`), and a hosted seat knows
 # which requests are walking ones (`step-11-bodies.md` SD-N14, SD-N15; N-D12).

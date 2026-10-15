@@ -163,6 +163,9 @@ func _hud() -> void:
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
 	settings_menu.setup(settings_store, PackedStringArray(), _menu_theme())
+	# No look capability here: 2D has no mouse look, so the tab shows the key map alone (SET-b).
+	settings_menu.add_tab("ui.settings.tab.controls", MineWorldControlsTab.new(settings_menu,
+		PackedStringArray(), Controls2D.key_rows()))
 	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
 	settings_menu.opened.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_DISABLED)
 	settings_menu.closed.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_INHERIT)
@@ -204,7 +207,8 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
+		var action := Controls2D.action_for(event.keycode)
+		if action == "menu":
 			# Esc closes what is open, else opens the settings menu, which holds Quit (QSET-2).
 			if menu.is_open():
 				menu.close()
@@ -213,15 +217,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if settings_menu.is_open():
 			return
-		match event.keycode:
-			KEY_E:
+		match action:
+			"spot_menu":
 				open_menu_at(get_local_mouse_position(), false)
-			KEY_Q:
+			"person_menu":
 				if latest != null:
 					open_menu(latest.observer())
-			KEY_I:
+			"things":
 				panels.toggle("things")
-			KEY_H:
+			"conversations":
 				panels.toggle("conversations")
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
 			and not settings_menu.is_open():
@@ -343,13 +347,11 @@ func _what(asked: Dictionary, done: bool) -> String:
 
 
 func _inputs() -> void:
-	var keys := {"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
-		"move_up": [KEY_W, KEY_UP], "move_down": [KEY_S, KEY_DOWN]}
-	for action in keys:
+	for action in Controls2D.WALK:
 		if InputMap.has_action(action):
 			continue
 		InputMap.add_action(action)
-		for code in keys[action]:
+		for code in Controls2D.WALK[action]:
 			var event := InputEventKey.new()
 			event.physical_keycode = code
 			InputMap.action_add_event(action, event)

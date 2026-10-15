@@ -2,7 +2,7 @@
 
 use mineworld_contracts::{
     ComponentRecord, EntityId, EntityType, EntityTypeSet, Event, EventEnvelope, EventTypeId,
-    PersonId, RelationTypeDeclaration, RelationTypeId, SystemId,
+    PersonId, Rejection, RejectionCode, RelationTypeDeclaration, RelationTypeId, SystemId,
 };
 use mineworld_conversation::Spoke;
 use mineworld_group_activity::{GroupActivityEnded, InvitationAccepted, InvitationDeclined};
@@ -17,8 +17,11 @@ use serde_json::Value;
 
 use crate::codec;
 use crate::component::{Acquaintances, RelationshipValues};
-use crate::event::{BecameAcquainted, RelationshipChanged};
-use crate::interactions::{RelationshipParameters, audience, increments, may_acquaint};
+use crate::decay::CurveName;
+use crate::event::{AcquaintanceForgotten, BecameAcquainted, RelationshipChanged};
+use crate::interactions::{
+    RelationshipParameters, audience, decay_rule, increments, known_at_most, may_acquaint,
+};
 
 /// What one exchange of words adds to familiarity, in both directions (SD-6 (1)).
 pub const SPOKE_FAMILIARITY: i32 = 10;
@@ -33,10 +36,12 @@ pub const ACTIVITY_REGARD: i32 = 20;
 // Since S17's PR IL-e the five values above are the compiled defaults of the section's parameters
 // (`spoke_familiarity` … `activity_regard`, `crate::interactions`), which a world may change.
 
-/// Which of this pack's facts belong in a person's objective biography (`ARC-29`): both of them.
+/// Which of this pack's facts belong in a person's objective biography (`ARC-29`): all three (QFGA-5:
+/// forgetting somebody is part of a life, as meeting them is).
 pub const BIOGRAPHICAL: &[EventTypeId] = &[
     BecameAcquainted::EVENT_TYPE,
     RelationshipChanged::EVENT_TYPE,
+    AcquaintanceForgotten::EVENT_TYPE,
 ];
 
 /// Who knows whom.
@@ -72,7 +77,9 @@ pub fn knows_declaration() -> RelationTypeDeclaration {
 
 impl System for RelationshipsSystem {
     /// 2 since S17's PR IL-e: the declaration gained the section's component and configured fact.
-    const VERSION: SystemVersion = SystemVersion::new(2);
+    /// 3 since S24's PR FG-a: the section's parameters gained decay (the configured fact's payload
+    /// grows) and the declaration the fact `acquaintance-forgotten` (D-FGA-9).
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     /// No `depending_on`, no `providing`: it hears facts and writes only its own state.
     fn declaration(&self) -> SystemDeclaration {
@@ -81,6 +88,7 @@ impl System for RelationshipsSystem {
                 .owning::<Acquaintances>()
                 .emitting::<BecameAcquainted>()
                 .emitting::<RelationshipChanged>()
+                .emitting::<AcquaintanceForgotten>()
                 .subscribing_to::<Spoke>()
                 .subscribing_to::<InvitationAccepted>()
                 .subscribing_to::<InvitationDeclined>()
@@ -216,6 +224,8 @@ fn apply(
         return Ok(Vec::new());
     }
     let holder = change.person.entity_id();
+    let rule = decay_rule(&world.read(), change.person, change.counterpart)
+        .map_err(|curve| unknown_curve(event, &curve))?;
     let mut known = world
         .read()
         .component::<Acquaintances>(holder)
@@ -225,7 +235,10 @@ fn apply(
         change.counterpart,
         RelationshipValues::met(event.at(), event.id()),
     );
+    // The level last stated for this pair is the stored values' (every crossing at a reduction is
+    // stated); the contact adds to the values as they read now, faded (`ARC-86`, §5.2, §5.4).
     let before = values.level();
+    values.rebase(&rule, event.at());
     values.adjust(change.familiarity, change.regard, event.at());
     if change.exchange {
         values.exchanged();
@@ -234,7 +247,15 @@ fn apply(
         values.shared_an_activity();
     }
     let after = values.level();
+    let forgotten = if new {
+        beyond_the_cap(&world.read(), event, change, &mut known)?
+    } else {
+        Vec::new()
+    };
     world.relate(&knows(), holder, change.counterpart.entity_id())?;
+    for victim in &forgotten {
+        unknow(world, event, holder, *victim)?;
+    }
     world.insert(holder, known)?;
 
     let mut emissions = Vec::new();
@@ -254,7 +275,109 @@ fn apply(
             &RelationshipChanged::new(change.person, change.counterpart, before, after),
         ));
     }
+    for victim in forgotten {
+        emissions.push(fact(
+            &world.read(),
+            event,
+            &Change::new(change.person, victim),
+            &AcquaintanceForgotten::new(change.person, victim),
+        ));
+    }
     Ok(emissions)
+}
+
+/// The cap (§5.5): with a new acquaintance just formed, evicts from `known` the weakest ties beyond
+/// the number the holder keeps, never the one just met; whom, in order.
+fn beyond_the_cap(
+    world: &WorldRead<'_>,
+    event: &EventEnvelope,
+    change: &Change,
+    known: &mut Acquaintances,
+) -> Result<Vec<PersonId>, KernelError> {
+    let at_most = known_at_most(world, change.person);
+    if known.len() <= at_most {
+        return Ok(Vec::new());
+    }
+    known
+        .evict_beyond(
+            at_most,
+            |counterpart| decay_rule(world, change.person, counterpart),
+            event.at(),
+            change.counterpart,
+        )
+        .map_err(|curve| unknown_curve(event, &curve))
+}
+
+/// Removes `holder → victim`'s `knows` edge, which every entry has (the edge and the entry are written
+/// together); one that is not there is a broken invariant, named.
+fn unknow(
+    world: &mut WorldView<'_, RelationshipsSystem>,
+    event: &EventEnvelope,
+    holder: EntityId,
+    victim: PersonId,
+) -> Result<(), KernelError> {
+    let edge = world
+        .read()
+        .relations_touching(holder)
+        .find(|edge| {
+            *edge.relation_type() == knows()
+                && edge.from() == holder
+                && edge.to() == victim.entity_id()
+        })
+        .cloned();
+    match edge {
+        Some(edge) if world.unrelate(&edge)? => Ok(()),
+        _ => Err(KernelError::FactRefusedByOwner {
+            system: RelationshipsSystem::ID,
+            event_type: event.event_type().clone(),
+            reason: Rejection::System {
+                code: EDGELESS,
+                detail: Some(format!(
+                    "the acquaintance {holder} → {} had no knows edge to remove",
+                    victim.entity_id()
+                )),
+            },
+        }),
+    }
+}
+
+/// The code of [`unknow`]'s refusal.
+const EDGELESS: RejectionCode = RejectionCode::from_static("acquaintance-without-edge");
+
+/// The fault a reduction raises for a curve this build does not know, naming it (§5.3): journaled as a
+/// fault, never reduced with undecayed values.
+fn unknown_curve(event: &EventEnvelope, curve: &CurveName) -> KernelError {
+    KernelError::FactRefusedByOwner {
+        system: RelationshipsSystem::ID,
+        event_type: event.event_type().clone(),
+        reason: Rejection::System {
+            code: UNKNOWN_CURVE,
+            detail: Some(format!(
+                "the decay curve '{curve}' is not bundled with relationships nor registered in \
+                 this build"
+            )),
+        },
+    }
+}
+
+/// The code of [`unknown_curve`]'s refusal.
+const UNKNOWN_CURVE: RejectionCode = RejectionCode::from_static("unknown-decay-curve");
+
+/// What `holder` holds about `counterpart`, read now — familiarity and regard faded by the world's
+/// decay for the time since their last contact (`ARC-86`) — or [`None`] when `holder` does not know
+/// them, or the world names a curve this build does not know (fail closed, as disclosure does).
+///
+/// The reading a disclosure shows, for Rust readers: tests, and an in-process decision model.
+pub fn current(
+    world: &WorldRead<'_>,
+    holder: PersonId,
+    counterpart: PersonId,
+) -> Option<RelationshipValues> {
+    let stored = world
+        .component::<Acquaintances>(holder.entity_id())?
+        .of(counterpart)?;
+    let rule = decay_rule(world, holder, counterpart).ok()?;
+    Some(stored.reading(&rule, world.at()))
 }
 
 /// One of this pack's facts about a directed pair: about the person, with both as participants, heard
@@ -287,6 +410,11 @@ fn fact<E: Event>(
 impl PerceptionProvider for RelationshipsSystem {
     /// A person's `Acquaintances`, **to that person and nobody else** (SD-9, `INV-13`): how Alice
     /// regards Bob is Alice's to know.
+    ///
+    /// The same record as stored, with each familiarity and regard read at the world's instant —
+    /// faded by the world's decay (`ARC-86`, D-FGA-2). A world that configures no decay discloses the
+    /// stored values. A curve this build does not know withholds the record rather than show
+    /// undecayed values (§5.3).
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -296,12 +424,21 @@ impl PerceptionProvider for RelationshipsSystem {
         if subject != observer {
             return Vec::new();
         }
-        world
-            .component::<Acquaintances>(observer)
-            .map(|known| {
+        let (Some(known), Ok(holder)) = (
+            world.component::<Acquaintances>(observer),
+            PersonId::new(observer, EntityType::Person),
+        ) else {
+            return Vec::new();
+        };
+        known
+            .reading(
+                |counterpart| decay_rule(world, holder, counterpart),
+                world.at(),
+            )
+            .map(|now| {
                 vec![ComponentRecord::new::<Acquaintances>(
                     observer,
-                    codec::to_value(known),
+                    codec::to_value(&now),
                 )]
             })
             .unwrap_or_default()
