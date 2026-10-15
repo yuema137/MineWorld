@@ -403,12 +403,12 @@ share in `base1` vs `base2` + 0.5 points.
 **Commit boundary:** instrument only; with no `--trial` argument, nothing renders differently.
 
 Steps:
-- [ ] **1.0 Session start.** `git status` clean; `git log -1` is `origin/main`; `git worktree list` shows
+- [x] **1.0 Session start.** Evidence: E-B2-1 (branch and worktree confirmed; base b489543, 10 commits behind origin/main, docs/CI only). `git status` clean; `git log -1` is `origin/main`; `git worktree list` shows
   `impl-rl-b2` held by no other session. Read this file in full and RL-b's §3 and §7.
-- [ ] **1.1 Base frames (record).** On the unmodified tree: `./mineworld-slice --shots` → copy to
+- [x] **1.1 Base frames (record).** Evidence: E-B2-1. On the unmodified tree: `./mineworld-slice --shots` → copy to
   `rlb2/base1`; run again → copy to `rlb2/base2`. frame_diff `base1` vs `base2`: record each view's share
   (the noise floor). The first run imports (minutes, once).
-- [ ] **1.2 New file `P/scripts/slice/slice_trial.gd`**, `class_name SliceTrial extends RefCounted`:
+- [x] **1.2 New file `P/scripts/slice/slice_trial.gd`**, `class_name SliceTrial extends RefCounted`:
   - `const NAMES := ["none", "shadow2", "shadow60", "lod2", "cells48", "shadowsoff"]` (`shadowsoff` is X-3's
     test-only name; it is removed in step 1.11).
   - `static func requested() -> PackedStringArray`: reads the user argument `--trial=<a+b+…>`; returns its
@@ -423,19 +423,19 @@ Steps:
     `cells48` → nothing here (build-time, step 1.3); `shadowsoff` → `Sun.shadow_enabled = false`;
     `none` → nothing. Print one line `trial  <names joined by +>` either way.
   - `static func label() -> String`: the requested names joined by `+` (for the run record).
-- [ ] **1.3 Cell size.** `P/scripts/slice/batch.gd`: `static func merge(root: Node3D, cell: float = CELL)`,
+- [x] **1.3 Cell size.** `P/scripts/slice/batch.gd`: `static func merge(root: Node3D, cell: float = CELL)`,
   and in `_collect` use the passed `cell` instead of `CELL` (thread it as a parameter). `slice_world.gd`:
   the existing `SliceBatch.merge(...)` call passes `SliceTrial.cell_size()` as the second argument.
-- [ ] **1.4 Apply call.** `P/scripts/slice/slice_main.gd` `_ready()`: directly after `_gi()` (line ~63),
+- [x] **1.4 Apply call.** `P/scripts/slice/slice_main.gd` `_ready()`: directly after `_gi()` (line ~63),
   `if not SliceTrial.apply(self): get_tree().quit(2); return`.
-- [ ] **1.5 `slice_perf.gd`.** (a) `BREAKDOWN_VIEWS` += `"doorway"`. (b) `CATEGORIES` += `"omni_shadows"`;
+- [x] **1.5 `slice_perf.gd`.** (a) `BREAKDOWN_VIEWS` += `"doorway"`. (b) `CATEGORIES` += `"omni_shadows"`;
   in `_members`: every `OmniLight3D` under `slice` with `shadow_enabled`; in `_switch`: set their
   `shadow_enabled = on`. (c) The run record (`rec` in `_protocol` and in `_breakdown`) gains
   `"trial": SliceTrial.label()`, and the header line prints it. (d) In `_aggregate`, delete the M-6 verdict
   block (from `var applies` to the end of the function) and print instead
   `verdict: python3 clients/3d-spike/tools/perf_compare.py <session dir>`; keep the median table. (e) The
   format probe line gains the texture's size: `%dx%d` from `t.get_width()`, `t.get_height()`.
-- [ ] **1.6 New file `P/tools/perf_compare.py`** (stdlib only: `json`, `pathlib`, `sys`, `statistics`).
+- [x] **1.6 New file `P/tools/perf_compare.py`** (stdlib only: `json`, `pathlib`, `sys`, `statistics`).
   `python3 perf_compare.py <session dir> [<session dir> …]`: for each directory, read every `*.json` whose
   `protocol` is `"RL-b M-1..M-5"` and whose `inconclusive` is false; the trial name is the records' `trial`
   (default `"none"`). Per view (the order of the first record's `views`): median of the runs' `wall.p95`
@@ -446,32 +446,32 @@ Steps:
   `advisory: draws max N (bound 2000), primitives max N (bound 3000000)`. Write the same text to
   `<last dir>/compare.txt`. Exit 0 (it reports; it does not block). Constants at top: `P95_MS = 16.7`,
   `VIDEO_MB = 2048.0`, cite RL-b R-2 in a comment.
-- [ ] **1.7 Launcher `mineworld-slice`.** (a) New case `--trials=*` → `trials="${a#--trials=}"`, `perf`
+- [x] **1.7 Launcher `mineworld-slice`.** (a) New case `--trials=*` → `trials="${a#--trials=}"`, `perf`
   must also be set (error otherwise). (b) In the `--perf` block: if `trials` is empty, behave as today and
   after the three runs call `python3 "$proj/tools/perf_compare.py" "$session"`. If `trials` is set, loop
   `for t in ${trials//,/ }`: session dir suffixed `-$t`, the existing three-run loop with `--trial=$t`
   added to the Godot arguments; collect the session dirs; after the loop call `perf_compare.py` with all of
   them. `--trial=` alone needs no case (it passes through, B-8).
-- [ ] **1.8 A-8 (record).** `./mineworld-slice --shots` → `rlb2/c1`; frame_diff `base1` vs `c1`: every
+- [x] **1.8 A-8 (record).** `./mineworld-slice --shots` → `rlb2/c1`; frame_diff `base1` vs `c1`: every
   view within the noise floor + 0.5 points. Also `./mineworld-slice --drive`: all checks pass.
-- [ ] **1.9 Trials' frames (record).** For each `t` in `shadow2`, `shadow60`, `lod2`, `cells48`,
+- [x] **1.9 Trials' frames (record).** For each `t` in `shadow2`, `shadow60`, `lod2`, `cells48`,
   `shadow60+lod2+cells48`: `./mineworld-slice --shots --trial=$t` → `rlb2/trial-$t`; frame_diff `c1` vs it
   with `--heat=res://shots/slice/rlb2/heat-$t`. Record per trial: max share, views over the bound, and for
   each view over the bound the location (look at the heat image) and the named cause. These results feed
   SD-B2-4 step 1.
-- [ ] **1.10 Counts (record).** `./mineworld-slice --perf --trial=$t` once per trial (one run is enough;
+- [x] **1.10 Counts (record).** `./mineworld-slice --perf --trial=$t` once per trial (one run is enough;
   stop it after run 1 with Ctrl-C if you like): draws / primitives / objects per view, video memory. Label
   timings `NOT USED`. `./mineworld-slice --perf --breakdown`: record the doorway rows (draws / primitives /
   objects for `occlusion` and `omni_shadows`; timings `NOT USED`). If doorway `occlusion` off adds more
   than 100 objects, raise §9's occluder item to the primary session (do not build occluders).
-- [ ] **1.11 Mutations (record).** X-3: `./mineworld-slice --perf --trial=shadowsoff` (one run): street wide
+- [x] **1.11 Mutations (record).** X-3: `./mineworld-slice --perf --trial=shadowsoff` (one run): street wide
   draws fall by ≥ 2 000 vs `none`. Then delete `"shadowsoff"` from `NAMES` and its branch in `apply`.
   X-4: `./mineworld-slice --shots --trial=shadow6O` exits non-zero with `unknown trial`, no PNG newer than
   the command start. X-5: make `/tmp/rlb2-x5/` with three planted JSON files (copy a real record from step
   1.10, set `inconclusive` false, set `cafe frontage` `wall.p95` to 16.8 in all three, `draw_calls` 4000
   everywhere, `trial` "none"): `perf_compare.py /tmp/rlb2-x5` prints `R-2 FAIL: cafe frontage`; set that
   p95 to 16.0 in all three: prints `R-2 PASS` with draws listed as advisory. Delete `/tmp/rlb2-x5`.
-- [ ] **1.12 Review.** Re-read the diff against §4.2 (split values, threshold location), check that with no
+- [x] **1.12 Review.** Re-read the diff against §4.2 (split values, threshold location), check that with no
   `--trial` the code path only prints `trial  none`, and that `perf_compare.py` judges only p95 and video.
 - [ ] **1.13 Commit** `3d: perf trials, the doorway in the breakdown, one R-2 judge` (files: the five
   scripts above, `perf_compare.py`, `mineworld-slice`, this file's ledger). Push.
@@ -692,11 +692,92 @@ FREEZE   2026-10-14  DESIGN FROZEN by the primary session on operator rulings Q-
                      step for the implementer; §8.1/§8.2 corrected to run on the C2 and C3 heads
 ```
 
+```text
+E-B2-1   2026-10-14  step 1.0 (branch mvp1/pr-rl-b2 from origin/main b489543; worktree impl-rl-b2; no other session held it).
+                     step 1.1: `./mineworld-slice --shots` twice on the unmodified tree (run 1 included a ~50 min
+                     first import; `DONE 0` both). frame_diff base1 vs base2, over 8/255 share (noise floor), the
+                     views with a nonzero share: 09b_character_detail 1.559 % (character animation, not touched by
+                     this PR), 08_third_front 0.234 %, 09c 0.225 %, 03r 0.126 %, 03s 0.116 %, 04c 0.130 %, 06 0.092 %,
+                     07 0.118 %, 09 0.146 %, 22 0.050 %, others <= 0.02 %. Frames in shots/slice/rlb2/base1 and base2
+                     (uncommitted scratch). Verdict: PASS (baseline captured)
+E-B2-2   2026-10-14  steps 1.2-1.7 written: scripts/slice/slice_trial.gd (new; NAMES incl. the test-only shadowsoff),
+                     batch.gd merge(root, cell) threaded through _collect, slice_world.gd passes SliceTrial.cell_size(),
+                     slice_main.gd applies SliceTrial after _gi() (quit 2 on an unknown name), slice_perf.gd (doorway
+                     view; omni_shadows category; trial in the record and header; M-6 verdict block and its constants
+                     removed; texture probe prints WxH), tools/perf_compare.py (new, stdlib; the R-2 judge),
+                     mineworld-slice (--trials= with a per-trial loop, requires --perf, one perf_compare call).
+                     step 1.8: `./mineworld-slice --shots` -> rlb2/c1, `trial  none` printed, no script error.
+                     frame_diff base1 vs c1: no view above 0.35 % over 8/255; the largest shares are 09b 0.346 % (base
+                     noise 1.559 %), 22 0.258 %, 21 0.199 %, 03 0.119 % (base 0.000 %, under the 0.5-point bound).
+                     `./mineworld-slice --drive`: "all drive checks pass", DONE 0. Verdict: PASS (A-8 by V-1 rule)
+E-B2-3   2026-10-14  step 1.9 (V-1 per trial, bound per view = that view's base1-vs-base2 share + 0.5 points; all
+                     five runs exit 0, `trial  <names>` printed, no script error). Frames rlb2/trial-<t>, heat rlb2/heat-<t>.
+                     shadow2  (T-1): max 37.27 % (01_street_wide); 22 frames over bound (of the 30 PNGs compared). Located: whole-frame
+                              shadow change, the near cascade now covers 0-15.2 m (heat not opened for every view).
+                              Not eligible without operator acceptance (Q-B2-2); not chosen autonomously.
+                     shadow60 (T-2): max 3.19 % (01_street_wide); 14 views over. Located (heat 01_street_wide): changes
+                              on facade and pavement shadow edges and penumbra dots at mid/far range (the last cascade
+                              now ends at 60 m). Eligible only with operator acceptance (V-4(ii)).
+                     lod2     (T-3): max 1.81 % (09b, character detail, under its 2.06 bound); over bound: 05b 0.63 %,
+                              12_back_wall 0.54 % (heat 12): the LOD of small goods, chairs, the pendant lamp and the
+                              cabinet bread changes (the 2 px threshold). Eligible only with operator acceptance.
+                     cells48  (T-4): max 6.33 % (16_south_side); 8 views over. Located (heat 16): one foliage canopy
+                              above the Lakeside Deli frontage, not the merged building geometry. The design expected
+                              zero pixel change; this is a finding. Named cause (hypothesis, not yet tested): the merged
+                              alpha-blended canopy triangles are drawn in a different order when the cell changes.
+                              T-4 is chosen only if it is needed (SD-B2-4 rule 3).
+                     shadow60+lod2+cells48 (T-5): max 6.66 % (01r); 25 views over; the union of the three causes above.
+                     Next (done in E-B2-4): step 1.10 counts; direct runs, timings labelled NOT USED.
+```
+
+```text
+E-B2-4   2026-10-14  steps 1.10-1.12 (C1, agent).
+                     1.10 counts: `--perf --trial=<t>` run 1 for none, shadow2, shadow60, lod2, cells48,
+                     shadow60+lod2+cells48 under shots/slice/perf/rlb2-counts/<t>/run1.json; each has
+                     `inconclusive: false` and its `trial`. Timings NOT USED. A first breakdown run was cut
+                     short at street wide (its log is overwritten). A full `./mineworld-slice --perf --breakdown`
+                     then ran to EXIT 0 (session shots/slice/perf/20261014-184734-voxel-1920x1080). Doorway
+                     rows (draws, objs off): occlusion +4 / +4 (below the 100-object trigger, so no occluder is
+                     raised, §4.1); shadows -2342 draws; omni_shadows -971 draws. Timings are NOT USED (several
+                     rows INCONCLUSIVE from the disturbed run).
+                     1.11 X-3: `--perf --trial=shadowsoff`, run 1: street wide draws 3814 (none) -> 1631, a drop
+                     of 2183 >= 2000. PASS. The test-only name is then removed from NAMES and from apply.
+                     X-4: `./mineworld-slice --shots --trial=shadow6O`: EXIT 2, `ERROR: unknown trial: shadow6O`,
+                     0 PNGs newer than the start. PASS. X-5 (no GPU, planted 3-run session, deleted): FAIL names
+                     cafe frontage (and doorway, 17.64 ms in the recorded none run); with those at 16.0 and draws
+                     4000 it is R-2 PASS (draws advisory). PASS. The planted PASS fixture is synthetic.
+                     1.12 review: no --trial prints `trial  none` only (the c1 shots run); perf_compare judges
+                     p95 and video only, with draws and primitives advisory. PASS.
+```
+
+**Parked operator checks (batched to milestone).** Coordinator ruling: the two operator perf sessions are
+batched into the milestone. The tables below are parked, not run. Each row begins with an explicit `cd`.
+
+Operator session 1 (§8.1, the C2 head, after C2 is committed; about 25-35 min):
+
+| Step | Command or action | Expected result |
+| --- | --- | --- |
+| 1 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && caffeinate -d ./mineworld-slice --perf --trials=none,shadow2,shadow60,lod2,cells48,shadow60+lod2+cells48` | a `perf session:` line ending `...-voxel-1920x1080-none`; a 1920x1080 window opens; on the first run after the texture commit an import pass runs first (several minutes, once) |
+| 2 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && ls clients/3d-spike/shots/slice/perf` (leave the window frontmost and untouched) | the camera moves through eight views, about 7 s each; each run prints a table and `run verdict conclusive`; an INCONCLUSIVE run is re-run by the launcher, up to three times |
+| 3 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && ls clients/3d-spike/shots/slice/perf` | six trial sessions (`...-none`, `...-shadow2`, `...-shadow60`, `...-lod2`, `...-cells48`, `...-shadow60+lod2+cells48`), then a closing table from tools/perf_compare.py: per view the median p95 and Δ against none; per trial `R-2 PASS` or `R-2 FAIL: <views>`; video memory; advisory draws and primitives |
+| 4 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` | the operator pastes the whole terminal output here; recorded as E-B2-trials, SD-B2-4 applied by the agent. `shadow2` is never chosen autonomously (Q-B2-2) |
+
+Operator session 2 (§8.2, the C3 head, after E.2 chose a lever and C3 is committed; about 5-8 min):
+
+| Step | Command or action | Expected result |
+| --- | --- | --- |
+| 1 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && caffeinate -d ./mineworld-slice --perf` | one `perf session:` line; three conclusive runs |
+| 2 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && ls clients/3d-spike/shots/slice/perf` | the probe lines at the top of the run output: `croissant_diff_1k.jpg BPTC_RGBA 512x512, 10 mip level(s)` and `cobblestone_floor_08_diff_1k.jpg BPTC_RGBA 1024x1024, 11` |
+| 3 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` | `R-2 PASS` with every view's median p95 at or below 16.7 ms and video memory about 1 520 MB; draws and primitives listed as advisory |
+| 4 | `cd /Users/yuema137/mineworld-worktrees/impl-rl-b2 && cat clients/3d-spike/shots/slice/perf/*/compare.txt` (the operator pastes the output) | recorded as E-B2-final; A-1 decided |
+
+**Handoff.** Superseded: see E-B2-4. Next action: the C1 commit, then the rebase onto origin/main, then C2.
+
 Note on order (bounded, recorded at freeze): the trials' frames (step 1.9) are taken on C1, before the
 texture commit, while operator session 1 runs on C2. The texture change touches only downsized props, and
 each trial's V-1 is measured against its own `none`, so the trial's located change is unaffected; step 3.2
 re-checks the committed lever on the textured tree.
 
-**Handoff.** Not started. Waiting for the primary session's dispatch. Next action of the implementer: §11
+**Handoff (historical, as written at the freeze).** Not started. Waiting for the primary session's dispatch. Next action of the implementer: §11
 step 1.0 (create `impl-rl-b2` on `mvp1/pr-rl-b2` from `origin/main`, read this file in full), then steps
 1.1 onward.
