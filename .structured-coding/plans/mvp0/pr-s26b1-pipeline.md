@@ -1166,6 +1166,7 @@ STOP CONDITION:          S26-b1 READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Q-B1-3 | **$150 OpenAI cap for the whole of S26**, reported at 50 % and 100 %, hard stop at the cap. Answered directly in the primary session: "150 美元上限" | operator |
 | Q-B1-4 | **Yes.** No Blender in CI; the local Gate is re-run whenever the Blender scripts change | primary session |
 | Q-B1-5 | **Yes.** Fleck repair on by default, off for Vera | primary session |
+| F-B1-B10-1 | **Accept the vitruvian armature as built** (Q-B1-2 stands). For the four named bones only (`mixamorig:LeftFoot`, `RightFoot`, `LeftToeBase`, `RightToeBase`) the recorded roll tolerance is ≤ 2.5e-4 rad; the 1e-5 bound stays for every other bone. Heads and tails stay within 1e-5 m; `front_y` matches. The real test is B10's own parity gate (AB1-8, AB1-10). If parity fails at the feet or toes, stop: switch to Q-B1-2 option (b) and commit `body_g5.glb` | primary session, coordinator message 2026-10-14 |
 
 **Audit re-check after these rulings** (origin/main after #195 (S26-a design), DL-a, FG-a, 25b, SET-b, merged
 into this branch): `scripts/ci_layer.py` (:48, :53, :184-213), `pyproject.toml` `[tool.pyright]` (:13-17),
@@ -1191,7 +1192,7 @@ or `tools/asset_generation/` changed.
 | B7 | this commit | [x] steps 1–6: `blender/{LICENSE (cmp-identical), README.md, common.py, gameready.py, fit_bind.py, weights_fingers.py, weights_pack.py, flecks.py, export.py, render_ortho.py, render_bones.py, dump_rig.py}`; ruff check and format clean under the `blender/*` rule relaxation (F-B1-B7-2) | [x] step 7 smoke: real `blender 5.2.2` on `vitruvian.glb` via `dump_rig.py`, exit 0, 52 bone lines (log read in full, `smoke.log`); I-B1-9 literal scan recorded in §2.4; `cmp` of LICENSE | [x] per-script port diff recorded in the deviations list; no script imports another except `common` |
 | B8 | this commit | [x] steps 1–5: `mwcast/blender.py` (find, pin check, command), `mwcast/pipeline.py` (`plan`, `stage_params`, `Job`, `run` with the SHA-256 stop and the run manifest), `mwcast/compare.py` (§5.7 rows), `cli.py` (`run`, `compare`), `standard.py` (PARITY_* literals), `tests/test_compare.py` (7), `tests/test_pipeline.py` (+7) | [x] 65 pytest passed; ruff check and format clean; pyright 0 errors; mutation (`PARITY_JOINT_M = 0.002`) → the 1.1 mm test red, reverted green; the accepted asset compares equal to itself | [x] subprocess only with argument lists; no stage reads an environment variable; `UrllibTransport` untouched. Deviations: `check_pin` returns whether the named version was used (not `None`); `compare --json` not added (the rows print as text). Procedural: one empty `cat >>` heredoc was run by mistake against `tests/test_pipeline.py` (it wrote nothing; the file was then edited with Edit only; recorded, not repeated) |
 | B9 | this commit | [x] steps 1–6: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/{fit.yaml, generation_log.yaml}`; `tools/character_pipeline/godot/{character.gltf.import, inspect_import.gd}`; `tools/character_pipeline/templates/MESHY_CAST_BATCH.txt`; `tests/test_records.py` (+2 Vera tests, +1 check-characters test) | [x] 68 pytest passed; ruff check and format clean; pyright 0 errors; `cast.py check-characters` → `vera-lindgren: records only (no character.yaml); overrides ['flecks.enabled']`, 0 failing. The Godot files are not run yet (B10 step 6) | [x] trace table below; no `task.json` URL copied; `charmorph_front_y_at_hips` kept at −0.045356 (see F-B1-B9-1) |
-| B10 | STOPPED at step 1: MATERIAL STOP F-B1-B10-1 (Gate 2 spec below) | [ ] step 1 measured; steps 2–10 not run | [ ] step 1 done; the armature premise of AB1-8 fails; no Gate verdict | [ ] stop recorded; no bound changed |
+| B10 | STOPPED at step 2 (run r1, `fit_bind`): F-B1-B10-2 (Gate 2 spec below); ruling F-B1-B10-1 applied (§14.1) | [x] step 1 measured; [ ] steps 2–10 not complete (r1 exited 1 at `fit_bind`) | [ ] no Gate verdict; AB1-7…AB1-11 not evaluated | [x] no bound changed; the four-bone roll tolerance is a ruled, recorded tolerance, not a bound change |
 | B11 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1306,6 +1307,20 @@ or `tools/asset_generation/` changed.
   (a bound amendment, ARC-23 rule); (b) commit `body_g5.glb` under Q-B1-2's option (b) (a binary, 6.4 MB, a new ruling);
   (c) fix the roll by a recorded correction of the four bones in `fit_bind.py`, which changes D+'s rig; (d) find that
   Blender's roll on zero-length toe bones is non-reproducible across imports (not checked; it needs a separate probe).
+- **B10 step 2 (run r1, 2026-10-14, load 12.8 / 14.8 / 13.7 before, 15.6 / 15.3 / 13.9 after; log
+  `S/logs/r1.log`, stage logs in `S/vera-lindgren/r1/`):** stage 6 (`gameready`) completed; `fit_bind` exited 1
+  with `no front surface near z 1.092/1.090` (`fit_bind.py:122`, the head-tail centre point). Probe (`dump_rig.py`
+  `front_y`, half_x 0.03, band 0.01, Blender 5.2.2): `body_g5` `cm_vitruvian` at z 1.092 has **16** vertices (min y
+  −0.0519814); `vitruvian.glb` `Body` at z 1.092 has **0** vertices. The earlier probe at z 1.0048 had 13 in both, so the
+  two bodies agree at the hips and differ at the head top.
+- **F-B1-B10-2 (MATERIAL STOP, for the primary session; not decided autonomously):** D+'s head-tail centre point
+  reads CharMorph's own front surface at its head top. The accepted armature (`vitruvian.glb`, Q-B1-2 (a)) carries
+  no body vertices there, so `fit_bind` cannot place the head joint. F-B1-B7-1's premise ("the same front surface")
+  holds at the hips only. Options: (a) a second recorded CharMorph number (`charmorph_front_y_at_head`, measured on
+  `body_g5`), which departs from Q-B1-2's "one recorded number"; (b) commit `body_g5.glb` (Q-B1-2 option (b)), the
+  ruled fallback for F-B1-B10-1, which also supplies the head surface; (c) a bounded port change that takes the head
+  point from another vertex set (a D+ change, not allowed without a ruling). Recommendation: (b), because it also
+  removes the hips constant. Steps 3–10 were not run; no verdict was reached.
 - **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
   to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
   used; the B8 empty append wrote nothing.
