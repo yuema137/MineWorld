@@ -560,3 +560,46 @@ dump digest (AFGc-4 (b)).
 ### 14.3 Load (R-LOAD-1, 2026-10-14)
 
 The host ran at load about 190–230. Local runs are for the fast, targeted files only; `tests/test_retention_host.py` (the FG-b hour-long suite) is CI's. Each recorded result carries the load average at the time.
+
+### 14.4 Commits (C0 … C5)
+
+| Commit | Hash | Scope | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- | --- | --- |
+| C0 | `6d6b8ba` | ledger, handoff | freeze verified; base recorded | doc checks rc 0 both (load 180) | N/A (no code) |
+| C1 | `fc311aa` | `docs/MODULE_SPEC.md` §5 | the assisted-policy sentence | doc checks rc 0 | terminology checked against FG-b's paragraph |
+| C2 | `77bf5e8` | `memory/retention/` assisted branch, registry, selection, host, absorb, store v2 DDL | §§5.1–5.3, §6 | `tests/test_assisted_host.py` 9/9 (21.5 s, load ≈183) | host: no write before the last await; `CassetteMiss` not caught; `Exhausted` returned; rejected merged plan uses fallback whole — reviewed on the diff |
+| C3 | `3bd10a8` | `forgetting/lm_summarise.py`, entry point, exports | §§5.4–5.5 | `tests/test_lm_summarise.py` 11/11 (load ≈190) | decision table reviewed cell by cell (9/1/5 constants); truncation deterministic |
+| C3b | `7524e9c` | the (d) oracle compares `text` too | — | `test_importance_nine…` passes; M8 fails it | N/A |
+| C4 | `d3e907e` | `tests/test_lm_summarise_replay.py`, `tests/cassettes/lm-summarise.jsonl` | §§7.2–7.3 | 4 passed, 1 skipped (recording), 7.3 s (load ≈140) | cassette holds no URL or key; LF endings (written from Python bytes, `\n` only) |
+| C5 | this commit | README (two lines), ledger | — | see §14.5 | — |
+
+Full-workspace gate: CI only (R-LOAD-1). `workspace gate: CI run <id> on <sha> (R-LOAD-1)` is recorded in §14.6 once the run exists.
+
+### 14.5 Mutations (AFGc, planted one at a time, restored; load ≈180)
+
+| Id | Mutation | Targeted test that fails, by name | Result |
+| --- | --- | --- | --- |
+| AFGc-1 | `SummaryGateway` byte check removed | `test_a_request_over_the_bound_never_reaches_the_backend`; `test_the_gateway_checks_each_request_before_the_backend` | FAIL by name, restored |
+| AFGc-2 | assisted fallback accepted (`FallbackNotPlain` not raised) | `test_the_registry_refuses_a_bad_fallback_by_name` | FAIL by name, restored |
+| AFGc-3 | out-of-group answer not checked by the host | `test_a_hostile_answer_is_discarded_and_its_group_falls_back` (validator then reports `fallback:duplicate`, not `fallback:invalid`) | FAIL by name, restored |
+| AFGc-3 (d) | summary written into `text` | `test_importance_nine_keeps_detail_and_the_citations_are_unchanged` (after the oracle now compares `text`) | FAIL by name, restored |
+| AFGc-5 | stop reason not recorded in the outcome | `test_a_refused_call_stops_the_pass_and_is_recorded`; `test_a_fallback_stands_whole_when_no_answer_is_used` | FAIL by name, restored |
+| AFGc-6 | `SummaryGateway` ignores its allowance | `test_the_allowance_is_spent_by_the_gateway_and_returned_not_raised`; `test_the_pass_never_exceeds_its_declared_allowance` | FAIL by name, restored |
+| AFGc-7 (a) | a forbidden import (`mineworld_cognition.budget`) in `lm_summarise.py` | `test_the_policy_imports_only_the_allowed_surface` | FAIL by name, restored |
+| AFGc-8 | importance upper bound removed (11 accepted) | `test_invalid_answers_each_keep_the_fallback_and_are_counted` | FAIL by name, restored |
+| AFGc-4 (c) | `CassetteMiss` caught in the host and treated as a fallback | `test_a_missing_recording_is_a_stop_and_the_pass_rolls_back` | FAIL by name, restored |
+
+`git diff` after the mutations: only the intended oracle change (C3b) remained.
+
+### 14.6 Evidence still owed
+
+- Frames of 1 (AFGc-4 (a)) on a prefix: not run locally (runtime under load); CI runs the module.
+- AFGc-5 four cases on `lm-summarise` itself: the no-calls, unbound and failed cases are covered by the test-only policy in `test_assisted_host.py` and by `test_an_unbound_tier_falls_back_whole`; the budget case on `lm-summarise` is not separately run.
+- AFGc-9 platforms: CI. Workspace gate: `workspace gate: CI run <id> on <sha> (R-LOAD-1)`, to be recorded.
+- Cassette digest (AFGc-4 (b)): `8f3ca66799fcd938c7ee9514e5c008c44a5ffc5756ba195a76f15ba8dd9cbc44` (sha256 of the replayed dump of the committed cassette, 12-day stream, frames of 256).
+
+### 14.7 Deviations and rule slips
+
+- F-FGc-1 to F-FGc-4: ruled by the primary on 2026-10-14 (§14.2).
+- Rule slips (NEVER list): `sed -i` was run twice. (1) An en-dash fix in `tests/test_assisted_host.py`, applied and verified (lint green after). (2) A probe `sed -i '' … /dev/null` run while checking a command; it changed no file. Both are disclosed. No other shell edit was made; all other edits were by Edit/Write.
+- The cassette is 506 KB, recorded once with `LMS_RECORD=1` (the test skipped otherwise).
