@@ -7925,6 +7925,29 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when Systems publish effect declarations for multi-step goals (DL-d), or when a candidate crate's core is shown to be independent of its engine.
 
+**Note, 2026-10-14 (DL-b, the core as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §§5, 15).**
+- **Where it lives.** `cognition/motivated` (`mineworld-motivated`) holds the core and adds no external
+  dependency.
+- **Scoring.** Every option is offered only from what the observation discloses. Its score is its base weight
+  multiplied, in the listed order, by its considerations. Each consideration is a piecewise-linear integer
+  curve (≤ 24 points) over one input, adjusted by Mark's compensation factor `1 000 − 1 000 / k`. All
+  arithmetic is floor division in `u64`, and the crate denies `clippy::float_arithmetic`.
+- **Choice.** A seeded draw, weighted by score, chooses among the options within `top_band` ‰ of the best,
+  using `Draw::salted` with the model's own salt. A door is re-drawn per commitment window.
+- **Shared code.** The observation readers and request builders are shared with `rule` through
+  `mineworld_rule_controller::{read, act}` (SD-DLb-1).
+- **Measured result (social-cafe, 30 days, seed 7, every seat `motivated`).**
+  - AC-DLb-3: night speech 0 ‰ (PASS).
+  - AC-DLb-4: TV against ATUS 513 ‰ against the limit of ≤ 250, and `rule`'s TV is 382 (**FAIL**).
+  - AC-DLb-5: night at home 972 ‰ (PASS).
+  - AC-DLb-6: agenda kept 930 ‰ against `rule`'s 937 (PASS).
+- **Why AC-DLb-4 fails.** The diagnosis (F-DLb-5) is a limitation of the frozen defaults, not a defect. Away
+  from home `stay`'s base equals `greet`'s, considerations only lower a score, and the top band is 10 %. So a
+  greeting is drawable only at 16:00–20:59 or at home in the evening, and the run speaks 97 lines in 30 days,
+  against `rule`'s ≈ 10 159.
+- **Status.** `motivated` therefore ships as an optional, non-default model. `rule` stays the default
+  (QS24-3), and the revision of model or criterion is the operator's (R-DLb-6).
+
 ---
 
 ## DEP-48 — Daily-rhythm calibration: BLS ATUS A-3 public-domain tables, committed as derived integer tables through an offline fit tool
@@ -7946,6 +7969,23 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** The acceptance of rhythm (AC-DL-4) is measured against the fitted curve, with its tolerances written in the PR design before the run. A future calibration from a different source is a new record.
 
 **Revisit** when a European world needs calibration from HETUS aggregates, or when the BLS terms of use change.
+
+**Note, 2026-10-14 (DL-b, the calibration as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §7,
+§15).**
+- **Edition and rows.** The edition is `atus-a3-2025`: BLS ATUS Table A-3, 2025 annual averages (QDLb-3). The
+  six rows are Sleeping, Eating and drinking, Working, Socializing and communicating, Leisure and sports, and
+  Purchasing goods and services.
+- **The committed file.** `cognition/motivated/data/atus-a3-2025.tsv` holds the rows as per-mille integers
+  (percent × 10, so the conversion is exact), with a `zero_markers` line and a per-row `checksum` line. The
+  credit and public-domain statement are in `cognition/motivated/data/NOTICE`. No microdata is committed.
+- **Derivation.** It is in the crate and pure, and there is no offline `routine-fit` tool: the routine
+  generator is deferred (QDLb-1). `curves::from_a3` maps each row to a 24-point curve with
+  `y(h) = ⌊v(h) × 1 000 / max v⌋`, and `restless` = `1 000 − rest`. The table is compiled in and derived when
+  parameters are decoded, so a run never opens a file.
+- **Transcription.** The values were transcribed from the HTML table, read through a summarising fetch. The
+  reviewer's three-cell check against the PDF is still open (§15, C2).
+- **The acceptance oracle.** `A(h)` is the socializing row normalised to sum 1 000, read from the TSV. It is
+  not the model's curve output. The measured results are in `DEP-47`'s note of the same date.
 
 ---
 

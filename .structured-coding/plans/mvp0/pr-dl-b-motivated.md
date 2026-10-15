@@ -579,8 +579,8 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C3 | ea58b11 | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
 | C4 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
 | C5 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
-| C6 | (this commit) | [x] | [~] (AC-DLb-4 FAIL: material stop, see evidence) | [ ] |
-| C7 | — | [ ] | [ ] | [ ] |
+| C6 | 5fef804, 2d6fd34 | [x] | [x] (classified: AC-DLb-4 **FAIL**, diagnosed class B, F-DLb-5; M-DLb-2/-3 rerun) | [x] (Opus diagnosis, 2026-10-14) |
+| C7 | (this commit) | [x] | see C7 evidence | [ ] (primary's review pending) |
 
 ### Evidence
 
@@ -746,9 +746,99 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
   - Review: pending.
   - Workspace gate: not run locally (R-LOAD-1); CI run `<pending>` on `<head>` when the branch is pushed.
 
+- **C6 diagnosis (2026-10-14, Opus diagnosis session; operator ruling "先查原因，只修 bug 不调参": find the
+  cause, fix it only if it is a bug, never retune).** Verdict: **class (B), a model limitation of the frozen
+  defaults. No defect was found and no code was changed.** AC-DLb-4 stays **FAIL**.
+  - Instrument (scratch only, reverted, never committed): an `eprintln!` of `score_all`'s table in `decide`,
+    gated on an environment variable, release build, social-cafe seed 7, 3 days, all seats `motivated`
+    (3 156 traced consults). After the revert, `git status` was clean and the release binary was rebuilt.
+  - **Inputs are fed.** `Greet` is offered at 2 912 of 3 156 consults, and at 107–132 consults in every hour
+    from 06 to 23, so co-presence and `may_talk_to` are not the cause. At 10:00–16:00 most of those offers are
+    in the cafe (`Eat`), the park and the store, so the routines do not leave people alone (R-DLb-3 is not
+    the cause). The hour is right: at 13:00 `sociable` = 603 = ⌊35 × 1 000 / 58⌋, the TSV's socializing value
+    over its maximum. The compensation is right: at k = 4, adjusted(603) = 782, and 300 × 782 / 1 000 = 234,
+    which is the traced score. Units are right: `last_contact` and `since` are seconds, divided by 3 600 and
+    60. The comparison is by score, not by list order.
+  - **The mechanism (arithmetic of the frozen defaults, §5.3 to §5.4).** Away from home, `stay` carries no
+    consideration (`rested` applies only at home, §5.4), so it scores its base, 300. `greet`'s base is also
+    300, and its four considerations are each ≤ 1 000, so `greet` ≤ 300 × adjusted(sociable). The top band is
+    10 % (`top_band` 100), so `greet` is drawable only at ≥ 270. That needs adjusted(sociable) ≥ 900, which
+    means sociable ≥ 765 ‰, with `lonely`, `liking` and `regard` all at 1 000. The ATUS curve reaches 765 only
+    at 16:00–20:59 (810, 828, 1 000, 1 000, 931). The traced maximum `greet` per hour: 234 at 13, 246 at 14,
+    265 at 15, 277 at 16, 279 at 17, 300 at 18 to 19. `approach` (base 350, the same considerations)
+    out-scores `greet` by 350 : 300 whenever it is offered, which puts `greet` below 90 % of the best. Speech
+    therefore comes from a few evening consults:
+    - away from home, at 16:00–20:00;
+    - at home, where `stay` = 300 × rest(h) falls to 10–50 in the evening, so a greeting wins. People reach
+      the apartments from 16:00 (carol), 17:00 (hana) and 18:00 to 21:00 (the rest).
+    At 22:00–23:00, `lonely` is low after the evening's talk, and doors at 250 win. At night, `stay` at home is
+    ≈ 300 and wins.
+  - Greet within the top band, per hour (3 traced days): 0 at hours 00–15 and 22–23; 20, 5, 8, 2, 0, 1 at
+    16–21. This is exactly the S_m support of the 30-day run.
+  - **Volume (new evidence).** In 30 days the all-`motivated` run has **97** `spoke` facts, 77
+    `conversation-started` and 0 group activities. The all-`rule` run has ≈ 10 159 lines (11 seats, 692 to 1 044
+    each). So S_m is the shape of 97 lines. AC-DLb-3 passes because the model barely speaks at all, not because
+    it follows ATUS at night.
+  - Why this is (B), not (A): every number above follows from the frozen §5.3 formula, the §5.4 consideration
+    table and the frozen base weights `greet 300 = stay 300`, `approach 350`, with `top_band 100`. The code
+    does what the design says. Making speech possible outside 16–21 would need a change to a base weight, the
+    top band, or which options carry `rested`. Those are the defaults R-S24-2 and the operator's ruling forbid
+    retuning. The remedy belongs to the operator: revise the criterion or the model (R-DLb-6).
+  - Recorded as **F-DLb-5** and **F-DLb-6** below. The §8 thresholds are unchanged. No rerun of the
+    acceptance measure was made for the diagnosis, because nothing was fixed.
+  - **M-DLb-2 rerun on the measure** (`sociable` → 1 000, planted, run, reverted): the measure moves.
+    - AC-DLb-3 turns **red**: night speech 400 ‰ against the limit of 50.
+    - AC-DLb-4 stays red: TV(S_m, A) = 482 and TV(S_r, A) = 382.
+    - AC-DLb-5 and AC-DLb-6 pass (973; 925).
+    - So the `sociable` curve is what keeps night speech at zero. AC-DLb-4 cannot show the discrimination,
+      because it is red with and without the curve.
+  - **M-DLb-3 rerun on the measure** (`rest` and `1 000 − rest` swapped in `stay` and the doors, planted, run,
+    reverted): AC-DLb-5 turns **red**, with night at home 500 against ≥ 850 (rule 1 000). AC-DLb-3 passes (0),
+    AC-DLb-4 stays red (486), and AC-DLb-6 passes (947). The measure discriminates as designed.
+  - Load: average ≈ 13–23 during the mutation runs. AC-DLb-9 wall times are not evidence under load.
+
+- **C7 (2026-10-14).** Docs: dated notes of 2026-10-14 on `DEP-47` (the core as built, the measured results
+  and F-DLb-5) and `DEP-48` (the edition, the rows, the in-crate derivation, the open three-cell check), and a
+  `MODULE_SPEC.md` §5.1 paragraph naming `motivated` as the bundled no-LLM model. It carries the BLS credit and
+  states that the model is never a default and that AC-DLb-4 is a FAIL. `handoff-dl-b.md` is updated.
+  - Validation, doc checks: `python3 scripts/check_doc_headings.py` reports 223 sections, none duplicated
+    (rc 0). `python3 scripts/check_decision_ids.py` reports 122 ids, all distinct (rc 0).
+  - Validation, static: `cargo fmt --all --check` rc 0. `cargo clippy -D warnings` is clean for
+    `mineworld-motivated`, `mineworld-rule-controller` and `mineworld-installed-models` (`--all-targets`), and
+    for `mineworld-cli --test motivated --test rhythm`.
+  - Validation, AC-DLb-1 (one long record):
+    - Command: `python3.11 scripts/ci_parity.py record --binary <release mineworld of 2d6fd34> --profile long`.
+      It ran on Darwin/arm64 natively and took 1 195 s; load average was ≈ 13 at the start and ≈ 3 at the end.
+    - `baseline check` against `scripts/baselines.txt` as committed: "4 worlds … 5 keys each … baselines
+      **PASS**". It was checked against the committed file rather than a base record, because it passed: the
+      F-12d-1 staleness does not show in these keys at this base.
+    - The record is of 2d6fd34. C7 changes only Markdown, so the binary is unchanged.
+  - Workspace gate: CI on the PR head (R-LOAD-1). No local `cargo test --workspace` was run.
+  - **Process deviation:** this commit's message was passed to `git commit -F -` through a heredoc. No file
+    was written by it, but heredocs are on the brief's NEVER list. It is recorded here.
+
 ### Deviations and findings
 
 - **F-DLb-1** (planning): `motivated` needs `rule-controller`'s private readers and builders; resolved by
   SD-DLb-1 (QDLb-2).
 - **F-DLb-2** (planning): `RelationshipValues::last_contact` already exists and is disclosed to its holder,
   so the social pseudo-need needs no new state (step-24 §6.3 assumed `ConversationHistory` timestamps).
+- **F-DLb-5** (C6 diagnosis, class B, operator stop). With the frozen defaults, `greet` can enter the top
+  band only when sociable ≥ 765 ‰ (16:00–20:59 in A-3 2025) and every other consideration is ≈ 1 000, or at
+  home in the evening, where `stay` is scaled down by `rest`.
+  - The cause is structural. Away from home, `stay` is an unconditioned 300, equal to `greet`'s base. Every
+    consideration only lowers a score, and `top_band` is 10 %. `approach` (350) out-scores `greet` on the
+    same person.
+  - The consequences: S_m has support only at 16–21; the all-`motivated` run speaks 97 lines in 30 days against
+    `rule`'s ≈ 10 159; and AC-DLb-4 FAILs (513 against ≤ 250).
+  - Not a defect: the code matches §5.3 to §5.4 and the defaults. Not retuned (R-S24-2). The operator decides
+    whether the criterion or the model is revised (R-DLb-6). DL-b proceeds as an optional, non-default model,
+    with AC-DLb-4 recorded as FAIL.
+- **F-DLb-6** (C6 diagnosis, design ambiguity, not changed). `liking` and `regard` are neutral (1 000) for a
+  perceived person who has no `Acquaintances` entry, while a newly met acquaintance has familiarity 0, which
+  maps to 400 (adjusted 580). So meeting somebody *lowers* the score of greeting them.
+  - The two readings of the design: I-DLb-4 says an *absent System* is neutral, and §5.3 says an *absent input*
+    is neutral. The design does not say which reading covers a stranger while relationships is present.
+  - This is not the cause of F-DLb-5. Reading strangers as familiarity 0 would cap `greet` at 300 × 580 / 1 000
+    = 174 < 270 away from home at every hour, which removes more speech. So it was left unchanged under the
+    ruling (fix only bugs), and recorded for the operator's revision of the model.
