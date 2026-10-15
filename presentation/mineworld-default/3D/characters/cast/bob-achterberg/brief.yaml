@@ -17,8 +17,8 @@ hair_style: close fade
 facial_hair: short trimmed beard
 face_shape: long
 eyes: deep-set
-nose: low-bridged
-lips: thin
+nose: aquiline
+lips: wide
 outfit: { outer: heather brown button-front knitted cardigan, under: blue-and-white checked collared shirt, legs: tan chinos, feet: brown leather loafers }
 headwear: navy tweed flat cap
 accessories: [flat cap]
@@ -28,7 +28,7 @@ sits: true                 # every cast member may sit (A-4 decor, E-2 extras): 
 casting:
   world: cafe-town
   profile: presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
-  template_version: 3
+  template_version: 2
   seed: mineworld-s26-cast-v1
   attempt: 0
   outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)
@@ -42,9 +42,9 @@ sources:
   skin_mst: "sampler (authored MST range per stratum)"
   hair_texture: "sampler (authored weights per stratum)"
   hair_colour: "sampler (authored colour pool per stratum; grey by age)"
-  hair_style: "sampler (authored style list by sex and hair texture)"
+  hair_style: "sampler (authored style list by sex)"
   facial_hair: "sampler (authored weights by sex)"
   face_shape: "sampler (authored, independent of every other attribute)"
-  eyes: "sampler (authored weights per stratum)"
-  nose: "sampler (authored weights per stratum)"
-  lips: "sampler (authored weights per stratum)"
+  eyes: "sampler (authored, independent of every other attribute)"
+  nose: "sampler (authored, independent of every other attribute)"
+  lips: "sampler (authored, independent of every other attribute)"

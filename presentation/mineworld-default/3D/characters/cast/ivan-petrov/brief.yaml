@@ -18,7 +18,7 @@ facial_hair: stubble
 face_shape: long
 eyes: deep-set
 nose: straight
-lips: medium
+lips: full
 outfit: { outer: stone beige unstructured linen-blend sport jacket, under: burgundy polo shirt, legs: dark brown trousers, feet: brown leather walking shoes }
 headwear: straw panama hat with a dark band
 accessories: [panama hat]
@@ -28,7 +28,7 @@ sits: true                 # every cast member may sit (A-4 decor, E-2 extras): 
 casting:
   world: cafe-town
   profile: presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
-  template_version: 3
+  template_version: 2
   seed: mineworld-s26-cast-v1
   attempt: 0
   outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)
@@ -42,9 +42,9 @@ sources:
   skin_mst: "sampler (authored MST range per stratum)"
   hair_texture: "sampler (authored weights per stratum)"
   hair_colour: "sampler (authored colour pool per stratum; grey by age)"
-  hair_style: "sampler (authored style list by sex and hair texture)"
+  hair_style: "sampler (authored style list by sex)"
   facial_hair: "sampler (authored weights by sex)"
   face_shape: "sampler (authored, independent of every other attribute)"
-  eyes: "sampler (authored weights per stratum)"
-  nose: "sampler (authored weights per stratum)"
-  lips: "sampler (authored weights per stratum)"
+  eyes: "sampler (authored, independent of every other attribute)"
+  nose: "sampler (authored, independent of every other attribute)"
+  lips: "sampler (authored, independent of every other attribute)"

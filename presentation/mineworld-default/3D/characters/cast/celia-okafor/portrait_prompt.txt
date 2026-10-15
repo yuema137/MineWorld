@@ -1,22 +1,18 @@
 The FIRST attached image is this person's approved full-body reference: keep the same person exactly —
-face, skin tone and its depth, age, body, hair style and colour, and the same garments and colours. The
-SECOND attached image is a STYLE REFERENCE ONLY: a style sheet of other people; copy its rendering style
-and quality, never any person in it (not their faces, eyes, hair, skin or clothes). Style: a stylised 3D game-character render, not a
-photograph; realistic proportions; smooth, clean skin with soft shading and no pores or fine skin texture;
-eyes a little larger than life with clear irises and calm, relaxed eyelids; age shown by shape, not skin detail; hair as soft sculpted
-locks; believable everyday fabrics; warm, natural colour.
+face, skin tone, age, hair style and colour, and the same garments and colours. The SECOND attached image
+is a STYLE REFERENCE ONLY: match its art style and quality, not its person. Style: grounded
+semi-realistic 3D character render, realistic proportions, soft natural skin with subtle texture, hair
+as soft detailed locks, believable everyday fabrics; warm, natural colour.
 
 Chest-up portrait of this one person: from the top of the hair to mid-chest, the body turned slightly to
 the person's left and the face toward the camera, eyes level with the upper third of the frame, camera
 at eye level with a long lens. Neutral, relaxed expression. Soft even studio light from the front-left
 with a gentle fill; plain seamless light warm-grey backdrop; no props, no text, no logos, no watermark.
 
-THE PERSON: a woman, apparent age 33.
-Age, clearly visible: an adult face in the thirties: smooth skin, at most the faintest smile lines, a firm jawline.
-Body: AVERAGE (BMI about 23-24): neither slim nor heavy, a natural waist, moderate hips and limbs, a slight softness at the stomach; clothes in a medium size (US M).
-Skin: medium golden-tan skin, olive to honey (Monk swatch #D7BD96), Monk Skin Tone 5 of 10; do not lighten it.
-Face: a round face, about as wide as long, with full cheeks and a soft rounded jaw; deep-set eyes under a pronounced brow ridge; a straight nose with a medium bridge; medium lips. An ordinary, individual real face, respectful and never a caricature.
-Hair: black; straight hair (type 1): smooth, sleek strands with no wave; styled as a chin-length bob, kept clear of the shoulders.
+THE PERSON: a woman, apparent age about 33, an average build.
+Skin: medium skin tone (Monk Skin Tone 5 of 10), natural and even.
+Face: round face, deep-set eyes, straight nose, full lips; an ordinary, individual real face, never a caricature.
+Hair: black, straight hair, chin-length bob, kept clear of the shoulders.
 Wearing: teal hip-length button cardigan over a cream floral-print blouse.
 Manner, shown only through a calm neutral face and posture: brisk and curious.
-AVOID: glasses; hand-held props; no text or logos on clothing; nothing copied from the style reference person.
+AVOID: glasses; hand-held props; no text or logos on clothing.
