@@ -24,7 +24,10 @@ from retention_fixtures import DropEverything
 from retention_oracle import Dump, check_coverage
 from retention_stream import heavy, stream
 from support import run
+from test_lm_summarise import GENEROUS, gateway, scripted
+from test_lm_summarise import retention as assisted
 
+from mineworld_cognition.backend.model import CompletionRequest
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.records import event_key
 from mineworld_cognition.memory.retention import absorb as absorb_module
@@ -67,11 +70,11 @@ def watched(
     seen: list[Seen] = []
     real = run_pass
 
-    def measured(
+    async def measured(
         store: MemoryStore, kept: Retention, now: int, cause: PassCause = "day"
     ) -> PassReport:
         before = len(store.dump())
-        report = real(store, kept, now, cause)
+        report = await real(store, kept, now, cause)
         dump = store.dump()
         if perceived is not None:
             check_coverage(dump, perceived)
@@ -282,13 +285,13 @@ def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
     real = run_pass
     crashed: list[int] = []
 
-    def crash_once(
+    async def crash_once(
         store: MemoryStore, kept: Retention, now: int, cause: PassCause = "day"
     ) -> PassReport:
         if cause == "size" and not crashed:
             crashed.append(now)
             raise Crash
-        return real(store, kept, now, cause)
+        return await real(store, kept, now, cause)
 
     batches = list(frames(facts, 256))
     path = tmp_path / "alice.sqlite"
@@ -314,3 +317,22 @@ def _feed_until_crash(
         except Crash:
             return index
     raise AssertionError("no size pass ran")
+
+
+# R-FGc-FGb2-1 — an assisted seat's size passes ask no model -------------------------------------------
+
+
+def test_a_size_pass_of_an_assisted_seat_asks_no_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    # pr-fg-b2 §4.9: the busy day holds size passes and no daily pass; under `lm-summarise` with a
+    # scripted model every one is decided by the fallback alone and no request is made. Its mutation lets
+    # a size pass take the assisted branch: the scripted model is asked.
+    day_zero = [fact for fact in busy() if fact.at < DAY]
+    seen: list[CompletionRequest] = []
+    kept = assisted(gateway(scripted(seen), **GENEROUS), calls_per_sim_day=24)
+    with watched(monkeypatch) as passes, MemoryStore.open(":memory:", alice_identity()) as store:
+        feed(store, frames(day_zero, 256), kept)
+    assert passes and {each.cause for each in passes} == {"size"}
+    assert {each.report.outcome for each in passes} == {"fallback:size"}
+    assert all(each.report.model_decisions == 0 for each in passes)
+    assert all(each.after <= TARGET for each in passes)
+    assert seen == []

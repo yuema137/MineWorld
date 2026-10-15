@@ -14,7 +14,8 @@ size pass runs there, then ingestion goes on. The measure after a fact is a func
 day's first fact only the daily pass runs. A crash between a stop and its pass resumes with the pass.
 
 `ingest` alone never forgets (FGb-7). `absorb` is async because an assisted policy (FG-c) awaits a
-gateway; FG-b's policies are called directly.
+gateway. Every pass is awaited: a plain policy's plan is synchronous, and an assisted one (FG-c) awaits its
+`SummaryGateway` inside the pass's transaction, before any write.
 """
 
 from __future__ import annotations
@@ -54,11 +55,11 @@ async def absorb(
     day = _retention_day(store, facts)
     newest = _newest_day(store)
     if day is not None and newest is not None and newest > day:
-        passes.append(run_pass(store, retention, newest * DAY_S))
+        passes.append(await run_pass(store, retention, newest * DAY_S))
         day = newest
     elif full() and (at := _newest_at(store)) is not None:
         # A stop committed and its size pass did not (pr-fg-b2 §4.3, resume): run it first.
-        passes.append(run_pass(store, retention, at, "size"))
+        passes.append(await run_pass(store, retention, at, "size"))
     start = 0
     for end, day_start in _segments(store, facts, day):
         last = facts[end - 1].id if day_start else through
@@ -72,9 +73,9 @@ async def absorb(
             start = stop + 1
             if day_start and start == end:
                 break  # the day's first fact: its daily pass follows, and no size pass (FGb2-3)
-            passes.append(run_pass(store, retention, facts[stop].at, "size"))
+            passes.append(await run_pass(store, retention, facts[stop].at, "size"))
         if day_start:
-            passes.append(run_pass(store, retention, facts[end - 1].at // DAY_S * DAY_S))
+            passes.append(await run_pass(store, retention, facts[end - 1].at // DAY_S * DAY_S))
     cursor = store.cursor()
     if cursor is None or event_key(through) > event_key(cursor):
         ingested.append(ingest(store, [], through))

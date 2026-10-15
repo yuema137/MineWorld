@@ -143,7 +143,7 @@ def test_a_pass_never_moves_the_cursor_or_the_newest_key() -> None:
             ingest(store, frame, through)
             before = (store.cursor(), store.newest())
             ahead += int(through) > last
-            run_pass(store, kept, frame[-1].at // DAY * DAY)
+            run(run_pass(store, kept, frame[-1].at // DAY * DAY))
             passes += 1
             assert (store.cursor(), store.newest()) == before
     assert passes >= 10

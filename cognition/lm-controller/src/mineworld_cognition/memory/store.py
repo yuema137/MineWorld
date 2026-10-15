@@ -69,7 +69,8 @@ _SCHEMA = (
     "cause TEXT NOT NULL CHECK (cause IN ('day', 'size')), policy TEXT NOT NULL, "
     "outcome TEXT NOT NULL, kept INTEGER NOT NULL, merged INTEGER NOT NULL, dropped INTEGER NOT NULL, "
     "forced INTEGER NOT NULL, bytes_before INTEGER NOT NULL, bytes_after INTEGER NOT NULL, "
-    "forgotten_ranges INTEGER NOT NULL)",
+    "forgotten_ranges INTEGER NOT NULL, model_decisions INTEGER NOT NULL, "
+    "fallback_decisions INTEGER NOT NULL)",
 )
 _FTS = f"CREATE VIRTUAL TABLE l0_text USING fts5(gist, tokenize='{fts.TOKENIZER}')"
 """Notable gists, `rowid` equal to their `l0` row's: an index, rebuilt from `l0`, never dumped."""

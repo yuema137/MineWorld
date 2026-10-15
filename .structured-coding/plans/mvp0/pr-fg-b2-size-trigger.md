@@ -278,6 +278,9 @@ assisted `Retention`, a size pass decides with the fallback policy alone (FG-c's
 …)` route) and records `fallback:size`, so the calls per simulated day and the budget remain FG-c's daily
 figures. The rule is implemented by whichever of FG-c and FG-b2 merges second, using `PassReport.cause` /
 `run_pass(…, cause=…)` that FG-b2 adds. A summary call's 6 000-byte request ceiling is untouched.
+**Implemented here** (FG-c merged first, #201): `host._decide` routes a size pass of an assisted
+`Retention` to FG-c's `_fallback_plan`, records `fallback:size` (or the fallback's own refusal) and
+`fallback_decisions`; `test_a_size_pass_of_an_assisted_seat_asks_no_model` (§12.3 M-FGb2-9).
 
 ---
 
@@ -306,6 +309,7 @@ memory:
 
 - **R-FGc-FGb2-1 (FG-c, #201):** §4.9. Expected conflicts: `host.py` (`run_pass` signature, imports of
   `TARGET`), `selection.py` (`Retention` fields), `absorb.py` (`await run_pass`), `bound.py` users.
+  **Done in this PR**: FG-c merged first; the conflicts were resolved and the rule implemented here (§12.5).
 - **R-P6b-FGb2-1 (P6b, #207):** read `format` 2 of `mineworld decisions --json`; pass `store_bound_mib` into
   `MemoryPolicyChoice` unchanged; a `StoreBoundOutOfRange` refuses the seat at start like any `PolicyError`.
 
@@ -527,7 +531,25 @@ M-FGb2-6b  no invalidation on rollback                          → test_the_inc
 M-FGb2-7   the floor check removed (0 … 1 024)                   → two configuration tests FAIL
 M-FGb2-7r  the Rust reader drops store_bound_mib                 → memory_is_resolved_per_seat… and
            the_digest_follows_the_resolution… FAIL
+M-FGb2-9   a size pass of an assisted seat takes the assisted branch (after the merge of FG-c)
+                                                                 → test_a_size_pass_of_an_assisted_seat… FAIL
+           ({'fallback:exhausted'} != {'fallback:size'}: the scripted model was asked)
 ```
+
+### 12.5 Merge of origin/main (FG-c #201, S27-a #205, S28 docs #209)
+
+FG-c merged before this PR: `run_pass` is async and takes the assisted branch; `Retention` gained `fallback`
+and `gateway`; the pass log gained `model_decisions` and `fallback_decisions` (at schema v2). Resolved:
+`Retention(policy, fallback, gateway, bounds)`; `resolve` sets the bounds on both branches; `PassReport`
+keeps FG-c's fields before `cause` and `trigger`; the v3 pass log holds all fourteen columns; every
+`run_pass` call in `absorb` is awaited; the test wrappers of `run_pass` are async. R-FGc-FGb2-1 implemented
+(§4.9). S28 assigned ARC-98 … ARC-101 and DEP-58; this PR uses none.
+
+**F-FGb2-4 — FG-c's replay drift guard moves with the schema.** `test_lm_summarise_replay.py`'s `DIGEST`
+(the sha256 of the committed cassette's replayed dump) changed: every pass-log row gains `trigger` and
+`cause`, and `meta.schema` reads 3. The cassette is not re-recorded and replays without a miss, so no request
+moved; `lm-summarise` and `consolidate` do not read `store_bytes`, so the larger budget changes no decision.
+The constant is reset with that reason in its docstring.
 
 ### 12.4 Deviations and findings
 

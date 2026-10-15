@@ -1247,7 +1247,9 @@ and a policy cannot bypass them.
    `meta`, measured exactly after every fact) over the trigger of rule 7, and runs a pass there before
    ingesting the next fact. The measure after a fact is a function of the facts up to it, so size passes
    too fall on the same facts however the batches were cut. At a day's first fact only the daily pass
-   runs, so a fact triggers at most one pass; a size pass does not move the day of the last daily pass. A
+   runs, so a fact triggers at most one pass; a size pass does not move the day of the last daily pass,
+   and it never calls a model: an assisted policy's size passes are decided by its fallback alone and
+   recorded `fallback:size`. A
    stop whose pass did not commit is repaired like a due daily pass: the next `absorb` runs it first.
 2. **Eligibility.** Every L0 record of a closed episode, every closed episode, every chapter and every
    stable fact. The open episode and its records are never shown and never removed.
@@ -1332,8 +1334,10 @@ mode a missing recording raises `CassetteMiss`, which the pass propagates; no po
 back silently. In live mode, a refusal, a failure, an unbound tier, or `calls_left = 0` makes the host apply
 the policy's declared `fallback` to the remaining groups. The seat's store records which policy produced each
 decision. Rebuilding a store with its recordings reproduces it byte for byte. Rebuilding without them
-reproduces the fallback's store and says so. An LM policy names a no-model `fallback`. Forgotten Event IDs
-stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
+reproduces the fallback's store and says so. An assisted policy names a no-model `fallback`, and it reaches a
+model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
+before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
+Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ---
 

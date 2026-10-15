@@ -82,6 +82,10 @@ No model is involved. Specification:
 bound and the early pass in
 [`pr-fg-b2-size-trigger.md`](../../.structured-coding/plans/mvp0/pr-fg-b2-size-trigger.md).
 
+**Assisted forgetting** (`lm-summarise`, `pr-fg-c`). `lm-summarise` asks the `summarize` tier, through the
+host's summary gateway, for one sentence and an importance per group, and falls back to `consolidate` for any
+group it cannot ask. Its tests replay a recorded cassette and never reach a model.
+
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 
 ```sh

@@ -409,7 +409,8 @@ rest on.
   assisted summarisation request is at most 6 000 bytes and contains no Event ID or entity id.
 - **Model-call bound.** Assisted forgetting makes at most `calls_per_sim_day` calls per seat per simulated
   day (default 4, at most 24), inside the controller's wall-time and token budgets (ARC-57). A call is
-  gated before it is made.
+  gated before it is made. A size pass never calls a model: an assisted seat's size passes are decided by
+  its no-model fallback alone, so early passes add no calls (`pr-fg-b2-size-trigger.md` §4.9).
 - **Forgetting is not deletion of truth.** A dropped item's citations join the seat's forgotten set, a
   sorted, bounded list of Event ID ranges. The world log is not in this store and is never forgotten
   (`CORE_CONCEPTS.md` §5.3). Compaction and archive of the log are a separate concern of persistence.
