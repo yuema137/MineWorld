@@ -15,11 +15,17 @@ It ends with a PR split, the invariants, the risks and the questions only the op
 **Effort:** `mvp0`. Timing is ruled: **after Milestone F, before the first public release** (S23).
 **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `STEP DESIGN (DRAFT)`, awaiting primary-session and operator review. Nothing here is frozen.
+**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered
+Q-S29-1…10 directly in the primary session on 2026-10-15, every one as recommended (§13.1).
 
-- A step freeze would freeze scope, invariants and step acceptance only.
-- Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
+- Approval fixes this step's scope, invariants (§10) and step acceptance (§11.3). Progress, evidence,
+  findings and bounded corrections stay writable.
+- Each PR is detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). Only a PR
+  design carries `DESIGN FROZEN`.
+- **Start condition (operator, 2026-10-15):** nothing starts until Milestone F's checklist has been handed
+  to the operator.
 - Nothing in this file authorizes implementation, an image-model call or a merge.
+- Superseded lifecycle: `STEP DESIGN (DRAFT)`, PR #218 revision 1.
 
 **Author:** S29 design session (Opus), 2026-10-15.
 
@@ -27,9 +33,9 @@ It ends with a PR split, the invariants, the risks and the questions only the op
 - Branch: `docs/s29-station`.
 - Audit base: `origin/main @ 2d07c6c0` (RL-e0 frozen design merged, #215).
 
-**Ids.** Every record id here is a **placeholder**: `ARC-S29-a…d`, `DEP-S29-a`. The next free numbers on
-2026-10-15 are ARC-105 and DEP-60, but other designs in flight may take them. The primary session assigns
-the numbers at freeze.
+**Ids.** Assigned 2026-10-15, after checking that each was still free on `origin/main`: `ARC-105`,
+`ARC-106`, `ARC-107` and `ARC-108` (they replace the placeholders ARC-S29-a…d), and `DEP-60` (it replaces
+DEP-S29-a). The five entries are in `docs/DECISIONS.md` (§14.5).
 
 Local ids in this file:
 
@@ -207,7 +213,7 @@ from the same group. Nothing here needs to change for either.
 
 ---
 
-## 4. The World Pack contract (`ARC-S29-a`)
+## 4. The World Pack contract (`ARC-105`)
 
 ### 4.1 How a world declares that it is a town (SD-S29-1)
 
@@ -293,7 +299,7 @@ are strings the loader already accepts. The checks read the pack's own files.
 
 **Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale. The hall is a waiting
 room of about 8 × 5 m, the ticket office a window bay, and the platform about 40 × 4 m. They are joined to
-`lane`. Its landmark is a separate place, the recommended one being `pier`, tagged `landmark`.
+`lane`. Its landmark is a separate place, `pier` (ruled, Q-S29-3), tagged `landmark`.
 
 **`bodies-yard`** declares `settlement: { kind: none }`.
 
@@ -307,7 +313,7 @@ room of about 8 × 5 m, the ticket office a window bay, and the platform about 4
 
 ---
 
-## 5. Before trains exist: honest by construction
+## 5. Before trains exist: honest by construction (`ARC-108`)
 
 ### 5.1 The principle (SD-S29-5)
 
@@ -350,7 +356,7 @@ pattern. The function never reaches an intent; the client-rules scan holds it to
 
 ---
 
-## 6. 3D: the depot (`ARC-S29-b`)
+## 6. 3D: the depot (`ARC-106`)
 
 ### 6.1 Art direction (SD-S29-7)
 
@@ -396,7 +402,7 @@ pattern. The function never reaches an intent; the client-rules scan holds it to
 
 ### 6.3 Where it stands (SD-S29-8; Q-S29-1)
 
-**The recommendation: true bearing family, compressed distance, real building.**
+**Ruled (Q-S29-1, 2026-10-15): true bearing family, compressed distance, real building.**
 
 - **Placement.** The forecourt replaces the west parapet (`street.gd` `_surrounds`). The street opens into
   a setts forecourt about 25 m deep. The arch stands on the street's axis, with the east façade at about
@@ -419,7 +425,7 @@ pattern. The function never reaches an intent; the client-rules scan holds it to
 
 | Option | What | Verdict |
 | --- | --- | --- |
-| **P-1. At the street's end (recommended)** | Described above | It meets "reachable from spawn", "street level" and "closes a street view". It keeps the slot's bearing. It costs one honest compression, recorded with its source |
+| **P-1. At the street's end (ruled, Q-S29-1)** | Described above | It meets "reachable from spawn", "street level" and "closes a street view". It keeps the slot's bearing. It costs one honest compression, recorded with its source |
 | P-2. At the real 790 m | A walkable approach of ≈ 700 m (about 9 min at 1.34 m/s) | It needs ≈ 700 m of frontage, or "buildings the player can see but never reach" along the way (A-17). The slice's scope and the perf budget would both be re-planned. This is S21's region scale, not a street |
 | P-3. Silhouette at 790 m plus a separate near station | Two buildings for one role | Rejected. One Place group would be drawn twice, and the far one would be an unreachable landmark |
 
@@ -435,7 +441,7 @@ pattern. The function never reaches an intent; the client-rules scan holds it to
 | References | **HABS CA-1965** (public domain) | DEP-8 |
 | A new CC0 texture | **At most two**, only if a reviewed frame shows the shipped set cannot read as the material: Poly Haven 1k, ≤ 3 MB each, one DEP-8 row each | The byte budget (A-14) |
 
-No new dependency is adopted, so no `DEP` record is needed unless one is triggered. `DEP-S29-a` is
+No new dependency is adopted, so no `DEP` record is needed unless one is triggered. `DEP-60` is
 reserved for that case and is withdrawn at freeze if unused.
 
 ### 6.5 Interior and threshold
@@ -485,7 +491,7 @@ awake) on the S29-d head.
 - A p95 increment above the cap, or an absolute failure in a new view, is a **material stop** with the
   levers measured. The hall size is the reserved lever (Q-S29-4).
 
-### 6.7 The far-field `filled` slot (`ARC-S29-c`; an additive amendment to RL-e0's format 1)
+### 6.7 The far-field `filled` slot (`ARC-107`; an additive amendment to RL-e0's format 1)
 
 ```text
 Slot
@@ -516,7 +522,7 @@ Slot
 
 ---
 
-## 7. Interaction: reasons to go there (`ARC-S29-d`)
+## 7. Interaction: reasons to go there
 
 ### 7.1 Routines (owner: `schedule`; no System changes)
 
@@ -542,8 +548,8 @@ that are true before trains exist.
     (a US daily single copy), scaled to Market Town's money unit.
   - Its holdings and wallet are sized so that the 300-day E-9 run never drains them.
 - **Staffing.** **One existing person** gets a morning `job` there (`employer: station-news`,
-  `workplace: station`, `produces: { newspaper: n }`). Which person is Q-S29-6; the recommendation is a
-  person without a job today. Using an existing person adds no character (S26 size) and no seat.
+  `workplace: station`, `produces: { newspaper: n }`). The person is one without a job today (ruled,
+  Q-S29-6); S29-b names them. Using an existing person adds no character (S26 size) and no seat.
 - **Single ownership holds.**
   - Only `economy` moves money (`buy`, `wage-due`).
   - Only `inventory` moves papers.
@@ -705,9 +711,9 @@ S26-c2 (cast figures) ─ soft: people in the hall are drawn by S26's binding wh
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial criteria | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S29-a** town contract | <ul><li>**C1, specification first:** MODULE_SPEC §4.1 and §4.3, CORE_CONCEPTS §6 role tags, VISUAL_SLICE §4 amendment, `ARC-S29-a`.</li><li>**C2:** the `worldpack` `settlement:` key and the §4.2 checks.</li><li>**C3:** `mineworld validate` requires the key.</li><li>**C4:** the three station groups in three worlds, with bodies, passages and routines; `bodies-yard` `kind: none`.</li><li>**C5:** the one recorded re-baseline of digests and golden fixtures (Q-S29-7).</li></ul> | **12d merged** (bodies sections, its own re-baseline first) | `mineworld run worlds/market-town` 30 d: `station_visit` (social half) passes; save, restart and resume are identical; `every_reference_world_validates` | X-1, X-2, X-3; a `station` tag on a place not joined to the hall → `TOWN_STATION_SCATTERED` | **Haiku**, from a commit-level plan (the `naming`/`ARC-53` pattern) |
+| **S29-a** town contract | <ul><li>**C1, specification first:** MODULE_SPEC §4.1 and §4.3, CORE_CONCEPTS §6 role tags, VISUAL_SLICE §4 amendment, `ARC-105`.</li><li>**C2:** the `worldpack` `settlement:` key and the §4.2 checks.</li><li>**C3:** `mineworld validate` requires the key.</li><li>**C4:** the three station groups in three worlds, with bodies, passages and routines; `bodies-yard` `kind: none`.</li><li>**C5:** the one recorded re-baseline of digests and golden fixtures (Q-S29-7).</li></ul> | **12d merged** (bodies sections, its own re-baseline first) | `mineworld run worlds/market-town` 30 d: `station_visit` (social half) passes; save, restart and resume are identical; `every_reference_world_validates` | X-1, X-2, X-3; a `station` tag on a place not joined to the hall → `TOWN_STATION_SCATTERED` | **Haiku**, from a commit-level plan (the `naming`/`ARC-53` pattern) |
 | **S29-b** newsstand | `station-news` organization, shop and stock; one person's `job`; price with source; E-9 300-day run | S29-a | `station_visit` buys a newspaper; E-9 holds | removing `economy` from the world refuses `station-news`'s section by name (the existing rule) | **Haiku** |
-| **S29-c** far-field `filled` | RL-e0 schema `filled` in Rust and GDScript; `FAR_FIELD_SLOT_TOWN`; Social Café 3D and Lakeside 3D content; Social Café `reach_m` 60 → 100; corpus files; MODULE_SPEC §6.1.1 amendment; `ARC-S29-c` | **RL-e0 merged**; S29-a | `mineworld validate worlds/lakeside --packs …` passes; the slice loads; RL-e0's rendered check is still green (the footprint is clear of massing) | X-4; a `filled` slot under `kind: none` is refused | **Haiku** (additive schema on a frozen pattern) |
+| **S29-c** far-field `filled` | RL-e0 schema `filled` in Rust and GDScript; `FAR_FIELD_SLOT_TOWN`; Social Café 3D and Lakeside 3D content; Social Café `reach_m` 60 → 100; corpus files; MODULE_SPEC §6.1.1 amendment; `ARC-107` | **RL-e0 merged**; S29-a | `mineworld validate worlds/lakeside --packs …` passes; the slice loads; RL-e0's rendered check is still green (the footprint is clear of massing) | X-4; a `filled` slot under `kind: none` is refused | **Haiku** (additive schema on a frozen pattern) |
 | **S29-d** 3D depot exterior | `station.gd` (towers, arch, hall shell, arcade, roofs); `glazed_tile.gdshader`; forecourt in `street.gd`; binding by role tag; `--slice-measure` rows; HABS references and provenance; perf views; `st_1`–`st_4`; `ff_*` re-shot; `--slice-landmark` | **16c merged**; RL-b2 merged; S29-a; S29-c | `./mineworld-slice --world`: walk from spawn into the hall; the server's place changes to `station`; LM-1 and LM-2 pass on three OSes; counts within §6.6 | X-6; the RL-e0 rendered check must still pass; a tile shader that writes to an intent fails the client-rules scan | **Opus** (art judgement, perf levers); mechanical parts delegable |
 | **S29-e** 3D interior | hall fit-out (beams, wainscot, benches as a MultiMesh, kiosk, counter, boards, clock); `station-tickets` bay; platform, fence and track; `station_state.gd` (shared); `st_5`–`st_8`; threshold measurement | S29-d | link probe: spawn → hall → tickets → platform, 0 refusals, the board reads `no_service`; perf of the new views | X-5, X-7 | **Haiku** with a commit plan for the fit-out and `station_state`; **Opus** review of frames |
 | **S29-f** 2D | the `station` spec; `sib_building_station`, the halt sprite, kiosk, board and window sprites by the existing image pipeline; i18n words; the shared state rule; 2D shots; RL-e0's 2D far-field check re-run | S29-a (S29-e's `station_state.gd`, or lands it first) | `./mineworld-2d` on all three towns: walk to the station, the window is shut, the board reads "No service yet" | the halt binding: Lakeside does not draw the 52 m depot; 2D far field has zero clear-colour pixels | **Haiku** (pipeline run); the operator's contact-sheet gate |
@@ -753,20 +759,26 @@ S26-c2 (cast figures) ─ soft: people in the hall are drawn by S26's binding wh
 
 ---
 
-## 13. Questions for the operator (each with a recommendation)
+## 13. Questions for the operator (each with a recommendation; all ruled 2026-10-15)
 
-| Id | Question | Recommendation |
-| --- | --- | --- |
-| **Q-S29-1** | **Where the station stands.** At the far-field slot's real distance (790 m, with a ≈ 700 m walkable approach), or at the west end of the slice street (≈ 62–79 m, the same bearing family, real building size), reachable from spawn in ≈ 40 s? | **The street's west end (P-1).** It is the only placement that meets "reachable on foot from spawn", "street level" and "closes a street view" together. It keeps the slot's bearing and mirrors the real Broadway–depot axis. The compression is recorded in the far field's `source`. The far-field slot becomes `filled` (§6.3, §6.7) |
-| **Q-S29-2** | **How a world says it is a town**, and where the requirement is enforced | **`settlement: { kind: town \| none, station, landmark }` in `world.yaml`,** required by `mineworld validate` / `packs validate` (the `ARC-53` precedent) and fully validated by the loader whenever present. Lakeside counts as a town and `bodies-yard` declares `none` |
-| **Q-S29-3** | **Lakeside: its station and its landmark.** Does the village get a station, and which place is its landmark? | **Yes, a small halt** (a waiting room of ≈ 8 × 5 m, a ticket window and a 40 m platform) off `lane`. **The landmark is the pier**, with a pier-head pavilion (presentation only). The pier is public, outdoor, seen from the whole shore, and already a destination (`fishing`). The boathouse is people's home (`residential`), and a landmark should be a place anyone may go |
-| **Q-S29-4** | **Hall size.** Real (51.8 × 16.8 m), or reduced from the start? | **Real.** A reduced hall (≈ 30 × 12 m) is the reserved lever, used only if §6.6's material stop is reached, with numbers |
-| **Q-S29-5** | **Style.** Is one Mission Revival building, the depot, acceptable as the sanctioned exception beside the lakeside-referenced street, rendered with the same materials, palette and light? | **Yes.** That is what "the town's signature building" means. The same materials, palette and precision keep it one art style |
-| **Q-S29-6** | **The newsstand's seller** in Market Town: an existing person given a morning job, or a new person? | **An existing person** without a job today. That means no new character (S26 bytes), no new seat and fewer moving digests |
-| **Q-S29-7** | **A second digest re-baseline.** Adding the station's places, the organization and the routines shifts ids in all three towns, against `overall.md`'s "re-baselined once, in 12d" | **Accept one recorded re-baseline in S29-a's C5,** after 12d and S26-a have merged, in one commit |
-| **Q-S29-8** | **References.** May HABS CA-1965's public-domain photographs be committed to the 3D pack's `references/`? | **Yes.** They are federal works in the public domain and pass DEP-8. CC BY-SA photographs are linked only |
-| **Q-S29-9** | **Social Café too?** It is the 3D slice's world and has no economy | **Yes, all three towns.** Social Café's kiosk is drawn shut, which is honest. The slice needs its station there because the slice *is* Social Café |
-| **Q-S29-10** | **Byte budget.** May S29 add up to 6 MB to `3d.pck`, inside S26's ruled envelope (O-1, else O-4)? | **Yes, ≤ 6 MB, with a target of 0 new textures** |
+| Id | Question | Recommendation | Ruling |
+| --- | --- | --- | --- |
+| **Q-S29-1** | **Where the station stands.** At the far-field slot's real distance (790 m, with a ≈ 700 m walkable approach), or at the west end of the slice street (≈ 62–79 m, the same bearing family, real building size), reachable from spawn in ≈ 40 s? | **The street's west end (P-1).** It is the only placement that meets "reachable on foot from spawn", "street level" and "closes a street view" together. It keeps the slot's bearing and mirrors the real Broadway–depot axis. The compression is recorded in the far field's `source`. The far-field slot becomes `filled` (§6.3, §6.7) | **Ruled 2026-10-15** (operator answered directly in the primary session): P-1: the west end of the street (≈ 62–79 m), real building size. The compression is recorded in the far field's `source`, and the slot becomes `filled`. |
+| **Q-S29-2** | **How a world says it is a town**, and where the requirement is enforced | **`settlement: { kind: town \| none, station, landmark }` in `world.yaml`,** required by `mineworld validate` / `packs validate` (the `ARC-53` precedent) and fully validated by the loader whenever present. Lakeside counts as a town and `bodies-yard` declares `none` | **Ruled 2026-10-15** (operator answered directly in the primary session): the `settlement:` key, enforced by `mineworld validate` / `packs validate` (as with `ARC-53`). |
+| **Q-S29-3** | **Lakeside: its station and its landmark.** Does the village get a station, and which place is its landmark? | **Yes, a small halt** (a waiting room of ≈ 8 × 5 m, a ticket window and a 40 m platform) off `lane`. **The landmark is the pier**, with a pier-head pavilion (presentation only). The pier is public, outdoor, seen from the whole shore, and already a destination (`fishing`). The boathouse is people's home (`residential`), and a landmark should be a place anyone may go | **Ruled 2026-10-15** (operator answered directly in the primary session): Lakeside gets a small halt, and the pier is its landmark. |
+| **Q-S29-4** | **Hall size.** Real (51.8 × 16.8 m), or reduced from the start? | **Real.** A reduced hall (≈ 30 × 12 m) is the reserved lever, used only if §6.6's material stop is reached, with numbers | **Ruled 2026-10-15** (operator answered directly in the primary session): the real hall size, 51.8 × 16.8 m. |
+| **Q-S29-5** | **Style.** Is one Mission Revival building, the depot, acceptable as the sanctioned exception beside the lakeside-referenced street, rendered with the same materials, palette and light? | **Yes.** That is what "the town's signature building" means. The same materials, palette and precision keep it one art style | **Ruled 2026-10-15** (operator answered directly in the primary session): the depot is the one sanctioned Mission Revival exception. |
+| **Q-S29-6** | **The newsstand's seller** in Market Town: an existing person given a morning job, or a new person? | **An existing person** without a job today. That means no new character (S26 bytes), no new seat and fewer moving digests | **Ruled 2026-10-15** (operator answered directly in the primary session): an existing person with no job runs the newsstand. |
+| **Q-S29-7** | **A second digest re-baseline.** Adding the station's places, the organization and the routines shifts ids in all three towns, against `overall.md`'s "re-baselined once, in 12d" | **Accept one recorded re-baseline in S29-a's C5,** after 12d and S26-a have merged, in one commit | **Ruled 2026-10-15** (operator answered directly in the primary session): one recorded re-baseline, in S29-a's C5. |
+| **Q-S29-8** | **References.** May HABS CA-1965's public-domain photographs be committed to the 3D pack's `references/`? | **Yes.** They are federal works in the public domain and pass DEP-8. CC BY-SA photographs are linked only | **Ruled 2026-10-15** (operator answered directly in the primary session): the HABS CA-1965 photographs may be committed. |
+| **Q-S29-9** | **Social Café too?** It is the 3D slice's world and has no economy | **Yes, all three towns.** Social Café's kiosk is drawn shut, which is honest. The slice needs its station there because the slice *is* Social Café | **Ruled 2026-10-15** (operator answered directly in the primary session): all three towns get a station. |
+| **Q-S29-10** | **Byte budget.** May S29 add up to 6 MB to `3d.pck`, inside S26's ruled envelope (O-1, else O-4)? | **Yes, ≤ 6 MB, with a target of 0 new textures** | **Ruled 2026-10-15** (operator answered directly in the primary session): the byte budget is ≤ 6 MB, with a target of 0 new textures. |
+
+### 13.1 Rulings, 2026-10-15
+
+The operator answered Q-S29-1…10 directly in the primary session on 2026-10-15: every question as
+recommended. The coordinator relayed the rulings to this session. The operator also confirmed the start
+condition: nothing in S29 starts until Milestone F's checklist has been handed over (§11.2).
 
 ---
 
@@ -804,15 +816,15 @@ Add "§6.4 Role tags", or the next free number if S21's §6.4 Region lands first
 Add "the landmark exception": one signature building per town may follow its own vernacular, within the
 pack's materials, palette, light and precision.
 
-### 14.5 `docs/DECISIONS.md` (placeholders; numbers at freeze)
+### 14.5 `docs/DECISIONS.md` (ids assigned 2026-10-15; entries added with the step approval)
 
 | Record | Content |
 | --- | --- |
-| `ARC-S29-a` | towns declare `settlement:`; the station group and landmark; role tags; authoring-gate enforcement |
-| `ARC-S29-b` | the depot: compressed distance, real building, one method; the HABS references |
-| `ARC-S29-c` | the far-field `filled` slot and its inside-boundary exception (dated note on `ARC-102`) |
-| `ARC-S29-d` | fixtures show only disclosed state (board, window, kiosk, clock) |
-| `DEP-S29-a` | reserved for a new CC0 texture if §6.4's last row triggers; withdrawn otherwise |
+| `ARC-105` | towns declare `settlement:`; the station group and landmark; role tags; authoring-gate enforcement |
+| `ARC-106` | the depot: compressed distance, real building, one method; the HABS references |
+| `ARC-107` | the far-field `filled` slot and its inside-boundary exception (dated note on `ARC-102`) |
+| `ARC-108` | fixtures show only disclosed state (board, window, kiosk, clock) |
+| `DEP-60` | reserved for a new CC0 texture if §6.4's last row triggers; withdrawn otherwise |
 
 ### 14.6 Step-21 (non-preclusion item for RT-c)
 
