@@ -25,6 +25,7 @@ from mineworld_cognition.backend.model import (
     BackendFailure,
     Completion,
     CompletionRequest,
+    ModelBackend,
     Usage,
 )
 from mineworld_cognition.backend.scripted import ScriptedBackend
@@ -97,7 +98,7 @@ def _by_text(request: CompletionRequest) -> int:
     return digest[0] % 10 + 1
 
 
-def _scripted(seen: list[CompletionRequest] | None = None) -> ScriptedBackend:
+def scripted(seen: list[CompletionRequest] | None = None) -> ScriptedBackend:
     def answer(request: CompletionRequest) -> Completion:
         if seen is not None:
             seen.append(request)
@@ -106,14 +107,14 @@ def _scripted(seen: list[CompletionRequest] | None = None) -> ScriptedBackend:
     return ScriptedBackend(answer)
 
 
-def _gateway(backend: ScriptedBackend, **policy: int) -> ModelGateway:
+def gateway(backend: ModelBackend, **policy: int) -> ModelGateway:
     return ModelGateway(backend, Budget.of(BudgetPolicy(**policy), MemoryLedger(), FakeClock()))
 
 
 GENEROUS = {"calls_per_wall_hour": 10_000_000, "tokens_per_wall_day": 1_000_000_000}
 
 
-def _retention(gateway: ModelGateway | None, **parameters: int) -> Retention:
+def retention(gateway: ModelGateway | None, **parameters: int) -> Retention:
     choice = MemoryPolicyChoice.model_validate({"policy": "lm-summarise", "parameters": parameters})
     return resolve(choice, PolicyRegistry.installed(), gateway)
 
@@ -155,7 +156,7 @@ def _plan(
     items = extract(store).items
     now = max(item.last_at for item in items)
     budget = RetentionBudget.model_construct(store_bytes=0, now=now, calls_left=calls)
-    summary = SummaryGateway(_gateway(backend, **GENEROUS), store.identity.seat, calls)
+    summary = SummaryGateway(gateway(backend, **GENEROUS), store.identity.seat, calls)
     fallback = Consolidate().plan(items, budget, ConsolidateParameters())
     params = LmSummariseParameters.model_validate(parameters)
     return run(LmSummarise().plan(items, budget, params, summary, fallback), timeout_s=120)
@@ -174,7 +175,7 @@ def test_a_request_holds_names_only_and_is_bounded() -> None:
     # generator emitted; the truncation marker appears where the moments would not fit.
     facts = _facts()
     seen: list[CompletionRequest] = []
-    built(facts, _retention(_gateway(_scripted(seen), **GENEROUS), calls_per_sim_day=24), 256)
+    built(facts, retention(gateway(scripted(seen), **GENEROUS), calls_per_sim_day=24), 256)
     assert seen
     assert all(request.purpose == "summarize" for request in seen)
     sizes = [sum(len(m.text.encode("utf-8")) for m in r.messages) for r in seen]
@@ -191,7 +192,7 @@ def test_the_request_text_is_the_literal_of_section_5_4() -> None:
     # line, then one `- ` line per moment; the schema is the integer-only shape of §5.4.
     seen: list[CompletionRequest] = []
     store = _ingested(_facts()[:400])
-    _plan(store, _scripted(seen), calls=24)
+    _plan(store, scripted(seen), calls=24)
     store.close()
     assert seen
     first = seen[0]
@@ -241,7 +242,7 @@ def test_importance_nine_keeps_detail_and_the_citations_are_unchanged() -> None:
     # covers every perceived fact, and no episode's or chapter's citation differs from the no-model store.
     facts = _facts()
     kept = built(
-        facts, _retention(_gateway(_constant_backend(9), **GENEROUS), calls_per_sim_day=24), 256
+        facts, retention(gateway(_constant_backend(9), **GENEROUS), calls_per_sim_day=24), 256
     )
     plain = built(facts, _consolidated(), 256)
     check_coverage(kept, [each.id for each in facts])
@@ -254,7 +255,7 @@ def _constant_backend(importance: int) -> ScriptedBackend:
     return ScriptedBackend(lambda _r: _constant(importance))
 
 
-def _citations(dump: bytes) -> list[tuple[object, object]]:
+def _citations(dump: bytes) -> list[tuple[object, object, object]]:
     return [
         (row.get("episode", row.get("week")), row.get("citation"), row.get("text"))
         for row in _rows(dump)
@@ -267,7 +268,7 @@ def test_importance_one_forgets_top_level_units_and_keeps_coverage() -> None:
     # the forgotten set; the store still covers every perceived fact (its forgotten ids stay resolvable).
     facts = _facts()
     dump = built(
-        facts, _retention(_gateway(_constant_backend(1), **GENEROUS), calls_per_sim_day=24), 256
+        facts, retention(gateway(_constant_backend(1), **GENEROUS), calls_per_sim_day=24), 256
     )
     assert [row for row in _rows(dump) if row["table"] == "forgotten"]
     check_coverage(dump, [each.id for each in facts])
@@ -277,7 +278,7 @@ def test_a_call_allowance_is_exact_per_pass() -> None:
     # AFGc-6 with the policy's own allowance: with more groups than the allowance, exactly the allowance
     # is asked, and the plan says the allowance was exhausted.
     store = _ingested(_facts())
-    backend = _scripted()
+    backend = scripted()
     answered = _plan(store, backend, calls=24, calls_per_sim_day=24)
     store.close()
     assert backend.calls == 24
@@ -344,7 +345,7 @@ def test_the_policy_imports_only_the_allowed_surface() -> None:
 def test_an_unbound_tier_falls_back_whole() -> None:
     # FGc-1 by behaviour: with no `summarize` gateway, a pass asks nothing and its store is consolidate's.
     facts = _facts()
-    unbound = built(facts, _retention(None, calls_per_sim_day=24), 256)
+    unbound = built(facts, retention(None, calls_per_sim_day=24), 256)
     plain = built(facts, _consolidated(), 256)
     assert [row for row in _rows(unbound) if row["table"] != "retention_passes"] == [
         row for row in _rows(plain) if row["table"] != "retention_passes"
