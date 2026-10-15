@@ -40,6 +40,12 @@ writer). Coordinator ruling R-LOAD-1 in force (only touched tests locally, ruff/
 
 1. C6 (`b9f571f`), C7 (`b57ea61`), C8 (`abd37a4`, real binary, all four files PASS on macOS), C9 ledger
    (F-S27c-9: 12d not merged; AC-c-12 per R-LOAD-1) done.
+0. **MATERIAL STOP (CI, head 94e5b70, PR #204).** `python (ubuntu-24.04)` failed at
+   `cognition/lm-controller/tests/test_structural_isolation.py::test_ci_runs_pytest_once_per_member`:
+   it asserts exactly 2 pytest lines in `ci_layer.py --list python|python-smoke`, and the member makes 3.
+   The fix is in `cognition/`, which the contract forbids. It needs the operator's authorization (or another
+   way to wire the member). The proposed fix: one line per `PYTHON_MEMBERS`, with the agent line asserted.
+   Because the layer stops at that point, the agent tests have not yet run on CI.
 2. Push; `gh pr create`; CI on the exact head (fast, test, test-macos, test-windows, platforms, python ×3);
    repair if red; then READY FOR OPERATOR REVIEW — never merge.
 3. After 12d merges (separately authorised): merge `origin/main`, check item names (ruling 2).
