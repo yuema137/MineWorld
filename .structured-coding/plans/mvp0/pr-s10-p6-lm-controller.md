@@ -2101,4 +2101,16 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   merge. The override now takes and passes `timeout_s`. No behaviour change for FG-c's callers.
 - **D-P6b-38 (process slip, merge session).** One Bash call contained a no-op heredoc to `/dev/null`, against the NEVER list.
   Nothing in the worktree changed. Recorded, not repeated.
+- **D-P6b-39 (merge, FG-b2 #213; bounded fix).** FG-b2 bumped `mineworld decisions --json` to format 2 (MODULE_SPEC
+  `decisions`: format 2 added `memory.store_bound_mib`) and added `store_bound_mib` to `MemoryPolicyChoice`. The P6b
+  reader (`controller/assignment.py`) reads format 2 only: per MODULE_SPEC a reader refuses a version it does not know,
+  so format 1 (written by a binary before FG-b2) and any later format are refused by name. No new plumbing was needed
+  for the bound: `SeatRunner` already hands the seat's `MemoryPolicyChoice` to FG-b's `resolve`, which binds
+  `store_bound_mib` as `Retention.bounds` (bound, target, size trigger) that `absorb` and the retention host run with;
+  an out-of-range bound stops the seat at construction (`StoreBoundOutOfRange`), before it joins. The hand-written
+  fixture `tests/fixtures/decisions_format1.json` (§C3 step 5) is now `decisions_format2.json`, with Alice's
+  `store_bound_mib: 40`. Tests: `test_assignment.py` (the fixture's 40 reaches the choice; formats 1 and 3 refused; a
+  string bound refused by location) and `test_controller_seat.py`
+  (`test_a_seats_configured_store_bound_reaches_its_retention_host`: 40 MiB → bound 41 943 040, target 31 457 280,
+  trigger 39 321 600; no choice → 20 MiB; 19 refused before joining). The real-binary test reads the format 2 output.
 - (planning findings are §3.2 and §0.1)

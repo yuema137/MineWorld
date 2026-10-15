@@ -15,7 +15,7 @@ from mineworld_sdk.wire.ids import EntityKey
 from mineworld_cognition.config import ConfigError
 from mineworld_cognition.controller.assignment import read_assignment
 
-FIXTURE = Path(__file__).parent / "fixtures" / "decisions_format1.json"
+FIXTURE = Path(__file__).parent / "fixtures" / "decisions_format2.json"
 
 
 def _write(directory: Path, data: dict[str, object]) -> Path:
@@ -36,6 +36,7 @@ def test_the_fixture_selects_alice_with_her_memory_choice() -> None:
     memory = assignment.seats[0].memory
     assert memory is not None
     assert memory.policy == "consolidate"
+    assert memory.store_bound_mib == 40  # FG-b2's format 2 field reaches the choice (D-P6b-39)
 
 
 def test_narrowing_to_an_lm_seat_keeps_it_and_a_non_lm_seat_is_refused(tmp_path: Path) -> None:
@@ -44,12 +45,23 @@ def test_narrowing_to_an_lm_seat_keeps_it_and_a_non_lm_seat_is_refused(tmp_path:
         read_assignment(FIXTURE, ["bob"])
 
 
-def test_an_unknown_format_is_refused_by_name(tmp_path: Path) -> None:
+@pytest.mark.parametrize("version", [1, 3])
+def test_an_unknown_format_is_refused_by_name(tmp_path: Path, version: int) -> None:
+    """Format 1 predates `store_bound_mib`; format 3 is from a newer binary. Both are refused by name."""
     data = _fixture()
-    data["format"] = 2
-    with pytest.raises(ConfigError, match="unknown decision JSON format") as refused:
+    data["format"] = version
+    with pytest.raises(ConfigError, match="this reader reads format 2") as refused:
         read_assignment(_write(tmp_path, data), None)
     assert str(tmp_path) in str(refused.value)
+
+
+def test_a_string_store_bound_is_refused_by_location(tmp_path: Path) -> None:
+    data = _fixture()
+    seats = data["seats"]
+    assert isinstance(seats, list)
+    seats[0]["memory"]["store_bound_mib"] = "big"
+    with pytest.raises(ConfigError, match=r"store_bound_mib"):
+        read_assignment(_write(tmp_path, data), None)
 
 
 def test_a_file_with_no_lm_seat_is_refused(tmp_path: Path) -> None:

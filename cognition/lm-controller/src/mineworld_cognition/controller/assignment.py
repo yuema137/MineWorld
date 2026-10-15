@@ -1,8 +1,10 @@
-"""Reads DL-a's `mineworld decisions --json` (format 1) and selects the `lm` seats (pr-s10-p6 §5.9, C3).
+"""Reads `mineworld decisions --json` (format 2) and selects the `lm` seats (pr-s10-p6 §5.9, C3).
 
 The file is the only record of the assignment this process uses; no YAML is parsed here. Models are strict
-(`CognitionModel`), so an unknown key is refused. An unknown `format` is refused by name, and every error
-names the file, never a value from it (I-16).
+(`CognitionModel`), so an unknown key is refused. An unknown `format` (format 1 included: it predates FG-b2's
+`store_bound_mib`) is refused by name, and every error names the file, never a value from it (I-16).
+A seat's `memory.store_bound_mib` travels in its `MemoryPolicyChoice` to `resolve`, which binds it as the
+retention host's store bound (D-P6b-39).
 """
 
 from __future__ import annotations
@@ -21,6 +23,9 @@ from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice
 LM = "lm"
 """The model id that means the LM controller (DL-a `external "lm"`)."""
 
+FORMAT = 2
+"""The `decisions --json` version this reader reads (MODULE_SPEC `decisions`; FG-b2 added `store_bound_mib`)."""
+
 
 class SeatModel(CognitionModel):
     id: str
@@ -35,7 +40,7 @@ class SeatEntry(CognitionModel):
 
 
 class ResolvedDecisions(CognitionModel):
-    format: Literal[1]
+    format: Literal[2]
     world: str
     digest: str
     seats: list[SeatEntry]
@@ -71,8 +76,10 @@ def read_assignment(path: Path, narrowed: list[str] | None) -> Assignment:
         raw: object = json.loads(text)
     except json.JSONDecodeError:
         raise ConfigError(f"{path}: not a JSON document") from None
-    if not isinstance(raw, dict) or cast(dict[str, object], raw).get("format") != 1:
-        raise ConfigError(f"{path}: unknown decision JSON format; this reader reads format 1")
+    if not isinstance(raw, dict) or cast(dict[str, object], raw).get("format") != FORMAT:
+        raise ConfigError(
+            f"{path}: unknown decision JSON format; this reader reads format {FORMAT}"
+        )
     try:
         document = ResolvedDecisions.model_validate(raw)
     except ValidationError as error:

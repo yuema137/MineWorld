@@ -37,7 +37,7 @@ from mineworld_cognition.backend.model import BackendFailure, Completion, Comple
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import CognitionConfig
 from mineworld_cognition.controller import seat as seat_module
-from mineworld_cognition.controller.assignment import LmSeat
+from mineworld_cognition.controller.assignment import LmSeat, read_assignment
 from mineworld_cognition.controller.log import DecisionRecord, read_decisions
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.seat import SeatRunner
@@ -47,6 +47,7 @@ from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
 from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
+from mineworld_cognition.memory.retention.bound import StoreBoundOutOfRange
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import (
     MemoryPolicyChoice,
@@ -515,3 +516,60 @@ def test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallb
     assert (
         _assisted_gateway(tmp_path, monkeypatch, {"social": _social(), "summarize": None}) is None
     )
+
+
+FORMAT_2 = Path(__file__).parent / "fixtures" / "decisions_format2.json"
+
+
+def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat) -> Retention:
+    """Builds a runner for `seat` and returns the `Retention` FG-b's `resolve` gave it (what `absorb` runs)."""
+    given: list[Retention] = []
+    real_resolve = resolve
+
+    def recording_resolve(
+        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+    ) -> Retention:
+        resolved = real_resolve(choice, registry, gateway)
+        given.append(resolved)
+        return resolved
+
+    monkeypatch.setattr(seat_module, "resolve", recording_resolve)
+    budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
+    SeatRunner(
+        _config(),
+        seat,
+        router=Router({"social": _social()}, budget),
+        connector=ScriptedServer(Link(welcome(resume=1), observation(1))),
+        invite=Invite(INVITE),
+        nickname="cognition",
+        store_dir=tmp_path / "store",
+        clock=FakeClock().time,
+        sleep=FakeClock().sleep,
+    )
+    (retention,) = given
+    return retention
+
+
+def test_a_seats_configured_store_bound_reaches_its_retention_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-P6b-39: format 2's `store_bound_mib: 40` read from the decision JSON is the bound, target and size
+    trigger `absorb` and the retention host run with (FG-b2 §4.1), not the 20 MiB default."""
+    (alice,) = read_assignment(FORMAT_2, None).seats
+    bounds = _retention_for(tmp_path, monkeypatch, alice).bounds
+    assert (bounds.bound, bounds.target, bounds.trigger) == (41_943_040, 31_457_280, 39_321_600)
+
+
+def test_a_seat_without_a_memory_choice_keeps_the_default_store_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bounds = _retention_for(tmp_path, monkeypatch, LmSeat(key=ALICE, memory=None)).bounds
+    assert bounds.bound == 20 * 1024 * 1024
+
+
+def test_a_seat_whose_store_bound_is_below_the_floor_is_refused_before_it_joins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    choice = MemoryPolicyChoice(policy="consolidate", store_bound_mib=19)
+    with pytest.raises(StoreBoundOutOfRange, match="19"):
+        _retention_for(tmp_path, monkeypatch, LmSeat(key=ALICE, memory=choice))
