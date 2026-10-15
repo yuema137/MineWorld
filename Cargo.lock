@@ -1143,6 +1143,18 @@ dependencies = [
 [[package]]
 name = "mineworld-motivated"
 version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-decision",
+ "mineworld-group-activity",
+ "mineworld-movement",
+ "mineworld-relationships",
+ "mineworld-rule-controller",
+ "mineworld-schedule",
+ "mineworld-weather",
+ "serde_json",
+]
 
 [[package]]
 name = "mineworld-movement"

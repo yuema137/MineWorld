@@ -575,8 +575,9 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- | --- | --- |
 | C0 | aef3aa6 | [x] | [x] | [x] |
 | C1 | 3964c9e | [x] | [x] | [x] |
-| C2 | (this commit) | [x] | [x] | [~] (three-cell PDF check INCONCLUSIVE, see evidence) |
-| C3 … C7 | — | [ ] | [ ] | [ ] |
+| C2 | bc6a85c | [x] | [x] | [~] (three-cell PDF check INCONCLUSIVE, see evidence) |
+| C3 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
+| C4 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -625,6 +626,37 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
   - Sociality check against the design's own numbers: 00:00–05:00 socializing share = 13 / 566 ‰ ≈ 2.3 %,
     matching the design's stated figure.
   - Load average at this point ≈ 180–230 (R-LOAD-1). Only `-p mineworld-motivated` tests were run locally.
+- **C3 (2026-10-14).** `src/{options.rs, considerations.rs, score.rs, model.rs, explain.rs, settings.rs,
+  tests.rs}`, `clippy.toml` (copied from rule-controller). Choices (`Choice`, named so it does not shadow
+  `Option`): agenda, stay, greet, approach, invite, join, leave, door, offered, wander, built only from what the
+  observation offers (I-DLb-3). Considerations per §5.4, with absent inputs neutral at 1 000 (I-DLb-4).
+  Compensation per §5.3 in `u64` floor arithmetic. Top-band draw (index 0) and the door re-draw keyed by the
+  commitment window. Invitation and reply yes/no (draws 2 and 1) per §5.6. Greeting (draw 3), kind (draw 11),
+  wander offsets (draws 4, 5), per SD-DLb-5.
+  - Implementation: `cargo fmt --check -p mineworld-motivated` rc 0; `cargo clippy -p mineworld-motivated
+    --all-targets -- -D warnings` clean (forced re-check).
+  - Validation: `cargo test -p mineworld-motivated`: 17 passed (10 from C2, 7 new), 0 failed (PASS). New:
+    presence-only observation decides and only stays (I-DLb-4); a person the server does not let me address is
+    never greeted; compensation for k = 1, 2, 5 hand-computed (600, 390, 168) and a zero value; the top-band
+    draw over 200 instants covers both band members and never the out-of-band door; zero scores choose nothing;
+    same observation and seed decide the same.
+  - Mutations (each planted, seen red by name, reverted):
+    - M-DLb-5 (greet without `may_talk_to`): red by name `tests::a_person_the_server_will_not_let_me_address_is_never_greeted`.
+    - M-DLb-6 (`f64` in the compensation): red by clippy `float_arithmetic` ("floating-point arithmetic detected", `score.rs`).
+    - M-DLb-4 (`RefCell` in `decide`): red by clippy disallowed types ("use of a disallowed type `std::cell::RefCell`").
+    The end-to-end M-DLb-4 check (AC-DLb-2 and the template test) is C5.
+  - Deviations and findings:
+    - **F-DLb-3** (C3): the hour of day is read from the instant only. No calendar is read, so the local hour of
+      a disclosed calendar (market-town) is not used. social-cafe has no calendar, and the acceptance runs use
+      it; the market-town case stays a recorded gap for a later PR.
+    - `to_tags` is disclosure-only (movement, ARC-82), so `options.rs` reads it from the disclosed `leads_to`
+      payload. No typed record carries it. This is a second decoder of that shape, and it is noted here as a
+      candidate for movement to export a typed view.
+    - The top-band check is a property over 200 instants, not a single fixed `Draw`; the fixed-draw form would
+      need a constructed observation with a chosen instant, which the property test covers.
+    - **Process deviation:** one `sed -i ''` command was run (no-op: replaced a string with itself, file
+      unchanged). `sed -i` is on the contract's NEVER list. Recorded here; no file was altered by it.
+  - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace`.
 
 ### Deviations and findings
 
