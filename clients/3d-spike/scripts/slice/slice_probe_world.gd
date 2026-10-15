@@ -6,7 +6,8 @@
 ##                         the door and at the counter, watch the street
 ##   --slice-conversation  the same talk, captured from the player's own HUD
 ##   --slice-target        what the targeting ray picks, and what it must not:
-##                         nobody through a wall (step-15 §19.3 T-1 ... T-4)
+##                         nobody through a wall (step-15 §19.3 T-1, T-3, T-4;
+##                         §20.4 T-2', a wall within one place)
 ##
 ## It extends `SliceProbe` for its walking, capture and timing helpers, and adds
 ## nothing to it: the standalone modes stay there and these stay here, so S14's
@@ -209,36 +210,39 @@ func _target_check() -> void:
 		fails += 1
 		print("FAIL T-3: from the pavement the ray must meet %s" % passer)
 
-	# T-2: into The Flower Room (reported to the world as the street, F-S14-9),
-	# to the back of its west lane, and aimed at the same person through its wall
-	await _walk_to(Vector3(11.84, 0.0, -5.40), 8.0)
-	await _walk_to(Vector3(11.84, 0.0, -9.50), 6.0)
-	await _walk_to(Vector3(11.84, 0.0, -13.20), 6.0)
-	await _hold(1.0)
-	print("florist  body at %s, slice place %s, server place %s, %s perceived: %s"
-		% [player.global_position, SliceWorld.place_at(slice.world, player.global_position),
-		_where(link), passer, link.figures.has(passer)])
-	if not link.figures.has(passer):
+	# T-2' (step-15 D-16c-9): a wall within one place. 16a's T-2 aimed through the
+	# florist's wall at the street's passer-by; since S15 12d the florist is the
+	# world's store, where the street's people are not perceived. The occluder is
+	# a box the probe plants on the pavement across the line of sight to the same
+	# person, on LAYER_WORLD as every scene wall, and removes after. (C1 chose it
+	# over the retaining-wall nook: from the nook the line to the street's one
+	# perceived person in the still world is over 30 m, past
+	# SliceTargeting.RAY_LENGTH, so a ray that ignored walls would not have
+	# reached that person either, and M16c-7 could not bite there.)
+	pp = (link.figures[passer] as Node3D).global_position
+	var eye := player.get_viewport().get_camera_3d().global_position
+	var head := pp + Vector3.UP * HEAD_Y
+	var mid := (eye + head) * 0.5
+	var box := _plant_occluder(Vector3(mid.x, SliceStreet.WALK_Y + 1.5, mid.z), atan2(head.x - eye.x, head.z - eye.z))
+	await _hold(0.3)
+	await _aim_at(head)
+	a = _report_aim(link, "across the planted wall")
+	var cone := _cone_choice(link)
+	print("cone     the pre-16a rule would have chosen: %s" % (cone if cone != "" else "nobody"))
+	var first := String(a["collider"])
+	if a["entity"] != "":
 		fails += 1
-		print("FAIL T-2: %s is no longer perceived, so the case would be vacuous" % passer)
-	else:
-		pp = (link.figures[passer] as Node3D).global_position
-		await _aim_at(pp + Vector3.UP * HEAD_Y)
-		a = _report_aim(link, "from the florist, through its wall")
-		var cone := _cone_choice(link)
-		print("cone     the pre-16a rule would have chosen: %s" % (cone if cone != "" else "nobody"))
-		var p: Variant = a["point"]
-		var inside := typeof(p) == TYPE_VECTOR3 and (p as Vector3).z < SliceStreet.NORTH_FACE - 0.5
-		if a["entity"] != "":
-			fails += 1
-			print("FAIL T-2: the ray targeted someone through the florist's wall")
-		if not inside:
-			fails += 1
-			print("FAIL T-2: the first hit must be a wall inside the building, not the frontage")
-		if cone != passer:
-			fails += 1
-			print("FAIL T-2: the case does not discriminate -- the cone would not have chosen %s"
-				% passer)
+		print("FAIL T-2': the ray targeted %s (%s) through the wall" % [link.display_label(a["entity"]),
+			a["entity"]])
+	if first != String(box.get_path()):
+		fails += 1
+		print("FAIL T-2': the first collider the ray meets must be the occluder %s, not %s"
+			% [box.get_path(), first if first != "" else "nothing"])
+	if cone != passer:
+		fails += 1
+		print("FAIL T-2': the case does not discriminate -- the cone would not have chosen %s" % passer)
+	box.queue_free()
+	await _hold(0.2)
 	print("\n%s" % ("all target checks pass" if fails == 0 else "%d TARGET CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
@@ -421,6 +425,8 @@ func _link_check() -> void:
 			print("FAIL: no reply from %s within 15 s" % barista)
 		else:
 			print("reply    %s said %s (after %.1f s)" % [barista, JSON.stringify(reply.get("utterance")), t])
+	# what the scene shows, in S12 13a's SHOWN form (step-15 D-16c-7), at the counter
+	_print_shown(link)
 	await _street_watch(link)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
@@ -561,10 +567,20 @@ func _street_watch(link: SliceLink) -> void:
 
 ## Face a perceived person and press talk, as a player would. Returns
 ## ["<result> <code>", distance in metres] -- the code is the server's.
+##
+## A check that passes on the wrong target is a defect (step-15 §20.0, A16c-14):
+## the talk is sent only once the ray meets the person aimed at. Where another
+## figure stands in the way, the probe steps across the line of sight first, as
+## a player would, and says so; if no step clears it, nothing is sent, the
+## result is "WRONG TARGET", and the calling check fails naming both people.
 func _talk_to(link: SliceLink, id: String) -> Array:
+	if not await _clear_aim(link, id):
+		var met := link.facing_person()
+		print("FAIL     the ray meets %s (%s), not %s (%s), the person aimed at"
+			% [link.display_label(met) if met != "" else "nobody", met, link.display_label(id), id])
+		var off: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
+		return ["WRONG TARGET %s" % met, Vector2(off.x, off.z).length()]
 	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
-	# aim at the head, as a player would: targeting is a ray (step-15 §19)
-	await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * HEAD_Y)
 	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
 	var t := 0.0
 	while t < 4.0 and tok != "" and not _answered(link, tok):
@@ -583,6 +599,32 @@ func _talk_to(link: SliceLink, id: String) -> Array:
 		code = String(v) if typeof(v) == TYPE_STRING else ""
 	print("         %s" % JSON.stringify(a.get("detail", a)))
 	return ["%s %s" % [a["result"], code], dist]
+
+
+## The sidesteps tried, across the line of sight, before a talk is given up.
+const ASIDE := [0.35, -0.35, 0.70, -0.70]
+
+
+## Aim at `id`'s head; if the ray meets someone else, step aside until it meets
+## `id`. Whether it now does.
+func _clear_aim(link: SliceLink, id: String) -> bool:
+	await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * HEAD_Y)
+	if link.facing_person() == id:
+		return true
+	var start := player.global_position
+	var blocker := link.facing_person()
+	for side in ASIDE:
+		var at: Vector3 = (link.figures[id] as Node3D).global_position
+		var d := at - start
+		var across := Vector3(-d.z, 0.0, d.x).normalized()
+		await _walk_to(start + across * side, 3.0)
+		await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * HEAD_Y)
+		if link.facing_person() == id:
+			print("aim      %s (%s) stood in the line of sight to %s (%s); stepped %.2f m aside, from %s to %s"
+				% [link.display_label(blocker) if blocker != "" else "nothing", blocker,
+				link.display_label(id), id, side, start, player.global_position])
+			return true
+	return false
 
 
 ## Turn toward a floor point and walk until within 0.15 m of it, or `max_secs`.
@@ -911,6 +953,32 @@ static func _masked(lines: PackedStringArray) -> PackedStringArray:
 	for line in lines:
 		out.append(digits.sub(line, "#", true))
 	return out
+
+
+## A wall 3 m wide, 3 m high and 0.2 m thick, standing on the pavement at
+## `centre`, turned so its face is across the direction `yaw` (T-2').
+func _plant_occluder(centre: Vector3, yaw: float) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "PlantedOccluder"
+	body.collision_layer = Build.LAYER_WORLD
+	body.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(3.0, 3.0, 0.2)
+	cs.shape = shape
+	body.add_child(cs)
+	slice.world.add_child(body)
+	body.global_transform = Transform3D(Basis(Vector3.UP, yaw), centre)
+	print("occluder planted at %s, facing yaw %.2f rad" % [centre, yaw])
+	return body
+
+
+## What the scene shows of the world, as one `SHOWN <json>` line (step-15 D-16c-7):
+## S12 13a's keys and meanings, read back from the drawn scene. Returns the report.
+func _print_shown(link: SliceLink) -> Dictionary:
+	var report := link.shown()
+	print("SHOWN ", JSON.stringify(report))
+	return report
 
 
 ## The server's place for the body, as an id and how the scene draws it.

@@ -508,6 +508,21 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		"link.refused_about" if req.has("target") else "link.refused", shown, true, "token %s" % token)
 
 
+## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
+## report; step-15 D-16c-7): the layout's bound places and doorways, and every
+## drawn figure with the observer, each at the position it is DRAWN at -- so the
+## report is an instrument of the scene, not a copy of the observation.
+func shown() -> Dictionary:
+	var people := []
+	if client != null and player != null:
+		people.append({"id": client.observer, "label": display_label(client.observer),
+			"at": player.global_position})
+	for id in figures:
+		people.append({"id": id, "label": display_label(id),
+			"at": (figures[id] as Node3D).global_position})
+	return layout.shown(here, people)
+
+
 ## The person the player is looking at, by the name the HUD shows, or "".
 func looking_at() -> String:
 	var id := facing_person()

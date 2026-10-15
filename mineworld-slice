@@ -20,6 +20,9 @@
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
 #                                              that it picks nobody through a wall
+#   ./mineworld-slice --world --layout         headless: every doorway the world discloses lands
+#                                              on a drawn door, The Flower Room is the store, and
+#                                              what the scene shows (SHOWN) is what the world says
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
@@ -94,14 +97,15 @@ for a in "$@"; do
     --world)                               world=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--layout" ]; } \
+    && headless=1
 done
 # A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
 if [ "$scripted" = "1" ] && [ -z "$settings" ]; then

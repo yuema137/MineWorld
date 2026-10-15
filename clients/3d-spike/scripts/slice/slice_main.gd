@@ -67,7 +67,12 @@ func _ready() -> void:
 	_link()
 
 	if _scripted():
-		probe = SliceProbeWorld.new() if SliceProbeWorld.requested() else SliceProbe.new()
+		if SliceProbeTown.requested():
+			probe = SliceProbeTown.new()
+		elif SliceProbeWorld.requested():
+			probe = SliceProbeWorld.new()
+		else:
+			probe = SliceProbe.new()
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
@@ -75,13 +80,13 @@ func _ready() -> void:
 
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
-	return SliceProbe.scripted() or SliceProbeWorld.requested()
+	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
-	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES:
+	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES:
 		out.append("slice-" + mode)
 	return out
 
