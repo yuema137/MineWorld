@@ -822,7 +822,8 @@ No TW-c question remains open.
 | C4 | (this commit) | done: `runtime/pacing.rs` (resolution), Started at start, Scaled/Paused/Resumed per effective change, Stopped at shutdown; a failed write stops the world |
 | C5 | (this commit) | done: `--cadence` (no alias), optional `--time-scale`, `--solo` (loopback, >24 refused), `world.yaml hosting:`, the adapters' straddle window (AC-TWc-12, M-TWc-11) |
 | C6 | (this commit) | done: `hosting: time_scale: 12` in `market-town` and `social-cafe` (`bodies-yard` stays 1); `server_command.rs` bare-start assertion now expects 12 from world.yaml (reason: C6's default) |
-| C7 … C9 | — | not started |
+| C7 | (this commit) | done: `tools/cli/tests/host_clock.rs` (AC-TWc-4, AC-TWc-5 CP-TW-c, AC-TWc-6 binary rows); AC-TWc-7 live in `walking_pace.rs`; `checks/admin_check.gd` rescale step (AC-TWc-11), evidence regenerated |
+| C8 … C9 | — | not started |
 
 ### Evidence
 
@@ -881,6 +882,28 @@ No TW-c question remains open.
   (full CLI suite, 44 test binaries incl. hosted_town 120 s): exit 0, no FAILED. The one test that assumed scale 1
   from a bare start (`server_command.rs` `time_scale_sets_how_fast…`) now asserts 12 from world.yaml. Reason: the
   default changed by design. AC-TWc-8 digests (run ignores `hosting:`) are validated in C7 with the 300-day runs.
+- C7 evidence (2026-10-14, macOS; Linux/Windows evidence comes from CI):
+  - `cargo test -p mineworld-cli --test host_clock`: 4 passed (30.8 s). Covers: the refusals at start by name
+    (`--time-scale 25` without --solo; `--solo --listen 0.0.0.0:0`); AC-TWc-4 (every route twice, revision
+    unchanged, `inspect` journal/facts/snapshots lines equal to a run without the calls, 409 for 25×);
+    AC-TWc-6 live (`--solo` 3600 accepted, 3601 malformed, killed, restart prints `time scale 12 (from the save)`);
+    AC-TWc-5 CP-TW-c (pause three readings equal over 10 s; submit refused `paused`; resume+24× in one body, both
+    clients told 24 within 1 s; 240 ± 24 over the measured wall interval; 6× then 60 ± 6; graceful SIGINT exit 0;
+    restart `time scale 6 (from the save)`, `at` in [last read, last read + 6×30]; flag restart `(from --time-scale)`;
+    fresh world `(from world.yaml)`).
+    Not run: the social-cafe copy with `hosting` removed (→ 1); the `world.yaml hosting: 25` refusal through the
+    binary is covered by `worldpack/tests/hosting.rs` only. Recorded as not run here.
+  - AC-TWc-7 (`walking_pace.rs::a_walker_keeps_its_pace_across_live_rescales`, 6× → 24× after stride 7 → 12× after 14):
+    run 1 measured 6× 1343.7 mm/s (6.0 world s/stride), 24× 1220.6 mm/s (26.0), 12× 1339.0 mm/s (12.0). The
+    within-10 % spread check FAILED by 0.04 points (1343.7 vs 1.10 × 1220.6 = 1342.7). Run 2, unchanged, PASSED.
+    Thresholds were not changed (§13: a threshold change after a run is material). Reported as a borderline
+    result, not a clean pass: the 24× segment has six pairs and is the noisy one. Operator to judge.
+  - AC-TWc-11: `bash clients/protocol/run.sh admin` exit 0, 11 PASS, 0 FAIL: welcome clock 12 (world.yaml), posted
+    `{"time_scale": 6}`, clock 6 announced, pause/submit-refused/resume/kick as before. Evidence regenerated.
+  - Mutations (each red by name, then reverted; tracked diff empty after): M-TWc-4 (pacing moves revision) →
+    `pacing_changes_are_recorded_and_never_facts` red (revision 8 ≠ 2); M-TWc-5 (stop ignored at restart) →
+    `the_checkpoint…` red (294 < 300); M-TWc-6 (no --solo check on the route) → pacing test red (200 ≠ 409);
+    M-TWc-8 (walker step period ignores rescale) → AC-TWc-7 red (12× at 2679 mm/s).
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
