@@ -476,6 +476,12 @@ msgstr "无法从该进度继续"
 msgid "reason.lagged"
 msgstr "连接落后太多"
 
+msgid "reason.not_granted"
+msgstr "未获授权"
+
+msgid "reason.rate_limited"
+msgstr "请求过于频繁"
+
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.
 msgid "place.cafe"

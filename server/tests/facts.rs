@@ -309,6 +309,7 @@ async fn an_overflowing_perceived_stream_is_released_lagged_and_resumes_without_
                 take_over: false,
                 resume: Some(resume),
                 session: SessionId::new(0),
+                rights: mineworld_server::SeatRights::Any,
             },
             Some(PerceivedJoin {
                 since: Some(cursor),

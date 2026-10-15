@@ -40,8 +40,9 @@ HOUR = 3_600
 WEEK = 604_800
 YEAR = 31_536_000
 NOW = 400 * DAY
-TARGET = 786_432
-STORE_BOUND = 1_048_576
+MIB = 1_048_576
+STORE_BOUND = 20 * MIB  # the default per-person bound (pr-fg-b2 §4.1; operator, 2026-10-14)
+TARGET = STORE_BOUND * 3 // 4  # 15 MiB: the dump after every pass
 
 
 def item(

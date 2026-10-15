@@ -1767,6 +1767,15 @@ and the journal are kept whole, a restart restores the newest snapshot at or bel
 `verify` re-executes from genesis and compares every snapshot the save still holds. Compaction of the
 log remains later work (SR-b), and dropping journal or facts before a checkpoint stays excluded.
 
+**Note 2026-10-13 (`ARC-89`, SR-b, `SAVE_FORMAT` 4).** The log is now compressed, and still whole: the
+journal and fact rows of each completed span move, byte for byte, into one sealed block of two zstd
+frames, in the transaction of the anchor commit that seals them. Every guarantee above holds unchanged:
+no fact or journal row is dropped, rewritten or re-encoded; a restart restores the newest snapshot and
+re-executes the journal after it (which is always live, never sealed); replay and `verify` compare every
+re-executed entry and fact with the logged bytes, decoded from a block where the row is sealed; and a
+block's compressed bytes are a storage representation from which no comparison is argued. The
+accepted limitation "the log is kept whole" now reads "kept whole, compressed in sealed blocks".
+
 ---
 
 ## ARC-26 — Movement decides, presence owns: an event type's owner is its vocabulary and its reducer
@@ -7561,6 +7570,15 @@ bound becomes **≤ 192 MiB for towns with bodies** (the 30-day market-town save
 the snapshots it keeps are unchanged. SR-b's log compression is still expected to bring the size back
 down.
 
+**Note, 2026-10-13 (SR-b, `ARC-89`) — rule 1 amended.** Rule 1 now reads: no row of `facts` or `journal`
+is updated or re-encoded, and none is deleted except when it is **moved unchanged into a sealed block**,
+in the transaction of the anchor commit that seals its span, after the block has been decoded and
+compared with the rows it replaces. This is the only amendment: rules 2 – 8 (anchors, the retention rule,
+the snapshot codec, comparison of decoded bytes, where pruning runs, visibility) stand, except that
+`SAVE_FORMAT` is now 4 (rule 7) and a format-3 save is refused by name like a format-2 one. The snapshot
+table no longer references the journal, since a retained genesis or anchor snapshot outlives its sealed
+journal row. ASR-2's 30-day bound is replaced by `ARC-89`'s tighter ones (≤ 48 MiB at 30 days).
+
 ---
 
 ## DEP-43 — Snapshot compression: `zstd` (bundled libzstd), level 3
@@ -7986,6 +8004,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when a retention policy needs retrieval statistics, or when AC-FG-1 shows that the 1 MiB bound is wrong for the reference worlds (the bound may be tightened, never loosened without a ruling).
 
+**Note, 2026-10-14 (PR FG-b2; `pr-fg-b2-size-trigger.md` §1.1; operator rulings).** Two rulings revise the bound, neither changing the choice that the host, not a policy, enforces it. (1) "改成'快满了就提前整理'": a pass also runs early, after the fact that takes the store near its bound (a size pass), so the bound holds in a world whose perception exceeds a day's headroom — PR 12d's busier social-cafe reached 1 496 077 B before a daily pass. The trigger is measured exactly after every fact on the store's content, a function of the facts so far, so retention stays replayable and batch-independent. (2) "一个人物1mb太少了吧，我觉得起码20mb", then "默认 20 MB，世界可以调大": the per-seat bound is **20 MiB by default and a world may raise it**, per seat or class (`store_bound_mib` in `decisions.yaml` `memory:`), never below 20 MiB; the post-pass target is 75 % of it. This reverses, in the upward direction only, step-24 §1.2 ruling 2 (4) and FG-b's "not a parameter": the bound is now a world's choice above a fixed floor, still never a policy's. The 6 000-byte per-call memory ceiling (`D-P4-9`) is unchanged. "1 MiB" above reads "the seat's bound" from this date.
+
 ---
 
 ## ARC-88 — World evolution: a deterministic `happenings` System Pack, and LLM directors that only propose
@@ -8031,6 +8051,29 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when Systems publish effect declarations for multi-step goals (DL-d), or when a candidate crate's core is shown to be independent of its engine.
 
+**Note, 2026-10-14 (DL-b, the core as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §§5, 15).**
+- **Where it lives.** `cognition/motivated` (`mineworld-motivated`) holds the core and adds no external
+  dependency.
+- **Scoring.** Every option is offered only from what the observation discloses. Its score is its base weight
+  multiplied, in the listed order, by its considerations. Each consideration is a piecewise-linear integer
+  curve (≤ 24 points) over one input, adjusted by Mark's compensation factor `1 000 − 1 000 / k`. All
+  arithmetic is floor division in `u64`, and the crate denies `clippy::float_arithmetic`.
+- **Choice.** A seeded draw, weighted by score, chooses among the options within `top_band` ‰ of the best,
+  using `Draw::salted` with the model's own salt. A door is re-drawn per commitment window.
+- **Shared code.** The observation readers and request builders are shared with `rule` through
+  `mineworld_rule_controller::{read, act}` (SD-DLb-1).
+- **Measured result (social-cafe, 30 days, seed 7, every seat `motivated`).**
+  - AC-DLb-3: night speech 0 ‰ (PASS).
+  - AC-DLb-4: TV against ATUS 513 ‰ against the limit of ≤ 250, and `rule`'s TV is 382 (**FAIL**).
+  - AC-DLb-5: night at home 972 ‰ (PASS).
+  - AC-DLb-6: agenda kept 930 ‰ against `rule`'s 937 (PASS).
+- **Why AC-DLb-4 fails.** The diagnosis (F-DLb-5) is a limitation of the frozen defaults, not a defect. Away
+  from home `stay`'s base equals `greet`'s, considerations only lower a score, and the top band is 10 %. So a
+  greeting is drawable only at 16:00–20:59 or at home in the evening, and the run speaks 97 lines in 30 days,
+  against `rule`'s ≈ 10 159.
+- **Status.** `motivated` therefore ships as an optional, non-default model. `rule` stays the default
+  (QS24-3), and the revision of model or criterion is the operator's (R-DLb-6).
+
 ---
 
 ## DEP-48 — Daily-rhythm calibration: BLS ATUS A-3 public-domain tables, committed as derived integer tables through an offline fit tool
@@ -8053,11 +8096,28 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Revisit** when a European world needs calibration from HETUS aggregates, or when the BLS terms of use change.
 
+**Note, 2026-10-14 (DL-b, the calibration as built; `.structured-coding/plans/mvp0/pr-dl-b-motivated.md` §7,
+§15).**
+- **Edition and rows.** The edition is `atus-a3-2025`: BLS ATUS Table A-3, 2025 annual averages (QDLb-3). The
+  six rows are Sleeping, Eating and drinking, Working, Socializing and communicating, Leisure and sports, and
+  Purchasing goods and services.
+- **The committed file.** `cognition/motivated/data/atus-a3-2025.tsv` holds the rows as per-mille integers
+  (percent × 10, so the conversion is exact), with a `zero_markers` line and a per-row `checksum` line. The
+  credit and public-domain statement are in `cognition/motivated/data/NOTICE`. No microdata is committed.
+- **Derivation.** It is in the crate and pure, and there is no offline `routine-fit` tool: the routine
+  generator is deferred (QDLb-1). `curves::from_a3` maps each row to a 24-point curve with
+  `y(h) = ⌊v(h) × 1 000 / max v⌋`, and `restless` = `1 000 − rest`. The table is compiled in and derived when
+  parameters are decoded, so a run never opens a file.
+- **Transcription.** The values were transcribed from the HTML table, read through a summarising fetch. The
+  reviewer's three-cell check against the PDF is still open (§15, C2).
+- **The acceptance oracle.** `A(h)` is the socializing row normalised to sum 1 000, read from the TSV. It is
+  not the model's curve output. The measured results are in `DEP-47`'s note of the same date.
+
 ---
 
 ## ARC-89 — Sealed log blocks: journal and fact rows of completed spans move unchanged into compressed blocks, and history is read as a stream
 
-**Date** 2026-10-12 · **Status** accepted (design, step-24 FG-d; operator QSR-1 of 2026-10-10 and QS24-5 of 2026-10-12, building SR-b in MVP-0); implemented by FG-d (SR-b), `SAVE_FORMAT` 4 · **Approved by** the operator (QSR-1, QS24-5); the concrete design is `.structured-coding/plans/mvp0/pr-sr-b-log-compression.md` (design PR #178, draft at the time of this record) · **Relates to** `ARC-25`, `ARC-27`, `ARC-49`, `ARC-81` (amended, rule 1), `DEP-2`, `DEP-43`, `ARC-59`, `AC-9`, `AC-12`, `QS24-4` (save growth bound) · **Design** `pr-sr-b-log-compression.md` §§6.1, 6.2 (D-SRB-1 … D-SRB-11)
+**Date** 2026-10-12 · **Status** accepted (design, step-24 FG-d; operator QSR-1 of 2026-10-10 and QS24-5 of 2026-10-12, building SR-b in MVP-0); implemented by FG-d (SR-b), `SAVE_FORMAT` 4 · **Approved by** the operator (QSR-1, QS24-5); the concrete design is `.structured-coding/plans/mvp0/pr-sr-b-log-compression.md` (design PR #178; frozen 2026-10-12) · **Relates to** `ARC-25`, `ARC-27`, `ARC-49`, `ARC-81` (amended, rule 1), `DEP-2`, `DEP-43`, `ARC-59`, `AC-9`, `AC-12`, `QS24-4` (save growth bound) · **Design** `pr-sr-b-log-compression.md` §§6.1, 6.2 (D-SRB-1 … D-SRB-11)
 
 **Problem.** After `ARC-81`'s snapshot pruning, a Market Town save is almost entirely its event log. The log grows by about 3.75 MiB per simulated day on walking and 5.59 MiB per day with bodies, against a bound of 0.25 to 0.5 MiB per day (QS24-4). Facts and journal entries compress 18 to 40 times when compressed together in spans, but only 2 to 2.5 times one row at a time. Readers of history (`perceived`, `inspect`, `biography`) also load the whole log, peaking at 1.3 to 1.5 GiB on a 300-day save (`F-S24-1`). `ARC-25` requires that the log stay history, never derived and never rewritten, and that replay compare bytes.
 
@@ -8070,8 +8130,137 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 | (c) Seal completed spans into blocks, moving rows unchanged; readers stream one block at a time | **Chosen** |
 | (d) Archive old segments to separate files (FG-e) | Deferred to MVP-1 (FG-e), after streaming readers exist; it builds on this record |
 
-**Choice.** At each anchor commit `a` of `ARC-81`'s lattice, with `a` at least twice the anchor interval, the live rows of the revisions in (`sealed_through`, `a − interval`] move, byte for byte, into one sealed block in the same transaction as the anchor. A block holds two zstd frames (journal and facts) over a length-prefixed framing of the rows, at the level `DEP-43` fixes for stored kinds. Rows keep their key columns and bytes; a row is either live or inside exactly one block, never both. The backend stores opaque blocks and never decodes a fact (`DEP-2`). Replay compares re-executed entries and facts with the logged bytes, decoded from a block. Every reader of history streams blocks. The save format becomes `SAVE_FORMAT` 4; an older save is refused by name, with no migration (QSR-3).
+**Choice.** Let `A = 64 · interval` be `ARC-81`'s anchor interval (4 096 revisions by default). At each anchor commit `a` of that lattice, with `a ≥ 2A`, the live rows of the revisions in (`sealed_through`, `a − A`] move, byte for byte, into one sealed block in the same transaction as the anchor. A block holds two zstd frames (journal and facts) over a length-prefixed framing of the rows, at one fixed level for blocks (level 9), as `DEP-43` requires of every stored kind. Rows keep their key columns and bytes; a row is either live or inside exactly one block, never both. The backend stores opaque blocks and never decodes a fact (`DEP-2`). Replay compares re-executed entries and facts with the logged bytes, decoded from a block. Every reader of history streams blocks. The save format becomes `SAVE_FORMAT` 4; an older save is refused by name, with no migration (QSR-3).
 
 **Consequences.** `ARC-81` rule 1 ("`facts` and `journal` are only ever inserted into") is amended to "inserted into, and moved unchanged into a sealed block". No other row is deleted. Stored bytes remain a function of pack, seed, age, pace and code (`ARC-27`), so `ARC-49`'s parity hashes continue to hold on all three platforms. The per-day save bound is checked nightly (`AC-SAVE-1`), not by refusing facts.
 
 **Revisit** if a block-level read cannot meet the streaming bound, if a sealed span must be rewritten for a correction (which this record forbids), or when FG-e's archive segments need a manifest format, which a successor record decides.
+
+**Note 2026-10-13 (implementation, SR-b; design frozen 2026-10-12, rulings QSRB-1 … QSRB-8).** The record's `a − interval` in the first draft meant `a − A`, as stated above. The decisions the implementation holds to, in full in the design's §6.1:
+
+```text
+D-SRB-1   rows move, bytes do not change: a journal or fact row is live or in exactly one block, with the
+          same key columns and bytes; ARC-81 rule 1 is amended to say so, and no other deletion of a log
+          row exists
+D-SRB-2   the sealing rule, a pure function sealing(n, interval, sealed_through) beside ARC-81's retired:
+          when n mod A = 0 and n ≥ 2A, seal (sealed_through, n − A]; blocks are (kA, (k+1)A], sealed one
+          span late, so resume never reads a block and every block ends at an anchor (QSRB-1)
+D-SRB-3   one table: sealed(first_revision PK, last_revision, first_event_id, last_event_id,
+          max_action_id, journal BLOB, facts BLOB); spans contiguous, the live tail after the newest
+D-SRB-4   the framing (persistence/src/block.rs), little-endian: journal rows (revision, at, action id,
+          length, entry) in revision order; fact rows (event id, revision, length, fact) in EventId order;
+          decoding checks contiguity, spans, ordering and trailing bytes, and names the block's span
+D-SRB-5   each frame is zstd level 9 (QSRB-2), checksum and content size on, single-threaded, no
+          dictionary: block bytes are a function of the row bytes on every platform, which AC-8 checks
+D-SRB-6   the backend's history is two cursors, revisions_after and facts_after, each inside one read
+          transaction, holding one decoded block at a time and paging the live tail; journal_after is
+          removed; facts_of, last_facts, head and highest_action_id read both storages
+D-SRB-7   replay, verify, verify_from and resume iterate the revision cursor and compare the
+          re-executed entry and facts with the cursor's bytes
+D-SRB-8   every production whole-log reader streams: the server's backfill under its existing seam,
+          perceived, inspect, biography, run's fingerprint and genesis instant (F-S24-1, persistence and
+          CLI side; the server's seam itself is routed to the server lane, QSRB-6)
+D-SRB-9   SAVE_FORMAT 4; snapshots no longer reference the journal; a format-3 save is refused by name,
+          no migration (QSRB-3)
+D-SRB-10  mineworld inspect prints one `log` line: blocks, their span, stored bytes and row bytes, the
+          live tail
+D-SRB-11  a seal is verified before the rows go: the block's frames are decoded and compared with the
+          source rows and the deleted counts with the block's, or the commit fails (WorldAheadOfSave)
+```
+
+**Ways of building it compared** (design §5): blocks of `A` revisions in a `sealed` table on the anchor lattice (chosen); per-row zstd (2 – 2.5×, misses QS24-4 by 5×); per-row zstd with a trained dictionary (9 – 11×, plus a stored, versioned dictionary; a dictionary buys 2 % at block scale); blocks as files beside `world.sqlite` (two-store atomicity, deferred to FG-e); SQLite page compression (rejected in `ARC-55`); a columnar container (no column structure in opaque rows); a fixed 4 096 independent of the interval (a second lattice and a test-only knob, QSRB-1).
+
+**Bounds** (operator QSRB-4): 30-day Market Town save ≤ 48 MiB; 300-day ≤ 96 MiB with bodies and ≤ 80 MiB walking; growth ≤ 0.25 MiB per simulated day (CI, every PR), and the nightly `AC-SAVE-1` at 0.5 MiB per day until stable; peak memory of a history reader on a 300-day save ≤ 256 MiB; a seal ≤ 100 ms per block.
+
+**Revisit triggers added:** a block-level `AC-8` difference on any leg; FG-e moving blocks out of the file; a world whose span exceeds 64 MiB of raw rows.
+
+## DEP-50 — The executable guide: `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli`
+
+**Date** 2026-10-14 · **Status** accepted (design, step-25 §4.2 option E2); implemented by PR S25c (dev-dependencies only, no runtime edge) · **Approved by** the operator's step-25 rulings of 2026-10-14 (QS25-1 to QS25-10; the design's §4.2 recommendation accepted under the standing instruction) · **Relates to** `ARC-90`, `DEP-29`, `DEP-49`, `CLAUDE.md` §4 rule 16, `REUSE_POLICY.md` §§1–4, 11–12 · **Design** `.structured-coding/plans/mvp0/step-25-creator-docs.md` §§4.2, 8, 16 · **Specification** [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md)
+
+**Problem.** Every page in `docs/guide/` must be executed against the real `mineworld` binary, in order, on Linux, macOS and Windows, so that a page which stops working is a red test. The runner needs a CommonMark parser that yields fenced blocks with their info strings and line numbers, and an output matcher with line elision and in-line wildcards.
+
+**Options considered** (verified 2026-10-14 with `cargo info` and the repository metadata, step-25 §16).
+
+| Option | Verdict |
+| --- | --- |
+| E1 `trycmd` 1.2.1 (MIT OR Apache-2.0) | Declined as the runner. Its per-case sandbox does not model a tutorial whose steps are cumulative; its file steps need a second copy of every file in an `.in/` directory. Its matching rules are adopted through `snapbox`, which is the library `trycmd` itself uses. |
+| E2 `pulldown-cmark` 0.13.4 (MIT, not archived, last push 2026-10-12, MSRV 1.71.1) plus `snapbox` 1.2.2 (MIT OR Apache-2.0, not archived, last push 2026-10-04, MSRV 1.85) | **Adopted.** A test in `mineworld-cli` walks each page, writes file blocks, runs command blocks with the binary and matches output. Both are test-only and never enter a build. |
+| E3 mdBook `test` | Declined: it runs Rust code blocks; the guide's blocks are YAML and shell. |
+| E4 Python runner with `markdown-it-py` | Declined: the binary's tests already run on all three operating systems under `cargo test`; a Python runner would need a new job and a new dependency. |
+| E5 Test the example world only | Declined: a page can describe what the world no longer does. |
+| Hand-written Markdown scanner | Declined: a CommonMark fence rule (the fence length, indentation, and `~~~` fences) is exactly what a maintained parser already gets right, and a bespoke one would drift from what GitHub renders. |
+
+**Choice.** `pulldown-cmark` (parsing) and `snapbox` (matching) as `[dev-dependencies]` of `mineworld-cli`, each with a workspace entry in the root `Cargo.toml` carrying this record's id. Neither crate is named outside `tools/cli/tests/`. Feature sets are chosen at C1 and recorded there.
+
+**Consequences.** The guide runner adds two crates to the test graph of `mineworld-cli` only. `cargo deny check licenses` must still pass (both are on the existing allow-list: MIT, Apache-2.0). The runner's TOML reading of `features.toml` uses the `toml` crate already present in `Cargo.lock`, so it adds no new crate; the workspace entry is recorded when C1 adds it.
+
+**Revisit** if `pulldown-cmark` or `snapbox` leaves maintenance, or if the guide's block grammar needs a construct CommonMark cannot express (then the grammar changes first, in `GUIDE_FORMAT.md`).
+
+---
+
+## ARC-97 — Seat grants and a per-seat request budget: narrower credentials and a fair bound, both host state
+
+**Date** 2026-10-14 · **Status** accepted (design frozen 2026-10-14); implemented by S27-a · **Approved by** the operator's step-27 rulings QS27-1 … QS27-10 and the primary session's QS27a-1, QS27a-2 (2026-10-14) · **Relates to** `ARC-40`, `ARC-41`, `ARC-44`, `ARC-67`, `ARC-75`, `DEP-14`, `DEP-57`, `INV-S27-1`, `INV-S27-4`, `INV-S27-5`, `INV-S27-13`, [`NETWORKING.md`](NETWORKING.md) §9, [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§4.1, 4.2, 5.5, 8, 10, 11 · **Design** `.structured-coding/plans/mvp0/step-27-agent-players.md` §§6.4, 7.2; `.structured-coding/plans/mvp0/pr-s27a-seat-grants-budget.md`
+
+**Problem.** Revision 2 has one level of player trust: whoever holds the server's invite may take any seat, a connected or held one included (`ARC-40`'s and `ARC-44`'s recorded limitation). A host who wants to let a friend, or an agent player, onto one seat must hand over the right to take every seat. And nothing bounds how many requests a connection may send: a client that floods `submit`s makes the world allocate an `ActionId`, journal and answer each one, and a client that is not the reference client is under no cadence at all.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Change the invite's meaning (per-seat invites, or an invite with a seat list) | Declined: every client and launcher reads the invite as "any seat"; changing it is a protocol change for every existing user |
+| (b) Accounts or durable identity | Declined: out of MVP scope (`NETWORKING.md` §9); bans and identity are a later design |
+| (c) **Seat grants**: host-generated credentials, each naming seats and an optional take-over right, presented in the existing `join.invite` field | **Chosen** |
+| (d) A grant token given on the command line | Declined: process lists show argv; a grant is generated, like a generated invite |
+| (e) Bound requests per connection | Declined: a reconnect or a takeover would refill it; the seat is what is being protected |
+| (f) **A per-seat token bucket** kept by the seat table, refusing `rate_limited` before an `ActionId` is allocated | **Chosen** |
+| (g) A per-action embodied cadence ("`walk-step`: at most 1 per wall second") declared by a System Pack | Deferred: a design change to `ARC-67`/`ARC-75`, ruled a separate design after S27-a (QS27-7) |
+
+**Choice.**
+
+1. **Grants.** `mineworld server WORLD --grant SEATS[:take-over]` (repeatable; `SEATS` one seat or several joined by `+`) generates one token per grant from the operating system's random source (`DEP-14`) and prints it once, on its own startup line. A grant token is never given, never persisted, and appears in no frame, fact, save, `/status` or admin answer. A `join` presents it in `invite`; check 2 admits the invite or any grant in constant time over every credential (a wrong one is one answer, `unauthorized`); a new check 4a refuses a seat the grant does not name with `not_granted`; check 6 refuses `take_over: true` on a connected or held seat with `not_granted` unless the grant carries take-over. Resuming one's own hold is always allowed; a hosted seat is joined without a flag. The invite, the admin token and every grant are distinct, or the server refuses to start. `GET /admin/sessions` reports which credential admitted a session — `{ kind: "invite" }` or `{ kind: "grant", seats, take_over }` — never a token and never a Controller kind.
+2. **The budget.** Each seat has a bucket of `R` requests per wall second sustained and `B` burst, keyed by the seat (a reconnect, resume, takeover, kick or release does not refill it), spent by every `submit` a connection sends after the `paused` check and before allocation, and refused `rate_limited` with `retry_after_ms` (the wait rounded up to a whole millisecond, ≥ 1). It is the same for every connection and not applied to in-server controllers, which the host paces at its consult cadence. `--request-budget R/B` sets it; `0` means none.
+3. **The numbers, from evidence (C0, rule fixed before measuring: `R = max(10, 2 × measured p99)`, `B = 2R`).** The real 2D client against the real `market-town` (`tools/cli/tests/request_rate_2d.rs`, Godot 4.7.2, macOS, load average ≈ 215–235): walking 40 strides along the street, 43 answers over 49 wall s, per-second p50 1 / p99 3 / max 3; walking with the keys out of a home, p50 1 / p99 2 / max 2. Analytic bound: one request in flight, a `move` every 0.5 m at 1.6 m/s — 3.2 a second. The 3D client has no request-timestamped harness: **INCONCLUSIVE** (ruled QS27a-2); its documented cadence is a `move` every 0.5 m (≈ 6.2 a second at its 3.10 m/s jog) with no more than one per 0.08 s (12.5 a second, turning in place). **`R = 10`, `B = 20`.** The walking trace is committed as `server/tests/traces/walker-2d.json` and replayed by the server's tests, which must see no `rate_limited`.
+4. **Landing within revision 2.** `not_granted` reaches only a join that presented a grant (a credential that did not exist before), and `rate_limited` only a seat that spent the budget, which the reference clients' cadence does not; `retry_after_ms` appears on `rate_limited` only. So `protocol` stays 2, and every client in the repository — the server, the Python SDK, the 2D client's final-refusal list and the shared catalog — learns both codes in the same pull request. An older SDK fails closed on them (a malformed frame ends the session), never silently. The next revision must make a client treat an unknown refusal code as a generic refusal (`PROTOCOL.md` §10).
+
+**Consequences.** `ARC-40`'s and `ARC-44`'s "one level of trust" limitation is amended by adding a narrower credential, not by changing the invite. Grants and buckets are host state (`ARC-40`): none is journaled, states a fact, moves a revision or appears in a save. Nothing distinguishes an agent from a human (`INV-S27-4`, `INV-S27-13`): a grant binds whoever presents it. `R = 10` still lets a client step a walk ten times a second; bounding embodied speed is QS27-7's separate design, built on this bucket. The 3D client's turning-in-place ceiling (12.5 a second, no request in flight held) exceeds `R` sustained; the burst absorbs about eight seconds of continuous turning, and a refused report is shown, not retried.
+
+**Revisit** when the 3D client gains a request-timestamped harness (re-measure; QS27a-2), when QS27-7's per-action cadence is designed, or when public hosting needs per-address join limits (`DEP-14` option (n)).
+
+---
+
+## DEP-57 — The per-seat request bucket: `governor`, driven from the seat table's injected `Instant`
+
+**Date** 2026-10-14 · **Status** accepted; dependency added in S27-a C5 · **Approved by** the step-27 frozen rule (§8, `DEP-S27-b`): adopt `governor` if C0's prototype shows its clock can be driven from the seat table's injected `Instant`, otherwise our own bucket · **Relates to** `ARC-97`, `DEP-14` (option (n)), `REUSE_POLICY.md` §§11–12, 15 · **Design** `pr-s27a-seat-grants-budget.md` §§4, 5.3, 9 C0
+
+**Problem.** `ARC-97`'s per-seat budget needs a token bucket (GCRA or equivalent) whose time is the seat table's injected wall `Instant`, so every transition is testable with literal instants and no sleep (the seat table's existing model for holds), and whose state is keyed by seat inside the table, which iterates deterministically.
+
+**Options considered** (both directions).
+
+| Option | Verdict |
+| --- | --- |
+| (a) **`governor` 0.10.4 (MIT), one direct limiter per seat** (`RateLimiter::direct_with_clock`), with a clock the seat table sets to its injected `now` before each check | **Chosen** — the prototype passed (below) |
+| (b) `governor`'s keyed limiter (`hashmap_with_clock`) | Declined: its keys live in a `HashMap` the seat table cannot iterate deterministically, duplicating the table's own key set |
+| (c) Our own integer bucket (~40 lines in `seats.rs`) | Declined since (a) works: GCRA's arithmetic, its rounding and its burst semantics are what a mature crate has already had reviewed; "writing it ourselves feels cleaner" is not a reason |
+| (d) `tower_governor` / `tower::limit` | Declined: they limit HTTP requests in the transport, where no per-seat key exists, not WebSocket frames per seat |
+
+**Prototype (C0, 2026-10-14), outside the repository build** (a scratch crate with `governor = { version = "=0.10.4", default-features = false, features = ["std"] }`). Facts verified from the crate source and a test with no sleep:
+
+```text
+governor::clock::Reference is implemented for std::time::Instant   src/clock/with_std.rs:23 (feature "std")
+Reference's bounds   Sized + Add<Nanos> + Eq + Ord + Copy + Send + Sync + Debug   src/clock.rs:61-62
+Clock's bounds       none beyond `type Instant: Reference; fn now(&self)` (and Clone for the limiter);
+                     a clock over Rc<Cell<Instant>> — neither Send nor Sync — compiles and works, so a
+                     clock owned by the world thread is fine
+test                 Quota::per_second(10).allow_burst(20): 20 checks pass at t0; the 21st fails with
+                     NotUntil::wait_time_from(t0) == 100 ms exactly; at t0 + 100 ms − 1 ns still
+                     refused; at t0 + 100 ms one passes and only one                    PASS
+licence              crate licence field "MIT"; repository boinkor-net/governor, MIT License
+```
+
+New crates in `Cargo.lock` (normal edges, `default-features = false, features = ["std"]`): `governor`, `futures-timer`, `lock_api`, `nonzero_ext` (Apache-2.0), `parking_lot`, `parking_lot_core`, `portable-atomic`, `spinning_top`, `web-time` — every one MIT, Apache-2.0, or a dual of them, all in `deny.toml`'s list. (C5 note: adding the dependency to the workspace also put `redox_syscall` (MIT) in `Cargo.lock`, a Redox-only target edge of `parking_lot_core` that no supported platform compiles; the prototype's `cargo tree` for the host target did not show it.) The rest (`futures-util`, `hashbrown` 0.16, `smallvec`, `cfg-if`, `libc`, …) are already compiled.
+
+**Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
+
+**Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.

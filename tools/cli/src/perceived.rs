@@ -24,7 +24,7 @@ use mineworld_presence::audience::perceived_by;
 use mineworld_server::{PayloadForm, wire_fact};
 use mineworld_worldpack::WorldPack;
 
-use crate::history::saved_facts;
+use crate::history::with_saved_facts;
 use crate::{PackDirs, described};
 
 /// The arguments of `mineworld perceived`, parsed by `clap` (`DEP-11`) and declared here rather than
@@ -57,7 +57,7 @@ fn damaged(error: PersistError) -> String {
 pub fn perceived(args: PerceivedArgs) -> Result<(), String> {
     let roots = args.packs.roots()?;
     let pack = WorldPack::read_with(&args.world, &roots).map_err(described)?;
-    let facts = read_facts(&args.save, pack.id())?;
+    check_save(&args.save, pack.id())?;
 
     let loaded = pack
         .load(mineworld_contracts::WorldTime::EPOCH)
@@ -82,9 +82,24 @@ pub fn perceived(args: PerceivedArgs) -> Result<(), String> {
         })?;
 
     let since = args.since.map(EventId::from_raw);
+    // Printed as the stream goes: one sealed block in memory at a time, whatever the save's age
+    // (`ARC-89`, `F-S24-1`).
+    with_saved_facts(&args.save, |facts| {
+        print(perceived_by(facts, person, since), args.json, &keys)
+    })
+    .map_err(damaged)?
+}
+
+/// Prints each perceived fact, in the server's wire form or as a line for reading.
+fn print(
+    facts: impl Iterator<Item = EventEnvelope>,
+    json: bool,
+    keys: &BTreeMap<EntityId, &EntityKey>,
+) -> Result<(), String> {
     let mut not_json = Vec::new();
-    for fact in perceived_by(&facts, person, since) {
-        if args.json {
+    for fact in facts {
+        let fact = &fact;
+        if json {
             let (event, form) = wire_fact(fact).map_err(|error| {
                 format!(
                     "[mineworld] fact {} cannot be written: {error}",
@@ -108,7 +123,7 @@ pub fn perceived(args: PerceivedArgs) -> Result<(), String> {
         } else {
             let place = fact
                 .place()
-                .map_or_else(|| "-".to_owned(), |place| name(&keys, place.entity_id()));
+                .map_or_else(|| "-".to_owned(), |place| name(keys, place.entity_id()));
             println!(
                 "{} {} {} place={place} caused_by={}",
                 fact.id().raw(),
@@ -121,9 +136,8 @@ pub fn perceived(args: PerceivedArgs) -> Result<(), String> {
     Ok(())
 }
 
-/// Every fact of the save, oldest first, after checking it is a save of `pack`. The backend is
-/// dropped before this returns.
-fn read_facts(save: &Path, pack: &str) -> Result<Vec<EventEnvelope>, String> {
+/// Checks the save is one this code reads, of `pack`. The backend is dropped before this returns.
+fn check_save(save: &Path, pack: &str) -> Result<(), String> {
     if !SqliteBackend::exists(save) {
         return Err(format!(
             "[mineworld] {} holds no save (no {})",
@@ -143,7 +157,7 @@ fn read_facts(save: &Path, pack: &str) -> Result<Vec<EventEnvelope>, String> {
         ));
     }
     drop(backend);
-    saved_facts(save).map_err(damaged)
+    Ok(())
 }
 
 fn name(keys: &BTreeMap<EntityId, &EntityKey>, id: EntityId) -> String {

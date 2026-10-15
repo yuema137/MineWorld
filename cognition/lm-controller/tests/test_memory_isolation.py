@@ -59,7 +59,13 @@ def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_ad
     outside = {
         name
         for name in imported
-        if not name.startswith(("mineworld_cognition.memory", "mineworld_cognition.compress"))
+        if not name.startswith(
+            (
+                "mineworld_cognition.memory",
+                "mineworld_cognition.compress",
+                "mineworld_cognition.forgetting",
+            )
+        )
     }
     assert outside == COGNITION_IMPORTS
 
