@@ -15,13 +15,14 @@ It records two operator requirements of 2026-10-15. It audits what the market pa
 It ends with the invariants, the acceptance and adversarial criteria, a PR split, the risks and the questions
 only the operator can answer.
 
-**Effort:** `mvp0`. Placement is ruled (Q-S31-1): S31-a…S31-g are in MVP-0 and S31-h is in MVP-1. The
-release subset is S31-a, S31-e and S31-g.
+**Effort:** `mvp0`. Placement is ruled (Q-S31-1, re-ruled 2026-10-15): **all of S31, S31-a…S31-h with haggling,
+is in MVP-0 and blocks the first public release.** The earlier "release subset" fallback is withdrawn.
 **Parent:** [`overall.md`](overall.md).
 
 **Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered
 Q-S31-1…8 directly in the primary session on 2026-10-15, every one as recommended (§18.1). The same day, S30's
-ruling on Q-S30-6 added a scope item, the `wealth-band` attribute (§7.4).
+ruling on Q-S30-6 added a scope item, the `wealth-band` attribute (§7.4). Later that day the operator re-ruled
+Q-S31-1 and Q-S31-6: all of S31, haggling included, is in MVP-0 and blocks the release (§18.1).
 
 - Approval fixes this step's scope, invariants (§14) and step acceptance (§15.1). Progress, evidence,
   findings and bounded corrections stay writable.
@@ -330,7 +331,7 @@ changes only `currency-declared` and the display: no amount, no code (AC-S31-6).
 `for: shop` means "the shop of the place I stand in"; economy resolves it, and the payload never names an
 Organization.
 
-Haggling is designed in §5.9 and deferred to MVP-1 (Q-S31-6). A buyer's price question needs no action:
+Haggling (`propose-price`, `accept-proposal`, `decline-proposal`, `withdraw-proposal`) is specified in §5.9. It is in MVP-0 and blocks the release (Q-S31-6, re-ruled). A buyer's price question needs no action:
 asks are perceivable (§5.6).
 
 ### 5.3 Events (all owned by `economy`)
@@ -467,14 +468,60 @@ with the effective price, so a modifier starting between observation and dispatc
 honest. Person asks have no modifiers. If S31-a lands before WE-a C4, WE-a C4 rebases on `Asks`; the formula
 is unchanged.
 
-### 5.9 Haggling (designed; deferred to MVP-1, Q-S31-6)
+### 5.9 Haggling (MVP-0, release-blocking; Q-S31-6 re-ruled 2026-10-15)
 
-`propose-price { item, price }` targeted at a seller records a `proposal` (economy state, `valid_for` ≤ 15 world
-minutes) that only the seller perceives. The seller answers `accept-proposal` or `decline-proposal`.
-**Acceptance settles exactly like `buy`, at that instant, with every check re-run.** Nothing is reserved, so a
-proposal accepted after the buyer spent the money is refused `insufficient-funds`. This keeps §5.7 and needs no
-escrow. The flow is the same shape as conversation's invitations. It is MVP-1 because no NPC policy needs it to
-show converging prices, and it doubles economy's action surface.
+Haggling is a buyer's counter-offer that a seller accepts or declines. **Acceptance settles exactly like
+`buy`, at that instant, with every check re-run (§5.7).** Nothing is reserved at any time, so there is no
+escrow.
+
+| Action | Payload | Actor | Requirement | Effect |
+| --- | --- | --- | --- | --- |
+| `propose-price` | `{ item, price }`; target: the seller Person, or none in a shop | a living Person | as `buy` from that seller (§5.4) | records a proposal |
+| `accept-proposal` | `{ proposal }` | the seller, or a keeper standing in the shop | `SamePlaceAsActor` and within `TRADE_RANGE` of the buyer (for a shop: both in the shop) | settles the sale at the proposed price |
+| `decline-proposal` | `{ proposal }` | the same | `NONE` | closes the proposal |
+| `withdraw-proposal` | `{ proposal }` | the buyer | `NONE` | closes the proposal |
+
+- **State.** `Proposals` is economy state on the seller (a Person or an Organization). Each entry is
+  `{ id, buyer, item, price, made_at, valid_until }`. There is at most one open proposal per (buyer, seller,
+  item), at most 8 open per seller, and `valid_for` is 15 world minutes (a published constant). Expiry is
+  lazy, as for notices (§8.6): an expired proposal is not offered and cannot be accepted, with no wake and
+  no fact.
+- **Events** (`economy`):
+  - `price-proposed { proposal, buyer, seller, item, price, valid_until }`, audience `Participants`
+    (buyer and seller; for a shop, the buyer and the keepers present);
+  - `proposal-declined { proposal }` and `proposal-withdrawn { proposal }`, audience `Participants`;
+  - acceptance states `sold { …, price: proposed }`, `money-transferred` and `items-transferred` in one
+    dispatch, exactly as §5.7. It also states `proposal-accepted { proposal }`, so that the sale's cause is
+    visible.
+- **Refusals** add these codes to §5.5:
+  - `no-such-proposal`: unknown, closed or expired;
+  - `proposal-limit`: more than 8 open on the seller, or a duplicate;
+  - `not-your-proposal` (`PermissionDenied`): accepting or declining someone else's proposal, or a non-keeper
+    doing so for a shop.
+
+  At acceptance every `buy` check runs again: `insufficient-funds`, `out-of-stock`, `cannot-carry` and
+  `TooFarAway` (the buyer walked away). Acceptance is not checked against the current ask. The seller is
+  choosing a different price on purpose.
+- **Offers.** The seller, or a keeper, sees one complete `accept-proposal` and one complete
+  `decline-proposal` for each open proposal it may answer, each available or refused with its code. The
+  buyer sees `propose-price` as an incomplete offer beside each `buy` (the price is the buyer's choice), and
+  one complete `withdraw-proposal` per open proposal of its own.
+- **Disclosure.** A proposal is disclosed to its buyer and its seller (for a shop, to the keepers present)
+  and to nobody else.
+- **NPC behaviour.** The shared `pricing:` block (§10.1) gains two bounded options, both off by default:
+  - `haggle` (buyer): propose `offer_permille` of the ask when the ask exceeds the current suggestion, or
+    the reference value, by more than `deadband`;
+  - `accept_at_least_permille` (seller): accept a proposal at or above that share of the ask, and decline
+    one below it.
+
+  An LM decides in language from the same offers.
+- **Clients and agents.** The sale panel (§12) gains *Offer a price…* and, for a seller, an incoming-offer
+  row with *Accept* and *Decline*. The agent view (§11) adds `proposals` to `MeLine` and the tools
+  `propose_price`, `accept_proposal`, `decline_proposal` and `withdraw_proposal`.
+
+**Superseded (revision 2):** "designed; deferred to MVP-1". The original reasons were that convergence does
+not need haggling and that it doubles economy's action surface. Both still hold, and the operator's
+release rule ("我们要发布就得把这些功能全部做好") outranks them.
 
 ---
 
@@ -941,6 +988,9 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | AC-S31-16 | **Bands validate by name.** Each of `economy-bands-count`, `economy-bands-first-not-zero`, `economy-bands-unordered`, `economy-band-opening-outside` and `economy-band-id-duplicate` is produced by one planted `configure/economy.yaml`, at `mineworld validate`. A world without `wealth_bands` declares no `economy.wealth-band` attribute and behaves as today |
 | AC-S31-17 | **Sampled opening balances.** In `market-sampled` (people without `wallet`), every person's `funded.balance` equals the `opening` of the band S30 resolved for them, and `mineworld attributes resolve` shows that band with origin `sampled`. The same seed gives byte-identical wallets. A new seed changes only sampled people's wallets. An authored `wallet` on one person is kept exactly. A person with neither is refused `economy-wallet-unresolved` |
 | AC-S31-18 | **Derived and private.** After purchases move a person's wealth across a band boundary, the disclosed `economy.wealth-band` changes, and the save holds no `wealth-band` component. No other seat's Observation, and no MCP `inspect` of another person, contains the attribute |
+| AC-S31-19 | **Haggling settles atomically at the proposed price.** In a fixture world a buyer proposes 250 against Grace's ask of 300, and Grace accepts. One revision holds `proposal-accepted`, `sold { price: 250 }`, `money-transferred { 250 }` and `items-transferred`. I-S31-3 and I-S31-5 hold. No other seat perceives the proposal |
+| AC-S31-20 | **Acceptance re-checks everything and nothing is reserved.** Between proposal and acceptance: the buyer spends the money, so acceptance is refused `insufficient-funds`; the seller gives the item away, so `out-of-stock`; the buyer walks 3.1 m off, so `TooFarAway`. After 15 world minutes acceptance is `no-such-proposal`, and the proposal is no longer offered. A ninth open proposal is `proposal-limit`. Accepting another seller's proposal is `PermissionDenied`. Each refusal changes no wallet and no holding |
+| AC-S31-21 | **NPCs haggle in Market Town.** In the 30-day run (S31-f content), at least 5 `proposal-accepted` and at least 5 `proposal-declined` occur, every accepted price is ≥ the seller's `accept_at_least_permille` × ask, and E-9's criteria still hold |
 
 ### 15.2 Planted mutations (each must fail by name, then be reverted)
 
@@ -958,6 +1008,8 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | X-10 | the 2D formatter keeps `/100` | AC-S31-6's `exponent: 0` shot shows "0.03 cr" |
 | X-11 | inventory's reduction refuses a transfer that `admit_transfer` admitted (test-only) | `FactRefusedByOwner { system: inventory }` reported, and the I-S31-3 scan names the revision |
 | X-12 | economy stores the band as a component at genesis instead of projecting it | AC-S31-18: the band stays at its genesis value after the boundary crossing, and the save scan finds a `wealth-band` component |
+| X-13 | `accept-proposal` reserves nothing but skips the `admit_payment` re-check | AC-S31-20's `insufficient-funds` arm (the reduction refuses, and X-11's report names economy) |
+| X-14 | a proposal's audience is `Place` instead of `Participants` | AC-S31-19's "no other seat perceives" assertion |
 
 ---
 
@@ -971,18 +1023,18 @@ S29-b (newsstand, if first) ───────┤
                                    ▼
              S31-a  currency + asks + settlement + refusals ─────┬──────────────► S31-g agent view
                      (economy; vocabulary re-baseline)           │                (after S27-d)
-                                   │                             │
-S31-b  notices pack ───────────────┼─────────────┐               ├──► S31-e clients 2D + 3D
-(independent of S31-a)             │             │               │
-                                   ▼             ▼               │
+                                   │                             ├──► S31-e clients 2D + 3D
+S31-b  notices pack ───────────────┼─────────────┐               │
+(independent of S31-a)             │             │               ├──► S31-h haggling (economy;
+                                   ▼             ▼               │     no reference-world change)
                     S31-c  price-survey     S31-d  price-reporter model + pricing policies
                                    │             │               │
-                                   └──────┬──────┘               │
-                                          ▼                      │
+                                   └──────┬──────┴───────────────┘ (S31-h too)
+                                          ▼
                      S31-f  Market Town composition + 30-day checkpoint + content re-baseline
                                           │
                                           ▼
-                              S31-h  haggling (MVP-1)
+                              first public release candidate (S23): every S31 PR merged
 ```
 
 ### 16.2 The PRs
@@ -994,20 +1046,21 @@ S31-b  notices pack ───────────────┼────
 | **S31-c** price-survey | `systems/price-survey`: section, `PriceBook`, `survey`, witnessed `sold`, `ARC-116` (book half) | S31-a | fixture world: AC-S31-10 | X-7 | **Haiku** (well-specified pack on a frozen pattern) |
 | **S31-d** reporter and policies | `cognition/price-reporter` (`models!` line); `mineworld_rule_controller::price` (`hold`, `toward-suggestion`, `scarcity`, `list-goods`, `buyer`); the `pricing:` block in `rule` and `motivated`; template determinism test (AC-6); LM cassette for AC-S31-11; `ARC-116` (backend half), `ARC-117` | S31-a, S31-b, S31-c | fixture world 10 d: notices published, a policy follows; backend swap | X-6 | **Haiku** for the deterministic model and policies from a commit plan; **Opus** for the LM cassette wiring |
 | **S31-e** clients | shared formatter; HUD; tags; sale panel; stall; notice board; i18n; client-rules patterns; drives and shots | S31-a (S31-b for the board) | AC-S31-15 | X-8, X-10 | **Haiku** (2D); **Opus** review of 3D frames |
-| **S31-f** Market Town | reference values with sources; keepers; Grace and two others list goods; reporter person, routine and book; `configure/notices.yaml`; subscriptions by tag; pricing policies in `decisions.yaml`; supply-shock fixture; criteria test update; the `wealth-band` attribute, bands and the `market-sampled` fixture (§7.4; S31-f2 if S30-c has not merged); the content re-baseline | S31-a…d; S29-b if merged; S30-c for §7.4 | **AC-S31-13** (30-day convergence), AC-S31-12, AC-S31-14 (300 d in nightly), AC-S31-5, AC-S31-16…18 | the AC-S31-12 removal runs; X-12 | **Haiku** (content and measurement against fixed criteria) |
+| **S31-f** Market Town | reference values with sources; keepers; Grace and two others list goods; reporter person, routine and book; `configure/notices.yaml`; subscriptions by tag; pricing policies in `decisions.yaml`; supply-shock fixture; criteria test update; the `wealth-band` attribute, bands and the `market-sampled` fixture (§7.4; S31-f2 if S30-c has not merged); haggling content: two sellers with `accept_at_least_permille`, two buyers with `haggle`; the content re-baseline | S31-a…d, **S31-h**; S29-b if merged; S30-c for §7.4 | **AC-S31-13** (30-day convergence), AC-S31-12, AC-S31-14 (300 d in nightly), AC-S31-5, AC-S31-16…18, AC-S31-21 | the AC-S31-12 removal runs; X-12 | **Haiku** (content and measurement against fixed criteria) |
 | **S31-g** agent view | §11 surfaces and tools; the AC-S31-8 scenario over MCP | S31-a, S31-b; **S27-d merged** | AC-S31-8 over MCP | X-9 (through the agent) | **Haiku** |
-| **S31-h** haggling | §5.9 | S31-f | MVP-1 | | Opus |
+| **S31-h** haggling | §5.9: `Proposals`, the four actions, the events and codes, offers and disclosure; the `haggle` and `accept_at_least_permille` options of the `pricing:` block; the sale-panel rows (2D and 3D) and the four agent tools; `ARC-118`; no Market Town content (its haggling sellers and buyers are S31-f content, so the two-re-baseline ruling holds) | S31-a; S31-e and S31-g for the client and agent rows (or they land in S31-h if those merge first) | fixture world: AC-S31-19, AC-S31-20 | X-13, X-14 | **Opus** (economy state with expiry, re-validation at acceptance) |
 
-### 16.3 Placement: MVP-0 (Q-S31-1)
+### 16.3 Placement: MVP-0, all of it, release-blocking (Q-S31-1, Q-S31-6; re-ruled 2026-10-15)
 
-- **Recommendation:** S31-a…S31-g in **MVP-0**, after Milestone F's checklist is handed over (the S29 timing
-  rule), and in before S23's first public release candidate. S31-h goes to MVP-1.
+- **Ruling (as re-ruled).** All eight PRs, S31-a…S31-h, are in **MVP-0**. Every one of them must be merged
+  before S23's first public release candidate: "我们要发布就得把这些功能全部做好". There is no release
+  subset.
 - **Why MVP-0.** The operator ties realism to trading. The work is System Packs and content, with no kernel
   and no transport. Market Town is MVP-0's market world, and S27's agents already buy there.
-- **The cost.** Seven PRs. Their critical path is S31-a → S31-c/d → S31-f. S31-b, S31-e and S31-g run in
-  parallel worktrees.
-- **If the release must not wait.** S31-a, S31-e and S31-g are the release subset. S31-b, c, d and f follow
-  the release within MVP-0.
+- **The cost.** Eight PRs. Their critical path is S31-a → S31-c → S31-d → S31-f. S31-b, S31-e, S31-g and
+  S31-h run beside it in parallel worktrees.
+- **Superseded (revision 2):** "S31-a…S31-g in MVP-0 … S31-h goes to MVP-1", together with the fallback
+  "S31-a, S31-e and S31-g are the release subset". Both are withdrawn.
 
 ### 16.4 Interactions
 
@@ -1020,6 +1073,24 @@ S31-b  notices pack ───────────────┼────
 | **WE-a** | §5.8: modifiers apply to Organization asks through `effective_price`. Both share `configure/economy.yaml` |
 | **S21 / step-21** | `fares` are asks of a transport Organization at a ticket office. `fare-due` is answered like `wage-due`. Remote purchase plus delivery is a future pack on §5.7's settlement |
 | **DL-c (needs, MVP-1)** | Hunger makes food purchases needs-driven, so the "essential consumables" topic gains real demand |
+
+### 16.5 Start conditions and order
+
+- **Start.** Nothing starts before Milestone F's checklist has been handed to the operator (the S29 timing
+  rule). Each PR starts only once its own PR design is frozen (`CLAUDE.md` §3.1).
+- **First wave, in parallel:** S31-a (it needs 12d merged, and rebases over WE-a C4 if that is merged) and
+  S31-b, which is independent.
+- **Second wave, after S31-a, in parallel worktrees:** S31-c, S31-e, S31-h, and S31-g once S27-d has
+  merged.
+  - S31-h is not gated on S31-e or S31-g. If they merge first, S31-h adds its own sale-panel rows and agent
+    tools. If S31-h merges first, S31-e and S31-g include them.
+- **Third wave:** S31-d, after S31-b and S31-c.
+- **Last:** S31-f, after S31-a…d and S31-h, plus S30-c for §7.4 (otherwise §7.4 goes to S31-f2, which is
+  also release-blocking).
+  - S31-f's re-baseline is rebased last, so that the two-re-baseline ruling (Q-S31-3) holds: S31-h changes
+    no reference world.
+- **Release gate.** S23's release candidate checklist lists every S31 PR, including S31-f2 if it exists.
+  An S31 PR that is not merged blocks the candidate.
 
 ---
 
@@ -1039,16 +1110,16 @@ S31-b  notices pack ───────────────┼────
 
 ---
 
-## 18. Questions for the operator (each with a recommendation; all ruled 2026-10-15)
+## 18. Questions for the operator (each with a recommendation; all ruled 2026-10-15; Q-S31-1 and Q-S31-6 re-ruled)
 
 | Id | Question | Recommendation | Ruling |
 | --- | --- | --- | --- |
-| **Q-S31-1** | **Placement.** Is S31 in MVP-0 (after Milestone F's checklist, before the first public release), or in MVP-1? | **MVP-0**, with S31-h (haggling) in MVP-1. If the release must not wait for all of it, the release subset is S31-a + S31-e + S31-g (§16.3) | **Ruled 2026-10-15** (operator answered directly in the primary session): MVP-0, with S31-h (haggling) in MVP-1. The release subset is S31-a, S31-e and S31-g. |
+| **Q-S31-1** | **Placement.** Is S31 in MVP-0 (after Milestone F's checklist, before the first public release), or in MVP-1? | **MVP-0**, with S31-h (haggling) in MVP-1. If the release must not wait for all of it, the release subset is S31-a + S31-e + S31-g (§16.3) | **Ruled 2026-10-15** (operator answered directly in the primary session): MVP-0, with S31-h (haggling) in MVP-1. The release subset is S31-a, S31-e and S31-g. · **Re-ruled 2026-10-15** (operator, directly in the primary session: "我们要发布就得把这些功能全部做好"): all of S31, S31-h included, is in MVP-0 and blocks the release; the release-subset fallback is withdrawn. |
 | **Q-S31-2** | **One currency per world**, and no barter in S31? | **Yes.** One general equivalent. Multiple currencies and barter are later packs that need nothing from S31 (§4.2) | **Ruled 2026-10-15** (operator answered directly in the primary session): one currency per world, and no barter. |
 | **Q-S31-3** | **Re-baselines.** Two recorded Market Town re-baselines (S31-a vocabulary, S31-f content), or one, through an integration branch? | **Two**, each one commit rebased last with a reason line. An integration branch delays review of S31-a's settlement change for weeks (§13) | **Ruled 2026-10-15** (operator answered directly in the primary session): two recorded re-baselines. |
 | **Q-S31-4** | **The reporter.** An existing seated person without a job (as Q-S29-6 ruled for the newsstand), or a new person? | **An existing person**, not the S29-b seller: no new character (S26 bytes), no new seat, fewer moving ids. S31-f names them | **Ruled 2026-10-15** (operator answered directly in the primary session): an existing seated person without a job, not the S29-b seller. |
 | **Q-S31-5** | **Pricing policies.** Bundled policies as a `pricing:` parameter block shared by `rule` and `motivated`, with anything else a new decision model; or only new decision models? | **The shared block**, defaulting to `hold`, so that the town's existing models can trade without a third model per seat. A custom algorithm is still a model in `models!` (§10.1) | **Ruled 2026-10-15** (operator answered directly in the primary session): the shared `pricing:` block, default `hold`. |
-| **Q-S31-6** | **Haggling** (propose, accept, decline): in S31 (MVP-0), or MVP-1? | **MVP-1.** Convergence does not need it, and it doubles economy's action surface. The design (§5.9) keeps the settlement unchanged | **Ruled 2026-10-15** (operator answered directly in the primary session): haggling is MVP-1. |
+| **Q-S31-6** | **Haggling** (propose, accept, decline): in S31 (MVP-0), or MVP-1? | **MVP-1.** Convergence does not need it, and it doubles economy's action surface. The design (§5.9) keeps the settlement unchanged | **Ruled 2026-10-15** (operator answered directly in the primary session): haggling is MVP-1. · **Re-ruled 2026-10-15** (operator, directly in the primary session: "我们要发布就得把这些功能全部做好"): haggling (S31-h) is in MVP-0 and blocks the release. |
 | **Q-S31-7** | **Subscriptions under S30.** Does `notices` own the `subscriptions` component (S30 shows it as an attribute), or does S30's attributes pack own it (`notices` reads it)? | **`notices` owns it.** The pack that acts on a datum writes it (single ownership), and a world without S30 still has subscriptions. S30's view reads it, as it reads wealth from economy | **Ruled 2026-10-15** (operator answered directly in the primary session): `notices` owns subscriptions; S30 shows them. |
 | **Q-S31-8** | **Shop keepers.** Organizations change prices only through named keepers standing in the shop (until WE-b's Organization seats, MVP-1)? | **Yes.** `keepers:` in the shop section: economy-owned authority, with no dependency on employment. Market Town: Alice for the café, Felix for the store | **Ruled 2026-10-15** (operator answered directly in the primary session): keepers, as `keepers:` in the shop section. |
 
@@ -1059,6 +1130,23 @@ coordinator relayed the rulings to this session. The coordinator also relayed on
 design: Q-S30-6, "initial wealth is sampled through the owner interface". Under it, `economy` owns a
 `wealth-band` attribute that is sampled via S30, and S31 decides the bands. That ruling adds §7.4 to S31-f's
 scope, with acceptance AC-S31-16…18 and mutation X-12. It needs no new operator question.
+
+**Re-rulings, 2026-10-15 (operator, directly in the primary session; relayed by the coordinator).**
+
+> "我们要发布就得把这些功能全部做好" — *"If we are going to release, all of these features have to be done
+> properly."*
+
+- **Q-S31-6.** It was ruled MVP-1. It is re-ruled: haggling, S31-h (propose, accept, decline), is in MVP-0
+  and blocks the release.
+- **Q-S31-1.** It was ruled MVP-0 with S31-h in MVP-1, and a release subset of S31-a, S31-e and S31-g. It is
+  re-ruled: all of S31, S31-h included, is in MVP-0 and blocks the release. The release-subset fallback is
+  withdrawn.
+- **Consequences in this file:**
+  - §5.9 is specified to PR level, with AC-S31-19…21 and X-13/X-14.
+  - S31-h's row, the graph and §16.3 change, and §16.5 adds the start conditions and order.
+  - S31-f now depends on S31-h, so that the two-re-baseline ruling (Q-S31-3) still holds.
+
+  The original rulings remain visible in the table above.
 
 ---
 
@@ -1098,7 +1186,7 @@ is `ARC-26` restated for exchanges, with §5.7's three-reason argument.
 | `ARC-115` | `notices`: topics, subscriptions, audience = subscribers, lazy expiry |
 | `ARC-116` | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
 | `ARC-117` | Pricing policies are decision-model parameters and models, defaulting to `hold` |
-| `ARC-118` | Haggling settles at acceptance without escrow (MVP-1) |
+| `ARC-118` | Haggling settles at acceptance without escrow (MVP-0, release-blocking; Q-S31-6 re-ruled) |
 | `DEP-63` | Money libraries (`rusty-money`, `iso_currency`) declined: amounts are bare `u64` and formatting is presentation, so a dependency would add ISO tables that a fantasy currency cannot use. Order-book and matching-engine crates declined: MineWorld has posted prices, not an exchange |
 
 ### 19.5 `overall.md` (the primary session)
