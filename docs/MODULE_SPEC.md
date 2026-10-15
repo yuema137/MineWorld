@@ -521,7 +521,66 @@ seats:                     # the Persons a client may connect as, each one of `p
 
 configure:                 # optional. Each key names configure/<key>.yaml (ARC-61): an enabled system's
   - <system id>            # id, or one of the framework keys `classes` (ARC-64) and `packages` (ARC-55)
+
+decisions: decisions.yaml  # optional. The decision list (below): which decision model drives each seat.
+                           # Read by hosts, never seeded into world state. Absent = every seat `rule`
 ```
+
+**The decision list (`decisions:`, `decisions.yaml`).** Specified by [`ARC-84`](DECISIONS.md) and
+[`ARC-85`](DECISIONS.md); implemented by the DL-a PR of step-24
+(`.structured-coding/plans/mvp1/step-24-decision-and-memory.md` §4). Until that PR merges, the loader
+refuses the `decisions:` key by name, as it refuses every field MVP-0 does not implement. The file
+is World Pack content read by hosts (`run`, `server --town`, the cognition process). It is **never
+seeded**: which model decides a Person is not a fact about the Person (INV-1). The operator may
+override it.
+
+```yaml
+# decisions.yaml
+models:                            # the models this world uses; each id names a model a Controller Pack provides
+  rule: {}                         # the paced rule controller, as today; no parameters
+  motivated:
+    parameters:                    # typed by the model; unknown keys are refused with line and column
+      social_need_hours: 3
+      curves: atus-2003-2023       # a named parameter set the model's pack ships
+  lm:
+    fallback: motivated            # used when the model's process is absent or its budget is exhausted
+  director:                        # valid only on an Organization seat (ARC-88); MVP-1
+    fallback: none
+default: rule
+assign:                            # seat > class > default; two entries for one seat at one level are refused
+  - { class: staff,  model: motivated }        # ARC-64 classes, from configure/classes.yaml
+  - { seat: alice,   model: lm }
+  - { seat: council, model: director }         # MVP-1
+memory:                            # controller-owned memory policies (MODULE_SPEC §5.2); for seats whose model keeps a store
+  default: { policy: consolidate }
+  assign:
+    - { seat: alice, policy: lm-summarise, fallback: consolidate,
+        parameters: { calls_per_sim_day: 4 } }
+```
+
+Rules:
+
+1. **Typed and refused by name.** `models.<id>` must be a model that a registered Controller Pack
+   provides (MODULE_SPEC §5.1). Its `parameters` decode into that model's typed `Parameters`, with
+   bounds and defaults. An unknown model, class, person, policy or key is refused at load, with line
+   and column, as `configure/` is refused (ARC-61).
+2. **Seats only.** An assignment names a seat (`seats:`). A person who is not a seat is refused,
+   because nothing would drive it.
+3. **Fallback chain.** Every model that can be absent at run time (out-of-process, or budgeted)
+   names a `fallback`. A chain ends at an in-process model or at `none`, where the seat stays idle.
+   A chain has at most four links and no cycles.
+4. **Operator override.** `mineworld run … --decisions FILE` and `mineworld server … --decisions FILE`
+   replace the pack's file. `--seat-model SEAT=MODEL` overrides one seat. The operator's file is
+   validated against the same world.
+5. **Absent means today.** With no `decisions:` key and no flag, every seat is `rule`, and every byte
+   of every reference world's output is unchanged.
+6. **Reproducibility without seeding.** `run` prints the digest of the resolved decision list in its
+   header beside the seed, and its fingerprint tests include that digest. A save does not store the
+   list. Storing it in a save as non-authoritative host metadata is deferred until a resume needs it
+   (step-24 QS24-1).
+
+A world does not name a provider, a model name, a URL or a key in this file. The decision list names
+models, never backends; the backend binding stays in the operator's `cognition.toml`.
 
 ```yaml
 # people/<key>.yaml — the file's name is the key; the file does not repeat it
@@ -987,6 +1046,119 @@ Hard constraints:
    inventory, and employment (INV-1).
 5. Provider-specific details stay behind the model-backend interface; cognition contracts stay
    provider-neutral.
+
+## 5.1 Decision models
+
+A **decision model** is a Controller Pack's answer to "what does this seat attempt?". It is a pure
+function of what the seat observes. A world chooses one per seat through `decisions:` (§4.1). Terms
+follow [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md): a decision model is a Controller, not a Person's
+property, and it never changes who a Person is (INV-1).
+
+**Two kinds.**
+
+- **In-process (Rust).** A model implements the `DecisionModel` trait in the crate `cognition/decision`
+  (`mineworld-decision`), which depends on `mineworld-contracts` only. The trait has an associated
+  `Parameters` type (typed, bounded, with defaults, decoded from `decisions.yaml` by the same machinery
+  as `configure/`), a constant `ID` that `decisions.yaml` names, `decide(&self, parameters, seed,
+  observation) -> Option<ActionRequest>`, and `step(&self, parameters, observation) -> Option<ActionRequest>`
+  for the next stride of a disclosed walk between consults. The signatures carry no clock, no network
+  and no world handle. The receiver is `&self`, and a model crate may not use interior mutability
+  (`Cell`, `RefCell`, `Mutex` are on the clippy disallowed-types list for model crates). Randomness comes
+  only from the provided `Seed` and the counter-based `Draw`; a model documents the draw indices it
+  uses. A model that keeps state across consults is not conformant.
+- **Out-of-process (any language).** A model is a Controller Pack running as a protocol client
+  (step-17 §3.2): it joins a seat with the same frames as any client. Its `decisions.yaml` entry carries
+  only `fallback` and model-specific parameters. While its process is absent, the seat's host runs the
+  fallback within one consult. The external process yields the seat on `take_over` (S11-B).
+
+**Registration.** `cognition/installed` lists every in-process model this build provides, one line each.
+`decisions.yaml` model ids resolve through that list, as System ids resolve through `systems/installed`
+(ARC-33). Each model crate is a Controller Pack with its own package identity (ARC-53). Installing a
+model is adding its line and rebuilding; no existing model, System, contract or host changes.
+
+**What a model may attempt.** A model chooses only among affordances an installed System offered, after
+the world's Interaction List has filtered them (ARC-63, ARC-34). Every request is revalidated at dispatch.
+Removing a System removes options from every model at once. Decision parameters change preferences among
+offered options; they cannot make an option available.
+
+**Determinism, by host.**
+
+| Host | Model kind | Guarantee |
+| --- | --- | --- |
+| `mineworld run` | in-process | Each model is a pure function of `(seed, parameters, observation)`. The same pack, seed, decision list and code give the same history. Kill-and-resume equals an uninterrupted run (AC-6). |
+| `mineworld run` | out-of-process | Not hosted in MVP-0. The seat uses its fallback, and the run header says so (step-24 QS24-12). |
+| hosted server | any | Requests are journaled. Replay re-executes the journal and never calls a controller (ARC-25). Re-running an LM seat reproduces its decisions only under cassette replay (ARC-58). |
+
+**Examples.** `rule` is today's paced rule controller, unchanged, and remains the default. `motivated` is
+the no-LLM utility model (step-24 DL-b). `lm` is the LM Controller (step-17 P6), which is the LLM example.
+A director is a Controller Pack seated on an Organization; it is valid only once the Organization-seat rule
+is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCEPTS.md` §14 is amended then.
+
+## 5.2 Memory policies and host bounds
+
+A **memory policy** decides which items of a seat's controller-owned memory are kept, dropped or merged
+into a summary. It is part of a Controller Pack. It is selected per seat by `memory:` in `decisions.yaml`
+(§4.1), never by `configure/`, because a controller file may not configure world state. System-owned
+person state is not controller memory and is never governed by a memory policy; its forgetting rules are
+configured in the owning System (`CORE_CONCEPTS.md` §5.3).
+
+**Interface.** Inputs and outputs are strict Pydantic models; no `dict[str, Any]`. A policy receives the
+seat's `MemoryItem`s (item id, level, `first_at` and `last_at` in world time, kind, counterparts, place,
+whether the seat was the actor, importance, citations, byte size) and a `RetentionBudget` (store bytes
+allowed after the pass, the day boundary, and the model calls left). It returns one `Keep`, `Drop` or
+`Merge` decision per item. A `Merge` names items of one level and merges them into a summary at a higher
+level. An assisted policy also receives the `ModelGateway` and returns its decisions with optional prose
+per `Merge`, each prose at most 160 bytes.
+
+**Importance and recency belong to the host.** `importance` (0 … 1 000) is computed by the host as a pure
+function of the item: a per-kind table, the seat's current relationship level with its counterparts, and
+reinforcement by later facts that cite the same counterpart. No model assigns it. Recency is event time,
+`now − last_at`, never time of last retrieval, because a store whose contents depended on retrieval
+history would no longer derive from what the seat perceived (ARC-59, ARC-87).
+
+**Host responsibilities.** These hold for every policy, including user policies and the hostile fixture,
+and a policy cannot bypass them.
+
+1. **When.** A pass runs at each simulated-day boundary crossed during ingestion, as a pure function of
+   the store's state at that boundary.
+2. **Validation.** Every item receives exactly one decision; a missing item is kept. A `Merge` names items
+   of one level below `into` that share a counterpart set or a week. Unknown item ids refuse the whole plan,
+   and the pass then falls back.
+3. **Execution.** `Keep` keeps. `Merge` builds the summary through the structural summariser. A policy
+   never writes the index. The summary's citations are the union of its members' citations. `Drop` removes
+   the item and adds its citations to the seat's forgotten set.
+4. **Coverage invariant.** At every day boundary, the perceived set is the disjoint union of the L0 and L1
+   members, the merged summaries' citations, and the forgotten set (AC-FG-3).
+5. **Forgotten set.** A sorted list of Event ID ranges; adjacent ranges merge. Beyond 256 ranges, the host
+   collapses the oldest into a single watermark, meaning "everything perceived before Event ID N that is
+   not cited elsewhere is forgotten". The forgotten set is bounded by construction.
+6. **Hard bounds.** After executing a plan, if the seat's canonical dump exceeds 1 MiB, the host applies
+   `consolidate` with its defaults. If it is still over, the host drops the oldest L0 rows, then the oldest
+   L1 rows, until it is under, and records `bound-enforced` with counts in the seat's decision log.
+7. **Context bound.** A retrieval for a model call is at most 6 000 bytes, per section, as P4 D-P4-9 defines
+   it. This bound is not changed by any policy.
+8. **Ledger pruning.** Budget-ledger rows older than the longest budget window are deleted in the same pass.
+
+**Bundled policies.** Each is an ordinary entry point in `mineworld-cognition`, and none is privileged. A
+user policy is a Python package that exposes the entry point group `mineworld.forgetting`, loaded by
+`importlib.metadata`.
+
+| Policy | Uses a model | Rule | Parameters (bounded; default) |
+| --- | --- | --- | --- |
+| `consolidate` (default) | no | L0 rows older than `l0_days` merge into their L1 episode. L1 older than `l1_weeks` merge into the week's L2 chapter. L2 older than `l2_years` drop, except those citing an L3 line. | `l0_days` 1 … 30 (2); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5) |
+| `decay` | no | An item survives while `importance × retention(now − last_at)` is at least a threshold. Retention is a power-law or half-life table; the power-law fit is the default shape. Survivors over budget fall to `consolidate`. | curve id; half-life in days; threshold |
+| `importance-recency-cap` | no | Score = `w_i · importance + w_r · recency`. Keep the top `k` per level within `store_bytes`. Ties are broken by a seeded hash of the first Event ID, so selection is a pure function. | weights; `k` per level |
+| `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
+| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
+
+**Model calls.** Every call of an assisted policy goes through the `ModelGateway`. The budget gate runs
+first (ARC-57), then the recorder (ARC-58), and the request is keyed by its provider-neutral form. In replay
+mode a missing recording raises `CassetteMiss`, which the pass propagates; no policy may catch it and fall
+back silently. In live mode, a refusal, a failure, an unbound tier, or `calls_left = 0` makes the host apply
+the policy's declared `fallback` to the remaining groups. The seat's store records which policy produced each
+decision. Rebuilding a store with its recordings reproduces it byte for byte. Rebuilding without them
+reproduces the fallback's store and says so. An LM policy names a no-model `fallback`. Forgotten Event IDs
+stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ---
 

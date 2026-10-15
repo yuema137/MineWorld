@@ -7833,3 +7833,175 @@ design.
 
 **Revisit** when any audited project reaches a stable release with a server-authoritative mode and an
 event log, or when an optional controller adapter (Concordia) is designed after Milestone D.
+
+---
+
+## ARC-84 — The decision list is host-read content, not world state
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by DL-a · **Approved by** the operator's step-24 rulings of 2026-10-12 (QS24-1, accepted as recommended) · **Relates to** `INV-1`, `ARC-61`, `ARC-64`, `ARC-33`, `ARC-53`, `AC-4`, `AC-5` · **Design** `.structured-coding/plans/mvp1/step-24-decision-and-memory.md` §4.1, §4.2
+
+**Problem.** A world must choose which decision model drives each seat (rule, motivated, LM, director), with typed parameters, and may mix models per person. The choice could be seeded into world state as a `configure/` framework key, or kept outside the world. Seeding makes control a fact about a Person, which `INV-1` forbids, and it would trip the configure drift check at resume (`ARC-61`).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) A World Pack file, `decisions.yaml`, read by hosts and never seeded; the operator may override it | **Chosen** |
+| (b) A `configure/` framework key, seeded, with the drift check | Declined: makes control a world fact, and a controller change would alter world state at resume |
+| (c) Operator-only configuration, with no file in the World Pack | Declined: the author's default casting of who decides how would be lost, and a world could not be run as authored |
+
+**Choice.** The decision list is `decisions.yaml`, named by `world.yaml`'s `decisions:` key (`MODULE_SPEC.md` §4.1). It names models, never providers, model names, URLs or keys; the backend binding stays in the operator's `cognition.toml`. Hosts (`run`, `server --town`, the cognition process) read it; `--decisions FILE` and `--seat-model SEAT=MODEL` override it. Absent, every seat is `rule`, and every byte is as today. `run` prints the digest of the resolved list in its header. A save does not store the list; storing it as non-authoritative host metadata is deferred until a resume needs it (QS24-1).
+
+**Consequences.** A controller choice never changes a Person or a world fact. The decision list adds one loader and no new pack type. Its assignments are validated against the same world with line and column, as `configure/` is.
+
+**Revisit** when a resume needs the resolved list recorded in the save, or when a world needs a decision list that must travel with the save as authored content.
+
+---
+
+## ARC-85 — Behaviour extension points share one pattern: interface, carrier, selection, parameters, host
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by DL-a (decision models), FG-a and FG-b (forgetting), WE-a (world evolution) · **Approved by** the operator's step-24 rulings of 2026-10-12 (§1.2 rulings 2 and 3) · **Relates to** `ARC-62`, `ARC-64`, `ARC-61`, `ARC-34`, `ARC-53`, `CLAUDE.md` §4 rules 2, 7, 11 · **Design** step-24 §§0, 1.2, 3
+
+**Problem.** Three behaviour extension points need to be pluggable: person decisions, forgetting, and world evolution. Each needs a typed interface, a selection mechanism, validated parameters, and bounds that a plug-in cannot exceed. Left ad hoc, each would invent a loader, a registry and a pack type, and bounds would live in plug-in code.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) One new pack type per extension point | Declined: `MODULE_SPEC.md` §1 already has the carriers, and a new pack type is an operator question |
+| (b) One pattern over the existing carriers: five parts, the interface, the carrier pack type, selection by content, typed parameters, and a host that enforces the bounds | **Chosen** |
+| (c) A plug-in registry with untyped metadata and no host around the plug-in | Declined: it violates `CLAUDE.md` §4 rule 7 and lets a plug-in exceed a budget |
+
+**Choice.** Each extension point has five parts: (1) a typed interface (Rust trait or Python Protocol, named types only); (2) a carrier that is an existing pack type (System Pack or Controller Pack); (3) selection by content, per world, per class (`ARC-64`), and per person, with precedence person > class > default, refused by name when unknown, and ambiguity refused at load; (4) parameters typed by the implementation, each with a bound and a default; (5) a host, which is code around the plug-in that enforces the hard bounds and invariants whatever the plug-in returns. Each point ships bundled implementations that are ordinary packs, none privileged, and two examples: one without a language model and one with one. No layer may require a model. An LLM never mutates world state.
+
+**Consequences.** Adding a fourth extension point is a design question, not a new mechanism. A world's behaviour is selected by its `systems:`, `configure/` and `decisions.yaml`, and a user's rule is installed like any other pack.
+
+**Revisit** when a proposed extension point cannot be expressed by the carriers above, or when a host bound is found to be enforceable only by a plug-in.
+
+---
+
+## ARC-86 — System-owned forgetting is lazy, pure and in the owning System; no model touches it
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by FG-a · **Approved by** the operator's step-24 rulings of 2026-10-12 (§1.2 ruling 2(6); QS24-7 accepted as recommended) · **Relates to** `INV-7`, `INV-11`, `INV-12`, `ARC-25`, `ARC-62`, `ARC-28`, `ARC-65`, `CORE_CONCEPTS.md` §5.3 · **Design** step-24 §§3.2, 8.2
+
+**Problem.** System-owned person state grows: relationship familiarity and regard, the acquaintance list, and the conversation's remembered lines. Forgetting it could be a timer-driven Process that writes a fact per day, a controller policy that forgets world state, or a pure rule inside the owning System.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) A Process that decays values on a timer and writes a fact per step | Declined: decay would add facts, journal rows and save growth every day, and it would break "no per-tick fact" |
+| (b) A controller forgets world state for the world | Declined: a controller may not own a Component (`INV-7`); it can stop reading it, not forget it |
+| (c) A lazy, pure rule in the owning System: each value is computed from `(value, last_contact, now)` where it is read, and stored state changes only inside reductions that already happen | **Chosen** |
+
+**Choice.** Decay is a `DecayCurve` catalog entry (`ARC-62`) named in the owning System's `configure/<pack>.yaml`. The owning System clamps every curve result to `[floor, value]`, so forgetting only lowers a value toward its floor. The cap (`known_at_most`, default 150) evicts the lowest current familiarity inside the reduction that adds the acquaintance, emits `acquaintance-forgotten`, and unrelates `knows`. No model is involved. A level change caused by decay is observed lazily, and a biographical fact is emitted only by a reduction that touches the pair. Defaults change no reference world's bytes.
+
+**Consequences.** Decay adds zero facts, zero journal rows and zero save growth, and replay reproduces it exactly. `last_contact` is already stored (`RelationshipValues::last_contact`), so no component encoding changes. The configuration payload grows, which bumps the System's version and refuses older saves by name (PA-3), and the new fact `acquaintance-forgotten` is declared. Read-time decay uses the operator-approved read-only clock `WorldRead::at()` (2026-10-12), a kernel addition available only during disclosure.
+
+**Revisit** when a biographical decay must be visible without a reduction touching the pair, or when a System needs per-person state beyond `(value, last_contact)`.
+
+---
+
+## ARC-87 — Controller-memory retention: host-computed importance, event-time recency, a bounded forgotten set, and host-enforced bounds
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by FG-b (retention host, bundled policies) and FG-c (`lm-summarise`) · **Approved by** the operator's step-24 rulings of 2026-10-12 (§1.2 ruling 1; QS24-4, QS24-6, QS24-10, QS24-11 accepted as recommended, with QS24-6 as ruled) · **Relates to** `ARC-59`, `ARC-25`, `ARC-57`, `ARC-58`, `INV-4`, `INV-13`, `DEP-37`, P4's `D-P4-9`, `AC-10`, `DECISIONS.md` `QP4-11` (superseded) · **Design** step-24 §§1.2, 8.3, 10
+
+**Problem.** The per-seat store grows without bound: 19.5 MB for one seat at 100 days (`pr-s10-p4-memory.md` R-P4-4). P4 deferred forgetting to MVP-1 (QP4-11). The operator reversed that on 2026-10-12, because without forgetting storage, memory and LLM tokens all explode. Retention must be bounded in every mode, replayable, and must not make the store depend on retrieval history, which `ARC-59` forbids.
+
+**Options considered.** Importance: (a) rated by a model on a 1–10 scale, as in Generative Agents; (b) computed by the host from a structural table. Recency: (a) time since an item was last retrieved; (b) time since its event. Forgotten items: (a) their citations are deleted; (b) their citations join a forgotten set of ranges. Bounds: (a) enforced by each policy; (b) enforced by the host after every policy, including a hostile one.
+
+**Choice.** (b) in all four places. The host computes `importance` (a per-kind table, the seat's current relationship level with each counterpart, and reinforcement by later facts) for every item, so every policy and every rebuild sees the same value. Recency is `now − last_at`. Dropped items' citations join the forgotten set, a sorted list of Event ID ranges, adjacent ranges merged, and beyond 256 ranges the oldest collapse into a watermark. The host enforces: a store of at most 1 MiB per seat, applying `consolidate` and then dropping the oldest L0 and L1 rows if a plan still exceeds it, and recording `bound-enforced`; at most 6 000 bytes of memory per model call (`D-P4-9`); and `calls_per_sim_day` (default 4, at most 24) inside P5's budget gate. An LLM-assisted policy may decide which items survive, provided that forgotten Event IDs stay resolvable and that a fallback to a no-LLM policy is recorded. `keep-all` exists only as a test fixture behind the host bound. Forgetting never deletes truth.
+
+**Consequences.** A rebuild from a null cursor reproduces a no-LLM store byte for byte; an assisted store reproduces with its recordings, and without them the difference is visible. The P4 note that forgetting is MVP-1 is superseded. The P7 Milestone D test gains a 100-day store assertion.
+
+**Revisit** when a retention policy needs retrieval statistics, or when AC-FG-1 shows that the 1 MiB bound is wrong for the reference worlds (the bound may be tightened, never loosened without a ruling).
+
+---
+
+## ARC-88 — World evolution: a deterministic `happenings` System Pack, and LLM directors that only propose
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by WE-a (`happenings`); the director is implemented by WE-b (MVP-1) · **Approved by** the operator's step-24 rulings of 2026-10-12 (§1.2 ruling 3; QS24-2 ruled yes, narrowly, for the director) · **Relates to** `ARC-68` (weather), `ARC-34`, `ARC-63`, `ARC-62`, `DEP-46`, `PA-10`, `INV-6`, `INV-10`, `CLAUDE.md` §4 rule 2 · **Design** step-24 §§3.1, 9
+
+**Problem.** A world needs changes beyond individuals: market days, festivals, prices, shop stock, news and weather-driven happenings. Such changes could be written into controllers, or an LLM could be given authority to change the world directly, as a game master would. Neither fits: the first hides world change in controller code, and the second makes the world invalid without a model.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) An LLM controller mutates world state, or resolves actions as a referee | Declined: an LLM never mutates world state (`INV-6`, ruling 3); the world must stay valid with the model removed |
+| (b) A deterministic System Pack, `happenings`, generates scheduled and seeded happenings; an LLM director is a Controller Pack that submits `propose-happening` intents, which `happenings` validates and may refuse | **Chosen** |
+| (c) A director drives a designated Person as a puppet | Kept as the alternative to the Organization seat; not chosen, because a puppet Person would appear to act in biography |
+
+**Choice.** `happenings` (WE-a, MVP-0) owns `Happenings` on places and emits `happening-announced`, `happening-began` and `happening-ended`. Its configuration is a plain `ARC-61` configure file, `configure/happenings.yaml`, not an Interaction List section, because `ARC-63` forbids a second file beside a section. Happening kinds are content in that file. Generators are the `ARC-62` code catalog `HappeningGenerator`. Calendar entries are pure functions of the date; random entries are seeded integer draws from the content `seed:` in that file, since a world has no world seed; and its own `limits` (per day, per place, per actor per day) are caps it enforces. Other packs react to happenings only through their own opt-in configuration (for example, economy price modifiers). The director (WE-b, MVP-1) is a Controller Pack seated on an Organization, which is valid only for the director (QS24-2). It has no referee authority: it proposes, `happenings` validates the kind, place, window, limits and text, and it may refuse with a typed reason, and a refused proposal changes nothing. With the director removed, its seat runs its `fallback` (`none` by default), and `happenings` keeps its own schedule, so the world stays valid and still evolves.
+
+**Consequences.** `CORE_CONCEPTS.md` §14 ("a Controller decides what a Person attempts") is amended by WE-b, not by this record, and WE-b's PR design states the exact wording. No `worldpack` change: `happenings` is an ordinary enabled system and its file is an ordinary configure entry.
+
+**Revisit** when WE-b's Organization-seat rule is recorded (the amendment of `CORE_CONCEPTS.md` §14), or when a director must act on world state beyond proposals, which would require a new decision.
+
+---
+
+## DEP-47 — The utility core is our own; big-brain, bonsai-bt and dogoap are declined
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by DL-b (no dependency added) · **Approved by** the operator's step-24 rulings of 2026-10-12 (the design's §6.2 and §7 recommendation, accepted under the standing instruction) · **Relates to** `REUSE_POLICY.md` §12 (a record when a candidate is rejected), `CLAUDE.md` §4 rule 16, `ARC-25`, `ARC-23`, `DEP-46` · **Design** step-24 §§6.2, 6.3, 7
+
+**Problem.** The `motivated` decision model (`MODULE_SPEC.md` §5.1) needs a utility core: options scored by multiplying response curves over observed inputs, with a seeded weighted draw among the best options. Mature Rust crates exist for utility AI, behaviour trees and GOAP. `REUSE_POLICY.md` requires a record both when MineWorld adopts a substantial dependency and when it rejects one.
+
+**Options considered.**
+
+| Candidate | Verdict and reason |
+| --- | --- |
+| `big-brain` (utility AI) | **Declined.** It is built on Bevy's ECS, so adopting it forces Bevy's execution model on world state, which `CLAUDE.md` §4 rule 16 forbids; it has had 28 breaking releases |
+| `bonsai-bt` (behaviour trees) | **Declined.** Standalone, but last active in early 2024, and it solves a behaviour-tree case MineWorld has not chosen: a tree encodes today's bands with more structure, not motivation |
+| `dogoap` (GOAP) | **Declined.** Its core is standalone GOAP, which is not chosen for now (no System publishes effect declarations); revisit with DL-d |
+| **Our own utility core**: integer response curves as data, following Dave Mark's published method, over our own types | **Chosen** |
+
+**Choice.** Build the core ourselves. It is about 300 lines of integer arithmetic over our types. Scores are integers in 0 … 1 000, with a product of curves rescaled by compensation; there is no float anywhere. Its state is none: each consult is a pure function of `(seed, parameters, observation)`. Adoption would cost more than it saves, because the framework's execution model and its determinism would be someone else's.
+
+**Consequences.** The core lives in `cognition/motivated`. A later GOAP model (DL-d) reopens this record only if it is needed; the candidates above are not re-evaluated from memory.
+
+**Revisit** when Systems publish effect declarations for multi-step goals (DL-d), or when a candidate crate's core is shown to be independent of its engine.
+
+---
+
+## DEP-48 — Daily-rhythm calibration: BLS ATUS A-3 public-domain tables, committed as derived integer tables through an offline fit tool
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24); implemented by DL-b · **Approved by** the operator's step-24 rulings of 2026-10-12 (QS24-9 accepted as recommended) · **Relates to** `ARC-68` (the `weather-fetch fit` pattern), `DEP-31`, `ARC-23`, `R-S24-9` · **Design** step-24 §§6.6, 7, 15
+
+**Problem.** `motivated` needs daily rhythms calibrated from real data, so that its sociability and home pull follow a measured hour-of-day curve rather than arbitrary constants. The candidate sources have different licences. The American Time Use Survey's published tables are public domain (BLS), with credit requested. IPUMS ATUS-X extracts require registration, and redistribution needs approval. MTUS requires registration, and its redistribution terms are unstated. HETUS microdata is research-only.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Use IPUMS, MTUS or HETUS microdata | Declined: redistribution is not permitted, and repository licensing would be a risk |
+| (b) Commit BLS ATUS A-3 (percent of the population engaging in selected activities by time of day) as derived integer tables with a credit line; an offline tool `routine-fit` produces the curve set and optional routine sections; the run never reads the source | **Chosen** |
+| (c) Hand-set the curves | Declined: the arbitrary constants are the problem this record solves, and `ARC-23` requires numbers fixed before measurement from a named source |
+
+**Choice.** Option (b). Only the aggregate public-domain tables are committed, as derived integer tables, and their credit line is in the repository. Microdata never enters the repository. The `routine-fit` tool runs offline, and its output is committed content. HETUS aggregate tables on Eurobase (CC BY 4.0 for content, acknowledgement required) are reserved for a later European world.
+
+**Consequences.** The acceptance of rhythm (AC-DL-4) is measured against the fitted curve, with its tolerances written in the PR design before the run. A future calibration from a different source is a new record.
+
+**Revisit** when a European world needs calibration from HETUS aggregates, or when the BLS terms of use change.
+
+---
+
+## ARC-89 — Sealed log blocks: journal and fact rows of completed spans move unchanged into compressed blocks, and history is read as a stream
+
+**Date** 2026-10-12 · **Status** accepted (design, step-24 FG-d; operator QSR-1 of 2026-10-10 and QS24-5 of 2026-10-12, building SR-b in MVP-0); implemented by FG-d (SR-b), `SAVE_FORMAT` 4 · **Approved by** the operator (QSR-1, QS24-5); the concrete design is `.structured-coding/plans/mvp0/pr-sr-b-log-compression.md` (design PR #178, draft at the time of this record) · **Relates to** `ARC-25`, `ARC-27`, `ARC-49`, `ARC-81` (amended, rule 1), `DEP-2`, `DEP-43`, `ARC-59`, `AC-9`, `AC-12`, `QS24-4` (save growth bound) · **Design** `pr-sr-b-log-compression.md` §§6.1, 6.2 (D-SRB-1 … D-SRB-11)
+
+**Problem.** After `ARC-81`'s snapshot pruning, a Market Town save is almost entirely its event log. The log grows by about 3.75 MiB per simulated day on walking and 5.59 MiB per day with bodies, against a bound of 0.25 to 0.5 MiB per day (QS24-4). Facts and journal entries compress 18 to 40 times when compressed together in spans, but only 2 to 2.5 times one row at a time. Readers of history (`perceived`, `inspect`, `biography`) also load the whole log, peaking at 1.3 to 1.5 GiB on a 300-day save (`F-S24-1`). `ARC-25` requires that the log stay history, never derived and never rewritten, and that replay compare bytes.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Delete or rewrite old rows, or keep only the newest span | Declined: destroys history; violates `ARC-25` and `AC-9`, whose causes must resolve |
+| (b) Compress each row alone | Declined: 2 to 2.5 times, far short of the bound |
+| (c) Seal completed spans into blocks, moving rows unchanged; readers stream one block at a time | **Chosen** |
+| (d) Archive old segments to separate files (FG-e) | Deferred to MVP-1 (FG-e), after streaming readers exist; it builds on this record |
+
+**Choice.** At each anchor commit `a` of `ARC-81`'s lattice, with `a` at least twice the anchor interval, the live rows of the revisions in (`sealed_through`, `a − interval`] move, byte for byte, into one sealed block in the same transaction as the anchor. A block holds two zstd frames (journal and facts) over a length-prefixed framing of the rows, at the level `DEP-43` fixes for stored kinds. Rows keep their key columns and bytes; a row is either live or inside exactly one block, never both. The backend stores opaque blocks and never decodes a fact (`DEP-2`). Replay compares re-executed entries and facts with the logged bytes, decoded from a block. Every reader of history streams blocks. The save format becomes `SAVE_FORMAT` 4; an older save is refused by name, with no migration (QSR-3).
+
+**Consequences.** `ARC-81` rule 1 ("`facts` and `journal` are only ever inserted into") is amended to "inserted into, and moved unchanged into a sealed block". No other row is deleted. Stored bytes remain a function of pack, seed, age, pace and code (`ARC-27`), so `ARC-49`'s parity hashes continue to hold on all three platforms. The per-day save bound is checked nightly (`AC-SAVE-1`), not by refusing facts.
+
+**Revisit** if a block-level read cannot meet the streaming bound, if a sealed span must be rewritten for a correction (which this record forbids), or when FG-e's archive segments need a manifest format, which a successor record decides.

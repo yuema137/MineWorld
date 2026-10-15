@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-10 (Milestone E implemented, awaiting operator acceptance; B and C accepted 2026-10-07)
+**Updated:** 2026-10-12 (Milestone E accepted by the operator; B and C accepted 2026-10-07)
 
 ---
 
@@ -19,7 +19,7 @@ here does not block anything else.
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
-| **E** | Package composition | a real world assembled from independently installable packs | 🚧 **implemented, awaiting operator acceptance** — PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
+| **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
 holds, proved against the real binary hosting the real pack. The evidence names identity rather
@@ -560,6 +560,43 @@ that.
 
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
+
+### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
+
+**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):
+- props are drawn as imported scenes with LODs;
+- the slice's textures are VRAM-compressed with mipmaps;
+- tiny objects are hidden below 1.5 px;
+- occluders cull what solid walls hide;
+- on your rulings of 2026-10-09: VoxelGI at 128 subdivisions and directional soft-shadow quality 2.
+
+You accepted that slight visual change and the mipmap softening. The accepted frames are re-baselined
+on this look. The skyline preview was **not kept** and is reverted, so the old ridges remain until RL-e.
+
+The frame-time and video-memory bounds stay binding; draw calls and primitives are advisory. The
+re-measure is pending: it needs an unlocked screen (`caffeinate -d ./mineworld-slice --perf`).
+
+**Checklist** — run `./mineworld-slice`, then `./mineworld-slice --world`:
+
+1. **Smoothness.** Walk the street end to end, enter the café and the florist, come back out: no hitch
+   at doors, no pop-in of objects as you approach, less flicker on cobbles and roof tiles at distance.
+2. **The textures.** Stone, brick and paving are smoother than before (mipmaps): the old per-pixel
+   grain is gone and mid-distance walls are a little softer. Keep, or ask for sharper oblique
+   filtering.
+3. **The café inside.** At the counter and the back wall: the warm room and the floor's sun patch as
+   accepted; small objects on shelves and tables as before.
+4. **Through the glass.** From the street into the café and the florist: goods, tables and people
+   visible (nothing culled behind glass).
+5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows keep their
+   shape, with slightly harder edges (shadow quality 2).
+6. **The florist and the café.** Under VoxelGI 128 the florist is a little warmer and brighter, and
+   the café's tone shifts slightly. You accepted this; check that nothing looks blotchy.
+7. **The old spike.** `./mineworld-3d` now says at start that it is the movement and camera spike, not
+   the world.
+8. **Frame cost.** With the screen unlocked, run `caffeinate -d ./mineworld-slice --perf`. Every
+   view should print p95 ≤ 16.7 ms and video memory ≤ 2 048 MB.
+9. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
+   evidence is macOS only (QRL-6).
 
 ### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
 
