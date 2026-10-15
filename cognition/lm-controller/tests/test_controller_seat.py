@@ -30,8 +30,9 @@ from scripted_seat import (
     until,
     welcome,
 )
-from support import completion, run
+from support import completion, request, run
 
+from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import BackendFailure, Completion, CompletionRequest
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import CognitionConfig
@@ -42,11 +43,18 @@ from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.triggers import detect
 from mineworld_cognition.errors import ConfigError
-from mineworld_cognition.gateway import Budget, ModelGateway, Router
+from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
-from mineworld_cognition.memory.retention.selection import Retention
+from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
+from mineworld_cognition.memory.retention.registry import PolicyRegistry
+from mineworld_cognition.memory.retention.selection import (
+    MemoryPolicyChoice,
+    Retention,
+    resolve,
+)
 from mineworld_cognition.memory.store import MemoryStore
+from mineworld_cognition.record import CassetteMiss
 
 ALICE = EntityKey("alice")
 WALL_NOW = 1_700_000_000
@@ -430,3 +438,80 @@ def test_a_remembered_person_entering_my_place_triggers_once_per_cooldown(tmp_pa
             greeted[trigger.speaker] = at
     store.close()
     assert counts == [1, 0, 1]
+
+
+class _MissingRecording:
+    """A `summarize` backend whose replay holds nothing: every call is a cassette miss."""
+
+    def __init__(self) -> None:
+        self.requests: list[CompletionRequest] = []
+
+    async def complete(self, request: CompletionRequest) -> Completion | BackendFailure:
+        self.requests.append(request)
+        raise CassetteMiss("absent", cassette_key(request))
+
+    async def aclose(self) -> None:
+        return None
+
+
+def _gateway(backend: ScriptedAnswers | _MissingRecording) -> ModelGateway:
+    return ModelGateway(backend, Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock()))
+
+
+def _social() -> ModelGateway:
+    return _gateway(ScriptedAnswers(_nothing))
+
+
+def _assisted_gateway(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, tiers: dict[Tier, ModelGateway | None]
+) -> ModelGateway | None:
+    """Builds a runner whose seat chose `lm-summarise`, and returns the gateway it gave FG-b's `resolve`."""
+    given: list[ModelGateway | None] = []
+    real_resolve = resolve
+
+    def recording_resolve(
+        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+    ) -> Retention:
+        given.append(gateway)
+        return real_resolve(choice, registry, gateway)
+
+    monkeypatch.setattr(seat_module, "resolve", recording_resolve)
+    budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
+    SeatRunner(
+        _config(),
+        LmSeat(key=ALICE, memory=MemoryPolicyChoice(policy="lm-summarise")),
+        router=Router(tiers, budget),
+        connector=ScriptedServer(Link(welcome(resume=1), observation(1))),
+        invite=Invite(INVITE),
+        nickname="cognition",
+        store_dir=tmp_path / "store",
+        clock=FakeClock().time,
+        sleep=FakeClock().sleep,
+    )
+    (gateway,) = given
+    return gateway
+
+
+def test_an_assisted_seat_asks_the_summarize_tier_through_the_summary_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R-P6-FGc-1, D-P6b-36: the seat's assisted policy gets the router's `summarize` model, seen through
+    FG-c's boundary: a replay's missing recording is `SummaryUnavailable`, chained to the miss (a plain
+    gateway would let `CassetteMiss` through)."""
+    missing = _MissingRecording()
+    gateway = _assisted_gateway(
+        tmp_path, monkeypatch, {"social": _social(), "summarize": _gateway(missing)}
+    )
+    assert gateway is not None
+    with pytest.raises(SummaryUnavailable) as raised:
+        run(gateway.complete(ALICE, request("a group to summarise")))
+    assert isinstance(raised.value.__cause__, CassetteMiss)
+    assert len(missing.requests) == 1  # the router's `summarize` backend, not the social one
+
+
+def test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert (
+        _assisted_gateway(tmp_path, monkeypatch, {"social": _social(), "summarize": None}) is None
+    )

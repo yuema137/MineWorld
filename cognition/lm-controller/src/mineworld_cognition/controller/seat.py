@@ -77,6 +77,7 @@ from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
 from mineworld_cognition.memory.store import MemoryStore
+from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
 """Monotonic wall seconds: the consult deadline, the breaker's cooldown and the handback wait."""
@@ -139,8 +140,14 @@ class SeatRunner:
             .bind(breaker_config.policy, dict(breaker_config.parameters), "breaker")
             .create()
         )
+        # R-P6-FGc-1 (D-P6b-36): an assisted policy asks the `summarize` tier through FG-c's boundary, so a
+        # replay's missing recording stops the pass as `SummaryUnavailable`. No `summarize` model: the
+        # policy's no-model fallback decides every group. A plain policy ignores the gateway.
+        summarize = router.for_tier("summarize")
         self._retention: Retention = resolve(
-            seat.memory or DEFAULT_CHOICE, PolicyRegistry.installed()
+            seat.memory or DEFAULT_CHOICE,
+            PolicyRegistry.installed(),
+            None if summarize is None else summarize.sharing(SummaryBoundaryGateway),
         )
         self._connector = connector
         self._invite = invite

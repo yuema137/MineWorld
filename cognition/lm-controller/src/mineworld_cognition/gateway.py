@@ -126,6 +126,12 @@ class ModelGateway:
         )
         return Completed(answer)
 
+    def sharing[G: ModelGateway](self, kind: type[G]) -> G:
+        """A gateway of another kind over this one's backend and budget: one ledger, one recording, one
+        in-flight limit. How a seat's assisted memory policy sees the router's `summarize` gateway through
+        FG-c's `SummaryBoundaryGateway` (D-P6b-36). The router still owns, and closes, the backend."""
+        return kind(self._backend, self._budget)
+
     async def aclose(self) -> None:
         await self._backend.aclose()
 
