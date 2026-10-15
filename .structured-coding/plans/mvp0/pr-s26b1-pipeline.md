@@ -3,10 +3,12 @@
 ## DRAFT — PR DESIGN, NOT FROZEN
 
 ```text
-Design revision:        revision 1 (2026-10-14), DRAFT
+Design revision:        revision 2 (2026-10-14), DRAFT: revision 1 (PR #197, commit ad23a1a) with §14.1's
+                        rulings applied and the audit anchors re-checked on origin/main after #195
 Author:                 S26-b1 PR-design agent, worktree /Users/yuema137/mineworld-worktrees/design-s26b1,
                         branch docs/s26b1-design, planning base origin/main @ 3ada60a
-Approved by / evidence: none yet. Awaiting the primary session's and the operator's review (§14)
+Approved by / evidence: none yet (the header stays DRAFT; the primary session freezes it). Q-B1-1…5
+                        ruled 2026-10-14 (§14.1); revision 2 applies them
 Implementation base:    origin/main at B0 (B0 records the commit)
 Start condition:        this design frozen; nothing else (step-26 §12.1)
 Execution contract:     §12, to be confirmed at freeze
@@ -74,7 +76,7 @@ binary asset**, and changes nothing a player sees.
    `rig_meshy.py`, `reweight_fingers.py`, `reweight_pack.py`, `fix_flecks.py`, and the support scripts the
    stages need (`inspect_ids.py`, `render_ortho.py`, `render_rig.py`, `dump_bones.py`). `rebake_head.py` is
    **dropped** (step-26 §5.2 stage 9), with the reason in `PIPELINE.md`.
-3. Static gates G-1…G-6 and G-14 (§5.6) and `cast.py check-cast` over committed characters, run in CI on
+3. Static gates G-1…G-6 and G-14 (§5.6) and `cast.py check-characters` over committed characters, run in CI on
    Linux, macOS and Windows.
 4. A repository-wide secrets scan, `scripts/check_secrets.py` (AC-S26-9, X-8), in the `fast` layer.
 5. Vera's recorded inputs: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/fit.yaml` and
@@ -157,7 +159,8 @@ repository's Python; any CI check over characters; any committed copy of CharMor
 - **F-B1-1** The step's integration check names "G-1…G-14 pass", while the same row scopes the runtime runners
   G-7…G-13 to S26-b2. This design runs G-1…G-6 and G-14 on the re-derived Vera, runs G-7's import half, and
   establishes G-8…G-13 by **parity with the accepted asset** (identical triangles, joints within 1 mm, weights
-  within 0.005 ⇒ the same deformation under the same clips). Asked as **Q-B1-1**.
+  within 0.005 ⇒ the same deformation under the same clips). **Ruled (Q-B1-1, primary):** as described;
+  G-8…G-13 are recorded "by parity", never as PASS.
 - **F-B1-2** Two eye lines in D+: `gameready_mesh.py` scales by `EYE_Z_MESHY = 0.779`, `rig_meshy.py` reads
   the eye pick `(512, 113)` = 0.77930 raw units, 0.3 mm apart in the result. Vera's `fit.yaml` records both,
   as D+ used them; S26-b2's landmark stage unifies them.
@@ -165,9 +168,9 @@ repository's Python; any CI check over characters; any committed copy of CharMor
   `picks.frame: "dplus-v1"` and prints `cx`; S26-b2 replaces hand picks altogether.
 - **F-B1-4** `fix_flecks.py` is not in Vera's chain (A-B1-2), yet step-26 §5.2 makes stage 9 automatic. The
   port implements it, on by default; Vera's `fit.yaml` sets `flecks.enabled: false` with D+ §8.4 step 8 as the
-  reason (one override).
-- **F-B1-5** The rig source (A-B1-9) is reproducible from the repository plus one recorded number. **Q-B1-2**
-  asks whether to commit the 6.4 MB CharMorph body instead.
+  reason (one override). **Ruled (Q-B1-5, primary):** yes.
+- **F-B1-5** The rig source (A-B1-9) is reproducible from the repository plus one recorded number. **Ruled
+  (Q-B1-2, primary):** use the `vitruvian.glb` armature plus that number; `body_g5.glb` is not committed.
 - **F-B1-6** G-2 requires `MW_Cast`; the accepted asset's material is `MW_Meshy` and `human.gd` binds that name
   (A-B1-17). The pipeline exports `MW_Cast`; the parity comparison excludes the material name; S26-c1 rebinds
   (§10).
@@ -287,7 +290,7 @@ nothing else. `--factory-startup` keeps the user's preferences out of the result
 | Subcommand | Does | Needs |
 | --- | --- | --- |
 | `gate <asset.glb> --fit <fit.yaml> [--json]` | G-1…G-6, G-14 on one export; exit 1 on any FAIL | stdlib |
-| `check-cast [--root <repo>]` | for every `presentation/*/3D/characters/cast/*/`: validates `fit.yaml`, `generation_log.yaml`, and, where `character.yaml` exists, runs `gate` on its asset; prints one line per directory and the count; exit 1 on any failure. A directory with records only prints `records only (no character.yaml)` | stdlib |
+| `check-characters [--root <repo>]` | for every `presentation/*/3D/characters/cast/*/`: validates `fit.yaml`, `generation_log.yaml`, and, where `character.yaml` exists, runs `gate` on its asset; prints one line per directory and the count; exit 1 on any failure. A directory with records only prints `records only (no character.yaml)` | stdlib |
 | `run --fit <fit.yaml> --download <dir> [--scratch <dir>] [--from <stage>] [--to <stage>] [--run-id <id>]` | stages 6–10 (and 12's frames) into `<scratch>/<character>/<run-id>/`; writes `run_manifest.json` (fit SHA-256, download SHA-256, Blender version, bake device, stage outputs with SHA-256) | Blender 5.2.2 |
 | `compare <candidate.glb> <accepted.glb> [--json]` | the parity comparison (§5.7); exit 1 when outside a bound | stdlib |
 | `compare-texture <candidate.png> <accepted.png>` | texel comparison (§5.7) | tool venv |
@@ -309,7 +312,7 @@ parity baseline**, never evidence of reproduction.
 
 Unknown keys are refused naming the key path; every number is a JSON number; `records.py` validates types and
 ranges. `PIPELINE.md` holds the schema and the **defaults**, which are Vera's D+ values; an **override** is a
-value that differs from the default, and `check-cast` prints the override count (step-26 §5.3: more than three
+value that differs from the default, and `check-characters` prints the override count (step-26 §5.3: more than three
 is a finding). Hand-supplied picks and the per-character source block are not overrides.
 
 Vera's file (B9), with every value's D+ origin written in a `"_why"` string beside it where the schema allows:
@@ -416,7 +419,7 @@ takes a bound as an argument and no bound is computed from the asset (X-9, revie
 | G-4 | (a) soles: min of glTF `y` within `SOLE_TOL_M` of `SOLE_Z_M`; (b) sole-to-eye: the eye height from `fit.yaml` (the `eye` pick through stage 6's transform, `gameready.json`) minus the sole, within `EYE_TOL_M` of `stature_m × EYE_RATIO`. The realistic stature range of step-26 §7.2 needs a brief and is S26-cast's | `-0.0177`, `0.005`, `0.9366`, `0.010` (step-26 G-4) |
 | G-5 | the 52 joint names and their parent relation equal the reference skeleton read from `vitruvian.glb`; one `JOINTS_0`/`WEIGHTS_0` set and no `_1`; every vertex's weight sum within `WEIGHT_SUM_TOL` of 1; 0 vertices below `UNWEIGHTED_SUM`. Rolls: checked from `dump_rig.py`'s JSON when a run directory is given (equal to the reference's rolls within `ROLL_TOL_RAD`); the bone map's Godot validation is S26-b2's | `1e-3`, `1e-4`, `1e-4` |
 | G-6 | (a) Winter: upper arm, forearm, thigh, shank of both sides, each `|joint→joint| / stature_m` within ±`WINTER_TOL` of Winter's ratio; (b) inside the body: for the 18 trunk and limb joints (Hips, Spine, Spine1, Spine2, Neck, Head, and per side Arm, ForeArm, Hand, UpLeg, Leg, Foot), the joint's horizontal position lies inside the axis-aligned extent of the mesh vertices in a slab of ±`SLAB_HALF_M` at the joint's height within `NEIGHBOUR_M` horizontally; prints each joint's margins. (c) The 30 mm geometric cross-check needs a detector to cross-check and is S26-b2's (step-26 §5.4 L) | `{upper_arm 0.186, forearm 0.146, thigh 0.245, shank 0.246}`, `0.12` (Winter, step-26 G-6); `0.010`, `0.15` |
-| G-14 | `scenes[0].extras.mineworld_provenance` has: `source_type == "generated"`, `ai_generated is true`, non-empty `generator`, `meshy_task` (UUID form), `references` (list of `{path, sha256}`; each `sha256` is 64 hex; when the path exists in the repository its SHA-256 matches), `reference_generator`, `postprocess`, `pipeline` (`{version, fit_sha256, blender}`); no string anywhere in the provenance matches the key patterns of `scripts/check_secrets.py`; the per-batch `LICENSES/` entry and the `ASSETS.md` row are checked by `check-cast` once a `character.yaml` names them | `ARC-9`, `DEP-8`, D+ §4 |
+| G-14 | `scenes[0].extras.mineworld_provenance` has: `source_type == "generated"`, `ai_generated is true`, non-empty `generator`, `meshy_task` (UUID form), `references` (list of `{path, sha256}`; each `sha256` is 64 hex; when the path exists in the repository its SHA-256 matches), `reference_generator`, `postprocess`, `pipeline` (`{version, fit_sha256, blender}`); no string anywhere in the provenance matches the key patterns of `scripts/check_secrets.py`; the per-batch `LICENSES/` entry and the `ASSETS.md` row are checked by `check-characters` once a `character.yaml` names them | `ARC-9`, `DEP-8`, D+ §4 |
 
 Winter's table must be verified in B1 against a citable edition (step-26 G-6 "**verify**"): D. A. Winter,
 *Biomechanics and Motor Control of Human Movement*, 4th ed., Wiley 2009, Fig. 4.1 (segment lengths as a
@@ -488,9 +491,10 @@ list of project files with "base_color" in the name. **Decision rule, fixed now:
 
 ### 5.10 CI: three operating systems, no Blender (D-B1-1)
 
-**Decided: CI runs no Blender and no Godot for this PR.** CI runs, on Linux, macOS and Windows (the existing
+**Decided: CI runs no Blender and no Godot for this PR** (ruled, Q-B1-4, primary: the local Gate is re-run
+whenever the Blender scripts change). CI runs, on Linux, macOS and Windows (the existing
 `python` job), the standard-library part: the unit tests (`pytest tools/character_pipeline/tests`), ruff and
-pyright over the driver, `cast.py check-cast` over the committed records; and, in `fast` (Linux), the secrets
+pyright over the driver, `cast.py check-characters` over the committed records; and, in `fast` (Linux), the secrets
 scan.
 
 Why not a pinned Blender in CI:
@@ -537,7 +541,7 @@ review question of every later PR that edits `blender/` asks for it). Recorded i
 | --- | --- | --- |
 | Meshy credits | **0** | Vera's download is kept (A-B1-3); the Meshy client is tested with an injected transport only; no `meshy` subcommand runs without `--dry-run` |
 | OpenAI images | **0** | no stage 2 in this PR |
-| OpenAI cap stated for the step (Q-S26-3) | **$150** for the whole of S26, for the primary session to confirm | below |
+| OpenAI cap for the step (Q-S26-3) | **$150** for the whole of S26 — **ruled by the operator, Q-B1-3** ("150 美元上限"): reported at 50 % and 100 %, hard stop at the cap | below |
 
 **Price read 2026-10-14** (OpenAI pricing page, `https://developers.openai.com/api/docs/pricing`, Standard tier,
 per 1M tokens): `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare` — image input $8.00, text input $5.00, image
@@ -547,9 +551,9 @@ high image (its calculator is interactive); it gives GPT Image 2 at **$0.165** p
 6,240 output tokens for that size on earlier models. **Estimate per image** (`mineworld_gen` at 1024×1536,
 high, up to four references): output ≤ 6,240 tokens × $30/M = $0.187; image input ≈ 6,000 tokens × $8/M ≈ $0.05;
 text ≈ $0.002 → **≈ $0.24 per image, an upper estimate**. Step-26 §10.2's ceiling: 30 people × 20 images = 600
-images → **≈ $144**. Proposed cap **$150**, reported at 50 % and 100 % like the Meshy cap, with a hard stop; the
-pilot (S26-b2) records each image's `cost_usd_estimate` (already computed by `mineworld_gen` from usage) and
-re-estimates before S26-cast's batches. This PR generates nothing whether or not the cap is confirmed.
+images → **≈ $144**. **Cap $150, ruled by the operator (Q-B1-3)**, reported at 50 % and 100 % like the Meshy
+cap, with a hard stop at the cap; the pilot (S26-b2) records each image's `cost_usd_estimate` (already computed
+by `mineworld_gen` from usage) and re-estimates before S26-cast's batches. This PR generates nothing.
 
 ### 5.13 Platforms
 
@@ -582,7 +586,7 @@ re-derivation is a new parity baseline (`--allow-blender`/device recorded), not 
 | **Unit** (pytest, CI, three OSes) | GLB decoding (accessor types, normalized integers, IBM inverse) against synthetic GLBs with hand-computed expectations; each gate's PASS and FAIL on synthetic GLBs (X-5, X-6, X-7, plus a joint outside the body for G-6b and a missing provenance field for G-14); **frozen real evidence**: `meshy_d.glb` passes G-1 (95,000), G-5, G-6 (with `stature_m` 1.767) and fails G-2 with "material MW_Meshy" and G-14 naming exactly `references`, `reference_generator`, `pipeline` as missing — pinned from this design's audit (A-B1-14, A-B1-15), not from the implementation; records: Vera's `fit.yaml` and `generation_log.yaml` load, an unknown key and a wrong type are refused with the key path; parity arithmetic (a joint moved 1.1 mm fails, 0.9 mm passes; a weight moved 0.006 fails; reordered vertices fail with the message); the Meshy client with a fake transport (request body has no `Authorization`, `request.json` has no image bytes, the key never appears in any stored file or captured output, a 401 body echoing the key is redacted, the cap refuses the run that would exceed it, `--dry-run` calls nothing); the scratch refusal; Blender command lines and params files built for each stage; the secrets scan's self-test (X-8) |
 | **Gate 1** (real LLM) | **NOT REQUIRED**: no LLM-facing change |
 | **Gate 2** (real lifecycle, local, the operator's Mac) | B10: real Blender 5.2.2 runs stages 6–10 on Vera's real download; stage-by-stage parity with the D+ intermediates; the final parity with `meshy_d.glb`; stage 3 re-run against the recorded Meshy input; the Godot import of the stored-once format; static gates on the re-derived export. Owned here because only real Blender on the real download can show reproduction |
-| **CI** | the PR's automatic run, once on the final head: `fast` (Linux, includes the secrets scan and the pipeline's static checks), `python` on three OSes (pytest and `check-cast`), and the unchanged rest |
+| **CI** | the PR's automatic run, once on the final head: `fast` (Linux, includes the secrets scan and the pipeline's static checks), `python` on three OSes (pytest and `check-characters`), and the unchanged rest |
 
 Selective CI: this PR touches `scripts/ci_layer.py` and the root `pyproject.toml`, so the full PR CI runs (test
 rules §11: CI workflow and central configuration fall back to full) — the one canonical run.
@@ -604,11 +608,11 @@ rules §11: CI workflow and central configuration fall back to full) — the one
 | AB1-11 | **Integration (B10):** the stored-once decision of §5.9 recorded with Godot's printed evidence | ledger, `PIPELINE.md` |
 | AB1-12 | **Counterfactual (B10, XB1-1):** with `l_shoulder` moved by +5 px in a scratch copy of `fit.yaml`, `compare` FAILS naming `mixamorig:LeftArm` (drift ≈ 9 mm) — the comparison is load-bearing on real data | ledger |
 | AB1-13 | Stage 3 re-run (`mask`) on the repository's reference with Vera's `fit.mask` reproduces `work/in_chest_rgba.png`: alpha IoU (alpha > 127) ≥ 0.999 and RGB mean absolute difference over the foreground ≤ 1/255. If the BiRefNet weights are missing, NOT RUN with the reason (not a pass) | ledger |
-| AB1-14 | `check-cast` in CI prints `vera-lindgren: records only (no character.yaml)`, 0 overrides beyond `flecks.enabled`, and exits 0 | CI log |
+| AB1-14 | `check-characters` in CI prints `vera-lindgren: records only (no character.yaml)`, 0 overrides beyond `flecks.enabled`, and exits 0 | CI log |
 | AB1-15 | I-B1-1, I-B1-4, I-B1-7: `git diff --stat origin/main...HEAD` lists no path under the forbidden directories, no binary file, and no change to `meshy_d*` | close-out |
 | AB1-16 | `docs/DECISIONS.md` gains `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; `check_decision_ids.py` passes | `fast` |
 
-**G-7…G-13 for the re-derived Vera (F-B1-1, Q-B1-1):** AB1-11 covers G-7's import half; G-8…G-13 are
+**G-7…G-13 for the re-derived Vera (F-B1-1; ruled, Q-B1-1, primary):** AB1-11 covers G-7's import half; G-8…G-13 are
 established by AB1-8 (same mesh and skin as the asset the operator accepted on 2026-10-07 with every runtime
 check D+ §§8.4–8.9 records). This is written into `rederive_report.json` as `"G-8…G-13": "by parity (AB1-8)"`,
 not as PASS.
@@ -674,7 +678,7 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
   `tools/character_pipeline/README.md`, `tools/character_pipeline/PIPELINE.md`, `docs/DECISIONS.md`.
 - Steps:
   1. Read `docs/DECISIONS.md` `DEP-8` (:267 onward, including the 2026-10-06 generated-meshes note and
-     :374-375), `ARC-9` (:485), `ARC-23` (:1595), `ARC-24` (:1648), and `DEP-48` (:7860) as the record format.
+     :374-375), `ARC-9` (:485), `ARC-23` (:1595), `ARC-24` (:1648), and `DEP-48` (:7930 on origin/main after #195; was :7860) as the record format.
   2. **Verify, with WebFetch, and record each answer with URL and date in §15:** (a) Meshy Terms of Use
      (`https://www.meshy.ai/terms-of-use`): the "last updated" date and §2.4's identifier clause, compared with
      D+ §4's quote; (b) Meshy rigging API (`https://docs.meshy.ai/en/api/rigging` or the current rigging page):
@@ -694,7 +698,7 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
      the code: a table of every ported D+ script with its path in `/Users/yuema137/mineworld-demos/i23d/`, its
      SHA-256 (compute with `shasum -a 256` and paste), its line count, and its port; `rebake_head.py` dropped
      with D+ §8.4 step 7 as the reason; §14 the stored-once format (left "decided in B10" until then).
-  4. Write `README.md` (human, short): one paragraph on what it is, the `check-cast` and `run` commands, a link to
+  4. Write `README.md` (human, short): one paragraph on what it is, the `check-characters` and `run` commands, a link to
      `PIPELINE.md`, the licence split (MIT driver, GPL Blender scripts).
   5. Append to `docs/DECISIONS.md`, in `DEP-48`'s format (Date 2026-10-14 · Status accepted (design, step-26) ·
      Approved by the operator's step-26 rulings of 2026-10-14 · Relates to · Design):
@@ -778,7 +782,7 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
      reports FAIL with the reason "needs a run directory" (a gate that cannot look does not pass). G-5's roll check reads `run_dir/dump_rig.json` when given, else reports
      `rolls: not checked (no run directory)` in `looked_at` and judges names and parents only.
   3. `cli.py`: wire `gate` (prints each result: gate, `looked at …`, verdict, reasons; `--json` prints a list)
-     and `check-cast` (§5.3).
+     and `check-characters` (§5.3).
   4. `test_gates.py`: per gate, one PASS and one FAIL on fixture GLBs: X-5 (100,001 vs 100,000 triangles), X-6
      (two materials), X-7 (`mixamorig:LeftForeArm` renamed), G-3 (a 1024² PNG fails), G-4 (soles 6 mm low fail),
      G-6a (a shank 15 % short fails), G-6b (a `Hips` joint 0.3 m behind the body fails and prints the joint), G-14
@@ -811,7 +815,7 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
      f"{PIPELINE}/mwcast", f"{PIPELINE}/tests", f"{PIPELINE}/cast.py"]`, with a comment: the pipeline is not a
      workspace member (no dependencies, no lock entry), it is checked by path; (c) in `LAYERS["python"]` and
      `LAYERS["python-smoke"]`, add `["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"]` and
-     `[sys.executable, f"{PIPELINE}/cast.py", "check-cast"]`.
+     `[sys.executable, f"{PIPELINE}/cast.py", "check-characters"]`.
   4. `pyproject.toml`: add to `[tool.pyright]` an `executionEnvironments` entry
      `{ root = "tools/character_pipeline", extraPaths = ["tools/character_pipeline"] }` so `import mwcast`
      resolves in the tests; leave `include` unchanged. Run `uv sync --locked` to prove the lock is unaffected.
@@ -982,10 +986,10 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
   5. `MESHY_CAST_BATCH.txt`: `MESHY_ROUTE_D_CHARACTER.txt`'s structure with placeholders (`<batch>`, `<character
      ids>`, `<task ids>`, `<terms date>`), and the identifier paragraph kept verbatim in substance.
   6. `test_records.py` (extend): the committed Vera `fit.yaml` and `generation_log.yaml` parse; `overrides` is
-     `["flecks.enabled"]`; the log totals are 3 runs, 90 credits, 1 kept; `check-cast` on the repository prints
+     `["flecks.enabled"]`; the log totals are 3 runs, 90 credits, 1 kept; `check-characters` on the repository prints
      the `records only` line and returns 0.
 - [ ] Implementation: steps 1–6.
-- [ ] Validation: §9.0 step 5; `python3 tools/character_pipeline/cast.py check-cast`.
+- [ ] Validation: §9.0 step 5; `python3 tools/character_pipeline/cast.py check-characters`.
 - [ ] Review: every number in Vera's `fit.yaml` traced to its D+ line (record the trace table in §15); no URL from
   `task.json` copied.
 - **Commit message:** `feat(cast): Vera's recorded pipeline inputs; Godot import template and check (S26-b1)`.
@@ -1056,8 +1060,8 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
      and I-B1-4 (no `.glb`, `.png`, `.blend`, `.bin`).
   3. Update §15 and the handoff; commit.
   4. `git push -u origin mvp0/pr-s26b1`; `gh pr create --title "feat(character-pipeline): route D+ in the
-     repository (S26-b1)" --body …` (what changed, the Gate evidence summary, spending 0/0, the OpenAI cap proposal
-     for confirmation, the questions still open). Wait for CI on the exact head; repair routine failures; READY FOR
+     repository (S26-b1)" --body …` (what changed, the Gate evidence summary, spending 0/0, the ruled OpenAI cap
+     of $150 (Q-B1-3), any finding raised during implementation). Wait for CI on the exact head; repair routine failures; READY FOR
      OPERATOR REVIEW — DO NOT MERGE.
 - [ ] Implementation: steps 1–4.
 - [ ] Validation: both doc checks; CI on the final head.
@@ -1070,13 +1074,13 @@ Blender and Godot commands (B7 smoke, B10 only) are run exactly as written, with
 | --- | --- |
 | S26-b2 | Uses `cast.py run`, the gates and `fit.yaml`; adds landmark detection (replacing `picks.frame: "dplus-v1"`, F-B1-2, F-B1-3), the runtime runners G-7…G-13, G-6's 30 mm cross-check; spends only under the confirmed caps; re-runs B10's Gate when it edits `blender/` |
 | S26-c1 | Brings Vera into `characters/cast/vera-lindgren/` with a `character.yaml` whose asset is the **re-derived stored-once export** (r1 of B10, or a re-run), replacing `meshy_d.glb` and its duplicated PNG (A-7), proven unchanged by AC-S26-6's frame diff; rebinds `human.gd`'s surface response from `MW_Meshy` to `MW_Cast` (A-B1-17); Vera's G-14 then passes in CI |
-| S26-a | No dependency; `cast.yaml` lives at `characters/cast.yaml`, beside this PR's `characters/cast/` directory |
+| S26-a | No dependency. S26-a's design (merged as a design, #195) adds `characters/cast.yaml` and `scripts/check_cast.py`, which checks that binding file's structure. This PR's per-character checker is `cast.py check-characters`, renamed from `check-cast` in revision 2 so that the two are not confused. It reads `characters/cast/<id>/` and never `cast.yaml`. S26-a's `default: "vera-lindgren"` names the directory that this PR starts with records only |
 | S26-f | Sets the cast texture import policy in the per-PNG `.import` (the stored-once format, §5.9) |
 
 ## 11. Edits to parent documents (owner: the primary session, after freeze or merge)
 
-- `step-26-cast.md` §12, S26-b1 row: record F-B1-1's reading of the integration check (as ruled on Q-B1-1).
-- `step-26-cast.md` §10.2: the stated OpenAI cap once the primary confirms it (Q-B1-3).
+- `step-26-cast.md` §12, S26-b1 row: record F-B1-1's reading of the integration check (ruled, Q-B1-1).
+- `step-26-cast.md` §10.2: the OpenAI cap of $150 for the whole step (ruled by the operator, Q-B1-3).
 - `overall.md`: S26 progress after merge.
 
 ## 12. Execution contract (to be confirmed at freeze)
@@ -1152,6 +1156,24 @@ STOP CONDITION:          S26-b1 READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **Q-B1-4 [primary — CI]** | No Blender in CI (§5.10): the Blender stages are proven by the local Gate on the pinned Blender, re-run whenever `blender/` changes; CI owns the stdlib gates, records, driver logic and the scan on three OSes | **Yes**, for §5.10's four reasons; recorded in `DEP-52` |
 | **Q-B1-5 [primary — scope detail]** | The stage-9 fleck repair: on by default for new characters (step-26 §5.2), off for Vera because her accepted texture never had it (F-B1-4)? | **Yes.** Re-deriving her must reproduce the accepted asset; the pilot shows whether the repair helps a new character |
 
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
+
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-B1-1 | **Yes.** Static gates and G-7's import half run here; G-8…G-13 are recorded "by parity" with the operator-accepted asset, never as PASS | primary session |
+| Q-B1-2 | **Yes.** The `vitruvian.glb` armature plus the one recorded number; `body_g5.glb` is not committed | primary session |
+| Q-B1-3 | **$150 OpenAI cap for the whole of S26**, reported at 50 % and 100 %, hard stop at the cap. Answered directly in the primary session: "150 美元上限" | operator |
+| Q-B1-4 | **Yes.** No Blender in CI; the local Gate is re-run whenever the Blender scripts change | primary session |
+| Q-B1-5 | **Yes.** Fleck repair on by default, off for Vera | primary session |
+
+**Audit re-check after these rulings** (origin/main after #195 (S26-a design), DL-a, FG-a, 25b, SET-b, merged
+into this branch): `scripts/ci_layer.py` (:48, :53, :184-213), `pyproject.toml` `[tool.pyright]` (:13-17),
+`.github/workflows/ci.yml` (`python` job :210), `human.gd` (:35, :243, :342), `docs/DECISIONS.md` `DEP-8` (:267),
+`ARC-9` (:485), `ARC-23` (:1595), `ARC-24` (:1648) and the rembg note (:374) are unchanged; `DEP-48` moved from
+:7860 to :7930 (B1 step 1 updated). No decision heading `ARC-94`, `DEP-51`, `DEP-52` or `DEP-55` exists yet.
+Nothing under `presentation/mineworld-default/3D/`, `clients/3d-spike/assets/characters/`, `clients/3d-spike/tools/`
+or `tools/asset_generation/` changed.
+
 ## 15. Ledger (live during implementation)
 
 ### Commit ledger
@@ -1180,7 +1202,7 @@ STOP CONDITION:          S26-b1 READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Assumption | Verified in | If false |
 | --- | --- | --- | --- |
-| A-V-1 | Blender's import of `vitruvian.glb` gives the same armature (heads, tails, rolls) as its import of `body_g5.glb` | B10 step 1 | stop (Q-B1-2 (b) becomes necessary) |
+| A-V-1 | Blender's import of `vitruvian.glb` gives the same armature (heads, tails, rolls) as its import of `body_g5.glb` | B10 step 1 | stop: Q-B1-2's ruling rests on this, so the question returns to the primary session with the evidence |
 | A-V-2 | The D+ scripts as they are on disk produced the committed asset (mtimes, A-B1-2) | B10 step 3 | localize; if an intermediate does not reproduce from its own script, record the evidence and stop |
 | A-V-3 | Godot imports a `.gltf` with an external PNG without copying the pixels | B10 step 6 | §5.9's fallback goes to the primary session |
 | A-V-4 | pytest at `tools/character_pipeline/tests` runs under the workspace's environment with no `addopts` | B2 | add a local `pytest.ini` with no options, recorded |
