@@ -1753,6 +1753,30 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   3.9.6 and fails at `import tomllib` (line 60) with no version message. The record and check were run with
   `/opt/homebrew/bin/python3.11` (3.11.15). Action: `ci_parity.py` should state its minimum Python. Owner: the
   parity tooling, not P6a; recorded here for the tooling owner.
+- **M-P6a-merge (resume, 2026-10-15): merge of `origin/main` @ 5cbb469 (240 commits, P6b #207 among them).**
+  Two conflicts, both append-append, resolved keeping both sides: `docs/DECISIONS.md` (main's records in full;
+  `ARC-74` moved to the end of the file; `check_decision_ids.py`: 139 ids, all distinct) and this file's §15
+  (P6a rows A0–A3 from this branch, P6b rows C0–C15 from main; both lanes' evidence, mutations and findings
+  kept, P6a's first). Auto-merged without conflict and checked: `systems/installed/src/lib.rs` (the `Persona`
+  line beside main's new systems), `worlds/social-cafe/world.yaml` (`persona` still last of `systems:`; main
+  added three people, `otto`, `visitor`, `wanderer`, who carry no `persona:` — the design names nine people),
+  `docs/MODULE_SPEC.md` §4.1 (eight sections, unchanged count). P6b's reader
+  (`cognition/lm-controller/src/mineworld_cognition/controller/persona.py`) decodes exactly the object this
+  pack discloses (`summary`, optional `traits`, optional `speech`, same bounds).
+- **F-P6a-4 (resume, 2026-10-15; bounded, outside the file list of §12.1, flagged for review).** DL-a's golden
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (AC-DLa-1, read by
+  `tools/cli/tests/decisions.rs`) records social-cafe's 30-day `run` output and fails with P6a: the nine new
+  genesis facts. Regenerated from the merged head's binary (`mineworld run worlds/social-cafe --headless --seed 7
+  --days 30`, `wall` line removed). The difference is exactly: every `day N … facts F` line +9 (30 of 30), one new
+  line `facts      persona-authored 9`, and the `history` line (84639 → 84648 facts, FNV `af1927a1e2182bcd` →
+  `efafdd88e0cef186`). Every `consults`, `requests`, behaviour `facts`, `activity` and `faults` line is
+  byte-identical, which is direct evidence that persona changes no behaviour (R-S10-9). This is the same class
+  of change as QP6-2's re-baseline and follows S26-a's precedent for the same fixture (`pr-s26a-appearance.md`
+  §3, C4 step 8); because the file is not in §12.1's APPROVED SCOPE it is committed on its own so the reviewer
+  can confirm or drop it. Whichever of P6a and S26-a merges second regenerates it again.
+- **AP6a-1 "file" verified (resume, 2026-10-15; closes D-P6a-3).** A copy of social-cafe with `mood: cheerful`
+  added to Alice's `persona:` is refused by `mineworld validate`, exit 1: `…/social-cafe/people/alice.yaml is not
+  a valid person file: error: line 38 column 3: unknown field \`mood\`, expected one of summary, traits, speech`.
 - **D-P6b-1 (C0, bounded).** FG-c is not merged, so `memory.retention.selection.resolve` takes no
   `summarize` argument. R-P6-FGc-1 is not wired in P6b. Under the design's rule ("whichever of FG-c and P6
   merges second wires it"), P6b is the first to merge and does not wire it; the FG-c PR wires
