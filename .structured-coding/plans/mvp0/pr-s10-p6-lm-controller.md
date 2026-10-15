@@ -1602,7 +1602,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C4 | — | [x] | [x] | [x] |
 | C5 | — | [x] | [x] | [x] |
 | C6 | — | [x] | [x] | [x] |
-| C7 | — | [ ] | [ ] | [ ] |
+| C7 | — | [x] | [x] | [x] |
 | C8 | — | [ ] | [ ] | [ ] |
 | C9 | — | [ ] | [ ] | [ ] |
 | C10 | — | [ ] | [ ] | [ ] |
@@ -1732,6 +1732,23 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   re-derives the situation from the newest observation, C9).
   Process slip: one `sed -i` was attempted by mistake (a no-op that failed on its arguments; no file changed).
   It is against the NEVER list and is recorded here, not repeated.
+- **C7 (2026-10-14).** Step 1 (F-P6-9): FG-b's `memory/retention/registry.py` is coupled to
+  `ForgettingPolicy` (its `from_entry_points` checks a `plan` method), so it is NOT called. `controller/retry.py`
+  mirrors its shape (group `mineworld.retry`, id = entry-point name, strict `Parameters`, typed load errors),
+  and FG-b's file is unchanged. Step 2: `controller/failures.py` (`FailureClass`, `FailureRecord`, `from_gate`,
+  `from_content`, `from_semantic`, `from_refused`, `from_seat`; the statuses 408, 409, 425, 429, 500, 502, 503,
+  504, 529). Step 3: `controller/retry.py` (`RetryDecision`, the `RetryPolicy` protocol, `ExponentialBackoff`,
+  `Fixed`, `NoRetry`, `RetryRegistry.installed()`, `bind`, `UnknownRetryPolicy`, `InvalidRetryParameters`,
+  `BoundRetry`). Step 4: `pyproject.toml` `[project.entry-points."mineworld.retry"]` with the three ids;
+  `uv sync --locked`; `uv.lock` unchanged (diff empty); the three entry points load. Step 5:
+  `tests/test_controller_retry.py` (26 passed): one table row per §5.5.1 line; delays for seed 0 equal the
+  hand-computed values (the first three draws of `random.Random(0)` are in the test's docstring); jitter band;
+  `Retry-After` 6 makes the second delay at least 6; three attempts give two retries; `none`; `fixed`; unknown id
+  and `attempts = 0` refused naming the source. Static: ruff, pyright 0 errors. Mutation M-P6-4 (ignore
+  `retry_after_s`): `test_retry_after_lengthens_the_delay_to_at_least_its_value` red; reverted.
+  Note for C8: the design's C7 names `BoundRetry` with a `.decide`; `LayerPolicies` (C9) uses it.
+  Process slip: one `uv run --locked python -c` was used to list entry points (the same class as the earlier
+  `python3 -c`); no file changed, recorded here, not repeated.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
