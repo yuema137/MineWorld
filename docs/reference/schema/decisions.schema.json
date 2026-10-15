@@ -12,7 +12,8 @@
         "model": {
           "description": "The model that drives it.",
           "enum": [
-            "rule"
+            "rule",
+            "motivated"
           ],
           "type": "string"
         },
@@ -24,6 +25,83 @@
       "required": [
         "model"
       ],
+      "type": "object"
+    },
+    "Base": {
+      "description": "The base weight of each kind of choice, per mille (§5.4).",
+      "properties": {
+        "agenda": {
+          "description": "Head for my agenda's place.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "approach": {
+          "description": "Walk to somebody.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "door": {
+          "description": "Walk through a doorway.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "greet": {
+          "description": "Greet somebody.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "invite": {
+          "description": "Invite somebody to an activity.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "join": {
+          "description": "Join somebody's activity.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "leave": {
+          "description": "Leave my activity.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offered": {
+          "description": "Attempt a complete affordance the world offers.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stay": {
+          "description": "Do nothing.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "wander": {
+          "description": "Wander to a point nearby.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [],
       "type": "object"
     },
     "Memory": {
@@ -69,6 +147,12 @@
         "seat": {
           "description": "A person of the world listed under seats: in world.yaml.",
           "type": "string"
+        },
+        "store_bound_mib": {
+          "description": "The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it.",
+          "maximum": 1024,
+          "minimum": 20,
+          "type": "integer"
         }
       },
       "required": [
@@ -93,11 +177,64 @@
           "description": "The memory policy's id.",
           "pattern": "^[a-z][a-z0-9-]{0,47}$",
           "type": "string"
+        },
+        "store_bound_mib": {
+          "description": "The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it.",
+          "maximum": 1024,
+          "minimum": 20,
+          "type": "integer"
         }
       },
       "required": [
         "policy"
       ],
+      "type": "object"
+    },
+    "Roles": {
+      "description": "The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it. Each role lists at most eight tags (SD-DLb-7).",
+      "properties": {
+        "eat": {
+          "description": "Places a person eats in.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "home": {
+          "description": "Places a person sleeps in.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "outdoor": {
+          "description": "Places a person is outdoors in.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "shop": {
+          "description": "Places a person shops in.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "work": {
+          "description": "Places a person works in.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        }
+      },
+      "required": [],
       "type": "object"
     }
   },
@@ -144,7 +281,8 @@
     "default": {
       "description": "The model that drives every seat no assignment names. Absent, the rule model.",
       "enum": [
-        "rule"
+        "rule",
+        "motivated"
       ],
       "type": "string"
     },
@@ -156,6 +294,86 @@
       "additionalProperties": false,
       "description": "The models this file configures, each once, by id: an in-process model's parameters, an out-of-process model's fallback. A model used but not listed runs with its defaults.",
       "properties": {
+        "motivated": {
+          "additionalProperties": false,
+          "description": "The motivated model, which the host runs in process.",
+          "properties": {
+            "parameters": {
+              "description": "The motivated model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.",
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/Base",
+                  "description": "The base weight of each option, per mille."
+                },
+                "commit_minutes": {
+                  "description": "Minutes a door is kept, 15 … 1 440.",
+                  "format": "int64",
+                  "maximum": 1440,
+                  "minimum": 15,
+                  "type": "integer"
+                },
+                "curve": {
+                  "additionalProperties": {
+                    "items": {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        {
+                          "format": "uint32",
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "type": "array"
+                  },
+                  "description": "Per-world overrides of single curves, by name, as the points written.",
+                  "type": "object"
+                },
+                "curves": {
+                  "description": "The named curve set. Only `atus-a3-2025` ships (SD-DLb-8).",
+                  "enum": [
+                    "atus-a3-2025"
+                  ],
+                  "type": "string"
+                },
+                "reply_floor": {
+                  "description": "Per mille, 0 … 1 000: the least chance an addressed person replies.",
+                  "format": "uint32",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "roles": {
+                  "$ref": "#/$defs/Roles",
+                  "description": "The tags each role names."
+                },
+                "social_need_hours": {
+                  "description": "Hours without contact at which loneliness reaches its top, 1 … 72.",
+                  "format": "int64",
+                  "maximum": 72,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "top_band": {
+                  "description": "Out of 1 000 (per mille), 0 … 500: the band a draw chooses from.",
+                  "format": "uint32",
+                  "maximum": 500,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "rule": {
           "additionalProperties": false,
           "description": "The rule model, which the host runs in process.",

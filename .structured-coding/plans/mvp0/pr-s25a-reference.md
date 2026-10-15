@@ -325,6 +325,16 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
 - **Bounded correction — a named choice is shown as its choices.** A field whose bound narrows its type
   (`familiarity_decay`: `$ref CurveName` + `enum`) printed only the type's link; `type_of` now prefers
   `enum` over `$ref` ("one of `none`, `linear`, `half-life`, `power`").
+- **Bounded correction — the second merger's schema (after the origin/main merge).** `MotivatedParameters`
+  (DL-b) did not compile under `ModelParameters: JsonSchema`. It and its nested `Base` and `Roles` derive
+  `JsonSchema` (`schemars` added to `cognition/motivated`), with each documented bound as a schema range
+  (`top_band` 0 … 500, `commit_minutes` 15 … 1 440, `social_need_hours` 1 … 72, `reply_floor` 0 … 1 000,
+  each `base` option 0 … 1 000), `curves` as `enum: [atus-a3-2025]`, `roles` at most eight tags, `settings`
+  skipped, and every key optional (the block keeps its defaults). `file_schema` carries the generator's
+  definitions into `$defs`, so a model's nested types link to their own sections. FG-b2's `store_bound_mib`
+  is added to `MemoryPolicy` and `MemoryAssignment` in the hand-written schema (20 … 1 024, the cognition
+  host's bound; the Rust reader passes it through without judging it, so the schema states a range the
+  reader does not itself refuse). `read_tests.rs` lists the two keys.
 - Post-merge validation (R-LOAD-1: touched crates only): `cargo check --workspace --all-targets`,
   `cargo clippy --workspace --all-targets --all-features -D warnings` clean, `cargo fmt --check` clean,
   `cargo deny check licenses sources bans` ok; `cargo test` of mineworld-decision (18),

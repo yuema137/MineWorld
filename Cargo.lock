@@ -1213,6 +1213,7 @@ dependencies = [
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-weather",
+ "schemars",
  "serde",
  "serde_json",
 ]

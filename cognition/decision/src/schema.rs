@@ -30,7 +30,7 @@ pub fn file_schema<C: Catalog>() -> Schema {
         .find(|model| !model.is_external())
         .map_or("rule", |model| model.id());
     let policy = format!("^[a-z][a-z0-9-]{{0,{}}}$", PolicyId::MAX_BYTES - 1);
-    schemars::json_schema!({
+    let mut schema = schemars::json_schema!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "DecisionList",
         "description": "Which decision model drives each seat of the world, and which memory policy \
@@ -137,7 +137,18 @@ pub fn file_schema<C: Catalog>() -> Schema {
                 }],
             },
         }],
-    })
+    });
+    // A model's parameters may refer to their own nested types (`MotivatedParameters` refers to `Base`):
+    // those definitions live in the generator, so they are carried into this file's `$defs`.
+    let definitions = generator.take_definitions(true);
+    if let Some(defs) = schema
+        .as_object_mut()
+        .and_then(|root| root.get_mut("$defs"))
+        .and_then(Value::as_object_mut)
+    {
+        defs.extend(definitions);
+    }
+    schema
 }
 
 /// One installed model's entry under `models:`.
@@ -199,6 +210,14 @@ fn memory_fields(policy: &str, assignment: bool) -> Value {
             "description": "The policy's parameters, passed through as written: a mapping with text \
                             keys and no YAML tags.",
             "type": "object",
+        },
+        "store_bound_mib": {
+            "description": "The per-person memory store's bound, in MiB, which a world may raise above \
+                            the cognition host's floor of 20 MiB. Absent, the floor. Passed through \
+                            as written; the cognition host judges it.",
+            "type": "integer",
+            "minimum": 20,
+            "maximum": 1_024,
         },
     });
     if let (true, Some(map)) = (assignment, fields.as_object_mut()) {

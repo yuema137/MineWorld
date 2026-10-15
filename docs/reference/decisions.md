@@ -18,7 +18,7 @@ Which decision model drives each seat of the world, and which memory policy each
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `assign` | list of [Assignment](#decisions-assignment) | no | — | — | Which model drives a seat, or every seat of a class. A seat's entry wins over its class's, and a class's over the default; one entry per seat and one per class. |
-| `default` | one of `rule` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
+| `default` | one of `rule`, `motivated` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
 | `memory` | [Memory](#decisions-memory) | no | — | — | Which memory policy each seat's controller uses. Absent, the cognition process's own default for every seat. |
 | `models` | [`models`](#decisions-models) | no | — | — | The models this file configures, each once, by id: an in-process model's parameters, an out-of-process model's fallback. A model used but not listed runs with its defaults. |
 
@@ -55,7 +55,7 @@ One assignment: exactly one of seat and class, and the model.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `class` | text | no | — | — | A class of persons defined in configure/classes.yaml; not person, which default: covers. |
-| `model` | one of `rule` | yes | — | — | The model that drives it. |
+| `model` | one of `rule`, `motivated` | yes | — | — | The model that drives it. |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
 
 <a id="decisions-models"></a>
@@ -66,7 +66,18 @@ The models this file configures, each once, by id: an in-process model's paramet
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `motivated` | [`models.motivated`](#decisions-models-motivated) | no | — | — | The motivated model, which the host runs in process. |
 | `rule` | [`models.rule`](#decisions-models-rule) | no | — | — | The rule model, which the host runs in process. |
+
+<a id="decisions-models-motivated"></a>
+
+#### `models.motivated`
+
+The motivated model, which the host runs in process.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `parameters` | [`models.motivated.parameters`](#decisions-models-motivated-parameters) | no | — | — | The motivated model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
 
 <a id="decisions-models-rule"></a>
 
@@ -77,6 +88,42 @@ The rule model, which the host runs in process.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `parameters` | mapping | no | — | — | The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
+
+<a id="decisions-models-motivated-parameters"></a>
+
+#### `models.motivated.parameters`
+
+The motivated model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `base` | [Base](#decisions-base) | no | — | — | The base weight of each option, per mille. |
+| `commit_minutes` | whole number | no | — | 15 to 1440 | Minutes a door is kept, 15 … 1 440. |
+| `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
+| `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
+| `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
+| `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
+| `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
+| `top_band` | whole number | no | — | 0 to 500 | Out of 1 000 (per mille), 0 … 500: the band a draw chooses from. |
+
+<a id="decisions-base"></a>
+
+#### `Base`
+
+The base weight of each kind of choice, per mille (§5.4).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `agenda` | whole number | no | — | 0 to 1000 | Head for my agenda's place. |
+| `approach` | whole number | no | — | 0 to 1000 | Walk to somebody. |
+| `door` | whole number | no | — | 0 to 1000 | Walk through a doorway. |
+| `greet` | whole number | no | — | 0 to 1000 | Greet somebody. |
+| `invite` | whole number | no | — | 0 to 1000 | Invite somebody to an activity. |
+| `join` | whole number | no | — | 0 to 1000 | Join somebody's activity. |
+| `leave` | whole number | no | — | 0 to 1000 | Leave my activity. |
+| `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
+| `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
+| `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |
 
 <a id="decisions-memory"></a>
 
@@ -102,6 +149,7 @@ One memory assignment: exactly one of seat and class, and the policy.
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
+| `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
 
 <a id="decisions-memorypolicy"></a>
 
@@ -114,3 +162,18 @@ A memory policy, with its fallback and parameters.
 | `fallback` | text | no | — | matches `^[a-z][a-z0-9-]{0,47}$` | The policy used when this one cannot run. |
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
+| `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-roles"></a>
+
+#### `Roles`
+
+The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it. Each role lists at most eight tags (SD-DLb-7).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `eat` | list of text | no | — | at most 8 entries | Places a person eats in. |
+| `home` | list of text | no | — | at most 8 entries | Places a person sleeps in. |
+| `outdoor` | list of text | no | — | at most 8 entries | Places a person is outdoors in. |
+| `shop` | list of text | no | — | at most 8 entries | Places a person shops in. |
+| `work` | list of text | no | — | at most 8 entries | Places a person works in. |

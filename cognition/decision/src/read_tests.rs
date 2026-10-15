@@ -794,11 +794,18 @@ fn the_schema_states_what_the_reader_accepts() {
     assert_eq!(keys("/$defs/Memory/properties"), ["assign", "default"]);
     assert_eq!(
         keys("/$defs/MemoryPolicy/properties"),
-        ["fallback", "parameters", "policy"]
+        ["fallback", "parameters", "policy", "store_bound_mib"]
     );
     assert_eq!(
         keys("/$defs/MemoryAssignment/properties"),
-        ["class", "fallback", "parameters", "policy", "seat"]
+        [
+            "class",
+            "fallback",
+            "parameters",
+            "policy",
+            "seat",
+            "store_bound_mib"
+        ]
     );
 
     let unknown = example.replacen('{', "{\"not_a_field\":1,", 1);
