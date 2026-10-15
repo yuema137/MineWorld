@@ -8,6 +8,10 @@ recorded as `fallback:<reason>`. An assisted policy (FG-c) is first given the fa
 propagates and rolls the pass back (FGc-6). The bound is the host's (FGb-2). A breach of the store-side coverage
 invariant (FGb-1) is a defect: it raises, and the pass rolls back. A pass never writes `cursor` or
 `newest` (P4-2) and reads no clock: `now` is fixed by the triggering fact (FGb-5).
+
+A pass has a cause (pr-fg-b2 §4.3): `day`, at the first perceived fact of a new day, or `size`, after the
+fact that took the store's content over its trigger. Both are the same pass; only a day pass advances
+`meta.retention_day`. The log is keyed by the triggering fact, the newest ingested at the pass.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import cast
+from typing import Literal, cast
 
 from mineworld_cognition.backend.canonical import CassetteKey
 from mineworld_cognition.compress.model_summarizer import valid_prose
@@ -30,7 +34,7 @@ from mineworld_cognition.memory.retention.assisted import (
     SummaryGateway,
     SummaryUnavailable,
 )
-from mineworld_cognition.memory.retention.bound import TARGET, enforce, fallback
+from mineworld_cognition.memory.retention.bound import enforce, fallback
 from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
@@ -40,6 +44,8 @@ from mineworld_cognition.memory.retention.selection import Retention
 from mineworld_cognition.memory.store import MemoryStore
 
 PASS_LOG_ROWS = 32
+
+type PassCause = Literal["day", "size"]
 
 
 @dataclass(frozen=True)
@@ -63,6 +69,10 @@ class PassReport:
     """Decisions of the final plan that came from accepted model answers (0 for a plain pass)."""
     fallback_decisions: int = 0
     """Decisions of the final plan that came from the fallback (0 for a plain pass)."""
+    cause: PassCause = "day"
+    """Why the pass ran: the day's first fact, or the store nearing its bound (pr-fg-b2 §4.3)."""
+    trigger: str = ""
+    """The event key of the newest fact ingested at the pass: the pass log's key."""
 
 
 class RetentionInvariantBroken(RuntimeError):
@@ -81,19 +91,22 @@ class _Decided:
     """Prose to store on surviving answered containers: (container, prose, cassette key)."""
 
 
-async def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassReport:
+async def run_pass(
+    store: MemoryStore, retention: Retention, now: int, cause: PassCause = "day"
+) -> PassReport:
     day = now // DAY_S
+    bounds = retention.bounds
     with store.transaction() as db:
         extracted = extract(store)
         before = extracted.total
         budget = RetentionBudget.model_construct(
-            store_bytes=max(0, TARGET - extracted.overhead), now=now, calls_left=0
+            store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
         )
-        decided = await _decide(store, retention, extracted, budget)
+        decided = await _decide(store, retention, extracted, budget, cause)
         counts = execute(db, decided.resolved, extracted, fts=store.fts)
         _write_prose(db, decided.prose, extracted)
         normalize(db)
-        forced, after = enforce(store, now)
+        forced, after = enforce(store, now, bounds)
         check_structure(db)
         (ranges,) = db.execute("SELECT count(*) FROM forgotten").fetchone()
         report = PassReport(
@@ -109,6 +122,8 @@ async def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassRe
             ranges,
             decided.model_decisions,
             decided.fallback_decisions,
+            cause,
+            store.newest() or "",
         )
         _log(db, report)
     store.reclaim()
@@ -116,10 +131,20 @@ async def run_pass(store: MemoryStore, retention: Retention, now: int) -> PassRe
 
 
 async def _decide(
-    store: MemoryStore, retention: Retention, extracted: Extracted, budget: RetentionBudget
+    store: MemoryStore,
+    retention: Retention,
+    extracted: Extracted,
+    budget: RetentionBudget,
+    cause: PassCause,
 ) -> _Decided:
     if retention.fallback is None:
         return _plain(retention.policy, extracted, budget)
+    if cause == "size":
+        # A size pass never calls a model (pr-fg-b2 §4.9, R-FGc-FGb2-1): the fallback decides alone, so
+        # an assisted seat's calls per simulated day stay those of its daily passes.
+        resolved, decisions, refusal = _fallback_plan(retention.fallback, extracted, budget)
+        outcome = f"fallback:{refusal}" if refusal is not None else "fallback:size"
+        return _Decided(outcome, resolved, 0, len(decisions), ())
     return await _assisted(store, retention, extracted, budget)
 
 
@@ -319,11 +344,13 @@ def _write_prose(
 
 def _log(db: sqlite3.Connection, report: PassReport) -> None:
     db.execute(
-        "INSERT INTO retention_passes (day, policy, outcome, kept, merged, dropped, forced, "
-        "bytes_before, bytes_after, forgotten_ranges, model_decisions, fallback_decisions) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO retention_passes (trigger, day, cause, policy, outcome, kept, merged, dropped, "
+        "forced, bytes_before, bytes_after, forgotten_ranges, model_decisions, fallback_decisions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
+            report.trigger,
             report.day,
+            report.cause,
             report.policy,
             report.outcome,
             report.kept,
@@ -338,11 +365,12 @@ def _log(db: sqlite3.Connection, report: PassReport) -> None:
         ),
     )
     db.execute(
-        "DELETE FROM retention_passes WHERE day NOT IN "
-        "(SELECT day FROM retention_passes ORDER BY day DESC LIMIT ?)",
+        "DELETE FROM retention_passes WHERE trigger NOT IN "
+        "(SELECT trigger FROM retention_passes ORDER BY trigger DESC LIMIT ?)",
         (PASS_LOG_ROWS,),
     )
-    db.execute("UPDATE meta SET value = ? WHERE key = 'retention_day'", (str(report.day),))
+    if report.cause == "day":
+        db.execute("UPDATE meta SET value = ? WHERE key = 'retention_day'", (str(report.day),))
 
 
 def check_structure(db: sqlite3.Connection) -> None:

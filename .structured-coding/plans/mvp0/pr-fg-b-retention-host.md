@@ -499,6 +499,16 @@ parameters: a world or a policy cannot loosen them (step-24 §1.2 ruling 2 (4)).
 room for one simulated day of ingestion before the next pass (QFGb-2). `overhead` = the dump bytes of
 `meta`, `names`, `forgotten`, `retention_passes` and the open episode with its record.
 
+**Note, 2026-10-14 — revised by FG-b2 under the operator's rulings ([`pr-fg-b2-size-trigger.md`](pr-fg-b2-size-trigger.md)).**
+The paragraph above is superseded in three points; the rest of §5.6–§5.7 stands. (1) The bound is 20 MiB
+per person by default (20 971 520 B), raisable by a world through `store_bound_mib`, never lower; `TARGET`
+is 75 % of it (15 728 640 B at the default) and both live in `StoreBounds` on `Retention`, not as module
+constants. (2) A size pass runs after the fact that takes the store's content over `bound − bound / 16`
+(19 660 800 B), so the hard bound holds between passes in any world, not only at the reference worlds' pass
+points (QFGb-2's reading and R-FGb-2 are superseded). (3) The pass log is keyed by its triggering fact and
+records its cause (schema v3). PR 12d (#171) measured 1 496 077 B before a daily pass, which FG-b's 1 MiB
+reading could not hold. AFGb-4's figures are re-derived in FG-b2 §7.
+
 #### 5.7.0 Eligible items
 
 Every L0 record inside a **closed** episode; every closed episode; every chapter; every L3 row. The open

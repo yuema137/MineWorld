@@ -113,7 +113,11 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
         .filter(|l| l.kind == "controller-pack")
         .map(|l| l.id)
         .collect();
-    assert_eq!(controllers, ["mineworld-rule-controller"]);
+    // In `cognition/installed`'s order: `rule`, then `motivated` (DL-b).
+    assert_eq!(
+        controllers,
+        ["mineworld-rule-controller", "mineworld-motivated"]
+    );
 
     for line in listed.iter().filter(|l| l.kind != "world-pack") {
         assert_eq!(
@@ -130,7 +134,7 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
         );
     }
     assert!(
-        listing.ends_with(&format!("{} packs\n", AVAILABLE.len() + 1)),
+        listing.ends_with(&format!("{} packs\n", AVAILABLE.len() + controllers.len())),
         "{listing}"
     );
 }
