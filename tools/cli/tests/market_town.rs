@@ -37,6 +37,7 @@ use headless::{
 };
 use market::{MARKET_TOWN, Town, market_lives, run_market, state_matches_replay};
 use mineworld_contracts::EventEnvelope;
+use mineworld_persistence::{Durability, PersistenceBackend, SqliteBackend};
 use mineworld_test_support::process;
 
 const SEED: u64 = 7;
@@ -87,17 +88,16 @@ fn save_bytes(save: &Path) -> u64 {
     size("world.sqlite") + size("world.sqlite-wal")
 }
 
-/// The 30-day size bound, `ASR-2` (`ARC-81`; QSR-5 made it a CI assertion): the save on disk —
-/// `world.sqlite` and any `-wal` beside it — is at most 128 MiB, and it holds exactly the snapshots the
-/// retention rule keeps for a headless run, computed here: genesis, every multiple of 4 096 up to the
-/// newest scheduled snapshot *n*, and *n* − 64 and *n*.
-///
-/// 128 MiB, not 64, since people walk (the operator's ruling on step-11 M-6, 2026-10-10; `ARC-81`
-/// note): a walk's strides are requests and facts of their own, so a walking town records about 2.2 ×
-/// the facts, and its 30-day save measured 112.3 MiB against 59.2 MiB before. The snapshot rule is
-/// unchanged. SR-b's log compression is expected to bring the size back down.
+const MIB: f64 = 1_048_576.0;
+
+/// The 30-day size bound, `ASRB-3` (`ARC-89`, operator QSRB-4; it replaced `ASR-2`'s 128 MiB): the save
+/// on disk — `world.sqlite` and any `-wal` beside it — is at most 48 MiB; it holds exactly the snapshots
+/// the retention rule keeps for a headless run (`ARC-81`), computed here: genesis, every multiple of
+/// 4 096 up to the newest scheduled snapshot *n*, and *n* − 64 and *n*; and exactly the sealed blocks the
+/// sealing rule makes for its head, computed here: (4 096·k, 4 096·(k + 1)] for every k with
+/// 4 096·(k + 2) at or below the head.
 fn save_is_bounded(save: &Path, tables: &Tables) {
-    const BOUND: u64 = 128 * 1024 * 1024;
+    const BOUND: u64 = 48 * 1024 * 1024;
     let bytes = save_bytes(save);
     let head = u64::try_from(tables.journal.len()).expect("fits");
     let newest = head - head % 64;
@@ -112,20 +112,67 @@ fn save_is_bounded(save: &Path, tables: &Tables) {
         .map(|(revision, _)| *revision)
         .collect();
     let stored: usize = tables.snapshots.iter().map(|(_, bytes)| bytes.len()).sum();
+    let blocks: Vec<(u64, u64)> = SqliteBackend::open(save, Durability::ProcessCrash)
+        .expect("the save opens")
+        .sealed()
+        .expect("reads")
+        .iter()
+        .map(|block| (block.span.first.raw(), block.span.last.raw()))
+        .collect();
+    let rule: Vec<(u64, u64)> = (0..)
+        .take_while(|k| (k + 2) * 4_096 <= head)
+        .map(|k| (k * 4_096 + 1, (k + 1) * 4_096))
+        .collect();
     eprintln!(
-        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), {} snapshots, {stored} B of them, head {head}",
-        bytes as f64 / 1_048_576.0,
-        held.len()
+        "ASRB-3: the 30-day save is {bytes} B ({:.1} MiB), {} snapshots ({stored} B), {} sealed blocks, \
+         head {head}",
+        bytes as f64 / MIB,
+        held.len(),
+        blocks.len()
     );
     assert!(
         bytes <= BOUND,
-        "ASR-2: the 30-day save is {bytes} B ({:.1} MiB), over the {} MiB bound",
-        bytes as f64 / 1_048_576.0,
+        "ASRB-3: the 30-day save is {bytes} B ({:.1} MiB), over the {} MiB bound",
+        bytes as f64 / MIB,
         BOUND / 1_048_576
     );
     assert_eq!(
         held, expected,
-        "ASR-2: the save keeps exactly genesis, the anchors and the newest two"
+        "ARC-81: the save keeps exactly genesis, the anchors and the newest two"
+    );
+    assert!(
+        !rule.is_empty(),
+        "located: a 30-day save seals ({head} revisions)"
+    );
+    assert_eq!(
+        blocks, rule,
+        "ASRB-3: the save holds exactly the sealing rule's blocks for head {head}"
+    );
+}
+
+/// The 300-day bound and the growth bound, `ASRB-1` and `ASRB-2` (`ARC-89`, operator QSRB-4): the
+/// 300-day save of a walking town is at most 80 MiB (96 MiB is the bound for towns with bodies, whose
+/// lane re-records this when it merges, QSRB-7), and from day 30 to day 300 of the same seed it grows by
+/// at most 0.25 MiB per simulated day.
+fn growth_is_bounded(thirty: u64, three_hundred: u64) {
+    const BOUND: u64 = 80 * 1024 * 1024;
+    const PER_DAY: f64 = 0.25;
+    let per_day = (three_hundred as f64 - thirty as f64) / 270.0 / MIB;
+    eprintln!(
+        "ASRB-1: the 300-day save is {three_hundred} B ({:.1} MiB); ASRB-2: it grew {per_day:.3} MiB per \
+         simulated day from day 30 ({thirty} B)",
+        three_hundred as f64 / MIB
+    );
+    assert!(
+        three_hundred <= BOUND,
+        "ASRB-1: the 300-day save is {three_hundred} B ({:.1} MiB), over the {} MiB bound",
+        three_hundred as f64 / MIB,
+        BOUND / 1_048_576
+    );
+    assert!(
+        per_day <= PER_DAY,
+        "ASRB-2: the save grew {per_day:.3} MiB per simulated day over days 30–300, over the \
+         {PER_DAY} MiB/day bound"
     );
 }
 
@@ -198,12 +245,7 @@ fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() 
 
     // ── CP-4: activity first (I-7). Nothing is compared before every compared run lives. ─────────
     let long_facts = living(&town, &long_printed, &long, 300, "300 days, seed 7");
-    // A measurement, not a bound (step-11 §21.15 M-6): the 300-day save of a walking town.
     let long_bytes = save_bytes(&long);
-    eprintln!(
-        "ASR-2 (measured, unbounded): the 300-day save is {long_bytes} B ({:.1} MiB)",
-        long_bytes as f64 / 1_048_576.0
-    );
     assert_eq!(lines(&long_printed, "day ").len(), 300, "a line per day");
     let history = lines(&long_printed, "history ");
     assert!(
@@ -225,6 +267,7 @@ fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() 
     // ── Only now: AC-12 and AC-6, byte for byte. ─────────────────────────────────────────────────
     let control_tables = Tables::read(&control);
     save_is_bounded(&control, &control_tables);
+    growth_is_bounded(save_bytes(&control), long_bytes);
     control_tables.assert_same_history(&Tables::read(&twin), "two 30-day runs of seed 7");
     assert_eq!(
         deterministic(&control_printed),

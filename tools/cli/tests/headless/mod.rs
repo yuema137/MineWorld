@@ -155,30 +155,65 @@ pub fn every_seat_active_in_every_bucket(printed: &str, seats: &[&str]) -> usize
     buckets.len()
 }
 
-/// A save's three append-only tables and its manifest, as stored.
+/// A save's history and its manifest: every fact and journal row in key order, live or sealed (read
+/// through the backend's cursors), the snapshots, and the raw rows of the `sealed` table (`ARC-89`).
 pub struct Tables {
     pub facts: Vec<(u64, Vec<u8>)>,
     pub journal: Vec<(u64, Vec<u8>)>,
     pub snapshots: Vec<(u64, Vec<u8>)>,
+    /// Each sealed block by its first revision: every other column, as stored, length-prefixed.
+    pub sealed: Vec<(u64, Vec<u8>)>,
     pub manifest: Manifest,
+}
+
+/// The `sealed` table's rows as stored, so that two saves can be compared block byte for block byte.
+fn sealed_rows(save: &Path) -> Vec<(u64, Vec<u8>)> {
+    let connection = rusqlite::Connection::open(SqliteBackend::file(save)).expect("the save opens");
+    let mut statement = connection
+        .prepare(
+            "SELECT first_revision, last_revision, first_event_id, last_event_id, max_action_id,
+                    journal, facts FROM sealed ORDER BY first_revision",
+        )
+        .expect("prepares");
+    statement
+        .query_map([], |row| {
+            let mut bytes = Vec::new();
+            for column in 1..=4 {
+                let value: Option<i64> = row.get(column)?;
+                bytes.extend_from_slice(&value.unwrap_or(-1).to_le_bytes());
+            }
+            for column in 5..=6 {
+                let blob: Vec<u8> = row.get(column)?;
+                bytes.extend_from_slice(&(blob.len() as u64).to_le_bytes());
+                bytes.extend_from_slice(&blob);
+            }
+            Ok((row.get::<_, i64>(0)?.unsigned_abs(), bytes))
+        })
+        .expect("queries")
+        .collect::<Result<_, _>>()
+        .expect("reads")
 }
 
 impl Tables {
     pub fn read(save: &Path) -> Self {
         let backend = SqliteBackend::open(save, Durability::ProcessCrash).expect("the save opens");
-        let all = usize::try_from(i64::MAX).expect("64-bit");
         let facts = backend
-            .last_facts(all)
+            .facts_after(None)
             .expect("facts")
-            .into_iter()
-            .map(|fact| (fact.id, fact.bytes))
+            .map(|fact| {
+                let fact = fact.expect("a fact reads");
+                (fact.id, fact.bytes)
+            })
             .collect();
         let journal = backend
-            .journal_after(WorldRevision::from_raw(0))
+            .revisions_after(WorldRevision::from_raw(0))
             .expect("journal")
-            .into_iter()
-            .map(|(revision, bytes)| (revision.raw(), bytes))
+            .map(|stored| {
+                let stored = stored.expect("a revision reads");
+                (stored.revision.raw(), stored.entry)
+            })
             .collect();
+        let sealed = sealed_rows(save);
         let snapshots = backend
             .snapshot_revisions()
             .expect("snapshot revisions")
@@ -199,6 +234,7 @@ impl Tables {
             facts,
             journal,
             snapshots,
+            sealed,
             manifest,
         }
     }
@@ -215,13 +251,14 @@ impl Tables {
         entry.input.at().seconds()
     }
 
-    /// Byte-for-byte equality of facts, journal and snapshots — the claim `AC-12` and `AC-6` make —
-    /// with the first difference named rather than a bare `false`.
+    /// Byte-for-byte equality of facts, journal, snapshots and sealed blocks — the claim `AC-12` and
+    /// `AC-6` make — with the first difference named rather than a bare `false`.
     pub fn assert_same_history(&self, other: &Self, what: &str) {
         for (name, ours, theirs) in [
             ("facts", &self.facts, &other.facts),
             ("journal", &self.journal, &other.journal),
             ("snapshots", &self.snapshots, &other.snapshots),
+            ("sealed", &self.sealed, &other.sealed),
         ] {
             assert_eq!(ours.len(), theirs.len(), "{what}: {name} row counts differ");
             if let Some((index, _)) = ours

@@ -35,7 +35,7 @@ record names no profile and is byte-identical to 13b's. `compare` refuses record
 `--timings T` writes wall times and save sizes to a separate JSON file, never into the record.
 
 `baseline check` holds a long record's history keys equal to the committed `scripts/baselines.txt`
-(`summary-300`, `summary-1000`, `summary-300s`, `facts-300s`, `journal-300s` for every world, the same
+(`summary-300`, `summary-1000`, `summary-300s`, `facts-300s`, `journal-300s`, `sealed-300s` for every world, the same
 world set both ways); `baseline write` rewrites that file from a long record, keeping each world's
 `reason` lines. `diff` locates where two records of different commits first differ, whatever their
 platforms.
@@ -77,7 +77,9 @@ PACK_ROOTS = ["--packs", "entities", "--packs", "presentation/mineworld-default"
 PLATFORM_KEYS = ("arch", "container", "emulated", "os", "rustc", "target", "translated")
 SOURCE_KEYS = ("commit", "record-format", "worlds")
 WORLD_KEYS = ("manifest", "summary-300", "summary-30s", "validate")
-REQUIRED_TABLES = ("facts", "journal", "snapshots")
+# `sealed` since SAVE_FORMAT 4 (docs/DECISIONS.md ARC-89): the log's older rows live there, so a save
+# without it is not a save this code writes, and its blocks are hashed like every other table.
+REQUIRED_TABLES = ("facts", "journal", "sealed", "snapshots")
 
 # The nightly's long profile (ARC-83). `default` is 13b's record, unchanged; `long` adds the keys below.
 PROFILES = ("default", "long")
@@ -100,6 +102,9 @@ BASELINE_KEYS = (
     ("summary-300s", "summary-300s"),
     ("facts-300s", "table-300s.facts.rows"),
     ("journal-300s", "table-300s.journal.rows"),
+    # Since SAVE_FORMAT 4 `facts` and `journal` hold the live tail and `sealed` the rest (ARC-89); the
+    # three together are the stored log, and `summary-300s`'s history fingerprint covers every fact.
+    ("sealed-300s", "table-300s.sealed.rows"),
 )
 BASELINES = ROOT / "scripts" / "baselines.txt"
 BASELINE_HEADER = (
@@ -660,8 +665,9 @@ class Baselines:
     reasons: dict[str, list[str]] = field(default_factory=dict)
 
 
-def parse_baselines(name: str, text: str) -> Baselines:
-    """A file that does not parse is refused with its line number; a reason is kept, never compared."""
+def parse_baselines(name: str, text: str, complete: bool = True) -> Baselines:
+    """A file that does not parse is refused with its line number; a reason is kept, never compared.
+    `complete` requires every key in every world; `write` reads the old file without it."""
     parsed = Baselines()
     names = [key for key, _ in BASELINE_KEYS]
     world: str | None = None
@@ -687,7 +693,7 @@ def parse_baselines(name: str, text: str) -> Baselines:
             parsed.values[world][key] = value
     for world, values in parsed.values.items():
         missing = [key for key in names if key not in values]
-        if missing:
+        if missing and complete:
             raise Unmet(f"{name}: [world {world}] lacks {', '.join(missing)}")
     return parsed
 
@@ -733,7 +739,9 @@ def read_record(path: str) -> Record:
 def baseline(action: str, record_path: str, baselines_path: Path) -> int:
     record = read_record(record_path)
     if action == "write":
-        kept = parse_baselines(str(baselines_path), baselines_path.read_text(encoding="utf-8")) \
+        # Only the reason lines are kept from the old file, so a key added since it was written (as
+        # `sealed-300s` was, ARC-89) is not required of it.
+        kept = parse_baselines(str(baselines_path), baselines_path.read_text(encoding="utf-8"), complete=False) \
             if baselines_path.is_file() else None
         baselines_path.write_text(render_baselines(record, kept), encoding="utf-8", newline="\n")
         print(f"[baseline] wrote {baselines_path} from {record_path} ({record.label()}, "
@@ -800,7 +808,8 @@ def synthetic(os_name: str, arch: str, container: str = "none") -> dict[str, dic
             "validate": "v", "manifest": "2 m", "summary-300": "2 s", "line-300.0000": "day 1",
             "line-300.0001": "faults 0", "summary-30s": "1 t", "line-30s.0000": "faults 0",
             "table.facts.rows": "2000 f", "table.facts.chunk.00000": "1 1000 x", "table.facts.chunk.00001": "1001 2000 y",
-            "table.journal.rows": "1 j", "table.snapshots.rows": "1 s",
+            "table.journal.rows": "1 j", "table.snapshots.rows": "1 s", "table.sealed.rows": "1 b",
+            "table.sealed.chunk.00000": "1 1 b",
         }
     return sections
 
@@ -839,6 +848,10 @@ def self_test() -> int:
          "G-3 no Linux x86_64"),
         ("a commit mismatch", [base[0], modified(linux, "source", "commit", "beef"), *base[2:]], "G-2 the records name different commits"),
         ("another toolchain", [base[0], modified(linux, "platform", "rustc", "1.97.0"), *base[2:]], "G-4"),
+        ("a differing sealed block (ARC-89)",
+         [base[0], modified(modified(linux, "world a", "table.sealed.chunk.00000", "1 1 c"),
+                            "world a", "table.sealed.rows", "1 c"), *base[2:]],
+         "table sealed"),
     ]
     failed = 0
     for name, legs, expected in cases:
@@ -849,7 +862,8 @@ def self_test() -> int:
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}" + ("" if good else f": got {failures or 'PASS'}"))
     malformed = [b"[platform]\nos\n", render({**base[0], "world b": {"validate": "v"}}),
-                 render(base[0]).replace(b"record-format 1", b"record-format 9")]
+                 render(base[0]).replace(b"record-format 1", b"record-format 9"),
+                 render(base[0]).replace(b"table.sealed.rows 1 b\n", b"")]
     for index, data in enumerate(malformed):
         try:
             parse(f"malformed{index}", data)
@@ -873,7 +887,7 @@ def lengthened(leg: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
             "summary-300s": "1 h", "line-300s.0000": "faults 0", "manifest-300s": "2 m",
             "table-300s.facts.rows": "2000 F", "table-300s.facts.chunk.00000": "1 1000 X",
             "table-300s.facts.chunk.00001": "1001 2000 Y", "table-300s.journal.rows": "3 J",
-            "table-300s.snapshots.rows": "1 S",
+            "table-300s.snapshots.rows": "1 S", "table-300s.sealed.rows": "1 B",
         })
     return copy
 

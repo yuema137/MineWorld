@@ -1199,6 +1199,19 @@ the no-LLM utility model (step-24 DL-b). `lm` is the LM Controller (step-17 P6),
 A director is a Controller Pack seated on an Organization; it is valid only once the Organization-seat rule
 is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCEPTS.md` §14 is amended then.
 
+**The bundled no-LLM model, `motivated`** (`cognition/motivated`, DL-b, `DECISIONS.md` `DEP-47`, `DEP-48`).
+- **What it is.** A pure, stateless, integer utility model. It scores every option the observation offers by
+  integer response curves, combines them through Mark's compensation factor, and chooses by a seeded draw
+  among the top band.
+- **Its daily rhythm** comes from the curve set `atus-a3-2025`. That set is derived from BLS American Time Use
+  Survey Table A-3 (2025), which is public domain. Source: U.S. Bureau of Labor Statistics, American Time Use
+  Survey. The credit is in `cognition/motivated/data/NOTICE`.
+- **Parameters.** `curves`, `top_band`, `commit_minutes`, `social_need_hours`, `reply_floor`, `base`, `roles`
+  and per-curve `curve` overrides (≤ 24 points each).
+- **Status.** It is installed but is never a default. A world selects it through a decision list, such as
+  the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
+  (F-DLb-5, `pr-dl-b-motivated.md` §15).
+
 ## 5.2 Memory policies and host bounds
 
 **Field reference.** This section states the shape and the rules. The field-level reference for the
@@ -1608,7 +1621,9 @@ the winning entry's mapping. The command is read-only.
 
 **`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
 head revision and its instant, the journal counted by input kind and outcome, the snapshots the save
-retains with each one's stored size on one line (`DECISIONS.md` `ARC-81`), the facts counted by
+retains with each one's stored size on one line (`DECISIONS.md` `ARC-81`), the log's storage on one
+`log` line — how many blocks are sealed, the revisions they cover, their stored bytes and the bytes of
+the rows they hold, and the revisions of the live tail (`DECISIONS.md` `ARC-89`), the facts counted by
 event type and by cause kind, the result of the causation check, and the last N facts
 (default 20) with their causes. The causation check (`MVP.md` §9 `AC-9`) requires every fact
 caused by an action to name an `ActionId` some journaled request carried, every fact caused by an
