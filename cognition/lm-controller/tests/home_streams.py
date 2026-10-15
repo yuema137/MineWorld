@@ -149,6 +149,26 @@ def day_frames(facts: Sequence[PerceivedEvent]) -> list[list[PerceivedEvent]]:
     return frames
 
 
+def interleave(
+    streams: dict[EntityKey, list[PerceivedEvent]], frame: int, seed: int
+) -> list[tuple[EntityKey, list[PerceivedEvent]]]:
+    """The seats' frames of `frame` facts, merged in a seeded order: at each step one seat that has frames
+    left is drawn (SplitMix64 of `(seed, step)`), and its next frame follows. Each seat's own order is kept;
+    the seats' relative order is the draw's alone."""
+    pending = {
+        seat: [facts[start : start + frame] for start in range(0, len(facts), frame)]
+        for seat, facts in sorted(streams.items())
+    }
+    merged: list[tuple[EntityKey, list[PerceivedEvent]]] = []
+    step = 0
+    while any(pending.values()):
+        ready = [seat for seat, frames in pending.items() if frames]
+        seat = ready[draw(seed, step, 90) % len(ready)]
+        merged.append((seat, pending[seat].pop(0)))
+        step += 1
+    return merged
+
+
 type Query = tuple[int, tuple[EntityId, ...], str]
 """`(at, counterparts, words)`: a `RecallQuery`'s fields."""
 

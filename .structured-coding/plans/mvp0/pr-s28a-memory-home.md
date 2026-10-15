@@ -801,8 +801,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C2 | `1cc4ce33` | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
 | C3 | `402426b5` | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
 | C4 | `7ec76cfd` | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
-| C5 | (this commit) | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
-| C6 … C9 | — | [ ] | [ ] | [ ] |
+| C5 | `419df400` | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
+| C6 | (this commit) | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: see evidence); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
+| C7 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -919,6 +920,23 @@ controller_seat}.py`, `test_home_gc.py::test_a_pass_touches_only_its_seat`.
   `_stable_facts` and the `execute`/`remove`/`normalize` signatures; no `StoreBounds` number, item rule or pass
   order changed; `host.check_structure` reads the seat's keys from `access` only.
 
+**C6 (2026-10-15).** `tests/home_streams.py::interleave` (each step draws one seat with frames left, SplitMix64 of
+`(seed, step)`; each seat's order kept), `tests/home_harness.py` (the `none` and `home` arms; every seat snapshot
+right after each of its passes — `absorb`'s `run_pass` wrapped in this process — and at the end: the sha256 and
+length of its seat-view dump and the sha256 of its 200 renders; in the `home` arm a seat joins at its first frame,
+so the internal seat numbers follow the interleaving), and four test files (D-a-13).
+- `test_home_transparency.py` (frames 256 and 4 096 × interleavings 1, 2, 3): 6 passed in 61.7 s (load 6.9) — PASS.
+- `test_home_transparency_frames.py` (frames 1 on days 0–1, and 7 × 3 interleavings): 6 passed in 42.7 s (load 13.4)
+  — PASS (a first run failed on the test's own expectation of ≥ 3 snapshots for frames of 1: two days hold one
+  pass and the end, 2 snapshots; the expectation was corrected to 2).
+- `test_home_isolation.py` (AC-a-4 × `keep-all`, `decay` threshold 1 000, `importance-recency-cap` every k 0; the
+  home dump identical for (frame, interleaving) = (256, 1), (256, 2), (4 096, 3)): 4 passed in 15.8 s — PASS.
+- `test_home_transparency_real.py` (the real 12-seat stream, frame 256, interleaving 1; run under
+  `cast-slots/with-slot.sh`, which waited 16 min 40 s for a slot): 1 passed in 9.14 s — PASS.
+- ruff, ruff format, pyright strict: PASS.
+- Review: every assertion compares the `home` arm with the `none` arm computed in the same test (or the home dumps
+  of several runs with each other); no value the home reports about itself is asserted.
+
 ### Mutations
 
 | Id | Planted | Expected red | Observed | Restored |
@@ -929,6 +947,8 @@ controller_seat}.py`, `test_home_gc.py::test_a_pass_touches_only_its_seat`.
 | M-a-5 | `retrieve._recent`'s L0 query with `? IS NOT NULL` in place of `a.seat = ?` | `test_home_golden.py::test_sections_name_only_held_facts` | **red**: that test | byte copy, `cmp` clean, 1 passed |
 | M-a-6 | `SeatView.release` deletes the access rows but does not subtract them from the meter | a size test or `test_the_meter_is_the_dump` | **red**: `test_home_store.py::test_the_meter_is_the_dump`; `test_retention_size.py::test_the_incremental_measure_is_the_dump_without_meta[consolidate]` and `[drop-everything]` | byte copy, `cmp` clean, 11 and 2 passed |
 | M-a-7 | `SeatView.release` deletes access rows with `? IS NOT NULL` in place of `seat = ?` | `test_home_gc.py::test_a_pass_touches_only_its_seat` | **red**: that test, and the three other multi-seat GC tests | byte copy, `cmp` clean, 5 passed |
+| M-a-8 | the view's `l0_who` keeps the seat's own row (`w.entity <> (? \|\| '#')`) | red by name in C6's harness | **red**: all 6 of `test_home_transparency_frames.py` (the meter, which `hold` keeps without the seat's row, no longer matches the rows `row_bytes` reads at the first pass); also `test_home_store.py::test_the_view_shows_its_held_facts_…` and `::test_the_meter_is_the_dump`, and `test_home_golden.py`'s three golden tests (episode texts name the seat). Note: the harness alone catches it through the meter, not through a `none`/`home` difference — the mutation is symmetric between the arms | byte copy, `cmp` clean; 6, 11 and 5 passed |
+| M-a-9 | `MemoryHome.dump()` orders seats by `seats.seat` instead of `key` | the interleaving test | **red**: `test_home_isolation.py::test_the_home_dump_is_the_same_for_every_interleaving_and_frame` | byte copy, `cmp` clean, 1 passed |
 | M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
@@ -1007,6 +1027,13 @@ where keep-all now first reaches the 15 MiB target (day 81 measured). Consequenc
 `executemany` 3.8 s self, the meter's `_put` 6.3 s cumulative before the codec fix). It is not a real-binary file
 and has no per-file budget of its own in §12; the python CI job ran 12–16 min of its 45 on `main`. Recorded for
 R-a-1; not a stop.
+
+**D-a-13 (bounded; R-a-2).** The harness is four files, not one: as one file it ran ≈ 280 s locally, over
+§12's 120 s per harness file (its cost is the 200 renders per seat and point, ≈ 90 % of a run: the I-S28-5 runs
+without sections take 0.5 s each). `test_home_transparency.py` (frames 256, 4 096), `test_home_transparency_frames.py`
+(frames 1, 7), `test_home_isolation.py` (AC-a-4 and the home dump across interleavings, I-S28-5, which §9 C6 asks
+of M-a-9's "interleaving test"), `test_home_transparency_real.py` (the real stream, `real_binary`). Shared
+machinery is `tests/home_harness.py`, a test-only module beside `home_streams.py`.
 
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
