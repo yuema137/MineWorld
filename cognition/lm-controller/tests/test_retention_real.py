@@ -14,16 +14,17 @@ from pathlib import Path
 
 import pytest
 from ac10_harness import History
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.ids import EntityKey
 from retention_driver import DAY, days, feed, frames, retention
 from retention_oracle import check_coverage
 from support import run
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 pytestmark = pytest.mark.real_binary
 
@@ -41,7 +42,7 @@ def _identity(history: History) -> StoreIdentity:
 
 
 def _day_by_day(
-    store: MemoryStore,
+    store: SeatView,
     history: History,
     kept: Retention,
     *,
@@ -85,7 +86,7 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
     history = social_cafe_100
     path = tmp_path / "alice.sqlite"
     started = time.monotonic()
-    with MemoryStore.open(path, _identity(history)) as store:
+    with seat_view(_identity(history), path) as store:
         measured = _day_by_day(store, history, retention("consolidate"))
         day_by_day = store.dump()
     wall = time.monotonic() - started
@@ -102,34 +103,36 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert before <= STORE_BOUND, (day, before)  # AFGb-4 (b), now held by the size trigger
     assert on_disk <= ON_DISK  # AFGb-11 (c)
     # AFGb-5 (a), real half: frames of 256 through absorb's main path give the same store.
-    with MemoryStore.open(":memory:", _identity(history)) as store:
+    with seat_view(_identity(history)) as store:
         feed(store, frames(history.alice, 256), retention("consolidate"))
         assert store.dump() == day_by_day
 
 
-KEEP_ALL_FROM = 30
-KEEP_ALL_DAYS = 40
-"""AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7): at ≈ 433 KB a day keep-all reaches the
-15 MiB target after ≈ 36 days (day 34 measured), so the host's own removals begin between days 30 and
-40. Before day 30 a keep-all pass removes nothing (the store is under the target), so those days are
-ingested at once, without passes; after day 40 every pass works on a store of ≈ 15 MiB. Both cuts keep
-the test within FG-b's 180 s per CI leg (Windows took 90 s for days 0 … 40 at first)."""
+KEEP_ALL_FROM = 75
+KEEP_ALL_DAYS = 85
+"""AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7), then for schema 4's positional seat view
+(pr-s28a C5 step 2): at ≈ 195 KB a day (measured: 19 530 040 B of content after 100 days of plain ingest,
+was ≈ 433 KB a day in schema 3's objects) keep-all reaches the 15 MiB target after ≈ 81 days, so the
+host's own removals begin between days 75 and 85. Before day 75 a keep-all pass removes nothing (the store
+is under the target), so those days are ingested at once, without passes; after day 85 every pass works on
+a store of ≈ 15 MiB. Both cuts keep the test within FG-b's 180 s per CI leg."""
 
 
 def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: History) -> None:
     history = social_cafe_100
     started = time.monotonic()
-    with MemoryStore.open(":memory:", _identity(history)) as store:
+    with seat_view(_identity(history)) as store:
         measured = _day_by_day(
             store, history, retention("keep-all"), from_day=KEEP_ALL_FROM, through_day=KEEP_ALL_DAYS
         )
     first = next((day for day, _, _, forced in measured if forced > 0), None)
     print(
         f"\n[retention-real keep-all] {len(measured)} passes, {time.monotonic() - started:.1f} s; "
-        f"(day, before, after, forced) at 30/40: {[_at(measured, d) for d in (30, 40)]}; "
+        f"(day, before, after, forced) at {KEEP_ALL_FROM}/{KEEP_ALL_DAYS}: "
+        f"{[_at(measured, d) for d in (KEEP_ALL_FROM, KEEP_ALL_DAYS)]}; "
         f"first forced pass: day {first}"
     )
     for day, before, after, _ in measured:
         assert after <= TARGET, (day, after)  # AFGb-4 (a)
         assert before <= STORE_BOUND, (day, before)
-    assert first is not None and 30 < first <= KEEP_ALL_DAYS, first  # AFGb-4 (c)
+    assert first is not None and KEEP_ALL_FROM < first <= KEEP_ALL_DAYS, first  # AFGb-4 (c)

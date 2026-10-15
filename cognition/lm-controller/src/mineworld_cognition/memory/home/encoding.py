@@ -40,7 +40,13 @@ def short_digest(value: Cell) -> Cell:
 
 def line(table: str, cells: Sequence[Cell], codecs: Sequence[Codec]) -> str:
     """A row's canonical line, without its newline."""
-    return _ENCODER.encode([table, *(code(cell) for code, cell in zip(codecs, cells, strict=True))])
+    if len(cells) != len(codecs):
+        raise ValueError(f"{table}: {len(cells)} cells for {len(codecs)} columns")
+    values: list[Cell] = [table, *cells]
+    for index, code in enumerate(codecs, start=1):
+        if code is not raw:
+            values[index] = code(values[index])
+    return _ENCODER.encode(values)
 
 
 def line_bytes(table: str, cells: Sequence[Cell], codecs: Sequence[Codec]) -> int:

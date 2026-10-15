@@ -10,7 +10,6 @@ set is therefore bounded by construction. The facts themselves stay in the save 
 
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import dataclass
 
 from mineworld_sdk.wire.ids import EventId
@@ -29,7 +28,8 @@ class ForgottenSet:
     @staticmethod
     def load(store: SeatView) -> ForgottenSet:
         rows: list[tuple[str, str]] = store.connection.execute(
-            "SELECT first_key, last_key FROM forgotten ORDER BY first_key"
+            "SELECT first_key, last_key FROM forgotten WHERE seat = ? ORDER BY first_key",
+            (store.seat_id,),
         ).fetchall()
         watermark = store.meta("forgotten_below")
         return ForgottenSet(
@@ -51,35 +51,40 @@ class ForgottenSet:
         return any(event_key(r.first) <= key <= event_key(r.last) for r in self._ranges)
 
 
-def normalize(db: sqlite3.Connection) -> None:
+def normalize(store: SeatView) -> None:
     """Merges ranges no surviving unit separates, then caps the set at `MAX_RANGES` with the watermark."""
+    db = store.connection
+    seat = store.seat_id
     rows: list[tuple[str, str]] = db.execute(
-        "SELECT first_key, last_key FROM forgotten ORDER BY first_key"
+        "SELECT first_key, last_key FROM forgotten WHERE seat = ? ORDER BY first_key", (seat,)
     ).fetchall()
     merged: list[list[str]] = []
     for first, last in rows:
-        if merged and not _unit_between(db, merged[-1][1], first):
+        if merged and not _unit_between(store, merged[-1][1], first):
             merged[-1][1] = last
         else:
             merged.append([first, last])
-    watermark: str = db.execute("SELECT value FROM meta WHERE key = 'forgotten_below'").fetchone()[
-        0
-    ]
+    watermark = store.meta("forgotten_below")
     while len(merged) > MAX_RANGES:
         oldest = merged.pop(0)
         watermark = max(watermark, oldest[1])
     if [tuple(pair) for pair in merged] != rows:
-        db.execute("DELETE FROM forgotten")
-        db.executemany("INSERT INTO forgotten (first_key, last_key) VALUES (?, ?)", merged)
-    db.execute("UPDATE meta SET value = ? WHERE key = 'forgotten_below'", (watermark,))
+        db.execute("DELETE FROM forgotten WHERE seat = ?", (seat,))
+        db.executemany(
+            "INSERT INTO forgotten (seat, first_key, last_key) VALUES (?, ?, ?)",
+            [(seat, first, last) for first, last in merged],
+        )
+    store.set_meta("forgotten_below", watermark)
 
 
-def _unit_between(db: sqlite3.Connection, after: str, before: str) -> bool:
-    """Whether a surviving unit (an episode, open or closed, or a chapter range) starts strictly between
-    two forgotten ranges. Units never overlap the forgotten set, so one between them starts there."""
-    found = db.execute(
-        "SELECT 1 FROM episodes WHERE first_key > ? AND first_key < ? "
-        "UNION ALL SELECT 1 FROM chapter_ranges WHERE first_key > ? AND first_key < ? LIMIT 1",
-        (after, before, after, before),
+def _unit_between(store: SeatView, after: str, before: str) -> bool:
+    """Whether a surviving unit of the seat (an episode, open or closed, or a chapter range) starts strictly
+    between two forgotten ranges. Units never overlap the forgotten set, so one between them starts there."""
+    seat = store.seat_id
+    found = store.connection.execute(
+        "SELECT 1 FROM episodes WHERE seat = ? AND first_key > ? AND first_key < ? "
+        "UNION ALL SELECT 1 FROM chapter_ranges WHERE seat = ? AND first_key > ? AND first_key < ? "
+        "LIMIT 1",
+        (seat, after, before, seat, after, before),
     ).fetchone()
     return found is not None

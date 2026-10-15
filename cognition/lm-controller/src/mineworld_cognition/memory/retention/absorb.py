@@ -108,7 +108,8 @@ def _retention_day(store: SeatView, facts: Sequence[PerceivedEvent]) -> int | No
     to its newest fact's day."""
     found: tuple[int | None] = store.connection.execute(
         "SELECT CASE WHEN value = '' THEN NULL ELSE CAST(value AS INTEGER) END FROM meta "
-        "WHERE key = 'retention_day'"
+        "WHERE seat = ? AND key = 'retention_day'",
+        (store.seat_id,),
     ).fetchone()
     if found[0] is not None:
         return found[0]
@@ -133,5 +134,9 @@ def _newest_at(store: SeatView) -> int | None:
     newest = store.newest()
     if newest is None:
         return None
-    (at,) = store.connection.execute("SELECT at FROM l0 WHERE event_key = ?", (newest,)).fetchone()
+    (at,) = store.connection.execute(
+        "SELECT f.at FROM access a JOIN fact f ON f.event_key = a.event_key "
+        "WHERE a.seat = ? AND a.event_key = ?",
+        (store.seat_id, newest),
+    ).fetchone()
     return at

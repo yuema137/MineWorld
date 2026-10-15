@@ -16,12 +16,15 @@ from home_streams import CAST, SEATS, world
 from memory_fixtures import ALICE, BOB, CAFE, CAROL, INSTANCE, spoke
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey
-from retention_stream import draw
+from retention_driver import DAY, retention
+from retention_stream import draw, stream
+from support import run
 
 from mineworld_cognition.memory.home import MemoryHome
-from mineworld_cognition.memory.ingest import digest
+from mineworld_cognition.memory.ingest import digest, ingest
 from mineworld_cognition.memory.records import EventKey, StoreIdentity, event_key
 from mineworld_cognition.memory.render import Rendered
+from mineworld_cognition.memory.retention.host import run_pass
 from mineworld_cognition.memory.scopes.world import ConflictingFact
 
 
@@ -152,3 +155,21 @@ def test_a_peers_record_is_verified_not_trusted() -> None:
         with opened.transaction():
             alice.hold(told, digest(told), rendering(told))
         assert alice.holds(event_key(told.id))
+
+
+def test_a_pass_touches_only_its_seat() -> None:
+    # A retention pass of one seat releases its own access rows only: a home-mate that perceived the same
+    # facts keeps every row and its dump byte for byte, and the shared records stay while it holds them.
+    # Its mutation (M-a-7) releases without the seat predicate: Bob's records go with Alice's.
+    facts = list(stream(7, 3, per_day=60))
+    with home() as opened:
+        alice = opened.seat(identity(EntityKey("alice")))
+        bob = opened.seat(identity(EntityKey("bob")))
+        for view in (alice, bob):
+            ingest(view, facts, facts[-1].id)
+        bob_before = bob.dump()
+        alice_before = len(alice.row_bytes("l0"))
+        run(run_pass(alice, retention("consolidate"), (facts[-1].at // DAY + 1) * DAY))
+        assert len(alice.row_bytes("l0")) < alice_before  # the pass merged Alice's records
+        assert bob.dump() == bob_before
+        assert anti_joins(opened.connection) == (set(), set())

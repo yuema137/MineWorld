@@ -114,7 +114,7 @@ def consolidated(store: SeatView, now: int, bounds: StoreBounds) -> int:
         store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
     )
     resolved = validate(fallback().plan(extracted.items, budget), extracted)
-    outcome = execute(store.connection, resolved, extracted, fts=store.fts)
+    outcome = execute(store, resolved, extracted)
     return outcome.merged + outcome.dropped
 
 
@@ -126,7 +126,7 @@ def enforce(store: SeatView, now: int, bounds: StoreBounds) -> tuple[int, int]:
     if size <= limit:
         return 0, size
     forced = consolidated(store, now, bounds)
-    normalize(store.connection)
+    normalize(store)
     size = store.size()
     steps: tuple[Callable[[Extracted, SeatView], list[tuple[ItemId, bool]]], ...] = (
         _closed_records,
@@ -159,14 +159,14 @@ def _shed(
     estimate = size
     for item, forget in order:
         if estimate <= limit:
-            normalize(store.connection)
+            normalize(store)
             size = store.size()
             if size <= limit:
                 return removed, size
             estimate = size
         estimate -= sum(extracted.by_id[each].bytes for each in nested(extracted, item))
-        removed += remove(store.connection, extracted, item, fts=store.fts, forget=forget)
-    normalize(store.connection)
+        removed += remove(store, extracted, item, forget=forget)
+    normalize(store)
     return removed, store.size()
 
 
@@ -196,6 +196,7 @@ def _chapterless_episodes(extracted: Extracted, store: SeatView) -> list[tuple[I
 
 def _stable_facts(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
     rows: list[tuple[str]] = store.connection.execute(
-        "SELECT entity FROM stable ORDER BY times_met, first_key, entity"
+        "SELECT entity FROM stable WHERE seat = ? ORDER BY times_met, first_key, entity",
+        (store.seat_id,),
     ).fetchall()
     return [(l3_item(entity), True) for (entity,) in rows]

@@ -8,10 +8,8 @@ and `outcome` fields.
 
 from __future__ import annotations
 
-import json
-
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import all_rows, seat_view
 from retention_driver import DAY, feed, retention
 from retention_fixtures import HOSTILE, DropEverything
 from retention_stream import stream
@@ -22,7 +20,6 @@ from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.forgotten import MAX_RANGES, ForgottenSet, normalize
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 REASONS = {
     "unknown-item": "fallback:unknown-item",
@@ -42,7 +39,7 @@ def _one_pass(kept: Retention) -> tuple[bytes, str]:
     facts = list(stream(11, 5, per_day=60))
     trigger = next(f for f in facts if f.at // DAY == 4)
     head = facts[: facts.index(trigger)]
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         feed(store, [head], retention("keep-all"))
         ingest(store, [trigger], trigger.id)
         report = run(absorb(store, [], trigger.id, kept))
@@ -51,7 +48,7 @@ def _one_pass(kept: Retention) -> tuple[bytes, str]:
 
 
 def _without_the_policy(dump: bytes) -> list[dict[str, object]]:
-    rows = [json.loads(line) for line in dump.decode("utf-8").splitlines()]
+    rows = all_rows(dump)
     for row in rows:
         if row["table"] == "retention_passes" and row["day"] == 4:
             row.pop("policy")
@@ -75,7 +72,7 @@ def test_the_most_aggressive_legal_plan_is_applied_not_refused() -> None:
         retention("drop-everything", PolicyRegistry({"drop-everything": DropEverything}))
     )
     assert outcome == "ok"
-    rows = [json.loads(line) for line in dump.decode("utf-8").splitlines()]
+    rows = all_rows(dump)
     assert [r for r in rows if r["table"] == "stable"] == []
     assert len([r for r in rows if r["table"] == "episodes"]) == 1  # the open one
     assert [r for r in rows if r["table"] == "forgotten"]
@@ -89,18 +86,22 @@ def test_forgotten_ranges_with_nothing_between_merge_and_the_oldest_become_a_wat
     # §5.8, on a hand-built store: 300 forgotten ranges, each pair separated by a surviving episode,
     # except ranges 10 and 11, which nothing separates. Its mutation merges every adjacent pair: the
     # ranges separated by an episode collapse too.
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         db = store.connection
+        seat = store.seat_id
         for n in range(300):
-            db.execute("INSERT INTO forgotten VALUES (?, ?)", (_key(1000 * n), _key(1000 * n + 10)))
+            db.execute(
+                "INSERT INTO forgotten VALUES (?, ?, ?)",
+                (seat, _key(1000 * n), _key(1000 * n + 10)),
+            )
             if n != 10:
                 db.execute(
-                    "INSERT INTO episodes (episode, day, place, first_key, last_key, opened_at, "
-                    "closed_at, closed, records, text, prose, prose_key, importance, mine) "
-                    "VALUES (?, 0, NULL, ?, ?, 0, 0, 1, 1, '', NULL, NULL, 0, 0)",
-                    (n + 1, _key(1000 * n + 500), _key(1000 * n + 600)),
+                    "INSERT INTO episodes (seat, episode, day, place, first_key, last_key, "
+                    "opened_at, closed_at, closed, records, text, prose, prose_key, importance, mine) "
+                    "VALUES (?, ?, 0, NULL, ?, ?, 0, 0, 1, 1, '', NULL, NULL, 0, 0)",
+                    (seat, n + 1, _key(1000 * n + 500), _key(1000 * n + 600)),
                 )
-        normalize(db)
+        normalize(store)
         forgotten = ForgottenSet.load(store)
     ranges = [(r.first, r.last) for r in forgotten.ranges()]
     # 300 ranges, one merge (10 with 11): 299; capped at 256 by removing the 43 oldest, which are

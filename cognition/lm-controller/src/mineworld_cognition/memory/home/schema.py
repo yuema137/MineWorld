@@ -15,7 +15,7 @@ table's columns and order; `CODECS` fixes how each column is written in the cano
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mineworld_cognition.memory import fts
 from mineworld_cognition.memory.home.encoding import Codec, as_number, raw, short_digest
@@ -107,16 +107,16 @@ def meta_codec(key: str) -> Codec:
 
 @dataclass(frozen=True)
 class ViewTable:
-    """One table of a seat view: its dumped columns (schema 3's names, without `seat`), in order, and the
-    `ORDER BY` of its rows."""
+    """One table of a seat view: its dumped columns (schema 3's names, without `seat`), in order, the
+    `ORDER BY` of its rows, and each column's codec (derived once: the meter encodes a line per write)."""
 
     name: str
     columns: tuple[str, ...]
     order: str
+    codecs: tuple[Codec, ...] = field(init=False, repr=False, compare=False)
 
-    @property
-    def codecs(self) -> tuple[Codec, ...]:
-        return tuple(codec(column) for column in self.columns)
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "codecs", tuple(codec(column) for column in self.columns))
 
 
 META = ViewTable("meta", ("key", "value"), "key")
