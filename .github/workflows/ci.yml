@@ -248,6 +248,31 @@ jobs:
         name: Run layer ${{ matrix.layer }}
         run: uv run --locked python scripts/ci_layer.py ${{ matrix.layer }}
 
+  # IC-7 (S10 P7, step-17 §3.16.1): the LM controller is removable by deletion. A copy of the checkout
+  # without cognition/lm-controller/ and its uv workspace line syncs, builds and passes the SDK's, the
+  # agent library's and the whole Rust workspace's tests. Linux, in the toolchain container, with
+  # `python`'s triggers; not a required check until the primary session makes it one.
+  removability:
+    name: removability
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && (
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/layer
+        with:
+          layer: removability
+
   # Layer 3 and AC-8 (docs/DECISIONS.md ARC-49, DEP-19). `scenario`, `linux-arm`, `mac` and `windows`
   # each record what their platform makes of every world on this commit; `ac8` compares the records.
   # They run on pushes to main, on dispatch, and on `scratch/*-scenario` branches (planted-difference
