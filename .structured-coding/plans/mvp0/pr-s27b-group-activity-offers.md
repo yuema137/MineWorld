@@ -532,14 +532,16 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| B0 | — | [ ] | [ ] | [ ] |
+| B0 | — (this commit) | [x] | [x] | [x] |
 | B1 | — | [ ] | [ ] | [ ] |
 | B2 | — | [ ] | [ ] | [ ] |
 | B3 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+- B0 (2026-10-14): base `origin/main` = `708bc56` (merge of PR #196, which carries this frozen design).
+  Header reads `DESIGN FROZEN`; §12 is filled (checked). Rulings QS27b-1 and QS27b-2 copied verbatim into
+  `handoff-s27b.md`. Markdown checks run in B0 (see handoff).
 
 ### Assumptions to verify in implementation
 
@@ -555,4 +557,9 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2)
+(planning findings are §3.2)
+
+- **D-b-0 (B0, bounded, recorded).** The header block reads `DESIGN FROZEN 2026-10-14` but its metadata
+  line `Lifecycle: DRAFT` was not updated at freeze. The operator's dispatch states the design is frozen and
+  §12 is filled, so B0 proceeds; the stale `Lifecycle` line is for the primary session to correct in its
+  next design-side commit. No authority line was changed by the implementer.
