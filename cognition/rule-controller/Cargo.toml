@@ -12,6 +12,9 @@ authors.workspace = true
 # those packs provide and cannot invent one (`MODULE_SPEC.md` §5). It depends on no transport, no
 # server and no kernel — an observation in, a request out, and nothing else reachable from here.
 mineworld-contracts = { workspace = true }
+# The decision-model trait this controller implements as `rule`, and the seeded `Draw` it takes every
+# choice from (pr-dl-a-decision-list.md SD-DLa-2).
+mineworld-decision = { workspace = true }
 mineworld-conversation = { workspace = true }
 # For `move` and the doorways a place discloses: the paced controller walks (step-08 C3).
 mineworld-movement = { workspace = true }

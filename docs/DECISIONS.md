@@ -1975,6 +1975,19 @@ run paces those strides; nothing about the decision itself changes:
 3. **A pack with `RUN_STEP` (30) seats or more is refused**, naming `RUN_STEP` (it was P). Residues
    mod 30 keep every instant to one seat. The largest pack has eleven seats.
 
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-1, SD-DLa-2, I-DLa-3; `ARC-85`).**
+"Stateless seeded controllers" is generalised from the paced rule controller to **every in-process
+decision model**. The headless run now consults each seat through the model its decision list resolves
+(`ARC-84`); a model is a `DecisionModel` (`cognition/decision`) whose `decide` and `step` take `&self`,
+its typed parameters and a `Consult { seed, pace, observation }`, so what it attempts is a pure function
+of `(parameters, seed, pace, observation)` and a model rebuilt after a restart decides exactly as the one
+that died. The pace travels in `Consult` because it is the answer window, host context a model cannot
+know otherwise. Model crates forbid interior mutability by their own `clippy.toml`, and a template test
+runs every installed in-process model twice and across a kill-and-resume against the save's bytes.
+`Draw` and `mix` moved verbatim from `paced.rs` to `mineworld-decision`, salt included; the rule
+controller, `rule`, is the first model and the default, and with no decision list every seat is `rule`
+and every byte as before. The lattice, `RUN_STEP` and everything above are unchanged.
+
 ---
 
 ## DEP-11 — The CLI's argument parsing: `clap`
@@ -2405,6 +2418,16 @@ what `ARC-35` measures. The operator approved this placement at S9's freeze (ste
 - Revisit this decision together with `DEP-12` when the first build installs packs it does not
   compile from this repository: that is `ARC-8`'s Tier 1. The question each catalog method answers
   stays the same; the catalog becomes a registry populated at startup.
+
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-12; `ARC-85`).** The same pattern is
+reused for decision models. `cognition/installed` (`mineworld-installed-models`) is the build's list of
+models, written with `mineworld-decision`'s `models!` macro: one `Name => crate::Type` line per
+in-process `DecisionModel`, and one `external "<id>"` line per out-of-process model, which has no Rust
+type. The macro expands to a monomorphic catalog enum, as `installed!` does (`DEP-12`); `decisions.yaml`
+model ids resolve through it, and `mineworld packs list` lists its in-process models' packages.
+Installing a model is one `Cargo.toml` line and one `models!` line, then a rebuild. Its guard test holds
+the list and the manifest's dependencies equal and refuses a duplicate id, as this crate's does. It lives
+under `cognition/`, so installing a model is an edit there and nowhere else.
 
 ---
 
@@ -7749,6 +7772,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** A controller choice never changes a Person or a world fact. The decision list adds one loader and no new pack type. Its assignments are validated against the same world with line and column, as `configure/` is.
 
 **Revisit** when a resume needs the resolved list recorded in the save, or when a world needs a decision list that must travel with the save as authored content.
+
+**Note, 2026-10-13 (S24, PR DL-a; `pr-dl-a-decision-list.md` SD-DLa-9, SD-DLa-14, SD-DLa-15; QDLa-5, QFGb-1).** Two refinements, implemented by DL-a, neither changing the choice. (1) `run` prints the digest of the resolved list **only when a decision list is in effect** (a `decisions:` key, `--decisions` or `--seat-model`), as `; decisions <digest> (<counts>)` at the end of its header line; with none, the header is byte for byte what it was, because the parity record keeps that line and an always-printed clause would move every reference world's baseline. (2) `decisions.yaml`'s `memory:` section is decoded structurally by the Rust reader (unknown keys, entry shape, seats and classes, policy-id spelling, `parameters` as a string-keyed mapping, each refused with line and column), resolved per seat seat > class > default, and passed through uninterpreted as a typed `MemoryPolicyChoice` by `mineworld decisions <world> --json` (format 1, `MODULE_SPEC.md` §8.1). The cognition process validates the policy id and its parameters when it starts (FG-b's `resolve`), so an unknown policy id fails then, naming the file, line and column it was written at, not at `run`'s load. One YAML parser reads the file; the cognition process reads JSON.
 
 ---
 
