@@ -13,13 +13,22 @@
 # full-body framing, pose, lighting and background below therefore come from what route D+ needs of a
 # Meshy input (CHARACTER_ROUTE_D_PLUS.md §3: apose_v3 chosen because the arms were clear of the body and
 # the straps; stage 3 masks the figure, stage 4 runs with remove_lighting), not from the anchor.
-version: 1
+version: 2
 date: '2026-10-15'
 author: S26 casting director (Opus session, branch mvp0/s26-cast-director)
-anchor:
-  path: presentation/mineworld-default/3D/characters/style/anchor.png
-  sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
-  role: style and quality-tier reference only
+history:
+  - { version: 1, date: '2026-10-15', change: first template; chest-up anchor only }
+  - { version: 2, date: '2026-10-15', change: 'full-body style anchor added (operator ruling F-CAST-1); prompts describe only visible features, never a census category (ruling F-CAST-7); person paragraphs moved here from code' }
+anchors:
+  identity:                 # Vera's identity source of truth (ARC-19); unchanged
+    path: presentation/mineworld-default/3D/characters/style/anchor.png
+    sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
+    role: identity of the protagonist; style and quality-tier reference for portraits
+  full_body:                # anchor v2: a full-body A-pose Vera generated from the identity anchor
+    path: presentation/mineworld-default/3D/characters/style/anchor_fullbody.png
+    sha256: c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32
+    role: style, quality tier, framing, pose, lighting and backdrop for every full-body cast reference
+    provenance: presentation/mineworld-default/3D/characters/style/anchor_fullbody.provenance.yaml
 
 image_model:
   provider: openai-images   # mineworld_gen's provider, reused (§5.2 stage 2); S26-b1 pins the model id
@@ -46,8 +55,8 @@ full_body:
     right, a faint rim from behind; no hard cast shadows on the body, no coloured light, no lens flare.
   background: plain seamless light warm-grey studio backdrop (about #C8C4BE), no floor line, no props
   preamble: |
-    The attached image is a STYLE REFERENCE ONLY: match its art style and quality, not its person, clothes,
-    setting or composition. Style: grounded semi-realistic 3D character render, in the look of a polished
+    The attached image is a STYLE REFERENCE ONLY: match its art style, quality, framing, pose, lighting and
+    backdrop, not its person or clothes. Style: grounded semi-realistic 3D character render, in the look of a polished
     modern story-driven game's character art; realistic human proportions and anatomy (no anime or cartoon
     proportions); soft natural skin with subtle texture and gentle subsurface warmth; hair rendered as soft
     detailed locks; clean, believable everyday fabrics with natural folds and seams; warm, natural colour.
@@ -68,7 +77,7 @@ full_body:
 portrait:
   output_size: 1024x1024
   conditioning: the approved full-body reference of the same person, attached FIRST (identity), then the
-    anchor (style); the portrait must show the same person, hair and garments
+    identity anchor anchor.png (style); the portrait must show the same person, hair and garments
   camera:
     height: at eye level
     focal_length: 85 mm full-frame equivalent
@@ -89,8 +98,32 @@ portrait:
     at eye level with a long lens. Neutral, relaxed expression. Soft even studio light from the front-left
     with a gentle fill; plain seamless light warm-grey backdrop; no props, no text, no logos, no watermark.
 
+# The person paragraph, appended to each preamble. Placeholders: {attr} is the person's value of a profile
+# attribute or a casting-input field; {attr|label} and {attr|label.key} are the profile's words for that value.
+# A line whose placeholders all resolve to empty text is dropped. No census category is ever named here
+# (operator ruling F-CAST-7): only what a camera sees.
+person_full: |
+  THE PERSON: a {sex|label.noun}, apparent age about {apparent_age}, {stature_m} m tall, {build|label.article} {build|label.words} build{age_band|label.posture}.
+  Skin: {skin_mst|label} skin tone (Monk Skin Tone {skin_mst} of 10), natural and even.
+  Face: {face_shape} face, {eyes} eyes, {nose} nose, {lips} lips; an ordinary, individual real face, never a caricature.
+  Hair: {hair_colour}, {hair_texture} hair, {hair_style}, kept clear of the shoulders.
+  {facial_hair|label}
+  {headwear_line}
+  Wearing: {wear}; {wear_lower}.
+  {carried_line}
+  Manner, shown only through a calm neutral face and posture: {manner}.
+  AVOID: {avoid_line}; no text or logos on clothing.
+person_portrait: |
+  THE PERSON: a {sex|label.noun}, apparent age about {apparent_age}, {build|label.article} {build|label.words} build.
+  Skin: {skin_mst|label} skin tone (Monk Skin Tone {skin_mst} of 10), natural and even.
+  Face: {face_shape} face, {eyes} eyes, {nose} nose, {lips} lips; an ordinary, individual real face, never a caricature.
+  Hair: {hair_colour}, {hair_texture} hair, {hair_style}, kept clear of the shoulders.
+  {facial_hair|label}
+  {headwear_line}
+  Wearing: {wear}.
+  Manner, shown only through a calm neutral face and posture: {manner}.
+  AVOID: {avoid_line}; no text or logos on clothing.
+
 # How a prompt is assembled (tools/character_pipeline/casting/cast_director.py):
-#   reference_prompt.txt = full_body.preamble + "\n" + the brief's person paragraph
-#   portrait_prompt.txt  = portrait.preamble + "\n" + the brief's person paragraph (head and torso only)
-# The person paragraph is written from brief.yaml only (apparent age, sex, stature, build, skin, hair,
-# facial hair, outfit, accessories, manner). The brief's avoid list is appended as explicit negatives.
+#   reference_prompt.txt = full_body.preamble + "\n" + person_full, filled from the brief
+#   portrait_prompt.txt  = portrait.preamble + "\n" + person_portrait, filled from the brief
