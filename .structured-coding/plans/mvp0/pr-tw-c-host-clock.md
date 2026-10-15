@@ -815,8 +815,9 @@ No TW-c question remains open.
 
 | Commit | Hash | Status |
 | --- | --- | --- |
-| C0 | — | C0 in progress: base origin/main @ 171ea06, 12n-2 on base (#125), AC-TWc-7 applies |
-| C1 … C9 | — | not started |
+| C0 | 181278a | done: base origin/main @ 171ea06, 12n-2 on base (#125), AC-TWc-7 applies |
+| C1 | (this commit) | done (docs): ARC-69 (new), notes on ARC-42 and ARC-44, PROTOCOL §§5.9, 10, 11.2, 11.3, MODULE_SPEC §§4.1, 8.1 |
+| C2 … C9 | — | not started |
 
 ### Evidence
 
