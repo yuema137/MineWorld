@@ -274,7 +274,24 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
     once more per region (~500 lines for three packs). The page states the shared shape once, from the
     first section's own schema, then per pack only its declarations (actions, facts, roles, parameters,
     knobs, reference lists) and its example; the JSON Schema under `schema/` keeps the whole shape.
-- **C5** — [ ] Implementation · [ ] Validation · [ ] LLM review
+- **C5** — [x] Implementation: origin/main @ 31ba514 merged first (FG-b: Python and docs only, no
+  section or configuration added); `docs/reference/` generated (7 pages, 22 schemas, 29 files);
+  `the_checked_in_reference_is_what_this_build_generates` in `tools/cli/tests/reference.rs` (AC-25a-1);
+  `scripts/ci_changes.py` classifies `docs/reference/` as code, with two self-test cases (found
+  uncommitted from the first implementer, inspected and kept); `scripts/ci_layer.py` unchanged (deviation
+  below) · [x] Validation: `tools/cli/tests/reference.rs` 7 passed; `ci_changes.py --self-test` 22 cases
+  passed; `check_doc_headings.py` (223 sections, 38 documents, none duplicated), `check_decision_ids.py`
+  (124 ids distinct); acceptance `precursor_vocabulary`, `configuration_vocabulary`, `seam_vocabulary`,
+  `interaction_schema` pass with the new pages; `cargo deny check licenses sources bans`: bans ok,
+  licenses ok, sources ok; mutations M1–M4 below; AC-25a-5 parity and the full workspace suite in the
+  Evidence section · [x] LLM review: three entries read as a person who has not seen the code —
+  `sections.md` `job` (each field's meaning and unit: minor units per hour, HH:MM quoted, an
+  organization key), `configure.md` `configure/calendar.yaml` (epoch range, UTC offset quoted, degrees
+  with sign conventions), `interaction-list.md` `configure/conversation.yaml` (the action `talk` and its
+  roles, the facts with their audiences, `gap`/`range`/`remembered` with defaults, bounds and units): each
+  says what to write and what it means, without a code name; the earlier developer-facing first
+  paragraphs (`AuthoredSegment`, `Epoch`, `UtcOffset`, `Quintiles`, the `remember` knob) were rewritten at
+  C4
 
 ### Evidence
 
@@ -282,8 +299,32 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
 
 ### Mutations
 
-(filled at C4/C5)
+All planted on the C5 tree (merged with origin/main @ 31ba514), each reverted, the tree checked clean
+again after (`mineworld reference --check docs/reference` → "matches this build (29 file(s))", exit 0).
+
+| # | Mutation | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- |
+| M1 (AC-25a-2) | `economy` `wallet`'s doc comment gains " MUTATED." | `--check` exits 1 naming the page and the schema | exit 1: `differs  schema/section-economy.schema.json`, `differs  sections.md`; `the_checked_in_reference_is_what_this_build_generates` FAILED with the same two lines | killed |
+| M2 (AC-25a-3, A-S25-1) | calendar's `epoch` field loses its doc comment (its type `Epoch` keeps one) | generation refused, naming the type and the field | exit 1: "`configure/calendar.yaml`: the field CalendarConfiguration.epoch has no description; write an author-facing doc comment on it" | killed |
+| M3 (INV-S25-1) | a hand edit appended to `docs/reference/README.md` | `--check` exits 1 naming it | exit 1: `differs  README.md` | killed |
+| M4 (step §5.4) | `ci_changes.py`'s generated-prefix rule disabled | the classifier's self-test fails on the two `docs/reference/` cases | `FAILED: 2 case(s)`: `docs/reference/sections.md` and `docs/reference/schema/world.schema.json` classified documentation | killed |
+| M5 (A-S25-1, a pack without a schema) | owned by C2+C3's `trybuild` case `a_section_without_a_schema_does_not_compile` (the bound bites at compile time), and by the observed refusal of `acme-fishing` 0.1.0 at `AuthoredSpot: JsonSchema` before the re-pin | — | recorded at C2+C3 | killed |
 
 ### Deviations and findings
 
 - SD-25a-5 and SD-25a-6 deviate from step §§5.1, 5.3 for the reasons A-9 and A-4 give.
+- Session change (2026-10-14): the first implementer stopped after C2+C3 and was cancelled; a
+  replacement session recovered the tree (HEAD 44d0cf7, one uncommitted file: `scripts/ci_changes.py`,
+  the C5 classifier rule with its two self-test cases — inspected, correct, kept and committed at C5)
+  and continued from C4. No other state was found.
+- Deviation (C5, bounded): `scripts/ci_layer.py` is unchanged. Step §10.3 C5 says "add the `--check` test
+  to the `test` layer"; the `core` layer that the `test`, `test-macos` and `test-windows` jobs run is
+  `cargo test --workspace`, which already runs `tools/cli/tests/reference.rs` and its
+  `the_checked_in_reference_is_what_this_build_generates` on all three platforms (AC-25a-1). A second,
+  named command would run the same test twice (test rules §9). Evidence: `ci_layer.py` `LAYERS["core"]`,
+  `.github/workflows/ci.yml` jobs `test`, `test-windows`, `test-macos` (`layer: core`).
+- Deviation (C4, bounded): the CLI page is generated from the parser with `Command::build()`, so the
+  parser's own `help` subcommands and `--help`/`--version` arguments are left out by name.
+- Known limitation: a `Millimetres` type prints its full `i32` range as bounds; each field's description
+  states the field's real bound (the decoders enforce it). Narrowing the schema to the decoder's bound
+  per field is a follow-up for whoever touches those types.

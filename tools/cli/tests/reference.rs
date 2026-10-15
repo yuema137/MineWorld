@@ -16,6 +16,21 @@ use mineworld_worldpack::{Capability, EntityClasses};
 use serde::Deserializer as _;
 use serde::de::{MapAccess, Visitor};
 
+/// The checked-in reference.
+const CHECKED_IN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/reference");
+
+/// AC-25a-1, INV-S25-2: the checked-in reference is exactly what this build generates — on every
+/// platform the `core` layer runs on.
+#[test]
+fn the_checked_in_reference_is_what_this_build_generates() {
+    let checked = mineworld(&["reference", "--check", CHECKED_IN]);
+    assert!(
+        checked.status.success(),
+        "{}\nRegenerate it: cargo run -p mineworld-cli -- reference --out docs/reference",
+        stderr(&checked)
+    );
+}
+
 /// What a page predicts for a key a serde-derived file does not list.
 const UNKNOWN: &str = "unknown field";
 
