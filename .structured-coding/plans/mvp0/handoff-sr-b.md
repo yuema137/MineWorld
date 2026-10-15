@@ -45,12 +45,27 @@ PARALLEL LANES:        12d (#171, unmerged; QSRB-7: second to merge re-runs mark
 
 ## Current checkpoint
 
-C0 — freeze verified, base recorded, handoff initialized. The format-3 fixture
-(`persistence/tests/fixtures/format-3/world.sqlite`) was written by the base build before any code edit
-(ledger §14.2).
+C0 … C7 done and committed; branch rebased onto origin/main adf5d2c (main changed no Rust, world, pack or
+Cargo.lock file since the base 6306977, so the C7 evidence holds). Every ASRB criterion measured
+(ledger §14.3); findings F-SRB-1 (C3 validation moved to C4), F-SRB-2 (decompress allocation, fixed),
+F-SRB-3 (baselines stale on main, re-recorded once with a reason line), F-SRB-4 (two source pins of
+`biography.rs` broken by C5, found by the full run, fixed in 318cd42). The first implementation session
+was cancelled during its full run; a replacement session (2026-10-14) holds the worktree now, ran the
+full `cargo test --workspace --no-fail-fast` on 1c61838 (exit 101: the two F-SRB-4 targets, every other
+target passed; log `/tmp/impl-sr-b-target/full-test.log`), fixed them, ran the two remaining adversarial
+mutations (delete without the block; corrupt a row past the round trip) and recorded both in §14.3.
+`origin/main` unchanged at adf5d2c.
 
 ## Exact next actions
 
-1. C1: ARC-89 completed (D-SRB list, level, revisit triggers), notes under ARC-25 and ARC-81,
-   ARCHITECTURE persistence section, MODULE_SPEC §8.1 `log` line, persistence README, step-06 L-6.
-2. C2: `persistence/src/block.rs` + `sealing` in `world.rs`.
+1. Push `mvp0/pr-sr-b`, open the PR (body in the session scratchpad), push the same head to
+   `scratch/sr-b-scenario` for AC-8 (`scenario`, `linux-arm`, `mac`, `windows`, `ac8`).
+2. Watch CI fast + test + test-macos + test-windows + platforms + python on the exact head; repair
+   routine failures; record the run ids and `ac8` verdict here and in the PR.
+3. READY FOR OPERATOR REVIEW — never merge.
+
+## Notes for the primary session
+
+- QSRB-7: 12d (#171) unmerged; with bodies the 300-day save is 80.3 MiB, so the second to merge sets
+  `market_town.rs` ASRB-1 to 96 MiB and re-records `scripts/baselines.txt`.
+- §11 requests unchanged (R-overall, R-step-24, R-server, R-12d, R-S23).

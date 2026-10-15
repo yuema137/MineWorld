@@ -789,16 +789,36 @@ whole file once (QSRB-5's one re-recording) with a reason line that says both th
 changed by SR-b, summaries re-recorded as main already had them — so the nightly's baseline check passes
 on this head. If 12d merges first, the second to merge re-records again (QSRB-7).
 
+**Finding F-SRB-4 (C7 terminal run, bounded; fixed in its own commit).** *Previous assumption:* C5's
+targeted CLI tests covered every test that reads `tools/cli/src/biography.rs`. *Evidence:* the full
+`cargo test --workspace --no-fail-fast` on 1c61838 (exit 101, 4 157 s under a load average up to 193)
+failed exactly two targets, both source-text pins of `biography.rs` that C5 did not run:
+`mineworld-acceptance --test configuration_vocabulary` ("…/tools/cli/src/biography.rs:95: give" — the
+word "give" in C5's new comment is on ARC-61 … ARC-64's pack-vocabulary list) and `mineworld-cli --test
+interactions` ("biography.rs no longer has `interactions::biography::selected(fact, person, &selected,
+&configured)`", QIB-11's pin — C5 passed `&fact`). *Decision:* the comment reworded; the selection made a
+closure `keep` whose body is the pinned call, so the source still states that the SDK selects. No
+behaviour change. *Validation:* both targets and `--test biography` pass after the fix; clippy clean.
+Every other target of the full run passed on 1c61838, and the fix touches only `biography.rs`, so the
+full run is not repeated locally; the PR's CI runs the whole suite on the fixed head.
+
 ### C7 — Integration checkpoint: real runs, measurements, close-out
 
 - **Goal.** ASRB-1 … ASRB-14 on the real binary; READY FOR OPERATOR REVIEW.
 - **Scope.** §14 evidence; handoff; requests to the primary session (§11).
-- [ ] Implementation: N/A beyond the ledger unless a criterion fails.
-- [ ] Validation: release 30/100/300-day saves (walking; bodies per §8's rule); sizes and `dbstat`;
+- [x] Implementation: N/A beyond the ledger unless a criterion fails. (ASRB-4 failed once on the first
+  measurement — F-SRB-2 — and was fixed in its own commit before the gate numbers below were taken.)
+- [x] Validation: release 30/100/300-day saves (walking; bodies per §8's rule); sizes and `dbstat`;
   `inspect`; `replay` with wall time vs base; `verify_from` first/middle/last anchor; `/usr/bin/time -l`
   for the four readers; CA-13 once; ASRB-11's unsealed-copy SHA-256 (a scratch tool under `target/`, never
-  committed) vs the base build; seal timing; the adversarial runs; the PR's CI incl. `AC-8`.
-- [ ] Review: every number in §14 comes from a command recorded beside it; scratch saves deleted.
+  committed) vs the base build; seal timing; the adversarial runs; the PR's CI incl. `AC-8`. (§14.3; the
+  PR's CI and `AC-8` are recorded in the handoff and the PR, on the exact head.)
+- [x] Review: every number in §14 comes from a command recorded beside it; scratch saves deleted.
+  (§14.3 names each command; `/tmp/impl-sr-b-target/srb-scratch` deleted at close-out (2026-10-14, by
+  the replacement session); `scratch-srb-timing` and `scratch-srb-bodies` removed. `scratch-srb-base`
+  (detached at the base 6306977, no save in the repository tree) is left in place for the primary
+  session, which owns worktree clean-up; the replacement session was told to read it only. The scratch
+  tool binary stays under `/tmp/impl-sr-b-target/srb-tool`, outside the repository.)
 
 ## 11. Requirements this PR places on other documents and lanes
 
@@ -952,3 +972,88 @@ steps; head 20, snapshot rows at 1, 8, 16), written under `$CARGO_TARGET_DIR` an
 `persistence/tests/fixtures/format-3/world.sqlite` (40 960 B, SHA-256
 `6c8242af66ac191725f9a6a866ef37a466554349cd7d9d6df63802db02fa2f17`; `format 3` in its manifest; every row
 a format-3 build's own bytes). The scratch copy was deleted.
+
+### 14.3 C7 — integration checkpoint evidence
+
+```text
+Builds:        base = 6306977 in scratch worktree scratch-srb-base, own target dir, release;
+               head = this branch (6d096f5 before the rebase onto main adf5d2c; main changed no .rs, world,
+               pack or Cargo.lock file in between), release, CARGO_TARGET_DIR=/tmp/impl-sr-b-target
+Runs:          mineworld run worlds/market-town --headless --seed 7 --days N --packs entities
+               --packs presentation/mineworld-default --save DIR; 300 days = day 100, then day 300 on the
+               same save (as §4); sizes = world.sqlite (no -wal left after exit), `ls -l`
+Host:          operator's macOS 26.2 arm64; shared with other sessions' builds (load average up to 96 during
+               some runs, recorded beside the wall times that it affects)
+Scratch:       /tmp/impl-sr-b-target/srb-scratch (deleted at close-out); scratch tool
+               /tmp/impl-sr-b-target/srb-tool (never committed) prints a save's logical rows in SR §14.1's
+               sqlite3 format
+```
+
+| ID | Measured | Bound | Verdict |
+| --- | --- | --- | --- |
+| ASRB-1 walking | 300-day save 63 086 592 B = 60.2 MiB (base 1 178 353 664 B); same size from a direct 300-day run in `market_town.rs` | ≤ 80 MiB | PASS |
+| ASRB-1 bodies | 12d scratch merge (`origin/mvp0/pr-12d-towns @ 264573b` merged into the head in scratch worktree `scratch-srb-bodies`, release, removed): 300-day 84 164 608 B = 80.3 MiB; `inspect`: `202 block(s) sealed r1–r827392 (54.9 MB stored, 1482.6 MB of rows); live r827393–r833121` | ≤ 96 MiB | PASS (scratch merge, not `main`; note: above the walking 80 MiB, so whichever of 12d/SR-b merges second sets `market_town.rs`'s ASRB-1 bound to 96 MiB, QSRB-7) |
+| ASRB-2 walking | days 100–300: (63 086 592 − 31 375 360) ÷ 200 = 158 556 B/day = **0.151 MiB/day**; CI form (S300 − S30) ÷ 270 = 0.151 | ≤ 0.25 | PASS |
+| ASRB-2 bodies | days 100–300: (84 164 608 − 39 141 376) ÷ 200 = 225 116 B/day = **0.215 MiB/day**; (S300 − S30) ÷ 270 = 0.214 (scratch merge) | ≤ 0.25 | PASS |
+| ASRB-3 | 30-day walking 20 324 352 B = 19.4 MiB, 13 blocks = the rule's for head 60 331 (`market_town.rs`); bodies 23 683 072 B = 22.6 MiB (scratch merge) | ≤ 48 MiB | PASS |
+| ASRB-4 | peak RSS on the 300-day walking save, `/usr/bin/time -l`: `perceived --person alice` 28 557 312 B; `biography --person alice` 32 620 544 B; `inspect --last 0` 61 456 384 B; `replay` 44 924 928 B. Base: 1 260 847 104 / 1 233 174 528 / 1 255 899 136 / 330 514 432 B. Outputs vs base on the same logical history: `perceived` 346 899 lines and `biography` 6 260 lines byte-identical (`cmp`); `inspect` differs only in the format number, the instance and the `log` line. CA-13 once on a copy of the save: "817834 facts in the save; backfill of 342876 facts in 4.9 s; tick p50 0.2 ms, p99 3.2 ms, max 4 ms", no `lagged`, passed | ≤ 256 MiB; CP-B4 p99 ≤ 50 ms | PASS |
+| ASRB-5 | `kill_and_resume` cafe + clock, eight kill points each incl. before/at/after the first sealing commit: survivor = control in live journal and facts, every `sealed` column and snapshots; `verify` passes | — | PASS |
+| ASRB-6 | `market_town.rs` (two 30-day runs; killed after day 15 and re-run) and `run.rs` through `Tables::assert_same_history`, raw `sealed` rows included | — | PASS |
+| ASRB-7 | the PR's `scratch/sr-b-scenario` push — see the handoff for the run and its verdict | — | see handoff |
+| ASRB-8 | library: format-2 and format-3 fixtures refused by resume and verify; CLI: `run`, `replay`, `inspect`, `perceived`, `biography`, `server` refuse a format-3-marked save with "the save is format 3; this code reads format 4 and does not migrate" | — | PASS |
+| ASRB-9 | `save.rs` (a) and (b) as at C6 | — | PASS |
+| ASRB-10 | `retention.rs` sealing sweep: every commit to the first head ≥ r3 000, blocks = `head ÷ 128 − 1` asserted at the end (22 at r3 000), a resume at every head with no block decoded | — | PASS |
+| ASRB-11 | SHA-256 of the logical rows, base save via SR's `sqlite3 … \| shasum -a 256`, head save via the scratch tool: 30 days facts `3db574a1…e487` = `3db574a1…e487`, journal `13e2f01f…2f45c` = same, counts 82 298 / 60 331 equal; 300 days facts `21b3ab1c…17b5` = same, journal `1abb0372…d09f` = same, counts 817 834 / 603 633 equal. `summary-300s` of every world equals main's own nightly record (F-SRB-3) | — | PASS |
+| ASRB-12 | `git diff --stat origin/main -- kernel contracts systems packages` empty | — | PASS |
+| ASRB-13 | `replay` of the 300-day save, alternating, load ≈ 11: base 26.18 s / 20.62 s (user 8.16 / 8.40 s); head 6.78 s / 8.78 s (user 5.85 / 7.07 s); line "603633 revision(s) re-executed from genesis, 817834 fact(s) and 150 snapshot(s) reproduced byte for byte" on both | ≤ 1.25 × base | PASS |
+| ASRB-14 | scratch build (`scratch-srb-timing`, an `eprintln!` around `Self::seal`, never committed, removed) over a 300-day run: 146 seals, mean 50.6 ms, max 73.6 ms, under a load average of 13–38 | ≤ 100 ms | PASS (measured under load; the bound held) |
+
+`verify_from` on the 300-day save (`save_retention.rs`'s ignored test, release): from r4096 599 537
+revisions in 14.6 s (the anchor inside the first block), from r303104 300 529 in 7.2 s, from r602112 1 521
+in 0.0 s — each to head r603633. Peak RSS of the 300-day `run` resumed from day 100: 406 093 824 B (base
+911 MB, §4.5), the end-of-run fingerprint now streamed.
+
+**Adversarial runs (each once):**
+
+```text
+never seal                         RED: kill_and_resume, sealing sweep, concurrent-seal and tamper tests;
+                                   30-day save 117 776 384 B > 48 MiB (ASRB-3)          C6
+seal one revision too far          RED: unit table; sweep/verify_from guard "the rule sealed r1–r513 at
+                                   r1024"                                                 C3
+delete rows without the block      RED (`seal` with the `INSERT INTO sealed` skipped, `cargo test -p
+                                   mineworld-persistence`): kill_and_resume; retention verify_from
+                                   "from r1: the save is damaged: the log skips from r1 to r513", the
+                                   retention sweep "the pruned save verifies: Damaged … the log skips
+                                   from r0 to r11777", the sealing sweep "at r256: the rule's blocks";
+                                   save.rs concurrent-seal and block-tamper tests (ASRB-10, replay)
+skip the round trip and corrupt    RED (the last fact's last byte flipped before `encode_block`):
+  one byte                         with the round-trip check kept, every sealing commit fails "the block
+                                   r1–r128 does not decode to the rows it seals" (`WorldAheadOfSave`,
+                                   D-SRB-11); with the check skipped as well, verify fails "replay
+                                   diverged at revision r127: fact 119 differs from the logged fact
+                                   119" (retention), and kill_and_resume "the survivor's whole history
+                                   reproduces: ReplayDiverged { revision: 128, … fact 112 … }" (ASRB-11's
+                                   replay half). Both run 2026-10-14 by the replacement session.
+facts_after collects every block   RED: perceived peak RSS 963 772 416 B > 256 MiB (ASRB-4)
+seal on a wall-clock condition     RED: kill_and_resume "early: the survivor's save is the control's, byte
+                                   for byte" fails; the sweep fails "at r256: the rule's blocks" (ASRB-5)
+blocks at level 3                  persistence suite green; a copy of the 300-day save run on to day 320 at
+                                   level 3 (10 new blocks, mean 379 133 B vs 267 056 B at level 9) replays
+                                   "643685 revision(s) … 872121 fact(s) … reproduced byte for byte": a
+                                   level never changes a verdict and a mixed save replays (I-SRB-2)
+cursor without a read transaction  RED: "the log skips from r1024 to r2049"              C4
+30-day bound set to 1 MiB          RED: "ASRB-3: the 30-day save is 20324352 B (19.4 MiB), over the 1 MiB
+                                   bound"                                                C6
+```
+
+Every mutation was reverted and the tree checked clean (`git status --short` empty) before the next
+step.
+
+**Terminal validation (2026-10-14, replacement session).** The first implementation session was cancelled
+during its full-suite run (its log ended inside `market_town`); a replacement session took over the same
+worktree and branch and re-read the design, the contract and the execution prompts before continuing.
+On head 1c61838: `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets --all-features
+-- -D warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 101 in 4 157 s, two targets failed
+(F-SRB-4), every other target passed (log `/tmp/impl-sr-b-target/full-test.log`). After the F-SRB-4 fix:
+the two targets and `--test biography` pass. `origin/main` was fetched: still adf5d2c, the branch's base,
+so no merge was needed.
