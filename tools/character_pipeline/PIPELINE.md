@@ -156,8 +156,9 @@ Vera's `fit.yaml` therefore has exactly one override, `flecks.enabled: false`, a
 
 ### 4.2 Per-character method constants are not overrides
 
-Hand-supplied picks, the `source` block and `stature_m` describe the character and are not counted. Changing a method
-constant in §2.4 is a code change under `ARC-94`, not a `fit.yaml` edit.
+The keys `character`, `stature_m`, `accessories`, every key under `source`, and the `fit.picks` object describe the
+character, and they are not counted (`OVERRIDE_EXEMPT` in `records.py`). Changing a method constant in §2.4 is a
+code change under `ARC-94`, not a `fit.yaml` edit.
 
 ## 5. `generation_log.yaml`
 

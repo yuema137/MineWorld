@@ -1183,7 +1183,7 @@ or `tools/asset_generation/` changed.
 | --- | --- | --- | --- | --- |
 | B0 | this commit (base `f772a18`) | [x] steps 1–4; handoff created; scratch `/Users/yuema137/mineworld-demos/cast-scratch/s26b1` created | [x] doc checks (see Evidence) | [x] no authority widened; I-B1-2 copied into handoff |
 | B1 | this commit | [x] steps 1–5: `PIPELINE.md`, `README.md`, DECISIONS `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; step 2 verifications recorded below | [x] doc checks (see Evidence) | [x] terms exact; no rule only in the README; the Winter and AccuRIG verifications are INCONCLUSIVE, named for S26-b2 |
-| B2 | — | [ ] | [ ] | [ ] |
+| B2 | this commit | [x] steps 1–11: `cast.py`, `ruff.toml`, `mwcast/{__init__,cli,glb,records,scratch}.py`, tests `{conftest,gltf_fixture,test_glb,test_records}.py` | [x] pytest 19 passed (2.0 s); ruff check and format clean; pyright strict 0 errors; mutation (drop `// 3` in `triangle_count`) red on 3 tests, reverted green | [x] no third-party import in `glb.py`/`records.py`; all public functions typed; `Mapping[str, object]` only at the JSON document |
 | B3 | — | [ ] | [ ] | [ ] |
 | B4 | — | [ ] | [ ] | [ ] |
 | B5 | — | [ ] | [ ] | [ ] |
@@ -1206,7 +1206,7 @@ or `tools/asset_generation/` changed.
 | A-V-1 | Blender's import of `vitruvian.glb` gives the same armature (heads, tails, rolls) as its import of `body_g5.glb` | B10 step 1 | stop: Q-B1-2's ruling rests on this, so the question returns to the primary session with the evidence |
 | A-V-2 | The D+ scripts as they are on disk produced the committed asset (mtimes, A-B1-2) | B10 step 3 | localize; if an intermediate does not reproduce from its own script, record the evidence and stop |
 | A-V-3 | Godot imports a `.gltf` with an external PNG without copying the pixels | B10 step 6 | §5.9's fallback goes to the primary session |
-| A-V-4 | pytest at `tools/character_pipeline/tests` runs under the workspace's environment with no `addopts` | B2 | add a local `pytest.ini` with no options, recorded |
+| A-V-4 | pytest at `tools/character_pipeline/tests` runs under the workspace's environment with no `addopts` | B2 | **verified in B2:** the root `pyproject.toml` has no `[tool.pytest]` section, and `uv run --locked pytest tools/character_pipeline/tests` runs (19 passed) with no `pytest.ini` |
 
 ### Mutations
 
@@ -1214,8 +1214,19 @@ or `tools/asset_generation/` changed.
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.4)
+(planning findings are §3.4)
 
+- **B2 mutation (§9.0 step 4):** planted `triangle_count` without `// 3` in `mwcast/glb.py`; `test_glb.py`
+  reported 3 FAILED (`test_fixture_decodes_to_the_counts_it_was_built_with`,
+  `test_triangle_count_counts_every_material_primitive`, `test_committed_protagonist_mesh_decodes_to_the_frozen_counts`);
+  reverted; 19 passed.
+- **B2 finding F-B1-B2-1 (defaults):** PIPELINE §4.1 sets `flecks.enabled` default `true` (Q-B1-5: fleck repair on by
+  default for new characters), so Vera's `false` is her single override, as B9's test expects. The design text
+  "defaults are Vera's values" is read with this one exception, recorded here.
+- **B2 finding F-B1-B2-2 (exempt keys):** the override rule exempts `character`, `stature_m`, `accessories`,
+  `source.*` and `fit.picks` (PIPELINE §4.2 now lists them), which the design's §5.4 names as not overrides.
+- **B2 record scope:** `records.py` types every section of `fit.yaml` as a frozen dataclass; the schema is the
+  PIPELINE §4.1 table. `generation_log.yaml` run params are `raw` or `remesh` with a target polycount (D+ §3).
 - **B0 evidence (2026-10-14):** `check_doc_headings.py` PASS (223 sections, 32 documents); `check_decision_ids.py`
   PASS (122 ids, all distinct). Blender `--version` = `Blender 5.2.2 LTS`; Godot `4.7.2.stable.official`.
   Scratch root created, empty.

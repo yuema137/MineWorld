@@ -35,8 +35,10 @@ This file is a continuation aid. The authority is `pr-s26b1-pipeline.md` (DESIGN
   $0 OpenAI. Gate 1 not required (no LLM-facing change).
 - **Scratch root for B7 and B10:** `/Users/yuema137/mineworld-demos/cast-scratch/s26b1` (outside the repository; created).
 - **Checkpoint:** READY FOR OPERATOR REVIEW after CI is green on the final head. DO NOT MERGE.
-- **Next action:** B1 (specification and decision records). B1 step 2 requires WebFetch of the five sources and a
-  material stop if Meshy's §2.4 changed in substance or Winter's figure contradicts step-26.
+- **Progress:** B0 (`ff0cab0`), B1 (`f8b64cc`) done. B2 committed in the next commit.
+- **Next action:** B3 — static gates G-1…G-6 and G-14 (design §9, B3). Opus review of B3 is required before ready.
+- **Standing verification notes (B1, 2026-10-14):** Meshy §2.4 unchanged in substance; Winter INCONCLUSIVE; AccuRIG
+  INCONCLUSIVE (404); RigNet is GPL-3.0; these are recorded in the design §15 evidence.
 - **Stop conditions (design §12, MATERIAL STOPS):**
   - B1 step 2: Meshy's §2.4 changed in substance, or Winter's figure contradicts step-26's numbers.
   - B10: the armatures of `vitruvian.glb` and `body_g5.glb` differ beyond 1e-5; AB1-8 cannot hold after a localized
