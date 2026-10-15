@@ -912,11 +912,15 @@ only.
 **Goal.** FA-1, FA-10, FA-11, FA-12; `baselines.txt`; ledger and handoff.
 **Scope.** `scripts/baselines.txt` (journal-300s, reason line); `docs/MVP_STATUS.md`; §15; handoff.
 
-- [ ] Implementation: E-FGA-0 (captured before C2 on the base: a long record and four 30-day saves with the
-  base release binary); the head's long record; `baseline check`; the row-level proof; `baseline write`.
-- [ ] Validation: FA-1 (M-FA1a, M-FA1b), FA-10 medians, FA-11 guard diffs, FA-12 full gate; CI on the exact
-  head.
-- [ ] Review: every changed path is in §11 or recorded in §16; every `[x]` has evidence.
+- [x] Implementation: E-FGA-0 (base long record, four base 30-day saves); head long record; FA-1 row-level
+  proof; `baseline write` + reason lines; `docs/MVP_STATUS.md` S24 row (DV-7); handoff refreshed.
+- [x] Validation: FA-1 PASS against the base record (DV-9), M-FA1a and M-FA1b red (E-FGA-9); FA-10
+  INCONCLUSIVE (load 19–31, base spread ≫ 5 % twice; reported); FA-11 PASS; FA-12 local gate: `cargo fmt
+  --check` ok, workspace clippy `-D warnings` clean, both doc scripts ok, `check_scratch.py scan` ok, full
+  `cargo test --workspace --no-fail-fast` exit 0, 1 056 passed, 0 failed, 34 ignored (E-FGA-10). CI on the
+  exact PR head: recorded in the PR and the handoff (a commit cannot carry its own hash).
+- [x] Review: every changed path is in §11 or recorded in §16 (DV-10; the kernel test per §8); every `[x]`
+  above carries evidence in §15.
 **Acceptance.** FA-1 … FA-12 PASS on the exact head.
 
 ---
@@ -1106,6 +1110,52 @@ E-FGA-8   FGA-C8: `cargo test -p mineworld-cli --test forgetting_runs -- --nocap
           "FA-6: acquaintance-forgotten 5196, relationship-changed 923 (twin 363), became-acquainted 5256
           (twin 132)". M-FA6 (`beyond_the_cap` never evicts): forgetting_runs.rs:230 "assertion failed:
           widest_list_in_the_last_snapshot(&save) <= 5" — FAILED; reverted, `git grep MUTATION` empty.
+E-FGA-9   FGA-C9, head eadc5df (C8 + merge of origin/main 171ea06: RL-b #131 and docs; `git diff --stat
+          6306977 origin/main` outside clients/presentation/Markdown touches only the launcher scripts
+          mineworld-3d, mineworld-slice — no simulation change). Head release binary copied to
+          scratch-fg-a-impl/head/.
+          FA-1(a): head long record (767 s, Darwin/arm64) against E-FGA-0's base record: summary-300,
+          summary-1000, summary-300s, summary-30s equal for all four worlds; every table-300s.facts chunk
+          equal (digest of all facts chunk lines d18d09f81142 both). PASS (DV-9 oracle).
+          FA-1(b): `ci_parity.py diff base head`: journal (and table-300s journal) "first differing chunk
+          0" in all four worlds, no other journal chunk differs; manifests differ (they carry the
+          composition). Snapshots differ too — F-FGA-19.
+          FA-1(c): 30-day saves base vs head, `sqlite3 … "SELECT revision, at, action_id, hex(entry) FROM
+          journal WHERE revision >= 2 ORDER BY revision" | shasum -a 256`: social-cafe d9585d712ad4b626,
+          market-town 52a5ea86353f8dd1, bodies-yard eb9aafe813b35503, lakeside e35cf9b8586360a0 — equal
+          base and head; revision-1 rows differ in all four; journal row counts equal (61 724, 60 331,
+          96 395, 50 424); whole fact tables equal (eb5581c8…, 3db574a1…, 087e1060…, b016d27d…). PASS.
+          FA-1(d): `mineworld validate` for the four worlds (lakeside with its --packs): byte-identical
+          base and head — no line names a version, so none is listed. PASS.
+          FA-1(e): `ci_parity.py baseline write <head record> scripts/baselines.txt` plus one reason line
+          per world ("reason FG-a: …"); `baseline check <head record>` PASS; `baseline check <base
+          record>` against the new file fails on journal-300s only, in all four worlds — the exact claim
+          of FA-1. Because baselines.txt was stale on main for every key (F-FGA-16), this re-record also
+          brings summaries and facts-300s to main's own record; the reason line says so. 12d (#171) is
+          still open, so by §9 it re-records second.
+          M-FA1a (compiled known_at_most 150 → 10, dev binary): social-cafe 30 days, summary differs from
+          day 1; "facts acquaintance-forgotten 256" appears — red. M-FA1b (compiled half-life, 1 day):
+          day 30 facts 85 626 vs 84 639, relationship-changed 1 350 vs 363 — red. Both reverted, `git
+          grep MUTATION` empty.
+          FA-10: release binaries (no base dev build exists outside this worktree; the ratio is what is
+          judged), social-cafe 30 days seed 7, base/head/configured interleaved, 3 each, twice. Walls
+          run 1: base 2.1 1.8 4.5, head 1.8 2.6 6.3, configured 1.7 2.7 5.3; run 2: base 5.8 4.9 2.1, head
+          2.3 3.5 2.4, configured 4.8 2.3 3.1 s. Load average 19 → 31 during the runs (other sessions on
+          the machine). Base spread ≫ 5 % twice: INCONCLUSIVE, reported, not retried further.
+          FA-11: `git diff --name-only origin/main HEAD` lists only §11's paths plus
+          systems/installed/tests/resolution.rs (DV-10) and kernel/tests/read_instant.rs (§8's kernel
+          test); root Cargo.toml and Cargo.lock unchanged; tests/acceptance/** unedited. PASS.
+F-FGA-19  Snapshots of an unconfigured world are not byte-identical: `WorldSnapshot.composition` records each
+          system's declaration and version, so it moves exactly as the genesis journal row does (F-FGA-8).
+          Decoding social-cafe's last 30-day snapshot base vs head (sqlite3 writefile, zstd -d, jq):
+          composition differs; entities, components, relations, time equal. §5.3's "the snapshot of an
+          unconfigured world is byte-identical" holds for the state, not the composition header; the
+          frozen invariant (every summary and fact) is unaffected.
+E-FGA-10  FGA-C9 local gate on the working tree eadc5df + C9 docs/baselines (no code change after):
+          `cargo test --workspace --no-fail-fast` exit 0 — 1 056 passed, 0 failed, 34 ignored (log
+          scratch-fg-a-impl/full-test.log; machine load up to 88, so wall times are not meaningful);
+          fmt --check, clippy -D warnings, check_doc_headings, check_decision_ids, check_scratch scan ok.
+          Then origin/main 0b242c8 (#182, ci.yml test timeout only) merged before the push.
 ```
 
 ---

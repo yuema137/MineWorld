@@ -29,9 +29,14 @@ SCRATCH             /Users/yuema137/mineworld-worktrees/scratch-fg-a-impl (base 
 
 ## Current checkpoint
 
-See the design's §10 checkboxes and §15 ledger; this file records only what they do not.
+FGA-C1 … C8 committed; origin/main 171ea06 (RL-b #131) merged at eadc5df. FGA-C9 evidence recorded
+(E-FGA-9): FA-1 PASS against the base record, baselines.txt re-recorded with reason lines, FA-10
+INCONCLUSIVE (machine load 19–31), FA-11 PASS. Session resumed once on 2026-10-14 after the session limit
+(the coordinator's resume note said "M-FA8"; repository truth showed C8 committed and the head long record
+complete, so work continued at C9).
 
 ## Exact next actions
 
-1. E-FGA-0: base long record and four 30-day saves with the base release binary (scratch dir above).
-2. FGA-C1 docs, then C2 (kernel), C3 (SDK), C4 … C9.
+1. Full local `cargo test --workspace --no-fail-fast` on the C9 tree (log
+   scratch-fg-a-impl/full-test.log); commit C9; push; open the PR; CI to green on the exact head.
+2. Never merge. If 12d (#171) merges first, merge main and re-record baselines.txt with a reason line.
