@@ -909,28 +909,34 @@ Commit plan:
 
 Commit plan:
 
-- **C0 — Spec and decision.** [ ] `docs/GUIDE_FORMAT.md`: block grammar, directives, page rules 1–8 of §6.2, mirror
-  parity, the pending rule; `DEP-50`'s record; `docs/README.md` row. [ ] doc checks; `cargo search` for
-  `pulldown-cmark` and `snapbox` versions, `cargo deny check licenses` after the add (licences verified at freeze, §16). [ ] Review: the grammar is unambiguous (every
-  info string form listed; what happens to an unlisted one).
-- **C1 — Parsing and file blocks.** [ ] dev-dependencies on `pulldown-cmark` and `snapbox` in
-  `tools/cli/Cargo.toml` (workspace entries with DEP comments); `tools/cli/tests/guide/` module: page walk,
-  `file=` writing with path confinement, directive parsing, `features.toml` reading (TOML: use the `toml` crate only
-  if already in the lock; otherwise the format is a list of `name = true|false` lines parsed by hand — record).
-  [ ] Unit-level tests of the parser on inline strings, including CRLF input. [ ] Review: path confinement
-  (absolute paths, `..`, Windows drive letters refused).
-- **C2 — Command blocks and matching.** [ ] Run `CARGO_BIN_EXE_mineworld` with word-split arguments, cwd = scratch
-  folder, merged stdout/stderr (in order: run with stderr redirected into the same pipe — check `std::process` on
-  Windows); `exit=N`; `snapbox` matching. [ ] The fixture page `tools/cli/tests/guide/fixture.md`
-  (create → validate → run 1 day → `equals`). [ ] Review: output normalisation is limited to line endings and
-  path separators; nothing else is rewritten.
-- **C3 — Guards.** [ ] `equals`, mirror parity, reference-anchor check (skipped with a pending note until 25a has
-  merged — then mandatory), features-versus-build check (asks `mineworld reference` or, before 25a, `mineworld
-  packs list`). [ ] AC-25c-2's planted defects as tests that assert failure. [ ] Review: each guard's message
-  tells a writer what to fix.
-- **C4 — CI and cost.** [ ] The guide test runs in `test`, `test-macos`, `test-windows` (already `cargo test`;
-  confirm it is not filtered out); wall time recorded per OS. [ ] AC-25c-1 evidence (run ids). [ ] Review: §8.5
-  budget met or the nightly move recorded.
+- **C0 — Spec and decision.** [x] `docs/GUIDE_FORMAT.md`: block grammar, directives, page rules 1–8 of §6.2, mirror
+  parity, the pending rule; `DEP-50`'s record; `docs/README.md` row (commit 489012b). [x] doc checks; versions
+  declared in the root `Cargo.toml` (`pulldown-cmark` 0.13.4, `snapbox` 1.2.2, `toml` 1.1.6); `cargo deny check
+  licenses` → `licenses ok` on the merged head (R-LOAD-1 local gate). [x] Review: the grammar is unambiguous (every
+  info string form listed; an unlisted one fails the page naming its line — test
+  `an_info_string_token_the_guide_does_not_list_fails_the_page_naming_its_line`).
+- **C1 — Parsing and file blocks.** [x] dev-dependencies on `pulldown-cmark` and `snapbox` in `tools/cli/Cargo.toml`
+  (workspace entries with DEP comments); `tools/cli/tests/guide/` module: page walk, `file=` writing with path
+  confinement, directive parsing, `features.toml` reading. `toml` crate used (already in the lock, DEP recorded).
+  (commit d30f121). [x] Unit-level tests of the parser on inline strings, including CRLF input
+  (`crlf_pages_are_read_as_lf_so_the_same_blocks_run_on_every_checkout`). [x] Review: path confinement (absolute
+  paths, `..`, symlinks refused — tests `a_block_path_outside_the_scratch_folder_is_refused_by_the_page_reader`,
+  `a_symbolic_link_already_in_the_scratch_folder_is_not_followed`).
+- **C2 — Command blocks and matching.** [x] Run `CARGO_BIN_EXE_mineworld` with word-split arguments, cwd = scratch
+  folder, merged stdout/stderr; `exit=N`; `snapbox` matching (commit d555f79). [x] The fixture page
+  `tools/cli/tests/guide/fixture.md` (create → validate → run 1 day → `equals`);
+  `the_fixture_page_runs_green_against_the_real_binary`. [x] Review: output normalisation is limited to line endings
+  and path separators.
+- **C3 — Guards.** [x] `equals`, mirror parity, reference-anchor check (pending note until 25a has merged — test
+  `a_link_into_a_reference_that_is_not_yet_generated_is_inconclusive_not_passed`), features-versus-build check (via
+  `mineworld reference`/`packs list`). [x] AC-25c-2's planted defects as tests that assert failure (commit 4742d4e;
+  34/34 PASS on the merged head). [x] Review: each guard's message names the page, step or folder to fix.
+- **C4 — CI and cost.** [x] The guide test runs in `test`, `test-macos`, `test-windows`: `cargo test --workspace` is
+  the `core` layer (`scripts/ci_layer.py`), and `tools/cli/tests/guide.rs` is discovered without filtering; local
+  guide wall time 0.5–1.0 s. [ ] Workspace gate: CI run <id> on <sha> (R-LOAD-1), pending. Local full workspace run
+  was started and stopped under R-LOAD-1 (load average above 200): before the stop, 49 suites, 241 passed, 0 failed,
+  so it is superseded by CI. [ ] AC-25c-1 evidence (CI run ids for `test`, `test-macos`, `test-windows`), pending.
+  [x] Review: §8.5 budget met locally; the nightly move is not needed for the PR leg.
 
 #### PR 25d — The tutorial and the tiny example world
 
