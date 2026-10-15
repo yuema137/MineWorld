@@ -45,8 +45,8 @@
 /// pub const AVAILABLE: [Capability; N]      every capability, in the listed order
 /// impl Capability {
 ///     resolve, id, section, owning_section, decode_section, configuration, decode_configuration,
-///     configuration_facts, interaction_section, biographical, package, version, install, provider,
-///     type_name
+///     configuration_facts, interaction_section, section_schema, configuration_schema,
+///     interaction_declarations, biographical, package, version, install, provider, type_name
 ///     register_extensions                   calls each extension line's register function once,
 ///                                           with one value of each listed type, lines and types
 ///                                           in the listed order — what a host does before it
@@ -238,6 +238,34 @@ macro_rules! installed {
             ) -> ::core::option::Option<$crate::interactions::SectionDecl> {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::INTERACTIONS, )+
+                }
+            }
+
+            /// The JSON Schema of the section this capability owns, if any, for the generated
+            /// reference (`ARC-90`).
+            pub fn section_schema(self) -> ::core::option::Option<$crate::__private::schemars::Schema> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::section_schema(), )+
+                }
+            }
+
+            /// The JSON Schema of this capability's `configure/<id>.yaml`, if it takes one
+            /// (`ARC-90`): its configuration, or its section of the World's Interaction List.
+            pub fn configuration_schema(
+                self,
+            ) -> ::core::option::Option<$crate::__private::schemars::Schema> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::configuration_schema(), )+
+                }
+            }
+
+            /// What this capability's section of the World's Interaction List declares, with its
+            /// parameter and knob schemas, if it has one (`ARC-90`).
+            pub fn interaction_declarations(
+                self,
+            ) -> ::core::option::Option<$crate::interactions::Declarations> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::interaction_declarations(), )+
                 }
             }
 

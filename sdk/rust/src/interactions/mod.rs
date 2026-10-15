@@ -16,6 +16,7 @@ pub mod biography;
 mod decl;
 mod lookup;
 mod resolve;
+pub mod schema;
 mod section;
 
 use std::sync::Arc;
@@ -36,6 +37,7 @@ pub use lookup::{
     permits, reduce,
 };
 pub use resolve::{Chosen, Resolution, Resolved, resolve};
+pub use schema::Declarations;
 pub use section::{
     ConsEntry, EXTENDS_MAX, Entries, Fields, ParamEntry, Parameters, Partial, RuleEntry, Section,
 };
@@ -201,6 +203,18 @@ macro_rules! interactions {
             D::Error,
         > {
             $crate::interactions::decode::<Self, D>(deserializer)
+        }
+
+        fn configuration_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default()
+                    .into_root_schema_for::<$crate::interactions::Section<Self>>(),
+            )
+        }
+
+        fn interaction_declarations() -> ::core::option::Option<$crate::interactions::Declarations>
+        {
+            ::core::option::Option::Some($crate::interactions::Declarations::of::<Self>())
         }
     };
 }

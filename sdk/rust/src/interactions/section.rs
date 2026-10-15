@@ -24,7 +24,16 @@ pub const EXTENDS_MAX: usize = 4;
 /// A set of optional, typed fields: a parameter block's partial twin, or a pack's consequence knobs.
 /// Made by [`parameters!`](crate::parameters) for parameters; `()` has none.
 pub trait Fields:
-    Default + Clone + PartialEq + Debug + Serialize + DeserializeOwned + Send + Sync + 'static
+    Default
+    + Clone
+    + PartialEq
+    + Debug
+    + Serialize
+    + DeserializeOwned
+    + schemars::JsonSchema
+    + Send
+    + Sync
+    + 'static
 {
     /// The fields' names, as a section writes them.
     const NAMES: &'static [&'static str];
@@ -69,7 +78,16 @@ impl Fields for () {
 /// A pack's typed parameter block, every field with a bound and a default (`ARC-63` item 2). Made by
 /// [`parameters!`](crate::parameters).
 pub trait Parameters:
-    Default + Clone + PartialEq + Debug + Serialize + DeserializeOwned + Send + Sync + 'static
+    Default
+    + Clone
+    + PartialEq
+    + Debug
+    + Serialize
+    + DeserializeOwned
+    + schemars::JsonSchema
+    + Send
+    + Sync
+    + 'static
 {
     /// The all-optional twin a scoped entry is written in.
     type Partial: Fields;
@@ -90,13 +108,18 @@ pub trait Parameters:
 ///     }
 /// }
 /// ```
+///
+/// A field carries doc comments only: the first paragraph is its description in the generated
+/// reference, which refuses a field without one (`docs/DECISIONS.md` `ARC-90`). Both structs implement
+/// `schemars::JsonSchema` with each field's default and, for a number, its bounds; the invoking crate
+/// needs no `schemars` dependency.
 #[macro_export]
 macro_rules! parameters {
     (
         $(#[$meta:meta])*
         $vis:vis struct $Name:ident, partial $Partial:ident {
             $(
-                $(#[$field_meta:meta])*
+                $(#[doc = $doc:literal])*
                 $field:ident : $ty:ty = $default:literal, $low:literal ..= $high:literal;
             )+
         }
@@ -105,9 +128,44 @@ macro_rules! parameters {
         #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
         $vis struct $Name {
             $(
-                $(#[$field_meta])*
+                $(#[doc = $doc])*
                 pub $field: $ty,
             )+
+        }
+
+        impl $crate::__private::schemars::JsonSchema for $Name {
+            fn schema_name() -> ::std::borrow::Cow<'static, str> {
+                ::std::borrow::Cow::Borrowed(stringify!($Name))
+            }
+
+            fn json_schema(
+                generator: &mut $crate::__private::schemars::SchemaGenerator,
+            ) -> $crate::__private::schemars::Schema {
+                $crate::interactions::schema::block(::std::vec![
+                    $(
+                        $crate::interactions::schema::field::<$ty>(
+                            generator,
+                            stringify!($field),
+                            concat!($($doc, "\n",)* ""),
+                            &$default,
+                            &$low,
+                            &$high,
+                        ),
+                    )+
+                ])
+            }
+        }
+
+        impl $crate::__private::schemars::JsonSchema for $Partial {
+            fn schema_name() -> ::std::borrow::Cow<'static, str> {
+                ::std::borrow::Cow::Borrowed(stringify!($Partial))
+            }
+
+            fn json_schema(
+                generator: &mut $crate::__private::schemars::SchemaGenerator,
+            ) -> $crate::__private::schemars::Schema {
+                <$Name as $crate::__private::schemars::JsonSchema>::json_schema(generator)
+            }
         }
 
         impl ::core::default::Default for $Name {

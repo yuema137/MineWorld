@@ -17,13 +17,22 @@ use serde::Deserialize;
 use crate::civil::CalendarDate;
 use crate::day::MicroDegrees;
 
-/// The calendar a world keeps: where it is and which date its instant 0 is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+/// The calendar a world keeps: which date the world begins on, its clock's offset from UTC, and where
+/// on Earth it is, which sets sunrise and sunset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = serde_json::json!({
+    "epoch": "2026-10-08", "utc_offset": "-08:00", "latitude": 32.7157, "longitude": -117.1611
+}))]
 pub struct CalendarConfiguration {
+    /// The local date the world begins on, YYYY-MM-DD, from 1901-01-01 to 2099-12-31.
     epoch: Epoch,
+    /// The local clock's fixed offset from UTC, ±HH:MM within ±14:00, such as "-08:00" (no daylight
+    /// saving).
     utc_offset: UtcOffset,
+    /// Latitude in decimal degrees, north positive, from -90 to 90.
     latitude: Latitude,
+    /// Longitude in decimal degrees, east positive, from -180 to 180.
     longitude: Longitude,
 }
 
@@ -50,8 +59,9 @@ impl CalendarConfiguration {
 }
 
 /// A date of 1901 … 2099 (the range NOAA's equations are stated for, step-19 §5.4), `YYYY-MM-DD`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(with = "String", extend("pattern" = "^(19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}$"))]
 struct Epoch(CalendarDate);
 
 impl TryFrom<String> for Epoch {
@@ -84,8 +94,9 @@ impl TryFrom<String> for Epoch {
 }
 
 /// A fixed UTC offset in seconds, `±HH:MM`, within ±14:00.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(with = "String", extend("pattern" = "^[+-][0-9]{2}:[0-5][0-9]$"))]
 struct UtcOffset(i32);
 
 impl TryFrom<String> for UtcOffset {
@@ -130,8 +141,9 @@ fn micro(key: &str, degrees: f64, bound: f64) -> Result<MicroDegrees, String> {
 }
 
 /// −90 … 90, north positive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "f64")]
+#[schemars(with = "f64", extend("minimum" = -90, "maximum" = 90))]
 struct Latitude(MicroDegrees);
 
 impl TryFrom<f64> for Latitude {
@@ -143,8 +155,9 @@ impl TryFrom<f64> for Latitude {
 }
 
 /// −180 … 180, east positive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "f64")]
+#[schemars(with = "f64", extend("minimum" = -180, "maximum" = 180))]
 struct Longitude(MicroDegrees);
 
 impl TryFrom<f64> for Longitude {

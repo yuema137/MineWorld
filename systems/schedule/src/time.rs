@@ -8,12 +8,25 @@ use crate::error::ScheduleError;
 /// Seconds in a day.
 pub const DAY: i64 = 86_400;
 
-/// A time of day, to the minute: `"06:30"`.
+/// A time of day on a 24-hour clock, HH:MM, such as "06:30" — quoted in YAML.
 ///
 /// World seconds since the epoch, modulo [`DAY`]. Written and recorded as `"HH:MM"` — a person reads it
 /// in a pack file and in a log — and held as seconds since midnight.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(extend("pattern" = "^([01][0-9]|2[0-3]):[0-5][0-9]$"))]
 pub struct TimeOfDay(i64);
 
 impl TimeOfDay {

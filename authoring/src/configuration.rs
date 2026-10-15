@@ -94,7 +94,15 @@ pub trait PackConfiguration: SystemIdentity {
     /// The configuration, as authored. Deserializing it *is* the owner's validation: the loader decodes
     /// it straight from the file, and a refusal carries the file's line and column and this type's own
     /// message.
-    type Configuration: DeserializeOwned + core::fmt::Debug + Send + Sync + 'static;
+    ///
+    /// Its JSON Schema is the configuration's entry in the generated reference (`ARC-90`): a pack
+    /// whose configuration has none does not compile.
+    type Configuration: DeserializeOwned
+        + schemars::JsonSchema
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + 'static;
 
     /// The event types its configuration may seed. The loader refuses a seeded fact of any other type,
     /// and the drift check at resume compares exactly the genesis facts of these types.
@@ -262,7 +270,19 @@ mod tests {
     use super::*;
 
     /// A step per place, each bounded by the type itself.
-    type Settings = BTreeMap<EntityKey, Step>;
+    #[derive(Debug, Deserialize, schemars::JsonSchema)]
+    #[serde(transparent)]
+    struct Settings(
+        #[schemars(with = "BTreeMap<crate::schema::Key, u32>")] BTreeMap<EntityKey, Step>,
+    );
+
+    impl core::ops::Deref for Settings {
+        type Target = BTreeMap<EntityKey, Step>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     /// 1 … 100, refused otherwise: the owner's bound, enforced by decoding.
     #[derive(Debug, Deserialize)]

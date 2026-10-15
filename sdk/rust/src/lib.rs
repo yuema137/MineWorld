@@ -48,8 +48,10 @@ pub use section::SectionOwner;
 pub mod __private {
     pub use std::sync::Arc;
 
+    pub use mineworld_authoring::schemars;
     pub use mineworld_authoring::{
-        AuthoredConfiguration, AuthoredContent, Decode, DecodeConfiguration, PackConfiguration,
+        AuthoredConfiguration, AuthoredContent, AuthoredSection, Decode, DecodeConfiguration,
+        PackConfiguration,
     };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};

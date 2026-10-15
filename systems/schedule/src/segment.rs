@@ -178,3 +178,44 @@ impl<'de, P: Deserialize<'de> + PartialEq> Deserialize<'de> for Segments<P> {
         Self::new(segments).map_err(D::Error::custom)
     }
 }
+
+/// One part of a person's day, as a routine authors it: [`Segment`]'s fields, places by key — what the
+/// generated reference describes (`ARC-90`).
+#[derive(schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct AuthoredSegment {
+    /// When this part of the day begins, every day.
+    from: TimeOfDay,
+    /// Where the person spends it: a place key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
+    place: EntityKey,
+    /// What it is for, in the world's own words: the label others see.
+    label: AgendaLabel,
+}
+
+/// A routine as authored: 2 to 24 parts of a day (`ARC-90`); the order and neighbour rules
+/// [`Segments::new`] enforces are stated in the description.
+impl schemars::JsonSchema for Segments<EntityKey> {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Routine")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let segment = generator.subschema_for::<AuthoredSegment>();
+        schemars::json_schema!({
+            "type": "array",
+            "items": segment,
+            "minItems": MIN_SEGMENTS,
+            "maxItems": MAX_SEGMENTS,
+            "description": "A person's day, in parts: each from a time, at a place, for something. \
+                            Times strictly increase; two neighbouring parts (the last and the first \
+                            included, since the day wraps) differ in place or label; the time before \
+                            the first part belongs to the last.",
+            "examples": [[
+                { "from": "08:00", "place": "shop", "label": "work" },
+                { "from": "18:00", "place": "home", "label": "home" },
+            ]],
+        })
+    }
+}

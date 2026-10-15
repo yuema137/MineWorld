@@ -195,7 +195,40 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
   check`: licenses ok, bans ok, sources ok (advisories FAIL on `rustls` 0.23.45 via `ureq` in
   `tools/weather-fetch`, unrelated and present on the base) · [x] LLM review: the diff adds derives,
   attributes, doc wording and schema impls only; no `Deserialize` attribute or decoder changed
-- **C2+C3** — [ ] Implementation · [ ] Validation · [ ] LLM review
+- **C2+C3** (one green commit, as step C2 allows) — [x] Implementation: the `JsonSchema` bound on
+  `AuthoredSection::Authored` and `PackConfiguration::Configuration`; `Fields` and `Parameters` gain it
+  (SD-25a-3); `parameters!` field grammar `$(#[doc = …])*` and its two `JsonSchema` impls through
+  `sdk/rust/src/interactions/schema.rs` (`field`, `block`); `impl JsonSchema for Section<S>` and
+  `Declarations` there; `SystemPack::{section_schema, configuration_schema, interaction_declarations}`
+  defined by `owns_section!`, `configures!`, `interactions!`; the same three questions on `installed!`'s
+  `Capability`; derives and author-facing first paragraphs in naming (`Name`), schedule (`TimeOfDay`,
+  `AgendaLabel`, `Segments<EntityKey>` manual over the mirror `AuthoredSegment`), item (`Category`,
+  `AuthoredItem`), inventory (`AuthoredHoldings`), economy (`AuthoredEconomy`, `AuthoredShop`),
+  employment (`AuthoredJob` with `RawJob`), bodies (`Body` with `Written`, `Lies`, `Corner`, `Floor`,
+  `Solid`, `HalfExtents`, `BodyShape` with `AuthoredShape`), calendar (`CalendarConfiguration` and its
+  four field types), weather (`WeatherConfiguration` via `RawConfiguration`, `Source`,
+  `RecordConfiguration`, `Rules`, `RawRules`, `Month`, `RawMonth` with ranges, `Quintiles`, `Fill`,
+  `Station`); test packs (authoring, worldpack `load.rs` and `configure/tests.rs`, acceptance
+  `configuration`); `trybuild` case `a_section_without_a_schema_does_not_compile`. `acme-fishing` 0.1.1
+  (`yuema137/mineworld-pack-fishing` @ `2622137`, tag `v0.1.1`: `RawSpot`/`AuthoredSpot` schemas) and
+  re-pinned in `systems/installed/Cargo.toml` and the lock (`src/lib.rs` unchanged: the type name did
+  not change) · [x] Validation: before the fishing update `cargo check --workspace` failed exactly at
+  `AuthoredSpot: JsonSchema` (the bound bites a third-party pack); after it, `cargo check --workspace
+  --all-targets` and `cargo clippy --workspace --all-targets -D warnings` clean; tests of sdk,
+  authoring, worldpack, the 13 affected packs and the installed set all pass; acceptance
+  `configuration_seam` (4) and `package_sources` (11, the new pin) pass;
+  `a_sections_schema_states_what_its_decoder_accepts` (the schema's example decodes through the real
+  `Section<S>` decoder; defaults, bounds, description; region actions regional only; exactly the six
+  keys); `the_sections_description_states_the_enforced_capacity` (inventory's text cites
+  `PERSON_CAPACITY`); fishing's own `cargo test` green (5 + 2 + 2) · [x] LLM review: `installed!` still
+  names no pack; the public-contract change visible to a pack author is the bound (QS25-2) plus three
+  defaulted trait functions a pack never writes (its macros do); `parameters!` now admits only doc
+  comments on fields (every use in the tree already did, A-7); no `Deserialize` attribute changed.
+  Finding F-25a-2: a `try_from` container still compiles its own fields' schemas, so containers whose
+  fields have no schema take `#[schemars(with = "Raw…")]` instead (employment, bodies, calendar,
+  fishing). Finding F-25a-3: `acme-fishing` names `String` for `catch` (not `schema::Key`), because its
+  standalone build pins MineWorld @ 6ca763d, which has no `schema` module; the fishing pack's own
+  `[patch]` pin moves when 25a merges (follow-up, outside MineWorld)
 - **C4** — [ ] Implementation · [ ] Validation · [ ] LLM review
 - **C5** — [ ] Implementation · [ ] Validation · [ ] LLM review
 
