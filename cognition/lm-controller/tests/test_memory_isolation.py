@@ -27,6 +27,8 @@ COGNITION_IMPORTS = {
     "mineworld_cognition.backend.canonical",
     "mineworld_cognition.backend.model",
     "mineworld_cognition.gateway",
+    # FG-c F-FGc-6: the retention host re-raises `CassetteMiss` (FGc-6), so it must name the type.
+    "mineworld_cognition.record",
 }
 
 
@@ -59,7 +61,13 @@ def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_ad
     outside = {
         name
         for name in imported
-        if not name.startswith(("mineworld_cognition.memory", "mineworld_cognition.compress"))
+        if not name.startswith(
+            (
+                "mineworld_cognition.memory",
+                "mineworld_cognition.compress",
+                "mineworld_cognition.forgetting",
+            )
+        )
     }
     assert outside == COGNITION_IMPORTS
 

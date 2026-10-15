@@ -556,6 +556,9 @@ dump digest (AFGc-4 (b)).
 | F-FGc-3 | The two pass-log columns (`model_decisions`, `fallback_decisions`) live in `store.py`'s v2 DDL, outside §2.1's file list; QFGc-7 requires them there. | Accepted, 2026-10-14. |
 | F-FGc-4 | `memory/retention/__init__.py` exports the assisted names; `forgetting/__init__.py`'s docstring is updated. | Accepted, 2026-10-14. |
 | F-FGc-5 | Rule slip: one `sed -i` (an en-dash fix in a new test file) was run against the NEVER list. No other shell edit was made. | Noted by the primary; not to be repeated. |
+| F-FGc-6 | `memory/retention/host.py` imports `mineworld_cognition.record.CassetteMiss` to re-raise it (FGc-6: a miss is a stop; the broad `except Exception` must not catch it). FG-b's isolation pin (`test_memory_isolation.py`, AP4-11) did not list `record`; `record` is added to `COGNITION_IMPORTS`. The dependency is the design's own (AFGc-4 (c) needs the name); no ownership moves. | **Recorded as a bounded revision; the operator reviews it at merge.** Not in the primary's 2026-10-14 ruling. |
+| F-FGc-7 | `memory/retention/__init__.py` also exports `Exhausted` (§5.1's class, read by `lm_summarise`) and `MESSAGE_BYTES` (the §5.3 byte bound, read by `lm_summarise`), which §2.1 does not list. Both are added to FG-b's `PUBLIC` pin. | **Recorded as a bounded revision; the operator reviews it at merge** (the designed-names pin widens by two). |
+| F-FGc-8 | FG-b's isolation scan (`test_retention_interface.py`, AFGb-9(a)) covers the no-LLM policies and forbids `gateway`; `lm_summarise.py` is an assisted policy whose surface is AFGc-7(a)'s, so it is skipped by name there (the AFGc-7(a) test is its owner). `test_memory_isolation.py` treats `forgetting.*` as internal, like `memory`/`compress`. `BUNDLED` adds `lm-summarise`. | Bounded revision, 2026-10-14 (test pins only; no production code changed). |
 
 ### 14.3 Load (R-LOAD-1, 2026-10-14)
 
@@ -585,6 +588,11 @@ Full-workspace gate: CI only (R-LOAD-1). `workspace gate: CI run <id> on <sha> (
 - `scripts/check_decision_ids.py`: 122 decision ids, all distinct (rc 0).
 - `pytest tests/test_assisted_host.py tests/test_lm_summarise.py tests/test_lm_summarise_replay.py` in `cognition/lm-controller`: 24 passed, 1 skipped (the `LMS_RECORD` recording test, skipped by design), 5.0 s.
 - Not run locally, by R-LOAD-1: `tests/test_retention_host.py` and the rest of the suites; these are CI's. Evidence owed remains §14.6.
+
+### 14.9 CI on the head (R-LOAD-1)
+
+- Run `38680364016` on `0f32e3d`: `changes`, `fast`, `platforms (macos-26)`, `platforms (windows-2025)` passed; `python (ubuntu-24.04, python)` FAILED with 4 tests (`test_retention_interface.py` ×3 and `test_memory_isolation.py` ×1), the FG-b pins that FG-c's surface moved (F-FGc-6, F-FGc-7, F-FGc-8). Reproduced locally at load ≈20, then fixed; the run was cancelled as superseded.
+- The fix commit's CI run: recorded below when it exists, as `workspace gate: CI run <id> on <sha> (R-LOAD-1)`.
 
 ### 14.5 Mutations (AFGc, planted one at a time, restored; load ≈180)
 
