@@ -1594,7 +1594,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
 | A1 | (this commit) | [x] `docs/MODULE_SPEC.md` §4.1: `persona:` row after `name:`, example line, "eight sections"; `docs/DECISIONS.md` ARC-74 appended; `name` entry read as the model first | [x] `check_doc_headings.py` 223 sections (PASS); `check_decision_ids.py` 123 ids, all distinct (PASS) | [x] terms exact (System Pack, Component, Person); the rule "shapes speech, grants nothing" is stated in MODULE_SPEC §4.1 and ARC-74, not only in a README |
 | A2 | (this commit) | [x] `systems/persona` (`mineworld-persona`): `persona.rs`, `component.rs`, `event.rs`, `section.rs`, `codec.rs`, `system.rs`, `lib.rs`, `README.md`, `tests/persona.rs`; `Cargo.lock` gains the workspace member; root `Cargo.toml` not edited (`systems/*` glob) | [x] `cargo test -p mineworld-persona`: 3 tests PASS (1 table test of 5 refusals with line and column; 2 integration tests); `cargo clippy -p mineworld-persona --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean | [x] no action, process or reaction declared; no import of another pack; no `HashMap`; discloses to holder only |
-| A3 | — | [ ] | [ ] | [ ] |
+| A3 | (this commit; SHA not self-recorded; baselines pending: main re-record) | [x] steps 1–3 done (systems/installed line; `- persona` last in social-cafe `world.yaml`; nine people `persona:` sections, with two invented claims removed: "Remembers orders" (alice), "beside Alice" (bob)); step 7 not reached: `scripts/baselines.txt` NOT edited (F-P6a-2) | [ ] steps 4, 5, 8 done and PASS (validate, release build, `cargo test -p mineworld-installed-systems`); step 5 long record done (74 min, F-P6a-3); step 6 baseline check FAIL: 20 of 20 moved columns, all four worlds, main drift (F-P6a-2); final re-check after main re-record pending | [ ] review questions answered in §15 (text grounded in notes; reducer order unchanged) but the baseline gate is open; not READY |
 | C0 | — | [ ] | [ ] | [ ] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
@@ -1629,6 +1629,16 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   `a_persona_is_refused_when_it_breaks_a_bound`); lib and doc tests 0. `cargo clippy -p mineworld-persona
   --all-targets -- -D warnings` clean. `cargo fmt --all --check` clean.
 
+- **A3 evidence (2026-10-14).** `cargo build -p mineworld-cli` (debug) and `target/debug/mineworld validate
+  worlds/social-cafe`: "worlds/social-cafe is a valid World Pack", exit 0. `cargo build --release -p mineworld-cli`:
+  finished. `cargo test -p mineworld-installed-systems`: PASS (`tests/installed.rs` 3 passed, 0 failed;
+  `tests/resolution.rs` 2 passed, 0 failed). Long record: `ci_parity.py record --binary
+  /tmp/impl-s10-p6a-target/release/mineworld --profile long --out target/scratch-p6a/p6a.long` wrote four worlds
+  (bodies-yard, lakeside, market-town, social-cafe) in 4457 s. Baseline check, `ci_parity.py baseline check
+  target/scratch-p6a/p6a.long`: **FAIL**. Every key of every world moved, 20 of 20 columns (summary-300,
+  summary-1000, summary-300s, facts-300s, journal-300s for each of the four worlds). Example: bodies-yard
+  facts-300s 624482 → 1749296; social-cafe facts-300s 365330 → 837962.
+
 ### Assumptions to verify in implementation
 
 | Id | Assumption | Verified in | If false |
@@ -1661,4 +1671,16 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   a member without an edit (ARC-33); `Cargo.lock` gains the workspace package and no external dependency.
   A3 adds `mineworld-persona = { path = "../persona" }` to `systems/installed/Cargo.toml`, the path form that
   `item` and `inventory` use.
+- **F-P6a-2 (A3, 2026-10-14): baseline stop, main-drift classification.** The baseline check moved all 20
+  columns, including bodies-yard, a world with no `persona:` (its `world.yaml` names no persona system). Its
+  columns are therefore not caused by persona. The recorded baselines were taken at `9f853e1`, and `origin/main`
+  is now 166 commits ahead, with its baselines known stale (F-12d-1). Classification: **main drift**. Coordinator
+  ruling (2026-10-14): commit A3 locally with the baselines pending; do not touch `scripts/baselines.txt`; do not
+  push. Main re-record lands in a separate PR after #171 (12d) merges. P6a resumes then: merge `origin/main`,
+  re-record, and only persona-caused social-cafe columns may move (QP6-2). The 20 moved columns are listed in the
+  A3 evidence above and in the check's output; none was re-baselined.
+- **F-P6a-3 (A3, 2026-10-14): `ci_parity.py` needs Python 3.11+ and does not say so.** The system `python3` is
+  3.9.6 and fails at `import tomllib` (line 60) with no version message. The record and check were run with
+  `/opt/homebrew/bin/python3.11` (3.11.15). Action: `ci_parity.py` should state its minimum Python. Owner: the
+  parity tooling, not P6a; recorded here for the tooling owner.
 - Planning findings are §3.2 and §0.1.

@@ -41,13 +41,19 @@ STOP CONDITIONS     any moved baseline column other than a social-cafe column th
                     perceive their own persona (A3 step 7); any change to an existing System's code; any
                     change outside APPROVED SCOPE; a new external dependency
 CURRENT CHECKPOINT  A0 committed (7dcb1ac); A1 committed (9fd8315: MODULE_SPEC §4.1 persona row; ARC-74).
-                    A2: systems/persona built, tests green, M-P6a-1 seen red and reverted; A2 commit
-                    in progress. Findings: F-P6a-1 (struct-level bounds lose line/column; per-value
-                    bounds keep them); D-P6a-1 … D-P6a-4 in §15.
-NEXT ACTIONS        A2 commit, then A3: systems/installed (path dep + one line; `tests/installed.rs`
-                    must pass), social-cafe world.yaml (persona last) and nine people files, validate,
-                    release build, long parity record, baseline check (QP6-2 rule: only social-cafe
-                    columns that move because people perceive their persona; reason lines; any other
-                    moved column is a material stop), cargo test -p mineworld-installed-systems.
+                    A2 committed (4561074): systems/persona built, tests green, M-P6a-1 seen red and
+                    reverted. A3 committed locally with baselines pending (main re-record); STOPPED at
+                    A3 step 6: baseline check FAIL, 20 of 20 columns moved, main drift (F-P6a-2), NOT
+                    PUSHED. Findings: F-P6a-1 (struct-level bounds lose line/column; per-value bounds
+                    keep them); F-P6a-2 (main drift); F-P6a-3 (ci_parity.py needs Python 3.11+);
+                    D-P6a-1 … D-P6a-4 in §15.
+NEXT ACTIONS        WAIT (coordinator ruling): main's baselines are re-recorded in a separate PR after #171
+                    (12d) merges. Then, on resume: merge origin/main into mvp0/pr-s10-p6a; re-record the
+                    long profile with /opt/homebrew/bin/python3.11 (F-P6a-3); baseline check. Only
+                    social-cafe columns that move because people perceive their persona may change, with
+                    reason lines citing QP6-2 (F-P6a-2); any other moved column is a material stop. Then
+                    run the full workspace tests, fmt, clippy; push; open the PR; CI on the exact head.
+                    Never merge.
 POST-MERGE SYNC     primary session: step-17, overall.md. This session: the P6a rows of the §15 ledger.
-READY STATE         P6a READY FOR OPERATOR REVIEW — DO NOT MERGE
+READY STATE         P6a STOPPED at A3 (baseline gate open: main drift, F-P6a-2). NOT PUSHED. NOT READY.
+                    DO NOT MERGE.
