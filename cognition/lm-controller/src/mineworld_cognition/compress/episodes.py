@@ -69,8 +69,8 @@ class Episodes:
         opened = _Open(number, record.at // DAY_S, place, key, key, record.at, record.at, 0)
         self._db.execute(
             "INSERT INTO episodes (episode, day, place, first_key, last_key, opened_at, closed_at, "
-            "closed, records, text, prose, prose_key) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, '', NULL, "
-            "NULL)",
+            "closed, records, text, prose, prose_key, importance, mine) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, '', NULL, NULL, 0, 0)",
             (number, opened.day, place, key, key, record.at, record.at),
         )
         self._open = opened
@@ -94,8 +94,13 @@ class Episodes:
     def _close(self, current: _Open) -> None:
         records = records_between(self._store, current.first_key, current.last_key)
         text = self._summarizer.episode(records, self._names, place=current.place)
+        # Its importance and whether any record was mine, while every record is still here: retention
+        # may later merge the records into it (pr-fg-b §5.4).
         self._db.execute(
-            "UPDATE episodes SET closed = 1, text = ? WHERE episode = ?", (text, current.number)
+            "UPDATE episodes SET closed = 1, text = ?, "
+            "importance = (SELECT max(importance) FROM l0 WHERE event_key BETWEEN ? AND ?), "
+            "mine = (SELECT max(mine) FROM l0 WHERE event_key BETWEEN ? AND ?) WHERE episode = ?",
+            (text, *(current.first_key, current.last_key) * 2, current.number),
         )
         self._stable.met(current.who)
         self._open = None

@@ -29,7 +29,8 @@ run builds Godot's resource cache automatically and takes about 30 s extra.
 | — | **no jump.** This is a walking simulator. |
 
 In the slice (`./mineworld-slice`), Esc opens the settings menu: language (English or 简体中文), 12- or
-24-hour clock, window mode and size, render scale, VSync and frame cap; Quit is there too. Settings stay
+24-hour clock, window mode and size, render scale, VSync and frame cap, mouse sensitivity and invert vertical
+look (the Controls tab, which also shows the key map read-only); Quit is there too. Settings stay
 on your machine and are shared with the 2D client. On Windows, clone with `git config core.symlinks
 true` (Developer Mode): `mineworld` and `mineworld_settings` here are symlinks to the shared modules.
 

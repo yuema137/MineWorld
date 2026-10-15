@@ -1,0 +1,28 @@
+# A decision model is a pure function of what it is given (DECISIONS.md ARC-27 note of 2026-10-13,
+# MODULE_SPEC.md §5.1): `&self`, and no state hidden behind it. Clippy reads the nearest clippy.toml, so
+# this file repeats the workspace's entries and adds every interior-mutability type. Every model crate
+# carries a copy (pr-dl-a-decision-list.md R-S24-8).
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "use BTreeMap: iteration order reaches serialized state and must be deterministic" },
+    { path = "std::collections::HashSet", reason = "use BTreeSet: iteration order reaches serialized state and must be deterministic" },
+    { path = "std::cell::Cell", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::cell::RefCell", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::cell::OnceCell", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::cell::UnsafeCell", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::Mutex", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::RwLock", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::OnceLock", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::LazyLock", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicBool", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicU8", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicU16", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicU32", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicU64", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicUsize", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicI8", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicI16", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicI32", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicI64", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicIsize", reason = "a decision model holds no state across consults (ARC-27)" },
+    { path = "std::sync::atomic::AtomicPtr", reason = "a decision model holds no state across consults (ARC-27)" },
+]

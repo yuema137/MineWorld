@@ -20,7 +20,11 @@
 //!                         state is written. Directed like `knows`; not regional; no place role
 //! parameters   the five contact increments, looked up with actor = the person whose values change,
 //!              target = the counterpart, place = where the causing fact happened
-//! facts        became-acquainted, relationship-changed   participants; biography configurable (on)
+//!              decay (familiarity_decay … regard_floor): actor and target only, looked up with no
+//!              place; known_at_most: actor only (ARC-86). Refused under any other role, or in a
+//!              region
+//! facts        became-acquainted, relationship-changed, acquaintance-forgotten   participants;
+//!              biography configurable (on)
 //! ```
 //!
 //! No installed pack provides an action type `acquaint` (a test holds it), so the rule name cannot be
@@ -28,15 +32,17 @@
 //! constant, so a world that does not configure the section reduces exactly as before.
 
 use mineworld_contracts::{
-    ActionTypeId, ComponentTypeId, Event, EventTypeId, PersonId, PlaceId, Visibility,
+    ActionTypeId, ComponentTypeId, Event, EventTypeId, PersonId, PlaceId, SystemId, Visibility,
 };
 use mineworld_kernel::WorldRead;
 use mineworld_sdk::interactions::{
     self, ActionDecl, Audience, FactDecl, InteractionSection, Position, Resolved, Role, Roles,
+    Section,
 };
 
 use crate::codec;
-use crate::event::{BecameAcquainted, RelationshipChanged};
+use crate::decay::{Curve, CurveCatalog, CurveName, DecayRule};
+use crate::event::{AcquaintanceForgotten, BecameAcquainted, RelationshipChanged};
 use crate::system::RelationshipsSystem;
 
 /// The rule name's text.
@@ -65,8 +71,29 @@ mineworld_sdk::parameters! {
         activity_familiarity: i32 = 50, 0 ..= 1_000;
         /// What an activity done together adds to regard, per ordered pair of members.
         activity_regard: i32 = 20, -1_000 ..= 1_000;
+        /// The curve familiarity fades by with time since the last contact (`ARC-86`).
+        familiarity_decay: CurveName = CurveName::NONE, CurveCatalog;
+        /// Its time constant, in days. Not calibrated; inert while the curve is `none`.
+        familiarity_decay_days: u16 = 365, 1 ..= 3_650;
+        /// Familiarity never fades below this.
+        familiarity_floor: u16 = 0, 0 ..= 1_000;
+        /// The curve regard fades toward zero by, from either side.
+        regard_decay: CurveName = CurveName::NONE, CurveCatalog;
+        /// Its time constant, in days.
+        regard_decay_days: u16 = 365, 1 ..= 3_650;
+        /// Regard's magnitude never fades below this.
+        regard_floor: u16 = 0, 0 ..= 1_000;
+        /// How many people a person keeps; a new acquaintance beyond it evicts the weakest tie.
+        known_at_most: u16 = 150, 5 ..= 1_500;
     }
 }
+
+/// The field about the holder alone.
+const HOLDER: &[Role] = &[Role::Actor];
+
+/// The fields about a pair, not a place: scoped by the holder and the counterpart only, never in a
+/// region (`pr-fg-a-relationship-forgetting.md` §4.1, F-FGA-6).
+const PAIR: &[Role] = &[Role::Actor, Role::Target];
 
 /// Where a role is found in both facts' envelopes: the holder is the subject, the counterpart the
 /// second participant.
@@ -102,8 +129,39 @@ impl InteractionSection for RelationshipsSystem {
             narrowest: Audience::Participants,
             biography_configurable: true,
         },
+        FactDecl {
+            fact: AcquaintanceForgotten::EVENT_TYPE,
+            roles: FACT_ROLES,
+            default_audience: Audience::Participants,
+            narrowest: Audience::Participants,
+            biography_configurable: true,
+        },
     ];
     const PARAMETER_ROLES: &'static [Role] = &[Role::Actor, Role::Target, Role::Place];
+    const FIELD_ROLES: &'static [(&'static str, &'static [Role])] = &[
+        ("familiarity_decay", PAIR),
+        ("familiarity_decay_days", PAIR),
+        ("familiarity_floor", PAIR),
+        ("regard_decay", PAIR),
+        ("regard_decay_days", PAIR),
+        ("regard_floor", PAIR),
+        ("known_at_most", HOLDER),
+    ];
+
+    /// The packs implementing the catalog curves the section names: a world selecting a user curve
+    /// enables its pack, so the save's composition records the curve's code (QFGA-3).
+    fn requires(section: &Section<Self>) -> Vec<SystemId> {
+        let entries = std::iter::once(&section.entries).chain(section.regions.values());
+        let mut packs: Vec<SystemId> = entries
+            .flat_map(|entries| &entries.parameters)
+            .flat_map(|entry| [&entry.fields.familiarity_decay, &entry.fields.regard_decay])
+            .flatten()
+            .filter_map(|name| Curve::named(name).and_then(Curve::implemented_by))
+            .collect();
+        packs.sort();
+        packs.dedup();
+        packs
+    }
 
     fn encode(resolved: &Resolved<Self>) -> Vec<u8> {
         codec::encode(resolved)
@@ -158,6 +216,30 @@ pub(crate) fn increments(
     })
 }
 
+/// How `person`'s values about `counterpart` fade: the world's, looked up with no place (the fields
+/// are about the pair, F-FGA-6), or nothing fading when it configures none. `Err` names a curve this
+/// build does not know — reachable only for a save opened in a build without the curve, which the
+/// composition check refuses first.
+pub(crate) fn decay_rule(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    counterpart: PersonId,
+) -> Result<DecayRule, CurveName> {
+    let parameters = interactions::parameters_unplaced::<RelationshipsSystem>(
+        world,
+        &directed(person, counterpart),
+    );
+    DecayRule::of(&parameters)
+}
+
+/// How many people `person` keeps: the world's, looked up with the holder alone and no place, or 150.
+pub(crate) fn known_at_most(world: &WorldRead<'_>, person: PersonId) -> usize {
+    let roles = Roles::new().with(Role::Actor, person.entity_id());
+    usize::from(
+        interactions::parameters_unplaced::<RelationshipsSystem>(world, &roles).known_at_most,
+    )
+}
+
 /// The audience of one of this pack's facts about `person` and `counterpart`: the two of them, its
 /// owner default (written once, in its `FactDecl`), unless the list says otherwise.
 pub(crate) fn audience(
@@ -199,8 +281,22 @@ mod tests {
     /// compiled increment, or the names the section is stored under, is a version change.
     #[test]
     fn the_default_section_is_pinned_to_the_version() {
-        assert_eq!(RelationshipsSystem::VERSION.get(), 2);
+        assert_eq!(RelationshipsSystem::VERSION.get(), 3);
         let defaults = RelationshipParameters::default();
+        // FG-a's decay: nothing fades unless a world says so (QS24-7).
+        assert_eq!(
+            (
+                defaults.familiarity_decay.as_str(),
+                defaults.familiarity_decay_days,
+                defaults.familiarity_floor,
+                defaults.regard_decay.as_str(),
+                defaults.regard_decay_days,
+                defaults.regard_floor,
+            ),
+            ("none", 365, 0, "none", 365, 0)
+        );
+        // The cap: Dunbar's 150 (QS24-7), inert in every reference world.
+        assert_eq!(defaults.known_at_most, 150);
         assert_eq!(
             [
                 defaults.spoke_familiarity,
