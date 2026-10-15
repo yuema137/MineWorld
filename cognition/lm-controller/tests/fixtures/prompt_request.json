@@ -1,0 +1,30 @@
+{
+  "purpose": "decide",
+  "messages": [
+    {
+      "role": "system",
+      "text": "You are Alice.\nAbout you: Runs the counter.\nTraits: warm.\nHow you speak: short\nRules: answer with one JSON object and nothing else.\nThe object has the keys \"act\" (say, attempt or nothing), \"to\" (a person from the list, or null), \"words\" (what you say, or \"\"), \"offer\" (a number from the list, or null), and \"recalls\" (a list of citation tokens you rely on, or []).\nChoose only among the people and offers listed. Never invent people, events or numbers.\nCite memory only by the tokens shown."
+    },
+    {
+      "role": "user",
+      "text": "WHERE I AM\nPlace: Cafe\nPeople here: Bob\nI can talk to: Bob\nOffers:\n1. order\n\nWHAT I REMEMBER\nnothing\n\nWHAT JUST HAPPENED\nA person said to me: <<<heard>>>hello<<<end>>>"
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["act", "to", "words", "offer", "recalls"],
+    "properties": {
+      "act": {"type": "string", "enum": ["say", "attempt", "nothing"]},
+      "to": {"type": ["string", "null"]},
+      "words": {"type": "string", "maxLength": 480},
+      "offer": {"type": ["integer", "null"]},
+      "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": 8}
+    }
+  },
+  "sampling": {
+    "temperature_milli": 700,
+    "max_output_tokens": 256,
+    "seed": 158080199
+  }
+}

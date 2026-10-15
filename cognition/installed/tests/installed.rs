@@ -111,6 +111,20 @@ fn every_id_is_spelled_by_the_rule_listed_once_and_not_none() {
     );
 }
 
+#[test]
+fn the_lm_controller_is_the_one_installed_external_model() {
+    let external: Vec<&str> = AVAILABLE
+        .iter()
+        .filter(|model| model.is_external())
+        .map(|model| model.id())
+        .collect();
+    assert_eq!(
+        external,
+        ["lm"],
+        "the LM controller (S10 P6b, DL-a SD-DLa-12) is the only external model listed"
+    );
+}
+
 /// The negative control: the checks see a duplicate and a reserved id when there is one. Two stub
 /// models listed by the same macro the real set uses.
 mod twins {

@@ -24,7 +24,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 from urllib.parse import urlsplit
 
 from mineworld_sdk.wire.ids import EntityKey, JsonValue
@@ -272,6 +272,68 @@ def run_spike(
     return report
 
 
+COLUMNS: tuple[tuple[str, int, bool], ...] = (
+    ("model", 22, False),
+    ("output", 12, False),
+    ("valid", 5, True),
+    ("done", 4, True),
+    ("failures", 20, False),
+    ("p50 ms", 6, True),
+    ("p95 ms", 6, True),
+    ("meets", 5, False),
+)
+"""The summary table's columns: heading, width, and whether the cell is right-justified (C14, §5.15)."""
+
+
+def _join(cells: list[str]) -> str:
+    padded = [
+        cell.rjust(width) if right else cell.ljust(width)
+        for cell, (_, width, right) in zip(cells, COLUMNS, strict=True)
+    ]
+    return " ".join(padded).rstrip()
+
+
+def _row(model: dict[str, JsonValue], output: str) -> str:
+    failures = cast(dict[str, JsonValue], model["failures"])
+    failed = ", ".join(f"{reason} x {count}" for reason, count in failures.items()) or "-"
+
+    def ms(value: JsonValue) -> str:
+        return "-" if value is None else str(value)
+
+    return _join(
+        [
+            str(model["model"]),
+            output,
+            f"{model['first_attempt_schema_valid']}/{model['scenarios']}",
+            str(model["completed"]),
+            failed,
+            ms(model["latency_p50_ms"]),
+            ms(model["latency_p95_ms"]),
+            "yes" if model["meets_criteria"] is True else "no",
+        ]
+    )
+
+
+def summary_table(report: dict[str, JsonValue]) -> str:
+    """The report as a fixed-width table (§5.15): one row per model, in report order, then the default and the criteria.
+
+    A pure function of the report, so the same report always gives the same text. An absent value is `-`; failures read
+    `reason x count` (ASCII, D-P6b-33). `main` prints it before the JSON line, which stays last and unchanged."""
+    criteria = cast(dict[str, JsonValue], report["criteria"])
+    server = cast(dict[str, JsonValue], report["server"])
+    models = cast(list[JsonValue], report["models"])
+    output = str(server["structured_output"])
+    heading = _join([name for name, _, _ in COLUMNS])
+    rows = [_row(cast(dict[str, JsonValue], model), output) for model in models]
+    default = str(report["default"]) if report["default"] else "none"
+    footer = (
+        f"default: {default}   criteria: valid >= {criteria['first_attempt_schema_valid_min']}/"
+        f"{criteria['scenarios']}, p95 <= {criteria['latency_p95_max_ms']} ms   "
+        f"scenarios sha256 {str(criteria['scenarios_sha256'])[:12]}"
+    )
+    return "\n".join([heading, *rows, footer]) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--config", type=Path, required=True)
@@ -283,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     report = run_spike(
         load(arguments.config), models, arguments.out, allow_remote=bool(arguments.allow_remote)
     )
+    print(summary_table(report), end="")
     print(json.dumps({"default": report["default"], "verdict": report["verdict"]}))
     return 0
 

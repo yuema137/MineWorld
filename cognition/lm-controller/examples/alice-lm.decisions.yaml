@@ -1,0 +1,9 @@
+# An operator decision list for `--decisions` (S10 P6b, pr-s10-p6-lm-controller.md §5.9).
+# It is never placed inside a world directory: the world's own decisions.yaml is not changed.
+#
+# Alice is driven by the language model (`lm`) through the LM controller; while no LM process
+# holds her seat, her fallback model `rule` drives her in the server (`server --town`).
+models:
+  lm: { fallback: rule }
+assign:
+  - { seat: alice, model: lm }

@@ -387,6 +387,37 @@ resolves every arrival before recording it, through an `ArrivalResolver` seam ca
 Applied in the S9 closeout from `step-11-bodies.md` §12.1. The step design is `DESIGN FROZEN
 (2026-10-07)`, revision 1, with PRs 12a–12e; S15 precedes S14 (step-11 §12).
 
+### S26–S33 — steps added 2026-10-14 and 2026-10-15 *(entries added 2026-10-15, S33 approval)*
+
+Each step has its own document; the document is the authority, and this list only places it in the effort.
+All are MVP-0. S29–S33 are release-blocking under the operator's principle of 2026-10-15,
+"我们要发布就得把这些功能全部做好" (every requested feature is done before the public release).
+
+| Step | Document | Lifecycle | Scope in one line |
+| --- | --- | --- | --- |
+| S26 | [step-26-cast.md](step-26-cast.md) | STEP DESIGN FROZEN 2026-10-14; amendment APPROVED 2026-10-15 | every person built with the protagonist's pipeline and standard; the `appearance` pack and the cast binding |
+| S27 | [step-27-agent-players.md](step-27-agent-players.md) | STEP DESIGN FROZEN 2026-10-14 | agents as first-class players, starting with an MCP adapter |
+| S28 | [step-28-shared-memory.md](step-28-shared-memory.md) | STEP DESIGN FROZEN 2026-10-14 | shared, access-controlled, modular memory |
+| S29 | [step-29-station-landmark.md](step-29-station-landmark.md) | APPROVED 2026-10-15 | every town's train station and signature landmark; after Milestone F, before the first public release |
+| S30 | [step-30-person-attributes.md](step-30-person-attributes.md) | APPROVED 2026-10-15 | person attributes and dependency-aware population sampling |
+| S31 | [step-31-wealth-prices.md](step-31-wealth-prices.md) | APPROVED 2026-10-15 | wealth, seller-set prices, the notice board and the price reporter |
+| S32 | [step-32-wardrobe.md](step-32-wardrobe.md) | APPROVED 2026-10-15 | changeable hair and clothing, starting outfits, buying clothes; the modular cast route; S32-p (wardrobe pilot) PR design FROZEN 2026-10-15 ([`pr-s32p-wardrobe-pilot.md`](pr-s32p-wardrobe-pilot.md), #231), implementation awaits the tooling on main |
+| S33 | [step-33-lakeside-3d.md](step-33-lakeside-3d.md) | APPROVED 2026-10-15 | the Lakeside world in 3D: Lake Cuyamaca setting and far field, the pier landmark and the halt, interiors, sit points, its own cast, `3d-lakeside.pck`; after Milestone F's checklist |
+
+**Re-ruling recorded (2026-10-15, S33 Q-S33-10).** Lakeside's own 3D world is MVP-0 and release-blocking. This
+supersedes Q-S26-1's "Lakeside's 3D cast is MVP-1" and S29 §11.2's "Lakeside in 3D comes with 16f (MVP-1)".
+
+**16f placement (2026-10-15, S33 Q-S33-4).** 16f — the 3D client reads a Presentation Pack and builds places
+from disclosure — is **MVP-0**, as QPL-17 ruled (§5 "Physics list", decision 3). Step-29 §11.2 and RL-e0
+SD-FF-7, which call it MVP-1, are superseded on this point. **S33-c is 16f's seed:** it builds 3D world
+selection and the per-world depiction seam bound by tag (`ARC-144`); 16f's own design generalises that seam
+to depictions loaded from a Presentation Pack and walls built from disclosure.
+
+**Required follow-up before release (2026-10-15, S33 Q-S33-6).** A `posture` System Pack step — sitting and
+standing owned by the server, with `sit`/`stand` for humans, NPCs and agents, disclosed to every observer, in
+every world — is a **required, release-blocking** step, not optional. Its record id is `ARC-147` (reserved);
+its step document is still to be written and assigned by the primary session.
+
 ### The `AC-13` harness — proven, 2026-09-25
 
 The mandatory cross-renderer test now has a mechanism rather than an intention, demonstrated on
@@ -727,6 +758,7 @@ numbered **S17 — Physics list**.
 3. **The 3D client reads a Presentation Pack and builds places from the server's disclosure, in
    MVP-0 (QPL-17, G-PL-1).**
    - This is a new S14 PR, **16f**, after 12e.
+   - *(2026-10-15, S33 Q-S33-4)* 16f stays MVP-0; S33-c is its seed (see "S26–S33" in §3).
    - Walls, doors and places come from disclosed geometry, and art only decorates.
    - Changing the Presentation Pack changes the look.
    - Today's hand-built café becomes part of the default Presentation Pack.

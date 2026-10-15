@@ -86,6 +86,18 @@
           "description": "Seconds to wait for one answer from this backend, from 1 to 3600. Unset means this table sets no request timeout.",
           "title": "Request Timeout S"
         },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The `[backends.<name>.retry.<layer>]` tables: retry layers for the seats that use this backend, between a seat's own override and `[retry]`."
+        },
         "structured_output": {
           "default": "json_schema",
           "description": "How the server is asked for structured output. `json_schema`: the server enforces the output schema. `json_object`: the server returns any JSON object, and MineWorld checks it against the schema. `none`: no structured-output request is sent.",
@@ -164,6 +176,216 @@
       "title": "BudgetConfig",
       "type": "object"
     },
+    "ControllerConfig": {
+      "additionalProperties": false,
+      "description": "The `[controller]` table: the consult's bounds and the seat's timing (pr-s10-p6 \u00a75.13).",
+      "properties": {
+        "consult_deadline_s": {
+          "default": 20,
+          "description": "Wall seconds from a trigger's receipt to the submit, from 1 to 120.",
+          "maximum": 120,
+          "minimum": 1,
+          "title": "Consult Deadline S",
+          "type": "integer"
+        },
+        "greet_cooldown_s": {
+          "default": 1800,
+          "description": "World seconds before the same person may trigger a greeting again, from 0 to 86400.",
+          "maximum": 86400,
+          "minimum": 0,
+          "title": "Greet Cooldown S",
+          "type": "integer"
+        },
+        "handback_s": {
+          "default": 10,
+          "description": "Wall seconds a seat stays with its fallback model after a handback, from 1 to 600.",
+          "maximum": 600,
+          "minimum": 1,
+          "title": "Handback S",
+          "type": "integer"
+        },
+        "max_calls": {
+          "default": 5,
+          "description": "The most model calls one consult may make, from 1 to 10.",
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Calls",
+          "type": "integer"
+        },
+        "recall_episodes": {
+          "default": 8,
+          "description": "How many episode lines of memory a consult shows, from 0 to 8.",
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Recall Episodes",
+          "type": "integer"
+        },
+        "seat_retry_s": {
+          "default": 60,
+          "description": "Wall seconds between joins while another client holds the seat, from 1 to 3600.",
+          "maximum": 3600,
+          "minimum": 1,
+          "title": "Seat Retry S",
+          "type": "integer"
+        }
+      },
+      "title": "ControllerConfig",
+      "type": "object"
+    },
+    "ControllerOverrides": {
+      "additionalProperties": false,
+      "description": "The same keys as `[controller]`, each optional: a `[seat_overrides.<key>.controller]` table.",
+      "properties": {
+        "consult_deadline_s": {
+          "anyOf": [
+            {
+              "maximum": 120,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` consult_deadline_s for this seat.",
+          "title": "Consult Deadline S"
+        },
+        "greet_cooldown_s": {
+          "anyOf": [
+            {
+              "maximum": 86400,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` greet_cooldown_s for this seat.",
+          "title": "Greet Cooldown S"
+        },
+        "handback_s": {
+          "anyOf": [
+            {
+              "maximum": 600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` handback_s for this seat.",
+          "title": "Handback S"
+        },
+        "max_calls": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` max_calls for this seat.",
+          "title": "Max Calls"
+        },
+        "recall_episodes": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` recall_episodes for this seat.",
+          "title": "Recall Episodes"
+        },
+        "seat_retry_s": {
+          "anyOf": [
+            {
+              "maximum": 3600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` seat_retry_s for this seat.",
+          "title": "Seat Retry S"
+        }
+      },
+      "title": "ControllerOverrides",
+      "type": "object"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "LayerConfig": {
+      "additionalProperties": false,
+      "description": "One retry layer or the breaker: a policy id and its parameters (checked by its registry, C7/C8).",
+      "properties": {
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "The policy's parameters. The policy checks them; an unknown one is refused by name.",
+          "title": "Parameters",
+          "type": "object"
+        },
+        "policy": {
+          "description": "The policy's id, one of the installed policies (for example `exponential-backoff`).",
+          "pattern": "^[a-z][a-z0-9-]{0,47}$",
+          "title": "Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy"
+      ],
+      "title": "LayerConfig",
+      "type": "object"
+    },
     "RecordingConfig": {
       "additionalProperties": false,
       "description": "The `[recording]` table: where answers come from, and whether they are recorded.",
@@ -197,6 +419,66 @@
         "mode"
       ],
       "title": "RecordingConfig",
+      "type": "object"
+    },
+    "RetryConfig": {
+      "additionalProperties": false,
+      "description": "The three retry layers of one table: `[retry]`, `[retry.<layer>]` per table.",
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content layer (invalid answers, re-asked); unset uses the bundled default."
+        },
+        "semantic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The semantic layer (refused proposals, re-planned); unset uses the bundled default."
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The transport layer (backoff, Retry-After); unset uses the bundled default."
+        }
+      },
+      "title": "RetryConfig",
+      "type": "object"
+    },
+    "SeatOverrides": {
+      "additionalProperties": false,
+      "description": "A `[seat_overrides.<key>]` table: per-seat controller bounds and per-seat retry layers (D-P6b-3).",
+      "properties": {
+        "controller": {
+          "$ref": "#/$defs/ControllerOverrides",
+          "description": "The `[seat_overrides.<key>.controller]` table: the seat's own bounds."
+        },
+        "retry": {
+          "$ref": "#/$defs/RetryConfig",
+          "description": "The `[seat_overrides.<key>.retry.<layer>]` tables: the seat's own retry layers."
+        }
+      },
+      "title": "SeatOverrides",
       "type": "object"
     },
     "SecretsConfig": {
@@ -235,17 +517,117 @@
       "title": "Backends",
       "type": "object"
     },
+    "breaker": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LayerConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The `[breaker]` table: the per-seat circuit breaker. Unset uses the bundled default."
+    },
     "budgets": {
       "$ref": "#/$defs/BudgetConfig",
       "description": "The `[budgets]` table: the most calls and tokens the client may spend."
+    },
+    "controller": {
+      "$ref": "#/$defs/ControllerConfig",
+      "description": "The `[controller]` table: the consult's bounds and the seat's timing."
+    },
+    "decisions_json": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The JSON that `mineworld decisions \u2026 --json` printed for the world the server runs. A relative path is resolved against this configuration file.",
+      "title": "Decisions Json"
+    },
+    "invite_env": {
+      "default": "MINEWORLD_INVITE",
+      "description": "The NAME of the environment variable that holds the server's invite. The invite is read from the environment only; this file never holds it.",
+      "title": "Invite Env",
+      "type": "string"
+    },
+    "nickname": {
+      "default": "cognition",
+      "description": "The nickname the controller joins with, from 1 to 32 characters.",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Nickname",
+      "type": "string"
     },
     "recording": {
       "$ref": "#/$defs/RecordingConfig",
       "description": "The `[recording]` table. Required: it names the mode every answer comes from."
     },
+    "retry": {
+      "$ref": "#/$defs/RetryConfig",
+      "description": "The `[retry]` table: the three retry layers of every seat (`[retry.<layer>]`)."
+    },
+    "seat_overrides": {
+      "description": "The `[seat_overrides.<key>]` tables: per-seat controller bounds and retry layers. The name `seat_overrides` is used so that `seats` can name the subset of seats (D-P6b-3).",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]{0,47}$": {
+          "$ref": "#/$defs/SeatOverrides"
+        }
+      },
+      "title": "Seat Overrides",
+      "type": "object"
+    },
+    "seats": {
+      "anyOf": [
+        {
+          "items": {
+            "pattern": "^[a-z][a-z0-9-]{0,47}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional subset of the `lm` seats in `decisions_json` to join. Every entry must be an `lm` seat of that file; unset joins all of them.",
+      "title": "Seats"
+    },
     "secrets": {
       "$ref": "#/$defs/SecretsConfig",
       "description": "The `[secrets]` table: where API keys are read from."
+    },
+    "server": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The protocol address of the server, for example `ws://127.0.0.1:7878/ws`. Required by the LM controller (`python -m mineworld_cognition`); a loopback address is the usual choice.",
+      "title": "Server"
+    },
+    "store": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The directory of the controller's own state (memory stores, resume secrets, decision logs). A relative path is resolved against this configuration file. It must not be inside a world.",
+      "title": "Store"
     },
     "tiers": {
       "additionalProperties": {

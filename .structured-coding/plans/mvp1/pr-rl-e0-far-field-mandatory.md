@@ -1607,6 +1607,13 @@ skyline sectors also cover 360°. FF-ABOVE in every land sector is carried by a 
 
 ### B.2 3D `lakeside` (design content; no real location)
 
+> *Dated note (2026-10-15, S33 approval; not a change to RL-e0's frozen scope).* B.2 and B.3's `lakeside`
+> rows are **replaced by S33-a** ([`../mvp0/step-33-lakeside-3d.md`](../mvp0/step-33-lakeside-3d.md) §3.4,
+> `ARC-143`): Lakeside is set at Lake Cuyamaca (Q-S33-1), with a cited far field. The lake moves **south**
+> in both the 3D and 2D files (S33 F-S33-2): the world puts the shore and the pier on the lane's south side,
+> so the 300°→60° sector below is wrong against the world's own data. RL-e0 ships B.2/B.3 as written; S33-a
+> replaces them, and AC-FF-4 holds the two packs together.
+
 ```text
 boundary natural; reach_m 80; beyond "water"
 datum_m 2; datum_source "design content; lakeside declares no real location"
