@@ -1,9 +1,9 @@
 # PR S27-d — The MCP adapter over stdio, and the CI play-test
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN — 2026-10-15 (operator approved the freeze in the primary session: "同意冻结并合并")
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 1 (2026-10-15), FROZEN 2026-10-15
 Author:                 S28-a / S27-d PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28a-s27d, branch docs/s28a-s27d-designs,
                         planning base origin/main @ 2d07c6c; designed against PR #204 (S27-c) head dffe845
@@ -16,7 +16,7 @@ Start condition:        step-27 §11.4: S27-c merged (#204: approved, not merged
                         frozen, the primary session's dispatch
 Execution contract:     §12 (filled, endpoint authority included)
 Implementer:            Haiku-class (step-27 §11.4); reviewer the primary session
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-15
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-27-agent-players.md`](step-27-agent-players.md) (STEP DESIGN FROZEN

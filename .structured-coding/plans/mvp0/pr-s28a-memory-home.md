@@ -1,9 +1,9 @@
 # PR S28-a — The memory home: schema 4, shared fact records, seat views, positional dumps, deterministic GC, and the transparency harness
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN — 2026-10-15 (operator approved the freeze in the primary session: "同意冻结并合并")
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 1 (2026-10-15), FROZEN 2026-10-15
 Author:                 S28-a / S27-d PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28a-s27d, branch docs/s28a-s27d-designs,
                         planning base origin/main @ 2d07c6c (#215; FG-b2 #213 merged at e67af07)
@@ -16,7 +16,7 @@ Start condition:        step-28 §11.1: S28-0 merged (ARC-98 … ARC-101, DEP-58
                         session's dispatch
 Execution contract:     §12 (filled, endpoint authority included)
 Implementer:            Opus-class (step-28 §11.1)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-15
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN
