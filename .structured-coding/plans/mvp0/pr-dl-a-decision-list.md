@@ -597,11 +597,11 @@ worktree root.
 
 - **Goal.** Every installed model — today `rule`, tomorrow DL-b's and users' — is held to AC-6 automatically.
 - **Scope.** `tools/cli/tests/decision_models.rs` (new).
-- [ ] Implementation: iterate `Model::AVAILABLE` in-process ids; build `--seat-model` flags for every seat of
-  social-cafe; the two equalities of AC-DLa-6 comparing save bytes, not the printed fingerprint.
-- [ ] Validation: test green; M-DLa-5 (a hidden `RefCell` counter in a test-only build of `Rule`) turns it
-  red, recorded and reverted; wall time recorded (budget ≤ 60 s debug per model).
-- [ ] Review: the test reads the catalog, so adding a model needs no test edit.
+- [x] Implementation: iterate `Model::AVAILABLE` in-process ids; build `--seat-model` flags for every seat of
+  social-cafe; the two equalities of AC-DLa-6 comparing save bytes, not the printed fingerprint. *E-DLa-6.*
+- [x] Validation: test green; M-DLa-5 (a hidden `RefCell` counter in a test-only build of `Rule`) turns it
+  red, recorded and reverted; wall time recorded (budget ≤ 60 s debug per model). *E-DLa-6; M-DLa-5.*
+- [x] Review: the test reads the catalog, so adding a model needs no test edit. *E-DLa-6.*
 
 ### C7 — Real-binary AC-DL-1 and close-out
 
@@ -722,7 +722,8 @@ and column, not at `run`'s load (SD-DLa-9).
 | C3 | (this commit) | [x] | [x] | [x] |
 | C4 | (this commit) | [x] | [x] | [x] |
 | C5 | (this commit) | [x] | [x] | [x] |
-| C6 … C7 | — | [ ] | [ ] | [ ] |
+| C6 | (this commit) | [x] | [x] | [x] |
+| C7 | — | [ ] | [ ] | [ ] |
 
 Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 `/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
@@ -858,6 +859,12 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
   passed (PASS). Mutations M-DLa-6 and M-DLa-1 part 2 red by name. `cargo test -p mineworld-cli` (whole
   crate, every existing CLI test with the rewired hosts) and `cargo clippy -p mineworld-cli --all-targets -D
   warnings`: no failure, no warning (PASS, exit 0).
+- **E-DLa-6 (C6).** `tools/cli/tests/decision_models.rs`: for every in-process id of
+  `mineworld_installed_models::AVAILABLE` (today `rule`), every Social Café seat on it by `--seat-model`; the
+  header shows `(11 rule)`; `--days 10 --save A`, again `--save B`, and `--days 5` then `--days 10 --save C`
+  (created, then resumed); `Tables::assert_same_history` (facts, journal, snapshots, byte for byte) A = B and
+  A = C. Green: `rule: 28521 facts, 6.3 s` debug (budget ≤ 60 s, PASS). The model list comes from the catalog;
+  installing a model adds it here with no edit. Runs in the `test`, `test-macos`, `test-windows` CI jobs.
 
 ### Mutations
 
@@ -868,6 +875,7 @@ Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
 | M-DLa-2 (C4) | resolution reads `classes` before `seats` in `resolve.rs` | the precedence test | `read_tests::a_seat_entry_beats_its_class_which_beats_the_default` FAILED; reverted, green | red by name (PASS) |
 | M-DLa-6 (C5) | the `in_effect()` guard removed from `ResolvedDecisions::clause`, so the clause always prints | AC-DLa-1's golden header test | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED (and the unit `a_seat_entry_beats_its_class_which_beats_the_default`, whose no-list case asserts no clause); reverted, green | red by name (PASS) |
 | M-DLa-1 (part 2, C5) | `RULE_SALT` `…726c` → `…726d` again | AC-DLa-1's golden | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED; reverted | red by name (PASS) |
+| M-DLa-5 (C6) | a process-wide counter in `Rule::decide` (`static AtomicU64`, every 997th consult answers nothing), the lint evaded with `#[allow(clippy::disallowed_types)]` — standing in for state clippy cannot see | the template test's kill-and-resume equality | FAILED: "rule: killed at day 5 and resumed: facts row counts differ" (the two uninterrupted runs still agreed, as expected of process state); reverted, green | red by name (PASS) |
 | M-DLa-3 (C4) | `#[serde(deny_unknown_fields)]` removed from `RawAssign` | the refusal table | `every_refusal_names_its_node_with_line_and_column` FAILED: "an unknown key in an assignment: accepted"; reverted, green | red by name (PASS) |
 
 ### Deviations and findings
