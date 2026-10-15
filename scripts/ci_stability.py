@@ -15,7 +15,9 @@ judged by MineWorld's own answers, never by this script's bookkeeping:
     python3 scripts/ci_stability.py replay --binary target/release/mineworld
         every world under worlds/ saved 300 days (seed 7), then `mineworld replay` of the save; for
         market-town, CA-13's ignored test (`perceived.rs`) hosts that save before it is removed. Saves are
-        made and removed one at a time.
+        made and removed one at a time. Market Town is first saved to day 100 and measured, then run on to
+        day 300 on the same save: AC-SAVE-1 requires the growth over days 100–300 to stay at most 0.5 MiB
+        per simulated day (pr-sr-b-log-compression.md §6.11).
     python3 scripts/ci_stability.py replay-check --binary B --world W --save DIR
         `mineworld replay` of one existing save, judged (MN-3's tampered copy).
     python3 scripts/ci_stability.py --self-test
@@ -63,6 +65,12 @@ JOIN = re.compile(r"^\[mineworld\] invite (?P<invite>\S+) — join with: (?P<add
 REPLAYED = re.compile(r"revision\(s\) re-executed from genesis, (?P<facts>\d+) fact\(s\) and (?P<snapshots>\d+) "
                       r"snapshot\(s\) reproduced byte for byte; head revision (?P<head>\d+)")
 CA13 = "a_resume_of_a_long_save_does_not_stall_the_world"
+# AC-SAVE-1 (step-24 §10.2; pr-sr-b-log-compression.md §6.11): Market Town's save grows by at most this
+# much per simulated day over days 100–300 — QS24-4's step bound, which QSRB-4 rules for the nightly "until
+# stable"; the measured value goes to the timings every night. The PR bound (0.25) is asserted by CI.
+GROWTH_WORLD = "market-town"
+GROWTH_FROM_DAY = 100
+GROWTH_BOUND_MIB_PER_DAY = 0.5
 
 
 class Unmet(Exception):
@@ -120,6 +128,21 @@ def judge_replay(world: str, status: int, output: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------------------------- server
+
+
+def judge_growth(world: str, early: int, late: int, days: int) -> tuple[float, str | None]:
+    """AC-SAVE-1: MiB per simulated day between two sizes of one save, and the reason if over the bound."""
+    per_day = (late - early) / days / 1024**2
+    if per_day > GROWTH_BOUND_MIB_PER_DAY:
+        return per_day, (f"AC-SAVE-1 {world}: the save grew {per_day:.3f} MiB per simulated day over {days} days "
+                         f"({early} B → {late} B), over the {GROWTH_BOUND_MIB_PER_DAY} MiB/day bound")
+    return per_day, None
+
+
+def save_size(save: Path) -> int:
+    """`world.sqlite` and any `-wal` beside it: what the save costs on disk after the run exits."""
+    return sum((save / name).stat().st_size for name in ("world.sqlite", "world.sqlite-wal")
+               if (save / name).is_file())
 
 
 def binary_path(given: str) -> str:
@@ -298,15 +321,32 @@ def replay(binary: str) -> int:
         for world in enumerate_worlds(ROOT):
             save = scratch / world
             began = time.monotonic()
-            arguments = [binary, "run", f"worlds/{world}", "--headless", "--seed", str(SEED), "--days",
-                         str(REPLAY_DAYS), *PACK_ROOTS, "--save", str(save)]
-            result = subprocess.run(arguments, cwd=ROOT, capture_output=True)
+            # AC-SAVE-1's world runs to day 100 first and is measured, then on to day 300 on the same
+            # save — a resume, the same history by ARC-27.
+            stops = [GROWTH_FROM_DAY, REPLAY_DAYS] if world == GROWTH_WORLD else [REPLAY_DAYS]
+            sizes: dict[int, int] = {}
+            for days in stops:
+                arguments = [binary, "run", f"worlds/{world}", "--headless", "--seed", str(SEED), "--days",
+                             str(days), *PACK_ROOTS, "--save", str(save)]
+                result = subprocess.run(arguments, cwd=ROOT, capture_output=True)
+                if result.returncode != 0:
+                    failures.append(f"run {world} {days} days saved: exited {result.returncode}: "
+                                    f"{result.stderr.decode(errors='replace')[-600:]}")
+                    break
+                sizes[days] = save_size(save)
             ran = time.monotonic() - began
-            if result.returncode != 0:
-                failures.append(f"run {world} {REPLAY_DAYS} days saved: exited {result.returncode}: "
-                                f"{result.stderr.decode(errors='replace')[-600:]}")
+            if len(sizes) != len(stops):
                 shutil.rmtree(save, ignore_errors=True)
                 continue
+            growth: dict[str, object] = {}
+            if world == GROWTH_WORLD:
+                per_day, reason = judge_growth(world, sizes[GROWTH_FROM_DAY], sizes[REPLAY_DAYS],
+                                               REPLAY_DAYS - GROWTH_FROM_DAY)
+                failures += [reason] if reason else []
+                growth = {"save_bytes_day_100": sizes[GROWTH_FROM_DAY], "growth_mib_per_day": round(per_day, 4),
+                          "growth_bound_mib_per_day": GROWTH_BOUND_MIB_PER_DAY}
+                print(f"[stability] AC-SAVE-1 {world}: {per_day:.3f} MiB per simulated day over days "
+                      f"{GROWTH_FROM_DAY}–{REPLAY_DAYS} (bound {GROWTH_BOUND_MIB_PER_DAY})", flush=True)
             size = sum(path.stat().st_size for path in save.rglob("*") if path.is_file())
             began = time.monotonic()
             reason = replay_one(binary, world, save)
@@ -316,7 +356,7 @@ def replay(binary: str) -> int:
             if world == RESTART_WORLD:
                 failures += [reason] if (reason := ca13(save)) else []
             timings[world] = {"days": REPLAY_DAYS, "run_seconds": round(ran, 2), "save_bytes": size,
-                              "replay_seconds": round(replayed, 2)}
+                              "replay_seconds": round(replayed, 2), **growth}
             print(f"[stability] {world}: {REPLAY_DAYS} days saved in {ran:.1f} s ({size / 1024**3:.2f} GiB), "
                   f"replayed in {replayed:.1f} s", flush=True)
             shutil.rmtree(save, ignore_errors=True)
@@ -373,6 +413,11 @@ def self_test() -> int:
                                                          "and 2 snapshot(s) reproduced byte for byte; head revision 9") is None),
         ("a refused replay fails, naming the world", "replay w: exited 1" in (judge_replay("w", 1, "does not reproduce") or "")),
         ("exit 0 without the verdict line fails", "printed no" in (judge_replay("w", 0, "") or "")),
+        ("AC-SAVE-1: growth under the bound passes",
+         judge_growth("w", 40 * 1024**2, 64 * 1024**2, 200) == (0.12, None)),
+        ("AC-SAVE-1: growth at the bound passes", judge_growth("w", 0, 100 * 1024**2, 200)[1] is None),
+        ("AC-SAVE-1: growth over the bound fails, naming the world and the rate",
+         "AC-SAVE-1 w: the save grew 3.750 MiB" in (judge_growth("w", 373 * 1024**2, 1123 * 1024**2, 200)[1] or "")),
     ]
     try:
         parse_status(b'{"instance": "x"}')

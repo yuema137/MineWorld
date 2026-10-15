@@ -134,19 +134,23 @@ def test_other_peoples_walks_are_background_and_mine_are_notable() -> None:
     }
 
 
-def test_a_schema_1_store_is_refused_by_name_and_left_unchanged(tmp_path: Path) -> None:
-    # AFGb-11 (a): a store whose `schema` is 1 (P4's) is refused, with no migration (QFGb-7).
+@pytest.mark.parametrize("old", ["1", "2"])
+def test_an_older_schema_store_is_refused_by_name_and_left_unchanged(
+    tmp_path: Path, old: str
+) -> None:
+    # AFGb-11 (a): a store whose `schema` is 1 (P4's) or 2 (FG-b's; pr-fg-b2 §4.5) is refused, with no
+    # migration (QFGb-7).
     path = tmp_path / "alice.sqlite"
     with MemoryStore.open(path, alice_identity()) as store:
         ingest(store, names_of_everyone(), EventId("4"))
     connection = sqlite3.connect(path)
-    connection.execute("UPDATE meta SET value = '1' WHERE key = 'schema'")
+    connection.execute("UPDATE meta SET value = ? WHERE key = 'schema'", (old,))
     connection.commit()
     connection.close()
     before = path.read_bytes()
     with pytest.raises(StoreIdentityMismatch) as raised:
         MemoryStore.open(path, alice_identity())
-    assert (raised.value.field, raised.value.stored, raised.value.given) == ("schema", "1", "2")
+    assert (raised.value.field, raised.value.stored, raised.value.given) == ("schema", old, "3")
     assert path.read_bytes() == before
 
 
