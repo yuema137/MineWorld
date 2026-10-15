@@ -944,6 +944,25 @@ No TW-c question remains open.
   - Process: the wip commit was reworded into C8 (017aed6) with `git rebase -i --rebase-merges` driven by a
     non-interactive sequence editor; the tree was verified identical to the pre-rebase backup branch
     `backup-pre-c8-reword` except the FX-24 commit.
+- **R-TWc-FX24 (operator ruling via the coordinator, within QTW-1).** Clause 2 of FX-24 fails at the default pace as
+  well, so it predates TW-c and does not depend on the time scale; TW-c does not fix it. The remedy is QTW-1 (a),
+  routine lead time, in a separate content PR, "FX-24 lead time" (market-town and social-cafe routine and job content:
+  each employee's agenda moves to the workplace before `job.from`). Its acceptance: FX-24 passes in full at 6×, 12×
+  and 24×. Fallback (c) for shifts under 2 world hours. Never a controller that reads the scale. In TW-c: the
+  seated-only population stays (F-TWc-3); the FX-24 test is `#[ignore]`d with a reason naming F-TWc-1 and the
+  follow-up PR, so the failure is visible when run with `--ignored` and does not fail TW-c's CI.
+- **F-TWc-1 (pre-existing, content, not TW-c).** Shift presence: each employee's agenda moves to the workplace at
+  `job.from`, and the walk takes 6 to 71 world minutes, so no shift begins with the employee present (0 of 14 at every
+  pace; diagnostic `shift_presence_diagnostic_at_the_default_pace`). The flag decodes correctly (checked against the
+  arrivals). Remedy: R-TWc-FX24 (a).
+- **F-TWc-2 (measurement design).** `run` takes a stride every RUN_STEP (30 world s) regardless of `--pace`, and agenda
+  parts come from routines. FX-24 measured in `run` therefore cannot tell 24×, 12× and 6× apart: the journey and shift
+  results are identical across the three paces. `--pace` itself is wired (walk-to 2,563 vs 363 over one day at 120 vs
+  900). The FX-24 measurement at 6×, 12×, 24× needs a measured leg that is paced in the server (C7's live walker),
+  or a stated RUN_STEP note; recorded, not fixed here.
+- **F-TWc-3 (measurement defect, fixed).** The 7 journeys over 50 % were otto's. He is a Person no seat drives and never
+  moves (`routines.rs` asserts it). FX-24 now measures seated people only and prints the excluded count (7). This is a
+  population correction, not a threshold change. Thresholds (25 %, 50 %, 90 %, 80 %) unchanged.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the

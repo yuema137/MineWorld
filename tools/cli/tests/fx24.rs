@@ -241,7 +241,9 @@ fn measure(pace: &str, scale: &str) -> (String, bool) {
 }
 
 #[test]
-#[ignore = "about 60 s: three seven-day runs (ARC-69 / AC-TWc-9); run with --ignored"]
+#[ignore = "FX-24 clause 2 fails for content reasons, F-TWc-1 (shift starts before the employee reaches the workplace); \
+            the lead-time content PR \"FX-24 lead time\" (QTW-1 (a)) makes it pass. Run with --ignored to see the numbers. \
+            Ruling R-TWc-FX24."]
 fn agendas_stay_feasible_at_24_12_and_6_times() {
     let mut lines = Vec::new();
     let mut failing = Vec::new();
