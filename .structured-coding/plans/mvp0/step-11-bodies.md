@@ -7408,6 +7408,26 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
    job budget, and the Windows fixture does not fit its 600 s. Raising either limit, moving
    `town_bodies`' 300-day runs to the nightly, or shortening them is the operator's or CI owner's
    decision.
+7. **Ruled 2026-10-15 (operator answered directly in the primary session) — stop 5: option (c).**
+   - **What changed.** AFGb-4 (c)'s window is chosen by the store's measured size, with a cap of 100 days
+     and a failure by name if the target is never reached. The bound assertions are unchanged. The change
+     is in `cognition/lm-controller/tests/test_retention_real.py` (`_pass`, `_keep_all_window`), and the
+     amendment is recorded in `pr-fg-b2-size-trigger.md` §7.
+   - **Correction to item 5's diagnosis.** 12d's history grows faster, not slower: about 770 KB a day.
+     The old test ingested days 0 … 29 at once, so the first keep-all `absorb` found a store already over
+     the target and cut it before day 30, outside the measured window. The 1 094 367 B at day 31 is the
+     store after that cut.
+   - **Result on this head** (dev binary): both tests PASS in 108 s. Consolidate is unchanged (98 passes,
+     largest before 1 496 077 B, file 1 212 416 B). Keep-all opens at day 12 (9 280 924 B, forced 0); the
+     first forced pass is day 21; 13 passes in 19.0 s; every pass ≤ target and every before ≤ bound.
+8. **Ruled 2026-10-15 (operator answered directly in the primary session) — stop 6: shard the test jobs
+   on all three OSes, every PR still running everything.**
+   - The sharding is done by the CI agent on PR #224 (`ci/windows-test-split`), not in 12d.
+   - The Windows 100-day fixture's limit (`cognition/lm-controller/tests/binary.py:40`, 600 → 1 200 s)
+     is ruled too. That file is S10 P4's (`d421b18`), not 12d's lane, so it was not edited here. The
+     change was handed back to the coordinator to route to #224.
+   - 12d merges main once #224 has merged, and gets CI green on the exact head. If F-tick-1
+     (`hosted_town`) still flakes, it is noted without a rerun; its real fix is #216.
 
 ---
 

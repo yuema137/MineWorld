@@ -327,6 +327,24 @@ memory:
 | AFGb-11 (c) "file ≤ 4 MiB after the real 100-day `consolidate`" | 4 MiB | unchanged | `consolidate` never nears the bound (778 240 B measured); the figure is the file, not the bound |
 | `MODULE_SPEC.md` §5.2 rule 7, `ARCHITECTURE.md` §9.3, README | 768 KiB / 1 MiB, "not a parameter" | 15 MiB / 20 MiB default, raisable, the size trigger | §4.1, §4.3 |
 
+**Amendment, 2026-10-15 (operator, ruled directly in the primary session; landed in PR 12d #171, step-11
+§19.13 TD-D16).** AFGb-4 (c)'s window is now chosen by the store's measured size instead of by fixed days.
+`test_retention_real.py` `_keep_all_window` works in three phases:
+1. It ingests whole days without retention while `content_size()` < `KEEP_ALL_LEAD` (half the target,
+   7.5 MiB).
+2. It then runs a keep-all pass every day until `KEEP_ALL_AFTER` (3) days past the first forced pass.
+3. It stops at `KEEP_ALL_CAP_DAYS` (100, the fixture's whole history). If the store never reaches the
+   target by then, the test fails by name.
+
+The bound assertions are unchanged: after every pass ≤ target, before every pass ≤ bound. A forced pass must
+occur. The window's first pass must remove nothing, so removals start at the crossing.
+
+**Why the fixed window broke.** 12d's walls and bodies make social-cafe's history grow faster, about
+770 KB a day against about 433 KB on main. The old test ingested days 0 … 29 at once, so its first
+keep-all `absorb` already saw a store over the target and cut it before day 30, outside the measured
+window. No forced pass then fell in (30, 40]. On 12d's head, the new window opens at day 12 (9 280 924 B,
+nothing removed), the first forced pass is day 21, and the run takes 19.0 s locally.
+
 ---
 
 ## 8. Tests and acceptance
