@@ -224,12 +224,15 @@ impl Bench {
         }
     }
 
+    /// A validation's read, as dispatch would hand it — at the epoch, the bench's request instant
+    /// (`tick_intent`).
     fn read(&self) -> WorldRead<'_> {
         WorldRead::new(
             &self.entities,
             &self.components,
             &self.relations,
             &self.processes,
+            WorldTime::EPOCH,
         )
     }
 }

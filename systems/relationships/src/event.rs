@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::level::Level;
 use crate::system::RelationshipsSystem;
 
-/// `person` now knows `counterpart`: the `knows` edge was formed. Once per direction, ever.
+/// `person` now knows `counterpart`: the `knows` edge was formed. Once per formation: a counterpart
+/// the acquaintance cap evicted ([`AcquaintanceForgotten`]) and met again is stated again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BecameAcquainted {
     person: PersonId,
@@ -30,6 +31,41 @@ impl BecameAcquainted {
     }
 
     /// Who now knows somebody.
+    pub const fn person(&self) -> PersonId {
+        self.person
+    }
+
+    /// Whom.
+    pub const fn counterpart(&self) -> PersonId {
+        self.counterpart
+    }
+}
+
+/// `person` no longer knows `counterpart`: a new acquaintance took them past the number of people they
+/// keep (`known_at_most`), and `counterpart` was the weakest tie — their entry and `knows` edge are
+/// gone (`ARC-86`, §5.5). Caused by the fact that formed the new acquaintance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AcquaintanceForgotten {
+    person: PersonId,
+    counterpart: PersonId,
+}
+
+impl Event for AcquaintanceForgotten {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("acquaintance-forgotten");
+    const OWNER: SystemId = RelationshipsSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl AcquaintanceForgotten {
+    /// States it.
+    pub const fn new(person: PersonId, counterpart: PersonId) -> Self {
+        Self {
+            person,
+            counterpart,
+        }
+    }
+
+    /// Who forgot somebody.
     pub const fn person(&self) -> PersonId {
         self.person
     }

@@ -996,12 +996,37 @@ reducing another pack's fact rather than while validating an action — `relatio
 per directed pair before an acquaintance forms — and a rule about it is written, resolved and refused
 like any other, but it names no action a client can send (`ARC-63` note of 2026-10-10).
 
+**Parameter bounds, per-field roles, place-free lookups, required systems** (`ARC-63` note of
+2026-10-13, S24 PR FG-a). Four additions to the shape, each generic:
+
+- *A bound is a value, not only a range.* Each parameter field declares a bound that admits or refuses
+  a value and describes itself for the refusal; an inclusive range is the common bound and keeps the
+  message `'<field>' is <low> … <high>, not <value>`. A **named choice** is a bound over a typed name
+  (`relationships`' `familiarity_decay`: one of the bundled curves or one its extension catalog lists),
+  refused as `'<field>' is one of <names>, not <value>`.
+- *A field may narrow the roles that scope it.* A pack declares, per parameter field, the subset of its
+  parameter roles that may scope an entry setting that field; a field not declared may be scoped by
+  every parameter role. An entry that sets a field and names a role outside that field's subset is
+  refused at its line and column; so is a region entry that sets a field whose roles exclude `place`.
+  (`relationships`' decay fields: `actor`, `target`; `known_at_most`: `actor`; `conversation`'s
+  `forget_after_days`: `target`.)
+- *A place-free lookup.* For exactly those fields, a pack looks parameters up with the place role
+  unfilled: the base resolution with the given roles, or the compiled defaults, reading nothing, when
+  the pack is unconfigured. A disclosure, which has no causing place, uses it.
+- *A section may require systems.* A pack may state that its section, as written, requires other
+  systems to be enabled (`relationships`: the pack implementing each catalog curve the section names);
+  the loader refuses, by name, a section requiring a system the world does not enable, as for any
+  configuration (§4.1). The loader registers the build's extension catalogs before it decodes
+  configuration, so a catalog name is known at decode.
+
 **What a section is refused for**, by name, naming the file:
 
 - at its line and column, while its owner's type decodes it: an undeclared action, fact or role; a
-  parameter outside its bound or unknown; an audience wider than the owner's default or narrower than
-  its narrowest; `biography` on a fact whose owner does not allow it; a region rule for an action that
-  is not regional; an `extends` naming no reference list, or a cyclic or over-long chain;
+  parameter outside its bound or unknown; a parameter field set under a role its owner does not let
+  scope it, or in a region when its owner does not let a place scope it; an audience wider than the
+  owner's default or narrower than its narrowest; `biography` on a fact whose owner does not allow it;
+  a region rule for an action that is not regional; an `extends` naming no reference list, or a cyclic
+  or over-long chain;
 - with the list and the index of each entry, once the classes are read: a selector naming a class that
   is neither defined nor implicit (`ClassUndefined`); two ambiguous entries (`AmbiguousEntries`);
 - a region naming no declared place, as any configuration naming an unknown entity (§4.1).
@@ -1015,7 +1040,8 @@ perceives — never the list.
 
 **At run time.** A configured section is one genesis fact `<pack>-interactions-configured`
 (`SystemInternal`, no subjects), reduced by its pack into a component `<pack>-interactions` on every
-Place. The pack looks up `permits`, `parameters` and `consequence` on the place it is deciding at; a pack
+Place. The pack looks up `permits`, `parameters` and `consequence` on the place it is deciding at (or,
+for fields no place may scope, place-free); a pack
 the world does not configure answers its compiled defaults without reading state, so an unconfigured
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each

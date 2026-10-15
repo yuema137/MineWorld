@@ -2088,6 +2088,15 @@ gap, recorded for a later step, not hidden by the tests (`step-09-social.md` QB-
 published and not world configuration yet (the `ARC-26` note's rule). Only `knows` exists; romance and
 typed relationships are later packs (`MVP.md` §4).
 
+**Note, 2026-10-13 (S24, PR FG-a; `ARC-86`) — values may now decay, by configuration.** The limitation
+"values never decay" is closed for a world that configures it: `configure/relationships.yaml` may name a
+`DecayCurve` and a time constant and floor for familiarity and for regard, read lazily from the stored
+`(value, last_contact)` (`ARC-86`), and a per-person cap `known_at_most` (default 150) evicts the lowest
+current familiarity and states `acquaintance-forgotten`. Item 4's "`became-acquainted` … once per
+direction" becomes **once per formation**: a counterpart evicted by the cap and met again forms a new
+entry and is stated again. The defaults (`none`, 150) leave every reference world's facts unchanged, so a
+world that configures nothing still saturates as described above. `relationships` is version 3.
+
 ---
 
 ## ARC-29 — A biography is a projection of the fact log, selected by what each pack declares biographical
@@ -4682,6 +4691,18 @@ per-world applicability comes from the world enabling the implementing pack, or 
 (`ARC-61`). Disabling a pack at run time while its implementation is registered is not supported
 (QB-17).
 
+**Note, 2026-10-13 (S24, PR FG-a; `ARC-86`, QFGA-3) — a third line, selected by configuration, and the
+loader registers earlier.** `relationships` owns the trait `DecayCurve` and its register function
+`register_curves`; `systems/installed` carries
+`extension mineworld_relationships::DecayCurve => mineworld_relationships::register_curves: [];`, empty
+today. Unlike the first two lines, a curve is not applied wherever its pack's state is present: a world
+**selects** it by name in `configure/relationships.yaml`, and must enable the curve's pack in `systems:`
+(the section requires it, refused by name otherwise), so the curve's identity and version are part of the
+save's composition. A name colliding with a bundled curve (`none`, `linear`, `half-life`, `power`) or
+listed twice panics naming both, as item 4's rules. Because a curve name is checked while the section
+decodes, `WorldPack::read_with` now calls `Capability::register_extensions()` before it decodes
+configuration, as `compose` already did (idempotent for the same list).
+
 ---
 
 ## DEP-17 — CI runs on GitHub Actions hosted Linux runners, inside the repository's own toolchain container
@@ -6170,6 +6191,28 @@ reduces another pack's fact, before any state is written; forbidden, that direct
 acquaintance, no `knows` edge and no fact. The name is declared through the same `ActionDecl` (the SDK
 keys rules by `ActionTypeId`); it **names no action type a client can send**, and a test pins that no
 installed pack provides an action type `acquaint`. No SDK type is added.
+
+**Note, 2026-10-13 (S24, PR FG-a; QFGA-2, D-FGA-8) — four additions to the shape.** Item 2's "every
+field with a bound" is generalised and three seams are added, each generic and none naming a pack
+(`MODULE_SPEC.md` §4.2):
+
+1. **A bound is a value.** `parameters!` declares each field as `name: Type = default, bound;`, where the
+   bound implements `ParameterBound<Type>` (`admits`, `describe`). `RangeInclusive` implements it with
+   today's message byte for byte, so every existing section decodes and refuses unchanged; a pack may
+   supply a named-choice bound (`relationships`' curve catalog).
+2. **Per-field roles.** `InteractionSection::FIELD_ROLES` lists, per field, the subset of
+   `PARAMETER_ROLES` that may scope an entry setting it (unlisted: all of them). The decoder refuses, at
+   the entry's line and column, an entry that sets such a field under another role, and a region entry
+   that sets a field whose roles exclude `place`.
+3. **A place-free lookup**, `parameters_unplaced`: the base resolution with the place role unfilled, or
+   the compiled defaults reading nothing when unconfigured. It is correct for exactly the fields item 2
+   makes unplaceable.
+4. **A section's required systems.** `InteractionSection::requires(section)` (default none) is what the
+   held section answers to the loader's existing requires check (`ARC-61`), so a section can require
+   the packs whose code it selects.
+
+New fields grow a pack's configured fact, so the pack's version is raised (`relationships` 3,
+`conversation` 4), as item "Converting a pack raises its `SystemVersion`" already states.
 
 ---
 
@@ -7818,6 +7861,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** Decay adds zero facts, zero journal rows and zero save growth, and replay reproduces it exactly. `last_contact` is already stored (`RelationshipValues::last_contact`), so no component encoding changes. The configuration payload grows, which bumps the System's version and refuses older saves by name (PA-3), and the new fact `acquaintance-forgotten` is declared. Read-time decay uses the operator-approved read-only clock `WorldRead::at()` (2026-10-12), a kernel addition available only during disclosure.
 
 **Revisit** when a biographical decay must be visible without a reduction touching the pair, or when a System needs per-person state beyond `(value, last_contact)`.
+
+**Note, 2026-10-13 (S24, PR FG-a; F-FGA-8, QFGA-4, QFGA-1) — two precisions.** (1) "Defaults change no reference world's bytes" means every fact and every run summary: a save's genesis journal row records the composition (each installed system's declaration and version), so raising `relationships` to 3 and `conversation` to 4 and declaring `acquaintance-forgotten` moves that one row, and `scripts/baselines.txt`'s `journal-300s` is re-recorded with a reason line while every later journal row, every fact and every summary stay byte-identical (`pr-fg-a-relationship-forgetting.md` FA-1). (2) `WorldRead::at()` is the world-time instant of whatever read holds it — a reaction's event instant, a validation's dispatch instant, `World::read()`'s `now()` — not something available only to disclosure; disclosure is its first user. It is never a wall clock (`INV-12`).
 
 ---
 
