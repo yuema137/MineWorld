@@ -13,8 +13,8 @@ pub enum Directive {
     Requires(String),
     /// The block needs a live model or a display and is never run in CI (§6).
     OperatorOnly,
-    /// After the block, the scratch folder equals this committed folder (§6.1).
-    Equals(String),
+    /// After the block, the scratch folder `folder` equals the committed folder `committed` (§6.1).
+    Equals { folder: String, committed: String },
     /// Add `--packs DIR` to each command of the block (§6).
     Packs(String),
 }
@@ -166,9 +166,14 @@ impl Reader<'_> {
             ("continues", [page]) => Parsed::Continues((*page).to_owned()),
             ("requires", [feature]) => Parsed::Attach(Directive::Requires((*feature).to_owned())),
             ("operator-only", []) => Parsed::Attach(Directive::OperatorOnly),
-            ("equals", [path]) => {
-                files::confine(path).map_err(|reason| self.at(line, reason))?;
-                Parsed::Attach(Directive::Equals((*path).to_owned()))
+            ("equals", [folder, committed]) => {
+                for path in [folder, committed] {
+                    files::confine(path).map_err(|reason| self.at(line, reason))?;
+                }
+                Parsed::Attach(Directive::Equals {
+                    folder: (*folder).to_owned(),
+                    committed: (*committed).to_owned(),
+                })
             }
             ("packs", [dir]) => {
                 files::confine(dir).map_err(|reason| self.at(line, reason))?;
@@ -296,8 +301,8 @@ impl Reader<'_> {
             let allowed = match (directive, body) {
                 (Directive::Packs(_), Body::Console { .. }) => true,
                 (Directive::Packs(_), _) => false,
-                (Directive::Equals(_), Body::Console { .. } | Body::File { .. }) => true,
-                (Directive::Equals(_), _) => false,
+                (Directive::Equals { .. }, Body::Console { .. } | Body::File { .. }) => true,
+                (Directive::Equals { .. }, _) => false,
                 (Directive::Requires(_) | Directive::OperatorOnly, _) => true,
             };
             if !allowed {

@@ -181,7 +181,7 @@ does not know fails the page, naming it.
 | `continues PAGE` | page; must appear before the first block | Reuse `PAGE`'s scratch folder (§5). `PAGE` is a file name in the guide root, without `.md`. |
 | `requires FEATURE` | the next block (§8) | The block depends on `FEATURE`. If `FEATURE` is `false` in `features.toml`, the block is pending. |
 | `operator-only` | the next block | The block needs a live model or a display. It is never run in CI; it is listed in every run. |
-| `equals PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder equals `PATH` file by file (§6.1). A symbolic link in a `copy` source is refused, not copied. `PATH` is relative to the repository root. |
+| `equals DIR PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder's `DIR` equals the committed folder `PATH` file by file, byte for byte (§6.1). `DIR` is relative to the scratch folder; `PATH` is relative to the repository root. A symbolic link in a `copy` source is refused, not copied. |
 | `copy SOURCE DEST` | standalone, between blocks | Copy the folder `SOURCE` to `DEST` inside the scratch folder, recursively. Both are confined as §3.2. The page shows the per-OS commands as text; the runner does the copy. |
 | `packs DIR` | the next command block | Each command in the next block receives `--packs DIR` appended after its arguments. `DIR` is relative to the scratch folder and confined as §3.2. The page does not show the flag. |
 
@@ -189,15 +189,15 @@ Rules:
 
 1. A directive names one target. A directive that is followed by no block where its scope needs one fails the page.
 2. Two directives of the same kind on one block fail the page.
-3. `equals` compares the scratch folder with `PATH` file by file, byte for byte. It checks both the set of files and
-   their contents; an extra file in either folder is a difference. A difference fails the page and names the first
-   differing file.
+3. `equals` compares the scratch folder's `DIR` with the committed `PATH` file by file, byte for byte. It checks both
+   the set of files and their contents; an extra file in either folder is a difference. A difference fails the block
+   and names the first differing file.
 
 ### 6.1 The example equality
 
-`equals docs/guide/examples/corner-shop` (the form the real guide uses) means: the scratch folder, as it stands at
-that point in the page, equals the committed folder. A change to a chapter that is not mirrored in the example, or
-the reverse, is red.
+`equals corner-shop docs/guide/examples/corner-shop` (the form the real guide uses) means: the scratch folder's
+`corner-shop` folder, as it stands after the block, equals the committed folder. A change to a chapter that is not
+mirrored in the example, or the reverse, is red.
 
 ---
 
@@ -286,8 +286,22 @@ happenings = false       # WE-a
 
 ### 9.1 The presence probe
 
-**Recorded when C3 lands** (see the PR's evidence). Until then the presence check is `INCONCLUSIVE` and is reported
-as such, never as a pass.
+The runner asks the binary once per run: `mineworld packs list`, whose second column is each pack's name. A feature
+has a probe when a pack of this build carries it:
+
+| Feature | Probe: the pack in `mineworld packs list` | Note |
+| --- | --- | --- |
+| `calendar` | `mineworld-calendar` | TW-b |
+| `weather` | `mineworld-weather` | TW-a |
+| `happenings` | `mineworld-happenings` | WE-a; no such pack in the build yet |
+
+A feature with no probe (`interaction-list`, `decisions`, `motivated`, `lm-controller`, `relationship-decay`,
+`memory-policies`) is checked for presence as `INCONCLUSIVE`, which never passes and never fails. Its flag is still
+binding on every block that names it. A probe is added in the same PR that merges the feature it stands for, so the
+flag cannot be left wrong without the run turning red.
+
+Verdicts: a `false` flag whose pack is in the build is `FAIL`; a `true` flag whose pack is absent is `FAIL`; a `true`
+or `false` flag that agrees with the build is `PASS`.
 
 ---
 
@@ -330,5 +344,7 @@ For each run the runner prints, in order:
 4. The result of each guard (mirror parity, `equals`, links, features versus build), each as `PASS`, `FAIL` or
    `INCONCLUSIVE`, derived from what was actually checked.
 
-A run is green only when every guard is `PASS` and no block failed. Pending items never make a run green by being
-counted as passed; they are reported next to the total.
+A run fails when any block failed or any check is `FAIL`. A run whose only open items are `PENDING` blocks or
+`INCONCLUSIVE` checks passes, and reports each of them by name, with its reason. Pending and inconclusive items are
+never counted as passed. (Recorded as a bounded correction in PR S25c C3: §8.2 requires the reference-link check to
+stay pending until PR 25a merges, which a rule of "every guard PASS" would turn into a permanent red.)

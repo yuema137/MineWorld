@@ -8,10 +8,17 @@ use super::features::Features;
 use super::files;
 use super::page::{Block, Body, Directive, Page};
 
+/// What a page run needs from outside the page: the features the guide is checked against, and the
+/// repository the committed folders of `equals` are named in.
+pub struct Environment<'a> {
+    pub features: &'a Features,
+    pub repo: &'a Path,
+}
+
 /// What the runner made of one executed block.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// The block ran and its output matched.
+    /// The block ran, its output matched, and any `equals` held.
     Passed,
     /// The block waits for this feature, or is operator-only (`"operator-only"`). It was not run (§8.1).
     Pending(String),
@@ -39,7 +46,7 @@ pub fn run_page(
     name: &str,
     page: &Page,
     scratch: &Path,
-    features: &Features,
+    environment: &Environment,
     carried: Option<String>,
 ) -> (Vec<Report>, Option<String>) {
     let mut pending = carried;
@@ -47,7 +54,7 @@ pub fn run_page(
     for block in &page.blocks {
         let outcome = match &pending {
             Some(feature) => Outcome::Pending(feature.clone()),
-            None => block_outcome(block, scratch, features),
+            None => block_outcome(block, scratch, environment),
         };
         if pending.is_none()
             && let Outcome::Pending(feature) = &outcome
@@ -64,11 +71,12 @@ pub fn run_page(
     (reports, pending)
 }
 
-fn block_outcome(block: &Block, scratch: &Path, features: &Features) -> Outcome {
+fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Outcome {
     let mut packs = None;
+    let mut equals = None;
     for directive in &block.directives {
         match directive {
-            Directive::Requires(feature) => match features.get(feature) {
+            Directive::Requires(feature) => match environment.features.get(feature) {
                 None => {
                     return Outcome::Failed(format!(
                         "requires {feature}: features.toml names no such feature"
@@ -79,11 +87,7 @@ fn block_outcome(block: &Block, scratch: &Path, features: &Features) -> Outcome 
             },
             Directive::OperatorOnly => return Outcome::Pending("operator-only".to_owned()),
             Directive::Packs(dir) => packs = Some(dir.as_str()),
-            Directive::Equals(_) => {
-                return Outcome::Failed(
-                    "equals is not checked by this build of the runner".to_owned(),
-                );
-            }
+            Directive::Equals { folder, committed } => equals = Some((folder, committed)),
         }
     }
     let result = match &block.body {
@@ -91,10 +95,18 @@ fn block_outcome(block: &Block, scratch: &Path, features: &Features) -> Outcome 
         Body::Copy { from, to } => files::copy_tree(scratch, from, to),
         Body::Console { exit, lines } => console(scratch, *exit, lines, packs),
     };
-    match result {
-        Ok(()) => Outcome::Passed,
-        Err(reason) => Outcome::Failed(reason),
+    if let Err(reason) = result {
+        return Outcome::Failed(reason);
     }
+    if let Some((folder, committed)) = equals {
+        let checked = files::confine(folder).and_then(|folder| {
+            files::same_tree(&scratch.join(folder), &environment.repo.join(committed))
+        });
+        if let Err(reason) = checked {
+            return Outcome::Failed(format!("equals {folder} {committed}: {reason}"));
+        }
+    }
+    Outcome::Passed
 }
 
 /// Runs each command of a console block and matches what it printed against the lines under it (§4).

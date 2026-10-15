@@ -9,14 +9,24 @@ mod command;
 mod features;
 #[path = "guide/files.rs"]
 mod files;
+#[path = "guide/mirror.rs"]
+mod mirror;
 #[path = "guide/page.rs"]
 mod page;
 #[path = "guide/page_run.rs"]
 mod page_run;
+#[path = "guide/report.rs"]
+mod report;
+#[path = "guide/run_guide.rs"]
+mod run_guide;
+
+use std::path::{Path, PathBuf};
 
 use features::Features;
+use mineworld_test_support::Scratch;
 use page::{Body, Directive, parse};
-use page_run::{Outcome, run_page};
+use page_run::{Environment, Outcome, Report, run_page};
+use report::{Summary, Verdict};
 
 /// A page with a step, a directive, a file block, a console block and a shown-only block.
 const PAGE: &str = "# A page\n\
@@ -249,6 +259,22 @@ fn features_toml_reads_named_flags_and_refuses_anything_else() {
     );
 }
 
+/// Runs one page's source in `scratch`, with no features beyond the given ones and no committed folders.
+fn run_here(name: &str, source: &str, scratch: &Path, features: &Features) -> Vec<Report> {
+    let environment = Environment {
+        features,
+        repo: scratch,
+    };
+    run_page(
+        name,
+        &parse(source).expect("the page parses"),
+        scratch,
+        &environment,
+        None,
+    )
+    .0
+}
+
 /// The fixture page, read from the folder beside this test.
 fn fixture() -> page::Page {
     let source = std::fs::read_to_string(concat!(
@@ -262,7 +288,11 @@ fn fixture() -> page::Page {
 #[test]
 fn the_fixture_page_runs_green_against_the_real_binary() {
     let scratch = mineworld_test_support::scratch!(empty "guide-fixture");
-    let (reports, _) = run_page("fixture", &fixture(), &scratch, &Features::new(), None);
+    let environment = Environment {
+        features: &Features::new(),
+        repo: &scratch,
+    };
+    let (reports, _) = run_page("fixture", &fixture(), &scratch, &environment, None);
     assert_eq!(reports.len(), 3, "{reports:#?}");
     for report in &reports {
         assert_eq!(report.outcome, Outcome::Passed, "{report:#?}");
@@ -277,14 +307,9 @@ fn the_fixture_page_runs_green_against_the_real_binary() {
 fn a_wrong_expected_line_fails_its_block_and_names_the_step_and_the_difference() {
     let page = "```console\n$ mineworld create seaside\n```\n\n\
 ### Step 2 — Check\n\n```console\n$ mineworld validate seaside\nseaside (other)\n```\n";
+    // The page's second block is a validate of a world the first block created: its output is the only mismatch.
     let scratch = mineworld_test_support::scratch!(empty "guide-wrong-output");
-    let (reports, _) = run_page(
-        "wrong",
-        &parse(page).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("wrong", page, &scratch, &Features::new());
     let Outcome::Failed(reason) = &reports[1].outcome else {
         panic!("the mismatched block fails: {reports:#?}");
     };
@@ -300,13 +325,7 @@ fn a_wrong_expected_line_fails_its_block_and_names_the_step_and_the_difference()
 fn a_shell_pipe_in_a_command_block_fails_the_block_and_nothing_is_run() {
     let piped = "```console\n$ mineworld validate seaside | more\nx\n```\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-pipe");
-    let (reports, _) = run_page(
-        "piped",
-        &parse(piped).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("piped", piped, &scratch, &Features::new());
     let Outcome::Failed(reason) = &reports[0].outcome else {
         panic!("the pipe is refused: {reports:#?}");
     };
@@ -322,26 +341,14 @@ fn a_shell_pipe_in_a_command_block_fails_the_block_and_nothing_is_run() {
 fn an_exit_code_other_than_the_one_the_block_expects_fails_it() {
     let scratch = mineworld_test_support::scratch!(empty "guide-exit");
     let wrong = "```console\n$ mineworld validate nothing-here\n```\n";
-    let (reports, _) = run_page(
-        "exit",
-        &parse(wrong).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("exit", wrong, &scratch, &Features::new());
     let Outcome::Failed(reason) = &reports[0].outcome else {
         panic!("exit 1 against an expected 0 fails: {reports:#?}");
     };
     assert!(reason.contains("exited with 1"), "{reason}");
 
     let expected = "```console exit=1\n$ mineworld validate nothing-here\n[mineworld] nothing-here is not a World Pack directory\n```\n";
-    let (reports, _) = run_page(
-        "exit",
-        &parse(expected).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("exit", expected, &scratch, &Features::new());
     assert_eq!(reports[0].outcome, Outcome::Passed, "{reports:#?}");
 }
 
@@ -351,11 +358,15 @@ fn a_block_waiting_for_an_unmerged_feature_is_pending_and_so_is_the_rest_of_its_
 ### Step 2 — After\n\n```console\n$ mineworld validate x\n```\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-pending");
     let features = features::read("[features]\nhappenings = false\n").expect("features");
+    let environment = Environment {
+        features: &features,
+        repo: &scratch,
+    };
     let (reports, carried) = run_page(
         "waiting",
         &parse(page).expect("parses"),
         &scratch,
-        &features,
+        &environment,
         None,
     );
     assert_eq!(
@@ -378,13 +389,7 @@ fn a_block_waiting_for_an_unmerged_feature_is_pending_and_so_is_the_rest_of_its_
 fn a_directive_naming_a_feature_that_is_not_in_features_toml_fails_the_block() {
     let page = "<!-- guide: requires teleporting -->\n\n```console\n$ mineworld validate x\n```\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-unknown-feature");
-    let (reports, _) = run_page(
-        "unknown",
-        &parse(page).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("unknown", page, &scratch, &Features::new());
     let Outcome::Failed(reason) = &reports[0].outcome else {
         panic!("an unknown feature fails: {reports:#?}");
     };
@@ -395,13 +400,7 @@ fn a_directive_naming_a_feature_that_is_not_in_features_toml_fails_the_block() {
 fn a_file_block_then_copy_leaves_the_folder_under_its_new_name_in_the_scratch_folder() {
     let page = "```yaml file=a/x.yaml\nk: 1\n```\n\n<!-- guide: copy a b -->\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-copy");
-    let (reports, _) = run_page(
-        "copy",
-        &parse(page).expect("parses"),
-        &scratch,
-        &Features::new(),
-        None,
-    );
+    let reports = run_here("copy", page, &scratch, &Features::new());
     assert!(
         reports
             .iter()
@@ -412,4 +411,274 @@ fn a_file_block_then_copy_leaves_the_folder_under_its_new_name_in_the_scratch_fo
         std::fs::read_to_string(scratch.join("b/x.yaml")).expect("copied"),
         "k: 1\n"
     );
+}
+
+#[test]
+fn equals_holds_when_the_scratch_folder_matches_the_committed_one_and_fails_on_one_byte() {
+    let repo = mock_repo(
+        "guide-equals",
+        &[("docs/guide/examples/w/x.yaml", "a: 1\n")],
+    );
+    let matching =
+        "<!-- guide: equals w docs/guide/examples/w -->\n\n```yaml file=w/x.yaml\na: 1\n```\n";
+    let differing =
+        "<!-- guide: equals w docs/guide/examples/w -->\n\n```yaml file=w/x.yaml\na: 2\n```\n";
+    let scratch = mineworld_test_support::scratch!(empty "guide-equals-run");
+    let environment = Environment {
+        features: &Features::new(),
+        repo: &repo,
+    };
+    let (ok, _) = run_page(
+        "ok",
+        &parse(matching).expect("parses"),
+        &scratch,
+        &environment,
+        None,
+    );
+    assert_eq!(ok[0].outcome, Outcome::Passed, "{ok:#?}");
+
+    let scratch = mineworld_test_support::scratch!(empty "guide-equals-differs");
+    let (bad, _) = run_page(
+        "bad",
+        &parse(differing).expect("parses"),
+        &scratch,
+        &environment,
+        None,
+    );
+    let Outcome::Failed(reason) = &bad[0].outcome else {
+        panic!("a differing byte fails: {bad:#?}");
+    };
+    assert!(reason.contains("differs"), "{reason}");
+}
+
+// --- The guards and the whole-guide run (`docs/GUIDE_FORMAT.md` §§7–9, 11) -------------------------------------
+
+/// A repository in a scratch folder, holding `docs/guide/features.toml` (merging nothing but `happenings`, which
+/// this build does not have) and the given files, named relative to the repository.
+fn mock_repo(label: &str, files: &[(&str, &str)]) -> Scratch {
+    let repo = mineworld_test_support::scratch!(empty format!("{label}-repo"));
+    let defaults = [(
+        "docs/guide/features.toml",
+        "[features]\nhappenings = false\n",
+    )];
+    for (path, text) in defaults.iter().chain(files) {
+        files::write(&repo, path, text).expect("the repository file is written");
+    }
+    repo
+}
+
+/// Runs the whole guide of `repo` (`docs/guide`) against the real binary.
+fn run_repo(label: &str, repo: &Scratch) -> Summary {
+    run_guide::run(label, &repo.join("docs/guide"), repo)
+}
+
+/// Every failed check, as one string: its name, then its reason.
+fn failures(summary: &Summary) -> String {
+    summary
+        .checks
+        .iter()
+        .filter_map(|(name, verdict)| match verdict {
+            Verdict::Fail(reason) => Some(format!("{name}: {reason}")),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// A page and its mirror, identical, under `docs/guide`.
+fn page_and_mirror(name: &str, text: &str) -> Vec<(String, String)> {
+    vec![
+        (format!("docs/guide/{name}.md"), text.to_owned()),
+        (format!("docs/guide/{name}.zh-CN.md"), text.to_owned()),
+    ]
+}
+
+/// Builds a mock repository from owned (path, text) pairs, and returns it.
+fn repo_with(label: &str, files: Vec<(String, String)>) -> Scratch {
+    let borrowed: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(path, text)| (path.as_str(), text.as_str()))
+        .collect();
+    mock_repo(label, &borrowed)
+}
+
+#[test]
+fn a_correct_page_with_its_mirror_passes_every_guard() {
+    let text = "### Step 1 — Check\n\nA sentence.\n\n```text\nshown only\n```\n";
+    let repo = repo_with("guide-clean", page_and_mirror("a", text));
+    let summary = run_repo("guide-clean-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+}
+
+#[test]
+fn a_wrong_expected_output_turns_the_run_red_and_names_the_page_and_step() {
+    let text = "### Step 2 — Check\n\n```console exit=1\n$ mineworld validate missing\nnot what it prints\n```\n";
+    let repo = repo_with("guide-wrong", page_and_mirror("a", text));
+    let summary = run_repo("guide-wrong-run", &repo);
+    let found = failures(&summary);
+    assert!(
+        found.contains("page a line 3 step Step 2 — Check"),
+        "{}",
+        summary.render()
+    );
+    assert!(found.contains("printed other output"), "{found}");
+}
+
+#[test]
+fn a_command_that_is_not_mineworld_turns_the_run_red() {
+    let text = "```console\n$ cargo run\nx\n```\n";
+    let repo = repo_with("guide-cargo", page_and_mirror("a", text));
+    let found = failures(&run_repo("guide-cargo-run", &repo));
+    assert!(found.contains("does not start with mineworld"), "{found}");
+}
+
+#[test]
+fn an_unknown_directive_turns_the_run_red_and_names_the_page() {
+    let text = "<!-- guide: teleport somewhere -->\n";
+    let repo = repo_with("guide-directive", page_and_mirror("a", text));
+    let found = failures(&run_repo("guide-directive-run", &repo));
+    assert!(found.contains("page a"), "{found}");
+    assert!(found.contains("teleport"), "{found}");
+}
+
+#[test]
+fn a_file_block_path_outside_the_scratch_folder_turns_the_run_red() {
+    let text = "```yaml file=../x\nx: 1\n```\n";
+    let repo = repo_with("guide-escape", page_and_mirror("a", text));
+    let found = failures(&run_repo("guide-escape-run", &repo));
+    assert!(found.contains("refused"), "{found}");
+}
+
+#[test]
+fn an_equals_mismatch_turns_the_run_red_and_names_the_folder() {
+    let text =
+        "<!-- guide: equals w docs/guide/examples/w -->\n\n```yaml file=w/x.yaml\na: 2\n```\n";
+    let repo = repo_with(
+        "guide-equals-red",
+        page_and_mirror("a", text)
+            .into_iter()
+            .chain([(
+                "docs/guide/examples/w/x.yaml".to_owned(),
+                "a: 1\n".to_owned(),
+            )])
+            .collect(),
+    );
+    let found = failures(&run_repo("guide-equals-red-run", &repo));
+    assert!(found.contains("equals w docs/guide/examples/w"), "{found}");
+    assert!(found.contains("differs"), "{found}");
+}
+
+#[test]
+fn a_mirror_whose_code_block_differs_by_one_byte_turns_the_run_red() {
+    let english = "```text\nshown\n```\n";
+    let mirror = "```text\nshowN\n```\n";
+    let repo = repo_with(
+        "guide-mirror",
+        vec![
+            ("docs/guide/a.md".to_owned(), english.to_owned()),
+            ("docs/guide/a.zh-CN.md".to_owned(), mirror.to_owned()),
+        ],
+    );
+    let found = failures(&run_repo("guide-mirror-run", &repo));
+    assert!(found.contains("mirror of a"), "{found}");
+    assert!(found.contains("code block 1 differs"), "{found}");
+}
+
+#[test]
+fn a_mirror_missing_its_english_page_or_its_mirror_turns_the_run_red() {
+    let orphan = repo_with(
+        "guide-orphan",
+        vec![("docs/guide/b.zh-CN.md".to_owned(), "x\n".to_owned())],
+    );
+    assert!(failures(&run_repo("guide-orphan-run", &orphan)).contains("b.zh-CN.md"));
+
+    let unmirrored = repo_with(
+        "guide-unmirrored",
+        vec![("docs/guide/c.md".to_owned(), "x\n".to_owned())],
+    );
+    assert!(failures(&run_repo("guide-unmirrored-run", &unmirrored)).contains("no mirror"));
+}
+
+#[test]
+fn a_link_to_a_missing_reference_anchor_turns_the_run_red() {
+    let text = "[corner](../reference/index.md#missing)\n";
+    let repo = repo_with(
+        "guide-anchor",
+        page_and_mirror("a", text)
+            .into_iter()
+            .chain([(
+                "docs/reference/index.md".to_owned(),
+                "## Corner\n".to_owned(),
+            )])
+            .collect(),
+    );
+    let found = failures(&run_repo("guide-anchor-run", &repo));
+    assert!(found.contains("no heading with that anchor"), "{found}");
+}
+
+#[test]
+fn a_link_into_a_reference_that_is_not_yet_generated_is_inconclusive_not_passed() {
+    let text = "[corner](../reference/index.md#corner)\n";
+    let repo = repo_with("guide-unbuilt", page_and_mirror("a", text));
+    let summary = run_repo("guide-unbuilt-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert!(
+        summary
+            .checks
+            .iter()
+            .any(|(name, verdict)| name == "reference links"
+                && matches!(verdict, Verdict::Inconclusive(_))),
+        "{}",
+        summary.render()
+    );
+}
+
+#[test]
+fn a_feature_flagged_false_that_the_build_has_turns_the_run_red() {
+    let repo = mock_repo(
+        "guide-flag-false",
+        &[("docs/guide/features.toml", "[features]\ncalendar = false\n")],
+    );
+    let found = failures(&run_repo("guide-flag-false-run", &repo));
+    assert!(found.contains("feature calendar"), "{found}");
+    assert!(found.contains("is in the build"), "{found}");
+}
+
+#[test]
+fn a_feature_flagged_true_that_the_build_lacks_turns_the_run_red() {
+    let repo = mock_repo(
+        "guide-flag-true",
+        &[(
+            "docs/guide/features.toml",
+            "[features]\nhappenings = true\n",
+        )],
+    );
+    let found = failures(&run_repo("guide-flag-true-run", &repo));
+    assert!(found.contains("happenings = true"), "{found}");
+}
+
+#[test]
+fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
+    let text = "### Step 1 — Wait\n\n<!-- guide: requires happenings -->\n\n```console\n$ mineworld packs list\n```\n";
+    let repo = repo_with("guide-pending", page_and_mirror("a", text));
+    let summary = run_repo("guide-pending-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert_eq!(summary.passed, 0, "a pending block is not a pass");
+    assert!(
+        summary
+            .pending
+            .iter()
+            .any(|item| item.contains("step Step 1 — Wait") && item.contains("happenings")),
+        "{}",
+        summary.render()
+    );
+}
+
+#[test]
+fn the_guide_in_this_repository_runs_green() {
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let summary = run_guide::run("repo-guide", &repo.join("docs/guide"), &repo);
+    // Printed for the operator with `--nocapture`: what is pending or inconclusive, by name.
+    println!("{}", summary.render());
+    assert!(summary.no_failures(), "{}", summary.render());
 }

@@ -63,6 +63,59 @@ fn copy_folder(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether the folder `actual` equals the folder `expected`: the same relative file paths and the same bytes
+/// in each file (§6.1, `equals`). The first difference is returned, by file name.
+pub fn same_tree(actual: &Path, expected: &Path) -> Result<(), String> {
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    list(actual, actual, &mut left)?;
+    list(expected, expected, &mut right)?;
+    left.sort();
+    right.sort();
+    if let Some(name) = left.iter().find(|name| !right.contains(name)) {
+        return Err(format!(
+            "{} is not in {}",
+            name.display(),
+            expected.display()
+        ));
+    }
+    if let Some(name) = right.iter().find(|name| !left.contains(name)) {
+        return Err(format!("{} is missing", name.display()));
+    }
+    for name in &left {
+        let (ours, theirs) = (fs::read(actual.join(name)), fs::read(expected.join(name)));
+        match (ours, theirs) {
+            (Ok(ours), Ok(theirs)) if ours == theirs => {}
+            _ => {
+                return Err(format!(
+                    "{} differs from the committed file",
+                    name.display()
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Every file under `dir`, as a path relative to `root`. A symbolic link is refused.
+fn list(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries =
+        fs::read_dir(dir).map_err(|error| format!("{} cannot be read: {error}", dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let kind = entry.file_type().map_err(|error| error.to_string())?;
+        let path = entry.path();
+        if kind.is_symlink() {
+            return Err(format!("{} is a symbolic link", path.display()));
+        } else if kind.is_dir() {
+            list(root, &path, out)?;
+        } else if let Ok(relative) = path.strip_prefix(root) {
+            out.push(relative.to_path_buf());
+        }
+    }
+    Ok(())
+}
+
 /// Writes `text` to `relative` inside `scratch`, creating its parent folders and replacing a file that
 /// is there. A symbolic link on the way is refused rather than followed: it could lead outside (§3.2).
 pub fn write(scratch: &Path, relative: &str, text: &str) -> Result<(), String> {
