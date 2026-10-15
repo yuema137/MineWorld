@@ -619,8 +619,9 @@ No question remains open.
 | --- | --- | --- | --- | --- |
 | C0 base and ledger | `0a11d021` | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
 | C1 `authoring` | `9797ecd7` | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
-| C2 `sdk` | this commit | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
-| C3 … C7 | — | [ ] | [ ] | [ ] |
+| C2 `sdk` | `d8bdc4a0` | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
+| C3 `packages` | this commit | [x] `check_entity_layout`: the three forbidden directories first, then "declares something" = a `.yaml` file directly in `items/` **or** in any other non-dot directory (sorted scan; helper `holds_a_yaml_file`); doc comment says the loader decides which directories are known; `EntityPackDeclaresNothing`'s message adds "or a .yaml file in a data directory an installed System Pack owns"; test `an_entity_pack_may_carry_data_directories_only` in `packages/tests/manifest.rs` (D-b-7) | [x] E-3 | [x] the forbidden three still refuse first (the test writes `people/` beside a valid `schemas/a.yaml` and is refused "item kinds only in MVP-0"); a dot directory never counts; the old message's needles ("declares nothing", "items/<key>.yaml") are kept |
+| C4 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -653,6 +654,11 @@ No question remains open.
 `--test extensions`, `--test interactions`: 1 + 1 passed. `cargo build -p mineworld-installed-systems` (every installed pack,
 `acme-fishing` included): Finished. `cargo clippy -p mineworld-authoring -p mineworld-sdk --all-targets -- -D warnings`: clean;
 `cargo fmt --all --check`: clean.
+
+**E-3 (C3).** `cargo test -p mineworld-packages --test manifest`: 7 passed (new: `an_entity_pack_may_carry_data_directories_only`;
+`an_entity_pack_carries_item_kinds_and_nothing_else` unchanged and passing); `--lib`: 0 tests (none exist). `cargo test -p
+mineworld-cli --test entity_packs`: 5 passed (claims unchanged); `cargo test -p mineworld-worldpack --test entity_packs`: 7 passed.
+Clippy on `mineworld-packages --all-targets -D warnings`: clean.
 
 ### Mutations
 
@@ -702,3 +708,6 @@ F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
   states `SHIPS` with inline text; `ships_data!`'s `include_str!` runs in C6, whose crate holds a real file.
   `MODULE_SPEC` §3.1's declares block names `RESOLVES, resolve`: corrected in C7 with a dated note
   (R-S30a-b-1).
+- **D-b-7 (bounded; test seam).** §7 places the `packages` test in `packages/src/manifest.rs`, which has no test
+  module and no scratch directory; it is in `packages/tests/manifest.rs`, beside the existing Entity Pack layout
+  test and its scratch helper.
