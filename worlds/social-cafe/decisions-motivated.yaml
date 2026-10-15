@@ -1,0 +1,8 @@
+# Opt-in: every seat of Social Café decided by the `motivated` model (pr-dl-b-motivated.md QS24-3).
+#
+# This file is not referenced by world.yaml. It is used with the decision-list flag:
+#   mineworld run worlds/social-cafe --decisions worlds/social-cafe/decisions-motivated.yaml ...
+# The default world keeps every seat on `rule`.
+models:
+  motivated: {}
+default: motivated

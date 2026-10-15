@@ -282,6 +282,21 @@ impl CurveSet {
             .find(|(curve, _)| *curve == name)
             .map(|(_, curve)| curve)
     }
+
+    /// Replaces the curve called `name` with `curve`, if the set has one of that name; `true` when it did.
+    pub fn replace(&mut self, name: &str, curve: Curve) -> bool {
+        match self
+            .curves
+            .iter_mut()
+            .find(|(existing, _)| *existing == name)
+        {
+            Some((_, slot)) => {
+                *slot = curve;
+                true
+            }
+            None => false,
+        }
+    }
 }
 
 /// Derives the curve set from a table: for each row, `y(h) = v(h) × 1 000 / max` with floor division, one point

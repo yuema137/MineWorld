@@ -12,13 +12,14 @@
 
 use mineworld_contracts::{ActionRequest, Observation, PersonId, SimDuration};
 use mineworld_conversation::Talk;
-use mineworld_decision::{Draw, mix};
+use mineworld_decision::{Consult, DecisionModel, Draw, mix};
 use mineworld_group_activity::{AcceptInvitation, DeclineInvitation, Invitations};
 use mineworld_rule_controller::{act, read};
 use serde_json::Value;
 
 use crate::considerations;
 use crate::options::{self, Choice, Context, KINDS, WANDER_AXIS};
+use crate::parameters::MotivatedParameters;
 use crate::score::{self, combine};
 use crate::settings::Settings;
 
@@ -150,4 +151,35 @@ fn reply(
     Some(Some(
         ActionRequest::new(context.me, act::record(&Talk::new(said))).with_target(*speaker),
     ))
+}
+
+/// The `motivated` decision model: `motivated` in `decisions.yaml`, the no-LLM utility controller of this crate.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Motivated;
+
+impl DecisionModel for Motivated {
+    const ID: &'static str = "motivated";
+    const PACKAGE: mineworld_packages::Package = crate::PACKAGE;
+    type Parameters = MotivatedParameters;
+
+    fn decide(
+        &self,
+        parameters: &MotivatedParameters,
+        consult: &Consult<'_>,
+    ) -> Option<ActionRequest> {
+        decide(
+            parameters.settings(),
+            consult.seed.raw(),
+            consult.pace,
+            consult.observation,
+        )
+    }
+
+    fn step(
+        &self,
+        _parameters: &MotivatedParameters,
+        consult: &Consult<'_>,
+    ) -> Option<ActionRequest> {
+        step(consult.observation)
+    }
 }

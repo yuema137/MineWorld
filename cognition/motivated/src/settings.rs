@@ -5,12 +5,13 @@
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
 use mineworld_contracts::Tag;
+use serde::Serialize;
 
 use crate::curve::Curve;
 use crate::curves::{CurveSet, TABLE, Table, from_a3};
 
 /// The base weight of each kind of choice, per mille (§5.4).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Base {
     /// Head for my agenda's place.
     pub agenda: u32,
@@ -35,7 +36,7 @@ pub struct Base {
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Roles {
     /// Places a person sleeps in.
     pub home: Vec<Tag>,

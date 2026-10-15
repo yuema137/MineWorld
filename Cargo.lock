@@ -1050,6 +1050,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-decision",
+ "mineworld-motivated",
  "mineworld-rule-controller",
 ]
 
@@ -1149,10 +1150,12 @@ dependencies = [
  "mineworld-decision",
  "mineworld-group-activity",
  "mineworld-movement",
+ "mineworld-packages",
  "mineworld-relationships",
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-weather",
+ "serde",
  "serde_json",
 ]
 

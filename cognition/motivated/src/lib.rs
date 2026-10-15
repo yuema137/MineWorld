@@ -26,16 +26,24 @@ mod curves;
 mod explain;
 mod model;
 mod options;
+mod parameters;
 mod score;
 mod settings;
+
+/// This Controller Pack's package identity, from its `Cargo.toml` (`docs/DECISIONS.md` `ARC-53`).
+pub const PACKAGE: mineworld_packages::Package = mineworld_packages::package!();
 
 pub use curve::{Curve, CurveError, POINTS_AT_MOST, SCALE};
 pub use curves::{CURVE_NAMES, CurveSet, EDITION, TABLE, Table, TableError, from_a3};
 pub use explain::explain;
-pub use model::{MOTIVATED_SALT, decide, step};
+pub use model::{MOTIVATED_SALT, Motivated, decide, step};
 pub use options::Choice;
+pub use parameters::MotivatedParameters;
 pub use score::{Scored, combine};
 pub use settings::{Base, Curves, Roles, Settings};
+
+#[cfg(test)]
+mod parameters_tests;
 
 #[cfg(test)]
 mod tests;

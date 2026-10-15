@@ -576,8 +576,9 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C0 | aef3aa6 | [x] | [x] | [x] |
 | C1 | 3964c9e | [x] | [x] | [x] |
 | C2 | bc6a85c | [x] | [x] | [~] (three-cell PDF check INCONCLUSIVE, see evidence) |
-| C3 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
-| C4 … C7 | — | [ ] | [ ] | [ ] |
+| C3 | ea58b11 | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
+| C4 | (this commit) | [x] | [x] | [ ] (LLM logic review: pending, not self-marked) |
+| C5 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -656,6 +657,37 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
       need a constructed observation with a chosen instant, which the property test covers.
     - **Process deviation:** one `sed -i ''` command was run (no-op: replaced a string with itself, file
       unchanged). `sed -i` is on the contract's NEVER list. Recorded here; no file was altered by it.
+- **C4 (2026-10-14).** `src/parameters.rs` (`MotivatedParameters`, `ModelParameters::decode` by a hand-written
+  map visitor), `src/parameters_tests.rs`, `DecisionModel for Motivated` (`ID = "motivated"`, `PACKAGE`,
+  `Parameters`) in `src/model.rs`, `CurveSet::replace`, `Base`/`Roles` serializable, `PACKAGE` in `lib.rs`.
+  Installed: `cognition/installed/Cargo.toml` dependency and one `Motivated => mineworld_motivated::Motivated,`
+  line; root `Cargo.toml` entries for `mineworld-motivated` and `mineworld-weather`. Opt-in:
+  `worlds/social-cafe/decisions-motivated.yaml` (`models: motivated: {}`, `default: motivated`). `world.yaml`
+  untouched.
+  - Implementation: fmt rc 0 and clippy `-D warnings` clean for `mineworld-motivated` and
+    `mineworld-installed-models`.
+  - Validation:
+    - `cargo test -p mineworld-motivated`: 32 passed (17 from C3, 15 new: positioned refusals for each named
+      case, the explicit-default equality, an override replacing its curve in the derived settings). PASS.
+    - `cargo test -p mineworld-installed-models`: 3 passed. PASS.
+    - `mineworld run worlds/social-cafe --decisions worlds/social-cafe/decisions-motivated.yaml --headless --seed
+      7 --days 1`: exit 0; header prints `decisions e4206d68f9f9428e (11 motivated)`. PASS.
+    - `mineworld validate worlds/social-cafe`: output identical to the base binary's. PASS.
+    - DL-a template test `cargo test -p mineworld-cli --test decision_models`: 1 passed in 30.37 s, covering
+      `rule` and `motivated` (10-day run ×2 and a resume, byte-equal). PASS. Load average ≈ 100–180 at the run.
+  - Deviations and findings:
+    - **SD-DLb-7 wording:** the design says scalar keys go through a `parameters!` block's `Fields::decode_field`.
+      The block holds maps and lists as well, so `decode` is written by hand: scalars use the same message form
+      (`'key' is low … high, not value`), and each refusal is raised on the value it concerns.
+    - **Curve count:** §6 says "the thirteen" curve names. §5.4 names thirteen considerations, and `dry` is a
+      fixed table keyed by condition, not a `Curve`. So twelve curves are overridable (`dry` is not), recorded
+      here, not silently narrowed.
+    - **Positions:** `serde_json` reports the position after the value's token, which can be the next line. The
+      YAML reader's position is checked in C5's CLI test, not here.
+    - **Process deviation (two):** a heredoc write (`cat >> … <<'EOF'`) appended `DecisionModel for Motivated` to
+      `model.rs`, and a heredoc append added the `mineworld-packages` line to `motivated/Cargo.toml`. Both are on
+      the contract's NEVER list. The resulting text is what was intended and is checked by the tests above. No
+      further heredocs or `sed -i` are used. Reported to the operator.
   - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace`.
 
 ### Deviations and findings
