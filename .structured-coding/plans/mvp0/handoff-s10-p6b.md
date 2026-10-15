@@ -16,8 +16,8 @@ BRANCH / WORKTREE   mvp0/pr-s10-p6b, created from origin/main, in
                     /Users/yuema137/mineworld-worktrees/impl-s10-p6b (sole writer; one session)
 BASE                origin/main @ 9aa185b (merge of #192); DL-a merged in 1be87e4 (PR #191), FG-b merged
                     in 31ba514 (PR #186), FG-a in b12a41e (PR #188)
-FG-c                NOT merged on 2026-10-14 (its design is frozen; no `resolve(..., summarize=)` exists in
-                    FG-b's selection.py). R-P6-FGc-1 therefore stays open; see §15 deviations
+FG-c                merged on main (#201) before P6b; P6b wires R-P6-FGc-1 at the merge of origin/main @ 27a6749
+                    (D-P6b-36). The pass-report half goes to S28-f
 HEAD / FINGERPRINT  see `git log -1` and `git status --short` (kept current at each milestone)
 APPROVED SCOPE      design §2.1 items 4–11 (§12.2)
 FROZEN INVARIANTS   §0 rulings; §6 I-P6-1 … I-P6-10; §8 thresholds as ruled in §14.1; LM seat acts socially
@@ -55,6 +55,8 @@ CLOSE-OUT           C15 done (§8.1 evidence; I-P6-1 and I-P6-9 PASS). Open halv
                     AP6-2 duration (D-P6b-29), AP6-5 ledger equality, AP6-8 replay over an integration log, AP6-9 whole-process
                     restart (D-P6b-24), AP6-11/12 journal and entity-id halves, AP6-13 status line, AP6-15 structural dump
                     (D-P6b-25). AP6-14 NOT RUN (operator Gate 1). Findings: F-P6b-21 (P6b, for the primary), D-P6b-30 (prompt
-                    observation lag). NEXT ACTIONS: the primary merges origin/main @ f772a18, pushes, opens the PR, and waits for
-                    CI on the exact head; parent synchronisation (§11) follows the merge
+                    observation lag). PR #207 open; operator approved the merge after review (2026-10-14). Merge of
+                    origin/main @ 27a6749 (FG-c, S27-a): D-P6b-35 (`rate_limited` is transport backoff on the submit),
+                    D-P6b-36 (summary boundary wired), D-P6b-37 (boundary override takes `timeout_s`). NEXT ACTIONS: CI
+                    green on the exact head, the gate comment, then the primary's merge; parent synchronisation (§11) follows
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

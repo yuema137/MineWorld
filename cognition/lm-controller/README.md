@@ -107,6 +107,10 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
 - Ctrl-C leaves every seat within 5 s and deletes its resume secret; a killed process leaves nothing
   behind, and the seat returns to its fallback after the hold. Each seat prints one status line at exit,
   from its decision log's last counters line.
+- When the server's per-seat request budget refuses a request (`rate_limited`), the controller waits at least
+  the time the server names and sends the same request again; the model is not asked again (`D-P6b-35`).
+- A seat whose memory policy is assisted (`lm-summarise`) asks the `summarize` tier; with `summarize = "none"`
+  its fallback, `consolidate`, decides alone (`D-P6b-36`).
 - Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits
   your profile's permissions. Paths are resolved against the configuration file on every platform.
 

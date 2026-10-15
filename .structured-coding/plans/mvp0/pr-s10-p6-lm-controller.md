@@ -1706,7 +1706,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   `Router.for_tier("summarize")` when it lands (R-FGc-P6-1). Until then, a seat whose assigned choice is
   an assisted policy is refused at start by FG-b's own resolution error, which is the design's behaviour
   for an unresolvable choice. The default choice (`consolidate`) is not assisted, so the default path is
-  unaffected. The operator sees this in the README.
+  unaffected. The operator sees this in the README. **Superseded by D-P6b-36** (FG-c merged before P6b; P6b wires it).
 - **C2 (2026-10-14).** Step 1: `external "lm",` added to `models!` in `cognition/installed/src/lib.rs`. Step 2:
   the guard test lists no expected ids, so a new test `the_lm_controller_is_the_one_installed_external_model`
   in `cognition/installed/tests/installed.rs` asserts the external list is `["lm"]`. Step 3:
@@ -2067,4 +2067,38 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   shared helper module is a candidate refactor for the primary, not a P6b change.
 - **D-P6b-32 (process slip, C13).** A second Bash call contained `sed -i` on `/dev/null` (a no-op, against the NEVER list), while
   adding an import. Nothing in the worktree changed. It is the same class as D-P6b-28 and is recorded, not repeated.
+- **Merge of `origin/main` @ 27a6749 (2026-10-14, after the operator's merge approval; FG-c #201, FG-b pins, #202, S27-a
+  #205, docs #208/#209).** Textual conflicts in `cognition/lm-controller/README.md` (FG-c's "Assisted forgetting" paragraph
+  and P6b's LM controller section, both kept) and `docs/DECISIONS.md` (`ARC-72`, `ARC-73` and `ARC-97`, `DEP-57`, all kept;
+  the duplicate headings `ARC-48`, `ARC-53`, `ARC-54`, `DEP-29` exist on `main` already and are not this merge's).
+- **D-P6b-35 (merge, bounded fix).** S27-a's per-seat request budget refuses a `submit` with `rate_limited` and
+  `retry_after_ms` (`PROTOCOL.md` §§5.5, 8; `ARC-97`); the SDK hands it to the seat as `RefusedRequest(code="rate_limited",
+  retry_after_ms=…)`. Before this fix the consult engine treated it as any frame refusal: `fell_back`/`frame`, no retry, so a
+  spent budget dropped a validated proposal. Now `failures.from_refused` classifies `rate_limited` as a retryable
+  **transport** failure whose `retry_after_s` is `retry_after_ms / 1000` (`FailureRecord.retry_after_s` widened from `int` to
+  `float`; an HTTP `Retry-After` stays whole seconds), and `consult.py` waits as the transport layer's policy says
+  (`exponential-backoff`: at least `retry_after_s`) and sends **the same request** again. It is never a content re-ask and
+  never a model call, so the call cap does not apply; it shares the transport layer's attempts and the consult deadline. Out
+  of attempts or out of deadline ends `fell_back` with cause `frame`, which the breaker does not count (not the model's fault,
+  §5.6). Every other refusal code is unchanged. Tests: `test_controller_consult.py`
+  (`test_a_rate_limited_submit_waits_at_least_retry_after_and_sends_the_same_request_again`,
+  `test_a_rate_limit_that_outlasts_the_transport_layer_falls_back_uncounted_by_the_breaker`,
+  `test_a_retry_after_beyond_the_deadline_falls_back_without_waiting`) and a classification row in
+  `test_controller_retry.py`; the first two and the row seen red with the fix stashed. No protocol, server or SDK change.
+- **D-P6b-36 (merge, R-P6-FGc-1 wired; supersedes D-P6b-1).** FG-c merged first, so under §2.3's rule P6b wires it.
+  `SeatRunner` passes `resolve` the router's `summarize` gateway seen through FG-c's `SummaryBoundaryGateway` (a replay's
+  `CassetteMiss` stops the pass as `SummaryUnavailable`), or `None` when no `summarize` model is bound (the assisted policy's
+  no-model fallback decides every group). The boundary is built over the router gateway's own backend and budget by a new
+  `ModelGateway.sharing(kind)` (one ledger, one recording, one in-flight limit; the router still closes the backend). The
+  merged `resolve` takes `gateway=`, not the design's `summarize=`: a recorded signature difference. Tests:
+  `test_controller_seat.py` (`test_an_assisted_seat_asks_the_summarize_tier_through_the_summary_boundary`, seen red with
+  the wiring stashed; `test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallback`). **Follow-up for
+  S28-f (not P6b):** R-P6-FGc-1's second half and §5.12's `PassReport` summaries — writing `absorb`'s pass reports (outcome,
+  model and fallback decisions) to the seat's decision log — are not written by P6b; S28-f, which rewires the controller's
+  memory home, owns them.
+- **D-P6b-37 (merge, semantic conflict).** FG-c's `SummaryBoundaryGateway.complete(seat, request)` overrode P6b's
+  `ModelGateway.complete(seat, request, *, timeout_s=None)` (D-P6-7) incompatibly; pyright strict reported it after the
+  merge. The override now takes and passes `timeout_s`. No behaviour change for FG-c's callers.
+- **D-P6b-38 (process slip, merge session).** One Bash call contained a no-op heredoc to `/dev/null`, against the NEVER list.
+  Nothing in the worktree changed. Recorded, not repeated.
 - (planning findings are §3.2 and §0.1)
