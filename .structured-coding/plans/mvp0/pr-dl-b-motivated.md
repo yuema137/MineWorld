@@ -574,8 +574,9 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | aef3aa6 | [x] | [x] | [x] |
-| C1 | (this commit) | [x] | [x] | [x] |
-| C2 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | 3964c9e | [x] | [x] | [x] |
+| C2 | (this commit) | [x] | [x] | [~] (three-cell PDF check INCONCLUSIVE, see evidence) |
+| C3 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -606,6 +607,24 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
   - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace` was run.
     Two `cargo test --workspace` processes seen on this machine belong to other sessions
     (`/tmp/fix-kill-resume-target`, `/tmp/impl-tw-c-target`) and were not touched.
+- **C2 (2026-10-14).** New crate `cognition/motivated` (`mineworld-motivated`), root `Cargo.toml` member.
+  `data/atus-a3-2025.tsv` (six rows, per-mille, zero markers, per-row checksum), `data/NOTICE`, `src/curve.rs`
+  (`Curve`, integer interpolation, clamped), `src/curves.rs` (`Table::parse`, `from_a3`, `CURVE_NAMES`),
+  `README.md`.
+  - Transcription source: BLS Table A-3 2025 HTML (`https://www.bls.gov/tus/tables/a3-2025.htm`), read through
+    WebFetch on 2026-10-14. The browser extension was not connected, so no PDF was read. The values come from
+    a model-summarised fetch; this is a transcription, not a verified copy.
+  - Implementation: `cargo fmt --check -p mineworld-motivated` rc 0; `cargo clippy -p mineworld-motivated
+    --all-targets -- -D warnings` clean.
+  - Validation: `cargo test -p mineworld-motivated`: 10 passed (PASS). Covers curve interpolation and clamping,
+    the hand-computed `from_a3` oracle on a synthetic row, `restless` as complement, checksums hold on the real
+    table, a wrong checksum, a value above 1 000, a short row, and a zero marker on a nonzero cell (all refused
+    with positions), and the pinned real sociability curve (24 points) and two rest points.
+  - Reviewer three-cell check against the PDF: **INCONCLUSIVE**. No PDF access in this session. Remains open
+    for the reviewer. The checksums here are sums of this transcription, not PDF-hand sums.
+  - Sociality check against the design's own numbers: 00:00–05:00 socializing share = 13 / 566 ‰ ≈ 2.3 %,
+    matching the design's stated figure.
+  - Load average at this point ≈ 180–230 (R-LOAD-1). Only `-p mineworld-motivated` tests were run locally.
 
 ### Deviations and findings
 

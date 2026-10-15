@@ -5,6 +5,7 @@ members = [
     # `cognition/*` glob would make Cargo look for a manifest that is not there.
     "cognition/decision",
     "cognition/installed",
+    "cognition/motivated",
     "cognition/rule-controller",
     "contracts",
     "kernel",

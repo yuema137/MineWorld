@@ -1,0 +1,10 @@
+[package]
+name = "mineworld-motivated"
+description = "The motivated decision model: a no-LLM utility controller whose daily rhythm is calibrated from the American Time Use Survey, Table A-3 (public domain, credited in data/NOTICE)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]

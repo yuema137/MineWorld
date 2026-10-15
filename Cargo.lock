@@ -1141,6 +1141,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-motivated"
+version = "0.1.0"
+
+[[package]]
 name = "mineworld-movement"
 version = "0.1.0"
 dependencies = [
