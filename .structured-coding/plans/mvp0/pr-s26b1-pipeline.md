@@ -1188,7 +1188,7 @@ or `tools/asset_generation/` changed.
 | B4 | this commit | [x] steps 1–4: `scripts/check_secrets.py` (scan, self-test); `scripts/ci_layer.py` (fast: two secrets commands; pipeline ruff/pyright in `PYTHON_STATIC`; pytest and `check-characters` in `python` and `python-smoke`); `pyproject.toml` `executionEnvironments`; `uv sync --locked` exit 0 | [x] `--self-test` PASS; `scan` 0 findings (1,903 tracked text files at the time); pipeline pytest 41 passed; ruff and pyright clean; mutation (remove `msy_` pattern) → self-test FAIL, reverted PASS | [x] no existing command changed or reordered; allowlist empty; scanner prints no matched text |
 | B5 | this commit | [x] steps 1–5: `mwcast/meshy.py` (Transport seam, UrllibTransport, DEFAULT_PARAMS with `pose_mode a-pose`, CREDITS_PER_RUN 30, ledger, cap, redaction, run_live, plan), `mwcast/identifiers.py`, `cli.py` (`meshy --dry-run` and live, `identifiers`), `tests/test_meshy.py` (7 tests) | [x] 49 pytest passed; ruff, format, pyright clean; mutation (remove redaction) → 401 test red, reverted green; no live call made, no key read | [x] the key is read only from `os.environ` at the live request; `UrllibTransport` is constructed only in `cli.py`, never in a test |
 | B6 | this commit | [x] steps 1–6: `mwcast/mask.py` (`alpha_bbox`, `run_mask`), `mwcast/texture.py` (`compare_texels`, `compare_masks`), `requirements.txt` (the four pins), `cli.py` (`mask`, `compare-texture [--alpha-iou]`), `tests/test_pipeline.py` (3 tests); texel bounds in `standard.py` | [x] 52 pytest passed; ruff and format clean; pyright 0 errors; imports of `rembg`, `PIL`, `numpy` are inside functions (the tests import the modules with none installed) | [x] no third-party import at module level; deviation F-B1-B6-1 recorded below |
-| B7 | — | [ ] | [ ] | [ ] |
+| B7 | this commit | [x] steps 1–6: `blender/{LICENSE (cmp-identical), README.md, common.py, gameready.py, fit_bind.py, weights_fingers.py, weights_pack.py, flecks.py, export.py, render_ortho.py, render_bones.py, dump_rig.py}`; ruff check and format clean under the `blender/*` rule relaxation (F-B1-B7-2) | [x] step 7 smoke: real `blender 5.2.2` on `vitruvian.glb` via `dump_rig.py`, exit 0, 52 bone lines (log read in full, `smoke.log`); I-B1-9 literal scan recorded in §2.4; `cmp` of LICENSE | [x] per-script port diff recorded in the deviations list; no script imports another except `common` |
 | B8 | — | [ ] | [ ] | [ ] |
 | B9 | — | [ ] | [ ] | [ ] |
 | B10 | — | [ ] | [ ] | [ ] |
@@ -1251,6 +1251,17 @@ or `tools/asset_generation/` changed.
   **B6 procedural deviation:** before writing `mask.py` I ran `uv run --locked python -c "import numpy"` to see
   whether numpy was in the lock. That is a `-c` run, which the design's NEVER list forbids. It wrote no file and
   printed `ModuleNotFoundError: No module named 'numpy'`. Reported here, not repeated.
+  **B7 finding F-B1-B7-1 (bounded, resolved and recorded):** `vitruvian.glb` has no mesh named `cm_vitruvian`
+  (its mesh is `Body`). D+'s `rig_meshy.py` reads the CharMorph front surface from `cm_vitruvian` in the uncommitted
+  `body_g5.glb`. Measured with `dump_rig.py`'s `front_y` (Blender 5.2.2, load average 85–170):
+  `body_g5` `cm_vitruvian` at z 1.0048 → min y **−0.04535631090** (13 vertices); `vitruvian.glb` `Body` at the same
+  height → **−0.04535621032** (13 vertices); difference **1.0e-7 m**, inside the design's 1e-5 bound (A-V-1). So
+  `fit_bind.py` takes the mesh name as `cm_front_mesh` (driver: `Body` for `vitruvian.glb`). The measured value
+  (−0.0453563) replaces −0.045356 in `fit.yaml` at B9 (≤ 1e-5 difference, B10 step 1). B10's parity run is what tests
+  the rest of the front surface (non-hip centre points) against D+; a larger difference there is a material stop.
+  **B7 finding F-B1-B7-2 (lint scope):** ruff's style rules E501, E731, E741, B905 and I001 are relaxed for
+  `blender/*` only (`tools/character_pipeline/ruff.toml`), so each D+ statement keeps its shape for the port review.
+  F (pyflakes) still applies.
   **Open: the primary session must decide before B10 step 5 is recorded as PASS**, with these numbers; B10's FAIL
   policy applies (localize, no bound change, material stop if AB1-8 cannot hold).
 - **B2 record scope:** `records.py` types every section of `fit.yaml` as a frozen dataclass; the schema is the

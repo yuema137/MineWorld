@@ -71,7 +71,15 @@ the Blender scripts, each with its D+ line in a comment:
 
 - `fit_bind.py`: pick-to-joint slab half-widths `rx 0.03/0.04/0.02`, `rz 0.02`; the `xmin` filters `0.2/0.3`; the toe
   offset `0.012`; the foot selector `|x − xa| < 0.06, z < 0.06` (`rig_meshy.py`).
-- `weights_fingers.py` and `weights_pack.py`: the algorithm constants of `reweight_fingers.py` and `reweight_pack.py`.
+- `weights_fingers.py` and `weights_pack.py`: the algorithm constants of `reweight_fingers.py` and `reweight_pack.py`:
+  the distance floor `1e-4` and `1e-12`, the keep-threshold `1e-4`, the smoothing `factor 0.5` and `limit 4`, the
+  pack smoothing zone margins `0.02`, `0.13` and `0.02` (`reweight_pack.py:66-67`), and the `ARMISH` name suffixes.
+- `flecks.py`: the straddle test (`6.0` times the median density and `12.0` texels, `fix_flecks.py:76`), the texel
+  slack `1.5`, and the luminance weights `0.2126`, `0.7152`, `0.0722`.
+- `fit_bind.py` also: the weight-sum floor `1e-4` (unweighted vertices), the slab minimum of 5 vertices, and the
+  midpoint of the elbow and the wrist when no elbow pick exists.
+- `fit_bind.py` reads the CharMorph front surface from the mesh named by `cm_front_mesh`: `cm_vitruvian` in D+'s
+  `body_g5.glb`; `Body` in `vitruvian.glb`, which measured the same hip front within 1.0e-7 m (F-B1-B7-1).
 - `export.py`: the `EXPORT_SETTINGS` dict of `A-B1-8` (`:259-262`), verbatim.
 
 Any other number in a Blender script is a parameter, and a review question (B7) checks it.

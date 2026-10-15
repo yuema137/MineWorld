@@ -3,3 +3,8 @@ target-version = "py311"
 
 [lint]
 select = ["E", "F", "I", "B", "UP"]
+
+# blender/ keeps each D+ script's statements as they were, so that the port can be read against its source
+# (PIPELINE.md §2.3). Only these style rules are relaxed there; the pyflakes rules (F) still apply.
+[lint.per-file-ignores]
+"blender/*" = ["E501", "E731", "E741", "B905", "I001"]
