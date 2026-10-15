@@ -24,11 +24,11 @@ STOP CONDITION:        S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-C0 committed (measurement, trace, ARC-97, DEP-57). C1's spec edits are in the working tree
-(`server/PROTOCOL.md`, `docs/NETWORKING.md`, `clients/protocol/ADOPTION.md`, `server/README.md`).
+C0 `00638eb`, C1 `ead62c2`, C2 `668f685`, C3 `7b4de25`, C4 (`--grant` in the CLI) committed. The
+C0–C3 implementer stopped; a replacement session continues from C4 in this worktree.
 
 ## Next actions
 
-1. Commit C1 after the doc checks.
-2. C2: the two codes in `server/src/protocol.rs`, goldens, SDK, `link.gd`, catalogs.
-3. C3 … C6 as the design says. No background jobs are running.
+1. C5: the per-seat budget (`governor`, DEP-57) in `seats.rs`/`runtime.rs`/`host.rs`, `--request-budget`,
+   `server/tests/request_budget.rs`, M-a-3, M-a-4.
+2. C6: merge origin/main, close-out, push, PR, CI on the exact head. No background jobs are running.

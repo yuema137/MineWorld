@@ -44,6 +44,8 @@ pub struct ServeRequest {
     /// The admin surface's bearer token, from `--admin-token` or `MINEWORLD_ADMIN_TOKEN`; `None`
     /// mounts no admin surface.
     pub admin_token: Option<String>,
+    /// The `--grant`s, as typed; each is issued a generated token once the roster is known.
+    pub grants: Vec<invite::GrantFlag>,
     /// The seats the reactive rule controller drives.
     pub agents: Vec<EntityKey>,
     /// Whether the paced rule controller drives every other seat.
@@ -141,6 +143,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         listen,
         invite,
         admin_token,
+        grants,
         agents,
         town,
         seed,
@@ -161,8 +164,15 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let resolved = decisions::resolve(&pack, &decisions)?;
     let invite = invite::Invite::resolve(invite)?;
     let admin = admin_token.map(admin_token_checked).transpose()?;
-    // Checked before anything binds: an admin token equal to the invite refuses to start.
-    let access = access(Admission::new(invite.token().clone()), admin)?;
+    // Generated once the roster is known, and before anything binds: a grant naming a seat this world
+    // does not offer refuses to start.
+    let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
+    let issued = invite::issue(grants, &roster)?;
+    let admission = Admission::new(invite.token().clone())
+        .with_grants(issued.iter().map(|issued| issued.grant().clone()))
+        .map_err(|refusal| format!("[mineworld] --grant: {refusal}"))?;
+    // Checked before anything binds: an admin token equal to the invite or a grant refuses to start.
+    let access = access(admission, admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
@@ -193,7 +203,6 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         }
     }
 
-    let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
     let driven = drivers(&roster, &agents, town, &resolved);
     let tallies: Vec<(EntityKey, hosted::Tally)> = driven
         .iter()
@@ -271,6 +280,10 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     println!("[mineworld] world instance {}", status.instance);
     if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
         println!("{}", invite.join_line(address, seat));
+    }
+    // Each grant's token is printed here, once, and nowhere else (`PROTOCOL.md` §4.1 "Seat grants").
+    for issued in &issued {
+        println!("{}", issued.line(address));
     }
     // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
     if access.admin.is_some() {

@@ -115,6 +115,10 @@ enum Subcommand {
         /// The bearer token that opens /admin (else none); never printed; not the invite.
         #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
         admin_token: Option<String>,
+        /// Issue a seat grant admitting only these seats (seat or seat+seat), with :take-over the
+        /// right to take a held one; its token is generated and printed once; repeatable.
+        #[arg(long = "grant", value_name = "SEATS[:take-over]", value_parser = invite::grant_flag)]
+        grants: Vec<invite::GrantFlag>,
         /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
@@ -353,6 +357,7 @@ async fn main() -> ExitCode {
             listen,
             invite,
             admin_token,
+            grants,
             agents,
             town,
             seed,
@@ -370,6 +375,7 @@ async fn main() -> ExitCode {
                     listen,
                     invite,
                     admin_token,
+                    grants,
                     agents,
                     town,
                     seed,
