@@ -22,7 +22,12 @@ from mineworld_sdk.wire.ids import JsonValue
 from pydantic import BaseModel, Field, ValidationError
 
 from mineworld_cognition.backend.model import CognitionModel
-from mineworld_cognition.memory.retention.policy import MemoryItem, RetentionBudget
+from mineworld_cognition.memory.retention.assisted import SummaryGateway
+from mineworld_cognition.memory.retention.policy import (
+    MemoryItem,
+    RetentionBudget,
+    RetentionDecision,
+)
 
 GROUP = "mineworld.forgetting"
 POLICY_ID = re.compile(r"[a-z][a-z0-9-]{0,47}")
@@ -95,11 +100,13 @@ class InvalidParameters(PolicyError):
 
 @dataclass(frozen=True)
 class _Checked:
-    """A policy class that passed the checks: its parameters model and an instance."""
+    """A policy class that passed the checks: its parameters model, an instance, and, for an assisted
+    policy (one that declares `calls_per_pass`), its plain fallback's id (pr-fg-c §5.1)."""
 
     id: str
     parameters: type[BaseModel]
     instance: object
+    fallback: str | None
 
 
 class RegisteredPolicy:
@@ -113,11 +120,42 @@ class RegisteredPolicy:
     def id(self) -> str:
         return self._checked.id
 
+    @property
+    def assisted(self) -> bool:
+        return self._checked.fallback is not None
+
+    @property
+    def fallback_id(self) -> str | None:
+        """An assisted policy's default fallback: a plain policy's id."""
+        return self._checked.fallback
+
     def plan(self, items: Sequence[MemoryItem], budget: RetentionBudget) -> object:
-        """The policy's plan, unvalidated: the host validates it (a policy may be written without
+        """A plain policy's plan, unvalidated: the host validates it (a policy may be written without
         pyright, so its result is not trusted to be what its signature says)."""
+        if self.assisted:
+            raise PolicyError(
+                f"retention policy {self.id!r} is assisted: it plans through plan_assisted"
+            )
         planner = getattr(self._checked.instance, "plan")  # noqa: B009 - checked callable at load
         result: object = planner(items, budget, self._parameters)
+        return result
+
+    def calls_per_pass(self) -> object:
+        """An assisted policy's declared allowance, unvalidated (the host checks and caps it)."""
+        declared = getattr(self._checked.instance, "calls_per_pass")  # noqa: B009 - checked at load
+        result: object = declared(self._parameters)
+        return result
+
+    async def plan_assisted(
+        self,
+        items: Sequence[MemoryItem],
+        budget: RetentionBudget,
+        gateway: SummaryGateway,
+        fallback_plan: Sequence[RetentionDecision],
+    ) -> object:
+        """An assisted policy's answer, unvalidated: the host checks it (FGc-4)."""
+        planner = getattr(self._checked.instance, "plan")  # noqa: B009 - checked callable at load
+        result: object = await planner(items, budget, self._parameters, gateway, fallback_plan)
         return result
 
 
@@ -200,9 +238,23 @@ def _check(name: str, candidate: object, distribution: str) -> _Checked:
         raise PolicyLoadError(name, distribution, why)
     if not callable(getattr(candidate, "plan", None)):
         raise PolicyLoadError(name, distribution, "it has no plan")
+    fallback = _assisted_fallback(name, candidate, distribution)
     try:
         instance: object = candidate()
     except Exception as error:
         why = f"it cannot be constructed without arguments ({type(error).__name__})"
         raise PolicyLoadError(name, distribution, why) from error
-    return _Checked(name, parameters, instance)
+    return _Checked(name, parameters, instance, fallback)
+
+
+def _assisted_fallback(name: str, candidate: type, distribution: str) -> str | None:
+    """`None` for a plain policy. An assisted one (it declares `calls_per_pass`) names a plain fallback id
+    in `fallback`, which must be a policy id and must not be its own."""
+    if not callable(getattr(candidate, "calls_per_pass", None)):
+        return None
+    fallback: object = getattr(candidate, "fallback", None)
+    if not isinstance(fallback, str) or not POLICY_ID.fullmatch(fallback):
+        raise PolicyLoadError(name, distribution, "its fallback is not a policy id")
+    if fallback == name:
+        raise PolicyLoadError(name, distribution, "its fallback is itself")
+    return fallback

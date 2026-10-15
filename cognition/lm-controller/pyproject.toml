@@ -29,6 +29,9 @@ consolidate = "mineworld_cognition.forgetting.consolidate:Consolidate"
 decay = "mineworld_cognition.forgetting.decay:Decay"
 importance-recency-cap = "mineworld_cognition.forgetting.importance_recency_cap:ImportanceRecencyCap"
 keep-all = "mineworld_cognition.forgetting.keep_all:KeepAll"
+# The assisted policy (pr-fg-c): the same group, found the same way; it asks a model only through the host's
+# summary gateway, and names `consolidate` as its no-model fallback.
+lm-summarise = "mineworld_cognition.forgetting.lm_summarise:LmSummarise"
 
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
