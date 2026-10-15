@@ -7390,6 +7390,24 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
    with the same claim, as DL-a's golden was re-recorded (TD-D15); (b) FG-b's lane re-derives the window
    after 12d merges; (c) select the window by the measured store size instead of a fixed day.
    Recommendation: (a), as the TD-D15 precedent.
+6. **CI on the exact head 99a0746** (run 38786685064; attempt 1, then one rerun of the failed and
+   cancelled jobs). Passed: fast, platforms (macos-26), platforms (windows-2025). The rest, in order:
+   - python on ubuntu and macos: FAIL, both attempts. The only failure is item 5's AFGb-4 (c);
+     288 passed, 2 skipped.
+   - python on windows: FAIL, both attempts. The 10 `social_cafe_100` users (test_ac10 ×8,
+     test_retention_real ×2) error at setup because the shared fixture's 100-day dev-binary run times
+     out at `binary.py:40` `timeout=600`. On main 2d07c6c the fixture took about 505 s on Windows,
+     including the export; on 12d's 22c5f91, before SR-b, about 675 s including the export.
+   - test-windows: FAIL, both attempts, on F-tick-1 `hosted_town` (p99 108.8 ms, then 57.8 ms, against
+     50 ms). It was the only failed binary each time. The one allowed rerun is used. Main's own
+     test-windows is also cancelled at its 60 min on 2d07c6c.
+   - test and test-macos: CANCELLED at the 60 min `timeout-minutes`, both attempts, with 80 binaries
+     passed and 0 failed. Linux was cancelled inside `town_bodies` (12d's two 300-day town runs), with
+     many binaries still unrun. On main 2d07c6c, test took 45 min and test-macos 32 min.
+   This is a **material stop on CI wall time**: 12d's suite on hosted runners does not fit the 60 min
+   job budget, and the Windows fixture does not fit its 600 s. Raising either limit, moving
+   `town_bodies`' 300-day runs to the nightly, or shortening them is the operator's or CI owner's
+   decision.
 
 ---
 
