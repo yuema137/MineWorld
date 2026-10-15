@@ -1,21 +1,22 @@
 # PR S30-a — Person attributes: the specifications and the decision records
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-15 (operator approved the freeze in the primary session: "同意冻结并实施 S30-a/b")
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 2 (2026-10-15: §14's rulings applied), FROZEN 2026-10-15
 Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29a-s30ab, branch docs/pr-designs-s29a-s30ab,
                         planning base origin/main @ e6030a36 (#225, the S30 amendment, merged)
-Approved by / evidence: none yet. The freeze header is the primary session's to write after the operator
-                        answers §14
+Approved by / evidence: the operator, directly in the primary session, 2026-10-15: "同意冻结并实施 S30-a/b";
+                        Q-S30a-1, Q-S30a-2 (and S30-b's Q-S30b-1) ruled as recommended (§14.1), relayed by the
+                        coordinator
 Implementation base:    origin/main at C0; C0 records the commit and the merge state of S26-a (#206), P6a and S31's
                         step
 Start condition:        none beyond this design's freeze and the primary's dispatch: step-30 §13.3 "S30-a starts
                         on step approval" (approved 2026-10-15)
 Execution contract:     §12
 Implementer:            Opus-class (step-30 §13.1, the S30-a row); reviewer the primary session
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-15
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15,
@@ -139,18 +140,19 @@ F-S30a-1 states how the records are written either way.
   pack's declarations use its own namespace) and step-31 §7.4 (`economy.wealth-band`) agree; §6.1's rows 32 and
   37 imply `core.occupation` and `core.wealth-band`. **Resolution (bounded by §7.1's rule):** the spec names them
   `employment.occupation` and `economy.wealth-band`, declared by their owners; the built-in catalogue
-  (`entities/person-attributes`, the `core` namespace, ≤ 100) declares the other 92 rows; the 94-row table
+  (`entities/person-attributes`, the `core` namespace, ≤ 100) declares the other 92 rows plus `core.natal-sex` (Q-S30a-1), 93 in all; the table
   stays the list of player-noticeable attributes with their readers. The MatrAIx mapping's target becomes
   `economy.wealth-band ← socioeconomic_band`. **Who makes `employment` an owner** is not settled by the step,
-  because §9.4 forbids S30 from changing an existing System: **Q-S30a-2.**
+  because §9.4 forbids S30 from changing an existing System: **Q-S30a-2, ruled 2026-10-15: S30-f, as a named
+  exception to §9.4** (§14.1); the spec says so in `MODULE_SPEC` §3 and `ARC-120`'s Consequences.
 - **F-S30a-3. `natal-sex` is used but not catalogued.** The San Diego profile's conditionals and §4.5's example
   need `core.natal-sex`; §6.1 omits it. **Q-S30a-1.**
 - **F-S30a-4. The seam's "optional `type Context`" is semantics, not syntax.** The spec says: "a section may be
   decoded in its owner's context — the owner's decoded data directories and its world configuration — so a value
   is checked against a schema declared in data, at the value's own line and column". It does not prescribe an
   associated type; S30-b's design fixes the form (a sibling trait, `pr-s30b-authoring-seam.md` §5.3).
-- **F-S30a-5. System Packs need to ship data.** See A-11. This PR writes `MODULE_SPEC` §3's sentence as Q-S30b-1
-  is ruled; if it is not ruled at C0, C2 stops for it (it is a frozen interface's wording).
+- **F-S30a-5. System Packs need to ship data.** See A-11. Q-S30b-1, ruled 2026-10-15: compiled in, through
+  `SystemPack::SHIPS` / `ships_data!`. `MODULE_SPEC` §3 states it as seam item 4 (§5.3).
 - **F-S30a-6.** Step-30 §2's table is malformed (A-12). Listed for the primary (§11).
 
 ---
@@ -381,17 +383,19 @@ exact head is the gate.
   catalogued as `persona`-owned `text` attributes (`ARC-120`), reviewed after S30-f (Q-S30-4).
 - **R-S30b-a-1 (S30-b).** The seam's code matches `MODULE_SPEC` §3's text; a divergence found in implementation is
   fixed in the code or recorded as a dated spec correction, never left (`CLAUDE.md` §2.1 rule 4).
-- **R-S30e-a-1 (S30-e).** The catalogue declares 92 `core` rows (93 if Q-S30a-1 is yes); X-S30-20's cap applies to
-  `core`.
+- **R-S30e-a-1 (S30-e).** The catalogue declares 93 `core` rows (the 94 of step-30 §6.1, plus `core.natal-sex` per
+  Q-S30a-1, minus the two owner-declared views); X-S30-20's cap applies to `core`.
+- **R-S30f-a-1 (S30-f).** `employment` becomes the owner of `employment.occupation` (Q-S30a-2): a projection of
+  `Employment { job }` and a declaration shipped with `ships_data!`; nothing else in `employment` changes.
 - **R-S31-a-1 (S31).** `economy.wealth-band` as `ARC-124` states it.
 
 ## 11. Edits to parent documents (owner: the primary session)
 
 | Document | Edit |
 | --- | --- |
-| `step-30-person-attributes.md` §2 | repair the outcome table (F-S30a-6) |
-| `step-30-person-attributes.md` §§6.1, 6.6, 9.6 | `economy.wealth-band`, `employment.occupation` (F-S30a-2); `natal-sex` per Q-S30a-1; row 32's owner per Q-S30a-2 |
-| `step-30-person-attributes.md` §4.3 item 3 | "optional `type Context`" → "decoded in its owner's context" (F-S30a-4) |
+| `step-30-person-attributes.md` §2 | repair the outcome table (F-S30a-6). **Applied in PR #234, 2026-10-15** |
+| `step-30-person-attributes.md` §§6.1, 6.6, 9.6 | `economy.wealth-band`, `employment.occupation` (F-S30a-2); `natal-sex` per Q-S30a-1; row 32's owner per Q-S30a-2. **Notes applied in PR #234 (§§6.1, 9.4); the §6.6 and §9.6 wording stays the primary's to reconcile** |
+| `step-30-person-attributes.md` §4.3 item 3 | "optional `type Context`" → "decoded in its owner's context" (F-S30a-4). **Note applied in PR #234** |
 | `step-31-wealth-prices.md` §19.6 | acknowledged: S30's example updated |
 | `overall.md` | S30-a merged |
 
@@ -457,9 +461,16 @@ STOP CONDITION:          S30-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **Q-S30a-1 [operator — the built-in catalogue, RR-S30-3]** | `natal-sex` conditions stature, build and facial hair in the San Diego profile (step-30 §8.2) and is §4.5's example of a `fixed` attribute, but it is not among §6.1's 94 built-ins (F-S30a-3). Add it, or reword the profile to condition on `body-form`? | **Add `core.natal-sex` as a built-in** (`category`: female, male; `private`, `fixed`; reader C: the profile parent of stature, build and facial hair, like `ancestry`, row 26). The cited sources (ACS, NHANES) tabulate by sex, not by body form, so conditioning on `body-form` would no longer match the data the figures come from. The cap still holds: 93 `core` rows of ≤ 100 |
 | **Q-S30a-2 [operator — `employment` as an owner; step-30 §9.4]** | `occupation` (row 32) is a view of `employment`'s state, so `employment` must implement the owner interface and declare `employment.occupation`. Step-30 §9.4 says no existing System is changed by S30, and no PR is assigned to change `employment` (F-S30a-2). Who adds it? | **S30-f, as a named, reviewed exception to §9.4**, because S30-f ships `occupation`'s readers (ME, OV-learnable). It is the smallest change: `employment` gains a projection of its own `Employment { job }` to the job's label and an `attributes/` declaration, and nothing else in `employment` changes. The alternative — leave `occupation` out until `employment` is next opened for its own reasons — leaves a reader without its attribute at the release, which RR-S30-2 forbids |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S30a-1 | **Add `core.natal-sex` as a built-in** (`category`: female, male; `private`, `fixed`; reader C). Applied: F-S30a-3, R-S30e-a-1 (93 `core` rows), step-30 §6.1's dated note | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S30a-2 | **`employment.occupation` is added by S30-f, as a named exception to step-30 §9.4.** Applied: F-S30a-2, R-S30f-a-1, step-30 §9.4's dated note | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S30b-1 (S30-b's, binding here for `MODULE_SPEC` §3) | **Declarations are compiled in through `SystemPack::SHIPS` / `ships_data!`.** Applied: F-S30a-5, §5.3 seam item 4 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Freeze | "同意冻结并实施 S30-a/b" | Operator, directly in the primary session, 2026-10-15 |
+
+No question remains open.
 
 ---
 

@@ -3,13 +3,14 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 2 (2026-10-15: §14's rulings applied), DRAFT
 Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29a-s30ab, branch docs/pr-designs-s29a-s30ab,
                         planning base origin/main @ e6030a36 (#225 merged; the task named dd357ca6, and the
                         only commit between them is the S30 amendment, which this file does not touch)
-Approved by / evidence: none yet. The freeze header is the primary session's to write after the operator
-                        answers §14
+Approved by / evidence: §14 ruled 2026-10-15 (operator answered directly in the primary session), every
+                        question as recommended (§14.1). Not frozen: the freeze follows 12d's merge and
+                        the hand-over of Milestone F's checklist (coordinator, 2026-10-15)
 Implementation base:    origin/main at C0; C0 records the commit and the merge state of 12d (#171) and S26-a (#206)
 Start condition:        (1) Milestone F's checklist handed to the operator (step-29 §11.2, operator 2026-10-15);
                         (2) 12d merged (#171: OPEN at e6030a36); (3) this design frozen; (4) the primary
@@ -18,7 +19,7 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Haiku-class (step-29 §11.1, the S29-a row: "Haiku, from a commit-level plan"); reviewer
                         the primary session, plus an Opus logic review of C2 and C4
-Lifecycle:              DRAFT
+Lifecycle:              DRAFT (rulings applied; awaiting freeze)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md) (APPROVED 2026-10-15;
@@ -211,7 +212,7 @@ is a town.
 | I-a-2 (I-S29-2) | Every town declares a station group (hall, ticket office, stop) and a landmark; a world that declares neither `town` nor `none` is refused by `mineworld validate` and `packs validate` with `SETTLEMENT_UNDECLARED`, naming `world.yaml` | `worldpack/tests/settlement.rs`; X-1 |
 | I-a-3 | The key is optional to the loader: `run`, `server` and `WorldPack::read` accept a world without it, unchanged | `worldpack/tests/settlement.rs::a_world_without_a_settlement_still_loads` |
 | I-a-4 | When present, `settlement:` is validated in full by the loader, so `run`, `server` and `validate` refuse the same malformed town with the same code | the table test (the loader path) and X-2 through `mineworld run` |
-| I-a-5 (I-S29-4) | Where `movement` is enabled, every seat with a starting place reaches the hall by passages (and the landmark, if Q-S29a-2 is ruled yes) | `TOWN_STATION_UNREACHABLE`; X-3 |
+| I-a-5 (I-S29-4) | Where `movement` is enabled, every seat with a starting place reaches the hall by passages (and the landmark, `TOWN_LANDMARK_UNREACHABLE`, Q-S29a-2 ruled) | `TOWN_STATION_UNREACHABLE`; X-3 |
 | I-a-6 (I-S29-6) | Every station dimension is a real or a stated design value with its source in the place file's comment; the one compression (the platform's length) is stated | review of C4's files |
 | I-a-7 | A role tag grants no behaviour: no System, client or cognition code branches on `station`, `stop`, `platform`, `ticket-office` or `landmark` | I-a-1's diff scan; `git grep -n '"ticket-office"\|"landmark"' -- systems clients cognition` empty |
 | I-a-8 | Nothing pretends (step-29 §5.2): no shop at `station-tickets`, no routine label about trains, no train | `station_visit`'s interaction check; review of C4's routines |
@@ -242,7 +243,7 @@ pub struct Settlement { kind: SettlementKind }      // pub fn kind(&self) -> &Se
 pub enum SettlementCode {
     Undeclared, Malformed, StationUnknown, LandmarkUnknown, StationUntagged, LandmarkUntagged,
     StationNoStop, StationNoTicketOffice, StationScattered, StationUnreachable,
-    // per Q-S29a-1 / Q-S29a-2: PlatformAnchor and/or LandmarkUnreachable (§14)
+    LandmarkUnreachable,   // Q-S29a-2 (ruled); no PlatformAnchor: Q-S29a-1 moved it to its consumer
 }
 impl SettlementCode { pub const ALL: [Self; N]; pub const fn as_str(self) -> &'static str }
 //   "SETTLEMENT_UNDECLARED", "SETTLEMENT_MALFORMED", "TOWN_STATION_UNKNOWN", "TOWN_LANDMARK_UNKNOWN",
@@ -304,7 +305,7 @@ Run only when `manifest.settlement` is `Some(Town { station, landmark })`. `Some
 9. With `movement`: for every seat in key order whose person has a `location`, breadth-first over **all**
    passages from that place reaches the hall, else `TOWN_STATION_UNREACHABLE` (path: the person's file; key the
    seat; detail names the starting place). A seat without a location is skipped. Without `movement`: skipped.
-10. *(Per Q-S29a-2.)* The same search reaches the landmark, else `TOWN_LANDMARK_UNREACHABLE`.
+10. *(Q-S29a-2, ruled.)* When the landmark is not the hall, the same search reaches the landmark, else `TOWN_LANDMARK_UNREACHABLE`.
 
 The skips (no `movement`; a seat with no location) are written into MODULE_SPEC §4.3's notes, not hidden.
 
@@ -398,7 +399,7 @@ body:
 ```
 
 The platform's origin (0, 0) lies on its floor's south edge and on no other edge (the anchor rule, whatever
-Q-S29a-1 decides about where it is checked).
+now held by C6's content test and by RT-c, Q-S29a-1).
 
 **The street** (`social-cafe`, `market-town`). `body.floor.min.x` moves from `-37450` to `-62450` (the forecourt,
 25 m, step-29 §6.3); the two "west parapets" solids are deleted, and the comment says why ("the street opens into
@@ -647,7 +648,7 @@ paths.
 - Steps:
   1. `bodies-yard/world.yaml`: after `seats:`, the comment "# Not a settlement: a yard for testing bodies
      (docs/MODULE_SPEC.md §4.3)." and `settlement:` / `  kind: none`.
-  2. The template, as Q-S29a-3 rules (recommended: `kind: none` with the comment "# Not yet a town. A town names
+  2. The template, as Q-S29a-3 ruled (`kind: none` with the comment "# Not yet a town. A town names
      its station hall and its landmark: docs/MODULE_SPEC.md §4.3.").
   3. In each test that writes a `world.yaml` into scratch and then runs `validate` or `packs validate` on it, add
      `settlement: { kind: none }` to the written text (a literal edit; no claim changes). A test that copies a
@@ -737,7 +738,7 @@ paths.
      the walks whose destination is in the station group (market-town and social-cafe).
   6. `a_broken_town_is_refused_by_run_as_by_validate`: X-2, X-3 and the scattered tag, each planted in a scratch
      copy; both `validate` and `run` fail with the code and the key.
-  7. *(If Q-S29a-1 is ruled as recommended.)* `every_platform_anchor_lies_on_one_edge`: for `market-town` and
+  7. *(Q-S29a-1, ruled.)* `every_platform_anchor_lies_on_one_edge`: for `market-town` and
      `social-cafe`, `WorldPack::read_with` + `load(WorldTime::EPOCH)`, find the genesis `place-shaped` fact whose
      place is `station-platform`, decode it as `mineworld_bodies::PlaceShaped`, and assert that (0, 0) lies on
      exactly one edge of its floor. Add `mineworld-bodies` as a dev-dependency of `mineworld-cli` only if it is
@@ -781,16 +782,16 @@ paths.
 - **R-S29d-a-1 (S29-d).** The forecourt's 3D geometry matches C4's street floor (min.x −62 450) and the hall's
   passage point; S29-d re-measures the hall's height and the towers and may move a *design* value only with a
   recorded reason.
-- **R-RTc-a-1 (S21 RT-c, if Q-S29a-1 is ruled as recommended).** `transport` validates that the stop's platform
+- **R-RTc-a-1 (S21 RT-c; Q-S29a-1, ruled).** `transport` validates that the stop's platform
   anchor lies on exactly one edge of the stop's `body.floor` when it attaches `StopInfo`, refusing by name.
 
 ## 11. Edits to parent documents (owner: the primary session)
 
 | Document | Edit |
 | --- | --- |
-| `step-29-station-landmark.md` §4.2, §9.5, §11.1 | the platform-anchor row as Q-S29a-1 rules; a landmark-reachability row if Q-S29a-2 is yes; the S29-a row's commit mapping (F-S29a-4) |
-| `step-29-station-landmark.md` §2.1 | A-18 corrected: `mineworld validate` did not enforce `ARC-53`; the gate is new for it (F-S29a-2) |
-| `step-29-station-landmark.md` §13.1 (Q-S29-7) | the reading of F-S29a-7: the one re-baseline is the id shift; S29-b records its sales as a behaviour change |
+| `step-29-station-landmark.md` §4.2, §9.5, §11.1 | the platform-anchor row moved (Q-S29a-1) and the `TOWN_LANDMARK_UNREACHABLE` row (Q-S29a-2), **applied in PR #234**; the S29-a row's commit mapping (F-S29a-4) |
+| `step-29-station-landmark.md` §2.1 | A-18 corrected: `mineworld validate` did not enforce `ARC-53`; the gate is new for it (F-S29a-2). **Recorded in step-29 §14.8, PR #234** |
+| `step-29-station-landmark.md` §13.1 (Q-S29-7) | the reading of F-S29a-7: the one re-baseline is the id shift; S29-b records its sales as a behaviour change. **Recorded in step-29 §14.8, PR #234** |
 | `overall.md` | S29 in §3 (step-29 §14.7); the second, recorded re-baseline beside 12d's "Digests" rule; S29-a frozen / merged |
 
 ---
@@ -873,9 +874,17 @@ STOP CONDITION:          S29-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **Q-S29a-3 [operator — the `create` template]** | `mineworld create` writes a one-place world that `mineworld validate` checks at once (A-12). It now needs a `settlement:`. Declare `kind: none`, or make the template a minimal town (three more places: hall, ticket office, platform)? | **`kind: none`, with a comment pointing to MODULE_SPEC §4.3.** A one-room starter world with a station would add three places the author did not ask for and would make the guide's first world a station rather than a home. The comment makes becoming a town one step away. (The guide, S25, shows the town contract in its own chapter) |
 | **Q-S29a-4 [operator — interim 3D picture]** | After C4, Social Café people walk to `station` on the server; the 3D slice cannot draw it until S29-d and shows them leaving the street's west end (F-S29a-6). Land Social Café's station routines in S29-a, or hold them for S29-d? | **Land them in S29-a.** The station group, its checks and `station_visit` need them (AC-S29-2 covers all three towns), and holding them would need a second re-baseline of Social Café in S29-d, against Q-S29-7's "one". S29 starts after Milestone F's checklist and ships before the release (step-29 §11.2), so no milestone the operator walks shows the gap; S29-d is the critical path |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S29a-1 | **The platform-anchor rule moves to its consumer.** The loader drops `TOWN_PLATFORM_ANCHOR`; C6 step 7 adds the content test; RT-c refuses an off-edge anchor (R-RTc-a-1). Applied: §5.1, §5.5, §9 C1/C6, §10; step-29 §§4.2, 14.6, 14.8 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S29a-2 | **Add `TOWN_LANDMARK_UNREACHABLE`.** Applied: §5.1, §5.3 step 10, I-a-5, C2's table test; step-29 §4.2, I-S29-4, §14.8 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S29a-3 | **The `create` template declares `kind: none`, with a comment pointing to MODULE_SPEC §4.3.** Applied: C3 step 2 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S29a-4 | **Social Café's station routines land in S29-a.** Applied: §5.6, C4 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+
+No question remains open. The design stays DRAFT until 12d (#171) has merged and Milestone F's checklist has been
+handed to the operator; then the primary writes the freeze header.
 
 ---
 

@@ -1,21 +1,21 @@
 # PR S30-b — The authoring seam: data directories, decoding in the owner's context, and owner resolution before seeding
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-15 (operator approved the freeze in the primary session: "同意冻结并实施 S30-a/b")
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 2 (2026-10-15: §14's ruling applied), FROZEN 2026-10-15
 Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29a-s30ab, branch docs/pr-designs-s29a-s30ab,
                         planning base origin/main @ e6030a36
-Approved by / evidence: none yet. The freeze header is the primary session's to write after the operator
-                        answers §14
+Approved by / evidence: the operator, directly in the primary session, 2026-10-15: "同意冻结并实施 S30-a/b";
+                        Q-S30b-1 ruled as recommended (§14.1), relayed by the coordinator
 Implementation base:    origin/main at C0; C0 records the commit and that S30-a has merged
-Start condition:        S30-a merged (step-30 §13.3: "S30-b … after S30-a"; NOT merged at e6030a36: S30-a is
-                        this session's other DRAFT), this design frozen, the primary's dispatch
+Start condition:        S30-a merged (step-30 §13.3: "S30-b … after S30-a"; NOT merged at e6030a36; S30-a was
+                        frozen 2026-10-15), this design frozen (2026-10-15), the primary's dispatch
 Execution contract:     §12
 Implementer:            Opus-class (step-30 §13.1, the S30-b row; R-S30-4: "the seam touches the loader that
                         every world uses … Opus implementer"); reviewer the primary session
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-15
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15;
@@ -68,7 +68,7 @@ be written as an ordinary pack without the loader learning a word of it:
 3. **Resolve across subjects once, before seeding**: the owner sees every file of the kinds its section is
    carried by — the key, the tags and its decoded section if any, never a name or a note — and returns one seed
    per subject; seeding order is unchanged.
-4. **Ship data files** from a System Pack for an owner's directory (as Q-S30b-1 rules), so that S31's notices and
+4. **Ship data files** from a System Pack for an owner's directory (Q-S30b-1, ruled 2026-10-15: compiled in through `SystemPack::SHIPS`), so that S31's notices and
    `economy` can declare their attributes (step-30 §9.6 N-2, step-31 §7.4).
 
 No existing section, configuration, world or pack changes; every reference world is byte-identical (X-S30-9).
@@ -395,7 +395,7 @@ context and is what `Decode<S>` already uses; `serde-saphyr` (`DEP-10`) keeps po
 | AC-b-5 | **X-S30-9.** The nightly long record of the final head passes `ci_parity.py baseline check` with no world's section changed in `scripts/baselines.txt`; the `decisions` golden passes unchanged; `worldpack/tests/social_cafe.rs` passes unchanged | X-S30-9, I-S30-10 |
 | AC-b-6 | **No existing pack changes.** `git diff --stat origin/main...HEAD -- systems/ tests/acceptance/tests/configuration` is empty; CI builds `acme-fishing` at its pinned revision | I-b-2 |
 | AC-b-7 | **Data-only Entity Pack.** A scratch Entity Pack with `pack.yaml` and `schemas/a.yaml` only passes `check_entity_layout`; required by a world that enables an owner of `schemas`, its file is collected before the world's own | §4.3 item 1 |
-| AC-b-8 | **Shipped data** (if Q-S30b-1 is ruled yes). A probe owner with one shipped file and one world file receives them in that order, the shipped file's origin naming the shipping pack and its crate-relative path | Q-S30b-1 |
+| AC-b-8 | **Shipped data**. A probe owner with one shipped file and one world file receives them in that order, the shipped file's origin naming the shipping pack and its crate-relative path | Q-S30b-1 |
 | AC-b-9 | I-b-3's scan is empty | I-b-3 |
 
 ---
@@ -418,8 +418,7 @@ and the handoff in the same commit; stage by path; commit with the message and t
 
 - **Files:** this file (§15), `.structured-coding/plans/mvp0/handoff-s30b.md` (new).
 - Steps: record the base; confirm S30-a merged (`ARC-121` in `docs/DECISIONS.md`, `MODULE_SPEC` §3's seam text);
-  re-read A-1 … A-16 and record moved lines; record whether S29-a has merged (`read.rs` step 9b); confirm Q-S30b-1
-  is ruled (§14.1).
+  re-read A-1 … A-16 and record moved lines; record whether S29-a has merged (`read.rs` step 9b); Q-S30b-1 is ruled (§14.1; confirm nothing has superseded it).
 - [ ] Implementation. [ ] Validation: doc scripts. [ ] Review: the seam text in `MODULE_SPEC` §3 matches §5 here;
   any difference is recorded and decided before C1.
 - **Commit message:** `docs(plan): S30-b — open the ledger at the base`
@@ -522,14 +521,14 @@ and the handoff in the same commit; stage by path; commit with the message and t
   catalogue` reads `WorldPack::context(Capability::Attributes)`.
 - **R-S30c-b-2 (S30-c).** A resume-time check that a world's data (its catalogue's identity) has not drifted from the
   save's, in the manner of `check_configuration` (`ARC-61` item 7), since this seam's contexts are not facts.
-- **R-S31-b-1 (S31; if Q-S30b-1 is ruled yes).** The notices pack ships `attributes/subscriptions.yaml` and
+- **R-S31-b-1 (S31).** The notices pack ships `attributes/subscriptions.yaml` and
   `vocabularies/topics.yaml` with `ships_data!`; `economy` ships `attributes/wealth.yaml`.
 
 ## 11. Edits to parent documents (owner: the primary session)
 
 | Document | Edit |
 | --- | --- |
-| `step-30-person-attributes.md` §4.3 | item 3 worded as semantics (F-S30b-1); item 1's admissions (dot directories, `decisions:`'s directory, disabled owner, F-S30b-3); a new item 5 for shipped data per Q-S30b-1 |
+| `step-30-person-attributes.md` §4.3 | item 3 worded as semantics (F-S30b-1); item 1's admissions (dot directories, `decisions:`'s directory, disabled owner, F-S30b-3); a new item 5 for shipped data per Q-S30b-1. **Applied in PR #234, 2026-10-15** |
 | `step-30-person-attributes.md` §8.5 item 5 | "The sampler's input type" is the seam's `Subject` (F-S30b-5) |
 | `overall.md` | S30-b frozen / merged |
 
@@ -561,7 +560,7 @@ NEVER:                   python3 -c; sed -i; heredoc writes; curl; git add -A; c
                          tests/acceptance/tests/configuration; any world edit; any model call
 MATERIAL STOPS:          S30-a not merged; a needed required item on AuthoredSection or SystemPack; any reference
                          world's bytes moving (X-S30-9); acme-fishing failing to build; a seam change that needs an
-                         attribute word; Q-S30b-1 unruled at C2; a new external dependency
+                         attribute word; a new external dependency
 PLATFORMS:               Linux, macOS, Windows (CI)
 VALIDATION BUDGET:       crate and acceptance tests unrestricted one at a time; one nightly dispatch (C7). Gate 1 and
                          Gate 2: NOT REQUIRED
@@ -601,9 +600,14 @@ STOP CONDITION:          S30-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- |
 | **Q-S30b-1 [operator — the seam's shape, `ARC-121`]** | Step-30 §9.6 N-2 and step-31 §7.4 have S31's notices pack and `economy` declare their attributes "in its pack's `attributes/`", but a System Pack is a Rust crate and the loader reads data only from World Packs and Entity Packs (F-S30b-2). How does a System Pack contribute declarations to an owner's directory? | **Ship them compiled in: `SystemPack::SHIPS` via `ships_data!("attributes/subscriptions.yaml", …)`**, collected first (in `systems:` order) whenever the shipping pack is enabled, each file named in refusals by pack and crate-relative path. A pack's declarations then travel with its code and its version, and a world that enables `notices` cannot forget them. The alternative — a companion Entity Pack per System Pack (`entities/notices-attributes`) that every world must also require — needs no seam change but splits one capability across two packages, and a world that enables `notices` without requiring its companion fails only at a reader's install (`MissingUnderBackend`-like), far from the cause |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S30b-1 | **Declarations are compiled in through `SystemPack::SHIPS` / `ships_data!`**, collected first in `systems:` order whenever the shipping pack is enabled. Applied: §1 item 4, §5.5, §5.6 step 2, AC-b-8, R-S31-b-1, step-30 §4.3's dated note (item 5) | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Freeze | "同意冻结并实施 S30-a/b" | Operator, directly in the primary session, 2026-10-15 |
+
+No question remains open.
 
 ---
 

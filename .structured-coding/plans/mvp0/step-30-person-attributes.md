@@ -259,10 +259,13 @@ In English:
 | O-9 | Cognition, agent players, both clients and Systems read attributes through declared, typed paths | §9 | AC-S30-11 |
 | O-10 | The kernel learns nothing | §4.1 | AC-S30-12 |
 | O-11 | S26 casting consumes the appearance subset with no hard-coded attribute list | §10 | AC-S30-13, S26's X-S26src-10 |
-| O-12 | Subscription topics for public notices are an attribute S31's System reads | §9.6 | AC-S30-15 | Backends and masks: switching `backend` and `mask` in `configure/attributes.yaml` changes the world's catalogue and nothing else; what a mask disables appears on no surface | the demo and a fixture world, scanned |
-| AC-S30-16 | The workspace builds and every test passes with `entities/attributes-matraix` absent, and nothing outside it (except the named exceptions) names MatrAIx | X-S30-18, X-S30-19 |
-| AC-S30-17 | The MatrAIx demo shows its attributes in briefs, prompts, MCP and both panels, with the attribution | the demo's scenario test and its guide step |
-| AC-S30-14 |
+| O-12 | Subscription topics for public notices are an attribute S31's System reads | §9.6 | AC-S30-14 |
+| O-13 | Person generation is pluggable: a world chooses a backend and a mask by data | §§6.4, 6.5 | AC-S30-15 |
+| O-14 | The MatrAIx backend is optional: nothing outside its pack depends on it | §6.6 | AC-S30-16 |
+| O-15 | The MatrAIx backend has a working demo | §6.7 | AC-S30-17 |
+
+*Table repaired 2026-10-15 (`pr-s30a-attribute-specs.md` F-S30a-6): rows O-12 … O-15 and AC-S30-15 … AC-S30-17 had
+been merged into one malformed block; the three acceptance rows now sit in §13.4.*
 
 ---
 
@@ -401,6 +404,20 @@ existing world's bytes move.
 4. **An owner may resolve across files before seeding.** An optional `resolve(context, all carried
    sections) -> per-subject seeds` is called once, before any per-subject `seed`. This is where the sampler
    sees the whole population, which stratification needs. Seeding order is unchanged (`ARC-31` item 4).
+
+**Notes 2026-10-15 (`pr-s30b-authoring-seam.md`; Q-S30b-1 ruled 2026-10-15, operator answered directly in the
+primary session).**
+
+- *Item 3* is read as semantics: "a section may be decoded in its owner's context". On Rust 1.97 an optional
+  associated type cannot be defaulted, and a required one would break every existing section, so S30-b realises
+  it as a sibling trait (`SectionInContext`; F-S30b-1).
+- *Item 1* admits, besides the format's and the installed packs' directories, directories whose name begins with
+  `.` (ignored) and the directory holding the `decisions:` file; an installed pack's directory in a world that
+  does not enable it is refused naming the pack (F-S30b-3).
+- *Item 5 (new): shipped data.* A System Pack may ship data files for an owner's directory, compiled in
+  (`SystemPack::SHIPS`, declared with `ships_data!`). They are collected first, in `systems:` order, whenever the
+  shipping pack is enabled, and each refusal names the pack and the crate-relative path. This is how S31's notices
+  pack, `economy` and `employment` declare their attributes (§9.6 N-2).
 
 The seam is general. It does not mention attributes. Its first user is S30. A second plausible user is
 an Entity Pack's taxonomies (`MODULE_SPEC.md` §2), which explains why it belongs in `authoring/` and not
@@ -701,6 +718,13 @@ Reader codes:
 
 That is 94 attributes, with headroom of 6 under the cap. A 95th or later built-in needs a named reader and
 replaces nothing silently. `freckles` is deliberately not built in: it is AC-S30-3's custom example.
+
+**Note 2026-10-15 (Q-S30a-1, Q-S30a-2; F-S30a-2).** Ruled 2026-10-15 (operator answered directly in the primary
+session): `core.natal-sex` is added as a built-in (`category`: female, male; `private`, `fixed`; reader C, the
+profile parent of stature, build and facial hair, as `ancestry` is). Rows 32 and 37 are views of other packs'
+state and are declared by their owners in their own namespaces (§7.1): `employment.occupation` and
+`economy.wealth-band` (step-31 §7.4). The table therefore lists 95 player-noticeable attributes; the built-in
+catalogue `entities/person-attributes` declares **93 `core` rows**, under the cap of 100 (X-S30-20 counts `core`).
 
 **What was cut from the built-in set, and why.**
 
@@ -1242,6 +1266,11 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
   shared hobbies, or a café menu by diet are each the owning System's own later PR, made when that System
   is next opened. Doing them now would edit unrelated Systems, which is change amplification
   (`CLAUDE.md` §4 rule 5).
+  - **The one named exception (Q-S30a-2, ruled 2026-10-15, operator answered directly in the primary
+    session):** S30-f makes `employment` the owner of `employment.occupation` — a projection of its own
+    `Employment { job }` to the job's label, and the declaration shipped with the pack (`ships_data!`,
+    Q-S30b-1). Nothing else in `employment` changes. (S31 changes `economy` for `economy.wealth-band` in its own
+    PRs.)
 - **S30's proof of the read path** uses two consumers:
   - a test-only fixture System in `systems/attributes/tests/` that refuses an action unless the actor is
     an `early-bird` (X-S30-10);
@@ -1440,6 +1469,9 @@ Also MVP-0, release-blocking (Re-ruled 2026-10-15): S30-h MatrAIx backend + mask
 | AC-S30-12 | `kernel/` and `contracts/` grep clean for the model crate's names (`AttributeId`, `AttributeValue`, `Catalogue`, `Handle<`, `AttributeOwner`), the `traits` component type, the S30 fact types and every built-in qualified slug (F-S30-9) | CI grep |
 | AC-S30-13 | S26 casting runs on `resolve --json` with no hard-coded attribute list, and the ruled briefs are unchanged | X-S26src-10, X-S26src-13 |
 | AC-S30-14 | A cook's default subscription includes `prices.ingredients` by role; `unsubscribe` changes it through S31's own fact; no other seat sees it | S31's test over §9.6 |
+| AC-S30-15 | Backends and masks: switching `backend` and `mask` in `configure/attributes.yaml` changes the world's catalogue and nothing else; what a mask disables appears on no surface | the demo and a fixture world, scanned |
+| AC-S30-16 | The workspace builds and every test passes with `entities/attributes-matraix` absent, and nothing outside it (except the named exceptions) names MatrAIx | X-S30-18, X-S30-19 |
+| AC-S30-17 | The MatrAIx demo shows its attributes in briefs, prompts, MCP and both panels, with the attribution | the demo's scenario test and its guide step |
 
 ### 13.5 Planted mutations and adversarial tests (each must fail by name, then be reverted)
 
