@@ -636,7 +636,7 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] | [x] | [x] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
@@ -649,7 +649,17 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Evidence
 
-(none yet)
+- **E-C0 (base).** Implementation base `origin/main @ f772a18` (#197, docs only, after the freeze base
+  `df77b27`/`708bc56`). S27-a **not merged** (its worktree `impl-s27a` exists, no PR); S27-b **not merged**
+  (`impl-s27b` at work, no PR). Consequences: R-S27c-a-1 stays with whichever of S27-a / S27-c lands second
+  (`rate_limited`/`not_granted` are mapped by code string, F-S27c-6); the `group-activity` actions are not
+  complete offers on this base, so `attempt` is exercised on `buy` (economy). C-1 … C-6 re-read on the base:
+  every signature as §3.1 states it (`resuming.py` `connect`/`open`/`changed`/`perceived`/`submit`/`leave`/
+  `detach`; `SeatSession.clock` at `session.py:289-293`; `offers.attempt`/`request`; the wire models) — no
+  deviation. Doc checks: `check_decision_ids.py` 123 ids distinct; `check_doc_headings.py` 223 sections, none
+  duplicated. Review: `ARC-96` uses *Controller*, *client*, *seat* and *agent player* as step-27 F-S27-5 defines
+  them (agent player = a Person whose Controller is an agent MineWorld does not run, reaching its seat through
+  a client process).
 
 ### Assumptions to verify in implementation
 
