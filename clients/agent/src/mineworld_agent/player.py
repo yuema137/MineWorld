@@ -11,8 +11,9 @@ Every operation takes its `*Args` model and returns its `*Result` model (QS27c-3
 publishes as MCP tool schemas. Acts answer a typed `Outcome`; the other operations raise `PlayerRefusal`
 (`unknown_handle`, `unknown_ref`, `seat_lost`, …) or `JoinRefused`, each naming a code only (D-c-1).
 
-The thirteen operations and `close` are the whole surface: none pauses, resumes, changes speed, kicks,
-releases or grants (INV-S27-10).
+The thirteen operations and `close` are the whole tool surface: none pauses, resumes, changes speed, kicks,
+releases or grants (INV-S27-10). `inbox` is a read-only status beside them, served by the MCP adapter as a
+resource rather than as a tool (S27-d).
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import asyncio
 import contextlib
 import secrets
 from collections.abc import Awaitable, Callable
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Final, cast, get_args
 
@@ -57,6 +59,7 @@ from mineworld_agent.models import (
     EventsArgs,
     EventsResult,
     InboxCounts,
+    InboxStatus,
     InspectArgs,
     InspectResult,
     JoinArgs,
@@ -74,6 +77,7 @@ from mineworld_agent.models import (
     Point,
     Refused,
     SayArgs,
+    Seated,
     SeatLost,
     SeatLostRefusal,
     SeatsArgs,
@@ -177,12 +181,16 @@ class Player:
         connector: ConnectorFactory | None = None,
         wall: Callable[[], float] | None = None,
         sleep: Sleep | None = None,
+        on_inbox: Callable[[str], None] | None = None,
     ) -> None:
         self._config = config
         self._credential = credential
         self._connector = connector
         self._wall = wall
         self._sleep = sleep or asyncio.sleep
+        self._on_inbox = on_inbox
+        """Called with a handle string when that handle's inbox gains facts (S27-d's `MCP` subscription);
+        synchronous, and it must not raise."""
         self._handles: dict[str, Handle] = {}
         self._ending: set[asyncio.Task[None]] = set()
         """Lost handles being cleaned up: held so the loop does not drop the tasks."""
@@ -259,7 +267,8 @@ class Player:
             raise JoinRefused(_join_code(lost.reason)) from None
         except TRANSPORT_FAILURES:
             raise PlayerRefusal("not_connected", "the server could not be reached") from None
-        handle = self._handle(seat, key, cursor, streamed=streamed, fresh=saved is None)
+        name = secrets.token_hex(16)
+        handle = self._handle(seat, key, cursor, name, streamed=streamed, fresh=saved is None)
         try:
             await handle.first_observation(JOIN_PATIENCE)
         except TimeoutError:
@@ -268,7 +277,6 @@ class Player:
         if handle.lost is not None:
             await handle.stop(give_back=False)
             raise JoinRefused(_join_code(handle.lost))
-        name = secrets.token_hex(16)
         self._handles[name] = handle
         welcome = seat.welcome
         return JoinResult(
@@ -281,9 +289,17 @@ class Player:
         )
 
     def _handle(
-        self, seat: ResumingSeat, key: EntityKey, cursor: CursorCell, *, streamed: bool, fresh: bool
+        self,
+        seat: ResumingSeat,
+        key: EntityKey,
+        cursor: CursorCell,
+        name: str,
+        *,
+        streamed: bool,
+        fresh: bool,
     ) -> Handle:
         refs = RefTable()
+        hook = self._on_inbox
         handle = Handle(
             seat=seat,
             key=key,
@@ -296,6 +312,7 @@ class Player:
             states=self._states,
             streamed=streamed,
             fresh=fresh,
+            on_inbox=None if hook is None else partial(hook, name),
         )
         handle.pacer = Pacer(
             walking=lambda: _walking(handle),
@@ -338,6 +355,12 @@ class Player:
                 handle.shown = handle.newest
                 return ObserveResult(view=delta)
         return ObserveResult(view=self._show(handle, view_of, newest))
+
+    async def inbox(self, args: Seated) -> InboxStatus:
+        """What the handle's inbox holds, read without changing it: unread facts, facts dropped at the bound, and
+        the newest fact's reference (S27-d's `inbox` resource and `wait` cue)."""
+        held = self._seated(args.handle).inbox
+        return InboxStatus(unread=held.unread, dropped=held.dropped, newest=held.newest)
 
     async def inspect(self, args: InspectArgs) -> InspectResult:
         """What perception disclosed about one listed entity, component by component."""

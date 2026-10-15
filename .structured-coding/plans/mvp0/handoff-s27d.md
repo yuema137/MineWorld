@@ -16,7 +16,8 @@ ENDPOINT:              READY FOR OPERATOR REVIEW — DO NOT MERGE
 ENDPOINT SOURCE:       design §12 ENDPOINT AUTHORITY (operator dispatch, 2026-10-15)
 COMMIT ATTRIBUTION:    per the operator's dispatch, commits end with Co-Authored-By: Claude Opus 5.5 (see final report)
 
-CURRENT CHECKPOINT:    C0 committed (5686137d). C1 done in the working tree (mcp 2.2.0 locked; P-1, P-2 PASS; M-d-1 red/green), commit pending. Next: C2.
+CURRENT CHECKPOINT:    C0 (5686137d) and C1 (7c03d972) committed. C2 done in the working tree (library additions, M-d-2 red/green),
+                       commit pending. Next: C3 (the MCP server: tools, errors, resources, prompt, subscription).
 SEQUENCE:              C0 ledger+DEP-56 · C1 dependency + SDK prototype (STOP if P-1/P-2 fail) · C2 library additions ·
                        C3 MCP server · C4 CLI + golden · C5 stdio play-test · C6 same answers/guard/admin · C7 close-out, PR, CI
 
