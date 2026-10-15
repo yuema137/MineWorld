@@ -105,6 +105,13 @@ tokio-tungstenite = "0.29.0"
 getrandom = "0.3.4"
 subtle = "2.6.1"
 
+# The executable guide (DEP-50, ARC-90): a CommonMark parser and a snapshot matcher, test-only, named only
+# inside `tools/cli/tests/guide*`. `pulldown-cmark` without its command-line `getopts` default, which the
+# guide never uses. `toml` is already in the lock (through a test-only dependency), read for `features.toml`.
+pulldown-cmark = { version = "0.13.4", default-features = false }
+snapbox = { version = "1.2.2", default-features = false }
+toml = "1.1.6"
+
 # The per-seat request budget (DEP-57): one GCRA limiter per seat, driven by the seat table's injected
 # wall `Instant` (no `quanta`, no `dashmap`, no `jitter`). Named only in `server/src/seats.rs`.
 governor = { version = "=0.10.4", default-features = false, features = ["std"] }
