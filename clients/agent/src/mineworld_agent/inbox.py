@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from mineworld_sdk.wire.contract import ActionCause, Observation, PerceivedEvent
@@ -32,6 +32,9 @@ from mineworld_agent.models import (
 )
 from mineworld_agent.refs import RefTable, UnknownRef
 from mineworld_agent.view import envelope
+
+type Fits = Callable[[list[EventLine], str | None], bool]
+"""Whether a result built from these lines (and this `next`) fits the byte cap."""
 
 INBOX_BOUND = 512
 DETAIL_BYTES = 1024
@@ -128,27 +131,44 @@ class Inbox:
         )
 
     def events(
-        self, after: str | None, limit: int, detail: bool = False
+        self,
+        after: str | None,
+        limit: int,
+        detail: bool = False,
+        fits: Fits | None = None,
     ) -> tuple[list[EventLine], str | None]:
         """Up to `limit` facts after `after` (from the oldest held, when `None`), skipping those an act
-        already showed; they are marked read. `next` is the last one returned when more remain."""
+        already showed; they are marked read. `next` is the last one returned when more remain. When
+        `fits` refuses a page (the byte cap), it is shortened by one fact at a time; what is cut stays
+        unread for the next page — never cut inside a fact."""
         start = 0 if after is None else _number(after)
         chosen = [e for e in self._entries if e.number > start and not e.shown][:limit]
+        while True:
+            lines = [self.line(e, detail) for e in chosen]
+            remaining = any(
+                e.number > (chosen[-1].number if chosen else start) and not e.shown
+                for e in self._entries
+            )
+            following = f"F{chosen[-1].number}" if chosen and remaining else None
+            if fits is None or len(chosen) <= 1 or fits(lines, following):
+                break
+            chosen = chosen[:-1]
         for entry in chosen:
             entry.read = True
-        remaining = chosen and any(
-            e.number > chosen[-1].number and not e.shown for e in self._entries
-        )
-        return [self.line(e, detail) for e in chosen], (
-            f"F{chosen[-1].number}" if remaining else None
-        )
+        return lines, following
 
-    def since(self, number: int, limit: int) -> list[EventLine]:
-        """Up to `limit` facts that arrived after fact `number`, marked read (for `wait`)."""
+    def since(self, number: int, limit: int, fits: Fits | None = None) -> list[EventLine]:
+        """Up to `limit` facts that arrived after fact `number`, marked read (for `wait`); shortened
+        like `events` when `fits` refuses."""
         chosen = [e for e in self._entries if e.number > number and not e.shown][:limit]
+        while True:
+            lines = [self.line(e) for e in chosen]
+            if fits is None or len(chosen) <= 1 or fits(lines, None):
+                break
+            chosen = chosen[:-1]
         for entry in chosen:
             entry.read = True
-        return [self.line(e) for e in chosen]
+        return lines
 
     def caused_by(self, action: ActionId) -> list[EventLine]:
         """The facts an accepted request caused that this seat perceived, shown once: marked so that

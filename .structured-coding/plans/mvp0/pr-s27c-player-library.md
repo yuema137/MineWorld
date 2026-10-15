@@ -644,8 +644,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C5 | 4b94d28 | [x] | [x] | [x] |
 | gap table | 2525c34 | [x] | N/A (docs only) | [x] |
 | C5a (R-S27c-INFO) | 0f7bc7f | [x] | [x] | [x] |
-| C6 | (this commit) | [x] | [x] | [x] |
-| C7 | — | [ ] | [ ] | [ ] |
+| C6 | b9f571f | [x] | [x] | [x] |
+| C7 | (this commit) | [x] | [x] | [x] |
 | C8 | — | [ ] | [ ] | [ ] |
 | C9 | — | [ ] | [ ] | [ ] |
 
@@ -856,6 +856,47 @@ as the authority for the added fields.
   `test_nothing_is_sent_while_paused` red; reverted (`cmp` clean). Review: no route, no distance, no
   stride splitting; stops on a walk gone, any ending answer, `stop()`/a new `start()`; one loop, one step in
   flight (sequential `await step()`; the Player's lock serialises it with the handle's other submits).
+
+- **E-C7 (Player).** `player.py` (`Player`, `PlayerConfig`; the thirteen operations and `close`),
+  `handle.py` (`Handle`: one seat's `ResumingSeat`, `RefTable`, last 8 `Rendered`, `Inbox`, `CursorCell`,
+  `Pacer`, submit lock; the drain, watch and idle tasks), `outcomes.py` (the §5.6 table as one pure
+  function), `state.py` (`StateDir`, `SeatState`), `status.py` (`fetch_status`, `status_url`), `__init__.py`
+  (the public names). `inbox.py` gained a `fits` predicate for `events`/`since`, so a page of facts is
+  shortened one fact at a time under the byte cap and what is cut stays unread (I-c-13). Calendar (A-c-4):
+  the calendar pack discloses `calendar-day { date, day_start }` and `calendar-light { phase }` on the
+  observer's place (fixture-verified in `test_info.py::test_the_calendar_of_my_place`); `clock` returns it.
+  Tests: `test_outcomes.py` 19 (every SDK outcome; a malformed-frame refusal is `LibraryDefect`),
+  `test_state.py` 4 (atomic rewrite, 0600 on POSIX — never skipped elsewhere, another instance or an
+  unparsable file ignored, delete twice), `test_secrets.py` +1 (canary invite and resume through `Player`,
+  `PlayerConfig`, `SeatState`, `StateDir` reprs; the secret only in the file). Whole member: 91 passed;
+  ruff, format, pyright strict clean. Mutation: an outcome dropping a System's own code →
+  `test_every_answer_maps_to_its_outcome[answer4-expected4]` red; reverted (`cmp` clean). The Player's
+  behaviour against a server is C8's (real binary); no fake server is built for it (test rules §2: a unit
+  test must not become a fake lifecycle).
+  Review: the credential is read only in `join` (`ResumingSeat.open(invite=…)`); every operation touches
+  `last_call` on entry (`_seated`) and acts and `wait` again on exit; `close()` leaves every live handle
+  (a lost one has nothing to give back); no operation reaches host state.
+- **Bounded decisions (C6/C7).**
+  - *D-c-12 (pacer, unseen).* The pacer decides only on an observation whose `acted_through` reaches its
+    last answered request on the same connection (`Handle.reflected`); otherwise it looks again every
+    0.25 s and stops after 5 s without sending. Without it, the observation that predates an accepted
+    `walk-to` (no `walking` yet) would stop the walk at once.
+  - *D-c-13 (seat loss in an act).* A submit that meets `SeatLost` answers the act with the
+    `seat_lost { reason }` outcome (§5.1); a handle already lost before a call answers `SeatLostRefusal`
+    for any operation, once, then `unknown_handle` (D-c-1's rule, extended to acts, because there is no
+    observation to time the result by).
+  - *D-c-14 (modules).* `handle.py` and `outcomes.py` are added beside §5.1's list: the per-handle tasks
+    and the outcome table are separate responsibilities, and `player.py` stays ≈ 690 lines.
+  - *D-c-15 (accepted facts).* An accepted act waits until the drain has delivered past the largest
+    `EventId` the server lists as caused, or 1 wall s, then takes the inbox's lines whose
+    `caused_by.action` is its `ActionId` (shown once). A fact this seat does not perceive is never awaited
+    past the second.
+  - *D-c-16 (state file cadence).* The file is rewritten at once on every new connection's first
+    observation (a fresh `resume`), and as the cursor advances at most once a wall second; it is deleted on
+    `leave` and idle release, kept on a seat loss (its instance and cursor still serve a rejoin after a
+    restart).
+  - *D-c-17 (unexpected refusals).* A refusal code that only a malformed or out-of-order frame earns
+    raises `LibraryDefect` instead of being shown as a world answer.
 
 ### Implementation decisions (bounded, within step-27 §5)
 
