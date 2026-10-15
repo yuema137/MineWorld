@@ -56,6 +56,10 @@ target passed; log `/tmp/impl-sr-b-target/full-test.log`), fixed them, ran the t
 mutations (delete without the block; corrupt a row past the round trip) and recorded both in §14.3.
 `origin/main` unchanged at adf5d2c.
 
+2026-10-14, third session (the second confirmed stopped): merged main 9aa185b (b8d946c) and f772a18;
+the baselines re-recorded from a long record of the merged tree (F-SRB-5, ledger §14.3); fmt and clippy
+clean. Load ruling R-LOAD-1 binds: no local `cargo test --workspace`; CI on the exact head is the gate.
+
 ## Exact next actions
 
 1. Push `mvp0/pr-sr-b`, open the PR (body in the session scratchpad), push the same head to

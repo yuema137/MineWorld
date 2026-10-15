@@ -1057,3 +1057,26 @@ On head 1c61838: `cargo fmt --all --check` clean; `cargo clippy --workspace --al
 (F-SRB-4), every other target passed (log `/tmp/impl-sr-b-target/full-test.log`). After the F-SRB-4 fix:
 the two targets and `--test biography` pass. `origin/main` was fetched: still adf5d2c, the branch's base,
 so no merge was needed.
+
+**Merge with main (2026-10-14, third session).** `origin/main` moved to 9aa185b (FG-a #188, FG-b #186,
+DL-a #191, S25-b #190, SET-b #192, docs) and then f772a18 (plan documents only). The second session
+resolved the merge with 9aa185b and stopped before committing it; a third session took over the worktree
+(the second confirmed stopped) and audited it. Files both sides changed: `docs/ARCHITECTURE.md`,
+`docs/DECISIONS.md`, `docs/MODULE_SPEC.md`, `tools/cli/src/run.rs`, `tools/cli/tests/inspect.rs` — each
+checked to be exactly the union of both sides' deltas against the merge base adf5d2c — and
+`scripts/baselines.txt`. No production reader brought in by main reads the removed `journal_after` or a
+whole log (`grep` over `tools/cli/src`, `server/src`, `cognition`, `worldpack`). The second session's
+targeted run on the merged tree passed (persistence kill_and_resume cafe + clock, retention 5, save 13;
+CLI biography 2, decision_models 1, decisions 7, forgetting_runs 1, forgetting_sections 2, inspect 3,
+interactions 4, social_composition 4; log `/tmp/impl-sr-b-target/merge-tests.log`).
+
+*Finding F-SRB-5 (merge, bounded; fixed in the merge commit).* The second session's resolution of
+`scripts/baselines.txt` kept SR-b's pre-merge values under a reason line saying they were "re-recorded
+from the merge"; the long record it had started was never finished. A long record of the merged tree
+(`ci_parity.py record --binary … --profile long`, 1 804.6 s, load average 16.4 at start and 6.6 at end)
+showed `baseline check` FAIL on `sealed-300s` for all four worlds and every other key equal: FG-a's
+genesis journal row (its composition) is in block 1. `baseline write` from that record and a corrected
+reason line → `baseline check` PASS; `ci_parity.py --self-test` passed. Summaries unchanged (ASRB-11's
+summary half holds on the merge). Merge commit b8d946c; f772a18 merged on top (docs only).
+`cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean on the merged
+tree. Under R-LOAD-1 no local workspace test run was made: CI on the exact head is the gate.
