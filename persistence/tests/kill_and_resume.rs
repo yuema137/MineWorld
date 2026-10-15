@@ -4,13 +4,15 @@
 //! parent      for each scenario:
 //!               control   a child runs the whole script into its own save, uninterrupted
 //!               for each kill point K (early, middle, late; the first retained anchor's commit and
-//!               a commit that retires a snapshot, ARC-81):
+//!               a commit that retires a snapshot, ARC-81; the first sealing commit, the one before
+//!               it and the one after it, ARC-89):
 //!                 victim    a child runs the script into a fresh save; once it has printed
 //!                           "revision K" the parent SIGKILLs it, while it is still writing
 //!                 survivor  a NEW child process opens the same file, resumes it, and finishes the
 //!                           script from the first input the save does not hold
-//!                 compare   facts, journal and snapshots of the survivor's file and the control's,
-//!                           byte for byte; and verify() the survivor's file from genesis
+//!                 compare   facts, journal, sealed blocks and snapshots of the survivor's file and
+//!                           the control's, byte for byte; and verify() the survivor's file from
+//!                           genesis
 //! ```
 //!
 //! Two scenarios. **cafe**: the repository's own `worlds/social-cafe`, assembled by the pack loader,
@@ -377,13 +379,14 @@ impl Scenario {
         }
     }
 
-    /// Snapshot intervals small enough that each run crosses a retained anchor (`ARC-81`): every 256
-    /// revisions in the cafe's ≈ 300, every 512 in the clock world's ≈ 630, so kills land at an
-    /// anchor commit and at commits that retire snapshots.
+    /// Snapshot intervals small enough that each run crosses two retained anchors and so seals a block
+    /// (`ARC-81`, `ARC-89`): anchors every 128 revisions in the cafe's ≈ 300 (the first seal at 256),
+    /// every 256 in the clock world's ≈ 630 (the first seal at 512), so kills land at an anchor commit,
+    /// at commits that retire snapshots, and at, before and after the sealing commit.
     const fn interval(self) -> u64 {
         match self {
-            Self::Cafe => 4,
-            Self::Clock => 8,
+            Self::Cafe => 2,
+            Self::Clock => 4,
         }
     }
 
@@ -558,12 +561,35 @@ fn run(role: &str, scenario: Scenario, directory: &Path, kill_at: Option<u64>) -
     Ran { lines, killed }
 }
 
-/// Every row of a save, as stored, for a byte-for-byte comparison.
+/// Every row of a save, as stored, for a byte-for-byte comparison: the live tail of the log, the sealed
+/// blocks (`ARC-89`) and the snapshots.
 #[derive(Debug, PartialEq, Eq)]
 struct Rows {
     journal: Vec<(i64, i64, Option<i64>, Vec<u8>)>,
     facts: Vec<(i64, i64, Vec<u8>)>,
+    sealed: Vec<SealedRow>,
     snapshots: Vec<(i64, Vec<u8>)>,
+}
+
+/// One row of `sealed`, every column as stored.
+#[derive(Debug, PartialEq, Eq)]
+struct SealedRow {
+    first_revision: i64,
+    last_revision: i64,
+    event_ids: (Option<i64>, Option<i64>),
+    max_action_id: Option<i64>,
+    journal: Vec<u8>,
+    facts: Vec<u8>,
+}
+
+/// How many facts the save logged, live or sealed, read through the backend's stream.
+fn logged_facts(directory: &Path, scenario: Scenario) -> u64 {
+    SqliteBackend::open(directory, scenario.durability())
+        .expect("opens")
+        .facts_after(None)
+        .expect("a cursor")
+        .try_fold(0, |count, fact| fact.map(|_| count + 1))
+        .expect("every fact reads")
 }
 
 fn rows(directory: &Path) -> Rows {
@@ -592,9 +618,29 @@ fn rows(directory: &Path) -> Rows {
         .expect("queries")
         .collect::<Result<_, _>>()
         .expect("reads");
+    let sealed = connection
+        .prepare(
+            "SELECT first_revision, last_revision, first_event_id, last_event_id, max_action_id,
+                    journal, facts FROM sealed ORDER BY first_revision",
+        )
+        .expect("prepares")
+        .query_map([], |row| {
+            Ok(SealedRow {
+                first_revision: row.get(0)?,
+                last_revision: row.get(1)?,
+                event_ids: (row.get(2)?, row.get(3)?),
+                max_action_id: row.get(4)?,
+                journal: row.get(5)?,
+                facts: row.get(6)?,
+            })
+        })
+        .expect("queries")
+        .collect::<Result<_, _>>()
+        .expect("reads");
     Rows {
         journal,
         facts,
+        sealed,
         snapshots,
     }
 }
@@ -674,17 +720,17 @@ fn scenario(scenario: Scenario) {
         }
         Scenario::Clock => CLOCK_DAYS.unsigned_abs() * 3 * CLOCK_PEOPLE as u64,
     };
+    let logged = logged_facts(&control_dir, scenario);
     assert!(
-        control_rows.facts.len() as u64 >= floor,
-        "{}: the control run logged {} facts, below the floor {floor}",
+        logged >= floor,
+        "{}: the control run logged {logged} facts, below the floor {floor}",
         scenario.name(),
-        control_rows.facts.len()
     );
     println!(
-        "[{}] control: {total} revisions, {} facts, {} snapshots",
+        "[{}] control: {total} revisions, {logged} facts, {} snapshots, {} sealed blocks",
         scenario.name(),
-        control_rows.facts.len(),
-        control_rows.snapshots.len()
+        control_rows.snapshots.len(),
+        control_rows.sealed.len()
     );
 
     // Retention (ARC-81), with the set computed here: genesis, every anchor and the newest two
@@ -716,6 +762,33 @@ fn scenario(scenario: Scenario) {
         "{}: the control holds exactly the rule's snapshots",
         scenario.name()
     );
+    // Sealing (ARC-89), with the blocks computed here: (k·A, (k + 1)·A] for every (k + 2)·A ≤ total.
+    let blocks: Vec<(i64, i64)> = control_rows
+        .sealed
+        .iter()
+        .map(|block| (block.first_revision, block.last_revision))
+        .collect();
+    let sealing: Vec<(i64, i64)> = (0..)
+        .take_while(|k| (k + 2) * anchor <= total)
+        .map(|k| {
+            let span = (k * anchor + 1, (k + 1) * anchor);
+            (
+                i64::try_from(span.0).expect("small"),
+                i64::try_from(span.1).expect("small"),
+            )
+        })
+        .collect();
+    assert!(
+        !sealing.is_empty(),
+        "{}: the run seals ({total} revisions)",
+        scenario.name()
+    );
+    assert_eq!(
+        blocks,
+        sealing,
+        "{}: the control holds exactly the sealing rule's blocks",
+        scenario.name()
+    );
 
     let mut tails = Vec::new();
     for (label, kill_at) in [
@@ -726,6 +799,10 @@ fn scenario(scenario: Scenario) {
         // (ARC-81 D-SR-3): the kill lands as the victim reports reaching it.
         ("anchor", anchor),
         ("retiring", anchor + 2 * interval),
+        // At the first sealing commit (2·A), the commit before it and the one after (ARC-89 ASRB-5).
+        ("before sealing", 2 * anchor - 1),
+        ("sealing", 2 * anchor),
+        ("after sealing", 2 * anchor + 1),
     ] {
         let dir = scratch(&format!("{}-{label}", scenario.name()));
         let victim = run("create", scenario, &dir, Some(kill_at));

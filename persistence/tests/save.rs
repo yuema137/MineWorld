@@ -20,8 +20,9 @@ use mineworld_kernel::{
     WorldView,
 };
 use mineworld_persistence::backend::{
-    FactRow, Facts, ManifestRow, RevisionRow, Revisions, SealedSpan,
+    FactRow, Facts, ManifestRow, RevisionRow, RevisionSpan, Revisions, SealedSpan,
 };
+use mineworld_persistence::block::{self, BlockKeys};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, verify,
@@ -787,6 +788,119 @@ fn a_cursor_reads_one_history_while_another_connection_seals_the_rows_ahead_of_i
         .map(|stored| stored.expect("reads").revision.raw())
         .collect();
     assert_eq!(now, (1_001..=head).collect::<Vec<_>>());
+}
+
+// ---------------------------------------------------------------------------------------------
+// a damaged block is refused where it was damaged; resume never reads one (ARC-89 ASRB-9)
+// ---------------------------------------------------------------------------------------------
+
+/// The keys and both frames of the first sealed block, read as stored.
+fn first_block(scratch: &Scratch) -> (BlockKeys, Vec<u8>, Vec<u8>) {
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    connection
+        .query_row(
+            "SELECT first_revision, last_revision, first_event_id, last_event_id, max_action_id,
+                    journal, facts FROM sealed ORDER BY first_revision LIMIT 1",
+            [],
+            |row| {
+                let raw = |value: i64| u64::try_from(value).expect("stored non-negative");
+                let keys = BlockKeys {
+                    span: RevisionSpan {
+                        first: WorldRevision::from_raw(raw(row.get(0)?)),
+                        last: WorldRevision::from_raw(raw(row.get(1)?)),
+                    },
+                    first_event_id: row.get::<_, Option<i64>>(2)?.map(raw),
+                    last_event_id: row.get::<_, Option<i64>>(3)?.map(raw),
+                    max_action_id: row.get::<_, Option<i64>>(4)?.map(raw),
+                };
+                Ok((keys, row.get(5)?, row.get(6)?))
+            },
+        )
+        .expect("a sealed block")
+}
+
+fn replace_first_facts_frame(scratch: &Scratch, frame: &[u8]) {
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    let changed = connection
+        .execute(
+            "UPDATE sealed SET facts = ?1 WHERE first_revision = 1",
+            [frame],
+        )
+        .expect("executes");
+    assert_eq!(changed, 1);
+}
+
+/// A save at interval 16 past r2 048, so that r1–r1 024 is sealed.
+fn sealed_save(scratch: &Scratch) -> WorldRevision {
+    let (mut persisted, people) = create(scratch);
+    let script = script(1_400, 10, 1);
+    drive_to(&mut persisted, &people, &mut script.iter(), 2_100);
+    persisted.revision()
+}
+
+#[test]
+fn a_damaged_block_is_refused_naming_its_span_and_a_changed_fact_where_it_was_logged() {
+    // (a) A facts frame that is no zstd frame at all: damage, named with the block's span, from
+    // verify and from a reader of the log; resume reads no block and still succeeds (I-SRB-4).
+    let scratch = Scratch::new("tamper-block-frame");
+    let head = sealed_save(&scratch);
+    let (keys, _, _) = first_block(&scratch);
+    assert_eq!(
+        keys.span.to_string(),
+        "r1–r1024",
+        "located: the first block"
+    );
+    replace_first_facts_frame(&scratch, b"not a zstd frame");
+    let named = |result: Result<(), PersistError>, by: &str| {
+        assert!(
+            matches!(&result, Err(PersistError::Damaged { detail })
+                if detail.starts_with("the sealed block r1–r1024 does not decompress")),
+            "{by}: {result:?}"
+        );
+    };
+    named(
+        verify(open(&scratch).as_ref(), composed()).map(|_| ()),
+        "verify",
+    );
+    let reader = open(&scratch);
+    named(
+        reader
+            .facts_after(None)
+            .expect("a cursor")
+            .try_for_each(|fact| fact.map(|_| ())),
+        "the fact stream",
+    );
+    let (_, how) = PersistentWorld::resume(open(&scratch), composed())
+        .expect("resume never reads a sealed block");
+    assert_eq!(how.head, head);
+
+    // (b) A valid frame of the same rows with one byte of one fact changed: it decodes, and replay
+    // refuses at exactly the revision that logged that fact; resume still succeeds.
+    let scratch = Scratch::new("tamper-block-fact");
+    let head = sealed_save(&scratch);
+    let (keys, journal, facts) = first_block(&scratch);
+    let journal = block::decode_journal(&keys, &journal).expect("decodes");
+    let mut facts = block::decode_facts(&keys, &facts).expect("decodes");
+    let chosen = facts.len() / 2;
+    let changed_at = facts[chosen].revision;
+    let bytes = &mut facts[chosen].fact.bytes;
+    let public = bytes
+        .windows(6)
+        .position(|window| window == b"public")
+        .expect("a public fact");
+    bytes[public] = b'P';
+    let forged = block::encode_block(keys.span, &journal, &facts).expect("re-seals");
+    assert_eq!(forged.keys, keys, "the same rows, so the same keys");
+    replace_first_facts_frame(&scratch, &forged.facts);
+    let verified = verify(open(&scratch).as_ref(), composed());
+    assert!(
+        matches!(&verified, Err(PersistError::ReplayDiverged { revision, .. }) if *revision == changed_at),
+        "refused at {changed_at}, the revision of the changed fact: {verified:?}"
+    );
+    let (_, how) = PersistentWorld::resume(open(&scratch), composed()).expect("resumes");
+    assert_eq!(how.head, head);
 }
 
 // ---------------------------------------------------------------------------------------------

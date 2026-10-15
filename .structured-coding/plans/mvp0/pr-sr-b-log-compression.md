@@ -738,11 +738,56 @@ asserts the count against the oracle.
   `scripts/ci_parity.py` (`REQUIRED_TABLES`, self-test row); `scripts/baselines.txt` (re-record
   `facts-300s`, `journal-300s`, add `sealed-300s`, reason line; `summary-300s` unchanged);
   `scripts/ci_stability.py` (`AC-SAVE-1`, self-test).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test
+- [x] Implementation. `kill_and_resume.rs`: intervals cafe 2 / clock 4 (anchors 128 / 256, first seal at
+  256 / 512), kill points "before sealing" (2A − 1), "sealing" (2A), "after sealing" (2A + 1) added,
+  `Rows` gains every column of `sealed`, the control's blocks checked against the rule computed in the
+  test, facts counted through the stream. `retention.rs`: the ASRB-10 sealing sweep (interval 2 to
+  r3 000; blocks = rule after every commit; the live journal by raw SQL is exactly the revisions after the
+  blocks; every revision and every fact once through both cursors at and after every anchor; a resume at
+  every head through a `Shared(Rc<SqliteBackend>)` wrapper with `blocks_decoded()` unchanged).
+  `save.rs`: ASRB-9 (a) non-zstd facts frame → `Damaged "the sealed block r1–r1024 does not decompress"`
+  from `verify` and from the fact stream, resume succeeds; (b) a re-sealed valid frame with one fact byte
+  changed → `ReplayDiverged` at that fact's revision, resume succeeds. `market_town.rs`: ASRB-3
+  (≤ 48 MiB + blocks = rule), ASRB-1 (≤ 80 MiB walking), ASRB-2 ((S300 − S30) ÷ 270 ≤ 0.25 MiB/day).
+  `ci_parity.py`: `REQUIRED_TABLES` + `sealed`, `BASELINE_KEYS` + `sealed-300s`, self-test cases (a
+  differing sealed chunk; a record without `table.sealed.rows`), and `baseline write` reads the old file's
+  reason lines without requiring keys added since (bounded tooling fix: adding a key otherwise made
+  `write` refuse its own input). `ci_stability.py`: `AC-SAVE-1` (market-town to day 100, measured, on to
+  300; `judge_growth` ≤ 0.5 MiB/day; sizes and rate in the timings; three self-test cases).
+  `scripts/baselines.txt`: re-recorded once from a long record of the head build, with a reason line per
+  world (see F-SRB-3).
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test
   market_town` (bound mutated to 1 MiB once → red with the measured value); `python3 scripts/ci_parity.py
-  --self-test`; `python3 scripts/ci_stability.py --self-test`.
-- [ ] Review: every raw reader in §3 handled; the baselines' reason line states storage, not behaviour.
+  --self-test`; `python3 scripts/ci_stability.py --self-test`. (Persistence: lib 6; kill_and_resume cafe
+  (301 revisions, 1 block) and clock (634, 1 block) PASS at all eight kill points — e.g. clock "sealing:
+  kill sent at revision 512 … 513 committed; survivor restored snapshot 512"; retention 5; save 13.
+  market_town: PASS in 134.4 s — "ASRB-3: the 30-day save is 20324352 B (19.4 MiB), 17 snapshots
+  (882181 B), 13 sealed blocks, head 60331"; "ASRB-1: the 300-day save is 63086592 B (60.2 MiB); ASRB-2:
+  it grew 0.151 MiB per simulated day from day 30"; AC-12 incl. raw `sealed` rows held for twin and
+  killed-and-re-run. Mutation BOUND = 1 MiB → RED "ASRB-3: the 30-day save is 20324352 B (19.4 MiB),
+  over the 1 MiB bound"; reverted. Mutation never seal (`row.seal = … .filter(|_| false)`) → RED in
+  kill_and_resume ("the control holds exactly the sealing rule's blocks"), the sealing sweep, the
+  concurrent-seal and block-tamper tests; with a release build of that mutation the 30-day save is
+  117 776 384 B (112.3 MiB) > 48 MiB, ASRB-3's bound; reverted. Both self-tests "passed" (python3.12;
+  the system python3 3.9 lacks `tomllib`). `baseline check` of the long record against the new file →
+  "baselines PASS". `cargo clippy --workspace --all-targets -- -D warnings` clean after one
+  `suspicious_map` fix.)
+- [x] Review: every raw reader in §3 handled; the baselines' reason line states storage, not behaviour.
+  (Raw SQL over `facts`/`journal` remaining: `save.rs` tamper of the newest fact (40 steps, nothing
+  sealed), `retention.rs` `live_journal` (deliberately the live table), `kill_and_resume.rs` `rows`
+  (live + sealed, complete); `tools/cli/tests/perceived.rs` CA-6 moved to the cursor at C5; tests that
+  read `last_facts(all)` (third_party, weather, lakeside history) still get every fact.)
+
+**Finding F-SRB-3 (C6, baselines).** *Previous assumption (§6.10):* only `facts-300s`/`journal-300s` change
+and `summary-300s` must not. *Evidence:* the head's long record (`ci_parity.py record --profile long`,
+2 104.9 s) differs from the committed file in `summary-300`, `summary-1000` and `summary-300s` of every
+world as well. The committed file was stale on main already: nightly issue #170 (2026-10-14) shows main's
+own record with exactly these 12 summary values (compared one by one: 12/12 equal), drift owned by the
+primary as F-12d-1; and the base build 6306977 prints byte-identical lines to the head for social-cafe
+300 days (memory) and market-town 300 days (saved). So SR-b changes no summary. *Decision:* re-record the
+whole file once (QSRB-5's one re-recording) with a reason line that says both things — storage keys
+changed by SR-b, summaries re-recorded as main already had them — so the nightly's baseline check passes
+on this head. If 12d merges first, the second to merge re-records again (QSRB-7).
 
 ### C7 — Integration checkpoint: real runs, measurements, close-out
 
