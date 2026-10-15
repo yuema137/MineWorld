@@ -1600,7 +1600,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C2 | — | [x] | [x] | [x] |
 | C3 | — | [x] | [x] | [x] |
 | C4 | — | [x] | [x] | [x] |
-| C5 | — | [ ] | [ ] | [ ] |
+| C5 | — | [x] | [x] | [x] |
 | C6 | — | [ ] | [ ] | [ ] |
 | C7 | — | [ ] | [ ] | [ ] |
 | C8 | — | [ ] | [ ] | [ ] |
@@ -1698,6 +1698,19 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   `test_record_replay` 12 and `test_provider_scan` 5 and `test_model_and_key` 5 PASS. Static: ruff format and
   check, pyright 0 errors. Review: only the integer reaches a type (AP5-9); cassette format and keys unchanged;
   the gateway still never retries. Mutation M-P6-4 (ignore `retry_after_s`) is C7's and is not run here.
+- **C5 (2026-10-14).** Files: `controller/persona.py` (`Persona`, `Persona.of -> (Persona, absent)`, lax
+  decode for JSON lists, all bounds), `controller/situation.py` (`Person`, `Offer`, `Situation.of`: display
+  names learned first, labels with ` (n)` suffixes in ascending id order, `talk_to` from available talk only,
+  offers numbered from 1 with `position`), `controller/memory_view.py` (`memory_view`, `recall_episodes` 0 to 8),
+  exports in `controller/__init__.py`, `tests/test_controller_parts.py` (7 passed). Result: PASS. Ruff check and
+  format, pyright 0 errors. Findings: (1) `server/tests/frames/observation.json` has no entities and no
+  affordances, so labels, collisions and numbering are tested over an observation built in the same wire form
+  (the golden is used only for the empty case). (2) The `persona` payload keys (`summary`, `traits`, `speech`)
+  are assumed from the design's `Persona` struct and must match P6a's codec; checked at A2 or on the merge of P6a.
+  (3) `Persona` decodes with `strict=False` only to accept JSON lists for tuples; every other rule stays strict.
+- **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
+  per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
+  "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
 - **D-P6b-2 (C2) FIXED 2026-10-14 under the primary's ruling.** The stale doc comment in
   `cognition/installed/src/lib.rs` ("none in this build; step-17 P6 adds `lm`") now reads that `lm` is the one
   external model in this build. One-line edit, in C2's area.
