@@ -27,8 +27,6 @@ COGNITION_IMPORTS = {
     "mineworld_cognition.backend.canonical",
     "mineworld_cognition.backend.model",
     "mineworld_cognition.gateway",
-    # FG-c F-FGc-6: the retention host re-raises `CassetteMiss` (FGc-6), so it must name the type.
-    "mineworld_cognition.record",
 }
 
 

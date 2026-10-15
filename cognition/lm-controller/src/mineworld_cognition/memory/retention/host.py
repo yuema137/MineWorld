@@ -4,8 +4,8 @@ bound → check → log.
 One transaction. The policy sees frozen items and a budget, never the store (FGb-3); a plan it returns is
 validated whole, and a refused plan, or a policy that raised, is replaced by `consolidate`'s defaults and
 recorded as `fallback:<reason>`. An assisted policy (FG-c) is first given the fallback's plan and a
-`SummaryGateway`; it may await, and every await comes before the first write. A `CassetteMiss` propagates
-and rolls the pass back (FGc-6). The bound is the host's (FGb-2). A breach of the store-side coverage
+`SummaryGateway`; it may await, and every await comes before the first write. A `SummaryUnavailable`
+propagates and rolls the pass back (FGc-6). The bound is the host's (FGb-2). A breach of the store-side coverage
 invariant (FGb-1) is a defect: it raises, and the pass rolls back. A pass never writes `cursor` or
 `newest` (P4-2) and reads no clock: `now` is fixed by the triggering fact (FGb-5).
 """
@@ -28,6 +28,7 @@ from mineworld_cognition.memory.retention.assisted import (
     GroupAnswer,
     StopReason,
     SummaryGateway,
+    SummaryUnavailable,
 )
 from mineworld_cognition.memory.retention.bound import TARGET, enforce, fallback
 from mineworld_cognition.memory.retention.forgotten import normalize
@@ -37,7 +38,6 @@ from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, 
 from mineworld_cognition.memory.retention.registry import RegisteredPolicy
 from mineworld_cognition.memory.retention.selection import Retention
 from mineworld_cognition.memory.store import MemoryStore
-from mineworld_cognition.record import CassetteMiss
 
 PASS_LOG_ROWS = 32
 
@@ -169,8 +169,8 @@ async def _assisted(
     summary = SummaryGateway(gateway, store.identity.seat, calls)
     try:
         answer: object = await policy.plan_assisted(extracted.items, asked, summary, fallback_plan)
-    except CassetteMiss:
-        raise  # FGc-6: a miss is a stop, and the pass rolls back
+    except SummaryUnavailable:
+        raise  # FGc-6: the boundary could not answer; a stop, and the pass rolls back
     except Exception as error:
         return _Decided(
             f"fallback:raised: {type(error).__name__}", fallback_resolved, 0, unused, ()

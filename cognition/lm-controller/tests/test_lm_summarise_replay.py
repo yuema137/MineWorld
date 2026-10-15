@@ -18,9 +18,10 @@ from mineworld_sdk.wire.contract import PerceivedEvent
 from retention_driver import feed, frames
 from retention_stream import stream
 from support import run
-from test_lm_summarise import GENEROUS, gateway, retention, scripted
+from test_lm_summarise import GENEROUS, boundary_gateway, gateway, retention, scripted
 
 from mineworld_cognition.memory.retention.absorb import absorb
+from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
 from mineworld_cognition.memory.retention.host import run_pass
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import (
@@ -43,21 +44,23 @@ def _facts() -> list[PerceivedEvent]:
     return list(stream(SEED, DAYS))
 
 
-def _record(path: Path, model: str = "scripted") -> bytes:
+def _record(
+    path: Path, model: str = "scripted", facts: list[PerceivedEvent] | None = None
+) -> bytes:
     backend = RecordingBackend(scripted(), path, binding="local", model=model)
     kept = retention(gateway(backend, **GENEROUS), calls_per_sim_day=24)
     with MemoryStore.open(":memory:", alice_identity()) as store:
-        feed(store, frames(_facts(), 256), kept)
+        feed(store, frames(_facts() if facts is None else facts, 256), kept)
         dump = store.dump()
     run(backend.aclose())
     return dump
 
 
-def _replayed(path: Path, size: int) -> bytes:
+def _replayed(path: Path, size: int, facts: list[PerceivedEvent] | None = None) -> bytes:
     replay = ReplayBackend(Cassette.load(path))
     kept = retention(gateway(replay, **GENEROUS), calls_per_sim_day=24)
     with MemoryStore.open(":memory:", alice_identity()) as store:
-        feed(store, frames(_facts(), size), kept)
+        feed(store, frames(_facts() if facts is None else facts, size), kept)
         return store.dump()
 
 
@@ -75,11 +78,20 @@ def test_record_the_committed_cassette(tmp_path: Path) -> None:
 
 def test_a_recording_replays_byte_identically_in_every_framing(tmp_path: Path) -> None:
     # AFGc-4 (a): a scripted run recorded to a file, then rebuilt from a null cursor through the replay, in
-    # frames of 256 and as one frame. Frames of 1 are checked on a prefix in the ledger (runtime).
+    # frames of 256 and as one frame.
     path = tmp_path / "lm-summarise.jsonl"
     recorded = _record(path)
     assert _replayed(path, 256) == recorded
     assert _replayed(path, len(_facts())) == recorded
+
+
+def test_a_recording_of_a_prefix_replays_byte_identically_in_frames_of_one(tmp_path: Path) -> None:
+    # AFGc-4 (a), frames of 1: the first two simulated days, which hold assisted passes (the full stream
+    # in frames of 1 is too slow for a local run, ledger §14.6).
+    prefix = [event for event in _facts() if event.at < 2 * DAY]
+    path = tmp_path / "lm-summarise.jsonl"
+    recorded = _record(path, facts=prefix)
+    assert _replayed(path, 1, facts=prefix) == recorded
 
 
 def test_the_committed_cassette_replays_to_the_recorded_digest() -> None:
@@ -94,15 +106,17 @@ def test_a_missing_recording_is_a_stop_and_the_pass_rolls_back() -> None:
     # propagates out of the pass, and the store is exactly as it was before that pass.
     other = list(stream(SEED + 1, 3))
     replay = ReplayBackend(Cassette.load(CASSETTE))
-    kept = retention(gateway(replay, **GENEROUS), calls_per_sim_day=24)
+    kept = retention(boundary_gateway(replay, **GENEROUS), calls_per_sim_day=24)
     with MemoryStore.open(":memory:", alice_identity()) as store:
         for start in range(0, len(other), 256):
             batch = other[start : start + 256]
             run(absorb(store, batch, batch[-1].id, _consolidated()), timeout_s=120)
         before = store.dump()
-        with pytest.raises(CassetteMiss):
+        with pytest.raises(SummaryUnavailable) as raised:
             # The next simulated day: its pass has not run yet, so the pass itself is what misses.
             run(run_pass(store, kept, (other[-1].at // DAY + 1) * DAY), timeout_s=120)
+        # FGc-6: the stop names the boundary's error, and the replay's miss is its original cause.
+        assert isinstance(raised.value.__cause__, CassetteMiss)
         assert store.dump() == before
 
 

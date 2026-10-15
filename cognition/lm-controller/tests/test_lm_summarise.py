@@ -40,6 +40,7 @@ from mineworld_cognition.memory.retention.items import extract
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice, Retention, resolve
 from mineworld_cognition.memory.store import MemoryStore
+from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 SEED = 11
 DAYS = 12
@@ -109,6 +110,13 @@ def scripted(seen: list[CompletionRequest] | None = None) -> ScriptedBackend:
 
 def gateway(backend: ModelBackend, **policy: int) -> ModelGateway:
     return ModelGateway(backend, Budget.of(BudgetPolicy(**policy), MemoryLedger(), FakeClock()))
+
+
+def boundary_gateway(backend: ModelBackend, **policy: int) -> SummaryBoundaryGateway:
+    """The assisted seat's gateway: a cassette miss becomes `SummaryUnavailable` (FGc-6)."""
+    return SummaryBoundaryGateway(
+        backend, Budget.of(BudgetPolicy(**policy), MemoryLedger(), FakeClock())
+    )
 
 
 GENEROUS = {"calls_per_wall_hour": 10_000_000, "tokens_per_wall_day": 1_000_000_000}
@@ -350,3 +358,21 @@ def test_an_unbound_tier_falls_back_whole() -> None:
     assert [row for row in _rows(unbound) if row["table"] != "retention_passes"] == [
         row for row in _rows(plain) if row["table"] != "retention_passes"
     ]
+
+
+def test_an_allowance_of_one_call_a_day_bounds_the_stream_and_the_log_says_why() -> None:
+    # AFGc-5 (budget case) on lm-summarise: with one call a simulated day, every pass asks at most one
+    # request, and a pass whose allowance is spent says so in the log; the stream is still covered.
+    facts = _facts()
+    seen: list[CompletionRequest] = []
+    bounded = built(facts, retention(gateway(scripted(seen), **GENEROUS), calls_per_sim_day=1), 256)
+    capped = len(seen)
+    unbounded_seen: list[CompletionRequest] = []
+    built(
+        facts, retention(gateway(scripted(unbounded_seen), **GENEROUS), calls_per_sim_day=24), 256
+    )
+    passes = [str(row["outcome"]) for row in _rows(bounded) if row["table"] == "retention_passes"]
+    assert passes, "the stream holds passes"
+    assert capped <= len(passes), "one call a day: a pass asks at most one request"
+    assert capped < len(unbounded_seen)
+    assert set(passes) <= {"assisted", "fallback:exhausted", "fallback:no-calls"}

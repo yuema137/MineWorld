@@ -7,8 +7,9 @@ the 6 000-byte request bound and the pass's call allowance before any request re
 policy can exceed them by writing code that does not check (FGc-2). A policy never holds the
 `ModelGateway` and never writes: the host validates the merged plan and executes it (FGc-4).
 
-`CassetteMiss` is not caught here or anywhere in the host: a replay that lacks a recording stops the pass
-(FGc-6).
+`SummaryUnavailable` is the one stop an assisted policy can meet: the summary boundary could not answer
+(a replay that lacks a recording, FGc-6). The host re-raises it and never treats it as a fallback; the
+boundary that maps the replay's miss to it is outside this package, so memory never imports `record`.
 """
 
 from __future__ import annotations
@@ -67,6 +68,11 @@ class WrongPurpose(ValueError):
     def __init__(self, purpose: str) -> None:
         super().__init__(f"an assisted policy may only ask for summaries, not {purpose!r}")
         self.purpose = purpose
+
+
+class SummaryUnavailable(Exception):
+    """The summary boundary could not answer, and the pass must stop: never a fallback (FGc-6). Raised by
+    the boundary that maps a replay's miss; the cause is chained (`__cause__`) and is the original error."""
 
 
 class SummaryGateway:
