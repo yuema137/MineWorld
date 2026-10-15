@@ -18,8 +18,6 @@
 //! in order; every fact lies inside the span; event ids strictly increase and match the block's key
 //! columns; nothing trails the last row. Any failure is [`PersistError::Damaged`] naming the span.
 
-use std::io::Cursor;
-
 use crate::backend::{FactRow, RevisionSpan};
 use crate::error::PersistError;
 use crate::input::WorldRevision;
@@ -252,9 +250,31 @@ fn compress(span: RevisionSpan, framed: &[u8]) -> Result<Vec<u8>, PersistError> 
     compressor.compress(framed).map_err(failed)
 }
 
+/// The most a frame may claim to hold: far above any span (`ARC-89` revisits at 64 MiB of rows), and a
+/// bound on what one damaged header can make a reader allocate.
+const MAX_FRAME: u64 = 1 << 30;
+
+/// Decompresses a frame into one allocation of exactly the size its header states — a block is
+/// decoded every few milliseconds by a streaming reader, and a buffer grown by doubling leaves freed
+/// regions of every size behind it, which the allocator keeps (F-SRB-2). The checksum is verified.
 fn decompress(span: RevisionSpan, which: &str, frame: &[u8]) -> Result<Vec<u8>, PersistError> {
-    zstd::stream::decode_all(Cursor::new(frame))
-        .map_err(|error| damaged(span, format!("does not decompress ({which}): {error}")))
+    let failed = |what: String| damaged(span, format!("does not decompress ({which}): {what}"));
+    let size = zstd::zstd_safe::get_frame_content_size(frame)
+        .map_err(|_| failed("no zstd frame header".to_owned()))?
+        .ok_or_else(|| failed("no content size in the frame".to_owned()))?;
+    if size > MAX_FRAME {
+        return Err(failed(format!("it claims {size} bytes")));
+    }
+    let capacity = usize::try_from(size).map_err(|_| failed(format!("it claims {size} bytes")))?;
+    let bytes =
+        zstd::bulk::decompress(frame, capacity).map_err(|error| failed(error.to_string()))?;
+    if bytes.len() != capacity {
+        return Err(failed(format!(
+            "it holds {} bytes, its header {capacity}",
+            bytes.len()
+        )));
+    }
+    Ok(bytes)
 }
 
 /// Reads a frame's fields in order, refusing a frame that ends inside a row.

@@ -677,6 +677,20 @@ the whole 4 096-revision block — the quadratic cost §3's audit row for `repla
   `verify_from`. (`grep facts_of persistence/src/replay.rs` → none; `resume` and `reexecute` both call
   `replay_after`.)
 
+**Finding F-SRB-2 (C6, bounded; fixed in its own commit).** *Previous assumption:* holding one decoded
+block at a time bounds a reader's memory. *Evidence:* release head build, 300-day walking save:
+`perceived --person alice` peaked at 371 785 728 B and `biography` at 376 291 328 B — over ASRB-4's
+256 MiB — while `inspect --last 0` peaked at 74 MB and the cursor alone (a scratch tool streaming every
+revision) at 43 MB. `heap` on a running `perceived` showed 6.9 MB of live allocations against a 139.6 MB
+footprint; `vmmap --summary` 2.2 s in showed `MALLOC_LARGE (empty)` 508.4 MB virtual / 290.8 MB in the
+footprint: freed large buffers the allocator keeps. `zstd::stream::decode_all` grows each block's output
+(≈ 5–7 MB) by doubling, so every block leaves freed regions of many sizes. *Decision:* decompress into
+one allocation of exactly the frame's declared content size (`zstd::bulk::decompress` with
+`zstd_safe::get_frame_content_size`, both already part of `DEP-43`'s crate; a header claiming more than
+1 GiB is refused as damage; checksum still verified; a size mismatch is damage). *Result:* `perceived`
+peak 371.8 MB → 28.6 MB on the same save (C7 records the four readers). No design change: D-SRB-5's codec
+and D-SRB-6's one-block-at-a-time hold; only the decoder's allocation pattern changed.
+
 *Correction to C3's evidence:* "the retention sweep … seals 22 blocks" was a miscount written without a
 measurement; the rule gives 23 blocks for head 12 293 at interval 8 (anchors 1 024 … 12 288). C6's sweep
 asserts the count against the oracle.
