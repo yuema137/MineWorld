@@ -12,6 +12,17 @@ var land := Rect2()
 var paved := Rect2()
 ## Each `{rect: Rect2, kind: "lawn"|"room", far: bool, lights: Array[Vector2], alpha: float}`.
 var areas: Array = []
+## The far field's surround (RL-e0, `clients/2d/PRESENTATION.md` §8): the land rectangle grown by
+## `surround.extent_m`, drawn beneath the land so the clear colour never shows; its origin is the
+## centre of the hub's extent. Unset (no area) in plain drawing, which has no far field.
+var surround := Rect2()
+var origin := Vector2.ZERO
+var far_field: MineWorldFarField = null
+
+## The surround's haze: this many bands from `haze.from_m` to `haze.to_m` (PRESENTATION.md §8).
+const HAZE_BANDS := 8
+## Ripple strokes per 10 000 square metres of drawn water.
+const RIPPLES_PER_HA := 6.0
 
 var _rng := RandomNumberGenerator.new()
 
@@ -33,6 +44,8 @@ func _rect_poly(r: Rect2) -> PackedVector2Array:
 
 func _draw() -> void:
 	_rng.seed = 20261008
+	if surround.has_area() and far_field != null:
+		_surround()
 	if land.has_area():
 		draw_colored_polygon(_rect_poly(land), _c("grass_lo", Color("7d9a63")))
 		if not presentation.is_plain():
@@ -45,6 +58,74 @@ func _draw() -> void:
 	for area in areas:
 		if area["kind"] == "room" and float(area.get("alpha", 1.0)) > 0.002:
 			_room(area)
+
+
+## Beneath the land: the surround's base, each water body's wedge within it, then the haze toward the
+## edge. The land is drawn over all of it, so the haze never covers the land rectangle.
+func _surround() -> void:
+	var spec := far_field.surround()
+	var water_c := _c("water", Color("5f8f9a"))
+	var base_c := water_c if spec["base"] == "water" else _c("grass_lo", Color("7d9a63"))
+	draw_colored_polygon(_rect_poly(surround), base_c)
+	var reach := surround.size.length()
+	for body in far_field.water():
+		var wedge := _wedge(body["sector"], float(body["shore_m"]), reach)
+		for piece in Geometry2D.intersect_polygons(wedge, _rect_points(surround)):
+			draw_colored_polygon(_poly(Array(piece)), water_c)
+			_ripples(piece, water_c)
+	var haze: Dictionary = spec["haze"]
+	var colour := Color.html(haze["colour"])
+	var from: float = haze["from_m"]
+	var to: float = haze["to_m"]
+	for k in HAZE_BANDS:
+		var inner := land.grow(from + (to - from) * k / HAZE_BANDS)
+		var outer := land.grow(from + (to - from) * (k + 1) / HAZE_BANDS)
+		_ring(inner, outer, Color(colour, float(k + 1) / HAZE_BANDS))
+	var full := land.grow(to)
+	if surround.encloses(full) and surround != full:
+		_ring(full, surround, colour)
+
+
+## The sector of a water body as a plan polygon from the origin, between `near` and `far` metres.
+## Bearings are true, clockwise from north; plan north is -y.
+func _wedge(sector: Dictionary, near: float, far: float) -> PackedVector2Array:
+	var from: float = sector["from_deg"]
+	var span := fposmod(float(sector["to_deg"]) - from, 360.0)
+	var steps := maxi(2, int(ceil(span / 3.0)))
+	var out := PackedVector2Array()
+	for i in range(steps + 1):
+		var b := deg_to_rad(from + span * i / steps)
+		out.append(origin + Vector2(sin(b), -cos(b)) * far)
+	for i in range(steps, -1, -1):
+		var b := deg_to_rad(from + span * i / steps)
+		out.append(origin + Vector2(sin(b), -cos(b)) * near)
+	return out
+
+
+func _rect_points(r: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+
+
+## The band between two nested rectangles, as four trapezoids.
+func _ring(inner: Rect2, outer: Rect2, colour: Color) -> void:
+	var i := _rect_points(inner)
+	var o := _rect_points(outer)
+	for k in range(4):
+		draw_colored_polygon(_poly([o[k], o[(k + 1) % 4], i[(k + 1) % 4], i[k]]), colour)
+
+
+## A few seeded strokes on drawn water, as `_grass_strokes` does on land.
+func _ripples(piece: PackedVector2Array, water_c: Color) -> void:
+	var box := Rect2(piece[0], Vector2.ZERO)
+	for p in piece:
+		box = box.expand(p)
+	var count := int(box.get_area() / 10000.0 * RIPPLES_PER_HA)
+	for i in range(count):
+		var p := box.position + Vector2(_rng.randf() * box.size.x, _rng.randf() * box.size.y)
+		if not Geometry2D.is_point_in_polygon(p, piece):
+			continue
+		var s: Vector2 = projection.to_screen(p)
+		draw_line(s, s + Vector2(14 + _rng.randf() * 18, 0), Color(water_c.lightened(0.25), 0.6), 3.0, true)
 
 
 func _grass_strokes(r: Rect2) -> void:
