@@ -1606,7 +1606,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C8 | — | [x] | [x] | [x] |
 | C9 | — | [x] | [x] | [x] |
 | C10 | — | [x] | [x] | [x] |
-| C11 | this commit (`git log --oneline -1`) | [x] | [x] | [x] |
+| C11 | adb5ea4 | [x] | [x] | [x] |
 | C12 | — | [ ] | [ ] | [ ] |
 | C13 | — | [ ] | [ ] | [ ] |
 | C14 | — | [ ] | [ ] | [ ] |
@@ -1868,4 +1868,16 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   Files: §9 C11 step 4 directs a copy of P3b's fake, and the copy's origin is recorded in its docstring.
 - **D-P6b-20 (process slip, C11).** One heredoc (`cat > /tmp/... <<EOF`) was run by mistake, against the NEVER list, to
   create a scratch file; it wrote nothing in the worktree and the file was removed. Recorded, not repeated.
+- **D-P6b-21 (C12, MATERIAL STOP, not implemented).** §5.9 step 6 and AP6-10 require that, "at each welcome, the
+  runner checks `welcome.world.id` equals the JSON's `world`". The welcome has no such field. `WorldSummary`
+  (`server/src/protocol/summary.rs` lines 92 onward; `sdk/python/src/mineworld_sdk/wire/frames.py` line 181) carries
+  `protocol, instance, at, time_scale, paused, entities, systems, seats, clients, observations_dropped, events_dropped,
+  faults, revision`: no world id and no pack name. `instance` identifies the running world, and `decisions --json` writes
+  the pack id into `world` (`tools/cli/src/decisions.rs` line 148). So the check cannot be done as written, and C12 cannot
+  be finished as written. R-P6-7 already records that a mismatch is detectable only by its effect. Options for the
+  operator, smallest first: (a) the runner checks that every `lm` seat key of the decision file is in
+  `welcome.world.seats` (on the wire today), and the world-id check is dropped with R-P6-7 standing; this changes §5.9
+  step 6 and AP6-10's "world id" clause; (b) the server adds the pack id to `WorldSummary` (a protocol and server change,
+  out of P6's scope, and a material stop by itself). Recommendation: (a). C12 is paused at this point; C0 to C11 are
+  unaffected. Nothing was run for C12 and no C12 file was created.
 - (planning findings are §3.2 and §0.1)

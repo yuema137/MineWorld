@@ -46,7 +46,8 @@ CURRENT CHECKPOINT  C0 … C11 committed (ledger §15). D-P6b-3 ruled option (a)
                     `triggers.py`, `resume_file.py`), 10 tests green, M-P6-10 and M-P6-7 seen red and reverted.
                     D-P6b-15 … D-P6b-20 recorded in §15. C12–C15 are the next commits. Branch: mvp0/pr-s10-p6b,
                     based on origin/main @ 9aa185b, which must be merged with origin/main @ f772a18 before the push
-NEXT ACTIONS        resume at C12 with the §9.0 procedure (`__main__.py`, `examples/local.toml`, README,
-                    `tests/realserver.py`, `tests/test_controller_server.py`; the four mutations M-P6-6 etc. as
-                    listed); then C13–C15; then merge origin/main, push, open the PR, and get CI green on the exact head
+NEXT ACTIONS        PAUSED at a MATERIAL STOP before C12 (D-P6b-21): the design's `welcome.world.id` check cannot
+                    be done, because the welcome has no world id. Waiting for the operator's ruling (option (a):
+                    check `lm` seat keys against `welcome.world.seats`; option (b): a server change, not in P6).
+                    After the ruling: C12 (§9.0), then C13–C15, then merge origin/main, push, open the PR, CI green
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
