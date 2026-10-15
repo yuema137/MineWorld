@@ -7,13 +7,18 @@ implemented and returns 2, so a half-built tool cannot pass for a finished one.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import os
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
+from mwcast import identifiers, meshy
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
+from mwcast.scratch import ScratchError, resolve_scratch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -24,7 +29,7 @@ SUBCOMMANDS: dict[str, str] = {
     "compare": "parity comparison of two exports",
     "compare-texture": "texel or mask comparison of two images",
     "mask": "stage 3, the mask",
-    "meshy": "stage 4, the Meshy client (dry run without --dry-run refused)",
+    "meshy": "stage 4, the Meshy client (a live run needs the key in the environment)",
     "identifiers": "AI-identifier inspection of downloads",
 }
 
@@ -41,6 +46,15 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
         if name == "check-characters":
             subparser.add_argument("--root", type=Path, default=REPO_ROOT)
+        if name == "meshy":
+            subparser.add_argument("--fit", type=Path, required=True)
+            subparser.add_argument("--input", type=Path, required=True)
+            subparser.add_argument("--scratch", type=Path, default=None)
+            subparser.add_argument("--cap", type=int, required=True)
+            subparser.add_argument("--run-id", default=time.strftime("%Y%m%dT%H%M%S"))
+            subparser.add_argument("--dry-run", action="store_true")
+        if name == "identifiers":
+            subparser.add_argument("files", nargs="+", type=Path)
     return parser
 
 
@@ -96,6 +110,68 @@ def _check_characters(args: argparse.Namespace) -> int:
     return 0 if failures == 0 else 1
 
 
+def _meshy(args: argparse.Namespace) -> int:
+    fit_path = Path(args.fit)
+    image = Path(args.input)
+    try:
+        fit = parse_fit(load_record(fit_path), fit_path)
+        scratch = resolve_scratch(str(args.scratch) if args.scratch else None, os.environ, REPO_ROOT)
+    except (RecordError, ScratchError) as exc:
+        print(f"meshy: {exc}", file=sys.stderr)
+        return 1
+    digest = hashlib.sha256(image.read_bytes()).hexdigest()
+    if digest != fit.source.input_sha256:
+        print(
+            f"meshy: refused: the input's SHA-256 is {digest}, but fit.source.input_sha256 is "
+            f"{fit.source.input_sha256}",
+            file=sys.stderr,
+        )
+        return 1
+    ledger_path = scratch / "credits.json"
+    try:
+        if args.dry_run:
+            projection = meshy.plan(image, {}, meshy.load_ledger(ledger_path), args.cap)
+            print(f"meshy dry run: endpoint {projection.endpoint}")
+            print(f"    input {projection.image_path} sha256 {projection.image_sha256} (matches fit)")
+            print(f"    params {dict(projection.params)}")
+            print(
+                f"    projected credits {projection.projected_credits} within cap {args.cap}; no request made"
+            )
+            return 0
+        outcome = meshy.run_live(
+            image=image,
+            overrides={},
+            run_dir=scratch / "meshy" / args.run_id,
+            ledger_path=ledger_path,
+            cap=args.cap,
+            transport=meshy.UrllibTransport(),
+        )
+    except meshy.MeshyError as exc:
+        print(f"meshy: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"meshy: task {outcome.task_id} ended {outcome.status}; consumed credits {outcome.consumed_credits}"
+    )
+    for name in outcome.files:
+        print(f"    wrote {outcome.run_dir / name}")
+    return 0 if outcome.status == "SUCCEEDED" else 1
+
+
+def _identifiers(args: argparse.Namespace) -> int:
+    for path in args.files:
+        print(f"== {path}")
+        try:
+            findings = identifiers.inspect_file(Path(path))
+        except (GlbError, OSError) as exc:
+            print(f"    could not read: {exc}")
+            continue
+        if not findings:
+            print("    nothing found")
+        for finding in findings:
+            print(f"    {finding.where}: {finding.kind}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -103,5 +179,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _gate(args)
     if command == "check-characters":
         return _check_characters(args)
+    if command == "meshy":
+        return _meshy(args)
+    if command == "identifiers":
+        return _identifiers(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2
