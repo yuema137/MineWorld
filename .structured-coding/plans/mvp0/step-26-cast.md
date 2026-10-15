@@ -43,6 +43,11 @@ route D+ character cannot serve a Person. Accordingly:
    S26-c1, S26-c2 and S26-f proceed with step-32 §15.1's changes.
 
 Where this document's text describes fused whole-character generation for the cast, this amendment governs.
+**Dated note (2026-10-15, S33 approval; operator re-ruling, Q-S33-10):** Q-S26-1's "Lakeside's 3D cast is
+MVP-1, except as café-street extras under E-2" is **superseded**. Lakeside's ten people are drawn in their own
+3D world in MVP-0, release-blocking ([step-33-lakeside-3d.md](step-33-lakeside-3d.md) §5, S33-g), as S32
+modular characters. E-2 runs both ways: the café town's cast are Lakeside's extras. No new character is
+added by S33 (its §8.2).
 **Author:** design session, 2026-10-14, worktree `/Users/yuema137/mineworld-worktrees/design-s26`, branch
 `docs/s26-cast`. Audit base: `origin/main @ adf5d2c`.
 **Ids** (assigned by the primary session at freeze, 2026-10-14):
