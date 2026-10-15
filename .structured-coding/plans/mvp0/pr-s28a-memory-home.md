@@ -798,8 +798,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C0 | (this commit) | [x] base, decisions, A-1 … A-15 re-read, handoff | [x] doc scripts PASS | [x] §2.3 satisfied |
 | C0 | `817d202b` | [x] | [x] | [x] |
 | C1 | `e2e5dab9` | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
-| C2 | (this commit) | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
-| C3 … C9 | — | [ ] | [ ] | [ ] |
+| C2 | `1cc4ce33` | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
+| C3 | (this commit) | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
+| C4 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -847,10 +848,30 @@ world}.py`, `tests/{test_home_encoding.py, test_home_open.py, home_kill.py}`, `d
 - Review: `encoding._ENCODER` is built once at import; no column holds a float (the DDL has no `REAL`); the
   refusal test hashes the file before and after; `seat()`/`view_of()` arrive with `SeatView` at C3 (D-a-6).
 
+**C3 (2026-10-15).** `memory/home/view.py` (new), `memory/home/{home.py, __init__.py}`, `tests/{test_home_store.py,
+test_home_gc.py}`; `tests/test_home_open.py` (one line reformatted: C2 committed it unformatted, D-a-8).
+- `…/test_home_store.py`: 7 passed in 0.03 s — PASS (a seat's identity kept and another self refused by name with
+  the home unchanged; cursor and identity across a reopen; ids ordered up to u64 and written as numbers; `l0_who`
+  is the other participants in envelope order, per seat; the meter equals the dump less `meta` after holds,
+  private writes, a release and a rollback, two seats in one home; `row_bytes` of `l0`/`l0_who` sums to their
+  dump lines, before and after the meter; the file is released on close).
+- `…/test_home_gc.py`: 4 passed in 0.08 s — PASS (AC-a-5 over `world(7, 3)` with a seeded release script, the
+  test's own two anti-joins after every commit, under `verify="every-commit"`; AC-a-6 in both orders, the record
+  surviving the first release and collected inside the second's transaction, the final home dumps equal; a seat
+  leaving takes only what no one else holds and leaves the other seat's view unchanged; a peer's record verified:
+  a forged re-delivery is `ConflictingFact` and changes nothing).
+- ruff, ruff format, pyright strict: PASS.
+- Review: every statement in `view.py` that names `fact` or `fact_who` joins `access` on `a.seat = ?`
+  (`_L0_SELECT`, `_WHO_SELECT`, `held_digest`, `records_between`); `world.collect` is called only from
+  `SeatView.release`, inside the caller's transaction; `MemoryHome.remove_seat` releases inside its own.
+
 ### Mutations
 
 | Id | Planted | Expected red | Observed | Restored |
 | --- | --- | --- | --- | --- |
+| M-a-2 | `world.collect` deletes without `NOT EXISTS (… access …)` | `test_the_last_holder_collects` | **red**: `test_the_last_holder_collects`, `test_after_every_commit_the_records_are_exactly_the_held_keys`, `test_a_seat_that_leaves_takes_only_what_no_one_else_holds` (raised by `verify` before the test's own assertions) | byte copy, `cmp` clean, 4 passed |
+| M-a-3 | `hold` inserts the access row first and calls `insert_or_verify` only when no record exists | `test_a_peers_record_is_verified_not_trusted` | **red**: that test | byte copy, `cmp` clean, 4 passed |
+| M-a-4 | `hold` adds the `l0` line but not the `l0_who` lines to the meter | `test_the_meter_is_the_dump` | **red**: that test | byte copy, `cmp` clean, 7 passed |
 | M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
@@ -899,6 +920,9 @@ at C3 instead of C2.
 for `int(`; the canonical encoding's `int(value)` (`memory/home/encoding.py`, `ARC-101`: ids are numbers in the
 dump) is added to its allowed set with that reason, at C2, where the code appears (the file is otherwise ported
 at C3).
+
+**D-a-8 (bounded).** C2 committed `tests/test_home_open.py` with one line `ruff format` would rewrap (a trailing
+comment); C3 moves the comment above the line. CI's format check would have caught it; no behaviour changed.
 
 **F-S28a-9 (finding for the operator; I-a-6 (b), QS28a-1 × QS28a-3).** I-a-6 (b) bounds a one-seat home's dump by
 its seat view's plus `K` per held record. The home also stores every `fact_who` row the view does not show: the

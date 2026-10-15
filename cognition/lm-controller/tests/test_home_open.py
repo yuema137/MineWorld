@@ -43,7 +43,8 @@ def _old_store(path: Path, version: int) -> str:
     """A schema-2 or schema-3 store as P4/FG-b left it: its `meta` identity rows and an `l0` row. Returns the
     file's sha256."""
     connection = sqlite3.connect(path)
-    connection.execute("PRAGMA auto_vacuum = INCREMENTAL")  # as P4's `_create` did, before any table
+    # As P4's `_create` did, before any table.
+    connection.execute("PRAGMA auto_vacuum = INCREMENTAL")
     connection.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     connection.execute(
         "CREATE TABLE l0 (event_key TEXT PRIMARY KEY, event_id TEXT NOT NULL, gist TEXT NOT NULL)"

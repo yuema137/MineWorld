@@ -11,6 +11,7 @@ from mineworld_cognition.memory.home.errors import (
     UnsupportedStoreSchema,
 )
 from mineworld_cognition.memory.home.home import MemoryHome, Verify
+from mineworld_cognition.memory.home.view import SeatView, records_between
 
 __all__ = [
     "FactRecordMissing",
@@ -20,6 +21,8 @@ __all__ = [
     "MemoryHome",
     "NotAMemoryHome",
     "SeatNotInHome",
+    "SeatView",
     "UnsupportedStoreSchema",
     "Verify",
+    "records_between",
 ]

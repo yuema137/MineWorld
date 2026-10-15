@@ -15,24 +15,35 @@ One transaction covers every write of one call, across seats (step-28 §6.3). De
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from types import TracebackType
 from typing import Literal
 
-from mineworld_sdk.wire.ids import EntityKey, WorldInstanceId
+from mineworld_sdk.wire.ids import EntityId, EntityKey, WorldInstanceId
 
 from mineworld_cognition.memory import fts
 from mineworld_cognition.memory.home import schema
-from mineworld_cognition.memory.home.encoding import Codec, as_number, encoded, line, raw
+from mineworld_cognition.memory.home.encoding import (
+    Cell,
+    Codec,
+    as_number,
+    encoded,
+    line,
+    line_bytes,
+    raw,
+)
 from mineworld_cognition.memory.home.errors import (
     HolderInvariantBroken,
     HomeBusy,
     HomeIdentityMismatch,
     NotAMemoryHome,
+    SeatNotInHome,
     UnsupportedStoreSchema,
 )
+from mineworld_cognition.memory.home.view import METER_GONE, METER_PUT, METERED, SeatMeter, SeatView
+from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.scopes import world
 
 type Verify = Literal["off", "pass", "every-commit"]
@@ -63,6 +74,10 @@ class MemoryHome:
         self.world_instance = world_instance
         self.verify: Verify = verify
         self.fts = fts.available() and _has_table(connection, "access_text")
+        self._views: dict[int, SeatView] = {}
+        self._meters: dict[int, SeatMeter] = {}
+        """Each measured seat's meter; empty until a seat is measured, and after a rollback."""
+        self._triggers = False
 
     @staticmethod
     def open(
@@ -115,12 +130,105 @@ class MemoryHome:
 
     def _rolled_back(self) -> None:
         """Every cached size is of rows that may no longer exist: dropped, so the next measure is in full."""
+        self._meters.clear()
 
     def check(self) -> None:
-        """I-S28-4: the records are exactly the held keys, and every participant row has its record."""
+        """I-S28-4 (the records are exactly the held keys, and every participant row has its record), then every
+        measured seat's meter against its dump."""
         broken = world.check_holders(self.connection)
         if broken:
             raise HolderInvariantBroken(broken)
+        for seat, meter in self._meters.items():
+            view = self._views[seat]
+            meta = sum(size for _, size in view.row_bytes("meta"))
+            if meter.content != len(view.dump()) - meta:
+                raise HolderInvariantBroken(seat=view.identity.seat)
+
+    # ── Seats ─────────────────────────────────────────────────────────────────────────────────────
+
+    def seat(self, identity: StoreIdentity) -> SeatView:
+        """The seat's view, its `seats` row and `meta` rows created on first use. Refuses another world
+        instance's identity, and a seat whose stored self entity differs, by name; nothing is changed."""
+        if identity.world_instance != self.world_instance:
+            raise HomeIdentityMismatch(
+                "world_instance", self.world_instance, identity.world_instance
+            )
+        db = self.connection
+        row: tuple[int, str] | None = db.execute(
+            "SELECT seat, self_entity FROM seats WHERE key = ?", (identity.seat,)
+        ).fetchone()
+        if row is not None:
+            seat, stored = row
+            if stored != identity.self_entity:
+                raise HomeIdentityMismatch("self_entity", stored, identity.self_entity)
+        elif db.in_transaction:
+            seat = _new_seat(db, identity)
+        else:
+            with self.transaction():
+                seat = _new_seat(db, identity)
+        view = self._views.get(seat)
+        if view is None:
+            view = self._views[seat] = SeatView(self, seat, identity)
+        return view
+
+    def view_of(self, key: EntityKey) -> SeatView:
+        """The view of a seat the home already has (`SeatNotInHome` otherwise); creates nothing."""
+        row: tuple[int, str] | None = self.connection.execute(
+            "SELECT seat, self_entity FROM seats WHERE key = ?", (key,)
+        ).fetchone()
+        if row is None:
+            raise SeatNotInHome(key)
+        seat, self_entity = row
+        view = self._views.get(seat)
+        if view is None:
+            identity = StoreIdentity(
+                world_instance=self.world_instance, seat=key, self_entity=EntityId(self_entity)
+            )
+            view = self._views[seat] = SeatView(self, seat, identity)
+        return view
+
+    def remove_seat(self, key: EntityKey) -> None:
+        """A seat leaving the home (step-28 §6.4): every key it holds released, with collection, and its
+        private rows deleted, in one transaction."""
+        view = self.view_of(key)
+        db = self.connection
+        with self.transaction():
+            held: list[tuple[str]] = db.execute(
+                "SELECT event_key FROM access WHERE seat = ?", (view.seat_id,)
+            ).fetchall()
+            view.release(held_key for (held_key,) in held)
+            for table in schema.SEAT_TABLES:
+                db.execute(f"DELETE FROM {table.name} WHERE seat = ?", (view.seat_id,))
+            db.execute("DELETE FROM seats WHERE seat = ?", (view.seat_id,))
+            self._meters.pop(view.seat_id, None)
+        self._views.pop(view.seat_id, None)
+
+    # ── The meter (pr-s28a §5.7; FG-b2 §4.2) ─────────────────────────────────────────────────────
+
+    def meter(self, seat: int) -> SeatMeter | None:
+        return self._meters.get(seat)
+
+    def measure(self, view: SeatView) -> SeatMeter:
+        """Measures one seat in full and keeps its meter current from then on: SQLite `TEMP` triggers, in this
+        connection only and never in the file, hand every private row a write puts or removes to the home,
+        which encodes it as `dump()` would."""
+        if not self._triggers:
+            _install_triggers(self.connection, self._put, self._gone)
+            self._triggers = True
+        meter = view.measured()
+        self._meters[view.seat_id] = meter
+        return meter
+
+    def _put(self, table: str, seat: int, rid: int, *values: Cell) -> None:
+        meter = self._meters.get(seat)
+        if meter is not None:
+            view = schema.BY_NAME[table]
+            meter.put(table, rid, line_bytes(table, values, view.codecs))
+
+    def _gone(self, table: str, seat: int, rid: int) -> None:
+        meter = self._meters.get(seat)
+        if meter is not None:
+            meter.gone(table, rid)
 
     def seats(self) -> tuple[EntityKey, ...]:
         rows: list[tuple[str]] = self.connection.execute(
@@ -175,6 +283,41 @@ class MemoryHome:
 
     def __repr__(self) -> str:
         return f"MemoryHome({self.path!r})"
+
+
+def _new_seat(db: sqlite3.Connection, identity: StoreIdentity) -> int:
+    row = db.execute(
+        "INSERT INTO seats (key, self_entity) VALUES (?, ?)", (identity.seat, identity.self_entity)
+    )
+    seat = row.lastrowid
+    assert seat is not None
+    db.executemany(
+        "INSERT INTO meta (seat, key, value) VALUES (?, ?, ?)",
+        [(seat, key, value) for key, value in schema.SEAT_META],
+    )
+    return seat
+
+
+def _install_triggers(
+    db: sqlite3.Connection,
+    put: Callable[..., None],
+    gone: Callable[[str, int, int], None],
+) -> None:
+    db.create_function(METER_PUT, -1, put)
+    db.create_function(METER_GONE, 3, gone)
+    for table in METERED:
+        new = ", ".join(f"NEW.{column}" for column in table.columns)
+        put_sql = f"SELECT {METER_PUT}('{table.name}', NEW.seat, NEW.rowid, {new});"
+        gone_sql = f"SELECT {METER_GONE}('{table.name}', OLD.seat, OLD.rowid);"
+        for event, body in (
+            ("INSERT", put_sql),
+            ("UPDATE", gone_sql + " " + put_sql),
+            ("DELETE", gone_sql),
+        ):
+            db.execute(
+                f"CREATE TEMP TRIGGER IF NOT EXISTS meter_{table.name}_{event.lower()} AFTER {event} "
+                f"ON main.{table.name} BEGIN {body} END"
+            )
 
 
 def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
