@@ -105,8 +105,23 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
   from its decision log's last counters line.
 - Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits
   your profile's permissions. Paths are resolved against the configuration file on every platform.
-- The admitted-model table and the procedure for admitting another model are added with the spike tool
-  (C14).
+**Admitted models.** A model is admitted as a triple: the runtime and its version, the model build, and the
+`structured_output` setting. An admission is a property of the triple, not of the model's name: the same model
+fails under one setting and passes under another. The spike's results are in
+[`pr-s10-p6-lm-controller.md`](../../.structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md) §0.1.
+
+The design asks for each run's report hash (`scenarios_sha256` in its `report.json`). The operator's reports are not
+in the repository, so the hashes are not recorded here until the operator adds them (D-P6b-34).
+
+| Runtime | Model | `structured_output` | Valid on first attempt | p95 | Date | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ollama 0.40.2 (local) | `qwen3.5:4b` (nvfp4 build) | `none` | 39 / 40 | 4.8 s | 2026-10-13 | admitted; the default local model |
+| OpenAI API | `gpt-4.1-nano` | `json_schema` | 40 / 40 | 0.9 s | 2026-10-13 | admitted; the recommended API option |
+
+Refused, not admitted: `qwen3.5:4b` under `json_schema` on Ollama 0.40.2 (every call answered HTTP 501: the
+runtime refuses enforced output); `gpt-5-nano` under `json_schema` (every call answered HTTP 400, so the claim
+was not exercised: inconclusive). Run the spike again after a runtime upgrade; an admission does not carry over
+to a new runtime version.
 
 **Choosing the default local model** is an operator-run spike, never run by CI or an agent:
 

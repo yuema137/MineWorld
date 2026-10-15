@@ -49,5 +49,8 @@ CURRENT CHECKPOINT  C0 … C13 committed or ready (ledger §15). C12 (`b23cde1`)
                     recorded in §15; the primary reviews D-P6b-22/23 (edits outside the listed Files) and rules on D-P6b-24/25/30
                     before push. Branch: mvp0/pr-s10-p6b, based on origin/main @ 9aa185b, which must be merged with origin/main
                     @ f772a18 before the push
-NEXT ACTIONS        C14 (§9.0), C15, then the primary: merge origin/main, push, open the PR, CI green on the exact head
+                    C14: `summary_table` in `tools/model_spike.py` (ASCII `reason x count`, D-P6b-33), 6 spike tests green,
+                    the README's admitted-models table (no report-hash column yet, D-P6b-34), P5a's ledger line (§13.11).
+NEXT ACTIONS        C15 (§9.0 and §15's close-out: `git diff --stat origin/main...HEAD`, I-P6-1, I-P6-9, §8 evidence, AP6-14
+                    NOT RUN), then the primary: merge origin/main, push, open the PR, CI green on the exact head
 STOP CONDITION      P6b READY FOR OPERATOR REVIEW — DO NOT MERGE

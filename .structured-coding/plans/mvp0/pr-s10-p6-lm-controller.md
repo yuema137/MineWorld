@@ -1610,7 +1610,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C11 | adb5ea4 | [x] | [x] | [x] |
 | C12 | this commit (SHA filled at C15) | [x] | [x] | [x] |
 | C13 | this commit (SHA filled at C15) | [x] | [x] | [x] |
-| C14 | — | [ ] | [ ] | [ ] |
+| C14 | this commit (SHA filled at C15) | [x] | [x] | [x] |
 | C15 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1891,6 +1891,25 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   view by a frame, and a greeting consult started by an arrival can still be in flight when a line is said; in scenario B a line
   said at once after `talk` is offered was answered `chose` with no talk target in its prompt. Not a safety defect (the submit path
   re-checks the offer and the server enforces reach, `too_far_away`); a quality and latency matter for P6 review.
+- **C14 (2026-10-14).** Files: `tools/model_spike.py` (`COLUMNS`, `_join`, `_row`, `summary_table(report)`; `main` prints the table
+  before the unchanged JSON line), `tests/test_spike_tool.py` (`FIXTURE`, `GOLDEN`, two tests), `README.md` (the "Admitted models" table),
+  and P5a's ledger (`pr-s10-p5-backends.md` §13.11, one line).
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_spike_tool.py`: **6 passed**, 0.30 s. PASS. The six: the
+  thresholds and the scenario count (`test_the_thresholds_are_ap5_s_literals...`), the end-to-end run against a scripted stub, the
+  remote refusal, `test_the_summary_table_is_the_hand_written_golden` (AP6-18: a two-model fixture, one admitted and one refused,
+  equal to a golden written column by column), `test_main_prints_the_table_before_the_unchanged_json_line` (AP6-18: the table's first
+  four lines equal the golden and the last line equals `json.dumps({"default": …, "verdict": …})`), and
+  `test_no_ci_command_runs_the_spike_or_allows_a_remote_server` (still green).
+  Static, on the final state: `ruff check` PASS (one import order fixed by `--fix`), `ruff format` applied, `pyright` 0 errors,
+  and the six tests re-run green after those edits. `check_doc_headings.py` and `check_decision_ids.py` PASS.
+  Review: no threshold constant changed (`SCENARIO_COUNT`, `FIRST_ATTEMPT_VALID_MIN`, `P95_LATENCY_MAX_MS`, `WORDS_MAX_BYTES` are as
+  they were); the JSON line is built by the same expression, so it is byte-identical; the table is a pure function of the report. No
+  model, no key, no live mode: the tests use a fixture and a stub.
+  Deviations: **D-P6b-33** (the cell `reason x count`, ASCII, instead of `reason×count`, and the footer `>=` and `<=` instead of
+  `≥` and `≤`): ruff's RUF001/RUF002 reject the ambiguous characters in this project's lint set, and the footer must not fail to
+  encode when a report is piped on Windows. The layout is otherwise §5.15's. **D-P6b-34** (the README table has no report-hash
+  column yet): §5.15 asks for each row's `scenarios_sha256`, but the operator's reports are not in the repository, so the hashes
+  cannot be recorded by an agent. The README says so; the operator adds them when the reports are archived.
 - **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
   per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
   "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
