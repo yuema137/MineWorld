@@ -1,7 +1,8 @@
 # Step 28 — S28: shared, access-controlled, modular memory
 
-**Lifecycle:** `STEP DESIGN — DRAFT (2026-10-14), rulings recorded`. Step-level design only. It is not
-frozen, and nothing here authorizes implementation or a merge (`CLAUDE.md` §3.1).
+**Lifecycle:** `STEP DESIGN FROZEN 2026-10-14 (operator QS28-1…10, answered directly in the primary
+session; frozen by the primary session)`. Step-level design only. The step freeze authorizes no
+implementation or merge: each PR gets its own PR design, freeze and fresh session (§11.1, `CLAUDE.md` §3.1).
 - The operator ruled on every question of §14 on 2026-10-14. The rulings are recorded verbatim in §14.1, and
   the proposals they settle are now written as rulings throughout.
 - The `STEP DESIGN FROZEN` header is written by the primary session itself, not by this session.
