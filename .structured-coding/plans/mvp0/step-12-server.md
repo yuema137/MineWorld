@@ -4396,3 +4396,178 @@ S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs,
   `mvp0/pr-s11c-perception`; S11-D in `/Users/yuema137/mineworld-worktrees/impl-s11d` on
   `mvp0/pr-s11d-admin`. Each is held by one session.
 
+
+# 20. PR S11-E — the proof (commit plan; bounded detail under §9.5)
+
+**Lifecycle:** `IMPLEMENTING` under §9.5's frozen scope (step frozen 2026-10-08). §9.5 left S11-E at
+step level ("detailed to the commit" was never written for it); this section is that detail, written by
+the implementation session at its start as a **bounded detail under the frozen scope**, not a revision of
+it: it adds no checkpoint, removes none, and touches only the paths §9.5's adversarial criterion allows
+(`tools/cli/tests/`, `server/tests/`, `clients/protocol/` demo, checks, run script and evidence, and
+Markdown). Recorded as deviation **D-SE1** (§20.8).
+
+**Authority.** The primary session's brief of 2026-10-15 assigns S11-E to this session in worktree
+`/Users/yuema137/mineworld-worktrees/impl-s11e`, branch `mvp0/pr-s11e` from `origin/main @ 5cbb4697`,
+with commits, push and PR creation authorized and merge reserved to the operator.
+
+## 20.1 Identity, base, scope
+
+```text
+PR            S11-E — four clients, one world (AC-7); INV-9 over revision 2; the far side (R-9)
+base          origin/main @ 5cbb4697 (S11-A … S11-D merged; S27-a #205 merged: seat grants and the
+              per-seat request budget, default 10/s burst 20, ARC-97)
+branch        mvp0/pr-s11e, worktree /Users/yuema137/mineworld-worktrees/impl-s11e, one session
+scope         CP-E1 tools/cli/tests/ac7_many_players.rs (new)
+              CP-E2 clients/protocol/checks/rev2_check.gd (new), run.sh mode `rev2`,
+                    clients/protocol/evidence/rev2/ (new)
+              CP-E3 tools/cli/tests/inv9_closed_vocabulary.rs (new)
+              CP-E4 owned by CI on the exact PR head (R-LOAD-1): no production file changes, so the
+                    digests and the named suites are re-proven there, not re-run locally
+              docs  docs/NETWORKING.md §5 note (§13: admin commands are HTTP, not frames);
+                    clients/protocol/evidence/README.md; this section; handoff-s11e.md
+not in scope  any production change (server/src, tools/cli/src, systems/, kernel/, contracts/,
+              persistence/, worlds/, clients/protocol/mineworld/); wiring the Godot run into CI (S13's)
+```
+
+## 20.2 Audit anchors (`origin/main @ 5cbb4697`)
+
+| Fact | Where | Consequence |
+| --- | --- | --- |
+| A seat's requests are bounded per seat, 10/s sustained, burst 20, refused `rate_limited` past it (S27-a, `ARC-97`) | `tools/cli/src/main.rs` `--request-budget` default; `server/src/seats.rs` `Bucket` | The AC-7 clients pace themselves at one request per 110 ms, as a real client does; no test widens the budget |
+| `walk-to` plans a route through doorways; a `{ person }` destination is same-place only and ends 1 200 mm short (`PERSON_APPROACH`) | `systems/movement/src/action.rs` | Carol (apartments) walks `walk-to { place: cafe }` first, then everybody `walk-to { person: alice }`; 1.2 m is inside `talk`'s 3 m |
+| Every person's routine entry current at 00:00 is the apartments | `worlds/market-town/people/*.yaml` | No paced NPC heads for the café in the first minutes, so nobody but a player buys there during the test |
+| The reactive controller's reply quotes the speaker's own words; it is addressed to them | `cognition/rule-controller/src/act.rs` `reply_to` | "Alice answers each by name" is read as: each player's own disclosed history holds a line from Alice quoting that player's line, and each line carries the player's nickname (D-SE2) |
+| A Person's own `conversation-history` is disclosed only to the connection seated on it (`INV-13`) | `tools/cli/tests/ac15_one_alice.rs` | "Alice's disclosed history" is read by a fifth connection that takes the `alice` seat from her agent after the four have been answered (D-SE3) |
+| An `observation` frame carries `revision` but no instance; `welcome.world.instance` and `/status` do | `server/PROTOCOL.md` §5 | "the last observation of each name the same instance" is checked as the welcomes' instance = `/status`'s, and the observations' revisions (D-SE4) |
+| While the host has paused the clock, sweeps continue and nothing is consulted or advanced | `server/src/runtime.rs` `tick` | The far side's keyframe comparison is made inside host pauses, where the reconstruction held and the next keyframe describe one unchanged state (D-SE5) |
+| Revision-2 client frames are `join`, `submit`, `leave`; every variant denies unknown fields | `server/src/protocol.rs` `CLIENT_FRAME_TAGS` | CP-E3's `leave` misuse (a `leave` naming a seat) is `malformed_frame` and releases nothing |
+
+## 20.3 Acceptance (decided before measuring, `ARC-23`)
+
+```text
+SE-1  (CP-E1, AC-7)  mineworld server worlds/market-town --town --agent alice --save DIR
+      four connections join visitor, wanderer, bob, carol with four nicknames; bob's and carol's
+      welcomes say took_over "hosted" (the town was driving them); all four welcomes name one instance,
+      the one /status names; a fifth connection asking for each of the four seats is refused
+      seat_occupied (the mutation M-SE1 must fail here, by name)
+      all four walk to Alice at once, each paced at one request per 110 ms, every request accepted
+      all four talk to her; each one's own history then holds a line from Alice quoting its own words
+      (and so its nickname)
+      visitor buys one offered, available, complete buy: wanderer, bob and carol each see that item's
+      in_stock exactly one lower in their own observations, perceive the visitor, and are disclosed
+      none of the visitor's wallet, holdings or conversation-history
+      for 3 wall seconds after the purchase all four are read at once: at least one revision ≥ the
+      purchase's is observed by all four, and at every revision observed by more than one of them,
+      every entity they all perceive stands at the same location and the listing is the same
+      (the mutation M-SE2 must fail here)
+      a fifth connection takes alice from her agent: her own history holds all four lines
+      the server is killed; mineworld replay verifies the save
+SE-2  (CP-E3, INV-9) mineworld server worlds/social-cafe --save DIR --admin-token T, inside the
+      routine-free first hour: set_state, move_to, give, clock, pause, kick, release are unknown_frame;
+      a submit as another Person is actor_not_observer; a join naming an observer and a leave naming a
+      seat are malformed_frame; a leave before any join is let go (closing left) and the seat it named
+      is still held by its player; a join after leave on a new connection is welcomed took_over none
+      as the same observer; every admin route without a token, and with a wrong one, is 401 no sooner
+      than 500 ms; after the table the revision /status reports is unchanged and the save holds the
+      genesis facts and nothing else (the mutation M-SE3 must fail here)
+SE-3  (CP-E2, R-9)   run.sh rev2: one headless Godot run of the protocol module against
+      mineworld server worlds/market-town --town --agent alice --hold 10, admin token from the
+      environment: join with invite and nickname (protocol 2); 60 s of deltas with no refusal, and
+      at three host pauses inside them the reconstruction held equals the next keyframe; drop the
+      socket and resume within the hold (took_over "held", the same observer); walk to Alice, talk,
+      and receive her spoke — a fact this client did not cause — in observation.events; kicked by
+      the admin route, reporting closing "kicked". Evidence in clients/protocol/evidence/rev2/
+SE-4  (CP-E4)        ac13, ac15, milestone_b, milestone_c, ac1_composability, the I-2 scan and both
+      300-day digests on the PR head: CI's default suite (no production file differs from base)
+```
+
+## 20.4 Commit plan
+
+**E-C1 — docs(plan): S11-E commit plan and handoff.** This section; `handoff-s11e.md`.
+- [x] Implementation: §20 written; handoff initialized.
+- [x] Validation: `python3 scripts/check_doc_headings.py` (E-SE1).
+- [x] Review: every SE-n maps to one §9.5 checkpoint; no path outside §9.5's allowance (E-SE1).
+
+**E-C2 — test(cli): AC-7, four clients in one world (CP-E1).** `tools/cli/tests/ac7_many_players.rs`.
+- [ ] Implementation: SE-1 as written, through `support` and `market` only; a paced submit helper local to
+      the file.
+- [ ] Validation: the test passes on the real binary (E-SE2); M-SE1 and M-SE2 planted and reverted, each
+      failing at its assertion (E-SE5).
+- [ ] Review: every claim reads only frames, `/status` and the CLI; no assertion can pass with two worlds or
+      with per-observer state.
+
+**E-C3 — test(cli): INV-9 over revision 2 (CP-E3).** `tools/cli/tests/inv9_closed_vocabulary.rs`.
+- [ ] Implementation: SE-2 as written.
+- [ ] Validation: passes (E-SE3); M-SE3 (and M-SE4, an admin check that admits any bearer) fail (E-SE5).
+- [ ] Review: the table covers every revision-2 frame kind and every admin route.
+
+**E-C4 — test(clients): the far side over revision 2 (CP-E2).** `checks/rev2_check.gd`, `run.sh rev2`,
+`evidence/rev2/`, `evidence/README.md`.
+- [ ] Implementation: SE-3 as written; the module (`clients/protocol/mineworld/`) unchanged.
+- [ ] Validation: `run.sh rev2` passes once and its evidence is committed (E-SE4); M-SE6 (the module's
+      delta applier ignoring `entities.remove` … or a changed component) fails the keyframe comparison.
+- [ ] Review: no invite, admin token or resume secret in any evidence file.
+
+**E-C5 — docs: NETWORKING.md §5 (§13's proposed note).**
+- [ ] Implementation: admin commands are the HTTP control plane's (§3), never a client frame.
+- [ ] Validation: doc headings check.
+- [ ] Review: agrees with `PROTOCOL.md` §11 and `INV-9`.
+
+**E-C6 — docs(plan): S11-E ledger close.** §20.7–§20.8, handoff.
+- [ ] Implementation, validation (CI on the exact head), review.
+
+## 20.5 Test ownership
+
+| Failure class | Owner |
+| --- | --- |
+| Several clients see different worlds, or different states at one revision | SE-1, real binary |
+| A seat bound twice | SE-1 (refusal), `server/tests/seats.rs` (race, S11-B) |
+| A state-asserting message or an admin call without a token changes anything | SE-2, real binary |
+| The GDScript applier diverges from the server's whole observation | SE-3, real Godot |
+| Regression of earlier criteria | CI default suite on the head (SE-4) |
+| Real-model behaviour | NOT REQUIRED: no model is attached (`--agent` is the deterministic rule controller) |
+
+## 20.6 Execution contract
+
+```text
+PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-E — the proof
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §20 (scope §9.5)
+RELATED / BINDING   this file §§4, 5, 6, 9.5, 10, 13, 15–18; server/PROTOCOL.md rev 2; DECISIONS ARC-23,
+                    ARC-97; CLAUDE.md §§2–4; R-LOAD-1 (targeted runs only, heavy runs in cast-slots)
+IMPLEMENTATION BASE origin/main @ 5cbb4697; branch mvp0/pr-s11e; worktree impl-s11e, one session
+APPROVED SCOPE      §20.1
+FROZEN INVARIANTS   no production change; I-1 … I-12 untouched; the request budget is respected, never
+                    widened; no secret in any committed file
+VALIDATION BUDGET   targeted real-binary tests (each < 3 min), mutations one at a time, Godot rev2 at most
+                    three runs; no local full suite (R-LOAD-1); CI is the gate
+ENDPOINT AUTHORITY  implementation, commits, push, PR create/update, CI repair: authorized (primary
+                    session's brief, 2026-10-15); merge: operator only, never inherited
+NORMAL STOP         PR S11-E READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any production change needed for a checkpoint to pass (it would be a defect to
+                    report, not to patch here)
+```
+
+## 20.7 Evidence ledger
+
+- **E-SE0 (base).** `origin/main @ 5cbb4697`, worktree clean; no other process in `impl-s11e`.
+- **E-SE1 (E-C1).** Plan written; headings check below.
+
+## 20.8 Deviations and discoveries
+
+- **D-SE1 — the commit plan is written at execution.** §9.5 was never expanded to the commit (§§15–18
+  were, for A–D). Previous assumption: a §20 design would be frozen before execution. Evidence: no S11-E
+  design exists on `main @ 5cbb4697`. Resolution: written here as bounded detail under §9.5's frozen
+  scope and its adversarial criterion (allowed paths); no checkpoint changed.
+- **D-SE2 — "answers each by name".** Nicknames are not world data (QS11-7), so Alice cannot know them;
+  the reactive controller quotes the speaker's own line back to them. Each player's line therefore
+  carries its nickname, and the claim is that each reply, addressed to that player, quotes it.
+- **D-SE3 — "Alice's disclosed history".** Her history is disclosed only to her own seat (`INV-13`); a
+  fifth connection takes the seat from her agent after all four were answered and reads it there —
+  through the protocol, never from the server's memory.
+- **D-SE4 — instance in observations.** Revision 2's observation frame carries no instance (§5); the
+  instance is checked on the four welcomes and `/status`, the revision on the observations.
+- **D-SE5 — keyframes from the far side.** A keyframe replaces a delta rather than accompanying one, so on
+  one connection the reconstruction at seq N and the server's whole observation at seq N never coexist.
+  They coincide only when nothing changed between N−1 and N: inside a host pause (sweeps continue,
+  nothing advances). The check pauses the host three times inside the 60 s and compares the
+  reconstruction held, accumulated from live deltas since the previous keyframe, with the next keyframe.
