@@ -65,7 +65,7 @@ group-activity section that is also stale on the base.
 
 ## Next actions
 
-1. B1: edit `perception.rs` (four `Offer::complete`), add the test and CP-b Python test, DECISIONS note, README line.
+1. B1 done (commit recorded in §15). Next: B2, behaviour impact (design §9 B2). R-LOAD-1 applies: no local workspace run.
 
 ## Notes from B0
 

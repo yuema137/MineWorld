@@ -6,7 +6,8 @@
 //!                              accept and decline, when the observer holds an invitation from them
 //!                              (accept only while the observer is part of nothing);
 //!                              join, when they are part of an activity and the observer is not
-//! discloses   to the observer  its own Invitations and its own Participation
+//! complete     every offer but invite, whose kind is free text: the payload is the empty object (ARC-34)
+//! discloses  to the observer  its own Invitations and its own Participation
 //!             about a member   that member's Participation — "they are together" is visible to
 //!                              anyone who can see them (SD-11)
 //! ```
@@ -48,7 +49,10 @@ impl PerceptionProvider for GroupActivitySystem {
         let mine = participation(world, observer);
         let Some(target) = target else {
             return if mine.is_some() {
-                vec![Offer::new::<LeaveGroupActivity>(leave_requirement())]
+                vec![
+                    Offer::complete(&LeaveGroupActivity {}, leave_requirement())
+                        .expect("an empty payload encodes"),
+                ]
             } else {
                 Vec::new()
             };
@@ -89,13 +93,15 @@ impl PerceptionProvider for GroupActivitySystem {
         if invited_by_them {
             if mine.is_none() {
                 offers.push(answered(
-                    Offer::new::<AcceptInvitation>(accept_requirement())
+                    Offer::complete(&AcceptInvitation {}, accept_requirement())
+                        .expect("an empty payload encodes")
                         .with_target_available(active),
                     permitted(&AcceptInvitation::ACTION_TYPE),
                 ));
             }
             offers.push(
-                Offer::new::<DeclineInvitation>(decline_requirement())
+                Offer::complete(&DeclineInvitation {}, decline_requirement())
+                    .expect("an empty payload encodes")
                     .with_target_available(active),
             );
         }
@@ -103,7 +109,8 @@ impl PerceptionProvider for GroupActivitySystem {
             && let Some(theirs) = theirs
         {
             offers.push(answered(
-                Offer::new::<JoinGroupActivity>(join_requirement())
+                Offer::complete(&JoinGroupActivity {}, join_requirement())
+                    .expect("an empty payload encodes")
                     .with_target_available(active && running(world, theirs.activity()).is_some()),
                 permitted(&JoinGroupActivity::ACTION_TYPE),
             ));

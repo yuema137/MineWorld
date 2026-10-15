@@ -533,7 +533,7 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | B0 | — (this commit) | [x] | [x] | [x] |
-| B1 | — | [ ] | [ ] | [ ] |
+| B1 | — (this commit) | [x] | [x] | [x] |
 | B2 | — | [ ] | [ ] | [ ] |
 | B3 | — | [ ] | [ ] | [ ] |
 
@@ -542,6 +542,19 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 - B0 (2026-10-14): base `origin/main` = `708bc56` (merge of PR #196, which carries this frozen design).
   Header reads `DESIGN FROZEN`; §12 is filled (checked). Rulings QS27b-1 and QS27b-2 copied verbatim into
   `handoff-s27b.md`. Markdown checks run in B0 (see handoff).
+- B1 (2026-10-14), load average ~200 throughout (R-LOAD-1: no local workspace run):
+  - `cargo test -p mineworld-group-activity`: 3 + 11 + 1 tests, all PASS (≈7 min incl. compile).
+  - Mutations (each red on the named test, reverted, then green):
+    M-b-1 accept-invitation via `Offer::new`: FAIL at payload assertion (`:422`), reverted.
+    M-b-2 invite complete: FAIL at "invite stays incomplete", reverted.
+    M-b-3 leave with `accept_requirement()`: FAIL at requirement assertion (`:470`), reverted.
+  - `cargo fmt --all --check`: PASS. `cargo clippy -p mineworld-group-activity --all-targets -- -D warnings`: PASS.
+  - `cargo build -p mineworld-cli` (≈12 min under load): PASS.
+  - `MINEWORLD_BIN=/tmp/impl-s27b-target/debug/mineworld uv run --locked pytest sdk/python/tests/test_real_server.py -k invitation_is_answered`: 1 passed.
+  - `ruff check`, `ruff format --check`, `pyright sdk/python`: PASS (0 errors).
+  - `check_doc_headings.py`, `check_decision_ids.py`: PASS.
+  - Test names: `the_four_answers_are_offered_complete_and_attempted_unchanged` (Rust),
+    `test_an_invitation_is_answered_and_left_through_complete_affordances` (Python).
 
 ### Assumptions to verify in implementation
 
