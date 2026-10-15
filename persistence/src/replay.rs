@@ -8,7 +8,7 @@
 use mineworld_contracts::EventEnvelope;
 use mineworld_kernel::{Advanced, Dispatched, InstalledSystemRecord, KernelError, World};
 
-use crate::backend::{FactRow, PersistenceBackend};
+use crate::backend::{FactRow, PersistenceBackend, StoredRevision};
 use crate::error::PersistError;
 use crate::format::{Manifest, check_format, decode, decode_snapshot, encode, snapshot_json};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
@@ -72,21 +72,18 @@ fn apply(
     })
 }
 
-/// Re-executes one journal row and requires it to reproduce, byte for byte, the entry and the facts
-/// the save recorded. Returns how many facts were compared.
-fn reproduce(
-    world: &mut World,
-    backend: &dyn PersistenceBackend,
-    revision: WorldRevision,
-    stored: &[u8],
-) -> Result<usize, PersistError> {
-    let entry: JournalEntry = decode(stored, "journal entry")?;
+/// Re-executes one stored revision and requires it to reproduce, byte for byte, the entry and the facts
+/// the save recorded — read live or out of a sealed block alike (`ARC-89` I-SRB-2). Returns how many
+/// facts were compared.
+fn reproduce(world: &mut World, stored: &StoredRevision) -> Result<usize, PersistError> {
+    let revision = stored.revision;
+    let entry: JournalEntry = decode(&stored.entry, "journal entry")?;
     let (outcome, facts) = apply(world, &entry.input)?;
     let replayed = encode(&JournalEntry {
         input: entry.input,
         outcome: outcome.clone(),
     })?;
-    if replayed != stored {
+    if replayed != stored.entry {
         return Err(PersistError::ReplayDiverged {
             revision,
             detail: format!(
@@ -96,7 +93,7 @@ fn reproduce(
         });
     }
 
-    let logged = backend.facts_of(revision)?;
+    let logged = &stored.facts;
     if logged.len() != facts.len() {
         return Err(PersistError::ReplayDiverged {
             revision,
@@ -107,7 +104,7 @@ fn reproduce(
             ),
         });
     }
-    for (fact, FactRow { id, bytes }) in facts.iter().zip(&logged) {
+    for (fact, FactRow { id, bytes }) in facts.iter().zip(logged) {
         if fact.id().raw() != *id || encode(fact)? != *bytes {
             return Err(PersistError::ReplayDiverged {
                 revision,
@@ -165,8 +162,9 @@ pub(crate) fn check_composition(
     Ok(())
 }
 
-/// Re-executes every journal row after `from` into `world`, in order, each required to reproduce.
-/// Calls `after_each` with each revision once it has reproduced. Returns `(rows, facts)` compared.
+/// Re-executes every revision after `from` into `world`, in order, each required to reproduce — one
+/// pass over the backend's revision stream, holding at most one sealed block (`ARC-89` D-SRB-7). Calls
+/// `after_each` with each revision once it has reproduced. Returns `(rows, facts)` compared.
 pub(crate) fn replay_after(
     world: &mut World,
     backend: &dyn PersistenceBackend,
@@ -175,7 +173,9 @@ pub(crate) fn replay_after(
 ) -> Result<(u64, u64), PersistError> {
     let mut expected = from.next();
     let (mut rows, mut facts) = (0, 0);
-    for (revision, entry) in backend.journal_after(from)? {
+    for stored in backend.revisions_after(from)? {
+        let stored = stored?;
+        let revision = stored.revision;
         if revision != expected {
             return Err(PersistError::Damaged {
                 detail: format!(
@@ -184,7 +184,7 @@ pub(crate) fn replay_after(
                 ),
             });
         }
-        facts += reproduce(world, backend, revision, &entry)? as u64;
+        facts += reproduce(world, &stored)? as u64;
         rows += 1;
         after_each(world, revision)?;
         expected = revision.next();

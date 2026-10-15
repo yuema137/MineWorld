@@ -82,14 +82,15 @@ pub mod seats;
 mod session;
 
 pub use admission::{
-    AdminToken, Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, OfferedResume,
-    ResumeSecret, UNAUTHORIZED_DELAY, Unauthorized,
+    AdminToken, Admission, AdmissionError, Credential, CredentialKind, GrantToken, InviteToken,
+    Nickname, OfferedInvite, OfferedResume, ResumeSecret, SeatGrant, SeatRights,
+    UNAUTHORIZED_DELAY, Unauthorized,
 };
 pub use app::Access;
 pub use host::{
     Backfill, HostConfig, HostError, HostedWorld, Observations, Perceived, PerceivedStart,
-    SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId, TimeScaleChoice, WireFact,
-    WorldHost,
+    RequestBudget, SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId,
+    TimeScaleChoice, WireFact, WorldHost,
 };
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;

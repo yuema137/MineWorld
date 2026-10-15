@@ -19,4 +19,5 @@ pub use mineworld_decision::Catalog;
 
 mineworld_decision::models! {
     Rule => mineworld_rule_controller::Rule,
+    Motivated => mineworld_motivated::Motivated,
 }

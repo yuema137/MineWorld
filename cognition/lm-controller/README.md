@@ -72,12 +72,15 @@ a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
 
 **Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
-memory policy merge old detail into summaries or forget it; the store then stays under 768 KiB whatever
-the policy does, and every forgotten Event ID still resolves in the save (`mineworld perceived`). The
+memory policy merge old detail into summaries or forget it, and a pass also runs early whenever the store
+nears its bound: 20 MiB per person by default, which a world may raise (`store_bound_mib` in
+`decisions.yaml`). Every forgotten Event ID still resolves in the save (`mineworld perceived`). The
 default, `consolidate`, and `decay`, `importance-recency-cap` and the test fixture `keep-all` are plug-ins
 of the entry-point group `mineworld.forgetting`; a policy of your own is a package with one entry point.
 No model is involved. Specification:
-[`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md).
+[`pr-fg-b-retention-host.md`](../../.structured-coding/plans/mvp0/pr-fg-b-retention-host.md), with the
+bound and the early pass in
+[`pr-fg-b2-size-trigger.md`](../../.structured-coding/plans/mvp0/pr-fg-b2-size-trigger.md).
 
 **Assisted forgetting** (`lm-summarise`, `pr-fg-c`). `lm-summarise` asks the `summarize` tier, through the
 host's summary gateway, for one sentence and an importance per group, and falls back to `consolidate` for any

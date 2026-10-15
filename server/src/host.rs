@@ -56,7 +56,7 @@ use mineworld_kernel::{KernelError, World};
 use mineworld_persistence::PersistentWorld;
 use tokio::sync::{mpsc, oneshot};
 
-pub use config::{HostConfig, TimeScaleChoice};
+pub use config::{HostConfig, RequestBudget, TimeScaleChoice};
 
 use crate::hosted::{HostedBinding, HostedController, HostedFactory};
 use crate::perception::{

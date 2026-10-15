@@ -24,7 +24,7 @@ use serde::Serialize;
 use tokio::net::TcpListener;
 
 use crate::admin::{self, registry::Registry};
-use crate::admission::{AdminToken, Admission};
+use crate::admission::{AdminToken, Admission, AdmissionError};
 use crate::host::WorldHost;
 use crate::protocol::{PROTOCOL_VERSION, SessionId, WorldSummary};
 use crate::session;
@@ -68,6 +68,25 @@ pub struct Access {
     /// only kind whose time may be scaled above 24× (`PROTOCOL.md` §11.2). The server selects no other code
     /// path for it; the caller is responsible for having bound a loopback address when it is set.
     pub solo: bool,
+}
+
+impl Access {
+    /// Who may join, and the admin token that opens `/admin`. Refuses an admin token equal to the
+    /// invite or to any seat grant: whoever held that credential would be the host (`PROTOCOL.md`
+    /// §11.1, `ARC-97`).
+    pub fn new(admission: Admission, admin: Option<AdminToken>) -> Result<Self, AdmissionError> {
+        if admin
+            .as_ref()
+            .is_some_and(|token| token.is_a_credential_of(&admission))
+        {
+            return Err(AdmissionError::AdminTokenNotDistinct);
+        }
+        Ok(Self {
+            admission,
+            admin,
+            solo: false,
+        })
+    }
 }
 
 impl From<Admission> for Access {

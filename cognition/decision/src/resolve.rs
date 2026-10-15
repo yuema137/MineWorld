@@ -282,6 +282,7 @@ impl ResolvedDecisions {
                         policy: memory.choice.policy.as_str(),
                         fallback: memory.choice.fallback.as_ref().map(|id| id.as_str()),
                         parameters: &memory.choice.parameters,
+                        store_bound_mib: memory.choice.store_bound_mib,
                     })
                 }),
             })
@@ -343,6 +344,9 @@ struct CanonicalMemory<'a> {
     policy: &'a str,
     fallback: Option<&'a str>,
     parameters: &'a serde_json::Map<String, serde_json::Value>,
+    /// Only when written, so a list without it keeps the digest it had (`pr-fg-b2-size-trigger.md` §5).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store_bound_mib: Option<u64>,
 }
 
 /// FNV-1a 64, as `run`'s history fingerprint computes it.

@@ -91,8 +91,99 @@ fn resuming(seat: &str, secret: &ResumeSecret) -> JoinRequest {
     }
 }
 
-fn code(result: Result<Grant, Refusal>) -> RefusalCode {
+fn code(result: Result<JoinGranted, Refusal>) -> RefusalCode {
     result.expect_err("a refusal").code()
+}
+
+/// A seat grant's rights for `visitor` only: with or without take-over.
+fn granted_visitor(take_over: bool) -> SeatRights {
+    SeatRights::Named {
+        seats: [key("visitor")].into_iter().collect(),
+        take_over,
+    }
+}
+
+/// §4.2's rules under every credential (S27-a): a binding × the rights × `take_over` × `resume`.
+/// Rights never change what a resume or a free or hosted seat answers; they only narrow rule 4.
+#[test]
+fn the_join_decision_table_under_every_credential() {
+    #[derive(Clone, Copy, Debug)]
+    enum Start {
+        Free,
+        Connected,
+        Held,
+    }
+    let any = SeatRights::Any;
+    let narrow = granted_visitor(false);
+    let wide = granted_visitor(true);
+    for start in [Start::Free, Start::Connected, Start::Held] {
+        for rights in [&any, &narrow, &wide] {
+            for take_over in [false, true] {
+                for resume in [false, true] {
+                    let (mut seats, _) = table(HOLD);
+                    let now = Instant::now();
+                    let first = secret();
+                    if !matches!(start, Start::Free) {
+                        seats
+                            .join(&join("visitor"), sub(1), first.clone(), now, at(10))
+                            .expect("free");
+                    }
+                    if matches!(start, Start::Held) {
+                        seats.depart(sub(1), Departure::Dropped, now, at(10));
+                    }
+                    let request = JoinRequest {
+                        take_over,
+                        resume: resume.then(|| OfferedResume::new(first.reveal())),
+                        rights: rights.clone(),
+                        ..join("visitor")
+                    };
+                    let answer = seats.join(&request, sub(2), secret(), now, at(10));
+                    let case =
+                        format!("{start:?} {rights:?} take_over={take_over} resume={resume}");
+                    let expected: Result<TookOver, RefusalCode> = match (start, resume) {
+                        (Start::Free, true) => Err(RefusalCode::InvalidResume),
+                        (_, true) => Ok(TookOver::Held),
+                        (Start::Free, false) => Ok(TookOver::None),
+                        (_, false) if !take_over => Err(RefusalCode::SeatOccupied),
+                        (_, false) if rights.may_take_over() => Ok(TookOver::Connection),
+                        (_, false) => Err(RefusalCode::NotGranted),
+                    };
+                    assert_eq!(
+                        answer.map(|g| g.took_over).map_err(|r| r.code()),
+                        expected,
+                        "{case}"
+                    );
+                    if expected.is_err() && !matches!(start, Start::Free) {
+                        // A refusal leaves the binding as it was: nobody displaced.
+                        let still = state(&seats, "visitor", now);
+                        assert!(
+                            matches!(
+                                (start, still),
+                                (Start::Connected, SeatState::Connected { .. })
+                                    | (Start::Held, SeatState::Held { .. })
+                            ),
+                            "{case}: {still:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    // A hosted seat is joined without a flag whatever the credential (rule 3).
+    for rights in [any, narrow, wide] {
+        let (mut seats, _) = table(HOLD);
+        let request = JoinRequest {
+            rights: SeatRights::Named {
+                seats: [key("alice")].into_iter().collect(),
+                take_over: rights.may_take_over(),
+            },
+            ..join("alice")
+        };
+        let granted = seats
+            .join(&request, sub(2), secret(), Instant::now(), at(10))
+            .expect("hosted yields");
+        assert_eq!(granted.took_over, TookOver::Hosted);
+    }
 }
 
 #[test]

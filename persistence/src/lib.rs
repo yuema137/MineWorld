@@ -14,8 +14,11 @@
 //! the load is refused. [`verify`] re-executes from genesis and checks every stored snapshot too;
 //! [`verify_from`] does the same from a retained snapshot.
 //!
-//! Facts and journal rows are never deleted. Snapshots are retained by rule — genesis, an anchor every
-//! 64 scheduled snapshots, the newest two — and stored as zstd frames of their JSON (`ARC-81`).
+//! Facts and journal rows are never dropped or changed. The rows of each completed span of revisions
+//! move, byte for byte, into one sealed block of two zstd frames, in the transaction of the anchor commit
+//! that seals them; the newest revisions stay live (`ARC-89`). Snapshots are retained by rule — genesis,
+//! an anchor every 64 scheduled snapshots, the newest two — and stored as zstd frames of their JSON
+//! (`ARC-81`).
 //!
 //! ```text
 //! input      WorldInput, Outcome, WorldRevision      what a journal entry is
@@ -23,6 +26,7 @@
 //!                                                    and which snapshots it keeps
 //! replay     verify, verify_from                     re-execution and the byte comparison
 //! backend    PersistenceBackend                      where rows are kept — DEP-2's isolating trait
+//! block      encode_block, decode_journal/facts      a sealed block: rows framed and compressed
 //! sqlite     SqliteBackend, Durability               the one backend, and the one file naming SQL
 //! format     Manifest, SAVE_FORMAT                   how rows are encoded, and the version refused
 //! ```
@@ -34,6 +38,7 @@
 #![warn(missing_docs)]
 
 pub mod backend;
+pub mod block;
 pub mod error;
 pub mod format;
 pub mod host;

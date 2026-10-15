@@ -1,7 +1,7 @@
 //! How a hosted world is configured: its clock's starting point, its stream's cadence and its bounds.
 //!
 //! Moved here unchanged from `host.rs` by TW-c (`pr-tw-c-host-clock.md` §5.9), so that `host.rs` stays
-//! under its size review point. Nothing in this file is new.
+//! under its size review point. The request budget (S27-a, `ARC-97`) is the only addition since.
 
 use std::num::NonZeroU32;
 use std::time::Duration;
@@ -40,6 +40,10 @@ pub struct HostConfig {
     pub perceived_backlog: usize,
     /// Every Nth frame to a connection is a whole observation, the others deltas (§5.3, DEP-15).
     pub keyframe_every: NonZeroU32,
+    /// How many `submit`s each seat may make, refused `rate_limited` beyond it (`PROTOCOL.md` §8,
+    /// `ARC-97`); `None` sets no budget. It bounds every connection alike, and no in-server
+    /// controller.
+    pub request_budget: Option<RequestBudget>,
 }
 
 /// The time scale a hosted world starts at, as its host states it: a flag the operator gave, the world's own
@@ -51,6 +55,33 @@ pub struct TimeScaleChoice {
     pub flag: Option<NonZeroU32>,
     /// `world.yaml`'s `hosting.time_scale`, if the world declares one.
     pub pack: Option<NonZeroU32>,
+}
+
+/// A seat's request budget: `per_second` sustained, up to `burst` at once (a token bucket kept per
+/// seat by the seat table, so reconnecting does not refill it; `docs/DECISIONS.md` `ARC-97`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RequestBudget {
+    /// Requests per wall second, sustained.
+    pub per_second: NonZeroU32,
+    /// Requests at once, from a full bucket.
+    pub burst: NonZeroU32,
+}
+
+impl RequestBudget {
+    /// `R = 10`, `B = 20`: S27-a C0's measured rule, `R = max(10, 2 × p99)` over the 2D walker's
+    /// recorded trace (p99 3 a second), `B = 2R` (`ARC-97`).
+    pub const DEFAULT: Self = Self {
+        per_second: nonzero(10),
+        burst: nonzero(20),
+    };
+}
+
+/// A non-zero literal, in a constant.
+const fn nonzero(n: u32) -> NonZeroU32 {
+    match NonZeroU32::new(n) {
+        Some(n) => n,
+        None => NonZeroU32::MIN,
+    }
 }
 
 impl Default for HostConfig {
@@ -65,6 +96,7 @@ impl Default for HostConfig {
             event_backlog: 256,
             perceived_backlog: 4_096,
             keyframe_every: NonZeroU32::new(50).unwrap_or(NonZeroU32::MIN),
+            request_budget: Some(RequestBudget::DEFAULT),
         }
     }
 }

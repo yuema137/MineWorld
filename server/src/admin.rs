@@ -19,7 +19,7 @@
 
 pub(crate) mod registry;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -36,7 +36,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::time::Instant;
 
-use crate::admission::{AdminToken, Nickname, UNAUTHORIZED_DELAY};
+use crate::admission::{
+    AdminToken, Credential, CredentialKind, Nickname, SeatRights, UNAUTHORIZED_DELAY,
+};
 use crate::host::WorldHost;
 use crate::protocol::SessionId;
 use crate::runtime::{ClockChange, ControlAnswer, ControlCommand};
@@ -131,6 +133,36 @@ struct SessionView {
     connected_at: u64,
     seq: u64,
     observations_dropped: u64,
+    credential: CredentialView,
+}
+
+/// Which credential admitted a session, as `GET /admin/sessions` shows it (`PROTOCOL.md` §11.2,
+/// ruled QS27a-1): its kind and, for a seat grant, its seats and take-over right. Never a token, and
+/// nothing about what kind of Controller drives the connection (`INV-S27-4`).
+#[derive(Serialize)]
+struct CredentialView {
+    kind: CredentialKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seats: Option<BTreeSet<EntityKey>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    take_over: Option<bool>,
+}
+
+impl From<Credential> for CredentialView {
+    fn from(credential: Credential) -> Self {
+        match credential.rights {
+            SeatRights::Any => Self {
+                kind: credential.kind,
+                seats: None,
+                take_over: None,
+            },
+            SeatRights::Named { seats, take_over } => Self {
+                kind: credential.kind,
+                seats: Some(seats),
+                take_over: Some(take_over),
+            },
+        }
+    }
 }
 
 /// Every seated connection: the transport's registry joined with the world's per-session counts. A
@@ -160,6 +192,7 @@ async fn sessions(State(admin): State<Admin>) -> Response {
                 connected_at: listed.joined.connected_at,
                 seq: listed.seq,
                 observations_dropped,
+                credential: listed.joined.credential.into(),
             })
         })
         .collect();

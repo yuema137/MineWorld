@@ -632,6 +632,14 @@ msgstr ""
 msgid "reason.lagged"
 msgstr ""
 
+#. not granted
+msgid "reason.not_granted"
+msgstr ""
+
+#. too many requests
+msgid "reason.rate_limited"
+msgstr ""
+
 #. café
 msgid "place.cafe"
 msgstr ""

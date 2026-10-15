@@ -552,19 +552,29 @@ Targeted validation per commit; the PR's CI is the one full run.
 
 - **Goal.** Start the implementation context against the frozen design.
 - **Scope.** This document (§14 opened); new `handoff-sr-b.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and sources, the
+- [x] Implementation: verify the `DESIGN FROZEN` header, §12's authority lines and sources, the
   assigned decision number; record the base commit; initialize the handoff with the contract's fields.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: every authority line has a source; no scope widened.
+  (§14.2 C0; base 6306977; `handoff-sr-b.md`.)
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+  (Both clean, §14.2.)
+- [x] Review: every authority line has a source; no scope widened. (§12 lines each carry "freeze
+  rulings", a working-rules default or "mvp0 convention"; ARC-89 pre-exists and is completed, not
+  duplicated.)
 
 ### C1 — Decision record and spec edits
 
 - **Goal.** The decision exists before the code (`CLAUDE.md` §2.2).
 - **Scope.** §6.13's files. No code.
-- [ ] Implementation: `ARC-89` (assigned, QSRB-8); notes under `ARC-25` and `ARC-81`;
-  `ARCHITECTURE.md`, `MODULE_SPEC.md` §8.1, `persistence/README.md`, step-06 L-6.
-- [ ] Validation: both doc checks.
-- [ ] Review: `ARC-25`'s guarantees restated, not relaxed; `ARC-81` rule 1's amendment is the only one.
+- [x] Implementation: `ARC-89` (assigned, QSRB-8); notes under `ARC-25` and `ARC-81`;
+  `ARCHITECTURE.md`, `MODULE_SPEC.md` §8.1, `persistence/README.md`, step-06 L-6. (ARC-89 pre-existed
+  from DOC-24: its `a − interval` corrected to `a − A`, its level made explicit (9), and a dated
+  implementation note added with D-SRB-1 … D-SRB-11, §5's comparison, QSRB-4's bounds and §6.13's three
+  revisit triggers. `persistence/src/lib.rs` and `sqlite.rs` module docs change with the code at C3/C4.)
+- [x] Validation: both doc checks. ("223 numbered sections across 31 documents, none duplicated";
+  "122 decision ids, all distinct".)
+- [x] Review: `ARC-25`'s guarantees restated, not relaxed; `ARC-81` rule 1's amendment is the only one.
+  (ARC-25 note repeats each guarantee — no row dropped, resume reads live rows, replay compares bytes;
+  ARC-81 note amends rule 1 only, records rule 7's format number and the FK removal as consequences.)
 - **Commit boundary.** Documentation only.
 
 ### C2 — The block codec (`block.rs`) and the sealing rule (pure)
@@ -573,11 +583,22 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** New `persistence/src/block.rs` (`encode_block(span, journal_rows, fact_rows) ->
   SealedBlock`, `decode_journal`, `decode_facts`, `BLOCK_LEVEL = 9`); `world.rs` `sealing(n, interval,
   sealed_through)`; `lib.rs` module line.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence --lib` (block round trip incl. genesis-sized row,
+- [x] Implementation. `persistence/src/block.rs` (`BLOCK_LEVEL = 9`, `JournalRow`, `SealedFact`,
+  `BlockKeys`, `SealedBlock`, `encode_block`, `decode_journal`, `decode_facts`; the encoder runs the same
+  checks as the decoder, so it refuses rows that do not fill the span); `RevisionSpan` in `backend.rs`
+  (needed by the codec one commit earlier than planned — bounded); `world.rs` `sealing(n, interval,
+  sealed_through)` (marked `expect(dead_code)` outside tests until C3 wires it).
+- [x] Validation: `cargo test -p mineworld-persistence --lib` (block round trip incl. genesis-sized row,
   empty facts span; every D-SRB-4 decode check; the rule's table: first seal at 2·*A*, steady state, changed
-  interval, never ≥ *n* − *A* + 1); clippy; fmt.
-- [ ] Review: the codec never decodes an entry or a fact; the rule reads only its three arguments.
+  interval, never ≥ *n* − *A* + 1); clippy; fmt. (6 passed — 4 block tests: round trip with keys and
+  compression; a 300 000-byte row and a span without facts; the encoder's refusals; 12 decoder damage
+  cases each naming "the sealed block r1–r10": gap, fact outside the span, unordered ids, id columns, action
+  column, trailing byte, truncated row, bad tag, not zstd, flipped byte, cut checksum — and the rule's
+  11-case table. `cargo clippy -p mineworld-persistence --all-targets -- -D warnings` clean after one
+  `type_complexity` fix; `cargo fmt --all` clean.)
+- [x] Review: the codec never decodes an entry or a fact; the rule reads only its three arguments.
+  (`block.rs` imports no contract type and calls no `serde`; `sealing` reads `n`, `interval`,
+  `sealed_through` and the constant `ANCHOR_EVERY`.)
 - **Failure cases.** Truncated / extended / reordered frames → `Damaged` naming the span, never a panic.
 
 ### C3 — Format 4: the `sealed` table, sealing in the commit, readers over both storages
@@ -589,12 +610,37 @@ Targeted validation per commit; the PR's CI is the one full run.
   over blocks + tail); `backend.rs` (`RevisionSpan`, `RevisionRow::seal`); `world.rs` (`sealed_through`,
   `seal` filled on anchor commits, guard); test doubles and `RevisionRow` literals (`save.rs`,
   `tools/cli/tests/inspect.rs`); format-3 fixture from the base build + refusal tests (library and CLI).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test save_retention
-  --test inspect --test run`; `cargo test -p mineworld-acceptance`; mutation "never seal" and "seal one
-  revision too far" run once each.
-- [ ] Review: no path deletes a log row except the seal step; the seal runs after insert and retirement
-  in the same transaction; deleted counts checked.
+- [x] Implementation. `format.rs` (`SAVE_FORMAT = 4`, history line); `sqlite.rs` (schema with `sealed`, the
+  `snapshots → journal` FK dropped; `seal` step after retirement in `write_revision`: read the span's live
+  rows, `encode_block`, decode and compare, insert, delete facts then journal, compare counts; `head` and
+  `highest_action_id` over both tables; `facts_of` decodes the one block holding the revision;
+  `last_facts` reads the tail newest-first and decodes blocks backwards only for what it lacks;
+  `journal_after` over blocks then tail (removed at C4); multi-query reads in one read transaction unless
+  already inside one; a `blocks_decoded()` counter); `backend.rs` (`RevisionRow::seal`, `SealedSpan`, trait
+  method `sealed()`); `world.rs` (`sealed_through`, read at resume from `sealed()`; `schedule_storage`
+  fills `retire` and `seal` with both guards); `save.rs` (`Failing::sealed`, formats 4/5 and 1–3, both
+  fixtures refused); `tools/cli/tests/inspect.rs` (`seal: None`); `save_retention.rs` (format 3 marked;
+  `perceived` and `biography` added to the commands); `.gitignore` admits the format-3 fixture.
+- [x] Validation: `cargo test -p mineworld-persistence` → lib 6, kill_and_resume cafe + clock PASS,
+  retention 4, save 11, all passed (the retention sweep at interval 8 now seals 22 blocks and verifies
+  from genesis through them; `verify_from` at interval 2 reads anchors 128 and 256 out of blocks).
+  `cargo clippy --workspace --all-targets -- -D warnings` clean. Mutation "seal one revision too far"
+  (`last = n − A + 1`): RED — unit table fails; `retention.rs` sweep and verify_from panic "the rule sealed
+  r1–r513 at r1024" / "r1–r129 at r256" (the guard); reverted. Mutation "never seal": deferred to C6/C7,
+  where the size criteria it must turn red (ASRB-1, ASRB-3) first exist. CLI targets and
+  `mineworld-acceptance`: deferred to C4 — see finding F-SRB-1.
+- [x] Review: no path deletes a log row except the seal step; the seal runs after insert and retirement
+  in the same transaction; deleted counts checked. (`grep -n "DELETE FROM" persistence/src/sqlite.rs`: the
+  snapshot retirement and the two deletes inside `seal`, both `BETWEEN` the span, after the `sealed` insert,
+  their counts compared.)
+
+**Finding F-SRB-1 (C3, bounded).** *Previous assumption:* C3 keeps every consumer green with
+`Vec`-shaped methods, so the CLI targets can be validated at C3. *Evidence:* `cargo test -p mineworld-cli
+--test run` ran a `mineworld replay` of a social-cafe save for > 15 min CPU before it was stopped:
+`replay::reproduce` calls `facts_of(revision)` once per revision, and over sealed storage each call decodes
+the whole 4 096-revision block — the quadratic cost §3's audit row for `replay.rs` predicted.
+*Consequence:* the CLI and acceptance validation listed for C3 moves to C4, where replay reads the cursor
+(D-SRB-7). No design change.
 
 ### C4 — Streaming cursors and replay on them
 
@@ -605,13 +651,49 @@ Targeted validation per commit; the PR's CI is the one full run.
   `journal_after` (`headless/mod.rs` `Tables::read` + raw `sealed` rows in `assert_same_history`,
   `configuration_seam.rs`, `arrival_resolvers_resume.rs`, `tools/cli/tests/inspect.rs`); concurrent-seal
   test.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance`;
+- [x] Implementation. `backend.rs` (`StoredRevision`, type aliases `Revisions<'_>` / `Facts<'_>` for the
+  design's boxed iterators, trait methods `revisions_after`, `facts_after`; `journal_after` removed); new
+  `persistence/src/sqlite/cursor.rs` (a submodule of the one SQL file, keeping `sqlite.rs` under 800 lines:
+  `RevisionCursor`, `FactCursor`, one read transaction each via `SqliteBackend::reading`, the block found by
+  key (`last_revision >= next`, `first_revision > last AND last_event_id > floor`), one decoded block at a
+  time, the tail paged 1 024 rows per query, a skip or a block that goes back reported as `Damaged`, the
+  cursor ending after its first error); `replay.rs` (`replay_after` iterates `revisions_after`; `reproduce`
+  takes the `StoredRevision` — no `facts_of`); call sites forced by the removal, converted one commit early
+  (bounded): `run.rs` `genesis_instant`, `head_input`; `inspect.rs` `Journal::read`; test helpers
+  `headless/mod.rs` `Tables::read` (cursors + raw `sealed` rows, compared in `assert_same_history`),
+  `arrival_resolvers_resume.rs`, `configuration_seam.rs`; `save.rs` `Failing`; the concurrent-seal test
+  `a_cursor_reads_one_history_while_another_connection_seals_the_rows_ahead_of_it` (interval 16: the
+  reader opens at r2 040, the writer seals 1–1 024 and 1 025–2 048 under it).
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-acceptance`;
   `cargo test -p mineworld-cli --test run --test inspect --test save_retention` (the targets that use
   `Tables::read` and the cursors; the rest run in the PR's CI); mutation "cursor without read
-  transaction" red on the concurrent-seal test.
-- [ ] Review: no per-revision `facts_of` left in replay; one comparison path for resume, verify and
-  `verify_from`.
+  transaction" red on the concurrent-seal test. (Persistence: lib 6, cafe + clock PASS, retention 4 (2.73 s
+  at C3 → 0.57 s), save 12 — all passed. CLI: save_retention 1 + 1 ignored, inspect 3, run 4 (102.8 s);
+  acceptance: every target passed (15 result lines, exit 0; log `/tmp/impl-sr-b-target/c4-tests.log`).
+  ASRB-8's six-command refusal passed inside `save_retention`. `cargo clippy --workspace --all-targets
+  -- -D warnings` clean. Mutation: `Reading::open` with no transaction → RED, "the cursor reads on:
+  Damaged { detail: "the log skips from r1024 to r2049" }"; reverted, green.)
+- [x] Review: no per-revision `facts_of` left in replay; one comparison path for resume, verify and
+  `verify_from`. (`grep facts_of persistence/src/replay.rs` → none; `resume` and `reexecute` both call
+  `replay_after`.)
+
+**Finding F-SRB-2 (C6, bounded; fixed in its own commit).** *Previous assumption:* holding one decoded
+block at a time bounds a reader's memory. *Evidence:* release head build, 300-day walking save:
+`perceived --person alice` peaked at 371 785 728 B and `biography` at 376 291 328 B — over ASRB-4's
+256 MiB — while `inspect --last 0` peaked at 74 MB and the cursor alone (a scratch tool streaming every
+revision) at 43 MB. `heap` on a running `perceived` showed 6.9 MB of live allocations against a 139.6 MB
+footprint; `vmmap --summary` 2.2 s in showed `MALLOC_LARGE (empty)` 508.4 MB virtual / 290.8 MB in the
+footprint: freed large buffers the allocator keeps. `zstd::stream::decode_all` grows each block's output
+(≈ 5–7 MB) by doubling, so every block leaves freed regions of many sizes. *Decision:* decompress into
+one allocation of exactly the frame's declared content size (`zstd::bulk::decompress` with
+`zstd_safe::get_frame_content_size`, both already part of `DEP-43`'s crate; a header claiming more than
+1 GiB is refused as damage; checksum still verified; a size mismatch is damage). *Result:* `perceived`
+peak 371.8 MB → 28.6 MB on the same save (C7 records the four readers). No design change: D-SRB-5's codec
+and D-SRB-6's one-block-at-a-time hold; only the decoder's allocation pattern changed.
+
+*Correction to C3's evidence:* "the retention sweep … seals 22 blocks" was a miscount written without a
+measurement; the rule gives 23 blocks for head 12 293 at interval 8 (anchors 1 024 … 12 288). C6's sweep
+asserts the count against the oracle.
 
 ### C5 — Production readers on the stream (`F-S24-1`)
 
@@ -619,12 +701,33 @@ Targeted validation per commit; the PR's CI is the one full run.
 - **Scope.** `tools/cli/src/history.rs`, `perceived.rs`, `inspect.rs` (+ `log` line), `biography.rs`,
   `run.rs` (`Fingerprint::of_save`, `genesis_instant`); `tools/cli/tests/perceived.rs`, `inspect.rs`,
   biography and lakeside history tests as touched.
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-cli --test perceived --test inspect --test run --test
+- [x] Implementation. `history.rs`: `saved_facts` replaced by `with_saved_facts(save, read)` — a
+  `Decoded` adapter over `facts_after(None)` that decodes one envelope at a time, ends at the first error
+  and returns it after `read` (D-SRB-8's adapter); `SavedHistory::perceived` = `perceived_by(facts
+  .take_while(id ≤ through), …)` (the raw stream stops at `through`, so a backfill reads no later block;
+  same output since later facts are never returned); `perceived.rs` checks the save, then prints as the
+  stream goes; `inspect.rs` streams the journal once (kinds, actions, sealed row bytes) and the facts once
+  (type counts, `Causes::add` with the seen-id set, a ring of the newest `--last`), and prints the `log`
+  line; `biography.rs` one pass (selected entries kept; names through `names_in` one fact at a time, so it
+  still names no event type); `run.rs` `Fingerprint::of_save` streams. `tools/cli/tests/perceived.rs`
+  CA-6's per-revision `facts_of` loop (quadratic over blocks) moved to the revision cursor.
+- [x] Validation: `cargo test -p mineworld-cli --test perceived --test inspect --test run --test
   milestone_e`; outputs compared with the base build on a 30-day save (identical but for the `log` line
   and the format number); mutation "collect all then filter" shows ASRB-4's measurement fail at C7.
-- [ ] Review: no `last_facts(i64::MAX)` or whole-journal read remains in `tools/cli/src` or `server/src`
-  (`grep`); error from the stream surfaces, never a truncated success.
+  (Tests, with `--test biography` added: biography 2, inspect 3, milestone_e 7, perceived 3 + 1 ignored
+  (re-run after the CA-6 edit: 3 passed), run 4 — all passed, log `c5-tests.log`. Outputs, release
+  builds of base 6306977 (`scratch-srb-base` worktree, own target dir) and head, Market Town seed 7,
+  30 days: `run`'s printed lines identical but for the header path and `wall` (incl. `history 82298
+  facts, fingerprint 346dcaa6291381a0`); `perceived --person alice` (34 698 lines), `perceived --json
+  --since 5000` (32 665 lines) and `biography --person alice` (736 lines) byte-identical (`cmp`);
+  `inspect --last 50` differs only in the format number, the random instance and the added line
+  `log        13 block(s) sealed r1–r53248 (3.6 MB stored, 90.1 MB of rows); live r53249–r60331`. The
+  "collect all then filter" mutation is run at C7 with the memory measurement.)
+- [x] Review: no `last_facts(i64::MAX)` or whole-journal read remains in `tools/cli/src` or `server/src`
+  (`grep`); error from the stream surfaces, never a truncated success. (`grep -rn "last_facts\|
+  journal_after" tools/cli/src server/src` → none; `last_facts(64)` stays in `PersistentWorld::
+  recent_facts`, live tail first. Every streaming reader returns the stream's error: `with_saved_facts`
+  checks the adapter's error after `read`; inspect, biography and the fingerprint `?` each row.)
 
 ### C6 — Kill-and-resume, sweeps, raw-SQL tests, CI assertions, parity and nightly
 
@@ -635,22 +738,87 @@ Targeted validation per commit; the PR's CI is the one full run.
   `scripts/ci_parity.py` (`REQUIRED_TABLES`, self-test row); `scripts/baselines.txt` (re-record
   `facts-300s`, `journal-300s`, add `sealed-300s`, reason line; `summary-300s` unchanged);
   `scripts/ci_stability.py` (`AC-SAVE-1`, self-test).
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test
+- [x] Implementation. `kill_and_resume.rs`: intervals cafe 2 / clock 4 (anchors 128 / 256, first seal at
+  256 / 512), kill points "before sealing" (2A − 1), "sealing" (2A), "after sealing" (2A + 1) added,
+  `Rows` gains every column of `sealed`, the control's blocks checked against the rule computed in the
+  test, facts counted through the stream. `retention.rs`: the ASRB-10 sealing sweep (interval 2 to
+  r3 000; blocks = rule after every commit; the live journal by raw SQL is exactly the revisions after the
+  blocks; every revision and every fact once through both cursors at and after every anchor; a resume at
+  every head through a `Shared(Rc<SqliteBackend>)` wrapper with `blocks_decoded()` unchanged).
+  `save.rs`: ASRB-9 (a) non-zstd facts frame → `Damaged "the sealed block r1–r1024 does not decompress"`
+  from `verify` and from the fact stream, resume succeeds; (b) a re-sealed valid frame with one fact byte
+  changed → `ReplayDiverged` at that fact's revision, resume succeeds. `market_town.rs`: ASRB-3
+  (≤ 48 MiB + blocks = rule), ASRB-1 (≤ 80 MiB walking), ASRB-2 ((S300 − S30) ÷ 270 ≤ 0.25 MiB/day).
+  `ci_parity.py`: `REQUIRED_TABLES` + `sealed`, `BASELINE_KEYS` + `sealed-300s`, self-test cases (a
+  differing sealed chunk; a record without `table.sealed.rows`), and `baseline write` reads the old file's
+  reason lines without requiring keys added since (bounded tooling fix: adding a key otherwise made
+  `write` refuse its own input). `ci_stability.py`: `AC-SAVE-1` (market-town to day 100, measured, on to
+  300; `judge_growth` ≤ 0.5 MiB/day; sizes and rate in the timings; three self-test cases).
+  `scripts/baselines.txt`: re-recorded once from a long record of the head build, with a reason line per
+  world (see F-SRB-3).
+- [x] Validation: `cargo test -p mineworld-persistence`; `cargo test -p mineworld-cli --test
   market_town` (bound mutated to 1 MiB once → red with the measured value); `python3 scripts/ci_parity.py
-  --self-test`; `python3 scripts/ci_stability.py --self-test`.
-- [ ] Review: every raw reader in §3 handled; the baselines' reason line states storage, not behaviour.
+  --self-test`; `python3 scripts/ci_stability.py --self-test`. (Persistence: lib 6; kill_and_resume cafe
+  (301 revisions, 1 block) and clock (634, 1 block) PASS at all eight kill points — e.g. clock "sealing:
+  kill sent at revision 512 … 513 committed; survivor restored snapshot 512"; retention 5; save 13.
+  market_town: PASS in 134.4 s — "ASRB-3: the 30-day save is 20324352 B (19.4 MiB), 17 snapshots
+  (882181 B), 13 sealed blocks, head 60331"; "ASRB-1: the 300-day save is 63086592 B (60.2 MiB); ASRB-2:
+  it grew 0.151 MiB per simulated day from day 30"; AC-12 incl. raw `sealed` rows held for twin and
+  killed-and-re-run. Mutation BOUND = 1 MiB → RED "ASRB-3: the 30-day save is 20324352 B (19.4 MiB),
+  over the 1 MiB bound"; reverted. Mutation never seal (`row.seal = … .filter(|_| false)`) → RED in
+  kill_and_resume ("the control holds exactly the sealing rule's blocks"), the sealing sweep, the
+  concurrent-seal and block-tamper tests; with a release build of that mutation the 30-day save is
+  117 776 384 B (112.3 MiB) > 48 MiB, ASRB-3's bound; reverted. Both self-tests "passed" (python3.12;
+  the system python3 3.9 lacks `tomllib`). `baseline check` of the long record against the new file →
+  "baselines PASS". `cargo clippy --workspace --all-targets -- -D warnings` clean after one
+  `suspicious_map` fix.)
+- [x] Review: every raw reader in §3 handled; the baselines' reason line states storage, not behaviour.
+  (Raw SQL over `facts`/`journal` remaining: `save.rs` tamper of the newest fact (40 steps, nothing
+  sealed), `retention.rs` `live_journal` (deliberately the live table), `kill_and_resume.rs` `rows`
+  (live + sealed, complete); `tools/cli/tests/perceived.rs` CA-6 moved to the cursor at C5; tests that
+  read `last_facts(all)` (third_party, weather, lakeside history) still get every fact.)
+
+**Finding F-SRB-3 (C6, baselines).** *Previous assumption (§6.10):* only `facts-300s`/`journal-300s` change
+and `summary-300s` must not. *Evidence:* the head's long record (`ci_parity.py record --profile long`,
+2 104.9 s) differs from the committed file in `summary-300`, `summary-1000` and `summary-300s` of every
+world as well. The committed file was stale on main already: nightly issue #170 (2026-10-14) shows main's
+own record with exactly these 12 summary values (compared one by one: 12/12 equal), drift owned by the
+primary as F-12d-1; and the base build 6306977 prints byte-identical lines to the head for social-cafe
+300 days (memory) and market-town 300 days (saved). So SR-b changes no summary. *Decision:* re-record the
+whole file once (QSRB-5's one re-recording) with a reason line that says both things — storage keys
+changed by SR-b, summaries re-recorded as main already had them — so the nightly's baseline check passes
+on this head. If 12d merges first, the second to merge re-records again (QSRB-7).
+
+**Finding F-SRB-4 (C7 terminal run, bounded; fixed in its own commit).** *Previous assumption:* C5's
+targeted CLI tests covered every test that reads `tools/cli/src/biography.rs`. *Evidence:* the full
+`cargo test --workspace --no-fail-fast` on 1c61838 (exit 101, 4 157 s under a load average up to 193)
+failed exactly two targets, both source-text pins of `biography.rs` that C5 did not run:
+`mineworld-acceptance --test configuration_vocabulary` ("…/tools/cli/src/biography.rs:95: give" — the
+word "give" in C5's new comment is on ARC-61 … ARC-64's pack-vocabulary list) and `mineworld-cli --test
+interactions` ("biography.rs no longer has `interactions::biography::selected(fact, person, &selected,
+&configured)`", QIB-11's pin — C5 passed `&fact`). *Decision:* the comment reworded; the selection made a
+closure `keep` whose body is the pinned call, so the source still states that the SDK selects. No
+behaviour change. *Validation:* both targets and `--test biography` pass after the fix; clippy clean.
+Every other target of the full run passed on 1c61838, and the fix touches only `biography.rs`, so the
+full run is not repeated locally; the PR's CI runs the whole suite on the fixed head.
 
 ### C7 — Integration checkpoint: real runs, measurements, close-out
 
 - **Goal.** ASRB-1 … ASRB-14 on the real binary; READY FOR OPERATOR REVIEW.
 - **Scope.** §14 evidence; handoff; requests to the primary session (§11).
-- [ ] Implementation: N/A beyond the ledger unless a criterion fails.
-- [ ] Validation: release 30/100/300-day saves (walking; bodies per §8's rule); sizes and `dbstat`;
+- [x] Implementation: N/A beyond the ledger unless a criterion fails. (ASRB-4 failed once on the first
+  measurement — F-SRB-2 — and was fixed in its own commit before the gate numbers below were taken.)
+- [x] Validation: release 30/100/300-day saves (walking; bodies per §8's rule); sizes and `dbstat`;
   `inspect`; `replay` with wall time vs base; `verify_from` first/middle/last anchor; `/usr/bin/time -l`
   for the four readers; CA-13 once; ASRB-11's unsealed-copy SHA-256 (a scratch tool under `target/`, never
-  committed) vs the base build; seal timing; the adversarial runs; the PR's CI incl. `AC-8`.
-- [ ] Review: every number in §14 comes from a command recorded beside it; scratch saves deleted.
+  committed) vs the base build; seal timing; the adversarial runs; the PR's CI incl. `AC-8`. (§14.3; the
+  PR's CI and `AC-8` are recorded in the handoff and the PR, on the exact head.)
+- [x] Review: every number in §14 comes from a command recorded beside it; scratch saves deleted.
+  (§14.3 names each command; `/tmp/impl-sr-b-target/srb-scratch` deleted at close-out (2026-10-14, by
+  the replacement session); `scratch-srb-timing` and `scratch-srb-bodies` removed. `scratch-srb-base`
+  (detached at the base 6306977, no save in the repository tree) is left in place for the primary
+  session, which owns worktree clean-up; the replacement session was told to read it only. The scratch
+  tool binary stays under `/tmp/impl-sr-b-target/srb-tool`, outside the repository.)
 
 ## 11. Requirements this PR places on other documents and lanes
 
@@ -767,8 +935,8 @@ Relayed by the coordinator to the SR-b planning session on 2026-10-12.
 
 ## 14. Ledger (live during implementation)
 
-**Status: FROZEN — not started. Implementation starts only on the operator's go.** Opened by C0 in the
-implementation session.
+**Status: IN IMPLEMENTATION** (operator's go 2026-10-13, relayed by the coordinator). Opened by C0 in
+the implementation session (`/Users/yuema137/mineworld-worktrees/impl-sr-b`, branch `mvp0/pr-sr-b`).
 
 ### 14.1 Planning-session record (2026-10-12)
 
@@ -779,3 +947,136 @@ Measured:            §4 (walking main; 12d branch @ 4e4ce10 in a scratch detach
 Not measured:        the framing overhead of D-SRB-4 (estimated ≈ 20–30 B per row before compression);
                      seal timing inside a commit (CLI timings only); bodies 30-day head (estimated)
 ```
+
+### 14.2 Implementation record
+
+```text
+Implementation base:  origin/main @ 6306977 (Merge pull request #177), fetched 2026-10-13
+Worktree / branch:    /Users/yuema137/mineworld-worktrees/impl-sr-b, mvp0/pr-sr-b (one session)
+Handoff:              handoff-sr-b.md
+Environment:          macOS 26.2 arm64 (operator's laptop), rustc per rust-toolchain.toml,
+                      CARGO_TARGET_DIR=/tmp/impl-sr-b-target
+```
+
+**C0 — freeze verification (done).** Header `DESIGN FROZEN 2026-10-12`, revision 2; §12 filled with a
+source on every endpoint line; decision number `ARC-89` (QSRB-8) — found already present in
+`docs/DECISIONS.md` (added by DOC-24, commit 203095b, as the design-level record); C1 completes it rather
+than adding a second record. `python3 scripts/check_doc_headings.py` → "223 numbered sections across 31
+documents, none duplicated"; `python3 scripts/check_decision_ids.py` → "122 decision ids, all distinct".
+No scope widened.
+
+**Format-3 fixture (written at C0, before any code edit, committed at C3).** The worktree at the base
+commit 6306977, with one uncommitted, ignored test (`persistence/tests/make_format_3.rs`, deleted after
+use) that creates a save of the persistence test world (`support::assembled`, interval 8, 12 scripted
+steps; head 20, snapshot rows at 1, 8, 16), written under `$CARGO_TARGET_DIR` and copied to
+`persistence/tests/fixtures/format-3/world.sqlite` (40 960 B, SHA-256
+`6c8242af66ac191725f9a6a866ef37a466554349cd7d9d6df63802db02fa2f17`; `format 3` in its manifest; every row
+a format-3 build's own bytes). The scratch copy was deleted.
+
+### 14.3 C7 — integration checkpoint evidence
+
+```text
+Builds:        base = 6306977 in scratch worktree scratch-srb-base, own target dir, release;
+               head = this branch (6d096f5 before the rebase onto main adf5d2c; main changed no .rs, world,
+               pack or Cargo.lock file in between), release, CARGO_TARGET_DIR=/tmp/impl-sr-b-target
+Runs:          mineworld run worlds/market-town --headless --seed 7 --days N --packs entities
+               --packs presentation/mineworld-default --save DIR; 300 days = day 100, then day 300 on the
+               same save (as §4); sizes = world.sqlite (no -wal left after exit), `ls -l`
+Host:          operator's macOS 26.2 arm64; shared with other sessions' builds (load average up to 96 during
+               some runs, recorded beside the wall times that it affects)
+Scratch:       /tmp/impl-sr-b-target/srb-scratch (deleted at close-out); scratch tool
+               /tmp/impl-sr-b-target/srb-tool (never committed) prints a save's logical rows in SR §14.1's
+               sqlite3 format
+```
+
+| ID | Measured | Bound | Verdict |
+| --- | --- | --- | --- |
+| ASRB-1 walking | 300-day save 63 086 592 B = 60.2 MiB (base 1 178 353 664 B); same size from a direct 300-day run in `market_town.rs` | ≤ 80 MiB | PASS |
+| ASRB-1 bodies | 12d scratch merge (`origin/mvp0/pr-12d-towns @ 264573b` merged into the head in scratch worktree `scratch-srb-bodies`, release, removed): 300-day 84 164 608 B = 80.3 MiB; `inspect`: `202 block(s) sealed r1–r827392 (54.9 MB stored, 1482.6 MB of rows); live r827393–r833121` | ≤ 96 MiB | PASS (scratch merge, not `main`; note: above the walking 80 MiB, so whichever of 12d/SR-b merges second sets `market_town.rs`'s ASRB-1 bound to 96 MiB, QSRB-7) |
+| ASRB-2 walking | days 100–300: (63 086 592 − 31 375 360) ÷ 200 = 158 556 B/day = **0.151 MiB/day**; CI form (S300 − S30) ÷ 270 = 0.151 | ≤ 0.25 | PASS |
+| ASRB-2 bodies | days 100–300: (84 164 608 − 39 141 376) ÷ 200 = 225 116 B/day = **0.215 MiB/day**; (S300 − S30) ÷ 270 = 0.214 (scratch merge) | ≤ 0.25 | PASS |
+| ASRB-3 | 30-day walking 20 324 352 B = 19.4 MiB, 13 blocks = the rule's for head 60 331 (`market_town.rs`); bodies 23 683 072 B = 22.6 MiB (scratch merge) | ≤ 48 MiB | PASS |
+| ASRB-4 | peak RSS on the 300-day walking save, `/usr/bin/time -l`: `perceived --person alice` 28 557 312 B; `biography --person alice` 32 620 544 B; `inspect --last 0` 61 456 384 B; `replay` 44 924 928 B. Base: 1 260 847 104 / 1 233 174 528 / 1 255 899 136 / 330 514 432 B. Outputs vs base on the same logical history: `perceived` 346 899 lines and `biography` 6 260 lines byte-identical (`cmp`); `inspect` differs only in the format number, the instance and the `log` line. CA-13 once on a copy of the save: "817834 facts in the save; backfill of 342876 facts in 4.9 s; tick p50 0.2 ms, p99 3.2 ms, max 4 ms", no `lagged`, passed | ≤ 256 MiB; CP-B4 p99 ≤ 50 ms | PASS |
+| ASRB-5 | `kill_and_resume` cafe + clock, eight kill points each incl. before/at/after the first sealing commit: survivor = control in live journal and facts, every `sealed` column and snapshots; `verify` passes | — | PASS |
+| ASRB-6 | `market_town.rs` (two 30-day runs; killed after day 15 and re-run) and `run.rs` through `Tables::assert_same_history`, raw `sealed` rows included | — | PASS |
+| ASRB-7 | the PR's `scratch/sr-b-scenario` push — see the handoff for the run and its verdict | — | see handoff |
+| ASRB-8 | library: format-2 and format-3 fixtures refused by resume and verify; CLI: `run`, `replay`, `inspect`, `perceived`, `biography`, `server` refuse a format-3-marked save with "the save is format 3; this code reads format 4 and does not migrate" | — | PASS |
+| ASRB-9 | `save.rs` (a) and (b) as at C6 | — | PASS |
+| ASRB-10 | `retention.rs` sealing sweep: every commit to the first head ≥ r3 000, blocks = `head ÷ 128 − 1` asserted at the end (22 at r3 000), a resume at every head with no block decoded | — | PASS |
+| ASRB-11 | SHA-256 of the logical rows, base save via SR's `sqlite3 … \| shasum -a 256`, head save via the scratch tool: 30 days facts `3db574a1…e487` = `3db574a1…e487`, journal `13e2f01f…2f45c` = same, counts 82 298 / 60 331 equal; 300 days facts `21b3ab1c…17b5` = same, journal `1abb0372…d09f` = same, counts 817 834 / 603 633 equal. `summary-300s` of every world equals main's own nightly record (F-SRB-3) | — | PASS |
+| ASRB-12 | `git diff --stat origin/main -- kernel contracts systems packages` empty | — | PASS |
+| ASRB-13 | `replay` of the 300-day save, alternating, load ≈ 11: base 26.18 s / 20.62 s (user 8.16 / 8.40 s); head 6.78 s / 8.78 s (user 5.85 / 7.07 s); line "603633 revision(s) re-executed from genesis, 817834 fact(s) and 150 snapshot(s) reproduced byte for byte" on both | ≤ 1.25 × base | PASS |
+| ASRB-14 | scratch build (`scratch-srb-timing`, an `eprintln!` around `Self::seal`, never committed, removed) over a 300-day run: 146 seals, mean 50.6 ms, max 73.6 ms, under a load average of 13–38 | ≤ 100 ms | PASS (measured under load; the bound held) |
+
+`verify_from` on the 300-day save (`save_retention.rs`'s ignored test, release): from r4096 599 537
+revisions in 14.6 s (the anchor inside the first block), from r303104 300 529 in 7.2 s, from r602112 1 521
+in 0.0 s — each to head r603633. Peak RSS of the 300-day `run` resumed from day 100: 406 093 824 B (base
+911 MB, §4.5), the end-of-run fingerprint now streamed.
+
+**Adversarial runs (each once):**
+
+```text
+never seal                         RED: kill_and_resume, sealing sweep, concurrent-seal and tamper tests;
+                                   30-day save 117 776 384 B > 48 MiB (ASRB-3)          C6
+seal one revision too far          RED: unit table; sweep/verify_from guard "the rule sealed r1–r513 at
+                                   r1024"                                                 C3
+delete rows without the block      RED (`seal` with the `INSERT INTO sealed` skipped, `cargo test -p
+                                   mineworld-persistence`): kill_and_resume; retention verify_from
+                                   "from r1: the save is damaged: the log skips from r1 to r513", the
+                                   retention sweep "the pruned save verifies: Damaged … the log skips
+                                   from r0 to r11777", the sealing sweep "at r256: the rule's blocks";
+                                   save.rs concurrent-seal and block-tamper tests (ASRB-10, replay)
+skip the round trip and corrupt    RED (the last fact's last byte flipped before `encode_block`):
+  one byte                         with the round-trip check kept, every sealing commit fails "the block
+                                   r1–r128 does not decode to the rows it seals" (`WorldAheadOfSave`,
+                                   D-SRB-11); with the check skipped as well, verify fails "replay
+                                   diverged at revision r127: fact 119 differs from the logged fact
+                                   119" (retention), and kill_and_resume "the survivor's whole history
+                                   reproduces: ReplayDiverged { revision: 128, … fact 112 … }" (ASRB-11's
+                                   replay half). Both run 2026-10-14 by the replacement session.
+facts_after collects every block   RED: perceived peak RSS 963 772 416 B > 256 MiB (ASRB-4)
+seal on a wall-clock condition     RED: kill_and_resume "early: the survivor's save is the control's, byte
+                                   for byte" fails; the sweep fails "at r256: the rule's blocks" (ASRB-5)
+blocks at level 3                  persistence suite green; a copy of the 300-day save run on to day 320 at
+                                   level 3 (10 new blocks, mean 379 133 B vs 267 056 B at level 9) replays
+                                   "643685 revision(s) … 872121 fact(s) … reproduced byte for byte": a
+                                   level never changes a verdict and a mixed save replays (I-SRB-2)
+cursor without a read transaction  RED: "the log skips from r1024 to r2049"              C4
+30-day bound set to 1 MiB          RED: "ASRB-3: the 30-day save is 20324352 B (19.4 MiB), over the 1 MiB
+                                   bound"                                                C6
+```
+
+Every mutation was reverted and the tree checked clean (`git status --short` empty) before the next
+step.
+
+**Terminal validation (2026-10-14, replacement session).** The first implementation session was cancelled
+during its full-suite run (its log ended inside `market_town`); a replacement session took over the same
+worktree and branch and re-read the design, the contract and the execution prompts before continuing.
+On head 1c61838: `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets --all-features
+-- -D warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 101 in 4 157 s, two targets failed
+(F-SRB-4), every other target passed (log `/tmp/impl-sr-b-target/full-test.log`). After the F-SRB-4 fix:
+the two targets and `--test biography` pass. `origin/main` was fetched: still adf5d2c, the branch's base,
+so no merge was needed.
+
+**Merge with main (2026-10-14, third session).** `origin/main` moved to 9aa185b (FG-a #188, FG-b #186,
+DL-a #191, S25-b #190, SET-b #192, docs) and then f772a18 (plan documents only). The second session
+resolved the merge with 9aa185b and stopped before committing it; a third session took over the worktree
+(the second confirmed stopped) and audited it. Files both sides changed: `docs/ARCHITECTURE.md`,
+`docs/DECISIONS.md`, `docs/MODULE_SPEC.md`, `tools/cli/src/run.rs`, `tools/cli/tests/inspect.rs` — each
+checked to be exactly the union of both sides' deltas against the merge base adf5d2c — and
+`scripts/baselines.txt`. No production reader brought in by main reads the removed `journal_after` or a
+whole log (`grep` over `tools/cli/src`, `server/src`, `cognition`, `worldpack`). The second session's
+targeted run on the merged tree passed (persistence kill_and_resume cafe + clock, retention 5, save 13;
+CLI biography 2, decision_models 1, decisions 7, forgetting_runs 1, forgetting_sections 2, inspect 3,
+interactions 4, social_composition 4; log `/tmp/impl-sr-b-target/merge-tests.log`).
+
+*Finding F-SRB-5 (merge, bounded; fixed in the merge commit).* The second session's resolution of
+`scripts/baselines.txt` kept SR-b's pre-merge values under a reason line saying they were "re-recorded
+from the merge"; the long record it had started was never finished. A long record of the merged tree
+(`ci_parity.py record --binary … --profile long`, 1 804.6 s, load average 16.4 at start and 6.6 at end)
+showed `baseline check` FAIL on `sealed-300s` for all four worlds and every other key equal: FG-a's
+genesis journal row (its composition) is in block 1. `baseline write` from that record and a corrected
+reason line → `baseline check` PASS; `ci_parity.py --self-test` passed. Summaries unchanged (ASRB-11's
+summary half holds on the merge). Merge commit b8d946c; f772a18 merged on top (docs only).
+`cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean on the merged
+tree. Under R-LOAD-1 no local workspace test run was made: CI on the exact head is the gate.
