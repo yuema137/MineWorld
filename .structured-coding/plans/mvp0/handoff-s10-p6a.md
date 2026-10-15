@@ -40,9 +40,14 @@ VALIDATION BUDGET   unit and integration tests unrestricted locally; one long pa
 STOP CONDITIONS     any moved baseline column other than a social-cafe column that moves because people
                     perceive their own persona (A3 step 7); any change to an existing System's code; any
                     change outside APPROVED SCOPE; a new external dependency
-CURRENT CHECKPOINT  A0 committed (7dcb1ac). A1 spec edits made (MODULE_SPEC §4.1 persona row; ARC-74);
-                    A1 commit in progress.
-NEXT ACTIONS        A1 commit, then A2 (read all of systems/naming; record A-P6-1 in §15; build
-                    systems/persona mirroring naming; discloses to holder only; mutation test), then A3.
+CURRENT CHECKPOINT  A0 committed (7dcb1ac); A1 committed (9fd8315: MODULE_SPEC §4.1 persona row; ARC-74).
+                    A2: systems/persona built, tests green, M-P6a-1 seen red and reverted; A2 commit
+                    in progress. Findings: F-P6a-1 (struct-level bounds lose line/column; per-value
+                    bounds keep them); D-P6a-1 … D-P6a-4 in §15.
+NEXT ACTIONS        A2 commit, then A3: systems/installed (path dep + one line; `tests/installed.rs`
+                    must pass), social-cafe world.yaml (persona last) and nine people files, validate,
+                    release build, long parity record, baseline check (QP6-2 rule: only social-cafe
+                    columns that move because people perceive their persona; reason lines; any other
+                    moved column is a material stop), cargo test -p mineworld-installed-systems.
 POST-MERGE SYNC     primary session: step-17, overall.md. This session: the P6a rows of the §15 ledger.
 READY STATE         P6a READY FOR OPERATOR REVIEW — DO NOT MERGE

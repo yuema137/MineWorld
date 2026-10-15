@@ -1593,7 +1593,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- | --- | --- |
 | A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
 | A1 | (this commit) | [x] `docs/MODULE_SPEC.md` §4.1: `persona:` row after `name:`, example line, "eight sections"; `docs/DECISIONS.md` ARC-74 appended; `name` entry read as the model first | [x] `check_doc_headings.py` 223 sections (PASS); `check_decision_ids.py` 123 ids, all distinct (PASS) | [x] terms exact (System Pack, Component, Person); the rule "shapes speech, grants nothing" is stated in MODULE_SPEC §4.1 and ARC-74, not only in a README |
-| A2 | — | [ ] | [ ] | [ ] |
+| A2 | (this commit) | [x] `systems/persona` (`mineworld-persona`): `persona.rs`, `component.rs`, `event.rs`, `section.rs`, `codec.rs`, `system.rs`, `lib.rs`, `README.md`, `tests/persona.rs`; `Cargo.lock` gains the workspace member; root `Cargo.toml` not edited (`systems/*` glob) | [x] `cargo test -p mineworld-persona`: 3 tests PASS (1 table test of 5 refusals with line and column; 2 integration tests); `cargo clippy -p mineworld-persona --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean | [x] no action, process or reaction declared; no import of another pack; no `HashMap`; discloses to holder only |
 | A3 | — | [ ] | [ ] | [ ] |
 | C0 | — | [ ] | [ ] | [ ] |
 | C1 | — | [ ] | [ ] | [ ] |
@@ -1615,6 +1615,19 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Evidence
 
 - **E-P6-spike** (operator, 2026-10-13): §0.1. Not re-run by any agent.
+- **A-P6-1 verified (A2, 2026-10-14).** `systems/naming` (all seven sources and `tests/naming.rs`) seeds one
+  fact per authored section at genesis (`named`, `Visibility::Public`, `about` and `with_participants` the
+  person) and reduces it into `DisplayName` through `react`; its `discloses` answers every observer. Persona
+  follows the precedent: one `persona-authored` genesis fact per section, `Visibility::Entities({holder})`
+  as the design states, reduced into `PersonaComponent`; `discloses` answers the holder only.
+- **A2 finding F-P6a-1 (2026-10-14).** A bound checked in a struct-level `try_from` is refused with **no line
+  and column** (`error: a persona's summary must be at most 280 bytes, but is 281`). A bound checked inside
+  one value's own `try_from` (`Summary`, `Trait`, `Traits`, `Speech`) is refused at its line and column
+  (`line 1 column 10`). AP6a-1 requires the position, so the bounds are per value (`persona.rs`).
+- **A2 test run:** `cargo test -p mineworld-persona`: `tests/persona.rs` 3 passed, 0 failed (`a_persona_is_
+  reduced_by_its_owner…`, `a_persona_is_disclosed_to_its_holder_and_to_nobody_else`,
+  `a_persona_is_refused_when_it_breaks_a_bound`); lib and doc tests 0. `cargo clippy -p mineworld-persona
+  --all-targets -- -D warnings` clean. `cargo fmt --all --check` clean.
 
 ### Assumptions to verify in implementation
 
@@ -1627,8 +1640,25 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Mutations
 
-(none run yet)
+- **M-P6a-1** (A2, planted in `systems/persona/src/system.rs` `discloses`: the `subject != observer` check
+  made `false`, so the component is returned to every observer). Turned red: `a_persona_is_disclosed_to_its_
+  holder_and_to_nobody_else` FAILED at `systems/persona/tests/persona.rs:147` (Bob's observation disclosed
+  Alice's persona). Reverted; the test is green again.
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2 and §0.1)
+- **D-P6a-1 (A2): the component's Rust type is `PersonaComponent`.** The design names both the value type
+  and the component `Persona`; `persona.rs` holds the value and the component wraps it (the `DisplayName`
+  over `Name` pattern). The component type id is `persona`, unchanged. Recorded here; no contract changes.
+- **D-P6a-2 (A2): bounds live in value types, not in one struct-level constructor.** Per F-P6a-1: `Summary`,
+  `Trait`, `Traits`, `Speech`, each with its own `try_from`, so every refusal carries its line and column.
+  `Persona::new` is kept for code and runs the same checks.
+- **D-P6a-3 (A2): the file name in a refusal is the loader's.** The A2 test asserts the pack's message and the
+  decoder's line and column; the file name is added by the World Pack loader, as `naming`'s tests do.
+  AP6a-1's "file" is verified in A3 through `mineworld validate worlds/social-cafe` and a deliberately bad
+  file, if A3 runs one; otherwise it stays recorded as the loader's precedent.
+- **D-P6a-4 (A2): no root `Cargo.toml` edit.** The root workspace lists `systems/*` as members, so the crate is
+  a member without an edit (ARC-33); `Cargo.lock` gains the workspace package and no external dependency.
+  A3 adds `mineworld-persona = { path = "../persona" }` to `systems/installed/Cargo.toml`, the path form that
+  `item` and `inventory` use.
+- Planning findings are §3.2 and §0.1.
