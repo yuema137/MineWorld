@@ -179,17 +179,22 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                     .with_history(SavedHistory::new(save))
             }
         };
-        // Each seat's factory builds a fresh controller, bound at the instant it is given: at start,
-        // and every time a person gives the seat back (`PROTOCOL.md` §4.2). The paced lattice begins
-        // at the epoch every world this command creates begins at, so it is the same after a resume.
+        // Each seat's factory builds a fresh controller, bound as its binding says: at start, and every time
+        // a person gives the seat back (`PROTOCOL.md` §4.2), at the scale in force then (`ARC-69` item 2).
+        // The paced lattice begins at the epoch every world this command creates begins at, so it is the
+        // same after a resume.
         let hosted =
             driven
                 .into_iter()
                 .fold(hosted, |hosted, (seat, driver, tally)| match driver {
                     Driver::Reactive => hosted.hosting(seat, move |bound| {
-                        Box::new(hosted::ReactiveSeat::bound(bound, time_scale, &tally))
+                        Box::new(hosted::ReactiveSeat::bound(bound.at, bound.scale, &tally))
                     }),
-                    Driver::Paced(k) => hosted.hosting(seat, move |_bound| {
+                    Driver::Paced(k) => hosted.hosting(seat, move |bound| {
+                        let pacing = hosted::Pacing {
+                            scale: bound.scale,
+                            ..pacing
+                        };
                         Box::new(hosted::PacedSeat::new(pacing, epoch, k, &tally))
                     }),
                 });
@@ -222,6 +227,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let access = Access {
         admission: Admission::new(invite.token().clone()),
         admin,
+        solo: false,
     };
     // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
     if access.admin.is_some() {

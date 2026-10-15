@@ -39,6 +39,7 @@ async fn start(admin: Option<&str>) -> SocketAddr {
     let access = Access {
         admission: support::admission(),
         admin: admin.map(|token| AdminToken::given(token).expect("a legal token")),
+        solo: false,
     };
     tokio::spawn(async move {
         let _ = app::serve(listener, host, access).await;
@@ -371,12 +372,18 @@ async fn an_invite_holder_cannot_change_time_and_no_body_names_an_instant() {
     for (body, code, error) in [
         (r#"{"at": 999999}"#, 400, "malformed"),
         (r#"{"paused": true, "at": 5}"#, 400, "malformed"),
-        (r#"{"time_scale": 12}"#, 409, "time_scale_fixed"),
+        // TW-c (AC-TWc-6): above 24x only a --solo world may run, and this one is not.
+        (r#"{"time_scale": 25}"#, 409, "fast_forward_solo_only"),
         (
-            r#"{"paused": true, "time_scale": 12}"#,
+            r#"{"paused": true, "time_scale": 25}"#,
             409,
-            "time_scale_fixed",
+            "fast_forward_solo_only",
         ),
+        (r#"{"time_scale": 0}"#, 400, "malformed"),
+        (r#"{"time_scale": 3601}"#, 400, "malformed"),
+        (r#"{"time_scale": "12"}"#, 400, "malformed"),
+        (r#"{"time_scale": 12.5}"#, 400, "malformed"),
+        (r#"{"time_scale": -1}"#, 400, "malformed"),
         ("{}", 400, "malformed"),
         ("not json", 400, "malformed"),
     ] {

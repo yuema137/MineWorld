@@ -133,6 +133,12 @@ impl HostedController for ReactiveSeat {
     fn answered(&mut self, answer: &HostedAnswer) {
         self.counting.answered(answer);
     }
+
+    /// The server has moved the pending consult to `pending`, and the chain goes on one wall second of the
+    /// new scale at a time from there (`ARC-69` item 2): only the step changes.
+    fn rescaled(&mut self, _pending: WorldTime, scale: NonZeroU32) {
+        self.step = i64::from(scale.get());
+    }
 }
 
 /// How often a hosted walker is asked for the next stride of its walk: once a **wall** second.
@@ -148,9 +154,15 @@ const EMBODIED_STEP: i64 = 1;
 /// for its walk's strides once a wall second while it walks.
 pub struct PacedSeat {
     controller: PacedRuleController,
-    /// `genesis + k`: this seat's first instant on the lattice.
+    /// The seed the controller was built with, kept so that a rescale can build it again at the new pace.
+    seed: u64,
+    /// `--cadence` in wall seconds: the lattice's period in wall time, which never changes with the scale.
+    cadence: i64,
+    /// The lattice's origin: `genesis + k` at the binding, and the instant the server moved the pending
+    /// consult to at a rescale (`ARC-69` item 2). Consults are at `first + m·pace` and, while walking,
+    /// `first + n·step`.
     first: i64,
-    /// The pace in world seconds: `--pace` wall seconds times the time scale.
+    /// The pace in world seconds: the cadence in wall seconds times the time scale in force.
     pace: i64,
     /// [`EMBODIED_STEP`] in world seconds: one wall second times the time scale. `pace` is a whole
     /// number of these, so every lattice instant is also a step instant.
@@ -180,9 +192,12 @@ impl PacedSeat {
     /// the world's time long (`PacedRuleController::new`).
     pub fn new(pacing: Pacing, genesis: WorldTime, k: usize, tally: &Tally) -> Self {
         let scale = i64::from(pacing.scale.get());
-        let pace = i64::from(pacing.pace.get()) * scale;
+        let cadence = i64::from(pacing.pace.get());
+        let pace = cadence * scale;
         Self {
             controller: PacedRuleController::new(pacing.seed, SimDuration::from_seconds(pace)),
+            seed: pacing.seed,
+            cadence,
             // Seat k's offset is k wall seconds too, so seats stay spread across ticks at any scale.
             first: genesis
                 .seconds()
@@ -249,6 +264,17 @@ impl HostedController for PacedSeat {
 
     fn answered(&mut self, answer: &HostedAnswer) {
         self.counting.answered(answer);
+    }
+
+    /// The server moved the pending consult to `pending` at a rescale (`ARC-69` item 2). The lattice and the
+    /// strides restart from it at the new scale: consults stay one cadence of wall time apart, and the
+    /// controller is built again at the new pace. (The straddling answer window is set in the next step.)
+    fn rescaled(&mut self, pending: WorldTime, scale: NonZeroU32) {
+        let scale = i64::from(scale.get());
+        self.first = pending.seconds();
+        self.pace = self.cadence * scale;
+        self.step = EMBODIED_STEP * scale;
+        self.controller = PacedRuleController::new(self.seed, SimDuration::from_seconds(self.pace));
     }
 }
 

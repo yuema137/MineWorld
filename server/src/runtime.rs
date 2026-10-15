@@ -36,9 +36,11 @@
 mod control;
 mod delivery;
 mod status;
+#[cfg(test)]
+mod tests;
 mod world;
 
-pub(crate) use control::{ControlAnswer, ControlCommand};
+pub(crate) use control::{ClockChange, ControlAnswer, ControlCommand};
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -100,6 +102,12 @@ pub(crate) struct WorldRuntime {
 
 impl WorldRuntime {
     pub(crate) fn new(hosted: HostedWorld, config: Arc<HostConfig>) -> Self {
+        Self::new_at(hosted, config, Instant::now())
+    }
+
+    /// [`new`](Self::new) with the host clock started at the wall instant `wall`: the entry the tests drive
+    /// with an injected clock.
+    pub(crate) fn new_at(hosted: HostedWorld, config: Arc<HostConfig>, wall: Instant) -> Self {
         let (instance, epoch) = match &hosted.world {
             Hosted::Ephemeral(_) => (WorldInstanceId::allocate(), config.epoch),
             Hosted::Persisted(world) => (
@@ -108,11 +116,13 @@ impl WorldRuntime {
             ),
         };
         let bound = first_binding(&hosted.world, epoch);
+        let clock = HostClock::new(epoch, config.time_scale, wall);
         let table = SeatTable::new(
             hosted.seats.iter().cloned(),
             hosted.hosted,
             config.hold,
             bound,
+            clock.scale(),
         );
         // The kernel's next event identity, read once: the facts before it — genesis included —
         // were recorded before this host, and a perceived stream's live part starts after them.
@@ -121,8 +131,6 @@ impl WorldRuntime {
             .checked_sub(1)
             .filter(|last| *last > 0)
             .map(EventId::from_raw);
-        let wall = Instant::now();
-        let clock = HostClock::new(epoch, config.time_scale, wall);
         let (announced, _) = watch::channel(ClockState {
             at: clock.now_at(wall),
             time_scale: clock.scale().get(),
@@ -383,7 +391,12 @@ impl WorldRuntime {
     /// is still swept, but nobody is consulted and the world is not advanced: the town does not act
     /// and no Process wakes (`PROTOCOL.md` §5.9).
     fn tick(&mut self) {
-        let started = Instant::now();
+        self.tick_at(Instant::now());
+    }
+
+    /// [`tick`](Self::tick) at the wall instant `started`: the one entry the tests drive with an injected
+    /// wall clock (`ARC-42`, AC-TWc-2).
+    pub(crate) fn tick_at(&mut self, started: Instant) {
         let now = self.clock.now_at(started);
         let running = !self.clock.paused();
         self.table.expire(started, now);

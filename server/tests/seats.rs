@@ -282,6 +282,8 @@ impl HostedController for Impostor {
     fn answered(&mut self, answer: &HostedAnswer) {
         let _ = self.answers.send(answer.clone());
     }
+
+    fn rescaled(&mut self, _pending: WorldTime, _scale: std::num::NonZeroU32) {}
 }
 
 #[tokio::test]

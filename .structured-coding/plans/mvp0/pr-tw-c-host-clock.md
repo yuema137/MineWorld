@@ -818,7 +818,8 @@ No TW-c question remains open.
 | C0 | 181278a | done: base origin/main @ 171ea06, 12n-2 on base (#125), AC-TWc-7 applies |
 | C1 | (this commit) | done (docs): ARC-69 (new), notes on ARC-42 and ARC-44, PROTOCOL §§5.9, 10, 11.2, 11.3, MODULE_SPEC §§4.1, 8.1 |
 | C2 | (this commit) | done: `persistence/src/host.rs`, backend `HostRow` and two methods, lazy `host_journal`, `verify` coherence check |
-| C3 … C9 | — | not started |
+| C3 | (this commit) | done: rescale_at, seam `rescaled` + `HostedBinding`, SD-TWc-3/4, `SeatTable::rescale`, admin `time_scale` and 409/400, `Access.solo`, `host/config.rs` move, tests |
+| C4 … C9 | — | not started |
 
 ### Evidence
 
@@ -833,17 +834,50 @@ No TW-c question remains open.
   (exactly 4 tables + index); lazy creation and in-order readback; pinned bytes of each variant; verify refuses a
   decreasing instant naming record 2; damaged record refused by name; coherent journal leaves verification as it was.
   `persistence/tests/save.rs` `Failing` backend gained the two trait methods (delegation only, no edit to its test).
+- C3: `cargo test -p mineworld-server --no-fail-fast` green (lib 55, admin 5, deltas 2, facts 6, frames 14,
+  handshake 7, headless 4, seats 4, two_clients 9); `cargo clippy -p mineworld-server --all-targets -- -D warnings`
+  clean; `runtime.rs` 462 lines, `host.rs` 451, `seats.rs` 391, `admin.rs` 301.
+  New tests: `runtime/world.rs` DA-7 extended to pause/resume/rescale with a model (AC-TWc-1) and
+  `a_rescale_keeps_the_reading_and_changes_only_the_rate`; `runtime/tests.rs` AC-TWc-2 (the paced and
+  reactive probes, injected wall instants, straddling gaps 104 and 87 exact) and the jitter-independence test
+  (AC-TWc-3, in memory); `hosted.rs` tests for SD-TWc-3/4; `seats/tests.rs` for `SeatTable::rescale` and
+  bindings at the scale in force.
+  Mutations (each run red by name, then reverted, then green): M-TWc-1 (paced probe keeps its period) →
+  `a_live_rescale_keeps_every_hosted_cadence` red; M-TWc-2 (pending left unchanged) → the straddling-gap
+  assertion red; M-TWc-3 (rescale without folding the reading) → DA-7 red and the witness red; M-TWc-6 (no
+  `--solo` check) → `server/tests/admin.rs` red at `{"time_scale": 25}` (answered 200); M-TWc-7 (tick-based next
+  instant) → `in_server_consult_instants_do_not_follow_tick_jitter` red and the `hosted.rs` tests red.
+  M-TWc-8, -9, -10 are not C3's (M-TWc-10 was C2; -8 is C7; -9 is C4).
+- Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
+  at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
+  known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
+  consult instants are exactly SD-TWc-5's. For a seat rescaled mid-stride the lattice phase is measured
+  from that instant, not from the tick residue `n ≡ k (mod pace)`; cadence and staggering are unchanged.
+  Recorded for review; not an invariant (INV-TWc-1, -2 hold).
+- Deviation D-TWc-2 (C3): the route names its control command `ControlCommand::Change(ClockChange)` and
+  keeps `ControlCommand::Clock` for the read (SD-TWc-7 said `Clock(ClockChange)`); no behaviour depends on it.
+- Process note (C3): a test was appended to `server/src/seats/tests.rs` with a shell heredoc (`cat >> … <<EOF`),
+  against the operator's "no heredocs" instruction. The content was checked by the test run; no further
+  heredoc or `sed -i` is used. Reported to the operator.
 
 ### Mutations
 
 | Id | Mutation | Expected | Observed |
 | --- | --- | --- | --- |
 | M-TWc-1 … M-TWc-11 | §8 | red | — |
+| M-TWc-1 (C3) | paced probe's `rescaled` keeps its period | a_live_rescale_keeps_every_hosted_cadence red | red at the straddling-gap assertion (paced), reverted, green |
+| M-TWc-2 (C3) | server leaves the pending consult unchanged (`HostedSlot::rescale` skipped) | straddling gap red | red (runtime test and hosted unit test), reverted, green |
+| M-TWc-3 (C3) | `rescale_at` without folding the reading | DA-7 and witness red | red both (DA-7 at its model check; witness), reverted, green |
+| M-TWc-6 (C3) | no `--solo` check on the 409 | server/tests/admin.rs DA-8 row `{"time_scale": 25}` red | red: answered 200, reverted, green |
+| M-TWc-7 (C3) | `HostedSlot::decide` takes its next from the tick's reading (SD-TWc-4 reverted) | jitter test red | red (jitter test, hosted tests), reverted, green |
 | M-TWc-10 (C2, persistence level) | `host_journal` created in `SCHEMA` | `a_save_that_is_never_hosted_has_no_host_journal` red | red by name (`host_journal` listed), reverted, green |
 
 ### Existing tests edited (filled by C3, C5, C6, C7)
 
-None yet.
+- C3: `server/src/runtime/world.rs` DA-7 (AC-TWc-1, extended to rescales with a model); `server/tests/admin.rs`
+  DA-8's `time_scale_fixed` rows replaced by `fast_forward_solo_only` (409) and `malformed` (400) rows, and
+  `Access.solo` set; `server/tests/seats.rs` and `server/src/seats/tests.rs`: the seam (`rescaled`, the
+  `HostedBinding` closure argument, `SeatTable::new`'s scale argument), no assertion changed.
 
 ### Deviations and findings
 

@@ -64,6 +64,10 @@ pub struct Access {
     pub admission: Admission,
     /// The admin token, or `None` for no admin surface at all.
     pub admin: Option<AdminToken>,
+    /// Whether this world is a single-player world (`mineworld server --solo`, `ARC-69` item 5): the
+    /// only kind whose time may be scaled above 24× (`PROTOCOL.md` §11.2). The server selects no other code
+    /// path for it; the caller is responsible for having bound a loopback address when it is set.
+    pub solo: bool,
 }
 
 impl From<Admission> for Access {
@@ -71,6 +75,7 @@ impl From<Admission> for Access {
         Self {
             admission,
             admin: None,
+            solo: false,
         }
     }
 }
@@ -79,7 +84,11 @@ impl From<Admission> for Access {
 /// token, the admin surface. Without one, no `/admin` path exists: each answers `404` as any
 /// unknown path does.
 pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
-    let Access { admission, admin } = access.into();
+    let Access {
+        admission,
+        admin,
+        solo,
+    } = access.into();
     let registry = Arc::new(Registry::default());
     let public = Router::new()
         .route("/health", get(health))
@@ -96,6 +105,7 @@ pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
             host,
             registry,
             token: Arc::new(token),
+            solo,
         })),
         None => public,
     }

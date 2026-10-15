@@ -7,7 +7,7 @@
 //! POST /admin/sessions/{session}/kick   closing {kicked}; the seat returns to its default, no hold
 //! POST /admin/seats/{seat}/release      whoever holds it is closed; the seat returns to its default
 //! GET  /admin/clock                     { at, time_scale, paused }
-//! POST /admin/clock                     { "paused": bool } — pause and resume
+//! POST /admin/clock                     { "paused": bool }, { "time_scale": n }, or both
 //! ```
 //!
 //! Mounted only when the server has an admin token ([`crate::app::Access`]); without one no `/admin`
@@ -20,6 +20,7 @@
 pub(crate) mod registry;
 
 use std::collections::BTreeMap;
+use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use axum::Json;
@@ -38,7 +39,7 @@ use tokio::time::Instant;
 use crate::admission::{AdminToken, Nickname, UNAUTHORIZED_DELAY};
 use crate::host::WorldHost;
 use crate::protocol::SessionId;
-use crate::runtime::{ControlAnswer, ControlCommand};
+use crate::runtime::{ClockChange, ControlAnswer, ControlCommand};
 use crate::seats::SeatReport;
 use registry::Registry;
 
@@ -48,6 +49,8 @@ pub(crate) struct Admin {
     pub(crate) host: WorldHost,
     pub(crate) registry: Arc<Registry>,
     pub(crate) token: Arc<AdminToken>,
+    /// Whether the world is single-player (`--solo`): the only kind that may fast-forward (`ARC-69`).
+    pub(crate) solo: bool,
 }
 
 /// The `/admin` routes, every one behind the bearer check.
@@ -226,36 +229,71 @@ async fn clock(State(admin): State<Admin>) -> Response {
     }
 }
 
-/// What `POST /admin/clock` may carry. `time_scale` is a field the protocol specifies and this
-/// server does not yet change live (TW-c): it is read only to be answered `409`. Any other field is
-/// refused, so no body can name an instant (step-12 SD-D10).
+/// The largest scale a live change may name: one world hour per wall second (`PROTOCOL.md` §11.2).
+const LIVE_SCALE_CEILING: u64 = 3_600;
+
+/// The largest scale a world not started `--solo` may run at: a day in 24 hours of wall time (`ARC-69`).
+const DAY_LENGTH_SCALE: u64 = 24;
+
+/// What `POST /admin/clock` may carry: `paused`, `time_scale`, or both (`PROTOCOL.md` §11.2). Any other
+/// field is refused, so no body can name an instant (step-12 SD-D10). The scale is read as a JSON value so
+/// that a number that is not a whole one, or is a string, is refused as `malformed` rather than guessed at.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ClockChange {
+struct ClockBody {
     paused: Option<bool>,
     time_scale: Option<Value>,
 }
 
+/// The scale a body names, checked against the live range (1 to 3 600). Anything else is `malformed`.
+fn scale_named(value: &Value) -> Result<NonZeroU32, String> {
+    let refusal = || {
+        format!(
+            "time_scale is a whole number of world seconds per wall second, 1 to {LIVE_SCALE_CEILING}"
+        )
+    };
+    let Some(named) = value.as_u64() else {
+        return Err(refusal());
+    };
+    if !(1..=LIVE_SCALE_CEILING).contains(&named) {
+        return Err(refusal());
+    }
+    u32::try_from(named)
+        .ok()
+        .and_then(NonZeroU32::new)
+        .ok_or_else(refusal)
+}
+
 async fn set_clock(State(admin): State<Admin>, body: Bytes) -> Response {
-    let change: ClockChange = match serde_json::from_slice(&body) {
-        Ok(change) => change,
+    let body: ClockBody = match serde_json::from_slice(&body) {
+        Ok(body) => body,
         Err(refusal) => return malformed(refusal.to_string()),
     };
-    if change.time_scale.is_some() {
-        return error(
-            StatusCode::CONFLICT,
-            "time_scale_fixed",
-            Some(
-                "this server's time scale is --time-scale, fixed for the process; a live change \
-                 lands with TW-c"
-                    .to_owned(),
-            ),
+    if body.paused.is_none() && body.time_scale.is_none() {
+        return malformed(
+            "the body is { \"paused\": true | false }, { \"time_scale\": n }, or both",
         );
     }
-    let Some(paused) = change.paused else {
-        return malformed("the body is { \"paused\": true | false }");
+    let time_scale = match body.time_scale.as_ref().map(scale_named).transpose() {
+        Ok(scale) => scale,
+        Err(detail) => return malformed(detail),
     };
-    match ask(&admin, ControlCommand::Pause(paused)).await {
+    // The fast-forward rule (`ARC-69` item 5): above a day in 24 hours only a `--solo` world may run, and
+    // a refusal changes nothing, not even the pause the same body named.
+    if time_scale.is_some_and(|scale| u64::from(scale.get()) > DAY_LENGTH_SCALE) && !admin.solo {
+        return error(
+            StatusCode::CONFLICT,
+            "fast_forward_solo_only",
+            Some(format!(
+                "only a world started --solo may run above {DAY_LENGTH_SCALE}x; this one may not"
+            )),
+        );
+    }
+    let change = ClockChange {
+        paused: body.paused,
+        time_scale,
+    };
+    match ask(&admin, ControlCommand::Change(change)).await {
         Ok(ControlAnswer::Clock(state)) => Json(state).into_response(),
         Ok(other) => unexpected(&other),
         Err(response) => response,
