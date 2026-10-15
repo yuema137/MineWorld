@@ -1591,7 +1591,7 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| A0 | — | [ ] | [ ] | [ ] |
+| A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
 | A1 | — | [ ] | [ ] | [ ] |
 | A2 | — | [ ] | [ ] | [ ] |
 | A3 | — | [ ] | [ ] | [ ] |
