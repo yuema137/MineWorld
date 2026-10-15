@@ -1459,6 +1459,12 @@ or `tools/asset_generation/` changed.
   red, reverted green; 73 pytest passed. **G-6 re-run alone on `r3`'s export** (`S/logs/gate_r3_g6new.txt`): G-6 PASS, every
   one of the 18 joints inside, smallest margins `Neck` 26.0 mm, `RightHand` 37.4 mm, `LeftUpLeg` 40.6 mm; `Spine` 125.9 mm,
   `Spine2` 88.5 mm. The whole `gate` exits 0, so **AB1-10 PASS**; `rederive_report.json` updated. Winter stays INCONCLUSIVE.
+- **CI on `5073119` (merge of `origin/main`; `docs/DECISIONS.md` conflict resolved by keeping main's records and appending
+  ARC-94, DEP-51, DEP-52, DEP-55 after DEP-57):** `python (windows-2025)` failed at
+  `test_the_blender_command_line_is_the_argument_list_of_the_design`: the expected list held POSIX strings while
+  `blender.command` renders `str(Path)`, which is backslashed on Windows (masked on `204c9be`, where the layer stopped at
+  the cognition test first). Routine repair: the test expects `str(Path(...))`. The code under test is unchanged.
+  73 pytest passed locally; ruff, format, pyright clean.
 - **F-B1-B10-4 (minor, recorded, not fixed; follow-up for S26-b2 by ruling):** `gameready.py:191` records `dec.ratio` after
   `modifier_apply` removed the modifier, a dangling RNA read inherited from `gameready_mesh.py:93`'s print. The recorded
   `decimate_ratio` is garbage and differs between runs (`r1` 2.65e20, `r3` 0.0); nothing reads it and the geometry is

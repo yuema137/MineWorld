@@ -89,19 +89,21 @@ def test_the_blender_command_line_is_the_argument_list_of_the_design() -> None:
     script = Path("/repo/blender/export.py")
     params = Path("/run/params.json")
 
+    # Paths are rendered by the platform (`str(Path)`: backslashes on Windows), so the expected list is too.
     assert blender.command(binary, script, params, None) == [
-        "/opt/blender",
+        str(binary),
         "--background",
         "--factory-startup",
         "--python-exit-code",
         "1",
         "--python",
-        "/repo/blender/export.py",
+        str(script),
         "--",
-        "/run/params.json",
+        str(params),
     ]
-    with_blend = blender.command(binary, script, params, Path("/run/weights_fingers.blend"))
-    assert with_blend[3] == "/run/weights_fingers.blend"
+    blend = Path("/run/weights_fingers.blend")
+    with_blend = blender.command(binary, script, params, blend)
+    assert with_blend[3] == str(blend)
 
 
 def test_the_pin_refuses_another_version_and_accepts_the_named_one() -> None:
