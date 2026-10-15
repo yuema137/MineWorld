@@ -24,13 +24,35 @@ mod social;
 use std::collections::BTreeMap;
 
 use mineworld_contracts::EventEnvelope;
-use mineworld_employment::{Hired, ShiftStarted};
 use mineworld_presence::Arrived;
 use mineworld_schedule::AgendaChanged;
 use mineworld_worldpack::WorldPack;
 
 use headless::{Tables, fresh, mineworld};
 use social::decoded;
+
+/// An entity reference as a fact's JSON carries it: `{"entity": "7", "entity_type": "person"}`, whose `entity` is a
+/// decimal string (`PROTOCOL.md` §7), read as the number it is.
+fn id_of(value: &serde_json::Value) -> Option<u64> {
+    let entity = value.get("entity").unwrap_or(value);
+    entity.as_u64().or_else(|| entity.as_str()?.parse().ok())
+}
+
+/// `shift-started`'s payload, read as the JSON it is stored as, so that this test needs no employment crate
+/// (ARC-35 item 3: market packs are depended on only from `systems/`): the employee, and whether they were present.
+fn shift_started(fact: &EventEnvelope) -> Option<(u64, bool)> {
+    let value: serde_json::Value = serde_json::from_slice(fact.payload().payload()).ok()?;
+    Some((id_of(&value["employee"])?, value["present"].as_bool()?))
+}
+
+/// `hired`'s payload as JSON: the employee, and the workplace of the job.
+fn hired(fact: &EventEnvelope) -> Option<(u64, u64)> {
+    let value: serde_json::Value = serde_json::from_slice(fact.payload().payload()).ok()?;
+    Some((
+        id_of(&value["employee"])?,
+        id_of(&value["job"]["workplace"])?,
+    ))
+}
 
 const MARKET: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 const DAYS: &str = "7";
@@ -223,8 +245,12 @@ fn measure(pace: &str, scale: &str) -> (String, bool) {
         }
     }
 
-    let shifts: Vec<ShiftStarted> = facts.iter().filter_map(decoded::<ShiftStarted>).collect();
-    let present = shifts.iter().filter(|shift| shift.present()).count();
+    let shifts: Vec<(u64, bool)> = facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "shift-started")
+        .filter_map(shift_started)
+        .collect();
+    let present = shifts.iter().filter(|(_, present)| *present).count();
     let clause_2 = per_cent(present, shifts.len()) >= 80.0;
 
     let holds = clause_1 && clause_2;
@@ -293,11 +319,13 @@ fn shift_presence_diagnostic_at_the_default_pace() {
     for fact in &facts {
         match fact.event_type().as_str() {
             "hired" => {
-                let hired: Hired = decoded(fact).expect("employment's fact");
-                workplace.insert(
-                    hired.employee().entity_id().raw(),
-                    hired.job().workplace().entity_id().raw(),
-                );
+                let (employee, place) = hired(fact).unwrap_or_else(|| {
+                    panic!(
+                        "hired carries an employee and a workplace: {}",
+                        String::from_utf8_lossy(fact.payload().payload())
+                    )
+                });
+                workplace.insert(employee, place);
             }
             "arrived" => {
                 let arrived: Arrived = decoded(fact).expect("presence's fact");
@@ -307,12 +335,12 @@ fn shift_presence_diagnostic_at_the_default_pace() {
                 arrivals.push((fact.at().seconds(), person, place));
             }
             "shift-started" => {
-                let shift: ShiftStarted = decoded(fact).expect("employment's fact");
-                let person = shift.employee().entity_id().raw();
+                let (person, present) =
+                    shift_started(fact).expect("shift-started carries presence");
                 shifts.push((
                     fact.at().seconds(),
                     person,
-                    shift.present(),
+                    present,
                     location.get(&person).copied(),
                 ));
             }

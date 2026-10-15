@@ -43,7 +43,6 @@ mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-relationships = { path = "systems/relationships" }
 mineworld-schedule = { path = "systems/schedule" }
-mineworld-employment = { path = "systems/employment" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-sdk = { path = "sdk/rust" }
 mineworld-conversation = { path = "systems/conversation" }
