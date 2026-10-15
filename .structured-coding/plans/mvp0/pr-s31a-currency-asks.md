@@ -1,14 +1,15 @@
 # PR S31-a — Currency as data, seller asks for Persons and Organizations, and one atomic settlement
 
-## DRAFT — not frozen (awaiting the operator's answers to §14 and the freeze)
+## DRAFT — not frozen (§14 ruled 2026-10-15; the freeze waits for Milestone F's checklist)
 
 ```text
 Design revision:        revision 1 (2026-10-15), DRAFT
 Author:                 S31-a PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31a, branch docs/pr-design-s31a,
                         planning base origin/main @ dd357ca6 (#222, step-31 APPROVED, merged)
-Approved by / evidence: none yet. §14 holds four questions. The freeze header is the primary session's to
-                        write, after the operator's answers; this file never marks itself frozen
+Approved by / evidence: §14.1: Q-S31a-1 … 3 ruled by the operator (answered directly in the primary
+                        session), Q-S31a-4 by the primary, 2026-10-15; relayed by the coordinator. Not
+                        frozen: the freeze header is the primary session's to write, after Milestone F
 Implementation base:    origin/main at C0; C0 records the commit and the merge state of 12d (#171),
                         WE-a (#189), S25a (#200) and S29-b
 Start condition:        step-31 §16.5: nothing in S31 starts until Milestone F's checklist has been handed
@@ -36,8 +37,8 @@ then S31-c, S31-e, S31-g, S31-h · **Binding parents:** `CLAUDE.md` §§2, 3, 4 
 `grep -n "ARC-11[1-8]\|DEP-63" docs/DECISIONS.md`, no match). This PR writes **`ARC-111`** (currency),
 **`ARC-112`** (asks and settlement), **`ARC-113`** (reference value), **`ARC-114`** (wealth view; the
 `wealth-band` half is added by S31-f as a dated note, SD-S31a-8) and **`DEP-63`** (money and matching
-libraries declined). It writes dated notes under `ARC-38` (item 5 lifted; QS-44 superseded) and, if Q-S31a-1
-is ruled as recommended, under `ARC-35`. `ARC-115` … `ARC-118` belong to S31-b … S31-h. No other id is used.
+libraries declined). It writes dated notes under `ARC-38` (item 5 lifted; QS-44 superseded) and under `ARC-35`
+(Q-S31a-1, ruled (a)). `ARC-115` … `ARC-118` belong to S31-b … S31-h. No other id is used.
 
 No hosted model is called by this design or by anything it specifies for CI.
 
@@ -118,13 +119,13 @@ gains its currency and nothing else; its re-baseline is the vocabulary change on
    read from genesis `listed`; the I-S31-3 sale scan), `market_composition.rs` ("without economy" also drops
    the configuration, F-S31a-7), new `market_settlement.rs` (AC-S31-4 kills, AC-S31-6 rename, the
    vocabulary-parity measurement).
-4. **`tests/acceptance/tests`**: `ac1_composability.rs` (only if Q-S31a-1 is ruled (a)); new
+4. **`tests/acceptance/tests`**: `ac1_composability.rs` (Q-S31a-1 ruled (a)); new
    `currency_names.rs` (I-S31-11).
 5. **`clients/agent/tests/fixtures`**: the three recordings re-recorded and `SOURCE.md` re-hashed (F-S31a-10).
    No `clients/agent/src` change (S31-g).
 6. **`scripts/baselines.txt`**: `[world market-town]` re-recorded with one `reason S31-a` line (Q-S31-3).
-7. **Documentation**: `docs/DECISIONS.md` (`ARC-111` … `ARC-114`, `DEP-63`, dated notes under `ARC-38`, and
-   `ARC-35` if Q-S31a-1 (a)); `docs/MODULE_SPEC.md` §4.1 economy row and the `configure/economy.yaml`
+7. **Documentation**: `docs/DECISIONS.md` (`ARC-111` … `ARC-114`, `DEP-63`, dated notes under `ARC-38` and
+   `ARC-35`, Q-S31a-1 ruled (a)); `docs/MODULE_SPEC.md` §4.1 economy row and the `configure/economy.yaml`
    reference; `docs/CORE_CONCEPTS.md` §7 and §8 notes; `docs/ARCHITECTURE.md` one paragraph (step §19.3).
 
 ### 2.2 Not in scope, and where it goes
@@ -304,7 +305,7 @@ price_modifiers: []   # WE-a's key, optional, unchanged
   it fails at its line with "missing field `currency`"; each bound is a `try_from` with a message naming the
   key. `deny_unknown_fields`.
 - **`FACTS`** = `[currency-declared]` (+ WE-a's `economy-configured`). `seed` states one `currency-declared {
-  name, symbol, exponent, symbol_at }`, visibility per Q-S31a-2 (recommended `SystemInternal`, no subjects), so
+  name, symbol, exponent, symbol_at }`, `SystemInternal`, no subjects (Q-S31a-2, ruled), so
   `ARC-61` item 7's drift check covers renaming a saved world's currency.
 - **Where it lives.** Economy's reduction of `currency-declared` starts one `CurrencyProcess` (`ProcessTypeId`
   `economy-currency`), never woken, holding `CurrencyState` — WE-a's `price-book` precedent (A-16): no entity
@@ -350,7 +351,7 @@ Genesis facts, in order, per file: `funded`; for a shop, `shop-opened { place, o
 (`Public`, at the place) then one `listed { seller: operator, item, price }` per price (`Place(shop)`); for a
 person's `asks`, one `listed { seller: person, item, price }` per ask, audience `Entities({person})`
 (SD-S31a-13: a person's place is not yet reduced when sections are seeded); for an item, `reference-declared {
-item, value }` (visibility per Q-S31a-2).
+item, value }`, `SystemInternal` (Q-S31a-2, ruled).
 
 ### 5.5 Actions, payloads and requirements (step §5.2, §5.4)
 
@@ -390,7 +391,7 @@ or exceed `PRICE_MAX` is `FactRefusedByOwner`.
 
 **Offers** (SD-S31a-6). To a living person, target `None`: one incomplete `list-for-sale` when it, or a shop it
 keeps and stands in, holds an unlisted kind; one incomplete `set-price` when it or that shop has an ask; and
-`withdraw` per Q-S31a-3 (recommended: one incomplete offer, under the same condition as `set-price`). Each is
+one incomplete `withdraw` under the same condition as `set-price` (Q-S31a-3, ruled). Each is
 offered at most once per action type, because an incomplete offer carries no payload that could tell "for me"
 from "for the shop".
 
@@ -492,7 +493,7 @@ after `weather`. Nothing else changes in content except the comment of F-S31a-14
 | Defect path | X-11 (planted, reverted) | `settlement.rs` |
 | Real binary | Market Town 30/300 days and the composition cases through the updated mirror and the sale scan; AC-S31-4 kills; AC-S31-6 rename; AC-S31-7 validate | `tools/cli/tests/market_town.rs`, `market_composition.rs`, `market_settlement.rs` |
 | Measurement (evidence, `#[ignore]`) | AC-a-9 vocabulary parity against the base save | `market_settlement.rs::vocabulary_only` |
-| Scans | I-a-9 currency names; AC-1 (if Q-S31a-1 (a)) | `tests/acceptance/tests/` |
+| Scans | I-a-9 currency names; AC-1 check 3 as amended (Q-S31a-1) | `tests/acceptance/tests/` |
 | Long | AC-S31-9 and the re-baseline, from one `parity-long` record | nightly dispatch on the branch (C7) |
 | Gate 1 | NOT REQUIRED: no LLM-facing surface changes in S31-a | — |
 
@@ -507,7 +508,7 @@ economy reports about itself (test rules §25).
 | --- | --- | --- |
 | AC-a-1 | **Two sellers, two prices.** Fixture: the store asks 300 for bread; Grace (a person, `asks: { bread: 260 }`, holding 2) stands 2 m from Alice. Alice buys one from each: two `sold` (300, 260), Alice's wallet falls by exactly 560, store +300, Grace +260, Alice holds 2 bread, each sale's three facts share one cause | AC-S31-1 |
 | AC-a-2 | **Stale price.** Bob observes the store's bread at 300; keeper Felix `set-price` 320; Bob submits the observed complete offer unchanged → `System { code: price-changed }`; state bytes before = after | AC-S31-2 |
-| AC-a-3 | **Each named refusal, and nothing moves:** `not-for-sale`, `insufficient-funds`, `out-of-stock`, `cannot-carry`, `TooFarAway` (3.1 m from Grace; Grace in another place), `PermissionDenied` (non-keeper `for: shop`), `already-listed`, `price-out-of-range` (0 and `PRICE_MAX + 1`), `not-held`, `price-unchanged`, SelfTrade `PreconditionFailed`, NoSuchSeller `NoSupportedInteraction` (in no shop, no target) — each by dispatch and, where an offer exists, by the offer's refusal, each with state bytes unchanged | AC-S31-3 (as Q-S31a-4 rules) |
+| AC-a-3 | **Each named refusal, and nothing moves:** `not-for-sale`, `insufficient-funds`, `out-of-stock`, `cannot-carry`, `TooFarAway` (3.1 m from Grace; Grace in another place), `PermissionDenied` (non-keeper `for: shop`), `already-listed`, `price-out-of-range` (0 and `PRICE_MAX + 1`), `not-held`, `price-unchanged`, SelfTrade `PreconditionFailed`, NoSuchSeller `NoSupportedInteraction` (in no shop, no target) — each by dispatch and, where an offer exists, by the offer's refusal, each with state bytes unchanged | AC-S31-3 (wording amended, Q-S31a-4) |
 | AC-a-4 | **No half-trade across a kill.** `run worlds/market-town --seed 7 --days 10 --save` SIGKILLed at 20 wall offsets (SplitMix64 seed 31, uniform in [0.05, 0.95] × the control's wall time), each resumed by a new process: every save satisfies I-a-3 and I-a-5, and every survivor's facts, journal and sealed blocks equal the control's byte for byte; at least 5 kills land with a non-empty re-executed tail | AC-S31-4 |
 | AC-a-5 | **Property.** Over 10 000 seeded states (wallets 0 … 2 000, seller holdings 0 … 3, buyer carrying 0 … 6, asks 1 … 1 500, buyer at 0 … 6 m, seller a person or a shop), whenever `validate` admits a `buy`, dispatch returns `Accepted` with exactly the three facts and no `KernelError`; and the offer's verdict equals `validate`'s in every state | AC-S31-4 (property) |
 | AC-a-6 | **Currency renames with zero code.** A scratch copy of Market Town whose `configure/economy.yaml` is `{ name: crown, symbol: cr, exponent: 0, symbol_at: after }`, 30 days seed 7: its fact log equals the original's except the `currency-declared` payload; the `currency` record differs only in those four fields; no file outside the copy differs | AC-S31-6 (the economy half; client and agent halves are S31-e and S31-g) |
@@ -573,7 +574,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
   4. Build the base binary (`cargo build -p mineworld-cli`) and write the base Market Town save for AC-a-9
      (`target/debug/mineworld run worlds/market-town --headless --seed 7 --days 30 --save
      target/s31a-base/market-town-30`), recording its sha256 and the commit. Not committed.
-  5. Record Q-S31a-1 … 4's rulings into §14.1 and the design (the primary's freeze header must exist).
+  5. Confirm the primary's freeze header exists and §14.1's rulings are unchanged.
 - [ ] Implementation. [ ] Validation: `python3 scripts/ci_layer.py docs`. [ ] Review: §2.3 holds on the base.
 - **Commit message:** `docs(plan): S31-a — open the ledger at the base`
 
@@ -588,7 +589,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
      `ARC-113` (reference value, never charged), `ARC-114` (wealth view; S31-f adds the band), `DEP-63` (step
      §19.4's text and §4 here), in the file's record format at its end.
   2. Dated notes: under `ARC-38` (item 5 lifted; item 3's `buy { item }` and `TargetUnavailable` superseded by
-     `ARC-112`); under `ARC-35`, only if Q-S31a-1 is ruled (a): `configure/` admits the configuration of the six
+     `ARC-112`); under `ARC-35` (Q-S31a-1, ruled (a)): `configure/` admits the configuration of the six
      market packs.
   3. `MODULE_SPEC.md` §4.1: the economy row (§5.4's keys and carriers, refusals) and a `configure/economy.yaml`
      entry (§5.2); `CORE_CONCEPTS.md` §7 (an item kind may carry an authored reference value, never a price),
@@ -606,7 +607,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
 - **Files:** `systems/economy/{Cargo.toml (unchanged unless S25a), src/{configuration.rs, currency.rs,
   event.rs, system.rs, lib.rs}, tests/{currency.rs, support/mod.rs}}`; `worlds/market-town/{world.yaml,
   configure/economy.yaml, organizations/cafe-company.yaml (comment only), README.md}`;
-  `tools/cli/tests/market_composition.rs`; `tests/acceptance/tests/ac1_composability.rs` (only if Q-S31a-1 (a));
+  `tools/cli/tests/market_composition.rs`; `tests/acceptance/tests/ac1_composability.rs` (Q-S31a-1);
   S25a's generated reference files (only if S25a merged).
 - **Steps:**
   1. `Currency` and its bounded field types; `EconomyConfiguration` (new, or WE-a's extended); `impl
@@ -619,7 +620,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
   7. Market Town: the file (§5.10), the `configure:` entry, the comment of F-S31a-14 (it now says shops may sell
      any kind, `ARC-112`; the café sells food and drink by choice).
   8. `market_composition.rs`: `without("economy")` also deletes `configure/economy.yaml` (F-S31a-7).
-  9. If Q-S31a-1 (a): `ac1_composability.rs` admits a market pack's configuration in `compare_configure` and the
+  9. `ac1_composability.rs` (Q-S31a-1, ruled (a)) admits a market pack's configuration in `compare_configure` and the
      `configure/` loop; its unit test gains the two mutations (a market pack's file in Social Café; a market pack
      configured but not enabled), each red by name.
 - **Validation:** `--test currency` (decode bounds at line and column; record disclosed to two observers, one
@@ -749,9 +750,9 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
 
 - **R-WEa-a-1 (on WE-a C4/C5, if it lands second).** Extend `EconomyConfiguration` beside `currency`; read
   `effective_price` over the operator's `Asks`; Market Town's file keeps `currency`. WE-a C5 meets AC-1 check 3
-  as ruled by Q-S31a-1.
+  as amended by Q-S31a-1 (a), so its `configure/economy.yaml` is admitted too.
 - **R-S31b-a-1 (on S31-b).** Complete `subscribe`/`unsubscribe` offers are taken at random by generic controllers
-  (A-19); decide their completeness under Q-S31a-3's ruling.
+  (A-19); as ruled (Q-S31a-3), both are offered incomplete (step §8.2, dated note).
 - **R-S31c-a-1 (on S31-c).** Name price-survey's component and process so they do not collide with WE-a's
   `price-book` (F-S31a-11).
 - **R-S31e-a-1 (on S31-e).** Read the `currency` record (§5.3) and the `asks` view; incomplete
@@ -760,7 +761,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31a`. Never `c
   band path; mirrors in `market/mod.rs` already read `listed` and `sold`.
 - **R-S31g-a-1 (on S31-g).** `OfferLine.price` for person-seller buys comes from the payload's `price`; the
   economy S28 renderer, if S28-d has merged.
-- **R-S31h-a-1 (on S31-h).** `accept`/`decline` completeness under Q-S31a-3; acceptance reuses `judge_sale`
+- **R-S31h-a-1 (on S31-h).** `accept-proposal`/`decline-proposal` are offered incomplete (Q-S31a-3, ruled; step §5.9 dated note); acceptance reuses `judge_sale`
   steps 5–9 and `settle`.
 
 ## 11. Bounded decisions (recorded; not operator questions)
@@ -799,7 +800,7 @@ BRANCH:                  mvp0/pr-s31a, created from origin/main
 START CONDITION:         Milestone F's checklist handed to the operator (step-31 §16.5) AND 12d (#171)
                          merged AND this design frozen AND the primary session's dispatch     (step; primary)
 IMPLEMENTATION BASE:     origin/main at C0; C0 records it
-APPROVED SCOPE:          §2.1 items 1–7, as §14's rulings shape them                         (to be ruled)
+APPROVED SCOPE:          §2.1 items 1–7, as §14.1's rulings shape them        (operator and primary, 2026-10-15)
 FROZEN INVARIANTS:       step-31 I-S31-1 … I-S31-6, I-S31-9 … I-S31-11 (their S31-a parts); §6 I-a-1 … I-a-11;
                          §8 as written; Q-S31-3 (two re-baselines; this PR's is C7, rebased last)
 SEQUENCE:                C0 … C8 (§9)
@@ -874,9 +875,17 @@ time. CI on the exact final head is the gate; the long record comes from the one
 | **Q-S31a-3 [operator / primary — step §5.6, offers]** | The rule and motivated controllers attempt any available complete affordance at random (`offered.rs:26-52`, `options.rs:285-289`). A complete `withdraw` per ask would make every NPC seller withdraw its asks at random once S31-f adds keepers and person sellers (F-S31a-5). Offer `withdraw` complete, as the step says? | **Offer `withdraw` incomplete**, like `set-price`: only a controller that chooses to (a pricing policy, a human, an agent's typed tool) withdraws. The same rule should guide S31-b's `subscribe`/`unsubscribe` and S31-h's `accept`/`decline` (R-S31b-a-1, R-S31h-a-1). The alternative, a per-action opt-out in the generic controllers, changes frozen controller constants (`offered.rs:17-20`, `ARC-35` point 6) |
 | **Q-S31a-4 [primary — AC-S31-3's wording]** | AC-S31-3 lists "`TooFarAway` (3.1 m from a person seller; outside a shop)". A shop `buy` names no shop — the shop is the place the buyer stands in — so "outside a shop" is `NoSuchSeller` (`NoSupportedInteraction`, step §5.5; today's behaviour, `tests/buy.rs:157-163`), never `TooFarAway` (F-S31a-15). Amend the criterion? | **Yes:** `TooFarAway` for a person seller 3.1 m away or in another place; `NoSupportedInteraction` for a buyer in no shop with no target. AC-a-3 is written that way. No code or contract differs; only the step's sentence |
 
-### 14.1 Rulings
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S31a-1 | **(a), as recommended.** Admit the configuration of the enabled market packs, in Market Town only, with a dated `ARC-35` note and the two mutations. WE-a C5's `configure/economy.yaml` is admitted by the same change. Applied: §2.1 item 4, C1 step 2, C2 step 9, §7, R-WEa-a-1 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S31a-2 | **As recommended.** `currency-declared` and `reference-declared` are `SystemInternal` and reach observers only through the `currency` record. Step §4.1 and §6.1 amended with dated notes in this PR. Applied: §5.2, §5.4, C1 step 1 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S31a-3 | **As recommended.** `withdraw` is offered incomplete. The same rule applies to S31-b's `subscribe`/`unsubscribe` and S31-h's `accept-proposal`/`decline-proposal`. Step §5.6, §5.9 and §8.2 amended with dated notes in this PR. Applied: §5.6, C4 step 3, R-S31b-a-1, R-S31h-a-1 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| Q-S31a-4 | **Yes.** AC-S31-3's wording amended in the step (dated note): `TooFarAway` for a person seller 3.1 m away or in another place; `NoSupportedInteraction` for a buyer in no shop with no target. Applied: AC-a-3 | Ruled 2026-10-15 (primary) |
+
+No question remains open. The design stays DRAFT until the coordinator asks the operator to freeze it, after
+Milestone F's checklist.
 
 ---
 
