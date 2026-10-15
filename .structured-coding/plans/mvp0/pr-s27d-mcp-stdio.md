@@ -7,12 +7,14 @@ Design revision:        revision 1 (2026-10-15), DRAFT
 Author:                 S28-a / S27-d PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28a-s27d, branch docs/s28a-s27d-designs,
                         planning base origin/main @ 2d07c6c; designed against PR #204 (S27-c) head dffe845
-Approved by / evidence: none yet. The primary session freezes; the operator answers §14
+Approved by / evidence: §14 ruled 2026-10-15: QS27d-1 by the operator (answered directly in the primary
+                        session), QS27d-2 by the primary; relayed by the coordinator. The freeze header is
+                        the primary session's to write
 Implementation base:    origin/main at C0, with S27-c (#204) merged; C0 records the commit and the merge
                         state of S27-b
 Start condition:        step-27 §11.4: S27-c merged (#204: approved, not merged at 2d07c6c), this design
                         frozen, the primary session's dispatch
-Execution contract:     §12 (filled; endpoint authority unresolved until the freeze)
+Execution contract:     §12 (filled, endpoint authority included)
 Implementer:            Haiku-class (step-27 §11.4); reviewer the primary session
 Lifecycle:              DRAFT
 ```
@@ -33,9 +35,8 @@ agent is agent-native and information-rich. Read as two checkable rules (§3.2):
 `Player` result reaches the agent through a tool whose `outputSchema` types it**, and **every field and tool
 carries its meaning in its schema** (descriptions), so an agent learns the surface from the tool list alone.
 
-**Decision records.** `DEP-56` (assigned; written in C0 per step-27 §11.4). No new id is needed; if the
-primary prefers a record for the low-level registration choice (§4.2), it is placeholder `ARC-S27d-1`
-(proposed `ARC-105`).
+**Decision records.** `DEP-56` (assigned; written in C0 per step-27 §11.4). It records the low-level
+registration choice of §4.2. No other id is used (primary, 2026-10-15).
 
 No model is called by this design or by anything it specifies for CI.
 
@@ -89,7 +90,7 @@ byte the agent or a log sees, and frames the server cannot tell from a plain cli
 3. **`clients/agent/src/mineworld_agent/__main__.py`** — the console script `mineworld-agent` with the
    subcommands `mcp` and `schema` (§5.8); `[project.scripts]` in the member's `pyproject.toml`.
 4. **Three additive changes to the S27-c library** (§5.3), each small and unit-tested:
-   (a) `AgentModel` gains `use_attribute_docstrings=True`, so every field's docstring becomes its schema
+   (a) (QS27d-2, ruled) `AgentModel` gains `use_attribute_docstrings=True`, so every field's docstring becomes its schema
    `description` (the information-richness rule); (b) `Player.inbox(Seated) -> InboxStatus` (read-only: unread,
    dropped, newest `EventRef`) and a constructor hook `on_inbox: Callable[[str], None] | None` called by the
    drain when a handle's inbox gains facts; (c) `ToolError`, the typed body of every error result.
@@ -156,7 +157,7 @@ accepts an `is_error` result with no `structuredContent` from a tool that declar
 | ID | Finding | Resolution |
 | --- | --- | --- |
 | **F-S27d-1** | With the high-level `MCPServer`, a tool `observe(args: ObserveArgs)` publishes an input schema nested under `args` (X-5), so the published `inputSchema` would **not** be `ObserveArgs`'s schema, and the agent would see one extra level. R-S27d-c-1 asks for the models unchanged. | Register on the **low-level `Server`** with `input_schema = Args.model_json_schema()` and `output_schema = Result.model_json_schema()` (§4.2). The low-level server does not validate arguments (X-6), so dispatch validates them with the model, strictly (§5.2). |
-| **F-S27d-2** | An error result cannot carry a `structuredContent` that conforms to the success model (X-4), and a refusal is not a `*Result`. | Errors are `isError: true` results whose text is the JSON of a typed `ToolError` (§5.4), whose schema is a resource and part of each tool's description. **QS27d-1** asks whether to instead widen every `outputSchema` to a union with the error. |
+| **F-S27d-2** | An error result cannot carry a `structuredContent` that conforms to the success model (X-4), and a refusal is not a `*Result`. | Errors are `isError: true` results whose text is the JSON of a typed `ToolError` (§5.4), whose schema is a resource and part of each tool's description. **QS27d-1, ruled 2026-10-15 (operator): this shape**, and the schema published as the resource `mineworld://reference/agent-errors`. |
 | **F-S27d-3** | The step lists resources `mineworld://guide/play-as-an-agent` and `mineworld://reference/{page}` (step §5.8). The guide does not exist until S27-f; reading repository files at run time would break AC-S27-2 ("opens no file but its `--state-dir`"). | S27-d serves only resources produced in process (§5.5). The documents become package data in S27-f, which adds those two resources (a requirement on S27-f, §10). |
 | **F-S27d-4** | `Unavailable` (no enabled System provides the action) cannot be reached through the adapter: the adapter only sends what the newest observation offers available, and no market-town action lacks its System. | AC-S27-3's `Unavailable` arm stays unit-owned (S27-c's `test_outcomes.py`) plus an MCP rendering test here; the `PermissionDenied` arm runs against the real binary (§8 AC-d-6). |
 | **F-S27d-5** | `PermissionDenied` through the adapter shows as an offer `unavailable: { reason: permission_denied }`, and `say`/`attempt` on it answer `refused { not_offered }` (INV-S27-3's local refusal), whereas a plain client that sends anyway gets `Rejected(PermissionDenied)`. | AC-S27-3 is checked as: the adapter's offer line carries the same reason as the plain client's affordance, and the plain client's send is rejected with it (§8 AC-d-6). Recorded, no surface change. |
@@ -443,8 +444,8 @@ MINEWORLD_BIN=/tmp/impl-s27d-target/debug/mineworld` (D-10's `binary()` reads `M
   4. Prototype tests inside `test_mcp_confined.py` (they stay as regression tests): P-1 a low-level `Server` with
      one `Tool(input_schema=S, output_schema=T)` lists exactly `S` and `T` through the in-memory `Client`; P-2 a
      call answering `is_error=True` with only text content is accepted by the `Client` for a tool that declares
-     an output schema (if the `Client` raises, record it — QS27d-1 recommendation (b) then becomes the only
-     option, a material stop for the primary).
+     an output schema (if the `Client` raises, record it and stop: QS27d-1 ruled the `isError` shape, so a
+     client that rejects it is a material stop for the primary).
 - Validation: `uv run --locked pytest clients/agent/tests/test_mcp_confined.py`; ruff; pyright. Mutation
   **M-d-1** (`import mcp` in `player.py`) → `test_mcp_is_confined_to_the_adapter_module` red.
 - [ ] Implementation: steps 1–2. [ ] Validation: steps 3–4, M-d-1. [ ] Review: no GPL-family licence in the
@@ -603,7 +604,7 @@ MINEWORLD_BIN=/tmp/impl-s27d-target/debug/mineworld` (D-10's `binary()` reads `M
 | `step-27-agent-players.md` §5.8 | the guide and reference-page resources move to S27-f (F-S27d-3) |
 | `step-27-agent-players.md` §9.2 step 9 | the take-back uses a `:take-over` grant (S27-a merged) |
 | `step-27-agent-players.md` §16 AC-S27-3 | as AC-d-6 reads it (F-S27d-4, F-S27d-5) |
-| `step-27-agent-players.md` §5.1 | refusals of non-act tools are `isError` results with a typed `ToolError` (as QS27d-1 rules) |
+| `step-27-agent-players.md` §5.1 | refusals of non-act tools are `isError` results with a typed `ToolError` whose schema is the resource `mineworld://reference/agent-errors` (QS27d-1, ruled 2026-10-15) |
 | `overall.md` | S27-d frozen / merged; `DEP-56` used |
 
 ---
@@ -641,11 +642,15 @@ VALIDATION BUDGET:       unit files unrestricted, one at a time; each real-binar
                          CI: the PR's runs. Gate 1: NOT REQUIRED
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s27d.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved until the freeze  (primary)
-                         semantic commits: authorized once frozen                         (working rules §14)
-                         branch push, PR creation / update, CI repair: authorized once frozen (§21)
-                         merge: never by the implementation session; only with the operator's explicit
-                         authorization after the primary's review (§22)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
+                                                                          (primary, 2026-10-15)
+                         semantic commits: authorized                     (working rules §14)
+                         branch push: authorized                          (working rules §21)
+                         PR creation / update: authorized                 (working rules §21)
+                         CI repair to review readiness: authorized        (working rules §21)
+                         endpoint: the PR READY FOR OPERATOR REVIEW
+                         merge: NOT authorized — never by the implementation session; only with the
+                         operator's explicit authorization after the primary's review (working rules §22)
 POST-MERGE SYNC OWNER:   primary: step-27, overall.md; implementation session: this ledger
 STOP CONDITION:          S27-d READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
@@ -672,6 +677,15 @@ STOP CONDITION:          S27-d READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- |
 | **QS27d-1 [operator — the agent-facing error shape]** | A refusal of a non-act tool (`unknown_handle`, `seat_lost`, `unknown_ref`, `join_refused`, `invalid_arguments`) cannot be a `structuredContent` conforming to the tool's success `outputSchema` (X-4). Report it (a) as an `isError: true` result whose text is the JSON of a typed `ToolError`, the schema published as a resource and named in every tool description, or (b) by widening every tool's `outputSchema` to `oneOf [<Result>, ToolError]` so errors are structured too? | **(a).** It is the spec's tool-execution-error path, so every MCP client shows it to its model for self-correction; each `outputSchema` stays exactly the `Player`'s model (R-S27d-c-1), which (b) would break; and the error stays typed (its schema is published, its JSON is in the text). Acts already return refusals as typed data in `ActResult.outcome` |
 | **QS27d-2 [primary — a library change in S27-c's module]** | To make the interface information-rich in the schema itself, `AgentModel` gains `use_attribute_docstrings=True`, so every field's docstring becomes its `description` in `inputSchema`/`outputSchema` (§5.3 (a)). It changes no field, only schema text. Accept it in S27-d? | **Yes.** An agent reads the tool list, not the source; descriptions are how the operator's principle reaches the model. The golden tool list makes every description reviewable |
+
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
+
+| Question | Ruling | By |
+| --- | --- | --- |
+| QS27d-1 | **(a): `isError: true` with the typed `ToolError` JSON, and the schema published as a resource.** Applied: §5.3 (c), §5.4, §5.5 (`mineworld://reference/agent-errors`), C2, C3 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| QS27d-2 | **Yes, `use_attribute_docstrings=True`.** Applied: §5.3 (a), C2 | Ruled 2026-10-15 (primary) |
+
+No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-10-15).
 
 ---
 

@@ -7,12 +7,14 @@ Design revision:        revision 1 (2026-10-15), DRAFT
 Author:                 S28-a / S27-d PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28a-s27d, branch docs/s28a-s27d-designs,
                         planning base origin/main @ 2d07c6c (#215; FG-b2 #213 merged at e67af07)
-Approved by / evidence: none yet. The primary session freezes; the operator answers §14
+Approved by / evidence: §14 ruled 2026-10-15: QS28a-1 and QS28a-3 by the operator (answered directly in
+                        the primary session), QS28a-2 and QS28a-4 by the primary; relayed by the
+                        coordinator. The freeze header is the primary session's to write
 Implementation base:    origin/main at C0; C0 records the commit, and that S28-0 and FG-b2 have merged
 Start condition:        step-28 §11.1: S28-0 merged (ARC-98 … ARC-101, DEP-58 in docs/DECISIONS.md; NOT
                         merged at 2d07c6c), FG-b2 merged (yes, #213), this design frozen, the primary
                         session's dispatch
-Execution contract:     §12 (filled; endpoint authority unresolved until the freeze)
+Execution contract:     §12 (filled, endpoint authority included)
 Implementer:            Opus-class (step-28 §11.1)
 Lifecycle:              DRAFT
 ```
@@ -28,9 +30,9 @@ S28-b (the retention host's remaining S28 work, §10) · **Coordinates with:** P
 12, 13, 16); `docs/CORE_CONCEPTS.md` §§2 (INV-4, INV-13), 5.3; `docs/ARCHITECTURE.md` §9.3;
 `docs/DECISIONS.md` `ARC-25`, `ARC-27`, `ARC-59`, `ARC-87`, `ARC-98` … `ARC-101`, `DEP-37`, `DEP-58`.
 
-**Decision ids.** Placeholders only; the primary session assigns them. `ARC-S28a-1` (proposed `ARC-105`):
+**Decision ids** (confirmed free on `origin/main` by `git grep` on 2026-10-15). `ARC-109` (assigned by the primary 2026-10-15; `ARC-105` … `ARC-108` and `DEP-60` went to S29, #218):
 the memory home replaces `MemoryStore`, the seat view is memory's one storage API, and the store schema is
-**4**. `DEP-S28a-1` (proposed `DEP-60`): `HomeBusy` uses SQLite's own exclusive locking, and the `filelock`
+**4**. `DEP-61` (assigned 2026-10-15): `HomeBusy` uses SQLite's own exclusive locking, and the `filelock`
 package is declined (§4). Both are written by C2 (§9).
 
 No hosted model is called by this design or by anything it specifies for CI.
@@ -88,11 +90,11 @@ per-person bound (FG-b2: 20 MiB default, raise-only) measures the seat view, rec
    retrieve.py, __init__.py}`, `compress/{episodes.py, chapters.py, stable.py, model_summarizer.py}`,
    `memory/retention/{absorb.py, host.py, plan.py, bound.py, items.py, forgotten.py, assisted.py}`. "Mechanical"
    means: the same statements, with the seat predicate added, `l0` reads replaced by the access ⋈ fact join,
-   and `l0` deletes replaced by `SeatView.release`. No retention semantics change (§14 QS28a-2).
+   and `l0` deletes replaced by `SeatView.release`. No retention semantics change (§14 QS28a-2, ruled yes).
 5. **The tests' port** to the new API (every file of §3.3), and the new tests of §7.
 6. **Golden renders** captured from the schema-3 code at C1 (C-2), and the **transparency harness**
    (AS28-1, AS28-3, AS28-4, AS28-5, AS28-6, AS28-7, AS28-8, AS28-9, AS28-12, AS28-13, AS28-14 as §8 states them).
-7. `docs/DECISIONS.md`: `ARC-S28a-1`, `DEP-S28a-1`; a dated note under `ARC-101` (the concrete grammar of
+7. `docs/DECISIONS.md`: `ARC-109`, `DEP-61`; a dated note under `ARC-101` (the concrete grammar of
    §5.4) and under `ARC-87` (the bound measures the seat view).
 8. `cognition/lm-controller/README.md`: one line (memory is a home of seat views; the old store is refused).
 
@@ -144,10 +146,10 @@ P6b and S28-a merges second adapts its `MemoryStore` use (R-P6b-a-1).
 | ID | Finding | Resolution |
 | --- | --- | --- |
 | **F-S28a-1** | The step calls the home's schema "v3" and its refusal `UnsupportedStoreSchema(found=2, wanted=3)` (step §§4.4, 5.5, 10). FG-b2 shipped schema **3** (A-1) after the step was written. Calling the home "3" would accept FG-b2 files as homes. | **The home is schema 4.** Every older store (2, 3) is refused by `UnsupportedStoreSchema(found, wanted=4)` with the rebuild instruction (QS28-8's rule, unchanged). The step's "v3 store" reads "schema 4 seat view" everywhere; the primary applies the wording (§11). Not a question: QS28-8 already rules the migration; only the number is new. |
-| **F-S28a-2** | **I-S28-6 cannot hold strictly.** A record held by exactly one seat costs the home its fact line, its `fact_who` lines and one access line, which repeats the key and names the seat; the seat view costs one `l0` line and its `l0_who` lines. With any encoding that names the holder, the home is larger than the view for that record by a fixed overhead (the access line's table tag, seat and key; and `me` among the participants). Under `sharing: none` every record is singly held, so `MemoryHome.dump() ≤ SeatView.dump()` fails by construction, and AS28-9 as written fails on its own baseline. | §14 **QS28a-1** (operator): the recommended form keeps the invariant's purpose — sharing never costs disk, and the disk stays bounded by N × bound — with an exact, testable statement. |
-| **F-S28a-3** | The step's split gives S28-a the store and S28-b "the retention host on seat views: items, execution with GC, FG-b2's size trigger on the seat view". But the store is the retention host's storage: retention SQL (A-10, A-12) reads `l0` and deletes from it. Replacing the store without porting those statements leaves `main` red; keeping `MemoryStore` beside the home is the compatibility layer QS28-8 and `CLAUDE.md` §4 item 12 rule out. | §14 **QS28a-2** (primary/operator): S28-a ports every SQL site mechanically (items, execution through `release` with GC, the meter, the size trigger now measure the seat view **by construction**); S28-b keeps the semantic retention work (§10). |
-| **F-S28a-4** | The step's "how" (`subject` / `participant` / `witness`, §4.3) and S28-d's anchor role `subject` (§5.2.3) need the fact's **subjects**, but §4.2's record keeps only participants (`fact_who`). `PerceivedEvent.subjects` is not stored anywhere today. | §14 **QS28a-3**: store the role in the record now (one schema, not two). |
-| **F-S28a-5** | `HomeBusy(path, holder_pid)` (step §5.5): SQLite's lock (the reuse choice, §4) cannot report the holder's pid; a pid needs a side lock file. | §14 **QS28a-4**. |
+| **F-S28a-2** | **I-S28-6 cannot hold strictly.** A record held by exactly one seat costs the home its fact line, its `fact_who` lines and one access line, which repeats the key and names the seat; the seat view costs one `l0` line and its `l0_who` lines. With any encoding that names the holder, the home is larger than the view for that record by a fixed overhead (the access line's table tag, seat and key; and `me` among the participants). Under `sharing: none` every record is singly held, so `MemoryHome.dump() ≤ SeatView.dump()` fails by construction, and AS28-9 as written fails on its own baseline. | §14 **QS28a-1, ruled 2026-10-15 (operator):** I-S28-6 is replaced by the two exact statements I-a-6 (a) and (b) (§6), with the named constant `K` (§5.4). |
+| **F-S28a-3** | The step's split gives S28-a the store and S28-b "the retention host on seat views: items, execution with GC, FG-b2's size trigger on the seat view". But the store is the retention host's storage: retention SQL (A-10, A-12) reads `l0` and deletes from it. Replacing the store without porting those statements leaves `main` red; keeping `MemoryStore` beside the home is the compatibility layer QS28-8 and `CLAUDE.md` §4 item 12 rule out. | §14 **QS28a-2, ruled 2026-10-15 (primary): yes.** S28-a ports every SQL site mechanically (items, execution through `release` with GC, the meter, the size trigger now measure the seat view **by construction**); S28-b keeps the semantic retention work (§10). |
+| **F-S28a-4** | The step's "how" (`subject` / `participant` / `witness`, §4.3) and S28-d's anchor role `subject` (§5.2.3) need the fact's **subjects**, but §4.2's record keeps only participants (`fact_who`). `PerceivedEvent.subjects` is not stored anywhere today. | §14 **QS28a-3, ruled 2026-10-15 (operator): `fact_who.role` now** (§5.2). |
+| **F-S28a-5** | `HomeBusy(path, holder_pid)` (step §5.5): SQLite's lock (the reuse choice, §4) cannot report the holder's pid; a pid needs a side lock file. | §14 **QS28a-4, ruled 2026-10-15 (primary): `holder_pid` dropped**; the error is `HomeBusy(path)`. |
 | **F-S28a-6** | The step's per-home LRU of decoded records (`cache_records`, §4.5, §5.4) is in no PR's scope (§11's rows list `sharing` and `cache` wiring only for S28-f). | Recorded for the primary: recommended in S28-f, measured first (the SQLite page cache may make it unnecessary — `CLAUDE.md` §4 item 11). Not built here. |
 | **F-S28a-7** | `involved` (A-3, A-7) is stored but never read after ingest; it is derivable from the record (`me ∈ participants`). | Dropped from schema 4; ingest computes it from the fact, as today. |
 | **F-S28a-8** | The 20 MiB promise's day count (step §8.3) depends on the positional bytes per record; FG-b2's §4.1 margin argument ("1.25 MiB is a fact naming ≈ 3 000 participants") was stated in object bytes. | The ratios and numbers of `StoreBounds` are unchanged (step §7.2: "S28 inherits FG-b2's numbers and changes only what they measure"); C8 re-measures bytes per held record and records the margin in positional bytes (§8 AS28-12). |
@@ -176,7 +178,7 @@ kill harness for memory, no `UnsupportedStoreSchema`, no `HomeBusy`.
 | --- | --- | --- |
 | The store | SQLite (`sqlite3`, `DEP-37`, `DEP-58`): one file per home, one connection, rollback journal | One transaction covers every seat's writes (step §6.3); `ATTACH` across files is declined there |
 | Byte metering | FG-b2's `TEMP` triggers for private tables; for the access join, the home's own `hold`/`release` (the only writers of access rows) add and subtract the view lines' sizes | Python's `sqlite3` has no update hook (FG-b2 §4.2); a trigger cannot see the joined record without SQL inside a Python callback, which `sqlite3` forbids on the same connection |
-| Single-writer lock (`HomeBusy`) | **SQLite's own exclusive locking** (`PRAGMA locking_mode = EXCLUSIVE`, then `BEGIN EXCLUSIVE; COMMIT` at open, `timeout = 0`) — `DEP-S28a-1` | Cross-platform by SQLite's VFS (POSIX locks, Windows `LockFileEx`), no dependency, no side file to go stale after a SIGKILL. Declined: `filelock` (Unlicense; mature) — a second lock beside SQLite's own that can disagree with it; a hand-written `fcntl`/`msvcrt` lock file — two code paths and stale files. The prototype check is C2's test on all three OSes (R-a-3) |
+| Single-writer lock (`HomeBusy`) | **SQLite's own exclusive locking** (`PRAGMA locking_mode = EXCLUSIVE`, then `BEGIN EXCLUSIVE; COMMIT` at open, `timeout = 0`) — `DEP-61` | Cross-platform by SQLite's VFS (POSIX locks, Windows `LockFileEx`), no dependency, no side file to go stale after a SIGKILL. Declined: `filelock` (Unlicense; mature) — a second lock beside SQLite's own that can disagree with it; a hand-written `fcntl`/`msvcrt` lock file — two code paths and stale files. The prototype check is C2's test on all three OSes (R-a-3) |
 | Canonical encoding | our own, ≈ 120 lines (`encoding.py`) on the standard `json` encoder | The encoding **is** the determinism and bound contract (`ARC-101`); a serialization library would put that contract outside our control |
 | Kill harness | the standard library (`subprocess`, `os._exit`) | No library models "crash a SQLite writer at a chosen statement" |
 | Content addressing, ref-counted blob stores, Letta/Zep/mem0 | not adopted (step §16, `DEP-58`) | ruled |
@@ -214,7 +216,7 @@ CREATE TABLE seats (seat INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, self_ent
 CREATE TABLE fact (event_key TEXT PRIMARY KEY, event_id TEXT NOT NULL, at INTEGER NOT NULL,
                    kind TEXT NOT NULL, place TEXT, digest TEXT NOT NULL)          -- full 64-hex sha256
 CREATE TABLE fact_who (event_key TEXT NOT NULL, ordinal INTEGER NOT NULL, entity TEXT NOT NULL,
-                       role INTEGER NOT NULL CHECK (role IN (1, 2, 3)),          -- QS28a-3 (§14)
+                       role INTEGER NOT NULL CHECK (role IN (1, 2, 3)),          -- QS28a-3, ruled
                        PRIMARY KEY (event_key, ordinal))
 -- the person scope's base: one row per (seat, held fact) (step §4.3)
 CREATE TABLE access (seat INTEGER NOT NULL, event_key TEXT NOT NULL, gist TEXT NOT NULL,
@@ -237,10 +239,11 @@ CREATE VIRTUAL TABLE access_text USING fts5(gist, seat UNINDEXED, tokenize='unic
 - `seats.seat` is an internal integer, assigned on first `MemoryHome.seat(identity)`. It **never appears in
   any dump** (a dump names seats by `key`), so the order in which seats were opened cannot reach a dump
   (I-S28-5).
-- `fact_who.role` (if QS28a-3 is ruled as recommended): `1` participant only, `2` subject only, `3` both. The
-  rows are the participants, deduplicated in envelope order (ordinals 0…), then the subjects that are not
+- `fact_who.role` (QS28a-3, ruled 2026-10-15): `1` participant only, `2` subject only, `3` both. The rows
+  are the participants, deduplicated in envelope order (ordinals 0…), then the subjects that are not
   participants, in envelope order. Counterparts (A-9) = the rows with role 1 or 3, in ordinal order, minus
-  `me`. If QS28a-3 is ruled "defer", the column is absent and only participants are stored (the step's §4.2).
+  `me`. "How" (step §4.3) is derived from `me`'s row: role 2 or 3 → `subject`, role 1 → `participant`, no
+  row → `witness`.
 - `PRAGMA auto_vacuum = INCREMENTAL` before the first table (A-6); rollback journal (no WAL; step §6.3).
 
 ### 5.3 The seat view (the projection, step §4.4)
@@ -280,6 +283,14 @@ statement in a consumer names `fact` without joining `access` on its seat (AS28-
 - **`meta`** lines are `["meta", key, value]`; the identity rows (`world_instance`, `seat`, `self_entity`,
   `schema`) carry strings, `schema` the string `"4"`.
 - **Row order** is each table's key order (§5.3); `l0_who` and `fact_who` by `(event key, ordinal)`.
+- **The constant `K`** (QS28a-1, ruled): `schema.K_ACCESS_OVERHEAD_BYTES`, the largest number of bytes a
+  one-seat home's dump spends on one held record beyond that record's lines in the seat view (the `access`
+  line's tag, brackets, seat key and repeated id, and `me`'s `fact_who` line). It is a function of the encoding
+  alone, never of the data's text. C8 derives it from §5.4's grammar for the longest seat key (64 bytes,
+  `EntityKey`'s identifier bound, `sdk/python/src/mineworld_sdk/wire/ids.py:66-73`) and the longest u64
+  `EventId` and `EntityId` (20 decimal digits each), pins it in `schema.py` with that derivation in its
+  docstring, and AC-a-8 (b) checks it on real data. Under realistic seat keys the measured overhead is expected
+  to be ≤ 48 B per held record; the pinned `K` is the derived worst case.
 - **`SeatView.dump()`** = every view table's lines, in §5.3's order, concatenated. It is the standalone seat
   view: what I-S28-2 compares, what the bound measures (QS28-4), what S28-e exports.
 - **`MemoryHome.dump()`** = `home_meta` lines; `fact` lines; `fact_who` lines; then, for each seat in `key`
@@ -398,7 +409,7 @@ child without a kill point from the persisted cursors (re-delivery from each sea
 | I-a-3 (I-S28-3) | Nothing a home-mate perceives, keeps or forgets changes a seat's dump, size, pass decisions or sections | AS28-5 |
 | I-a-4 (I-S28-4) | After every commit: `fact` keys = the union of `access` keys; every `fact_who` key has its `fact` | AS28-6, AS28-7 |
 | I-a-5 (I-S28-5) | `MemoryHome.dump()` is a function of each seat's perceived prefix and configuration only | AS28-3 (interleavings), AS28-8 |
-| I-a-6 (I-S28-6, as QS28a-1 rules) | the physical-vs-logical relation of §14 QS28a-1 | AS28-9 |
+| I-a-6 (I-S28-6 as ruled, QS28a-1) | (a) **Sharing never costs disk:** `len(MemoryHome.dump())` of a shared home ≤ Σ over its seats of `len(MemoryHome.dump())` of that seat's one-seat home. (b) **Disk stays bounded:** each one-seat home's dump ≤ its seat view's dump + `K` × (records it holds) (§5.4), so a home is ≤ N × bound × (1 + `K` / smallest record line) | AS28-9 (AC-a-8) |
 | I-a-7 (I-S28-7) | `memory/`, `compress/`, `forgetting/` read no save and no world log; only `memory/home/` connects | AS28-13 |
 | I-a-8 (I-S28-10) | No path under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` changes | AS28-13 diff scan |
 | I-a-9 | P4-1 … P4-n, FGb-1 … FGb-7 and FG-b2's FGb2-1 … FGb2-n hold for every seat view (the ported suites stay green) | §3.3's files |
@@ -437,7 +448,7 @@ are computed from the dump in the test, never pinned by hand (test rules §25).
 | AC-a-5 | **GC exactness.** Under `verify="every-commit"`, over the synthetic world, after every commit both anti-joins (`fact` without holder, held key without `fact`) are empty | AS28-6 |
 | AC-a-6 | **Last holder.** A fact held by exactly two seats survives the first seat's `release` and is collected in the second's transaction; reversing the order gives the same final home dump | AS28-7 |
 | AC-a-7 | **Kill/resume.** 50 seeded kills across the three points of §5.10 (17/17/16); after resume and re-delivery, the home dump equals the uninterrupted run's every time | AS28-8 |
-| AC-a-8 | **Physical vs logical**, as QS28a-1 rules (recommended form: §14), at every pass point of AC-a-2; and every seat view ≤ its bound | AS28-9 |
+| AC-a-8 | **Physical vs logical (QS28a-1, ruled).** At every pass point of AC-a-2: (a) the shared home's dump length ≤ Σ of the twelve one-seat homes' dump lengths; (b) each one-seat home's dump length ≤ its seat view's dump length + `K` × its held records, and the largest per-record overhead measured is recorded beside `K`; and every seat view ≤ its bound | AS28-9 |
 | AC-a-9 | **Efficiency.** On the real 12-seat stream before retention (plain `ingest`), the home's bytes per world-day ≤ 0.30 × the schema-3 stores' (Σ of 12 `MemoryStore.dump()` lengths, measured at C1 on the same stream and recorded); also recorded, not gated: seat-view bytes per held record, and the days 20 MiB holds | AS28-12 |
 | AC-a-10 | **Golden renders (C-2).** Every section in `s28a_renders.json` (captured at C1 from schema-3 code) is reproduced by schema 4 for every query, at every pass point at which schema 3 performed no bound-forced removal | C-2 |
 | AC-a-11 | **No truth, no kernel.** Source scan: no `persistence` import, no save path, no `sqlite3.connect` outside `memory/home/` in `memory/`, `compress/`, `forgetting/`; no `INSERT`/`DELETE`/`UPDATE` naming `fact`, `fact_who`, `access`, `access_text` outside `memory/home/` and `memory/scopes/world.py`. Diff scan: nothing under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` | AS28-13, AS28-14 |
@@ -517,7 +528,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s28-a`. Never `
 - **Files:** `memory/home/{__init__.py, schema.py, encoding.py, home.py, errors.py}`, `memory/scopes/{__init__.py,
   world.py}`, `tests/{test_home_encoding.py, test_home_open.py}`, `docs/DECISIONS.md`.
 - Steps:
-  1. `schema.py`: §5.2 DDL exactly (with or without `role` as QS28a-3 is ruled), `SCHEMA_VERSION = 4`, the view
+  1. `schema.py`: §5.2 DDL exactly (with `fact_who.role`, QS28a-3), `SCHEMA_VERSION = 4`, the view
      tables of §5.3 with their columns and orders, `CODECS` (§5.4).
   2. `encoding.py`: `line(table, cells, codecs) -> str` and `line_bytes(...) -> int` (newline included).
   3. `errors.py`: the seven errors of §5.1 with their fields; message prefixes per §5.5.
@@ -525,8 +536,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s28-a`. Never `
      shape, dropping every seat's cached sizes on rollback), `seat(identity)`, `view_of(key)`, `seats()`,
      `dump()` (§5.4), `reclaim()`.
   5. `scopes/world.py`: `insert_or_verify`, `collect`, `check_holders` (§5.6).
-  6. `docs/DECISIONS.md`: `ARC-S28a-1` and `DEP-S28a-1` (placeholders, or the ids the primary assigned) in the
-     file's record format; dated notes under `ARC-101` (the §5.4 grammar) and `ARC-87` (the bound on the seat
+  6. `docs/DECISIONS.md`: `ARC-109` and `DEP-61` in the file's record format, at the end of the file; dated notes under `ARC-101` (the §5.4 grammar) and `ARC-87` (the bound on the seat
      view, QS28-4).
   7. Tests: every codec of `CODECS` once; `open` creates, reopens, refuses a schema-3 file (the test writes a
      `meta` table by hand with the identity rows and `schema = "3"`, as schema 3 did, A-3), refuses a schema-2
@@ -640,7 +650,8 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s28-a`. Never `
 #### C8 — Scale, efficiency and the scans
 
 - **Files:** `tests/test_home_scale.py`, `tests/test_memory_isolation.py`.
-- Steps: AC-a-1, AC-a-8 (as QS28a-1 rules), AC-a-9 (measure; record bytes per held record and the days 20 MiB
+- Steps: derive and pin `schema.K_ACCESS_OVERHEAD_BYTES` (§5.4; add `memory/home/schema.py` to this commit's
+  **Files**); AC-a-1, AC-a-8 (a) and (b), AC-a-9 (measure; record bytes per held record and the days 20 MiB
   holds; F-S28a-8's margin), AC-a-11's source scan.
 - Validation: the two files. Mutation **M-a-11** (an `INSERT INTO access` added in `compress/episodes.py`) →
   the writers scan red.
@@ -667,8 +678,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s28-a`. Never `
   host; it does not port again.
 - **R-S28c-a-1 (on S28-c).** `memory/scopes/world.py`'s functions become the `world` scope; the `person` scope
   re-homes `ingest`/`compress`/`retrieve`; `fact_who.role` (if ruled) is what anchor roles read.
-- **R-S28e-a-1 (on S28-e).** `inspect access` derives "how" from `fact_who.role` (if QS28a-3 is ruled as
-  recommended) or reports `participant`/`witness` only (if deferred).
+- **R-S28e-a-1 (on S28-e).** `inspect access` derives "how" from `fact_who.role` (§5.2; QS28a-3, ruled).
 - **R-P6b-a-1 (on P6b or this PR, whichever merges second).** P6b opens `MemoryHome.open(store/<instance>/
   memory.sqlite, instance)` and `home.seat(identity)` instead of `MemoryStore.open(…/<seat>.sqlite, identity)`
   (step §10's path); the full `sharing` wiring stays S28-f's.
@@ -678,12 +688,12 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s28-a`. Never `
 
 | Document | Edit |
 | --- | --- |
-| `step-28-shared-memory.md` §§4.4, 5.5, 10, 12 | "schema v3" → "schema 4"; `UnsupportedStoreSchema(found=2, wanted=3)` → `(found ∈ {2, 3}, wanted=4)` (F-S28a-1) |
-| `step-28-shared-memory.md` §3 I-S28-6, §15 AS28-9 | as QS28a-1 rules |
-| `step-28-shared-memory.md` §4.2, §5.2.3 | `fact_who.role`, as QS28a-3 rules |
-| `step-28-shared-memory.md` §5.5 | `HomeBusy(path)` as QS28a-4 rules |
-| `step-28-shared-memory.md` §11 | the S28-a / S28-b split as QS28a-2 rules; the record LRU's owner (F-S28a-6) |
-| `overall.md` | S28-a frozen / merged; `ARC-S28a-1`, `DEP-S28a-1` ids |
+| `step-28-shared-memory.md` §§4.1, 4.4, 5.2.2, 6.6, 8.2, 9.2, 10, 11, 12, 15 | "schema v3" → "schema 4"; `UnsupportedStoreSchema(found=2, wanted=3)` → `(found ∈ {2, 3}, wanted=4)`; golden renders from the schema-3 code at C1 (F-S28a-1). **Applied in PR #219 at the primary's request, with a dated note in the step's header** |
+| `step-28-shared-memory.md` §3 I-S28-6, §15 AS28-9 | replace I-S28-6 with I-a-6 (a)/(b) and the constant `K` (QS28a-1, ruled) |
+| `step-28-shared-memory.md` §4.2, §4.3, §5.2.3 | `fact_who.role` 1/2/3; "how" derived from it (QS28a-3, ruled) |
+| `step-28-shared-memory.md` §5.5 | `HomeBusy(path)`, no `holder_pid` (QS28a-4, ruled) |
+| `step-28-shared-memory.md` §11 | the S28-a / S28-b split (QS28a-2, ruled); the record LRU's owner (F-S28a-6) |
+| `overall.md` | S28-a frozen / merged; `ARC-109`, `DEP-61` |
 
 ---
 
@@ -704,7 +714,7 @@ START CONDITION:         S28-0 merged AND FG-b2 merged (yes) AND this design fro
                          session's dispatch                                               (primary)
 IMPLEMENTATION BASE:     origin/main at C0; C0 records it
 APPROVED SCOPE:          §2.1 items 1–8, as §14's rulings shape them                      (primary)
-FROZEN INVARIANTS:       step-28 I-S28-1 … I-S28-10 (I-S28-6 as QS28a-1 rules); §6 I-a-1 … I-a-11;
+FROZEN INVARIANTS:       step-28 I-S28-1 … I-S28-10 (I-S28-6 replaced by I-a-6 (a)/(b), QS28a-1); §6 I-a-1 … I-a-11;
                          FGb-1 … FGb-7 and FG-b2's bound numbers unchanged; §8 as written
 SEQUENCE:                C0 … C9 (§9)
 ALLOWED COMMANDS:        uv run --locked *; uv sync --locked; cargo build -p mineworld-cli (the binary for
@@ -717,7 +727,7 @@ MATERIAL STOPS:          S28-0 not merged; a needed change to a policy, an item 
                          pass order; a needed change outside cognition/lm-controller and docs/DECISIONS.md;
                          a new dependency or a uv.lock change; AC-a-2/3/4 failing for a reason the port
                          cannot fix (a peer-dependence in the design); AC-a-9 > 0.30 after C8; the HomeBusy
-                         test failing on a platform (DEP-S28a-1's fallback is a decision, not an edit); a
+                         test failing on a platform (DEP-61's fallback is a decision, not an edit); a
                          re-recorded cassette (never)
 PLATFORMS:               Linux, macOS, Windows (python job on all three)
 VALIDATION BUDGET:       unit and harness files unrestricted locally one at a time; each real-binary file
@@ -725,11 +735,16 @@ VALIDATION BUDGET:       unit and harness files unrestricted locally one at a ti
                          runs. Gate 1: NOT REQUIRED
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s28a.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved until the freeze  (primary)
-                         semantic commits: authorized once frozen                         (working rules §14)
-                         branch push, PR creation / update, CI repair: authorized once frozen (§21)
-                         merge: never by the implementation session; only with the operator's explicit
-                         authorization after the primary's and an Opus logic review (§22)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
+                                                                          (primary, 2026-10-15)
+                         semantic commits: authorized                     (working rules §14)
+                         branch push: authorized                          (working rules §21)
+                         PR creation / update: authorized                 (working rules §21)
+                         CI repair to review readiness: authorized        (working rules §21)
+                         endpoint: the PR READY FOR OPERATOR REVIEW
+                         merge: NOT authorized — never by the implementation session; only with the
+                         operator's explicit authorization after the primary's and an Opus logic review
+                         (working rules §22)
 POST-MERGE SYNC OWNER:   primary: step-28, overall.md, decision ids; implementation session: this ledger
 STOP CONDITION:          S28-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
@@ -742,7 +757,7 @@ STOP CONDITION:          S28-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- |
 | R-a-1 | The access ⋈ fact join makes retrieval and passes slower | `access(seat, event_key)` PK and `fact` PK serve every join; AC-a-14 bounds wall time; a regression > 25 % is recorded with a profile and is a material stop only if it breaks a real-binary budget |
 | R-a-2 | The harness (12 seats × 4 frames × 3 interleavings × 2 arms) is heavy | synthetic streams; frame 1 on 2 days only; real data at one configuration; ≤ 120 s per file on Linux CI, else split across files |
-| R-a-3 | SQLite exclusive locking behaves differently on Windows or network filesystems | the `HomeBusy` test runs on all three OSes in CI; network filesystems are out of scope (documented); fallback is `DEP-S28a-1`'s recorded alternative, by decision |
+| R-a-3 | SQLite exclusive locking behaves differently on Windows or network filesystems | the `HomeBusy` test runs on all three OSes in CI; network filesystems are out of scope (documented); fallback is `DEP-61`'s recorded alternative, by decision |
 | R-a-4 | A subtle peer dependence (rowids, FTS rowids, seat ordinals) leaks into a dump | dumps never contain rowids or `seats.seat`; seats are ordered by `key`; AC-a-2 with interleavings; M-a-9 |
 | R-a-5 | P6b (#207) and this PR conflict on the store API | R-P6b-a-1; whichever merges second adapts; the open path is the step's |
 | R-a-6 | The PR is large (≈ 30 files) | ten semantic commits; the port is mechanical and table-driven (§5.8); Opus implementer and an Opus logic review |
@@ -759,6 +774,18 @@ STOP CONDITION:          S28-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **QS28a-2 [primary / operator — the step's PR split]** | Replacing the store requires porting the retention host's SQL (it reads and deletes `l0`), which the step assigns to S28-b. Keeping `MemoryStore` alive until S28-b is a compatibility layer. Move the **mechanical** port of retention (items read seat-view bytes, execution releases with GC, the size trigger reads the seat view) into S28-a? | **Yes.** It is one storage swap, and `main` stays green at each merge. S28-b keeps everything that changes behaviour or adds checks (R-S28b-a-1). S28-a's implementer is already Opus, as the step wants for both |
 | **QS28a-3 [operator — the shared record's shape]** | The step's "how" (subject / participant / witness) and S28-d's anchor role `subject` need the fact's subjects, which §4.2's record does not keep (F-S28a-4). Add a `role` to `fact_who` now? | **Yes, now.** `fact_who` rows become the union of participants and subjects with `role` 1/2/3 (§5.2). It costs a few bytes per row (charged in full, QS28-4), and it avoids a schema 5 when S28-d lands. Counterparts and recall are unchanged |
 | **QS28a-4 [primary — a named error's fields]** | `HomeBusy(path, holder_pid)`: SQLite's own lock, chosen for reuse and crash-safety (§4), cannot tell the holder's pid. Drop the field, or add a side lock file that records it? | **Drop `holder_pid`.** `HomeBusy(path)` names the file; the operator finds the process with the platform's tools. A side file can go stale after a SIGKILL and is a second lock that can disagree with SQLite's |
+
+### 14.1 Rulings, 2026-10-15 (relayed by the coordinator; binding)
+
+| Question | Ruling | By |
+| --- | --- | --- |
+| QS28a-1 | **Replace I-S28-6 with the two exact statements, as recommended; name the constant `K`.** Applied: I-a-6 (a)/(b) (§6), AC-a-8 (§8), `schema.K_ACCESS_OVERHEAD_BYTES` (§5.4), C8 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| QS28a-2 | **Yes.** The mechanical port of the retention SQL moves into S28-a. Applied: §2.1 item 4, C5; S28-b keeps R-S28b-a-1 | Ruled 2026-10-15 (primary) |
+| QS28a-3 | **Add the `role` column to `fact_who` now.** Applied: §5.2, C2, R-S28e-a-1 | Ruled 2026-10-15 (operator answered directly in the primary session) |
+| QS28a-4 | **Drop `holder_pid`.** Applied: `HomeBusy(path)` (§5.5, F-S28a-5) | Ruled 2026-10-15 (primary) |
+
+No question remains open. Decision ids: `ARC-109` (the home) and `DEP-61` (SQLite locking), assigned by the
+primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105` … `ARC-108` and `DEP-60`).
 
 ---
 
