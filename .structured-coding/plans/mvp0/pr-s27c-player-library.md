@@ -636,8 +636,8 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | (this commit) | [x] | [x] | [x] |
-| C1 | — | [ ] | [ ] | [ ] |
+| C0 | 5f3d48e | [x] | [x] | [x] |
+| C1 | (this commit) | [x] | [x] | [x] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
@@ -660,6 +660,15 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
   duplicated. Review: `ARC-96` uses *Controller*, *client*, *seat* and *agent player* as step-27 F-S27-5 defines
   them (agent player = a Person whose Controller is an agent MineWorld does not run, reaching its seat through
   a client process).
+- **E-C1 (member).** `uv lock` added exactly `mineworld-agent v0.1.0` (28 packages resolved; `uv.lock` +32
+  lines, no other package changed); `uv sync --locked` clean; `ruff check`/`ruff format --check`
+  `clients/agent` clean; `pyright clients/agent` 0 errors (strict, root configuration, `include` extended);
+  `pytest clients/agent` 2 passed (`test_no_mcp.py`); `ci_layer.py --list python` and `--list python-smoke`
+  show the member in the three static commands and one pytest line each (`-m "not real_server"` in smoke);
+  `standards.py inspect` reads `pytest-agent`. Review: dependencies `mineworld-sdk` (workspace) and
+  `pydantic>=2.13,<3` only; the network guard in `addopts` (`--allow-hosts=127.0.0.1,::1`). Bounded
+  deviation: `tests/support.py` (the selector-loop runner, as the SDK's) is added beside `conftest.py`; the
+  member's `addopts` adds `-v` as cognition's does.
 
 ### Assumptions to verify in implementation
 
