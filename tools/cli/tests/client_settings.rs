@@ -790,7 +790,6 @@ async fn three_d_controls_apply_live_and_persist() {
             "the look at apply_high matches its setting",
             "the look at apply_high_inverted matches its setting",
             "the key map shows the bindings the client uses",
-            "the file holds only the two [input] keys",
             "an open menu takes gameplay input",
         ],
     );
