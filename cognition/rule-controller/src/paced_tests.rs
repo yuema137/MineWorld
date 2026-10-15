@@ -578,3 +578,63 @@ fn step_never_answers_takes_no_draw_and_is_a_function_of_the_observation() {
         "and it is the stride, never a reply"
     );
 }
+
+/// DL-a SD-DLa-2: `rule`, held as a host holds it (`dyn SeatModel`), decides and steps exactly as
+/// `PacedRuleController::new(seed, pace)` on every view these tests build — a line waiting, my walk
+/// disclosed or not, walking offered or not, across seeds, instants and two paces.
+#[test]
+fn rule_as_a_seat_model_is_the_paced_controller() {
+    use mineworld_decision::{Configured, Consult, SeatModel, Seed};
+
+    let rule: &dyn SeatModel = &Configured::<crate::Rule>::default();
+    assert_eq!(rule.id().as_str(), "rule");
+    let views = [
+        View::new(),
+        View {
+            heard: vec![said(BOB, "hello", NOW - 30)],
+            ..View::new()
+        },
+        View {
+            my_walk: Some(Destination::Place(in_cafe(6_000, 6_000))),
+            walk_step_offered: true,
+            ..View::new()
+        },
+        View {
+            walk_offered: false,
+            doors: Vec::new(),
+            ..View::new()
+        },
+    ];
+    let mut decided = 0;
+    for pace in [PACE, 900] {
+        for view in &views {
+            for at in (NOW..NOW + 12 * pace).step_by(usize::try_from(pace / 3).expect("positive")) {
+                let observation = View { at, ..view.clone() }.build();
+                for seed in 0..SEEDS {
+                    let paced = PacedRuleController::new(seed, SimDuration::from_seconds(pace));
+                    let consult = Consult {
+                        seed: Seed::new(seed),
+                        pace: SimDuration::from_seconds(pace),
+                        observation: &observation,
+                    };
+                    let decision = rule.decide(&consult);
+                    assert_eq!(
+                        decision,
+                        paced.decide(&observation),
+                        "decide: seed {seed}, at {at}"
+                    );
+                    assert_eq!(
+                        rule.step(&consult),
+                        paced.step(&observation),
+                        "step: seed {seed}"
+                    );
+                    decided += usize::from(decision.is_some());
+                }
+            }
+        }
+    }
+    assert!(
+        decided > 1_000,
+        "the comparison saw decisions, not only silence: {decided}"
+    );
+}

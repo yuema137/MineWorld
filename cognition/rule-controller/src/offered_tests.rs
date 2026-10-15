@@ -11,12 +11,12 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{Talk, talk_requirement};
+use mineworld_decision::Draw;
 use mineworld_movement::{Move, WalkTo, move_offer_requirement};
 use serde_json::{Value, json};
 
 use crate::PacedRuleController;
 use crate::offered;
-use crate::paced::Draw;
 
 const HALL: u64 = 1;
 const ME: u64 = 3;

@@ -23,7 +23,9 @@
 //! parameters   gap           seconds of silence before a new conversation, 1 … 86 400, default 300
 //!              range         millimetres a voice reaches, 1 … 100 000, default 3 000
 //!              remembered    entries a listener's history keeps, 1 … 64, default 32
-//! facts        spoke                  audience place → participants, biography configurable (off)
+//!              forget_after_days   days a listener keeps a line, 0 … 3 650, default 0 (for ever);
+//!                            target only, never by place or in a region (ARC-86)
+//! facts       spoke                  audience place → participants, biography configurable (off)
 //!              conversation-started   audience participants, biography configurable (off)
 //! knob         remember      whether the listener's history keeps the line (on when unsaid)
 //! ```
@@ -32,9 +34,12 @@
 //! [`INTERACTION_RANGE`](crate::INTERACTION_RANGE), [`REMEMBERED_AT_MOST`](crate::REMEMBERED_AT_MOST)),
 //! so a world that does not configure the section decides exactly as before.
 
-use mineworld_contracts::{Action, ComponentTypeId, Event, EventTypeId, PlaceId, Visibility};
+use mineworld_contracts::{
+    Action, ComponentTypeId, EntityId, Event, EventTypeId, PlaceId, SimDuration, Visibility,
+};
+use mineworld_kernel::WorldRead;
 use mineworld_sdk::interactions::{
-    ActionDecl, Audience, FactDecl, InteractionSection, Position, Resolved, Role,
+    self, ActionDecl, Audience, FactDecl, InteractionSection, Position, Resolved, Role, Roles,
 };
 
 use crate::action::Talk;
@@ -51,6 +56,8 @@ mineworld_sdk::parameters! {
         range: u32 = 3_000, 1 ..= 100_000;
         /// How many exchanges a listener's history keeps.
         remembered: u16 = 32, 1 ..= 64;
+        /// Days a listener keeps a line; 0 keeps it until `remembered` pushes it out (`ARC-86`).
+        forget_after_days: u16 = 0, 0 ..= 3_650;
     }
 }
 
@@ -101,6 +108,10 @@ impl InteractionSection for ConversationSystem {
         },
     ];
     const PARAMETER_ROLES: &'static [Role] = ROLES;
+    // How long a listener keeps a line is the listener's: not the speaker's, not the place's
+    // (`pr-fg-a-relationship-forgetting.md` §4.2).
+    const FIELD_ROLES: &'static [(&'static str, &'static [Role])] =
+        &[("forget_after_days", &[Role::Target])];
 
     fn encode(resolved: &Resolved<Self>) -> Vec<u8> {
         codec::encode(resolved)
@@ -109,6 +120,15 @@ impl InteractionSection for ConversationSystem {
     fn decode(payload: &[u8]) -> Result<Resolved<Self>, String> {
         serde_json::from_slice(payload).map_err(|error| error.to_string())
     }
+}
+
+/// How long `listener` keeps a line, looked up with the listener alone and no place; [`None`] keeps it
+/// for ever (the default, 0), so an unconfigured world forgets nothing.
+pub(crate) fn kept_for(read: &WorldRead<'_>, listener: EntityId) -> Option<SimDuration> {
+    let roles = Roles::new().with(Role::Target, listener);
+    let days =
+        interactions::parameters_unplaced::<ConversationSystem>(read, &roles).forget_after_days;
+    (days > 0).then(|| SimDuration::from_seconds(i64::from(days) * 86_400))
 }
 
 /// The audience this pack states `fact` with when no list narrows it, from the fact's `FactDecl` — the
@@ -136,8 +156,9 @@ mod tests {
     /// compiled default, or the names the section is stored under, is a version change.
     #[test]
     fn the_default_section_is_pinned_to_the_version() {
-        assert_eq!(ConversationSystem::VERSION.get(), 3);
+        assert_eq!(ConversationSystem::VERSION.get(), 4);
         let defaults = ConversationParameters::default();
+        assert_eq!(defaults.forget_after_days, 0, "a line is kept for ever");
         assert_eq!(i64::from(defaults.gap), CONVERSATION_GAP.seconds());
         assert_eq!(CONVERSATION_GAP.seconds(), 300);
         assert_eq!(

@@ -1,9 +1,10 @@
 //! The state this pack owns: whom a person knows, and how well.
 
-use mineworld_contracts::{EventId, PersonId, WorldTime};
+use mineworld_contracts::{EventId, PersonId, SimDuration, WorldTime};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
+use crate::decay::{CurveName, DecayRule};
 use crate::level::{Level, level};
 use crate::system::RelationshipsSystem;
 
@@ -76,6 +77,31 @@ impl RelationshipValues {
     /// The level these values read as.
     pub const fn level(&self) -> Level {
         level(self.familiarity, self.regard)
+    }
+
+    /// These values as read at `at`: familiarity and regard faded by `rule` for the time since the last
+    /// contact (`ARC-86`); everything else as stored. The one reading every read path uses — contact,
+    /// disclosure, the cap's ranking.
+    pub(crate) fn reading(&self, rule: &DecayRule, at: WorldTime) -> Self {
+        if rule.is_none() {
+            return self.clone();
+        }
+        let elapsed = at
+            .duration_since(self.last_contact)
+            .unwrap_or(SimDuration::ZERO);
+        Self {
+            familiarity: rule.familiarity.familiarity(self.familiarity, elapsed),
+            regard: rule.regard.regard(self.regard, elapsed),
+            ..self.clone()
+        }
+    }
+
+    /// Replaces the stored familiarity and regard by their reading at `at`, before a contact adds to
+    /// them. `last_contact` is left for [`adjust`](Self::adjust) to move.
+    pub(crate) fn rebase(&mut self, rule: &DecayRule, at: WorldTime) {
+        if !rule.is_none() {
+            *self = self.reading(rule, at);
+        }
     }
 
     /// Adds to familiarity and regard, saturating at their bounds, and records the contact.
@@ -165,6 +191,56 @@ impl Acquaintances {
             }
         };
         (&mut self.known[position.0].values, position.1)
+    }
+
+    /// Every entry read at `at`, each by its own pair's rule; `Err` names the first unknown curve.
+    pub(crate) fn reading(
+        &self,
+        rule_of: impl Fn(PersonId) -> Result<DecayRule, CurveName>,
+        at: WorldTime,
+    ) -> Result<Self, CurveName> {
+        let known = self
+            .known
+            .iter()
+            .map(|entry| {
+                Ok(Acquaintance {
+                    counterpart: entry.counterpart,
+                    values: entry.values.reading(&rule_of(entry.counterpart)?, at),
+                })
+            })
+            .collect::<Result<_, CurveName>>()?;
+        Ok(Self { known })
+    }
+
+    /// Removes entries until at most `at_most` remain, the weakest tie first, and says whom, in order
+    /// (`ARC-86`, §5.5, D-FGA-5). The weakest is the lowest familiarity as read at `at` — each by its
+    /// own pair's rule — then the oldest last contact, then the lowest counterpart id: a total order,
+    /// so the victim is the same on every platform. `keep`, the person just met, is never a candidate:
+    /// evicting them would form and forget in one reduction. `Err` names an unknown curve.
+    pub(crate) fn evict_beyond(
+        &mut self,
+        at_most: usize,
+        rule_of: impl Fn(PersonId) -> Result<DecayRule, CurveName>,
+        at: WorldTime,
+        keep: PersonId,
+    ) -> Result<Vec<PersonId>, CurveName> {
+        let mut evicted = Vec::new();
+        while self.known.len() > at_most {
+            let mut weakest: Option<(i32, WorldTime, PersonId)> = None;
+            for entry in self.known.iter().filter(|entry| entry.counterpart != keep) {
+                let read = entry.values.reading(&rule_of(entry.counterpart)?, at);
+                let rank = (read.familiarity, read.last_contact, entry.counterpart);
+                if weakest.is_none_or(|current| rank < current) {
+                    weakest = Some(rank);
+                }
+            }
+            let Some((_, _, victim)) = weakest else {
+                break;
+            };
+            self.known.retain(|entry| entry.counterpart != victim);
+            evicted.push(victim);
+        }
+        Ok(evicted)
     }
 
     /// How many people are known.

@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 
 use super::InteractionSection;
 use super::decl::{ActionDecl, FactDecl, Role};
-use super::section::{Partial, Section};
+use super::section::{ParameterBound, Partial, Section};
 
 /// What a pack's section declares, for the tools: its actions, facts and parameter roles, the schemas
 /// of its parameter block and knobs, and the names of its reference lists.
@@ -61,15 +61,15 @@ pub struct Field {
 }
 
 /// A parameter block field's schema: its type's, with `description` (the doc comment), `default`, and
-/// for a number `minimum` and `maximum`. Used by [`parameters!`](crate::parameters).
+/// what its bound states ([`ParameterBound::schema`]: a number's `minimum` and `maximum`, a named
+/// choice's `enum`). Used by [`parameters!`](crate::parameters).
 #[doc(hidden)]
-pub fn field<T: JsonSchema + Serialize>(
+pub fn field<T: JsonSchema + Serialize, B: ParameterBound<T>>(
     generator: &mut SchemaGenerator,
     name: &'static str,
     doc: &str,
     default: &T,
-    low: &T,
-    high: &T,
+    bound: &B,
 ) -> Field {
     let mut schema = generator.subschema_for::<T>();
     let description: Vec<&str> = doc
@@ -80,12 +80,12 @@ pub fn field<T: JsonSchema + Serialize>(
     if !description.trim().is_empty() {
         schema.insert("description".to_owned(), Value::String(description));
     }
-    let value = |value: &T| serde_json::to_value(value).unwrap_or(Value::Null);
-    schema.insert("default".to_owned(), value(default));
-    let (low, high) = (value(low), value(high));
-    if low.is_number() && high.is_number() {
-        schema.insert("minimum".to_owned(), low);
-        schema.insert("maximum".to_owned(), high);
+    schema.insert(
+        "default".to_owned(),
+        serde_json::to_value(default).unwrap_or(Value::Null),
+    );
+    for (keyword, value) in bound.schema() {
+        schema.insert(keyword, value);
     }
     Field {
         name,

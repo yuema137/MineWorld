@@ -507,10 +507,10 @@ worktree root.
 
 - **Goal.** Start implementation against the frozen design. **Scope.** This file (ledger opened),
   `handoff-dl-a.md` (new).
-- [ ] Implementation: verify the `DESIGN FROZEN` header and §13; record the base commit; confirm DOC-24 is on
-  it (`grep -n "ARC-84" docs/DECISIONS.md`); initialize the handoff.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no authority line widened; rulings copied verbatim.
+- [x] Implementation: verify the `DESIGN FROZEN` header and §13; record the base commit; confirm DOC-24 is on
+  it (`grep -n "ARC-84" docs/DECISIONS.md`); initialize the handoff. *Evidence E-DLa-0.*
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`. *E-DLa-0.*
+- [x] Review: no authority line widened; rulings copied verbatim. *E-DLa-0.*
 - **Commit boundary.** Documentation only.
 
 ### C1 — Specifications before code
@@ -520,11 +520,11 @@ worktree root.
   (`--decisions`, `--seat-model`, `mineworld decisions --json`); `docs/DECISIONS.md` dated notes on `ARC-84`
   (digest printed only when a list is in effect, QDLa-5; `memory:` decoded and passed through, policy ids
   validated by the cognition process at start, QFGb-1), `ARC-27` and `ARC-33`.
-- [ ] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`; every F-DLa-2 item fixed so
-  code and specification agree (`CLAUDE.md` §2.1 rule 4).
-- [ ] Validation: both doc checks.
-- [ ] Review: terminology fixed (`Controller Pack`, `Controller`, decision model is "a Controller Pack's
-  model", never a new pack type); no rule stated only in a README.
+- [x] Implementation: the edits above, citing this design and `ARC-84`/`ARC-85`; every F-DLa-2 item fixed so
+  code and specification agree (`CLAUDE.md` §2.1 rule 4). *E-DLa-1.*
+- [x] Validation: both doc checks. *E-DLa-1.*
+- [x] Review: terminology fixed (`Controller Pack`, `Controller`, decision model is "a Controller Pack's
+  model", never a new pack type); no rule stated only in a README. *E-DLa-1.*
 - **Commit boundary.** Documentation only.
 
 ### C2 — `cognition/decision`: trait, `Draw`, parameters
@@ -532,26 +532,26 @@ worktree root.
 - **Goal.** The extension point exists and is pure by signature.
 - **Scope.** `cognition/decision/{Cargo.toml, README.md, clippy.toml, src/lib.rs, src/model.rs,
   src/draw.rs, src/parameters.rs}`; root `Cargo.toml` members + `[workspace.dependencies]`.
-- [ ] Implementation: `Seed`, `Consult`, `ModelId`, `DecisionModel`, `SeatModel`, `Configured`; `Draw`/`mix`
-  copied verbatim (not yet used by the rule controller); `ModelParameters`, `()` impl, `bounded`.
-- [ ] Validation: **first**, on the base, capture `Draw` golden values (seed, observer, instant, n → value)
+- [x] Implementation: `Seed`, `Consult`, `ModelId`, `DecisionModel`, `SeatModel`, `Configured`; `Draw`/`mix`
+  copied verbatim (not yet used by the rule controller); `ModelParameters`, `()` impl, `bounded`. *E-DLa-2.*
+- [x] Validation: **first**, on the base, capture `Draw` golden values (seed, observer, instant, n → value)
   for 32 tuples by a test against `paced.rs`'s private `Draw` (temporary `#[cfg(test)]` in rule-controller,
   recorded then removed) and freeze them in `cognition/decision/src/draw_tests.rs`; `cargo test -p
-  mineworld-decision`; `cargo clippy -p mineworld-decision --all-targets -- -D warnings`.
-- [ ] Review: no `Cell`/`RefCell`/`Mutex` reachable in trait signatures; object safety of `SeatModel`;
-  golden values not produced by the code under test (test rules §25).
+  mineworld-decision`; `cargo clippy -p mineworld-decision --all-targets -- -D warnings`. *E-DLa-0, E-DLa-2.*
+- [x] Review: no `Cell`/`RefCell`/`Mutex` reachable in trait signatures; object safety of `SeatModel`;
+  golden values not produced by the code under test (test rules §25). *E-DLa-2.*
 - **Failure cases.** A `parameters!` block decode error must carry position (unit test asserts line/column).
 
 ### C3 — `rule` becomes a model, byte-identical
 
 - **Goal.** The rule controller implements the trait without changing a draw.
 - **Scope.** `cognition/rule-controller/{Cargo.toml, clippy.toml, src/paced.rs, src/model.rs, src/lib.rs}`.
-- [ ] Implementation: `paced.rs` uses `mineworld_decision::{Draw, mix}`; `agenda.rs`/`social.rs`/`offered.rs`
-  import paths updated; `Rule` model (SD-DLa-2).
-- [ ] Validation: existing `cargo test -p mineworld-rule-controller` unchanged and green; new parity test
+- [x] Implementation: `paced.rs` uses `mineworld_decision::{Draw, mix}`; `agenda.rs`/`social.rs`/`offered.rs`
+  import paths updated; `Rule` model (SD-DLa-2). *E-DLa-3.*
+- [x] Validation: existing `cargo test -p mineworld-rule-controller` unchanged and green; new parity test
   `Rule` via `SeatModel` vs `PacedRuleController` over the paced test fixtures; `Draw` goldens green;
-  M-DLa-1 and M-DLa-4 run and reverted.
-- [ ] Review: diff of `paced.rs` is imports and the removed `Draw`/`mix` only.
+  M-DLa-1 and M-DLa-4 run and reverted. *E-DLa-3; M-DLa-1, M-DLa-4.*
+- [x] Review: diff of `paced.rs` is imports and the removed `Draw`/`mix` only. *E-DLa-3.*
 
 ### C4 — The format: `decisions.yaml` decoding, resolution, digest; `cognition/installed`
 
@@ -559,17 +559,19 @@ worktree root.
 - **Scope.** `cognition/decision/src/{format.rs, read.rs, resolve.rs, digest.rs, models.rs (the
   models! macro)}`; `cognition/installed/{Cargo.toml, README.md, src/lib.rs, tests/installed.rs}`;
   `worldpack/src/{format.rs, read.rs, error.rs}` (the `decisions:` key, SD-DLa-3); `worldpack/tests/`.
-- [ ] Implementation: SD-DLa-4 … SD-DLa-9 (including the `memory:` decoder, per-seat memory resolution and
+- [x] Implementation: SD-DLa-4 … SD-DLa-9 (including the `memory:` decoder, per-seat memory resolution and
   the YAML→JSON conversion of `parameters`), SD-DLa-12, SD-DLa-14 (digest function only), and the typed
-  JSON structs of SD-DLa-15 (serialization only; the subcommand is C5).
-- [ ] Validation: table-driven refusal test (AC-DLa-2's list, each asserting path, line, column, substring);
+  JSON structs of SD-DLa-15 (serialization only; the subcommand is C5). *E-DLa-4.*
+- [x] Validation: table-driven refusal test (AC-DLa-2's list, each asserting path, line, column, substring);
   precedence (AC-DLa-4, fixture with `configure/classes.yaml`); chain rules with a test-only catalog
   including an external entry; digest equality/inequality; `cognition/installed` guard test (ids valid and
   unique; manifest dependencies equal to listed models, as `systems/installed/tests/installed.rs`);
   worldpack: missing file, path escaping the pack, absent key reads as today; M-DLa-2, M-DLa-3 run and
   reverted; `cargo test -p mineworld-decision -p mineworld-installed-models -p mineworld-worldpack`.
-- [ ] Review: worldpack parses nothing inside the file; no `HashMap`; error messages name nodes as
-  worldpack's do.
+  *E-DLa-4; M-DLa-2, M-DLa-3. The precedence fixture is the unit roster (a defined class `staff`); the
+  CLI fixture pack with `configure/classes.yaml` is C5's.*
+- [x] Review: worldpack parses nothing inside the file; no `HashMap`; error messages name nodes as
+  worldpack's do. *E-DLa-4.*
 
 ### C5 — Hosts: `run`, `server --town`, `validate`, flags, `packs`
 
@@ -577,39 +579,42 @@ worktree root.
 - **Scope.** `tools/cli/{Cargo.toml, src/main.rs, src/run.rs, src/serve.rs, src/hosted.rs, src/packs.rs,
   src/decisions.rs (new: read pack/flag, build roster, resolve; the `decisions` subcommand)}`;
   `tools/cli/tests/decisions.rs` (new); `tools/cli/tests/fixtures/decisions/` (golden JSON).
-- [ ] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause), SD-DLa-15 (`mineworld decisions …
+- [x] Implementation: SD-DLa-11, SD-DLa-13, SD-DLa-14 (header clause), SD-DLa-15 (`mineworld decisions …
   [--json]`); existing `hosted.rs` unit tests adapted to construct `PacedSeat` with `Arc<dyn SeatModel>` (the
-  lattice assertions unchanged).
-- [ ] Validation (QFGb-1 part): AC-DLa-11 — golden JSON for a fixture pack with `memory:` (class and seat
+  lattice assertions unchanged). *E-DLa-5.*
+- [x] Validation (QFGb-1 part), *E-DLa-5*: AC-DLa-11 — golden JSON for a fixture pack with `memory:` (class and seat
   entries, a default, an unknown policy id passed through); `"memory": null` for social-cafe; the JSON parses
   with `serde_json` back into the typed structs (round trip on the Rust side; the Python side is FG-b's test).
-- [ ] Validation: golden header + summary test for social-cafe seed 7, 30 days, captured on the base
+- [x] Validation (*E-DLa-5; M-DLa-6*): golden header + summary test for social-cafe seed 7, 30 days, captured on the base
   **before** this commit (test rules §25) and asserted equal; flag refusals; `--seat-model alice=rule` prints
   the clause; `server --town --decisions` starts (existing real-server test harness) and its `town:` line
   carries the digest; `--decisions` without `--town` refused; `cargo test -p mineworld-cli`; M-DLa-6 run and
   reverted.
-- [ ] Review: `serve.rs` still never names a model type (only `SeatModel`); `mineworld-server` untouched
-  (AC-DLa-8).
+- [x] Review: `serve.rs` still never names a model type (only `SeatModel`); `mineworld-server` untouched
+  (AC-DLa-8). *E-DLa-5.*
 
 ### C6 — Template determinism test over installed models
 
 - **Goal.** Every installed model — today `rule`, tomorrow DL-b's and users' — is held to AC-6 automatically.
 - **Scope.** `tools/cli/tests/decision_models.rs` (new).
-- [ ] Implementation: iterate `Model::AVAILABLE` in-process ids; build `--seat-model` flags for every seat of
-  social-cafe; the two equalities of AC-DLa-6 comparing save bytes, not the printed fingerprint.
-- [ ] Validation: test green; M-DLa-5 (a hidden `RefCell` counter in a test-only build of `Rule`) turns it
-  red, recorded and reverted; wall time recorded (budget ≤ 60 s debug per model).
-- [ ] Review: the test reads the catalog, so adding a model needs no test edit.
+- [x] Implementation: iterate `Model::AVAILABLE` in-process ids; build `--seat-model` flags for every seat of
+  social-cafe; the two equalities of AC-DLa-6 comparing save bytes, not the printed fingerprint. *E-DLa-6.*
+- [x] Validation: test green; M-DLa-5 (a hidden `RefCell` counter in a test-only build of `Rule`) turns it
+  red, recorded and reverted; wall time recorded (budget ≤ 60 s debug per model). *E-DLa-6; M-DLa-5.*
+- [x] Review: the test reads the catalog, so adding a model needs no test edit. *E-DLa-6.*
 
 ### C7 — Real-binary AC-DL-1 and close-out
 
 - **Goal.** AC-DLa-1 evidence on the final head; ledger complete.
 - **Scope.** This file (§15), `handoff-dl-a.md`.
-- [ ] Implementation: `cargo build --release -p mineworld-cli`; `python3 scripts/ci_parity.py record --binary
+- [x] Implementation: `cargo build --release -p mineworld-cli`; `python3 scripts/ci_parity.py record --binary
   target/release/mineworld --profile long --out <scratch>/dl-a.long`; `python3 scripts/ci_parity.py baseline
-  check <scratch>/dl-a.long`.
-- [ ] Validation: classify PASS/FAIL/INCONCLUSIVE from the check's verdict lines; record wall time.
-- [ ] Review: every §8 criterion has evidence or is explicitly open; deviations recorded.
+  check <scratch>/dl-a.long`. *E-DLa-7.*
+- [x] Validation: classify PASS/FAIL/INCONCLUSIVE from the check's verdict lines; record wall time. *E-DLa-7:
+  the check's verdict is FAIL on all 20 keys, proved pre-existing on `main` (F-DLa-4); byte-identity of DL-a's
+  record to `main`'s own record PASS, 20 of 20.*
+- [x] Review: every §8 criterion has evidence or is explicitly open; deviations recorded. *E-DLa-7, §8 table
+  below.*
 - **Commit boundary.** Documentation only; then push, open the PR, one CI.
 
 ---
@@ -714,15 +719,212 @@ and column, not at `run`'s load (SD-DLa-9).
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] | [x] | [x] |
+| C1 | (this commit) | [x] | [x] | [x] |
+| C2 | (this commit) | [x] | [x] | [x] |
+| C3 | (this commit) | [x] | [x] | [x] |
+| C4 | (this commit) | [x] | [x] | [x] |
+| C5 | (this commit) | [x] | [x] | [x] |
+| C6 | (this commit) | [x] | [x] | [x] |
+| C7 | (this commit) | [x] | [x] | [x] |
+
+Commit SHAs: C0 `a7f44de`, C1 `c176773`, C2 `434333c`, C3 `fb06ea1`, C4 `c685b3c`, C5 `d319c3a`, C6 `cfbf364`;
+`origin/main` merged at `3578f83` and again before the push.
+
+Implementation session: fresh, started 2026-10-13 on the operator's go; worktree
+`/Users/yuema137/mineworld-worktrees/impl-dl-a`, branch `mvp0/pr-dl-a`, **base `origin/main @ 6306977`**
+(#177). Handoff: [`handoff-dl-a.md`](handoff-dl-a.md).
 
 ### Evidence
 
-(none yet)
+- **E-DLa-0 (C0).** `DESIGN FROZEN 2026-10-12` header and §13 filled, verified. `grep -n "^## ARC-84"
+  docs/DECISIONS.md` → line 7733 (DOC-24 #175 is on the base). `check_doc_headings.py` → "223 numbered
+  sections across 31 documents, none duplicated"; `check_decision_ids.py` → "122 decision ids, all distinct"
+  (PASS). Authority lines copied from §13 into the handoff unchanged; the operator's kickoff adds one
+  obligation (full local workspace test and Python suites before a push that changes tests), recorded as
+  such, widening nothing.
+- **Goldens frozen on the base, before any code change (test rules §25).** (1) `Draw`: 32 tuples
+  `(seed, observer, instant, n, bound) → (below, offset(1 400))` and four `mix` values, printed by a temporary
+  `#[cfg(test)]` module placed inside `paced.rs` at `6306977` (so it could reach the private `Draw`), then
+  deleted uncommitted; C2 freezes them in `cognition/decision/src/draw_tests.rs`. (2) The base binary's
+  `run worlds/social-cafe --headless --seed 7 --days 30` output minus its `wall` line, frozen as
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (header line
+  `[mineworld] run Social Café (social-cafe): seats alice, …, wanderer; seed 7; to day 30; pace 900s; in
+  memory`; fingerprint `af1927a1e2182bcd`). (3) The base binary's `packs list` (controller line
+  `controller-pack mineworld-rule-controller 0.1.0 MIT Yue Ma bundled`) and `validate` outputs, kept in
+  scratch for AC-DLa-9.
+- **E-DLa-1 (C1).** `docs/MODULE_SPEC.md` §4.1 rewritten for the implemented format: F-DLa-2 items (1)–(5)
+  fixed (the trait crate's dependencies; `Consult`; the digest only when a list is in effect; structural
+  `memory:` errors at load, policy ids at cognition start; `atus-a3-2025`), "the loader refuses the
+  `decisions:` key" removed, the key's path rules, rules 1–8 (refusals, seats/classes, precedence, chains,
+  overrides, absent = today, digest, `memory:` pass-through); §5.1 the trait as implemented, `SeatModel`,
+  `ModelParameters`/`bounded`, the model crates' `clippy.toml`, `Draw::salted`, out-of-process hosting in
+  `run`/`server --town`, `models!` registration, the guard and template tests; §8.1 the synopsis, `server`
+  (`--decisions`/`--seat-model`, refused without `--town`, `--agent` wins, `none` seats undriven, the
+  `town:` clause), `validate`'s decisions line, `run` (models, header clauses, list never stored),
+  `decisions` (the JSON document, format 1), `packs list` (controllers from `cognition/installed`).
+  `docs/DECISIONS.md` dated notes on `ARC-27` (stateless seeded controllers generalised to every in-process
+  model), `ARC-33` (the installed pattern reused for models) and `ARC-84` (QDLa-5; QFGb-1). Terminology:
+  a decision model is "a Controller Pack's model" throughout; no new pack type. Checks:
+  `check_doc_headings.py` → 223 sections, none duplicated; `check_decision_ids.py` → 122 ids, all distinct
+  (PASS). D-DLa-1 … D-DLa-4 recorded below.
+- **E-DLa-2 (C2).** New crate `cognition/decision` (`mineworld-decision`): `src/model.rs` (`Seed`, `Consult`,
+  `ModelId` over the system-id rule, `DecisionModel` with `ID`/`PACKAGE`/`Parameters`/`decide`/`step`,
+  object-safe `SeatModel` — pinned by a compile-time `const _: Option<&dyn SeatModel>` —, `Configured<M>`),
+  `src/draw.rs` (`Draw::new`, `Draw::salted`, `below`, `offset`, `mix`, salt `0x6d69_6e65_776f_726c`),
+  `src/parameters.rs` (`ModelParameters`, `()`, `bounded`), `clippy.toml` (workspace entries plus every
+  interior-mutability type and atomic), `README.md`; root `Cargo.toml` member (named, with the reason a
+  `cognition/*` glob cannot be used) and `[workspace.dependencies]` entry. No new external dependency.
+  `cargo test -p mineworld-decision` → 9 passed (PASS): the 32 `Draw` goldens and 4 `mix` goldens from
+  E-DLa-0, a salted stream independent of the rule's, and parameter decoding (defaults; out-of-bound
+  refused at its key `(2, 1)`; wrong type keeps the decoder's `(2, 11)`; unknown key at `(3, 1)` listing
+  the known keys; twice-written key; `()` refuses any key at `(2, 3)`). `cargo clippy -p mineworld-decision
+  --all-targets -- -D warnings` clean (PASS). Review: the trait signatures name `&self`, contract types and
+  the model's own `Parameters` only; the goldens are literals printed by the base's code.
+  *Finding F-DLa-3 (serde-saphyr positions):* `serde_saphyr::Error::custom` is locationless by design
+  (`de/error.rs`: "keep custom errors locationless"); the decoder attaches the innermost value's position to
+  a locationless error raised *inside* a value, and serde's own constructors (`invalid_value`,
+  `unknown_field`, …) receive the current key's position. The SDK's `parameters!` refuses a bound with
+  `custom`, after the value is consumed, so `bounded` restates exactly that refusal (recognised by the SDK's
+  "'<field>' is " prefix) as `invalid_value`, which is positioned at the field's key; a type error passes
+  unchanged with the decoder's own position. `()` refuses with `unknown_field` for the same reason. The
+  decision-list reader (C4) therefore positions its own semantic refusals from `serde_saphyr::Spanned`
+  values rather than from `custom` errors.
+- **E-DLa-3 (C3).** `cognition/rule-controller`: `src/paced.rs` diff is one import (`mineworld_decision::{Draw,
+  mix}`) and the deleted `Draw`/`mix` (37 lines) — nothing else; `agenda.rs`, `social.rs`, `offered.rs`,
+  `offered_tests.rs` import `mineworld_decision::Draw`; new `src/model.rs`: zero-sized `Rule` (`ID = "rule"`,
+  `PACKAGE = crate::PACKAGE`, `Parameters = ()`), `decide`/`step` building `PacedRuleController::new(seed,
+  pace)` per consult; `pub use model::Rule`; `clippy.toml` (the model-crate list); `Cargo.toml` names
+  `mineworld-decision`. `PacedRuleController`'s API and behaviour unchanged. New test
+  `paced_tests::rule_as_a_seat_model_is_the_paced_controller`: `&dyn SeatModel` over `Configured<Rule>` equals
+  `PacedRuleController` on `decide` and `step` across 4 views × 2 paces × 36 instants × 64 seeds, with more
+  than 1 000 non-empty decisions compared. `cargo test -p mineworld-decision -p mineworld-rule-controller` →
+  9 + 38 passed (37 existing unchanged + 1); clippy `--all-targets -D warnings` clean on both (PASS).
+- **E-DLa-4 (C4).** `cognition/decision`: `src/format.rs` (`ClassRef`, `PolicyId` with FG-b's spelling,
+  `SeatEntry`, `Roster { seats, classes, implicit, people }`, `Position`, `JsonObject` — string keys only,
+  JSON scalars, tags refused), `src/models.rs` (`Decoded` = `Arc<dyn SeatModel>` + canonical parameter JSON;
+  `Catalog`; the `models!` macro, a token muncher so `Name => Type,` and `external "id",` lines mix),
+  `src/read.rs` (`DecisionList::read/parse`, `DecisionsError { path, line, column, detail }`, the positioned
+  pass and the checks), `src/resolve.rs` (`SeatOverride`, `Origin`/`Source`, `ResolvedDecisions`, chains,
+  memory per seat, `digest()` FNV-1a 64, `clause()`), `src/json.rs` (`ResolvedDecisionsJson` …,
+  `JSON_FORMAT = 1`). New crate `cognition/installed` (`mineworld-installed-models`: `models! { Rule =>
+  mineworld_rule_controller::Rule, }`, guard test, README). `worldpack`: `WorldManifest.decisions:
+  Option<DecisionsFile>` (decode-time path rules), `check_decisions_file` (exists, real path inside the pack),
+  `PackError::{DecisionsFileMissing, DecisionsOutsidePack}`, `WorldPack::decisions()`; the file's content is
+  never opened by worldpack. Tests: `read_tests` 7 tests — the refusal table (38 cases: every AC-DLa-2 item,
+  plus default, entry shape, unknown top-level/entry keys, external parameters, an unknown fallback target,
+  an unlisted external link, a tagged parameter; each asserting path, line, column and message; columns
+  counted by hand from the text, four of my counts corrected after the first run by re-counting the text,
+  never by copying output), precedence (seat > class > default > rule; `--seat-model` above; no list → all
+  `rule`, no clause), chains (4 links accepted ending in `probe`, `none` leaves the seat idle, the header
+  clause wording), overrides refused naming the flag, digest equal for `{}`/explicit defaults/key order/class
+  vs per-seat entries/positions and unequal for a parameter change or a memory section, memory resolution and
+  pass-through (an unknown policy id accepted; parameters with int, string, bool, list with a float, null;
+  sources at the winning entry), the JSON shape and key order with a round trip, the catalog's order and
+  kinds. `cognition/installed/tests/installed.rs` 3 tests (manifest = list; ids valid, unique, not `none`,
+  `rule` first; the negative control sees a duplicate and `none`). `worldpack/tests/decisions_key.rs` 5 tests
+  (absent key; present, content never read; missing file; `..`/absolute/`\`/drive refused at decode; a symlink
+  out of the pack, Unix). `cargo test -p mineworld-decision -p mineworld-installed-models -p
+  mineworld-worldpack -p mineworld-rule-controller` → all green; clippy `--all-targets -D warnings` clean
+  (PASS). Review: worldpack names no decision type; `BTreeMap`/`Vec` only; refusals name the node
+  (`assign entry 2: …`, `models.lm.fallback: …`, `memory.assign entry 1.policy: …`).
+  *Bounded deviations:* (a) the digest lives in `resolve.rs` beside the resolution it hashes, not a
+  separate `digest.rs`; (b) `DecisionList::read::<C: Catalog>(path, file, roster)` takes the catalog as a type
+  parameter (the macro's enum) rather than a `&Catalog` value; (c) semantic refusals are positioned from
+  `serde_saphyr::Spanned` after the pass (F-DLa-3), structural ones by serde's positioned constructors in the
+  pass — the user-visible result SD-DLa-5 asks for (file, line, column, the node named); (d) tags in
+  `memory:` parameters are detected through serde-saphyr's `__yaml_tagged` newtype protocol (its `Tagged`
+  wrapper's), the only way the decoder reports a tag; `.nan`/`.inf` are refused by the decoder itself.
+- **E-DLa-5 (C5).** `tools/cli`: new `src/decisions.rs` (`DecisionArgs`, `seat_model` parser, `roster(pack)`
+  — seats in `pack.seats()` order, each seat's `class_of`, the person classes, the four implicit names, the
+  people —, `list` (`--decisions` > pack > none), `resolve`, the `decisions` subcommand with `--json` and a
+  human table); `run.rs` resolves before the world begins, holds `Vec<Option<Arc<dyn SeatModel>>>` in roster
+  order, skips a `none` seat before advancing, consults through `mineworld_decision::Consult { seed, pace:
+  PACE, observation }`, appends `clause(RUN_HOSTS_NONE)` to the header only when a list is in effect;
+  `hosted.rs` `PacedSeat` holds `Arc<dyn SeatModel>`, `Seed` and the answer window, lattice/walking logic
+  unchanged, unit tests construct it with `Configured<Rule>` (assertions unchanged); `serve.rs`
+  `Driver::Modelled { k, model }`, `check_decision_flags` (refused without `--town`; a seat in both `--agent`
+  and `--seat-model`), the list resolved even without `--town` so a bad pack file is refused alike, `none`
+  seats not hosted, the `town:` statement's clause; `packs.rs` `controllers()` from
+  `mineworld_installed_models::AVAILABLE` plus the rule controller's package, deduplicated by name;
+  `main.rs` `DecisionFlags` flattened into `run`/`server`/`decisions`, the `Decisions` subcommand,
+  `validate`'s decisions line. `mineworld-server` untouched; `serve.rs` names `SeatModel` and
+  `ResolvedDecisions`, never a model type. Base-binary comparisons (the debug build of this head vs the
+  E-DLa-0 captures): `run worlds/social-cafe --seed 7 --days 30` minus `wall` → `cmp` identical to the golden;
+  `packs list` identical (AC-DLa-9); `validate` of social-cafe, market-town, bodies-yard identical (PASS).
+  New `tools/cli/tests/decisions.rs`, 7 tests: AC-DLa-1's golden (header and summary, byte for byte);
+  a flag, an operator file and a pack file that resolve every seat to `rule` print one digest and run the same
+  world as no list (AC-DLa-3, -5, -7), a memory parameter change moves the digest; refusals through the binary
+  (`--decisions` with file:2:3, `--seat-model` unknown seat/model, a pack's bad file under `validate` and
+  `decisions` at `:2:13`, a missing file); `validate`'s line only with a key; the AC-DLa-11 golden
+  (`tests/fixtures/decisions/memory.{yaml,json}`: a copy of Social Café with `configure/classes.yaml`
+  `residents`, a class and a seat memory entry, a default, `nonexistent-policy` passed through; the JSON golden
+  written by hand from the fixture's text, its digest checked equal to `run`'s for the same list instead of
+  being hand-computed); `server` refusals before binding; `server --town --decisions` started for real, its
+  `town:` statement ending with the clause `run` prints. `cargo test -p mineworld-cli --test decisions` → 7
+  passed (PASS). Mutations M-DLa-6 and M-DLa-1 part 2 red by name. `cargo test -p mineworld-cli` (whole
+  crate, every existing CLI test with the rewired hosts) and `cargo clippy -p mineworld-cli --all-targets -D
+  warnings`: no failure, no warning (PASS, exit 0).
+- **E-DLa-6 (C6).** `tools/cli/tests/decision_models.rs`: for every in-process id of
+  `mineworld_installed_models::AVAILABLE` (today `rule`), every Social Café seat on it by `--seat-model`; the
+  header shows `(11 rule)`; `--days 10 --save A`, again `--save B`, and `--days 5` then `--days 10 --save C`
+  (created, then resumed); `Tables::assert_same_history` (facts, journal, snapshots, byte for byte) A = B and
+  A = C. Green: `rule: 28521 facts, 6.3 s` debug (budget ≤ 60 s, PASS). The model list comes from the catalog;
+  installing a model adds it here with no edit. Runs in the `test`, `test-macos`, `test-windows` CI jobs.
+- **E-DLa-7 (C7).** Head `3578f83` (C6 plus `origin/main @ 171ea06` merged; between the base `6306977` and
+  `171ea06` main changed only `clients/`, `.structured-coding/`, `docs/HUMAN_REVIEW_QUEUE.md` and the
+  `mineworld-3d`/`mineworld-slice` launchers — no Rust, no world, no `scripts/baselines.txt`). Release build;
+  `python3.12 scripts/ci_parity.py record --binary <target>/release/mineworld --profile long` (macOS arm64,
+  rustc 1.97.1): 4 worlds in 2 424 s (run concurrently with the workspace test suite; the first attempt
+  failed at once because `rustc` was not on `PATH` and recorded nothing). `baseline check` verdict:
+  **`baselines FAIL`**, all 20 keys (e.g. social-cafe summary-300 baseline `338 ad49c723…`, record `341
+  9500d0c8…`; facts-300s `365330` vs `837953`).
+  **F-DLa-4 (the failure is `main`'s, not DL-a's).** *Audit:* `main`'s own nightly, run `38587126996` on
+  `171ea06` — a commit with no DL-a code — fails `parity-long` (and has since at least 2026-10-13, runs
+  `38440079845`, `38331245496`). Its 20 recorded `(world, key, bytes, sha256)` values, taken from that run's log,
+  equal this head's 20 recorded values exactly (`diff` empty, 20/20). *Conclusion:* `scripts/baselines.txt`
+  (last re-recorded by #162 on 2026-10-10) is stale against `main`; DL-a's absent-case history is byte for byte
+  `main`'s on every world and every column, which is what AC-DL-1 protects. DL-a may not edit
+  `scripts/baselines.txt` (§13 NEVER), so the stale file is reported for the operator, not fixed here.
+  *Classification of AC-DLa-1:* the "baseline check passes" clause is **FAIL, pre-existing and not caused by
+  DL-a** (proved against `main`'s record); the byte-identity it stands for is **PASS** (20/20 equal to `main`'s
+  record; social-cafe header and 30-day summary equal to the base binary's, E-DLa-5); `run`'s header for
+  social-cafe at seed 7 equals the base's byte for byte (PASS). §13 lists "AC-DLa-1 FAIL" as a material stop:
+  this is surfaced to the operator in the review handoff, with the evidence above, rather than resolved by
+  this session.
+- **E-DLa-8 (full local suites before the push, operator's kickoff instruction).** On `3578f83`: `cargo fmt
+  --all -- --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test
+  --workspace --no-fail-fast` exit 0, 1 068 passed, 0 failed; `uv run --locked pytest sdk/python` 103 passed
+  (with `MINEWORLD_BIN` = this head's debug binary); `uv run --locked pytest cognition/lm-controller` 169
+  passed, 1 skipped (PASS).
+
+### §8 criteria at close
+
+| Criterion | Verdict | Evidence |
+| --- | --- | --- |
+| AC-DLa-1 | byte-identity PASS; baseline-check clause FAIL, pre-existing on `main` (F-DLa-4) — operator item | E-DLa-5, E-DLa-7; M-DLa-1, M-DLa-6 |
+| AC-DLa-2 | PASS | E-DLa-4 (38-case table), E-DLa-5 (through the binary); M-DLa-3 |
+| AC-DLa-3 | PASS | E-DLa-5 (`lists_that_resolve_alike…`: the pack's file vs no list) |
+| AC-DLa-4 | PASS | E-DLa-4; M-DLa-2 |
+| AC-DLa-5 | PASS | E-DLa-4, E-DLa-5 |
+| AC-DLa-6 | PASS locally (macOS); Linux/Windows in the PR's CI | E-DLa-6; M-DLa-5 |
+| AC-DLa-7 | PASS | E-DLa-4 (parameter change), E-DLa-5 (three lists alike; memory parameter change) |
+| AC-DLa-8 | PASS | `git diff --stat origin/main...HEAD -- kernel contracts systems server persistence` empty |
+| AC-DLa-9 | PASS | E-DLa-5 (`packs list` identical to the base binary's) |
+| AC-DLa-10 | PASS | E-DLa-1 |
+| AC-DLa-11 | PASS | E-DLa-4, E-DLa-5 (golden) |
 
 ### Mutations
 
-(none run yet)
+| Id | Mutation, as run | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- |
+| M-DLa-1 (part 1, C3) | `RULE_SALT` `…726c` → `…726d` in `cognition/decision/src/draw.rs` | `Draw` goldens red | `draw_tests::the_rule_s_draws_are_the_base_s_draws` and `a_salted_draw_is_a_different_stream` FAILED (7 passed, 2 failed); reverted, 9 passed | red by name (PASS). Part 2 (AC-DLa-1's golden) at C5 |
+| M-DLa-4 (C3) | a counter field in `Rule`. As `std::cell::Cell<u64>` the **compiler** refuses it first (`DecisionModel: Sync`); as `std::sync::atomic::AtomicU64`, which is `Sync`, clippy refuses it: "use of a disallowed type `std::sync::atomic::AtomicU64` … a decision model holds no state across consults (ARC-27)" | clippy `disallowed-types` | as expected; reverted, clippy clean | red by name (PASS); a `Cell` cannot even reach the lint |
+| M-DLa-2 (C4) | resolution reads `classes` before `seats` in `resolve.rs` | the precedence test | `read_tests::a_seat_entry_beats_its_class_which_beats_the_default` FAILED; reverted, green | red by name (PASS) |
+| M-DLa-6 (C5) | the `in_effect()` guard removed from `ResolvedDecisions::clause`, so the clause always prints | AC-DLa-1's golden header test | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED (and the unit `a_seat_entry_beats_its_class_which_beats_the_default`, whose no-list case asserts no clause); reverted, green | red by name (PASS) |
+| M-DLa-1 (part 2, C5) | `RULE_SALT` `…726c` → `…726d` again | AC-DLa-1's golden | `decisions::with_no_decision_list_run_prints_what_the_base_printed` FAILED; reverted | red by name (PASS) |
+| M-DLa-5 (C6) | a process-wide counter in `Rule::decide` (`static AtomicU64`, every 997th consult answers nothing), the lint evaded with `#[allow(clippy::disallowed_types)]` — standing in for state clippy cannot see | the template test's kill-and-resume equality | FAILED: "rule: killed at day 5 and resumed: facts row counts differ" (the two uninterrupted runs still agreed, as expected of process state); reverted, green | red by name (PASS) |
+| M-DLa-3 (C4) | `#[serde(deny_unknown_fields)]` removed from `RawAssign` | the refusal table | `every_refusal_names_its_node_with_line_and_column` FAILED: "an unknown key in an assignment: accepted"; reverted, green | red by name (PASS) |
 
 ### Deviations and findings
 
@@ -738,3 +940,23 @@ and column, not at `run`'s load (SD-DLa-9).
   (5) the example's `curves: atus-2003-2023` → `atus-a3-2025` (QDLb-3; DL-b's C7 owns the `motivated`
   paragraph, DL-a fixes the example). Also: "the loader refuses the `decisions:` key until that PR merges"
   is removed by C1.
+
+Implementation-time deviations (all bounded; none touches a frozen invariant, a public contract under
+`contracts/`, an ownership boundary, a dependency or scope):
+
+- **D-DLa-1 (C1, C2) — `DecisionModel` gains `const PACKAGE: Package`.** *Previous assumption:* §5.1's trait has
+  `ID`, `Parameters`, `decide`, `step`; §5.7 has `packs.rs` derive its controller list as
+  "`Model::packages()` from `cognition/installed`". *Audit:* nothing in §5.1's trait carries a package, and a
+  `models!` line names only a type, so the catalog cannot know a model's package (`ARC-53`) unless the type
+  states it. *Resolution:* the trait states it, as `SystemPack::PACKAGE` does (`mineworld_sdk::Package`, a
+  re-export the trait crate already reaches through the SDK, QDLa-4). *Consequence:* `Rule::PACKAGE` is
+  `mineworld_rule_controller::PACKAGE`, so AC-DLa-9's list is unchanged. Specified in `MODULE_SPEC.md` §5.1.
+- **D-DLa-2 (C1, C4) — an external model takes no `parameters` in DL-a.** step-24 §5.3 says an external
+  entry carries "only `fallback` and model-specific parameters"; the Rust side cannot type an external
+  model's parameters, and I-DLa-5 forbids accepting what is not understood. DL-a refuses `parameters` on an
+  external entry by name; the PR that installs the first external model (P6) defines how they are carried.
+- **D-DLa-3 (C1, C4) — "at most 4 links" counts `fallback:` steps.** A chain `m0 → m1 → … → mk` has `k`
+  links; `k ≤ 4` is accepted, `k = 5` refused (AC-DLa-2's "chain of 5" is tested as five links).
+- **D-DLa-4 (C1, C4) — `none` is reserved.** `fallback: none` ends a chain, so no installed model may have
+  the id `none`; the `cognition/installed` guard test refuses it. In `mineworld decisions --json` a seat
+  whose chain ends at `none` has `"model": { "id": null, … }`.

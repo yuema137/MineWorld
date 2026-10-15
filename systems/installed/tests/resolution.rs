@@ -44,8 +44,8 @@ fn every_type_on_an_extension_line_is_an_installed_pack_listed_once() {
     let lines = Capability::extension_types();
     assert_eq!(
         lines.len(),
-        2,
-        "the real set has presence's line and movement's"
+        3,
+        "the real set has presence's line, movement's and relationships'"
     );
     let installed = AVAILABLE.into_iter().map(Capability::type_name).collect();
     let faults = faults(lines, installed);

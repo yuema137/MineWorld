@@ -288,11 +288,13 @@ fn encoded(value: &Talk) -> Vec<u8> {
 }
 
 mod agenda;
+mod model;
 mod offered;
 mod paced;
 mod social;
 mod walking;
 
+pub use model::Rule;
 pub use paced::PacedRuleController;
 pub use walking::walks;
 

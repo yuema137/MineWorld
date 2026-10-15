@@ -16,7 +16,7 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target", "settings"]
+const WORLD_MODES := ["link", "conversation", "target", "settings", "controls"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
@@ -46,6 +46,7 @@ func _run(mode: String) -> void:
 		"conversation": await _conversation_frames()
 		"target": await _target_check()
 		"settings": await _settings_check()
+		"controls": await _controls_check()
 		_: await super(mode)
 
 
@@ -759,6 +760,132 @@ func _menu_takes_input(link: SliceLink) -> void:
 		and at.distance_to(player.global_position) < 0.05, "an open menu takes gameplay input",
 		"%d requests while open" % asked[0])
 	menu.close()
+
+
+## One scripted look: `counts` mouse counts, given to the player's look in ten steps, measured as the yaw and
+## pitch change. Real OS cursor motion is kept out (the base probe's `ignore_mouse_look`), so the measurement is
+## the scripted motion alone; the event routing that calls the same `look()` is covered by the menu walk.
+func _look_by(counts: Vector2) -> Vector2:
+	var yaw: float = player.rotation.y
+	var pitch: float = player.rig.pitch
+	for i in 10:
+		player.look(counts / 10.0)
+		await get_tree().process_frame
+	return Vector2(player.rotation.y - yaw, player.rig.pitch - pitch)
+
+
+## The expected look of 100 counts at `percent` with or without inversion: 100 × 0.0016 × scale, the pitch sign
+## flipped by inversion (SET-b AC-SETb-1, AC-SETb-2). The default run's yaw and pitch are the accepted look.
+static func _expected_look(percent: int, invert: bool) -> Vector2:
+	var magnitude := 100.0 * 0.0016 * (percent / 100.0)
+	return Vector2(-magnitude, -magnitude * (-1.0 if invert else 1.0))
+
+
+static func _near(got: float, want: float) -> bool:
+	return absf(got - want) <= absf(want) * 0.01 + 0.000001
+
+
+## Applies a sensitivity and inversion through the menu's own Apply, as a player does, then closes the menu.
+func _apply_input(menu: MineWorldSettingsMenu, percent: int, invert: bool) -> void:
+	menu.open()
+	var tab := menu._tabs.get_child(2) as MineWorldControlsTab
+	tab._on_sensitivity(MineWorldSettings.MOUSE_SENSITIVITIES.find(percent))
+	tab._on_invert(0 if invert else 1)
+	menu.apply()
+	menu.close()
+	await _settle(2)
+
+
+func _look_check(label: String, percent: int, invert: bool) -> void:
+	var got_yaw := await _look_by(Vector2(100, 0))
+	var got_pitch := await _look_by(Vector2(0, 100))
+	var want := _expected_look(percent, invert)
+	print("EVIDENCE ", JSON.stringify({"look": {"step": label, "percent": percent, "invert_y": invert,
+		"yaw": [got_yaw.x, want.x], "pitch": [got_pitch.y, want.y]}}))
+	_set_check(_near(got_yaw.x, want.x) and _near(got_pitch.y, want.y), "the look at %s matches its setting" % label,
+		"yaw %.5f want %.5f; pitch %.5f want %.5f" % [got_yaw.x, want.x, got_pitch.y, want.y])
+
+
+## SET-b (`clients/shared/SETTINGS.md` §7.1): the Controls tab and the 3D look, connected. Without `--sweep` it
+## measures the look the run started with (the planted or saved values). With `--sweep` it applies each value
+## through the menu's Apply, measures it, and leaves the last one (200 %, inverted) saved to the file in use.
+## The key map, the file's keys and the request transcript (AC-SETb-3, -4, -6) are printed alongside.
+func _controls_check() -> void:
+	print("== S20 SET-b -- the Controls tab and mouse look in the connected slice ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
+		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	_set_check(link.client.is_seated(), "seated")
+	print("EVIDENCE ", JSON.stringify({"first_frame": slice.first_frame}))
+	link.report_position()
+	await _hold(0.5)
+	var menu: MineWorldSettingsMenu = slice.settings_menu
+	player.look_enabled = false
+	player.scripted_look = true
+	if "--sweep" in OS.get_cmdline_user_args():
+		await _apply_input(menu, 50, false)
+		await _look_check("apply_low", 50, false)
+		await _apply_input(menu, 100, false)
+		await _look_check("apply_default", 100, false)
+		await _apply_input(menu, 100, true)
+		await _look_check("apply_default_inverted", 100, true)
+		await _apply_input(menu, 200, false)
+		await _look_check("apply_high", 200, false)
+		await _apply_input(menu, 200, true)
+		await _look_check("apply_high_inverted", 200, true)
+	else:
+		var percent := roundi(player.look_scale * 100.0)
+		await _look_check("loaded", percent, player.invert_look_y)
+	_controls_keymap(menu)
+	var store := menu.store
+	if store.path != "":
+		var config := ConfigFile.new()
+		config.load(store.absolute_path())
+		var keys := config.get_section_keys("input")
+		print("EVIDENCE ", JSON.stringify({"file": {"sections": config.get_sections(), "input": keys}}))
+		var only_two := keys.size() <= 2
+		for key in keys:
+			only_two = only_two and (key == "mouse_sensitivity" or key == "invert_y")
+		_set_check(only_two, "the file holds only the two [input] keys", str(keys))
+	menu._tabs.current_tab = 2
+	await _menu_takes_input(link)
+	print("\n%s" % ("all controls checks pass" if _set_fails == 0 else "%d CONTROLS CHECKS FAILED" % _set_fails))
+	link.client.leave_world()
+	await _hold(0.5)
+
+
+## The key map the tab shows, against the bindings: each row's shown keys equal the InputMap keys of its action
+## (AC-SETb-4); printed as EVIDENCE for the record.
+func _controls_keymap(menu: MineWorldSettingsMenu) -> void:
+	var tab := menu._tabs.get_child(2) as MineWorldControlsTab
+	var shown := []
+	var bound := []
+	for i in SliceMain.KEY_MAP.size():
+		var pair: Array = SliceMain.KEY_MAP[i]
+		var physical := PackedInt32Array()
+		for event in InputMap.action_get_events(pair[0]):
+			if event is InputEventKey:
+				var key := event as InputEventKey
+				physical.append(key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode)
+		var names := PackedStringArray()
+		for code in physical:
+			var label := DisplayServer.keyboard_get_label_from_physical(code)
+			names.append(OS.get_keycode_string(label if label != KEY_NONE else code))
+		bound.append([pair[0], ", ".join(names)])
+		shown.append([tab._map_cells[2 * i].text, tab._map_cells[2 * i + 1].text])
+	print("EVIDENCE ", JSON.stringify({"keymap": {"bound": bound, "shown": shown}}))
+	var equal := true
+	for i in bound.size():
+		equal = equal and shown[i][1] == bound[i][1]
+	_set_check(equal and shown.size() == SliceMain.KEY_MAP.size(), "the key map shows the bindings the client uses",
+		str(shown))
 
 
 ## Every UI text of the slice: the HUD and the menu, tab by tab; the language list (each language names

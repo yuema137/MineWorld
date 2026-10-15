@@ -2,8 +2,8 @@
 ## (`clients/shared/SETTINGS.md` §3). A setting never reaches the server (INV-SET-1).
 ##
 ## `read` builds a value from a `ConfigFile` and says what it could not accept; nothing invalid survives
-## it. `write` puts the named sections back. The sections this value owns are `general` and `display`;
-## any other section of the file belongs to someone else and is neither read nor judged here.
+## it. `write` puts the named sections back. The sections this value owns are `general`, `display` and
+## `input`; any other section of the file belongs to someone else and is neither read nor judged here.
 class_name MineWorldSettings
 extends RefCounted
 
@@ -13,12 +13,14 @@ enum VSync { OFF, ON, ADAPTIVE }
 
 const GENERAL := "general"
 const DISPLAY := "display"
-const SECTIONS: PackedStringArray = ["general", "display"]
+const INPUT := "input"
+const SECTIONS: PackedStringArray = ["general", "display", "input"]
 
-## The keys of each owned section, as written in the file.
+## The keys of each owned section, as written in the file. `input` holds no key binding, ever (QSET-7).
 const KEYS := {
 	"general": ["language", "clock"],
 	"display": ["window_mode", "window_size", "render_scale", "vsync", "max_fps"],
+	"input": ["mouse_sensitivity", "invert_y"],
 }
 
 ## How each enum is written in the file: readable words, so a person can edit it.
@@ -31,9 +33,12 @@ const RENDER_SCALES: Array[int] = [50, 67, 75, 85, 100]
 const FPS_CAPS: Array[int] = [0, 30, 60, 120, 144, 165, 240, -1]
 const MIN_WINDOW := Vector2i(640, 360)
 const MAX_WINDOW := Vector2i(7680, 4320)
+## Percent of the accepted look rate (`player.gd` MOUSE_SENS); 100 is today's feel exactly (SD-SETb-2).
+const MOUSE_SENSITIVITIES: Array[int] = [50, 75, 100, 125, 150, 200]
 
 const DEFAULT_LANGUAGE := "en"
 const DEFAULT_WINDOW := Vector2i(1600, 900)
+const DEFAULT_MOUSE_SENSITIVITY := 100
 
 var language := DEFAULT_LANGUAGE
 var clock: ClockFormat = ClockFormat.AUTO
@@ -42,6 +47,8 @@ var window_size := DEFAULT_WINDOW
 var render_scale := 100
 var vsync: VSync = VSync.ON
 var max_fps := 0
+var mouse_sensitivity := DEFAULT_MOUSE_SENSITIVITY
+var invert_y := false
 
 
 func copy() -> MineWorldSettings:
@@ -53,7 +60,14 @@ func copy() -> MineWorldSettings:
 	other.render_scale = render_scale
 	other.vsync = vsync
 	other.max_fps = max_fps
+	other.mouse_sensitivity = mouse_sensitivity
+	other.invert_y = invert_y
 	return other
+
+
+## The look rate multiplier the 3D player takes (`player.gd` `set_look`), SD-SETb-4.
+func look_scale() -> float:
+	return mouse_sensitivity / 100.0
 
 
 ## Whether `other` differs from this value in one owned section.
@@ -63,6 +77,8 @@ func differs_in(other: MineWorldSettings, section: String) -> bool:
 	if section == DISPLAY:
 		return window_mode != other.window_mode or window_size != other.window_size \
 			or render_scale != other.render_scale or vsync != other.vsync or max_fps != other.max_fps
+	if section == INPUT:
+		return mouse_sensitivity != other.mouse_sensitivity or invert_y != other.invert_y
 	return false
 
 
@@ -107,6 +123,9 @@ func write(config: ConfigFile, sections: PackedStringArray) -> void:
 			config.set_value(DISPLAY, "render_scale", render_scale)
 			config.set_value(DISPLAY, "vsync", VSYNC_WORDS[vsync])
 			config.set_value(DISPLAY, "max_fps", max_fps)
+		elif section == INPUT:
+			config.set_value(INPUT, "mouse_sensitivity", mouse_sensitivity)
+			config.set_value(INPUT, "invert_y", invert_y)
 
 
 ## Takes one raw value, or says why not (and leaves the default).
@@ -146,6 +165,14 @@ func _take(key: String, raw: Variant) -> String:
 			if typeof(raw) != TYPE_INT or not FPS_CAPS.has(int(raw)):
 				return "not one of %s" % str(FPS_CAPS)
 			max_fps = int(raw)
+		"mouse_sensitivity":
+			if typeof(raw) != TYPE_INT or not MOUSE_SENSITIVITIES.has(int(raw)):
+				return "not one of %s" % str(MOUSE_SENSITIVITIES)
+			mouse_sensitivity = int(raw)
+		"invert_y":
+			if typeof(raw) != TYPE_BOOL:
+				return "not true or false"
+			invert_y = raw
 	return ""
 
 

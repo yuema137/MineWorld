@@ -55,6 +55,9 @@ pub trait Fields:
 
     /// The first field both set, to different values.
     fn conflict(&self, other: &Self) -> Option<&'static str>;
+
+    /// The names of the fields this value sets, in declaration order.
+    fn set_names(&self) -> Vec<&'static str>;
 }
 
 impl Fields for () {
@@ -72,6 +75,52 @@ impl Fields for () {
 
     fn conflict(&self, _: &Self) -> Option<&'static str> {
         None
+    }
+
+    fn set_names(&self) -> Vec<&'static str> {
+        Vec::new()
+    }
+}
+
+/// What a parameter field's value must be, checked while the section decodes (`ARC-63` item 2, note of
+/// 2026-10-13): an inclusive range for a number, or a named choice a pack supplies.
+pub trait ParameterBound<T> {
+    /// Whether `value` is allowed.
+    fn admits(&self, value: &T) -> bool;
+
+    /// What is allowed, as a refusal words it after `'<field>' is `.
+    fn describe(&self) -> String;
+
+    /// What is allowed, as JSON Schema keywords added to the field's schema, for the generated
+    /// reference (`docs/DECISIONS.md` `ARC-90`): a numeric range's `minimum` and `maximum`, a named
+    /// choice's `enum`. None by default.
+    fn schema(&self) -> serde_json::Map<String, serde_json::Value> {
+        serde_json::Map::new()
+    }
+}
+
+/// The common bound: `low ..= high`, worded `low … high`, as every refusal was before named choices.
+impl<T: PartialOrd + core::fmt::Display + Serialize> ParameterBound<T>
+    for core::ops::RangeInclusive<T>
+{
+    fn admits(&self, value: &T) -> bool {
+        self.contains(value)
+    }
+
+    fn describe(&self) -> String {
+        format!("{} … {}", self.start(), self.end())
+    }
+
+    /// `minimum` and `maximum` for a number; nothing for any other range (a `bool`'s states none).
+    fn schema(&self) -> serde_json::Map<String, serde_json::Value> {
+        let value = |value: &T| serde_json::to_value(value).unwrap_or(serde_json::Value::Null);
+        let (low, high) = (value(self.start()), value(self.end()));
+        let mut keywords = serde_json::Map::new();
+        if low.is_number() && high.is_number() {
+            keywords.insert("minimum".to_owned(), low);
+            keywords.insert("maximum".to_owned(), high);
+        }
+        keywords
     }
 }
 
@@ -96,8 +145,10 @@ pub trait Parameters:
     fn apply(&mut self, partial: &Self::Partial);
 }
 
-/// Declares a pack's parameter block and its partial twin: each field's type, default and inclusive
-/// bound. Used by a pack beside its `InteractionSection` impl; the invoking crate depends on `serde`.
+/// Declares a pack's parameter block and its partial twin: each field's type, default and bound — a
+/// [`ParameterBound`] of the field's type, usually an inclusive range. Used by a pack beside its
+/// `InteractionSection` impl; the invoking crate depends on `serde`. A field's type is `Display`, so a
+/// refusal can name the value.
 ///
 /// ```text
 /// mineworld_sdk::parameters! {
@@ -105,6 +156,8 @@ pub trait Parameters:
 ///     pub struct Tuning, partial TuningPartial {
 ///         /// Seconds between two steps.
 ///         interval: u32 = 300, 1 ..= 86_400;
+///         /// A named choice: the bound is a value the pack supplies.
+///         shape: ShapeName = ShapeName::FLAT, ShapeCatalog;
 ///     }
 /// }
 /// ```
@@ -120,7 +173,7 @@ macro_rules! parameters {
         $vis:vis struct $Name:ident, partial $Partial:ident {
             $(
                 $(#[doc = $doc:literal])*
-                $field:ident : $ty:ty = $default:literal, $low:literal ..= $high:literal;
+                $field:ident : $ty:ty = $default:expr, $bound:expr;
             )+
         }
     ) => {
@@ -143,13 +196,12 @@ macro_rules! parameters {
             ) -> $crate::__private::schemars::Schema {
                 $crate::interactions::schema::block(::std::vec![
                     $(
-                        $crate::interactions::schema::field::<$ty>(
+                        $crate::interactions::schema::field::<$ty, _>(
                             generator,
                             stringify!($field),
                             concat!($($doc, "\n",)* ""),
                             &$default,
-                            &$low,
-                            &$high,
+                            &$bound,
                         ),
                     )+
                 ])
@@ -195,11 +247,14 @@ macro_rules! parameters {
                 $(
                     if name == stringify!($field) {
                         let value: $ty = map.next_value()?;
-                        if !($low..=$high).contains(&value) {
+                        let bound = $bound;
+                        if !$crate::interactions::ParameterBound::<$ty>::admits(&bound, &value) {
                             return ::core::result::Result::Err(
                                 <A::Error as $crate::__private::DeError>::custom(format!(
-                                    "'{}' is {} … {}, not {}",
-                                    stringify!($field), $low, $high, value
+                                    "'{}' is {}, not {}",
+                                    stringify!($field),
+                                    $crate::interactions::ParameterBound::<$ty>::describe(&bound),
+                                    value
                                 )),
                             );
                         }
@@ -229,6 +284,16 @@ macro_rules! parameters {
                     }
                 )+
                 ::core::option::Option::None
+            }
+
+            fn set_names(&self) -> ::std::vec::Vec<&'static str> {
+                let mut names = ::std::vec::Vec::new();
+                $(
+                    if self.$field.is_some() {
+                        names.push(stringify!($field));
+                    }
+                )+
+                names
             }
         }
 
@@ -644,7 +709,7 @@ impl<'de, S: InteractionSection> Visitor<'de> for EntrySeed<S> {
     fn visit_map<A: MapAccess<'de>>(self, map: A) -> Result<Self::Value, A::Error> {
         match self.kind {
             EntryKind::Rule => rule::<S, A>(map, self.in_region).map(Decoded::Rule),
-            EntryKind::Param => param::<S, A>(map).map(Decoded::Param),
+            EntryKind::Param => param::<S, A>(map, self.in_region).map(Decoded::Param),
             EntryKind::Cons => cons::<S, A>(map).map(Decoded::Cons),
         }
     }
@@ -719,14 +784,17 @@ fn rule<'de, S: InteractionSection, A: MapAccess<'de>>(
 
 fn param<'de, S: InteractionSection, A: MapAccess<'de>>(
     mut map: A,
+    in_region: bool,
 ) -> Result<ParamEntry<Partial<S>>, A::Error> {
     let mut fields = Partial::<S>::default();
     let mut selectors = Selectors::any();
+    let mut named: Vec<Role> = Vec::new();
     let what = format!("the parameters of '{}'", S::ID.as_str());
     while let Some(key) = map.next_key::<String>()? {
         if let Some(role) = Role::named(&key) {
             let selector = role_selector(&mut map, role, S::PARAMETER_ROLES, &what)?;
             selectors = selectors.with(role, selector);
+            named.push(role);
         } else if !fields.decode_field(&key, &mut map)? {
             return Err(A::Error::custom(format!(
                 "'{key}' is neither a role nor a parameter of '{}' (its parameters: {})",
@@ -735,7 +803,46 @@ fn param<'de, S: InteractionSection, A: MapAccess<'de>>(
             )));
         }
     }
+    field_roles::<S>(&fields.set_names(), &named, in_region).map_err(A::Error::custom)?;
     Ok(ParamEntry { selectors, fields })
+}
+
+/// Whether a parameter entry that sets `set` and names the roles `named` — in a region when
+/// `in_region` — respects its owner's per-field roles ([`InteractionSection::FIELD_ROLES`]); the
+/// refusal, worded, otherwise. A field the owner does not list may be scoped by every parameter role.
+pub(crate) fn field_roles<S: InteractionSection>(
+    set: &[&str],
+    named: &[Role],
+    in_region: bool,
+) -> Result<(), String> {
+    for (field, allowed) in S::FIELD_ROLES {
+        if !set.contains(field) {
+            continue;
+        }
+        let names = || {
+            allowed
+                .iter()
+                .map(|role| role.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        if let Some(role) = named.iter().find(|role| !allowed.contains(role)) {
+            return Err(format!(
+                "'{field}' of '{}' may not be scoped by the role '{}' (its roles: {})",
+                S::ID.as_str(),
+                role.name(),
+                names()
+            ));
+        }
+        if in_region && !allowed.contains(&Role::Place) {
+            return Err(format!(
+                "a region may not set '{field}': '{}' does not let a place scope it (its roles: {})",
+                S::ID.as_str(),
+                names()
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn cons<'de, S: InteractionSection, A: MapAccess<'de>>(
@@ -888,7 +995,9 @@ impl<'de, S: InteractionSection> Visitor<'de> for RegionSeed<S> {
         while let Some(key) = map.next_key::<String>()? {
             match key.as_str() {
                 "rules" => entries.rules = map.next_value_seed(Rules::<S>::new(true))?,
-                "parameters" => entries.parameters = map.next_value_seed(ParamList::<S>::new())?,
+                "parameters" => {
+                    entries.parameters = map.next_value_seed(ParamList::<S>::new_in(true))?;
+                }
                 "consequences" => {
                     entries.consequences = map.next_value_seed(ConsList::<S>::new())?;
                 }
