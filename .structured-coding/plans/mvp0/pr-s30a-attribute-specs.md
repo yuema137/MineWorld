@@ -481,7 +481,8 @@ No question remains open.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 base and ledger | this commit | [x] base, ids, merge states and rulings recorded below; handoff opened | [x] `python3 scripts/ci_layer.py docs`: PASS (3 commands, 0.1 s) | [x] every ruling quoted from §14.1 and S30-b §14.1; branch of F-S30a-1 chosen from evidence |
-| C1 … C5 | — | [ ] | [ ] | [ ] |
+| C1 `CORE_CONCEPTS` §4.5 | this commit | [x] §4.5 "Attributes" (definition and the three classes, qualified ids, one owner; not a Component; kinds; visibility table; mutability table; generation; what is not an attribute; kernel ignorance); §4.2 pointer; §15.1 example paragraph | [x] `check_doc_headings.py`: "240 numbered sections across 33 documents, none duplicated" | [x] `grep -n -i attribute docs/CORE_CONCEPTS.md` read in full (29 lines): `Attribute` never names a Component; `traits` is named as the component that holds plain traits; INV-4, INV-7, INV-12, INV-13, INV-15 cited; nothing places attribute vocabulary in the kernel or contracts; F-S30a-2's `economy.wealth-band` and `employment.occupation` used |
+| C2 … C5 | — | [ ] | [ ] | [ ] |
 
 ### C0 — the base (recorded 2026-10-15)
 
