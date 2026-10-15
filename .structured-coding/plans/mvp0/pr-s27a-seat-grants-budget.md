@@ -9,12 +9,12 @@ Author:                 S27-a/b/c PR-design session (Opus), worktree
                         planning base origin/main @ df77b27
 Approved by / evidence: the primary session ruled QS27a-1 and QS27a-2 and froze this design itself,
                         2026-10-14 (§14.1); the step's rulings QS27-1…10 are the operator's
-Implementation base:    origin/main at C0; C0 records the commit
+Implementation base:    origin/main @ 708bc5679de1d7121f7b40f65a6fae2d3bbcd375 (recorded at C0)
 Start condition:        now (step-27 §11.4: "No S27 dependency; S11-E not required"), on the primary
                         session's dispatch, after this design is frozen
 Execution contract:     §12, filled at freeze
 Implementer:            Opus-class (step-27 §11.4)
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN — IN EXECUTION (branch mvp0/pr-s27a)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-27-agent-players.md`](step-27-agent-players.md) §§2.2 (F-S27-1, F-S27-3,
@@ -634,7 +634,7 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | this commit (`docs(plan): S27-a — measured request rate, ARC-97, DEP-57`) | [x] | [x] | [x] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
@@ -646,20 +646,55 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Item | Value |
 | --- | --- |
-| 2D per-second submits p50 / p99 / max | — |
-| 3D | — |
-| R / B fixed | — |
+| 2D per-second submits p50 / p99 / max | walking (`--drive=street --strides=40`, seat `visitor`): 43 answers over 49 wall s, **1 / 3 / 3**; keys (`--drive=home --exit=keys`, seat `carol`): 16 answers over 17 s, **1 / 2 / 2**. Analytic bound: one in flight, a `move` per 0.5 m at 1.6 m/s = 3.2/s |
+| 3D | **INCONCLUSIVE (no timestamped 3D harness)** — `slice_probe_world.gd` prints `REQUEST` without a time, only in its settings check. Documented cadence (`slice_link.gd:26-36`): a `move` per `REPORT_DIST` 0.5 m (≈ 6.2/s at the 3.10 m/s jog), at most one per `REPORT_GAP` 0.08 s (12.5/s ceiling), no one-in-flight rule. See F-S27a-6 |
+| R / B fixed | **R = max(10, 2 × 3) = 10, B = 20** (frozen from here) |
 
 ### Evidence
 
-(none yet)
+**C0 (base `origin/main @ 708bc56`, worktree `/Users/yuema137/mineworld-worktrees/impl-s27a`, branch `mvp0/pr-s27a`).**
+
+```text
+Validation: 2D measurement
+  command:   MINEWORLD_WRITE_TRACE=1 cargo test -p mineworld-cli --test request_rate_2d -- --ignored --nocapture
+             (then both tests without the variable, --test-threads=1)
+  env:       macOS, Godot 4.7.2.stable.official, load average 215-235 (R-LOAD-1: overloaded machine)
+  runtime:   2 min 26 s (first run, one test), 2 min 29 s (both tests)
+  result:    walking per-second counts [3,0,1,1,1,1,1,1,0,1,...] p50 1 p99 3 max 3, 43/43 accepted, drive PASS
+             (identical on the repeat); keys p50 1 p99 2 max 2, 16/16 accepted, drive PASS
+  artifact:  server/tests/traces/walker-2d.json (source 708bc56, 43 requests, t_ms = each answer's offset)
+  verdict:   PASS (the claim "the 2D client's per-second submit p99" was exercised and observed)
+  note:      under heavy load the client's frames are slower, which can only lower its rate; the analytic
+             bound (3.2/s) is independent of load and also gives R = 10.
+
+Validation: governor prototype (C0 step 6)
+  where:     scratch crate outside the repository (session scratchpad governor-proto/), governor =0.10.4,
+             default-features = false, features = ["std"]; CARGO_TARGET_DIR=/tmp/impl-s27a-proto-target
+  result:    1 test PASS: B=20 checks at t0 pass; 21st refused, wait_time_from(t0) == 100 ms exactly;
+             t0+100ms-1ns refused; t0+100ms one passes, the next refused. Clock = Rc<Cell<Instant>>
+             (neither Send nor Sync) compiles. std Instant: Reference (src/clock/with_std.rs:23).
+  crates:    9 new to Cargo.lock: governor, futures-timer, lock_api, nonzero_ext, parking_lot,
+             parking_lot_core, portable-atomic, spinning_top, web-time (MIT / Apache-2.0 / duals)
+  decision:  DEP-57 adopts governor (frozen rule: clock drivable from the injected Instant)
+
+Doc checks: python3 scripts/check_doc_headings.py; python3 scripts/check_decision_ids.py — see C0 commit.
+```
+
+C0 review answers. *Is the measured scenario a fair upper bound of a person walking?* The click path (one
+1.9 m stride per request) is the slowest cadence; the keys path (a `move` per 0.5 m or 20°) is the
+fastest the 2D client has, bounded analytically at 3.2/s by one-in-flight and the 1.6 m/s draw speed —
+measured 2/s over a short key walk. Both, and the analytic bound, give `R = 10` by the rule; the 2D client
+cannot exceed `R` sustained. *Does `DEP-57` state both halves of the reuse question?* Yes: it adopts
+(`governor`, not reinventing GCRA) and declines the keyed limiter and `tower_governor` as forcing a wheel
+where it does not fit (non-deterministic keys; transport layer without a seat key), and records why our own
+bucket is not chosen.
 
 ### Assumptions to verify in implementation
 
 | Id | Assumption | Verified in | If false |
 | --- | --- | --- | --- |
-| A-a-v1 | `governor`'s `Reference` is implemented for `std::time::Instant`, and its `Clock` bound allows a clock owned by the world thread | C0 step 6 | own bucket (`DEP-57`) |
-| A-a-v2 | The 2D harness has a walking scenario long enough for a p99 (≥ 60 wall s of walking) | C0 step 2 | lengthen with the harness's `--strides=n`; record |
+| A-a-v1 | `governor`'s `Reference` is implemented for `std::time::Instant`, and its `Clock` bound allows a clock owned by the world thread | C0 step 6 — **TRUE** (prototype PASS) | own bucket (`DEP-57`) |
+| A-a-v2 | The 2D harness has a walking scenario long enough for a p99 (≥ 60 wall s of walking) | C0 step 2 — **PARTLY**: `--strides=40` gives 49 wall s (43 requests) plus 17 s of the key path; the street ends near there. 66 wall s of samples in all; the analytic bound covers the rest | lengthen with the harness's `--strides=n`; record |
 | A-a-v3 | The server tests can read a persisted world's journal count | C5 | use the CLI test with `mineworld inspect` |
 
 ### Mutations
@@ -668,4 +703,25 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.3)
+Planning findings are §3.3. Implementation:
+
+- **D-a-1 (bounded, C0).** The prototype crate lives in the session scratchpad, not `target/scratch-s27a/`:
+  it must be outside the repository build, and a crate under the worktree would be inside the workspace
+  directory. Impact none; evidence above.
+- **D-a-2 (bounded, C0).** `drive.gd`'s `REQUEST` line has no time; only `RESULT` carries `t_ms`. The trace
+  records each request at its *answer's* offset (one in flight: the answer precedes the next request), so
+  the replay's spacing is the client's own. Editing `drive.gd` is outside scope.
+- **D-a-3 (bounded, C0).** A second `#[ignore]` test in `request_rate_2d.rs` measures the key path
+  (`--drive=home --exit=keys`, seat `carol`), answering C0's review question on keys with evidence.
+- **F-S27a-6 (C0, recorded; not a stop).** The 3D slice holds no request in flight and reports at most
+  every 0.08 s: turning in place it can send 12.5 requests a second, above `R = 10` sustained. The burst
+  `B = 20` absorbs ≈ 8 s of continuous turning (net drain 2.5/s); a refused report is shown through the
+  catalog and not retried (A-a-21), and the next report succeeds after refill. The rule `R = max(10, 2 ×
+  measured p99)` is followed (3D INCONCLUSIVE, ruled QS27a-2). Recorded in `ARC-97`; the step's re-measure
+  trigger applies when the 3D client gains a timestamped harness.
+- **D-a-4 (bounded, C1).** `PROTOCOL.md` §9's "an invite and a nickname are the whole of MVP
+  authentication" amended to name seat grants, so the file does not contradict §4.1.
+- **R-LOAD-1 (coordinator ruling, 2026-10-14).** Locally only the touched crates' tests, fmt and clippy;
+  no local `cargo test --workspace`. The workspace gate is CI's `test`, `test-macos`, `test-windows` on the
+  exact head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)". This replaces the dispatch
+  instruction's local full `cargo test --workspace --no-fail-fast`.

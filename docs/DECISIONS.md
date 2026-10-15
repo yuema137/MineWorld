@@ -7969,3 +7969,71 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** `ARC-81` rule 1 ("`facts` and `journal` are only ever inserted into") is amended to "inserted into, and moved unchanged into a sealed block". No other row is deleted. Stored bytes remain a function of pack, seed, age, pace and code (`ARC-27`), so `ARC-49`'s parity hashes continue to hold on all three platforms. The per-day save bound is checked nightly (`AC-SAVE-1`), not by refusing facts.
 
 **Revisit** if a block-level read cannot meet the streaming bound, if a sealed span must be rewritten for a correction (which this record forbids), or when FG-e's archive segments need a manifest format, which a successor record decides.
+
+---
+
+## ARC-97 — Seat grants and a per-seat request budget: narrower credentials and a fair bound, both host state
+
+**Date** 2026-10-14 · **Status** accepted (design frozen 2026-10-14); implemented by S27-a · **Approved by** the operator's step-27 rulings QS27-1 … QS27-10 and the primary session's QS27a-1, QS27a-2 (2026-10-14) · **Relates to** `ARC-40`, `ARC-41`, `ARC-44`, `ARC-67`, `ARC-75`, `DEP-14`, `DEP-57`, `INV-S27-1`, `INV-S27-4`, `INV-S27-5`, `INV-S27-13`, [`NETWORKING.md`](NETWORKING.md) §9, [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§4.1, 4.2, 5.5, 8, 10, 11 · **Design** `.structured-coding/plans/mvp0/step-27-agent-players.md` §§6.4, 7.2; `.structured-coding/plans/mvp0/pr-s27a-seat-grants-budget.md`
+
+**Problem.** Revision 2 has one level of player trust: whoever holds the server's invite may take any seat, a connected or held one included (`ARC-40`'s and `ARC-44`'s recorded limitation). A host who wants to let a friend, or an agent player, onto one seat must hand over the right to take every seat. And nothing bounds how many requests a connection may send: a client that floods `submit`s makes the world allocate an `ActionId`, journal and answer each one, and a client that is not the reference client is under no cadence at all.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Change the invite's meaning (per-seat invites, or an invite with a seat list) | Declined: every client and launcher reads the invite as "any seat"; changing it is a protocol change for every existing user |
+| (b) Accounts or durable identity | Declined: out of MVP scope (`NETWORKING.md` §9); bans and identity are a later design |
+| (c) **Seat grants**: host-generated credentials, each naming seats and an optional take-over right, presented in the existing `join.invite` field | **Chosen** |
+| (d) A grant token given on the command line | Declined: process lists show argv; a grant is generated, like a generated invite |
+| (e) Bound requests per connection | Declined: a reconnect or a takeover would refill it; the seat is what is being protected |
+| (f) **A per-seat token bucket** kept by the seat table, refusing `rate_limited` before an `ActionId` is allocated | **Chosen** |
+| (g) A per-action embodied cadence ("`walk-step`: at most 1 per wall second") declared by a System Pack | Deferred: a design change to `ARC-67`/`ARC-75`, ruled a separate design after S27-a (QS27-7) |
+
+**Choice.**
+
+1. **Grants.** `mineworld server WORLD --grant SEATS[:take-over]` (repeatable; `SEATS` one seat or several joined by `+`) generates one token per grant from the operating system's random source (`DEP-14`) and prints it once, on its own startup line. A grant token is never given, never persisted, and appears in no frame, fact, save, `/status` or admin answer. A `join` presents it in `invite`; check 2 admits the invite or any grant in constant time over every credential (a wrong one is one answer, `unauthorized`); a new check 4a refuses a seat the grant does not name with `not_granted`; check 6 refuses `take_over: true` on a connected or held seat with `not_granted` unless the grant carries take-over. Resuming one's own hold is always allowed; a hosted seat is joined without a flag. The invite, the admin token and every grant are distinct, or the server refuses to start. `GET /admin/sessions` reports which credential admitted a session — `{ kind: "invite" }` or `{ kind: "grant", seats, take_over }` — never a token and never a Controller kind.
+2. **The budget.** Each seat has a bucket of `R` requests per wall second sustained and `B` burst, keyed by the seat (a reconnect, resume, takeover, kick or release does not refill it), spent by every `submit` a connection sends after the `paused` check and before allocation, and refused `rate_limited` with `retry_after_ms` (the wait rounded up to a whole millisecond, ≥ 1). It is the same for every connection and not applied to in-server controllers, which the host paces at its consult cadence. `--request-budget R/B` sets it; `0` means none.
+3. **The numbers, from evidence (C0, rule fixed before measuring: `R = max(10, 2 × measured p99)`, `B = 2R`).** The real 2D client against the real `market-town` (`tools/cli/tests/request_rate_2d.rs`, Godot 4.7.2, macOS, load average ≈ 215–235): walking 40 strides along the street, 43 answers over 49 wall s, per-second p50 1 / p99 3 / max 3; walking with the keys out of a home, p50 1 / p99 2 / max 2. Analytic bound: one request in flight, a `move` every 0.5 m at 1.6 m/s — 3.2 a second. The 3D client has no request-timestamped harness: **INCONCLUSIVE** (ruled QS27a-2); its documented cadence is a `move` every 0.5 m (≈ 6.2 a second at its 3.10 m/s jog) with no more than one per 0.08 s (12.5 a second, turning in place). **`R = 10`, `B = 20`.** The walking trace is committed as `server/tests/traces/walker-2d.json` and replayed by the server's tests, which must see no `rate_limited`.
+4. **Landing within revision 2.** `not_granted` reaches only a join that presented a grant (a credential that did not exist before), and `rate_limited` only a seat that spent the budget, which the reference clients' cadence does not; `retry_after_ms` appears on `rate_limited` only. So `protocol` stays 2, and every client in the repository — the server, the Python SDK, the 2D client's final-refusal list and the shared catalog — learns both codes in the same pull request. An older SDK fails closed on them (a malformed frame ends the session), never silently. The next revision must make a client treat an unknown refusal code as a generic refusal (`PROTOCOL.md` §10).
+
+**Consequences.** `ARC-40`'s and `ARC-44`'s "one level of trust" limitation is amended by adding a narrower credential, not by changing the invite. Grants and buckets are host state (`ARC-40`): none is journaled, states a fact, moves a revision or appears in a save. Nothing distinguishes an agent from a human (`INV-S27-4`, `INV-S27-13`): a grant binds whoever presents it. `R = 10` still lets a client step a walk ten times a second; bounding embodied speed is QS27-7's separate design, built on this bucket. The 3D client's turning-in-place ceiling (12.5 a second, no request in flight held) exceeds `R` sustained; the burst absorbs about eight seconds of continuous turning, and a refused report is shown, not retried.
+
+**Revisit** when the 3D client gains a request-timestamped harness (re-measure; QS27a-2), when QS27-7's per-action cadence is designed, or when public hosting needs per-address join limits (`DEP-14` option (n)).
+
+---
+
+## DEP-57 — The per-seat request bucket: `governor`, driven from the seat table's injected `Instant`
+
+**Date** 2026-10-14 · **Status** accepted; dependency added in S27-a C5 · **Approved by** the step-27 frozen rule (§8, `DEP-S27-b`): adopt `governor` if C0's prototype shows its clock can be driven from the seat table's injected `Instant`, otherwise our own bucket · **Relates to** `ARC-97`, `DEP-14` (option (n)), `REUSE_POLICY.md` §§11–12, 15 · **Design** `pr-s27a-seat-grants-budget.md` §§4, 5.3, 9 C0
+
+**Problem.** `ARC-97`'s per-seat budget needs a token bucket (GCRA or equivalent) whose time is the seat table's injected wall `Instant`, so every transition is testable with literal instants and no sleep (the seat table's existing model for holds), and whose state is keyed by seat inside the table, which iterates deterministically.
+
+**Options considered** (both directions).
+
+| Option | Verdict |
+| --- | --- |
+| (a) **`governor` 0.10.4 (MIT), one direct limiter per seat** (`RateLimiter::direct_with_clock`), with a clock the seat table sets to its injected `now` before each check | **Chosen** — the prototype passed (below) |
+| (b) `governor`'s keyed limiter (`hashmap_with_clock`) | Declined: its keys live in a `HashMap` the seat table cannot iterate deterministically, duplicating the table's own key set |
+| (c) Our own integer bucket (~40 lines in `seats.rs`) | Declined since (a) works: GCRA's arithmetic, its rounding and its burst semantics are what a mature crate has already had reviewed; "writing it ourselves feels cleaner" is not a reason |
+| (d) `tower_governor` / `tower::limit` | Declined: they limit HTTP requests in the transport, where no per-seat key exists, not WebSocket frames per seat |
+
+**Prototype (C0, 2026-10-14), outside the repository build** (a scratch crate with `governor = { version = "=0.10.4", default-features = false, features = ["std"] }`). Facts verified from the crate source and a test with no sleep:
+
+```text
+governor::clock::Reference is implemented for std::time::Instant   src/clock/with_std.rs:23 (feature "std")
+Reference's bounds   Sized + Add<Nanos> + Eq + Ord + Copy + Send + Sync + Debug   src/clock.rs:61-62
+Clock's bounds       none beyond `type Instant: Reference; fn now(&self)` (and Clone for the limiter);
+                     a clock over Rc<Cell<Instant>> — neither Send nor Sync — compiles and works, so a
+                     clock owned by the world thread is fine
+test                 Quota::per_second(10).allow_burst(20): 20 checks pass at t0; the 21st fails with
+                     NotUntil::wait_time_from(t0) == 100 ms exactly; at t0 + 100 ms − 1 ns still
+                     refused; at t0 + 100 ms one passes and only one                    PASS
+licence              crate licence field "MIT"; repository boinkor-net/governor, MIT License
+```
+
+New crates in `Cargo.lock` (normal edges, `default-features = false, features = ["std"]`): `governor`, `futures-timer`, `lock_api`, `nonzero_ext` (Apache-2.0), `parking_lot`, `parking_lot_core`, `portable-atomic`, `spinning_top`, `web-time` — every one MIT, Apache-2.0, or a dual of them, all in `deny.toml`'s list. The rest (`futures-util`, `hashbrown` 0.16, `smallvec`, `cfg-if`, `libc`, …) are already compiled.
+
+**Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
+
+**Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
