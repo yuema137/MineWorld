@@ -426,6 +426,20 @@ fn every_refusal_names_its_node_with_line_and_column() {
             46, // the value `.nan`, refused by the YAML decoder itself
             "non-finite float",
         ),
+        (
+            "memory: a store bound that is not a number",
+            "memory:\n  default: { policy: decay, store_bound_mib: big }\n",
+            2,
+            46, // the value `big` (pr-fg-b2 §5)
+            "invalid u64",
+        ),
+        (
+            "memory: a negative store bound",
+            "memory:\n  assign:\n    - { seat: bob, policy: decay, store_bound_mib: -1 }\n",
+            3,
+            52, // the value `-1`
+            "invalid u64",
+        ),
     ];
     let mut wrong = Vec::new();
     for (what, text, line, column, said) in cases {
@@ -614,6 +628,11 @@ fn the_digest_follows_the_resolution_not_the_text() {
         digest("\n\nmemory:\n  assign:\n\n    - { seat: dev, policy: decay }\n"),
         "positions do not"
     );
+    assert_ne!(
+        digest("memory:\n  assign:\n    - { seat: dev, policy: decay }\n"),
+        digest("memory:\n  assign:\n    - { seat: dev, policy: decay, store_bound_mib: 40 }\n"),
+        "a written store bound does (pr-fg-b2 §5)"
+    );
 }
 
 /// QFGb-1: memory resolves seat > class > default and is passed through uninterpreted — an unknown
@@ -622,7 +641,8 @@ fn the_digest_follows_the_resolution_not_the_text() {
 fn memory_is_resolved_per_seat_and_passed_through() {
     let text = "memory:\n  default: { policy: consolidate }\n  assign:\n    - { class: staff, policy: \
                 decay, parameters: { half_life_hours: 336, curve: power, sharp: true, weights: [1, 2.5], \
-                none: null } }\n    - { seat: bob, policy: nonexistent-policy, fallback: consolidate }\n";
+                none: null } }\n    - { seat: bob, policy: nonexistent-policy, fallback: consolidate, \
+                store_bound_mib: 40 }\n";
     let document = resolved(text, &[]).json("cafe");
     let memory: Vec<serde_json::Value> = document
         .seats
@@ -632,20 +652,23 @@ fn memory_is_resolved_per_seat_and_passed_through() {
     assert_eq!(
         memory[0],
         json!({ "policy": "consolidate", "fallback": null, "parameters": {},
+                "store_bound_mib": null,
                 "source": { "file": "decisions.yaml", "line": 2, "column": 12 } }),
         "alice: the default"
     );
     assert_eq!(
         memory[1],
         json!({ "policy": "nonexistent-policy", "fallback": "consolidate", "parameters": {},
+                "store_bound_mib": 40,
                 "source": { "file": "decisions.yaml", "line": 5, "column": 7 } }),
-        "bob: his own entry, over staff's; an unknown policy id passes through"
+        "bob: his own entry, over staff's; an unknown policy id and his store bound pass through"
     );
     assert_eq!(
         memory[2],
         json!({ "policy": "decay", "fallback": null,
                 "parameters": { "half_life_hours": 336, "curve": "power", "sharp": true,
                                 "weights": [1, 2.5], "none": null },
+                "store_bound_mib": null,
                 "source": { "file": "decisions.yaml", "line": 4, "column": 7 } }),
         "carol: staff's, its parameters YAML scalars as JSON scalars"
     );
@@ -676,7 +699,7 @@ fn the_json_document_has_a_fixed_shape_and_round_trips() {
     assert_eq!(
         written,
         format!(
-            "{{\"format\":1,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
+            "{{\"format\":2,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
              {{\"seat\":\"alice\",\"model\":{{\"id\":null,\"assigned\":\"lm\",\"chain\":[\"lm\",\"none\"]}},\"memory\":null}},\
              {{\"seat\":\"bob\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\
              {{\"seat\":\"carol\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\

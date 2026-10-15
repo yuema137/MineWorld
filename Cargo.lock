@@ -976,13 +976,16 @@ dependencies = [
  "mineworld-server",
  "mineworld-test-support",
  "mineworld-worldpack",
+ "pulldown-cmark",
  "rusqlite",
  "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
+ "snapbox",
  "tokio",
  "tokio-tungstenite",
+ "toml",
 ]
 
 [[package]]
@@ -1103,6 +1106,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-decision",
+ "mineworld-motivated",
  "mineworld-rule-controller",
 ]
 
@@ -1193,6 +1197,24 @@ dependencies = [
  "serde_json",
  "thiserror",
  "trybuild",
+]
+
+[[package]]
+name = "mineworld-motivated"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-decision",
+ "mineworld-group-activity",
+ "mineworld-movement",
+ "mineworld-packages",
+ "mineworld-relationships",
+ "mineworld-rule-controller",
+ "mineworld-schedule",
+ "mineworld-weather",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1461,6 +1483,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38bf9645c8b145698bb0b18a4637dcacbc421ea49bef2317e4fd8065a387cf21"
 
 [[package]]
+name = "normalize-line-endings"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
+
+[[package]]
 name = "num-bigint"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1666,6 +1694,17 @@ checksum = "4488a4a36b9a4ba6b9334a32a39971f77c1436ec82c38707bce707699cc3bbcb"
 dependencies = [
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags",
+ "memchr",
+ "unicase",
 ]
 
 [[package]]
@@ -2089,6 +2128,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
 
 [[package]]
+name = "snapbox"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8de56eb4784a2c5c1efede55a0f06fbf481bc12b42b355b9525c15db1e3581a8"
+dependencies = [
+ "anstyle",
+ "normalize-line-endings",
+ "snapbox-macros",
+]
+
+[[package]]
+name = "snapbox-macros"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed4a172e483585ebbc7c7f7d1705ca7e3f94f606ed78caa14805673189fd5455"
+
+[[package]]
 name = "socket2"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2398,6 +2454,12 @@ name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
+
+[[package]]
+name = "unicase"
+version = "2.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357cc3acc6a036009fd6c973ed009037c732d60d0b4f6c673e9041497482a28f"
 
 [[package]]
 name = "unicode-ident"
