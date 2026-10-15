@@ -297,7 +297,11 @@ are strings the loader already accepts. The checks read the pack's own files.
   within bodies' ±100 m bound (S21 A-12).
 - **The street.** Its `body.floor` grows west to take in the forecourt (§6.3).
 
-**Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale. The hall is a waiting
+**Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale.
+*(Dated note, 2026-10-15, S33 approval; non-preclusion item for S29-a.)* S33 §4.0 asks S29-a to place the
+halt at the **east end of `lane`**, with a north–south platform ending at a buffer stop near the shore (a
+terminus), unless S29-a's audit shows a reason against. S33-b adds `body:` sections to Lakeside's other
+places and depends on the halt's position being fixed here. The hall is a waiting
 room of about 8 × 5 m, the ticket office a window bay, and the platform about 40 × 4 m. They are joined to
 `lane`. Its landmark is a separate place, `pier` (ruled, Q-S29-3), tagged `landmark`.
 
@@ -517,6 +521,9 @@ Slot
   - Lakeside 3D: `station` is filled with the halt's design position. `landmark` is filled with `pier`'s.
     Every source reads "design content; lakeside declares no real location", as RL-e0's do. No client draws
     3D Lakeside before 16f.
+    *(Dated note, 2026-10-15, S33 Q-S33-1/2.)* Lakeside now has a real setting, Lake Cuyamaca, and the halt
+    is recorded as a stated departure from history. S33-a replaces this design content with cited positions;
+    the design content stands only until S33-a lands. Lakeside is drawn in 3D by S33, not by 16f.
 - **Both validators.** The Rust and GDScript validators gain the state and the code together, and RL-e0's
   AC-FF-3 corpus gains one file per new refusal.
 
@@ -730,6 +737,9 @@ S26-c2 (cast figures) ─ soft: people in the hall are drawn by S26's binding wh
   critical path.
 - **Lakeside in 3D.** Lakeside's 3D halt and pier pavilion are **not** in this split. They come with 16f,
   the general 3D pack loader that draws Lakeside in 3D (MVP-1). S29-c gives them their far-field slots now.
+  *(Superseded 2026-10-15 by the operator's re-ruling, S33 Q-S33-10.)* They come with **S33 (MVP-0,
+  release-blocking)**: S33-e builds them with S29-e's pieces, which S29-e writes so a village-scale building
+  can reuse them ([step-33-lakeside-3d.md](step-33-lakeside-3d.md) §4.4). 16f is MVP-0 too (`overall.md`).
 
 ### 11.3 Step acceptance (fixed before measuring)
 
