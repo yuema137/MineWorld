@@ -803,9 +803,10 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | C4 | `7ec76cfd` | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
 | C5 | `419df400` | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
 | C6 | `e7b35625` | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: 1); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
-| C8 | (this commit) | [x] `K_ACCESS_OVERHEAD_BYTES` = 93 derived and pinned; `test_home_scale.py`; writers and save scans | [x] 4 + 5 tests PASS; AC-a-9 ratio 0.257; M-a-11 red | [x] AC-a-9's baseline is C1's recorded schema-3 figure |
+| C8 | `d5b745b7` | [x] `K_ACCESS_OVERHEAD_BYTES` = 93 derived and pinned; `test_home_scale.py`; writers and save scans | [x] 4 + 5 tests PASS; AC-a-9 ratio 0.257; M-a-11 red | [x] AC-a-9's baseline is C1's recorded schema-3 figure |
 | C7 | `24c5ca07` | [x] `home_kill.py kill` (three seams, patched in the child), `drive` (re-delivery from each seat's cursor), `test_home_kill.py` | [x] 50 kills PASS (17/17/16); M-a-10 red | [x] seams patched only in the child (and, for counting, by the test's `MonkeyPatch`); nothing in `memory/` names a kill point or reads the environment |
-| C9 | — | [ ] | [ ] | [ ] |
+| merge | `09ea595c` | [x] `origin/main` merged; `docs/DECISIONS.md` rebuilt: main's records, S28-a's two notes, `ARC-109` and `DEP-61` appended last | [x] decision ids 150 distinct, headings 240 none duplicated; ruff/pyright PASS | [x] no other file conflicted |
+| C9 | (this commit) | [x] README line, diff scan, §8 evidence, handoff | [ ] CI on the exact head (filled after the run) | [x] deviations recorded (D-a-1 … D-a-13, F-S28a-9, F-S28a-10) |
 
 ### Evidence
 
@@ -975,6 +976,30 @@ and one row the view does not show, ids and entities of 20 digits); `tests/test_
 - Review: AC-a-9 reads `cafe12_schema3` from the golden captured at C1 on the schema-3 code; nothing re-measures it.
   K is asserted only as the bound of (b); the measured overheads (40 B, 27 B) are printed beside it, and the
   design's ≤ 48 B expectation for realistic keys holds.
+
+**C9 (2026-10-15).** AC-a-11's diff scan: `git diff --name-only b37733b9` lists nothing under `kernel/`,
+`contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` (0 paths); the changed paths are
+`cognition/lm-controller/**`, `docs/DECISIONS.md` and this effort's two plan files. `cognition/lm-controller/README.md`
+gains the line §2.1 item 8 asks (memory is a seat view of a home; a pre-schema-4 file is refused and rebuilt).
+
+**§8 acceptance, as measured (local; CI on the exact head is the gate).**
+
+| AC | Result | Evidence |
+| --- | --- | --- |
+| AC-a-1 | PASS | C8: 0 exceptions over 12 seats' access keys and 200 queries' citations |
+| AC-a-2 | PASS | C6: synthetic, frames 1 (2 days), 7, 256, 4 096 × 3 interleavings; real, frame 256 |
+| AC-a-3 | PASS | C6: the same runs, 200 sections per seat and point |
+| AC-a-4 | PASS | C6: `keep-all`, `decay` 1 000, `importance-recency-cap` all k 0 |
+| AC-a-5 | PASS | C3: `test_home_gc.py`, `verify="every-commit"` and the test's own anti-joins |
+| AC-a-6 | PASS | C3: both orders, equal final home dumps |
+| AC-a-7 | PASS | C7: 50 kills (17/17/16) |
+| AC-a-8 | PASS | C8: (a), (b) at every frame end, synthetic and real; views ≤ 20 MiB; overhead 40 B / 27 B against K = 93. See F-S28a-9 |
+| AC-a-9 | PASS | C8: ratio 0.257 |
+| AC-a-10 | PASS | C5: every golden point, schema 4 |
+| AC-a-11 | PASS | C8 scans; C9 diff scan |
+| AC-a-12 | PASS on macOS | C2: refusal with bytes unchanged; `HomeBusy` across processes — Linux and Windows in CI |
+| AC-a-13 | PASS | C5: zero `CassetteMiss`, sections equal the golden, digest re-pinned |
+| AC-a-14 | PASS locally | C5: ported suites green; real-binary files `test_ac10` +9 %, `test_retention_real` +24 % against the base locally; Linux CI is the measure (R-a-1) |
 
 ### Mutations
 
