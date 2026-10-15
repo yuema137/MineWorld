@@ -620,8 +620,9 @@ No question remains open.
 | C0 base and ledger | `0a11d021` | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
 | C1 `authoring` | `9797ecd7` | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
 | C2 `sdk` | `d8bdc4a0` | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
-| C3 `packages` | this commit | [x] `check_entity_layout`: the three forbidden directories first, then "declares something" = a `.yaml` file directly in `items/` **or** in any other non-dot directory (sorted scan; helper `holds_a_yaml_file`); doc comment says the loader decides which directories are known; `EntityPackDeclaresNothing`'s message adds "or a .yaml file in a data directory an installed System Pack owns"; test `an_entity_pack_may_carry_data_directories_only` in `packages/tests/manifest.rs` (D-b-7) | [x] E-3 | [x] the forbidden three still refuse first (the test writes `people/` beside a valid `schemas/a.yaml` and is refused "item kinds only in MVP-0"); a dot directory never counts; the old message's needles ("declares nothing", "items/<key>.yaml") are kept |
-| C4 … C7 | — | [ ] | [ ] | [ ] |
+| C3 `packages` | `ee0d2ea4` | [x] `check_entity_layout`: the three forbidden directories first, then "declares something" = a `.yaml` file directly in `items/` **or** in any other non-dot directory (sorted scan; helper `holds_a_yaml_file`); doc comment says the loader decides which directories are known; `EntityPackDeclaresNothing`'s message adds "or a .yaml file in a data directory an installed System Pack owns"; test `an_entity_pack_may_carry_data_directories_only` in `packages/tests/manifest.rs` (D-b-7) | [x] E-3 | [x] the forbidden three still refuse first (the test writes `people/` beside a valid `schemas/a.yaml` and is refused "item kinds only in MVP-0"); a dot directory never counts; the old message's needles ("declares nothing", "items/<key>.yaml") are kept |
+| C4 `worldpack` 4d | this commit | [x] `worldpack/src/data.rs` (new): `DataOwnerOps` (for `Capability` and test probes), `DataRoot`, the directory rule `check_directories`, `check_shipped`, `collect` (I-b-7), `contexts`, `read` (step 4d for a World Pack), `WORLD_DIRECTORIES`, `validate_entity_data`; in-crate tests `worldpack/src/data/tests.rs`; `read.rs`: step 4d in `read_with`, `WorldPack.contexts` and `context()`, module doc (4d, 10's context), the `DEP-10` comment (F-S30b-6); `content.rs`: `Contexts`, `ContentFile::new(kind, enabled, contexts)`, the section arm calls `decode_section_in`; `entities.rs`: `required_entity_packs`, `items/` optional, item files decoded with the contexts, `validate_entity_pack` checks data first; `format.rs`: `DecisionsFile::directory`; `error.rs`: `UnknownDirectory`, `DataNeedsASystem`, `DataRefused`, `ResolveRefused`; `worldpack/tests/data_directories.rs` (new) | [x] E-4; M-b-3, M-b-4 red → restored → green | [x] no `HashMap` (clippy's `disallowed-types` clean; every map a `BTreeMap`); contexts held as `Arc<dyn OwnerContext>`; only enabled owners' files are read, and shipped files into a non-enabled owner's directory are not collected (F-b-1); a world with no data owner runs the same reads plus one directory listing per root |
+| C5 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -660,12 +661,30 @@ No question remains open.
 mineworld-cli --test entity_packs`: 5 passed (claims unchanged); `cargo test -p mineworld-worldpack --test entity_packs`: 7 passed.
 Clippy on `mineworld-packages --all-targets -D warnings`: clean.
 
+**E-4 (C4).** `cargo test -p mineworld-worldpack --lib`: 20 passed (6 new in `data::tests`:
+`data_is_collected_in_composition_order`, `a_dot_directory_is_not_content`,
+`the_directory_rule_admits_the_format_decisions_and_enabled_owners`, `every_data_refusal_names_the_file_and_the_owner`,
+`an_owner_not_enabled_reads_nothing_and_one_with_no_files_still_has_a_context`,
+`the_format_directories_agree_and_no_two_packs_own_one_directory`). Integration, each run alone: `data_directories` 3 passed (new),
+`social_cafe` 15, `refusals` 38, `entity_packs` 7, `structure` 2, `decisions_key` 5, `configuration` 9, `content_kinds` 1,
+`interaction_sections` 2, `package_fields` 2, `requirements` 4, `registration` 1 — all passed. `cargo test -p mineworld-cli --test
+entity_packs --test packs`: 5 + 6 passed. `cargo clippy -p mineworld-worldpack --all-targets -- -D warnings`: clean; `cargo fmt --all
+--check`: clean; `scripts/check_scratch.py scan`: "238 test sources, none makes scratch outside mineworld-test-support" (the in-crate
+`data/tests.rs` keeps a removed-on-drop guard, as `configure/tests.rs` does). Sizes: `read.rs` 847 lines (824 at the base; +23 for the
+step doc and `context()`; `read_data` moved into `data.rs` to keep it there), `error.rs` 809 (750 + the four variants) — both past
+the ~800 warning; recorded as F-b-2, not split in this PR (the split would move code no step of S30 changes).
+
 ### Mutations
 
 | Id | Planted | Test | Red | Restored (`cmp`) | Green |
 | --- | --- | --- | --- | --- | --- |
 | M-b-1 | `data_context` hands the owner `Vec::new()` instead of the decoded files (the realised form of "a fresh context", D-b-4) | `decode_in_context_sees_the_context` | FAILED at `tests.rs:236` (files the context saw) | yes | ok |
 | M-b-2 | `SystemPack::decode_section_in`'s default returns `Err("mutated")` instead of `decode_section(map)` | `a_silent_pack_decodes_in_context_as_it_decodes` | FAILED at `pack.rs:514` (the `owns_section!` pack no longer decodes) | yes | ok |
+| M-b-3 | `data::ordered` no longer sorts (the listing's order kept) | `data_is_collected_in_composition_order` | FAILED at `data/tests.rs:249` (a reversed listing came back reversed; the real-directory half happened to list in name order on APFS, which is why the order is pinned on a listing rather than a directory, as §9 C4 foresaw) | yes | ok |
+| M-b-4 | `check_directories` no longer skips names beginning with `.` | `a_dot_directory_is_not_content` | FAILED: `UnknownDirectory { path: …/world/.cache }` | yes | ok |
+
+(M-b-3 and M-b-4 were planted before `read_data` moved from `read.rs` into `data.rs`; neither `ordered` nor `check_directories`
+changed in the move, and the tests ran green after it.)
 
 ### Deviations and findings
 
@@ -708,6 +727,24 @@ F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
   states `SHIPS` with inline text; `ships_data!`'s `include_str!` runs in C6, whose crate holds a real file.
   `MODULE_SPEC` §3.1's declares block names `RESOLVES, resolve`: corrected in C7 with a dated note
   (R-S30a-b-1).
+- **F-b-1 (finding; S30-a F-S30a-9 and F-S30a-10 against the seam as built).** The seam forecloses neither.
+  (a) F-S30a-10: a file a pack ships into a directory whose installed owner the world does **not** enable is
+  simply not collected — never refused — so a world enabling `employment` without `attributes` still reads;
+  `Capability::shipped()` exposes every pack's shipped files, so S30-c may route them however it decides
+  (R-S30c-a-1). A file shipped into a directory **no installed** pack owns is refused (`UnknownDirectory`, naming
+  the shipping pack and path): a build defect, failed closed. (b) F-S30a-9: the directory rule judges
+  directories only; a pack root's **files** (`backend.yaml`, `LICENSE`, `NOTICE`, a `README`) are neither refused
+  nor collected. So S30-e may either add a root-file item to the seam (a bounded, additive `DataOwnerDecl`
+  field) or move the contract into an owned directory; and S30-h's `tools/` is refused unless it is named
+  `.tools/`, kept outside the pack, or owned — exactly R-S30e-a-2 and R-S30h-a-1, which stand unchanged.
+- **F-b-2 (finding; size).** `worldpack/src/read.rs` (847) and `error.rs` (809) are past the ~800-line warning;
+  both were near it at the base (824, 750). Not split here: no S30 step changes the code a split would move.
+  Recorded for the step owner.
+- **F-b-3 (finding; limitation).** `validate_entity_pack` decodes an Entity Pack's data file by file with no
+  context (§5.7), so an item file whose section is decoded in context (`owns_section_in_context!`) is refused
+  there ("has no context of its own"). No installed pack decodes an item section in context; S30-c's
+  `attributes:` is carried by people. A pack that needs it widens `validate_entity_pack` to build a context
+  from the pack's own data.
 - **D-b-7 (bounded; test seam).** §7 places the `packages` test in `packages/src/manifest.rs`, which has no test
   module and no scratch directory; it is in `packages/tests/manifest.rs`, beside the existing Entity Pack layout
   test and its scratch helper.

@@ -67,6 +67,7 @@
 pub mod catalog;
 pub mod configure;
 pub mod content;
+mod data;
 mod entities;
 pub mod error;
 pub mod format;

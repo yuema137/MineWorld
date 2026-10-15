@@ -21,6 +21,10 @@
 //!    exists and its owner's type decodes it; every file in configure/ is listed; every system a
 //!    configuration requires is enabled; every data/ file it names is read; each configuration is
 //!    checked against the classes (ARC-61, ARC-63)
+//! 4d every directory of the world and of each required Entity Pack is a format directory,
+//!    decisions:'s, or one an installed System Pack owns and the world enables (dot directories are
+//!    ignored); every enabled data owner's files — shipped, then Entity Packs', then the world's —
+//!    decoded by its own type, then its context built from them and its configuration (ARC-121)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -32,7 +36,8 @@
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
 //! 10 every section's owner is enabled, its file may carry it, and every entity it names is
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
-//!    was read, by its owner's own type; then every entity a configuration names, the same way
+//!    was read, by its owner's own type — in its owner's context when it has one (ARC-121); then
+//!    every entity a configuration names, the same way
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -41,15 +46,17 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use mineworld_authoring::EntityClasses;
+use mineworld_authoring::{EntityClasses, OwnerContext};
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
 use mineworld_packages::{Compatibility, Composition, LicencePolicy, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::configure;
-use crate::content::ContentFile;
+use crate::content::{ContentFile, Contexts};
+use crate::data;
 use crate::entities::{self, ItemSource};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
@@ -100,6 +107,8 @@ pub struct WorldPack {
     classes: EntityClasses,
     licence_policy: LicencePolicy,
     decisions: Option<DecisionsFile>,
+    /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
+    contexts: Contexts,
 }
 
 impl WorldPack {
@@ -146,21 +155,22 @@ impl WorldPack {
         // decodes, so the build's catalogs are registered first — as `compose` does, idempotently.
         Capability::register_extensions();
         let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
+        let contexts = data::read(&root, &manifest, &composition, &systems, &configuration)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Place, &systems).place(file)
+                ContentFile::new(ContentKind::Place, &systems, &contexts).place(file)
             })
         })?;
         let people = read_content(&root, &manifest.population, ContentKind::Person, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Person, &systems).person(file)
+                ContentFile::new(ContentKind::Person, &systems, &contexts).person(file)
             })
         })?;
         let items = read_content(&root, &manifest.items, ContentKind::Item, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Item, &systems).item(file)
+                ContentFile::new(ContentKind::Item, &systems, &contexts).item(file)
             })
         })?;
         let organizations = read_content(
@@ -169,7 +179,8 @@ impl WorldPack {
             ContentKind::Organization,
             |text| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {
-                    ContentFile::new(ContentKind::Organization, &systems).organization(file)
+                    ContentFile::new(ContentKind::Organization, &systems, &contexts)
+                        .organization(file)
                 })
             },
         )?;
@@ -189,7 +200,8 @@ impl WorldPack {
         ] {
             check_nothing_undeclared(&root, kind, declared, list)?;
         }
-        let (items, item_sources) = entities::compose(&manifest, &composition, &systems, items)?;
+        let (items, item_sources) =
+            entities::compose(&manifest, &composition, &systems, &contexts, items)?;
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
@@ -216,6 +228,7 @@ impl WorldPack {
             classes,
             licence_policy,
             decisions: manifest.decisions,
+            contexts,
         };
         check_sections(&pack)?;
         configure::check_references(&pack)?;
@@ -322,6 +335,14 @@ impl WorldPack {
             .map(|file| (file, file.path_under(&self.root)))
     }
 
+    /// The context of an enabled System Pack that owns data (`DECISIONS.md` `ARC-121`): every data file of
+    /// the world's composition and its configuration, as the owner built it. [`None`] for a pack that owns
+    /// no data or that the world does not enable. For the owner's tools, which downcast
+    /// [`OwnerContext::as_any`] to the owner's own type; nothing that builds a world reads it here.
+    pub fn context(&self, owner: Capability) -> Option<&Arc<dyn OwnerContext>> {
+        self.contexts.get(&owner)
+    }
+
     /// The world's entity classes (`DECISIONS.md` `ARC-64`): `configure/classes.yaml`, or none.
     pub fn classes(&self) -> &EntityClasses {
         &self.classes
@@ -396,6 +417,7 @@ impl WorldPack {
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
             decisions: None,
+            contexts: Contexts::new(),
         }
     }
 
@@ -432,8 +454,9 @@ pub(crate) fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Res
 }
 
 /// [`parse`], with the decoding supplied: a content file is decoded through a seed that knows which
-/// sections this build's packs own ([`ContentFile`]), and a configuration file by its owner's type
-/// (`crate::configure`). `serde-saphyr` is called from this module and that one only (`DEP-10`).
+/// sections this build's packs own ([`ContentFile`]), a configuration file by its owner's type
+/// (`crate::configure`), and a data file by its owner's (`crate::data`). `serde-saphyr` is called from
+/// this module, `crate::configure`, `crate::entities` and `crate::data` only (`DEP-10`).
 pub(crate) fn parse_with<T>(
     path: &Path,
     kind: &'static str,
