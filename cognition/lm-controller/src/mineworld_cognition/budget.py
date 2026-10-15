@@ -40,10 +40,37 @@ class BudgetPolicy(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
-    calls_per_wall_hour: Annotated[int, Field(ge=1)] = 20
-    tokens_per_wall_day: Annotated[int, Field(ge=1)] = 30000
-    max_in_flight: Annotated[int, Field(ge=1)] = 2
-    call_timeout_s: Annotated[int, Field(ge=1)] = 20
+    calls_per_wall_hour: Annotated[
+        int,
+        Field(
+            ge=1,
+            description=(
+                "The most model calls one person's seat may make in any rolling hour of real time. "
+                "Real time is wall-clock seconds, not simulated days."
+            ),
+        ),
+    ] = 20
+    tokens_per_wall_day: Annotated[
+        int,
+        Field(
+            ge=1,
+            description=("The most tokens one seat may use in any rolling 24 hours of real time."),
+        ),
+    ] = 30000
+    max_in_flight: Annotated[
+        int,
+        Field(
+            ge=1,
+            description="The most model calls that may run at the same time in this process.",
+        ),
+    ] = 2
+    call_timeout_s: Annotated[
+        int,
+        Field(
+            ge=1,
+            description="Seconds to wait for one model call before it is abandoned.",
+        ),
+    ] = 20
 
 
 Limit = Literal["calls_per_wall_hour", "tokens_per_wall_day"]
