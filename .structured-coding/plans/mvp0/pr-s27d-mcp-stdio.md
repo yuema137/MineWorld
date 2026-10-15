@@ -695,11 +695,25 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] `DEP-56` written; handoff `handoff-s27d.md` created | [x] `check_doc_headings.py` (238 sections, none duplicated), `check_decision_ids.py` (134 ids, all distinct) | [x] see C0 evidence |
+| C1 | — | [ ] | [ ] | [ ] |
+| C2 | — | [ ] | [ ] | [ ] |
+| C3 | — | [ ] | [ ] | [ ] |
+| C4 | — | [ ] | [ ] | [ ] |
+| C5 | — | [ ] | [ ] | [ ] |
+| C6 | — | [ ] | [ ] | [ ] |
+| C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-15).**
+- Base: branch `mvp0/pr-s27d` at `dd357ca6` (the brief's base). `origin/main` has since moved to `e6030a36`; the branch does not rebase, and the design's base statement is `dd357ca6`.
+- Start condition: S27-c #204 (`58a6f55f`) is an ancestor of the base. S27-a #205 (`27a67492`) is an ancestor too. **Met.**
+- S27-b: no S27-b merge on the base (`git log` finds no S27-b PR). R-S27d-b-1 (the invitation step) is therefore **not** added in this PR. `grep complete systems/group-activity/src/perception.rs` finds nothing on the base. Recorded as a bounded deviation (§2.3 says S27-b is optional).
+- Re-read of D-1 … D-13 on the base: all statements hold. Line numbers moved by a few lines, e.g. `Player` operations at `player.py:206-566`, `PlayerRefusal` `models.py:693`, `SeatLostRefusal` `:704`, `JoinRefused` `:712`, `render_text` `:774`, `json_bytes` `:780`, `RESULT_MAX_BYTES` `player.py:121`, `WRAPPER_BYTES` `:124`. **D-7 partial drift:** `_counts(handle)` is not found in `player.py`; the inbox is `Inbox(refs, seat.observer, self._config.inbox)` at `player.py:291`, and `Handle._ingest` at `handle.py:243` calls `self.inbox.add(news)` at `:251`. Bounded: the hook goes in `_ingest` as §5.3(b) already says.
+- `DEP-56` written at the end of `docs/DECISIONS.md`, with the §4.2 options, the §4.1 version rule (2.2.0 on 2026-10-15, since 2.3.0 is 13 days old) and sources.
+- Validation: `python3 scripts/check_doc_headings.py` PASS (exit 0); `python3 scripts/check_decision_ids.py` PASS (exit 0; `DEP-56` appears once).
+- Review: `DEP-56` uses "client", "adapter" and "agent player" as `ARC-96` defines them (`ARC-96` names the adapter as a module of the client, and `mineworld-agent` as the client). **Yes.**
 
 ### Mutations
 
