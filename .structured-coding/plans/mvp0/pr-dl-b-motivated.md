@@ -573,8 +573,9 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | (this commit) | [x] | [x] | [x] |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | aef3aa6 | [x] | [x] | [x] |
+| C1 | (this commit) | [x] | [x] | [x] |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -584,6 +585,27 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
   `Draw::salted`, `bounded`, `mineworld_decision::models!`, `cognition/installed` one-line model list: all
   present as designed; no mismatch, so no stop. `python3 scripts/check_doc_headings.py`: 223 sections, none
   duplicated (rc 0). `python3 scripts/check_decision_ids.py`: 122 ids, all distinct (rc 0).
+- **C1 (2026-10-14).** Moved verbatim: `read.rs` (`disclosed_history`, `newest_per_speaker`, `may_talk_to`,
+  `disclosed_name`, `in_activity`, `people_offering`, `available`, `disclosed`, `others`, `doorways`, `distance`,
+  `heading`, `walks`) and `act.rs` (`Walked`, `walk_to`, `head_for`, `step`, `reply_to`, `quoted`, `record`,
+  `request`, `GREETINGS`, `SOMEONE`). `walking.rs` removed. Draw-taking code stayed (`greet`, `approach`,
+  `wander`, `pick`, `answer_invitation`, `maybe_leave`, `initiative`, `attempt`). `git diff` shows the one
+  non-move text change as the `GREETINGS` constant's relocation. Visibility only; no constant or draw index
+  changed.
+  - Implementation: `cargo fmt --check -p mineworld-rule-controller` rc 0; `cargo clippy -p
+    mineworld-rule-controller --all-targets -- -D warnings` clean.
+  - Validation: `cargo test -p mineworld-rule-controller`: 38 passed, 0 failed (PASS). 30-day social-cafe
+    seed-7 `run --headless --days 30` on the base binary and on C1: stdout identical except the `wall` line;
+    `history 84639 facts, fingerprint af1927a1e2182bcd` both (PASS). Machine load average at these runs was
+    ≈ 180–230 (R-LOAD-1); the wall time is not evidence.
+  - M-DLb-1 (variant, recorded): `pick` is draw-taking and stays in `social.rs` (§5.1), so the mutation was
+    applied as a draw-index change: `INVITEE_DRAW` 10 → 7. Crate tests stayed green (38 passed), which is
+    expected, since no unit test covers invitation draws. The 30-day golden went red: `history 84554 facts,
+    fingerprint 873a75e73f728e71`, against 84639 / `af1927a1e2182bcd`. Reverted to 10; the restored build
+    matches the base golden as above.
+  - Workspace gate: CI run `<pending>` on `<head>` (R-LOAD-1). No local `cargo test --workspace` was run.
+    Two `cargo test --workspace` processes seen on this machine belong to other sessions
+    (`/tmp/fix-kill-resume-target`, `/tmp/impl-tw-c-target`) and were not touched.
 
 ### Deviations and findings
 
