@@ -78,8 +78,15 @@ GAP rule; X-2a′ fails by name), D-FF-1…6 (ledger). Host load 30–120 from o
 background; Godot one process at a time; a `--script` that fails to compile hangs, so wrap Godot runs in a
 kill-after loop (no `timeout` binary on this Mac).
 
+### 2026-10-15, after C10
+
+C5 41742fe7 · C6 5db6539c · C7 5e3e0b1d · C8 8bc55052 · C9 78fc189e · C10 (ledger commit). Branch pushed;
+`scratch/rl-e0-clients-nightly` @ 8bc55052 runs the nightly `clients` group (R-FF-1 / AC-FF-5, -6): Nightly run
+38793596092, CI run 38793595969. Findings F-FF-1 (X-2a literal survives the frozen GAP rule), F-FF-2 (X-4
+equivalent); deviations D-FF-1 … D-FF-15. `target` in the worktree is a local symlink to
+/tmp/impl-rl-e0-target (untracked; never staged). Base worktree for V-1/perf: impl-rl-e0-base (2d07c6c0).
+
 ## Next actions
 
-C5 (3D far-field view; design note: proxies must lie beyond the 1 450 m foreground or the near ribbon hides
-the bay — record as a deviation), then C6 (with the R-FF-1 hosted-runner dispatch), C7, C8, C9, C10, push,
-PR, CI.
+Open the PR; watch CI on the exact head and the scratch nightly; record E-FF-CI; mark READY FOR OPERATOR
+REVIEW. Never merge. After review: delete `scratch/rl-e0-clients-nightly`, remove impl-rl-e0-base.
