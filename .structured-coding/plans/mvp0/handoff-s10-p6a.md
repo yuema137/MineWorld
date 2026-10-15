@@ -47,13 +47,16 @@ CURRENT CHECKPOINT  A0 committed (7dcb1ac); A1 committed (9fd8315: MODULE_SPEC �
                     PUSHED. Findings: F-P6a-1 (struct-level bounds lose line/column; per-value bounds
                     keep them); F-P6a-2 (main drift); F-P6a-3 (ci_parity.py needs Python 3.11+);
                     D-P6a-1 … D-P6a-4 in §15.
-NEXT ACTIONS        WAIT (coordinator ruling): main's baselines are re-recorded in a separate PR after #171
-                    (12d) merges. Then, on resume: merge origin/main into mvp0/pr-s10-p6a; re-record the
-                    long profile with /opt/homebrew/bin/python3.11 (F-P6a-3); baseline check. Only
-                    social-cafe columns that move because people perceive their persona may change, with
-                    reason lines citing QP6-2 (F-P6a-2); any other moved column is a material stop. Then
-                    run the full workspace tests, fmt, clippy; push; open the PR; CI on the exact head.
-                    Never merge.
+                    Resumed 2026-10-15: merged origin/main @ 5cbb469 (852d9b6, M-P6a-merge); social-cafe
+                    30-day golden regenerated (098fa42, F-P6a-4); worldpack social_cafe tests updated
+                    (F-P6a-5). Pushed; PR #236. CI run 38812144656: AC-1 check 3 FAILS (F-P6a-6).
+                    Baseline record: CI scratch nightly run 38812090457 (branch
+                    scratch/p6a-parity-long-nightly), not a local record (machine load ~15–50).
+NEXT ACTIONS        WAIT (operator ruling on F-P6a-6): (a) add `persona` and the same nine sections to
+                    Market Town (moves its baselines; needs a widening of QP6-2) or (b) change AC-1 check 3
+                    / ARC-35. Then: implement the ruling; re-record the long profile once (CI scratch nightly
+                    or local python3.11); re-baseline only the ruled columns with reason lines; CI on the
+                    exact head. Never merge.
 POST-MERGE SYNC     primary session: step-17, overall.md. This session: the P6a rows of the §15 ledger.
-READY STATE         P6a STOPPED at A3 (baseline gate open: main drift, F-P6a-2). NOT PUSHED. NOT READY.
+READY STATE         P6a STOPPED at F-P6a-6 (AC-1 world delta). PUSHED, PR #236 open. NOT READY.
                     DO NOT MERGE.
