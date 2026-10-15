@@ -442,6 +442,36 @@ operator says so. The verdicts are recorded in `HUMAN_REVIEW_QUEUE.md` under a
 new `VIS-3D-CAST-<batch>` milestone, and an accepted character's `ASSETS.md` row changes from candidate to
 asset only then (`ARC-9`).
 
+**Pose sheet per person (operator, 2026-10-15; binding).** The operator's words: "npc人物形象设计好之后，你需要截图给我看，
+每个npc都要换几个不同动作截一下图，而且最好有坐在椅子上等等不同姿势". In English: once each NPC's look is done, the operator
+wants screenshots of every NPC in several different actions and poses, including sitting on a chair.
+
+Every person's runtime sheet therefore adds a **pose row**: in-client screenshots from the 3D client at
+the reference framing and lighting, using the same clips and rig as Vera. The row has these frames:
+
+| # | Pose / action | Framing |
+| --- | --- | --- |
+| P-1 | idle stand (A-pose relaxed) | front, three-quarter, rear |
+| P-2 | walk, mid-stride (contact and passing frames) | side |
+| P-3 | run or brisk walk, mid-stride | side |
+| P-4 | **seated on a café chair** at a table (G-13), hands on the table | three-quarter |
+| P-5 | seated on a bench or counter stool, whichever the person's world has | three-quarter |
+| P-6 | talking / gesturing to another person (the conversation pose) | two-shot with Vera |
+| P-7 | reaching or handing an item over the counter (the buy/give interaction) | three-quarter |
+| P-8 | face close-up at conversation distance (2.5 m) | front |
+
+Rules for the pose row:
+- Every frame is rendered by a scripted, deterministic probe (`--cast-sheet <look>`), not hand-posed, so
+  it can be re-shot after any change.
+- Every frame is checked for clipping and tearing by the same detectors as G-9 and G-13 before it reaches
+  the sheet. A frame that fails is shown, red-flagged, never hidden.
+- A person whose world has no seat (none at present) still gets P-4, because seats are common decor.
+- The pose sheet is part of the runtime gate, so it is batched into the big milestone like the rest of
+  that gate. The pilot's three people (S26-b2) get their pose sheets first.
+- Acceptance additions:
+  - X-26: a planted missing seat-contact fails P-4 and is flagged red on the sheet.
+  - X-27: the sheet for a person is byte-identical when re-shot at the same commit.
+
 ### 6.5 A failed generation (a run is a sample)
 
 ```text
