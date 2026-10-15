@@ -197,6 +197,8 @@ cargo run -p mineworld-cli -- validate my-world
 cargo run -p mineworld-cli -- run my-world --headless --seed 1 --days 7
 ```
 
+想一步一步搭一个世界（两个房间、三个人、一家小店），就跟着教程走：[`docs/guide/`](docs/guide/README.zh-CN.md)。世界里每个文件能写哪些字段，都列在自动生成的[参考手册](docs/reference/README.md)里（英文）。
+
 **支持哪些电脑。** MineWorld 的目标是 macOS、Linux 和 Windows 都能用。目前在 macOS 上开发和游玩。同一个世界在三个系统上跑出的结果完全一致，这一点有自动检查。让完整测试也能在 Windows 上跑，正在进行中。想用 Docker 开一个咖啡馆小镇：先运行 `docker build --target runtime -t mineworld .`，再运行 `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld`。
 
 ## 接下来往哪走

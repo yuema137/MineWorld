@@ -223,6 +223,10 @@ cargo run -p mineworld-cli -- validate my-world
 cargo run -p mineworld-cli -- run my-world --headless --seed 1 --days 7
 ```
 
+To build a world step by step — two rooms, three people and a shop — follow the guide,
+[`docs/guide/`](docs/guide/README.md). Every field a world's files may use is in the generated
+[reference](docs/reference/README.md).
+
 **Which computers.** MineWorld is meant for macOS, Linux and Windows. Today it is developed and
 played on macOS. A world gives exactly the same results on all three systems, and that is checked
 automatically. Getting the full test suite to run on Windows is being worked on now. To host the
