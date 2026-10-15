@@ -149,7 +149,7 @@ class Point(AgentModel):
     z_mm: int | None = None
 
 
-ListName = Literal["people", "things", "offers"]
+ListName = Literal["people", "things", "offers", "acquaintances", "invitations"]
 """A paged list of a view."""
 
 
@@ -213,6 +213,71 @@ class WalkLine(AgentModel):
     """The next waypoint, when disclosed."""
 
 
+class ItemCount(AgentModel):
+    """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
+    reference to the id a payload names, and `name` is `None` until a pack discloses item names."""
+
+    item: Ref
+    name: WorldText | None = None
+    count: int
+
+
+class JobLine(AgentModel):
+    """employment's `Employment`, disclosed to the employee only."""
+
+    employer: Ref
+    workplace: Ref
+    from_s: int
+    """The shift's start, in seconds since midnight."""
+    until_s: int
+    wage: int
+    """Minor units of money per hour present."""
+    produces: list[ItemCount]
+    """What a full shift makes for the employer, per kind."""
+    on_shift: bool
+    present: bool
+    worked_s: int
+    """Seconds present in the current shift."""
+
+
+class AgendaLine(AgentModel):
+    """schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody."""
+
+    label: WorldText
+    place: Ref
+    since: int
+    until: int
+
+
+class AcquaintanceLine(AgentModel):
+    """One person I know: relationships' reading of them, faded by the world's decay."""
+
+    person: Ref
+    familiarity: int
+    regard: int
+    exchanges: int
+    activities_shared: int
+    first_met: int
+    last_contact: int
+
+
+class InvitationLine(AgentModel):
+    """An invitation someone made me (group-activity), open until `until`."""
+
+    by: Ref
+    kind: WorldText
+    """The activity, as the inviter named it."""
+    at: int
+    until: int
+
+
+class DoingLine(AgentModel):
+    """What a person is doing: group-activity's `Participation`, disclosed for anyone perceived."""
+
+    kind: WorldText
+    since: int
+
+
 class MeLine(AgentModel):
     ref: Ref
     name: WorldText | None
@@ -220,6 +285,18 @@ class MeLine(AgentModel):
     position: Point | None
     facing_deg: int | None
     walking: WalkLine | None
+    doing: DoingLine | None = None
+    wallet: int | None = None
+    """My money in minor units (economy's `wallet`), when disclosed."""
+    holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
+    job: JobLine | None = None
+    agenda: AgendaLine | None = None
+    acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
+    """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
+    `me`: a change to it answers a whole view."""
+    invitations: list[InvitationLine] = Field(default_factory=list[InvitationLine])
+    """Paged like the other lists (`PageRef(list="invitations")`). Always empty in a `ViewDelta`'s `me`:
+    a change to it answers a whole view."""
 
 
 class PersonLine(AgentModel):
@@ -228,6 +305,7 @@ class PersonLine(AgentModel):
     labels: list[WorldText] = Field(default_factory=list[WorldText])
     position: Point | None = None
     walking: WalkLine | None = None
+    doing: DoingLine | None = None
 
 
 class ThingLine(AgentModel):
@@ -274,6 +352,10 @@ class OfferLine(AgentModel):
     requirement: RequirementLine
     complete: bool
     """Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation."""
+    about: list[Ref] = Field(default_factory=list[Ref])
+    """The entities a complete offer's payload names (the item a `buy` sells), by reference."""
+    price: int | None = None
+    """For an offer about an item my place's shop lists: its price, in minor units."""
 
 
 class Here(AgentModel):
@@ -299,6 +381,8 @@ class View(Timed):
     me: MeLine
     here: Here
     offers: list[OfferLine]
+    calendar: CalendarLine | None = None
+    weather: WeatherLine | None = None
     inbox: InboxCounts
     more: list[PageRef]
 
@@ -321,6 +405,10 @@ class ViewDelta(Timed):
     """`None` when unchanged."""
     offers: list[OfferLine] | None
     """The whole list when anything in it changed, else `None`."""
+    calendar: CalendarLine | None = None
+    """`None` when unchanged."""
+    weather: WeatherLine | None = None
+    """`None` when unchanged."""
     inbox: InboxCounts
     more: list[PageRef]
 
@@ -376,6 +464,21 @@ class CalendarLine(AgentModel):
     """World seconds since the start of this calendar day."""
     light: Identifier | None
     """The calendar pack's phase of daylight (`night`, `day`, …), when disclosed."""
+
+
+class WeatherLine(AgentModel):
+    """The weather pack's weather in my place now (`weather-now`, and this hour of `weather-today`)."""
+
+    condition: Identifier
+    since_hour: int
+    """The hour of today the condition holds from."""
+    temperature_dc: int | None = None
+    """Tenths of a degree Celsius, this hour."""
+    cloud_oktas: int | None = None
+    precipitation_tenth_mm: int | None = None
+    wind_dms: int | None = None
+    """Wind speed in decimetres per second, this hour."""
+    wind_from_deg: int | None = None
 
 
 # ── Outcomes ──────────────────────────────────────────────────────────────────────────────────────

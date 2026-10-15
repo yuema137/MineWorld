@@ -29,7 +29,9 @@ from mineworld_sdk.wire.contract import (
 )
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
+from mineworld_agent import disclosed
 from mineworld_agent.models import (
+    AcquaintanceLine,
     CalendarLine,
     ComponentPayload,
     Destination,
@@ -37,6 +39,7 @@ from mineworld_agent.models import (
     ExitLine,
     Here,
     InboxCounts,
+    InvitationLine,
     ListName,
     MeLine,
     OfferLine,
@@ -53,6 +56,7 @@ from mineworld_agent.models import (
     View,
     ViewDelta,
     WalkLine,
+    WeatherLine,
     WorldText,
     json_bytes,
 )
@@ -74,6 +78,8 @@ class Caps:
     people: int = 24
     things: int = 24
     offers: int = 40
+    acquaintances: int = 24
+    invitations: int = 24
     max_bytes: int = 8192
 
 
@@ -99,6 +105,12 @@ class Rendered:
     things: tuple[ThingLine, ...]
     exits: tuple[ExitLine, ...]
     offers: tuple[OfferLine, ...]
+    acquaintances: tuple[AcquaintanceLine, ...] = ()
+    """`me.acquaintances`, kept apart so that it pages like the other lists."""
+    invitations: tuple[InvitationLine, ...] = ()
+    """`me.invitations`, kept apart for the same reason."""
+    calendar: CalendarLine | None = None
+    weather: WeatherLine | None = None
 
 
 class StaleOffer(LookupError):
@@ -202,7 +214,13 @@ def _requirement(refs: RefTable, requirement: SpatialRequirement) -> Requirement
     )
 
 
-def offer_line(refs: RefTable, n: int, affordance: Affordance) -> OfferLine:
+def offer_line(
+    refs: RefTable, n: int, affordance: Affordance, prices: dict[EntityId, int] | None = None
+) -> OfferLine:
+    """One offer. For a complete one, `about` names the entities its payload names (the item a `buy`
+    sells) and `price` is my place's shop price for the one item it names, if the shop lists it."""
+    about = disclosed.named_entities(affordance.payload)
+    priced = [prices[e] for e in about if prices and e in prices]
     return OfferLine(
         n=n,
         action_type=affordance.action_type,
@@ -211,6 +229,8 @@ def offer_line(refs: RefTable, n: int, affordance: Affordance) -> OfferLine:
         unavailable=_reason(affordance.unavailable_reason),
         requirement=_requirement(refs, affordance.requirement),
         complete=affordance.payload is not None,
+        about=[refs.ref(entity) for entity in about],
+        price=priced[0] if len(priced) == 1 else None,
     )
 
 
@@ -259,7 +279,15 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
         position=_located(refs, location),
         facing_deg=None if facing is None else round(facing / 1000),
         walking=None if mine is None else _walk(refs, mine, here),
+        doing=disclosed.doing(mine),
+        wallet=disclosed.wallet(mine),
+        holdings=disclosed.holdings(refs, mine),
+        job=disclosed.job(refs, mine),
+        agenda=disclosed.agenda(refs, mine),
     )
+    acquaintances = disclosed.acquaintances(refs, mine)
+    invitations = disclosed.invitations(refs, mine)
+    calendar = calendar_of(observation)
     people: list[PersonLine] = []
     things: list[ThingLine] = []
     for entity in observation.entities:
@@ -273,6 +301,7 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
                     labels=_labels(entity.tags),
                     position=_located(refs, entity.location),
                     walking=_walk(refs, entity, here),
+                    doing=disclosed.doing(entity),
                 )
             )
         else:
@@ -286,7 +315,10 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
                 )
             )
     exits = [] if here is None else _exits(refs, place_entity, here)
-    offers = [offer_line(refs, n, a) for n, a in enumerate(observation.affordances, start=1)]
+    prices = disclosed.shop_prices(place_entity)
+    offers = [
+        offer_line(refs, n, a, prices) for n, a in enumerate(observation.affordances, start=1)
+    ]
     return Rendered(
         number=number,
         observation=observation,
@@ -296,6 +328,12 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
         things=tuple(things),
         exits=tuple(exits),
         offers=tuple(offers),
+        acquaintances=tuple(acquaintances),
+        invitations=tuple(invitations),
+        calendar=calendar,
+        weather=disclosed.weather(
+            place_entity, None if calendar is None else calendar.time_of_day_s
+        ),
     )
 
 
@@ -309,24 +347,59 @@ class _Window:
     people: tuple[int, int]
     things: tuple[int, int]
     offers: tuple[int, int]
+    acquaintances: tuple[int, int]
+    invitations: tuple[int, int]
     exits: bool = True
 
 
+def _totals(rendered: Rendered) -> dict[ListName, int]:
+    return {
+        "people": len(rendered.people),
+        "things": len(rendered.things),
+        "offers": len(rendered.offers),
+        "acquaintances": len(rendered.acquaintances),
+        "invitations": len(rendered.invitations),
+    }
+
+
+def _windows(window: _Window) -> dict[ListName, tuple[int, int]]:
+    return {
+        "people": window.people,
+        "things": window.things,
+        "offers": window.offers,
+        "acquaintances": window.acquaintances,
+        "invitations": window.invitations,
+    }
+
+
+def _limits(caps: Caps) -> dict[ListName, int]:
+    return {
+        "people": caps.people,
+        "things": caps.things,
+        "offers": caps.offers,
+        "acquaintances": caps.acquaintances,
+        "invitations": caps.invitations,
+    }
+
+
 def _more(rendered: Rendered, window: _Window) -> list[PageRef]:
-    more: list[PageRef] = []
-    lists: list[tuple[ListName, tuple[int, int], int]] = [
-        ("people", window.people, len(rendered.people)),
-        ("things", window.things, len(rendered.things)),
-        ("offers", window.offers, len(rendered.offers)),
+    totals = _totals(rendered)
+    return [
+        PageRef(list=name, view=rendered.number, start=start + count)
+        for name, (start, count) in _windows(window).items()
+        if count > 0 and start + count < totals[name]
     ]
-    for name, (start, count), total in lists:
-        if count > 0 and start + count < total:
-            more.append(PageRef(list=name, view=rendered.number, start=start + count))
-    return more
 
 
 def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window) -> View:
     (p0, pn), (t0, tn), (o0, on) = window.people, window.things, window.offers
+    (a0, an), (i0, in_) = window.acquaintances, window.invitations
+    me = rendered.me.model_copy(
+        update={
+            "acquaintances": list(rendered.acquaintances[a0 : a0 + an]),
+            "invitations": list(rendered.invitations[i0 : i0 + in_]),
+        }
+    )
     return View(
         at=moment.at,
         time_scale=moment.time_scale,
@@ -334,13 +407,15 @@ def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Windo
         world_seconds_since_last_call=moment.since,
         view=rendered.number,
         acted_through=rendered.acted_through,
-        me=rendered.me,
+        me=me,
         here=Here(
             people=list(rendered.people[p0 : p0 + pn]),
             things=list(rendered.things[t0 : t0 + tn]),
             exits=list(rendered.exits) if window.exits else [],
         ),
         offers=list(rendered.offers[o0 : o0 + on]),
+        calendar=rendered.calendar,
+        weather=rendered.weather,
         inbox=inbox,
         more=_more(rendered, window),
     )
@@ -358,8 +433,7 @@ def _fit(
         view = _view(rendered, moment, inbox, window)
         if json_bytes(view) <= caps.max_bytes:
             return view
-        sizes = {"people": window.people, "things": window.things, "offers": window.offers}
-        name, (start, count) = max(sizes.items(), key=lambda item: item[1][1])
+        name, (start, count) = max(_windows(window).items(), key=lambda item: item[1][1])
         if count <= 1:
             raise OverflowError(f"a view of {json_bytes(view)} bytes cannot be paged under the cap")
         setattr(window, name, (start, count - 1))
@@ -367,10 +441,13 @@ def _fit(
 
 def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) -> View:
     """The first page of every list, fitted under the cap."""
+    totals, limits = _totals(rendered), _limits(caps)
     window = _Window(
-        people=_shown(0, caps.people, len(rendered.people)),
-        things=_shown(0, caps.things, len(rendered.things)),
-        offers=_shown(0, caps.offers, len(rendered.offers)),
+        people=_shown(0, limits["people"], totals["people"]),
+        things=_shown(0, limits["things"], totals["things"]),
+        offers=_shown(0, limits["offers"], totals["offers"]),
+        acquaintances=_shown(0, limits["acquaintances"], totals["acquaintances"]),
+        invitations=_shown(0, limits["invitations"], totals["invitations"]),
     )
     return _fit(rendered, moment, inbox, window, caps)
 
@@ -379,10 +456,11 @@ def page_of(
     rendered: Rendered, page: PageRef, moment: Moment, inbox: InboxCounts, caps: Caps
 ) -> View:
     """One page of one list of a held view; the other lists are empty, the exits left out."""
-    totals = {"people": len(rendered.people), "things": len(rendered.things)}
-    totals["offers"] = len(rendered.offers)
-    limits = {"people": caps.people, "things": caps.things, "offers": caps.offers}
-    window = _Window(people=(0, 0), things=(0, 0), offers=(0, 0), exits=False)
+    totals, limits = _totals(rendered), _limits(caps)
+    none = (0, 0)
+    window = _Window(
+        people=none, things=none, offers=none, acquaintances=none, invitations=none, exits=False
+    )
     setattr(window, page.list, _shown(page.start, limits[page.list], totals[page.list]))
     return _fit(rendered, moment, inbox, window, caps)
 
@@ -391,7 +469,10 @@ def delta_of(
     base: Rendered, newest: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps
 ) -> ViewDelta | None:
     """What changed from `base` to `newest`, or `None` when the delta would not fit the cap (the caller
-    then answers a whole view)."""
+    then answers a whole view). A change to my acquaintances or invitations, paged lists of `me`, also
+    answers a whole view."""
+    if (newest.acquaintances, newest.invitations) != (base.acquaintances, base.invitations):
+        return None
     people_before = {line.ref: line for line in base.people}
     people_now = {line.ref: line for line in newest.people}
     things_before = {line.ref: line for line in base.things}
@@ -411,6 +492,8 @@ def delta_of(
         things_gone=[ref for ref in things_before if ref not in things_now],
         exits=None if newest.exits == base.exits else list(newest.exits),
         offers=None if newest.offers == base.offers else list(newest.offers),
+        calendar=None if newest.calendar == base.calendar else newest.calendar,
+        weather=None if newest.weather == base.weather else newest.weather,
         inbox=inbox,
         more=[],
     )

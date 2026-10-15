@@ -30,14 +30,14 @@ STOP                 S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-C0–C5 committed (`5f3d48e` … `4b94d28`): ledger and ARC-96, the member, `ResumingSeat.clock`, models and
-refs, recorded fixtures and views, the inbox. **STOPPED** on the coordinator's information-richness rule:
-item names are not on the wire (ledger §15 "Information-richness gap table"). Coordinator ruling R-LOAD-1
-in force (no local `cargo test --workspace`; workspace gate is CI's).
+C0–C5 committed (`5f3d48e` … `4b94d28`), the gap table (`2525c34`), and C5a: ruling R-S27c-INFO applied
+(`disclosed.py`; `MeLine`/`PersonLine`/`OfferLine`/`View` fields; acquaintances and invitations paged; 12
+mutations red by name; ledger §15 "Ruling R-S27c-INFO"). This session replaced the stopped implementer (one
+writer). Coordinator ruling R-LOAD-1 in force (only touched tests locally, ruff/format/pyright; never a local
+`cargo test --workspace`; CI on the exact head is the workspace gate).
 
 ## Next actions
 
-1. Wait for the coordinator's answer on the gap table (item names; the proposed bounded revision of
-   `MeLine`/`PersonLine`/`View`/`OfferLine`).
-2. Then: apply the revision to `models.py`/`view.py` with tests; C6 pacer; C7 Player; C8 real binary;
-   C9 close-out (AC-c-12 without local `cargo test`, per R-LOAD-1).
+1. C6 pacer; C7 Player; C8 real binary (`CARGO_TARGET_DIR=/tmp/impl-s27c-target`); C9 close-out
+   (AC-c-12 without local `cargo test`, per R-LOAD-1).
+2. Before C9: if PR #171 (12d) has merged, merge `origin/main` and check item names (ruling 2); else F-S27c-9.
