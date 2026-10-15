@@ -2,10 +2,11 @@
 
 **`DESIGN FROZEN 2026-10-09 (primary session; rulings in §0.1)`**
 
-**Lifecycle:** FROZEN. Scope (§1), the measurement rules and thresholds (§3), the decisions (§4, §5), the
-acceptance and mutation criteria (§6), the visual guards (§7) and the execution contract (§13) are frozen.
-Progress, evidence, audit findings and bounded corrections stay writable (§11 checkboxes, §14 ledger). A fresh
-session implements it in `impl-rl-b`. Superseded lifecycle: `PR design — ready for freeze review`.
+**Lifecycle:** MERGED 2026-10-14 as `171ea061d7aa1da677687cd6bc7f4119394bb683` (PR #131), on the operator's
+ruling "merge now, open a small PR to optimise the two remaining views; the 16.7 ms target stays" (§14,
+`MERGED`). The follow-up is RL-b2, [`pr-rl-b2-two-views-and-textures.md`](pr-rl-b2-two-views-and-textures.md).
+Superseded lifecycles: `FROZEN` (scope, thresholds, decisions, acceptance, guards and contract frozen
+2026-10-09; implemented in `impl-rl-b`); `PR design — ready for freeze review`.
 **Step:** S22 Realism, [`step-22-realism.md`](step-22-realism.md) §9.2 row RL-b, ruled 2026-10-09 (§13.1 there).
 **Runs as:** an MVP-0 visual-track PR, because the operator asked for it now (coordinator, 2026-10-09). It
 changes only presentation (`clients/3d-spike/**`, the launchers, docs).
@@ -924,12 +925,54 @@ Material stop (§9, superseded by R-1 … R-6): M-6 was unmet after SC-2 … SC-
     both visual costs; the draw-call and primitive bounds still need O-5.
   The operator chooses; nothing above is applied.
 
-**Lifecycle.** READY FOR OPERATOR REVIEW, with one item INCONCLUSIVE: the R-6 re-measure of p95 and
-video memory could not be taken (E-RLb-ruled; re-attempted 2026-10-10, E-RLb-final: disturbed runs, INCONCLUSIVE). DO NOT
-MERGE. Implementation context CLOSED / AWAITING OPERATOR ACTION. (Superseded: "MATERIAL STOP
-(M-6 unmet)", resolved by rulings R-1 to R-6.)
+E-RLb-operator  2026-10-14  **The R-6 re-measure, taken by the operator** on the PR head (the ruled head;
+                     code as `7f37212`). Machine: Apple M5, Godot 4.7.2, Metal, 1920x1080, gi=voxel,
+                     `caffeinate -d ./mineworld-slice --perf`. Three conclusive runs; one further run was
+                     discarded under M-5 (a measured frame of about 4.4 s) and is not averaged in.
+  view               median p95 (ms)   R-2 bound 16.7 ms   before RL-b (E-RLb-2)
+  street wide            10.85           pass               16.23
+  cafe frontage          17.11           FAIL (+0.41)       25.09
+  interior               13.61           pass               20.31
+  doorway                18.59           FAIL (+1.89)       27.26
+  street east            11.12           pass               17.82
+  south side             10.18           pass               15.22
+  florist interior       14.63           pass               19.74
+  skyline east           10.69           pass               17.06
+  video memory 1 608.1 MB: pass (bound 2 048 MB).
+  Advisory under R-2 (not a gate): draw calls 614–4 215 per view; primitives up to 3.67 M.
+  CPU render time p95 ≤ 3 ms in every view, so the frame is GPU-bound. Metal reports no GPU timestamps
+  (as at E-RLb-2), so the wall interval stays the judged statistic.
+  Verdict under R-2: p95 FAIL in two of eight views (cafe frontage, doorway); video memory PASS. This
+  supersedes the two INCONCLUSIVE R-6 entries above (E-RLb-ruled; E-RLb-final 2026-10-10).
+  Reading: the doorway's 18.59 ms equals the C7a measurement on C5 (VoxelGI 128 alone), so the C7b
+  shadow-filter step that C7b measured as −2.06 ms on C5 did not add on top of C7a in that view. The
+  two levers' deltas are not additive; the RL-b2 design measures lever combinations, not sums.
 
-**Handoff.** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action: with the screen
+RULING   2026-10-14  Operator: **"merge now, open a small PR to optimise the two remaining views; the
+                     16.7 ms target stays."** M-6 as amended by R-2 is unchanged: p95 ≤ 16.7 ms and video
+                     memory ≤ 2 048 MB stay binding for the slice; RL-b is merged with the two views open,
+                     and closing them is the follow-up's acceptance, not a relaxation.
+
+MERGED   2026-10-14  PR #131 merged into `main` as merge commit
+                     `171ea061d7aa1da677687cd6bc7f4119394bb683` ("Merge pull request #131 from
+                     yuema137/mvp0/pr-rl-b-3d-budget"), on the operator's authorization above. A merge
+                     commit, not a squash (§1).
+
+FOLLOW-UP 2026-10-14 RL-b2, designed in [`pr-rl-b2-two-views-and-textures.md`](pr-rl-b2-two-views-and-textures.md)
+                     (DRAFT), one small PR on branch `mvp1/pr-rl-b2`: (a) cafe frontage and doorway to
+                     p95 ≤ 16.7 ms without failing V-1 … V-4; (b) operator ruling MS-Ra-2 (2026-10-10):
+                     512 px textures for small and distant props, with near walls, characters and large
+                     surfaces kept at 1k, to bring the S23 3D pack under 250 MB gzipped (R-a measured
+                     259.5 MB on this PR's textures, step-23 §18.7 on `mvp0/pr-s23-ra`).
+                     Not done here: the step-22 and overall sync, which the planning session owns (§13
+                     POST-MERGE SYNC).
+
+**Lifecycle.** MERGED 2026-10-14 (`171ea06`). Implementation context CLOSED. The open p95 items (cafe
+frontage, doorway) are owned by RL-b2. (Superseded: "READY FOR OPERATOR REVIEW, with one item
+INCONCLUSIVE", resolved by E-RLb-operator; and before it "MATERIAL STOP (M-6 unmet)", resolved by rulings
+R-1 to R-6.)
+
+**Handoff (closed 2026-10-14; kept for history).** Worktree `impl-rl-b`, branch `mvp0/pr-rl-b-3d-budget`. Next action: with the screen
 unlocked and no other Godot window, run `caffeinate -d ./mineworld-slice --perf` on the PR head and
 record pass or fail per view against p95 ≤ 16.7 ms and video memory ≤ 2 048 MB. Draw calls and
 primitives are advisory under R-2. If any view fails p95, stop and report; no further lever (R-2).
