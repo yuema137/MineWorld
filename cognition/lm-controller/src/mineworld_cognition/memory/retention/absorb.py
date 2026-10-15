@@ -8,7 +8,8 @@ and one store (I-5 with retention). A crash between an ingest and its pass leave
 post-trigger state; the next `absorb` sees the pass is due and runs it before anything else.
 
 `ingest` alone never forgets (FGb-7). `absorb` is async because an assisted policy (FG-c) awaits a
-gateway; FG-b's policies are called directly.
+gateway. Every pass is awaited: a plain policy's plan is synchronous, and an assisted one (FG-c) awaits its
+`SummaryGateway` inside the pass's transaction, before any write.
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ async def absorb(
     day = _retention_day(store, facts)
     newest = _newest_day(store)
     if day is not None and newest is not None and newest > day:
-        passes.append(run_pass(store, retention, newest * DAY_S))
+        passes.append(await run_pass(store, retention, newest * DAY_S))
         day = newest
     cursor = store.cursor()
     bound = max(store.newest() or "", "" if cursor is None else event_key(cursor))
@@ -57,7 +58,7 @@ async def absorb(
             ingested.append(ingest(store, facts[start : index + 1], fact.id))
             start = index + 1
             day = fact.at // DAY_S
-            passes.append(run_pass(store, retention, day * DAY_S))
+            passes.append(await run_pass(store, retention, day * DAY_S))
     cursor = store.cursor()
     if start < len(facts) or cursor is None or event_key(through) > event_key(cursor):
         ingested.append(ingest(store, facts[start:], through))

@@ -116,10 +116,12 @@ class Answered:
 @dataclass(frozen=True, slots=True)
 class RefusedRequest:
     """The frame carrying the request was refused (`PROTOCOL.md` §5.5): it was not a request the world
-    considered at all, as distinct from a rejection inside an answer."""
+    considered at all, as distinct from a rejection inside an answer. `retry_after_ms` is set on a
+    `rate_limited` refusal only: submit again after that many wall milliseconds (from S27-a)."""
 
     code: RefusalCode
     detail: str | None
+    retry_after_ms: int | None = None
 
 
 type Outcome = Answered | RefusedRequest
@@ -439,7 +441,9 @@ class SeatSession:
             case Result():
                 self._resolve(frame.token, Answered(frame.action_id, frame.result))
             case Refused() if frame.token is not None:
-                self._resolve(frame.token, RefusedRequest(frame.code, frame.detail))
+                self._resolve(
+                    frame.token, RefusedRequest(frame.code, frame.detail, frame.retry_after_ms)
+                )
             case Refused() if frame.code == "lagged":
                 # PROTOCOL.md §5.5, §5.8: names no request, and `closing { lagged }` follows. The client
                 # rejoins and loses nothing, so this is no violation (F-P3b-1).
