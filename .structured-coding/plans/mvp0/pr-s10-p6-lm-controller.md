@@ -1,19 +1,27 @@
 # PR S10 P6 — The LM controller: an AI character that decides through a language model
 
-## DRAFT — PR DESIGN, NOT FROZEN
+## DESIGN FROZEN 2026-10-14 (primary session; operator QP6-1/2/3/7)
 
 ```text
-Design revision:        revision 1 (2026-10-14), DRAFT
+Design revision:        revision 2 (2026-10-14): revision 1 (PR #184, commit 62c5b05) with §14.1's rulings
+                        applied
 Author:                 S10 P6 design agent, worktree /Users/yuema137/mineworld-worktrees/design-p6,
                         branch docs/p6-design, planning base origin/main @ 171ea06
-Approved by / evidence: none yet. This document authorizes no implementation (CLAUDE.md §3.1)
-Implementation base:    origin/main with DL-a and FG-b merged (C0 records the commit); FG-c lands
-                        alongside (§10, R-P6-FGc-1)
-Start condition:        DL-a merged AND FG-b merged AND this design frozen by the primary session with
-                        the operator's thresholds (§8, §14) AND the operator's go
-Execution contract:     §12 (drafted; every line marked `unresolved` is settled at freeze)
-Lifecycle:              DRAFT
+Approved by / evidence: the operator (QP6-1, QP6-2, QP6-3, QP6-7) and the primary session (QP6-4, -5, -6,
+                        -8, -9, -10, -11, -12), 2026-10-14, relayed by the coordinator (§14.1)
+Implementation base:    P6a: origin/main at A0. P6b: origin/main with DL-a and FG-b merged (C0 records
+                        the commit); FG-c lands alongside (§10, R-P6-FGc-1)
+Start condition:        P6a: now, on the primary session's dispatch. P6b: after DL-a AND FG-b have
+                        merged, on the primary session's dispatch
+Execution contract:     §12.1 (P6a) and §12.2 (P6b), filled at freeze
+Lifecycle:              FROZEN. Implementation by separate implementer sessions (P6a, P6b), each in its
+                        own worktree
 ```
+
+Scope (§2.1), invariants (§6), acceptance (§8, thresholds as ruled in §14.1) and the commit plan (§9) are
+frozen. Progress, evidence, findings and bounded corrections stay writable (§15).
+
+*Superseded header:* `DRAFT — PR DESIGN, NOT FROZEN`, revision 1.
 
 **Effort:** `mvp0` · **Step:** [`step-17-cognition.md`](step-17-cognition.md) §§3.4–3.6, 3.10–3.16, §9
 (the P6 row with its dated notes of 2026-10-11, 2026-10-12 and 2026-10-13), §15.2 (the P6 row, carried
@@ -116,7 +124,7 @@ the server or any System changes.
 
 ### 2.1 In scope
 
-P6 is proposed as **two PRs** (QP6-1, recommendation: split), designed together here:
+P6 is **two PRs** (QP6-1, ruled 2026-10-14: split), designed together here:
 
 **P6a — the `persona` System Pack (Rust)**
 
@@ -215,7 +223,7 @@ P6 is proposed as **two PRs** (QP6-1, recommendation: split), designed together 
 | F-P6-4 | After a SIGKILL the seat is `held` for `--hold` (default 30 wall s) before its default returns; "the fallback within one consult" (`MODULE_SPEC.md` §5.1, AC-DL-5) therefore holds only after the hold | `PROTOCOL.md` §4.2 | AP6-8 measures "within `hold_seconds` + one pace + 2 s"; the operator chooses `--hold` (QP6-9) |
 | F-P6-5 | A live hosted run is not reproducible at the request level: world instants follow wall time and client timing, so the observation and the memory text differ between runs, and a strict cassette misses | `runtime.rs` pacing (step-17 §2.3); P4 L1 text carries clock times | "cassette determinism" is defined over **logged decision inputs** replayed offline (§5.11); live integration tests use `ScriptedBackend` |
 | F-P6-6 | A `decisions.yaml` inside social-cafe naming `alice: lm` would add a clause to `run`'s header and move `summary-300` | DL-a SD-DLa-14, §2.2 (`ci_parity.py` keeps the header) | P6 ships the assignment as an operator file under `cognition/lm-controller/examples/`, used with `--decisions`; no world file changes for the assignment |
-| F-P6-7 | Enabling `persona` in social-cafe changes Alice's own observations (she perceives her component) and may change save bytes; step-17 I-7 says every existing transcript is unchanged by every PR of the step | step-17 §5 I-7 | P6a runs the baseline check; any moved column is a material stop for the operator's ruling (QP6-2) |
+| F-P6-7 | Enabling `persona` in social-cafe changes Alice's own observations (she perceives her component) and may change save bytes; step-17 I-7 says every existing transcript is unchanged by every PR of the step | step-17 §5 I-7 | P6a runs the baseline check; QP6-2 (ruled) allows re-baselining, with reason lines, only the columns that move because people perceive their own persona; any other moved column is a material stop |
 | F-P6-8 | P5a's spike schema is not P6's schema | `model_spike.py` `SCHEMA` | F-P6-S4 |
 | F-P6-9 | Neither `RetryPolicy` nor `CircuitBreaker` has a second implementation outside P6, but the operator ruled both pluggable with bundled implementations; FG-b already defines an entry-point registry (`mineworld.forgetting`) | FG-b §5.3 | P6's registries copy FG-b's shape (group, id = entry-point name, strict `Parameters`, typed load errors); a shared loader is extracted only if FG-b's code already has one free of `ForgettingPolicy` (bounded decision in C7) |
 
@@ -430,7 +438,7 @@ trigger ─► ConsultInput (persona, situation, memory, trigger, based_on) ─�
 | Trigger | From | Handling |
 | --- | --- | --- |
 | T1 spoken to | a perceived `spoke` fact whose listener (`subjects`) is me and whose speaker is not me | a social consult |
-| T3 a remembered person entered my place | a perceived `arrived` / `person-entered-place` fact for a person with an L3 stable fact, while I am in that place | a social consult, at most once per counterpart per `greet_cooldown_s` world seconds (default 1 800, proposal) |
+| T3 a remembered person entered my place | a perceived `arrived` / `person-entered-place` fact for a person with an L3 stable fact, while I am in that place | a social consult, at most once per counterpart per `greet_cooldown_s` world seconds (default 1 800, ruled QP6-7) |
 
 - Trigger detection reads the batch **after** `absorb` committed it (memory first, R-P6-FG-1).
 - **One consult in flight per seat.** A trigger arriving meanwhile marks the seat dirty; when the consult
@@ -547,15 +555,15 @@ class CircuitBreaker[P: CognitionModel](Protocol):
 
 | Bound | Default | Where enforced | Status |
 | --- | --- | --- | --- |
-| consult deadline | 20 wall s from the trigger's receipt to the submit | `consult.py`; it also replaces step-17's `max_decision_age` (one knob, not two) | **proposal** |
+| consult deadline | 20 wall s from the trigger's receipt to the submit | `consult.py`; it also replaces step-17's `max_decision_age` (one knob, not two) | **ruled (QP6-7)** |
 | per-call timeout | `min(budgets.call_timeout_s = 20, remaining deadline)` | the gateway's new `timeout_s` (D-P6-7) | P5a default + D-P6-7 |
-| calls per consult | 5 | `consult.py` | **proposal** (ruling 3b) |
-| transport attempts | 3, backoff 0.5 → 8 s, ±50 % jitter | `exponential-backoff` | **proposal** |
-| content attempts | 3 (2 re-asks), no delay | `fixed` | **proposal** |
-| semantic attempts | 2 (1 re-plan) | `fixed` | **proposal** |
-| breaker | window 20, min 10, > 20 %, cooldown 3 600 world s | `failure-rate` | **proposal** |
-| handback | 10 wall s (two default paces) | `seat.py` | **proposal** |
-| greet cooldown (T3) | 1 800 world s | `triggers.py` | **proposal** |
+| calls per consult | 5 | `consult.py` | **ruled (QP6-7; ruling 3b)** |
+| transport attempts | 3, backoff 0.5 → 8 s, ±50 % jitter | `exponential-backoff` | **ruled (QP6-7)** |
+| content attempts | 3 (2 re-asks), no delay | `fixed` | **ruled (QP6-7)** |
+| semantic attempts | 2 (1 re-plan) | `fixed` | **ruled (QP6-7)** |
+| breaker | window 20, min 10, > 20 %, cooldown 3 600 world s | `failure-rate` | **ruled (QP6-7)** |
+| handback | 10 wall s (two default paces) | `seat.py` | **ruled (QP6-7)** |
+| greet cooldown (T3) | 1 800 world s | `triggers.py` | **ruled (QP6-7)** |
 | per seat calls / tokens | 20 per wall hour / 30 000 per wall day | P5a ledger, unchanged | P5a (QP5-4) |
 
 Why 20 s: the admitted local model's p95 is 4.8 s, so a deadline of 20 s fits a first attempt plus two
@@ -606,7 +614,7 @@ welcomed `took_over: "hosted"`, receives every fact it missed from its cursor (P
 - **A killed process.** No `leave` is sent; the seat is `held` for `hold_seconds`, then returns to its default
   (F-P6-4). A restart inside the hold rejoins with the persisted secret (§5.10).
 - **A human takes the seat** (`take_over`): the runner receives `SeatLost("taken_over")`, deletes the resume
-  file, and retries joining every 60 wall s (`seat_retry_s`, proposal); `seat_occupied` keeps it waiting
+  file, and retries joining every 60 wall s (`seat_retry_s`, a default accepted with QP6-9); `seat_occupied` keeps it waiting
   until the human leaves (R-S11-4, `AC-5`). The world never waits for it.
 
 ### 5.9 Seat assignment through DL-a's decision list, and the memory policy through FG-b
@@ -756,8 +764,9 @@ policy = "none"
   `felix`, `grace`, `hana`, `ivan` — authored from each file's existing `note` and tags, inventing no world
   rule (R-S10-9: persona shapes speech only).
 - `MODULE_SPEC.md` §4.1: the section, its owner, its bounds, "shapes speech, grants nothing"; `ARC-74`.
-- Baselines: `python3 scripts/ci_parity.py baseline check` on a long record of the final head. If any
-  social-cafe column moves, that is a **material stop** for QP6-2's ruling; no baseline is edited without it.
+- Baselines: `python3 scripts/ci_parity.py baseline check` on a long record of the final head. Under QP6-2
+  (ruled 2026-10-14), a social-cafe column that moves because people now perceive their own persona is
+  re-baselined with a reason line; any other moved column is a **material stop** (A3 steps 6–7).
 
 ### 5.15 The spike tool's summary table
 
@@ -837,17 +846,17 @@ Mutations (planted, seen red, reverted; recorded in §15):
 
 ## 8. Acceptance criteria (fixed before anything is measured, `ARC-23`)
 
-Thresholds marked **(proposal)** are fixed by the operator at freeze (ruling 5); the rest follow from the
-design.
+Thresholds marked **(ruled, QP6-7)** were proposals fixed by the operator at freeze on 2026-10-14 (ruling 5,
+QP6-7: accepted as written); the rest follow from the design.
 
 | Id | Criterion | Counterfactual |
 | --- | --- | --- |
 | **AP6-1** | In the garbage scenario (AP6-3), no submitted request carries a payload that failed validation: every Alice `spoke` fact's utterance is either a valid scripted line or a line the fallback model produces (its template or greetings); zero utterances contain a garbage marker | M-P6-1 |
-| **AP6-2** | Every consult ends with exactly one terminal outcome; no consult makes more than `max_calls` (5) model calls; no consult lasts longer than `consult_deadline_s` + 1 s wall **(proposal: 1 s slack)** | M-P6-2 |
+| **AP6-2** | Every consult ends with exactly one terminal outcome; no consult makes more than `max_calls` (5) model calls; no consult lasts longer than `consult_deadline_s` + 1 s wall **(ruled, QP6-7: 1 s slack)** | M-P6-2 |
 | **AP6-3** | **The world stays valid** under a scripted backend that returns garbage on 30 % of attempts (seeded; garbage drawn from the reason table's kinds) plus 5 % transport failures: `mineworld inspect` on the save resolves every cause; the save resumes; `mineworld replay` reproduces every snapshot; every consult in the decision log resolves (count of terminal records = count of consults) | M-P6-6 (fallback never engaged) |
-| **AP6-4** | In the seeded unit run of 1 000 consults with independent 30 % content garbage per attempt and the default layers, the fallback share is ≤ 5 % **(proposal)** (expected 2.7 %), and every consult resolves | M-P6-3 |
+| **AP6-4** | In the seeded unit run of 1 000 consults with independent 30 % content garbage per attempt and the default layers, the fallback share is ≤ 5 % **(ruled, QP6-7)** (expected 2.7 %), and every consult resolves | M-P6-3 |
 | **AP6-5** | Retry layering: each class retries only through its own policy; seeded jitter reproduces the same delay sequence; `retry_after_s` lengthens a delay and a `Retry-After` beyond the remaining deadline ends the consult at once; `Counters.model_calls` equals the ledger's charges for the seat | M-P6-4 |
-| **AP6-6** | Breaker: with `failure-rate` defaults it opens on the consult that makes failures exceed 20 % of a window of ≥ 10, hands the seat back for `3 600 / time_scale` wall s, probes once half-open, and never counts `budget`, `disconnected`, `dropped` or frame refusals **(proposal: N 20, 20 %, cooldown one simulated hour)** | M-P6-5 |
+| **AP6-6** | Breaker: with `failure-rate` defaults it opens on the consult that makes failures exceed 20 % of a window of ≥ 10, hands the seat back for `3 600 / time_scale` wall s, probes once half-open, and never counts `budget`, `disconnected`, `dropped` or frame refusals **(ruled, QP6-7: N 20, 20 %, cooldown one simulated hour)** | M-P6-5 |
 | **AP6-7** | Deadline: a scripted backend that delays 30 s makes the consult fall back by `consult_deadline_s` + 1 s, and the visitor's own requests during that time are answered by the server as usual | — |
 | **AP6-8** | **AC-DL-5.** (kill) With the cognition process SIGKILLed, Alice's seat is driven by her fallback model within `hold_seconds` + one pace + 2 s (a request from Alice by the in-server controller appears); (replay) `replay_log` over a scripted integration run's log and cassette reproduces every cassette key and every `ActionRequest` | M-P6-6 |
 | **AP6-9** | Resume: restarting the cognition process inside the hold rejoins with the persisted secret (`took_over: "held"`), after at least one earlier rejoin (so the rewrite is exercised); the secret, the invite and a planted fake key appear in no log, decision log, store or cassette | M-P6-7 |
@@ -855,15 +864,15 @@ design.
 | **AP6-11** | No request built under `controller/` has action type `move` or `walk-step` (source scan of `intent.py` plus an integration assertion over the scenario's journal for Alice's LM-driven intervals) | — |
 | **AP6-12** | The provider-concept scan (P5a's `test_provider_scan.py`, extended to `controller/`, the decision log and the store schema) finds no provider or model name, URL or key; no entity id in any `CompletionRequest` of the scenario | M-P6-9 |
 | **AP6-13** | Observability: the shutdown status line and the last `counters` record agree; their fields equal the counts recomputed from the decision log's consult records | — |
-| **AP6-14** | **Gate 1, operator-run (NOT RUN by agents):** with `examples/local.toml` (`qwen3.5:4b`, `structured_output = "none"`), a live session of ≥ 100 consults: P6-schema validity on the first attempt ≥ 95 % **(proposal)**, fallback share ≤ 5 % **(proposal)**, and the operator's judgement that Alice's replies read as natural speech | — |
+| **AP6-14** | **Gate 1, operator-run (NOT RUN by agents):** with `examples/local.toml` (`qwen3.5:4b`, `structured_output = "none"`), a live session of ≥ 100 consults: P6-schema validity on the first attempt ≥ 95 % **(ruled, QP6-7)**, fallback share ≤ 5 % **(ruled, QP6-7)**, and the operator's judgement that Alice's replies read as natural speech | — |
 | **AP6-15** | I-5 and I-6: with the store deleted and the seat re-joined from a null cursor, the structural store dump is byte-identical; deleting every file under `store/` changes no byte of the save; triggers are never read before `absorb` returns | M-P6-10 |
 | **AP6-16** | IC-3: a scripted backend answering after 3 s while the visitor walks out of talk range yields no Alice `spoke` after the departure in the save, and the decision log shows a local `NotOffered` drop or a `TooFarAway` refusal; removing P6's pre-submit check alone still passes (the world's check holds) | M-P6-8 |
 | **AP6-17** | Two cognition processes configured for Alice: the second is refused `seat_occupied` and retries at `seat_retry_s`; Alice is never driven by both (I-14) | — |
 | **AP6-18** | `model_spike.py` prints the summary table before the unchanged JSON line; `summary_table` equals a hand-written golden for a fixture report | — |
 | **AP6a-1** | `persona:` refusals (unknown key, over-long summary, nine traits, empty summary) name file, line and column | — |
 | **AP6a-2** | Alice's observation discloses her `Persona` component to her and to no other observer (two-observer integration test) | a provider that discloses to everyone |
-| **AP6a-3** | `ci_parity.py baseline check` on the final head: every column unchanged, **or** the operator's QP6-2 ruling is recorded with each moved column and its reason line | — |
-| **P7-owned** | the 100-day replayed fallback bound (≤ 5 % **(proposal)**), Milestone D, IC-6, IC-7, the 1 MiB store at day 100 | — |
+| **AP6a-3** | `ci_parity.py baseline check` on the final head: every column unchanged, **or** every moved column is a social-cafe column that moved because people now perceive their own persona, re-baselined with a reason line citing QP6-2 (ruled 2026-10-14); no other column moved | a moved column of another world |
+| **P7-owned** | the 100-day replayed fallback bound (≤ 5 % **(ruled, QP6-7)**), Milestone D, IC-6, IC-7, the 1 MiB store at day 100 | — |
 
 ---
 
@@ -871,237 +880,533 @@ design.
 
 Each commit tracks **implementation**, **deterministic validation** and **LLM logic review** separately;
 `[x]` needs the work and recorded evidence; an inapplicable item is `N/A` with the audited reason. Targeted
-validation per commit; the PR's CI is the one full run (test rules §§8–9). Commands run from the worktree
-root. Python commands: `uv run --locked ruff check cognition/lm-controller`, `uv run --locked ruff format
---check cognition/lm-controller`, `uv run --locked pyright`, and the cognition suite as `uv run --locked
-pytest cognition/lm-controller/tests/<file>` (a single path, so the member's own `addopts` and network guard
-apply, P5a D-P5-11). Every commit is small enough for one implementer session; each lists exact files.
+validation per commit; the PR's CI is the one full run (test rules §§8–9). Every commit is written for a
+small-model implementer (operator ruling, 2026-10-14): numbered steps, exact paths, exact commands. A step
+that says "read" is part of the work, and what was read is recorded in §15 before the commit.
 
-### P6a — the `persona` System Pack
+### 9.0 The procedure for every commit (both PRs)
+
+Run every command from the worktree root named in §12.1 or §12.2. Never `cd` elsewhere.
+
+1. Re-read this commit's section and the design sections it cites. Re-read every file you will edit, in
+   full, before editing it.
+2. Make the numbered implementation steps, in order. Do not do work that belongs to a later commit.
+3. Run the commit's validation commands. Record for each: the command, the test count, the wall time, and
+   PASS / FAIL / INCONCLUSIVE (a test not run is not a pass).
+4. For each mutation the commit lists: plant it, run the named test, record that it turned red (with the
+   failing test's name), revert it, run the test again green. Never commit a planted mutation.
+5. Static checks:
+   - Python commits: `uv run --locked ruff check cognition/lm-controller`; `uv run --locked ruff format
+     --check cognition/lm-controller`; `uv run --locked pyright`. Run tests one file at a time:
+     `uv run --locked pytest cognition/lm-controller/tests/<file>` (one path only, so the member's own
+     `addopts` and network guard apply, P5a D-P5-11).
+   - Rust commits: `cargo fmt --all --check`; `cargo clippy -p <crate> --all-targets -- -D warnings`;
+     `cargo test -p <crate>`.
+   - Markdown: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+6. Review: answer each review question of the commit in §15 in one or two sentences.
+7. `git status --short` and `git diff --stat`: every changed path must be in the commit's **Files** list. If
+   another path changed, revert it or stop and record why.
+8. Update §15 (ledger row, evidence, findings) and the handoff file in the same commit.
+9. Stage by explicit path (`git add <path> …`, never `git add -A`), then `git commit -m "<message>"` with the
+   message given, plus the attribution line your session specifies. Separate commands; no heredoc, no
+   `sed -i`, no `python3 -c`.
+10. Stop and report (a material stop, §12) instead of improvising if a step cannot be done as written.
+
+### P6a — the `persona` System Pack (branch `mvp0/pr-s10-p6a`)
 
 #### A0 — Freeze and contract (Markdown only)
 
-- **Goal / scope.** Start P6a against the frozen design: this file's ledger (§15), `handoff-s10-p6a.md`.
-- [ ] Implementation: verify the `DESIGN FROZEN` header and §12; record the base commit; initialise the
-  handoff with every field the working rules require.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no authority line widened; QP6-1/QP6-2 rulings copied verbatim.
-- **Boundary.** Documentation only.
+- **Goal.** Start P6a against the frozen design. **Files:** this file (§15);
+  `.structured-coding/plans/mvp0/handoff-s10-p6a.md` (new).
+- Steps:
+  1. `git log --oneline -1` and record the base commit in §15 and the handoff.
+  2. Confirm the header reads `DESIGN FROZEN 2026-10-14` and §12.1 is filled.
+  3. Create `handoff-s10-p6a.md` with the fields the working rules list (project/PR, primary design, binding
+     docs, branch, base, HEAD, working-tree fingerprint, approved scope, frozen invariants, endpoint
+     authority with sources, sequence A0–A3, budget, checkpoint, next actions, stop conditions).
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: both doc checks.
+- [ ] Review: no authority line widened; §14.1's QP6-1 and QP6-2 rulings copied verbatim into the handoff.
+- **Commit message:** `docs(plan): P6a — open the ledger and handoff`.
 
 #### A1 — Specification before code
 
-- **Goal.** `CLAUDE.md` §2.2: the section and its owner are specified first.
-- **Scope.** `docs/MODULE_SPEC.md` §4.1 (`persona:`), `docs/DECISIONS.md` `ARC-74` (number confirmed at
-  freeze).
-- [ ] Implementation: the §4.1 entry (owner, bounds, disclosure to self, "shapes speech, grants nothing",
-  R-S10-9) and `ARC-74` (problem, options: a pack / controller configuration / `note`, choice, consequences).
+- **Goal.** The section and its owner are specified first (`CLAUDE.md` §2.2). **Files:**
+  `docs/MODULE_SPEC.md`, `docs/DECISIONS.md`.
+- Steps:
+  1. Read `docs/MODULE_SPEC.md` §4.1's entry for `name:` (owned by `naming`) as the model.
+  2. Add a `persona:` entry next to it: owner `persona`; fields `summary` (required, non-empty, ≤ 280 bytes),
+     `traits` (optional, ≤ 8 strings of ≤ 32 bytes), `speech` (optional, ≤ 160 bytes); unknown keys refused
+     with line and column; disclosed to the person themself only; "shapes speech, grants nothing" (R-S10-9).
+  3. Add `ARC-74` at the end of `docs/DECISIONS.md`, in the file's record format: problem (no source of a
+     person's character; `note` is not gameplay state, G-5); options (a System Pack section / the operator's
+     cognition configuration / `note`); choice (a System Pack, world content, `CORE_CONCEPTS.md` §4.2);
+     consequences (disclosed to self only; a rule controller ignores it).
+- [ ] Implementation: steps 1–3.
 - [ ] Validation: both doc checks.
-- [ ] Review: terminology (`System Pack`, `Component`, `Person`); no rule only in a README.
+- [ ] Review: terms (`System Pack`, `Component`, `Person`) used exactly; no rule stated only in a README.
+- **Commit message:** `docs: persona section and ARC-74 (S10 P6a)`.
 
 #### A2 — `systems/persona`: section, component, self-only disclosure
 
-- **Goal.** The pack exists and discloses to its holder only.
-- **Scope.** `systems/persona/{Cargo.toml, README.md, src/lib.rs, src/section.rs, src/component.rs,
-  src/system.rs, tests/persona.rs}`; root `Cargo.toml` members.
-- [ ] Implementation: mirror `systems/naming`'s structure for the section and seeding (A-P6-1 decided by
-  reading `naming` first and recording what it does); bounds of §5.14; `discloses` returns the component
-  only when the observer is the holder.
-- [ ] Validation: section refusals table (AP6a-1) with line/column; a two-observer integration test over
-  `mineworld_presence::observe` (AP6a-2), mutation "disclose to everyone" seen red and reverted; `cargo test
-  -p mineworld-persona`; `cargo clippy -p mineworld-persona --all-targets -- -D warnings`.
-- [ ] Review: no action, process or reaction; no other pack's vocabulary; `HashMap` absent.
-- **Failure cases.** Over-long values are refused at load, never truncated.
+- **Goal.** The pack exists and discloses to its holder only. **Files:** `systems/persona/Cargo.toml`,
+  `systems/persona/README.md`, `systems/persona/src/{lib.rs, section.rs, component.rs, event.rs, codec.rs,
+  persona.rs, system.rs}`, `systems/persona/tests/persona.rs`, root `Cargo.toml` (members).
+- Steps:
+  1. Read all of `systems/naming/` (`Cargo.toml`, `src/lib.rs`, `section.rs`, `system.rs`, `component.rs`,
+     `event.rs`, `codec.rs`, `name.rs`, `tests/naming.rs`). Record in §15 (A-P6-1) what naming does at
+     genesis: it emits a public `named` fact from the section, and the `DisplayName` component is reduced
+     from that fact.
+  2. Create the crate `mineworld-persona` by mirroring naming file for file. `persona.rs` holds the value
+     type `Persona { summary, traits, speech }` with a constructor that refuses each bound of A1 step 2
+     (never truncates). `event.rs` holds the genesis fact `persona-authored`, whose `Visibility` is
+     `Entities({holder})` (not public). `component.rs` holds the `Persona` component, reduced from that
+     fact by this pack alone. `section.rs` decodes the `persona:` section with positioned refusals, like
+     naming's.
+  3. In `system.rs`, implement `discloses` so that it returns the component **only when the observer is the
+     holder** (contrast naming, which discloses to everyone).
+  4. Add `systems/persona` to the root `Cargo.toml` members, in the same style as the other systems.
+  5. Write `tests/persona.rs`: (a) one table-driven test of section refusals (unknown key, a 281-byte
+     summary, nine traits, an empty summary), each asserting the file, line and column; (b) one
+     two-observer test over `mineworld_presence::observe`: the holder sees `persona`, another person in the
+     same place does not.
+  6. Write a short human README (what the pack owns, one example section).
+- [ ] Implementation: steps 1–6.
+- [ ] Validation: `cargo test -p mineworld-persona`; `cargo clippy -p mineworld-persona --all-targets -- -D
+  warnings`; mutation: make `discloses` return the component to every observer → test (b) red → revert.
+- [ ] Review: no action, process or reaction is declared; no other pack's vocabulary is imported; no
+  `HashMap`.
+- **Commit message:** `feat(persona): a System Pack for a person's authored character, disclosed to self (S10 P6a)`.
 
 #### A3 — Install and author social-cafe's personas
 
-- **Scope.** `systems/installed/{Cargo.toml, src/lib.rs}`; `worlds/social-cafe/world.yaml` (append
-  `persona`); nine people files.
-- [ ] Implementation: one installed line; `persona` appended **last**; sections from each file's `note` and
-  tags.
-- [ ] Validation: `cargo test -p mineworld-installed-systems` (the installed guard test; crate name confirmed
-  from its `Cargo.toml`); `target/debug/mineworld validate worlds/social-cafe`; `cargo build --release -p
-  mineworld-cli`; `python3 scripts/ci_parity.py record --binary target/release/mineworld --profile long --out
-  <scratch>`; `python3 scripts/ci_parity.py baseline check <scratch>` — classify PASS/FAIL from its verdict
-  lines (AP6a-3). A moved column is a **material stop** (QP6-2).
-- [ ] Review: no rule smuggled into persona text; reducer order of earlier systems unchanged.
-- **Boundary.** Then push, open P6a's PR, one CI.
+- **Goal.** social-cafe's people have a character. **Files:** `systems/installed/Cargo.toml`,
+  `systems/installed/src/lib.rs`, `worlds/social-cafe/world.yaml`, `worlds/social-cafe/people/{alice,bob,
+  carol,dev,erin,felix,grace,hana,ivan}.yaml`, `scripts/baselines.txt` (only under QP6-2's ruling).
+- Steps:
+  1. Add `mineworld-persona` to `systems/installed/Cargo.toml` and `Persona => mineworld_persona::PersonaSystem,`
+     to the `installed!` list in `src/lib.rs`.
+  2. Append `- persona` as the **last** entry of `systems:` in `worlds/social-cafe/world.yaml`, with a
+     comment in the file's style (owns `persona:`; depends on nothing; appended so no earlier reducer order
+     moves).
+  3. For each of the nine files, add a `persona:` section written from that file's existing `note` and tags,
+     inventing no rule, price, favour or ability (R-S10-9). Example for Alice: `summary: Runs the café
+     counter. Warm with regulars, dry with strangers. Remembers orders.`
+  4. `cargo build -p mineworld-cli` then `target/debug/mineworld validate worlds/social-cafe`.
+  5. `cargo build --release -p mineworld-cli`; `mkdir -p target/scratch-p6a`; `python3 scripts/ci_parity.py
+     record --binary target/release/mineworld --profile long --out target/scratch-p6a/p6a.long`;
+     `python3 scripts/ci_parity.py baseline check target/scratch-p6a/p6a.long`.
+  6. Read the verdict lines. If every column is unchanged: PASS, go to step 8.
+  7. If columns moved: for each moved column, check it is a social-cafe column that moves because people now
+     perceive their own persona (the new genesis facts and what follows from them). If so, update that
+     column in `scripts/baselines.txt` with a reason line citing QP6-2 and this design (the file's own
+     reason-line format). If any other column moved (another world, or for any other cause), it is a
+     **material stop**: stop and report.
+  8. `cargo test -p mineworld-installed-systems`.
+- [ ] Implementation: steps 1–3 and 7.
+- [ ] Validation: steps 4–6 and 8, recorded with the verdict lines.
+- [ ] Review: no rule hidden in persona text; the reducer order of the earlier systems is unchanged.
+- **Commit message:** `feat(social-cafe): personas for the town's people (S10 P6a)`.
+- **Then:** `git push -u origin mvp0/pr-s10-p6a`; open a PR with `gh pr create` (body: what changed, the
+  evidence, any re-baselined column with its reason); wait for CI on the exact head; READY FOR OPERATOR
+  REVIEW — DO NOT MERGE.
 
-### P6b — the LM controller
+### P6b — the LM controller (branch `mvp0/pr-s10-p6b`)
+
+All new Python files are under `cognition/lm-controller/src/mineworld_cognition/` (abbreviated `mc/`) and
+`cognition/lm-controller/tests/` (abbreviated `tests/`). Every new module starts with a docstring citing
+this design's section, and uses `CognitionModel` (strict, frozen, `extra="forbid"`) for its data types.
 
 #### C0 — Freeze and contract (Markdown only)
 
-- [ ] Implementation: verify the header and §12; confirm DL-a and FG-b are merged (`git log origin/main
-  --oneline | grep -i "dl-a\|fg-b"` and the presence of `cognition/decision` and `memory/retention`); record
-  the base; initialise `handoff-s10-p6.md`.
+- **Files:** this file (§15); `.structured-coding/plans/mvp0/handoff-s10-p6b.md` (new).
+- Steps:
+  1. Confirm DL-a has merged: `cognition/decision/` and `cognition/installed/` exist and
+     `target/debug/mineworld decisions --help` runs after `cargo build -p mineworld-cli`.
+  2. Confirm FG-b has merged: `mc/memory/retention/` exists and exports `absorb`, `resolve`,
+     `MemoryPolicyChoice`, `DEFAULT_CHOICE`. Record their actual signatures in §15 (A-P6-3).
+  3. Record whether FG-c has merged (it decides who wires R-P6-FGc-1, §10).
+  4. Record the base commit; create the handoff as in A0 step 3 with the sequence C0–C15.
+- [ ] Implementation: steps 1–4.
 - [ ] Validation: both doc checks.
-- [ ] Review: every R-P6-* requirement of §0 is mapped to a commit below.
+- [ ] Review: every R-P6-* requirement of §0 maps to a commit below; any signature that differs from
+  FG-b §5.6/§6 is recorded as a bounded deviation.
+- **Commit message:** `docs(plan): P6b — open the ledger and handoff`.
 
 #### C1 — Specifications and decision records
 
-- **Scope.** `docs/MODULE_SPEC.md` §5 (an LM Controller paragraph: protocol client; assignment through
-  DL-a's JSON; fallback by handback; retry layers and breaker as configuration; the controller's own log);
-  `docs/DECISIONS.md` `ARC-72`, `ARC-73`; dated notes on `ARC-57` (`timeout_s`, `retry_after_s`) and
-  `DEP-44` (retry and breaker libraries declined, with verified licences).
-- [ ] Implementation: the edits, citing this design.
+- **Files:** `docs/MODULE_SPEC.md`, `docs/DECISIONS.md`.
+- Steps:
+  1. In `MODULE_SPEC.md` §5.1 (decision models), after the "Out-of-process" bullet, add an "LM Controller"
+     paragraph: a protocol client (`ARC-56`); seats chosen from `mineworld decisions --json`; social choices
+     only; fallback by giving the seat back (`leave`), which is host state and never a fact; retry layers
+     and breaker configured in `cognition.toml`; counters in the controller's own log.
+  2. Add `ARC-72` (the LM controller is built from typed parts; model text is a proposal; a request is built
+     only through `mineworld_sdk.offers`) and `ARC-73` (failure containment: three retry layers above a
+     retry-free gateway, deadline, cap, breaker, fallback by handback) in the file's record format.
+  3. Add a dated note under `ARC-57`: `ModelGateway.complete(..., timeout_s=)` and
+     `BackendFailure.retry_after_s` (P6, C4).
+  4. Verify on PyPI and in the projects' repositories the licences of `tenacity`, `backoff`, `stamina`,
+     `pybreaker`, `aiobreaker`, `purgatory` (WebFetch only; no `curl`). Add a dated note under `DEP-44`:
+     these retry and breaker libraries are declined for P6, with the reasons of §4 and the verified
+     licences; anything not verifiable is written "not verified".
+- [ ] Implementation: steps 1–4.
 - [ ] Validation: both doc checks.
-- [ ] Review: `Controller`, `Controller Pack`, `ActionIntent` used exactly; the handback is described as host
-  state, never as a world fact.
+- [ ] Review: `Controller`, `Controller Pack`, `ActionIntent` used exactly; the handback is never called a
+  fact or world state.
+- **Commit message:** `docs: LM controller specification, ARC-72, ARC-73 (S10 P6b)`.
 
-#### C2 — `external "lm"`
+#### C2 — `external "lm"` and the example decision list
 
-- **Scope.** `cognition/installed/src/lib.rs` (one `models!` line), its guard test.
-- [ ] Implementation: `external "lm",` as DL-a §5.6 shows.
-- [ ] Validation: `cargo test -p mineworld-installed-models`; `target/debug/mineworld decisions
-  worlds/social-cafe --decisions cognition/lm-controller/examples/alice-lm.decisions.yaml --json` shows
-  `"assigned": "lm"`, `"chain": ["lm", "rule"]` for alice (the example file is added in this commit).
-- [ ] Review: no other Rust file changes; `run` without `--decisions` prints today's header (DL-a I-DLa-1).
+- **Files:** `cognition/installed/src/lib.rs`, `cognition/installed/tests/installed.rs` (or the guard test's
+  actual file), `cognition/lm-controller/examples/alice-lm.decisions.yaml` (new).
+- Steps:
+  1. Add the line `external "lm",` to the `models!` invocation, as DL-a §5.6 shows.
+  2. If the guard test lists the expected ids, add `lm` as external there.
+  3. Write `alice-lm.decisions.yaml` exactly as §5.9 step 1 shows, with a comment: an operator file for
+     `--decisions`, never placed inside a world.
+  4. `cargo build -p mineworld-cli`, then run `target/debug/mineworld decisions worlds/social-cafe --decisions
+     cognition/lm-controller/examples/alice-lm.decisions.yaml --json` and check alice shows
+     `"assigned": "lm"` and `"chain": ["lm", "rule"]`; every other seat shows `rule`.
+  5. Run `target/debug/mineworld run worlds/social-cafe --days 1` without `--decisions` and check its header
+     line is unchanged (DL-a I-DLa-1).
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: `cargo test -p mineworld-installed-models`; steps 4–5 recorded.
+- [ ] Review: no other Rust file changed.
+- **Commit message:** `feat(cognition): install the external lm model (S10 P6b)`.
 
 #### C3 — Configuration and the assignment reader
 
-- **Scope.** `config.py` (new keys of §5.13 and their models); `controller/assignment.py`; tests
-  `tests/test_controller_config.py`, `tests/test_assignment.py` (with a literal format-1 JSON fixture and one
-  `real_binary` test that parses the binary's own output).
-- [ ] Implementation: typed models with `extra="forbid"` and the bounds of §5.13; precedence resolver
-  `layer_policy(config, seat, backend, class) -> (id, parameters, source_key)`; `read_assignment(path) ->
-  Assignment` (strict; `format == 1`; `lm` seats; memory choices as FG-b's `MemoryPolicyChoice`).
-- [ ] Validation: refusals (unknown key, out-of-bound value, `invite_env` holding a value-like string,
-  `store` inside a world directory, unknown `format`, `seats` not a subset, no `lm` seat); precedence table;
-  the real-binary parse.
-- [ ] Review: no YAML parsing in Python; error messages never echo a value (P5a `_describe`).
+- **Files:** `mc/config.py`, `mc/controller/__init__.py` (new, empty exports for now),
+  `mc/controller/assignment.py` (new), `tests/test_controller_config.py` (new), `tests/test_assignment.py`
+  (new), `tests/fixtures/decisions_format1.json` (new).
+- Steps:
+  1. In `config.py`, add models: `ControllerConfig` (the six `[controller]` keys with §5.13's defaults and
+     bounds), `LayerConfig { policy: str, parameters: dict[str, JsonValue] = {} }`, `RetryConfig {
+     transport, content, semantic: LayerConfig | None }`, `BreakerConfig` (a `LayerConfig`), `SeatOverrides
+     { controller: partial ControllerConfig, retry: RetryConfig }`. Add to `CognitionConfig`: `server`,
+     `invite_env` (validated like `key_env`), `nickname`, `store`, `decisions_json`, `seats: list[EntityKey]
+     | None`, `controller`, `retry`, `breaker`, `seats_overrides` (TOML table `[seats.<key>]`), and on
+     `BackendConfig` an optional `retry: RetryConfig`. All optional, so every existing P5a configuration
+     still loads.
+  2. Resolve `store` and `decisions_json` relative to the file in `load()`, and refuse a `store` inside a
+     world directory (reuse `_refuse_inside_world`).
+  3. Add `layer_policy(config, seat, backend, layer) -> LayerConfig` implementing §5.13's precedence, and
+     `controller_for(config, seat) -> ControllerConfig`.
+  4. In `assignment.py`, write strict models for DL-a's format-1 JSON (`ResolvedDecisions { format:
+     Literal[1], world, digest, seats: list[SeatEntry] }`, `SeatEntry { seat, model: { id, assigned:
+     str | None, chain: list[str] | None }, memory: MemoryPolicyChoice | None }`, reusing FG-b's
+     `MemoryPolicyChoice`) and `read_assignment(path, narrowed: list[EntityKey] | None) -> Assignment`,
+     which returns the `lm` seats in roster order, refuses an unknown format, refuses `narrowed` entries that
+     are not `lm` seats, and refuses "no lm seat".
+  5. Write `tests/fixtures/decisions_format1.json` by hand from DL-a §5.9's example (alice `lm` with a
+     memory choice; bob `rule`).
+  6. Tests: refusals (unknown key; an out-of-bound `consult_deadline_s`; `invite_env = "abc-123"`; `store`
+     inside a directory with a `world.yaml`; format 2; `seats = ["bob"]`; no lm seat) asserting the message
+     names the key or file and never echoes a value; the precedence table (seat > backend > global >
+     default) in one table-driven test; one `@pytest.mark.real_binary` test that runs `target/debug/mineworld
+     decisions … --json` (via `tests/binary.py`'s helper) and parses the output with `read_assignment`.
+- [ ] Implementation: steps 1–5.
+- [ ] Validation: step 6 plus `tests/test_config_router.py` (existing) still green.
+- [ ] Review: no YAML is parsed in Python; error text never repeats an input value.
+- **Commit message:** `feat(cognition): controller configuration and the lm seat assignment (S10 P6b)`.
 
 #### C4 — Two additive P5a changes
 
-- **Scope.** `backend/model.py` (`retry_after_s`), `backend/openai_compatible.py` and
-  `backend/anthropic_messages.py` (parse `Retry-After`), `gateway.py` (`timeout_s`); tests in the existing
-  `test_openai_compatible.py`, `test_anthropic_messages.py`, `test_budget.py`.
-- [ ] Implementation: `retry_after_s: int | None` bounded 0 … 3 600, set only from a delta-seconds header on a
-  non-2xx answer; `complete(seat, request, *, timeout_s: float | None = None)` with `min(call_timeout_s,
-  timeout_s)`.
-- [ ] Validation: an `httpx2.MockTransport` 429 with `Retry-After: 3` → `retry_after_s == 3`; an HTTP-date
-  → `None`; a scripted backend delayed past `timeout_s` → `Failed(timeout)` and one call charged, zero
-  tokens; existing P5a tests unchanged and green.
-- [ ] Review: no header value other than the integer reaches any type (AP5-9); no cassette format change.
+- **Files:** `mc/backend/model.py`, `mc/backend/openai_compatible.py`, `mc/backend/anthropic_messages.py`,
+  `mc/gateway.py`, `tests/test_openai_compatible.py`, `tests/test_anthropic_messages.py`,
+  `tests/test_budget.py`.
+- Steps:
+  1. In `BackendFailure` add `retry_after_s: Annotated[int, Field(ge=0, le=3600)] | None = None`.
+  2. Add a helper `retry_after(response) -> int | None` in each HTTP adapter (or one shared private helper
+     in `model.py` taking the header string): a header made only of digits → that integer, capped at
+     3 600; anything else (an HTTP date, empty, absent) → `None`. Set it on every non-2xx `BackendFailure`.
+  3. In `ModelGateway.complete`, add keyword `timeout_s: float | None = None`; the timeout used is
+     `budget.policy.call_timeout_s` when `timeout_s` is `None`, else the smaller of the two.
+  4. Tests: a `MockTransport` 429 with `Retry-After: 3` → `retry_after_s == 3`; with an HTTP date → `None`;
+     with `Retry-After: 99999` → 3 600; same for the Anthropic adapter; a `ScriptedBackend(delay_s=2)` with
+     `timeout_s=0.5` → `Failed(timeout)`, and the ledger window shows one call and zero tokens.
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: step 4 and the three existing test files green.
+- [ ] Review: only the integer reaches a type (AP5-9); cassette format and keys unchanged; the gateway still
+  never retries.
+- **Commit message:** `feat(cognition): Retry-After on failures and a per-call timeout on the gateway (S10 P6b)`.
 
 #### C5 — Typed parts I: `Persona`, `Situation`, `MemoryView`
 
-- **Scope.** `controller/{__init__.py, persona.py, situation.py, memory_view.py}`; `tests/test_controller_parts.py`.
-- [ ] Implementation: §5.2.1–§5.2.3.
-- [ ] Validation: `Situation.of` over `server/tests/frames/observation.json` (labels, collision suffixes on
-  a doctored copy, offer numbering from available complete affordances only); `Persona.of` with and without
-  the component, and with an over-long value (→ empty, counted); `MemoryView` with `recall_episodes` 0, 3, 8
-  over a P4 fixture store: section bytes non-increasing, `citations()` equal to the kept lines' ranges.
-- [ ] Review: no clock, randomness or environment read; names never ids.
+- **Files:** `mc/controller/{persona.py, situation.py, memory_view.py}`, `mc/controller/__init__.py`,
+  `tests/test_controller_parts.py`.
+- Steps:
+  1. `persona.py`: `Persona` (§5.2.1) and `Persona.of(observation) -> tuple[Persona, bool]` (the bool is
+     "absent or undecodable"); decode the observer's own entity's `persona` component with a strict model
+     using P6a's bounds.
+  2. `situation.py`: `Person`, `Offer`, `Situation` and `Situation.of(observation, names)` (§5.2.2): first
+     call `names.learn(entity, display_name)` for every entity whose `display-name` component is present;
+     labels from `NameBook.person`; collision suffixes in ascending `EntityId` order; `talk_to` = labels of
+     targets of **available** `talk` affordances; `offers` = available affordances with a `payload`,
+     numbered from 1 in observation order, keeping their index as `position`.
+  3. `memory_view.py`: `memory_view(store, query, recall_episodes) -> MemorySection` (§5.2.3).
+  4. Export the three in `controller/__init__.py`.
+  5. Tests: `Situation.of` over `server/tests/frames/observation.json` (decode it with the SDK's codec as
+     P3's tests do); a copy with two people named "Bob" gets "Bob" and "Bob (2)"; an unavailable `talk` is
+     not in `talk_to`; `Persona.of` with the component, without it, and with a 400-byte summary (→ empty,
+     flag set); `memory_view` over P4's fixture store (`tests/memory_fixtures.py`) with `recall_episodes` 0,
+     3 and 8: rendered bytes non-increasing as the knob falls, and `citations()` equal to the ranges of the
+     kept lines.
+- [ ] Implementation: steps 1–4.
+- [ ] Validation: step 5.
+- [ ] Review: no clock, randomness or environment read; an entity id never appears in any label.
+- **Commit message:** `feat(cognition): persona, situation and memory view parts (S10 P6b)`.
 
 #### C6 — Typed parts II: choice, prompt, validation, intent
 
-- **Scope.** `controller/{choice.py, prompt.py, validate.py, intent.py}`;
-  `tests/fixtures/social_choice.schema.json` (golden), `tests/fixtures/prompt_request.json` (golden);
+- **Files:** `mc/controller/{choice.py, prompt.py, validate.py, intent.py}`, `mc/controller/__init__.py`,
+  `tests/fixtures/social_choice.schema.json`, `tests/fixtures/prompt_request.json`,
   `tests/test_controller_choice.py`.
-- [ ] Implementation: §5.2.4–§5.2.6 and §5.3's `intent.build`.
-- [ ] Validation: the reason table (every reason of §5.2.6 and three valid answers) in one table-driven
-  test; fence stripping accepts exactly one fence; injection: heard text containing `<<<end>>>` renders
-  neutralised; prompt golden (hand-reviewed canonical JSON; test rules §25); the derived sampling seed for a
-  fixed `(seat, trigger)` equals a hand-computed value; `intent.build(Say)` equals the golden `submit.json`
-  request shape with `{"utterance": …}`; a target not offered → `SemanticFailure(not_offered)`; M-P6-1 and
-  M-P6-9 planted and reverted.
-- [ ] Review: no movement action type can be produced; the schema golden matches the model.
+- Steps:
+  1. `choice.py`: `SocialChoice` (§5.2.5); `SOCIAL_CHOICE_SCHEMA` written out by hand as a JSON value (all
+     five properties required, `additionalProperties: false`, `to` and `offer` nullable, `recalls` string
+     array `maxItems 8`, `words` `maxLength 480`); `ContentFailure { reason: Literal[…the nine reasons…],
+     detail: str }`; `parse_choice(completion) -> SocialChoice | ContentFailure` with the fence rule.
+  2. `validate.py`: `Say`, `Attempt`, `Nothing` (the `Proposal` union, ids not labels) and
+     `validate(choice, situation, memory) -> Proposal | ContentFailure`, applying §5.2.6's table row by row.
+  3. `prompt.py`: `Trigger { event: EventId, kind: Literal["spoken_to", "arrived"], speaker: EntityId | None,
+     words: str }`, `Feedback` (a tuple of re-ask / re-plan entries), `sampling_seed(seat, event) -> int`,
+     and `build_request(persona, situation, memory, trigger, feedback) -> CompletionRequest`, laid out exactly
+     as §5.2.4.
+  4. `intent.py`: `SemanticFailure { reason: Literal["not_offered", "rejected", "unavailable"], detail }`
+     and `build(proposal, observation) -> ActionRequest | SemanticFailure | None` (§5.3): `Say` through
+     `offers.request(observation, ActionTypeId("talk"), target=…, payload={"utterance": words})`;
+     `Attempt` re-locates the offer by `(position, action_type, target)` then `offers.attempt`; `Nothing` →
+     `None`; `NotOffered` → `SemanticFailure("not_offered")`.
+  5. Write the schema golden by dumping `SOCIAL_CHOICE_SCHEMA` once, then read it and check every keyword
+     by hand against §5.2.5; write the prompt golden the same way from a small fixed input, and review the
+     text against §5.2.4 line by line (test rules §25: the golden is reviewed, not trusted).
+  6. Tests: one table-driven test with one row per reason (nine) plus three valid answers; one fence passes
+     and two fences fail; heard words containing `<<<end>>>` render as `‹‹‹end›››`; the two goldens equal
+     the built values; `sampling_seed(EntityKey("alice"), EventId("1907"))` equals the value computed by
+     hand from sha256 and recorded in the test; `build(Say)` has the request shape of
+     `server/tests/frames/submit.json` with `{"utterance": …}`; a `Say` to someone with no available `talk`
+     → `SemanticFailure("not_offered")`.
+- [ ] Implementation: steps 1–5.
+- [ ] Validation: step 6; mutations M-P6-1 (skip `forged_recall`) and M-P6-9 (put an entity id in the
+  situation text) each turn a named test red, then reverted.
+- [ ] Review: no movement action type can be produced; the goldens were reviewed by hand.
+- **Commit message:** `feat(cognition): choice schema, prompt, validation and intent building (S10 P6b)`.
 
 #### C7 — Failures and `RetryPolicy`
 
-- **Scope.** `controller/{failures.py, retry.py}`; `pyproject.toml` entry points (`[project.entry-points."mineworld.retry"]`
-  for the three bundled policies); `tests/test_controller_retry.py`.
-- [ ] Implementation: §5.5.1 and §5.5.2; the registry copies FG-b's conventions (F-P6-9: first read FG-b's
-  `memory/retention/registry.py`; extract a shared loader only if it is already independent of
-  `ForgettingPolicy`, else mirror it; record which).
-- [ ] Validation: the classification table; delay sequence for seed 0 against hand-computed values; jitter
-  bounds; `Retry-After` override; unknown id and bad parameters refused naming the key; M-P6-4.
-- [ ] Review: `attempts` semantics (tries including the first) consistent with §5.7's table.
+- **Files:** `mc/controller/{failures.py, retry.py}`, `cognition/lm-controller/pyproject.toml`,
+  `tests/test_controller_retry.py`.
+- Steps:
+  1. Read FG-b's `mc/memory/retention/registry.py`. Record in §15 whether its entry-point loader is
+     independent of `ForgettingPolicy` (F-P6-9). If yes, call it; if not, mirror its structure in
+     `retry.py` without changing FG-b's file.
+  2. `failures.py`: `FailureClass = Literal["transport", "budget", "content", "semantic", "frame", "seat"]`,
+     `FailureRecord { cls, reason: str, retryable: bool, retry_after_s: int | None }`, and the functions
+     `from_gate(outcome)`, `from_content(failure)`, `from_semantic(failure)`, `from_refused(refused)`,
+     `from_seat(error)` implementing §5.5.1's table exactly (the retryable status list:
+     408, 409, 425, 429, 500, 502, 503, 504, 529).
+  3. `retry.py`: `RetryDecision`, the `RetryPolicy` protocol (§5.5.2), the three bundled classes with their
+     `Parameters` models and bounds, `RetryRegistry.installed()` (group `mineworld.retry`), `bind(id,
+     parameters, source_key) -> BoundRetry`, and the errors `UnknownRetryPolicy`, `InvalidRetryParameters`.
+  4. In `pyproject.toml` add `[project.entry-points."mineworld.retry"]` with
+     `exponential-backoff`, `fixed`, `none` pointing at the three classes; run `uv sync --locked` (the lock
+     does not change: entry points are metadata of the workspace member).
+  5. Tests: the classification table (one row per line of §5.5.1); for `exponential-backoff` with
+     `random.Random(0)`, the first three delays equal values computed by hand in the test's comment; delays
+     stay within `[1 − jitter, 1 + jitter]` of the base; `retry_after_s = 6` makes the second delay ≥ 6;
+     `attempts = 3` gives exactly two retries; an unknown id and `attempts = 0` are refused naming the key.
+- [ ] Implementation: steps 1–4.
+- [ ] Validation: step 5; mutation M-P6-4 (ignore `retry_after_s`) turns the Retry-After test red, then
+  reverted.
+- [ ] Review: `attempts` counts tries including the first, as in §5.7's table; `uv.lock` unchanged.
+- **Commit message:** `feat(cognition): failure classes and pluggable retry policies (S10 P6b)`.
 
 #### C8 — `CircuitBreaker`
 
-- **Scope.** `controller/breaker.py`; entry points `mineworld.breaker`; `tests/test_controller_breaker.py`.
-- [ ] Implementation: §5.6.
-- [ ] Validation: closed → open at the exact consult; `min_consults`; cooldown conversion with `time_scale`
-  1 and 60; half-open success and failure; exclusions; M-P6-5.
-- [ ] Review: the breaker reads no clock itself (the runner supplies time).
+- **Files:** `mc/controller/breaker.py`, `cognition/lm-controller/pyproject.toml`,
+  `tests/test_controller_breaker.py`.
+- Steps:
+  1. `breaker.py`: `BreakerOutcome = Literal["success", "failure"]`; `BreakerState` (`closed`, `open {
+     until_wall_s }`, `half_open`); the `CircuitBreaker` protocol (§5.6) with `observe(outcome, now_wall_s,
+     time_scale)` and `state(now_wall_s)`; bundled `failure-rate` and `never`; `BreakerRegistry` (group
+     `mineworld.breaker`), same conventions as C7.
+  2. Entry points `[project.entry-points."mineworld.breaker"]`: `failure-rate`, `never`.
+  3. Tests: with the defaults, after nine failures nothing opens (below `min_consults`); the window of 10
+     with three failures opens (30 % > 20 %), with two does not; the cooldown is 3 600 wall s at
+     `time_scale` 1 and 60 wall s at 60; half-open + success → closed with an empty window; half-open +
+     failure → open again; `never` never opens.
+- [ ] Implementation: steps 1–2.
+- [ ] Validation: step 3; mutation M-P6-5 is checked in C9 (the exclusion lives in the engine).
+- [ ] Review: the breaker reads no clock itself; time is passed in.
+- **Commit message:** `feat(cognition): a pluggable per-seat circuit breaker (S10 P6b)`.
 
 #### C9 — The consult engine
 
-- **Scope.** `controller/consult.py`; `tests/test_controller_consult.py`.
-- [ ] Implementation: §5.5.3 with `ConsultDeps` injected.
-- [ ] Validation: one scripted sequence per outcome (acted, chose, each fell_back cause, budget,
-  disconnected, dropped); cap and deadline; a semantic re-plan uses the newest situation; the seeded 1 000-
-  consult garbage run (AP6-4: every consult terminal, fallback share ≤ the frozen threshold, calls ≤ 5
-  each); M-P6-2, M-P6-3.
-- [ ] Review: every model call goes through `deps.ask`; no sleep beyond the remaining deadline.
+- **Files:** `mc/controller/consult.py`, `tests/test_controller_consult.py`, `tests/garbage.py` (new: the
+  seeded garbage generator, also used in C13).
+- Steps:
+  1. `consult.py`: `ConsultInput` (persona, situation, memory, trigger, based_on), `ConsultLimits
+     (deadline_s, max_calls)`, `LayerPolicies (transport, content, semantic: BoundRetry)`, `ConsultDeps`
+     (§5.5.3), `Attempt` and `ConsultRecord { outcome, attempts, proposal, request, answer }`, and
+     `async def consult(input, deps) -> ConsultRecord` following §5.5.3's loop. Jitter: one
+     `random.Random(int.from_bytes(sha256(f"{seat}:{trigger}:{cls}").digest()[:8], "big"))` per class.
+     `breaker_outcome(record) -> BreakerOutcome | None` returns `None` for `budget`, `disconnected`,
+     `dropped` and frame refusals.
+  2. `garbage.py`: `garbage_script(seed, garbage_permille, failure_permille, valid_answer) -> Script` that,
+     per request, draws from `random.Random` seeded by `(seed, cassette key)`: a transport `BackendFailure`,
+     a garbage completion (cycling through: not JSON, wrong field, unknown person, empty words, 600-byte
+     words, unknown offer, forged recall, a leak token, `finish="length"`), or the valid answer.
+  3. Tests: one scripted test per outcome (acted, chose, fell_back by transport exhaustion, by a
+     non-retryable 401, by content exhaustion, by semantic exhaustion, by the cap, by the deadline; budget;
+     disconnected; dropped); a semantic re-plan's request contains the newest situation; a fake clock shows
+     no sleep past the deadline; the 1 000-consult run with `garbage_permille=300`, `failure_permille=0`:
+     every record terminal, at most 5 calls each, fallback share ≤ 5 % (AP6-4); `breaker_outcome` exclusions.
+- [ ] Implementation: steps 1–2.
+- [ ] Validation: step 3; mutations M-P6-2 (ignore `max_calls`), M-P6-3 (content layer ignores
+  `attempts`) and M-P6-5 (count `budget` as a failure) each turn a named test red, then reverted.
+- [ ] Review: every model call goes through `deps.ask`; no path submits an unvalidated proposal.
+- **Commit message:** `feat(cognition): the layered consult engine (S10 P6b)`.
 
 #### C10 — Decision log, counters, offline replay
 
-- **Scope.** `controller/log.py`; `tests/test_controller_log.py`.
-- [ ] Implementation: `DecisionInput`, `DecisionRecord`, `Counters`, JSONL writer with 8 MiB rotation,
-  `replay_log(log_path, cassette_path)`.
-- [ ] Validation: rotation at the bound with a small configured size; a scripted run's log replays with
-  identical keys and requests through `ReplayBackend` (AP6-8 replay half, unit scale); counters recomputed
-  from records equal the written counters (AP6-13 unit half); a planted key and resume secret absent.
-- [ ] Review: the log holds the model's raw words but no provider concept; replay reaches no backend.
+- **Files:** `mc/controller/log.py`, `tests/test_controller_log.py`.
+- Steps:
+  1. `log.py`: `DecisionInput`, `DecisionRecord` (seat, consult number, `DecisionInput`, attempts with
+     cassette keys, outcome, request, action id, result, `PassReport` summaries), `Counters` (§5.12's
+     fields), `DecisionLog(path, rotate_bytes=8 * 1024 * 1024)` with `append(record)`, `counters(c)` and
+     rotation to `<path>.1` (one old file kept), and `counters_from(records) -> Counters`.
+  2. `replay_log(log_path, cassette_path) -> ReplayReport`: for each record, rebuild `ConsultDeps` with a
+     `ReplayBackend` gateway, a `submit` returning the logged answers, and a clock that never expires; run
+     `consult`; compare keys and requests; report mismatches.
+  3. Tests: rotation with `rotate_bytes=2048`; a scripted run of 20 consults written with a
+     `RecordingBackend` cassette in `tmp_path`, then `replay_log` reports zero mismatches (AP6-8 replay
+     half); `counters_from` equals the written counters; a planted fake key (`sk-test-PLANTED`) in the
+     environment and a planted resume secret appear in no written file.
+- [ ] Implementation: steps 1–2.
+- [ ] Validation: step 3.
+- [ ] Review: no provider concept and no secret in any record; replay builds no network client.
+- **Commit message:** `feat(cognition): decision log, counters and logged-input replay (S10 P6b)`.
 
 #### C11 — Triggers, resume file, seat runner
 
-- **Scope.** `controller/{triggers.py, resume_file.py, seat.py}`; `tests/test_controller_seat.py` (an
-  in-process fake connector built on the SDK's `Connection` protocol, as P3b's tests do).
-- [ ] Implementation: §5.4, §5.8, §5.10: start the `absorb` task first (F-P3b-4); retry `open()` with the
-  P3b `ReconnectPolicy` delays until `seat_retry_s` (F-P3b-5); `based_on` with `Seen.connection` (F-P3b-3);
-  learn names from every new observation; the state machine of §5.8; rewrite the resume file on every new
-  connection; delete it on `leave`/`SeatLost`.
-- [ ] Validation: triggers T1/T3 from fixture facts; one in flight plus dirty; ingestion-before-trigger
-  ordering (M-P6-10); handback when `took_over == "hosted"`, stand otherwise; resume file atomicity
-  (`os.replace` observed by reading during write) and rewrite on rejoin (M-P6-7, unit half).
-- [ ] Review: no world write path; the runner never constructs a backend.
+- **Files:** `mc/controller/{triggers.py, resume_file.py, seat.py}`, `mc/controller/__init__.py`,
+  `tests/test_controller_seat.py`.
+- Steps:
+  1. `resume_file.py`: `read(path) -> ResumeSecret | None` (32 lowercase hex or `None`), `write(path,
+     secret)` (write `<path>.tmp`, `os.chmod(…, 0o600)` on POSIX only, then `os.replace`), `delete(path)`.
+  2. `triggers.py`: `detect(batch, me, store, now_at, last_greeted) -> list[Trigger]` for T1 and T3
+     (§5.4), and `Pending` (one in flight; a dirty flag holding the newest trigger).
+  3. `seat.py`: `SeatRunner(seat, config, router, assignment_entry, store_dir, clock, sleep)` with `async
+     run()`, in this order: open the store; `resolve` the memory choice (refuse to start on error); read the
+     resume file; open `ResumingSeat` with `cursor=store`, retrying `open()` with the P3b policy's delays up
+     to `seat_retry_s` (F-P3b-5); check `welcome.world.id`; write the resume file; start the ingestion task
+     **first** (F-P3b-4): for each batch, `await absorb(...)`, then `detect`, then hand triggers to
+     `Pending`; run the consult loop (build `ConsultInput` from `seat.changed()`'s newest `Seen`, recording
+     `(connection, seq, perceived_through, at)`); after each consult, update the breaker and the log; when
+     `Seen.connection` grows, rewrite the resume file; apply §5.8's state machine (handback with `leave` and
+     `resume_file.delete` when the first welcome's `took_over == "hosted"`, otherwise stand); on
+     `SeatLost("taken_over" | "seat_occupied")` delete the resume file and retry every `seat_retry_s`.
+  4. Tests with a fake connector (the SDK's `Connection` protocol, as P3b's tests do): T1 from a `spoke`
+     fact to me; T3 once per counterpart per cooldown; a trigger during a consult is run once afterwards;
+     the trigger detector is never called before `absorb` returned (record call order); after a forced
+     fallback with `took_over: "hosted"` the runner sends `leave` and rejoins after `handback_s` (fake sleep);
+     with `took_over: "none"` it sends nothing and stays; the resume file is rewritten when the connection
+     number grows and deleted after `leave`.
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: step 4; mutations M-P6-10 (detect before `absorb`) and M-P6-7 (write the resume file once)
+  each turn a named test red, then reverted.
+- [ ] Review: the runner has no path that writes world state and never constructs a backend.
+- **Commit message:** `feat(cognition): the LM seat runner with handback and a persisted resume secret (S10 P6b)`.
 
 #### C12 — The entry point and examples; integration over the real binary
 
-- **Scope.** `__main__.py`; `examples/local.toml`, `examples/alice-lm.decisions.yaml` (from C2), README;
-  `tests/test_controller_server.py` (`real_binary`).
-- [ ] Implementation: `python -m mineworld_cognition --config FILE`; default loop; Ctrl-C handling (§5.16);
-  status lines.
-- [ ] Validation (each test starts its own `mineworld server worlds/social-cafe --town --decisions
-  examples/alice-lm.decisions.yaml --save <scratch> --hold 3 --pace 1`, a protocol client for `visitor`, and
-  the runner in `scripted` mode in-process): takeover (`took_over: "hosted"`) and a scripted reply as an
-  Alice `spoke` caused by her seat's action; forced failure → handback → the fallback's request for Alice →
-  rejoin; SIGKILL-equivalent (the runner's socket aborted without `leave`) → fallback within `hold` + pace +
-  2 s (AP6-8 kill half); restart within the hold after one rejoin → `took_over: "held"` (AP6-9); second
-  runner → `seat_occupied` (AP6-17); I-5 and I-6 (AP6-15). Wall time recorded; target ≤ 90 s for the file on
-  Linux.
-- [ ] Review: no test reaches beyond loopback (the guard); no model, no key.
+- **Files:** `mc/__main__.py`, `cognition/lm-controller/examples/local.toml`, `cognition/lm-controller/README.md`,
+  `tests/test_controller_server.py`, `tests/realserver.py` (new, copied helper).
+- Steps:
+  1. `__main__.py`: parse `--config FILE`; `load`; `read_assignment`; `build_router`; one `SeatRunner` task
+     per lm seat; `asyncio.run(main(...))` on the default loop; on `KeyboardInterrupt`, `leave` every seat
+     within 5 s, delete resume files, print one status line per seat (§5.12).
+  2. `examples/local.toml`: the §5.13 file with `[backends.local]` `base_url = "http://127.0.0.1:11434/v1"`,
+     `model = "qwen3.5:4b"`, `structured_output = "none"` (comment: the runtime refuses enforced output for
+     this build; admitted 39/40 on 2026-10-13), `[tiers] social = "local"`, `summarize = "none"`.
+  3. README: how to run (the three commands of §5.9), the admitted triples (C14 adds the table), the `--hold`
+     note (QP6-9), Windows notes (§5.16).
+  4. Tests, each with its own server started the way `sdk/python/tests/realserver.py` does it (port 0 with
+     the bound address read from the server's "listening on" line; the invite given by environment). Test
+     modules of one member cannot import another member's tests, so copy that helper into
+     `tests/realserver.py` (recording its origin in its docstring) and add the flags: `mineworld server
+     worlds/social-cafe --town --decisions examples/alice-lm.decisions.yaml --save <tmp> --hold 3 --pace 1
+     --listen 127.0.0.1:0`. Each test also has a
+     protocol client for `visitor` (SDK `SeatSession`), and the runner in-process in `scripted` mode:
+     (a) takeover is `took_over: "hosted"`, and a visitor line gets a scripted reply recorded as a `spoke`
+     fact from Alice caused by her seat's action; (b) a script that always fails → the runner sends `leave`,
+     the save then holds a request by Alice's in-server controller, and the runner rejoins; (c) the runner's
+     socket closed without `leave` → a request by the in-server controller within `hold + pace + 2` s
+     (AP6-8 kill half); (d) after one rejoin, a new runner started inside the hold joins `took_over: "held"`
+     (AP6-9); (e) a second runner for Alice is refused `seat_occupied` (AP6-17); (f) I-5 and I-6 (AP6-15):
+     delete the store, rejoin from a null cursor, equal structural dump; delete `store/`, save bytes
+     unchanged.
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: step 4; record the file's wall time (target ≤ 90 s on Linux); mutation M-P6-6 (no `leave`
+  on fallback) turns test (b) red, then reverted.
+- [ ] Review: no test reaches beyond loopback; no model, no key, no live mode.
+- **Commit message:** `feat(cognition): python -m mineworld_cognition and its real-server tests (S10 P6b)`.
 
 #### C13 — The garbage scenario and IC-3
 
-- **Scope.** `tests/test_controller_resilience.py` (`real_binary`), `tests/garbage.py` (the seeded garbage
-  script).
-- [ ] Implementation: a `ScriptedBackend` script returning valid answers, 30 % garbage across the reason
-  kinds and 5 % `BackendFailure`s, seeded; a 3 s delayed script for IC-3.
-- [ ] Validation: AP6-1, AP6-2, AP6-3 (`mineworld inspect`, a resume of the save, `mineworld replay`),
-  AP6-11, AP6-12 over the scenario's artefacts, AP6-16; M-P6-6 and M-P6-8 planted and reverted. Target ≤ 90 s.
-- [ ] Review: assertions read the save and the decision log, not the runner's memory.
+- **Files:** `tests/test_controller_resilience.py`.
+- Steps:
+  1. Scenario A (AP6-1, -2, -3, -11, -12): server as in C12; `garbage_script(seed=7, garbage_permille=300,
+     failure_permille=50, …)`; the visitor says 15 lines; then stop the runner and the server.
+  2. Assertions from artefacts only: every Alice `spoke` utterance is a scripted valid line or a line of the
+     fallback (no garbage marker); the decision log has one terminal record per consult, ≤ 5 calls each,
+     duration ≤ deadline + 1 s; `mineworld inspect` on the save exits 0 and resolves every cause; restart
+     the server on the save and stop it (it resumes); `mineworld replay` on the save exits 0; no `move` or
+     `walk-step` request in the journal during LM-held intervals; the provider-concept scan over the
+     decision log, the store and every `CompletionRequest`.
+  3. Scenario B (AP6-16, IC-3): a valid script with `delay_s=3`; the visitor speaks then walks out of talk
+     range during the delay; assert no Alice `spoke` after the departure in the save, and a `not_offered`
+     or `TooFarAway` record in the decision log.
+- [ ] Implementation: steps 1 and 3.
+- [ ] Validation: step 2 and 3's assertions; mutation M-P6-8 (submit `Say` without `offers.request`)
+  changes scenario B's outcome (a server rejection instead of a local drop) and the I-P6-2 scan fails, then
+  reverted; wall time recorded (target ≤ 90 s).
+- [ ] Review: assertions read the save and the decision log, never the runner's memory.
+- **Commit message:** `test(cognition): the world stays valid under 30% garbage; revalidation under delay (S10 P6b)`.
 
 #### C14 — Spike summary table and recorded spike evidence
 
-- **Scope.** `tools/model_spike.py` (`summary_table`, `main`); `tests/test_spike_tool.py` (golden table);
-  README's admitted-triples table; this file's §0.1 cross-referenced from P5a's ledger by a one-line note.
-- [ ] Implementation: §5.15.
-- [ ] Validation: golden string for a fixture report (AP6-18); `test_no_ci_command_runs_the_spike…` still
-  green.
-- [ ] Review: the JSON line is unchanged and last; no threshold constant moved.
+- **Files:** `cognition/lm-controller/tools/model_spike.py`, `tests/test_spike_tool.py`,
+  `cognition/lm-controller/README.md`, `.structured-coding/plans/mvp0/pr-s10-p5-backends.md` (one ledger line).
+- Steps:
+  1. Add `summary_table(report: dict[str, JsonValue]) -> str` producing §5.15's layout (fixed-width
+     columns; `-` for absent values; failures as `reason×count`).
+  2. In `main`, print `summary_table(report)` and then the existing JSON line, unchanged and last.
+  3. README: an "Admitted models" table with the two admitted triples of §0.1 (runtime, model,
+     `structured_output`, valid/40, p95, date) and the instruction to re-run the spike after a runtime upgrade.
+  4. P5a's ledger: one line "spike run by the operator 2026-10-13; results in pr-s10-p6-lm-controller.md §0.1".
+  5. Test: a fixture report with two models gives exactly a hand-written expected string.
+- [ ] Implementation: steps 1–4.
+- [ ] Validation: step 5; `test_no_ci_command_runs_the_spike_or_allows_a_remote_server` still green.
+- [ ] Review: no threshold constant changed; the JSON line is byte-identical.
+- **Commit message:** `feat(cognition): a readable summary table for the model spike (S10 P6b)`.
 
 #### C15 — Close-out
 
-- **Scope.** this file (§15), `handoff-s10-p6.md`.
-- [ ] Implementation: every §8 criterion with evidence or explicitly open (AP6-14 NOT RUN until the
-  operator); I-P6-1 and I-P6-9 diffs recorded.
-- [ ] Validation: static checks; `uv run --locked pytest cognition/lm-controller/tests` once locally only if
-  a specific reason exists (test rules §8); otherwise the PR's CI.
-- [ ] Review: deviations recorded; parent synchronisation marked pending for the primary session.
-- **Boundary.** Documentation only; push, open the PR, one CI; READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- **Files:** this file (§15), `handoff-s10-p6b.md`.
+- Steps:
+  1. `git diff --stat origin/main...HEAD` and check I-P6-1 (no path under `kernel/`, `contracts/`,
+     `server/`, `persistence/`, `systems/`) and I-P6-9 (`uv.lock` unchanged); record both.
+  2. Fill §8's evidence for every criterion; AP6-14 is NOT RUN (operator Gate 1).
+  3. Mark parent synchronisation pending for the primary session (§11).
+- [ ] Implementation: steps 1–3.
+- [ ] Validation: static checks; the full suite is left to the PR's CI (test rules §8).
+- [ ] Review: deviations recorded; no `[x]` without evidence.
+- **Commit message:** `docs(plan): P6b close-out`.
+- **Then:** `git push -u origin mvp0/pr-s10-p6b`; open the PR; wait for CI on the exact head; READY FOR
+  OPERATOR REVIEW — DO NOT MERGE.
 
 ---
 
@@ -1129,11 +1434,63 @@ apply, P5a D-P5-11). Every commit is small enough for one implementer session; e
 
 ---
 
-## 12. Execution contract (DRAFT; settled at freeze)
+## 12. Execution contracts (filled at freeze, 2026-10-14)
+
+Source of every line marked "primary": the primary session's freeze relay of 2026-10-14, carrying the
+operator's rulings on QP6-1, QP6-2, QP6-3 and QP6-7 and its own on the rest (§14.1), with the instruction
+that P6a and P6b are implemented separately by small-model implementer sessions. Lines that take a
+working-rules default name the section. Merge authority is never inherited.
+
+### 12.1 P6a — the `persona` System Pack
 
 ```text
-PROJECT / PR:            MineWorld mvp0, S10 P6a (persona) and P6b (LM controller)
-PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md
+PROJECT / PR:            MineWorld mvp0, S10 P6a — the persona System Pack
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md (§§2.1 items 1–3, 5.14,
+                         6, 8 AP6a-*, 9.0, 9 P6a, 14.1, 15)
+RELATED / BINDING DOCS:  step-17-cognition.md §3.8.5, QS10-7; docs/MODULE_SPEC.md §4.1; docs/DECISIONS.md
+                         ARC-28, ARC-31, ARC-33; systems/naming (the pattern); scripts/baselines.txt rules
+                         in .structured-coding/standards.md; CLAUDE.md; docs/ENGINEERING_STANDARDS.md;
+                         docs/ENGINEERING_RULES.md
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p6a, its own, held by one session
+BRANCH:                  mvp0/pr-s10-p6a, created from origin/main                          (primary)
+START CONDITION:         now, on the primary session's dispatch                             (primary)
+IMPLEMENTATION BASE:     origin/main at A0; A0 records the commit
+APPROVED SCOPE:          §2.1 items 1–3 (systems/persona; one systems/installed line; social-cafe's
+                         world.yaml and nine people files; MODULE_SPEC §4.1; ARC-74)       (primary)
+FROZEN INVARIANTS:       I-P6-1 as it applies to P6a (only systems/persona, one installed line,
+                         social-cafe, the two docs, and scripts/baselines.txt under QP6-2 change);
+                         persona discloses to its holder only; persona grants nothing (R-S10-9)
+SEQUENCE:                A0, A1, A2, A3 (§9)
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *;
+                         mkdir -p; sed -n
+NEVER:                   python3 -c; sed -i; heredoc writes; curl; git add -A; edits outside APPROVED SCOPE;
+                         editing a baseline column that QP6-2 does not cover
+MATERIAL STOPS:          A3 moves a baseline column of another world, or of social-cafe for a cause other
+                         than people perceiving their own persona; any change to an existing System's code;
+                         a new external dependency
+PLATFORMS:               Linux, macOS, Windows (the PR's CI)
+VALIDATION BUDGET:       unit and integration tests unrestricted locally; one long parity record in A3
+                         (≤ 20 min); CI: the PR's runs. Gate 1: not required (no LLM-facing change)
+LIVE DOCUMENTATION:      this document (§15)
+HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p6a.md
+ENDPOINT AUTHORITY:      implementation + local validation: authorized    (primary, 2026-10-14)
+                         semantic commits: authorized                     (primary; working rules §14)
+                         branch push: authorized                          (primary; working rules §21)
+                         PR creation / update: authorized                 (primary; working rules §21)
+                         CI repair to review readiness: authorized        (primary; working rules §21)
+                         merge: never by the implementation session; only with the operator's explicit
+                         authorization after the primary session's review (working rules §22)
+POST-MERGE SYNC OWNER:   primary session: step-17, overall.md; implementation session: this ledger's P6a
+                         rows
+STOP CONDITION:          P6a READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+### 12.2 P6b — the LM controller
+
+```text
+PROJECT / PR:            MineWorld mvp0, S10 P6b — the LM controller
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md (all sections except the
+                         P6a commits)
 RELATED / BINDING DOCS:  step-17-cognition.md (§§3.4–3.16, §9 P6 row, §15); mvp1/step-24 (§§4.2, 5.3, 8.6,
                          AC-DL-5); pr-s10-p3b-perceived.md; pr-s10-p4-memory.md; pr-s10-p5-backends.md;
                          pr-s10-p5b-hosted-subscriptions.md; pr-dl-a-decision-list.md;
@@ -1141,39 +1498,42 @@ RELATED / BINDING DOCS:  step-17-cognition.md (§§3.4–3.16, §9 P6 row, §15)
                          docs/MODULE_SPEC.md §§4.1, 5; docs/DECISIONS.md ARC-56…60, ARC-84, ARC-85,
                          ARC-87, DEP-44, DEP-46; docs/references/PRIOR_ART_2026-10.md; CLAUDE.md;
                          docs/ENGINEERING_STANDARDS.md; docs/ENGINEERING_RULES.md
-WORKTREES:               P6a: /Users/yuema137/mineworld-worktrees/impl-s10-p6a, branch
-                         mvp0/pr-s10-p6a-persona; P6b: /Users/yuema137/mineworld-worktrees/impl-s10-p6,
-                         branch mvp0/pr-s10-p6-lm-controller; each its own, one session each
-                                                                  (source: unresolved — QP6-1)
-START CONDITION:         P6a: freeze + the operator's go. P6b: freeze + DL-a and FG-b merged + the
-                         operator's go                            (source: step-17 §9, DL-a §11, FG-b)
-IMPLEMENTATION BASE:     origin/main at A0 / C0; recorded there
-APPROVED SCOPE:          §2.1                                     (source: unresolved until freeze)
-FROZEN INVARIANTS:       §0 rulings; §6 I-P6-1 … I-P6-10; §8 thresholds as the operator fixes them
-SEQUENCE:                A0 … A3; C0 … C15
-ALLOWED COMMANDS:        cargo *; uv run --locked *; git; gh (never merge); python3 scripts/*;
-                         target/*/mineworld *; mkdir -p; sed -n
-NEVER:                   python3 -c; sed -i; heredoc writes; curl; reading any key, invite or .env file;
-                         running, pulling or downloading a model; any live or record mode; edits under
-                         kernel/, contracts/, server/, persistence/, systems/ (except systems/persona and
-                         one line in systems/installed in P6a); editing scripts/baselines.txt without
-                         QP6-2's ruling
-MATERIAL STOPS:          a moved baseline column (A3); any change to the protocol or the server; a new
-                         dependency; a change to a §8 threshold after it has run once; a change to DL-a's
-                         JSON or FG-b's MemoryPolicyChoice; a need to retry inside the P5a gateway
-PLATFORMS:               Linux, macOS, Windows
-VALIDATION BUDGET:       unit/integration/real-binary tests: unrestricted locally; real-binary test files
-                         ≤ 90 s each on Linux; one long parity record in A3 (≤ 20 min); Gate 1: operator only
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p6b, its own, held by one session
+BRANCH:                  mvp0/pr-s10-p6b, created from origin/main                          (primary)
+START CONDITION:         DL-a merged AND FG-b merged, then the primary session's dispatch   (primary)
+IMPLEMENTATION BASE:     origin/main at C0; C0 records the commit and the merged DL-a/FG-b (and FG-c, if
+                         merged)
+APPROVED SCOPE:          §2.1 items 4–11                                                    (primary)
+FROZEN INVARIANTS:       §0 rulings; §6 I-P6-1 … I-P6-10; §8 with the thresholds ruled in §14.1; the LM
+                         seat acts socially only (QP6-3); knobs in cognition.toml only (QP6-5)
+SEQUENCE:                C0 … C15 (§9)
+ALLOWED COMMANDS:        cargo *; uv run --locked *; uv sync --locked; git; gh (never merge);
+                         python3 scripts/*; target/*/mineworld *; mkdir -p; sed -n; WebFetch for C1's
+                         licence checks only
+NEVER:                   python3 -c; sed -i; heredoc writes; curl; git add -A; reading any key, invite or
+                         .env file; running, pulling or downloading a model; any live or record mode; edits
+                         under kernel/, contracts/, server/, persistence/, systems/, worlds/; any Rust edit
+                         other than C2's line and its test
+MATERIAL STOPS:          any change to the protocol or the server; a new dependency or a uv.lock change; a
+                         change to a §8 threshold after it has run once; a change to DL-a's JSON or FG-b's
+                         MemoryPolicyChoice/absorb/resolve beyond a recorded signature difference; a need to
+                         retry inside the P5a gateway; A-P6-2 or A-P6-4 false (a DL-a or server defect)
+PLATFORMS:               Linux, macOS, Windows (the PR's python job on all three)
+VALIDATION BUDGET:       unit and integration tests unrestricted locally; each real-binary test file ≤ 90 s
+                         on Linux; CI: the PR's runs. Gate 1 (AP6-14): operator only, NOT RUN by agents
 LIVE DOCUMENTATION:      this document (§15)
-HANDOFF:                 handoff-s10-p6a.md; handoff-s10-p6.md
-ENDPOINT AUTHORITY:      implementation + local validation:   unresolved (operator's go at freeze)
-                         semantic commits:                    unresolved (default authorized; §14)
-                         branch push:                         unresolved (default authorized; §21)
-                         PR creation / update:                unresolved (default authorized; §21)
-                         CI repair to review readiness:       unresolved (default authorized; §21)
-                         merge: explicit operator authorization only (working rules §22)
-POST-MERGE SYNC OWNER:   primary session: step-17, overall.md; implementation session: this ledger
-STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
+HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p6b.md
+ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
+                                                                          (primary, 2026-10-14)
+                         semantic commits: authorized                     (primary; working rules §14)
+                         branch push: authorized                          (primary; working rules §21)
+                         PR creation / update: authorized                 (primary; working rules §21)
+                         CI repair to review readiness: authorized        (primary; working rules §21)
+                         merge: never by the implementation session; only with the operator's explicit
+                         authorization after the primary session's review (working rules §22)
+POST-MERGE SYNC OWNER:   primary session: step-17, overall.md, the decision-number table; implementation
+                         session: this ledger's P6b rows
+STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
 ---
@@ -1189,7 +1549,7 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | R-P6-5 | `structured_output = "none"` models drift with runtime upgrades | admissions are per triple with a report hash (F-P6-S1); the README says to re-run the spike after a runtime upgrade |
 | R-P6-6 | Real-binary tests push the `python` job past its ceiling (P4's AC-10 already uses 233–243 s of 300 s on Windows) | ≤ 90 s per file; `--pace 1 --hold 3`; small scenarios; recorded wall times |
 | R-P6-7 | The server's `--decisions` and the cognition process's JSON differ | the world id check; the README shows one decision file used for both commands; a digest on the wire would be an S11 change (not proposed) |
-| R-P6-8 | Persona in social-cafe moves baselines (F-P6-7) | A3's material stop; QP6-2 |
+| R-P6-8 | Persona in social-cafe moves baselines (F-P6-7) | QP6-2 (ruled): only persona-caused social-cafe columns are re-baselined, with reason lines; anything else is A3's material stop |
 | R-P6-9 | A model's words claim memories it was not given though `recalls` validates | known limit of free text (R-S10-10); the operator's judgement in AP6-14 |
 | R-P6-10 | Entry-point registries load arbitrary user code | as FG-b: loaded once at start, typed errors, operator-installed distributions only; no remote loading |
 
@@ -1212,6 +1572,17 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 | **QP6-11 [operator — paid API]** | For `gpt-5-nano`'s HTTP 400: re-run the spike for that one model with `temperature = "omit"` to tell the two hypotheses apart (≈ 40 nano calls of your own key), then a small P5a preset/adapter follow-up? | **Yes, operator-run**, outside P6. If `omit` alone fixes it, the follow-up is a preset note; if not, an adapter option for the output-token field name. No agent uses the key (QS10-19) |
 | **QP6-12 [primary]** | Decision numbers `ARC-72` (composition and proposal path), `ARC-73` (failure containment), `ARC-74` (persona) from S10's reservation, and no new DEP? | **Yes**; record them in `overall.md`'s table before the PRs merge |
 
+### 14.1 Rulings, 2026-10-14 (relayed by the coordinator; binding)
+
+| Question | Ruling | By |
+| --- | --- | --- |
+| QP6-1 | **Split.** P6a (the `persona` pack) now; P6b (the controller) after DL-a and FG-b merge | operator |
+| QP6-2 | **Yes, narrowly.** P6a may re-baseline, with reason lines, **only** the columns that move because people now perceive their own persona | operator |
+| QP6-3 | **As recommended.** The LM seat is social-only in P6; an idle handback comes after Milestone D | operator |
+| QP6-7 | **Thresholds accepted as written** (§5.7, §8: every former "proposal" is now marked "ruled, QP6-7") | operator |
+| QP6-4, QP6-5, QP6-6, QP6-8, QP6-9, QP6-10, QP6-11, QP6-12 | **Accepted as recommended**: the assignment comes from an operator-written JSON file; knobs live in `cognition.toml` only; the two additive P5a changes; stand when no in-server fallback exists; `--hold` stays 30 s; the admission gate is a procedure plus a README table; the `gpt-5-nano` re-run with `temperature` omitted is an operator task outside P6; `ARC-72`, `ARC-73` and `ARC-74`, with no new DEP | primary session |
+| Implementation | P6a and P6b go to small-model implementer sessions, separately; every commit step is explicit (§9.0, §9) | primary session |
+
 ---
 
 ## 15. Ledger (live during implementation)
@@ -1220,8 +1591,26 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| A0 … A3 | — | [ ] | [ ] | [ ] |
-| C0 … C15 | — | [ ] | [ ] | [ ] |
+| A0 | — | [ ] | [ ] | [ ] |
+| A1 | — | [ ] | [ ] | [ ] |
+| A2 | — | [ ] | [ ] | [ ] |
+| A3 | — | [ ] | [ ] | [ ] |
+| C0 | — | [ ] | [ ] | [ ] |
+| C1 | — | [ ] | [ ] | [ ] |
+| C2 | — | [ ] | [ ] | [ ] |
+| C3 | — | [ ] | [ ] | [ ] |
+| C4 | — | [ ] | [ ] | [ ] |
+| C5 | — | [ ] | [ ] | [ ] |
+| C6 | — | [ ] | [ ] | [ ] |
+| C7 | — | [ ] | [ ] | [ ] |
+| C8 | — | [ ] | [ ] | [ ] |
+| C9 | — | [ ] | [ ] | [ ] |
+| C10 | — | [ ] | [ ] | [ ] |
+| C11 | — | [ ] | [ ] | [ ] |
+| C12 | — | [ ] | [ ] | [ ] |
+| C13 | — | [ ] | [ ] | [ ] |
+| C14 | — | [ ] | [ ] | [ ] |
+| C15 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1231,7 +1620,7 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Assumption | Verified in | If false |
 | --- | --- | --- | --- |
-| A-P6-1 | `naming`'s seeding pattern (with or without a genesis fact) applies to `persona` unchanged | A2, by reading `systems/naming` first | follow whatever `naming` does and record it |
+| A-P6-1 | `naming`'s seeding pattern applies to `persona`: a genesis fact from the section (planning audit: naming emits a public `named` fact at genesis and reduces `DisplayName` from it; persona's fact is `Entities({holder})`) | A2, by reading `systems/naming` first | follow whatever `naming` does and record it |
 | A-P6-2 | DL-a's `server --town --decisions` drives an `lm` seat with its fallback and yields it to a joining connection with `took_over: "hosted"` | C2/C12 against the merged DL-a | a DL-a defect: stop and report to the primary session |
 | A-P6-3 | FG-b's `absorb`/`resolve` signatures match FG-b §5.6/§6 as frozen | C0 against the merged FG-b | adapt the call sites; record |
 | A-P6-4 | `leave` followed by a fresh join within milliseconds is accepted (`took_over: "hosted"`) with the backfill from the cursor | C12 | a server defect; stop |
