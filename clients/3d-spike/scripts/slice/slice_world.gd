@@ -14,13 +14,19 @@
 class_name SliceWorld
 extends RefCounted
 
-## The cafe's semantic identity, matching `worlds/social-cafe`.
+## The slice's place volumes: where a body is in THIS scene. Which of the
+## world's places each depicts is learned from the server (`SliceLayout`), never
+## listed: the café room depicts the place tagged ANCHOR_TAG, the street volume
+## the place its door opens onto, and the florist the place whose disclosed
+## doorway lands on The Flower Room's door (after S15 12d, the world's store).
 const CAFE_PLACE := "cafe.main"
 const STREET_PLACE := "street.main"
-## The second enterable building (`VISUAL_SLICE.md` sec.4.1). The slice's own
-## volume: `social-cafe` models no florist, so to the world this is still the
-## street -- see `SliceLink.PLACE_KEY`.
+## The second enterable building (`VISUAL_SLICE.md` sec.4.1).
 const FLORIST_PLACE := "florist.main"
+## The one depiction the scene declares (step-15 D-16c-3): the café room is the
+## world's place with this tag, as a presentation selects a place's art by its
+## tag. No other place key or tag is named by this client.
+const ANCHOR_TAG := "cafe"
 
 ## Where the player starts: on the pavement, west of the cafe, facing east
 ## along the street so the first frame is the approach.
@@ -135,11 +141,11 @@ static func _north_frontage(g: Node3D) -> void:
 	florist.awning_c = Color(0.344, 0.268, 0.296)
 	florist.bays = 2
 	florist.depth = 8.0
-	# VISUAL_SLICE.md sec.4.1: the second enterable building. The florist rather
-	# than Maple & Co.: connected to social-cafe, the world's café people are
-	# drawn inside Maple & Co.'s footprint (slice_link.gd), and a shop you can
-	# walk into must not show somebody else's customers standing in it.
+	# VISUAL_SLICE.md sec.4.1: the second enterable building. Connected, it is
+	# the room of whichever place's disclosed doorway lands on its door
+	# (`SliceLayout`); since S15 12d that is the world's store.
 	florist.enterable = true
+	florist.volume = FLORIST_PLACE
 	SliceTerrace.build(g, florist, SliceStreet.NORTH_FACE, 0.0)
 
 	# the frontage stops against a stone retaining wall and the planted bank

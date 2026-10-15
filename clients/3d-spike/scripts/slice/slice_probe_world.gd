@@ -129,7 +129,7 @@ func _target_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -192,11 +192,11 @@ func _target_check() -> void:
 	await _walk_dist(3.6, 6.0)
 	await _hold(1.0)
 	print("street   body at %s, server place %s, %d people perceived" % [player.global_position,
-		link.here_key, link.figures.size()])
+		_where(link), link.figures.size()])
 	var passer := ""
 	for id in link.figures:
 		passer = id
-	if link.here_key != "street" or passer == "":
+	if link.here != link.layout.street or passer == "":
 		print("FAIL: no person perceived on the street")
 		print("\n%d TARGET CHECKS FAILED" % (fails + 1))
 		return
@@ -217,7 +217,7 @@ func _target_check() -> void:
 	await _hold(1.0)
 	print("florist  body at %s, slice place %s, server place %s, %s perceived: %s"
 		% [player.global_position, SliceWorld.place_at(slice.world, player.global_position),
-		link.here_key, passer, link.figures.has(passer)])
+		_where(link), passer, link.figures.has(passer)])
 	if not link.figures.has(passer):
 		fails += 1
 		print("FAIL T-2: %s is no longer perceived, so the case would be vacuous" % passer)
@@ -263,14 +263,14 @@ func _link_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():
 		print("FAIL: not seated after 10 s")
 		return
 	print("seated   observer %s in place %s (%s); places known %s" % [link.client.observer,
-		link.client.latest.place(), link.here_key, link.place_ids])
+		link.client.latest.place(), link.layout.drawn_as.get(link.here, "undrawn"), link.layout.drawn_as])
 	print("body     at %s -- placed where the world says" % player.global_position)
 	await _hold(0.5)
 
@@ -294,8 +294,8 @@ func _link_check() -> void:
 	await _walk_dist(3.2, 6.0)
 	await _hold(0.8)
 	print("out      body at %s, slice place %s, server place %s" % [player.global_position,
-		SliceWorld.place_at(slice.world, player.global_position), link.here_key])
-	if link.here_key != "street":
+		SliceWorld.place_at(slice.world, player.global_position), _where(link)])
+	if link.here != link.layout.street:
 		fails += 1
 		print("FAIL: the server did not move the player onto the street")
 
@@ -338,8 +338,8 @@ func _link_check() -> void:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	await _hold(0.6)   # the next observation after the answer
-	print("in       body at %s, server place %s" % [player.global_position, link.here_key])
-	if link.here_key != "cafe":
+	print("in       body at %s, server place %s" % [player.global_position, _where(link)])
+	if link.here != link.layout.anchor:
 		fails += 1
 		print("FAIL: the server did not move the player back into the café")
 
@@ -438,7 +438,7 @@ func _conversation_frames() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -525,13 +525,13 @@ func _street_watch(link: SliceLink) -> void:
 	await _walk_dist(3.6, 6.0)
 	await _hold(1.0)
 	print("\n-- the street's people, %.0f s on the pavement at %s, server place %s --"
-		% [secs, player.global_position, link.here_key])
+		% [secs, player.global_position, _where(link)])
 	var obs := link.client.latest
 	var leads: Variant = obs.component(obs.place(), "passages").get("leads_to", [])
 	if typeof(leads) == TYPE_ARRAY:
 		for p in leads:
 			var to := String(p.get("to", {}).get("entity", ""))
-			var at := link.to_scene("street", p.get("here"))
+			var at := link.to_scene(link.layout.street, p.get("here"))
 			var near := ""
 			var best := INF
 			for d in SliceTerrace.doors:
@@ -618,7 +618,7 @@ func _settings_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -635,7 +635,7 @@ func _settings_check() -> void:
 		someone = id if someone == "" or id < someone else someone
 	if someone != "":
 		link.intents.talk(link.client, someone, SliceIntents.DEFAULT_UTTERANCE,
-			link._location(link.here_key, link.to_world(link.here_key, player.global_position)))
+			link._location(link.here, link.to_world(link.here, player.global_position)))
 	# Long enough for an answer's toast to fade (ControlsHud: 1.6 s held, 0.6 s fading).
 	await _hold(3.0)
 	var menu: MineWorldSettingsMenu = slice.settings_menu
@@ -819,7 +819,7 @@ func _controls_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -911,6 +911,11 @@ static func _masked(lines: PackedStringArray) -> PackedStringArray:
 	for line in lines:
 		out.append(digits.sub(line, "#", true))
 	return out
+
+
+## The server's place for the body, as an id and how the scene draws it.
+static func _where(link: SliceLink) -> String:
+	return "%s (%s)" % [link.here, link.layout.drawn_as.get(link.here, "undrawn")]
 
 
 func _answered(link: SliceLink, tok: String) -> bool:
