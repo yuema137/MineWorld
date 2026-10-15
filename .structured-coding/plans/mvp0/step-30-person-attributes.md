@@ -7,7 +7,7 @@ then designs:
 
 - who owns a person's attributes;
 - the attribute model and its typing;
-- the built-in catalogue, and what is reused from MatrAIx;
+- the curated built-in catalogue, pluggable person-generation backends and masks, and the optional MatrAIx backend;
 - user-defined attributes;
 - population profiles and the sampler;
 - how attributes reach Systems, cognition, agent players and both clients;
@@ -16,11 +16,23 @@ then designs:
 
 It ends with a PR split, the invariants, the risks and the questions only the operator can answer.
 
-**Effort:** `mvp0`, for S30-a…S30-g. S30-h…S30-k are MVP-1 (§13.2). The step document stays under `mvp0/`
+**Effort:** `mvp0`, for every PR: S30-a…S30-k, all release-blocking (§13.2, Re-ruled 2026-10-15 (operator)). The
+original split (S30-h…S30-k in MVP-1) is kept visible in §13.2 and §16.1. The step document stays under `mvp0/`
 because its first PRs gate S26's casting, which is MVP-0 work (§13.2 explains the placement).
 **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered Q-S30-1…8
+**Amendment 2026-10-15 (Re-ruled 2026-10-15 (operator, final); history in §16.2).**
+
+1. The built-in catalogue is **curated: at most 100 attributes, each read by something the player
+   notices** (§6.1; 94 listed).
+2. **Person generation is pluggable**: a world chooses a backend and a mask (§§6.4–6.5, `ARC-126`). The
+   MineWorld backend is the default and needs nothing else.
+3. **MatrAIx is an optional backend**: a separate pack importing their MIT schema unchanged, masked by
+   default to `matraix-core-100`, with a demo (§§6.6–6.7). Nothing else in MineWorld depends on it.
+4. **Everything ships before the public release**: S30-h (the MatrAIx backend and demo), S30-i, S30-j and
+   S30-k are MVP-0 and release-blocking (§13.2).
+
+**Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`; amended the same day as above. The operator answered Q-S30-1…8
 directly in the primary session on 2026-10-15, every one as recommended (§16.1).
 
 - Superseded lifecycle: `STEP DESIGN (DRAFT)`, PR #223 revision 1.
@@ -43,9 +55,10 @@ directly in the primary session on 2026-10-15, every one as recommended (§16.1)
 | Draft placeholder | Assigned id |
 | --- | --- |
 | `ARC-120` … `ARC-125` | `ARC-120` … `ARC-125` |
-| `DEP-66` … `DEP-68` | `DEP-66` … `DEP-68` |
+| `DEP-S30-a` … `DEP-S30-c` | `DEP-66` … `DEP-68` |
 
-`ARC-126`…`ARC-129` and `DEP-69` stay reserved and unused. The records are written into `docs/DECISIONS.md`
+`ARC-126` is used by the amendment of 2026-10-15 (backends and masks, §6.4). `ARC-127`…`ARC-129` and `DEP-69`
+stay reserved and unused. The records are written into `docs/DECISIONS.md`
 by S30-a (§15.5).
 
 Local ids in this file:
@@ -99,9 +112,11 @@ Local ids in this file:
      declaring the attribute, and refused there by name if the attribute is missing or of another kind.
 3. **The built-in catalogue** (§6).
    - It is a versioned data pack, `entities/person-attributes` (MineWorld's own wording, CC0).
-   - **v1 has about 200 attributes** in six groups: Appearance, which MatrAIx lacks, plus MatrAIx's
-     five, Background, Psychology, Capability, Behaviour and Lifestyle.
-   - The ids are aligned with MatrAIx's wherever a dimension maps.
+   - **It is curated to at most 100 attributes** (Re-ruled 2026-10-15 (operator, final)): 94 in six groups (Appearance, Background,
+     Psychology, Capability, Behaviour, Lifestyle), each with the reader that makes it noticeable in play.
+   - **Person generation is a pluggable backend with masks** (§§6.4–6.5). The default is MineWorld's; an
+     optional MatrAIx backend imports their MIT schema unchanged behind a default 100-dimension mask, with a
+     demo (§§6.6–6.7).
 4. **Users add attributes with zero code** (§7).
    - A world or pack drops a YAML file into its `attributes/` directory.
    - Ids are namespaced by the declaring pack. A world may restate presentation and narrow visibility
@@ -138,20 +153,20 @@ Local ids in this file:
    - S30-b: the authoring seam;
    - S30-c: the `attributes` pack;
    - S30-d: profiles and the sampler;
-   - S30-e: the catalogue v1 and the cited profiles;
+   - S30-e: the curated built-in catalogue (≤ 100, gameplay-driven), backends and masks, and the cited profiles;
    - S30-f: consumers;
    - S30-g: reference worlds and the S26 switch.
 
-   In MVP-1: S30-h, the MatrAIx import pack; S30-i, learning attributes in conversation; S30-j, runtime
-   sampling for newcomers; S30-k, localisation.
-9. **The MatrAIx verdict** (§6.4, `DEP-66`).
-   - **Adapt the taxonomy.** Its schema file is MIT. MineWorld uses its five groups and aligns ids with
-     it, and an optional generated import pack comes in MVP-1.
-   - **Take the sampling formula as inspiration.** Prior × source likelihood × compatibility mask
-     becomes our profile semantics.
-   - **Decline its DAG parameters and its Persona-1M coreset.** The parameters are global, mostly
-     transferred and software-user oriented. The coreset's licence is `matraix-research-only`, and it is
-     derived from real people's records.
+   Also MVP-0 and release-blocking (Re-ruled 2026-10-15 (operator)): S30-h, the optional MatrAIx backend,
+   its masks, mapping and demo; S30-i, learning attributes in conversation; S30-j, runtime sampling of new
+   people; S30-k, localisation including zh-Hans. (Originally S30-h…k were MVP-1.)
+9. **MatrAIx** (§6.6, `DEP-66`, Re-ruled 2026-10-15 (operator, final)).
+   - **An optional backend, never a dependency.** Its MIT schema is imported unchanged into its own pack,
+     with attribution; nothing outside that pack names it, and the workspace builds and passes without it.
+   - **Excluded on licence grounds only:** the 50 dimensions with a non-MIT `source_origin.license` and the
+     research-only Persona-1M coreset.
+   - **Their sampler code is not used;** whether to offer their `full_dag.json` as an optional faithful
+     sampling mode is Q-S30-9.
 
 ---
 
@@ -245,6 +260,12 @@ In English:
 | O-10 | The kernel learns nothing | §4.1 | AC-S30-12 |
 | O-11 | S26 casting consumes the appearance subset with no hard-coded attribute list | §10 | AC-S30-13, S26's X-S26src-10 |
 | O-12 | Subscription topics for public notices are an attribute S31's System reads | §9.6 | AC-S30-14 |
+| O-13 | Person generation is pluggable: a world chooses a backend and a mask by data | §§6.4, 6.5 | AC-S30-15 |
+| O-14 | The MatrAIx backend is optional: nothing outside its pack depends on it | §6.6 | AC-S30-16 |
+| O-15 | The MatrAIx backend has a working demo | §6.7 | AC-S30-17 |
+
+*Table repaired 2026-10-15 (`pr-s30a-attribute-specs.md` F-S30a-6): rows O-12 … O-15 and AC-S30-15 … AC-S30-17 had
+been merged into one malformed block; the three acceptance rows now sit in §13.4.*
 
 ---
 
@@ -299,6 +320,8 @@ In English:
 | F-S30-6 | MatrAIx has no appearance group and no numeric kind (M-6) | a sixth group and the `quantity` kind are MineWorld's own (§5.2, §6) |
 | F-S30-8 | `population:` in `world.yaml` already means "the people files" (A-2) | S30 never names a key `population` at world level; its settings live in `configure/attributes.yaml` |
 | F-S30-9 | `kernel/` already uses the word `trait` (Rust) and `contracts/` the word `attribute` in prose | AC-S30-12 greps for S30's vocabulary itself (type names, the `traits` component type, built-in slugs), not common English words |
+| F-S30-10 | `World::create_entity` exists (`kernel/src/world.rs:572`), but no System on `main` creates a Person at runtime | S30-j proves runtime sampling with a fixture creator; a real newcomer source (S21 migration, a happening's arrival) is that System's own PR and uses S30-j's entry |
+| F-S30-11 | MatrAIx's ids contain `_` and its values are free strings ("White / European"); its `defaultValue` is a string, a list (216) or null | the id rule admits `_`; imported category values are kept verbatim; a list `defaultValue` is kept but never used unless a profile says so (an unprofiled attribute stays absent) |
 | F-S30-7 | A person's subscriptions (§1.2 item 3) are mutable state that one System reads to deliver notices. That System must own them, so not every attribute can live in one pack | the owner field (§4.2) |
 
 ---
@@ -382,6 +405,20 @@ existing world's bytes move.
    sections) -> per-subject seeds` is called once, before any per-subject `seed`. This is where the sampler
    sees the whole population, which stratification needs. Seeding order is unchanged (`ARC-31` item 4).
 
+**Notes 2026-10-15 (`pr-s30b-authoring-seam.md`; Q-S30b-1 ruled 2026-10-15, operator answered directly in the
+primary session).**
+
+- *Item 3* is read as semantics: "a section may be decoded in its owner's context". On Rust 1.97 an optional
+  associated type cannot be defaulted, and a required one would break every existing section, so S30-b realises
+  it as a sibling trait (`SectionInContext`; F-S30b-1).
+- *Item 1* admits, besides the format's and the installed packs' directories, directories whose name begins with
+  `.` (ignored) and the directory holding the `decisions:` file; an installed pack's directory in a world that
+  does not enable it is refused naming the pack (F-S30b-3).
+- *Item 5 (new): shipped data.* A System Pack may ship data files for an owner's directory, compiled in
+  (`SystemPack::SHIPS`, declared with `ships_data!`). They are collected first, in `systems:` order, whenever the
+  shipping pack is enabled, and each refusal names the pack and the crate-relative path. This is how S31's notices
+  pack, `economy` and `employment` declare their attributes (§9.6 N-2).
+
 The seam is general. It does not mention attributes. Its first user is S30. A second plausible user is
 an Entity Pack's taxonomies (`MODULE_SPEC.md` §2), which explains why it belongs in `authoring/` and not
 inside the attributes pack.
@@ -446,7 +483,6 @@ attributes:
     phrase: "{value} m tall"             # the {value} placeholder is the only one a phrase may name
     perceived_as: { bands: [ { below: 1.55, words: short }, { below: 1.85, words: of average height },
                              { words: tall } ] }   # what an observer is told; the holder sees the value
-    see_also: []                         # MatrAIx has no stature dimension (M-6)
   hair-colour:
     group: appearance
     facets: [appearance]
@@ -463,14 +499,13 @@ attributes:
     mutability: evolving
     label: Chronotype
     phrase: "{value}"
-    see_also: [matraix:lstyle_sleep_schedule]
 ```
 
 Fields:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| id (the key) | yes | a slug, `^[a-z][a-z0-9-]{0,47}$`. It is qualified by its namespace (§7.1) |
+| id (the key) | yes | a slug, `^[a-z][a-z0-9_.-]{0,63}$`, so that an imported schema's ids are kept verbatim (§6.6). It is qualified by its namespace (§7.1) |
 | `group` | yes | one of the six groups (§6.1), or a group the declaring pack declares |
 | `facets` | no | open tags for selection by consumers (`appearance`, `body`, `prompt`, `casting` …) |
 | `kind` | yes | §5.2 |
@@ -480,7 +515,6 @@ Fields:
 | `label`, `phrase`, `words` | `label` yes | the natural-language rendering (§5.6) |
 | `perceived_as` | no | what an observer other than the holder is told, when it is coarser than the value (§5.4) |
 | `default` | no | the value when the profile and the person's file state none. If absent, the attribute stays absent (partial records, M-1) |
-| `see_also` | no | external alignment ids (`matraix:<id>`), informational only |
 | `since` | built-ins | the catalogue version that introduced it (§6.3) |
 
 ### 5.2 Value kinds
@@ -500,8 +534,8 @@ Fields:
   - A new unit is a model-crate edit, reviewed as such. That is rare and deliberate, since a unit changes
     what comparisons mean.
 - **`unknown` is not a value.** An absent attribute means "not stated". Rendering omits it, and a System
-  handle returns `None`. This matches MatrAIx's partial records (M-1) without a null sentinel inside
-  every domain.
+  handle returns `None`. This is the partial-record model (M-1), without a null sentinel inside every
+  domain.
 
 ### 5.3 Typed values and typed reads (strong typing at the boundary)
 
@@ -571,8 +605,8 @@ never stored and never stated as a fact. Replay is therefore exact.
 - A `quantity` renders at its scale with its unit. A `set` renders as a list with "and". `perceived_as`
   bands render their `words`.
 - The renderer lives in the model crate, and is mirrored in Python by golden tests (S30-f). It produces
-  English. Localisation is S30-k (MVP-1): label packs keyed by attribute and value, as MatrAIx's are
-  (M-4).
+  English. Localisation is S30-k (MVP-0, release-blocking): label packs keyed by attribute and value,
+  zh-Hans first. A backend may ship its own (the MatrAIx pack carries its six, M-4).
 - Rendering is deterministic and bounded. A person's rendered "who I am" is cut by group order and
   `prompt_rank` within a byte budget (§9.2).
 
@@ -580,27 +614,134 @@ never stored and never stated as a fact. Replay is therefore exact.
 
 ## 6. The built-in catalogue
 
-### 6.1 Groups
+### 6.1 The curated built-in catalogue: ≤ 100 attributes, chosen by gameplay (Re-ruled 2026-10-15 (operator))
 
-Six groups. The last five are MatrAIx's (M-1). The first is MineWorld's own (F-S30-6).
+**Rule.** An attribute is built in only if the player can see it or can notice what it changes: how a person
+looks, what they do and when, how they talk, what they buy, whom they spend time with, what they are good
+at. Each row names the reader that ships by release. An attribute no shipped reader uses is cut. Worlds and
+packs still add any attribute they like with zero code (§7), and the optional MatrAIx backend offers its
+whole schema behind a mask (§6.4).
 
-| Group | v1 target | Contents (indicative; S30-e's PR design fixes the list) |
+Reader codes:
+
+| Code | Reader | Ships in |
 | --- | --- | --- |
-| **Appearance** | ≈ 22 | stature, mass, build, apparent age band, skin tone (Monk Skin Tone 1–10, CC BY 4.0, A-10), hair colour, texture, length and style, facial hair, eye colour, face shape, eyes, nose, lips, glasses, visible tattoos, posture, gait, voice pitch, handedness |
-| **Background** | ≈ 40 | birth (instant), age (derived), age band (derived), natal sex, gender identity, ancestry (US census categories as one built-in vocabulary; others via world vocabularies), languages spoken and native language, hometown (text), region of origin, education level, field of study, marital status, household size, children, parental status, migration generation, religion, military service, urbanicity of upbringing, occupation (view of `employment` where installed, else a plain trait), work schedule type |
-| **Psychology** | ≈ 45 | Big Five domains (5) and BFI-2 facets (15) as levels; Schwartz basic values (10) as levels; risk tolerance; need for cognition; trust propensity; optimism; patience; humour style; conflict style; attachment style |
-| **Capability** | ≈ 35 | skill levels for activities worlds model or plausibly will: cooking, baking, driving, cycling, swimming, fishing, carpentry, gardening, first aid, sewing, music performance, drawing, numeracy, literacy, languages (per language via `set`), sport fitness; physical strength, endurance, eyesight, hearing, mobility |
-| **Behaviour** | ≈ 30 | chronotype, sleep need, punctuality, talkativeness, sociability, politeness, generosity, tidiness, walking pace, routine adherence, curiosity about strangers, gossip propensity, spending style, saving style, tipping habit, preferred greeting formality, **notice subscriptions are S31's** (§9.6) |
-| **Lifestyle** | ≈ 30 | diet (omnivore … vegan), dietary restrictions, caffeine habit, alcohol habit, smoking, exercise frequency, hobbies (`set`), sports followed, music taste (`set`), reading habit, media habits, faith practice, pet owner, fashion style, frugality, outdoor preference |
+| C | S26 casting: briefs, prompts, distinctness | S26-src2 / S30-g |
+| OV | other observers' view: "who I see", MCP `description`, both inspect panels | S30-f |
+| ME | the holder's "who I am" in the LM controller | S30-f (with P6b) |
+| CV | how the person speaks: register, length and tone in the LM controller's speech | S30-f |
+| DM | an `attribute` consideration of the `motivated` decision model (what they do and when) | S30-f |
+| S31 | S31's packs: `economy`'s wealth band, the notice System's default subscriptions | S31 |
 
-`freckles` is deliberately not built in: it is AC-S30-3's custom example.
+**94 attributes in six groups:**
 
-That makes about 200 attributes in v1. That is "most of what a walking, living world needs" (§1.1).
+| # | Id (`core.`) | Group | Kind | Visibility | Reader and what the player notices |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `body-form` | appearance | category | perceivable | C, OV: the body casting builds and an observer sees |
+| 2 | `stature` | appearance | quantity m | perceivable | C, OV: height in both clients; "tall" |
+| 3 | `mass` | appearance | quantity kg | private | C: drives `build` consistency at casting |
+| 4 | `build` | appearance | category | perceivable | C, OV: slim to heavy-set |
+| 5 | `skin-tone` | appearance | level (MST 1–10) | perceivable | C, OV |
+| 6 | `hair-colour` | appearance | category | perceivable | C, OV; greys with age (evolving) |
+| 7 | `hair-length` | appearance | level | perceivable | C, OV |
+| 8 | `hair-style` | appearance | category | perceivable | C, OV |
+| 9 | `hair-texture` | appearance | category | perceivable | C |
+| 10 | `facial-hair` | appearance | category | perceivable | C, OV |
+| 11 | `eye-colour` | appearance | category | perceivable | C, OV at conversation distance |
+| 12 | `face-shape` | appearance | category | perceivable | C: distinct faces |
+| 13 | `eye-shape` | appearance | category | perceivable | C: distinct faces |
+| 14 | `nose` | appearance | category | perceivable | C: distinct faces |
+| 15 | `lips` | appearance | category | perceivable | C: distinct faces |
+| 16 | `glasses` | appearance | flag | perceivable | C, OV |
+| 17 | `visible-marks` | appearance | set | perceivable | C, OV: tattoos, scars, birthmarks |
+| 18 | `clothing-style` | appearance | category | perceivable | C, OV |
+| 19 | `headwear` | appearance | category | perceivable | C, OV |
+| 20 | `posture` | appearance | category | perceivable | C, OV: an older person's stoop |
+| 21 | `voice` | appearance | category | perceivable | OV, CV: "a deep, slow voice" |
+| 22 | `birth` | background | instant | private | ME, DM through age (derived below) |
+| 23 | `age-years` | background | derived | private | ME, DM: what a person of that age does |
+| 24 | `age-band` | background | derived | perceivable | C, OV: "in her sixties" |
+| 25 | `pronouns` | background | category | perceivable | ME, OV, CV: how others refer to them |
+| 26 | `ancestry` | background | category | private | C only, as the profile parent of skin tone and hair; never rendered to others |
+| 27 | `native-language` | background | category | learnable | ME, CV |
+| 28 | `languages-spoken` | background | set | learnable | ME, CV: who switches language with whom |
+| 29 | `hometown` | background | text | learnable | ME: what they talk about |
+| 30 | `years-in-town` | background | quantity year | learnable | ME, DM: newcomer or old-timer |
+| 31 | `education-level` | background | level | learnable | CV: register |
+| 32 | `occupation` | background | view of `employment` where installed | learnable | ME, OV-learnable |
+| 33 | `marital-status` | background | category | learnable | ME |
+| 34 | `household` | background | category | learnable | ME, DM: who waits at home |
+| 35 | `children` | background | quantity count | learnable | ME, DM |
+| 36 | `religion` | background | category | private | ME |
+| 37 | `wealth-band` | background | view, owned by `economy` (Q-S30-6) | private | S31, ME, DM: what they can afford |
+| 38–42 | `openness`, `conscientiousness`, `extraversion`, `agreeableness`, `neuroticism` | psychology | level | learnable | DM, ME: the five traits weigh every choice |
+| 43 | `humour` | psychology | category | learnable | CV |
+| 44 | `patience` | psychology | level | learnable | CV, DM: how long they wait or argue |
+| 45 | `trust-propensity` | psychology | level | learnable | ME, DM: warmth to strangers |
+| 46 | `curiosity` | psychology | level | learnable | DM: explores new places and people |
+| 47 | `risk-tolerance` | psychology | level | learnable | DM, S31: buying and trying |
+| 48 | `formality` | psychology | level | learnable | CV |
+| 49 | `optimism` | psychology | level | learnable | ME, CV |
+| 50 | `honesty` | psychology | level | private | ME: whether the LM character shades the truth |
+| 51 | `core-value` | psychology | category | learnable | ME, DM: family, work, faith, fun, community … |
+| 52 | `ambition` | psychology | level | learnable | DM: overtime, errands |
+| 53 | `generosity` | psychology | level | learnable | DM: treats, tips, help |
+| 54–66 | `skill.cooking`, `skill.baking`, `skill.coffee`, `skill.fishing`, `skill.woodwork`, `skill.boat-handling`, `skill.painting`, `skill.music`, `skill.teaching`, `skill.care`, `skill.selling`, `skill.gardening`, `fitness` | capability | level | learnable | ME, DM: the café's barista, the lake's fishermen, the painter, the nurse, the carpenter — what they choose to do and how they talk about it (each maps to a role tag or activity in the reference worlds) |
+| 67 | `chronotype` | behaviour | level | learnable | DM: when they rise and go home |
+| 68 | `sleep-need` | behaviour | level | learnable | DM |
+| 69 | `punctuality` | behaviour | level | learnable | DM: on time or late to work |
+| 70 | `talkativeness` | behaviour | level | learnable | DM, CV: who starts conversations, and how long they talk |
+| 71 | `sociability` | behaviour | level | learnable | DM: joins group activities |
+| 72 | `routine-adherence` | behaviour | level | learnable | DM: keeps the agenda or drifts |
+| 73 | `walking-pace` | behaviour | level | perceivable | DM (stride), OV: "walks briskly" |
+| 74 | `spending-style` | behaviour | level | learnable | DM, S31 |
+| 75 | `tipping` | behaviour | level | learnable | DM |
+| 76 | `gossip` | behaviour | level | learnable | DM, CV: passes on news |
+| 77 | `greeting-style` | behaviour | category | perceivable | CV, OV |
+| 78 | `helpfulness` | behaviour | level | learnable | DM |
+| 79 | `news-interest` | behaviour | level | learnable | S31: default notice subscriptions |
+| 80 | `weather-sensitivity` | behaviour | level | learnable | DM: stays in when it rains |
+| 81 | `diet` | lifestyle | category | learnable | DM: what they buy and eat |
+| 82 | `dietary-restrictions` | lifestyle | set | learnable | DM |
+| 83 | `caffeine` | lifestyle | level | learnable | DM: café visits |
+| 84 | `alcohol` | lifestyle | level | learnable | DM |
+| 85 | `smoking` | lifestyle | level | perceivable | OV, ME |
+| 86 | `food-favourites` | lifestyle | set over item kinds | learnable | DM: orders at the counter |
+| 87 | `hobbies` | lifestyle | set | learnable | DM, ME: where they spend free time |
+| 88 | `exercise-habit` | lifestyle | level | learnable | DM: the runner runs |
+| 89 | `reading-habit` | lifestyle | level | learnable | DM, S31: the bench reader, the newspaper |
+| 90 | `music-taste` | lifestyle | set | learnable | ME |
+| 91 | `sport-followed` | lifestyle | set | learnable | ME |
+| 92 | `pet` | lifestyle | category | learnable | ME |
+| 93 | `faith-practice` | lifestyle | level | learnable | DM: observance days |
+| 94 | `outdoor-preference` | lifestyle | level | learnable | DM: park or indoors |
 
-- **Large closed lists, such as MatrAIx's 144 expertise domains, are out of v1.** They are what S30-h's
-  optional import pack is for.
-- Attributes that only a software-testing persona needs (M-6), such as text-size needs or developer
-  tools, are not built in.
+That is 94 attributes, with headroom of 6 under the cap. A 95th or later built-in needs a named reader and
+replaces nothing silently. `freckles` is deliberately not built in: it is AC-S30-3's custom example.
+
+**Note 2026-10-15 (Q-S30a-1, Q-S30a-2; F-S30a-2).** Ruled 2026-10-15 (operator answered directly in the primary
+session): `core.natal-sex` is added as a built-in (`category`: female, male; `private`, `fixed`; reader C, the
+profile parent of stature, build and facial hair, as `ancestry` is). Rows 32 and 37 are views of other packs'
+state and are declared by their owners in their own namespaces (§7.1): `employment.occupation` and
+`economy.wealth-band` (step-31 §7.4). The table therefore lists 95 player-noticeable attributes; the built-in
+catalogue `entities/person-attributes` declares **93 `core` rows**, under the cap of 100 (X-S30-20 counts `core`).
+
+**What was cut from the built-in set, and why.**
+
+| Category cut | Why | Still possible |
+| --- | --- | --- |
+| knowledge and expertise fields (academic domains, professional knowledge) | nothing a player sees reads them; job skills are the 13 capability rows | a world declares its own; MatrAIx backend |
+| software, developer and tool usage | no MineWorld world is about software use | MatrAIx backend |
+| industry exposure, career seniority | `employment` owns the job; the rest is unseen | MatrAIx backend |
+| fine personality facets and several value frameworks | five traits plus one core value are what a decision model and a prompt can visibly express; 30 facets are not distinguishable in play | custom; MatrAIx backend |
+| political and social attitudes | no System reads them; high risk of caricature | custom |
+| media genres, country familiarity, long lists of topics | conversation trivia, not behaviour; `hobbies` and `music-taste` sets cover what is noticed | custom |
+| dated life-event flags | a biography states these in prose and in facts | `persona`, custom |
+| accessibility and UX needs (text size, screen readers) | software-testing personas, not world people | MatrAIx backend |
+| transient emotional state | mood is a System's state, not a trait | a mood System |
+| type-indicator personality (MBTI) | redundant with the five traits | MatrAIx backend |
+| per-language, per-cuisine, per-sport and per-hobby dimensions | collapsed into sets (`languages-spoken`, `food-favourites`, `hobbies`, `sport-followed`) | custom |
+| sexual orientation, disability, citizenship, veteran status, health conditions | sensitive, and no shipped reader. A world that models them adds them, private by default (Q-S30-8) | custom; MatrAIx backend (private by its overlay) |
 
 ### 6.2 Defaults and realism
 
@@ -613,7 +754,7 @@ That makes about 200 attributes in v1. That is "most of what a walking, living w
 
 ### 6.3 Versioning (SD-S30-5)
 
-- The catalogue is a data pack, `entities/person-attributes`, with semantic versions (`PACKAGE_FORMAT.md`).
+- Every backend's catalogue (the built-in `entities/person-attributes`, `entities/attributes-matraix`) is a data pack with semantic versions (`PACKAGE_FORMAT.md`).
   A world requires it (`requires: { person-attributes: "^1" }`).
 - **Minor:** add an attribute; add a value at the end of a `category` or `set` list; add words, phrases or
   facets.
@@ -623,15 +764,161 @@ That makes about 200 attributes in v1. That is "most of what a walking, living w
 - A save records the catalogue pack's version in its composition, as for every pack. Resuming under
   another major version is refused by name, as an incompatible pack is today.
 
-### 6.4 MatrAIx: the reuse verdict (`DEP-66`)
+### 6.4 Person-generation backends (`ARC-126`, Re-ruled 2026-10-15 (operator, final))
 
-| Part | Licence and fit | Verdict |
+**The operator, verbatim (final, 2026-10-15):** "我觉得我们应该是支持MatrAIx为后端生成人物，并给出demo，但是不要把它们作为强依赖，而是一个可选项" —
+support MatrAIx as a backend for generating people, ship a demo, and never make it a hard dependency: it is an
+optional choice. The earlier rulings of the same day are kept in §16.2.
+
+**A backend** is a data pack that supplies a world's attribute catalogue and the means to generate people
+over it. A world chooses one in `configure/attributes.yaml`:
+
+```yaml
+format: 1
+backend: mineworld                 # default; or the id of any installed backend pack, e.g. matraix
+mask: core                         # optional; a mask the backend ships, or a world's own (masks/<id>.yaml)
+profile: san-diego-county
+seed: mineworld-s26-cast-v1
+lock: attributes.lock.yaml
+```
+
+The contract (`backend.yaml` at the pack's root; every field validated, every failure named):
+
+| Field | Meaning | Failure, by name |
 | --- | --- | --- |
-| **Taxonomy and schema** (`dimensions.json`, M-3, M-4) | MIT. It is a good structure (groups, value lists, phrases, partial records). It is software-user skewed (M-6) and has no appearance or numeric kinds | **adapt.** (1) MineWorld's core catalogue keeps MatrAIx's five groups and its `phrase` idea, and aligns ids via `see_also: matraix:<id>`. (2) An optional **generated import pack**, `entities/matraix-persona` (S30-h, MVP-1), is produced by `mineworld attributes import-matraix <dimensions.json> <commit>` from a pinned commit. It carries MIT attribution in `pack.yaml`, maps every dimension to `category` or `level`, maps their `phrase` to our `phrase`, and **excludes the 50 dimensions whose `source_origin.license` is `citation-only` or `research-use-reference`** (M-5) until reviewed |
-| **Sampling formula** (M-2) | an idea, not code | **inspiration.** Our profile semantics are exactly prior × likelihood adjustment × mask (§8.3), on a strict DAG |
-| **DAG parameters** (`full_dag.json`, M-7) | MIT, but 5,432 of its 6,999 edges are transferred likelihood ratios with generic rationales. Its priors are world-level, not a place's. It is not strictly a DAG, and it repairs with energy | **declined as data.** A MineWorld world's distributions must be the place's, and cited (§8.2). The import pack ships with no profile. A user may hand-convert a MatrAIx table into a profile, citing it |
-| **Persona-1M coreset** (M-8) | `matraix-research-only`, and derived from real people's records | **declined.** The licence is incompatible with an open-source distribution, and MineWorld does not cast real individuals |
-| **The sampler code** (`persona/synthesis/sampler/sampler.py`) | MIT, Python, float-based, and it includes repair/refinement | **declined.** Our sampler must run inside Rust genesis, deterministically on three platforms, with integer arithmetic (§8.6, `DEP-67`) |
+| `id`, `version`, `license`, `attribution` | identity and credit, shown by `mineworld attributes backends` and in `resolve`'s provenance | `BackendMalformed { pack, field }` |
+| `catalogues` | the attribute files it supplies (format of §5.1) | `UnknownAttribute`, `DuplicateAttribute` as for any catalogue |
+| `masks` | the masks it ships (below) and its default mask | `UnknownMask { backend, mask }`; `MaskNamesUnknownAttribute { mask, id }` |
+| `sampling` | the modes it supports, from the engine's closed list: `profile` (our sampler over a cited world profile, §8) and, optionally, `log-linear` (a backend-supplied factor model, executed by our engine in fixed point, Q-S30-9) | `UnsupportedSampling { backend, mode }` |
+| `provenance` | upstream source, version, commit, file digests | `ProvenanceMismatch { file, expected, found }` (CI re-verifies) |
+| `mapping` | how the built-in ids that Systems and consumers read are provided under this backend (§6.6) | `MissingUnderBackend { attribute, backend }` at the reader's install |
+
+- **No backend runs code.** A backend is data executed by the model crate's engine, so determinism, the
+  three platforms and kernel ignorance hold for every backend. A new sampling mode is a model-crate change,
+  reviewed as such.
+- **The MineWorld backend is the default** and is what the core, every reference world and every test use.
+  It is `entities/person-attributes` (§6.1: ≤ 100 curated attributes, the appearance group and the quantity
+  kind) with the `profile` mode and masks `core` (all 94) and `appearance` (rows 1–21, for casting-only use).
+- **The appearance group and quantities are always MineWorld's.** Any backend's catalogue is composed with
+  `core.` appearance and quantity attributes, because a body in a client must come from one place (`ARC-125`).
+  A backend may not redeclare them.
+
+### 6.5 Masks (`ARC-126`)
+
+A **mask** is a named, versioned selection over a backend's catalogue, as data (`masks/<id>.yaml`):
+
+```yaml
+format: 1
+mask: matraix-core-100
+version: 1
+include:
+  - { id: lstyle_sleep_schedule, why: "DM: when they rise and go home (maps to core.chronotype, §6.6)" }
+  - { group: "Personality: Big Five", ids: [big5_friendliness, big5_gregariousness], why: "DM, CV" }
+exclude: []
+```
+
+- `include` and `exclude` take ids, groups or facets. Each entry carries a `why` line naming its reader;
+  a mask without them is refused (`MaskEntryUnjustified`). The special mask `all` includes everything.
+- **What the mask does not enable does not exist in the world.** It is absent from the frozen `Catalogue`
+  (§5.3): the sampler skips it, no observation, prompt, MCP view or panel can carry it, a person file stating
+  it is refused by name (`MaskedOut { attribute, mask }`), and a System handle for it fails at install.
+- Owner packs' own attributes (S31's subscriptions, `persona`'s fields) are not masked: they belong to
+  installed Systems, which a world already chose.
+- A world authors its own mask with zero code. A missing or malformed mask fails by name.
+
+### 6.6 The MatrAIx backend: optional, installable, and the only place that names MatrAIx
+
+**What it is.** `entities/attributes-matraix`, a separate data pack, **not installed by default**, credited
+to Li, Hao et al., *MatrAIx: Simulating the World with 8.3 Billion Persona Agents*, arXiv 2608.04205v1 (2026),
+and to the `MatrAIx-ai/MatrAIx-Persona-8B` repository (MIT).
+
+- **As-is import.** `persona/schema/dimensions.json` (schema 1.0) is imported verbatim, pinned to upstream
+  commit `3633d8dab149a9482a71b024418a49ae828cc941` (repository `main`, 2026-09-09; the file last changed in
+  `284b106c…`, 2026-08-06; SHA-256 `cbf4db9d887dec057431aff409e1d28d83f345e7a31e29a4275a607212ecfca5`). Their
+  ids, categories (as groups), value lists, phrases (`{value}` is already our placeholder) and the six
+  locale label packs (including zh-Hans) are kept exactly; nothing is renamed or slugified. Our id rule
+  accepts `_` and our category values accept their strings verbatim, inside this pack.
+- **A MineWorld overlay inside the pack** adds what their schema lacks, keyed by their ids and never editing
+  their file: visibility (default `learnable`; `private` for ethnicity, religion, sexual orientation,
+  disability, citizenship, veteran status, income and every `health_*` dimension, Q-S30-8), mutability
+  (default `fixed`; `derived` for `age_bracket` from `core.birth`), owner (`economy` for
+  `socioeconomic_band`, ruled Q-S30-6), facets, and `level` order where a reader compares values.
+- **Exclusions, on licence grounds only.** Redundancy is the mask's job, never a reason to drop a dimension.
+  - The 50 dimensions whose `source_origin.license` is not covered by the repository's MIT grant:
+    - `citation-only` (28): `schwartz_value_self_direction`, `schwartz_value_stimulation`,
+      `schwartz_value_hedonism`, `schwartz_value_achievement`, `schwartz_value_power`,
+      `schwartz_value_security`, `schwartz_value_conformity`, `schwartz_value_tradition`,
+      `schwartz_value_benevolence`, `schwartz_value_universalism`, `sdt_need_autonomy`,
+      `sdt_need_competence`, `sdt_need_relatedness`, `mft_care_harm`, `mft_fairness_cheating`,
+      `mft_loyalty_betrayal`, `mft_authority_subversion`, `mft_sanctity_degradation`,
+      `mft_liberty_oppression`, `need_for_cognition`, `need_for_closure`, `dospert_ethical_risk_tolerance`,
+      `dospert_financial_risk_tolerance`, `dospert_health_safety_risk_tolerance`,
+      `dospert_recreational_risk_tolerance`, `dospert_social_risk_tolerance`,
+      `interpersonal_agency_dominance`, `interpersonal_communion_warmth`;
+    - `research-use-reference` (22): `bfi2_domain_extraversion`, `bfi2_domain_agreeableness`,
+      `bfi2_domain_conscientiousness`, `bfi2_domain_negative_emotionality`, `bfi2_domain_open_mindedness`,
+      `bfi2_facet_sociability`, `bfi2_facet_assertiveness`, `bfi2_facet_energy_level`,
+      `bfi2_facet_compassion`, `bfi2_facet_respectfulness`, `bfi2_facet_trust`, `bfi2_facet_organization`,
+      `bfi2_facet_productiveness`, `bfi2_facet_responsibility`, `bfi2_facet_anxiety`,
+      `bfi2_facet_depression`, `bfi2_facet_emotional_volatility`, `bfi2_facet_intellectual_curiosity`,
+      `bfi2_facet_aesthetic_sensitivity`, `bfi2_facet_creative_imagination`, `attachment_anxiety`,
+      `attachment_avoidance`.
+
+    Why: each carries its own upstream licence statement ("theory construct label only", research use),
+    which is narrower than MIT, so it is excluded until its owner's terms are confirmed. Re-admitting one
+    is a reviewed pack change citing the confirmation. The import tool refuses any dimension whose
+    `source_origin.license` is set to something other than MIT or absent.
+  - The Persona-1M coreset (Hugging Face `MatrAIx2026/MatrAIx_Persona_1M`): licence
+    `matraix-research-only`, and derived from real people's records. It is never imported.
+  - That leaves **1,240 dimensions**.
+- **Masks it ships.** `matraix-core-100` (the default, ≤ 100 dimensions chosen by gameplay impact, each with
+  its `why`, written in S30-h's PR design from §6.1's reader codes; for example `lstyle_sleep_schedule`,
+  `lstyle_diet_type`, `lstyle_caffeine`, `lstyle_coffee_ritual`, `big5_friendliness`, `cog_verbosity`,
+  `cog_formality`, `skill_cooking`, `skill_baking`, `skill_selling`, `topic_fishing`, `demo_marital_status`,
+  `lstyle_news_freq`), and `all` (all 1,240).
+- **The mapping** (`mappings/core.yaml`, owned by this pack). For every built-in attribute a reader
+  declares and the MatrAIx schema overlaps, a `derived` view from the MatrAIx value, value by value. Examples:
+  `core.chronotype ← lstyle_sleep_schedule` (`Early bird → early-bird`, `Night owl → night-owl`,
+  `Irregular`, `Flexible`, `Shift-based → neutral`); `core.diet ← lstyle_diet_type`;
+  `core.caffeine ← lstyle_caffeine`; `core.wealth-band ← socioeconomic_band`;
+  `core.extraversion ← big5_gregariousness`. Under this backend a reader's `Handle<core.X>` resolves to the
+  mapped view. A built-in that is neither mapped nor appearance is absent, and a reader that requires it
+  fails at install with `MissingUnderBackend`; a reader may declare the read optional. The mapping is
+  checked: every target value exists, every source value is covered.
+- **Updating upstream.** The pack carries its own import tool (`tools/import.py`, Python standard library,
+  offline). It reads a given `dimensions.json` and label packs at a stated commit, verifies the SHA-256,
+  re-applies the licence exclusions, and regenerates the pack. CI re-runs it over the pinned inputs and
+  requires byte equality. An upgrade is a reviewed PR with a generated diff report (added, removed and
+  changed dimensions). A removed dimension that a mask, mapping or profile names fails by name. A removal
+  is a major version.
+- **Attribution.** `pack.yaml` (`license: MIT`, `attribution:`), `LICENSE` (the upstream MIT text,
+  verbatim), `NOTICE` (commit, digest, paper). Line for the README and docs:
+  *"Optional person-generation backend built on the MatrAIx persona schema (Li, Hao et al., 2026,
+  arXiv 2608.04205; MIT), imported unchanged."*
+  Proposed credit: that line in the repository README's backends row and in the guide chapter of the demo
+  (§6.7), a link to their repository, and a `CITATION` entry. Contacting the MatrAIx authors for joint
+  promotion is the operator's; the pack is ready to be shown to them as it stands.
+- **Isolation (checked).** Nothing outside `entities/attributes-matraix/` names MatrAIx: a CI grep over the
+  tree, excluding that directory, `worlds/matraix-demo/`, its guide page, the README's attribution line, the
+  plans and `docs/DECISIONS.md`, refuses `matraix` in any case
+  (X-S30-18). A second CI job builds and runs the full test suite with the pack directory removed
+  (X-S30-19).
+- **Sampling.** In `profile` mode our engine samples the masked set from a world profile, as for the
+  built-in backend; MatrAIx's global priors are not a place's, so the demo's profile cites its sources like
+  any other. Their sampler code is not used (float Python). Whether to also offer their `full_dag.json`
+  as a faithful `log-linear` mode is Q-S30-9.
+
+### 6.7 The MatrAIx demo (release-blocking)
+
+- `worlds/matraix-demo`: a configuration of `social-cafe`'s places with its own people files and
+  `configure/attributes.yaml` naming `backend: matraix`, mask `matraix-core-100`, and a cited demo profile.
+- It shows MatrAIx attributes in casting briefs (through `resolve --json`), in "who I am" and "who I see",
+  in the MCP `description` and `me.attributes`, and in both inspect panels, including a zh-Hans panel from
+  their label pack.
+- A guide section (`docs/guide/`, CI-executed on three platforms like every guide step) walks through
+  installing the pack, switching the backend and mask, and back; it carries the attribution line.
+- The demo world lives outside the MatrAIx pack and names it only through `backend: matraix`. It, its guide
+  page and the README's attribution line are the isolation grep's named exceptions.
 
 ---
 
@@ -723,6 +1010,7 @@ A profile is a data file in a pack's `populations/` directory, versioned with th
 ```yaml
 # worlds/<w>/configure/attributes.yaml (attributes' world configuration, ARC-61; seam item 2)
 format: 1
+backend: mineworld                     # default; §6.4. `mask:` optional (§6.5)
 profile: san-diego-county              # resolved through the world's required packs; absent = no sampling
 seed: mineworld-s26-cast-v1            # the population seed: world content, not the run's --seed
 salt: 0                                # optional; S26's distinctness re-draw, once ruled (§8.6)
@@ -907,7 +1195,7 @@ marginal for unconditioned attributes. Conditionals are within 2 pp for any grou
 | `pgmpy` (MIT, Python) | mature Bayesian-network sampling | declined: Python, and genesis is Rust. It uses float sampling, and it is a dependency larger than the problem (≈ 400 lines of sampler) |
 | `pomegranate` (MIT, Python) | the same | declined, for the same reasons |
 | PopulationSim (ActivitySim, BSD-3) | synthetic populations fitted to census marginals (IPF) | declined for MVP-0: it solves a different problem (household synthesis against control totals at zone level), and it is Python with pandas. Recorded as the reference if MVP-1's region worlds need joint fitting (S21) |
-| MatrAIx sampler | the formula we use | declined as code (§6.4) |
+| MatrAIx sampler | the formula we use | not used: float Python; their DAG as data is Q-S30-9 (§6.6) |
 | our own, in the model crate | integer, deterministic, shared by genesis and the CLI | **chosen** |
 
 The interim Python sampler (A-9) is removed when S30-g switches casting to `resolve --json`. No adapter is
@@ -930,7 +1218,8 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
   - An owner pack discloses its own attributes within its own component, by the same rule. The model
     crate provides the filter and the renderer, so no owner writes its own visibility logic.
 - **Size.** About 25 perceivable attributes per person at about 40 B each is about 1 KiB per perceived
-  person. A holder's own full set (≈ 200) is about 8 KiB in its own observation only. S30-c measures this
+  person. A holder's own full built-in set (94) is about 4 KiB in its own observation only; under the MatrAIx
+  backend with mask `all` (1,240) it would be about 50 KiB, so the per-seat cap below applies there. S30-c measures this
   against the observation's existing frame sizes, and a per-seat cap with a named truncation marker
   follows if it is needed (R-S30-3).
 
@@ -946,7 +1235,8 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
 - **Decision models (Rust).** These are pure functions of the observation (A-8). The SDK gains a typed
   reader over the disclosed `traits` component: `observation.attributes(person).level("core.chronotype")`,
   checked against the disclosed kind. The `motivated` model (DL-b) may use it as a consideration input,
-  declared in its parameters, never as a hard-coded slug.
+  declared in its parameters, never as a hard-coded slug. S30-f adds that `attribute` consideration to
+  `motivated`, reviewed as a change to that pack: it is the DM reader of §6.1.
 - **No LM is needed.** Everything above is deterministic text and typed values. An LM is one consumer of
   it.
 
@@ -976,6 +1266,11 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
   shared hobbies, or a café menu by diet are each the owning System's own later PR, made when that System
   is next opened. Doing them now would edit unrelated Systems, which is change amplification
   (`CLAUDE.md` §4 rule 5).
+  - **The one named exception (Q-S30a-2, ruled 2026-10-15, operator answered directly in the primary
+    session):** S30-f makes `employment` the owner of `employment.occupation` — a projection of its own
+    `Employment { job }` to the job's label, and the declaration shipped with the pack (`ships_data!`,
+    Q-S30b-1). Nothing else in `employment` changes. (S31 changes `economy` for `economy.wealth-band` in its own
+    PRs.)
 - **S30's proof of the read path** uses two consumers:
   - a test-only fixture System in `systems/attributes/tests/` that refuses an action unless the actor is
     an `early-bird` (X-S30-10);
@@ -987,13 +1282,13 @@ kept (`CLAUDE.md` §4 rule 12). S26's draft already plans exactly this (A-11, S2
   It is not stored per observation: S28's renderer drops unchanged component snapshots, and S30-f checks
   that `traits` is treated the same way.
 - **A learned attribute is a memory** (INV-4). When Bob tells Alice "I'm a night owl", Alice's memory
-  holds the utterance. In MVP-1 (S30-i), it may also hold a structured `stable` fact in S28's private
+  holds the utterance. With S30-i (MVP-0, release-blocking), it may also hold a structured `stable` fact in S28's private
   layer, `(subject: Bob, attribute: core.chronotype, value: night-owl, learned_from: EventId)`. That fact
   is subjective, may be false, may be forgotten, and **never** widens Alice's observation of Bob.
 - **S30-i's optional action `tell-about-self { attribute }`** is owned by `attributes`. It states a
   conversation-audience fact of the holder's true value, for a `learnable` attribute only. It makes
   "learnable in conversation" structured and truthful without letting an LM's free speech become world
-  state. It is MVP-1, because MVP-0's controllers can already speak the phrase.
+  state. It was MVP-1 under the original ruling; the re-ruling of 2026-10-15 makes it release-blocking.
 - **The world records no knowledge state.** Who knows what about whom is cognition's.
 
 ### 9.6 The worked example: public-notice subscriptions (S31 interface, `ARC-124`)
@@ -1107,23 +1402,24 @@ S30-a specs + records ──┐
 S30-b authoring seam ───┼─→ S30-c attributes pack ─┬─→ S30-d profiles + sampler ─┬─→ S30-g worlds + S26 switch
                         │                          │                             │
                         │                          └─→ S30-f consumers ──────────┤
-                        └────────────────────────────→ S30-e catalogue v1 + cited profiles (data; after c's format)
-MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling · S30-k localisation
+                        └────────────────────────────→ S30-e curated catalogue ≤ 100 + backends/masks + cited profiles
+Also MVP-0, release-blocking (Re-ruled 2026-10-15): S30-h MatrAIx backend + masks + mapping + demo (after c, d, e, f)
+  · S30-i learnable/tell (after f, S28-c) · S30-j runtime sampling (after d) · S30-k localisation (after f)
 ```
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial criteria | Implementer |
 | --- | --- | --- | --- | --- | --- |
-| **S30-a** specs and records | `CORE_CONCEPTS.md` §4 (new §4.5 "Attributes", §15); `MODULE_SPEC.md` §§2, 3, 4.1 (the `attributes:` section, `configure/attributes.yaml`, data directories); `DECISIONS.md` (`ARC-120…f`, `DEP-66…c`, the dated amendment to `ARC-91` item 3); `overall.md` S30 entry | step approval | documents agree with each other (the doc checks pass; a review against §§4–11) | none (docs only) | Opus |
+| **S30-a** specs and records | `CORE_CONCEPTS.md` §4 (new §4.5 "Attributes", §15); `MODULE_SPEC.md` §§2, 3, 4.1 (the `attributes:` section, `configure/attributes.yaml`, data directories); `DECISIONS.md` (`ARC-120`…`ARC-126`, `DEP-66`…`DEP-68`, the dated amendment to `ARC-91` item 3); `overall.md` S30 entry | step approval | documents agree with each other (the doc checks pass; a review against §§4–11) | none (docs only) | Opus |
 | **S30-b** authoring seam | `authoring/`: data directories, context-seeded decode, owner `resolve`; `worldpack/` loader wiring; no pack uses it except a test fixture pack | S30-a | a fixture pack owning a data directory and a configuration loads; a person-file value is refused at its own line against a data-declared schema | X-S30-9 every reference world byte-identical; an unknown data directory refused naming known ones; a seeded fact from another vocabulary still refused (`ARC-31` item 3) | Opus |
 | **S30-c** `attributes` pack and model crate | `authoring/attributes/` (catalogue, kinds, values, handles, `AttributeOwner`, renderer, filter); `systems/attributes/` (section, `traits`, facts, proposals, disclosure, derived age); `mineworld attributes catalogue/show/check`; a minimal test catalogue | S30-b | `mineworld server` on a fixture world: Alice's own observation lists her attributes, Bob's lists Alice's perceivable ones only; a save/restart keeps them; a proposal changes an `evolving` trait with a cited cause | X-S30-1…4, X-S30-7, X-S30-8, X-S30-10, X-S30-11 | Opus (design) → Haiku (implementation from a commit plan), Opus review |
 | **S30-d** profiles and sampler | sampler in the model crate (integer weights, masks, adjustments, normal table, largest remainder, lock, roles); `configure/attributes.yaml`; `mineworld attributes resolve/lock`; synthetic-N report | S30-c | `resolve --json` on a fixture world prints C-1…C-7; a 1,000-person synthetic run matches within AC-S30-5 | X-S30-5, X-S30-6, X-S30-12…14; X-24/X-25 over the output | Opus |
-| **S30-e** catalogue v1 and cited profiles | `entities/person-attributes` (≈ 200 attributes, six groups, phrases, `see_also`); `entities/populations-us` (San Diego County v3 from A-10 with each figure re-read or kept `verify`; lakeside); `DEP-68` sources | S30-c (format); S30-d (profile format) | `attributes check` on both packs is clean except listed `verify` marks; the San Diego profile reproduces A-10's marginals | X-S30-15 a profile figure without a source refused; X-S30-16 two catalogue entries sharing an id refused | Haiku for catalogue entry from S30-e's table; Opus for sources |
+| **S30-e** the curated built-in catalogue (≤ 100, gameplay-driven) and cited profiles | `entities/person-attributes` (the 94 of §6.1, each with its reader line; masks `core` and `appearance`; `backend.yaml`); the backend and mask loader in the model crate (`ARC-126`); `entities/populations-us` (San Diego County v3 from A-10 with each figure re-read or kept `verify`; lakeside); `DEP-68` sources | S30-c (format); S30-d (profile format) | `attributes check` on both packs is clean except listed `verify` marks; the San Diego profile reproduces A-10's marginals | X-S30-15 a profile figure without a source refused; X-S30-16 two catalogue entries sharing an id refused; X-S30-20 a 101st built-in, or one without a reader line, fails the catalogue check | Opus (backend and mask loader, sources); Haiku for catalogue entry from §6.1's table |
 | **S30-f** consumers | cognition (`mineworld_cognition` attribute renderer, persona `Attributes` part, perceived-person phrases, budgets, golden tests mirroring the Rust renderer); SDK typed reader for decision models; MCP `description` and `me.attributes` (S27-d's or a successor's surface); 2D and 3D inspect panels | S30-c; S27-d merged (MCP); P6b merged (persona block) | one scenario: an agent, an LM-free controller and both clients see the same phrases for Alice; Bob's private attributes absent everywhere | X-S30-4 across all four surfaces; X-S30-17 the prompt stays within its byte budget with 200 attributes | Haiku (Python, clients) from a commit plan; Opus review |
 | **S30-g** reference worlds and the S26 switch | `attributes` and `person-attributes` and a profile in `social-cafe`, `market-town`, `lakeside` (not `bodies-yard`); `attributes.lock.yaml` with S26's ruled values; one re-baseline per world; S26 casting reads `resolve --json`; interim Python sampler removed | S30-d, S30-e; S26-cast merged (its ruled briefs become lock entries) | `mineworld attributes resolve social-cafe` equals the briefs' ruled values; the casting page's distribution table regenerates from S30 output | AC-S30-13; X-S26src-13 (ruled survive); only the expected baseline columns move | Haiku from a commit plan; Opus review |
-| S30-h (MVP-1) MatrAIx import pack | `mineworld attributes import-matraix`; `entities/matraix-persona` from a pinned commit, MIT attribution, 50 dims excluded | S30-e | the pack loads beside `core`, and `see_also` alignments resolve | an excluded dimension present fails the check | Haiku |
-| S30-i (MVP-1) learnable attributes | `tell-about-self`; S28 `stable` fact ingestion | S28-a…c; S30-f | Bob tells Alice his chronotype; Alice recalls it; Carol, absent, does not | the fact never widens Alice's observation | Opus |
-| S30-j (MVP-1) runtime sampling | a newcomer (S21 migration, births) sampled by the owning System with a counter-based draw keyed by the causing event | S21 | a newcomer's values reproduce on replay | re-sampling on resume is detected | Opus |
-| S30-k (MVP-1) localisation | label packs keyed by attribute and value (MatrAIx-style, M-4) | S30-f | a zh-Hans panel | a missing translation falls back to English | Haiku |
+| **S30-h** the optional MatrAIx backend and demo (MVP-0, release-blocking) | `entities/attributes-matraix` (verbatim import at the pinned commit, overlay, licence exclusions, `LICENSE`, `NOTICE`, `tools/import.py`, masks `matraix-core-100` and `all`, `mappings/core.yaml`); `worlds/matraix-demo`; the guide section; the README attribution line; CI: import byte-equality, the isolation grep (X-S30-18), the build-and-test job without the pack (X-S30-19); the `log-linear` mode (Q-S30-9 ruled yes, 2026-10-15) | S30-c, S30-d, S30-e, S30-f merged | the demo world resolves, runs and shows MatrAIx attributes in briefs, prompts, MCP and both panels; switching `backend: mineworld` back changes nothing else | X-S30-18, X-S30-19; an excluded dimension present fails the import check; a mask naming an unknown id fails by name; a mapping value missing fails by name | Opus (import, overlay, mapping, mask selection); Haiku for the demo world and guide from a commit plan |
+| **S30-i** learnable attributes (MVP-0, release-blocking) | `tell-about-self`; S28 `stable` fact ingestion | S28-a…c; S30-f | Bob tells Alice his chronotype; Alice recalls it; Carol, absent, does not | the fact never widens Alice's observation; a `private` attribute cannot be told | Opus |
+| **S30-j** runtime sampling (MVP-0, release-blocking) | `sample_newcomer(profile, current population, causing EventId)` in the model crate, stratified against the current population's realised counts; an owner hook so the System that creates a Person seeds its attributes in the same reduction; a fixture creator (F-S30-10) | S30-d | a newcomer's values reproduce on replay and across kill and resume; 1,000 synthetic arrivals keep the world within AC-S30-5's tolerance | re-sampling on resume is detected; a newcomer created without its seed is refused | Opus |
+| **S30-k** localisation (MVP-0, release-blocking) | label packs `attributes/labels/<locale>.yaml` (labels, phrases, words); zh-Hans complete for the built-in catalogue and reviewed; locale selection in cognition, MCP and both panels; fallback to English | S30-f | zh-Hans 2D and 3D panels and a zh-Hans "who I am" render every attribute of a fixture person | a missing translation falls back to English and is listed by `attributes check --locale zh-Hans` | Haiku for entry; a reviewed zh-Hans pass; Opus review |
 
 ### 13.2 Placement in MVP-0 and MVP-1
 
@@ -1133,10 +1429,10 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
   2. AC-16's information-rich observation is an MVP-0 acceptance, and today an agent cannot tell who it is
      looking at (F-S30-3).
   3. S31's notices, designed in parallel, need the subscription attribute (§9.6).
-- **MVP-1: S30-h…S30-k.** None is needed by an MVP-0 acceptance, and each depends on MVP-1 work (S21, S28's
-  later scopes) or is a breadth extension.
-- If the operator prefers to hold S30 to MVP-1, the smallest MVP-0 subset is S30-a, S30-b, S30-c and S30-d
-  with a catalogue of only the appearance group. That keeps S26 off the interim sampler. Q-S30-3 asks.
+- **Re-ruled 2026-10-15 (operator): everything ships before the public release.** "我们要发布就得把这些功能全部做好".
+  S30-h, S30-i, S30-j and S30-k are MVP-0 and **release-blocking**; S23's release checklist gains "S30 complete
+  (a…k)". S30-j no longer waits for S21 (F-S30-10); S30-i's S28-a…c are MVP-0 (step-28 QS28-1).
+- *Original ruling, kept visible (Q-S30-3):* S30-a…g in MVP-0 and S30-h…k in MVP-1. Superseded.
 
 ### 13.3 Start conditions and order
 
@@ -1146,6 +1442,9 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
   format, and its profile commits wait for S30-d's.
 - S30-c starts when S30-b has merged. S30-d and S30-f start when S30-c has merged, in parallel.
 - S30-g starts when S30-d and S30-e have merged and S26-cast has merged.
+- S30-h starts when S30-c, S30-d, S30-e and S30-f have merged. S30-i starts when S30-f and S28-c have merged.
+  S30-j starts when S30-d has merged. S30-k starts when S30-f has merged.
+- **Release gate:** the public release (S23) does not ship until S30-a…k have all merged.
 - **S31 ordering.** If S31's notices PR is frozen before S30-c merges, it codes against §5.1 and §9.6 and
   takes the model crate as a dependency at S30-c's merge. A conflicting change to §9.6 is a material stop
   for both.
@@ -1156,8 +1455,8 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 
 | | Criterion | How it is shown to fail when broken |
 | --- | --- | --- |
-| AC-S30-1 | A Person carries ≥ 150 attributes from the built-in catalogue in a fixture world, all disclosed to the holder and validated | `attributes show` lists fewer, or the load accepts an invalid one |
-| AC-S30-2 | `entities/person-attributes` v1 covers the six groups with ≥ 15 attributes each | the catalogue check prints the per-group counts |
+| AC-S30-1 | A Person carries ≥ 150 attributes in a fixture world (the 94 built-ins plus custom ones; and, under the MatrAIx backend with mask `all`, ≥ 1,000), all disclosed to the holder and validated | `attributes show` lists fewer, or the load accepts an invalid one |
+| AC-S30-2 | The built-in catalogue has ≤ 100 attributes across the six groups, each with a reader line naming a reader that ships by release | the catalogue check prints the count and refuses a missing reader (X-S30-20) |
 | AC-S30-3 | Adding `freckles` in a world file (§7.3) reaches `catalogue`, `resolve`, S26 briefs and prompts, other observers' views, the holder's "who I am", MCP `description` and both panels, with `git diff --stat` outside `worlds/` and `populations` empty | any surface lacks the line |
 | AC-S30-4 | A user profile (a fixture "harbour-of-elsewhere" with its own vocabulary) replaces San Diego County by editing `configure/attributes.yaml` only | anything outside the world and its profile has to change |
 | AC-S30-5 | A synthetic 1,000-person resolution matches every declared marginal within 0.5 pp and every conditional within 2 pp for groups of ≥ 50 | the report's worst deviation |
@@ -1170,6 +1469,9 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 | AC-S30-12 | `kernel/` and `contracts/` grep clean for the model crate's names (`AttributeId`, `AttributeValue`, `Catalogue`, `Handle<`, `AttributeOwner`), the `traits` component type, the S30 fact types and every built-in qualified slug (F-S30-9) | CI grep |
 | AC-S30-13 | S26 casting runs on `resolve --json` with no hard-coded attribute list, and the ruled briefs are unchanged | X-S26src-10, X-S26src-13 |
 | AC-S30-14 | A cook's default subscription includes `prices.ingredients` by role; `unsubscribe` changes it through S31's own fact; no other seat sees it | S31's test over §9.6 |
+| AC-S30-15 | Backends and masks: switching `backend` and `mask` in `configure/attributes.yaml` changes the world's catalogue and nothing else; what a mask disables appears on no surface | the demo and a fixture world, scanned |
+| AC-S30-16 | The workspace builds and every test passes with `entities/attributes-matraix` absent, and nothing outside it (except the named exceptions) names MatrAIx | X-S30-18, X-S30-19 |
+| AC-S30-17 | The MatrAIx demo shows its attributes in briefs, prompts, MCP and both panels, with the attribution | the demo's scenario test and its guide step |
 
 ### 13.5 Planted mutations and adversarial tests (each must fail by name, then be reverted)
 
@@ -1191,7 +1493,10 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 | X-S30-14 | the sampler re-draws a ruled value | AC-S30-8 fails |
 | X-S30-15 | a distribution with no `source` | `UncitedDistribution` |
 | X-S30-16 | two `core.stature` declarations | `DuplicateAttribute` |
-| X-S30-17 | 200 attributes rendered into "who I am" | the byte budget holds, and the cut is in `prompt_rank` order |
+| X-S30-17 | 1,240 attributes (MatrAIx, mask `all`) rendered into "who I am" | the byte budget holds, and the cut is in `prompt_rank` order |
+| X-S30-18 | `matraix` planted in a file outside the MatrAIx pack and the named exceptions | the isolation grep fails, naming the file and line |
+| X-S30-19 | a core test that loads a MatrAIx dimension | the build-without-the-pack job fails |
+| X-S30-20 | a 101st built-in attribute, or one without a reader line | the catalogue check fails by name |
 
 ---
 
@@ -1205,8 +1510,9 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 | R-S30-4 | The seam (S30-b) touches the loader that every world uses | it is additive; X-S30-9 over all reference worlds; Opus implementer |
 | R-S30-5 | S26 and S30 drift on the profile format during parallel work | §10 is the contract; S26-src2 reads the interim format through an adapter until S30-g, then the adapter is removed |
 | R-S30-6 | S31 freezes a declaration shape before S30-c | §9.6 is stated now; S31 codes against it; a change is a material stop for both |
-| R-S30-7 | Catalogue v1 wording becomes an accidental standard that is hard to change | semantic versioning (§6.3); `since`; ids never reused |
-| R-S30-8 | MatrAIx's dimensions file changes upstream | the import pins a commit; the pack records it |
+| R-S30-7 | The curated catalogue's wording becomes an accidental standard that is hard to change | semantic versioning (§6.3); `since`; ids never reused |
+| R-S30-8 | MatrAIx's dimensions file changes upstream | the pack pins a commit and digest; upgrades are reviewed PRs with a diff report; removals that a mask, mapping or profile names fail by name |
+| R-S30-10 | The MatrAIx backend leaks into core code through convenience | the isolation grep and the build-without-the-pack job (X-S30-18, X-S30-19) |
 | R-S30-9 | `verify` marks linger in shipped profiles | `attributes check` lists them; Q-S30-5 decides whether a release refuses them |
 
 ---
@@ -1243,7 +1549,7 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 
 - S27: `PersonLine.description` and `me.attributes` (§9.3), by S30-f or the then-current adapter PR.
 - S28: `traits` snapshots are deduplicated like other unchanged components. The learned-attribute
-  `stable` fact is S30-i's (MVP-1).
+  `stable` fact is S30-i's (MVP-0, release-blocking).
 - S31: §9.6 N-1…N-6.
 
 ### 15.5 `docs/DECISIONS.md` (ids assigned 2026-10-15; entries written by S30-a)
@@ -1256,13 +1562,15 @@ MVP-1: S30-h MatrAIx import · S30-i learnable/tell · S30-j runtime sampling ·
 | `ARC-123` | population profiles and the deterministic stratified sampler; population seed ≠ run seed; lock file (§8) |
 | `ARC-124` | the owner interface, with S31's subscriptions as its first user (§9.6) |
 | `ARC-125` | dated amendment to `ARC-91` item 3: apparent descriptors are perceivable attributes; `look` stays opaque (§4.4) |
-| `DEP-66` | MatrAIx: taxonomy adapted, an optional import pack (MIT, 50 dimensions excluded), formula as inspiration, DAG parameters and coreset declined (§6.4) |
-| `DEP-67` | the sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler declined (§8.6) |
+| `ARC-126` | person-generation backends and masks as data; the MineWorld backend is the default; a backend runs no code (Re-ruled 2026-10-15 (operator, final), §§6.4–6.5) |
+| `DEP-66` | MatrAIx: **adopted as an optional backend pack** (Re-ruled 2026-10-15 (operator, final)). Licence check (repository MIT; 50 dimensions with narrower `source_origin.license` and the `matraix-research-only` coreset excluded); the pinned commit and digest; the update procedure (import tool, byte-equality CI, reviewed upgrades); attribution (`LICENSE`, `NOTICE`, README line, citation); isolation (grep, build without it). *Earlier texts kept in §16.2:* "taxonomy adapted, optional import in MVP-1" (step approval); "inspiration only, no dependency" (first re-ruling); "adopt, masked to 100" (third re-ruling) |
+| `DEP-67` | the sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional data mode is Q-S30-9 (§8.6) |
 | `DEP-68` | population data sources: ACS (public domain), NHANES (public domain), Monk Skin Tone (CC BY 4.0, attribution in the pack) (§8.2) |
 
 ### 15.6 `overall.md`
 
-- Add S30 to §3, after S29, with this file as its step document and the MVP-0/MVP-1 split of §13.2.
+- Add S30 to §3, after S29, with this file as its step document; every S30 PR is MVP-0 and release-blocking
+  (§13.2, re-ruled 2026-10-15).
 - Add AC-S30 to §4's coverage.
 - Note S26-cast's dependency on S30-g for the sampler switch, which does not block S26-cast's merge.
 
@@ -1297,3 +1605,24 @@ Each question has a recommendation. They are limited to what the rules do not se
 | Q-S30-8 | **Ruled 2026-10-15 (operator answered directly in the primary session).** Sensitive attributes are `private` by default; worlds may narrow, never widen |
 
 The questions table above is kept as asked. Where §§4–13 state a recommendation that one of these settles, it now reads as a ruling.
+
+### 16.2 Re-rulings, 2026-10-15 (operator, directly in the primary session; history kept)
+
+The rulings of §16.1 stay visible. The re-rulings came in this order; each later one supersedes what it names.
+
+| # | Operator, verbatim | Effect | Status |
+| --- | --- | --- | --- |
+| RR-S30-1 | "我们不要对matrixl有依赖，我只是让你学习它的方式" | no MatrAIx dependency; learn from its approach only; withdraw the import pack | **superseded** by RR-S30-4 and RR-S30-5 (MatrAIx returns, but only as an optional backend; RR-S30-1's "no hard dependency" survives in RR-S30-5) |
+| RR-S30-2 | "我们要发布就得把这些功能全部做好" | every S30 slice ships before the public release: S30-h…k are MVP-0, release-blocking (supersedes Q-S30-3's MVP-1 part) | **in force** (§13.2) |
+| RR-S30-3 | "MatrAIx的1240个属性里面冗余的太多了，我们没必要全部导入，留最重要的，影响用户游戏体验的就行，我觉得不超过100个" | keep only what affects play, ≤ 100 (supersedes Q-S30-7's "about 200") | **in force** for the built-in catalogue (§6.1, 94 attributes) and as the default MatrAIx mask's bound (`matraix-core-100`) |
+| RR-S30-4 | "算了我改主意了，我们就用MatrAIx吧，原汁原味，这样我们还可以让他们帮我们宣传。我觉得我们可以导入他们的，但是我们用mask，只选最重要的100个。这个mask也应该是模块化的，如果用户愿意直接全部用，也可以" | import MatrAIx as-is behind a modular mask, default 100, `all` available | **in force as refined by RR-S30-5**: the import, the masks and the licence-only exclusions stand; it is optional, not the default |
+| RR-S30-5 (**final**) | "我觉得我们应该是支持MatrAIx为后端生成人物，并给出demo，但是不要把它们作为强依赖，而是一个可选项" | pluggable backends; MineWorld's curated backend is the default; MatrAIx is an optional backend pack with a demo; nothing else depends on it (§§6.4–6.7, `ARC-126`, `DEP-66`) | **in force** — Re-ruled 2026-10-15 (operator, final) |
+
+### 16.3 A question this amendment raises
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| Q-S30-9 | RR-S30-4 asked for MatrAIx "原汁原味". Should the optional MatrAIx backend also offer **faithful sampling** from their `full_dag.json` (1,308 nodes; 6,999 directed proposal edges with a valid topological order; 524 masks; 54 full CPTs; q(v \| parents) = softmax(log P0 + γ Σ w (log P − log P0))), as an optional `log-linear` mode? It is technically viable without floats in the world: the import tool converts each term to fixed-point log weights, our engine sums them and exponentiates through a committed integer table, so it is deterministic on three platforms; cycles cannot occur in the proposal graph (checked at import); their energy-scoring repair would not be reproduced. Its priors are global (8.3 % of people under five), so it is conditioned on adults and is never a place's distribution | **Yes, as an option of the MatrAIx backend only**, used by the demo to show their method, never by a reference world (which keep cited local profiles). S30-h prototypes it first; if determinism, load time (a 24.8 MB file) or the ≤ 2 pp fidelity check against their own sampler on the masked set fails, the mode is dropped from S30-h and reported, and the demo uses `profile` mode |
+
+**Q-S30-9 — Ruled 2026-10-15 (operator answered directly in the primary session):** yes, as recommended — an optional `log-linear` mode of the MatrAIx backend only, used by `worlds/matraix-demo`, never by a reference world; S30-h prototypes it first and drops it, reporting to the operator, if determinism, load time or the ≤ 2 pp fidelity check fails.
+
