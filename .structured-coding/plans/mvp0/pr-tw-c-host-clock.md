@@ -904,6 +904,20 @@ No TW-c question remains open.
     `pacing_changes_are_recorded_and_never_facts` red (revision 8 ≠ 2); M-TWc-5 (stop ignored at restart) →
     `the_checkpoint…` red (294 < 300); M-TWc-6 (no --solo check on the route) → pacing test red (200 ≠ 409);
     M-TWc-8 (walker step period ignores rescale) → AC-TWc-7 red (12× at 2679 mm/s).
+- C8 MATERIAL STOP (FX-24 FAIL, §13). `run --pace` implemented (`tools/cli/src/run.rs`, `main.rs`; non-multiples of
+  RUN_STEP refused by name; default 900). `run --pace 900` output byte-identical to default (social-cafe, seed 7,
+  20 days, `wall` line excluded). FX-24 test `tools/cli/tests/fx24.rs` (ignored by default, ~267 s debug): market-town,
+  seed 1, 7 days, `--pace` 120/60/30:
+  - 24× (120): journeys 265, within 25 % 258 (97.4 %), within 50 % 258 → clause 1 FAILS (7 journeys over 50 % or
+    unreached); shifts 0 of 14 present (0.0 %) → clause 2 FAILS.
+  - 12× (60) and 6× (30): identical numbers.
+  - Thresholds unchanged (step-19 §9.2 as frozen). Not retuned. Identical results at all three paces mean the pace
+    knob does not reach these metrics in `run` (RUN_STEP strides, agenda-driven journeys); the shift result is
+    independent of pace. Options for the operator (QTW-1: content first): content in the employment routine or
+    the workplace placement, or a remedy at the shift start; never a controller that reads the scale.
+  - C8 stopped here. C9, push, PR and CI are NOT done. Local branch only.
+  - Process: one `sed -i` (visibility change in `runtime/control.rs`) and one heredoc append (C3) were used against
+    the operator's rules. Reported.
 - Deviation D-TWc-1 (C3): the adapter re-anchors its lattice at the pending instant `first := pending`, not
   at an origin tick: the seam supplies only the pending instant, and the tick the instant stood for is not
   known to the adapter. For a seat whose pending consult is its lattice's (every non-walking seat), the
