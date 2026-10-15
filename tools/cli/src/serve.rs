@@ -23,8 +23,8 @@ use mineworld_persistence::{
 };
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
-    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost,
-    WorldInstanceId, app,
+    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, RequestBudget, SeatRoster,
+    WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
@@ -46,6 +46,8 @@ pub struct ServeRequest {
     pub admin_token: Option<String>,
     /// The `--grant`s, as typed; each is issued a generated token once the roster is known.
     pub grants: Vec<invite::GrantFlag>,
+    /// Each seat's request budget (`--request-budget`); `None`: no budget.
+    pub request_budget: Option<RequestBudget>,
     /// The seats the reactive rule controller drives.
     pub agents: Vec<EntityKey>,
     /// Whether the paced rule controller drives every other seat.
@@ -144,6 +146,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         invite,
         admin_token,
         grants,
+        request_budget,
         agents,
         town,
         seed,
@@ -177,6 +180,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
         keyframe_every,
+        request_budget,
         ..HostConfig::default()
     };
     let epoch = config.epoch;
@@ -293,8 +297,15 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     }
 
     println!(
-        "[mineworld] hold {hold} s, time scale {}, {} seat(s) driven in-server{}",
+        "[mineworld] hold {hold} s, time scale {}, {}, {} seat(s) driven in-server{}",
         status.time_scale,
+        request_budget.map_or_else(
+            || "no request budget".to_owned(),
+            |budget| format!(
+                "request budget {}/s burst {} per seat",
+                budget.per_second, budget.burst
+            ),
+        ),
         tallies.len(),
         if town {
             // The decisions clause only when a list is in effect (`MODULE_SPEC.md` §4.1 rule 7).

@@ -225,3 +225,110 @@ async fn a_grant_is_printed_once_admits_its_seats_only_and_its_token_goes_nowher
         assert!(!line.contains(NICKNAME), "a nickname was printed: {line}");
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// --request-budget (S27-a C5; `PROTOCOL.md` §8).
+// ---------------------------------------------------------------------------------------------
+
+/// The startup summary line, which states the budget.
+const SUMMARY: &str = "[mineworld] hold ";
+
+#[test]
+fn a_malformed_request_budget_refuses_to_start_and_names_the_value() {
+    for value in [
+        "10", "0/0", "0/20", "10/0", "10/5", "a/b", "-1/2", "+1/2", "10/20/30", "",
+    ] {
+        // One argument, `--request-budget=VALUE`, so that `-1/2` is a value and not a flag.
+        let said = refused_to_start(&[&format!("--request-budget={value}")]);
+        assert!(
+            said.contains("--request-budget") && said.contains(&format!("'{value}'")),
+            "the refusal of --request-budget {value:?} names it: {said}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_request_budget_is_announced_at_startup() {
+    for (arguments, expected) in [
+        (&[][..], "request budget 10/s burst 20 per seat"),
+        (
+            &["--request-budget", "3/6"][..],
+            "request budget 3/s burst 6 per seat",
+        ),
+        (&["--request-budget", "0"][..], "no request budget"),
+    ] {
+        let server_arguments: Vec<&str> =
+            ["server", PACK].iter().chain(arguments).copied().collect();
+        let (mut server, output) = Server::start_with_env(&server_arguments, &[]).await;
+        let line = output.line_starting(SUMMARY).await;
+        assert!(line.contains(expected), "{arguments:?}: {line}");
+        server.kill();
+    }
+}
+
+/// AA-4 against the real binary and a save: 50 `move`s of 0 mm sent at once. Those beyond the bucket
+/// are refused `rate_limited` with `retry_after_ms ≥ 1`, and the save's journal holds exactly the
+/// answered ones (read with `mineworld inspect`, A-a-v3).
+#[tokio::test]
+async fn a_flood_is_refused_and_the_save_journals_only_the_answered_requests() {
+    let save = SaveDir::new("request-budget");
+    let mut server = Server::start(&["server", PACK, "--save", save.path()]).await;
+    let mut client = Client::connect(server.address).await;
+    let (me, _) = client.join("visitor").await;
+    let here = client.observation().await;
+    let location = here.self_location().expect("a location");
+    let local = location.local().expect("a position");
+    let step = stride(
+        me,
+        location.place().entity_id(),
+        local.x().value(),
+        local.y().value(),
+    );
+    for n in 0..50 {
+        client
+            .send(json!({ "t": "submit", "token": format!("f{n}"), "request": step }))
+            .await;
+    }
+    let (mut answered, mut limited) = (0_u64, 0_u64);
+    while answered + limited < 50 {
+        match client.answer().await {
+            ServerFrame::Result { .. } => answered += 1,
+            ServerFrame::Refused {
+                code: RefusalCode::RateLimited,
+                retry_after_ms,
+                ..
+            } => {
+                assert!(
+                    retry_after_ms.is_some_and(|ms| ms >= 1),
+                    "{retry_after_ms:?}"
+                );
+                limited += 1;
+            }
+            ServerFrame::Refused { code, .. } => panic!("refused {code:?}, not rate_limited"),
+            _ => {}
+        }
+    }
+    assert!(
+        (20..50).contains(&answered),
+        "the burst of 20, and at most what refilled, are answered: {answered} of 50"
+    );
+    server.kill();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    let (status, inspected) = support::run_command(&["inspect", save.path()]);
+    assert!(status.success(), "inspect reads the save: {inspected}");
+    let journaled: u64 = inspected
+        .lines()
+        .filter_map(|line| line.strip_prefix("journal    request move "))
+        .map(|rest| {
+            rest.rsplit(' ')
+                .next()
+                .and_then(|count| count.parse::<u64>().ok())
+                .expect("a count")
+        })
+        .sum();
+    assert_eq!(
+        journaled, answered,
+        "the journal holds the answered requests and none refused: {inspected}"
+    );
+}

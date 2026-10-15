@@ -113,7 +113,8 @@ impl WorldRuntime {
             hosted.hosted,
             config.hold,
             bound,
-        );
+        )
+        .with_budget(config.request_budget);
         // The kernel's next event identity, read once: the facts before it — genesis included —
         // were recorded before this host, and a perceived stream's live part starts after them.
         let next_event = hosted.world.world().schedule_snapshot().next_event;
@@ -284,7 +285,10 @@ impl WorldRuntime {
     /// observation reflecting it is computed.
     ///
     /// While the host has paused the clock it is refused before anything is allocated: no
-    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9).
+    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9). So is a connection's
+    /// request beyond its seat's budget (§8, `ARC-97`), after the pause check, so a paused world
+    /// takes no token. A library caller with no subscription, and an in-server controller (which
+    /// calls `submit_at`), have no budget.
     fn submit(
         &mut self,
         subscription: Option<SubscriptionId>,
@@ -296,6 +300,13 @@ impl WorldRuntime {
                 "the host has paused the world's clock; submit again after a clock frame says \
                  paused: false",
             ));
+        }
+        if let Some(subscription) = subscription
+            && let Err(wait) = self.table.spend(subscription, Instant::now())
+        {
+            return Err(Refusal::new(RefusalCode::RateLimited)
+                .retry_after(wait)
+                .detail("this seat has sent more requests than the host allows; submit again after retry_after_ms"));
         }
         let at = self.clock.now();
         let (submitted, recorded) = self.submit_at(observer, request, at)?;

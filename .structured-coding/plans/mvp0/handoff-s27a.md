@@ -29,6 +29,6 @@ C0–C3 implementer stopped; a replacement session continues from C4 in this wor
 
 ## Next actions
 
-1. C5: the per-seat budget (`governor`, DEP-57) in `seats.rs`/`runtime.rs`/`host.rs`, `--request-budget`,
-   `server/tests/request_budget.rs`, M-a-3, M-a-4.
+1. C5 committed (the per-seat budget, `--request-budget`). M-a-3 and M-a-4 INCONCLUSIVE: the session's
+   permission classifier denied running tests against a planted mutation (ledger, Mutations).
 2. C6: merge origin/main, close-out, push, PR, CI on the exact head. No background jobs are running.

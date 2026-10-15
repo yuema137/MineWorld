@@ -639,7 +639,7 @@ STOP CONDITION:          S27-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C2 | `668f685` | [x] | [x] SDK ruff/format/pyright clean; `test_golden_frames.py` 31 passed, `test_resuming.py` 34 passed; `client_text` 5 passed, `client_rules` 3 passed; M-a-6, M-a-7 red by name. Rust `--test frames` and the protocol unit test run at C3 (D-a-5) | [x] no existing golden changed; `retry_after_ms` only via `Refusal::retry_after`; `not_granted` final in SDK and 2D |
 | C3 | `7b4de25` | [x] `GrantToken`, `SeatGrant`, `SeatRights`, `Credential`/`CredentialKind`, `Admission::{with_grants, holds, admit → Credential}`, `AdminToken::is_a_credential_of` (replaces `is_invite`), `Access::new`; check 4a in `runtime.rs::join`; rule 4's narrowing in `seats.rs::decide`; `Grant` → `JoinGranted`; `JoinRequest.rights`; `Joined.credential`; `SessionView.credential` (`CredentialView`) | [x] `cargo test -p mineworld-server`: all binaries green (lib 53 incl. the new decision table and 3 admission tests; `grants` 6; `seats`, `handshake`, `admin`, `facts`, `frames` 16 incl. both new goldens, `two_clients`, `deltas`, `headless`); clippy `-p mineworld-server -p mineworld-cli --all-targets -D warnings` clean; M-a-1 red (`a_grant_refused_a_seat_displaces_nobody`, also `the_same_grant_is_answered_the_same_whoever_presents_it`); M-a-2 red (`the_join_decision_table_under_every_credential`, `a_grant_without_take_over_cannot_displace_a_player`, `a_hold_is_resumed_with_any_credential_and_not_taken_without_the_right`) | [x] the token never crosses into `runtime/` (only `SeatRights`); `admit` folds every comparison, no early return (M-a-5, review-owned); both `not_granted` paths return before `SeatTable::join` inserts or `release` runs; no `agent` identifier added under `server/src` |
 | C4 | this commit (`feat(cli): mineworld server --grant …`) | [x] `--grant SEATS[:take-over]` (`invite::grant_flag`, clap `value_parser`: only `:take-over` as suffix, no empty or repeated seat, legal keys); `invite::issue` (roster check, `SeatGrant::generate`, sorted by the roster's key order of each grant's first seat); `Issued::line` in the invite line's grammar; `Admission::with_grants` in `serve.rs`, grant lines printed after the invite line; no environment variable | [x] `cargo test -p mineworld-cli --test grants` 2 passed (0.8 s); `--test server_command --test admin` 6 + 10 passed (13.6 s); clippy `-p mineworld-server -p mineworld-cli --all-targets -D warnings` clean; fmt clean | [x] no env var reads a grant (the flag has no `env =`); the grant line is the invite line's grammar (`[mineworld] grant <seats>[ take-over] <token> — join with: <address> seat=<first> invite=<token>`), the token the first word after the seat list and the optional `take-over`; AA-8 canary scan covers stdout (one line each), stderr, every save file, `/status`, `/admin/sessions` |
-| C5 | — | [ ] | [ ] | [ ] |
+| C5 | this commit (`feat(server): a per-seat request budget …`) | [x] `governor =0.10.4` (`default-features = false, features = ["std"]`, DEP-57) named only in `seats.rs`: `Bucket` (a direct GCRA limiter over `TableClock`, an `Rc<Cell<Instant>>` set to the injected `now`); `SeatTable::{with_budget, spend, seat_of}`, `buckets` keyed by seat outside `Binding`; `HostConfig.request_budget: Option<RequestBudget>`, `RequestBudget::DEFAULT` = 10/20; `WorldRuntime::submit` spends after `paused`, before `submit_at` (no allocation); `--request-budget R/B` (`0` = none; default from `RequestBudget::DEFAULT` via `Display`) and the summary line's `request budget R/s burst B per seat` / `no request budget`; `server/tests/seats.rs`'s flooding test sets `request_budget: None` (D-a-9) | [x] `cargo test -p mineworld-server`: every binary green (lib 59 incl. 6 `budget_tests` and the trace replay; `request_budget` 2; `seats` 4 after D-a-9; `grants` 6, `admin` 5, `handshake` 7, `facts` 6, `frames` 16, `headless` 4, `deltas` 2, `two_clients`); `cargo test -p mineworld-cli --no-fail-fast`: all 50 binaries green (30 min under load; `grants` 5 incl. the `--request-budget` cases and AA-4's journal half via `mineworld inspect`); clippy `-p mineworld-server -p mineworld-cli --all-targets -D warnings` clean; fmt clean; `cargo deny check licenses` ok. M-a-3, M-a-4: **INCONCLUSIVE** (see Mutations) | [x] a paused world takes no token (pause check first); `consult` → `submit_at` and `WorldHost::submit(None)` untouched; the bucket lives in `SeatTable.buckets`, never removed by join/depart/kick/release/expire; `governor` types do not leave `seats.rs` |
 | C6 | — | [ ] | [ ] | [ ] |
 
 ### Measurement (C0)
@@ -695,11 +695,19 @@ bucket is not chosen.
 | --- | --- | --- | --- |
 | A-a-v1 | `governor`'s `Reference` is implemented for `std::time::Instant`, and its `Clock` bound allows a clock owned by the world thread | C0 step 6 — **TRUE** (prototype PASS) | own bucket (`DEP-57`) |
 | A-a-v2 | The 2D harness has a walking scenario long enough for a p99 (≥ 60 wall s of walking) | C0 step 2 — **PARTLY**: `--strides=40` gives 49 wall s (43 requests) plus 17 s of the key path; the street ends near there. 66 wall s of samples in all; the analytic bound covers the rest | lengthen with the harness's `--strides=n`; record |
-| A-a-v3 | The server tests can read a persisted world's journal count | C5 | use the CLI test with `mineworld inspect` |
+| A-a-v3 | The server tests can read a persisted world's journal count | C5 — **FALSE**: used the CLI test with `mineworld inspect` (D-a-10) | use the CLI test with `mineworld inspect` |
 
 ### Mutations
 
-(none run yet)
+| Id | Result | Evidence |
+| --- | --- | --- |
+| M-a-1 | red | C3: `a_grant_refused_a_seat_displaces_nobody`, `the_same_grant_is_answered_the_same_whoever_presents_it` |
+| M-a-2 | red | C3: `the_join_decision_table_under_every_credential`, `a_grant_without_take_over_cannot_displace_a_player`, `a_hold_is_resumed_with_any_credential_and_not_taken_without_the_right` |
+| M-a-3 | **INCONCLUSIVE** | C5 (replacement session): planted (`self.buckets.remove(&request.seat)` in `SeatTable::join`), but the session's tool-permission classifier denied running the tests against the planted mutation; reverted unrun (`grep MUTATION` clean, tests green after). Oracles in place: `seats::budget_tests::the_budget_is_the_seats_across_a_rejoin`, `request_budget.rs::reconnecting_does_not_refill_the_budget`. Needs an operator-permitted run |
+| M-a-4 | **INCONCLUSIVE** | Not planted, for the same reason. Oracle: `request_budget.rs::a_refused_request_allocates_nothing` (consecutive `ActionId`s) and the CLI journal count |
+| M-a-5 | review-owned | `admit` folds every comparison (C3 review) |
+| M-a-6 | red | C2: `client_text.rs::the_catalogs_are_complete_and_consistent` |
+| M-a-7 | red | C2: `test_golden_frames.py::test_golden_frame[refused-rate_limited]` |
 
 ### Deviations and findings
 
@@ -735,6 +743,19 @@ Planning findings are §3.3. Implementation:
   (`WorldPack::seats` is a `BTreeSet`), not `world.yaml`'s order. The grant line's seat list and its
   `seat=` keep the order the operator typed (`--grant bob+alice` prints `bob+alice … seat=bob`).
   `grants.rs` gives `visitor` before `bob+alice` and asserts `bob+alice` is printed first.
+- **D-a-9 (bounded, C5).** The default budget (10/20, frozen) bounds every connection, so a test that
+  submits as fast as a socket answers is no longer a person's pace. One existing test does:
+  `server/tests/seats.rs::a_hosted_request_meets_the_actor_check_and_the_sessions_allocator` (bob
+  whispers in a tight loop for up to 3 s); it now sets `request_budget: None` with the reason. The
+  whole `mineworld-cli` suite stays green with the default.
+- **D-a-10 (bounded, C5).** AA-6's replay runs in `src/seats/budget_tests.rs`
+  (`the_recorded_2d_walk_is_never_refused`) through the seat table with injected instants at the trace's
+  offsets, not over a socket at wall pace (49 s): the claim is the bucket's arithmetic under the trace's
+  timing, exact with no wall time; the socket path is AA-4's `request_budget.rs`. AA-4's journal half is
+  in the CLI test via `mineworld inspect` (A-a-v3: the server tests have no persisted-journal reader).
+  The bucket's tests are in `src/seats/budget_tests.rs` rather than `seats/tests.rs` (already ~600 lines).
+- **D-a-11 (bounded, C5).** `Cargo.lock` also gained `redox_syscall` (MIT), a Redox-only edge of
+  `parking_lot_core`; noted in `DEP-57`. `cargo deny check licenses` ok.
 - **Session takeover (2026-10-14).** The C0–C3 implementer stopped after C3 (`7b4de25`); a replacement
   session took the same worktree and branch (the only writer), recovered state from this ledger, and
   continued at C4.
