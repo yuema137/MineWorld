@@ -797,8 +797,9 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base, decisions, A-1 … A-15 re-read, handoff | [x] doc scripts PASS | [x] §2.3 satisfied |
 | C0 | `817d202b` | [x] | [x] | [x] |
-| C1 | (this commit) | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
-| C2 … C9 | — | [ ] | [ ] | [ ] |
+| C1 | `e2e5dab9` | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
+| C2 | (this commit) | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
+| C3 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -832,9 +833,25 @@ nine; `seat_streams`; `day_frames`; `queries`; the real `cafe12`), `tests/confte
   perceivers; holders 1: 794, 2: 1 796, …, 12: 1 289; **5 facts (`passage-opened`) have two subjects and no
   participant** (F-S28a-9).
 
+**C2 (2026-10-15).** `memory/home/{__init__, schema, encoding, errors, home}.py`, `memory/scopes/{__init__,
+world}.py`, `tests/{test_home_encoding.py, test_home_open.py, home_kill.py}`, `docs/DECISIONS.md` (`ARC-109`,
+`DEP-61`, notes under `ARC-87` and `ARC-101`), `tests/test_memory_store.py` (D-a-7).
+- `uv run --locked pytest …/test_home_encoding.py`: 4 passed in 0.01 s — PASS. `…/test_home_open.py`: 8 passed in
+  0.40 s — PASS (create/reopen with `auto_vacuum = 2`; schema 2 and 3 refused with `found`, `wanted = 4`, the
+  rebuild instruction and the file's sha256 unchanged; schema 5 refused; a save-like database is
+  `NotAMemoryHome`; another instance is `HomeIdentityMismatch` and changes nothing; `HomeBusy` across processes
+  for a created and a reopened home, `opened` once closed; a holder killed by `os._exit` leaves no lock).
+  `…/test_memory_store.py`: 12 passed — PASS (D-a-7).
+- ruff check, ruff format --check, pyright strict: PASS. `check_doc_headings.py`: 239 sections, none duplicated;
+  `check_decision_ids.py`: 140 ids, all distinct — PASS.
+- Review: `encoding._ENCODER` is built once at import; no column holds a float (the DDL has no `REAL`); the
+  refusal test hashes the file before and after; `seat()`/`view_of()` arrive with `SeatView` at C3 (D-a-6).
+
 ### Mutations
 
-(none yet; M-a-1 … M-a-11 as §9 lists them)
+| Id | Planted | Expected red | Observed | Restored |
+| --- | --- | --- | --- | --- |
+| M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
 
@@ -864,3 +881,40 @@ sha256 of its 200 renders. The computation lives in `capture_golden_renders.py` 
 it, so the script and the test cannot drift; the JSON is the oracle. `cafe12` (the real 12-seat builder) lives in
 `home_streams.py` beside the synthetic world, so the script and `conftest.social_cafe_12` share it. A pass point is
 taken after each day frame that ran a pass (each ran exactly one; `passes` is recorded).
+
+**D-a-5 (bounded; §5.4, the grammar this PR fixes).** Two details of the home dump differ from §5.4's letter, both
+to keep it the smallest faithful form: (1) a `fact` line writes the id once, `[fact, event_id, at, kind, place,
+digest]` — the DDL's `event_key` and `event_id` encode to the same number; (2) `fact_who` is one line per record,
+`[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` in ordinal order, not one line per row. With one line
+per row each counterpart would cost the home ≥ 6 bytes more than its `l0_who` line in the view (tag, ordinal,
+role), so the per-record overhead of I-a-6 (b) would grow with the participant count and no constant `K` could
+bound it; grouped, each counterpart costs the home less than the view, and `K` is a constant for every record
+with at most one entity the view does not show (F-S28a-9). Per seat the home writes `meta`, `names`, `access` (in
+`l0`'s place), then the private tables (§5.3's order). The concrete grammar is the dated note under `ARC-101`.
+
+**D-a-6 (bounded).** `MemoryHome.seat(identity)` and `view_of(key)` return a `SeatView` and arrive with `view.py`
+at C3 instead of C2.
+
+**D-a-7 (bounded).** `test_memory_store.py::test_no_id_is_ever_converted_to_a_number` (AP4-2 (c)) scans `memory/`
+for `int(`; the canonical encoding's `int(value)` (`memory/home/encoding.py`, `ARC-101`: ids are numbers in the
+dump) is added to its allowed set with that reason, at C2, where the code appears (the file is otherwise ported
+at C3).
+
+**F-S28a-9 (finding for the operator; I-a-6 (b), QS28a-1 × QS28a-3).** I-a-6 (b) bounds a one-seat home's dump by
+its seat view's plus `K` per held record. The home also stores every `fact_who` row the view does not show: the
+seat's own row and, since QS28a-3, every subject that is not a participant (role 2). With D-a-5's grammar a
+counterpart costs the home less than the view, so `K` (C8) covers any record with at most one hidden entity of the
+longest id; a record whose envelope names **two or more** subjects that are not participants costs `5 + |entity|`
+bytes per further hidden entity beyond `K`. Social-cafe has such facts: `passage-opened` (5 facts in 2 days, no
+participant, two place subjects, held by all 12 seats). Their ids are short, so AC-a-8 (b) holds on the AC's
+data with a margin (C8 records the largest measured overhead), but no constant `K` bounds every possible envelope.
+Proposed amendment, for a ruling: (b) reads "… + `K` × (records it holds) + Σ over hidden `fact_who` entries
+beyond the first per record of (5 + |entity|)", which keeps (b) exact and still bounds disk by the envelopes the
+seat perceived. Not changed here: (b) is tested as frozen.
+
+**F-S28a-10 (bounded, fixed at C2; I-a-10).** `PRAGMA auto_vacuum = INCREMENTAL` on a database that already has
+pages and is already incremental rewrites its header (the change counter; probe: file sha256 `63e093c0…` →
+`4cfdc486…`) and, in exclusive locking mode, takes and keeps the write lock. P4 created its stores incremental,
+so opening a real schema-3 store would have modified the file it then refused. The home sets `auto_vacuum` only
+when `PRAGMA page_count` is 0. The refusal fixture now creates its store incremental, as P4 did; with the old open
+the two refusal tests fail on the sha256 (verified), with the fix they pass.

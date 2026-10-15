@@ -144,7 +144,9 @@ def test_facts_out_of_order_are_refused() -> None:
 
 def test_no_id_is_ever_converted_to_a_number() -> None:
     # AP4-2 (c): no int( or float( in memory/ (retention included) or compress/ but four conversions of
-    # a boolean to SQLite's 0/1; the fourth, `involved`, is schema v2's column (pr-fg-b §5.4).
+    # a boolean to SQLite's 0/1; the fourth, `involved`, is schema v2's column (pr-fg-b §5.4); and the
+    # canonical dump's writing of an id as its number (`memory/home/encoding.py`, ARC-101), the one place
+    # an id becomes a number, on its way into a dump line and never back.
     found: set[str] = set()
     for package in ("memory", "compress"):
         for path in sorted((SOURCE / package).rglob("*.py")):
@@ -155,6 +157,7 @@ def test_no_id_is_ever_converted_to_a_number() -> None:
         "int(rendered.fallback)",
         "int(involved)",
         'int(involved and record.salience == "notable")',
+        "int(value)",
     }
 
 

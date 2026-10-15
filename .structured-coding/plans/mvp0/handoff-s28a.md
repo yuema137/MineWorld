@@ -31,10 +31,12 @@ STOP                 S28-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-C0: the ledger is open at the base (§15).
+C0 `817d202b`, C1 `e2e5dab9`, C2 (the home: schema, encoding, open/lock/refusal, `scopes.world`, `ARC-109`,
+`DEP-61`). Findings open for the operator: F-S28a-9 (I-a-6 (b) and subject-only `fact_who` rows). Mutation tool:
+`/tmp/s28a-scratch/mut.sh FILE OLD NEW` (exact snippet; restore from a byte copy, `cmp`).
 
 ## Next actions
 
-1. C1: multi-seat streams and golden renders from the schema-3 code (`tests/home_streams.py`,
-   `tests/capture_golden_renders.py`, `tests/test_home_golden.py`, `tests/golden/`), `conftest.social_cafe_12`.
-2. C2 … C9 as §9 lists them.
+1. C3: `memory/home/view.py` (`SeatView`, meter, hold/release/GC), `home.py` (`seat`, `view_of`, `remove_seat`,
+   verify), `tests/{test_home_store.py, test_home_gc.py}`; M-a-2, M-a-3, M-a-4.
+2. C4 … C9 as §9 lists them; controller/ joins the port (D-a-1).
