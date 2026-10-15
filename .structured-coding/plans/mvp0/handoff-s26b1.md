@@ -40,8 +40,10 @@ This file is a continuation aid. The authority is `pr-s26b1-pipeline.md` (DESIGN
 - **Open finding for the primary (F-B1-B3-1):** the accepted `meshy_d.glb` fails G-6(b) under the frozen bounds
   (`mixamorig:Spine` 63.5 mm and `mixamorig:Spine2` 46.9 mm outside the body). Bounds are not changed. Decision needed
   before B10 step 5 (AB1-10).
-- **Next action:** B10 — Gate 2, the local re-derivation (design §9, B10; Blender 5.2.2 and Godot 4.7.2 on the Mac).
-  Opus review of B3, B7 and B10 is required before ready.
+- **Stopped:** B10 step 1 is a MATERIAL STOP (F-B1-B10-1, design §15): the `vitruvian.glb` and `body_g5.glb` armatures
+  differ in four foot and toe rolls (worst 2.14e-4 rad against the 1e-5 bound). Waiting for the primary session's
+  decision. No further Blender or Godot step, no PR, no push.
+- **Next action:** none until the primary decides F-B1-B10-1. Opus review of B3, B7 and B10 is required before ready.
 - **Load rule (coordinator R-LOAD-1, 2026-10-14):** no workspace cargo test locally; the full gate is CI on the exact
   head, recorded as "workspace gate: CI run <id> on <sha> (R-LOAD-1)"; parity and perf runs one at a time with the
   load average recorded; no interim reports; report once at READY or at a real blocker.

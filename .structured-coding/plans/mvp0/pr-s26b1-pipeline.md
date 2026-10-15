@@ -1191,7 +1191,7 @@ or `tools/asset_generation/` changed.
 | B7 | this commit | [x] steps 1–6: `blender/{LICENSE (cmp-identical), README.md, common.py, gameready.py, fit_bind.py, weights_fingers.py, weights_pack.py, flecks.py, export.py, render_ortho.py, render_bones.py, dump_rig.py}`; ruff check and format clean under the `blender/*` rule relaxation (F-B1-B7-2) | [x] step 7 smoke: real `blender 5.2.2` on `vitruvian.glb` via `dump_rig.py`, exit 0, 52 bone lines (log read in full, `smoke.log`); I-B1-9 literal scan recorded in §2.4; `cmp` of LICENSE | [x] per-script port diff recorded in the deviations list; no script imports another except `common` |
 | B8 | this commit | [x] steps 1–5: `mwcast/blender.py` (find, pin check, command), `mwcast/pipeline.py` (`plan`, `stage_params`, `Job`, `run` with the SHA-256 stop and the run manifest), `mwcast/compare.py` (§5.7 rows), `cli.py` (`run`, `compare`), `standard.py` (PARITY_* literals), `tests/test_compare.py` (7), `tests/test_pipeline.py` (+7) | [x] 65 pytest passed; ruff check and format clean; pyright 0 errors; mutation (`PARITY_JOINT_M = 0.002`) → the 1.1 mm test red, reverted green; the accepted asset compares equal to itself | [x] subprocess only with argument lists; no stage reads an environment variable; `UrllibTransport` untouched. Deviations: `check_pin` returns whether the named version was used (not `None`); `compare --json` not added (the rows print as text). Procedural: one empty `cat >>` heredoc was run by mistake against `tests/test_pipeline.py` (it wrote nothing; the file was then edited with Edit only; recorded, not repeated) |
 | B9 | this commit | [x] steps 1–6: `presentation/mineworld-default/3D/characters/cast/vera-lindgren/{fit.yaml, generation_log.yaml}`; `tools/character_pipeline/godot/{character.gltf.import, inspect_import.gd}`; `tools/character_pipeline/templates/MESHY_CAST_BATCH.txt`; `tests/test_records.py` (+2 Vera tests, +1 check-characters test) | [x] 68 pytest passed; ruff check and format clean; pyright 0 errors; `cast.py check-characters` → `vera-lindgren: records only (no character.yaml); overrides ['flecks.enabled']`, 0 failing. The Godot files are not run yet (B10 step 6) | [x] trace table below; no `task.json` URL copied; `charmorph_front_y_at_hips` kept at −0.045356 (see F-B1-B9-1) |
-| B10 | — | [ ] | [ ] | [ ] |
+| B10 | STOPPED at step 1: MATERIAL STOP F-B1-B10-1 (Gate 2 spec below) | [ ] step 1 measured; steps 2–10 not run | [ ] step 1 done; the armature premise of AB1-8 fails; no Gate verdict | [ ] stop recorded; no bound changed |
 | B11 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1283,6 +1283,29 @@ or `tools/asset_generation/` changed.
   `fix_flecks.py:21-22`; `source.download_sha256` and `input_sha256` and `meshy_task` from `apose_v3/task.json` and the
   B1 hashes (PIPELINE §14); `export.material` `MW_Cast` (step-26 §4.5). The `generation_log.yaml` runs follow D+ §3's table
   (`docs/references/CHARACTER_ROUTE_D_PLUS.md:45-47`); `consumed_credits` 30 from `apose_v3/task.json`.
+- **B10 Gate 2 specification (recorded before the first Gate run, 2026-10-14):** claim: stages 6–10 reproduce
+  `meshy_d.glb` within §5.7 and the static gates pass on the re-derived export. Owner: Gate 2. HEAD: B9's commit
+  `377c927`. Inputs: `/Users/yuema137/mineworld-demos/i23d/out/meshy/apose_v3/` (read only). Scratch
+  `S=/Users/yuema137/mineworld-demos/cast-scratch/s26b1`. Budget: ≤ 30 min wall, 0 Meshy credits, $0. PASS = AB1-7…AB1-11
+  all hold; FAIL = a bound missed, with the stage localized; INCONCLUSIVE = a stage did not run. Load average recorded
+  before each Blender run. Bounds: `standard.py` and §5.7, not changed in this Gate.
+- **B10 step 1 evidence (2026-10-14, Blender 5.2.2 LTS, `dump_rig.py`, load average 22.9 / 16.3 / 14.1 at start,
+  logs in `S/measure/`):** `front_y` at z 1.0048: `body_g5` `cm_vitruvian` min y −0.04535631090 (13 vertices);
+  `vitruvian.glb` `Body` −0.04535621032 (13 vertices); difference 1.0e-7 m. Armature comparison (`S/tools/rig_compare.py`,
+  52 bones each, names and parents equal):
+  - `body_g5` dump against D+'s `i23d/rig/cm_bones.json`: **identical** (worst head, tail and roll 0).
+  - `vitruvian.glb` against `body_g5`: worst head 4.6e-7 m, worst tail 9.8e-7 m (both inside 1e-5 m), **worst roll
+    2.14e-4 rad** (bound 1e-5 rad). Four bones outside the roll bound: `mixamorig:LeftToeBase` 1.50e-4, `RightToeBase`
+    2.14e-4, `RightFoot` 1.36e-5, `LeftFoot` 1.03e-5 rad.
+  - `vitruvian.glb` against D+'s `cm_bones.json`: the same four bones and the same values.
+- **F-B1-B10-1 (MATERIAL STOP, for the primary session; not decided autonomously):** design §9 B10 step 1 and §12's
+  MATERIAL STOPS say: if the armatures of `vitruvian.glb` and `body_g5.glb` differ beyond 1e-5, stop, because Q-B1-2's
+  ruling (the committed `vitruvian.glb` armature reproduces D+, A-B1-9, A-V-1) rests on it. The positions agree to
+  under 1e-6 m; the difference is in four foot and toe rolls, 1e-5 to 2.1e-4 rad (0.0006° to 0.012°). No stage was run
+  and no bound was changed. Options for the primary: (a) accept the roll difference as a bounded, recorded deviation
+  (a bound amendment, ARC-23 rule); (b) commit `body_g5.glb` under Q-B1-2's option (b) (a binary, 6.4 MB, a new ruling);
+  (c) fix the roll by a recorded correction of the four bones in `fit_bind.py`, which changes D+'s rig; (d) find that
+  Blender's roll on zero-length toe bones is non-reproducible across imports (not checked; it needs a separate probe).
 - **B9 procedural deviations:** two appends were written with a `cat >> … <<'EOF'` heredoc (one empty, in B8; one
   to `tests/test_records.py`, in B9), against the design's NEVER list. Both are recorded here; no further heredocs were
   used; the B8 empty append wrote nothing.
