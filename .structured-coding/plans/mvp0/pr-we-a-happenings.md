@@ -191,7 +191,7 @@ loads and runs.
 | Id | Assumption | Resolved in |
 | --- | --- | --- |
 | U-1 | Adding a crate to the installed set changes no world's save manifest unless the world enables it (the manifest lists composed systems). | C1, by `ci_parity.py diff` on base and head |
-| U-2 | Raising `economy`'s `SystemVersion` changes the save manifest of worlds enabling economy (Market Town) and nothing in facts, journal or summaries. | C4, same instrument |
+| U-2 | Raising `economy`'s `SystemVersion` changes the save manifest of worlds enabling economy (Market Town) and nothing in facts, journal or summaries. *Corrected by ruling (§16.1, F-WE-a-9):* it changes the manifest and the composition in the genesis journal entry and snapshots, nothing else. | C4, same instrument |
 | U-3 | A test binary that registers its own `HappeningGenerator` list and composes worlds by hand (not through `worldpack::compose`) never meets the installed set's registration. | C3 |
 | U-4 | The 2D client's event log shows facts of an unknown type generically (so a player sees "market-day began" without a client change). | C5, by running the 2D client on Market Town; if not, recorded as a presentation follow-up, not fixed here |
 
@@ -1051,8 +1051,7 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            STOPPED for an operator ruling on F-WE-a-9 (the E-2 stop condition), after C4 committed
-                   locally (2026-10-14); C5 also waits for 12d. Branch not pushed; no PR yet.
+Status:            F-WE-a-9 ruled (2026-10-14, §16.1). C0–C4 pushed as a draft PR; C5 waits for 12d (#171).
 Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
                    /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
 12d (#171):        OPEN at C0 (2026-10-13) and at C4 (2026-10-14)
@@ -1061,7 +1060,7 @@ Evidence:          per commit in §11; default ci_parity records used 4 of 4 (ba
 Deviations:        D-1 … D-10 (bounded, recorded in §11 C1 … C4)
 Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); F-WE-a-9 (§11 C4: a declaration change also moves the genesis
                    journal entry and the snapshots' composition)
-Open questions:    F-WE-a-9 ruling (proposed in §11 C4); M10 recorded as equivalent for T10 (§11 C2)
+Open questions:    none (F-WE-a-9 ruled, §16.1); M10 recorded as equivalent for T10 (§11 C2)
 ```
 
 ---
@@ -1089,6 +1088,7 @@ Open questions:    F-WE-a-9 ruling (proposed in §11 C4); M10 recorded as equiva
 | **QWE-1** | **Operator: (a).** Market Town opts in by configuration, re-baselined with a reason line (C5). AC-WE-a-9 applies. |
 | QWE-2 … QWE-9 | **Primary session: accepted as recommended.** Plain `ARC-61` configuration; kinds as content and generators as the `ARC-62` catalog; `calendar` a hard dependency; economy price modifiers included as C4; content `seed:`; `happening-withheld` facts recorded; mixer copied now, extraction later; stock and schedule reactions deferred. |
 | §12 `ARC-88` corrections | Being applied by the primary session in DOC-24 (#175); C6 reconciles rather than re-applies them. |
+| **F-WE-a-9** (2026-10-14) | **Primary session: accepted as proposed.** U-2 is corrected to "economy's version bump changes the manifest and the composition in the genesis journal entry and snapshots, nothing else" (the pattern IL-e and FG-a recorded). Facts, summaries and every other journal entry byte-identical is the evidence (§11 C4). Market Town's journal move is covered by C5's baseline reason line. Also approved as a bounded C5 edit: `happenings` added to `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. Until 12d merges, C0–C4 may be pushed as a draft PR. |
 
 ## 17. Prior art and sources (accessed 2026-10-12)
 
