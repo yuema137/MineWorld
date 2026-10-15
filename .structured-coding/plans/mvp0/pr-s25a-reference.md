@@ -295,7 +295,28 @@ POST-MERGE SYNC OWNER     the primary session (step and overall); this session: 
 
 ### Evidence
 
-(filled per commit)
+- **AC-25a-5 (INV-S25-5, A-S25-4) — PASS for every world's simulation; one expected `validate` line.**
+  `ci_parity.py record` (default profile, release binaries, Darwin/arm64, load average ≈ 160–210 under
+  R-LOAD-1, 15 min for the head and 59 min for the base) on the head a45b039 (C4 merged with origin/main;
+  C5 adds only `docs/reference/`, the test and the classifier) and on the base origin/main @ 31ba514 (a
+  separate detached worktree), then `ci_parity.py compare base head`: 2 375 keys compared; bodies-yard (664
+  keys), market-town (598) and social-cafe (557) equal; lakeside equal in every run, fact and summary key
+  and different only in `validate`. Cause, by running both binaries' `validate worlds/lakeside` from one
+  tree: the one line `requires acme-fishing "^0.1" → 0.1.0` became `→ 0.1.1` — the third-party pack's
+  version, which QS25-2's re-pin changes by construction. A package version is never world state
+  (`ARC-53`); `scripts/baselines.txt` holds no `validate` key, so the nightly's baselines are unchanged.
+  `baseline check` itself needs a long record (`profile default; baselines are read from a long
+  record`); a long record was not made, under R-LOAD-1 item 4 — the default-profile comparison against the
+  base is the evidence. Records: scratchpad `parity-base.txt`, `parity-record.txt` (not kept in the
+  repository).
+- **Workspace gate:** under the coordinator's ruling R-LOAD-1 (2026-10-14: no local `cargo test
+  --workspace`), the local full run started on 393a777 was stopped after 50 test binaries had reported
+  (no failure among them) and is not evidence. The gate is CI's `test`, `test-macos` and `test-windows` on
+  the exact PR head, recorded at READY.
+- Targeted local runs (all on the C4/C5 tree): `mineworld-cli` `--test reference` 7 passed, its binary's
+  unit tests 11 passed; sdk, calendar, weather, conversation, schedule, packages tests ok; acceptance
+  `precursor_vocabulary`, `configuration_vocabulary`, `seam_vocabulary`, `interaction_schema` ok; fmt and
+  clippy `-D warnings` clean; `cargo deny check licenses sources bans` ok.
 
 ### Mutations
 

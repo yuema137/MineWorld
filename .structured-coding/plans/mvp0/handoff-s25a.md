@@ -21,7 +21,9 @@ TOOL DISCIPLINE     no sed -i, no inline python, no curl, no heredoc writes
 ## Current checkpoint
 
 C0, C1, C2+C3 committed by the first implementer (stopped, cancelled 2026-10-14; this session replaced
-it in the same worktree, sole writer). C4 (`mineworld reference`) committed by this session. Next: C5 —
-generate `docs/reference/`, the checked-in `--check` test, `scripts/ci_changes.py` (its edit was found
-uncommitted in the tree and kept: it classifies `docs/reference/` as generated), `scripts/ci_layer.py`,
-AC-25a-2 mutation, AC-25a-5 parity, `cargo deny`, merge origin/main, full workspace test, push, PR, CI.
+it in the same worktree, sole writer). C4 and C5 committed by this session; origin/main @ 31ba514
+merged; mutations M1–M4 killed; parity compared with the base. Under R-LOAD-1 the workspace gate is CI.
+Next: push, open the PR, CI green on the exact head (fast, test, test-macos, test-windows, platforms,
+python), record the run ids in the ledger, READY FOR OPERATOR REVIEW. Never merge. A detached worktree
+`/Users/yuema137/mineworld-worktrees/s25a-parity-base` (origin/main @ 31ba514) was used for the base
+parity record and can be removed.
