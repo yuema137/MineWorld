@@ -1223,7 +1223,8 @@ setup command replaces it). Worktree `/Users/yuema137/mineworld-worktrees/impl-r
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | 80afda22 | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
-| C1 | (this commit) | [x] A.1 → `MODULE_SPEC.md` §6.1 + new §6.1.1 (schema, codes, refusal points, exemption verbatim); A.2 → `ART_DIRECTION.md` §12 layout + exception, §21 Environment; A.3 → `VISUAL_SLICE.md` §1 note, §4 terminations, far-field row, out-of-scope line, §12 view 11; A.4 → `clients/2d/PRESENTATION.md` new §8; A.5 → `DECISIONS.md` ARC-102/103/104 appended, DEP-45 dated note | [x] `check_doc_headings.py` 239 sections, none duplicated PASS; `check_decision_ids.py` 128 ids distinct PASS; `grep far_field docs/MODULE_SPEC.md` shows the layout line, the exception and §6.1.1 (VISUAL_SLICE's A.3 text says "far field" in words, no `far_field` token, by design) | [x] terms exact (`Presentation Pack`, `World Pack`, `ActionIntent`, `System`); the rule lives in MODULE_SPEC §6.1.1, no README carries it; VISUAL_SLICE additions name no engine, node or shader |
+| C1 | 2b554ed5 | [x] A.1 → `MODULE_SPEC.md` §6.1 + new §6.1.1 (schema, codes, refusal points, exemption verbatim); A.2 → `ART_DIRECTION.md` §12 layout + exception, §21 Environment; A.3 → `VISUAL_SLICE.md` §1 note, §4 terminations, far-field row, out-of-scope line, §12 view 11; A.4 → `clients/2d/PRESENTATION.md` new §8; A.5 → `DECISIONS.md` ARC-102/103/104 appended, DEP-45 dated note | [x] `check_doc_headings.py` 239 sections, none duplicated PASS; `check_decision_ids.py` 128 ids distinct PASS; `grep far_field docs/MODULE_SPEC.md` shows the layout line, the exception and §6.1.1 (VISUAL_SLICE's A.3 text says "far field" in words, no `far_field` token, by design) | [x] terms exact (`Presentation Pack`, `World Pack`, `ActionIntent`, `System`); the rule lives in MODULE_SPEC §6.1.1, no README carries it; VISUAL_SLICE additions name no engine, node or shader |
+| C2 | (this commit) | [x] `packages/src/far_field.rs` (codes, `Dimension`, `read`, `check_pack`, `require_for_world`, `uncovered`, `missing_message`), `far_field_schema.rs` (every type of §5.1.2, `deny_unknown_fields`, newtypes `Key`/`AssetName`/`Colour`, `Slots`/`Slot` with their own deserializer so slot faults are `FAR_FIELD_SLOT`), `far_field_check.rs` (the ordered rules); `error.rs` `FarField`/`FarFieldMissing` (Display starts with the code); `manifest.rs` `check_style_manifest → Vec<Dimension>` (unknown dimension → `Malformed`); `lib.rs` exports; corpus `packages/tests/fixtures/far_field/` (16 files); `packages/tests/far_field.rs` (5 tests). Step 7 N/A: #200 not merged (§14.2) | [x] `cargo test -p mineworld-packages` 9 binaries, 28 tests PASS (load ≈ 117, wall time dominated by other sessions' builds); `cargo clippy -p mineworld-packages --all-targets -- -D warnings` clean PASS; `cargo fmt --all --check` PASS. Mutation (step 0.1° → 1.0°): `gap-half-degree` validated, both corpus tests FAILED by that name → reverted → 5/5 PASS | [x] no `HashMap`/`Value`/map in the public types (the slot deserializer reads keys as strings and builds the typed `Slots`); every refusal is `PackageError::FarField { path, code, detail }` whose Display is `<CODE>: <path>: <detail>`, or `FarFieldMissing` starting `FAR_FIELD_MISSING` |
 
 ### Evidence
 
@@ -1236,11 +1237,30 @@ E-FF-C0      2026-10-15  base 2d07c6c0; PR #200 OPEN (not merged) → C2 step 7 
 
 ### Mutations
 
-*(rows X-1 … X-5 with the failing line, filled by C2–C8)*
+| Id | Commit | Plant | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| C2-M1 | C2 | `uncovered` steps 1.0° instead of 0.1° | `gap-half-degree.yaml` validates; its row turns red | `every_corpus_file_gives_the_code_its_name_says … FAILED: gap-half-degree`; `every_planted_far_field_is_refused… FAILED (gap-half-degree: FarField {…})` | killed; reverted, 5/5 PASS |
 
 ### Deviations and findings
 
-*(none yet)*
+- **D-FF-1 (C2, bounded).** *Deviation:* the module is three flat files, `far_field.rs` (API), `far_field_schema.rs`
+  (types) and `far_field_check.rs` (rules), not one. *Reason:* one file came to 1 143 lines, past the ~800-line
+  strong warning (`CLAUDE.md` §4); flat siblings rather than `far_field/` because `packages/tests/structure.rs`
+  reads `src/` as a flat directory. *Impact:* none on the API (`mineworld_packages::far_field::*`).
+- **D-FF-2 (C2, bounded).** `read` and `check_pack` take `&[Dimension]`, not one `Dimension`: §5.2 requires a
+  manifest listing both `2d` and `3d` to validate against both sets, which one value cannot express.
+- **D-FF-3 (C2, bounded).** Fixture names use `-` for `_` (`scope-mismatch.yaml` for `FAR_FIELD_SCOPE_MISMATCH`):
+  a file's stem must equal its `scope` key, and a key admits no `_`. A variant is `<code>-<variant>.yaml`; stems
+  ending `-2d` are read as a 2D pack's, all others as a 3D pack's. `FAR_FIELD_MISSING` has no fixture file (it is
+  the absence of one): Rust tests it with `require_for_world`/`check_pack`; the GDScript check asks for an absent
+  key. `FAR_FIELD_WORLD_UNKNOWN` is client-only (as §12 C2 step 5 says).
+- **D-FF-4 (C2, bounded; both validators).** The order of checks, which decides the one code a file gets:
+  MALFORMED (SLOT during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN → UNCITED → OUT_OF_RANGE
+  → INSIDE_BOUNDARY → PROFILE → GAP. Classifications the schema leaves open: `format ≠ 1`, a sky's
+  `panorama`/`procedural` not matching its kind, river-only fields on a non-river (or missing on a river) →
+  MALFORMED; an empty `terrain_silhouettes` or `skyline.sectors` → SECTION_MISSING; `from_deg == to_deg`, haze
+  `to_m ≤ from_m`, massing `to_m ≤ from_m` → OUT_OF_RANGE; `shore_m == reach_m` → INSIDE_BOUNDARY (§5.1.3's "≤"
+  governs §5.1.2's "≥"); a gap through north is reported as one run (`[350.0, 10.0)`).
 
 ---
 
