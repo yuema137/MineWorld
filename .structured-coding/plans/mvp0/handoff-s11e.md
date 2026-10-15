@@ -17,8 +17,11 @@ ENDPOINT AUTHORITY  implementation, commits, push, PR, CI repair: authorized (pr
                     2026-10-15); merge: operator only
 VALIDATION BUDGET   §20.6
 STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §20.6
-CURRENT CHECKPOINT  E-C1 (plan) written; E-C2 next
-NEXT ACTIONS        E-C2 ac7_many_players.rs → E-C3 inv9_closed_vocabulary.rs → E-C4 rev2_check.gd →
-                    E-C5 NETWORKING.md §5 → E-C6 close, PR, CI
+CURRENT CHECKPOINT  E-C1 … E-C5 committed; E-C6 (this ledger) committed; PR opened, CI on the exact
+                    head pending at the time of writing (see the PR's checks). Evidence E-SE1 … E-SE7,
+                    mutations M-SE1 … M-SE6b all bite; deviations D-SE1 … D-SE8.
+NEXT ACTIONS        CI green on the exact head → READY FOR OPERATOR REVIEW — DO NOT MERGE; on merge,
+                    the post-merge sync (step-12 §§9.5, 10, overall.md AC-7 row) is the primary
+                    session's
 BACKGROUND JOBS     none
 ```

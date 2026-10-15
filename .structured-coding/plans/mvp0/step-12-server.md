@@ -4446,8 +4446,8 @@ not in scope  any production change (server/src, tools/cli/src, systems/, kernel
 
 ```text
 SE-1  (CP-E1, AC-7)  mineworld server worlds/market-town --town --agent alice --save DIR
-      four connections join visitor, wanderer, bob, carol with four nicknames; bob's and carol's
-      welcomes say took_over "hosted" (the town was driving them); all four welcomes name one instance,
+      four connections join visitor, wanderer, bob, carol with four nicknames; all four welcomes
+      say took_over "hosted" (with --town the town drives every seat nobody plays, QS11-3; D-SE6); all four welcomes name one instance,
       the one /status names; a fifth connection asking for each of the four seats is refused
       seat_occupied (the mutation M-SE1 must fail here, by name)
       all four walk to Alice at once, each paced at one request per 110 ms, every request accepted
@@ -4488,33 +4488,47 @@ SE-4  (CP-E4)        ac13, ac15, milestone_b, milestone_c, ac1_composability, th
 - [x] Validation: `python3 scripts/check_doc_headings.py` (E-SE1).
 - [x] Review: every SE-n maps to one §9.5 checkpoint; no path outside §9.5's allowance (E-SE1).
 
-**E-C2 — test(cli): AC-7, four clients in one world (CP-E1).** `tools/cli/tests/ac7_many_players.rs`.
-- [ ] Implementation: SE-1 as written, through `support` and `market` only; a paced submit helper local to
-      the file.
-- [ ] Validation: the test passes on the real binary (E-SE2); M-SE1 and M-SE2 planted and reverted, each
-      failing at its assertion (E-SE5).
-- [ ] Review: every claim reads only frames, `/status` and the CLI; no assertion can pass with two worlds or
-      with per-observer state.
+**E-C2 — test(cli): AC-7, four clients in one world (CP-E1).** `tools/cli/tests/ac7_many_players.rs`
+(commit `2bf673f5`).
+- [x] Implementation: SE-1 as written, through `support` and `market` only; `paced` (110 ms) local to the
+      file; the replies also carry forward (from the second player on, Alice quotes an earlier player's
+      line — AC-15's one-Alice claim across four clients).
+- [x] Validation: PASS on the real binary in 10.2 s (E-SE2); M-SE1, M-SE2, M-SE2b planted and reverted,
+      each failing at its assertion (E-SE5).
+- [x] Review: every claim reads only frames, `/status` and `mineworld replay`; two worlds fail the instance
+      and carry-forward checks, per-observer state fails the same-revision check (M-SE2), a leak fails
+      the INV-13 check (M-SE2b).
 
-**E-C3 — test(cli): INV-9 over revision 2 (CP-E3).** `tools/cli/tests/inv9_closed_vocabulary.rs`.
-- [ ] Implementation: SE-2 as written.
-- [ ] Validation: passes (E-SE3); M-SE3 (and M-SE4, an admin check that admits any bearer) fail (E-SE5).
-- [ ] Review: the table covers every revision-2 frame kind and every admin route.
+**E-C3 — test(cli): INV-9 over revision 2 (CP-E3).** `tools/cli/tests/inv9_closed_vocabulary.rs`
+(commit `0d31b118`).
+- [x] Implementation: SE-2 as written.
+- [x] Validation: PASS in 6.1 s (E-SE3); M-SE3 (admin admits any bearer) and M-SE4 (`deny_unknown_fields`
+      dropped from `ClientFrame`) each fail (E-SE5).
+- [x] Review: the table covers the three revision-2 kinds (`join` naming an observer, `submit` as
+      another, `leave` naming a seat, `leave` before `join`, `join` after `leave`), seven unknown kinds
+      including the host's four words, and all six admin routes with no token and a wrong one.
 
 **E-C4 — test(clients): the far side over revision 2 (CP-E2).** `checks/rev2_check.gd`, `run.sh rev2`,
-`evidence/rev2/`, `evidence/README.md`.
-- [ ] Implementation: SE-3 as written; the module (`clients/protocol/mineworld/`) unchanged.
-- [ ] Validation: `run.sh rev2` passes once and its evidence is committed (E-SE4); M-SE6 (the module's
-      delta applier ignoring `entities.remove` … or a changed component) fails the keyframe comparison.
-- [ ] Review: no invite, admin token or resume secret in any evidence file.
+`evidence/rev2/`, `evidence/README.md` (commit `daa3c956`).
+- [x] Implementation: SE-3 as written; the module (`clients/protocol/mineworld/`) unchanged. Two bounded
+      additions found by its own mutation (D-SE7): each pause is asked only after 25 live deltas since a
+      keyframe, and the visitor paces 500 mm back and forth once a second during the window.
+- [x] Validation: `run.sh rev2` PASS, 0 failures, evidence committed (E-SE4); M-SE6a (`at` ignored) and
+      M-SE6b (upserts of held entities ignored) each fail the keyframe comparison (E-SE5).
+- [x] Review: no invite, admin token or resume secret in either evidence file (`run.sh rev2` greps for
+      both secrets and fails if found; checked by hand too).
 
-**E-C5 — docs: NETWORKING.md §5 (§13's proposed note).**
-- [ ] Implementation: admin commands are the HTTP control plane's (§3), never a client frame.
-- [ ] Validation: doc headings check.
-- [ ] Review: agrees with `PROTOCOL.md` §11 and `INV-9`.
+**E-C5 — docs: NETWORKING.md §5 (§13's proposed note)** (commit `66a0a7f1`).
+- [x] Implementation: admin commands are the HTTP control plane's (§3), never a client frame.
+- [x] Validation: `python3 scripts/ci_layer.py docs` PASS (3 commands); doc headings check PASS.
+- [x] Review: agrees with `PROTOCOL.md` §11 and SE-2's unknown_frame rows for `clock`, `pause`, `kick`,
+      `release`.
 
 **E-C6 — docs(plan): S11-E ledger close.** §20.7–§20.8, handoff.
-- [ ] Implementation, validation (CI on the exact head), review.
+- [x] Implementation: this ledger and the handoff.
+- [ ] Validation: CI on the exact PR head (recorded in the handoff and the PR, not here: a commit cannot
+      carry its own CI).
+- [x] Review: every SE-n has evidence or a named owner (SE-4: CI).
 
 ## 20.5 Test ownership
 
@@ -4550,7 +4564,37 @@ MATERIAL STOP       any production change needed for a checkpoint to pass (it wo
 ## 20.7 Evidence ledger
 
 - **E-SE0 (base).** `origin/main @ 5cbb4697`, worktree clean; no other process in `impl-s11e`.
-- **E-SE1 (E-C1).** Plan written; headings check below.
+- **E-SE1 (E-C1).** `python3 scripts/check_doc_headings.py`: "239 numbered sections across 33
+  documents, none duplicated". PASS.
+- **E-SE2 (SE-1).** `with-slot.sh cargo test -p mineworld-cli --test ac7_many_players -- --nocapture`
+  on the working tree that became `2bf673f5`: 1 passed, 10.2 s (load avg ≈ 11). Printed: Alice answered
+  visitor "…You are the first person to speak to me here"; wanderer and bob "…Earlier, Vera Lindgren said
+  \"hello Alice, it is Mira at the counter\""; carol "…Earlier, Bob Achterberg said \"…Sol…\"". "one
+  world: 4 revisions observed by all four after the purchase ([56, 59, 63, 68]); 24 (revision, person)
+  locations compared". Re-run with clippy after the carry-forward assertion: PASS (10.15 s). PASS.
+- **E-SE3 (SE-2).** `cargo test -p mineworld-cli --test inv9_closed_vocabulary`: 1 passed, 6.06 s. PASS.
+  `cargo clippy -p mineworld-cli --tests -- -D warnings`: clean; `cargo fmt --check`: clean.
+- **E-SE4 (SE-3).** `with-slot.sh bash clients/protocol/run.sh rev2` (Godot 4.7.2 headless, macOS): "PASS
+  — 0 failure(s)"; three pauses compared after 42, 25 and 25 live deltas, 667 deltas applied, 0 refused,
+  0 pauses discounted; spoke #148 heard; welcomed `held` as "17"; closing `kicked`. Logs in
+  `clients/protocol/evidence/rev2/`. PASS. Five Godot runs in all (two before D-SE7, three after),
+  over the three planned (D-SE8).
+- **E-SE5 (mutations; each planted in the working tree, run, then `git checkout` of the file).**
+
+  | Id | Mutation | Expected | Observed |
+  | --- | --- | --- | --- |
+  | M-SE1 | `seats.rs` `decide`: a connected seat granted without `take_over` (a second join accepted) | SE-1 fails by name | FAIL at "a second join on the occupied seat visitor must be refused seat_occupied, and the server said Welcome { … took_over: Connection …}" |
+  | M-SE2 | `presence/observe.rs`: other people's location omitted for odd observer ids (one client sees a different position at the same revision) | same-revision check fails | FAIL "at revision 56, alice stands in one place for every player who sees it: {Some(None), Some(Some(Location { … 6000, 8000 … }))}" |
+  | M-SE2b | `economy/system.rs` `discloses`: the wallet disclosed to every observer | INV-13 check fails | FAIL "wanderer is disclosed none of the visitor's own state (INV-13): left [\"wallet\"]" |
+  | M-SE3 | `admin.rs` `permitted`: every request admitted | 401 row fails | FAIL "GET /admin/sessions with None: … left: 200" |
+  | M-SE4 | `protocol.rs`: `deny_unknown_fields` dropped from `ClientFrame` | malformed row fails | FAIL "{\"seat\":\"wanderer\",\"t\":\"leave\"} must be refused, and the server said Closing { reason: Left }" — the leave would have closed the sender's own seat |
+  | M-SE6a | `delta.gd`: `at` kept from the held frame | keyframe comparison fails | FAIL at all three pauses |
+  | M-SE6b | `delta.gd`: an upsert of an entity already held ignored | keyframe comparison fails | first SURVIVED (D-SE7); after D-SE7, FAIL at pause 1 (2 and 3 matched, the visitor back at its anchor) |
+- **E-SE6 (static, repository checks).** `python3 scripts/ci_layer.py docs`: PASS; `check_scratch.py scan`:
+  "238 test sources, none makes scratch outside mineworld-test-support"; `check_client_rules.py`: PASS.
+- **E-SE7 (SE-4).** Owned by CI on the exact PR head; no file under a production path differs from
+  `5cbb4697` (`git diff --stat origin/main -- server/src tools/cli/src systems kernel contracts
+  persistence worlds clients/protocol/mineworld` is empty).
 
 ## 20.8 Deviations and discoveries
 
@@ -4571,3 +4615,15 @@ MATERIAL STOP       any production change needed for a checkpoint to pass (it wo
   They coincide only when nothing changed between N−1 and N: inside a host pause (sweeps continue,
   nothing advances). The check pauses the host three times inside the 60 s and compares the
   reconstruction held, accumulated from live deltas since the previous keyframe, with the next keyframe.
+- **D-SE6 — "two of them taken over from the town".** §9.5 counted bob and carol; since QS11-3 (`--town`
+  drives the player seats too) all four seats are the town's until joined, so all four welcomes say
+  `hosted`. Stronger than §9.5's wording, not weaker; asserted for all four.
+- **D-SE7 — the far side's comparison must be fed by changes.** Previous assumption: comparing at a
+  pause's keyframe exercises live deltas. Evidence: M-SE6b survived the first run — a keyframe could
+  arrive inside the pause before the comparison (so the held frame was built from empty deltas), and in
+  a night-time café nothing the visitor perceived changed between keyframe and pause. Correction: a pause
+  is asked only after 25 live deltas since a keyframe and is not counted if a keyframe arrives after it
+  is asked (it is asked again); the visitor paces 500 mm back and forth once a second during the window,
+  so its own entity is among what the deltas change. M-SE6b then fails.
+- **D-SE8 — Godot budget.** §20.6 allowed three `run.sh rev2` runs; five were made (D-SE7 needed two
+  more). Each is about 90 s; recorded rather than hidden.
