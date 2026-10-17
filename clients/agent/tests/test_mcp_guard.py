@@ -35,6 +35,10 @@ PLATFORM_FILES = ("SystemVersion.plist", "os-release")
 """The operating system's identity files, read by the standard `platform` module (macOS, Linux). Not user data."""
 NULL_DEVICE = os.devnull
 """Standard streams and subprocess plumbing open the null device; nothing is read from it."""
+ZIPPED_STDLIB = frozenset(os.path.realpath(entry) for entry in sys.path if entry.endswith(".zip"))
+"""The interpreter's zipped standard library on its module path (`python312.zip` on Windows). The adapter runs on
+this interpreter (`sys.executable`), so its module path holds the same entries."""
+LOOPBACK = ("127.0.0.1", "::1")
 
 
 @asynccontextmanager
@@ -65,6 +69,10 @@ def violations(audit: Path, state: Path, relay: Relay) -> list[str]:
         if kind == "connect":
             if rest != f"{host} {port}":
                 found.append(line)
+        elif kind == "connect-pair":
+            # `socket.socketpair()` on Windows: a loopback connect to the process's own listener (guarded_adapter)
+            if rest.partition(" ")[0] not in LOOPBACK:
+                found.append(line)
         elif kind == "open":
             if not _allowed_open(rest, state):
                 found.append(line)
@@ -75,7 +83,7 @@ def _allowed_open(path: str, state: Path) -> bool:
     resolved = os.path.realpath(path)
     if resolved.startswith(os.path.realpath(state)):
         return True
-    if resolved == os.path.realpath(NULL_DEVICE):
+    if resolved == os.path.realpath(NULL_DEVICE) or resolved in ZIPPED_STDLIB:
         return True
     if os.path.basename(resolved) in INTERPRETER_CONFIG + PLATFORM_FILES:
         return True

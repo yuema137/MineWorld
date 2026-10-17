@@ -706,6 +706,7 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 | M | `1a248cad` | [x] merge of `origin/main` @ `8c5d3598` (#234) into the branch, after `c51c9f09` | [x] CI run 38813459351 on `1a248cad`: see R-evidence (resumed session) | N/A: a merge with no conflict in this PR's files |
 | R2 | `d21b4423` | [x] the open acceptance arms: step 8's `answer_lost` and `not_connected` (relay `cut_on_next_submit`), step 10's `hosted` join, a line said as Alice, Alice back to her controller, her biography and perceived record; AC-d-8's comparison run; AC-d-6's `TooFarAway` arm; the shared `walk` helper waits for arrival (D-d-R-3) | [x] `test_play_mcp.py` PASS ×2 (26.1 s, 18.1 s), `test_mcp_same_answers.py` PASS ×2 (20.9 s, 19.1 s), `test_mcp_guard.py` PASS (6.1 s), `test_mcp_admin_view.py` PASS (3.9 s); M-d-12, M-d-13 red then green; ruff, format, pyright 0 | [x] see R2 evidence |
 | R3 | (this commit) | [x] AC-d-10 rerun and recorded in full; the merge's CI recorded; the acceptance table as it stands now; handoff refreshed | [x] the grep, `uv lock` without the member (0 `mcp`, 0 `mineworld-agent` entries), `ci_layer.py --list`, files restored byte-identical (`cmp`); doc checks | [x] see R3 evidence |
+| R4 | (this commit) | [x] the guard on Windows (D-d-R-4): the zipped stdlib on the module path is a module read; a connect inside `socket.socketpair()` is logged `connect-pair` and must be loopback | [ ] CI on the exact head (operator, 2026-10-17: no heavy local jobs, CI is the test runner); ruff, format, pyright 0 locally | [x] see R4 evidence |
 | R1 | `dfc3b490` | [x] review fixes of the tool surface: `ToolError.detail` no longer echoes a union tag (D-d-R-1); the published schemas drop pydantic's derived `title` keywords, the resource serves compact JSON (R-d-4, F-d-R-2); golden regenerated | [x] `test_mcp_tools` 9, `test_mcp_resources` 8, `test_cli` 9, `test_mcp_secrets` 2, `test_mcp_errors` 7, `test_mcp_confined` 6, `test_descriptions` 3, `test_world_text` 5: all passed; M-d-10, M-d-11 red then green; ruff, format, pyright 0 | [x] see R1 evidence |
 
 ### Evidence
@@ -1034,3 +1035,24 @@ lists no file outside `docs/` and `.structured-coding/`, so it was not rebuilt).
   which 141.7 KB are output schemas; only a tool-surface decision could reduce it further. Windows CI evidence for the
   stdio files waits on #216 and #224; once both merge, `origin/main` is merged into this branch again (the operator's
   instruction).
+
+**R4 evidence (2026-10-17): the guard on Windows.**
+
+- **CI run 38813459351 attempt 2 on `1a248cad`** (Windows jobs re-run): `test-windows` **success**, `platforms
+  (windows-2025)` success; `python (windows-2025)` got past `cognition/lm-controller` this time (420 passed) and ran
+  `clients/agent` on Windows for the first time: **146 passed, 1 failed** — `test_mcp_guard.py`, with three lines
+  flagged: `open C:\hostedtoolcache\windows\Python\3.12.10\x64\python312.zip` (twice) and `connect 127.0.0.1 59475`
+  (not the relay's port). Every other stdio file — the play-test, same answers, admin view — **passed on Windows**.
+- **Finding D-d-R-4 (the guard's rule was POSIX-shaped; no adapter defect).** (a) `python312.zip` is the Windows
+  interpreter's zipped standard library, an entry of `sys.path`: a module read the guard's rule already intends to
+  allow ("a Python module"), missed because its suffix is `.zip`. Fix: `ZIPPED_STDLIB` = the `.zip` entries of the
+  test interpreter's `sys.path` (the adapter runs on the same `sys.executable`). (b) On Windows `socket.socketpair()`
+  is emulated by listening on loopback and connecting to that listener, and asyncio's event loop builds one for its
+  self-pipe: a connect from the process to itself. Fix: `guarded_adapter.py` wraps `socket.socketpair` before any
+  other import and logs a connect made inside it as `connect-pair`; the test allows `connect-pair` to loopback only,
+  and every other connect must still go to the relay. Limit, recorded: a connect made by another thread during the
+  microseconds a socket pair is built would be classed `connect-pair`; it would still have to be loopback.
+- Validation: under the operator's instruction of 2026-10-17 ("no heavy local jobs … use CI on GitHub as your test
+  runner"), the guard was **not run locally**; `ruff check`, `ruff format --check` and `pyright clients/agent` (light)
+  are clean. M-d-9 (a `create_connection` to `127.0.0.1:9` at start) is outside `socketpair`, so it is still logged
+  `connect` and still fails the guard; reasoned from the code, not re-run. The evidence is CI on the pushed head.
