@@ -37,17 +37,29 @@ true` (Developer Mode): `mineworld` and `mineworld_settings` here are symlinks t
 ## Playing the world in 3D
 
 ```sh
-./mineworld-slice --world   # host worlds/social-cafe locally and play it (needs cargo)
-./mineworld-slice           # the slice alone: a showcase, not the world
+./mineworld-slice --world               # host worlds/social-cafe locally and play it (needs cargo)
+./mineworld-slice --world=market-town   # the same town with a market: buy, hand over, eat, drink
+./mineworld-slice                       # the slice alone: a showcase, not the world
 ```
 
 Connected, everything you see of the world comes from the server: walk out of the café and the
-town's people walk the street and go into doors; The Flower Room is the world's store; press **E**
-while looking at someone to talk. Offline, the street's townspeople are scenery.
+town's people walk the street and go into doors; The Flower Room is the world's store. Offline, the
+street's townspeople are scenery.
+
+| Key (connected) | |
+| --- | --- |
+| `E` | talk to the person under the dot in the middle of the screen |
+| `Tab` | that person's menu: give them something, talk, and what this client cannot do yet, greyed |
+| `B` | your menu: buy what the shop you stand in sells, eat or drink what you carry; beside it your money, what you carry and what is for sale |
+| `Esc` | close an open menu; with none open, the settings menu |
+
+A menu shows exactly what the world offers, greyed with the world's reason when it says no. You can still
+choose a greyed entry: the world answers.
 
 Scripted checks, each against its own local server: `--world --link`, `--world --target`,
-`--world --layout` (every doorway on a drawn door) and `--world --street` (people walk, into doors).
-What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20.
+`--world --layout` (every doorway on a drawn door), `--world --street` (people walk, into doors) and
+`--world=market-town --market --steps=<file>` (the menus played; `tools/cli/tests/client_3d_market.rs`
+writes the steps). What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20, 22.
 
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has

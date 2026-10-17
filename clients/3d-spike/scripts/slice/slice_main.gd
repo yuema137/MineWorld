@@ -52,6 +52,9 @@ var settings_menu: MineWorldSettingsMenu
 ## What the first `_process` found in effect (AC-SET-7), for a probe to print.
 var first_frame := {}
 var _look_before := [true, false]
+var _holds := 0                    ## menus open now (`_hold_input`)
+## Connected only: your menu (B) and the menu of the person you look at (Tab) (PR 16d).
+var offer_menu: SliceOfferMenu = null
 
 
 func _ready() -> void:
@@ -65,10 +68,14 @@ func _ready() -> void:
 	_reflections()
 	_spawn_player()
 	_hud()
+	if not _wording():
+		MineWorldText.load_layers("", PackedStringArray(), false)  # the HUD loads catalogs if none are
 	_link()
 
 	if _scripted():
-		if SliceProbeTown.requested():
+		if SliceProbeMarket.requested():
+			probe = SliceProbeMarket.new()
+		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
@@ -81,13 +88,15 @@ func _ready() -> void:
 
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
-	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested()
+	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
+		or SliceProbeMarket.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
-	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES:
+	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
+			+ SliceProbeMarket.MARKET_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -96,7 +105,7 @@ static func harness_flags() -> PackedStringArray:
 ## font, the clock, the language and the display, with the render scale this client offers.
 func _settings() -> void:
 	settings_store = MineWorldSettingsStore.open(OS.get_cmdline_user_args(), harness_flags())
-	for problem in MineWorldText.load_layers("", settings_store.extra_locale_dirs):
+	for problem in MineWorldText.load_layers("", settings_store.extra_locale_dirs, _wording()):
 		push_warning(problem)
 	settings_store.settle_language(MineWorldText.locales())
 	MineWorldText.install_font_fallback()
@@ -105,6 +114,12 @@ func _settings() -> void:
 	MineWorldDisplay.print_platform_once()
 	MineWorldDisplay.apply(settings_store.settings, get_window(),
 		PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE]))
+
+
+## `--no-wording` plays with no catalog at all, every key shown as its readable form: the
+## language-independence check (PR 16d P-3, as the 2D client's `--no-wording`).
+static func _wording() -> bool:
+	return not ("--no-wording" in OS.get_cmdline_user_args())
 
 
 ## The settings menu over everything; while it is open the body neither walks nor looks and E asks
@@ -121,16 +136,38 @@ func _menu() -> void:
 	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
 	settings_menu.opened.connect(func() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_hold_input(true)
+		if offer_menu != null:
+			offer_menu.set_process_unhandled_input(false))
+	settings_menu.closed.connect(func() -> void:
+		_hold_input(false)
+		if offer_menu != null:
+			offer_menu.set_process_unhandled_input(true))
+
+
+## THE GATE for every menu of this client (SET-a's, generalised by PR 16d, D-16d-9): while any menu is
+## open the body neither walks nor looks and E asks for nothing. Counted, so the settings menu opened
+## over an interaction menu, and closed again, leaves the game held until both are closed.
+func _hold_input(hold: bool) -> void:
+	if hold:
+		_holds += 1
+		if _holds > 1:
+			return
 		_look_before = [player.look_enabled, player.scripted_look]
 		player.look_enabled = false
 		player.scripted_look = false
 		if link != null:
-			link.set_process_unhandled_input(false))
-	settings_menu.closed.connect(func() -> void:
-		player.look_enabled = _look_before[0]
-		player.scripted_look = _look_before[1]
-		if link != null:
-			link.set_process_unhandled_input(true))
+			link.set_process_unhandled_input(false)
+		return
+	if _holds == 0:
+		return
+	_holds -= 1
+	if _holds > 0:
+		return
+	player.look_enabled = _look_before[0]
+	player.scripted_look = _look_before[1]
+	if link != null:
+		link.set_process_unhandled_input(true)
 
 
 ## The menu in this client's light-on-dark HUD colours.
@@ -175,9 +212,15 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 	return rows
 
 
-## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it.
+## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it. An
+## open interaction menu is closed first (PR 16d, D-16d-9; 12e's throw aim goes before it, A16d-18).
 func _input(event: InputEvent) -> void:
-	if settings_menu != null and event.is_action_pressed("ui_cancel"):
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
+		offer_menu.close()
+		get_viewport().set_input_as_handled()
+	elif settings_menu != null:
 		settings_menu.toggle()
 		get_viewport().set_input_as_handled()
 
@@ -485,10 +528,12 @@ func _process(_d: float) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_render_world()
+		if _hud_connected != null:
+			_hud_connected.text = MineWorldText.text("hint.connected")
 
 
 func _hud() -> void:
-	if not (_scripted() and not SliceProbeWorld.with_hud()):
+	if not (_scripted() and not (SliceProbeWorld.with_hud() or SliceProbeMarket.requested())):
 		hud = ControlsHud.attach(self, player, true)
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
@@ -502,6 +547,7 @@ var link: SliceLink = null
 var _hud_world: Label = null
 var _hud_looking: Label = null
 var _hud_time: Label = null
+var _hud_connected: Label = null
 ## The world line's last message, as a key and its arguments ("" while offline).
 var _world_key := ""
 var _world_args := {}
@@ -544,3 +590,21 @@ func _link() -> void:
 		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
 		# The world's day and time, in the clock form the settings choose (S20 SD-SET-a-7).
 		_hud_time = hud.add_line("")
+		_hud_time.name = "Clock"
+		# The connected keys (PR 16d, D-16d-4a): a line of their own; the shared controls line is
+		# the standalone slice's and is not edited.
+		_hud_connected = hud.add_line(MineWorldText.text("hint.connected"))
+	_offers()
+
+
+## Your menu and the menu of the person you look at (PR 16d): rebuilt from every observation while
+## open, and holding the game through the one gate.
+func _offers() -> void:
+	offer_menu = SliceOfferMenu.new()
+	offer_menu.name = "OfferMenu"
+	offer_menu.link = link
+	offer_menu.things = link.things
+	add_child(offer_menu)
+	link.client.observed.connect(offer_menu.refresh)
+	offer_menu.opened.connect(func() -> void: _hold_input(true))
+	offer_menu.closed.connect(func() -> void: _hold_input(false))

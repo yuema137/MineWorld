@@ -17,6 +17,11 @@
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town)
+#   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
+#                                     the café, hand things over, eat and drink (step-15 §22)
+#   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
+#                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
+#                                     under clients/3d-spike/shots/16d/
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
@@ -36,7 +41,8 @@
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
 #
-# Esc opens the in-game settings menu (language, display, clock; Quit is in it).
+# Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
+# the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
 #
@@ -91,6 +97,7 @@ done
 args=()
 headless=0
 world=0
+pack="social-cafe"
 perf=0
 breakdown=0
 res_given=0
@@ -102,6 +109,8 @@ settings=""
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
+    --world=*)                             world=1; pack="${a#--world=}"; continue ;;
+    --market)                              args+=("--slice-market"); scripted=1 ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
     --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
@@ -117,6 +126,9 @@ for a in "$@"; do
     && headless=1
 done
 [ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
+for a in "$@"; do
+  [ "$a" = "--market" ] && [ "$frames" = "0" ] && headless=1
+done
 # A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
 if [ "$scripted" = "1" ] && [ -z "$settings" ]; then
   args+=("--settings=none")
@@ -132,6 +144,11 @@ fi
 # shoves can be counted afterwards (S-6).
 server_pid=""
 if [ "$world" = "1" ]; then
+  # --world=<pack>: one of the repository's own worlds, by its folder under worlds/ (step-15 D-16d-2).
+  if [ ! -f "$here/worlds/$pack/world.yaml" ] || [ "${pack#*/}" != "$pack" ]; then
+    echo "error: --world=$pack names no world: there is no worlds/$pack/world.yaml" >&2
+    exit 1
+  fi
   export PATH="$HOME/.cargo/bin:$PATH"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
@@ -143,7 +160,7 @@ if [ "$world" = "1" ]; then
     rm -rf "$save"
     hosted+=(--save "$save")
   fi
-  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
+  "$here/target/debug/mineworld" server "$here/worlds/$pack" --listen 127.0.0.1:0 \
     --agent alice ${hosted[@]+"${hosted[@]}"} > "$log" 2>&1 &
   server_pid=$!
   trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
@@ -161,7 +178,7 @@ if [ "$world" = "1" ]; then
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
   address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
   args+=("--server=$address" "--invite=$invite")
-  echo "world: worlds/social-cafe on $address (log: $log)"
+  echo "world: worlds/$pack on $address (log: $log)"
 fi
 
 # The drive test needs physics, not pixels -- and macOS throttles an unfocused
