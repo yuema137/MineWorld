@@ -54,6 +54,9 @@ class Item:
 class Audit:
     void: list[Item] = field(default_factory=list[Item])
     stuck: list[Item] = field(default_factory=list[Item])
+    # Attempts outside the sandbox that the allowlist denied before they ran (PROTOCOL.md §6, item 1): evidence
+    # that the enforcement held, not an escape.
+    blocked: list[Item] = field(default_factory=list[Item])
 
     def render(self) -> str:
         head = (
@@ -64,6 +67,9 @@ class Audit:
         lines = [f"audit: {head}"]
         lines += [f"  void   line {item.line:>5}  {item.kind}: {item.text}" for item in self.void]
         lines += [f"  stuck  line {item.line:>5}  {item.kind}: {item.text}" for item in self.stuck]
+        lines += [
+            f"  blocked line {item.line:>4}  {item.kind}: {item.text}" for item in self.blocked
+        ]
         return "\n".join(lines)
 
 
@@ -143,9 +149,32 @@ def text_of(content: object) -> str:
     return "\n".join(parts)
 
 
+def denied_calls(lines: list[str]) -> set[str]:
+    """The ids of tool calls the CLI denied before they ran: named in the final `permission_denials`, or answered
+    with the CLI's denial."""
+    denied: set[str] = set()
+    for raw in lines:
+        try:
+            event = fields(json.loads(raw))
+        except json.JSONDecodeError:
+            continue
+        for value in items(event.get("permission_denials")):
+            denied.add(str(fields(value).get("tool_use_id")))
+        for value in items(fields(event.get("message")).get("content")):
+            block = fields(value)
+            said = text_of(block.get("content"))
+            if (
+                block.get("type") == "tool_result"
+                and "Permission to use" in said
+                and "denied" in said
+            ):
+                denied.add(str(block.get("tool_use_id")))
+    return denied
+
+
 def audit(transcript: Path, sandbox: Path) -> Audit:
     root = str(sandbox.resolve())
-    cwd = os.path.join(root, "work")
+    cwd = work = os.path.join(root, "work")
     phrases = [
         p.strip().lower()
         for p in GUESSES.read_text(encoding="utf-8").splitlines()
@@ -154,7 +183,9 @@ def audit(transcript: Path, sandbox: Path) -> Audit:
     result = Audit()
     refusals: dict[str, list[int]] = {}
     pending: dict[str, str] = {}
-    for number, raw in enumerate(transcript.read_text(encoding="utf-8").splitlines(), 1):
+    lines = transcript.read_text(encoding="utf-8").splitlines()
+    denied = denied_calls(lines)
+    for number, raw in enumerate(lines, 1):
         try:
             event: object = json.loads(raw)
         except json.JSONDecodeError:
@@ -172,17 +203,24 @@ def audit(transcript: Path, sandbox: Path) -> Audit:
                         result.stuck.append(Item("guess", number, phrase))
             elif block.get("type") == "tool_use":
                 name, given = str(block.get("name")), fields(block.get("input"))
+                # A denied call never ran: it leaves the working directory where it was, and an attempt
+                # outside it is recorded as blocked, not as an escape.
+                was_denied = str(block.get("id")) in denied
+                found_in = result.blocked if was_denied else result.void
                 if name in WEB_TOOLS:
-                    result.void.append(Item("web", number, name))
+                    found_in.append(Item("web", number, name))
                 elif name in PATH_KEYS and given.get(PATH_KEYS[name]):
                     path = str(given[PATH_KEYS[name]])
                     if outside(path, cwd, root):
-                        result.void.append(Item("outside", number, f"{name} {path}"))
+                        found_in.append(Item("outside", number, f"{name} {path}"))
                 elif name == "Bash":
                     command = str(given.get("command", ""))
-                    found, cwd = shell_reads(command, cwd, root)
+                    # Each command starts in work/: Claude Code puts the shell back in the working directory
+                    # when a command leaves it (round 3: `cd SANDBOX; ls` ran, and the next command's
+                    # `--packs ../packs` was read from work/). A `cd` inside one command is followed.
+                    found, _ = shell_reads(command, work, root)
                     for word in found:
-                        result.void.append(
+                        found_in.append(
                             Item("outside", number, f"Bash {word} in {command[:120]!r}")
                         )
                     if "mineworld" in command:
@@ -230,6 +268,7 @@ def main(arguments: list[str]) -> int:
                 {
                     "void": [i.__dict__ for i in result.void],
                     "stuck": [i.__dict__ for i in result.stuck],
+                    "blocked": [i.__dict__ for i in result.blocked],
                 }
             )
         )

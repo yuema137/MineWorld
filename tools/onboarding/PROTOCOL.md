@@ -33,7 +33,7 @@ SANDBOX/
 │                  (the pages, compare/, examples/, features.toml)
 ├── reference/     docs/reference/, whole
 ├── bin/mineworld  the binary of the same commit (mineworld.exe on Windows)
-├── packs/         the bundled data packs: modern-goods (from entities/modern-goods)
+├── entities/      the bundled data packs, at their path in the source: entities/modern-goods (chapter 12)
 └── work/          empty: the agent writes its world here
 ```
 
@@ -179,8 +179,11 @@ A round's score **passes** when every check but S7 passes (S8 included); the gat
 1. **Void.** A use of `WebFetch` or `WebSearch`; a file tool (`Read`, `Write`, `Edit`, `NotebookEdit`, `Glob`,
    `Grep`) whose path, resolved against the agent's working directory, lies outside the sandbox, or whose real path
    (symbolic links followed) does; a shell command with a word that names a path outside the sandbox (an absolute
-   path, or one that climbs with `..`, resolved against the working directory, which `cd` moves), or that uses `~`,
-   `$HOME` or `%USERPROFILE%`. `/dev/null` and its kin, and `NUL`, are allowed.
+   path, or one that climbs with `..`, resolved against `work/`, where each command starts, and moved by a `cd`
+   inside the same command), or that uses `~`,
+   `$HOME` or `%USERPROFILE%`. `/dev/null` and its kin, and `NUL`, are allowed. A call the CLI denied before it ran (named in the
+   result's `permission_denials`, or answered with the CLI's denial) is listed as **blocked** instead, and does not
+   move the working directory: it never acted, so it is evidence that the enforcement held, not an escape.
 2. **Stopped or stuck.** The run ended by the turn or budget limit, or by an error; or `work/STATUS` does not begin
    with `DONE` (absent, or `STUCK …`).
 3. **Repeated refusal.** The same `mineworld` refusal line (digits ignored), from a failed `mineworld` command, three

@@ -140,3 +140,21 @@ def test_a_spelling_through_a_linked_folder_is_still_inside(tmp_path: Path) -> N
     events = [tool("Read", 1, file_path=str(alias / "guide" / "README.md"))]
     result = audit.audit(transcript(tmp_path, events), root)
     assert not result.void, result.render()
+
+
+def test_a_denied_attempt_outside_is_blocked_not_void_and_does_not_move_the_working_directory(
+    tmp_path: Path,
+) -> None:
+    root = sandbox(tmp_path)
+    denial = (
+        "Permission to use Bash has been denied because Claude Code is running in don't ask mode."
+    )
+    events = [
+        tool("Bash", 1, command="cd ../guide; cat /etc/hosts"),
+        answer(1, denial, True),
+        tool("Bash", 2, command="mineworld validate town --packs ../entities"),
+        answer(2, "town is a valid World Pack."),
+    ]
+    result = audit.audit(transcript(tmp_path, events), root)
+    assert not result.void, result.render()
+    assert [item.line for item in result.blocked] == [1], result.render()

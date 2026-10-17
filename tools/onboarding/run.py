@@ -211,7 +211,7 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
     load_after = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
     shutil.copytree(sandbox / "work", out / "work")
     binary = score.Binary(
-        (sandbox / "bin" / "real" / options.binary.name).resolve(), [sandbox / "packs"]
+        (sandbox / "bin" / "real" / options.binary.name).resolve(), [sandbox / "entities"]
     )
     scores = [score.score(world, rubric, binary) for world in worlds_in(sandbox / "work")]
     findings = audit.audit(transcript, sandbox)
@@ -237,6 +237,7 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
         "worlds": [{"world": s.world, "checks": [c.__dict__ for c in s.checks]} for s in scores],
         "void": [i.__dict__ for i in findings.void],
         "stuck": [i.__dict__ for i in findings.stuck],
+        "blocked": [i.__dict__ for i in findings.blocked],
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     report = [s.render() for s in scores] or ["score: no world.yaml under work/"]

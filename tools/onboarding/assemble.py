@@ -17,7 +17,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# The bundled data packs the sandbox carries, by their folder in the repository (PROTOCOL.md §2).
+# The bundled data packs the sandbox carries, by their folder in the repository, which is also their folder in the
+# sandbox (PROTOCOL.md §2).
 DATA_PACKS = ("entities/modern-goods",)
 
 
@@ -62,7 +63,8 @@ def assemble(sandbox: Path, binary: Path, repo: Path = REPO) -> list[str]:
     copy_tree(repo / "docs" / "reference", sandbox / "reference")
     for pack in DATA_PACKS:
         source = repo / pack
-        copy_tree(source, sandbox / "packs" / source.name)
+        # At the path it has in the source, as chapter 12 names it (onboarding round 3).
+        copy_tree(source, sandbox / pack)
     # The real binary under bin/real/, and the guard as bin/mineworld: the only `mineworld` the agent may run
     # (PROTOCOL.md §3.3).
     target = sandbox / "bin" / "real" / binary.name

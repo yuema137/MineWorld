@@ -29,7 +29,7 @@ def allowed(binary: Path) -> list[str]:
     for path in (REPO / "entities" / "modern-goods").rglob("*"):
         if path.is_file():
             files.append(
-                "packs/modern-goods/"
+                "entities/modern-goods/"
                 + path.relative_to(REPO / "entities" / "modern-goods").as_posix()
             )
     files += ["bin/mineworld", f"bin/real/{binary.name}"]
