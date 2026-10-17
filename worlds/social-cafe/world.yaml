@@ -34,7 +34,12 @@ mineworld: "^0.1"
 # `schedule` owns each person's `routine:` (`ARC-32`): an agenda, kept by a process, that moves nobody;
 # also independent, also appended. Leave it out with the `routine:` blocks and people still live here,
 # only without a day to keep. Every routine boundary lies between 05:00 and 23:00 — a fixture
-# dependency the restart tests check (`people/alice.yaml`).
+# dependency the restart tests check (`people/alice.yaml`). `bodies` owns each place's `body:` — its
+# floor, whose edge is its walls, and its furniture — and the loose objects' (`ARC-39`): it resolves
+# every arrival against them before it is recorded, so nobody walks through a wall, a counter or
+# somebody else, and leaving a room is through its door. It depends on presence alone and is appended,
+# so every earlier reduction order stays as it was. Leave it out, with every `body:` section, and the
+# town is the same town in which people pass through walls.
 systems:
   - presence
   - movement
@@ -43,6 +48,7 @@ systems:
   - relationships
   - naming
   - schedule
+  - bodies
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that
@@ -55,6 +61,16 @@ places:
   - store
   - street
   - workplace
+
+# Loose objects (`ARC-36` note): each file in `items/` carries a `body:` in its object form — a shape
+# and where it lies — and no `item:` section, so it is one physical thing, not a kind anybody holds. A
+# box and a ball in the café, and a crate and a ball on the pavement outside it: walking into one pushes
+# it aside, and a person within 800 mm may kick or throw it.
+items:
+  - cafe-ball
+  - cafe-box
+  - street-ball
+  - street-box
 
 # Everybody who exists here — twelve people, within `docs/MVP.md` §3's ten to fifteen. Each key names a
 # file in `people/`.

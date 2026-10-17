@@ -10,11 +10,13 @@ read only through the CLI. Bounds are the 20 MiB default and its 15 MiB target (
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 from ac10_harness import History
-from mineworld_sdk.wire.ids import EntityKey
+from mineworld_sdk.wire.contract import PerceivedEvent
+from mineworld_sdk.wire.ids import EntityKey, EventId
 from retention_driver import DAY, days, feed, frames, retention
 from retention_oracle import check_coverage
 from support import run
@@ -63,15 +65,59 @@ def _day_by_day(
         f for f in history.alice[len(head) :] if through_day is None or f.at // DAY <= through_day
     ]
     for frame in days(facts):
-        ingest(store, frame, frame[-1].id)
-        before = len(store.dump())
-        report = run(absorb(store, [], frame[-1].id, kept), timeout_s=120)
-        if not report.passes:
-            continue
-        dump = store.dump()
-        check_coverage(dump, perceived)
-        measured.append((frame[-1].at // DAY, before, len(dump), report.passes[-1].forced))
+        if (each := _pass(store, frame, kept, perceived)) is not None:
+            measured.append(each)
     return measured
+
+
+def _pass(
+    store: MemoryStore, frame: list[PerceivedEvent], kept: Retention, perceived: Sequence[EventId]
+) -> tuple[int, int, int, int] | None:
+    """One day: its frame ingested by plain `ingest`, the dump measured just before the pass, `absorb`
+    runs the due pass, and coverage is checked against the export. Returns (day, before, after, forced),
+    or `None` when no pass was due."""
+    ingest(store, frame, frame[-1].id)
+    before = len(store.dump())
+    report = run(absorb(store, [], frame[-1].id, kept), timeout_s=120)
+    if not report.passes:
+        return None
+    dump = store.dump()
+    check_coverage(dump, perceived)
+    return (frame[-1].at // DAY, before, len(dump), report.passes[-1].forced)
+
+
+def _keep_all_window(
+    store: MemoryStore, history: History
+) -> tuple[int, list[tuple[int, int, int, int]]]:
+    """AFGb-4 (c)'s window, chosen by the store's measured size rather than by fixed days (operator,
+    2026-10-15). Whole days are ingested without retention while the store's content stays under
+    `KEEP_ALL_LEAD`, since a keep-all pass removes nothing there. From then on every day runs its pass,
+    until `KEEP_ALL_AFTER` days past the first forced pass, or until the history ends, at most
+    `KEEP_ALL_CAP_DAYS` days. Returns the day the passes started and (day, before, after, forced) for
+    each pass."""
+    perceived = history.ids()
+    kept = retention("keep-all")
+    measured: list[tuple[int, int, int, int]] = []
+    leading: list[PerceivedEvent] = []
+    passing = False
+    started = KEEP_ALL_CAP_DAYS
+    for frame in days(f for f in history.alice if f.at // DAY < KEEP_ALL_CAP_DAYS):
+        day = frame[-1].at // DAY
+        if not passing:
+            ingest(store, frame, frame[-1].id)
+            leading.extend(frame)
+            if store.content_size() < KEEP_ALL_LEAD:
+                continue
+            # The store is near the target: absorb first sees it here, and every later day passes.
+            run(absorb(store, [], leading[-1].id, kept), timeout_s=120)
+            passing, started = True, day + 1
+            continue
+        if (each := _pass(store, frame, kept, perceived)) is not None:
+            measured.append(each)
+        first = next((d for d, _, _, forced in measured if forced > 0), None)
+        if first is not None and day >= first + KEEP_ALL_AFTER:
+            break
+    return started, measured
 
 
 def _at(measured: list[tuple[int, int, int, int]], day: int) -> tuple[int, int, int, int]:
@@ -107,29 +153,44 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert store.dump() == day_by_day
 
 
-KEEP_ALL_FROM = 30
-KEEP_ALL_DAYS = 40
-"""AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7): at ≈ 433 KB a day keep-all reaches the
-15 MiB target after ≈ 36 days (day 34 measured), so the host's own removals begin between days 30 and
-40. Before day 30 a keep-all pass removes nothing (the store is under the target), so those days are
-ingested at once, without passes; after day 40 every pass works on a store of ≈ 15 MiB. Both cuts keep
-the test within FG-b's 180 s per CI leg (Windows took 90 s for days 0 … 40 at first)."""
+KEEP_ALL_LEAD = TARGET // 2
+"""7.5 MiB: below it a keep-all pass removes nothing (the store is under the target), so those days are
+ingested at once, without passes. Half the target leaves more than one day's growth before the crossing
+on any history measured so far (≈ 433 KB a day on main 6306977, ≈ 760 KB a day on 12d's town)."""
+KEEP_ALL_AFTER = 3
+"""Days measured after the first forced pass: the store is held at the target, not only cut once."""
+KEEP_ALL_CAP_DAYS = 100
+"""The fixture's whole history (days 0 … 99). If the store never reaches the target by then, the test
+fails by name instead of running on."""
 
 
 def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: History) -> None:
+    """AFGb-4 (c), amended 2026-10-15 (operator; pr-fg-b2 §7 note): the window is chosen by the store's
+    measured size, not by fixed days, so that a change to the town's history (12d: walls and bodies)
+    moves the window instead of breaking the claim. The claim is unchanged: under keep-all the host's
+    own removals start once the store reaches the target, and every pass leaves it at or under the
+    target."""
     history = social_cafe_100
     started = time.monotonic()
     with MemoryStore.open(":memory:", _identity(history)) as store:
-        measured = _day_by_day(
-            store, history, retention("keep-all"), from_day=KEEP_ALL_FROM, through_day=KEEP_ALL_DAYS
-        )
+        window, measured = _keep_all_window(store, history)
+        largest = len(store.dump())
     first = next((day for day, _, _, forced in measured if forced > 0), None)
     print(
-        f"\n[retention-real keep-all] {len(measured)} passes, {time.monotonic() - started:.1f} s; "
-        f"(day, before, after, forced) at 30/40: {[_at(measured, d) for d in (30, 40)]}; "
-        f"first forced pass: day {first}"
+        f"\n[retention-real keep-all] passes from day {window}: {len(measured)}, "
+        f"{time.monotonic() - started:.1f} s; first and last (day, before, after, forced): "
+        f"{measured[:1]} {measured[-1:]}; first forced pass: day {first}"
+    )
+    assert window < KEEP_ALL_CAP_DAYS, (
+        f"keep-all: the store never reached the lead-in size {KEEP_ALL_LEAD} B in "
+        f"{KEEP_ALL_CAP_DAYS} days ({largest} B at the end)"
     )
     for day, before, after, _ in measured:
         assert after <= TARGET, (day, after)  # AFGb-4 (a)
         assert before <= STORE_BOUND, (day, before)
-    assert first is not None and 30 < first <= KEEP_ALL_DAYS, first  # AFGb-4 (c)
+    assert first is not None, (
+        f"keep-all: no forced pass in {KEEP_ALL_CAP_DAYS} days; the store never reached the "
+        f"{TARGET} B target ({largest} B at the end)"
+    )  # AFGb-4 (c)
+    # The window opens under the target: the first pass removes nothing, so removals begin at the crossing.
+    assert measured[0][3] == 0, measured[0]

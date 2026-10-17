@@ -42,30 +42,10 @@ const PHYSICS: [&str; 10] = [
 /// Text that predates PR 12a, is not the seam, and may not be edited by it: (file, a substring of the
 /// line, the word it admits, why). One entry admits one word on the lines of one file that contain its
 /// substring, and an entry that admits nothing fails the test, so the list cannot go stale (step-11
-/// §16.11 DR-4).
-const PRE_EXISTING: [(&str, &str, &str, &str); 3] = [
-    (
-        "systems/movement/src/action.rs",
-        "A body walking or jogging",
-        "body",
-        "MAX_STRIDE's documentation since S6 (41bb073): a person's body reporting its position, not \
-         the seam; PR 12a may change movement's system.rs only (SD-R9)",
-    ),
-    (
-        "systems/movement/src/action.rs",
-        "this pack's policy rather than a physical",
-        "physical",
-        "MAX_STRIDE's documentation since S6 (41bb073): \"policy rather than a physical constant\", \
-         not the seam; PR 12a may change movement's system.rs only (SD-R9)",
-    ),
-    (
-        "worldpack/src/read.rs",
-        "rather than a collision",
-        "collision",
-        "the World Pack reader since ff49368: a seat key repeating a population key is not a key \
-         collision; a file PR 12a does not touch",
-    ),
-];
+/// §16.11 DR-4). Empty since PR 12d (step-11 TD-C6, FU-12a-1, QD-9): the three comments it admitted
+/// — two in movement's `MAX_STRIDE` documentation, one in the World Pack reader — were reworded, so a
+/// physics word in any of them is refused again.
+const PRE_EXISTING: [(&str, &str, &str, &str); 0] = [];
 
 /// The installed set names its packs (`ARC-33`), and since PR 12b one of them is the first resolver's
 /// pack, whose name is a word of the vocabulary above. These entries admit that name on exactly the

@@ -31,8 +31,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
     let status = server.status().await;
 
     assert_eq!(
-        status["entities"], 18,
-        "the world the pack describes: six places and twelve people — {status}",
+        status["entities"], 22,
+        "the world the pack describes: six places, twelve people and four loose objects — {status}",
     );
     let systems: Vec<&str> = status["systems"]
         .as_array()
@@ -49,7 +49,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
             "group-activity",
             "relationships",
             "naming",
-            "schedule"
+            "schedule",
+            "bodies"
         ],
         "in the order world.yaml states, which is the order they reduce in",
     );
@@ -82,7 +83,7 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         "the visitor is the seventeenth entity the pack allocates (six places, then ten people \
          before it in key order) — deterministically, every time",
     );
-    assert_eq!(world.entities, 18);
+    assert_eq!(world.entities, 22);
 
     // And then the world itself, as this observer perceives it.
     let observation = client.observation().await;
