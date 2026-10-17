@@ -92,9 +92,15 @@ PR #220 open (head 1bf3cff8 + this ledger commit). The 3D rendered check takes ~
 Linux runner (lavapipe): 26 of 112 lines in 40 min. Options (a)–(d) and the evidence are in the design's
 ledger, "MATERIAL STOP — R-FF-1". Scratch nightly 38803248313 (import limit 30 min) was still running at the stop.
 
-## Next actions
+### 2026-10-16, R-FF-1 ruled and applied
 
-Wait for the operator's ruling on R-FF-1. Then: implement the ruled option, re-run the per-PR `farfield` job and
+Ruled 2026-10-15 (operator in the primary session): (b) then (a). (b) c554c79a; (a) applied to the measured
+timings (E-FF-CI-2): 3D check on Linux per PR and Windows nightly; skipped in the Linux and macOS nightly jobs;
+origin/main merged. The impl-rl-e0-base worktree and `scratch/rl-e0-clients-nightly` are removed.
+
+## Next actions (superseded below the stop)
+
+Was: wait for the operator's ruling on R-FF-1. Then: implement the ruled option, re-run the per-PR `farfield` job and
 one nightly `clients` run on the exact head, record E-FF-CI, mark READY FOR OPERATOR REVIEW. Never merge.
 After review: delete `scratch/rl-e0-clients-nightly`, remove the impl-rl-e0-base worktree and the local
 `target` symlink.
