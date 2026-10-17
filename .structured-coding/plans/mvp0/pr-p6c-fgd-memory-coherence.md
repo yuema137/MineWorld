@@ -224,6 +224,10 @@ the exact head is the workspace gate.
 | AFGd-4 | **PASS** | `docs/MODULE_SPEC.md` `consolidate` row |
 | Regression | **PASS** | retention plan/host/assisted/lm-summarise/retrieve 72; size 15; lm-summarise replay 5 (+1 skipped); controller choice/parts/log/consult/seat + isolation 73; AC-10 8; retention real + controller server + resilience 9; ruff check/format, pyright (cognition member): 0 errors |
 
+**Base moved (bounded).** P7's branch advanced to `29058e27` (its C6, `test_milestone_d_fallback.py`, the 100-day
+fallback bound with the scripted model) while this PR was implemented; it was merged into this branch. On the merged
+tree, `pytest -s tests/test_milestone_d_fallback.py`: 1 passed, 41.5 s, 1 101 consults, 28 fallbacks (25 ‰ ≤ 50 ‰).
+
 **Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
 --test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:
 
