@@ -23,6 +23,8 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
                                                    says which tests): the shards of `test`, `test-macos`, `test-windows`
+    python3 scripts/ci_layer.py <layer> <layer>...  several layers in order; the first failure stops them
+                                                   (macOS's two jobs, ARC-110)
     python3 scripts/ci_layer.py --list <layer> [--shard K/N]
                                                    print a layer's commands without running them
     python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
@@ -121,6 +123,13 @@ LAYERS: dict[str, list[list[str]]] = {
             "cargo", "test", "--locked", "--no-fail-fast",
             "-p", "mineworld-acceptance", "--test", "package_sources",
         ],
+        ["python3", "scripts/ci_layer.py", "--offline-check"],
+    ],
+    # macOS's share of `platforms` (ARC-110): what that layer checks and `core` on the same runner does not.
+    # The lock first, before any cargo command that could rewrite Cargo.lock; then EC-3 (b)'s offline
+    # vendor check. Its test commands are a subset of `core`, which macOS runs in the same job pair.
+    "platforms-lock": [
+        ["cargo", "fetch", "--locked"],
         ["python3", "scripts/ci_layer.py", "--offline-check"],
     ],
 }
@@ -434,7 +443,7 @@ def main(arguments: list[str]) -> int:
     shard = None
     if len(arguments) >= 2 and arguments[-2] == "--shard":
         shard, arguments = arguments[-1], arguments[:-2]
-        if not (arguments and arguments[-1] in SHARDABLE):
+        if not any(argument in SHARDABLE for argument in arguments):
             print(f"ci_layer.py: only {', '.join(sorted(SHARDABLE))} runs as shards", file=sys.stderr)
             return 2
         try:
@@ -446,10 +455,16 @@ def main(arguments: list[str]) -> int:
         for command in commands_of(arguments[1], shard):
             print(shlex.join(command))
         return 0
-    if len(arguments) == 1 and arguments[0] in LAYERS:
-        return run(arguments[0], shard)
+    # Several layers run in order and the first failure stops the rest: macOS packs its checks into two
+    # jobs, because its runners are the scarce ones (ARC-110). A shard applies to the shardable layers.
+    if arguments and all(argument in LAYERS for argument in arguments):
+        for layer in arguments:
+            status = run(layer, shard if layer in SHARDABLE else None)
+            if status != 0:
+                return status
+        return 0
     print(
-        f"usage: ci_layer.py <layer> [--shard K/N] | --list <layer> [--shard K/N] | --prune-cache"
+        f"usage: ci_layer.py <layer>... [--shard K/N|K,L/N] | --list <layer> [--shard K/N] | --prune-cache"
         f"   (layers: {known})",
         file=sys.stderr,
     )

@@ -125,12 +125,17 @@ def commands(shard: list[str]) -> list[list[str]]:
     return result
 
 
-def parse_shard(text: str) -> tuple[int, int]:
-    """`K/N`, 1-based, 1 <= K <= N."""
-    index, _, count = text.partition("/")
-    if not (index.isdigit() and count.isdigit()) or not 1 <= int(index) <= int(count):
-        raise ValueError(f"a shard is K/N with 1 <= K <= N, not {text!r}")
-    return int(index), int(count)
+def parse_shard(text: str) -> tuple[list[int], int]:
+    """`K/N` or `K,L,.../N`: 1-based, each 1 <= K <= N, none twice. Several shards of one partition run
+    as one (their units together): macOS's job (a) runs `1,2/3` (ARC-110)."""
+    indices, _, count = text.partition("/")
+    parts = indices.split(",")
+    if not (count.isdigit() and parts and all(part.isdigit() for part in parts)):
+        raise ValueError(f"a shard is K/N or K,L/N with 1 <= K <= N, not {text!r}")
+    numbers = [int(part) for part in parts]
+    if len(set(numbers)) != len(numbers) or not all(1 <= number <= int(count) for number in numbers):
+        raise ValueError(f"a shard is K/N or K,L/N with 1 <= K <= N, not {text!r}")
+    return sorted(numbers), int(count)
 
 
 def workspace_units() -> list[str]:
@@ -142,14 +147,16 @@ def workspace_units() -> list[str]:
 
 
 def shard_commands(text: str) -> tuple[list[list[str]], str]:
-    """Shard K/N's commands and a one-line account of the whole partition for the log."""
-    index, count = parse_shard(text)
+    """Shard K/N's commands (or K,L/N's, their units together) and a one-line account of the whole
+    partition for the log."""
+    indices, count = parse_shard(text)
     shards = partition(workspace_units(), count, WEIGHTS)
     loads = [sum(WEIGHTS.get(unit, DEFAULT_WEIGHT) for unit in shard) for shard in shards]
     account = ", ".join(
         f"{number}/{count}: {len(shard)} units ~{load} s" for number, (shard, load) in enumerate(zip(shards, loads), 1)
     )
-    return commands(shards[index - 1]), f"partition by ARC-110 weights: {account}"
+    units = sorted(unit for index in indices for unit in shards[index - 1])
+    return commands(units), f"partition by ARC-110 weights: {account}"
 
 
 def plan(count: int) -> int:
@@ -202,13 +209,14 @@ def self_test() -> int:
 
     check(commands([DOC]) == [["cargo", "test", "--workspace", "--doc"]], "a doc-only shard never mixes --doc")
     check(commands(["x"])[0] == ["cargo", "test", "--workspace", "--no-run", "--test", "x"], "build first")
-    for bad in ("0/3", "4/3", "3", "a/b", "1/0"):
+    for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
         try:
             parse_shard(bad)
             failures.append(f"parse_shard accepted {bad!r}")
         except ValueError:
             pass
-    check(parse_shard("2/3") == (2, 3), "parse_shard 2/3")
+    check(parse_shard("2/3") == ([2], 3), "parse_shard 2/3")
+    check(parse_shard("2,1/3") == ([1, 2], 3), "parse_shard 2,1/3")
 
     for failure in failures:
         print(f"ci_shard self-test: FAIL: {failure}")
