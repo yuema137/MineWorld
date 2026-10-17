@@ -3,36 +3,39 @@
 Continuation aid only. The design `pr-s27d-mcp-stdio.md` (§15 ledger) is the authority.
 
 ```text
-PROJECT / PR:          MineWorld mvp0, S27-d — stdio MCP adapter and CI play-test
+PROJECT / PR:          MineWorld mvp0, S27-d — stdio MCP adapter and CI play-test (PR #239)
 PRIMARY DESIGN DOC:    .structured-coding/plans/mvp0/pr-s27d-mcp-stdio.md (DESIGN FROZEN 2026-10-15)
 BINDING DOCS:          step-27-agent-players.md; pr-s27c-player-library.md; ARC-96, ARC-97, DEP-24, DEP-44, DEP-56
 IMPLEMENTATION BRANCH: mvp0/pr-s27d
-WORKTREE:              /Users/yuema137/mineworld-worktrees/impl-s27d (this session's only)
-IMPLEMENTATION BASE:   dd357ca6 (origin/main moved to e6030a36 later; the branch does not rebase)
-PREREQUISITES:         #204 (S27-c) merged, ancestor of base: yes. #205 (S27-a): yes. S27-b: not on base (optional, R-S27d-b-1 not added)
+WORKTREE:              /Users/yuema137/mineworld-worktrees/impl-s27d (one session at a time; resumed by Opus 2026-10-16)
+IMPLEMENTATION BASE:   dd357ca6; origin/main @ 8c5d3598 merged in as 1a248cad (documents only)
+PREREQUISITES:         #204 (S27-c) and #205 (S27-a) on base; S27-b not merged (optional, R-S27d-b-1 not added)
 EXECUTABLE SCOPE:      design §2.1 items 1–7
-NEVER:                 design §12 NEVER list; no full-workspace or whole-member local test run (R-LOAD-1); no secrets read
+NEVER:                 design §12 NEVER list (no sed -i, heredoc or python -c on tracked files); no whole-member or
+                       workspace local test run (R-LOAD-1); no secrets read
 ENDPOINT:              READY FOR OPERATOR REVIEW — DO NOT MERGE
-ENDPOINT SOURCE:       design §12 ENDPOINT AUTHORITY (operator dispatch, 2026-10-15)
-COMMIT ATTRIBUTION:    per the operator's dispatch, commits end with Co-Authored-By: Claude Opus 5.5 (see final report)
+ENDPOINT SOURCE:       design §12 ENDPOINT AUTHORITY (operator dispatch, 2026-10-15); resumed-session brief
+                       (2026-10-16): push only complete heads; merge origin/main again once #216 and #224 merge
+COMMIT ATTRIBUTION:    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 
-CURRENT CHECKPOINT:    C0–C6 committed (5686137d, 7c03d972, d7339dca, 047f2a0f, c4ac3a44, 923e98a0, 3770281d), the play-test
-                       additions 67968b31. C7 close-out written in the ledger; next: push, open the PR, wait for CI on the
-                       exact head, repair, report READY FOR OPERATOR REVIEW. DO NOT MERGE. Design §15 records the
-                       discipline breaches (sed -i, python -c, a heredoc append) and the open items (biography, TooFarAway).
-SEQUENCE:              C0 ledger+DEP-56 · C1 dependency + SDK prototype (STOP if P-1/P-2 fail) · C2 library additions ·
-                       C3 MCP server · C4 CLI + golden · C5 stdio play-test · C6 same answers/guard/admin · C7 close-out, PR, CI
+CURRENT CHECKPOINT:    C0–C7, merge 1a248cad, R1 dfc3b490 (detail echo fix; untitled, compact schemas), R2 d21b4423
+                       (answer_lost/not_connected, Alice's record, AC-d-8 comparison, TooFarAway, stricter walk), R3
+                       (AC-d-10 rerun, CI record, acceptance table). Head pushed; CI on the exact head is the gate.
+SEQUENCE:              C0 … C7 done; R1 … R3 (resumed session) done
 
 EXACT NEXT ACTIONS:
-  1. C1: pick mcp version by the §4.1 date rule (2026-10-15 → mcp>=2.2,<2.3); uv lock; uv sync --locked.
-  2. Record package additions and licences in design §15.
-  3. Read installed mcp package for the import paths; record in §15.
-  4. Write test_mcp_confined.py with P-1 and P-2 prototypes; run; stop on failure.
+  1. Watch CI on the pushed head (Linux, macOS, Windows). Windows: test-windows' hosted_town flake (#216) and the
+     python layer's 100-day timeout (#224) are known and not this PR's; do not chase them.
+  2. When #216 and #224 have merged: git merge origin/main; targeted checks; push; record the merge and its CI in §15.
+  3. Windows evidence for clients/agent's stdio files (CP-d) is still missing: the Windows python layer stops at
+     cognition/lm-controller before reaching clients/agent until #224 lands.
+  4. READY FOR OPERATOR REVIEW only with CI green on the exact head; never merge.
 
-STOP CONDITIONS:       design §12 MATERIAL STOPS; a GPL-family transitive licence; P-1 or P-2 failing; any S27-c test red;
-                       a result over 8 KiB; the play-test over 180 s on Linux CI
+STOP CONDITIONS:       design §12 MATERIAL STOPS; any S27-c test red; a result over 8 KiB; the play-test over 180 s on
+                       Linux CI
 
-DEVIATIONS SO FAR:     S27-b absent (optional); D-7 `_counts` not present (hook location in `_ingest` unchanged)
+OPEN FOR THE OPERATOR: F-d-R-2 — the tool list is 158.5 KB on the wire (141.7 KB output schemas, repeated across tools
+                       because MCP has no shared definitions); further reduction needs a tool-surface decision.
 
-RUNNING PROCESSES:     none
-CI STATUS:             none pushed yet
+RUNNING PROCESSES:     none locally
+```

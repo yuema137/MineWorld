@@ -704,7 +704,8 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 | C6 | (this commit) | [x] `test_mcp_same_answers.py` (AC-d-6, the social-café copy with IE-4's rule), `guarded_adapter.py` + `test_mcp_guard.py` (AC-d-7), `test_mcp_admin_view.py` (AC-d-9); `realserver.world_path`; the `town` fixture moved to `conftest.py` | [x] same-answers PASS (~18 s), guard PASS (~4 s, stable over 4 runs), admin view PASS (~1 s); M-d-9 red then green; 145 passed across the MCP and S27-c suites (68 s); ruff, format, pyright 0 | [x] see C6 evidence |
 | C7 | (this commit) | [x] AC-d-10 run (not committed); the three open play-test steps (AC-d-8, step 5, the save window) in `67968b31`; the evidence table in the C7 section | [x] `test_play_mcp.py`, `test_mcp_same_answers.py`, `test_mcp_guard.py`, `test_mcp_admin_view.py`: 4 passed on two repeat runs; ruff, format, pyright 0; doc checks; scope diff | [x] deviations recorded (D-d-C2-4, D-d-C5-1…4, D-d-C6-1, D-d-C6-2, D-d-C7-1, D-d-C7-2) |
 | M | `1a248cad` | [x] merge of `origin/main` @ `8c5d3598` (#234) into the branch, after `c51c9f09` | [x] CI run 38813459351 on `1a248cad`: see R-evidence (resumed session) | N/A: a merge with no conflict in this PR's files |
-| R2 | (this commit) | [x] the open acceptance arms: step 8's `answer_lost` and `not_connected` (relay `cut_on_next_submit`), step 10's `hosted` join, a line said as Alice, Alice back to her controller, her biography and perceived record; AC-d-8's comparison run; AC-d-6's `TooFarAway` arm; the shared `walk` helper waits for arrival (D-d-R-3) | [x] `test_play_mcp.py` PASS ×2 (26.1 s, 18.1 s), `test_mcp_same_answers.py` PASS ×2 (20.9 s, 19.1 s), `test_mcp_guard.py` PASS (6.1 s), `test_mcp_admin_view.py` PASS (3.9 s); M-d-12, M-d-13 red then green; ruff, format, pyright 0 | [x] see R2 evidence |
+| R2 | `d21b4423` | [x] the open acceptance arms: step 8's `answer_lost` and `not_connected` (relay `cut_on_next_submit`), step 10's `hosted` join, a line said as Alice, Alice back to her controller, her biography and perceived record; AC-d-8's comparison run; AC-d-6's `TooFarAway` arm; the shared `walk` helper waits for arrival (D-d-R-3) | [x] `test_play_mcp.py` PASS ×2 (26.1 s, 18.1 s), `test_mcp_same_answers.py` PASS ×2 (20.9 s, 19.1 s), `test_mcp_guard.py` PASS (6.1 s), `test_mcp_admin_view.py` PASS (3.9 s); M-d-12, M-d-13 red then green; ruff, format, pyright 0 | [x] see R2 evidence |
+| R3 | (this commit) | [x] AC-d-10 rerun and recorded in full; the merge's CI recorded; the acceptance table as it stands now; handoff refreshed | [x] the grep, `uv lock` without the member (0 `mcp`, 0 `mineworld-agent` entries), `ci_layer.py --list`, files restored byte-identical (`cmp`); doc checks | [x] see R3 evidence |
 | R1 | `dfc3b490` | [x] review fixes of the tool surface: `ToolError.detail` no longer echoes a union tag (D-d-R-1); the published schemas drop pydantic's derived `title` keywords, the resource serves compact JSON (R-d-4, F-d-R-2); golden regenerated | [x] `test_mcp_tools` 9, `test_mcp_resources` 8, `test_cli` 9, `test_mcp_secrets` 2, `test_mcp_errors` 7, `test_mcp_confined` 6, `test_descriptions` 3, `test_world_text` 5: all passed; M-d-10, M-d-11 red then green; ruff, format, pyright 0 | [x] see R1 evidence |
 
 ### Evidence
@@ -979,3 +980,57 @@ lists no file outside `docs/` and `.structured-coding/`, so it was not rebuilt).
 - Review: every new oracle is the server's (the relay's frames and refusals, the server's welcome, the save's
   `biography` and `perceived` exports, a plain client's answers); no sleep stands in for a stream (the cut is ended by
   the relay's clock, and the test waits on the welcome); the relay forwards frames unchanged outside the cut (R-d-7).
+
+**R3 evidence (2026-10-16): AC-d-10 recorded in full, the merge's CI, the acceptance as it stands.**
+
+- **AC-d-10, rerun on `d21b4423` (the C7 run was recorded without its commands and with one inaccuracy).**
+  1. `git grep -n "mineworld_agent\|mineworld-agent\|clients/agent" -- ':!clients/agent' ':!.structured-coding'`
+     finds: the workspace wiring — root `pyproject.toml` lines 8 (`members`) and 14 (`[tool.pyright] include`),
+     `scripts/ci_layer.py` lines 185 (`PYTHON_MEMBERS`), 208 (the `python` layer's pytest line) and 222 (the
+     `python-smoke` line), `uv.lock` (the member's entries); and **documentation** — `README.md` lines 158 and 305,
+     `README.zh-CN.md` lines 141 and 261 (links to the member's README, from #204), `docs/DECISIONS.md` `ARC-96` and
+     `DEP-56` (the records that define it). *Correction to the C7 record*, which said "only the workspace wiring": the
+     two READMEs and the decision records also name it. Neither is a dependency: no code, manifest, test or digest
+     outside the member refers to it.
+  2. The member removed with the Edit tool from `members`, from pyright's `include` and from `PYTHON_MEMBERS` and the
+     two pytest lines; `uv lock` → "Removed … mcp, mcp-types, … sse-starlette, starlette, uvicorn": the lock goes from
+     46 to 27 packages, with **0** `name = "mcp…"` entries and **0** `mineworld-agent` lines.
+     `python3 scripts/ci_layer.py --list python` and `--list python-smoke` then list only `sdk/python` and
+     `cognition/lm-controller` (static checks and tests); `uv run --locked pyright sdk/python cognition/lm-controller`:
+     0 errors.
+  3. Restored with `git checkout -- pyproject.toml uv.lock scripts/ci_layer.py`; each byte-identical to `HEAD`
+     (`git show HEAD:<file> | cmp - <file>`); `uv sync --locked`; `test_mcp_confined.py` 6 passed afterwards.
+  4. The other members' full suites without the member are CI's, not run locally (R-LOAD-1): **INCONCLUSIVE locally**
+     for "every other test and digest green", as S27-c recorded it. CI's run of the other members on this branch is the
+     evidence that they do not depend on the member (they import nothing from it: step 1).
+- **The merge and its CI.** `1a248cad` merges `origin/main` @ `8c5d3598` (#234, PR designs S29-a/S30-a/S30-b) into
+  `c51c9f09`; it changed only documents (17 files under `docs/` and `.structured-coding/`), no conflict. CI run
+  38813459351 on `1a248cad`, attempt 1: `changes`, `fast`, `test` (Linux), `test-macos`, `platforms (macos-26)`,
+  `platforms (windows-2025)`, `python (ubuntu-24.04)`, `python (macos-15)` **success**; `test-windows` **failure** in
+  `tools/cli/tests/hosted_town.rs:94` `the_hosted_town_lives_within_its_tick_budget` (the known runner-load flake, fixed
+  by #216); `python (windows-2025)` **failure** in `cognition/lm-controller`: the ten `test_ac10.py` /
+  `test_retention_real.py` tests that share the 100-day `mineworld run` fixture timed out at 600 s (the known Windows
+  timeout, raised to 1 200 s by #224). That layer stops at the first failing command, so **`clients/agent`'s tests did
+  not run on Windows in attempt 1**: the stdio play-test on Windows (CP-d) has no evidence yet. Attempt 2 (re-run of
+  the Windows jobs) was in progress when this was written; it is superseded by the CI of this PR's new head.
+- **Acceptance as it stands at this commit** (supersedes the C7 table; each row's evidence is local on macOS unless
+  CI is named):
+
+| AC | Status | Evidence |
+| --- | --- | --- |
+| AC-d-1 | PASS (local) | `test_play_mcp.py`: steps 1–12, including step 5 (delta), step 8's `answer_lost` and `not_connected` arms with a held resume and the save window, step 10's `hosted` join, line, return to the controller, biography and perceived record (R2). Linux/macOS CI on the new head pending; Windows pending (above) |
+| AC-d-2 | PASS (envelope) | unchanged from C7 (D-d-C5-4: payloads not compared) |
+| AC-d-3 | PASS | unchanged from C7; M-d-8 |
+| AC-d-4 | PASS | answers and every adapter's stderr in the real run; resources, prompt and tool list with a canary in process (`test_mcp_secrets.py`) |
+| AC-d-5 | PASS | unchanged from C7 |
+| AC-d-6 | PASS | `permission_denied` arm (C6) and the `TooFarAway` arm through the adapter (R2, M-d-13); `Unavailable` unit-owned (F-S27d-4) |
+| AC-d-7 | PASS (steps 1–4) | unchanged, rerun with the stricter walk (R2) |
+| AC-d-8 | PASS | structured and text (C7), and the comparison run (R2) |
+| AC-d-9 | PASS | unchanged, rerun (R2) |
+| AC-d-10 | PASS locally; INCONCLUSIVE for the full suites (CI's) | above |
+| AC-d-11 | PASS | the golden regenerated at R1 (titles only, checked line by line as a multiset); `test_cli.py` byte-equal |
+
+- **Still open (for the operator):** the cross-tool repetition in the tool list (F-d-R-2): 158.5 KB on the wire, of
+  which 141.7 KB are output schemas; only a tool-surface decision could reduce it further. Windows CI evidence for the
+  stdio files waits on #216 and #224; once both merge, `origin/main` is merged into this branch again (the operator's
+  instruction).
