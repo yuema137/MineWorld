@@ -3708,17 +3708,97 @@ MERGE   origin/main @ aee8290 merged cleanly: S12 13b is now on main (#103), one
         duplicated"; "83 decision ids, all distinct". CI's `python` jobs are red on main itself since
         bc4f8e7 (sdk golden frames: "golden frames with no Python model: ['clock.json']"), not
         caused by this docs-only PR
+START   2026-10-16, fresh implementation session, worktree /Users/yuema137/mineworld-worktrees/impl-16d,
+        branch mvp0/pr-16d from origin/mvp0/pr-16c @ 36325625 (16c #245, itself on 12d #171; neither
+        merged). The coordinator relays the operator's instruction to build on the stack for
+        parallelism and rebase later (X16d-1). S15 12e is built on the same 16c base by another
+        session in impl-12e; shared files are edited minimally and the later merge resolves (R-16d-5)
+C1      RE-AUDIT on the stacked base (every A16d row re-read from the file named):
+        A16d-1  intents.gd is 65 lines and now carries SET-a's VERBS / LOG_VERBS / verb() / log_verb();
+                still composes only talk, submits no complete affordance. Holds
+        A16d-2  slice_link.gd is 516 lines; _on_resolved now words through SET-a keys
+                (link.result_accepted / link.result_other with {"action": <type>}), so a buy would
+                still read "buy: accepted". Holds
+        A16d-3  ControlsHud unchanged in look; holds
+        A16d-4  launcher: --world hosts worlds/social-cafe; 16c added --layout, --street, --frames and
+                passes the server's --town when played. Holds, with 16c's additions
+        A16d-5  the shared module: affordances(), is_complete(), submit_affordance() (whole doubles
+                re-sent as integers), submitted_request. Holds; no module edit
+        A16d-7  12d is in the base: systems/item discloses ItemCatalogue on the place; item.name is
+                required by the loader (systems/item/src/section.rs), so every Market Town kind is
+                named and the "unnamed" fallback is unreachable there (bears on M16d-10, X16d-9).
+                The JSON shape is pinned from the first live frame (E16d-1b)
+        A16d-8  13b as merged: menu.gd's entry model and MENU/PANELS/STEP_DONE reports as audited;
+                intents.gd now COMPOSES seven types (move, talk, invite, accept/decline-invitation,
+                join/leave-group-activity); readers.gd's thing() still shows "item <id>" — the 2D
+                client does not read 12d's catalogue. P-2 compares data, not labels: unaffected
+        A16d-9  the menu/panel/answer keys are still in the 2D pack (presentation/.../2D/i18n)
+        A16d-10 SET-a merged: 3D gate = slice_main's settings_menu.opened/closed (look_enabled and
+                scripted_look off, the link's unhandled input off); Esc toggles the settings menu in
+                slice_main._input. --wording=none does not exist in 3D; the 2D client has
+                --no-wording (X16d-6)
+        A16d-11 ALREADY RESOLVED by SET-a: the shared action.move reads "Walk" and the 2D pack keeps
+                "Walk (click where to go)" under #. override (step-20 F-4). C2 leaves it alone (X16d-3)
+        A16d-12 client_rules admits 12 literals (2D's seven composed types, app.gd's and
+                world_client.gd's "invite", 3D's move and talk, human.gd's move). 16d needs none
+        A16d-13 player.gd input as audited; holds
+        A16d-14 the probe dispatch moved to slice_main.gd (16c put SliceProbeTown there);
+                slice_probe_world.gd is 993 lines. 16d's dispatch line goes in slice_main (X16d-5)
+        A16d-15 godot2d::worlds as audited, plus a `start` helper; item_steps is a private fn of
+                client_2d_interact.rs (X16d-7)
+        A16d-16 12e is in flight on the same base (impl-12e); 16c is the base
+        NEW     client_text.rs's SD-SET-a-17 check requires every non-action/reason entry of 13b's
+                file to stay in the pack: D-16d-6's move needs a named admission there (X16d-2).
+                client_text also fails an en.po key no script asks for, so the five new 3D keys can
+                only land with the code that asks for them (X16d-4)
+        NEW     no Rust harness drives the 3D slice headless (client_settings.rs runs it windowed for
+                SET-a); 16d adds tools/cli/tests/godot3d/mod.rs
+        NEW     neither client's RESULT line carries the action id, so P-1's "facts caused by each
+                request" is read from the save's journal (each Dispatch intent of the visitor, then
+                facts whose caused_by is that action) — a server-side oracle (X16d-8)
+        ENV     machine load average ~50 with several sessions; Godot runs go through the two
+                machine-wide cast slots (with-slot.sh), queues of 20–40 min were observed. --perf is
+                not run: a frame-time measurement on this machine is INCONCLUSIVE by environment
+                (X16d-10)
+```
+
+**Deviations (bounded; none changes a frozen invariant, the scope or the acceptance):**
+
+```text
+X16d-1  BASE. §22.11's precondition reads "on main: 12d, 13b, SET-a merged". 13b and SET-a are on
+        main and in the base; 12d is not merged and is in the base through 16c's stack. The
+        coordinator relays the operator's instruction to build on mvp0/pr-16c now and rebase after
+        12d (#171) and 16c (#245) merge. Branch mvp0/pr-16d (not mvp0/pr-16d-market-3d); the PR's
+        base is mvp0/pr-16c
+X16d-2  client_text.rs's SD-SET-a-17 check gains MOVED_BY_16D: the sixteen keys D-16d-6 moves, each
+        required to have been 13b's, to be in the shared layer and not the pack, and to read exactly
+        as before. Not a weakening: the effective-wording comparison still covers every entry
+X16d-3  D-16d-6's action.move half was done by SET-a (A16d-11); C2 does not touch it
+X16d-4  The five new 3D keys land with the code that asks for them (C4), because client_text fails a
+        key no script asks for. ui.you is not added: the menu title "You" is the moved ui.self
+X16d-5  The probe dispatch, the HUD for the market mode, --no-wording and the HUD clock's node name
+        ("Clock", which N-2 reads as data-supplied) are lines in slice_main.gd (A16d-14)
+X16d-6  P-3's no-wording run uses --no-wording, the 2D client's flag (SET-a), not --wording=none
+X16d-7  13b's item_steps is private to client_2d_interact.rs; client_3d_market.rs repeats the same
+        five steps literally and plays them with 13b's harness for the 2D side, so a drift in either
+        copy shows as a P-1 failure
+X16d-8  P-1's caused-by multisets come from the save's journal (X16d-8 in C1's NEW rows)
+X16d-9  M16d-10: the "something" fallback cannot be reached on Market Town (every kind is named); the
+        mutation is planted where an id would replace a name
+X16d-10 G-1 --perf is not run (machine load); recorded NOT RUN, not PASS
 ```
 
 ## 22.13 Handoff (live)
 
 ```text
-checkpoint     C0 drafted on plan/s14-16d (docs only, PR #105); DESIGN FROZEN 2026-10-09 (§22.0)
-next action    once 12d, 13b and SET-a have merged and the inset is on main, a fresh implementation
-               session in /Users/yuema137/mineworld-worktrees/impl-16d on mvp0/pr-16d-market-3d
-               starts at C1. The [OM] defaults (keys, look, zh_Hans wording) are judged at the
-               milestone play-test through OC-1 … OC-8
-background     none
+checkpoint     C1 re-audit recorded (§22.12 START, C1); implementation in progress on mvp0/pr-16d
+next action    C2 (wording), then C3 … C7 in order; baseline runs (G-1 --drive, G-2 --link, V-1
+               --shots twice) on the base tree
+background     baseline Godot runs through cast-slots/with-slot.sh, logs under the session scratchpad
+               (base-runs.sh); one Godot at a time per slot
+previous       C0 drafted on plan/s14-16d (docs only, PR #105); DESIGN FROZEN 2026-10-09 (§22.0). The
+               [OM] defaults (keys, look, zh_Hans wording) are judged at the milestone play-test
+               through OC-1 … OC-8
 notes          12d is paused for 12n (8814aad); 13b merged (#103); SET-a can start now that 13b is in;
                12e is frozen in step-11-bodies.md §22 (after 12d and 16c); its offer line and
                16d's menus are reconciled in A16d-18
