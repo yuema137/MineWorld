@@ -21,13 +21,30 @@ const ACCEL := 9.0
 const DECEL := 12.0
 const EYE_HEIGHT := CameraRig.EYE_HEIGHT
 ## A person's collision capsule: the server's default person, bodies'
-## `PERSON_RADIUS` 300 mm and `PERSON_HEIGHT` 1 720 mm (step-11 SD-B2), which
-## no observation discloses yet because every person is that capsule (QP-6).
+## `PERSON_RADIUS` 250 mm (the operator's ruling of 2026-10-08: adult shoulder
+## breadth 40-46 cm, chest depth 25-30 cm; Fruin (1971) pedestrian body ellipse
+## 0.61 x 0.46 m) and `PERSON_HEIGHT` 1 720 mm (step-11 SD-B2), which no
+## observation discloses yet because every person is that capsule (QP-6, QE-7).
 ## The player's own body and every perceived person's collider use it
-## (step-15 §4.2, QS14-3); once per-person shapes are disclosed, the client
-## reads them instead.
-const CAPSULE_RADIUS := 0.30
+## (step-15 §4.2, QS14-3; step-11 §22 SD-E2); `--world --bodies` B-r holds it
+## to what the server does, by behaviour. Once per-person shapes are disclosed,
+## the client reads them instead.
+const CAPSULE_RADIUS := 0.25
 const CAPSULE_HEIGHT := 1.72
+## What the body collides with: the scene, the current place's disclosed walls
+## and solids, perceived people and loose objects (step-11 §22 SD-E3). Every
+## contact is prediction only; the server decides every stride.
+const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_DISCLOSED | Build.LAYER_BODIES \
+	| Build.LAYER_OBJECTS
+## Press-through (step-11 §22 SD-E5): the input points into a person or an
+## object when its dot with the contact normal is below this.
+const PRESS_DOT := -0.5
+## How far ahead along the input the press is tested when the body stands
+## still against what it presses into (a size of a probe, not a rule).
+const PRESS_PROBE := 0.02
+## What a press-through stride may pass: people and objects are the server's to
+## resolve, so the cast that bounds the wished stride meets walls only.
+const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_DISCLOSED
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 
@@ -87,7 +104,7 @@ var _speed_smooth := 0.0
 
 func _ready() -> void:
 	collision_layer = 0
-	collision_mask = Build.LAYER_WORLD
+	collision_mask = COLLIDES_WITH
 	floor_max_angle = deg_to_rad(52.0)
 	floor_snap_length = 0.4
 
@@ -210,6 +227,8 @@ func _physics_process(delta: float) -> void:
 	velocity.z = flat.z
 
 	move_and_slide()
+	_press_through(wish, target_speed * delta)
+	_glide_step(delta)
 
 	_speed_smooth = lerpf(_speed_smooth, Vector3(velocity.x, 0, velocity.z).length(), delta * 8.0)
 
@@ -227,6 +246,121 @@ func _physics_process(delta: float) -> void:
 	# Cameras last: the body transform is final for this tick, and the
 	# third-person collision ray is a space query, which is legal here.
 	rig.update(delta)
+
+
+## PRESS-THROUGH (step-11 §22 SD-E5). A body stopped locally at a person never
+## asks the server to nudge them, so when this frame's slide met a person or an
+## object and the input points into it, the travel the input wished for is
+## counted, and the link reports the intended point (`intended_point`) instead
+## of the body's. The server decides what that stride achieves -- a nudge, a
+## push, a jam, a stop -- and the correction rule draws its answer.
+##
+## The direction pressed into, while pressing (Vector3.ZERO otherwise), and the
+## travel wished for along it since the link last reported.
+var press_dir := Vector3.ZERO
+var pressed_travel := 0.0
+
+
+func _press_through(wish: Vector3, step: float) -> void:
+	var into := Vector3.ZERO
+	var flat_wish := Vector3(wish.x, 0, wish.z)
+	if flat_wish.length() > 0.01:
+		var dir := flat_wish.normalized()
+		# This frame's slides, and -- because a body held against a capsule
+		# reports the contact only on the frames it moves into it -- a test of
+		# the next step along the input, which meets whatever the input presses
+		# into first (a wall first means it presses into a wall).
+		var hits: Array[KinematicCollision3D] = []
+		for i in range(get_slide_collision_count()):
+			hits.append(get_slide_collision(i))
+		var ahead := KinematicCollision3D.new()
+		if test_move(global_transform, dir * maxf(step, PRESS_PROBE), ahead):
+			hits.append(ahead)
+		for c in hits:
+			var o := c.get_collider() as CollisionObject3D
+			if o == null or (o.collision_layer & (Build.LAYER_BODIES | Build.LAYER_OBJECTS)) == 0:
+				continue
+			var n := c.get_normal()
+			n.y = 0.0
+			if n.length() > 0.01 and dir.dot(n.normalized()) < PRESS_DOT:
+				into = dir
+				break
+	if into == Vector3.ZERO:
+		press_dir = Vector3.ZERO
+		pressed_travel = 0.0
+		return
+	press_dir = into
+	pressed_travel += step
+
+
+## The point the input wished the body at: a capsule cast from the body along
+## `press_dir` for `pressed_travel`, against walls only (`PRESS_CAST_MASK`).
+func intended_point() -> Vector3:
+	if press_dir == Vector3.ZERO or pressed_travel <= 0.0:
+		return global_position
+	var shape := CapsuleShape3D.new()
+	shape.radius = CAPSULE_RADIUS
+	shape.height = CAPSULE_HEIGHT
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.transform = Transform3D(Basis(), global_position + Vector3(0, CAPSULE_HEIGHT * 0.5 + 0.05, 0))
+	q.motion = press_dir * pressed_travel
+	q.collision_mask = PRESS_CAST_MASK
+	var safe := get_world_3d().direct_space_state.cast_motion(q)
+	var frac: float = safe[0] if safe.size() > 0 else 1.0
+	return global_position + press_dir * pressed_travel * frac
+
+
+## The link reported: the wished travel starts again.
+func reported() -> void:
+	pressed_travel = 0.0
+
+
+## THE GLIDE (step-11 §22 SD-E8, ARC-50). A correction up to GLIDE_UP_TO is
+## drawn over GLIDE_SECONDS of wall time; a larger one snaps. The body is moved
+## kinematically, on top of whatever the input does this frame, toward a point
+## the server already holds free -- input stays live, and nothing here asks the
+## server anything. Frame `delta` is wall time: the world's time scale is never
+## read (SD-E11, ARC-67).
+const GLIDE_SECONDS := 0.12
+const GLIDE_UP_TO := 1.0
+
+var _glide_left := Vector3.ZERO
+var _glide_time := 0.0
+
+
+## Move the body to `target` (only x and z; the floor keeps its height): glided
+## when the move is at most GLIDE_UP_TO, snapped otherwise. True if it snapped.
+func correct_to(target: Vector3) -> bool:
+	var off := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
+	velocity = Vector3(0.0, velocity.y, 0.0)
+	if off.length() > GLIDE_UP_TO:
+		global_position = Vector3(target.x, maxf(global_position.y, target.y), target.z)
+		_glide_left = Vector3.ZERO
+		_glide_time = 0.0
+		return true
+	_glide_left = off
+	_glide_time = GLIDE_SECONDS
+	return false
+
+
+## Whether a correction is still being drawn.
+func gliding() -> bool:
+	return _glide_time > 0.0
+
+
+func _glide_step(delta: float) -> void:
+	if _glide_time <= 0.0:
+		return
+	var frac := minf(delta / _glide_time, 1.0)
+	var step := _glide_left * frac
+	global_position += step
+	_glide_left -= step
+	_glide_time -= delta
+	if _glide_time <= 0.0:
+		global_position += _glide_left
+		_glide_left = Vector3.ZERO
+		_glide_time = 0.0
 
 
 ## Used by the screenshot runner to place the player deterministically.
