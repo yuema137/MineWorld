@@ -5185,8 +5185,9 @@ adopted and built).
 
 1. **The reference.** The point the client reported with the request the observation reflects. In the
    **exact form** the observation's `acted_through` (S11-C) names that request, and the client compares
-   the server's position with the position that request reported (every interaction request carries
-   the body's position, so every `ActionId` has one). The **heuristic form**, for an observation whose
+   the server's position with the position that request reported — or, for a request that is not a
+   `move` (a talk, a kick, a throw, a shove reports the body's position but asks for none), with the
+   point of the stride answered before it. The **heuristic form**, for an observation whose
    `acted_through` names no request the client recorded: the point of the newest answered `move`, and
    every point still in flight.
 2. **One number.** When the server's position differs from the reference by more than **150 mm** —
