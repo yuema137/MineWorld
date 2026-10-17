@@ -1066,3 +1066,32 @@ Bounded, each recorded where it arose: R-S27c-INFO's revision (C5a, D-c-8 … D-
 (C6–C8), the modules `disclosed.py`, `handle.py`, `outcomes.py` beside §5.1's list (D-c-14). Findings for
 others: F-S27c-8 (resolved but for names), **F-S27c-9** (item names, primary follow-up). No material
 deviation.
+
+### Post-merge CI findings (branch `fix/p6b-rejoin-flake`, PR "fix(cognition): handback/rejoin flake on Windows")
+
+- **D-c-23 (CI finding, test synchronisation; bounded fix).** On `python (windows-2025)`,
+  `test_an_idle_handle_holds_up_nothing` failed `now - seen.at <= 2` with (388, 353), (376, 345) and (363, 358);
+  the idle measured 31–32 wall s for a 30 s sleep. The oracle's `Server.status()` is a blocking HTTP call, and
+  the test made it on the Player's own event loop: while the server took to answer, the Player read nothing
+  from its socket, so the next `observe` showed the observation from before the call. Fix: `/status` is read
+  with `asyncio.to_thread`, so the Player keeps reading; the assertion is unchanged. Planted by stopping the
+  server process (SIGSTOP) for 2.5 s around the read: on the loop the view was 30 world s behind (3 of 3
+  failed, the CI shape); off the loop it was current (3 of 3 passed). Windows after the fix: 29 of 30 scratch
+  runs passed. **Open:** the one residual, (371, 358), had `/status` answer in 0.5 s with the loop free; the
+  server itself sent no frame for about 1 s, so the frame sent just ahead of the `/status` reply was still
+  unread at `observe`. Suspected world-thread stalls on Windows I/O with `--save`, not proven. Closing it
+  needs either a ruling on the QS27c-2 oracle ("within 2 world seconds of `/status.at`") or a server-side
+  finding; neither is made here.
+- **D-c-24 (CI finding, production race in `mineworld-server`; bounded fix).** On `python (windows-2025)`,
+  `test_a_handle_without_calls_gives_its_seat_back` got `seat_occupied` right after `/status.clients` reached
+  0, although the handle had sent `leave` and received `closing { left }`; `/admin/seats` showed `wanderer`
+  held for 30 s. A server trace on windows-2025 showed `host.leave(Left)` queued, then the sweep finding the
+  connection's channel closed and departing it `Dropped`, then the `Left` departure finding no seat. The
+  session queued `Command::Leave` and then dropped its `Seated`, closing the observation channel; a tick
+  already running swept first. Fix: `WorldHost::leave(Seated, Departure)`, with `Command::Leave(Box<Seated>,
+  _)` carrying the connection's streams until the world has recorded the departure; a command that cannot be
+  queued still closes the channel at once, and the sweep reaps it as a drop, as before. Windows: 5 of 60 and
+  6 of 60 traced runs failed before the fix; 60 of 60 passed with it. Reverting the fix failed 2 of 60 (the
+  race is narrow; no deterministic Rust test without a hook to hold the world thread mid-tick, so the Python
+  integration test is the regression check). The same race explains the LM seat's `seat_occupied` after
+  stop (pr-s10-p6 D-P6b-44).
