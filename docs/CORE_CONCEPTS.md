@@ -149,6 +149,9 @@ values
 habits
 ```
 
+Traits, together with the identity facts (§4.1) and the views of mutable state (§4.3) that a reader needs by
+name, are declared as **attributes** (§4.5).
+
 ## 4.3 Mutable state
 
 Fast-changing properties. Each field is owned by whichever system provides it; a world that
@@ -178,6 +181,98 @@ Alice --coworker--------> Bob
 
 Narrative text may be *generated* from these values for display or for an LM prompt. The
 structured value remains authoritative; generated prose is never read back as state.
+
+## 4.5 Attributes
+
+Specified by [`DECISIONS.md`](DECISIONS.md) `ARC-120` (ownership), `ARC-122` (the model), `ARC-123`
+(generation), `ARC-125` (appearance descriptors) and `ARC-126` (backends and masks). The formats an author
+writes are [`MODULE_SPEC.md`](MODULE_SPEC.md) §2 (data directories of an Entity Pack), §3.1 (what a System
+Pack declares) and §4.1 ("Attributes"). Introduced by step S30
+(`.structured-coding/plans/mvp0/step-30-person-attributes.md`).
+
+**Definition.** An **Attribute** is a declared, typed property of a Person. Every attribute belongs to one
+of the first three classes of state above:
+
+```text
+identity   §4.1   core.birth, core.natal-sex                 set at genesis
+trait      §4.2   core.stature, core.chronotype, core.diet   slow-changing
+view       §4.3   economy.wealth-band, employment.occupation  a projection of another System's state
+```
+
+A relationship (§4.4) is never an attribute: it is an edge between two entities, owned by the System that
+models it (§9).
+
+Every attribute is:
+
+- **declared as data**, in an `attributes/` file of an Entity Pack, a World Pack, or a System Pack that
+  ships it, never in code;
+- **named by a qualified id**, `<namespace>.<slug>`, whose namespace is the declaring pack's id (`core` is
+  the built-in catalogue's, `entities/person-attributes`);
+- **owned by exactly one System** (INV-7), named in its declaration. The default owner is the `attributes`
+  System Pack.
+
+`Attribute` is a defined term with this meaning only.
+
+**An attribute is not a Component.** A Component (§3.1) is one owning System's typed state. Attributes are
+the declared vocabulary over such state:
+
+- **Plain traits** — attributes no specialised System models, such as stature, chronotype or diet — are
+  owned by the `attributes` System Pack, which holds a Person's values in one component, `traits`.
+- **An attribute another System already models** stays with that System. `economy.wealth-band` is a
+  projection of `economy`'s own state, computed by `economy` when the attribute is read or disclosed. Nobody
+  else stores it: an owner's attribute is **a view, never a copy**.
+- **No owner, no attribute.** An attribute whose owner the world does not enable does not exist in that
+  world; declaring one is refused at load by name.
+
+**Kinds.** Every attribute has one value kind, fixed by its declaration: `category` (one of a closed list),
+`level` (one of an ordered list), `quantity` (an integer at a declared scale in a declared unit; never a
+float), `flag`, `set` (a subset of a closed list or of a declared vocabulary), `text` (bounded prose, never
+readable by a System) or `instant` (a world instant). A value is checked against its declaration where it is
+written. There is no `unknown` value: an attribute that nothing states is **absent**.
+
+**Visibility.** Disclosure is by perception only, never by what the observer knows (INV-13):
+
+| Visibility | Disclosed to the holder | Disclosed to another observer who perceives the holder |
+| --- | --- | --- |
+| `perceivable` | the value | the declaration's coarser `perceived_as` wording if it has one, else the value |
+| `learnable` | the value | nothing; it may be learned only in conversation, and what is learned is the learner's memory (INV-4) |
+| `private` | the value | nothing, ever |
+| `hidden` | nothing | nothing |
+
+A System that declares an attribute it reads may read it whatever its visibility, through a typed handle
+obtained when it is installed; no System reads a `text` attribute.
+
+**Mutability.**
+
+| Mutability | Meaning |
+| --- | --- |
+| `fixed` | set at genesis; never changes |
+| `evolving` | changes only through its owner, on an event the owner accepts, and every change cites its cause (INV-15) |
+| `derived` | computed when it is read, from stored state and the observation's instant; never stored and never stated as a fact |
+
+Another System changes a plain trait only by proposing the change to `attributes`, which accepts or refuses
+it; a specialised owner changes its own attribute through its own actions.
+
+**Generation.** A world's people receive the attribute values their files do not state from a **population
+profile**: per-world data, sampled deterministically from the world's **population seed**, which is world
+content and never the run's seed. The biography wins: a value a person's file states, or that a casting
+ruling pinned, is never re-drawn, and nothing reads a person's name. Which catalogue and which way of
+generating people a world uses is its **backend**, chosen as data; the default backend is MineWorld's own,
+and a backend runs no code.
+
+**What is not an attribute.**
+
+- **A name.** A display name is identity owned by `naming` (§4.1); it is never input to generation.
+- **A memory.** What someone said about themselves is the listener's subjective memory (INV-4, §5.3). It is
+  never world state and never widens an observation.
+- **A look key.** `appearance`'s look key is opaque and is the only thing a renderer binds. Apparent
+  descriptors (stature, hair colour, apparent age band) are `perceivable` attributes, and a descriptor never
+  selects art (`ARC-125`).
+- **Provenance.** Where a value came from (authored, ruled, sampled, defaulted) is authoring metadata,
+  reported by tools and never saved as world state (§3).
+
+**The kernel learns nothing** (INV-12). The attribute vocabulary, its values, handles and sampler live above
+the contracts and below the System Packs; no type, word or id of it is in the kernel or the contracts.
 
 ---
 
@@ -792,6 +887,11 @@ Observation
     events            the Events this observer is entitled to have learned of
     affordances       what this observer may attempt, and the world's answer
 ```
+
+For example, a perceived Person's entry carries, among its components, the `traits` component filtered for
+this observer (§4.5): the holder's own observation lists every non-hidden attribute value, and another
+observer's lists only the `perceivable` ones, in their `perceived_as` wording. Nothing in the filtered
+component can be widened into the rest.
 
 "Structural" means specifically this: an Observation is a **value listing what was exposed**. It
 holds no component store, no entity registry, no world handle and no query, so there is nothing
