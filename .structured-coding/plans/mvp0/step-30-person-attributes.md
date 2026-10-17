@@ -444,7 +444,11 @@ cognition and AC-16's agent view rather than a System. The amendment keeps `ARC-
 | --- | --- | --- | --- |
 | `fixed` | set at genesis; never changes | nobody | `birth`, `natal-sex`, `eye-colour` |
 | `evolving` | changes only through its owner, on an event the owner accepts | the owner | `hair-colour` (ageing, or a later dye action), `skill.cooking`, S31's subscriptions |
-| `derived` | never stored; computed when it is read, from stored state and the clock | the owner's projection | `age-years` (birth and the current instant), `wealth-band` (economy's balance) |
+| `derived` | never stored; computed when it is read, from stored state and the clock | the owner's projection | `age-years` (birth and the current instant), `economy.wealth-band` (economy's wealth: wallet plus reference values, step-31 §7.4) |
+
+*Note 2026-10-15 (S30-a, F-S30a-2; step-31 §7.4 and §19.6).* The example read "`wealth-band` (economy's
+balance)". It is `economy`'s attribute in `economy`'s namespace, and S31 projects it from wealth, not from the
+balance alone.
 
 - **A change to a trait that `attributes` owns** is proposed with an `attribute-change-proposed { person,
   attribute, to, because: EventId }` event. `attributes` owns that vocabulary. A System emits it only by
@@ -880,11 +884,15 @@ and to the `MatrAIx-ai/MatrAIx-Persona-8B` repository (MIT).
   declares and the MatrAIx schema overlaps, a `derived` view from the MatrAIx value, value by value. Examples:
   `core.chronotype ← lstyle_sleep_schedule` (`Early bird → early-bird`, `Night owl → night-owl`,
   `Irregular`, `Flexible`, `Shift-based → neutral`); `core.diet ← lstyle_diet_type`;
-  `core.caffeine ← lstyle_caffeine`; `core.wealth-band ← socioeconomic_band`;
+  `core.caffeine ← lstyle_caffeine`; `economy.wealth-band ← socioeconomic_band`;
   `core.extraversion ← big5_gregariousness`. Under this backend a reader's `Handle<core.X>` resolves to the
   mapped view. A built-in that is neither mapped nor appearance is absent, and a reader that requires it
   fails at install with `MissingUnderBackend`; a reader may declare the read optional. The mapping is
   checked: every target value exists, every source value is covered.
+
+  *Note 2026-10-15 (S30-a, F-S30a-2; reconciled by S30-a at the primary's dispatch).* The mapping example read
+  `core.wealth-band ← socioeconomic_band`. The wealth band is `economy`'s attribute in its own namespace
+  (§7.1; step-31 §7.4), so the target is `economy.wealth-band`, as `docs/DECISIONS.md` `DEP-66` states it.
 - **Updating upstream.** The pack carries its own import tool (`tools/import.py`, Python standard library,
   offline). It reads a given `dimensions.json` and label packs at a stated commit, verifies the SHA-256,
   re-applies the licence exclusions, and regenerates the pack. CI re-runs it over the pinned inputs and
@@ -1303,7 +1311,12 @@ schema, the defaults and the reading path. The interface S31 consumes:
 | N-3 | implements `AttributeOwner` for that attribute: it receives the resolved initial set per person at genesis as `SetValue<TopicId>` and states its own `subscribed` facts | the resolution: the person's file (`attributes: { subscriptions: [news.daily] }`), then the lock, then **roles** (`{ when: { tags: [cook] }, add: { notices.subscriptions: [prices.ingredients] } }`), then the profile, then the default |
 | N-4 | changes subscriptions with its own `subscribe` / `unsubscribe` actions and facts, and reads its own component to route notices | nothing: `attributes` is not involved (§4.5) |
 | N-5 | discloses subscriptions to the holder only, through the model crate's filter | `private` visibility, which no other seat ever receives (X-S30-4) |
-| N-6 | optional: a role default keyed on occupation once `employment` is the owner of `core.occupation` | `roles.when` accepts any resolved attribute, not only tags |
+| N-6 | optional: a role default keyed on occupation once `employment` is the owner of `employment.occupation` | `roles.when` accepts any resolved attribute, not only tags |
+
+*Note 2026-10-15 (S30-a, F-S30a-2, Q-S30a-2; reconciled by S30-a at the primary's dispatch).* N-6 read "the
+owner of `core.occupation`". Occupation is `employment`'s attribute in its own namespace, `employment.occupation`,
+which S30-f adds (§9.4's named exception); the wealth band likewise is `economy.wealth-band` (§§6.1 note, 6.6).
+`docs/MODULE_SPEC.md` §3.1 and `docs/DECISIONS.md` `ARC-120`, `ARC-124` use these names.
 
 S31 depends on `mineworld-attributes-model`, not on the `attributes` System Pack, so a world may run
 notices without the plain-trait pack. If S31 freezes before S30-c, it ships its declaration format against
