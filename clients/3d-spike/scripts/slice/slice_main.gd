@@ -73,7 +73,9 @@ func _ready() -> void:
 	_link()
 
 	if _scripted():
-		if SliceProbeTown.requested():
+		if SliceProbeMarket.requested():
+			probe = SliceProbeMarket.new()
+		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
@@ -86,13 +88,15 @@ func _ready() -> void:
 
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
-	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested()
+	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
+		or SliceProbeMarket.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
-	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES:
+	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
+			+ SliceProbeMarket.MARKET_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -529,7 +533,7 @@ func _notification(what: int) -> void:
 
 
 func _hud() -> void:
-	if not (_scripted() and not SliceProbeWorld.with_hud()):
+	if not (_scripted() and not (SliceProbeWorld.with_hud() or SliceProbeMarket.requested())):
 		hud = ControlsHud.attach(self, player, true)
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
