@@ -9,4 +9,4 @@ motivated = false          # DL-b
 lm-controller = false      # P6
 relationship-decay = false # FG-a
 memory-policies = false    # FG-b, FG-c
-happenings = false         # WE-a
+happenings = true          # WE-a

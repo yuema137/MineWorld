@@ -25,8 +25,10 @@ fn copy(from: &Path, to: &Path) {
     }
 }
 
-/// `worlds/social-cafe` as `with-things`, plus item kinds `lantern` and `pebble` and the organization
-/// `chess-club`, each a tags-only file.
+/// `worlds/social-cafe` as `with-things`, plus item kinds `torch` and `vase` and the organization
+/// `chess-club`, each a tags-only file. The kinds' keys sort after Social Café's own items (its loose
+/// objects, `street-box` last), so every existing identity stays where it was (step-11 §19.6; they
+/// were `lantern` and `pebble` before Social Café had items).
 fn with_things(name: &str) -> Scratch {
     let root = fresh(name).within("with-things");
     copy(Path::new(PACK), &root);
@@ -36,12 +38,19 @@ fn with_things(name: &str) -> Scratch {
         text.contains("  id: social-cafe\n"),
         "the copied manifest names its id"
     );
-    let text = text.replace("  id: social-cafe\n", "  id: with-things\n")
-        + "\nitems:\n  - lantern\n  - pebble\n\norganizations:\n  - chess-club\n";
+    // Social Café lists its loose objects under `items:` (step-11 §19.6): the two kinds join that list.
+    assert!(
+        text.contains("\nitems:\n"),
+        "the copied manifest lists items"
+    );
+    let text = text
+        .replace("  id: social-cafe\n", "  id: with-things\n")
+        .replace("\nitems:\n", "\nitems:\n  - torch\n  - vase\n")
+        + "\norganizations:\n  - chess-club\n";
     std::fs::write(&manifest, text).expect("a writable manifest");
     for (relative, contents) in [
-        ("items/lantern.yaml", "tags: [light]\n"),
-        ("items/pebble.yaml", "tags: [stone]\n"),
+        ("items/torch.yaml", "tags: [light]\n"),
+        ("items/vase.yaml", "tags: [stone]\n"),
         ("organizations/chess-club.yaml", "tags: [club]\n"),
     ] {
         let path = root.join(relative);
@@ -103,7 +112,8 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
     let original = validate(Path::new(PACK));
 
     assert!(
-        report.contains("\n  items      lantern, pebble\n"),
+        report
+            .contains("\n  items      cafe-ball, cafe-box, street-ball, street-box, torch, vase\n"),
         "the items line: {report}"
     );
     assert!(
@@ -111,29 +121,31 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
         "the organizations line: {report}"
     );
     assert!(
-        !original.contains("  items ") && !original.contains("  organizations "),
-        "a pack that declares neither prints neither line: {original}"
+        original.contains("\n  items      cafe-ball, cafe-box, street-ball, street-box\n")
+            && !original.contains("  organizations "),
+        "a pack prints the items it declares (social-cafe's loose objects) and no organizations \
+         line when it declares none: {original}"
     );
 
     let ids = id_lines(&report);
     let original_ids = id_lines(&original);
     assert_eq!(
         original_ids.len(),
-        18,
-        "social-cafe's own report: {original}"
+        22,
+        "social-cafe's own report: six places, twelve people, four objects: {original}"
     );
     assert_eq!(
-        ids[..18],
+        ids[..22],
         original_ids[..],
         "every existing id stays where it was"
     );
     assert_eq!(
-        ids[18..],
-        ["  19  lantern", "  20  pebble", "  21  chess-club"],
+        ids[22..],
+        ["  23  torch", "  24  vase", "  25  chess-club"],
         "and the new kinds come after them: {report}"
     );
     assert!(
-        report.contains("\n53 genesis fact(s)"),
+        report.contains("\n67 genesis fact(s)") && original.contains("\n67 genesis fact(s)"),
         "tags-only files add no genesis fact: {report}"
     );
 }

@@ -1,0 +1,31 @@
+[package]
+name = "mineworld-happenings"
+description = "MineWorld's happenings System Pack: market days, festivals and street musicians from a world's calendar and a seeded integer draw, admitted under the world's own limits. Announced, begun and ended as facts other packs may react to; no language model anywhere."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The configuration seam (ARC-61): `PackConfiguration`, decoded and seeded by the loader.
+mineworld-authoring = { workspace = true }
+# The date arrives in calendar's `day-began`, decoded with calendar's own published types; happenings
+# never recomputes a date (INV-TW-10's direction: calendar never knows happenings).
+mineworld-calendar = { path = "../calendar" }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where an observer is, for disclosure, and the perception trait. Nothing else of presence is read.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests decode configuration from YAML as the loader does, refuse it through the real World Pack
+# loader (with this pack in the installed set), and restart a saved world mid-happening.
+mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }
+mineworld-worldpack = { workspace = true }
+serde-saphyr = { workspace = true }

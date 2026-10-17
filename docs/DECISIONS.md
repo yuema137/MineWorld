@@ -2857,6 +2857,28 @@ to QS-54 below.
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
 
+**Note, 2026-10-08 (S15, PR 12d; step-11 §19, QD-1 decided by the operator, SD-D9) — Social Café may
+own items.** A loose object is an Item file carrying `body:` (`ARC-36` note), and it is Social Café's
+content exactly as a place's `body:` is, so item 4's last bullet and item 5 of the 11f note are amended.
+The operator's decision, as recorded in step-11 §19: Social Café may own `items/` (loose objects as Item
+files with `body:`); Market Town carries them unchanged; the claim "Market Town = Social Café +
+installed packs + configuration" stays word for word; market-owned item sections stay Market Town's
+only. Check 3 therefore reads:
+
+1. `items` may be present in Social Café. Market Town's `items` contains every key of Social Café's (as
+   a set); `organizations` stays present in Market Town only.
+2. Every item file Social Café has exists in Market Town, and is compared exactly as a place or person
+   file is: each of Social Café's keys has an equal value, and every key Market Town adds is a section
+   owned by one of the six market packs.
+3. Every item file only Market Town has carries only the format's fields and sections a market pack
+   owns, unchanged; so a `body:` in a Market Town-only item file is refused, by file and key.
+4. `organizations/` exists in Market Town only, unchanged.
+
+Every world before 12d has no `items` in Social Café, and the check reads it exactly as before. The
+claim measured is unchanged: **Market Town is Social Café plus configuration.** (It landed after the
+three S19 notes below, which it does not change: allow-listed generic packs, their configuration and
+their data stay Market Town's only.)
+
 **Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
 operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
 named on an explicit allow-list, after the six market packs, through configuration. **The claim is
@@ -2894,6 +2916,21 @@ provenance record, `DEP-8`, `DEP-31`). Any other file under `data/` is refused, 
 Social Café is refused. **The claim is unchanged: the market delta is measured exactly.** No market pack
 gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
 stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
+
+**Note, 2026-10-15 (WE-a, PR #189; the operator's ruling on S31-a Q-S31a-1, option (a)) — a market pack's
+configuration, and `happenings` on the allow-list.** A market pack's configuration is part of the market
+delta, so admitting it keeps the delta measured exactly. Check 3 (as the 2026-10-09 notes read it) now
+also admits, **in Market Town only**, the `configure:` entry and the `configure/<key>.yaml` file of any of
+the six market packs that `systems` enables. Such a pack still stands among the six in `systems`, not
+after them. `configure` and `configure/` stay absent in Social Café, and a market pack configured but not
+enabled is refused by name. `data/` is unchanged: it still admits only an allow-listed generic pack's
+attachments. The first such file is Market Town's `configure/economy.yaml` (WE-a C5: the store's
+market-day price modifier, `ARC-88`). The same PR adds `happenings` to `GENERIC_PACKS`, which is now
+`["calendar", "weather", "happenings"]`: a world's happenings are neither Social Café nor the market, so
+the pack is generic by the 2026-10-09 rule. Checks 1 and 2 are untouched. A unit test holds the ruling's
+two mutations: a market pack's configuration in Social Café, and a market pack configured but not enabled.
+This note implements Q-S31a-1 (a) once; S31-a uses it as it stands and does not repeat the change in
+`ac1_composability.rs` or here.
 
 ---
 
@@ -3100,6 +3137,25 @@ item ◄── inventory ◄── item-transfer ──► presence
   (step-10 QS-28). Adding a fact before anything states it would design it ahead of its consumer
   (`CLAUDE.md` §4 rule 11).
 - **The capacity is a published constant**, not world configuration, under the `ARC-26` note's rule.
+
+**Note, 2026-10-08 (S15, PR 12d; step-11 SD-D10, QD-4, QD-12, QD-15, QD-16; step-13 R-PK-2, F-41) —
+item kinds have names, disclosed as a catalogue.** The accepted limitation "Item kinds have no names"
+is lifted; "items are never perceived" stands. Nothing else in this decision changes.
+
+1. **A kind has a display name.** The `item:` section is `{ category, name }`. `name` is required: 1–64
+   bytes, no control characters, no surrounding whitespace — the rule `naming` applies to a person's
+   name, restated in `item`, which depends on no pack. Two kinds may share a name; a name is display,
+   never identity. `item-kind-declared` and the `ItemKind` component carry it (schema 2 each); `item`
+   is version 2.
+2. **The catalogue is disclosed on a place.** To whoever perceives a place, `item` discloses one
+   `item-catalogue` record on it: `[{ item, category, name }]` for every declared kind of the world, in
+   `ItemId` order, built from `ItemKind` at disclosure and never stored (economy's listing is the
+   precedent, `ARC-38`). A world without `item` discloses none.
+3. **Items are still never perceived as entities.** An observation's entities are the observer's place
+   and the people in it, as before; a kind appears only inside the catalogue. A client shown `give {
+   item: { entity: 21, type: item } }` now finds entity 21's name there (F-41).
+4. Loose objects (`ARC-36` note) are not declared kinds, so the catalogue never lists them.
+   Organizations still have no names; `ARC-38`'s accepted limitation is lifted for kinds only.
 
 ---
 
@@ -3585,6 +3641,50 @@ stride the resolver resolves like any other. A start with no free point that nea
 out, and every walk they asked for was refused `no-route` (step-11 E-NW4). This changes routes, and so
 results, in every world with bodies and walkers, so `bodies` is version 4 and refuses a version-3 save
 by name (`ARC-25`).
+
+**Note 7, 2026-10-08, landed 2026-10-12 (S15, PR 12d; step-11 §19, SD-D1, SD-D5, QD-5, QD-6) — the
+towns install bodies, and a doorway inside a wall is refused.** Items 1–8 and the earlier notes are
+unchanged except as follows. (Planned as note 4, then 5; IL-a's note 4 and 12n's notes 5 and 6 merged
+first.)
+
+1. **Both towns install `bodies`** (SD-D1): Social Café's `systems` ends with it, after `schedule`, and
+   Market Town carries it at the same position, before its six market packs. Every place of both towns
+   carries the same `body:` (a floor and solid boxes), and both carry the same four loose objects. A
+   person in a town can no longer walk out through a wall: a stride is swept against the place's floor
+   edge and its solids, and leaving is through a doorway. Walks (`ARC-75`) are routed round them by
+   this pack's wayfinder (note 5).
+2. **A doorway point must lie where a person fits** (SD-D5). At genesis, `bodies` checks every doorway
+   point of a shaped place — the `here` of each passage out of it and the `there` of each passage into
+   it, read from `movement`'s `Passages` — to lie inside the floor shrunk by R + GAP (260 mm with note
+   8's radius) and at least that far from every solid. A point that does not is refused,
+   `bodies-doorway`, naming the place, the passage's other place, the point and the distance.
+   Otherwise every crossing would be silently shifted by entry placement (E3) instead of landing on the
+   doorway.
+3. **bodies reads `Passages` from `movement`'s crate** (QD-5), beside the Wayfinder seam of note 5,
+   point 2, and as it reads `item`'s for `is_declared` (note 2): a crate dependency, no system
+   dependency — a world without `movement` has no passages to check. `isolation.rs` asserts it names
+   nothing else of `movement` but the Wayfinder seam and `Passages`, the latter once, in the genesis
+   check.
+4. **`bodies` is version 5** (QD-6; 12n-2's note 6 took version 4 first): a save made by version 4 of a
+   world the refusal now rejects is refused by name (`ARC-25`), never re-executed into a genesis error.
+   One bump covers this note and note 8.
+
+**Note 8, 2026-10-08, landed 2026-10-12 (S15, PR 12d; the operator's ruling, relayed by the
+coordinator; step-11 §19.13, §21.6) — a person is 50 cm across.** The operator asked that bodies follow
+the real world: a 600 mm person is too wide (adult shoulders are 40–46 cm, chest depth 25–30 cm).
+**`PERSON_RADIUS` is 250 mm**, changed inside 12d so that it shares 12d's one re-baseline. Every person
+dimension keeps its formula and moves with it, none re-typed: `CLEARANCE = 2r − TOLERANCE` (495 mm), two
+people stopped `2r + GAP` (510 mm) apart, a doorway point and an entry `r + GAP` (260 mm) from walls and
+solids, a pushed object's footprint `r + GAP` from its pusher, the narrowest floor `2(r + GAP)`
+(520 mm), the capsule's half-segment `(PERSON_HEIGHT − 2r) / 2`, and — by note 5, point 3 — `NUDGE_MAX =
+r` (250 mm; a nudge is at most 260 mm) and `BIAS_BAND = ⌊2r/3⌋` (166 mm); the planner's margin
+`r + GAP + PLAN_MARGIN` is 310 mm. What is not a person dimension does not move: `BIAS_TURN`,
+`REST_CLEARANCE` (300 mm, how far a launched object rests from furniture), the reaches,
+`SHOVE_DISTANCE`, `CAPACITY_GRID`, and the tolerances `GAP`, `TOLERANCE`, `SNAP`, `LATTICE`. At this
+radius the crowd claim reads as the operator restated it (step-11 §21.15 M-1): nudge chains are bounded
+and a stride may be blocked; a blocked walker re-plans. Results change, so the `bodies-yard` and
+long-run bases are re-captured (step-11 §19.12), under note 7's version 5. The 3D client's capsules
+(`player.gd`, 300 mm) must follow (12e/16c); IL-c is to make the radius world configuration.
 
 ---
 
@@ -6039,6 +6139,14 @@ already decodes with its own type.
 - A world that adopts an Entity Pack shifts the ids of its later item kinds and organizations, as
   editing its own `items:` does today. Saves do not record which packs they used (QSE-14).
 
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — kinds carry a
+display name, and `modern-goods` is 0.2.0.** `item`'s section now requires `name` (step-11 SD-D10,
+R-PK-2; `ARC-37` note), so an Entity Pack's kinds state one like any world's. `modern-goods`' twelve
+kinds gain theirs (the key in plain English, as Market Town's: Apple, Bread, …, Umbrella), and the
+facts a world requiring the pack declares change, so its version moves **0.1.0 → 0.2.0**; a world
+requires it as `"^0.2"`. Nothing else in the rules above changes. A third-party Entity Pack written
+before this note is refused at load until each kind has a `name`, naming the file and line.
+
 ---
 
 ## ARC-54 note — a required data pack's own framework range is checked (F-Ed1, 2026-10-08)
@@ -7477,6 +7585,14 @@ becomes ≤ 128 MiB for walking towns; the retention rule and the snapshots it k
 300-day size is printed by `tools/cli/tests/market_town.rs` as a measurement, not a bound. SR-b (log
 compression) is the expected remedy for the size, as above.
 
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 2, the operator's ruling) — ASR-2 for towns
+with bodies.** With `bodies` installed in the towns (`ARC-39` note 7), every walk also meets walls,
+furniture and people: stopped-short, displaced arrivals and shoves join the log, and Market Town's
+30-day save measured 170 811 392 B (162.9 MiB), about 45 % over the walking town's 112.3 MiB. ASR-2's
+bound becomes **≤ 192 MiB for towns with bodies** (the 30-day market-town save); the retention rule and
+the snapshots it keeps are unchanged. SR-b's log compression is still expected to bring the size back
+down.
+
 **Note, 2026-10-13 (SR-b, `ARC-89`) — rule 1 amended.** Rule 1 now reads: no row of `facts` or `journal`
 is updated or re-encoded, and none is deleted except when it is **moved unchanged into a sealed block**,
 in the transaction of the anchor commit that seals its span, after the block has been decoded and
@@ -7599,6 +7715,11 @@ it would exempt exactly the composed world from the parity claim.
   holdings; fish is the only renewable food, and the milestone test measures that it closes the loop.
 - The reference clients do not draw Lakeside: a Presentation Pack is declared and validated, not yet
   applied (step-16 QSE-9).
+
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — Lakeside after
+item names.** Lakeside's own `fish` kind gains its display name (`Fish`), and its `requires` moves to
+`modern-goods: "^0.2"` (`ARC-71` note of the same date). Lakeside's facts change by the names alone;
+the composition, its packs and the milestone's claims are unchanged.
 - A saved 300-day run of a world this size is gigabytes (F-SAVE-1); the persistence lane owns retention.
 
 **Revisit** when a registry or `.mwpack` (E-C) gives data packs a place outside this repository, or when
@@ -7946,6 +8067,27 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 **Consequences.** `CORE_CONCEPTS.md` §14 ("a Controller decides what a Person attempts") is amended by WE-b, not by this record, and WE-b's PR design states the exact wording. No `worldpack` change: `happenings` is an ordinary enabled system and its file is an ordinary configure entry.
 
 **Revisit** when WE-b's Organization-seat rule is recorded (the amendment of `CORE_CONCEPTS.md` §14), or when a director must act on world state beyond proposals, which would require a new decision.
+
+**Note, 2026-10-15 (WE-a, PR #189, as built; `.structured-coding/plans/mvp0/pr-we-a-happenings.md` §§5–7, 11).**
+- **State.** `happenings` owns no component on places. Its state lives in Processes, as calendar's does:
+  one `almanac` Process per world and one `happening` Process per announced happening. It discloses two
+  records that no entity carries, `happenings-here` and `happenings-announced`, to an observer in a place
+  (F-WE-a-6). "Owns `Happenings` on places" above is superseded by this.
+- **Facts.** It also states `happenings-configured` at genesis, and `happening-withheld` for each refused
+  draft. Both are `SystemInternal` with no subjects, so an author can see why a happening never happened.
+- **Limits.** WE-a's `limits` are `per_day` and `per_place_running`. `per actor per day` is a proposals limit
+  and arrives with WE-b's `propose-happening`.
+- **Dependencies.** `happenings` depends on `presence` and `calendar` (a world without calendar is refused
+  naming it). A selected generator's pack is a configuration `requires` (`ARC-61`), checked by the loader.
+- **Reuse considered.** `rrule` (RFC 5545 recurrence) was declined: three recurrence forms over calendar's
+  `CalendarDate` are a few dozen lines, and `rrule` would bring `chrono` and wall-clock types into a System
+  Pack. `rand` was declined: counter-based draws (SplitMix64, pinned to its reference vector, as weather's)
+  are required for resume equality. No third-party crate was added.
+- **The first reaction.** `economy` gained an optional `configure/economy.yaml` with `price_modifiers`. It
+  states its own `prices-adjusted` / `prices-restored`, caused by `happening-began` / `happening-ended`, and
+  reduces them into `Shop.adjustments`. Its `SystemVersion` is 2.
+- **Market Town opts in by configuration** (QWE-1 (a)), with the store at 900 ‰ on market days. AC-1
+  admits that file under `ARC-35`'s note of 2026-10-15.
 
 ---
 

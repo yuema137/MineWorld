@@ -271,7 +271,7 @@ motivated = false        # DL-b
 lm-controller = false    # P6
 relationship-decay = false # FG-a
 memory-policies = false  # FG-b, FG-c
-happenings = false       # WE-a
+happenings = true        # WE-a
 ```
 
 1. The file is TOML, read with the `toml` crate (`DEP-50`). Its only table is `[features]`. Every entry is a key
@@ -293,7 +293,7 @@ has a probe when a pack of this build carries it:
 | --- | --- | --- |
 | `calendar` | `mineworld-calendar` | TW-b |
 | `weather` | `mineworld-weather` | TW-a |
-| `happenings` | `mineworld-happenings` | WE-a; no such pack in the build yet |
+| `happenings` | `mineworld-happenings` | WE-a (PR #189) |
 
 A feature with no probe (`interaction-list`, `decisions`, `motivated`, `lm-controller`, `relationship-decay`,
 `memory-policies`) is checked for presence as `INCONCLUSIVE`, which never passes and never fails. Its flag is still
