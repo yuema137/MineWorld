@@ -6,8 +6,8 @@
 //!                              accept and decline, when the observer holds an invitation from them
 //!                              (accept only while the observer is part of nothing);
 //!                              join, when they are part of an activity and the observer is not
-//! complete     every offer but invite, whose kind is free text: the payload is the empty object (ARC-34)
-//! discloses  to the observer  its own Invitations and its own Participation
+//! complete    every offer but invite, whose kind is free text: the payload is the empty object (ARC-34)
+//! discloses   to the observer  its own Invitations and its own Participation
 //!             about a member   that member's Participation — "they are together" is visible to
 //!                              anyone who can see them (SD-11)
 //! ```

@@ -472,6 +472,34 @@ fn the_four_answers_are_offered_complete_and_attempted_unchanged() {
     assert!(accept.is_available() && decline.is_available());
     assert_eq!(accept.requirement(), &accept_requirement());
     assert_eq!(decline.requirement(), &decline_requirement());
+    assert!(
+        offered(
+            &bobs,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.carol)
+        )
+        .is_none(),
+        "carol invited nobody"
+    );
+    let carols = cafe.observation(cafe.carol, 11);
+    assert!(
+        offered(
+            &carols,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "the invitation is addressed to bob"
+    );
+    assert!(
+        offered(
+            &carols,
+            DeclineInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "the invitation is addressed to bob"
+    );
 
     // (c accept): the request built from the affordance alone is accepted, and both are in an activity.
     let request = accept

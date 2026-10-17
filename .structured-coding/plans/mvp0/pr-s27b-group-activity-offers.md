@@ -676,3 +676,18 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   `mineworld-server` `frames` 16 PASS, `deltas` 2 PASS; `mineworld-persistence` `save` 13 PASS. Ignored tests not
   run locally (they need Godot or a long run); CI decides. Nothing else pins this run's output: the grep for the old
   fingerprint and fact counts hit only historical plan documents, which are not changed.
+
+- **D-b-4 (independent review of `58b977b6`, 2026-10-17): REQUEST CHANGES, resolved.**
+  - Blocker (resolved): a planted mutation survived. `perception.rs:92` changed to
+    `.and_then(|held| { let _ = inviter; held.pending().first() })` offers accept and decline toward every person,
+    and no test caught it. Fix: `the_four_answers_are_offered_complete_and_attempted_unchanged` now asserts that
+    carol (who invited nobody) is offered no accept toward alice, and that carol is offered neither accept nor
+    decline toward alice (the invitation is addressed to bob). Mutation planted by hand: FAIL at `carol invited nobody`
+    (`group_activity.rs:475`); reverted; `cargo test -p mineworld-group-activity` green (3 + 12 + 1).
+  - Non-blocking, resolved: `cognition/rule-controller/src/social.rs` module doc no longer says "an offer cannot see
+    the clock"; it says perception applies the same bound (D-b-1) and the controller keeps its own check. The
+    `perception.rs` module doc table rows are realigned.
+  - Follow-up F-S27b-5 (churn, NOT changed here; needs a separate controller ruling). Activities now last a median of
+    30 minutes instead of 60. The cause: the paced `offered` band and `social::maybe_leave` both draw leave and join
+    now that the offers are complete, so members leave and rejoin more often. This PR does not change controller
+    behaviour; the ruling belongs to the rule-controller owner, and the constants in `offered.rs:17-20` stay frozen.
