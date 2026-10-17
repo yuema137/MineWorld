@@ -29,6 +29,16 @@
 #                                              walls; --watch=<s> (default 60); --frames: windowed,
 #                                              with frames; the world is saved under shots/slice/
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
+#   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
+#                                              disclosed ones, both directions, 150 mm (S15 12e)
+#   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
+#                                              puppet seats; corrections measured; the save's facts
+#                                              counted afterwards. --only=a,b,… a subset;
+#                                              --no-people-colliders the adversarial run; --frames
+#                                              windowed, with frames
+#   ./mineworld-slice --world --rules          headless: the same interaction requests against
+#                                              social-cafe and a copy without bodies (X-1)
+#   --save=DIR --time-scale=N                  passed to the hosted server (scripted modes)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
 #   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
@@ -98,10 +108,19 @@ gi="voxel"
 scripted=0
 street=0
 frames=0
+bodies=0
+rules=0
+save_dir=""
+time_scale=""
 settings=""
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
+    --save=*)                              save_dir="${a#--save=}"; continue ;;
+    --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
+    --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
+    --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
     --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
@@ -117,6 +136,7 @@ for a in "$@"; do
     && headless=1
 done
 [ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
+[ "$bodies" = "1" ] && [ "$frames" = "0" ] && headless=1
 # A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
 if [ "$scripted" = "1" ] && [ -z "$settings" ]; then
   args+=("--settings=none")
@@ -131,6 +151,34 @@ fi
 # evidence stays comparable (step-15 D-16c-10). --street saves the world, so its
 # shoves can be counted afterwards (S-6).
 server_pid=""
+# Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
+# script's own servers are ever stopped.
+host_world() {
+  "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+    --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
+  server_pid=$!
+  trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
+  local line=""
+  for _ in $(seq 1 150); do
+    line="$(grep -m1 '^\[mineworld\] invite ' "$2" || true)"
+    [ -n "$line" ] && break
+    kill -0 "$server_pid" 2>/dev/null || break
+    sleep 0.2
+  done
+  if [ -z "$line" ]; then
+    echo "error: the server printed no join line (log: $2)" >&2
+    exit 1
+  fi
+  invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
+  address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+}
+stop_world() {
+  if [ -n "$server_pid" ]; then
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+    server_pid=""
+  fi
+}
 if [ "$world" = "1" ]; then
   export PATH="$HOME/.cargo/bin:$PATH"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
@@ -143,23 +191,15 @@ if [ "$world" = "1" ]; then
     rm -rf "$save"
     hosted+=(--save "$save")
   fi
-  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
-    --agent alice ${hosted[@]+"${hosted[@]}"} > "$log" 2>&1 &
-  server_pid=$!
-  trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
-  line=""
-  for _ in $(seq 1 150); do
-    line="$(grep -m1 '^\[mineworld\] invite ' "$log" || true)"
-    [ -n "$line" ] && break
-    kill -0 "$server_pid" 2>/dev/null || break
-    sleep 0.2
-  done
-  if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $log)" >&2
-    exit 1
+  # --bodies counts the save's facts afterwards (step-11 §22 B-g): a scratch save unless --save= names
+  # one. --save= and --time-scale= go to the hosted server as given (S11-B; QE-11).
+  if [ "$bodies" = "1" ] && [ -z "$save_dir" ]; then
+    save_dir="$proj/shots/12e/bodies-save"
+    rm -rf "$save_dir"
   fi
-  invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
-  address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+  [ -n "$save_dir" ] && hosted+=(--save "$save_dir")
+  [ -n "$time_scale" ] && hosted+=(--time-scale "$time_scale")
+  host_world "$here/worlds/social-cafe" "$log"
   args+=("--server=$address" "--invite=$invite")
   echo "world: worlds/social-cafe on $address (log: $log)"
 fi
@@ -167,9 +207,68 @@ fi
 # The drive test needs physics, not pixels -- and macOS throttles an unfocused
 # window hard enough to make a real-time test take minutes. No `exec` here: a
 # server started above must be stopped after Godot exits.
+if [ "$rules" = "1" ] && [ "$world" = "1" ]; then
+  # X-1 (step-11 §22.4): the same script against social-cafe, then against a copy without bodies --
+  # the `bodies` line and every `body:` section removed, the items kept as inert entities (12d's
+  # counterfactual, SD-D13). The interaction requests must be identical; only the answers differ.
+  out="$proj/shots/12e/rules"
+  rm -rf "$out"
+  mkdir -p "$out"
+  "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}" | tee "$out/with-bodies.log"
+  stop_world
+  # the copy keeps the pack's directory name, which is its id
+  copy="$out/without-bodies/social-cafe"
+  mkdir -p "$out/without-bodies"
+  cp -R "$here/worlds/social-cafe" "$copy"
+  grep -v '^  - bodies$' "$here/worlds/social-cafe/world.yaml" > "$copy/world.yaml"
+  for f in "$copy"/places/*.yaml "$copy"/items/*.yaml; do
+    sed -n '/^body:/q;p' "$f" > "$f.kept"
+    mv "$f.kept" "$f"
+  done
+  object="$(sed -n 's/^RULES-OBJECT \(.*\)$/\1/p' "$out/with-bodies.log" | head -1)"
+  host_world "$copy" "$out/server-without-bodies.log"
+  plain=()
+  for a in "${args[@]}"; do
+    case "$a" in --server=*|--invite=*) ;; *) plain+=("$a") ;; esac
+  done
+  "$godot_bin" --headless --path "$proj" "$scene" -- "${plain[@]}" "--server=$address" "--invite=$invite" \
+    "--rules-object=$object" | tee "$out/without-bodies.log"
+  stop_world
+  grep '^REQUEST ' "$out/with-bodies.log" > "$out/requests-with.txt" || true
+  grep '^REQUEST ' "$out/without-bodies.log" > "$out/requests-without.txt" || true
+  echo
+  echo "requests with bodies: $(wc -l < "$out/requests-with.txt"), without: $(wc -l < "$out/requests-without.txt")"
+  grep '^ANSWER ' "$out/with-bodies.log" | sed 's/^/with bodies:    /' || true
+  grep '^ANSWER ' "$out/without-bodies.log" | sed 's/^/without bodies: /' || true
+  if [ -s "$out/requests-with.txt" ] && diff "$out/requests-with.txt" "$out/requests-without.txt"; then
+    echo "X-1 PASS  the client's interaction requests are identical with and without bodies"
+    rm -rf "$out/without-bodies"
+    exit 0
+  fi
+  echo "X-1 FAIL  the requests differ (above), or none was sent"
+  rm -rf "$out/without-bodies"
+  exit 1
+fi
+
 if [ "$headless" = "1" ]; then
+  set +e
   "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}"
-  exit $?
+  rc=$?
+  set -e
+  if [ "$bodies" = "1" ] && [ -n "$save_dir" ] && [ "$world" = "1" ]; then
+    # B-g: the server's own record of what happened, read after it stops (AC-9: every fact caused).
+    stop_world
+    echo
+    echo "== the save's facts (mineworld inspect $save_dir) =="
+    "$here/target/debug/mineworld" inspect "$save_dir" > "$proj/shots/12e/bodies-inspect.txt" 2>&1 || true
+    for kind in object-moved person-shoved stopped-short; do
+      n="$(sed -n "s/^ *$kind \([0-9][0-9]*\)$/\1/p" "$proj/shots/12e/bodies-inspect.txt" | head -1)"
+      echo "facts    $kind: ${n:-0}"
+    done
+    grep -E '^(causes|journal) ' "$proj/shots/12e/bodies-inspect.txt" || true
+    grep -iE 'fault|uncaused|without a cause' "$proj/shots/12e/bodies-inspect.txt" | head -5 || true
+  fi
+  exit $rc
 fi
 
 # --perf (RL-b §3): the Default tier's 1920x1080 unless --res says otherwise. The

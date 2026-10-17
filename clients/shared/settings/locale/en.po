@@ -246,6 +246,25 @@ msgstr "place: {place}"
 msgid "hud.looking_at"
 msgstr "looking at: {who}"
 
+# The 3D client's offer line and aim (S15 PR 12e, step-11 §22 SD-E10): the server's offers, by key.
+msgid "hud.looking_at_offers"
+msgstr "looking at: {who}  —  {offers}"
+
+msgid "hud.offer"
+msgstr "{key} {verb}"
+
+msgid "hud.offer_not_now"
+msgstr "{key} {verb} ({reason})"
+
+msgid "hud.object.ball"
+msgstr "ball"
+
+msgid "hud.object.box"
+msgstr "box"
+
+msgid "hud.aiming"
+msgstr "aiming a throw: G throws where the ring is · Esc cancels"
+
 msgid "hud.world"
 msgstr "world: {status}"
 
@@ -260,6 +279,18 @@ msgstr "Someone"
 
 msgid "link.verb.talk"
 msgstr "talk to"
+
+msgid "link.verb.kick"
+msgstr "kick"
+
+msgid "link.verb.throw"
+msgstr "throw"
+
+msgid "link.verb.shove"
+msgstr "shove"
+
+msgid "link.nothing_to"
+msgstr "nothing in view to {verb}"
 
 msgid "link.connecting"
 msgstr "connecting to {address} as {seat}"
