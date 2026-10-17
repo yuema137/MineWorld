@@ -12,6 +12,11 @@ class_name SliceStreetscape
 extends RefCounted
 
 const WALK := SliceStreet.WALK_Y
+## The planted bank's west face at the street's east end (`SliceStreet.build`'s
+## bank box spans X_MAX - 1 .. X_MAX + 11), and how far onto it a bank tree that
+## drew west of it is set back (QE-2).
+const BANK_WEST := SliceStreet.X_MAX - 1.0
+const BANK_SET_BACK := 0.5
 
 
 ## `with_people` false builds every piece of the streetscape except its
@@ -131,6 +136,15 @@ static func _trees(g: Node3D) -> void:
 			rng.randf_range(-17.0, 2.0))
 		if p.z > -2.0:
 			p.y = 1.1
+		# THE PRUNE (S15 PR 12e, step-11 §22 QE-2, FU-12d-1). One of these trees drew
+		# west of the bank, over the north pavement: its trunk's collider hung 1.66 m
+		# above the walking surface, a branch at head height that stopped a 3D player
+		# where the server has no solid. Real pavements keep branches at least 2.44 m
+		# (8 ft) above the walkway (San Mateo, CA, code 27.84.040; Kaukauna, WI;
+		# Custer, SD; Bartlesville, OK). It is set back onto the bank it belongs to;
+		# its random draws are unchanged, so every other tree stands where it stood.
+		if p.x < BANK_WEST and p.z > SliceStreet.NORTH_FACE:
+			p.x = BANK_WEST + BANK_SET_BACK
 		Props.broadleaf(g, p, rng.randf_range(6.5, 10.5), 6100 + i * 37)
 	for i in range(16):
 		Props.conifer(g, Vector3(rng.randf_range(32.0, 50.0), 1.8,
