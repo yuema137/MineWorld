@@ -199,6 +199,14 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: parity-long
@@ -336,6 +344,14 @@ jobs:
           version: "0.12.5"
           python-version: "3.12"
           enable-cache: false
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: stability
@@ -388,12 +404,14 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
+  # 120 minutes, not 75 (ARC-149): a night whose import cache is cold imports the 3D client for 45 minutes on
+  # this runner, and nightly 38919486641 was still in its Godot tests at 65 (the job was cancelled at 75).
   clients-mac:
     name: clients-mac
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

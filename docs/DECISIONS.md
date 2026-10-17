@@ -8816,3 +8816,85 @@ Each figure in a profile names its source and is marked `read` or `verify`; cast
 **Consequences.** The default domain ranges follow real values: stature 0.50–2.50 m and mass 2–300 kg as domains only, the realistic distribution being the profile's. A county figure not yet read (for example build, step-30 §8.2) stays `verify` until it is.
 
 **Revisit** when a world needs a population outside the United States, which brings its own sources and a record of its own.
+
+## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, and SET-b's connected 3D tests under QC-5
+
+**Date** 2026-10-16 · **Status** proposed in the PR "ci: fix the red nightly (closes #170)"; pending the
+operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
+`.structured-coding/plans/mvp0/pr-13c-nightly.md` §3.4 (QC-5, QC-5b, the import cache) and §12.2
+(F-13c-impl-2, F-13c-impl-5), `.structured-coding/plans/mvp0/pr-set-b-controls.md` §7.2
+
+**Problem.** The nightly was red on every night since SET-b (#192) merged, for four causes, each read from
+the logs of nightly 38919486641 on `38323d4c`:
+1. `parity-long-windows` and `stability-windows` were cancelled at their 90-minute limit, and the
+   `parity-long` comparison then failed for the missing Windows record. Windows saved runs were the cost:
+   `stability-windows` saved bodies-yard's 300 days in 3 280.6 s (Linux 285.2 s) and replayed it in 77.5 s
+   (Linux 70.2 s); `parity-long-windows` spent 3 550.2 s on bodies-yard alone. In-memory runs were within
+   a factor of two of Linux. A measurement on `windows-2025` (run 39004172480, 30 days of bodies-yard,
+   seed 7) placed it: in memory 14.8 s; saved under `TEMP` (`C:\Users\RUNNER~1\AppData\Local\Temp`, the
+   OS disk) 263.4 s; saved under `RUNNER_TEMP` (`D:\a\_temp`, the runner's local disk) 38.8 s, and 38.6 s
+   in the workspace on `D:`. Defender's real-time protection is off on that image
+   (`RealTimeProtectionEnabled False`), and an exclusion changed nothing (208.8 s on `C:`, 37.6 s on
+   `D:`). The scripts make their scratch with Python's `tempfile`, which follows `TEMP`, so every saved
+   run of both legs wrote to `C:`. The Linux legs and the tests' own scratch (`CARGO_TARGET_TMPDIR`, under
+   the workspace) were never affected.
+2. `client_settings::two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` failed on every
+   OS: its expected key list predates SET-b's `[input]` section. `store.gd` writes every owned section a
+   file lacks (since SET-a), so a first Apply in the 2D client writes `mouse_sensitivity` and `invert_y`
+   too, as `clients/shared/SETTINGS.md` §§3–4 and `AC-SETb-6` allow. **The test was wrong, not the code.**
+   The Godot tests run only in the nightly, and SET-b merged before a night ran them.
+3. `client_settings::three_d_controls_apply_live_and_persist` and
+   `client_settings::three_d_settings_never_reach_the_server`, SET-b's two connected 3D slice tests, hung
+   on Linux (llvmpipe under Xvfb) and on Windows (the Microsoft Basic Render Driver, D3D12 WARP): the
+   slice built, seated and perceived, but did not render the probe's 12 warm-up frames within the test's
+   240 s, so the probe never printed its header. That is F-13c-impl-5, the reason
+   `three_d_switches_language_live_and_settings_never_reach_the_server` is already skipped there by QC-5.
+   On the laptop's GPU all three of SET-b's tests pass (104.8 s, at this PR's head). On the macOS runner
+   `three_d_settings_never_reach_the_server` passed that night.
+4. `clients-mac` was cancelled at its 75-minute limit with no verdict. `the_settings_folder_is_shared`,
+   the first test to import the 3D client, took 45 minutes of it (9.5 minutes on Linux): the 3D client's
+   imported resources are 584 MB, and `pr-13c-nightly.md` §3.4's import cache was specified but never
+   built. The Godot tests then started at minute 65.
+
+The older findings of #170 are not live: `stability-linux` passed on `3a9b9eff` and `38323d4c`, and the
+`baseline` step passed on both (only `compare` failed, for cause 1).
+
+**Options considered.** For cause 1: sharding the two Windows legs by world (the comparison would have to
+merge partial records, and bodies-yard alone would still take about an hour); running worlds concurrently
+on the runner's four cores (timings become contention, and the cost is untouched); raising the limits
+(3 550 s for one world of four leaves no limit with headroom); **moving the scratch to `D:`** (chosen: it
+removes the cost, a 6.8-fold difference measured on the same runner, and changes no script). For cause 3:
+a QC-5b ruling (not needed: the tests pass on the macOS leg, which is QC-5's condition); raising the
+240 s deadline (the slice renders fewer than 12 frames in 240 s on a software renderer; a deadline it can
+meet would not be a deadline); **QC-5, as for the existing name** (chosen). For cause 4: raising the limit
+alone (every night would pay 45 minutes); **the specified import cache, plus a limit that holds a cold
+night** (chosen).
+
+**Decision.**
+1. `parity-long-windows` and `stability-windows` point `TEMP` and `TMP` at `RUNNER_TEMP` before their
+   layer runs (one step in each job, `nightly.yml`). No script names a disk.
+2. The test's expected keys gain `invert_y` and `mouse_sensitivity`. The assertion stays an exact
+   equality; nothing else in the test changes.
+3. `scripts/ci_godot.py` `SKIPS` names SET-b's two connected 3D tests on Linux and Windows with the
+   existing software-renderer reason, beside `three_d_switches_language_live_and_settings_never_reach_the_server`.
+   The macOS leg runs all three every night, so a failure there turns the night red; `QC5B_RULED` and
+   `HOSTED_UNRUNNABLE` are unchanged, and the coverage check still refuses a test skipped everywhere.
+4. `.github/actions/godot` imports the four client projects (`clients/shared`, `clients/2d`,
+   `clients/3d-spike`, `clients/protocol`) before any test, through `actions/cache/restore` and
+   `actions/cache/save` (the pinned `actions/cache` commit). The key is the OS, the Godot build's
+   `--version` and `hashFiles('clients/**')`; `restore-keys` start from the newest entry of the same OS and
+   build, so Godot re-imports only what changed. The entry is saved right after the import, because
+   `actions/cache`'s post step saves only when the whole job passes. A failed import is not cached and is
+   left to the tests, which assert it by name.
+5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
+   still reaches a verdict. The other limits are unchanged.
+
+**Consequences.** The evidence of the PR's dispatched nightly is recorded in the PR. Each Windows leg's
+saved runs now measure the simulation and SQLite, not the runner's OS disk; a regression there is
+visible in the benchmark table again. The import cache costs about 0.6 GB of the repository's Actions
+cache per OS per changed `clients/` tree; older entries are evicted first. `ci.yml`'s Windows jobs are
+not changed here (#224 owns them); whether their scratch also lands on `C:` is a follow-up for that PR.
+F-13c-impl-5 (the connected 3D slice on hosted runners) stays open with the 3D lane.
+
+**Revisit** when the runner image changes its disks, or when F-13c-impl-5 is resolved and the QC-5 names
+can run on every leg.

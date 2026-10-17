@@ -77,11 +77,16 @@ ASSETS = {
 GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings"]
 _SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
                 "limit ('the slice hung'); it passes on macOS")
+# SET-b's two connected 3D tests (#192) join it under the same rule (ARC-149): on nightly 38919486641 both
+# hung on llvmpipe and on WARP before the probe's first check (fewer than its 12 warm-up frames in 240 s);
+# both pass on the laptop's GPU, and the macOS leg must pass them each night or turn red.
+_SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_the_server",
+                      "three_d_settings_never_reach_the_server",
+                      "three_d_controls_apply_live_and_persist")
 SKIPS: dict[str, dict[str, str]] = {
-    "Linux": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-              _SOFTWARE_3D.format("llvmpipe under Xvfb")},
-    "Windows": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-                _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")},
+    "Linux": {name: _SOFTWARE_3D.format("llvmpipe under Xvfb") for name in _SOFTWARE_3D_TESTS},
+    "Windows": {name: _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")
+                for name in _SOFTWARE_3D_TESTS},
 }
 # QC-5b (primary ruling, 2026-10-10): windowed tests that fail on EVERY hosted leg for a recorded display
 # reason are not run on hosted runners; they are the operator's milestone-F hand checks
