@@ -107,8 +107,9 @@ func _geometry_check() -> void:
 			_place_rows(link, shop, "GE-3 store")
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
-	print("\n%d rows; %s" % [_geo_rows, "all geometry checks pass" if _geo_fails == 0
-		else "%d GEOMETRY ROWS FAILED" % _geo_fails])
+	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
+	print("\n%d rows" % _geo_rows)
+	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
 
