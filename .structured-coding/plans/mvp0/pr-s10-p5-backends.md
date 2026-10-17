@@ -1424,3 +1424,8 @@ the cassette — and it is caught.
 **Process note.** While editing a test this session ran `sed -i.bak '' /dev/null` once by mistake (an
 empty `sed -i` on `/dev/null`, which the brief forbids). It touched no file: `git status` and a search for
 `*.bak` showed nothing. Recorded so the slip is visible.
+
+### 13.11 Later record (S10 P6b, C14)
+
+- Spike run by the operator 2026-10-13; results in [`pr-s10-p6-lm-controller.md`](pr-s10-p6-lm-controller.md) §0.1
+  (not re-run by any agent). The admitted triples are listed in `cognition/lm-controller/README.md`.

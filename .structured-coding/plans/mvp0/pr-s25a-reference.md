@@ -396,6 +396,22 @@ again after (`mineworld reference --check docs/reference` → "matches this buil
   `the_checked_in_reference_is_what_this_build_generates` on all three platforms (AC-25a-1). A second,
   named command would run the same test twice (test rules §9). Evidence: `ci_layer.py` `LAYERS["core"]`,
   `.github/workflows/ci.yml` jobs `test`, `test-windows`, `test-macos` (`layer: core`).
+- Merge of `origin/main` @ 5cbb469 (2026-10-17; branch head 589998e, merge base 2d07c6c). One textual
+  conflict: `docs/DECISIONS.md`, where this branch's `ARC-90`/`DEP-49` and main's `ARC-72`/`ARC-73` were
+  inserted at the same place (before `ARC-97`). Resolved by keeping all four records, ours first, with a
+  `---` rule between them; `check_decision_ids.py`: 151 ids, all distinct. One semantic conflict found by
+  the drift test: main (S10 P6b) added `external "lm"` to `cognition/installed`, so the generated
+  `docs/reference/decisions.md` and `schema/decisions.schema.json` no longer matched the merged build
+  (`the_checked_in_reference_is_what_this_build_generates` FAILED naming the two files). Regenerated from
+  the merged binary with `mineworld reference --out` into a scratch directory and copied over (never
+  hand-edited); `mineworld reference --check docs/reference` → "matches this build (31 file(s))". Main did
+  not touch `Cargo.lock` or `scripts/baselines.txt` since the merge base, so no lock regeneration or
+  baseline re-record was needed (`cargo metadata --locked` and `cargo fetch --locked` pass); main's sharded
+  `.github/workflows/ci.yml` (#224) taken as-is (this PR does not edit it). Evidence on the merged tree:
+  `mineworld-cli --test reference` 9 passed, the binary's reference unit tests 4 passed; mineworld-decision
+  (18), installed-models, motivated tests ok; clippy `-D warnings` on mineworld-cli, decision, motivated
+  clean; `cargo fmt --check`; `test_reference.py` (cognition-toml drift, 6) passed; doc headings, decision
+  ids, `check_ci_pins`, `check_scratch scan`, `ci_changes`/`ci_shard` self-tests pass.
 - Deviation (C4, bounded): the CLI page is generated from the parser with `Command::build()`, so the
   parser's own `help` subcommands and `--help`/`--version` arguments are left out by name.
 - Known limitation: a `Millimetres` type prints its full `i32` range as bounds; each field's description

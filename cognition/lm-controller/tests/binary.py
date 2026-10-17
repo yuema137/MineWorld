@@ -13,6 +13,11 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 BUILD = "cargo build -p mineworld-cli"
+# One run of the binary may take this long. Windows gets twice the others' 600 s: with bodies (12d,
+# #171) the 100-day social-cafe run of the AC-10 and retention fixtures passed 600 s on windows-2025 and
+# was killed (run 38786685064), while Linux and macOS finished it inside the bound (docs/DECISIONS.md
+# ARC-110). A bound, not a budget: a hung binary still fails.
+TIMEOUT_S = 1200 if sys.platform == "win32" else 600
 
 
 def binary() -> Path:
@@ -37,7 +42,7 @@ def mineworld(*arguments: str | Path) -> str:
         cwd=REPOSITORY,
         capture_output=True,
         encoding="utf-8",
-        timeout=600,
+        timeout=TIMEOUT_S,
         check=False,
     )
     if result.returncode != 0:

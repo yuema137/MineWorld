@@ -251,7 +251,23 @@ def mapping_table(node: JsonObject) -> list[str]:
     return lines
 
 
+def unwrap(node: JsonObject, defs: JsonObject) -> JsonObject:
+    """An optional model reference (`Model | None`) as the model's own schema, keeping the field's
+    description and default."""
+    if "anyOf" in node:
+        options = [option for option in node["anyOf"] if option != {"type": "null"}]
+        if len(options) == 1:
+            kept = {key: node[key] for key in ("description", "default") if key in node}
+            return {**resolve(options[0], defs), **kept}
+    return resolve(node, defs)
+
+
+def is_table(node: JsonObject) -> bool:
+    return any(key in node for key in ("properties", "patternProperties", "propertyNames"))
+
+
 def section(name: str, node: JsonObject, defs: JsonObject) -> list[str]:
+    node = unwrap(node, defs)
     if "patternProperties" in node:
         pattern, value = next(iter(node["patternProperties"].items()))
         lines = [f"## `[{name}.<name>]`", ""]
@@ -259,6 +275,14 @@ def section(name: str, node: JsonObject, defs: JsonObject) -> list[str]:
             lines += [str(node["description"]), ""]
         lines += [f"`<name>` must match the pattern `{pattern}`. One table per backend:", ""]
         return [*lines, *field_table(resolve(value, defs), defs), ""]
+    if "propertyNames" in node and "enum" not in node["propertyNames"]:
+        # A table keyed by a pattern, valued by a model (`[seat_overrides.<key>]`).
+        lines = [f"## `[{name}.<name>]`", ""]
+        if "description" in node:
+            lines += [str(node["description"]), ""]
+        pattern = node["propertyNames"]["pattern"]
+        lines += [f"`<name>` must match the pattern `{pattern}`. One table per seat:", ""]
+        return [*lines, *field_table(resolve(node["additionalProperties"], defs), defs), ""]
     lines = [f"## `[{name}]`", ""]
     if "description" in node:
         lines += [str(node["description"]), ""]
@@ -294,8 +318,22 @@ not listed here are refused by the loader."""
 def render_page(schema: JsonObject) -> str:
     defs: JsonObject = schema.get("$defs", {})
     lines = [banner(), "", INTRODUCTION, ""]
+    scalars: JsonObject = {}
     for name, node in schema["properties"].items():
-        lines += section(name, node, defs)
+        if is_table(unwrap(node, defs)):
+            lines += section(name, node, defs)
+        else:
+            scalars[name] = node
+    if scalars:
+        required = [name for name in scalars if name in schema.get("required", [])]
+        lines += [
+            "## Top-level keys",
+            "",
+            "Keys written before the first table of the file.",
+            "",
+            *field_table({"properties": scalars, "required": required}, defs),
+            "",
+        ]
     lines += [
         "## Examples",
         "",
