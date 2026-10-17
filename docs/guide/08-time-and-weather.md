@@ -361,4 +361,4 @@ as facts. Other packs and clients read those facts; nothing else computes the we
 without `calendar` and `weather` simply has no date and no weather. The rules are in
 [`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#17-time).
 
-Next: [12 Packs](12-packs.md). Chapters 09 to 11 are coming in later updates of this guide.
+Next: [09 Who decides](09-who-decides.md).

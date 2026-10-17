@@ -16,13 +16,16 @@ guide is run by the project's tests on Linux, macOS and Windows, so what you see
 | [06 Play it](06-play-it.md) | host the world and walk around in it | 10 min |
 | [07 Rules of the world](07-rules-of-the-world.md) | change who may do what, and where | 15 min |
 | [08 Time and weather](08-time-and-weather.md) | give the world a date, a place on Earth and weather | 10 min |
-| 09 Who decides | how each person makes choices | coming in a later guide update |
-| 10 Forgetting | people who stop meeting slowly forget each other | coming in a later guide update |
+| [09 Who decides](09-who-decides.md) | choose how each person makes up their mind | 15 min |
+| [10 Forgetting](10-forgetting.md) | let liking fade between meetings | 15 min |
 | 11 Happenings | a market every weekend | coming when happenings land |
 | [12 Packs](12-packs.md) | see what this build has; make and use an Entity Pack | 10 min |
 | [13 When something is refused](13-when-something-is-refused.md) | every refusal message in this guide, and its fix | look things up |
 
 The finished world of chapters 02–05 is in [`examples/corner-shop/`](examples/corner-shop/world.yaml).
+
+To see what one change does, [change one thing](compare/README.md): each page there runs Corner Shop
+before and after one change, with the same seed, and shows both outputs.
 
 Every field a file may use is listed in the generated [reference](../reference/README.md).
 The words the guide uses, such as World Pack and Place, are defined in

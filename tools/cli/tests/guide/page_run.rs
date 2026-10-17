@@ -93,6 +93,7 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
     let result = match &block.body {
         Body::File { path, text } => files::write(scratch, path, text),
         Body::Copy { from, to } => files::copy_tree(scratch, from, to),
+        Body::Example { from, to } => files::copy_committed(environment.repo, from, scratch, to),
         Body::Console { exit, lines } => console(scratch, *exit, lines, packs),
     };
     if let Err(reason) = result {
