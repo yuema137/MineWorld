@@ -653,3 +653,26 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
   time-dependent offers (D-b-1) read the clock, not the `at` argument. In production the server observes at
   `now`, so the two agree there. Not fixed here (presence is not in §2.1); the presence owner should either pass
   `at` to the providers or require `at == now`.
+
+- **D-b-3 (third authorized consequence, 2026-10-16, primary-coordinator instruction).** CI on `acb83b7b` failed
+  one assertion on all three test jobs: `tools/cli/tests/decisions.rs:130`
+  `with_no_decision_list_run_prints_what_the_base_printed`. Its golden
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` pins the 30-day `social-cafe` run with no decision
+  list (captured from `origin/main @ 6306977`). It moves because of F-S27b-1 and D-b-1, the same causes as the three
+  baselines. Regenerated once: `target/release/mineworld run worlds/social-cafe --headless --seed 7 --days 30`, with
+  the `wall` line removed, which is the test's own `without_wall` form. No other assertion touched; the test body is
+  unchanged. Diff summary (old → new: all 30 `day` lines and 24 summary lines changed). Day 30 facts 84 639 → 82 479,
+  consults 66 105 → 64 938. Requests: `accept-invitation` 971 → 998, `decline-invitation` 413 → 450, `invite`
+  1 547 → 1 584, `join-group-activity` 488 → 1 346, `leave-group-activity` 452 → 1 315, `talk` 10 159 → 9 319,
+  `walk-step` 34 425 → 33 258, `walk-to` 11 868 → 11 147. Facts: `group-activity-started` 969 → 996,
+  `group-activity-ended` 967 → 995, `joined-group-activity` 490 → 1 348, `left-group-activity` 617 → 1 468,
+  `relationship-changed` 363 → 346, `conversation-started` 6 704 → 6 125, `spoke` 10 159 → 9 319, `arrived` 34 241 →
+  33 094, `walk-started`/`walk-ended` 11 868 → 11 147. The `activity` line (per-seat move and talk counts) and the
+  `history` fingerprint change with them. Sanity: group-activity still starts 996 activities in 30 days, and every seat
+  still moves and talks in every bucket.
+  Other goldens and recorded-output tests checked (targeted, `acb83b7b` code, release binary built from the same Rust
+  tree): `mineworld-cli` `decisions` 7 PASS (includes `the_decisions_document_is_the_golden`), `ac13_semantic_parity`
+  2 PASS, `biography` 2 PASS, `perceived` 3 PASS (1 ignored), `run` 4 PASS, `rhythm` 0 run (1 ignored);
+  `mineworld-server` `frames` 16 PASS, `deltas` 2 PASS; `mineworld-persistence` `save` 13 PASS. Ignored tests not
+  run locally (they need Godot or a long run); CI decides. Nothing else pins this run's output: the grep for the old
+  fingerprint and fact counts hit only historical plan documents, which are not changed.
