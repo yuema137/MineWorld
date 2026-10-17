@@ -88,7 +88,15 @@ var _last_pos := Vector3.INF
 var _last_yaw := 0.0
 var _since := 0.0
 var _tokens := {}                  ## token -> action type, for the transcript
-var _reconcile := true             ## put the body where the next observation says
+var _reconcile := true             ## put the body where the next observation says (the first view)
+## The current place's disclosed walls and solids, as invisible colliders
+## (step-11 §22 SD-E4).
+var bodies := SliceClientBodies.new()
+## The drawn place's loose objects (SD-E7).
+var objects: SliceObjects
+## When the drawn body must take the server's position (SD-E8, ARC-50). No
+## other code moves the body to a server position (I-S14-4).
+var correction := SliceCorrection.new()
 var _unknown_said := false
 ## EntityId string -> the label last shown for it, so someone heard after they
 ## have left view is still named as they were seen
@@ -134,9 +142,15 @@ func start(address: String, seat: String, invite: String, nickname: String) -> v
 	_figures.layout = layout
 	add_child(_figures)
 	figures = _figures.nodes
+	objects = SliceObjects.new()
+	objects.name = "Objects"
+	objects.world_root = world_root
+	objects.layout = layout
+	add_child(objects)
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
+	client.submitted_request.connect(_on_submitted)
 	client.welcomed.connect(_on_welcomed)
 	client.observed.connect(_on_observed)
 	client.resolved.connect(_on_resolved)
@@ -262,19 +276,34 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	_hear(obs)
 	# Nothing can be drawn in a place the layout has not bound to the scene.
 	if not layout.is_drawn(place):
+		bodies.observe(obs, layout, world_root)
+		objects.observe(obs)
 		return
+	bodies.observe(obs, layout, world_root)
+	objects.observe(obs)
 
-	# The server is the authority on where the body is. On the first view, and
-	# after any refused move, the body goes where the world says it is.
+	# The server is the authority on where the body is. On the first view the
+	# body goes where the world says it is; after that, the correction rule
+	# decides when the drawn body takes the server's position (ARC-50).
+	var me: Variant = obs.self_location().get("local")
 	if _reconcile:
 		_reconcile = false
-		var me: Variant = obs.self_location().get("local")
 		if typeof(me) == TYPE_DICTIONARY and player != null:
 			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
+			correction.adopted(_mm(me), place)
 			_say("placed where the world says you are", "link.placed", {}, false,
 				"%s %s" % [place, JSON.stringify(me)])
+	elif typeof(me) == TYPE_DICTIONARY and player != null:
+		var drawn := _mm(to_world(place, player.global_position))
+		var to := correction.observe(place, _mm(me), drawn, obs.acted_through())
+		if to != Vector2.INF:
+			var c: Dictionary = correction.history[correction.history.size() - 1]
+			var snapped := player.correct_to(to_scene(place, me))
+			c["snap"] = snapped
+			print("[link] corrected %.3f m (%s, %s form) to %s in %s" % [c["size"],
+				"snap" if snapped else "glide", c["form"], JSON.stringify(me), place])
 
 	var seen := {}
 	for id in obs.ids():
@@ -351,6 +380,10 @@ func _physics_process(delta: float) -> void:
 			or _reconcile or not layout.is_drawn(here):
 		return
 	_since += delta
+	# A correction is being drawn, or its suspension holds: nothing is reported
+	# until every request sent before it is answered (ARC-50).
+	if not correction.may_report() or player.gliding():
+		return
 	# Which of the world's places the body is in, by this slice's volumes and the
 	# places the layout bound them to. In the door's reveal it is in no volume,
 	# and there is nothing to report.
@@ -373,14 +406,18 @@ func _physics_process(delta: float) -> void:
 	var flat := Vector2(p.x - _last_pos.x, p.z - _last_pos.z).length() if _last_pos != Vector3.INF \
 		else INF
 	var turned := absf(angle_difference(player.rotation.y, _last_yaw))
+	# Pressing into a person or an object, the body stands still; the travel the
+	# input wished for counts instead (press-through, step-11 §22 SD-E5).
+	flat = maxf(flat, player.pressed_travel)
 	if _since < REPORT_GAP or (flat < REPORT_DIST and turned < REPORT_TURN):
 		return
 	report_position(at)
 
 
-## Report where the body is now, in the place the slice draws it in. Prediction
-## is local; the server is the authority and its next observation is the answer
-## (`ADOPTION.md` sec.4).
+## Report where the body is now, in the place the slice draws it in -- or, while
+## the input presses into a person or an object, the point it wished to reach
+## (`Player.intended_point`, SD-E5). Prediction is local; the server is the
+## authority and its next observation is the answer (`ADOPTION.md` sec.4).
 func report_position(place := "") -> String:
 	if place == "":
 		place = here
@@ -388,12 +425,38 @@ func report_position(place := "") -> String:
 	_last_pos = p
 	_last_yaw = player.rotation.y
 	_since = 0.0
+	if player.press_dir != Vector3.ZERO:
+		p = player.intended_point()
+		print("[link] pressing into someone or something: reporting the wished stride, %.2f m past the body"
+			% Vector2(p.x - player.global_position.x, p.z - player.global_position.z).length())
+	player.reported()
 	var local := to_world(place, p)
 	last_sent_local = local
 	var tok := client.submit(MOVE_ACTION, null, { "to": _location(place, local) },
 		_location(place, local))
 	_tokens[tok] = MOVE_ACTION
 	return tok
+
+
+## Every request this connection sends, as the protocol module sent it: the
+## position it reported goes to the correction rule, so an observation's
+## `acted_through` can be compared with it (ARC-50's exact form).
+func _on_submitted(token: String, request: Dictionary) -> void:
+	var at: Variant = request.get("actor_location")
+	var point := Vector2.INF
+	var place := ""
+	if typeof(at) == TYPE_DICTIONARY and typeof(at.get("local")) == TYPE_DICTIONARY:
+		point = _mm(at["local"])
+		if typeof(at.get("place")) == TYPE_DICTIONARY:
+			place = String(at["place"].get("entity", ""))
+	correction.sent(token, point, place, String(request.get("action_type", "")) == MOVE_ACTION)
+
+
+## A world position `{x, y}` as millimetres on the floor.
+static func _mm(local: Variant) -> Vector2:
+	if typeof(local) != TYPE_DICTIONARY:
+		return Vector2.INF
+	return Vector2(float(local.get("x", 0)), float(local.get("y", 0)))
 
 
 func _location(place: String, local: Dictionary) -> Dictionary:
@@ -443,10 +506,10 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 	var what: String = req.get("action", _tokens.get(token, "?"))
 	answers.append({ "token": token, "action": what, "action_id": action_id, "result": kind,
 		"detail": result, "sent": last_sent_local.duplicate() })
-	if what == MOVE_ACTION and kind != "accepted":
-		# Refused for moving: reconcile to where the world says the body is
-		# (`PROTOCOL.md` sec.6.2) -- do not argue, do not retry.
-		_reconcile = true
+	# A move answered other than accepted is not argued or retried: the next
+	# observation shows where the world holds the body, and the correction rule
+	# draws it there (`PROTOCOL.md` sec.6.2, ARC-50).
+	correction.answered(token, action_id)
 	if kind == "accepted" and what == MOVE_ACTION:
 		return  # the steady stream of position reports; not worth a toast
 	var log_detail := "%s %s -> %s %s" % [what, token, kind, JSON.stringify(result)]
@@ -476,8 +539,7 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 	var req := intents.take(token)
 	answers.append({ "token": token, "action": req.get("action", _tokens.get(token, "?")),
 		"result": "refused", "code": code })
-	if _tokens.get(token, "") == MOVE_ACTION:
-		_reconcile = true
+	correction.answered(token, "")
 	var about := ""
 	if req.has("target"):
 		about = " (%s %s)" % [SliceIntents.log_verb(req["action"]), display_label(req["target"])]
@@ -510,7 +572,101 @@ func looking_at() -> String:
 	return shown_text(id) if id != "" else ""
 
 
+## What the camera's ray meets first: `{ entity, kind, point }`, `kind` being
+## "person" (a drawn figure), "object" (a drawn loose object) or "" (the scene,
+## or nothing), `point` the hit point or null (`SliceTargeting`).
+func aim() -> Dictionary:
+	var hit := SliceTargeting.aim(player.get_viewport())
+	var id := String(hit["entity"])
+	var kind := ""
+	if figures.has(id):
+		kind = "person"
+	elif objects != null and objects.nodes.has(id):
+		kind = "object"
+	else:
+		id = ""
+	return { "entity": id, "kind": kind, "point": hit["point"] }
+
+
+## The object a throw is being aimed with (the first G picked it), or "".
+var aiming := ""
+
+
+## Kick the object the camera is looking at (F). Sent whatever the offers say;
+## the server answers (step-11 §22 SD-E6).
+func kick_facing() -> String:
+	var a := aim()
+	if a["kind"] != "object":
+		_say("nothing in view to kick", "link.nothing_to", {"verb": SliceIntents.verb(SliceIntents.KICK)}, true)
+		return ""
+	return intents.kick(client, objects.ref_of(a["entity"]), _here_location())
+
+
+## Shove the person the camera is looking at (R).
+func shove_facing() -> String:
+	var a := aim()
+	if a["kind"] != "person":
+		_say("nobody in view to shove", "link.nothing_to", {"verb": SliceIntents.verb(SliceIntents.SHOVE)}, true)
+		return ""
+	return intents.shove(client, a["entity"], _here_location())
+
+
+## G: the first press picks the object looked at and starts an aim; the second
+## throws it -- with `toward` null (the world's default line) while the aim
+## still rests on the object, else toward the point the ray meets, in this
+## place's frame, rounded to millimetres. The point is never clamped: how far a
+## throw may go is the server's (step-15 §4.4).
+func throw_press() -> String:
+	var a := aim()
+	if aiming == "":
+		if a["kind"] != "object":
+			_say("nothing in view to throw", "link.nothing_to", {"verb": SliceIntents.verb(SliceIntents.THROW)},
+				true)
+			return ""
+		aiming = a["entity"]
+		return ""
+	var object := aiming
+	aiming = ""
+	var toward: Variant = null
+	if a["entity"] != object and a["point"] != null:
+		var w := to_world(here, a["point"])
+		toward = { "x": int(w.get("x", 0)), "y": int(w.get("y", 0)) }
+	return intents.throw(client, objects.ref_of(object), toward, _here_location())
+
+
+## Esc during an aim drops it. Whether there was one to drop.
+func cancel_aim() -> bool:
+	var had := aiming != ""
+	aiming = ""
+	return had
+
+
+## The server's offers about what the camera is looking at, for the HUD (SD-E10):
+## for a person, every affordance directed at them; for an object, every complete
+## affordance whose payload names it. Each `{ action, available, reason }`, in
+## the server's order. Read, never computed.
+func offers(a: Dictionary) -> Array:
+	var out: Array = []
+	var obs := client.latest if client != null else null
+	if obs == null or a["entity"] == "":
+		return out
+	var listed: Array = obs.affordances("", a["entity"]) if a["kind"] == "person" \
+		else obs.affordances_about(a["entity"]).filter(func(o): return MineWorldObservation.is_complete(o))
+	for o in listed:
+		out.append({ "action": String(o.get("action_type", "")), "available": bool(o.get("available", false)),
+			"reason": o.get("unavailable_reason") })
+	return out
+
+
+func _here_location() -> Dictionary:
+	return _location(here, to_world(here, player.global_position))
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo \
-			and (event as InputEventKey).physical_keycode == KEY_E and client != null:
-		talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	if not (event is InputEventKey and event.pressed and not event.echo) or client == null:
+		return
+	match (event as InputEventKey).physical_keycode:
+		KEY_E: talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+		KEY_F: kick_facing()
+		KEY_G: throw_press()
+		KEY_R: shove_facing()
