@@ -8748,6 +8748,16 @@ size, cause guess and wall time):
 ```text
 C-1   NO FALSE CORRECTION. --link's route (café → street → café, the 50-class move count) and a 60 s
       free walk and jog on the pavement with nobody in the way: zero corrections
+      AMENDED 2026-10-17 by the operator (answered in the primary session, as recommended in §22.15
+      X12e-9; relayed by the coordinator): at each doorway crossing at most two smooth corrections of
+      about 0.2 m are allowed — bodies' 260 mm edge band — and a convex-corner correction where the
+      server's controller stops at a solid's corner; every other correction still fails C-1. The
+      probe asserts exactly those classes (`SliceProbeBodies._c1_kind`): a doorway correction is
+      stopped by a wall, lands within 500 mm (the plan's DOOR_EDGE) of a doorway point and is at
+      most 0.30 m; a corner correction is stopped by a wall or a solid with the stride starting
+      within 500 mm of a disclosed solid's corner; at most two doorway corrections per crossing.
+      M-E14 plants corrections of neither kind. C-1 returns to "zero corrections" once the bodies
+      follow-up of §22.16 lands
 C-2   CONVERGENCE. For every server-caused difference over 150 mm in B-a, B-b, B-f and C-2b: exactly one
       correction; within 2 observations after the answer the body is within 150 mm of the
       observation; no second correction within 1 s unless a new server-caused change is observed
@@ -9455,6 +9465,39 @@ X12e-10 (RESOLVED, ruling 3) B-c: the overlap was the client's, not Jolt's conta
         removal) were each tried and changed nothing; a 5–10 mm safe_margin also removed the overlap
         but made B-a's head-on nudge disappear. M-E13 guards the fix
 X12e-12 (RULING 4) M-E4 survives, as recorded; the suspension's work is not claimed
+X12e-25 C-1 AMENDED (the operator, 2026-10-17; §22.4 C-1). The link keeps every stopped-short fact of
+        the body with the server's position before it (SliceLink.stops) and attaches the latest one
+        to a correction; the probe classes each correction "doorway", "corner" or "other" and fails
+        C-1 on any "other" or on more than two doorway corrections per crossing. The free walk now
+        counts from inside the café, so its door crossing is part of it. M-E14 (CORRECTION_MM
+        lowered to 40 mm: corrections no stop explains) must turn C-1 red. Verification WAITS for
+        the operator's heavy-job pause to lift; not run
+```
+
+## 22.16 Follow-up for a separate `bodies` PR (design note; not 12e)
+
+```text
+WHY      C-1 as amended allows two server-caused correction classes (X12e-9). Both are `bodies`'
+         behaviour, not the client's. Removing them returns C-1 to zero corrections.
+1 DOORWAY  A crossing is a placement (12b SD-B3) landing at the nearest free point (12d-0 SD-Z6), and
+         every floor edge is a wall (SD-B11): a body is never held within R + GAP (260 mm) of an edge,
+         so a client walking through a doorway is stopped short on one side and placed back on the
+         other. Proposal: within a disclosed doorway's span, the edge is not a wall for the person
+         crossing it; a crossing arrival is held where it was reported when that point is free (the
+         nearest-free search runs only when it is not), and a stride inside the span toward the
+         doorway is not stopped at the edge. Owner: `bodies` (resolver) with `movement` unchanged.
+         Proof: town_bodies-style test — a body walking café → street through the doorway in
+         0.5 m strides is never stopped short and lands where reported; existing digests re-baselined
+         only if a scripted crossing changes.
+2 CONVEX CORNER  A stride that starts touching a solid's corner and runs past it is stopped by
+         Rapier's character controller after part of its length (the café bench, the terrace sets).
+         Proposal: as SD-Z5 for people — a solid the walker stands within the controller's offset of
+         and moves away from, or past tangentially at a corner, is left out of the contact sweep;
+         verification still counts it, so no result overlaps it. Proof: a stride from (2109, 968)
+         beside the café bench's corner to (2547, 1200) lands at its target; no stride ever ends
+         inside a solid (the existing scan).
+AFTER    C-1 back to "zero corrections" on --link and the free walk; this ledger's X12e-9 and the
+         amendment's allowance closed. Recorded in mineworld-demos/progress/pending-decisions.md.
 ```
 
 **What was dropped, and why (so it is not tried again unmeasured).** SD-Z1 (a scene of only what a

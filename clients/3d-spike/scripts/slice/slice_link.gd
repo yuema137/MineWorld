@@ -284,6 +284,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	bodies.observe(obs, layout, world_root)
 	objects.observe(obs)
 	_stopped(obs)
+	_prev_auth = _mm(obs.self_location().get("local"))
 
 	# The server is the authority on where the body is. On the first view the
 	# body goes where the world says it is; after that, the correction rule
@@ -305,6 +306,13 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			var c: Dictionary = correction.history[correction.history.size() - 1]
 			var snapped := player.correct_to(to_scene(place, me))
 			c["snap"] = snapped
+			# what stopped the body, if the world said so within the last second (for C-1's
+			# classes, step-11 §22.4 as amended 2026-10-17)
+			c["stop"] = {}
+			for k in range(stops.size() - 1, -1, -1):
+				if String(stops[k]["place"]) == place and float(c["at"]) - float(stops[k]["at"]) <= 1.0:
+					c["stop"] = stops[k]
+					break
 			print("[link] corrected %.3f m (%s, %s form) to %s in %s; the request it reflects (%s) reported %s, the body was drawn at %s"
 				% [c["size"], "snap" if snapped else "glide", c["form"], JSON.stringify(me), place,
 				_tokens_kind(String(c["acted"])), c["reference"], c["from"]])
@@ -466,10 +474,21 @@ func _stopped(obs: MineWorldObservation) -> void:
 		if typeof(p) != TYPE_DICTIONARY or SliceObjects.id_of(p.get("person")) != obs.observer():
 			continue
 		var by: Variant = p.get("by")
+		stops.append({"at": Time.get_ticks_msec() / 1000.0, "place": obs.place(),
+			"wanted": _mm((p.get("wanted", {}) as Dictionary).get("local")),
+			"reached": _mm((p.get("reached", {}) as Dictionary).get("local")),
+			"by": "" if by == null else SliceObjects.id_of(by), "start": _prev_auth})
 		print("[link] stopped short: wanted %s, reached %s, by %s" % [
 			JSON.stringify((p.get("wanted", {}) as Dictionary).get("local")),
 			JSON.stringify((p.get("reached", {}) as Dictionary).get("local")),
 			"a wall or a solid" if by == null else display_label(SliceObjects.id_of(by))])
+
+
+## Every stopped-short fact of this body, in order: { at (wall s), place, wanted, reached (mm),
+## by ("" for a wall or a solid, else the person's id), start (the server's position for the body
+## in the observation before) }.
+var stops: Array = []
+var _prev_auth := Vector2.INF
 
 
 ## What kind of request an ActionId was, for the log ("move", "talk", …, or "?").

@@ -113,6 +113,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_obs(obs: MineWorldObservation) -> void:
+	var shape: Variant = obs.component_value(obs.place(), "place-shape")
+	if typeof(shape) == TYPE_DICTIONARY:
+		_shapes[obs.place()] = shape
 	var me := obs.self_location()
 	var mine: Variant = me.get("local")
 	if typeof(mine) == TYPE_DICTIONARY and _phase in ["a", "b"]:
@@ -788,8 +791,8 @@ func _c_summary(link: SliceLink) -> void:
 		var idle := frames.all(func(f): return _flat_len(f[2]) < 0.01)
 		if not snap and idle and worst > allowed:
 			smooth = false
-		print("  %.3f m %s %s form at %.2f s; largest glide step %.1f mm (bound %.1f)%s" % [c["size"],
-			"SNAP" if snap else "glide", c["form"], start, worst * 1000.0, allowed * 1000.0,
+		print("  %.3f m %s %s form at %.2f s, C-1 kind %s; largest glide step %.1f mm (bound %.1f)%s" % [c["size"],
+			"SNAP" if snap else "glide", c["form"], start, _c1_kind(link, c), worst * 1000.0, allowed * 1000.0,
 			"" if idle else "; input live, the walk's own motion in it: reported, not judged"])
 	_verdict_b("C-3", smooth, "every glide drawn with the input idle moves the body evenly; snaps listed above")
 
@@ -798,11 +801,13 @@ func _c_summary(link: SliceLink) -> void:
 func _c_free_walk(link: SliceLink) -> void:
 	var lay := link.layout
 	await _walk_to(_cafe(link, Vector2(1610, 1500)), 10.0)
+	# counted from inside the café: the walk out through its door is one crossing
+	var c0 := link.correction.history.size()
+	var x0 := link.place_changes.size()
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
 	await _until_place(link, lay.street)
-	var c0 := link.correction.history.size()
 	var t0 := Time.get_ticks_msec()
 	var legs := 0
 	while Time.get_ticks_msec() - t0 < 60000:
@@ -814,9 +819,56 @@ func _c_free_walk(link: SliceLink) -> void:
 		await _walk_dist(6.0, 6.0)
 		legs += 1
 	Input.action_release("jog")
-	_verdict_b("C-1", link.correction.history.size() == c0 and link.here == lay.street,
-		"60 s walking and jogging on the pavement (%d legs): %d corrections"
-		% [legs, link.correction.history.size() - c0])
+	var cs := link.correction.history.slice(c0)
+	var crossings := link.place_changes.size() - x0
+	var kinds := {"doorway": 0, "corner": 0, "other": 0}
+	for c in cs:
+		kinds[_c1_kind(link, c)] += 1
+	_verdict_b("C-1", link.here == lay.street and kinds["other"] == 0 and kinds["doorway"] <= 2 * crossings,
+		"the walk out through the café's door and 60 s on the pavement (%d legs): %d corrections — %d at a doorway (allowed: at most 2 for each of %d crossings), %d at a convex corner, %d of no allowed kind"
+		% [legs, cs.size(), kinds["doorway"], crossings, kinds["corner"], kinds["other"]])
+
+
+## C-1 AS AMENDED (the operator's ruling of 2026-10-17, step-11 §22.4): the allowed corrections.
+## A correction is one of:
+##   "doorway"  the world stopped the stride at a wall ("by" nobody), the server's position lies
+##              within DOOR_NEAR_MM of a doorway point of that place, and it is a small one, at
+##              most SMALL_M: bodies' edge band at a crossing
+##   "corner"   the world stopped the stride at a wall or a solid, and the stride started next to
+##              a disclosed solid's corner -- the nearest point of some solid is one of its corners,
+##              within CORNER_NEAR_MM: the server's controller stopping at a convex corner
+##   "other"    anything else, which still fails C-1
+## The bounds are the ruling's words and the plan's DOOR_EDGE, never a server rule number.
+const DOOR_NEAR_MM := 500.0
+const SMALL_M := 0.30
+const CORNER_NEAR_MM := 500.0
+
+var _shapes := {}
+
+
+func _c1_kind(link: SliceLink, c: Dictionary) -> String:
+	var stop: Dictionary = c.get("stop", {})
+	if stop.is_empty() or String(stop["by"]) != "":
+		return "other"
+	var place := String(c["place"])
+	var to: Vector2 = c["to"]
+	if float(c["size"]) <= SMALL_M:
+		for p in link.layout.passages.get(place, []):
+			var here := Vector2(float(p["here"]["x"]), float(p["here"]["y"]))
+			if to.distance_to(here) <= DOOR_NEAR_MM:
+				return "doorway"
+	var start: Vector2 = stop["start"]
+	var shape: Variant = _shapes.get(place)
+	if start != Vector2.INF and typeof(shape) == TYPE_DICTIONARY:
+		for sd in shape.get("solids", []):
+			var lo := Vector2(float(sd["min"]["x"]), float(sd["min"]["y"]))
+			var hi := Vector2(float(sd["max"]["x"]), float(sd["max"]["y"]))
+			var q := Vector2(clampf(start.x, lo.x, hi.x), clampf(start.y, lo.y, hi.y))
+			var at_corner := (q.x == lo.x or q.x == hi.x) and (q.y == lo.y or q.y == hi.y) \
+				and q.x != start.x and q.y != start.y
+			if at_corner and start.distance_to(q) <= CORNER_NEAR_MM:
+				return "corner"
+	return "other"
 
 
 # --- --rules ------------------------------------------------------------------------
