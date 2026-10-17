@@ -419,17 +419,22 @@ async fn two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept() {
     keys.sort();
     assert_eq!(
         keys,
+        // §3.3's keys and SET-b's `[input]` pair (SETTINGS.md §4.1, AC-SETb-6): a save writes every owned
+        // section the file lacks (`store.gd`, since SET-a), so a first Apply in the 2D client also writes
+        // the `[input]` defaults, which the 2D client does not show.
         [
             "clock",
+            "invert_y",
             "language",
             "max_fps",
+            "mouse_sensitivity",
             "render_scale",
             "version",
             "vsync",
             "window_mode",
             "window_size"
         ],
-        "exactly the keys of §3.3:\n{written}"
+        "exactly the keys of §3.3 and §4.1:\n{written}"
     );
     assert!(written.contains("language=\"zh_Hans\"") && written.contains("clock=\"24h\""));
     assert!(written.contains("window_size=Vector2i(1280, 720)"));
