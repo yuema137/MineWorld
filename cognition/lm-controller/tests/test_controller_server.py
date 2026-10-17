@@ -546,13 +546,20 @@ def test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins(tmp_path:
                     "the runner handed the seat back",
                     within=30,
                 )
+                # Read after the secret was seen gone: every consult logged from here on ran on a seat joined
+                # after that handback, since a session writes the secret at its join and deletes it only after
+                # its consult is logged.
+                handed_back_after = len(_decisions(store))
+                # A rejoin is seen as the secret written again, or as a consult of the rejoined seat. The secret
+                # alone is not enough (D-P6b-40, D-P6b-41): the script refuses every consult, so a rejoin that
+                # backfills a trigger hands the seat back again within milliseconds and deletes the secret
+                # between two polls.
                 await _wait_for(
-                    lambda: (store / "alice.resume").exists(),
+                    lambda: (store / "alice.resume").exists()
+                    or len(_decisions(store)) > handed_back_after,
                     "the runner rejoined after the handback period",
                     within=30,
                 )
-                # Seen once is the rejoin (D-P6b-40): the script refuses every consult, so a later one may
-                # hand the seat back again and delete the secret before a second read.
                 rejoined = True
             await _stop(task)
             return (
