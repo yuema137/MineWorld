@@ -131,6 +131,8 @@ def _system(persona: Persona, situation: Situation) -> str:
             "Cite memory only by the tokens shown.",
             "When someone speaks to you, answer them as yourself, using what you remember of them, and"
             " cite the memories you used.",
+            "If WHAT I REMEMBER begins with what you and that person said to each other before, your"
+            " answer must take it up: refer to what was said there, and cite those tokens in recalls.",
         ]
     )
     return "\n".join(lines)

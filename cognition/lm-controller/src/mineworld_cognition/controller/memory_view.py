@@ -20,10 +20,11 @@ def memory_view(store: MemoryStore, query: RecallQuery, recall_episodes: int) ->
         raise ValueError(f"recall_episodes must be between 0 and {EPISODES_MAX}")
     kept: list[SectionLine] = []
     episodes = 0
-    for line in retrieve(store, query).lines:
+    section = retrieve(store, query)
+    for line in section.lines:
         if line.level == "L1":
             if episodes == recall_episodes:
                 continue
             episodes += 1
         kept.append(line)
-    return MemorySection(lines=tuple(kept))
+    return MemorySection(lines=tuple(kept), speaker=section.speaker)
