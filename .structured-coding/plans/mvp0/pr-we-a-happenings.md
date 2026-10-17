@@ -1037,6 +1037,37 @@ Every commit lists implementation, validation and review as separate items. `[ ]
      an enabled market pack's configuration and keeps every other refusal; the reason line is present;
      nothing outside Market Town moved (E-4).
 
+### C5-fix — CI repair on `5a176ae` (run 38820477770)
+
+- **CI result on `5a176ae`: FAIL.** `fast` failed at `cargo fmt --all --check`. D-13's fixture edit was
+  made after the local `cargo fmt` and was not re-checked. `test`, `test-macos` and `test-windows` each
+  failed one binary only, `-p mineworld-cli --test guide`: 4 tests, with `--no-fail-fast`, and every
+  other Rust binary passed. `python (windows-2025)` failed, and so did 12d's own CI (`99a0746`, the
+  python layer on all three platforms): it is inherited from 12d, not caused by WE-a (below). `python`
+  on ubuntu and macOS and both `platforms` jobs passed. AC-8 (`scenario`, `linux-arm`, `mac`,
+  `windows`, `ac8`) was skipped by the workflow on this pull-request event.
+- [x] **Bounded deviation D-14 — `tools/cli/tests/guide.rs`.** *Previous assumption:* D-12, flipping
+  the flag, is enough. *Audit evidence:* four whole-guide tests used `happenings` as the probed feature
+  "this build does not have". With WE-a every probed feature (`calendar`, `weather`, `happenings`) is
+  in the build, so no probed feature can stand for an unmerged one. *Corrected:*
+  - The mock repository and the pending test use `decisions`, which is unmerged and unprobed.
+  - "Flagged true, not built" is checked on `features::against_build` over a `packs list` listing
+    without `mineworld-happenings`.
+  - *Validation:* `cargo test -p mineworld-cli --test guide`: 34 PASS.
+  - Mutation **M21**: `(true, false)` made never to fail → the rewritten test FAILED; the change was
+    reverted from a copy.
+- [x] `cargo fmt --all --check` clean, and clippy `-D warnings` on `mineworld-cli --test guide` and
+  `mineworld-economy --all-targets` clean.
+- **`python (windows-2025)`, classified as inherited.**
+  - The failures: `test_ac10.py` (8) and `test_retention_real.py` (2) error at setup on a `mineworld`
+    subprocess that timed out at 600 s (debug binary), and
+    `test_controller_server.py::test_b_…` was answered `too_far_away` on a stride in `social-cafe`.
+  - Every one runs `social-cafe`, which does not enable `happenings` (INV-WE-1, E-1). They come from
+    main's P6 tests meeting 12d's bodies on Windows.
+  - 12d's own head failed the python layer on all three platforms, and 12d records it as its
+    CI-wall-time stop.
+  - Not fixed in WE-a; it clears with 12d's fix.
+
 ### C6 — Documentation and ledger
 
 1. **Goal.** The specifications say what the code does.
@@ -1153,7 +1184,7 @@ Commits:           C0 e729586, C1 d8a2bff, C2 8360d88, C3 bce32bc, C4 4dca864; m
                    fa84340 (main); C5+C6 (this commit)
 Evidence:          per commit in §11; default ci_parity records used 4 of 4 (base, C1, C3, C4); long
                    record used 1 of 1 (E-4). Full local suite: not re-run at C5 (R-LOAD-1: CI is the gate)
-Deviations:        D-1 … D-13 (bounded, recorded in §11 C1 … C5)
+Deviations:        D-1 … D-14 (bounded, recorded in §11 C1 … C5-fix)
 Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); F-WE-a-9 (§11 C4: a declaration change also moves the genesis
                    journal entry and the snapshots' composition); F-WE-a-10 (§11 C5: the 2D HUD does not
                    show the happenings records — presentation follow-up)
