@@ -9270,8 +9270,39 @@ E-E8    THE FINAL CODE (344feee + this ledger): GD-0 clean; GD-1 --drive all pas
         clean; clippy on mineworld-acceptance clean; client_rules, client_text pass; the workspace
         suite runs in CI only (R-LOAD-1). check_decision_ids "126 decision ids, all distinct";
         check_doc_headings "238 numbered sections across 33 documents, none duplicated"
-handoff checkpoint: 2026-10-17, READY FOR OPERATOR REVIEW with material findings X12e-8, X12e-9,
-        X12e-10 (§22.15); PR "12e: bodies in the 3D client" against mvp0/pr-16c; no background work
+RULINGS The primary session's rulings on #254, 2026-10-17 (relayed by the coordinator; logged for
+        the operator's milestone review): (1) GE: fix the instrument (sample at the collider's own
+        heights) and the real mismatches, aligning the scene to 12d's authored bodies — the server's
+        bodies are the authority; a wrong 12d content is a finding routed through the coordinator;
+        no tolerance widened. (2) C-1: root-cause the 260 mm hold and the café's 0.41 m correction;
+        report the crossing earlier if the client can, else record and report before any change of
+        the expectation. (3) B-c: a Jolt setting in project.godot is allowed, the 5 mm bound is not
+        widened. (4) M-E4: recorded as is. Stay on 16c until 12d merges; one complete head
+E-E9    AFTER THE RULINGS (commits 537f793, f171cdf, 1d96eec; logs shots/12e/v7-*, v8-*, j14, mut/,
+        cf/):
+        GE   --world --geometry: "405 rows; all geometry checks pass" — every disclosed face and edge
+             within 150 mm of a scene collider and every scene collider within 150 mm of a disclosed
+             solid or edge; the two door leaves EXEMPT as before. GE-4 (counter 200 mm south): its
+             south and north faces 203.4 and 200.5 mm, FAIL as planned; GE-5: M-E8 names solid 4
+             "none within 500 mm" on four faces; the copy without table north's solid names the scene
+             collider at 1 622 mm; M-E7 (the sweep also masking DISCLOSED) hides the drifted south
+             face (3.4 mm) — why the instrument masks the scene only; M-E12 names the bank tree's
+             collider at 1 720 mm
+        BODIES (j14, headless): B-a PASS (232 mm, 1 correction, 4 wished strides), B-b PASS, B-c PASS
+             (largest overlap −1.1 mm: the body never enters the box), B-d PASS, B-e PASS, B-f PASS
+             (0.500 m in 0.131 s), C-2b PASS (1 correction), B-g PASS, B-r PASS (0.509 m), C-3, C-4
+             PASS; C-1 FAIL (X12e-9, below). C-5 (v8): ball 1.4002 / 1.3872 s, glide 0.116 / 0.117 s at
+             1× / 24×. X-1 PASS (six identical requests), X-2 PASS. M-E13 (the glide back to a kinematic
+             add) brings B-c's 6.6 mm back
+        ACCEPTED CHECKS (v8): --drive, --link, --layout, --street, --target, --conversation,
+             --character, --threshold all pass. V-1: the same six views over the noise floor as E-E8
+             and for the same causes (the hidden colliders draw nothing)
+        FRAMES (v8, windowed, third person rear, shots/slice/12e_*.png): crowd, nudge, box pushed,
+             shoved; in the windowed run B-a counted 2 corrections (1 headless) and the kick was not
+             sent (the rear camera's ray met the floor before the ball), as in E-E7
+handoff checkpoint: 2026-10-17, READY FOR OPERATOR REVIEW after the primary session's rulings; C-1
+        remains FAIL with two server-side causes reported to the coordinator (X12e-9 revised); PR
+        #254 against mvp0/pr-16c; no background work
 ```
 
 Deviations and discoveries during implementation are recorded in §22.15.
@@ -9378,6 +9409,52 @@ X12e-20 NO GLIDE PARAMETER OR TWEEN READS THE WORLD'S TIME SCALE; F, G and R are
         InputMap actions: project.godot is outside §22.1), so SET-b's key map does not list them yet
 X12e-21 PROCESS: some edits during the session were made with perl -pi and heredocs, against the
         contract's command list (a permission-hygiene list); no effect on content
+X12e-22 GE'S INSTRUMENT (ruling 1). Each disclosed face is swept by a 10 mm box spanning the floor to
+        the solid's height (to the capsule's top, 1.72 m, at a floor edge) from 0.3 m on the walkable
+        side, against the scene only; that is the verdict now, replacing the plan's two rays, which
+        passed under slab and over low colliders (X12e-8 (a)). Walkable ramps (a box tilted no steeper
+        than 52°) are passed, a sample whose approach crosses another disclosed solid is not taken
+        (that solid's own faces are), and each over-row names the collider it met and the spans over
+X12e-23 THE SCENE FOLLOWS THE WORLD'S BODIES (ruling 1; X12e-8 (b) resolved). The server's bodies are
+        the authority and 12d's content is not changed: every fix is a hidden collider in the scene,
+        nothing drawn moves. Café: blockers fill the front wall's depth between the piers and the door
+        (the world's floor ends at the wall's inner face, the glazing stands at the façade:
+        cafe.gd). Street: the terrace sets are the two crossed boxes the world holds — `bodies` has no
+        round solid, so "the cylinders" of the ruling are the world's two boxes; the 0.62 m cylinder
+        is gone (streetscape.gd); air walls stand where the street's floor ends (the carriageway at
+        both ends, the south pavement's ends, the north pavement by the bank). Store: the turned crate
+        is held by its box, the shelves' gaps behind the counter by a strip (shop_interior.gd). The
+        planters' rows were the instrument (a bollard's disclosed solid overlaps each planter's
+        face), not content. No finding against 12d's content
+X12e-9  (REVISED) C-1 STILL FAILS — TWO SERVER-SIDE CAUSES, REPORTED TO THE COORDINATOR. The log now
+        prints every stopped-short fact and the request each correction reflects. --link: 6
+        corrections; the free walk: 4.
+        (1) The doorway (4 of --link's 6). Every place's floor edge is a wall to `bodies` (12b SD-B11's
+        perimeter), a crossing is a placement that lands at the nearest free point (12d-0 SD-Z6), and
+        no body may stand within R + GAP (260 mm) of an edge. So the threshold is a band 260 mm deep
+        on each side that the server never holds: a report from the band on the café side is stopped
+        short at 260 mm ("wanted (1610, 77), reached (1610, 260), by a wall or a solid"), and the
+        crossing reported from the street side lands at 2950 ("wanted (0, 3185), reached (0, 2950)").
+        It is `bodies`' rule, not 12n's. The client cannot report the crossing earlier: a report
+        anywhere in the band is clamped on whichever side it names, and holding reports until the
+        body has left the band would put R + GAP in the client (a rule). Options for the operator:
+        accept two ~0.2 m glides per crossing (C-1 amended to name them), or a `bodies` change so a
+        crossing is held where it was reported
+        (2) A convex corner (the café's 0.41 m, and the street's terrace sets in the free walk). A
+        stride that starts touching a solid's corner and runs past it is stopped by the server's
+        Rapier controller after part of it — "wanted (2547, 1200), reached (2176, 1288), by a wall or
+        a solid" from (2109, 968), touching the window bench's corner (2360, 900); "wanted (913,
+        2309), reached (595, 2408)" past a terrace box's corner — where Jolt slides on. Both scenes
+        hold the same boxes now; the controllers differ at corners. SD-Z5 already lets a stride
+        leave a person it touches; the same for solids is a `bodies` change (outside every client PR)
+X12e-10 (RESOLVED, ruling 3) B-c: the overlap was the client's, not Jolt's contact. The glide was
+        added kinematically after the input's own slide, so a body pressing a box was carried 16.6 mm
+        on — 6.6 mm into it. The glide now moves the body by move_and_collide and carries what it
+        could not move (player.gd); B-c's largest overlap is −1.1 mm. project.godot is unchanged: its
+        Jolt settings (recovery iterations and amount, the collision-margin fraction, internal-edge
+        removal) were each tried and changed nothing; a 5–10 mm safe_margin also removed the overlap
+        but made B-a's head-on nudge disappear. M-E13 guards the fix
+X12e-12 (RULING 4) M-E4 survives, as recorded; the suspension's work is not claimed
 ```
 
 **What was dropped, and why (so it is not tried again unmeasured).** SD-Z1 (a scene of only what a
