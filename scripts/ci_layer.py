@@ -151,6 +151,10 @@ LAYERS.update({
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["uv", "run", "--locked", "python", "scripts/ci_stability.py", "restarts", "--binary", "target/release/mineworld"],
         ["python3", "scripts/ci_stability.py", "replay", "--binary", "target/release/mineworld"],
+        # The cognition package's `slow` cases, which no PR runs (pr-s28a D-a-15; primary ruling
+        # 2026-10-16): the busy-store retention tests, the transparency harness's frames of 1 and 4 096, and
+        # the full 50-kill test. None needs the binary. `-m slow` replaces the member's `addopts` expression.
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
@@ -233,7 +237,7 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary",
+        "-m", "not live_model and not real_binary and not slow",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
 ]

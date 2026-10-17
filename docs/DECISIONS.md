@@ -7925,6 +7925,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Note, 2026-10-14 (PR FG-b2; `pr-fg-b2-size-trigger.md` §1.1; operator rulings).** Two rulings revise the bound, neither changing the choice that the host, not a policy, enforces it. (1) "改成'快满了就提前整理'": a pass also runs early, after the fact that takes the store near its bound (a size pass), so the bound holds in a world whose perception exceeds a day's headroom — PR 12d's busier social-cafe reached 1 496 077 B before a daily pass. The trigger is measured exactly after every fact on the store's content, a function of the facts so far, so retention stays replayable and batch-independent. (2) "一个人物1mb太少了吧，我觉得起码20mb", then "默认 20 MB，世界可以调大": the per-seat bound is **20 MiB by default and a world may raise it**, per seat or class (`store_bound_mib` in `decisions.yaml` `memory:`), never below 20 MiB; the post-pass target is 75 % of it. This reverses, in the upward direction only, step-24 §1.2 ruling 2 (4) and FG-b's "not a parameter": the bound is now a world's choice above a fixed floor, still never a policy's. The 6 000-byte per-call memory ceiling (`D-P4-9`) is unchanged. "1 MiB" above reads "the seat's bound" from this date.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.7; QS28-4, `ARC-99`, `ARC-109`).** The bound now measures the **seat view**: the seat's `SeatView.dump()` in schema 4's positional encoding (`ARC-101`), less its `meta` lines, with every record the seat holds counted in full however many seats of its home hold it. Nothing a home-mate perceives, keeps or forgets changes a seat's size (I-S28-3). FG-b2's numbers are unchanged: 20 MiB by default, raise-only, the target 75 % of the bound, the size trigger at the bound less a sixteenth.
+
 ---
 
 ## ARC-88 — World evolution: a deterministic `happenings` System Pack, and LLM directors that only propose
@@ -8516,6 +8518,13 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 
 **Revisit** when a schema change is needed, or when a tool outside MineWorld must read the dump.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.4 and ledger D-a-5).** The concrete grammar, as implemented in `mineworld_cognition.memory.home` (`encoding.py`, `schema.py`):
+
+- A line is the compact JSON array `[table, c1, …, cn]` (separators `,` and `:`, no spaces, UTF-8 not escaped), then `\n`.
+- Cells go through their column's codec. The `EventKey` columns (`event_key`, `first_key`, `last_key`, `level_key`, `source_key`, `trigger`) and `event_id` are written as the unpadded decimal number. A digest is written as its first 32 hex characters. `prose_key` is a cassette key and stays text. Every other value is written as stored (`INTEGER` → number, `TEXT` → string, `NULL` → `null`); no table holds a float.
+- `meta` lines are `["meta", key, value]`. The values of `cursor`, `newest` and `forgotten_below` are numbers, `null` while unset; every other value is a string (`schema` is `"4"`).
+- **Seat view** (`SeatView.dump()`): `meta` (`world_instance`, `schema`, `seat`, `self_entity`, and the seat's own rows, in key order), `names`, `l0` (`[l0, event_id, at, kind, place, salience, mine, gist, digest, importance]` in key order), `l0_who` (`[l0_who, event_id, entity]` for the held facts' participants other than the seat, in envelope order), then `episodes`, `episode_who`, `chapters`, `chapter_ranges`, `stable`, `forgotten`, `retention_passes`, each without its `seat` column, rows in key order.
+- **Home** (`MemoryHome.dump()`): the `home_meta` lines; one `[fact, event_id, at, kind, place, digest]` line per record in key order (the id is written once, because the key's number is the id); one `[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` line per record that has `fact_who` rows, in ordinal order; then, for each seat in key order, `[seat, key, self_entity]`, followed by that seat's rows in the seat view's table order, with `[access, event_id, gist, salience, mine, importance]` lines where the view has `l0` and no identity rows. The internal seat number never appears.
 ---
 
 ## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
@@ -8873,3 +8882,48 @@ Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall,
 - **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
 - **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
 - **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
+
+---
+
+## ARC-109 — The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15) and its rulings QS28a-1 … QS28a-4 (§14.1) · **Relates to** `ARC-59`, `ARC-87`, `ARC-98`, `ARC-99`, `ARC-101`, `DEP-37`, `DEP-58`, `DEP-61` · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §§1, 2, 5, 6
+
+**Problem.** P4's `MemoryStore` is one SQLite file per seat. Every seat that perceived a fact stores its envelope again, so a home of twelve persons stores most facts five to twelve times (step-28 §2). `ARC-98` rules that shared memory is a cognition-side home of perceived envelopes, with perception as the only access right; it leaves the storage API, the schema number and what replaces the store to the implementing PR.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Keep `MemoryStore` beside the home, as a compatibility layer, until every consumer moves | Declined: a second storage path before a stable contract exists (`CLAUDE.md` §4 item 12), and QS28-8 rules that old stores are refused, not read |
+| (b) One file per seat with shared records in an `ATTACH`ed file | Declined (step-28 §6.3): an atomic commit across attached files holds only in rollback-journal mode, and a seat file is no longer self-contained once its records are shared |
+| (c) **One home per cognition process and world instance; every consumer reads and writes through a `SeatView`** | **Chosen** |
+
+**Choice.** `memory.home.MemoryHome` (one SQLite file, schema **4**) replaces `MemoryStore`, which is deleted with no alias. A home stores each perceived fact's perspective-free envelope once (`fact`, `fact_who` with the role of each entity, QS28a-3), each seat's holding of it with that seat's rendering (`access`), and each seat's private tables with a leading `seat` column. `SeatView` is the only storage API of memory: ingestion, names, the roll-up, retrieval and the retention host take a `SeatView`, and its canonical dump is the standalone seat view (`ARC-101`). The schema is 4, because FG-b2 shipped schema 3 (F-S28a-1). A store of schema 2 or 3 is refused by name (`UnsupportedStoreSchema`) and never modified; memory is rebuilt from the perceived stream (QS28-8). Records are collected exactly, in the releasing transaction, by an anti-join over the access rows, with no stored count (I-S28-4). I-S28-6 is replaced by two statements (QS28a-1): sharing never costs disk, and each one-seat home's dump exceeds its seat view's by at most a fixed `K` bytes per held record.
+
+**Consequences.** The kernel, contracts, server and protocol are unchanged (I-S28-10). A seat's bytes, recall and retention decisions are identical whether it shares its home or not (I-S28-2, I-S28-3), which the transparency harness checks. Until S28-f wires `sharing`, the LM controller opens one home per seat at the seat's existing path (the `none` arm).
+
+**Revisit** when S28-c introduces the `MemoryScope` interface (the `world` scope's functions become a scope), or when S28-f shares one home among a process's seats.
+
+---
+
+## DEP-61 — The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a; no dependency is added · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15); QS28a-4 ruled by the primary · **Relates to** `DEP-37`, `DEP-58`, `ARC-109`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §4, §5.5
+
+**Problem.** A home has one writer: a second process writing the same home would interleave its transactions with the first's. The second process must be refused at open, by name (`HomeBusy`), on Linux, macOS and Windows, and a process killed while holding the home must leave nothing that refuses the next open.
+
+**Options considered.**
+
+| Candidate | Verdict |
+| --- | --- |
+| **SQLite's own locking: `PRAGMA locking_mode = EXCLUSIVE`, then `BEGIN EXCLUSIVE; COMMIT` at open, `timeout = 0`** | **Chosen.** Cross-platform through SQLite's VFS (POSIX advisory locks, Windows `LockFileEx`), no dependency, no side file; the operating system releases the lock when the holder dies |
+| `filelock` (Unlicense; mature) | Declined: a second lock beside SQLite's own, which can disagree with it, and a dependency for one call |
+| A hand-written lock file (`fcntl` / `msvcrt`) | Declined: two code paths, and a file that goes stale after a SIGKILL |
+| A side file recording the holder's pid (`HomeBusy(path, holder_pid)`) | Declined (QS28a-4): it can go stale and disagree with SQLite's lock; `HomeBusy(path)` names the file, and the platform's tools find the process |
+
+**Choice.** SQLite's exclusive locking. `HomeBusy(path)` is raised when the lock cannot be taken at once. `auto_vacuum` is set only on an empty database, because on a database with pages the pragma rewrites the header even when the value is unchanged, and a refused file must be left byte-identical (S28-a ledger, F-S28a-10).
+
+**Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
+
+**Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.

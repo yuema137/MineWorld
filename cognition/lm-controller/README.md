@@ -63,8 +63,10 @@ subscription is your account with a vendor, and its terms decide what another pr
   an empty temporary directory, and receives none of your API keys. Your CLI's own global configuration
   (hooks, MCP servers) is yours and still runs.
 
-**Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`). A seat remembers only what its Person perceived:
-one SQLite file per seat, at a path you choose, never inside a world's save. Facts become one-line
+**Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`, `ARC-109`). A seat remembers only what its Person
+perceived: it is a seat view of a memory home, one SQLite file at a path you choose, never inside a world's
+save, which stores each perceived fact once for every seat that holds it. A memory file from before schema 4
+is refused; delete it and the seat rebuilds its memory from the perceived stream. Facts become one-line
 records, then episodes, weekly chapters and what it knows of each person, every line citing the Event
 IDs it stands for. The memory part of a decision's context stays under 6 000 bytes however long the
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
