@@ -274,9 +274,12 @@ async def _walk_into_reach(visitor: SeatSession) -> None:
             },
         )
         outcome = await visitor.submit(request)
-        assert isinstance(outcome, Answered) and isinstance(outcome.result, Accepted), (
-            f"a stride to ({step_x}, {step_y}) was not accepted: {outcome}"
-        )
+        if not (isinstance(outcome, Answered) and isinstance(outcome.result, Accepted)):
+            now = (await visitor.changed()).observation.self_location
+            pytest.fail(
+                f"a stride to ({step_x}, {step_y}) was not accepted: {outcome}; the walk began at {(x, y)}, "
+                f"the visitor is now at {now}"
+            )
 
 
 async def _talk_available(visitor: SeatSession, alice: EntityId) -> None:
@@ -482,16 +485,21 @@ def test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop(
                 heard = [text for _, text in _heard(frame.observation, visitor.observer)]
             outcomes = [record.record.outcome for record in _decisions(store)]
             await _stop(task)
-            fresh = await ResumingSeat.open(
-                _connector(server.url),
-                seat=ALICE,
-                invite=Invite(INVITE),
-                nickname="after-stop",
-                cursor=None,
-                take_over=False,
-                sleep=asyncio.sleep,
-                clock=time.monotonic,
-            )
+            try:
+                fresh = await ResumingSeat.open(
+                    _connector(server.url),
+                    seat=ALICE,
+                    invite=Invite(INVITE),
+                    nickname="after-stop",
+                    cursor=None,
+                    take_over=False,
+                    sleep=asyncio.sleep,
+                    clock=time.monotonic,
+                )
+            except SeatLost:
+                print(f"(g) outcomes before the stop: {outcomes}; counters {_last_counters(store)}")
+                print(_diagnose(store, server))
+                raise
             took_over = fresh.welcome.took_over
             await fresh.leave()
             return refusal, WORDS, took_over, heard, ",".join(outcomes)
