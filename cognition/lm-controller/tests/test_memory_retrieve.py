@@ -12,6 +12,7 @@ from memory_fixtures import (
     CAFE,
     CAROL,
     DAY,
+    DEV,
     PARK,
     alice_identity,
     named,
@@ -31,10 +32,12 @@ HOUR = 3600
 CEILING = 6000
 LINE = 160
 SECTIONS = {
+    # pr-p6c-fgd §4.1: `with` takes 1 000 of L0's 2 000 bytes; the ceiling is unchanged.
+    "with": ("What {name} and I said to each other before:", 6, 1000),
     "L3": ("People I know:", 16, 1600),
     "L2": ("Recent weeks:", 4, 800),
     "L1": ("Episodes I remember:", 8, 1600),
-    "L0": ("The last day:", 48, 2000),
+    "L0": ("The last day:", 48, 1000),
 }
 
 
@@ -61,7 +64,7 @@ def _adversarial() -> list[PerceivedEvent]:
 
 
 def _section_bytes(section: MemorySection, level: str) -> tuple[int, int]:
-    header, _, _ = SECTIONS[level]
+    header = SECTIONS[level][0].replace("{name}", section.speaker or "")
     lines = [line.render() for line in section.lines if line.level == level]
     if not lines:
         return 0, 0
@@ -75,6 +78,7 @@ def test_every_section_and_the_whole_stay_within_their_budgets() -> None:
             at=59 * DAY + 17 * HOUR,
             counterparts=(EntityId("7100000003"),),
             words="umbrella 雨",
+            speaker=EntityId("7100000003"),
         )
         section = retrieve(store, query)
     rendered = section.render()
@@ -84,10 +88,55 @@ def test_every_section_and_the_whole_stay_within_their_budgets() -> None:
         assert count <= most, level
         assert size <= budget, level
         if count:
-            assert header in rendered
+            assert header.replace("{name}", section.speaker or "") in rendered
     assert all(len(line.render().encode("utf-8")) <= LINE for line in section.lines)
     # The store holds far more than the section shows, and every section is used.
-    assert {line.level for line in section.lines} == {"L3", "L2", "L1", "L0"}
+    assert {line.level for line in section.lines} == {"with", "L3", "L2", "L1", "L0"}
+
+
+def _with_carol() -> list[PerceivedEvent]:
+    """Carol and I on day 0 (#10, #11) and once a day from day 3 to day 9 (#20 … #26, #26 within the last day
+    before day 10); a line between Bob and Carol I overheard (#12); Carol's line just heard (#40), and a name
+    learned in the last day (#41)."""
+    t = 9 * HOUR
+    return [
+        *names_of_everyone(),
+        spoke(10, t, CAROL, ALICE, "I left a red umbrella here.", CAFE),
+        spoke(11, t + 60, ALICE, CAROL, "I'll keep it behind the counter.", CAFE),
+        spoke(12, t + 120, BOB, CAROL, "Is that your umbrella?", CAFE),
+        *(spoke(17 + d, d * DAY + t, CAROL, ALICE, f"Day {d}.", CAFE) for d in range(3, 10)),
+        spoke(40, 10 * DAY, CAROL, ALICE, "Hello again.", CAFE),
+        named(41, DEV, "Dev Raman"),
+    ]
+
+
+def test_the_speakers_first_and_newest_exchanges_come_first() -> None:
+    # AP6c-1 (pr-p6c-fgd §4.1): the `with` section is first; it holds Carol's first two exchanges and then her
+    # newest, oldest first; neither the overheard line nor the line just heard; and what it shows is not repeated
+    # under "The last day". Its mutation drops the first-words read (newest only): #10 and #11 are missing.
+    with _store(_with_carol()) as store:
+        section = retrieve(
+            store,
+            # No counterparts, so no episode of Carol's covers the last day's records: L0 shows them.
+            RecallQuery(at=10 * DAY, speaker=CAROL, heard=EventId("40")),
+        )
+    shown = [line.citation.token() for line in section.lines if line.level == "with"]
+    assert shown == ["[#10]", "[#11]", "[#23]", "[#24]", "[#25]", "[#26]"]
+    assert section.lines[0].level == "with"
+    rendered = section.render()
+    assert rendered.startswith("What Carol Mensah and I said to each other before:\n")
+    recent = [line.citation.token() for line in section.lines if line.level == "L0"]
+    assert "[#26]" not in recent and "[#40]" in recent
+    assert len(rendered.encode("utf-8")) <= CEILING
+
+
+def test_without_a_speaker_there_is_no_with_section() -> None:
+    # The section is the speaker's: a consult on an arrival without a known person, or a retrieval with no
+    # speaker, shows none, and the L0 section is as before.
+    with _store(_with_carol()) as store:
+        section = retrieve(store, RecallQuery(at=10 * DAY, counterparts=(CAROL,)))
+    assert all(line.level != "with" for line in section.lines)
+    assert section.speaker is None
 
 
 def _talks() -> list[PerceivedEvent]:

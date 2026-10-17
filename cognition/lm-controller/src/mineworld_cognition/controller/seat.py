@@ -353,7 +353,13 @@ class SeatRunner:
             counterparts = (*counterparts, trigger.speaker)
         memory = memory_view(
             store,
-            RecallQuery(at=observation.at, counterparts=counterparts, words=trigger.words),
+            RecallQuery(
+                at=observation.at,
+                counterparts=counterparts,
+                words=trigger.words,
+                speaker=trigger.speaker,
+                heard=trigger.event if trigger.kind == "spoken_to" else None,
+            ),
             self._controller.recall_episodes,
         )
         answers: list[str] = []
