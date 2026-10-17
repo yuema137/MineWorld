@@ -6,11 +6,13 @@
 ##   --slice-geometry   in the café, on the street (walked out on foot) and in
 ##                      the store (walked into on foot):
 ##                      DISCLOSED -> SCENE  along every disclosed solid face and
-##                        floor edge, every 100 mm, at two heights, a horizontal
-##                        ray from 0.3 m on the walkable side toward the face,
-##                        against the scene only (`Build.LAYER_WORLD`), must meet
-##                        a collider within 150 mm of the face's plane -- except in
-##                        a doorway's gap;
+##                        floor edge, every 100 mm, a thin box spanning the
+##                        face's own heights (the floor to the solid's height,
+##                        or to the capsule's top at an edge), swept from 0.3 m
+##                        on the walkable side toward the face against the scene
+##                        only (`Build.LAYER_WORLD`), must meet a collider within
+##                        150 mm of the face's plane -- except in a doorway's gap
+##                        (two fixed-height rays until 2026-10-17: X12e-22);
 ##                      SCENE -> DISCLOSED  every scene collider that meets the
 ##                        floor and the capsule's height band, its footprint
 ##                        sampled every 50 mm, lies within 150 mm of a disclosed
@@ -35,6 +37,8 @@ const AGREE_MM := 150.0
 const FACE_STEP_MM := 100.0
 const RAY_BACK_MM := 300.0
 const RAY_PAST_MM := 500.0
+## The swept box's thickness, metres: a probe's size, its half added back to the distance.
+const SWEEP_THICK := 0.01
 ## Scene -> disclosed: footprint sample spacing; the capsule's height band.
 const FOOT_STEP_MM := 50.0
 const BAND_LOW := 0.05
@@ -151,10 +155,14 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 	print("-- %s: place %s, floor %s..%s, %d solids, %d doorways" % [label, place, lo, hi, solids.size(),
 		doors.size()])
 	# DISCLOSED -> SCENE
+	_ramps.clear()
+	for cs in _scene_shapes(slice.world):
+		if cs.shape is BoxShape3D and _ramp(cs):
+			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
 	var faces: Array = []
 	for i in range(solids.size()):
 		var s: Dictionary = solids[i]
-		var top := minf(s["h"] - 100.0, 1500.0)
+		var top: float = s["h"]
 		var nm := "solid %d %s..%s h %d" % [i, s["min"], s["max"], s["h"]]
 		var exempt := _exempt(tags, s["min"], s["max"])
 		faces.append([nm + " south", Vector2(s["min"].x, s["min"].y), Vector2(s["max"].x, s["min"].y),
@@ -165,10 +173,10 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 			Vector2(-1, 0), top, exempt, false])
 		faces.append([nm + " east", Vector2(s["max"].x, s["min"].y), Vector2(s["max"].x, s["max"].y),
 			Vector2(1, 0), top, exempt, false])
-	faces.append(["floor edge south", Vector2(lo.x, lo.y), Vector2(hi.x, lo.y), Vector2(0, 1), 1500.0, "", true])
-	faces.append(["floor edge north", Vector2(lo.x, hi.y), Vector2(hi.x, hi.y), Vector2(0, -1), 1500.0, "", true])
-	faces.append(["floor edge west", Vector2(lo.x, lo.y), Vector2(lo.x, hi.y), Vector2(1, 0), 1500.0, "", true])
-	faces.append(["floor edge east", Vector2(hi.x, lo.y), Vector2(hi.x, hi.y), Vector2(-1, 0), 1500.0, "", true])
+	faces.append(["floor edge south", Vector2(lo.x, lo.y), Vector2(hi.x, lo.y), Vector2(0, 1), BAND_HIGH * 1000.0, "", true])
+	faces.append(["floor edge north", Vector2(lo.x, hi.y), Vector2(hi.x, hi.y), Vector2(0, -1), BAND_HIGH * 1000.0, "", true])
+	faces.append(["floor edge west", Vector2(lo.x, lo.y), Vector2(lo.x, hi.y), Vector2(1, 0), BAND_HIGH * 1000.0, "", true])
+	faces.append(["floor edge east", Vector2(hi.x, lo.y), Vector2(hi.x, hi.y), Vector2(-1, 0), BAND_HIGH * 1000.0, "", true])
 	for f in faces:
 		_face_row(link, place, label, f, lo, hi, solids, doors)
 	# SCENE -> DISCLOSED
@@ -182,70 +190,95 @@ func _face_row(link: SliceLink, place: String, label: String, f: Array, lo: Vect
 	var a: Vector2 = f[1]
 	var b: Vector2 = f[2]
 	var n: Vector2 = f[3]
-	var top: float = f[4]
+	var tall: float = f[4]
 	var length := a.distance_to(b)
 	var along := (b - a) / maxf(length, 1.0)
 	var worst := 0.0
 	var worst_at := Vector2.ZERO
-	var band_worst := 0.0
 	var over := 0
 	var samples := 0
+	var spans: Array = []          # [from, to] along the face, mm, where a sample is over
+	var worst_met := ""
 	var space := player.get_world_3d().direct_space_state
 	var base := link.to_scene(place, {"x": 0, "y": 0}).y
 	var t := FACE_STEP_MM * 0.5
 	while t < length:
 		var q := a + along * t
+		var at := t
 		t += FACE_STEP_MM
 		var from := q + n * RAY_BACK_MM
 		if not _walkable(from, lo, hi, solids):
 			continue
 		if bool(f[6]) and _in_gap(q, n, doors):
 			continue
-		for h in [300.0, top]:
-			if h <= 0.0:
-				continue
-			var p0 := link.to_scene(place, {"x": int(from.x), "y": int(from.y)}) + Vector3(0, 0, 0)
-			p0.y = base + h / 1000.0
-			var dir := Vector3(-n.x, 0.0, n.y)  # world -n: +x east, +y north is -Z
-			var p1 := p0 + dir * (RAY_BACK_MM + RAY_PAST_MM) / 1000.0
-			var rq := PhysicsRayQueryParameters3D.create(p0, p1, Build.LAYER_WORLD)
-			rq.hit_from_inside = true
-			var hit := space.intersect_ray(rq)
-			var dev := INF
-			if not hit.is_empty():
-				dev = absf(p0.distance_to(hit["position"]) * 1000.0 - RAY_BACK_MM)
-			if dev > worst:
-				worst = dev
-				worst_at = q
-			if dev > AGREE_MM:
-				over += 1
-			samples += 1
-		band_worst = maxf(band_worst, _band_cast(space, link, place, base, from, n))
+		# another disclosed solid between the walkable side and the face (a bollard
+		# against a planter): the face is not exposed there, and the sweep would meet
+		# the other one -- that solid's own faces are measured on their own
+		if _approach_blocked(from, q, solids):
+			continue
+		var dev := _sweep(space, link, place, base, from, n, tall)
+		if dev > worst:
+			worst = dev
+			worst_at = q
+			worst_met = _last_met
+		if dev > AGREE_MM:
+			over += 1
+			if not spans.is_empty() and at - float(spans.back()[1]) <= FACE_STEP_MM * 1.5:
+				spans.back()[1] = at
+			else:
+				spans.append([at, at])
+		samples += 1
 	if samples == 0:
 		return
-	_row(label, "disclosed->scene", f[0], worst, f[5], "%d samples, %d over; worst at (%d, %d); capsule band %s mm"
-		% [samples, over, worst_at.x, worst_at.y, "none" if band_worst == INF else "%.1f" % band_worst])
+	var where := ""
+	for sp in spans:
+		var p0: Vector2 = a + along * float(sp[0])
+		var p1: Vector2 = a + along * float(sp[1])
+		where += " (%d, %d)..(%d, %d)" % [p0.x, p0.y, p1.x, p1.y]
+	_row(label, "disclosed->scene", f[0], worst, f[5], "%d samples, %d over%s%s" % [samples, over,
+		"; over at" + where if where != "" else "",
+		"; the worst met %s" % worst_met if worst > AGREE_MM and worst_met != "" else ""])
 
 
-## Diagnostic beside the frozen rays: the same approach swept with a thin box
-## spanning the capsule's height band, so a collider that is a slab above both
-## ray heights (a bench seat) is told apart from no collider at all. Reported,
-## never the verdict.
-func _band_cast(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, base: float, from: Vector2,
-		n: Vector2) -> float:
+## One sample (step-11 §22.15 X12e-22, the primary session's ruling of 2026-10-17): from 300 mm on
+## the walkable side, a thin vertical box spanning the face's own heights -- from just above the
+## floor (BAND_LOW) to the solid's height, or to the capsule's top for a floor edge -- is swept toward
+## the face against the scene only. It meets a slab, a low kerb or a full-height wall alike, wherever
+## along those heights the scene's collider stands, which two fixed-height rays did not. Returns how
+## far from the face's plane the scene's collider stands, in millimetres, or INF.
+func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, base: float, from: Vector2,
+		n: Vector2, tall_mm: float) -> float:
+	var top := minf(tall_mm / 1000.0, BAND_HIGH)
+	if top <= BAND_LOW:
+		top = BAND_LOW + 0.01
 	var box := BoxShape3D.new()
-	box.size = Vector3(0.01, BAND_HIGH - BAND_LOW, 0.01)
+	box.size = Vector3(SWEEP_THICK, top - BAND_LOW, SWEEP_THICK)
 	var q := PhysicsShapeQueryParameters3D.new()
 	q.shape = box
 	var p0 := link.to_scene(place, {"x": int(from.x), "y": int(from.y)})
-	p0.y = base + (BAND_LOW + BAND_HIGH) * 0.5
+	p0.y = base + (BAND_LOW + top) * 0.5
 	q.transform = Transform3D(Basis(), p0)
 	q.motion = Vector3(-n.x, 0.0, n.y) * (RAY_BACK_MM + RAY_PAST_MM) / 1000.0
 	q.collision_mask = Build.LAYER_WORLD
+	q.exclude = _ramps
 	var safe := space.cast_motion(q)
+	_last_met = ""
 	if safe.is_empty() or float(safe[0]) >= 1.0:
 		return INF
-	return absf(float(safe[0]) * (RAY_BACK_MM + RAY_PAST_MM) - RAY_BACK_MM)
+	# what it met, for the row: the collider at the first unsafe point
+	q.transform = Transform3D(Basis(), p0 + q.motion * float(safe[1]))
+	for hit in space.intersect_shape(q, 1):
+		var c: Variant = hit.get("collider")
+		if c is Node:
+			_last_met = String((c as Node).get_path()).replace("/root/Slice/Slice/", "")
+	return absf(float(safe[0]) * (RAY_BACK_MM + RAY_PAST_MM) + SWEEP_THICK * 500.0 - RAY_BACK_MM)
+
+
+## The scene collider the last sweep met first ("" if none).
+var _last_met := ""
+## The scene's ramps (a box tilted no steeper than the controller climbs): floor
+## to walk up, never a face, so the sweep passes them (X12e-22).
+var _ramps: Array[RID] = []
 
 
 ## Whether a point on the walkable side is on the floor and in no solid.
@@ -256,6 +289,21 @@ static func _walkable(p: Vector2, lo: Vector2, hi: Vector2, solids: Array) -> bo
 		if p.x >= s["min"].x and p.x <= s["max"].x and p.y >= s["min"].y and p.y <= s["max"].y:
 			return false
 	return true
+
+
+## Whether the 300 mm approach from `from` to the face point `q` passes through
+## a disclosed solid (sampled every 20 mm, the last 10 mm -- the face itself --
+## excluded).
+static func _approach_blocked(from: Vector2, q: Vector2, solids: Array) -> bool:
+	var length := from.distance_to(q)
+	var k := 0.0
+	while k < length - 10.0:
+		var p := from.lerp(q, k / length)
+		for sd in solids:
+			if p.x > sd["min"].x and p.x < sd["max"].x and p.y > sd["min"].y and p.y < sd["max"].y:
+				return true
+		k += 20.0
+	return false
 
 
 ## Whether a floor-edge point lies in a doorway's gap (the plan's DOOR_GAP at a
