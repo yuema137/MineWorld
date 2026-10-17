@@ -9122,9 +9122,66 @@ FREEZE  2026-10-09: §22.0 record and rulings (QE-1 … QE-12); consequences app
         the bank tree pruned and not exempt, M-E12, the S13 13c requirement)
 handoff checkpoint: DESIGN FROZEN; next action: a fresh implementation session in impl-12e on
         mvp0/pr-12e-3d-bodies once 12d and 16c have merged on main: EC-1. background: none
+START   2026-10-16, a fresh implementation session in /Users/yuema137/mineworld-worktrees/impl-12e on
+        mvp0/pr-12e, from origin/mvp0/pr-16c @ 3632562 (16c #245, stacked on 12d #171; neither merged).
+        The operator's instruction of 2026-10-16 replaces the contract's base and branch lines: "build
+        on the stack now and rebase later", branch mvp0/pr-12e (X12e-1). No other session holds the
+        worktree (checked)
+E-E1    EC-1, THE BASE (3632562), measured in a detached worktree of the same commit
+        (/Users/yuema137/mineworld-worktrees/impl-12e-base, sharing target/), every Godot run through
+        cast-slots/with-slot.sh (R-LOAD-1), logs clients/3d-spike/shots/12e/base/ (ignored):
+        --drive "all drive checks pass": kerb 0.141 m; loop closes 0.10 m; back wall 0.39 m short,
+          counter 0.30 m, glazing 0.41 m; jumps 0.488 m, 0.0000 m drift
+        --measure: 1 scale check out of range, occupant stature 1.802 m [1.70 .. 1.80] — the same on the
+          head (pre-existing, not 12e's)
+        --character "all character checks pass"; char_run_into_townsperson "closest approach 0.10 m
+          between body centres (… nothing collides yet)" — V-5's base
+        --threshold all PASS
+        --world --link "all link checks pass", 50 moves accepted, none refused; corrections: none exist
+          on the base (refusal-only reconciliation, F-E4)
+        --world --target, --layout, --street: all pass
+        --shots twice (shots-222351, shots-222417): V-1's noise floor
+        --perf: INCONCLUSIVE — every attempt had a frame over 250 ms on a machine shared with other
+          sessions' Godot and Blender runs; stopped after the first run's retries (X12e-13)
+AUDIT   EC-1, F-E1 … F-E17 on the stacked base:
+        F-E1   PERSON_RADIUS 250 (geometry.rs:15) and the client's 0.30 — as found
+        F-E3   one layer used, LAYER_BODIES for picking — as found
+        F-E4   refusal-only _reconcile (slice_link.gd) — as found
+        F-E5   16c's figures walk (figures.gd, SliceFigures): the person collider is a child of the
+               walking figure — SD-E5's "after 16c" branch
+        F-E7/8 CHANGED: S11-C's module readers ARE on the base — MineWorldObservation.acted_through()
+               and events_of() (observation.gd:35, 42); the client's resolved signal carries the
+               ActionId. SD-E8's exact form and SD-E9's path playback apply (X12e-2)
+        F-E11  the bank tree: tree 11 of the bank loop (seed 9001), drawn at (31.54, 1.8, −6.10), west
+               of the bank box, its trunk collider 1.66 … 3.86 m over the north pavement — as found
+        F-E12  12d's café 9 solids, street 62, store 10 — as found
+        F-E17  CHANGED: SET-a landed first — every 3D UI string is a catalog key in
+               clients/shared/settings/locale/*.po; 12e's new strings are keys there (R-E4, X12e-5)
+        SD-E1  16c on the base (stacked, not merged: X12e-1). SD-E13: SliceLayout.DOOR_INSET is 0.40
+               already (16c) — nothing to move. SET-b's key map is on the base (KEY_MAP in slice_main.gd)
 ```
 
-Deviations and discoveries during implementation are recorded in §22.15 when the work starts.
+Deviations and discoveries during implementation are recorded in §22.15.
+
+## 22.15 Deviations and discoveries (live)
+
+```text
+X12e-1  BASE AND BRANCH. Contract: main after 12d and 16c merge, branch mvp0/pr-12e-3d-bodies. Done:
+        origin/mvp0/pr-16c @ 3632562 (16c on 12d, both open), branch mvp0/pr-12e, by the operator's
+        instruction of 2026-10-16 (maximum parallelism; rebase once 12d and 16c merge). The PR's base is
+        mvp0/pr-16c
+X12e-2  S11-C READERS PRESENT (F-E7/F-E8 superseded). The exact form of SD-E8 is built and is the form
+        every correction measured took ("exact form" in every [link] corrected line); the heuristic
+        stays for an acted_through naming no recorded request. object-moved paths are played back
+        (B-d: "path"); the 12e row's path item closes here (SD-E9)
+X12e-4  ARC-E is ARC-50, the first of S14's range ARC-50 … ARC-52 (overall.md ruling 6); the freeze
+        left the number to the primary session, which had not assigned it
+X12e-5  SET-a landed first (F-E17, R-E4): 12e's HUD strings are catalog keys added to
+        clients/shared/settings/locale/en.po and zh_Hans.po, messages.pot regenerated
+        (MINEWORLD_WRITE_POT=1, client_text.rs). §22.1 lists clients/shared/** as a no-diff path; the
+        catalogs are data the 3D client's every string already lives in, and R-E4 directs this
+        conversion. No code under clients/shared changes
+```
 
 **What was dropped, and why (so it is not tried again unmeasured).** SD-Z1 (a scene of only what a
 stride can reach), SD-Z3 (an exact integer corridor) and SD-Z4 (integer wall strides): Rapier 0.36.0's
