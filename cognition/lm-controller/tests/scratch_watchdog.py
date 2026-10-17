@@ -5,7 +5,7 @@ import threading
 import time
 import traceback
 
-DUMPS = (25.0, 45.0, 100.0, 180.0, 240.0)
+DUMPS = (40.0, 100.0, 165.0, 200.0, 260.0)
 
 
 def _dump(label: str) -> None:
