@@ -83,7 +83,8 @@ def test_the_reference_resources_are_the_tool_list_and_the_error_schema() -> Non
         return _text(tools), _text(errors)
 
     tools, errors = run(scenario(), timeout_s=30)
-    assert tools == catalogue_json()
+    assert tools == catalogue_json(compact=True)
+    assert json.loads(tools) == json.loads(catalogue_json()), "the same list as `schema` prints"
     assert json.loads(errors)["schema"] == ToolError.model_json_schema()
 
 

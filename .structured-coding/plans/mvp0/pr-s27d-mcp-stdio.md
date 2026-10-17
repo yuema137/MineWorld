@@ -703,6 +703,8 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 | C5 | (this commit) | [x] `mcp_relay.py` (the relay, `/status`, abort); `realserver.Server.grants()`; `test_play_mcp.py` (AC-d-1 steps 1–12, AC-d-2, AC-d-3, AC-d-4, AC-d-5); `support.run_default` | [x] `test_play_mcp.py` PASS on the real binary, 11–16 s wall; M-d-8 red then green; ruff, format, pyright 0. **AC-d-8 not implemented in this commit** (see C5 evidence) | [x] see C5 evidence |
 | C6 | (this commit) | [x] `test_mcp_same_answers.py` (AC-d-6, the social-café copy with IE-4's rule), `guarded_adapter.py` + `test_mcp_guard.py` (AC-d-7), `test_mcp_admin_view.py` (AC-d-9); `realserver.world_path`; the `town` fixture moved to `conftest.py` | [x] same-answers PASS (~18 s), guard PASS (~4 s, stable over 4 runs), admin view PASS (~1 s); M-d-9 red then green; 145 passed across the MCP and S27-c suites (68 s); ruff, format, pyright 0 | [x] see C6 evidence |
 | C7 | (this commit) | [x] AC-d-10 run (not committed); the three open play-test steps (AC-d-8, step 5, the save window) in `67968b31`; the evidence table in the C7 section | [x] `test_play_mcp.py`, `test_mcp_same_answers.py`, `test_mcp_guard.py`, `test_mcp_admin_view.py`: 4 passed on two repeat runs; ruff, format, pyright 0; doc checks; scope diff | [x] deviations recorded (D-d-C2-4, D-d-C5-1…4, D-d-C6-1, D-d-C6-2, D-d-C7-1, D-d-C7-2) |
+| M | `1a248cad` | [x] merge of `origin/main` @ `8c5d3598` (#234) into the branch, after `c51c9f09` | [x] CI run 38813459351 on `1a248cad`: see R-evidence (resumed session) | N/A: a merge with no conflict in this PR's files |
+| R1 | (this commit) | [x] review fixes of the tool surface: `ToolError.detail` no longer echoes a union tag (D-d-R-1); the published schemas drop pydantic's derived `title` keywords, the resource serves compact JSON (R-d-4, F-d-R-2); golden regenerated | [x] `test_mcp_tools` 9, `test_mcp_resources` 8, `test_cli` 9, `test_mcp_secrets` 2, `test_mcp_errors` 7, `test_mcp_confined` 6, `test_descriptions` 3, `test_world_text` 5: all passed; M-d-10, M-d-11 red then green; ruff, format, pyright 0 | [x] see R1 evidence |
 
 ### Evidence
 
@@ -742,11 +744,15 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 
 ### Mutations
 
-(none yet; M-d-1 … M-d-9 as §9 lists them)
+Recorded in each commit's evidence: M-d-1 (C1), M-d-2 (C2), M-d-3 … M-d-6 (C3), M-d-7 (C4), M-d-8 (C5), M-d-9
+(C6); M-d-10 … M-d-13 in the resumed session's evidence (R1 … R3, at the end of this ledger).
 
 ### Deviations and findings
 
-F-S27d-1 … F-S27d-6 (§3.3), recorded at design time.
+F-S27d-1 … F-S27d-6 (§3.3), recorded at design time. The later deviations and findings sit in each commit's
+evidence. **Layout note (resumed session):** the C3 … C7 evidence below was appended after these two headings by
+heredoc appends (see the discipline record); it is left in place rather than moved, so the history of the record
+stays readable, and these two headings point to it.
 
 **C3 (2026-10-15).**
 - Shape of §4.2/§5.1 as built (**deviation D-d-C3-1, bounded**): the design's `build_server(player, config)` needs the hook before the `Player` exists, so the state lives in `Adapter` (`bus: InMemorySubscriptionBus`, `on_inbox(handle)`, `server(player, config) -> Server`). Order in `__main__` (C4): `adapter = Adapter()`; `Player(config, credential, on_inbox=adapter.on_inbox)`; `server = adapter.server(player, config)`; `serve_stdio(server)` inside `async with player`. `Player` stays free of `mcp`.
@@ -824,3 +830,96 @@ F-S27d-1 … F-S27d-6 (§3.3), recorded at design time.
 
 - **Mutations recorded across the PR:** M-d-1 (C1), M-d-2 (C2), M-d-3, M-d-4, M-d-5, M-d-6 (C3), M-d-7 (C4), M-d-8 (C5), M-d-9 (C6). Each planted, run red, reverted from a byte copy (`cmp` clean), and green again.
 - **Validation budget.** The real binary: built once (`cargo build -p mineworld-cli`, with-slot, exit 0). Local runs were targeted files only; no whole-member or workspace run was done locally (R-LOAD-1). Real-binary files: `test_play_mcp.py` 11–14 s; `test_mcp_same_answers.py` ~18 s; `test_mcp_guard.py` ~4 s; `test_mcp_admin_view.py` ~1 s; each far under 90 s.
+
+### Resumed session (2026-10-16, Opus, taking over from the Haiku implementer)
+
+Recovery: worktree `/Users/yuema137/mineworld-worktrees/impl-s27d`, branch `mvp0/pr-s27d`, head `1a248cad` (the merge
+of `origin/main` @ `8c5d3598` into `c51c9f09`), tree clean, no other session in it. The design was re-read in full,
+with the skill's execute-phase rules. The brief named the open items: AC-d-1's biography, AC-d-6's `TooFarAway`, AC-d-8's
+comparison run, the `answer_lost` arm; AC-d-10 recorded properly; R-d-4 (the tool list's size); a review of the
+`sed -i`/heredoc edits; `ToolError.detail` in S27-c's allow-list; the merge commit and the CI rerun.
+
+**R1 evidence (2026-10-16).**
+
+- **Review of the `sed -i` and heredoc edits (C1 … C7).** Read in their current form: `test_mcp_confined.py` (the
+  `typing` import), `mcp_server.py` (`reachable_models`, no `_reachable` left anywhere: `grep -rn "_reachable\b"`
+  finds only an unrelated test name in `test_info.py`), `test_mcp_resources.py`, `test_mcp_same_answers.py`,
+  `test_mcp_admin_view.py`, `test_mcp_guard.py`, and this ledger. The code edits are correct and complete (ruff,
+  format and pyright clean; each file's tests pass). The heredoc appends to this ledger left one structural defect:
+  the C3 … C7 evidence landed after the `Mutations` and `Deviations and findings` headings; those headings now point
+  to it (layout note above). No content was lost or duplicated. The one docstring that was wrong is in
+  `test_mcp_same_answers.py` ("`TooFarAway` … is covered by `test_play_mcp.py`'s walk to the street": it was not);
+  R2 corrects it with the arm itself.
+- **Discipline note for this session.** Early in the session, four measurement scripts in the session's scratch
+  directory (outside the repository, untracked) were written with a shell heredoc, and one read-only inspection ran
+  as `python -I -c` (printing a slice of the golden). Neither touched a tracked file; afterwards every probe was a
+  scratch script written with the Write tool and run with `python -I`. The mutations of this session are planted by writing a transformed copy (`awk … > file`) and
+  reverted by `cp` from a byte copy, `cmp` clean, as §9.0 step 4 says. No `sed -i` and no heredoc touches a tracked
+  file.
+- **`ToolError.detail` in S27-c's `FREE_TEXT` (D-d-C2-4): justified, with one defect found and fixed.** The rule of
+  `test_world_text.py` is that world text has one carrier, `WorldText`, and every other string is a code, a reference
+  or an identifier. `detail` is not world text: it is built only by the adapter (`_locations`), from pydantic's error
+  locations and messages about the agent's own arguments, never from an observation, so admitting it to the
+  allow-list keeps the rule's meaning (no field through which another participant's text reaches the agent). The
+  design declares it (§5.3 (c), "adapter text only"). The audit of what `detail` can contain found a real leak:
+  **D-d-R-1** — pydantic's `union_tag_invalid` message names the tag that was sent ("Input tag '…' found using 'kind'
+  does not match …"), so `wait { until: { kind: <secret> } }` echoed the value into `detail`, against §5.2 ("never
+  the input values") and I-d-6. Probe (scratch script over every `Args` model with a canary: discriminated unions,
+  patterns, lengths, types, unknown keys): only `union_tag_invalid` echoed. Fix: `_message` rebuilds that message from
+  the expected tags, and replaces any other message that contains the input's text by the error's type code. The
+  test `test_bad_arguments_answer_invalid_arguments_without_echoing_a_value` gains the `wait` case. **M-d-10**: the
+  previous `mcp_server.py` (from `HEAD`) with the new test → the test **FAILED**; restored from the byte copy (`cmp`
+  clean), green.
+- **R-d-4, the tool list's size (F-d-R-2).** Measured before any change (scratch script over `tests/golden/tools.json`):
+  the 376 660-byte figure is the golden **pretty-printed with `indent=2`**; on the wire `tools/list` is compact JSON,
+  **179 587 bytes**. Of that, 161 564 are `outputSchema`s: the five acts share `ActResult` (22 360 bytes each), and
+  `join`/`observe` carry `View` too (17–19 KB). Name, description and `inputSchema` together are 16 874 bytes.
+  - *Cross-tool sharing is not available.* In MCP 2026-07-28 each tool's `outputSchema` is a standalone JSON Schema
+    document; the protocol has no definitions shared between tools, and a `$ref` to another document is resolved by no
+    client (the official client compiles each schema with `jsonschema` on its own, `mcp/client/session.py`
+    `validate_tool_result`). Within one schema pydantic already shares every model through `$defs`; repeated
+    subschemas inside one schema add up to about 1.5 KB (measured), so a further in-schema `$defs` pass buys nothing.
+  - *Chosen: drop the derived `title` keywords.* Pydantic writes a `title` for every property and model, derived from
+    the Python name ("Facing Deg" beside the key `facing_deg`, "MeLine" beside `$defs/MeLine`). `title` is an
+    annotation: no instance validates differently without it. `published_schema(model)` in `mcp_server.py` removes it
+    and nothing else (it walks `properties`/`$defs` by name, so a property *named* `title` would survive, and it never
+    walks `default`/`const`/`enum`/`examples` values). Every validating keyword and every `description` stays, so each
+    schema is still exactly the `Player`'s model (R-S27d-c-1): I-d-2's test now checks that the published schema is the
+    model's `model_json_schema()` with `title` keywords dropped and nothing else changed (a structural diff in the test,
+    not a reuse of the transform). The `agent-tools` resource now serves the same list as compact JSON (an agent that
+    reads it no longer pays for indentation); `schema` still prints it indented for review, and the resource test
+    checks the two parse to the same value.
+  - *Measured but not adopted:* collapsing `anyOf [{type: X}, {type: null}]` into `type: [X, "null"]` and dropping
+    `default: null` would save another 1 710 and 2 640 bytes (≈ 3 %), each a second rewrite to justify; not worth it.
+    Trimming descriptions would cut information the operator's principle asks for; the descriptions are 5 KB of an
+    act's 22 KB and barely repeat inside one schema (185 bytes).
+  - **Sizes, before → after:** wire `tools/list` (compact) **179 587 → 158 506 bytes (−11.7 %)**; golden file
+    (indented) **376 660 → 336 655**; `agent-tools` resource **376 660 → 158 506**; name + description + `inputSchema`
+    16 874 → 15 661; all `outputSchema`s 161 564 → 141 696.
+  - *What the model pays (context, not a measurement of this PR).* The Anthropic Messages API tool definition has
+    `name`, `description`, `input_schema` (and `input_examples`), no output schema
+    (`https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools`); Claude Code's MCP page documents
+    how it forwards `inputSchema` and never mentions `outputSchema` (`https://code.claude.com/docs/en/mcp`; inferred
+    from silence, not stated). For such clients the model's share of the tool list is the 15.7 KB of names,
+    descriptions and input schemas; the output schemas are the client's for validating `structuredContent`. A client
+    that does show `outputSchema` to its model pays the 158.5 KB. The remaining size is the cross-tool repetition of
+    `ActResult`/`View`, which only a change to the tool surface (not this PR's to make; R-S27d-c-1 and I-d-3) could
+    remove. **Open for the operator, no stop under §12.**
+  - *The official client still validates.* New test
+    `test_the_official_client_validates_recorded_views_against_the_published_schema`: the three recorded market-town
+    views (`market-town-start`, `-walking`, `-street`, rendered as `test_view.py` renders them) pass through the
+    in-process `Client` as `observe` results, which the SDK validates against the published `outputSchema`; and the
+    same schema served by a stub tool that returns `{"not_a_view": 1}` makes the client raise
+    `RuntimeError("Invalid structured content returned by tool observe: …")`, so the check is live. The real-binary
+    files use `ClientSession`, which validates the same way (`session.py` ~l.1102).
+  - *Golden review (AC-d-11, the change only).* The regenerated golden differs from the reviewed one only by the
+    removed `title` lines: the added and removed lines, `title` lines excluded and trailing commas stripped, are the
+    same multiset (`cmp` of the two sorted lists clean), and no added line holds `"title"`.
+  - **M-d-11**: `published_schema` also drops `description` → `test_the_published_schemas_are_the_models` **FAILED**;
+    restored (`cmp` clean), green.
+- Validation (each file alone): `test_mcp_tools.py` 9 passed; `test_mcp_resources.py` 8; `test_cli.py` 9 (the golden
+  byte-equal); `test_mcp_secrets.py` 2; `test_mcp_errors.py` 7; `test_mcp_confined.py` 6; `test_descriptions.py` 3;
+  `test_world_text.py` 5. `ruff check`, `ruff format --check`, `pyright clients/agent`: clean (0 errors).
+- Review: `mcp_server.py` still holds no game logic (two pure transforms of the adapter's own output); every path still
+  returns the model or a `ToolError`; the transform cannot remove a validating keyword (the test's structural diff
+  allows only `title` to be missing).

@@ -8,24 +8,47 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import pytest
+from mcp import types
 from mcp.client.client import Client
+from mcp.server.context import ServerRequestContext
 from mcp.server.lowlevel import Server
 from mcp.types import CallToolResult, TextContent
 from mcp_double import fake_player
+from recorded import NAMES, observation
 from support import run
 
-from mineworld_agent.mcp_server import OPERATIONS, Adapter, describe, reachable_models
+from mineworld_agent.mcp_server import (
+    OPERATIONS,
+    Adapter,
+    describe,
+    published_schema,
+    reachable_models,
+)
 from mineworld_agent.models import (
     EventLine,
     EventsResult,
+    InboxCounts,
     LeaveResult,
+    ObserveResult,
     SeatsResult,
     ToolError,
+    View,
     WorldLine,
     WorldText,
     render_text,
 )
 from mineworld_agent.player import PlayerConfig
+from mineworld_agent.refs import RefTable
+from mineworld_agent.view import Caps, Moment, render, view_of
+
+
+def whole(name: str) -> View:
+    """A recorded market-town observation as the `Player` renders it (as `test_view.py` builds it)."""
+    moment = Moment(at=0, time_scale=1, paused=False, since=None)
+    seen = render(observation(name), RefTable(), 1, True)
+    return view_of(seen, moment, InboxCounts(unread=0, dropped=0), Caps())
+
 
 HANDLE = "0123456789abcdef0123456789abcdef"
 CANARY = "CANARY-7f3a9c"
@@ -77,15 +100,48 @@ def test_the_published_schemas_are_the_models() -> None:
     published = run(scenario(), timeout_s=30)
     for operation in OPERATIONS:
         input_schema, output_schema = published[operation.name]
-        assert input_schema == operation.args.model_json_schema(), operation.name
-        assert output_schema == operation.result.model_json_schema(), operation.name
+        assert output_schema is not None, operation.name
+        assert _only_titles_dropped(operation.args.model_json_schema(), input_schema), (
+            operation.name
+        )
+        assert _only_titles_dropped(operation.result.model_json_schema(), output_schema), (
+            operation.name
+        )
 
 
-def _pairs(schema: dict[str, Any]) -> set[tuple[str, str]]:
+def _only_titles_dropped(model: object, published: object, under: str = "") -> bool:
+    """True when `published` is `model` with `title` keywords removed and nothing else changed (R-d-4): no other
+    key is missing, none is added, and every other value is equal. `under` is the keyword `model` sits in, so a
+    property *named* `title` (a key of `properties`) is not mistaken for the keyword."""
+    if isinstance(model, list) and isinstance(published, list):
+        pairs = zip(cast(list[object], model), cast(list[object], published), strict=False)
+        same_length = len(cast(list[object], model)) == len(cast(list[object], published))
+        return same_length and all(_only_titles_dropped(a, b) for a, b in pairs)
+    if isinstance(model, dict) and isinstance(published, dict):
+        left, right = cast(dict[str, object], model), cast(dict[str, object], published)
+        names = under in ("properties", "$defs")
+        if "title" in right and not names:
+            return False
+        if set(right) - set(left):
+            return False
+        for key, value in left.items():
+            if key not in right:
+                if names or key != "title":
+                    return False
+                continue
+            if key in ("default", "const", "enum", "examples"):
+                if value != right[key]:
+                    return False
+            elif not _only_titles_dropped(value, right[key], "" if names else key):
+                return False
+        return True
+    return model == published
+
+
+def _pairs(schema: dict[str, Any], root: str) -> set[tuple[str, str]]:
     """(model name, field name) for the root and every definition of an output schema."""
     found: set[tuple[str, str]] = set()
-    root = schema.get("title")
-    found |= {(str(root), field) for field in schema.get("properties", {})}
+    found |= {(root, field) for field in schema.get("properties", {})}
     for name, definition in schema.get("$defs", {}).items():
         found |= {(name, field) for field in definition.get("properties", {})}
     return found
@@ -94,15 +150,16 @@ def _pairs(schema: dict[str, Any]) -> set[tuple[str, str]]:
 def test_every_player_field_reaches_the_agent() -> None:
     """I-d-3 (the operator's principle): every field of every model the results reach is in some outputSchema."""
 
-    async def scenario() -> list[dict[str, Any]]:
+    async def scenario() -> dict[str, dict[str, Any]]:
         _, server = serve({})
         async with Client(server) as client:
             listed = await client.list_tools()
-        return [tool.output_schema or {} for tool in listed.tools]
+        return {tool.name: tool.output_schema or {} for tool in listed.tools}
 
     published: set[tuple[str, str]] = set()
-    for schema in run(scenario(), timeout_s=30):
-        published |= _pairs(schema)
+    schemas = run(scenario(), timeout_s=30)
+    for operation in OPERATIONS:
+        published |= _pairs(schemas[operation.name], operation.result.__name__)
     missing: list[str] = []
     for operation in OPERATIONS:
         for model in reachable_models(operation.result):
@@ -110,6 +167,63 @@ def test_every_player_field_reaches_the_agent() -> None:
                 if (model.__name__, field) not in published:
                     missing.append(f"{model.__name__}.{field}")
     assert sorted(set(missing)) == [], "fields no tool's outputSchema reaches"
+
+
+def test_the_official_client_validates_recorded_views_against_the_published_schema() -> None:
+    """R-d-4: the untitled schemas still validate. The official client checks every structured result against the
+    tool's `outputSchema`: a recorded market-town view passes, and the same schema refuses a result without its
+    `view`, so the check is live (the client raises rather than delivering it)."""
+    observe = next(operation for operation in OPERATIONS if operation.name == "observe")
+    results = [ObserveResult(view=whole(name)) for name in NAMES]
+
+    async def accepted(result: ObserveResult) -> CallToolResult:
+        _, server = serve({"observe": result})
+        async with Client(server) as client:
+            return await client.call_tool("observe", {"handle": HANDLE})
+
+    for result in results:
+        answer = run(accepted(result), timeout_s=30)
+        assert answer.is_error is not True
+        assert answer.structured_content == result.model_dump(mode="json")
+
+    async def listed(
+        _ctx: ServerRequestContext[Any], _params: types.PaginatedRequestParams | None
+    ) -> types.ListToolsResult:
+        return types.ListToolsResult(
+            tools=[
+                types.Tool(
+                    name="observe",
+                    input_schema=published_schema(observe.args),
+                    output_schema=published_schema(observe.result),
+                )
+            ]
+        )
+
+    async def broken(
+        _ctx: ServerRequestContext[Any], _params: types.CallToolRequestParams
+    ) -> types.CallToolResult:
+        return types.CallToolResult(content=[], structured_content={"not_a_view": 1})
+
+    async def refused() -> None:
+        server: Server[Any] = Server("broken", on_list_tools=listed, on_call_tool=broken)
+        async with Client(server) as client:
+            await client.call_tool("observe", {"handle": HANDLE})
+
+    with pytest.raises(ExceptionGroup) as raised:
+        run(refused(), timeout_s=30)
+    leaves = _leaves(raised.value)
+    assert any(
+        isinstance(leaf, RuntimeError) and "Invalid structured content" in str(leaf)
+        for leaf in leaves
+    ), leaves
+
+
+def _leaves(error: BaseException) -> list[BaseException]:
+    """The exceptions inside nested exception groups (the in-process client raises through its task groups)."""
+    if isinstance(error, BaseExceptionGroup):
+        group = cast(BaseExceptionGroup[BaseException], error)
+        return [leaf for inner in group.exceptions for leaf in _leaves(inner)]
+    return [error]
 
 
 def test_descriptions_name_the_errors_and_the_error_schema() -> None:
@@ -150,17 +264,19 @@ def test_bad_arguments_answer_invalid_arguments_without_echoing_a_value() -> Non
     """A wrong type, a bad pattern and an unknown key all answer `invalid_arguments`; no value is echoed, and an
     unknown key's name is not echoed either (an agent may send a secret as a key)."""
 
-    async def scenario(arguments: dict[str, Any]) -> CallToolResult:
+    async def scenario(tool: str, arguments: dict[str, Any]) -> CallToolResult:
         _, server = serve({})
         async with Client(server) as client:
-            return await client.call_tool("observe", arguments)
+            return await client.call_tool(tool, arguments)
 
-    for arguments in (
-        {"handle": HANDLE, "since_view": CANARY},
-        {"handle": CANARY},
-        {"handle": HANDLE, CANARY: 1},
+    for tool, arguments in (
+        ("observe", {"handle": HANDLE, "since_view": CANARY}),
+        ("observe", {"handle": CANARY}),
+        ("observe", {"handle": HANDLE, CANARY: 1}),
+        # a discriminated union: pydantic's own message would name the tag that was sent
+        ("wait", {"handle": HANDLE, "until": {"kind": CANARY}}),
     ):
-        answer = run(scenario(arguments), timeout_s=30)
+        answer = run(scenario(tool, arguments), timeout_s=30)
         assert answer.is_error is True
         assert answer.structured_content is None
         text = answer.content[0]

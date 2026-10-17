@@ -16,7 +16,7 @@ import re
 import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Final, TypeAliasType, get_args
+from typing import Any, Final, TypeAliasType, cast, get_args
 
 import pydantic
 from mcp import types
@@ -27,6 +27,7 @@ from mcp.server.subscriptions import InMemorySubscriptionBus, ListenHandler
 from mcp.shared.exceptions import MCPError
 from mcp.shared.subscriptions import ResourceUpdated
 from pydantic import BaseModel
+from pydantic_core import ErrorDetails
 
 from mineworld_agent.models import (
     ActResult,
@@ -183,23 +184,65 @@ def annotations_of(operation: Operation) -> types.ToolAnnotations | None:
     return None
 
 
+_DATA_KEYWORDS: Final = frozenset({"default", "const", "enum", "examples"})
+"""JSON Schema keywords whose values are instances, not schemas: never walked."""
+_NAMED_SCHEMAS: Final = frozenset({"properties", "$defs", "patternProperties", "dependentSchemas"})
+"""JSON Schema keywords whose values map names (not keywords) to schemas."""
+
+
+def published_schema(model: type[BaseModel]) -> dict[str, Any]:
+    """The model's own JSON Schema without its `title` keywords (R-d-4).
+
+    Pydantic derives every `title` from a Python name ("Facing Deg" from `facing_deg`, "MeLine" from the class), so
+    it repeats the property key or the `$defs` key beside it. `title` is an annotation: no instance validates
+    differently without it. Every validating keyword and every `description` stays as the model writes it, so the
+    schema is still exactly the `Player`'s model (R-S27d-c-1)."""
+    untitled = _untitled(model.model_json_schema())
+    assert isinstance(untitled, dict)
+    return cast(dict[str, Any], untitled)
+
+
+def _untitled(schema: object) -> object:
+    if isinstance(schema, list):
+        return [_untitled(each) for each in cast(list[object], schema)]
+    if not isinstance(schema, dict):
+        return schema
+    kept: dict[str, object] = {}
+    for key, value in cast(dict[str, object], schema).items():
+        if key == "title" and isinstance(value, str):
+            continue
+        if key in _DATA_KEYWORDS:
+            kept[key] = value
+        elif key in _NAMED_SCHEMAS and isinstance(value, dict):
+            named = cast(dict[str, object], value)
+            kept[key] = {name: _untitled(inner) for name, inner in named.items()}
+        else:
+            kept[key] = _untitled(value)
+    return kept
+
+
 def tools() -> list[types.Tool]:
     """The thirteen tools as the server publishes them. The same list for every connection (X-4)."""
     return [
         types.Tool(
             name=operation.name,
             description=describe(operation),
-            input_schema=operation.args.model_json_schema(),
-            output_schema=operation.result.model_json_schema(),
+            input_schema=published_schema(operation.args),
+            output_schema=published_schema(operation.result),
             annotations=annotations_of(operation),
         )
         for operation in OPERATIONS
     ]
 
 
-def catalogue_json() -> str:
-    """The tool list as JSON: what `mineworld-agent schema` prints and `mineworld://reference/agent-tools` serves."""
+def catalogue_json(*, compact: bool = False) -> str:
+    """The tool list as JSON: what `mineworld-agent schema` prints (indented, for review) and, compact, what
+    `mineworld://reference/agent-tools` serves (an agent that reads it pays no whitespace)."""
     listed = [tool.model_dump(mode="json", by_alias=True, exclude_none=True) for tool in tools()]
+    if compact:
+        return json.dumps(
+            {"tools": listed}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
     return json.dumps({"tools": listed}, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
 
@@ -235,8 +278,22 @@ def _locations(error: pydantic.ValidationError) -> str:
         unknown = item["type"] == "extra_forbidden"
         path = item["loc"][:-1] if unknown else item["loc"]
         where = ".".join(str(part) for part in path) or "arguments"
-        parts.append(f"{where}: unknown field" if unknown else f"{where}: {item['msg']}")
+        parts.append(f"{where}: unknown field" if unknown else f"{where}: {_message(item)}")
     return "; ".join(parts)[:DETAIL_MAX_CHARS]
+
+
+def _message(item: ErrorDetails) -> str:
+    """One error's message, unless it could repeat what the agent sent. Pydantic's `union_tag_invalid` names the
+    input tag ("Input tag '…' found using 'kind' …"), so it is rebuilt from the expected tags alone; any other
+    message that contains the input's text is replaced by the error's type code."""
+    if item["type"] == "union_tag_invalid":
+        expected = item.get("ctx", {}).get("expected_tags", "")
+        return f"unknown kind; expected one of: {expected}"
+    message = str(item["msg"])
+    value = item.get("input")
+    if isinstance(value, str | int | float) and str(value) and str(value) in message:
+        return str(item["type"])
+    return message
 
 
 def failure_of(error: BaseException) -> ToolError:
@@ -340,7 +397,7 @@ class Adapter:
                     types.Resource(
                         uri=REFERENCE_TOOLS,
                         name="agent-tools",
-                        description="The tool list, as `mineworld-agent schema` prints it.",
+                        description="The tool list, as `mineworld-agent schema` prints it (compact JSON).",
                         mime_type="application/json",
                     ),
                     types.Resource(
@@ -426,7 +483,7 @@ class Adapter:
     async def _read(self, player: Player, uri: str) -> str:
         """The text of one resource. An unknown URI, or an unknown handle, is a resource-not-found error."""
         if uri == REFERENCE_TOOLS:
-            return catalogue_json()
+            return catalogue_json(compact=True)
         if uri == REFERENCE_ERRORS:
             return errors_json()
         if uri == WORLD_STATUS:
