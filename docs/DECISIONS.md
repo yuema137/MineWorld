@@ -8817,6 +8817,64 @@ Each figure in a profile names its source and is marked `read` or `verify`; cast
 
 **Revisit** when a world needs a population outside the United States, which brings its own sources and a record of its own.
 
+---
+
+## ARC-110 — The default suite runs as weighted shards on every OS, behind gates that keep the check names
+
+**Date** 2026-10-15 · **Status** accepted for review (PR #224, "ci: shard test-windows under the job cap"); in force at its merge · **Approved by** the operator through the primary session, 2026-10-15: shard the Windows test step and keep check names stable; scope extended the same day to `test` and `test-macos` and to the Windows Python subprocess bound, and on 2026-10-16 (primary ruling, after the move to GitHub Pro) to at most two macOS jobs per run; merge is the operator's · **Relates to** `ARC-48` and its notes of 2026-10-09 (13b, 13w), `ARC-83`, [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** this entry; `scripts/ci_shard.py`
+
+**Problem.** The `core` layer outgrew one 60-minute job on all three operating systems, and every run that hit the cap was cancelled with every test it had run green.
+
+- **Windows.** PR #200's run 38787218062 and PR #206's run 38782285755 were cancelled after 78 and 80 of the suite's 250 test binaries.
+- **Linux and macOS.** With 12d (#171), the suite took 48 and 40 min on main (run 38787218062). On #171's run 38786685064 it was cancelled at 60 min on both, inside `town_bodies`: two 300-day town runs, ~390–440 s on its green run 38664714380.
+- **12d is slower on every binary.** Measured per binary as wall time between cargo's `Running` lines, the binaries #171 shares with main take 1.3× (Linux), 1.6× (macOS) and 1.7× (Windows) as long.
+
+Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall, and makes every code PR wait over an hour.
+
+**Choice.**
+
+1. **Shards.** Each test job is a matrix of shards running `scripts/ci_layer.py core --shard K/N`, through `.github/actions/layer` (Linux, container) or `.github/actions/native`, each with a `shard` input:
+   - `test (1/3)…(3/3)` on ubuntu-24.04;
+   - `test-windows (1/4)…(4/4)` on windows-2025, the slowest runner;
+   - macOS in two jobs on macos-26, as item 3 below sets out.
+
+   Every Linux and Windows shard's cap is 45 min. Every PR still runs the whole suite.
+2. **The partition** is `scripts/ci_shard.py`'s, and `ci_layer.py` stays the only place that names a layer's commands.
+   - **Units.** A unit is a test target name across the workspace. `cargo test --workspace --test NAME` runs every package's target of that name from its own directory, using cargo's own filter, not a re-implemented runner. Two more units cover the rest: `<lib+bins>` (`--lib --bins`) and `<doc>` (`--doc`, which cargo cannot mix with other filters).
+   - **Names.** They come from `cargo metadata` at run time, so a new test is in exactly one shard.
+   - **Weights.** They are Windows seconds from the first complete sharded run (2855 s on main 4457ad47), plus `town_bodies` at 480 s, its share of `market_town` on #171. One table serves every OS: only proportions matter, and they agree across the three. An unknown name weighs 1 s.
+   - **Assignment.** Longest-processing-time first, with fixed tie-breaks, hence deterministic.
+   - **Per shard.** Each shard builds (`--no-run`) and runs only its own targets, then `check_scratch.py left`, as `core` does. Linking a third of the test binaries instead of all of them cut the Windows build from 773 s to 181–363 s.
+   - **Self-test.** `fast` runs `ci_shard.py --self-test`: completeness, no duplicates, determinism, the LPT bound, and that the commands run every unit once.
+3. **macOS: two jobs per run, because macOS concurrency is the binding constraint.** GitHub-hosted macOS runs at most 5 jobs at once on Free, Pro and Team alike, while Linux and Windows get more slots on Pro. A run with five macOS jobs (three `test-macos` shards, `platforms (macos-26)`, `python (macos-15)`) held every macOS slot, so the next run's macOS stage waited for it. The macOS jobs are now:
+   - **`test-macos (a: lock, core 1+2/3)`** runs the `platforms-lock` layer, then shards 1 and 2 of 3 together (`--shard 1,2/3`). `platforms-lock` is `cargo fetch --locked` and EC-3 (b)'s `--offline-check`, run first so that nothing can rewrite `Cargo.lock` before it is checked. These two commands are what the `platforms` layer checks on macOS beyond `core`: every test command of `platforms` is a subset of `cargo test --workspace` on the same runner, and `cargo fetch --locked` fails on a stale lock as `--locked` on each command did.
+   - **`test-macos (b: core 3/3, python)`** runs shard 3 of 3, then the `python` layer, with uv's Python 3.12 (`setup-uv`). The Python workspace's macOS run moves from macos-15 to macos-26, the version every other macOS job uses.
+
+   `scripts/ci_layer.py` takes several layers in order, stopping at the first failure. A shard spec may name several shards of one partition (`K,L/N`), whose units run as one. On head 3045db8b, before 12d: macOS `core` was 1806 s of tests plus 130–240 s of build per shard, `python` 21 min (`lm-controller` pytest 823 s, a cold `cargo build` 294 s), and `platforms` 8.3 min. That puts (a) at about 27 min and (b) at about 31 min. One unsharded macOS test job would be about 39 min before 12d and over 45 min with `town_bodies`, so the suite still needs two jobs. Their cap is 55 min, not 45. 12d's effect on macOS was measured at 1.1× (run 38664714380) and 1.6× (run 38786685064) of main's suite, and at 1.6× both jobs come to about 46–49 min. When either passes 40 min, re-weigh or give macOS a third job.
+4. **The check names do not change.** `test`, `test-macos` and `test-windows` become gate jobs on ubuntu-24.04.
+   - Each needs its shards and is green only when every shard is (`needs.<shards>.result == success`).
+   - Each has its shards' triggers plus `always()`, so a failed or cancelled shard is a red gate, and a documentation-only change still skips both gate and shards.
+   - The required checks stay `fast`, `test`, `test-macos`. The shard checks are new and not required. `platforms (macos-26)` and `python (macos-15, python)` disappear (their work is in `test-macos (a)` and `(b)`); neither was required.
+5. **The Windows bound on one Python-driven binary run** (`cognition/lm-controller/tests/binary.py`) goes from 600 to 1200 s; Linux and macOS keep 600 s.
+   - On run 38786685064 the 100-day social-cafe run behind the AC-10 and retention fixtures passed 600 s on windows-2025 and was killed (10 errors, `TimeoutExpired`).
+   - On Linux and macOS, every binary run finished inside 600 s. Their one failure there, `test_keep_all_is_held_by_the_host_on_the_real_history`, is an assertion of #171's, not a timeout.
+6. **Not adopted: cargo-nextest.**
+   - Its `--partition hash:`/`count:` splits by test count, not weight, so the ~490 s `market_town` and `town_bodies` can share a shard.
+   - It runs each test in its own process, which changes the semantics of tests that share a binary's state.
+   - It does not run doctests.
+   - It is a new tool to pin on three platforms.
+
+   The weighted split over cargo's own filters is about 200 lines of standard-library Python. Revisit if per-test retries or JUnit output are wanted.
+7. **Re-weigh** when any shard's test step passes 35 min: take new per-binary times from a run's log and replace `WEIGHTS`.
+
+**Consequences.**
+
+- **Runners.** A run uses seven Linux and Windows test runners and two macOS ones, instead of three test jobs plus separate macOS `platforms` and `python` jobs. Each job builds the workspace's libraries itself. The wall time to a verdict falls from >60 min to about 30 min.
+- **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
+- **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
+- **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
+---
+
 ## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests
 
 **Date** 2026-10-16 · **Status** proposed in the PR "ci: fix the red nightly (closes #170)"; pending the
