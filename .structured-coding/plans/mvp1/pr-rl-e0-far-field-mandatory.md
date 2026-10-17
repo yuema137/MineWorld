@@ -1465,6 +1465,16 @@ nightly `clients` jobs of Linux and macOS. The 2D check and the validators' agre
 the nightly and on Linux per PR, as ruled. No OS lost the 2D or validator coverage; the 3D check has two hosted
 OSes instead of one.
 
+**Ruled 2026-10-17 (primary), a bounded reading of R-FF-1 (a): accepted.** The 3D rendered check runs on Linux in
+the per-PR `farfield` job (limit 90 min), on Windows in the nightly `clients` job, and on macOS locally only (the
+hosted Mac's import alone is ~45 min); the 2D check and the validators' agreement stay on all three platforms.
+The `farfield` job stays a separate, non-required job beside #224's shard/gate layout (merged into this branch
+2026-10-17 without conflict).
+
+**CI on 042db461 (run 39003755921):** changes, fast, test, test-macos, platforms ×2, python ×3, farfield (3/3;
+3D 46.9 min, job 53 min) PASS; test-windows cancelled at its 60-min cap, as on main before #224 (main runs
+38818061551, 38811116604, 38809489941). The head after #224's merge is the one CI judges for review readiness.
+
 **Pre-existing, not RL-e0's:** the nightly Windows `client_settings` failures
 `three_d_controls_apply_live_and_persist`, `three_d_settings_never_reach_the_server` and
 `two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` fail on main as well (main nightly

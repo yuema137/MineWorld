@@ -98,6 +98,12 @@ Ruled 2026-10-15 (operator in the primary session): (b) then (a). (b) c554c79a; 
 timings (E-FF-CI-2): 3D check on Linux per PR and Windows nightly; skipped in the Linux and macOS nightly jobs;
 origin/main merged. The impl-rl-e0-base worktree and `scratch/rl-e0-clients-nightly` are removed.
 
+### 2026-10-17, placement ruled (primary) and #224 merged in
+
+Ruled 2026-10-17 (primary): 3D check on Linux per PR (90 min), Windows nightly, macOS locally. origin/main with
+#224's shard/gate layout merged without conflict; `farfield` stays separate and not required. Next: one head
+pushed, CI green on it, mark #220 ready. Never merge. Remove the local `target` symlink at the end.
+
 ## Next actions (superseded below the stop)
 
 Was: wait for the operator's ruling on R-FF-1. Then: implement the ruled option, re-run the per-PR `farfield` job and
