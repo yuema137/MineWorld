@@ -1503,3 +1503,21 @@ or `tools/asset_generation/` changed.
   `task.json` = `6583a7698d517d293214cba7315a1b15a938d4a048cb433da850dde57b2703b5` (PIPELINE §14).
 - **B1 doc checks:** `check_doc_headings.py` and `check_decision_ids.py` run after the edits (results recorded in the
   B1 commit message review line).
+- **Merge of `origin/main` @ 5cbb469 (2026-10-17).** Branch head 121662c; merge base 2d07c6c. Three textual
+  conflicts, each resolved by keeping both sides' intent:
+  - `docs/DECISIONS.md`: this branch appends `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; main appended `ARC-105`…`ARC-108`,
+    `ARC-98`…`ARC-101`, `ARC-120`…`ARC-126` and `ARC-110` at the same place, and git interleaved the two. Resolved by
+    taking main's file whole and appending this branch's four records, byte-for-byte as committed, after main's last
+    record; `check_decision_ids.py`: 153 ids, all distinct.
+  - `scripts/ci_layer.py`: main added `clients/agent` pytest lines to `python` and `python-smoke`; this branch added the
+    pipeline's `pytest` and `cast.py check-characters` lines at the same place. Both kept, main's line first.
+  - `cognition/lm-controller/tests/test_structural_isolation.py`: both sides generalised
+    `test_ci_runs_pytest_once_per_member` to accept non-member pytest lines (this branch for the pipeline, main for
+    S27-c, pr-s27c D-c-22). Main's version taken whole: it holds for any added pytest line whose path exists, so the
+    pipeline's line passes it.
+  No baseline, `Cargo.lock` or `.github/workflows/ci.yml` change on this branch; main's sharded `ci.yml` (#224) taken
+  as-is; merged `pyproject.toml` keeps main's `clients/agent` member and this branch's `executionEnvironments`, and
+  `uv lock --check` resolves. Evidence on the merged tree: `cargo fmt --check`; `check_secrets.py` (self-test and scan),
+  `check_decision_ids.py`, `check_doc_headings.py`, `check_ci_pins.py`, and the `ci_changes`/`check_scratch`/`ci_parity`/
+  `ci_shard` self-tests pass; `ci_layer.py python-smoke` PASS (12 commands; pipeline 73 passed; cognition 402 passed
+  including the isolation test; agent 93 passed; SDK 98 passed).
