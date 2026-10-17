@@ -9,9 +9,11 @@ not talk to commuters, and commuters may not talk to residents.
 - A plain client on Carol's seat sees the same reason on its own affordance for `grace`, and a `talk` it sends anyway is
   `Rejected(permission_denied)`, the server's own answer.
 - The adapter's `say` to Carol is `refused` with `not_offered` (F-S27d-5): a refusal is data in the act's outcome.
+- `TooFarAway` (AC-c-3's case): back on the street, the adapter's `walk_to` Carol, now in another place, is
+  `rejected` for `too_far_away`; the plain client's walk to the commuter, sent from the other side, is
+  `Rejected(too_far_away)`, the same reason.
 
-`TooFarAway` through the adapter (AC-c-3's case) is covered by `test_play_mcp.py`'s walk to the street, and the
-`Unavailable` arm is unit-owned (F-S27d-4); neither is repeated here."""
+The `Unavailable` arm is unit-owned (F-S27d-4)."""
 
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ from typing import Any
 
 import pytest
 from mcp_relay import Relay
-from mineworld_sdk import SeatSession
+from mineworld_sdk import SeatSession, offers
 from mineworld_sdk.wire.contract import ActionRecord, ActionRequest, Observation, Rejected
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId
 from realserver import REPOSITORY, Server, seated
@@ -31,6 +33,7 @@ from support import run_default
 from test_play_mcp import PATIENCE, Transcript, adapter, call, person_ref, walk
 
 TALK = ActionTypeId("talk")
+WALK_TO = ActionTypeId("walk-to")
 CLASSES = (
     "- { class: resident, of: person, tag: resident }\n"
     "- { class: commuter, of: person, tag: commuter }\n"
@@ -152,6 +155,32 @@ async def _same_answers(server: Server, tmp_path: Path) -> None:
                 session, transcript, "say", {"handle": handle, "to": carol_ref, "words": "hello"}
             )
             assert said["outcome"] == {"kind": "refused", "code": "not_offered"}, said["outcome"]
+
+            # TooFarAway (AC-c-3's case, through the adapter): the commuter walks back to the street, then asks to
+            # walk to Carol, a person in another place, by the reference its earlier view gave her. The server's
+            # reason reaches the agent unchanged. The plain client asks the same of the server from the other side
+            # (walk to the commuter, now elsewhere, with the same `walk-to` payload the library encodes) and is
+            # answered the same reason.
+            await walk(session, transcript, handle, {"place": _exit_to(view, "street")})
+            far = await call(
+                session, transcript, "walk_to", {"handle": handle, "to": {"person": carol_ref}}
+            )
+            assert far["outcome"] == {
+                "kind": "rejected",
+                "reason": "too_far_away",
+                "system_code": None,
+            }, far["outcome"]
+            newest = carol.newest
+            assert newest is not None
+            toward = offers.request(
+                newest.observation,
+                WALK_TO,
+                target=None,
+                payload={"to": {"person": {"entity": grace_id, "entity_type": "person"}}},
+            )
+            answered = getattr(await carol.submit(toward), "result", None)
+            assert isinstance(answered, Rejected), answered
+            assert answered.rejected == far["outcome"]["reason"], answered
     finally:
         await carol.close()
         await relay.close()

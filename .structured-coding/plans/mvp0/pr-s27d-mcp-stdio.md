@@ -704,7 +704,8 @@ No question remains open. No decision id beyond `DEP-56` is used (primary, 2026-
 | C6 | (this commit) | [x] `test_mcp_same_answers.py` (AC-d-6, the social-café copy with IE-4's rule), `guarded_adapter.py` + `test_mcp_guard.py` (AC-d-7), `test_mcp_admin_view.py` (AC-d-9); `realserver.world_path`; the `town` fixture moved to `conftest.py` | [x] same-answers PASS (~18 s), guard PASS (~4 s, stable over 4 runs), admin view PASS (~1 s); M-d-9 red then green; 145 passed across the MCP and S27-c suites (68 s); ruff, format, pyright 0 | [x] see C6 evidence |
 | C7 | (this commit) | [x] AC-d-10 run (not committed); the three open play-test steps (AC-d-8, step 5, the save window) in `67968b31`; the evidence table in the C7 section | [x] `test_play_mcp.py`, `test_mcp_same_answers.py`, `test_mcp_guard.py`, `test_mcp_admin_view.py`: 4 passed on two repeat runs; ruff, format, pyright 0; doc checks; scope diff | [x] deviations recorded (D-d-C2-4, D-d-C5-1…4, D-d-C6-1, D-d-C6-2, D-d-C7-1, D-d-C7-2) |
 | M | `1a248cad` | [x] merge of `origin/main` @ `8c5d3598` (#234) into the branch, after `c51c9f09` | [x] CI run 38813459351 on `1a248cad`: see R-evidence (resumed session) | N/A: a merge with no conflict in this PR's files |
-| R1 | (this commit) | [x] review fixes of the tool surface: `ToolError.detail` no longer echoes a union tag (D-d-R-1); the published schemas drop pydantic's derived `title` keywords, the resource serves compact JSON (R-d-4, F-d-R-2); golden regenerated | [x] `test_mcp_tools` 9, `test_mcp_resources` 8, `test_cli` 9, `test_mcp_secrets` 2, `test_mcp_errors` 7, `test_mcp_confined` 6, `test_descriptions` 3, `test_world_text` 5: all passed; M-d-10, M-d-11 red then green; ruff, format, pyright 0 | [x] see R1 evidence |
+| R2 | (this commit) | [x] the open acceptance arms: step 8's `answer_lost` and `not_connected` (relay `cut_on_next_submit`), step 10's `hosted` join, a line said as Alice, Alice back to her controller, her biography and perceived record; AC-d-8's comparison run; AC-d-6's `TooFarAway` arm; the shared `walk` helper waits for arrival (D-d-R-3) | [x] `test_play_mcp.py` PASS ×2 (26.1 s, 18.1 s), `test_mcp_same_answers.py` PASS ×2 (20.9 s, 19.1 s), `test_mcp_guard.py` PASS (6.1 s), `test_mcp_admin_view.py` PASS (3.9 s); M-d-12, M-d-13 red then green; ruff, format, pyright 0 | [x] see R2 evidence |
+| R1 | `dfc3b490` | [x] review fixes of the tool surface: `ToolError.detail` no longer echoes a union tag (D-d-R-1); the published schemas drop pydantic's derived `title` keywords, the resource serves compact JSON (R-d-4, F-d-R-2); golden regenerated | [x] `test_mcp_tools` 9, `test_mcp_resources` 8, `test_cli` 9, `test_mcp_secrets` 2, `test_mcp_errors` 7, `test_mcp_confined` 6, `test_descriptions` 3, `test_world_text` 5: all passed; M-d-10, M-d-11 red then green; ruff, format, pyright 0 | [x] see R1 evidence |
 
 ### Evidence
 
@@ -923,3 +924,58 @@ comparison run, the `answer_lost` arm; AC-d-10 recorded properly; R-d-4 (the too
 - Review: `mcp_server.py` still holds no game logic (two pure transforms of the adapter's own output); every path still
   returns the model or a `ToolError`; the transform cannot remove a validating keyword (the test's structural diff
   allows only `title` to be missing).
+
+**R2 evidence (2026-10-16): the acceptance arms left open at C7.** Binary: `/tmp/impl-s27d-target/debug/mineworld`
+(built at C5 from this branch; the merge `1a248cad` changed only documents, `git diff --stat c51c9f09 1a248cad`
+lists no file outside `docs/` and `.structured-coding/`, so it was not rebuilt). Each file run alone with
+`MINEWORLD_BIN` set (R-LOAD-1).
+
+- **Step 8, `answer_lost` and `not_connected` (AC-d-1).** `mcp_relay.Relay.cut_on_next_submit(lasting_s=3.0)`: the
+  adapter's next `submit` is forwarded to the server, every server frame after it is withheld (the pair's flag is set
+  before the send, so even a fast answer cannot get through), every transport is aborted with no close frame, and
+  for 3 s the relay answers the adapter's reconnections with HTTP 503 (counted in `relay.refused`). The play-test then
+  asserts: `say "still there?"` → `{"kind":"refused","code":"answer_lost"}` (the submit did reach the server,
+  `relay.cut_submit`); a second `say` during the cut → `{"kind":"refused","code":"not_connected"}`, and no submit after
+  the cut one reached the relay before the reconnection (nothing was sent); at least one reconnection was refused;
+  the seat's next welcome says `took_over: "held"` (resumed inside the 10 s hold with its resume secret). The C5
+  record's "the `answer_lost` arm of §8 is not exercised" (D-d-C5-2) is closed. **M-d-12** (`outcomes.unanswered`
+  answers `AnswerLost` as `not_connected`) → the play-test **FAILED** on the `answer_lost` assertion; restored from the
+  byte copy (`cmp` clean), green.
+- **Step 10 and its oracle (AC-d-1, AC-5).** `join alice` with the alice grant asserts `took_over: "hosted"`; the agent
+  observes until a `talk` offer is available, says "Welcome in." to that person (accepted), and leaves; a plain client
+  then joins `alice` and is welcomed `took_over: "hosted"` (Alice went back to her controller) and leaves. After the run,
+  from the save: `mineworld biography … --person alice --json` holds a `became-acquainted` entry naming `visitor` (the
+  acquaintance the visitor's hello began), and `mineworld perceived … --person alice` holds the utterances "hello" (the
+  visitor's), the comparison line, the injection line (both said from Alice's seat by the plain client) and "Welcome
+  in." (hers, as the agent). This is the S27-c oracle (`test_play_market_town.py` step 10) applied through the adapter.
+- **AC-d-8, the comparison run.** The same step twice: the plain client on Alice's seat says the harmless line "the bread
+  is fresh today", the visitor's `wait(spoken_to)` hears it; then the injection line, heard the same way. Asserted: the
+  injection is speech in `structuredContent` and neutralised between `<<<world` and `world>>>` in the text, raw line
+  absent (as at C7); the two speech facts are equal once their `ref`, `at` and `words.text` are masked (same
+  `event_type`, subjects, place, speaker, kind, detail); the two `wait` answers have the same fields and both woke
+  `spoken_to`; and the adapter sent no `leave` frame (the line asked it to). No counterfactual was planted for the
+  comparison itself: a product mutation that changes a field only for hostile text would be contrived; the masked
+  equality is the check.
+- **AC-d-6, `TooFarAway` through the adapter.** In `test_mcp_same_answers.py`, after the permission arm: the commuter
+  walks back to the street, and `walk_to { person: <Carol's ref from the apartments view> }` →
+  `{"kind":"rejected","reason":"too_far_away","system_code":null}`, the server's reason unchanged; the plain client on
+  Carol's seat sends `walk-to` with `{to: {person: {entity: <grace>, entity_type: person}}}` (built by
+  `mineworld_sdk.offers.request`, the function the library uses) and is answered `Rejected(too_far_away)`, the same
+  reason. The test's docstring no longer claims the play-test covers it. **M-d-13** (`outcomes._answered` replaces
+  every rejection reason with `busy`) → `test_mcp_same_answers.py` **FAILED** on this arm's assertion; restored (`cmp`
+  clean), green.
+- **Finding D-d-R-3 (the shared `walk` helper returned before arrival).** The first run of the new arm failed: the
+  `walk_to` meant to show `too_far_away` was *accepted*, and its outcome showed a `walk-ended` of the street walk at the
+  same instant as the new `walk-started`: the commuter had not left the apartments. Cause: `walk` treated any
+  `wait(walk_ended)` wake as arrival; the wait counts a fact that arrived since the previous call, so an earlier
+  walk's end, or a view that does not yet show the walk, ended the helper early. Fix (test helper only): the walk ends
+  when an `observe` shows the seat not walking and, for a place destination, in that place. With it the arm passes.
+  Effect on earlier records: the play-test's and the guard's "walk to the street and back" (D-d-C5-1, AC-d-7) may have
+  ended early before; they now wait for the street and the café. All four real-binary files pass with the stricter
+  helper (times above).
+- Validation: `test_play_mcp.py` 1 passed twice (26.1 s, 18.1 s wall in pytest); `test_mcp_same_answers.py` 1 passed
+  twice (20.9 s, 19.1 s); `test_mcp_guard.py` 1 passed (6.1 s); `test_mcp_admin_view.py` 1 passed (3.9 s). `ruff
+  check`, `ruff format --check`, `pyright clients/agent`: clean.
+- Review: every new oracle is the server's (the relay's frames and refusals, the server's welcome, the save's
+  `biography` and `perceived` exports, a plain client's answers); no sleep stands in for a stream (the cut is ended by
+  the relay's clock, and the test waits on the welcome); the relay forwards frames unchanged outside the cut (R-d-7).
