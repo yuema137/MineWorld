@@ -7428,6 +7428,24 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
      change was handed back to the coordinator to route to #224.
    - 12d merges main once #224 has merged, and gets CI green on the exact head. If F-tick-1
      (`hosted_town`) still flakes, it is noted without a rerun; its real fix is #216.
+9. **CI on 4ff4856, then main merged after #224 (2026-10-17).**
+   - **CI on 4ff4856** (run 38809345440; PR runs test the merge with main's tip):
+     - success: fast, platforms ×2, test (52 min), test-macos (59 min), python ubuntu, python macos.
+       Item 7's window passes there.
+     - test-windows: cancelled at 60 min, as on main.
+     - python windows: FAIL on S27-c's `clients/agent` `test_idle.py` ×2. That run's `asyncio.sleep(30)`
+       took 37.1 wall s, so the world advanced 446 s at ×12, an exact clock: runner timing, not the world.
+       Linux ran 98/98.
+   - **The merge.** origin/main da80316 (#224's sharding and `binary.py`'s 1 200 s, S27-c, P6b, S30a,
+     docs) merged without conflicts. Main changed no world, system, kernel, contract or
+     `scripts/baselines.txt`, so the baselines of item 4 stand.
+   - **Local, after the merge** (load 2.7):
+     - fmt, clippy `-D warnings`, ruff, pyright strict, doc headings and decision ids: clean.
+     - bodies + worldpack: 26 binaries ok.
+     - The CLI town tests: 14 binaries ok (town_bodies, commands, inspect, server_command,
+       social_composition, content_kinds, routines, ac15_one_alice, restart, milestone_c, facts,
+       market_composition, decisions, market_town).
+     - `test_retention_real.py` + `clients/agent`: 100 passed.
 
 ---
 
