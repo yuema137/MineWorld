@@ -1625,6 +1625,15 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | QP6-4, QP6-5, QP6-6, QP6-8, QP6-9, QP6-10, QP6-11, QP6-12 | **Accepted as recommended**: the assignment comes from an operator-written JSON file; knobs live in `cognition.toml` only; the two additive P5a changes; stand when no in-server fallback exists; `--hold` stays 30 s; the admission gate is a procedure plus a README table; the `gpt-5-nano` re-run with `temperature` omitted is an operator task outside P6; `ARC-72`, `ARC-73` and `ARC-74`, with no new DEP | primary session |
 | Implementation | P6a and P6b go to small-model implementer sessions, separately; every commit step is explicit (§9.0, §9) | primary session |
 
+**Dated note 2026-10-16: QP6-2 widened to Market Town (F-P6a-6, primary ruling under the operator's merge
+authority of 2026-10-16, option (a)).** Market Town is Social Café plus the market packs (`ARC-35`, AC-1 check 3),
+so `persona` belongs in Market Town too. P6a adds `- persona` after `schedule` in `worlds/market-town/world.yaml`
+(before the market packs) and the same nine `persona:` sections to Market Town's people files. QP6-2 now reads,
+for P6a: a **social-cafe or market-town** column that moves because people perceive their own persona may be
+re-baselined with a reason line; any other moved column is still a material stop. AC-1 check 3 and `ARC-35` are
+not relaxed. §12.1's APPROVED SCOPE gains `worlds/market-town/world.yaml` and those nine files, and the test
+pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
+
 ---
 
 ## 15. Ledger (live during implementation)
@@ -1806,7 +1815,24 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   is AP6a-3's named failure); or (b) change AC-1 check 3 or `ARC-35` to allow a persona-like delta, which is a
   frozen top-level acceptance criterion. Neither was done. P6a is stopped here for an operator ruling; the
   recommendation is (a), since Market Town is defined as Social Café plus a market, and its people are the
-  same people.
+  same people. **Ruled 2026-10-16: (a)** (§14.1 dated note). Done: `- persona` after `schedule` in Market Town's
+  `world.yaml` with a comment, and the nine `persona:` blocks copied byte for byte from Social Café's files;
+  `mineworld validate worlds/market-town` valid (143 genesis facts); `cargo test -p mineworld-acceptance`
+  (AC-1 check 3 included) and `cargo test -p mineworld-worldpack` PASS.
+- **F-P6a-7 (2026-10-16; test pins).** `cargo test` stops at the first failing binary, so the CI runs above did
+  not show every pin. Two more social-cafe pins moved with the nine genesis facts and are updated:
+  `tools/cli/tests/commands.rs` (systems line ends `, persona`; `53` → `62 genesis fact(s)`) and
+  `tools/cli/tests/content_kinds.rs` (`53` → `62`). The full `mineworld-cli` test crate was then run locally with
+  `--no-fail-fast` (E-P6a-cli).
+- **E-P6a-cli (2026-10-16).** `cargo test -p mineworld-cli --no-fail-fast` (via `with-slot.sh`, load ~11): 187
+  passed, 4 failed, 35 ignored. All four failures were social-cafe pins of the system list: `inspect.rs`
+  (`… schedule v1, persona v1`), `server_command.rs` (status systems end `"persona"`), `social_composition.rs`
+  twice (the systems lines of the "without schedule" and "without group-activity" copies end `persona v1`). Updated,
+  and those five test files rerun: 24 passed, 0 failed.
+- **Golden and S26-a (2026-10-16).** The F-P6a-4 golden and the F-P6a-5 worldpack-test commits are kept (ruling,
+  item 6). S26-a regenerates the same golden (`pr-s26a-appearance.md` §3, C4 step 8): if S26-a merges after P6a, its
+  regeneration must start from P6a's version (with `persona-authored 9`); if it merges first, P6a regenerates
+  again on its rebase.
 - **D-P6b-1 (C0, bounded).** FG-c is not merged, so `memory.retention.selection.resolve` takes no
   `summarize` argument. R-P6-FGc-1 is not wired in P6b. Under the design's rule ("whichever of FG-c and P6
   merges second wires it"), P6b is the first to merge and does not wire it; the FG-c PR wires
