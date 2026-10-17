@@ -735,7 +735,9 @@ fn the_move_of_13b_wording_is_verbatim() {
     // An entry of MOVED_BY_16D admits a move only of an entry 13b had, to the shared layer.
     for key in MOVED_BY_16D {
         if before.get(key).is_none() {
-            found.push(format!("\"{key}\" is listed as moved by 16d and was not 13b's"));
+            found.push(format!(
+                "\"{key}\" is listed as moved by 16d and was not 13b's"
+            ));
         }
         if shared.get(key).is_none() {
             found.push(format!(
