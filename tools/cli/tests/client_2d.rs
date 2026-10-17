@@ -392,8 +392,11 @@ async fn reconnects_to_a_restarted_world_and_to_a_replaced_one() {
     if let Some(selfie) = evidence(&drive.lines(), "self").first() {
         known_before = selfie["passages"].as_u64().unwrap_or(0);
     }
-    world.kill();
+    // Counted before the kill, not after it: the client sees the connection close while the kill is
+    // still being reaped, and on Windows its `STATE reconnecting` line was already read by then (nightly
+    // 39012891928), so a count taken after the kill skipped the very line this test looks for.
     let killed_at = drive.lines().len();
+    world.kill();
     tokio::time::sleep(Duration::from_secs(2)).await;
     world.restart().await;
     let (status, lines) = drive.finish().await;
