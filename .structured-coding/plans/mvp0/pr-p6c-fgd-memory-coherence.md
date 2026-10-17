@@ -201,8 +201,8 @@ implementation follows in the same branch without waiting for the freeze.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
-| C1 | — | [ ] | [ ] | [ ] |
+| C0 | 9cc22f74 | [x] | [x] links resolve | [x] scope = Q-P7-2 (b) + Q-P7-3 (a) |
+| C1 | see `git log` | [x] | [x] policy + interface 38 passed; retention plan/host/assisted/lm-summarise/retrieve 72 passed; size 15 passed; lm-summarise replay 5 passed (digest reset, F-FGd-1); mutation red | [x] pure, integer, no host change; plans validate (every consolidate-comparing test passes) |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
@@ -214,7 +214,17 @@ implementation follows in the same branch without waiting for the freeze.
 
 ### Deviations and findings
 
-(filled as found)
+- **F-FGd-1 (bounded, expected).** `test_lm_summarise_replay.py`'s committed digest pins the dump of a 12-day stream
+  under `lm-summarise`, whose groups are `consolidate`'s. With keepsakes the dump holds each person's first exchanges
+  as records, so the digest moved (`c3624e03…` → `0204e89d…`). The cassette is unchanged and replays without a miss:
+  no summarisation request moved, because keepsakes only leave records out of a merge group. The digest is reset with
+  that note in the test's docstring.
+- **F-FGd-2 (finding, left to FG-c's semantics).** Under `lm-summarise` a model may still forget a keepsake: a group
+  whose container is a top-level episode can be turned from `Merge` into `Drop` by a low importance hint (pr-fg-c
+  §5.4, "the model may decide which items survive"). The default policy and the no-model fallback keep them. Not
+  changed here; a follow-up may exempt such groups from the drop cell.
+- **D-FGd-1 (test seam).** AFGd-1 is pinned on hand-built items (`test_retention_policies.py`), like AFGb-8, so the
+  rule is checked against literals; the store-level evidence is AFGd-3's 100-day run.
 
 ### Execution contract
 

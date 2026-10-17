@@ -36,10 +36,12 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "c3624e035b7a8044a932bc217ba5bc51ee11e2f6732e49a9500015f423a106a4"
+DIGEST = "0204e89d682b58c3f3fdb1c146a436e5cb5cbd5b0241cfa1f5ff00e2acc26d43"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
-and `meta.schema` reads 3. The cassette is unchanged and still replays without a miss: no request moved."""
+and `meta.schema` reads 3. The cassette is unchanged and still replays without a miss: no request moved.
+Reset by FG-d (pr-p6c-fgd-memory-coherence.md §9, F-FGd-1): `consolidate`'s keepsakes keep each person's
+first exchanges as records, so the dump holds them; the cassette is unchanged and replays without a miss."""
 
 
 def _facts() -> list[PerceivedEvent]:
