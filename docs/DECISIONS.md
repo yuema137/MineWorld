@@ -8825,7 +8825,7 @@ operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
 (F-13c-impl-2, F-13c-impl-5), `.structured-coding/plans/mvp0/pr-set-b-controls.md` §7.2
 
 **Problem.** The nightly was red on every night since SET-b (#192) merged, for four causes, each read from
-the logs of nightly 38919486641 on `38323d4c`:
+the logs of nightly 38919486641 on `38323d4c`, and a fifth this PR's own dispatch found:
 1. `parity-long-windows` and `stability-windows` were cancelled at their 90-minute limit, and the
    `parity-long` comparison then failed for the missing Windows record. Windows saved runs were the cost:
    `stability-windows` saved bodies-yard's 300 days in 3 280.6 s (Linux 285.2 s) and replayed it in 77.5 s
@@ -8864,6 +8864,14 @@ the logs of nightly 38919486641 on `38323d4c`:
    imported resources are 584 MB, and `pr-13c-nightly.md` §3.4's import cache was specified but never
    built. The Godot tests then started at minute 65.
 
+5. `client_2d::reconnects_to_a_restarted_world_and_to_a_replaced_one` failed on Windows on `63069777`
+   and again on this PR's clients dispatch 39012891928 ("it saw the drop"), and passed on the other
+   Windows nights. The client's own transcript in the failure shows the behaviour right: one
+   `STATE reconnecting the connection closed`, a new `STATE seated`, `[PASS] reconnected 1 disconnect(s)`.
+   The test counted the lines it had read only after `world.kill()` returned, and the client had seen the
+   connection close, and its line had been read, while the kill was being reaped, so the slice after the
+   count skipped that line. **The test was wrong, not the client.**
+
 The older findings of #170 are not live: `stability-linux` passed on `3a9b9eff` and `38323d4c`, and the
 `baseline` step passed on both (only `compare` failed, for cause 1).
 
@@ -8899,16 +8907,21 @@ verdicts are unchanged, and it is not a retry, because nothing it does is judged
    left to the tests, which assert it by name.
 5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
    still reaches a verdict. The other limits are unchanged.
-6. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
+6. The reconnect test counts the lines before it kills the world. Its assertions are unchanged.
+7. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
    (`godot --always-on-top --path clients/3d-spike res://scenes/slice.tscn -- --slice-measure
    --settings=none`, limit 600 s), where a connected 3D test is about to run (the macOS leg; Linux and
    Windows skip them all). Its exit and time go to `artifacts/nightly/notes.txt` as a note, never a
-   verdict.
+   verdict. On dispatch 39012891928 that launch took 406 s, and all three connected 3D tests then passed
+   on the macOS leg.
 
 **Consequences.** The evidence of the PR's dispatched nightly is recorded in the PR. Each Windows leg's
 saved runs now measure the simulation and SQLite, not the runner's OS disk; a regression there is
-visible in the benchmark table again. The import cache costs about 0.6 GB of the repository's Actions
-cache per OS per changed `clients/` tree; older entries are evicted first. `ci.yml`'s Windows jobs are
+visible in the benchmark table again. The import cache costs about 0.3 GB (compressed) of the repository's
+Actions cache per OS per changed `clients/` tree. The repository's caches were at 10.6 GB of GitHub's
+10 GB on 2026-10-17, so entries are evicted within hours (the Cargo and import entries of dispatch
+39007080793 were gone by 39012891928, the macOS import entry survived); the 120-minute limit, not the
+cache, is what guarantees `clients-mac` a verdict, and the cache shortens the nights it survives. `ci.yml`'s Windows jobs are
 not changed here (#224 owns them); whether their scratch also lands on `C:` is a follow-up for that PR.
 F-13c-impl-5 (the connected 3D slice on hosted runners) stays open with the 3D lane.
 
