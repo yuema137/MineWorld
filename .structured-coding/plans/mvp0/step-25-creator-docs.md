@@ -999,8 +999,8 @@ The chapters were committed together rather than one per commit (deviation D-25d
   point at the guide and the reference. [x] Guide test; `create` and `packs` tests green (E-1, E-5).
   [x] Review (E-9).
 - **C10 — zh-CN pass and close.** [x] All mirrors written together with one term table in `README.zh-CN.md`
-  (English term in brackets). [x] Mirror parity (E-1); AC-25d-3's Chinese sign-off is the primary's (pending,
-  §18.3). [x] Review (E-9).
+  (English term in brackets). [x] Mirror parity (E-1); AC-25d-3: every mirror revised to the operator's
+  plain-Chinese style on the coordinator's dispatch, 2026-10-16 (E-10). [x] Review (E-9, E-10).
 
 #### PR 25e — Comparison examples and the feature chapters
 
@@ -1260,6 +1260,7 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
 | E-8a | First CI run, PR #240 head `627efe9b` (run 38813791073) | FAIL (Windows), PASS (Linux, macOS) | `test` and `test-macos` pass. `test-windows`: `guide: 104 block(s) passed, 1 pending`, one failure — step 1.2's `Usage: mineworld <COMMAND>` prints `mineworld.exe` on Windows. Fixed by quoting `...` for that line (and a sentence in step 1.2 explaining `...` and `[..]` to readers). `python (windows-2025)` failed in `cognition/lm-controller` (`test_ac10.py`, `test_retention_real.py`: `SocketConnectBlockedError`), which this PR does not touch |
 | E-8 | AC-25d-1 on the three OSes: CI on head `d40b177b` (run 39003657480) | PASS (guide, all three OSes); job `test-windows` INCONCLUSIVE | `test` (Linux) and `test-macos` pass whole. `test-windows`: `the_guide_in_this_repository_runs_green ... ok` and the fixture page ok at 05:45; the job was then cancelled at its 60-minute limit (06:19, `The operation was canceled`) in later suites — the known Windows timeout 25a also has, not a guide failure. `python (windows-2025)` fails in `cognition/lm-controller` as in E-8a, untouched by this PR |
 | E-9 | Review read-through (English plain-language rule 7, rule 8, AC-25d-5) | PASS | no decision id, plan name or PR in any page body (`grep` over `docs/guide/*.md`); no prose sentence above 27 words (a paragraph-mode `awk` count over every English page); every field, bound or default the guide mentions links its reference entry (`world-pack.md`, `sections.md`, `configure.md`, `interaction-list.md`, `pack-manifest.md`, `cli.md`); every defined term is explained at first use on its page and linked to `CORE_CONCEPTS.md` |
+| E-10 | AC-25d-3: every `docs/guide/*.zh-CN.md` and `README.zh-CN.md` revised to the operator's plain-Chinese rule (ruling 2026-10-15: `clear-tech-explainer`, `plain-chinese` with `references/common-technical-jargon.md` and `terminology-policy.md`, `concrete-example`; no dongbei-voice) | PASS | **What changed.** MineWorld's own concepts keep their English names, the ones the command output prints (`World Pack`, `System Pack`, `seat`, `genesis fact`, `passage`, `routine`, `save`, `biography`, `class`, `Interaction List`, `Entity Pack`). Each is introduced on a page by saying in Chinese what it does. This replaces invented Chinese names (世界包, 系统包, 座位, 初始事实, 交互清单, 实体包), which now occur 0 times. Tier-1 terms (`server`, `client`, `build`, `YAML`) are used as they are. The 35 repeated `（英文）` tags are gone; one line in the index says the reference and the specifications are English-only. Sentences are short, with an actor and a verb. One worked trace was added: Cai's day by the clock in step 4.2. **Checks.** `python3 -I scripts/lint_text` from the DongbeiGPT clone passes on all 11 files (no `——`, no excluded expressions). The guide runner passes: `105 block(s) passed, 1 pending`; every mirror's parity and links PASS; 36 tests ok. Steps, commands and output blocks are byte-identical to the English pages, as the runner checks. **Before → after:** (1) step 02 intro: 「一个世界就是一个**世界包**（World Pack）：一个文件夹，里面是纯文本文件，格式叫 YAML。」 → 「一个世界就是一个 **World Pack**：一个文件夹，里面放几份纯文本文件，格式是 YAML。」 (the project term keeps its English name, with no invented Chinese name added). (2) step 6.2: 「启动一个**服务器**（server）：让世界一直运行、让玩家加入的程序。」 → 「启动一个 server。server 是一个一直开着的程序：世界在里面不停地跑，玩家连上它就能加入。」 (a Tier-1 term is kept; its explanation is its own short sentence, not a parenthetical). (3) step 4.2: 「日程只是打算，不是瞬移：Cai 还得自己走过去。」 → 「拿 Cai 的一天走一遍：00:00 在家，16:00 想去小店，18:00 想回家，第二天 16:00 再去小店。routine 只是打算，不会把人直接挪过去，Cai 还得自己走过去。」 (concrete-example: one item traced through the real mechanism, and the compressed 不是瞬移 is replaced by an ordinary clause) |
 
 ### 18.2 Deviations (bounded, recorded)
 
@@ -1308,6 +1309,7 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
 - **F-25d-2 Spec headings are link targets.** Guide pages link `CORE_CONCEPTS.md` and `MODULE_SPEC.md` headings.
   A docs-only PR that renames one does not run the build (ARC-48 note), so the broken link turns red only at the
   next code or guide PR. Not changed here (it would widen the code set to all of `docs/`); recorded.
-- **AC-25d-3** Chinese plain-language sign-off of the mirrors: the primary's (or a Chinese-reading reviewer's).
+- **AC-25d-3** done (E-10). The coordinator asked for it on 2026-10-16. The style rule is the operator's ruling of
+  2026-10-15: the non-dialect skills of `yuema137/DongbeiGPT`. The dongbei-voice layer was not used.
 - **AC-25d-4** The operator follows chapters 01–05 by hand at the milestone handoff (QS25-10).
 - **E-8** CI on the exact head.

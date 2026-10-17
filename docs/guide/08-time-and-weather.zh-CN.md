@@ -1,23 +1,23 @@
 # 08 时间和天气
 
-这一章你会把街角小店放进日历、放到地图上，再给它天气。这样世界就有了日期、日出日落，
-每个小时也有晴有雨。
+这一章你会给 Corner Shop 一本日历，把它放到地图上的一个位置，再给它天气。这样世界就有了日期，
+有日出和日落，每个小时也有晴有雨。
 
-本页是英文原文 [08-time-and-weather.md](08-time-and-weather.md) 的中文镜像。两者不一致时，以英文为准。
+这一页翻译自英文原文 [08-time-and-weather.md](08-time-and-weather.md)。两边不一致时，以英文为准。
 
 <!-- guide: continues 07-rules-of-the-world -->
 
 接着用[第 07 章](07-rules-of-the-world.zh-CN.md)的 `corner-shop` 文件夹。
 
-这件事由两个系统包来做：
+这件事由两个 System Pack 来做：
 
-- `calendar`（日历）：给世界一个日期和一个在地球上的位置，由它决定太阳什么时候升起、什么时候落下。
-- `weather`（天气）：给世界天气。它要依赖 `calendar`，因为天气跟日期有关。
+- `calendar`：给世界一个日期，和一个在地球上的位置。太阳几点升、几点落，由这个位置决定。
+- `weather`：给世界天气。天气要看日期，所以它要用到 `calendar`。
 
 ### Step 8.1 — 加上日历和天气
 
-**照着做。** 用下面这整个文件替换 `corner-shop/world.yaml`。新的部分是 `calendar` 和 `weather`，
-分别加在 `systems` 的最后和 `configure` 的最后：
+**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是 `calendar` 和 `weather`，
+`systems` 最后加一次，`configure` 最后也加一次：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -79,7 +79,7 @@ $ mineworld validate corner-shop
 
 **你应该看到**检查在要日历的文件。
 
-### Step 8.2 — 说明世界在什么时候、什么地方
+### Step 8.2 — 写明世界在什么时候、什么地方
 
 **照着做。** 在 `corner-shop/configure` 里写 `calendar.yaml`：
 
@@ -92,10 +92,10 @@ longitude: -117.1611
 ```
 
 - `epoch`：世界第一天的日期。
-- `utc_offset`：当地时间和 UTC 差多少。它永远不变：没有夏令时。
-- `latitude` 和 `longitude`：世界在地球上的纬度和经度，单位是度。这里是圣迭戈（San Diego）的。
+- `utc_offset`：当地时钟比 UTC 差几个小时。这个差值一直不变，没有夏令时。
+- `latitude` 和 `longitude`：世界在地球上的纬度和经度，单位是度。这里填的是 San Diego 的。
 
-字段在参考手册里：[`configure/calendar.yaml`](../reference/configure.md#configurecalendaryaml)（英文）。
+字段在参考手册里：[`configure/calendar.yaml`](../reference/configure.md#configurecalendaryaml)。
 
 ```console exit=1
 $ mineworld validate corner-shop
@@ -104,12 +104,12 @@ $ mineworld validate corner-shop
 
 **你应该看到**检查在要天气的文件。
 
-### Step 8.3 — 给它圣迭戈的气候
+### Step 8.3 — 给它 San Diego 的气候
 
-天气每天都按一份**气候**（climate）来抽：每个月多常下雨、下多少，白天和夜里多暖和，多常起雾，风怎么吹。
-天气是世界的一部分，所以同一个世界的天气永远一样。
+每天的天气，都是按一份气候数据随机抽出来的。这份数据按月写着：多常下雨、下多少，白天和夜里多暖和，
+多常起雾，风怎么吹。天气也算世界的一部分，所以同一个世界，天气永远一样。
 
-**照着做。** 在 `corner-shop/configure` 里写 `weather.yaml`。它很长：十二个月，每个月格式都一样。整段复制就好。
+**照着做。** 在 `corner-shop/configure` 里写 `weather.yaml`。这份文件很长：十二个月，每个月的格式都一样。整份复制过去就行。
 
 ```yaml file=corner-shop/configure/weather.yaml
 # San Diego's climate, month by month: the rules MineWorld's weather-fetch tool fitted to NOAA's
@@ -289,14 +289,14 @@ rules:
       wind_from_deg: 300
 ```
 
-- `source: rules`：每天都按气候来抽。（世界也可以重放某个气象站的真实记录，见参考手册。）
-- `seed`：天气的“骰子”。它不是运行时的 `--seed`：不管人们怎么活动，天气都不变。
-- `rules` 下面的 `months`，每个月一项，从一月开始。数字都是小单位的整数：
-  十月的 `tmax_dc: 249` 表示平均每日最高气温是 24.9 °C。
+- `source: rules`：每天都按这份气候数据来抽。世界也可以改成重放某个气象站的真实记录，参考手册里有写法。
+- `seed`：天气用的随机数起点。它和运行时的 `--seed` 是两回事：人怎么活动，都不会改变天气。
+- `rules` 下面的 `months` 一个月一项，从一月开始。数字都是整数，单位很小：
+  十月那一项的 `tmax_dc: 249`，意思是十月平均每天最高气温 24.9 °C。
 
-这些数字和 MineWorld 源代码里示例小镇用的是同一份 NOAA 记录。NOAA 希望使用者注明出处，
-文件开头的注释就是在注明。每个字段和它的单位，都在参考手册里：
-[`configure/weather.yaml`](../reference/configure.md#configureweatheryaml)（英文）。
+这些数字来自 NOAA 的同一份记录，MineWorld 源代码里的示例小镇用的也是它。NOAA 希望用的人注明出处，
+文件开头那几行注释就是在注明。每个字段和它的单位，都在参考手册里：
+[`configure/weather.yaml`](../reference/configure.md#configureweatheryaml)。
 
 ```console
 $ mineworld validate corner-shop
@@ -306,7 +306,7 @@ Corner Shop (corner-shop)
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到** systems 的最后是 `calendar, weather`，世界有效。
+**你应该看到** `systems` 那一行最后是 `calendar, weather`，世界也写对了。
 
 ### Step 8.4 — 跑三天，并且存下来
 
@@ -327,18 +327,18 @@ faults     0
 ...
 ```
 
-**你应该看到**总结里多了几种事实：
+**你应该看到**总结里多了几种 fact：
 
-- `day-began`：新的一天开始了，带着它的日期。一共四次，因为运行结束在第 4 天刚开始的时候。
-- `daylight-changed`：黎明、日出、日落、黄昏。
-- `weather-day` 和 `weather-changed`：每天的天气，以及一天里每次天气变化。
+- `day-began`：新的一天开始了，带着当天的日期。一共四次：第 1、2、3 天开头各一次，跑到第 4 天刚开始时又一次。
+- `daylight-changed`：天亮、日出、日落、天黑。
+- `weather-day` 和 `weather-changed`：每天的天气，以及一天里每次变天。
 
 ### Step 8.5 — 读出日期和天气
 
-世界里每个人都能感知到日期和天气。`perceived` 列出某个人感知到的事，从存档里读出来。
-加上 `--json`，它会打印出每个细节，一行一件事。
+世界里的每个人都能感觉到日期和天气。`perceived` 从 save 里读出某一个人感觉到的事。
+加上 `--json`，它会把每个细节都打出来，一行一件事。
 
-**照着做。** 读出 Ben 感知到的事：
+**照着做。** 读出 Ben 感觉到的事：
 
 ```console
 $ mineworld perceived corner-shop --save saves/weather --person ben --json
@@ -349,13 +349,13 @@ $ mineworld perceived corner-shop --save saves/weather --person ben --json
 ...
 ```
 
-**你应该看到**，在很多行里，有第一天开始于 2026 年 10 月 8 日的那一行，还有当天第一份天气：
-`"condition":"clear"`（晴）。`"at":0` 表示第 1 天的午夜。
+**你应该看到**，在很多行里，有一行说第一天是 2026 年 10 月 8 日，还有一行是这天的第一份天气：
+`"condition":"clear"`，也就是晴天。`"at":0` 表示第 1 天的半夜零点。
 
 ## 为什么是这样
 
-一天里的时间、日期、太阳和天气，各由一个系统包管着，它把这些记成事实。别的包和客户端读这些事实；
-没有别人去算天气。一个世界不用 `calendar` 和 `weather`，就只是没有日期、没有天气。规则在
-[`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#17-time)（英文）。
+一天里的时间、日期、太阳和天气，各由一个 System Pack 来管，它们把这些记成 fact。
+其他 pack 和 client 只读这些 fact，自己不去算天气。一个世界不用 `calendar` 和 `weather`，就只是没有日期、没有天气而已。
+规则在 [`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#17-time)。
 
-下一章：[12 包](12-packs.zh-CN.md)。第 09 到 11 章会在教程以后的更新里补上。
+下一章：[12 Pack](12-packs.zh-CN.md)。第 09 到 11 章会在以后的教程更新里补上。

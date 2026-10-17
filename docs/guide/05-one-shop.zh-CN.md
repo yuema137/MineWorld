@@ -1,25 +1,25 @@
 # 05 一家店
 
-这一章小店开张。你会加上两种商品、一家拥有小店的公司、钱，以及 Ana 的工作。
-然后大家会买面包和茶，吃的吃、喝的喝，Ana 干完活也能拿到工钱。
+这一章小店开张。你会加上两种商品、一家拥有小店的公司、钱，还有 Ana 的工作。
+然后大家会来买面包和茶，买了就吃、就喝，Ana 上完班也能拿到工资。
 
-本页是英文原文 [05-one-shop.md](05-one-shop.md) 的中文镜像。两者不一致时，以英文为准。
+这一页翻译自英文原文 [05-one-shop.md](05-one-shop.md)。两边不一致时，以英文为准。
 
 <!-- guide: continues 04-three-people -->
 
 接着用[第 04 章](04-three-people.zh-CN.md)的 `corner-shop` 文件夹。
 
-### Step 5.1 — 加上商品、公司和五个系统包
+### Step 5.1 — 加上商品、公司和五个 System Pack
 
-让小店运转起来，要五个系统包：
+小店要转起来，需要五个 System Pack：
 
-- `item`：说明世界里有哪几种东西，比如面包。
+- `item`：写明世界里有哪几种东西，比如面包。
 - `inventory`：记着每个人、每家公司手里有什么。
-- `economy`：管所有人的钱，也管商店。只有它能让钱换手。
-- `employment`：管工作：谁在哪里、什么时间上班，该拿多少工钱。
+- `economy`：管所有人的钱，也管店。钱从一个人手里到另一个人手里，只有它能办。
+- `employment`：管工作：谁几点在哪里上班，该拿多少工资。
 - `consumption`：让人把手里的食物吃掉、饮料喝掉。
 
-**照着做。** 用下面的内容替换 `corner-shop/world.yaml`：
+**照着做。** 用下面这份文件替换 `corner-shop/world.yaml`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -66,11 +66,12 @@ seats:
   - cai
 ```
 
-两个新列表：
+多了两个列表：
 
-- `items` 列出东西的**种类**。`bread` 是“一条面包”这一类东西，不是某一条面包。某人有几条面包，是一个数字。
-- `organizations` 列出公司和别的组织。`corner-shop-co` 是拥有小店的公司。它的键不是 `shop`：
-  一个世界里，每个键只指一样东西。
+- `items` 列出东西的种类。`bread` 指“面包”这一类东西，不是某一条面包。
+  一个人有几条面包，记成一个数字。
+- `organizations` 列出公司和其他组织。`corner-shop-co` 是拥有小店的公司。
+  它的 key 不能也叫 `shop`，因为一个世界里，一个 key 只能指一样东西。
 
 ```console exit=1
 $ mineworld validate corner-shop
@@ -90,8 +91,8 @@ item:
   category: food
 ```
 
-`item` 属于 `item` 这个系统包。它的 `category` 说明这是哪一类东西。类别是 `food` 的东西，人会拿来吃。
-见 [`item` 参考](../reference/sections.md#item)（英文）。
+`item` 这一段归 `item` 这个 System Pack 管。`category` 写明这是哪一类东西。
+类别是 `food` 的东西，人会拿来吃。见 [`item` 参考](../reference/sections.md#item)。
 
 ```console exit=1
 $ mineworld validate corner-shop
@@ -140,12 +141,12 @@ economy:
       tea: 150
 ```
 
-- `holdings` 是公司一开始货架上有的东西：十条面包、十杯茶。
-- `economy` 是它的钱和它的店。钱用“分”来写，都是整数：`wallet: 100000` 是 1000.00，
-  一条面包 `250` 就是 2.50。这家店开在（`at`）`shop` 这个地方。
+- `holdings` 是公司一开始货架上的东西：十条面包，十杯茶。
+- `economy` 写公司的钱和它的店。钱按“分”来写，而且是整数：`wallet: 100000` 就是 1000.00，
+  一条面包标价 `250`，就是 2.50。`at: shop` 表示这家店开在 `shop` 这个地方。
 
 字段在参考手册里：[`holdings`](../reference/sections.md#holdings) 和
-[`economy`](../reference/sections.md#economy)（英文）。
+[`economy`](../reference/sections.md#economy)。
 
 ```console
 $ mineworld validate corner-shop
@@ -160,11 +161,11 @@ Corner Shop (corner-shop)
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到**商品和公司都列出来了，世界有效。不过现在谁都没钱，所以还没人能买东西。
+**你应该看到**商品和公司都列出来了，世界也写对了。不过现在谁手里都没钱，所以还没人能买东西。
 
 ### Step 5.5 — 给 Ana 一份工作和一点钱
 
-**照着做。** 用下面的内容替换 `corner-shop/people/ana.yaml`：
+**照着做。** 用下面这份文件替换 `corner-shop/people/ana.yaml`：
 
 ```yaml file=corner-shop/people/ana.yaml
 name: Ana Lee
@@ -196,12 +197,12 @@ job:
     tea: 6
 ```
 
-- `economy` 给 Ana 一开始 20.00。
-- `job` 说她给 `corner-shop-co` 干活，地点在小店，从 08:00 到 18:00，每小时 12.00。
-  每干满一班，她就给店里的货架烤出六条面包、泡好六杯茶。干得少，就出得少。
+- `economy` 给 Ana 一开始 20.00 块钱。
+- `job` 写她给 `corner-shop-co` 打工，在小店上班，从 08:00 到 18:00，每小时 12.00。
+  每上满一个班，她给货架烤出六条面包、泡好六杯茶。班上得短，做出来的就少。
 
-她的日程本来就让她 07:30 起待在小店，所以上班时间一到，她已经在了。字段在
-[`job` 参考](../reference/sections.md#job)（英文）。
+她的 routine 本来就让她 07:30 起待在小店，所以 08:00 开工时她已经在店里了。
+字段在 [`job` 参考](../reference/sections.md#job)里。
 
 ```console
 $ mineworld validate corner-shop
@@ -209,11 +210,11 @@ $ mineworld validate corner-shop
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到**世界是有效的。
+**你应该看到**世界写对了。
 
 ### Step 5.6 — 给 Ben 一点钱和一杯茶
 
-**照着做。** 用下面的内容替换 `corner-shop/people/ben.yaml`：
+**照着做。** 用下面这份文件替换 `corner-shop/people/ben.yaml`：
 
 ```yaml file=corner-shop/people/ben.yaml
 name: Ben Okafor
@@ -238,7 +239,7 @@ economy:
   wallet: 5000
 ```
 
-Ben 一开始有一杯茶和 50.00。一个人身上最多只能带六样东西；[`holdings` 参考](../reference/sections.md#holdings)（英文）里写着。
+Ben 一开始手里有一杯茶和 50.00 块钱。一个人身上最多带六样东西，[`holdings` 参考](../reference/sections.md#holdings)里写着这条。
 
 ```console
 $ mineworld validate corner-shop
@@ -246,11 +247,11 @@ $ mineworld validate corner-shop
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到**世界是有效的。
+**你应该看到**世界写对了。
 
 ### Step 5.7 — 给 Cai 一点钱和一条面包
 
-**照着做。** 用下面的内容替换 `corner-shop/people/cai.yaml`：
+**照着做。** 用下面这份文件替换 `corner-shop/people/cai.yaml`：
 
 ```yaml file=corner-shop/people/cai.yaml
 name: Cai Wen
@@ -283,8 +284,8 @@ $ mineworld validate corner-shop
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到**世界是有效的。现在你的 `corner-shop` 文件夹和做好的示例
-[`examples/corner-shop/`](examples/corner-shop/world.yaml) 一模一样。跑这份教程的测试会一个文件一个文件地核对。
+**你应该看到**世界写对了。现在你的 `corner-shop` 文件夹，和做好的示例
+[`examples/corner-shop/`](examples/corner-shop/world.yaml) 一模一样。跑教程的测试会一份文件一份文件地比对。
 
 ### Step 5.8 — 跑三天，看大家买东西
 
@@ -311,16 +312,16 @@ faults     0
 
 - `buy accepted`：有人在小店买了面包和茶。
 - `eat accepted` 和 `drink accepted`：他们把手里的东西吃了、喝了。
-- `wage-due 3`：Ana 上了三班，每一班都挣到了工钱。公司付给了她。
+- `wage-due 3`：Ana 上了三个班，每个班都挣了一份工资，公司已经付给她了。
 
-这些数字是算好的，保证三天里能看到这些：Ben 和 Cai 的钱够买很多条面包，公司付得起三天工钱，
-Ana 每一班都会给货架补货。
+这些数字是算好的，保证三天里能看到这些事：Ben 和 Cai 的钱够买很多条面包，公司付得起三天的工资，
+Ana 每上一个班，货架就补一次货。
 
 ## 为什么是这样
 
-每个系统包只管自己的那份状态，别的不碰。`employment` 只说“该发工钱了”，真正让钱换手的只有 `economy`。
-所以加上小店时，你不用改走路或说话的任何东西。规则在
-[`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#131-single-writer-rule)（英文）；每一部分的字段在
-[sections 参考](../reference/sections.md#sections)（英文）。
+每个 System Pack 只管自己那份数据，别人的不碰。`employment` 只负责说“该发工资了”，真正把钱转过去的是 `economy`。
+所以加小店的时候，走路和说话的部分一点都不用改。规则在
+[`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#131-single-writer-rule)；每一段能写的字段在
+[sections 参考](../reference/sections.md#sections)。
 
-下一章：[06 玩起来](06-play-it.zh-CN.md)。
+下一章：[06 进去玩](06-play-it.zh-CN.md)。

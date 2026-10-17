@@ -1,23 +1,23 @@
-# 02 你的第一个世界
+# 02 第一个世界
 
-这一章你从一个空文件夹开始写一个世界：一个房间，两个住在那里的人。
-第 03 到 05 章会把它扩成**街角小店**（Corner Shop）：两个房间、三个人、一家店。
+这一章你从一个空文件夹开始写一个世界：一个房间，两个住在里面的人。
+第 03 到 05 章会把它慢慢扩成 **Corner Shop**：两个房间，三个人，一家店。
 
-本页是英文原文 [02-your-first-world.md](02-your-first-world.md) 的中文镜像。两者不一致时，以英文为准。
+这一页翻译自英文原文 [02-your-first-world.md](02-your-first-world.md)。两边不一致时，以英文为准。
 
-一个世界就是一个**世界包**（World Pack）：一个文件夹，里面是纯文本文件，格式叫 YAML。
-每个文件都很短，用任何文本编辑器都能写。每个文件都要按步骤里给的名字保存，
-放在[第 01 章](01-get-mineworld.zh-CN.md)建好的那个文件夹里。需要文件夹时，自己新建就行。
+一个世界就是一个 **World Pack**：一个文件夹，里面放几份纯文本文件，格式是 YAML。
+每份文件都很短，用什么文本编辑器写都行。每份文件都按步骤里给的名字保存，
+放在[第 01 章](01-get-mineworld.zh-CN.md)新建的那个文件夹里。要用到新文件夹时，自己建一个就好。
 
-在 YAML 里，`key: value` 设定一个值。以 `- ` 开头的几行组成一个列表。
-用空格缩进，表示谁属于谁。以 `#` 开头的行是写给人看的注释，MineWorld 会跳过它。
+YAML 的写法很简单。`key: value` 设一个值。几行都以 `- ` 开头，就是一个列表。
+缩进用空格，缩进进去的内容属于上面那一行。以 `#` 开头的行是写给人看的注释，MineWorld 不读它。
 
 ### Step 2.1 — 写世界的主文件
 
-每个世界包都有一个 `world.yaml`。它给世界起名，列出世界里的一切，还说明要用哪些**系统包**（System Pack）。
-系统包是一个模块，负责让一类事情发生，比如走路或说话（[System](../CORE_CONCEPTS.md#13-system)，英文）。
+每个 World Pack 都有一个 `world.yaml`。它给世界起名，列出世界里的东西，还写明要用哪些 **System Pack**。
+一个 System Pack 是一个模块，管一类事情，比如走路、说话（[System](../CORE_CONCEPTS.md#13-system)）。
 
-**照着做。** 新建一个叫 `corner-shop` 的文件夹。在里面写 `world.yaml`：
+**照着做。** 新建一个叫 `corner-shop` 的文件夹，在里面写 `world.yaml`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -46,16 +46,17 @@ seats:
   - ben
 ```
 
-每一部分的意思：
+每一段是什么意思：
 
-- `world` 写世界的 `id` 和 `name`。`id` 必须和文件夹的名字一样。
-- `mineworld: "^0.1"` 说明这个世界是为哪些版本的 MineWorld 写的。
-- `systems` 是它用的系统包，有先后顺序：`presence`（待在某处）、`movement`（走路）、
-  `conversation`（说话）。后两个要依赖第一个，所以第一个放在最前面。
-- `places` 和 `population` 用**键**（key）列出世界里的地方和人。键是一个小写的短名字，每个键对应一个文件。
-- `seats` 是玩家或程序可以操控的人，叫**座位**（seat）。
+- `world` 写世界的 `id` 和 `name`。`id` 必须和文件夹名一样。
+- `mineworld: "^0.1"` 写明这个世界是给哪些版本的 MineWorld 用的。
+- `systems` 列出要用的 System Pack，顺序有讲究。`presence` 管“人待在哪里”，`movement` 管走路，
+  `conversation` 管说话。后两个都要用到 `presence`，所以 `presence` 排第一。
+- `places` 和 `population` 列出世界里的地方和人。每一项是一个 **key**：一个小写的短名字。
+  每个 key 对应一份同名文件，比如 `home` 对应 `places/home.yaml`。
+- `seats` 列出玩家或程序能操控的人。这样的人叫 **seat**。
 
-所有字段都列在参考手册里：[`world.yaml`](../reference/world-pack.md#worldyaml)（英文）。
+`world.yaml` 的所有字段都在参考手册里：[`world.yaml`](../reference/world-pack.md#worldyaml)。
 
 现在让 MineWorld 检查一下这个世界：
 
@@ -64,12 +65,12 @@ $ mineworld validate corner-shop
 [mineworld] world.yaml lists the place 'home', but corner-shop/places/home.yaml does not exist (a place's key names its file)
 ```
 
-**你应该看到**一条拒绝信息。这是正常的：`world.yaml` 里列了一个叫 `home` 的地方，但还没有它的文件。
-只要有东西缺了或写错了，`validate` 都会点名告诉你。接下来几步，你就照它要的把文件补上。
+**你应该看到**一条拒绝信息。这是正常的：`world.yaml` 里写了一个叫 `home` 的地方，可还没有它的文件。
+有东西缺了或写错了，`validate` 都会点名说出来。接下来几步，它要什么文件，你就补什么文件。
 
 ### Step 2.2 — 写房间
 
-**地方**（Place）是人可以待的地方（[Place](../CORE_CONCEPTS.md#6-place)，英文）。
+Place 就是人能待的地方（[Place](../CORE_CONCEPTS.md#6-place)）。
 
 **照着做。** 新建文件夹 `corner-shop/places`，在里面写 `home.yaml`：
 
@@ -79,19 +80,19 @@ tags:
 note: Two flats behind one front door.
 ```
 
-`tags` 是标签。程序会读它；2D 或 3D 客户端可以根据标签决定怎么画这个地方。
-`note` 是写给读文件的人看的，MineWorld 不读它。字段都在参考手册里：[地方文件](../reference/world-pack.md#placeskeyyaml)（英文）。
+`tags` 是贴在这个地方上的标签。程序会读标签，比如 2D 或 3D client 会看标签决定怎么画这个地方。
+`note` 是写给看文件的人的备注，MineWorld 不读它。地方文件能写的字段在参考手册里：[地方文件](../reference/world-pack.md#placeskeyyaml)。
 
 ```console exit=1
 $ mineworld validate corner-shop
 [mineworld] world.yaml lists the person 'ana', but corner-shop/people/ana.yaml does not exist (a person's key names its file)
 ```
 
-**你应该看到**地方已经通过了，检查现在要的是 `ana` 这个人。
+**你应该看到**地方这一关过了，现在检查要的是 `ana` 这个人的文件。
 
 ### Step 2.3 — 写第一个人
 
-**人**（Person）是住在世界里的人（[Person](../CORE_CONCEPTS.md#4-person)，英文）。
+Person 就是住在世界里的人（[Person](../CORE_CONCEPTS.md#4-person)）。
 
 **照着做。** 新建文件夹 `corner-shop/people`，在里面写 `ana.yaml`：
 
@@ -106,16 +107,16 @@ location:
     y: 3000
 ```
 
-`location` 说 Ana 一开始在哪：在 `home` 里的某个**位置**（position）。
-位置用毫米表示，从房间的一个角量起：`x: 2000` 是横着两米，`y: 3000` 是往里三米。
-字段都在参考手册里：[人的文件](../reference/world-pack.md#peoplekeyyaml)（英文）。
+`location` 写 Ana 一开始在哪：在 `home` 里，站在 `position` 这个位置。
+位置用毫米，从房间的一个角量起。`x: 2000` 是沿着墙走两米，`y: 3000` 是往屋里走三米。
+人的文件能写的字段在参考手册里：[人的文件](../reference/world-pack.md#peoplekeyyaml)。
 
 ```console exit=1
 $ mineworld validate corner-shop
 [mineworld] world.yaml lists the person 'ben', but corner-shop/people/ben.yaml does not exist (a person's key names its file)
 ```
 
-**你应该看到** Ana 通过了，检查现在要的是 `ben`。
+**你应该看到** Ana 过了，现在检查要的是 `ben`。
 
 ### Step 2.4 — 写第二个人
 
@@ -132,9 +133,9 @@ location:
     y: 3000
 ```
 
-Ben 站的地方离 Ana 两米。说话的声音默认能传三米，所以他们不用走动就能聊天。
-这个距离归“说话”这个系统包管，叫它的 `range`
-（[conversation 的参数](../reference/interaction-list.md#parameters-of-configureconversationyaml)，英文）。
+Ben 站的地方离 Ana 两米。说话声默认能传三米，所以两人不用走动就能聊上。
+这三米归 `conversation` 这个 System Pack 管，是它的参数 `range`
+（[conversation 的参数](../reference/interaction-list.md#parameters-of-configureconversationyaml)）。
 
 ```console
 $ mineworld validate corner-shop
@@ -152,8 +153,9 @@ Corner Shop (corner-shop)
 corner-shop is a valid World Pack.
 ```
 
-**你应该看到**最后一行是 `corner-shop is a valid World Pack.`（这是一个有效的世界包）。
-上面列出了世界里有什么。带编号的几行是世界里的**实体**（entity）：世界开始时，每个地方、每个人都会分到一个编号。
+**你应该看到**最后一行 `corner-shop is a valid World Pack.`，意思是这个 World Pack 写对了。
+上面几行列出世界里有什么。带编号的三行是世界里的 entity：世界一开始，每个地方、每个人都分到一个编号。
+这里 `home` 是 1，`ana` 是 2，`ben` 是 3。
 
 ### Step 2.5 — 让它跑一天
 
@@ -171,15 +173,15 @@ faults     0
 ...
 ```
 
-**你应该看到**第 1 天的一行，然后是总结。`requests   talk accepted` 数的是：有人想说话、世界同意了，一共多少次。
+**你应该看到**第 1 天一行，然后是总结。`requests   talk accepted` 数的是：有人想说话，世界答应了，一共几次。
 `activity` 那一行说明 Ana 和 Ben 都走动过，也都说过话。
 
-每个人都由一条简单的规则操控：走两步，跟身边的人说说话。没有人在玩他们。
+两个人都由一条简单的规则操控：走两步，跟旁边的人说说话。没有真人在玩他们。
 
 ## 为什么是这样
 
-世界包只描述“有什么”。它从不规定走路或说话怎么运作，那是各个系统包自己的事，所以世界里只要把它们列出来。
-背后的规则在 [`MODULE_SPEC.md`](../MODULE_SPEC.md#4-world-pack)（英文）。`validate` 做的检查，
+World Pack 只写“世界里有什么”。走路、说话具体怎么算，由各个 System Pack 自己决定，所以世界只需要把它们列出来。
+背后的规则在 [`MODULE_SPEC.md`](../MODULE_SPEC.md#4-world-pack)。`validate` 做的检查，
 和其他命令启动世界之前做的检查是同一套。
 
 下一章：[03 两个房间](03-two-rooms.zh-CN.md)。
