@@ -1,34 +1,34 @@
 [mineworld] run Social Café (social-cafe): seats alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer; seed 7; to day 30; pace 900s; in memory
-day 1  revision -  facts 3134
-day 2  revision -  facts 5964
-day 3  revision -  facts 8833
-day 4  revision -  facts 11566
-day 5  revision -  facts 14406
-day 6  revision -  facts 17279
-day 7  revision -  facts 20039
-day 8  revision -  facts 22844
-day 9  revision -  facts 25702
-day 10  revision -  facts 28521
-day 11  revision -  facts 31374
-day 12  revision -  facts 34244
-day 13  revision -  facts 37070
-day 14  revision -  facts 39821
-day 15  revision -  facts 42673
-day 16  revision -  facts 45561
-day 17  revision -  facts 48287
-day 18  revision -  facts 51041
-day 19  revision -  facts 53747
-day 20  revision -  facts 56578
-day 21  revision -  facts 59407
-day 22  revision -  facts 62279
-day 23  revision -  facts 65070
-day 24  revision -  facts 67876
-day 25  revision -  facts 70653
-day 26  revision -  facts 73459
-day 27  revision -  facts 76213
-day 28  revision -  facts 79051
-day 29  revision -  facts 81888
-day 30  revision -  facts 84639
+day 1  revision -  facts 3143
+day 2  revision -  facts 5973
+day 3  revision -  facts 8842
+day 4  revision -  facts 11575
+day 5  revision -  facts 14415
+day 6  revision -  facts 17288
+day 7  revision -  facts 20048
+day 8  revision -  facts 22853
+day 9  revision -  facts 25711
+day 10  revision -  facts 28530
+day 11  revision -  facts 31383
+day 12  revision -  facts 34253
+day 13  revision -  facts 37079
+day 14  revision -  facts 39830
+day 15  revision -  facts 42682
+day 16  revision -  facts 45570
+day 17  revision -  facts 48296
+day 18  revision -  facts 51050
+day 19  revision -  facts 53756
+day 20  revision -  facts 56587
+day 21  revision -  facts 59416
+day 22  revision -  facts 62288
+day 23  revision -  facts 65079
+day 24  revision -  facts 67885
+day 25  revision -  facts 70662
+day 26  revision -  facts 73468
+day 27  revision -  facts 76222
+day 28  revision -  facts 79060
+day 29  revision -  facts 81897
+day 30  revision -  facts 84648
 consults   66105
 requests   accept-invitation accepted 971
 requests   decline-invitation accepted 413
@@ -52,6 +52,7 @@ facts      left-group-activity 617
 facts      named 12
 facts      passage-opened 5
 facts      person-entered-place 2119
+facts      persona-authored 9
 facts      relationship-changed 363
 facts      routine-assigned 12
 facts      spoke 10159
@@ -59,4 +60,4 @@ facts      walk-ended 11868
 facts      walk-started 11868
 activity   days 1-30  alice move 3009 talk 952  bob move 3441 talk 982  carol move 2957 talk 969  dev move 3155 talk 941  erin move 3067 talk 1044  felix move 2952 talk 930  grace move 2847 talk 1003  hana move 2934 talk 826  ivan move 3188 talk 873  visitor move 3490 talk 947  wanderer move 3385 talk 692
 faults     0
-history    84639 facts, fingerprint af1927a1e2182bcd (FNV-1a 64, for reading; not evidence)
+history    84648 facts, fingerprint efafdd88e0cef186 (FNV-1a 64, for reading; not evidence)
