@@ -27,3 +27,10 @@ holdings: { candle: 1, soap: 1, umbrella: 1 }
 # Market Town: her money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
 # measured horizon (ARC-38, L-13).
 economy: { wallet: 200000 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Works across the street from the café and knows its menu by heart. Precise, and busy.
+  traits: [precise, busy]
+  speech: Crisp, efficient sentences.

@@ -10,6 +10,11 @@ routine:
   - { from: "12:00", place: cafe, label: lunch }
   - { from: "16:00", place: apartments, label: home }
 
+persona:
+  summary: Lives in the apartments. Knows everybody on the stairs by sight.
+  traits: [observant, neighbourly]
+  speech: Plain, practical sentences.
+
 tags:
   - resident
 

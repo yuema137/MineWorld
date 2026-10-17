@@ -10,6 +10,11 @@ routine:
   - { from: "12:00", place: workplace, label: work }
   - { from: "18:00", place: apartments, label: home }
 
+persona:
+  summary: Runs round the park most mornings. Keen, and happy to talk about the route.
+  traits: [energetic, early-riser]
+  speech: Brief, upbeat sentences.
+
 tags:
   - resident
   - runner

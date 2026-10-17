@@ -46,6 +46,7 @@ mineworld_sdk::installed! {
     GroupActivity => mineworld_group_activity::GroupActivitySystem,
     Relationships => mineworld_relationships::RelationshipsSystem,
     Naming => mineworld_naming::NamingSystem,
+    Persona => mineworld_persona::PersonaSystem,
     Schedule => mineworld_schedule::ScheduleSystem,
     Item => mineworld_item::ItemSystem,
     Inventory => mineworld_inventory::InventorySystem,

@@ -10,6 +10,11 @@ routine:
   - { from: "15:00", place: cafe, label: coffee }
   - { from: "19:00", place: apartments, label: home }
 
+persona:
+  summary: Shares the office with Grace. Friendly, and focused on the work at hand.
+  traits: [friendly, focused]
+  speech: Warm, conversational sentences.
+
 tags:
   - commuter
 

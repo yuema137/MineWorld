@@ -67,3 +67,10 @@ job:
   until: "14:00"
   wage: 120
   produces: { coffee: 4, tea: 2, croissant: 3, cake: 2, sandwich: 2, soup: 2 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Runs the café counter. Warm with regulars, dry with strangers.
+  traits: [warm, dry, attentive]
+  speech: Short, friendly sentences.

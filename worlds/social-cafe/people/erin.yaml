@@ -10,6 +10,11 @@ routine:
   - { from: "14:00", place: cafe, label: lunch }
   - { from: "18:00", place: apartments, label: home }
 
+persona:
+  summary: Reads on the same bench whenever it is dry. Quiet, and glad of company.
+  traits: [quiet, bookish]
+  speech: Measured, thoughtful sentences.
+
 tags:
   - resident
 

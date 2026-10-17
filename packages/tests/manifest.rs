@@ -196,6 +196,35 @@ fn an_entity_pack_carries_item_kinds_and_nothing_else() {
     }
 }
 
+/// An Entity Pack may carry data directories instead of `items/` (`ARC-121`, `MODULE_SPEC.md` §4.1's
+/// amendment): a `.yaml` file in any directory not beginning with `.` declares something; which of those
+/// directories are known is the loader's question, not this crate's. An empty data directory declares
+/// nothing, and the three forbidden directories are refused first.
+#[test]
+fn an_entity_pack_may_carry_data_directories_only() {
+    let entity = GOOD
+        .replace("presentation-pack", "entity-pack")
+        .replace("style-pack", "schemas-only");
+    let scratch = Scratch::new("entity-data");
+    scratch.write("pack.yaml", &entity);
+    scratch.write("schemas/README.md", "not content\n");
+    scratch.write(".hidden/a.yaml", "fields: {}\n");
+    let refusal = mineworld_packages::read_pack_file(&scratch.0)
+        .expect_err("a README and a dot directory are not content")
+        .to_string();
+    assert!(refusal.contains("declares nothing"), "{refusal}");
+
+    scratch.write("schemas/a.yaml", "fields: {}\n");
+    let identity = mineworld_packages::read_pack_file(&scratch.0).expect("a data file is enough");
+    assert_eq!(identity.kind, PackType::EntityPack);
+
+    scratch.write("people/ada.yaml", "tags: [x]\n");
+    let refusal = mineworld_packages::read_pack_file(&scratch.0)
+        .expect_err("people/ is still forbidden")
+        .to_string();
+    assert!(refusal.contains("item kinds only in MVP-0"), "{refusal}");
+}
+
 /// A data pack's own `mineworld:` range is checked against the running framework (`ARC-54` note,
 /// F-Ed1): it was stated and never compared before E-d.
 #[test]

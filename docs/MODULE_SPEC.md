@@ -235,12 +235,18 @@ DATA, decode_data_file, data_context
 decode_section_in
                  how the pack's section is decoded in its context (ARC-121), defined by
                  owns_section_in_context!(); default: decode_section, the context ignored (S30-b)
-RESOLVES, resolve
+RESOLVES, resolve_subjects
                  whether the pack resolves across subjects before seeding (ARC-121), defined by
                  resolves!(); default: does not (S30-b)
 SHIPS            data files the pack ships, compiled in, for an owner's directories (ARC-121 item 4),
                  declared by ships_data!(); default: none (S30-b)
 ```
+
+*Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
+`RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
+and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
 anonymous. It is always the same line, the first of the `impl`, and it is read by `mineworld packs`
@@ -391,6 +397,14 @@ data directory, read, load and run exactly as before.
    step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
    directory and travel with its code and version. They are collected first (item 1) whenever the shipping
    pack is enabled, and every refusal about one names the shipping pack and the file's crate-relative path.
+
+   *Clarified 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` F-b-1).* A shipped file is collected
+   into its owner's context only when the world enables the owner too: a file shipped into a directory whose
+   installed owner the world does not enable is not collected and is not refused, so a world that enables the
+   shipping pack without the owner reads as before (how such a world reads the shipped declarations is S30-c's
+   decision, `ARC-120`). A file shipped into a directory that **no installed** pack owns is a defect of the build
+   and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
+   its directories) are neither refused nor collected by item 1.
 
 A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
 owner's directories alike.
@@ -792,6 +806,8 @@ appearance: { look: alice-moreau }   # a section owned by the `appearance` syste
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
+persona:                   # a section owned by the `persona` system (below)
+  summary: Runs the counter. Warm with regulars, dry with strangers.
 attributes:                # a section owned by the `attributes` system (below, "Attributes"; S30-c)
   hair-colour: auburn      #   a category, by short slug (unique among the world's catalogues)
   core.stature: 1.660      #   a quantity, in its declared unit and scale (m, 3 decimals)
@@ -882,11 +898,16 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has eight sections:
+or the pack is refused. MVP-0 has nine sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+persona   persona    people   { summary: <1–280 bytes, required, non-empty>, traits: [ <≤ 32 bytes
+                              each> ] (at most 8), speech: <≤ 160 bytes> }, traits and speech
+                              optional; unknown keys refused, with line and column. Disclosed to the
+                              person themself only. It shapes how the person speaks and grants
+                              nothing: no action, no process and no rule reads it (`ARC-74`)
 appearance appearance people  { look: <key> }: 1–48 bytes of a–z, 0–9 and '-'; unknown keys refused.
                               An opaque key naming the person's appearance, which a Presentation Pack
                               resolves (`ARC-92`); never a mesh, file, colour or height. Public:
