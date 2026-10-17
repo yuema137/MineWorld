@@ -142,6 +142,9 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   REMEMBER (today it is one line among 48 in "The last day", behind name-learning noise); (c) accept the recorded
   sample as the honest result of a 4B local model. Recommendation: (b) as a follow-up PR, then re-record locally; (a)
   if you want the evidence before that. The replay test prints the clause instead of asserting it.
+  **Follow-up (2026-10-16):** option (b) is implemented, stacked on this PR, as P6c in
+  [`pr-p6c-fgd-memory-coherence.md`](pr-p6c-fgd-memory-coherence.md); the re-recorded cassette passes both clauses
+  and the replay test asserts them.
 - **Q-P7-3 (AP7-10's citation clause, F-P7-8).** After 100 simulated days of the same save (the visitor's seat driven
   by its rule controller, 2 142 exchanges with Alice), Alice's store is 787 316 B of her 20 MiB bound (the historical
   1 MiB also holds), but no line of the day-100 context cites the 2D line or her reply: `consolidate` keeps episodes
@@ -150,6 +153,9 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   in a stable, cited form (an FG-b follow-up); (b) restate the check for a visitor who is absent for the 100 days
   (needs a decision model that drives nothing, which DL-a does not install). Recommendation: (a). The clause is a
   strict `xfail` in `test_milestone_d_100_days.py`.
+  **Follow-up (2026-10-16):** option (a) is implemented, stacked on this PR, as FG-d in
+  [`pr-p6c-fgd-memory-coherence.md`](pr-p6c-fgd-memory-coherence.md) (`consolidate`'s keepsakes); the `xfail` is
+  removed there and the clause passes within the 20 MiB bound.
 
 ## 8. Risks
 

@@ -203,14 +203,37 @@ implementation follows in the same branch without waiting for the freeze.
 | --- | --- | --- | --- | --- |
 | C0 | 9cc22f74 | [x] | [x] links resolve | [x] scope = Q-P7-2 (b) + Q-P7-3 (a) |
 | C1 | see `git log` | [x] | [x] policy + interface 38 passed; retention plan/host/assisted/lm-summarise/retrieve 72 passed; size 15 passed; lm-summarise replay 5 passed (digest reset, F-FGd-1); mutation red | [x] pure, integer, no host change; plans validate (every consolidate-comparing test passes) |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
-| C5 | — | [ ] | [ ] | [ ] |
+| C2 | 5ffe816f | [x] | [x] retrieve 12 passed (AP6c-1, budgets incl. `with`); controller choice/parts/log/consult/seat, retention retrieve, isolation: 73 passed; mutation red; ruff, pyright 0 errors | [x] no id in the header (label from `NameBook`); two bounded reads; sum of budgets 6 000; `memory_view` carries `speaker` |
+| C3 | a4005425 | [x] | [x] replay + golden + provider scan 17 passed (both clauses asserted); live scripted `milestone_d` 2 passed; mutation red | [x] recording unedited (copied from the run's output); no provider term in the log (scan) |
+| C4 | this head | [x] | [x] 100-day 2 passed; mutation red; AC-10 8 passed; real retention + server + resilience 9 passed | [x] bound from the resolved retention; query = the seat's (speaker named) |
+| C5 | this head | [x] | [x] doc | [x] P7 §7 points here; findings recorded |
 
 ### Evidence
 
-(filled as measured)
+All local, macOS arm64, 2026-10-16/17, targeted runs only, heavy ones inside `cast-slots/with-slot.sh` (R-LOAD-1). CI on
+the exact head is the workspace gate.
+
+| Criterion | Result | Evidence |
+| --- | --- | --- |
+| AP6c-1 | **PASS**, mutation red | `pytest tests/test_memory_retrieve.py`: 12 passed. Mutation (first-words read `LIMIT 0`): `['[#23]', …] != ['[#10]', '[#11]', …]`, reverted |
+| AP6c-2 | **PASS** | the recorded 3D consult's logged memory holds #59 and #62 under `with` (asserted in the replay test) |
+| AP6c-3 | **PASS**, mutation red | re-recorded with `qwen3.5:4b` (Ollama, loopback, no key): 3D reply *"Hello again. It seems we are still catching up on our initial meeting about the red umbrella."*, `recalls: ["[#71]", "[#59]", "[#62]"]`; `pytest -s tests/test_milestone_d_replay.py`: 3 passed, `recalls_cite_a_2d_line: true`, `words_mention_the_umbrella: true`. Mutation (the rule line removed): `CassetteMiss … first differs at $.messages[0].text`, reverted. A second mutation (the `with` section removed from `retrieve`) **survives the replay**: `replay_log` re-runs the logged memory, not retrieval (expected; AP6c-1 owns retrieval) |
+| AP6c-4 | **PASS** | `cargo test -p mineworld-cli --test milestone_d -- --include-ignored --exact she_remembers_across_the_two_views the_world_runs_with_alice_unplugged`: 2 passed, 17.4 s |
+| AFGd-1, AFGd-2 | **PASS**, mutation red | `pytest tests/test_retention_policies.py`: 25 passed. Mutation (`lines[-per_person:]`, the newest): fates differ, reverted |
+| AFGd-3 | **PASS**, mutation red | `pytest -s tests/test_milestone_d_100_days.py`: 2 passed, 48.8 s; 124 066 facts absorbed; **817 905 B** ≤ 20 971 520 B (787 316 B before FG-d: keepsakes cost 30 589 B); `line_cited: true`, `reply_cited: true`. Mutation (`keepsakes` default 0): 787 316 B, `line_cited: false`, 1 failed, reverted |
+| AFGd-4 | **PASS** | `docs/MODULE_SPEC.md` `consolidate` row |
+| Regression | **PASS** | retention plan/host/assisted/lm-summarise/retrieve 72; size 15; lm-summarise replay 5 (+1 skipped); controller choice/parts/log/consult/seat + isolation 73; AC-10 8; retention real + controller server + resilience 9; ruff check/format, pyright (cognition member): 0 errors |
+
+**Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
+--test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:
+
+1. rule *"…your answer must take it up: refer to what was said there, and cite those tokens in recalls."* — the
+   section was first and held #59, #62; the reply cited `[#59]` but said *"Hello again. It's good to hear from you."*
+   (umbrella clause fails).
+2. rule *"…your words must bring up something they told you there, by name (a thing, a place, a plan), and recalls
+   must cite those tokens."* — cited only `[#71]`; the recorder's own assertion failed.
+3. rule *"…your answer must take it up: in your words, mention what they told you there, and cite those tokens in
+   recalls."* — both clauses pass. Committed; files copied unedited from the run's output directory.
 
 ### Deviations and findings
 
@@ -223,6 +246,10 @@ implementation follows in the same branch without waiting for the freeze.
   whose container is a top-level episode can be turned from `Merge` into `Drop` by a low importance hint (pr-fg-c
   §5.4, "the model may decide which items survive"). The default policy and the no-model fallback keep them. Not
   changed here; a follow-up may exempt such groups from the drop cell.
+- **D-P6c-1 (bounded).** The seat names the speaker for an `arrived` trigger too (its `speaker` is the person who
+  came in), so a returning person is met with what we said before; `heard` is set only for `spoken_to`.
+- **D-P6c-2 (commit boundary).** C2 changes the request, so the P7 cassette misses until C3 replaces it; C2 and C3 are
+  pushed together, so no pushed head carries the miss.
 - **D-FGd-1 (test seam).** AFGd-1 is pinned on hand-built items (`test_retention_policies.py`), like AFGb-8, so the
   rule is checked against literals; the store-level evidence is AFGd-3's 100-day run.
 
