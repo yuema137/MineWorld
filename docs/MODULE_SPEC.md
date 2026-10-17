@@ -235,12 +235,18 @@ DATA, decode_data_file, data_context
 decode_section_in
                  how the pack's section is decoded in its context (ARC-121), defined by
                  owns_section_in_context!(); default: decode_section, the context ignored (S30-b)
-RESOLVES, resolve
+RESOLVES, resolve_subjects
                  whether the pack resolves across subjects before seeding (ARC-121), defined by
                  resolves!(); default: does not (S30-b)
 SHIPS            data files the pack ships, compiled in, for an owner's directories (ARC-121 item 4),
                  declared by ships_data!(); default: none (S30-b)
 ```
+
+*Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
+`RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
+and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
 anonymous. It is always the same line, the first of the `impl`, and it is read by `mineworld packs`
@@ -391,6 +397,14 @@ data directory, read, load and run exactly as before.
    step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
    directory and travel with its code and version. They are collected first (item 1) whenever the shipping
    pack is enabled, and every refusal about one names the shipping pack and the file's crate-relative path.
+
+   *Clarified 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` F-b-1).* A shipped file is collected
+   into its owner's context only when the world enables the owner too: a file shipped into a directory whose
+   installed owner the world does not enable is not collected and is not refused, so a world that enables the
+   shipping pack without the owner reads as before (how such a world reads the shipped declarations is S30-c's
+   decision, `ARC-120`). A file shipped into a directory that **no installed** pack owns is a defect of the build
+   and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
+   its directories) are neither refused nor collected by item 1.
 
 A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
 owner's directories alike.

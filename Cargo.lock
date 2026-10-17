@@ -883,6 +883,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-packages",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
