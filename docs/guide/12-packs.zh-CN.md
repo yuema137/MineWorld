@@ -207,9 +207,43 @@ corner-shop resolves.
 现在还没人卖果酱。想卖的话，就在 `corner-shop/organizations/corner-shop-co.yaml` 里，
 把它加进店的 `prices` 和 `holdings`，做法和[第 05 章](05-one-shop.zh-CN.md#step-54--写公司和它的店)一样。
 
-**MineWorld 自带的商品。** MineWorld 源代码的 `entities` 文件夹里，有一个叫 `modern-goods` 的 Entity Pack，
-里面是面包、牛奶、咖啡这类日常商品。世界用它的方法也一样：在 `requires` 下面写 `modern-goods: "^0.1"`，
-再用 `--packs` 指向放它的那个文件夹。
+### Step 12.7 — 看看 MineWorld 自带的商品
+
+MineWorld 的源代码里有一个叫 `modern-goods` 的 Entity Pack，里面是面包、牛奶、咖啡这类日常商品。
+它在源代码的 `entities` 文件夹里：`MineWorld/entities/modern-goods`。
+
+**照着做。** 在放世界的地方新建文件夹 `entities`，把这个 pack 复制进去。macOS 和 Linux 上这样写：
+
+```sh
+mkdir entities
+cp -R "$HOME/MineWorld/entities/modern-goods" entities/
+```
+
+Windows 上，在 PowerShell 里这样写：
+
+```powershell
+mkdir entities
+Copy-Item -Recurse "$HOME\MineWorld\entities\modern-goods" entities
+```
+
+<!-- guide: example entities/modern-goods entities/modern-goods -->
+
+然后问问它里面有什么：
+
+```console
+$ mineworld packs validate entities/modern-goods
+modern-goods
+  type        entity-pack
+...
+  items       apple, bread, cake, candle, cheese, coffee, juice, milk, notebook, soap, tea, umbrella
+entities/modern-goods is a valid entity-pack.
+```
+
+**你应该看到** `items` 这一行列出了这个 pack 带来的每种商品。世界用它的方法和 `corner-goods` 一样：
+在 `requires` 下面写 `modern-goods: "^0.1"`，每条命令都加上 `--packs entities`。
+世界自己的 `items` 不用列出 pack 里的商品：那个列表只写世界 `items` 文件夹里的文件
+（[`world.yaml`](../reference/world-pack.md#worldyaml)）。这样 `mineworld validate` 就会把 pack 的商品列进世界的商品里，
+就像 Step 12.6 列出 `jam` 那样。
 
 **让编辑器帮忙（可选）。** 教程里的每个字段，也都写成了 JSON Schema 文件，放在
 [`reference/schema/`](../reference/schema/world.schema.json)。支持 YAML 的编辑器能读这些文件，
