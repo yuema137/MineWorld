@@ -51,7 +51,8 @@ CURRENT CHECKPOINT  A0 committed (7dcb1ac); A1 committed (9fd8315: MODULE_SPEC �
                     30-day golden regenerated (098fa42, F-P6a-4); worldpack social_cafe tests updated
                     (F-P6a-5). Pushed; PR #236. CI run 38812144656: AC-1 check 3 FAILS (F-P6a-6).
                     Baseline record: CI scratch nightly run 38812090457 (branch
-                    scratch/p6a-parity-long-nightly), not a local record (machine load ~15–50).
+                    scratch/p6a-parity-long-nightly), not a local record (machine load ~15–50):
+                    only social-cafe moved; re-baselined under QP6-2 (E-P6a-baseline).
 NEXT ACTIONS        WAIT (operator ruling on F-P6a-6): (a) add `persona` and the same nine sections to
                     Market Town (moves its baselines; needs a widening of QP6-2) or (b) change AC-1 check 3
                     / ARC-35. Then: implement the ruling; re-record the long profile once (CI scratch nightly
