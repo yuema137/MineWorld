@@ -472,6 +472,22 @@ msgstr ""
 msgid "format.money"
 msgstr ""
 
+#. {label} — with W A S D
+msgid "ui.by-body"
+msgstr ""
+
+#. something
+msgid "ui.thing.unnamed"
+msgstr ""
+
+#. nobody in view to offer anything to
+msgid "ui.menu.nobody"
+msgstr ""
+
+#. E  talk   ·   Tab  their menu   ·   B  you
+msgid "hint.connected"
+msgstr ""
+
 #. Walk
 msgid "action.move"
 msgstr ""

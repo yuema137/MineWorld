@@ -94,6 +94,7 @@ var _unknown_said := false
 ## have left view is still named as they were seen
 var _labels := {}
 var intents := SliceIntents.new()  ## every interaction request, and what each token asked
+var things: SliceThings            ## what the things the world mentions are called (PR 16d)
 
 
 static func address_from_args() -> String:
@@ -143,6 +144,8 @@ func start(address: String, seat: String, invite: String, nickname: String) -> v
 	client.refused.connect(_on_refused)
 	client.disconnected.connect(func(reason: String) -> void:
 		_say("disconnected: %s" % reason, "link.disconnected", {"reason": _shown_reason(reason)}, true))
+	things = SliceThings.new(self)
+	client.reconnecting.connect(func(_attempt: int) -> void: _forget_pending())
 	client.closing.connect(func(reason: String, _detail: String) -> void:
 		_say("the server closed the connection: %s" % reason, "link.server_closed",
 			{"reason": _shown_reason(reason)}, true))
@@ -242,6 +245,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		return
 	var misses_before := layout.misses.size()
 	layout.learn(obs)
+	things.learn(obs)
 	if layout.misses.size() != misses_before:
 		for p in layout.misses:
 			var m: Dictionary = layout.misses[p]
@@ -464,6 +468,9 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 		_say(logged, "link.cant", {"verb": SliceIntents.verb(what), "who": shown_label(req["target"]),
 			"reason": _shown_reason(reason)}, true, log_detail)
 		return
+	if req.has("about"):
+		_offer_answered(req, kind, result, log_detail)
+		return
 	var detail: Variant = (result as Dictionary).get(kind) if typeof(result) == TYPE_DICTIONARY else result
 	var accepted := kind == "accepted"
 	var outcome := kind if accepted else "%s, %s" % [kind, _readable(detail)]
@@ -478,6 +485,10 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		"result": "refused", "code": code })
 	if _tokens.get(token, "") == MOVE_ACTION:
 		_reconcile = true
+	if req.has("about"):
+		_say("refused (%s): %s" % [req["action"], code], "ui.result.refused",
+			{"action": _asked(req, false), "code": code}, true, "token %s" % token)
+		return
 	var about := ""
 	if req.has("target"):
 		about = " (%s %s)" % [SliceIntents.log_verb(req["action"]), display_label(req["target"])]
@@ -487,6 +498,48 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		shown["who"] = shown_label(req["target"])
 	_say("refused%s: %s" % [about, _readable(code)],
 		"link.refused_about" if req.has("target") else "link.refused", shown, true, "token %s" % token)
+
+
+## PR 16d (D-16d-7): the answer to an offer a menu sent, in words, with names -- 13b's D-b-6: done
+## ("You bought Coffee"), or the world said no and why, or nothing here can do that. The log line keeps
+## the action type and the identities (INV-SET-6); the screen never shows either.
+func _offer_answered(req: Dictionary, kind: String, result: Variant, log_detail: String) -> void:
+	var detail: Variant = (result as Dictionary).get(kind) if typeof(result) == TYPE_DICTIONARY else result
+	var logged := "%s about %s: %s" % [req["action"], req["about"], kind]
+	match kind:
+		"accepted":
+			_say(logged, "ui.result.accepted", {"done": _asked(req, true)}, true, log_detail)
+		"rejected":
+			_say(logged, "ui.result.rejected", {"action": _asked(req, false),
+				"reason": SliceThings.reason_words(detail)}, true, log_detail)
+		_:
+			_say(logged, "ui.result.unavailable", {"action": _asked(req, false)}, true, log_detail)
+
+
+## What an offer that was sent asked for, in words: its entry's wording, or its "done" wording.
+func _asked(req: Dictionary, done: bool) -> Variant:
+	return things.action_ref(String(req.get("action", "")), String(req.get("target", "")),
+		String(req.get("about", "")), done)
+
+
+## The connection dropped: every offer sent and not yet answered is said to be unknown, never resent
+## (D-16d-7). A talk's words are dropped with it.
+func _forget_pending() -> void:
+	for req in intents.drop_pending():
+		if req.has("about"):
+			_say("%s about %s: unknown, the connection dropped" % [req["action"], req["about"]],
+				"ui.result.unknown", {"action": _asked(req, false)}, true)
+
+
+## The position the body reports with an interaction: where it stands now, in the place it is drawn
+## in (`PROTOCOL.md` §6.1).
+func actor_location() -> Dictionary:
+	return _location(here, to_world(here, player.global_position))
+
+
+## Tab with nobody under the reticle: said, not sent.
+func nobody_to_offer() -> void:
+	_say("nobody in view to offer anything to", "ui.menu.nobody", {}, true)
 
 
 ## What this client shows of the world, for the parity test (S12 13a's `SHOWN`

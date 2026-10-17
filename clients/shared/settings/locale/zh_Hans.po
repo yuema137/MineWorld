@@ -356,6 +356,18 @@ msgstr "{item}  ·  {price}  ·  剩 {stock} 件"
 msgid "format.money"
 msgstr "{amount}"
 
+msgid "ui.by-body"
+msgstr "{label} — 用 W A S D"
+
+msgid "ui.thing.unnamed"
+msgstr "某样东西"
+
+msgid "ui.menu.nobody"
+msgstr "视野里没有可以给东西的人"
+
+msgid "hint.connected"
+msgstr "E  交谈   ·   Tab  对方的菜单   ·   B  你自己"
+
 msgid "action.move"
 msgstr "行走"
 

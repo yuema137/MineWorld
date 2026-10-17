@@ -372,6 +372,20 @@ msgstr "{item}  ·  {price}  ·  {stock} left"
 msgid "format.money"
 msgstr "{amount}"
 
+# The 3D client's menus (PR 16d): an offer the body answers by walking, a thing the world has not named,
+# Tab with nobody under the reticle, and the connected keys' line.
+msgid "ui.by-body"
+msgstr "{label} — with W A S D"
+
+msgid "ui.thing.unnamed"
+msgstr "something"
+
+msgid "ui.menu.nobody"
+msgstr "nobody in view to offer anything to"
+
+msgid "hint.connected"
+msgstr "E  talk   ·   Tab  their menu   ·   B  you"
+
 # Menu entries, one per action type a System Pack declares. {target}: the person the action is
 # directed at; {item}: the thing its payload names.
 msgid "action.move"
