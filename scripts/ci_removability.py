@@ -3,7 +3,7 @@
 
     python3 scripts/ci_removability.py [--keep] [--python-only]
 
-Copies every tracked file of this checkout into a scratch directory, except `cognition/lm-controller/`, removes
+Checks HEAD out as a detached worktree in a scratch directory, deletes `cognition/lm-controller/` there, removes
 that directory's one line from the root `pyproject.toml`'s uv workspace members (its registration, the Python twin
 of a pack's `installed!` line; `pr-s10-p7-milestone-d.md` D-P7-3), and in the copy runs:
 
@@ -41,26 +41,26 @@ COMMANDS: list[list[str]] = [
 ]
 
 
-def tracked() -> list[str]:
-    listing = subprocess.run(
-        ["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True
-    ).stdout.decode("utf-8")
-    return [path for path in listing.split("\0") if path]
+IDENTITY = {
+    "GIT_AUTHOR_NAME": "removability",
+    "GIT_AUTHOR_EMAIL": "removability@invalid",
+    "GIT_COMMITTER_NAME": "removability",
+    "GIT_COMMITTER_EMAIL": "removability@invalid",
+}
+"""The scratch commit's identity: a throwaway commit in a throwaway worktree, never pushed."""
 
 
-def copy_without(scratch: Path) -> int:
-    copied = 0
-    for path in tracked():
-        if path == REMOVED or path.startswith(REMOVED + "/"):
-            continue
-        source = ROOT / path
-        if not source.is_file():  # deleted in the working tree
-            continue
-        target = scratch / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
-        copied += 1
-    return copied
+def git(*arguments: str, cwd: Path = ROOT) -> None:
+    subprocess.run(["git", *arguments], cwd=cwd, check=True, env={**os.environ, **IDENTITY})
+
+
+def checkout_without(scratch: Path) -> None:
+    """A detached worktree of HEAD with the directory deleted and its member line removed, committed there, so the
+    copy is a repository with this checkout's history (`ac1_composability` reads both) and a clean tree."""
+    git("worktree", "add", "--quiet", "--detach", str(scratch), "HEAD")
+    git("rm", "-r", "--quiet", REMOVED, cwd=scratch)
+    unregister(scratch)
+    git("commit", "--quiet", "--all", "--no-verify", "--message", f"IC-7: {REMOVED} removed", cwd=scratch)
 
 
 def unregister(scratch: Path) -> None:
@@ -70,7 +70,7 @@ def unregister(scratch: Path) -> None:
     if len(members) != 1 or members[0].count(MEMBER) != 1:
         raise SystemExit(f"[removability] pyproject.toml's members line does not name {REMOVED} once: {members}")
     pyproject.write_text(text.replace(members[0], members[0].replace(MEMBER, "")), encoding="utf-8")
-    (scratch / "uv.lock").unlink()  # re-resolved by `uv sync` without the member
+    # `uv sync` re-resolves the lock without the member (the lock in the copy then differs from its commit).
 
 
 def main(arguments: list[str]) -> int:
@@ -80,16 +80,15 @@ def main(arguments: list[str]) -> int:
         return 2
     keep = "--keep" in arguments
     commands = [c for c in COMMANDS if c[0] != "cargo"] if "--python-only" in arguments else COMMANDS
-    scratch = Path(tempfile.mkdtemp(prefix="mineworld-removability-"))
+    scratch = Path(tempfile.mkdtemp(prefix="mineworld-removability-")) / "checkout"
     environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
     # The checkout's own target directory, so the registry dependencies it already compiled are reused.
     target = Path(environment.setdefault("CARGO_TARGET_DIR", str(ROOT / "target" / "removability")))
     suffix = ".exe" if os.name == "nt" else ""
     environment["MINEWORLD_BIN"] = str(target / "debug" / f"mineworld{suffix}")
     try:
-        print(f"[removability] {copy_without(scratch)} files copied to {scratch}, {REMOVED}/ left out")
-        unregister(scratch)
-        print(f"[removability] {REMOVED} removed from the uv workspace members")
+        checkout_without(scratch)
+        print(f"[removability] worktree of HEAD at {scratch}: {REMOVED}/ deleted, its workspace member line removed")
         assert not (scratch / REMOVED).exists()
         for command in commands:
             started = time.monotonic()
@@ -105,7 +104,9 @@ def main(arguments: list[str]) -> int:
         if keep:
             print(f"[removability] kept {scratch}")
         else:
-            shutil.rmtree(scratch, ignore_errors=True)
+            subprocess.run(["git", "worktree", "remove", "--force", str(scratch)], cwd=ROOT, check=False)
+            shutil.rmtree(scratch.parent, ignore_errors=True)
+            subprocess.run(["git", "worktree", "prune"], cwd=ROOT, check=False)
 
 
 if __name__ == "__main__":
