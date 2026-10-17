@@ -1,0 +1,48 @@
+# The LM controller against a local model (S10 P6b, pr-s10-p6-lm-controller.md §§5.13, C12).
+# Every relative path is relative to this file. Never place this file, its store or its keys inside a world.
+#
+# Run, from the repository root, after `cargo build -p mineworld-cli`:
+#   target/debug/mineworld server worlds/social-cafe --town --decisions cognition/lm-controller/examples/alice-lm.decisions.yaml --save <dir>
+#   target/debug/mineworld decisions worlds/social-cafe --decisions cognition/lm-controller/examples/alice-lm.decisions.yaml --json > seats.json
+#   MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config cognition/lm-controller/examples/local.toml
+
+server         = "ws://127.0.0.1:7878/ws"
+invite_env     = "MINEWORLD_INVITE"      # the NAME of the variable holding the server's invite
+nickname       = "cognition"
+store          = "cognition-state"        # relative to this file; never inside a world directory
+decisions_json = "seats.json"             # mineworld decisions … --json (format 1)
+# seats        = ["alice"]                # optional subset of the lm seats in decisions_json
+
+[recording]
+mode = "live"
+
+[tiers]
+social    = "local"
+summarize = "none"                        # FG-c is not merged: no summarising tier is wired (D-P6b-1)
+
+[backends.local]
+base_url          = "http://127.0.0.1:11434/v1"
+model             = "qwen3.5:4b"
+structured_output = "none"                # the runtime refuses enforced output for this build; admitted 39/40 on 2026-10-13
+
+[controller]
+consult_deadline_s = 20
+max_calls          = 5
+handback_s         = 10
+seat_retry_s       = 60
+recall_episodes    = 8
+greet_cooldown_s   = 1800
+
+[retry.transport]
+policy = "exponential-backoff"
+parameters = { attempts = 3, first_s = 0.5, factor = 2, ceiling_s = 8.0, jitter = 0.5 }
+[retry.content]
+policy = "fixed"
+parameters = { attempts = 3 }
+[retry.semantic]
+policy = "fixed"
+parameters = { attempts = 2 }
+
+[breaker]
+policy = "failure-rate"
+parameters = { window = 20, min_consults = 10, threshold_permille = 200, cooldown_world_s = 3600 }

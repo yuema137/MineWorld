@@ -2601,6 +2601,15 @@ E-TK3 Planted mutations, each in server/src/runtime.rs `tick` just before the re
       M-tick-burn-tail  busy loop 60 ms in one tick in twenty → FAIL by name: "the p99 tick's CPU
                     time was 60.9 ms, over 50 ms — cpu p50 0.3 ms, cpu p99 60.9 ms; wall p50 0.3 ms"
                     — the tail a median alone would have passed.
+E-TK4 Merge of origin/main @ 5cbb469 (2026-10-17; branch head a53ad33, merge base 2d07c6c). One textual
+      conflict: docs/DECISIONS.md, where this branch's DEP-59 and main's ARC-105…108, ARC-98…101,
+      ARC-120…126 and ARC-110 were appended at the same place. Resolved by keeping every record, DEP-59
+      first, then main's, with a `---` rule between; check_decision_ids.py: 150 ids, all distinct.
+      Main did not touch Cargo.lock or scripts/baselines.txt since the merge base (cargo metadata
+      --locked and cargo fetch --locked pass); main's sharded .github/workflows/ci.yml (#224) taken
+      as-is, this branch does not edit it. On the merged tree: cargo fmt --check; clippy -D warnings on
+      mineworld-server and mineworld-cli clean; mineworld-server tests all ok; mineworld-cli --test
+      hosted_town (1 passed, 120.7 s) and --test perceived (3 passed, 1 ignored) PASS at load ~13.
 ```
 
 ---

@@ -75,12 +75,29 @@ class BackendFailure(CognitionModel):
 
     reason: FailureReason
     status: Annotated[int, Field(ge=100, le=599)] | None = None
+    retry_after_s: Annotated[int, Field(ge=0, le=3600)] | None = None
+    """The server's `Retry-After` in whole seconds, when it sent one as delta-seconds (pr-s10-p6 F-P6-2).
+    Only the integer reaches this type; an HTTP date, or no header, leaves it unset."""
 
     @model_validator(mode="after")
     def _status_with_http_status_only(self) -> BackendFailure:
         if (self.reason == "http_status") != (self.status is not None):
             raise ValueError("a status code is given exactly when the reason is http_status")
         return self
+
+
+RETRY_AFTER_CAP_S = 3600
+"""The longest `Retry-After` the controller will honour (pr-s10-p6 §5.5.2; ARC-57 dated note)."""
+
+
+def retry_after_seconds(header: str | None) -> int | None:
+    """A `Retry-After` header made only of digits, as whole seconds capped at `RETRY_AFTER_CAP_S`.
+
+    Anything else (an HTTP date, an empty value, no header) gives `None`: the controller then uses its own
+    backoff. The header's text is never kept (I-16)."""
+    if header is None or not header.isascii() or not header.isdigit():
+        return None
+    return min(int(header), RETRY_AFTER_CAP_S)
 
 
 def estimate_tokens(text: str) -> int:
