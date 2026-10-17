@@ -1008,6 +1008,20 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
   `clients` job is not needed as its evidence.
 - **D-S26a-9 (scope note for the primary session).** `scripts/baselines.txt` is re-recorded on this
   branch; Q-S26a-5 applies to whichever of P6a and S26-a merges second (not done here).
+- **D-S26a-10 (merge of `origin/main` @ 5cbb469, 2026-10-17).** Branch head 9334974; merge base da6137c.
+  One textual conflict: `docs/DECISIONS.md`, where this branch's `ARC-91`/`ARC-92` and main's
+  `ARC-72`/`ARC-73` were appended at the same place. Resolved by keeping all four records (ours first,
+  then main's), each with its own id; `check_decision_ids.py`: 151 ids, all distinct. Auto-merged with no
+  conflict: `docs/MODULE_SPEC.md`, `scripts/ci_layer.py`, `.structured-coding/standards.md`. Main did not
+  touch `scripts/baselines.txt`, `Cargo.lock` or the DL-a golden since the merge base, so no baseline was
+  re-recorded and the golden was not regenerated; main's `.github/workflows/ci.yml` (sharding, #224) is
+  taken as-is (this PR does not edit it). Evidence on the merged tree: `cargo metadata --locked` and
+  `cargo fetch --locked` pass; `cargo fmt --check`; `check_doc_headings.py`, `check_decision_ids.py`,
+  `check_ci_pins.py`, `check_cast.py` and its self-test, and the `fast` layer's script self-tests pass;
+  `cargo test -p mineworld-appearance -p mineworld-installed-systems -p mineworld-worldpack` PASS;
+  `cargo test -p mineworld-cli --test decisions --test appearance --test commands --test content_kinds
+  --test inspect --test server_command` PASS (the `decisions` golden matches byte-for-byte). Baselines
+  are gated by CI's parity check on the exact merged head.
 
 ---
 

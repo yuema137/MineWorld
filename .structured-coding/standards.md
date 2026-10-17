@@ -22,9 +22,9 @@ The Python checks are live since the first Python package, `sdk/python` (`minewo
 The repository root is a uv workspace with one `uv.lock` (`docs/DECISIONS.md` DEP-26), and every Python
 check runs through it, `uv run --locked`, so the locked tool versions are the ones that judge:
 
-- `ruff-lint` and `ruff-format`: `ruff check` and `ruff format --check` over `sdk/python` and
-  `cognition/lm-controller` (`mineworld-cognition`, S10 PR P5a), each with the rule set in its own
-  `pyproject.toml`;
+- `ruff-lint` and `ruff-format`: `ruff check` and `ruff format --check` over `sdk/python`,
+  `cognition/lm-controller` (`mineworld-cognition`, S10 PR P5a) and `clients/agent` (`mineworld-agent`,
+  S27-c), each with the rule set in its own `pyproject.toml`;
 - `pyright-strict`: pyright in strict mode, configured in the root `pyproject.toml`, which covers every
   workspace member;
 - `pytest`: the SDK's suite, with its network guard (only `127.0.0.1` and `::1` are reachable). Its
@@ -35,6 +35,9 @@ check runs through it, `uv run --locked`, so the locked tool versions are the on
   common ancestor, the repository root, and would drop both members' `addopts` and the guard with them
   (`pr-s10-p5-backends.md` D-P5-11). Every test there is scripted or replayed; the `live_model` marker
   is deselected by the member's own `addopts` and selected by no check (D-P5-12).
+- `pytest-agent`: the agent player library's suite (`pr-s27c-player-library.md`), a third command for the
+  same reason, with the same guard. Its `real_server` tests, like the SDK's, need the binary and fail
+  rather than skip without it.
 
 They are named `ruff-lint` and `pyright-strict` rather than `ruff` and `pyright` deliberately: for those
 two names this helper supplies its own argv and runs them from `PATH`, outside the locked environment,
@@ -65,7 +68,7 @@ repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
 - the `test` layer runs `cargo-test`, then `scripts/check_scratch.py left --target-dir target`, which
   fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22);
 - the `python` layer (its own job, `python`, on Linux, Windows and macOS) runs the Python static checks,
-  `cargo build -p mineworld-cli`, `pytest`, `pytest-cognition`, and the scratch check; `python-smoke` is the same without
+  `cargo build -p mineworld-cli`, `pytest`, `pytest-cognition`, `pytest-agent`, and the scratch check; `python-smoke` is the same without
   the binary and with the `real_server` tests deselected, for a platform that cannot afford the build.
 
 Layer 4 of `docs/ENGINEERING_STANDARDS.md` §16 runs nightly, in its own workflow
@@ -219,7 +222,8 @@ matching layer in `ci_layer.py`.
           "ruff",
           "check",
           "sdk/python",
-          "cognition/lm-controller"
+          "cognition/lm-controller",
+          "clients/agent"
         ],
         "scope": "repository"
       },
@@ -233,7 +237,8 @@ matching layer in `ci_layer.py`.
           "format",
           "--check",
           "sdk/python",
-          "cognition/lm-controller"
+          "cognition/lm-controller",
+          "clients/agent"
         ],
         "scope": "repository"
       },
@@ -245,7 +250,8 @@ matching layer in `ci_layer.py`.
           "--locked",
           "pyright",
           "sdk/python",
-          "cognition/lm-controller"
+          "cognition/lm-controller",
+          "clients/agent"
         ],
         "scope": "repository"
       },
@@ -270,6 +276,18 @@ matching layer in `ci_layer.py`.
           "--locked",
           "pytest",
           "cognition/lm-controller"
+        ],
+        "scope": "repository"
+      },
+      {
+        "name": "pytest-agent",
+        "enabled": true,
+        "command": [
+          "uv",
+          "run",
+          "--locked",
+          "pytest",
+          "clients/agent"
         ],
         "scope": "repository"
       }

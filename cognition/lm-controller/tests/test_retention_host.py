@@ -28,8 +28,9 @@ from mineworld_cognition.memory.retention.selection import Retention
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
 from mineworld_cognition.memory.store import MemoryStore
 
-STORE_BOUND = 1_048_576
-TARGET = 786_432
+MIB = 1_048_576
+STORE_BOUND = 20 * MIB  # the default per-person bound (pr-fg-b2 §4.1; operator, 2026-10-14)
+TARGET = STORE_BOUND * 3 // 4  # 15 MiB: the dump after every pass
 SEED = 7
 CHECKPOINTS = (30, 100, 300)
 
@@ -65,27 +66,27 @@ def _bounded(passes: list[Pass]) -> None:
         assert size <= STORE_BOUND, (each.day, size)
 
 
-@pytest.mark.parametrize("policy", ["keep-all", "drop-everything"])
-def test_the_host_holds_the_bound_whatever_the_policy(policy: str) -> None:
+def test_the_host_holds_the_bound_whatever_the_policy() -> None:
     # AFGb-4 (a), host half: after every pass of 300 synthetic days, and at days 30, 100 and 300, the dump
-    # is at most TARGET. Its mutation disables the backstop: keep-all is over by day 9.
+    # is at most TARGET under the most aggressive legal plan. keep-all's half moved to the busy stream
+    # (test_retention_size.py, pr-fg-b2 §7): at ≈ 120 KB a day this stream reaches the 15 MiB target
+    # only after ≈ 130 days, and 170 passes over a 15 MiB store cost minutes per platform, while the busy
+    # stream crosses the target within its first day. The backstop's mutation is red there.
     facts = list(stream(SEED, 302))
-    kept = _drop_everything() if policy == "drop-everything" else retention(policy)
     with MemoryStore.open(":memory:", alice_identity()) as store:
-        passes = list(by_day(store, facts, kept))
+        passes = list(by_day(store, facts, _drop_everything()))
         # AFGb-7 (a), (b) on the day-300 store, as for the other bundled policies.
         section = retrieve(store, RecallQuery(at=facts[-1].at, words="umbrella zeppelin rain"))
         check_section(section, store.dump())
     _bounded(passes)
-    print(f"\n[{policy}] dump after the passes of days 30/100/300: {at_checkpoints(passes)}")
-    if policy == "keep-all":
-        assert any(each.report.passes[-1].forced > 0 for each in passes)
+    print(f"\n[drop-everything] dump after the passes of days 30/100/300: {at_checkpoints(passes)}")
     check_coverage(passes[-1].dump, [fact.id for fact in facts])
 
 
 @pytest.mark.parametrize("size", [1, 256])
 def test_frames_never_change_the_store(size: int) -> None:
-    # AFGb-5 (a) for keep-all, whose bound runs the backstop: frames of 1 and of 256 against the whole
+    # AFGb-5 (a) for keep-all (its backstop at 20 MiB is test_retention_size.py's): frames of 1 and of
+    # 256 against the whole
     # stream at once. Its mutation splits at frame ends instead of day starts: the dumps differ.
     facts = list(stream(SEED, 24, per_day=120))
     whole = built(facts, retention("keep-all"), len(facts))
