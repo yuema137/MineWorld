@@ -154,8 +154,9 @@ LAYERS.update({
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
-    # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml); the nightly
-    # `clients` layer runs the same tests on Linux, macOS and Windows (ci_godot.py GODOT_TESTS).
+    # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
+    # run of the 3D check; the nightly `clients` layer runs the 3D check on Windows and the 2D check and the
+    # validators on all three OSes (ci_godot.py SKIPS, R-FF-1 ruled 2026-10-15).
     "farfield": [
         ["cargo", "build", "-p", "mineworld-cli"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",

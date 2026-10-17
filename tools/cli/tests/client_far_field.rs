@@ -2,9 +2,10 @@
 //! prove it by rendering, and the clients' far-field validator agrees with `mineworld_packages`.
 //!
 //! Every test here starts Godot, so every test is `#[ignore]`d — reported as ignored, never as passed,
-//! on a machine without it (a test not run is not a pass). The nightly `clients` layer runs them on
-//! Linux (Xvfb, lavapipe), macOS and Windows; a per-PR Linux job runs them when a client or a
-//! Presentation Pack changes:
+//! on a machine without it (a test not run is not a pass). Where they run (R-FF-1, ruled 2026-10-15):
+//! the nightly `clients` layer runs all three on Windows and the 2D check and the validators on Linux
+//! and macOS (`scripts/ci_godot.py` SKIPS); ci.yml's per-PR `farfield` job runs all three on Linux when
+//! a client or a Presentation Pack changes; locally on a Mac the 3D check takes 18 s:
 //!
 //! ```text
 //! cargo test -p mineworld-cli --test client_far_field -- --ignored --test-threads=1
@@ -33,8 +34,9 @@ const REPOSITORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 const CLIENT_3D: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../clients/3d-spike");
 const SHARED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../clients/shared");
 /// The rendered 3D check is 120 offscreen renders of the full slice; a software renderer on a hosted
-/// runner takes minutes, not seconds (R-FF-1).
-const SLICE_LIMIT: Duration = Duration::from_secs(40 * 60);
+/// runner takes minutes, not seconds (R-FF-1): with ruling (b) the hosted Linux runner (lavapipe) took
+/// 41.7 min, its import included (PR CI run 38812488057), so the limit leaves it a margin.
+const SLICE_LIMIT: Duration = Duration::from_secs(60 * 60);
 
 fn repository(relative: &str) -> PathBuf {
     Path::new(REPOSITORY).join(relative)

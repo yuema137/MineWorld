@@ -79,9 +79,19 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_far_field"]
 _SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
                 "limit ('the slice hung'); it passes on macOS")
+# RL-e0 R-FF-1 (ruled 2026-10-15, operator in the primary session: (b), then (a)): the 3D rendered far-field
+# check runs where its job can finish it -- the nightly on Windows (29 min, job 59 min) and ci.yml's per-PR
+# `farfield` job on Linux (42 min alone, job 50 min) -- and is skipped in the nightly `clients` job of the OSes
+# that cannot finish it inside 75 min (pr-rl-e0-far-field-mandatory.md E-FF-CI-2).
+_FAR_FIELD_3D = "three_d_far_field_closes_every_open_sector"
 SKIPS: dict[str, dict[str, str]] = {
     "Linux": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-              _SOFTWARE_3D.format("llvmpipe under Xvfb")},
+              _SOFTWARE_3D.format("llvmpipe under Xvfb"),
+              _FAR_FIELD_3D: "(R-FF-1) 42 min on lavapipe does not fit beside the other Godot tests in 75 min; "
+                             "it runs in ci.yml's per-PR `farfield` job on Linux instead"},
+    "Darwin": {_FAR_FIELD_3D: "(R-FF-1) the hosted runner's first import of the 3D project takes about 45 min, "
+                              "so the check cannot finish in the job; it runs on Windows here, on Linux per PR, "
+                              "and locally on a Mac (18 s)"},
     "Windows": {"three_d_switches_language_live_and_settings_never_reach_the_server":
                 _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")},
 }

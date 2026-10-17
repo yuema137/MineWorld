@@ -1426,7 +1426,7 @@ same check takes 18 s.
 Recommendation: (b), then (a) for whatever OS still cannot finish.
 
 *State.* Everything else is implemented and committed; the PR is **not** READY FOR OPERATOR REVIEW until the
-operator rules on R-FF-1.
+operator rules on R-FF-1. **Resolved:** ruled 2026-10-15 (below); applied with E-FF-CI-2.
 
 **R-FF-1 — Ruled 2026-10-15 (operator answered directly in the primary session): (b), then (a).**
 (b) For the check frames only, directional shadows, SSAO and glow are off (`SliceFarFieldCheck._cost_effects_off`,
@@ -1436,6 +1436,39 @@ unchanged. (a) Any OS whose job still cannot finish the 3D check within its limi
 lines, all pass; X-1 still `36 FARFIELD CHECKS FAILED`. Per-OS hosted timings and the resulting CI layout:
 E-FF-CI-2 below. *Dated note on §6.2/§6.5 (2026-10-15):* the renders of §6.2 are taken with those three effects
 off; where §6.5 says the 3D check runs on all three runners, read the OSes E-FF-CI-2 names.
+
+```text
+E-FF-CI-2  2026-10-15/16, hosted timings with ruling (b) (head c554c79a)
+  OS (runner)                 3D check (import incl.)   job               verdict
+  Linux (ubuntu-24.04, Xvfb + lavapipe), PR CI 38812488057 `farfield`, alone:
+                              41.7 min (22:17:13–22:58:57)  50 min / 75     PASS (3/3: 3D, 2D, validators)
+  Linux, nightly 38812485685 `clients-linux` (beside every Godot test; main's job alone 34 min):
+                              started 22:51:57 after 18 min of other tests; the run was cancelled at
+                              23:25 — 34 + 42 min does not fit 75
+  Windows (windows-2025, D3D12 WARP), nightly 38812485685:
+                              29.3 min (22:39:42–23:08:57)  59 min / 75     PASS (3D ok; 2D, validators ok)
+  macOS (macos-26, Apple Paravirtual), nightly 38812485685:
+                              FAIL at exactly 30:00 (22:53:16–23:23:16) = the harness's import limit; main's
+                              nightly shows the hosted Mac's first 3D import takes ~45 min (38757085415:
+                              the first 3D client_settings test 15:20 → 16:05), and main's clients-mac job
+                              is itself cancelled at ~80 min every night (2026-10-14, -15, -16)
+  Local (Apple M-series, Metal): 18 s, PASS
+```
+
+**Applying (a) to these timings (deviation from the ruling's wording, for the primary to acknowledge).** The
+ruling sends any OS that cannot finish to "hosted macOS only" — but hosted macOS is the leg that cannot finish
+(its 3D import alone is ~45 min), while Linux finishes in its own per-PR job and Windows finishes in the nightly.
+The check therefore runs where it finishes: **Linux — the per-PR `farfield` job (all three tests; job limit
+raised to 90 min, slice limit to 60 min); Windows — the nightly `clients` job (all three); macOS — locally
+(18 s) and FF-1's hand check.** It is skipped by name (`scripts/ci_godot.py` SKIPS, reasons recorded) in the
+nightly `clients` jobs of Linux and macOS. The 2D check and the validators' agreement run on all three OSes in
+the nightly and on Linux per PR, as ruled. No OS lost the 2D or validator coverage; the 3D check has two hosted
+OSes instead of one.
+
+**Pre-existing, not RL-e0's:** the nightly Windows `client_settings` failures
+`three_d_controls_apply_live_and_persist`, `three_d_settings_never_reach_the_server` and
+`two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` fail on main as well (main nightly
+38757085415 at 3a9b9eff fails those three and `the_settings_module_checks_pass`).
 
 ```text
 E-FF-CI  2026-10-15
