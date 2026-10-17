@@ -55,9 +55,7 @@ Check the folder you added to `PATH`, or type the whole path to the program inst
 ```console
 $ mineworld --help
 Run a MineWorld world
-
-Usage: mineworld <COMMAND>
-
+...
 Commands:
   server        Host a World Pack for clients
   validate      Check a World Pack and say what it is
@@ -67,6 +65,9 @@ Commands:
 **You should see** a list of commands. This guide uses `create`, `validate`, `run`, `biography`,
 `interactions`, `server` and `packs`. Each one is described in the
 [command reference](../reference/cli.md#the-mineworld-command).
+
+How to read the output in this guide: a line `...` stands for lines left out, and `[..]` inside a line
+stands for a part that differs, such as a version number. Everything else should match exactly.
 
 ### Step 1.3 — Make a world to try it on
 

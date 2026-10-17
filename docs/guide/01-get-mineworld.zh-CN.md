@@ -56,9 +56,7 @@ mineworld [..]
 ```console
 $ mineworld --help
 Run a MineWorld world
-
-Usage: mineworld <COMMAND>
-
+...
 Commands:
   server        Host a World Pack for clients
   validate      Check a World Pack and say what it is
@@ -67,6 +65,9 @@ Commands:
 
 **你应该看到**一列命令。这份教程会用到 `create`、`validate`、`run`、`biography`、
 `interactions`、`server` 和 `packs`。每条命令的说明都在[命令参考](../reference/cli.md#the-mineworld-command)里（英文）。
+
+怎么读教程里的输出：单独一行 `...` 表示省略了几行；一行里的 `[..]` 表示这一段会不一样，比如版本号。
+其余部分应该完全一致。
 
 ### Step 1.3 — 做一个世界来试试
 
