@@ -53,11 +53,12 @@ CURRENT CHECKPOINT  A0 committed (7dcb1ac); A1 committed (9fd8315: MODULE_SPEC �
                     Baseline record: CI scratch nightly run 38812090457 (branch
                     scratch/p6a-parity-long-nightly), not a local record (machine load ~15–50):
                     only social-cafe moved; re-baselined under QP6-2 (E-P6a-baseline).
-NEXT ACTIONS        WAIT (operator ruling on F-P6a-6): (a) add `persona` and the same nine sections to
-                    Market Town (moves its baselines; needs a widening of QP6-2) or (b) change AC-1 check 3
-                    / ARC-35. Then: implement the ruling; re-record the long profile once (CI scratch nightly
-                    or local python3.11); re-baseline only the ruled columns with reason lines; CI on the
-                    exact head. Never merge.
+                    2026-10-16: F-P6a-6 ruled (a) (§14.1 dated note: QP6-2 widened to Market Town). Merged
+                    origin/main (S30-a docs, e769249); Market Town gains persona (eb80ebb); CLI pins
+                    (45c3d1a, F-P6a-7); second CI long record 39005870946: only Market Town moved,
+                    re-baselined (E-P6a-baseline-2).
+NEXT ACTIONS        CI on the exact pushed head; repair to green within scope (known unrelated: Windows
+                    100-day timeouts, #224; hosted_town ticks, #216). Never merge.
 POST-MERGE SYNC     primary session: step-17, overall.md. This session: the P6a rows of the §15 ledger.
-READY STATE         P6a STOPPED at F-P6a-6 (AC-1 world delta). PUSHED, PR #236 open. NOT READY.
+READY STATE         P6a complete; PR #236; READY FOR OPERATOR REVIEW once CI on the exact head is green.
                     DO NOT MERGE.
