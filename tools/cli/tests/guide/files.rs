@@ -40,6 +40,20 @@ pub fn copy_tree(scratch: &Path, from: &str, to: &str) -> Result<(), String> {
     copy_folder(&from, &to)
 }
 
+/// Copies the committed folder `from`, relative to the repository `repo`, to `to` inside `scratch` (§6,
+/// `example`). Both paths are confined as §3.2, so a page can neither read outside the repository nor write
+/// outside its scratch folder; a symbolic link in the source is refused, as for `copy`.
+pub fn copy_committed(repo: &Path, from: &str, scratch: &Path, to: &str) -> Result<(), String> {
+    let source = repo.join(confine(from)?);
+    if !source.is_dir() {
+        return Err(format!(
+            "example {from}: {} is not a folder of the repository",
+            source.display()
+        ));
+    }
+    copy_folder(&source, &scratch.join(confine(to)?))
+}
+
 fn copy_folder(from: &Path, to: &Path) -> Result<(), String> {
     fs::create_dir_all(to).map_err(|error| format!("{} cannot be made: {error}", to.display()))?;
     let entries = fs::read_dir(from)

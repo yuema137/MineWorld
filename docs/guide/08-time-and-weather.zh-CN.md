@@ -358,4 +358,4 @@ $ mineworld perceived corner-shop --save saves/weather --person ben --json
 其他 pack 和 client 只读这些 fact，自己不去算天气。一个世界不用 `calendar` 和 `weather`，就只是没有日期、没有天气而已。
 规则在 [`CORE_CONCEPTS.md`](../CORE_CONCEPTS.md#17-time)。
 
-下一章：[12 Pack](12-packs.zh-CN.md)。第 09 到 11 章会在以后的教程更新里补上。
+下一章：[09 谁来做决定](09-who-decides.zh-CN.md)。

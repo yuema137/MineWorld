@@ -29,6 +29,9 @@ pub enum Body {
     Console { exit: i32, lines: Vec<String> },
     /// Copy the folder `from` to `to` inside the scratch folder (§6).
     Copy { from: String, to: String },
+    /// Copy the committed folder `from`, named relative to the repository, to `to` inside the scratch
+    /// folder (§6, `example`).
+    Example { from: String, to: String },
 }
 
 /// One executed block, in page order.
@@ -80,6 +83,7 @@ enum Parsed {
     Continues(String),
     Attach(Directive),
     Copy(String, String),
+    Example(String, String),
 }
 
 struct Reader<'a> {
@@ -185,6 +189,12 @@ impl Reader<'_> {
                 }
                 Parsed::Copy((*from).to_owned(), (*to).to_owned())
             }
+            ("example", [from, to]) => {
+                for path in [from, to] {
+                    files::confine(path).map_err(|reason| self.at(line, reason))?;
+                }
+                Parsed::Example((*from).to_owned(), (*to).to_owned())
+            }
             _ => {
                 return Err(self.at(
                     line,
@@ -209,22 +219,29 @@ impl Reader<'_> {
                 }
                 self.pending.push((line, directive));
             }
-            Parsed::Copy(from, to) => {
-                if let Some((held, _)) = self.pending.first() {
-                    return Err(self.at(
-                        *held,
-                        "a directive is waiting for a block, but copy is not one",
-                    ));
-                }
-                self.seen_block = true;
-                self.page.blocks.push(Block {
-                    line,
-                    step: self.step.clone(),
-                    directives: Vec::new(),
-                    body: Body::Copy { from, to },
-                });
+            Parsed::Copy(from, to) => self.standalone(line, "copy", Body::Copy { from, to })?,
+            Parsed::Example(from, to) => {
+                self.standalone(line, "example", Body::Example { from, to })?;
             }
         }
+        Ok(())
+    }
+
+    /// A directive that is a block of its own (`copy`, `example`): it takes no directive above it.
+    fn standalone(&mut self, line: usize, name: &str, body: Body) -> Result<(), String> {
+        if let Some((held, _)) = self.pending.first() {
+            return Err(self.at(
+                *held,
+                format!("a directive is waiting for a block, but {name} is not one"),
+            ));
+        }
+        self.seen_block = true;
+        self.page.blocks.push(Block {
+            line,
+            step: self.step.clone(),
+            directives: Vec::new(),
+            body,
+        });
         Ok(())
     }
 

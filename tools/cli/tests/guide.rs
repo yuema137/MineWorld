@@ -718,3 +718,111 @@ fn the_guide_in_this_repository_runs_green() {
     println!("{}", summary.render());
     assert!(summary.no_failures(), "{}", summary.render());
 }
+
+// --- PR 25e: the comparison folder, `example`, and the probes beyond packs (`docs/GUIDE_FORMAT.md` §§1.1, 6, 9.1)
+
+#[test]
+fn comparison_pages_run_after_the_chapters_and_are_held_to_their_mirrors() {
+    // A comparison page that continues a chapter sees the chapter's folder: it runs after every chapter.
+    let chapter =
+        "```yaml file=w/x.yaml\nk: 1\n```\n\n```console exit=1\n$ mineworld validate w\n...\n```\n";
+    let compare = "<!-- guide: continues 01-a -->\n\n<!-- guide: copy w v -->\n\n```console exit=1\n$ mineworld validate v\n...\n```\n";
+    let mut files = page_and_mirror("01-a", chapter);
+    files.extend(page_and_mirror("compare/b", compare));
+    files.push((
+        "docs/guide/compare/README.md".to_owned(),
+        "```console\n$ ls\n```\n".to_owned(),
+    ));
+    let repo = repo_with("guide-compare", files);
+    let summary = run_repo("guide-compare-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert_eq!(summary.passed, 4, "{}", summary.render());
+    assert!(
+        summary
+            .checks
+            .iter()
+            .any(|(name, verdict)| name == "mirror of compare/b" && *verdict == Verdict::Pass),
+        "{}",
+        summary.render()
+    );
+
+    let lonely = repo_with(
+        "guide-compare-lonely",
+        vec![("docs/guide/compare/c.md".to_owned(), "Text.\n".to_owned())],
+    );
+    let found = failures(&run_repo("guide-compare-lonely-run", &lonely));
+    assert!(
+        found.contains("compare/c.md has no mirror compare/c.zh-CN.md"),
+        "{found}"
+    );
+}
+
+#[test]
+fn example_copies_a_committed_folder_into_the_scratch_folder_and_nothing_from_outside() {
+    let repo = mock_repo(
+        "guide-example",
+        &[("docs/guide/examples/w/x.yaml", "a: 1\n")],
+    );
+    let page = "<!-- guide: example docs/guide/examples/w try/w -->\n";
+    let scratch = mineworld_test_support::scratch!(empty "guide-example-run");
+    let environment = Environment {
+        features: &Features::new(),
+        repo: &repo,
+    };
+    let (reports, _) = run_page(
+        "example",
+        &parse(page).expect("parses"),
+        &scratch,
+        &environment,
+        None,
+    );
+    assert_eq!(reports[0].outcome, Outcome::Passed, "{reports:#?}");
+    assert_eq!(
+        std::fs::read_to_string(scratch.join("try/w/x.yaml")).expect("copied"),
+        "a: 1\n"
+    );
+
+    assert!(
+        parse("<!-- guide: example ../outside w -->\n").is_err(),
+        "a source outside is refused"
+    );
+    let missing = "<!-- guide: example docs/guide/examples/none w -->\n";
+    let (reports, _) = run_page(
+        "missing",
+        &parse(missing).expect("parses"),
+        &scratch,
+        &environment,
+        None,
+    );
+    let Outcome::Failed(reason) = &reports[0].outcome else {
+        panic!("a missing folder fails: {reports:#?}");
+    };
+    assert!(
+        reason.contains("is not a folder of the repository"),
+        "{reason}"
+    );
+}
+
+#[test]
+fn model_and_reference_probes_turn_a_wrong_flag_red() {
+    let repo = mock_repo(
+        "guide-probes",
+        &[(
+            "docs/guide/features.toml",
+            "[features]\nmotivated = false\nrelationship-decay = false\nlm-controller = true\n",
+        )],
+    );
+    let found = failures(&run_repo("guide-probes-run", &repo));
+    assert!(
+        found.contains("motivated = false, but decision model motivated is in the build"),
+        "{found}"
+    );
+    assert!(
+        found.contains("relationship-decay = false, but \"`familiarity_decay`\""),
+        "{found}"
+    );
+    assert!(
+        found.contains("lm-controller = true, but decision model lm is not in the build"),
+        "{found}"
+    );
+}

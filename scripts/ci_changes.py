@@ -22,6 +22,8 @@ Standard library only: it runs on the bare runner, before any toolchain exists.
 from __future__ import annotations
 
 import argparse
+import posixpath
+import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -40,10 +42,33 @@ DOCS_FILES = {"CLAUDE.md"}
 # against the binary (`docs/GUIDE_FORMAT.md`): a guide page that stops working must turn CI red.
 GENERATED_PREFIXES = ("docs/reference/", "docs/guide/")
 
+# A guide page's links are checked by the guide test too (`docs/GUIDE_FORMAT.md` §§7, 8.3): a heading renamed in a
+# specification the guide links into, such as `docs/CORE_CONCEPTS.md`, breaks a guide link. So every file a guide
+# page links to is read by a test, and a change to it runs the build (finding F-25d-2, fixed in PR 25e). The set is
+# read from the guide pages in this checkout, so a new link is covered the moment it is written.
+GUIDE = ROOT / "docs" / "guide"
+LINK = re.compile(r"\]\(([^)\s#]+)(?:#[^)\s]*)?\)")
+_guide_targets: set[str] | None = None
+
+
+def guide_link_targets() -> set[str]:
+    """Every repository file a guide page or mirror links to, as a path relative to the repository root."""
+    global _guide_targets
+    if _guide_targets is None:
+        targets: set[str] = set()
+        for page in sorted(GUIDE.rglob("*.md")):
+            folder = page.parent.relative_to(ROOT).as_posix()
+            for target in LINK.findall(page.read_text(encoding="utf-8")):
+                if "://" in target or target.startswith("mailto:"):
+                    continue
+                targets.add(posixpath.normpath(posixpath.join(folder, target)))
+        _guide_targets = targets
+    return _guide_targets
+
 
 def is_docs(path: str) -> bool:
     """Whether a changed path is in the audited docs set."""
-    if path.startswith(GENERATED_PREFIXES):
+    if path.startswith(GENERATED_PREFIXES) or path in guide_link_targets():
         return False
     if path.startswith(DOCS_PREFIXES) or path in DOCS_FILES:
         return True
@@ -150,6 +175,8 @@ def self_test() -> int:
         "docs/reference/schema/world.schema.json",  # generated, likewise
         "docs/guide/02-your-first-world.md",  # executed: tools/cli/tests/guide.rs runs every page
         "docs/guide/examples/corner-shop/world.yaml",  # compared by the guide's `equals`
+        "docs/CORE_CONCEPTS.md",  # a guide page links its headings: the guide test checks them (F-25d-2)
+        "docs/MODULE_SPEC.md",  # likewise
     ]:
         cases.append((f"a file CI reads is code: {path}", pr, fixed([path]), True))
     failed = 0

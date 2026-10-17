@@ -20,7 +20,8 @@ runner executes, which it only shows, and which it refuses.
 | `docs/guide/README.zh-CN.md` | The index's Chinese mirror. Not a page and not a page's mirror: it is never executed and not held to §7's parity. (Bounded correction, PR 25d: the runner of 25c treated it as a mirror without an English page.) |
 | `docs/guide/NN-name.md` | An English page. Executed. Pages are named with a two-digit prefix and a hyphenated name. |
 | `docs/guide/NN-name.zh-CN.md` | The Chinese mirror of the page with the same name (§7). Never executed; it is checked for parity. |
-| `docs/guide/compare/…` | Comparison pages (PR 25e). Same rules as chapter pages. |
+| `docs/guide/compare/name.md` | A comparison page (PR 25e). Same rules as chapter pages, including its `name.zh-CN.md` mirror; run after every chapter page (§1.1 rule 4). |
+| `docs/guide/compare/README.md` | The comparison folder's human index, and `README.zh-CN.md` its mirror. Like the guide's index: never executed and not held to §7's parity. |
 | `tools/cli/tests/guide/fixture.md` | The runner's own fixture page (create, check, run one day). Not a guide page: it is run by a test, not listed by the guide. |
 | `docs/guide/examples/corner-shop/` | The committed example world the runner compares a scratch folder with (`equals`, §6.1). Not a page. |
 | `docs/guide/features.toml` | Which guide features are merged (§9). |
@@ -34,10 +35,15 @@ directory of the same shape.
 ### 1.1 Page discovery and order
 
 1. A page is a file directly inside the guide root whose name ends in `.md`, excluding `README.md`,
-   `README.zh-CN.md` and any other name ending in `.zh-CN.md`. Subdirectories are not pages; `compare/` is walked by its own index in PR 25e and
-   its pages are added to the run order there.
+   `README.zh-CN.md` and any other name ending in `.zh-CN.md`. Subdirectories are not pages, except `compare/`
+   (rule 4).
 2. Pages run in ascending order of their file name (byte order). The two-digit prefix makes that the reading order.
 3. A page whose file name has no two-digit prefix is refused: the run fails naming the file.
+4. **Comparison pages** (PR 25e, bounded correction). A file directly inside `compare/` is a page by rule 1's test,
+   applied in that folder. Comparison pages run after every page of the guide root, in ascending byte order of their
+   file names, and need no two-digit prefix. A comparison page's name, wherever this file says "page name" (reports,
+   `continues`, mirrors), is `compare/` followed by its file name without `.md`, such as `compare/weather`. Its mirror
+   is `compare/name.zh-CN.md` (§1.2).
 
 ### 1.2 Mirror presence
 
@@ -184,6 +190,7 @@ does not know fails the page, naming it.
 | `operator-only` | the next block | The block needs a live model or a display. It is never run in CI; it is listed in every run. |
 | `equals DIR PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder's `DIR` equals the committed folder `PATH` file by file, byte for byte (§6.1). `DIR` is relative to the scratch folder; `PATH` is relative to the repository root. A symbolic link in a `copy` source is refused, not copied. |
 | `copy SOURCE DEST` | standalone, between blocks | Copy the folder `SOURCE` to `DEST` inside the scratch folder, recursively. Both are confined as §3.2. The page shows the per-OS commands as text; the runner does the copy. |
+| `example PATH DEST` | standalone, between blocks | Copy the committed folder `PATH`, relative to the repository root, to `DEST` inside the scratch folder, recursively (PR 25e). Both are confined as §3.2, and a symbolic link in the source is refused. `PATH` must be a folder. A comparison page starts from the committed example world this way; the page shows the per-OS commands as text. |
 | `packs DIR` | the next command block | Each command in the next block receives `--packs DIR` appended after its arguments. `DIR` is relative to the scratch folder and confined as §3.2. The page does not show the flag. |
 
 Rules:
@@ -267,12 +274,12 @@ free of shell dependence.
 interaction-list = true
 calendar = true
 weather = true
-decisions = false        # DL-a
-motivated = false        # DL-b
-lm-controller = false    # P6
-relationship-decay = false # FG-a
-memory-policies = false  # FG-b, FG-c
-happenings = false       # WE-a
+decisions = true
+motivated = true
+lm-controller = false      # P6
+relationship-decay = true
+memory-policies = false    # no probe (§9.1)
+happenings = false         # WE-a
 ```
 
 1. The file is TOML, read with the `toml` crate (`DEP-50`). Its only table is `[features]`. Every entry is a key
@@ -287,22 +294,32 @@ happenings = false       # WE-a
 
 ### 9.1 The presence probe
 
-The runner asks the binary once per run: `mineworld packs list`, whose second column is each pack's name. A feature
-has a probe when a pack of this build carries it:
+The runner asks the binary once per run, in a scratch folder of its own, for three pieces of evidence: the output of
+`mineworld packs list` (its second column is each pack's name); the decision models the build installs, read from the
+refusal `mineworld decisions` prints for a `--seat-model` naming a model no build installs (`it installs: rule,
+motivated`), in a world it makes with `mineworld create probe`; and the reference `mineworld reference --out` writes.
+A feature has a probe when one of these shows it (PR 25e generalised the probe from packs only):
 
-| Feature | Probe: the pack in `mineworld packs list` | Note |
+| Feature | Probe | Note |
 | --- | --- | --- |
-| `calendar` | `mineworld-calendar` | TW-b |
-| `weather` | `mineworld-weather` | TW-a |
-| `happenings` | `mineworld-happenings` | WE-a; no such pack in the build yet |
+| `calendar` | pack `mineworld-calendar` | TW-b |
+| `weather` | pack `mineworld-weather` | TW-a |
+| `happenings` | pack `mineworld-happenings` | WE-a; no such pack in the build yet |
+| `interaction-list` | the text `## The shape every section shares` in `interaction-list.md` of the reference | IL-b, IL-e |
+| `decisions` | the text ``## `decisions.yaml` `` in `decisions.md` of the reference | DL-a |
+| `motivated` | the decision model `motivated` | DL-b |
+| `lm-controller` | the decision model `lm` | P6; not installed in this build yet |
+| `relationship-decay` | the text `` `familiarity_decay` `` in `interaction-list.md` of the reference | FG-a |
 
-A feature with no probe (`interaction-list`, `decisions`, `motivated`, `lm-controller`, `relationship-decay`,
-`memory-policies`) is checked for presence as `INCONCLUSIVE`, which never passes and never fails. Its flag is still
-binding on every block that names it. A probe is added in the same PR that merges the feature it stands for, so the
-flag cannot be left wrong without the run turning red.
+A feature with no probe (`memory-policies`) is checked for presence as `INCONCLUSIVE`, which never passes and never
+fails. Its flag is still binding on every block that names it. `memory-policies` has none because a memory policy acts
+only inside a cognition process that hosts a seat, which the guide cannot run before P6; its flag stays `false` until a
+page can show a policy at work. A probe is added in the same PR that merges the feature it stands for, so the flag
+cannot be left wrong without the run turning red. A probe whose evidence the binary cannot give (a command that fails)
+is `FAIL`, because the run then cannot say the flag is right.
 
-Verdicts: a `false` flag whose pack is in the build is `FAIL`; a `true` flag whose pack is absent is `FAIL`; a `true`
-or `false` flag that agrees with the build is `PASS`.
+Verdicts: a `false` flag whose probe the build shows is `FAIL`; a `true` flag whose probe the build does not show is
+`FAIL`; a `true` or `false` flag that agrees with the build is `PASS`.
 
 ---
 

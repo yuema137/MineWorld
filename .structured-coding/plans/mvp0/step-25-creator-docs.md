@@ -1019,6 +1019,25 @@ Commit plan (per sub-PR): **C0** audit which command shows the difference and re
 the base [ ] [ ] [ ]; **C1** the comparison page + mirror [ ] guide test [ ] review: one change only, whole file
 shown; **C2** the chapter section + mirror, flag flip [ ] guide test [ ] review: the rule links the reference.
 
+**Progress (PR 25e, implementing session 2026-10-16, Opus-class by the primary's dispatch):** one PR covers the
+sub-PRs whose features are on its stack, 25e-1, 25e-2 (part 1) and 25e-4 (D-25e-1); 25e-3, 25e-5 and 25e-6 wait for
+their features and are listed as coming. Every item is marked against the evidence ledger, §19. C0's runner and C2 are one
+commit: a new probe and the flag it checks must change together, or the head between them is red.
+
+- **C0 — Audit (F-S25-6) and the runner.** [x] For each comparison, the command that shows the difference was found
+  and its before/after output recorded on the base (§19.3). [x] The runner walks `compare/`, gains `example`, and its
+  presence probe reads decision models and the generated reference as well as packs; `GUIDE_FORMAT.md` §§1, 1.1, 6,
+  9, 9.1 (D-25e-2, D-25e-3); three new runner tests (E-1, E-2). [x] Review: no rule moved into the runner; every probe
+  is a question to the real binary (E-6).
+- **C1 — Comparison pages + mirrors.** [x] `compare/README.md`, `a-forbidden-action`, `weather`, `relationship-decay`,
+  each with its mirror (E-1). [x] Guide test (E-1). [x] Review: one change only, whole files shown (E-6).
+- **C2 — Chapters 09 and 10 + mirrors, flag flips.** [x] Chapter 09 parts 1–2 (`rule`, `motivated`), chapter 10 part 1
+  (relationship decay); `decisions`, `motivated`, `relationship-decay` flipped to `true` with their probes in the same
+  commit (AC-25e-3); index rows and chapter 08's "Next" link (E-1, E-3). [x] Guide test (E-1). [x] Review: every rule
+  links the reference (E-6).
+- **C3 — F-25d-2.** [x] `scripts/ci_changes.py` classifies every file a guide page links to as code (E-4). [x]
+  Self-test (E-4). [x] Review: the change only narrows the docs set, so it fails closed (E-6).
+
 #### PR 25f — The onboarding harness, the scorer, and the rounds
 
 **Scope.** `tools/onboarding/` (assemble, run, score, audit, instruction sets, rubrics, fixtures), a container
@@ -1313,3 +1332,86 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   2026-10-15: the non-dialect skills of `yuema137/DongbeiGPT`. The dongbei-voice layer was not used.
 - **AC-25d-4** The operator follows chapters 01–05 by hand at the milestone handoff (QS25-10).
 - **E-8** CI on the exact head.
+
+---
+
+## 19. Evidence ledger — PR 25e (`mvp0/pr-25e`)
+
+Recorded by the implementing session (Opus-class, dispatched by the primary, 2026-10-16). Worktree
+`/Users/yuema137/mineworld-worktrees/impl-25e`, branch `mvp0/pr-25e`, stacked on `origin/mvp0/pr-25d @ 07dbab1e` (25d's
+plain-Chinese pass). Every quoted output is this stack's binary. Results are `PASS`, `FAIL` or `INCONCLUSIVE` from
+actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the gate.
+
+### 19.1 What the stack has (audited, not assumed)
+
+| Feature | On this stack | Evidence |
+| --- | --- | --- |
+| decision list (DL-a) | yes | `mineworld decisions`; `docs/reference/decisions.md` |
+| `motivated` (DL-b) | yes | `cognition/installed` `models!` lists `Motivated`; `mineworld-motivated` in `packs list` |
+| relationship decay (FG-a) | yes | `familiarity_decay`, `regard_decay` in `docs/reference/interaction-list.md` |
+| memory policies (FG-b, FG-c) | merged, but not observable by the guide | a policy acts inside a cognition process that hosts a seat; `run` hosts none, and the `memory:` choice is only decoded (`MODULE_SPEC.md` §5.2) |
+| language-model controller (P6) | no | `external "lm"` is in `cognition/installed` on `origin/main` (P6b, #207) but not on this stack; `--seat-model first=lm` is refused with `it installs: rule, motivated` |
+| happenings (WE-a) | no | not merged (`origin/mvp0/pr-we-a`) |
+
+### 19.2 Evidence
+
+| Id | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| E-1 | The whole guide against the real binary (`cargo test -p mineworld-cli --test guide`) | PASS (macOS, local) | `guide: 151 block(s) passed, 1 pending, 39 check(s)`; the pending block is step 6.2 (`operator-only`); `INCONCLUSIVE feature memory-policies` (no probe, §9.1); every page's and mirror's links and parity `PASS`, compare pages included; `test result: ok. 39 passed` (36 + 3 new); 6.4 s wall, inside §8.5's 60 s |
+| E-2 | New runner tests | PASS | `comparison_pages_run_after_the_chapters_and_are_held_to_their_mirrors`, `example_copies_a_committed_folder_into_the_scratch_folder_and_nothing_from_outside`, `model_and_reference_probes_turn_a_wrong_flag_red` |
+| E-3 | Mutation: the four flipped or held flags set wrong (`decisions`, `motivated`, `relationship-decay` false; `lm-controller` true) | PASS (bites) | the real guide run reports `FAIL feature decisions`, `FAIL feature motivated`, `FAIL feature relationship-decay`, `FAIL feature lm-controller`; restored |
+| E-4 | F-25d-2: `python3 scripts/ci_changes.py --self-test` | PASS | `[self-test] passed: 26 case(s)`, incl. `docs/CORE_CONCEPTS.md: code=true` and `docs/MODULE_SPEC.md: code=true`; the docs-only cases (`docs/DECISIONS.md`, `docs/MVP.md`, …) stay `code=false` |
+| E-5 | Static and doc checks | PASS | `cargo fmt --all -- --check` clean; `cargo clippy -p mineworld-cli --all-targets -- -D warnings` clean; `check_doc_headings.py`: `238 numbered sections across 75 documents, none duplicated`; `check_decision_ids.py`: `127 decision ids, all distinct` |
+| E-6 | Review read-through (rules 7, 8; one change per comparison; whole files) | PASS | each comparison changes one file after its setup steps, every replaced file is shown whole; each field the pages name links its reference entry (`decisions.md`, `world-pack.md`, `interaction-list.md`, `configure.md`); no decision id or plan name in a page body; the zh-CN mirrors follow 25d's term table (English concept names, no invented Chinese names, no `——`), and their code blocks are generated from the English pages' blocks, so parity holds byte for byte |
+| E-7 | CI on the exact head | pending | recorded after the push |
+
+### 19.3 F-S25-6 audit: where each difference is visible (C0)
+
+| Comparison | Before | After | Read-only command |
+| --- | --- | --- | --- |
+| a forbidden action (nobody talks in the shop) | `talk accepted 335`; Ana 108 | `talk accepted 292`; Ana 81 | `run` summary; `interactions --place shop` shows the rule |
+| weather (start 2026-10-08 vs 2027-01-08, San Diego climate) | `weather-changed 17` | `weather-changed 24`; `activity` identical | `run` summary |
+| relationship decay (regard half-life 3 days, 30 days) | `relationship-changed 20` | `relationship-changed 38`; `activity` identical | `run` summary; `perceived --json` shows `"from":"close"` … `"to":"friend"` |
+| chapter 09 (`motivated` Ben) | Ben move 159 talk 118 | Ben move 9 talk 18 | `run` header `(2 rule, 1 motivated)`, `activity`; `decisions` |
+
+### 19.4 Deviations (bounded, recorded)
+
+- **D-25e-1 One PR, not one per feature.** §10.3 splits 25e by feature. The features of 25e-1, 25e-2 part 1 and 25e-4
+  are all on this stack, and the comparison index links each page, so the coordinator dispatched one PR. 25e-3
+  (happenings), 25e-5 (memory policies) and 25e-6 (P6) remain, listed as "coming" in both indexes.
+- **D-25e-2 The runner walks `compare/` and gains `example`.** `GUIDE_FORMAT.md` §1.1 left the `compare/` order to
+  25e. Comparison pages run after the chapters, named `compare/<stem>`. They start from the committed example, which
+  `copy` cannot reach (it is confined to the scratch folder) and which `continues` cannot give (the chapters 07, 08 and
+  12 change the shared folder, and the loader refuses an unlisted `configure/` file, so a later page cannot undo them).
+  `example PATH DEST` copies a committed folder, confined like every other path. The world's folder must keep its id
+  as its name, so pages copy into `compare-<name>/corner-shop`.
+- **D-25e-3 The presence probe asks more than `packs list`.** `decisions` and `relationship-decay` are not packs, and
+  `motivated`/`lm` are best seen as installed decision models. The probe now also reads the generated reference and the
+  installed-model list (`GUIDE_FORMAT.md` §9.1). `memory-policies` keeps no probe (§19.1), so it stays
+  `INCONCLUSIVE` and `false`; chapter 10 part 2 says it is coming.
+- **D-25e-4 Chapters 09 and 10 work on copies.** Both continue chapter 08 and copy `corner-shop` into `who-decides/`
+  and `forgetting/`, because chapter 12 continues 08 and expects the folder unchanged.
+- **D-25e-5 The decay comparison adds `group-activity` first.** Corner Shop's people meet every day and have no
+  source of regard (only group activities add regard), so decay alone changes no output (`relationship-changed` stays
+  at 0, familiarity values are printed nowhere). With `group-activity` as a setup step the difference is visible
+  (§19.3). It shows a friendship cooling between meetings, not acquaintances who never meet again (§6.3's example):
+  a pair that stops meeting would need a second change to the world.
+- **D-25e-6 The weather comparison changes the season, not the climate.** No second fitted climate is committed (only
+  San Diego's NOAA fit), and inventing one would document numbers with no source. `biography` reports no time
+  outdoors (§7's "what is compared"), and the `rule` model ignores the weather, so behaviour is identical. The page
+  compares October with January, one line of `calendar.yaml`, and says plainly that people do the same.
+- **D-25e-7 Chapter 08's "Next" link and two index rows changed.** The only edits to 25d's files: links to the new
+  pages, in English and in the mirror.
+
+### 19.5 Open items and findings for the primary
+
+- **F-25e-1 `lm-controller` will turn red when this stack takes `main`.** P6b's `external "lm"` is on `main`. Once the
+  stack merges it, the probe sees `lm` and the flag must flip to `true` with chapter 09 part 3 and
+  `compare/one-person-on-a-model` (25e-6) in the same change. That is the probe working as designed.
+- **F-25e-2 Memory policies cannot be shown by the guide yet.** Showing one needs a seat hosted by a cognition
+  process (P6). Until then the flag stays `false` with no probe; a probe should be added with 25e-5.
+- **F-25e-3 Familiarity is printed by no read-only command.** Only level crossings are (`relationship-changed`), so a
+  world without group activities cannot see familiarity decay at all. A small read-only report would be its own PR
+  (not designed here, INV-S25-5).
+- **AC-25e** Chinese plain-language sign-off of the new mirrors: the primary's.
+
