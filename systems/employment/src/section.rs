@@ -18,7 +18,8 @@ use crate::error::EmploymentError;
 use crate::event::Hired;
 use crate::system::EmploymentSystem;
 
-/// The section as authored:
+/// This person's job: who employs them, where, which hours each day, the wage, and what a shift
+/// produces for the employer.
 ///
 /// ```yaml
 /// job:
@@ -32,8 +33,12 @@ use crate::system::EmploymentSystem;
 ///
 /// A shift that does not end after it starts is refused as the section is decoded, with the
 /// section's line and column.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "RawJob")]
+#[schemars(with = "RawJob", example = serde_json::json!({
+    "employer": "corner-shop-co", "workplace": "shop", "from": "08:00", "until": "16:00",
+    "wage": 1200, "produces": { "bread": 4 }
+}))]
 pub struct AuthoredJob {
     employer: EntityKey,
     workplace: EntityKey,
@@ -44,15 +49,24 @@ pub struct AuthoredJob {
 }
 
 /// The fields as written, before the shift's order is checked.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct RawJob {
+    /// Who employs them: an organization key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     employer: EntityKey,
+    /// Where they work: a place key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     workplace: EntityKey,
+    /// When the shift begins, every day.
     from: TimeOfDay,
+    /// When the shift ends, the same day: after `from`.
     until: TimeOfDay,
+    /// The wage, in minor units per hour worked, paid by the employer.
     wage: u64,
+    /// What one full shift produces for the employer: an item key, then how many (at least 1).
     #[serde(default)]
+    #[schemars(with = "BTreeMap<mineworld_authoring::schema::Key, NonZeroU32>")]
     produces: BTreeMap<EntityKey, NonZeroU32>,
 }
 

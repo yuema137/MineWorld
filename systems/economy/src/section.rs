@@ -17,11 +17,12 @@ use crate::event::{Funded, ShopOpened};
 use crate::money::is_holder;
 use crate::system::EconomySystem;
 
-/// The section as authored:
+/// Money: what this person or organization has when the world begins, and, for an organization, the
+/// shop it runs.
 ///
 /// ```yaml
 /// economy:
-///   wallet: 20000                  # minor units, at genesis
+///   wallet: 20000                 # minor units, at genesis
 ///   shop:                          # an organization only: the shop it runs
 ///     at: cafe                     # a place key
 ///     prices: { coffee: 300 }      # item key → price in minor units, at least 1
@@ -29,19 +30,28 @@ use crate::system::EconomySystem;
 ///
 /// A pack owns one section, so a shop is authored on the organization that runs it (step-10 F-47,
 /// QS-43). Negative or fractional amounts are refused as they are decoded, at their line.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(
+    example =serde_json::json!({ "wallet": 2000, "shop": { "at": "shop", "prices": { "bread": 250 } } })
+)]
 pub struct AuthoredEconomy {
+    /// The money held when the world begins, in minor units (cents: 2000 is 20.00).
     wallet: u64,
+    /// The shop this holder runs. Only an organization runs one; on a person's file it is refused.
     #[serde(default)]
     shop: Option<AuthoredShop>,
 }
 
-/// A shop, as its operator authors it.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// A shop, as its operator authors it: where it is and what it sells, at what price.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthoredShop {
+    /// The place the shop is in: a place key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     at: EntityKey,
+    /// What it sells: an item key, then its price in minor units, at least 1.
+    #[schemars(with = "BTreeMap<mineworld_authoring::schema::Key, NonZeroU64>")]
     prices: BTreeMap<EntityKey, NonZeroU64>,
 }
 
