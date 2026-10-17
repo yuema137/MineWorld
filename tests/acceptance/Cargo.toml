@@ -30,6 +30,8 @@ mineworld-kernel = { workspace = true }
 # The arrival-resolver seam (step-11 §16, ARC-39): its synthetic resolvers are driven through the real
 # movement pack, and its SIGKILL-and-resume test writes a real save.
 mineworld-movement = { workspace = true }
+# The data seam (S30-b, ARC-121): a data-only Entity Pack passes the package check (AC-b-7).
+mineworld-packages = { workspace = true }
 mineworld-persistence = { workspace = true }
 mineworld-presence = { workspace = true }
 mineworld-rule-controller = { workspace = true }
