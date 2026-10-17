@@ -250,6 +250,11 @@ once) and `store/alice.decisions.jsonl`. Nothing in them was edited.
   request; measured that way, 15 of 289 sampled consults fell back on transport alone (7.6 % in all). The decision
   log is written as one file (rotation off) so the run is read back whole; with the 8 MiB rotation only the last
   289 of 1 101 records remained in the current file.
+- **D-P7-10 (bounded CI change).** On head `29058e27` (run 39009565380) the `python (windows-2025)` leg passed every
+  cognition test (372 passed, 1 xfailed, 38 min; the 100-day store test ≈ 11.7 min, the fallback bound ≈ 9.8 min) and
+  was then cancelled by its 45-minute limit before the agent library and `milestone_d` ran. The `python` job's
+  limit is now 75 minutes. Cheaper alternatives, for the primary: share one 100-day history between AC-10 and the
+  fallback bound (a session fixture), or run the two 100-day tests on Windows only nightly.
 - **D-P7-8 (bounded test design).** In the live test the visitor waits 2 s at the counter before speaking, because
   Alice's view can trail the visitor's (D-P6b-30); a reply is waited for in the decision log before a kill, because the
   log line follows the world's acceptance.
