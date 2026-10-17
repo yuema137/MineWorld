@@ -611,8 +611,11 @@ decides the bands (SD-S31-13).
   the attribute is not declared, and every wallet must be authored, as today.
 - **The attribute.** `economy` declares `economy.wealth-band` in its pack's `attributes/`:
   - group `background`;
-  - `kind: { categorical: { vocabulary: economy.wealth-bands } }`, the band ids of the world's
+  - `kind: { category: { vocabulary: economy.wealth-bands } }`, the band ids of the world's
     configuration;
+
+    *Note 2026-10-15 (S30-b C0, for S30-a's R-S31-a-2).* This line read `categorical`. S30's kind is named
+    `category` (`MODULE_SPEC.md` §4.1 "Attributes", `ARC-122`).
   - `visibility: private`;
   - `mutability: derived`;
   - `owner: economy`.
