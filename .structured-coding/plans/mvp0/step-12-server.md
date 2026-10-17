@@ -2552,6 +2552,73 @@ D-SB14 (bounded) IL-a (#80) landed with a structural test, tools/cli/tests/confi
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).
+D-SB12 note, 2026-10-15 — F-tick-1 (operator ruling amending D-SB12: "服务器加测'线程真正干活的时间'",
+      the server also measures the time the thread actually works). Branch fix/hosted-town-tick-flake
+      from origin/main 3a9b9ef.
+      Why. The ruled wall-clock p99 ≤ 50 ms kept failing on shared CI runners while the tick's work
+      was unchanged: F-12n-CI1 (57.3, 62.8 ms; step-11 §21.15), PR #206 (70.7 ms, max 238 ms),
+      PR #198 (189.6 ms, max 5 269 ms) — every one with a wall p50 of 0.3–0.6 ms, and each passing on
+      re-run. E-SB9 had already located every slow tick off-CPU (wall ≫ CPU). The p99 of ~1 200 wall
+      ticks is the twelfth-longest, so twelve preemptions decide it: a measure of the runner, not the
+      server.
+      Instrument chosen. Of the brief's options: CPU time per tick (chosen, for the tail), a robust
+      wall statistic (chosen, the median, for waits), work counts per tick (declined: the claim is
+      about time, and a count bound would need a per-system cost model nobody owns). A CPU-only bound
+      cannot see a tick that sleeps or blocks, so it alone would lose I-11; a wall median alone cannot
+      see a heavy tick in 1–50 % of ticks, so it alone would loosen the ruled tail. Together:
+      - server: TickTimes keeps a second fixed histogram of the world thread's own CPU time per tick
+        (TickStart; `cpu-time` crate, DEP-59). Shutdown line: `[world] ticks N, p50 A ms, p99 B ms,
+        longest tick M ms, cpu p50 C ms, cpu p99 D ms`. A CPU clock the OS refuses records the wall
+        time instead (an upper bound).
+      - CP-B4 (hosted_town.rs) and CA-13 (perceived.rs) assert, through tools/cli/tests/support/ticks.rs:
+        CPU p99 ≤ 50 ms and wall p50 ≤ 50 ms. Wall p99 and max are printed, advisory only.
+      - Accepted gap: an off-CPU wait in fewer than half the ticks (the journal's fsync per hosted
+        request, Durability::PowerLoss, on a slow disk) shows only in the advisory columns. E-SB9
+        measured a commit at ≤ 5.1 ms even beside eight fsync-heavy servers; a durability regression is
+        R-S11-5's to watch.
+      Records: ARC-42 note of 2026-10-15; DEP-59 (cpu-time vs our own unsafe over libc/windows-sys);
+      MODULE_SPEC §8.1's shutdown line. The stray `>` that ended DECISIONS.md (merge ca9a423) is gone.
+E-TK1 Unit (server/src/runtime/world.rs): the_p99_ignores_one_stall_in_a_hundred_and_not_two (kept,
+      both clocks); a_stall_off_cpu_is_wall_time_and_busy_work_is_cpu_time;
+      a_tick_records_its_own_threads_work (busy loop to 20 ms of thread clock counted; a 60 ms sleep
+      reads ≥ 60 ms wall and < 30 ms CPU). PASS, macOS.
+E-TK2 Under load (macOS, Apple silicon): hosted_town's test binary run 20 times while one
+      `cargo build --workspace --all-targets` ran from clean in a loop in its own target dir (13 hog
+      builds completed, all exit 0), with other lanes' work also on the machine. 20 / 20 PASS.
+      Load average (1-minute) before/after each run ranged 10.9 → 158.2; runs 11–12 at 113–158.
+      CPU p50 0.4–0.5 ms, CPU p99 1.7–3.7 ms; wall p50 0.4–0.5 ms; advisory wall p99 2.3–6.7 ms, max
+      6–195 ms (runs 11, 12, 13: 195, 171, 71 ms). Run 13 was cut by the session's background time limit
+      the first time and re-run whole (log kept as interrupted). This machine did not reproduce CI's
+      wall-p99 tail; the runs at loads above 100 show the wall maximum leaving the CPU column behind,
+      the decoupling the bound relies on.
+E-TK3 Planted mutations, each in server/src/runtime.rs `tick` just before the record, reverted after
+      (`grep MUTATION` clean, `git diff` shows only the change):
+      M-tick-sleep  sleep 60 ms every tick → FAIL by name: "the median tick took 64.7 ms of wall
+                    time, over 50 ms — cpu p50 0.4 ms, cpu p99 1.7 ms; wall p50 64.7 ms; advisory:
+                    wall p99 68.5 ms, max 85 ms". The CPU column did not move.
+      M-tick-burn   busy loop 60 ms every tick → FAIL by name: "the p99 tick's CPU time was 61.2 ms,
+                    over 50 ms — cpu p50 60.2 ms …".
+      M-tick-burn-tail  busy loop 60 ms in one tick in twenty → FAIL by name: "the p99 tick's CPU
+                    time was 60.9 ms, over 50 ms — cpu p50 0.3 ms, cpu p99 60.9 ms; wall p50 0.3 ms"
+                    — the tail a median alone would have passed.
+E-TK4 Merge of origin/main @ 5cbb469 (2026-10-17; branch head a53ad33, merge base 2d07c6c). One textual
+      conflict: docs/DECISIONS.md, where this branch's DEP-59 and main's ARC-105…108, ARC-98…101,
+      ARC-120…126 and ARC-110 were appended at the same place. Resolved by keeping every record, DEP-59
+      first, then main's, with a `---` rule between; check_decision_ids.py: 150 ids, all distinct.
+      Main did not touch Cargo.lock or scripts/baselines.txt since the merge base (cargo metadata
+      --locked and cargo fetch --locked pass); main's sharded .github/workflows/ci.yml (#224) taken
+      as-is, this branch does not edit it. On the merged tree: cargo fmt --check; clippy -D warnings on
+      mineworld-server and mineworld-cli clean; mineworld-server tests all ok; mineworld-cli --test
+      hosted_town (1 passed, 120.7 s) and --test perceived (3 passed, 1 ignored) PASS at load ~13.
+      CI on that head (937c5b9): every job passed except python (windows-2025), where
+      cognition/lm-controller's test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_
+      second_seat_and_leaves_on_stop failed with SeatLost. This branch changes no cognition code; the
+      same test file hangs or fails on Windows on main and on other PRs (main run 38809489941). Not a
+      finding against this fix.
+E-TK5 Second merge of origin/main @ 04d5145 (2026-10-17; S10 P6a #236, S30-b #247). No conflict;
+      cargo metadata --locked and cargo fetch --locked pass, cargo fmt --check clean, decision ids
+      distinct (151). No local test run (operator pause on heavy jobs); CI on the pushed head is the
+      gate.
 ```
 
 ---
