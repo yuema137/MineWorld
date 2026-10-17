@@ -622,8 +622,9 @@ No question remains open.
 | C2 `sdk` | `d8bdc4a0` | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
 | C3 `packages` | `ee0d2ea4` | [x] `check_entity_layout`: the three forbidden directories first, then "declares something" = a `.yaml` file directly in `items/` **or** in any other non-dot directory (sorted scan; helper `holds_a_yaml_file`); doc comment says the loader decides which directories are known; `EntityPackDeclaresNothing`'s message adds "or a .yaml file in a data directory an installed System Pack owns"; test `an_entity_pack_may_carry_data_directories_only` in `packages/tests/manifest.rs` (D-b-7) | [x] E-3 | [x] the forbidden three still refuse first (the test writes `people/` beside a valid `schemas/a.yaml` and is refused "item kinds only in MVP-0"); a dot directory never counts; the old message's needles ("declares nothing", "items/<key>.yaml") are kept |
 | C4 `worldpack` 4d | `6e6d0a59` | [x] `worldpack/src/data.rs` (new): `DataOwnerOps` (for `Capability` and test probes), `DataRoot`, the directory rule `check_directories`, `check_shipped`, `collect` (I-b-7), `contexts`, `read` (step 4d for a World Pack), `WORLD_DIRECTORIES`, `validate_entity_data`; in-crate tests `worldpack/src/data/tests.rs`; `read.rs`: step 4d in `read_with`, `WorldPack.contexts` and `context()`, module doc (4d, 10's context), the `DEP-10` comment (F-S30b-6); `content.rs`: `Contexts`, `ContentFile::new(kind, enabled, contexts)`, the section arm calls `decode_section_in`; `entities.rs`: `required_entity_packs`, `items/` optional, item files decoded with the contexts, `validate_entity_pack` checks data first; `format.rs`: `DecisionsFile::directory`; `error.rs`: `UnknownDirectory`, `DataNeedsASystem`, `DataRefused`, `ResolveRefused`; `worldpack/tests/data_directories.rs` (new) | [x] E-4; M-b-3, M-b-4 red → restored → green | [x] no `HashMap` (clippy's `disallowed-types` clean; every map a `BTreeMap`); contexts held as `Arc<dyn OwnerContext>`; only enabled owners' files are read, and shipped files into a non-enabled owner's directory are not collected (F-b-1); a world with no data owner runs the same reads plus one directory listing per root |
-| C5 `worldpack` 10b + genesis | this commit | [x] `worldpack/src/resolution.rs` (new, D-b-8): `Resolutions`, `subjects` (every file of the carried kinds in `sectioned_files` order, the owner's section or none; key, kind, tags only), `refused`, `resolve` (step 10b, `systems:` order); `read.rs`: `WorldPack.resolved`, step 10b between `check_sections` and `configure::check_references`, `resolved()`, `with_resolved` (tests), module doc 10b; `load.rs`: `own_vocabulary` (the check shared by sections and resolutions), `seeded_resolved`, `Seeder`, `in_composition_order` yields a resolving owner at its `systems:` rank and skips its sections, module doc; four in-crate tests | [x] E-5; M-b-5, M-b-6 red → restored → green | [x] with no resolution `in_composition_order` yields exactly the decoded sections in the rank order it always did, and `resolve` returns an empty map without calling any owner beyond `resolves()` (a `const`); the decisions golden and `social_cafe` pass unchanged |
-| C6 … C7 | — | [ ] | [ ] | [ ] |
+| C5 `worldpack` 10b + genesis | `b436c03b` | [x] `worldpack/src/resolution.rs` (new, D-b-8): `Resolutions`, `subjects` (every file of the carried kinds in `sectioned_files` order, the owner's section or none; key, kind, tags only), `refused`, `resolve` (step 10b, `systems:` order); `read.rs`: `WorldPack.resolved`, step 10b between `check_sections` and `configure::check_references`, `resolved()`, `with_resolved` (tests), module doc 10b; `load.rs`: `own_vocabulary` (the check shared by sections and resolutions), `seeded_resolved`, `Seeder`, `in_composition_order` yields a resolving owner at its `systems:` rank and skips its sections, module doc; four in-crate tests | [x] E-5; M-b-5, M-b-6 red → restored → green | [x] with no resolution `in_composition_order` yields exactly the decoded sections in the rank order it always did, and `resolve` returns an empty map without calling any owner beyond `resolves()` (a `const`); the decisions golden and `social_cafe` pass unchanged |
+| C6 checkpoint | this commit | [x] `tests/acceptance/tests/schema/mod.rs` (new): `test-schema` — `OwnsData` (`schemas/`), `PackConfiguration` (`{ default }`), `SectionInContext` (`schema:` checked key by key and value by value against the context, the value's refusal raised inside its own deserializer), `ResolvesSubjects` (fill with the default), `schema-stated` reduced into `SchemaValues`, `ships_data!("schemas/shipped.yaml")`; `tests/acceptance/schemas/shipped.yaml` (new, the shipped file); `tests/acceptance/tests/data_seam.rs` (new): AC-b-1, AC-b-2, AC-b-7 (package half), AC-b-8; `tests/acceptance/Cargo.toml`: dev-dependency `mineworld-packages` (D-b-9); `Cargo.lock` | [x] E-6; M-b-7 red → restored → green | [x] `test-schema` names no installed pack's vocabulary (its facts, component and directory are its own); the test calls only `serde_saphyr::with_deserializer_from_str` and the `SystemPack` items the loader calls, then `World::genesis` |
+| C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -681,6 +682,16 @@ the ~800 warning; recorded as F-b-2, not split in this PR (the split would move 
 `cargo test -p mineworld-cli --test decisions` (the `social-cafe-seed-7-30-days` golden among them): 7 passed, unchanged. Clippy
 `-p mineworld-worldpack --all-targets -D warnings`: clean; fmt: clean.
 
+**E-6 (C6).** `cargo test -p mineworld-acceptance --test data_seam`: 4 passed —
+`a_person_file_value_is_checked_at_its_own_line_against_a_data_declared_schema` (the refusal carries "'mood' is 1 … 9, not 12",
+"line 4" and "column 9", the value's own position in the file), `every_person_is_resolved_once_and_seeded_with_authored_or_default_values`
+(three people, one with no section; facts in key order; genesis reduces each into `SchemaValues`),
+`shipped_data_reaches_the_owner_first_naming_its_pack_and_path` (origin `test-schema` / `SystemPack` / `schemas/shipped.yaml`, then the
+world's file; the configured default reached the context; a duplicate field refused naming `schemas/body.yaml`),
+`an_entity_pack_of_data_only_passes_the_package_check`. `--test configuration_seam`: 4 passed (unchanged). `cargo clippy -p
+mineworld-acceptance --all-targets -- -D warnings`: clean; fmt: clean; `check_scratch.py scan`: 240 sources clean. `git diff --stat
+origin/main -- systems/ tests/acceptance/tests/configuration`: empty (AC-b-6).
+
 ### Mutations
 
 | Id | Planted | Test | Red | Restored (`cmp`) | Green |
@@ -692,6 +703,8 @@ the ~800 warning; recorded as F-b-2, not split in this PR (the split would move 
 
 | M-b-5 | `in_composition_order` ranks every resolution `usize::MAX` (after the file's sections) | `resolved_seeds_take_the_sections_places` | FAILED at `load.rs:991` (alice: probed, probed, resolved) | yes | ok |
 | M-b-6 | `seeded_resolved` skips `own_vocabulary` | `a_resolution_that_seeds_another_packs_fact_is_refused_by_name` | FAILED at `load.rs:1099` (presence's `arrived` accepted) | yes | ok |
+
+| M-b-7 | `test-schema`'s `decode` ignores the context and takes any integer map | `a_person_file_value_is_checked_at_its_own_line_against_a_data_declared_schema` | FAILED at `data_seam.rs:130` (`mood: 12` accepted) | yes | ok |
 
 (M-b-3 and M-b-4 were planted before `read_data` moved from `read.rs` into `data.rs`; neither `ordered` nor `check_directories`
 changed in the move, and the tests ran green after it.)
@@ -760,6 +773,9 @@ F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
   `read.rs` calls it at the step the design names. The unknown-key refusal is held by `authoring`'s
   `resolve_erased` (C1's test) and its report by `resolution::refused` (C5's test): the loader's `Capability`
   dispatch is closed, so a probe cannot be driven through `resolve` itself (A-14's precedent).
+- **D-b-9 (bounded; §9 C6 allowed it).** `tests/acceptance` gains the dev-dependency `mineworld-packages`
+  (AC-b-7's package half calls `check_entity_layout`); `ships_data!` needs its file in the crate's own directory,
+  so the shipped fixture is `tests/acceptance/schemas/shipped.yaml`.
 - **D-b-7 (bounded; test seam).** §7 places the `packages` test in `packages/src/manifest.rs`, which has no test
   module and no scratch directory; it is in `packages/tests/manifest.rs`, beside the existing Entity Pack layout
   test and its scratch helper.
