@@ -822,6 +822,9 @@ launch        plain launch and every mode exit 0; no script or resource errors
    `mineworld run`, which hosts no clients. Connected, you see the café's people and one
    `passerby` standing on the pavement west of the café, still for the 90 s measured. The town's
    other people are in places the slice does not draw and are never shown.
+   *2026-10-15 (S14 PR 16c, on S15 12d): played, `./mineworld-slice --world` hosts the town's paced
+   controllers (`mineworld server --town`, S11-B), so the town's people walk the street; the scripted
+   checks keep a still world. Evidence `step-15-demo-3d.md` §20.10 E16c-5.*
 2. **If people did walk, three of the town's doorways open onto blank walls in the slice.** Each
    place's doorway, as the world discloses it, lands in this scene at: café — on the café door;
    workplace — 0.30 m from a house door on the south side; apartments — the north frontage 3.40 m
@@ -829,8 +832,17 @@ launch        plain launch and every mode exit 0; no script or resource errors
    frontage 3.29 m east of Lakeside Deli's door. A person going home, shopping or to the park
    would vanish into a wall there. The Flower Room is not the world's store; the world has no
    florist.
+   *2026-10-15 (S14 PR 16c, on S15 12d): every doorway the world discloses now lands on a drawn door
+   (0.00 m each, `--world --layout` L-1), and The Flower Room is the world's store — whichever place's
+   doorway lands on its door; the apartments, the office and the park are behind closed drawn doors.
+   Evidence `step-15-demo-3d.md` §20.10 E16c-3.*
 3. **Figures move in steps**: a perceived person is redrawn where each observation puts them,
    with no walking animation between.
+   *2026-10-15 (S14 PR 16c): figures walk between observations at the speed the person was observed
+   to move, never faster than a jog, with the player's gait, and a person who leaves view walks into
+   the door they used (`--world --street` S-2, S-3). Connected, the street's four decorative
+   townspeople are no longer drawn: every figure is a person of the world (L-4). Evidence
+   `step-15-demo-3d.md` §20.10 E16c-4, E16c-5.*
 4. **(Preview-3 body, superseded by route D+ on 2026-10-07.)** That body was 1.748 m, not the
    1.750 m asked for. The route D+ body's stature is recorded in its own entry.
 5. **The idle is subtle by design**: on the route D+ body the largest idle movement is the strap

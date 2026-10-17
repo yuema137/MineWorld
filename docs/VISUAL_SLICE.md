@@ -142,7 +142,7 @@ Required, and nothing beyond it:
 | **planting** | at least: street trees, planters or window boxes with real foliage, and at least one climbing or trailing plant on a building |
 | **signage** | the café's own hanging sign and fascia, plus legible identification on at least two secondary façades |
 | **backdrop** | a distant element closing the view where the frontage ends: a hillside, a further townscape, water, or a treeline |
-| **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty |
+| **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty. *2026-10-15 (S14 PR 16c): standalone, these are the streetscape's townspeople, as accepted; connected, the figures are the world's people only, walking as the world moves them ("One world, two views" rule 1; `step-15-demo-3d.md` §20)* |
 
 **Explicitly out of scope:** a third enterable building, a town square, a market, vehicles in
 motion, weather, a day/night cycle, water simulation, crowds, and any building the player can see
