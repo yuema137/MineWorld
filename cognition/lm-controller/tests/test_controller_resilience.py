@@ -415,6 +415,9 @@ def test_a_the_world_stays_valid_under_thirty_percent_garbage_and_five_percent_f
             return alice, said
 
         alice, said = run(scenario(), timeout_s=300)
+        # AP6-3 is about the save the run left: the server stops before it is inspected, replayed and
+        # resumed (D-P6b-42). Inspected live, the server's own commits raced the inspection's two passes.
+        server.stop()
         records = _decisions(store)
         requests = [
             record.record.request for record in records if record.record.request is not None
