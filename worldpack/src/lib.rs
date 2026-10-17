@@ -74,6 +74,7 @@ pub mod format;
 pub mod load;
 pub mod read;
 mod requirements;
+mod resolution;
 
 pub use catalog::Capability;
 pub use entities::validate_entity_pack;

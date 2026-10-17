@@ -38,6 +38,9 @@
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
 //!    was read, by its owner's own type — in its owner's context when it has one (ARC-121); then
 //!    every entity a configuration names, the same way
+//! 10b every enabled owner that resolves across subjects (ARC-121), in `systems:` order, resolves once
+//!    over every file of the kinds its section is carried by — key, kind, tags and its section, never
+//!    a name, a note or a location; a seed for a key that is not a subject is refused
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -63,6 +66,7 @@ use crate::format::{
     AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, DecisionsFile,
     FoundConfiguration, FoundSection, SectionState, WorldManifest,
 };
+use crate::resolution::{self, Resolutions};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
@@ -109,6 +113,9 @@ pub struct WorldPack {
     decisions: Option<DecisionsFile>,
     /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
     contexts: Contexts,
+    /// Every enabled resolving owner's resolution (`ARC-121` item 3), held erased: what genesis seeds
+    /// in place of its sections.
+    resolved: Resolutions,
 }
 
 impl WorldPack {
@@ -207,7 +214,7 @@ impl WorldPack {
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
 
-        let pack = Self {
+        let mut pack = Self {
             root,
             id: manifest.world.id,
             name: manifest.world.name,
@@ -229,8 +236,10 @@ impl WorldPack {
             licence_policy,
             decisions: manifest.decisions,
             contexts,
+            resolved: Resolutions::new(),
         };
         check_sections(&pack)?;
+        pack.resolved = resolution::resolve(&pack)?;
         configure::check_references(&pack)?;
         Ok(pack)
     }
@@ -418,7 +427,21 @@ impl WorldPack {
             licence_policy: LicencePolicy::default(),
             decisions: None,
             contexts: Contexts::new(),
+            resolved: Resolutions::new(),
         }
+    }
+
+    /// The same in-memory pack, with probe resolutions (`crate::load`'s tests).
+    #[cfg(test)]
+    pub(crate) fn with_resolved(mut self, resolved: Resolutions) -> Self {
+        self.resolved = resolved;
+        self
+    }
+
+    /// Every resolving owner's resolution, by owner (`ARC-121` item 3): what genesis seeds in place of
+    /// the owner's sections. Empty in a world with no resolving owner.
+    pub(crate) fn resolved(&self) -> &Resolutions {
+        &self.resolved
     }
 
     /// The same in-memory pack, configured with probe configurations (`crate::configure`'s tests).
