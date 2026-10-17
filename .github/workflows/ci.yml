@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [fixed, before]
+        check: [fixed, fixed2]
     runs-on: windows-2025
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,11 +35,11 @@ jobs:
         shell: bash
         run: |
           pass=0; fail=0
-          for i in $(seq 1 20); do
-            if uv run --locked pytest "cognition/lm-controller/tests/test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins" -p no:cacheprovider -q -s > run.txt 2>&1; then
+          for i in $(seq 1 25); do
+            if timeout -k 10 300 uv run --locked pytest -o faulthandler_timeout=60 "cognition/lm-controller/tests/test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins" -p no:cacheprovider -q -s > run.txt 2>&1; then
               pass=$((pass+1)); echo "run $i PASS $(grep -E 'passed|failed' run.txt | tail -1)"
             else
-              fail=$((fail+1)); echo "run $i FAIL"; grep -E "Failed:|Error|\(b\):" run.txt | head -5
+              fail=$((fail+1)); echo "run $i FAIL"; cat run.txt
             fi
           done
           echo "SUMMARY ${{ matrix.check }}: pass=$pass fail=$fail"
