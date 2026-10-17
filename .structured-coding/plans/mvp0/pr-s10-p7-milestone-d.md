@@ -16,7 +16,7 @@ This document:          the commit-level plan the step does not give, written by
                         Where it must reconcile two binding documents it says so (§3) and follows the later ruling.
 Implementation base:    origin/main @ 5cbb4697 (P6b merged as #207; P6a not merged)
 Branch / worktree:      mvp0/pr-s10-p7, /Users/yuema137/mineworld-worktrees/impl-p7 (this session alone)
-Lifecycle:              READY FOR OPERATOR REVIEW (CI on the exact head: see the PR); Q-P7-1, -2, -3 open
+Lifecycle:              READY FOR OPERATOR REVIEW (CI on the exact head: see the PR); Q-P7-1 resolved; Q-P7-2 and Q-P7-3 ruled to follow-ups (P6c, FG-d)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-17-cognition.md`](step-17-cognition.md) · **Parent:** [`overall.md`](overall.md)
@@ -131,7 +131,7 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   `--time-scale`d run whose triggers go stale at a rate set by the scale rather than by the model. AP6-4 already holds
   the statistical bound (1 000 seeded consults, 30 % garbage, ≤ 5 %). Recommendation: accept the bound as AP6-4 plus
   the counters of the recorded Milestone D run (reported in §9), and run a `--time-scale` 100-day LM run as an
-  operator-run or nightly task under its own design. Until ruled, this criterion is **NOT RUN**.
+  operator-run or nightly task under its own design. **Ruled 2026-10-16 (§7.1): run from the scripted model; PASS, AP7-11.**
 - **Q-P7-2 (AP7-4's model clause, F-P7-5).** With the admitted local model (`qwen3.5:4b`, `structured_output =
   "none"`, `reasoning = "off"`), the recorded 3D reply is decided from a context that holds both 2D lines (asserted),
   but the model's words do not use them: *"Hello Vera. It's good to hear from you."*, `recalls: ["[#75]"]` (the 3D
@@ -157,6 +157,15 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   [`pr-p6c-fgd-memory-coherence.md`](pr-p6c-fgd-memory-coherence.md) (`consolidate`'s keepsakes); the `xfail` is
   removed there and the clause passes within the 20 MiB bound.
 
+### 7.1 Rulings, 2026-10-16 (primary session, under the operator's merge authority; relayed by the coordinator)
+
+| Question | Ruling | Done here |
+| --- | --- | --- |
+| Q-P7-1 | Run the 100-day bound from the scripted deterministic model on Alice's seat: free and reproducible | `tests/test_milestone_d_fallback.py` (AP7-11). A hosted `--time-scale`d run was tried first and starves (in-server controllers are paced in wall seconds, QTW-13: 11 consults in 100 days at one day per wall second), so the run replays Alice's real 100-day history through her consult engine. The garbage draw includes how often the request was asked, so a transport retry draws afresh (D-P7-9) |
+| Q-P7-2 | No paid recording. Follow-up **P6c** (another agent, stacked on this branch): the current speaker's earlier lines in a section of their own at the top of the memory view, and a prompt rule to use it. Until P6c lands the model clause stays printed, not asserted; then re-record with local qwen and assert it | unchanged: printed |
+| Q-P7-3 | A real defect against the operator's memory principle. Follow-up **FG-d** (same follow-up agent): conversational-partner salience in the default retention. Keep the strict xfail | unchanged: strict xfail |
+| D-P7-6, D-P7-7 (prompt wording in P6b) | Accepted for now; on the milestone review list | — |
+
 ## 8. Risks
 
 | Id | Risk | Mitigation |
@@ -174,7 +183,8 @@ Each commit tracks implementation, deterministic validation and LLM logic review
 | C2 | c1913cf7 | [x] | [x] replay 3 passed, IC-6 mutation red | [x] no provider term in the log (scan), key unchanged by binding |
 | C3 | 86df2324, db6389cf | [x] | [x] Python half PASS, mutation red; Rust half: CI `removability` | [x] edits only the directory and the member line |
 | C4 | f1dbad32 | [x] | [x] 1 passed, 1 xfailed (strict) | [x] bound from the resolved retention, not a literal |
-| C5 | this commit | [x] | [x] doc checks PASS | [x] review package states both measured gaps |
+| C5 | f9c1f39e | [x] | [x] doc checks PASS | [x] review package states both measured gaps |
+| C6 | this commit | [x] AP7-11, the 100-day fallback bound (Q-P7-1 ruling) | [x] 1 passed 40.6 s; mutation red | [x] every input seeded; the bound counts the whole consult path, not garbage alone |
 
 Commit mapping: the `removability` layer of `scripts/ci_layer.py` landed in C1's commit beside the `python` layer
 line (one file); it belongs to C3. C3's Rust half (`cargo test --workspace` without the directory) is evidenced by
@@ -194,7 +204,7 @@ All local runs on macOS (arm64), 2026-10-15, base `5cbb4697` plus this branch's 
 | AP7-7 (IC-6) | **PASS**, mutation red | two bindings (`local`/`qwen3.5:4b` at loopback, `elsewhere`/`another-model-entirely` at `models.example.invalid`): 0 mismatches each, `worlds/` untouched. Mutation (the bound model's name appended to the key): `CassetteMiss … was never recorded`, reverted |
 | AP7-8 (IC-7) | **PASS (Python half) / CI (Rust half)**, mutation red | `CARGO_TARGET_DIR=target python3 scripts/ci_removability.py --python-only`: 2 450 files copied without the directory, member line removed, `uv sync` 0, SDK 106 passed, agent 98 passed. Mutation (`import mineworld_cognition` in the SDK's `__init__`): `ModuleNotFoundError`, exit 4, reverted. `cargo test --workspace` in the copy: the `removability` CI job |
 | AP7-10 | **PASS (bound) / FAIL (citation, Q-P7-3, strict xfail)** | `pytest -s tests/test_milestone_d_100_days.py`: 1 passed, 1 xfailed, 39.9 s; `run` to day 100 24.0 s; 124 066 facts absorbed; 787 316 B ≤ 20 971 520 B; `line_cited: false`, `reply_cited: false` |
-| Q-P7-1 | **NOT RUN** | held for the operator |
+| AP7-11 (Q-P7-1, R-P7-P6-2) | **PASS**, mutation red | `pytest -s tests/test_milestone_d_fallback.py`: 1 passed, 40.6 s. Alice's 100-day history (seed 7, 3 303 lines said to her, one in 3), 1 101 consults through the consult engine with `remembers` behind seeded 5 % transport and 30 % garbage per attempt: 1 021 acted, 64 chose nothing, **16 fell back (1.4 %)**, all `content`; 374 invalid answers, 94 content and 9 transport retries. Mutation (content layer `attempts` 3 → 1): 280 of 1 101 fell back (25.4 %), red, reverted |
 | F-P7-3 regression | **PASS**, mutation red | `test_a_restarted_process_does_not_answer_again_a_line_its_store_already_held`; with `detect` over every redelivered fact: `['2', '2', '3'] != ['2', '3']`, reverted |
 | Touched P6 tests | **PASS** | `test_controller_{choice,seat,log,consult,parts,server,resilience}.py`, `test_provider_scan.py`, `test_milestone_d_replay.py`: 71 passed (69.9 s); ruff check and format, pyright strict: 0 errors; `cargo fmt --check`, `cargo clippy -p mineworld-cli --test milestone_d -D warnings`: clean |
 
@@ -241,6 +251,11 @@ once) and `store/alice.decisions.jsonl`. Nothing in them was edited.
   lines were added to the system message: when to use `say` and `attempt`, that a recall is a JSON string token, one
   example object, and "answer them as yourself, using what you remember of them, and cite the memories you used".
   After them every recorded consult parsed. The layout of §5.2.4 is unchanged.
+- **D-P7-9 (bounded test design, AP7-11).** The bound's model draws by (seed, request, occurrence). A draw by the
+  request alone (`garbage.py`'s, used by AP6-3) fails a transport retry every time, since a retry re-sends the same
+  request; measured that way, 15 of 289 sampled consults fell back on transport alone (7.6 % in all). The decision
+  log is written as one file (rotation off) so the run is read back whole; with the 8 MiB rotation only the last
+  289 of 1 101 records remained in the current file.
 - **D-P7-8 (bounded test design).** In the live test the visitor waits 2 s at the counter before speaking, because
   Alice's view can trail the visitor's (D-P6b-30); a reply is waited for in the decision log before a kill, because the
   log line follows the world's acceptance.

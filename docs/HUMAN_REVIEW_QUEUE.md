@@ -18,7 +18,7 @@ here does not block anything else.
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
-| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2, Q-P7-3)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
+| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2 → P6c, Q-P7-3 → FG-d)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
 | **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
@@ -1115,7 +1115,8 @@ Known limits, measured (`pr-s10-p7-milestone-d.md` §7):
   line just said. Her 2D reply does mention the umbrella.
 - **After 100 days the 2D lines are no longer cited (Q-P7-3).** Her store stays small (787 KB of 20 MiB),
   but the default forgetting policy no longer cites the umbrella conversation at day 100.
-- The 100-day fallback bound (R-P7-P6-2) waits for your ruling Q-P7-1.
+- The 100-day fallback bound holds: over Alice's 100-day history with a scripted model returning 30 %
+  garbage, 16 of 1 101 consults fell back (1.4 %, bound 5 %).
 - Alice's persona (P6a) is not merged, so she speaks with her name only; while the model holds her seat
   she does not walk her routine (QP6-3).
 
