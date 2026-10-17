@@ -353,14 +353,25 @@ func _glide_step(delta: float) -> void:
 	if _glide_time <= 0.0:
 		return
 	var frac := minf(delta / _glide_time, 1.0)
-	var step := _glide_left * frac
-	global_position += step
-	_glide_left -= step
+	# moved like any motion of the body, so it stops at what is drawn in its way --
+	# a pushed box still drawn on its way out, say -- instead of passing through it;
+	# what it could not move this frame is carried to the next (step-11 §22.15
+	# X12e-24: added on top of the input's own slide, the glide pushed the body
+	# 6.6 mm into a box)
+	_glide_left -= _glide_move(_glide_left * frac)
 	_glide_time -= delta
 	if _glide_time <= 0.0:
-		global_position += _glide_left
+		_glide_move(_glide_left)
 		_glide_left = Vector3.ZERO
 		_glide_time = 0.0
+
+
+## Moves the body by `step` unless something drawn is in the way; returns how far it moved.
+func _glide_move(step: Vector3) -> Vector3:
+	if step.length() < 0.00001:
+		return Vector3.ZERO
+	var hit := move_and_collide(step)
+	return step if hit == null else step - hit.get_remainder()
 
 
 ## Used by the screenshot runner to place the player deterministically.

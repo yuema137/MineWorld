@@ -98,15 +98,17 @@ func _physics_process(delta: float) -> void:
 			if link.objects.shape_of(id) != "box":
 				continue
 			var b: Node3D = link.objects.nodes[id]
-			var half: Vector3 = ((b.get_child(0) as CollisionShape3D).shape as BoxShape3D).size * 0.5
+			# the box's half extents as disclosed, never read from the collider under test
+			var half := _disclosed_half(link, id)
 			var rel := player.global_position - b.global_position
 			var dx := maxf(absf(rel.x) - half.x, 0.0)
 			var dz := maxf(absf(rel.z) - half.z, 0.0)
 			var o := CAPSULE_R - Vector2(dx, dz).length()
 			if o > 0.005 and o > _box_overlap:
-				print("B-c      overlap %.1f mm at %.2f s: gliding %s, box moving %s, input velocity %s"
+				print("B-c      overlap %.1f mm at %.2f s: gliding %s, box moving %s, input velocity %s; body %s, box %s, half %s"
 					% [o * 1000.0, Time.get_ticks_msec() / 1000.0, player.gliding(), link.objects.moving(id),
-					player.velocity])
+					player.velocity, player.global_position, b.global_position, half])
+				print("B-c      at that moment the server states %s" % _server_box_gap(link, id))
 			_box_overlap = maxf(_box_overlap, o)
 
 
@@ -267,6 +269,35 @@ func _press_into(toward: Vector3, secs: float) -> void:
 static func _server_at(link: SliceLink) -> Vector2:
 	var l: Variant = link.client.latest.self_location().get("local")
 	return Vector2(float(l["x"]), float(l["y"])) if typeof(l) == TYPE_DICTIONARY else Vector2.INF
+
+
+## A listed box's half extents (x east, y up, z south in the scene), metres, as disclosed.
+func _disclosed_half(link: SliceLink, box: String) -> Vector3:
+	var listing: Variant = link.client.latest.component_value(link.here, "loose-objects")
+	if typeof(listing) == TYPE_ARRAY:
+		for e in listing:
+			if SliceObjects.id_of(e.get("object")) == box:
+				var h: Dictionary = e["shape"].get("box", {})
+				return Vector3(float(h.get("x", 0)), float(h.get("z", 0)), float(h.get("y", 0))) / 1000.0
+	return Vector3.ZERO
+
+
+## How far the server's own player stands from the server's own box, from the latest
+## observation alone: "{gap} mm (player p, box b)".
+func _server_box_gap(link: SliceLink, box: String) -> String:
+	var me := _server_at(link)
+	var listing: Variant = link.client.latest.component_value(link.here, "loose-objects")
+	if typeof(listing) != TYPE_ARRAY:
+		return "no listing"
+	for e in listing:
+		if SliceObjects.id_of(e.get("object")) == box:
+			var at: Dictionary = e["at"]
+			var half: Dictionary = e["shape"].get("box", {})
+			var dx := maxf(absf(me.x - float(at["x"])) - float(half.get("x", 0)), 0.0)
+			var dy := maxf(absf(me.y - float(at["y"])) - float(half.get("y", 0)), 0.0)
+			return "%.1f mm from the box's faces (player %s, box (%s, %s))" % [Vector2(dx, dy).length(), me,
+				at["x"], at["y"]]
+	return "no box"
 
 
 func _corrections(link: SliceLink, since: int) -> Array:
@@ -456,7 +487,7 @@ func _b_box(link: SliceLink, cafe: String) -> void:
 	# the separation the server itself states, from the observation alone
 	var me := _server_at(link)
 	var bm := link.to_world(cafe, at1)
-	var half: Vector3 = ((link.objects.nodes[box].get_child(0) as CollisionShape3D).shape as BoxShape3D).size * 500.0
+	var half: Vector3 = _disclosed_half(link, box) * 1000.0
 	var sdx := maxf(absf(me.x - float(bm["x"])) - half.x, 0.0)
 	var sdy := maxf(absf(me.y - float(bm["y"])) - half.z, 0.0)
 	print("B-c      the server states the player %s and the box at %s: %.1f mm from its faces (the capsule's radius is %d mm)"

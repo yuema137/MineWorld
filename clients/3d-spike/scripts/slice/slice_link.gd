@@ -283,6 +283,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		return
 	bodies.observe(obs, layout, world_root)
 	objects.observe(obs)
+	_stopped(obs)
 
 	# The server is the authority on where the body is. On the first view the
 	# body goes where the world says it is; after that, the correction rule
@@ -304,8 +305,9 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			var c: Dictionary = correction.history[correction.history.size() - 1]
 			var snapped := player.correct_to(to_scene(place, me))
 			c["snap"] = snapped
-			print("[link] corrected %.3f m (%s, %s form) to %s in %s" % [c["size"],
-				"snap" if snapped else "glide", c["form"], JSON.stringify(me), place])
+			print("[link] corrected %.3f m (%s, %s form) to %s in %s; the request it reflects (%s) reported %s, the body was drawn at %s"
+				% [c["size"], "snap" if snapped else "glide", c["form"], JSON.stringify(me), place,
+				_tokens_kind(String(c["acted"])), c["reference"], c["from"]])
 
 	var seen := {}
 	for id in obs.ids():
@@ -453,6 +455,29 @@ func _on_submitted(token: String, request: Dictionary) -> void:
 		if typeof(at.get("place")) == TYPE_DICTIONARY:
 			place = String(at["place"].get("entity", ""))
 	correction.sent(token, point, place, String(request.get("action_type", "")) == MOVE_ACTION)
+
+
+## The facts that stopped this body short (presence's `stopped-short`), for the log: what the
+## stride asked for, where it ended and what was in the way -- a person's id, or nothing for a wall
+## or a solid. The log's answer to "why was I corrected".
+func _stopped(obs: MineWorldObservation) -> void:
+	for e in obs.events_of("stopped-short"):
+		var p: Variant = e.get("payload", {}).get("payload") if typeof(e.get("payload")) == TYPE_DICTIONARY else null
+		if typeof(p) != TYPE_DICTIONARY or SliceObjects.id_of(p.get("person")) != obs.observer():
+			continue
+		var by: Variant = p.get("by")
+		print("[link] stopped short: wanted %s, reached %s, by %s" % [
+			JSON.stringify((p.get("wanted", {}) as Dictionary).get("local")),
+			JSON.stringify((p.get("reached", {}) as Dictionary).get("local")),
+			"a wall or a solid" if by == null else display_label(SliceObjects.id_of(by))])
+
+
+## What kind of request an ActionId was, for the log ("move", "talk", …, or "?").
+func _tokens_kind(action_id: String) -> String:
+	for a in answers:
+		if String(a.get("action_id", "")) == action_id and action_id != "":
+			return "%s %s" % [a["action"], action_id]
+	return "? %s" % action_id
 
 
 ## A world position `{x, y}` as millimetres on the floor.

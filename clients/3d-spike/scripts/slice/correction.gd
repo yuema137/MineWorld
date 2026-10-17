@@ -119,8 +119,10 @@ func observe(place: String, auth: Vector2, drawn: Vector2, acted: Variant) -> Ve
 	var form := "heuristic"
 	var differs := false
 	var ref: Variant = _by_action.get(key)
+	var compared := baseline
 	if ref != null and String(ref["place"]) == place:
 		form = "exact"
+		compared = ref["point"]
 		differs = auth.distance_to(ref["point"]) > CORRECTION_MM
 	else:
 		differs = baseline_place != place or auth.distance_to(baseline) > CORRECTION_MM
@@ -144,7 +146,7 @@ func observe(place: String, auth: Vector2, drawn: Vector2, acted: Variant) -> Ve
 	if drawn.distance_to(auth) <= CORRECTION_MM:
 		return Vector2.INF
 	history.append({"at": Time.get_ticks_msec() / 1000.0, "size": drawn.distance_to(auth) / 1000.0,
-		"from": drawn, "to": auth, "place": place, "form": form})
+		"from": drawn, "to": auth, "place": place, "form": form, "reference": compared, "acted": key})
 	suspended = true
 	_need_observation = false
 	_waiting = {}
