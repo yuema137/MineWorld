@@ -339,6 +339,7 @@ func _b_nudge(link: SliceLink, cafe: String) -> void:
 	await _hold(1.0)
 	var before := _p_at(w)
 	var c0 := link.correction.history.size()
+	var pressed0 := link.press_reports
 	await _walk_to(_cafe(link, Vector2(1610, OPEN_FLOOR.y)), 8.0)
 	await _walk_to(_cafe(link, Vector2(OPEN_FLOOR.x - 1200, OPEN_FLOOR.y)), 6.0)
 	_phase = "a"
@@ -368,10 +369,13 @@ func _b_nudge(link: SliceLink, cafe: String) -> void:
 			"no person collider: wanderer moved %.0f mm by the server's answer; %d corrections; body - observed %.0f mm; requests %s"
 			% [before.distance_to(after), cs.size(), gap, kinds.keys()])
 		return
+	# tightened after M-E5 survived the plan's 10 mm alone (§22.15 X12e-18): the nudge must come from
+	# a reported wish, not from strides that only reach contact
+	var pressed := link.press_reports - pressed0
 	_verdict_b("B-a", ok and before.distance_to(after) > 10.0 and float(sep[0]) >= 2 * CAPSULE_R - TOUCH_SLACK
-		and drawn_gap <= DRAWN_MM and cs.size() <= 1,
-		"wanderer moved %.0f mm (%s -> %s); smallest drawn separation %.3f m (%s); drawn - observed %.1f mm; %d corrections"
-		% [before.distance_to(after), before, after, sep[0], sep[1], drawn_gap, cs.size()])
+		and drawn_gap <= DRAWN_MM and cs.size() <= 1 and pressed >= 1,
+		"wanderer moved %.0f mm (%s -> %s); smallest drawn separation %.3f m (%s); drawn - observed %.1f mm; %d corrections; %d wished strides reported"
+		% [before.distance_to(after), before, after, sep[0], sep[1], drawn_gap, cs.size(), pressed])
 	await _c4_still(link, cs, "B-a")
 
 
@@ -833,6 +837,12 @@ func _rules_check() -> void:
 	await _walk_to(_cafe(link, Vector2(LANE_X, 4000)), 8.0)
 	await _walk_to(_cafe(link, Vector2(2600, 5000)), 8.0)
 	if ball != "":
+		# from 2 m first: out of reach, not offered, still sent (tightened after M-E6 survived X-1,
+		# §22.15 X12e-19)
+		await _walk_to(_cafe(link, Vector2(2600, 3600)), 8.0)
+		await _aim_at(_listed_at(link, ball))
+		print("ANSWER kick from 2 m: %s" % _code(await _answer_of(link, link.kick_facing())))
+		await _walk_to(_cafe(link, Vector2(2600, 5000)), 8.0)
 		await _aim_at(_listed_at(link, ball))
 		print("ANSWER kick: %s" % _code(await _answer_of(link, link.kick_facing())))
 		await _hold(1.5)
@@ -840,6 +850,10 @@ func _rules_check() -> void:
 		link.throw_press()
 		print("ANSWER throw: %s" % _code(await _answer_of(link, link.throw_press())))
 	elif given != "":
+		await _walk_to(_cafe(link, Vector2(2600, 3600)), 8.0)
+		print("ANSWER kick from 2 m: %s" % _code(await _answer_of(link, link.intents.kick(link.client,
+			JSON.parse_string(given), link._here_location()))))
+		await _walk_to(_cafe(link, Vector2(2600, 5000)), 8.0)
 		print("ANSWER kick: %s" % _code(await _answer_of(link, link.intents.kick(link.client, JSON.parse_string(given),
 			link._here_location()))))
 		print("ANSWER throw: %s" % _code(await _answer_of(link, link.intents.throw(link.client, JSON.parse_string(given), null,

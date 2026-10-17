@@ -97,6 +97,8 @@ var objects: SliceObjects
 ## When the drawn body must take the server's position (SD-E8, ARC-50). No
 ## other code moves the body to a server position (I-S14-4).
 var correction := SliceCorrection.new()
+## How many reports carried the wished stride (press-through), for the log and the probe.
+var press_reports := 0
 var _unknown_said := false
 ## EntityId string -> the label last shown for it, so someone heard after they
 ## have left view is still named as they were seen
@@ -427,6 +429,7 @@ func report_position(place := "") -> String:
 	_since = 0.0
 	if player.press_dir != Vector3.ZERO:
 		p = player.intended_point()
+		press_reports += 1
 		print("[link] pressing into someone or something: reporting the wished stride, %.2f m past the body"
 			% Vector2(p.x - player.global_position.x, p.z - player.global_position.z).length())
 	player.reported()
