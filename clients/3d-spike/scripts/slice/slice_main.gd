@@ -61,6 +61,9 @@ func _ready() -> void:
 	_sun()
 	world = SliceWorld.build(self)
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	_spawn_player()
 	_hud()
