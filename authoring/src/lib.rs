@@ -16,6 +16,11 @@
 //! [`PackConfiguration`] for `configure/<id>.yaml`, which is about no entity, and the loader holds it as
 //! [`AuthoredConfiguration`] until the world it seeds exists.
 //!
+//! And a pack may own **data** (`ARC-121`): directories of World and Entity Packs whose files it decodes
+//! into one context ([`OwnsData`]), a section decoded in that context ([`SectionInContext`]), one
+//! resolution across every subject before seeding ([`ResolvesSubjects`]), and files it ships compiled in
+//! ([`ShippedData`]). The loader holds each type erased, as it holds a section.
+//!
 //! # Why a crate of its own
 //!
 //! The kernel and the contracts know nothing about authored files, and a System Pack cannot depend on
@@ -29,6 +34,7 @@ mod attachment;
 mod classes;
 mod configuration;
 mod content;
+mod data;
 pub mod schema;
 mod section;
 
@@ -43,4 +49,9 @@ pub use configuration::{
     EntryAt, PackConfiguration,
 };
 pub use content::{AuthoredContent, Decode};
+pub use data::{
+    DataDirectory, DataOrigin, DataRefusal, DataSource, DecodeIn, ErasedSubject, OwnerContext,
+    OwnsData, ResolveRefusal, ResolvedSeeds, ResolvesSubjects, SectionInContext, ShippedData,
+    Subject, data_context, decode_data_file, resolve_erased,
+};
 pub use section::{AuthoredSection, ContentKind, Reference, SectionName, Seeding};

@@ -9,6 +9,11 @@ routine:
   - { from: "11:00", place: workplace, label: work }
   - { from: "18:00", place: apartments, label: home }
 
+persona:
+  summary: Works across the street from the café and knows its menu by heart. Precise, and busy.
+  traits: [precise, busy]
+  speech: Crisp, efficient sentences.
+
 tags:
   - commuter
 

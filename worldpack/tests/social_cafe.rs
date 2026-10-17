@@ -73,6 +73,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::Relationships,
             Capability::Naming,
             Capability::Schedule,
+            Capability::Persona,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -217,10 +218,10 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        53,
+        62,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
-         routine implies (ARC-32)",
+         routine implies (ARC-32), then the nine authored personas (ARC-74)",
     );
 }
 
@@ -336,8 +337,9 @@ fn every_person_is_named_by_the_owner_of_the_name_section_after_everything_else(
 
 #[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming` and `schedule` and without their sections (a world that does not
-    // enable a section's owner refuses the section): the first seventeen genesis facts must be the same
+    // The same pack without `naming`, `schedule` and `persona` and without their sections (a world
+    // that does not enable a section's owner refuses the section): the first seventeen genesis facts
+    // must be the same
     // bytes with or without sections — passages and arrivals keep their event ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
     for directory in ["people", "places"] {
@@ -351,6 +353,10 @@ fn sections_do_not_move_the_facts_stated_before_them() {
                     !line.starts_with("name:")
                         && !line.starts_with("routine:")
                         && !line.starts_with("  - { from:")
+                        && !line.starts_with("persona:")
+                        && !line.starts_with("  summary:")
+                        && !line.starts_with("  traits:")
+                        && !line.starts_with("  speech:")
                 })
                 .collect();
             std::fs::write(
@@ -365,7 +371,8 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         root.join("world.yaml"),
         manifest
             .replace("  - naming\n", "")
-            .replace("  - schedule\n", ""),
+            .replace("  - schedule\n", "")
+            .replace("  - persona\n", ""),
     )
     .expect("writable");
 

@@ -8656,6 +8656,8 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 
 **Consequences.** The seam names no domain; its first user is `attributes` (S30-c), and an Entity Pack's taxonomies are a plausible second, which is why it belongs in `mineworld-authoring`. Every reference world reads, loads and runs byte-identically (I-S30-10). The seam's contexts are not facts, so S30-c adds a resume-time check that a world's data has not drifted from its save's (S30-b R-S30c-b-2). Root files of a data pack (a backend's `backend.yaml`) and tooling directories inside one are not covered by item 1; S30-e and S30-h fix how they are carried, as dated notes here (S30-a F-S30a-9). A divergence S30-b finds between this text and the code is corrected in one of them, never left (S30-b R-S30a-b-1).
 
+*Note 2026-10-16 (S30-b, implemented; R-S30a-b-1).* Item 4 is refined as built: a shipped file is collected only when the world enables its directory's owner as well as the shipping pack; one shipped into a directory whose installed owner is not enabled is neither collected nor refused, and one shipped into a directory no installed pack owns is refused (`UnknownDirectory`). The `SystemPack` item behind item 3 is `resolve_subjects`, not `resolve`, which every `System` already has ([`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1, corrected 2026-10-16). Design: `pr-s30b-authoring-seam.md` F-b-1, D-b-6.
+
 **Revisit** when a second owner of data directories appears, or when Tier-1 packs (`ARC-8`) need data contributions without a rebuild.
 
 ---
@@ -8921,3 +8923,24 @@ Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall,
 - **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
 - **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
 - **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
+
+---
+
+## ARC-74 — The `persona` System Pack: a person's authored character, which shapes speech and is disclosed to the person alone
+
+**Date** 2026-10-14 · **Status** accepted (design, S10 P6 revision 2, §5.14); implemented by P6a · **Approved by** the operator (QP6-1, QP6-2, 2026-10-14) and the primary session of S10 P6 · **Relates to** `ARC-28` (point 6, self-only disclosure), `ARC-31` (a System Pack owns a section of an authored file), `ARC-33` (the installed set), `ARC-72` (the LM controller's composition), `CORE_CONCEPTS.md` §4.2 (personality is a trait) · **Design** `pr-s10-p6-lm-controller.md` §§5.14, 6 (I-P6-1), 8 (AP6a-1 … AP6a-3)
+
+**Problem.** A person has a name (`naming`) and a routine (`schedule`), but nothing in the world says what they are like. A controller that speaks for a person has no source of character to speak from. `note` is authoring provenance, "never gameplay state" (`MODULE_SPEC.md` §4.1), and no System reads it, so it cannot carry one. Putting the character in the operator's cognition configuration would make it a property of one operator's machine, not of the world.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) A System Pack that owns a `persona:` section of the person's file, and a `Persona` component disclosed to its holder only | **Chosen** |
+| (b) The operator's cognition configuration (`cognition.toml`) | Declined: a person's character is world content. It would be lost when the world moved to another operator, and a world without a controller would have no character at all |
+| (c) `note:` | Declined: `note` is authoring provenance and is never read as state. Making it state would mean a System reading prose it does not own |
+
+**Choice.** Option (a). The character is world content, so it is authored in a person's file and owned by a System, as `CORE_CONCEPTS.md` §4.2 places personality among traits. The pack has no action, no process and no reaction. Its `Persona` component is disclosed through `PerceptionProvider::discloses` to its holder and to nobody else, as `ARC-28` point 6 discloses relationships. It shapes speech only (`R-S10-9`): it grants no ability, moves nobody, and a rule controller ignores it.
+
+**Consequences.** Any world that enables `persona` gets a genesis fact per authored person, private to that person (`Visibility::Entities({holder})`), so its save bytes change; the baseline rules of `scripts/baselines.txt` apply to such a world. A World Pack author may write a character in any person's file without changing a rule, and a world without any `persona:` section is unchanged. A controller that wants to use the character reads it through the holder's own observation; no other observer sees it.
+
