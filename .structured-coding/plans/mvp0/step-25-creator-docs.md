@@ -1082,6 +1082,21 @@ Commit plan:
   comments (then regenerate the reference), each green in the guide test; [ ] review of each fix: it fixes the
   class, not the one sentence the agent tripped on. Stop at AC-25f-5 or after 5 rounds.
 
+**Progress (PR 25f, implementing session 2026-10-16/17, Opus-class by the primary's dispatch):** marked against the
+ledger, §20. C0–C4 landed as one commit (the protocol, the tools and their tests are one reviewable unit; D-25f-1).
+
+- **C0** [x] `tools/onboarding/PROTOCOL.md`; agent CLI flags verified (§20.1). [x] doc checks (E-5). [x] Review:
+  INV-S25-7 is enforced by H2's flags plus the audit's void rule; H1 not built (D-25f-2).
+- **C1** [x] `assemble.py` (E-1). [x] AC-25f-3 test; ruff, pyright strict (E-1, E-4). [x] Review: no repository path
+  in the sandbox (`leaks`, tested).
+- **C2** [x] `score.py`, `rubrics/ON-{1,2,3}.toml`, the ON-1 fixture (validated by the binary) (E-1). [x] AC-25f-1 as
+  far as this build allows (D-25f-3). [x] Review: every check reads the binary's output or the pack's files.
+- **C3** [x] `audit.py`, `guess_phrases.txt` (E-1). [x] AC-25f-2 (E-1). [x] Review: relative paths, `cd`, `~`,
+  symbolic links and linked folders covered by tests.
+- **C4** [x] `run.py`, `fake_agent.py` (E-1). [x] AC-25f-4; the scripted dry run (E-1). [x] Review: every `*_API_KEY`
+  removed from the agent's environment; no credential read or written.
+- **C5** Rounds 1 and 2 (§20.3). AC-25f-5 is not reachable on this stack: S5 and S6 are product gaps (F-S25-5).
+
 ### 10.4 MVP-0 placement
 
 S25 is part of MVP-0 and lands **before step-23's publishing PR R-d**, so the first public release carries a guide
@@ -1414,4 +1429,82 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   world without group activities cannot see familiarity decay at all. A small read-only report would be its own PR
   (not designed here, INV-S25-5).
 - **AC-25e** Chinese plain-language sign-off of the new mirrors: the primary's.
+
+---
+
+## 20. Evidence ledger — PR 25f (`mvp0/pr-25f`)
+
+Recorded by the implementing session (Opus-class, dispatched by the primary, 2026-10-16/17). Worktree
+`/Users/yuema137/mineworld-worktrees/impl-25f`, branch `mvp0/pr-25f`, stacked on `origin/mvp0/pr-25e @ 65000c39`. The
+stack has DL-a, DL-b and FG-a; it has neither WE-a (happenings) nor P6 (`lm`) (§19.1).
+
+### 20.1 The agent CLI, verified (C0)
+
+Claude Code 2.1.302, `claude --help` read 2026-10-16. Used: `-p`, `--model`, `--safe-mode`, `--strict-mcp-config`,
+`--setting-sources ""`, `--tools`, `--disallowedTools`, `--permission-mode bypassPermissions`,
+`--no-session-persistence`, `--output-format stream-json --verbose`, `--max-budget-usd` (listed) and `--max-turns`
+(accepted, not listed; a probe run with it completed, `num_turns: 1`). A probe agent started this way reported no
+CLAUDE.md, memory or MCP content in its context. Authentication is the operator's own login; `run.py` removes every
+`*_API_KEY` variable, so no key is used. `--bare` was rejected: it reads only `ANTHROPIC_API_KEY`, which would mean a
+paid key.
+
+### 20.2 Evidence
+
+| Id | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| E-1 | `uv run --locked pytest tools/onboarding` | PASS (macOS, local) | `22 passed`: scorer on the ON-1 fixture and per-check mutations (S1, S2, S3 ×2, S4, S6); auditor void by absolute path, `..`, symbolic link, `~`, `cd ..`, `Grep /Users`, `WebFetch`; repeated refusal, gap, guess, stopped, status, unknown field; linked-folder spelling inside; assemble's exact allowed set, no mirror, no leak, refusal inside a repository; run.py refusals (no budget, budget above 5, no agent command, turns above 80, `CI` set); no API key in the agent's environment; the scripted dry run end to end |
+| E-2 | `-m "not real_binary"` (the `python-smoke` layer) | PASS | `10 passed, 10 deselected` (before the last two audit tests; same split) |
+| E-3 | The guide test after the round-1 fix | PASS | `guide: 159 block(s) passed, 1 pending, 39 check(s)` |
+| E-4 | Static checks | PASS | `ruff check`, `ruff format --check`, `pyright` strict over `sdk/python cognition/lm-controller tools/onboarding`: `0 errors`; `check_doc_headings.py`, `check_decision_ids.py` clean |
+| E-5 | CI on the exact head | pending | after the push |
+
+### 20.3 The rounds ledger
+
+Instruction set ON-1 in every round. The sandbox is a fresh `tempfile.mkdtemp` folder; evidence is kept outside the
+repository (the session's scratchpad, `onboarding/round-*`). Sonnet-class gates; Haiku-class is the reported "harder
+reader".
+
+| Round | Commit | Agent, model | S1 | S2 | S3 | S4 | S5 | S6 | S7 | Void | Stuck points (class) | Turns | Cost (USD, list price; the login is a subscription) | Load before → after (1/5/15 min) | Transcript SHA-256 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `cfde1b31` | claude-h2, sonnet (claude-sonnet-5) | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no (after the audit fix, `70dd72e8`) | STUCK status; gaps: weekend market, weekday in a world, a seat on a local model, attaching cognition.toml (all **real product gap**: WE-a, P6) | 9 | 0.205 | 10.98/7.66/7.87 → 6.41/6.93/7.59 | `476574a6…2e5c63` |
+| 1 | `cfde1b31` | claude-h2, haiku | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | STUCK; gaps market, local model (**product gap**); **not listed by the audit:** its first world had no passage, ran with `faults 0` while 1 694 walks were rejected `no-route`, and chapter 13 said a mistake never runs silently (**misleading statement + missing step**, fixed `47a4a366`) | 28 | 0.023 | 3.89/6.19/7.28 → 3.51/5.49/6.91 | `783f91bf…6aedc` |
+| 2 | `47a4a366` | claude-h2, sonnet | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | gaps: market, a seat on a local model, weekday routines (**product gap**); wrote DONE | 10 | 0.194 | 8.50/6.02/6.87 → 6.18/5.69/6.72 | `b243079f…cb4742` |
+| 2 | `47a4a366` | claude-h2, haiku | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | STUCK; gaps market, local model (**product gap**) | 30 | 0.027 | 6.24/5.71/6.72 → 4.33/5.22/6.45 | `c29693d8…b6252c` |
+
+In every round each world ran 14 days with no `rejected` line (checked by hand after round 2). Round 2 found no guide
+defect: every stuck point is a product gap, which stops the round (§9.6). Rounds stop here: ON-1 cannot pass S5 or S6
+until WE-a and P6 are on the stack, so a third round would measure the same gaps.
+
+### 20.4 Deviations (bounded, recorded)
+
+- **D-25f-1 C0–C4 in one commit.** The protocol, the four tools and their tests refer to each other; split, the
+  intermediate heads would carry untested tools.
+- **D-25f-2 H2 only; no Containerfile.** H1 needs the agent's login inside a container, which means copying a
+  credential (forbidden) or a paid key (not authorized). H2's shell is not confined by the CLI; the audit's void rule
+  makes a read outside the sandbox void the round, and round 1 showed it fires (falsely, on macOS's `/var` alias, now
+  fixed and tested).
+- **D-25f-3 AC-25f-1 cannot show S5 or S6 passing.** No world can pass them on this build. The scorer fails them as
+  `product gap:`, the tests assert that, and the S6 provider scan is shown to bite on its own. The positive fixtures for
+  S5 and S6 are added when WE-a and P6 are on the stack.
+- **D-25f-4 S1 and S2 cannot fail alone.** S2–S4 read `validate`'s output, so an invalid world fails them too, and a
+  world with no seat (the only valid world that does not run) fails S4 as well. Every other check bites alone.
+- **D-25f-5 The tools are standard-library scripts, not a workspace member.** No dependency and no `uv.lock` change;
+  `scripts/ci_layer.py` adds them to the static checks and runs their tests (`python`; `python-smoke` deselects
+  `real_binary`). Python 3.12 is required (`tomllib`); the system `python3` on macOS is 3.9, so the operator runs
+  `uv run python tools/onboarding/run.py …`.
+- **D-25f-6 ON-2 and ON-3 not run.** They need the operator's explicit authorization (§9.7).
+
+### 20.5 Findings for the primary
+
+- **F-25f-1 AC-25f-5 waits for WE-a and P6** (as F-S25-5 and QS25-9 foresaw). Both rounds built a valid seaside village
+  with a bakery and three resident seats, running 14 days, from the guide and the reference alone, in 9–30 turns.
+- **F-25f-2 A disconnected place is accepted by `validate`.** The guide now teaches how to see it; whether `validate`
+  should warn is a product question (the loader's), not the guide's.
+- **F-25f-3 The audit could not see the round-1 Haiku defect.** A run that exits 0 with rejected requests is not a
+  refusal. A rubric check "no `rejected` line in the run" would catch it; it is not in §9.4's rubric, so it is proposed,
+  not added.
+- **F-25f-4 Agents read `features.toml`** to learn what is missing. It is runner metadata, not a page; it is in the
+  allowed set (it is part of `docs/guide/`) and it helped them stop rather than invent.
+- **Authorization asked:** ON-3 is fully buildable on this stack (modern-goods); ON-2 needs a time-of-day rule and a
+  `shout` action that do not exist (product gap). A reported ON-3 round needs the operator's word.
 
