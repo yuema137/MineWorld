@@ -459,14 +459,16 @@ async fn status_names_each_systems_actions_and_facts() {
 }
 
 /// step-12 SB-8. `--time-scale N` is how many world seconds pass per wall second, reported in every
-/// welcome and in `/status`; without the flag it is one.
+/// welcome and in `/status`; without the flag the world's own `hosting: time_scale` answers (TW-c C6:
+/// social-cafe states 12, `ARC-69` item 9).
 #[tokio::test]
 async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reported() {
     let plain = Server::start(&["server", support::PACK]).await;
-    assert_eq!(plain.status().await["time_scale"], json!(1));
+    assert_eq!(plain.status().await["time_scale"], json!(12));
     drop(plain);
 
-    let server = Server::start(&["server", support::PACK, "--time-scale", "60"]).await;
+    // A fast-forward (above 24x) is a single-player world's: `--solo` (`ARC-69` item 5, Q-TWc-2).
+    let server = Server::start(&["server", support::PACK, "--time-scale", "60", "--solo"]).await;
     let mut client = Client::connect(server.address).await;
     let (_, world) = client.join("visitor").await;
     assert_eq!(world.time_scale, 60, "reported in the welcome");

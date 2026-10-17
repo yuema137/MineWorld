@@ -40,6 +40,7 @@
 //! contains.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 
 use mineworld_authoring::EntityClasses;
@@ -99,7 +100,33 @@ pub struct WorldPack {
     configuration: Vec<FoundConfiguration>,
     classes: EntityClasses,
     licence_policy: LicencePolicy,
+    /// `world.yaml`'s `hosting: time_scale`, if stated (`ARC-69` item 9): host pacing, never read by a pack.
+    hosting_time_scale: Option<NonZeroU32>,
     decisions: Option<DecisionsFile>,
+}
+
+/// The largest scale a World Pack may state: a day in 24 hours (`ARC-69` item 5).
+const DAY_LENGTH_SCALE: u32 = 24;
+
+/// The day-length scale a `world.yaml` states under `hosting:`, checked to lie in 1 to 24 (`ARC-69` item 9).
+fn hosting_time_scale(
+    manifest_path: &Path,
+    manifest: &WorldManifest,
+) -> Result<Option<NonZeroU32>, PackError> {
+    let Some(value) = manifest
+        .hosting
+        .as_ref()
+        .and_then(|hosting| hosting.time_scale)
+    else {
+        return Ok(None);
+    };
+    if !(1..=DAY_LENGTH_SCALE).contains(&value) {
+        return Err(PackError::HostingTimeScale {
+            path: manifest_path.to_path_buf(),
+            value,
+        });
+    }
+    Ok(NonZeroU32::new(value))
 }
 
 impl WorldPack {
@@ -120,6 +147,7 @@ impl WorldPack {
 
         let manifest_path = root.join(MANIFEST);
         let manifest: WorldManifest = parse(&manifest_path, "world")?;
+        let hosting_time_scale = hosting_time_scale(&manifest_path, &manifest)?;
 
         check_pack_id(&root, &manifest.world.id)?;
         if let Some(range) = &manifest.mineworld {
@@ -215,6 +243,7 @@ impl WorldPack {
             configuration,
             classes,
             licence_policy,
+            hosting_time_scale,
             decisions: manifest.decisions,
         };
         check_sections(&pack)?;
@@ -307,6 +336,12 @@ impl WorldPack {
         &self.seats
     }
 
+    /// The time scale this world's `world.yaml` states for a host (`hosting: time_scale`, `ARC-69` item 9),
+    /// if it states one. Host pacing: the world's state, and every rule, is the same at any scale.
+    pub fn hosting_time_scale(&self) -> Option<NonZeroU32> {
+        self.hosting_time_scale
+    }
+
     /// The System Packs this world configures, each decoded by its owner, in `configure:` order —
     /// which is seeding order (`DECISIONS.md` `ARC-61`).
     pub fn configuration(&self) -> &[FoundConfiguration] {
@@ -395,6 +430,7 @@ impl WorldPack {
             configuration: Vec::new(),
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
+            hosting_time_scale: None,
             decisions: None,
         }
     }

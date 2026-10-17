@@ -1,7 +1,7 @@
 //! step-12 SB-6 (CP-B4) — **the hosted town lives**, on the world thread, within its tick budget.
 //!
 //! ```text
-//! mineworld server worlds/market-town --town --pace 5 --save DIR
+//! mineworld server worlds/market-town --town --cadence 5 --save DIR
 //! two clients play two seats; every other seat is driven by the paced rule controller in-server
 //! 120 wall seconds, then SIGINT: the operator's shutdown lines are the probe (step-12 SD-B11)
 //! ```
@@ -34,7 +34,7 @@ async fn the_hosted_town_lives_within_its_tick_budget() {
             "server",
             MARKET_PACK,
             "--town",
-            "--pace",
+            "--cadence",
             "5",
             "--invite",
             INVITE,

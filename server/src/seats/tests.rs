@@ -6,7 +6,7 @@ use std::rc::Rc;
 use mineworld_contracts::ActionRequest;
 
 use super::*;
-use crate::hosted::HostedController;
+use crate::hosted::{HostedBinding, HostedController};
 use crate::protocol::WireObservation;
 
 const HOLD: Duration = Duration::from_secs(30);
@@ -45,12 +45,14 @@ impl HostedController for Every {
     fn decide(&mut self, _observation: &WireObservation) -> Option<ActionRequest> {
         None
     }
+
+    fn rescaled(&mut self, _pending: WorldTime, _scale: std::num::NonZeroU32) {}
 }
 
 fn factory(every: i64, bound: &Rc<RefCell<Vec<i64>>>) -> HostedFactory {
     let bound = Rc::clone(bound);
-    Box::new(move |instant: WorldTime| {
-        bound.borrow_mut().push(instant.seconds());
+    Box::new(move |binding: HostedBinding| {
+        bound.borrow_mut().push(binding.at.seconds());
         Box::new(Every { every }) as Box<dyn HostedController>
     })
 }
@@ -66,6 +68,7 @@ fn table(hold: Duration) -> (SeatTable, Rc<RefCell<Vec<i64>>>) {
         factories,
         hold,
         at(10),
+        std::num::NonZeroU32::MIN,
     );
     (table, bound)
 }
@@ -401,6 +404,7 @@ fn due_seats_come_in_instant_order_then_seat_order() {
         factories,
         HOLD,
         at(0),
+        std::num::NonZeroU32::MIN,
     );
     assert_eq!(seats.due(at(1)), Vec::new());
     assert_eq!(
@@ -591,5 +595,45 @@ fn the_report_names_every_seat_in_key_order() {
     assert_eq!(
         json[2],
         serde_json::json!({ "seat": "visitor", "state": "connected", "session": "1" })
+    );
+}
+
+/// SD-TWc-3 at the table: a rescale moves every hosted seat's future consult by its wall wait, in one
+/// command, and a controller built after it is bound at the scale in force, not the scale at the start.
+#[test]
+fn a_rescale_reschedules_hosted_seats_and_later_bindings_use_the_scale_in_force() {
+    let scales = Rc::new(RefCell::new(Vec::new()));
+    let recorded = Rc::clone(&scales);
+    let mut factories = BTreeMap::new();
+    let alice: HostedFactory = Box::new(move |binding: HostedBinding| {
+        recorded.borrow_mut().push(binding.scale.get());
+        Box::new(Every { every: 1 }) as Box<dyn HostedController>
+    });
+    factories.insert(key("alice"), alice);
+    let mut seats = SeatTable::new(
+        [key("alice"), key("visitor")],
+        factories,
+        HOLD,
+        at(10),
+        std::num::NonZeroU32::MIN,
+    );
+    let four = std::num::NonZeroU32::new(4).expect("non-zero");
+    seats.rescale(at(10), std::num::NonZeroU32::MIN, four);
+    assert_eq!(
+        seats.due(at(13)),
+        Vec::new(),
+        "alice was due at 11, one wall second after her binding; the same wait at 4× is 4 world seconds, so 14"
+    );
+    assert_eq!(seats.due(at(14)), vec![(at(14), key("alice"))]);
+
+    let now = Instant::now();
+    seats
+        .join(&join("alice"), sub(1), secret(), now, at(14))
+        .expect("hosted");
+    seats.depart(sub(1), Departure::Left, now, at(20));
+    assert_eq!(
+        *scales.borrow(),
+        vec![1, 4],
+        "bound at the start at 1×, then rebound after the release at 4×"
     );
 }
