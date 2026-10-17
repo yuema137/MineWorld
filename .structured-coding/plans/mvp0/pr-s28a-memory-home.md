@@ -1101,6 +1101,22 @@ without sections take 0.5 s each). `test_home_transparency.py` (frames 256, 4 09
 of M-a-9's "interleaving test"), `test_home_transparency_real.py` (the real stream, `real_binary`). Shared
 machinery is `tests/home_harness.py`, a test-only module beside `home_streams.py`.
 
+**D-a-14 (bounded; CI repair after the first run, R-a-1, R-a-2).** CI run 38819918810 on head `0ffe2f69`: `fast`,
+`test`, `test-macos`, `test-windows`, `platforms` ×2, `python (ubuntu-24.04)` (31 min), `python (macos-15)` (29 min)
+PASS; **`python (windows-2025)` cancelled at the job's 45-minute limit** inside `test_retention_size.py` — this
+PR's cost: on Linux that file took 524 s (D-a-12's crowd of 300) and `test_home_transparency.py` 139 s, over §12's
+120 s per harness file. Repairs, no criterion changed: (1) the meter's `UPDATE` trigger calls `put` once instead of
+`gone` then `put` (an update keeps the rowid, and `put` replaces the row's size); (2) `SeatView.hold` computes each
+`l0_who` line's length from the grammar (`EventId` and `EntityId` are validated ASCII digits, so the line is
+`len('["l0_who",') + id digits + entity digits + 5`) instead of encoding hundreds of lines per busy fact — still
+held to the dump by `test_the_meter_is_the_dump` (M-a-4 re-run: red) and by every incremental-measure test;
+(3) the busy crowd's ids have u64's 20 digits and the crowd is 220, not 300 (≈ 24 MB a day, the busy day still over
+the bound); (4) frames of 4 096 move to `test_home_transparency_large.py`. Locally: busy-day profile 14.6 s → 7.8 s;
+`test_retention_size.py` 15 passed in 157.8 s (was 273.8 s; base code 97.1 s); `test_home_transparency.py` 3
+passed in 29.7 s, `test_home_transparency_large.py` 3 passed in 30.5 s; `test_home_golden`, `test_home_store`,
+`test_home_gc`, `test_home_open`, `test_home_kill` (50), `test_home_isolation`, `test_memory_isolation`,
+`test_retention_store`, `test_home_scale -k synthetic` PASS.
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 

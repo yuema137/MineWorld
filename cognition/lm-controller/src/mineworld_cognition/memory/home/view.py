@@ -211,10 +211,12 @@ class SeatView:
             l0 = line_bytes(
                 "l0", (*cells, rendered.gist, digest, rendered.importance), schema.L0.codecs
             )
-            who = tuple(
-                line_bytes("l0_who", (fact.id, entity), schema.L0_WHO.codecs)
-                for entity in counterparts
-            )
+            # `["l0_who",<id>,"<entity>"]` and its newline: an `EventId` and an `EntityId` are ASCII decimal
+            # digits with no leading zero (the SDK validates both), so the id's number is its digits and the
+            # entity's JSON is its digits in quotes; the line's length is exact without encoding it once per
+            # counterpart (a busy fact names hundreds). `test_the_meter_is_the_dump` holds it to the dump.
+            fixed = len('["l0_who",') + len(fact.id) + len(',""]') + 1
+            who = tuple(fixed + len(entity) for entity in counterparts)
             meter.hold(key, l0, who)
         return L0Record.model_construct(
             event=fact.id,

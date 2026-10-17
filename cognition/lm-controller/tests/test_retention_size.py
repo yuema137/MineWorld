@@ -43,11 +43,12 @@ BOUND = 20 * MIB  # 20 971 520: the operator's default (2026-10-14)
 TARGET = BOUND * 3 // 4  # 15 728 640
 TRIGGER = BOUND - BOUND // 16  # 19 660 800
 
-BUSY = (7, 2, 2800, 300)
-"""Two days of 2 800 facts, each with Alice among 300 of the crowd: ≈ 9 KB of positional dump per fact, ≈ 25 MB
-a day, so each day crosses the trigger at least once and day 1 opens with a daily pass. (100 of the crowd gave
-≈ 8.5 KB of schema-3 dump per fact; schema 4's positional lines are about a third of that, so the crowd is
-tripled to keep the day over the bound: pr-s28a C5 step 2, the bound never lowered.)"""
+BUSY = (7, 2, 2800, 220)
+"""Two days of 2 800 facts, each with Alice among 220 of the crowd (20-digit ids): ≈ 8.7 KB of positional dump
+per fact, ≈ 24 MB a day, so each day crosses the trigger at least once and day 1 opens with a daily pass.
+(100 of a crowd with 10-digit ids gave ≈ 8.5 KB of schema-3 dump per fact; schema 4's positional lines are
+about a third of that, so the crowd is larger and its ids longer, to keep the day over the bound with as few
+counterparts as possible: pr-s28a C5 step 2 and D-a-14, the bound never lowered.)"""
 
 
 def busy() -> list[PerceivedEvent]:

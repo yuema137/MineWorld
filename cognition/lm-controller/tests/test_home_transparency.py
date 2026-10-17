@@ -1,4 +1,5 @@
-"""Sharing is invisible (pr-s28a C6; AC-a-2, AC-a-3; step-28 I-S28-2), frames of 256 and 4 096 facts.
+"""Sharing is invisible (pr-s28a C6; AC-a-2, AC-a-3; step-28 I-S28-2), frames of 256 facts (4 096:
+`test_home_transparency_large.py`; 139 s as one file on Linux CI, over §12's 120 s, D-a-14).
 
 Twelve seats of the synthetic world (seed 7, 10 days), each through `absorb` under `consolidate`: their seat-view
 dumps and the 200 rendered sections of every pass point and of the end are byte-identical whether the seats share
@@ -31,6 +32,6 @@ def check_transparent(frame: int, seed: int) -> str:
 
 
 @pytest.mark.parametrize("seed", INTERLEAVINGS)
-@pytest.mark.parametrize("frame", [256, 4096])
+@pytest.mark.parametrize("frame", [256])
 def test_every_seat_view_and_section_is_the_same_shared_or_alone(frame: int, seed: int) -> None:
     check_transparent(frame, seed)

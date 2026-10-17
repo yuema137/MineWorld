@@ -311,7 +311,9 @@ def _install_triggers(
         gone_sql = f"SELECT {METER_GONE}('{table.name}', OLD.seat, OLD.rowid);"
         for event, body in (
             ("INSERT", put_sql),
-            ("UPDATE", gone_sql + " " + put_sql),
+            # An update keeps the row's rowid (nothing here updates a rowid), and `put` replaces the size the
+            # row had: one call, not a removal and a write.
+            ("UPDATE", put_sql),
             ("DELETE", gone_sql),
         ):
             db.execute(
