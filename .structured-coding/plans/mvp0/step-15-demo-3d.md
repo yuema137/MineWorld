@@ -3488,9 +3488,9 @@ logs under `clients/3d-spike/shots/16d/` (ignored).
   reason code an unpurchasable buy carries (poor-visitor copy). Find SET-a's input gate and Esc order in
   3D. Walk the café from the door to 1.2 m from Bob on the real controller and record whether a straight
   line is clear on 12d's furniture (R-16d-2).
-- [ ] Validation (E16d-1): G-1 and G-2 on the base; V-1's two base `--shots` runs and `--hud`; 13b's
+- [x] (base = 16c head, code-identical; 16c h-* logs: drive and link pass, shots; V-1 floor 0.000 %; see §22.12 C1, E16d-7) Validation (E16d-1): G-1 and G-2 on the base; V-1's two base `--shots` runs and `--hud`; 13b's
   `client_2d_interact -- --ignored` on the base (green, the 2D side P-1 will use).
-- [ ] Review: each base result matches its accepted figure, or the difference is recorded with its cause
+- [x] (differences recorded in §22.12 C1 and E16d-1b) Review: each base result matches its accepted figure, or the difference is recorded with its cause
   before anything changes.
 
 **Commit boundary.** The ledger.
@@ -3519,10 +3519,10 @@ under ARC-47, Q-16d-10). **Non-goals:** any `.gd`.
 **Scope.** New `scripts/slice/things.gd`; `slice_link.gd` (`display_label` keeps its rule and delegates
 the item half; nothing else).
 
-- [ ] Implementation: as scoped; shapes exactly as C1 recorded them.
-- [ ] Validation (E16d-3): G-0; a probe line on Market Town listing every catalogued kind's name and the
+- [x] (d1b00746; shapes as E16d-1b) Implementation: as scoped; shapes exactly as C1 recorded them.
+- [x] (G-0 and K-1 on every probe run, E16d-5; M16d-9, -10 red) Validation (E16d-3): G-0; a probe line on Market Town listing every catalogued kind's name and the
   three panels' rows against the raw frame (the K-1 comparison, made early); G-2's `--link`.
-- [ ] Review: no arithmetic beyond formatting; no id reachable as display text; no action literal.
+- [x] (formatting only; never the id — N-2 and M16d-10; no action literal, client_rules green) Review: no arithmetic beyond formatting; no id reachable as display text; no action literal.
 
 **Commit boundary.** The reader.
 
@@ -3532,11 +3532,11 @@ the item half; nothing else).
 (`submit_offered`, `composes`, pending `about`); `slice_link.gd` (`_on_resolved` through keys, D-16d-7);
 `slice_main.gd` (attach the menu and the connected-only line when connected); SET-a's gate as found in C1.
 
-- [ ] Implementation: as scoped; the choose path reads no verdict; complete entries only through
+- [x] (2e997f12) Implementation: as scoped; the choose path reads no verdict; complete entries only through
   `submit_affordance`.
-- [ ] Validation (E16d-4): G-0; G-1 `--drive`; G-2; an interactive two-minute run on Market Town
+- [x] (G-0, G-1 --drive, G-2 on the head, E16d-7; the interactive run is X16d-12) Validation (E16d-4): G-0; G-1 `--drive`; G-2; an interactive two-minute run on Market Town
   (B, Tab, buy, give from the door) with the log clean.
-- [ ] Review: no entry is created that the frame did not offer; `slice_link.gd`'s line count did not grow
+- [x] (one entry per offer, O-1 / O-2; slice_link +53 lines, all routing and hand-over; client_rules green, no admission) Review: no entry is created that the frame did not offer; `slice_link.gd`'s line count did not grow
   by more than the result routing; `client_rules` green with no new admission.
 
 **Commit boundary.** The interaction.
@@ -3549,10 +3549,10 @@ the probe dispatch (`slice_probe_world.gd` or `slice_probe.gd`, one line); `mine
 (`--world=<pack>`, `--market` headless, help text); new `tools/cli/tests/godot3d/mod.rs` and
 `tools/cli/tests/client_3d_market.rs` (O-1 … O-6, N-1, N-2, K-1, K-2; the poor-visitor copy).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16d-5): the tests PASS; each mutation red as stated, then reverted green; counts and
+- [x] (43edb944, e33d515f) Implementation: as scoped.
+- [x] (E16d-5: 3/3 PASS; MUT: M16d-1 … 5, 9 … 12 red and reverted) Validation (E16d-5): the tests PASS; each mutation red as stated, then reverted green; counts and
   wall time recorded.
-- [ ] Review: every expected value is a literal of this plan, a genesis fact or the raw frame, never
+- [x] (expected values: plan literals, ids(), the frame printed beside each report, the save; no .gd names a scenario item, person or action) Review: every expected value is a literal of this plan, a genesis fact or the raw frame, never
   computed by the code under test; no `.gd` names an item, a person or an action type for the scenario.
 
 **Commit boundary.** The probe, the launcher flag, the test.
@@ -3562,10 +3562,10 @@ the probe dispatch (`slice_probe_world.gd` or `slice_probe.gd`, one line); `mine
 **Goal.** P-1 … P-3 with M16d-6, 7, 8, 13. **Scope.** `client_3d_market.rs` (the 2D run through 13b's
 helpers; the comparison through `differing_fields`; the zh_Hans and no-wording runs).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16d-6): P-1 … P-3 PASS; mutations red, reverted; the two transcripts and the two saves'
+- [x] (same commit as C5, X16d-11) Implementation: as scoped.
+- [x] (E16d-5 P-1 … P-3 PASS; MUT M16d-6, 7, 8, 13 red; the transcripts and journals compared in-test) Validation (E16d-6): P-1 … P-3 PASS; mutations red, reverted; the two transcripts and the two saves'
   fact types recorded in the ledger.
-- [ ] Review: no hand-written comparison (I-S14-9); the 2D client and its harness are run unchanged.
+- [x] (differing_fields only; 13b harness and steps unchanged, X16d-7) Review: no hand-written comparison (I-S14-9); the 2D client and its harness are run unchanged.
 
 **Commit boundary.** The parity tests.
 
@@ -3574,13 +3574,13 @@ helpers; the comparison through `differing_fields`; the zh_Hans and no-wording r
 **Scope.** G-5 frames; `clients/3d-spike/README.md` (keys, `--world=<pack>`, `--market`);
 `docs/MVP_STATUS.md` (the 3D column of Market and Items; the S14 row); this section's ledger and handoff.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16d-7, the final executable head): G-0 … G-4 once more; V-1 … V-3; the Rust gate —
+- [x] (README, MVP_STATUS, this ledger) Implementation: as scoped.
+- [x] (E16d-7; workspace clippy and test left to CI on the exact head, R-LOAD-1) Validation (E16d-7, the final executable head): G-0 … G-4 once more; V-1 … V-3; the Rust gate —
   `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
   --workspace` once; `check_decision_ids`, `check_doc_headings`, `check_scratch.py scan`; the path check
   (nothing under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/`, `cognition/`, `worlds/`,
   `tools/cli/src/`, `clients/protocol/`, `clients/2d/scripts/`).
-- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries OC-1 …
+- [x] (§22.12; PR body carries OC-1 … OC-8 and the limits) Review: every acceptance line has its evidence; deviations recorded; the PR body carries OC-1 …
   OC-8 verbatim and the known limitations (no group activity in 3D; talk's words fixed; panels limited
   to money, carrying, for sale).
 
@@ -3779,6 +3779,121 @@ C2      E16d-2 (working tree = 7163fd47 + the C2 diff, 16d's code stashed): the 
         REVIEW: no key renamed (union equal); no number or condition in a moved entry; zh_Hans moved
         byte for byte, so its meaning is 13b's reviewed one. 13b's 2D interaction test is run once
         on the head in C6 (its P-1 side), not separately here (R-LOAD-1)
+E16d-1b THE FRAME, pinned live (Market Town, seat visitor, observer 17, at the café door, place 2),
+        read with the protocol module from a real server (scratch dump, then every probe run):
+        item-catalogue on the place: {"kinds":[{"category":"food","item":{"entity":"19",
+          "entity_type":"item"},"name":"Apple"}, …]} — 20 named kinds, ItemId order (the four loose
+          objects 22, 23, 39, 40 are not kinds and are not listed)
+        wallet: {"balance":200000}; holdings: {"held":[{"count":1,"item":{"entity":"19",…}},
+          {"count":1,"item":{"entity":"36",…}}]} (apple, scarf)
+        shop on the place: {"listed":[{"in_stock":6,"item":{"entity":"24",…},"price":400}, coffee 26
+          300 ×20, croissant 27 250 ×10, sandwich 35 600 ×6, soup 38 500 ×6, tea 41 250 ×10],
+          "operator":{"entity":"43","entity_type":"organization"}}
+        buy: {"action_type":"buy","available":true,"payload":{"item":{"entity":"26","entity_type":
+          "item"}},"requirement":{"place":{"specific":{…"2"…}},…,"within_range":null},"target":null}
+        give: {"action_type":"give","available":false,"payload":{"count":1,"item":{…"19"…}},
+          "requirement":{"place":"same_place_as_actor",…,"within_range":3000},"target":"8",
+          "unavailable_reason":"too_far_away"}
+        eat: {"action_type":"eat","available":true,"payload":{"item":{…"19"…}},"target":null}
+        the poor visitor's unaffordable buy: available false, "unavailable_reason":
+          "target_unavailable" (step-10 QS-44's collapse; S31 names it later)
+        DIFFERENCES from the plan's expectation (A16d-6, O-1): the target-less offers also hold
+        `walk-to` (12n-1's, incomplete) — listed disabled "not supported by this client"; each person
+        is also offered `shove` (12c's, incomplete in 3D until 12e) — listed disabled; Wes Calloway
+        (the wanderer, 18) is in the café at genesis too. O-1's checks are per type (six buys, one
+        eat, move as body), so neither changes the acceptance.
+        SET-a's gate and Esc: slice_main.gd (A16d-10). R-16d-2: the straight walk from the door
+        toward Bob stops 1.34 m from his figure (asked 1.2 m) on the real controller, 9 accepted
+        strides, no furniture in the way; give is then accepted (dev run, every later run alike)
+C3      d1b00746: things.gd (SliceThings). At this commit alone client_text would miss
+        ui.thing.unnamed (its key lands in C4, X16d-4); C3 and C4 are validated together below
+C4      2e997f12: offer_menu.gd, intents.gd (+39: submit_offered, composes, compose, drop_pending),
+        slice_link.gd (516 → 569 lines: things wiring, _offer_answered, _asked, _forget_pending,
+        actor_location, nobody_to_offer — the result routing and the hand-over to the menu),
+        slice_main.gd (the counted gate _hold_input shared with SET-a's menu, Esc order, the menu,
+        the connected line, --no-wording, the Clock node name), the five keys. The probe dispatch
+        lines were held back to C5 so C4 parses without the probe
+C5/C6   43edb944 + e33d515f: slice_probe_market.gd, the dispatch, the launcher's --world=<pack> and
+        --market, godot3d/mod.rs and client_3d_market.rs (three tests). C5 and C6 are one test file,
+        so one commit; their evidence is separate (X16d-11)
+E16d-5  `cargo test -p mineworld-cli --test client_3d_market -- --ignored --test-threads=1` on
+        e33d515f's content (macOS, Godot 4.7.2 Metal, headless; each cargo run held one cast slot):
+        the_menus_are_the_offers_from_the_door ok (18.7 s); a_poor_visitor_still_sees_every_buy ok,
+        the_3d_market_asks_what_the_2d_market_asks ok (71.0 s together; four Godot runs: 13b's 2D
+        harness, then 3D en, zh_Hans and --no-wording). Every probe printed "market complete: PASS",
+        no SCRIPT ERROR. PASS: O-1 … O-6, N-1, N-2, K-1, K-2, P-1, P-2, P-3.
+        Observed: O-4 moved 0.000 m, yaw 0.000°, 0 requests; Esc closed the menu with the settings
+        still closed, the second Esc opened them. O-3's toast "Give Bob Achterberg Apple: the world
+        said no — too far away". O-5: coffee, cake, sandwich, soup listed "— not available"
+        (target_unavailable), tea and croissant available; coffee sent and rejected; no money left
+        the visitor. P-1: buy, drink, give, eat in both clients, each pair differing only in
+        ActorLocation, 3D's in place 2, both accepted; the journal's caused-by fact types equal
+        request by request. zh_Hans toasts "你买了Coffee", "你把Scarf给了Bob Achterberg"; the names
+        stay the world's
+MUT     each planted in the working tree, run, recorded, reverted with git checkout (git status clean
+        after each; `git grep MUTATION` empty); logs and diffs in the session scratchpad 16d/mut/:
+        M16d-1  drop unavailable entries        RED: door "no built entry matches {action_type: give}"
+                                                  (O-2), poor "no built entry matches buy 26" (O-5)
+        M16d-2  hide a buy dearer than the wallet RED: poor "no built entry matches buy 26" (O-5)
+        M16d-3  choose returns when unavailable  RED: door and poor; "O-5: the coffee was sent: 0"
+        M16d-4  first match per action type      RED: "O-1: one buy per priced kind: … left: 1"
+        M16d-5  entries sorted by label          RED: "O-1 entry 0 … left: buy" (the frame's first is move)
+        M16d-6  buy rebuilt with submit(…, {"item": "26"}) RED: P-1 (the 3D probe fails: the
+                                                  request is refused, nothing to drink); client_rules
+                                                  also FAILS: 'intents.gd:54: the action "buy" is named'
+        M16d-7  give sends the entry before it   RED: P-1 (the apple goes, the eat step finds no apple)
+        M16d-8  actor_location null              RED: "P-1: 3D reports where it stands … left: Null" —
+                                                  differing_fields alone would pass; the clause exists
+        M16d-9  no catalogue read                RED: "K-1 carrying: something × 1" (also N-1)
+        M16d-10 an id where a name is            RED: "K-1 carrying: 19 × 1" (X16d-9)
+        M16d-11 holdings/wallet panel cached      RED: "K-2: the wallet fell by the price"
+        M16d-12 the menu does not take the gate  RED: "O-4: … moved_m 0.455, yaw_deg 18.33"
+        M16d-13 selector resolved by words       RED: P-3 "--settings=…zh.cfg: the 3D probe passes"
+        Four reds come through the probe's own step failure rather than the named line (M1, M2, M6,
+        M7): the client stopped listing or sending the thing the next step needs. Recorded as red by
+        the right run; the test checks its probe's verdict before the menu lines
+E16d-7  HEAD (e33d515f's code; logs in the session scratchpad 16d/head/), macOS 26, Godot 4.7.2 Metal:
+        G-0  every probe and test run parsed: no "SCRIPT ERROR" / "Parse Error" in any log
+        G-1  --drive "all drive checks pass" (76 s); --perf NOT RUN (X16d-10); --measure, --threshold,
+             --character not re-run: 16d's diff touches no standalone code (V-2 path check), and 16c's
+             h-* logs on this code are the base figures
+        G-2  --world --link "all link checks pass"; --world=market-town --link "all link checks pass";
+             --world=no-such-world: "error: --world=no-such-world names no world: there is no
+             worlds/no-such-world/world.yaml", exit 1
+        G-3  client_3d_market 3/3 (E16d-5); 13b's client_2d_interact on the head: see E16d-7b
+        G-4  client_rules 3 passed (no new admission, 12 entries as before); client_text 5 passed;
+             check_client_rules rules and --check-pack PASS; no OS.get_name / OS.has_feature in
+             things.gd, offer_menu.gd, slice_probe_market.gd
+        G-5  --world=market-town --market --frames (1600x900, windowed, real B / Tab / Esc events):
+             six frames, each looked at — g5-1 your menu at the door: "You", "Walk — with W A S D"
+             and "Walk to — not supported by this client" greyed, six buys, Eat Apple; beside it
+             Carrying Apple × 1 / Scarf × 1, Money 2000.00, For sale here with price and stock; no
+             id. g5-2 Bob from the door: Talk and both gives "— too far away · needs 3 m" greyed,
+             Invite and Shove "not supported by this client". g5-3 beside Bob: Talk and both gives
+             full white. g5-4 after the buy: toast "You bought Coffee", Coffee × 1, Money 1997.00,
+             Coffee 19 left, a new "Drink Coffee". g5-5/6 zh_Hans: "你", "购买Coffee", "随身物品",
+             "钱", "这里出售", "剩 20 件"; world names stay as written; no tofu. For the operator
+             (OC-7): the 0.45-alpha panel reads lighter over the sunlit window; a person's menu can
+             overlap that person's floating name close up
+        G-6  NOT RUN by the agent (X16d-12)
+        V-1  --shots on the head against 16c's h-shots (same code): 20 views at 0.000 % over 8/255,
+             the rest ≤ 0.006 % (08_third_front); 16c's run-to-run floor 0.000 %. PASS (≤ +0.5 pt)
+        V-2  path check: the PR diff touches none of human.gd, player.gd, npc.gd, character_slot.gd,
+             camera_rig.gd, posture.gd, build.gd, the scene builders or assets/; nothing under
+             kernel/, contracts/, persistence/, server/, systems/, cognition/, worlds/,
+             tools/cli/src/, clients/protocol/, clients/2d/scripts/
+        V-3  --world --conversation, head vs the base re-captured in the same hour (impl-16c-base):
+             0.126 %, 0.270 %, 0.640 % over 8/255; the heat maps show the connected-only line and
+             the figures' edges (their animation phase) and nothing else. A first comparison
+             against 16c's older capture (11.0 %) was the world clock (12:00 vs 12:05 lighting) and
+             a toast still showing, not this PR — hence the same-hour base
+        E16d-7b 13b's client_2d_interact on the head, unchanged: items_change_hands_whatever_draws_them
+             (AC-I2 and AC-I8: default, --presentation=none, --no-wording) and
+             talks_to_alice_from_the_door (AC-I1) ok, 2 passed in 40.0 s — the moved keys reach the
+             2D client. The other three (AC-I3, AC-I6, AC-I7) not re-run (R-LOAD-1; no key they use moved)
+        RUST cargo fmt --all --check clean; clippy -D warnings on client_3d_market, client_2d_interact,
+             client_text, client_rules clean. The workspace-wide clippy and `cargo test --workspace`
+             are left to CI on the exact head (R-LOAD-1)
 ```
 
 **Deviations (bounded; none changes a frozen invariant, the scope or the acceptance):**
@@ -3805,16 +3920,25 @@ X16d-8  P-1's caused-by multisets come from the save's journal (X16d-8 in C1's N
 X16d-9  M16d-10: the "something" fallback cannot be reached on Market Town (every kind is named); the
         mutation is planted where an id would replace a name
 X16d-10 G-1 --perf is not run (machine load); recorded NOT RUN, not PASS
+X16d-11 C5 and C6 land as one commit (one test binary, client_3d_market.rs); their evidence is kept
+        apart (E16d-5 lines O-, N-, K- and P-)
+X16d-12 G-6, the three-minute interactive session, is not run by the agent: this session cannot
+        press keys in a window. The windowed --market --frames runs play the same path with real
+        key events (B, Tab, Esc) through the engine's input; OC-1 … OC-8 are the operator's
 ```
 
 ## 22.13 Handoff (live)
 
 ```text
-checkpoint     C1 re-audit recorded (§22.12 START, C1); implementation in progress on mvp0/pr-16d
-next action    C2 (wording), then C3 … C7 in order; baseline runs (G-1 --drive, G-2 --link, V-1
-               --shots twice) on the base tree
-background     baseline Godot runs through cast-slots/with-slot.sh, logs under the session scratchpad
-               (base-runs.sh); one Godot at a time per slot
+checkpoint     C1 … C7 committed on mvp0/pr-16d; PR "16d: buying in 3D" opened against
+               mvp0/pr-16c, READY FOR OPERATOR REVIEW. Do not merge
+next action    the operator's review and OC-1 … OC-8 by hand. After 12d (#171) and 16c (#245) merge:
+               rebase onto main, retarget the PR, let CI run on that head. 12e lands on the same base;
+               whichever of 12e / 16d merges second resolves intents.gd, slice_main.gd and the
+               probe dispatch (A16d-18: Esc order throw-aim, then menu, then settings; the offer line's
+               "Tab more")
+background     none; logs and frames of this session under its scratchpad 16d/ (head/, mut/)
+context        CLOSED / AWAITING OPERATOR ACTION when the PR is open
 previous       C0 drafted on plan/s14-16d (docs only, PR #105); DESIGN FROZEN 2026-10-09 (§22.0). The
                [OM] defaults (keys, look, zh_Hans wording) are judged at the milestone play-test
                through OC-1 … OC-8
