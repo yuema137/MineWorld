@@ -36,7 +36,7 @@ jobs:
         run: |
           pass=0; fail=0
           for i in $(seq 1 25); do
-            if timeout -k 10 300 uv run --locked pytest -o faulthandler_timeout=60 "cognition/lm-controller/tests/test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins" -p no:cacheprovider -q -s > run.txt 2>&1; then
+            if PYTHONPATH=cognition/lm-controller/tests timeout -k 10 300 uv run --locked pytest -p scratch_watchdog "cognition/lm-controller/tests/test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins" -p no:cacheprovider -q -s > run.txt 2>&1; then
               pass=$((pass+1)); echo "run $i PASS $(grep -E 'passed|failed' run.txt | tail -1)"
             else
               fail=$((fail+1)); echo "run $i FAIL"; cat run.txt
