@@ -177,6 +177,18 @@ def score(world: Path, rubric: dict[str, Any], binary: Binary, live: bool = Fals
             f"run --days {days} exited {code}, {day_lines} day line(s), faults {faults.group(1) if faults else '?'}",
         )
     )
+    # S8: a run that exits 0 can still have refused what people tried, such as every walk to a place no door
+    # leads to (round 1, PROTOCOL.md §5). Any `rejected` request line fails it.
+    rejected = re.findall(r"^requests\s+(\S+) rejected .*?(\d+)$", ran, re.MULTILINE)
+    result.checks.append(
+        Check(
+            "S8",
+            PASS if code == 0 and not rejected else FAIL,
+            "no request rejected"
+            if not rejected
+            else "rejected: " + ", ".join(f"{action} x{count}" for action, count in rejected),
+        )
+    )
 
     places = listed(validated, "places")
     texts = {key: place_words(world, key) for key in places}

@@ -37,7 +37,7 @@ def test_the_fixture_passes_s1_to_s4_and_this_build_cannot_pass_s5_or_s6(
     tmp_path: Path, binary: Path
 ) -> None:
     checks = verdicts(world(tmp_path), binary)
-    assert [checks[c].verdict for c in ("S1", "S2", "S3", "S4")] == ["PASS"] * 4, checks
+    assert [checks[c].verdict for c in ("S1", "S2", "S3", "S4", "S8")] == ["PASS"] * 5, checks
     # Neither feature is in this build, so no world can pass them, and the reason says so (a product gap).
     assert checks["S5"].verdict == "FAIL" and "product gap" in checks["S5"].evidence, checks["S5"]
     assert checks["S6"].verdict == "FAIL" and "product gap" in checks["S6"].evidence, checks["S6"]
@@ -100,3 +100,22 @@ def test_s6_bites_on_a_provider_address_in_the_pack(tmp_path: Path, binary: Path
     checks = verdicts(path, binary)
     assert checks["S6"].verdict == "FAIL" and "names" in checks["S6"].evidence, checks["S6"]
     assert "product gap" not in checks["S6"].evidence
+
+
+def test_s8_bites_on_a_run_whose_walks_are_rejected(tmp_path: Path, binary: Path) -> None:
+    # Round 1's defect: no door to the bakery, and a routine that sends Lin there. The run exits 0 with 0 faults.
+    path = world(tmp_path)
+    quay = path / "places" / "quay.yaml"
+    text = quay.read_text(encoding="utf-8")
+    quay.write_text(text[: text.index("passages:")], encoding="utf-8")
+    replace(path / "world.yaml", "  - movement\n", "  - movement\n  - schedule\n")
+    lin = path / "people" / "lin.yaml"
+    lin.write_text(
+        lin.read_text(encoding="utf-8").replace("place: bakery", "place: quay")
+        + 'routine:\n  - from: "09:00"\n    place: bakery\n    label: work\n'
+        + '  - from: "17:00"\n    place: quay\n    label: home\n',
+        encoding="utf-8",
+    )
+    checks = verdicts(path, binary)
+    assert checks["S2"].verdict == "PASS", checks["S2"]
+    assert checks["S8"].verdict == "FAIL" and "walk-to" in checks["S8"].evidence, checks["S8"]

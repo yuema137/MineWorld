@@ -1,6 +1,6 @@
 """Run one onboarding round: assemble a sandbox, start a fresh agent in it, then score and audit what it made.
 
-    python3 tools/onboarding/run.py --instructions ON-1 --agent-command claude-h2 --budget 5 \
+    python3 tools/onboarding/run.py --instructions ON-1 --agent-command claude-allowlist --budget 5 \
         --binary target/debug/mineworld --out EVIDENCE_DIR [--model sonnet] [--max-turns 80]
 
 `tools/onboarding/PROTOCOL.md` §§3, 7 and 8 are the authority. It never runs under CI (INV-S25-6), refuses to start
@@ -42,10 +42,37 @@ class Refused(Exception):
     """The round cannot start as asked."""
 
 
-def claude_h2(model: str, budget: float, turns: int) -> list[str]:
-    """The H2 agent command (PROTOCOL.md §3.2): Claude Code in print mode, with every customisation off, no MCP
-    server, no web tool, no saved session, a turn limit and a dollar ceiling. Flags verified 2026-10-16 against
-    `claude --help`, Claude Code 2.1.302 (`--max-turns` is accepted though not listed)."""
+def spellings(sandbox: Path) -> list[str]:
+    """The sandbox's path as the agent may write it: as made, and with links resolved (macOS's /var is
+    /private/var). A permission rule names each, so neither spelling escapes the allowlist."""
+    return sorted({str(sandbox), str(sandbox.resolve())})
+
+
+def allow_rules(sandbox: Path) -> list[str]:
+    """The `allow` rules of the allowlist: `mineworld` in the shell, reads in the sandbox, writes in `work/`."""
+    allow = ["Bash(mineworld)", "Bash(mineworld *)"]
+    for root in spellings(sandbox):
+        allow += [f"Read(/{root}/**)", f"Write(/{root}/work/**)", f"Edit(/{root}/work/**)"]
+    return allow
+
+
+def permissions(sandbox: Path) -> dict[str, object]:
+    """The allowlist (PROTOCOL.md §3.2): in `dontAsk` mode every tool call no `allow` rule matches is denied
+    before it runs, without a prompt. The shell may run only `mineworld` (the guard of §3.3); files may be read
+    only in the sandbox and written only in its `work/`. A `//` prefix is an absolute path in a rule."""
+    return {
+        "permissions": {
+            "defaultMode": "dontAsk",
+            "allow": allow_rules(sandbox),
+            "deny": ["WebFetch", "WebSearch", "Agent", "Task", "NotebookEdit"],
+        }
+    }
+
+
+def claude_allowlist(model: str, budget: float, turns: int, settings: Path) -> list[str]:
+    """The agent command (PROTOCOL.md §3.2): Claude Code in print mode, every customisation off, no MCP server,
+    no saved session, the allowlist of `settings` in `dontAsk` mode, a turn limit and a dollar ceiling. Verified
+    2026-10-17 against Claude Code 2.1.302 by the planted escape test (§3.4)."""
     executable = shutil.which("claude")
     if executable is None:
         raise Refused("claude is not on PATH")
@@ -58,12 +85,14 @@ def claude_h2(model: str, budget: float, turns: int) -> list[str]:
         "--strict-mcp-config",
         "--setting-sources",
         "",
+        "--settings",
+        str(settings),
+        "--permission-mode",
+        "dontAsk",
         "--tools",
         TOOLS,
         "--disallowedTools",
         "WebFetch,WebSearch,Agent,Task",
-        "--permission-mode",
-        "bypassPermissions",
         "--no-session-persistence",
         "--output-format",
         "stream-json",
@@ -91,9 +120,12 @@ def agent_environment(sandbox: Path) -> dict[str, str]:
     return keep
 
 
-def agent_command(spec: str, sandbox: Path, model: str, budget: float, turns: int) -> list[str]:
-    if spec == "claude-h2":
-        return claude_h2(model, budget, turns)
+def agent_command(
+    spec: str, sandbox: Path, model: str, budget: float, turns: int, settings: Path
+) -> list[str]:
+    if spec == "claude-allowlist":
+        settings.write_text(json.dumps(permissions(sandbox), indent=2) + "\n", encoding="utf-8")
+        return claude_allowlist(model, budget, turns, settings)
     words = shlex.split(spec)
     return [
         word.format(sandbox=sandbox, budget=f"{budget:g}", max_turns=turns, python=sys.executable)
@@ -143,14 +175,20 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
     if out.exists():
         raise Refused(f"{out} exists; each round writes fresh evidence")
     rubric = score.load_rubric(options.instructions)
-    sandbox = Path(tempfile.mkdtemp(prefix="mw-onboard-")) / "sandbox"
+    sandbox = Path(tempfile.mkdtemp(prefix="mw-onboard-")).resolve() / "sandbox"
     assemble.assemble(sandbox, options.binary.resolve())
     if assemble.leaks(sandbox):
         raise Refused("the sandbox names the repository's path")
-    command = agent_command(
-        options.agent_command, sandbox, options.model, options.budget, options.max_turns
-    )
     out.mkdir(parents=True)
+    # The settings file lies in the evidence directory, outside the sandbox, so the agent cannot change it.
+    command = agent_command(
+        options.agent_command,
+        sandbox,
+        options.model,
+        options.budget,
+        options.max_turns,
+        out / "settings.json",
+    )
     (out / "prompt.txt").write_text(prompt(options.instructions, sandbox), encoding="utf-8")
     load_before = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
     started = time.monotonic()
@@ -172,7 +210,9 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
     wall = time.monotonic() - started
     load_after = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
     shutil.copytree(sandbox / "work", out / "work")
-    binary = score.Binary((sandbox / "bin" / options.binary.name).resolve(), [sandbox / "packs"])
+    binary = score.Binary(
+        (sandbox / "bin" / "real" / options.binary.name).resolve(), [sandbox / "packs"]
+    )
     scores = [score.score(world, rubric, binary) for world in worlds_in(sandbox / "work")]
     findings = audit.audit(transcript, sandbox)
     end = result_event(transcript)
@@ -189,6 +229,10 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
         "turns": end.get("num_turns"),
         "cost_usd": end.get("total_cost_usd"),
         "terminal": end.get("subtype"),
+        # Tool calls the allowlist denied before they ran (PROTOCOL.md §3.2), as the CLI records them.
+        "denied": [
+            audit.fields(d).get("tool_input") for d in audit.items(end.get("permission_denials"))
+        ],
         "transcript_sha256": hashlib.sha256(transcript.read_bytes()).hexdigest(),
         "worlds": [{"world": s.world, "checks": [c.__dict__ for c in s.checks]} for s in scores],
         "void": [i.__dict__ for i in findings.void],

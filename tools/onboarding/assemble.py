@@ -63,10 +63,15 @@ def assemble(sandbox: Path, binary: Path, repo: Path = REPO) -> list[str]:
     for pack in DATA_PACKS:
         source = repo / pack
         copy_tree(source, sandbox / "packs" / source.name)
-    target = sandbox / "bin" / binary.name
-    target.parent.mkdir()
+    # The real binary under bin/real/, and the guard as bin/mineworld: the only `mineworld` the agent may run
+    # (PROTOCOL.md §3.3).
+    target = sandbox / "bin" / "real" / binary.name
+    target.parent.mkdir(parents=True)
     shutil.copyfile(binary, target)
-    target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    guard = sandbox / "bin" / "mineworld"
+    shutil.copyfile(Path(__file__).resolve().parent / "guard.py", guard)
+    for executable in (target, guard):
+        executable.chmod(executable.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     (sandbox / "work").mkdir()
     return listing(sandbox)
 
@@ -83,7 +88,7 @@ def leaks(sandbox: Path, repo: Path = REPO) -> list[str]:
     needle = str(repo.resolve()).encode()
     found: list[str] = []
     for path in sandbox.rglob("*"):
-        if path.is_file() and path.parent.name != "bin" and needle in path.read_bytes():
+        if path.is_file() and path.parent.name != "real" and needle in path.read_bytes():
             found.append(path.relative_to(sandbox).as_posix())
     return sorted(found)
 

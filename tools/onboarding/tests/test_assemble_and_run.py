@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def allowed(binary: Path) -> list[str]:
                 "packs/modern-goods/"
                 + path.relative_to(REPO / "entities" / "modern-goods").as_posix()
             )
-    files.append(f"bin/{binary.name}")
+    files += ["bin/mineworld", f"bin/real/{binary.name}"]
     return sorted(files)
 
 
@@ -58,7 +59,7 @@ def test_a_sandbox_inside_the_repository_is_refused(binary: Path) -> None:
 def options(tmp_path: Path, **overrides: object) -> argparse.Namespace:
     given: dict[str, object] = {
         "instructions": "ON-1",
-        "agent_command": "claude-h2",
+        "agent_command": "claude-allowlist",
         "budget": 5.0,
         "binary": tmp_path / "mineworld",
         "out": tmp_path / "evidence",
@@ -118,3 +119,45 @@ def test_a_scripted_agent_runs_the_whole_pipeline_without_a_model(
     written = json.loads((tmp_path / "evidence" / "summary.json").read_text())
     assert written["transcript_sha256"] == summary["transcript_sha256"]
     assert (tmp_path / "evidence" / "work" / "STATUS").read_text().startswith("DONE")
+
+
+@pytest.mark.real_binary
+def test_the_guard_refuses_a_path_outside_the_sandbox_before_the_binary_starts(
+    tmp_path: Path, binary: Path
+) -> None:
+    sandbox = tmp_path / "sandbox"
+    assemble.assemble(sandbox, binary)
+    guard = [sys.executable, str(sandbox / "bin" / "mineworld")]
+    work = sandbox / "work"
+    for words in (
+        ["create", str(tmp_path / "escaped")],
+        ["create", "../../escaped"],
+        ["run", "w", "--save", "/tmp/escaped-save"],
+        ["validate", "w", "--packs=~/packs"],
+    ):
+        done = subprocess.run(
+            [*guard, *words], cwd=work, capture_output=True, text=True, check=False
+        )
+        assert done.returncode == 126 and "[sandbox] refused" in done.stderr, (words, done.stderr)
+    assert not (tmp_path / "escaped").exists()
+    outside = subprocess.run(
+        [*guard, "--version"], cwd=tmp_path, capture_output=True, text=True, check=False
+    )
+    assert outside.returncode == 126 and "working directory" in outside.stderr
+    inside = subprocess.run(
+        [*guard, "create", "inside"], cwd=work, capture_output=True, text=True, check=False
+    )
+    assert inside.returncode == 0 and (work / "inside" / "world.yaml").is_file(), inside.stderr
+
+
+def test_the_allowlist_lets_the_shell_run_only_mineworld_and_write_only_in_work(
+    tmp_path: Path,
+) -> None:
+    allow = run.allow_rules(tmp_path / "sandbox")
+    assert '"defaultMode": "dontAsk"' in json.dumps(run.permissions(tmp_path / "sandbox"))
+    assert [rule for rule in allow if rule.startswith("Bash(")] == [
+        "Bash(mineworld)",
+        "Bash(mineworld *)",
+    ]
+    writes = [rule for rule in allow if rule.startswith(("Write(", "Edit("))]
+    assert writes and all(rule.endswith("/sandbox/work/**)") for rule in writes)
