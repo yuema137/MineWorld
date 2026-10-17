@@ -1068,6 +1068,17 @@ Every commit lists implementation, validation and review as separate items. `[ ]
     CI-wall-time stop.
   - Not fixed in WE-a; it clears with 12d's fix.
 
+- **CI on `0f773b7` (run 39003724327): cancelled** when #224 (sharded test jobs) merged into main.
+  `fast`, `test-macos`, both `platforms` and `python (ubuntu)` passed. `python (windows)` failed as
+  before (inherited from 12d). `python (macos-15)` failed one test,
+  `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`, with
+  `JoinRefused: seat_occupied`. That is a race between the client count reaching 0 and the seat being
+  freed. The same Market Town content passed it on `5a176ae`, and it passed 3 of 3 runs locally
+  (macOS arm64, debug binary, 32 s each). Classified as a timing flake, not WE-a.
+- **Main `da80316` (#224) merged** (`9b7f217`, clean). It brings CI sharding and main's Windows
+  timeout for the 12d social-cafe fixtures (`cognition/lm-controller/tests/binary.py`, 1 200 s on
+  Windows). No Rust source changed, so the binary and E-4's baselines still hold.
+
 ### C6 — Documentation and ledger
 
 1. **Goal.** The specifications say what the code does.
