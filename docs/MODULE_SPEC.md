@@ -791,6 +791,8 @@ name: Alice Moreau         # a section owned by the `naming` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
+persona:                   # a section owned by the `persona` system (below)
+  summary: Runs the counter. Warm with regulars, dry with strangers.
 attributes:                # a section owned by the `attributes` system (below, "Attributes"; S30-c)
   hair-colour: auburn      #   a category, by short slug (unique among the world's catalogues)
   core.stature: 1.660      #   a quantity, in its declared unit and scale (m, 3 decimals)
@@ -881,11 +883,16 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has seven sections:
+or the pack is refused. MVP-0 has eight sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+persona   persona    people   { summary: <1–280 bytes, required, non-empty>, traits: [ <≤ 32 bytes
+                              each> ] (at most 8), speech: <≤ 160 bytes> }, traits and speech
+                              optional; unknown keys refused, with line and column. Disclosed to the
+                              person themself only. It shapes how the person speaks and grants
+                              nothing: no action, no process and no rule reads it (`ARC-74`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the

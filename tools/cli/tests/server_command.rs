@@ -49,7 +49,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
             "group-activity",
             "relationships",
             "naming",
-            "schedule"
+            "schedule",
+            "persona"
         ],
         "in the order world.yaml states, which is the order they reduce in",
     );
