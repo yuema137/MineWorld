@@ -2610,6 +2610,15 @@ E-TK4 Merge of origin/main @ 5cbb469 (2026-10-17; branch head a53ad33, merge bas
       as-is, this branch does not edit it. On the merged tree: cargo fmt --check; clippy -D warnings on
       mineworld-server and mineworld-cli clean; mineworld-server tests all ok; mineworld-cli --test
       hosted_town (1 passed, 120.7 s) and --test perceived (3 passed, 1 ignored) PASS at load ~13.
+      CI on that head (937c5b9): every job passed except python (windows-2025), where
+      cognition/lm-controller's test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_
+      second_seat_and_leaves_on_stop failed with SeatLost. This branch changes no cognition code; the
+      same test file hangs or fails on Windows on main and on other PRs (main run 38809489941). Not a
+      finding against this fix.
+E-TK5 Second merge of origin/main @ 04d5145 (2026-10-17; S10 P6a #236, S30-b #247). No conflict;
+      cargo metadata --locked and cargo fetch --locked pass, cargo fmt --check clean, decision ids
+      distinct (151). No local test run (operator pause on heavy jobs); CI on the pushed head is the
+      gate.
 ```
 
 ---

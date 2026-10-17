@@ -617,16 +617,176 @@ No question remains open.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 base and ledger | `0a11d021` | [x] base recorded; parent-doc edits 1–3 of the dispatch applied with dated notes; handoff opened | [x] `check_doc_headings.py`, `check_decision_ids.py` (below) | [x] `MODULE_SPEC` §3.1 "A pack that owns data" and §2 "Data directories" compared with §5 here: they agree (E-0) |
+| C1 `authoring` | `9797ecd7` | [x] `authoring/src/data.rs` (new): `DataDirectory`, `DataSource`, `DataOrigin`, `DataRefusal`, `OwnerContext`, `OwnsData`, `SectionInContext`, `DecodeIn`, `Subject`, `ErasedSubject`, `ResolveRefusal`, `ResolvesSubjects`, `ResolvedSeeds`, `ShippedData`, the erased holders (`HeldContext`, `HeldIn`, `HeldSeeds`) and the three erasing functions `decode_data_file`, `data_context`, `resolve_erased`; `as_any` on `AuthoredContent` and `AuthoredConfiguration` (D-b-2); `section.rs`' `is_valid` made `pub(crate)`; `lib.rs` re-exports and module doc; tests in `authoring/src/data/tests.rs` | [x] E-1; M-b-1 red → restored → green | [x] no attribute word (I-b-3 scan of both files: rc 1); `Subject` and `ErasedSubject` hold key, kind, tags, section — no name, note or location; every new type is `Debug + Send + Sync` (`DecodeIn` given a manual `Debug`); every downcast failure is a named refusal (R-b-3) |
+| C2 `sdk` | `d8bdc4a0` | [x] `SystemPack` gains `DATA`, `decode_data_file`, `data_context`, `decode_section_in`, `RESOLVES`, `resolve_subjects` (D-b-6), `SHIPS`, each provided; macros `owns_data!`, `owns_section_in_context!`, `resolves!`, `ships_data!`; `SectionOwner::of_in_context`, `DataOwnerDecl` (`section.rs`); `installed!` arms `decode_section_in`, `data`, `owning_data`, `decode_data_file`, `data_context`, `resolves`, `resolve_subjects`, `shipped`; `__private` re-exports; `sdk/rust/tests/data.rs` (new) | [x] E-2; M-b-2 red → restored → green | [x] every new item is provided with the safe default; `owns_section!`, `configures!`, `interactions!`, `parameters!` are untouched, `installed!` only gains arms; `git diff --stat -- systems/`: empty; the installed set (`acme-fishing` at `b40e71ff` included) builds unchanged |
+| C3 `packages` | `ee0d2ea4` | [x] `check_entity_layout`: the three forbidden directories first, then "declares something" = a `.yaml` file directly in `items/` **or** in any other non-dot directory (sorted scan; helper `holds_a_yaml_file`); doc comment says the loader decides which directories are known; `EntityPackDeclaresNothing`'s message adds "or a .yaml file in a data directory an installed System Pack owns"; test `an_entity_pack_may_carry_data_directories_only` in `packages/tests/manifest.rs` (D-b-7) | [x] E-3 | [x] the forbidden three still refuse first (the test writes `people/` beside a valid `schemas/a.yaml` and is refused "item kinds only in MVP-0"); a dot directory never counts; the old message's needles ("declares nothing", "items/<key>.yaml") are kept |
+| C4 `worldpack` 4d | `6e6d0a59` | [x] `worldpack/src/data.rs` (new): `DataOwnerOps` (for `Capability` and test probes), `DataRoot`, the directory rule `check_directories`, `check_shipped`, `collect` (I-b-7), `contexts`, `read` (step 4d for a World Pack), `WORLD_DIRECTORIES`, `validate_entity_data`; in-crate tests `worldpack/src/data/tests.rs`; `read.rs`: step 4d in `read_with`, `WorldPack.contexts` and `context()`, module doc (4d, 10's context), the `DEP-10` comment (F-S30b-6); `content.rs`: `Contexts`, `ContentFile::new(kind, enabled, contexts)`, the section arm calls `decode_section_in`; `entities.rs`: `required_entity_packs`, `items/` optional, item files decoded with the contexts, `validate_entity_pack` checks data first; `format.rs`: `DecisionsFile::directory`; `error.rs`: `UnknownDirectory`, `DataNeedsASystem`, `DataRefused`, `ResolveRefused`; `worldpack/tests/data_directories.rs` (new) | [x] E-4; M-b-3, M-b-4 red → restored → green | [x] no `HashMap` (clippy's `disallowed-types` clean; every map a `BTreeMap`); contexts held as `Arc<dyn OwnerContext>`; only enabled owners' files are read, and shipped files into a non-enabled owner's directory are not collected (F-b-1); a world with no data owner runs the same reads plus one directory listing per root |
+| C5 `worldpack` 10b + genesis | `b436c03b` | [x] `worldpack/src/resolution.rs` (new, D-b-8): `Resolutions`, `subjects` (every file of the carried kinds in `sectioned_files` order, the owner's section or none; key, kind, tags only), `refused`, `resolve` (step 10b, `systems:` order); `read.rs`: `WorldPack.resolved`, step 10b between `check_sections` and `configure::check_references`, `resolved()`, `with_resolved` (tests), module doc 10b; `load.rs`: `own_vocabulary` (the check shared by sections and resolutions), `seeded_resolved`, `Seeder`, `in_composition_order` yields a resolving owner at its `systems:` rank and skips its sections, module doc; four in-crate tests | [x] E-5; M-b-5, M-b-6 red → restored → green | [x] with no resolution `in_composition_order` yields exactly the decoded sections in the rank order it always did, and `resolve` returns an empty map without calling any owner beyond `resolves()` (a `const`); the decisions golden and `social_cafe` pass unchanged |
+| C6 checkpoint | `08e80e5f` | [x] `tests/acceptance/tests/schema/mod.rs` (new): `test-schema` — `OwnsData` (`schemas/`), `PackConfiguration` (`{ default }`), `SectionInContext` (`schema:` checked key by key and value by value against the context, the value's refusal raised inside its own deserializer), `ResolvesSubjects` (fill with the default), `schema-stated` reduced into `SchemaValues`, `ships_data!("schemas/shipped.yaml")`; `tests/acceptance/schemas/shipped.yaml` (new, the shipped file); `tests/acceptance/tests/data_seam.rs` (new): AC-b-1, AC-b-2, AC-b-7 (package half), AC-b-8; `tests/acceptance/Cargo.toml`: dev-dependency `mineworld-packages` (D-b-9); `Cargo.lock` | [x] E-6; M-b-7 red → restored → green | [x] `test-schema` names no installed pack's vocabulary (its facts, component and directory are its own); the test calls only `serde_saphyr::with_deserializer_from_str` and the `SystemPack` items the loader calls, then `World::genesis` |
+| C7 close-out | this commit (the PR head) | [x] I-b-3 scan; AC-b-6 diff; `MODULE_SPEC` §3.1: the declares block corrected (`resolve_subjects`) and item 4 clarified, each with a dated note (R-S30a-b-1); `DECISIONS.md`: a dated note under `ARC-121`; this ledger and the handoff | [ ] CI on the exact head (three OSes) and the one nightly dispatch: recorded in the handoff and the PR, not here (a commit cannot carry its own head's CI) | [x] deviations D-b-1 … D-b-9 and findings F-b-1 … F-b-3 recorded; every AC mapped below |
 
 ### Evidence
 
-(none yet)
+**E-0 (C0, 2026-10-15).**
+
+- Implementation base: `origin/main @ 38323d4c` (merge of #238, S30-a). Worktree
+  `/Users/yuema137/mineworld-worktrees/impl-s30b`, branch `mvp0/pr-s30b` (deviation D-b-1 below).
+- S30-a merged: `ARC-121` is `docs/DECISIONS.md:8586`; `MODULE_SPEC.md` §3.1 "A pack that owns data" is at
+  `:358`, its §2 "Data directories" at `:100`, the `SystemPack` declares block (DATA … SHIPS) at `:233-242`.
+- S29-a **not** merged: no `worldpack/src/settlement.rs`, no step 9b in `read.rs`'s module doc. This PR adds
+  steps 4d and 10b alone.
+- Q-S30b-1: ruled (§14.1), nothing supersedes it (`ARC-121` item 4 states the ruling).
+- Anchors re-read at the base: A-1 (`section.rs:172-203`), A-4, A-5 (`pack.rs:25-180`), A-6, A-7
+  (`read.rs:115-224`, steps at `:133`, `:148`, `:150-180`, `:192`, `:220`), A-9, A-10 (`load.rs:63-91`), A-11
+  (`manifest.rs:26, 120-147`; `entities.rs:62-101, 143-227`), A-12, A-13 hold. Moved: A-8's section arm is
+  `content.rs:182-197` (not 172-205).
+- Parent-doc edits assigned by the dispatch, each with a dated note: step-31 §7.4 `categorical` → `category`;
+  step-30 §6.4 "masks `core` (all 94)" → 93; step-30 §13.1 S30-k row `attributes/labels/` → `labels/`.
+- No other session holds this worktree (`ps`: none).
+
+**E-1 (C1).** `cargo test -p mineworld-authoring --lib`: 11 passed (5 new: `a_data_directory_is_one_word_and_none_of_the_formats`,
+`decode_in_context_sees_the_context`, `a_context_refusal_is_the_owners_and_names_the_file`,
+`a_resolution_covers_every_subject_and_names_no_stranger`, `a_shipped_file_lies_directly_in_an_owners_directory`). `cargo clippy
+-p mineworld-authoring --all-targets -- -D warnings`: clean. `cargo fmt --all --check`: clean. `cargo check -p mineworld-sdk`: clean (its
+`HeldSection` implements `AuthoredConfiguration` and compiles unchanged, D-b-2).
+
+**E-2 (C2).** `cargo test -p mineworld-sdk --lib`: 12 passed (new: `a_silent_pack_decodes_in_context_as_it_decodes`);
+`--test data`: 2 passed (`each_macro_defines_its_items_together_and_the_installed_set_dispatches_them`,
+`a_section_is_not_decoded_in_another_owners_context`); `--test compile_fail`: 1 passed (the trybuild snapshot unchanged);
+`--test extensions`, `--test interactions`: 1 + 1 passed. `cargo build -p mineworld-installed-systems` (every installed pack,
+`acme-fishing` included): Finished. `cargo clippy -p mineworld-authoring -p mineworld-sdk --all-targets -- -D warnings`: clean;
+`cargo fmt --all --check`: clean.
+
+**E-3 (C3).** `cargo test -p mineworld-packages --test manifest`: 7 passed (new: `an_entity_pack_may_carry_data_directories_only`;
+`an_entity_pack_carries_item_kinds_and_nothing_else` unchanged and passing); `--lib`: 0 tests (none exist). `cargo test -p
+mineworld-cli --test entity_packs`: 5 passed (claims unchanged); `cargo test -p mineworld-worldpack --test entity_packs`: 7 passed.
+Clippy on `mineworld-packages --all-targets -D warnings`: clean.
+
+**E-4 (C4).** `cargo test -p mineworld-worldpack --lib`: 20 passed (6 new in `data::tests`:
+`data_is_collected_in_composition_order`, `a_dot_directory_is_not_content`,
+`the_directory_rule_admits_the_format_decisions_and_enabled_owners`, `every_data_refusal_names_the_file_and_the_owner`,
+`an_owner_not_enabled_reads_nothing_and_one_with_no_files_still_has_a_context`,
+`the_format_directories_agree_and_no_two_packs_own_one_directory`). Integration, each run alone: `data_directories` 3 passed (new),
+`social_cafe` 15, `refusals` 38, `entity_packs` 7, `structure` 2, `decisions_key` 5, `configuration` 9, `content_kinds` 1,
+`interaction_sections` 2, `package_fields` 2, `requirements` 4, `registration` 1 — all passed. `cargo test -p mineworld-cli --test
+entity_packs --test packs`: 5 + 6 passed. `cargo clippy -p mineworld-worldpack --all-targets -- -D warnings`: clean; `cargo fmt --all
+--check`: clean; `scripts/check_scratch.py scan`: "238 test sources, none makes scratch outside mineworld-test-support" (the in-crate
+`data/tests.rs` keeps a removed-on-drop guard, as `configure/tests.rs` does). Sizes: `read.rs` 847 lines (824 at the base; +23 for the
+step doc and `context()`; `read_data` moved into `data.rs` to keep it there), `error.rs` 809 (750 + the four variants) — both past
+the ~800 warning; recorded as F-b-2, not split in this PR (the split would move code no step of S30 changes).
+
+**E-5 (C5).** `cargo test -p mineworld-worldpack --lib`: 24 passed (new: `resolved_seeds_take_the_sections_places`,
+`a_subject_without_a_section_is_resolved`, `a_resolution_naming_an_unknown_subject_is_refused`,
+`a_resolution_that_seeds_another_packs_fact_is_refused_by_name`); `--test social_cafe` 15 passed, `--test data_directories` 3 passed;
+`cargo test -p mineworld-cli --test decisions` (the `social-cafe-seed-7-30-days` golden among them): 7 passed, unchanged. Clippy
+`-p mineworld-worldpack --all-targets -D warnings`: clean; fmt: clean.
+
+**E-6 (C6).** `cargo test -p mineworld-acceptance --test data_seam`: 4 passed —
+`a_person_file_value_is_checked_at_its_own_line_against_a_data_declared_schema` (the refusal carries "'mood' is 1 … 9, not 12",
+"line 4" and "column 9", the value's own position in the file), `every_person_is_resolved_once_and_seeded_with_authored_or_default_values`
+(three people, one with no section; facts in key order; genesis reduces each into `SchemaValues`),
+`shipped_data_reaches_the_owner_first_naming_its_pack_and_path` (origin `test-schema` / `SystemPack` / `schemas/shipped.yaml`, then the
+world's file; the configured default reached the context; a duplicate field refused naming `schemas/body.yaml`),
+`an_entity_pack_of_data_only_passes_the_package_check`. `--test configuration_seam`: 4 passed (unchanged). `cargo clippy -p
+mineworld-acceptance --all-targets -- -D warnings`: clean; fmt: clean; `check_scratch.py scan`: 240 sources clean. `git diff --stat
+origin/main -- systems/ tests/acceptance/tests/configuration`: empty (AC-b-6).
+
+**E-7 (C7).** I-b-3: `git grep -n -i "attribute\|catalogue\|traits\|population\|profile" -- authoring/src/data.rs
+worldpack/src/data.rs sdk/rust/src` → rc 1 (no match); the same over `worldpack/src/resolution.rs` and both data test files → rc 1.
+AC-b-6: `git diff --stat origin/main -- systems/ tests/acceptance/tests/configuration` empty. Doc checks: `check_doc_headings.py`
+(240 sections), `check_decision_ids.py` (148 ids), `ci_layer.py docs`: passed.
+
+**Acceptance map.** AC-b-1, AC-b-2, AC-b-8: E-6. AC-b-3: E-4 (`data_directories.rs`, in-crate rule test). AC-b-4: E-5
+(`a_resolution_that_seeds_another_packs_fact_is_refused_by_name`). AC-b-5: `social_cafe` and the `decisions` golden pass unchanged (E-4,
+E-5); the nightly `baseline check` on the final head is recorded in the handoff. AC-b-6: E-7, and CI builds `acme-fishing` at
+`b40e71ff`. AC-b-7: E-3 + E-6 (package half), E-4 (`data_is_collected_in_composition_order`: Entity Packs before the world). AC-b-8:
+E-4 and E-6. AC-b-9: E-7.
 
 ### Mutations
 
-(none yet; M-b-1 … M-b-7 as §9 lists them)
+| Id | Planted | Test | Red | Restored (`cmp`) | Green |
+| --- | --- | --- | --- | --- | --- |
+| M-b-1 | `data_context` hands the owner `Vec::new()` instead of the decoded files (the realised form of "a fresh context", D-b-4) | `decode_in_context_sees_the_context` | FAILED at `tests.rs:236` (files the context saw) | yes | ok |
+| M-b-2 | `SystemPack::decode_section_in`'s default returns `Err("mutated")` instead of `decode_section(map)` | `a_silent_pack_decodes_in_context_as_it_decodes` | FAILED at `pack.rs:514` (the `owns_section!` pack no longer decodes) | yes | ok |
+| M-b-3 | `data::ordered` no longer sorts (the listing's order kept) | `data_is_collected_in_composition_order` | FAILED at `data/tests.rs:249` (a reversed listing came back reversed; the real-directory half happened to list in name order on APFS, which is why the order is pinned on a listing rather than a directory, as §9 C4 foresaw) | yes | ok |
+| M-b-4 | `check_directories` no longer skips names beginning with `.` | `a_dot_directory_is_not_content` | FAILED: `UnknownDirectory { path: …/world/.cache }` | yes | ok |
+
+| M-b-5 | `in_composition_order` ranks every resolution `usize::MAX` (after the file's sections) | `resolved_seeds_take_the_sections_places` | FAILED at `load.rs:991` (alice: probed, probed, resolved) | yes | ok |
+| M-b-6 | `seeded_resolved` skips `own_vocabulary` | `a_resolution_that_seeds_another_packs_fact_is_refused_by_name` | FAILED at `load.rs:1099` (presence's `arrived` accepted) | yes | ok |
+
+| M-b-7 | `test-schema`'s `decode` ignores the context and takes any integer map | `a_person_file_value_is_checked_at_its_own_line_against_a_data_declared_schema` | FAILED at `data_seam.rs:130` (`mood: 12` accepted) | yes | ok |
+
+(M-b-3 and M-b-4 were planted before `read_data` moved from `read.rs` into `data.rs`; neither `ordered` nor `check_directories`
+changed in the move, and the tests ran green after it.)
 
 ### Deviations and findings
 
 F-S30b-1 … F-S30b-6 (§3.2), recorded at design time.
+
+- **D-b-1 (bounded).** §9.0 and §12 name the worktree `impl-s30-b`; the primary's dispatch created
+  `impl-s30b`. Same branch, same single-session rule; no other effect.
+- **D-b-2 (bounded; A-4 corrected).** A-4 says `AuthoredConfiguration` is implemented only inside `authoring`.
+  Audit: `sdk/rust/src/interactions/mod.rs:128` implements it too (`HeldSection`), and both traits are public, so an
+  external pack could. `as_any` is therefore a **provided** method on both erased traits, answering `()` by default;
+  `authoring`'s own holders override it with the owner's value. A holder that does not answer is not downcastable,
+  and every downcast failure is a named refusal. No implementor changes; the pinned `acme-fishing` implements
+  neither trait (`~/.cargo/git/checkouts/mineworld-pack-fishing-*/b40e71f`: no match).
+- **D-b-3 (bounded, additive to §5.2–5.4).** (a) `OwnerContext` has a third, `#[doc(hidden)]` method `shared()`
+  returning the owner's context as `Arc<dyn Any + Send + Sync>`, so `DecodeIn::from_erased` and `resolve_erased`
+  keep a typed `Arc<S::Context>` without copying; `as_any()` answers the owner's own `Context` (not the holder), so
+  S30-c's CLI downcasts to its own type. (b) `ResolvedSeeds` also answers `section()` (the refusal of a resolved
+  seed names the section, as a section's does) and `as_any()` (the owner's seed map, for S30-d's `attributes
+  resolve`). (c) `ErasedSubject::authored` is `Option<&dyn AuthoredContent>` rather than `Option<&Arc<…>>`. (d) The
+  erasing glue the macros call is three public functions in `authoring` (`decode_data_file::<S>`,
+  `data_context::<S>`, `resolve_erased::<S>`), as `Decode<S>` is for sections. (e) `decode_data_file` refuses a
+  directory the owner does not own, and `data_context` / `resolve_erased` refuse another owner's configuration,
+  section or context by name (fail closed).
+- **D-b-4 (bounded; M-b-1's form).** M-b-1 as written ("a fresh default context") does not type-check: the seam puts
+  no `Default` bound on `OwnsData::Context`, and should not. The planted mutation is the realised equivalent: the
+  context is built from no files instead of the given ones.
+- **D-b-5 (bounded).** `DataDirectory::from_static` also refuses, at compile time, the format's own directories
+  (`people`, `places`, `items`, `organizations`, `configure`, `data`: `MODULE_SPEC` §3.1 item 1 "distinct from the
+  format's own directories"); `ShippedData::new` checks `<directory>/<file>.yaml` at compile time (flat, `.yaml`,
+  a valid directory). Uniqueness across packs is the build's guard (C4).
+- **D-b-6 (bounded; names in §5.5).** (a) §5.5's `SystemPack::resolve` is named **`resolve_subjects`**: every pack
+  is a `System`, whose `resolve` resolves an action, and the compiler refused `Plain::resolve` as ambiguous
+  (E0034) — a pack calling `Self::resolve` in its own code would have stopped compiling, which I-b-2 forbids.
+  `Capability`'s dispatch is `resolve_subjects` too, since `Capability::resolve` already resolves an id. The
+  `ResolvesSubjects::resolve` the pack implements keeps its name (a definition is never ambiguous; the seam
+  calls it through the trait bound). (b) The context parameter of `decode_section_in` and `resolve_subjects`
+  is `Option<&dyn OwnerContext>`, not `Option<&Arc<dyn OwnerContext>>`. (c) `owns_section_in_context!` needs
+  `owns_data!` beside it; written without it, the section is refused at read, naming the system ("has no
+  context of its own to decode its section in") rather than silently decoded. (d) `sdk/rust/tests/data.rs`
+  states `SHIPS` with inline text; `ships_data!`'s `include_str!` runs in C6, whose crate holds a real file.
+  `MODULE_SPEC` §3.1's declares block names `RESOLVES, resolve`: corrected in C7 with a dated note
+  (R-S30a-b-1).
+- **F-b-1 (finding; S30-a F-S30a-9 and F-S30a-10 against the seam as built).** The seam forecloses neither.
+  (a) F-S30a-10: a file a pack ships into a directory whose installed owner the world does **not** enable is
+  simply not collected — never refused — so a world enabling `employment` without `attributes` still reads;
+  `Capability::shipped()` exposes every pack's shipped files, so S30-c may route them however it decides
+  (R-S30c-a-1). A file shipped into a directory **no installed** pack owns is refused (`UnknownDirectory`, naming
+  the shipping pack and path): a build defect, failed closed. (b) F-S30a-9: the directory rule judges
+  directories only; a pack root's **files** (`backend.yaml`, `LICENSE`, `NOTICE`, a `README`) are neither refused
+  nor collected. So S30-e may either add a root-file item to the seam (a bounded, additive `DataOwnerDecl`
+  field) or move the contract into an owned directory; and S30-h's `tools/` is refused unless it is named
+  `.tools/`, kept outside the pack, or owned — exactly R-S30e-a-2 and R-S30h-a-1, which stand unchanged.
+- **F-b-2 (finding; size).** `worldpack/src/read.rs` (847) and `error.rs` (809) are past the ~800-line warning;
+  both were near it at the base (824, 750). Not split here: no S30 step changes the code a split would move.
+  Recorded for the step owner.
+- **F-b-3 (finding; limitation).** `validate_entity_pack` decodes an Entity Pack's data file by file with no
+  context (§5.7), so an item file whose section is decoded in context (`owns_section_in_context!`) is refused
+  there ("has no context of its own"). No installed pack decodes an item section in context; S30-c's
+  `attributes:` is carried by people. A pack that needs it widens `validate_entity_pack` to build a context
+  from the pack's own data.
+- **D-b-8 (bounded; file placement).** Step 10b's code is `worldpack/src/resolution.rs`, not `read.rs` (§9 C5's file
+  list): `read.rs` was already past the size warning (F-b-2), and the subjects and the refusal are one concept.
+  `read.rs` calls it at the step the design names. The unknown-key refusal is held by `authoring`'s
+  `resolve_erased` (C1's test) and its report by `resolution::refused` (C5's test): the loader's `Capability`
+  dispatch is closed, so a probe cannot be driven through `resolve` itself (A-14's precedent).
+- **D-b-9 (bounded; §9 C6 allowed it).** `tests/acceptance` gains the dev-dependency `mineworld-packages`
+  (AC-b-7's package half calls `check_entity_layout`); `ships_data!` needs its file in the crate's own directory,
+  so the shipped fixture is `tests/acceptance/schemas/shipped.yaml`.
+- **D-b-7 (bounded; test seam).** §7 places the `packages` test in `packages/src/manifest.rs`, which has no test
+  module and no scratch directory; it is in `packages/tests/manifest.rs`, beside the existing Entity Pack layout
+  test and its scratch helper.
