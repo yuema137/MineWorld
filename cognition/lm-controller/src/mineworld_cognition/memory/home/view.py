@@ -215,6 +215,8 @@ class SeatView:
             # digits with no leading zero (the SDK validates both), so the id's number is its digits and the
             # entity's JSON is its digits in quotes; the line's length is exact without encoding it once per
             # counterpart (a busy fact names hundreds). `test_the_meter_is_the_dump` holds it to the dump.
+            # The precondition, stated: the shortcut is exact only for decimal ids (D-a-14).
+            assert _decimal(fact.id) and all(_decimal(entity) for entity in counterparts), fact.id
             fixed = len('["l0_who",') + len(fact.id) + len(',""]') + 1
             who = tuple(fixed + len(entity) for entity in counterparts)
             meter.hold(key, l0, who)
@@ -366,6 +368,12 @@ class SeatView:
 
     def __repr__(self) -> str:
         return f"SeatView(seat={self.identity.seat!r})"
+
+
+def _decimal(value: str) -> bool:
+    """ASCII decimal digits with no leading zero: what the SDK's `EventId` and `EntityId` validate, and what the
+    meter's `l0_who` shortcut in `SeatView.hold` relies on (its JSON is its digits, quoted or not)."""
+    return value.isascii() and value.isdigit() and (value == "0" or value[0] != "0")
 
 
 def text(row: Row, name: str) -> str:

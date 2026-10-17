@@ -1117,6 +1117,25 @@ passed in 29.7 s, `test_home_transparency_large.py` 3 passed in 30.5 s; `test_ho
 `test_home_gc`, `test_home_open`, `test_home_kill` (50), `test_home_isolation`, `test_memory_isolation`,
 `test_retention_store`, `test_home_scale -k synthetic` PASS.
 
+**D-a-15 (primary ruling 2026-10-16, option 1; CI run 2 on `a94699f5`).** `python (windows-2025)` was cancelled at
+the 45-minute limit again (`test_retention_size` ≥ 306 s, `test_home_kill` 177 s, `_frames` 132 s on Windows;
+Linux python ≈ 10 → 31 min). The independent review of `a94699f5` found no design defect and caught all five of its
+own mutations. Ruling applied, the 45-minute limit untouched:
+- a `slow` marker (`pyproject.toml`); the member's `addopts` deselect it (`-m "not live_model and not slow"`),
+  `python-smoke`'s expression adds `and not slow`; `test_structural_isolation.py`'s two pins follow;
+- the nightly `stability` layer (Linux, macOS, Windows, 90-minute jobs) runs `uv run --locked pytest
+  cognition/lm-controller -m slow` (`scripts/ci_layer.py` only; `nightly.yml` unchanged, so nothing overlaps
+  `fix/nightly-red`, whose diff touches `nightly.yml`, `ci_godot.py` and a Rust test); the set is 52 cases: 41 of
+  the 50 kills, frames 1 (3) and 4 096 (3) of the harness, and the busy-store `size_passes[keep-all]`,
+  crossing, crash and `frames_never_change` ×2;
+- per PR: 9 kills (3 per seam), transparency frames 7 and 256 (and the real stream), the busy store's overflow,
+  `size_passes[consolidate]` (a plain policy) and the assisted size pass. Locally `test_retention_size.py` 10
+  passed, 5 deselected in 30.9 s; `test_home_kill.py` 9 in 1.6 s (`-m slow`: 41 in 7.2 s);
+  `test_home_transparency_frames.py` 3 in 33.3 s; `test_home_isolation.py` 5 in 14.2 s.
+- Review items: `SeatView.hold` asserts the decimal-id precondition of the D-a-14 shortcut (`view._decimal`);
+  `test_home_isolation.py::test_a_seat_view_shows_none_of_a_home_mates_rows` fails a seat leak by name (planted:
+  `NameBook.load` without its seat predicate → red; restored, `cmp` clean, green).
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 

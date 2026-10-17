@@ -5,6 +5,10 @@ AFGb2-6 (the incremental measure), AFGb2-7 (configuration, Python half).
 A busy world is the heavy synthetic stream (`retention_stream.heavy`): more than the bound in one simulated
 day. Every oracle reads `dump()` or the generator's own ids; the figures are written here from the
 operator's 20 MiB, never imported from the code under test.
+
+The busy-store cases marked `slow` run each night in the `stability` layer, not per PR (pr-s28a D-a-15, primary
+ruling 2026-10-16); per PR the busy store is covered by its overflow, the consolidating size passes (a plain
+policy) and the assisted seat's size passes.
 """
 
 from __future__ import annotations
@@ -168,7 +172,9 @@ def test_a_busy_day_overflows_without_a_size_trigger() -> None:
         assert len(store.dump()) > BOUND
 
 
-@pytest.mark.parametrize("policy", ["keep-all", "consolidate"])
+@pytest.mark.parametrize(
+    "policy", [pytest.param("keep-all", marks=pytest.mark.slow), "consolidate"]
+)
 def test_size_passes_hold_the_bound_at_every_instant(
     policy: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -206,6 +212,7 @@ def test_size_passes_hold_the_bound_at_every_instant(
     assert {str(row["cause"]) for row in log} == {"day", "size"}
 
 
+@pytest.mark.slow
 def test_a_crossing_at_a_days_first_fact_runs_the_daily_pass_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -257,6 +264,7 @@ def test_the_measure_after_each_fact_is_the_same_however_framed() -> None:
         assert probed(size) == whole, size
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("policy", ["keep-all", "consolidate"])
 def test_frames_never_change_a_busy_store(policy: str) -> None:
     # Size passes fall on the same facts whatever the frames: frames of 1 and of 256 against the whole
@@ -274,6 +282,7 @@ class Crash(RuntimeError):
     pass
 
 
+@pytest.mark.slow
 def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

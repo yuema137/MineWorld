@@ -1,6 +1,6 @@
 """A killed home resumes to the uninterrupted dump (pr-s28a C7; AC-a-7, I-a-11; step-28 AS28-8, I-S28-4, I-S28-5).
 
-Fifty seeded kills of a child process (`home_kill.py kill`) driving the kill world into a file home: 17 inside
+Fifty seeded kills (three per seam per PR, all fifty each night: the rest are `slow`, D-a-15) of a child process (`home_kill.py kill`) driving the kill world into a file home: 17 inside
 `SeatView.hold` after the record and before the access row, 17 inside `SeatView.release` after the access deletes
 and before collection, 16 at the home's `COMMIT`. After each, the killed file is opened: its committed state holds
 I-S28-4 (no record without a holder, no held key without its record). Then every seat is re-delivered from its own
@@ -49,7 +49,13 @@ def uninterrupted(tmp_path_factory: pytest.TempPathFactory) -> Uninterrupted:
         return Uninterrupted(home.dump(), counted)
 
 
-CASES = [(point, n) for point in POINTS for n in range(KILLS[point])]
+PER_PR = 3
+"""Kills per seam a PR runs; the rest of the 50 are `slow` and run each night (`stability`; D-a-15)."""
+CASES = [
+    pytest.param(point, n, marks=pytest.mark.slow) if n >= PER_PR else pytest.param(point, n)
+    for point in POINTS
+    for n in range(KILLS[point])
+]
 
 
 @pytest.mark.parametrize(("point", "number"), CASES)
