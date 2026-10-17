@@ -8873,6 +8873,7 @@ Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall,
 - **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
 - **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
 - **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
+
 ---
 
 ## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests
@@ -8883,7 +8884,7 @@ operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
 (F-13c-impl-2, F-13c-impl-5), `.structured-coding/plans/mvp0/pr-set-b-controls.md` §7.2
 
 **Problem.** The nightly was red on every night since SET-b (#192) merged, for four causes, each read from
-the logs of nightly 38919486641 on `38323d4c`, and a fifth this PR's own dispatch found:
+the logs of nightly 38919486641 on `38323d4c`, and two more this PR's own dispatches found:
 1. `parity-long-windows` and `stability-windows` were cancelled at their 90-minute limit, and the
    `parity-long` comparison then failed for the missing Windows record. Windows saved runs were the cost:
    `stability-windows` saved bodies-yard's 300 days in 3 280.6 s (Linux 285.2 s) and replayed it in 77.5 s
@@ -8930,6 +8931,10 @@ the logs of nightly 38919486641 on `38323d4c`, and a fifth this PR's own dispatc
    connection close, and its line had been read, while the kill was being reaped, so the slice after the
    count skipped that line. **The test was wrong, not the client.**
 
+6. `repeat-windows` was near its 120-minute limit: two unsharded samples of the default suite took
+   114.9 min on `38323d4c` and 107.2 min on this PR's dispatch 39007080793 (ARC-110's note expected it;
+   the per-PR `test-windows` job had already outgrown its cap and been sharded).
+
 The older findings of #170 are not live: `stability-linux` passed on `3a9b9eff` and `38323d4c`, and the
 `baseline` step passed on both (only `compare` failed, for cause 1).
 
@@ -8966,7 +8971,13 @@ verdicts are unchanged, and it is not a retry, because nothing it does is judged
 5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
    still reaches a verdict. The other limits are unchanged.
 6. The reconnect test counts the lines before it kills the world. Its assertions are unchanged.
-7. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
+7. `repeat-windows` becomes `repeat-windows-1` and `repeat-windows-2`: `ci_layer.py core-repeat --shard
+   K/2` runs ARC-110's partition (`scripts/ci_shard.py`, the same weights), building shard K's targets and
+   sampling them twice through `ci_repeat.py` (`--no-fail-fast`; the doctests, in whichever shard holds
+   them, write `repeat-doc.txt`). The report joins an OS's summaries by sample name
+   (`ci_nightly.py` `merged_samples`), so the flake verdict is still one per OS, and each shard is a
+   verdict row of its own. Linux and macOS keep one job (80.8 and 64.6 min of 120).
+8. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
    (`godot --always-on-top --path clients/3d-spike res://scenes/slice.tscn -- --slice-measure
    --settings=none`, limit 600 s), where a connected 3D test is about to run (the macOS leg; Linux and
    Windows skip them all). Its exit and time go to `artifacts/nightly/notes.txt` as a note, never a

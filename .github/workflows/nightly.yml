@@ -532,8 +532,11 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
-  repeat-windows:
-    name: repeat-windows
+  # Windows samples the suite as two shards of ARC-110's partition (ARC-149): both samples unsharded took
+  # 107 and 115 min of the 120 (nightlies 39007080793, 38919486641). Each shard builds and samples its own
+  # targets twice; the report joins the shards' samples by name, so the flake verdict is per OS as before.
+  repeat-windows-1:
+    name: repeat-windows-1
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
     runs-on: windows-2025
@@ -546,16 +549,45 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core-repeat
+          shard: 1/2
       - name: Verdict
         if: always()
         shell: bash
         env:
           STATUS: ${{ job.status }}
-        run: python scripts/ci_nightly.py verdict --job repeat-windows --outcome "$STATUS" --layer core-repeat
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-1 --outcome "$STATUS" --layer core-repeat
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: nightly-repeat-windows
+          name: nightly-repeat-windows-1
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  repeat-windows-2:
+    name: repeat-windows-2
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core-repeat
+          shard: 2/2
+      - name: Verdict
+        if: always()
+        shell: bash
+        env:
+          STATUS: ${{ job.status }}
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-2 --outcome "$STATUS" --layer core-repeat
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-repeat-windows-2
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -579,7 +611,8 @@ jobs:
       - clients-windows
       - repeat-linux
       - repeat-mac
-      - repeat-windows
+      - repeat-windows-1
+      - repeat-windows-2
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10

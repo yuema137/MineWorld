@@ -366,8 +366,24 @@ def result(layer: str, line: str) -> None:
 
 
 # Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
-# still closes the layer, so each shard leaves nothing behind.
-SHARDABLE = {"core"}
+# still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
+# (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
+SHARDABLE = {"core", "core-repeat"}
+
+
+def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
+    """A shard's cargo commands as `core-repeat` runs them: the build as it is, and each test command
+    sampled twice (`--no-fail-fast`, as the unsharded layer). The doctests, when the shard holds them,
+    write their own summary beside repeat.txt; the report merges a job's summaries by sample."""
+    out = []
+    for command in cargo:
+        if "--no-run" in command:
+            out.append(command)
+            continue
+        summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
+        out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
+                    *command[:2], "--no-fail-fast", *command[2:]])
+    return out
 
 
 def commands_of(layer: str, shard: str | None) -> list[list[str]]:
@@ -377,6 +393,8 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
         return LAYERS[layer]
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
+    if layer == "core-repeat":
+        return repeat_commands(cargo)
     return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
 
 
