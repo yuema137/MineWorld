@@ -7255,6 +7255,14 @@ never modelled: tokens are reported, never priced (step-17 §3.10.4).
 **Revisit** if a provider bills on a unit that tokens do not bound (for example per-request fees with
 no token count), or if per-seat ceilings prove too coarse for many seats sharing one GPU.
 
+**Dated note, 2026-10-14 (S10 P6b, C4): two additive interface changes.** `ModelGateway.complete` gains an
+optional keyword `timeout_s`; the call's timeout is the smaller of `call_timeout_s` and `timeout_s`, so a
+consult deadline cut by the caller is charged like a timeout (one call, no tokens), where cancelling from
+outside would skip the charge. `BackendFailure` gains `retry_after_s` (an integer, 0 to 3 600, or absent),
+set by both HTTP adapters from a delta-seconds `Retry-After` on any non-2xx response; an HTTP date is
+ignored. The gateway still never retries (`ARC-73`). Failures are never recorded, so cassette format and
+keys are unchanged. Ruled by QP6-6 (2026-10-14).
+
 ---
 
 ## ARC-58 — Recorded model outputs: an interface-level cassette, keyed on the provider-neutral request
@@ -7888,6 +7896,23 @@ library.
 **Revisit** when a second protocol client in Python needs the same loop: it then moves, unchanged, into a
 shared module, not into a library.
 
+**Dated note, 2026-10-14 (S10 P6b, C1): retry and breaker libraries declined.** For the LM controller's
+layered retries (`ARC-73`) and its per-seat circuit breaker, the following are declined, and our own code
+is built instead (`pr-s10-p6-lm-controller.md` §4). Licences were read on 2026-10-14 from each project's
+PyPI metadata; none was installed or added, and `uv.lock` is unchanged.
+
+| Candidate | Licence (PyPI metadata, 2026-10-14); latest version | Verdict |
+| --- | --- | --- |
+| `tenacity` | Apache-2.0; 9.2.1 | **Declined.** It owns the loop and the sleep, while the controller needs per-class budgets under one deadline and attempt cap, seeded jitter, an injected clock, and a record per attempt |
+| `backoff` | MIT; 2.2.1 | **Declined**, for the same reasons |
+| `stamina` | MIT; 26.1.0 (wraps `tenacity`) | **Declined**, for the same reasons as `tenacity` |
+| `pybreaker` | BSD (classifier "BSD License", no licence field); 1.4.1 | **Declined.** It counts HTTP-call failures; the controller's breaker counts consult outcomes, excludes budget refusals, and runs its cooldown in simulated time |
+| `aiobreaker` | BSD; 1.2.0 | **Declined**, for the same reason as `pybreaker` |
+| `purgatory` | MIT; 3.0.1 | **Declined**, for the same reason as `pybreaker` |
+
+The licence of `pybreaker` and `aiobreaker` is taken from their PyPI metadata as written; their licence
+files were not read in this session.
+
 ---
 
 ## DEP-46 — Prior-art audit, October 2026: no shared-world or AI-NPC framework is adopted
@@ -8176,6 +8201,37 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 **Revisit triggers added:** a block-level `AC-8` difference on any leg; FG-e moving blocks out of the file; a world whose span exceeds 64 MiB of raw rows.
 
+---
+
+## ARC-96 — Agent players are clients: `mineworld-agent`, a Python client of the public protocol, with MCP confined to one module of it
+
+**Date** 2026-10-14 · **Status** accepted (step-27 design, operator QS27-1 … QS27-10 of 2026-10-14); written by S27-c C0, which builds the transport-free core (`mineworld_agent.Player`); the MCP module is S27-d's · **Approved by** the operator (step-27 §14.1, every recommendation accepted as written) · **Relates to** `ARC-34`, `ARC-56`, `ARC-67`, `ARC-75`, `DEP-24`, `DEP-26`, `DEP-44`; `DEP-56` (the `mcp` dependency, S27-d), `ARC-97` (seat grants and the per-seat budget, S27-a) · **Design** `.structured-coding/plans/mvp0/step-27-agent-players.md` §§3, 4.1–4.4, 5, 6; `pr-s27c-player-library.md` · **Placeholder** `ARC-S27-a`
+
+**Problem.** Humans and agents are both to be first-class players of a MineWorld world (the operator, 2026-10-14). An **agent player** is a Person whose Controller is an agent MineWorld does not run — Claude Code, Codex, a script — reaching its seat through a client process it does not own (step-27 F-S27-5). The question is where that agent's adapter lives, in which language, and what it may know, such that the server cannot tell an agent from a person (`ARC-56`), omniscience stays impossible (`INV-13`), no MCP concept enters a world, kernel, server or cognition contract, and removing the adapter leaves a valid world.
+
+**Options considered** (step-27 §4.2; external facts read 2026-10-14, step-27 §17):
+
+| Option | Verdict |
+| --- | --- |
+| **P** — a Python client under `clients/agent/` (`mineworld-agent`), on `mineworld-sdk`'s `ResumingSeat` (`DEP-44`), with the official `mcp` Python SDK confined to one module of it | **Chosen.** It reuses the proven resuming client (resume, `lagged` recovery, exactly-once perceived facts behind a caller-owned cursor, at-most-once submits) and Pydantic (`DEP-24`), from which the tool schemas also come; the Python CI legs already run real-server tests on three platforms. Cost accepted: the release bundle ships no Python (QS27-8) |
+| R-in — Rust `rmcp` inside the server process | **Rejected.** The server would speak a second client vocabulary beside `join`/`submit`/`leave`, which `server/PROTOCOL.md` §2 forbids by construction; MCP types would enter `server/`; an adapter fault would share the world's process |
+| R-beside — `rmcp` in a separate Rust client binary | **Declined for now.** The resuming client would be written a second time in Rust; revisit if the operator's live check (S27-g) shows that installing `uv` is the main obstacle for players of the bundle (QS27-8) |
+| T — the TypeScript MCP SDK | **Declined.** TypeScript is for web clients and admin tooling only (`ENGINEERING_STANDARDS.md` §3), and the resuming client would be written a third time |
+| H — no MCP library, our own JSON-RPC | **Rejected.** Rebuilding a maintained official SDK of a moving protocol needs a reason (`REUSE_POLICY.md` §12), and there is none |
+
+**Choice.**
+
+1. The adapter is a **client** in `server/PROTOCOL.md`'s sense, not a Controller Pack: it decides nothing. The Controller is the external agent; the adapter renders that Person's own `Observation` for it and turns its choices into `ActionRequest`s, one seat per connection, through `ResumingSeat`. It lives under `clients/`, is installed into no world, and no World Pack, decision list or cognition configuration names it.
+2. **MCP is a skin over a typed library.** `mineworld_agent.Player` (`seats`, `join`, `observe`, `inspect`, `events`, `wait`, `say`, `walk_to`, `move`, `stop`, `attempt`, `clock`, `leave`) takes and returns Pydantic models (strict, frozen, `extra="forbid"`), the same models the MCP module publishes as each tool's `inputSchema` and `outputSchema`. Only that one module imports `mcp`; no other package of the repository depends on it or names an MCP concept.
+3. **No REST agent API.** A non-MCP agent uses the `Player` library or the public WebSocket protocol, both first-class; a REST surface would be a second schema of the same operations, and a stateful seat cannot be held by stateless calls without re-inventing MCP's handles.
+4. **Names the adapter knows**, like every client (`ARC-34`): `talk`'s utterance payload and the payloads of `move`, `walk-to` and `walk-step` (free-form, so never offered complete). Every other action is reached through `attempt` on a complete affordance, unchanged. The adapter evaluates no requirement and adds no rule; its only local refusals are what the newest observation does not offer (exactly `offers.request`'s check), a stale offer, an unknown reference and an unknown handle, each with its own code. It paces a walk as the 2D client does, one `walk-step` per wall second while the seat's own `walking` is disclosed (`ARC-67`, `ARC-75`), and plans no route.
+5. **Credentials are launch configuration.** The invite (or, after S27-a, a seat grant) is given to the adapter when it starts; it is never a tool argument, a result, a log line or an error, and neither is the welcome's resume secret, which only the optional state directory holds.
+6. **In-world text is typed untrusted.** Every string written inside the world — an utterance, a display name, an item name — reaches the agent only as `WorldText { text, by, kind }`, and in the text rendering it is quoted between `<<<world` and `world>>>` with every `<<<` and `>>>` inside it neutralised.
+
+**Consequences.** The server is unchanged by this record (S27-a's grants and budget are `ARC-97`'s, and apply to every connection alike). `mineworld-sdk` gains one additive read-only property, `ResumingSeat.clock` (S27-c, QS27c-1), and otherwise is reused as it is. Removing `clients/agent/` changes no World Pack, System, contract, test outside the adapter's own, or recorded digest. P6's `Situation` and the adapter's `View` solve one presentation problem for two readers; when both have shipped, a review decides whether to lift the shared re-location rule into `mineworld-sdk` (step-27 R-S27-6).
+
+**Revisit** if a named agent can speak neither MCP nor the library nor the public protocol (then a further thin module over `Player`, never a server change), or under QS27-8's trigger for a single-binary adapter.
+
 ## DEP-50 — The executable guide: `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli`
 
 **Date** 2026-10-14 · **Status** accepted (design, step-25 §4.2 option E2); implemented by PR S25c (dev-dependencies only, no runtime edge) · **Approved by** the operator's step-25 rulings of 2026-10-14 (QS25-1 to QS25-10; the design's §4.2 recommendation accepted under the standing instruction) · **Relates to** `ARC-90`, `DEP-29`, `DEP-49`, `CLAUDE.md` §4 rule 16, `REUSE_POLICY.md` §§1–4, 11–12 · **Design** `.structured-coding/plans/mvp0/step-25-creator-docs.md` §§4.2, 8, 16 · **Specification** [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md)
@@ -8198,6 +8254,91 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 **Consequences.** The guide runner adds two crates to the test graph of `mineworld-cli` only. `cargo deny check licenses` must still pass (both are on the existing allow-list: MIT, Apache-2.0). The runner's TOML reading of `features.toml` uses the `toml` crate already present in `Cargo.lock`, so it adds no new crate; the workspace entry is recorded when C1 adds it.
 
 **Revisit** if `pulldown-cmark` or `snapbox` leaves maintenance, or if the guide's block grammar needs a construct CommonMark cannot express (then the grammar changes first, in `GUIDE_FORMAT.md`).
+
+---
+
+## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
+· **Approved by** the primary session's freeze of `pr-s10-p6-lm-controller.md` (2026-10-14; operator
+QP6-1, QP6-3, QP6-7; QP6-12 on the number) · **Relates to** `ARC-56`, `ARC-58`, `ARC-59`, `ARC-34`,
+`ARC-85`, `INV-10`, step-17 I-10, I-15 · **Design** `pr-s10-p6-lm-controller.md` §§5.1–5.4, §5.9 ·
+**Prior art** `docs/references/PRIOR_ART_2026-10.md` PA-10, PA-11 (reference only)
+
+**Problem.** A language model asked "what does this character do next" returns free text. Treated as a
+command, that text can name people who are not there, invent offers, forge memories, or move a person. A
+controller that is one prompt and one parse has no place to put the rules, the tests or the failure
+handling.
+
+**Options considered:**
+
+```text
+(a) one prompt, one parse; the reply is sent as the action            open to every failure above
+(b) an agent framework (Concordia, LangGraph, AI Town) as the loop   the framework owns the execution and
+                                                                      the memory model; reference only (DEP-46)
+(c) small typed parts (persona, situation, memory view, choice
+    prompt, parser, validator, intent builder); the reply is a         chosen
+    proposal the owning contracts check
+```
+
+**Choice: (c).** The controller is a Python Controller Pack. Its parts are frozen Pydantic models or pure
+functions, with no clock, randomness, environment or other seat's store read. A model's answer becomes a
+`talk` utterance or the unchanged payload of a complete affordance the server offered, and nothing else.
+The controller builds an `ActionRequest` only through `mineworld_sdk.offers`, which refuses any affordance
+not offered by the newest observation. It never builds a movement request (`ARC-32`, step-17 I-15). The
+prompt holds no entity id and no provider concept; the request's canonical JSON is the cassette key
+(`ARC-58`).
+
+**Consequences.** A model that "decides" anything else has no representable proposal (`INV-10`). Every
+answer is validated before it becomes an intent. A new social choice needs a `SocialChoice` value and a
+validation row, not a change to the kernel or the server. Nothing in the world reads the controller.
+
+**Revisit** when a second model-driven controller needs the same parts, which then move into a shared
+module, or when the offer protocol (`ARC-34`) gains a movement affordance that the controller must decide.
+
+---
+
+## ARC-73 — Failure containment: layered retry above a retry-free gateway, a per-consult deadline and cap, a per-seat breaker, and fallback by handing the seat back
+
+**Date** 2026-10-14 · **Status** accepted for S10 P6b · **Approved by** the primary session's freeze
+(2026-10-14; operator QP6-7 on the thresholds, QP6-6 on the two P5a changes, QP6-8 and QP6-9 on the
+fallback and the hold) · **Relates to** `ARC-57`, `ARC-58`, `ARC-56`, `ARC-72`, `DEP-44`, `ARC-33`,
+step-24 §8.6 · **Design** `pr-s10-p6-lm-controller.md` §§5.5–5.8, §5.13, §4
+
+**Problem.** A model fails in three different ways: the transport fails (rate limits, server errors, timeouts),
+the content is unusable (invalid JSON, a schema mismatch, an unknown person), or the world refuses a valid
+proposal (an offer that moved). Each deserves its own response. The world must never wait for a model,
+and every model call must be charged to a budget.
+
+**Options considered:**
+
+```text
+(a) one retry loop in the gateway                       breaks ARC-57: the gateway would make calls the ledger
+                                                        has not budgeted for the retry's class
+(b) one retry policy for all failures                   content and transport need different budgets
+(c) three retry layers in the controller host, above a
+    gateway that never retries; each layer has its own
+    pluggable policy; one deadline, one call cap, one
+    per-seat breaker; fallback by handing the seat back  chosen
+(d) a retry or breaker library                          DEP-44: they own the loop and the clock; declined
+```
+
+**Choice: (c).** Layers: transport (`exponential-backoff`, honouring `Retry-After`), content (`fixed`, two
+re-asks with the validation error), semantic (`fixed`, one re-plan from the newest observation). Every model
+call is one gateway call and one ledger charge. A consult ends in exactly one terminal outcome. A
+per-consult deadline (20 wall s), a cap of five calls, and the P5 budgets bound it. A `failure-rate` breaker
+per seat (window 20, minimum 10, more than 20 %, cooldown one simulated hour) stops a failing model. When
+the controller cannot decide, the seat is handed back with `leave` (only where the welcome said
+`took_over: "hosted"`), and the server's fallback model drives it. Where no in-server fallback exists, the
+seat stands for that consult and sends nothing (QP6-8). The hand-back is host state and writes no fact.
+Counters go to the controller's own log.
+
+**Consequences.** The world's facts stay valid under any model behaviour, because the world validates every
+request at dispatch (step-17 §3.6). A failing model costs at most five calls per consult and one handback
+per breaker trip. The fallback share is an acceptance criterion (AP6-4, AP6-14), not an assumption.
+
+**Revisit** when a second model seat needs a different breaker or retry shape, which becomes a registered
+policy rather than a code change, or when an idle handback (QP6-3's follow-up) is decided.
 
 ---
 
@@ -8266,3 +8407,577 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
 
 **Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
+
+---
+
+## ARC-105 — Towns declare `settlement:`; every town has a station group and a landmark, carried by role tags on plain Places
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-a · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-2, Q-S29-3, Q-S29-7, Q-S29-9) · **Relates to** `ARC-53`, `ARC-82`, `ARC-26`, `ARC-37`, `ARC-38`, `ARC-107`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6 · **Design** `.structured-coding/plans/mvp0/step-29-station-landmark.md` §§3, 4
+
+**Problem.** The operator requires a train station in every town, and a signature landmark for each (2026-10-15). No world has a station. The framework also has no way to say whether a world is a town, so it cannot refuse a town that lacks either.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Infer "town" from a tag on some place | Declined: a world that forgot the tag would silently stop being a town |
+| (b) Every world is a town, with no opt-out | Declined: test yards are not settlements, and a station there would be fake content |
+| (c) A `settlement:` key that the loader requires | Declined: every inline fixture world would change, with no safety beyond (d)'s gate |
+| (d) **A `settlement:` key, required by `mineworld validate` / `packs validate` and validated by the loader whenever present** (the `ARC-53` precedent) | **Chosen** |
+| (e) A new Entity type or System for stations | Declined: Places, tags and passages already express it. Behaviour arrives with S21's `transport` |
+
+**Choice.**
+
+1. `world.yaml` gains `settlement: { kind: town, station: <place>, landmark: <place> }` or `settlement: { kind: none }`. The World Pack loader owns it; no System or kernel does.
+2. **Role tags** have fixed meanings: `station`, `stop`, `platform`, `ticket-office` and `landmark`. A station is the group of `station`-tagged Places joined by passages to the declared hall. It contains a `stop` + `platform` Place, which is S21's stop, and a `ticket-office` Place. The origin of a stop is its platform anchor.
+3. Ten named refusals cover the contract: `SETTLEMENT_UNDECLARED`, `SETTLEMENT_MALFORMED`, `TOWN_STATION_UNKNOWN`, `TOWN_LANDMARK_UNKNOWN`, `TOWN_STATION_UNTAGGED`, `TOWN_LANDMARK_UNTAGGED`, `TOWN_STATION_NO_STOP`, `TOWN_STATION_NO_TICKET_OFFICE`, `TOWN_STATION_SCATTERED`, `TOWN_STATION_UNREACHABLE` and `TOWN_PLATFORM_ANCHOR`. The last two are checked when `movement` and `bodies`, respectively, are enabled.
+4. Reference worlds:
+   - `market-town`, `social-cafe` and `lakeside` are towns.
+   - The station is the landmark in the first two.
+   - Lakeside has a small halt, and `pier` is its landmark.
+   - `bodies-yard` declares `none`.
+5. Adding the station's places, an organization and routines shifts allocated ids. This takes **one recorded digest re-baseline**, in S29-a's C5, after 12d (Q-S29-7).
+
+**Consequences.** There is no kernel, contract or System change. A role tag grants no behaviour. S21's `transport` attaches `StopInfo` to the existing stop, and `fares` attaches its ticket shop to the `ticket-office` Place. `atlas` may seed `contains` from the station group.
+
+**Revisit** when regions (S21) allow more than one station per world, or when a settlement kind finer than `town` is needed.
+
+---
+
+## ARC-106 — The town's landmark station: the Santa Fe Depot, at real size, at the street's end, built with the town's own method
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-d, S29-e and S29-f · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1, Q-S29-4, Q-S29-5, Q-S29-8, Q-S29-10) · **Relates to** `DEP-8`, `ARC-102`, `ARC-105`, `ARC-107`, [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §§3, 4, 11, [`ART_DIRECTION.md`](ART_DIRECTION.md) §4 · **Design** step-29 §§6, 8
+
+**Problem.** The operator asked for a station that is the town's signature building, modelled on San Diego's Santa Fe Depot. It must sit in the far field's view, at street level, and be reachable on foot from spawn. The real depot is 790 m from the slice's origin, and the walkable area has a radius of 60 m. A building that can be seen but never reached is forbidden (`VISUAL_SLICE.md` §4).
+
+**Options considered.** (P-1) **At the street's west end, at real size, with the distance compressed (chosen).** (P-2) At the real 790 m, with a ≈ 700 m walkable approach: declined, because it is region scale, needs ≈ 700 m of frontage, and breaks the perf budget. (P-3) A silhouette at 790 m plus a separate near station: declined, because it draws one Place group twice and the far one is unreachable.
+
+**Choice.**
+
+1. **Placement.**
+   - The forecourt replaces the west parapet.
+   - The arch stands on the street's axis, with the east façade at about x = −62 m. This mirrors the real Broadway axis ending at the depot.
+   - The compression from 790 m is recorded in the far field's `source`.
+2. **Size.** The hall is at real size, 51.8 × 16.8 m, with a tile wainscot 2.59 m high (Wikipedia; Gaslamp Foundation). The tower height is measured from **HABS CA-1965**'s public-domain photographs, which may be committed to the 3D pack's `references/`. CC BY-SA photographs are linked, never committed.
+3. **Method and style.**
+   - One method: the slice's procedural builder and its shipped CC0 materials. The glazed tile of the domes and wainscot is our own shader.
+   - The depot is the **one sanctioned Mission Revival exception** beside the lakeside-referenced street, rendered with the same materials, palette, light and precision.
+4. **Budget.**
+   - ≤ 6 MB of new data in `3d.pck`, with a target of 0 new textures.
+   - At most +0.8 ms p95 in each existing view, and the absolute 16.7 ms and 2 048 MB gates in the new station views.
+   - A reduced hall is the reserved lever, used only at a material stop.
+
+**Consequences.** `VISUAL_SLICE.md` §4 is amended: the station becomes a required third enterable building, and the forecourt becomes the west termination. RL-e0's far-field shots are re-shot as an intended change. A rendered landmark check (LM-1, LM-2) runs on all three OSes. The 2D client binds `facade:station` to a sprite from the existing image pipeline.
+
+**Revisit** if the hall view cannot meet 16.7 ms with the built-in levers, or when S21 regions make a real-distance station reachable by travel.
+
+---
+
+## ARC-107 — The far field's `filled` slot: a reachable building recorded where it stands
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-c · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-1); dated note on `ARC-102` · **Relates to** `ARC-102`, `ARC-105`, `ARC-106`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Design** step-29 §6.7; `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §5.1.6
+
+**Problem.** RL-e0's slots are `unplaced` or `reserved`. A reserved slot must lie beyond `boundary.reach_m`. The station now stands inside the boundary (`ARC-106`), and a town's far field must agree with its declared station and landmark.
+
+**Choice.**
+
+1. Format 1 gains a slot state, `{"state": "filled", "place", "bearing_deg", "distance_m", "footprint_m", "source"}`. The change is additive.
+2. A filled slot is the one far-field entry allowed inside the boundary. Massing keeps clear of its footprint.
+3. In a town's 3D far field, both slots are `filled`, and their places equal `settlement.station` and `settlement.landmark`. Otherwise the file is refused `FAR_FIELD_SLOT_TOWN { pack, world, slot }`, at validate and at client load. Under `kind: none`, `filled` is refused (`FAR_FIELD_SLOT`).
+4. Social Café's 3D `reach_m` grows from 60 to 100 m.
+
+**Consequences.** The Rust and GDScript validators change together, and RL-e0's agreement corpus gains one file per new refusal. Lakeside's 3D slots carry design content until 16f draws Lakeside in 3D.
+
+---
+
+## ARC-108 — Station fixtures show only disclosed state
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-e, S29-f and S29-g · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 approval) · **Relates to** `ARC-67`, `ARC-105`, `INV-S27-2`, step-21 §§5.3, 5.7 · **Design** step-29 §§5, 9.4
+
+**Problem.** Before trains exist (S21), a station could easily pretend: an invented timetable, an open ticket window, people waiting for a train that cannot come.
+
+**Choice.**
+
+1. **One pure rule, from disclosed components.** It is written once in `clients/shared/station/station_state.gd` and used by both clients; the agent view renders the same Observation.
+   - **The departures board** lists lines only when a `departures` record is disclosed. Otherwise it reads "No service yet".
+   - **The ticket window** is open only when its place discloses a `shop` listing a `ticket`-tagged kind.
+   - **The kiosk** is open only when the hall discloses a `shop`.
+   - **The clock** shows the disclosed world time, or nothing.
+2. **No fakes.** No routine label waits for a train before `transport` exists, and no train is drawn before S21's carriage.
+
+**Consequences.** When S21 lands, the board and window come alive with no client change. S21 must disclose `departures` to observers in `station`-tagged places, because a board in the hall cannot perceive the platform's `StopInfo` (a non-preclusion item for RT-c).
+
+---
+
+## DEP-60 — Reserved: one new CC0 texture for the station, only if a reviewed frame needs it
+
+**Date** 2026-10-15 · **Status** reserved; withdrawn at S29-d's merge if unused · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-10: ≤ 6 MB, target 0 new textures) · **Relates to** `DEP-8`, `ARC-106` · **Design** step-29 §6.4
+
+**Problem.** The depot is built from the shipped Poly Haven CC0 set. A reviewed frame might show that a material cannot be read from that set.
+
+**Choice.** At most two Poly Haven CC0 1k textures, each ≤ 3 MB and each checked under `DEP-8`. Each is added only on that evidence, and S29-d records it here, replacing this entry's status. If none is added, this entry is marked withdrawn and the number is not reused.
+
+---
+
+## ARC-98 — Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a · **Approved by** the operator's step-28 rulings QS28-1 … QS28-10 (2026-10-14) · **Relates to** `ARC-25`, `ARC-27`, `ARC-43`, `ARC-57`, `ARC-58`, `ARC-59`, `ARC-86`, `ARC-87`, `ARC-89`, `ARC-99`, `ARC-100`, `ARC-101`, `DEP-37`, `DEP-58`, `INV-4`, `INV-11`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §5.3, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§4, 6; `.structured-coding/plans/mvp0/pr-s28a-memory-home.md`
+
+**Problem.** Today each seat stores its own copy of every fact it perceived. In the 12-person `social-cafe` at seed 7 over 30 days, 86.7 % of the 84 639 distinct facts are perceived by more than one person, and the seats hold 449 726 copies, 5.3 per fact (step-28 §2, F-S28-1 and F-S28-2). Shared events must be stored once, and a person's access to them must be a right, loaded when needed (operator, 2026-10-14). The world log cannot be the shared store: a controller is a client that sees only its perceived stream (INV-6, INV-13), and the log is world truth, not a subjective layer (INV-4).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) One store per seat, as today | Declined: 5.3 copies per fact; the 20 MiB bound would hold about 45 days of undigested detail |
+| (b) Shared records in the kernel or in the world log, read by controllers | Declined: the kernel would learn what memory and a holder are (INV-12, `CLAUDE.md` §4.2), and a controller would read truth it must not read (INV-13) |
+| (c) **One cognition-side home per process: fact records keyed by `EventId` and verified by digest, and one access row per person** | **Chosen** |
+| (d) Content-addressed records keyed by a hash of the content | Declined as the key: the world already gives each fact a stable, unique id (INV-11), and a hash would add a second identity. The method is adopted (`DEP-58`) |
+| (e) Gists deduplicated by content hash | Declined: a gist is the person's own rendering and depends on that person and their name book at ingestion (I-S28-2); the saving is under 4 % of world bytes |
+| (f) Per-seat files joined by `ATTACH` in one connection | Declined: atomic commit across attached files holds only in rollback-journal mode, a restriction to defend indefinitely. One file per home gives one transaction |
+| (g) A reference count stored on each record | Declined: a stored count can drift from its rows. The anti-join over the access rows is exact by construction |
+
+**Choice.** Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right. Fact records are stored once per home, keyed by `EventId` and verified by digest. Access rows are per person. GC is the anti-join in the releasing transaction. There is no kernel, server or protocol change in MVP-0.
+
+The concrete rules that follow, stated in step-28 §§4 and 6: the home is one SQLite database per world instance and cognition process, and it is the only writer of its tables. A fact record exists exactly while at least one access row cites its key (I-S28-1, I-S28-4). Insert-or-verify raises `ConflictingFact` on a digest difference. Each ingest call and each retention pass is one `BEGIN IMMEDIATE` transaction. Forgetting removes an access row or demotes it into a private summary; it never redirects to a peer's copy.
+
+**Why not ourselves, and why not them.** Storage and transactions are commodity, so SQLite is reused (`DEP-37`, `DEP-58`). The access rule, the garbage-collection rule and the determinism contract are MineWorld's own, because no framework's execution model may own them (`REUSE_POLICY.md`).
+
+**Interface that isolates it.** `mineworld_cognition.memory.home` (`MemoryHome`, `SeatView`). The fact and access tables are written only by the home.
+
+**Limitation accepted.** Sharing is per process in MVP-0. Seats in different processes have different homes, so duplication is bounded by the number of processes, not of persons (step-28 §6.6). Cross-process sharing is MVP-1, through the server as the cold tier (QS28-2, path (i)). A cognition-side shared service is declined as the default because it cannot verify perception.
+
+**Revisit** when MVP-1 opens cross-process sharing (S28-h), or when a world needs more than one process per instance.
+
+---
+
+## ARC-99 — A person's size is the seat view, counting shared records in full
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a and S28-b · **Approved by** the operator's ruling QS28-4 (2026-10-14) and the 20 MiB default (operator, 2026-10-14) · **Relates to** `ARC-59`, `ARC-86`, `ARC-87`, `ARC-98`, `ARC-100`, `INV-13`, `pr-fg-b2-size-trigger.md`, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3, [`MODULE_SPEC.md`](MODULE_SPEC.md) §5.2 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§3 (I-S28-2, I-S28-3, I-S28-6), 7
+
+**Problem.** Once a fact record is shared, the bound must say what it measures. A fair share (bytes divided by holders) couples one person's memory to everyone else's perception: Alice's size would fall when Bob perceives a scene and rise when he forgets it, which could trigger Alice's size pass and change what Alice remembers because of Bob. That breaks I-S28-3, makes Alice's memory a function of the town rather than of her perception (`ARC-59`), and makes a shared Alice differ from a standalone Alice (I-S28-2).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Fair share of each shared record (bytes ÷ holders) | Declined: the coupling above |
+| (b) Count only the private rows | Declined: the records a person holds would be uncharged, and the 20 MiB promise would not bound what the person remembers |
+| (c) **The seat view, with every held record counted in full** | **Chosen** |
+
+**Choice.** A person's size is the seat view, counting shared records in full. Sharing is transparent (I-S28-2, I-S28-3) and is a deployment setting, not a world rule. The bound applies to that size. Physical bytes are at most the sum of the seat views, and that sum is at most the number of seats times the bound (I-S28-6). The physical share of a record is reported by `inspect bytes` as a diagnostic and is never charged.
+
+**Consequences.** The 20 MiB promise keeps its literal meaning: each person may remember up to 20 MiB, measured as if alone. At the positional encoding of `ARC-101` that is about 106 days of undigested detail, against about 45 at today's encoding (step-28 §8.3). Sharing still saves the world's disk: measured on social-cafe at seed 7 over 30 days, the world's physical bytes are 59 % of the logical sum at today's encoding and 23 % with `ARC-101` (step-28 §§7.1, 8.2).
+
+**Limitation accepted.** The saving is measured only on 12-person worlds. No World Pack on `main` has more than 12 people (F-S28-11), so the saving at 100 people is unmeasured until the S28-g fixture exists.
+
+**Revisit** when a world with more than 12 people is measured (AS28-17), or when a world-level budget is proposed, which would need its own decision.
+
+---
+
+## ARC-100 — Memory scopes: one typed interface, entry-point registration, host-written tables, `SeatView`-only reads, no access grants
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-c and S28-d · **Approved by** the operator's rulings QS28-3, QS28-6, QS28-7 and QS28-10 (2026-10-14) · **Relates to** `ARC-85`, `ARC-86`, `ARC-98`, `ARC-99`, `FGb-3`, `FGb-4`, P4 invariants I-3 and I-10, `INV-4`, `INV-13`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §5.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§5, 12, 15 (AS28-2, AS28-14, AS28-15)
+
+**Problem.** Operators ask for person, town, place and item, and user-defined memory (for example `organization`). Each is a different way of organising what a person perceived, and none is a different source of knowledge. A "town memory" that a person could read without perceiving it would be INV-13's omniscience by another name. A user-defined scope must also be able to extend memory without editing the kernel or cognition internals (R-11).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Each scope a bespoke module with its own write path and access rule | Declined: each would be a second access rule |
+| (b) A scope may grant access beyond perception, for example an organization's archive readable by all members | Declined (QS28-7): knowledge reaches a member as a world fact that a System decides and perception delivers |
+| (c) **A scope is indices, private rows and a recall section over `SeatView`, behind one typed interface and an entry point** | **Chosen** |
+| (d) Scopes as application tenancy, with model-decided writes (mem0) | Declined (`DEP-58`) |
+| (e) Model-managed paging between memory tiers (Letta) | Declined (`DEP-58`): not a deterministic derivation (`ARC-59`) |
+
+**Choice.** Memory scopes: one typed interface, entry-point registration, host-written tables, `SeatView`-only reads, no access grants. Entity-anchored memory is fed from perception, not the log.
+
+The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scopes`, with `index` (pure), `recall` (reads only through the seat view) and `account` (the scope's share of the seat view). Registration is through the group `mineworld.memory_scopes`. A scope receives no connection, path, clock or gateway, and only the home writes (AS28-14). The log-derived place history is a test and tool oracle only (QS28-6).
+
+**Limitation accepted.** A scope can organise only what perception delivered. Information that reaches people outside perception does so as a world fact, decided by a System and kept by the log (step-28 §5.1). An anchored scope therefore shows what a person saw happen at a place, not the place's objective history.
+
+**Revisit** when a scope needs a write that the home cannot express, or when a scope package must read something other than a seat view.
+
+---
+
+## ARC-101 — Canonical schema-4 encoding: positional rows, on which the bound and determinism are defined
+
+**Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a. The schema number 4 follows the 2026-10-15 dated note of step-28 (F-S28a-1), because FG-b2 shipped schema 3 after the step was written · **Approved by** the operator's ruling QS28-5 (2026-10-14: "换") · **Relates to** `ARC-25`, `ARC-27`, `ARC-86`, `ARC-87`, `ARC-98`, `ARC-99`, `DEP-37`, `DEP-58` · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§8.1, 8.2, 10, 15 (AS28-12); the concrete grammar is fixed by `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §5.4
+
+**Problem.** The v2 canonical form writes sorted-key JSON objects with a table name on every row. About 41 % of each `l0` line is syntax (step-28 F-S28-9), and the memory bound and the determinism contract are both defined on those bytes. At the v2 encoding, 20 MiB holds about 45 days of undigested detail per person.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Keep sorted-key JSON objects (the v2 form, or a canonical-objects layout) | Declined: about 3.3 MB per world-day against 1.29 MB, and the bound holds about 45 days |
+| (b) **Positional rows: `[table, c1, c2, …]` in schema order, ids unpadded, a 128-bit digest in the record** | **Chosen** (QS28-5) |
+| (c) A binary serialization library's format | Declined: the library would own the determinism contract (`REUSE_POLICY.md`), and the canonical form is ours to define |
+| (d) The full 256-bit digest in each record | Declined for the record: the 128-bit digest is kept, and the full digest remains the re-delivery check inside the transaction, where it is not dumped (≈ 90 KB per world-day, +7 %, if dumped) |
+
+**Choice.** Canonical schema-4 encoding (QS28-5, ruled 2026-10-14): positional rows, which the bound and determinism are defined on. Each row is `[table, c1, c2, …]` in schema order. The encoding is defined once in `memory.home`, and it is used for the bound and for determinism.
+
+**Consequences.** On social-cafe at seed 7 over 30 days, the world-day total falls to 1 291 514 B against 5 588 338 B at v2 (−77 %), and 20 MiB holds about 106 days of full detail instead of about 45 (step-28 §§8.2, 8.3). The dump is a determinism artefact and is harder to read by hand; `mineworld-memory inspect` is the readable surface.
+
+**Limitation accepted.** The record keeps a 128-bit digest, not the full 256-bit digest. The full digest is checked in every transaction, so a difference is still caught when a seat is delivered, but it is not in the dump.
+
+**Revisit** when a schema change is needed, or when a tool outside MineWorld must read the dump.
+
+---
+
+## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
+
+**Date** 2026-10-14 · **Status** accepted (considered 2026-10-14, step-28 §16); no new dependency is added by this record. Each licence marked **verify** in step-28 §16 is confirmed by the PR that first relies on it · **Approved by** the step-28 frozen design · **Relates to** `DEP-37`, `ARC-98`, `ARC-100`, `ARC-101`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §§11–12, 15 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §16
+
+**Problem.** Shared memory needs storage, content addressing, tiered loading and pluggable scopes. `CLAUDE.md` §4 (rule 16) requires each candidate to be checked in both directions: whether a mature wheel is being reinvented, and whether an existing wheel is being forced where it does not fit.
+
+**Options considered** (verdicts from step-28 §16).
+
+| Candidate | Verdict |
+| --- | --- |
+| SQLite (`sqlite3`, `DEP-37`) | **Keep.** One file per home, FTS5, incremental vacuum |
+| Content-addressed stores (Git objects, IPFS / `multiformats`, Perkeep, restic, borg) | **Adopt the method, decline the code.** Objects already have a stable world id (`EventId`); a hash key would add a second identity |
+| Ref-counted blob stores (`diskcache`, LMDB-backed stores) | **Decline.** A stored refcount can drift from its references; the anti-join over access rows is exact |
+| Generative Agents memory stream (Park et al., 2023) | **Reference only**; each agent's stream is its own |
+| MemGPT / Letta tiered memory | **Adopt the method, decline the dependency.** Hot and cold tiers and load-when-needed are the method. Shared blocks are agent-writable text, a knowledge channel outside the world, and model-managed paging is not deterministic |
+| Zep / Graphiti | **Decline.** Model-extracted triples are not a deterministic derivation, it needs a graph server, and its sharing is by tenant, not by perception |
+| mem0 | **Decline.** Its scopes are application tenancy and its writes are model-decided. Scopes as first-class configuration are adopted (`ARC-100`) |
+| Forcing an existing wheel | Not done. No framework's execution model owns our transactions, access rule or determinism |
+
+**Choice.** Build on SQLite and P4/FG-b; adopt the methods of content addressing and tiered memory; decline Letta, Zep, Graphiti and mem0 as runtime dependencies.
+
+**Why not them.** Each declined candidate either makes model output the source of stored knowledge, or gives access by tenant rather than by perception. Both conflict with INV-13 and `ARC-59`.
+
+**Revisit** when the MVP-1 cold tier (S28-h) or an embedding-based scope is proposed (step-28 §18). Either needs a `DEP` record of its own.
+
+---
+
+## ARC-120 — Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); specified by S30-a, implemented by S30-c (the `attributes` pack and the model crate) and S30-f (`employment.occupation`) · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; Q-S30-4, Q-S30-6, Q-S30-8; Q-S30a-2) · **Relates to** `ARC-26`, `ARC-31`, `ARC-61`, `ARC-74`, `ARC-114`, `ARC-115`, `ARC-121` … `ARC-126`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5, [`MODULE_SPEC.md`](MODULE_SPEC.md) §§3.1, 4.1 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §4
+
+**Problem.** The operator requires that a Person can carry very many attributes — age, build and ancestry, and many more — that a world chooses by data, with most of them available out of the box and custom ones added freely (2026-10-15). Nothing in the world holds a person's attributes today: casting keeps appearance in Presentation Pack briefs, `persona` keeps prose, and cognition has nothing typed to read. Some of the attributes a reader needs are already modelled by a System: wealth by `economy`, occupation by `employment`, notice subscriptions by S31's `notices`.
+
+**Options considered** (step-30 §4.1).
+
+| Option | Verdict |
+| --- | --- |
+| (a) One `attributes` pack owns every attribute | Declined: it would copy wealth from `economy` and occupation from `employment`, breaking single ownership (`CLAUDE.md` §4 rule 1), and S31's System would have to ask another pack to change its own routing table |
+| (b) Each System Pack declares what it needs, with no shared schema | Declined: every reader (cognition, MCP, both clients, casting, the sampler) would need a per-pack adapter, and hundreds of plain traits would have no owner |
+| (c) **One declared schema (the catalogue) and one owner per attribute: a default `attributes` pack owns plain traits; specialised packs own theirs** | **Chosen** |
+
+**Choice.**
+
+1. **An attribute** is a declared, typed property of a Person, in one of three classes of state: identity, trait, or a view of mutable state another System owns ([`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5). It is declared as data and named `<namespace>.<slug>`, the namespace being the declaring pack's id.
+2. **Every attribute has exactly one owner**, named in its declaration (`owner:`, default `attributes`). Only the owner writes it (INV-7).
+3. **`attributes` owns plain traits** — attributes no installed System models — and stores a Person's values in one component, `traits` (schema 1): a sorted list of `(qualified id, value)` pairs, each checked against the catalogue. It provides no action; it reacts to `attribute-change-proposed` from a pack that declared the attribute in `proposes:` and that depends on it (`ARC-26`), and states `trait-changed { person, attribute, from, to, because }` or refuses by name.
+4. **A specialised owner keeps its own state.** Its attribute is a projection of its own component, computed when read or disclosed, and nobody else stores it: a view, never a copy. The owner implements `AttributeOwner` (`ARC-124`); because the projection is code, a view over another pack's state cannot be made with data alone.
+5. **An owner seeds its own attributes** from the values the resolution hands it (`ARC-123`), in its own vocabulary.
+6. **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load (`OwnerNotInstalled`).
+7. **The kernel learns nothing** (INV-12): the catalogue, values, handles and sampler live in `mineworld-attributes-model` (above `mineworld-authoring`, below the packs); no type, word or id of it enters `kernel/` or `contracts/`.
+8. **Not attributes:** a display name (`naming`'s identity, never sampler input); what someone said about themselves (memory, INV-4); the look key (`appearance`'s, `ARC-125`).
+
+**Consequences.**
+
+- The owners named so far: `economy` (`economy.wealth-band`, S31-f, `ARC-114`); `employment` (`employment.occupation`, a projection of `Employment { job }` to the job's label, added by **S30-f as the one named exception** to step-30 §9.4's "no existing System is changed by S30", Q-S30a-2, ruled 2026-10-15; nothing else in `employment` changes); `notices` (`notices.subscriptions`, S31, `ARC-115`); `persona` (`persona.summary`, `persona.traits`, `persona.speech`, `text`, `private`; P6a merges as frozen and the overlap with the typed psychology group is reviewed after S30-f, Q-S30-4).
+- Because rows 32 and 37 of step-30 §6.1 are owner views, the built-in catalogue declares 93 `core` attributes, not 94 (`ARC-122`).
+- Sensitive attributes (ancestry, religion, income and any a world adds, such as sexual orientation or disability) are `private` by default, never in another observer's view or the agent description; a world may narrow them, never widen them (Q-S30-8).
+- Owner packs depend on the model crate, not on the `attributes` System Pack (step-30 §4.3). The data directories that hold declarations are `attributes`' (`ARC-121`), so **how a world that enables an owner but not `attributes` reads the owner's shipped declarations is S30-c's decision**, recorded in its PR design and as a dated note here (S30-a F-S30a-10).
+- Change amplification holds: a new plain trait is a data file; a new view over another pack's state is that pack's projection; nothing else changes.
+- *Ids cited before their records exist.* When `ARC-120` … `DEP-68` were written (2026-10-15, S30-a), `ARC-74` (P6a), `ARC-91` and `ARC-92` (S26-a, #206), `ARC-95` (S26), and `ARC-114` and `ARC-115` (S31) were assigned but not yet on `main`; each is written by its own PR. Whichever of that PR and S30-a merges second checks the citations here against the merged text, and records a dated note where they differ.
+
+**Revisit** when a second plain-trait store is proposed, or when an owner needs a view that data cannot declare and its owner cannot project.
+
+---
+
+## ARC-121 — The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15; S30-b design frozen 2026-10-15); specified by S30-a, implemented by S30-b · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; S30-b freeze "同意冻结并实施 S30-a/b"; Q-S30b-1 for item 4) · **Relates to** `ARC-31`, `ARC-36`, `ARC-61`, `ARC-71`, `DEP-10`, `ARC-120`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §§2, 3.1, 4.1 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §4.3; `.structured-coding/plans/mvp0/pr-s30b-authoring-seam.md` §5
+
+**Problem.** `ARC-31`'s sections decode statically: a section's type cannot see world-level data, so a schema declared in data cannot be checked at the author's line, and no section sees the whole set of subjects at once, which stratified sampling needs. The loader reads data only from World Packs and Entity Packs, while some System Packs must contribute declarations of their own (step-30 §9.6 N-2, step-31 §7.4).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) A world-level section in `world.yaml` | Declined: `world.yaml` carries no sections, and its `population:` key already means the people files (step-30 F-S30-8); world settings are a pack's `configure/<id>.yaml` (`ARC-61`) |
+| (b) An optional associated `type Context` on `AuthoredSection` | Declined in form, kept in meaning: on the pinned Rust an associated-type default is unstable, and a required one breaks every existing section, including the external `acme-fishing` (S30-b F-S30b-1) |
+| (c) **Four additive capabilities beside `ARC-31`'s: owned data directories; a sibling trait decoding a section in its owner's context; a resolution across subjects before seeding; shipped data** | **Chosen** |
+| (item 4 alternative) a companion Entity Pack per System Pack | Declined (Q-S30b-1): it splits one capability across two packages, and a world that enables the System but forgets the companion fails far from the cause |
+
+**Choice.**
+
+1. **A pack may own data directories** in World Packs and Entity Packs. The loader collects their `.yaml` files in one deterministic order — shipped files in `systems:` order, then required Entity Packs in id order, then the world; within each, directories in the owner's order and files by name — and the owner decodes each with line and column and builds one context from all of them and its world configuration. An unknown directory is refused, listing those the build knows; an installed owner's directory in a world that does not enable it is refused naming the owner; dot directories and the `decisions:` file's directory are not content.
+2. **A section may be decoded in its owner's context**, so a value is checked against a schema declared in data at its own line and column. Its Rust form is a sibling trait (`SectionInContext`); a pack owns one section either way.
+3. **An owner may resolve across subjects once, before any seeding**: it receives each subject's key, kind, tags and decoded section — never a name, note or location — and returns at most one seed per subject, seeded where its section's facts would have been; seeding order is unchanged (`ARC-31` item 4), and a seeded fact outside the owner's vocabulary is refused.
+4. **A System Pack may ship data files for an owner's directory**, compiled in (`SystemPack::SHIPS`, `ships_data!`), collected first whenever the shipping pack is enabled, each refusal naming the pack and the crate-relative path (Q-S30b-1, ruled 2026-10-15).
+5. **Entity Packs** may carry data directories instead of, or beside, `items/`; the "item kinds only" sentence of [`MODULE_SPEC.md`](MODULE_SPEC.md) §2 is amended (2026-10-15).
+
+**Consequences.** The seam names no domain; its first user is `attributes` (S30-c), and an Entity Pack's taxonomies are a plausible second, which is why it belongs in `mineworld-authoring`. Every reference world reads, loads and runs byte-identically (I-S30-10). The seam's contexts are not facts, so S30-c adds a resume-time check that a world's data has not drifted from its save's (S30-b R-S30c-b-2). Root files of a data pack (a backend's `backend.yaml`) and tooling directories inside one are not covered by item 1; S30-e and S30-h fix how they are carried, as dated notes here (S30-a F-S30a-9). A divergence S30-b finds between this text and the code is corrected in one of them, never left (S30-b R-S30a-b-1).
+
+**Revisit** when a second owner of data directories appears, or when Tier-1 packs (`ARC-8`) need data contributions without a rebuild.
+
+---
+
+## ARC-122 — The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); specified by S30-a, implemented by S30-c and S30-e (the catalogue), S30-k (localisation) · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; RR-S30-3; Q-S30a-1; Q-S30-8) · **Relates to** `ARC-120`, `ARC-121`, `ARC-123`, `ARC-125`, `ARC-126`, `DEP-10`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 "Attributes" · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§5, 6.1–6.3, 7
+
+**Problem.** Hundreds of attributes, many added by worlds, must reach Systems, cognition, agent players and both clients through one typed path — not `map<string, any>` (`CLAUDE.md` §4 rule 7) — with each value validated where it is written and with visibility that keeps omniscience impossible (INV-13).
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| Free-form key/value metadata on a Person | Declined: untyped at the boundary; nothing checks a value; every reader parses strings |
+| One Rust type per attribute | Declined: a custom attribute would need code, against the operator's "no hard-coding" |
+| **A frozen, data-declared catalogue; a closed value enum checked against its declaration; typed handles obtained at install** | **Chosen** |
+
+**Choice.**
+
+1. **Declarations** (YAML, `format: 1`): id (`^[a-z][a-z0-9_.-]{0,63}$`), `group`, `facets`, `kind`, `visibility`, `mutability`, `owner`, `label`, `phrase`, `words`, `perceived_as`, `default`, `since`, `prompt_rank`. The catalogue is decoded once at load into a frozen `Catalogue`.
+2. **Kinds:** `category`, `level` (ordered), `quantity` (an integer at a declared `scale` in a unit from a closed list: `m`, `kg`, `year`, `day`, `hour`, `count`, `ratio`; no currency, no float), `flag`, `set` (`of:` a list or `vocabulary:`; `max`), `text` (≤ 280 bytes, never readable by a System), `instant`. `category` also accepts `vocabulary:` (S30-a F-S30a-7, for `economy.wealth-band`). A value is the closed enum `AttributeValue`; saves hold slugs, never indices. `unknown` is not a value: absent means not stated.
+3. **Typed reads.** A System declares what it reads (`reads_attributes`) and obtains a `Handle<K>` once at install, refused by name (`Missing`, `WrongKind { declared, requested }`, `MissingUnderBackend`); no `Handle<Text>` exists; a structural test refuses a catalogue lookup outside install code.
+4. **Visibility:** `perceivable` (another observer is told `perceived_as`, else the value), `learnable` (only conversation reveals it, into the learner's memory), `private` (the holder only), `hidden` (nobody; Systems only). Disclosure is by perception only; a world may narrow a built-in's visibility, never widen it.
+5. **Mutability:** `fixed`, `evolving` (through its owner, citing a cause, INV-15), `derived` (`derive:` from `age`, `band`, `projection`; never stored or stated). Age advances with no event, from `birth` and the observation's instant. No drift rule engine ships.
+6. **Rendering:** `label`, a `phrase` with the one placeholder `{value}`, `words`; deterministic, bounded, English by default; locale label packs (`labels/<locale>.yaml`, zh-Hans first) in S30-k.
+7. **Namespaces, short slugs and overrides:** `core` is the built-in catalogue's; a world's and an owner's declarations use their own id; a foreign namespace is refused; a unique short slug is accepted; an ambiguous one is refused with the candidates; a world changes another's declaration only through `overrides:` (presentation, added facets, `default`, narrower visibility), never its kind, values, unit, scale, owner or mutability.
+8. **The built-in catalogue** `entities/person-attributes` (CC0-1.0) is **curated to at most 100 attributes, each read by something the player notices** (RR-S30-3), in six groups — appearance, background, psychology, capability, behaviour, lifestyle. It declares **93 `core` attributes**: step-30 §6.1's 94 rows, plus `core.natal-sex` (`category` female, male; `private`, `fixed`; read by casting as the profile parent of stature, build and facial hair, Q-S30a-1, ruled 2026-10-15), minus `employment.occupation` and `economy.wealth-band`, which their owners declare (`ARC-120`). A 101st built-in, or one without a reader line, fails the catalogue check. Versioning is semantic; an id is never reused.
+
+**Consequences.** A custom attribute (`freckles`) is one YAML file and reaches every surface with no code (step-30 §7.3, AC-S30-3). What still needs code: a new view over another pack's state, a new unit, a System that acts on an attribute. Cognition renders "who I am" and "who I see" from the same phrases under byte budgets; MCP gains `PersonLine.description` and `me.attributes`; both clients show one inspect panel (S30-f; step-30 §§9.2–9.3). An attribute learned in conversation is a memory, never world state (S30-i).
+
+**Revisit** when a world needs a unit or a kind the closed lists lack, or when the catalogue reaches its cap.
+
+---
+
+## ARC-123 — Population profiles and the deterministic stratified sampler; the population seed is not the run seed; the lock file
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); specified by S30-a, implemented by S30-d (sampler, lock), S30-e (cited profiles), S30-g (reference worlds, the S26 switch), S30-j (runtime sampling) · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; Q-S30-2, Q-S30-5) · **Relates to** `ARC-61`, `ARC-95`, `ARC-120`, `ARC-121`, `ARC-122`, `ARC-126`, `DEP-67`, `DEP-68`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 "Population profiles", "The lock file" · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§8, 10, 11
+
+**Problem.** Worlds must choose their own distributions by data — sampling that respects dependencies (stature given sex and age) and impossibilities — while the biography always wins, nothing is inferred from names, and the result is reproducible on three platforms. The interim casting sampler is Python with floats and is not shared with the world's genesis, so casting and the world could drift.
+
+**Options considered.** Profile in the 3D Presentation Pack (today) — declined, Q-S30-2: a population is world content that cognition, agents and casting read. Independent per-attribute draws — declined: no conditionals, poor small-population fidelity. **A per-world profile over a strict DAG, sampled by one integer, stratified engine with two entry points** — chosen. (The sampler's implementation choice is `DEP-67`.)
+
+**Choice.**
+
+1. **A profile** is a `populations/` file of a data pack: `covers`, cited `sources` (status `read`, `verify` or `authored`; `source: authored` is reserved for conventions), `distributions` (`prior`, `given`, `adjust` likelihood ratios, `mask` hard compatibility, `normal`/`uniform`/`table` numerics with `clip_sd`, `stratify`), and `roles` (defaults by tag or by resolved attribute). Every rule is refused by name at load (`DependencyCycle`, `MissingCondition`, `BadDistribution`, `BadAdjustment`, `BadMask`, `EmptySupport`, `UncitedDistribution`, `MissingSupport`, `NotCovered`, `UnknownAttribute`).
+2. **Semantics:** `weight(v) = prior(v | pa) × Π adjust × mask`, normalised to integer parts per million by largest remainder; only a mask zeroes a value; numerics through a committed standard-normal quantile table with integer interpolation — no float, no `libm`.
+3. **Algorithm:** stated and locked values fixed first; per attribute in topological order, groups by resolved parents, largest-remainder allocation with seeded tie-breaks, assignment by a counter-based mix of (seed, attribute, person key), a bounded matching for `allowed:`/`between:` restrictions (`Unsatisfiable` when none exists, never a silent re-draw); roles after sampling. The input holds the person's key, tags, authored values and lock entries — never a display name, note or persona.
+4. **The population seed is world content**, in `configure/attributes.yaml`, never the run's `--seed`; `salt` exists for S26's distinctness re-draw and changes sampled values only.
+5. **The lock file** pins values with origins; **precedence** is the person's file, the lock, roles, the profile's sample, the declaration's default. A casting ruling writes the lock, so a ruled brief and the world's attributes cannot diverge.
+6. **Origins** (`authored`, `ruled`, `locked`, `role`, `sampled`, `default`) are tool output, never saved. Genesis gains one private `traits-stated` fact per person with a plain trait; the sampler runs only at genesis.
+7. **One implementation, two entry points:** genesis (the seam's resolution, `ARC-121` item 3) and `mineworld attributes resolve --json`, which is the resolved cast S26 consumes (its C-1 … C-7 contract, step-26 §7.4b.1; step-30 §10).
+
+**Consequences.** For 1 000 covered people a synthetic resolution matches every marginal within 0.5 pp and every conditional within 2 pp for groups of at least 50 (AC-S30-5). Profiles move to `entities/populations-us` (S30-e). A release refuses a reference world whose profile marks a **data** figure `verify`, but not an `authored` convention (Q-S30-5). The interim Python sampler is removed when S30-g switches casting to `resolve --json`, with no adapter kept (`CLAUDE.md` §4 rule 12). Adopting attributes in a reference world moves its digests once, under one recorded re-baseline (S30-g); a world without `attributes` is byte-identical.
+
+**Revisit** when MVP-1's region worlds need joint fitting to control totals (PopulationSim, `DEP-67`), or when runtime arrivals (S30-j) show a drift the tolerance does not cover.
+
+---
+
+## ARC-124 — The attribute owner interface, with S31's subscriptions and wealth band as its first users
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); specified by S30-a, implemented by S30-c (`AttributeOwner`), used by S31 (`notices`, `economy`) and S30-f (`employment`) · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; the coordinator input of 2026-10-15, step-30 §1.2 item 3; Q-S30-6; Q-S30a-2) · **Relates to** `ARC-26`, `ARC-114`, `ARC-115`, `ARC-120`, `ARC-121`, `ARC-122`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1 "Owns" · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§4.2, 9.6; `.structured-coding/plans/mvp0/step-31-wealth-prices.md` §§7.4, 8.5
+
+**Problem.** Each NPC needs an attribute saying which public-information topics it subscribes to, mutable and private, read by a System rather than by cognition (operator, 2026-10-15); initial wealth is to be sampled through the same path (Q-S30-6). Both are state another System owns, so `attributes` cannot hold them.
+
+**Options considered.** Copy the value into `traits` and synchronise — declined: two writers. Let `attributes` call into the owner — declined: a dependency from the general pack to every owner. **An interface in the model crate that the owner implements** — chosen.
+
+**Choice.** An owner implements `AttributeOwner` from `mineworld-attributes-model` and depends on that crate, not on the `attributes` System Pack. It:
+
+1. declares its attributes in its own namespace with `owner:` its id, shipped with the pack (`ships_data!`, `ARC-121` item 4), and any vocabulary they draw from, as a `vocabularies/` file or from its world configuration;
+2. projects each owned attribute from its own component when read or disclosed (a view, never a copy);
+3. receives at genesis each person's resolved value, by the precedence of `ARC-123` (file, lock, roles, profile, default), as a typed value, and states its own facts;
+4. changes the attribute only through its own actions and facts — `attributes` is not involved;
+5. discloses through the model crate's filter and renderer.
+
+**Consequences.** The interface S31 consumes is step-30 §9.6 N-1 … N-6: `notices.subscriptions` (`set` over `notices.topics`, ≤ 32, `private`, `evolving`), its role default (`{ when: { tags: [cook] }, add: { notices.subscriptions: [prices.ingredients] } }`), and `subscribe`/`unsubscribe` as `notices`' own facts. `economy.wealth-band` is a `derived`, `private` `category` over `economy.wealth-bands` (the band ids of `configure/economy.yaml`), projected from the person's wealth (step-31 §7.4); an authored wallet wins, else `economy` funds the resolved band's opening amount. A role default keyed on occupation reads `employment.occupation` once S30-f has made `employment` its owner. If S31 freezes before S30-c merges, it codes against this text and adopts the crate at S30-c's merge; a conflicting change is a material stop for both.
+
+**Revisit** when an owner needs to react to a change of another owner's attribute, or when a projection needs state its owner does not hold.
+
+---
+
+## ARC-125 — Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3)
+
+**Date** 2026-10-15 · **Status** accepted (Q-S30-1); specified by S30-a, implemented by S30-c and S30-e (the appearance group), S30-f (consumers) · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 Q-S30-1) · **Relates to** `ARC-91` (S26-a, PR #206: **not on `main` when this record was written**), `ARC-92`, `ARC-120`, `ARC-122`, `ARC-126`, [`MVP.md`](MVP.md) AC-16 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §4.4
+
+**Problem.** `ARC-91` item 3 (S26-a) holds that apparent age, stature, build, skin and hair are not world facts — "no descriptors" — because no System consumes them, with a revisit clause "when a System needs an appearance descriptor". AC-16 is a stronger consumer: an agent's observation must be at least as information-rich as what a human sees on screen, within the same perception limits, and today an agent learns only a look key where a human sees a face.
+
+**Options considered.** Keep item 3 and let agents infer from the look key — declined: a look key is opaque by design. Encode descriptors in the look key — declined: `ARC-91`'s opacity. **Declare descriptors as `perceivable` attributes, keep `look` the only key a renderer binds** — chosen.
+
+**Choice.** `ARC-91` item 3 is amended to read: *apparent descriptors (stature, build, apparent age band, skin tone, hair, facial features, glasses, visible marks, clothing style, posture, voice) are `perceivable` attributes of the appearance group, owned by `attributes`, disclosed by perception only; the look key stays opaque and is the only thing a renderer binds; a descriptor never selects art, and the look key never encodes a descriptor.* `ARC-91`'s principles otherwise stand: a look is opaque, appearance never depends on what the observer knows, and disclosure is gated by perception only. The appearance group and quantity attributes are always MineWorld's, under every backend (`ARC-126`).
+
+**Consequences.** S26 casting reads the appearance subset by facet (`appearance`) from `resolve --json`, with no hard-coded attribute list (step-26 §7.4b.1 C-1 … C-7). A human and an agent are told the same thing: a human sees a face and reads "tall, grey hair"; an agent reads "tall, grey hair". **On `ARC-91`'s merge** (S26-a, #206), whichever of S26-a and S30-a merges second adds under `ARC-91` item 3 the dated note "amended by `ARC-125` (2026-10-15)" (S30-a R-S26a-a-1).
+
+**Revisit** when a renderer or a System needs a descriptor to select art, which this record forbids and which would need a new decision.
+
+---
+
+## ARC-126 — Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code
+
+**Date** 2026-10-15 · **Status** accepted (Re-ruled 2026-10-15, operator, final: RR-S30-5); specified by S30-a, implemented by S30-e (the backend and mask loader, the default backend) and S30-h (the optional backend) · **Approved by** the operator, directly in the primary session, 2026-10-15 (RR-S30-5, final; RR-S30-3 for the bound of 100; Q-S30-9 for `log-linear`) · **Relates to** `ARC-120`, `ARC-122`, `ARC-123`, `ARC-125`, `DEP-66`, `DEP-67`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §§2, 4.1 "Backends and masks" · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§6.4–6.5, 16.2
+
+**Problem.** The operator, final (2026-10-15): "我觉得我们应该是支持MatrAIx为后端生成人物，并给出demo，但是不要把它们作为强依赖，而是一个可选项" — support an external persona schema as a backend for generating people, with a demo, never as a hard dependency. A world must be able to choose its catalogue and its way of generating people, and narrow a large catalogue to what its play uses.
+
+**Options considered** (step-30 §§6.4, 16.2).
+
+| Option | Verdict |
+| --- | --- |
+| No external schema; learn from its approach only (RR-S30-1) | Superseded by RR-S30-4 and RR-S30-5 |
+| Import it as the built-in catalogue, masked to 100 (RR-S30-4) | Refined by RR-S30-5: kept, but optional, not the default |
+| A backend that runs its own code (a plug-in sampler) | Declined: determinism on three platforms, kernel ignorance and review all depend on one engine |
+| **Pluggable backends and masks as data, executed by MineWorld's engine; MineWorld's curated backend is the default** | **Chosen** (RR-S30-5) |
+
+**Choice.**
+
+1. **A backend** is a data pack supplying a catalogue and the means to generate people over it, chosen in `configure/attributes.yaml` (`backend:`, `mask:`). Its contract, `backend.yaml`, states `id`, `version`, `license`, `attribution`, `catalogues`, `masks`, `sampling`, `provenance` and `mapping`, each validated (`BackendMalformed`, `UnknownMask`, `MaskNamesUnknownAttribute`, `UnsupportedSampling`, `ProvenanceMismatch`, `MissingUnderBackend`).
+2. **No backend runs code.** Sampling modes are a closed list in the engine: `profile` (`ARC-123`) and an optional `log-linear` factor model executed in fixed point (Q-S30-9: offered by the optional backend only, used by its demo, never by a reference world, prototyped first and dropped with a report if determinism, load time or a ≤ 2 pp fidelity check fails).
+3. **The default backend is `mineworld`** (`entities/person-attributes`, `ARC-122`) with the `profile` mode and masks `core` and `appearance`; every reference world and test uses it.
+4. **Appearance and quantities are always MineWorld's:** every backend's catalogue is composed with the `core` appearance group and `core` quantities, which a backend may not redeclare (`ARC-125`).
+5. **A mask** is a named, versioned selection (`include`/`exclude` by id, group or facet, each with a `why` naming its reader; `MaskEntryUnjustified`); `all` includes everything. What a mask does not enable does not exist in the world (`MaskedOut` for a file stating it; a handle fails at install). Owner packs' attributes are never masked. A world writes its own mask with no code.
+6. **A mapping** gives, per built-in a reader declares, a `derived` view from the backend's values, checked for coverage; an unmapped built-in outside the appearance group is absent under that backend.
+
+**Consequences.** The only optional backend specified is recorded in `DEP-66`. Switching `backend:` and `mask:` changes the world's catalogue and nothing else (AC-S30-15). How the seam carries `backend.yaml`, a root file, is S30-e's (S30-a F-S30a-9).
+
+**Revisit** when a backend needs a sampling mode the engine lacks, which is a model-crate change reviewed as such.
+
+---
+
+## DEP-66 — The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept
+
+**Date** 2026-10-15 · **Status** accepted (Re-ruled 2026-10-15, operator, final: RR-S30-5); implemented by S30-h; no dependency is added before S30-h, and none outside its pack ever · **Approved by** the operator, directly in the primary session, 2026-10-15 (RR-S30-1 … RR-S30-5, the last final; Q-S30-8 for the overlay's privacy; Q-S30-9 for `log-linear`) · **Relates to** `ARC-122`, `ARC-123`, `ARC-126`, `DEP-67`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §§11–12, [`MODULE_SPEC.md`](MODULE_SPEC.md) §2 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§3.2, 6.6–6.7, 16.2
+
+**Problem.** The operator pointed to MatrAIx (Li, Hao et al., *MatrAIx: Simulating the World with 8.3 Billion Persona Agents*, arXiv 2608.04205v1, 2026) as the model for very many person attributes. Its schema has 1,290 categorical dimensions in five groups, natural-language phrases and six locale label packs, but no body or appearance dimension and no numeric kind, and some dimensions and its coreset carry licences narrower than the repository's.
+
+**Options considered — the rulings in order, every earlier text kept** (step-30 §16.2).
+
+| Ruling | Text | Status |
+| --- | --- | --- |
+| Step approval (Q-S30-7) | "taxonomy adapted, optional import in MVP-1"; about 200 built-ins | superseded by RR-S30-3 (≤ 100) and RR-S30-2 (everything before the release) |
+| RR-S30-1 | "我们不要对matrixl有依赖，我只是让你学习它的方式" — inspiration only, no dependency | superseded by RR-S30-4 and RR-S30-5; its "no hard dependency" survives in RR-S30-5 |
+| RR-S30-3 | ≤ 100 attributes, only what affects play | in force for the built-in catalogue and as the default mask's bound |
+| RR-S30-4 | import as-is, behind a modular mask of 100, `all` available | in force as refined by RR-S30-5 |
+| **RR-S30-5 (final)** | an optional backend with a demo, never a hard dependency | **in force** |
+
+**Choice.** An optional Entity Pack, `entities/attributes-matraix`, not installed by default.
+
+1. **Licence check.** The repository `MatrAIx-ai/MatrAIx-Persona-8B` is MIT. Excluded **on licence grounds only**: the 50 dimensions whose `source_origin.license` is `citation-only` (28) or `research-use-reference` (22), listed in step-30 §6.6, until their owners' terms are confirmed (re-admission is a reviewed pack change citing the confirmation); and the Persona-1M coreset (`matraix-research-only`, derived from real people's records), never imported. 1,240 dimensions remain. Redundancy is the mask's job, never a reason to drop one.
+2. **Pinned.** `persona/schema/dimensions.json` (schema 1.0) at upstream commit `3633d8dab149a9482a71b024418a49ae828cc941`, SHA-256 `cbf4db9d887dec057431aff409e1d28d83f345e7a31e29a4275a607212ecfca5`, imported verbatim: ids, categories as groups, value lists, phrases and the six label packs, nothing renamed.
+3. **Overlay** inside the pack, keyed by their ids and never editing their file: visibility (default `learnable`; `private` for ethnicity, religion, sexual orientation, disability, citizenship, veteran status, income and every `health_*` dimension, Q-S30-8), mutability (`derived` `age_bracket` from `core.birth`), owner (`economy` for `socioeconomic_band`), facets, and level order.
+4. **Masks** `matraix-core-100` (default; ≤ 100 chosen by gameplay, each with its `why`) and `all`; **mapping** `mappings/core.yaml` to the built-ins readers declare (for example `core.chronotype ← lstyle_sleep_schedule`, `economy.wealth-band ← socioeconomic_band`, S30-a F-S30a-2), every target value existing and every source value covered.
+5. **Update procedure.** The pack's offline import tool (Python standard library) verifies the digest, re-applies the exclusions and regenerates the pack; CI re-runs it over the pinned inputs and requires byte equality; an upgrade is a reviewed PR with a diff report; a removed dimension that a mask, mapping or profile names fails by name; a removal is a major version.
+6. **Attribution.** `pack.yaml` (`license: MIT`, `attribution:`), `LICENSE` (upstream text), `NOTICE` (commit, digest, paper), and the line *"Optional person-generation backend built on the MatrAIx persona schema (Li, Hao et al., 2026, arXiv 2608.04205; MIT), imported unchanged."* in the README's backends row, the demo's guide chapter, and a `CITATION` entry.
+7. **Isolation.** Nothing outside the pack names it, except `worlds/matraix-demo/`, its guide page, the README's attribution line, the plans and this file: a CI grep refuses any other mention (X-S30-18), and a CI job builds and tests the workspace with the pack removed (X-S30-19). Their sampler code is not used (`DEP-67`).
+
+**Why not ourselves.** A broad, documented, MIT persona schema with phrases and translations exists; re-authoring 1,240 dimensions would reinvent it. **Why not as the core.** It has no appearance or numeric kind, it is oriented to software-user personas, and a hard dependency would make every world depend on an external release (RR-S30-5).
+
+**Consequences.** The workspace, every reference world and every test run without the pack; a world uses it only by requiring it and naming `backend:` for it. `worlds/matraix-demo` (S30-h) shows its attributes in casting briefs, "who I am" and "who I see", the agent description and both inspect panels, including a zh-Hans panel from its label pack, and a CI-executed guide section walks through switching backend and mask and back. Under it, the appearance group and quantities still come from `core` (`ARC-125`, `ARC-126`).
+
+**Revisit** when a pinned upstream release changes the schema, when an excluded dimension's licence is confirmed, or when the authors' terms for joint promotion are agreed (the operator's).
+
+---
+
+## DEP-67 — The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15; Q-S30-9 ruled 2026-10-15); implemented by S30-d, the `log-linear` mode by S30-h · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; Q-S30-9) · **Relates to** `ARC-123`, `ARC-126`, `DEP-66`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §§11–12 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§8.6, 16.3
+
+**Problem.** Genesis needs a dependency-aware, stratified sampler that is integer, deterministic on Linux, macOS and Windows, shared by the world's genesis and the casting CLI, and that never re-draws authored or ruled values. `CLAUDE.md` §4 rule 16 asks both halves of the reuse question.
+
+**Options considered** (step-30 §8.6).
+
+| Candidate | Verdict |
+| --- | --- |
+| `pgmpy` (MIT, Python) | Declined: Python while genesis is Rust; float sampling; a dependency larger than the problem (≈ 400 lines of sampler) |
+| `pomegranate` (MIT, Python) | Declined, for the same reasons |
+| PopulationSim (ActivitySim, BSD-3) | Declined for MVP-0: it solves household synthesis against zone control totals (IPF), in Python with pandas; recorded as the reference if MVP-1's region worlds need joint fitting |
+| MatrAIx's sampler code | Not used: float Python. Its formula — prior × likelihood ratios × hard masks — is the one `ARC-123` uses |
+| **Our own, in `mineworld-attributes-model`** | **Chosen:** integer, deterministic, one implementation with two entry points |
+
+**Choice.** The sampler is MineWorld's, in the model crate (S30-d). **MatrAIx's `full_dag.json`** (1,308 nodes, 6,999 directed proposal edges with a valid topological order, 524 masks, 54 full CPTs) **is offered as an optional `log-linear` mode of its backend only** (Q-S30-9, ruled 2026-10-15): the import tool converts each term to fixed-point log weights, the engine sums them and exponentiates through a committed integer table, cycles are refused at import, and their energy-scoring repair is not reproduced. Its priors are global, so it is conditioned on adults and is never a place's distribution; it is used by `worlds/matraix-demo`, never by a reference world. S30-h prototypes it first and drops it, reporting to the operator, if determinism, load time (a 24.8 MB file) or the ≤ 2 pp fidelity check against their own sampler on the masked set fails.
+
+**Why not them.** Each library is float and Python, outside genesis's language and determinism; the interim Python casting sampler is removed with no adapter (`CLAUDE.md` §4 rule 12). **Not forced:** no library's execution model owns our genesis.
+
+**Consequences.** No sampling dependency is added. The sampler is about 400 lines of Rust that MineWorld maintains, tested by golden draws on three platforms (AC-S30-7) and by planted mutations (an `f64` draw, a re-drawn ruled value, a read display name; step-30 X-S30-6, X-S30-13, X-S30-14). The interim casting sampler on `mvp0/s26-cast-director` is removed by S30-g.
+
+**Revisit** when MVP-1 region worlds need joint fitting (PopulationSim), or if a deterministic Rust library solving the same problem appears.
+
+---
+
+## DEP-68 — Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0)
+
+**Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); used by S30-e's cited profiles · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-30 approval; Q-S30-5 for `verify` marks) · **Relates to** `ARC-95`, `ARC-123`, [`REUSE_POLICY.md`](REUSE_POLICY.md) §§11–12 · **Design** `.structured-coding/plans/mvp0/step-30-person-attributes.md` §§6.2, 8.2
+
+**Problem.** Realistic defaults must follow real-world values with citations, and a profile must keep data apart from authored casting conventions (step-30 F-S30-5).
+
+**Options considered.** Authored figures only — declined: unrealistic, and indistinguishable from data. Commercial demographic datasets — declined: licences incompatible with a CC0 pack. **Public-domain U.S. federal statistics, plus an openly licensed skin-tone scale, each cited per figure** — chosen.
+
+**Choice.**
+
+| Source | Licence | Used for |
+| --- | --- | --- |
+| American Community Survey (U.S. Census Bureau), e.g. 2024 1-year tables B01001, B03002 for San Diego County | public domain (U.S. federal work) | sex, age-band and ancestry marginals |
+| NHANES 2015–2018 anthropometric reference data (Fryar et al. 2021, Vital Health Stat 3(46)) | public domain (U.S. federal work) | stature and body-mass by sex and age; build |
+| Monk Skin Tone scale (Ellis Monk; released by Google, 2022) | CC BY 4.0, attribution in the pack | the ten-level `core.skin-tone` domain |
+
+Each figure in a profile names its source and is marked `read` or `verify`; casting conventions are sources of status `authored` and are never presented as data. A release refuses a reference world whose data figures are still `verify` (Q-S30-5).
+
+**Consequences.** The default domain ranges follow real values: stature 0.50–2.50 m and mass 2–300 kg as domains only, the realistic distribution being the profile's. A county figure not yet read (for example build, step-30 §8.2) stays `verify` until it is.
+
+**Revisit** when a world needs a population outside the United States, which brings its own sources and a record of its own.
+
+---
+
+## ARC-110 — The default suite runs as weighted shards on every OS, behind gates that keep the check names
+
+**Date** 2026-10-15 · **Status** accepted for review (PR #224, "ci: shard test-windows under the job cap"); in force at its merge · **Approved by** the operator through the primary session, 2026-10-15: shard the Windows test step and keep check names stable; scope extended the same day to `test` and `test-macos` and to the Windows Python subprocess bound, and on 2026-10-16 (primary ruling, after the move to GitHub Pro) to at most two macOS jobs per run; merge is the operator's · **Relates to** `ARC-48` and its notes of 2026-10-09 (13b, 13w), `ARC-83`, [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** this entry; `scripts/ci_shard.py`
+
+**Problem.** The `core` layer outgrew one 60-minute job on all three operating systems, and every run that hit the cap was cancelled with every test it had run green.
+
+- **Windows.** PR #200's run 38787218062 and PR #206's run 38782285755 were cancelled after 78 and 80 of the suite's 250 test binaries.
+- **Linux and macOS.** With 12d (#171), the suite took 48 and 40 min on main (run 38787218062). On #171's run 38786685064 it was cancelled at 60 min on both, inside `town_bodies`: two 300-day town runs, ~390–440 s on its green run 38664714380.
+- **12d is slower on every binary.** Measured per binary as wall time between cargo's `Running` lines, the binaries #171 shares with main take 1.3× (Linux), 1.6× (macOS) and 1.7× (Windows) as long.
+
+Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall, and makes every code PR wait over an hour.
+
+**Choice.**
+
+1. **Shards.** Each test job is a matrix of shards running `scripts/ci_layer.py core --shard K/N`, through `.github/actions/layer` (Linux, container) or `.github/actions/native`, each with a `shard` input:
+   - `test (1/3)…(3/3)` on ubuntu-24.04;
+   - `test-windows (1/4)…(4/4)` on windows-2025, the slowest runner;
+   - macOS in two jobs on macos-26, as item 3 below sets out.
+
+   Every Linux and Windows shard's cap is 45 min. Every PR still runs the whole suite.
+2. **The partition** is `scripts/ci_shard.py`'s, and `ci_layer.py` stays the only place that names a layer's commands.
+   - **Units.** A unit is a test target name across the workspace. `cargo test --workspace --test NAME` runs every package's target of that name from its own directory, using cargo's own filter, not a re-implemented runner. Two more units cover the rest: `<lib+bins>` (`--lib --bins`) and `<doc>` (`--doc`, which cargo cannot mix with other filters).
+   - **Names.** They come from `cargo metadata` at run time, so a new test is in exactly one shard.
+   - **Weights.** They are Windows seconds from the first complete sharded run (2855 s on main 4457ad47), plus `town_bodies` at 480 s, its share of `market_town` on #171. One table serves every OS: only proportions matter, and they agree across the three. An unknown name weighs 1 s.
+   - **Assignment.** Longest-processing-time first, with fixed tie-breaks, hence deterministic.
+   - **Per shard.** Each shard builds (`--no-run`) and runs only its own targets, then `check_scratch.py left`, as `core` does. Linking a third of the test binaries instead of all of them cut the Windows build from 773 s to 181–363 s.
+   - **Self-test.** `fast` runs `ci_shard.py --self-test`: completeness, no duplicates, determinism, the LPT bound, and that the commands run every unit once.
+3. **macOS: two jobs per run, because macOS concurrency is the binding constraint.** GitHub-hosted macOS runs at most 5 jobs at once on Free, Pro and Team alike, while Linux and Windows get more slots on Pro. A run with five macOS jobs (three `test-macos` shards, `platforms (macos-26)`, `python (macos-15)`) held every macOS slot, so the next run's macOS stage waited for it. The macOS jobs are now:
+   - **`test-macos (a: lock, core 1+2/3)`** runs the `platforms-lock` layer, then shards 1 and 2 of 3 together (`--shard 1,2/3`). `platforms-lock` is `cargo fetch --locked` and EC-3 (b)'s `--offline-check`, run first so that nothing can rewrite `Cargo.lock` before it is checked. These two commands are what the `platforms` layer checks on macOS beyond `core`: every test command of `platforms` is a subset of `cargo test --workspace` on the same runner, and `cargo fetch --locked` fails on a stale lock as `--locked` on each command did.
+   - **`test-macos (b: core 3/3, python)`** runs shard 3 of 3, then the `python` layer, with uv's Python 3.12 (`setup-uv`). The Python workspace's macOS run moves from macos-15 to macos-26, the version every other macOS job uses.
+
+   `scripts/ci_layer.py` takes several layers in order, stopping at the first failure. A shard spec may name several shards of one partition (`K,L/N`), whose units run as one. On head 3045db8b, before 12d: macOS `core` was 1806 s of tests plus 130–240 s of build per shard, `python` 21 min (`lm-controller` pytest 823 s, a cold `cargo build` 294 s), and `platforms` 8.3 min. That puts (a) at about 27 min and (b) at about 31 min. One unsharded macOS test job would be about 39 min before 12d and over 45 min with `town_bodies`, so the suite still needs two jobs. Their cap is 55 min, not 45. 12d's effect on macOS was measured at 1.1× (run 38664714380) and 1.6× (run 38786685064) of main's suite, and at 1.6× both jobs come to about 46–49 min. When either passes 40 min, re-weigh or give macOS a third job.
+4. **The check names do not change.** `test`, `test-macos` and `test-windows` become gate jobs on ubuntu-24.04.
+   - Each needs its shards and is green only when every shard is (`needs.<shards>.result == success`).
+   - Each has its shards' triggers plus `always()`, so a failed or cancelled shard is a red gate, and a documentation-only change still skips both gate and shards.
+   - The required checks stay `fast`, `test`, `test-macos`. The shard checks are new and not required. `platforms (macos-26)` and `python (macos-15, python)` disappear (their work is in `test-macos (a)` and `(b)`); neither was required.
+5. **The Windows bound on one Python-driven binary run** (`cognition/lm-controller/tests/binary.py`) goes from 600 to 1200 s; Linux and macOS keep 600 s.
+   - On run 38786685064 the 100-day social-cafe run behind the AC-10 and retention fixtures passed 600 s on windows-2025 and was killed (10 errors, `TimeoutExpired`).
+   - On Linux and macOS, every binary run finished inside 600 s. Their one failure there, `test_keep_all_is_held_by_the_host_on_the_real_history`, is an assertion of #171's, not a timeout.
+6. **Not adopted: cargo-nextest.**
+   - Its `--partition hash:`/`count:` splits by test count, not weight, so the ~490 s `market_town` and `town_bodies` can share a shard.
+   - It runs each test in its own process, which changes the semantics of tests that share a binary's state.
+   - It does not run doctests.
+   - It is a new tool to pin on three platforms.
+
+   The weighted split over cargo's own filters is about 200 lines of standard-library Python. Revisit if per-test retries or JUnit output are wanted.
+7. **Re-weigh** when any shard's test step passes 35 min: take new per-binary times from a run's log and replace `WEIGHTS`.
+
+**Consequences.**
+
+- **Runners.** A run uses seven Linux and Windows test runners and two macOS ones, instead of three test jobs plus separate macOS `platforms` and `python` jobs. Each job builds the workspace's libraries itself. The wall time to a verdict falls from >60 min to about 30 min.
+- **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
+- **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
+- **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
