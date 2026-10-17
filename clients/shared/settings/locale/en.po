@@ -321,6 +321,57 @@ msgstr "refused: {reason}"
 msgid "link.refused_about"
 msgstr "refused ({verb} {who}): {reason}"
 
+# The interaction menus, the panels of what you have, and the words of an answer: concepts both clients
+# show (step-15 §22.3 D-16d-6). Moved here verbatim from the 2D pack's en.po (S12 13b), keys unchanged.
+msgid "ui.unsupported"
+msgstr "{label} — not supported by this client"
+
+msgid "ui.unavailable"
+msgstr "{label} — {reason}"
+
+msgid "ui.needs-range"
+msgstr "needs {metres} m"
+
+msgid "ui.self"
+msgstr "You"
+
+msgid "ui.menu.empty"
+msgstr "Nothing is offered here"
+
+msgid "ui.result.accepted"
+msgstr "{done}"
+
+msgid "ui.result.rejected"
+msgstr "{action}: the world said no — {reason}"
+
+msgid "ui.result.unavailable"
+msgstr "{action}: nothing in this world can do that"
+
+msgid "ui.result.refused"
+msgstr "{action}: refused ({code})"
+
+msgid "ui.result.unknown"
+msgstr "{action}: unknown — check the world (nothing was resent)"
+
+# Panels: the observer's own disclosed components, by component type.
+msgid "panel.wallet"
+msgstr "Money"
+
+msgid "panel.holdings"
+msgstr "Carrying"
+
+msgid "panel.shop"
+msgstr "For sale here"
+
+msgid "ui.row.holding"
+msgstr "{item} × {count}"
+
+msgid "ui.row.shop"
+msgstr "{item}  ·  {price}  ·  {stock} left"
+
+msgid "format.money"
+msgstr "{amount}"
+
 # Menu entries, one per action type a System Pack declares. {target}: the person the action is
 # directed at; {item}: the thing its payload names.
 msgid "action.move"

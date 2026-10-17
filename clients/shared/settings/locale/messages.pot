@@ -408,6 +408,70 @@ msgstr ""
 msgid "link.refused_about"
 msgstr ""
 
+#. {label} — not supported by this client
+msgid "ui.unsupported"
+msgstr ""
+
+#. {label} — {reason}
+msgid "ui.unavailable"
+msgstr ""
+
+#. needs {metres} m
+msgid "ui.needs-range"
+msgstr ""
+
+#. You
+msgid "ui.self"
+msgstr ""
+
+#. Nothing is offered here
+msgid "ui.menu.empty"
+msgstr ""
+
+#. {done}
+msgid "ui.result.accepted"
+msgstr ""
+
+#. {action}: the world said no — {reason}
+msgid "ui.result.rejected"
+msgstr ""
+
+#. {action}: nothing in this world can do that
+msgid "ui.result.unavailable"
+msgstr ""
+
+#. {action}: refused ({code})
+msgid "ui.result.refused"
+msgstr ""
+
+#. {action}: unknown — check the world (nothing was resent)
+msgid "ui.result.unknown"
+msgstr ""
+
+#. Money
+msgid "panel.wallet"
+msgstr ""
+
+#. Carrying
+msgid "panel.holdings"
+msgstr ""
+
+#. For sale here
+msgid "panel.shop"
+msgstr ""
+
+#. {item} × {count}
+msgid "ui.row.holding"
+msgstr ""
+
+#. {item}  ·  {price}  ·  {stock} left
+msgid "ui.row.shop"
+msgstr ""
+
+#. {amount}
+msgid "format.money"
+msgstr ""
+
 #. Walk
 msgid "action.move"
 msgstr ""

@@ -3975,6 +3975,18 @@ observation's affordances.** No new principle; how this record applies to menus:
    only; R3 extends to `menu.gd` and `hud/` (a function that calls `intents.` reads no verdict); R6
    refuses a user-visible English sentence outside the wording (`ARC-70`).
 
+**Note 2, 2026-10-16 (S14 PR 16d; step-15 §22.3 D-16d-3, D-16d-6, Q-16d-10) — the 3D client follows
+the same menu model.** No new principle. The 3D slice's two menus — yours (B, the target-less offers)
+and the person under the reticle (Tab, the offers directed at them) — are Note 1's model, built in
+`clients/3d-spike/scripts/slice/offer_menu.gd`: one entry per affordance, in the server's order; a
+complete affordance submitted unchanged through `submit_affordance` (`intents.gd`'s `submit_offered`);
+an incomplete one composed only when `intents.gd` composes its type (`talk`, with the default words); the
+offer the body answers by walking (`move`) listed and never chosen; anything else listed disabled and
+never sent; an unavailable entry greyed and still choosable. Verdicts are read where entries are built,
+never where one is chosen. Both clients print their menus in one report format, compared field for field
+(step-15 §22.4 P-2), and the words both show — menu, panel and answer keys — live once, in the shared
+catalog layer (`ARC-70`'s 2026-10-09 note).
+
 ---
 
 ## ARC-70 — Client UI text is addressed by message keys; a Presentation Pack carries the wording as gettext files

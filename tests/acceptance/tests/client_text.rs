@@ -85,6 +85,28 @@ const NAMED_CHANGES: [(&str, &str); 1] = [(
      (QSET-2)",
 )];
 
+/// 13b's entries that S14 PR 16d moved, verbatim, from the 2D pack to the shared layer, because the 3D
+/// client shows the same concepts (step-15 §22.3 D-16d-6). Each must have been 13b's, must now live in
+/// the shared layer and not in the pack, and must read exactly as it did.
+const MOVED_BY_16D: [&str; 16] = [
+    "ui.unsupported",
+    "ui.unavailable",
+    "ui.needs-range",
+    "ui.self",
+    "ui.menu.empty",
+    "ui.result.accepted",
+    "ui.result.rejected",
+    "ui.result.unavailable",
+    "ui.result.refused",
+    "ui.result.unknown",
+    "panel.wallet",
+    "panel.holdings",
+    "panel.shop",
+    "ui.row.holding",
+    "ui.row.shop",
+    "format.money",
+];
+
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -684,7 +706,9 @@ fn the_move_of_13b_wording_is_verbatim() {
             ));
             continue;
         };
-        let moved = entry.key.starts_with("action.") || entry.key.starts_with("reason.");
+        let moved = entry.key.starts_with("action.")
+            || entry.key.starts_with("reason.")
+            || MOVED_BY_16D.contains(&entry.key.as_str());
         let lives_in_pack = pack.get(&entry.key).is_some();
         if moved && entry.key != "action.move" && lives_in_pack {
             found.push(format!(
@@ -706,6 +730,17 @@ fn the_move_of_13b_wording_is_verbatim() {
                     entry.key, effective.text, entry.text
                 )),
             }
+        }
+    }
+    // An entry of MOVED_BY_16D admits a move only of an entry 13b had, to the shared layer.
+    for key in MOVED_BY_16D {
+        if before.get(key).is_none() {
+            found.push(format!("\"{key}\" is listed as moved by 16d and was not 13b's"));
+        }
+        if shared.get(key).is_none() {
+            found.push(format!(
+                "\"{key}\" is listed as moved by 16d and is not in the shared layer"
+            ));
         }
     }
     for ((key, why), used) in NAMED_CHANGES.iter().zip(named_used) {
