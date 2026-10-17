@@ -166,7 +166,7 @@ Each commit tracks implementation, deterministic validation and LLM logic review
 | C0 | c599c831 | [x] | [x] doc checks PASS | [x] scope and reconciliations re-read against the step |
 | C1 | 653636fa | [x] | [x] milestone_d both tests, IC-8 and F-P7-3 mutations red | [x] reads only frames, save, store, log; no world rule moved; file 843 lines (test, >800 noted) |
 | C2 | c1913cf7 | [x] | [x] replay 3 passed, IC-6 mutation red | [x] no provider term in the log (scan), key unchanged by binding |
-| C3 | 86df2324 | [x] | [x] Python half PASS, mutation red; Rust half: CI `removability` | [x] edits only the directory and the member line |
+| C3 | 86df2324, db6389cf | [x] | [x] Python half PASS, mutation red; Rust half: CI `removability` | [x] edits only the directory and the member line |
 | C4 | f1dbad32 | [x] | [x] 1 passed, 1 xfailed (strict) | [x] bound from the resolved retention, not a literal |
 | C5 | this commit | [x] | [x] doc checks PASS | [x] review package states both measured gaps |
 
@@ -191,6 +191,18 @@ All local runs on macOS (arm64), 2026-10-15, base `5cbb4697` plus this branch's 
 | Q-P7-1 | **NOT RUN** | held for the operator |
 | F-P7-3 regression | **PASS**, mutation red | `test_a_restarted_process_does_not_answer_again_a_line_its_store_already_held`; with `detect` over every redelivered fact: `['2', '2', '3'] != ['2', '3']`, reverted |
 | Touched P6 tests | **PASS** | `test_controller_{choice,seat,log,consult,parts,server,resilience}.py`, `test_provider_scan.py`, `test_milestone_d_replay.py`: 71 passed (69.9 s); ruff check and format, pyright strict: 0 errors; `cargo fmt --check`, `cargo clippy -p mineworld-cli --test milestone_d -D warnings`: clean |
+
+**CI, first head `f9c1f39e` (run 38822679254).** PASS: `fast`, `test`, `test-macos`, `python` on Ubuntu and
+Windows (the live Milestone D test and the 100-day test with its strict xfail), `platforms`. FAIL, each classified:
+- `removability`: its own defect. `ac1_composability` checks 1 and 2 read git history and the file list, and the
+  plain file copy was no repository. Repaired in `db6389cf`: the copy is a detached worktree of HEAD with one
+  throwaway commit. Locally, in that worktree: `ac1_composability` 15 passed; the Python half PASS.
+- `python (macos-15)`: `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back` refused
+  `seat_occupied`. Out of scope: `clients/agent` is untouched here, and the same file passed in the scratch copy and
+  locally (98 passed). The cognition member passed on that leg: 425 passed, 1 xfailed.
+- `test-windows`: cancelled at its 60-minute limit while still running (`social_interactions`), with no test failed.
+  This is pre-existing: `main`'s run 38818061551 was cancelled the same way. P7 adds one ordinary test to `core`
+  (the unplugged run, ≈ 15 s).
 
 The recording: `MINEWORLD_MILESTONE_D_RECORD=… cargo test -p mineworld-cli --test milestone_d -- --ignored --exact
 record_the_milestone_d_cassette` against Ollama's `qwen3.5:4b` on loopback (no key, no paid call). Its own step-6
