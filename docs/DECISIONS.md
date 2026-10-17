@@ -8817,7 +8817,7 @@ Each figure in a profile names its source and is marked `read` or `verify`; cast
 
 **Revisit** when a world needs a population outside the United States, which brings its own sources and a record of its own.
 
-## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, and SET-b's connected 3D tests under QC-5
+## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests
 
 **Date** 2026-10-16 · **Status** proposed in the PR "ci: fix the red nightly (closes #170)"; pending the
 operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
@@ -8851,6 +8851,14 @@ the logs of nightly 38919486641 on `38323d4c`:
    `three_d_switches_language_live_and_settings_never_reach_the_server` is already skipped there by QC-5.
    On the laptop's GPU all three of SET-b's tests pass (104.8 s, at this PR's head). On the macOS runner
    `three_d_settings_never_reach_the_server` passed that night.
+   The macOS runner's own failure is a cold first launch. In this PR's first dispatched nightly
+   (39007080793) the first connected 3D test there, `three_d_controls_apply_live_and_persist`, built the
+   slice's scene in 58.1 s and hung before it was seated; the next two (`three_d_settings_never_reach_the_server`,
+   `three_d_switches_language_live_and_settings_never_reach_the_server`) passed, and every later launch
+   that night built the scene in 3.3–3.7 s. On `63069777` and `171ea061` the first connected 3D test was
+   `three_d_switches_language_live_and_settings_never_reach_the_server`, and it was the one that hung
+   (the triage of 2026-10-12 on #170). The shader and pipeline caches are cold at the first launch on a
+   runner; that is the macOS part of F-13c-impl-5.
 4. `clients-mac` was cancelled at its 75-minute limit with no verdict. `the_settings_folder_is_shared`,
    the first test to import the 3D client, took 45 minutes of it (9.5 minutes on Linux): the 3D client's
    imported resources are 584 MB, and `pr-13c-nightly.md` §3.4's import cache was specified but never
@@ -8868,7 +8876,10 @@ a QC-5b ruling (not needed: the tests pass on the macOS leg, which is QC-5's con
 240 s deadline (the slice renders fewer than 12 frames in 240 s on a software renderer; a deadline it can
 meet would not be a deadline); **QC-5, as for the existing name** (chosen). For cause 4: raising the limit
 alone (every night would pay 45 minutes); **the specified import cache, plus a limit that holds a cold
-night** (chosen).
+night** (chosen). For the macOS cold launch: raising the tests' 240 s deadline (it would hold every
+launch to the slowest one, and edits the tests); ordering the tests (libtest orders by name, and the
+first would still pay); **one unjudged launch of the slice before the tests** (chosen: the tests and their
+verdicts are unchanged, and it is not a retry, because nothing it does is judged).
 
 **Decision.**
 1. `parity-long-windows` and `stability-windows` point `TEMP` and `TMP` at `RUNNER_TEMP` before their
@@ -8888,6 +8899,11 @@ night** (chosen).
    left to the tests, which assert it by name.
 5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
    still reaches a verdict. The other limits are unchanged.
+6. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
+   (`godot --always-on-top --path clients/3d-spike res://scenes/slice.tscn -- --slice-measure
+   --settings=none`, limit 600 s), where a connected 3D test is about to run (the macOS leg; Linux and
+   Windows skip them all). Its exit and time go to `artifacts/nightly/notes.txt` as a note, never a
+   verdict.
 
 **Consequences.** The evidence of the PR's dispatched nightly is recorded in the PR. Each Windows leg's
 saved runs now measure the simulation and SQLite, not the runner's OS disk; a regression there is
