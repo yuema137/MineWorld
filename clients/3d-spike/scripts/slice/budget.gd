@@ -45,6 +45,9 @@ static func apply(root: Node3D) -> Dictionary:
 static func _range(n: Node, excluded: bool, k: float, tan_half: float, st: Dictionary) -> void:
 	if n.has_meta("mw_category") and str(n.get_meta("mw_category")) in EXCLUDED:
 		excluded = true
+	# The far field (RL-e0) is seen at every distance by design: never ranged.
+	if str(n.get_meta("mw_category", "")).begins_with("farfield."):
+		excluded = true
 	if n is GeometryInstance3D and not excluded:
 		var gi := n as GeometryInstance3D
 		var r := radius(gi)

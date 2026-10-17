@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "scope": {"world": "malformed-enum"},
+  "boundary": {"kind": "natural", "reach_m": 60, "beyond": "paved_path"},
+  "water": [],
+  "datum_m": 18,
+  "datum_source": "test fixture",
+  "sky": {"kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 80000, "visibility_source": "test fixture"},
+  "foreground": {"surface": "dry_grass", "drop_m": 18, "run_m": 300},
+  "terrain_silhouettes": [
+    {"name": "north", "layer": "near", "sector": {"from_deg": 0, "to_deg": 180}, "albedo": "#6b6648",
+     "profile": [{"bearing_deg": 0, "height_m": 80, "distance_m": 2000}, {"bearing_deg": 180, "height_m": 80, "distance_m": 2000}],
+     "source": "test fixture"},
+    {"name": "south", "layer": "mid", "sector": {"from_deg": 180, "to_deg": 0}, "albedo": "#6f6a50",
+     "profile": [{"bearing_deg": 180, "height_m": 300, "distance_m": 20000}, {"bearing_deg": 0, "height_m": 300, "distance_m": 20000}],
+     "source": "test fixture"}
+  ],
+  "skyline": {
+    "sectors": [{"sector": {"from_deg": 0, "to_deg": 90}, "from_m": 250, "to_m": 900, "height_m": {"min": 6, "max": 12}, "density": 0.3, "source": "test fixture"}],
+    "seed": 1,
+    "slots": {"station": {"state": "unplaced"}, "landmark": {"state": "unplaced"}}
+  }
+}

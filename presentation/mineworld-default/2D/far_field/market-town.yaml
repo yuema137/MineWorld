@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "scope": {"world": "market-town"},
+  "boundary": {"kind": "natural", "reach_m": 60, "beyond": "drop"},
+  "water": [
+    {
+      "name": "san-diego-bay", "kind": "bay",
+      "sector": {"from_deg": 170, "to_deg": 300},
+      "shore_m": 1000, "level_m": 0, "horizon": "closed",
+      "colour": {"deep": "#3c6670", "shallow": "#5f8f9a"},
+      "source": "San Diego Bay: shoreline about 1.0 km west and 1.2 km south-west of the origin; approximate; replaced by RL-e (USGS 3DEP)"
+    }
+  ],
+  "surround": {
+    "extent_m": 400, "base": "land",
+    "haze": {"colour": "#c9d3d6", "from_m": 60, "to_m": 400}
+  }
+}

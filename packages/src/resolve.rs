@@ -3,7 +3,8 @@
 //!
 //! A pure function of what the world states, what the build holds, what the pack roots hold and the
 //! licence policy. The World Pack loader gathers those and calls [`resolve`]; nothing here reads a
-//! file, the environment or a world's content.
+//! file, the environment or a world's content — except that a required Presentation Pack's
+//! directory must hold the world's `far_field/<world-id>.yaml` (`ARC-102`), a presence check.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -140,7 +141,16 @@ pub fn resolve(
 
     let mut required = Vec::new();
     for (id, range) in world.requires {
-        required.push(requirement(id, range, installed)?);
+        let resolved = requirement(id, range, installed)?;
+        // A Presentation Pack a world requires carries that world's far field (MODULE_SPEC §6.1.1,
+        // ARC-102): its presence is checked here; what it says is `packs validate`'s and the
+        // client's to check.
+        if let (PackType::PresentationPack, Source::Directory(dir)) =
+            (resolved.identity.kind, &resolved.source)
+        {
+            crate::far_field::require_for_world(dir, id.as_str(), world.id)?;
+        }
+        required.push(resolved);
     }
 
     let mut systems = Vec::new();

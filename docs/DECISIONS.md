@@ -5960,6 +5960,10 @@ export templates; a hosted runner gaining a GPU.
 **Accepted limitations.** Windowed tests on Linux run on a software Vulkan device under a virtual
 display; they judge behaviour, never frames (`ARC-17`).
 
+**Dated note, 2026-10-15 (RL-e0, `ARC-103`).** The accepted limitation "judge behaviour, never frames" is
+narrowed: the far-field checks judge frames **only against frames rendered in the same run** (`ARC-103`),
+never against a stored image; every other windowed test is unchanged.
+
 ---
 
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
@@ -8299,6 +8303,38 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
 
 **Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
+
+---
+
+## ARC-102 — Every presented world has a far field; a Presentation Pack without one is refused
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15: "再小的世界，再小的城镇，都要有远景！可以有空气墙，但是不可以没有远景…只有这样才能做到沉浸式体验" — *"However small the world, however small the town, it must have a far field. An invisible wall is allowed, but having no far field is not. Only that makes the experience immersive."*) and the primary session (freeze) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Relates to** `ARC-3`, `ARC-103`, `ARC-104`, `DEP-16`, `DEP-45` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`
+
+**Problem.** E-FF-1 … E-FF-8 of the design: the demo users get (the café street slice) had no water, its three backdrop ridges were back-face culled (wound counter-clockwise as seen from the street while the material kept `CULL_BACK`, and a winding assertion encoded the wrong convention), the ridges covered only about ±44° around north, east, west and south showed the grass apron cut off against the sky, and the 2D client showed its clear colour past the grass. No document made a far field required and no schema named it.
+
+**Options considered.** (a) a required, typed `far_field` per world in each dimension pack, refused by name at authoring and at load — **chosen**; (b) a client-side backdrop convention (what failed); (c) a pack-wide fallback (makes refusal unreachable, draws the wrong place).
+
+**Consequences.** The schema of `MODULE_SPEC.md` §6.1.1; the 3D client reads `far_field/` before 16f; RL-b C8's reverted skyline technique (commit `58bc0c4`: camera-anchored ribbons, Koschmieder haze, curvature and refraction) is reused; RL-e fills the same schema from 3DEP; the clients take `--world-key` until the protocol carries a pack id (revisit with S21).
+
+---
+
+## ARC-103 — The far field is proven by rendering, against the same run's own frames
+
+**Date** 2026-10-15 · **Approved by** the operator (Q-FF-1, 2026-10-15) and the primary session (freeze) · **Relates to** `ARC-17`, `ARC-23`, `ARC-102`, `DEP-45` (dated note) · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §6
+
+**Problem.** A winding assertion passed while the GPU culled the faces (F-FF-1); schema and ray-cast checks cannot see render-time culling.
+
+**Choice.** Shown-vs-hidden-vs-sky renders from fixed viewpoints with two fixed criteria (FF-BELOW 90 %, FF-ABOVE 25 %), and two-sentinel clear-colour counts in 2D, on all three hosted runners; planted mutations prove failure.
+
+**Not chosen.** Golden images (renderer-dependent, `ARC-17`'s vagueness in pixel form); a ray-cast check (blind to culling).
+
+---
+
+## ARC-104 — Invisible boundaries are allowed; open views without a far field are not
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15, quoted in `ARC-102`) · **Relates to** `ARC-102` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` Appendix A.3
+
+Amends [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §4 on the operator's ruling: an invisible boundary is an acceptable termination; a view that does not close on a far field is not.
 
 ---
 

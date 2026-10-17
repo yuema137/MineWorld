@@ -1216,24 +1216,285 @@ live here, in §17.1, beside the questions they answer.
 
 ### Commit ledger
 
+Implementation base: **origin/main @ 2d07c6c0** (Merge #215, this design's freeze), recorded at C0 on
+2026-10-15. Branch `mvp1/pr-rl-e0` (the dispatch's name; §13 said `mvp0/pr-rl-e0` — the dispatch's explicit
+setup command replaces it). Worktree `/Users/yuema137/mineworld-worktrees/impl-rl-e0`, one session.
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | 80afda22 | [x] base recorded; header `DESIGN FROZEN` and §13 confirmed; handoff created with §17.1 verbatim | [x] doc checks (below) | [x] no authority line widened: merge stays operator-only; the branch-name line is the dispatch's |
+| C1 | 2b554ed5 | [x] A.1 → `MODULE_SPEC.md` §6.1 + new §6.1.1 (schema, codes, refusal points, exemption verbatim); A.2 → `ART_DIRECTION.md` §12 layout + exception, §21 Environment; A.3 → `VISUAL_SLICE.md` §1 note, §4 terminations, far-field row, out-of-scope line, §12 view 11; A.4 → `clients/2d/PRESENTATION.md` new §8; A.5 → `DECISIONS.md` ARC-102/103/104 appended, DEP-45 dated note | [x] `check_doc_headings.py` 239 sections, none duplicated PASS; `check_decision_ids.py` 128 ids distinct PASS; `grep far_field docs/MODULE_SPEC.md` shows the layout line, the exception and §6.1.1 (VISUAL_SLICE's A.3 text says "far field" in words, no `far_field` token, by design) | [x] terms exact (`Presentation Pack`, `World Pack`, `ActionIntent`, `System`); the rule lives in MODULE_SPEC §6.1.1, no README carries it; VISUAL_SLICE additions name no engine, node or shader |
+| C2 | 2b6ff714 | [x] `packages/src/far_field.rs` (codes, `Dimension`, `read`, `check_pack`, `require_for_world`, `uncovered`, `missing_message`), `far_field_schema.rs` (every type of §5.1.2, `deny_unknown_fields`, newtypes `Key`/`AssetName`/`Colour`, `Slots`/`Slot` with their own deserializer so slot faults are `FAR_FIELD_SLOT`), `far_field_check.rs` (the ordered rules); `error.rs` `FarField`/`FarFieldMissing` (Display starts with the code); `manifest.rs` `check_style_manifest → Vec<Dimension>` (unknown dimension → `Malformed`); `lib.rs` exports; corpus `packages/tests/fixtures/far_field/` (16 files); `packages/tests/far_field.rs` (5 tests). Step 7 N/A: #200 not merged (§14.2) | [x] `cargo test -p mineworld-packages` 9 binaries, 28 tests PASS (load ≈ 117, wall time dominated by other sessions' builds); `cargo clippy -p mineworld-packages --all-targets -- -D warnings` clean PASS; `cargo fmt --all --check` PASS. Mutation (step 0.1° → 1.0°): `gap-half-degree` validated, both corpus tests FAILED by that name → reverted → 5/5 PASS | [x] no `HashMap`/`Value`/map in the public types (the slot deserializer reads keys as strings and builds the typed `Slots`); every refusal is `PackageError::FarField { path, code, detail }` whose Display is `<CODE>: <path>: <detail>`, or `FarFieldMissing` starting `FAR_FIELD_MISSING` |
+| C3 | 2edc512e | [x] `presentation/mineworld-default/3D/far_field/{social-cafe,lakeside}.yaml` (B.1, B.2), `2D/far_field/{market-town,social-cafe,lakeside,bodies-yard}.yaml` (B.3), JSON subset; `2D/renderer/godot.yaml` palette `water: #5f8f9a`; `tools/cli/src/packs.rs` `validate` (presentation branch): `check_style_manifest` → dimensions, no `far_field/` → `FarFieldMissing { pack: <id>, scope: "no far_field/" }`, then `far_field::check_pack`; `tools/cli/tests/packs.rs` `a_presentation_pack_without_a_far_field_is_refused_by_name` (missing → valid with a file → `FAR_FIELD_GAP` with extent 0); `packages/tests/far_field.rs` `two_d_and_three_d_water_agree` (AC-FF-4) | [x] `cargo build -p mineworld-cli` PASS; `mineworld packs validate presentation/mineworld-default/2D` and `…/3D`: identity printed, "is a valid presentation-pack", rc 0 PASS; `cargo test -p mineworld-packages --test far_field` 6/6 PASS; `cargo test -p mineworld-cli --test packs` 7/7 PASS (80 s, load ≈ 50–70; the tree also held C3b's uncommitted `resolve.rs` edit, which `packs validate` does not reach). Mutation X-2a: see the table and F-FF-1 | [x] every `source` is a citation or says "approximate; replaced by RL-e (USGS 3DEP)" / "design content; lakeside declares no real location" (Appendix B; the "approx." strings carry the full suffix B's preamble requires); bearings are true bearings from B, unconverted |
+| C3b | 152eba80 | [x] `packages/src/resolve.rs` `resolve`: for each resolved requirement of type `presentation-pack` with `Source::Directory(dir)`, `far_field::require_for_world(dir, id, world.id)`; `packages/tests/resolve.rs` `a_world_whose_presentation_pack_lacks_its_far_field_is_refused` (`FarFieldMissing { pack: style-a, scope: elsewhere }`; an Entity Pack requirement asks for none) with fixture roots (D-FF-5); test helpers of `tools/cli/tests/requirements.rs`, `worldpack/tests/requirements.rs` give their scratch pack a far field; `the_default_presentation_pack_can_be_required` → `…_needs_a_far_field_for_the_world` (D-FF-6) | [x] `cargo test -p mineworld-packages` all binaries PASS (resolve 6/6); `cargo build -p mineworld-cli`; `mineworld validate worlds/lakeside --packs entities --packs presentation/mineworld-default` → "worlds/lakeside is a valid World Pack.", rc 0 PASS; `cargo test -p mineworld-cli --test milestone_e` 7/7 PASS (151 s); `--test requirements` 6/6 PASS; `cargo test -p mineworld-worldpack --test requirements` 4/4 PASS; clippy `-p mineworld-packages -p mineworld-cli --all-targets -D warnings` clean; fmt clean. Mutation X-5 (lakeside variant): see the table | [x] only `presentation-pack` requirements found in a directory are checked; code packs (`Source::Build`) and Entity Packs are untouched; the check is presence only, content stays `packs validate`'s |
+| C4 | d8c7482b | [x] `clients/shared/environment/far_field.gd` (`MineWorldFarField`: `CODES` in §5.1.3's order = `FarFieldCode::ALL`; `load_for`, `load_file`, `refusal_line`, read-only accessors; the shape check mirrors serde's `deny_unknown_fields`, enums, newtype patterns and the slot deserializer; then the rules in D-FF-4's order); symlinks `clients/{2d,3d-spike}/mineworld_environment → ../shared/environment`; `mineworld_environment` in both launchers' module loops and the nightly Windows directory check; `clients/shared/checks/far_field_check.gd` (`FARFIELD <name> <code|ok>` per corpus file, a `missing` row, `--pack=<dir>:<dim>` for shipped packs); `clients/shared/README.md` | [x] `godot --headless --path clients/shared --import` rc 0; `godot --headless --path clients/shared --script $PWD/clients/shared/checks/far_field_check.gd -- --pack=$PWD/presentation/mineworld-default/2D:2d --pack=$PWD/presentation/mineworld-default/3D:3d` (the `client_settings.rs` `check()` form): 23 lines; every corpus file's code equals its stem's code, `valid-2d`/`valid-3d` and all six shipped files `ok`, `missing` → `FAR_FIELD_MISSING` PASS. First run hung (parse error: `_Shape.surround` missing; a SceneTree script that fails to compile never quits) → fixed. `python3 scripts/check_client_rules.py` PASS (0 findings) | [x] the module only reads (`FileAccess.get_file_as_string`, `file_exists`); no write, socket, request or intent; accessors return deep copies |
+| C5 | 41742fe7 | [x] `scripts/slice/far_field_view.gd` (`SliceFarFieldView`: near-ground disc of `reach_m` (category `ground`, the apron's tint and collision); silhouettes per layer, camera-anchored, crest by curvature/refraction from the profile, Koschmieder haze to the panorama's horizon colour (RL-b C8's sampler), wound clockwise-from-inside, `generate_normals()`, `CULL_BACK`, no assertion; foreground annulus to 1 450 m (shore in a water sector), falling `drop_m` over `run_m`, blending from the near grass to the declared surface; the bay's surface and a camera-anchored sea ribbon stretched to the true dip; seeded low-rise massing, 8 chunk meshes, station footprint kept clear; `--slice-farfield-hidden` diagnostic for V-1); `street.gd` `backdrop()`/`_ridge()` and the 900 m apron removed; `slice_world.gd` builds the view in place of the backdrop; `slice_main.gd` reads `far_field/social-cafe.yaml` before anything is drawn, refuses by name (exit 3 in harness modes), takes the sky from it; `batch.gd`, `budget.gd`, `occluders.gd` skip `farfield.*`; `water.gdshader` `FAR_WATER` variant | [x] `./mineworld-slice --drive` all drive checks pass (headless; 9 011 massing boxes, 8 meshes, far-field build 431–525 ms) PASS; `--shots` completes (30 frames) PASS; `--measure`: 1 scale check out of range (occupant stature 1.802 m) — **pre-existing**, identical on base 2d07c6c0 (`/tmp` logs), not this PR's; V-1 PASS (table below); counts (§8, one `--perf` run each side at 1920×1080, voxel GI): within every cap (table below); timings INCONCLUSIVE (loaded host, R-LOAD-1); looked at `ff_3`, `ff_4`, `ff_6` | [x] no far-field node has a collider (only the near disc, category `ground`, keeps the apron's) or sits under a targeting root; ribbons and the sea ribbon `disable_fog` (their haze is Koschmieder's), world-anchored foreground/water/massing take scene fog once; the station's 60 m radius is excluded from massing placement (`_free`) |
+| C6 | 5db6539c | [x] `scripts/slice/slice_far_field_check.gd` (`SliceFarFieldCheck`, the `SlicePerf` split-out pattern): §6.1's 7 viewpoints × 8 azimuths, one 1 440 × 240 `SubViewport` on the slice's `World3D`, `KEEP_WIDTH`, 50° horizontal, S / H / E (E with the slice root hidden, once per azimuth), the main viewport's 3D off meanwhile, the far field's camera-anchored parts following the check's camera (`anchor_camera`); §6.3's rows, columns, bands, FF-BELOW 0.90 / FF-ABOVE 0.25 / 2 % / 8 as constants; §6.6's lines; `--farfield-shots` writes §7's seven poses, JPEG q85 960 × 540; `slice_probe.gd` `MODES` += `farfield`, `farfield-shots`, two dispatch lines; `mineworld-slice` `--farfield` (adds `--gi=none` unless given), `--farfield-shots`, both `--always-on-top` (D-FF-10); `clients/3d-spike/README.md` line 7 now names both (C9 step 3 done here: its text *is* C6's two command lines) and the third symlink | [x] `./mineworld-slice --farfield` on macOS (Apple M-series, Metal): 120 renders in 18 s, **all farfield checks pass** (112 sector lines: 56 below, 56 above; covered where the street's own buildings fill the band) PASS. Mutations X-1, X-2b → named FAILs; X-4 survives (F-FF-2); X-5 and X-2a′ at the client → exit 3 with the code (table). Step 3 (R-FF-1 hosted-runner viability): moved to the one dispatched nightly `clients` run on the branch once C8's harness exists (D-FF-11) | [x] thresholds are `const`s with §6 cited in the header; no constant changed after any run; E hides `slice.world` in the same scene (no second scene) |
+| C7 | 5e3e0b1d | [x] `scripts/app.gd`: `--world-key`, `_load_far_field` after the pack (refusal printed, shown, exit 3 under `--drive`/`--capture`, the world not entered; plain mode prints the exemption); `scene/places.gd`: `ground.surround = land.grow(extent_m)`, origin = the hub's centre, no camera clamping; `scene/ground.gd` `_surround()` beneath the land (base, water wedges clipped to the surround with seeded ripples, eight haze bands from `from_m` to `to_m`, full haze beyond); `harness/drive.gd` scenario `farfield` (steps out to the hub first, D-FF-13); `harness/far_field_2d_check.gd` (8 extremes × 4 aspects × 2 sentinels, D-FF-12's zoom; `--capture` writes §7's five views); `mineworld-2d` passes `--world-key=<basename of --world>`, runs `--drive=farfield` windowed and on top; `godot2d/mod.rs` passes `--world-key=market-town` unless a caller names one; `client_2d_interact.rs` the social-cafe run names `social-cafe`; `client_settings.rs` unchanged (its `social-cafe` runs are the 3D slice's, which always presents `social-cafe`) | [x] `./mineworld-2d --world worlds/<w> --drive=farfield` (lakeside with `MINEWORLD_PACKS=entities:presentation/mineworld-default --agent=none --seat alba`; bodies-yard `--agent=none --seat gus`, D-FF-14): market-town, social-cafe, lakeside, bodies-yard each **all farfield2d checks pass** (32 renders × 2 sentinels, 0 clear-colour px everywhere) PASS; `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1` 8/8 PASS (168 s). Mutation X-3 → 16 named FAILs (table); the shipped 400 m suffices at 21.3 : 1, so §5.5's bounded raise was not needed | [x] the player's camera is untouched (the check renders its own `Camera2D` in a `SubViewport`; `app.gd` `_process` still follows the body); the haze starts at `land.grow(from_m ≥ 0)` and the land is drawn after it, so it never covers the land rectangle |
+| C8 | 8bc55052 | [x] `tools/cli/tests/client_far_field.rs`: `three_d_far_field_closes_every_open_sector` (offline slice, `--gi=none`, on top, 40 min limit; verdicts parsed, no summary = INCONCLUSIVE), `two_d_clear_colour_is_never_visible` (each world hosted; lakeside with `--packs`, seats per D-FF-14), `the_two_validators_agree` (C4's check vs `mineworld_packages` over the corpus, an absent key and every shipped file); `scripts/ci_godot.py` `GODOT_TESTS` += `client_far_field`; Q-FF-5: `scripts/ci_changes.py` `clients` output (`touches_clients`: `clients/`, `presentation/`, the two launchers, the harness; fails closed) with 8 self-test rows, `scripts/ci_layer.py` layer `farfield` (D-FF-15), `.github/workflows/ci.yml` job `farfield` (ubuntu-24.04, `.github/actions/godot` + `native` layer `farfield`, not required) | [x] `cargo test -p mineworld-cli --test client_far_field -- --ignored --test-threads=1` on macOS: 3/3 PASS (65 s); `python3 scripts/ci_godot.py coverage` PASS (31 ignored Godot tests, 29 on a hosted leg); `ci_godot.py --self-test`, `ci_changes.py --self-test` (28 cases) PASS; `check_ci_pins.py` (via `uv run`) PASS; `check_scratch.py scan` PASS; clippy `-p mineworld-cli -p mineworld-packages -p mineworld-worldpack --all-targets -D warnings` clean; fmt clean. Dispatched nightly `clients`: see E-FF-CI | [x] every verdict comes from printed lines (`judge`): a missing summary line panics as INCONCLUSIVE, a FAIL line or a CHECKS FAILED summary fails, and a minimum number of verdict lines is required |
+| C9 | 78fc189e | [x] `.gitignore` exceptions (3D `shots/social-cafe/farfield/`; 2D `shots/<world>/farfield/` for the four worlds); 7 + 20 JPEGs from the final code (`./mineworld-slice --farfield-shots`; `./mineworld-2d --world worlds/<w> --drive=farfield --capture --shots=clients/2d/shots/<w>/farfield` with D-FF-14's options); README line 7 was done in C6; the promenade: `mineworld-3d` with no harness flag prints the ruling and exits 2, `--drive`/`--shots`/`--portrait` unchanged; `clients/3d-spike/README.md`'s promenade lines say so | [x] 27 image files staged (7 + 4 × 5), no other path but the edited ones; `git grep -n skyline-check clients/` empty; `./mineworld-3d` → rc 2 with the message; `./mineworld-3d --drive` runs its report to the end, rc 0; all four 2D captures printed `all farfield2d checks pass` | [x] every image ≤ 300 KB (2.3 MB total, largest ~153 KB); none from a mutated run (re-shot after every mutation was restored) |
+| C10 | cb8cf440 | [x] this ledger (counts, evidence, parked operator checks below); `docs/MVP_STATUS.md` "Carried to milestone F": the RL-e0 block FF-1 … FF-6; `docs/HUMAN_REVIEW_QUEUE.md`: an RL-e0 entry (what changed, the shots' paths, launch commands, questions) | [x] `check_doc_headings.py`, `check_decision_ids.py` PASS (below) | [x] every FF item starts with `cd` to the repository and names the full command; FF-5 creates and removes its own base worktree at 2d07c6c0 |
+
+### Parked operator checks (Milestone F; RL-e0 §14.3) — not run by this PR
+
+| Item | Do | Check |
+| --- | --- | --- |
+| FF-1 | `cd /Users/yuema137/MineWorld && git switch main && git pull && ./mineworld-slice` — then, from the spawn, turn a full circle with the mouse | Hills, the town's roofs and the bay in every direction; no edge of the ground and no empty sky below the horizon anywhere |
+| FF-2 | `cd /Users/yuema137/MineWorld && ./mineworld-slice` — walk west to the stone parapet at the end of the street and look out (the `ff_6` view) | The drop, the bay beyond the roofs and Point Loma across it; nothing beyond the parapet suggests a path, steps or a road |
+| FF-3 | `cd /Users/yuema137/MineWorld && ./mineworld-slice` — walk east to the planted bank; jump (Space) and look around while in the air | The mesas and the eastern mountains; the horizon stays closed while jumping |
+| FF-4 | `cd /Users/yuema137/MineWorld && ./mineworld-2d` — walk to each corner of the town; then Esc → settings → window size, very wide and very tall, or drag the window | The pale background colour never shows: ground and haze reach every edge of the window |
+| FF-5 | `cd /Users/yuema137/MineWorld && git worktree add /tmp/mw-before-rl-e0 2d07c6c0 && cd /tmp/mw-before-rl-e0 && caffeinate -d ./mineworld-slice --perf`, then `cd /Users/yuema137/MineWorld && caffeinate -d ./mineworld-slice --perf` (display awake) | No view's median p95 grows by more than 1.0 ms (§8; a larger increment is a material stop). Then `cd /Users/yuema137/MineWorld && git worktree remove /tmp/mw-before-rl-e0` |
+| FF-6 | Windows (Git Bash): `cd /c/Users/<you>/MineWorld && git config core.symlinks true && git pull && ./mineworld-slice`, then `./mineworld-2d`; Linux: `cd ~/MineWorld && git pull && ./mineworld-slice`, then `./mineworld-2d` | FF-1's and FF-4's checks on each machine |
 
 ### Evidence
 
 ```text
 E-FF-design  2026-10-15  audit of origin/main @ 4c59cdb0 (§3); investigation frames (§0.3);
                          58bc0c4 read (A-8); PR #200 head read (A-23)
+E-FF-C0      2026-10-15  base 2d07c6c0; PR #200 OPEN (not merged) → C2 step 7 N/A, §14.2 applies;
+                         PR #212 OPEN draft. python3 scripts/check_doc_headings.py, check_decision_ids.py
+E-FF-V1      2026-10-15  V-1 (§7, AC-FF-9). Base worktree 2d07c6c0 (/Users/yuema137/mineworld-worktrees/
+                         impl-rl-e0-base). --shots twice on base (noise), once on head, once on head with
+                         --slice-farfield-hidden; mask = head vs hidden, any channel > 8 (far field 0.00 –
+                         1.31 % of a frame); frame_diff base1 head 8 --mask: every view's unmasked share
+                         0.000 – 0.215 % (worst 22_florist_looking_out 0.215 %, 21_florist_interior 0.208 %),
+                         base1 vs base2 0.000 – 0.005 % on the views read; bound noise + 0.5 points → PASS
+E-FF-perf    2026-10-15  §8 counts, one run per side (`--slice-perf --res=1920x1080 --gi=voxel`), head − base:
+                         view            draws    primitives
+                         street wide       −7      +61 494
+                         cafe frontage     −6      +75 604
+                         interior          −7      +57 042
+                         doorway           −7      +56 894
+                         street east       −7      +37 706
+                         south side        +5      +42 402
+                         florist interior  −7      +57 042
+                         skyline east      −7      +61 494
+                         video memory 1 608.1 → 1 614.5 MB (+6.4 MB). Caps ≤ +24 draws, ≤ +100 000
+                         primitives, ≤ +32 MB: PASS. p95 (INCONCLUSIVE, loaded host): base → head
+                         10.01→10.23, 16.40→16.75, 12.86→13.87, 18.38→18.80, 10.35→10.90, 9.52→9.99,
+                         13.63→14.94, 10.02→10.51 ms — FF-5 (operator, display awake, three runs) decides
 ```
 
 ### Mutations
 
-*(rows X-1 … X-5 with the failing line, filled by C2–C8)*
+| Id | Commit | Plant | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| C2-M1 | C2 | `uncovered` steps 1.0° instead of 0.1° | `gap-half-degree.yaml` validates; its row turns red | `every_corpus_file_gives_the_code_its_name_says … FAILED: gap-half-degree`; `every_planted_far_field_is_refused… FAILED (gap-half-degree: FarField {…})` | killed; reverted, 5/5 PASS |
+| X-2a | C3 | remove `south-hills` (the silhouette whose sector covers 180°) from `3D/far_field/social-cafe.yaml` | `FAR_FIELD_GAP [a, b)` | `mineworld packs validate presentation/mineworld-default/3D` → "is a valid presentation-pack", rc 0 | **SURVIVED, by the frozen rule** (F-FF-1); restored |
+| X-2a′ | C3 | as X-2a, and also remove the skyline sector 170→300 | `FAR_FIELD_GAP` naming the gap | `[mineworld] FAR_FIELD_GAP: presentation/mineworld-default/3D/far_field/social-cafe.yaml: the far field leaves [170.0, 195.0) open`, rc 1 | killed; restored, rc 0 |
+| X-1 | C6 | ribbon columns emitted `[bot0, top1, top0], [bot0, bot1, top1]` (second and third vertex swapped) | `FAIL farfield … above` in every non-covered land sector, `below` at VP-high | 36 FAILs: `above` in all 22 non-covered eye-level land sectors (e.g. `FAIL farfield VP-east S above: 0/6111 differ (0.0%) < 25%`), all 8 VP-high `above`, and VP-high `below` N/NE/E/SE/S/NW (e.g. `FAIL farfield VP-high N below: 0/32000 differ (0.0%) < 90%`) — `36 FARFIELD CHECKS FAILED` | killed; restored |
+| X-2b | C6 | skip every silhouette whose sector contains 180° | `FAIL farfield VP-east S above` and `VP-high S above` | `FAIL farfield VP-west S above: 0/5460`, `FAIL farfield VP-east S above: 0/6111`, `FAIL farfield VP-high SE below 50.0 %`, `S below 71.2 %`, `S above 0/8960`, `SW above 0.8 %` — `6 FARFIELD CHECKS FAILED` | killed; restored |
+| X-4 | C6 | the foreground annulus to 450 m instead of 1 450 m | `FAIL farfield VP-high <sectors> below` | `all farfield checks pass`; with X-4 planted the aerials (`/tmp/impl-rl-e0-x4shots/ff_4_east_aerial.jpg`) show no sky under the horizon either | **SURVIVED — equivalent for the property** (F-FF-2); restored |
+| X-5 (slice) | C6 | delete `3D/far_field/social-cafe.yaml` | slice refuses `FAR_FIELD_MISSING`, exits 3 | `rc=3`, `[mineworld-slice] FAR_FIELD_MISSING: …/3D/far_field/social-cafe.yaml: the Presentation Pack …/3D has no far field for the world social-cafe (far_field/social-cafe.yaml)` | killed; restored |
+| X-2a′ (slice) | C6 | X-2a′'s file | the client refuses with the same code | `rc=3`, `[mineworld-slice] FAR_FIELD_GAP: …: the far field leaves [170.0, 195.0) open` | killed; restored |
+| X-3 | C7 | `surround.extent_m` 10 in `2D/far_field/market-town.yaml` | `FAIL farfield2d market-town … clear-colour px` at 21.3 : 1 | `FAIL farfield2d market-town N 4800x225: 194238 clear-colour px` (and every extreme at 4800×225 and 506×3416) — `16 FARFIELD2D CHECKS FAILED`, `drive complete: FAIL` | killed; restored, all pass |
+| X-5 (lakeside) | C3b | delete `3D/far_field/lakeside.yaml` | `FAR_FIELD_MISSING { pack: mineworld-default-3d, world: lakeside }` | `[mineworld] worlds/lakeside/world.yaml: FAR_FIELD_MISSING: the Presentation Pack mineworld-default-3d has no far field for the world lakeside (far_field/lakeside.yaml)`, rc 1 | killed; restored, rc 0 |
 
 ### Deviations and findings
 
-*(none yet)*
+- **D-FF-1 (C2, bounded).** *Deviation:* the module is three flat files, `far_field.rs` (API), `far_field_schema.rs`
+  (types) and `far_field_check.rs` (rules), not one. *Reason:* one file came to 1 143 lines, past the ~800-line
+  strong warning (`CLAUDE.md` §4); flat siblings rather than `far_field/` because `packages/tests/structure.rs`
+  reads `src/` as a flat directory. *Impact:* none on the API (`mineworld_packages::far_field::*`).
+- **D-FF-2 (C2, bounded).** `read` and `check_pack` take `&[Dimension]`, not one `Dimension`: §5.2 requires a
+  manifest listing both `2d` and `3d` to validate against both sets, which one value cannot express.
+- **D-FF-3 (C2, bounded).** Fixture names use `-` for `_` (`scope-mismatch.yaml` for `FAR_FIELD_SCOPE_MISMATCH`):
+  a file's stem must equal its `scope` key, and a key admits no `_`. A variant is `<code>-<variant>.yaml`; stems
+  ending `-2d` are read as a 2D pack's, all others as a 3D pack's. `FAR_FIELD_MISSING` has no fixture file (it is
+  the absence of one): Rust tests it with `require_for_world`/`check_pack`; the GDScript check asks for an absent
+  key. `FAR_FIELD_WORLD_UNKNOWN` is client-only (as §12 C2 step 5 says).
+- **D-FF-4 (C2, bounded; both validators).** The order of checks, which decides the one code a file gets:
+  MALFORMED (SLOT during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN → UNCITED → OUT_OF_RANGE
+  → INSIDE_BOUNDARY → PROFILE → GAP. Classifications the schema leaves open: `format ≠ 1`, a sky's
+  `panorama`/`procedural` not matching its kind, river-only fields on a non-river (or missing on a river) →
+  MALFORMED; an empty `terrain_silhouettes` or `skyline.sectors` → SECTION_MISSING; `from_deg == to_deg`, haze
+  `to_m ≤ from_m`, massing `to_m ≤ from_m` → OUT_OF_RANGE; `shore_m == reach_m` → INSIDE_BOUNDARY (§5.1.3's "≤"
+  governs §5.1.2's "≥"); a gap through north is reported as one run (`[350.0, 10.0)`).
+- **F-FF-1 (C3, finding for the primary; no frozen rule changed).** *Previous assumption:* X-2a (§6.7) —
+  removing the silhouette that covers 180° from `social-cafe.yaml` — makes `packs validate` refuse
+  `FAR_FIELD_GAP`. *Audit evidence:* §5.1.3 (frozen, now `MODULE_SPEC.md` §6.1.1) counts `skyline.sectors[]`
+  in the coverage union, and Appendix B.1's two skyline sectors (300→170, 170→300) cover 360° on their own
+  (B.1's own note: "skyline sectors also cover 360°"). The literal X-2a therefore validates (table above).
+  *Corrected understanding:* the schema check proves that *something* is declared in every direction; a
+  missing terrain band behind declared massing is caught by the rendered check (X-2b, FF-ABOVE), which is
+  the reason §6.3 gives FF-ABOVE. *Implementation consequence:* none; the frozen rule and content are kept.
+  *Validation consequence:* X-2a′ (the band **and** the skyline sector over the same bearings) proves the
+  content-level GAP refusal on the shipped file; X-2b carries the deleted-band case. Recorded for the primary
+  session to acknowledge; if the operator wants X-2a literal to fail, the smallest revision is to drop
+  `skyline.sectors` from the GAP union (a §6.1.1 rule change, not made here).
+- **D-FF-5 (C3/C3b, bounded).** Tests that build a scratch Presentation Pack a world requires now give it a
+  far-field file: `tools/cli/tests/requirements.rs` and `worldpack/tests/requirements.rs` (`style()`), and
+  `packages/tests/resolve.rs` points a found Presentation Pack at `packages/tests/fixtures/roots/<id>/`
+  (with `far_field/the-world.yaml`) instead of the virtual `/roots/<id>`. Outside C3b's file list; needed
+  because C3b makes the far field a resolution rule, as designed.
+- **D-FF-6 (C3b, bounded).** `tools/cli/tests/requirements.rs` `the_default_presentation_pack_can_be_required`
+  required `mineworld-default-3d` from a scratch world `the-world`, which that pack has no far field for; under
+  C3b it is refused, as I-FF-1 requires. Renamed `the_default_presentation_pack_needs_a_far_field_for_the_world`
+  and asserting the refusal by name; the positive case (a world the pack presents resolves with it) is
+  `milestone_e.rs`'s Lakeside, green.
+- **D-FF-7 (C5, bounded; geometry, not a frozen invariant).** *Previous assumption:* §5.4's proxy distances
+  900 / 1 100 / 1 300 m. *Audit evidence:* the world-anchored foreground and bay reach 1 450 m and the bay's
+  shore is at 1 000 m; a ribbon at 900 m reaching 58 m below the datum (§5.4's base) stands in front of
+  everything world-anchored beyond 900 m, so it would hide the bay (AC-FF-8's "`ff_6` shows the bay") and the
+  far massing. *Corrected:* proxies 1 480 / 1 520 / 1 560 m: beyond the world-anchored parts, inside
+  `CameraRig.FAR` 1 600 m (unchanged). Angles, the per-layer height formula and the haze are as designed; only
+  the proxy radius (which carries no meaning beyond depth order) moved.
+- **D-FF-8 (C5, bounded).** The bay's "Fresnel capped at 0.6, no reflections of the town" (SD-FF-5, Q-FF-2):
+  Godot's lit specular Fresnel tends to 1 at grazing whatever `SPECULAR` is, so it cannot be capped. The
+  `FAR_WATER` branch of `water.gdshader` is unshaded and mixes the water colour with the sky's horizon colour
+  by a Schlick Fresnel `min(…, fresnel_cap)` on the noise normals; `SliceFarFieldView` prepends
+  `#define FAR_WATER` to the shader's code at runtime, so the promenade's lake (`town.gd`) compiles the
+  unchanged lit branch.
+- **D-FF-9 (C5, bounded; look).** Foreground colour: §5.4's sRGB (0.38, 0.36, 0.27) is an albedo; applied as a
+  tint on the green `leafy_grass` texture it rendered a dark brown. The tint is the albedo over the texture's
+  mean colour, and the ground blends by vertex colour from the near disc's grass at the boundary to that
+  surface over `run_m`, so it does not change colour in a line at 60 m. The near disc keeps the old apron's
+  tint so accepted near views do not change (V-1).
+- **D-FF-10 (C5/C6, bounded).** A Godot window that macOS considers hidden is not drawn, and a check waiting on
+  `frame_post_draw` then waits forever (observed once: an X-1 run sat 10 min in the run loop's frame delay; the
+  2D launcher already records this for `--capture`). `./mineworld-slice --farfield` and `--farfield-shots` pass
+  `--always-on-top`, as `./mineworld-2d --capture` does.
+- **F-FF-2 (C6, finding for the primary; no frozen rule changed).** X-4 (the foreground to 450 m) does not fail
+  the rendered check, and is equivalent for the property it was meant to prove. *Audit evidence:* every
+  ribbon reaches 40 m below the foreground's lowest point (§5.4, "so the ribbon always reaches below the
+  ground it stands behind"), the silhouettes cover 360° (B.1), and the massing stands between 250 and
+  1 400 m; with the foreground cut at 450 m, the angles below the horizon are filled by massing and ribbon
+  base, not sky — the aerials taken with X-4 planted show no void. The defect X-4 models (the ground's edge
+  against the sky, E-FF-5) is therefore structurally excluded by §5.4's ribbon base, and FF-BELOW is what
+  would catch a ribbon base that stopped short (X-1 at VP-high). Recorded for the primary; no change made.
+- **D-FF-11 (C6/C8, bounded; CI budget unchanged).** R-FF-1's viability run (C6 step 3) and C8's dispatched
+  nightly are one run: the hosted runners run the check through C8's Rust harness, so a C6-only dispatch would
+  need a throwaway harness. The branch is pushed after C8 and the nightly `clients` group dispatched once on
+  it; if a runner cannot render, that is the material stop R-FF-1 names, before C9.
+- **D-FF-12 (C7, bounded; makes §6.4 say what it means).** §6.4 sets the check camera's zoom to "pack zoom ×
+  (H / 900) (the `canvas_items`/`expand` equivalent)". That equals the client only for windows wider than
+  16:9. `expand` keeps the whole 1 600 × 900 base visible, so a tall window (the settings' 640 × 4 320, rendered
+  506 × 3 416) shows the full base width and far more height; H / 900 there would zoom 3.8 × too far in and
+  check a smaller view than the player sees. The check uses `pack zoom × min(W / 1600, H / 900)`, which is the
+  same as §6.4 for the three wide aspects and the true equivalent for the tall one.
+- **D-FF-13 (C7, bounded).** §6.4's extremes are those of `town.hub_extent()`, which the client learns only
+  from the hub: the 2D client starts the player indoors (market-town: the apartments), where the hub's extent
+  is empty and every extreme was the origin (the first X-3 run showed identical counts at all eight). The
+  `farfield` scenario first walks out through the starting place's doorway (`_walk`'s first leg). A world
+  with no hub (bodies-yard: two rooms, one doorway each) uses the union of its drawn places' footprints.
+- **D-FF-14 (C7, bounded; launcher, not the client).** `./mineworld-2d` hosts every world with `--agent alice`
+  and seat `carol`; lakeside and bodies-yard have neither, and lakeside is found only through its pack roots.
+  Their runs pass `--agent=none --seat alba` with `MINEWORLD_PACKS=<repo>/entities:<repo>/presentation/mineworld-default`,
+  and `--agent=none --seat gus`; the Rust test does the same through `World::start` (`--packs`).
+- **D-FF-15 (C8, bounded).** The `farfield` job runs through `.github/actions/native`, which names a
+  `scripts/ci_layer.py` layer, never a command (step-14 I-S13-9); so the per-PR command is the new layer
+  `farfield` (build, the three tests, the scratch check), in a file C8's list did not name.
+- **D-FF-16 (CI repair after C10).** (a) PR CI `test` failed `tests/acceptance/tests/client_rules.rs`
+  `no_client_script_names_an_action_copies_a_rule_or_reads_a_pack`: the scan reads the identifier `reach` in a
+  client script as a rule name (I-S14-1). It was only the far field's boundary radius (presentation), so the
+  local variables are renamed `edge_m` / `outer_m` (`far_field_view.gd`, `ground.gd`, `far_field.gd`); the
+  scan is unchanged. AC-FF-12's Python half had passed; its Rust half had not been run locally — it is now,
+  3/3 PASS. (b) Scratch nightly 38793596092 (head 8bc55052), `clients-windows`: `the_two_validators_agree` and
+  `two_d_clear_colour_is_never_visible` **passed on Windows (D3D12 WARP)**; `three_d_far_field_closes_every_open_sector`
+  failed only because the first `--import` of the 3D project exceeded the harness's 600 s import limit
+  (`left: None` at the import assertion) — raised to 30 min (`IMPORT_LIMIT`). The run's three
+  `client_settings` failures on Windows (`three_d_controls_apply_live_and_persist`,
+  `three_d_settings_never_reach_the_server`, `two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept`)
+  are pre-existing: main's nightly 38757085415 (3a9b9eff) fails the same three plus a fourth.
+
+### MATERIAL STOP — R-FF-1 (2026-10-15): the 3D rendered check does not finish on the hosted Linux runner
+
+*Evidence.* PR CI run 38803249486, job `farfield` (ubuntu-24.04, Xvfb + Mesa lavapipe, head 1bf3cff8):
+`the_two_validators_agree` ok (6 s); `two_d_clear_colour_is_never_visible` ok (≈ 3.5 min, four worlds);
+`three_d_far_field_closes_every_open_sector` **INCONCLUSIVE: the slice did not finish in 2400 s** — it printed 26
+of its 112 verdict lines (VP-spawn complete, VP-street to S), every one agreeing with macOS (e.g. `VP-spawn E
+below 3521/30720 open, 3521 differ (100.0%)` against 3 523 locally): the renders are correct, about a minute
+each, so the 120 renders need about two hours. The scratch nightly 38793596092 (head 8bc55052): `clients-linux`
+ran 80 min and was cancelled at the job's 75-min limit (main's `clients-linux` takes 34 min); `clients-windows`
+(D3D12 WARP): the 2D check and the validators **passed**, the 3D check never started (its first import of the 3D
+project exceeded the 600 s limit, since raised, D-FF-16); `clients-mac`: see E-FF-CI. Locally (Apple GPU) the
+same check takes 18 s.
+
+*Why it is material.* R-FF-1 names this case (§16) and §13 lists it as a material stop; the remedies change
+§6.2's frozen renders or §6.5's where-it-runs, which are the operator's.
+
+*Options (smallest first).*
+(a) Keep §6 as frozen and run the 3D rendered check on hosted **macOS** only (and locally), with the 2D check
+    and the validators on all three OSes; the per-PR `farfield` job runs the 2D check and the validators on
+    Linux, and a macOS per-PR job (or the nightly's `clients-mac`) runs the 3D check.
+(b) Render the check frames with the slice's cost-only effects off (shadows, SSAO, glow — none decides where
+    the far field is drawn; the far field casts no shadow and is unshaded or fog-free), keeping §6's
+    viewpoints, size, bands and thresholds; re-measure the hosted time.
+(c) §16's own fallbacks: a lower check resolution, or a far-field-only scene (which would no longer test near
+    occlusion).
+(d) Give the Linux and Windows legs a 2–3 hour budget for this one test (nightly only).
+Recommendation: (b), then (a) for whatever OS still cannot finish.
+
+*State.* Everything else is implemented and committed; the PR is **not** READY FOR OPERATOR REVIEW until the
+operator rules on R-FF-1. **Resolved:** ruled 2026-10-15 (below); applied with E-FF-CI-2.
+
+**R-FF-1 — Ruled 2026-10-15 (operator answered directly in the primary session): (b), then (a).**
+(b) For the check frames only, directional shadows, SSAO and glow are off (`SliceFarFieldCheck._cost_effects_off`,
+restored afterwards; `--farfield-shots` keeps the full look); §6's viewpoints, sizes, bands and thresholds are
+unchanged. (a) Any OS whose job still cannot finish the 3D check within its limit runs it on hosted macOS only
+(and locally); the 2D check and the validators' agreement stay on all three OSes. Local after (b): 112 verdict
+lines, all pass; X-1 still `36 FARFIELD CHECKS FAILED`. Per-OS hosted timings and the resulting CI layout:
+E-FF-CI-2 below. *Dated note on §6.2/§6.5 (2026-10-15):* the renders of §6.2 are taken with those three effects
+off; where §6.5 says the 3D check runs on all three runners, read the OSes E-FF-CI-2 names.
+
+```text
+E-FF-CI-2  2026-10-15/16, hosted timings with ruling (b) (head c554c79a)
+  OS (runner)                 3D check (import incl.)   job               verdict
+  Linux (ubuntu-24.04, Xvfb + lavapipe), PR CI 38812488057 `farfield`, alone:
+                              41.7 min (22:17:13–22:58:57)  50 min / 75     PASS (3/3: 3D, 2D, validators)
+  Linux, nightly 38812485685 `clients-linux` (beside every Godot test; main's job alone 34 min):
+                              started 22:51:57 after 18 min of other tests; the run was cancelled at
+                              23:25 — 34 + 42 min does not fit 75
+  Windows (windows-2025, D3D12 WARP), nightly 38812485685:
+                              29.3 min (22:39:42–23:08:57)  59 min / 75     PASS (3D ok; 2D, validators ok)
+  macOS (macos-26, Apple Paravirtual), nightly 38812485685:
+                              FAIL at exactly 30:00 (22:53:16–23:23:16) = the harness's import limit; main's
+                              nightly shows the hosted Mac's first 3D import takes ~45 min (38757085415:
+                              the first 3D client_settings test 15:20 → 16:05), and main's clients-mac job
+                              is itself cancelled at ~80 min every night (2026-10-14, -15, -16)
+  Local (Apple M-series, Metal): 18 s, PASS
+```
+
+**Applying (a) to these timings (deviation from the ruling's wording, for the primary to acknowledge).** The
+ruling sends any OS that cannot finish to "hosted macOS only" — but hosted macOS is the leg that cannot finish
+(its 3D import alone is ~45 min), while Linux finishes in its own per-PR job and Windows finishes in the nightly.
+The check therefore runs where it finishes: **Linux — the per-PR `farfield` job (all three tests; job limit
+raised to 90 min, slice limit to 60 min); Windows — the nightly `clients` job (all three); macOS — locally
+(18 s) and FF-1's hand check.** It is skipped by name (`scripts/ci_godot.py` SKIPS, reasons recorded) in the
+nightly `clients` jobs of Linux and macOS. The 2D check and the validators' agreement run on all three OSes in
+the nightly and on Linux per PR, as ruled. No OS lost the 2D or validator coverage; the 3D check has two hosted
+OSes instead of one.
+
+**Ruled 2026-10-17 (primary), a bounded reading of R-FF-1 (a): accepted.** The 3D rendered check runs on Linux in
+the per-PR `farfield` job (limit 90 min), on Windows in the nightly `clients` job, and on macOS locally only (the
+hosted Mac's import alone is ~45 min); the 2D check and the validators' agreement stay on all three platforms.
+The `farfield` job stays a separate, non-required job beside #224's shard/gate layout (merged into this branch
+2026-10-17 without conflict).
+
+**CI on 042db461 (run 39003755921):** changes, fast, test, test-macos, platforms ×2, python ×3, farfield (3/3;
+3D 46.9 min, job 53 min) PASS; test-windows cancelled at its 60-min cap, as on main before #224 (main runs
+38818061551, 38811116604, 38809489941). The head after #224's merge is the one CI judges for review readiness.
+
+**Pre-existing, not RL-e0's:** the nightly Windows `client_settings` failures
+`three_d_controls_apply_live_and_persist`, `three_d_settings_never_reach_the_server` and
+`two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` fail on main as well (main nightly
+38757085415 at 3a9b9eff fails those three and `the_settings_module_checks_pass`).
+
+```text
+E-FF-CI  2026-10-15
+  PR #220, head 1bf3cff8 (CI run 38803249486): changes, fast, test (44 min; the client_rules fix of
+           D-FF-16 confirmed), test-windows, platforms (macos-26, windows-2025), python ×3: PASS;
+           test-macos: pending at the stop; farfield: FAIL — INCONCLUSIVE 3D check (R-FF-1, above);
+           its 2D check and validators PASS on Linux
+  scratch nightly 38793596092 (head 8bc55052, import limit 600 s):
+           clients-windows: client_far_field 2/3 (2D, validators PASS; 3D: import > 600 s);
+             client_settings: 3 failures, pre-existing on main (nightly 38757085415)
+           clients-mac (Apple Paravirtual): client_far_field 2/3 (2D, validators PASS; 3D: import > 600 s);
+             the job cancelled at its 75-min limit
+           clients-linux: cancelled at 75 min (logs not retained)
+  scratch nightly 38803248313 (head 1bf3cff8, import limit 30 min): running at the stop — it will show
+           whether hosted macOS and Windows finish the 3D check
+```
 
 ---
 

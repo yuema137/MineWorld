@@ -6,6 +6,11 @@ shots/*
 shots/slice/*
 !shots/slice/preview/
 !shots/slice/review/
+# the far-field regression views (RL-e0 §7) are committed too
+!shots/social-cafe/
+shots/social-cafe/*
+!shots/social-cafe/farfield/
+shots/social-cafe/farfield/*.import
 screenshots/*.import
 preview_*.png
 preview_*.png.import
