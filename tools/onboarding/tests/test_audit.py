@@ -108,11 +108,35 @@ def test_a_repeated_refusal_a_gap_a_guess_and_stuck_are_listed(tmp_path: Path) -
     assert not result.void
 
 
+def test_unknown_field_counts_only_in_a_failed_mineworld_command(tmp_path: Path) -> None:
+    root = sandbox(tmp_path)
+    events = [
+        tool("Bash", 1, command="cat ../reference/world-pack.md"),
+        answer(1, "Any other key is refused with `unknown field`, naming the key."),
+    ]
+    result = audit.audit(transcript(tmp_path, events), root)
+    assert not result.stuck, result.render()
+
+
 def test_absolute_paths_inside_the_sandbox_and_dev_null_are_allowed(tmp_path: Path) -> None:
     root = sandbox(tmp_path)
     events = [
         tool("Bash", 1, command=f"ls {root}/reference > /dev/null && cat {root}/guide/README.md"),
+        tool("Bash", 3, command=f"B={root}; ls $B/guide; cd {root}/work; cat ../guide/README.md"),
         tool("Glob", 2, path=str(root / "guide"), pattern="*.md"),
     ]
+    result = audit.audit(transcript(tmp_path, events), root)
+    assert not result.void, result.render()
+
+
+def test_a_spelling_through_a_linked_folder_is_still_inside(tmp_path: Path) -> None:
+    # macOS gives temporary folders as /var/…, a link to /private/var/…: both spellings name the sandbox.
+    root = sandbox(tmp_path)
+    alias = tmp_path / "alias"
+    try:
+        os.symlink(root, alias)
+    except OSError:  # Windows without the symlink privilege
+        return
+    events = [tool("Read", 1, file_path=str(alias / "guide" / "README.md"))]
     result = audit.audit(transcript(tmp_path, events), root)
     assert not result.void, result.render()

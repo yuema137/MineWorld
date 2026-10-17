@@ -85,15 +85,15 @@ def resolve(path: str, cwd: str) -> str:
 
 
 def real(path: str) -> str:
-    """The path with every symbolic link that exists resolved, so a link the agent made cannot point outside."""
-    return str(Path(path).resolve()) if os.path.lexists(path) else path
+    """The path with every symbolic link on it resolved, as far as the path exists: a link the agent made cannot
+    point outside, and a spelling through a linked folder (macOS's `/var` for `/private/var`) is still inside."""
+    return str(Path(path).resolve())
 
 
 def outside(path: str, cwd: str, sandbox: str) -> bool:
     if path in HARMLESS or path.upper() == "NUL":
         return False
-    absolute = resolve(path, cwd)
-    return not inside(absolute, sandbox) or not inside(real(absolute), real(sandbox))
+    return not inside(real(resolve(path, cwd)), real(sandbox))
 
 
 # A shell word that names a path: absolute (`/x`, `C:\x`, `C:/x`), or one that climbs (`..`).
@@ -112,11 +112,12 @@ def shell_reads(command: str, cwd: str, sandbox: str) -> tuple[list[str], str]:
         words = command.split()
     previous = ""
     for word in words:
-        for part in re.split(r"[=:]", word) if "=" in word else [word]:
+        for piece in re.split(r"[=:]", word) if "=" in word else [word]:
+            part = piece.strip(";&|()<>")
             if PATHLIKE.search(part) and outside(part, cwd, sandbox):
                 found.append(part)
         if previous == "cd" and not word.startswith("-"):
-            cwd = resolve(word, cwd)
+            cwd = resolve(word.strip(";&|()<>"), cwd)
         previous = word
     return found, cwd
 
@@ -191,7 +192,7 @@ def audit(transcript: Path, sandbox: Path) -> Audit:
                 output = text_of(block.get("content"))
                 failed = bool(block.get("is_error")) or output.startswith("Exit code")
                 for line in output.splitlines():
-                    if "unknown field" in line:
+                    if command is not None and failed and "unknown field" in line:
                         result.stuck.append(Item("unknown-field", number, line.strip()[:200]))
                     # A refusal: a `mineworld` command that failed, and the line it explains why on.
                     if command is not None and failed and line.startswith("[mineworld]"):
