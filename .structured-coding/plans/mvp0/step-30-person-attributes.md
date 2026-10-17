@@ -444,7 +444,11 @@ cognition and AC-16's agent view rather than a System. The amendment keeps `ARC-
 | --- | --- | --- | --- |
 | `fixed` | set at genesis; never changes | nobody | `birth`, `natal-sex`, `eye-colour` |
 | `evolving` | changes only through its owner, on an event the owner accepts | the owner | `hair-colour` (ageing, or a later dye action), `skill.cooking`, S31's subscriptions |
-| `derived` | never stored; computed when it is read, from stored state and the clock | the owner's projection | `age-years` (birth and the current instant), `wealth-band` (economy's balance) |
+| `derived` | never stored; computed when it is read, from stored state and the clock | the owner's projection | `age-years` (birth and the current instant), `economy.wealth-band` (economy's wealth: wallet plus reference values, step-31 §7.4) |
+
+*Note 2026-10-15 (S30-a, F-S30a-2; step-31 §7.4 and §19.6).* The example read "`wealth-band` (economy's
+balance)". It is `economy`'s attribute in `economy`'s namespace, and S31 projects it from wealth, not from the
+balance alone.
 
 - **A change to a trait that `attributes` owns** is proposed with an `attribute-change-proposed { person,
   attribute, to, because: EventId }` event. `attributes` owns that vocabulary. A System emits it only by
@@ -798,7 +802,11 @@ The contract (`backend.yaml` at the pack's root; every field validated, every fa
   reviewed as such.
 - **The MineWorld backend is the default** and is what the core, every reference world and every test use.
   It is `entities/person-attributes` (§6.1: ≤ 100 curated attributes, the appearance group and the quantity
-  kind) with the `profile` mode and masks `core` (all 94) and `appearance` (rows 1–21, for casting-only use).
+  kind) with the `profile` mode and masks `core` (all 93) and `appearance` (rows 1–21, for casting-only use).
+
+  *Note 2026-10-15 (S30-b C0, for S30-a F-S30a-2 and Q-S30a-1).* This line read "masks `core` (all 94)". The
+  catalogue declares 93 `core` rows: rows 32 and 37 of §6.1 are owner views, and `core.natal-sex` is added
+  (`ARC-120`, `ARC-122`; `MODULE_SPEC.md` §2).
 - **The appearance group and quantities are always MineWorld's.** Any backend's catalogue is composed with
   `core.` appearance and quantity attributes, because a body in a client must come from one place (`ARC-125`).
   A backend may not redeclare them.
@@ -880,11 +888,15 @@ and to the `MatrAIx-ai/MatrAIx-Persona-8B` repository (MIT).
   declares and the MatrAIx schema overlaps, a `derived` view from the MatrAIx value, value by value. Examples:
   `core.chronotype ← lstyle_sleep_schedule` (`Early bird → early-bird`, `Night owl → night-owl`,
   `Irregular`, `Flexible`, `Shift-based → neutral`); `core.diet ← lstyle_diet_type`;
-  `core.caffeine ← lstyle_caffeine`; `core.wealth-band ← socioeconomic_band`;
+  `core.caffeine ← lstyle_caffeine`; `economy.wealth-band ← socioeconomic_band`;
   `core.extraversion ← big5_gregariousness`. Under this backend a reader's `Handle<core.X>` resolves to the
   mapped view. A built-in that is neither mapped nor appearance is absent, and a reader that requires it
   fails at install with `MissingUnderBackend`; a reader may declare the read optional. The mapping is
   checked: every target value exists, every source value is covered.
+
+  *Note 2026-10-15 (S30-a, F-S30a-2; reconciled by S30-a at the primary's dispatch).* The mapping example read
+  `core.wealth-band ← socioeconomic_band`. The wealth band is `economy`'s attribute in its own namespace
+  (§7.1; step-31 §7.4), so the target is `economy.wealth-band`, as `docs/DECISIONS.md` `DEP-66` states it.
 - **Updating upstream.** The pack carries its own import tool (`tools/import.py`, Python standard library,
   offline). It reads a given `dimensions.json` and label packs at a stated commit, verifies the SHA-256,
   re-applies the licence exclusions, and regenerates the pack. CI re-runs it over the pinned inputs and
@@ -1303,7 +1315,12 @@ schema, the defaults and the reading path. The interface S31 consumes:
 | N-3 | implements `AttributeOwner` for that attribute: it receives the resolved initial set per person at genesis as `SetValue<TopicId>` and states its own `subscribed` facts | the resolution: the person's file (`attributes: { subscriptions: [news.daily] }`), then the lock, then **roles** (`{ when: { tags: [cook] }, add: { notices.subscriptions: [prices.ingredients] } }`), then the profile, then the default |
 | N-4 | changes subscriptions with its own `subscribe` / `unsubscribe` actions and facts, and reads its own component to route notices | nothing: `attributes` is not involved (§4.5) |
 | N-5 | discloses subscriptions to the holder only, through the model crate's filter | `private` visibility, which no other seat ever receives (X-S30-4) |
-| N-6 | optional: a role default keyed on occupation once `employment` is the owner of `core.occupation` | `roles.when` accepts any resolved attribute, not only tags |
+| N-6 | optional: a role default keyed on occupation once `employment` is the owner of `employment.occupation` | `roles.when` accepts any resolved attribute, not only tags |
+
+*Note 2026-10-15 (S30-a, F-S30a-2, Q-S30a-2; reconciled by S30-a at the primary's dispatch).* N-6 read "the
+owner of `core.occupation`". Occupation is `employment`'s attribute in its own namespace, `employment.occupation`,
+which S30-f adds (§9.4's named exception); the wealth band likewise is `economy.wealth-band` (§§6.1 note, 6.6).
+`docs/MODULE_SPEC.md` §3.1 and `docs/DECISIONS.md` `ARC-120`, `ARC-124` use these names.
 
 S31 depends on `mineworld-attributes-model`, not on the `attributes` System Pack, so a world may run
 notices without the plain-trait pack. If S31 freezes before S30-c, it ships its declaration format against
@@ -1419,7 +1436,11 @@ Also MVP-0, release-blocking (Re-ruled 2026-10-15): S30-h MatrAIx backend + mask
 | **S30-h** the optional MatrAIx backend and demo (MVP-0, release-blocking) | `entities/attributes-matraix` (verbatim import at the pinned commit, overlay, licence exclusions, `LICENSE`, `NOTICE`, `tools/import.py`, masks `matraix-core-100` and `all`, `mappings/core.yaml`); `worlds/matraix-demo`; the guide section; the README attribution line; CI: import byte-equality, the isolation grep (X-S30-18), the build-and-test job without the pack (X-S30-19); the `log-linear` mode (Q-S30-9 ruled yes, 2026-10-15) | S30-c, S30-d, S30-e, S30-f merged | the demo world resolves, runs and shows MatrAIx attributes in briefs, prompts, MCP and both panels; switching `backend: mineworld` back changes nothing else | X-S30-18, X-S30-19; an excluded dimension present fails the import check; a mask naming an unknown id fails by name; a mapping value missing fails by name | Opus (import, overlay, mapping, mask selection); Haiku for the demo world and guide from a commit plan |
 | **S30-i** learnable attributes (MVP-0, release-blocking) | `tell-about-self`; S28 `stable` fact ingestion | S28-a…c; S30-f | Bob tells Alice his chronotype; Alice recalls it; Carol, absent, does not | the fact never widens Alice's observation; a `private` attribute cannot be told | Opus |
 | **S30-j** runtime sampling (MVP-0, release-blocking) | `sample_newcomer(profile, current population, causing EventId)` in the model crate, stratified against the current population's realised counts; an owner hook so the System that creates a Person seeds its attributes in the same reduction; a fixture creator (F-S30-10) | S30-d | a newcomer's values reproduce on replay and across kill and resume; 1,000 synthetic arrivals keep the world within AC-S30-5's tolerance | re-sampling on resume is detected; a newcomer created without its seed is refused | Opus |
-| **S30-k** localisation (MVP-0, release-blocking) | label packs `attributes/labels/<locale>.yaml` (labels, phrases, words); zh-Hans complete for the built-in catalogue and reviewed; locale selection in cognition, MCP and both panels; fallback to English | S30-f | zh-Hans 2D and 3D panels and a zh-Hans "who I am" render every attribute of a fixture person | a missing translation falls back to English and is listed by `attributes check --locale zh-Hans` | Haiku for entry; a reviewed zh-Hans pass; Opus review |
+| **S30-k** localisation (MVP-0, release-blocking) | label packs `labels/<locale>.yaml` (labels, phrases, words); zh-Hans complete for the built-in catalogue and reviewed; locale selection in cognition, MCP and both panels; fallback to English | S30-f | zh-Hans 2D and 3D panels and a zh-Hans "who I am" render every attribute of a fixture person | a missing translation falls back to English and is listed by `attributes check --locale zh-Hans` | Haiku for entry; a reviewed zh-Hans pass; Opus review |
+
+*Note 2026-10-15 (S30-b C0, for S30-a F-S30a-8 and R-S30k-a-1).* The S30-k row read "label packs
+`attributes/labels/<locale>.yaml`". The seam refuses a subdirectory inside a data directory (S30-b §5.6 step 2),
+so locale labels are `labels/<locale>.yaml`, a directory `attributes` owns (`MODULE_SPEC.md` §2's table).
 
 ### 13.2 Placement in MVP-0 and MVP-1
 
