@@ -1,6 +1,7 @@
 # Dario — a fisherman. Sections as in alba.yaml.
 
 name: Dario Russo
+appearance: { look: dario-russo }
 
 routine:
   - { from: "06:00", place: shore, label: fishing }

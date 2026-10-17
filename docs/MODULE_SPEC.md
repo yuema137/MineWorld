@@ -788,6 +788,7 @@ location:                  # optional. Requires the `presence` system.
     z: 0
   facing: 180000           # optional: integer millidegrees
 name: Alice Moreau         # a section owned by the `naming` system (below)
+appearance: { look: alice-moreau }   # a section owned by the `appearance` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
@@ -881,11 +882,15 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has seven sections:
+or the pack is refused. MVP-0 has eight sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+appearance appearance people  { look: <key> }: 1–48 bytes of a–z, 0–9 and '-'; unknown keys refused.
+                              An opaque key naming the person's appearance, which a Presentation Pack
+                              resolves (`ARC-92`); never a mesh, file, colour or height. Public:
+                              disclosed to whoever perceives the person (`ARC-91`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
@@ -2144,7 +2149,7 @@ presentation/<style-id>/
 
 Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
 contain for the 2D reference client is specified in
-[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). A style that covers more than one dimension is more than
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). What `characters/cast.yaml` contains for the 3D reference client — which character draws a person with a given disclosed `look`, and the extras that draw everyone else — is specified in [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) (`DECISIONS.md` `ARC-92`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
 whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default:
 
@@ -2152,7 +2157,7 @@ whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default
 presentation/mineworld-default/
 ├── README.md     what the family is, and what the packs must share
 ├── 2D/           manifest.yaml · ART_DIRECTION.md · references/
-└── 3D/           manifest.yaml · ART_DIRECTION.md · references/
+└── 3D/           manifest.yaml · ART_DIRECTION.md · references/ · characters/cast.yaml
 ```
 
 Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECISIONS.md` `ARC-53`,
