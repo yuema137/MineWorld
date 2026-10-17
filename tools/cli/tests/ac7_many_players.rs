@@ -48,6 +48,13 @@ const PACE: Duration = Duration::from_millis(110);
 /// How long all four are read at once after the purchase.
 const WATCH: Duration = Duration::from_secs(3);
 
+/// While all four are read, the visitor paces this far east and back, one stride every
+/// [`SHUFFLE`] — two requests a second, inside the budget — so that the state compared across
+/// players at one revision is state that changes: a client shown a stale observation under the
+/// current revision then disagrees with the others (review finding R1, step-12 D-SE9).
+const SHUFFLE_MM: i32 = 300;
+const SHUFFLE: Duration = Duration::from_millis(500);
+
 /// What a player says to Alice.
 fn line(nickname: &str) -> String {
     format!("hello Alice, it is {nickname} at the counter")
@@ -77,11 +84,17 @@ fn request(actor: EntityId, action: &str, payload: Value) -> Value {
 /// over. The server plans the route through the doorways; the client only asks (`ARC-75`).
 async fn walk_to(client: &mut Client, destination: Value) {
     let me = client.observer.expect("seated");
-    let asked = paced(client, request(me, "walk-to", json!({ "to": destination }))).await;
-    if !matches!(asked, ActionResult::Accepted { .. }) {
-        // Already there (a person within reach): nothing to walk.
-        return;
-    }
+    // `walk-to` has no "already there" refusal (movement's `walk::begin`): a refusal here is a
+    // failure, named.
+    let asked = paced(
+        client,
+        request(me, "walk-to", json!({ "to": destination.clone() })),
+    )
+    .await;
+    assert!(
+        matches!(asked, ActionResult::Accepted { .. }),
+        "walk-to {destination} is accepted: {asked:?}"
+    );
     for _ in 0..80 {
         match paced(client, request(me, "walk-step", json!({}))).await {
             ActionResult::Accepted { .. } => {}
@@ -154,11 +167,29 @@ fn private_of(observation: &WireObservation, holder: EntityId) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Every frame a client receives for `watch`, with the revision each named.
-async fn record(client: &mut Client, watch: Duration) -> Vec<(u64, WireObservation)> {
+/// Every frame a client receives for `watch`, with the revision each named. With `strides`, the
+/// client also sends them in turn, one every [`SHUFFLE`], without waiting for the answers (which
+/// `perceived` skips): the visitor pacing while the others watch.
+async fn record(
+    client: &mut Client,
+    watch: Duration,
+    strides: Option<[Value; 2]>,
+) -> Vec<(u64, WireObservation)> {
     let ends = Instant::now() + watch;
     let mut frames = Vec::new();
+    let mut next = Instant::now();
+    let mut sent = 0_usize;
     while Instant::now() < ends {
+        if let Some(strides) = &strides
+            && Instant::now() >= next
+        {
+            let token = format!("pace-{sent}");
+            client
+                .send(json!({ "t": "submit", "token": token, "request": strides[sent % 2] }))
+                .await;
+            sent += 1;
+            next += SHUFFLE;
+        }
         let (revision, observation) = client.perceived().await;
         let revision = revision.expect("a persisted world names a revision on every frame");
         frames.push((revision.raw(), observation));
@@ -366,11 +397,20 @@ async fn four_players_in_one_world_meet_the_same_alice() {
     }
 
     // ── One world: every revision two of them observe, they observe alike. ───────────────────
-    let recorded: Vec<Vec<(u64, WireObservation)>> = join_all(
-        players
-            .iter_mut()
-            .map(|(_, _, client)| record(client, WATCH)),
-    )
+    let standing = players[0].2.observation().await;
+    let here = *standing
+        .self_location()
+        .expect("the visitor knows where it is");
+    let place = here.place().entity_id();
+    let local = here.local().expect("a position");
+    let (x, y) = (local.x().value(), local.y().value());
+    let pacing = [
+        support::stride(visitor, place, x + SHUFFLE_MM, y),
+        support::stride(visitor, place, x, y),
+    ];
+    let recorded: Vec<Vec<(u64, WireObservation)>> = join_all(players.iter_mut().enumerate().map(
+        |(index, (_, _, client))| record(client, WATCH, (index == 0).then(|| pacing.clone())),
+    ))
     .await;
     let mut at: BTreeMap<u64, Vec<(usize, &WireObservation)>> = BTreeMap::new();
     for (index, frames) in recorded.iter().enumerate() {
@@ -443,9 +483,35 @@ async fn four_players_in_one_world_meet_the_same_alice() {
             "at revision {revision}, one shelf: {shelves:?}"
         );
     }
+    // Not vacuous: across the revisions all four observed, somebody they all perceive stood in two
+    // different places — so the agreement above was over state that changed.
+    let location_at = |revision: u64, entity: EntityId| {
+        at[&revision]
+            .first()
+            .and_then(|(_, observation)| observation.entity(entity))
+            .map(|it| format!("{:?}", it.location()))
+    };
+    let moved: Vec<String> = town
+        .people
+        .iter()
+        .filter(|entity| {
+            shared
+                .iter()
+                .filter_map(|revision| location_at(*revision, **entity))
+                .collect::<BTreeSet<_>>()
+                .len()
+                >= 2
+        })
+        .map(|entity| town.key(*entity))
+        .collect();
+    assert!(
+        !moved.is_empty(),
+        "somebody perceived moved between two of the shared revisions {shared:?}, \
+         so the comparison was over changing state"
+    );
     println!(
         "one world: {} revisions observed by all four after the purchase ({shared:?}); {compared} \
-         (revision, person) locations compared",
+         (revision, person) locations compared; moved across them: {moved:?}",
         shared.len()
     );
 

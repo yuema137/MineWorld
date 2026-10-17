@@ -4592,6 +4592,23 @@ MATERIAL STOP       any production change needed for a checkpoint to pass (it wo
   | M-SE6b | `delta.gd`: an upsert of an entity already held ignored | keyframe comparison fails | first SURVIVED (D-SE7); after D-SE7, FAIL at pause 1 (2 and 3 matched, the visitor back at its anchor) |
 - **E-SE6 (static, repository checks).** `python3 scripts/ci_layer.py docs`: PASS; `check_scratch.py scan`:
   "238 test sources, none makes scratch outside mineworld-test-support"; `check_client_rules.py`: PASS.
+- **E-SE8 (independent review of `95bc6e4d`, REQUEST CHANGES; fix in the next commit).**
+  - **R1 (blocker):** the reviewer planted, in `server/src/runtime/delivery.rs` `sweep`, "the wanderer is
+    sent the observation of 10 sweeps ago, labelled with the current revision". It SURVIVED SE-1:
+    nobody moved during the 3 s `record` window, so a stale observation equalled a fresh one. M-SE2 was
+    caught only because it removed a field. Fix (D-SE9): the visitor paces 300 mm east and back, one
+    fire-and-forget `move` every 500 ms during `record` (two a second, inside the budget), and a
+    non-vacuity guard asserts that somebody perceived stands in two different places across the
+    revisions all four observed. Re-run here on the fixed test (`with-slot.sh`, clean tree plus R1
+    planted with a ten-deep per-thread queue, then `git checkout`): clean PASS in 10.11 s, "9 revisions
+    observed by all four after the purchase ([57, 58, 61, 62, 63, 67, 68, 69, 74]); 60 (revision,
+    person) locations compared; moved across them: [\"visitor\"]"; R1 FAIL "at revision 64, visitor stands
+    in one place for every player who sees it: {… x 5388 …, … x 5688 …}". `cargo clippy -p mineworld-cli
+    --tests -- -D warnings` clean.
+  - **Non-blocking:** `walk_to` treated every rejected `walk-to` as "already there". Movement's
+    `walk::begin` has no such refusal, so a rejected `walk-to` now fails the test, naming the rejection.
+  - **R2 (coverage note, no change):** charging one seat's requests to another seat's budget bucket
+    survives SE-1; per-seat budget isolation is owned by `server/src/seats/budget_tests.rs`, not by AC-7.
 - **E-SE7 (SE-4).** Owned by CI on the exact PR head; no file under a production path differs from
   `5cbb4697` (`git diff --stat origin/main -- server/src tools/cli/src systems kernel contracts
   persistence worlds clients/protocol/mineworld` is empty).
@@ -4625,5 +4642,10 @@ MATERIAL STOP       any production change needed for a checkpoint to pass (it wo
   is asked only after 25 live deltas since a keyframe and is not counted if a keyframe arrives after it
   is asked (it is asked again); the visitor paces 500 mm back and forth once a second during the window,
   so its own entity is among what the deltas change. M-SE6b then fails.
+- **D-SE9 — AC-7's same-revision check must be fed by changes (review R1).** Previous assumption: four
+  clients agreeing at each revision proves one world. Evidence: R1, a stale observation under the current
+  revision, survived because nothing moved in the window — the weakness D-SE7 fixed on the far side,
+  not carried over to SE-1. Correction: the visitor paces during `record`, and a guard requires
+  observed movement across the shared revisions (E-SE8). R1 now fails by name.
 - **D-SE8 — Godot budget.** §20.6 allowed three `run.sh rev2` runs; five were made (D-SE7 needed two
   more). Each is about 90 s; recorded rather than hidden.
