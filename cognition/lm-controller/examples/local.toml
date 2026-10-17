@@ -24,6 +24,7 @@ summarize = "none"                        # FG-c is not merged: no summarising t
 base_url          = "http://127.0.0.1:11434/v1"
 model             = "qwen3.5:4b"
 structured_output = "none"                # the runtime refuses enforced output for this build; admitted 39/40 on 2026-10-13
+reasoning         = "off"                 # thinking spends the 256 output tokens and the answer arrives empty (S10 P7 F-P7-4)
 
 [controller]
 consult_deadline_s = 20
