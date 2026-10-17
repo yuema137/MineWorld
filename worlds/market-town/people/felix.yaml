@@ -38,3 +38,10 @@ job:
   until: "13:00"
   wage: 200
   produces: { apple: 4, bread: 2, milk: 2, juice: 2 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Pops into the store for whatever he forgot. Cheerful, and forever going back for one more thing.
+  traits: [cheerful, absent-minded]
+  speech: Quick, casual sentences.

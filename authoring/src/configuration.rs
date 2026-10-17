@@ -7,6 +7,7 @@
 //! deserializing is validating; the loader holds it type erased until the world exists; and the pack
 //! seeds its own genesis facts from it. The loader never learns what a configuration means.
 
+use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -180,6 +181,16 @@ pub trait AuthoredConfiguration: core::fmt::Debug + Send + Sync {
         seeding: &Seeding<'_, '_>,
         context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection>;
+
+    /// The owner's own decoded configuration (its [`PackConfiguration::Configuration`]), for the owner
+    /// to downcast when the loader hands it back — building the owner's data context and resolving
+    /// (`ARC-121`).
+    ///
+    /// Provided, answering `()`, so an implementation outside this crate keeps compiling; one that does
+    /// not answer is simply not downcastable, and the downcast's failure is the owner's named refusal.
+    fn as_any(&self) -> &dyn Any {
+        &()
+    }
 }
 
 /// One owner's decoded configuration.
@@ -222,6 +233,10 @@ impl<P: PackConfiguration + 'static> AuthoredConfiguration for Held<P> {
         context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection> {
         P::seed(seeding, &self.0, context)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        &self.0
     }
 }
 

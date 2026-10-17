@@ -1521,3 +1521,15 @@ or `tools/asset_generation/` changed.
   `check_decision_ids.py`, `check_doc_headings.py`, `check_ci_pins.py`, and the `ci_changes`/`check_scratch`/`ci_parity`/
   `ci_shard` self-tests pass; `ci_layer.py python-smoke` PASS (12 commands; pipeline 73 passed; cognition 402 passed
   including the isolation test; agent 93 passed; SDK 98 passed).
+- **Second merge of `origin/main` @ 04d5145 (2026-10-17; S10 P6a #236, S30-b #247 and #224/#246 landed after the
+  first merge).** One textual conflict, `docs/DECISIONS.md`, resolved as before: main's file whole, then this branch's
+  `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55` appended byte-for-byte (the diff against main is exactly those 81 lines;
+  nothing of this branch's file is dropped); `check_decision_ids.py`: 154 ids, all distinct. `scripts/ci_layer.py` and
+  the isolation test auto-merged. No baseline, lockfile or workflow change. Local evidence is light only (operator
+  pause on heavy jobs, 2026-10-17): `check_secrets` (self-test, scan), `check_ci_pins`, `check_doc_headings`,
+  `ci_changes`/`check_scratch`/`ci_parity` self-tests, `ruff check` over every Python path, pipeline `pytest` (73
+  passed) and `test_structural_isolation.py` (4 passed). CI on the pushed head is the gate.
+- **CI on 3f4770f (first merge).** Every job passed except `python (windows-2025)`, cancelled at the job timeout
+  while `cognition/lm-controller` hung in `test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins`.
+  The same hang, at the same test, cancelled main's own run 38809489941 on 2026-10-15; this branch changes no
+  cognition code. Recorded as a pre-existing Windows flake, not a finding against this PR.
