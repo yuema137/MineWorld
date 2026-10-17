@@ -17,29 +17,35 @@ sealed-300s 237 855ceb04e17652eb28d180125a36ae6f025b39b63449721eff16baacbe998b85
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
-summary-300 353 c25f113e20b36cfb123565fe9d82f615d823cddc136f304481f7450a7291a343
-summary-1000 1077 4a44100ffdaa213363782c79234913facee55431749f9c4d6068e6e5342ebb1b
-summary-300s 352 e141fc7d91d98d562a775bfc5c061c22872ae19fb3e3a72399711f48023581b1
-facts-300s 6864 ec36836a6a4258859b6e09d28a6db5620f3382c0303ff4085f909c308a7c0ce3
-journal-300s 4887 86f1210d356fde9f1dfd53342c994fee08653e22ac0318519b861cfeb85f3cbc
-sealed-300s 123 86178c00473424e133420eb4e407ce56816cef2f6e468768a2c43361291c40ba
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9793 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+summary-300 353 0ff80ca9f558ec5815ecd1b92a831843f80584e851109b396ea1d1eeff0a516f
+summary-1000 1077 bec3303f123adc1850cf0aa8ed83aa04274000490288c02b29816bd58becb045
+summary-300s 352 e26b408e5438b2002f9ed21e340331e778ff796b3033a6ca052ee5c804e0fcf2
+facts-300s 8992 0db49b6b2952ee879ed0b6b4342e63113c30a9304efe3dd17325054a28a9e553
+journal-300s 6431 da2b7101f594ef9d940ec65685c203adfe00cce681c3daf4b789543091738bb0
+sealed-300s 122 534f328bc2e705f76216078d86e04b5c6bf78b4bfda87698de153594fd7a04f5
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
-summary-300 363 146264650f4fe3cae7ff828bcf888cf25219ff6a8e7f952bcc5671914fdc7344
-summary-1000 1088 0e6adc22cf8bc80227d798fc6a573ea2b690cc758c042e6bb93874af86b9995b
-summary-300s 362 f6a3bb734706f29661cd10cd1bc69661b45f51b66164e2464371f6e134bdff92
-facts-300s 7637 021477ff54f4b66440c170a2d295692923abf357556be7edd81230023dfb2e4f
-journal-300s 5617 71147cf70ff66178a275d1126e8967bcaaaafb4f1878c7765306c5cd76279681
-sealed-300s 146 9b9d950695d952e820e52db7be1d9211ed204ac3622034dbb0959548693d30a4
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9760 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+summary-300 363 2fbf6c52198abbc9a410b619fd4ac69cfd38adceacb011b09b481646934e5c9e
+summary-1000 1088 154493248a12474ae3fe2c65833a697b5937bc2e09b84b3660fa2666c4edae0d
+summary-300s 362 b08306726092f946d0ac2aa178eea96a4e660a8313556966b6585d58102c11cc
+facts-300s 9753 bbed533c031559a19edbd329880b19b7f1bc449ada6a1cb75de0a30b4b48474a
+journal-300s 7205 45ec2ea0bf03a1157d9b98e60eb0cf657cae6543bfbc16253e29f4d3e0b611cb
+sealed-300s 145 26402ad1f3432dbb1e8979a3562799a05151451cfaf5840929004ad59d00ba49
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
-summary-300 341 9500d0c80c6c979ef174be7ef9d4b5ec99b95f8912eb6d0231dc125b355e9cb5
-summary-1000 1065 b87fcc4419b46c1685eff09ba11090350e6059203be0d0838023cb0865682a64
-summary-300s 340 9f9aa76862a3cef6b2094c0f4caea44c2cc734addcccc9ad90fd838208e5a8a6
-facts-300s 5762 bba3db1b53d825bf66bc64ea41bc7e825c993136ac8edeb7808d727ea96c7535
-journal-300s 4198 62884c024ef58adade9eea0daa2f783ed2ef5923b749ab404132c9ce33fac4e5
-sealed-300s 149 2e7ffeaafbfb526fd02e594a9f20b655e5011a53e2bf4d89941fae99f895ddd2
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9736 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+summary-300 341 66955eeb4be83cc94fc4323b1f2b08cea1b62bb1f221ec4276b468b6d0ca6db4
+summary-1000 1065 bf4e67259f636602d21b5c7cdc4a6d965b40023e655846e26513a13606979bbb
+summary-300s 340 aad2711b8e1ba347d166983b9a2daa0821ffa62468656fd0a56cdb5c6dd9fb13
+facts-300s 7154 de13f5bb340b120e3e413ba655dbc2f467bcf052759020e22d14993786e0f5ee
+journal-300s 5273 ca016bf0b22a511f887b131093bec628af43bcd35f72a7f7cceec921523f4888
+sealed-300s 147 0ded4cdf2b19c536ded435f7578c2c7b283f2c4409e10043ec710d3bd7e02259

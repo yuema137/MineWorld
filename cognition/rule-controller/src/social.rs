@@ -15,9 +15,10 @@
 //!
 //! Whether a person may be invited or joined is never worked out here — the affordance says so
 //! (`ENGINEERING_RULES.md` §8). The one thing the controller judges for itself is whether an
-//! invitation is still open, because an offer cannot see the clock (`step-09-social.md` C2, D-B4): it
-//! reads the instant the invitation itself says it lapses (`Invitation::until`, the world's lifetime
-//! since S17's PR IL-b), never a lifetime of its own.
+//! invitation is still open (`step-09-social.md` C2, D-B4): it reads the instant the invitation itself
+//! says it lapses (`Invitation::until`, the world's lifetime since S17's PR IL-b), never a lifetime of
+//! its own. Perception applies the same bound to the answers it offers (S27-b, D-b-1), so the offer
+//! and this check agree; the controller keeps its own check so it does not depend on what is listed.
 
 use mineworld_contracts::{ActionRequest, EntityId, Observation};
 use mineworld_decision::Draw;
