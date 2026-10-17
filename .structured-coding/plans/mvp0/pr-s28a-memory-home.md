@@ -1136,6 +1136,23 @@ own mutations. Ruling applied, the 45-minute limit untouched:
   `test_home_isolation.py::test_a_seat_view_shows_none_of_a_home_mates_rows` fails a seat leak by name (planted:
   `NameBook.load` without its seat predicate → red; restored, `cmp` clean, green).
 
+**CI run 3 (39008602778, head `eca5e568`).** `changes`, `fast` (1 m 50 s), `platforms (windows-2025)` (13 m),
+`platforms (macos-26)` (10 m), `python (ubuntu-24.04)` (23 m 10 s; the cognition member 20 m 11 s against 9 m 25 s
+on `main` run 38704321403), `python (macos-15)` (21 m 37 s), `test` (44 m), `test-windows` (42 m), `test-macos`
+PASS. `python (windows-2025)` (28 m 30 s, under the 45-minute cap): every cognition test PASS; FAIL in
+`clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back` (`JoinRefused:
+seat_occupied`) — a member this PR does not touch (`git diff --name-only origin/main...HEAD` lists nothing under
+`clients/`), recorded as out of scope (test rules §28). AC-a-14 on Linux CI (per-file sums of the job's log against
+`main`'s): `test_ac10.py` 88.2 s against 70.3 s (+25.5 %), `test_retention_real.py` 138.5 s against 94.2 s
+(+47 %), `test_retention_policies.py` 212.3 s against 158.5 s (+34 %, not real-binary): over R-a-1's +25 % for the
+two real-binary files; R-a-1 makes it a stop only if it breaks a real-binary budget (≤ 90 s per file, §12), which
+`test_retention_real.py` already broke on `main` (94.2 s). Recorded; D-a-16 trims the keep-all window.
+
+**D-a-16 (bounded).** `origin/main` merged again at `5e7393f3` (#224's sharded test jobs, `scripts/ci_shard.py`;
+`docs/DECISIONS.md` rebuilt as before: main's records, S28-a's two notes, `ARC-109` and `DEP-61` last; 151 ids
+distinct). `test_retention_real.py`'s keep-all window narrows from days 75…85 to 78…84 (six passes on a ≈ 15 MiB
+store instead of eleven; the first forced pass is still day 81, measured).
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 

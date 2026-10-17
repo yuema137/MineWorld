@@ -108,14 +108,14 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert store.dump() == day_by_day
 
 
-KEEP_ALL_FROM = 75
-KEEP_ALL_DAYS = 85
+KEEP_ALL_FROM = 78
+KEEP_ALL_DAYS = 84
 """AFGb-4 (c) re-derived for the 20 MiB bound (pr-fg-b2 §7), then for schema 4's positional seat view
 (pr-s28a C5 step 2): at ≈ 195 KB a day (measured: 19 530 040 B of content after 100 days of plain ingest,
-was ≈ 433 KB a day in schema 3's objects) keep-all reaches the 15 MiB target after ≈ 81 days, so the
-host's own removals begin between days 75 and 85. Before day 75 a keep-all pass removes nothing (the store
-is under the target), so those days are ingested at once, without passes; after day 85 every pass works on
-a store of ≈ 15 MiB. Both cuts keep the test within FG-b's 180 s per CI leg."""
+was ≈ 433 KB a day in schema 3's objects) keep-all reaches the 15 MiB target after ≈ 81 days (day 81
+measured), so the host's own removals begin between days 78 and 84. Before day 78 a keep-all pass removes
+nothing (the store is under the target), so those days are ingested at once, without passes; each pass works
+on a store of ≈ 15 MiB, so the window is kept to six passes (D-a-16: 64 s on Linux CI with eleven)."""
 
 
 def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: History) -> None:
