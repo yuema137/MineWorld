@@ -145,7 +145,7 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
         "and the new kinds come after them: {report}"
     );
     assert!(
-        report.contains("\n67 genesis fact(s)") && original.contains("\n67 genesis fact(s)"),
+        report.contains("\n76 genesis fact(s)") && original.contains("\n76 genesis fact(s)"),
         "tags-only files add no genesis fact: {report}"
     );
 }

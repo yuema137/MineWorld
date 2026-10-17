@@ -40,6 +40,10 @@ mineworld: "^0.1"
 # somebody else, and leaving a room is through its door. It depends on presence alone and is appended,
 # so every earlier reduction order stays as it was. Leave it out, with every `body:` section, and the
 # town is the same town in which people pass through walls.
+# `persona` owns each person's `persona:` section (`ARC-74`): a character that shapes how they speak and
+# grants nothing. It moves nobody and depends on nothing, so it is appended last and every earlier
+# reduction order stays as it was. Leave it out with the `persona:` blocks and people speak as they did
+# before, without a character to speak from.
 systems:
   - presence
   - movement
@@ -49,6 +53,7 @@ systems:
   - naming
   - schedule
   - bodies
+  - persona
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that

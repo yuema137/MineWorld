@@ -62,6 +62,9 @@ systems:
   # `bodies` — walls, furniture and loose objects (`ARC-39`) — at the same position as in Social Café,
   # whose list this one begins with.
   - bodies
+  # `persona` owns each person's `persona:` section (ARC-74): Social Café's list ends with it, and
+  # Market Town is Social Café plus the market (ARC-35), so it stands here, before the market packs.
+  - persona
   # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
   # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
   # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and

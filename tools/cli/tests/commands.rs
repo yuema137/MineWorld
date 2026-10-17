@@ -31,14 +31,15 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let report = stdout(&output);
     for expected in [
         "Social Café",
-        "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies\n",
+        "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies, \
+         persona\n",
         "alice",
         "visitor",
         "wanderer",
         // Five passages (each place's door onto the street), twelve placements, twelve names, twelve
         // routines and the twelve first agendas they imply; six place shapes, and four loose objects
-        // formed and placed (step-11 §19.6).
-        "67 genesis fact(s)",
+        // formed and placed (step-11 §19.6); and nine authored personas (ARC-74).
+        "76 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
