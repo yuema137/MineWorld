@@ -584,9 +584,9 @@ async fn the_menus_are_the_offers_from_the_door() {
         "O-6: the rejected give is the only interaction sent"
     );
 
-    // N-1, N-2.
-    assert_named(&lines);
+    // N-2 (no id), then N-1 (named by the world).
     assert_no_ids(&lines);
+    assert_named(&lines);
 
     // O-3's oracle: the save holds no hand-over from the visitor.
     let history = facts(&save);
@@ -905,8 +905,8 @@ async fn the_3d_market_asks_what_the_2d_market_asks() {
     );
 
     // N-1 and N-2 over the whole run.
-    assert_named(lines_3d);
     assert_no_ids(lines_3d);
+    assert_named(lines_3d);
 
     // P-3: words decide nothing — in Chinese and with no wording, the same requests, pair for pair.
     let reference = interactions(lines_3d);
