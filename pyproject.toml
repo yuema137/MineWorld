@@ -11,7 +11,7 @@ members = ["sdk/python", "cognition/lm-controller"]
 # repository root (`uv run --locked pyright sdk/python`), so the configuration lives here and covers
 # every member. Strict, as `.structured-coding/standards.md` declares.
 [tool.pyright]
-include = ["sdk/python", "cognition/lm-controller"]
+include = ["sdk/python", "cognition/lm-controller", "tools/onboarding"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingModuleSource = "error"

@@ -182,11 +182,15 @@ NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients
 # container, on Windows and macOS.
 # The workspace's members (root pyproject.toml): the SDK (S10 P3) and the cognition package (S10 P5a).
 PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller"]
+# The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
+# member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
+# pytest. Its own tests never start an agent or call a model (INV-S25-6).
+PYTHON_TOOLS = ["tools/onboarding"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
-    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS, *PYTHON_TOOLS],
 ]
 # pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
 # ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
@@ -204,6 +208,7 @@ LAYERS["python"] = [
     ["cargo", "build", "-p", "mineworld-cli"],
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
@@ -217,6 +222,7 @@ LAYERS["python-smoke"] = [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
         "-m", "not live_model and not real_binary",
     ],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
