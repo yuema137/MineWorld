@@ -30,22 +30,24 @@ reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #15
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S10 P6a (QP6-2 widened to Market Town 2026-10-16, F-P6a-6 ruled (a); ARC-74, ARC-35): Market Town enables `persona` after `schedule` and its nine shared people carry the same `persona:` sections as Social Café, so genesis gains nine `persona-authored` facts disclosed to their holders; re-recorded from the CI long record of 45c3d1a (scratch nightly run 39005870946, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal). Every market-town key moved by the new genesis facts; social-cafe equals P6a's earlier re-baseline; bodies-yard and lakeside did not move
-summary-300 364 2e9ec6de07555b671d6d3bfab4e4de7952f7143835a015744ffdbf1f2fbb9f13
-summary-1000 1089 996584d315c45328ff70b3c376680ff718dceffbf2505b6b71ddf633f2602a99
-summary-300s 363 06bc992d0daa984cac89242638262a2cebd4ee34e723475246246dc99b191b48
-facts-300s 7637 3efcee1500b3f68698f62b33c0f38640442394edea72417f753f0b580aba4a22
-journal-300s 5617 972a26ed6df83b40acc0e0b9072ad98b95f7a9e299f18d54bee2dc7864f56977
 reason 12d #171 (S15, step-11 §19, QB-5): the town gets walls, furniture and bodies (bodies installed, R 250) and named item kinds, so walks are routed round solids and stop short or displace: every summary, facts-300s, journal-300s and sealed-300s moved; re-recorded from a long record of 12d's merge with main e67af07 (a9c3b38, Darwin/arm64)
-sealed-300s 146 997bdb27add00a8b3ed10ccb151dea7431baccf1588b047065b547000c51f0d2
+reason 12d #171 merged after S10 P6a #236: bodies (12d) and persona (P6a) together, persona after bodies; all six keys re-recorded from the CI long record of 12d's merge with main 04d5145 (scratch nightly run 39074166066, commit 7047b4d, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal)
+summary-300 372 aa58202454995cb8da716a0c0cf861c3820e9dd67425b7b3fcdd192eefe7beb6
+summary-1000 1098 4da59d0f27e5b71d748da4e7d139ea1ed9f64e4e37835379fefefa8106b639fd
+summary-300s 371 5d599e0f5b5285fd0589fcc77e2eccfaf8e253924aa4a659a8bbe881c9cb1113
+facts-300s 8396 9a8f441e86995ca5943e4702ddd6d1fd8d6ee3ec556592de7e36414472cd8386
+journal-300s 5729 f97907917a17592f648c61ea84d5360875b8dbe8cf8aa09acef43d0b38cb5261
+sealed-300s 202 69fd2a765c5347b2ccdb21228426a0ca1618cca9e35b9cc39d4100d5cfb004cd
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S10 P6a (QP6-2, ARC-74; pr-s10-p6-lm-controller §5.14, A3): social-cafe enables `persona` (last of `systems:`) and nine people carry a `persona:` section, so genesis gains nine `persona-authored` facts disclosed to their holders; re-recorded from the CI long record of 098fa42 (scratch nightly run 38812090457, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal). Every social-cafe key moved by the new genesis facts; bodies-yard, lakeside and market-town did not move. The 30-day run's behaviour counts are byte-identical (F-P6a-4)
-summary-300 342 17d4f7826a58a0589faa520ca846346f5eeac62ecddc2362ba28eaa85e42559c
-summary-1000 1066 3276ba45bae9a6e5a2f1f2fb4e51601cbb79c0ce5da47abf0a6bfd3b4bd0b6e6
-summary-300s 341 2976b3f1dd03217a29ac4fa54f9c1f839a30461bc47f106042d0d1bdb4786eef
-facts-300s 5762 93f69c48cfe4e56adfff82c165d99bcab4dc964741f2b7adfbb22f065a16d8f3
-journal-300s 4198 d1c5ed2803bc85e4f824047abfd136a48c1d5684975bc809652edce55318147d
 reason 12d #171 (S15, step-11 §19, QB-5): the café and street get walls, furniture, loose objects and bodies (bodies installed, R 250), doorways moved inside the walls (F-B7) and named item kinds, so walks are routed round solids and stop short or displace: every summary, facts-300s, journal-300s and sealed-300s moved; re-recorded from a long record of 12d's merge with main e67af07 (a9c3b38, Darwin/arm64)
-sealed-300s 149 9762f0cfcbca4b2d5fdab5a11d6c3ed3d8b6166920a1c2c2bf9cbb4c22f35f4f
+reason 12d #171 merged after S10 P6a #236: bodies (12d) and persona (P6a) together, persona last; all six keys re-recorded from the CI long record of 12d's merge with main 04d5145 (scratch nightly run 39074166066, commit 7047b4d, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal); bodies-yard and lakeside did not move
+summary-300 350 8cecb212cd339c08ad90511b3613088acc129c99b23070072ed9fab494c7fee8
+summary-1000 1075 cfcee92ffd93c877e996760be9edca934329e59b31e024ad6911c91dcfeb3200
+summary-300s 349 01ee5830bc78b2a07e6b97fba024d7f2819d78573cebb522af2a0e861ca071ae
+facts-300s 8565 b5d8c95adfedbd4ab2461185680e708d599f47bafbf0ebb1aeccf812e8132bee
+journal-300s 5820 b1df3d5f45216cd805941a281e277d733f958847f85ce023a43ab7955c4206c9
+sealed-300s 203 0bf85fdb5326ab158ec6ef81b045d035796544c84cfe963f1079fa361e701a49

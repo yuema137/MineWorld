@@ -7446,6 +7446,31 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
        social_composition, content_kinds, routines, ac15_one_alice, restart, milestone_c, facts,
        market_composition, decisions, market_town).
      - `test_retention_real.py` + `clients/agent`: 100 passed.
+   - **Result.** CI run 39054762857 on dd6f7db: every job success.
+10. **Main merged after P6a #236 (persona) and S30-b #247 (2026-10-17; no local builds, per the operator's
+    pause).** The merge is d067d05, with main 04d5145.
+    - **Systems lists.** Both towns list `bodies` then `persona`: persona stays last in Social Café,
+      and in Market Town it stays before the market packs. Every pinned systems line and version list
+      gains both (`commands.rs`, `inspect.rs`, `server_command.rs`, `social_composition.rs` ×2,
+      `worldpack/tests/social_cafe.rs`). The bare copy also drops `persona`.
+    - **Genesis.** 53 + 14 (bodies) + 9 (personas) = 76, in `commands.rs`, `content_kinds.rs`,
+      `social_cafe.rs` and `town_bodies.rs`.
+    - **DL-a golden.** Re-recorded from scratch CI: workflow `scratch-12d-golden`, run 39074166181, on
+      branch `scratch/12d-m3-parity-long-nightly`, never merged, using the nightly's runtime image. It
+      differs from 12d's earlier golden only by the nine `persona-authored` genesis facts (every count
+      +9, one new kind line); behaviour is byte-identical, as P6a's F-P6a-4 states. sha-256 1b909389….
+    - **Baselines.** Re-recorded with `baseline write` from scratch nightly run 39074166066
+      (parity-long, commit 7047b4d = d067d05 + the scratch workflow). Linux x86_64, Linux arm64 and
+      Darwin arm64 are equal. The Windows leg was cancelled at its timeout, the known nightly limit,
+      which makes that run's AC-8 FAIL G-3 only.
+      - market-town and social-cafe: all six keys moved, and each gains one reason line. Both sides'
+        reason lines are kept.
+      - bodies-yard and lakeside: did not move.
+      - `baseline check`: PASS against all three records.
+    - **Scratch full CI** (run 39074177932, `scratch/12d-m3-ci`, on d067d05 with the placeholder
+      golden). Every failure is AC-DLa-1 on the placeholder. The shards that failed (test 2/3,
+      test-windows 1/4, test-macos a) stop there, because cargo is fail-fast within a shard; the rest
+      passed. The PR run on the next head is the gate.
 
 ---
 
