@@ -276,7 +276,7 @@ calendar = true
 weather = true
 decisions = true
 motivated = true
-lm-controller = false      # P6
+lm-controller = true       # P6b
 relationship-decay = true
 memory-policies = false    # no probe (§9.1)
 happenings = false         # WE-a
@@ -308,7 +308,7 @@ A feature has a probe when one of these shows it (PR 25e generalised the probe f
 | `interaction-list` | the text `## The shape every section shares` in `interaction-list.md` of the reference | IL-b, IL-e |
 | `decisions` | the text ``## `decisions.yaml` `` in `decisions.md` of the reference | DL-a |
 | `motivated` | the decision model `motivated` | DL-b |
-| `lm-controller` | the decision model `lm` | P6; not installed in this build yet |
+| `lm-controller` | the decision model `lm` | P6b; installed. No page requires it yet: its chapter and comparison wait for a page that can show a model's decision without a live model |
 | `relationship-decay` | the text `` `familiarity_decay` `` in `interaction-list.md` of the reference | FG-a |
 
 A feature with no probe (`memory-policies`) is checked for presence as `INCONCLUSIVE`, which never passes and never

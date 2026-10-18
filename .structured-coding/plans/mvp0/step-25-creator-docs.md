@@ -1415,3 +1415,22 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   (not designed here, INV-S25-5).
 - **AC-25e** Chinese plain-language sign-off of the new mirrors: the primary's.
 
+### 19.6 Restack on 25d (with 25a and `main @ e51ffc0`), 2026-10-17, S25 stack owner
+
+- **Merge.** `mvp0/pr-25d` merged in, no textual conflict. The earlier red checks of run 39011129193 (head
+  `65000c39`) were all `cancelled` (superseded), not failures.
+- **F-25e-1 came true, as predicted.** The stack now has P6b's decision model `lm` (`cognition/installed`), so the
+  presence probe (`GUIDE_FORMAT.md` §9 rule 3) reports `lm-controller = false, but decision model lm is in the
+  build`. Decision (bounded, within §9): the flag is set to `true`, which §9 rule 4 defines as "the feature is
+  merged and its blocks must pass"; no block `requires lm-controller` yet, so no page changes. Chapter 09 part 3 and
+  `compare/one-person-on-a-model` (25e-6) stay "coming in a later guide update", as both indexes and step 9's last
+  paragraph already say; they need a page that shows a model's decision without a live model, which is 25e-6's
+  design, not this restack's. `GUIDE_FORMAT.md` §9's example and §9.1's row are updated to say the model is
+  installed.
+- **The probe test keeps both directions.** `model_and_reference_probes_turn_a_wrong_flag_red` asserted
+  `lm-controller = true, but decision model lm is not in the build`, which this build can no longer produce. It now
+  plants `lm-controller = false` (expects `… decision model lm is in the build`) and `happenings = true` (expects
+  `happenings = true, but pack mineworld-happenings is not in the build`; WE-a is not merged), so a false flag and a
+  true flag are each still shown to turn the run red.
+- Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
+
