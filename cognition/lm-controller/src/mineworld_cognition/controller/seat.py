@@ -289,6 +289,7 @@ class SeatRunner:
             await absorb(store, batch.events, batch.through, self._retention)
             self._note_lines(batch.events)
             here, now_at = self._here()
+            heard_at = {fact.id: fact.at for fact in fresh}
             for trigger in detect(
                 fresh,
                 seat.observer,
@@ -300,7 +301,7 @@ class SeatRunner:
             ):
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
-                self._pending.offer(trigger, self._clock())
+                self._pending.offer(trigger, heard_at[trigger.event], self._clock())
 
     def _note_lines(self, events: tuple[PerceivedEvent, ...]) -> None:
         for fact in events:
@@ -321,12 +322,12 @@ class SeatRunner:
         """Runs one consult at a time. Returns `True` when the seat must be handed back (§5.8)."""
         deadline = float(self._controller.consult_deadline_s)
         while True:
-            trigger, received = await self._pending.take()
+            trigger, heard_at, received = await self._pending.take()
             if self._clock() - received > deadline:
                 self._runner_counts["stale_triggers"] += 1
                 continue
             await self._observed.wait()
-            record = await self._consult_once(seat, trigger)
+            record = await self._consult_once(seat, trigger, heard_at)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -342,7 +343,16 @@ class SeatRunner:
 
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
-    async def _consult_once(self, seat: ResumingSeat, trigger: Trigger) -> ConsultRecord:
+    async def _consult_once(
+        self, seat: ResumingSeat, trigger: Trigger, heard_at: int
+    ) -> ConsultRecord:
+        """One consult on `trigger`, whose fact is at world time `heard_at`.
+
+        Recall is made at the later of the newest observation's `at` and `heard_at`. The observation can trail
+        the facts already absorbed by a frame (D-P6b-30); at 12x a 100 ms tick is 1.2 world seconds, and recall
+        at `observation.at` alone drops the trigger line and every line said in the same lag, since L0 keeps
+        only records at or before the query's `at` (D-P6-41).
+        """
         store = self._open_store(seat)
         observation = self._observation()
         names = NameBook.load(store)
@@ -354,7 +364,7 @@ class SeatRunner:
         memory = memory_view(
             store,
             RecallQuery(
-                at=_recall_at(store, observation, trigger),
+                at=max(observation.at, heard_at),
                 counterparts=counterparts,
                 words=trigger.words,
             ),
@@ -499,18 +509,3 @@ def _answer_kind(answer: Answered | RefusedRequest) -> str:
     if isinstance(answer.result, Accepted):
         return "accepted"
     return "unavailable" if answer.result == "unavailable" else "rejected"
-
-
-def _recall_at(store: MemoryStore, observation: Observation, trigger: Trigger) -> int:
-    """The world time a consult recalls at: the later of the newest observation's `at` and the trigger fact's.
-
-    The observation a consult reads can trail the facts the store has absorbed by a frame (D-P6b-30); at 12x a
-    100 ms tick is 1.2 world seconds. Recall at `observation.at` alone then drops the line that triggered the
-    consult and every line said in the same lag, since L0 keeps only records at or before the query's `at`
-    (fix/recall-at-trigger). The trigger fact was absorbed before it was detected (I-P6-6), so its record is in
-    the store; a record a retention pass has since removed falls back to `observation.at`.
-    """
-    row: tuple[int] | None = store.connection.execute(
-        "SELECT at FROM l0 WHERE event_key = ?", (event_key(trigger.event),)
-    ).fetchone()
-    return observation.at if row is None else max(observation.at, row[0])

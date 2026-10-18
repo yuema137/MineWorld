@@ -2268,10 +2268,12 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
   at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
   (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
-  Fix: the consult recalls at `max(observation.at, the trigger fact's at)`, the trigger's `at` read from its `l0` row
-  (absorbed before detection, I-P6-6; a row a later retention pass removed falls back to `observation.at`), in the new
-  `seat._recall_at`. No contract change: `RecallQuery`, `Trigger` and the decision-log format are unchanged (the logged
-  `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  Fix: the consult recalls at `max(observation.at, heard_at)`, where `heard_at` is the trigger fact's `at`, taken at the
+  detection site in `_ingest` from the fact itself and carried with the trigger through the pending slot
+  (`triggers.Waiting(trigger, heard_at, received_at)`; `Pending.offer` takes it) into `_consult_once`. No store access:
+  a first version read the `l0` row from `seat.py`, which the coordinator's review rejected because it couples the
+  controller to the store's private schema, which S28-a #242 replaces. No contract change: `RecallQuery`, `Trigger` and
+  the decision-log format are unchanged (the logged `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
   `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
   `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
   the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
