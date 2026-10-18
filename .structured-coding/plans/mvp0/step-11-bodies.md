@@ -9472,6 +9472,23 @@ X12e-25 C-1 AMENDED (the operator, 2026-10-17; §22.4 C-1). The link keeps every
         counts from inside the café, so its door crossing is part of it. M-E14 (CORRECTION_MM
         lowered to 40 mm: corrections no stop explains) must turn C-1 red. Verification WAITS for
         the operator's heavy-job pause to lift; not run
+X12e-26 VERIFIED ON CI, NOT LOCALLY (the coordinator, 2026-10-17: local heavy jobs paused). The nightly
+        clients-probes layer now runs --world --geometry and --world --bodies (scripts/ci_layer.py;
+        S13 13c's QE-9 requirement), reached by pushing scratch/<name>-clients-nightly branches.
+        Head 60d648b (scratch/12e-clients-nightly, run 39077013933, clients-linux): --drive, --link,
+        --target, "all geometry checks pass", "all bodies checks pass" — C-1 PASS: one correction on
+        the walk out and the pavement, at a doorway (allowed 2 for 1 crossing), none of another kind.
+        --geometry's verdict first read INCONCLUSIVE (its summary shared a line with the row count;
+        fixed in 60d648b). M-E14 as first planted (CORRECTION_MM 40) SURVIVED C-1 — it added
+        corrections only outside the free walk — and was replanted as "correct whenever the body is
+        drawn 40 mm off" (run 39091003125, the free walk first): "C-1 FAIL … 335 corrections … 335 of
+        no allowed kind". The scratch branches are deleted.
+        Not 12e's, recorded: on this stacked base the nightly's `clients` layer (the 2D Godot tests:
+        client_settings' 2D drive "walk into the place behind (0, 2800) refused too_far_away") and
+        clients/protocol/run.sh perceived ("stride 2 was accepted: false") fail — both scripts stride
+        through 12d's bodies; 12e changes no 2D, protocol, server or world file. The PR's `test` and
+        `test-windows` hit the 1 h limit on every head: the base (16c @ 3632562) predates #224's
+        sharding and 16c has not merged main
 ```
 
 ## 22.16 Follow-up for a separate `bodies` PR (design note; not 12e)
