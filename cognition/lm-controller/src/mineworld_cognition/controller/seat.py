@@ -353,7 +353,11 @@ class SeatRunner:
             counterparts = (*counterparts, trigger.speaker)
         memory = memory_view(
             store,
-            RecallQuery(at=observation.at, counterparts=counterparts, words=trigger.words),
+            RecallQuery(
+                at=_recall_at(store, observation, trigger),
+                counterparts=counterparts,
+                words=trigger.words,
+            ),
             self._controller.recall_episodes,
         )
         answers: list[str] = []
@@ -495,3 +499,18 @@ def _answer_kind(answer: Answered | RefusedRequest) -> str:
     if isinstance(answer.result, Accepted):
         return "accepted"
     return "unavailable" if answer.result == "unavailable" else "rejected"
+
+
+def _recall_at(store: MemoryStore, observation: Observation, trigger: Trigger) -> int:
+    """The world time a consult recalls at: the later of the newest observation's `at` and the trigger fact's.
+
+    The observation a consult reads can trail the facts the store has absorbed by a frame (D-P6b-30); at 12x a
+    100 ms tick is 1.2 world seconds. Recall at `observation.at` alone then drops the line that triggered the
+    consult and every line said in the same lag, since L0 keeps only records at or before the query's `at`
+    (fix/recall-at-trigger). The trigger fact was absorbed before it was detected (I-P6-6), so its record is in
+    the store; a record a retention pass has since removed falls back to `observation.at`.
+    """
+    row: tuple[int] | None = store.connection.execute(
+        "SELECT at FROM l0 WHERE event_key = ?", (event_key(trigger.event),)
+    ).fetchone()
+    return observation.at if row is None else max(observation.at, row[0])

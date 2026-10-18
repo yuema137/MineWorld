@@ -2263,4 +2263,18 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
   the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
   (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
+- **D-P6-41 (post-merge defect, bounded fix; branch `fix/recall-at-trigger`, 2026-10-18).** Found by an independent review
+  of #199. Cause: `SeatRunner._consult_once` built `RecallQuery(at=observation.at, …)`, and `retrieve`'s L0 keeps only
+  records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
+  at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
+  (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
+  Fix: the consult recalls at `max(observation.at, the trigger fact's at)`, the trigger's `at` read from its `l0` row
+  (absorbed before detection, I-P6-6; a row a later retention pass removed falls back to `observation.at`), in the new
+  `seat._recall_at`. No contract change: `RecallQuery`, `Trigger` and the decision-log format are unchanged (the logged
+  `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
+  `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
+  the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
+  `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
+  locally (407 passed, 2 skipped); CI on the PR head gates the rest.
 - (planning findings are §3.2 and §0.1)

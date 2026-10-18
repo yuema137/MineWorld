@@ -175,6 +175,39 @@ def test_a_spoken_line_is_a_trigger_and_the_consult_chooses_nothing(tmp_path: Pa
     assert len(record.record.attempts) == 1
 
 
+def test_recall_includes_the_lines_said_after_the_observation_the_consult_reads(
+    tmp_path: Path,
+) -> None:
+    # fix/recall-at-trigger: the seat's newest observation trails the facts it absorbed (D-P6b-30); at 12x one
+    # 100 ms tick is 1.2 world seconds. Here the observation is at world second 1, the visitor's earlier line at
+    # 10 and the line that triggers the consult at 12. Recall must be made at the trigger's instant, so the earlier
+    # line is in the consult's memory. Its mutation (recall at `observation.at`) leaves the memory empty.
+    async def scenario() -> None:
+        link = Link(welcome(resume=1), observation(1, at=1))
+        task = asyncio.create_task(
+            _runner(tmp_path, ScriptedServer(link), FakeClock(), ScriptedAnswers(_nothing)).run()
+        )
+        await until(lambda: "join" in link.kinds(), "the join")
+        link.say(
+            perceived(
+                "3",
+                spoke("2", speaker="5", utterance="my umbrella is red", at=10),
+                spoke("3", speaker="5", utterance="what colour was it?", at=12),
+            )
+        )
+        await until(
+            lambda: any(record.input.trigger.event == "3" for record in _decisions(tmp_path)),
+            "the consult on the second line",
+        )
+        await _cancel(task)
+
+    run(scenario())
+    record = next(record for record in _decisions(tmp_path) if record.input.trigger.event == "3")
+    assert record.input.observation.at == 1
+    last_day = [line for line in record.input.memory.lines if line.level == "L0"]
+    assert [line.citation.ranges[0].first for line in last_day if "umbrella" in line.text] == ["2"]
+
+
 def test_a_restarted_process_does_not_answer_again_a_line_its_store_already_held(
     tmp_path: Path,
 ) -> None:
