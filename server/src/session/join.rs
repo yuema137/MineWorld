@@ -87,9 +87,7 @@ pub(super) async fn join(
     match read_backfill(seated.perceived(), seated.observer()).await {
         Ok(frames) => Joining::Seated(Box::new(seated), nickname, credential, frames),
         Err(refusal) => {
-            connection
-                .host
-                .leave(seated.subscription(), Departure::Left);
+            connection.host.leave(seated, Departure::Left);
             Joining::Refused(refusal)
         }
     }
