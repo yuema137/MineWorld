@@ -3845,6 +3845,8 @@ four variants (`ARC-14`) were code, and the pack it drew from was its own projec
 **What it does not decide.** Whether an interaction is valid (`ART_DIRECTION.md` §19), or anything
 about a world: a pack may depict any world, and a world may be depicted by any pack.
 
+**Note 1, 2026-10-14 (S26-a; `ARC-92`) — the role list gains `look:<key>`.** A person's disclosed `look` (`ARC-91`) is asked for as `look:<key>` before `person:<n>`; for the observer, before `player`. A `look` is a disclosed component value, like the tag in `facade:<tag>`, so "the core never asks for a role by a world key" stands, and the list of role kinds gains one. Specified in `clients/2d/PRESENTATION.md` §3.1; read by the client from S26-e.
+
 ---
 
 ## ARC-47 — No rule in the client, made executable
@@ -4196,6 +4198,27 @@ consult is the lattice consult when a lattice instant lies between the seat's pr
 this one, because the runtime builds the observation at `due.max(world.now())`. There it is `decide`,
 and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
 seat does not walk.
+
+**Note, 2026-10-15 (F-tick-1; operator ruling amending D-SB12, `step-12-server.md` §16.11).** The
+wall-clock p99 bound failed on shared CI runners while the server's own work was unchanged: F-12n-CI1's
+57.3 and 62.8 ms, PR #206's 70.7 ms and PR #198's 189.6 ms, every one with a wall p50 of 0.3–0.6 ms and
+each passing on re-run. E-SB9 had already located every slow tick off-CPU (wall ≫ CPU). The p99 of
+1 200 wall ticks is the twelfth-longest, so twelve preemptions decide it. The measured statement is
+therefore split by what each clock can see:
+
+- The server also records the world thread's **own CPU time** per tick, in a second fixed histogram
+  (`DEP-59`), and the statistics line becomes `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms,
+  cpu p50 C ms, cpu p99 D ms`. The first three duration columns are wall time, as before.
+- CP-B4 (and CA-13, which reuses its bound) asserts **CPU p99 ≤ 50 ms**, the tail of the work a tick
+  does, which runner load cannot move, and **wall p50 ≤ 50 ms**, the typical tick as a client feels it,
+  which catches a tick that waits without computing (a sleep, a blocking call). The wall p99 and the
+  maximum are printed beside them and do not gate.
+- **Accepted gap.** An off-CPU wait in fewer than half the ticks (the journal's fsync per hosted request,
+  `Durability::PowerLoss`, on a slow disk) is visible only in the advisory columns. E-SB9 measured a
+  commit at ≤ 5.1 ms even under eight fsync-heavy neighbouring servers, so the bound gives up nothing
+  measured; a durability regression is R-S11-5's to watch, not this bound's.
+- If the thread's CPU clock cannot be read, the tick's CPU time is recorded as its wall time, an upper
+  bound: a missing clock can only make the bound harder to meet.
 
 ---
 
@@ -8157,6 +8180,53 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 ---
 
+## ARC-91 — Appearance is a perceivable trait of a Person, owned by the `appearance` System Pack
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-11); implemented by S26-a · **Approved by** the operator (Q-S26-11, Q-S26-4, Q-S26-9) · **Relates to** `ARC-31` (sections), `ARC-33` (installed set), `ARC-46`, `ARC-92`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.2 (Traits), [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.1–4.2; `pr-s26a-appearance.md`
+
+**Problem.** Every person must be drawn as themselves in both reference clients, and in any third client. A client can read only a person's entity id, tags, disclosed components and display name. None of them identifies an appearance: an id is a creation-order counter that renumbers when a place is added; a display name is absent without `naming`, can be shared, and would make a face change when a name changes or, if names are ever gated by acquaintance (`ARC-31`), when a stranger is introduced; a tag is semantic content that Systems and controllers read. Nobody owned an appearance, so each client invented one from a hash, and nine sprites came to serve twelve people.
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) `hash(entity id)` modulo a pool | Declined: distinct only by luck; cannot say "Alice looks like this" |
+| (b) The entity id listed in a Presentation Pack | Declined: ids are creation-order counters; an unreviewable list of numbers |
+| (c) The display name | Declined: absent without `naming`; may collide; makes appearance depend on what the observer knows |
+| (d) A presentation tag (`look:alice`) | Declined: pollutes a semantic vocabulary every consumer reads, with no owner |
+| (e) A disclosed `look` component owned by a System Pack | **Chosen** |
+
+**Choice.**
+
+1. **`appearance` is a System Pack** on the `naming` pattern: it owns a person file's `appearance:` section (`{ look: <key> }`, unknown keys refused), states a public `appeared` fact at genesis, reduces it into the `look` component (`{ "look": "<key>" }`, schema 1) and discloses that to every observer who perceives the person. It depends on nothing and declares no action or process.
+2. **A look is an opaque key**: 1–48 bytes of `a`–`z`, `0`–`9` and `-`. It names an appearance; it is not a mesh, a file, a texture, a colour, a height or any other renderer concept. A Presentation Pack resolves it (`ARC-92`).
+3. **No descriptors.** Apparent age, stature, build, skin and hair are not world facts: no System consumes them. They live in the casting brief, in the Presentation Pack. A System that later needs stature makes it a `bodies` section.
+4. **Appearance never depends on what the observer knows.** Disclosure is gated by perception only.
+5. **Single ownership.** A later clothing, ageing or disguise System changes a look by having this pack state `appeared` again; no other pack writes `look`.
+
+**Consequences.** A world without the pack, or a person without the section, has no look, and every client draws them with its fallback. The default worlds' keys are name slugs for review readability. A controller sees `look` as it sees any component; the memory renderer stores `appeared` generically and never shows the key as a name.
+
+**Revisit** if names become acquaintance-gated (the default keys then become opaque codes in one data migration per world, R-S26-9), or when a System needs an appearance descriptor.
+
+---
+
+## ARC-92 — The cast binding lives in the Presentation Pack; one resolution order; the fallback is the extras pool
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-8, Q-S26-9); specified by S26-a; read by the 3D client from S26-c2 and by the 2D client from S26-e · **Approved by** the operator (Q-S26-8, Q-S26-9, Q-S26-11) · **Relates to** `ARC-3`, `ARC-9`, `ARC-46` (amended, Note 1), `ARC-91`, `DEP-16`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1 · **Specified in** [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md), [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) §3.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.3–4.4, 8
+
+**Problem.** `ARC-91` gives every person a disclosed look key. Something must turn a key into a character in 3D and a sprite set in 2D, without the world learning anything about art, and with a fallback for a person whose look a pack does not know that is never a cruder kind of body.
+
+**Choice.**
+
+1. **3D: `characters/cast.yaml`** in a 3D Presentation Pack, in YAML's JSON-compatible subset: `format` (1), `looks` (look key → character id), `extras` (character ids: the fallback and decorative pool), `default` (the character used when no world is connected). A character id names `characters/cast/<id>/` in the pack; its meshes stay resources of the client that imports them (the 3D client cannot load a skinned, retargeted model from a runtime pack today).
+2. **2D: a `look:<key>` role** in the `people` binding set. It is a disclosed component value, the same class of input as the tag in `facade:<tag>`, never a world key.
+3. **One resolution order in both clients.** A person whose look the pack binds is drawn as that character or sprite. A person with no look, or one the pack does not bind, is drawn as `extras[posmod(hash(id string), len(extras))]` in 3D and as `person:<n>` by the same hash in 2D. A pack with no extras (3D) or no `person:<n>` (2D) uses its `default` (3D) or plain drawing (2D). With no pack, plain drawing. The observer is resolved the same way, so a player is drawn as the Person they occupy; the 2D `player` role is only the fallback for an observer with no bound look.
+4. **The fallback is never a cruder model class.** Every `extras` entry is a character made by the same pipeline and held to the same standard as a named person (step-26 §6, which S26-b1 records as `ARC-94`). In the default pack, the café street's extras are the lakeside cast (Q-S26-8, E-2), so no person of the present world appears twice.
+5. **A pack decides nothing.** A binding changes how a person looks, never which requests a client sends, and a look is never shown as text.
+
+**Consequences.** The default 3D pack ships an empty but valid binding until its characters exist; `scripts/check_cast.py` checks its structure. Adding a world's cast is an edit to one pack file, never to a client or a world.
+
+**Revisit** when 3D Presentation Packs become loadable at runtime (the binding then also names the meshes), or when a world that is neither the café town nor the lake needs its own extras (E-1).
+
 ## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
 
 **Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
@@ -8307,6 +8377,34 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
 
 **Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
+
+---
+
+## DEP-59 — The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys`
+
+**Date** 2026-10-15 · **Status** accepted; dependency added in the F-tick-1 fix · **Approved by** the operator, 2026-10-15 ("服务器加测'线程真正干活的时间'" — the server also measures the time the thread actually works), amending D-SB12 · **Relates to** `ARC-42` (note of 2026-10-15), `DEP-29` note, `REUSE_POLICY.md` §§11–12 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §16.11 (D-SB12, F-tick-1 note)
+
+**Problem.** CP-B4's tick bound needs the CPU time the world thread spends inside one tick, on macOS, Linux and Windows. The standard library has no thread CPU clock. Every platform has one behind a C call: `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` on Unix, `GetThreadTimes(GetCurrentThread(), …)` on Windows, both `unsafe` to call from Rust.
+
+**Options considered** (both directions).
+
+| Option | Code we own | Verdict |
+| --- | --- | --- |
+| (a) **`cpu-time` 1.0.0** (MIT OR Apache-2.0, tailhook/cpu-time): `ThreadTime::try_now()` / `try_elapsed()`, `clock_gettime` over `libc` on Unix, `GetThreadTimes` over `winapi` 0.3 on Windows | One call site, no `unsafe` | **Chosen** |
+| (b) `libc` (Unix) and `windows-sys` 0.61 (Windows) as direct `cfg` dependencies — both already in `Cargo.lock` transitively | Two `cfg`-gated `unsafe` blocks (~30 lines), the `FILETIME` arithmetic, a `windows-sys` feature set (`Win32_System_Threading`, `Win32_Foundation`), and a Windows branch no developer machine here compiles | Declined: the same `unsafe` calls as (a), written and kept by us |
+| (c) `libc` on Unix and one `extern "system"` declaration of `GetThreadTimes` from kernel32 (the `DEP-29` note's form) | As (b), less one dependency edge, plus a hand-written FFI signature with pointer arguments | Declined: `DEP-29`'s call took two integers and touched no memory; `GetThreadTimes` writes four structures through pointers, which is exactly what a reviewed binding is for |
+| (d) Process CPU time read from outside (`ps`, `/proc`, `GetProcessTimes` in the test harness) | A per-platform parser in the tests | Declined: the whole process, not the world thread; one total, not a per-tick tail |
+| (e) `sysinfo`, `nix` | — | Declined: `sysinfo` is a whole-system inspector far beyond one clock; `nix` is Unix-only |
+
+**Facts verified at source** (crate sources in the cargo registry, 2026-10-15): `cpu-time` 1.0.0 is 346 lines (`lib.rs`, `clock_gettime.rs`, `windows.rs`). Its `ThreadTime` is a `Duration` with a `PhantomData<Rc<()>>`, so it is neither `Send` nor `Sync` and cannot be read on one thread and compared on another. `try_now` returns `io::Result` (the panicking `now` is not used). Licence field `MIT/Apache-2.0`, with `LICENSE-MIT` and `LICENSE-APACHE` in the package. New crates in `Cargo.lock`: `cpu-time`, and on Windows targets only `winapi` 0.3.9, `winapi-i686-pc-windows-gnu` 0.4.0 and `winapi-x86_64-pc-windows-gnu` 0.4.0, each `MIT/Apache-2.0`. `cargo deny check licenses sources bans` passes with them. `libc` is already compiled on Unix.
+
+**Choice.** (a). It is the least code we own that is correct on all three platforms, and it has no `unsafe` of ours. `cpu-time` is named only in `server/src/runtime/world.rs` (`TickStart`, `TickTimes`), so its types do not cross the module. If the clock cannot be read, a tick's CPU time is recorded as its wall time, an upper bound.
+
+**Accepted limitations.**
+- **Maintenance.** `cpu-time` 1.0.0 and `winapi` 0.3 are not actively developed. The calls they wrap are stable OS interfaces, and the crate is small enough to vendor or replace with (b) in an afternoon if either stops building.
+- **Windows resolution.** Windows charges thread time at the scheduler's clock interval (commonly 15.6 ms), not per instruction. A sub-millisecond tick therefore reads as 0 or one interval, and a tick has to burn at least four intervals (about 63 ms) to be sure to read over 50 ms there. The bound keeps its meaning — steady-state ticks measured ≤ 0.6 ms of CPU (step-12 E-SB9) — but the planted CPU mutation is evidence on macOS, not Windows.
+
+**Revisit** if `cpu-time` or `winapi` stops building on a supported target, or if the server comes to need more than one OS clock (then (b) behind a MineWorld module).
 
 ---
 

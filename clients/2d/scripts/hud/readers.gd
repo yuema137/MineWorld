@@ -12,8 +12,9 @@ extends RefCounted
 const Words := preload("res://scripts/hud/words.gd")
 
 ## Components shown elsewhere or not at all: names label the figures, participation is the marker
-## over each participant, passages are the drawn doorways.
-const SHOWN_ELSEWHERE := ["display-name", "participation", "passages"]
+## over each participant, passages are the drawn doorways, and a look chooses how a figure is drawn
+## (`ARC-92`), never text.
+const SHOWN_ELSEWHERE := ["display-name", "participation", "passages", "look"]
 
 ## id → the last display name the world disclosed for it in this instance (presentation memory,
 ## like the layout cache: dropped when the instance changes).

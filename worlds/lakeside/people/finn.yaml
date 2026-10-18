@@ -1,6 +1,7 @@
 # Finn — a boatbuilder. Sections as in alba.yaml.
 
 name: Finn Halvorsen
+appearance: { look: finn-halvorsen }
 
 routine:
   - { from: "06:00", place: pier, label: fishing }
