@@ -1,6 +1,7 @@
 # Elin — a painter staying for the summer. Sections as in alba.yaml.
 
 name: Elin Berg
+appearance: { look: elin-berg }
 
 routine:
   - { from: "06:00", place: bakery, label: breakfast }

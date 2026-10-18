@@ -16,6 +16,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use mineworld_appearance::{Appeared, Look};
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, Causation, EntityId, EntityKey,
     EntityType, Event, EventTypeId, LifecycleState, Location, PersonId, Rejection, Tag, WorldTime,
@@ -74,6 +75,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::Naming,
             Capability::Schedule,
             Capability::Persona,
+            Capability::Appearance,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -218,10 +220,10 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        62,
+        74,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
-         routine implies (ARC-32), then the nine authored personas (ARC-74)",
+         routine implies (ARC-32), then the nine authored personas (ARC-74), and their look (ARC-91)",
     );
 }
 
@@ -336,11 +338,63 @@ fn every_person_is_named_by_the_owner_of_the_name_section_after_everything_else(
 }
 
 #[test]
+fn every_person_has_the_look_their_file_authors() {
+    let world = loaded();
+    let read = world.world().read();
+    // Located, not assumed to sit at an index: every `appeared` fact, decoded with appearance's own type.
+    let appeared: Vec<(usize, Appeared)> = world
+        .genesis()
+        .iter()
+        .enumerate()
+        .filter(|(_, fact)| *fact.event_type() == Appeared::EVENT_TYPE)
+        .map(|(at, fact)| {
+            let payload = fact
+                .payload()
+                .payload_for::<Appeared>()
+                .expect("appearance's fact");
+            (at, serde_json::from_slice(payload).expect("decodes"))
+        })
+        .collect();
+    let authored = [
+        ("alice", "alice-moreau"),
+        ("bob", "bob-achterberg"),
+        ("carol", "carol-mensah"),
+        ("dev", "dev-raman"),
+        ("erin", "erin-walsh"),
+        ("felix", "felix-okafor"),
+        ("grace", "grace-liu"),
+        ("hana", "hana-sato"),
+        ("ivan", "ivan-petrov"),
+        ("otto", "otto-brandt"),
+        ("visitor", "vera-lindgren"),
+        ("wanderer", "wes-calloway"),
+    ];
+    assert_eq!(appeared.len(), authored.len(), "one look per person");
+    for ((at, fact), (person, look)) in appeared.iter().zip(authored) {
+        let id = world.id(&key(person)).expect("resolves");
+        assert_eq!(fact.person().entity_id(), id, "people in key order");
+        assert_eq!(fact.look().as_str(), look, "{person}'s authored look");
+        assert!(*at >= 17, "after every passage and arrival: index {at}");
+        assert_eq!(
+            world.genesis()[*at].provenance().emitted_by().as_str(),
+            "appearance",
+            "stated as the owner of the section"
+        );
+        assert_eq!(
+            read.component::<Look>(id).map(|held| held.look().as_str()),
+            Some(look),
+            "and reduced by appearance into {person}'s look"
+        );
+        assert_ne!(look, person, "a look is not its key");
+    }
+}
+
+#[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming`, `schedule` and `persona` and without their sections (a world
-    // that does not enable a section's owner refuses the section): the first seventeen genesis facts
-    // must be the same
-    // bytes with or without sections — passages and arrivals keep their event ids (ARC-31).
+    // The same pack without `naming`, `schedule`, `persona` and `appearance` and without their sections
+    // (a world that does not enable a section's owner refuses the section): the first seventeen genesis
+    // facts must be the same bytes with or without sections — passages and arrivals keep their event
+    // ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
     for directory in ["people", "places"] {
         std::fs::create_dir_all(root.join(directory)).expect("writable");
@@ -352,6 +406,7 @@ fn sections_do_not_move_the_facts_stated_before_them() {
                 .filter(|line| {
                     !line.starts_with("name:")
                         && !line.starts_with("routine:")
+                        && !line.starts_with("appearance:")
                         && !line.starts_with("  - { from:")
                         && !line.starts_with("persona:")
                         && !line.starts_with("  summary:")
@@ -372,7 +427,8 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         manifest
             .replace("  - naming\n", "")
             .replace("  - schedule\n", "")
-            .replace("  - persona\n", ""),
+            .replace("  - persona\n", "")
+            .replace("  - appearance\n", ""),
     )
     .expect("writable");
 
