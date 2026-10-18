@@ -348,6 +348,7 @@ async fn the_panels_show_what_is_disclosed() {
                 record(me, "weather-sense", json!({ "sky": "overcast", "wind": 3 })),
                 Some(GONE_AFTER),
             ),
+            (record(me, "look", json!({ "look": "carol-mensah" })), None),
         ],
         place: vec![record(
             "1",
@@ -403,6 +404,10 @@ async fn the_panels_show_what_is_disclosed() {
     let raw: Value =
         serde_json::from_str(other["rows"][0].as_str().expect("raw JSON")).expect("raw JSON");
     assert_eq!(raw, json!({ "sky": "overcast", "wind": 3 }));
+    assert!(
+        panel(first, "look").is_none(),
+        "a look chooses how a figure is drawn, never a panel"
+    );
     // Gone at the frame that no longer carries it: the first panels drawn from frame GONE_AFTER + 1.
     let gone = all
         .iter()
