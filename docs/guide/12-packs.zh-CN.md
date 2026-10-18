@@ -70,7 +70,7 @@ authors:
 
 ```console exit=1
 $ mineworld packs validate packs/corner-goods
-[mineworld] packs/corner-goods: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, one file per item kind
+[mineworld] packs/corner-goods: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, one file per item kind, or a .yaml file in a data directory an installed System Pack owns
 ```
 
 **你应该看到**一条拒绝信息：Entity Pack 里至少要有一样东西。
