@@ -290,15 +290,12 @@ async fn killed_mid_walk_and_relaunched() {
         .and_then(|e| e.location())
         .and_then(|l| l.local())
         .expect("alice's position");
-    let from = seen
-        .self_location()
-        .and_then(|l| l.local())
-        .expect("own position");
-    let (fx, fy) = (from.x().value(), from.y().value());
-    let (tx, ty) = (to.x().value() - 1000, to.y().value() - 1000);
-    wanderer
-        .walk_accepted(support::walk(me, place, (fx, fy), (tx, ty)))
-        .await;
+    // Since the café has bodies (step-11 §19) the table between the wanderer and Alice and the counter
+    // in front of her are solids: the wanderer walks to the counter's customer side next to her
+    // (`ac15_one_alice.rs` ALSO_NEXT_TO_ALICE, 1.3 m east of her and in front of the counter), the
+    // world routing the walk round the table (`walk-to`, ARC-75) and the wanderer pacing it.
+    let next_to_alice = (to.x().value() + 1_300, 6_200);
+    wanderer.walk_there(me, place, Some(next_to_alice)).await;
     wanderer
         .submit_accepted(talk(me, alice, "Busy morning?"))
         .await;

@@ -81,12 +81,13 @@ var _crossed_at := Vector2.ZERO
 var _latest: MineWorldObservation = null
 ## An accepted stride of a walk still to go waits for the observation that shows where it ended.
 var _confirming := false
-## The stride last accepted (its `end` marks the last stride of a leg), and consecutive legs split
-## again without the body moving: a leg the world keeps stopping ends the walk (STUCK_LIMIT).
+## The stride last accepted (its `end` marks the last stride of a leg).
 var _last_step: Dictionary = {}
-var _stuck := 0
-const STUCK_LIMIT := 2
+## A stride that moved the body less than this made no progress: the walk ends there.
 const PROGRESS_M := 0.05
+## A stride stopped short ends within this of its own line (a person's radius and the gap, 260 mm,
+## plus the bias turn's sideways step); farther away the world moved the body some other way.
+const ON_LINE_M := 0.3
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
@@ -111,7 +112,6 @@ func observe(observation: MineWorldObservation) -> void:
 		# Reconciliation on difference: one rule for a stride stopped short, a refusal, a nudge
 		# and a teleport. The body goes where the world says; no request answers it.
 		var was_placed := placed
-		var before := accepted_plan
 		body_plan = plan
 		_goal = plan
 		body_place = place
@@ -122,37 +122,48 @@ func observe(observation: MineWorldObservation) -> void:
 		if was_placed:
 			reconciled.emit(place, plan)
 		if confirming:
-			_replan(before)
+			_replan()
 	elif confirming:
-		_stuck = 0
 		if _route.is_empty():
 			walk_ended.emit(true)
 
 
-## The stride just accepted ended elsewhere: the rest of its leg is split again from where the world
-## put the body. `before` is the position the stride started from; no progress twice ends the walk.
-func _replan(before: Vector2) -> void:
-	if accepted_plan.distance_to(before) < PROGRESS_M:
-		_stuck += 1
-	else:
-		_stuck = 0
+## The stride just accepted ended elsewhere. Short of its point on its own line (a wall, a solid or a
+## person in the way), the rest of its leg is split again from where the world put the body; a stride
+## that made no progress ends the walk there, accepted. Anywhere else (a teleport, a displacement)
+## the body follows and the walk ends: a move never answers the world (AC-W6).
+func _replan() -> void:
+	var start := _stale_plan
+	var asked: Vector2 = _last_step.get("plan", accepted_plan)
+	var crossed: bool = _last_step.get("crossing", false)
+	var here: bool = _last_step.get("place", "") == accepted_place
+	# A crossing that arrived in the place it led to, displaced from its point by somebody standing
+	# there, goes on from where it arrived; a stride goes on only from a point on its own line.
+	var short := here and (crossed or Geometry2D.get_closest_point_to_segment(
+		accepted_plan, start, asked).distance_to(accepted_plan) <= ON_LINE_M)
+	if not short or (not crossed and accepted_plan.distance_to(start) < PROGRESS_M):
+		_finish_where_placed()
+		return
 	var waypoint: Dictionary = _last_step if _last_step.get("end", false) else {}
 	while waypoint.is_empty() and not _route.is_empty() and not _route[0].get("crossing", false):
 		var step: Dictionary = _route.pop_front()
 		if step.get("end", false):
 			waypoint = step
-	if waypoint.is_empty():
-		# The last stride was a crossing with nothing of its leg left to walk: the walk is over
-		# wherever the world placed the body; otherwise the route goes on and the server answers.
+	if waypoint.is_empty() or waypoint["place"] != accepted_place:
+		# Nothing of this leg is left to walk (the stride was its last, or a crossing ends the walk):
+		# the walk goes on, or ends, from where the world placed the body.
 		if _route.is_empty():
 			walk_ended.emit(true)
-		return
-	if waypoint["place"] != accepted_place or _stuck >= STUCK_LIMIT:
-		_end_refused()
 		return
 	var again := _strides(accepted_place, accepted_plan, waypoint["plan"])
 	again.append_array(_route)
 	_route = again
+
+
+## The walk ends where the world put the body: the strides were accepted, so it ended, completed.
+func _finish_where_placed() -> void:
+	_route.clear()
+	walk_ended.emit(true)
 
 ## Walks to a point the player clicked (plan metres), through doorways when it lies in another place.
 ## A click on a disclosed doorway of the place the body is in means "go through it" (F-10): the
@@ -227,7 +238,6 @@ func abandon() -> String:
 	var unanswered := _token
 	_route.clear()
 	_confirming = false
-	_stuck = 0
 	_token = ""
 	_step = {}
 	_reconcile_next = true
@@ -270,7 +280,6 @@ func refused(token: String) -> void:
 func _end_refused() -> void:
 	_route.clear()
 	_confirming = false
-	_stuck = 0
 	_step = {}
 	_reconcile_next = true
 	walk_ended.emit(false)
