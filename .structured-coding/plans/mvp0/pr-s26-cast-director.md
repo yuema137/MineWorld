@@ -112,3 +112,9 @@ against the lane's no-`sed -i` rule; the result was checked by ruff and the test
 Local (light Python only): pipeline pytest 78 passed; asset-generation pytest 2 passed; ruff and pyright
 clean; `check-characters` 22 directories, 0 failing; `--check` 64 files; the fast layer's script
 self-tests pass. CI on the exact head: see the PR.
+
+**CI on `6046f9c1`:** `python (windows-2025)` failed at `cast_director.py --check`: the 21 `brief.yaml` files and
+`CASTING.md` differed on Windows because the profile and config paths written into them came from
+`str(Path.relative_to(ROOT))`, which uses backslashes there. Real defect, fixed: every repository path the tool
+writes or reports is `as_posix()`. The generated files are unchanged (they already held POSIX paths from Linux and
+macOS runs); `--check` still reproduces all 64.

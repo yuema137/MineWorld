@@ -174,7 +174,7 @@ def load_profile(path: Path) -> dict:
     data = read_yaml(path, "population profile")
     if "profile_of" in data:
         return load_profile(path.parent / data["profile_of"]) | {
-            "_path": str(path.relative_to(ROOT)),
+            "_path": path.relative_to(ROOT).as_posix(),
             "_name": data.get("profile", path.stem),
         }
     attrs = data.get("attributes")
@@ -188,7 +188,7 @@ def load_profile(path: Path) -> dict:
                 raise CastError(
                     f"population profile {path}: `{name}` is given `{g}`, which is not an earlier attribute"
                 )
-    return data | {"_path": str(path.relative_to(ROOT)), "_name": data.get("profile", path.stem)}
+    return data | {"_path": path.relative_to(ROOT).as_posix(), "_name": data.get("profile", path.stem)}
 
 
 def given_of(spec: dict) -> list[str]:
@@ -561,7 +561,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true", help="verify the committed outputs; write nothing")
     args = ap.parse_args(argv)
     cfg_path = args.config.resolve()
-    cfg = read_yaml(cfg_path, "casting config") | {"_path": str(cfg_path.relative_to(ROOT))}
+    cfg = read_yaml(cfg_path, "casting config") | {"_path": cfg_path.relative_to(ROOT).as_posix()}
     for k in ("seed", "template", "inputs", "output_dir", "worlds", "distinctness", "table"):
         if k not in cfg:
             raise CastError(f"casting config {cfg_path} lacks `{k}`")
@@ -611,7 +611,7 @@ def main(argv: list[str] | None = None) -> int:
     for path, text in sorted(files.items()):
         if args.check:
             if not path.is_file() or path.read_text(encoding="utf-8") != text:
-                drift.append(str(path.relative_to(ROOT)))
+                drift.append(path.relative_to(ROOT).as_posix())
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8", newline="\n")
