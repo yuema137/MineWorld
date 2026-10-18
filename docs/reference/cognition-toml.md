@@ -17,7 +17,7 @@ not listed here are refused by the loader.
 
 ## `[recording]`
 
-The `[recording]` table. Required: it names the mode every answer comes from.
+The `[recording]` table: where answers come from, and whether they are recorded.
 
 | Key | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ The `[tiers]` table: which backend answers each decision tier. Keys are tier nam
 
 ## `[budgets]`
 
-The `[budgets]` table: the most calls and tokens the client may spend.
+The `[budgets]` table: the limits of `BudgetPolicy`, and where the spend is kept.
 
 | Key | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
@@ -64,14 +64,71 @@ The `[backends.<name>]` tables: one per backend, named by you. A name uses lower
 | `reasoning` | one of `unset`, `off`, `low`, `medium`, `high` | no | `"unset"` | none | The reasoning effort the server should use: `off`, `low`, `medium` or `high`. `unset` sends no reasoning setting. Not allowed with `kind = "anthropic"`. |
 | `temperature` | one of `send`, `omit` | no | `"send"` | none | `send` sends the sampling temperature with each request. `omit` leaves it out, for a model that refuses a temperature. |
 | `request_timeout_s` | whole number, or unset | no | unset | >= 1, <= 3600 | Seconds to wait for one answer from this backend, from 1 to 3600. Unset means this table sets no request timeout. |
+| `retry` | see the description, or unset | no | unset | none | The `[backends.<name>.retry.<layer>]` tables: retry layers for the seats that use this backend, between a seat's own override and `[retry]`. |
 
 ## `[secrets]`
 
-The `[secrets]` table: where API keys are read from.
+The `[secrets]` table: an optional `.env`-style file that holds API keys.
 
 | Key | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `env_file` | text, or unset | no | unset | none | A `.env`-style file that holds API keys, read only when named here. A relative path is resolved against this configuration file. On macOS and Linux the file must not be readable by its group or by others (`chmod 600`); the loader refuses it otherwise. |
+
+## `[controller]`
+
+The `[controller]` table: the consult's bounds and the seat's timing (pr-s10-p6 §5.13).
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `consult_deadline_s` | whole number | no | `20` | >= 1, <= 120 | Wall seconds from a trigger's receipt to the submit, from 1 to 120. |
+| `max_calls` | whole number | no | `5` | >= 1, <= 10 | The most model calls one consult may make, from 1 to 10. |
+| `handback_s` | whole number | no | `10` | >= 1, <= 600 | Wall seconds a seat stays with its fallback model after a handback, from 1 to 600. |
+| `seat_retry_s` | whole number | no | `60` | >= 1, <= 3600 | Wall seconds between joins while another client holds the seat, from 1 to 3600. |
+| `recall_episodes` | whole number | no | `8` | >= 0, <= 8 | How many episode lines of memory a consult shows, from 0 to 8. |
+| `greet_cooldown_s` | whole number | no | `1800` | >= 0, <= 86400 | World seconds before the same person may trigger a greeting again, from 0 to 86400. |
+
+## `[retry]`
+
+The three retry layers of one table: `[retry]`, `[retry.<layer>]` per table.
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `transport` | see the description, or unset | no | unset | none | The transport layer (backoff, Retry-After); unset uses the bundled default. |
+| `content` | see the description, or unset | no | unset | none | The content layer (invalid answers, re-asked); unset uses the bundled default. |
+| `semantic` | see the description, or unset | no | unset | none | The semantic layer (refused proposals, re-planned); unset uses the bundled default. |
+
+## `[breaker]`
+
+The `[breaker]` table: the per-seat circuit breaker. Unset uses the bundled default.
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `policy` | text | yes | none | none | The policy's id, one of the installed policies (for example `exponential-backoff`). |
+| `parameters` | table | no | none | none | The policy's parameters. The policy checks them; an unknown one is refused by name. |
+
+## `[seat_overrides.<name>]`
+
+The `[seat_overrides.<key>]` tables: per-seat controller bounds and retry layers. The name `seat_overrides` is used so that `seats` can name the subset of seats (D-P6b-3).
+
+`<name>` must match the pattern `^[a-z][a-z0-9-]{0,47}$`. One table per backend:
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `controller` | table | no | none | none | The `[seat_overrides.<key>.controller]` table: the seat's own bounds. |
+| `retry` | table | no | none | none | The `[seat_overrides.<key>.retry.<layer>]` tables: the seat's own retry layers. |
+
+## Top-level keys
+
+Keys written before the first table of the file.
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `server` | text, or unset | no | unset | none | The protocol address of the server, for example `ws://127.0.0.1:7878/ws`. Required by the LM controller (`python -m mineworld_cognition`); a loopback address is the usual choice. |
+| `invite_env` | text | no | `"MINEWORLD_INVITE"` | none | The NAME of the environment variable that holds the server's invite. The invite is read from the environment only; this file never holds it. |
+| `nickname` | text | no | `"cognition"` | length >= 1, length <= 32 | The nickname the controller joins with, from 1 to 32 characters. |
+| `store` | text, or unset | no | unset | none | The directory of the controller's own state (memory stores, resume secrets, decision logs). A relative path is resolved against this configuration file. It must not be inside a world. |
+| `decisions_json` | text, or unset | no | unset | none | The JSON that `mineworld decisions … --json` printed for the world the server runs. A relative path is resolved against this configuration file. |
+| `seats` | see the description, or unset | no | unset | none | Optional subset of the `lm` seats in `decisions_json` to join. Every entry must be an `lm` seat of that file; unset joins all of them. |
 
 ## Examples
 

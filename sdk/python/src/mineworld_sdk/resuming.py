@@ -47,7 +47,7 @@ from mineworld_sdk.session import (
     open_socket,
 )
 from mineworld_sdk.wire.contract import ActionRequest
-from mineworld_sdk.wire.frames import Invite, ObservationFrame, Perceived, Welcome
+from mineworld_sdk.wire.frames import Clock, Invite, ObservationFrame, Perceived, Welcome
 from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId, ResumeSecret, WorldInstanceId
 
 __all__ = [
@@ -138,6 +138,7 @@ class ResumingSeat:
         self._session: SeatSession | None = None
         self._candidate: SeatSession | None = None
         self._welcome: Welcome | None = None
+        self._ended_clock: Clock | None = None
         self._connection = 0
         self._verdict: asyncio.Future[MineWorldError] | None = None
         self._end: BaseException | None = None
@@ -243,6 +244,16 @@ class ResumingSeat:
     def connection(self) -> int:
         """1 for the first connection, +1 per rejoin."""
         return self._connection
+
+    @property
+    def clock(self) -> Clock | None:
+        """The current connection's newest `clock` frame — whether the host has paused the world, and
+        at what scale it runs (`PROTOCOL.md` §5.9) — or, between connections and before a new one's
+        first, the last one received; `None` before any. Read only: the SDK sends nothing about it."""
+        session = self._session
+        if session is not None and session.clock is not None:
+            return session.clock
+        return self._ended_clock
 
     async def changed(self, after: Seen | None = None) -> Seen:
         """The newest observation strictly after `after` in `(connection, seq)` order, waiting for one.
@@ -386,6 +397,7 @@ class ResumingSeat:
                     return
                 lost = end_outcome(ended)
                 welcome, loss_at = self.welcome, self._clock()
+                self._keep_clock()
                 self._session = None
                 # Rows 4-7 and 11 fail a pending submit AnswerLost; row 3 with the SeatLost itself.
                 self._settle(AnswerLost() if lost is None or lost.cause else lost)
@@ -455,11 +467,18 @@ class ResumingSeat:
         if self._end is not None:
             return
         self._end = end
+        self._keep_clock()
         self._session = None
         self._settle(end if isinstance(end, MineWorldError) else AnswerLost())
         if self._stream is not None:
             self._stream.finish(None if isinstance(end, SessionClosed) else end)
         self._bump()
+
+    def _keep_clock(self) -> None:
+        """Keeps the ending connection's last `clock` frame for `clock` to report until the next."""
+        session = self._session
+        if session is not None and session.clock is not None:
+            self._ended_clock = session.clock
 
     def _bump(self) -> None:
         progress, self._progress = self._progress, asyncio.Event()

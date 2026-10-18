@@ -29,6 +29,7 @@ use mineworld_server::ServerFrame;
 use mineworld_worldpack::WorldPack;
 use serde_json::Value;
 use serde_json::json;
+use support::ticks::TickStats;
 use support::{Client, Server};
 
 fn facts_of(save: &std::path::Path) -> Vec<EventEnvelope> {
@@ -419,14 +420,12 @@ async fn a_resumed_stream_equals_the_offline_export() {
     );
 }
 
-/// CP-B4's bound as ruled on D-SB12: the p99 tick of the world thread, in milliseconds.
-const TICK_BUDGET_MS: f64 = 50.0;
-
 /// CA-13: a resume of a long save does not stall the world. A 300-day seed-7 market-town save
 /// (`MINEWORLD_CA13_SAVE` names one already made, or it is made here — minutes), hosted with `--town`;
 /// a client joins with `perceived { since: null }`. The backfill — the save's whole log, judged off
-/// the world thread — completes without `lagged`, and the world thread's p99 tick on the graceful stop
-/// is within CP-B4's bound; the maximum is printed beside it, with the backfill's wall time and size.
+/// the world thread — completes without `lagged`, and the world thread's tick on the graceful stop is
+/// within CP-B4's bound (CPU p99 and wall p50, `support/ticks.rs`, F-tick-1); the wall p99 and maximum
+/// are printed beside it, with the backfill's wall time and size.
 ///
 /// Every platform: the shutdown statistics need a graceful stop, which `Server::interrupt` gives on
 /// Unix and Windows alike (step-12 §17.14, R-S13-W1; step-14 §15, QW-3).
@@ -487,24 +486,12 @@ async fn a_resume_of_a_long_save_does_not_stall_the_world() {
     }
     let ended = server.interrupt();
     assert!(ended.success(), "Ctrl-C is a clean stop: {ended:?}");
-    let ticks = output.line_starting("[world] ticks ").await;
-    let field = |name: &str| -> f64 {
-        ticks
-            .split(", ")
-            .find_map(|part| part.strip_prefix(name))
-            .and_then(|rest| rest.strip_suffix(" ms"))
-            .and_then(|number| number.parse().ok())
-            .unwrap_or_else(|| panic!("{name}… ms in {ticks:?}"))
-    };
-    let (p50, p99, longest) = (field("p50 "), field("p99 "), field("longest tick "));
+    let ticks = TickStats::parse(&output.line_starting("[world] ticks ").await);
     println!(
-        "CA-13: {facts} facts in the save; backfill of {backfilled} facts in {:.1} s; tick p50 {p50} \
-         ms, p99 {p99} ms, max {longest} ms ({ticks})",
-        backfill.as_secs_f64()
+        "CA-13: {facts} facts in the save; backfill of {backfilled} facts in {:.1} s; tick {}",
+        backfill.as_secs_f64(),
+        ticks.summary()
     );
     assert!(backfilled > 0, "the wanderer learned something in 300 days");
-    assert!(
-        p99 <= TICK_BUDGET_MS,
-        "the p99 tick took {p99} ms, over {TICK_BUDGET_MS} ms (max {longest} ms)"
-    );
+    ticks.assert_within_budget();
 }

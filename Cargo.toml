@@ -115,6 +115,10 @@ toml = "1.1.6"
 # wall `Instant` (no `quanta`, no `dashmap`, no `jitter`). Named only in `server/src/seats.rs`.
 governor = { version = "=0.10.4", default-features = false, features = ["std"] }
 
+# The world thread's own CPU time per tick (DEP-59, F-tick-1): `clock_gettime(CLOCK_THREAD_CPUTIME_ID)`
+# on Unix, `GetThreadTimes` on Windows, behind one safe type. Named only in `server/src/runtime/world.rs`.
+cpu-time = "1.0.0"
+
 # The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`. `env`
 # lets `--invite` come from MINEWORLD_INVITE (no new crate), with its value hidden from `--help`.
 clap = { version = "4.6.6", features = ["derive", "env"] }

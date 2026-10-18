@@ -1465,6 +1465,17 @@ or `tools/asset_generation/` changed.
   `blender.command` renders `str(Path)`, which is backslashed on Windows (masked on `204c9be`, where the layer stopped at
   the cognition test first). Routine repair: the test expects `str(Path(...))`. The code under test is unchanged.
   73 pytest passed locally; ruff, format, pyright clean.
+- **CI on `c86dacff` (run 39069998391) and the merge of `origin/main` @ e51ffc0 (2026-10-17, F-B1-merge-1):** the one
+  failure was `test-macos (b: core 3/3, python)` at `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`
+  (`JoinRefused: seat_occupied`), the known `clients/agent` idle flake, unrelated to this PR; 97 other tests passed. The
+  merge conflicted in `docs/DECISIONS.md` (ARC-94, DEP-51, DEP-52, DEP-55 and main's ARC-149 appended at one place; all
+  kept, ours first; `check_decision_ids.py`: 156 ids, all distinct) and `scripts/ci_layer.py` (`python` layer: the
+  pipeline's pytest and `check-characters` lines kept, then main's Milestone D line). Bounded repair found by running
+  the `fast` scripts on the merged tree: `check_secrets.py scan` flagged main's S10 P7 `PLANTED_KEY` in
+  `tools/cli/tests/milestone_d.rs:79` (a fake `sk-` string the test plants to prove no key leaks). Per R-B1-6 it is
+  allowlisted with its reason (the allowlist is no longer empty, §5.11 item 4 keeps its rule that each entry has a
+  reason); `scan` 0 findings, `--self-test` PASS. Main's generated files (baselines, the DL-a golden) are taken as-is:
+  this PR touches neither.
 - **F-B1-B10-4 (minor, recorded, not fixed; follow-up for S26-b2 by ruling):** `gameready.py:191` records `dec.ratio` after
   `modifier_apply` removed the modifier, a dangling RNA read inherited from `gameready_mesh.py:93`'s print. The recorded
   `decimate_ratio` is garbage and differs between runs (`r1` 2.65e20, `r3` 0.0); nothing reads it and the geometry is
@@ -1503,3 +1514,33 @@ or `tools/asset_generation/` changed.
   `task.json` = `6583a7698d517d293214cba7315a1b15a938d4a048cb433da850dde57b2703b5` (PIPELINE §14).
 - **B1 doc checks:** `check_doc_headings.py` and `check_decision_ids.py` run after the edits (results recorded in the
   B1 commit message review line).
+- **Merge of `origin/main` @ 5cbb469 (2026-10-17).** Branch head 121662c; merge base 2d07c6c. Three textual
+  conflicts, each resolved by keeping both sides' intent:
+  - `docs/DECISIONS.md`: this branch appends `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55`; main appended `ARC-105`…`ARC-108`,
+    `ARC-98`…`ARC-101`, `ARC-120`…`ARC-126` and `ARC-110` at the same place, and git interleaved the two. Resolved by
+    taking main's file whole and appending this branch's four records, byte-for-byte as committed, after main's last
+    record; `check_decision_ids.py`: 153 ids, all distinct.
+  - `scripts/ci_layer.py`: main added `clients/agent` pytest lines to `python` and `python-smoke`; this branch added the
+    pipeline's `pytest` and `cast.py check-characters` lines at the same place. Both kept, main's line first.
+  - `cognition/lm-controller/tests/test_structural_isolation.py`: both sides generalised
+    `test_ci_runs_pytest_once_per_member` to accept non-member pytest lines (this branch for the pipeline, main for
+    S27-c, pr-s27c D-c-22). Main's version taken whole: it holds for any added pytest line whose path exists, so the
+    pipeline's line passes it.
+  No baseline, `Cargo.lock` or `.github/workflows/ci.yml` change on this branch; main's sharded `ci.yml` (#224) taken
+  as-is; merged `pyproject.toml` keeps main's `clients/agent` member and this branch's `executionEnvironments`, and
+  `uv lock --check` resolves. Evidence on the merged tree: `cargo fmt --check`; `check_secrets.py` (self-test and scan),
+  `check_decision_ids.py`, `check_doc_headings.py`, `check_ci_pins.py`, and the `ci_changes`/`check_scratch`/`ci_parity`/
+  `ci_shard` self-tests pass; `ci_layer.py python-smoke` PASS (12 commands; pipeline 73 passed; cognition 402 passed
+  including the isolation test; agent 93 passed; SDK 98 passed).
+- **Second merge of `origin/main` @ 04d5145 (2026-10-17; S10 P6a #236, S30-b #247 and #224/#246 landed after the
+  first merge).** One textual conflict, `docs/DECISIONS.md`, resolved as before: main's file whole, then this branch's
+  `ARC-94`, `DEP-51`, `DEP-52`, `DEP-55` appended byte-for-byte (the diff against main is exactly those 81 lines;
+  nothing of this branch's file is dropped); `check_decision_ids.py`: 154 ids, all distinct. `scripts/ci_layer.py` and
+  the isolation test auto-merged. No baseline, lockfile or workflow change. Local evidence is light only (operator
+  pause on heavy jobs, 2026-10-17): `check_secrets` (self-test, scan), `check_ci_pins`, `check_doc_headings`,
+  `ci_changes`/`check_scratch`/`ci_parity` self-tests, `ruff check` over every Python path, pipeline `pytest` (73
+  passed) and `test_structural_isolation.py` (4 passed). CI on the pushed head is the gate.
+- **CI on 3f4770f (first merge).** Every job passed except `python (windows-2025)`, cancelled at the job timeout
+  while `cognition/lm-controller` hung in `test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins`.
+  The same hang, at the same test, cancelled main's own run 38809489941 on 2026-10-15; this branch changes no
+  cognition code. Recorded as a pre-existing Windows flake, not a finding against this PR.
