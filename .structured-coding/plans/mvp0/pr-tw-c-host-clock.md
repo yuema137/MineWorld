@@ -1033,6 +1033,33 @@ No TW-c question remains open.
   these are edits to test files under `cognition/lm-controller/tests/` (the test harness's command line),
   not to cognition code, so INV-TW-2 ("the cognition crate is not edited") holds. The alternative that keeps
   `cognition/` untouched is a `--pace` alias, which Q-TWc-7 ruled out. Operator to confirm which yields.
+  **Widened by the independent review (2026-10-18), same ruling:** `realserver.py` also passes
+  `--time-scale 1`. P7's `test_milestone_d_100_days` was written at 1× and social-cafe now defaults to 12×
+  (C6); at 12× a one-frame observation lag drops the 2D line from recall — the ubuntu failure of run
+  39099744699's first attempt (passed on its rerun, and on Windows and macOS).
+- **Independent review of #199 (2026-10-18, REQUEST CHANGES; design sound), applied in one head:**
+  1. Scales pinned in tests: `realserver.py` `--time-scale 1` (above); `tools/cli/tests/hosted_town.rs`
+     `--time-scale 12`, so the tick-budget test states the scale it measures; its "pace of 5" comment fixed.
+  2. Stale `--pace` wording in `tools/cli/src/hosted.rs` comments (module header, `pace` field, `Pacing`,
+     the QTW-13 test note) now reads `--cadence`.
+  3. `HostedSlot::decide` (`server/src/hosted.rs`) checks each `next_consult` answer through
+     `strictly_after`, a `debug_assert!` that the answer is strictly after the instant given; a controller
+     breaking the trait's rule panics in tests instead of spinning the world thread. Test:
+     `a_controller_that_does_not_move_forward_panics_in_a_debug_build` (`#[should_panic]`, debug builds).
+  4. Defense in depth, **loopback half done**: `app::serve` and `app::serve_with_shutdown` refuse an
+     `Access { solo: true }` on a listener not bound to loopback (`InvalidInput`, naming the address),
+     before any route answers. Test: `server/tests/admin.rs`
+     `a_solo_world_is_refused_on_a_listener_that_is_not_loopback` (binds `0.0.0.0:0`).
+- **F-TWc-5 (review item 4, start-time half; recorded, not done).** "A fast-forward at start requires
+  `--solo`" stays enforced only in `tools/cli/src/serve.rs` (and live in `admin.rs`). Enforcing it in the
+  library needs the start-time scale and `solo` in one place: `solo` lives in `app::Access` (the router's),
+  the scale in `HostConfig.time_scale` (the world thread's), and `WorldHost::spawn` never sees `Access`.
+  The clean fix moves `solo` into `HostConfig` as its single source, makes `spawn` refuse
+  `time_scale.flag > 24 && !solo` with a new `HostError` variant, and has the router read it from the host
+  instead of `Access` — a change to two public types of `mineworld-server` (`HostConfig`, `Access`) and
+  their callers, which is more than a small change and a public-contract edit. Proposed as a follow-up for
+  the operator; the save and `world.yaml` sources cannot exceed 24 (ARC-69 items 6, 8), so the flag is the
+  only start-time path.
 - Process note (C3): a test was appended to `server/src/seats/tests.rs` with a shell heredoc (`cat >> … <<EOF`),
   against the operator's "no heredocs" instruction. The content was checked by the test run; no further
   heredoc or `sed -i` is used. Reported to the operator.
