@@ -1,15 +1,24 @@
 """Hand-built perceived facts, in the server's wire form, for memory's unit tests.
 
 Each helper writes the JSON the server would send (`mineworld perceived --json`) and validates it with the
-SDK's `PerceivedEvent`; nothing here calls the code under test. Entity ids are ten digits long so that no
-id can be mistaken for a count, a day or a time in a rendered line.
+SDK's `PerceivedEvent`; nothing here calls the code under test beyond opening a home for a seat
+(`seat_view`) and reading a dump's lines back by the view's column names (`rows`). Entity ids are ten digits
+long so that no id can be mistaken for a count, a day or a time in a rendered line.
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Literal
+
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EntityKey, JsonValue, WorldInstanceId
 
+from mineworld_cognition.memory.home import MemoryHome, SeatView
+from mineworld_cognition.memory.home.schema import BY_NAME
 from mineworld_cognition.memory.records import StoreIdentity
 
 ALICE = EntityId("7000000001")
@@ -27,6 +36,43 @@ DAY = 86400
 
 def alice_identity() -> StoreIdentity:
     return StoreIdentity(world_instance=INSTANCE, seat=EntityKey("alice"), self_entity=ALICE)
+
+
+@contextmanager
+def seat_view(
+    identity: StoreIdentity | None = None, path: Path | Literal[":memory:"] = ":memory:"
+) -> Generator[SeatView]:
+    """One seat alone in its own home (the `none` arm of step-28; P4's one store per seat), closed on exit."""
+    who = alice_identity() if identity is None else identity
+    with MemoryHome.open(path, who.world_instance) as home:
+        yield home.seat(who)
+
+
+def open_view(identity: StoreIdentity | None = None) -> SeatView:
+    """`seat_view` for a test that keeps the view past one block: an in-memory home, never closed by the
+    test (it is collected with the view)."""
+    who = alice_identity() if identity is None else identity
+    return MemoryHome.open(":memory:", who.world_instance).seat(who)
+
+
+def rows(dump: bytes, table: str) -> list[dict[str, object]]:
+    """A seat view dump's rows of one table, by column name: the positional line read back with the view
+    table's column order (ids and keys are numbers there, `ARC-101`)."""
+    return [
+        {name: value for name, value in row.items() if name != "table"}
+        for row in all_rows(dump)
+        if row["table"] == table
+    ]
+
+
+def all_rows(dump: bytes) -> list[dict[str, object]]:
+    """Every line of a seat view dump as `{"table": …, column: value, …}`, in dump order."""
+    found: list[dict[str, object]] = []
+    for line in dump.decode("utf-8").splitlines():
+        cells: list[object] = json.loads(line)
+        table = str(cells[0])
+        found.append({"table": table, **dict(zip(BY_NAME[table].columns, cells[1:], strict=True))})
+    return found
 
 
 def _ref(entity: EntityId, entity_type: str = "person") -> JsonValue:

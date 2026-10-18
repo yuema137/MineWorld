@@ -70,13 +70,13 @@ from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.controller.triggers import Pending, body_of, detect, person_of
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import GateOutcome, Router
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity, event_key
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
@@ -97,7 +97,7 @@ class _StoreCursor:
     because the store's identity is known only from its first welcome; D-P6b-15)."""
 
     def __init__(self) -> None:
-        self.store: MemoryStore | None = None
+        self.store: SeatView | None = None
 
     def cursor(self) -> EventId | None:
         return None if self.store is None else self.store.cursor()
@@ -159,7 +159,8 @@ class SeatRunner:
         self._resume_path = store_dir / f"{key}.resume"
         self._log = DecisionLog(store_dir / f"{key}.decisions.jsonl")
         self._cursor = _StoreCursor()
-        self._store: MemoryStore | None = None
+        self._home: MemoryHome | None = None
+        self._store: SeatView | None = None
         self._pending = Pending()
         self._newest: Seen | None = None
         self._observed = asyncio.Event()
@@ -221,13 +222,16 @@ class SeatRunner:
                 await self._sleep(min(delay, float(self._controller.seat_retry_s)))
                 delay *= 2
 
-    def _open_store(self, seat: ResumingSeat) -> MemoryStore:
+    def _open_store(self, seat: ResumingSeat) -> SeatView:
+        """The seat's memory: a home of its own at `<store_dir>/<seat>.sqlite`, holding this one seat (S28-a
+        D-a-1). One home shared by a process's seats is S28-f's `sharing` wiring."""
         if self._store is None:
             identity = StoreIdentity(
                 world_instance=seat.instance, seat=self._key, self_entity=seat.observer
             )
             self._store_dir.mkdir(parents=True, exist_ok=True)
-            self._store = MemoryStore.open(self._store_path, identity)
+            self._home = MemoryHome.open(self._store_path, seat.instance)
+            self._store = self._home.seat(identity)
             self._cursor.store = self._store
         return self._store
 
@@ -274,7 +278,7 @@ class SeatRunner:
         self._runner_counts["handbacks"] += 1
         return "handback"
 
-    async def _ingest(self, seat: ResumingSeat, store: MemoryStore) -> None:
+    async def _ingest(self, seat: ResumingSeat, store: SeatView) -> None:
         """Absorbs each batch, then detects triggers in it (R-P6-FG-1, I-P6-6), then offers them to the pending slot."""
         async for batch in seat.perceived():
             # A process's first join presents no cursor (D-P6b-15), so a restarted process is sent the world's
@@ -428,7 +432,7 @@ class SeatRunner:
             observation=observation,
         )
 
-    def _store_or_raise(self) -> MemoryStore:
+    def _store_or_raise(self) -> SeatView:
         if self._store is None:
             raise RuntimeError("the store is opened before the seat serves")
         return self._store
@@ -481,8 +485,9 @@ class SeatRunner:
         # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.
         if self._store_dir.is_dir():
             self._log.counters(self._counters())
-        if self._store is not None:
-            self._store.close()
+        if self._home is not None:
+            self._home.close()
+            self._home = None
             self._store = None
             self._cursor.store = None
 

@@ -35,6 +35,7 @@ from mineworld_cognition.compress.episodes import load_episodes
 from mineworld_cognition.compress.stable import stable_facts, stable_text
 from mineworld_cognition.compress.summarize import DAY_S, clock, day_number
 from mineworld_cognition.memory import fts
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import (
     Citation,
@@ -45,7 +46,6 @@ from mineworld_cognition.memory.records import (
     event_of,
 )
 from mineworld_cognition.memory.render.conversation import EXCHANGE_KINDS
-from mineworld_cognition.memory.store import MemoryStore
 
 LINE_BYTES = 160
 SECTION_BYTES = 6000
@@ -155,7 +155,7 @@ class _Section:
         return True
 
 
-def retrieve(store: MemoryStore, query: RecallQuery) -> MemorySection:
+def retrieve(store: SeatView, query: RecallQuery) -> MemorySection:
     names = NameBook.load(store)
     speaker = None if query.speaker is None else names.person(query.speaker)
     lines: list[SectionLine] = _with(store, query, speaker)
@@ -168,22 +168,36 @@ def retrieve(store: MemoryStore, query: RecallQuery) -> MemorySection:
     return MemorySection(lines=tuple(lines), speaker=speaker if said else None)
 
 
-def _with(store: MemoryStore, query: RecallQuery, speaker: str | None) -> list[SectionLine]:
+def _with(store: SeatView, query: RecallQuery, speaker: str | None) -> list[SectionLine]:
     """The first `WITH_FIRST` and then the newest exchanges with the speaker, shown oldest first. Two
-    bounded reads of `l0`/`l0_who` (S28-a ports them as one `SeatView` method with the same order and
-    limits)."""
+    bounded reads of the seat's held records (`access ⋈ fact`) whose participants (`fact_who` roles 1
+    and 3) are exactly the seat and the speaker: schema 3's `l0`/`l0_who` read, ported to schema 4 with
+    the same order and limits (§9, D-P6c-2-port); `involved` is derived, as S28-a does (F-S28a-7)."""
     if query.speaker is None:
         return []
     section = _Section("with", speaker)
     kinds = ",".join("?" * len(EXCHANGE_KINDS))
     sql = (
-        "SELECT l0.event_key, l0.at, l0.gist FROM l0 JOIN l0_who w ON w.event_key = l0.event_key "
-        f"WHERE w.entity = ? AND l0.involved = 1 AND l0.kind IN ({kinds}) AND l0.at <= ? "
-        "AND l0.event_key != ? AND NOT EXISTS (SELECT 1 FROM l0_who o "
-        "WHERE o.event_key = l0.event_key AND o.entity != ?) ORDER BY l0.event_key "
+        "SELECT a.event_key, f.at, a.gist FROM access a JOIN fact f ON f.event_key = a.event_key "
+        "JOIN fact_who w ON w.event_key = a.event_key AND w.role IN (1, 3) AND w.entity = ? "
+        f"WHERE a.seat = ? AND f.kind IN ({kinds}) AND f.at <= ? AND a.event_key != ? "
+        "AND EXISTS (SELECT 1 FROM fact_who m WHERE m.event_key = a.event_key "
+        "AND m.role IN (1, 3) AND m.entity = ?) "
+        "AND NOT EXISTS (SELECT 1 FROM fact_who o WHERE o.event_key = a.event_key "
+        "AND o.role IN (1, 3) AND o.entity != ? AND o.entity != ?) ORDER BY a.event_key "
     )
     heard = "" if query.heard is None else event_key(query.heard)
-    arguments = (query.speaker, *EXCHANGE_KINDS, query.at, heard, query.speaker)
+    me = store.me
+    arguments = (
+        query.speaker,
+        store.seat_id,
+        *EXCHANGE_KINDS,
+        query.at,
+        heard,
+        me,
+        query.speaker,
+        me,
+    )
     rows: list[tuple[str, int, str]] = store.connection.execute(
         sql + "ASC LIMIT ?", (*arguments, WITH_FIRST)
     ).fetchall()
@@ -198,7 +212,7 @@ def _with(store: MemoryStore, query: RecallQuery, speaker: str | None) -> list[S
     return section.lines
 
 
-def _stable(store: MemoryStore, names: NameBook) -> list[SectionLine]:
+def _stable(store: SeatView, names: NameBook) -> list[SectionLine]:
     section = _Section("L3")
     for fact in stable_facts(store, BUDGETS["L3"].lines):
         if not section.offer(stable_text(fact, names), fact.citation()):
@@ -206,7 +220,7 @@ def _stable(store: MemoryStore, names: NameBook) -> list[SectionLine]:
     return section.lines
 
 
-def _chapters(store: MemoryStore) -> list[SectionLine]:
+def _chapters(store: SeatView) -> list[SectionLine]:
     section = _Section("L2")
     for chapter in chapters(store, BUDGETS["L2"].lines):
         if not section.offer(chapter.prose or chapter.text, chapter.citation()):
@@ -220,7 +234,7 @@ class _Shown:
     covered: list[tuple[EventKey, EventKey]]
 
 
-def _episodes(store: MemoryStore, query: RecallQuery) -> _Shown:
+def _episodes(store: SeatView, query: RecallQuery) -> _Shown:
     section = _Section("L1")
     seen: set[int] = set()
     covered: list[tuple[EventKey, EventKey]] = []
@@ -239,9 +253,9 @@ def _episodes(store: MemoryStore, query: RecallQuery) -> _Shown:
         offer(
             load_episodes(
                 store,
-                f"closed = 1 AND episode IN (SELECT episode FROM episode_who WHERE entity IN "
-                f"({marks})) ORDER BY episode DESC",
-                tuple(query.counterparts),
+                f"closed = 1 AND episode IN (SELECT episode FROM episode_who WHERE seat = ? AND "
+                f"entity IN ({marks})) ORDER BY episode DESC",
+                (store.seat_id, *query.counterparts),
             )
         )
     terms = fts.query_terms(query.words)
@@ -250,7 +264,7 @@ def _episodes(store: MemoryStore, query: RecallQuery) -> _Shown:
     return _Shown(section.lines, covered)
 
 
-def _matching(store: MemoryStore, terms: Sequence[str]) -> list[Episode]:
+def _matching(store: SeatView, terms: Sequence[str]) -> list[Episode]:
     """Closed episodes holding a notable record that matches a term, or whose own text or prose holds
     it, most distinct terms first, then newest, then by first Event ID. The second set reaches an episode
     whose records retention merged into it (pr-fg-b §5.10)."""
@@ -267,45 +281,48 @@ def _matching(store: MemoryStore, terms: Sequence[str]) -> list[Episode]:
     return sorted(found, key=lambda e: (-matched[e.number], -e.closed_at, event_key(e.first)))
 
 
-def _episodes_matching(store: MemoryStore, term: str) -> list[int]:
+def _episodes_matching(store: SeatView, term: str) -> list[int]:
+    """This seat's closed episodes holding a notable record of its own whose gist matches `term`."""
     if store.fts:
         sql = (
-            "SELECT DISTINCT e.episode FROM l0_text JOIN l0 ON l0.rowid = l0_text.rowid "
-            "JOIN episodes e ON l0.event_key BETWEEN e.first_key AND e.last_key "
-            "WHERE l0_text MATCH ? AND e.closed = 1"
+            "SELECT DISTINCT e.episode FROM access_text JOIN access a ON a.rowid = access_text.rowid "
+            "JOIN episodes e ON e.seat = a.seat AND a.event_key BETWEEN e.first_key AND e.last_key "
+            "WHERE access_text MATCH ? AND a.seat = ? AND e.closed = 1"
         )
         argument = fts.fts_string(term)
     else:
         sql = (
-            "SELECT DISTINCT e.episode FROM l0 JOIN episodes e "
-            "ON l0.event_key BETWEEN e.first_key AND e.last_key "
-            "WHERE l0.salience = 'notable' AND l0.gist LIKE ? ESCAPE '\\' AND e.closed = 1"
+            "SELECT DISTINCT e.episode FROM access a JOIN episodes e "
+            "ON e.seat = a.seat AND a.event_key BETWEEN e.first_key AND e.last_key "
+            "WHERE a.salience = 'notable' AND a.gist LIKE ? ESCAPE '\\' AND a.seat = ? "
+            "AND e.closed = 1"
         )
         argument = fts.like_pattern(term)
-    rows: list[tuple[int]] = store.connection.execute(sql, (argument,)).fetchall()
+    rows: list[tuple[int]] = store.connection.execute(sql, (argument, store.seat_id)).fetchall()
     return [number for (number,) in rows]
 
 
-def _episode_text_matching(store: MemoryStore, term: str) -> list[int]:
+def _episode_text_matching(store: SeatView, term: str) -> list[int]:
     """Closed episodes whose summary text or prose holds `term` literally (`LIKE … ESCAPE`, P4-4). Over at
-    most the store's episodes, which the retention bound limits."""
+    most the seat's episodes, which the retention bound limits."""
     pattern = fts.like_pattern(term)
     rows: list[tuple[int]] = store.connection.execute(
-        "SELECT episode FROM episodes WHERE closed = 1 AND "
+        "SELECT episode FROM episodes WHERE seat = ? AND closed = 1 AND "
         "(text LIKE ? ESCAPE '\\' OR prose LIKE ? ESCAPE '\\')",
-        (pattern, pattern),
+        (store.seat_id, pattern, pattern),
     ).fetchall()
     return [number for (number,) in rows]
 
 
 def _recent(
-    store: MemoryStore, query: RecallQuery, covered: list[tuple[EventKey, EventKey]]
+    store: SeatView, query: RecallQuery, covered: list[tuple[EventKey, EventKey]]
 ) -> list[SectionLine]:
     section = _Section("L0")
     rows: list[tuple[str, int, str]] = store.connection.execute(
-        "SELECT event_key, at, gist FROM l0 WHERE salience = 'notable' AND at > ? AND at <= ? "
-        "ORDER BY event_key DESC",
-        (query.at - DAY_S, query.at),
+        "SELECT a.event_key, f.at, a.gist FROM access a JOIN fact f ON f.event_key = a.event_key "
+        "WHERE a.seat = ? AND a.salience = 'notable' AND f.at > ? AND f.at <= ? "
+        "ORDER BY a.event_key DESC",
+        (store.seat_id, query.at - DAY_S, query.at),
     ).fetchall()
     for key, at, gist in rows:
         if any(first <= key <= last for first, last in covered):

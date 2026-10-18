@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from retention_driver import DAY, built, by_day, retention
 from retention_oracle import check_coverage, check_section
 from retention_stream import stream
@@ -34,7 +34,6 @@ from mineworld_cognition.memory.retention import (
 )
 from mineworld_cognition.memory.retention.items import extract
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 
 HOUR = 3_600
 WEEK = 604_800
@@ -244,7 +243,7 @@ def test_frames_never_change_any_policys_store(policy: str, size: int) -> None:
 def test_a_policy_decides_the_same_twice(policy: str) -> None:
     # AFGb-5 (d): `plan` twice on the items of one store. Its mutation reads a wall clock in decay.
     facts = list(stream(5, 20, per_day=120))
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for _ in by_day(store, facts, retention("keep-all")):
             pass
         items = extract(store).items
@@ -263,7 +262,7 @@ def test_each_policy_holds_the_bound_and_retrieves_within_its_ceiling(policy: st
     perceived = [fact.id for fact in facts]
     started = time.monotonic()
     sizes: dict[int, int] = {}
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for each in by_day(store, facts, retention(policy)):
             size = len(each.dump)
             assert size <= TARGET and size <= STORE_BOUND, (each.day, size)

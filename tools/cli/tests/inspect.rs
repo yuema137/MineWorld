@@ -1,7 +1,8 @@
 //! `mineworld inspect` and the `AC-9` causation check over a real run's save (step-08 C6).
 //!
 //! The check is shown to *see* what it checks (`ARC-23`): a save with one forged fact — a cause no
-//! journaled request carried — must fail it, naming that fact.
+//! journaled request carried — must fail it, naming that fact. A save a server still commits to is
+//! inspected as the prefix one journal pass read: a revision committed meanwhile is not half-seen.
 
 mod headless;
 
@@ -53,7 +54,7 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
         "systems    presence v3, movement v2, conversation v4, group-activity v3, relationships v3, \
-         naming v1, schedule v1, persona v1\n"
+         naming v1, schedule v1, persona v1, appearance v1\n"
     ));
     for kind in [
         "causes     action ",
@@ -144,4 +145,121 @@ fn a_directory_with_no_save_is_refused_by_name() {
     let complaint = stderr(&output);
     assert!(complaint.contains("inspect-nothing") && complaint.contains("holds no save"));
     assert!(!complaint.contains("panicked"));
+}
+
+/// One more accepted request and the fact it caused, made from the save's newest request: its entry
+/// and its first fact, renumbered to action `action`, revision `revision` and fact `fact_id`.
+fn another_request(
+    template: &mineworld_persistence::backend::StoredRevision,
+    revision: u64,
+    action: u64,
+    fact_id: u64,
+) -> RevisionRow {
+    let mut entry: serde_json::Value =
+        serde_json::from_slice(&template.entry).expect("an entry is JSON");
+    let mut renumbered = false;
+    renumber_action(&mut entry, action, &mut renumbered);
+    assert!(renumbered, "the template carries its action id: {entry}");
+    let mut fact: serde_json::Value =
+        serde_json::from_slice(&template.facts[0].bytes).expect("a fact is JSON");
+    fact["id"] = serde_json::Value::String(fact_id.to_string());
+    fact["caused_by"] = serde_json::json!({ "action": action.to_string() });
+    RevisionRow {
+        revision: WorldRevision::from_raw(revision),
+        at: template.at,
+        action_id: Some(action),
+        entry: serde_json::to_vec(&entry).expect("encodes"),
+        facts: vec![FactRow {
+            id: fact_id,
+            bytes: serde_json::to_vec(&fact).expect("encodes"),
+        }],
+        snapshot: None,
+        retire: Vec::new(),
+        seal: None,
+    }
+}
+
+fn renumber_action(value: &mut serde_json::Value, action: u64, done: &mut bool) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, inner) in map.iter_mut() {
+                if key == "action_id" {
+                    *inner = serde_json::Value::String(action.to_string());
+                    *done = true;
+                } else {
+                    renumber_action(inner, action, done);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for inner in items {
+                renumber_action(inner, action, done);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn a_save_being_committed_to_is_inspected_as_one_consistent_prefix() {
+    let save = fresh("inspect-live");
+    run(7, 2, Some(&save));
+    let backend = SqliteBackend::open(&save, Durability::ProcessCrash).expect("opens");
+    let template = backend
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("a journal")
+        .map(|stored| stored.expect("a revision"))
+        .filter(|stored| stored.action_id.is_some() && !stored.facts.is_empty())
+        .last()
+        .expect("a run's save holds an accepted request with a fact");
+    drop(backend);
+
+    // A writer commits one request and its fact after another, as a server does, while inspections
+    // run: each inspection can meet a revision committed between its two passes. Bounded, so the save
+    // stays small: `COMMITS` revisions, one about every millisecond.
+    const COMMITS: u64 = 3_000;
+    let writer = {
+        let save = save.to_path_buf();
+        std::thread::spawn(move || {
+            let mut backend = SqliteBackend::open(&save, Durability::ProcessCrash).expect("opens");
+            let mut head = backend.head().expect("a head").raw();
+            let mut action = backend
+                .highest_action_id()
+                .expect("reads")
+                .expect("a request");
+            let mut fact = backend.last_facts(1).expect("facts")[0].id;
+            for _ in 0..COMMITS {
+                (head, action, fact) = (head + 1, action + 1, fact + 1);
+                backend
+                    .commit(&another_request(&template, head, action, fact))
+                    .expect("commits");
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        })
+    };
+    let (mut overlapped, mut failures) = (0, Vec::new());
+    while !writer.is_finished() && overlapped < 200 {
+        let output = mineworld(&["inspect", save.to_str().expect("path")]);
+        overlapped += 1;
+        if !output.status.success() {
+            failures.push(stderr(&output));
+        }
+    }
+    writer.join().expect("the writer ran");
+    assert!(
+        overlapped >= 5,
+        "inspections ran while the save was committed to: {overlapped}"
+    );
+    assert!(
+        failures.is_empty(),
+        "{} of {overlapped} inspections of a live save failed, first: {}",
+        failures.len(),
+        failures[0]
+    );
+    let settled = mineworld(&["inspect", save.to_str().expect("path")]);
+    assert!(
+        settled.status.success(),
+        "every committed request resolves: {}",
+        stderr(&settled)
+    );
 }

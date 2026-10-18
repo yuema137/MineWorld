@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from retention_driver import feed, frames
 from retention_stream import stream
@@ -29,19 +29,21 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import Cassette, CassetteMiss, RecordingBackend, ReplayBackend
 
 CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "0204e89d682b58c3f3fdb1c146a436e5cb5cbd5b0241cfa1f5ff00e2acc26d43"
+DIGEST = "2163d85b6750f4816c6e2d213e694771e4cfec69f67d3a79f3f141389c6df00a"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
-and `meta.schema` reads 3. The cassette is unchanged and still replays without a miss: no request moved.
-Reset by FG-d (pr-p6c-fgd-memory-coherence.md §9, F-FGd-1): `consolidate`'s keepsakes keep each person's
-first exchanges as records, so the dump holds them; the cassette is unchanged and replays without a miss."""
+and `meta.schema` reads 3. Reset by S28-a (pr-s28a-memory-home.md AC-a-13; was `c3624e03…a106a4`): the dump
+is schema 4's positional seat view (`ARC-101`). Re-pinned only after the replay ran with zero `CassetteMiss`
+and its sections equalled the golden captured from the schema-3 code (`test_home_golden.py`'s `fgc` arm). The
+cassette is unchanged: no request moved. Reset by FG-d (pr-p6c-fgd-memory-coherence.md §9, F-FGd-1):
+`consolidate`'s keepsakes keep each person's first exchanges as records, so the dump holds them; the cassette is
+unchanged and replays without a miss."""
 
 
 def _facts() -> list[PerceivedEvent]:
@@ -53,7 +55,7 @@ def _record(
 ) -> bytes:
     backend = RecordingBackend(scripted(), path, binding="local", model=model)
     kept = retention(gateway(backend, **GENEROUS), calls_per_sim_day=24)
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         feed(store, frames(_facts() if facts is None else facts, 256), kept)
         dump = store.dump()
     run(backend.aclose())
@@ -63,7 +65,7 @@ def _record(
 def _replayed(path: Path, size: int, facts: list[PerceivedEvent] | None = None) -> bytes:
     replay = ReplayBackend(Cassette.load(path))
     kept = retention(gateway(replay, **GENEROUS), calls_per_sim_day=24)
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         feed(store, frames(_facts() if facts is None else facts, size), kept)
         return store.dump()
 
@@ -111,7 +113,7 @@ def test_a_missing_recording_is_a_stop_and_the_pass_rolls_back() -> None:
     other = list(stream(SEED + 1, 3))
     replay = ReplayBackend(Cassette.load(CASSETTE))
     kept = retention(boundary_gateway(replay, **GENEROUS), calls_per_sim_day=24)
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for start in range(0, len(other), 256):
             batch = other[start : start + 256]
             run(absorb(store, batch, batch[-1].id, _consolidated()), timeout_s=120)
