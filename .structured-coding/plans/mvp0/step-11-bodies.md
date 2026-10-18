@@ -7519,6 +7519,20 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
       passes 4 commands and clients-probes 12; T-2 passes (see above); `run.sh perceived` passes
       strides 1–3, the talk and the rest. clients-mac was cancelled while queued, to free the runner
       for the PR run.
+    - **PR CI on 98f97cb** (run 39110896278, then one rerun of the failed jobs).
+      - success: fast, platforms (windows-2025), removability, python (ubuntu-24.04),
+        test 1–3/3 and `test`, test-windows 1–4/4 and `test-windows`, test-macos (a).
+      - **test-macos (b) FAIL ×2** on one test,
+        `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`:
+        `JoinRefused: seat_occupied` after the idle release, with cognition 426 passed. The same
+        job passed on 12d's dd6f7db and b7d4a9a, and passes on main's own PRs #216, #241 and #243. So
+        it is the combination of 12d with what main added since (S27-b, #216, #243). Not located; a
+        local run would be needed, and runs are paused.
+      - **python (windows-2025)**: FAIL on the same test. This failure is pre-existing: it fails on
+        main's PRs #216, #241 and #243 without 12d. The rerun was cancelled at the job's 75 min
+        limit (cognition alone took 68 min).
+
+---
 
 ---
 
