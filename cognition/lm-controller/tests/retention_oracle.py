@@ -1,7 +1,8 @@
-"""AFGb-3's coverage oracle (pr-fg-b §9): from a store's canonical dump and the perceived ids alone.
+"""AFGb-3's coverage oracle (pr-fg-b §9): from a seat view's canonical dump and the perceived ids alone.
 
-It parses the dump's JSON lines and never calls the code under test (a `MemorySection` is only read). Keys are the store's 20-digit event
-keys, made here by padding, as the dump stores them.
+It parses the dump's positional lines with the columns `ARC-101`'s note fixes, written here and not read from
+the code under test (a `MemorySection` is only read). The dump writes ids and keys as numbers; the oracle turns
+them back into 20-digit keys, made here by padding, so that keys compare as the perceived sequence does.
 """
 
 from __future__ import annotations
@@ -21,6 +22,20 @@ def key(event: str) -> str:
     return event.rjust(20, "0")
 
 
+COLUMNS: dict[str, tuple[str, ...]] = {
+    "meta": ("key", "value"),
+    "l0": ("event_key",),
+    "episodes": ("episode", "day", "place", "first_key", "last_key"),
+    "chapters": ("week",),
+    "chapter_ranges": ("week", "first_key", "last_key"),
+    "forgotten": ("first_key", "last_key"),
+    "retention_passes": ("trigger", "day", "cause", "policy", "outcome"),
+}
+"""The leading columns the oracle reads, per table, in the seat view's order (`l0`'s first is its id)."""
+KEYS = {"event_key", "first_key", "last_key", "trigger"}
+KEY_META = {"newest", "forgotten_below"}
+
+
 @dataclass(frozen=True)
 class Dump:
     tables: dict[str, list[dict[str, object]]]
@@ -29,8 +44,16 @@ class Dump:
     def parse(dump: bytes) -> Dump:
         tables: dict[str, list[dict[str, object]]] = {}
         for line in dump.decode("utf-8").splitlines():
-            row = json.loads(line)
-            tables.setdefault(str(row["table"]), []).append(row)
+            cells: list[object] = json.loads(line)
+            table = str(cells[0])
+            if table not in COLUMNS:
+                continue
+            row = dict(zip(COLUMNS[table], cells[1:], strict=False))
+            for name in KEYS & row.keys():
+                row[name] = key(str(row[name]))
+            if table == "meta" and row["key"] in KEY_META:
+                row["value"] = "" if row["value"] is None else key(str(row["value"]))
+            tables.setdefault(table, []).append(row)
         return Dump(tables)
 
     def rows(self, table: str) -> list[dict[str, object]]:

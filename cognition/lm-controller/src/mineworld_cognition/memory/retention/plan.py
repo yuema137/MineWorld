@@ -1,17 +1,18 @@
 """A policy's plan: validated whole (§5.7.1), then executed by the host alone (§5.7.2).
 
 Validation refuses the whole plan by a typed reason; a refused plan is never partly applied. Execution
-deletes rows of the seat's own store only, inside the pass's transaction, so every perceived fact stays
-represented exactly once: by a surviving unit, or by the forgotten set (FGb-1, FGb-6).
+deletes rows of the seat's own view only, inside the pass's transaction, so every perceived fact stays
+represented exactly once: by a surviving unit, or by the forgotten set (FGb-1, FGb-6). A record is removed by
+releasing it (`SeatView.release`), which collects the shared record when no seat of the home holds it any more
+(pr-s28a §5.6).
 """
 
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Literal
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId, event_key
 from mineworld_cognition.memory.retention.items import Extracted
 from mineworld_cognition.memory.retention.policy import Drop, Keep, Merge
@@ -96,17 +97,15 @@ def validate(plan: object, extracted: Extracted) -> Resolved:
     return resolved
 
 
-def execute(
-    db: sqlite3.Connection, resolved: Resolved, extracted: Extracted, *, fts: bool
-) -> Outcome:
+def execute(store: SeatView, resolved: Resolved, extracted: Extracted) -> Outcome:
     """Deletes what the plan removes and forgets what it drops; counts every item kept, merged, dropped."""
     merged = dropped = 0
     for item in resolved.into_episodes:
-        merged += remove(db, extracted, item, fts=fts, forget=False)
+        merged += remove(store, extracted, item, forget=False)
     for item in resolved.into_chapters:
-        merged += remove(db, extracted, item, fts=fts, forget=False)
+        merged += remove(store, extracted, item, forget=False)
     for item in resolved.dropped:
-        dropped += remove(db, extracted, item, fts=fts, forget=True)
+        dropped += remove(store, extracted, item, forget=True)
     return Outcome(len(extracted.items) - merged - dropped, merged, dropped)
 
 
@@ -118,44 +117,37 @@ def nested(extracted: Extracted, item: ItemId) -> list[ItemId]:
     return found
 
 
-def remove(
-    db: sqlite3.Connection, extracted: Extracted, item: ItemId, *, fts: bool, forget: bool
-) -> int:
+def remove(store: SeatView, extracted: Extracted, item: ItemId, *, forget: bool) -> int:
     """Deletes one item's rows and those of everything nested in it; with `forget`, adds its citation to
     the forgotten set (a stable fact cites and covers nothing, so it adds nothing). Returns the number of
-    items removed."""
+    items removed. A record is released: its access row goes, and its shared record with it when no seat
+    holds it any more."""
+    db = store.connection
+    seat = store.seat_id
     removed = nested(extracted, item)
     for each in removed:
         ref = extracted.refs[each]
         if ref.level == 0:
-            delete_records(db, (ref.key,), fts=fts)
+            store.release((ref.key,))
         elif ref.level == 1:
-            db.execute("DELETE FROM episode_who WHERE episode = ?", (ref.number,))
-            db.execute("DELETE FROM episodes WHERE episode = ?", (ref.number,))
+            db.execute("DELETE FROM episode_who WHERE seat = ? AND episode = ?", (seat, ref.number))
+            db.execute("DELETE FROM episodes WHERE seat = ? AND episode = ?", (seat, ref.number))
         elif ref.level == 2:
-            db.execute("DELETE FROM chapters WHERE week = ?", (ref.number,))
+            db.execute("DELETE FROM chapters WHERE seat = ? AND week = ?", (seat, ref.number))
         else:
-            db.execute("DELETE FROM stable WHERE entity = ?", (ref.key,))
+            db.execute("DELETE FROM stable WHERE seat = ? AND entity = ?", (seat, ref.key))
     level = extracted.refs[item].level
     if forget and level in (1, 2):
         db.executemany(
-            "INSERT INTO forgotten (first_key, last_key) VALUES (?, ?)",
+            "INSERT INTO forgotten (seat, first_key, last_key) VALUES (?, ?, ?)",
             [
-                (event_key(r.first), event_key(r.last))
+                (seat, event_key(r.first), event_key(r.last))
                 for r in extracted.by_id[item].citation.ranges
             ],
         )
     if level == 2:
-        db.execute("DELETE FROM chapter_ranges WHERE week = ?", (extracted.refs[item].number,))
-    return len(removed)
-
-
-def delete_records(db: sqlite3.Connection, keys: Iterable[str], *, fts: bool) -> None:
-    """L0 rows, their participants and their lexical index entries."""
-    rows = [(key,) for key in keys]
-    if fts:
-        db.executemany(
-            "DELETE FROM l0_text WHERE rowid = (SELECT rowid FROM l0 WHERE event_key = ?)", rows
+        db.execute(
+            "DELETE FROM chapter_ranges WHERE seat = ? AND week = ?",
+            (seat, extracted.refs[item].number),
         )
-    db.executemany("DELETE FROM l0_who WHERE event_key = ?", rows)
-    db.executemany("DELETE FROM l0 WHERE event_key = ?", rows)
+    return len(removed)

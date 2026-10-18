@@ -56,12 +56,12 @@ from mineworld_cognition.config import build_router
 from mineworld_cognition.controller.assignment import LmSeat
 from mineworld_cognition.controller.log import read_decisions
 from mineworld_cognition.controller.memory_view import memory_view
+from mineworld_cognition.memory.home import MemoryHome
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 
 pytestmark = pytest.mark.real_binary
 
@@ -175,11 +175,11 @@ def _day_100(tmp_path: Path) -> Day100:
     assert found is not None
 
     retention = resolve(DEFAULT_CHOICE, PolicyRegistry.installed(), None)
-    store = MemoryStore.open(
-        store_dir / "alice.sqlite",
-        StoreIdentity(
-            world_instance=WorldInstanceId(found.group(1)), seat=ALICE, self_entity=EntityId(alice)
-        ),
+    # The seat runner's memory: a one-seat home at the seat's path (pr-s28a D-a-1).
+    instance = WorldInstanceId(found.group(1))
+    home = MemoryHome.open(store_dir / "alice.sqlite", instance)
+    store = home.seat(
+        StoreIdentity(world_instance=instance, seat=ALICE, self_entity=EntityId(alice))
     )
     try:
         later = _export(save, store.cursor())
@@ -199,7 +199,7 @@ def _day_100(tmp_path: Path) -> Day100:
             for event in range(int(span.first), int(span.last) + 1)
         }
     finally:
-        store.close()
+        home.close()
 
     print(
         json.dumps(
