@@ -2361,4 +2361,28 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
   409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
   days), about 2 ms each on the Windows runner. Those PRs need only merge main.
+- **D-P6-41 (post-merge defect, bounded fix; branch `fix/recall-at-trigger`, 2026-10-18).** Found by an independent review
+  of #199. Cause: `SeatRunner._consult_once` built `RecallQuery(at=observation.at, …)`, and `retrieve`'s L0 keeps only
+  records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
+  at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
+  (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
+  Fix: the consult recalls at `max(observation.at, heard_at)`, where `heard_at` is the trigger fact's `at`, taken at the
+  detection site in `_ingest` from the fact itself and carried with the trigger through the pending slot
+  (`triggers.Waiting(trigger, heard_at, received_at)`; `Pending.offer` takes it) into `_consult_once`. No store access:
+  a first version read the `l0` row from `seat.py`, which the coordinator's review rejected because it couples the
+  controller to the store's private schema, which S28-a #242 replaces. No contract change: `RecallQuery`, `Trigger` and
+  the decision-log format are unchanged (the logged `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
+  `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
+  the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
+  `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
+  locally (407 passed, 2 skipped); CI on the PR head gates the rest.
+- **D-P6-42 (CI finding, test race; bounded fix, branch `fix/recall-at-trigger`).** Test race: decision log read before
+  the acted consult's record was written; fixed by waiting for it; found on #257's CI job 117655219367
+  (`python (ubuntu-24.04)`, head f2b5827b). `test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop`
+  read the outcomes as soon as the visitor heard Alice's line; the visitor perceived the `spoke` while the runner had
+  not yet logged the consult, so the log held only an earlier `chose` and (a) failed `no consult acted: chose`. The
+  test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
+  (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
+  record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
 - (planning findings are §3.2 and §0.1)
