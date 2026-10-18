@@ -72,9 +72,10 @@ fn a_save_that_is_never_hosted_has_no_host_journal() {
             "facts_by_revision",
             "journal",
             "manifest",
+            "sealed",
             "snapshots"
         ],
-        "a save as created names exactly its four tables and its index"
+        "a save as created names exactly its five tables (`sealed`: ARC-89) and its index"
     );
 }
 

@@ -545,6 +545,8 @@ fn a_persisted_session_is_a_function_of_its_journal_not_of_tick_timing() {
             );
         }
     }
+    // The towns hold their saves open; Windows cannot remove an open SQLite file.
+    drop((first, second, third));
     for directory in [first_dir, second_dir, third_dir] {
         let _ = std::fs::remove_dir_all(directory);
     }
