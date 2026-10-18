@@ -85,9 +85,10 @@ var _confirming := false
 var _last_step: Dictionary = {}
 ## A stride that moved the body less than this made no progress: the walk ends there.
 const PROGRESS_M := 0.05
-## A stride stopped short ends within this of its own line (a person's radius and the gap, 260 mm,
-## plus the bias turn's sideways step); farther away the world moved the body some other way.
-const ON_LINE_M := 0.3
+## A stride the world resolved (stopped short, slid along a wall or a solid, turned aside by the bias)
+## ends within a stride of its own line; farther away the world moved the body some other way (a
+## teleport), and the walk ends there.
+const ON_LINE_M := STRIDE_M
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
@@ -128,10 +129,11 @@ func observe(observation: MineWorldObservation) -> void:
 			walk_ended.emit(true)
 
 
-## The stride just accepted ended elsewhere. Short of its point on its own line (a wall, a solid or a
-## person in the way), the rest of its leg is split again from where the world put the body; a stride
-## that made no progress ends the walk there, accepted. Anywhere else (a teleport, a displacement)
-## the body follows and the walk ends: a move never answers the world (AC-W6).
+## The stride just accepted ended elsewhere. Resolved by the world near its own line (stopped short
+## or slid by a wall, a solid or a person in the way; ON_LINE_M), the rest of its leg is split again
+## from where the world put the body; a stride that made no progress ends the walk there, accepted.
+## Anywhere else (a teleport) the body follows and the walk ends: a move never answers the world
+## (AC-W6).
 func _replan() -> void:
 	var start := _stale_plan
 	var asked: Vector2 = _last_step.get("plan", accepted_plan)
