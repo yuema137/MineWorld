@@ -8,12 +8,11 @@ fallback is shown to leave the plain policy's store behind (AFGc-5).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import ClassVar, Literal, assert_never
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import alice_identity, all_rows, seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,7 +46,6 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
-from mineworld_cognition.memory.store import MemoryStore
 
 SEED = 11
 DAYS = 12
@@ -166,7 +164,7 @@ def _facts() -> list[PerceivedEvent]:
 
 
 def _rows(dump: bytes) -> list[dict[str, object]]:
-    return [json.loads(line) for line in dump.decode("utf-8").splitlines()]
+    return all_rows(dump)
 
 
 def _plain_rows(dump: bytes) -> list[dict[str, object]]:
@@ -307,7 +305,7 @@ def test_the_pass_never_exceeds_its_declared_allowance() -> None:
         calls=3,
     )
     per_pass: list[int] = []
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for frame in days(facts):
             before = backend.calls
             run(absorb(store, frame, frame[-1].id, kept), timeout_s=120)
