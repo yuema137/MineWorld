@@ -111,6 +111,15 @@ def _check_characters(args: argparse.Namespace) -> int:
     failures = 0
     for directory in directories:
         name = directory.name
+        if not (directory / "fit.yaml").exists():
+            # Stage 1 (casting): a brief and its prompt packs exist before any generation, so a
+            # brief-only directory has no records yet and nothing to validate (PIPELINE.md §§2-3).
+            if (directory / "brief.yaml").exists():
+                print(f"{name}: brief only (no fit.yaml yet)")
+            else:
+                print(f"{name}: FAIL: neither fit.yaml nor brief.yaml")
+                failures += 1
+            continue
         try:
             fit = parse_fit(load_record(directory / "fit.yaml"), directory / "fit.yaml")
             parse_generation_log(

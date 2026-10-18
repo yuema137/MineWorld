@@ -268,4 +268,24 @@ def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
     from mwcast.cli import main
 
     assert main(["check-characters"]) == 0
-    assert "vera-lindgren: records only (no character.yaml)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "vera-lindgren: records only (no character.yaml)" in out
+    assert "alba-ferreira: brief only (no fit.yaml yet)" in out
+
+
+def test_check_characters_passes_a_brief_only_directory_and_fails_an_empty_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from mwcast.cli import main
+
+    cast = tmp_path / "presentation/pack/3D/characters/cast"
+    (cast / "briefed").mkdir(parents=True)
+    (cast / "briefed/brief.yaml").write_text("person: briefed\n", encoding="utf-8")
+    assert main(["check-characters", "--root", str(tmp_path)]) == 0
+    assert "briefed: brief only (no fit.yaml yet)" in capsys.readouterr().out
+
+    (cast / "empty").mkdir()
+    assert main(["check-characters", "--root", str(tmp_path)]) == 1
+    out = capsys.readouterr().out
+    assert "empty: FAIL: neither fit.yaml nor brief.yaml" in out
+    assert "2 character directories checked; 1 failing" in out

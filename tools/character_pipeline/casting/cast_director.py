@@ -47,6 +47,7 @@ class CastError(SystemExit):
 # Supports block maps, flow maps and lists, quoted scalars, `|` block scalars and comments; enough for the
 # config, profile and template files, whose headers state that they keep to this subset.
 
+
 def _split_top(text: str) -> list[str]:
     parts, depth, cur, quote = [], 0, "", None
     for ch in text:
@@ -173,7 +174,9 @@ def load_profile(path: Path) -> dict:
     data = read_yaml(path, "population profile")
     if "profile_of" in data:
         return load_profile(path.parent / data["profile_of"]) | {
-            "_path": str(path.relative_to(ROOT)), "_name": data.get("profile", path.stem)}
+            "_path": str(path.relative_to(ROOT)),
+            "_name": data.get("profile", path.stem),
+        }
     attrs = data.get("attributes")
     if not isinstance(attrs, dict) or not attrs:
         raise CastError(f"population profile {path} has no `attributes:` map")
@@ -182,7 +185,9 @@ def load_profile(path: Path) -> dict:
             raise CastError(f"population profile {path}: attribute `{name}` needs `kind:` one of {KINDS}")
         for g in given_of(spec):
             if g not in attrs or list(attrs).index(g) > list(attrs).index(name):
-                raise CastError(f"population profile {path}: `{name}` is given `{g}`, which is not an earlier attribute")
+                raise CastError(
+                    f"population profile {path}: `{name}` is given `{g}`, which is not an earlier attribute"
+                )
     return data | {"_path": str(path.relative_to(ROOT)), "_name": data.get("profile", path.stem)}
 
 
@@ -220,6 +225,7 @@ def label(profile: dict, attr: str, value, key: str | None):
 
 # ---------------------------------------------------------------- the sampler
 
+
 def rng(*parts) -> random.Random:
     digest = hashlib.sha256("|".join(map(str, parts)).encode()).digest()
     return random.Random(int.from_bytes(digest[:8], "big"))
@@ -249,7 +255,7 @@ def match(multiset: list[str], people: list[dict], allowed, r: random.Random) ->
                 continue
             tried.add(v)
             result[order[i]["key"]] = v
-            if go(i + 1, left[:j] + left[j + 1:]):
+            if go(i + 1, left[:j] + left[j + 1 :]):
                 return True
         return False
 
@@ -268,8 +274,9 @@ def weighted(r: random.Random, w: dict[str, float], allowed: set | None) -> str:
     return items[-1][0]
 
 
-def cast_world(world: str, profile: dict, fixed_members: list[dict], people: list[dict], seed: str,
-               attempt: int) -> list[dict]:
+def cast_world(
+    world: str, profile: dict, fixed_members: list[dict], people: list[dict], seed: str, attempt: int
+) -> list[dict]:
     attrs = profile["attributes"]
     values = {m["key"]: dict(m["values"]) for m in fixed_members}
     sources: dict[str, dict] = {p["key"]: {} for p in people}
@@ -291,7 +298,7 @@ def cast_world(world: str, profile: dict, fixed_members: list[dict], people: lis
             groups: dict[tuple, list] = {}
             for m in everyone:
                 groups.setdefault(tuple(str(values[m["key"]][g]) for g in given_of(spec)), []).append(m)
-            for gkey, group in sorted(groups.items()):
+            for _gkey, group in sorted(groups.items()):
                 shares = weights_of(spec, values[group[0]["key"]], attr)
                 counts = largest_remainder(shares, len(group))
                 for m in group:
@@ -299,15 +306,20 @@ def cast_world(world: str, profile: dict, fixed_members: list[dict], people: lis
                         counts[str(values[m["key"]][attr])] = counts.get(str(values[m["key"]][attr]), 0) - 1
                 todo = [p for p in free if any(p["key"] == m["key"] for m in group)]
                 multiset = [k for k, c in counts.items() for _ in range(max(c, 0))]
-                got = match(multiset, todo, lambda p: allowed_of(p["key"], attr) or set(shares),
-                            rng(seed, attempt, world, attr))
+                got = match(
+                    multiset,
+                    todo,
+                    lambda p, attr=attr, shares=shares: allowed_of(p["key"], attr) or set(shares),
+                    rng(seed, attempt, world, attr),
+                )
                 if got is None:
                     raise CastError(f"{world}: no assignment of `{attr}` satisfies the biographies")
                 for k, v in got.items():
                     values[k][attr] = v
                     why = people[[p["key"] for p in people].index(k)]["allowed"].get(attr)
                     sources[k][attr] = spec.get("source", "sampler") + (
-                        f"; constrained by the biography ({why['why']})" if why else "")
+                        f"; constrained by the biography ({why['why']})" if why else ""
+                    )
             continue
         for p in free:
             k, v = p["key"], values[p["key"]]
@@ -327,11 +339,14 @@ def cast_world(world: str, profile: dict, fixed_members: list[dict], people: lis
                 val = r.choice(rep["options"][str(v[rep["given"]])])
             v[attr] = val
             sources[k][attr] = spec.get("source", "sampler")
-    return [{"key": p["key"], "values": values[p["key"]], "sources": sources[p["key"]], "person": p}
-            for p in people]
+    return [
+        {"key": p["key"], "values": values[p["key"]], "sources": sources[p["key"]], "person": p}
+        for p in people
+    ]
 
 
 # ---------------------------------------------------------------- distinctness
+
 
 def differences(a: dict, b: dict, cats: dict) -> list[str]:
     out = []
@@ -345,17 +360,23 @@ def differences(a: dict, b: dict, cats: dict) -> list[str]:
 
 
 def lineup(fixed_members: list[dict], cast: list[dict]) -> list[dict]:
-    return [{"key": m["key"]} | m["values"] for m in fixed_members] + \
-           [{"key": c["key"]} | c["values"] | c["person"]["fields"] for c in cast]
+    return [{"key": m["key"]} | m["values"] for m in fixed_members] + [
+        {"key": c["key"]} | c["values"] | c["person"]["fields"] for c in cast
+    ]
 
 
 def failing(rows: list[dict], dist: dict) -> list:
     cats, need = dist["categories"], int(dist["min_categories"])
-    return [(a["key"], b["key"]) for i, a in enumerate(rows) for b in rows[i + 1:]
-            if len(differences(a, b, cats)) < need]
+    return [
+        (a["key"], b["key"])
+        for i, a in enumerate(rows)
+        for b in rows[i + 1 :]
+        if len(differences(a, b, cats)) < need
+    ]
 
 
 # ---------------------------------------------------------------- outputs
+
 
 def fill(template: str, data: dict, profile: dict) -> str:
     def one(m: re.Match) -> str:
@@ -388,53 +409,89 @@ def y(v) -> str:
 def brief_yaml(c: dict, cfg: dict, world: str, attempt: int, profile: dict, tversion) -> str:
     p, f = c["person"], c["person"]["fields"]
     files = [f"worlds/{w}/people/{p['file']}" for w in cfg["worlds"][world]["worlds"]]
-    lines = ["# Casting brief (step-26 §7.1), generated by tools/character_pipeline/casting/cast_director.py.",
-             "# Do not edit by hand: change casting_inputs.json, the profile or casting.yaml and re-run.",
-             "# `sources` records which attributes came from the biography and which from the sampler.",
-             f"person: {p['key']}", f"from: {y(files)}", f"role: {y(f['role'])}"]
+    lines = [
+        "# Casting brief (step-26 §7.1), generated by tools/character_pipeline/casting/cast_director.py.",
+        "# Do not edit by hand: change casting_inputs.json, the profile or casting.yaml and re-run.",
+        "# `sources` records which attributes came from the biography and which from the sampler.",
+        f"person: {p['key']}",
+        f"from: {y(files)}",
+        f"role: {y(f['role'])}",
+    ]
     for attr in profile["attributes"]:
         lines.append(f"{attr}: {y(c['values'][attr])}")
     o = f["outfit"]
-    lines.append(f"outfit: {{ outer: {y(f['outer'])}, under: {y(o['under'])}, legs: {y(o['legs'])}, "
-                 f"feet: {y(o['feet'])} }}")
+    lines.append(
+        f"outfit: {{ outer: {y(f['outer'])}, under: {y(o['under'])}, legs: {y(o['legs'])}, "
+        f"feet: {y(o['feet'])} }}"
+    )
     if f.get("headwear"):
         lines.append(f"headwear: {y(f['headwear'])}")
-    lines += [f"accessories: {y(f['accessories'])}", f"manner: {y(f['manner'])}",
-              f"avoid: {y(f['avoid'])}   # §7.4",
-              "sits: true                 # every cast member may sit (A-4 decor, E-2 extras): G-13 applies"]
+    lines += [
+        f"accessories: {y(f['accessories'])}",
+        f"manner: {y(f['manner'])}",
+        f"avoid: {y(f['avoid'])}   # §7.4",
+        "sits: true                 # every cast member may sit (A-4 decor, E-2 extras): G-13 applies",
+    ]
     if f.get("identity_source"):
         lines.append(f"identity_source: {y(f['identity_source'])}")
-    lines += ["casting:", f"  world: {world}", f"  profile: {profile['_path']}",
-              f"  template_version: {tversion}", f"  seed: {cfg['seed']}", f"  attempt: {attempt}",
-              "  outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)",
-              "sources:"]
+    lines += [
+        "casting:",
+        f"  world: {world}",
+        f"  profile: {profile['_path']}",
+        f"  template_version: {tversion}",
+        f"  seed: {cfg['seed']}",
+        f"  attempt: {attempt}",
+        "  outfit_source: director (from role, tags and note; the setting's climate; §7.4 avoid list)",
+        "sources:",
+    ]
     lines += [f"  {k}: {y(v)}" for k, v in c["sources"].items()]
     return "\n".join(lines) + "\n"
 
 
 def casting_md(results: dict, cfg: dict, notes: str) -> str:
     cols, dist = cfg["table"], cfg["distinctness"]
-    out = ["# Casting — generated by `tools/character_pipeline/casting/cast_director.py`", "",
-           f"Config `{cfg['_path']}`; seed `{cfg['seed']}`. Do not edit by hand. Specification:",
-           "`.structured-coding/plans/mvp0/step-26-cast.md` §§7.1-7.4a. The profile schema is documented at the",
-           "top of `populations/san-diego-county.yaml`.", ""]
+    out = [
+        "# Casting — generated by `tools/character_pipeline/casting/cast_director.py`",
+        "",
+        f"Config `{cfg['_path']}`; seed `{cfg['seed']}`. Do not edit by hand. Specification:",
+        "`.structured-coding/plans/mvp0/step-26-cast.md` §§7.1-7.4a. The profile schema is documented at the",
+        "top of `populations/san-diego-county.yaml`.",
+        "",
+    ]
     for world, (cast, attempt, profile, fixed) in results.items():
         rows = lineup(fixed, cast)
-        out += [f"## {world} (profile `{profile['_path']}`; attempt {attempt})", "", "### Cast", "",
-                "| key | " + " | ".join(cols) + " |", "|" + " --- |" * (len(cols) + 1)]
+        out += [
+            f"## {world} (profile `{profile['_path']}`; attempt {attempt})",
+            "",
+            "### Cast",
+            "",
+            "| key | " + " | ".join(cols) + " |",
+            "|" + " --- |" * (len(cols) + 1),
+        ]
         for r in rows:
-            out.append(f"| {r['key']} | " + " | ".join(y(r.get(c, '')).strip('"') for c in cols) + " |")
-        out += ["", f"### Distinctness (§7.3: every pair differs in at least {dist['min_categories']} of "
-                + ", ".join(dist["categories"]) + ")", "", "| Pair | Differs in | Count | Verdict |",
-                "| --- | --- | --- | --- |"]
+            out.append(f"| {r['key']} | " + " | ".join(y(r.get(c, "")).strip('"') for c in cols) + " |")
+        out += [
+            "",
+            f"### Distinctness (§7.3: every pair differs in at least {dist['min_categories']} of "
+            + ", ".join(dist["categories"])
+            + ")",
+            "",
+            "| Pair | Differs in | Count | Verdict |",
+            "| --- | --- | --- | --- |",
+        ]
         for i, a in enumerate(rows):
-            for b in rows[i + 1:]:
+            for b in rows[i + 1 :]:
                 d = differences(a, b, dist["categories"])
                 ok = len(d) >= int(dist["min_categories"])
-                out.append(f"| {a['key']} / {b['key']} | {', '.join(d)} | {len(d)} | {'PASS' if ok else 'FAIL'} |")
-        out += ["", "### Realised distribution against the profile (stratified attributes)", "",
-                "| Attribute | Group | Value | Profile share | Expected | Realised |",
-                "| --- | --- | --- | --- | --- | --- |"]
+                verdict = "PASS" if ok else "FAIL"
+                out.append(f"| {a['key']} / {b['key']} | {', '.join(d)} | {len(d)} | {verdict} |")
+        out += [
+            "",
+            "### Realised distribution against the profile (stratified attributes)",
+            "",
+            "| Attribute | Group | Value | Profile share | Expected | Realised |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
         for attr, spec in profile["attributes"].items():
             if not spec.get("stratify"):
                 continue
@@ -444,8 +501,10 @@ def casting_md(results: dict, cfg: dict, notes: str) -> str:
             for gkey, group in sorted(groups.items()):
                 for v, s in weights_of(spec, group[0], attr).items():
                     real = sum(1 for r in group if str(r[attr]) == v)
-                    out.append(f"| {attr} | {'/'.join(gkey) or 'all'} (N={len(group)}) | {v} | {s:.3f} | "
-                               f"{s * len(group):.2f} | {real} |")
+                    out.append(
+                        f"| {attr} | {'/'.join(gkey) or 'all'} (N={len(group)}) | {v} | {s:.3f} | "
+                        f"{s * len(group):.2f} | {real} |"
+                    )
         out.append("")
     return "\n".join(out) + "\n" + notes
 
@@ -471,8 +530,10 @@ def main(argv: list[str] | None = None) -> int:
     except json.JSONDecodeError as e:
         raise CastError(f"casting inputs {cfg['inputs']} are malformed: {e}") from None
     if str(inputs.get("template_version")) != str(template.get("version")):
-        raise CastError(f"casting inputs name template v{inputs.get('template_version')}, "
-                        f"the template is v{template.get('version')} (X-22)")
+        raise CastError(
+            f"casting inputs name template v{inputs.get('template_version')}, "
+            f"the template is v{template.get('version')} (X-22)"
+        )
     out_dir = rel(cfg["output_dir"])
     files: dict[Path, str] = {}
     results = {}
@@ -491,10 +552,12 @@ def main(argv: list[str] | None = None) -> int:
             data = c["values"] | c["person"]["fields"]
             d = out_dir / c["key"]
             files[d / "brief.yaml"] = brief_yaml(c, cfg, world, attempt, profile, template["version"])
-            files[d / "reference_prompt.txt"] = (template["full_body"]["preamble"] + "\n"
-                                                 + fill(template["person_full"], data, profile))
-            files[d / "portrait_prompt.txt"] = (template["portrait"]["preamble"] + "\n"
-                                                + fill(template["person_portrait"], data, profile))
+            files[d / "reference_prompt.txt"] = (
+                template["full_body"]["preamble"] + "\n" + fill(template["person_full"], data, profile)
+            )
+            files[d / "portrait_prompt.txt"] = (
+                template["portrait"]["preamble"] + "\n" + fill(template["person_portrait"], data, profile)
+            )
     notes_path = out_dir / "CASTING_NOTES.md"
     notes = notes_path.read_text() if notes_path.is_file() else ""
     files[out_dir / "CASTING.md"] = casting_md(results, cfg, notes)
