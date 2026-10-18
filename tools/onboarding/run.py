@@ -115,9 +115,16 @@ def agent_environment(sandbox: Path) -> dict[str, str]:
         if upper in {"PATH", "PWD", "OLDPWD", "VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT"}:
             continue
         keep[name] = value
-    system = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] if os.name != "nt" else []
+    system: list[str] = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] if os.name != "nt" else []
     keep["PATH"] = os.pathsep.join([str(sandbox / "bin"), *system])
     return keep
+
+
+def load_average() -> tuple[float, float, float]:
+    """The host's 1, 5 and 15 minute load averages for the ledger; Windows has none, so zeros."""
+    if sys.platform == "win32":
+        return (0.0, 0.0, 0.0)
+    return os.getloadavg()
 
 
 def agent_command(
@@ -190,7 +197,7 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
         out / "settings.json",
     )
     (out / "prompt.txt").write_text(prompt(options.instructions, sandbox), encoding="utf-8")
-    load_before = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
+    load_before = load_average()
     started = time.monotonic()
     transcript = out / "transcript.jsonl"
     with transcript.open("wb") as stdout, (out / "agent.stderr.txt").open("wb") as stderr:
@@ -208,7 +215,7 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
         except subprocess.TimeoutExpired:
             code = -1
     wall = time.monotonic() - started
-    load_after = os.getloadavg() if hasattr(os, "getloadavg") else (0.0, 0.0, 0.0)
+    load_after = load_average()
     shutil.copytree(sandbox / "work", out / "work")
     binary = score.Binary(
         (sandbox / "bin" / "real" / options.binary.name).resolve(), [sandbox / "entities"]
