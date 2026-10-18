@@ -1464,14 +1464,20 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   plants `lm-controller = false` (expects `… decision model lm is in the build`) and `happenings = true` (expects
   `happenings = true, but pack mineworld-happenings is not in the build`; WE-a is not merged), so a false flag and a
   true flag are each still shown to turn the run red.
-- **The decay comparison's "after" output changed on the restacked build** (scratch guide run 39102856582 on the
-  25f head, Linux: `FAIL page compare/relationship-decay line 184 step 1.4`; every other block passed). The
-  "before" run is unchanged (`relationship-changed 20`, Ana move 1468 talk 738); the "after" run now gives
-  `relationship-changed 28` (was 38) and a slightly different `activity` line (Ana move 1453 talk 732, Ben 1431/913,
-  Cai 1544/845). Main's group-activity changes (S27-b: offers complete, an expired invitation not offered) are in
-  the restack; the page no longer claims identical behaviour. Classified **stale page output**, not a flake. The
-  page and its mirror quote the new numbers; the table's `activity` row and the closing paragraph say people's days
-  change a little and the ties change a lot. §19.3's row for this comparison is superseded by these numbers.
+- **Chapter 10's and the decay comparison's outputs changed on the restacked build: stale page output, not a
+  flake.** Main's group-activity changes (S27-b: offers complete, an expired invitation not offered) change how
+  many invitations are sent and answered, so every run with `group-activity` gives new numbers. New values, read
+  from the full guide output on GitHub CI (scratch runs 39104730334: the guide test four times in one job, all four
+  identical; and 39104159599: `run` of `worlds/social-cafe` and of the example five times each with seed 1,
+  identical, so no nondeterminism): chapter 10 step 10.2 `accept-invitation accepted 272` (was 263), `invite
+  accepted 390` (was 374), `relationship-changed 18` (unchanged); step 10.5 `relationship-changed 30` (was 32) and
+  `activity` Ana 1503/596, Ben 1468/845, Cai 1536/820 (the same as step 10.2's run, as the page says); the
+  comparison's before `relationship-changed 18` (was 20), after 28 (was 38), `activity` Ana 1453/732, Ben
+  1431/913, Cai 1544/845 in both runs (so "people do exactly the same things" still holds). The pages, their
+  mirrors and the comparison's table quote the new numbers. A first correction (`0b4845eb`) misread the before run
+  as unchanged, because the scratch workflow printed only the last 200 lines of the guide output and the earlier
+  FAILs were cut off; it is superseded by this one, made from the full output artifact. §19.3's rows for these
+  two comparisons are superseded by these numbers.
 - Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
 
 ---
