@@ -9,14 +9,12 @@
 
 use std::borrow::Cow;
 
+use mineworld_contracts::MAX_IDENTIFIER_LENGTH;
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 
 /// The identifier rule of `mineworld-contracts`: 1 to 64 bytes of `a-z`, `0-9`, `-` and `_`, with no `-`
 /// or `_` at either end.
 pub const IDENTIFIER_PATTERN: &str = "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$";
-
-/// The longest identifier, in bytes (`mineworld_contracts::MAX_IDENTIFIER_LENGTH`).
-const IDENTIFIER_MAX: usize = 64;
 
 /// A string schema under the identifier rule, described for an author.
 fn identifier(description: &str) -> Schema {
@@ -24,7 +22,7 @@ fn identifier(description: &str) -> Schema {
         "type": "string",
         "pattern": IDENTIFIER_PATTERN,
         "minLength": 1,
-        "maxLength": IDENTIFIER_MAX,
+        "maxLength": MAX_IDENTIFIER_LENGTH,
         "description": description,
     })
 }
@@ -106,18 +104,17 @@ schema_type!(
 
 #[cfg(test)]
 mod tests {
-    use mineworld_contracts::{EntityType, MAX_IDENTIFIER_LENGTH};
+    use mineworld_contracts::EntityType;
     use serde::Deserialize;
     use serde::de::IntoDeserializer;
     use serde::de::value::Error;
 
     use super::*;
 
-    /// The schemas state the contracts' rules: the identifier bound is the contract's constant, and
-    /// every entity type the schema lists is one the contract decodes, all four of them.
+    /// The schemas state the contracts' rules: every entity type the schema lists is one the contract
+    /// decodes, all four of them. (The identifier bound is the contract's constant itself.)
     #[test]
     fn the_schemas_state_the_contracts_own_rules() {
-        assert_eq!(IDENTIFIER_MAX, MAX_IDENTIFIER_LENGTH);
         let schema = EntityTypeName::json_schema(&mut SchemaGenerator::default());
         let decoded: Vec<EntityType> = schema
             .get("enum")
