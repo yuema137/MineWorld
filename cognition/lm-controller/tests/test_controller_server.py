@@ -274,9 +274,12 @@ async def _walk_into_reach(visitor: SeatSession) -> None:
             },
         )
         outcome = await visitor.submit(request)
-        assert isinstance(outcome, Answered) and isinstance(outcome.result, Accepted), (
-            f"a stride to ({step_x}, {step_y}) was not accepted: {outcome}"
-        )
+        if not (isinstance(outcome, Answered) and isinstance(outcome.result, Accepted)):
+            now = (await visitor.changed()).observation.self_location
+            pytest.fail(
+                f"a stride to ({step_x}, {step_y}) was not accepted: {outcome}; the walk began at {(x, y)}, "
+                f"the visitor is now at {now}"
+            )
 
 
 async def _talk_available(visitor: SeatSession, alice: EntityId) -> None:
@@ -482,16 +485,21 @@ def test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop(
                 heard = [text for _, text in _heard(frame.observation, visitor.observer)]
             outcomes = [record.record.outcome for record in _decisions(store)]
             await _stop(task)
-            fresh = await ResumingSeat.open(
-                _connector(server.url),
-                seat=ALICE,
-                invite=Invite(INVITE),
-                nickname="after-stop",
-                cursor=None,
-                take_over=False,
-                sleep=asyncio.sleep,
-                clock=time.monotonic,
-            )
+            try:
+                fresh = await ResumingSeat.open(
+                    _connector(server.url),
+                    seat=ALICE,
+                    invite=Invite(INVITE),
+                    nickname="after-stop",
+                    cursor=None,
+                    take_over=False,
+                    sleep=asyncio.sleep,
+                    clock=time.monotonic,
+                )
+            except SeatLost:
+                print(f"(g) outcomes before the stop: {outcomes}; counters {_last_counters(store)}")
+                print(_diagnose(store, server))
+                raise
             took_over = fresh.welcome.took_over
             await fresh.leave()
             return refusal, WORDS, took_over, heard, ",".join(outcomes)
@@ -546,13 +554,22 @@ def test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins(tmp_path:
                     "the runner handed the seat back",
                     within=30,
                 )
+                # Read after the secret was seen gone: every consult logged from here on ran on a seat joined
+                # after that handback, since a session writes the secret at its join and deletes it only after
+                # its consult is logged.
+                handed_back_after = len(_decisions(store))
+                # A rejoin is seen as the secret written again, or as a consult of the rejoined seat. The secret
+                # alone is not enough (D-P6b-40, D-P6b-41): the script refuses every consult, so a rejoin that
+                # backfills a trigger hands the seat back again within milliseconds and deletes the secret
+                # between two polls.
                 await _wait_for(
-                    lambda: (store / "alice.resume").exists(),
+                    lambda: (
+                        (store / "alice.resume").exists()
+                        or len(_decisions(store)) > handed_back_after
+                    ),
                     "the runner rejoined after the handback period",
                     within=30,
                 )
-                # Seen once is the rejoin (D-P6b-40): the script refuses every consult, so a later one may
-                # hand the seat back again and delete the secret before a second read.
                 rejoined = True
             await _stop(task)
             return (

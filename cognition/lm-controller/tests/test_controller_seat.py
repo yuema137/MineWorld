@@ -44,6 +44,7 @@ from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.triggers import detect
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
 from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
@@ -54,7 +55,6 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import CassetteMiss
 
 ALICE = EntityKey("alice")
@@ -215,7 +215,7 @@ def test_absorb_runs_to_its_end_before_triggers_are_detected(
     real_detect = detect
 
     async def recording_absorb(
-        store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
+        store: SeatView, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
     ) -> AbsorbReport:
         calls.append("absorb:start")
         report = await real_absorb(store, facts, through, retention)
@@ -225,7 +225,7 @@ def test_absorb_runs_to_its_end_before_triggers_are_detected(
     def recording_detect(
         facts: Sequence[PerceivedEvent],
         me: EntityId,
-        store: MemoryStore,
+        store: SeatView,
         here: PlaceId | None,
         now_at: int,
         greeted: dict[EntityId, int],
@@ -455,10 +455,12 @@ def _arrival(event: str) -> PerceivedEvent:
 
 def test_a_remembered_person_entering_my_place_triggers_once_per_cooldown(tmp_path: Path) -> None:
     identity = StoreIdentity(world_instance=INSTANCE, seat=ALICE, self_entity=EntityId(OBSERVER))
-    store = MemoryStore.open(tmp_path / "memory.sqlite", identity)
+    home = MemoryHome.open(tmp_path / "memory.sqlite", INSTANCE)
+    store = home.seat(identity)
     store.connection.execute(
-        "INSERT INTO stable (entity, first_key, last_key, times_met, exchanges, level, level_key, "
-        "first_at, last_at) VALUES ('5', '', '', 3, 3, 'L3', '', 0, 0)"
+        "INSERT INTO stable (seat, entity, first_key, last_key, times_met, exchanges, level, "
+        "level_key, first_at, last_at) VALUES (?, '5', '', '', 3, 3, 'L3', '', 0, 0)",
+        (store.seat_id,),
     )
     here = PlaceId.model_validate({"entity": "3", "entity_type": "place"})
     greeted: dict[EntityId, int] = {}
@@ -469,7 +471,7 @@ def test_a_remembered_person_entering_my_place_triggers_once_per_cooldown(tmp_pa
         for trigger in found:
             assert trigger.speaker is not None
             greeted[trigger.speaker] = at
-    store.close()
+    home.close()
     assert counts == [1, 0, 1]
 
 

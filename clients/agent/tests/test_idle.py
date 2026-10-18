@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pytest
 from conftest import Start
-from mineworld_sdk.wire.frames import Invite
-from realserver import INVITE, PATIENCE, Wire, market_town, seated
+from mineworld_sdk.wire.frames import Invite, WorldSummary
+from realserver import INVITE, PATIENCE, Server, Wire, market_town, seated
 from support import run
 
 from mineworld_agent import (
@@ -38,6 +38,13 @@ IDLE_S = 30
 SCALE = 12
 
 
+async def _status(server: Server) -> WorldSummary:
+    """`/status`, read off the event loop. `Server.status` is a blocking HTTP call: on the loop it stops
+    the Player reading its socket for as long as the server takes to answer, and the next `observe` then
+    shows the observation from before the call — the oracle's own stall, not the Player's (pr-s27c D-c-23)."""
+    return await asyncio.to_thread(server.status)
+
+
 def test_an_idle_handle_holds_up_nothing(mineworld: Start, tmp_path: Path) -> None:
     server = mineworld(
         "market-town",
@@ -48,16 +55,16 @@ def test_an_idle_handle_holds_up_nothing(mineworld: Start, tmp_path: Path) -> No
     async def play() -> tuple[int, int, View, int]:
         async with Player(PlayerConfig(server=server.url), Invite(INVITE), connector=wire) as p:
             joined = await p.join(JoinArgs(seat="visitor", nickname="idle"))
-            before = server.status().at
+            before = (await _status(server)).at
             began = time.monotonic()
             await asyncio.sleep(IDLE_S)  # the agent thinks: no call at all for 30 wall seconds
-            status = server.status()
+            status = await _status(server)
             advanced = status.at - before
             elapsed = time.monotonic() - began
             seen = (await p.observe(ObserveArgs(handle=joined.handle))).view
             assert isinstance(seen, View)
             print(f"AC-c-7: {elapsed:.1f} wall s idle, {advanced} world s, view at {seen.at}")
-            return advanced, status.events_dropped, seen, server.status().at
+            return advanced, status.events_dropped, seen, (await _status(server)).at
 
     advanced, events_dropped, seen, now = run(play(), timeout_s=80)
     assert abs(advanced - IDLE_S * SCALE) <= 24, advanced

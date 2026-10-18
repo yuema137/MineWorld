@@ -304,8 +304,10 @@ pub(crate) enum Command {
         reply: oneshot::Sender<Result<Seated, Refusal>>,
     },
     /// Release a subscription, saying how its connection ended. Fire and forget: a connection that
-    /// has already died cannot wait.
-    Leave(SubscriptionId, Departure),
+    /// has already died cannot wait. The connection's streams travel with the command and are dropped
+    /// only once the world has recorded the departure, so a sweep in between finds the observation
+    /// channel open and cannot take a connection that left for one that dropped (pr-s27c D-c-24).
+    Leave(Box<Seated>, Departure),
     /// Dispatch one request as one observer, for the connection named (its `acted_through`).
     Submit {
         subscription: Option<SubscriptionId>,
@@ -467,10 +469,17 @@ impl WorldHost {
     /// Fire and forget, and deliberately: a client that vanished must not be able to make the
     /// transport wait, and the world drops a subscriber whose channel has closed on its next sweep
     /// in any case — as a drop.
-    pub fn leave(&self, subscription: SubscriptionId, departure: Departure) {
+    ///
+    /// Takes the connection's [`Seated`] rather than its subscription: its observation channel is
+    /// what a sweep reads to tell a closed connection, and it must stay open until the world has
+    /// processed this departure. Dropped by the session instead, a tick already running when the
+    /// command was queued would sweep the closed channel first and hold the seat of a client that
+    /// said `leave` (pr-s27c D-c-24). If the command cannot be queued, the channel closes here and the
+    /// sweep reaps the connection as a drop, as before.
+    pub fn leave(&self, seated: Seated, departure: Departure) {
         let _ = self
             .commands
-            .try_send(Command::Leave(subscription, departure));
+            .try_send(Command::Leave(Box::new(seated), departure));
     }
 
     /// Asks the world thread one admin command and waits for its answer. Called only by the admin
