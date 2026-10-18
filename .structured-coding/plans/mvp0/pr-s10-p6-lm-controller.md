@@ -2377,4 +2377,12 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
   `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
   locally (407 passed, 2 skipped); CI on the PR head gates the rest.
+- **D-P6-42 (CI finding, test race; bounded fix, branch `fix/recall-at-trigger`).** Test race: decision log read before
+  the acted consult's record was written; fixed by waiting for it; found on #257's CI job 117655219367
+  (`python (ubuntu-24.04)`, head f2b5827b). `test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop`
+  read the outcomes as soon as the visitor heard Alice's line; the visitor perceived the `spoke` while the runner had
+  not yet logged the consult, so the log held only an earlier `chose` and (a) failed `no consult acted: chose`. The
+  test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
+  (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
+  record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
 - (planning findings are §3.2 and §0.1)
