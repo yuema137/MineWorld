@@ -1153,6 +1153,24 @@ two real-binary files; R-a-1 makes it a stop only if it breaks a real-binary bud
 distinct). `test_retention_real.py`'s keep-all window narrows from days 75…85 to 78…84 (six passes on a ≈ 15 MiB
 store instead of eleven; the first forced pass is still day 81, measured).
 
+**CI run 4 (39053780410, head `a363f100`).** All jobs PASS. `test (2/3)` failed once on a Rust wall-clock tick-budget
+assertion (`tools/cli/tests/hosted_town.rs`; nothing under `tools/` changes here) and passed on its re-run.
+`python (ubuntu-24.04)` 14 m 30 s (the cognition member 11 m 44 s: 463 passed, 52 `slow` deselected);
+`python (windows-2025)` 33 m 16 s; `test-macos (b: core 3/3, python)` 34 m 04 s. AC-a-14 on Linux CI:
+`test_retention_real.py` 59.6 s (`main` 94.2 s), `test_ac10.py` 46.5 s (70.3 s): within R-a-1 and §12's 90 s.
+
+**CI run 5 (39073972039, head `5a0515ed`, after merging P6a #236 and S30-b #247).** All jobs PASS.
+`python (windows-2025)` was cancelled once at 45 min, hung 26 min in
+`test_controller_resilience.py::test_a_the_world_stays_valid_under_thirty_percent_garbage_and_five_percent_failure`
+(a real-server test this PR does not change; `main`'s run on `83e011fe` was cancelled the same way, hung in
+`test_controller_server.py`); its re-run on the same head passed in 41 m 09 s. `python (ubuntu-24.04)` 23 m 46 s;
+`test-macos (b)` 34 m 01 s.
+
+**D-a-17 (bounded; merge of #248 ARC-149 and #244 P7).** `docs/DECISIONS.md` rebuilt as before (153 ids distinct, 240
+headings). P7 added `tests/test_milestone_d_100_days.py` and `tests/test_milestone_d_fallback.py`, which open the
+deleted `MemoryStore`: both now open the seat's one-seat `MemoryHome` at the same path and its `SeatView` (D-a-1),
+closing the home. A mechanical port; no assertion changed.
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 
