@@ -2179,7 +2179,23 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   ends there; the caller's is re-raised when the current task is being cancelled (`Task.cancelling()`). Test:
   `test_a_close_cancelled_while_the_socket_closes_stops_its_caller` (`sdk/python/tests/test_session_state.py`)
   cancels a close while the socket's closing handshake waits; with the fix reverted it fails deterministically.
-  `Server.stop` is not involved: it kills before it waits.
+  `Server.stop` is not involved: it kills before it waits. On windows-2025 with the fix, test (b) passed 99 of 100
+  runs and none hung (scratch run 39074618192; the one failure is D-P6b-47).
+- **D-P6b-46 (CI finding, test synchronisation; bounded correction of AP6-16's mechanism).**
+  `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally` failed on windows-2025 with "AP6-16: the
+  decision log has no local not_offered drop", no late `spoke` (scratch run 39074618192, one of five `python`
+  layers). The scripted model held every answer 3 wall seconds and the test assumed the walk out of talk range
+  ended first; on a slow runner it did not, so the line's answer met a visitor still in range. AP6-16's property —
+  an answer that arrives after the visitor left is dropped locally and never spoken — is unchanged; its mechanism
+  ("a scripted backend answering after 3 s") is replaced by the precondition it stood for: the test holds the
+  line's answer until the visitor's own view shows talk not offered and two more sweeps have reached it (Alice's
+  view trails by up to a frame, D-P6b-30). Greetings are answered at once. On windows-2025, 20 runs each: the
+  previous test 18 of 20 (both failures this signature), the new one 20 of 20 (scratch run 39077601297).
+- **D-P6b-47 (CI finding, open; not reproduced as a cause).** In 100 windows-2025 runs of test (b) after D-P6b-45,
+  one failed at the start: the visitor's WebSocket opening handshake to the server timed out (`JOIN_PATIENCE`,
+  10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
+  residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
+  the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
 - **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
   `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
   30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
