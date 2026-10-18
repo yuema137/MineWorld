@@ -532,14 +532,62 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| B0 | — | [ ] | [ ] | [ ] |
-| B1 | — | [ ] | [ ] | [ ] |
-| B2 | — | [ ] | [ ] | [ ] |
-| B3 | — | [ ] | [ ] | [ ] |
+| B0 | — (this commit) | [x] | [x] | [x] |
+| B1 | — (this commit) | [x] | [x] | [x] |
+| B2 | 8789f535 (evidence); baselines in the B3 commit (step 8, ruled D-b-2 option (a)) | [x] | [x] | [x] |
+| B3 | close-out commit (see Evidence, B3) | [x] | [ ] (CI on the exact head, see Evidence, B3) | [x] |
 
 ### Evidence
 
-(none yet)
+- B0 (2026-10-14): base `origin/main` = `708bc56` (merge of PR #196, which carries this frozen design).
+  Header reads `DESIGN FROZEN`; §12 is filled (checked). Rulings QS27b-1 and QS27b-2 copied verbatim into
+  `handoff-s27b.md`. Markdown checks run in B0 (see handoff).
+- B1 (2026-10-14), load average ~200 throughout (R-LOAD-1: no local workspace run):
+  - `cargo test -p mineworld-group-activity`: 3 + 11 + 1 tests, all PASS (≈7 min incl. compile).
+  - Mutations (each red on the named test, reverted, then green):
+    M-b-1 accept-invitation via `Offer::new`: FAIL at payload assertion (`:422`), reverted.
+    M-b-2 invite complete: FAIL at "invite stays incomplete", reverted.
+    M-b-3 leave with `accept_requirement()`: FAIL at requirement assertion (`:470`), reverted.
+  - `cargo fmt --all --check`: PASS. `cargo clippy -p mineworld-group-activity --all-targets -- -D warnings`: PASS.
+  - `cargo build -p mineworld-cli` (≈12 min under load): PASS.
+  - `MINEWORLD_BIN=/tmp/impl-s27b-target/debug/mineworld uv run --locked pytest sdk/python/tests/test_real_server.py -k invitation_is_answered`: 1 passed.
+  - `ruff check`, `ruff format --check`, `pyright sdk/python`: PASS (0 errors).
+  - `check_doc_headings.py`, `check_decision_ids.py`: PASS.
+  - Test names: `the_four_answers_are_offered_complete_and_attempted_unchanged` (Rust),
+    `test_an_invitation_is_answered_and_left_through_complete_affordances` (Python).
+- Merge (2026-10-15, resume): `origin/main` 5cbb4697 merged (`8418682f`), then `origin/main` 8c5d3598 (`44a56e33`,
+  design documents only). No conflicts in either; recorded as auto-merged. The merged base is `8c5d3598`.
+- Fix D-b-1 (`7c544451`): `cargo test -p mineworld-group-activity` 3 + 12 + 1 + 0 PASS after the fix; the regression
+  test `an_expired_invitation_is_not_offered_as_an_answer` FAILED before the fix (at "an expired invitation is not
+  offered accept") and passes after. `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-group-activity
+  --all-targets -- -D warnings` PASS.
+- B2 steps 1–3 (2026-10-15, on `44a56e33`, targeted only): `cargo test -p mineworld-rule-controller` 38 PASS;
+  `mineworld-acceptance` `ac1_composability` 15 PASS, `complete_affordances` 4 PASS; `mineworld-cli`
+  `interaction_runs` 3 PASS (the earlier failure at `:253` under load did not reproduce; not attributed),
+  `market_town` 1 PASS, `milestone_c` 1 PASS, `routines` 1 PASS, `social_composition` 4 PASS, `social_sections` 9 PASS.
+- B2 step 5 (reference): `origin/main` 8c5d3598 carries no 12d re-record (`git log -- scripts/baselines.txt` names
+  SR-b, FG-a and 13c only). Its committed `scripts/baselines.txt` PASSES on its own long record, so the reference is
+  the committed file. The base record was still taken for attribution.
+- B2 step 6 (long profile, `python3.11 scripts/ci_parity.py record --profile long`, wall times 988.6 s, 814.6 s, 862.4 s):
+  `target/scratch-s27b/s27b.long` (HEAD `44a56e33`), `base.long` (`8c5d3598`), `b1.long` (`8c5d3598` plus B1's three
+  files only, see D-b-2). `baseline check` on `s27b.long`: **FAIL** for `lakeside`, `market-town`, `social-cafe`
+  (six keys each); `bodies-yard` unchanged. `baseline check` on `base.long`: PASS.
+- B2 attribution: `diff base.long b1.long` moves the same three worlds, `bodies-yard` unchanged (the F-S27b-1 cause).
+  `diff b1.long s27b.long` shows that D-b-1 changes the moved outcome further (for example `lakeside` `summary-300`
+  facts 2473 in B1 and 2476 in the full branch; `market-town` table `facts` rows 9410 and 9154). So the full branch
+  moves keys for two causes; QS27b-1 authorizes only F-S27b-1's cause.
+- B2 step 7 (sanity, 300-day save, `mineworld run --headless --seed 7 --days 300`, `inspect --last 0`):
+  `group-activity-started` = 9793 (`lakeside`), 9760 (`market-town`), 9736 (`social-cafe`); every seat moved and talked in
+  every 30-day bucket of `market-town` and `lakeside` (the run output's existing lines).
+- B2 step 8: **NOT RUN. Material stop (§12).** `baseline write` was not run. The moved keys have two causes; the second
+  (D-b-1) is outside QS27b-1's ruling. Decision needed from the primary session (see D-b-2).
+- B3 (2026-10-15): I-b-4 check, `git diff --name-only origin/main...HEAD`: the §2.1 paths (`perception.rs`,
+  `group_activity.rs`, `test_real_server.py`, `DECISIONS.md`, the README, `scripts/baselines.txt`) plus the two plan
+  documents (ledger, handoff). No other code path. `#<PR>` replaced by `#241` in the reason lines (written directly).
+  PR #241 opened as a draft, then marked ready on the operator-coordinator's instruction so CI's Rust and Python layers
+  run. CI results on the exact head: see the PR and the handoff report.
+- Python CP-b (`test_an_invitation_is_answered_and_left_through_complete_affordances`, release binary of `44a56e33`):
+  1 PASS. `check_doc_headings.py`: PASS (239 sections, 33 documents). `check_decision_ids.py`: PASS (138 ids).
 
 ### Assumptions to verify in implementation
 
@@ -555,4 +603,91 @@ the base, and otherwise against a long record of B2's own base commit (§9 B2 st
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2)
+(planning findings are §3.2)
+
+- **D-b-0 (B0, bounded, recorded).** The header block reads `DESIGN FROZEN 2026-10-14` but its metadata
+  line `Lifecycle: DRAFT` was not updated at freeze. The operator's dispatch states the design is frozen and
+  §12 is filled, so B0 proceeds; the stale `Lifecycle` line is for the primary session to correct in its
+  next design-side commit. No authority line was changed by the implementer.
+
+- **D-b-1 (bounded correction, recorded, 2026-10-15; operator dispatch on resume).** Pre-existing defect found
+  when the lane resumed: `perception.rs` offered `accept-invitation` and `decline-invitation` as available for
+  an invitation past its `until`, although dispatch refuses it (`PreconditionFailed`). The module doc claimed
+  perception could not see the clock; `WorldRead::at` exists and is the world's clock. Fix: the invitation
+  must be open at `world.at()` to be offered (`invited_by_them`). Effect on I-b-2: the availability of the
+  two answers changes for expired invitations only; requirements, refusals and the other offers are unchanged.
+  Regression test `an_expired_invitation_is_not_offered_as_an_answer` (`systems/group-activity/tests/group_activity.rs`):
+  red on the pre-fix code (FAIL at "an expired invitation is not offered accept"), green after. The test moves
+  the world's clock with `World::advance_to` before observing, because perception reads `WorldRead::at`
+  (= `World::now`) and not the `at` argument of `observe`. Finding for the kernel/presence owner: `observe`
+  takes an `at` that its providers do not see (recorded as F-S27b-4 below) (the observation's `at` and the read's `at` can differ in tests).
+  This correction may move the B2 long-run measurement for a cause other than F-S27b-1 (an expired accept
+  is no longer attempted); B2 must attribute every moved key before any re-record (§5.3).
+
+- **D-b-2 (B2, material stop, 2026-10-15).** The long-profile records move `lakeside`, `market-town` and
+  `social-cafe` (not `bodies-yard`). The F-S27b-1 cause (B1's four complete offers) alone moves the same worlds
+  (`b1.long`); the full branch also carries D-b-1, which changes the offered band's draws further. QS27b-1 rules only
+  F-S27b-1's cause, so no baseline section is rewritten. Options for the primary session, with the smallest revision:
+  (a) rule D-b-1's cause as a second authorized cause and re-record the three sections with two reason lines;
+  (b) move D-b-1 to its own bounded fix PR, rebase this PR without it, then re-record for F-S27b-1 alone (the
+  `b1.long` evidence already shows that cause moves only these three worlds, with the sanity rule met).
+  Scratch worktrees: the design's `target/scratch-s27b/base` path failed (`cargo`: "package collision in the
+  lockfile", because a worktree inside the workspace is a second `mineworld-authoring`), so the base and B1-only trees
+  are at `/Users/yuema137/mineworld-worktrees/s27b-base-scratch` and `/Users/yuema137/mineworld-worktrees/s27b-b1-scratch`
+  (both removable). The records used `/opt/homebrew/bin/python3.11` (the default `python3` lacks `tomllib`). `compare`
+  takes one commit only, so the cross-commit comparison used `ci_parity.py diff`.
+  **Ruled 2026-10-15 (primary): option (a).** The expired-invitation fix (D-b-1, `7c544451`) is a second authorized
+  cause. It is a correctness fix that belongs to S27-b's own offers. Action: the three moved sections are re-recorded
+  once from the S27-b long record (`44a56e33`, which carries the same code as the head), with two reason lines each
+  (F-S27b-1 and D-b-1). Recorded in B2 step 8 and B3 below.
+
+- **B2 step 8 (2026-10-15, after the ruling).** `python3.11 scripts/ci_parity.py baseline write
+  target/scratch-s27b/s27b.long`; `git diff scripts/baselines.txt` touches only the keys of `lakeside`, `market-town`
+  and `social-cafe` (`bodies-yard` untouched, no existing reason line dropped). Two reason lines per moved section
+  (`#241`), each with its cause and the sanity count. `baseline check target/scratch-s27b/s27b.long` → **PASS**.
+
+- **F-S27b-4 (finding, for the presence owner, 2026-10-15).** `observe(world, observer, at, providers)`
+  (`systems/presence/src/observe.rs`) takes an `at` for the observation, but the providers' offers are computed
+  from `world.read()`, whose `WorldRead::at()` is `World::now()`. The observation's `at` and the offers' instant
+  can therefore differ (in tests, `cafe.observation(observer, when)` does not advance the clock). Consequence:
+  time-dependent offers (D-b-1) read the clock, not the `at` argument. In production the server observes at
+  `now`, so the two agree there. Not fixed here (presence is not in §2.1); the presence owner should either pass
+  `at` to the providers or require `at == now`.
+
+- **D-b-3 (third authorized consequence, 2026-10-16, primary-coordinator instruction).** CI on `acb83b7b` failed
+  one assertion on all three test jobs: `tools/cli/tests/decisions.rs:130`
+  `with_no_decision_list_run_prints_what_the_base_printed`. Its golden
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` pins the 30-day `social-cafe` run with no decision
+  list (captured from `origin/main @ 6306977`). It moves because of F-S27b-1 and D-b-1, the same causes as the three
+  baselines. Regenerated once: `target/release/mineworld run worlds/social-cafe --headless --seed 7 --days 30`, with
+  the `wall` line removed, which is the test's own `without_wall` form. No other assertion touched; the test body is
+  unchanged. Diff summary (old → new: all 30 `day` lines and 24 summary lines changed). Day 30 facts 84 639 → 82 479,
+  consults 66 105 → 64 938. Requests: `accept-invitation` 971 → 998, `decline-invitation` 413 → 450, `invite`
+  1 547 → 1 584, `join-group-activity` 488 → 1 346, `leave-group-activity` 452 → 1 315, `talk` 10 159 → 9 319,
+  `walk-step` 34 425 → 33 258, `walk-to` 11 868 → 11 147. Facts: `group-activity-started` 969 → 996,
+  `group-activity-ended` 967 → 995, `joined-group-activity` 490 → 1 348, `left-group-activity` 617 → 1 468,
+  `relationship-changed` 363 → 346, `conversation-started` 6 704 → 6 125, `spoke` 10 159 → 9 319, `arrived` 34 241 →
+  33 094, `walk-started`/`walk-ended` 11 868 → 11 147. The `activity` line (per-seat move and talk counts) and the
+  `history` fingerprint change with them. Sanity: group-activity still starts 996 activities in 30 days, and every seat
+  still moves and talks in every bucket.
+  Other goldens and recorded-output tests checked (targeted, `acb83b7b` code, release binary built from the same Rust
+  tree): `mineworld-cli` `decisions` 7 PASS (includes `the_decisions_document_is_the_golden`), `ac13_semantic_parity`
+  2 PASS, `biography` 2 PASS, `perceived` 3 PASS (1 ignored), `run` 4 PASS, `rhythm` 0 run (1 ignored);
+  `mineworld-server` `frames` 16 PASS, `deltas` 2 PASS; `mineworld-persistence` `save` 13 PASS. Ignored tests not
+  run locally (they need Godot or a long run); CI decides. Nothing else pins this run's output: the grep for the old
+  fingerprint and fact counts hit only historical plan documents, which are not changed.
+
+- **D-b-4 (independent review of `58b977b6`, 2026-10-17): REQUEST CHANGES, resolved.**
+  - Blocker (resolved): a planted mutation survived. `perception.rs:92` changed to
+    `.and_then(|held| { let _ = inviter; held.pending().first() })` offers accept and decline toward every person,
+    and no test caught it. Fix: `the_four_answers_are_offered_complete_and_attempted_unchanged` now asserts that
+    carol (who invited nobody) is offered no accept toward alice, and that carol is offered neither accept nor
+    decline toward alice (the invitation is addressed to bob). Mutation planted by hand: FAIL at `carol invited nobody`
+    (`group_activity.rs:475`); reverted; `cargo test -p mineworld-group-activity` green (3 + 12 + 1).
+  - Non-blocking, resolved: `cognition/rule-controller/src/social.rs` module doc no longer says "an offer cannot see
+    the clock"; it says perception applies the same bound (D-b-1) and the controller keeps its own check. The
+    `perception.rs` module doc table rows are realigned.
+  - Follow-up F-S27b-5 (churn, NOT changed here; needs a separate controller ruling). Activities now last a median of
+    30 minutes instead of 60. The cause: the paced `offered` band and `social::maybe_leave` both draw leave and join
+    now that the offers are complete, so members leave and rejoin more often. This PR does not change controller
+    behaviour; the ruling belongs to the rule-controller owner, and the constants in `offered.rs:17-20` stay frozen.

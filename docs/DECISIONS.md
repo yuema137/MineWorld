@@ -2656,6 +2656,12 @@ still travels. An offer that is not refused behaves exactly as before, and no co
 `Affordance` already carries any `Rejection`. The offer and the dispatch give the same answer in the
 same order: a refused action is refused before its spatial check in both.
 
+**Note, 2026-10-14 (S27-b, F-S27-2).** group-activity offers accept-invitation, decline-invitation,
+join-group-activity and leave-group-activity complete, with the empty payload each accepts, so a
+requester that does not know the pack can attempt them (step-27 §5.5). invite stays incomplete: its kind
+is free text. Consequence recorded in pr-s27b §3.2 F-S27b-1: the paced rule controller's offered band now
+draws among them.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
