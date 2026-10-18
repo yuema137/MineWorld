@@ -2207,6 +2207,15 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
   tight against the work; the one failure is a runner stall. Bound unchanged; if it recurs, take R-B5's Job Object
   fallback.
+- **D-P6b-49 (CI finding, not reproduced; bound unchanged, diagnostics added).** The same test then failed twice in a
+  row on PR #239's head 02896960 (run 39074177748: 4.33 s, then 4.48 s), a PR that touches nothing under
+  `cognition/`. On windows-2025, instrumented phase by phase (scratch runs 39098790165, 39098795564, 39098924422,
+  39098927683), on that head and on this branch, alone, after the files before it, and after `test_ac10`'s 100-day
+  run: every call took 1.047–1.109 s — the 1 s timeout, then `kill_tree` 0.046–0.109 s, of which spawning `taskkill`
+  took at most 0.016 s; 143 processes on the runner, none left by the suite. So the 2 s bound is right for the work
+  on Windows and tree-kill does not take seconds there; the 3.3 s extra on #239's runs is outside the measured
+  phases (a runner stall). The failure message now says when the child wrote its record, so a recurrence names
+  whether the spawn or the kill was slow. If it does recur in the kill, R-B5's Job Object replaces `taskkill`.
 - **(ac100, no change.)** The `ac100` fixture's 100-day run hit its 600 s bound on windows-2025 only on heads
   before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
   409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
