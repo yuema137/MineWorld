@@ -58,7 +58,9 @@ pub enum PersonaError {
     },
 }
 
-/// A person's summary of who they are: 1 to [`SUMMARY_MAX_BYTES`] bytes.
+/// Who the person is, in a sentence or two: 1 to 280 bytes.
+///
+/// The bound is [`SUMMARY_MAX_BYTES`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Summary(String);
@@ -89,7 +91,9 @@ impl Summary {
     }
 }
 
-/// One trait: 0 to [`TRAIT_MAX_BYTES`] bytes of content, which this pack carries and never interprets.
+/// One short word for the person's character: at most 32 bytes.
+///
+/// The bound is [`TRAIT_MAX_BYTES`]; this pack carries the text and never interprets it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Trait(String);
@@ -118,7 +122,9 @@ impl Trait {
     }
 }
 
-/// A person's traits, in the order authored: at most [`TRAITS_MAX`].
+/// Short words for the person's character, in the order written: at most 8.
+///
+/// The bound is [`TRAITS_MAX`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<Trait>", into = "Vec<Trait>")]
 pub struct Traits(Vec<Trait>);
@@ -145,7 +151,9 @@ impl Traits {
     }
 }
 
-/// A note on how the person speaks: 0 to [`SPEECH_MAX_BYTES`] bytes.
+/// A note on how the person speaks: at most 160 bytes.
+///
+/// The bound is [`SPEECH_MAX_BYTES`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Speech(String);
@@ -229,7 +237,8 @@ impl From<Speech> for String {
     }
 }
 
-/// A person's character: a summary, up to [`TRAITS_MAX`] traits, and an optional note on speech.
+/// How the person is and how they speak: a summary, at most 8 traits, and an optional note on speech.
+/// It shapes the person's words and grants them nothing.
 ///
 /// Authored as `persona: { summary: …, traits: […], speech: … }`. Unknown keys are refused at their
 /// line; `summary` is required; `traits` and `speech` are optional. The text is content a World Pack
@@ -237,6 +246,11 @@ impl From<Speech> for String {
 /// it. A persona shapes speech, and grants nothing (`ARC-74`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = serde_json::json!({
+    "summary": "Runs the corner shop. Patient with children, brisk with salesmen.",
+    "traits": ["patient", "brisk"],
+    "speech": "Short sentences, a dry joke now and then."
+}))]
 pub struct Persona {
     /// Who the person is, in a sentence or two: 1 to 280 bytes. Required.
     summary: Summary,
