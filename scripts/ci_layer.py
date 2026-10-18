@@ -58,6 +58,9 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        # AC-S26-9 (step-26 §5.5): no committed key, no secrets path in a runtime directory (S26-b1).
+        ["python3", "scripts/check_secrets.py", "--self-test"],
+        ["python3", "scripts/check_secrets.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
         # The cast binding's structure (`ARC-92`): the committed file, then the checker's own cases.
         ["python3", "scripts/check_cast.py"],
@@ -154,6 +157,10 @@ LAYERS.update({
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["uv", "run", "--locked", "python", "scripts/ci_stability.py", "restarts", "--binary", "target/release/mineworld"],
         ["python3", "scripts/ci_stability.py", "replay", "--binary", "target/release/mineworld"],
+        # The cognition package's `slow` cases, which no PR runs (pr-s28a D-a-15; primary ruling
+        # 2026-10-16): the busy-store retention tests, the transparency harness's frames of 1 and 4 096, and
+        # the full 50-kill test. None needs the binary. `-m slow` replaces the member's `addopts` expression.
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
@@ -208,6 +215,15 @@ PYTHON_STATIC: list[list[str]] = [
     ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
     ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
 ]
+# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member: it has no dependencies and no
+# lock entry, so it is checked by path with the same tools. Its pyright configuration is in pyproject.toml
+# (`executionEnvironments`), so that `import mwcast` resolves in the tests.
+PIPELINE = "tools/character_pipeline"
+PYTHON_STATIC += [
+    ["uv", "run", "--locked", "ruff", "check", PIPELINE],
+    ["uv", "run", "--locked", "ruff", "format", "--check", PIPELINE],
+    ["uv", "run", "--locked", "pyright", f"{PIPELINE}/mwcast", f"{PIPELINE}/tests", f"{PIPELINE}/cast.py"],
+]
 # pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
 # ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
 # and both members' `addopts` (the network guard among them) would be dropped silently
@@ -225,6 +241,8 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
     # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
     # unplugged half is an ordinary test and runs in `core`.
@@ -249,9 +267,11 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary",
+        "-m", "not live_model and not real_binary and not slow",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks

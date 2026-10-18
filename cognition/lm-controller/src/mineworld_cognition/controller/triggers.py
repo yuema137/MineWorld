@@ -16,7 +16,7 @@ from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_cognition.controller.prompt import Trigger
-from mineworld_cognition.memory.store import MemoryStore
+from mineworld_cognition.memory.home import SeatView
 
 SPOKE = "spoke"
 ARRIVAL_EVENTS = frozenset({"arrived", "person-entered-place"})
@@ -25,7 +25,7 @@ ARRIVAL_EVENTS = frozenset({"arrived", "person-entered-place"})
 def detect(
     facts: Sequence[PerceivedEvent],
     me: EntityId,
-    store: MemoryStore,
+    store: SeatView,
     here: PlaceId | None,
     now_at: int,
     greeted: dict[EntityId, int],
@@ -76,8 +76,10 @@ def person_of(body: dict[str, JsonValue], key: str) -> EntityId | None:
     return EntityId(entity) if isinstance(entity, str) else None
 
 
-def _stable_people(store: MemoryStore) -> set[EntityId]:
-    rows = store.connection.execute("SELECT entity FROM stable").fetchall()
+def _stable_people(store: SeatView) -> set[EntityId]:
+    rows = store.connection.execute(
+        "SELECT entity FROM stable WHERE seat = ?", (store.seat_id,)
+    ).fetchall()
     return {EntityId(row[0]) for row in rows}
 
 

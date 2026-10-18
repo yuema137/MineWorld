@@ -14,6 +14,12 @@
 //!
 //! The check runs over the whole log rather than a sample. The log is streamed, one sealed block at a
 //! time (`ARC-89`): the check keeps the set of event ids it has seen, the report the newest N facts.
+//!
+//! A save may be inspected while a server still commits to it. The journal and the facts are read by
+//! two passes, each one read transaction, so the fact pass can see revisions the journal pass did not:
+//! their facts would name actions the inspected journal does not hold. Everything is therefore reported
+//! for the prefix the journal pass read — its last revision is the head shown, and the fact pass stops
+//! after that revision's last fact.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
@@ -44,11 +50,10 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
     let manifest_row = backend.manifest().map_err(damaged)?;
     format::check_format(manifest_row.format).map_err(damaged)?;
     let manifest: Manifest = format::decode(&manifest_row.body, "manifest").map_err(damaged)?;
-    let head = backend.head().map_err(damaged)?;
-
     let sealed = backend.sealed().map_err(damaged)?;
     let sealed_through = sealed.last().map_or(0, |block| block.span.last.raw());
     let journal = Journal::read(&backend, sealed_through)?;
+    let head = journal.head;
     let genesis: BTreeSet<u64> = backend
         .facts_of(WorldRevision::GENESIS)
         .map_err(damaged)?
@@ -98,8 +103,12 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
     let mut newest: VecDeque<EventEnvelope> = VecDeque::with_capacity(last.min(4_096));
     let mut count: usize = 0;
     for row in backend.facts_after(None).map_err(damaged)? {
-        let fact: EventEnvelope =
-            format::decode(&row.map_err(damaged)?.bytes, "fact").map_err(damaged)?;
+        let row = row.map_err(damaged)?;
+        if journal.facts_through.is_none_or(|through| row.id > through) {
+            // Recorded by a revision committed after the journal pass: not part of what is inspected.
+            break;
+        }
+        let fact: EventEnvelope = format::decode(&row.bytes, "fact").map_err(damaged)?;
         count += 1;
         *by_type
             .entry(fact.event_type().as_str().to_owned())
@@ -172,6 +181,10 @@ struct Journal {
     kinds: BTreeMap<String, u64>,
     actions: BTreeSet<u64>,
     head_at: i64,
+    /// The last revision the pass read: the head of the inspected prefix.
+    head: WorldRevision,
+    /// The newest fact the read revisions recorded, if any.
+    facts_through: Option<u64>,
     /// The bytes of the journal entries and facts the sealed blocks hold, uncompressed.
     sealed_row_bytes: u64,
 }
@@ -183,6 +196,8 @@ impl Journal {
             kinds: BTreeMap::new(),
             actions: BTreeSet::new(),
             head_at: 0,
+            head: WorldRevision::GENESIS,
+            facts_through: None,
             sealed_row_bytes: 0,
         };
         for stored in backend
@@ -190,6 +205,10 @@ impl Journal {
             .map_err(damaged)?
         {
             let stored = stored.map_err(damaged)?;
+            journal.head = stored.revision;
+            if let Some(last) = stored.facts.last() {
+                journal.facts_through = Some(last.id);
+            }
             if stored.revision.raw() <= sealed_through {
                 let facts: usize = stored.facts.iter().map(|fact| fact.bytes.len()).sum();
                 journal.sealed_row_bytes += (stored.entry.len() + facts) as u64;
