@@ -55,7 +55,8 @@ CYCLES = 10
 RESTART_WORLD = "market-town"
 # The server is told to run faster than wall time and to drive every seat, so the world has moved between
 # one kill and the next.
-SERVER_FLAGS = ["--listen", "127.0.0.1:0", "--town", "--time-scale", "60"]
+# A scale above 24 is a fast-forward, which needs `--solo` on a loopback address (ARC-69 item 5).
+SERVER_FLAGS = ["--listen", "127.0.0.1:0", "--solo", "--town", "--time-scale", "60"]
 START_LIMIT = 120.0
 SEATED_LIMIT = 60.0
 SEEN_DEATH_LIMIT = 20.0

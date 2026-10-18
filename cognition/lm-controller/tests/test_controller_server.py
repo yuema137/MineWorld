@@ -1,7 +1,7 @@
 """The LM controller against the real `mineworld` binary (S10 P6b, C12; pr-s10-p6 §§5.8-5.10, 6, 8, 9 C12).
 
 Each test starts `mineworld server worlds/social-cafe --town --decisions examples/alice-lm.decisions.yaml` on loopback
-with `--hold 3 --pace 1`. A visitor is a protocol client (the SDK's `SeatSession`). The seat runner runs in-process through
+with `--hold 3 --cadence 1`. A visitor is a protocol client (the SDK's `SeatSession`). The seat runner runs in-process through
 `mineworld_cognition.__main__.serve` against a scripted backend, or as a `python -m mineworld_cognition` process against a
 replay of an empty cassette when the test must SIGKILL it. No model, no key, no live mode, loopback only.
 
