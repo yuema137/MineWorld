@@ -1,0 +1,6 @@
+# Tooling only; never installed by CI or any runtime. The stage 3 mask and the texel comparison run from this
+# venv on the operator's machine (PIPELINE.md §2, §12). The versions are the ones the D+ scripts ran (design §2.3).
+rembg[cpu]==2.0.85
+onnxruntime==1.30.0
+numpy==2.5.3
+pillow==12.3.0

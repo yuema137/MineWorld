@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -13,17 +15,17 @@ from memory_fixtures import (
     CAROL,
     DAY,
     PARK,
-    alice_identity,
     named,
     names_of_everyone,
+    seat_view,
     spoke,
 )
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EventId
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.retrieve import MemorySection, RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 
 RETRIEVE = Path(__file__).resolve().parent.parent / "src/mineworld_cognition/memory/retrieve.py"
 HOUR = 3600
@@ -38,12 +40,13 @@ SECTIONS = {
 }
 
 
-def _store(facts: list[PerceivedEvent]) -> MemoryStore:
-    store = MemoryStore.open(":memory:", alice_identity())
-    for start in range(0, len(facts), 256):
-        batch = facts[start : start + 256]
-        ingest(store, batch, batch[-1].id)
-    return store
+@contextmanager
+def _store(facts: list[PerceivedEvent]) -> Generator[SeatView]:
+    with seat_view() as store:
+        for start in range(0, len(facts), 256):
+            batch = facts[start : start + 256]
+            ingest(store, batch, batch[-1].id)
+        yield store
 
 
 def _adversarial() -> list[PerceivedEvent]:
