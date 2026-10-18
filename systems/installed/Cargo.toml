@@ -18,6 +18,7 @@ mineworld-conversation = { workspace = true }
 mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-naming = { workspace = true }
+mineworld-persona = { path = "../persona" }
 mineworld-schedule = { workspace = true }
 mineworld-item = { path = "../item" }
 mineworld-inventory = { path = "../inventory" }

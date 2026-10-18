@@ -38,7 +38,8 @@ impl SectionName {
     }
 }
 
-const fn is_valid(name: &str) -> bool {
+/// One word of `1..=32` bytes of `a-z`, `0-9` and `-`: the rule a section name and a data directory share.
+pub(crate) const fn is_valid(name: &str) -> bool {
     let bytes = name.as_bytes();
     if bytes.is_empty() || bytes.len() > SectionName::MAX_BYTES {
         return false;

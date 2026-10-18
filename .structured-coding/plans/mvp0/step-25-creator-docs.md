@@ -1349,6 +1349,22 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
 - **AC-25d-4** The operator follows chapters 01–05 by hand at the milestone handoff (QS25-10).
 - **E-8** CI on the exact head.
 
+### 18.4 Restack on 25a @ 7ad96dd (2026-10-17, S25 stack owner)
+
+- **Merge.** `origin/mvp0/pr-s25a @ 7ad96dd` (25a with `main @ e51ffc0`: S10 P6a/P7, S30-b, S27-b, S11e) merged into
+  this branch. Textual conflicts in `README.md` and `README.zh-CN.md` only: the guide's link paragraph is kept, then
+  main's paragraph on `clients/agent` and the cognition reference, then main's "Which computers" wording.
+- **The previous CI failures were cancellations, not defects.** Run 39010220065 on `07dbab1e`: every red job is
+  `cancelled` (superseded runs under the old, unsharded workflow); none ran to a failure.
+- **E-11 Guide test on the merged tree, on GitHub CI** (local heavy jobs paused by the operator, 2026-10-17). Scratch
+  branch `scratch/s25-guide-25d` (the merge commit plus a temporary workflow running `cargo test -p mineworld-cli
+  --test guide`), run on Linux: **FAIL**, one block: step 12.3's `packs validate` output. S30-b let an Entity Pack
+  carry data directories, so the refusal now ends "…, one file per item kind, or a .yaml file in a data directory an
+  installed System Pack owns". Classified **stale page output** (real binary changed on main), not a flake; the
+  page and its mirror quote the new line (byte-identical, as the runner requires). Chapter 13's row quotes the
+  unchanged prefix and stays as is. Every other block passed (`104 block(s) passed, 1 pending`). The re-check and
+  the PR's CI are recorded below.
+
 ---
 
 ## 19. Evidence ledger — PR 25e (`mvp0/pr-25e`)
@@ -1430,6 +1446,25 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   world without group activities cannot see familiarity decay at all. A small read-only report would be its own PR
   (not designed here, INV-S25-5).
 - **AC-25e** Chinese plain-language sign-off of the new mirrors: the primary's.
+
+### 19.6 Restack on 25d (with 25a and `main @ e51ffc0`), 2026-10-17, S25 stack owner
+
+- **Merge.** `mvp0/pr-25d` merged in, no textual conflict. The earlier red checks of run 39011129193 (head
+  `65000c39`) were all `cancelled` (superseded), not failures.
+- **F-25e-1 came true, as predicted.** The stack now has P6b's decision model `lm` (`cognition/installed`), so the
+  presence probe (`GUIDE_FORMAT.md` §9 rule 3) reports `lm-controller = false, but decision model lm is in the
+  build`. Decision (bounded, within §9): the flag is set to `true`, which §9 rule 4 defines as "the feature is
+  merged and its blocks must pass"; no block `requires lm-controller` yet, so no page changes. Chapter 09 part 3 and
+  `compare/one-person-on-a-model` (25e-6) stay "coming in a later guide update", as both indexes and step 9's last
+  paragraph already say; they need a page that shows a model's decision without a live model, which is 25e-6's
+  design, not this restack's. `GUIDE_FORMAT.md` §9's example and §9.1's row are updated to say the model is
+  installed.
+- **The probe test keeps both directions.** `model_and_reference_probes_turn_a_wrong_flag_red` asserted
+  `lm-controller = true, but decision model lm is not in the build`, which this build can no longer produce. It now
+  plants `lm-controller = false` (expects `… decision model lm is in the build`) and `happenings = true` (expects
+  `happenings = true, but pack mineworld-happenings is not in the build`; WE-a is not merged), so a false flag and a
+  true flag are each still shown to turn the run red.
+- Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
 
 ---
 
@@ -1544,3 +1579,20 @@ ruling authorized one.
   call.
 - **F-25f-4 The guard is POSIX-first.** It runs on the system `python3`; the harness is operator-run on macOS. Its tests
   run in CI on all three OSes; a Windows operator run is untested.
+
+### 20.8 Restack on 25e (with 25d, 25a and `main @ e51ffc0`), 2026-10-17, S25 stack owner
+
+- **CI on `eb2e31df` (run 39054546515), classified.** Real defects, both fixed in `77834abb`: (1) `pyright` strict on
+  `windows-2025` refused `os.getloadavg` (absent on Windows) and an untyped empty `list` in `tools/onboarding/run.py`;
+  `load_average()` narrows on `sys.platform`, and the list is annotated (`pyright --pythonplatform Windows
+  tools/onboarding`: 0 errors, locally, light Python). (2) `test_structural_isolation.py::test_ci_runs_pytest_once_per_member`
+  counted exactly two pytest lines per Python layer; 25f adds `tools/onboarding` as a third. `test-windows` was
+  `cancelled` under the old unsharded workflow, not a failure. None was a known Windows flake.
+- **Merge conflicts.** `scripts/ci_layer.py`: main's `clients/agent` member (S27-c) and Milestone D's `milestone_d`
+  line (S10 P7) kept, with 25f's `PYTHON_TOOLS` and its two pytest lines after them. `pyproject.toml`: pyright's
+  `include` names all four trees. `test_structural_isolation.py`: main's generalised check (S27-c D-c-22: every
+  pytest line unique, each member exactly once, any other path must exist) supersedes the count fix of `77834abb`
+  and admits `tools/onboarding` as is. The step-25 ledger: §19.6 and §20 both kept.
+- **The operator's ruling (§20.5) holds on this head**: `--permission-mode bypassPermissions` appears only in this
+  ledger's history and in `PROTOCOL.md`'s statement that it is not used; the runner builds the allowlist command.
+- Validation: CI on the exact head (the operator paused heavy local jobs).

@@ -25,6 +25,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 
+pub mod ticks;
+
 /// How long a test waits for the server to come up, and for a frame to arrive.
 pub const PATIENCE: Duration = Duration::from_secs(20);
 

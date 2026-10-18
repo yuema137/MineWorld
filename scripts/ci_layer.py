@@ -21,7 +21,12 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
                                                    (`.github/actions/native`, not the container)
     python3 scripts/ci_layer.py python            the Python workspace: static checks, the binary, pytest
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
-    python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
+    python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
+                                                   says which tests): the shards of `test`, `test-macos`, `test-windows`
+    python3 scripts/ci_layer.py <layer> <layer>...  several layers in order; the first failure stops them
+                                                   (macOS's two jobs, ARC-110)
+    python3 scripts/ci_layer.py --list <layer> [--shard K/N]
+                                                   print a layer's commands without running them
     python3 scripts/ci_layer.py --offline-check    vendor outside the checkout, then check the CLI
                                                    offline with an empty CARGO_HOME (EC-3 (b))
     python3 scripts/ci_layer.py --prune-cache     before CI saves target/: drop the workspace's own
@@ -41,6 +46,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import ci_shard  # noqa: E402  (beside this script; the shards of `core`, ARC-110)
 
 # The declared checks of `.structured-coding/standards.md`, split by layer (ARC-48). Order matters
 # only for speed of the verdict: the cheapest checks first.
@@ -59,6 +66,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_godot.py", "--self-test"],
         ["python3", "scripts/ci_repeat.py", "--self-test"],
         ["python3", "scripts/ci_stability.py", "--self-test"],
+        # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
+        ["python3", "scripts/ci_shard.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -114,6 +123,13 @@ LAYERS: dict[str, list[list[str]]] = {
             "cargo", "test", "--locked", "--no-fail-fast",
             "-p", "mineworld-acceptance", "--test", "package_sources",
         ],
+        ["python3", "scripts/ci_layer.py", "--offline-check"],
+    ],
+    # macOS's share of `platforms` (ARC-110): what that layer checks and `core` on the same runner does not.
+    # The lock first, before any cargo command that could rewrite Cargo.lock; then EC-3 (b)'s offline
+    # vendor check. Its test commands are a subset of `core`, which macOS runs in the same job pair.
+    "platforms-lock": [
+        ["cargo", "fetch", "--locked"],
         ["python3", "scripts/ci_layer.py", "--offline-check"],
     ],
 }
@@ -180,8 +196,9 @@ NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients
 # command runs through the lock (`uv run --locked`). A repository script is run by `sys.executable`
 # rather than the literal `python3`, which Windows does not have; these layers also run outside the
 # container, on Windows and macOS.
-# The workspace's members (root pyproject.toml): the SDK (S10 P3) and the cognition package (S10 P5a).
-PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller"]
+# The workspace's members (root pyproject.toml): the SDK (S10 P3), the cognition package (S10 P5a) and the
+# agent player library (S27-c).
+PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 # The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
 # member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
 # pytest. Its own tests never start an agent or call a model (INV-S25-6).
@@ -208,8 +225,22 @@ LAYERS["python"] = [
     ["cargo", "build", "-p", "mineworld-cli"],
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
+    ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding"],
+    # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
+    # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
+    # unplugged half is an ordinary test and runs in `core`.
+    [
+        "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
+        "--ignored", "--exact", "she_remembers_across_the_two_views",
+    ],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+]
+# IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
+# syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
 # package's real_binary AC-10 scenario (pr-s10-p4 §5.10) — are deselected by name, visibly, here and
@@ -222,6 +253,7 @@ LAYERS["python-smoke"] = [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
         "-m", "not live_model and not real_binary",
     ],
+    ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
 ]
 
@@ -352,8 +384,41 @@ def result(layer: str, line: str) -> None:
             out.write(line + "\n")
 
 
-def run(layer: str) -> int:
-    print(f"[ci] layer {layer} in {ROOT}", flush=True)
+# Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
+# still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
+# (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
+SHARDABLE = {"core", "core-repeat"}
+
+
+def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
+    """A shard's cargo commands as `core-repeat` runs them: the build as it is, and each test command
+    sampled twice (`--no-fail-fast`, as the unsharded layer). The doctests, when the shard holds them,
+    write their own summary beside repeat.txt; the report merges a job's summaries by sample."""
+    out = []
+    for command in cargo:
+        if "--no-run" in command:
+            out.append(command)
+            continue
+        summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
+        out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
+                    *command[:2], "--no-fail-fast", *command[2:]])
+    return out
+
+
+def commands_of(layer: str, shard: str | None) -> list[list[str]]:
+    """A layer's commands, or shard K/N's of it: ci_shard.py's cargo commands, then the layer's
+    non-cargo-test commands in their order."""
+    if shard is None:
+        return LAYERS[layer]
+    cargo, account = ci_shard.shard_commands(shard)
+    print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
+    if layer == "core-repeat":
+        return repeat_commands(cargo)
+    return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
+
+
+def run(layer: str, shard: str | None = None) -> int:
+    print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
         report(resolved(command))
     measured = layer in MEASURES_DISK
@@ -361,7 +426,8 @@ def run(layer: str) -> int:
         disk("before")
     result(layer, "started")
     started = time.monotonic()
-    for command in LAYERS[layer]:
+    commands = commands_of(layer, shard)
+    for command in commands:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
@@ -380,7 +446,7 @@ def run(layer: str) -> int:
             return status
     if measured:
         disk("after")
-    print(f"[ci] layer {layer} passed: {len(LAYERS[layer])} command(s) in {time.monotonic() - started:.1f} s")
+    print(f"[ci] layer {layer} passed: {len(commands)} command(s) in {time.monotonic() - started:.1f} s")
     result(layer, f"passed in {time.monotonic() - started:.0f} s")
     return 0
 
@@ -411,14 +477,32 @@ def main(arguments: list[str]) -> int:
         return prune_cache()
     if arguments == ["--offline-check"]:
         return offline_check()
+    shard = None
+    if len(arguments) >= 2 and arguments[-2] == "--shard":
+        shard, arguments = arguments[-1], arguments[:-2]
+        if not any(argument in SHARDABLE for argument in arguments):
+            print(f"ci_layer.py: only {', '.join(sorted(SHARDABLE))} runs as shards", file=sys.stderr)
+            return 2
+        try:
+            ci_shard.parse_shard(shard)
+        except ValueError as error:
+            print(f"ci_layer.py: {error}", file=sys.stderr)
+            return 2
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
-        for command in LAYERS[arguments[1]]:
+        for command in commands_of(arguments[1], shard):
             print(shlex.join(command))
         return 0
-    if len(arguments) == 1 and arguments[0] in LAYERS:
-        return run(arguments[0])
+    # Several layers run in order and the first failure stops the rest: macOS packs its checks into two
+    # jobs, because its runners are the scarce ones (ARC-110). A shard applies to the shardable layers.
+    if arguments and all(argument in LAYERS for argument in arguments):
+        for layer in arguments:
+            status = run(layer, shard if layer in SHARDABLE else None)
+            if status != 0:
+                return status
+        return 0
     print(
-        f"usage: ci_layer.py <layer> | --list <layer> | --prune-cache   (layers: {known})",
+        f"usage: ci_layer.py <layer>... [--shard K/N|K,L/N] | --list <layer> [--shard K/N] | --prune-cache"
+        f"   (layers: {known})",
         file=sys.stderr,
     )
     return 2
