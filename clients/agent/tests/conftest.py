@@ -7,10 +7,11 @@ The network guard is not here: it is pytest-socket, configured for every test in
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Protocol
 
 import pytest
-from realserver import BUILD, Server, binary
+from realserver import BUILD, Server, binary, market_town
 
 
 class Start(Protocol):
@@ -38,4 +39,30 @@ def mineworld() -> Iterator[Start]:
 
     yield start
     for server in started:
+        server.stop()
+
+
+@pytest.fixture
+def town(tmp_path: Path) -> Iterator[Server]:
+    """The market-town of §8: the grants, the save the oracles read, a hold of 10 seconds at time-scale 1."""
+    server = Server(
+        "market-town",
+        *market_town(
+            "--save",
+            str(tmp_path / "save"),
+            "--grant",
+            "visitor",
+            "--grant",
+            "visitor:take-over",
+            "--grant",
+            "alice",
+            "--hold",
+            "10",
+            "--time-scale",
+            "1",
+        ),
+    )
+    try:
+        yield server
+    finally:
         server.stop()

@@ -43,6 +43,10 @@ FREE_TEXT = {
     ("WorldText", "text"),  # the one carrier of world text
     ("SayArgs", "words"),  # the player's own words, going out, never shown back
     ("JoinArgs", "nickname"),  # the player's own nickname, going out, never shown back
+    (
+        "ToolError",
+        "detail",
+    ),  # the adapter's own text about an argument or a failure, never world text (S27-d §5.3(c))
 }
 """The only unconstrained string fields. Everything else is a code, a reference or an identifier."""
 
