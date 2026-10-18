@@ -51,8 +51,13 @@ RUNTIME_DIRECTORIES: tuple[str, ...] = (
     "sdk/",
 )
 
-# (path, pattern name) -> reason. Empty: nothing is exempt. An entry needs a reason.
-ALLOWLIST: dict[tuple[str, str], str] = {}
+# (path, pattern name) -> reason. An entry needs a reason.
+ALLOWLIST: dict[tuple[str, str], str] = {
+    ("tools/cli/tests/milestone_d.rs", "openai-key"): (
+        "S10 P7's PLANTED_KEY: a fake sk--shaped string the test plants in the cognition process's"
+        " environment to prove no key reaches a save or a log; not a credential (R-B1-6, F-B1-merge-1)"
+    ),
+}
 
 NUL_WINDOW = 8000
 
