@@ -1171,6 +1171,17 @@ headings). P7 added `tests/test_milestone_d_100_days.py` and `tests/test_milesto
 deleted `MemoryStore`: both now open the seat's one-seat `MemoryHome` at the same path and its `SeatView` (D-a-1),
 closing the home. A mechanical port; no assertion changed.
 
+**MATERIAL STOP (§12: "a needed change outside cognition/lm-controller and docs/DECISIONS.md"), CI run 6
+(39098788451, head `8dbb49d1`).** Every Python suite passes (cognition: 469 passed, 52 `slow` deselected, 23 m 00 s
+on Linux). The `python` layer then fails at P7's (#244) Rust test, `cargo test -p mineworld-cli --test milestone_d
+-- --ignored --exact she_remembers_across_the_two_views`: `tools/cli/tests/milestone_d.rs::store_rows` opens Alice's
+memory file with rusqlite and reads `SELECT rowid, event_id FROM l0` → "no such table: l0" (schema 4 has
+`access` ⋈ `fact`). The same failure on `test-macos (b: core 3/3, python)`. Proposed fix, prepared as one local
+commit and not pushed (D-a-18): `store_rows` reads Alice's cursor from her seat's `meta` row and her held records as
+`access ⋈ fact` for seat `alice`, ordered by `access.rowid`; test-only, no assertion changed; `rustfmt --check`
+PASS. It is the R-P6b-a-1 situation (a consumer of the store merged after the design: "whichever merges second
+adapts"), but in `tools/`, which the contract does not list.
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 

@@ -422,20 +422,28 @@ fn actor_of(save: &str, action: u64) -> String {
         .to_owned()
 }
 
-/// Alice's store: its cursor, and its `l0` rows as (rowid, event id) (`memory/store.py`). Opened for
-/// writing, never written: a store a SIGKILL left with a hot journal can only be read once SQLite has
-/// rolled that journal back, which a read-only connection may not do.
+/// Alice's memory: her cursor, and her held records as (rowid, event id), in the order she took them. Since
+/// S28-a the file is a memory home of schema 4 (`memory/home/`, `ARC-109`): her rows are her seat's `meta`
+/// and `access` rows, each `access` row naming a shared `fact` record. Opened for writing, never written: a
+/// home a SIGKILL left with a hot journal can only be read once SQLite has rolled that journal back, which a
+/// read-only connection may not do.
 fn store_rows(store: &Path) -> (Option<u64>, Vec<(i64, u64)>) {
     let connection =
-        rusqlite::Connection::open(store.join("alice.sqlite")).expect("Alice's store opens");
+        rusqlite::Connection::open(store.join("alice.sqlite")).expect("Alice's memory opens");
     let cursor: String = connection
-        .query_row("SELECT value FROM meta WHERE key = 'cursor'", [], |row| {
-            row.get(0)
-        })
-        .expect("the store has a cursor row");
+        .query_row(
+            "SELECT m.value FROM meta m JOIN seats s ON s.seat = m.seat \
+             WHERE s.key = 'alice' AND m.key = 'cursor'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Alice's seat has a cursor row");
     let mut statement = connection
-        .prepare("SELECT rowid, event_id FROM l0 ORDER BY rowid")
-        .expect("the l0 table");
+        .prepare(
+            "SELECT a.rowid, f.event_id FROM access a JOIN fact f ON f.event_key = a.event_key \
+             JOIN seats s ON s.seat = a.seat WHERE s.key = 'alice' ORDER BY a.rowid",
+        )
+        .expect("the access and fact tables");
     let rows = statement
         .query_map([], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
