@@ -217,6 +217,19 @@ PYTHON_STATIC += [
     ["uv", "run", "--locked", "ruff", "format", "--check", PIPELINE],
     ["uv", "run", "--locked", "pyright", f"{PIPELINE}/mwcast", f"{PIPELINE}/tests", f"{PIPELINE}/cast.py"],
 ]
+# The asset-generation tooling (tools/asset_generation) is linted by path with its own ruff.toml; its offline
+# provenance test needs `yaml`, from the root's dev group (S26 cast director).
+ASSET_GENERATION = "tools/asset_generation"
+PYTHON_STATIC += [
+    ["uv", "run", "--locked", "ruff", "check", ASSET_GENERATION],
+    ["uv", "run", "--locked", "ruff", "format", "--check", ASSET_GENERATION],
+]
+# The casting director's 64 generated files are pinned: --check re-derives them, refuses a stray or missing
+# brief directory, and holds the cast to the operator's picks (step-26 §§7.1-7.4a).
+CAST_DIRECTOR_CHECK = [
+    sys.executable, f"{PIPELINE}/casting/cast_director.py",
+    "--config", "presentation/mineworld-default/3D/characters/casting.yaml", "--check",
+]
 # pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
 # ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
 # and both members' `addopts` (the network guard among them) would be dropped silently
@@ -236,6 +249,8 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    CAST_DIRECTOR_CHECK,
+    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
     # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
     # unplugged half is an ordinary test and runs in `core`.
@@ -265,6 +280,8 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    CAST_DIRECTOR_CHECK,
+    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks

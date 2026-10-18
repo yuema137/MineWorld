@@ -10,6 +10,10 @@ seed: mineworld-s26-cast-v1
 template: presentation/mineworld-default/3D/characters/style/template.yaml
 inputs: presentation/mineworld-default/3D/characters/cast/casting_inputs.json
 output_dir: presentation/mineworld-default/3D/characters/cast
+# Optional: the operator's casting-gate verdicts (one candidate number per cast member). With it, --check
+# also requires the picks to name exactly the cast and the brief directories to be the picks plus the fixed
+# members. Copied byte for byte from the operator's ruling of 2026-10-15.
+picks: presentation/mineworld-default/3D/characters/cast/PICKS.yaml
 max_attempts: 200
 
 worlds:

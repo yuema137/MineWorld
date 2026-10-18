@@ -110,7 +110,7 @@ def _strip_comment(line: str) -> str:
 def read_yaml(path: Path, what: str) -> dict:
     if not path.is_file():
         raise CastError(f"{what} not found: {path}")
-    lines = path.read_text().splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     root: dict = {}
     stack: list[tuple[int, dict]] = [(-1, root)]
     last: tuple[dict, str, int] | None = None  # the last plain scalar, for multi-line continuation
@@ -509,6 +509,42 @@ def casting_md(results: dict, cfg: dict, notes: str) -> str:
     return "\n".join(out) + "\n" + notes
 
 
+def directory_problems(results: dict, inputs: dict, out_dir: Path, cfg: dict, template: dict) -> list[str]:
+    """The output directory holds exactly the cast's brief directories plus the fixed members' (never re-cast)
+    ones: a stray or a missing directory is reported. With `picks:` in the config, the operator's picks name
+    exactly the cast, for the template version cast with, one candidate number each."""
+    cast_keys = {c["key"] for cast, *_ in results.values() for c in cast}
+    fixed_keys = {m["key"] for members in inputs.get("fixed_members", {}).values() for m in members}
+    present = {d.name for d in out_dir.iterdir() if d.is_dir()} if out_dir.is_dir() else set()
+    problems = [
+        f"stray directory (not in the cast): {name}" for name in sorted(present - cast_keys - fixed_keys)
+    ]
+    problems += [f"missing brief directory: {name}" for name in sorted(cast_keys - present)]
+    if "picks" in cfg:
+        picks = read_yaml(rel(cfg["picks"]), "casting picks")
+        chosen = picks.get("picks")
+        if not isinstance(chosen, dict):
+            return [*problems, f"casting picks {cfg['picks']} lack a `picks:` map"]
+        if str(picks.get("template")) != f"v{template.get('version')}":
+            problems.append(
+                f"picks are for template {picks.get('template')}, the template is v{template.get('version')}"
+            )
+        problems += [f"picked but not cast: {k}" for k in sorted(set(chosen) - cast_keys)]
+        problems += [f"cast but not picked: {k}" for k in sorted(cast_keys - set(chosen))]
+        problems += [
+            f"pick for {k} is `{v}`, not a candidate number"
+            for k, v in chosen.items()
+            if not (isinstance(v, int) and v >= 1)
+        ]
+        if present != set(chosen) | fixed_keys:
+            problems.append(
+                "brief directories are not the picks plus the fixed members: "
+                f"extra {sorted(present - set(chosen) - fixed_keys)}, "
+                f"missing {sorted((set(chosen) | fixed_keys) - present)}"
+            )
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--config", required=True, type=Path, help="casting.yaml of a Presentation Pack")
@@ -526,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
     if not rel(cfg["inputs"]).is_file():
         raise CastError(f"casting inputs not found: {cfg['inputs']}")
     try:
-        inputs = json.loads(rel(cfg["inputs"]).read_text())
+        inputs = json.loads(rel(cfg["inputs"]).read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         raise CastError(f"casting inputs {cfg['inputs']} are malformed: {e}") from None
     if str(inputs.get("template_version")) != str(template.get("version")):
@@ -559,16 +595,20 @@ def main(argv: list[str] | None = None) -> int:
                 template["portrait"]["preamble"] + "\n" + fill(template["person_portrait"], data, profile)
             )
     notes_path = out_dir / "CASTING_NOTES.md"
-    notes = notes_path.read_text() if notes_path.is_file() else ""
+    notes = notes_path.read_text(encoding="utf-8") if notes_path.is_file() else ""
     files[out_dir / "CASTING.md"] = casting_md(results, cfg, notes)
     drift = []
     for path, text in sorted(files.items()):
         if args.check:
-            if not path.is_file() or path.read_text() != text:
+            if not path.is_file() or path.read_text(encoding="utf-8") != text:
                 drift.append(str(path.relative_to(ROOT)))
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
+            path.write_text(text, encoding="utf-8", newline="\n")
+    problems = directory_problems(results, inputs, out_dir, cfg, template)
+    if problems and not args.check:
+        raise CastError("; ".join(problems))
+    drift += problems
     if drift:
         print("cast_director --check: differs from a fresh run:\n  " + "\n  ".join(drift))
         return 1
