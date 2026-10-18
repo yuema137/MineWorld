@@ -16,6 +16,7 @@ from pathlib import Path
 
 from mwcast import blender as blender_cli
 from mwcast import compare, identifiers, mask, meshy, pipeline, standard, texture
+from mwcast.brief import parse_brief
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
@@ -105,6 +106,10 @@ def _gate(args: argparse.Namespace) -> int:
     return 0 if _print_results(asset.name, results) else 1
 
 
+# Files only a generation run writes: their presence without fit.yaml is a broken character directory.
+GENERATION_RECORDS = ("generation_log.yaml", "character.yaml", "rederive_report.json")
+
+
 def _check_characters(args: argparse.Namespace) -> int:
     root = Path(args.root)
     directories = sorted(p for p in root.glob("presentation/*/3D/characters/cast/*") if p.is_dir())
@@ -112,13 +117,23 @@ def _check_characters(args: argparse.Namespace) -> int:
     for directory in directories:
         name = directory.name
         if not (directory / "fit.yaml").exists():
-            # Stage 1 (casting): a brief and its prompt packs exist before any generation, so a
-            # brief-only directory has no records yet and nothing to validate (PIPELINE.md §§2-3).
-            if (directory / "brief.yaml").exists():
-                print(f"{name}: brief only (no fit.yaml yet)")
-            else:
+            # Stage 1 (casting): a brief and its prompt packs exist before any generation. Such a
+            # directory holds no generation record, and its brief must be valid (PIPELINE.md §§2-3).
+            records = [r for r in GENERATION_RECORDS if (directory / r).exists()]
+            if records:
+                print(f"{name}: FAIL: {', '.join(records)} without fit.yaml")
+                failures += 1
+            elif not (directory / "brief.yaml").exists():
                 print(f"{name}: FAIL: neither fit.yaml nor brief.yaml")
                 failures += 1
+            else:
+                try:
+                    parse_brief(directory / "brief.yaml", name)
+                except RecordError as exc:
+                    print(f"{name}: FAIL: {exc}")
+                    failures += 1
+                    continue
+                print(f"{name}: brief only (no fit.yaml yet)")
             continue
         try:
             fit = parse_fit(load_record(directory / "fit.yaml"), directory / "fit.yaml")
