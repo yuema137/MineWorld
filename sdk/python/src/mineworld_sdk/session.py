@@ -488,7 +488,12 @@ class SeatSession:
             try:
                 await reader
             except asyncio.CancelledError:
-                pass
+                # The reader's own cancellation ends here. The caller's does not: a `leave` or a
+                # close cancelled while the reader closes the socket must stop its caller, or a
+                # cancelled task carries on as if nothing had asked it to stop.
+                current = asyncio.current_task()
+                if current is not None and current.cancelling():
+                    raise
         await self._connection.close()
 
 

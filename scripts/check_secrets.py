@@ -14,7 +14,10 @@ Two rules, both reported by file and pattern, never by the matched text (a findi
                scan of that text to find both. The planted keys are built at run time from parts, so this file
                contains no key-shaped literal.
 
-The allowlist is a literal dict below. Each entry needs a reason; it starts empty (design §5.11).
+The allowlist is a literal dict below, keyed by (path, exact matched literal), so it exempts one known string
+in one file and never a pattern: any other key-shaped string in the same file is still a finding. Each entry
+needs a reason (design §5.11). The `--self-test` also checks that a second `sk-` string in an allowlisted
+file is still found.
 """
 
 from __future__ import annotations
@@ -51,9 +54,11 @@ RUNTIME_DIRECTORIES: tuple[str, ...] = (
     "sdk/",
 )
 
-# (path, pattern name) -> reason. An entry needs a reason.
+# (path, exact matched literal) -> reason. An entry needs a reason. The literal is built from parts so this
+# file holds no key-shaped literal of its own.
+MILESTONE_D_PLANTED = "sk-" + "milestone-d-planted-4f1c9e2a7b3d5068"
 ALLOWLIST: dict[tuple[str, str], str] = {
-    ("tools/cli/tests/milestone_d.rs", "openai-key"): (
+    ("tools/cli/tests/milestone_d.rs", MILESTONE_D_PLANTED): (
         "S10 P7's PLANTED_KEY: a fake sk--shaped string the test plants in the cognition process's"
         " environment to prove no key reaches a save or a log; not a credential (R-B1-6, F-B1-merge-1)"
     ),
@@ -70,12 +75,14 @@ class Finding:
 
 
 def scan_text(path: str, text: str) -> list[Finding]:
-    """Every pattern hit in `text`, by line and pattern name, skipping allowlisted (path, pattern) pairs."""
+    """Every pattern hit in `text`, by line and pattern name, skipping allowlisted (path, literal) pairs."""
     found: list[Finding] = []
     compiled = {name: re.compile(pattern) for name, pattern in PATTERNS.items()}
     for number, line in enumerate(text.splitlines(), start=1):
         for name, regex in compiled.items():
-            if regex.search(line) and (path, name) not in ALLOWLIST:
+            if any(
+                (path, hit.group(0)) not in ALLOWLIST for hit in regex.finditer(line)
+            ):
                 found.append(Finding(path, number, name))
         if SECRETS_PATH in line and path.startswith(RUNTIME_DIRECTORIES):
             found.append(Finding(path, number, "secrets-path-in-runtime"))
@@ -146,8 +153,25 @@ def self_test() -> int:
             f"check_secrets --self-test: FAIL, planted keys not found: {sorted(missing)}"
         )
         return 1
+    # The allowlist exempts one literal in one file, not the pattern: the planted Milestone D string is
+    # skipped, a second `sk-` string in the same file (same line or another) is still found.
+    allowed_path = "tools/cli/tests/milestone_d.rs"
+    planted_line = f'const PLANTED_KEY: &str = "{MILESTONE_D_PLANTED}";\n'
+    if scan_text(allowed_path, planted_line):
+        print("check_secrets --self-test: FAIL, the allowlisted literal was reported")
+        return 1
+    for second in (
+        planted_line + f'const OTHER: &str = "{openai_key}";\n',
+        f"{MILESTONE_D_PLANTED} {openai_key}\n",
+    ):
+        if {f.rule for f in scan_text(allowed_path, second)} != {"openai-key"}:
+            print(
+                "check_secrets --self-test: FAIL, a second sk- string in an allowlisted file was not found"
+            )
+            return 1
     print(
-        "check_secrets --self-test: PASS (planted meshy-key and openai-key both found)"
+        "check_secrets --self-test: PASS (planted meshy-key and openai-key both found; the allowlisted"
+        " literal skipped and a second sk- string in its file found)"
     )
     return 0
 

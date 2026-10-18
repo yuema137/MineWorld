@@ -6,6 +6,7 @@
 # seat is a fact about the world's configuration, not about him (`INV-1`).
 
 name: Otto Brandt
+appearance: { look: otto-brandt }
 
 # His day (schedule's `routine`, ARC-32) — which nobody walks him through, since no seat names him: his
 # agenda changes and he stays upstairs, which is what an agenda that moves nobody looks like. Boundaries
