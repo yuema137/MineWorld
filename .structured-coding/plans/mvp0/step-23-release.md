@@ -1247,7 +1247,7 @@ body and the handoff).
   the stdin-EOF stop works there. Fix: build the expected path component by component.
 - **Head `d1602da`** (D-RC-4). `fast`, `test`, `test-macos`, `test-windows`, `platforms` ×2, `python` ×3
   PASS (the PR's checks as read on 2026-10-17).
-- **2026-10-17, revival session.** `origin/main @ 5cbb469` merged (CI sharding ARC-110, nightly ARC-83,
+- **2026-10-17, revival session.** `origin/main @ e51ffc0` merged (CI sharding ARC-110, nightly ARC-83,
   decision lists ARC-84, persona/authoring seam, memory, P7). Conflicts: `Cargo.lock` (`mineworld-launch`
   beside main's `mineworld-motivated`), `docs/DECISIONS.md` (ARC-78 and the ARC-6 note beside main's ARC-81
   onward; ids distinct), `docs/MODULE_SPEC.md` (main's `server` usage and row, with `--stop-on-stdin-eof`
