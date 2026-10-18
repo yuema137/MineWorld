@@ -1191,6 +1191,17 @@ design (I-S28-5), and its `home_meta` holds only `schema` and `world_instance`, 
 resumed home from a rebuilt one. A creation marker (a `home_meta` row written once at creation, never dumped) would
 be a schema change, beyond a small test change; the primary's instruction defers it.
 
+**CI run 7 (39103453267, head `31d46cff`, D-a-18 pushed).** `python (ubuntu-24.04)` (26 m 32 s), both macOS shards
+(`a` 29 m 14 s; `b`, which holds python, 33 m 06 s), `test` ×3, `test-windows` ×4, `platforms`, `removability`
+PASS: D-a-18 cleared the `milestone_d` failure. `python (windows-2025)` failed once in
+`test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` (the P6b rejoin flake,
+fixed on `main` by #256) and its re-run was cancelled when the primary updated the branch (`46f88c8b`, merging #256
+and #206).
+
+**D-a-19 (bounded).** #206 (S26-a) added `test_memory_render.py::…` opening the deleted `MemoryStore`; ported to
+`memory_fixtures.seat_view()` (its `_rows` already reads positional lines). No assertion changed; the file's 7 tests
+PASS; pyright strict 0 errors.
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 

@@ -150,7 +150,7 @@ def test_an_appearance_is_never_remembered_as_a_name() -> None:
         participants=[stranger],
         place=None,
     )
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, names_of_everyone(), EventId("4"))
         report = ingest(store, [bob_looks, stranger_looks], EventId("11"))
         dump = store.dump()
