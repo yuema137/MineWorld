@@ -235,12 +235,18 @@ DATA, decode_data_file, data_context
 decode_section_in
                  how the pack's section is decoded in its context (ARC-121), defined by
                  owns_section_in_context!(); default: decode_section, the context ignored (S30-b)
-RESOLVES, resolve
+RESOLVES, resolve_subjects
                  whether the pack resolves across subjects before seeding (ARC-121), defined by
                  resolves!(); default: does not (S30-b)
 SHIPS            data files the pack ships, compiled in, for an owner's directories (ARC-121 item 4),
                  declared by ships_data!(); default: none (S30-b)
 ```
+
+*Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
+`RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
+and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
 anonymous. It is always the same line, the first of the `impl`, and it is read by `mineworld packs`
@@ -391,6 +397,14 @@ data directory, read, load and run exactly as before.
    step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
    directory and travel with its code and version. They are collected first (item 1) whenever the shipping
    pack is enabled, and every refusal about one names the shipping pack and the file's crate-relative path.
+
+   *Clarified 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` F-b-1).* A shipped file is collected
+   into its owner's context only when the world enables the owner too: a file shipped into a directory whose
+   installed owner the world does not enable is not collected and is not refused, so a world that enables the
+   shipping pack without the owner reads as before (how such a world reads the shipped declarations is S30-c's
+   decision, `ARC-120`). A file shipped into a directory that **no installed** pack owns is a defect of the build
+   and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
+   its directories) are neither refused nor collected by item 1.
 
 A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
 owner's directories alike.
@@ -791,6 +805,8 @@ name: Alice Moreau         # a section owned by the `naming` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
+persona:                   # a section owned by the `persona` system (below)
+  summary: Runs the counter. Warm with regulars, dry with strangers.
 attributes:                # a section owned by the `attributes` system (below, "Attributes"; S30-c)
   hair-colour: auburn      #   a category, by short slug (unique among the world's catalogues)
   core.stature: 1.660      #   a quantity, in its declared unit and scale (m, 3 decimals)
@@ -881,11 +897,16 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has seven sections:
+or the pack is refused. MVP-0 has eight sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+persona   persona    people   { summary: <1–280 bytes, required, non-empty>, traits: [ <≤ 32 bytes
+                              each> ] (at most 8), speech: <≤ 160 bytes> }, traits and speech
+                              optional; unknown keys refused, with line and column. Disclosed to the
+                              person themself only. It shapes how the person speaks and grants
+                              nothing: no action, no process and no rule reads it (`ARC-74`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
@@ -2485,7 +2506,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). Described below. |

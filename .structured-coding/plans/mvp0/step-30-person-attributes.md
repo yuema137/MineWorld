@@ -802,7 +802,11 @@ The contract (`backend.yaml` at the pack's root; every field validated, every fa
   reviewed as such.
 - **The MineWorld backend is the default** and is what the core, every reference world and every test use.
   It is `entities/person-attributes` (§6.1: ≤ 100 curated attributes, the appearance group and the quantity
-  kind) with the `profile` mode and masks `core` (all 94) and `appearance` (rows 1–21, for casting-only use).
+  kind) with the `profile` mode and masks `core` (all 93) and `appearance` (rows 1–21, for casting-only use).
+
+  *Note 2026-10-15 (S30-b C0, for S30-a F-S30a-2 and Q-S30a-1).* This line read "masks `core` (all 94)". The
+  catalogue declares 93 `core` rows: rows 32 and 37 of §6.1 are owner views, and `core.natal-sex` is added
+  (`ARC-120`, `ARC-122`; `MODULE_SPEC.md` §2).
 - **The appearance group and quantities are always MineWorld's.** Any backend's catalogue is composed with
   `core.` appearance and quantity attributes, because a body in a client must come from one place (`ARC-125`).
   A backend may not redeclare them.
@@ -1432,7 +1436,11 @@ Also MVP-0, release-blocking (Re-ruled 2026-10-15): S30-h MatrAIx backend + mask
 | **S30-h** the optional MatrAIx backend and demo (MVP-0, release-blocking) | `entities/attributes-matraix` (verbatim import at the pinned commit, overlay, licence exclusions, `LICENSE`, `NOTICE`, `tools/import.py`, masks `matraix-core-100` and `all`, `mappings/core.yaml`); `worlds/matraix-demo`; the guide section; the README attribution line; CI: import byte-equality, the isolation grep (X-S30-18), the build-and-test job without the pack (X-S30-19); the `log-linear` mode (Q-S30-9 ruled yes, 2026-10-15) | S30-c, S30-d, S30-e, S30-f merged | the demo world resolves, runs and shows MatrAIx attributes in briefs, prompts, MCP and both panels; switching `backend: mineworld` back changes nothing else | X-S30-18, X-S30-19; an excluded dimension present fails the import check; a mask naming an unknown id fails by name; a mapping value missing fails by name | Opus (import, overlay, mapping, mask selection); Haiku for the demo world and guide from a commit plan |
 | **S30-i** learnable attributes (MVP-0, release-blocking) | `tell-about-self`; S28 `stable` fact ingestion | S28-a…c; S30-f | Bob tells Alice his chronotype; Alice recalls it; Carol, absent, does not | the fact never widens Alice's observation; a `private` attribute cannot be told | Opus |
 | **S30-j** runtime sampling (MVP-0, release-blocking) | `sample_newcomer(profile, current population, causing EventId)` in the model crate, stratified against the current population's realised counts; an owner hook so the System that creates a Person seeds its attributes in the same reduction; a fixture creator (F-S30-10) | S30-d | a newcomer's values reproduce on replay and across kill and resume; 1,000 synthetic arrivals keep the world within AC-S30-5's tolerance | re-sampling on resume is detected; a newcomer created without its seed is refused | Opus |
-| **S30-k** localisation (MVP-0, release-blocking) | label packs `attributes/labels/<locale>.yaml` (labels, phrases, words); zh-Hans complete for the built-in catalogue and reviewed; locale selection in cognition, MCP and both panels; fallback to English | S30-f | zh-Hans 2D and 3D panels and a zh-Hans "who I am" render every attribute of a fixture person | a missing translation falls back to English and is listed by `attributes check --locale zh-Hans` | Haiku for entry; a reviewed zh-Hans pass; Opus review |
+| **S30-k** localisation (MVP-0, release-blocking) | label packs `labels/<locale>.yaml` (labels, phrases, words); zh-Hans complete for the built-in catalogue and reviewed; locale selection in cognition, MCP and both panels; fallback to English | S30-f | zh-Hans 2D and 3D panels and a zh-Hans "who I am" render every attribute of a fixture person | a missing translation falls back to English and is listed by `attributes check --locale zh-Hans` | Haiku for entry; a reviewed zh-Hans pass; Opus review |
+
+*Note 2026-10-15 (S30-b C0, for S30-a F-S30a-8 and R-S30k-a-1).* The S30-k row read "label packs
+`attributes/labels/<locale>.yaml`". The seam refuses a subdirectory inside a data directory (S30-b §5.6 step 2),
+so locale labels are `labels/<locale>.yaml`, a directory `attributes` owns (`MODULE_SPEC.md` §2's table).
 
 ### 13.2 Placement in MVP-0 and MVP-1
 

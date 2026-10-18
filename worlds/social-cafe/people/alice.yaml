@@ -29,6 +29,13 @@ routine:
   - { from: "14:00", place: park, label: walk }
   - { from: "18:00", place: apartments, label: home }
 
+# `persona` is a section the `persona` system owns (ARC-74): how she is and how she speaks. It shapes
+# her words and grants her nothing; it is disclosed to her seat alone.
+persona:
+  summary: Runs the café counter. Warm with regulars, dry with strangers.
+  traits: [warm, dry, attentive]
+  speech: Short, friendly sentences.
+
 tags:
   - barista
   - staff

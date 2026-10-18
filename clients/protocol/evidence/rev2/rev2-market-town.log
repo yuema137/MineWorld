@@ -1,0 +1,23 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[check] connecting to 127.0.0.1:55532 as seat 'visitor'
+[check] PASS welcomed on protocol 2: 2
+[check] PASS taken from the town: "hosted"
+[check] PASS the nickname is this player's: "rev2-check"
+[check] PASS the talk was accepted: true
+[check] heard spoke #148 in its own observation.events
+[check] PASS a spoke this client did not cause arrived: true
+[check] 60 s of deltas, with 3 host pauses
+[check] PASS pause 1: the reconstruction held, 42 live deltas past a keyframe, equals the keyframe: true
+[check] PASS pause 2: the reconstruction held, 25 live deltas past a keyframe, equals the keyframe: true
+[check] PASS pause 3: the reconstruction held, 25 live deltas past a keyframe, equals the keyframe: true
+[check] PASS deltas were applied: true
+[check] PASS none refused (no base mismatch, no unknown remove): 0
+[check] PASS every pause was compared at a keyframe: 3
+[check] PASS the visitor moved while the window ran: true
+[check] applied 667 deltas; 0 pause(s) not counted
+[check] dropping the socket without leave
+[check] PASS welcomed again: the seat was held for this player: "held"
+[check] PASS the same Person: "17"
+[check] PASS kicked: closing said why before the connection ended: "kicked"
+[check] PASS — 0 failure(s)

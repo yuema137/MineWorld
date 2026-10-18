@@ -106,7 +106,7 @@ pub enum PackageError {
     /// An Entity Pack with no item kind (`ARC-71`).
     #[error(
         "{dir}: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, \
-         one file per item kind"
+         one file per item kind, or a .yaml file in a data directory an installed System Pack owns"
     )]
     EntityPackDeclaresNothing {
         /// The pack's directory.

@@ -199,6 +199,14 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: parity-long
@@ -336,6 +344,14 @@ jobs:
           version: "0.12.5"
           python-version: "3.12"
           enable-cache: false
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: stability
@@ -388,12 +404,14 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
+  # 120 minutes, not 75 (ARC-149): a night whose import cache is cold imports the 3D client for 45 minutes on
+  # this runner, and nightly 38919486641 was still in its Godot tests at 65 (the job was cancelled at 75).
   clients-mac:
     name: clients-mac
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -515,8 +533,11 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
-  repeat-windows:
-    name: repeat-windows
+  # Windows samples the suite as two shards of ARC-110's partition (ARC-149): both samples unsharded took
+  # 107 and 115 min of the 120 (nightlies 39007080793, 38919486641). Each shard builds and samples its own
+  # targets twice; the report joins the shards' samples by name, so the flake verdict is per OS as before.
+  repeat-windows-1:
+    name: repeat-windows-1
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
     runs-on: windows-2025
@@ -529,16 +550,45 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core-repeat
+          shard: 1/2
       - name: Verdict
         if: always()
         shell: bash
         env:
           STATUS: ${{ job.status }}
-        run: python scripts/ci_nightly.py verdict --job repeat-windows --outcome "$STATUS" --layer core-repeat
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-1 --outcome "$STATUS" --layer core-repeat
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: nightly-repeat-windows
+          name: nightly-repeat-windows-1
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  repeat-windows-2:
+    name: repeat-windows-2
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core-repeat
+          shard: 2/2
+      - name: Verdict
+        if: always()
+        shell: bash
+        env:
+          STATUS: ${{ job.status }}
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-2 --outcome "$STATUS" --layer core-repeat
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-repeat-windows-2
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -562,7 +612,8 @@ jobs:
       - clients-windows
       - repeat-linux
       - repeat-mac
-      - repeat-windows
+      - repeat-windows-1
+      - repeat-windows-2
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10

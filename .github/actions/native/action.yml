@@ -20,8 +20,8 @@ inputs:
     default: ""
   shard:
     description: >-
-      Optional K/N: run shard K of N of the layer (`core` only; docs/DECISIONS.md ARC-110). The Cargo
-      cache key stays the layer's, so every shard restores the same dependencies.
+      Optional K/N: run shard K of N of the layer (`core` and the nightly's `core-repeat`; docs/DECISIONS.md
+      ARC-110, ARC-149). The Cargo cache key stays the layer's, so every shard restores the same dependencies.
     required: false
     default: ""
 runs:
