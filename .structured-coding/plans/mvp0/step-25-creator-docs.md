@@ -1610,3 +1610,14 @@ ruling authorized one.
 - **The operator's ruling (§20.5) holds on this head**: `--permission-mode bypassPermissions` appears only in this
   ledger's history and in `PROTOCOL.md`'s statement that it is not used; the runner builds the allowlist command.
 - Validation: CI on the exact head (the operator paused heavy local jobs).
+- **CI on the restacked head `3cdd5009` (run 39105541313), classified.** All Rust jobs and the guide green; the
+  `python` layer red on all three OSes in `tools/onboarding` only — real defects, none a known flake:
+  (1) `test_score.py`: S6 was asserted a product gap, but the stack now installs `lm` (P6b), so S6 is judged and the
+  fixture puts no seat on `lm` (`on lm: none; with a fallback: 0`). The test now asserts that verdict; a positive S6
+  fixture (a seat on `lm` with a fallback) is still owed, as D-25f-3 says. (2) Windows: the allowlist's rules named
+  the sandbox with backslashes (`Write(/C:\Users\…)`); Claude Code matches Windows paths in POSIX form
+  (`C:\Users\a` → `/c/Users/a`, rules `//c/…`; Claude Code permissions documentation, "Read and Edit" rule paths,
+  consulted 2026-10-18), so `run.rule_path` writes that form. (3) Windows: the scripted stand-in agent ran
+  `mineworld` by name, which Windows cannot start for a script without an extension; it now starts the guard
+  with its own interpreter there. A real Windows operator round stays untested (F-25f-4). `ruff`, `pyright`
+  (also `--pythonplatform Windows`) and the non-binary tests pass locally (light Python).

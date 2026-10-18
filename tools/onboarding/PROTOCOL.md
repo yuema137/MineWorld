@@ -81,7 +81,9 @@ claude -p --model MODEL --safe-mode --strict-mcp-config --setting-sources ""
 ```
 
 Each rule is written for both spellings of the sandbox path (as made, and with links resolved: macOS's `/var` is
-`/private/var`). The prompt gives the resolved path. So the agent's shell may run `mineworld` and nothing else. A
+`/private/var`). On Windows a rule names the path in the POSIX form the CLI matches against: `C:\Users\a` is written
+`//c/Users/a` (`run.rule_path`). A Windows operator run remains untested. The prompt gives the resolved path. So the
+agent's shell may run `mineworld` and nothing else. A
 compound command (`mineworld … && cat …`), a redirection and a command substitution do not match the rule and are
 denied (§3.4). Files may be read only in the sandbox, and written or edited only in `work/`. `Glob` and `Grep` are
 governed by the `Read` rules.

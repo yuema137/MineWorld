@@ -37,8 +37,15 @@ def main(arguments: list[str]) -> int:
             },
         }
     )
+    # The sandbox's `mineworld` is the guard, a Python script on PATH. A POSIX shell runs it by its
+    # shebang; Windows runs no script by name, so there the stand-in starts it with this interpreter.
+    mineworld = (
+        [sys.executable, str(sandbox / "bin" / "mineworld")]
+        if sys.platform == "win32"
+        else ["mineworld"]
+    )
     done = subprocess.run(
-        ["mineworld", "validate", FIXTURE.name], cwd=work, capture_output=True, text=True
+        [*mineworld, "validate", FIXTURE.name], cwd=work, capture_output=True, text=True
     )
     emit(
         {

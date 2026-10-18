@@ -42,10 +42,19 @@ class Refused(Exception):
     """The round cannot start as asked."""
 
 
+def rule_path(path: Path) -> str:
+    """`path` as a permission rule spells it: POSIX form, so Windows' `C:\\Users\\a` is `/c/Users/a` (the
+    agent CLI normalises Windows paths that way before it matches a rule; PROTOCOL.md §3.2)."""
+    posix = path.as_posix()
+    if path.drive:
+        posix = "/" + path.drive[0].lower() + posix[len(path.drive) :]
+    return posix
+
+
 def spellings(sandbox: Path) -> list[str]:
     """The sandbox's path as the agent may write it: as made, and with links resolved (macOS's /var is
     /private/var). A permission rule names each, so neither spelling escapes the allowlist."""
-    return sorted({str(sandbox), str(sandbox.resolve())})
+    return sorted({rule_path(sandbox), rule_path(sandbox.resolve())})
 
 
 def allow_rules(sandbox: Path) -> list[str]:
