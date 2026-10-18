@@ -12,7 +12,7 @@ Binding parents:        pr-s10-p6-lm-controller.md (DESIGN FROZEN 2026-10-14) §
                         pass, the bundled policies); pr-fg-b2-size-trigger.md §4.1, §4.3 (20 MiB bound, size passes);
                         pr-fg-c-lm-summarise.md §5.1 (groups are consolidate's); step-28-shared-memory.md §4.5, §5.3
                         (S28-a's SeatView, for compatibility only)
-Implementation base:    origin/mvp0/pr-s10-p7 @ 66121eac (P7's head; P7 is not merged). This PR is stacked on P7.
+Implementation base:    main (P7 #244 merged 2026-10-18; first implemented on origin/mvp0/pr-s10-p7 @ 66121eac).
 Branch / worktree:      mvp0/pr-p6c-fgd, /Users/yuema137/mineworld-worktrees/impl-p6c-fgd (this session alone)
 Lifecycle:              DRAFT (not frozen). Implementation proceeds in the same branch on the coordinator's
                         instruction; the order is recorded in §9.
@@ -235,6 +235,33 @@ cancelled, not failed, so it carried no failure evidence. No local cargo run (op
 the exact head is the gate. **Freeze pending:** this design is still DRAFT; no scope was added in the rebase, and the
 freeze stays with the primary/operator at the milestone.
 
+**D-P6c-3 (bounded; port to S28-a #242's schema 4, "whichever merges second adapts").** S28-a replaced the per-seat
+`MemoryStore` with the `MemoryHome` and its `SeatView`, and dropped the stored `involved` column (F-S28a-7). Merged
+`origin/main` @ `9884c64c`; two conflicts. No assertion changed; no scope added.
+
+- `memory/retrieve.py`: `_with` takes a `SeatView` and reads the seat's held records as `access ⋈ fact`, with the
+  speaker a participant (`fact_who` role 1 or 3), the seat a participant (`involved`, derived as S28-a's ingest
+  does) and no third participant: schema 3's `l0`/`l0_who` predicate, with the same `ORDER BY event_key`, the same two
+  bounded reads and limits. Every other P6c and FG-d file merged without change (S28-a had already ported their
+  callers' types).
+- `test_lm_summarise_replay.py`'s digest (F-FGd-1's, now on schema 4): re-pinned `df105650…296020` from scratch CI
+  run 39125662718 (branch `scratch/p6c-digest`, the merged tree; deleted after use). As S28-a did at AC-a-13, only
+  together with the next item: the `fgc` arm equals the schema-3 oracle.
+- S28-a's oracle `tests/golden/s28a_renders.json` (AC-a-10, AC-a-13) was captured from schema-3 code without P6c's
+  budgets and FG-d's keepsakes, so its `sections` hashes no longer described what memory renders. Re-captured, as
+  `tests/golden/SOURCE.md` prescribes, from the schema-3 code that has both (this PR's pre-merge head `0d57aa09`)
+  with S28-a's C1 writer, on scratch CI run 39125660610 (branch `scratch/p6c-golden`; deleted after use); provenance
+  recorded in `SOURCE.md`. 450 `sections` hashes and 6 sample texts moved; seeds, points, triggers, passes, forced
+  removals and `cafe12_schema3` did not. The schema-4 merged code reproduces it: `test_home_golden.py` passes, which
+  is the evidence that the `_with` port and the merge render exactly what the schema-3 PR rendered (for the oracle's
+  speaker-less queries; AP6c-1 covers the speaker section).
+- Local, light Python only (macOS arm64, no cargo, no binary): `test_memory_retrieve.py` 12, `test_retention_policies.py`
+  25, `test_retention_interface.py` 13 (50 passed); `test_home_golden.py`, `test_lm_summarise_replay.py`,
+  `test_milestone_d_replay.py` 13 passed, 1 skipped; ruff check/format, pyright strict: 0 errors. AFGd-3 (the 100-day
+  bound) and AP6c-4 need the binary and are left to CI on the exact head.
+- Execution contract: base and stop condition corrected from `mvp0/pr-s10-p7` to `main` (bounded correction, not
+  scope).
+
 **Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
 --test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:
 
@@ -272,14 +299,14 @@ PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-p6c-fgd-memory-coheren
 RELATED / BINDING DOCS:  pr-s10-p7-milestone-d.md; pr-s10-p6-lm-controller.md; pr-fg-b-retention-host.md;
                          pr-fg-b2-size-trigger.md; pr-fg-c-lm-summarise.md; step-28-shared-memory.md; CLAUDE.md;
                          docs/ENGINEERING_STANDARDS.md
-IMPLEMENTATION BASE:     origin/mvp0/pr-s10-p7 @ 66121eac
+IMPLEMENTATION BASE:     main (was origin/mvp0/pr-s10-p7 @ 66121eac until P7 #244 merged; bounded correction, §9)
 APPROVED SCOPE:          §4; cognition/lm-controller and docs/MODULE_SPEC.md's consolidate row only
 FROZEN INVARIANTS:       §5; no paid API call; no key read, printed or copied; no sed -i or inline Python edits
 VALIDATION BUDGET:       §8
-ENDPOINT AUTHORITY:      implementation, commits, push of complete heads, PR creation against mvp0/pr-s10-p7:
+ENDPOINT AUTHORITY:      implementation, commits, push of complete heads, PR against main:
                          authorized (coordinator's instruction of 2026-10-16); freeze: the primary session (operator's
                          2026-10-16 merge authority for bounded follow-ups); merge: explicit authorization only
 POST-MERGE SYNC OWNER:   the primary session; this session owns this document
-STOP CONDITION:          PR "P6c + FG-d: memory coherence for the people you talk to" open against mvp0/pr-s10-p7;
+STOP CONDITION:          PR "P6c + FG-d: memory coherence for the people you talk to" open against main;
                          DO NOT MERGE
 ```

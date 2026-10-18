@@ -172,7 +172,7 @@ def _with(store: SeatView, query: RecallQuery, speaker: str | None) -> list[Sect
     """The first `WITH_FIRST` and then the newest exchanges with the speaker, shown oldest first. Two
     bounded reads of the seat's held records (`access ⋈ fact`) whose participants (`fact_who` roles 1
     and 3) are exactly the seat and the speaker: schema 3's `l0`/`l0_who` read, ported to schema 4 with
-    the same order and limits (§9, D-P6c-2-port); `involved` is derived, as S28-a does (F-S28a-7)."""
+    the same order and limits (pr-p6c-fgd §9, D-P6c-3); `involved` is derived, as S28-a does (F-S28a-7)."""
     if query.speaker is None:
         return []
     section = _Section("with", speaker)
