@@ -10306,6 +10306,10 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
            (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
            docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
+           Resolved 2026-10-15 as F-tick-1 (operator ruling amending D-SB12): the bound is now CPU p99
+           ≤ 50 ms and wall p50 ≤ 50 ms, with the wall p99 and maximum advisory. Record, evidence and
+           mutations: step-12-server.md §16.11 (D-SB12 note, E-TK1 … E-TK3); ARC-42 note of
+           2026-10-15; DEP-59.
 ```
 
 **12n-1 implementation session (2026-10-09, worktree `impl-12n`, branch `mvp0/pr-12n-navigation` from
