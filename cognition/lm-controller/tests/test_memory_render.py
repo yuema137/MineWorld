@@ -131,3 +131,39 @@ def test_a_change_of_my_level_is_rendered_from_my_side() -> None:
     )
     assert gists["10"] == "I now feel friendly towards Bob Achterberg"
     assert gists["11"] == "Bob Achterberg now feels friendly towards me"
+
+
+def test_an_appearance_is_never_remembered_as_a_name() -> None:
+    # X-4 (ARC-91, AS26a-9): a look is a key a client draws. Memory never states it, and never learns a
+    # name from it: the slug appears in no gist, and a stranger's look does not name them.
+    stranger = EntityId("7999999999")
+    bob_looks = fact(
+        10,
+        100,
+        "appeared",
+        {"person": {"entity": BOB, "entity_type": "person"}, "look": "bob-achterberg"},
+        subjects=[BOB],
+        participants=[BOB],
+        place=None,
+    )
+    stranger_looks = fact(
+        11,
+        101,
+        "appeared",
+        {"person": {"entity": stranger, "entity_type": "person"}, "look": "stranger-look"},
+        subjects=[stranger],
+        participants=[stranger],
+        place=None,
+    )
+    with MemoryStore.open(":memory:", alice_identity()) as store:
+        ingest(store, names_of_everyone(), EventId("4"))
+        report = ingest(store, [bob_looks, stranger_looks], EventId("11"))
+        dump = store.dump()
+    gists = {str(r["event_id"]): str(r["gist"]) for r in _rows(dump, "l0")}
+    assert gists["10"] == "appeared at somewhere, with Bob Achterberg"
+    assert "someone" in gists["11"]
+    assert not any("bob-achterberg" in gist or "stranger-look" in gist for gist in gists.values())
+    names = _rows(dump, "names")
+    assert {str(row["entity"]) for row in names} == {str(ALICE), str(BOB), str(CAROL), str(DEV)}
+    assert len(names) == 4
+    assert report.decode_fallbacks == 0

@@ -9,6 +9,9 @@
 # is not. That range is the conversation system's policy and is not restated here.
 
 name: Alice Moreau
+# A section the appearance system owns (ARC-91): which appearance she has, as a key a Presentation
+# Pack resolves — never a mesh, a file or a colour.
+appearance: { look: alice-moreau }
 
 # `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
 # nowhere — whoever drives her walks there, or does not.

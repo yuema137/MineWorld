@@ -906,6 +906,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-appearance"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-authoring"
 version = "0.1.0"
 dependencies = [
@@ -958,6 +973,7 @@ dependencies = [
  "clap",
  "futures-util",
  "json-patch",
+ "mineworld-appearance",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",
@@ -1108,6 +1124,7 @@ name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [
  "acme-fishing",
+ "mineworld-appearance",
  "mineworld-bodies",
  "mineworld-calendar",
  "mineworld-consumption",
@@ -1420,6 +1437,7 @@ dependencies = [
 name = "mineworld-worldpack"
 version = "0.1.0"
 dependencies = [
+ "mineworld-appearance",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",

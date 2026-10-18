@@ -44,6 +44,7 @@ mineworld-authoring = { path = "authoring" }
 mineworld-contracts = { path = "contracts" }
 mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
+mineworld-appearance = { path = "systems/appearance" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
 mineworld-packages = { path = "packages" }
