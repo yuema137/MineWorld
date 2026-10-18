@@ -1095,15 +1095,6 @@ deviation.
   race is narrow; no deterministic Rust test without a hook to hold the world thread mid-tick, so the Python
   integration test is the regression check). The same race explains the LM seat's `seat_occupied` after
   stop (pr-s10-p6 D-P6b-44).
-- **D-c-25 (CI finding, test reading; bounded fix).** On `python (windows-2025)` (PR #220, run 39053600513,
-  attempt 3), `test_the_two_seats_share_no_reference_name_or_event` failed "my walk's end is my fact" although the
-  visitor stood in the street: the visitor's facts read were `['arrived', 'walk-started', 'arrived',
-  'person-entered-place', …]`, 20 of them. `events` returns one page, oldest first, and the test read only the
-  first page of 20; on a slow runner the town made more facts before the walk ended, so `walk-ended` was on a later
-  page. Fix: the test reads every page (following `next`, at most 50) for both handles, so the visitor's assertion
-  and the wanderer's "not in" assertion both cover all the facts waiting; nothing asserted is weaker. The same
-  PR's attempt 2 hung in `cognition/lm-controller` after `test_controller_parts` — the next file is the resilience
-  scenarios, which stop a runner that hands its seat back: the SDK's lost cancellation (pr-s10-p6 D-P6b-45).
 - **D-c-25 (CI finding, open; needs a ruling).** On `python (windows-2025)` (PR #220, run 39053600513, attempt 3),
   `test_the_two_seats_share_no_reference_name_or_event` failed "my walk's end is my fact" although the visitor stood
   in the street (visitor facts `['arrived', 'walk-started', 'arrived', 'person-entered-place', …]`). A first

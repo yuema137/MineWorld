@@ -31,10 +31,6 @@ from mineworld_agent.models import ToPlace, WalkEnded, render_text
 pytestmark = pytest.mark.real_server
 
 
-PAGES = 50
-"""More pages than an 80-second run can fill; a runaway inbox fails rather than loops."""
-
-
 def names(view: View) -> set[str]:
     return {p.name.text for p in view.here.people if p.name is not None}
 
@@ -69,25 +65,14 @@ def test_the_two_seats_share_no_reference_name_or_event(mineworld: Start) -> Non
             out = transcript(await player.observe(ObserveArgs(handle=v))).view
             stayed = transcript(await player.observe(ObserveArgs(handle=w))).view
             assert isinstance(out, View) and isinstance(stayed, View)
-
-            async def every_fact(handle: str) -> list[str]:
-                # Every page, oldest first: one page of 20 does not reach the walk's end when the town made
-                # more facts during the walk (a slow runner, D-c-25).
-                kinds: list[str] = []
-                after: str | None = None
-                for _ in range(PAGES):
-                    page = transcript(
-                        await player.events(EventsArgs(handle=handle, after=after, limit=20))
-                    )
-                    kinds.extend(e.event_type for e in page.events)
-                    if page.next is None:
-                        return kinds
-                    after = page.next
-                pytest.fail(f"more than {PAGES} pages of facts waiting")
-
-            seen_by_wanderer = await every_fact(w)
-            seen_by_visitor = await every_fact(v)
-            return out, stayed, seen_by_visitor, seen_by_wanderer
+            seen_by_wanderer = transcript(await player.events(EventsArgs(handle=w, limit=20)))
+            seen_by_visitor = transcript(await player.events(EventsArgs(handle=v, limit=20)))
+            return (
+                out,
+                stayed,
+                [e.event_type for e in seen_by_visitor.events],
+                [e.event_type for e in seen_by_wanderer.events],
+            )
 
     out, stayed, visitor_facts, wanderer_facts = run(play(), timeout_s=80)
     assert out.me.place is not None and stayed.me.place is not None
