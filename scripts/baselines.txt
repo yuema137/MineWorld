@@ -23,12 +23,13 @@ reason S27-b #241: group-activity offers accept-invitation, decline-invitation, 
 reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
 reason 12d #171 merged after S27-b #241: 12d's item names and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
-summary-300 353 e3f3bcccf733aa6f8c4f4bf095037290c0359a4f256cd1543900a7471405a3ba
-summary-1000 1077 2922d277de78a4868b1618649d6a47f411faa709823a536647ca81ed432d1fd8
-summary-300s 352 02a9eb4ff0e82efb5c8560f7ee3a8d63504eac64918a8da308e9fa750487ea41
-facts-300s 8992 0db49b6b2952ee879ed0b6b4342e63113c30a9304efe3dd17325054a28a9e553
-journal-300s 6431 da2b7101f594ef9d940ec65685c203adfe00cce681c3daf4b789543091738bb0
-sealed-300s 122 af3a686add94c74f8df1ddb5c5fff4c3b1115de062633ee8bfcf7463df8f6544
+reason 12d #171 merged after S26-a #206: 12d's item names and S26-a's appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
+summary-300 354 33233be6315bf0be0e9299c4d14d2573a0600bda55a368af28dfcf475468ca62
+summary-1000 1078 cefd419c05ae7569d8ac1e7974c666d023b3471af7ec1d51b6f735b151270f2e
+summary-300s 353 a712843c85e19a25f2c7a8591140063d0a968d2ebf56193d92fd467d78e749fe
+facts-300s 8992 31176dfa0d6db93e403f270b2f49ee7ff61086b9c1ce3393e795907a32065b7a
+journal-300s 6431 c8ec98cd6b701050af05ce34b3f2585ad3aca54485829fa044c9e99d91c7d362
+sealed-300s 122 9e413fab7eea5a7200d1aab3db8aeb09755ca5390650756e4246d03f0e485fd1
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -41,12 +42,13 @@ reason S27-b #241: an expired invitation is no longer offered accept or decline 
 reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
 reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
-summary-300 372 f8af96c470dd5c7b45395bdce7a472b27f4cfed33abf744fa765629eb553bee4
-summary-1000 1098 c393e200ad5c85f25eb38a2550a8deb46b4c0b303f5376362a8f837db6c8b0a4
-summary-300s 371 bb0222699714fc96fef1a7230a97d9be7cf89653c1fd5cf4805921e95bae3c58
-facts-300s 7497 842ce3cd51716a858747ed71a52bbcf85a55418226daa7d79459f7627d19e5fa
-journal-300s 5077 6ff34718499aeb0396899c6f10d2d92cf584149ccdddbea5b569815da39a105d
-sealed-300s 202 8f8f19c1354af6e0ee4bd353374c6d9669dfee60af104a981c8507d6e36b306d
+reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
+summary-300 373 c7426df45b47382f9f678d43a2a89e79b92cb271989600205ec2abdf37ccc12b
+summary-1000 1099 1dffaedc78e599dd9ee302e9db63e794be49d5d218d317413689ea89dde8730d
+summary-300s 372 a7904cde80fcb1dd96e1d382984d426d9c16d0dedad309d088f893fbf56232b0
+facts-300s 7497 38bc071a34ebd441f5890352e0b512d94cce2167184c3e82f0d7b97f3ff11d3f
+journal-300s 5077 84abfa495214d09d8ba51cdbe6ed4b6f9fb4e4fd0ed387e3717dac80bafba40c
+sealed-300s 202 612d4f71a1a6a318203714247b67087b45e478ef4c7f961456336ce802ab005b
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -59,9 +61,10 @@ reason S27-b #241: an expired invitation is no longer offered accept or decline 
 reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
 reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
-summary-300 351 bc4774ff5f449c77e5cd93614eeea89b6529832a6b21270fe753ff84a93c94e8
-summary-1000 1075 2c68fcd34e10cca1973cd9c32474d5d2211d595a53f0177392b329c0ef9f84ae
-summary-300s 350 d7b17e0f8881a084f74700f95aac644718459a576d62f381e5cc2ca75d5a81c2
-facts-300s 7601 1e7cc19824dc2f3fc8ab69f29fc7165889a1b324d30ca68f95da1bd474ce0a3e
-journal-300s 5267 73e252c5cc4f7a612ee319c1c7f1f996368bbc15f8887cecbd552193d9e815e3
-sealed-300s 203 6e0de6c35ff593271c9ba841bbf54e7e246fcd2126cc6043f28809e9896d68fe
+reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
+summary-300 352 d5e7a98eb561aa7a9f5c78cdb0f33a1b1461e28249b60ca50cb6c1c196bfcb0a
+summary-1000 1076 b785e60de2dff45e561617032d37036effeafb3d158d7a831755781c46441257
+summary-300s 351 1c96a985d376a29f90f884e3702c25d96f6ef05196f9d8181bc5cd592fd39079
+facts-300s 7601 7878c736bd423a3fbe009af03b9c09b45fb17e40f67b0445b7ebc0f6a80ea735
+journal-300s 5267 d1dcbe282ef40df9c0af94d15574fef591d7a05d18d72c94fdc5ab9a08d55eeb
+sealed-300s 203 9c7e8ef65ddf1d033663b2fffd041c792e392422c81c3c12c5924d05817acf78
