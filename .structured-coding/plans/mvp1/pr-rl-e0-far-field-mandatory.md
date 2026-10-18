@@ -1475,6 +1475,16 @@ The `farfield` job stays a separate, non-required job beside #224's shard/gate l
 3D 46.9 min, job 53 min) PASS; test-windows cancelled at its 60-min cap, as on main before #224 (main runs
 38818061551, 38811116604, 38809489941). The head after #224's merge is the one CI judges for review readiness.
 
+**F-FF-CI-3 (2026-10-18; finding for the 3D lane).** After merging main at #248 (head ece06c16), scratch nightly
+39099056342's `clients-windows` was cancelled at 75 min inside `three_d_far_field_closes_every_open_sector`: it
+had run 51+ min (05:35:27 → 06:27:04) against E-FF-CI-2's 29.3 min, and that 29.3 included the 3D import, which
+now runs before the tests (`.github/actions/godot`'s import step, 645 s) — so the render itself went from at
+most ~19 min to over 51, with no Godot output after its D3D12 WARP and dummy-audio fallbacks; software rendering
+alone does not explain the change, and a hang like A-12's is not ruled out. **Bounded correction (primary,
+2026-10-18), R-FF-1's intent kept (Windows renders the far field):** the check runs alone in a new nightly job
+`farfield-windows` (layer `farfield-3d`, 120 min, the harness's 60-min limit inside it), and `clients-windows`
+skips it by name; `ci_godot.py`'s `DEDICATED` table lets the coverage check count it as run on Windows.
+
 **Pre-existing, not RL-e0's:** the nightly Windows `client_settings` failures
 `three_d_controls_apply_live_and_persist`, `three_d_settings_never_reach_the_server` and
 `two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` fail on main as well (main nightly
