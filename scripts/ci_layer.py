@@ -58,6 +58,9 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        # AC-S26-9 (step-26 §5.5): no committed key, no secrets path in a runtime directory (S26-b1).
+        ["python3", "scripts/check_secrets.py", "--self-test"],
+        ["python3", "scripts/check_secrets.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
         # The cast binding's structure (`ARC-92`): the committed file, then the checker's own cases.
         ["python3", "scripts/check_cast.py"],
@@ -208,6 +211,15 @@ PYTHON_STATIC: list[list[str]] = [
     ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
     ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
 ]
+# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member: it has no dependencies and no
+# lock entry, so it is checked by path with the same tools. Its pyright configuration is in pyproject.toml
+# (`executionEnvironments`), so that `import mwcast` resolves in the tests.
+PIPELINE = "tools/character_pipeline"
+PYTHON_STATIC += [
+    ["uv", "run", "--locked", "ruff", "check", PIPELINE],
+    ["uv", "run", "--locked", "ruff", "format", "--check", PIPELINE],
+    ["uv", "run", "--locked", "pyright", f"{PIPELINE}/mwcast", f"{PIPELINE}/tests", f"{PIPELINE}/cast.py"],
+]
 # pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
 # ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
 # and both members' `addopts` (the network guard among them) would be dropped silently
@@ -225,6 +237,8 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
     # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
     # unplugged half is an ordinary test and runs in `core`.
@@ -252,6 +266,8 @@ LAYERS["python-smoke"] = [
         "-m", "not live_model and not real_binary",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
