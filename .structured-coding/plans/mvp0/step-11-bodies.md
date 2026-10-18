@@ -7513,8 +7513,12 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
         - m8 (39107656931): `ON_LINE_M` = `STRIDE_M`.
     - **Primary decision (2026-10-18): clients-probes T-2 stays red on 12d alone.** It is fixed by 16c C3
       T-2' (D-16c-9: since 12d the florist is the world's store, so the probe cannot walk in), and 12d
-      and 16c merge consecutively. Because that layer stops at T-2, the protocol checks after it
-      (`run.sh perceived`) run only on the 16c stack.
+      and 16c merge consecutively. Measured, T-2 on 12d alone is intermittent, not always red: it
+      failed on m5, m6 and m7 and passed on m8, where the probe's player reached the florist.
+    - **m8** (run 39107656931, 0144ddf): clients-linux and clients-windows success. The clients layer
+      passes 4 commands and clients-probes 12; T-2 passes (see above); `run.sh perceived` passes
+      strides 1–3, the talk and the rest. clients-mac was cancelled while queued, to free the runner
+      for the PR run.
 
 ---
 
