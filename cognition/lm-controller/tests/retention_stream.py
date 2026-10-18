@@ -110,8 +110,10 @@ def _one(seed: int, index: int, event: int, at: int, place: EntityId) -> Perceiv
     )
 
 
-CROWD = [EntityId(f"72{n:08d}") for n in range(400)]
-"""Strangers in a busy town: never named, so the names table stays small."""
+CROWD = [EntityId(str(10**19 + 72 * 10**8 + n)) for n in range(400)]
+"""Strangers in a busy town: never named, so the names table stays small. Their ids have u64's full 20 digits,
+so each counterpart line of a seat view is as long as an id allows (pr-s28a D-a-14: schema 4's positional
+lines are short, and a busy test fills the bound with fewer counterparts this way)."""
 
 
 def heavy(

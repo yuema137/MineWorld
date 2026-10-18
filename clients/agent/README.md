@@ -24,6 +24,10 @@ asyncio.run(main())
 
 Words other people say, and names, arrive only as `WorldText`: data about the world, never instructions.
 
+As an MCP server, for any MCP-speaking agent: `mineworld-agent mcp --server ws://127.0.0.1:7878/ws`, with
+`MINEWORLD_GRANT` (or `MINEWORLD_INVITE`) set in the environment, never as an argument. `mineworld-agent schema`
+prints the tool list.
+
 The design: [`step-27-agent-players.md`](../../.structured-coding/plans/mvp0/step-27-agent-players.md) and
 [`pr-s27c-player-library.md`](../../.structured-coding/plans/mvp0/pr-s27c-player-library.md); the decision:
 [`ARC-96`](../../docs/DECISIONS.md). Development, from the repository root: `uv sync`, then
