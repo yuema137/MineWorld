@@ -399,10 +399,14 @@ All are MVP-0. S29–S33 are release-blocking under the operator's principle of 
 | S27 | [step-27-agent-players.md](step-27-agent-players.md) | STEP DESIGN FROZEN 2026-10-14 | agents as first-class players, starting with an MCP adapter |
 | S28 | [step-28-shared-memory.md](step-28-shared-memory.md) | STEP DESIGN FROZEN 2026-10-14 | shared, access-controlled, modular memory |
 | S29 | [step-29-station-landmark.md](step-29-station-landmark.md) | APPROVED 2026-10-15 | every town's train station and signature landmark; after Milestone F, before the first public release |
-| S30 | [step-30-person-attributes.md](step-30-person-attributes.md) | APPROVED 2026-10-15 | person attributes and dependency-aware population sampling |
+| S30 | [step-30-person-attributes.md](step-30-person-attributes.md) | APPROVED 2026-10-15 (amended the same day); S30-a and S30-b PR designs FROZEN 2026-10-15 (#234); S30-a's specifications and records (`ARC-120` … `ARC-126`, `DEP-66` … `DEP-68`) in review | person attributes and dependency-aware population sampling; S30-a … S30-k all MVP-0 and release-blocking (step-30 §13.2, RR-S30-2) |
 | S31 | [step-31-wealth-prices.md](step-31-wealth-prices.md) | APPROVED 2026-10-15 | wealth, seller-set prices, the notice board and the price reporter |
 | S32 | [step-32-wardrobe.md](step-32-wardrobe.md) | APPROVED 2026-10-15 | changeable hair and clothing, starting outfits, buying clothes; the modular cast route; S32-p (wardrobe pilot) PR design FROZEN 2026-10-15 ([`pr-s32p-wardrobe-pilot.md`](pr-s32p-wardrobe-pilot.md), #231), implementation awaits the tooling on main |
 | S33 | [step-33-lakeside-3d.md](step-33-lakeside-3d.md) | APPROVED 2026-10-15 | the Lakeside world in 3D: Lake Cuyamaca setting and far field, the pier landmark and the halt, interiors, sit points, its own cast, `3d-lakeside.pck`; after Milestone F's checklist |
+
+**S26 and S30 (2026-10-15, step-30 §§10, 15.6).** S26 casting switches from its interim Python sampler to
+S30's `mineworld attributes resolve --json` in S30-g. That switch depends on S26-cast having merged; it does
+**not** block S26-cast's own merge.
 
 **Re-ruling recorded (2026-10-15, S33 Q-S33-10).** Lakeside's own 3D world is MVP-0 and release-blocking. This
 supersedes Q-S26-1's "Lakeside's 3D cast is MVP-1" and S29 §11.2's "Lakeside in 3D comes with 16f (MVP-1)".
@@ -515,6 +519,7 @@ scope decision.
 | Layered CI (§16) | S13, with fast checks introduced in S1 |
 | Playable-world north star (`ENGINEERING_RULES.md` §1) | S12 and S14; gated continuously from S2 onward by the §11 review question |
 | Operator requirement 2026-10-07: bodies do not interpenetrate; nudge, push, kick, throw | S15 |
+| Operator requirement 2026-10-15: many person attributes, user-defined attributes, distributions chosen by data, an optional MatrAIx backend (`AC-S30-1` … `AC-S30-17`) | S30 (S30-a … S30-k) |
 
 ---
 

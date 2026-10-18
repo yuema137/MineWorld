@@ -68,10 +68,17 @@ Constraint: an Entity Pack declares structure. Behavior requires a System Pack. 
 `Vehicle` without a transport system yields an object that exists and does nothing — which is
 correct, not broken.
 
-**The subset MVP-0 implements: item kinds** (`DECISIONS.md` `ARC-71`). Of the contents above, MVP-0
-reads **item types** only. New entity types would extend the closed `EntityType` of the contracts, and
-component schemas belong to System Packs in MVP-0 (their sections, `ARC-31`); authoring templates are
-not read. An MVP-0 Entity Pack is:
+**The subset MVP-0 implements: item kinds and owned data directories** (`DECISIONS.md` `ARC-71`, amended
+2026-10-15 by `ARC-121`). Of the contents above, MVP-0 reads **item types** and the **data directories an
+installed System Pack owns** (`ARC-121`; implemented by S30-b). New entity types would extend the closed
+`EntityType` of the contracts, and component schemas belong to System Packs in MVP-0 (their sections,
+`ARC-31`); authoring templates are not read.
+
+*Amended 2026-10-15 (S30-a, `ARC-121`).* The sentence read, until then: ~~"Of the contents above, MVP-0
+reads **item types** only."~~ A data directory is not a component schema: its files are data that the
+owning System Pack decodes and validates, and the Entity Pack still makes nothing happen.
+
+An MVP-0 Entity Pack that declares item kinds is:
 
 ```text
 modern-goods/
@@ -89,6 +96,63 @@ The repository ships one: `entities/modern-goods`, shop goods (food, drink, ever
 `worlds/lakeside` requires (`DECISIONS.md` `ARC-77`). It is found like any data pack, through a named
 pack root (`--packs entities`), and is never "bundled": that word means a code pack compiled from this
 workspace (`ARC-54`).
+
+**Data directories** (`DECISIONS.md` `ARC-121`; implemented by S30-b). An Entity Pack may also carry, beside
+or instead of `items/`, a directory that an **installed** System Pack owns (§3.1, "A pack that owns data"). The
+loader collects its `.yaml` files and hands them to the owner, which decodes and validates them with line and
+column; the loader never learns what they mean. Two rules hold for every Entity Pack:
+
+- **Only an installed owner's directory.** A directory that is neither `items/`, nor a directory some installed
+  System Pack owns, nor one whose name begins with `.` (ignored, as non-`.yaml` files are) is refused as
+  `UnknownDirectory`, listing every directory this build knows. A directory whose owner is installed but not
+  enabled by the requiring world is refused naming the owner (`DataNeedsASystem`), as a section of a disabled
+  pack is (§4.1 rule 6).
+- **Flat.** A data directory holds files only; a subdirectory inside it is refused as `UnknownDirectory`.
+
+The data directories the `attributes` System Pack owns, and the format of each, are §4.1's "Attributes"
+(`ARC-120` … `ARC-126`):
+
+| Directory | Holds | Format |
+| --- | --- | --- |
+| `attributes/` | attribute declarations and overrides | §4.1 "Attribute declarations", "Overrides" |
+| `populations/` | population profiles | §4.1 "Population profiles" |
+| `vocabularies/` | value vocabularies a `set` or `category` attribute draws from | §4.1 "Vocabularies" |
+| `masks/` | masks: named selections over a backend's catalogue | §4.1 "Backends and masks" |
+| `mappings/` | a backend's views of built-in attributes | §4.1 "Backends and masks" |
+| `labels/` | per-locale labels, phrases and words (S30-k) | §4.1 "Rendering" |
+
+A **backend pack** also carries `backend.yaml` at its root, the backend contract (`ARC-126`; §4.1 "Backends
+and masks").
+
+Three Entity Packs of this shape are specified (none is shipped before its PR):
+
+```text
+entities/person-attributes/     the built-in catalogue: backend `mineworld`, namespace `core` (S30-e)
+  pack.yaml                     id, type: entity-pack, version, mineworld, license: CC0-1.0, authors
+  backend.yaml                  the backend contract (ARC-126)
+  attributes/<group>.yaml       the declarations, one file per group: appearance, background,
+                                psychology, capability, behaviour, lifestyle (at most 100 in all)
+  masks/core.yaml               every built-in
+  masks/appearance.yaml         the appearance group only, for casting-only use
+entities/populations-us/        cited population profiles (S30-e; Q-S30-2)
+  pack.yaml
+  populations/san-diego-county.yaml
+entities/attributes-matraix/    an optional backend pack, not installed by default (S30-h)
+```
+
+- **`entities/person-attributes`** is the default backend, and every reference world and test uses it. Its
+  catalogue is curated: at most 100 attributes, each read by something the player notices, each with the
+  reader that makes it noticeable (`ARC-122`, `ARC-126`). It declares 93 `core` attributes: step-30 §6.1's 94
+  rows, plus `core.natal-sex` (step-30 Q-S30a-1), minus the two rows that are other packs' views —
+  `employment.occupation` and `economy.wealth-band` — which their owners declare in their own namespaces.
+- **`entities/populations-us`** holds profiles a world names in its configuration. A population is world
+  content that the world, cognition, agents and casting read, so profiles live in a data pack the world
+  requires, never in a Presentation Pack (`ARC-123`).
+- **`entities/attributes-matraix`** is an optional person-generation backend. *Optional person-generation
+  backend built on the MatrAIx persona schema (Li, Hao et al., 2026, arXiv 2608.04205; MIT), imported
+  unchanged.* It is the only pack that names that schema, the workspace builds and passes every test without
+  it, and its contents — the verbatim import, the overlay, the licence exclusions, its masks and mapping — are
+  recorded in `DEP-66`.
 
 ---
 
@@ -165,7 +229,24 @@ decode_section   how that section is decoded from a content file; default: refus
 CONFIGURATION, CONFIGURATION_FACTS, decode_configuration
                  whether the pack takes a world-level configuration (ARC-61), defined together by
                  configures!(); default: not configurable (below)
+DATA, decode_data_file, data_context
+                 the data directories the pack owns and how their files become its context (ARC-121),
+                 defined together by owns_data!(); default: owns none (below; implemented by S30-b)
+decode_section_in
+                 how the pack's section is decoded in its context (ARC-121), defined by
+                 owns_section_in_context!(); default: decode_section, the context ignored (S30-b)
+RESOLVES, resolve_subjects
+                 whether the pack resolves across subjects before seeding (ARC-121), defined by
+                 resolves!(); default: does not (S30-b)
+SHIPS            data files the pack ships, compiled in, for an owner's directories (ARC-121 item 4),
+                 declared by ships_data!(); default: none (S30-b)
 ```
+
+*Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
+`RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
+and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
 anonymous. It is always the same line, the first of the `impl`, and it is read by `mineworld packs`
@@ -279,6 +360,93 @@ decode_configuration   decodes configure/<id>.yaml into its own type; default: r
 
 A pack states its configuration facts `Visibility::SystemInternal` with no subjects: a world's
 configuration is nobody's perception and nobody's biography.
+
+**A pack that owns data** ([`DECISIONS.md`](DECISIONS.md) `ARC-121`; specified by S30-a, implemented by S30-b,
+`.structured-coding/plans/mvp0/pr-s30b-authoring-seam.md` §5). The authoring seam of `ARC-31` and `ARC-61`
+gains four general capabilities. Each is additive: a pack that uses none of them, and a world that carries no
+data directory, read, load and run exactly as before.
+
+1. **A pack may own data directories** in World Packs and Entity Packs (`owns_data!()`). A directory name is one
+   word of 1–32 bytes of `a`–`z`, `0`–`9` and `-`, unique among every pack this build provides and distinct
+   from the format's own directories. The loader collects the `.yaml` files of the owner's directories in one
+   deterministic order — files the enabled packs **ship** (item 4), in the world's `systems:` order; then each
+   required Entity Pack, in id order; then the world itself; within each source, directories in the owner's
+   declared order and files by name, byte order — and the owner decodes each file, a refusal keeping its line
+   and column. The owner then builds one **context** from all its files and its own world configuration
+   (`ARC-61`), once, checking what spans files (duplicates, namespaces). An owner with no files still gets a
+   context, built from none. The loader never learns what a file means. Refused, naming the file: a directory
+   no installed pack owns (`UnknownDirectory`, listing every directory this build knows, sorted); an installed
+   owner's directory in a world that does not enable the owner (`DataNeedsASystem`); a subdirectory inside a
+   data directory (`UnknownDirectory`); a file that does not decode (`Malformed`, with line and column); a
+   context the owner refuses (`DataRefused`, naming the system and the file). Directories whose name begins
+   with `.` are not content and are ignored; so is the directory holding the `decisions:` file.
+2. **A section may be decoded in its owner's context** (`owns_section_in_context!()`). The owner's decoded data
+   and its world configuration are available while its section is decoded, so a value is checked against a
+   schema declared in data, at the value's own line and column. The Rust form is a sibling trait of
+   `AuthoredSection`; a pack owns one section either way (`ARC-31`), and its seeding obligations are
+   unchanged.
+3. **An owner may resolve across subjects before seeding** (`resolves!()`). Once, after every section is
+   decoded and every reference checked and before any genesis fact is seeded, the owner receives every file of
+   the kinds its section is carried by — each subject's key, kind and tags, and its decoded section if the file
+   carries one; never a display name, a `note` or a location — and returns at most one seed per subject. Each
+   seed then becomes that subject's genesis facts, in the owner's own vocabulary, exactly where the owner's
+   section facts would have been seeded: seeding order is unchanged (`ARC-31` item 4). Refused, naming the
+   system: a resolution the owner refuses (`ResolveRefused`, naming the subject when there is one); a seed for
+   a key that is not one of the subjects; a seeded fact outside the owner's vocabulary, as for a section.
+4. **A pack may ship data files for an owner's directory** (`ships_data!("<directory>/<file>.yaml", …)`;
+   step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
+   directory and travel with its code and version. They are collected first (item 1) whenever the shipping
+   pack is enabled, and every refusal about one names the shipping pack and the file's crate-relative path.
+
+   *Clarified 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` F-b-1).* A shipped file is collected
+   into its owner's context only when the world enables the owner too: a file shipped into a directory whose
+   installed owner the world does not enable is not collected and is not refused, so a world that enables the
+   shipping pack without the owner reads as before (how such a world reads the shipped declarations is S30-c's
+   decision, `ARC-120`). A file shipped into a directory that **no installed** pack owns is a defect of the build
+   and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
+   its directories) are neither refused nor collected by item 1.
+
+A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
+owner's directories alike.
+
+**Attributes a pack reads, proposes or owns** ([`DECISIONS.md`](DECISIONS.md) `ARC-120`, `ARC-122`, `ARC-124`;
+specified by S30-a, implemented by S30-c; the vocabulary is [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5). A
+pack that uses a Person's attributes declares it, by qualified id (§4.1 "Attributes"); it never looks an
+attribute up by a string at run time. The exact Rust form is S30-c's; what is declared, and what is refused, is
+this:
+
+- **Reads.** A pack lists the attributes it reads (`reads_attributes: [<qualified id>, …]`). For each, it
+  obtains a typed handle once, when it is installed, and reads only through that handle afterwards. Refused at
+  install, by name: an attribute the world's catalogue does not hold (`Missing`), one of another kind than the
+  handle's (`WrongKind { declared, requested }`), and a built-in that the world's backend neither provides nor
+  maps (`MissingUnderBackend { attribute, backend }`), unless the read is declared optional. A handle to a
+  `text` attribute cannot be obtained at all: no System reads prose.
+- **Proposes.** A pack that changes a plain trait (one `attributes` owns) lists the attributes it may propose
+  changes to (`proposes: [<qualified id>, …]`), declares `attributes`' vocabulary and depends on `attributes`
+  (`ARC-26`), and emits `attribute-change-proposed { person, attribute, to, because }`. `attributes` accepts
+  only an `evolving` attribute, a value in its domain and a proposer that listed the attribute, stating
+  `trait-changed { person, attribute, from, to, because }`, or refuses by name.
+- **Owns.** A pack that already models some state of a Person and exposes it as attributes is an **owner**
+  (`AttributeOwner`, in `mineworld-attributes-model`, `ARC-124`). It depends on that model crate, not on the
+  `attributes` System Pack. It:
+  1. declares each attribute it owns in its own namespace, with `owner:` its own id, in an `attributes/` file
+     it ships (item 4 above);
+  2. projects each owned attribute from its own component when the attribute is read or disclosed — a view,
+     never a copy, so nothing else stores it;
+  3. receives, at genesis, each person's resolved initial value of each owned attribute (authored, locked,
+     from a role, sampled or defaulted, §4.1 "Population profiles") as a typed value, and states it in its own
+     vocabulary;
+  4. discloses its attributes within its own component, through the model crate's visibility filter and
+     renderer, so no owner writes its own visibility rules.
+
+  The owners named so far: `economy` (`economy.wealth-band`, a `derived` projection of the person's wealth;
+  S31, `ARC-114`); `employment` (`employment.occupation`, a projection of its own `Employment { job }` to the
+  job's label; added by S30-f, the one named exception to step-30 §9.4's "no existing System is changed by
+  S30", step-30 Q-S30a-2, ruled 2026-10-15); `notices` (`notices.subscriptions`; S31, `ARC-115`); and
+  `persona` (`persona.summary`, `persona.traits`, `persona.speech`, `text` and `private`; P6a, `ARC-74`,
+  reviewed after S30-f, step-30 Q-S30-4).
+- **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load, naming
+  the attribute and the owner (`OwnerNotInstalled`).
 
 **A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
 `mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
@@ -637,6 +805,14 @@ name: Alice Moreau         # a section owned by the `naming` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
+persona:                   # a section owned by the `persona` system (below)
+  summary: Runs the counter. Warm with regulars, dry with strangers.
+attributes:                # a section owned by the `attributes` system (below, "Attributes"; S30-c)
+  hair-colour: auburn      #   a category, by short slug (unique among the world's catalogues)
+  core.stature: 1.660      #   a quantity, in its declared unit and scale (m, 3 decimals)
+  subscriptions: [news.daily]           #   a set over a vocabulary (owned by `notices`)
+  core.mass: { between: [55.0, 70.0] }  #   an allowed: restriction on a quantity; the sampler draws inside it
+  chronotype: { allowed: [early-bird, morning-leaning] }   # the same on a level
 ```
 
 ```yaml
@@ -721,11 +897,16 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has seven sections:
+or the pack is refused. MVP-0 has eight sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
                               whitespace. Public: disclosed to whoever perceives the person
+persona   persona    people   { summary: <1–280 bytes, required, non-empty>, traits: [ <≤ 32 bytes
+                              each> ] (at most 8), speech: <≤ 160 bytes> }, traits and speech
+                              optional; unknown keys refused, with line and column. Disclosed to the
+                              person themself only. It shapes how the person speaks and grants
+                              nothing: no action, no process and no rule reads it (`ARC-74`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
@@ -777,6 +958,10 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
                               is routed round (`ARC-39` note 5, `DEP-34`)
 ```
+
+An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
+("Attributes") before it is implemented (S30-c); until then a person file carrying it is refused as an unknown
+key (rule 6).
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
 moving them onto it would change `presence` and `movement` and the refusals authors already see;
@@ -880,7 +1065,15 @@ is using it: its item kinds exist in the world as if the world's own `items:` li
 
 Refused by name when the pack is identified (in every pack root, before any world uses it): an Entity
 Pack holding `places/`, `people/` or `organizations/` ("an Entity Pack carries item kinds only in
-MVP-0"); one whose `items/` is absent or holds no `.yaml` file ("declares nothing"). Refused when its
+MVP-0"); one whose `items/` is absent or holds no `.yaml` file ("declares nothing").
+
+*Amended 2026-10-15 (S30-a, `ARC-121`; implemented by S30-b).* An Entity Pack may carry data directories
+(§2, "Data directories"), so a pack need not have `items/`: it "declares nothing" only when it has no
+`items/*.yaml` **and** no `.yaml` file in any other directory whose name does not begin with `.`. The three
+forbidden directories stay forbidden. Which other directories are known is decided where the installed packs
+are known — by the loader when a world requires the pack, and by `mineworld packs validate` against the
+build's installed packs — never by the package check. A required Entity Pack's data files are collected with
+the world's, in the order of §3.1 "A pack that owns data", item 1. Refused when its
 content is read: an item file whose name is not a valid key; an item file that does not parse (with its
 line and column). A required Entity Pack that is absent, out of range, outside the licence policy, or
 whose `mineworld:` range excludes the framework is refused like any other requirement. The two names
@@ -936,6 +1129,403 @@ file in the order the world's `systems` lists their owners — which the owning 
 person's or a place's section may refer to is seeded before it, and a world that declares no items or
 organizations seeds exactly what it seeded before they existed (`ARC-36`). So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
 (`DECISIONS.md` `ARC-15`).
+
+**Attributes** ([`DECISIONS.md`](DECISIONS.md) `ARC-120` … `ARC-126`, `DEP-66` … `DEP-68`; specified by S30-a;
+implemented by S30-b … S30-k; the concept is [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5). A Person's
+attributes are written as data in five places, all owned by the `attributes` System Pack unless a row says
+otherwise:
+
+| Where | What | Owner |
+| --- | --- | --- |
+| `attributes/*.yaml` of an Entity Pack, a World Pack, or shipped by a System Pack (§3.1 item 4) | declarations and overrides | `attributes` (the directory); each declaration names its attribute's owner |
+| `vocabularies/*.yaml` (same sources) | value vocabularies | `attributes` (the directory); each vocabulary's namespace is its declaring pack's |
+| `populations/*.yaml`, `masks/*.yaml`, `mappings/*.yaml`, `labels/*.yaml`, and a backend pack's `backend.yaml` | profiles, masks, a backend's mappings, locale labels, the backend contract | `attributes` |
+| `configure/attributes.yaml` of a World Pack, and the lock file it names | the world's choice of backend, mask, profile and population seed; pinned values | `attributes` (its world configuration, `ARC-61`) |
+| a person file's `attributes:` section | the values this person's biography states | `attributes` (the section) |
+
+None of them is a key of `world.yaml`. `world.yaml`'s `population:` already means the list of people files, so
+no attribute setting is ever a key named `population`.
+
+*Attribute declarations* (`ARC-122`). One file holds any number of declarations:
+
+```yaml
+# entities/person-attributes/attributes/appearance.yaml (excerpt)
+format: 1
+attributes:
+  stature:
+    group: appearance
+    facets: [appearance, body]           # open tags consumers select by; S26 casting reads `appearance`
+    kind: { quantity: { unit: m, scale: 3, min: 0.500, max: 2.500 } }   # stored as integer millimetres
+    visibility: perceivable
+    mutability: fixed
+    label: Stature
+    phrase: "{value} m tall"             # `{value}` is the only placeholder a phrase may name
+    perceived_as: { bands: [ { below: 1.55, words: short }, { below: 1.85, words: of average height },
+                             { words: tall } ] }   # what another observer is told; the holder sees the value
+    since: 1.0.0
+  hair-colour:
+    group: appearance
+    facets: [appearance]
+    kind: { category: [black, dark-brown, brown, light-brown, blond, auburn, red, grey, silver-grey, white] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair colour
+    phrase: "{value} hair"
+    words: { dark-brown: dark brown, light-brown: light brown, silver-grey: silver-grey }
+    since: 1.0.0
+  chronotype:
+    group: behaviour
+    kind: { level: [early-bird, morning-leaning, neutral, evening-leaning, night-owl] }
+    visibility: learnable
+    mutability: evolving
+    label: Chronotype
+    phrase: "{value}"
+    since: 1.0.0
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| the key | yes | the slug, `^[a-z][a-z0-9_.-]{0,63}$` (`_` admitted so that an imported schema's ids are kept verbatim); qualified by the declaring pack's namespace (below) |
+| `group` | yes | one of the six built-in groups — `appearance`, `background`, `psychology`, `capability`, `behaviour`, `lifestyle` — or a group the declaring pack declares |
+| `facets` | no | open tags for selection by consumers (`appearance`, `body`, `prompt`, `casting` …) |
+| `kind` | yes | the value kind (below) |
+| `visibility` | yes | `perceivable`, `learnable`, `private` or `hidden` ([`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.5) |
+| `mutability` | yes | `fixed`, `evolving` or `derived` (§4.5 there); a `derived` attribute also declares `derive:` (below) |
+| `owner` | no | the owning System Pack's id; default `attributes`. An owner pack's declarations use its own namespace and name itself |
+| `label` | yes | the attribute's name in prose |
+| `phrase`, `words` | no | the rendering (below) |
+| `perceived_as` | no | what an observer other than the holder is told, when it is coarser than the value |
+| `default` | no | the value when nothing else states one (precedence below). Absent: the attribute stays absent |
+| `since` | built-ins | the catalogue version that introduced the attribute |
+| `prompt_rank` | no | the order in which a byte-budgeted rendering keeps attributes (cognition, S30-f) |
+
+| Kind | Declared as | Stored as |
+| --- | --- | --- |
+| `category` | a closed list of value slugs, or `vocabulary: <qualified id>` | the value's slug |
+| `level` | an ordered list of value slugs; order is meaningful (comparison, bands) | the value's slug |
+| `quantity` | `unit` (one of `m`, `kg`, `year`, `day`, `hour`, `count`, `ratio`), `scale` (decimal places), `min`, `max` | an integer at that scale (`m` at scale 3 is millimetres); no float is stored or compared |
+| `flag` | — | `true` or `false` |
+| `set` | `of:` a closed list, or `vocabulary: <qualified id>`; `max` (members) | a sorted set of slugs |
+| `text` | `max_bytes`, at most 280 | bounded UTF-8 with no control characters; never readable by a System |
+| `instant` | — | a world instant in seconds, possibly before the epoch |
+
+- **Units are a closed list.** Currency is not one: money is `economy`'s. A new unit is a change to the model
+  crate, reviewed as such.
+- **Absent is not a value.** No domain contains `unknown`. An attribute nothing states is absent: rendering
+  omits it, and a System's handle reads `None`.
+- **Derived attributes** declare `derive:` from a closed list: `age { from: <instant attribute> }` (whole years,
+  floor), `band { from: <quantity or level attribute>, bands: [...] }`, and `projection` (the owner's code,
+  §3.1 "Owns"). A derived value is computed at disclosure and on a read, from stored state and the instant; it
+  is never stored and never stated as a fact.
+- **Versioning.** A catalogue is a versioned data pack ([`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md)), required by
+  range (`requires: { person-attributes: "^1" }`). A minor version may add an attribute, append a value to a
+  `category` or `set` list, or add words, phrases or facets. Removing or renaming an attribute, removing or
+  reordering values, or changing a kind, a unit or a scale is a major version. An id is never reused for another
+  meaning. Saves hold slugs, never positions, so appending a value moves no fact.
+
+*Namespaces and short slugs* (`ARC-122`). Every attribute's qualified id is `<namespace>.<slug>`, and the
+namespace is the declaring pack's id: `core` is reserved for `entities/person-attributes`; a World Pack's own
+declarations use the world's id; an owner System Pack's use its pack id (`notices.subscriptions`,
+`economy.wealth-band`). A declaration in any other namespace is refused (`ForeignNamespace`). An author may
+write the **short slug** in a person file, a profile, a lock entry or a mask wherever it is unique among the
+world's catalogues; an ambiguous short slug is refused, listing the qualified candidates (`AmbiguousSlug`). The
+qualified id is always accepted.
+
+*Overrides* (`ARC-122`). A world changes a declaration it did not author only through an explicit entry:
+
+```yaml
+# worlds/harbour/attributes/overrides.yaml
+format: 1
+overrides:
+  core.hair-colour:
+    words: { auburn: copper }          # allowed: presentation
+    visibility: private                # allowed: narrowing only
+```
+
+| May override | May not override (refused, `OverrideNotAllowed`, naming the field) |
+| --- | --- |
+| `label`, `phrase`, `words`, the words of `perceived_as`, `facets` (add only), `default`, `visibility` narrowed along `perceivable` → `learnable` → `private` → `hidden` | `kind`, the values and their order, a `vocabulary`, `unit`, `scale`, `owner`, `mutability`, a widened `visibility` |
+
+Declaring an id that already exists, instead of overriding it, is refused (`DuplicateAttribute`). A world that
+wants another value set declares its own attribute (`harbour.ancestry`) and its profile uses that one.
+
+*Vocabularies* (`ARC-122`, `ARC-124`). A `category` or `set` attribute may take its values from a vocabulary: a
+closed set of value ids named `<namespace>.<name>`, declared by its owner either as a `vocabularies/` file —
+
+```yaml
+# vocabularies/topics.yaml, shipped by the `notices` System Pack (step-31 §8.5)
+format: 1
+vocabularies:
+  topics: [prices.ingredients, prices.fuel, station.departures, news.daily, weather.warnings]
+```
+
+— or from its own world configuration, through its owner interface (`economy.wealth-bands`, the band ids of
+`configure/economy.yaml`, step-31 §7.4). A value outside the vocabulary is refused where it is written
+(`UnknownTopic`, naming the vocabulary and the nearest ids).
+
+*Rendering* (`ARC-122`). `label` names the attribute; `phrase` is a template with exactly one placeholder,
+`{value}`; `words` gives per-value words, by default the slug with hyphens turned into spaces. A `quantity`
+renders at its scale with its unit, a `set` as a list joined with "and", a `perceived_as` band as its words.
+Rendering is deterministic and bounded, and English by default; locale label packs (`labels/<locale>.yaml`,
+keyed by attribute and value, S30-k) replace label, phrase and words, falling back to English.
+
+*The person file's section* (`ARC-122`, `ARC-123`). `attributes:` in `people/<key>.yaml` maps attribute ids
+(qualified, or short where unique) to either a **value** — written in the kind's own form: a slug, a number in
+the declared unit, `true`/`false`, a list of slugs, a string, or an instant — or a **restriction** the sampler
+must respect: `{ allowed: [<value>, …] }` for a `category`, `level` or `set`, `{ between: [<min>, <max>] }` for
+a `quantity`. Each entry is decoded against its declaration in the owner's context (§3.1 seam item 2) and
+refused at its own line and column: an unknown id (`UnknownAttribute`, with the nearest declared ids), a value
+of the wrong kind (`WrongKind`, printing the domain), a value outside a closed list or vocabulary
+(`OutOfDomain`, or `UnknownTopic` for a vocabulary), a quantity outside `min`/`max` (`OutOfRange`), an
+attribute the world's mask disables (`MaskedOut { attribute, mask }`), a `derived` attribute (`OutOfDomain`:
+nothing states a derived value). A value written here is authored: the sampler never re-draws it.
+
+*The world's configuration* (`ARC-123`, `ARC-126`). `configure/attributes.yaml`, listed under `configure:` like
+any pack's (`ARC-61`):
+
+```yaml
+format: 1
+backend: mineworld                 # default; or the id of any installed backend pack
+mask: core                         # optional; a mask the backend ships, or one of the world's own masks/
+profile: san-diego-county          # resolved through the world's required packs; absent: no sampling
+seed: mineworld-s26-cast-v1        # the population seed: world content, never the run's --seed
+salt: 0                            # optional; the distinctness re-draw of S26 casting, once written here
+lock: attributes.lock.yaml         # optional; the lock file, relative to the pack root
+```
+
+- **The population seed is not the run seed.** The same world gives the same people under every
+  `mineworld run --seed`, so casting and the world agree. Several worlds may name one profile.
+- **No profile, no sampling.** A world whose configuration names no profile takes every value from its people
+  files, its lock and declaration defaults; tools report `no profile`.
+- **`salt`** changes `sampled` values only. A world resolved by a tool with a non-zero salt is not the world's
+  own population until that salt is written here.
+- A profile the world's required packs do not provide is refused naming the profile (`UnknownProfile`).
+
+*Population profiles* (`ARC-123`, `DEP-68`). A profile is a `populations/` file, versioned with its pack:
+
+```yaml
+# entities/populations-us/populations/san-diego-county.yaml (excerpt)
+format: 1
+profile: san-diego-county
+version: 3
+covers: adults                         # who the profile describes
+sources:
+  acs-2024-1y:
+    cite: "American Community Survey 2024 1-year, B01001, B03002, San Diego County (05000US06073)"
+    url: https://data.census.gov/table/ACSDT1Y2024.B03002?g=050XX00US06073
+    read: 2026-10-15
+    status: read                       # read | verify | authored
+  nhanes-2015-2018:
+    cite: "Fryar et al. 2021, Vital Health Stat 3(46), Tables 9, 11, 14, 15"
+    status: read
+  mst-convention:
+    cite: "MineWorld casting convention (operator-gated, Q-S26-7, ARC-95)"
+    status: authored                   # an authored convention, never presented as data
+distributions:
+  core.natal-sex:
+    prior: { female: 0.4986, male: 0.5014 }
+    source: acs-2024-1y
+    stratify: true
+  core.age-band:                       # the band is sampled; birth follows
+    prior: { 20s: 0.1864, 30s: 0.2050, 40s: 0.1716, 50s: 0.1506, 60s: 0.1417, 70s: 0.0973, 80-plus: 0.0474 }
+    source: acs-2024-1y
+    stratify: true
+  core.birth:
+    given: [core.age-band]
+    uniform_age_within_band: true      # birth = epoch − a uniform age inside the band, in whole days
+  core.stature:
+    given: [core.natal-sex, core.age-band]
+    normal: { by: { female.20s: { mean: 1.626, p5: 1.510, p95: 1.728 }, … } }
+    clip_sd: 2
+    source: nhanes-2015-2018
+  core.build:
+    given: [core.natal-sex]
+    prior: { female: { slim: 0.144, average: 0.167, solid: 0.262, heavy: 0.427 }, male: { … } }
+    source: nhanes-2015-2018
+    verify: "county figure not read; national NHANES over-represents `heavy` here"
+  core.hair-colour:
+    given: [core.ancestry, core.age-band]
+    prior: { … }
+    adjust:                            # likelihood ratios r(v; parents)
+      - { when: { core.age-band: [60s] }, ratios: { grey: 4.0, silver-grey: 2.0 } }
+    source: mst-convention
+  core.facial-hair:
+    given: [core.natal-sex]
+    prior: { none: 0.55, stubble: 0.15, short-beard: 0.20, moustache: 0.10 }
+    mask:                              # hard compatibility m(v; parents)
+      - { when: { core.natal-sex: [female] }, only: [none] }
+    source: authored                   # the reserved source: an authored convention, needing no entry
+roles:                                 # defaults by authored role: tags, or any resolved attribute
+  - { when: { tags: [cook] }, add: { notices.subscriptions: [prices.ingredients] } }
+```
+
+- **Semantics.** For an attribute X with parents Pa (its `given`), a person's weight for value v is
+  `prior(v | pa) × Π (adjust ratios matching pa) × mask(v; pa)`. Weights are normalised to integer parts per
+  million, rounded by largest remainder so that each row sums to exactly 1 000 000. Only a mask zeroes a value;
+  a rare valid combination stays eligible. Numeric distributions (`normal` by stratum, `uniform`, `table`
+  quantiles) use a committed table of standard-normal quantiles in micro-units and integer interpolation — no
+  `ln`, `exp` or platform `libm` — so the result is identical on Linux, macOS and Windows.
+- **The algorithm.** Attributes are resolved in topological order of `given`, ties broken by qualified id:
+  1. values the person's file states and the lock pins are fixed first and never drawn;
+  2. for each attribute, the covered people are grouped by their resolved parent values; within a group of
+     n people, each value's target is n × weight; the fixed members already holding a value are subtracted
+     (floor 0); the remaining unfixed members are allocated by **largest remainder**, remainder ties broken by
+     the counter-based mix of (seed, attribute, group, value); the allocated values are assigned to the unfixed
+     members in the order of mix(seed, attribute, person key), respecting each member's `allowed:` or
+     `between:` restriction by a bounded matching — when no matching exists the resolution is refused
+     (`Unsatisfiable { person, attribute }`), never silently re-drawn;
+  3. with `stratify: false`, each unfixed member draws independently with mix(seed, attribute, person key);
+  4. a numeric attribute draws one quantile per member — stratified `(i + ½) / n` points permuted by mix when
+     `stratify`, else one draw — mapped through the stratum's distribution and clipped at `clip_sd`;
+  5. `roles:` apply after sampling: each adds to a `set` or fixes a value, only for members whose tags or
+     resolved attributes match.
+- **Nothing reads a name.** The sampler's input for a person is their key (an opaque hash input), tags,
+  authored values and lock entries (the seam's subject, §3.1 item 3): never a display name, a `note` or a
+  `persona`. Renaming every person changes no resolved value.
+- **Origins.** Each resolved value has an origin — `authored`, `ruled`, `locked`, `role`, `sampled { stratum,
+  draw }` or `default` — reported by the tools and never saved (§3 "Metadata" of `CORE_CONCEPTS.md`).
+- **Guarantee.** Within each parent group, every value's realised count differs from its target by less than
+  one person; for 1 000 covered people a synthetic resolution matches every declared marginal within 0.5 pp
+  and every conditional within 2 pp for groups of at least 50.
+- **`verify` marks** are reported by the tools and on S26's casting page and do not fail a load. A release
+  (S23) refuses a reference world whose profile marks a **data** figure `verify`; a source of status
+  `authored` is a convention, always shown as authored, and never refused for it (step-30 Q-S30-5).
+- **`source: authored`** is reserved: it marks a distribution as an authored convention without a `sources:`
+  entry (as a world's own small profile does), and it is reported exactly as a source of status `authored`.
+- **Data and conventions stay apart.** Provider limits ("no loose long hair for this route") are S26's
+  declarations on the provider, never profile content.
+
+*The lock file* (`ARC-123`). Machine-written, human-reviewed, it pins values per person with their origin:
+
+```yaml
+# attributes.lock.yaml
+format: 1
+profile: { id: san-diego-county, version: 3 }
+seed: mineworld-s26-cast-v1
+people:
+  alice:
+    core.stature:   { value: 1.660, origin: ruled, at: 2026-10-15, by: "casting gate B0 (Q-S26-7)" }
+    core.skin-tone: { value: 4,     origin: ruled, at: 2026-10-15 }
+```
+
+- **Precedence**, for every attribute of every person: the person's own `attributes:` section, then the lock,
+  then `roles:`, then the profile's sample, then the declaration's `default`; otherwise absent.
+- **A casting ruling binds the world through the lock.** When the operator rules a person at a casting gate, the
+  casting tool writes the ruled values here, so the world's attributes and the look's brief never diverge, even
+  when a later profile version or seed changes every unruled draw. The tool writes the file; people never edit
+  positions by hand.
+- Each entry is checked as a person-file value is (`UnknownAttribute`, `WrongKind`, `OutOfDomain`,
+  `OutOfRange`, `MaskedOut`), and a person key the world does not declare is refused naming it.
+
+*Backends and masks* (`ARC-126`). A **backend** is a data pack that supplies a world's catalogue and the means of
+generating people over it; the world names it in `backend:`. Its contract is `backend.yaml` at the pack root,
+every field validated and every failure named:
+
+| Field | Meaning | Refusal |
+| --- | --- | --- |
+| `id`, `version`, `license`, `attribution` | identity and credit, shown by the tools and in a resolution's provenance | `BackendMalformed { pack, field }` |
+| `catalogues` | the attribute files it supplies, in the declaration format above | as for any declaration (`UnknownAttribute`, `DuplicateAttribute` …) |
+| `masks` | the masks it ships, and its default mask | `UnknownMask { backend, mask }`; `MaskNamesUnknownAttribute { mask, id }` |
+| `sampling` | the modes it supports, from the engine's closed list: `profile` (§ "Population profiles") and, optionally, `log-linear` (a backend-supplied factor model executed by MineWorld's engine in fixed point) | `UnsupportedSampling { backend, mode }` |
+| `provenance` | upstream source, version, commit and file digests | `ProvenanceMismatch { file, expected, found }` (CI re-verifies) |
+| `mapping` | how the built-in ids that Systems and consumers read are provided under this backend: a `derived` view per built-in, value by value, in `mappings/` | `MissingUnderBackend { attribute, backend }`, at the reader's install |
+
+- **No backend runs code.** A backend is data, executed by the model crate's engine; a new sampling mode is a
+  model-crate change, reviewed as such.
+- **The default backend** is `mineworld` (`entities/person-attributes`), with the `profile` mode and the masks
+  `core` (every built-in) and `appearance` (the appearance group). Every reference world and test uses it.
+- **Appearance and quantities are always MineWorld's.** Every backend's catalogue is composed with the `core`
+  appearance group and `core` quantity attributes, because a body in a client must come from one place
+  (`ARC-125`); a backend may not redeclare them.
+- **A mapping is checked:** every target value exists and every source value is covered. Under a backend, a
+  reader's handle to a mapped built-in reads the mapped view; a built-in neither mapped nor in the appearance
+  group is absent.
+
+A **mask** is a named, versioned selection over a backend's catalogue:
+
+```yaml
+# masks/<id>.yaml
+format: 1
+mask: core-lite
+version: 1
+include:
+  - { id: core.chronotype, why: "DM: when they rise and go home" }
+  - { group: psychology, why: "DM, CV: the five traits and the core value" }
+exclude:
+  - { id: core.honesty, why: "this world's LM characters never shade the truth" }
+```
+
+- `include` and `exclude` take ids, groups or facets, and every entry carries a `why` naming the reader it
+  serves; an entry without one is refused (`MaskEntryUnjustified`). The mask `all` includes everything.
+- **What the mask does not enable does not exist in the world:** it is absent from the frozen catalogue, the
+  sampler skips it, no observation, prompt, agent view or panel carries it, a person file stating it is refused
+  (`MaskedOut`), and a System's handle to it fails at install.
+- Owner packs' own attributes are never masked: they belong to Systems the world already chose.
+- A world writes its own mask with no code; a missing or malformed mask is refused by name.
+
+*Disclosure* (`ARC-122`). `attributes` discloses one `traits` component per perceived person, filtered for the
+observer: the holder receives every non-hidden value; another observer receives the `perceivable` ones,
+through `perceived_as`. Each entry is `{ attribute: <qualified id>, value: <typed by kind>, text: <rendered
+phrase> }`, schema 1, in catalogue order; `text` is world text. An owner discloses its own attributes in its own
+component by the same rule, through the model crate's filter and renderer.
+
+*Persistence* (`ARC-120`, `ARC-123`):
+
+| Fact | Owner | When | Payload | Audience |
+| --- | --- | --- | --- | --- |
+| `traits-stated` | `attributes` | genesis, one per person with at least one plain trait | the sorted `(qualified id, value)` pairs; no origin | the holder only (it holds private values); others learn by disclosure, per observer, at observation time |
+| `trait-changed` | `attributes` | an accepted proposal | `{ attribute, from, to, because }` | the holder, and the observers present if the attribute is `perceivable` |
+| `attribute-change-proposed` | `attributes` (its vocabulary) | emitted by a pack that declared the attribute in `proposes:` | `{ person, attribute, to, because }` | none: an internal request |
+| an owner's own facts | that owner | its own rules | its own vocabulary | its own rules |
+
+- **Derived attributes write nothing.** Origins and sources are not saved: the save holds world truth, and
+  provenance is a tool's output. Replay reduces `traits-stated` and `trait-changed` exactly; the sampler runs
+  only at genesis, so a resumed world never re-samples.
+- **A world without `attributes`** and without owner-declared attributes is byte-identical to the same world
+  before attributes existed. Adopting attributes in a reference world moves its digests once, under one
+  recorded re-baseline whose reason names the moved columns (S30-g).
+- **No migration layer.** Resuming a save made under a composition without `attributes` under one that adds it
+  is a composition change, refused by name as any added pack is.
+
+*Refusals*, in one place. Each is raised at load (or at a reader's install, where marked) and names what the
+*Names* column lists; the source is the step-30 section that states the rule.
+
+| Refusal | When | Names | Step-30 |
+| --- | --- | --- | --- |
+| `BadDeclaration` | a declaration breaks a field rule: an id outside the slug pattern, an unknown group, kind or unit, a `text` over 280 bytes, a phrase naming a placeholder other than `{value}`, a `derived` attribute without `derive:` | the file, line, attribute and field | §§5.1, 5.2, 5.5, 5.6 (the rules, given one name) |
+| `UnknownAttribute` | a person file, profile, lock, mask, role or override names an id no catalogue declares | the id and the nearest declared ids | §§5.3, 8.2 |
+| `DuplicateAttribute` | two declarations of one qualified id, or a redeclaration instead of an override | the id and both files | §§6.4, 7.2 |
+| `ForeignNamespace` | a declaration in a namespace other than its pack's | the id and the pack | §7.1 |
+| `AmbiguousSlug` | a short slug two catalogues declare | the slug and the qualified candidates | §7.1 ("refused by name and the message lists the qualified candidates") |
+| `WrongKind` | a value of another kind than its declaration's; at install, a handle of another kind | the attribute, the value and the domain; at install `{ declared, requested }` | §5.3 |
+| `OutOfDomain` | a value outside a closed list, or a stated value for a `derived` attribute | the attribute, the value and the domain | §5.3 ("an out-of-domain value") |
+| `OutOfRange` | a quantity outside `min`/`max` | the attribute, the value and the bounds | §5.3 ("a value outside `min`/`max`") |
+| `UnknownTopic` | a value outside a `vocabulary:` | the vocabulary, the value and the nearest ids | §9.6 N-1 ("unknown topics refused by name at load") |
+| `OverrideNotAllowed` | an override of a field the table forbids, or a widened visibility | the attribute and the field | §7.2 ("refused by name") |
+| `OwnerNotInstalled` | an attribute whose owner the world does not enable | the attribute and the owner | §4.2 item 5 ("refused at load by name") |
+| `UnknownProfile` | `profile:` names no profile the world's required packs provide | the profile | §8.1 ("resolved through the world's required packs") |
+| `NotCovered` | a person outside the profile's `covers:` | the profile and the person | §8.2 ("people outside it are refused by name") |
+| `DependencyCycle` | the profile's `given` lists form a cycle | the profile and the cycle `[a, b, …, a]` | §8.2 |
+| `MissingCondition` | a `prior` misses a parent combination that can occur and states no `otherwise:` | the attribute and the parents | §8.2 |
+| `BadDistribution` | a probability below 0 or with more than 6 decimals, or a row not summing to 1 ± 1e-6 | the attribute, the row and its sum | §8.2 |
+| `BadAdjustment` | an `adjust` ratio that is not > 0 | the attribute and the entry | §8.2 |
+| `BadMask` | a profile `mask` naming a value outside the attribute's domain | the attribute and the value | §8.2 |
+| `EmptySupport` | a profile mask leaving no value for a parent combination that can occur | the attribute and the parents | §8.2 |
+| `UncitedDistribution` | a distribution with no `source`, or naming one the file does not declare (the reserved source `authored` needs no entry) | the attribute | §8.2 |
+| `MissingSupport` | a `quantity` distribution that does not declare the support it can return | the attribute | §8.2 |
+| `Unsatisfiable` | no assignment respects the people's `allowed:` / `between:` restrictions | the person and the attribute | §8.5 |
+| `BackendMalformed` | a `backend.yaml` field missing or invalid | the pack and the field | §6.4 |
+| `UnknownMask` | a mask the backend and the world do not provide | the backend and the mask | §6.4 |
+| `MaskNamesUnknownAttribute` | a mask entry naming an id the backend does not declare | the mask and the id | §6.4 |
+| `MaskEntryUnjustified` | a mask entry without `why` | the mask and the entry | §6.5 |
+| `MaskedOut` | a person file or lock states an attribute the mask disables | the attribute and the mask | §6.5 |
+| `UnsupportedSampling` | a mode the backend does not support | the backend and the mode | §6.4 |
+| `ProvenanceMismatch` | a backend file whose digest differs from its provenance | the file, the expected and the found digest | §6.4 |
+| `MissingUnderBackend` | at a reader's install, a required built-in the backend neither provides nor maps | the attribute and the backend | §6.6 |
+| `Missing` | at a reader's install, an attribute the world's catalogue does not hold | the attribute | §5.3 |
+
+The commands that report all of this — `mineworld attributes catalogue | show | check | resolve | lock |
+backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
 ## 4.2 The World's Interaction List
 
@@ -1749,7 +2339,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms` and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). Described below. |

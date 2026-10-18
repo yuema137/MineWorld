@@ -220,6 +220,21 @@ Windows (the live Milestone D test and the 100-day test with its strict xfail), 
   This is pre-existing: `main`'s run 38818061551 was cancelled the same way. P7 adds one ordinary test to `core`
   (the unplugged run, ≈ 15 s).
 
+**CI, head `9215f5d1` (2026-10-17).** PASS: `fast`, `test`, `test-macos`, `platforms` ×2,
+`python` on Ubuntu (24 min) and on Windows (55 min, every test including both 100-day tests, the agent library and
+`milestone_d`). Not passing, each classified:
+- `test-windows`: cancelled at 60 minutes with 79 suites ok and none failed. This is the known #224 cancel, fixed on
+  `main` by #224, now merged in.
+- `removability`: `ac5_takeover::a_player_takes_alice_from_her_controller_and_she_is_the_same_person` failed on
+  wallet/holdings unchanged after an accepted buy, which reads as a stale observation under load. The same test passed
+  in `test` on that head. This is a flake, outside P7: the copy contains no LM controller code that test could reach.
+- `python (macos-15)`: hung inside `test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins`
+  until the job limit (75 min). This is P6b's open D-P6b-40, recurring on macOS (it hung once on Windows in P6b): the
+  hang lies outside the test's asyncio bound. It passed on Ubuntu and Windows on the same head. It is left for P6's
+  owner, and is recorded as F-P7-9.
+
+Then `origin/main` (#224, sharded `core`) was merged into the branch as `894a79ca`, with no conflict.
+
 The recording: `MINEWORLD_MILESTONE_D_RECORD=… cargo test -p mineworld-cli --test milestone_d -- --ignored --exact
 record_the_milestone_d_cassette` against Ollama's `qwen3.5:4b` on loopback (no key, no paid call). Its own step-6
 assertion fails on the model's recalls (Q-P7-2), so the committed cassette and log were assembled from the kept
@@ -256,6 +271,11 @@ once) and `store/alice.decisions.jsonl`. Nothing in them was edited.
   request; measured that way, 15 of 289 sampled consults fell back on transport alone (7.6 % in all). The decision
   log is written as one file (rotation off) so the run is read back whole; with the 8 MiB rotation only the last
   289 of 1 101 records remained in the current file.
+- **D-P7-10 (bounded CI change).** On head `29058e27` (run 39009565380) the `python (windows-2025)` leg passed every
+  cognition test (372 passed, 1 xfailed, 38 min; the 100-day store test ≈ 11.7 min, the fallback bound ≈ 9.8 min) and
+  was then cancelled by its 45-minute limit before the agent library and `milestone_d` ran. The `python` job's
+  limit is now 75 minutes. Cheaper alternatives, for the primary: share one 100-day history between AC-10 and the
+  fallback bound (a session fixture), or run the two 100-day tests on Windows only nightly.
 - **D-P7-8 (bounded test design).** In the live test the visitor waits 2 s at the counter before speaking, because
   Alice's view can trail the visitor's (D-P6b-30); a reply is waited for in the decision log before a kill, because the
   log line follows the world's acceptance.
