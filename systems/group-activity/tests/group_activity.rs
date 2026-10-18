@@ -11,8 +11,9 @@ use mineworld_contracts::{
     Action, ActionResult, Affordance, Causation, Event, EventEnvelope, PersonId, Rejection,
 };
 use mineworld_group_activity::{
-    AcceptInvitation, GroupActivityEnded, GroupActivityStarted, INVITATION_LIFETIME, Invite,
-    JoinGroupActivity, LeaveGroupActivity, Participation,
+    AcceptInvitation, DeclineInvitation, GroupActivityEnded, GroupActivityStarted,
+    INVITATION_LIFETIME, Invite, JoinGroupActivity, LeaveGroupActivity, Participation,
+    accept_requirement, decline_requirement, join_requirement, leave_requirement,
 };
 use mineworld_presence::PersonEnteredPlace;
 use support::{CAFE_DOOR, Cafe, STREET_DOOR, at, kind, record, t, types};
@@ -392,6 +393,202 @@ fn offers_and_disclosure_say_what_the_pack_knows_and_no_more() {
         )
         .is_none(),
         "a member is not offered to join what they are already part of"
+    );
+}
+
+#[test]
+fn an_expired_invitation_is_not_offered_as_an_answer() {
+    // Regression (S27-b, pre-existing): perception was handed the clock, yet offered accept and
+    // decline for an invitation past its `until`; dispatch then refused it. The offer must follow
+    // the same bound as the answer: at exactly the lifetime it is offered, one second later it is not.
+    let mut cafe = Cafe::new();
+    cafe.invite(10, cafe.alice, cafe.bob);
+    // Perception reads the world's clock, so the clock is moved to each instant before observing.
+    let _due = cafe
+        .world
+        .advance_to(t(10 + 1_800))
+        .expect("the clock advances");
+    let open = cafe.observation(cafe.bob, 10 + 1_800);
+    assert!(
+        offered(
+            &open,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_some_and(Affordance::is_available),
+        "at exactly the lifetime the invitation is still offered"
+    );
+    let _due = cafe
+        .world
+        .advance_to(t(10 + 1_801))
+        .expect("the clock advances");
+    let late = cafe.observation(cafe.bob, 10 + 1_801);
+    assert!(
+        offered(
+            &late,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "an expired invitation is not offered accept"
+    );
+    assert!(
+        offered(
+            &late,
+            DeclineInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "an expired invitation is not offered decline"
+    );
+}
+
+#[test]
+fn the_four_answers_are_offered_complete_and_attempted_unchanged() {
+    let empty = serde_json::json!({});
+    let mut cafe = Cafe::new();
+    cafe.invite(10, cafe.alice, cafe.bob);
+
+    // (a, b): Bob's two answers to Alice's invitation are complete and available, each with its
+    // requirement; invite, whose kind is free text, carries no payload.
+    let bobs = cafe.observation(cafe.bob, 11);
+    let accept = offered(
+        &bobs,
+        AcceptInvitation::ACTION_TYPE.as_str(),
+        Some(cafe.alice),
+    )
+    .expect("bob may accept Alice's invitation");
+    let decline = offered(
+        &bobs,
+        DeclineInvitation::ACTION_TYPE.as_str(),
+        Some(cafe.alice),
+    )
+    .expect("bob may decline Alice's invitation");
+    let invite =
+        offered(&bobs, Invite::ACTION_TYPE.as_str(), Some(cafe.alice)).expect("invite is offered");
+    assert_eq!(accept.payload(), Some(&empty));
+    assert_eq!(decline.payload(), Some(&empty));
+    assert!(invite.payload().is_none(), "invite stays incomplete");
+    assert!(accept.is_available() && decline.is_available());
+    assert_eq!(accept.requirement(), &accept_requirement());
+    assert_eq!(decline.requirement(), &decline_requirement());
+    assert!(
+        offered(
+            &bobs,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.carol)
+        )
+        .is_none(),
+        "carol invited nobody"
+    );
+    let carols = cafe.observation(cafe.carol, 11);
+    assert!(
+        offered(
+            &carols,
+            AcceptInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "the invitation is addressed to bob"
+    );
+    assert!(
+        offered(
+            &carols,
+            DeclineInvitation::ACTION_TYPE.as_str(),
+            Some(cafe.alice)
+        )
+        .is_none(),
+        "the invitation is addressed to bob"
+    );
+
+    // (c accept): the request built from the affordance alone is accepted, and both are in an activity.
+    let request = accept
+        .request(cafe.bob, |value| {
+            serde_json::to_vec(value).expect("encodes")
+        })
+        .expect("a complete offer names its request");
+    let (result, _) = cafe.submit(
+        t(12),
+        request.actor(),
+        request.target(),
+        request.payload().clone(),
+    );
+    assert!(accepted(&result), "{result:?}");
+    assert!(cafe.participation(cafe.alice).is_some());
+    assert!(cafe.participation(cafe.bob).is_some());
+
+    // (c join): Carol joins what Bob is doing, from the affordance alone.
+    let carols = cafe.observation(cafe.carol, 13);
+    let join = offered(
+        &carols,
+        JoinGroupActivity::ACTION_TYPE.as_str(),
+        Some(cafe.bob),
+    )
+    .expect("carol may join Bob's activity");
+    assert_eq!(join.payload(), Some(&empty));
+    assert_eq!(join.requirement(), &join_requirement());
+    let request = join
+        .request(cafe.carol, |value| {
+            serde_json::to_vec(value).expect("encodes")
+        })
+        .expect("a complete offer names its request");
+    let (result, _) = cafe.submit(
+        t(14),
+        request.actor(),
+        request.target(),
+        request.payload().clone(),
+    );
+    assert!(accepted(&result), "{result:?}");
+    assert!(cafe.participation(cafe.carol).is_some());
+
+    // (c leave): Carol leaves her activity, from the affordance alone.
+    let carols = cafe.observation(cafe.carol, 15);
+    let leave =
+        offered(&carols, LeaveGroupActivity::ACTION_TYPE.as_str(), None).expect("carol may leave");
+    assert_eq!(leave.payload(), Some(&empty));
+    assert_eq!(leave.requirement(), &leave_requirement());
+    let request = leave
+        .request(cafe.carol, |value| {
+            serde_json::to_vec(value).expect("encodes")
+        })
+        .expect("a complete offer names its request");
+    let (result, _) = cafe.submit(
+        t(16),
+        request.actor(),
+        request.target(),
+        request.payload().clone(),
+    );
+    assert!(accepted(&result), "{result:?}");
+    assert!(cafe.participation(cafe.carol).is_none());
+
+    // (c decline): on a fresh café, Bob declines Alice's invitation from the affordance alone.
+    let mut other = Cafe::new();
+    other.invite(10, other.alice, other.bob);
+    let others = other.observation(other.bob, 11);
+    let decline = offered(
+        &others,
+        DeclineInvitation::ACTION_TYPE.as_str(),
+        Some(other.alice),
+    )
+    .expect("bob may decline");
+    assert_eq!(decline.payload(), Some(&empty));
+    let request = decline
+        .request(other.bob, |value| {
+            serde_json::to_vec(value).expect("encodes")
+        })
+        .expect("a complete offer names its request");
+    let (result, _) = other.submit(
+        t(12),
+        request.actor(),
+        request.target(),
+        request.payload().clone(),
+    );
+    assert!(accepted(&result), "{result:?}");
+    assert!(
+        other
+            .invitations(other.bob)
+            .is_none_or(|held| held.from(person(&other, other.alice)).is_none()),
+        "the declined invitation is gone"
     );
 }
 

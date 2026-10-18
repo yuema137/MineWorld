@@ -2656,6 +2656,12 @@ still travels. An offer that is not refused behaves exactly as before, and no co
 `Affordance` already carries any `Rejection`. The offer and the dispatch give the same answer in the
 same order: a refused action is refused before its spatial check in both.
 
+**Note, 2026-10-14 (S27-b, F-S27-2).** group-activity offers accept-invitation, decline-invitation,
+join-group-activity and leave-group-activity complete, with the empty payload each accepts, so a
+requester that does not know the pack can attempt them (step-27 §5.5). invite stays incomplete: its kind
+is free text. Consequence recorded in pr-s27b §3.2 F-S27b-1: the paced rule controller's offered band now
+draws among them.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
@@ -3839,6 +3845,8 @@ four variants (`ARC-14`) were code, and the pack it drew from was its own projec
 **What it does not decide.** Whether an interaction is valid (`ART_DIRECTION.md` §19), or anything
 about a world: a pack may depict any world, and a world may be depicted by any pack.
 
+**Note 1, 2026-10-14 (S26-a; `ARC-92`) — the role list gains `look:<key>`.** A person's disclosed `look` (`ARC-91`) is asked for as `look:<key>` before `person:<n>`; for the observer, before `player`. A `look` is a disclosed component value, like the tag in `facade:<tag>`, so "the core never asks for a role by a world key" stands, and the list of role kinds gains one. Specified in `clients/2d/PRESENTATION.md` §3.1; read by the client from S26-e.
+
 ---
 
 ## ARC-47 — No rule in the client, made executable
@@ -4190,6 +4198,27 @@ consult is the lattice consult when a lattice instant lies between the seat's pr
 this one, because the runtime builds the observation at `due.max(world.now())`. There it is `decide`,
 and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
 seat does not walk.
+
+**Note, 2026-10-15 (F-tick-1; operator ruling amending D-SB12, `step-12-server.md` §16.11).** The
+wall-clock p99 bound failed on shared CI runners while the server's own work was unchanged: F-12n-CI1's
+57.3 and 62.8 ms, PR #206's 70.7 ms and PR #198's 189.6 ms, every one with a wall p50 of 0.3–0.6 ms and
+each passing on re-run. E-SB9 had already located every slow tick off-CPU (wall ≫ CPU). The p99 of
+1 200 wall ticks is the twelfth-longest, so twelve preemptions decide it. The measured statement is
+therefore split by what each clock can see:
+
+- The server also records the world thread's **own CPU time** per tick, in a second fixed histogram
+  (`DEP-59`), and the statistics line becomes `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms,
+  cpu p50 C ms, cpu p99 D ms`. The first three duration columns are wall time, as before.
+- CP-B4 (and CA-13, which reuses its bound) asserts **CPU p99 ≤ 50 ms**, the tail of the work a tick
+  does, which runner load cannot move, and **wall p50 ≤ 50 ms**, the typical tick as a client feels it,
+  which catches a tick that waits without computing (a sleep, a blocking call). The wall p99 and the
+  maximum are printed beside them and do not gate.
+- **Accepted gap.** An off-CPU wait in fewer than half the ticks (the journal's fsync per hosted request,
+  `Durability::PowerLoss`, on a slow disk) is visible only in the advisory columns. E-SB9 measured a
+  commit at ≤ 5.1 ms even under eight fsync-heavy neighbouring servers, so the bound gives up nothing
+  measured; a durability regression is R-S11-5's to watch, not this bound's.
+- If the thread's CPU clock cannot be read, the tick's CPU time is recorded as its wall time, an upper
+  bound: a missing clock can only make the bound harder to meet.
 
 ---
 
@@ -8149,6 +8178,53 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 ---
 
+## ARC-91 — Appearance is a perceivable trait of a Person, owned by the `appearance` System Pack
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-11); implemented by S26-a · **Approved by** the operator (Q-S26-11, Q-S26-4, Q-S26-9) · **Relates to** `ARC-31` (sections), `ARC-33` (installed set), `ARC-46`, `ARC-92`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.2 (Traits), [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.1–4.2; `pr-s26a-appearance.md`
+
+**Problem.** Every person must be drawn as themselves in both reference clients, and in any third client. A client can read only a person's entity id, tags, disclosed components and display name. None of them identifies an appearance: an id is a creation-order counter that renumbers when a place is added; a display name is absent without `naming`, can be shared, and would make a face change when a name changes or, if names are ever gated by acquaintance (`ARC-31`), when a stranger is introduced; a tag is semantic content that Systems and controllers read. Nobody owned an appearance, so each client invented one from a hash, and nine sprites came to serve twelve people.
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) `hash(entity id)` modulo a pool | Declined: distinct only by luck; cannot say "Alice looks like this" |
+| (b) The entity id listed in a Presentation Pack | Declined: ids are creation-order counters; an unreviewable list of numbers |
+| (c) The display name | Declined: absent without `naming`; may collide; makes appearance depend on what the observer knows |
+| (d) A presentation tag (`look:alice`) | Declined: pollutes a semantic vocabulary every consumer reads, with no owner |
+| (e) A disclosed `look` component owned by a System Pack | **Chosen** |
+
+**Choice.**
+
+1. **`appearance` is a System Pack** on the `naming` pattern: it owns a person file's `appearance:` section (`{ look: <key> }`, unknown keys refused), states a public `appeared` fact at genesis, reduces it into the `look` component (`{ "look": "<key>" }`, schema 1) and discloses that to every observer who perceives the person. It depends on nothing and declares no action or process.
+2. **A look is an opaque key**: 1–48 bytes of `a`–`z`, `0`–`9` and `-`. It names an appearance; it is not a mesh, a file, a texture, a colour, a height or any other renderer concept. A Presentation Pack resolves it (`ARC-92`).
+3. **No descriptors.** Apparent age, stature, build, skin and hair are not world facts: no System consumes them. They live in the casting brief, in the Presentation Pack. A System that later needs stature makes it a `bodies` section.
+4. **Appearance never depends on what the observer knows.** Disclosure is gated by perception only.
+5. **Single ownership.** A later clothing, ageing or disguise System changes a look by having this pack state `appeared` again; no other pack writes `look`.
+
+**Consequences.** A world without the pack, or a person without the section, has no look, and every client draws them with its fallback. The default worlds' keys are name slugs for review readability. A controller sees `look` as it sees any component; the memory renderer stores `appeared` generically and never shows the key as a name.
+
+**Revisit** if names become acquaintance-gated (the default keys then become opaque codes in one data migration per world, R-S26-9), or when a System needs an appearance descriptor.
+
+---
+
+## ARC-92 — The cast binding lives in the Presentation Pack; one resolution order; the fallback is the extras pool
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-8, Q-S26-9); specified by S26-a; read by the 3D client from S26-c2 and by the 2D client from S26-e · **Approved by** the operator (Q-S26-8, Q-S26-9, Q-S26-11) · **Relates to** `ARC-3`, `ARC-9`, `ARC-46` (amended, Note 1), `ARC-91`, `DEP-16`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1 · **Specified in** [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md), [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) §3.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.3–4.4, 8
+
+**Problem.** `ARC-91` gives every person a disclosed look key. Something must turn a key into a character in 3D and a sprite set in 2D, without the world learning anything about art, and with a fallback for a person whose look a pack does not know that is never a cruder kind of body.
+
+**Choice.**
+
+1. **3D: `characters/cast.yaml`** in a 3D Presentation Pack, in YAML's JSON-compatible subset: `format` (1), `looks` (look key → character id), `extras` (character ids: the fallback and decorative pool), `default` (the character used when no world is connected). A character id names `characters/cast/<id>/` in the pack; its meshes stay resources of the client that imports them (the 3D client cannot load a skinned, retargeted model from a runtime pack today).
+2. **2D: a `look:<key>` role** in the `people` binding set. It is a disclosed component value, the same class of input as the tag in `facade:<tag>`, never a world key.
+3. **One resolution order in both clients.** A person whose look the pack binds is drawn as that character or sprite. A person with no look, or one the pack does not bind, is drawn as `extras[posmod(hash(id string), len(extras))]` in 3D and as `person:<n>` by the same hash in 2D. A pack with no extras (3D) or no `person:<n>` (2D) uses its `default` (3D) or plain drawing (2D). With no pack, plain drawing. The observer is resolved the same way, so a player is drawn as the Person they occupy; the 2D `player` role is only the fallback for an observer with no bound look.
+4. **The fallback is never a cruder model class.** Every `extras` entry is a character made by the same pipeline and held to the same standard as a named person (step-26 §6, which S26-b1 records as `ARC-94`). In the default pack, the café street's extras are the lakeside cast (Q-S26-8, E-2), so no person of the present world appears twice.
+5. **A pack decides nothing.** A binding changes how a person looks, never which requests a client sends, and a look is never shown as text.
+
+**Consequences.** The default 3D pack ships an empty but valid binding until its characters exist; `scripts/check_cast.py` checks its structure. Adding a world's cast is an edit to one pack file, never to a client or a world.
+
+**Revisit** when 3D Presentation Packs become loadable at runtime (the binding then also names the meshes), or when a world that is neither the café town nor the lake needs its own extras (E-1).
+
 ## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
 
 **Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
@@ -8299,6 +8375,34 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 **Choice.** (a). `governor` is named only in `server/src/seats.rs` (the bucket, behind the seat table's own `spend`), so its types do not cross the crate (`REUSE_POLICY.md`: a thin MineWorld-owned interface).
 
 **Revisit** if `governor`'s clock model stops accepting an injected `Instant`, or if per-address join limiting for public hosting (`DEP-14` option (n)) is adopted, which would reuse this dependency.
+
+---
+
+## DEP-59 — The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys`
+
+**Date** 2026-10-15 · **Status** accepted; dependency added in the F-tick-1 fix · **Approved by** the operator, 2026-10-15 ("服务器加测'线程真正干活的时间'" — the server also measures the time the thread actually works), amending D-SB12 · **Relates to** `ARC-42` (note of 2026-10-15), `DEP-29` note, `REUSE_POLICY.md` §§11–12 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §16.11 (D-SB12, F-tick-1 note)
+
+**Problem.** CP-B4's tick bound needs the CPU time the world thread spends inside one tick, on macOS, Linux and Windows. The standard library has no thread CPU clock. Every platform has one behind a C call: `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` on Unix, `GetThreadTimes(GetCurrentThread(), …)` on Windows, both `unsafe` to call from Rust.
+
+**Options considered** (both directions).
+
+| Option | Code we own | Verdict |
+| --- | --- | --- |
+| (a) **`cpu-time` 1.0.0** (MIT OR Apache-2.0, tailhook/cpu-time): `ThreadTime::try_now()` / `try_elapsed()`, `clock_gettime` over `libc` on Unix, `GetThreadTimes` over `winapi` 0.3 on Windows | One call site, no `unsafe` | **Chosen** |
+| (b) `libc` (Unix) and `windows-sys` 0.61 (Windows) as direct `cfg` dependencies — both already in `Cargo.lock` transitively | Two `cfg`-gated `unsafe` blocks (~30 lines), the `FILETIME` arithmetic, a `windows-sys` feature set (`Win32_System_Threading`, `Win32_Foundation`), and a Windows branch no developer machine here compiles | Declined: the same `unsafe` calls as (a), written and kept by us |
+| (c) `libc` on Unix and one `extern "system"` declaration of `GetThreadTimes` from kernel32 (the `DEP-29` note's form) | As (b), less one dependency edge, plus a hand-written FFI signature with pointer arguments | Declined: `DEP-29`'s call took two integers and touched no memory; `GetThreadTimes` writes four structures through pointers, which is exactly what a reviewed binding is for |
+| (d) Process CPU time read from outside (`ps`, `/proc`, `GetProcessTimes` in the test harness) | A per-platform parser in the tests | Declined: the whole process, not the world thread; one total, not a per-tick tail |
+| (e) `sysinfo`, `nix` | — | Declined: `sysinfo` is a whole-system inspector far beyond one clock; `nix` is Unix-only |
+
+**Facts verified at source** (crate sources in the cargo registry, 2026-10-15): `cpu-time` 1.0.0 is 346 lines (`lib.rs`, `clock_gettime.rs`, `windows.rs`). Its `ThreadTime` is a `Duration` with a `PhantomData<Rc<()>>`, so it is neither `Send` nor `Sync` and cannot be read on one thread and compared on another. `try_now` returns `io::Result` (the panicking `now` is not used). Licence field `MIT/Apache-2.0`, with `LICENSE-MIT` and `LICENSE-APACHE` in the package. New crates in `Cargo.lock`: `cpu-time`, and on Windows targets only `winapi` 0.3.9, `winapi-i686-pc-windows-gnu` 0.4.0 and `winapi-x86_64-pc-windows-gnu` 0.4.0, each `MIT/Apache-2.0`. `cargo deny check licenses sources bans` passes with them. `libc` is already compiled on Unix.
+
+**Choice.** (a). It is the least code we own that is correct on all three platforms, and it has no `unsafe` of ours. `cpu-time` is named only in `server/src/runtime/world.rs` (`TickStart`, `TickTimes`), so its types do not cross the module. If the clock cannot be read, a tick's CPU time is recorded as its wall time, an upper bound.
+
+**Accepted limitations.**
+- **Maintenance.** `cpu-time` 1.0.0 and `winapi` 0.3 are not actively developed. The calls they wrap are stable OS interfaces, and the crate is small enough to vendor or replace with (b) in an afternoon if either stops building.
+- **Windows resolution.** Windows charges thread time at the scheduler's clock interval (commonly 15.6 ms), not per instruction. A sub-millisecond tick therefore reads as 0 or one interval, and a tick has to burn at least four intervals (about 63 ms) to be sure to read over 50 ms there. The bound keeps its meaning — steady-state ticks measured ≤ 0.6 ms of CPU (step-12 E-SB9) — but the planted CPU mutation is evidence on macOS, not Windows.
+
+**Revisit** if `cpu-time` or `winapi` stops building on a supported target, or if the server comes to need more than one OS clock (then (b) behind a MineWorld module).
 
 ---
 
@@ -8923,3 +9027,125 @@ Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall,
 
 **Consequences.** Any world that enables `persona` gets a genesis fact per authored person, private to that person (`Visibility::Entities({holder})`), so its save bytes change; the baseline rules of `scripts/baselines.txt` apply to such a world. A World Pack author may write a character in any person's file without changing a rule, and a world without any `persona:` section is unchanged. A controller that wants to use the character reads it through the holder's own observation; no other observer sees it.
 
+---
+
+## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests
+
+**Date** 2026-10-16 · **Status** proposed in the PR "ci: fix the red nightly (closes #170)"; pending the
+operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
+`.structured-coding/plans/mvp0/pr-13c-nightly.md` §3.4 (QC-5, QC-5b, the import cache) and §12.2
+(F-13c-impl-2, F-13c-impl-5), `.structured-coding/plans/mvp0/pr-set-b-controls.md` §7.2
+
+**Problem.** The nightly was red on every night since SET-b (#192) merged, for four causes, each read from
+the logs of nightly 38919486641 on `38323d4c`, and two more this PR's own dispatches found:
+1. `parity-long-windows` and `stability-windows` were cancelled at their 90-minute limit, and the
+   `parity-long` comparison then failed for the missing Windows record. Windows saved runs were the cost:
+   `stability-windows` saved bodies-yard's 300 days in 3 280.6 s (Linux 285.2 s) and replayed it in 77.5 s
+   (Linux 70.2 s); `parity-long-windows` spent 3 550.2 s on bodies-yard alone. In-memory runs were within
+   a factor of two of Linux. A measurement on `windows-2025` (run 39004172480, 30 days of bodies-yard,
+   seed 7) placed it: in memory 14.8 s; saved under `TEMP` (`C:\Users\RUNNER~1\AppData\Local\Temp`, the
+   OS disk) 263.4 s; saved under `RUNNER_TEMP` (`D:\a\_temp`, the runner's local disk) 38.8 s, and 38.6 s
+   in the workspace on `D:`. Defender's real-time protection is off on that image
+   (`RealTimeProtectionEnabled False`), and an exclusion changed nothing (208.8 s on `C:`, 37.6 s on
+   `D:`). The scripts make their scratch with Python's `tempfile`, which follows `TEMP`, so every saved
+   run of both legs wrote to `C:`. The Linux legs and the tests' own scratch (`CARGO_TARGET_TMPDIR`, under
+   the workspace) were never affected.
+2. `client_settings::two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` failed on every
+   OS: its expected key list predates SET-b's `[input]` section. `store.gd` writes every owned section a
+   file lacks (since SET-a), so a first Apply in the 2D client writes `mouse_sensitivity` and `invert_y`
+   too, as `clients/shared/SETTINGS.md` §§3–4 and `AC-SETb-6` allow. **The test was wrong, not the code.**
+   The Godot tests run only in the nightly, and SET-b merged before a night ran them.
+3. `client_settings::three_d_controls_apply_live_and_persist` and
+   `client_settings::three_d_settings_never_reach_the_server`, SET-b's two connected 3D slice tests, hung
+   on Linux (llvmpipe under Xvfb) and on Windows (the Microsoft Basic Render Driver, D3D12 WARP): the
+   slice built, seated and perceived, but did not render the probe's 12 warm-up frames within the test's
+   240 s, so the probe never printed its header. That is F-13c-impl-5, the reason
+   `three_d_switches_language_live_and_settings_never_reach_the_server` is already skipped there by QC-5.
+   On the laptop's GPU all three of SET-b's tests pass (104.8 s, at this PR's head). On the macOS runner
+   `three_d_settings_never_reach_the_server` passed that night.
+   The macOS runner's own failure is a cold first launch. In this PR's first dispatched nightly
+   (39007080793) the first connected 3D test there, `three_d_controls_apply_live_and_persist`, built the
+   slice's scene in 58.1 s and hung before it was seated; the next two (`three_d_settings_never_reach_the_server`,
+   `three_d_switches_language_live_and_settings_never_reach_the_server`) passed, and every later launch
+   that night built the scene in 3.3–3.7 s. On `63069777` and `171ea061` the first connected 3D test was
+   `three_d_switches_language_live_and_settings_never_reach_the_server`, and it was the one that hung
+   (the triage of 2026-10-12 on #170). The shader and pipeline caches are cold at the first launch on a
+   runner; that is the macOS part of F-13c-impl-5.
+4. `clients-mac` was cancelled at its 75-minute limit with no verdict. `the_settings_folder_is_shared`,
+   the first test to import the 3D client, took 45 minutes of it (9.5 minutes on Linux): the 3D client's
+   imported resources are 584 MB, and `pr-13c-nightly.md` §3.4's import cache was specified but never
+   built. The Godot tests then started at minute 65.
+
+5. `client_2d::reconnects_to_a_restarted_world_and_to_a_replaced_one` failed on Windows on `63069777`
+   and again on this PR's clients dispatch 39012891928 ("it saw the drop"), and passed on the other
+   Windows nights. The client's own transcript in the failure shows the behaviour right: one
+   `STATE reconnecting the connection closed`, a new `STATE seated`, `[PASS] reconnected 1 disconnect(s)`.
+   The test counted the lines it had read only after `world.kill()` returned, and the client had seen the
+   connection close, and its line had been read, while the kill was being reaped, so the slice after the
+   count skipped that line. **The test was wrong, not the client.**
+
+6. `repeat-windows` was near its 120-minute limit: two unsharded samples of the default suite took
+   114.9 min on `38323d4c` and 107.2 min on this PR's dispatch 39007080793 (ARC-110's note expected it;
+   the per-PR `test-windows` job had already outgrown its cap and been sharded).
+
+The older findings of #170 are not live: `stability-linux` passed on `3a9b9eff` and `38323d4c`, and the
+`baseline` step passed on both (only `compare` failed, for cause 1).
+
+**Options considered.** For cause 1: sharding the two Windows legs by world (the comparison would have to
+merge partial records, and bodies-yard alone would still take about an hour); running worlds concurrently
+on the runner's four cores (timings become contention, and the cost is untouched); raising the limits
+(3 550 s for one world of four leaves no limit with headroom); **moving the scratch to `D:`** (chosen: it
+removes the cost, a 6.8-fold difference measured on the same runner, and changes no script). For cause 3:
+a QC-5b ruling (not needed: the tests pass on the macOS leg, which is QC-5's condition); raising the
+240 s deadline (the slice renders fewer than 12 frames in 240 s on a software renderer; a deadline it can
+meet would not be a deadline); **QC-5, as for the existing name** (chosen). For cause 4: raising the limit
+alone (every night would pay 45 minutes); **the specified import cache, plus a limit that holds a cold
+night** (chosen). For the macOS cold launch: raising the tests' 240 s deadline (it would hold every
+launch to the slowest one, and edits the tests); ordering the tests (libtest orders by name, and the
+first would still pay); **one unjudged launch of the slice before the tests** (chosen: the tests and their
+verdicts are unchanged, and it is not a retry, because nothing it does is judged).
+
+**Decision.**
+1. `parity-long-windows` and `stability-windows` point `TEMP` and `TMP` at `RUNNER_TEMP` before their
+   layer runs (one step in each job, `nightly.yml`). No script names a disk.
+2. The test's expected keys gain `invert_y` and `mouse_sensitivity`. The assertion stays an exact
+   equality; nothing else in the test changes.
+3. `scripts/ci_godot.py` `SKIPS` names SET-b's two connected 3D tests on Linux and Windows with the
+   existing software-renderer reason, beside `three_d_switches_language_live_and_settings_never_reach_the_server`.
+   The macOS leg runs all three every night, so a failure there turns the night red; `QC5B_RULED` and
+   `HOSTED_UNRUNNABLE` are unchanged, and the coverage check still refuses a test skipped everywhere.
+4. `.github/actions/godot` imports the four client projects (`clients/shared`, `clients/2d`,
+   `clients/3d-spike`, `clients/protocol`) before any test, through `actions/cache/restore` and
+   `actions/cache/save` (the pinned `actions/cache` commit). The key is the OS, the Godot build's
+   `--version` and `hashFiles('clients/**')`; `restore-keys` start from the newest entry of the same OS and
+   build, so Godot re-imports only what changed. The entry is saved right after the import, because
+   `actions/cache`'s post step saves only when the whole job passes. A failed import is not cached and is
+   left to the tests, which assert it by name.
+5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
+   still reaches a verdict. The other limits are unchanged.
+6. The reconnect test counts the lines before it kills the world. Its assertions are unchanged.
+7. `repeat-windows` becomes `repeat-windows-1` and `repeat-windows-2`: `ci_layer.py core-repeat --shard
+   K/2` runs ARC-110's partition (`scripts/ci_shard.py`, the same weights), building shard K's targets and
+   sampling them twice through `ci_repeat.py` (`--no-fail-fast`; the doctests, in whichever shard holds
+   them, write `repeat-doc.txt`). The report joins an OS's summaries by sample name
+   (`ci_nightly.py` `merged_samples`), so the flake verdict is still one per OS, and each shard is a
+   verdict row of its own. Linux and macOS keep one job (80.8 and 64.6 min of 120).
+8. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
+   (`godot --always-on-top --path clients/3d-spike res://scenes/slice.tscn -- --slice-measure
+   --settings=none`, limit 600 s), where a connected 3D test is about to run (the macOS leg; Linux and
+   Windows skip them all). Its exit and time go to `artifacts/nightly/notes.txt` as a note, never a
+   verdict. On dispatch 39012891928 that launch took 406 s, and all three connected 3D tests then passed
+   on the macOS leg.
+
+**Consequences.** The evidence of the PR's dispatched nightly is recorded in the PR. Each Windows leg's
+saved runs now measure the simulation and SQLite, not the runner's OS disk; a regression there is
+visible in the benchmark table again. The import cache costs about 0.3 GB (compressed) of the repository's
+Actions cache per OS per changed `clients/` tree. The repository's caches were at 10.6 GB of GitHub's
+10 GB on 2026-10-17, so entries are evicted within hours (the Cargo and import entries of dispatch
+39007080793 were gone by 39012891928, the macOS import entry survived); the 120-minute limit, not the
+cache, is what guarantees `clients-mac` a verdict, and the cache shortens the nights it survives. `ci.yml`'s Windows jobs are
+not changed here (#224 owns them); whether their scratch also lands on `C:` is a follow-up for that PR.
+F-13c-impl-5 (the connected 3D slice on hosted runners) stays open with the 3D lane.
+
+**Revisit** when the runner image changes its disks, or when F-13c-impl-5 is resolved and the QC-5 names
+can run on every leg.

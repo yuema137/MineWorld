@@ -17,31 +17,42 @@ sealed-300s 237 855ceb04e17652eb28d180125a36ae6f025b39b63449721eff16baacbe998b85
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
-summary-300 353 c25f113e20b36cfb123565fe9d82f615d823cddc136f304481f7450a7291a343
-summary-1000 1077 4a44100ffdaa213363782c79234913facee55431749f9c4d6068e6e5342ebb1b
-summary-300s 352 e141fc7d91d98d562a775bfc5c061c22872ae19fb3e3a72399711f48023581b1
-facts-300s 6864 ec36836a6a4258859b6e09d28a6db5620f3382c0303ff4085f909c308a7c0ce3
-journal-300s 4887 86f1210d356fde9f1dfd53342c994fee08653e22ac0318519b861cfeb85f3cbc
-sealed-300s 123 86178c00473424e133420eb4e407ce56816cef2f6e468768a2c43361291c40ba
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9793 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
+summary-300 354 253146a80f9585c829ecf8ab08c12f9496cc701eb7c356cb7e4b32dd138f6ba5
+summary-1000 1078 f0440e8ce3b9bb9b10d1db4ae101c0e3aae3a61c0aa054c74f9ccf792d2d6321
+summary-300s 353 081192764e1c2bceb5b562d8398274c02596940ee335e33ccd97c46b91da55c7
+facts-300s 8992 31176dfa0d6db93e403f270b2f49ee7ff61086b9c1ce3393e795907a32065b7a
+journal-300s 6431 c8ec98cd6b701050af05ce34b3f2585ad3aca54485829fa044c9e99d91c7d362
+sealed-300s 122 4bd39a3fec1f2e80a292b90a56469413a5d74ed7122f7ac6f11801f4cb56f53d
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S10 P6a (QP6-2 widened to Market Town 2026-10-16, F-P6a-6 ruled (a); ARC-74, ARC-35): Market Town enables `persona` after `schedule` and its nine shared people carry the same `persona:` sections as Social Café, so genesis gains nine `persona-authored` facts disclosed to their holders; re-recorded from the CI long record of 45c3d1a (scratch nightly run 39005870946, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal). Every market-town key moved by the new genesis facts; social-cafe equals P6a's earlier re-baseline; bodies-yard and lakeside did not move
-summary-300 364 2e9ec6de07555b671d6d3bfab4e4de7952f7143835a015744ffdbf1f2fbb9f13
-summary-1000 1089 996584d315c45328ff70b3c376680ff718dceffbf2505b6b71ddf633f2602a99
-summary-300s 363 06bc992d0daa984cac89242638262a2cebd4ee34e723475246246dc99b191b48
-facts-300s 7637 3efcee1500b3f68698f62b33c0f38640442394edea72417f753f0b580aba4a22
-journal-300s 5617 972a26ed6df83b40acc0e0b9072ad98b95f7a9e299f18d54bee2dc7864f56977
-sealed-300s 146 997bdb27add00a8b3ed10ccb151dea7431baccf1588b047065b547000c51f0d2
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9760 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
+reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
+summary-300 365 8921c818d377a14a083864afac14445318116e94d362e9ed3bb8089d28e9e056
+summary-1000 1090 8061033acad7ff6793b12068e6daa3b2342956dd866ee10760d405274e422ca8
+summary-300s 364 5fbf19399b9597e5745121e0b4f0dc2f1064835c2909d546627f735a5704a7f6
+facts-300s 9753 2105c73b1d7a5ee39ec48a007836fa4d89a0a1ef2d7a715976d99c5807df0849
+journal-300s 7205 64859e60dd8d587ca2bf59c51b9321559d519df4ac6264c4795975baef2ca9af
+sealed-300s 145 f8b07924a1e945f1804abff74f44ac1e1b622c11130b0119241438919107ff20
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
 reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live tail and sealed-300s (added) the sealed blocks: the log's storage changed, not the log (logical facts and journal SHA-256 equal to the base build's, market-town 30 and 300 days); re-recorded from a long record of the merge with main 9aa185b, second to merge after FG-a (QSRB-7): sealed-300s moved against SR-b's own record because FG-a's genesis journal row now lies in block 1; facts-300s, journal-300s and every summary did not move
 reason S10 P6a (QP6-2, ARC-74; pr-s10-p6-lm-controller §5.14, A3): social-cafe enables `persona` (last of `systems:`) and nine people carry a `persona:` section, so genesis gains nine `persona-authored` facts disclosed to their holders; re-recorded from the CI long record of 098fa42 (scratch nightly run 38812090457, Linux/x86_64; Linux/arm64 and Darwin/arm64 equal). Every social-cafe key moved by the new genesis facts; bodies-yard, lakeside and market-town did not move. The 30-day run's behaviour counts are byte-identical (F-P6a-4)
-summary-300 342 17d4f7826a58a0589faa520ca846346f5eeac62ecddc2362ba28eaa85e42559c
-summary-1000 1066 3276ba45bae9a6e5a2f1f2fb4e51601cbb79c0ce5da47abf0a6bfd3b4bd0b6e6
-summary-300s 341 2976b3f1dd03217a29ac4fa54f9c1f839a30461bc47f106042d0d1bdb4786eef
-facts-300s 5762 93f69c48cfe4e56adfff82c165d99bcab4dc964741f2b7adfbb22f065a16d8f3
-journal-300s 4198 d1c5ed2803bc85e4f824047abfd136a48c1d5684975bc809652edce55318147d
-sealed-300s 149 9762f0cfcbca4b2d5fdab5a11d6c3ed3d8b6166920a1c2c2bf9cbb4c22f35f4f
+reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9736 in the 300-day save)
+reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
+reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
+reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
+summary-300 343 3e549ab3d5c64a8b3e707bcbca4dd35c4dc1eb7aaa3eed66bc90f14c33c68729
+summary-1000 1067 201d0f37ab914bebd6705aeb8b57a92f8f170a4e07d4a93f38f8c21c0f2bb35b
+summary-300s 342 bd206c86e29b96bfa135ea8db5fbe5d88811e19d7031e577b85dab3e79f2f474
+facts-300s 7154 45134620b50d23a81ab9a19bc229e16bdc40eb38409b51086c0186e68441ab25
+journal-300s 5273 477c5b9449b8d59796754ca22e4f6e8391d0a9b9d757c89e2ae820c486076758
+sealed-300s 147 061c8a99f6972c304141bb2f162fc52b29001c492d58065a1330a308a87b0feb
