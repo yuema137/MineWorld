@@ -412,6 +412,31 @@ again after (`mineworld reference --check docs/reference` → "matches this buil
   (18), installed-models, motivated tests ok; clippy `-D warnings` on mineworld-cli, decision, motivated
   clean; `cargo fmt --check`; `test_reference.py` (cognition-toml drift, 6) passed; doc headings, decision
   ids, `check_ci_pins`, `check_scratch scan`, `ci_changes`/`ci_shard` self-tests pass.
+- Merges of `origin/main` @ 04d5145 (`2783bbb`: S10 P6a #236, S30-b #247) and @ e51ffc0 (`81c9315`: S10 P7
+  #244, S27-b #241, S11e #243, #248, #216), 2026-10-17. Textual conflicts: none (`check_decision_ids.py`: 154
+  ids, all distinct). Two semantic conflicts, found by CI on `2783bbb` (scratch run 39070189129: `fast`,
+  `test`, `test-macos`, `test-windows` red; `python`, `platforms` green), both real defects, neither a flake:
+  (1) S30-b's test-only pack `test-schema` (`tests/acceptance/tests/schema/mod.rs`) configures
+  `SchemaSettings`, which the `PackConfiguration::Configuration: JsonSchema` bound refuses (E0277, the bound
+  biting as designed); it derives `JsonSchema` and its field gains a description. (2) S10 P6a's `persona`
+  section derives a schema but states no example, so every reference test failed with "`persona` (Persona)
+  states no example" (F-25a-6's rule); `Persona` gains `#[schemars(example = …)]`, and it and its four
+  field types gain author-facing first paragraphs with the bounds in numbers (the rustdoc links to the
+  constants move to a second paragraph, which the reference does not print). Commit `2e7720a`. The reference
+  was regenerated on GitHub CI, never locally (operator pause on heavy local jobs, 2026-10-17): scratch
+  branch `scratch/s25-regen-25a` (`2e7720a` + a temporary workflow, `ci.yml`/`nightly.yml` removed on that
+  branch only), run 39099469556: `cargo check --workspace --all-targets` ok; `mineworld reference --out
+  docs/reference` → 32 files, `--check` → matches; `README.md`, `sections.md` changed and
+  `schema/section-persona.schema.json` added; then `mineworld-cli --test reference` 9 passed and `clippy
+  --workspace --all-targets --all-features -D warnings` clean on the regenerated tree. The artifact was
+  downloaded with `gh run download` and copied over unchanged (`diff -rq` against the artifact: identical);
+  the scratch branch was deleted.
+- **F-25a-8 (for the primary) — S30-b's data half has no schema bound.** `SectionInContext::Authored` and
+  `OwnsData::File` (`authoring/src/data.rs`) carry no `JsonSchema` bound, and `owns_section_in_context!` /
+  `owns_data!` answer no schema question, so a pack's data directory files and its in-context section would
+  not appear in the reference. No pack in the installed set uses either today (only `test-schema`), so the
+  reference is complete for this build. Extending the bound is a public SDK contract change (QS25-2 named
+  exactly two bounds) and is left to whoever lands the first installed data-owning pack.
 - Deviation (C4, bounded): the CLI page is generated from the parser with `Command::build()`, so the
   parser's own `help` subcommands and `--help`/`--version` arguments are left out by name.
 - Known limitation: a `Millimetres` type prints its full `i32` range as bounds; each field's description

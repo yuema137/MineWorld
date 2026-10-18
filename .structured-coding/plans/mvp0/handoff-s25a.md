@@ -20,6 +20,13 @@ TOOL DISCIPLINE     no sed -i, no inline python, no curl, no heredoc writes
 
 ## Current checkpoint
 
+Fourth session (2026-10-17, S25 stack owner, sole writer; no other session held the worktree): merged
+origin/main @ e51ffc0 (`81c9315`, on top of the unpushed `2783bbb`), fixed the two semantic conflicts CI
+found (`2e7720a`: persona's example, test-schema's configuration schema), regenerated the reference on CI
+(run 39099469556, artifact copied unchanged), ledger §9 updated. Next: push one head, CI green on it
+(fast, test, test-macos, test-windows, platforms, python), READY FOR OPERATOR REVIEW. Never merge.
+Earlier history below.
+
 C0, C1, C2+C3 committed by the first implementer (stopped, cancelled 2026-10-14; this session replaced
 it in the same worktree, sole writer). C4 and C5 committed by this session; origin/main @ 31ba514
 merged; mutations M1–M4 killed; parity compared with the base. Under R-LOAD-1 the workspace gate is CI.
