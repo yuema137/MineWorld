@@ -1182,6 +1182,15 @@ commit and not pushed (D-a-18): `store_rows` reads Alice's cursor from her seat'
 PASS. It is the R-P6b-a-1 situation (a consumer of the store merged after the design: "whichever merges second
 adapts"), but in `tools/`, which the contract does not list.
 
+**D-a-18 (authorized by the primary, 2026-10-18: "a bounded adaptation under R-P6b-a-1 … test-only, P7's
+assertions unchanged, required by S28-a's own frozen schema 4").** `tools/cli/tests/milestone_d.rs::store_rows`
+reads Alice's cursor from her seat's `meta` row and her held records as `access ⋈ fact` for seat `alice`, ordered by
+`access.rowid`. **Follow-up FU-S28a-1 (not done here):** P7's "resumed, not rebuilt" check compares (rowid, event
+id) across the restart, and a full replay into a new file would recreate the same rows: schema 4 is deterministic by
+design (I-S28-5), and its `home_meta` holds only `schema` and `world_instance`, so nothing in the file tells a
+resumed home from a rebuilt one. A creation marker (a `home_meta` row written once at creation, never dumped) would
+be a schema change, beyond a small test change; the primary's instruction defers it.
+
 **D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
 environment), again against the NEVER list. Nothing was executed or written by it.
 
