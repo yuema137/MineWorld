@@ -70,7 +70,7 @@ A pack's `pack.yaml` says what it is: its `id` (the same as its folder's name), 
 
 ```console exit=1
 $ mineworld packs validate packs/corner-goods
-[mineworld] packs/corner-goods: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, one file per item kind
+[mineworld] packs/corner-goods: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, one file per item kind, or a .yaml file in a data directory an installed System Pack owns
 ```
 
 **You should see** a refusal: an Entity Pack must hold at least one thing.

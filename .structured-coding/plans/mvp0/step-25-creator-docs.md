@@ -1333,6 +1333,22 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
 - **AC-25d-4** The operator follows chapters 01–05 by hand at the milestone handoff (QS25-10).
 - **E-8** CI on the exact head.
 
+### 18.4 Restack on 25a @ 7ad96dd (2026-10-17, S25 stack owner)
+
+- **Merge.** `origin/mvp0/pr-s25a @ 7ad96dd` (25a with `main @ e51ffc0`: S10 P6a/P7, S30-b, S27-b, S11e) merged into
+  this branch. Textual conflicts in `README.md` and `README.zh-CN.md` only: the guide's link paragraph is kept, then
+  main's paragraph on `clients/agent` and the cognition reference, then main's "Which computers" wording.
+- **The previous CI failures were cancellations, not defects.** Run 39010220065 on `07dbab1e`: every red job is
+  `cancelled` (superseded runs under the old, unsharded workflow); none ran to a failure.
+- **E-11 Guide test on the merged tree, on GitHub CI** (local heavy jobs paused by the operator, 2026-10-17). Scratch
+  branch `scratch/s25-guide-25d` (the merge commit plus a temporary workflow running `cargo test -p mineworld-cli
+  --test guide`), run on Linux: **FAIL**, one block: step 12.3's `packs validate` output. S30-b let an Entity Pack
+  carry data directories, so the refusal now ends "…, one file per item kind, or a .yaml file in a data directory an
+  installed System Pack owns". Classified **stale page output** (real binary changed on main), not a flake; the
+  page and its mirror quote the new line (byte-identical, as the runner requires). Chapter 13's row quotes the
+  unchanged prefix and stays as is. Every other block passed (`104 block(s) passed, 1 pending`). The re-check and
+  the PR's CI are recorded below.
+
 ---
 
 ## 19. Evidence ledger — PR 25e (`mvp0/pr-25e`)
@@ -1433,4 +1449,3 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   `happenings = true, but pack mineworld-happenings is not in the build`; WE-a is not merged), so a false flag and a
   true flag are each still shown to turn the run red.
 - Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
-
