@@ -1022,6 +1022,20 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
   `cargo test -p mineworld-cli --test decisions --test appearance --test commands --test content_kinds
   --test inspect --test server_command` PASS (the `decisions` golden matches byte-for-byte). Baselines
   are gated by CI's parity check on the exact merged head.
+- **D-S26a-11 (merges of `origin/main` @ 04d5145 and e51ffc0, 2026-10-17; generated files re-recorded on CI).**
+  `8d43313` merged P6a and S30-b (Q-S26a-5: S26-a merges second, `appearance` after `persona`); `5f83474` merged
+  S11e, S27-b, S10 P7 and the nightly and tick fixes with no textual conflict (154 decision ids, all distinct). Both
+  merges took main's `scripts/baselines.txt` and DL-a golden, which dropped S26-a's re-recordings, so both were
+  re-generated from `5f83474` on GitHub CI, not locally (R-LOAD-1; operator pause on heavy local jobs): the golden
+  by a scratch-only workflow (`scratch/s26a-golden`, run 39099337421: debug build, `mineworld run worlds/social-cafe
+  --headless --seed 7 --days 30`, `wall` line removed, uploaded as an artifact and copied in unedited); the
+  baselines from the Nightly `parity-long` group (`scratch/s26a-m2-parity-long-nightly`, run 39099328258). Golden
+  diff against main's: the E-S26a-5 shape exactly (every `day` facts count +12, the added `facts      appeared 12`
+  line, the `history` line); no other line. Long records: Linux/x86_64, Linux/arm64, Darwin/arm64 and
+  Windows/x86_64 equal on every key (`ci_parity.py compare`: AC-8 PASS). `baseline check` before the write:
+  bodies-yard unchanged; lakeside, market-town and social-cafe moved on all six keys (each summary +1 line;
+  facts-300s, journal-300s and sealed-300s the same sizes, new digests). One reason line added per moved world,
+  then `baseline write` from the Linux/x86_64 record; re-check `baselines PASS`. Scratch branches deleted after.
 
 ---
 
