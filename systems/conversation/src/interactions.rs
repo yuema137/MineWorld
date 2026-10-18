@@ -64,7 +64,7 @@ mineworld_sdk::parameters! {
 mineworld_sdk::parameters! {
     /// The values of this pack's consequence knobs when a list says nothing.
     pub struct ConversationKnobValues, partial ConversationKnobs {
-        /// Whether the listener's `ConversationHistory` keeps the line.
+        /// Whether the listener remembers the line, among the exchanges their history keeps.
         remember: bool = true, false ..= true;
     }
 }

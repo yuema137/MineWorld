@@ -34,9 +34,15 @@ NULL = "0" * 40
 DOCS_PREFIXES = ("docs/", ".structured-coding/plans/")
 DOCS_FILES = {"CLAUDE.md"}
 
+# Generated output under docs/ that a test regenerates and compares (`docs/DECISIONS.md` ARC-90): a hand
+# edit there is exactly what `mineworld reference --check` exists to catch, so it runs the build.
+GENERATED_PREFIXES = ("docs/reference/",)
+
 
 def is_docs(path: str) -> bool:
     """Whether a changed path is in the audited docs set."""
+    if path.startswith(GENERATED_PREFIXES):
+        return False
     if path.startswith(DOCS_PREFIXES) or path in DOCS_FILES:
         return True
     # README*.md at the repository root only: subdirectory READMEs are code (some are read by tests).
@@ -138,6 +144,8 @@ def self_test() -> int:
         "worlds/social-cafe/README.md",  # inside a World Pack
         ".structured-coding/standards.md",  # not a plan
         "systems/economy/README.md",  # a subdirectory README
+        "docs/reference/sections.md",  # generated: tools/cli/tests/reference.rs compares it (ARC-90)
+        "docs/reference/schema/world.schema.json",  # generated, likewise
     ]:
         cases.append((f"a file CI reads is code: {path}", pr, fixed([path]), True))
     failed = 0

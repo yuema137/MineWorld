@@ -7,12 +7,16 @@ use crate::error::ScheduleError;
 /// The longest label, in bytes.
 pub const LABEL_MAX_BYTES: usize = 32;
 
-/// What a segment of a routine is for: `work`, `coffee`, `home`.
+/// What a part of the day is for, in the world's own words, such as work, coffee or home: 1 to 32 of
+/// a-z, 0-9 and -.
 ///
 /// A slug rather than an enum, because what people do with their days is a world's content, not this
 /// pack's code (`INV-12`); a slug rather than free text, because it reaches the event log.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(extend("pattern" = "^[a-z0-9-]{1,32}$"))]
 pub struct AgendaLabel(String);
 
 impl AgendaLabel {

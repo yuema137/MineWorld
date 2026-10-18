@@ -16,13 +16,19 @@ pub struct InvalidLook {
     pub max: usize,
 }
 
+/// The name of a look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`, such as `alice-moreau`. It names the
+/// look and says nothing of what it is made of; each client's Presentation Pack draws it.
+///
 /// An opaque key naming a person's appearance. Not a mesh, a file, a texture, a colour or a height:
 /// the world states *that* Alice has the appearance called `alice-moreau`, never what it is made of.
 /// A Presentation Pack resolves it (`ARC-92`).
 ///
 /// Refused rather than normalised: a key is never lowercased or truncated to make it valid.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(extend("pattern" = "^[a-z0-9-]+$", "minLength" = 1, "maxLength" = LOOK_MAX_BYTES))]
 pub struct LookKey(String);
 
 impl LookKey {
