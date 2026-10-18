@@ -263,10 +263,10 @@ struct RawMemoryAssign {
 }
 
 /// The file's top-level keys, in the order a refusal lists them.
-const FILE_KEYS: &[&str] = &["models", "default", "assign", "memory"];
+pub(crate) const FILE_KEYS: &[&str] = &["models", "default", "assign", "memory"];
 
 /// A `models:` entry's keys.
-const ENTRY_KEYS: &[&str] = &["parameters", "fallback"];
+pub(crate) const ENTRY_KEYS: &[&str] = &["parameters", "fallback"];
 
 struct FileSeed<C>(PhantomData<C>);
 

@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from mwcast import blender as blender_cli
-from mwcast import compare, identifiers, mask, meshy, pipeline, standard, texture
+from mwcast import compare, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
 from mwcast.brief import parse_brief
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
@@ -33,6 +35,7 @@ SUBCOMMANDS: dict[str, str] = {
     "mask": "stage 3, the mask",
     "meshy": "stage 4, the Meshy client (a live run needs the key in the environment)",
     "identifiers": "AI-identifier inspection of downloads",
+    "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
 }
 
 
@@ -72,6 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--fit", type=Path, required=True)
             subparser.add_argument("--reference", type=Path, required=True)
             subparser.add_argument("--out", type=Path, required=True)
+        if name == "pose-sheet":
+            subparser.add_argument("asset", type=Path)
+            subparser.add_argument("--out", type=Path, required=True)
+            subparser.add_argument("--character-yaml", type=Path, default=None)
+            subparser.add_argument("--label", default=None)
+            subparser.add_argument("--project", type=Path, default=None)
+            subparser.add_argument("--grip", action="store_true")
+            subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -295,6 +306,37 @@ def _compare(args: argparse.Namespace) -> int:
     return 0 if report.passed else 1
 
 
+def _pose_sheet(args: argparse.Namespace) -> int:
+    label = args.label or Path(args.asset).stem
+    if args.character_yaml is not None:
+        try:
+            record = load_record(Path(args.character_yaml))
+        except RecordError as exc:
+            print(f"pose-sheet: {exc}", file=sys.stderr)
+            return 1
+        if isinstance(record, dict):
+            fields = cast(dict[str, object], record)
+            label = str(fields.get("character", fields.get("person", label)))
+    try:
+        sheet = pose_sheet.run(
+            repo_root=REPO_ROOT,
+            subject=Path(args.asset),
+            out=Path(args.out),
+            label=label,
+            grip=bool(args.grip),
+            plant_seat_gap=float(args.plant_seat_gap),
+            environ=os.environ,
+            project=args.project,
+        )
+    except pose_sheet.PoseSheetError as exc:
+        print(f"pose-sheet: {exc}", file=sys.stderr)
+        return 1
+    report = json.loads((Path(args.out) / "report.json").read_text())
+    flagged = [f["id"] for f in report["frames"] if not f["pass"]]
+    print(f"pose-sheet: {len(report['frames'])} frames; flagged {flagged or 'none'}; sheet {sheet}")
+    return 1 if flagged else 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -314,5 +356,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _mask(args)
     if command == "compare-texture":
         return _compare_texture(args)
+    if command == "pose-sheet":
+        return _pose_sheet(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2

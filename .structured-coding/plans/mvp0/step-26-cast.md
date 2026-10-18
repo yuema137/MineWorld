@@ -799,6 +799,10 @@ Rules for the pose row:
 - A person whose world has no seat (none at present) still gets P-4, because seats are common decor.
 - The pose sheet is part of the runtime gate, so it is batched into the big milestone like the rest of
   that gate. The pilot's three people (S26-b2) get their pose sheets first.
+- **Pointer (2026-10-18, independent S26 review of PR #232).** The pose-sheet tool
+  (`tools/character_pipeline/godot/pose_sheet.gd`, `mwcast/pose_sheet.py`, `cast.py pose-sheet`) is PR #232,
+  stacked on S26-b1. It has no PR design file of its own: this section (§6.4) is its design authority, and
+  its scope, acceptance and evidence are recorded here and in the PR. Follow-up: F-S26-11 (§14).
 - Acceptance additions:
   - X-26: a planted missing seat-contact fails P-4 and is flagged red on the sheet.
   - X-27: the sheet for a person is byte-identical when re-shot at the same commit.
@@ -1431,6 +1435,14 @@ small new PRs, each mergeable on its own.
   (`step-30-person-attributes.md`, PR #223, §§8, 10; Q-S30-2). Until S30's sampler ships, the in-flight
   casting's profile in `presentation/mineworld-default/3D/characters/populations/` and its Python sampler are
   the bounded interim. S26 depends only on the C-1…C-7 contract (§7.4b.1).
+- **F-S26-10** (2026-10-18, review of PR #232) The pose-sheet PR has no own design file; §6.4 governs it
+  (pointer in §6.4).
+- **F-S26-11** (2026-10-18, review of PR #232; follow-up, not done in #232) `godot/pose_sheet.gd` is 943
+  lines, past the 800-line strong-warning threshold (`docs/ENGINEERING_STANDARDS.md`), and the checks it
+  performs on each pose screenshot are covered by no CI test: only `mwcast/pose_sheet.py`'s Python side is
+  tested (`tests/test_pose_sheet.py`). A later PR adds a CI test of the Godot checks (a headless run on a
+  committed fixture character, or the checks moved into tested Python) and splits the script by concern
+  (scene set-up, posing, capture, checks). Owner: the S26 lane, before S26-d's batches rely on the sheet.
 
 ## 15. Records and edits (ids assigned 2026-10-14; all ten used)
 

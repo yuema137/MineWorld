@@ -37,6 +37,10 @@ mineworld-presence = { workspace = true }
 mineworld-rule-controller = { workspace = true }
 mineworld-server = { workspace = true }
 mineworld-worldpack = { workspace = true }
+# `mineworld reference` reads the JSON Schemas the decoding types derive (DECISIONS.md ARC-90, DEP-49).
+schemars = { workspace = true }
+# An Interaction List's declared audiences are printed as a section writes them, by their own Serialize.
+serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 
@@ -51,6 +55,9 @@ tokio-tungstenite = { workspace = true }
 mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-schedule = { workspace = true }
+# The reference test decodes each printed example from a YAML stream, as the loader does (DEP-10,
+# pr-s25a-reference.md SD-25a-8): the workspace's own parser, already a dependency of the loader.
+serde-saphyr = { workspace = true }
 # the looks a client is told, decoded with appearance's own type.
 mineworld-appearance = { workspace = true }
 # Every test's saves and pack copies are scratch removed when the test ends (DEP-29).

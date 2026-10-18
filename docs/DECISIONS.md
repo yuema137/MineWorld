@@ -7954,6 +7954,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Note, 2026-10-14 (PR FG-b2; `pr-fg-b2-size-trigger.md` §1.1; operator rulings).** Two rulings revise the bound, neither changing the choice that the host, not a policy, enforces it. (1) "改成'快满了就提前整理'": a pass also runs early, after the fact that takes the store near its bound (a size pass), so the bound holds in a world whose perception exceeds a day's headroom — PR 12d's busier social-cafe reached 1 496 077 B before a daily pass. The trigger is measured exactly after every fact on the store's content, a function of the facts so far, so retention stays replayable and batch-independent. (2) "一个人物1mb太少了吧，我觉得起码20mb", then "默认 20 MB，世界可以调大": the per-seat bound is **20 MiB by default and a world may raise it**, per seat or class (`store_bound_mib` in `decisions.yaml` `memory:`), never below 20 MiB; the post-pass target is 75 % of it. This reverses, in the upward direction only, step-24 §1.2 ruling 2 (4) and FG-b's "not a parameter": the bound is now a world's choice above a fixed floor, still never a policy's. The 6 000-byte per-call memory ceiling (`D-P4-9`) is unchanged. "1 MiB" above reads "the seat's bound" from this date.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.7; QS28-4, `ARC-99`, `ARC-109`).** The bound now measures the **seat view**: the seat's `SeatView.dump()` in schema 4's positional encoding (`ARC-101`), less its `meta` lines, with every record the seat holds counted in full however many seats of its home hold it. Nothing a home-mate perceives, keeps or forgets changes a seat's size (I-S28-3). FG-b2's numbers are unchanged: 20 MiB by default, raise-only, the target 75 % of the bound, the size trigger at the bound less a sixteenth.
+
 ---
 
 ## ARC-88 — World evolution: a deterministic `happenings` System Pack, and LLM directors that only propose
@@ -8175,6 +8177,54 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 **Consequences.** The guide runner adds two crates to the test graph of `mineworld-cli` only. `cargo deny check licenses` must still pass (both are on the existing allow-list: MIT, Apache-2.0). The runner's TOML reading of `features.toml` uses the `toml` crate already present in `Cargo.lock`, so it adds no new crate; the workspace entry is recorded when C1 adds it.
 
 **Revisit** if `pulldown-cmark` or `snapbox` leaves maintenance, or if the guide's block grammar needs a construct CommonMark cannot express (then the grammar changes first, in `GUIDE_FORMAT.md`).
+
+---
+
+## ARC-90 — Creator documentation: a generated reference that cannot drift (reference part)
+
+**Date** 2026-10-14 · **Status** accepted (step-25 design); the reference part implemented by PR 25a; the guide part (`docs/guide/` executed by CI, the onboarding test) is added to this record by PR 25c · **Approved by** the operator's rulings QS25-1, QS25-2, QS25-6 of 2026-10-14 (step-25 §13.1) · **Relates to** `ARC-31`, `ARC-33`, `ARC-61`, `ARC-63`, `ARC-66`, `DEP-49`, `CLAUDE.md` §2.1 · **Design** step-25 §§4.1, 5; `pr-s25a-reference.md`
+
+**Problem.** Every file a creator writes is decoded by a typed value whose owner validates it, but what each file may say was written down by hand in `MODULE_SPEC.md` §4.1 for the framework's own fields and nowhere at all for the sections, configurations and Interaction List sections the packs own. A hand-written field list drifts the first time a pack adds a field (risk R-3 of `overall.md`).
+
+**Options considered.** R1 derive a JSON Schema from each decoding type and render it (chosen); R2 a MineWorld describe trait and derive macro (reinvents `schemars`); R3 scrape rustdoc JSON (nightly toolchain, sees types but not serde's behaviour); R4 a hand-written reference with a guard (an undocumented field is never caught); R5 schema-first code generation (inverts ownership: the pack's type would no longer be the owner's validation, contradicting `ARC-31` and `ARC-61`).
+
+**Choice.**
+
+1. **The reference is derived from the types that decode the files** and is never edited by hand. `docs/reference/` is written by `mineworld reference --out DIR`; `mineworld reference --check DIR` regenerates it in memory and exits 1 naming every file that differs, is missing or is extra. CI runs the check, and a change to `docs/reference/` alone still runs it.
+2. **The SDK requires a schema** (QS25-2): `AuthoredSection::Authored` and `PackConfiguration::Configuration` are bound by `schemars::JsonSchema`, so a pack whose section or configuration has no schema does not compile. `parameters!` writes the schema of its block itself, with each field's default, bounds and doc comment.
+3. **The installed set answers for every pack.** `installed!` gains `section_schema`, `configuration_schema` and `interaction_declarations`, defined by the macros a pack already writes (`owns_section!`, `configures!`, `interactions!`); the generator walks `Capability`'s list and names no pack.
+4. **A field's description is the first paragraph of its doc comment**, written for an author, with its unit; a field with none fails generation. Later paragraphs are for developers and reach neither the Markdown nor the JSON Schemas.
+5. **The command is read-only with respect to worlds**: it loads no World Pack, and its output is a function of the build alone — the installed set's order, fields in name order, no timestamp and no commit hash, `\n` line endings on every OS. It writes only into its `--out` directory and refuses one holding a file it did not generate.
+6. **English only** (QS25-6): the reference is generated from English doc comments and has no `*.zh-CN.md` mirror.
+7. **The reference describes this build.** A build with another installed set generates a different reference (`ARC-33`, `ARC-66`); the checked-in one describes the repository's own installed set.
+
+**Consequences.** A specification states shape and rules; field-by-field detail is the generated reference's (`MODULE_SPEC.md` §§4.1, 4.2). `mineworld-contracts` gains no dependency: a contract-typed field names its schema through `mineworld_authoring::schema`. A third-party pack derives `JsonSchema` on its section and configuration types (`acme-fishing` 0.1.1 does).
+
+**Revisit** when a public stable SDK contract is declared (the bound is then part of it), or when the reference must describe a build other than the repository's own.
+
+---
+
+## DEP-49 — JSON Schema derivation: `schemars` 1.x; `clap-markdown` declined
+
+**Date** 2026-10-14 · **Status** accepted; implemented by PR 25a · **Approved by** the operator's ruling QS25-2 and the step-25 freeze of 2026-10-14 · **Relates to** `ARC-90`, `DEP-10`, `DEP-11`, `DEP-22`, `REUSE_POLICY.md` §§1–3, 11–12 · **Design** step-25 §§4.1, 16; `pr-s25a-reference.md` §§2–3
+
+**Problem.** `ARC-90` derives a JSON Schema from every type that decodes a World Pack's files, including serde's attributes (`deny_unknown_fields`, `default`, `rename`, `transparent`, `try_from`), and renders the `mineworld` command's own surface.
+
+**Options considered.**
+
+| Option | Verdict and reason |
+| --- | --- |
+| **`schemars` 1.2.3** (MIT; `GREsau/schemars`, not archived, pushed 2026-10-12; MSRV 1.74) | **Chosen.** Reads serde's attributes and doc comments; manual `impl JsonSchema` for custom decoders; `#[schemars(with, example)]`. Adds `schemars_derive`, `serde_derive_internals`, `dyn-clone` and `ref-cast`, all on the workspace's existing `syn` 3 |
+| Our own derive (R2) | Declined: reinvention of a maintained crate |
+| rustdoc JSON (R3) | Declined: nightly; does not see serde's behaviour |
+| Schema-first with `typify` (R5) | Declined: inverts the decoding type's ownership |
+| `clap-markdown` 0.1.5 for the CLI page | Declined: a 0.1 crate for about 80 lines over `clap`'s `Command` model, which the build already depends on (`DEP-11`) |
+
+**Choice.** `schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }` in `[workspace.dependencies]`, named by `mineworld-authoring`, `mineworld-sdk`, `mineworld-packages`, `mineworld-worldpack`, the System Packs that own a section or configuration, and `mineworld-cli`. The `preserve_order` feature is **not** enabled: it would turn on `serde_json/preserve_order` for the whole workspace and could change bytes a world serializes (`INV-S25-5`); the reference lists a type's fields in name order instead. `mineworld-contracts` never names the crate. The CLI page is rendered by walking `clap`'s `Command`.
+
+**Consequences.** `cargo deny check licenses` passes with the added crates (MIT, or MIT OR Apache-2.0). A third-party pack depends on `schemars` from the registry at the version the build's lock holds.
+
+**Revisit** when `schemars` 2 is released, or if its maintenance stops.
 
 ---
 
@@ -8515,6 +8565,33 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 
 ---
 
+## DEP-56 — The official MCP Python SDK (`mcp`), for the stdio adapter only, registered on its low-level `Server`
+
+**Date** 2026-10-15 · **Status** accepted (design frozen 2026-10-15); dependency added in S27-d C1 · **Approved by** the operator's step-27 rulings of 2026-10-14 (§4.2, the MCP adapter) and the S27-d rulings QS27d-1 and QS27d-2 of 2026-10-15 · **Relates to** `ARC-96` (the adapter is a client; MCP confined to one module), `ARC-97`, `DEP-24`, `DEP-44`, `REUSE_POLICY.md` §§11–12, 15, `CLAUDE.md` §4 rule 16 · **Design** `.structured-coding/plans/mvp0/pr-s27d-mcp-stdio.md` §§3.2, 4.1, 4.2
+
+**Problem.** An MCP-speaking agent must reach a `Player` (`ARC-96`) over stdio. The MCP wire protocol (JSON-RPC, lifecycle, capability negotiation, the 2026-07-28 revision and its predecessors, subscriptions) is a mature protocol with an official SDK; re-implementing it would duplicate that work without a reason. The SDK must not, however, own world state, seats, validation or caps, and its high-level decorator API would publish each tool's input schema nested under its parameter name, which would break the rule that each tool's `inputSchema` and `outputSchema` are the `Player`'s own models.
+
+**Options considered** (both directions).
+
+| Option | Verdict |
+| --- | --- |
+| (a) **`mcp` (Python, official, MIT), confined to `clients/agent/src/mineworld_agent/mcp_server.py`**, on the low-level `Server` with `Tool(input_schema=Args.model_json_schema(), output_schema=Result.model_json_schema())` | **Chosen.** The SDK owns the transport and JSON-RPC; the schemas are the models' exactly (one source); dispatch validates arguments through the models; the subscription handler is the SDK's `ListenHandler`. Cost: about 40 lines of wiring that the high-level server would have provided |
+| (b) `MCPServer` with one decorated function per tool | Declined: the published `inputSchema` is nested under the parameter name (`$defs` reference), so it is not `ObserveArgs`'s schema (F-S27d-1) |
+| (c) `MCPServer` with flattened parameters | Declined: thirteen hand-written signatures mirroring the models, a second schema source |
+| (d) `rmcp` (Rust) inside the server | Declined: the server would speak a second client vocabulary beside `join`/`submit`/`leave`, which `server/PROTOCOL.md` §2 forbids; MCP types would enter `server/` |
+| (e) `rmcp` 3.5.1 in a separate Rust client binary beside the adapter | Declined for now (step-27 §4.2): the resuming client would be written a second time in Rust. Revisit on QS27-8's trigger (installing `uv` as the main obstacle for players of the bundle) |
+| (f) The TypeScript SDK 1.32.1 | Declined: the language rule (`CLAUDE.md` §5 and `ENGINEERING_STANDARDS.md` §3) puts client code in Python |
+| (g) Our own JSON-RPC and MCP lifecycle | Rejected: a protocol implementation is commodity infrastructure (`REUSE_POLICY.md`), and the revision churn (`X-2`, `X-3`) would be ours to follow |
+
+**Version rule** (step-27 §4.2): the newest release at least 14 days old when the dependency is added. On 2026-10-15 the newest release at least 14 days old is **2.2.0**: `mcp` 2.3.0 was uploaded 2026-10-02, 13 days earlier. The requirement is `mcp>=2.3,<3` from 2026-10-16 on, and `mcp>=2.2,<2.3` before it; C1 records the date, the requirement written and the locked version.
+
+**Sources** (verified 2026-10-15): PyPI JSON for `mcp` (newest 2.3.0, 2026-10-02T22:06:52Z; 2.2.0, 2026-09-07; 2.0.0, 2026-07-28; none yanked; licence MIT; `requires_python >=3.10`); the MCP specification's versioning page (current revision 2026-07-28); the SDK's release notes (`https://github.com/modelcontextprotocol/python-sdk/releases`); the SDK's documentation for tools, structured output, error handling, the low-level server, subscriptions and testing (`https://py.sdk.modelcontextprotocol.io/`).
+
+**Consequences.** `mcp` is a dependency of the `mineworld-agent` member only. The repository-wide scan (`clients/agent/tests/test_mcp_confined.py`) finds `mcp` nowhere else: no other `pyproject.toml` names it and no other Python file imports it. The packages `mcp` pulls in are listed with their licences in the design's ledger (§15); a GPL-family licence is a material stop. Removing `clients/agent` from the workspace removes this dependency with it (AC-d-10).
+
+**Revisit** if the SDK stops accepting an `outputSchema` shape for error results this adapter relies on (`ToolError` as an `isError` result without `structuredContent`, `QS27d-1`); if subscriptions over stdio change; or when S27-e (Streamable HTTP) reuses `build_server` (`R-S27e-d-1`).
+---
+
 ## ARC-98 — Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right
 
 **Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a · **Approved by** the operator's step-28 rulings QS28-1 … QS28-10 (2026-10-14) · **Relates to** `ARC-25`, `ARC-27`, `ARC-43`, `ARC-57`, `ARC-58`, `ARC-59`, `ARC-86`, `ARC-87`, `ARC-89`, `ARC-99`, `ARC-100`, `ARC-101`, `DEP-37`, `DEP-58`, `INV-4`, `INV-11`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §5.3, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§4, 6; `.structured-coding/plans/mvp0/pr-s28a-memory-home.md`
@@ -8620,6 +8697,13 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 
 **Revisit** when a schema change is needed, or when a tool outside MineWorld must read the dump.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.4 and ledger D-a-5).** The concrete grammar, as implemented in `mineworld_cognition.memory.home` (`encoding.py`, `schema.py`):
+
+- A line is the compact JSON array `[table, c1, …, cn]` (separators `,` and `:`, no spaces, UTF-8 not escaped), then `\n`.
+- Cells go through their column's codec. The `EventKey` columns (`event_key`, `first_key`, `last_key`, `level_key`, `source_key`, `trigger`) and `event_id` are written as the unpadded decimal number. A digest is written as its first 32 hex characters. `prose_key` is a cassette key and stays text. Every other value is written as stored (`INTEGER` → number, `TEXT` → string, `NULL` → `null`); no table holds a float.
+- `meta` lines are `["meta", key, value]`. The values of `cursor`, `newest` and `forgotten_below` are numbers, `null` while unset; every other value is a string (`schema` is `"4"`).
+- **Seat view** (`SeatView.dump()`): `meta` (`world_instance`, `schema`, `seat`, `self_entity`, and the seat's own rows, in key order), `names`, `l0` (`[l0, event_id, at, kind, place, salience, mine, gist, digest, importance]` in key order), `l0_who` (`[l0_who, event_id, entity]` for the held facts' participants other than the seat, in envelope order), then `episodes`, `episode_who`, `chapters`, `chapter_ranges`, `stable`, `forgotten`, `retention_passes`, each without its `seat` column, rows in key order.
+- **Home** (`MemoryHome.dump()`): the `home_meta` lines; one `[fact, event_id, at, kind, place, digest]` line per record in key order (the id is written once, because the key's number is the id); one `[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` line per record that has `fact_who` rows, in ordinal order; then, for each seat in key order, `[seat, key, self_entity]`, followed by that seat's rows in the seat view's table order, with `[access, event_id, gist, salience, mine, importance]` lines where the view has `l0` and no identity rows. The internal seat number never appears.
 ---
 
 ## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
@@ -9204,3 +9288,48 @@ F-13c-impl-5 (the connected 3D slice on hosted runners) stays open with the 3D l
 
 **Revisit** when the runner image changes its disks, or when F-13c-impl-5 is resolved and the QC-5 names
 can run on every leg.
+
+---
+
+## ARC-109 — The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15) and its rulings QS28a-1 … QS28a-4 (§14.1) · **Relates to** `ARC-59`, `ARC-87`, `ARC-98`, `ARC-99`, `ARC-101`, `DEP-37`, `DEP-58`, `DEP-61` · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §§1, 2, 5, 6
+
+**Problem.** P4's `MemoryStore` is one SQLite file per seat. Every seat that perceived a fact stores its envelope again, so a home of twelve persons stores most facts five to twelve times (step-28 §2). `ARC-98` rules that shared memory is a cognition-side home of perceived envelopes, with perception as the only access right; it leaves the storage API, the schema number and what replaces the store to the implementing PR.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Keep `MemoryStore` beside the home, as a compatibility layer, until every consumer moves | Declined: a second storage path before a stable contract exists (`CLAUDE.md` §4 item 12), and QS28-8 rules that old stores are refused, not read |
+| (b) One file per seat with shared records in an `ATTACH`ed file | Declined (step-28 §6.3): an atomic commit across attached files holds only in rollback-journal mode, and a seat file is no longer self-contained once its records are shared |
+| (c) **One home per cognition process and world instance; every consumer reads and writes through a `SeatView`** | **Chosen** |
+
+**Choice.** `memory.home.MemoryHome` (one SQLite file, schema **4**) replaces `MemoryStore`, which is deleted with no alias. A home stores each perceived fact's perspective-free envelope once (`fact`, `fact_who` with the role of each entity, QS28a-3), each seat's holding of it with that seat's rendering (`access`), and each seat's private tables with a leading `seat` column. `SeatView` is the only storage API of memory: ingestion, names, the roll-up, retrieval and the retention host take a `SeatView`, and its canonical dump is the standalone seat view (`ARC-101`). The schema is 4, because FG-b2 shipped schema 3 (F-S28a-1). A store of schema 2 or 3 is refused by name (`UnsupportedStoreSchema`) and never modified; memory is rebuilt from the perceived stream (QS28-8). Records are collected exactly, in the releasing transaction, by an anti-join over the access rows, with no stored count (I-S28-4). I-S28-6 is replaced by two statements (QS28a-1): sharing never costs disk, and each one-seat home's dump exceeds its seat view's by at most a fixed `K` bytes per held record.
+
+**Consequences.** The kernel, contracts, server and protocol are unchanged (I-S28-10). A seat's bytes, recall and retention decisions are identical whether it shares its home or not (I-S28-2, I-S28-3), which the transparency harness checks. Until S28-f wires `sharing`, the LM controller opens one home per seat at the seat's existing path (the `none` arm).
+
+**Revisit** when S28-c introduces the `MemoryScope` interface (the `world` scope's functions become a scope), or when S28-f shares one home among a process's seats.
+
+---
+
+## DEP-61 — The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a; no dependency is added · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15); QS28a-4 ruled by the primary · **Relates to** `DEP-37`, `DEP-58`, `ARC-109`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §4, §5.5
+
+**Problem.** A home has one writer: a second process writing the same home would interleave its transactions with the first's. The second process must be refused at open, by name (`HomeBusy`), on Linux, macOS and Windows, and a process killed while holding the home must leave nothing that refuses the next open.
+
+**Options considered.**
+
+| Candidate | Verdict |
+| --- | --- |
+| **SQLite's own locking: `PRAGMA locking_mode = EXCLUSIVE`, then `BEGIN EXCLUSIVE; COMMIT` at open, `timeout = 0`** | **Chosen.** Cross-platform through SQLite's VFS (POSIX advisory locks, Windows `LockFileEx`), no dependency, no side file; the operating system releases the lock when the holder dies |
+| `filelock` (Unlicense; mature) | Declined: a second lock beside SQLite's own, which can disagree with it, and a dependency for one call |
+| A hand-written lock file (`fcntl` / `msvcrt`) | Declined: two code paths, and a file that goes stale after a SIGKILL |
+| A side file recording the holder's pid (`HomeBusy(path, holder_pid)`) | Declined (QS28a-4): it can go stale and disagree with SQLite's lock; `HomeBusy(path)` names the file, and the platform's tools find the process |
+
+**Choice.** SQLite's exclusive locking. `HomeBusy(path)` is raised when the lock cannot be taken at once. `auto_vacuum` is set only on an empty database, because on a database with pages the pragma rewrites the header even when the value is unchanged, and a refused file must be left byte-identical (S28-a ledger, F-S28a-10).
+
+**Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
+
+**Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.

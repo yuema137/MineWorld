@@ -103,6 +103,7 @@ Any other number in a Blender script is a parameter, and a review question (B7) 
 | `mask --fit <fit.yaml> --reference <png> --out <png>` | stage 3 | tool venv |
 | `meshy --fit <fit.yaml> --input <png> --scratch <dir> --cap <credits> [--dry-run]` | stage 4; `--dry-run` prints the request without image bytes and the credit projection, and calls nothing | standard library; the key in the environment for a live run |
 | `identifiers <file> …` | AI-identifier inspection (port of `inspect_ids.py`) | standard library |
+| `pose-sheet <asset.glb or .gltf> --out <dir> [--character-yaml <path>] [--label <name>] [--grip] [--project <dir>] [--plant-seat-gap <m>]` | the step-26 §6.4 pose sheet (§15): frames, `report.json`, `sheet.html`; exit 1 when any frame is flagged | Godot 4.7, windowed |
 
 **Scratch resolution:** `--scratch`, else the environment variable `MINEWORLD_CAST_SCRATCH`, else refusal naming both.
 A scratch path inside the repository (the repository top level from `git rev-parse --show-toplevel` is a prefix of the
@@ -342,3 +343,108 @@ Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in the operator
 Vera's download (`out/meshy/apose_v3/model_glb.glb`) has SHA-256 `3de801cdb7dcf34d21ee45758982319096bd62f3a111ab354c46fb2eeb586ef7`,
 which matches `fit.source.download_sha256`. Her `request.json` has SHA-256 `c002a274d7ea6251df5eaabd8daf5902b2585a343f3b509a0370af8893573bbf`
 and her `task.json` `6583a7698d517d293214cba7315a1b15a938d4a048cb433da850dde57b2703b5`.
+
+## 15. The pose sheet (`pose-sheet`)
+
+Step-26 §6.4 (operator, 2026-10-15) asks for every finished character in several poses, seated on a chair included,
+rendered by a scripted, deterministic probe, with clipping flagged red and never hidden. `pose-sheet` is that probe. It
+is tooling under §1: it reads one export and writes outside the repository.
+
+**Command.** One per character, holding one machine slot for both Godot runs (R-LOAD-1):
+
+```text
+with-slot.sh python3 tools/character_pipeline/cast.py pose-sheet <export.glb|export.gltf> --out <dir> \
+    [--character-yaml <character.yaml>] [--label <name>]
+```
+
+`--grip` holds the protagonist's strap grip (solved for her body only, `human.gd` `GRIP_*_D`); a cast character is
+rendered with `Posture.natural_stance()`. `--plant-seat-gap <m>` raises the seated body by `m` metres after it settles
+(acceptance X-26); `pose_sheet.gd` also takes `--plant-arm-into-torso` (the right arm forced through the trunk) and
+`--debug`. Godot is `MINEWORLD_GODOT`, else `godot` on `PATH`.
+
+**What runs.** `mwcast/pose_sheet.py` builds a scratch Godot project (default `<out>/.project`), never touching
+`clients/3d-spike`: it copies the client's `human.gd`, `posture.gd`, the hair shader, the protagonist (`meshy_d`), the
+Quaternius clip library and its bone map, the CharMorph bone map and textures, the café's `dining_chair_02` and
+`round_wooden_table_02` (`cafe_interior.gd` `_loose_seating`), and the slice's HDRI; it copies the export to
+`cast/subject.<ext>` with the protagonist's import settings (the same bone map and rest fixer), the skeleton path taken
+from the export's armature node. It runs `godot --headless --import` (log: `<out>/import.log`), then
+`godot --fixed-fps 30 --disable-vsync --script res://pose_sheet.gd` windowed (a headless Godot renders nothing). The
+frames render off-screen in a 1000 × 1250 `SubViewport` (MSAA 4×, no TAA), so the window's size and the display do not
+change them.
+
+**The body.** The subject is built by `Human.build` on the `REFERENCE` slot (scale 1: an export is at its own stature),
+so the clips, the `Stand` loop, the `Sit` clip and the retarget are the client's. A `MW_Cast` surface gets the same
+surface response `human.gd` gives `MW_Meshy`. Blinking is held open and the reference body's head low-pass is set to 0
+(its converged value at a steady gait), because `posture.gd` times that filter with the wall clock.
+
+**The light.** The slice's: the `qwantani_puresky_2k` sky at 0.80, AgX at exposure 1.06, SSAO, the warm sun at
+elevation −19.3°, azimuth −48°, energy 4.4, and the cool fill (`slice_main.gd`). The subject faces 25° round from the
+sun's azimuth. The floor is a neutral grey plane.
+
+**Frames** (`frames/<id>.png`):
+
+| Id | Step-26 row | Pose and framing |
+| --- | --- | --- |
+| `P-1_front`, `P-1_three-quarter`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 180°, fov 30°, distance from the skinned stature so nothing crops |
+| `P-8_face` | P-8 | the same stand; the camera 2.5 m from the eyes, 8° off the front, fov 13.7° |
+| `P-1_lineup-with-vera` | P-1, §6.3 | the subject and the protagonist side by side, front, same light (the quality-tier control) |
+| `P-6_two-shot-with-vera` | P-6 | facing the protagonist at 1.1 m, three-quarter on the subject; idle (no gesture clip exists yet) |
+| `P-2_walk-contact`, `P-2_walk-passing` | P-2 | `Walk` at its clip speed on a treadmill; side; the frames of largest and smallest foot separation in one cycle, taken one cycle later |
+| `P-3_jog-contact` | P-3 | `Jog_Fwd`, likewise, the contact frame |
+| `P-4_seated-three-quarter`, `P-4_seated-side` | P-4, G-13 | on the café chair at its table, hands on the table; three-quarter and side |
+
+**The seated pose.** The `Sit` clip's trunk reclines, its feet hang, and its hands lie by the thighs, so the sheet
+layers a solved `Posture` (rest-relative, `posture.gd`'s convention) after it: the pelvis turned so the trunk leans 10°
+forward of vertical; each leg so its ankle rests on the floor below the knee, the thigh about level; each arm so the wrist
+lies on the table top 5 cm in from its near edge. The solves are grid searches with coordinate descent, so they are
+deterministic. The table's pedestal would take the shins at the café's 0.66 m, so the chair stands until the base is
+0.58 m ahead of the seat's middle (0.81 m for this table). The seat top (0.454 m) and the table top (0.746 m) are
+measured from the assets' vertices. The body is then settled on its own seat surface: from the protagonist's
+hips-over-seat height, three corrections move the hips until the lowest buttock-or-thigh vertex over the seat touches it,
+the pose re-solved each time.
+
+**Checks** (per frame, on the subject only, from CPU-skinned vertices: Σ w · pose · bind, with the poses read in
+`Skeleton3D.skeleton_updated` so the SkeletonModifier3D results are included):
+
+- **Torso clip (G-9, simplified).** The trunk volume is a stack of 2 cm slabs along the Hips→Neck axis, from the Spine
+  joint to 5 cm below the Neck; in each slab, the outline of the pure trunk vertices (dominant bone Spine, Chest or
+  UpperChest, limb weight share ≤ 0.05; a fused pack included) as the outermost radius from the slab's centroid in 48
+  directions. A hand, forearm (sleeve), distal-half upper-arm, distal thigh or lower-leg vertex (dominant bone of that
+  limb, trunk share ≤ 0.05, and within 0.08–0.12 m of the limb's bone segment, so it lies on the limb) that is inside
+  the outline by more than **5 mm** fails. The share and segment filters exist because a fused generated mesh blends
+  trunk and arm where they meet: without them the protagonist's hanging arm read 60 mm "inside" her hoodie.
+- **Seat contact (G-13), P-4 only.** After settling, the lowest buttock-or-thigh vertex over the seat panel (from 10 cm
+  behind the Hips joint forward, so a pack against the chair's back is not counted) must be within **±20 mm** of the
+  seat top, and the body's settled hips-over-seat height within 20 mm of the protagonist's 0.250 m
+  (`protagonist_rule_error_mm`: how far it would float or sink where one shared rule seats every body).
+- `hands_above_table_mm` is reported, not judged.
+
+A failing frame is still written, with a 14 px red border, and listed first-class in the sheet. `report.json` holds
+every frame's checks, the Godot version and the GPU, and notes (the clip periods and chosen frames, the furniture's
+measured heights, the solves' residuals, every plant).
+
+**Determinism (X-27).** Every pose is reached by counting frames under `--fixed-fps`; nothing reads the wall clock.
+Two runs at the same commit on the same machine (Apple M5, Metal, Godot 4.7.2) wrote byte-identical `report.json` and
+byte-identical P-1, P-2, P-3, P-6 and P-8 frames. The two P-4 frames differed in 13 and 24 pixels by 1/255 each, in
+small patches; the poses and the checks were identical (waiting 45 frames after the chair and the table appear, for
+their pipelines to compile, did not remove it). Another GPU or driver renders different bytes.
+
+**The window must stay drawable.** The sheet waits for each drawn frame; on macOS a Godot window that is hidden,
+minimised or on another desktop stops drawing, and two concurrent runs once stalled that way. The render runs
+`--always-on-top`, and the driver stops Godot after 600 s (import: 900 s) with that explanation.
+
+**Validated (2026-10-15).** The protagonist (`meshy_d.glb`, `--grip`) and the pipeline's re-derivation of her
+(`vera-lindgren.gltf`, run `r3`): 11 frames, none flagged. The CharMorph town body (`vitruvian.glb`) renders, and is
+flagged: its garments are separate layered meshes (a tee sleeve under a hoodie sleeve is "inside" the outer layer), so
+the torso check does not apply to it, and its settled hips sit 55 mm under the protagonist's. Cast exports are one fused
+mesh (G-1), which is what the check is for. Plants: `--plant-arm-into-torso` flagged every frame (210 mm);
+`--plant-seat-gap 0.05` flagged both P-4 frames (+50.0 mm).
+
+**Known limits.** P-5 (bench or stool) and P-7 (reaching over the counter) are not rendered. The two-shot has no
+gesture. The pose sheet never judges identity or quality; the scorecard (step-26 §6.2) does, beside the protagonist.
+The tool does not check the pack against the chair's back.
+
+**Finding for the client (not changed here).** `human.gd` `sit(seat_y)` places the `Hips` joint itself at `seat_y`. In
+its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
+upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
+

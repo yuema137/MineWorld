@@ -2,7 +2,8 @@
 
 `Player` holds one seat per handle, each over its own `mineworld_sdk.ResumingSeat`, and renders that seat's
 own observation compactly: short references, numbered offers, pages and a hard size cap. It adds no world
-rule, evaluates no requirement, and carries world-authored text only as typed `WorldText`. No MCP here.
+rule, evaluates no requirement, and carries world-authored text only as typed `WorldText`. The MCP adapter
+(S27-d) is one module of this package, `mcp_server.py`, over this library; nothing else here names MCP.
 
 ```python
 async with Player(PlayerConfig(server="ws://127.0.0.1:7878/ws"), Invite(invite)) as player:
@@ -16,8 +17,10 @@ from mineworld_agent.models import (
     AttemptArgs,
     ClockArgs,
     ClockResult,
+    ErrorCode,
     EventsArgs,
     EventsResult,
+    InboxStatus,
     InspectArgs,
     InspectResult,
     JoinArgs,
@@ -34,6 +37,7 @@ from mineworld_agent.models import (
     SeatsArgs,
     SeatsResult,
     StopArgs,
+    ToolError,
     View,
     ViewDelta,
     WaitArgs,
@@ -49,8 +53,10 @@ __all__ = [
     "AttemptArgs",
     "ClockArgs",
     "ClockResult",
+    "ErrorCode",
     "EventsArgs",
     "EventsResult",
+    "InboxStatus",
     "InspectArgs",
     "InspectResult",
     "JoinArgs",
@@ -69,6 +75,7 @@ __all__ = [
     "SeatsArgs",
     "SeatsResult",
     "StopArgs",
+    "ToolError",
     "View",
     "ViewDelta",
     "WaitArgs",
