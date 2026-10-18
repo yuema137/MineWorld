@@ -1464,6 +1464,14 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   plants `lm-controller = false` (expects `… decision model lm is in the build`) and `happenings = true` (expects
   `happenings = true, but pack mineworld-happenings is not in the build`; WE-a is not merged), so a false flag and a
   true flag are each still shown to turn the run red.
+- **The decay comparison's "after" output changed on the restacked build** (scratch guide run 39102856582 on the
+  25f head, Linux: `FAIL page compare/relationship-decay line 184 step 1.4`; every other block passed). The
+  "before" run is unchanged (`relationship-changed 20`, Ana move 1468 talk 738); the "after" run now gives
+  `relationship-changed 28` (was 38) and a slightly different `activity` line (Ana move 1453 talk 732, Ben 1431/913,
+  Cai 1544/845). Main's group-activity changes (S27-b: offers complete, an expired invitation not offered) are in
+  the restack; the page no longer claims identical behaviour. Classified **stale page output**, not a flake. The
+  page and its mirror quote the new numbers; the table's `activity` row and the closing paragraph say people's days
+  change a little and the ties change a lot. §19.3's row for this comparison is superseded by these numbers.
 - Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
 
 ---
