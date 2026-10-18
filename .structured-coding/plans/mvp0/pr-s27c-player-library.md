@@ -1104,3 +1104,17 @@ deviation.
   and the wanderer's "not in" assertion both cover all the facts waiting; nothing asserted is weaker. The same
   PR's attempt 2 hung in `cognition/lm-controller` after `test_controller_parts` — the next file is the resilience
   scenarios, which stop a runner that hands its seat back: the SDK's lost cancellation (pr-s10-p6 D-P6b-45).
+- **D-c-25 (CI finding, open; needs a ruling).** On `python (windows-2025)` (PR #220, run 39053600513, attempt 3),
+  `test_the_two_seats_share_no_reference_name_or_event` failed "my walk's end is my fact" although the visitor stood
+  in the street (visitor facts `['arrived', 'walk-started', 'arrived', 'person-entered-place', …]`). A first
+  hypothesis — the test reads one page of 20 facts and `walk-ended` was on a later page — was tried and **refuted**
+  on windows-2025: the old one-page read with a page of only 5 passed 10 of 10 (scratch run 39100373262), so it was
+  reverted. The cause found in the code: the world has no save, so the inbox is fed from each observation's own
+  `events` (D-c-19, best effort), and `SeatSession` keeps only the newest observation (newest wins). When two frames
+  arrive before the handle's watch task reads one — a slow runner — the superseded frame's facts are lost, and
+  `walk-ended` rides in exactly one frame. The test asserts a specific fact reaches an inbox that is best effort by
+  design. Options, each a ruling: carry a superseded frame's facts into the next one (an SDK contract change); give
+  the test a save so it has the reliable stream (it then no longer exercises D-c-19); or have the assertion allow
+  for a counted loss. Not changed here. The same PR's attempt 2 hung in `cognition/lm-controller` after
+  `test_controller_parts`; the next file is the resilience scenarios, which stop a runner that is handing its seat
+  back: the SDK's lost cancellation (pr-s10-p6 D-P6b-45).
