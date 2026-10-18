@@ -59,7 +59,7 @@ use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInst
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
 use status::first_binding;
-use world::{ActionIds, Failure, HostClock, TickTimes};
+use world::{ActionIds, Failure, HostClock, TickStart, TickTimes};
 
 /// The world, and everything the server holds around it.
 pub(crate) struct WorldRuntime {
@@ -400,7 +400,8 @@ impl WorldRuntime {
     /// is still swept, but nobody is consulted and the world is not advanced: the town does not act
     /// and no Process wakes (`PROTOCOL.md` §5.9).
     fn tick(&mut self) {
-        let started = Instant::now();
+        let start = TickStart::now();
+        let started = start.wall();
         let now = self.clock.now_at(started);
         let running = !self.clock.paused();
         self.table.expire(started, now);
@@ -416,7 +417,7 @@ impl WorldRuntime {
                 self.sweep();
             }
         }
-        self.ticks.record(started.elapsed());
+        self.ticks.record_since(&start);
     }
 
     /// Consults every in-server controller due by `now`, in instant order then seat order, each at
