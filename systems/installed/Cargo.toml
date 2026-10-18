@@ -30,6 +30,7 @@ mineworld-bodies = { path = "../bodies" }
 mineworld-calendar = { path = "../calendar" }
 mineworld-weather = { path = "../weather" }
 acme-fishing = { git = "https://github.com/yuema137/mineworld-pack-fishing", rev = "262213781d42357527f627106d6727240a99636c" }
+mineworld-appearance = { workspace = true }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.

@@ -59,6 +59,9 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
+        # The cast binding's structure (`ARC-92`): the committed file, then the checker's own cases.
+        ["python3", "scripts/check_cast.py"],
+        ["python3", "scripts/check_cast.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.

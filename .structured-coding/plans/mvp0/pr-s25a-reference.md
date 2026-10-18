@@ -431,6 +431,23 @@ again after (`mineworld reference --check docs/reference` → "matches this buil
   --workspace --all-targets --all-features -D warnings` clean on the regenerated tree. The artifact was
   downloaded with `gh run download` and copied over unchanged (`diff -rq` against the artifact: identical);
   the scratch branch was deleted.
+- **Independent review (2026-10-18, REQUEST CHANGES), addressed in one head.** (1) Merge of `origin/main` @
+  bcc689c (S26-a #206, the `appearance` System Pack; `03b7e03`): conflicts in `docs/DECISIONS.md` (ARC-90/DEP-49 and
+  ARC-91/ARC-92 kept; 156 ids distinct), `systems/installed/Cargo.toml` (fishing v0.1.1 pin kept, appearance
+  added), `tools/cli/Cargo.toml`, `worldpack/Cargo.toml` (both sides kept). Semantic conflict: `Appearance` and
+  `LookKey` derived only `Deserialize`; both derive `JsonSchema` (`LookKey` states `^[a-z0-9-]+$`, 1 … 48 bytes,
+  the decoder's own bound `LOOK_MAX_BYTES`), `Appearance` states its example, both have author-facing first
+  paragraphs; `mineworld-appearance` names `schemars` (lock updated by `cargo metadata`, no build). (2) `entries.rs`
+  no longer drops a capability whose `section()` or `configuration()` is `Some` without a schema: generation
+  refuses, naming the pack and the file (today reachable only by an in-context section, F-25a-8). (3)
+  `sdk/rust/tests/compile_fail/a_configuration_without_a_schema_does_not_compile.rs` beside the section case. (4)
+  `authoring/src/schema.rs` uses `mineworld_contracts::MAX_IDENTIFIER_LENGTH` directly; the copy and its
+  assertion are gone (`94932bd`). Generated on GitHub CI, never locally: scratch run 39117734295 (`cargo check
+  --workspace --all-targets` ok; `reference --out` → 33 files, `sections.md`/`README.md` changed,
+  `schema/section-appearance.schema.json` added, `--check` matches; `TRYBUILD=overwrite` wrote the new case's
+  `.stderr`; then `mineworld-cli --test reference` 9, `--test appearance` 3, `mineworld-sdk --test compile_fail` (3
+  cases ok), `mineworld-appearance` 4 passed; `cargo fmt --all --check` and `clippy -D warnings` clean). The
+  artifact was copied unchanged (`diff -rq`: identical); the scratch branch was deleted.
 - **F-25a-8 (for the primary) — S30-b's data half has no schema bound.** `SectionInContext::Authored` and
   `OwnsData::File` (`authoring/src/data.rs`) carry no `JsonSchema` bound, and `owns_section_in_context!` /
   `owns_data!` answer no schema question, so a pack's data directory files and its in-context section would

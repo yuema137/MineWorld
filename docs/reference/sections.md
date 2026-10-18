@@ -445,3 +445,35 @@ fishing:
   catch: fish
   minutes: 60
 ```
+
+<a id="section-appearance"></a>
+
+## `appearance`
+
+Written under the key `appearance` in `people/<key>.yaml`.
+Read by the `appearance` system (package `mineworld-appearance`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+How the person looks, named by a key that a client's Presentation Pack draws.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `look` | [LookKey](#section-appearance-lookkey) | yes | — | — | The name of the person's look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`. Required. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+appearance:
+  look: alice-moreau
+```
+
+### Types used above
+
+<a id="section-appearance-lookkey"></a>
+
+#### `LookKey`
+
+The name of a look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`, such as `alice-moreau`. It names the look and says nothing of what it is made of; each client's Presentation Pack draws it.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9-]+$`.

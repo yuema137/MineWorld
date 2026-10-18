@@ -58,6 +58,8 @@ mineworld-schedule = { workspace = true }
 # The reference test decodes each printed example from a YAML stream, as the loader does (DEP-10,
 # pr-s25a-reference.md SD-25a-8): the workspace's own parser, already a dependency of the loader.
 serde-saphyr = { workspace = true }
+# the looks a client is told, decoded with appearance's own type.
+mineworld-appearance = { workspace = true }
 # Every test's saves and pack copies are scratch removed when the test ends (DEP-29).
 mineworld-test-support = { workspace = true }
 # The save-format refusal test (SR ASR-8) marks a save as format 2 directly, as an older build's file
