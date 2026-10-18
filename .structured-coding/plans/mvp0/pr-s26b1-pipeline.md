@@ -1465,6 +1465,17 @@ or `tools/asset_generation/` changed.
   `blender.command` renders `str(Path)`, which is backslashed on Windows (masked on `204c9be`, where the layer stopped at
   the cognition test first). Routine repair: the test expects `str(Path(...))`. The code under test is unchanged.
   73 pytest passed locally; ruff, format, pyright clean.
+- **CI on `c86dacff` (run 39069998391) and the merge of `origin/main` @ e51ffc0 (2026-10-17, F-B1-merge-1):** the one
+  failure was `test-macos (b: core 3/3, python)` at `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`
+  (`JoinRefused: seat_occupied`), the known `clients/agent` idle flake, unrelated to this PR; 97 other tests passed. The
+  merge conflicted in `docs/DECISIONS.md` (ARC-94, DEP-51, DEP-52, DEP-55 and main's ARC-149 appended at one place; all
+  kept, ours first; `check_decision_ids.py`: 156 ids, all distinct) and `scripts/ci_layer.py` (`python` layer: the
+  pipeline's pytest and `check-characters` lines kept, then main's Milestone D line). Bounded repair found by running
+  the `fast` scripts on the merged tree: `check_secrets.py scan` flagged main's S10 P7 `PLANTED_KEY` in
+  `tools/cli/tests/milestone_d.rs:79` (a fake `sk-` string the test plants to prove no key leaks). Per R-B1-6 it is
+  allowlisted with its reason (the allowlist is no longer empty, §5.11 item 4 keeps its rule that each entry has a
+  reason); `scan` 0 findings, `--self-test` PASS. Main's generated files (baselines, the DL-a golden) are taken as-is:
+  this PR touches neither.
 - **F-B1-B10-4 (minor, recorded, not fixed; follow-up for S26-b2 by ruling):** `gameready.py:191` records `dec.ratio` after
   `modifier_apply` removed the modifier, a dangling RNA read inherited from `gameready_mesh.py:93`'s print. The recorded
   `decimate_ratio` is garbage and differs between runs (`r1` 2.65e20, `r3` 0.0); nothing reads it and the geometry is

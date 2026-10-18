@@ -19,6 +19,7 @@
         The ignored Godot tests, one at a time (`--test-threads=1`: each starts Godot and a server), with
         this OS's named skips (SKIPS below), through `ci_repeat.py` once so that a failing test is named in
         artifacts/nightly/clients-tests.txt; the skips and their reasons go to artifacts/nightly/notes.txt.
+        Where a connected 3D test runs, one unjudged launch of the 3D slice first warms its caches (ARC-149).
     python3 scripts/ci_godot.py coverage
         Lists the ignored Godot tests (`cargo test … -- --ignored --list`) and fails if none is found, if
         a skip below names a test that does not exist, or if a test is skipped on every OS (QC-5).
@@ -77,11 +78,16 @@ ASSETS = {
 GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings"]
 _SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
                 "limit ('the slice hung'); it passes on macOS")
+# SET-b's two connected 3D tests (#192) join it under the same rule (ARC-149): on nightly 38919486641 both
+# hung on llvmpipe and on WARP before the probe's first check (fewer than its 12 warm-up frames in 240 s);
+# both pass on the laptop's GPU, and the macOS leg must pass them each night or turn red.
+_SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_the_server",
+                      "three_d_settings_never_reach_the_server",
+                      "three_d_controls_apply_live_and_persist")
 SKIPS: dict[str, dict[str, str]] = {
-    "Linux": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-              _SOFTWARE_3D.format("llvmpipe under Xvfb")},
-    "Windows": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-                _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")},
+    "Linux": {name: _SOFTWARE_3D.format("llvmpipe under Xvfb") for name in _SOFTWARE_3D_TESTS},
+    "Windows": {name: _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")
+                for name in _SOFTWARE_3D_TESTS},
 }
 # QC-5b (primary ruling, 2026-10-10): windowed tests that fail on EVERY hosted leg for a recorded display
 # reason are not run on hosted runners; they are the operator's milestone-F hand checks
@@ -282,8 +288,40 @@ def skips_on(system: str) -> dict[str, str]:
     return found
 
 
+# The 3D client's first launch on a runner builds its scene with cold shader and pipeline caches: on the
+# macOS runner its scene took 58 s to build against 3.3-3.7 s at every later launch (nightly 39007080793),
+# and the connected 3D test that ran first spent its 240 s deadline there and hung, whichever test it was
+# (ARC-149). One launch in the standalone `measure` mode warms the caches before the tests. It is not a
+# check and is never judged: its exit and time go to the notes, and the tests' verdicts are their own.
+WARM_LIMIT = 600.0
+
+
+def warm_3d_client(system: str, skips: dict[str, str]) -> None:
+    """One unjudged launch of the 3D slice, where a connected 3D test is about to run (not on Linux or
+    Windows, which skip them all, QC-5)."""
+    if all(name in skips for name in _SOFTWARE_3D_TESTS):
+        return
+    command = [os.environ.get("GODOT", "godot"), "--always-on-top", "--path", str(ROOT / "clients" / "3d-spike"),
+               "res://scenes/slice.tscn", "--", "--slice-measure", "--settings=none"]
+    print(f"[godot] warm-up (not a check): $ {' '.join(command)} (limit {WARM_LIMIT:.0f} s)", flush=True)
+    began = time.monotonic()
+    try:
+        ended = f"exit {subprocess.run(command, cwd=ROOT, capture_output=True, timeout=WARM_LIMIT).returncode}"
+    except subprocess.TimeoutExpired:
+        ended = f"killed at the {WARM_LIMIT:.0f} s limit"
+    except OSError as error:
+        ended = f"not started: {error}"
+    note = f"warm-up on {system}: the 3D client's first launch (--slice-measure), {ended}, " \
+           f"{time.monotonic() - began:.0f} s (ARC-149; not a check)"
+    print(f"[godot] {note}", flush=True)
+    OUT.mkdir(parents=True, exist_ok=True)
+    with open(OUT / "notes.txt", "a", encoding="utf-8", newline="\n") as out:
+        out.write(note + "\n")
+
+
 def run_tests(system: str) -> int:
     skips = skips_on(system)
+    warm_3d_client(system, skips)
     command = godot_tests_command("--test-threads=1", "--exact",
                                   *[part for name in sorted(skips) for part in ("--skip", name)])
     samples = repeat(1, command)

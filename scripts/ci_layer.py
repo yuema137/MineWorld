@@ -236,7 +236,20 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
+    # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
+    # unplugged half is an ordinary test and runs in `core`.
+    [
+        "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
+        "--ignored", "--exact", "she_remembers_across_the_two_views",
+    ],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+]
+# IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
+# syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
 # package's real_binary AC-10 scenario (pr-s10-p4 §5.10) — are deselected by name, visibly, here and
@@ -382,8 +395,24 @@ def result(layer: str, line: str) -> None:
 
 
 # Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
-# still closes the layer, so each shard leaves nothing behind.
-SHARDABLE = {"core"}
+# still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
+# (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
+SHARDABLE = {"core", "core-repeat"}
+
+
+def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
+    """A shard's cargo commands as `core-repeat` runs them: the build as it is, and each test command
+    sampled twice (`--no-fail-fast`, as the unsharded layer). The doctests, when the shard holds them,
+    write their own summary beside repeat.txt; the report merges a job's summaries by sample."""
+    out = []
+    for command in cargo:
+        if "--no-run" in command:
+            out.append(command)
+            continue
+        summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
+        out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
+                    *command[:2], "--no-fail-fast", *command[2:]])
+    return out
 
 
 def commands_of(layer: str, shard: str | None) -> list[list[str]]:
@@ -393,6 +422,8 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
         return LAYERS[layer]
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
+    if layer == "core-repeat":
+        return repeat_commands(cargo)
     return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
 
 
