@@ -2196,6 +2196,12 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
   residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
   the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
+- **D-P6b-48 (CI finding, open; bound unchanged).** In one of five windows-2025 `python` layers on this branch
+  (scratch run 39085226849), `test_c_a_killed_process…` failed AP6-8: no request by Alice's in-server controller
+  within hold + pace + 2 s (6 s) of the SIGKILL. Run alone 50 times on windows-2025 (scratch run 39091022610) it
+  passed 50 of 50, the fallback's request 3.27–4.77 s after the kill (median about 3.5 s), so the frozen bound
+  leaves at least 1.2 s against the measured work. The one miss came inside the full suite, where D-P6b-47's
+  server stalls are seen; the bound is not raised.
 - **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
   `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
   30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
