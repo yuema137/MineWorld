@@ -2552,6 +2552,73 @@ D-SB14 (bounded) IL-a (#80) landed with a structural test, tools/cli/tests/confi
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).
+D-SB12 note, 2026-10-15 — F-tick-1 (operator ruling amending D-SB12: "服务器加测'线程真正干活的时间'",
+      the server also measures the time the thread actually works). Branch fix/hosted-town-tick-flake
+      from origin/main 3a9b9ef.
+      Why. The ruled wall-clock p99 ≤ 50 ms kept failing on shared CI runners while the tick's work
+      was unchanged: F-12n-CI1 (57.3, 62.8 ms; step-11 §21.15), PR #206 (70.7 ms, max 238 ms),
+      PR #198 (189.6 ms, max 5 269 ms) — every one with a wall p50 of 0.3–0.6 ms, and each passing on
+      re-run. E-SB9 had already located every slow tick off-CPU (wall ≫ CPU). The p99 of ~1 200 wall
+      ticks is the twelfth-longest, so twelve preemptions decide it: a measure of the runner, not the
+      server.
+      Instrument chosen. Of the brief's options: CPU time per tick (chosen, for the tail), a robust
+      wall statistic (chosen, the median, for waits), work counts per tick (declined: the claim is
+      about time, and a count bound would need a per-system cost model nobody owns). A CPU-only bound
+      cannot see a tick that sleeps or blocks, so it alone would lose I-11; a wall median alone cannot
+      see a heavy tick in 1–50 % of ticks, so it alone would loosen the ruled tail. Together:
+      - server: TickTimes keeps a second fixed histogram of the world thread's own CPU time per tick
+        (TickStart; `cpu-time` crate, DEP-59). Shutdown line: `[world] ticks N, p50 A ms, p99 B ms,
+        longest tick M ms, cpu p50 C ms, cpu p99 D ms`. A CPU clock the OS refuses records the wall
+        time instead (an upper bound).
+      - CP-B4 (hosted_town.rs) and CA-13 (perceived.rs) assert, through tools/cli/tests/support/ticks.rs:
+        CPU p99 ≤ 50 ms and wall p50 ≤ 50 ms. Wall p99 and max are printed, advisory only.
+      - Accepted gap: an off-CPU wait in fewer than half the ticks (the journal's fsync per hosted
+        request, Durability::PowerLoss, on a slow disk) shows only in the advisory columns. E-SB9
+        measured a commit at ≤ 5.1 ms even beside eight fsync-heavy servers; a durability regression is
+        R-S11-5's to watch.
+      Records: ARC-42 note of 2026-10-15; DEP-59 (cpu-time vs our own unsafe over libc/windows-sys);
+      MODULE_SPEC §8.1's shutdown line. The stray `>` that ended DECISIONS.md (merge ca9a423) is gone.
+E-TK1 Unit (server/src/runtime/world.rs): the_p99_ignores_one_stall_in_a_hundred_and_not_two (kept,
+      both clocks); a_stall_off_cpu_is_wall_time_and_busy_work_is_cpu_time;
+      a_tick_records_its_own_threads_work (busy loop to 20 ms of thread clock counted; a 60 ms sleep
+      reads ≥ 60 ms wall and < 30 ms CPU). PASS, macOS.
+E-TK2 Under load (macOS, Apple silicon): hosted_town's test binary run 20 times while one
+      `cargo build --workspace --all-targets` ran from clean in a loop in its own target dir (13 hog
+      builds completed, all exit 0), with other lanes' work also on the machine. 20 / 20 PASS.
+      Load average (1-minute) before/after each run ranged 10.9 → 158.2; runs 11–12 at 113–158.
+      CPU p50 0.4–0.5 ms, CPU p99 1.7–3.7 ms; wall p50 0.4–0.5 ms; advisory wall p99 2.3–6.7 ms, max
+      6–195 ms (runs 11, 12, 13: 195, 171, 71 ms). Run 13 was cut by the session's background time limit
+      the first time and re-run whole (log kept as interrupted). This machine did not reproduce CI's
+      wall-p99 tail; the runs at loads above 100 show the wall maximum leaving the CPU column behind,
+      the decoupling the bound relies on.
+E-TK3 Planted mutations, each in server/src/runtime.rs `tick` just before the record, reverted after
+      (`grep MUTATION` clean, `git diff` shows only the change):
+      M-tick-sleep  sleep 60 ms every tick → FAIL by name: "the median tick took 64.7 ms of wall
+                    time, over 50 ms — cpu p50 0.4 ms, cpu p99 1.7 ms; wall p50 64.7 ms; advisory:
+                    wall p99 68.5 ms, max 85 ms". The CPU column did not move.
+      M-tick-burn   busy loop 60 ms every tick → FAIL by name: "the p99 tick's CPU time was 61.2 ms,
+                    over 50 ms — cpu p50 60.2 ms …".
+      M-tick-burn-tail  busy loop 60 ms in one tick in twenty → FAIL by name: "the p99 tick's CPU
+                    time was 60.9 ms, over 50 ms — cpu p50 0.3 ms, cpu p99 60.9 ms; wall p50 0.3 ms"
+                    — the tail a median alone would have passed.
+E-TK4 Merge of origin/main @ 5cbb469 (2026-10-17; branch head a53ad33, merge base 2d07c6c). One textual
+      conflict: docs/DECISIONS.md, where this branch's DEP-59 and main's ARC-105…108, ARC-98…101,
+      ARC-120…126 and ARC-110 were appended at the same place. Resolved by keeping every record, DEP-59
+      first, then main's, with a `---` rule between; check_decision_ids.py: 150 ids, all distinct.
+      Main did not touch Cargo.lock or scripts/baselines.txt since the merge base (cargo metadata
+      --locked and cargo fetch --locked pass); main's sharded .github/workflows/ci.yml (#224) taken
+      as-is, this branch does not edit it. On the merged tree: cargo fmt --check; clippy -D warnings on
+      mineworld-server and mineworld-cli clean; mineworld-server tests all ok; mineworld-cli --test
+      hosted_town (1 passed, 120.7 s) and --test perceived (3 passed, 1 ignored) PASS at load ~13.
+      CI on that head (937c5b9): every job passed except python (windows-2025), where
+      cognition/lm-controller's test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_
+      second_seat_and_leaves_on_stop failed with SeatLost. This branch changes no cognition code; the
+      same test file hangs or fails on Windows on main and on other PRs (main run 38809489941). Not a
+      finding against this fix.
+E-TK5 Second merge of origin/main @ 04d5145 (2026-10-17; S10 P6a #236, S30-b #247). No conflict;
+      cargo metadata --locked and cargo fetch --locked pass, cargo fmt --check clean, decision ids
+      distinct (151). No local test run (operator pause on heavy jobs); CI on the pushed head is the
+      gate.
 ```
 
 ---
@@ -4396,3 +4463,256 @@ S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs,
   `mvp0/pr-s11c-perception`; S11-D in `/Users/yuema137/mineworld-worktrees/impl-s11d` on
   `mvp0/pr-s11d-admin`. Each is held by one session.
 
+
+# 20. PR S11-E — the proof (commit plan; bounded detail under §9.5)
+
+**Lifecycle:** `IMPLEMENTING` under §9.5's frozen scope (step frozen 2026-10-08). §9.5 left S11-E at
+step level ("detailed to the commit" was never written for it); this section is that detail, written by
+the implementation session at its start as a **bounded detail under the frozen scope**, not a revision of
+it: it adds no checkpoint, removes none, and touches only the paths §9.5's adversarial criterion allows
+(`tools/cli/tests/`, `server/tests/`, `clients/protocol/` demo, checks, run script and evidence, and
+Markdown). Recorded as deviation **D-SE1** (§20.8).
+
+**Authority.** The primary session's brief of 2026-10-15 assigns S11-E to this session in worktree
+`/Users/yuema137/mineworld-worktrees/impl-s11e`, branch `mvp0/pr-s11e` from `origin/main @ 5cbb4697`,
+with commits, push and PR creation authorized and merge reserved to the operator.
+
+## 20.1 Identity, base, scope
+
+```text
+PR            S11-E — four clients, one world (AC-7); INV-9 over revision 2; the far side (R-9)
+base          origin/main @ 5cbb4697 (S11-A … S11-D merged; S27-a #205 merged: seat grants and the
+              per-seat request budget, default 10/s burst 20, ARC-97)
+branch        mvp0/pr-s11e, worktree /Users/yuema137/mineworld-worktrees/impl-s11e, one session
+scope         CP-E1 tools/cli/tests/ac7_many_players.rs (new)
+              CP-E2 clients/protocol/checks/rev2_check.gd (new), run.sh mode `rev2`,
+                    clients/protocol/evidence/rev2/ (new)
+              CP-E3 tools/cli/tests/inv9_closed_vocabulary.rs (new)
+              CP-E4 owned by CI on the exact PR head (R-LOAD-1): no production file changes, so the
+                    digests and the named suites are re-proven there, not re-run locally
+              docs  docs/NETWORKING.md §5 note (§13: admin commands are HTTP, not frames);
+                    clients/protocol/evidence/README.md; this section; handoff-s11e.md
+not in scope  any production change (server/src, tools/cli/src, systems/, kernel/, contracts/,
+              persistence/, worlds/, clients/protocol/mineworld/); wiring the Godot run into CI (S13's)
+```
+
+## 20.2 Audit anchors (`origin/main @ 5cbb4697`)
+
+| Fact | Where | Consequence |
+| --- | --- | --- |
+| A seat's requests are bounded per seat, 10/s sustained, burst 20, refused `rate_limited` past it (S27-a, `ARC-97`) | `tools/cli/src/main.rs` `--request-budget` default; `server/src/seats.rs` `Bucket` | The AC-7 clients pace themselves at one request per 110 ms, as a real client does; no test widens the budget |
+| `walk-to` plans a route through doorways; a `{ person }` destination is same-place only and ends 1 200 mm short (`PERSON_APPROACH`) | `systems/movement/src/action.rs` | Carol (apartments) walks `walk-to { place: cafe }` first, then everybody `walk-to { person: alice }`; 1.2 m is inside `talk`'s 3 m |
+| Every person's routine entry current at 00:00 is the apartments | `worlds/market-town/people/*.yaml` | No paced NPC heads for the café in the first minutes, so nobody but a player buys there during the test |
+| The reactive controller's reply quotes the speaker's own words; it is addressed to them | `cognition/rule-controller/src/act.rs` `reply_to` | "Alice answers each by name" is read as: each player's own disclosed history holds a line from Alice quoting that player's line, and each line carries the player's nickname (D-SE2) |
+| A Person's own `conversation-history` is disclosed only to the connection seated on it (`INV-13`) | `tools/cli/tests/ac15_one_alice.rs` | "Alice's disclosed history" is read by a fifth connection that takes the `alice` seat from her agent after the four have been answered (D-SE3) |
+| An `observation` frame carries `revision` but no instance; `welcome.world.instance` and `/status` do | `server/PROTOCOL.md` §5 | "the last observation of each name the same instance" is checked as the welcomes' instance = `/status`'s, and the observations' revisions (D-SE4) |
+| While the host has paused the clock, sweeps continue and nothing is consulted or advanced | `server/src/runtime.rs` `tick` | The far side's keyframe comparison is made inside host pauses, where the reconstruction held and the next keyframe describe one unchanged state (D-SE5) |
+| Revision-2 client frames are `join`, `submit`, `leave`; every variant denies unknown fields | `server/src/protocol.rs` `CLIENT_FRAME_TAGS` | CP-E3's `leave` misuse (a `leave` naming a seat) is `malformed_frame` and releases nothing |
+
+## 20.3 Acceptance (decided before measuring, `ARC-23`)
+
+```text
+SE-1  (CP-E1, AC-7)  mineworld server worlds/market-town --town --agent alice --save DIR
+      four connections join visitor, wanderer, bob, carol with four nicknames; all four welcomes
+      say took_over "hosted" (with --town the town drives every seat nobody plays, QS11-3; D-SE6); all four welcomes name one instance,
+      the one /status names; a fifth connection asking for each of the four seats is refused
+      seat_occupied (the mutation M-SE1 must fail here, by name)
+      all four walk to Alice at once, each paced at one request per 110 ms, every request accepted
+      all four talk to her; each one's own history then holds a line from Alice quoting its own words
+      (and so its nickname)
+      visitor buys one offered, available, complete buy: wanderer, bob and carol each see that item's
+      in_stock exactly one lower in their own observations, perceive the visitor, and are disclosed
+      none of the visitor's wallet, holdings or conversation-history
+      for 3 wall seconds after the purchase all four are read at once: at least one revision ≥ the
+      purchase's is observed by all four, and at every revision observed by more than one of them,
+      every entity they all perceive stands at the same location and the listing is the same
+      (the mutation M-SE2 must fail here)
+      a fifth connection takes alice from her agent: her own history holds all four lines
+      the server is killed; mineworld replay verifies the save
+SE-2  (CP-E3, INV-9) mineworld server worlds/social-cafe --save DIR --admin-token T, inside the
+      routine-free first hour: set_state, move_to, give, clock, pause, kick, release are unknown_frame;
+      a submit as another Person is actor_not_observer; a join naming an observer and a leave naming a
+      seat are malformed_frame; a leave before any join is let go (closing left) and the seat it named
+      is still held by its player; a join after leave on a new connection is welcomed took_over none
+      as the same observer; every admin route without a token, and with a wrong one, is 401 no sooner
+      than 500 ms; after the table the revision /status reports is unchanged and the save holds the
+      genesis facts and nothing else (the mutation M-SE3 must fail here)
+SE-3  (CP-E2, R-9)   run.sh rev2: one headless Godot run of the protocol module against
+      mineworld server worlds/market-town --town --agent alice --hold 10, admin token from the
+      environment: join with invite and nickname (protocol 2); 60 s of deltas with no refusal, and
+      at three host pauses inside them the reconstruction held equals the next keyframe; drop the
+      socket and resume within the hold (took_over "held", the same observer); walk to Alice, talk,
+      and receive her spoke — a fact this client did not cause — in observation.events; kicked by
+      the admin route, reporting closing "kicked". Evidence in clients/protocol/evidence/rev2/
+SE-4  (CP-E4)        ac13, ac15, milestone_b, milestone_c, ac1_composability, the I-2 scan and both
+      300-day digests on the PR head: CI's default suite (no production file differs from base)
+```
+
+## 20.4 Commit plan
+
+**E-C1 — docs(plan): S11-E commit plan and handoff.** This section; `handoff-s11e.md`.
+- [x] Implementation: §20 written; handoff initialized.
+- [x] Validation: `python3 scripts/check_doc_headings.py` (E-SE1).
+- [x] Review: every SE-n maps to one §9.5 checkpoint; no path outside §9.5's allowance (E-SE1).
+
+**E-C2 — test(cli): AC-7, four clients in one world (CP-E1).** `tools/cli/tests/ac7_many_players.rs`
+(commit `2bf673f5`).
+- [x] Implementation: SE-1 as written, through `support` and `market` only; `paced` (110 ms) local to the
+      file; the replies also carry forward (from the second player on, Alice quotes an earlier player's
+      line — AC-15's one-Alice claim across four clients).
+- [x] Validation: PASS on the real binary in 10.2 s (E-SE2); M-SE1, M-SE2, M-SE2b planted and reverted,
+      each failing at its assertion (E-SE5).
+- [x] Review: every claim reads only frames, `/status` and `mineworld replay`; two worlds fail the instance
+      and carry-forward checks, per-observer state fails the same-revision check (M-SE2), a leak fails
+      the INV-13 check (M-SE2b).
+
+**E-C3 — test(cli): INV-9 over revision 2 (CP-E3).** `tools/cli/tests/inv9_closed_vocabulary.rs`
+(commit `0d31b118`).
+- [x] Implementation: SE-2 as written.
+- [x] Validation: PASS in 6.1 s (E-SE3); M-SE3 (admin admits any bearer) and M-SE4 (`deny_unknown_fields`
+      dropped from `ClientFrame`) each fail (E-SE5).
+- [x] Review: the table covers the three revision-2 kinds (`join` naming an observer, `submit` as
+      another, `leave` naming a seat, `leave` before `join`, `join` after `leave`), seven unknown kinds
+      including the host's four words, and all six admin routes with no token and a wrong one.
+
+**E-C4 — test(clients): the far side over revision 2 (CP-E2).** `checks/rev2_check.gd`, `run.sh rev2`,
+`evidence/rev2/`, `evidence/README.md` (commit `daa3c956`).
+- [x] Implementation: SE-3 as written; the module (`clients/protocol/mineworld/`) unchanged. Two bounded
+      additions found by its own mutation (D-SE7): each pause is asked only after 25 live deltas since a
+      keyframe, and the visitor paces 500 mm back and forth once a second during the window.
+- [x] Validation: `run.sh rev2` PASS, 0 failures, evidence committed (E-SE4); M-SE6a (`at` ignored) and
+      M-SE6b (upserts of held entities ignored) each fail the keyframe comparison (E-SE5).
+- [x] Review: no invite, admin token or resume secret in either evidence file (`run.sh rev2` greps for
+      both secrets and fails if found; checked by hand too).
+
+**E-C5 — docs: NETWORKING.md §5 (§13's proposed note)** (commit `66a0a7f1`).
+- [x] Implementation: admin commands are the HTTP control plane's (§3), never a client frame.
+- [x] Validation: `python3 scripts/ci_layer.py docs` PASS (3 commands); doc headings check PASS.
+- [x] Review: agrees with `PROTOCOL.md` §11 and SE-2's unknown_frame rows for `clock`, `pause`, `kick`,
+      `release`.
+
+**E-C6 — docs(plan): S11-E ledger close.** §20.7–§20.8, handoff.
+- [x] Implementation: this ledger and the handoff.
+- [ ] Validation: CI on the exact PR head (recorded in the handoff and the PR, not here: a commit cannot
+      carry its own CI).
+- [x] Review: every SE-n has evidence or a named owner (SE-4: CI).
+
+## 20.5 Test ownership
+
+| Failure class | Owner |
+| --- | --- |
+| Several clients see different worlds, or different states at one revision | SE-1, real binary |
+| A seat bound twice | SE-1 (refusal), `server/tests/seats.rs` (race, S11-B) |
+| A state-asserting message or an admin call without a token changes anything | SE-2, real binary |
+| The GDScript applier diverges from the server's whole observation | SE-3, real Godot |
+| Regression of earlier criteria | CI default suite on the head (SE-4) |
+| Real-model behaviour | NOT REQUIRED: no model is attached (`--agent` is the deterministic rule controller) |
+
+## 20.6 Execution contract
+
+```text
+PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-E — the proof
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §20 (scope §9.5)
+RELATED / BINDING   this file §§4, 5, 6, 9.5, 10, 13, 15–18; server/PROTOCOL.md rev 2; DECISIONS ARC-23,
+                    ARC-97; CLAUDE.md §§2–4; R-LOAD-1 (targeted runs only, heavy runs in cast-slots)
+IMPLEMENTATION BASE origin/main @ 5cbb4697; branch mvp0/pr-s11e; worktree impl-s11e, one session
+APPROVED SCOPE      §20.1
+FROZEN INVARIANTS   no production change; I-1 … I-12 untouched; the request budget is respected, never
+                    widened; no secret in any committed file
+VALIDATION BUDGET   targeted real-binary tests (each < 3 min), mutations one at a time, Godot rev2 at most
+                    three runs; no local full suite (R-LOAD-1); CI is the gate
+ENDPOINT AUTHORITY  implementation, commits, push, PR create/update, CI repair: authorized (primary
+                    session's brief, 2026-10-15); merge: operator only, never inherited
+NORMAL STOP         PR S11-E READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any production change needed for a checkpoint to pass (it would be a defect to
+                    report, not to patch here)
+```
+
+## 20.7 Evidence ledger
+
+- **E-SE0 (base).** `origin/main @ 5cbb4697`, worktree clean; no other process in `impl-s11e`.
+- **E-SE1 (E-C1).** `python3 scripts/check_doc_headings.py`: "239 numbered sections across 33
+  documents, none duplicated". PASS.
+- **E-SE2 (SE-1).** `with-slot.sh cargo test -p mineworld-cli --test ac7_many_players -- --nocapture`
+  on the working tree that became `2bf673f5`: 1 passed, 10.2 s (load avg ≈ 11). Printed: Alice answered
+  visitor "…You are the first person to speak to me here"; wanderer and bob "…Earlier, Vera Lindgren said
+  \"hello Alice, it is Mira at the counter\""; carol "…Earlier, Bob Achterberg said \"…Sol…\"". "one
+  world: 4 revisions observed by all four after the purchase ([56, 59, 63, 68]); 24 (revision, person)
+  locations compared". Re-run with clippy after the carry-forward assertion: PASS (10.15 s). PASS.
+- **E-SE3 (SE-2).** `cargo test -p mineworld-cli --test inv9_closed_vocabulary`: 1 passed, 6.06 s. PASS.
+  `cargo clippy -p mineworld-cli --tests -- -D warnings`: clean; `cargo fmt --check`: clean.
+- **E-SE4 (SE-3).** `with-slot.sh bash clients/protocol/run.sh rev2` (Godot 4.7.2 headless, macOS): "PASS
+  — 0 failure(s)"; three pauses compared after 42, 25 and 25 live deltas, 667 deltas applied, 0 refused,
+  0 pauses discounted; spoke #148 heard; welcomed `held` as "17"; closing `kicked`. Logs in
+  `clients/protocol/evidence/rev2/`. PASS. Five Godot runs in all (two before D-SE7, three after),
+  over the three planned (D-SE8).
+- **E-SE5 (mutations; each planted in the working tree, run, then `git checkout` of the file).**
+
+  | Id | Mutation | Expected | Observed |
+  | --- | --- | --- | --- |
+  | M-SE1 | `seats.rs` `decide`: a connected seat granted without `take_over` (a second join accepted) | SE-1 fails by name | FAIL at "a second join on the occupied seat visitor must be refused seat_occupied, and the server said Welcome { … took_over: Connection …}" |
+  | M-SE2 | `presence/observe.rs`: other people's location omitted for odd observer ids (one client sees a different position at the same revision) | same-revision check fails | FAIL "at revision 56, alice stands in one place for every player who sees it: {Some(None), Some(Some(Location { … 6000, 8000 … }))}" |
+  | M-SE2b | `economy/system.rs` `discloses`: the wallet disclosed to every observer | INV-13 check fails | FAIL "wanderer is disclosed none of the visitor's own state (INV-13): left [\"wallet\"]" |
+  | M-SE3 | `admin.rs` `permitted`: every request admitted | 401 row fails | FAIL "GET /admin/sessions with None: … left: 200" |
+  | M-SE4 | `protocol.rs`: `deny_unknown_fields` dropped from `ClientFrame` | malformed row fails | FAIL "{\"seat\":\"wanderer\",\"t\":\"leave\"} must be refused, and the server said Closing { reason: Left }" — the leave would have closed the sender's own seat |
+  | M-SE6a | `delta.gd`: `at` kept from the held frame | keyframe comparison fails | FAIL at all three pauses |
+  | M-SE6b | `delta.gd`: an upsert of an entity already held ignored | keyframe comparison fails | first SURVIVED (D-SE7); after D-SE7, FAIL at pause 1 (2 and 3 matched, the visitor back at its anchor) |
+- **E-SE6 (static, repository checks).** `python3 scripts/ci_layer.py docs`: PASS; `check_scratch.py scan`:
+  "238 test sources, none makes scratch outside mineworld-test-support"; `check_client_rules.py`: PASS.
+- **E-SE8 (independent review of `95bc6e4d`, REQUEST CHANGES; fix in the next commit).**
+  - **R1 (blocker):** the reviewer planted, in `server/src/runtime/delivery.rs` `sweep`, "the wanderer is
+    sent the observation of 10 sweeps ago, labelled with the current revision". It SURVIVED SE-1:
+    nobody moved during the 3 s `record` window, so a stale observation equalled a fresh one. M-SE2 was
+    caught only because it removed a field. Fix (D-SE9): the visitor paces 300 mm east and back, one
+    fire-and-forget `move` every 500 ms during `record` (two a second, inside the budget), and a
+    non-vacuity guard asserts that somebody perceived stands in two different places across the
+    revisions all four observed. Re-run here on the fixed test (`with-slot.sh`, clean tree plus R1
+    planted with a ten-deep per-thread queue, then `git checkout`): clean PASS in 10.11 s, "9 revisions
+    observed by all four after the purchase ([57, 58, 61, 62, 63, 67, 68, 69, 74]); 60 (revision,
+    person) locations compared; moved across them: [\"visitor\"]"; R1 FAIL "at revision 64, visitor stands
+    in one place for every player who sees it: {… x 5388 …, … x 5688 …}". `cargo clippy -p mineworld-cli
+    --tests -- -D warnings` clean.
+  - **Non-blocking:** `walk_to` treated every rejected `walk-to` as "already there". Movement's
+    `walk::begin` has no such refusal, so a rejected `walk-to` now fails the test, naming the rejection.
+  - **R2 (coverage note, no change):** charging one seat's requests to another seat's budget bucket
+    survives SE-1; per-seat budget isolation is owned by `server/src/seats/budget_tests.rs`, not by AC-7.
+- **E-SE7 (SE-4).** Owned by CI on the exact PR head; no file under a production path differs from
+  `5cbb4697` (`git diff --stat origin/main -- server/src tools/cli/src systems kernel contracts
+  persistence worlds clients/protocol/mineworld` is empty).
+
+## 20.8 Deviations and discoveries
+
+- **D-SE1 — the commit plan is written at execution.** §9.5 was never expanded to the commit (§§15–18
+  were, for A–D). Previous assumption: a §20 design would be frozen before execution. Evidence: no S11-E
+  design exists on `main @ 5cbb4697`. Resolution: written here as bounded detail under §9.5's frozen
+  scope and its adversarial criterion (allowed paths); no checkpoint changed.
+- **D-SE2 — "answers each by name".** Nicknames are not world data (QS11-7), so Alice cannot know them;
+  the reactive controller quotes the speaker's own line back to them. Each player's line therefore
+  carries its nickname, and the claim is that each reply, addressed to that player, quotes it.
+- **D-SE3 — "Alice's disclosed history".** Her history is disclosed only to her own seat (`INV-13`); a
+  fifth connection takes the seat from her agent after all four were answered and reads it there —
+  through the protocol, never from the server's memory.
+- **D-SE4 — instance in observations.** Revision 2's observation frame carries no instance (§5); the
+  instance is checked on the four welcomes and `/status`, the revision on the observations.
+- **D-SE5 — keyframes from the far side.** A keyframe replaces a delta rather than accompanying one, so on
+  one connection the reconstruction at seq N and the server's whole observation at seq N never coexist.
+  They coincide only when nothing changed between N−1 and N: inside a host pause (sweeps continue,
+  nothing advances). The check pauses the host three times inside the 60 s and compares the
+  reconstruction held, accumulated from live deltas since the previous keyframe, with the next keyframe.
+- **D-SE6 — "two of them taken over from the town".** §9.5 counted bob and carol; since QS11-3 (`--town`
+  drives the player seats too) all four seats are the town's until joined, so all four welcomes say
+  `hosted`. Stronger than §9.5's wording, not weaker; asserted for all four.
+- **D-SE7 — the far side's comparison must be fed by changes.** Previous assumption: comparing at a
+  pause's keyframe exercises live deltas. Evidence: M-SE6b survived the first run — a keyframe could
+  arrive inside the pause before the comparison (so the held frame was built from empty deltas), and in
+  a night-time café nothing the visitor perceived changed between keyframe and pause. Correction: a pause
+  is asked only after 25 live deltas since a keyframe and is not counted if a keyframe arrives after it
+  is asked (it is asked again); the visitor paces 500 mm back and forth once a second during the window,
+  so its own entity is among what the deltas change. M-SE6b then fails.
+- **D-SE9 — AC-7's same-revision check must be fed by changes (review R1).** Previous assumption: four
+  clients agreeing at each revision proves one world. Evidence: R1, a stale observation under the current
+  revision, survived because nothing moved in the window — the weakness D-SE7 fixed on the far side,
+  not carried over to SE-1. Correction: the visitor paces during `record`, and a guard requires
+  observed movement across the shared revisions (E-SE8). R1 now fails by name.
+- **D-SE8 — Godot budget.** §20.6 allowed three `run.sh rev2` runs; five were made (D-SE7 needed two
+  more). Each is about 90 s; recorded rather than hidden.

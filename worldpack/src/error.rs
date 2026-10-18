@@ -465,6 +465,65 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// A directory of a World Pack or a required Entity Pack that is neither a format directory, nor
+    /// `decisions:`'s, nor one an installed System Pack owns (`ARC-121` item 1); or a subdirectory inside
+    /// a data directory. A name beginning with `.` is never content and is never refused.
+    #[error(
+        "{path} is not a directory this pack may have; the directories this build knows are: {known} \
+         (a directory whose name begins with '.' is ignored)"
+    )]
+    UnknownDirectory {
+        /// The directory.
+        path: PathBuf,
+        /// Every directory the pack may have in this build, sorted.
+        known: String,
+    },
+
+    /// A data directory an installed System Pack owns, in a world that does not enable that pack — as a
+    /// section of a pack not enabled is refused (`ARC-121` item 1).
+    #[error(
+        "{path}: the '{directory}' directory is the '{system}' system's data, but world.yaml does not \
+         enable it"
+    )]
+    DataNeedsASystem {
+        /// The directory's name.
+        directory: String,
+        /// The system that owns it.
+        system: SystemId,
+        /// The directory.
+        path: PathBuf,
+    },
+
+    /// A data owner refused its data as a whole — a duplicate across files, a namespace — in its own
+    /// words (`ARC-121` item 1).
+    #[error(
+        "{}the '{system}' system refused its data: {reason}",
+        .file.as_ref().map(|file| format!("{}: ", file.display())).unwrap_or_default()
+    )]
+    DataRefused {
+        /// The owner.
+        system: SystemId,
+        /// The file it names, when it names one.
+        file: Option<PathBuf>,
+        /// Why, in the owner's words.
+        reason: String,
+    },
+
+    /// A data owner refused its resolution across subjects (`ARC-121` item 3), or named a subject it was
+    /// not given.
+    #[error(
+        "the '{system}' system refused to resolve{}: {reason}",
+        .subject.as_ref().map(|subject| format!(" '{subject}'")).unwrap_or_default()
+    )]
+    ResolveRefused {
+        /// The owner.
+        system: SystemId,
+        /// The subject it names, when it names one.
+        subject: Option<EntityKey>,
+        /// Why, in the owner's words.
+        reason: String,
+    },
+
     /// A value in the pack is not a legal contract value — a key with a capital letter, a tag with a
     /// space, an over-long name.
     ///

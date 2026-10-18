@@ -16,6 +16,9 @@
 #                         worlds/market-town --town                         (checks/delta_check.gd)
 #   ./run.sh admin       headless: the clock frame, pause, resume and kick through the admin surface,
 #                         with a generated MINEWORLD_ADMIN_TOKEN           (checks/admin_check.gd)
+#   ./run.sh rev2        headless: revision 2 in one run against worlds/market-town --town --hold 10 —
+#                         join, a spoke, 60 s of deltas compared with keyframes in host pauses, resume,
+#                         kick; evidence in evidence/rev2/                  (checks/rev2_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
 # operating system chooses, and stops it afterwards — only the server it started, by its own PID, so
@@ -219,6 +222,28 @@ admin)
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/admin-social-cafe.log" && outcome=1
 	grep -l -- "$MINEWORLD_ADMIN_TOKEN" "$here/evidence/server-admin.log" "$here/evidence/admin-social-cafe.log" \
 		&& { echo "the admin token reached an evidence file" >&2; outcome=1; }
+	exit "$outcome"
+	;;
+rev2)
+	# Revision 2 from the far side in one run (step-12 §9.5 CP-E2): join, a spoke, 60 s of deltas
+	# compared with keyframes inside host pauses, drop and resume, kick. Market Town as a town with
+	# Alice answering and a 10 s hold; the admin token made here, as in `admin`.
+	MINEWORLD_ADMIN_TOKEN="run-sh-rev2-$$-$RANDOM$RANDOM"
+	export MINEWORLD_ADMIN_TOKEN
+	server_extra=(--town --hold 10)
+	mkdir -p "$here/evidence/rev2"
+	: > "$here/evidence/rev2/server.log"
+	start_server "$here/evidence/rev2/server.log" market-town
+	godot --headless --path "$here" --script res://checks/rev2_check.gd -- \
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/rev2/rev2-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/rev2/rev2-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/rev2/rev2-market-town.log" && outcome=1
+	grep -l -e "$MINEWORLD_ADMIN_TOKEN" -e "$invite" "$here/evidence/rev2/server.log" \
+		"$here/evidence/rev2/rev2-market-town.log" \
+		&& { echo "a secret reached an evidence file" >&2; outcome=1; }
 	exit "$outcome"
 	;;
 play)

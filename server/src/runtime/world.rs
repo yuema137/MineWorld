@@ -104,15 +104,82 @@ impl HostClock {
     }
 }
 
-/// How long the world thread's ticks took: counted, and the longest kept, for the operator's
-/// statistics line on shutdown (`ARC-42`, step-12 CP-B4).
+/// How long the world thread's ticks took, in wall time and in the thread's own CPU time, for the
+/// operator's statistics line on shutdown (`ARC-42`, step-12 CP-B4).
 ///
-/// Kept as a histogram of 0.1 ms buckets up to one second (and one bucket beyond), so a server that
-/// runs for months holds a fixed 80 KB rather than a sample per tick. A percentile is reported as its
-/// bucket's upper edge: never under the true value, by at most 0.1 ms. CP-B4 bounds the p99 and
-/// reports the maximum beside it (step-12 §16.4, operator ruling on D-SB12).
+/// Wall time is what a client feels; CPU time is the work the tick itself did. They differ when the
+/// thread is off-CPU — descheduled by a busy host, or waiting on the journal's fsync — so a stall the
+/// server cannot control lengthens the wall time and not the CPU time (step-12 E-SB9). CP-B4 bounds
+/// the CPU p99 and the wall p50, and reports the wall p99 and maximum beside them (operator ruling of
+/// 2026-10-15 amending D-SB12, F-tick-1; `DEP-59`).
+#[derive(Default)]
 pub(super) struct TickTimes {
-    ticks: u64,
+    wall: Histogram,
+    cpu: Histogram,
+}
+
+/// When a tick started, on both clocks.
+pub(super) struct TickStart {
+    wall: Instant,
+    /// `None` when the OS refused the thread's CPU clock; the tick's CPU time is then taken as its wall
+    /// time, an upper bound, so a missing clock can only make the bound harder to meet.
+    cpu: Option<cpu_time::ThreadTime>,
+}
+
+impl TickStart {
+    /// A tick that starts now, on both clocks (the tests of this module).
+    #[cfg(test)]
+    pub(super) fn now() -> Self {
+        Self::at(Instant::now())
+    }
+
+    /// A tick that starts at the wall instant `wall` (`WorldRuntime::tick` passes `Instant::now()`; the
+    /// tests inject one, AC-TWc-2), with the thread's CPU clock read now.
+    pub(super) fn at(wall: Instant) -> Self {
+        Self {
+            cpu: cpu_time::ThreadTime::try_now().ok(),
+            wall,
+        }
+    }
+}
+
+impl TickTimes {
+    /// Records the tick that began at `start` and ends now. Called on the thread that took `start`
+    /// (`ThreadTime` is neither `Send` nor `Sync`, so it cannot be otherwise).
+    pub(super) fn record_since(&mut self, start: &TickStart) {
+        let wall = start.wall.elapsed();
+        let cpu = start
+            .cpu
+            .and_then(|began| began.try_elapsed().ok())
+            .unwrap_or(wall);
+        self.record(wall, cpu);
+    }
+
+    fn record(&mut self, wall: Duration, cpu: Duration) {
+        self.wall.record(wall);
+        self.cpu.record(cpu);
+    }
+
+    pub(super) fn report(&self) -> String {
+        format!(
+            "[world] ticks {}, p50 {:.1} ms, p99 {:.1} ms, longest tick {} ms, cpu p50 {:.1} ms, cpu \
+             p99 {:.1} ms",
+            self.wall.count,
+            self.wall.percentile(500),
+            self.wall.percentile(990),
+            self.wall.longest.as_millis(),
+            self.cpu.percentile(500),
+            self.cpu.percentile(990),
+        )
+    }
+}
+
+/// Durations counted in 0.1 ms buckets up to one second (and one bucket beyond), with the longest
+/// kept, so a server that runs for months holds a fixed 80 KB per histogram rather than a sample per
+/// tick. A percentile is reported as its bucket's upper edge: never under the true value, by at most
+/// 0.1 ms.
+struct Histogram {
+    count: u64,
     longest: Duration,
     buckets: Vec<u64>,
 }
@@ -121,19 +188,19 @@ pub(super) struct TickTimes {
 const BUCKET_MICROS: u128 = 100;
 const BUCKETS: usize = 10_000;
 
-impl Default for TickTimes {
+impl Default for Histogram {
     fn default() -> Self {
         Self {
-            ticks: 0,
+            count: 0,
             longest: Duration::ZERO,
             buckets: vec![0; BUCKETS + 1],
         }
     }
 }
 
-impl TickTimes {
-    pub(super) fn record(&mut self, took: Duration) {
-        self.ticks += 1;
+impl Histogram {
+    fn record(&mut self, took: Duration) {
+        self.count += 1;
         self.longest = self.longest.max(took);
         let bucket = usize::try_from(took.as_micros() / BUCKET_MICROS).unwrap_or(BUCKETS);
         self.buckets[bucket.min(BUCKETS)] += 1;
@@ -142,10 +209,10 @@ impl TickTimes {
     /// The `per_mille`th tick duration in milliseconds, as its bucket's upper edge; the overflow
     /// bucket answers with the longest tick.
     fn percentile(&self, per_mille: u64) -> f64 {
-        if self.ticks == 0 {
+        if self.count == 0 {
             return 0.0;
         }
-        let rank = (self.ticks * per_mille).div_ceil(1_000).max(1);
+        let rank = (self.count * per_mille).div_ceil(1_000).max(1);
         let mut seen = 0;
         for (bucket, count) in self.buckets.iter().enumerate() {
             seen += count;
@@ -157,16 +224,6 @@ impl TickTimes {
             }
         }
         self.longest.as_secs_f64() * 1_000.0
-    }
-
-    pub(super) fn report(&self) -> String {
-        format!(
-            "[world] ticks {}, p50 {:.1} ms, p99 {:.1} ms, longest tick {} ms",
-            self.ticks,
-            self.percentile(500),
-            self.percentile(990),
-            self.longest.as_millis()
-        )
     }
 }
 
@@ -377,26 +434,92 @@ mod tests {
     #[test]
     fn the_p99_ignores_one_stall_in_a_hundred_and_not_two() {
         let mut times = TickTimes::default();
+        let tick = Duration::from_micros(1_050);
         for _ in 0..99 {
-            times.record(Duration::from_micros(1_050));
+            times.record(tick, tick);
         }
-        times.record(Duration::from_millis(160));
+        times.record(Duration::from_millis(160), tick);
         assert_eq!(
             times.report(),
-            "[world] ticks 100, p50 1.1 ms, p99 1.1 ms, longest tick 160 ms"
+            "[world] ticks 100, p50 1.1 ms, p99 1.1 ms, longest tick 160 ms, cpu p50 1.1 ms, cpu p99 \
+             1.1 ms"
         );
-        times.record(Duration::from_millis(170));
+        times.record(Duration::from_millis(170), tick);
         assert!(
-            times.report().contains("p99 160.1 ms"),
+            times.report().contains(", p99 160.1 ms"),
             "{}",
             times.report()
         );
         let mut beyond = TickTimes::default();
-        beyond.record(Duration::from_secs(3));
+        beyond.record(Duration::from_secs(3), Duration::from_secs(3));
         assert!(
-            beyond.report().contains("p99 3000.0 ms"),
+            beyond.report().contains(", p99 3000.0 ms"),
             "past the histogram, the longest: {}",
             beyond.report()
+        );
+    }
+
+    /// F-tick-1: a stalled tick lengthens the wall columns and not the CPU ones; a busy one both.
+    #[test]
+    fn a_stall_off_cpu_is_wall_time_and_busy_work_is_cpu_time() {
+        let mut stalled = TickTimes::default();
+        let mut busy = TickTimes::default();
+        let quick = Duration::from_micros(300);
+        for round in 0..100 {
+            let long = if round % 10 == 0 {
+                Duration::from_millis(200)
+            } else {
+                quick
+            };
+            stalled.record(long, quick);
+            busy.record(long, long);
+        }
+        assert!(
+            stalled
+                .report()
+                .ends_with("p99 200.1 ms, longest tick 200 ms, cpu p50 0.4 ms, cpu p99 0.4 ms"),
+            "{}",
+            stalled.report()
+        );
+        assert!(
+            busy.report().ends_with("cpu p50 0.4 ms, cpu p99 200.1 ms"),
+            "{}",
+            busy.report()
+        );
+    }
+
+    /// The CPU column is the thread's own clock: it counts a busy loop on the calling thread, and not
+    /// a sleep. The busy loop runs until the thread clock itself has moved 20 ms (with a wall cap), so a
+    /// loaded host that deschedules the test cannot make it read short.
+    #[test]
+    fn a_tick_records_its_own_threads_work() {
+        let mut times = TickTimes::default();
+        let start = TickStart::now();
+        let began = start.cpu.expect("this platform's thread CPU clock");
+        let cap = Instant::now() + Duration::from_secs(10);
+        let mut spins = 0_u64;
+        while began.elapsed() < Duration::from_millis(20) && Instant::now() < cap {
+            spins = std::hint::black_box(spins + 1);
+        }
+        times.record_since(&start);
+        assert!(
+            times.cpu.longest >= Duration::from_millis(20),
+            "{}",
+            times.report()
+        );
+        let mut asleep = TickTimes::default();
+        let start = TickStart::now();
+        std::thread::sleep(Duration::from_millis(60));
+        asleep.record_since(&start);
+        assert!(
+            asleep.wall.longest >= Duration::from_millis(60),
+            "{}",
+            asleep.report()
+        );
+        assert!(
+            asleep.cpu.longest < Duration::from_millis(30),
+            "{}",
+            asleep.report()
         );
     }
 }

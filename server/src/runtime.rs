@@ -63,7 +63,7 @@ use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
 use mineworld_persistence::PacingChange;
 use status::first_binding;
-use world::{ActionIds, Failure, HostClock, TickTimes};
+use world::{ActionIds, Failure, HostClock, TickStart, TickTimes};
 
 /// The world, and everything the server holds around it.
 pub(crate) struct WorldRuntime {
@@ -439,8 +439,9 @@ impl WorldRuntime {
     }
 
     /// [`tick`](Self::tick) at the wall instant `started`: the one entry the tests drive with an injected
-    /// wall clock (`ARC-42`, AC-TWc-2).
+    /// wall clock (`ARC-42`, AC-TWc-2). The thread's CPU clock is read here, whichever wall instant is given.
     pub(crate) fn tick_at(&mut self, started: Instant) {
+        let start = TickStart::at(started);
         let now = self.clock.now_at(started);
         let running = !self.clock.paused();
         self.table.expire(started, now);
@@ -456,7 +457,7 @@ impl WorldRuntime {
                 self.sweep();
             }
         }
-        self.ticks.record(started.elapsed());
+        self.ticks.record_since(&start);
     }
 
     /// Consults every in-server controller due by `now`, in instant order then seat order, each at

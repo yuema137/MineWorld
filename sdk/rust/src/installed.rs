@@ -44,9 +44,10 @@
 /// pub enum Capability { … }                 one variant per line, in the listed order
 /// pub const AVAILABLE: [Capability; N]      every capability, in the listed order
 /// impl Capability {
-///     resolve, id, section, owning_section, decode_section, configuration, decode_configuration,
-///     configuration_facts, interaction_section, biographical, package, version, install, provider,
-///     type_name
+///     resolve, id, section, owning_section, decode_section, decode_section_in, data, owning_data,
+///     decode_data_file, data_context, resolves, resolve_subjects, shipped, configuration,
+///     decode_configuration, configuration_facts, interaction_section, biographical, package,
+///     version, install, provider, type_name
 ///     register_extensions                   calls each extension line's register function once,
 ///                                           with one value of each listed type, lines and types
 ///                                           in the listed order — what a host does before it
@@ -189,6 +190,153 @@ macro_rules! installed {
             > {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::decode_section(map), )+
+                }
+            }
+
+            /// Decodes this capability's section as the next value of an authored file's map, in its
+            /// context when it has one (`ARC-121` item 2); a pack that owns its section by
+            /// `owns_section!` decodes exactly as [`Capability::decode_section`] does.
+            ///
+            /// # Errors
+            ///
+            /// As [`Capability::decode_section`], or a refusal naming the system when its section
+            /// needs a context it was not given.
+            pub fn decode_section_in<'de, A: $crate::__private::MapAccess<'de>>(
+                self,
+                map: &mut A,
+                context: ::core::option::Option<&dyn $crate::__private::OwnerContext>,
+            ) -> ::core::result::Result<
+                $crate::__private::Arc<dyn $crate::__private::AuthoredContent>,
+                A::Error,
+            > {
+                match self {
+                    $(
+                        Self::$Variant => {
+                            <$System as $crate::SystemPack>::decode_section_in(map, context)
+                        }
+                    )+
+                }
+            }
+
+            /// The data directories this capability owns, if any (`ARC-121` item 1).
+            pub const fn data(self) -> ::core::option::Option<$crate::DataOwnerDecl> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::DATA, )+
+                }
+            }
+
+            /// The capability that owns the data directory written `name`, and that directory, if
+            /// this build has one — the first in the listed order (the installed set's guard refuses
+            /// two owners of one directory).
+            pub fn owning_data(
+                name: &str,
+            ) -> ::core::option::Option<(Self, $crate::__private::DataDirectory)> {
+                AVAILABLE.into_iter().find_map(|capability| {
+                    capability
+                        .data()
+                        .and_then(|data| data.directory(name))
+                        .map(|directory| (capability, directory))
+                })
+            }
+
+            /// Decodes one data file of this capability's `directory` with the owner's own type,
+            /// straight from the stream (`DEP-10`). The loader holds the result without knowing its
+            /// type.
+            ///
+            /// # Errors
+            ///
+            /// The deserializer's error for an invalid file, or a refusal naming the system when it
+            /// owns no such directory.
+            pub fn decode_data_file<'de, D: $crate::__private::Deserializer<'de>>(
+                self,
+                directory: $crate::__private::DataDirectory,
+                deserializer: D,
+            ) -> ::core::result::Result<
+                ::std::boxed::Box<dyn ::core::any::Any + ::core::marker::Send + ::core::marker::Sync>,
+                D::Error,
+            > {
+                match self {
+                    $(
+                        Self::$Variant => <$System as $crate::SystemPack>::decode_data_file(
+                            directory,
+                            deserializer,
+                        ),
+                    )+
+                }
+            }
+
+            /// This capability's context, from its decoded data files in collection order and its
+            /// own decoded configuration (`ARC-121` item 1).
+            ///
+            /// # Errors
+            ///
+            /// The owner's refusal.
+            pub fn data_context(
+                self,
+                files: ::std::vec::Vec<(
+                    $crate::__private::DataOrigin,
+                    ::std::boxed::Box<
+                        dyn ::core::any::Any + ::core::marker::Send + ::core::marker::Sync,
+                    >,
+                )>,
+                configuration: ::core::option::Option<
+                    &dyn $crate::__private::AuthoredConfiguration,
+                >,
+            ) -> ::core::result::Result<
+                $crate::__private::Arc<dyn $crate::__private::OwnerContext>,
+                $crate::__private::DataRefusal,
+            > {
+                match self {
+                    $(
+                        Self::$Variant => {
+                            <$System as $crate::SystemPack>::data_context(files, configuration)
+                        }
+                    )+
+                }
+            }
+
+            /// Whether this capability resolves across subjects before seeding (`ARC-121` item 3).
+            pub const fn resolves(self) -> bool {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::RESOLVES, )+
+                }
+            }
+
+            /// This capability's resolution over `subjects`, once, before any seeding; [`None`] for a
+            /// capability that does not resolve (`SystemPack::resolve_subjects`).
+            ///
+            /// # Errors
+            ///
+            /// The owner's refusal.
+            pub fn resolve_subjects(
+                self,
+                context: ::core::option::Option<&dyn $crate::__private::OwnerContext>,
+                configuration: ::core::option::Option<
+                    &dyn $crate::__private::AuthoredConfiguration,
+                >,
+                subjects: &[$crate::__private::ErasedSubject<'_>],
+            ) -> ::core::result::Result<
+                ::core::option::Option<
+                    $crate::__private::Arc<dyn $crate::__private::ResolvedSeeds>,
+                >,
+                $crate::__private::ResolveRefusal,
+            > {
+                match self {
+                    $(
+                        Self::$Variant => <$System as $crate::SystemPack>::resolve_subjects(
+                            context,
+                            configuration,
+                            subjects,
+                        ),
+                    )+
+                }
+            }
+
+            /// The data files this capability's pack ships for an owner's directories (`ARC-121`
+            /// item 4).
+            pub const fn shipped(self) -> &'static [$crate::__private::ShippedData] {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::SHIPS, )+
                 }
             }
 
