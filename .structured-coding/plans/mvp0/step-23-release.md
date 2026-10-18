@@ -1246,6 +1246,7 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 | 2026-10-10 | Probes P-1 … P-9; full exports measured; the exported 3D link probe crashed | §§18.2–18.3 |
 | 2026-10-10 | **Stopped** at MS-Ra-1 and MS-Ra-2; C0 committed for the primary session's review | this section |
 | 2026-10-10 | C0 frozen by the primary session; RL-b's head checked (§18.7); C1 committed | §18.7, `a5601f0` |
+| 2026-10-17 | Revival session: `origin/main @ 5cbb469` merged (CI sharding ARC-110, nightly classifiers ARC-83, persona/authoring seam, memory, P7). Conflicts: `docs/DECISIONS.md` (ARC-80, DEP-38, DEP-41 kept beside main's ARC-81, DEP-43; ids distinct) and `scripts/ci_layer.py` `fast` (package.py self-test kept beside main's ci_* self-tests). RL-b (#131) is merged; RL-b2 (#212, the 512 px texture PR of the MS-Ra-2 ruling) is still an open draft, so C4's 3D half and C6 stay paused. Heavy local jobs paused by the operator: no Godot export or cargo run locally this session | `check_decision_ids` 155 distinct; `check_doc_headings` 240 sections; `package.py --self-test` 17/17; `ci_parity`, `ci_stability`, `check_ci_pins` self-tests ok (Python 3.12) |
 
 ## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
 

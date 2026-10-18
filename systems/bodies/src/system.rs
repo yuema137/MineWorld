@@ -61,8 +61,10 @@ impl System for BodiesSystem {
     /// away from a person within the controller's offset is no longer stopped by them (step-11 SD-Z5,
     /// FU-12c-1), which changes results, so a version-2 save is refused too. A Rapier upgrade also
     /// changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds the
-    /// two together).
-    const VERSION: SystemVersion = SystemVersion::new(3);
+    /// two together). Version 4: a walk starting inside the planner's margin first steps to the
+    /// nearest free point (step-11 §21.15 M-3), which changes the routes, and so the facts, of every
+    /// world with bodies and walkers, so a version-3 save is refused too.
+    const VERSION: SystemVersion = SystemVersion::new(4);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
     /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;

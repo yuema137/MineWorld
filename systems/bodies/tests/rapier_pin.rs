@@ -105,7 +105,7 @@ fn rapier_is_pinned_with_exactly_the_chosen_features_and_moves_with_this_packs_v
     // literals together, never one.
     assert_eq!(
         (BodiesSystem::VERSION, rapier[0].as_str()),
-        (SystemVersion::new(3), "0.36.0"),
+        (SystemVersion::new(4), "0.36.0"),
         "bodies' version and the locked Rapier move together"
     );
 }

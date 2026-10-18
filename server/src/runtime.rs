@@ -59,7 +59,7 @@ use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInst
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
 use status::first_binding;
-use world::{ActionIds, Failure, HostClock, TickTimes};
+use world::{ActionIds, Failure, HostClock, TickStart, TickTimes};
 
 /// The world, and everything the server holds around it.
 pub(crate) struct WorldRuntime {
@@ -113,7 +113,8 @@ impl WorldRuntime {
             hosted.hosted,
             config.hold,
             bound,
-        );
+        )
+        .with_budget(config.request_budget);
         // The kernel's next event identity, read once: the facts before it — genesis included —
         // were recorded before this host, and a perceived stream's live part starts after them.
         let next_event = hosted.world.world().schedule_snapshot().next_event;
@@ -222,12 +223,18 @@ impl WorldRuntime {
                 .detail("this world offers no such seat; GET /status lists the seats it has"));
         }
         let observer = self.observer_of(seat)?;
+        // Check 4a (S27-a): a seat grant admits only the seats it names. Before the seat table is
+        // asked, so a refused grant displaces nobody and the connection may join again.
+        if !request.rights.names(seat) {
+            return Err(Refusal::new(RefusalCode::NotGranted)
+                .detail("this credential does not admit this seat"));
+        }
         // Before the seat table is asked, so that a cursor this world cannot serve grants nothing.
         let start = self.perceived_start(perceived)?;
         let resume = ResumeSecret::generate()
             .map_err(|error| Refusal::new(RefusalCode::DispatchFailed).detailed(error))?;
         let subscription = self.subscriptions.allocate();
-        let grant = self.table.join(
+        let granted = self.table.join(
             request,
             subscription,
             resume.clone(),
@@ -235,7 +242,7 @@ impl WorldRuntime {
             self.clock.now(),
         )?;
         // The connection that held the seat is unbound before the new one is seated: never two.
-        if let Some((displaced, reason)) = grant.displaced {
+        if let Some((displaced, reason)) = granted.displaced {
             self.release(displaced, reason);
         }
 
@@ -248,7 +255,7 @@ impl WorldRuntime {
             start.as_ref().map(|start| start.head),
         ));
         let binding = Binding {
-            took_over: grant.took_over,
+            took_over: granted.took_over,
             resume,
             hold_seconds: u32::try_from(self.config.hold.as_secs()).unwrap_or(u32::MAX),
             keyframe_every: self.config.keyframe_every,
@@ -278,7 +285,10 @@ impl WorldRuntime {
     /// observation reflecting it is computed.
     ///
     /// While the host has paused the clock it is refused before anything is allocated: no
-    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9).
+    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9). So is a connection's
+    /// request beyond its seat's budget (§8, `ARC-97`), after the pause check, so a paused world
+    /// takes no token. A library caller with no subscription, and an in-server controller (which
+    /// calls `submit_at`), have no budget.
     fn submit(
         &mut self,
         subscription: Option<SubscriptionId>,
@@ -290,6 +300,13 @@ impl WorldRuntime {
                 "the host has paused the world's clock; submit again after a clock frame says \
                  paused: false",
             ));
+        }
+        if let Some(subscription) = subscription
+            && let Err(wait) = self.table.spend(subscription, Instant::now())
+        {
+            return Err(Refusal::new(RefusalCode::RateLimited)
+                .retry_after(wait)
+                .detail("this seat has sent more requests than the host allows; submit again after retry_after_ms"));
         }
         let at = self.clock.now();
         let (submitted, recorded) = self.submit_at(observer, request, at)?;
@@ -383,7 +400,8 @@ impl WorldRuntime {
     /// is still swept, but nobody is consulted and the world is not advanced: the town does not act
     /// and no Process wakes (`PROTOCOL.md` §5.9).
     fn tick(&mut self) {
-        let started = Instant::now();
+        let start = TickStart::now();
+        let started = start.wall();
         let now = self.clock.now_at(started);
         let running = !self.clock.paused();
         self.table.expire(started, now);
@@ -399,7 +417,7 @@ impl WorldRuntime {
                 self.sweep();
             }
         }
-        self.ticks.record(started.elapsed());
+        self.ticks.record_since(&start);
     }
 
     /// Consults every in-server controller due by `now`, in instant order then seat order, each at

@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-10 (Milestone E implemented, awaiting operator acceptance; B and C accepted 2026-10-07)
+**Updated:** 2026-10-12 (Milestone E accepted by the operator; B and C accepted 2026-10-07)
 
 ---
 
@@ -18,8 +18,8 @@ here does not block anything else.
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
-| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
-| **E** | Package composition | a real world assembled from independently installable packs | 🚧 **implemented, awaiting operator acceptance** — PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
+| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2 → P6c, Q-P7-3 → FG-d)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
+| **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
 holds, proved against the real binary hosting the real pack. The evidence names identity rather
@@ -561,6 +561,43 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
+
+**What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):
+- props are drawn as imported scenes with LODs;
+- the slice's textures are VRAM-compressed with mipmaps;
+- tiny objects are hidden below 1.5 px;
+- occluders cull what solid walls hide;
+- on your rulings of 2026-10-09: VoxelGI at 128 subdivisions and directional soft-shadow quality 2.
+
+You accepted that slight visual change and the mipmap softening. The accepted frames are re-baselined
+on this look. The skyline preview was **not kept** and is reverted, so the old ridges remain until RL-e.
+
+The frame-time and video-memory bounds stay binding; draw calls and primitives are advisory. The
+re-measure is pending: it needs an unlocked screen (`caffeinate -d ./mineworld-slice --perf`).
+
+**Checklist** — run `./mineworld-slice`, then `./mineworld-slice --world`:
+
+1. **Smoothness.** Walk the street end to end, enter the café and the florist, come back out: no hitch
+   at doors, no pop-in of objects as you approach, less flicker on cobbles and roof tiles at distance.
+2. **The textures.** Stone, brick and paving are smoother than before (mipmaps): the old per-pixel
+   grain is gone and mid-distance walls are a little softer. Keep, or ask for sharper oblique
+   filtering.
+3. **The café inside.** At the counter and the back wall: the warm room and the floor's sun patch as
+   accepted; small objects on shelves and tables as before.
+4. **Through the glass.** From the street into the café and the florist: goods, tables and people
+   visible (nothing culled behind glass).
+5. **Shadows.** The terrace tables and the paving in the low sun: the long raking shadows keep their
+   shape, with slightly harder edges (shadow quality 2).
+6. **The florist and the café.** Under VoxelGI 128 the florist is a little warmer and brighter, and
+   the café's tone shifts slightly. You accepted this; check that nothing looks blotchy.
+7. **The old spike.** `./mineworld-3d` now says at start that it is the movement and camera spike, not
+   the world.
+8. **Frame cost.** With the screen unlocked, run `caffeinate -d ./mineworld-slice --perf`. Every
+   view should print p95 ≤ 16.7 ms and video memory ≤ 2 048 MB.
+9. **Not checked here.** Windows and Linux tier checks are on your later checklist and S13's CI; this
+   evidence is macOS only (QRL-6).
+
 ### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
 
 **Verdict, 2026-10-07.** The operator judged the slice from its screenshots, shown together with
@@ -1036,6 +1073,55 @@ connected         café -> street -> café through the door on foot, with S6's `
 2. Is the room through the café glass now dark and warm enough? Should the next round put a
    barista and a pastry case at the window, as `03` does?
 3. Of the misses above, which comes first: the glass (1), the furniture colour (2), or the sky (3)?
+
+**Milestone D, and how to see it for yourself.** Alice's seat is driven by a language model through
+the cognition process. You speak to her from the 2D client, both processes are killed and started
+again, then you meet her in the 3D client, and her reply draws on what you said in 2D. The model is
+local (`qwen3.5:4b` through Ollama, no key). From the repository's root:
+
+```sh
+ollama serve &                                                    # a local model, no key
+E=cognition/lm-controller/examples
+mineworld decisions worlds/social-cafe --decisions $E/alice-lm.decisions.yaml --json > $E/seats.json
+mineworld server worlds/social-cafe --save /tmp/d --invite milestone-d   # Alice stands until her controller joins
+MINEWORLD_INVITE=milestone-d uv run python -m mineworld_cognition --config $E/local.toml
+mineworld-2d      # as the visitor: walk to the counter, tell Alice you left a red umbrella here
+# Ctrl-C both processes (or kill them), then start both again with the same commands
+mineworld-3d      # as the visitor: walk in from the door, face Alice, press E, say "Hello again."
+cargo test -p mineworld-cli --test milestone_d -- --include-ignored --skip record   # scripted model, ≈ 20 s
+```
+
+What to look at:
+- Her 3D reply refers to the 2D conversation. `mineworld perceived worlds/social-cafe --save /tmp/d/save
+  --person alice` lists the Event IDs of the 2D lines; Alice's decision log
+  (`<store>/alice.decisions.jsonl`) shows the context of her 3D reply citing them and the `recalls` her
+  answer chose.
+- One world instance in both clients' welcomes, before and after the restart; one Alice `EntityId`.
+- Run the server without the cognition process: the world runs, your lines are recorded, Alice says
+  nothing. That is the world without models.
+
+What the automated evidence is, and is not:
+- `milestone_d.rs` runs the real server and the real cognition process with a **scripted** model (it
+  quotes the earliest line it is shown and cites it), because a live run cannot be replayed from a
+  cassette (P6 F-P6-5). The model's own words are checked on the **recorded** local-model run:
+  `cognition/lm-controller/tests/cassettes/milestone_d.jsonl` and its decision log, replayed offline.
+- `AC-4`: the same recorded run replays under a second backend binding with identical keys and requests.
+- IC-7: the `removability` CI job deletes `cognition/lm-controller/` (and its one workspace line) in a
+  copy, and everything else still builds and passes.
+
+Known limits, measured (`pr-s10-p7-milestone-d.md` §7):
+- **The local model does not use the memory it is given (Q-P7-2).** Her 3D context holds both 2D lines,
+  but `qwen3.5:4b`'s recorded 3D reply is *"Hello Vera. It's good to hear from you."*, citing only the
+  line just said. Her 2D reply does mention the umbrella.
+- **After 100 days the 2D lines are no longer cited (Q-P7-3).** Her store stays small (787 KB of 20 MiB),
+  but the default forgetting policy no longer cites the umbrella conversation at day 100.
+- The 100-day fallback bound holds: over Alice's 100-day history with a scripted model returning 30 %
+  garbage, 16 of 1 101 consults fell back (1.4 %, bound 5 %).
+- Alice's persona (P6a) is not merged, so she speaks with her name only; while the model holds her seat
+  she does not walk her routine (QP6-3).
+
+Questions for you: does her 3D reply read as the same person remembering you? Is the scripted-live plus
+recorded-replay split acceptable evidence for Milestone D (D-P7-1)?
 
 ### What a review package contains (`ARC-20`)
 

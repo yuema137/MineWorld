@@ -18,7 +18,9 @@ from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import RecordingBackend
 
-PACKAGES = ("memory", "compress")
+PACKAGES = ("memory", "compress", "forgetting")
+"""`memory/` includes the retention host (`memory/retention/`); `forgetting/` holds the bundled policies
+(pr-fg-b I-1 … I-3 extended, §2.3)."""
 # What memory and compression may import from the rest of the package: the model types and the
 # gateway (ModelSummarizer), and the cassette key it stores beside prose (ledger §14.3 X-3).
 COGNITION_IMPORTS = {
@@ -57,7 +59,13 @@ def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_ad
     outside = {
         name
         for name in imported
-        if not name.startswith(("mineworld_cognition.memory", "mineworld_cognition.compress"))
+        if not name.startswith(
+            (
+                "mineworld_cognition.memory",
+                "mineworld_cognition.compress",
+                "mineworld_cognition.forgetting",
+            )
+        )
     }
     assert outside == COGNITION_IMPORTS
 

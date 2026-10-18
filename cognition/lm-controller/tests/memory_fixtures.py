@@ -157,6 +157,51 @@ def became_acquainted(
     )
 
 
+def conversation_started(
+    event: int | str, at: int, speaker: EntityId, listener: EntityId, place: EntityId
+) -> PerceivedEvent:
+    return fact(
+        event,
+        at,
+        "conversation-started",
+        {"speaker": _ref(speaker), "listener": _ref(listener)},
+        subjects=[listener],
+        participants=[speaker, listener],
+        place=place,
+    )
+
+
+def walk_started(event: int | str, at: int, person: EntityId, place: EntityId) -> PerceivedEvent:
+    """The movement pack's `walk-started {person, destination}` (ARC-75), heard where the walker is."""
+    return fact(
+        event,
+        at,
+        "walk-started",
+        {"person": _ref(person), "destination": {"place": {"place": _ref(place, "place")}}},
+        subjects=[person],
+        participants=[person],
+        place=place,
+    )
+
+
+def walk_ended(
+    event: int | str, at: int, person: EntityId, outcome: str, place: EntityId
+) -> PerceivedEvent:
+    return fact(
+        event,
+        at,
+        "walk-ended",
+        {
+            "person": _ref(person),
+            "destination": {"place": {"place": _ref(place, "place")}},
+            "outcome": outcome,
+        },
+        subjects=[person],
+        participants=[person],
+        place=place,
+    )
+
+
 def names_of_everyone() -> list[PerceivedEvent]:
     """The four `named` facts a world's genesis would deliver, ids 1 to 4."""
     return [

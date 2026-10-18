@@ -21,6 +21,10 @@
 //!    exists and its owner's type decodes it; every file in configure/ is listed; every system a
 //!    configuration requires is enabled; every data/ file it names is read; each configuration is
 //!    checked against the classes (ARC-61, ARC-63)
+//! 4d every directory of the world and of each required Entity Pack is a format directory,
+//!    decisions:'s, or one an installed System Pack owns and the world enables (dot directories are
+//!    ignored); every enabled data owner's files — shipped, then Entity Packs', then the world's —
+//!    decoded by its own type, then its context built from them and its configuration (ARC-121)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -32,7 +36,11 @@
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
 //! 10 every section's owner is enabled, its file may carry it, and every entity it names is
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
-//!    was read, by its owner's own type; then every entity a configuration names, the same way
+//!    was read, by its owner's own type — in its owner's context when it has one (ARC-121); then
+//!    every entity a configuration names, the same way
+//! 10b every enabled owner that resolves across subjects (ARC-121), in `systems:` order, resolves once
+//!    over every file of the kinds its section is carried by — key, kind, tags and its section, never
+//!    a name, a note or a location; a seed for a key that is not a subject is refused
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -41,21 +49,24 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use mineworld_authoring::EntityClasses;
+use mineworld_authoring::{EntityClasses, OwnerContext};
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
 use mineworld_packages::{Compatibility, Composition, LicencePolicy, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::configure;
-use crate::content::ContentFile;
+use crate::content::{ContentFile, Contexts};
+use crate::data;
 use crate::entities::{self, ItemSource};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
-    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundConfiguration,
-    FoundSection, SectionState, WorldManifest,
+    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, DecisionsFile,
+    FoundConfiguration, FoundSection, SectionState, WorldManifest,
 };
+use crate::resolution::{self, Resolutions};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
@@ -99,6 +110,12 @@ pub struct WorldPack {
     configuration: Vec<FoundConfiguration>,
     classes: EntityClasses,
     licence_policy: LicencePolicy,
+    decisions: Option<DecisionsFile>,
+    /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
+    contexts: Contexts,
+    /// Every enabled resolving owner's resolution (`ARC-121` item 3), held erased: what genesis seeds
+    /// in place of its sections.
+    resolved: Resolutions,
 }
 
 impl WorldPack {
@@ -130,6 +147,9 @@ impl WorldPack {
                 })?;
         }
         let systems = resolve_systems(&manifest.systems)?;
+        if let Some(decisions) = &manifest.decisions {
+            check_decisions_file(&root, &manifest_path, decisions)?;
+        }
         let licence_policy = configure::licence_policy(&root, &manifest.configure)?;
         let composition = crate::requirements::resolve(
             &manifest_path,
@@ -138,22 +158,26 @@ impl WorldPack {
             roots,
             &licence_policy,
         )?;
+        // A section may name an extension catalog's entry (a decay curve, `ARC-86`), checked while it
+        // decodes, so the build's catalogs are registered first — as `compose` does, idempotently.
+        Capability::register_extensions();
         let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
+        let contexts = data::read(&root, &manifest, &composition, &systems, &configuration)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Place, &systems).place(file)
+                ContentFile::new(ContentKind::Place, &systems, &contexts).place(file)
             })
         })?;
         let people = read_content(&root, &manifest.population, ContentKind::Person, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Person, &systems).person(file)
+                ContentFile::new(ContentKind::Person, &systems, &contexts).person(file)
             })
         })?;
         let items = read_content(&root, &manifest.items, ContentKind::Item, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Item, &systems).item(file)
+                ContentFile::new(ContentKind::Item, &systems, &contexts).item(file)
             })
         })?;
         let organizations = read_content(
@@ -162,7 +186,8 @@ impl WorldPack {
             ContentKind::Organization,
             |text| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {
-                    ContentFile::new(ContentKind::Organization, &systems).organization(file)
+                    ContentFile::new(ContentKind::Organization, &systems, &contexts)
+                        .organization(file)
                 })
             },
         )?;
@@ -182,13 +207,14 @@ impl WorldPack {
         ] {
             check_nothing_undeclared(&root, kind, declared, list)?;
         }
-        let (items, item_sources) = entities::compose(&manifest, &composition, &systems, items)?;
+        let (items, item_sources) =
+            entities::compose(&manifest, &composition, &systems, &contexts, items)?;
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
 
-        let pack = Self {
+        let mut pack = Self {
             root,
             id: manifest.world.id,
             name: manifest.world.name,
@@ -208,8 +234,12 @@ impl WorldPack {
             configuration,
             classes,
             licence_policy,
+            decisions: manifest.decisions,
+            contexts,
+            resolved: Resolutions::new(),
         };
         check_sections(&pack)?;
+        pack.resolved = resolution::resolve(&pack)?;
         configure::check_references(&pack)?;
         Ok(pack)
     }
@@ -305,6 +335,23 @@ impl WorldPack {
         &self.configuration
     }
 
+    /// The decision list `world.yaml` names (`DECISIONS.md` `ARC-84`), as written and as a path under
+    /// the pack's root — checked to exist inside the pack, never parsed here. Not world state: hosts
+    /// read it through `mineworld-decision`.
+    pub fn decisions(&self) -> Option<(&DecisionsFile, PathBuf)> {
+        self.decisions
+            .as_ref()
+            .map(|file| (file, file.path_under(&self.root)))
+    }
+
+    /// The context of an enabled System Pack that owns data (`DECISIONS.md` `ARC-121`): every data file of
+    /// the world's composition and its configuration, as the owner built it. [`None`] for a pack that owns
+    /// no data or that the world does not enable. For the owner's tools, which downcast
+    /// [`OwnerContext::as_any`] to the owner's own type; nothing that builds a world reads it here.
+    pub fn context(&self, owner: Capability) -> Option<&Arc<dyn OwnerContext>> {
+        self.contexts.get(&owner)
+    }
+
     /// The world's entity classes (`DECISIONS.md` `ARC-64`): `configure/classes.yaml`, or none.
     pub fn classes(&self) -> &EntityClasses {
         &self.classes
@@ -378,7 +425,23 @@ impl WorldPack {
             configuration: Vec::new(),
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
+            decisions: None,
+            contexts: Contexts::new(),
+            resolved: Resolutions::new(),
         }
+    }
+
+    /// The same in-memory pack, with probe resolutions (`crate::load`'s tests).
+    #[cfg(test)]
+    pub(crate) fn with_resolved(mut self, resolved: Resolutions) -> Self {
+        self.resolved = resolved;
+        self
+    }
+
+    /// Every resolving owner's resolution, by owner (`ARC-121` item 3): what genesis seeds in place of
+    /// the owner's sections. Empty in a world with no resolving owner.
+    pub(crate) fn resolved(&self) -> &Resolutions {
+        &self.resolved
     }
 
     /// The same in-memory pack, configured with probe configurations (`crate::configure`'s tests).
@@ -414,8 +477,9 @@ pub(crate) fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Res
 }
 
 /// [`parse`], with the decoding supplied: a content file is decoded through a seed that knows which
-/// sections this build's packs own ([`ContentFile`]), and a configuration file by its owner's type
-/// (`crate::configure`). `serde-saphyr` is called from this module and that one only (`DEP-10`).
+/// sections this build's packs own ([`ContentFile`]), a configuration file by its owner's type
+/// (`crate::configure`), and a data file by its owner's (`crate::data`). `serde-saphyr` is called from
+/// this module, `crate::configure`, `crate::entities` and `crate::data` only (`DEP-10`).
 pub(crate) fn parse_with<T>(
     path: &Path,
     kind: &'static str,
@@ -435,6 +499,35 @@ pub(crate) fn parse_with<T>(
         kind,
         detail: error.to_string(),
     })
+}
+
+/// `decisions:` names a file of this pack: present, and inside the pack once its links are followed. Its
+/// content is not this crate's (`pr-dl-a-decision-list.md` SD-DLa-3).
+fn check_decisions_file(
+    root: &Path,
+    manifest: &Path,
+    decisions: &DecisionsFile,
+) -> Result<(), PackError> {
+    let path = decisions.path_under(root);
+    if !path.is_file() {
+        return Err(PackError::DecisionsFileMissing {
+            file: decisions.to_string(),
+            path: manifest.to_path_buf(),
+        });
+    }
+    let unreadable = |source| PackError::Unreadable {
+        path: path.clone(),
+        source,
+    };
+    let real = path.canonicalize().map_err(unreadable)?;
+    let pack = root.canonicalize().map_err(unreadable)?;
+    if !real.starts_with(&pack) {
+        return Err(PackError::DecisionsOutsidePack {
+            file: decisions.to_string(),
+            path: manifest.to_path_buf(),
+        });
+    }
+    Ok(())
 }
 
 /// A pack's id is its directory's name, or it has two identities and therefore none.

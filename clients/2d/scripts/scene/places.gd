@@ -73,14 +73,39 @@ func reconcile(observation: MineWorldObservation) -> void:
 		label.text = _door_text(label.get_meta("to"))
 
 
-## "door to <where it leads>": the place's display name if the world gives one, else its last known
-## tag, else "outside".
+## The wording key of each tag that names a place (R-PK-1, ARC-82). The keys are written out, not built,
+## so the catalogue check (client_text, AC-SET-4) sees each one as used.
+const PLACE_NAME_KEYS := {
+	"cafe": "place.cafe", "park": "place.park", "store": "place.store",
+	"apartments": "place.apartments", "workplace": "place.workplace", "street": "place.street",
+}
+
+
+## "door to <where it leads>". The name comes from the first tag the destination carries, in the order
+## the world lists them, that the wording names; else the place's display name if the world gives one;
+## else "outside". A tag the wording does not name (`public`) says nothing about where a door leads.
 func _door_text(to: String) -> String:
+	return Words.text("ui.door-to", {"place": _place_name(to)})
+
+
+func _place_name(to: String) -> String:
+	var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
+	for tag in to_tags:
+		var key: String = PLACE_NAME_KEYS.get(tag, "")
+		if key != "" and Words.has(key):
+			return Words.text(key)
 	var name := _observation.display_name(to) if _observation != null else ""
-	if name == "":
-		var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
-		name = to_tags[to_tags.size() - 1] if not to_tags.is_empty() else Words.text("ui.outside")
-	return Words.text("ui.door-to", {"place": name})
+	return name if name != "" else Words.text("ui.outside")
+
+
+## The doorways of the observer's place, each with the text it is named by: `{to, text}`. For the harness's
+## report (R-PK-1). A label is drawn only at the doors of a room the observer stands in, so from the street
+## this is the wording a doorway would carry, not a label on screen.
+func door_labels() -> Array:
+	var out: Array = []
+	for p in town.passages.get(here, []):
+		out.append({"to": p["to"], "text": _door_text(p["to"])})
+	return out
 
 
 ## Whether a doorway of `place` is drawn at `at` (plan metres), on a floor that is showing (F-10).

@@ -1,24 +1,24 @@
 //! The paced rule follows its day: where the observer's own Agenda says to be
 //! (`step-09-social.md` §4.3.2, SD-15 as refined by QC-6; `DECISIONS.md` `ARC-32`).
 //!
-//! The schedule moves nobody; this is the controller choosing to walk where its day says, through
-//! `move`, one stride at a time — which is all a schedule may ever cause. Read only from the
-//! observation (`ARC-27`):
+//! The schedule moves nobody; this is the controller choosing to walk where its day says, by asking
+//! movement's `walk-to` for the agenda's place, then its strides one at a time — which is all a
+//! schedule may ever cause. Movement plans the way, through as many doorways as it takes (`ARC-75`).
+//! Read only from the observation (`ARC-27`):
 //!
 //! ```text
 //! my own Agenda    disclosed to me by schedule: the place my day says, and for what
 //! my location      where perception says I stand
-//! the doorways     the passages this place discloses — the one whose `to` is the agenda's place
+//! my own walk      disclosed to me by movement: if it already goes there, nothing is asked again
 //! ```
 //!
 //! An observation with no Agenda decides exactly what it decided before agendas existed: no draw is
 //! taken and nothing is suppressed.
 
 use mineworld_contracts::{Component, Observation};
+use mineworld_decision::Draw;
 use mineworld_schedule::Agenda;
 use serde_json::Value;
-
-use crate::paced::Draw;
 
 /// Out of 100, at a consult away from the agenda's place: how often the person heads there. Below
 /// 100 so that someone on their way still sometimes greets, invites or wanders — a literal, never

@@ -1,0 +1,12 @@
+# Which executable-guide features are merged (docs/GUIDE_FORMAT.md §9). A block that says `requires X` runs
+# only when X = true here, and the test fails if a flag says false while the build has the feature.
+[features]
+interaction-list = true
+calendar = true
+weather = true
+decisions = false          # DL-a
+motivated = false          # DL-b
+lm-controller = false      # P6
+relationship-decay = false # FG-a
+memory-policies = false    # FG-b, FG-c
+happenings = false         # WE-a

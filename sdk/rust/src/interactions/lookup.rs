@@ -195,6 +195,24 @@ pub fn parameters<S: InteractionSection>(
     }
 }
 
+/// The pack's parameters for these roles with no place: the base resolution, the place role unfilled
+/// (`ARC-63` note of 2026-10-13). With nothing configured, the compiled defaults, reading nothing else.
+///
+/// Correct for exactly the fields [`InteractionSection::FIELD_ROLES`] keeps from being scoped by a
+/// place or set in a region — a decision about a pair or a person, not about where it happens. `roles`
+/// should not fill [`Role::Place`].
+pub fn parameters_unplaced<S: InteractionSection>(
+    read: &WorldRead<'_>,
+    roles: &Roles,
+) -> S::Parameters {
+    match configured::<S>(read, None) {
+        None => S::Parameters::default(),
+        Some((found, _)) => found
+            .base
+            .parameters(&found.classes, &subjects(read, roles, None)),
+    }
+}
+
 /// What a fact's owner states it with, as the world's list routes it (`ARC-65`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Consequence<K> {

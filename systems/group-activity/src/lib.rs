@@ -57,7 +57,7 @@ pub mod system;
 pub use action::{
     AcceptInvitation, DeclineInvitation, INVITE_RANGE, Invite, JoinGroupActivity,
     LeaveGroupActivity, accept_requirement, decline_requirement, invite_requirement,
-    join_requirement, leave_requirement,
+    invite_requirement_within, join_requirement, leave_requirement,
 };
 pub use component::{INVITATION_LIFETIME, Invitation, Invitations, Participation};
 pub use error::GroupActivityError;

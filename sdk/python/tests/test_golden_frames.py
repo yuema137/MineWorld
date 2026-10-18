@@ -102,6 +102,8 @@ CHECKS: dict[str, Callable[[], None]] = {
     "delta": lambda: server_frame("delta"),
     "refused-cursor_unavailable": lambda: server_frame("refused-cursor_unavailable", "refused"),
     "refused-lagged": lambda: server_frame("refused-lagged", "refused"),
+    "refused-not_granted": lambda: server_frame("refused-not_granted", "refused"),
+    "refused-rate_limited": lambda: server_frame("refused-rate_limited", "refused"),
     "closing-lagged": lambda: server_frame("closing-lagged", "closing"),
 }
 

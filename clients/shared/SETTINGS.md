@@ -50,7 +50,8 @@ clients/shared/                  a Godot project: the shared modules' runnable h
     display.gd                   MineWorldDisplay        apply window mode, size, render scale, VSync, cap
     text.gd                      MineWorldText           catalogs, languages, live switch, font fallback
     clock_format.gd              MineWorldClockFormat    a time of day in the 12h or 24h form
-    menu.gd                      MineWorldSettingsMenu   the in-game menu (General, Display, later tabs)
+    menu.gd                      MineWorldSettingsMenu   the in-game menu (General, Display, Controls)
+    controls_tab.gd              MineWorldControlsTab    the Controls tab (SET-b); MineWorldKeyRow, its rows
     locale/                      the shared catalog layer: en.po, zh_Hans.po, messages.pot, .gdignore
     fonts/                       NotoSansSC-Regular.otf, OFL.txt, .gdignore
   checks/                        headless checks of the module (store, glyphs, menu); not the module
@@ -118,8 +119,10 @@ menu.quit_requested.connect(func() -> void: get_tree().quit(0))
 
 `HARNESS_FLAGS` is the client's own list of scripted and capture flags (2D: `drive`, `capture`; 3D:
 every `--slice-*` probe mode). The module knows no client's flags. `CAPABILITIES` is a
-`PackedStringArray` of `MineWorldDisplay.CAP_*` names: the 3D client passes `[CAP_RENDER_SCALE]`, the 2D
-client passes nothing. These two inputs and the `Theme` are the only things that differ per client.
+`PackedStringArray` of capability names: `MineWorldDisplay.CAP_RENDER_SCALE` (the Display tab) and
+`MineWorldControlsTab.CAP_MOUSE_LOOK` (the Controls tab's look rows). The 3D client passes
+`[CAP_RENDER_SCALE, CAP_MOUSE_LOOK]`, the 2D client passes nothing. These two inputs, the `Theme` and the
+client's key-map rows (§7) are the only things that differ per client.
 
 **No network code (INV-SET-1).** No file under `settings/` names `MineWorldClient`, `HTTPRequest`,
 `WebSocketPeer`, `StreamPeer`, `PacketPeer`, `submit`, `submit_affordance` or `connect_to_world`.
@@ -143,19 +146,40 @@ A `RefCounted` with typed fields and enums, never a `Dictionary`.
 | `render_scale` | `int` | percent: 50, 67, 75, 85, 100 | `100` | `display` / `render_scale` / integer |
 | `vsync` | `VSync` | `OFF`, `ON`, `ADAPTIVE` | `ON` | `display` / `vsync` / `"off"`, `"on"`, `"adaptive"` |
 | `max_fps` | `int` | `0` (no cap), 30, 60, 120, 144, 165, 240, or `-1` ("match display") | `0` | `display` / `max_fps` / integer |
+| `mouse_sensitivity` | `int` | percent: 50, 75, 100, 125, 150, 200 | `100` | `input` / `mouse_sensitivity` / integer (SET-b) |
+| `invert_y` | `bool` | `true`, `false` | `false` | `input` / `invert_y` / boolean (SET-b) |
+
+`mouse_sensitivity` is the 3D client's mouse-look rate as a percentage of today's rate: 100 is exactly the
+accepted look (`clients/3d-spike/scripts/player.gd` `MOUSE_SENS`). `invert_y` true makes moving the mouse
+up look down. Neither reaches the server (INV-SET-1). The two fields are the whole of `[input]`: a key
+binding is never a setting (step-20 QSET-7, SET-b SD-SETb-1).
+
+`look_scale() -> float` returns `mouse_sensitivity / 100.0`: the value a client gives its player
+(`set_look`), so the player never reads a file or this value's type (SD-SETb-4).
 
 `MineWorldSettings.read(config, problems)` builds a value from a `ConfigFile`: every key of the table
 that is missing takes its default silently; every key whose type or value is out of range takes its
 default and appends one problem `"<section>/<key> = <raw value>: <why>"`; every key the table does not
-know, in a section the table owns, appends one problem naming it and is dropped. Sections the table does
-not own (`input`, `launcher`, anything later) are not read and not judged. Nothing invalid survives a
-read. `write(config, sections)` writes the named sections of the table, replacing each section whole.
-`differs_in(other, section)` says whether two values differ in one section.
+know, in a section the table owns, appends one problem naming it and is dropped. The owned sections are
+`general`, `display` and `input`. Sections the table does not own (`launcher`, anything later) are not
+read and not judged. Nothing invalid survives a read. `write(config, sections)` writes the named sections
+of the table, replacing each section whole. `differs_in(other, section)` says whether two values differ in
+one section.
 
 ## 4. The file — `MineWorldSettingsStore` (`store.gd`)
 
 **Where.** `user://settings.cfg`, a Godot `ConfigFile`: `[meta] version=1`, `[general]`, `[display]`,
-later `[input]` and `[launcher]`. With the custom user directory of §2, `user://` resolves per OS as
+`[input]` (SET-b: exactly `mouse_sensitivity` and `invert_y`, §3), later `[launcher]`.
+
+```ini
+[input]
+mouse_sensitivity=100      ; percent; one of 50, 75, 100, 125, 150, 200
+invert_y=false             ; boolean
+```
+
+A file without `[input]` reads as the defaults above, silently. `[meta] version` stays 1: adding `[input]`
+is not a format change. An unknown key in `[input]` (for example a key binding written by hand) is one
+warning naming the file and the key, and is dropped; it is never written back by a save. With the custom user directory of §2, `user://` resolves per OS as
 Godot's "Data paths" page states for a custom directory with a custom name:
 
 | OS | `user://` (the shared settings folder) | The file |
@@ -200,7 +224,9 @@ otherwise            user://settings.cfg
 Warnings are `push_warning` lines starting `[settings]`, in English (INV-SET-6).
 
 **Saving — `store.save(value) -> Error`, only on Apply in the menu** (and when the display
-confirmation is answered "Keep", §7). With `none` it only replaces `store.settings` in memory.
+confirmation is answered "Keep", §7). With `none` it only replaces `store.settings` in memory. An Apply
+of `[input]` (mouse sensitivity, invert Y) is saved at once, like language and clock, with no confirmation
+(SET-b SD-SETb-6).
 
 1. The file is **re-read** first. The sections `value` changes relative to the last value this store
    loaded or saved are written from `value`; every other section — including sections this module does
@@ -276,7 +302,8 @@ action.<type>, action.<type>.done   an action, built from data (13b)
 reason.<code>                       a rejection reason or refusal code, built from data (13b)
 state.<state>                       a connection state, built from data
 ui.*  panel.*  suggest.*  format.*  13b's fixed interface text, panel titles, suggestions, formats
-ui.settings.*                       the settings menu
+ui.settings.*                       the settings menu, its tabs (General, Display, Controls); the Controls
+                                    tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
 hud.*  hint.*  camera.*  link.*     HUD lines and templates, the controls lines, camera titles,
 note.*  door.*                      3D connection messages, notes, door labels
 language.self_name                  how a language names itself ("English", "简体中文")
@@ -391,24 +418,56 @@ A `CanvasLayer` the client adds and sets up with `setup(store, capabilities, the
 - **Tabs.** **General**: Language (the offered languages, each by its `language.self_name`), Clock
   (Automatic, 12-hour, 24-hour). **Display**: Window mode, Window size (in windowed mode) or Render scale
   (in the full-screen modes, only with `CAP_RENDER_SCALE`), VSync, Frame-rate cap, the monitor's refresh
-  rate read-only, the measured frame rate. Buttons: Apply, Revert, Close; Quit at the bottom.
+  rate read-only, the measured frame rate. **Controls** (SET-b, added by a client with `add_tab`, §7.1):
+  Mouse sensitivity and Invert vertical look (only with `CAP_MOUSE_LOOK`), then the key map, read-only.
+  Buttons: Apply, Revert, Close; Quit at the bottom.
 - **Language and clock apply at once** and are saved on Apply. **Display changes apply on Apply**,
   followed by a 15-second "Keep these display settings?" confirmation; no answer, or Revert, re-applies
   the previous display settings. A kept change is saved; a reverted one is not. An unusable mode never
   strands a player.
+- **Mouse sensitivity and invert Y** (SET-b) apply on Apply and are saved on Apply, with no confirmation
+  (they cannot strand a player). Apply then emits `applied(settings)`; the 3D composition root hands
+  `settings.look_scale()` and `settings.invert_y` to its player.
 - **Revert** returns every control and the live language and clock to the store's saved value.
 - **The world keeps running.** The menu pauses nothing. While it is open it covers the screen with a
   control that stops the mouse, and the client stops gameplay input (2D: the walker; 3D: walking,
   looking and the talk key), so no request is sent from input while the menu is open.
 - **Tab API** for later PRs: `add_tab(key, control)` adds a tab titled by the key's text; SET-b and
   SET-c use it and never edit the existing tabs.
+- **Signals.** `applied(settings: MineWorldSettings)` is emitted at the end of every Apply, with the value
+  in effect after it. `rendered` is emitted at the end of every redraw of the menu (open, Apply, Revert,
+  a language change), so a tab that shows the draft re-reads it there (SET-b, §7.1).
 - **Per client,** only the `Theme` and the capabilities differ; the menu decides nothing else per client.
+
+### 7.1 The Controls tab — `MineWorldControlsTab` (`controls_tab.gd`)
+
+`MineWorldControlsTab.new(menu, capabilities, key_rows)` is a `VBoxContainer` a client adds with
+`menu.add_tab("ui.settings.tab.controls", tab)`. It is built in code and shows only what it is given:
+
+- **Mouse sensitivity** (a choice: 50, 75, 100, 125, 150, 200 %, each by `ui.settings.percent_value`) and
+  **Invert vertical look** (`ui.settings.controls.invert_y.on` / `.off`). Both are shown only with the
+  capability `MineWorldControlsTab.CAP_MOUSE_LOOK` (`"mouse_look"`). The 2D client does not pass it.
+- **Key map**, read-only, under the heading `ui.settings.controls.keys`: one line per row, the row's action
+  text (`ui.settings.key.<action>`), then its key labels separated by commas, or
+  `ui.settings.controls.keys.none` when the row has no key. A note, `ui.settings.controls.read_only`
+  ("Key bindings are fixed for now."), is shown under the map in every client.
+- **Key rows** are `MineWorldKeyRow` values (a `RefCounted`) that the client declares: `action: String`, a
+  catalog key stem, and `keys: PackedInt32Array`, physical keycodes. The module never reads `InputMap`,
+  a binding source or a client's scripts. The key labels come from the engine (`OS.get_keycode_string` of
+  the label the keyboard layout gives the physical key, `DisplayServer.keyboard_get_label_from_physical`),
+  not from catalog text (SD-SETb-11); they are admitted in `client_text.rs` with their reason.
+- **The draft.** The tab's controls write `menu.draft` (`mouse_sensitivity`, `invert_y`) and read it back
+  on `menu.rendered`. Nothing is saved until the menu's Apply; Revert and Close drop the draft (§7).
+- **Texts** come from the catalogs at each redraw, so the tab turns language at once with the menu.
+
+The key map is read-only: no control writes a binding, and the store writes no `key_*` key (QSET-7).
 
 ## 8. Invariants
 
 1. **INV-SET-1 — Settings never reach the server.** §2 "No network code"; a client's frames are the
    same with any settings as with the defaults.
-2. **INV-SET-2 — The settings file holds only settings.** §4.
+2. **INV-SET-2 — The settings file holds only settings.** §4. `[input]` holds exactly `mouse_sensitivity`
+   and `invert_y` (SET-b); no key binding is ever written.
 3. **INV-SET-3 — Host commands are not settings.** §1; `clients/shared/host/` never loads `store.gd`.
 4. **INV-SET-4 — Every client UI string comes from a catalog,** apart from an allow-list in
    `tests/acceptance/tests/client_text.rs` where each entry gives its reason and an entry that admits
@@ -431,7 +490,8 @@ A `CanvasLayer` the client adds and sets up with `setup(store, capabilities, the
 | --- | --- | --- |
 | `tests/acceptance/tests/client_text.rs` | no hardcoded UI string in the 3D client and the shared module (AC-SET-3); catalogs complete and consistent across layers, and `messages.pot` current (AC-SET-4); no network identifier under `settings/` (INV-SET-1); no platform branch (AC-SET-16) | `cargo test`, in CI |
 | `scripts/check_client_rules.py` R6 | no hardcoded UI string in the 2D client (13b) | at the gate |
-| `clients/shared/checks/store_check.gd` | loading, validation, the bad-file cases, the atomic save, the per-section merge, the shared folder (AC-SET-8, AC-SET-15) | `godot --headless --path clients/shared --script res://checks/store_check.gd` |
+| `clients/shared/checks/store_check.gd` | loading, validation, the bad-file cases, the atomic save, the per-section merge, the shared folder (AC-SET-8, AC-SET-15); `[input]` round trip, defaults, `look_scale()`, bad and unknown `[input]` keys (AC-SETb-7) | `godot --headless --path clients/shared --script res://checks/store_check.gd` |
 | `clients/shared/checks/glyph_check.gd` | every shipped character is in the bundled font (AC-SET-13) | the same, `glyph_check.gd` |
-| `clients/shared/checks/menu_check.gd` | the menu's language switch, Apply, Revert, the revert timer, `add_tab`, the marker catalog on the menu alone | the same, `menu_check.gd` |
-| `tools/cli/tests/client_settings.rs` | the runtime criteria in both clients (AC-SET-1, -2, -5 … -12, -14, -15) | `cargo test -p mineworld-cli --test client_settings -- --ignored --test-threads=1` (needs Godot) |
+| `clients/shared/checks/menu_check.gd` | the menu's language switch, Apply, Revert, the revert timer, `add_tab`, the marker catalog on the menu alone; the Controls tab's walk, `applied`, Revert and Close emit nothing (AC-SETb-5, -8) | the same, `menu_check.gd` |
+| `tests/acceptance/tests/client_text.rs` | also scans `controls_tab.gd` (AC-SET-3), key labels admitted with reasons, the new keys in both catalogs (AC-SET-4), platform (AC-SET-16) | `cargo test`, in CI |
+| `tools/cli/tests/client_settings.rs` | the runtime criteria in both clients (AC-SET-1, -2, -5 … -12, -14, -15); SET-b's runtime criteria (AC-SETb-1 … -4, -9 … -11) | `cargo test -p mineworld-cli --test client_settings -- --ignored --test-threads=1` (needs Godot) |

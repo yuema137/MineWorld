@@ -8,6 +8,8 @@
 //!             M = PERSON_RADIUS + GAP + PLAN_MARGIN on every side; the floor shrunk by M
 //! goal        inside a grown box or outside the shrunk floor → the nearest free point of the 50 mm
 //!             lattice (distance, then y, then x: entry's E3 order); none → Unreachable
+//! start       not free (in a grown box or outside the shrunk floor) → the same snap: the route first
+//!             steps to the nearest free point and is planned from there (§21.15 M-3)
 //! fast path   from → goal meets no grown box's open interior               → [goal]
 //! graph       nodes: from, goal, then every grown corner strictly inside the shrunk floor and
 //!             outside every other grown box (solids, objects, the avoided person; SW, SE, NE, NW);
@@ -17,9 +19,12 @@
 //! answer      the path without its start — at most WAYPOINTS_MAX — else Unreachable
 //! ```
 //!
-//! A start inside a grown box (somebody standing at the counter, nearer it than M) may leave that box:
-//! for edges from the start only, such a box is replaced by its core — the box shrunk until the start
-//! lies on its edge — so the start can step away from the solid but never through it (§21.15 N-D3).
+//! A start inside a grown box (somebody standing at the counter, nearer it than M) is snapped to the
+//! nearest free point, which lies on the near side of the solid, never across it. Only when the place
+//! has no free point at all is the start kept, and then, for edges from the start only, a box holding
+//! it is replaced by its core — the box shrunk until the start lies on its edge — so the start can
+//! step away from the solid but never through it (§21.15 N-D7). The core rule alone left a start
+//! pinned between a wall and a solid's corner with no edge out (M-3: alice at the café's bench).
 //!
 //! Integers only: every predicate is a cross product in `i128`, every length an `isqrt`. No float, no
 //! hash map, nothing kept between calls: the answer is a function of the place's shape, its objects,
@@ -47,7 +52,6 @@ pub const WAYPOINTS_MAX: usize = 64;
 
 /// How far every obstacle is grown, and the floor shrunk: 360 mm.
 const GROWN: i32 = PERSON_RADIUS.value() + GAP.value() + PLAN_MARGIN.value();
-
 impl Wayfinder for BodiesSystem {
     fn wayfinder_of(&self) -> mineworld_contracts::SystemId {
         Self::ID
@@ -92,43 +96,34 @@ pub fn route_in(
     avoid: Option<LocalPosition>,
 ) -> RouteAnswer {
     let room = shape.room();
-    let mut boxes: Vec<Area> = room
-        .solids
-        .iter()
-        .map(|(area, _)| grow(*area, GROWN))
-        .collect();
-    boxes.extend(objects.iter().map(|(object, at)| {
-        let (hx, hy) = object.half_footprint();
-        let centre = point(*at);
-        grow(
-            Area {
-                min: Point::new(centre.x - hx, centre.y - hy),
-                max: Point::new(centre.x + hx, centre.y + hy),
-            },
-            GROWN,
-        )
-    }));
-    if let Some(at) = avoid {
-        let centre = point(at);
-        let r = PERSON_RADIUS.value();
-        boxes.push(grow(
-            Area {
-                min: Point::new(centre.x - r, centre.y - r),
-                max: Point::new(centre.x + r, centre.y + r),
-            },
-            GROWN,
-        ));
-    }
+    let boxes = obstacles(&room, objects, avoid, GROWN);
     let floor = grow(room.floor, -GROWN);
     let height = to.z();
-    let start = point(from);
     let Some(goal) = goal(&room, floor, &boxes, point(to)) else {
         return RouteAnswer::Unreachable;
     };
-    let graph = Graph::new(start, goal, floor, boxes);
-    let Some(path) = graph.search() else {
+    // A start that is not free — within the margin of the floor's edge or of a grown box, where the
+    // resolver may legally have left the walker — first steps to the nearest free point, the goal's
+    // own snap (SD-N5; step-11 §21.15 M-3), when that point is within the margin's own width (GROWN)
+    // of it: a short step out of the margin, which the resolver resolves like any stride. A start with
+    // no free point that near is held where it is, and N-D7's core rule lets it leave the box holding
+    // it.
+    let start = point(from);
+    let snapped = if free(floor, &boxes, start) {
+        None
+    } else {
+        nearest_free(&room, start, &|p| free(floor, &boxes, p))
+            .filter(|p| *p != start && length2(start, *p) <= i64::from(GROWN) * i64::from(GROWN))
+    };
+    let graph = Graph::new(snapped.unwrap_or(start), goal, floor, boxes);
+    let Some(mut path) = graph.search() else {
         return RouteAnswer::Unreachable;
     };
+    if let Some(first) = snapped
+        && path.first() != Some(&first)
+    {
+        path.insert(0, first);
+    }
     if path.len() > WAYPOINTS_MAX {
         return RouteAnswer::Unreachable;
     }
@@ -137,6 +132,34 @@ pub fn route_in(
         .map(|p| LocalPosition::new(Millimetres::new(p.x), Millimetres::new(p.y), height))
         .collect();
     Waypoints::new(waypoints).map_or(RouteAnswer::Unreachable, RouteAnswer::Waypoints)
+}
+
+/// Every obstacle of the plan, each grown by `by` on every side: the place's solids, its loose objects
+/// (a ball as its bounding square) and the person to avoid (a square of PERSON_RADIUS).
+fn obstacles(
+    room: &Room,
+    objects: &[(BodyShape, LocalPosition)],
+    avoid: Option<LocalPosition>,
+    by: i32,
+) -> Vec<Area> {
+    let square = |centre: Point, hx: i32, hy: i32| Area {
+        min: Point::new(centre.x - hx, centre.y - hy),
+        max: Point::new(centre.x + hx, centre.y + hy),
+    };
+    let mut boxes: Vec<Area> = room
+        .solids
+        .iter()
+        .map(|(area, _)| grow(*area, by))
+        .collect();
+    boxes.extend(objects.iter().map(|(object, at)| {
+        let (hx, hy) = object.half_footprint();
+        grow(square(point(*at), hx, hy), by)
+    }));
+    if let Some(at) = avoid {
+        let r = PERSON_RADIUS.value();
+        boxes.push(grow(square(point(at), r, r), by));
+    }
+    boxes
 }
 
 /// A position's ground point.
@@ -357,5 +380,57 @@ mod tests {
         assert!(!blocks(&c, start, Point::new(-500, 500)), "away, west");
         assert!(!blocks(&c, start, Point::new(100, 2_000)), "along its edge");
         assert!(blocks(&c, start, Point::new(1_500, 500)), "across");
+    }
+
+    /// M-3 (E-NW4): the café's front corner as 12d draws it — the bench's seat slab (2 360 … 8 020,
+    /// 460 … 900) and the open door leaf (751 … 1 153, 0 … 746) against the front wall — with a person
+    /// left by the resolver at (2 194, 260): R + GAP from the wall and from the bench's corner, inside
+    /// the planner's margin of both. The walk out first steps to the nearest free point and then goes
+    /// on; before the fix every walk from here was Unreachable.
+    #[test]
+    fn a_start_pinned_in_the_margin_steps_out_first() {
+        let shape: PlaceShape = serde_json::from_value(serde_json::json!({
+            "floor": { "min": { "x": 0, "y": 0 }, "max": { "x": 8_320, "y": 10_320 } },
+            "solids": [
+                { "min": { "x": 2_360, "y": 460 }, "max": { "x": 8_020, "y": 900 }, "height": 470 },
+                { "min": { "x": 751, "y": 0 }, "max": { "x": 1_153, "y": 746 }, "height": 2_070 },
+            ],
+        }))
+        .expect("a shape");
+        let at =
+            |x: i32, y: i32| LocalPosition::on_ground(Millimetres::new(x), Millimetres::new(y));
+        // R + GAP from the front wall, and just over R + GAP from the bench's south-west corner
+        // (2 360, 460): at R 250 this is alice's (2 192, 260); at R 300, (2 087, 310).
+        let clear = PERSON_RADIUS.value() + GAP.value();
+        let rise = 460 - clear;
+        let along = i32::try_from((i64::from(clear).pow(2) - i64::from(rise).pow(2)).isqrt())
+            .expect("small")
+            + 2;
+        let start = at(2_360 - along, clear);
+        let RouteAnswer::Waypoints(route) = route_in(&shape, &[], start, at(4_000, 5_000), None)
+        else {
+            panic!("a start in the margin has a way out: {start:?}");
+        };
+        let first = route.points()[0];
+        let room = shape.room();
+        let floor = grow(room.floor, -GROWN);
+        let boxes: Vec<Area> = room.solids.iter().map(|(a, _)| grow(*a, GROWN)).collect();
+        assert!(
+            !free(floor, &boxes, point(start)),
+            "the start is in the margin"
+        );
+        assert!(
+            free(floor, &boxes, point(first)),
+            "the first step ends free: {first:?}"
+        );
+        assert!(
+            length2(point(start), point(first)) <= i64::from(GROWN).pow(2),
+            "a short step out of the margin: {start:?} → {first:?}"
+        );
+        assert_eq!(
+            route.points().last(),
+            Some(&at(4_000, 5_000)),
+            "and the walk arrives"
+        );
     }
 }

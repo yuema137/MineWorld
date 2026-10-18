@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Launch the MineWorld 3D presentation spike.
+# Launch the movement and camera spike (accepted 2026-09) -- not the world, and
+# not the visual standard; see ./mineworld-slice (RL-b SD-RLb-8, QRL-1).
 #
 #   ./mineworld-3d            walk around it
 #   ./mineworld-3d --shots    capture the reference screenshots and exit
@@ -12,6 +13,9 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 proj="$here/clients/3d-spike"
 godot_bin="${GODOT:-godot}"
+
+echo "mineworld-3d: the movement and camera spike (accepted 2026-09), not the world, and not"
+echo "             the visual standard; see ./mineworld-slice"
 
 if ! command -v "$godot_bin" >/dev/null 2>&1; then
   echo "error: '$godot_bin' not found on PATH. Install Godot 4.7 (brew install godot)," >&2

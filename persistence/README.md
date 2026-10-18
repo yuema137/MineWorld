@@ -16,6 +16,12 @@ refused. `verify` re-runs everything from genesis and checks every snapshot too.
 
 Each journaled input is one **revision**: the number a client is told the world is at.
 
+Facts and journal are never dropped or changed. Every 4 096 revisions the rows of an older span move,
+byte for byte, into one zstd-compressed **sealed block**; the newest revisions stay as plain rows.
+Readers stream the log one block at a time, so reading a long history needs little memory (`ARC-89`).
+Snapshots are kept by a fixed rule — genesis, one anchor every 4 096 revisions, and the newest two —
+and each is stored zstd-compressed (`ARC-81`).
+
 ```rust
 let (world, _) = PersistentWorld::create(Box::new(SqliteBackend::create(dir, durability)?), assembled, creation)?;
 let (world, how) = PersistentWorld::resume(Box::new(SqliteBackend::open(dir, durability)?), composed)?;

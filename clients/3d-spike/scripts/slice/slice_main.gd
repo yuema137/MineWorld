@@ -106,7 +106,12 @@ func _settings() -> void:
 func _menu() -> void:
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
-	settings_menu.setup(settings_store, PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE]), _menu_theme())
+	settings_menu.setup(settings_store, PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE,
+		MineWorldControlsTab.CAP_MOUSE_LOOK]), _menu_theme())
+	settings_menu.add_tab("ui.settings.tab.controls", MineWorldControlsTab.new(settings_menu,
+		PackedStringArray([MineWorldControlsTab.CAP_MOUSE_LOOK]), key_rows()))
+	settings_menu.applied.connect(func(value: MineWorldSettings) -> void:
+		player.set_look(value.look_scale(), value.invert_y))
 	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
 	settings_menu.opened.connect(func() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -133,6 +138,35 @@ static func _menu_theme() -> Theme:
 	theme.set_color("font_color", "Label", Color(1, 1, 1, 0.92))
 	theme.set_font_size("font_size", "Label", 15)
 	return theme
+
+
+## The Controls tab's key map (`clients/shared/SETTINGS.md` §7.1; SET-b): this client's own InputMap actions,
+## each with its catalog key, in the order a player meets them. Esc is Godot's `ui_cancel`, which this client
+## takes in `_input` before the player does, so it is the menu's key.
+const KEY_MAP := [
+	["move_forward", "ui.settings.key.move_forward"],
+	["move_left", "ui.settings.key.move_left"],
+	["move_back", "ui.settings.key.move_back"],
+	["move_right", "ui.settings.key.move_right"],
+	["jump", "ui.settings.key.jump"],
+	["jog", "ui.settings.key.jog"],
+	["camera_cycle", "ui.settings.key.camera_cycle"],
+	["ui_cancel", "ui.settings.key.menu"],
+]
+
+
+## One row per KEY_MAP action, its physical keys read from InputMap at start; an action with no key shows
+## none. Nothing is written back: the map is read-only (QSET-7).
+static func key_rows() -> Array[MineWorldKeyRow]:
+	var rows: Array[MineWorldKeyRow] = []
+	for pair in KEY_MAP:
+		var keys := PackedInt32Array()
+		for event in InputMap.action_get_events(pair[0]):
+			if event is InputEventKey:
+				var key := event as InputEventKey
+				keys.append(key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode)
+		rows.append(MineWorldKeyRow.new(pair[1], keys))
+	return rows
 
 
 ## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it.
@@ -352,7 +386,10 @@ func _voxel_gi() -> void:
 	v.name = "CafeGI"
 	var d := VoxelGIData.new()
 	v.data = d
-	v.subdiv = VoxelGI.SUBDIV_256
+	# 128, was 256: the Default tier's frame budget (RL-b SD-RLb-6a). The visible
+	# change -- a warmer, brighter florist, a small tone shift in the café -- was
+	# accepted by the operator on 2026-10-09 and the frames re-baselined on it.
+	v.subdiv = VoxelGI.SUBDIV_128
 	var depth := SliceCafe.DEPTH + 9.0
 	v.size = Vector3(SliceCafe.W + 5.0, 9.0, depth)
 	v.position = Vector3(6.0, 4.0,
@@ -416,6 +453,7 @@ func _spawn_player() -> void:
 	player.look_enabled = not _scripted()
 	add_child(player)
 	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	player.set_look(settings_store.settings.look_scale(), settings_store.settings.invert_y)
 
 
 ## The HUD's composed lines are rendered every frame from their keys, so a language change shows at
@@ -426,7 +464,8 @@ func _process(_d: float) -> void:
 		first_frame = {"language": MineWorldText.language(), "clock": MineWorldText.clock(),
 			"window": [window.size.x, window.size.y], "mode": window.mode, "max_fps": Engine.max_fps,
 			"render_scale": window.scaling_3d_scale, "file": settings_store.path,
-			"problems": settings_store.problems}
+			"problems": settings_store.problems, "look_scale": player.look_scale,
+			"invert_y": player.invert_look_y}
 	if _hud_place != null and player != null:
 		var p := SliceWorld.place_at(world, player.global_position)
 		_hud_place.text = MineWorldText.text("hud.place", {"place": p if p != "" else "-"})

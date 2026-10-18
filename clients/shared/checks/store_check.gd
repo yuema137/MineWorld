@@ -41,6 +41,11 @@ func _init() -> void:
 	_unknown_key()
 	_atomic()
 	_merge()
+	_input_round_trip()
+	_input_scales()
+	_input_bad_values()
+	_input_unknown_key()
+	_input_not_rewritten_by_display()
 	_display_headless()
 	_remove_tree(_scratch)
 	_finish()
@@ -228,6 +233,102 @@ func _merge() -> void:
 	var after := _open(file)
 	_check(after.settings.language == "zh_Hans" and after.settings.window_mode == MineWorldSettings.WindowMode.FULLSCREEN,
 		"a display apply in one client keeps a language apply of the other")
+
+
+## AC-SETb-7 and §4.1: `[input]` holds exactly its two keys and round-trips; an absent section is the defaults.
+func _input_round_trip() -> void:
+	var file := _file("input.cfg")
+	var absent := _open(file)
+	_check(absent.settings.mouse_sensitivity == 100 and absent.settings.invert_y == false and absent.problems.is_empty(),
+		"no [input] section: the defaults (100, false), silently")
+	var value := absent.settings.copy()
+	value.mouse_sensitivity = 200
+	value.invert_y = true
+	_check(_open(file).save(value) == OK, "an [input] value saves", file)
+	var back := _open(file)
+	_check(back.settings.mouse_sensitivity == 200 and back.settings.invert_y == true and back.problems.is_empty(),
+		"[input] round-trips", FileAccess.get_file_as_string(file).replace("\n", " | "))
+	var config := ConfigFile.new()
+	config.load(file)
+	_check(config.get_section_keys("input").size() == 2 and config.has_section_key("input", "mouse_sensitivity")
+		and config.has_section_key("input", "invert_y"), "the [input] section holds exactly its two keys")
+
+
+## §3: each allowed percent gives its look scale; the 3D player takes only this float.
+func _input_scales() -> void:
+	var expected := {50: 0.5, 75: 0.75, 100: 1.0, 125: 1.25, 150: 1.5, 200: 2.0}
+	var all_right := true
+	for percent in expected:
+		var value := MineWorldSettings.new()
+		value.mouse_sensitivity = percent
+		all_right = all_right and is_equal_approx(value.look_scale(), expected[percent])
+	_check(all_right, "look_scale() is the percent over 100, for each allowed value", str(expected))
+	_check(MineWorldSettings.new().look_scale() == 1.0, "the default look scale is 1.0 (today's feel)")
+
+
+## AC-SETb-7: a bad [input] value takes its default with one warning naming file and key; the file is
+## byte-identical until Apply, and Apply keeps the old bytes as .bak.
+func _input_bad_values() -> void:
+	var cases := {
+		"sensitivity_999": "[meta]\nversion=1\n[input]\nmouse_sensitivity=999\ninvert_y=true\n",
+		"sensitivity_fast": "[meta]\nversion=1\n[input]\nmouse_sensitivity=\"fast\"\n",
+		"invert_yes": "[meta]\nversion=1\n[input]\ninvert_y=\"yes\"\nmouse_sensitivity=150\n",
+	}
+	for name in cases:
+		var file := _file(name + ".cfg")
+		var out := FileAccess.open(file, FileAccess.WRITE)
+		out.store_string(cases[name])
+		out.close()
+		var before := FileAccess.get_file_as_bytes(file)
+		var store := _open(file)
+		var said := "\n".join(store.problems)
+		var key := "mouse_sensitivity" if name.begins_with("sensitivity") else "invert_y"
+		_check(store.problems.size() == 1 and said.contains(file) and said.contains("input/" + key),
+			"%s: one warning naming the file and the key" % name, said)
+		# Expected [mouse_sensitivity, invert_y] after loading: the bad key's default, the good key kept.
+		var want := {"sensitivity_999": [100, true], "sensitivity_fast": [100, false], "invert_yes": [150, false]}
+		_check(store.settings.mouse_sensitivity == want[name][0] and store.settings.invert_y == want[name][1],
+			"%s: the bad key takes its default, the good one is kept" % name)
+		_check(FileAccess.get_file_as_bytes(file) == before, "%s: the file is byte-identical after loading" % name)
+		_check(store.save(store.settings.copy()) == OK, "%s: an apply saves" % name)
+		_check(FileAccess.get_file_as_bytes(file + ".bak") == before, "%s: the old content is kept as .bak" % name)
+		_check(_open(file).problems.is_empty(), "%s: the new file reads clean" % name)
+
+
+## AC-SETb-7: an unknown key in [input] (a binding written by hand) is dropped with one warning, and the
+## next Apply writes the file without it.
+func _input_unknown_key() -> void:
+	var file := _file("input-unknown.cfg")
+	var out := FileAccess.open(file, FileAccess.WRITE)
+	out.store_string("[meta]\nversion=1\n[input]\nmouse_sensitivity=125\nkey_jump=\"Space\"\n")
+	out.close()
+	var store := _open(file)
+	_check(store.problems.size() == 1 and store.problems[0].contains("input/key_jump") and store.settings.mouse_sensitivity == 125,
+		"an unknown [input] key is named and dropped; the known key is kept", "\n".join(store.problems))
+	store.save(store.settings)
+	var config := ConfigFile.new()
+	config.load(file)
+	_check(not config.has_section_key("input", "key_jump") and config.get_value("input", "mouse_sensitivity") == 125,
+		"after an apply the file holds only the two [input] keys")
+
+
+## §4 per-section merge: a display Apply does not rewrite [input] that another client has written since.
+func _input_not_rewritten_by_display() -> void:
+	var file := _file("input-merge.cfg")
+	_open(file).save(MineWorldSettings.new())
+	var three_d := _open(file)
+	var other := ConfigFile.new()
+	other.load(file)
+	other.set_value("input", "mouse_sensitivity", 50)
+	other.set_value("input", "invert_y", true)
+	other.save(file)
+	var display := three_d.settings.copy()
+	display.window_mode = MineWorldSettings.WindowMode.BORDERLESS
+	three_d.save(display)
+	var after := ConfigFile.new()
+	after.load(file)
+	_check(after.get_value("input", "mouse_sensitivity") == 50 and after.get_value("input", "invert_y") == true,
+		"a display Apply keeps the [input] another client wrote")
 
 
 ## Applying every value headless is a no-op without error (P-11), and the defaults change nothing.

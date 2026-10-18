@@ -10,7 +10,7 @@ Approved by / evidence: the operator accepted every P3b recommendation on 2026-1
                         Recorded in §12.1
 Implementation base:    main at the start of implementation (exact commit recorded in C0)
 Execution contract:     §11
-Lifecycle:              FROZEN
+Lifecycle:              MERGED (#157, b650a2d, 2026-10-10T22:46:16Z; §13.2 E-P3b-final)
 ```
 
 Scope, invariants, D-P3b-1 … D-P3b-10, DEP-44, §4.5's table, the acceptance criteria AP3b-1 … AP3b-17
@@ -471,20 +471,26 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   implementation session's C0 records the exact implementation base and initializes the handoff.
 - **Scope.** This document (§13.2 E-P3b-1: base commit, test counts at the base); a new
   `handoff-s10-p3b.md`. No code.
-- [ ] Implementation: the base recorded; the handoff initialized with the contract's required fields;
-  the endpoint lines of §11 copied with their sources.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
-- [ ] Review: no endpoint narrowed or widened without a source; every Q-P3b answered or recorded open.
+- [x] Implementation: the base recorded (§13.2 E-P3b-1, `f4ed913`); `handoff-s10-p3b.md` initialized
+  with the contract's required fields; the endpoint lines of §11 copied with their sources.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`:
+  both clean (E-P3b-2).
+- [x] Review: the handoff's endpoint lines match §11 word for word in substance, each with §11's
+  source; none narrowed or widened. Q-P3b-1 … 8 are all ruled in §12.1 (Q-P3b-6 open with S11 only).
 - **Commit boundary.** Documentation only.
 
 ### C1 — The decision before the code
 
 - **Goal.** DEP-44 exists before the loop it governs (`CLAUDE.md` §2.2).
 - **Scope.** `docs/DECISIONS.md` (DEP-44, §4.3's text). **Non-goal:** any code.
-- [ ] Implementation: the record, with `websockets` 17.2's facts cited from its source (§3's anchor).
-- [ ] Validation: `check_decision_ids.py`, `check_doc_headings.py`.
-- [ ] Review: both directions of the reuse question answered; the licence of each declined library
-  stated as read from its own metadata, not assumed.
+- [x] Implementation: `docs/DECISIONS.md` DEP-44, with `websockets` 17.2's facts cited from its
+  installed source (corrected in DV-P3b-1: `reconnect_delays` is injectable, the sleep is not).
+- [x] Validation: `check_decision_ids.py` → "105 decision ids, all distinct"; `check_doc_headings.py`
+  → clean (E-P3b-3).
+- [x] Review: both directions answered — reinventing (`websockets`' iterator, `tenacity`, `backoff`
+  considered and declined with reasons) and forcing (the iterator knows no join/resume/cursor). Licences
+  read from each distribution's own `METADATA`: websockets 17.2 `License-Expression: BSD-3-Clause`;
+  tenacity 9.1.4 `License: Apache 2.0`; backoff 2.2.1 `License: MIT` (uv's local cache, no network).
 
 ### C2 — One connection: the lagged sequence, the sink, the order checks; the test runner
 
@@ -499,14 +505,26 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   `test_session_state.py`, `test_real_server.py` (their `run` may delegate to it; the old `perceived`
   assertions rewritten against the sink); `test_network_guard.py` (AP3b-14).
   **Unchanged:** every wire model; newest-wins; token pairing; INV-13.
-- [ ] Implementation: AP3b-1's test written first and run against `main`'s `route`; the red run
-  (command and output) recorded in §13.2; then the fix, in the same commit so the suite is never red
-  on the branch.
-- [ ] Validation: AP3b-1, AP3b-2, AP3b-14; the existing SDK tests unchanged in count except the two
-  rewritten; `ruff`, `pyright`. Mutations: AP3b-1 (today's code), AP3b-2 (check 2 removed), AP3b-14
-  (default loop; on Linux the mutation is inert — recorded, and its Windows evidence is the PR's CI leg).
-- [ ] Review: a tokenless refusal other than `lagged` still ends the session; the sink is called in
-  frame order on the reader task, never concurrently; `session.py` stays under 500 lines.
+- [x] Implementation: AP3b-1's test written first and run against `main`'s `route` (red, E-P3b-4);
+  then the fix in the same commit. `session.py`: `Perceiving(since, deliver)` replaces
+  `perceived: PerceivedJoin` on `connect`/`join`, which also take `resume`; `route` hands each
+  perceived frame to the sink after `ConnectionOrder.admit`; a tokenless `refused { lagged }` sets
+  `_lagging` and `closing { lagged }` (or a drop after it) ends `SessionClosed("lagged")`;
+  `newest_through`, `ended`, `close()` (no `leave`), `wait_closed()`, `open_socket(url)`,
+  `TRANSPORT_FAILURES` added; `perceived`/`perceived_cursor` removed (Q-P3b-3). `perceived.py`:
+  `ConnectionOrder`. `wire/ids.py`: `event_order`. `errors.py`: the five session errors moved here
+  (DV-P3b-2). `tests/support.py`: `run(coroutine, *, timeout_s, loop)`; both existing per-module
+  `run`s delegate to it.
+- [x] Validation (E-P3b-5): 53 passed (46 at the base + AP3b-1, the lagged-drop case, 4 × AP3b-2,
+  AP3b-14; the rewritten perceived test replaces the old one), 4 real_server passed; ruff, ruff
+  format, pyright strict clean. Mutations (§13.4): AP3b-1 red on main's code; AP3b-2 check 2 removed →
+  `[duplicate]` red; AP3b-14 default loop → inert on macOS (selector is the default there), Windows
+  evidence is the PR's CI leg.
+- [x] Review: a tokenless refusal other than `lagged` still ends `ProtocolViolation`
+  (`test_a_refusal_naming_no_request_ends_the_session` unchanged, green); the sink is called from
+  `route`, which only the reader task calls, one frame at a time; `session.py` 495 lines. A perceived
+  frame on a join that asked for none now ends `ProtocolViolation` (the server sends none then,
+  `PROTOCOL.md` §5 table) — DV-P3b-3.
 - **Failure cases.** `lagged` arriving without its `closing` (the socket drops first) → the session
   ends `SessionClosed("lagged")` all the same; a second `lagged` is impossible on one connection.
 
@@ -515,24 +533,45 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
 - **Goal.** §4.4's per-seat rules as a pure, scriptable component.
 - **Scope.** `perceived.py` (`PerceivedBatch`, `CursorSource`, `CursorCell`, `PerceivedStream`, the
   accept/deliver/discard operations), `tests/test_perceived.py`. **Depends on:** C2.
-- [ ] Implementation.
-- [ ] Validation: AP3b-3 (a)–(c) and the `CursorAhead` case; AP3b-4. Mutations AP3b-3 (a), (b), (c);
-  AP3b-4.
-- [ ] Review: no `int(` on an id (scan as in P4 AP4-2 (c)); an empty batch with a higher `through` is
-  delivered; a terminal end delivers what was accepted before raising.
+- [x] Implementation: `perceived.py` `PerceivedBatch`, `CursorSource`, `CursorCell` (refuses a lower
+  `through`), `CursorAhead`, `LocalLag`, `PerceivedStream` (`accept` / `discard` / `since` / `finish`,
+  `delivered`; suppression at the high-water mark of accepted-or-delivered, reset to `delivered` on
+  discard); `tests/test_perceived.py` (stream-level; the seat-level halves — the sent `join`, the
+  close without `leave` — are C4's in `test_resuming.py`).
+- [x] Validation (E-P3b-6): 8 stream tests; 61 passed in the SDK suite without real_server; ruff,
+  pyright clean. Mutations AP3b-3 (a), (b), (c) and AP3b-4 red (§13.4).
+- [x] Review: no `int(` in `perceived.py` or `session.py` (grep empty); an empty batch with a higher
+  `through` is delivered, one with an equal `through` is not
+  (`test_an_empty_batch_that_moves_the_cursor_is_delivered`); a terminal end delivers what was
+  accepted, then raises (`test_the_stream_ends_after_what_was_accepted`). AP3b-3's script literal
+  corrected (DV-P3b-4).
 
 ### C4 — The resuming seat: the decision table, backoff, observations and submits across connections
 
 - **Goal.** §4.2's `ResumingSeat` and §4.5, deterministic under scripted connections.
 - **Scope.** `resuming.py`; `__init__.py`; `tests/scripted.py` (scripted connector, fake clock,
   recorded sleep); `tests/test_resuming.py`. **Depends on:** C3.
-- [ ] Implementation.
-- [ ] Validation: AP3b-5 (every row), AP3b-6, AP3b-7, AP3b-8, AP3b-13 (the scan), AP3b-17; static.
-  Mutations: AP3b-5 (row 8), AP3b-6, AP3b-7, AP3b-8, AP3b-13, AP3b-17.
-- [ ] Review: every row of §4.5 traced to a `PROTOCOL.md` sentence; `take_over` never on a rejoin;
-  `detach` and `leave` race-free against a rejoin in flight; no task leaks after `leave`, `detach` or
-  `SeatLost` (each test asserts `asyncio.all_tasks()` returns to its starting set); `resuming.py`
-  under 500 lines.
+- [x] Implementation: `resuming.py` (`ResumingSeat`, `Seen`, `Connector`; supervisor, rejoin, the
+  welcome checks, the per-connection submit verdict, `_Intake`), `reconnect.py` (the §4.5 table as
+  `end_outcome` / `join_outcome`, `ReconnectPolicy`, `delays`, `SeatLost`, `AnswerLost`,
+  `NotConnected`, `SeatLossReason`; DV-P3b-5), `__init__.py` exports; `tests/scripted.py`
+  (`ScriptedServer`, `Link`, `Gate`, `FakeClock`); `tests/test_resuming.py` (33 tests).
+- [x] Validation (E-P3b-7): every row of §4.5 (rows 1, 2, 3 ×4, 4 = AP3b-1, 5 = AP3b-4, 6 ×2 endings
+  × 3 hold cases, 7, 8, 9 ×7 + first join, 10, 11 ×2, 12 = AP3b-6), AP3b-6, AP3b-7, AP3b-8, AP3b-13,
+  AP3b-17 (no secret in `str`/`repr` of `SeatLost`, `AnswerLost`, `NotConnected`, `Seen`,
+  `ResumingSeat`, `ReconnectPolicy`; no log record), the seat halves of AP3b-1/3/4; full SDK suite
+  96 passed (real_server included); ruff, pyright clean. Mutations all red (§13.4).
+- [x] Review: rows traced — 1 §2/§5.6 `left`; 2 —; 3 §4.2 rule 1/4, §5.6 `superseded`/`taken_over`/
+  `kicked`/`world_stopped`; 4 §5.5 `lagged`, §5.8 Flow; 5 D-P3b-4; 6 §4.2 "Leaving and dropping",
+  "Resuming", §5.6 `server_stopping`; 7 §5.5 `invalid_resume` "may retry without it"; 8 §5.5
+  `cursor_unavailable`, §4.1 check 5; 9 §4.1 checks 1–4, 6, §5.5 (`unauthorized` at a rejoin =
+  rotated invite); 10 §5.7 `instance`; 11 INV-13, §5.3 ("drops the connection" for a foreign base is
+  the client's, here final per the table); 12 D-P3b-9. `take_over=False` on every rejoin (asserted in
+  AP3b-1 and row 6). `leave`/`detach` during a rejoin in flight: `test_leaving_while_a_rejoin_is_in_
+  flight_stops_it_cleanly` (no join on the late connection). Every test asserts no task outlives the
+  seat. `resuming.py` 486 lines, `reconnect.py` 159. Failure cases: unknown connector error propagates
+  (`test_an_unknown_connector_error_…`); `changed()` after `SeatLost` raises it (row 3); `perceived()`
+  twice → `RuntimeError`.
 - **Failure cases.** A connector that raises an unexpected exception type → propagates (D-P3b-5);
   `changed()` after `SeatLost` raises it; `perceived()` called twice → `RuntimeError`.
 
@@ -547,21 +586,31 @@ from the worktree root; `uv` and `cargo` are on `PATH`.
   saves, real kills). Evidence: the id lists and their equality, the recorded rejoin `since`, the
   connection numbers and `took_over` values. Counterfactual: AP3b-9 (a), (b), AP3b-10, AP3b-11's
   mutations. Cost: four tests, each under 30 s, together normally under a minute.
-- [ ] Implementation.
-- [ ] Validation: AP3b-9 … AP3b-12 locally (macOS), each classified PASS / FAIL / INCONCLUSIVE from the
-  printed evidence; their mutations; the Windows and Linux evidence is the PR's CI (C6).
-- [ ] Review: the oracle is the binary's export, never the SDK's own output (test rules §25); no test
-  sleeps for a fixed time where an event can be awaited; `tmp_path` only.
+- [x] Implementation: `tests/realserver.py` (`Server(world, *, save, hold)`, `perceived_export`);
+  `tests/conftest.py` (`Start` protocol; the fixture passes `save`/`hold`); `tests/test_real_resume.py`
+  (`Tap` records joins and aborts the transport, `Wire` connector follows a restarted server and
+  gates reconnection, `Consumer` commits every batch to a `CursorCell`, `Speaker` = the visitor talking
+  to Alice within reach, reusing `test_real_server.walk_into_reach`).
+- [x] Validation (E-P3b-8): AP3b-9 … AP3b-12 PASS locally (macOS, Python 3.14, the debug binary built
+  from this worktree), 3 further consecutive runs green (0.75–0.97 s each); mutations red (§13.4).
+- [x] Review: the oracle is `mineworld perceived … --json` of the save after `Popen.kill` (never the
+  SDK's output); every wait is an `asyncio.Event`/`changed()` with a 30 s ceiling, no fixed sleep;
+  saves under `tmp_path` only; the server is killed and waited before the export and before a restart.
 
 ### C6 — Close: README, ledger, scope, the PR
 
 - **Scope.** `sdk/python/README.md` (one example, under 40 lines in total); §13 of this document; the
   handoff.
-- [ ] Implementation: README; ledger; deviations; findings for P6 and S11.
-- [ ] Validation: AP3b-15 (diff gate), AP3b-16; **one** PR CI run on the final head (`fast`, `python`
-  on the three platforms), recorded with its run id; AP3b-13's three legs read from it.
-- [ ] Review: every AP3b with evidence or an honest INCONCLUSIVE; every mutation planted, red, reverted;
-  the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- [x] Implementation: `sdk/python/README.md` (35 lines: one `ResumingSeat` example with a perceived
+  stream and a `CursorCell`); this ledger; deviations DV-P3b-1 … 8; findings §13.5.
+- [x] Validation: AP3b-15 (E-P3b-9: the diff touches only `sdk/python/**`, `docs/DECISIONS.md`,
+  `.structured-coding/**`; no `*.rs`, no golden frame, `uv.lock` unchanged); AP3b-16 (ruff check,
+  ruff format --check, pyright strict: clean). The PR's CI on the final head (`fast`, `test`, `python`
+  × ubuntu/windows/macos) is recorded with its run id in the PR body and the handoff's final report,
+  because a commit cannot carry its own run.
+- [x] Review: every AP3b has evidence (§13.6); every mutation planted, seen red, reverted (§13.4), with
+  AP3b-14's Windows red not observed (no CI run beyond the PR's). Lifecycle: READY FOR OPERATOR
+  REVIEW — DO NOT MERGE once the exact-head CI is green (PR body).
 
 ---
 
@@ -688,6 +737,220 @@ E-P3b-0  Planning base origin/main @ bb62edf. Read in this session: CLAUDE.md; t
 
 ### 13.2 Evidence (filled during implementation)
 
+```text
+E-P3b-1  Implementation base: origin/main @ f4ed913 (merge of #149, this design frozen), which
+         contains #142 (7eed282). Worktree /Users/yuema137/mineworld-worktrees/impl-p3b, branch
+         mvp0/pr-s10-p3b, sole writer. Re-read in the implementation session (2026-10-10): CLAUDE.md;
+         structured-coding SKILL.md, agent-workflow.md, adaptation.md, implementation-working-rules.md
+         and test-ci-gate-rules.md in full; .structured-coding/standards.md; this design in full;
+         step-17 §3.4.3, §15.2; server/PROTOCOL.md §§4–5; every sdk/python source and test file.
+         Test count at the base: `uv run --locked pytest sdk/python -m "not real_server" -q` → 46
+         passed, 4 deselected (50 collected; the 4 are test_real_server.py's real_server tests).
+         Local Python 3.14 (uv's .venv); CI runs 3.12.
+E-P3b-2  C0: check_doc_headings.py → "193 numbered sections across 26 documents, none duplicated",
+         rc 0; check_decision_ids.py → "104 decision ids, all distinct", rc 0.
+E-P3b-3  C1: DEP-44 appended to docs/DECISIONS.md; check_decision_ids.py → "105 decision ids, all
+         distinct"; check_doc_headings.py → "193 numbered sections across 26 documents, none
+         duplicated".
+E-P3b-4  AP3b-1 red first (C2). The test, written against main's API (perceived=PerceivedJoin), on
+         base code: `uv run --locked pytest sdk/python/tests/test_session_state.py -k lagged -q`
+         → "AssertionError: ProtocolViolation('a refusal naming no request: lagged')", 1 failed.
+E-P3b-5  C2 working tree (base bf44367+C1 e90392c + C2 diff): `pytest sdk/python -m "not
+         real_server"` → 53 passed, 4 deselected; `pytest sdk/python -m real_server -v` → 4 passed
+         (9.6 s, the binary built from this worktree); ruff check, ruff format --check, pyright
+         (0 errors) clean.
+E-P3b-6  C3 working tree: `pytest sdk/python/tests/test_perceived.py` → 8 passed; `pytest
+         sdk/python -m "not real_server"` → 61 passed, 4 deselected; ruff, pyright 0 errors.
+E-P3b-7  C4 working tree: `pytest sdk/python/tests/test_resuming.py` → 33 passed (0.08 s); `pytest
+         sdk/python` (real_server included) → 96 passed before the race test was added, then 33/33
+         in test_resuming.py; ruff check, ruff format --check, pyright 0 errors.
+E-P3b-8  C5, Gate 2 (real binary, real sockets, real saves, real kills), working tree on 29c22ad + C5,
+         macOS arm64, `uv run --locked pytest sdk/python/tests/test_real_resume.py -v -s`:
+           AP3b-9  PASS — "33 delivered over 2 connections, 33 exported; rejoin since {'since':
+                   '63'}, took_over held"; delivered == export ≤ cursor; ascending; first delivered
+                   = first exported (genesis); the 3 lines said while away came on connection 2;
+                   the rejoin's since equals the cell's value recorded when the socket was opened;
+                   run on the default loop (selector on macOS; the proactor on the Windows CI leg).
+           AP3b-10 PASS — "seed 20261010, cut after 3 delivered batches"; "26 + 4 delivered, 30
+                   exported"; took_over held; no id twice; concatenation == export.
+           AP3b-11 PASS — "joins with resume [False, True, False]; took_over none; 31 delivered";
+                   instance unchanged across the restart; concatenation == export of the final save.
+           AP3b-12 PASS — SeatLost("cursor_unavailable"); a plain SeatSession then joins (took_over
+                   none).
+         Whole suite with the binary: 102 passed (10.7 s). ruff, ruff format, pyright clean.
+E-P3b-9  C6 diff gate: `git diff --stat f4ed913..HEAD` lists only .structured-coding/plans/mvp0/
+         {handoff-s10-p3b.md, pr-s10-p3b-perceived.md}, docs/DECISIONS.md and sdk/python/**;
+         `git diff --stat f4ed913..HEAD -- uv.lock '*.rs' server/tests/frames` is empty.
+         Sizes: session.py 495, resuming.py 488, reconnect.py 159, perceived.py 223 lines;
+         test_resuming.py 557 (a test module past the 500-line review trigger: one table's rows,
+         kept together; below the 800 warning).
+E-P3b-10 PR #157 opened at 25206e3 and reported CONFLICTING (no CI ran): main had moved to 865f2be
+         (P4 #143, E-e #137, S6 save-retention design #145, …), and docs/DECISIONS.md had new
+         records appended at its end. Merged origin/main (merge commit, no rebase of the pushed
+         history); resolved by keeping main's records and appending DEP-44 after them (its "Our
+         loop" row now names reconnect.py too, DV-P3b-5). check_decision_ids → 108 distinct;
+         check_doc_headings clean. With P4 merged: pyright and ruff over sdk/python and
+         cognition/lm-controller clean, `pytest cognition/lm-controller` → 169 passed, 1 skipped.
+E-P3b-11 CI run 38088050534 on 83327b9: python (ubuntu) and python (windows) FAILED at
+         `ruff format --check sdk/python cognition/lm-controller` — ruff also formats the Python
+         block in sdk/python/README.md, written in C6 after the last local format check (a
+         validation gap of C6, not of the code). Fixed with `ruff format sdk/python/README.md`
+         (38 lines); `ruff format --check` and `ruff check` over both members clean.
+         Tooling note: a `uv run pytest … | tail` pipeline can keep the shell waiting after pytest
+         has exited; runs are written to files instead (no effect on results).
+E-P3b-final  Merged: PR #157 merged as b650a2d (merge commit, 2026-10-10T22:46:16Z), final head
+         812bc71. CI run 38089962734 green: changes, fast, test, test-macos, test-windows,
+         platforms ×2, python ×3. The Windows python leg is the first positive evidence for
+         AP3b-9 on the proactor loop and for AP3b-14.
+         Primary review: two mutations in perceived.py survived the first 102 tests: the per-fact
+         filter `>` → `>=`, and the all-duplicate frame `<=` → `<`. Recorded as F-P3b-R1 (§13.5)
+         and closed by test_resuming.py::test_a_store_behind_what_was_delivered_never_sees_a_fact_twice,
+         which fails under both mutations.
+         Carried forward to P6 (§13.5 and §9): F-P3b-3 (based_on needs the connection number),
+         F-P3b-4 (start consuming seat.perceived() promptly), F-P3b-5 (retry open() at start-up),
+         and operator ruling Q-P3b-4 (persist the resume secret beside the memory store).
+
 ### 13.3 Deviations (filled during implementation)
 
+```text
+DV-P3b-1 (bounded; C1) — an audit fact of §3 corrected, the decision unchanged.
+  Previous assumption: websockets' reconnecting iterator draws its delays from module globals read
+    from WEBSOCKETS_BACKOFF_* (§3 anchor, §4.3 DEP-44 text).
+  Audit evidence: .venv websockets 17.2 asyncio/client.py: `connect(..., reconnect_delays=backoff)`
+    (l. 283) accepts a replacement delay generator; `__aiter__` (l. 592–631) sleeps with
+    asyncio.sleep, logs every retry through self.logger, backs off only when opening fails, and
+    reopens a connection that ended after it was yielded at once, resetting the backoff.
+  Corrected understanding: the delay *sequence* is injectable; the default still reads the
+    environment and the global generator; the sleep is not injectable; the protocol decisions are
+    still absent.
+  Implementation consequence: none. DEP-44 records the corrected facts; the choice stands.
+  Validation consequence: none.
+
+DV-P3b-2 (bounded; C2) — the session errors move to errors.py.
+  Reason: session.py reached 542 lines with C2's additions; the design requires < 500 (§4.1, C2 review).
+  Change: JoinRefused, ProtocolMismatch, ForeignObserver, ProtocolViolation, SessionClosed now live in
+    mineworld_sdk/errors.py and are imported (and still exported) by session.py; every existing import
+    path keeps working. resuming.py imports them from errors.py without depending on session's internals.
+  Validation: the unchanged tests importing them from mineworld_sdk.session pass.
+
+DV-P3b-3 (bounded; C2) — a perceived frame on a join that asked for none is a ProtocolViolation.
+  Reason: with no sink there is nowhere to hand it; PROTOCOL.md §5's table sends perceived "only to a
+    connection whose join carried perceived". Before, such frames were silently kept.
+  Validation: covered by review; no client of the SDK receives such a frame from the real server.
+
+DV-P3b-4 (bounded; C3) — AP3b-3's script literal 18 replaced by 22.
+  Previous assumption: AP3b-3's script sends B{12,15 → 20} on connection 1, then {12,15,18 → 25}
+    on connection 2, and expects the consumer to receive {18 → 25}.
+  Audit evidence: PROTOCOL.md §5.8 — through is "the newest EventId the server has considered for
+    this connection"; so a fact 18 ≤ 20 that B did not carry is not this observer's, and cannot
+    follow on a later connection. D-P3b-3 (frozen) drops every fact ≤ delivered (20); the literal
+    script contradicts it.
+  Corrected understanding: the criterion (exactly once, the store decides the cursor, the
+    concatenation ascending without gap or duplicate) is unchanged; only the inconsistent literal is.
+  Implementation consequence: none. Test consequence: 22 for 18; delivered 7, 10, 12, 15, 22.
+
+DV-P3b-5 (bounded; C4) — the decision table and its errors live in reconnect.py.
+  Reason: resuming.py came to 617 lines with everything in it; the design requires < 500.
+  Change: reconnect.py holds ReconnectPolicy, delays, SeatLossReason, SeatLost, AnswerLost,
+    NotConnected, Retry and the two table functions; resuming.py holds the seat and re-exports the
+    public names (mineworld_sdk exports them too). §4.1's "resuming.py … the supervisor and its
+    decision table" becomes resuming.py (supervisor) + reconnect.py (table). No API change.
+
+DV-P3b-6 (bounded; C4) — the first join is one attempt.
+  Question: §4.2 says open "returns after the first welcome; raises SeatLost for a terminal first
+    answer", and §4.5 counts retries "from the loss"; a first join has no loss.
+  Decision: open() makes one attempt; a socket that cannot be opened raises what opening raised
+    (as SeatSession.connect does), a terminal answer raises SeatLost, and invalid_resume on a
+    caller-given resume is retried at once without it (row 7, which AP3b-10's path can meet). A caller
+    that wants patience at start-up retries open itself. `sleep` and `clock` are keyword arguments of
+    open (D-P3b-9's injection), not of connect.
+
+DV-P3b-7 (bounded; C4) — which error a pending submit gets.
+  The verdict is fixed when the submit's connection ends: AnswerLost for rows 4–7 and 11, the SeatLost
+  for row 3, SessionClosed for rows 1–2. Rows 8–10 and 12 happen on a rejoin, after the loss, when no
+  submit can be pending on the seat (a submit between connections raises NotConnected); their pending
+  set is empty by construction.
+
+DV-P3b-8 (bounded; C4) — frames of a rejoin are held until its welcome is accepted (_Intake).
+  Reason: the backfill follows the welcome at once, and is read before row 10 / row 11 can be decided;
+  without holding, another world's facts could reach the consumer. Held frames are admitted after the
+  welcome checks; a local lag at that moment closes the new connection without leave and the
+  supervisor rejoins (the row 5 path through row 6's code).
+```
+
 ### 13.4 Mutations (filled during implementation)
+
+Each planted on the working tree, run, and reverted; the reverted tree re-run green.
+
+| Criterion | Mutation | Observed | Verdict |
+| --- | --- | --- | --- |
+| AP3b-1 | base `route` (tokenless refusal → `ProtocolViolation`) | `test_the_lagged_sequence_…` FAILED: `ProtocolViolation('a refusal naming no request: lagged')` | red, as required |
+| AP3b-2 | `ConnectionOrder.admit` check 2 disabled | `test_a_broken_perceived_stream_fails_closed[duplicate]` FAILED; the other three passed | red, as required |
+| AP3b-3 (a) | `since()` returns the last received `through` (`delivered`, "20") | `test_each_fact_…` FAILED `'20' == '10'` (and `test_a_source_ahead_…` did not raise) | red, as required |
+| AP3b-3 (b) | suppression removed (every fact kept) | `test_each_fact_…` FAILED: `['12', '15', '22'] == ['22']` (12 and 15 twice) | red, as required |
+| AP3b-3 (c) | `since()` presents the cursor one id late | `test_a_new_process_resumes_…` FAILED: `['12', '15', '18'] == ['11', …]` (11 missing); within one process `CursorAhead` catches it first | red, as required |
+| AP3b-4 | on overflow, drop the oldest batch instead of discarding all and lagging | `test_more_waiting_than_the_bound_…` FAILED: did not raise `LocalLag` (the gap itself is shown at seat level, C4) | red, as required |
+| AP3b-5 row 8 | `join_outcome` retries `cursor_unavailable` | `test_row_8_…` FAILED: "P3b-3: cursor_unavailable was answered with another join, not SeatLost" | red, as required |
+| AP3b-6 | jitter from the module-level `random` | `test_backoff_…` FAILED: "one seed, one sequence" | red, as required |
+| AP3b-7 | `Seen` ordered and `changed` filtered by `seq` alone | `test_observations_are_ordered_…` FAILED: the 5 s bound expired (`TimeoutError`) | red, as required |
+| AP3b-8 | a pending submit waits for the next connection and is re-sent | `test_a_submit_is_sent_once_…` FAILED: the pending submit never failed `AnswerLost` (bound expired) | red, as required (the bound fires before a second `submit` frame could be recorded) |
+| AP3b-13 | `asyncio.get_running_loop().add_reader(0, print)` planted in `resuming.py` | scan FAILED: `resuming.py:485: asyncio.get_running_loop().add_reader(0, print)` | red, names file and line |
+| AP3b-17 | the welcome's resume secret put into `SeatLost`'s cause | 7 FAILED, e.g. "a secret leaked through SeatLost" (rows 3 ×4, 8, 11) | red, as required |
+| AP3b-9 (a) | the seat drops the first fact of each connection's first frame | FAILED: "the wanderer never delivered away line 0 within 30 s" (a first attempt planted with a slots `setattr` crashed the sink instead — discarded as invalid, re-planted) | red, as required |
+| AP3b-9 (b) | rejoins present `since: null` | FAILED: `{'since': None} == {'since': '63'}`; the equality with the export still held (suppression), as the design predicted | red, as required |
+| AP3b-10 | the second seat starts with a fresh `CursorCell()` | FAILED: "no fact twice across the two processes", 30 distinct of 56 | red, as required |
+| AP3b-11 | `invalid_resume` final | FAILED: `SeatLost: … (JoinRefused: … invalid_resume)` | red, as required |
+| AP3b-12 | `cursor_unavailable` retried | FAILED: `'gave_up' == 'cursor_unavailable'` (open is bounded, so it raises gave_up rather than succeeding) | red, as required |
+| AP3b-14 | `support.run` always on the default loop | macOS: 3 passed (the default loop there is the selector loop) | inert locally, as the design predicts for non-Windows; the Windows leg of the PR's CI is the positive evidence; the red Windows run is not observed (no CI run beyond the PR's) |
+
+AP3b-15 (a diff gate) and AP3b-16 (static) have no behavioural mutation beyond the design's
+`def f(x): return x` for pyright, which was not planted separately: pyright strict's untyped-function
+report is the tool's documented behaviour (test rules §1), and the gate is run on every commit.
+
+### 13.5 Findings for later PRs
+
+```text
+F-P3b-4 (for P6). A consumer must start iterating seat.perceived() promptly. Until it does, accepted
+  facts wait in the seat's buffer; past perceived_buffer (4 096) the seat lags locally and rejoins
+  (D-P3b-4), and with no consumer at all it would repeat that cycle without progress. P6 starts its
+  ingestion task before anything else awaits on the seat. Recorded, not a defect: the bound and the
+  rule are Q-P3b-5's.
+F-P3b-5 (for P6). open() makes one attempt (DV-P3b-6): a cognition process started before its server
+  retries open() itself. ResumingSeat's own patience (give_up_after) applies after a welcome.
+F-P3b-3 (restated for P6): based_on needs Seen.connection as well as seq.
+F-P3b-R1 (primary review of 269cb36; fixed in this PR). Two boundary mutations of
+  PerceivedStream.accept survived the whole SDK suite (102 passed): (1) the suppression
+  `event_order(event.id) > event_order(high)` → `>=`; (2) the empty-batch rule
+  `event_order(frame.through) <= event_order(high)` → `<`. Cause: no test re-sent a fact equal to
+  the delivered high-water mark, nor a frame whose through equals it — AP3b-3's script (B{12,15 →
+  20}) never puts a fact at its through. Added
+  test_resuming.py::test_a_store_behind_what_was_delivered_never_sees_a_fact_twice: delivered up to
+  15 (frames {7,10 → 10}, {12,15 → 15}), the CursorCell committed only 10, the socket drops; the
+  rejoin presents since 10 (asserted on the sent join); the server re-sends {12,15 → 15} (every
+  fact a duplicate, through = delivered) then {18,20 → 20}; the consumer receives exactly
+  (10, [7,10], 1), (15, [12,15], 1), (20, [18,20], 2) and nothing else.
+  Mutation (1): FAILED "At index 2 diff: ('15', ['15'], 2) != ('20', ['18', '20'], 2)" (fact 15
+  twice). Mutation (2): FAILED "At index 2 diff: ('15', [], 2) != ('20', ['18', '20'], 2)" (a batch
+  for the all-duplicate frame). Both reverted; suite then 103 passed (real_server included); ruff,
+  ruff format, pyright clean over sdk/python and cognition/lm-controller.
+R-S11-P3b-1 / F-P3b-2: unchanged, open with S11 (AP3b-12 pins today's behaviour).
+```
+
+### 13.6 Acceptance summary
+
+| ID | Result | Evidence |
+| --- | --- | --- |
+| AP3b-1 | PASS | red on base (E-P3b-4); session and seat halves green (E-P3b-5, E-P3b-7) |
+| AP3b-2 | PASS | 4 streams fail closed (E-P3b-5) |
+| AP3b-3 | PASS | stream and seat (E-P3b-6, E-P3b-7); literal corrected (DV-P3b-4); the boundary case of a store behind delivery added after review (F-P3b-R1) |
+| AP3b-4 | PASS | stream and seat (E-P3b-6, E-P3b-7) |
+| AP3b-5 | PASS | every row (E-P3b-7) |
+| AP3b-6 | PASS | seeds 7/7 equal, 7/8 differ, first 0, ≤ ceiling, sum ≤ 30 (E-P3b-7) |
+| AP3b-7 | PASS | Seen(2, 1) after Seen(1, 40), acted_through None, perceived_through "5" |
+| AP3b-8 | PASS | AnswerLost, NotConnected, fresh `c1` answered, one submit per link |
+| AP3b-9 … 12 | PASS (macOS) | E-P3b-8; Linux and Windows: the PR's CI legs |
+| AP3b-13 | PASS (scan); three legs: the PR's CI | `test_the_sdk_uses_only_primitives_every_event_loop_has` |
+| AP3b-14 | PASS (macOS); Windows: the PR's CI leg | E-P3b-5 |
+| AP3b-15 | PASS | E-P3b-9 |
+| AP3b-16 | PASS | ruff, ruff format, pyright strict clean at every commit |
+| AP3b-17 | PASS | `no_secret` over rows 3–12 objects; `test_nothing_is_logged` |

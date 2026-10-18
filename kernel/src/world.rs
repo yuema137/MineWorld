@@ -553,13 +553,14 @@ impl World {
         &self.processes
     }
 
-    /// The whole world as a system reads it: the same view `validate` is handed.
+    /// The whole world as a system reads it: the same view `validate` is handed, at [`World::now`].
     pub const fn read(&self) -> WorldRead<'_> {
         WorldRead::new(
             &self.entities,
             &self.components,
             &self.relations,
             &self.processes,
+            self.now(),
         )
     }
 

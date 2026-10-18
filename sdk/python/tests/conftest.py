@@ -6,14 +6,24 @@ The network guard is not here: it is pytest-socket, configured for every test in
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Protocol
 
 import pytest
 from realserver import BUILD, Server, binary
 
 
+class Start(Protocol):
+    """Starts `mineworld server <world>`, with `--save` and `--hold` when given."""
+
+    def __call__(
+        self, world: str, *, save: Path | None = None, hold: int | None = None
+    ) -> Server: ...
+
+
 @pytest.fixture
-def mineworld() -> Iterator[Callable[[str], Server]]:
+def mineworld() -> Iterator[Start]:
     """Starts `mineworld server <world>` on demand, and kills every server it started afterwards.
 
     A missing binary is an **error** of this fixture, never a skip (D-P3-10, AP-11): a test that did
@@ -28,8 +38,8 @@ def mineworld() -> Iterator[Callable[[str], Server]]:
         )
     started: list[Server] = []
 
-    def start(world: str) -> Server:
-        server = Server(world)
+    def start(world: str, *, save: Path | None = None, hold: int | None = None) -> Server:
+        server = Server(world, save=save, hold=hold)
         started.append(server)
         return server
 

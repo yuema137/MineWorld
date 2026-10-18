@@ -94,17 +94,40 @@ jobs:
         name: Run layer docs
         run: python3 scripts/ci_layer.py docs
 
-  test:
-    name: test
-    # Non-draft PRs, main, and scratch branches pushed to show a mutation turning CI red (step-14
-    # §9.0 R-4). A `-image` scratch branch exists for the image job only.
+  # The default suite (`core`) on every operating system, as weighted shards (docs/DECISIONS.md ARC-110).
+  # With walls, walking and bodies (12d) the suite outgrew one 60-minute job on all three: Windows on PR
+  # #200's run 38787218062 and #206's run 38782285755, Linux and macOS on #171's run 38786685064 (each
+  # cancelled with every test that ran green). scripts/ci_shard.py partitions the workspace's test targets
+  # by measured weight, deterministically and completely: a new test lands in exactly one shard, and every
+  # PR still runs the whole suite. Each shard builds and runs only its own targets, and is capped at 45 min
+  # so that drift turns a shard red long before the budget is gone (re-weigh at 35 min, ARC-110).
+  #
+  # The jobs `test`, `test-macos` and `test-windows` are gates over their shards, under their old names:
+  # a required check matches `test` (and `test-macos`) by name, so the branch rule does not change. A gate
+  # is green only when every shard is; a failed, cancelled or skipped shard turns it red. Gate and shards
+  # are skipped together (which a required check reads as passing) on a documentation-only change or a
+  # trigger that does not run the suite.
+  #
+  # Triggers: non-draft PRs, main, and scratch branches pushed to show a mutation turning CI red (step-14
+  # §9.0 R-4); Windows and macOS also on dispatch. A `-image` scratch branch exists for the image job only;
+  # a `-nightly` one for nightly.yml (ARC-83), which runs its own samples of this suite. Windows and macOS
+  # run natively, with `test`'s commands (step-14 §15.5); the whole checkout, whose longest path is 120
+  # characters, far inside Windows' MAX_PATH; .gitattributes checks text out with LF on every platform
+  # (step-14 W-3). Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
+  test-shard:
+    name: test (${{ matrix.shard }})
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/3", "2/3", "3/3"]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -115,15 +138,32 @@ jobs:
       - uses: ./.github/actions/layer
         with:
           layer: core
+          shard: ${{ matrix.shard }}
 
-  # The whole default suite on Windows and on macOS, natively: the same `core` commands as `test`, with
-  # `test`'s triggers and dispatch (step-14 §15.5). They report and are not required checks; whether they
-  # become required is the operator's (QB-11, ARC-48's note of 2026-10-09 for 13w). The whole checkout:
-  # its longest path is 120 characters, far inside Windows' MAX_PATH. .gitattributes checks text out with
-  # LF on every platform (step-14 W-3). Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19,
-  # step-14 §13.0.3).
-  test-windows:
-    name: test-windows
+  test:
+    name: test
+    needs: [changes, test-shard]
+    if: >-
+      always() && needs.changes.outputs.code == 'true' && (
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard green
+        env:
+          RESULT: ${{ needs.test-shard.result }}
+        run: |
+          echo "test shards: $RESULT"
+          test "$RESULT" = success
+
+  # Four shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, 1.5-1.7x
+  # macOS's, measured per binary on the runs above).
+  test-windows-shard:
+    name: test-windows (${{ matrix.shard }})
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
@@ -131,9 +171,14 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
     runs-on: windows-2025
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,30 +187,96 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core
+          shard: ${{ matrix.shard }}
+
+  test-windows:
+    name: test-windows
+    needs: [changes, test-windows-shard]
+    if: >-
+      always() && needs.changes.outputs.code == 'true' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard green
+        env:
+          RESULT: ${{ needs.test-windows-shard.result }}
+        run: |
+          echo "test-windows shards: $RESULT"
+          test "$RESULT" = success
+
+  # macOS: two jobs per run, carrying every macOS check (ARC-110). GitHub-hosted macOS runs at most five
+  # jobs at once on every plan, so a run holding five macOS jobs held them all; Linux and Windows have
+  # more slots and stay finely sharded. (a) checks the lock and EC-3 (b)'s offline vendor build (what the
+  # `platforms` layer checks that `core` does not; its tests are a subset of `core`), then runs shards 1
+  # and 2 of 3; (b) runs shard 3 of 3, then the Python workspace (`python` layer, uv's Python 3.12 on
+  # macos-26). Measured on head 3045db8b, before 12d: (a) ~27 min, (b) ~31 min. The cap is 55 rather than
+  # 45 because 12d (#171) was measured at 1.1x to 1.6x the suite's macOS time on two of its runs; at 1.6x
+  # both jobs are ~46-49 min. Past 40 min, re-weigh or give macOS a third job.
+  test-macos-shard:
+    name: test-macos (${{ matrix.part }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { part: "a: lock, core 1+2/3", layers: "platforms-lock core", shard: "1,2/3", uv: false }
+          - { part: "b: core 3/3, python", layers: "core python", shard: "3/3", uv: true }
+    runs-on: macos-26
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - if: matrix.uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
+      - uses: ./.github/actions/native
+        with:
+          layer: ${{ matrix.layers }}
+          cache: core
+          shard: ${{ matrix.shard }}
 
   test-macos:
     name: test-macos
-    needs: changes
+    needs: [changes, test-macos-shard]
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      always() && needs.changes.outputs.code == 'true' && (
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
-    runs-on: macos-26
-    timeout-minutes: 60
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          filter: blob:none
-      - uses: ./.github/actions/native
-        with:
-          layer: core
+      - name: Require every shard green
+        env:
+          RESULT: ${{ needs.test-macos-shard.result }}
+        run: |
+          echo "test-macos shards: $RESULT"
+          test "$RESULT" = success
 
-  # S16's packages on macOS and Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms`
-  # layer, with `test`'s triggers. Kept beside `test-windows` and `test-macos` (step-14 §15, D-13w-6):
+  # S16's packages on Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms` layer, with
+  # `test`'s triggers. macOS's share runs in `test-macos (a)` (ARC-110). Kept beside `test-windows` and `test-macos` (step-14 §15, D-13w-6):
   # besides tests that `core` also runs, the layer runs E-c's offline vendor check (PD-p3, EC-3 (b)), which
   # `core` does not. CRLF input is covered by tests that write CRLF themselves (ED-13, IB-10), so the
   # action's line-endings report reads 0 by design.
@@ -177,11 +288,12 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-26, windows-2025]
+        os: [windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -199,7 +311,8 @@ jobs:
   # required check until the primary session makes it one. Every platform (D-P3-11): Linux runs in the
   # toolchain container like every other layer; Windows and macOS cannot, so they install the pinned
   # Rust toolchain (rust-toolchain.toml) and uv (DEP-26) on the runner, and Python from uv, at the
-  # floor `requires-python` declares (ARC-48's note of 2026-10-08).
+  # floor `requires-python` declares (ARC-48's note of 2026-10-08). macOS's runs in `test-macos (b)`
+  # (ARC-110).
   python:
     name: python (${{ matrix.os }}, ${{ matrix.layer }})
     needs: changes
@@ -208,16 +321,19 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario')))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
     strategy:
       fail-fast: false
       matrix:
         include:
           - { os: ubuntu-24.04, layer: python }
           - { os: windows-2025, layer: python }
-          - { os: macos-15, layer: python }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # 75 (S10 P7, D-P7-10): Milestone D adds two 100-simulated-day tests (the store bound and the fallback
+    # bound), about 10 minutes each on windows-2025; with them the cognition suite alone took 38 minutes (run 39009565380:
+    # every cognition test passed, then the job hit 45 minutes before the agent library and milestone_d ran).
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -239,6 +355,31 @@ jobs:
       - if: runner.os != 'Linux'
         name: Run layer ${{ matrix.layer }}
         run: uv run --locked python scripts/ci_layer.py ${{ matrix.layer }}
+
+  # IC-7 (S10 P7, step-17 §3.16.1): the LM controller is removable by deletion. A copy of the checkout
+  # without cognition/lm-controller/ and its uv workspace line syncs, builds and passes the SDK's, the
+  # agent library's and the whole Rust workspace's tests. Linux, in the toolchain container, with
+  # `python`'s triggers; not a required check until the primary session makes it one.
+  removability:
+    name: removability
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && (
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/layer
+        with:
+          layer: removability
 
   # Layer 3 and AC-8 (docs/DECISIONS.md ARC-49, DEP-19). `scenario`, `linux-arm`, `mac` and `windows`
   # each record what their platform makes of every world on this commit; `ac8` compares the records.

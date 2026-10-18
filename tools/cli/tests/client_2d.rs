@@ -83,6 +83,21 @@ async fn walks_from_the_apartments_into_the_cafe() {
     );
     let visited = places(&lines);
     assert_eq!(visited.len(), 3, "apartments, street, café: {visited:?}");
+    // R-PK-1: on the street, before going in, the café's doorway already reads its name.
+    let from_street = tagged(&lines, "SHOWN ")
+        .into_iter()
+        .filter(|shown| shown["place"] == visited[1].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        from_street.iter().any(|shown| {
+            shown["doorway_labels"].as_array().is_some_and(|labels| {
+                labels.iter().any(|label| {
+                    label["to"] == visited[2].as_str() && label["text"] == "door to café"
+                })
+            })
+        }),
+        "from the street the café's doorway reads 'door to café': {from_street:?}"
+    );
     let observer = evidence(&lines, "welcome")[0]["observer"]
         .as_str()
         .expect("observer")
@@ -377,8 +392,11 @@ async fn reconnects_to_a_restarted_world_and_to_a_replaced_one() {
     if let Some(selfie) = evidence(&drive.lines(), "self").first() {
         known_before = selfie["passages"].as_u64().unwrap_or(0);
     }
-    world.kill();
+    // Counted before the kill, not after it: the client sees the connection close while the kill is
+    // still being reaped, and on Windows its `STATE reconnecting` line was already read by then (nightly
+    // 39012891928), so a count taken after the kill skipped the very line this test looks for.
     let killed_at = drive.lines().len();
+    world.kill();
     tokio::time::sleep(Duration::from_secs(2)).await;
     world.restart().await;
     let (status, lines) = drive.finish().await;

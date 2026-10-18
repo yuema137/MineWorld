@@ -11,7 +11,8 @@ configures. Its rules:
 (d) `Authorization` is sent only when a key was given, and nothing here logs a request or a header;
 (e) this is the only module that imports `httpx2`.
 
-A failure never carries a response body, a header or the URL (AP5-9): only a typed reason and a status.
+A failure never carries a response body, a header or the URL (AP5-9): only a typed reason, a status, and
+the integer of a delta-seconds `Retry-After` (pr-s10-p6 F-P6-2).
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from mineworld_cognition.backend.model import (
     Finish,
     Usage,
     estimate_tokens,
+    retry_after_seconds,
 )
 from mineworld_cognition.config import BackendConfig
 from mineworld_cognition.secrets import Secret
@@ -139,10 +141,13 @@ class OpenAICompatibleBackend:
             return BackendFailure(reason="timeout")
         except httpx2.TransportError:
             return BackendFailure(reason="unreachable")
+        retry_after = retry_after_seconds(response.headers.get("retry-after"))
         if response.status_code in (401, 403):
-            return BackendFailure(reason="unauthorized")
+            return BackendFailure(reason="unauthorized", retry_after_s=retry_after)
         if not 200 <= response.status_code < 300:
-            return BackendFailure(reason="http_status", status=response.status_code)
+            return BackendFailure(
+                reason="http_status", status=response.status_code, retry_after_s=retry_after
+            )
         try:
             payload: JsonValue = response.json()
         except ValueError:

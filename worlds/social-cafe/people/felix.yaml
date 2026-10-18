@@ -12,6 +12,11 @@ routine:
   - { from: "13:00", place: cafe, label: coffee }
   - { from: "17:00", place: apartments, label: home }
 
+persona:
+  summary: Pops into the store for whatever he forgot. Cheerful, and forever going back for one more thing.
+  traits: [cheerful, absent-minded]
+  speech: Quick, casual sentences.
+
 tags:
   - neighbour
 
