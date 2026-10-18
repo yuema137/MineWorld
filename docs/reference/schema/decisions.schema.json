@@ -13,7 +13,8 @@
           "description": "The model that drives it.",
           "enum": [
             "rule",
-            "motivated"
+            "motivated",
+            "lm"
           ],
           "type": "string"
         },
@@ -282,7 +283,8 @@
       "description": "The model that drives every seat no assignment names. Absent, the rule model.",
       "enum": [
         "rule",
-        "motivated"
+        "motivated",
+        "lm"
       ],
       "type": "string"
     },
@@ -294,6 +296,26 @@
       "additionalProperties": false,
       "description": "The models this file configures, each once, by id: an in-process model's parameters, an out-of-process model's fallback. A model used but not listed runs with its defaults.",
       "properties": {
+        "lm": {
+          "additionalProperties": false,
+          "description": "The lm model, which runs out of process; it must name a fallback.",
+          "properties": {
+            "fallback": {
+              "description": "The model that drives the seat while this one is absent or out of budget, or none to leave the seat idle; at most four steps, no cycle.",
+              "enum": [
+                "rule",
+                "motivated",
+                "lm",
+                "none"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "fallback"
+          ],
+          "type": "object"
+        },
         "motivated": {
           "additionalProperties": false,
           "description": "The motivated model, which the host runs in process.",

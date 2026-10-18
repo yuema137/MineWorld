@@ -1,0 +1,1337 @@
+{
+ "observer": "17",
+ "at": 0,
+ "self_location": {
+  "place": {
+   "entity": "2",
+   "entity_type": "place"
+  },
+  "local": {
+   "x": 1610,
+   "y": 600,
+   "z": 0
+  },
+  "facing": null
+ },
+ "entities": [
+  {
+   "id": "2",
+   "entity_type": "place",
+   "location": null,
+   "tags": [
+    "cafe",
+    "public"
+   ],
+   "components": [
+    {
+     "entity": "2",
+     "component_type": "passages",
+     "schema_version": 1,
+     "payload": {
+      "leads_to": [
+       {
+        "here": {
+         "x": 1610,
+         "y": 200,
+         "z": 0
+        },
+        "there": {
+         "x": 0,
+         "y": 3000,
+         "z": 0
+        },
+        "to": {
+         "entity": "5",
+         "entity_type": "place"
+        },
+        "to_tags": [
+         "public",
+         "street"
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "entity": "2",
+     "component_type": "shop",
+     "schema_version": 1,
+     "payload": {
+      "listed": [
+       {
+        "in_stock": 6,
+        "item": {
+         "entity": "22",
+         "entity_type": "item"
+        },
+        "price": 400
+       },
+       {
+        "in_stock": 20,
+        "item": {
+         "entity": "24",
+         "entity_type": "item"
+        },
+        "price": 300
+       },
+       {
+        "in_stock": 10,
+        "item": {
+         "entity": "25",
+         "entity_type": "item"
+        },
+        "price": 250
+       },
+       {
+        "in_stock": 6,
+        "item": {
+         "entity": "33",
+         "entity_type": "item"
+        },
+        "price": 600
+       },
+       {
+        "in_stock": 6,
+        "item": {
+         "entity": "36",
+         "entity_type": "item"
+        },
+        "price": 500
+       },
+       {
+        "in_stock": 10,
+        "item": {
+         "entity": "37",
+         "entity_type": "item"
+        },
+        "price": 250
+       }
+      ],
+      "operator": {
+       "entity": "39",
+       "entity_type": "organization"
+      }
+     }
+    },
+    {
+     "entity": "2",
+     "component_type": "calendar-day",
+     "schema_version": 1,
+     "payload": {
+      "date": {
+       "day": 8,
+       "month": 10,
+       "year": 2026
+      },
+      "day_start": 0,
+      "events": {
+       "astronomical_dawn": 15956,
+       "astronomical_dusk": 67540,
+       "civil_dawn": 19384,
+       "civil_dusk": 64118,
+       "solar_noon": 41766,
+       "sunrise": 20864,
+       "sunset": 62639
+      },
+      "track": [
+       {
+        "azimuth": 12952,
+        "elevation": -62652
+       },
+       {
+        "azimuth": 20713,
+        "elevation": -61741
+       },
+       {
+        "azimuth": 27954,
+        "elevation": -60443
+       },
+       {
+        "azimuth": 34589,
+        "elevation": -58807
+       },
+       {
+        "azimuth": 40599,
+        "elevation": -56884
+       },
+       {
+        "azimuth": 46011,
+        "elevation": -54721
+       },
+       {
+        "azimuth": 50877,
+        "elevation": -52362
+       },
+       {
+        "azimuth": 55260,
+        "elevation": -49842
+       },
+       {
+        "azimuth": 59223,
+        "elevation": -47191
+       },
+       {
+        "azimuth": 62828,
+        "elevation": -44432
+       },
+       {
+        "azimuth": 66128,
+        "elevation": -41587
+       },
+       {
+        "azimuth": 69172,
+        "elevation": -38671
+       },
+       {
+        "azimuth": 71999,
+        "elevation": -35697
+       },
+       {
+        "azimuth": 74646,
+        "elevation": -32677
+       },
+       {
+        "azimuth": 77142,
+        "elevation": -29619
+       },
+       {
+        "azimuth": 79514,
+        "elevation": -26530
+       },
+       {
+        "azimuth": 81785,
+        "elevation": -23419
+       },
+       {
+        "azimuth": 83973,
+        "elevation": -20290
+       },
+       {
+        "azimuth": 86097,
+        "elevation": -17148
+       },
+       {
+        "azimuth": 88172,
+        "elevation": -13999
+       },
+       {
+        "azimuth": 90213,
+        "elevation": -10846
+       },
+       {
+        "azimuth": 92233,
+        "elevation": -7693
+       },
+       {
+        "azimuth": 94245,
+        "elevation": -4545
+       },
+       {
+        "azimuth": 96261,
+        "elevation": -1405
+       },
+       {
+        "azimuth": 98293,
+        "elevation": 2020
+       },
+       {
+        "azimuth": 100353,
+        "elevation": 4998
+       },
+       {
+        "azimuth": 102454,
+        "elevation": 8035
+       },
+       {
+        "azimuth": 104608,
+        "elevation": 11073
+       },
+       {
+        "azimuth": 106829,
+        "elevation": 14092
+       },
+       {
+        "azimuth": 109130,
+        "elevation": 17080
+       },
+       {
+        "azimuth": 111528,
+        "elevation": 20028
+       },
+       {
+        "azimuth": 114039,
+        "elevation": 22929
+       },
+       {
+        "azimuth": 116681,
+        "elevation": 25774
+       },
+       {
+        "azimuth": 119474,
+        "elevation": 28552
+       },
+       {
+        "azimuth": 122437,
+        "elevation": 31252
+       },
+       {
+        "azimuth": 125594,
+        "elevation": 33863
+       },
+       {
+        "azimuth": 128969,
+        "elevation": 36369
+       },
+       {
+        "azimuth": 132584,
+        "elevation": 38754
+       },
+       {
+        "azimuth": 136463,
+        "elevation": 41000
+       },
+       {
+        "azimuth": 140625,
+        "elevation": 43085
+       },
+       {
+        "azimuth": 145087,
+        "elevation": 44987
+       },
+       {
+        "azimuth": 149856,
+        "elevation": 46680
+       },
+       {
+        "azimuth": 154928,
+        "elevation": 48139
+       },
+       {
+        "azimuth": 160283,
+        "elevation": 49337
+       },
+       {
+        "azimuth": 165884,
+        "elevation": 50252
+       },
+       {
+        "azimuth": 171675,
+        "elevation": 50862
+       },
+       {
+        "azimuth": 177584,
+        "elevation": 51154
+       },
+       {
+        "azimuth": 183527,
+        "elevation": 51119
+       },
+       {
+        "azimuth": 189418,
+        "elevation": 50759
+       },
+       {
+        "azimuth": 195174,
+        "elevation": 50083
+       },
+       {
+        "azimuth": 200727,
+        "elevation": 49107
+       },
+       {
+        "azimuth": 206023,
+        "elevation": 47851
+       },
+       {
+        "azimuth": 211031,
+        "elevation": 46340
+       },
+       {
+        "azimuth": 215735,
+        "elevation": 44600
+       },
+       {
+        "azimuth": 220131,
+        "elevation": 42658
+       },
+       {
+        "azimuth": 224231,
+        "elevation": 40536
+       },
+       {
+        "azimuth": 228051,
+        "elevation": 38259
+       },
+       {
+        "azimuth": 231611,
+        "elevation": 35846
+       },
+       {
+        "azimuth": 234936,
+        "elevation": 33315
+       },
+       {
+        "azimuth": 238048,
+        "elevation": 30684
+       },
+       {
+        "azimuth": 240971,
+        "elevation": 27965
+       },
+       {
+        "azimuth": 243727,
+        "elevation": 25171
+       },
+       {
+        "azimuth": 246336,
+        "elevation": 22312
+       },
+       {
+        "azimuth": 248818,
+        "elevation": 19399
+       },
+       {
+        "azimuth": 251191,
+        "elevation": 16440
+       },
+       {
+        "azimuth": 253470,
+        "elevation": 13443
+       },
+       {
+        "azimuth": 255670,
+        "elevation": 10418
+       },
+       {
+        "azimuth": 257807,
+        "elevation": 7376
+       },
+       {
+        "azimuth": 259892,
+        "elevation": 4341
+       },
+       {
+        "azimuth": 261939,
+        "elevation": 1395
+       },
+       {
+        "azimuth": 263960,
+        "elevation": -2093
+       },
+       {
+        "azimuth": 265967,
+        "elevation": -5238
+       },
+       {
+        "azimuth": 267971,
+        "elevation": -8391
+       },
+       {
+        "azimuth": 269985,
+        "elevation": -11548
+       },
+       {
+        "azimuth": 272022,
+        "elevation": -14706
+       },
+       {
+        "azimuth": 274096,
+        "elevation": -17859
+       },
+       {
+        "azimuth": 276220,
+        "elevation": -21004
+       },
+       {
+        "azimuth": 278411,
+        "elevation": -24136
+       },
+       {
+        "azimuth": 280687,
+        "elevation": -27249
+       },
+       {
+        "azimuth": 283068,
+        "elevation": -30340
+       },
+       {
+        "azimuth": 285577,
+        "elevation": -33399
+       },
+       {
+        "azimuth": 288241,
+        "elevation": -36421
+       },
+       {
+        "azimuth": 291092,
+        "elevation": -39395
+       },
+       {
+        "azimuth": 294166,
+        "elevation": -42310
+       },
+       {
+        "azimuth": 297505,
+        "elevation": -45153
+       },
+       {
+        "azimuth": 301160,
+        "elevation": -47907
+       },
+       {
+        "azimuth": 305186,
+        "elevation": -50552
+       },
+       {
+        "azimuth": 309647,
+        "elevation": -53062
+       },
+       {
+        "azimuth": 314610,
+        "elevation": -55406
+       },
+       {
+        "azimuth": 320140,
+        "elevation": -57547
+       },
+       {
+        "azimuth": 326288,
+        "elevation": -59442
+       },
+       {
+        "azimuth": 333079,
+        "elevation": -61040
+       },
+       {
+        "azimuth": 340485,
+        "elevation": -62289
+       },
+       {
+        "azimuth": 348408,
+        "elevation": -63140
+       },
+       {
+        "azimuth": 356673,
+        "elevation": -63555
+       },
+       {
+        "azimuth": 5043,
+        "elevation": -63511
+       },
+       {
+        "azimuth": 13260,
+        "elevation": -63013
+       }
+      ],
+      "weekday": 3
+     }
+    },
+    {
+     "entity": "2",
+     "component_type": "calendar-light",
+     "schema_version": 1,
+     "payload": {
+      "phase": "night"
+     }
+    },
+    {
+     "entity": "2",
+     "component_type": "weather-today",
+     "schema_version": 1,
+     "payload": {
+      "chain": {
+       "tmax_anomaly_dc": 29,
+       "tmin_anomaly_dc": 28,
+       "wet": false
+      },
+      "date": {
+       "day": 8,
+       "month": 10,
+       "year": 2026
+      },
+      "day_start": 0,
+      "hours": [
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 206,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 203,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 200,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 197,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 195,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 8,
+        "condition": "fog",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 194,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 8,
+        "condition": "fog",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 207,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 8,
+        "condition": "fog",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 219,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 8,
+        "condition": "fog",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 232,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 8,
+        "condition": "fog",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 243,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 253,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 261,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 268,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 273,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 276,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 278,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 264,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 252,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 242,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 233,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 226,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 220,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 215,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       },
+       {
+        "cloud_oktas": 1,
+        "condition": "clear",
+        "precipitation_tenth_mm": 0,
+        "temperature_dc": 210,
+        "wind_dms": 17,
+        "wind_from_deg": 310
+       }
+      ],
+      "origin": {
+       "record": {
+        "date": {
+         "day": 8,
+         "month": 10,
+         "year": 2015
+        }
+       }
+      },
+      "summary": {
+       "awnd_dms": 17,
+       "fog": true,
+       "overcast_morning": false,
+       "prcp_tenth_mm": 0,
+       "thunder": false,
+       "tmax_dc": 278,
+       "tmin_dc": 194,
+       "wind_from_deg": 310
+      }
+     }
+    },
+    {
+     "entity": "2",
+     "component_type": "weather-now",
+     "schema_version": 1,
+     "payload": {
+      "condition": "clear",
+      "hour": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "entity_type": "person",
+   "location": {
+    "place": {
+     "entity": "2",
+     "entity_type": "place"
+    },
+    "local": {
+     "x": 6000,
+     "y": 8000,
+     "z": 0
+    },
+    "facing": {
+     "yaw": 180000,
+     "pitch": null
+    }
+   },
+   "tags": [
+    "barista",
+    "staff"
+   ],
+   "components": [
+    {
+     "entity": "7",
+     "component_type": "display-name",
+     "schema_version": 1,
+     "payload": {
+      "name": "Alice Moreau"
+     }
+    }
+   ]
+  },
+  {
+   "id": "8",
+   "entity_type": "person",
+   "location": {
+    "place": {
+     "entity": "2",
+     "entity_type": "place"
+    },
+    "local": {
+     "x": 4500,
+     "y": 6100,
+     "z": 0
+    },
+    "facing": null
+   },
+   "tags": [
+    "regular"
+   ],
+   "components": [
+    {
+     "entity": "8",
+     "component_type": "display-name",
+     "schema_version": 1,
+     "payload": {
+      "name": "Bob Achterberg"
+     }
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "entity_type": "person",
+   "location": {
+    "place": {
+     "entity": "2",
+     "entity_type": "place"
+    },
+    "local": {
+     "x": 1610,
+     "y": 600,
+     "z": 0
+    },
+    "facing": null
+   },
+   "tags": [
+    "visitor"
+   ],
+   "components": [
+    {
+     "entity": "17",
+     "component_type": "display-name",
+     "schema_version": 1,
+     "payload": {
+      "name": "Vera Lindgren"
+     }
+    },
+    {
+     "entity": "17",
+     "component_type": "agenda",
+     "schema_version": 1,
+     "payload": {
+      "label": "stay",
+      "place": {
+       "entity": "1",
+       "entity_type": "place"
+      },
+      "routine": "16",
+      "since": 0,
+      "until": 28800
+     }
+    },
+    {
+     "entity": "17",
+     "component_type": "holdings",
+     "schema_version": 1,
+     "payload": {
+      "held": [
+       {
+        "count": 1,
+        "item": {
+         "entity": "19",
+         "entity_type": "item"
+        }
+       },
+       {
+        "count": 1,
+        "item": {
+         "entity": "34",
+         "entity_type": "item"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "entity": "17",
+     "component_type": "wallet",
+     "schema_version": 1,
+     "payload": {
+      "balance": 200000
+     }
+    }
+   ]
+  },
+  {
+   "id": "18",
+   "entity_type": "person",
+   "location": {
+    "place": {
+     "entity": "2",
+     "entity_type": "place"
+    },
+    "local": {
+     "x": 7110,
+     "y": 3900,
+     "z": 0
+    },
+    "facing": null
+   },
+   "tags": [
+    "visitor"
+   ],
+   "components": [
+    {
+     "entity": "18",
+     "component_type": "display-name",
+     "schema_version": 1,
+     "payload": {
+      "name": "Wes Calloway"
+     }
+    }
+   ]
+  }
+ ],
+ "relations": [
+  {
+   "relation_type": "present-in",
+   "from": "7",
+   "to": "2"
+  },
+  {
+   "relation_type": "present-in",
+   "from": "8",
+   "to": "2"
+  },
+  {
+   "relation_type": "present-in",
+   "from": "17",
+   "to": "2"
+  },
+  {
+   "relation_type": "present-in",
+   "from": "18",
+   "to": "2"
+  }
+ ],
+ "events": [],
+ "affordances": [
+  {
+   "action_type": "move",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": "any",
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": false
+   }
+  },
+  {
+   "action_type": "walk-to",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": "any",
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": false
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "22",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "24",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "25",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "33",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "36",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "buy",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": {
+     "specific": {
+      "entity": "2",
+      "entity_type": "place"
+     }
+    },
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "item": {
+     "entity": "37",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "eat",
+   "target": null,
+   "available": true,
+   "unavailable_reason": null,
+   "requirement": {
+    "place": "any",
+    "within_range": null,
+    "requires_line_of_access": false,
+    "requires_target_available": false
+   },
+   "payload": {
+    "item": {
+     "entity": "19",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "talk",
+   "target": "7",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "invite",
+   "target": "7",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "7",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "19",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "7",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "34",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "talk",
+   "target": "8",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "invite",
+   "target": "8",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "8",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "19",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "8",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "34",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "talk",
+   "target": "18",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "invite",
+   "target": "18",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "18",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "19",
+     "entity_type": "item"
+    }
+   }
+  },
+  {
+   "action_type": "give",
+   "target": "18",
+   "available": false,
+   "unavailable_reason": "too_far_away",
+   "requirement": {
+    "place": "same_place_as_actor",
+    "within_range": 3000,
+    "requires_line_of_access": false,
+    "requires_target_available": true
+   },
+   "payload": {
+    "count": 1,
+    "item": {
+     "entity": "34",
+     "entity_type": "item"
+    }
+   }
+  }
+ ]
+}

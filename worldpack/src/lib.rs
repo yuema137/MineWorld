@@ -67,12 +67,14 @@
 pub mod catalog;
 pub mod configure;
 pub mod content;
+mod data;
 mod entities;
 pub mod error;
 pub mod format;
 pub mod load;
 pub mod read;
 mod requirements;
+mod resolution;
 pub mod schema;
 
 pub use catalog::Capability;

@@ -23,6 +23,68 @@ Example:
 name: Ana Lee
 ```
 
+<a id="section-persona"></a>
+
+## `persona`
+
+Written under the key `persona` in `people/<key>.yaml`.
+Read by the `persona` system (package `mineworld-persona`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+How the person is and how they speak: a summary, at most 8 traits, and an optional note on speech. It shapes the person's words and grants them nothing.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `speech` | [Speech](#section-persona-speech) | no | — | — | A note on how the person speaks: at most 160 bytes. Absent, none. |
+| `summary` | [Summary](#section-persona-summary) | yes | — | — | Who the person is, in a sentence or two: 1 to 280 bytes. Required. |
+| `traits` | [Traits](#section-persona-traits) | no | — | — | Short words for the person's character, in the order written: at most 8, each at most 32 bytes. Absent, none. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+persona:
+  speech: "Short sentences, a dry joke now and then."
+  summary: "Runs the corner shop. Patient with children, brisk with salesmen."
+  traits:
+    - patient
+    - brisk
+```
+
+### Types used above
+
+<a id="section-persona-speech"></a>
+
+#### `Speech`
+
+A note on how the person speaks: at most 160 bytes.
+
+**Type:** text.
+
+<a id="section-persona-summary"></a>
+
+#### `Summary`
+
+Who the person is, in a sentence or two: 1 to 280 bytes.
+
+**Type:** text.
+
+<a id="section-persona-trait"></a>
+
+#### `Trait`
+
+One short word for the person's character: at most 32 bytes.
+
+**Type:** text.
+
+<a id="section-persona-traits"></a>
+
+#### `Traits`
+
+Short words for the person's character, in the order written: at most 8.
+
+**Type:** list of [Trait](#section-persona-trait).
+
 <a id="section-routine"></a>
 
 ## `routine`

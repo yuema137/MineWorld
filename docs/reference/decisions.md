@@ -18,7 +18,7 @@ Which decision model drives each seat of the world, and which memory policy each
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `assign` | list of [Assignment](#decisions-assignment) | no | — | — | Which model drives a seat, or every seat of a class. A seat's entry wins over its class's, and a class's over the default; one entry per seat and one per class. |
-| `default` | one of `rule`, `motivated` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
+| `default` | one of `rule`, `motivated`, `lm` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
 | `memory` | [Memory](#decisions-memory) | no | — | — | Which memory policy each seat's controller uses. Absent, the cognition process's own default for every seat. |
 | `models` | [`models`](#decisions-models) | no | — | — | The models this file configures, each once, by id: an in-process model's parameters, an out-of-process model's fallback. A model used but not listed runs with its defaults. |
 
@@ -55,7 +55,7 @@ One assignment: exactly one of seat and class, and the model.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `class` | text | no | — | — | A class of persons defined in configure/classes.yaml; not person, which default: covers. |
-| `model` | one of `rule`, `motivated` | yes | — | — | The model that drives it. |
+| `model` | one of `rule`, `motivated`, `lm` | yes | — | — | The model that drives it. |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
 
 <a id="decisions-models"></a>
@@ -66,8 +66,19 @@ The models this file configures, each once, by id: an in-process model's paramet
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `lm` | [`models.lm`](#decisions-models-lm) | no | — | — | The lm model, which runs out of process; it must name a fallback. |
 | `motivated` | [`models.motivated`](#decisions-models-motivated) | no | — | — | The motivated model, which the host runs in process. |
 | `rule` | [`models.rule`](#decisions-models-rule) | no | — | — | The rule model, which the host runs in process. |
+
+<a id="decisions-models-lm"></a>
+
+#### `models.lm`
+
+The lm model, which runs out of process; it must name a fallback.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `fallback` | one of `rule`, `motivated`, `lm`, `none` | yes | — | — | The model that drives the seat while this one is absent or out of budget, or none to leave the seat idle; at most four steps, no cycle. |
 
 <a id="decisions-models-motivated"></a>
 
