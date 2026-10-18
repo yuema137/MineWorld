@@ -857,6 +857,74 @@ fn a_section_in_a_kind_of_file_its_owner_does_not_allow_is_refused() {
     assert!(refusal.to_string().contains(&shown("places/cafe.yaml")));
 }
 
+/// A sound pack with `appearance` enabled (or not), and alice's file as given.
+fn with_appearance(id: &str, enabled: bool, alice: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    let appearance = if enabled { "  - appearance\n" } else { "" };
+    fixture.manifest(&format!(
+        "
+systems:
+  - presence
+{appearance}places:
+  - cafe
+population:
+  - alice
+"
+    ));
+    fixture.write("people/alice.yaml", alice);
+    fixture
+}
+
+#[test]
+fn an_appearance_section_in_a_world_without_appearance_is_refused_naming_appearance() {
+    let fixture = with_appearance(
+        "appearance-owner-off",
+        false,
+        "appearance: { look: alice-moreau }\nlocation:\n  place: cafe\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::ContentNeedsASystem {
+        subject,
+        content,
+        system,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("alice"));
+    assert_eq!(*content, "appearance");
+    assert_eq!(*system, SystemId::new("appearance").expect("an id"));
+    assert!(path.ends_with("people/alice.yaml"));
+}
+
+#[test]
+fn an_invalid_look_is_refused_by_its_owners_type_at_its_line() {
+    let fixture = with_appearance(
+        "appearance-invalid",
+        true,
+        "tags: [barista]\nlocation:\n  place: cafe\nappearance:\n  look: Alice\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("a look must be"),
+        "the owner's own words, not the loader's: {detail}"
+    );
+    assert!(
+        detail.contains("line 5 column 9"),
+        "located at the value, straight from the stream (DEP-10): {detail}"
+    );
+}
+
 /// A sound pack with `schedule` enabled (or not), places `cafe` and `park`, and alice's file as given.
 fn with_schedule(id: &str, enabled: bool, alice: &str) -> Fixture {
     let fixture = Fixture::sound(id);

@@ -1476,6 +1476,12 @@ or `tools/asset_generation/` changed.
   allowlisted with its reason (the allowlist is no longer empty, §5.11 item 4 keeps its rule that each entry has a
   reason); `scan` 0 findings, `--self-test` PASS. Main's generated files (baselines, the DL-a golden) are taken as-is:
   this PR touches neither.
+  **Review correction (independent S26 review, 2026-10-18):** a (path, pattern name) key would also hide a real key in
+  that file. The allowlist is now keyed by (path, exact matched literal), the literal built from parts in the script;
+  `scan_text` reports a line when any match on it is not an allowlisted literal. `--self-test` adds two cases: the
+  planted line alone is not reported, and a second `sk-` string in the same file (next line, and on the same line) is.
+  The docstring's "starts empty" sentence is replaced. Evidence: `scan` 0 findings; `--self-test` PASS; planted
+  mutation (path-only exemption, the old behaviour) → `--self-test` FAIL, exit 1; ruff check and format clean.
 - **F-B1-B10-4 (minor, recorded, not fixed; follow-up for S26-b2 by ruling):** `gameready.py:191` records `dec.ratio` after
   `modifier_apply` removed the modifier, a dangling RNA read inherited from `gameready_mesh.py:93`'s print. The recorded
   `decimate_ratio` is garbage and differs between runs (`r1` 2.65e20, `r3` 0.0); nothing reads it and the geometry is

@@ -941,36 +941,37 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
-| C5 | — | [ ] | [ ] | [ ] |
-| C6 | — | [ ] | [ ] | [ ] |
-| C7 | — | [ ] | [ ] | [ ] |
-| C8 | — | [ ] | [ ] | [ ] |
+| C0 | base adf6d49 (commit recorded in the handoff) | [x] | [x] | [x] |
+| C1 | (this commit) | [x] | [x] doc checks PASS (headings, decision ids); `grep -n "^## ARC-91"` 1 line | [x] terms exact; section and ARC-91 carry no renderer concept in the world's half |
+| C2 | 7496847 | [x] crate per §5.1 (files, README, look/section/component/event/system, tests a–d); codec.rs identical to naming's (diff empty); Cargo.toml naming's with the two fields changed | [x] `cargo test -p mineworld-appearance`: 4 passed (0.00 s). Clippy `-D warnings` clean; `cargo fmt --all --check` clean. Mutations: M-S26a-1 → test (c) red at line 221 (`a look must`), reverted green; M-S26a-2 `discloses` empty → test (b) red at line 166, self-only variant → (b) red at line 166, reverted green; M-S26a-3 `react` skipped → (a) red at line 142 (`alice's Look is the authored key`), reverted green. Vocabulary grep: only the sentences that say a look is not a mesh/texture | [x] no action, process or dependency declared beyond `presence`/`sdk` seams; no `HashMap`; the value type refuses (`LookKey::new`); doc sentences say what a look is not |
+| C3 | 318f6ff | [x] installed line (`Appearance => mineworld_appearance::AppearanceSystem`, last) and Cargo line (last `[dependencies]`); two refusal tests and `with_appearance` helper in `worldpack/tests/refusals.rs` | [x] `cargo test -p mineworld-installed-systems`: 3 + 2 passed; `cargo test -p mineworld-worldpack --test refusals`: 40 passed (both new tests ok; `line 5 column 9` located exactly, no bounded discovery needed, A-S26a-2 holds). Clippy `-D warnings` on the three crates clean; fmt clean; `mineworld packs list` shows `system-pack mineworld-appearance`. Mutation M-S26a-1 (uppercase accepted) → `an_invalid_look_is_refused_by_its_owners_type_at_its_line` red (refusals.rs:105, no refusal produced), reverted green | [x] appended, not reordered; X-2 is the loader's (N/A for a mutation in pack code; the refusal test is the evidence); no `body`/`physic` word in the installed list |
+| C4 | 0466441 | [x] three manifests (`appearance` after `schedule` in market-town, appended elsewhere); 34 person files (`appearance: { look: … }` under `name:`, comments in alice/alba); READMEs; worldpack dev-dep; F-S26a-3 rows (social_cafe.rs, commands, content_kinds, inspect, social_composition ×2, server_command, decisions doc comment); new test `every_person_has_the_look_their_file_authors`; golden re-captured (diff: `day` facts counts, `facts      appeared 12` added, `history` line; no other line) | [x] `validate`: social-cafe 65, market-town 146 (134+12), lakeside 92 (82+10), bodies-yard 47 unchanged. `cargo test -p mineworld-worldpack`: all crates green (social_cafe incl. the new test; refusals 40). `cli --test commands` 4, `content_kinds` 3, `inspect` 3, `server_command` 10, `social_composition` 4 (38.9 s), `decisions` 7 (after re-capture), `market_composition` ok. `ac1_composability`: 15 passed (full history present, not INCONCLUSIVE). M-S26a-3 (react skipped) → `every_person_has_the_look_their_file_authors` red (social_cafe.rs:382, "reduced by appearance into alice's look"), reverted green. fmt clean; clippy `-D warnings` clean (worldpack, cli) | [x] market-town's list begins with social-cafe's (AC-1 green); no person file outside the three worlds touched; keys per §5.3; literal changes each caused by the look or the `appearance` entry
+| C5 | 5964e5c | [x] `tools/cli/Cargo.toml` dev-dep; `tools/cli/tests/appearance.rs` (3 tests: visitor's four looks by disclosed name; bodies-yard none; kill and restart the same save); `social_composition.rs` `without_appearance_every_other_system_is_unchanged` with seed-8 control. Bodies-yard starts with no `--packs` flags (A-S26a-3 verified by a probe: `mineworld server worlds/bodies-yard` listens, 12 seats) | [x] `cargo test -p mineworld-cli --test appearance`: 3 passed (0.97 s). `--test social_composition without_appearance`: 1 passed (43.5 s). Clippy `-D warnings` clean (cli, appearance); fmt clean. M-S26a-4 (`discloses` empty) → `every_person_the_visitor_perceives_is_disclosed_with_their_look` red (appearance.rs:73), reverted green | [x] oracles are the authored keys and disclosed names, never ids; the restart test kills and does not interrupt; no sleep beyond the support module's patience
+| C6 | 0b3ddab | [x] `scripts/baselines.txt`: 15 key lines re-recorded for social-cafe, market-town, lakeside (bodies-yard untouched); 3 reason lines added (S26-a, `lakeside` says 10, the other two 12); no digest edited by hand | [x] release build; 300-day runs per world, seed 7 (lakeside 35.6 s, market-town 74.3 s wall at load ~6–10, social-cafe 42.6 s); behaviour diff `requests|activity|consults|faults` empty for all three (E-S26a-3); full-run diff kinds: `day` lines (300 each, differing only in the `facts N` count), one added `facts appeared 12` (10 at the lake), `history`, `wall`. ci_parity long record (`--profile long`, four worlds, 1369.0 s, load ~3–17): `baseline check` before write → FAIL on the three named worlds only (bodies-yard keys equal); after `baseline write` and the reason lines → PASS (E-S26a-4) | [x] only the three named worlds' key lines and reason lines changed (`git diff scripts/baselines.txt`); bodies-yard's five keys unchanged; no hand-edited digest |
+| C7 | 95f9fbb | [x] `test_an_appearance_is_never_remembered_as_a_name` (test only; no cognition source changed); `readers.gd` `SHOWN_ELSEWHERE` gains `"look"` with the comment extended; stub panels test gains an own `look` record and `panel(first, "look").is_none()` | [x] `uv run --locked --project cognition/lm-controller pytest cognition/lm-controller/tests/test_memory_render.py`: 7 passed (new test included). ruff check, ruff format --check, pyright: clean. `cargo test -p mineworld-cli --test client_2d_interact_stub the_panels_show_what_is_disclosed -- --ignored`: PASS with Godot 4.7.2 (`/opt/homebrew/bin/godot`), 1 passed (11.2 s). Mutations: M-S26a-5 (`gist += payload` in `generic()`) → 3 pytest red (incl. the new test), reverted green (7 passed); M-S26a-6 (`look` removed from `SHOWN_ELSEWHERE`) → stub test red at client_2d_interact_stub.rs:407, reverted green | [x] no cognition source changed; the HUD change hides only `look`; the list's comment says why; X-4's generic-gist claim is pinned, not assumed |
+| C8 | 45aeef2 | [x] `ARC-92` appended after `ARC-91`; `ARC-46` Note 1 (after "What it does not decide."); `MODULE_SPEC` §6.1 tree line and sentence; `clients/2d/PRESENTATION.md` §3.1 (`look:<key>` row above `player`, `player` row replaced, the world-key sentence, resolution order, status); `clients/3d-spike/PRESENTATION.md` (new, Appendix C); `presentation/mineworld-default/3D/characters/cast.yaml` (new, empty-but-valid, final newline); `scripts/check_cast.py` (new, CC-1…CC-6, self-test); `scripts/ci_layer.py` (two lines in `fast`); `.structured-coding/standards.md` (fast prose) | [x] `python3 scripts/check_cast.py` → `…cast.yaml: format 1, 0 looks, 0 extras, default vera-lindgren: valid` (exit 0); `--self-test` → `self-test: 12 cases, all as expected` (exit 0); `ci_layer.py --list fast` shows both lines; `check_doc_headings.py` exit 0; `check_decision_ids.py` → `124 decision ids, all distinct`. Mutation: `"format": 2` → `…: CC-3: format is 2, not the integer 1`, exit 1; reverted, exit 0 | [x] both checks mirror `ARC-92` and `DEP-16`; the 2D and 3D resolution orders are the same four lines (look, player/extras, person/default, plain); `look:<key>` is a disclosed component value, never a world key; the status lines say what is not yet read |
 | C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
 | Id | What | Value |
 | --- | --- | --- |
-| E-S26a-1 | base behaviour line counts per world (C0) | — |
-| E-S26a-2 | genesis counts, base (C0) and new (C4) | — |
-| E-S26a-3 | behaviour diffs empty, per world (C6 step 3) | — |
-| E-S26a-4 | `baseline check` verdicts before and after the re-record (C6) | — |
+| E-S26a-1 | base behaviour line counts per world (C0), base `origin/main @ adf6d49`, seed 7, 300 days: social-cafe 20, market-town 24, lakeside 24 (`target/scratch-s26a/<w>.base.behaviour`); wall: social-cafe 617.9 s, market-town 1172.3 s, lakeside 114.4 s (lakeside's first run was killed at day 163 by an external signal, exit 144, and rerun alone to completion; load average was 90–180 on the shared machine, R-LOAD-1: timings unreliable) | C0 |
+| E-S26a-2 | genesis counts, base (C0) and new (C4): base social-cafe 53, market-town 134, lakeside 82, bodies-yard 47 (`mineworld validate`, base); new social-cafe 65, market-town 146, lakeside 92, bodies-yard 47 | C0 (base); C4 (new) |
+| E-S26a-5 | 30-day golden (C4 step 8) diff, `social-cafe-seed-7-30-days.txt`: `day N … facts F` lines (every count +12, day 1 3134 → 3146 through day 30 84639 → 84651), one added `facts      appeared 12` line (line 42), `history` line 84639 → 84651 facts, fingerprint `af1927a1e2182bcd` → `049f4c80bfd3d7cf`; no other line differs | C4 |
+| E-S26a-3 | behaviour diffs empty, per world (C6 step 3): `diff` of the `requests|activity|consults|faults` lines of the base and new 300-day runs, social-cafe 20 vs 20, market-town 24 vs 24, lakeside 24 vs 24 lines, zero diff lines in each | C6 |
+| E-S26a-4 | `baseline check` verdicts: before the write, FAIL on social-cafe, market-town, lakeside (keys `summary-300`, `summary-1000`, `summary-300s`, `facts-300s`, `journal-300s` moved; bodies-yard all equal); after the write and reason lines, PASS (`scripts/baselines.txt`, `baseline check` run RC 0). Record: `target/scratch-s26a/s26a.long` at 95f9fbb | C6 |
 
 ### Mutations
 
 | Id | Planted | Test that turned red | Reverted, green |
 | --- | --- | --- | --- |
-| M-S26a-1 | uppercase accepted by `LookKey::new` | — | — |
-| M-S26a-2 | `discloses` empty; then self-only | — | — |
-| M-S26a-3 | `react` skips the insert | — | — |
-| M-S26a-4 | `discloses` empty (wire) | — | — |
-| M-S26a-5 | `generic()` renders the payload | — | — |
-| M-S26a-6 | `look` removed from `SHOWN_ELSEWHERE` | — | — |
+| M-S26a-1 | uppercase accepted by `LookKey::new` | `a_look_is_validated_by_its_own_type_as_it_is_decoded` (appearance.rs:221); also `an_invalid_look_is_refused_by_its_owners_type_at_its_line` (refusals.rs:105) | reverted; green (4 passed; 1 passed) |
+| M-S26a-2 | `discloses` empty; then self-only | `a_look_is_disclosed_to_whoever_perceives_the_person_and_to_nobody_else` (appearance.rs:166), both variants | reverted; green (4 passed) |
+| M-S26a-3 | `react` skips the insert | `a_seeded_look_is_reduced_by_its_owner_into_the_persons_look` (appearance.rs:142); `every_person_has_the_look_their_file_authors` (social_cafe.rs:382) | reverted; green (4 passed; 1 passed). The first red was found already planted at take-over (D-S26a-1) |
+| M-S26a-4 | `discloses` empty (wire) | `every_person_the_visitor_perceives_is_disclosed_with_their_look` (appearance.rs:73) | reverted; green (3 passed) |
+| M-S26a-5 | `generic()` renders the payload | 3 pytest cases red, incl. `test_an_appearance_is_never_remembered_as_a_name` | reverted; green (7 passed) |
+| M-S26a-6 | `look` removed from `SHOWN_ELSEWHERE` | `the_panels_show_what_is_disclosed` (client_2d_interact_stub.rs:407), Godot 4.7.2 | reverted; green (1 passed) |
 
 ### Assumptions to verify in implementation
 
@@ -983,7 +984,58 @@ Questions the step already ruled (Q-S26-1…12) are not re-asked.
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2)
+- **D-S26a-1 (handover, not a design change).** On take-over the working tree of `mvp0/pr-s26a` held
+  `systems/appearance/` with M-S26a-3 planted (`react` skipped by `&& false`), uncommitted. Found by
+  reading, reverted before any commit; the M-S26a-3 red run was taken from that state (test (a) red at
+  line 142), then green after revert. No mutation is in any commit (`git grep -n "MUTANT\|if true\|&& false"`
+  over `systems/appearance/src` empty at C2).
+- **D-S26a-2 (merge).** `origin/main` (adf6d49 → f772a18, nine commits, docs only: S26-b1 and S27-a/b/c
+  designs) merged into the branch at ee7a361 before C2. No conflicts, no code path touched.
+- **D-S26a-3 (A-S26a-3 verified).** `mineworld server worlds/bodies-yard` starts with no `--packs`
+  flags (probe run: listens, 12 seats), so `a_world_without_appearance_discloses_no_look` uses
+  `["server", BODIES_YARD]`.
+- **D-S26a-4 (A-S26a-1 verified).** naming seeds its `named` fact at genesis through `AuthoredSection::seed`
+  and reduces `DisplayName` from that fact; appearance follows the same shape; `codec.rs` identical.
+- **D-S26a-5 (parity record head).** The C6 long record ran at `95f9fbb` (C7's head), not at the final
+  head. The C8 and C9 commits change docs, a stdlib checker, the layer list and the baselines only; no
+  binary input changed after C7. CI on the exact final head is the gate.
+- **D-S26a-6 (timings).** The C6 300-day runs took 35.6 s (lakeside), 74.3 s (market-town) and 42.6 s
+  (social-cafe) at load ~6–10. The C0 base runs took 114 s, 1172 s and 618 s at load 90–180 (E-S26a-1).
+  Timings are not evidence of anything here (R-LOAD-1); the comparison is the diff.
+- **D-S26a-7 (AC-1 history).** `ac1_composability` ran against full history (15 passed), not
+  INCONCLUSIVE: the worktree is not shallow after the merge of `origin/main`.
+- **D-S26a-8 (Godot).** The 2D stub test ran with Godot 4.7.2 (`/opt/homebrew/bin/godot`); the nightly
+  `clients` job is not needed as its evidence.
+- **D-S26a-9 (scope note for the primary session).** `scripts/baselines.txt` is re-recorded on this
+  branch; Q-S26a-5 applies to whichever of P6a and S26-a merges second (not done here).
+- **D-S26a-10 (merge of `origin/main` @ 5cbb469, 2026-10-17).** Branch head 9334974; merge base da6137c.
+  One textual conflict: `docs/DECISIONS.md`, where this branch's `ARC-91`/`ARC-92` and main's
+  `ARC-72`/`ARC-73` were appended at the same place. Resolved by keeping all four records (ours first,
+  then main's), each with its own id; `check_decision_ids.py`: 151 ids, all distinct. Auto-merged with no
+  conflict: `docs/MODULE_SPEC.md`, `scripts/ci_layer.py`, `.structured-coding/standards.md`. Main did not
+  touch `scripts/baselines.txt`, `Cargo.lock` or the DL-a golden since the merge base, so no baseline was
+  re-recorded and the golden was not regenerated; main's `.github/workflows/ci.yml` (sharding, #224) is
+  taken as-is (this PR does not edit it). Evidence on the merged tree: `cargo metadata --locked` and
+  `cargo fetch --locked` pass; `cargo fmt --check`; `check_doc_headings.py`, `check_decision_ids.py`,
+  `check_ci_pins.py`, `check_cast.py` and its self-test, and the `fast` layer's script self-tests pass;
+  `cargo test -p mineworld-appearance -p mineworld-installed-systems -p mineworld-worldpack` PASS;
+  `cargo test -p mineworld-cli --test decisions --test appearance --test commands --test content_kinds
+  --test inspect --test server_command` PASS (the `decisions` golden matches byte-for-byte). Baselines
+  are gated by CI's parity check on the exact merged head.
+- **D-S26a-11 (merges of `origin/main` @ 04d5145 and e51ffc0, 2026-10-17; generated files re-recorded on CI).**
+  `8d43313` merged P6a and S30-b (Q-S26a-5: S26-a merges second, `appearance` after `persona`); `5f83474` merged
+  S11e, S27-b, S10 P7 and the nightly and tick fixes with no textual conflict (154 decision ids, all distinct). Both
+  merges took main's `scripts/baselines.txt` and DL-a golden, which dropped S26-a's re-recordings, so both were
+  re-generated from `5f83474` on GitHub CI, not locally (R-LOAD-1; operator pause on heavy local jobs): the golden
+  by a scratch-only workflow (`scratch/s26a-golden`, run 39099337421: debug build, `mineworld run worlds/social-cafe
+  --headless --seed 7 --days 30`, `wall` line removed, uploaded as an artifact and copied in unedited); the
+  baselines from the Nightly `parity-long` group (`scratch/s26a-m2-parity-long-nightly`, run 39099328258). Golden
+  diff against main's: the E-S26a-5 shape exactly (every `day` facts count +12, the added `facts      appeared 12`
+  line, the `history` line); no other line. Long records: Linux/x86_64, Linux/arm64, Darwin/arm64 and
+  Windows/x86_64 equal on every key (`ci_parity.py compare`: AC-8 PASS). `baseline check` before the write:
+  bodies-yard unchanged; lakeside, market-town and social-cafe moved on all six keys (each summary +1 line;
+  facts-300s, journal-300s and sealed-300s the same sizes, new digests). One reason line added per moved world,
+  then `baseline write` from the Linux/x86_64 record; re-check `baselines PASS`. Scratch branches deleted after.
 
 ---
 

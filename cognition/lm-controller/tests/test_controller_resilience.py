@@ -5,8 +5,8 @@ through a seeded script that returns garbage on 30 % of attempts and a transport
 assertions read the save, the decision log and the server's own tools (`mineworld inspect`, `mineworld replay`), never the
 runner's memory. The save is then resumed by a second server, and every artefact is scanned for provider concepts.
 
-Scenario B (AP6-16, IC-3): a valid script answers after three seconds, and the visitor walks out of talk range during that
-delay. No line of Alice's is spoken after the visitor's departure, and the decision log records the local `not_offered`
+Scenario B (AP6-16, IC-3): a valid script holds its answer to the visitor's line until the visitor has walked out of
+talk range (D-P6b-46: held by the test, not by a wall-clock delay assumed to outlast the walk). No line of Alice's is spoken after the visitor's departure, and the decision log records the local `not_offered`
 drop, so the server never sees the request.
 
 Assertions read artefacts only. The real-binary helpers below are copied from `test_controller_server.py` (C12): pytest's
@@ -75,7 +75,7 @@ MARKER = "<<<"
 MOVES = frozenset({"move", "walk-step", "walk-to"})
 """Request types the LM seat must never submit (I-P6-3, AP6-11)."""
 DELAY_S = 3
-"""Scenario B: the answer is held back this long (IC-3)."""
+"""Scenario B: the base of the quiet window before the line (`_quiet`), the longest a greeting may take to end."""
 SETTLE_S = 1.5
 """Seconds the test lets Alice's view settle after the visitor is in reach, before a line is said. The seat's prompt is
 built from its newest observation, which can trail the visitor's own view by a frame (D-P6b-30)."""
@@ -290,6 +290,39 @@ def _valid(request: CompletionRequest) -> Completion | BackendFailure:
     return completion(_talkable_script(request))
 
 
+class _HeldBackend(ScriptedBackend):
+    """Scenario B's model: answers at once until `hold()`, then keeps every answer until `release()`. The line's
+    answer is late because the test holds it until the visitor has left talk range, not because a wall-clock delay
+    is assumed to outlast the walk (a slow runner walked out after the answer, D-P6b-46)."""
+
+    calls: int
+
+    def __init__(self, script: Callable[[CompletionRequest], Completion | BackendFailure]) -> None:
+        super().__init__(script)
+        self._answer = script
+        self._open = asyncio.Event()
+        self._open.set()
+
+    def hold(self) -> None:
+        self._open.clear()
+
+    def release(self) -> None:
+        self._open.set()
+
+    async def complete(self, request: CompletionRequest) -> Completion | BackendFailure:
+        self.calls += 1
+        await self._open.wait()
+        return self._answer(request)
+
+
+async def _frames_after(visitor: SeatSession, count: int) -> None:
+    """Waits for `count` newer observations on the visitor's stream: the server sweeps every seat in one pass, so
+    Alice's seat has been sent the same ticks (world time, not a wall-clock guess)."""
+    seen = await visitor.changed()
+    for _ in range(count):
+        seen = await asyncio.wait_for(visitor.changed(seen.seq), 30)
+
+
 async def _quiet(backend: ScriptedBackend, store: Path) -> None:
     """Returns once the seat has neither asked the model nor logged a consult for `DELAY_S + SETTLE_S` seconds: no
     consult is in flight and none is pending."""
@@ -415,6 +448,9 @@ def test_a_the_world_stays_valid_under_thirty_percent_garbage_and_five_percent_f
             return alice, said
 
         alice, said = run(scenario(), timeout_s=300)
+        # AP6-3 is about the save the run left: the server stops before it is inspected, replayed and
+        # resumed (D-P6b-42). Inspected live, the server's own commits raced the inspection's two passes.
+        server.stop()
         records = _decisions(store)
         requests = [
             record.record.request for record in records if record.record.request is not None
@@ -464,7 +500,7 @@ def test_a_the_world_stays_valid_under_thirty_percent_garbage_and_five_percent_f
 
 
 def test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally(tmp_path: Path) -> None:
-    """AP6-16 (IC-3): with the answer held for three seconds and the visitor out of range by then, no Alice `spoke`
+    """AP6-16 (IC-3): with the answer held until the visitor is out of range (D-P6b-46), no Alice `spoke`
     fact follows the visitor's departure, the decision log records the local `not_offered` drop, and the consult that
     dropped the line submitted nothing. M-P6-8 (a `Say` without `offers.request`) turns this red: the server refuses
     the unchecked talk, which the pre-line check reports."""
@@ -474,7 +510,7 @@ def test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally(tmp_path
     try:
 
         async def scenario() -> tuple[int, EntityId]:
-            backend = ScriptedBackend(_valid, delay_s=DELAY_S)
+            backend = _HeldBackend(_valid)
             task = _start_with(server, store, backend)
             await _wait_for(lambda: (store / "alice.resume").exists(), "the runner joined Alice")
             visitor = await _visitor(server.url)
@@ -493,6 +529,7 @@ def test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally(tmp_path
                 await _talk_available(visitor, alice)
                 before = len(_decisions(store))
                 asked = backend.calls
+                backend.hold()
                 await _say(visitor, alice, "Good morning.")
                 # The walk starts only once the model holds the request (the consult is in flight, in range).
                 await _wait_for(lambda: backend.calls > asked, "the model was asked", within=20)
@@ -501,6 +538,9 @@ def test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally(tmp_path
                 assert not await _talk_offered(visitor, alice), (
                     "the visitor did not leave talk range"
                 )
+                # Alice's own view trails the visitor's by up to a frame (D-P6b-30): two more sweeps, then the answer.
+                await _frames_after(visitor, 2)
+                backend.release()
                 await _await_record(store, before, "the held consult to end")
             await _stop(task)
             return departed, alice

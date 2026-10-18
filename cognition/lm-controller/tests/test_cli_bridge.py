@@ -320,11 +320,16 @@ def test_the_timeout_kills_the_whole_tree(tmp_path: Path) -> None:
     gateway = ModelGateway(
         _direct(record, mode="hang"), Budget.of(policy, MemoryLedger(), FakeClock())
     )
-    started = time.monotonic()
+    started, wall = time.monotonic(), time.time()
     outcome = run_loop(gateway.complete(ALICE, request("hang")))
     elapsed = time.monotonic() - started
     assert outcome == Failed(BackendFailure(reason="timeout"))
-    assert elapsed < 2, elapsed
+    # Where the time went, should it ever exceed the bound again (pr-s10-p6 D-P6b-49): when the child had
+    # started and written its record, against the 1 s timeout and the tree kill after it.
+    recorded = record.stat().st_mtime - wall if record.exists() else None
+    assert elapsed < 2, (
+        f"elapsed {elapsed:.3f} s; the child's record written {recorded} s after the call began"
+    )
     (seen,) = _records(record)
     pids = {"child": seen["pid"], "grandchild": seen["grandchild"]}
     deadline = time.monotonic() + 3
