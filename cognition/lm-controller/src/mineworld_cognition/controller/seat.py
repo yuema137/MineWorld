@@ -293,6 +293,7 @@ class SeatRunner:
             await absorb(store, batch.events, batch.through, self._retention)
             self._note_lines(batch.events)
             here, now_at = self._here()
+            heard_at = {fact.id: fact.at for fact in fresh}
             for trigger in detect(
                 fresh,
                 seat.observer,
@@ -304,7 +305,7 @@ class SeatRunner:
             ):
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
-                self._pending.offer(trigger, self._clock())
+                self._pending.offer(trigger, heard_at[trigger.event], self._clock())
 
     def _note_lines(self, events: tuple[PerceivedEvent, ...]) -> None:
         for fact in events:
@@ -325,12 +326,12 @@ class SeatRunner:
         """Runs one consult at a time. Returns `True` when the seat must be handed back (§5.8)."""
         deadline = float(self._controller.consult_deadline_s)
         while True:
-            trigger, received = await self._pending.take()
+            trigger, heard_at, received = await self._pending.take()
             if self._clock() - received > deadline:
                 self._runner_counts["stale_triggers"] += 1
                 continue
             await self._observed.wait()
-            record = await self._consult_once(seat, trigger)
+            record = await self._consult_once(seat, trigger, heard_at)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -346,7 +347,16 @@ class SeatRunner:
 
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
-    async def _consult_once(self, seat: ResumingSeat, trigger: Trigger) -> ConsultRecord:
+    async def _consult_once(
+        self, seat: ResumingSeat, trigger: Trigger, heard_at: int
+    ) -> ConsultRecord:
+        """One consult on `trigger`, whose fact is at world time `heard_at`.
+
+        Recall is made at the later of the newest observation's `at` and `heard_at`. The observation can trail
+        the facts already absorbed by a frame (D-P6b-30); at 12x a 100 ms tick is 1.2 world seconds, and recall
+        at `observation.at` alone drops the trigger line and every line said in the same lag, since L0 keeps
+        only records at or before the query's `at` (D-P6-41).
+        """
         store = self._open_store(seat)
         observation = self._observation()
         names = NameBook.load(store)
@@ -357,7 +367,11 @@ class SeatRunner:
             counterparts = (*counterparts, trigger.speaker)
         memory = memory_view(
             store,
-            RecallQuery(at=observation.at, counterparts=counterparts, words=trigger.words),
+            RecallQuery(
+                at=max(observation.at, heard_at),
+                counterparts=counterparts,
+                words=trigger.words,
+            ),
             self._controller.recall_episodes,
         )
         answers: list[str] = []
