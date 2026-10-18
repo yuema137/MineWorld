@@ -38,8 +38,9 @@ operator's ruling and is recorded with its provenance.
 3. The outputs, 64 generated files: 21 × (`brief.yaml`, `reference_prompt.txt`, `portrait_prompt.txt`)
    and `cast/CASTING.md` (distinctness table, realised distribution); `cast/casting_inputs.json` and
    `cast/CASTING_NOTES.md` are authored inputs.
-4. `cast/PICKS.yaml`: the operator's casting-gate verdicts of 2026-10-15 ("人物可以全部按推荐"), a
-   byte-for-byte copy of the operator-reviewed file, template v2.
+4. `cast/PICKS.yaml`: the operator's casting-gate verdicts of 2026-10-15 ("人物可以全部按推荐"),
+   template v2; the picks are byte-identical to the operator-reviewed file (its local `source_page:` path
+   is replaced by a neutral reference, §6 item 3).
 5. `tools/asset_generation` (`mineworld_gen`): a paid image is never lost to a reference outside the
    repository (`bd7bc92f`); references are recorded repo-relative or by file name and digest, never by an
    absolute path (§6).
@@ -86,8 +87,14 @@ corrections (§6).
    missing brief directories and, with `picks:` in `casting.yaml`, holds the cast to `PICKS.yaml`.
 2. `check-characters`: a brief-only directory's `brief.yaml` is validated (`mwcast/brief.py`); generation
    records without `fit.yaml` fail. Five tests.
-3. `cast/PICKS.yaml` committed (byte-identical to the operator's file; it keeps the operator's
-   `source_page:` line, a local path, verbatim as instructed).
+3. `cast/PICKS.yaml` committed: every pick and every other line byte-identical to the operator's file,
+   except `source_page:`, whose local absolute path is replaced by `casting page (operator review,
+   2026-10-15)` (coordinator correction, 2026-10-18). `--check` compares the picks' content (the map, the
+   template version), never the file's bytes.
+7. `--check` fails on any `/Users/`, `/home/<user>/` or drive-letter (`C:\`) path in a text file of the
+   committed cast data (`presentation/mineworld-default/3D/characters/`). The one other occurrence, in
+   `CASTING_NOTES.md` (and so in the generated `CASTING.md`), is reworded; `CASTING.md` was regenerated on
+   CI (scratch run 39107840837).
 4. This record.
 5. `tools/asset_generation`: its own `ruff.toml`; 12 findings fixed; `pyyaml` in the root's dev group so the
    provenance test runs in CI; `reference_record` never writes an absolute path; the one absolute path in a

@@ -26,7 +26,7 @@ session.
   hair colour, texture and style, face shape and features. No census category appears in any prompt; the
   sampled ancestry stratum stays in the briefs and in this file, for the distribution only.
 - **F-CAST-8 — Template v3 calibration. REJECTED by the operator 2026-10-15; v2 retained.** A calibration
-  (22 image calls; record in `/Users/yuema137/mineworld-worktrees/cast-out/calibration/`, not committed)
+  (22 image calls; record in the operator's local `cast-out/calibration/` scratch, outside the repository, not committed)
   tried a template v3 that changed three things:
   - a stylised-render style paragraph;
   - a style-sheet anchor of four non-Vera people in place of Vera;

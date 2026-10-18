@@ -509,6 +509,11 @@ def casting_md(results: dict, cfg: dict, notes: str) -> str:
     return "\n".join(out) + "\n" + notes
 
 
+# A POSIX home path or a Windows drive path; committed cast data must hold neither.
+ABSOLUTE_PATH = re.compile(r"/Users/|/home/[^/\s]+/|\b[A-Za-z]:\\")
+TEXT_SUFFIXES = {".yaml", ".yml", ".json", ".md", ".txt"}
+
+
 def directory_problems(results: dict, inputs: dict, out_dir: Path, cfg: dict, template: dict) -> list[str]:
     """The output directory holds exactly the cast's brief directories plus the fixed members' (never re-cast)
     ones: a stray or a missing directory is reported. With `picks:` in the config, the operator's picks name
@@ -520,6 +525,11 @@ def directory_problems(results: dict, inputs: dict, out_dir: Path, cfg: dict, te
         f"stray directory (not in the cast): {name}" for name in sorted(present - cast_keys - fixed_keys)
     ]
     problems += [f"missing brief directory: {name}" for name in sorted(cast_keys - present)]
+    # Committed cast data names no machine's directories (no local username, no absolute path).
+    characters = out_dir.parent
+    for f in sorted(characters.rglob("*")) if characters.is_dir() else []:
+        if f.is_file() and f.suffix in TEXT_SUFFIXES and ABSOLUTE_PATH.search(f.read_text(encoding="utf-8")):
+            problems.append(f"absolute local path in cast data: {f.relative_to(ROOT).as_posix()}")
     if "picks" in cfg:
         picks = read_yaml(rel(cfg["picks"]), "casting picks")
         chosen = picks.get("picks")
