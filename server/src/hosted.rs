@@ -103,12 +103,26 @@ impl HostedSlot {
         now: WorldTime,
     ) -> Option<ActionRequest> {
         let request = self.controller.decide(observation);
-        let mut next = self.controller.next_consult(self.next);
+        let mut next = self.strictly_after(self.next);
         while next <= now {
-            next = self.controller.next_consult(next);
+            next = self.strictly_after(next);
         }
         self.next = next;
         request
+    }
+
+    /// The controller's [`next_consult`](HostedController::next_consult) after `after`. A controller that
+    /// broke the trait's "strictly after" rule would spin [`decide`](Self::decide)'s loop on the world
+    /// thread forever; in a debug build it panics here instead, naming the instant.
+    fn strictly_after(&self, after: WorldTime) -> WorldTime {
+        let next = self.controller.next_consult(after);
+        debug_assert!(
+            next > after,
+            "a hosted controller's next_consult({}) answered {}, not strictly after it",
+            after.seconds(),
+            next.seconds()
+        );
+        next
     }
 
     /// Tells the controller what became of its request.
@@ -200,6 +214,32 @@ mod tests {
             WorldTime::from_seconds(120),
             "due at 100, consulted at 117: the next is 120, not 122"
         );
+    }
+
+    /// A controller whose next consult is not strictly after the last panics in a debug build, rather
+    /// than spinning the world thread in `decide`'s skip-forward loop.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "not strictly after it")]
+    fn a_controller_that_does_not_move_forward_panics_in_a_debug_build() {
+        /// Breaks `next_consult`'s rule: it answers the instant it was given.
+        struct Stuck;
+
+        impl HostedController for Stuck {
+            fn next_consult(&self, after: WorldTime) -> WorldTime {
+                after
+            }
+            fn decide(&mut self, _observation: &WireObservation) -> Option<ActionRequest> {
+                None
+            }
+            fn rescaled(&mut self, _pending: WorldTime, _scale: NonZeroU32) {}
+        }
+
+        let mut stuck = HostedSlot {
+            controller: Box::new(Stuck),
+            next: WorldTime::from_seconds(100),
+        };
+        stuck.decide(&alone(), WorldTime::from_seconds(117));
     }
 
     fn alone() -> WireObservation {
