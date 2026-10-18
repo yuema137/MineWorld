@@ -2263,4 +2263,102 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
   the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
   (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
+- **D-P6b-41 (CI finding after merge, test synchronisation; bounded fix, branch `fix/p6b-rejoin-flake`).** The same
+  test kept failing on `python (windows-2025)` on main's code, now at the wait itself: "the runner rejoined after the
+  handback period did not happen within 30 s" (job 117457014288, PRs #199, #220 and others). Cause, traced on macOS by
+  stamping every write and delete of `alice.resume` and every consult: a rejoined seat backfills the facts of its
+  handback, which usually hold an `arrived` trigger; the script refuses every consult, so the seat falls back and is
+  handed back again at once. The secret then lives for about 10 ms (written 10.782 s, deleted 10.792 s; again 20.800 s
+  to 20.828 s), and the test polls it every 100 ms. The test passed only when one rejoin in its 30 s window had no
+  trigger, so the secret stayed; on a runner whose every rejoin backfilled one, no poll saw it. Not a production fault:
+  falling back and handing back at once is §5.8's behaviour for a script that always fails, and the hold, the
+  handback period and the server's release all behaved. Fix (test only): a rejoin is seen as the secret written again
+  **or** as a consult logged after the handback was seen. A session writes the secret at its join and deletes it only
+  after its consult is logged (`SeatRunner._serve`), so a consult logged after the secret was seen gone was made by a
+  seat joined after that handback, and one of the two signals always persists. The 30 s bound is unchanged (the
+  handback period is 10 s). What the test asserts is unchanged: Alice's in-server requests during the handback, at
+  least one handback counted, and a rejoin. Planted: re-offering the last trigger at every join (every rejoin
+  then hands back within milliseconds) made the old check fail 4 of 5 (30 s each) and the new one pass 5 of 5
+  (about 10 s); a runner that never rejoins fails the new check (30 s). macOS: 30 of 30 passed (about 10.4 s each,
+  the rejoin now seen at the first one, against about 20 s before). Windows: see D-P6b-45.
+- **D-P6b-42 (CI finding, production race in `mineworld inspect`; bounded fix).** `test_a_the_world_stays_valid…`
+  failed AP6-3 on `python (windows-2025)` (jobs 116693278333, 117459758740): `mineworld inspect` reported
+  unresolved causes, all naming the newest action. Inspect read the journal and the facts in two read
+  transactions, and the test inspected a save its server still committed to. Against a live server on macOS the
+  old binary failed 7/3000 and 8/3000 inspections; the fixed one failed 0/9000. Inspect now reports the prefix its
+  journal pass read (head = that pass's last revision; the fact pass stops after its last fact). The Rust test
+  `a_save_being_committed_to_is_inspected_as_one_consistent_prefix` commits 3,000 requests during inspections;
+  the mutation (`inspect.rs` before the fix) failed 45/45 on windows-2025 (run 39070763758). Test (a) now stops its
+  server before inspect, replay and resume, since AP6-3 is about the save the run left; before, a second server
+  opened the save beside the first.
+- **D-P6b-43 (CI finding, open; needs a ruling).** In 8 windows-2025 runs of test (a) after D-P6b-42, two failed
+  differently: "Alice is not named in the visitor's observation" after the walk, and "AP6-1: no garbage was
+  drawn" with 3 lines said and 6 consults. The scenario assumes Alice stays where her yaml puts her, but every
+  fallback the script provokes hands her to her own rule, which may walk her away. The garbage draw is keyed by
+  the request's cassette key (the prompt content), so how much garbage is drawn depends on timing, and it shrinks
+  with the number of lines said. Options, each a change to frozen P6b scenario semantics: the visitor follows
+  Alice's current position; the draw is deterministic per attempt; AP6-1's garbage assertion is bounded by
+  attempts. Not changed here.
+- **D-P6b-44 (CI finding; cause found in the server, diagnostics added).** `test_b_the_lm_seat_answers…` failed
+  once with the join after stop refused `seat_occupied` (job 117352558234) and once with a stride refused
+  `too_far_away` (job 116717620814). The first is the server race pr-s27c D-c-24 fixes: the runner's `leave`
+  was answered `left`, but a sweep already running departed its closed channel as `Dropped` and held the seat.
+  The stride was not reproduced (20 traced windows-2025 runs passed); the refused stride was the third of four
+  planned from the yaml start, so the visitor was not where her accepted moves put her. The failure messages now
+  state the visitor's start and current position, and the decisions, counters and server stderr.
+- **D-P6b-45 (CI finding, production bug in the SDK; bounded fix).** The hang D-P6b-40 left open recurred on
+  windows-2025 with test (b) after D-P6b-41: about 1 run in 10 never ended (scratch runs 39062127380,
+  39069583887: 5 of 50 killed at 300 s, and one leg silent for 55 min). A watchdog that dumped every asyncio
+  task (scratch run 39072572540, 5 of 100 hung) showed `SeatRunner.run` *cancelling* at its handback sleep 40 s,
+  100 s and 165 s into the test, `serve`'s TaskGroup and the test's `_stop` waiting for it. Cause:
+  `SeatSession._stop` (`sdk/python`) awaited its cancelled reader under `except CancelledError: pass`, which also
+  swallowed the caller's own cancellation when it arrived while the reader closed the socket. The test stops the
+  runner just as the runner hands its seat back (its `leave`), so the cancel was lost inside that `leave`; the
+  runner went on to sleep the handback period and rejoin, forever, and `run(…, timeout_s=170)` could not end it
+  because its cancel was swallowed the same way. D-P6b-41 made the window more frequent, since the test now
+  stops the runner as soon as the rejoined seat's consult is logged. Fix: the reader's own `CancelledError` still
+  ends there; the caller's is re-raised when the current task is being cancelled (`Task.cancelling()`). Test:
+  `test_a_close_cancelled_while_the_socket_closes_stops_its_caller` (`sdk/python/tests/test_session_state.py`)
+  cancels a close while the socket's closing handshake waits; with the fix reverted it fails deterministically.
+  `Server.stop` is not involved: it kills before it waits. On windows-2025 with the fix, test (b) passed 99 of 100
+  runs and none hung (scratch run 39074618192; the one failure is D-P6b-47).
+- **D-P6b-46 (CI finding, test synchronisation; bounded correction of AP6-16's mechanism).**
+  `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally` failed on windows-2025 with "AP6-16: the
+  decision log has no local not_offered drop", no late `spoke` (scratch run 39074618192, one of five `python`
+  layers). The scripted model held every answer 3 wall seconds and the test assumed the walk out of talk range
+  ended first; on a slow runner it did not, so the line's answer met a visitor still in range. AP6-16's property —
+  an answer that arrives after the visitor left is dropped locally and never spoken — is unchanged; its mechanism
+  ("a scripted backend answering after 3 s") is replaced by the precondition it stood for: the test holds the
+  line's answer until the visitor's own view shows talk not offered and two more sweeps have reached it (Alice's
+  view trails by up to a frame, D-P6b-30). Greetings are answered at once. On windows-2025, 20 runs each: the
+  previous test 18 of 20 (both failures this signature), the new one 20 of 20 (scratch run 39077601297).
+- **D-P6b-47 (CI finding, open; not reproduced as a cause).** In 100 windows-2025 runs of test (b) after D-P6b-45,
+  one failed at the start: the visitor's WebSocket opening handshake to the server timed out (`JOIN_PATIENCE`,
+  10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
+  residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
+  the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
+- **D-P6b-48 (CI finding, open; bound unchanged).** In one of five windows-2025 `python` layers on this branch
+  (scratch run 39085226849), `test_c_a_killed_process…` failed AP6-8: no request by Alice's in-server controller
+  within hold + pace + 2 s (6 s) of the SIGKILL. Run alone 50 times on windows-2025 (scratch run 39091022610) it
+  passed 50 of 50, the fallback's request 3.27–4.77 s after the kill (median about 3.5 s), so the frozen bound
+  leaves at least 1.2 s against the measured work. The one miss came inside the full suite, where D-P6b-47's
+  server stalls are seen; the bound is not raised.
+- **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
+  `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
+  30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
+  tight against the work; the one failure is a runner stall. Bound unchanged; if it recurs, take R-B5's Job Object
+  fallback.
+- **D-P6b-49 (CI finding, not reproduced; bound unchanged, diagnostics added).** The same test then failed twice in a
+  row on PR #239's head 02896960 (run 39074177748: 4.33 s, then 4.48 s), a PR that touches nothing under
+  `cognition/`. On windows-2025, instrumented phase by phase (scratch runs 39098790165, 39098795564, 39098924422,
+  39098927683), on that head and on this branch, alone, after the files before it, and after `test_ac10`'s 100-day
+  run: every call took 1.047–1.109 s — the 1 s timeout, then `kill_tree` 0.046–0.109 s, of which spawning `taskkill`
+  took at most 0.016 s; 143 processes on the runner, none left by the suite. So the 2 s bound is right for the work
+  on Windows and tree-kill does not take seconds there; the 3.3 s extra on #239's runs is outside the measured
+  phases (a runner stall). The failure message now says when the child wrote its record, so a recurrence names
+  whether the spawn or the kill was slow. If it does recur in the kill, R-B5's Job Object replaces `taskkill`.
+- **(ac100, no change.)** The `ac100` fixture's 100-day run hit its 600 s bound on windows-2025 only on heads
+  before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
+  409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
+  days), about 2 ms each on the Windows runner. Those PRs need only merge main.
 - (planning findings are §3.2 and §0.1)
