@@ -10,6 +10,11 @@ routine:
   - { from: "15:00", place: park, label: walk }
   - { from: "19:00", place: apartments, label: home }
 
+persona:
+  summary: Walks the street a lot and stops to talk to anyone who will. Curious about everything.
+  traits: [chatty, curious]
+  speech: Long, rambling sentences.
+
 tags:
   - passerby
 

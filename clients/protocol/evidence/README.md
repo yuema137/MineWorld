@@ -37,6 +37,12 @@ admin-social-cafe.log      `../run.sh admin`: the `clock` frame after the welcom
                            "kicked") — `checks/admin_check.gd`. The admin token is generated per run,
                            passed through the environment, and in no file here
 server-admin.log           the server it was made against
+rev2/rev2-market-town.log  `../run.sh rev2`: revision 2 from the far side in one run
+                           (`checks/rev2_check.gd`, step-12 CP-E2) against `worlds/market-town --town
+                           --agent alice --hold 10` — joined with invite and nickname, a `spoke` it did
+                           not cause received, 60 s of deltas with the reconstruction equal to the
+                           keyframe at three host pauses, dropped and resumed `held`, kicked
+rev2/server.log            the server it was made against
 ```
 
 Each AC-13 flavour runs against a world of its own because a client walks from where the world seated

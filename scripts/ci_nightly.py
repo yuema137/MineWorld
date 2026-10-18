@@ -55,10 +55,13 @@ JOBS = (
     ("parity-long-windows", "parity-long"), ("parity-long", "parity-long"),
     ("stability-linux", "stability"), ("stability-mac", "stability"), ("stability-windows", "stability"),
     ("clients-linux", "clients"), ("clients-mac", "clients"), ("clients-windows", "clients"),
-    ("repeat-linux", "repeat"), ("repeat-mac", "repeat"), ("repeat-windows", "repeat"),
+    ("repeat-linux", "repeat"), ("repeat-mac", "repeat"),
+    ("repeat-windows-1", "repeat"), ("repeat-windows-2", "repeat"),
 )
-# The flake samples of one OS: the nightly's repeat job, and `main`'s push run's job of the same suite.
-REPEAT_OS = (("repeat-linux", "test"), ("repeat-mac", "test-macos"), ("repeat-windows", "test-windows"))
+# The flake samples of one OS: the nightly's repeat job (or its shards, which together run the whole suite,
+# ARC-149), and `main`'s push run's job of the same suite.
+REPEAT_OS = (("repeat-linux", ("repeat-linux",), "test"), ("repeat-mac", ("repeat-mac",), "test-macos"),
+             ("repeat-windows", ("repeat-windows-1", "repeat-windows-2"), "test-windows"))
 TREND_NIGHTS = 14
 ISSUE_TITLE = "Nightly CI is red on main"
 VERDICTS = ("PASS", "FAIL", "INCONCLUSIVE")
@@ -206,7 +209,8 @@ def verdict(arguments: list[str]) -> int:
     steps = dict(value.partition("=")[::2] for key, value in pairs if key == "--step")
     probes = [path.read_text(encoding="utf-8").splitlines() for path in sorted(OUT.glob("probe-*.txt"))]
     failed = sorted({f"{sample.name}: {test}" for path in sorted(OUT.glob("*.txt"))
-                     if path.name == "repeat.txt" or path.name.endswith("-tests.txt")
+                     if (path.name.startswith("repeat") and path.name.endswith(".txt"))
+                     or path.name.endswith("-tests.txt")
                      for sample in parse_repeat(path.read_text(encoding="utf-8")) for test in sample.failed})
     decided, detail = judge_job(outcome, layers, steps, probes, failed)
     # Notes inform and never decide: a test skipped on this leg by name (QC-5), with its reason.
@@ -269,13 +273,34 @@ def decide_issue(is_red: bool, open_issue: str | None) -> str:
     return "close" if open_issue else "none"
 
 
+def merged_samples(parts: list[list[Sample]]) -> list[Sample]:
+    """One OS's samples from several summaries (its shards' and its doctests'), joined by sample name: a
+    sample ran if any part of it ran, failed if any part failed, and is clean only if every part is."""
+    merged: dict[str, Sample] = {}
+    for part in parts:
+        for sample in part:
+            if sample.name not in merged:
+                merged[sample.name] = Sample(sample.name, sample.status, sample.ran, set(sample.failed),
+                                             set(sample.targets), sample.seconds, sample.scratch)
+                continue
+            into = merged[sample.name]
+            into.status = into.status or sample.status
+            into.ran = into.ran or sample.ran
+            into.failed |= sample.failed
+            into.targets |= sample.targets
+            into.seconds += sample.seconds
+            into.scratch = into.scratch if sample.scratch == "clean" else (
+                sample.scratch if into.scratch == "clean" else f"{into.scratch}; {sample.scratch}")
+    return list(merged.values())
+
+
 def flake_section(artifacts: Path, main_samples: dict[str, Sample | None]) -> list[str]:
     lines = []
-    for job, main_job in REPEAT_OS:
-        path = artifacts / f"nightly-{job}" / "repeat.txt"
-        if not path.is_file():
+    for job, shards, main_job in REPEAT_OS:
+        paths = [path for shard in shards for path in sorted((artifacts / f"nightly-{shard}").glob("repeat*.txt"))]
+        if not paths:
             continue
-        samples = parse_repeat(path.read_text(encoding="utf-8"))
+        samples = merged_samples([parse_repeat(path.read_text(encoding="utf-8")) for path in paths])
         if main_samples.get(main_job) is not None:
             samples.append(main_samples[main_job])  # type: ignore[arg-type]
         judged = classify(samples)
@@ -302,7 +327,7 @@ def main_push_run(repo: str, sha: str) -> tuple[str, dict[str, Sample | None]]:
     except (Unmet, ValueError, KeyError) as error:
         return f"could not read ci.yml's push run: {error}", {}
     samples: dict[str, Sample | None] = {}
-    for _, name in REPEAT_OS:
+    for _, _, name in REPEAT_OS:
         job = next((job for job in jobs if job.get("name") == name), None)
         samples[name] = sample_of_job(repo, job) if job else None
     return f"ci.yml push run [{run['id']}]({run.get('html_url', '')}): {run.get('conclusion')}", samples
@@ -571,6 +596,18 @@ def self_test_verdicts() -> list[tuple[str, bool]]:
             ("every expected job has a row", len(rows) == len(JOBS)),
             ("any INCONCLUSIVE row makes the night red", red(list(rows.values()), "success")),
             ("a failed gate makes the night red", red([], "failure")),
+        ]
+        for shard, text in (("repeat-windows-1", "run nightly-1 status 0 seconds 1.0 ran yes scratch clean\n"
+                                                 "run nightly-2 status 101 seconds 1.0 ran yes scratch clean\n"
+                                                 "failed nightly-2 a::flaky\n"),
+                            ("repeat-windows-2", "run nightly-1 status 0 seconds 2.0 ran yes scratch clean\n"
+                                                 "run nightly-2 status 0 seconds 2.0 ran yes scratch clean\n")):
+            (artifacts / f"nightly-{shard}").mkdir()
+            (artifacts / f"nightly-{shard}" / "repeat.txt").write_text(text, encoding="utf-8")
+        section = flake_section(artifacts, {})
+        cases += [
+            ("a sharded OS's samples are joined by name: one flake, two samples",
+             section == ["- **repeat-windows**: flake candidate `a::flaky`, failed in 1 of 2 samples (nightly-2)"]),
         ]
     cases += [
         ("red with no open issue creates one", decide_issue(True, None) == "create"),

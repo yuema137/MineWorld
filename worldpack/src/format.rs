@@ -152,6 +152,12 @@ impl DecisionsFile {
             .iter()
             .fold(root.to_path_buf(), |path, component| path.join(component))
     }
+
+    /// The directory of the pack's root the file lies in, when it lies in one: the first component of a
+    /// path of more than one. A data directory rule admits it (`ARC-121` item 1).
+    pub(crate) fn directory(&self) -> Option<&str> {
+        (self.0.len() > 1).then(|| self.0[0].as_str())
+    }
 }
 
 impl core::fmt::Display for DecisionsFile {
