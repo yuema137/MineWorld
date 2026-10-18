@@ -553,6 +553,33 @@ async fn a_kick_and_a_release_close_the_connection_kicked_and_free_the_seat() {
     );
 }
 
+/// TW-c (`ARC-69` item 5), in the library as well as in `mineworld server --solo`: a single-player world
+/// is never served on a listener other machines can reach. Refused at once, before any route answers.
+#[tokio::test]
+async fn a_solo_world_is_refused_on_a_listener_that_is_not_loopback() {
+    let host = WorldHost::spawn(brisk(), build)
+        .await
+        .expect("the world is assembled and its thread starts");
+    let (listener, address) = app::bind("0.0.0.0:0".parse().expect("a literal address"))
+        .await
+        .expect("an ephemeral port on every interface");
+    let access = Access {
+        admission: support::admission(),
+        admin: None,
+        solo: true,
+    };
+    let refused = tokio::time::timeout(PATIENCE, app::serve(listener, host, access))
+        .await
+        .expect("refused at once, not served")
+        .expect_err("a solo world on 0.0.0.0 is refused");
+    assert_eq!(refused.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(
+        refused.to_string().contains("loopback")
+            && refused.to_string().contains(&address.to_string()),
+        "the refusal names the rule and the address: {refused}"
+    );
+}
+
 #[tokio::test]
 async fn without_a_token_there_is_no_admin_surface() {
     let address = start(None).await;
