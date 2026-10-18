@@ -21,12 +21,13 @@ reason SR-b (ARC-89, QSRB-5): facts-300s and journal-300s now digest the live ta
 reason 12d #171 (S15, step-11 §19, F-12d-1): lakeside's item kinds have names (TD-D12, the item pack's new version), which the summaries print and the genesis composition (sealed block 1) carries: every summary and sealed-300s moved; facts-300s and journal-300s did not; re-recorded from a long record of 12d's merge with main e67af07 (a9c3b38, Darwin/arm64)
 reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9793 in the 300-day save)
 reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
-summary-300 353 4394467a3d42612967cc369588f6f70fb6678ef16657a8fa7f7c88e833307eb2
-summary-1000 1077 2e271a23617a3a62a5e6dfaf0093eedd3a22cd903b98e24f13986c70e4a975d0
-summary-300s 352 1e7f6fb3b445e3e76192cffebfa7b0f4ee728d835b265d54c4311abf18b1df26
-facts-300s 6864 ec36836a6a4258859b6e09d28a6db5620f3382c0303ff4085f909c308a7c0ce3
-journal-300s 4887 86f1210d356fde9f1dfd53342c994fee08653e22ac0318519b861cfeb85f3cbc
-sealed-300s 123 71374b0ea1d22c62d5604dcaea7162e6d12f2b87f24f544872b7c471bf895fe0
+reason 12d #171 merged after S27-b #241: 12d's item names and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
+summary-300 353 e3f3bcccf733aa6f8c4f4bf095037290c0359a4f256cd1543900a7471405a3ba
+summary-1000 1077 2922d277de78a4868b1618649d6a47f411faa709823a536647ca81ed432d1fd8
+summary-300s 352 02a9eb4ff0e82efb5c8560f7ee3a8d63504eac64918a8da308e9fa750487ea41
+facts-300s 8992 0db49b6b2952ee879ed0b6b4342e63113c30a9304efe3dd17325054a28a9e553
+journal-300s 6431 da2b7101f594ef9d940ec65685c203adfe00cce681c3daf4b789543091738bb0
+sealed-300s 122 af3a686add94c74f8df1ddb5c5fff4c3b1115de062633ee8bfcf7463df8f6544
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -37,12 +38,13 @@ reason 12d #171 merged after S10 P6a #236: bodies (12d) and persona (P6a) togeth
 reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9760 in the 300-day save)
 reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
 reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
-summary-300 372 aa58202454995cb8da716a0c0cf861c3820e9dd67425b7b3fcdd192eefe7beb6
-summary-1000 1098 4da59d0f27e5b71d748da4e7d139ea1ed9f64e4e37835379fefefa8106b639fd
-summary-300s 371 5d599e0f5b5285fd0589fcc77e2eccfaf8e253924aa4a659a8bbe881c9cb1113
-facts-300s 8396 9a8f441e86995ca5943e4702ddd6d1fd8d6ee3ec556592de7e36414472cd8386
-journal-300s 5729 f97907917a17592f648c61ea84d5360875b8dbe8cf8aa09acef43d0b38cb5261
-sealed-300s 202 69fd2a765c5347b2ccdb21228426a0ca1618cca9e35b9cc39d4100d5cfb004cd
+reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
+summary-300 372 f8af96c470dd5c7b45395bdce7a472b27f4cfed33abf744fa765629eb553bee4
+summary-1000 1098 c393e200ad5c85f25eb38a2550a8deb46b4c0b303f5376362a8f837db6c8b0a4
+summary-300s 371 bb0222699714fc96fef1a7230a97d9be7cf89653c1fd5cf4805921e95bae3c58
+facts-300s 7497 842ce3cd51716a858747ed71a52bbcf85a55418226daa7d79459f7627d19e5fa
+journal-300s 5077 6ff34718499aeb0396899c6f10d2d92cf584149ccdddbea5b569815da39a105d
+sealed-300s 202 8f8f19c1354af6e0ee4bd353374c6d9669dfee60af104a981c8507d6e36b306d
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -53,9 +55,10 @@ reason 12d #171 merged after S10 P6a #236: bodies (12d) and persona (P6a) togeth
 reason S27-b #241: group-activity offers accept-invitation, decline-invitation, join-group-activity and leave-group-activity complete (F-S27-2, ARC-34 note 2026-10-14); the paced rule controller's offered band now draws among them, so residents' social histories moved (QS27b-1); still starts activities (group-activity-started 9736 in the 300-day save)
 reason S27-b #241: an expired invitation is no longer offered accept or decline (D-b-1: perception reads the world clock, as dispatch does), so the offered band no longer draws an expired answer and residents' social histories moved again (D-b-2, ruled 2026-10-15 by the primary session)
 reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's behaviour and P6a's nine persona-authored genesis facts compose, so every key moved against both sides; re-recorded from the CI long record of the merge (scratch nightly run 39074338213, Linux/x86_64); bodies-yard and lakeside did not move
-summary-300 350 8cecb212cd339c08ad90511b3613088acc129c99b23070072ed9fab494c7fee8
-summary-1000 1075 cfcee92ffd93c877e996760be9edca934329e59b31e024ad6911c91dcfeb3200
-summary-300s 349 01ee5830bc78b2a07e6b97fba024d7f2819d78573cebb522af2a0e861ca071ae
-facts-300s 8565 b5d8c95adfedbd4ab2461185680e708d599f47bafbf0ebb1aeccf812e8132bee
-journal-300s 5820 b1df3d5f45216cd805941a281e277d733f958847f85ce023a43ab7955c4206c9
-sealed-300s 203 0bf85fdb5326ab158ec6ef81b045d035796544c84cfe963f1079fa361e701a49
+reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
+summary-300 351 bc4774ff5f449c77e5cd93614eeea89b6529832a6b21270fe753ff84a93c94e8
+summary-1000 1075 2c68fcd34e10cca1973cd9c32474d5d2211d595a53f0177392b329c0ef9f84ae
+summary-300s 350 d7b17e0f8881a084f74700f95aac644718459a576d62f381e5cc2ca75d5a81c2
+facts-300s 7601 1e7cc19824dc2f3fc8ab69f29fc7165889a1b324d30ca68f95da1bd474ce0a3e
+journal-300s 5267 73e252c5cc4f7a612ee319c1c7f1f996368bbc15f8887cecbd552193d9e815e3
+sealed-300s 203 6e0de6c35ff593271c9ba841bbf54e7e246fcd2126cc6043f28809e9896d68fe
