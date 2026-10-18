@@ -25,17 +25,28 @@ use crate::system::BodiesSystem;
 const SECTION_KIND: RejectionCode = RejectionCode::from_static("bodies-section-kind");
 
 /// Where an object lies, as authored: a place by key, and a point on its floor.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Lies {
+    /// The place it lies in: a place key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     place: EntityKey,
+    /// Millimetres east of the place's origin.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     x: Millimetres,
+    /// Millimetres north of the place's origin.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     y: Millimetres,
 }
 
-/// The `body:` section, decoded into exactly one of its two forms.
-#[derive(Debug, Clone, Deserialize)]
+/// A body: in a place file, the walkable floor and the solids standing on it (floor, solids); in an
+/// item file, one loose object (shape, at). Never both forms.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Written")]
+#[schemars(with = "Written", example = serde_json::json!({
+    "floor": { "min": { "x": 0, "y": 0 }, "max": { "x": 4000, "y": 3000 } },
+    "solids": [{ "min": { "x": 0, "y": 2400 }, "max": { "x": 2000, "y": 3000 }, "height": 900 }]
+}))]
 pub enum Body {
     /// A place's floor and solids.
     Place(PlaceShape),
@@ -49,12 +60,19 @@ pub enum Body {
 }
 
 /// The four keys as written, before the form is decided.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct Written {
+    /// A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in
+    /// a place's body.
     floor: Option<Floor>,
+    /// The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody
+    /// stands inside one or walks through it.
     solids: Option<Vec<Solid>>,
+    /// An object's shape. Required, with `at`, in an item's body.
     shape: Option<BodyShape>,
+    /// Where an object lies: a place and a point on its floor. Required, with `shape`, in an item's
+    /// body.
     at: Option<Lies>,
 }
 

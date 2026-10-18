@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use mineworld_contracts::Tag;
 use mineworld_decision::ModelParameters;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserializer, Serialize};
 
@@ -69,17 +70,24 @@ const HOUR_CURVES: [&str; 7] = [
 ];
 
 /// The parameters of one `motivated` model: what a decision list wrote, typed and bounded.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+// Every key may be omitted: a key the block omits keeps its default (`ModelParameters::decode`).
+#[schemars(extend("required" = Vec::<&str>::new()))]
 pub struct MotivatedParameters {
     /// The named curve set. Only `atus-a3-2025` ships (SD-DLb-8).
+    #[schemars(schema_with = "edition_schema")]
     pub curves: String,
     /// Out of 1 000 (per mille), 0 … 500: the band a draw chooses from.
+    #[schemars(range(min = 0, max = 500))]
     pub top_band: u32,
     /// Minutes a door is kept, 15 … 1 440.
+    #[schemars(range(min = 15, max = 1_440))]
     pub commit_minutes: i64,
     /// Hours without contact at which loneliness reaches its top, 1 … 72.
+    #[schemars(range(min = 1, max = 72))]
     pub social_need_hours: i64,
     /// Per mille, 0 … 1 000: the least chance an addressed person replies.
+    #[schemars(range(min = 0, max = 1_000))]
     pub reply_floor: u32,
     /// The base weight of each option, per mille.
     pub base: Base,
@@ -89,7 +97,13 @@ pub struct MotivatedParameters {
     pub curve: BTreeMap<String, Vec<(i64, u32)>>,
     /// The settings the parameters derive, built at decode time and never serialized.
     #[serde(skip)]
+    #[schemars(skip)]
     settings: Settings,
+}
+
+/// The one shipped curve set, as the only value `curves` accepts.
+fn edition_schema(_: &mut SchemaGenerator) -> Schema {
+    schemars::json_schema!({ "type": "string", "enum": [EDITION] })
 }
 
 impl MotivatedParameters {

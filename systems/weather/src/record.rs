@@ -552,8 +552,11 @@ impl TryFrom<String> for PackedDays {
     }
 }
 
-/// What to do with a run of more than [`FILL_RUN_MAX`] missing days.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+/// What a run of more than 3 days missing from the record becomes: rules (the rules draw them) or
+/// none (the configuration is refused).
+///
+/// The 3 is [`FILL_RUN_MAX`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum Fill {
     /// The rules draw them.
@@ -628,8 +631,10 @@ pub fn pack(file: &RecordFile, fill: Fill) -> Result<PackedDays, GapRefused> {
 
 // ---- the series and the date mapping ----------------------------------------------------------------
 
-/// A station identifier: provenance only, 1 … [`STATION_MAX`] printable ASCII characters.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// The weather station the record comes from, such as USW00023188: provenance only, printable ASCII.
+///
+/// 1 … [`STATION_MAX`] characters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Station(String);
 

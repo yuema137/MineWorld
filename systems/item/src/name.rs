@@ -19,14 +19,19 @@ pub struct InvalidItemName {
     pub max: usize,
 }
 
-/// A kind's display name, as a person reads it (step-13 R-PK-2, F-41; `ARC-37` note).
+/// A kind's display name, as a person reads it, such as Flat White: 1 to 64 bytes in any script, with
+/// no control character and no space at either end.
 ///
-/// `naming`'s display-name rule, restated here because `item` depends on no pack: free text in any
-/// script, 1–64 bytes, no control character (a name cannot break a line of a transcript), no
-/// surrounding space (two spellings cannot differ invisibly). Display, never identity: two kinds may
-/// share a name, and every pack still names a kind by its [`ItemId`](mineworld_contracts::ItemId).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// `naming`'s display-name rule, restated here because `item` depends on no pack (step-13 R-PK-2,
+/// F-41; `ARC-37` note): free text in any script, 1–64 bytes, no control character (a name cannot
+/// break a line of a transcript), no surrounding space (two spellings cannot differ invisibly).
+/// Display, never identity: two kinds may share a name, and every pack still names a kind by its
+/// [`ItemId`](mineworld_contracts::ItemId).
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(example = &"Flat White")]
 pub struct ItemName(String);
 
 impl ItemName {

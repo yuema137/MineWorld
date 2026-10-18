@@ -175,6 +175,14 @@ async def _wait_for(predicate: Callable[[], bool], what: str, within: float = PA
         await asyncio.sleep(0.1)
 
 
+async def _settle_on(predicate: Callable[[], bool], within: float = PATIENCE_S) -> None:
+    """Waits as `_wait_for` does, but returns at the bound instead of failing: the caller's own assertion
+    then reports the miss with its own message."""
+    deadline = time.monotonic() + within
+    while not predicate() and time.monotonic() <= deadline:
+        await asyncio.sleep(0.1)
+
+
 def _connector(url: str) -> Callable[[], Awaitable[Connection]]:
     """A `Connector` that opens a socket to `url` each time it is called (a rejoin opens a new one)."""
 
@@ -483,6 +491,11 @@ def test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop(
                     print(_diagnose(store, server))
                     raise
                 heard = [text for _, text in _heard(frame.observation, visitor.observer)]
+            # The visitor can hear the line before the acted consult's record is written (D-P6-42): wait for it
+            # within the same bound; without one, (a)'s assertion below fails as before.
+            await _settle_on(
+                lambda: any(record.record.outcome == "acted" for record in _decisions(store))
+            )
             outcomes = [record.record.outcome for record in _decisions(store)]
             await _stop(task)
             try:

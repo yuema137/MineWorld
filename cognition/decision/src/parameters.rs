@@ -11,13 +11,21 @@ use core::fmt::{self, Debug};
 use core::marker::PhantomData;
 
 use mineworld_sdk::interactions::{Fields, Parameters};
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as _, MapAccess, Unexpected, Visitor};
 use serde::{Deserializer, Serialize};
 
-/// A model's typed, bounded parameter block, every field with a default.
+/// A model's typed, bounded parameter block, every field with a default. Its JSON Schema states each
+/// field's type, default, bound and doc comment for the generated reference (`DECISIONS.md` `ARC-90`);
+/// a block made by `mineworld_sdk::parameters!` has one already.
 pub trait ModelParameters:
-    Default + Clone + PartialEq + Debug + Serialize + Send + Sync + 'static
+    Default + Clone + PartialEq + Debug + Serialize + JsonSchema + Send + Sync + 'static
 {
+    /// The block as `decisions.yaml` writes it, for the generated reference: its type's schema, inline.
+    fn schema(generator: &mut SchemaGenerator) -> Schema {
+        <Self as JsonSchema>::json_schema(generator)
+    }
+
     /// Decodes the block at the decoder's position, refusing an unknown key and an out-of-bound value
     /// there. A key the block omits keeps its default, so `{}` and an explicit default decode alike.
     ///
@@ -29,6 +37,11 @@ pub trait ModelParameters:
 
 /// No parameters: any key is refused.
 impl ModelParameters for () {
+    /// An empty mapping: `()`'s own schema is JSON's `null`, which the file never writes.
+    fn schema(_: &mut SchemaGenerator) -> Schema {
+        schemars::json_schema!({ "type": "object", "maxProperties": 0 })
+    }
+
     fn decode<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         deserializer.deserialize_map(NoParameters)
     }

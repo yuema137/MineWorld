@@ -607,9 +607,13 @@ mod tests {
     }
 
     /// One entity the probe's value names, and the type it names it as.
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
     struct Names {
+        /// The key.
+        #[schemars(with = "mineworld_authoring::schema::Key")]
         key: EntityKey,
+        /// The type it names it as.
+        #[schemars(with = "mineworld_authoring::schema::EntityTypeName")]
         entity_type: EntityType,
     }
 

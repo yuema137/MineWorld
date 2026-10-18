@@ -28,6 +28,10 @@ mineworld-presence = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 thiserror = { workspace = true }
+# The schemas of the files the format owns, for the generated reference (DECISIONS.md ARC-90, DEP-49);
+# serde_json for a schema's example value.
+schemars = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 # social_cafe.rs reads the loaded world through the packs that own what it checks: a conversation, a

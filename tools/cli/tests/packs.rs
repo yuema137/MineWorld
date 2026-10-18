@@ -9,7 +9,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use mineworld_packages::License;
+use mineworld_packages::{License, Version};
 use mineworld_worldpack::catalog::AVAILABLE;
 
 const REPOSITORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
@@ -83,7 +83,7 @@ fn lines(listing: &str) -> Vec<Line<'_>> {
 }
 
 /// EA-1 and EA-3: every System Pack of the installed set, then the controller, each with a version
-/// that is the framework's, an SPDX licence and an author.
+/// (the framework's, for the framework's own packs), an SPDX licence and an author.
 #[test]
 fn every_code_pack_in_the_build_is_listed_with_its_identity() {
     let (ok, listing, stderr) = mineworld(&["packs", "list"]);
@@ -120,12 +120,18 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
     );
 
     for line in listed.iter().filter(|l| l.kind != "world-pack") {
-        assert_eq!(
-            line.version,
-            env!("CARGO_PKG_VERSION"),
-            "{} is not at the framework's version",
-            line.id
-        );
+        // The framework's own packs share its version; a third-party pack has its own (ARC-53), such
+        // as the external pack the build installs, which S25 25a re-pinned to a newer release.
+        if line.id.starts_with("mineworld-") {
+            assert_eq!(
+                line.version,
+                env!("CARGO_PKG_VERSION"),
+                "{} is not at the framework's version",
+                line.id
+            );
+        } else {
+            Version::new(line.version).unwrap_or_else(|error| panic!("{}: {error}", line.id));
+        }
         License::new(line.license).unwrap_or_else(|error| panic!("{}: {error}", line.id));
         assert!(
             line.rest.first().is_some_and(|author| *author != "—"),
