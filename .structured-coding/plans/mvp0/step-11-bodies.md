@@ -7471,6 +7471,50 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
       golden). Every failure is AC-DLa-1 on the placeholder. The shards that failed (test 2/3,
       test-windows 1/4, test-macos a) stop there, because cargo is fail-fast within a shard; the rest
       passed. The PR run on the next head is the gate.
+11. **The nightly clients layer, and main after S27-b, #216 and #243 (2026-10-18).**
+    - **S27-b.** After S27-b #241 merged, main moved both towns' histories (group-activity offers).
+      12d merged 5223e65 as 2e7e957 and re-recorded again, without a local build:
+      - baselines from scratch nightly run 39098525912 (parity-long, commit fff4cba = 2e7e957 plus the
+        scratch golden workflow). AC-8 PASS on all four platforms. Lakeside, market-town and
+        social-cafe all six keys, one reason line each; bodies-yard unchanged.
+      - the DL-a golden from run 39098525923. It moves with S27-b's behaviour: joins and leaves more
+        than double.
+    - **#216 and #243.** Merged as 4697b07 without conflicts. They change only the hosted server's
+      runtime and its tests, no world, system or history artifact, so nothing was re-recorded; the PR
+      run's AC-DLa-1 is the check.
+    - **The nightly clients group on 12d's merged head** (scratch run 39098527502) reproduced the 12e
+      stack's two failures. Both are 12d's own defects: walls, furniture and bodies stop or slide
+      strides that clients still sent as straight lines.
+    - **Primary decision (2026-10-18): `clients/` scope widened in 12d**, against §19.1's change set,
+      because the nightly failures are 12d's own defects. Merging a red nightly would undo #248.
+      - `clients/2d/scripts/walker.gd`: after an accepted stride of a walk, the next is asked for only
+        once an observation shows where the body is. A stride the world resolved within a stride of
+        its line (stopped short, or slid along a solid) has the rest of its leg re-split from there. A
+        stride with no progress ends the walk there, accepted. Anything farther away (a teleport) ends
+        the walk with no move sent (AC-W6). The server stays authoritative; the client never argues.
+      - **Unobstructed walks send exactly the same requests as before**, by construction: `walk_to`'s
+        pre-split route is unchanged, and the new path runs only on a reconciled observation.
+        Evidence: `client_2d::killed_mid_walk_and_relaunched`'s request log (`--drive=walk`) is
+        identical under the old walker (run 39098527502: c1 (2500, 1450), c2 (2000, 400), c3 crossing
+        (−19 700, 2 800), c4 (−18 327, 2 196)) and the new one (run 39100387685). No existing test pins
+        a whole pre-change sequence. `client_2d::the_requests_do_not_depend_on_the_presentation` shows
+        the requests stay independent of the presentation.
+      - `clients/2d/scripts/harness/drive.gd`: the café doorway is approached from `FRONT_M` = 2.4 m in
+        front of it, along the drawn `in_dir` (F-N9). Along the frontage, 12d's planter at
+        (−2 849 … −1 951, 2 180 … 2 720) blocks the line.
+      - `clients/protocol/checks/perceived_check.gd`: uses ac15's three strides round the table.
+      - `tools/cli/tests/client_2d.rs` `killed_mid_walk_and_relaunched`: the wanderer's old target
+        (Alice − 1 m) lies inside the counter, a solid. It uses `walk_there` to the customer side.
+      - Iterations, on clients nightlies only:
+        - m6 (39100387685): the drive passes, but the walker re-asked a blocked stride without end
+          (`client_2d_interact` ×2) and answered the stub's teleport.
+        - m7 (39105350239): only `leaves_home_by_its_door` failed, a 0.33 m slide misread as a
+          displacement.
+        - m8 (39107656931): `ON_LINE_M` = `STRIDE_M`.
+    - **Primary decision (2026-10-18): clients-probes T-2 stays red on 12d alone.** It is fixed by 16c C3
+      T-2' (D-16c-9: since 12d the florist is the world's store, so the probe cannot walk in), and 12d
+      and 16c merge consecutively. Because that layer stops at T-2, the protocol checks after it
+      (`run.sh perceived`) run only on the 16c stack.
 
 ---
 
