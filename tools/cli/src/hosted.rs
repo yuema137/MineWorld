@@ -5,7 +5,7 @@
 //!                               consulted every wall second (F-13)
 //! --town         PacedSeat      the seat's decision model (default `rule`, PacedRuleController) with
 //!                               Consult { seed, pace × scale, observation }: seat k consulted at
-//!                               genesis + k + m·pace·scale — `run`'s lattice, with --pace in wall
+//!                               genesis + k + m·pace·scale — `run`'s lattice, with --cadence in wall
 //!                               seconds — and, while its person walks, asked for the next stride
 //!                               at genesis + k + n·scale: once a wall second (ARC-75)
 //! ```
@@ -161,7 +161,7 @@ pub struct PacedSeat {
     answer: SimDuration,
     /// `genesis + k`: this seat's first instant on the lattice.
     first: i64,
-    /// The pace in world seconds: `--pace` wall seconds times the time scale.
+    /// The pace in world seconds: `--cadence` wall seconds times the time scale.
     pace: i64,
     /// [`EMBODIED_STEP`] in world seconds: one wall second times the time scale. `pace` is a whole
     /// number of these, so every lattice instant is also a step instant.
@@ -183,7 +183,7 @@ pub struct PacedSeat {
     counting: Counting,
 }
 
-/// What a paced seat is told: the seed, `--pace` in wall seconds, and the time scale.
+/// What a paced seat is told: the seed, `--cadence` in wall seconds, and the time scale.
 #[derive(Clone, Copy)]
 pub struct Pacing {
     pub seed: u64,
@@ -374,7 +374,7 @@ mod tests {
         );
     }
 
-    /// QTW-13: `--pace` and the reactive second are wall time. At scale 60 the consults are sixty
+    /// QTW-13: `--cadence` and the reactive second are wall time. At scale 60 the consults are sixty
     /// times further apart in world time — the same number per wall second — so the time scale never
     /// makes a hosted Person walk or talk faster.
     #[test]

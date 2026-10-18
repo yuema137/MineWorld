@@ -1,7 +1,7 @@
 //! step-12 SB-6 (CP-B4) — **the hosted town lives**, on the world thread, within its tick budget.
 //!
 //! ```text
-//! mineworld server worlds/market-town --town --cadence 5 --save DIR
+//! mineworld server worlds/market-town --town --cadence 5 --time-scale 12 --save DIR
 //! two clients play two seats; every other seat is driven by the paced rule controller in-server
 //! 120 wall seconds, then SIGINT: the operator's shutdown lines are the probe (step-12 SD-B11)
 //! ```
@@ -23,7 +23,7 @@ use serde_json::json;
 use support::ticks::TickStats;
 use support::{Client, INVITE, MARKET_PACK, SaveDir, Server};
 
-/// How long the town runs: 120 wall seconds, 24 consults of each seat at a pace of 5.
+/// How long the town runs: 120 wall seconds, 24 consults of each seat at a cadence of 5 wall seconds.
 const RUN: Duration = Duration::from_secs(120);
 
 #[tokio::test]
@@ -36,6 +36,9 @@ async fn the_hosted_town_lives_within_its_tick_budget() {
             "--town",
             "--cadence",
             "5",
+            // The scale measured, stated rather than taken from market-town's `hosting:` (TW-c C6).
+            "--time-scale",
+            "12",
             "--invite",
             INVITE,
             "--save",

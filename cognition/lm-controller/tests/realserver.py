@@ -71,6 +71,10 @@ class Server:
                 str(hold),
                 "--cadence",
                 str(pace),
+                # Pinned: these tests were written at 1x, and social-cafe's `hosting:` default is 12x
+                # (TW-c C6), at which a one-frame observation lag drops a line from recall.
+                "--time-scale",
+                "1",
                 "--listen",
                 "127.0.0.1:0",
             ],
