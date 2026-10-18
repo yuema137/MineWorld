@@ -9,10 +9,14 @@ use crate::event::Appeared;
 use crate::look::LookKey;
 use crate::system::AppearanceSystem;
 
-/// `appearance: { look: alice-moreau }`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// How the person looks, named by a key that a client's Presentation Pack draws.
+///
+/// Authored as `appearance: { look: alice-moreau }`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = serde_json::json!({ "look": "alice-moreau" }))]
 pub struct Appearance {
+    /// The name of the person's look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`. Required.
     look: LookKey,
 }
 

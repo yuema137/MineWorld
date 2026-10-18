@@ -15,7 +15,14 @@ Re-run a character's Blender stages (needs Blender 5.2.2 LTS and a scratch folde
 python3 tools/character_pipeline/cast.py run --fit <fit.yaml> --download <download-folder>
 ```
 
-The full specification, every command, and every gate bound is in [PIPELINE.md](PIPELINE.md).
+Render a finished character's pose sheet (standing, walking, seated at a café table, beside the protagonist), with
+clipping flagged red (needs Godot 4.7; a window opens for about half a minute):
+
+```sh
+python3 tools/character_pipeline/cast.py pose-sheet <character.glb> --out <folder>
+```
+
+Open `<folder>/sheet.html`. The full specification, every command, and every gate bound is in [PIPELINE.md](PIPELINE.md).
 
 Licences: the driver (`mwcast/`, `cast.py`) is MIT. The Blender scripts in `blender/` are GPL-2.0-or-later, with their
 own `LICENSE`; they run as separate Blender processes and are not imported by the driver.

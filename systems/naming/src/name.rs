@@ -19,14 +19,18 @@ pub struct InvalidName {
     pub max: usize,
 }
 
-/// A person's name, as people say it: `Alice Moreau`.
+/// A person's name, as people say it, such as Alice Moreau: 1 to 64 bytes in any script, with no
+/// control character and no space at either end.
 ///
 /// Free text, unlike a key: names are content a person reads, in any script. Bounded, because it
 /// reaches the event log and the words other people say (`UTTERANCE_MAX_BYTES` has to hold a sentence
 /// that quotes it). No control character, so a name cannot break a line of a transcript or a
 /// biography, and no surrounding space, so two spellings of one name cannot differ invisibly.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(example = &"Ana Lee")]
 pub struct Name(String);
 
 impl Name {

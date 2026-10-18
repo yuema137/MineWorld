@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
@@ -83,19 +84,28 @@ def _stable_people(store: SeatView) -> set[EntityId]:
     return {EntityId(row[0]) for row in rows}
 
 
+class Waiting(NamedTuple):
+    """A trigger in the pending slot, with the world time of the fact it was detected on (`heard_at`) and the
+    runner's clock when it was offered (`received_at`)."""
+
+    trigger: Trigger
+    heard_at: int
+    received_at: float
+
+
 class Pending:
     """One slot for the trigger that waits while a consult runs. `offer` replaces a waiting trigger with the
     newer one; `take` waits for one and removes it."""
 
     def __init__(self) -> None:
-        self._waiting: tuple[Trigger, float] | None = None
+        self._waiting: Waiting | None = None
         self._ready = asyncio.Event()
 
-    def offer(self, trigger: Trigger, received_at: float) -> None:
-        self._waiting = (trigger, received_at)
+    def offer(self, trigger: Trigger, heard_at: int, received_at: float) -> None:
+        self._waiting = Waiting(trigger, heard_at, received_at)
         self._ready.set()
 
-    async def take(self) -> tuple[Trigger, float]:
+    async def take(self) -> Waiting:
         while True:
             await self._ready.wait()
             self._ready.clear()

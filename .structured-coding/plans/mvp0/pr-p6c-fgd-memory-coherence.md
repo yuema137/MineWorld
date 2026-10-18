@@ -261,6 +261,17 @@ freeze stays with the primary/operator at the milestone.
   bound) and AP6c-4 need the binary and are left to CI on the exact head.
 - Execution contract: base and stop condition corrected from `mvp0/pr-s10-p7` to `main` (bounded correction, not
   scope).
+- CI on `b8a703ed` (the port): every job PASS.
+
+**D-P6c-4 (bounded; merge of `origin/main` @ `bce21ee8`: #257 recall-at-trigger, #200 S25-a, #232).** One conflict:
+`controller/seat.py`'s `RecallQuery` takes #257's `at=max(observation.at, heard_at)` and keeps this PR's `speaker` and
+`heard`. One semantic interaction, and the one test line this PR adapts: #257's
+`test_controller_seat.py::test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` read the
+earlier line (said by the speaker to the seat) from L0 only, and §4.1 shows such a line under `with` and leaves it out
+of L0. The test now reads it from `with` or L0; its intent ("the earlier line is in the consult's memory") and its
+expected citations (`["2"]`) are unchanged. Its mutation (recall at `observation.at`) is still red: 1 failed,
+reverted. Local light Python: `test_controller_seat.py` 18 passed; `test_memory_retrieve.py`, `test_milestone_d_replay.py`,
+`test_home_golden.py` passed; ruff, pyright strict: 0 errors. This adaptation is flagged for the coordinator.
 
 **Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
 --test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:

@@ -101,6 +101,24 @@ pub trait SystemPack: System + Default {
         )))
     }
 
+    /// The JSON Schema of the section this pack owns, if any, for the generated reference
+    /// (`DECISIONS.md` `ARC-90`). Defined by [`owns_section!`](crate::owns_section) from the section's
+    /// own type.
+    fn section_schema() -> Option<schemars::Schema> {
+        None
+    }
+
+    /// The JSON Schema of `configure/<id>.yaml`, if the pack takes one (`ARC-90`). Defined by
+    /// [`configures!`](crate::configures) and [`interactions!`](crate::interactions).
+    fn configuration_schema() -> Option<schemars::Schema> {
+        None
+    }
+
+    /// What the pack's section of the World's Interaction List declares, if it has one (`ARC-90`).
+    /// Defined by [`interactions!`](crate::interactions).
+    fn interaction_declarations() -> Option<crate::interactions::Declarations> {
+        None
+    }
     /// The data directories this pack owns in World Packs and Entity Packs, if any (`ARC-121` item 1).
     ///
     /// Defined only through [`owns_data!`](crate::owns_data), with
@@ -227,6 +245,14 @@ macro_rules! configures {
                 deserializer,
             )
         }
+
+        fn configuration_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default().into_root_schema_for::<
+                    <Self as $crate::__private::PackConfiguration>::Configuration,
+                >(),
+            )
+        }
     };
 }
 
@@ -256,6 +282,14 @@ macro_rules! owns_section {
             A::Error,
         > {
             map.next_value_seed($crate::__private::Decode::<Self>::new())
+        }
+
+        fn section_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default().into_root_schema_for::<
+                    <Self as $crate::__private::AuthoredSection>::Authored,
+                >(),
+            )
         }
     };
 }

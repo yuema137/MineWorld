@@ -68,6 +68,13 @@ thiserror = "2.0.21"
 serde_json = "1.0.151"
 trybuild = "1.0.121"
 
+# JSON Schema from the types that decode a World Pack's files (DEP-49, ARC-90): a pack's section and
+# configuration types derive `JsonSchema` beside `Deserialize`, and `mineworld reference` renders the
+# generated reference from them. `derive` for the derive macro, `std` for the standard collections'
+# impls; nothing else. Never named by mineworld-contracts: a field of a contract type states its schema
+# with `#[schemars(schema_with = …)]` in the crate that owns the field.
+schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }
+
 # Durable local world state (DEP-2): SQLite compiled into the binary by the `bundled` feature, so a
 # local server has no system dependency. Named only inside `persistence/src/sqlite.rs`.
 rusqlite = { version = "0.40.2", features = ["bundled"] }
