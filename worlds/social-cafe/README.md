@@ -1,12 +1,13 @@
 # `social-cafe`
 
 A small town around a café, and the world the MVP-0 vertical slice is set in. It has five places
-joined by a street, twelve people, and seven systems:
+joined by a street, twelve people, and eight systems:
 - `presence`, `movement` and `conversation` make being there mean anything;
 - `group-activity` lets people do things together;
 - `relationships` lets them come to know each other;
 - `naming` gives everybody a name (each person file's `name:`);
-- `schedule` gives everybody a day (each person file's `routine:`) that they may follow.
+- `schedule` gives everybody a day (each person file's `routine:`) that they may follow;
+- `appearance` gives everybody a look (each person file's `appearance:`), which a Presentation Pack draws.
 
 Every part of a day lasts at least four hours. People walk slowly in a headless run, and a shorter
 part of the day would be over before anybody got there. No part of anybody's day begins between

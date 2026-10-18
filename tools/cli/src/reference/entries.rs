@@ -78,7 +78,15 @@ pub(super) fn collect() -> Result<Entries, String> {
     let mut sections = Vec::new();
     let mut interaction_list = Vec::new();
     for capability in AVAILABLE {
-        if let (Some(owner), Some(schema)) = (capability.section(), capability.section_schema()) {
+        if let Some(owner) = capability.section() {
+            let schema = capability.section_schema().ok_or_else(|| {
+                format!(
+                    "`{}` owns the section `{}` but states no schema for it; a pack's section must \
+                     have one (owns_section! states it)",
+                    capability.id(),
+                    owner.name.as_str()
+                )
+            })?;
             sections.push(section(
                 capability,
                 owner.name.as_str(),
@@ -86,8 +94,13 @@ pub(super) fn collect() -> Result<Entries, String> {
                 schema.to_value(),
             )?);
         }
-        if let Some(schema) = capability.configuration_schema() {
-            let id = capability.id();
+        if let Some(id) = capability.configuration() {
+            let schema = capability.configuration_schema().ok_or_else(|| {
+                format!(
+                    "`{id}` reads `configure/{id}.yaml` but states no schema for it; a pack's \
+                     configuration must have one (configures! or interactions! states it)"
+                )
+            })?;
             let mut configured = entry(
                 &format!("configure-{id}"),
                 &format!("`configure/{id}.yaml`"),
