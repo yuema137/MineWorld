@@ -228,6 +228,13 @@ the exact head is the workspace gate.
 fallback bound with the scripted model) while this PR was implemented; it was merged into this branch. On the merged
 tree, `pytest -s tests/test_milestone_d_fallback.py`: 1 passed, 41.5 s, 1 101 consults, 28 fallbacks (25 ‰ ≤ 50 ‰).
 
+**Rebased onto main (2026-10-18).** P7 #244 merged into `main`; the PR's base is `main` and `origin/main` (`5cbb4697`)
+was merged into this branch without conflict. `main` touched none of this PR's cognition files (only
+`tests/binary.py`'s Windows timeout and a `rule-controller` comment). The previous head's CI run (39010580956) was
+cancelled, not failed, so it carried no failure evidence. No local cargo run (operator pause on heavy local jobs); CI on
+the exact head is the gate. **Freeze pending:** this design is still DRAFT; no scope was added in the rebase, and the
+freeze stays with the primary/operator at the milestone.
+
 **Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
 --test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:
 
