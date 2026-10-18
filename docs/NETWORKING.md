@@ -139,6 +139,12 @@ Server → Client
 Observation scope is enforced server-side. A client cannot widen its own perception by asking
 for more (INV-13).
 
+An admin command travels on the HTTP control plane (§3), under `/admin`, with a bearer admin
+token distinct from the invite — never as a WebSocket frame. A client frame that names an admin
+command (`kick`, `release`, `pause`, `clock`) is refused as an unknown frame, because the client
+vocabulary is closed (INV-9). The routes and their answers are specified in
+[`server/PROTOCOL.md`](../server/PROTOCOL.md) §11.
+
 ---
 
 # 6. Local hosting
@@ -212,6 +218,11 @@ MVP scope:
 ```text
 server invite token  +  player nickname
 ```
+
+A host may also issue seat grants: narrower credentials that admit named seats only, with or without
+the right to take a seat over (`ARC-97`; [`server/PROTOCOL.md`](../server/PROTOCOL.md) §4.1). A grant is
+not an account and not durable identity. The server also bounds how many requests each seat may send
+(a per-seat request budget, `ARC-97`), identically for every connection.
 
 Explicitly out of MVP scope:
 

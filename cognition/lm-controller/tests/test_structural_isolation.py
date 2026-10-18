@@ -3,12 +3,15 @@ runs once per workspace member."""
 
 from __future__ import annotations
 
+import ast
 import json
+import shlex
 import subprocess
 import sys
 import time
 import tomllib
 from pathlib import Path
+from typing import cast
 
 import pytest
 from pytest_socket import SocketConnectBlockedError
@@ -127,8 +130,25 @@ def _contains(error: BaseException, kind: type[BaseException]) -> bool:
     return error.__cause__ is not None and _contains(error.__cause__, kind)
 
 
+def _python_members() -> list[str]:
+    """`PYTHON_MEMBERS` as `scripts/ci_layer.py` declares it, read without importing the script."""
+    tree = ast.parse((REPOSITORY / "scripts" / "ci_layer.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "PYTHON_MEMBERS" for t in node.targets
+        ):
+            members: object = ast.literal_eval(node.value)
+            assert isinstance(members, list)
+            return [str(member) for member in cast(list[object], members)]
+    raise AssertionError("scripts/ci_layer.py declares no PYTHON_MEMBERS")
+
+
 def test_ci_runs_pytest_once_per_member() -> None:
-    # AP5-10 (c), D-P5-11.
+    # AP5-10 (c), D-P5-11; pr-s27c D-c-22 (written to hold for every PR that adds a pytest line):
+    # every pytest line is unique, every `PYTHON_MEMBERS` entry has exactly one, and any other names a
+    # path that exists in the repository.
+    members = _python_members()
+    assert members[:2] == ["sdk/python", "cognition/lm-controller"], members
     for layer in ("python", "python-smoke"):
         listed = subprocess.run(
             [sys.executable, "scripts/ci_layer.py", "--list", layer],
@@ -138,7 +158,19 @@ def test_ci_runs_pytest_once_per_member() -> None:
             check=True,
         ).stdout.splitlines()
         pytest_lines = [line for line in listed if " pytest " in line]
-        assert len(pytest_lines) == 2, listed
-        assert pytest_lines[0].startswith("uv run --locked pytest sdk/python")
-        assert pytest_lines[1] == "uv run --locked pytest cognition/lm-controller"
+        assert len(pytest_lines) == len(set(pytest_lines)), listed
+        paths = [shlex.split(line)[4] for line in pytest_lines]
+        for member in members:
+            assert paths.count(member) == 1, (member, listed)
+        for path in paths:
+            assert path in members or (REPOSITORY / path).exists(), (path, listed)
+        assert (
+            pytest_lines[paths.index("cognition/lm-controller")]
+            == {
+                "python": "uv run --locked pytest cognition/lm-controller",
+                # pr-s10-p4 §5.10: a command-line `-m` replaces the addopts one, so it restates it.
+                "python-smoke": "uv run --locked pytest cognition/lm-controller "
+                "-m 'not live_model and not real_binary'",
+            }[layer]
+        )
         assert not any("live_model" in line and "not live_model" not in line for line in listed)

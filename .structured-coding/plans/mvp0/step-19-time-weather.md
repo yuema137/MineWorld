@@ -3,8 +3,10 @@
 **Lifecycle:** step plan reviewed; the questions are ruled (§14.1, 2026-10-08). **TW-a (§16) is `DESIGN
 FROZEN 2026-10-08`** and merged (#94, f80bbb7). **TW-b (§17) and TW-d (§18) are `DESIGN FROZEN
 2026-10-09`** (primary session; rulings in §17.9.1 and §18.9.1). Each authorizes implementation under its own
-execution contract (§17.10, §18.10). TW-d starts only after TW-b and IL-b have merged. TW-c, TW-e, TW-f and TW-g are scoped in §11
-and are not frozen.
+execution contract (§17.10, §18.10). TW-d starts only after TW-b and IL-b have merged. **TW-c is `DESIGN FROZEN
+2026-10-10`** (primary session; operator rulings Q-TWc-1/2): its full design is
+[`pr-tw-c-host-clock.md`](pr-tw-c-host-clock.md), and it starts only after 12n-2 has merged. TW-e, TW-f and
+TW-g are scoped in §11 and are not frozen.
 **Author:** the S19 planning session, 2026-10-08. Worktree `/Users/yuema137/mineworld-worktrees/plan-s19`,
 branch `plan/s19-time-weather`, from `main @ f842c52`.
 **Binding parents:** `CLAUDE.md` §§2–4; `overall.md` "Parallel build-out", "Framework, not demo", "One world,
@@ -789,7 +791,11 @@ Each PR, when designed, gets its own `pr-TW-x-*.md` with a commit plan and execu
 fixes scope, checkpoints and adversarial criteria only. (TW-a, TW-b and TW-d are designed in place, §16,
 §17 and §18, to keep one authority. §17.6 and §18.6 restate the TW-b and TW-d rows with the corrections
 their audits required, each with its reason. Where a row and its section differ, the section governs once
-it is frozen.)
+it is frozen.) **TW-c** is designed in its own file, [`pr-tw-c-host-clock.md`](pr-tw-c-host-clock.md)
+(`DESIGN FROZEN 2026-10-10`), because S11-B and S11-D had already landed part of its row. That file's §2
+audits what exists. Its §8 restates the row's criteria, each restatement with its reason; criterion 3,
+replay, is restated as AC-TWc-3 under ruling Q-TWc-5. Where the row and that file differ, the file governs.
+It adds the operator's rule of 2026-10-10: only a `--solo` (loopback) world may run faster than 24×.
 
 ---
 

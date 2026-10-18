@@ -42,7 +42,7 @@ use mineworld_kernel::{
 };
 use mineworld_server::{
     Admission, HostConfig, HostError, HostedWorld, InviteToken, Perception, PerceptionContext,
-    SeatRoster, WireObservation,
+    SeatGrant, SeatRoster, WireObservation,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -68,6 +68,17 @@ pub fn admission() -> Admission {
 /// A revision-2 join for a seat, with the test invite and a nickname.
 pub fn join_frame(seat: &str, nickname: &str) -> Value {
     json!({ "t": "join", "protocol": 2, "invite": INVITE, "nickname": nickname, "seat": seat })
+}
+
+/// A seat grant for these seats (S27-a), with a freshly generated token.
+pub fn grant(seats: &[&str], take_over: bool) -> SeatGrant {
+    SeatGrant::generate(seats.iter().map(|seat| key(seat)).collect(), take_over)
+        .expect("random bytes")
+}
+
+/// A revision-2 join for a seat presenting `credential` (the invite or a grant's token) in `invite`.
+pub fn join_presenting(seat: &str, nickname: &str, credential: &str) -> Value {
+    json!({ "t": "join", "protocol": 2, "invite": credential, "nickname": nickname, "seat": seat })
 }
 
 pub fn key(value: &str) -> EntityKey {

@@ -1,16 +1,71 @@
 //! A world with a save: every input journaled, every fact logged, before anybody is told.
 
+use std::collections::BTreeSet;
+
 use mineworld_contracts::{ActionIntent, EventEnvelope, WorldTime};
 use mineworld_kernel::{Advanced, Dispatched, Emission, World, WorldSnapshot};
 
-use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow};
+use crate::backend::{FactRow, ManifestRow, PersistenceBackend, RevisionRow, RevisionSpan};
 use crate::error::PersistError;
-use crate::format::{Manifest, SAVE_FORMAT, decode, encode, instance_text};
+use crate::format::{
+    Manifest, SAVE_FORMAT, decode, decode_snapshot, encode, encode_snapshot, instance_text,
+};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 use crate::replay::{self, advanced, check_composition, dispatched};
 
 /// How often a persisted world writes a snapshot, unless told otherwise: every 64 revisions.
 pub const DEFAULT_SNAPSHOT_INTERVAL: u64 = 64;
+
+/// How many scheduled snapshots apart two anchors are: an anchor is kept at every multiple of
+/// `ANCHOR_EVERY × interval` revisions — 4 096 at the default interval (`ARC-81`, QSR-2).
+const ANCHOR_EVERY: u64 = 64;
+
+/// The retention rule (`ARC-81`, design D-SR-3): which stored snapshots to delete once the scheduled
+/// snapshot at `n` is committed. Kept are genesis, every anchor, `n` itself and `n − interval`; every
+/// other stored revision below `n` goes — an off-lattice checkpoint included, which is kept only until
+/// the next scheduled snapshot.
+///
+/// A function of `n`, the interval and the stored set and of nothing else, so that a killed and
+/// resumed run holds exactly the rows an uninterrupted one does (`ARC-27`).
+fn retired(
+    n: WorldRevision,
+    interval: u64,
+    stored: &BTreeSet<WorldRevision>,
+) -> Vec<WorldRevision> {
+    let anchor = ANCHOR_EVERY * interval;
+    let kept = |revision: u64| {
+        revision == WorldRevision::GENESIS.raw()
+            || revision.is_multiple_of(anchor)
+            || revision + interval == n.raw()
+    };
+    stored
+        .range(..n)
+        .copied()
+        .filter(|revision| !kept(revision.raw()))
+        .collect()
+}
+
+/// The sealing rule (`ARC-89`, design D-SRB-2): which span of live rows to seal into one block when
+/// revision `n` is committed. With `A = ANCHOR_EVERY × interval`, an anchor commit `n` (a multiple of
+/// `A`, at least `2A`) seals every live revision after `sealed_through` up to `n − A`; any other commit
+/// seals nothing.
+///
+/// One span late, so that the newest block always ends below the newest anchor and a resume — which
+/// restores a snapshot at or after that anchor — reads no block. A function of its three arguments and
+/// of nothing else, so a killed and resumed run seals exactly the blocks an uninterrupted one does
+/// (`ARC-27`). Reading `sealed_through` rather than assuming `n − 2A` keeps a save resumed under another
+/// interval well-formed: its next block starts where the last one ended.
+fn sealing(n: WorldRevision, interval: u64, sealed_through: WorldRevision) -> Option<RevisionSpan> {
+    let anchor = ANCHOR_EVERY * interval;
+    let n = n.raw();
+    if !n.is_multiple_of(anchor) || n < 2 * anchor || n - anchor <= sealed_through.raw() {
+        return None;
+    }
+    Some(RevisionSpan {
+        first: WorldRevision::from_raw(sealed_through.raw() + 1),
+        last: WorldRevision::from_raw(n - anchor),
+    })
+}
 
 /// What a new save is created with, beyond the world itself.
 #[derive(Debug, Clone)]
@@ -51,6 +106,12 @@ pub struct PersistentWorld {
     revision: WorldRevision,
     instance: u128,
     snapshot_interval: u64,
+    /// The revisions the save holds a snapshot at — read once when the world is created or resumed,
+    /// then kept in step with every commit and checkpoint, so that retention needs no query.
+    stored: BTreeSet<WorldRevision>,
+    /// The last revision the newest sealed block holds, or revision 0 when nothing is sealed — read once
+    /// when the world is created or resumed, then kept in step with every commit (`ARC-89`).
+    sealed_through: WorldRevision,
     /// Set when a commit failed: the world in memory is then ahead of its save, and refuses
     /// every further input.
     ahead_of_save: Option<(WorldRevision, String)>,
@@ -102,6 +163,8 @@ impl PersistentWorld {
                 revision: WorldRevision::GENESIS,
                 instance: creation.instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
+                stored: BTreeSet::from([WorldRevision::GENESIS]),
+                sealed_through: WorldRevision::from_raw(0),
                 ahead_of_save: None,
             },
             began,
@@ -126,10 +189,15 @@ impl PersistentWorld {
                 .ok_or_else(|| PersistError::Damaged {
                     detail: "the save has no snapshot, not even at genesis".to_owned(),
                 })?;
-        composed.restore(decode::<WorldSnapshot>(&bytes, "snapshot")?)?;
+        composed.restore(decode_snapshot(&bytes, snapshot)?)?;
         let (replayed, facts) =
             replay::replay_after(&mut composed, backend.as_ref(), snapshot, |_, _| Ok(()))?;
         let instance = manifest.instance_number()?;
+        let stored = backend.snapshot_revisions()?.into_iter().collect();
+        let sealed_through = backend
+            .sealed()?
+            .last()
+            .map_or(WorldRevision::from_raw(0), |sealed| sealed.span.last);
         Ok((
             Self {
                 committed_at: composed.now(),
@@ -138,6 +206,8 @@ impl PersistentWorld {
                 revision: head,
                 instance,
                 snapshot_interval: DEFAULT_SNAPSHOT_INTERVAL,
+                stored,
+                sealed_through,
                 ahead_of_save: None,
             },
             Resumed {
@@ -234,8 +304,9 @@ impl PersistentWorld {
         if self.world.now() != self.committed_at {
             return Ok(false);
         }
-        let snapshot = encode(&self.world.snapshot()?)?;
+        let snapshot = encode_snapshot(&self.world.snapshot()?)?;
         self.backend.checkpoint(self.revision, &snapshot)?;
+        self.stored.insert(self.revision);
         Ok(true)
     }
 
@@ -249,6 +320,34 @@ impl PersistentWorld {
         }
     }
 
+    /// Fills a scheduled revision's storage work: the snapshots the retention rule retires (`ARC-81`)
+    /// and the span the sealing rule seals (`ARC-89`). Both rules are below the revision by
+    /// construction; the checks keep a future edit of either from deleting the snapshot a resume would
+    /// read, or sealing rows a resume would re-execute.
+    fn schedule_storage(&self, row: &mut RevisionRow) -> Result<(), PersistError> {
+        let revision = row.revision;
+        row.retire = retired(revision, self.snapshot_interval, &self.stored);
+        if let Some(late) = row.retire.iter().find(|retired| **retired >= revision) {
+            debug_assert!(false, "the rule retired {late} at {revision}");
+            return Err(PersistError::Damaged {
+                detail: format!("the retention rule retired {late} at {revision}"),
+            });
+        }
+        row.seal = sealing(revision, self.snapshot_interval, self.sealed_through);
+        let anchor = ANCHOR_EVERY * self.snapshot_interval;
+        if let Some(span) = row.seal
+            && span.last.raw() + anchor > revision.raw()
+        {
+            debug_assert!(false, "the rule sealed {span} at {revision}");
+            return Err(PersistError::Damaged {
+                detail: format!(
+                    "the sealing rule sealed {span} at {revision}, within one anchor of it"
+                ),
+            });
+        }
+        Ok(())
+    }
+
     /// Commits the next revision, or marks the world as ahead of its save.
     fn commit(
         &mut self,
@@ -257,19 +356,33 @@ impl PersistentWorld {
         facts: &[EventEnvelope],
     ) -> Result<(), PersistError> {
         let revision = self.revision.next();
+        let scheduled = revision.raw().is_multiple_of(self.snapshot_interval);
         let committed = (|| {
-            let snapshot = if revision.raw().is_multiple_of(self.snapshot_interval) {
+            let snapshot = if scheduled {
                 Some(self.world.snapshot()?)
             } else {
                 None
             };
-            let row = revision_row(revision, input, outcome, facts, snapshot.as_ref())?;
-            self.backend.commit(&row)
+            let mut row = revision_row(revision, input, outcome, facts, snapshot.as_ref())?;
+            if scheduled {
+                self.schedule_storage(&mut row)?;
+            }
+            self.backend.commit(&row)?;
+            Ok::<_, PersistError>((row.retire, row.seal))
         })();
         match committed {
-            Ok(()) => {
+            Ok((retire, seal)) => {
                 self.revision = revision;
                 self.committed_at = self.world.now();
+                if scheduled {
+                    self.stored.insert(revision);
+                }
+                for retired in retire {
+                    self.stored.remove(&retired);
+                }
+                if let Some(span) = seal {
+                    self.sealed_through = span.last;
+                }
                 Ok(())
             }
             Err(error) => {
@@ -308,6 +421,109 @@ fn revision_row(
                 })
             })
             .collect::<Result<_, PersistError>>()?,
-        snapshot: snapshot.map(encode).transpose()?,
+        snapshot: snapshot.map(encode_snapshot).transpose()?,
+        retire: Vec::new(),
+        seal: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn revisions(raw: &[u64]) -> BTreeSet<WorldRevision> {
+        raw.iter().copied().map(WorldRevision::from_raw).collect()
+    }
+
+    fn retired_raw(n: u64, interval: u64, stored: &[u64]) -> Vec<u64> {
+        retired(WorldRevision::from_raw(n), interval, &revisions(stored))
+            .into_iter()
+            .map(WorldRevision::raw)
+            .collect()
+    }
+
+    /// One case: what, n, interval, stored before the commit, expected retired.
+    type Case = (&'static str, u64, u64, &'static [u64], &'static [u64]);
+
+    /// D-SR-3 over the cases a save can be in: the steady state, the first anchor, an anchor that
+    /// has just become older than the newest two, off-lattice checkpoints below and between the
+    /// newest two, another interval, and rows the rule never sees (the new snapshot and above).
+    #[test]
+    fn the_rule_keeps_genesis_anchors_and_the_newest_two_and_retires_the_rest() {
+        let cases: [Case; 9] = [
+            ("first scheduled", 64, 64, &[1], &[]),
+            ("second scheduled", 128, 64, &[1, 64], &[]),
+            ("steady state", 320, 64, &[1, 192, 256], &[192]),
+            ("at an anchor", 4_096, 64, &[1, 3_968, 4_032], &[3_968]),
+            ("past an anchor", 4_224, 64, &[1, 4_096, 4_160], &[]),
+            (
+                "anchor ages",
+                4_288,
+                64,
+                &[1, 4_096, 4_160, 4_224],
+                &[4_160],
+            ),
+            (
+                "checkpoints",
+                512,
+                64,
+                &[1, 384, 400, 448, 470],
+                &[384, 400, 470],
+            ),
+            ("interval 8", 1_032, 8, &[1, 512, 1_016, 1_024], &[1_016]),
+            ("never above n", 128, 64, &[1, 64, 128, 130], &[]),
+        ];
+        for (what, n, interval, stored, expected) in cases {
+            assert_eq!(retired_raw(n, interval, stored), expected, "{what}");
+        }
+    }
+
+    fn sealing_raw(n: u64, interval: u64, sealed_through: u64) -> Option<(u64, u64)> {
+        sealing(
+            WorldRevision::from_raw(n),
+            interval,
+            WorldRevision::from_raw(sealed_through),
+        )
+        .map(|span| (span.first.raw(), span.last.raw()))
+    }
+
+    /// One case: what, n, interval, sealed through before the commit, expected span.
+    type SealCase = (&'static str, u64, u64, u64, Option<(u64, u64)>);
+
+    /// D-SRB-2 over the cases a save can be in, each expected value written from the rule as `ARC-89`
+    /// states it: nothing before `2A`, the first block at `2A`, the steady state one span late, nothing
+    /// off the anchor lattice, nothing twice, another interval, a save resumed under a smaller interval,
+    /// and never a span reaching past `n − A`.
+    #[test]
+    fn the_rule_seals_the_span_one_anchor_behind_each_anchor_commit_and_nothing_else() {
+        let cases: [SealCase; 11] = [
+            ("first anchor", 4_096, 64, 0, None),
+            ("below 2A", 8_000, 64, 0, None),
+            ("first seal at 2A", 8_192, 64, 0, Some((1, 4_096))),
+            ("steady state", 12_288, 64, 4_096, Some((4_097, 8_192))),
+            ("off the lattice", 12_352, 64, 4_096, None),
+            ("scheduled, not an anchor", 12_224, 64, 4_096, None),
+            ("already sealed", 12_288, 64, 8_192, None),
+            ("interval 2", 256, 2, 0, Some((1, 128))),
+            ("interval 2, later", 640, 2, 384, Some((385, 512))),
+            ("after a smaller interval", 1_536, 8, 1_024, None),
+            (
+                "resumed under interval 8",
+                2_048,
+                8,
+                1_024,
+                Some((1_025, 1_536)),
+            ),
+        ];
+        for (what, n, interval, sealed_through, expected) in cases {
+            let sealed = sealing_raw(n, interval, sealed_through);
+            assert_eq!(sealed, expected, "{what}");
+            if let Some((first, last)) = sealed {
+                assert!(
+                    first == sealed_through + 1 && last < n - 64 * interval + 1,
+                    "{what}: the span starts after the last block and ends at or before n − A"
+                );
+            }
+        }
+    }
 }

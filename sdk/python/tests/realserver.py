@@ -25,6 +25,7 @@ from websockets.asyncio.client import ClientConnection
 from websockets.asyncio.client import connect as websocket_connect
 
 from mineworld_sdk.session import SeatSession
+from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.frames import Invite
 from mineworld_sdk.wire.ids import EntityKey, JsonValue
 
@@ -47,17 +48,21 @@ def binary() -> Path:
 
 
 class Server:
-    """One running `mineworld server <world>`."""
+    """One running `mineworld server <world>`, with `--save DIR` and `--hold SECONDS` when given. A
+    server started again on the same save resumes that world (`PROTOCOL.md` §5.7: the same instance)."""
 
-    def __init__(self, world: str) -> None:
+    def __init__(self, world: str, *, save: Path | None = None, hold: int | None = None) -> None:
         executable = binary()
         if not executable.is_file():
             raise FileNotFoundError(
                 f"the mineworld binary is not at {executable}. Build it first with `{BUILD}` "
                 "(or set MINEWORLD_BIN); these tests start the real server and never skip"
             )
+        self.world, self.save, self.hold = world, save, hold
         environment = dict(os.environ)
         environment["MINEWORLD_INVITE"] = INVITE
+        options = [] if save is None else ["--save", str(save)]
+        options += [] if hold is None else ["--hold", str(hold)]
         self._process = subprocess.Popen(
             [
                 str(executable),
@@ -65,6 +70,7 @@ class Server:
                 str(REPOSITORY / "worlds" / world),
                 "--listen",
                 "127.0.0.1:0",
+                *options,
             ],
             cwd=REPOSITORY,
             env=environment,
@@ -109,8 +115,40 @@ class Server:
         )
 
     def stop(self) -> None:
+        """Kills the process (`TerminateProcess` / `SIGKILL`: no graceful shutdown) and waits for it to
+        exit, so its save is closed before anything reads or reopens it (R-P3b-4)."""
         self._process.kill()
         self._process.wait()
+
+
+def perceived_export(world: str, save: Path, person: str) -> list[PerceivedEvent]:
+    """`mineworld perceived <world> --save <save> --person <person> --json`: the offline export of what
+    `person` perceived, one `PerceivedEvent` per line — the oracle the live stream must equal."""
+    done = subprocess.run(
+        [
+            str(binary()),
+            "perceived",
+            str(REPOSITORY / "worlds" / world),
+            "--save",
+            str(save),
+            "--person",
+            person,
+            "--json",
+        ],
+        cwd=REPOSITORY,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise RuntimeError(f"mineworld perceived failed ({done.returncode}): {done.stderr}")
+    return [
+        PerceivedEvent.model_validate_json(line)
+        for line in done.stdout.splitlines()
+        if line.strip()
+    ]
 
 
 class Recording:

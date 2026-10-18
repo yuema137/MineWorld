@@ -1,6 +1,11 @@
 [workspace]
 members = [
     "authoring",
+    # Cognition crates are named one by one: `cognition/lm-controller` is a Python package, so a
+    # `cognition/*` glob would make Cargo look for a manifest that is not there.
+    "cognition/decision",
+    "cognition/installed",
+    "cognition/motivated",
     "cognition/rule-controller",
     "contracts",
     "kernel",
@@ -37,6 +42,7 @@ authors = ["Yue Ma"]
 [workspace.dependencies]
 mineworld-authoring = { path = "authoring" }
 mineworld-contracts = { path = "contracts" }
+mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
@@ -45,11 +51,14 @@ mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-relationships = { path = "systems/relationships" }
 mineworld-schedule = { path = "systems/schedule" }
+mineworld-weather = { path = "systems/weather" }
+mineworld-motivated = { path = "cognition/motivated" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-sdk = { path = "sdk/rust" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-group-activity = { path = "systems/group-activity" }
 mineworld-installed-systems = { path = "systems/installed" }
+mineworld-installed-models = { path = "cognition/installed" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
 # Test support only (DEP-29): a test's scratch directory, removed when the test ends. Never a
@@ -63,6 +72,12 @@ trybuild = "1.0.121"
 # Durable local world state (DEP-2): SQLite compiled into the binary by the `bundled` feature, so a
 # local server has no system dependency. Named only inside `persistence/src/sqlite.rs`.
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+
+# Snapshot compression (DEP-43, ARC-81): a stored snapshot is a zstd frame of its JSON. Default features
+# off — no legacy formats, no dictionary builder, no multithreading — and libzstd built from the source
+# bundled in zstd-sys, so the stored bytes are the same on every platform. Named only inside
+# `persistence/src/format.rs`.
+zstd = { version = "0.13", default-features = false }
 
 # YAML, for World Packs. `serde_yaml` is archived and every fork of its lineage sits on the
 # archived `unsafe-libyaml`; `serde-saphyr` is a maintained parser with a stable major version, no
@@ -90,6 +105,21 @@ tokio-tungstenite = "0.29.0"
 # through tungstenite's `rand`, so this adds an edge, not a second copy.
 getrandom = "0.3.4"
 subtle = "2.6.1"
+
+# The executable guide (DEP-50, ARC-90): a CommonMark parser and a snapshot matcher, test-only, named only
+# inside `tools/cli/tests/guide*`. `pulldown-cmark` without its command-line `getopts` default, which the
+# guide never uses. `toml` is already in the lock (through a test-only dependency), read for `features.toml`.
+pulldown-cmark = { version = "0.13.4", default-features = false }
+snapbox = { version = "1.2.2", default-features = false }
+toml = "1.1.6"
+
+# The per-seat request budget (DEP-57): one GCRA limiter per seat, driven by the seat table's injected
+# wall `Instant` (no `quanta`, no `dashmap`, no `jitter`). Named only in `server/src/seats.rs`.
+governor = { version = "=0.10.4", default-features = false, features = ["std"] }
+
+# The world thread's own CPU time per tick (DEP-59, F-tick-1): `clock_gettime(CLOCK_THREAD_CPUTIME_ID)`
+# on Unix, `GetThreadTimes` on Windows, behind one safe type. Named only in `server/src/runtime/world.rs`.
+cpu-time = "1.0.0"
 
 # The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`. `env`
 # lets `--invite` come from MINEWORLD_INVITE (no new crate), with its value hidden from `--help`.

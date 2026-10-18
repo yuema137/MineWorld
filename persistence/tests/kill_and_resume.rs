@@ -3,13 +3,19 @@
 //! ```text
 //! parent      for each scenario:
 //!               control   a child runs the whole script into its own save, uninterrupted
-//!               for each kill point K (early, middle, late):
-//!                 victim    a child runs the script into a fresh save; once it has printed
-//!                           "revision K" the parent SIGKILLs it, while it is still writing
+//!               for each kill point K (early, middle, late; the first retained anchor's commit and
+//!               a commit that retires a snapshot, ARC-81; the first sealing commit, the one before
+//!               it and the one after it, ARC-89):
+//!                 victim    a child runs the script into a fresh save; at the first report at or
+//!                           past K it pauses and says so; the parent releases it and SIGKILLs it
+//!                           at once, so the kill lands while it is writing again, at no revision
+//!                           the test chooses; should the kill be slow, the victim stops at
+//!                           K + SLACK and waits for it, so it can never finish first (F-persist-1)
 //!                 survivor  a NEW child process opens the same file, resumes it, and finishes the
 //!                           script from the first input the save does not hold
-//!                 compare   facts, journal and snapshots of the survivor's file and the control's,
-//!                           byte for byte; and verify() the survivor's file from genesis
+//!                 compare   facts, journal, sealed blocks and snapshots of the survivor's file and
+//!                           the control's, byte for byte; and verify() the survivor's file from
+//!                           genesis
 //! ```
 //!
 //! Two scenarios. **cafe**: the repository's own `worlds/social-cafe`, assembled by the pack loader,
@@ -59,9 +65,31 @@ use serde_json::json;
 const ROLE: &str = "MINEWORLD_KILL_TEST_ROLE";
 const SCENARIO: &str = "MINEWORLD_KILL_TEST_SCENARIO";
 const DIRECTORY: &str = "MINEWORLD_KILL_TEST_DIR";
+/// The revision K a victim is to be killed at (F-persist-1); a child without it is never killed.
+const KILL_AT: &str = "MINEWORLD_KILL_TEST_KILL_AT";
+/// How many revisions past K a released victim may keep committing while the kill is on its way.
+///
+/// F-persist-1: the parent used to kill when it read "revision K", but the victim never waited for it
+/// to read. The whole run's output fits in the pipe's buffer, so a parent starved on a loaded machine
+/// read K only after the victim had committed the last revision ("retiring": killed at 264, 301 on
+/// disk, of 301) or had exited, so the kill was never delivered. Now there is a handshake:
+///
+/// ```text
+/// victim   reports the first revision R >= K, prints "paused R", blocks reading one byte of stdin
+/// parent   reads "paused R", writes that byte, sends SIGKILL at once
+/// victim   carries on writing until the kill lands; if it reaches K + SLACK first, it stops after
+///          that commit and blocks reading stdin until it is killed
+/// ```
+///
+/// However slow the parent, the victim is alive and short of the end when the kill lands, at a
+/// revision in `[R, K + SLACK]` (plus at most the rest of one step). It is not paused then, so the kill
+/// may land inside a write, as it did before; which revision it lands on is up to the scheduler.
+const SLACK: u64 = 16;
 
 const INSTANCE: u128 = 0x0000_0000_0000_0000_0000_0000_c0ff_ee01;
-const SNAPSHOT_INTERVAL: u64 = 32;
+/// How many scheduled snapshots apart two retained anchors are (`ARC-81`): the rule's constant,
+/// restated here so the expected snapshot set is the test's own arithmetic.
+const ANCHOR_EVERY: u64 = 64;
 
 fn t(seconds: i64) -> WorldTime {
     WorldTime::from_seconds(seconds)
@@ -374,6 +402,21 @@ impl Scenario {
         }
     }
 
+    /// Snapshot intervals small enough that each run crosses two retained anchors and so seals a block
+    /// (`ARC-81`, `ARC-89`): anchors every 128 revisions in the cafe's ≈ 300 (the first seal at 256),
+    /// every 256 in the clock world's ≈ 630 (the first seal at 512), so kills land at an anchor commit,
+    /// at commits that retire snapshots, and at, before and after the sealing commit.
+    const fn interval(self) -> u64 {
+        match self {
+            Self::Cafe => 2,
+            Self::Clock => 4,
+        }
+    }
+
+    const fn anchor(self) -> u64 {
+        ANCHOR_EVERY * self.interval()
+    }
+
     const fn durability(self) -> Durability {
         match self {
             Self::Cafe => Durability::PowerLoss,
@@ -424,13 +467,26 @@ impl Scenario {
             },
         )
         .expect("the world begins");
-        persisted.snapshot_every(SNAPSHOT_INTERVAL)
+        persisted.snapshot_every(self.interval())
     }
 
     /// Drives `world` through the rest of the script — every input the save does not hold yet —
-    /// printing each committed revision.
-    fn finish(self, world: &mut PersistentWorld) {
-        let report = |world: &PersistentWorld| println!("revision {}", world.revision().raw());
+    /// printing each committed revision. With a `kill_at` (a victim only), keeps the handshake of
+    /// [`SLACK`]: pauses at the first report at or past it, and stops for good at `kill_at + SLACK`.
+    fn finish(self, world: &mut PersistentWorld, kill_at: Option<u64>) {
+        let paused = std::cell::Cell::new(false);
+        let report = |world: &PersistentWorld| {
+            let revision = world.revision().raw();
+            println!("revision {revision}");
+            let Some(kill_at) = kill_at else { return };
+            if revision >= kill_at + SLACK {
+                wait_for_the_kill();
+            }
+            if revision >= kill_at && !paused.replace(true) {
+                println!("paused {revision}");
+                wait_for_release();
+            }
+        };
         match self {
             Self::Cafe => {
                 let ids = social_cafe().assemble().expect("assembles").ids;
@@ -464,10 +520,30 @@ impl Scenario {
     }
 }
 
+/// A paused victim: blocks until the parent writes the one byte that releases it. A closed pipe (the
+/// parent died) ends the child at once, without printing "done".
+fn wait_for_release() {
+    let mut byte = [0_u8; 1];
+    if std::io::Read::read_exact(&mut std::io::stdin(), &mut byte).is_err() {
+        std::process::exit(3);
+    }
+}
+
+/// A victim at `K + SLACK`: commits nothing more, and blocks on its stdin, which the parent holds open
+/// and never writes again, until the kill lands. A closed pipe ends it, as in [`wait_for_release`].
+fn wait_for_the_kill() -> ! {
+    let mut sink = Vec::new();
+    let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut sink);
+    std::process::exit(3);
+}
+
 /// What a child does, selected by the environment.
 fn child(role: &str) {
     let scenario = Scenario::named(&std::env::var(SCENARIO).expect("a scenario"));
     let directory = PathBuf::from(std::env::var(DIRECTORY).expect("a directory"));
+    let kill_at = std::env::var(KILL_AT)
+        .ok()
+        .map(|kill_at| kill_at.parse::<u64>().expect("a revision"));
     let mut world = match role {
         "create" => scenario.create(&directory),
         "resume" => {
@@ -482,12 +558,14 @@ fn child(role: &str) {
                 how.replayed,
                 how.facts
             );
-            world.snapshot_every(SNAPSHOT_INTERVAL)
+            world.snapshot_every(scenario.interval())
         }
         other => panic!("no role {other}"),
     };
-    scenario.finish(&mut world);
-    world.checkpoint().expect("checkpoints");
+    scenario.finish(&mut world, kill_at);
+    // Reported, because whether a clean shutdown writes one depends on whether the clock idled past
+    // the head (F-12), and the parent's expected snapshot set depends on it.
+    println!("checkpoint {}", world.checkpoint().expect("checkpoints"));
     println!("done {}", world.revision().raw());
 }
 
@@ -501,32 +579,41 @@ struct Ran {
     killed: bool,
 }
 
-/// Runs a child to completion, or kills it with SIGKILL as soon as it reports revision `kill_at`.
+/// Runs a child to completion, or, with a `kill_at`, through the handshake of [`SLACK`]: when the
+/// child says it has paused at or past `kill_at`, releases it and kills it with SIGKILL at once.
 fn run(role: &str, scenario: Scenario, directory: &Path, kill_at: Option<u64>) -> Ran {
-    let mut process = Command::new(std::env::current_exe().expect("this program"))
+    let mut command = Command::new(std::env::current_exe().expect("this program"));
+    command
         .env(ROLE, role)
         .env(SCENARIO, scenario.name())
         .env(DIRECTORY, directory)
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("a child starts");
+        .stderr(Stdio::inherit());
+    match kill_at {
+        Some(kill_at) => command
+            .env(KILL_AT, kill_at.to_string())
+            .stdin(Stdio::piped()),
+        None => command.env_remove(KILL_AT).stdin(Stdio::null()),
+    };
+    let mut process = command.spawn().expect("a child starts");
+    // Held open until the child is reaped: one byte releases a paused victim; after that it is never
+    // written again, and a victim at its leash blocks reading it.
+    let mut release = process.stdin.take();
     let stdout = process.stdout.take().expect("piped");
     let mut lines = Vec::new();
     let mut sent_kill = None;
     for line in BufReader::new(stdout).lines() {
         let line = line.expect("a line");
-        let reached = line
-            .strip_prefix("revision ")
-            .and_then(|number| number.parse::<u64>().ok());
+        let paused = line.starts_with("paused ");
         lines.push(line);
-        if let (Some(kill_at), Some(reached)) = (kill_at, reached)
-            && reached >= kill_at
-            && sent_kill.is_none()
-        {
+        if paused && sent_kill.is_none() {
+            let pipe = release.as_mut().expect("a victim's stdin is piped");
+            std::io::Write::write_all(pipe, b"g").expect("the victim is released");
+            std::io::Write::flush(pipe).expect("the release is sent");
             sent_kill = Some(process::kill(&mut process));
         }
     }
+    drop(release);
     let status = process.wait().expect("the child is reaped");
     let killed = sent_kill.is_some_and(|sent| sent.killed());
     if kill_at.is_none() {
@@ -539,12 +626,35 @@ fn run(role: &str, scenario: Scenario, directory: &Path, kill_at: Option<u64>) -
     Ran { lines, killed }
 }
 
-/// Every row of a save, as stored, for a byte-for-byte comparison.
+/// Every row of a save, as stored, for a byte-for-byte comparison: the live tail of the log, the sealed
+/// blocks (`ARC-89`) and the snapshots.
 #[derive(Debug, PartialEq, Eq)]
 struct Rows {
     journal: Vec<(i64, i64, Option<i64>, Vec<u8>)>,
     facts: Vec<(i64, i64, Vec<u8>)>,
+    sealed: Vec<SealedRow>,
     snapshots: Vec<(i64, Vec<u8>)>,
+}
+
+/// One row of `sealed`, every column as stored.
+#[derive(Debug, PartialEq, Eq)]
+struct SealedRow {
+    first_revision: i64,
+    last_revision: i64,
+    event_ids: (Option<i64>, Option<i64>),
+    max_action_id: Option<i64>,
+    journal: Vec<u8>,
+    facts: Vec<u8>,
+}
+
+/// How many facts the save logged, live or sealed, read through the backend's stream.
+fn logged_facts(directory: &Path, scenario: Scenario) -> u64 {
+    SqliteBackend::open(directory, scenario.durability())
+        .expect("opens")
+        .facts_after(None)
+        .expect("a cursor")
+        .try_fold(0, |count, fact| fact.map(|_| count + 1))
+        .expect("every fact reads")
 }
 
 fn rows(directory: &Path) -> Rows {
@@ -573,9 +683,29 @@ fn rows(directory: &Path) -> Rows {
         .expect("queries")
         .collect::<Result<_, _>>()
         .expect("reads");
+    let sealed = connection
+        .prepare(
+            "SELECT first_revision, last_revision, first_event_id, last_event_id, max_action_id,
+                    journal, facts FROM sealed ORDER BY first_revision",
+        )
+        .expect("prepares")
+        .query_map([], |row| {
+            Ok(SealedRow {
+                first_revision: row.get(0)?,
+                last_revision: row.get(1)?,
+                event_ids: (row.get(2)?, row.get(3)?),
+                max_action_id: row.get(4)?,
+                journal: row.get(5)?,
+                facts: row.get(6)?,
+            })
+        })
+        .expect("queries")
+        .collect::<Result<_, _>>()
+        .expect("reads");
     Rows {
         journal,
         facts,
+        sealed,
         snapshots,
     }
 }
@@ -655,17 +785,74 @@ fn scenario(scenario: Scenario) {
         }
         Scenario::Clock => CLOCK_DAYS.unsigned_abs() * 3 * CLOCK_PEOPLE as u64,
     };
+    let logged = logged_facts(&control_dir, scenario);
     assert!(
-        control_rows.facts.len() as u64 >= floor,
-        "{}: the control run logged {} facts, below the floor {floor}",
+        logged >= floor,
+        "{}: the control run logged {logged} facts, below the floor {floor}",
         scenario.name(),
-        control_rows.facts.len()
     );
     println!(
-        "[{}] control: {total} revisions, {} facts, {} snapshots",
+        "[{}] control: {total} revisions, {logged} facts, {} snapshots, {} sealed blocks",
         scenario.name(),
-        control_rows.facts.len(),
-        control_rows.snapshots.len()
+        control_rows.snapshots.len(),
+        control_rows.sealed.len()
+    );
+
+    // Retention (ARC-81), with the set computed here: genesis, every anchor and the newest two
+    // scheduled snapshots, and the clean shutdown's checkpoint at the head when it wrote one.
+    let checkpointed = control.lines.iter().any(|line| line == "checkpoint true");
+    let (interval, anchor) = (scenario.interval(), scenario.anchor());
+    assert!(
+        total > anchor + 2 * interval,
+        "{}: the run crosses an anchor ({anchor}) and retires after it ({total} revisions)",
+        scenario.name()
+    );
+    let scheduled = total - total % interval;
+    let mut expected: Vec<i64> = std::iter::once(1)
+        .chain((1..=scheduled / anchor).map(|k| k * anchor))
+        .chain([scheduled - interval, scheduled])
+        .chain(checkpointed.then_some(total))
+        .map(|revision| i64::try_from(revision).expect("small"))
+        .collect();
+    expected.sort_unstable();
+    expected.dedup();
+    let held: Vec<i64> = control_rows
+        .snapshots
+        .iter()
+        .map(|(revision, _)| *revision)
+        .collect();
+    assert_eq!(
+        held,
+        expected,
+        "{}: the control holds exactly the rule's snapshots",
+        scenario.name()
+    );
+    // Sealing (ARC-89), with the blocks computed here: (k·A, (k + 1)·A] for every (k + 2)·A ≤ total.
+    let blocks: Vec<(i64, i64)> = control_rows
+        .sealed
+        .iter()
+        .map(|block| (block.first_revision, block.last_revision))
+        .collect();
+    let sealing: Vec<(i64, i64)> = (0..)
+        .take_while(|k| (k + 2) * anchor <= total)
+        .map(|k| {
+            let span = (k * anchor + 1, (k + 1) * anchor);
+            (
+                i64::try_from(span.0).expect("small"),
+                i64::try_from(span.1).expect("small"),
+            )
+        })
+        .collect();
+    assert!(
+        !sealing.is_empty(),
+        "{}: the run seals ({total} revisions)",
+        scenario.name()
+    );
+    assert_eq!(
+        blocks,
+        sealing,
+        "{}: the control holds exactly the sealing rule's blocks",
+        scenario.name()
     );
 
     let mut tails = Vec::new();
@@ -673,7 +860,19 @@ fn scenario(scenario: Scenario) {
         ("early", total / 5),
         ("middle", total / 2 + 3),
         ("late", total * 4 / 5 + 7),
+        // At the commit of the first anchor, and at a commit that retires the snapshot before it
+        // (ARC-81 D-SR-3): the victim pauses on reaching it, and the kill lands once it is released.
+        ("anchor", anchor),
+        ("retiring", anchor + 2 * interval),
+        // At the first sealing commit (2·A), the commit before it and the one after (ARC-89 ASRB-5).
+        ("before sealing", 2 * anchor - 1),
+        ("sealing", 2 * anchor),
+        ("after sealing", 2 * anchor + 1),
     ] {
+        assert!(
+            kill_at + SLACK < total,
+            "{label}: the leash ({kill_at} + {SLACK}) ends short of the run ({total})"
+        );
         let dir = scratch(&format!("{}-{label}", scenario.name()));
         let victim = run("create", scenario, &dir, Some(kill_at));
         let on_disk = head(&dir, scenario);
@@ -685,6 +884,15 @@ fn scenario(scenario: Scenario) {
         assert!(
             on_disk >= kill_at && on_disk < total,
             "{label}: the save stops mid-run ({on_disk}, killed at {kill_at}, full run {total})"
+        );
+        let paused_at = victim
+            .lines
+            .iter()
+            .find_map(|line| line.strip_prefix("paused ")?.parse::<u64>().ok())
+            .expect("the victim paused before it was killed");
+        assert!(
+            paused_at >= kill_at && on_disk >= paused_at,
+            "{label}: paused at {paused_at}, at or past {kill_at}, and the save holds it ({on_disk})"
         );
         let last_printed = victim
             .lines
@@ -705,11 +913,17 @@ fn scenario(scenario: Scenario) {
             "{label}: and re-executed the tail after its snapshot"
         );
         assert!(
-            snapshot <= on_disk && (snapshot == 1 || snapshot.is_multiple_of(SNAPSHOT_INTERVAL)),
+            snapshot <= on_disk && (snapshot == 1 || snapshot.is_multiple_of(interval)),
             "{label}: the snapshot is genesis or a scheduled one ({snapshot})"
         );
+        let leashed = if last_printed >= kill_at + SLACK {
+            " (reached its leash)"
+        } else {
+            " (still running)"
+        };
         println!(
-            "[{}] {label}: kill sent at revision {kill_at}, the victim last printed {last_printed}, \
+            "[{}] {label}: kill point {kill_at}, the victim paused at {paused_at}, was released and \
+             killed, last printed {last_printed}{leashed}, \
              {on_disk} committed; survivor restored snapshot {snapshot} and re-executed {replayed} \
              revisions ({facts} facts)",
             scenario.name()

@@ -23,6 +23,10 @@ thiserror = { workspace = true }
 # in src/admission.rs.
 getrandom = { workspace = true }
 subtle = { workspace = true }
+# The per-seat request budget (DEP-57), named only in src/seats.rs.
+governor = { workspace = true }
+# The world thread's CPU time per tick, for CP-B4's bound (DEP-59), named only in src/runtime/world.rs.
+cpu-time = { workspace = true }
 
 [dev-dependencies]
 # The acceptance tests connect real WebSocket clients over a real TCP socket, so they need a

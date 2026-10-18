@@ -16,13 +16,14 @@ from itertools import pairwise
 from typing import Any
 
 import pytest
+import support
 from realserver import INVITE, Recording, Server, first_difference, seated
 from websockets.asyncio.client import connect as websocket_connect
 
 from mineworld_sdk import offers
 from mineworld_sdk.session import Answered, JoinRefused, SeatSession, SessionClosed
 from mineworld_sdk.wire import codec
-from mineworld_sdk.wire.contract import Accepted, Observation
+from mineworld_sdk.wire.contract import Accepted, Affordance, Observation
 from mineworld_sdk.wire.frames import Delta, Invite, ObservationFrame
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
 
@@ -43,10 +44,9 @@ pytestmark = pytest.mark.real_server
 
 
 def run[T](coroutine: Coroutine[Any, Any, T]) -> T:
-    """Runs one coroutine on a selector event loop on every platform, so the network guard sees its
-    connections on Windows too (the same mechanism as `cognition/lm-controller`'s `tests/support.run`,
-    ledger F-P5-4)."""
-    return asyncio.run(asyncio.wait_for(coroutine, 120), loop_factory=asyncio.SelectorEventLoop)
+    """Runs one coroutine on the selector loop on every platform, so the network guard sees its
+    connections on Windows too (`support.run`, ledger F-P5-4)."""
+    return support.run(coroutine, timeout_s=120)
 
 
 async def until(
@@ -347,6 +347,76 @@ def test_a_complete_affordance_is_attempted_unchanged_and_round_trips(
         for frame in observed
         for affordance in frame.observation.affordances
     ), "an observation with a complete affordance"
+
+
+def complete_affordance(
+    frame: ObservationFrame, action: str, target: EntityId | None
+) -> Affordance | None:
+    """The available complete affordance of `action` on `target` in `frame`, if there is one."""
+    for affordance in frame.observation.affordances:
+        if (
+            affordance.action_type == ActionTypeId(action)
+            and affordance.target == target
+            and affordance.available
+            and affordance.payload is not None
+        ):
+            return affordance
+    return None
+
+
+def test_an_invitation_is_answered_and_left_through_complete_affordances(
+    mineworld: Callable[[str], Server],
+) -> None:
+    """CP-b (pr-s27b): bob invites alice by name; alice answers and leaves through complete affordances only."""
+    server = mineworld("market-town")
+
+    async def scenario() -> None:
+        alice, _ = await seated(server, "alice")
+        bob, _ = await seated(server, "bob")
+        async with alice, bob:
+            frame = await until(
+                bob,
+                "an available invite to alice",
+                lambda f: any(
+                    affordance.action_type == ActionTypeId("invite")
+                    and affordance.target == alice.observer
+                    and affordance.available
+                    for affordance in f.observation.affordances
+                ),
+            )
+            invitation = offers.request(
+                frame.observation,
+                ActionTypeId("invite"),
+                target=alice.observer,
+                payload={"kind": "coffee"},
+            )
+            outcome = await bob.submit(invitation)
+            assert isinstance(outcome, Answered), outcome
+            assert isinstance(outcome.result, Accepted), outcome.result
+
+            frame = await until(
+                alice,
+                "an available complete accept-invitation from bob",
+                lambda f: complete_affordance(f, "accept-invitation", bob.observer) is not None,
+            )
+            accept = complete_affordance(frame, "accept-invitation", bob.observer)
+            assert accept is not None
+            outcome = await alice.submit(offers.attempt(frame.observation, accept))
+            assert isinstance(outcome, Answered), outcome
+            assert isinstance(outcome.result, Accepted), outcome.result
+
+            frame = await until(
+                alice,
+                "an available complete leave-group-activity",
+                lambda f: complete_affordance(f, "leave-group-activity", None) is not None,
+            )
+            leave = complete_affordance(frame, "leave-group-activity", None)
+            assert leave is not None
+            outcome = await alice.submit(offers.attempt(frame.observation, leave))
+            assert isinstance(outcome, Answered), outcome
+            assert isinstance(outcome.result, Accepted), outcome.result
+
+    run(scenario())
 
 
 def test_an_occupied_seat_is_refused_unless_taken_over(mineworld: Callable[[str], Server]) -> None:

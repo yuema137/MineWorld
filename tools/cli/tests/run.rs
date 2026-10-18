@@ -200,3 +200,63 @@ fn run_refuses_what_it_cannot_run_by_name_and_never_panics() {
         );
     }
 }
+
+/// NW-10 (step-11 SD-N15, QN-13): a pack with 30 seats is refused naming `RUN_STEP`, because seat
+/// `k`'s step instants are `genesis + k + n·30` and a thirtieth seat would share an instant with the
+/// first. 29 seats run. The pack is `mineworld create`'s, with its population and seats widened.
+#[test]
+fn a_pack_with_thirty_seats_is_refused_naming_run_step_and_twenty_nine_run() {
+    for (count, refused) in [(30, true), (29, false)] {
+        let root = fresh(&format!("run-crowd-{count}"));
+        std::fs::create_dir_all(&*root).expect("the scratch directory");
+        let pack = root.join("crowd");
+        let pack_text = pack.to_str().expect("a printable path").to_owned();
+        let created = mineworld(&["create", &pack_text]);
+        assert!(created.status.success(), "create: {}", stderr(&created));
+        let people: Vec<String> = (0..count).map(|n| format!("p{n:02}")).collect();
+        for (n, person) in people.iter().enumerate() {
+            let x = 1_000 + 600 * i32::try_from(n).expect("small");
+            std::fs::write(
+                pack.join("people").join(format!("{person}.yaml")),
+                format!("location:\n  place: home\n  position:\n    x: {x}\n    y: 1000\n"),
+            )
+            .expect("a person file");
+        }
+        let listed: String = people
+            .iter()
+            .map(|person| format!("  - {person}\n"))
+            .collect();
+        std::fs::write(
+            pack.join("world.yaml"),
+            format!(
+                "world:\n  id: crowd\n  name: crowd\n  version: 0.1.0\n  license: MIT\n\
+                 mineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\nplaces:\n  - home\n\
+                 population:\n{listed}seats:\n{listed}"
+            ),
+        )
+        .expect("the world file");
+        for old in ["first", "second"] {
+            std::fs::remove_file(pack.join("people").join(format!("{old}.yaml")))
+                .expect("create's people removed");
+        }
+        let output = mineworld(&[
+            "run",
+            &pack_text,
+            "--headless",
+            "--seed",
+            "1",
+            "--days",
+            "1",
+        ]);
+        let complaint = stderr(&output);
+        if refused {
+            assert!(!output.status.success(), "30 seats must be refused");
+            assert!(
+                complaint.contains("RUN_STEP") && complaint.contains("offers 30 seats"),
+                "the refusal names RUN_STEP and the count: {complaint}"
+            );
+        } else {
+            assert!(output.status.success(), "29 seats run: {complaint}");
+        }
+    }
+}

@@ -1,0 +1,22 @@
+# Finn — a boatbuilder. Sections as in alba.yaml.
+
+name: Finn Halvorsen
+
+routine:
+  - { from: "06:00", place: pier, label: fishing }
+  - { from: "11:00", place: square, label: work }
+  - { from: "15:00", place: shore, label: boats }
+  - { from: "19:00", place: boathouse, label: home }
+
+tags:
+  - boatbuilder
+
+note: Builds and patches the village's rowing boats.
+
+location:
+  place: boathouse
+  position:
+    x: 3000
+    y: 2500
+
+holdings: { apple: 1, cheese: 1 }

@@ -56,6 +56,7 @@ mod summary;
 mod tests;
 
 use std::fmt;
+use std::time::Duration;
 
 use mineworld_contracts::{
     ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, EventId,
@@ -275,6 +276,10 @@ pub enum ServerFrame {
         token: Option<CorrelationToken>,
         /// Which refusal this is.
         code: RefusalCode,
+        /// Wall milliseconds, at least 1, after which the seat's request budget admits one request.
+        /// On a `rate_limited` refusal and on no other (`PROTOCOL.md` §5.5, from S27-a).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        retry_after_ms: Option<u64>,
         /// A note for a developer. Nothing branches on it; a client reacts to `code`.
         #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
@@ -339,6 +344,14 @@ pub enum RefusalCode {
     /// The host has paused the world's clock: the request was refused before it was given an
     /// identity, so nothing was half-done (`PROTOCOL.md` §5.9).
     Paused,
+    /// The `join` presented a seat grant that does not name this seat, or asked to take over a
+    /// connected or held seat with a grant that does not carry take-over. Nothing is granted, nobody
+    /// is displaced, and the connection stays (`PROTOCOL.md` §§4.1, 4.2, from S27-a).
+    NotGranted,
+    /// This seat's request budget is spent: the `submit` was refused before the server allocated an
+    /// `ActionId` for it, so nothing is half-done; `retry_after_ms` says when one request will be
+    /// admitted (`PROTOCOL.md` §§5.5, 8, from S27-a).
+    RateLimited,
 }
 
 /// One refusal, before it becomes a frame.
@@ -346,6 +359,7 @@ pub enum RefusalCode {
 pub struct Refusal {
     code: RefusalCode,
     token: Option<CorrelationToken>,
+    retry_after: Option<Duration>,
     detail: Option<String>,
 }
 
@@ -355,8 +369,17 @@ impl Refusal {
         Self {
             code,
             token: None,
+            retry_after: None,
             detail: None,
         }
+    }
+
+    /// Says how long until the refused request would be admitted (a `rate_limited` refusal's
+    /// `retry_after_ms`, rounded up to a whole millisecond and at least 1).
+    #[must_use]
+    pub fn retry_after(mut self, wait: Duration) -> Self {
+        self.retry_after = Some(wait);
+        self
     }
 
     /// Pairs the refusal with the token of the frame that caused it, when one was recoverable.
@@ -389,9 +412,17 @@ impl Refusal {
         ServerFrame::Refused {
             token: self.token,
             code: self.code,
+            retry_after_ms: self.retry_after.map(whole_milliseconds),
             detail: self.detail,
         }
     }
+}
+
+/// A wait as `retry_after_ms`: rounded up to a whole millisecond, and never 0, so a client that waits
+/// exactly that long is admitted.
+fn whole_milliseconds(wait: Duration) -> u64 {
+    let millis = wait.as_nanos().div_ceil(1_000_000).max(1);
+    u64::try_from(millis).unwrap_or(u64::MAX)
 }
 
 /// What can be wrong with a protocol value itself, before any world is involved.

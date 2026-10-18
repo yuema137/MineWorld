@@ -1245,3 +1245,14 @@ body and the handoff).
   `…\runtime\clients\2d.pck` with `runtime.join("clients/2d.pck")`, which keeps a `/` on Windows. The other
   three launcher cases (A-R6 kill, smoke both, failures) and `stop_on_stdin_eof` 2/2 PASSED on Windows —
   the stdin-EOF stop works there. Fix: build the expected path component by component.
+- **Head `d1602da`** (D-RC-4). `fast`, `test`, `test-macos`, `test-windows`, `platforms` ×2, `python` ×3
+  PASS (the PR's checks as read on 2026-10-17).
+- **2026-10-17, revival session.** `origin/main @ 5cbb469` merged (CI sharding ARC-110, nightly ARC-83,
+  decision lists ARC-84, persona/authoring seam, memory, P7). Conflicts: `Cargo.lock` (`mineworld-launch`
+  beside main's `mineworld-motivated`), `docs/DECISIONS.md` (ARC-78 and the ARC-6 note beside main's ARC-81
+  onward; ids distinct), `docs/MODULE_SPEC.md` (main's `server` usage and row, with `--stop-on-stdin-eof`
+  re-added to both), `tools/cli/src/{main,serve}.rs` (`stop_on_stdin_eof` beside main's `decisions`).
+  Anchor of §19.1 that changed: `core` is no longer one `cargo test --workspace` but ARC-110's shards, each
+  `cargo test --workspace --no-run --test …` over its units; the launcher test still needs
+  `target/<profile>/mineworld`, which the CI result on the merged head must confirm per shard. Heavy local
+  jobs are paused by the operator: no cargo run locally this session; CI on the exact head is the evidence.

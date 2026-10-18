@@ -1,0 +1,100 @@
+# Lakeside — a village on a lake: Milestone E's composition (docs/DECISIONS.md ARC-77; step-16 §1.4).
+#
+# A new world, not a copy of another, assembled from packs of four kinds:
+#
+#   bundled System Packs       presence … consumption below, compiled from this repository (ARC-54)
+#   a third-party System Pack  fishing, from github.com/yuema137/mineworld-pack-fishing, installed by
+#                              ARC-33's two lines pinned to a commit (ARC-66) and never edited here
+#   an Entity Pack             modern-goods (entities/modern-goods): the shop goods people start with
+#   Presentation Packs         mineworld-default-2d and -3d: what this world is authored for (declared
+#                              and validated; the clients do not apply them yet)
+#
+# The data packs are found only through pack roots named on the command line (ARC-54), so every command
+# on this world names them, from the repository's root:
+#
+#   mineworld validate worlds/lakeside --packs entities --packs presentation/mineworld-default
+#
+# The fields this file may use are specified in docs/MODULE_SPEC.md §4.1; anything else is refused by
+# name rather than ignored.
+
+world:
+  # Must match this pack's directory name.
+  id: lakeside
+  name: Lakeside
+  # The pack's package identity (ARC-53), never world state.
+  version: 0.1.0
+  license: MIT
+
+# The framework versions this world is authored for (ARC-53).
+mineworld: "^0.1"
+
+# Every pack this world uses that is not compiled from this repository, each with the versions it
+# accepts (ARC-54). Requiring an Entity Pack puts its kinds in this world; requiring a Presentation Pack
+# declares what the world is authored for. Bundled System Packs are versioned with the framework and are
+# never listed here.
+requires:
+  acme-fishing: "^0.1"
+  modern-goods: "^0.1"
+  mineworld-default-2d: "^0.1"
+  mineworld-default-3d: "^0.1"
+
+# The capabilities this world enables, in installation order — the order their reducers run in, so
+# every pack comes after what it depends on. `fishing` (third-party) depends on presence and inventory,
+# so it comes last. Leave it out, with every place's `fishing:` section, and the lake is only scenery:
+# `fish` is offered to nobody and nothing else changes (AC-2).
+systems:
+  - presence
+  - movement
+  - conversation
+  - group-activity
+  - relationships
+  - naming
+  - schedule
+  - item
+  - inventory
+  - item-transfer
+  - consumption
+  - fishing
+
+# The lake's own produce: what the shore and the pier yield (`fishing:` on each). The goods in people's
+# hands come from modern-goods, which must not declare `fish` too: keys are one namespace (ARC-71).
+items:
+  - fish
+
+# The village. The lane joins every other place, each through one doorway, so anybody can walk from
+# anywhere to anywhere through at most two doors.
+places:
+  - bakery
+  - boathouse
+  - cottages
+  - lane
+  - pier
+  - shore
+  - square
+
+# Ten people, every one of them a seat.
+population:
+  - alba
+  - bruno
+  - celia
+  - dario
+  - elin
+  - finn
+  - greta
+  - hugo
+  - ines
+  - nils
+
+# Every person may be driven by a controller — a player, an agent, or the headless rule controller
+# `mineworld run` gives every seat (MODULE_SPEC.md §5).
+seats:
+  - alba
+  - bruno
+  - celia
+  - dario
+  - elin
+  - finn
+  - greta
+  - hugo
+  - ines
+  - nils

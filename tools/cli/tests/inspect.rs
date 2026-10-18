@@ -29,12 +29,31 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
         report.contains(&format!("head       revision {head} ")),
         "the head on disk: {report}"
     );
+    // The retained snapshots (ARC-81, D-SR-9): exactly the save's, each with its stored size.
+    let kept: Vec<String> = before
+        .snapshots
+        .iter()
+        .map(|(revision, bytes)| format!("r{revision} {} B", bytes.len()))
+        .collect();
+    assert_eq!(
+        lines(&report, "snapshots  "),
+        [format!(
+            "snapshots  {} kept (zstd): {}",
+            kept.len(),
+            kept.join(", ")
+        )],
+        "{report}"
+    );
+    assert!(
+        kept.len() >= 3,
+        "genesis, an anchor and the newest two: {kept:?}"
+    );
     let facts = count_after(lines(&report, "facts      ")[0], "facts ");
     assert_eq!(facts, u64::try_from(before.facts.len()).expect("fits"));
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
-        "systems    presence v3, movement v2, conversation v2, group-activity v2, relationships v1, \
-         naming v1, schedule v1\n"
+        "systems    presence v3, movement v2, conversation v4, group-activity v3, relationships v3, \
+         naming v1, schedule v1, persona v1\n"
     ));
     for kind in [
         "causes     action ",
@@ -97,6 +116,8 @@ fn a_fact_whose_cause_no_request_carried_fails_the_check_by_name() {
                 bytes: serde_json::to_vec(&fact).expect("encodes"),
             }],
             snapshot: None,
+            retire: Vec::new(),
+            seal: None,
         })
         .expect("the backend stores rows it is given");
     drop(backend);

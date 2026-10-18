@@ -8,7 +8,8 @@ owns        Passages          which places a place opens onto, and where the doo
 provides    move              a stride within a place, or through a doorway into the next
 emits       passage-opened    the genesis fact that gives places their passages
             arrived           presence's fact, built by presence's own constructor
-discloses   Passages          on the place a person stands in, so a controller can find the door
+discloses   Passages          on the place a person stands in: each doorway, and the tags of the place it
+                              leads to (`DECISIONS.md` `ARC-82`, a door sign; nothing else of that place)
 depends on  presence          which owns where people are
 ```
 

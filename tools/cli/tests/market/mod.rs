@@ -746,12 +746,12 @@ pub fn state_matches_replay(town: &Town, save: &Path, facts: &[EventEnvelope]) -
         }
     }
 
-    let snapshot: mineworld_kernel::WorldSnapshot = format::decode(
+    let snapshot: mineworld_kernel::WorldSnapshot = format::decode_snapshot(
         &backend
             .snapshot_at(revision)
             .expect("the snapshot")
             .expect("present"),
-        "snapshot",
+        revision,
     )
     .expect("the snapshot decodes");
     let mut wallets = BTreeMap::new();

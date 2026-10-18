@@ -17,7 +17,8 @@ use crate::system::GroupActivitySystem;
 ///
 /// This pack's own constant, not conversation's — it does not depend on conversation, and an
 /// invitation is a different act from speech even where the distances agree. Integer millimetres,
-/// so every platform decides alike (`AC-12`).
+/// so every platform decides alike (`AC-12`). The compiled default of the section's `invite_range`
+/// since S17's PR IL-e.
 pub const INVITE_RANGE: Millimetres = Millimetres::new(3_000);
 
 /// Ask the target to do something together.
@@ -85,11 +86,26 @@ impl Action for LeaveGroupActivity {
 
 /// `invite`: the same place, within [`INVITE_RANGE`], of somebody available — not already part of an
 /// activity, which is this pack's judgement and travels as the offer's availability.
+///
+/// The requirement of the compiled default. A world's section may give an inviter, an invitee or a
+/// place another `invite_range` (S17's PR IL-e); the pack then validates and offers
+/// [`invite_requirement_within`] that range.
 pub fn invite_requirement() -> SpatialRequirement {
+    invite_requirement_within(INVITE_RANGE)
+}
+
+/// What `invite` requires of space when an invitation reaches `range`. `range` is positive: the
+/// section's bound starts at one millimetre.
+pub fn invite_requirement_within(range: Millimetres) -> SpatialRequirement {
     SpatialRequirement::same_place()
-        .within(INVITE_RANGE)
+        .within(range)
         .expect("a positive invite range")
         .requiring_target_available()
+}
+
+/// An `invite_range` parameter as a distance. The section bounds it to 1 … 100 000, well inside `i32`.
+pub(crate) fn range(millimetres: u32) -> Millimetres {
+    Millimetres::new(i32::try_from(millimetres).expect("a range within the section's bound"))
 }
 
 /// `accept-invitation`: the same place as the inviter — an activity happens somewhere, and one

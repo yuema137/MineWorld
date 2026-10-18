@@ -1,0 +1,32 @@
+# Alba — the baker.
+#
+# `name` is the `naming` System Pack's section (docs/DECISIONS.md ARC-31); `routine` is `schedule`'s
+# (ARC-32): the day she means to keep. It moves her nowhere — whoever drives her walks there, or does
+# not. Every person here spends one part of each day at the water (the shore or the pier), which is
+# where the `fishing` pack offers `fish`; every routine boundary lies between 05:00 and 23:00, and every
+# part of a day lasts at least four hours, as in the towns (worlds/market-town/people/alice.yaml).
+#
+# `holdings` is `inventory`'s section (ARC-37): what she carries at the start, item key → count. The
+# kinds are modern-goods' (an Entity Pack this world requires) and the lake's `fish`. Nobody starts with
+# more than three things, so everybody can carry a catch (a person carries at most six).
+
+name: Alba Ferreira
+
+routine:
+  - { from: "05:30", place: bakery, label: baking }
+  - { from: "10:00", place: square, label: errands }
+  - { from: "14:00", place: shore, label: fishing }
+  - { from: "19:00", place: cottages, label: home }
+
+tags:
+  - baker
+
+note: Bakes before dawn, then comes down to the water in the afternoon.
+
+location:
+  place: cottages
+  position:
+    x: 3000
+    y: 2000
+
+holdings: { bread: 2, milk: 1 }

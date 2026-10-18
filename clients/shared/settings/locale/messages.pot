@@ -192,6 +192,90 @@ msgstr ""
 msgid "ui.settings.undo"
 msgstr ""
 
+#. Controls
+msgid "ui.settings.tab.controls"
+msgstr ""
+
+#. Mouse sensitivity
+msgid "ui.settings.controls.sensitivity"
+msgstr ""
+
+#. Invert vertical look
+msgid "ui.settings.controls.invert_y"
+msgstr ""
+
+#. On
+msgid "ui.settings.controls.invert_y.on"
+msgstr ""
+
+#. Off
+msgid "ui.settings.controls.invert_y.off"
+msgstr ""
+
+#. Key map
+msgid "ui.settings.controls.keys"
+msgstr ""
+
+#. no key
+msgid "ui.settings.controls.keys.none"
+msgstr ""
+
+#. Key bindings are fixed for now.
+msgid "ui.settings.controls.read_only"
+msgstr ""
+
+#. Open the menu
+msgid "ui.settings.key.menu"
+msgstr ""
+
+#. Walk forward
+msgid "ui.settings.key.move_forward"
+msgstr ""
+
+#. Walk left
+msgid "ui.settings.key.move_left"
+msgstr ""
+
+#. Walk back
+msgid "ui.settings.key.move_back"
+msgstr ""
+
+#. Walk right
+msgid "ui.settings.key.move_right"
+msgstr ""
+
+#. Jump
+msgid "ui.settings.key.jump"
+msgstr ""
+
+#. Hold to run
+msgid "ui.settings.key.jog"
+msgstr ""
+
+#. Change camera
+msgid "ui.settings.key.camera_cycle"
+msgstr ""
+
+#. Walk
+msgid "ui.settings.key.walk"
+msgstr ""
+
+#. Open the action menu here
+msgid "ui.settings.key.spot_menu"
+msgstr ""
+
+#. Open the menu for the latest person
+msgid "ui.settings.key.person_menu"
+msgstr ""
+
+#. Show things
+msgid "ui.settings.key.things"
+msgstr ""
+
+#. Show conversations
+msgid "ui.settings.key.conversations"
+msgstr ""
+
 #. W A S D  move     Shift  jog     Space  jump     V  camera     Esc  release mouse
 msgid "hint.controls"
 msgstr ""
@@ -546,4 +630,36 @@ msgstr ""
 
 #. lagged
 msgid "reason.lagged"
+msgstr ""
+
+#. not granted
+msgid "reason.not_granted"
+msgstr ""
+
+#. too many requests
+msgid "reason.rate_limited"
+msgstr ""
+
+#. café
+msgid "place.cafe"
+msgstr ""
+
+#. park
+msgid "place.park"
+msgstr ""
+
+#. store
+msgid "place.store"
+msgstr ""
+
+#. apartments
+msgid "place.apartments"
+msgstr ""
+
+#. workplace
+msgid "place.workplace"
+msgstr ""
+
+#. street
+msgid "place.street"
 msgstr ""

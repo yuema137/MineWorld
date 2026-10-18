@@ -897,6 +897,12 @@ L-5  The server's shutdown checkpoint writes nothing whenever the clock has idle
      which on a hosted world is almost always — so a restart re-executes up to 63 revisions after the
      last periodic snapshot (F-12, by construction).
 L-6  The log and snapshots are kept whole; compaction and snapshot pruning are later work.
+     Note 2026-10-10: snapshot pruning and snapshot compression landed in PR SR
+     (`pr-s6-save-retention.md`, `ARC-81`, `DEP-43`). The log (facts and journal) is still kept whole;
+     its compression is SR-b, a separate PR (QSR-1).
+     Note 2026-10-13: log compression landed in SR-b (`pr-sr-b-log-compression.md`, `ARC-89`,
+     `SAVE_FORMAT` 4): the journal and fact rows of each completed span move unchanged into one sealed
+     zstd block; the log is still whole and still replayed byte for byte.
 L-7  `deferrals_unscheduled` still on the wire, and `revision` added within protocol 1 (§10.1 Q3); the
      next protocol revision removes the former and may bump the number.
 L-8  Mutation evidence: the counterfactuals are real adversarial tests (memory-only state, altered

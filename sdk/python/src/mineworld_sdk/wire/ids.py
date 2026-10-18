@@ -96,6 +96,14 @@ def _token(value: str) -> str:
     return value
 
 
+def event_order(event: EventId) -> tuple[int, str]:
+    """The key that orders `EventId`s as the server allocates them: length, then text.
+
+    Exact for every id this module admits, which is a decimal string without leading zeros, and it never
+    turns an id into a number (D-P3-3; P4's D-P4-4)."""
+    return len(event), event
+
+
 EntityIdField = Annotated[EntityId, AfterValidator(_decimal)]
 EventIdField = Annotated[EventId, AfterValidator(_decimal)]
 ActionIdField = Annotated[ActionId, AfterValidator(_decimal)]

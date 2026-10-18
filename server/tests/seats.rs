@@ -290,6 +290,9 @@ async fn a_hosted_request_meets_the_actor_check_and_the_sessions_allocator() {
     let config = HostConfig {
         // A second of world time every few milliseconds, so the controller is due on every tick.
         time_scale: std::num::NonZeroU32::new(600).expect("non-zero"),
+        // Bob submits as fast as the socket answers, for up to three seconds: no person's pace, and
+        // not what this test is about (`tests/request_budget.rs` owns the budget, S27-a).
+        request_budget: None,
         ..brisk()
     };
     let address = start_with(config, move || {

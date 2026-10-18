@@ -1,0 +1,90 @@
+# Puts the one pinned Godot on the runner (docs/DECISIONS.md DEP-45): the official 4.7.2-stable build for
+# this OS, refused unless its SHA-512 equals the value pinned in scripts/ci_godot.py, cached on that pin,
+# exported as GODOT (what the Rust tests read) and as a `godot` command on PATH (what the bash launchers
+# call). On Linux it also installs Xvfb and Mesa's software Vulkan from the runner's Ubuntu mirror and
+# starts a virtual display, so the windowed client tests have one; they judge behaviour, never frames
+# (ARC-17). Last, it imports the client projects through a cache (ARC-149). Shared with S23's export
+# job (step-23 §16.4: one download step, one pinned version).
+#
+# The caller has checked the repository out already; this action names no test and no layer.
+name: Install the pinned Godot
+description: Download, verify, cache and export the pinned Godot build; on Linux, a virtual display; the client projects imported through a cache.
+runs:
+  using: composite
+  steps:
+    - name: Restore the Godot cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.mineworld-godot
+        key: godot-${{ runner.os }}-${{ hashFiles('scripts/ci_godot.py') }}
+
+    - name: Fetch and verify Godot
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_godot.py fetch --dest "$HOME/.mineworld-godot" \
+          --github-env "$GITHUB_ENV" --github-path "$GITHUB_PATH"
+
+    - name: A virtual display with software Vulkan (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y -q --no-install-recommends xvfb mesa-vulkan-drivers libvulkan1 \
+          libgl1-mesa-dri libxcursor1 libxinerama1 libxrandr2 libxi6
+        Xvfb :99 -screen 0 1920x1080x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+        for _ in $(seq 1 50); do
+          [ -e /tmp/.X11-unix/X99 ] && break
+          sleep 0.2
+        done
+        [ -e /tmp/.X11-unix/X99 ] || { cat "$RUNNER_TEMP/xvfb.log"; exit 1; }
+        echo "Xvfb is serving :99"
+
+    # The client projects' imported resources (each project's .godot/, which Git ignores), cached per OS and
+    # Godot build: pr-13c-nightly.md §3.4's import cache, which the nightly lacked until ARC-149. A first
+    # import of the 3D client took 45 minutes of the macOS runner's 75 (nightly 38919486641; 9.5 on Linux).
+    # The key names every file under clients/, so a changed asset makes a new entry; restore-keys start from
+    # the newest one and Godot re-imports only what differs. The import runs here, before any test, and is
+    # saved at once: actions/cache's own post step saves only when the whole job passes.
+    - id: godot-build
+      name: The Godot build, for the import cache's key
+      shell: bash
+      run: echo "version=$("$GODOT" --headless --version | tr -d '\r')" >> "$GITHUB_OUTPUT"
+
+    - id: import-cache
+      name: Restore the client projects' import cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          clients/2d/.godot
+          clients/3d-spike/.godot
+          clients/shared/.godot
+          clients/protocol/.godot
+        key: godot-import-${{ runner.os }}-${{ steps.godot-build.outputs.version }}-${{ hashFiles('clients/**') }}
+        restore-keys: godot-import-${{ runner.os }}-${{ steps.godot-build.outputs.version }}-
+
+    # A failed import is the tests' to report by name ("the 3D project imports"); it is never cached.
+    - id: import
+      name: Import the client projects
+      if: steps.import-cache.outputs.cache-hit != 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        for project in clients/shared clients/2d clients/3d-spike clients/protocol; do
+          began=$SECONDS
+          "$GODOT" --headless --path "$project" --import > "$RUNNER_TEMP/import.log" 2>&1 \
+            || { tail -n 40 "$RUNNER_TEMP/import.log"; exit 1; }
+          echo "$project: imported in $((SECONDS - began)) s"
+        done
+
+    - name: Save the client projects' import cache
+      if: steps.import-cache.outputs.cache-hit != 'true' && steps.import.outcome == 'success'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          clients/2d/.godot
+          clients/3d-spike/.godot
+          clients/shared/.godot
+          clients/protocol/.godot
+        key: ${{ steps.import-cache.outputs.cache-primary-key }}

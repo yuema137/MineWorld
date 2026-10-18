@@ -12,6 +12,12 @@ extends CanvasLayer
 signal opened
 signal closed
 signal quit_requested
+## Emitted at the end of every Apply, with the value in effect after it (SET-b: the 3D player takes
+## `look_scale()` and `invert_y` from it).
+signal applied(settings: MineWorldSettings)
+## Emitted at the end of every redraw (open, Apply, Revert, a language change), so a tab that shows the
+## draft (the Controls tab, SET-b) reads it again.
+signal rendered
 
 ## How long a display change waits to be kept before it is reverted.
 const CONFIRM_SECONDS := 15.0
@@ -130,21 +136,24 @@ func tick(delta: float) -> void:
 
 # --- actions ---------------------------------------------------------------------------------------
 
-## Saves what changed. General settings are saved at once; a display change is applied and waits to be
-## kept (`keep_display`) or reverts by itself.
+## Saves what changed. General and input settings are saved at once; a display change is applied and waits
+## to be kept (`keep_display`) or reverts by itself.
 func apply() -> void:
 	var saved := store.settings.copy()
-	if draft.differs_in(saved, MineWorldSettings.GENERAL):
-		var general := saved.copy()
-		general.language = draft.language
-		general.clock = draft.clock
-		_report(store.save(general))
+	if draft.differs_in(saved, MineWorldSettings.GENERAL) or draft.differs_in(saved, MineWorldSettings.INPUT):
+		var next := saved.copy()
+		next.language = draft.language
+		next.clock = draft.clock
+		next.mouse_sensitivity = draft.mouse_sensitivity
+		next.invert_y = draft.invert_y
+		_report(store.save(next))
 	if draft.differs_in(store.settings, MineWorldSettings.DISPLAY):
 		_display_before = store.settings.copy()
 		MineWorldDisplay.apply(draft, get_window(), capabilities)
 		confirm_left = CONFIRM_SECONDS
 		_render_confirm()
 	_render()
+	applied.emit(store.settings)
 
 
 func keep_display() -> void:
@@ -365,6 +374,7 @@ func _render() -> void:
 	_fps_value.text = MineWorldText.text("ui.settings.fps_value", {"fps": int(round(Engine.get_frames_per_second()))})
 	_status.text = MineWorldText.text(_status_said if _status_said != "" else "ui.settings.hint")
 	_render_confirm()
+	rendered.emit()
 
 
 func _render_tab_titles() -> void:

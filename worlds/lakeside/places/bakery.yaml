@@ -1,0 +1,20 @@
+# The bakery: one room with an oven and a counter, north of the lane.
+#
+# About 8 m by 6 m; its door onto the lane is on its south wall. Lakeside has no shops (no economy is
+# enabled): the bakery is where people gather in the morning, not somewhere to buy.
+
+tags:
+  - bakery
+  - indoor
+
+note: >-
+  A warm room that smells of bread, with a long table by the window.
+
+passages:
+  - to: lane
+    here:
+      x: 2000
+      y: 200
+    there:
+      x: 15000
+      y: 5800

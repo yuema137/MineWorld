@@ -1,10 +1,14 @@
-//! `mineworld run` — a World Pack run headless, every seat driven by a seeded rule (`ARC-27`).
+//! `mineworld run` — a World Pack run headless, every seat driven by its resolved decision model, by
+//! default the seeded paced rule (`ARC-27`, `ARC-84`).
 //!
 //! ```text
-//! for each consult instant t, in time order       seat k at genesis + k + m·PACE
+//! for each consult instant t, in time order       seat k at genesis + k + m·PACE, and at
+//!                                                  genesis + k + n·RUN_STEP while its person walks
 //!     advance the world to t                       whatever was due fires first
 //!     observe(world, seat, t)                      the pack's own perception
-//!     PacedRuleController::decide(observation)     a pure function of seed and observation
+//!     SeatModel::decide(seed, PACE, observation)   a pure function of its parameters, the seed and the
+//!       or ::step(…)                               observation; between lattice instants only the
+//!                                                  walk's next stride
 //!     ActionIntent::allocate(request, id, t)       the server's step, with this run's allocator
 //!     dispatch(intent, t)                          journaled first when the world is saved
 //! ```
@@ -17,28 +21,39 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Instant;
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionResult, EntityId, EntityKey, EventEnvelope, SimDuration,
-    WorldTime,
+    ActionId, ActionIntent, ActionResult, EntityId, EntityKey, EventEnvelope, PersonId,
+    SimDuration, WorldTime,
 };
+use mineworld_decision::{SeatModel, Seed};
 use mineworld_kernel::{Dispatched, KernelError, World};
+use mineworld_movement::is_walking;
 use mineworld_persistence::{
     Creation, Durability, JournalEntry, PersistError, PersistenceBackend, PersistentWorld,
     SqliteBackend, WorldInput, WorldRevision, format,
 };
 use mineworld_presence::{PerceptionProvider, observe};
-use mineworld_rule_controller::PacedRuleController;
 use mineworld_server::WorldInstanceId;
 use mineworld_worldpack::{PackRoots, WorldPack};
 
+use crate::decisions::{self, DecisionArgs};
 use crate::{described, saved_genesis};
 
 /// How often each seat is consulted: every fifteen simulated minutes. Ten in S7 (step-08 HD-2); raised
 /// when the twelve-person town made one 300-day debug run take 77 s, under the rule that the pace
 /// rises before the days fall (step-08 Q10, step-09 Q4; `DECISIONS.md` `ARC-27` note).
 pub const PACE: SimDuration = SimDuration::from_seconds(900);
+
+/// How often a walking seat is asked for the next stride of its walk: every thirty simulated seconds.
+///
+/// Notional: `run` has no time scale and no wall clock, so its stride cadence is a choice, not a speed
+/// (`step-19-time-weather.md` §4.6; `step-11-bodies.md` SD-N15). A divisor of [`PACE`], so seat `k`'s
+/// step instants `genesis + k + n·RUN_STEP` include its lattice instants and, while there are fewer
+/// than `RUN_STEP` seats, never meet another seat's (`DECISIONS.md` `ARC-27` note, 2026-10-09).
+pub const RUN_STEP: SimDuration = SimDuration::from_seconds(30);
 
 /// A simulated day, in seconds: the command's unit, never the kernel's (`INV-12`).
 const DAY: i64 = 86_400;
@@ -54,6 +69,8 @@ pub struct RunRequest {
     pub save: Option<PathBuf>,
     /// Where the world's requirements are resolved (`ARC-54`). Never saved: a resume resolves again.
     pub roots: PackRoots,
+    /// `--decisions` and `--seat-model` (`ARC-84`). Never saved: a resume reads the list it is given.
+    pub decisions: DecisionArgs,
 }
 
 /// Runs the world and prints what happened.
@@ -67,25 +84,33 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
             pack.id()
         ));
     }
-    if i64::try_from(seats.len()).unwrap_or(i64::MAX) >= PACE.seconds() {
+    if i64::try_from(seats.len()).unwrap_or(i64::MAX) >= RUN_STEP.seconds() {
         return Err(format!(
             "[mineworld] {} offers {} seats; a headless run consults at most {} (one per second of \
-             its pace)",
+             its stride cadence, RUN_STEP {})",
             pack.id(),
             seats.len(),
-            PACE.seconds() - 1,
+            RUN_STEP.seconds() - 1,
+            RUN_STEP,
         ));
     }
     let days = i64::try_from(request.days)
         .ok()
         .filter(|days| *days >= 1 && days.checked_mul(DAY).is_some())
         .ok_or_else(|| format!("[mineworld] --days {} is out of range", request.days))?;
+    // Each seat's model, in roster order — the order `seats` is in. `None`: a chain ending at `none`.
+    let resolved = decisions::resolve(&pack, &request.decisions)?;
+    let models: Vec<Option<Arc<dyn SeatModel>>> = (0..seats.len())
+        .map(|k| resolved.drives(k).map(|drives| Arc::clone(drives.model())))
+        .collect();
 
     let mut begun = Begun::new(&pack, request.save.as_deref())?;
     let genesis = begun.genesis;
     let end = genesis + days * DAY;
+    // The decisions clause only when a list is in effect: with none, the header is what it always was
+    // (`MODULE_SPEC.md` §4.1 rule 7).
     println!(
-        "[mineworld] run {} ({}): seats {}; seed {}; to day {}; pace {}; {}",
+        "[mineworld] run {} ({}): seats {}; seed {}; to day {}; pace {}; {}{}",
         pack.name(),
         pack.id(),
         listed(&seats),
@@ -93,6 +118,9 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         days,
         PACE,
         begun.how,
+        resolved
+            .clause(decisions::RUN_HOSTS_NONE)
+            .unwrap_or_default(),
     );
 
     let observers: Vec<EntityId> = seats
@@ -106,19 +134,32 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
                 .map_err(|error| format!("[mineworld] seat {seat}: {error}"))
         })
         .collect::<Result<_, _>>()?;
-    let controller = PacedRuleController::new(request.seed, PACE);
+    let persons: Vec<Option<PersonId>> = observers
+        .iter()
+        .map(|observer| person_of(begun.driven.world(), *observer))
+        .collect();
+    let seed = Seed::new(request.seed);
     let mut tally = Tally::new(&begun.began);
     let seat_count = i64::try_from(seats.len()).unwrap_or(i64::MAX);
 
     let mut next_day = ((begun.start - genesis) / DAY + 1).max(1);
-    let first_round = ((begun.start - genesis - seat_count) / PACE.seconds()).max(0);
+    // Rounds of RUN_STEP: every PACE / RUN_STEP-th round is the lattice (ARC-27 note, 2026-10-09).
+    let per_pace = PACE.seconds() / RUN_STEP.seconds();
+    let first_round = ((begun.start - genesis - seat_count) / RUN_STEP.seconds()).max(0);
     'rounds: for round in first_round.. {
+        let lattice = round % per_pace == 0;
         for (k, (seat, observer)) in seats.iter().zip(&observers).enumerate() {
-            let at = genesis + i64::try_from(k).unwrap_or(0) + round * PACE.seconds();
+            let at = instant(genesis, i64::try_from(k).unwrap_or(0), round);
             if at >= end {
                 break 'rounds;
             }
-            if at < begun.start {
+            // A seat whose fallback chain ends at `none` is never consulted.
+            let Some(model) = &models[k] else {
+                continue;
+            };
+            // Between lattice instants only a walker is consulted. A Walking is created only by a
+            // request, so a seat not walking now is not walking at `at`, and its clock need not move.
+            if at < begun.start || (!lattice && !walking(&begun.driven, persons[k])) {
                 continue;
             }
             while next_day <= days && genesis + next_day * DAY <= at {
@@ -127,36 +168,18 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
             }
             let fired = begun.driven.advance_to(WorldTime::from_seconds(at))?;
             tally.facts(&fired);
-
-            let borrowed: Vec<&dyn PerceptionProvider> =
-                begun.providers.iter().map(AsRef::as_ref).collect();
-            let seen = observe(
-                begun.driven.world(),
-                *observer,
-                WorldTime::from_seconds(at),
-                &borrowed,
-            );
-            tally.consults += 1;
-            let Some(decided) = controller.decide(&seen) else {
+            // A reaction during the advance may have ended the walk.
+            if !lattice && !walking(&begun.driven, persons[k]) {
                 continue;
-            };
-            let action = decided.payload().action_type().as_str().to_owned();
-            let intent = ActionIntent::allocate(
-                decided,
-                ActionId::from_raw(begun.next_action),
-                WorldTime::from_seconds(at),
-            );
-            begun.next_action += 1;
-            match begun
-                .driven
-                .dispatch(&intent, WorldTime::from_seconds(at))?
-            {
-                Some(dispatched) => {
-                    let bucket = (at - genesis) / (BUCKET_DAYS * DAY);
-                    tally.answered(seat, bucket, &action, &dispatched);
-                }
-                None => tally.faults += 1,
             }
+            let consult = Consult {
+                seat,
+                observer: *observer,
+                at,
+                lattice,
+                bucket: (at - genesis) / (BUCKET_DAYS * DAY),
+            };
+            consult.run(&**model, seed, &mut begun, &mut tally)?;
         }
     }
     let fired = begun.driven.advance_to(WorldTime::from_seconds(end))?;
@@ -175,6 +198,72 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
     tally.report(&seats, days, history, begun.how.starts_with("resumed"));
     println!("wall       {:.1} s", started.elapsed().as_secs_f64());
     Ok(())
+}
+
+/// Seat `k`'s instant in round `round`: `genesis + k + round·RUN_STEP`.
+const fn instant(genesis: i64, k: i64, round: i64) -> i64 {
+    genesis + k + round * RUN_STEP.seconds()
+}
+
+/// One consult of one seat at one instant: observe, ask the controller, dispatch what it asked.
+struct Consult<'a> {
+    seat: &'a EntityKey,
+    observer: EntityId,
+    at: i64,
+    /// On the lattice: `decide`, and the next stride when `decide` answers nothing for a walker
+    /// (step-11 N-D13). Between lattice instants: only the next stride (SD-N15, SD-N16).
+    lattice: bool,
+    bucket: i64,
+}
+
+impl Consult<'_> {
+    fn run(
+        &self,
+        model: &dyn SeatModel,
+        seed: Seed,
+        begun: &mut Begun,
+        tally: &mut Tally,
+    ) -> Result<(), String> {
+        let at = WorldTime::from_seconds(self.at);
+        let borrowed: Vec<&dyn PerceptionProvider> =
+            begun.providers.iter().map(AsRef::as_ref).collect();
+        let seen = observe(begun.driven.world(), self.observer, at, &borrowed);
+        tally.consults += 1;
+        // The pace is the answer window: a line heard since the last lattice consult is this one's.
+        let asked = mineworld_decision::Consult {
+            seed,
+            pace: PACE,
+            observation: &seen,
+        };
+        let decided = if self.lattice {
+            model.decide(&asked).or_else(|| model.step(&asked))
+        } else {
+            model.step(&asked)
+        };
+        let Some(decided) = decided else {
+            return Ok(());
+        };
+        let action = decided.payload().action_type().as_str().to_owned();
+        let intent = ActionIntent::allocate(decided, ActionId::from_raw(begun.next_action), at);
+        begun.next_action += 1;
+        match begun.driven.dispatch(&intent, at)? {
+            Some(dispatched) => tally.answered(self.seat, self.bucket, &action, &dispatched),
+            None => tally.faults += 1,
+        }
+        Ok(())
+    }
+}
+
+/// The seat's entity as a person, if it is one: only a person can walk.
+fn person_of(world: &World, observer: EntityId) -> Option<PersonId> {
+    let entity = world.read().entity(observer)?;
+    PersonId::new(observer, entity.entity_type()).ok()
+}
+
+/// Whether the seat's person is on a walk, by movement's own answer (`is_walking`); never, in a world
+/// without movement, whose `Walking` table does not exist.
+fn walking(driven: &Driven, person: Option<PersonId>) -> bool {
+    person.is_some_and(|person| is_walking(&driven.world().read(), person))
 }
 
 /// The world as it stands before the first consult of this invocation, and where to begin.
@@ -278,12 +367,12 @@ fn genesis_instant(backend: &SqliteBackend) -> Result<i64, String> {
         return Ok(fact.at().seconds());
     }
     let first = backend
-        .journal_after(WorldRevision::from_raw(0))
+        .revisions_after(WorldRevision::from_raw(0))
         .map_err(stopped)?
-        .into_iter()
         .next()
-        .ok_or_else(|| "[mineworld] the save has no genesis".to_owned())?;
-    let entry: JournalEntry = format::decode(&first.1, "journal entry").map_err(stopped)?;
+        .ok_or_else(|| "[mineworld] the save has no genesis".to_owned())?
+        .map_err(stopped)?;
+    let entry: JournalEntry = format::decode(&first.entry, "journal entry").map_err(stopped)?;
     Ok(entry.input.at().seconds())
 }
 
@@ -292,13 +381,13 @@ fn head_input(backend: &SqliteBackend, head: WorldRevision) -> Result<bool, Stri
     if head == WorldRevision::GENESIS {
         return Ok(false);
     }
-    let rows = backend
-        .journal_after(WorldRevision::from_raw(head.raw() - 1))
+    let row = backend
+        .revisions_after(WorldRevision::from_raw(head.raw() - 1))
+        .map_err(stopped)?
+        .next()
+        .ok_or_else(|| "[mineworld] the save's head has no journal row".to_owned())?
         .map_err(stopped)?;
-    let (_, bytes) = rows
-        .first()
-        .ok_or_else(|| "[mineworld] the save's head has no journal row".to_owned())?;
-    let entry: JournalEntry = format::decode(bytes, "journal entry").map_err(stopped)?;
+    let entry: JournalEntry = format::decode(&row.entry, "journal entry").map_err(stopped)?;
     Ok(matches!(entry.input, WorldInput::Dispatch { .. }))
 }
 
@@ -403,10 +492,9 @@ impl Fingerprint {
     fn of_save(save: &Path) -> Result<Self, String> {
         let backend = SqliteBackend::open(save, Durability::ProcessCrash).map_err(stopped)?;
         let mut fingerprint = Self::new();
-        // "All of them": the largest count the backend can state as a stored (signed) integer.
-        let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-        for fact in backend.last_facts(all).map_err(stopped)? {
-            fingerprint.add(&fact.bytes);
+        // Streamed, one sealed block at a time (`ARC-89`): the log is never held whole.
+        for fact in backend.facts_after(None).map_err(stopped)? {
+            fingerprint.add(&fact.map_err(stopped)?.bytes);
         }
         Ok(fingerprint)
     }
@@ -495,9 +583,11 @@ impl Tally {
                         .copied()
                         .unwrap_or(0)
                 };
+                // `move` counts strides of either kind: a `move`, or the next stride of a walk
+                // (step-11 N-D18), so "every seat moves" reads the same before and after walks.
                 line.push_str(&format!(
                     "  {seat} move {} talk {}",
-                    count("move"),
+                    count("move") + count("walk-step"),
                     count("talk")
                 ));
             }
@@ -517,4 +607,47 @@ fn listed(seats: &[EntityKey]) -> String {
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// NW-10: with the most seats `run` accepts (29), a year of instants taken in the loop's order —
+    /// rounds, then seats — rises strictly, so no two consults ever share an instant and the loop's
+    /// order is time order; and every round that is the lattice puts seat `k` exactly at ARC-27's
+    /// `genesis + k + m·PACE`.
+    #[test]
+    fn step_instants_never_coincide_and_contain_the_lattice() {
+        let genesis = 1_000;
+        let seats = RUN_STEP.seconds() - 1;
+        let per_pace = PACE.seconds() / RUN_STEP.seconds();
+        assert_eq!(
+            PACE.seconds() % RUN_STEP.seconds(),
+            0,
+            "RUN_STEP divides PACE"
+        );
+        let rounds = 365 * DAY / RUN_STEP.seconds();
+        let mut previous = i64::MIN;
+        let mut lattice = 0;
+        for round in 0..rounds {
+            for k in 0..seats {
+                let at = instant(genesis, k, round);
+                assert!(
+                    at > previous,
+                    "round {round}, seat {k}: {at} after {previous}"
+                );
+                previous = at;
+                if round % per_pace == 0 {
+                    assert_eq!(at, genesis + k + (round / per_pace) * PACE.seconds());
+                    lattice += 1;
+                }
+            }
+        }
+        assert_eq!(
+            lattice,
+            seats * 365 * DAY / PACE.seconds(),
+            "every lattice instant was met"
+        );
+    }
 }

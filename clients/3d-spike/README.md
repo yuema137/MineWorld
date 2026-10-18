@@ -1,6 +1,13 @@
 # MineWorld 3D presentation spike
 
-A runnable walking demo, built to answer one question: **does this feel like the
+> **Two scenes live in this project.** `./mineworld-slice` is the current 3D client
+> and the visual standard (`VIS-3D-GODOT-2`). `./mineworld-3d` is the movement and
+> camera spike (accepted 2026-09): not the world, and not the visual standard.
+> Frame cost: `./mineworld-slice --perf` (three runs, the Default tier's verdict)
+> and `--perf --breakdown`; the far skyline: `./mineworld-slice --skyline-check`.
+> The protocol is `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md` §3.
+
+The spike is a runnable walking demo, built to answer one question: **does this feel like the
 walking, travel and life-simulation experience we want?** Three camera modes,
 one movement controller.
 
@@ -22,7 +29,8 @@ run builds Godot's resource cache automatically and takes about 30 s extra.
 | — | **no jump.** This is a walking simulator. |
 
 In the slice (`./mineworld-slice`), Esc opens the settings menu: language (English or 简体中文), 12- or
-24-hour clock, window mode and size, render scale, VSync and frame cap; Quit is there too. Settings stay
+24-hour clock, window mode and size, render scale, VSync and frame cap, mouse sensitivity and invert vertical
+look (the Controls tab, which also shows the key map read-only); Quit is there too. Settings stay
 on your machine and are shared with the 2D client. On Windows, clone with `git config core.symlinks
 true` (Developer Mode): `mineworld` and `mineworld_settings` here are symlinks to the shared modules.
 

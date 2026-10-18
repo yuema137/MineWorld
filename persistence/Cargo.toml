@@ -14,6 +14,7 @@ rusqlite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+zstd = { workspace = true }
 
 # The process-kill checkpoint (IC-1) is its own program: the same binary is the parent that kills and
 # the child that is killed, selected by an environment variable, so it cannot use the test harness —

@@ -387,6 +387,41 @@ resolves every arrival before recording it, through an `ArrivalResolver` seam ca
 Applied in the S9 closeout from `step-11-bodies.md` §12.1. The step design is `DESIGN FROZEN
 (2026-10-07)`, revision 1, with PRs 12a–12e; S15 precedes S14 (step-11 §12).
 
+### S26–S33 — steps added 2026-10-14 and 2026-10-15 *(entries added 2026-10-15, S33 approval)*
+
+Each step has its own document; the document is the authority, and this list only places it in the effort.
+All are MVP-0. S29–S33 are release-blocking under the operator's principle of 2026-10-15,
+"我们要发布就得把这些功能全部做好" (every requested feature is done before the public release).
+
+| Step | Document | Lifecycle | Scope in one line |
+| --- | --- | --- | --- |
+| S26 | [step-26-cast.md](step-26-cast.md) | STEP DESIGN FROZEN 2026-10-14; amendment APPROVED 2026-10-15 | every person built with the protagonist's pipeline and standard; the `appearance` pack and the cast binding |
+| S27 | [step-27-agent-players.md](step-27-agent-players.md) | STEP DESIGN FROZEN 2026-10-14 | agents as first-class players, starting with an MCP adapter |
+| S28 | [step-28-shared-memory.md](step-28-shared-memory.md) | STEP DESIGN FROZEN 2026-10-14 | shared, access-controlled, modular memory |
+| S29 | [step-29-station-landmark.md](step-29-station-landmark.md) | APPROVED 2026-10-15 | every town's train station and signature landmark; after Milestone F, before the first public release |
+| S30 | [step-30-person-attributes.md](step-30-person-attributes.md) | APPROVED 2026-10-15 (amended the same day); S30-a and S30-b PR designs FROZEN 2026-10-15 (#234); S30-a's specifications and records (`ARC-120` … `ARC-126`, `DEP-66` … `DEP-68`) in review | person attributes and dependency-aware population sampling; S30-a … S30-k all MVP-0 and release-blocking (step-30 §13.2, RR-S30-2) |
+| S31 | [step-31-wealth-prices.md](step-31-wealth-prices.md) | APPROVED 2026-10-15 | wealth, seller-set prices, the notice board and the price reporter |
+| S32 | [step-32-wardrobe.md](step-32-wardrobe.md) | APPROVED 2026-10-15 | changeable hair and clothing, starting outfits, buying clothes; the modular cast route; S32-p (wardrobe pilot) PR design FROZEN 2026-10-15 ([`pr-s32p-wardrobe-pilot.md`](pr-s32p-wardrobe-pilot.md), #231), implementation awaits the tooling on main |
+| S33 | [step-33-lakeside-3d.md](step-33-lakeside-3d.md) | APPROVED 2026-10-15 | the Lakeside world in 3D: Lake Cuyamaca setting and far field, the pier landmark and the halt, interiors, sit points, its own cast, `3d-lakeside.pck`; after Milestone F's checklist |
+
+**S26 and S30 (2026-10-15, step-30 §§10, 15.6).** S26 casting switches from its interim Python sampler to
+S30's `mineworld attributes resolve --json` in S30-g. That switch depends on S26-cast having merged; it does
+**not** block S26-cast's own merge.
+
+**Re-ruling recorded (2026-10-15, S33 Q-S33-10).** Lakeside's own 3D world is MVP-0 and release-blocking. This
+supersedes Q-S26-1's "Lakeside's 3D cast is MVP-1" and S29 §11.2's "Lakeside in 3D comes with 16f (MVP-1)".
+
+**16f placement (2026-10-15, S33 Q-S33-4).** 16f — the 3D client reads a Presentation Pack and builds places
+from disclosure — is **MVP-0**, as QPL-17 ruled (§5 "Physics list", decision 3). Step-29 §11.2 and RL-e0
+SD-FF-7, which call it MVP-1, are superseded on this point. **S33-c is 16f's seed:** it builds 3D world
+selection and the per-world depiction seam bound by tag (`ARC-144`); 16f's own design generalises that seam
+to depictions loaded from a Presentation Pack and walls built from disclosure.
+
+**Required follow-up before release (2026-10-15, S33 Q-S33-6).** A `posture` System Pack step — sitting and
+standing owned by the server, with `sit`/`stand` for humans, NPCs and agents, disclosed to every observer, in
+every world — is a **required, release-blocking** step, not optional. Its record id is `ARC-147` (reserved);
+its step document is still to be written and assigned by the primary session.
+
 ### The `AC-13` harness — proven, 2026-09-25
 
 The mandatory cross-renderer test now has a mechanism rather than an intention, demonstrated on
@@ -484,6 +519,7 @@ scope decision.
 | Layered CI (§16) | S13, with fast checks introduced in S1 |
 | Playable-world north star (`ENGINEERING_RULES.md` §1) | S12 and S14; gated continuously from S2 onward by the §11 review question |
 | Operator requirement 2026-10-07: bodies do not interpenetrate; nudge, push, kick, throw | S15 |
+| Operator requirement 2026-10-15: many person attributes, user-defined attributes, distributions chosen by data, an optional MatrAIx backend (`AC-S30-1` … `AC-S30-17`) | S30 (S30-a … S30-k) |
 
 ---
 
@@ -727,6 +763,7 @@ numbered **S17 — Physics list**.
 3. **The 3D client reads a Presentation Pack and builds places from the server's disclosure, in
    MVP-0 (QPL-17, G-PL-1).**
    - This is a new S14 PR, **16f**, after 12e.
+   - *(2026-10-15, S33 Q-S33-4)* 16f stays MVP-0; S33-c is its seed (see "S26–S33" in §3).
    - Walls, doors and places come from disclosed geometry, and art only decorates.
    - Changing the Presentation Pack changes the look.
    - Today's hand-built café becomes part of the default Presentation Pack.
@@ -918,8 +955,19 @@ MVP-0 non-preclusion audit.
 | S10 P4 | ARC-59 (memory and compression) | DEP-37 (SQLite store with FTS5 matching) |
 | S16 E-e | ARC-77 (Lakeside, the repository's own Entity Pack) | — |
 | S23 release | ARC-78 (windowless launcher), ARC-79 (release channels and versioning), ARC-80 (bundle layout and per-user data) | DEP-38 (cargo-about), DEP-39 (butler), DEP-40 (syft), DEP-41 (Godot export templates), DEP-42 (actions/attest) |
+| S6 save retention (`pr-s6-save-retention.md`, design frozen #145, 2026-10-10) | ARC-81 (retention and codec, D-SR-1 … D-SR-9) | DEP-43 (`zstd`) |
+| S10 P3b (`pr-s10-p3b-perceived.md`, design frozen #149, 2026-10-10) | — (no ARC record) | DEP-44 (own reconnect loop; the `websockets` reconnect iterator, `tenacity` and its backoff declined) |
+| S17 IL-e (`pr-il-e-social.md`, design frozen #147, 2026-10-10) | — (no new number; dated notes on `ARC-63` and `ARC-65`, QIE-9) | — |
+| S19 TW-c (`pr-tw-c-host-clock.md`, design frozen #150, 2026-10-10) | ARC-69 (host clock; the reservation is now used; dated notes on `ARC-42` and `ARC-44`) | — (no DEP) |
+| S20 SET-b | — (dated note under `ARC-76` (SET-b design §11), not a new number) | — |
+| S12 13c doorway names (`pr-13c-doorway-names.md`, merged #161) | ARC-82 (a doorway discloses its destination's tags) | — |
+| S13 13c nightly (`pr-13c-nightly.md`, design frozen #158) | ARC-83 | DEP-45 |
+| Prior-art audit (`docs/references/PRIOR_ART_2026-10.md`, 2026-10-11) | — | DEP-46 (no shared-world or AI-NPC framework adopted) |
+| Step-24 decision and memory (`mvp1/step-24-decision-and-memory.md`, approved 2026-10-12; DOC-24 and later PRs) | ARC-84 (the decision list is host-read content, not world state); ARC-85 (behaviour extension points: interface, carrier, selection, parameters, host); ARC-86 (System-owned forgetting is lazy, pure and in the owner; no model); ARC-87 (controller-memory retention: host-computed importance, event-time recency, forgotten set, hard bounds); ARC-88 (world evolution: happenings System and directors that only propose) | DEP-47 (build our own utility core; big-brain, bonsai-bt, dogoap rejected); DEP-48 (ATUS A-3 public-domain tables via an offline fit tool) |
 
-The next free numbers are ARC-81 and DEP-43. An implementation session never picks a number; it asks
+The next free numbers are ARC-89 and DEP-49. ARC-81 and DEP-43 were assigned to S6 save retention, and
+DEP-44 to S10 P3b, on 2026-10-10; IL-e's conditional request for ARC-81 is void, since IL-e takes no number.
+An implementation session never picks a number; it asks
 the primary session, which records the assignment here before the PR merges. Two collisions on
 2026-10-09 (12n-1 and SET-a both took S10's reserved numbers because the reservation lived only in the
 S10 PR designs) are why this table now lists reservations as well as assignments.
@@ -1018,6 +1066,128 @@ Windows and Linux, and the macOS manual items).
 - A 30-day Market Town save measures 266 MB: a full snapshot every 64 revisions, none ever pruned
   (≈ 2.5 GB per 300 days). Owner: the persistence lane (S6 follow-up), to design snapshot retention and
   compaction without weakening byte-exact replay (ARC-25).
+- 2026-10-10: snapshots resolved by #153 (merge `97e92a0`; 300-day save 3 795 013 632 B → 615 399 424 B,
+  −83.8 %; 30-day 373 882 880 B → 62 029 824 B, −83.4 %). The log still grows ≈ 1.9 MiB per simulated
+  day; SR-b (sealed-block log compression, ≈ 40 MiB per 300 days) is the follow-up per QSR-1. F-SAVE-2
+  stays with the kernel lane.
+
+### 2026-10-10: one development session, rulings and freezes
+
+Operator rules:
+
+- **One development session.** Only one Claude session develops MineWorld. Parallel sessions in the
+  folder are stopped; a second session on the same checkout overwrites uncommitted work (§3.1 of
+  `CLAUDE.md`).
+- **Model choice for subagents.** Simple, well-specified tasks go to Haiku 5.5 subagents. Only long,
+  unsplittable work goes to Opus 5.5.
+
+Operator rulings:
+
+- **12n-2, M-2.** NW-4's cost bound is restated as ≤ 2.5× against today's `main`.
+- **12n-2, M-3.** The `route.rs` start snap is fixed inside 12n-2. NW-3 is restated as: geometry-caused
+  stops ≤ 10 %, with person-caused stops printed.
+- **TW-c.** Only a `--solo` world (loopback-only) may exceed 24×. The start-time scale obeys the same rule.
+- **Save retention (S6).** Format-2 saves are refused. SR-b (log compression) is a separate, later PR.
+  There is no player or pack retention configuration.
+- **R-a.** VRAM texture compression is used to meet the size budget (RL-b's BC7 work).
+- **Recommended answers accepted** for SET-b, IL-e, P3b, save retention and TW-c.
+
+Merged:
+
+- #141: test gaps F-PRES-1 and F-12n-R1.
+- #142: the `sdk/python` selector loop; F-P5-4 closed.
+- #151: test servers bind port 0; F-13w-3 closed. A 20-iteration stress run gave 12 port collisions on
+  `main` and 0 on the branch.
+
+Design freezes: #145 (S6 save retention), #147 (S17 IL-e), #149 (S10 P3b), #150 (S19 TW-c).
+
+Finding **F-SAVE-2** (kernel lane). A Process's `state` bytes are stored as a JSON array of numbers,
+which inflates the weather series ≈ 3.7× in every snapshot.
+
+Note. R-c learned from R-a's probe that the official Godot release templates reject `--main-pack`.
+Bundles therefore ship two full client exports (D-Ra-1).
+
+### 2026-10-11: prior-art audit and the deferred follow-ups
+
+**Operator ruling (2026-10-11).** For now only documentation and plan updates. All implementation of
+the audit's ideas is deferred.
+
+The prior-art audit ([`PRIOR_ART_2026-10.md`](../../../docs/references/PRIOR_ART_2026-10.md), merged as
+#166; decision [`DEP-46`](../../../docs/DECISIONS.md)) reviewed shared-world and AI-NPC projects and
+proposed eleven design ideas, PA-1 to PA-11. None is adopted, and none changes a frozen contract. Each
+idea becomes binding only through its own design document and operator ruling. Priorities are those the
+audit assigns. The "before code" column states what must exist first.
+
+| ID | Idea | Priority | Owner lane | What is needed before code | State |
+| --- | --- | --- | --- | --- | --- |
+| PA-1 | Ban wall-clock and unseeded-random calls by lint in simulation crates (`clippy.toml` `disallowed-methods`) | P1 | engineering standards / CI (S13) | none; a short note in `ENGINEERING_STANDARDS.md` | deferred (operator 2026-10-11) |
+| PA-2 | An integration test that a resumed world never re-runs genesis | P1 | persistence (S6) | none; test-only | deferred (operator 2026-10-11) |
+| PA-3 | Name the world identity a save is bound to, and what a System Pack upgrade does to an existing save | P2 | persistence (S6) and packages (S16) | short design and operator ruling; needs an `ARC-` record | deferred (operator 2026-10-11) |
+| PA-4 | Declare per-component replication in the component contract | P2 | contracts / networking (S11) | short design and operator ruling; touches a public contract | deferred (operator 2026-10-11) |
+| PA-5 | Stable keys for authored entities, separate from runtime-spawned ones | P3 | packages (S16) | verify the existing `ARC-71`/`ARC-77` keys, then document the split | deferred (operator 2026-10-11) |
+| PA-6 | Hard budgets at validation and soft budgets as warnings for Presentation Pack assets | P2 | release (S23, R-b) and packages | short design and operator ruling; touches release budgets | deferred (operator 2026-10-11) |
+| PA-7 | Pack permissions declared and checked at load | P3 | packages and interaction list (S16/S17) | short design when third-party packs grow; operator ruling | deferred (operator 2026-10-11) |
+| PA-8 | Watch mode for data packs (re-validate on save) | P3 | CLI and creator tooling | none | deferred (operator 2026-10-11) |
+| PA-9 | Server roles written down, and content-addressed assets | P3 | networking docs (S11) and `DEP-8` | none; documentation | deferred (operator 2026-10-11) |
+| PA-10 | Controller made of small typed parts; the model's free text is a proposal the server validates | P1 for P6's design | S10 P6 design | inside P6's design, which must cite the audit | deferred (operator 2026-10-11) |
+| PA-11 | One bounded retrieval-count knob beside the 6 000-byte retrieval budget | P2 | S10 P6 design | inside P6's design | deferred (operator 2026-10-11) |
+
+Effect on the plan, as the audit records it: no change to MVP-0's scope or order. PA-10 and PA-11 enter
+the P6 design of [`step-17-cognition.md`](step-17-cognition.md), which carries a dated note. Per the
+audit's §6, `REUSE_POLICY.md` §19's "worth auditing next" list is updated: Concordia and AI Town are now
+audited, and AgentSociety and SimWorld remain.
+
+### 2026-10-12: Milestone E accepted; decision, world-evolution and forgetting extension points (step-24)
+
+**Milestone E accepted.** The operator accepted Milestone E on 2026-10-12 (#172). The operator ran it by hand
+on `main`, and every step behaved as expected.
+
+**Operator rule.** At a milestone all work stops: no merges, and agents are paused, until the operator reports
+the result of the milestone check.
+
+**Ruling reversed: character-memory forgetting is in MVP-0.** The earlier ruling that placed it in MVP-1
+(`pr-s10-p4-memory.md` QP4-11, 2026-10-10) is superseded. Reason (operator): without forgetting, storage,
+memory and LLM tokens would all explode. The forgetting PRs are FG-a … FG-d in MVP-0 (step-24 §1.2, §8).
+
+**Operator requirement: pluggable behaviour.** World evolution, person decisions and forgetting are all
+pluggable. Users can write their own plug-ins. Each of the three ships one no-LLM example and one LLM example.
+LLMs only propose; they never mutate state. The host enforces hard bounds, and those bounds hold in every mode
+(step-24 §3, §10.1).
+
+**Step-24 approved (2026-10-12)**, with operator rulings from `step-24-decision-and-memory.md` §14.1:
+
+- QS24-2: an Organization may hold a seat, for the director only. The details are decided before the
+  director PR (WE-b, MVP-1), and `CORE_CONCEPTS.md` §14 is amended then, not now.
+- QS24-6: LLM forgetting may decide which memories survive. The host's bounds still apply, forgotten Event IDs
+  stay resolvable, and falling back to the no-LLM policy on failure is recorded.
+- QS24-8: the `needs` System Pack is in MVP-1 (DL-c).
+- QS24-1, 3, 4, 5, 7, 9, 10, 11, 12, 13 and 14 are accepted as recommended.
+
+Decision ids are recorded in the decision table above: `ARC-84` … `ARC-88`, `DEP-47`, `DEP-48`.
+
+**MVP-0 PRs from step-24** (filed under `mvp0/` when each is detailed, QS24-14):
+
+- DOC-24: spec amendments and decision records (no code)
+- DL-a: decision-list interface and seat wiring
+- DL-b: the `motivated` utility model, curves and the ATUS-derived curve set
+- FG-a: relationship decay and eviction
+- FG-b: the memory retention host, retention budgets and the forgotten set
+- FG-c: the LLM-assisted forgetting policy
+- FG-d: save retention SR-b, as designed in `pr-s6-save-retention.md` §6.9
+- WE-a: the `happenings` System Pack
+
+**MVP-1 PRs from step-24:**
+
+- DL-c: the `needs` System Pack and its `motivated` considerations
+- WE-b: the director Controller Pack, with Organization seats (QS24-2)
+- FG-e: cold archive segments, after F-S24-1's streaming readers (QS24-13)
+
+**Operator rulings from 12d (TD-D12 and TD-D14, 2026-10-12):**
+
+- Kicks, throws and pushes are printed in the walking towns, not required. `bodies-yard` proves them.
+- The 30-day market-town save bound is ≤ 192 MiB for towns with bodies.
+- modern-goods goes from 0.1.0 to 0.2.0, with item names.
+- HB-3 at R 250 is restated: a blocked walker re-plans round a standing person.
 
 ## Still open
 
@@ -1025,7 +1195,7 @@ Windows and Linux, and the macOS manual items).
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
 | QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
-| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b` |
+| QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b`. **2026-10-10:** Ollama installed by the operator; the first spike attempt ran with no model pulled (40/40 HTTP 404) and must be re-run |
 
 
 # 6. Risks

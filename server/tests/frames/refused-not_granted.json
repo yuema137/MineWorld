@@ -1,0 +1,2 @@
+{ "t": "refused", "code": "not_granted",
+  "detail": "this credential does not admit this seat" }

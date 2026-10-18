@@ -1,0 +1,26 @@
+# Nils — a fisherman, who begins on the pier. Sections as in alba.yaml.
+#
+# He is where a world begins on the water: whoever takes his seat is offered `fish` at once, which is how
+# step-16's milestone test (§8.2 M-8) shows the third-party pack reaching a player through the server.
+
+name: Nils Aaltonen
+
+routine:
+  - { from: "05:00", place: pier, label: fishing }
+  - { from: "11:00", place: bakery, label: lunch }
+  - { from: "15:00", place: shore, label: nets }
+  - { from: "19:00", place: boathouse, label: home }
+
+tags:
+  - fisherman
+
+note: Sleeps little and fishes a lot.
+
+location:
+  place: pier
+  # Halfway out along the jetty.
+  position:
+    x: 2000
+    y: 10000
+
+holdings: { bread: 1, coffee: 1 }

@@ -147,6 +147,7 @@ static func _surrounds(g: Node3D) -> void:
 static func backdrop(parent: Node3D) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Backdrop"
+	g.set_meta("mw_category", "backdrop")
 	parent.add_child(g)
 	_ridge(g, 320.0, 620.0, 62.0, Color(0.208, 0.268, 0.192), 7717, 0.0)
 	_ridge(g, 520.0, 980.0, 138.0, Color(0.330, 0.404, 0.470), 4231, -6.0)

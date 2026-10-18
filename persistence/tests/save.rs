@@ -19,7 +19,10 @@ use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
 };
-use mineworld_persistence::backend::{FactRow, ManifestRow, RevisionRow};
+use mineworld_persistence::backend::{
+    FactRow, Facts, ManifestRow, RevisionRow, RevisionSpan, Revisions, SealedSpan,
+};
+use mineworld_persistence::block::{self, BlockKeys};
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
     WorldRevision, verify,
@@ -208,10 +211,19 @@ fn verification_re_executes_every_revision_and_every_snapshot_from_genesis() {
         u64::try_from(twin_facts.len()).expect("small"),
         "every fact the twin recorded was compared"
     );
+    // Retention (ARC-81): below the first anchor (64 · INTERVAL) the save keeps genesis and the
+    // newest two scheduled snapshots, and each of them equals the history's state.
+    assert!(
+        head.raw() / INTERVAL > 2,
+        "pruning has happened: head {head}"
+    );
+    assert!(
+        head.raw() < 64 * INTERVAL,
+        "and no anchor exists yet: head {head}"
+    );
     assert_eq!(
-        verified.snapshots,
-        1 + head.raw() / INTERVAL,
-        "genesis plus one every {INTERVAL} revisions, each equal to the history's state"
+        verified.snapshots, 3,
+        "genesis and the newest two scheduled snapshots, each equal to the history's state"
     );
 }
 
@@ -492,43 +504,121 @@ fn an_altered_fact_or_snapshot_is_refused_where_it_was_altered() {
         resumed.err()
     );
 
-    let scratch = Scratch::new("tamper-snapshot");
-    saved(&scratch, 40);
+    // A stored snapshot is a zstd frame of its JSON (ARC-81). (a) Bytes that are no frame at all are
+    // damage, named with the revision — by resume when it is the snapshot resume reads, and by verify.
+    let scratch = Scratch::new("tamper-snapshot-frame");
+    let head = saved(&scratch, 40);
+    let newest = open(&scratch)
+        .latest_snapshot(head)
+        .expect("reads")
+        .expect("a snapshot")
+        .0;
+    assert!(
+        newest.raw() > 1,
+        "the newest snapshot is a scheduled one: {newest}"
+    );
     sql(
         &scratch,
         &format!(
-            "UPDATE snapshots SET snapshot = CAST('{{}}' AS BLOB) WHERE revision = {INTERVAL}"
+            "UPDATE snapshots SET snapshot = CAST('{{}}' AS BLOB) WHERE revision = {}",
+            newest.raw()
+        ),
+    );
+    let not_a_frame = format!("the snapshot at {newest} does not decompress");
+    let resumed = PersistentWorld::resume(open(&scratch), composed());
+    assert!(
+        matches!(&resumed, Err(PersistError::Damaged { detail }) if detail.starts_with(&not_a_frame)),
+        "{:?}",
+        resumed.err()
+    );
+    let verified = verify(open(&scratch).as_ref(), composed());
+    assert!(
+        matches!(&verified, Err(PersistError::Damaged { detail }) if detail.starts_with(&not_a_frame)),
+        "{verified:?}"
+    );
+
+    // (b) A valid frame of other JSON — genesis' snapshot copied over a later one — decompresses and
+    // decodes, and disagrees with history at exactly that revision.
+    let scratch = Scratch::new("tamper-snapshot-state");
+    let head = saved(&scratch, 40);
+    let newest = open(&scratch)
+        .latest_snapshot(head)
+        .expect("reads")
+        .expect("a snapshot")
+        .0;
+    sql(
+        &scratch,
+        &format!(
+            "UPDATE snapshots SET snapshot = (SELECT snapshot FROM snapshots WHERE revision = 1)
+             WHERE revision = {}",
+            newest.raw()
         ),
     );
     let verified = verify(open(&scratch).as_ref(), composed());
     assert!(
-        matches!(&verified, Err(PersistError::SnapshotDisagreesWithHistory { revision }) if revision.raw() == INTERVAL),
+        matches!(&verified, Err(PersistError::SnapshotDisagreesWithHistory { revision }) if *revision == newest),
         "{verified:?}"
     );
+}
+
+#[test]
+fn saves_written_by_the_format_2_and_format_3_builds_are_refused_by_name() {
+    // Format 2 was written by the build before SR (pr-s6-save-retention.md §14.1): uncompressed
+    // snapshot rows. Format 3 by the build before SR-b (pr-sr-b-log-compression.md §14.2): no `sealed`
+    // table, and snapshots referencing the journal. Each is copied first, because opening a save in WAL
+    // mode writes beside it.
+    for older in [2, 3] {
+        let scratch = Scratch::new(&format!("format-{older}"));
+        let fixture = std::path::PathBuf::from(format!(
+            "{}/tests/fixtures/format-{older}",
+            env!("CARGO_MANIFEST_DIR")
+        ));
+        std::fs::copy(
+            SqliteBackend::file(&fixture),
+            SqliteBackend::file(scratch.path()),
+        )
+        .expect("the fixture copies");
+        let outdated = |result: Result<(), PersistError>| {
+            assert!(
+                matches!(
+                    result,
+                    Err(PersistError::SaveFormatOutdated { saved, supported: 4 }) if saved == older
+                ),
+                "format {older}: {result:?}"
+            );
+        };
+        outdated(PersistentWorld::resume(open(&scratch), composed()).map(|_| ()));
+        outdated(verify(open(&scratch).as_ref(), composed()).map(|_| ()));
+        let stored = open(&scratch).manifest().expect("the manifest row reads");
+        assert_eq!(
+            stored.format, older,
+            "the refusal read the fixture's own format"
+        );
+    }
 }
 
 #[test]
 fn a_save_of_another_format_or_another_composition_is_refused_by_name() {
     let scratch = Scratch::new("format");
     saved(&scratch, 3);
-    sql(&scratch, "UPDATE manifest SET format = 3");
+    sql(&scratch, "UPDATE manifest SET format = 5");
     assert!(matches!(
         PersistentWorld::resume(open(&scratch), composed()),
         Err(PersistError::SaveFormatTooNew {
-            saved: 3,
-            supported: 2
+            saved: 5,
+            supported: 4
         })
     ));
     // Format 1 is S5's, written before a declaration recorded the owners of borrowed vocabularies
-    // (ARC-26): refused by name rather than decoded on a guess.
-    sql(&scratch, "UPDATE manifest SET format = 1");
-    assert!(matches!(
-        PersistentWorld::resume(open(&scratch), composed()),
-        Err(PersistError::SaveFormatOutdated {
-            saved: 1,
-            supported: 2
-        })
-    ));
+    // (ARC-26); format 2 stored snapshots uncompressed (ARC-81); format 3 kept every log row live
+    // (ARC-89). Each is refused by name rather than decoded on a guess.
+    for older in [1, 2, 3] {
+        sql(&scratch, &format!("UPDATE manifest SET format = {older}"));
+        assert!(matches!(
+            PersistentWorld::resume(open(&scratch), composed()),
+            Err(PersistError::SaveFormatOutdated { saved, supported: 4 }) if saved == older
+        ));
+    }
 
     let scratch = Scratch::new("composition");
     saved(&scratch, 3);
@@ -626,6 +716,194 @@ fn a_save_is_never_created_over_another_nor_opened_where_there_is_none() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// a reader sees one history while the writer seals (ARC-89 I-SRB-5)
+// ---------------------------------------------------------------------------------------------
+
+/// Drives `persisted` with the script's next steps until its head reaches `head`.
+fn drive_to<'a>(
+    persisted: &mut PersistentWorld,
+    people: &[EntityId],
+    steps: &mut impl Iterator<Item = &'a Step>,
+    head: u64,
+) {
+    while persisted.revision().raw() < head {
+        let Some(step) = steps.next() else {
+            panic!("the script ended before r{head}");
+        };
+        let _ = persisted.advance_to(t(step.at)).expect("advances");
+        let _ = persisted.dispatch(&step.intent(people), t(step.at));
+    }
+}
+
+#[test]
+fn a_cursor_reads_one_history_while_another_connection_seals_the_rows_ahead_of_it() {
+    // Interval 16: anchors every 1 024 revisions, so the live tail outgrows one page of the cursor
+    // (1 024 rows) before the first seal at 2 048 — the reader has rows left to read in the tail when
+    // the writer moves them into a block.
+    let scratch = Scratch::new("concurrent-seal");
+    let (mut persisted, people) = create(&scratch);
+    let script = script(4_000, 10, 1);
+    let mut steps = script.iter();
+    drive_to(&mut persisted, &people, &mut steps, 2_040);
+    let opened_at = persisted.revision().raw();
+    assert!(
+        open(&scratch).sealed().expect("reads").is_empty(),
+        "nothing is sealed yet at r{opened_at}"
+    );
+
+    let reader = open(&scratch);
+    let mut cursor = reader
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("a cursor");
+    let first = cursor.next().expect("a revision").expect("reads");
+    assert_eq!(first.revision, WorldRevision::GENESIS);
+
+    // The writer seals 1–1 024 at r2 048 and 1 025–2 048 at r3 072, while the cursor is open.
+    drive_to(&mut persisted, &people, &mut steps, 3_080);
+    let sealed = open(&scratch).sealed().expect("reads");
+    assert_eq!(
+        sealed
+            .iter()
+            .map(|block| block.span.to_string())
+            .collect::<Vec<_>>(),
+        ["r1–r1024", "r1025–r2048"],
+        "the rows ahead of the cursor were sealed meanwhile"
+    );
+
+    let rest: Vec<u64> = cursor
+        .map(|stored| stored.expect("the cursor reads on").revision.raw())
+        .collect();
+    assert_eq!(
+        rest,
+        (2..=opened_at).collect::<Vec<_>>(),
+        "every revision of the history the cursor opened on, once, in order — none missed, none \
+         repeated, none from after it opened"
+    );
+
+    // A cursor opened now reads the new history: two blocks, then the tail, to the new head.
+    let head = persisted.revision().raw();
+    let now: Vec<u64> = reader
+        .revisions_after(WorldRevision::from_raw(1_000))
+        .expect("a cursor")
+        .map(|stored| stored.expect("reads").revision.raw())
+        .collect();
+    assert_eq!(now, (1_001..=head).collect::<Vec<_>>());
+}
+
+// ---------------------------------------------------------------------------------------------
+// a damaged block is refused where it was damaged; resume never reads one (ARC-89 ASRB-9)
+// ---------------------------------------------------------------------------------------------
+
+/// The keys and both frames of the first sealed block, read as stored.
+fn first_block(scratch: &Scratch) -> (BlockKeys, Vec<u8>, Vec<u8>) {
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    connection
+        .query_row(
+            "SELECT first_revision, last_revision, first_event_id, last_event_id, max_action_id,
+                    journal, facts FROM sealed ORDER BY first_revision LIMIT 1",
+            [],
+            |row| {
+                let raw = |value: i64| u64::try_from(value).expect("stored non-negative");
+                let keys = BlockKeys {
+                    span: RevisionSpan {
+                        first: WorldRevision::from_raw(raw(row.get(0)?)),
+                        last: WorldRevision::from_raw(raw(row.get(1)?)),
+                    },
+                    first_event_id: row.get::<_, Option<i64>>(2)?.map(raw),
+                    last_event_id: row.get::<_, Option<i64>>(3)?.map(raw),
+                    max_action_id: row.get::<_, Option<i64>>(4)?.map(raw),
+                };
+                Ok((keys, row.get(5)?, row.get(6)?))
+            },
+        )
+        .expect("a sealed block")
+}
+
+fn replace_first_facts_frame(scratch: &Scratch, frame: &[u8]) {
+    let connection =
+        rusqlite::Connection::open(SqliteBackend::file(scratch.path())).expect("opens");
+    let changed = connection
+        .execute(
+            "UPDATE sealed SET facts = ?1 WHERE first_revision = 1",
+            [frame],
+        )
+        .expect("executes");
+    assert_eq!(changed, 1);
+}
+
+/// A save at interval 16 past r2 048, so that r1–r1 024 is sealed.
+fn sealed_save(scratch: &Scratch) -> WorldRevision {
+    let (mut persisted, people) = create(scratch);
+    let script = script(1_400, 10, 1);
+    drive_to(&mut persisted, &people, &mut script.iter(), 2_100);
+    persisted.revision()
+}
+
+#[test]
+fn a_damaged_block_is_refused_naming_its_span_and_a_changed_fact_where_it_was_logged() {
+    // (a) A facts frame that is no zstd frame at all: damage, named with the block's span, from
+    // verify and from a reader of the log; resume reads no block and still succeeds (I-SRB-4).
+    let scratch = Scratch::new("tamper-block-frame");
+    let head = sealed_save(&scratch);
+    let (keys, _, _) = first_block(&scratch);
+    assert_eq!(
+        keys.span.to_string(),
+        "r1–r1024",
+        "located: the first block"
+    );
+    replace_first_facts_frame(&scratch, b"not a zstd frame");
+    let named = |result: Result<(), PersistError>, by: &str| {
+        assert!(
+            matches!(&result, Err(PersistError::Damaged { detail })
+                if detail.starts_with("the sealed block r1–r1024 does not decompress")),
+            "{by}: {result:?}"
+        );
+    };
+    named(
+        verify(open(&scratch).as_ref(), composed()).map(|_| ()),
+        "verify",
+    );
+    let reader = open(&scratch);
+    named(
+        reader
+            .facts_after(None)
+            .expect("a cursor")
+            .try_for_each(|fact| fact.map(|_| ())),
+        "the fact stream",
+    );
+    let (_, how) = PersistentWorld::resume(open(&scratch), composed())
+        .expect("resume never reads a sealed block");
+    assert_eq!(how.head, head);
+
+    // (b) A valid frame of the same rows with one byte of one fact changed: it decodes, and replay
+    // refuses at exactly the revision that logged that fact; resume still succeeds.
+    let scratch = Scratch::new("tamper-block-fact");
+    let head = sealed_save(&scratch);
+    let (keys, journal, facts) = first_block(&scratch);
+    let journal = block::decode_journal(&keys, &journal).expect("decodes");
+    let mut facts = block::decode_facts(&keys, &facts).expect("decodes");
+    let chosen = facts.len() / 2;
+    let changed_at = facts[chosen].revision;
+    let bytes = &mut facts[chosen].fact.bytes;
+    let public = bytes
+        .windows(6)
+        .position(|window| window == b"public")
+        .expect("a public fact");
+    bytes[public] = b'P';
+    let forged = block::encode_block(keys.span, &journal, &facts).expect("re-seals");
+    assert_eq!(forged.keys, keys, "the same rows, so the same keys");
+    replace_first_facts_frame(&scratch, &forged.facts);
+    let verified = verify(open(&scratch).as_ref(), composed());
+    assert!(
+        matches!(&verified, Err(PersistError::ReplayDiverged { revision, .. }) if *revision == changed_at),
+        "refused at {changed_at}, the revision of the changed fact: {verified:?}"
+    );
+    let (_, how) = PersistentWorld::resume(open(&scratch), composed()).expect("resumes");
+    assert_eq!(how.head, head);
+}
+
+// ---------------------------------------------------------------------------------------------
 // a world that cannot save stops
 // ---------------------------------------------------------------------------------------------
 
@@ -657,11 +935,11 @@ impl PersistenceBackend for Failing {
         }
         self.inner.commit(revision)
     }
-    fn journal_after(
-        &self,
-        after: WorldRevision,
-    ) -> Result<Vec<(WorldRevision, Vec<u8>)>, PersistError> {
-        self.inner.journal_after(after)
+    fn revisions_after(&self, after: WorldRevision) -> Result<Revisions<'_>, PersistError> {
+        self.inner.revisions_after(after)
+    }
+    fn facts_after(&self, after: Option<u64>) -> Result<Facts<'_>, PersistError> {
+        self.inner.facts_after(after)
     }
     fn facts_of(&self, revision: WorldRevision) -> Result<Vec<FactRow>, PersistError> {
         self.inner.facts_of(revision)
@@ -683,6 +961,9 @@ impl PersistenceBackend for Failing {
     }
     fn highest_action_id(&self) -> Result<Option<u64>, PersistError> {
         self.inner.highest_action_id()
+    }
+    fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError> {
+        self.inner.sealed()
     }
     fn checkpoint(&mut self, revision: WorldRevision, snapshot: &[u8]) -> Result<(), PersistError> {
         self.inner.checkpoint(revision, snapshot)

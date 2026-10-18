@@ -6,7 +6,8 @@ runs (`NETWORKING.md` §7). Building it proves only that it builds. This script 
 operator would, and reads every verdict from what the program printed. An exit code alone is not a
 verdict (step-14 §9, A13-5):
 
-1. `mineworld validate worlds/<w>` for every world under worlds/ → "<w> is a valid World Pack."
+1. `mineworld validate worlds/<w>` with the repository's pack roots (`ci_parity.PACK_ROOTS`, ARC-77)
+   for every world under worlds/ → "<w> is a valid World Pack."
 2. `mineworld run worlds/social-cafe --headless --seed 7 --days 1` → a `faults 0` summary line
 3. the image's default command on a named volume → it creates a world and listens on 7878 (a TCP
    connection is accepted); `docker stop` (SIGINT, the image's STOPSIGNAL) → it reports stopping
@@ -30,8 +31,8 @@ from pathlib import Path
 
 # The worlds are enumerated, never listed by hand: a hand list fails open when a world is added
 # (step-14 §13.4.1). One enumeration serves this script and AC-8's record.
+from ci_parity import PACK_ROOTS, enumerate_worlds
 from ci_parity import Unmet as NoWorlds
-from ci_parity import enumerate_worlds
 
 ROOT = Path(__file__).resolve().parent.parent
 PORT = 7878
@@ -115,7 +116,7 @@ def main(arguments: list[str]) -> int:
     try:
         for world in worlds:
             expect(rf"^worlds/{world} is a valid World Pack\.$",
-                   docker("run", "--rm", image, "validate", f"worlds/{world}"),
+                   docker("run", "--rm", image, "validate", f"worlds/{world}", *PACK_ROOTS),
                    f"validate worlds/{world}")
         expect(r"^faults\s+0$",
                docker("run", "--rm", image, "run", "worlds/social-cafe", "--headless", "--seed", "7",

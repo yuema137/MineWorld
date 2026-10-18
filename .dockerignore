@@ -1,10 +1,17 @@
-# The image build needs the Cargo workspace and worlds/ only (Dockerfile, `build` and `runtime`).
+# The image build needs the Cargo workspace, worlds/ and the data-pack roots they require only
+# (Dockerfile, `build` and `runtime`).
 # The `toolchain` stage copies nothing; CI mounts the checkout instead.
 .git
 target
 .ci
 clients/
 presentation/
+# …except the two default Presentation Packs' identity and manifest, which the runtime image carries so
+# that a world requiring them resolves (docs/DECISIONS.md ARC-77).
+!presentation/mineworld-default/2D/pack.yaml
+!presentation/mineworld-default/2D/manifest.yaml
+!presentation/mineworld-default/3D/pack.yaml
+!presentation/mineworld-default/3D/manifest.yaml
 spike/
 docs/
 .structured-coding/

@@ -7,7 +7,8 @@
 ##                      out again, and report what the body actually did
 ##   --slice-measure    print measured dimensions against sec.3's ranges
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
-##   --slice-perf       frame cost at four viewpoints, with draw calls
+##   --slice-perf       frame cost at eight viewpoints by a fixed protocol
+##                      (`slice_perf.gd`; `--perf-breakdown` for categories)
 ##   --slice-character  the occupant animates (idle and walk, measured on its
 ##                      bones) and every camera mode, standing and walking,
 ##                      outdoors and in, as frames to inspect
@@ -558,48 +559,11 @@ func _save(nm: String) -> void:
 
 # --- performance ---------------------------------------------------------------
 
-## Frame cost, measured at the four viewpoints that cost the most: the widest
-## exterior, the cafe frontage, the doorway with inside and outside both in
-## frame, and the interior. Reported in milliseconds, with the draw calls and
-## primitives behind them, because "performance is reasonable" is a claim that
-## needs a number and because a regression needs something to regress from.
-var perf_views := [
-	["street wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0],
-	["cafe frontage", Vector3(0.30, 0.45, -5.55), -52.0, 3.0],
-	["interior", Vector3(2.75, 0.60, -10.60), -38.0, -3.0],
-	["doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0],
-]
-
-
+## Frame cost: the fixed protocol, its views and its breakdown live in
+## `slice_perf.gd` (RL-b §3), because "performance is reasonable" is a claim that
+## needs a number, and a number taken without warm-up or repeats is noise.
 func _perf() -> void:
-	print("== frame cost, %dx%d, gi=%s ==" % [
-		get_viewport().get_visible_rect().size.x,
-		get_viewport().get_visible_rect().size.y, slice.gi_name()])
-	print("%-16s %9s %9s %9s %11s %12s"
-		% ["view", "mean ms", "p50 ms", "worst ms", "draw calls", "primitives"])
-	for v in perf_views:
-		player.place(v[1], v[2], v[3])
-		player.set_camera(FP)
-		await _settle(6)
-		var samples: Array[float] = []
-		var last := Time.get_ticks_usec()
-		for i in range(20):
-			await RenderingServer.frame_post_draw
-			var now := Time.get_ticks_usec()
-			samples.append(float(now - last) / 1000.0)
-			last = now
-		samples.sort()
-		var total := 0.0
-		for x in samples:
-			total += x
-		print("%-16s %9.2f %9.2f %9.2f %11d %12d" % [v[0], total / samples.size(),
-			samples[samples.size() / 2], samples[samples.size() - 1],
-			int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
-			int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))])
-	print("\nobjects in frame  %d" % int(
-		Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)))
-	print("video memory      %.1f MB" % (
-		Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0))
+	await SlicePerf.new(self).run()
 
 
 # --- the threshold measurement -------------------------------------------------

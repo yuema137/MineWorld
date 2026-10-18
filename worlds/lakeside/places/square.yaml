@@ -1,0 +1,20 @@
+# The square: a small paved square with a well, north of the lane.
+#
+# About 12 m by 12 m; its opening onto the lane is on its south edge.
+
+tags:
+  - square
+  - public
+  - outdoor
+
+note: >-
+  A paved square round an old well, with benches under a lime tree. Where the village meets.
+
+passages:
+  - to: lane
+    here:
+      x: 6000
+      y: 200
+    there:
+      x: 21000
+      y: 5800

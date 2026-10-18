@@ -1,0 +1,5 @@
+# A fish from the lake — what the shore and the pier yield (their `fishing:` sections). Lakeside's own
+# kind; the goods people start with come from the modern-goods Entity Pack. Food, so `consumption`
+# offers it to whoever carries one.
+tags: [food, fresh]
+item: { category: food }

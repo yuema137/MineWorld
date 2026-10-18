@@ -3,27 +3,28 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6lmkvrp65ika"
-path="res://.godot/imported/beige_wall_001_nor_gl_1k.jpg-126fdbc47d5f4796b89b85a5a247c32d.ctex"
+path.bptc="res://.godot/imported/beige_wall_001_nor_gl_1k.jpg-126fdbc47d5f4796b89b85a5a247c32d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/beige_wall_001/beige_wall_001_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/beige_wall_001_nor_gl_1k.jpg-126fdbc47d5f4796b89b85a5a247c32d.ctex"]
+dest_files=["res://.godot/imported/beige_wall_001_nor_gl_1k.jpg-126fdbc47d5f4796b89b85a5a247c32d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
