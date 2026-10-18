@@ -1005,6 +1005,34 @@ No TW-c question remains open.
   12× for `market-town`) was never pinned by that test and is not pinned now. The archived
   `clients/protocol/evidence/server-*.log` captures keep the old wording; they are historical evidence, not
   goldens. Local: `cargo test -p mineworld-cli --test decisions` red before (1 of 7), green after (7 of 7).
+- **Revival, 2026-10-17 (a fresh session; worktree held by no other process).** The remote branch carried
+  `4f0fab1` (main merged at `5cbb469`); its CI run 39053599231 failed 10 jobs. Classified from the logs:
+  1. `python` (ubuntu, windows) and `test-macos (b)`: 7 LM-controller tests (`test_controller_server`,
+     `test_controller_resilience`) — `error: unexpected argument '--pace' found`. **Real, cross-PR**: main's
+     `cognition/lm-controller/tests/realserver.py` (P6/P7) passes `--pace`. → D-TWc-4.
+  2. `test-macos (a)`, `test-windows (3/4)`: `a_save_that_is_never_hosted_has_no_host_journal` — main's
+     schema has a `sealed` table (ARC-89, SR-b). **Stale expectation** in TW-c's own test; the list now names
+     it. The property (no `host_journal` before the first append; INV-TW-1) is unchanged.
+  3. `test-windows (4/4)`: `check_scratch.py left` — `mineworld-tw-c-<pid>-{first,second,third}` in the
+     temp folder. **Real (test)**: AC-TWc-3's persisted test removed its saves while its towns still held
+     the SQLite files open, which Windows refuses. The towns are now dropped first.
+  4. `test (2/3)` (Linux): `the_hosted_town_lives_within_its_tick_budget` — the wall-p99 bound that main's
+     #216 (F-tick-1, `DEP-59`) replaced by a CPU p99; resolved by merging main (`e51ffc0`).
+  5. `test`, `test-windows`, `test-macos` (aggregates): follow the shards.
+  Merge conflicts: `server/src/runtime.rs` (TW-c's `tick_at(started)` with main's per-tick CPU time:
+  `TickStart::at(wall)`), `MODULE_SPEC.md` (TW-c's row, main's cpu columns), `DECISIONS.md` (both ARC-42
+  notes). Heavy local jobs are paused by the operator: nothing compiled or run locally except ruff, pyright
+  and the Python self-tests; CI on the exact head is the evidence.
+- **Deviation D-TWc-4 (post-C9, cross-PR; for the operator's review).** Main gained callers of the renamed
+  flag after the freeze: `cognition/lm-controller/tests/realserver.py` and `test_controller_server.py`
+  (docstring), `clients/agent/tests/test_idle.py`, `test_two_handles.py`, `test_restart.py` (`--pace 600`),
+  and the hand-run `clients/agent/tests/fixtures/record.py`; and `scripts/ci_stability.py` (nightly) starts
+  market-town at `--time-scale 60`, a fast-forward that ARC-69 item 5 allows only with `--solo`. Fixed as
+  D-TWc-3 was: the callers pass `--cadence`, and `--solo` where the scale exceeds 24. No product code changes;
+  Q-TWc-7 (no alias) holds. **Tension with AC-TWc-10:** its scope list says "no diff under … cognition/";
+  these are edits to test files under `cognition/lm-controller/tests/` (the test harness's command line),
+  not to cognition code, so INV-TW-2 ("the cognition crate is not edited") holds. The alternative that keeps
+  `cognition/` untouched is a `--pace` alias, which Q-TWc-7 ruled out. Operator to confirm which yields.
 - Process note (C3): a test was appended to `server/src/seats/tests.rs` with a shell heredoc (`cat >> … <<EOF`),
   against the operator's "no heredocs" instruction. The content was checked by the test run; no further
   heredoc or `sed -i` is used. Reported to the operator.
