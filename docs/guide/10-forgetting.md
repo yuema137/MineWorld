@@ -110,9 +110,9 @@ Then run thirty days, and keep them in a save:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/before
 ...
-requests   accept-invitation accepted 263
+requests   accept-invitation accepted 272
 ...
-requests   invite accepted 374
+requests   invite accepted 390
 ...
 facts      relationship-changed 18
 ...
@@ -246,13 +246,13 @@ section  relationships:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/after
 ...
-facts      relationship-changed 32
+facts      relationship-changed 30
 ...
-activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1572 talk 864
+activity   days 1-30  ana move 1503 talk 596  ben move 1468 talk 845  cai move 1536 talk 820
 ...
 ```
 
-**You should see** 32 level crossings instead of 18. The `activity` numbers are the same as in step
+**You should see** 30 level crossings instead of 18. The `activity` numbers are the same as in step
 10.2: people do exactly the same things. Only how they feel about it changed.
 
 ### Step 10.6 — See a friendship cool down

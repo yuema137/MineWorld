@@ -95,9 +95,9 @@ seats:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
-facts      relationship-changed 20
+facts      relationship-changed 18
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1544 talk 845
 ...
 ```
 
@@ -206,11 +206,11 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2，什么都不变淡 | Step 1.4，regard 会变淡 |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 28 |
-| `activity` | Ana 说了 738 次话 | 差一点点：Ana 说了 732 次话 |
+| `relationship-changed` | 18 | 28 |
+| `activity` | 一样 | 一样 |
 | 有没有关系往下降 | 从来没有 | 有，就像 Step 1.5 里那样 |
 
-两次跑的时候，大家每天做的事只差一点点，大的变化在关系上。不会变淡时，关系只升不降，三个人很快就一直是 `close`。
+两次跑的时候，大家做的事一模一样。不会变淡时，关系只升不降，三个人很快就一直是 `close`。
 会变淡时，好感在两次见面之间往下掉，关系就降一级，下次好好见一面又升回去。
 每跨一次级，就多一条 `relationship-changed`。
 

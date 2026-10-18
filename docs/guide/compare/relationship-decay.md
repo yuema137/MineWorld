@@ -96,9 +96,9 @@ Then run thirty days:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
-facts      relationship-changed 20
+facts      relationship-changed 18
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1544 talk 845
 ...
 ```
 
@@ -209,11 +209,11 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2, nothing fades | Step 1.4, regard fades |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 28 |
-| `activity` | Ana talks 738 times | a little different: Ana talks 732 times |
+| `relationship-changed` | 18 | 28 |
+| `activity` | the same | the same |
 | a tie going down | never | yes, as in step 1.5 |
 
-People's days change only a little; the big change is in the ties. Without fading, a tie only goes up, and the three soon
+People do exactly the same things in both runs. Without fading, a tie only goes up, and the three soon
 stay `close`. With fading, liking drops between meetings, so a tie falls a level and rises again at the
 next good meeting. Each of those crossings is one more `relationship-changed`.
 
