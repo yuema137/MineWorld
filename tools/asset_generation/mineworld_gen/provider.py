@@ -19,9 +19,10 @@ vendor goes in `GenerationParams.extra` rather than growing a field here.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol, Sequence, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 __all__ = [
     "GenerationParams",

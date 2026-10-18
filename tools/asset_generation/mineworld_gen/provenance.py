@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import yaml
 
-__all__ = ["build_provenance", "reference_record", "write_sidecar", "SIDECAR_SUFFIX"]
+__all__ = ["OUTSIDE_REPOSITORY", "SIDECAR_SUFFIX", "build_provenance", "reference_record", "write_sidecar"]
 
 SIDECAR_SUFFIX = ".provenance.yaml"
 
@@ -35,18 +35,23 @@ def _digest(path: Path) -> str:
     return f"sha256:{h.hexdigest()}"
 
 
+# The path prefix a reference outside the repository is recorded under (no absolute path is ever written).
+OUTSIDE_REPOSITORY = "(outside the repository)"
+
+
 def reference_record(ref: Path, repo_root: Path | None = None) -> dict[str, str]:
-    """`{path, digest}` for one reference image. The path is repo-relative when the file lies inside
-    `repo_root` and absolute otherwise; the content digest identifies it either way. Never raises for
-    a reference outside the repository: the provider calls this *before* the paid request, and a
-    provenance detail must never be the reason a generated image is lost."""
+    """`{path, digest}` for one reference image. The path is repo-relative (POSIX separators) when the
+    file lies inside `repo_root`; otherwise it is `OUTSIDE_REPOSITORY/<file name>`, never an absolute
+    path, so a committed sidecar names no machine's directories. The content digest identifies the file
+    either way. Never raises for a reference outside the repository: the provider calls this *before*
+    the paid request, and a provenance detail must never be the reason a generated image is lost."""
     resolved = ref.resolve()
-    path = str(resolved)
+    path = f"{OUTSIDE_REPOSITORY}/{resolved.name}"
     if repo_root is not None:
         try:
-            path = str(resolved.relative_to(repo_root.resolve()))
+            path = resolved.relative_to(repo_root.resolve()).as_posix()
         except ValueError:
-            pass  # outside the repository: keep the absolute path
+            pass  # outside the repository: the file name and the digest only
     return {"path": path, "digest": _digest(ref)}
 
 
@@ -82,7 +87,7 @@ def build_provenance(
             "provider": provider_name,
             "model": model_id,
             "workflow_version": workflow_version,
-            "date": _dt.date.today().isoformat(),
+            "date": _dt.datetime.now().astimezone().date().isoformat(),
             "prompt_summary": summary,
             "prompt": prompt,
             "parameters": params,

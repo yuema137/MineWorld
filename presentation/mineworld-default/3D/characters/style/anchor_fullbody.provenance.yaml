@@ -89,6 +89,6 @@ role:
   used_as: template v2 full-body style anchor (framing, pose, lighting, backdrop and tier) for every cast
     reference image; the chest-up anchor.png stays the identity anchor
   ruling: operator ruling on F-CAST-1, 2026-10-15 (one OpenAI call allowed; this is the first call, no retry)
-  scratch_copy: /Users/yuema137/mineworld-worktrees/cast-out/gen (not committed)
+  scratch_copy: the operator's local cast-out/gen scratch directory, outside the repository (not committed)
   known_misses: arms about 15-20 degrees from the body rather than the template's 35 (still clear of the
     torso); shoes are grey canvas lace-up sneakers with white toe caps, the accepted 3D body wears grey-blue low-tops

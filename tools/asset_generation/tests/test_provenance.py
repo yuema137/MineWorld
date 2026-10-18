@@ -3,9 +3,11 @@
 Regression: `build_provenance` called `Path.relative_to(repo_root)` on every reference *after* the paid
 `images.edit` call, so a reference outside the repository raised `ValueError` and the image bytes were
 never returned (four calibration images lost, 2026-10-15). The provider now reads every reference's
-record before the request; outside the repository the record keeps the absolute path and the digest.
+record before the request; outside the repository the record keeps the file name and the digest, never an
+absolute path (a committed sidecar names no machine's directories).
 
-Runs offline with a fake Images client:  python -m unittest discover -s tools/asset_generation/tests
+Runs offline with a fake Images client, in CI's `python` layer:
+    uv run --locked pytest tools/asset_generation/tests
 """
 
 from __future__ import annotations
@@ -20,9 +22,9 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mineworld_gen import openai_images  # noqa: E402
-from mineworld_gen.openai_images import OpenAIImageProvider  # noqa: E402
-from mineworld_gen.provider import GenerationParams  # noqa: E402
+from mineworld_gen import openai_images
+from mineworld_gen.openai_images import OpenAIImageProvider
+from mineworld_gen.provider import GenerationParams
 
 PNG = b"\x89PNG\r\n\x1a\nfake-image-bytes"
 
@@ -58,16 +60,19 @@ class OutsideReferenceTest(unittest.TestCase):
         self.fake = _FakeImages()
         self.provider._client = SimpleNamespace(images=self.fake)
 
-    def test_outside_reference_keeps_the_image_and_records_absolute_path_and_digest(self) -> None:
-        result = self.provider.generate("a person", [self.inside, self.outside],
-                                        GenerationParams(size="1024x1536"))
+    def test_outside_reference_keeps_the_image_and_records_its_name_and_digest_never_an_absolute_path(
+        self,
+    ) -> None:
+        result = self.provider.generate(
+            "a person", [self.inside, self.outside], GenerationParams(size="1024x1536")
+        )
         self.assertEqual(self.fake.calls, 1)
         self.assertEqual(result.image_bytes, PNG)
         refs = result.provenance["generation"]["reference_images"]
         self.assertEqual(refs[0]["path"], "refs/anchor.png")
-        self.assertEqual(refs[1]["path"], str(self.outside.resolve()))
-        self.assertEqual(refs[1]["digest"],
-                         "sha256:" + hashlib.sha256(b"outside-reference").hexdigest())
+        self.assertEqual(refs[1]["path"], "(outside the repository)/sheet.png")
+        self.assertNotIn(str(Path(self.tmp.name).resolve()), str(result.provenance))
+        self.assertEqual(refs[1]["digest"], "sha256:" + hashlib.sha256(b"outside-reference").hexdigest())
 
     def test_missing_reference_fails_before_the_paid_call(self) -> None:
         with self.assertRaises(FileNotFoundError):

@@ -20,13 +20,13 @@ from __future__ import annotations
 import base64
 import os
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from .credentials import load_api_key
 from .provider import GenerationParams, GenerationResult
 
-__all__ = ["OpenAIImageProvider", "DEFAULT_MODEL", "MODEL_ENV"]
+__all__ = ["DEFAULT_MODEL", "MODEL_ENV", "OpenAIImageProvider"]
 
 #: Verified against the live model catalogue on 2026-09-27, not recalled from training data.
 #: `gpt-image-2.5-flare` is the fast high-quality tier; `gpt-image-2.5-sunburst` is the most
