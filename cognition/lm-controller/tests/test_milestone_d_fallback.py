@@ -67,13 +67,13 @@ from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
 from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.gateway import Budget, GateOutcome, ModelGateway
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 
 pytestmark = pytest.mark.real_binary
 
@@ -185,7 +185,7 @@ async def _one(
     number: int,
     fact: PerceivedEvent,
     me: EntityId,
-    store: MemoryStore,
+    store: SeatView,
     gateway: ModelGateway,
     policies: LayerPolicies,
 ) -> DecisionRecord:
@@ -272,10 +272,9 @@ def test_over_100_simulated_days_at_most_5_percent_of_alices_consults_fall_back(
     chosen = lines[::stride]
 
     retention = resolve(DEFAULT_CHOICE, PolicyRegistry.installed(), None)
-    store = MemoryStore.open(
-        tmp_path / "alice.sqlite",
-        StoreIdentity(world_instance=WorldInstanceId(found.group(1)), seat=ALICE, self_entity=me),
-    )
+    instance = WorldInstanceId(found.group(1))
+    home = MemoryHome.open(tmp_path / "alice.sqlite", instance)
+    store = home.seat(StoreIdentity(world_instance=instance, seat=ALICE, self_entity=me))
     log_path = tmp_path / "alice.decisions.jsonl"
     log = DecisionLog(log_path, rotate_bytes=1 << 40)  # one file: the whole run is read back
     budget = Budget.of(
@@ -298,7 +297,7 @@ def test_over_100_simulated_days_at_most_5_percent_of_alices_consults_fall_back(
     try:
         run(replay(), timeout_s=900)
     finally:
-        store.close()
+        home.close()
         run(gateway.aclose())
 
     records = read_decisions(log_path)

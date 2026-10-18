@@ -39,6 +39,8 @@ mineworld-sdk = { workspace = true }
 # AC-1 check 3 (ARC-35 item 4): both World Packs are read by the real loader, their YAML compared as
 # structural values, and a section's owner answered by the build's own catalog (step-10 SD-32).
 mineworld-worldpack = { workspace = true }
+# The configuration seam's test packs state their sections' schemas, as every pack must (ARC-90).
+schemars = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 serde_json = { workspace = true }

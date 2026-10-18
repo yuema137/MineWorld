@@ -5,48 +5,69 @@
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
 use mineworld_contracts::Tag;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::curve::Curve;
 use crate::curves::{CurveSet, TABLE, Table, from_a3};
 
 /// The base weight of each kind of choice, per mille (§5.4).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+// Each option may be omitted from `base`; an omitted option keeps its default.
+#[schemars(extend("required" = Vec::<&str>::new()))]
 pub struct Base {
     /// Head for my agenda's place.
+    #[schemars(range(min = 0, max = 1_000))]
     pub agenda: u32,
     /// Do nothing.
+    #[schemars(range(min = 0, max = 1_000))]
     pub stay: u32,
     /// Greet somebody.
+    #[schemars(range(min = 0, max = 1_000))]
     pub greet: u32,
     /// Walk to somebody.
+    #[schemars(range(min = 0, max = 1_000))]
     pub approach: u32,
     /// Invite somebody to an activity.
+    #[schemars(range(min = 0, max = 1_000))]
     pub invite: u32,
     /// Join somebody's activity.
+    #[schemars(range(min = 0, max = 1_000))]
     pub join: u32,
     /// Leave my activity.
+    #[schemars(range(min = 0, max = 1_000))]
     pub leave: u32,
     /// Walk through a doorway.
+    #[schemars(range(min = 0, max = 1_000))]
     pub door: u32,
     /// Attempt a complete affordance the world offers.
+    #[schemars(range(min = 0, max = 1_000))]
     pub offered: u32,
     /// Wander to a point nearby.
+    #[schemars(range(min = 0, max = 1_000))]
     pub wander: u32,
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Each role lists at most eight tags (SD-DLb-7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+// Each role may be omitted from `roles`; an omitted role keeps its default.
+#[schemars(extend("required" = Vec::<&str>::new()))]
 pub struct Roles {
     /// Places a person sleeps in.
+    #[schemars(with = "Vec<String>", length(max = 8))]
     pub home: Vec<Tag>,
     /// Places a person eats in.
+    #[schemars(with = "Vec<String>", length(max = 8))]
     pub eat: Vec<Tag>,
     /// Places a person works in.
+    #[schemars(with = "Vec<String>", length(max = 8))]
     pub work: Vec<Tag>,
     /// Places a person shops in.
+    #[schemars(with = "Vec<String>", length(max = 8))]
     pub shop: Vec<Tag>,
     /// Places a person is outdoors in.
+    #[schemars(with = "Vec<String>", length(max = 8))]
     pub outdoor: Vec<Tag>,
 }
 

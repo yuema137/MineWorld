@@ -15,3 +15,9 @@ include = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingModuleSource = "error"
+# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member. Its tests and driver import
+# `mwcast` by its package name, so its root is an execution environment with its own directory on the import path.
+# `include` is unchanged: the pipeline is checked by path (scripts/ci_layer.py).
+executionEnvironments = [
+    { root = "tools/character_pipeline", extraPaths = ["tools/character_pipeline"] },
+]

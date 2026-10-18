@@ -139,13 +139,13 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     // (`PROTOCOL.md` §4.2). A released connection no longer holds a seat; there is nothing to say.
     let host = &connection.host;
     match ending {
-        Ending::Gone => host.leave(seated.subscription(), Departure::Dropped),
+        Ending::Gone => host.leave(seated, Departure::Dropped),
         Ending::Left => {
-            host.leave(seated.subscription(), Departure::Left);
+            host.leave(seated, Departure::Left);
             close(&mut outgoing, &mut incoming, ClosingReason::Left).await;
         }
         Ending::WorldStopped => {
-            host.leave(seated.subscription(), Departure::Left);
+            host.leave(seated, Departure::Left);
             close(&mut outgoing, &mut incoming, ClosingReason::WorldStopped).await;
         }
         Ending::Released(ClosingReason::Lagged) => {

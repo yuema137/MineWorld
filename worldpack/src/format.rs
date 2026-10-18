@@ -39,80 +39,106 @@ use serde::Deserialize;
 use crate::catalog::Capability;
 
 /// `world.yaml`: what this world is, what it is composed of, and who is in it.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example_world())]
 pub struct WorldManifest {
-    /// The world's own identity.
+    /// The world's own identity: its id and its name.
     pub world: WorldIdentity,
-    /// The systems this world enables, in installation order.
+    /// The System Packs this world enables, in installation order.
     ///
     /// Order is the pack's statement rather than something the loader sorts: registration order is
     /// reduction order, reduction order is observable in the event log, and a loader that sorted
     /// would be deciding a world's semantics on the author's behalf (`BD-4`).
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::SystemName>")]
     pub systems: Vec<SystemId>,
     /// The places this world has. Each key names a file in `places/`.
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     pub places: Vec<EntityKey>,
     /// The people this world has. Each key names a file in `people/`.
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     pub population: Vec<EntityKey>,
-    /// The item kinds this world has (`ARC-36`). Each key names a file in `items/`.
+    /// The item kinds this world has. Each key names a file in `items/`: a kind of thing, not one
+    /// object.
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     pub items: Vec<EntityKey>,
     /// The organizations this world has. Each key names a file in `organizations/`.
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     pub organizations: Vec<EntityKey>,
-    /// The seats a client may occupy, each an existing person's key.
+    /// The seats a client may occupy, each the key of a person in `population`.
     ///
     /// The roster is the world's, never the client's: a client names a seat and the server resolves
     /// which entity it is, so there is no frame in which a client names an entity
     /// (`server/src/host.rs`).
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     pub seats: Vec<EntityKey>,
-    /// The framework versions this world is authored for (`DECISIONS.md` `ARC-53`). Optional to the
-    /// loader; when stated, a framework outside it is refused by name. Never world state.
+    /// The framework versions this world is authored for, such as "^0.1"; when stated, a framework
+    /// outside it is refused by name.
+    ///
+    /// Optional to the loader (`DECISIONS.md` `ARC-53`). Never world state.
     #[serde(default)]
     pub mineworld: Option<Compatibility>,
-    /// Every pack this world uses that is not bundled, with the versions it accepts
-    /// (`DECISIONS.md` `ARC-54`). Packs and versions only: which systems are enabled is `systems`, and
+    /// Every pack this world uses that is not bundled, with the versions it accepts, such as
+    /// `modern-goods: "^0.1"`; each is found in a directory given with --packs or MINEWORLD_PACKS.
+    ///
+    /// (`DECISIONS.md` `ARC-54`.) Packs and versions only: which systems are enabled is `systems`, and
     /// how a pack is configured is not this key's. Resolved in the build and the pack roots; never
     /// world state.
     #[serde(default)]
     pub requires: BTreeMap<PackId, Compatibility>,
-    /// The enabled System Packs this world configures, in seeding order (`DECISIONS.md` `ARC-61`).
-    /// Each key names a file in `configure/`, which its owner decodes and seeds. Absent means none.
+    /// The files in `configure/` this world has, in seeding order: each key names
+    /// `configure/<key>.yaml` — an enabled System Pack's id, or `classes` or `packages`.
+    ///
+    /// (`DECISIONS.md` `ARC-61`.) Each file's owner decodes and seeds it. Absent means none.
     #[serde(default)]
     pub configure: Vec<ConfigurationKey>,
-    /// How a host paces this world when it serves it (`DECISIONS.md` `ARC-69` item 9). Host pacing
-    /// content: never seeded, never read by a pack or a controller, ignored by `run`.
+    /// How a host paces this world when it serves it: `time_scale`, the world seconds that pass per
+    /// wall second unless the host says otherwise.
+    ///
+    /// (`DECISIONS.md` `ARC-69` item 9.) Host pacing content: never seeded, never read by a pack or a
+    /// controller, ignored by `run`.
     #[serde(default)]
     pub hosting: Option<Hosting>,
-    /// The decision list: which decision model drives each seat (`DECISIONS.md` `ARC-84`,
-    /// `MODULE_SPEC.md` §4.1). A file of this pack that this crate checks exists and lies inside the
-    /// pack, and never parses: its format belongs to `mineworld-decision`, read by hosts. Never world
-    /// state. Absent means every seat `rule`.
+    /// The decision list: a file of this pack, such as decisions.yaml, saying which decision model
+    /// drives each seat. Absent, every seat is driven by the rule model.
+    ///
+    /// (`DECISIONS.md` `ARC-84`, `MODULE_SPEC.md` §4.1.) A file of this pack that this crate checks
+    /// exists and lies inside the pack, and never parses: its format belongs to `mineworld-decision`,
+    /// read by hosts. Never world state.
     #[serde(default)]
     pub decisions: Option<DecisionsFile>,
 }
 
-/// `world.yaml`'s `hosting:` block: how a host paces the world it serves (`ARC-69`, step-19 QTW-4).
-#[derive(Debug, Clone, Deserialize)]
+/// How a host paces the world it serves: a time scale from 1 to 24, such as 12 for a two-hour day.
+///
+/// `world.yaml`'s `hosting:` block (`ARC-69`, step-19 QTW-4).
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Hosting {
-    /// World seconds per wall second when the host does not say otherwise: a whole number from 1 to 24,
-    /// so a day lasts 24 h ÷ `time_scale`. Absent: the host's own default, 1. A fast-forward is never a
-    /// pack's to state (`ARC-69` item 5), so a larger value is refused at load, naming this key.
+    /// World seconds per wall second when the host does not say otherwise, a whole number from 1 to
+    /// 24, so a day lasts 24 h divided by it. Absent, the host's own default, 1.
+    ///
+    /// A fast-forward is never a pack's to state (`ARC-69` item 5), so a larger value is refused at
+    /// load, naming this key.
     #[serde(default)]
     pub time_scale: Option<u32>,
 }
 
-/// `world.yaml`'s `decisions:`: a file of the pack, relative to its root, written with `/` on every
-/// platform (`MODULE_SPEC.md` §4.1). A `\`, an absolute path, an empty, `.` or `..` component and a drive
-/// (`:`) are refused as it decodes, so the same text names the same file on macOS, Linux and Windows and
-/// cannot climb out of the pack; that its real path, links followed, stays inside is checked at read.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+/// A file of the pack, relative to its root, written with / on every platform, such as decisions.yaml:
+/// no \, no leading /, no empty, . or .. part, no :.
+///
+/// `world.yaml`'s `decisions:` (`MODULE_SPEC.md` §4.1). Each refusal happens as it decodes, so the same
+/// text names the same file on macOS, Linux and Windows and cannot climb out of the pack; that its real
+/// path, links followed, stays inside is checked at read.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(with = "String")]
 pub struct DecisionsFile(Vec<String>);
 
 impl TryFrom<String> for DecisionsFile {
@@ -162,6 +188,17 @@ impl core::fmt::Display for DecisionsFile {
     }
 }
 
+/// The example the generated reference prints for `world.yaml`.
+fn example_world() -> serde_json::Value {
+    serde_json::json!({
+        "world": { "id": "corner-shop", "name": "Corner Shop" },
+        "systems": ["presence", "movement", "conversation"],
+        "places": ["home", "shop"],
+        "population": ["ana", "ben"],
+        "seats": ["ben"],
+    })
+}
+
 /// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`
 /// `ARC-61`): an enabled System Pack's id, or a framework key.
 ///
@@ -185,6 +222,25 @@ impl ConfigurationKey {
     }
 }
 
+/// Spelled as a system id is (`ARC-90`).
+impl schemars::JsonSchema for ConfigurationKey {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("ConfigurationKey")
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "pattern": mineworld_authoring::schema::IDENTIFIER_PATTERN,
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "An enabled System Pack's id (such as calendar), or classes (the world's \
+                            entity classes) or packages (its licence policy). Each names \
+                            configure/<key>.yaml and is listed once.",
+        })
+    }
+}
+
 impl core::fmt::Display for ConfigurationKey {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(self.as_str())
@@ -192,10 +248,10 @@ impl core::fmt::Display for ConfigurationKey {
 }
 
 /// A world's identity: the name a person reads, and the id everything else uses.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WorldIdentity {
-    /// The pack's id, which must be its directory's name.
+    /// The World Pack's id, which must be its directory's name.
     ///
     /// Free text rather than a validated identifier, because that is what it becomes:
     /// `Metadata::source_pack` is documented as free text until "pack loading becomes a contract"
@@ -326,10 +382,12 @@ pub struct AuthoredOrganization {
 }
 
 /// One doorway from the place whose file states it to another place.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthoredPassage {
-    /// The place it leads to, by its authoring key.
+    /// The place it leads to, by its authoring key. A passage is stated once, in either place's file,
+    /// and goes both ways.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     pub to: EntityKey,
     /// Where the doorway is in this place, if the world models positions.
     #[serde(default)]
@@ -345,16 +403,19 @@ pub struct AuthoredPassage {
 /// headless world and a 2D client need only the place, and a 3D client needs the position inside it.
 /// A pack that omits `position` is not approximating — the refinement is absent
 /// (`ENGINEERING_RULES.md` §5).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthoredLocation {
     /// Which place, by its authoring key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     pub place: EntityKey,
     /// Where in it, in millimetres from the place's own origin.
     #[serde(default)]
     pub position: Option<AuthoredPosition>,
-    /// Which way they face, in millidegrees clockwise. Validated and normalized by
-    /// [`Orientation`](mineworld_contracts::Orientation).
+    /// Which way they face, in millidegrees clockwise (90000 is a quarter turn; 360000 is a whole
+    /// turn).
+    ///
+    /// Validated and normalized by [`Orientation`](mineworld_contracts::Orientation).
     #[serde(default)]
     pub facing: Option<i32>,
 }
@@ -364,16 +425,20 @@ pub struct AuthoredLocation {
 /// Integers, not floats, and this is not a style choice: a position reaches the event log, and
 /// floating-point arithmetic is not reproducible across platforms, so a world replayed elsewhere
 /// would diverge (`AC-12`, `DD-5`).
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthoredPosition {
-    /// Across the floor.
+    /// Millimetres across the floor from the place's origin.
     #[serde(default)]
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     pub x: Millimetres,
-    /// Across the floor, at right angles to `x`.
+    /// Millimetres across the floor from the place's origin, at right angles to `x`.
     #[serde(default)]
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     pub y: Millimetres,
-    /// Height. Absent means the floor, which is what a world that does not model height means.
+    /// Millimetres of height. Absent means the floor, which is what a world that does not model height
+    /// means.
     #[serde(default)]
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     pub z: Millimetres,
 }

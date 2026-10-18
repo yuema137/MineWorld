@@ -62,6 +62,11 @@ systems:
   # `persona` owns each person's `persona:` section (ARC-74): Social Café's list ends with it, and
   # Market Town is Social Café plus the market (ARC-35), so it stands here, before the market packs.
   - persona
+  # `appearance` owns each person's `appearance:` (`ARC-91`): which appearance they have, as a key a
+  # Presentation Pack resolves. It depends on nothing and nothing depends on it. It sits after
+  # `persona`, not at the end, so this list still begins with Social Café's (`ARC-35`, AC-1). Leave it
+  # out with the `appearance:` lines and people are drawn by each client's fallback.
+  - appearance
   # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
   # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
   # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and

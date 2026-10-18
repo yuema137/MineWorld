@@ -75,9 +75,10 @@ pub struct Schemas {
 }
 
 /// `configure/test-schema.yaml`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SchemaSettings {
+    /// The value a declared field that a person's file leaves out is given.
     pub default: i64,
 }
 

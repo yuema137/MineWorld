@@ -350,6 +350,58 @@ fn the_resolved_section_copies_what_its_selectors_can_be_decided_by() {
     assert_eq!(kept, ["noble", "servant"]);
 }
 
+/// A section's schema says what its decoder accepts (`ARC-90`): the example it carries decodes, the
+/// parameter fields carry `parameters!`'s defaults and bounds and the doc comment, a region's rules
+/// list only regional actions, and a key the decoder refuses is not a property.
+#[test]
+fn a_sections_schema_states_what_its_decoder_accepts() {
+    use schemars::{JsonSchema, SchemaGenerator};
+
+    let schema = SchemaGenerator::default().into_root_schema_for::<Section<Probe>>();
+    let example = schema
+        .get("examples")
+        .and_then(|examples| examples.get(0))
+        .cloned()
+        .expect("an example");
+    let decoded = Section::<Probe>::deserialize(example.clone()).expect("the example decodes");
+    assert_eq!(decoded.entries.rules.len(), 1, "{example}");
+    assert_eq!(decoded.entries.parameters.len(), 1, "{example}");
+
+    let step = schema
+        .pointer("/properties/parameters/items/properties/step")
+        .expect("the step parameter");
+    assert_eq!(step["default"], 5);
+    assert_eq!(step["minimum"], 1);
+    assert_eq!(step["maximum"], 100);
+    assert_eq!(step["description"], "A step.");
+    let actions = schema
+        .pointer("/properties/regions/additionalProperties/properties/rules/items/properties/action/enum")
+        .expect("a region's actions");
+    assert_eq!(actions, &serde_json::json!(["probe-act"]));
+    let keys: Vec<&String> = schema
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+        .expect("properties")
+        .keys()
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            "consequences",
+            "default",
+            "extends",
+            "parameters",
+            "regions",
+            "rules"
+        ]
+    );
+    let partial = ProbePartial::json_schema(&mut SchemaGenerator::default());
+    assert_eq!(
+        partial.get("additionalProperties"),
+        Some(&serde_json::json!(false))
+    );
+}
+
 /// A range bound words its refusal exactly as every refusal was worded before named choices (S1,
 /// R-FGA-1): `low … high`, and admits both ends.
 #[test]

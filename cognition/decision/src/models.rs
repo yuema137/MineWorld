@@ -94,6 +94,13 @@ pub trait Catalog: Copy + Eq + fmt::Debug + Send + Sync + 'static {
     /// An in-process model with its default parameters.
     fn defaults(self) -> Option<Decoded>;
 
+    /// An in-process model's parameter block as JSON Schema, for the generated reference
+    /// (`DECISIONS.md` `ARC-90`); `None` for an external model, whose parameters this build cannot type.
+    fn parameters_schema(
+        self,
+        generator: &mut schemars::SchemaGenerator,
+    ) -> Option<schemars::Schema>;
+
     /// The installed model `id` names.
     fn find(id: &str) -> Option<Self> {
         Self::AVAILABLE
@@ -200,6 +207,20 @@ macro_rules! models {
                     $(Self::$Name => ::core::option::Option::Some($crate::Decoded::of::<$ty>(
                         ::core::default::Default::default(),
                     )),)*
+                    Self::External(_) => ::core::option::Option::None,
+                }
+            }
+
+            fn parameters_schema(
+                self,
+                generator: &mut $crate::__private::schemars::SchemaGenerator,
+            ) -> ::core::option::Option<$crate::__private::schemars::Schema> {
+                match self {
+                    $(Self::$Name => ::core::option::Option::Some(
+                        <<$ty as $crate::DecisionModel>::Parameters as $crate::ModelParameters>::schema(
+                            generator,
+                        ),
+                    ),)*
                     Self::External(_) => ::core::option::Option::None,
                 }
             }

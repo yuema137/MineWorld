@@ -199,7 +199,8 @@ impl WorldRuntime {
                 } => {
                     let _ = reply.send(self.join(&request, perceived));
                 }
-                Command::Leave(subscription, departure) => self.depart(subscription, departure),
+                // `seated` (the connection's streams) is dropped after the departure is recorded.
+                Command::Leave(seated, departure) => self.depart(seated.subscription(), departure),
                 Command::Submit {
                     subscription,
                     observer,

@@ -650,6 +650,15 @@ it accepts. Fields of §4's model that MVP-0 does not implement — `era`, `cale
 `presentation_profile`, are **refused by name**, not ignored: a silently accepted field is a world its
 author believes they authored.
 
+**The field-level reference is generated** ([`DECISIONS.md`](DECISIONS.md) `ARC-90`). This subsection
+and §4.2 state the shape of each file and the rules every file shares. Every field of every file — its
+type, whether it is required, its default, its bounds and what it means — is in
+[`docs/reference/`](reference/), which `mineworld reference` derives from the types that decode the files
+(`world.yaml` and the content files' own fields, every section a pack owns, every `configure/` file, the
+Interaction List sections, the decision list, a data pack's `pack.yaml`, and the command line). It is never edited by hand,
+and CI fails when it differs from what the build generates. Where this specification and the generated
+reference disagree about a field, the decoding type is the fact and the specification is corrected.
+
 ```yaml
 # world.yaml
 world:
@@ -807,6 +816,7 @@ location:                  # optional. Requires the `presence` system.
     z: 0
   facing: 180000           # optional: integer millidegrees
 name: Alice Moreau         # a section owned by the `naming` system (below)
+appearance: { look: alice-moreau }   # a section owned by the `appearance` system (below)
 routine:                   # a section owned by the `schedule` system (below)
   - { from: "05:30", place: cafe, label: work }
   - { from: "18:00", place: apartments, label: home }
@@ -902,7 +912,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has eight sections:
+or the pack is refused. MVP-0 has nine sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -912,6 +922,10 @@ persona   persona    people   { summary: <1–280 bytes, required, non-empty>, t
                               optional; unknown keys refused, with line and column. Disclosed to the
                               person themself only. It shapes how the person speaks and grants
                               nothing: no action, no process and no rule reads it (`ARC-74`)
+appearance appearance people  { look: <key> }: 1–48 bytes of a–z, 0–9 and '-'; unknown keys refused.
+                              An opaque key naming the person's appearance, which a Presentation Pack
+                              resolves (`ARC-92`); never a mesh, file, colour or height. Public:
+                              disclosed to whoever perceives the person (`ARC-91`)
 routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
@@ -1539,6 +1553,10 @@ what a fact means for history — through one document shared by every pack (`DE
 `ARC-64`, `ARC-65`, `DEP-28`). The list is **not** a new carrier: it is `configure/classes.yaml` plus
 each pack's section, `configure/<pack id>.yaml`, all carried by §4.1's configuration seam.
 
+This subsection states the list's shape and its rules. Which actions, roles, facts, parameters (with
+their defaults and bounds) and knobs each installed pack declares is generated from the packs' own
+declarations into [`docs/reference/interaction-list.md`](reference/interaction-list.md) (`ARC-90`).
+
 **Vocabulary.** These terms are defined here and nowhere else; none reuses a term of
 [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md).
 
@@ -1730,7 +1748,10 @@ property, and it never changes who a Person is (INV-1).
   each seat's model as the object-safe `SeatModel` (`Configured<M>`: the model with its decoded
   parameters). `ModelParameters::decode` decodes a parameter block at the decoder's position, refusing an
   unknown key and an out-of-bound value there; a block made by `mineworld_sdk::parameters!` implements it
-  as `mineworld_decision::bounded`, and `()` refuses every key. The signatures carry no clock, no network
+  as `mineworld_decision::bounded`, and `()` refuses every key. `ModelParameters` requires
+  `schemars::JsonSchema` (a `parameters!` block has it), and the catalog `models!` writes answers each
+  in-process model's parameter schema, from which `docs/reference/decisions.md` is generated (`ARC-90`).
+  The signatures carry no clock, no network
   and no world handle. The receiver is `&self`, and a model crate may not use interior mutability: its own
   `clippy.toml` repeats the workspace's disallowed types and adds `Cell`, `RefCell`, `OnceCell`,
   `UnsafeCell`, `Mutex`, `RwLock`, `OnceLock`, `LazyLock` and the atomics. Randomness comes only from the
@@ -2170,7 +2191,7 @@ presentation/<style-id>/
 
 Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
 contain for the 2D reference client is specified in
-[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). A style that covers more than one dimension is more than
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). What `characters/cast.yaml` contains for the 3D reference client — which character draws a person with a given disclosed `look`, and the extras that draw everyone else — is specified in [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) (`DECISIONS.md` `ARC-92`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
 whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default:
 
@@ -2178,7 +2199,7 @@ whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default
 presentation/mineworld-default/
 ├── README.md     what the family is, and what the packs must share
 ├── 2D/           manifest.yaml · ART_DIRECTION.md · references/
-└── 3D/           manifest.yaml · ART_DIRECTION.md · references/
+└── 3D/           manifest.yaml · ART_DIRECTION.md · references/ · characters/cast.yaml
 ```
 
 Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECISIONS.md` `ARC-53`,
@@ -2332,6 +2353,7 @@ mineworld packs list [--packs DIR]...
 mineworld packs show <id> [--packs DIR]...
 mineworld packs validate <directory> [--packs DIR]...
 mineworld packs resolve <world> [--packs DIR]...
+mineworld reference (--out DIR | --check DIR)
 ```
 
 **Pack roots** (`DECISIONS.md` `ARC-54`). Every command that reads a world takes `--packs DIR`,
@@ -2354,6 +2376,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
+| `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 
 **`run`.** `--headless` is required: it states the only mode `run` has in MVP-0, and leaves a
 non-headless `run` possible later without changing what an existing invocation means. `--seed N`
@@ -2385,6 +2408,25 @@ fingerprint, which always covers the world's whole history; and last, on its own
 before the `wall` line is a function of the pack, the seed, the age and the code. The fingerprint
 (`FNV-1a 64` over every fact's stored encoding in `EventId` order, printed with the number of facts
 it covers) is for a person comparing two runs by eye; it is not a proof of equality.
+
+**`reference`.** Exactly one of `--out DIR` and `--check DIR`. It loads no World Pack and starts no
+world; what it generates is a function of the build alone: the installed set's packs in its order, each
+type's fields in name order, no timestamp and no commit hash, `\n` line endings on every OS. The pages
+are `README.md` (the index), `world-pack.md` (`world.yaml` and the content files' own fields),
+`sections.md` (each section an installed pack owns), `configure.md` (each `configure/` file other than an
+Interaction List section, the framework keys `classes` and `packages` included), `interaction-list.md`
+(the section shape and each pack's declarations), `decisions.md` (`decisions.yaml`, with each installed
+decision model and the parameters it takes, from the installed models' catalog), `pack-manifest.md` (a data pack's `pack.yaml` and a
+style manifest) and `cli.md` (every visible subcommand and argument, walked from the parser), plus the
+JSON Schemas under `schema/`. Every Markdown page begins with a generated banner. A field's description
+is the first paragraph of its doc comment; generation is refused, naming the type and the field, when a
+field has none. `--out DIR` writes the files, creating `DIR` if needed, removes generated files it no
+longer writes, and refuses — writing nothing — when `DIR` holds a file it did not generate.
+`--check DIR` writes nothing; it exits 0 when `DIR` holds exactly what this build generates, and
+otherwise exits 1 naming every file that differs, is missing, or is extra. The same directory holds the
+cognition half's files, `cognition-toml.md` and `schema/cognition-toml.schema.json`, generated from the
+cognition package's models and drift-checked by that package's own test (§5.2): neither `--out` nor
+`--check` writes, removes or compares them, and the index links them.
 
 **`decisions`.** Prints each seat's resolved decision model and memory choice (§4.1), in roster order.
 Without `--json`, one line per seat for a person. With `--json`, one JSON document on stdout, the form the
