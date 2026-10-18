@@ -6,7 +6,7 @@ only from packs, none of them written for it.
 
 | Pack | Kind | Where it comes from |
 | --- | --- | --- |
-| presence, movement, conversation, group-activity, relationships, naming, schedule, item, inventory, item-transfer, consumption | System Packs | bundled: compiled from this repository |
+| presence, movement, conversation, group-activity, relationships, naming, schedule, item, inventory, item-transfer, consumption, appearance | System Packs | bundled: compiled from this repository |
 | `acme-fishing` (system `fishing`) | System Pack | third-party: [mineworld-pack-fishing](https://github.com/yuema137/mineworld-pack-fishing), pinned to one commit in `systems/installed` |
 | `modern-goods` | Entity Pack | [`entities/modern-goods`](../../entities/modern-goods): the bread, milk and coffee people start with |
 | `mineworld-default-2d`, `mineworld-default-3d` | Presentation Packs | `presentation/mineworld-default` (declared; the clients do not draw Lakeside yet) |
