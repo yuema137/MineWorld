@@ -512,6 +512,8 @@ def casting_md(results: dict, cfg: dict, notes: str) -> str:
 # A POSIX home path or a Windows drive path; committed cast data must hold neither.
 ABSOLUTE_PATH = re.compile(r"/Users/|/home/[^/\s]+/|\b[A-Za-z]:\\")
 TEXT_SUFFIXES = {".yaml", ".yml", ".json", ".md", ".txt"}
+# The character pipeline's documents (every *.md below it) are held to the same rule.
+PIPELINE_DOCS = "tools/character_pipeline"
 
 
 def directory_problems(results: dict, inputs: dict, out_dir: Path, cfg: dict, template: dict) -> list[str]:
@@ -525,11 +527,14 @@ def directory_problems(results: dict, inputs: dict, out_dir: Path, cfg: dict, te
         f"stray directory (not in the cast): {name}" for name in sorted(present - cast_keys - fixed_keys)
     ]
     problems += [f"missing brief directory: {name}" for name in sorted(cast_keys - present)]
-    # Committed cast data names no machine's directories (no local username, no absolute path).
+    # Committed cast data and the pipeline's documents name no machine's directories (no local username, no
+    # absolute path).
     characters = out_dir.parent
-    for f in sorted(characters.rglob("*")) if characters.is_dir() else []:
-        if f.is_file() and f.suffix in TEXT_SUFFIXES and ABSOLUTE_PATH.search(f.read_text(encoding="utf-8")):
-            problems.append(f"absolute local path in cast data: {f.relative_to(ROOT).as_posix()}")
+    scanned = [f for f in characters.rglob("*") if f.suffix in TEXT_SUFFIXES] if characters.is_dir() else []
+    scanned += list((ROOT / PIPELINE_DOCS).rglob("*.md"))
+    for f in sorted(set(scanned)):
+        if f.is_file() and ABSOLUTE_PATH.search(f.read_text(encoding="utf-8")):
+            problems.append(f"absolute local path: {f.relative_to(ROOT).as_posix()}")
     if "picks" in cfg:
         picks = read_yaml(rel(cfg["picks"]), "casting picks")
         chosen = picks.get("picks")

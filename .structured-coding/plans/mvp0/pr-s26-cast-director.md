@@ -118,3 +118,9 @@ self-tests pass. CI on the exact head: see the PR.
 `str(Path.relative_to(ROOT))`, which uses backslashes there. Real defect, fixed: every repository path the tool
 writes or reports is `as_posix()`. The generated files are unchanged (they already held POSIX paths from Linux and
 macOS runs); `--check` still reproduces all 64.
+
+**Coordinator correction (2026-10-18), widened path check:** `tools/character_pipeline/PIPELINE.md` §13 and
+`blender/README.md` (from S26-b1) named the operator's local D+ workspace by absolute path; both now say "the
+operator's local D+ workspace (outside the repository)", and the SHA-256 list, the real provenance, is unchanged.
+`--check`'s absolute-path rule now also covers every `*.md` under `tools/character_pipeline/`; a planted
+`/Users/…` line in its README fails `--check`, reverted passes.

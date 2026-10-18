@@ -320,7 +320,7 @@ Mask and texel comparison use the tool venv (`tools/character_pipeline/requireme
 
 ## 13. Origin of the code
 
-Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in `/Users/yuema137/mineworld-demos/i23d/`):
+Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in the operator's local D+ workspace, outside the repository):
 
 | D+ script | Lines | SHA-256 | Port |
 | --- | --- | --- | --- |

@@ -3,7 +3,7 @@
 These scripts are the character pipeline's Blender stages: stage 6 (`gameready.py`), stages 7–8a (`fit_bind.py`),
 8b (`weights_fingers.py`), 8c (`weights_pack.py`), 9 (`flecks.py`), 10 (`export.py`), and the review and
 armature-dump support (`render_ortho.py`, `render_bones.py`, `dump_rig.py`). Each is a port of a D+ script in
-`/Users/yuema137/mineworld-demos/i23d/`, named in its header, and PIPELINE.md §2.3 states the port rule.
+the operator's local D+ workspace (outside the repository), named in its header, and PIPELINE.md §2.3 states the port rule.
 
 They use Blender's Python API (`bpy`, `bmesh`, `mathutils`), so they are distributed under
 **GPL-2.0-or-later**. See [`LICENSE`](LICENSE) and the SPDX header in each file.
