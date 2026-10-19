@@ -835,6 +835,23 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 | --- | --- | --- | --- | --- |
 | C0 … C9 | — | [ ] | [ ] | [ ] |
 
+### Base (C0, 2026-10-18)
+
+- **Base:** `origin/main @ b85f2804` (#260). Worktree `/Users/yuema137/mineworld-worktrees/impl-s30c`, branch
+  `mvp0/pr-s30c-attributes-pack` (the dispatch's name; §13's `mvp0/pr-s30c` is this branch).
+- **S30-b merged:** #247, merge `04d5145e`; `authoring/src/data.rs` holds `OwnsData`, `SectionInContext`,
+  `ResolvesSubjects`, `ShippedData`; `sdk/rust/src/pack.rs` holds `owns_data!`, `ships_data!`, `resolves!`.
+- **Anchors re-read on the base:** A-c-1 `authoring/src/data.rs:163-194`; A-c-2 `:295-334`; A-c-3 `:454-482`
+  (`ResolvesSubjects::resolve` at `:465`, called at `:588`); A-c-4 `:602-680`; A-c-5 `worldpack/src/load.rs:377-405`
+  (configuration at `:380`, sections loop at `:392`), `own_vocabulary` `:87`; A-c-6 `worldpack/src/read.rs`
+  `context()`; A-c-7 `worldpack/src/configure.rs:520-560`; A-c-21 `worldpack/tests/data_directories.rs:69-71, 111`
+  (unchanged: no installed pack owns data). Others as the design states.
+- **Others merged since the design:** S26-a (#206, `appearance`) and P6a (#236, `persona`) — neither owns data or
+  uses the seam (`grep owns_data! systems/*/src`: none); neither is needed.
+- **Rulings:** §15 Q-S30c-1 and Q-S30c-2 ruled 2026-10-18 as recommended; already reflected in §§5, 8.
+- **Decision records:** PR #258 (one file per record under `docs/decisions/`) is **OPEN**, so C8's notes go into
+  `docs/DECISIONS.md` as the design says.
+
 ### Evidence
 
 (none yet)
