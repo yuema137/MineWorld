@@ -7,7 +7,7 @@
     "source_file": "dario-russo.gltf",
     "source_sha256": "0ccd9a441fdb72926a21a76aebfe62dd9c6465c68c93ed6529d3f758cc6f0416",
     "source_bin_sha256": "cd0ada3a965c62c33e2af6736364e7cb86ff105e5a17e2fb93d74fb03c2c5b22",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "b",
-      "lead_leg": "right"
+      "lead_leg": "right",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 32.15,
+        "right": 30.85
+      },
+      "frame_abduction_deg": {
+        "left": 32.15,
+        "right": 30.85
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 23.7,
+        "right": 19.5,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

@@ -7,7 +7,7 @@
     "source_file": "felix-okafor.gltf",
     "source_sha256": "aa554090ee6183efaf63f534a8e488b21ff718d876b4bfa5185adf9155f418c0",
     "source_bin_sha256": "299158b726ab4b1bfc3a84733be9cc6eadbf0ca703f04730bd0011502f0d5272",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "b",
-      "lead_leg": "right"
+      "lead_leg": "right",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 23.22,
+        "right": 22.46
+      },
+      "frame_abduction_deg": {
+        "left": 23.22,
+        "right": 22.46
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 17.6,
+        "right": 14.7,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

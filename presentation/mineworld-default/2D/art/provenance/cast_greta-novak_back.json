@@ -7,7 +7,7 @@
     "source_file": "greta-novak.gltf",
     "source_sha256": "3dd706d07893f0c3de46849e0b8b5f913dd44f9ea1ffde3f18fb91a170498ff9",
     "source_bin_sha256": "a7e19a6f67f03644d81b10706bce1ba92c8c07e93f72a59314263d2e7a97be5f",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "a",
-      "lead_leg": "left"
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 25.72,
+        "right": 25.79
+      },
+      "frame_abduction_deg": {
+        "left": 25.72,
+        "right": 25.79
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 19.0,
+        "right": 19.2,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -34,15 +56,15 @@
     ],
     "normalized": true,
     "height_m": 1.56,
-    "pixel_height": 100,
+    "pixel_height": 101,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      14.0,
-      100.0
+      18.7,
+      101.0
     ],
     "size": [
-      42,
-      100
+      55,
+      101
     ]
   },
   "human_curated": false,

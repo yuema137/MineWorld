@@ -7,7 +7,7 @@
     "source_file": "alice-moreau.gltf",
     "source_sha256": "c4fecf5c2f47a7f05ac7d2f100260f023aee808721f484ec51701d834ad3c04c",
     "source_bin_sha256": "eaa48332e83383d1499e845a969b2a613e94331a80d421e4842c225a2dd9eddd",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "b",
-      "lead_leg": "right"
+      "lead_leg": "right",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 14.75,
+        "right": 15.61
+      },
+      "frame_abduction_deg": {
+        "left": 14.75,
+        "right": 15.61
+      },
+      "forearm_in_deg": {
+        "left": 7.26,
+        "right": 7.26
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 27.4,
+        "right": 28.3,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

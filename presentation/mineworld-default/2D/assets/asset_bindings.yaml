@@ -203,8 +203,8 @@
     },
     "cast_alba-ferreira_back": {
       "anchor": [
-        14.8,
-        108.0
+        16.3,
+        109.0
       ],
       "file": "art/cast/alba-ferreira_back.png",
       "height_m": 1.68,
@@ -233,8 +233,8 @@
     },
     "cast_alba-ferreira_front_b": {
       "anchor": [
-        14.8,
-        109.0
+        16.1,
+        108.0
       ],
       "file": "art/cast/alba-ferreira_front_b.png",
       "height_m": 1.68,
@@ -243,7 +243,7 @@
     },
     "cast_alice-moreau_back": {
       "anchor": [
-        16.4,
+        16.9,
         103.0
       ],
       "file": "art/cast/alice-moreau_back.png",
@@ -273,7 +273,7 @@
     },
     "cast_alice-moreau_front_b": {
       "anchor": [
-        15.9,
+        16.7,
         104.0
       ],
       "file": "art/cast/alice-moreau_front_b.png",
@@ -283,7 +283,7 @@
     },
     "cast_bob-achterberg_back": {
       "anchor": [
-        16.8,
+        20.0,
         117.0
       ],
       "file": "art/cast/bob-achterberg_back.png",
@@ -313,7 +313,7 @@
     },
     "cast_bob-achterberg_front_b": {
       "anchor": [
-        17.2,
+        20.4,
         118.0
       ],
       "file": "art/cast/bob-achterberg_front_b.png",
@@ -323,7 +323,7 @@
     },
     "cast_bruno-lindqvist_back": {
       "anchor": [
-        17.0,
+        19.1,
         108.0
       ],
       "file": "art/cast/bruno-lindqvist_back.png",
@@ -353,8 +353,8 @@
     },
     "cast_bruno-lindqvist_front_b": {
       "anchor": [
-        17.4,
-        108.0
+        19.5,
+        109.0
       ],
       "file": "art/cast/bruno-lindqvist_front_b.png",
       "height_m": 1.69,
@@ -363,7 +363,7 @@
     },
     "cast_carol-mensah_back": {
       "anchor": [
-        15.2,
+        17.3,
         102.0
       ],
       "file": "art/cast/carol-mensah_back.png",
@@ -393,7 +393,7 @@
     },
     "cast_carol-mensah_front_b": {
       "anchor": [
-        14.5,
+        17.1,
         102.0
       ],
       "file": "art/cast/carol-mensah_front_b.png",
@@ -403,7 +403,7 @@
     },
     "cast_celia-okafor_back": {
       "anchor": [
-        14.0,
+        16.2,
         108.0
       ],
       "file": "art/cast/celia-okafor_back.png",
@@ -433,8 +433,8 @@
     },
     "cast_celia-okafor_front_b": {
       "anchor": [
-        14.6,
-        108.0
+        16.5,
+        107.0
       ],
       "file": "art/cast/celia-okafor_front_b.png",
       "height_m": 1.67,
@@ -443,7 +443,7 @@
     },
     "cast_dario-russo_back": {
       "anchor": [
-        16.3,
+        21.1,
         113.0
       ],
       "file": "art/cast/dario-russo_back.png",
@@ -473,7 +473,7 @@
     },
     "cast_dario-russo_front_b": {
       "anchor": [
-        16.2,
+        21.1,
         113.0
       ],
       "file": "art/cast/dario-russo_front_b.png",
@@ -483,8 +483,8 @@
     },
     "cast_dev-raman_back": {
       "anchor": [
-        15.3,
-        109.0
+        17.6,
+        108.0
       ],
       "file": "art/cast/dev-raman_back.png",
       "height_m": 1.69,
@@ -513,7 +513,7 @@
     },
     "cast_dev-raman_front_b": {
       "anchor": [
-        15.4,
+        18.3,
         109.0
       ],
       "file": "art/cast/dev-raman_front_b.png",
@@ -523,7 +523,7 @@
     },
     "cast_elin-berg_back": {
       "anchor": [
-        14.7,
+        17.4,
         96.0
       ],
       "file": "art/cast/elin-berg_back.png",
@@ -553,7 +553,7 @@
     },
     "cast_elin-berg_front_b": {
       "anchor": [
-        14.4,
+        17.2,
         95.0
       ],
       "file": "art/cast/elin-berg_front_b.png",
@@ -563,7 +563,7 @@
     },
     "cast_erin-walsh_back": {
       "anchor": [
-        17.7,
+        20.0,
         101.0
       ],
       "file": "art/cast/erin-walsh_back.png",
@@ -593,7 +593,7 @@
     },
     "cast_erin-walsh_front_b": {
       "anchor": [
-        18.4,
+        20.5,
         102.0
       ],
       "file": "art/cast/erin-walsh_front_b.png",
@@ -603,8 +603,8 @@
     },
     "cast_felix-okafor_back": {
       "anchor": [
-        16.8,
-        116.0
+        20.4,
+        115.0
       ],
       "file": "art/cast/felix-okafor_back.png",
       "height_m": 1.8,
@@ -633,7 +633,7 @@
     },
     "cast_felix-okafor_front_b": {
       "anchor": [
-        17.1,
+        20.0,
         116.0
       ],
       "file": "art/cast/felix-okafor_front_b.png",
@@ -643,7 +643,7 @@
     },
     "cast_finn-halvorsen_back": {
       "anchor": [
-        21.1,
+        23.0,
         111.0
       ],
       "file": "art/cast/finn-halvorsen_back.png",
@@ -673,7 +673,7 @@
     },
     "cast_finn-halvorsen_front_b": {
       "anchor": [
-        21.2,
+        22.6,
         111.0
       ],
       "file": "art/cast/finn-halvorsen_front_b.png",
@@ -683,7 +683,7 @@
     },
     "cast_grace-liu_back": {
       "anchor": [
-        12.9,
+        16.0,
         99.0
       ],
       "file": "art/cast/grace-liu_back.png",
@@ -713,7 +713,7 @@
     },
     "cast_grace-liu_front_b": {
       "anchor": [
-        17.1,
+        18.4,
         100.0
       ],
       "file": "art/cast/grace-liu_front_b.png",
@@ -723,8 +723,8 @@
     },
     "cast_greta-novak_back": {
       "anchor": [
-        14.0,
-        100.0
+        18.7,
+        101.0
       ],
       "file": "art/cast/greta-novak_back.png",
       "height_m": 1.56,
@@ -733,8 +733,8 @@
     },
     "cast_greta-novak_back_b": {
       "anchor": [
-        25.1,
-        102.0
+        25.0,
+        101.0
       ],
       "file": "art/cast/greta-novak_back_b.png",
       "height_m": 1.56,
@@ -743,7 +743,7 @@
     },
     "cast_greta-novak_front": {
       "anchor": [
-        25.3,
+        25.6,
         102.0
       ],
       "file": "art/cast/greta-novak_front.png",
@@ -753,7 +753,7 @@
     },
     "cast_greta-novak_front_b": {
       "anchor": [
-        14.7,
+        18.8,
         102.0
       ],
       "file": "art/cast/greta-novak_front_b.png",
@@ -763,8 +763,8 @@
     },
     "cast_hana-sato_back": {
       "anchor": [
-        15.7,
-        109.0
+        18.3,
+        108.0
       ],
       "file": "art/cast/hana-sato_back.png",
       "height_m": 1.68,
@@ -793,7 +793,7 @@
     },
     "cast_hana-sato_front_b": {
       "anchor": [
-        16.0,
+        18.6,
         108.0
       ],
       "file": "art/cast/hana-sato_front_b.png",
@@ -803,7 +803,7 @@
     },
     "cast_hugo-marchetti_back": {
       "anchor": [
-        16.5,
+        19.6,
         106.0
       ],
       "file": "art/cast/hugo-marchetti_back.png",
@@ -833,8 +833,8 @@
     },
     "cast_hugo-marchetti_front_b": {
       "anchor": [
-        16.4,
-        106.0
+        19.5,
+        107.0
       ],
       "file": "art/cast/hugo-marchetti_front_b.png",
       "height_m": 1.66,
@@ -843,8 +843,8 @@
     },
     "cast_ines-duarte_back": {
       "anchor": [
-        15.7,
-        103.0
+        16.1,
+        104.0
       ],
       "file": "art/cast/ines-duarte_back.png",
       "height_m": 1.61,
@@ -873,8 +873,8 @@
     },
     "cast_ines-duarte_front_b": {
       "anchor": [
-        16.0,
-        103.0
+        16.7,
+        104.0
       ],
       "file": "art/cast/ines-duarte_front_b.png",
       "height_m": 1.61,
@@ -883,7 +883,7 @@
     },
     "cast_ivan-petrov_back": {
       "anchor": [
-        15.2,
+        17.7,
         108.0
       ],
       "file": "art/cast/ivan-petrov_back.png",
@@ -913,8 +913,8 @@
     },
     "cast_ivan-petrov_front_b": {
       "anchor": [
-        16.1,
-        107.0
+        18.3,
+        108.0
       ],
       "file": "art/cast/ivan-petrov_front_b.png",
       "height_m": 1.67,
@@ -923,7 +923,7 @@
     },
     "cast_nils-aaltonen_back": {
       "anchor": [
-        20.8,
+        23.1,
         117.0
       ],
       "file": "art/cast/nils-aaltonen_back.png",
@@ -953,7 +953,7 @@
     },
     "cast_nils-aaltonen_front_b": {
       "anchor": [
-        20.9,
+        23.1,
         118.0
       ],
       "file": "art/cast/nils-aaltonen_front_b.png",
@@ -963,7 +963,7 @@
     },
     "cast_otto-brandt_back": {
       "anchor": [
-        18.7,
+        21.6,
         109.0
       ],
       "file": "art/cast/otto-brandt_back.png",
@@ -993,7 +993,7 @@
     },
     "cast_otto-brandt_front_b": {
       "anchor": [
-        19.2,
+        22.0,
         108.0
       ],
       "file": "art/cast/otto-brandt_front_b.png",
@@ -1003,7 +1003,7 @@
     },
     "cast_vera-lindgren_back": {
       "anchor": [
-        15.1,
+        15.5,
         114.0
       ],
       "file": "art/cast/vera-lindgren_back.png",
@@ -1023,7 +1023,7 @@
     },
     "cast_vera-lindgren_front": {
       "anchor": [
-        23.7,
+        23.6,
         113.0
       ],
       "file": "art/cast/vera-lindgren_front.png",
@@ -1033,8 +1033,8 @@
     },
     "cast_vera-lindgren_front_b": {
       "anchor": [
-        14.4,
-        114.0
+        14.9,
+        113.0
       ],
       "file": "art/cast/vera-lindgren_front_b.png",
       "height_m": 1.767,
@@ -1043,7 +1043,7 @@
     },
     "cast_wes-calloway_back": {
       "anchor": [
-        19.7,
+        20.4,
         119.0
       ],
       "file": "art/cast/wes-calloway_back.png",
@@ -1073,7 +1073,7 @@
     },
     "cast_wes-calloway_front_b": {
       "anchor": [
-        21.7,
+        22.4,
         119.0
       ],
       "file": "art/cast/wes-calloway_front_b.png",
