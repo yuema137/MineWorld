@@ -5,7 +5,7 @@ use mineworld_contracts::{
     ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
     LifecycleState, Rejection, SystemId, Visibility,
 };
-use mineworld_employment::WageDue;
+use mineworld_employment::{WageDeductionDue, WageDue};
 use mineworld_inventory::{InventorySystem, ItemsTransferred};
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -18,7 +18,7 @@ use serde_json::Value;
 use crate::action::{Buy, buy_requirement, purchasable};
 use crate::codec::{self, read_buy};
 use crate::component::{Shop, Wallet};
-use crate::event::{Funded, MoneyTransferred, ShopOpened, WageUnpaid};
+use crate::event::{DeductionUnpaid, Funded, MoneyTransferred, ShopOpened, WageUnpaid};
 use crate::money::{admit_payment, balance, is_holder, pay};
 use crate::offer::{buys, listing, living_person, shop_here};
 
@@ -50,7 +50,8 @@ fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
 }
 
 impl System for EconomySystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// 2 since PR LE-b (`ARC-287`): it answers `wage-deduction-due` and states `deduction-unpaid`.
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     /// Depends on inventory, whose `items-transferred` a purchase states and whose stock a listing
     /// reads (`ARC-26`), and on presence, whose positions it reads. Subscribes to employment's
@@ -66,11 +67,13 @@ impl System for EconomySystem {
             .emitting::<ShopOpened>()
             .emitting::<MoneyTransferred>()
             .emitting::<WageUnpaid>()
+            .emitting::<DeductionUnpaid>()
             .emitting::<ItemsTransferred>()
             .subscribing_to::<Funded>()
             .subscribing_to::<ShopOpened>()
             .subscribing_to::<MoneyTransferred>()
             .subscribing_to::<WageDue>()
+            .subscribing_to::<WageDeductionDue>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
@@ -193,6 +196,9 @@ impl System for EconomySystem {
         } else if *kind == WageDue::EVENT_TYPE {
             let due: WageDue = codec::event_payload(event.payload())?;
             return Ok(vec![answer(&world.read(), &due)]);
+        } else if *kind == WageDeductionDue::EVENT_TYPE {
+            let due: WageDeductionDue = codec::event_payload(event.payload())?;
+            return Ok(vec![deduct(&world.read(), &due)]);
         }
         Ok(Vec::new())
     }
@@ -215,6 +221,33 @@ fn answer(world: &WorldRead<'_>, due: &WageDue) -> Emission {
     }
     Emission::new::<WageUnpaid>(
         codec::encode(&WageUnpaid::new(
+            due.employee(),
+            due.employer(),
+            due.amount(),
+        )),
+        Visibility::Participants,
+    )
+    .about(vec![employee, employer])
+    .with_participants(vec![employee, employer])
+}
+
+/// The answer to a `wage-deduction-due` (`ARC-287`): the payment, employee → employer, heard by the two
+/// of them, when the employee can make it; otherwise `deduction-unpaid`, and nothing moves.
+fn deduct(world: &WorldRead<'_>, due: &WageDeductionDue) -> Emission {
+    let employee = due.employee().entity_id();
+    let employer = due.employer().entity_id();
+    if admit_payment(world, employee, employer, due.amount()).is_ok() {
+        return pay(
+            world,
+            employee,
+            employer,
+            due.amount(),
+            Visibility::Participants,
+        )
+        .expect("admitted a moment ago");
+    }
+    Emission::new::<DeductionUnpaid>(
+        codec::encode(&DeductionUnpaid::new(
             due.employee(),
             due.employer(),
             due.amount(),
