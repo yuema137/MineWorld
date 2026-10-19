@@ -1,0 +1,12 @@
+tags:
+  - seaside
+  - harbour
+note: The quay by the sea, with the fishing boats.
+passages:
+  - to: bakery
+    here:
+      x: 4000
+      y: 0
+    there:
+      x: 2000
+      y: 0

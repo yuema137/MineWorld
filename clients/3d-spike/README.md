@@ -40,6 +40,29 @@ on your machine and are shared with the 2D client. On Windows, clone with `git c
 true` (Developer Mode): `mineworld`, `mineworld_settings` and `mineworld_environment` here are symlinks to the
 shared modules.
 
+## Playing the world in 3D
+
+```sh
+./mineworld-slice --world   # host worlds/social-cafe locally and play it (needs cargo)
+./mineworld-slice           # the slice alone: a showcase, not the world
+```
+
+Connected, everything you see of the world comes from the server: walk out of the café and the
+town's people walk the street and go into doors; The Flower Room is the world's store; press **E**
+while looking at someone to talk. Offline, the street's townspeople are scenery.
+
+People, boxes and balls have bodies: you stop at someone's shoulder, and keep pushing to nudge them
+aside. Look at a person and press **R** to shove; at a box or ball, **F** to kick, **G G** to throw,
+or **G**, aim, **G** to throw it there (**Esc** cancels the aim). The `looking at` line shows what the
+world offers; the keys send whatever you press, and the world answers.
+
+Scripted checks, each against its own local server: `--world --link`, `--world --target`,
+`--world --layout` (every doorway on a drawn door), `--world --street` (people walk, into doors),
+`--world --geometry` (the scene's walls against the world's), `--world --bodies` (nudge, crowd, box,
+kick, throw, shove) and `--world --rules` (the same requests with and without bodies).
+What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20 and
+`step-11-bodies.md` §22.
+
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has
 focus when you press it. Rebind it in `project.godot` under `camera_cycle` if it

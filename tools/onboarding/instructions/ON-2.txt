@@ -1,0 +1,1 @@
+Make a mountain inn with a kitchen and a common room, four guests and an innkeeper. Guests who stop meeting should slowly forget each other. Nobody may shout in the common room after 22:00.

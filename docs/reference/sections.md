@@ -535,3 +535,82 @@ One entry of the section: a value written in its kind's own form, or a restricti
 | --- | --- | --- | --- | --- | --- |
 | `allowed` | list of text | no | `null` | — | For a `category`, `level` or `set`: the values the sampler may draw. |
 | `between` | list of number | no | `null` | — | For a `quantity`: the inclusive bounds the sampler may draw within. |
+
+<a id="section-sit-points"></a>
+
+## `sit-points`
+
+Written under the key `sit-points` in `places/<key>.yaml`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The sit points of one place: at most [`SIT_POINTS_MAX`], keys unique, every pair at least [`SIT_POINT_SPACING`] apart, held sorted by key (`ARC-147`, I-a-2).
+
+**Type:** list of [SitPoint](#section-sit-points-sitpoint).
+
+Example:
+
+```yaml
+sit-points:
+  - at:
+      x: 2700
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.1
+  - at:
+      x: 3300
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.2
+```
+
+### Types used above
+
+<a id="section-sit-points-millimetres"></a>
+
+#### `Millimetres`
+
+A length or a coordinate, in whole millimetres (1 m = 1000).
+
+**Type:** whole number. **Bounds:** -2147483648 to 2147483647.
+
+<a id="section-sit-points-sitgroupkey"></a>
+
+#### `SitGroupKey`
+
+The furniture a sit point belongs to, so that a depiction and a word can name it once: the `window-bench` of `window-bench.1` and `window-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-sitpoint"></a>
+
+#### `SitPoint`
+
+One place where one person may sit, on free floor.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `at` | [Spot](#section-sit-points-spot) | yes | — | — | The seated person's position on the place's floor, in millimetres. |
+| `facing` | whole number | yes | — | — | The yaw a seated person faces, in millidegrees: `0` faces north, `90 000` east, `180 000` south. |
+| `group` | [SitGroupKey](#section-sit-points-sitgroupkey) | no | — | — | The furniture this point belongs to, if any: a slug such as `window-bench`. |
+| `key` | [SitPointKey](#section-sit-points-sitpointkey) | yes | — | — | The point's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. |
+
+<a id="section-sit-points-sitpointkey"></a>
+
+#### `SitPointKey`
+
+The name of a sit point, unique within its place: `window-bench.1`, `pier-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-spot"></a>
+
+#### `Spot`
+
+The position of a sit point, as a file writes it: `{ x: 2700, y: 1160 }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `x` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres east of the place's origin. |
+| `y` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres north of the place's origin. |

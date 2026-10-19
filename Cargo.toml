@@ -21,6 +21,8 @@ members = [
     "tests/acceptance",
     "tests/support",
     "tools/cli",
+    # The downloadable bundle's supervisor (DECISIONS.md ARC-78): standard library only.
+    "tools/launch",
     # A developer tool, never part of a world's build: the only crate allowed an HTTP client, behind
     # its off-by-default `fetch` feature (DECISIONS.md DEP-31, step-19 INV-TW-7).
     "tools/weather-fetch",
@@ -47,6 +49,7 @@ mineworld-contracts = { path = "contracts" }
 mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
 mineworld-appearance = { path = "systems/appearance" }
+mineworld-posture = { path = "systems/posture" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
 mineworld-packages = { path = "packages" }

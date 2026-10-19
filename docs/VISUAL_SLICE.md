@@ -147,7 +147,7 @@ Required, and nothing beyond it:
 | **planting** | at least: street trees, planters or window boxes with real foliage, and at least one climbing or trailing plant on a building |
 | **signage** | the café's own hanging sign and fascia, plus legible identification on at least two secondary façades |
 | **far field** | every direction, 360°, closes on a far field: sky, distant terrain at the real place's distances and angular sizes, water where the place has it, and the town's distant massing (`MODULE_SPEC.md` §6.1.1). A backdrop that closes only the frontage's ends does not satisfy this row. Neither the ground's edge nor an empty background may be visible from any reachable point or from the elevated review view |
-| **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty |
+| **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty. *2026-10-15 (S14 PR 16c): standalone, these are the streetscape's townspeople, as accepted; connected, the figures are the world's people only, walking as the world moves them ("One world, two views" rule 1; `step-15-demo-3d.md` §20)* |
 
 **Explicitly out of scope:** a third enterable building, a town square, a market, vehicles in
 motion, weather, a day/night cycle, water simulation, crowds, and any building **in the street** the

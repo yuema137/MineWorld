@@ -97,6 +97,68 @@ One SPDX licence identifier, such as MIT, checked against the SPDX licence list.
 
 **Type:** text.
 
+<a id="configure-economy"></a>
+
+## `configure/economy.yaml`
+
+Read when `world.yaml` lists `economy` under `configure:`.
+Read by the `economy` system (package `mineworld-economy`), which a world enables in `systems:`.
+
+The file as written.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `price_modifiers` | list of [PriceModifier](#configure-economy-pricemodifier) | no | `[]` | — | Which shops change their prices while which happenings run: at most 32, each (during, shop) once. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+price_modifiers:
+  - during: market-day
+    permille: 900
+    shop: store
+```
+
+### Types used above
+
+<a id="configure-economy-entitykey"></a>
+
+#### `EntityKey`
+
+An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
+
+**Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="configure-economy-happeningkindid"></a>
+
+#### `HappeningKindId`
+
+A kind's id: `market-day`, `festival`. The identifier rule of `contracts` (lowercase ASCII letters, digits, `-` and `_`, neither first nor last a separator), at most [`KIND_ID_MAX_BYTES`].
+
+**Type:** text.
+
+<a id="configure-economy-permille"></a>
+
+#### `Permille`
+
+A price multiplier per mille, 100 … 10 000: 900 is 10 % off, 1 500 half as much again.
+
+**Type:** whole number. **Bounds:** 0 to 65535.
+
+<a id="configure-economy-pricemodifier"></a>
+
+#### `PriceModifier`
+
+While a happening of kind `during` runs, the shop at `shop` multiplies its prices by `permille`. `P` is how the shop's place is named: its key in the file, its id once seeded.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `during` | [HappeningKindId](#configure-economy-happeningkindid) | yes | — | — | The happening kind it applies during, by id; matched, never interpreted. |
+| `permille` | [Permille](#configure-economy-permille) | yes | — | — | The price multiplier per mille, 100 to 10000: 900 is 10 % off. |
+| `shop` | [EntityKey](#configure-economy-entitykey) | yes | — | — | The shop's place, by key. |
+
 <a id="configure-calendar"></a>
 
 ## `configure/calendar.yaml`
@@ -430,6 +492,227 @@ Where the days come from: rules or record.
 The weather station the record comes from, such as USW00023188: provenance only, printable ASCII.
 
 **Type:** text.
+
+<a id="configure-happenings"></a>
+
+## `configure/happenings.yaml`
+
+Read when `world.yaml` lists `happenings` under `configure:`.
+Read by the `happenings` system (package `mineworld-happenings`), which a world enables in `systems:`.
+
+The file as written.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `calendar` | list of [CalendarEntry](#configure-happenings-calendarentry) | no | — | — | Happenings on dates: each names exactly one of weekdays, date and monthday. At most 64. |
+| `generators` | list of [SystemId](#configure-happenings-systemid) | no | `[]` | — | External generators this world selects, by system id, each once. |
+| `kinds` | list of [RawKind](#configure-happenings-rawkind) | yes | — | — | What may happen, where and at which hours: 1 to 64 kinds, ids unique. |
+| `limits` | [Limits](#configure-happenings-limits) | no | `{"per_day":3,"per_place_running":1}` | — | The world's caps on how many happenings begin a day and overlap at a place. |
+| `random` | list of [RandomEntry](#configure-happenings-randomentry) | no | `[]` | — | Happenings on a seeded chance per day; each (kind, place) once. At most 64. |
+| `seed` | whole number | yes | — | at least 0 | The seed every random draw comes from: part of the world, not the run's --seed. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+calendar:
+  - kind: market-day
+    place: street
+    weekdays:
+      - saturday
+  - date: "10-31"
+    kind: harvest-festival
+    place: park
+kinds:
+  - hours: "08:00-14:00"
+    id: market-day
+    places:
+      - street
+    title: Saturday market
+  - announce_days: 7
+    hours: "16:00-22:00"
+    id: harvest-festival
+    places:
+      - park
+  - audience: place
+    hours: "11:00-13:00"
+    id: street-musician
+    places:
+      - street
+limits:
+  per_day: 3
+  per_place_running: 1
+random:
+  - kind: street-musician
+    per_mille_per_day: 150
+    place: street
+seed: 7
+```
+
+### Types used above
+
+<a id="configure-happenings-announcedays"></a>
+
+#### `AnnounceDays`
+
+How many days before it begins a happening is announced; 0 announces it at its own midnight.
+
+**Type:** whole number. **Bounds:** 0 to 255.
+
+<a id="configure-happenings-audience"></a>
+
+#### `Audience`
+
+Who hears that a happening began and ended: everybody, or those at its place.
+
+**Type:** `public` or `place`.
+
+- `public`: Heard everywhere.
+- `place`: Heard at its place.
+
+<a id="configure-happenings-calendarentry"></a>
+
+#### `CalendarEntry`
+
+A calendar entry as the file writes it: exactly one of `weekdays`, `date` and `monthday`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `date` | text | no | `null` | — | Every year on this date, MM-DD, such as "10-31". |
+| `kind` | [HappeningKindId](#configure-happenings-happeningkindid) | yes | — | — | The kind it schedules, by id. |
+| `monthday` | whole number | no | `null` | 0 to 255 | Every month on this day, 1 to 28. |
+| `place` | [EntityKey](#configure-happenings-entitykey) | yes | — | — | Where, by key: one of the kind's places. |
+| `weekdays` | [WeekdaySet](#configure-happenings-weekdayset) | no | `null` | — | Every week on these weekdays, such as [saturday]. |
+
+<a id="configure-happenings-days"></a>
+
+#### `Days`
+
+How many days a happening runs: from day 1's `from` to day N's `until`.
+
+**Type:** whole number. **Bounds:** 0 to 255.
+
+<a id="configure-happenings-entitykey"></a>
+
+#### `EntityKey`
+
+An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
+
+**Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="configure-happenings-happeningkindid"></a>
+
+#### `HappeningKindId`
+
+A kind's id: `market-day`, `festival`. The identifier rule of `contracts` (lowercase ASCII letters, digits, `-` and `_`, neither first nor last a separator), at most [`KIND_ID_MAX_BYTES`].
+
+**Type:** text.
+
+<a id="configure-happenings-hours"></a>
+
+#### `Hours`
+
+The local hours a happening runs on each of its days, in minutes since midnight: `from` before `until`, both on one day; `24:00` is a legal `until`. Written `HH:MM-HH:MM`.
+
+**Type:** text.
+
+<a id="configure-happenings-limits"></a>
+
+#### `Limits`
+
+The host's own caps (design §5.3), enforced on every draft from every source (INV-WE-6).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `per_day` | [PerDay](#configure-happenings-perday) | no | `3` | — | The most happenings that may begin on one day, world-wide: 1 to 16, 3 when unsaid. |
+| `per_place_running` | [PerPlaceRunning](#configure-happenings-perplacerunning) | no | `1` | — | The most happenings that may overlap at one place: 1 to 4, 1 when unsaid. |
+
+<a id="configure-happenings-monthset"></a>
+
+#### `MonthSet`
+
+A non-empty set of months, written as their numbers: `[5, 6, 7, 8, 9]`.
+
+**Type:** list of whole number.
+
+<a id="configure-happenings-perday"></a>
+
+#### `PerDay`
+
+The most happenings that may begin on one day, world-wide.
+
+**Type:** whole number. **Bounds:** 0 to 255.
+
+<a id="configure-happenings-permille"></a>
+
+#### `PerMille`
+
+A chance per day, per mille: 0 never, 1 000 every day.
+
+**Type:** whole number. **Bounds:** 0 to 65535.
+
+<a id="configure-happenings-perplacerunning"></a>
+
+#### `PerPlaceRunning`
+
+The most happenings that may overlap in time at one place.
+
+**Type:** whole number. **Bounds:** 0 to 255.
+
+<a id="configure-happenings-randomentry"></a>
+
+#### `RandomEntry`
+
+One `random:` entry: the kind, the place, its chance per day, and the weekdays and months it may fire in (all, if not given). `P` is how a place is named.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `kind` | [HappeningKindId](#configure-happenings-happeningkindid) | yes | — | — | The kind it draws, by id. |
+| `months` | [MonthSet](#configure-happenings-monthset) | no | — | — | The months it may fire in, 1 to 12; every month when unsaid. |
+| `per_mille_per_day` | [PerMille](#configure-happenings-permille) | yes | — | — | Its chance per day, per mille: 0 never, 1000 every day. |
+| `place` | [EntityKey](#configure-happenings-entitykey) | yes | — | — | Where, by key: one of the kind's places. |
+| `weekdays` | [WeekdaySet](#configure-happenings-weekdayset) | no | — | — | The weekdays it may fire on; every weekday when unsaid. |
+
+<a id="configure-happenings-rawkind"></a>
+
+#### `RawKind`
+
+One kind as the file writes it: the catalog entry and its id.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `announce_days` | [AnnounceDays](#configure-happenings-announcedays) | no | `0` | — | How many days before it begins it is announced, 0 to 30; 0 when unsaid. |
+| `audience` | [Audience](#configure-happenings-audience) | no | `"public"` | — | Who hears that it began and ended: public (everybody, the default) or place (those there). |
+| `days` | [Days](#configure-happenings-days) | no | `1` | — | How many days it runs, 1 to 14; 1 when unsaid. |
+| `hours` | [Hours](#configure-happenings-hours) | yes | — | — | The local hours it runs on each of its days, HH:MM-HH:MM, such as "08:00-14:00". |
+| `id` | [HappeningKindId](#configure-happenings-happeningkindid) | yes | — | — | The kind's id, such as market-day: 1 to 32 bytes of a-z, 0-9, - and _. |
+| `places` | list of [EntityKey](#configure-happenings-entitykey) | yes | — | — | The 1 to 16 distinct places it may happen at, by key. |
+| `title` | [Title](#configure-happenings-title) | no | `null` | — | What the kind is called when shown, at most 64 bytes. |
+
+<a id="configure-happenings-systemid"></a>
+
+#### `SystemId`
+
+The id of a System Pack, such as presence or calendar. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
+
+**Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="configure-happenings-title"></a>
+
+#### `Title`
+
+What a kind is called when it is shown: at most [`TITLE_MAX_BYTES`] of UTF-8 with no control character. Shown, never parsed.
+
+**Type:** text.
+
+<a id="configure-happenings-weekdayset"></a>
+
+#### `WeekdaySet`
+
+A non-empty set of weekdays, written as their names: `[saturday, sunday]`.
+
+**Type:** list of text.
 
 <a id="configure-attributes"></a>
 

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="MineWorld。一个用来搭 1:1 数字世界的框架。游戏只是其中一种用法。现在：能走进去的、模块化的活小镇。">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#1d1d1b}
+.m{fill:#6b6a64} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#fbfaf7} .card{fill:#ffffff;stroke:#e3e0d8;stroke-width:2}
+.acc{fill:#fff4e2;stroke:#b8792b;stroke-width:2.5} .acct{fill:#b8792b}
+.layer{fill:#ffffff;stroke:#b8792b;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#e6f3ea} .donet{fill:#2f7d4f} .dones{stroke:#2f7d4f}
+.wip{fill:#fbf0d9} .wipt{fill:#a46a00} .wips{stroke:#a46a00}
+.plan{fill:#eceef1} .plant{fill:#5b6470} .plans{stroke:#5b6470}
+.vis{fill:#f1ecfb} .vist{fill:#6a4fb3} .viss{stroke:#6a4fb3}
+.bad{fill:#f8e3e1;stroke:#b3362f;stroke-width:2} .badt{fill:#b3362f}
+.in{stroke:#3b5bdb;stroke-width:3;fill:none} .int{fill:#3b5bdb}
+.ob{stroke:#1f7a8c;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#1f7a8c}
+.flow{stroke:#6b6a64;stroke-width:2.5;fill:none} .badl{stroke:#b3362f;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#e3e0d8;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#b8792b} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#3b5bdb"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#1f7a8c"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6b6a64"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#b3362f"/></marker>
+</defs>
+<rect width="1200" height="340" rx="24" class="bg"/>
+<path d="M250,163.0 L284,180.0 L250,197.0 L216,180.0z" fill="#d9a35b"/><path d="M216,180.0 L250,197.0 L250,231.0 L216,214.0z" fill="#a8722f"/><path d="M284,180.0 L250,197.0 L250,231.0 L284,214.0z" fill="#8a5c24"/>
+<path d="M284,180.0 L318,197.0 L284,214.0 L250,197.0z" fill="#d9a35b"/><path d="M250,197.0 L284,214.0 L284,248.0 L250,231.0z" fill="#a8722f"/><path d="M318,197.0 L284,214.0 L284,248.0 L318,231.0z" fill="#8a5c24"/>
+<path d="M318,197.0 L352,214.0 L318,231.0 L284,214.0z" fill="#d9a35b"/><path d="M284,214.0 L318,231.0 L318,265.0 L284,248.0z" fill="#a8722f"/><path d="M352,214.0 L318,231.0 L318,265.0 L352,248.0z" fill="#8a5c24"/>
+<path d="M216,180.0 L250,197.0 L216,214.0 L182,197.0z" fill="#d9a35b"/><path d="M182,197.0 L216,214.0 L216,248.0 L182,231.0z" fill="#a8722f"/><path d="M250,197.0 L216,214.0 L216,248.0 L250,231.0z" fill="#8a5c24"/>
+<path d="M250,197.0 L284,214.0 L250,231.0 L216,214.0z" fill="#d9a35b"/><path d="M216,214.0 L250,231.0 L250,265.0 L216,248.0z" fill="#a8722f"/><path d="M284,214.0 L250,231.0 L250,265.0 L284,248.0z" fill="#8a5c24"/>
+<path d="M284,214.0 L318,231.0 L284,248.0 L250,231.0z" fill="#d9a35b"/><path d="M250,231.0 L284,248.0 L284,282.0 L250,265.0z" fill="#a8722f"/><path d="M318,231.0 L284,248.0 L284,282.0 L318,265.0z" fill="#8a5c24"/>
+<path d="M182,197.0 L216,214.0 L182,231.0 L148,214.0z" fill="#d9a35b"/><path d="M148,214.0 L182,231.0 L182,265.0 L148,248.0z" fill="#a8722f"/><path d="M216,214.0 L182,231.0 L182,265.0 L216,248.0z" fill="#8a5c24"/>
+<path d="M216,214.0 L250,231.0 L216,248.0 L182,231.0z" fill="#d9a35b"/><path d="M182,231.0 L216,248.0 L216,282.0 L182,265.0z" fill="#a8722f"/><path d="M250,231.0 L216,248.0 L216,282.0 L250,265.0z" fill="#8a5c24"/>
+<path d="M250,231.0 L284,248.0 L250,265.0 L216,248.0z" fill="#d9a35b"/><path d="M216,248.0 L250,265.0 L250,299.0 L216,282.0z" fill="#a8722f"/><path d="M284,248.0 L250,265.0 L250,299.0 L284,282.0z" fill="#8a5c24"/>
+<path d="M250,129.0 L284,146.0 L250,163.0 L216,146.0z" fill="#7fb59a"/><path d="M216,146.0 L250,163.0 L250,197.0 L216,180.0z" fill="#4d8a6c"/><path d="M284,146.0 L250,163.0 L250,197.0 L284,180.0z" fill="#3c6f56"/>
+<path d="M284,146.0 L318,163.0 L284,180.0 L250,163.0z" fill="#7fb59a"/><path d="M250,163.0 L284,180.0 L284,214.0 L250,197.0z" fill="#4d8a6c"/><path d="M318,163.0 L284,180.0 L284,214.0 L318,197.0z" fill="#3c6f56"/>
+<path d="M216,146.0 L250,163.0 L216,180.0 L182,163.0z" fill="#7fb59a"/><path d="M182,163.0 L216,180.0 L216,214.0 L182,197.0z" fill="#4d8a6c"/><path d="M250,163.0 L216,180.0 L216,214.0 L250,197.0z" fill="#3c6f56"/>
+<path d="M250,95.0 L284,112.0 L250,129.0 L216,112.0z" fill="#8fa3e6"/><path d="M216,112.0 L250,129.0 L250,163.0 L216,146.0z" fill="#5a71c4"/><path d="M284,112.0 L250,129.0 L250,163.0 L284,146.0z" fill="#4559a3"/>
+<path d="M250,197.0 L284,214.0 L250,231.0 L216,214.0z" fill="#7fb59a"/><path d="M216,214.0 L250,231.0 L250,265.0 L216,248.0z" fill="#4d8a6c"/><path d="M284,214.0 L250,231.0 L250,265.0 L284,248.0z" fill="#3c6f56"/>
+<path d="M284,180.0 L318,197.0 L284,214.0 L250,197.0z" fill="#8fa3e6"/><path d="M250,197.0 L284,214.0 L284,248.0 L250,231.0z" fill="#5a71c4"/><path d="M318,197.0 L284,214.0 L284,248.0 L318,231.0z" fill="#4559a3"/>
+<text x="480" y="150" font-size="84" class="b">MineWorld</text>
+<text x="484" y="205" font-size="30" class="s acct">一个用来搭 1:1 数字世界的框架。</text>
+<text x="484" y="248" font-size="19" class="m">游戏只是其中一种用法。现在：能走进去的、模块化的活小镇。</text>
+<rect x="484" y="280" width="14" height="14" rx="3" fill="#d9a35b"/>
+<text x="506" y="293" font-size="15" class="m">内核</text>
+<rect x="674" y="280" width="14" height="14" rx="3" fill="#7fb59a"/>
+<text x="696" y="293" font-size="15" class="m">System Pack</text>
+<rect x="864" y="280" width="14" height="14" rx="3" fill="#8fa3e6"/>
+<text x="886" y="293" font-size="15" class="m">你的世界</text>
+</svg>
