@@ -82,6 +82,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-75](ARC-75.md) | A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests |
 | [ARC-76](ARC-76.md) | Client settings are a shared, presentation-only client module |
 | [ARC-77](ARC-77.md) | Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere |
+| [ARC-78](ARC-78.md) | Players get exported clients started by a windowless supervisor, `mineworld-launch` |
 | [ARC-81](ARC-81.md) | Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole |
 | [ARC-82](ARC-82.md) | A doorway discloses the tags of the place it leads to: a door sign, never its contents |
 | [ARC-83](ARC-83.md) | Layer 4: the nightly workflow, its verdicts and its baselines |
@@ -117,6 +118,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-124](ARC-124.md) | The attribute owner interface, with S31's subscriptions and wealth band as its first users |
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
+| [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
@@ -126,6 +128,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 
 ## DEP — Dependencies, and building our own instead
 

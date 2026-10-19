@@ -1,0 +1,10 @@
+# ON-2, reported, not gating (PROTOCOL.md §4).
+id = "ON-2"
+days = 14
+
+[places]
+required = ["kitchen", "common"]
+setting = ["inn", "mountain"]
+
+[people]
+exactly = 5

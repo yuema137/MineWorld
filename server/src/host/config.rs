@@ -34,6 +34,12 @@ pub struct HostConfig {
     /// Which time scale the world starts at, as its host states it (`ARC-69` item 8). The save's journal is
     /// the third source, read by the runtime itself.
     pub time_scale: TimeScaleChoice,
+    /// Whether this world is a single-player world (`mineworld server --solo`, `ARC-69` item 5): the only
+    /// kind whose time may be scaled above 24×, at start or live (`PROTOCOL.md` §11.2). The one source of
+    /// this fact: [`WorldHost::spawn`](crate::WorldHost::spawn) refuses a start-time `time_scale.flag` above
+    /// 24× without it, the admin surface refuses a live one, and `app::serve` refuses to serve a solo world on
+    /// a listener that is not bound to a loopback address. The server selects no other code path for it.
+    pub solo: bool,
     /// Learned facts that may wait for a connection's next frame; past it they drop (§5.2).
     pub event_backlog: usize,
     /// Facts that may wait for a connection's `perceived` stream; past it, `lagged` (§5.8).
@@ -93,6 +99,7 @@ impl Default for HostConfig {
             recent_events: 64,
             hold: Duration::from_secs(30),
             time_scale: TimeScaleChoice::default(),
+            solo: false,
             event_backlog: 256,
             perceived_backlog: 4_096,
             keyframe_every: NonZeroU32::new(50).unwrap_or(NonZeroU32::MIN),

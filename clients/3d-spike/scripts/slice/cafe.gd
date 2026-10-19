@@ -250,8 +250,10 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 	g.add_child(ramp)
 
 	_door_leaf(g, d0)
+	# the drawn-door registry's room fields (D-16c-4): the café room's volume, its
+	# front wall's thickness to the inner face, its floor one step up
 	SliceTerrace.doors.append([g.to_global(Vector3(DOOR_X, 0.0, 0.0)), g.global_rotation.y,
-		"The Daily Bean -- enterable"])
+		"The Daily Bean -- enterable", SliceWorld.CAFE_PLACE, WALL_T, FLOOR_Y])
 
 
 ## An open door leaf, hinged at the left jamb and swung inward.
