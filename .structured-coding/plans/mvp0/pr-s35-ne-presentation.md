@@ -598,10 +598,12 @@ heavy ones (Godot, `cargo test` of one binary) go through `/Users/yuema137/minew
 ### 7.4 N-e3 (`mvp0/pr-s35-ne-agent`)
 
 **C0 — Base audit.**
-- [ ] Base; LE-c merged (required for C3–C4); #261 merged or not; the SDK builder for a parametric offer
+- [x] Base; LE-c merged (required for C3–C4); #261 merged or not; the SDK builder for a parametric offer
   (`mineworld_sdk.offers`, the one `walk_to` uses); the agent's JSON omission rule for `None` fields; LE-c's trigger
-  seam name and `_clock` helper.
-- Implementation [ ] · Validation N/A · Review [ ]
+  seam name and `_clock` helper. **Evidence:** ledger §10 "N-e3 C0". Base `09bcda18` (N-e1 green head, not C2);
+  LE-c in the stack, not on `main`; #261 in the base (`act` kinds); `None` is serialised as `null`; seam
+  `triggers.detect` / `upcoming_due`, helper `situation.clock`.
+- Implementation [x] · Validation N/A · Review [ ]
 
 **C1 — `NeedsLine` and `AsleepLine`.**
 - Scope: `clients/agent/src/mineworld_agent/{models,disclosed,view}.py`; `tests/test_needs_view.py` (AC-Ne-3);
@@ -692,6 +694,38 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 ### Evidence
 
 - 2026-10-18: design written from `origin/main @ a8bba658`; audit §2.
+- 2026-10-19 **N-e3 C0 (base audit, ledger only).** Base `mvp0/pr-s35-ne-agent` is created from **N-e1's green
+  head `09bcda18`** (PR #309, C0–C5 of N-e1), by lane-lead instruction, and **not** from N-e1 C2 (`41405b82`) as
+  §7.1 says. The branch therefore also carries N-e1 C3–C5, which N-e3 does not change. Its stack is N-a, N-b,
+  LE-a/b/c (merge `3b0bdc2b`), N-c (`036f7fbb`), N-e1. LE-c is in the stack and is **not merged to `main`**
+  (lane-lead ruling). N-d, #250, S30-f: not needed by N-e3 and not checked here. Checked against §4.6–§4.7:
+  - `act` is one tool (#261 is in the base): `mcp_server.py` `ACTS` maps each `act.kind` to an `*Args` model
+    and a `Player` operation, so `sleep` is a new kind (`SleepAct`) with `SleepArgs`, not a new tool. The
+    literal "five kinds" in `ACT_INTRO`, the mcp_server module docstring and `test_mcp_tools.py` (two tests)
+    and the `mcp_double.py` table become six kinds; `tools.json` is re-recorded (C2).
+  - `sleep` (`systems/sleep/src/action.rs`): target `None`, payload key `for` (`serde rename`), bound by the
+    world's list (default 15 … 840, refusal `sleep-for-out-of-bound`). The agent builds it as `walk_to` does:
+    `Player._request(handle, SLEEP, None, {"for": minutes})`, which calls `mineworld_sdk.offers.request`
+    (`sdk/python/src/mineworld_sdk/offers.py`). The schema bound `1 … 1440` only keeps the schema finite.
+  - Disclosures (`systems/needs/src/disclose.rs`, `systems/sleep/src/offer.rs`): `needs` holds `hunger`,
+    `tiredness`, `words {hunger, tiredness}` (iterated generically, never named in Python), `asleep`, rates,
+    restore, nourishment; holder only. `asleep` holds `{asleep: bool, since, alarm?}`; `alarm` only to the
+    sleeper. The agent reads `asleep is True` (the Godot reader's `== false` guard is the same rule).
+  - **Serialisation (correction to I-Ne-2).** Results are dumped with `model_dump_json()` **without**
+    `exclude_none`; a `None` field is `null`, as `MeLine.plans` already is. So a pack-free view gains
+    `"needs": null` and `"asleep": null` keys. The tool-list schema (`exclude_none`) is unaffected. Recorded as
+    a finding, not a deviation: an absent disclosure is `null`, the existing convention; no record is invented.
+  - LM seam (LE-c, in the base): `triggers.detect` (absorbed facts, the `spoken_to`/`arrived`/`complaint`
+    triggers), `triggers.upcoming_due` (time), `situation.clock(at)` is the `HH:MM` helper (the design's
+    `_clock`). `prompt._user` writes `I can talk to:` then `Offers:` (§4.7 inserts between them).
+  - LM schema: `choice.choice_schema(go=, amount=)` returns the base `SOCIAL_CHOICE_SCHEMA` when neither is
+    set, so a seat without a new act keeps its bytes. The golden is `tests/fixtures/social_choice.schema.json`.
+    Pack-free golden renders: `tests/golden/s28a_renders.json`, checked by `tests/test_home_golden.py`.
+  - Client-side `asleep` alarm: `alarm` is `int | None`; `PersonLine.asleep` gets `alarm` `None` for others.
+  - Fixtures: the three recorded observations are at repo root `tests/fixtures/observations/needs/`
+    (N-e1 C2, `SOURCE.md`); the agent's own fixtures are `clients/agent/tests/fixtures/`. The agent test reads
+    the repo-root path (`parents[3]` of `tests/recorded.py`), not a copy.
+  - Q-Ne-1: ruled **yes** by the operator, so C4 is in scope.
 - 2026-10-19 **N-e1 C0 (base audit, ledger only).** Base `mvp0/pr-s35-nc` @ `036f7fbb`, which carries N-a
   (`systems/sleep`), N-b (`systems/needs`), LE-a/LE-b/LE-c (merge `3b0bdc2b`) and N-c (`e0a9ea9c`…`036f7fbb`).
   None is merged to `main`. **Start condition changed by the lane lead (SPEED FIRST, charter):** "N-a, N-b,
