@@ -5,10 +5,17 @@ suffixed ` (2)`, ` (3)` in ascending `EntityId` order, so the labels are unique 
 the observation's *available, complete* affordances (`ARC-34`), numbered from 1 in observation order; each keeps
 its index into `observation.affordances`, so `intent.py` can re-locate it in the newest observation. `talk_to`
 reads the server's verdict (`available`) and computes nothing. Pure: no clock, no randomness (I-3).
+
+`plans` (`pr-le-leave-early.md` §0.4 item 1, LE-c C3) states the next part of my day as schedule discloses it
+(`agenda.next`) and, for a punctual part, about how long the way there takes, from movement's `ways` at the
+seat's stride cadence (`mineworld_sdk.ways`; one `walk-step` per wall second is `time_scale` world seconds). It
+states facts only and gives no advice about when to leave. `places` are the places a `go` may name: those in
+`ways`, then the next part's place if it is not among them, labelled from the name book and made unique.
 """
 
 from __future__ import annotations
 
+from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
 
@@ -16,7 +23,10 @@ from mineworld_cognition.backend.model import CognitionModel
 from mineworld_cognition.memory.names import NameBook
 
 DISPLAY_NAME_COMPONENT = "display-name"
+AGENDA_COMPONENT = "agenda"
+WALKING_COMPONENT = "walking"
 TALK = ActionTypeId("talk")
+DAY_S = 86_400
 
 
 class Person(CognitionModel):
@@ -29,6 +39,27 @@ class Offer(CognitionModel):
     action_type: ActionTypeId
     target_label: str | None
     position: int
+    up_to: int | None = None
+    """The integer `amount` the complete affordance carries, when it carries one: the most the model may
+    choose (an LM boss's `penalize`, `pr-le-leave-early.md` §0.5). Read from the payload; never a rule."""
+
+
+class Place(CognitionModel):
+    """A place a `go` may name: its label in the prompt, and its id (never shown)."""
+
+    label: str
+    entity: EntityId
+
+
+class NextPart(CognitionModel):
+    """The next part of my day, as schedule discloses it (`agenda.next`), with the way's estimate."""
+
+    label: str
+    place: EntityId
+    from_at: int
+    punctual: bool
+    minutes: int | None
+    """About how many world minutes the way takes at the seat's cadence; `None` when it is not in `ways`."""
 
 
 class Situation(CognitionModel):
@@ -38,9 +69,15 @@ class Situation(CognitionModel):
     present: tuple[Person, ...]
     talk_to: tuple[str, ...]
     offers: tuple[Offer, ...]
+    plans: tuple[str, ...] = ()
+    places: tuple[Place, ...] = ()
+    next: NextPart | None = None
+    walking: bool = False
 
     @staticmethod
-    def of(observation: Observation, names: NameBook) -> Situation:
+    def of(observation: Observation, names: NameBook, *, stride_s: int = 1) -> Situation:
+        """`stride_s` is the world seconds between two strides of this seat's walk: `time_scale` for a seat
+        whose walk is paced at one `walk-step` per wall second."""
         _learn(observation, names)
         people = _people(observation)
         labels = _labels(people, names)
@@ -67,6 +104,7 @@ class Situation(CognitionModel):
                 action_type=affordance.action_type,
                 target_label=None if affordance.target is None else labels.get(affordance.target),
                 position=position,
+                up_to=_amount(affordance.payload),
             )
             for number, (position, affordance) in enumerate(
                 (
@@ -77,6 +115,9 @@ class Situation(CognitionModel):
                 start=1,
             )
         )
+        known_ways = ways.of(observation)
+        next_part = _next_part(observation, known_ways, stride_s)
+        places = _places(known_ways, next_part, names)
         return Situation(
             me=labels.get(observation.observer, names.person(observation.observer)),
             place=here,
@@ -84,7 +125,92 @@ class Situation(CognitionModel):
             present=tuple(present),
             talk_to=tuple(talk_to),
             offers=offers,
+            plans=_plans(next_part, places),
+            places=places,
+            next=next_part,
+            walking=_component(observation, WALKING_COMPONENT) is not None,
         )
+
+
+def _amount(payload: JsonValue) -> int | None:
+    amount = payload.get("amount") if isinstance(payload, dict) else None
+    return amount if isinstance(amount, int) and not isinstance(amount, bool) else None
+
+
+def clock(at: int) -> str:
+    """A world instant as the time of day, `HH:MM`."""
+    of_day = at % DAY_S
+    return f"{of_day // 3600:02d}:{of_day % 3600 // 60:02d}"
+
+
+def _component(observation: Observation, component: str) -> JsonValue:
+    for entity in observation.entities:
+        if entity.id != observation.observer:
+            continue
+        for record in entity.components:
+            if record.component_type == component:
+                return record.payload
+    return None
+
+
+def _next_part(
+    observation: Observation, known: tuple[ways.Way, ...], stride_s: int
+) -> NextPart | None:
+    agenda = _component(observation, AGENDA_COMPONENT)
+    following = agenda.get("next") if isinstance(agenda, dict) else None
+    if not isinstance(following, dict):
+        return None
+    place, label, from_at = following.get("place"), following.get("label"), following.get("from")
+    entity = place.get("entity") if isinstance(place, dict) else None
+    if (
+        not isinstance(entity, str)
+        or not isinstance(label, str)
+        or not isinstance(from_at, int)
+        or isinstance(from_at, bool)
+    ):
+        return None
+    way = next((way for way in known if way.place == entity), None)
+    return NextPart(
+        label=label,
+        place=EntityId(entity),
+        from_at=from_at,
+        punctual=following.get("punctual") is True,
+        minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
+    )
+
+
+def _places(
+    known: tuple[ways.Way, ...], next_part: NextPart | None, names: NameBook
+) -> tuple[Place, ...]:
+    entities = [way.place for way in known]
+    if next_part is not None and next_part.place not in entities:
+        entities.append(next_part.place)
+    seen: dict[str, int] = {}
+    places: list[Place] = []
+    for entity in entities:
+        name = names.place(entity)
+        seen[name] = seen.get(name, 0) + 1
+        label = name if seen[name] == 1 else f"{name} ({seen[name]})"
+        places.append(Place(label=label, entity=entity))
+    return tuple(places)
+
+
+def _plans(next_part: NextPart | None, places: tuple[Place, ...]) -> tuple[str, ...]:
+    """The plan lines, in my own words (§0.4 item 1). Facts only: no advice about when to leave."""
+    if next_part is None:
+        return ()
+    where = next((place.label for place in places if place.entity == next_part.place), "somewhere")
+    if not next_part.punctual:
+        return (f"Next: {next_part.label} at {where} from {clock(next_part.from_at)}.",)
+    way = (
+        "I do not know how far it is."
+        if next_part.minutes is None
+        else f"Walking there takes about {next_part.minutes} minutes."
+    )
+    return (
+        f"My {next_part.label} at {where} starts at {clock(next_part.from_at)}; I mean to be"
+        f" there when it begins. {way}",
+    )
 
 
 def _learn(observation: Observation, names: NameBook) -> None:
