@@ -322,6 +322,20 @@ class ControllerConfig(ConfigModel):
         default=1800,
         description="World seconds before the same person may trigger a greeting again, from 0 to 86400.",
     )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] = Field(
+        default=60,
+        description=(
+            "World minutes before a punctual next part of the day begins at which the seat is first asked"
+            " to think about it (the `upcoming` trigger), from 15 to 480."
+        ),
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] = Field(
+        default=15,
+        description=(
+            "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the"
+            " part begin, from 5 to 120."
+        ),
+    )
 
 
 class ControllerOverrides(ConfigModel):
@@ -344,6 +358,12 @@ class ControllerOverrides(ConfigModel):
     )
     greet_cooldown_s: Annotated[int, Field(ge=0, le=86400)] | None = Field(
         default=None, description="Overrides `[controller]` greet_cooldown_s for this seat."
+    )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] | None = Field(
+        default=None, description="Overrides `[controller]` horizon_minutes for this seat."
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] | None = Field(
+        default=None, description="Overrides `[controller]` reask_minutes for this seat."
     )
 
 

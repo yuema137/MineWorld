@@ -27,8 +27,11 @@ appearance: { look: alice-moreau }
 # and a stride is at most two metres, so crossing town takes about two and a half hours, nearly four
 # for one journey in ten (step-09 §9 E-C8): a shorter part of the day would be over before anybody
 # arrived.
+#
+# Her work part is `punctual` (PR LE, ARC-280): she means to be at the café at 05:30, not to set out
+# then, so whoever drives her leaves early enough to arrive by it — each controller in its own way.
 routine:
-  - { from: "05:30", place: cafe, label: work }
+  - { from: "05:30", place: cafe, label: work, punctual: true }
   - { from: "14:00", place: park, label: walk }
   - { from: "18:00", place: apartments, label: home }
 

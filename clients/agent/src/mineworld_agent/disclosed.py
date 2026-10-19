@@ -11,7 +11,8 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `wallet`         | economy        | the holder           | `MeLine.wallet`              |
 | `holdings`       | inventory      | the holder           | `MeLine.holdings`            |
 | `employment`     | employment     | the employee         | `MeLine.job`                 |
-| `agenda`         | schedule       | the person           | `MeLine.agenda`              |
+| `agenda`         | schedule       | the person           | `MeLine.agenda`, `MeLine.plans` |
+| `ways`           | movement       | the person           | `MeLine.plans.walk_minutes`  |
 | `acquaintances`  | relationships  | the holder           | `MeLine.acquaintances`       |
 | `invitations`    | group-activity | the invitee          | `MeLine.invitations`         |
 | `participation`  | group-activity | anyone perceiving    | `MeLine.doing`, `PersonLine.doing` |
@@ -24,6 +25,7 @@ names, and its name is `None` until a pack discloses item names (ruling 2 on the
 
 from __future__ import annotations
 
+from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import PerceivedEntity
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
@@ -34,6 +36,7 @@ from mineworld_agent.models import (
     InvitationLine,
     ItemCount,
     JobLine,
+    PlansLine,
     WeatherLine,
     WorldText,
 )
@@ -140,6 +143,31 @@ def agenda(refs: RefTable, me: PerceivedEntity | None) -> AgendaLine | None:
         return None
     return AgendaLine(
         label=WorldText(text=label, kind="label"), place=refs.ref(place), since=since, until=until
+    )
+
+
+def plans(refs: RefTable, me: PerceivedEntity | None, stride_s: int) -> PlansLine | None:
+    """The next part of my day (`agenda.next`) and, from `ways`, about how long walking there takes when
+    one stride is `stride_s` world seconds."""
+    found = _obj(payload(me, "agenda"))
+    following = None if found is None else _obj(found.get("next"))
+    if following is None:
+        return None
+    label, place, start = (
+        following.get("label"),
+        entity_id(following.get("place")),
+        following.get("from"),
+    )
+    begins = _int(start)
+    if not isinstance(label, str) or place is None or begins is None:
+        return None
+    way = next((way for way in ways.read(payload(me, ways.WAYS)) if way.place == place), None)
+    return PlansLine(
+        label=WorldText(text=label, kind="label"),
+        place=refs.ref(place),
+        from_at=begins,
+        punctual=following.get("punctual") is True,
+        walk_minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
     )
 
 

@@ -8,8 +8,10 @@ server does all of that, and answers each step like a `move`.
 
 Everything it depends on is injected — whether my walk is disclosed, whether the host paused the world, the
 step itself, the wall clock and the sleep — so that the cadence is tested without a server
-(`tests/test_pacer.py`). The `step` callable is the Player's: it takes the handle's submit lock, so one
-request is in flight per handle, and maps the answer to a `Step`.
+(`tests/test_pacer.py`). The `step` callable is the client's: it keeps one request in flight per seat
+and maps the answer to a `Step`. It moved here from `clients/agent` so that every client that walks a seat
+paces it the same way — the agent Player and the LM seat's `go` (`pr-le-leave-early.md` §0.4 item 3, LE-c
+C2). It names no pack's vocabulary: the `walk-step` request is the injected `step`'s.
 """
 
 from __future__ import annotations

@@ -29,6 +29,7 @@ use crate::system::EmploymentSystem;
 ///   until: "14:00"
 ///   wage: 120                    # minor units per hour
 ///   produces: { coffee: 4 }      # optional: per full shift, for the employer
+///   manages: true                # optional: this employee manages the employer's staff
 /// ```
 ///
 /// A shift that does not end after it starts is refused as the section is decoded, with the
@@ -46,6 +47,7 @@ pub struct AuthoredJob {
     until: TimeOfDay,
     wage: u64,
     produces: BTreeMap<EntityKey, NonZeroU32>,
+    manages: bool,
 }
 
 /// The fields as written, before the shift's order is checked.
@@ -68,6 +70,10 @@ struct RawJob {
     #[serde(default)]
     #[schemars(with = "BTreeMap<mineworld_authoring::schema::Key, NonZeroU32>")]
     produces: BTreeMap<EntityKey, NonZeroU32>,
+    /// Whether this employee manages the employer's staff: told of their lateness and offered
+    /// `penalize` when lateness costs money. At most one per employer (`ARC-287`).
+    #[serde(default)]
+    manages: bool,
 }
 
 impl TryFrom<RawJob> for AuthoredJob {
@@ -87,6 +93,7 @@ impl TryFrom<RawJob> for AuthoredJob {
             until: raw.until,
             wage: raw.wage,
             produces: raw.produces,
+            manages: raw.manages,
         })
     }
 }
@@ -163,7 +170,8 @@ impl AuthoredSection for EmploymentSystem {
             authored.until,
             authored.wage,
             produces,
-        );
+        )
+        .managing(authored.manages);
         Ok(vec![
             Emission::new::<Hired>(
                 codec::encode(&Hired::new(employee, job)),

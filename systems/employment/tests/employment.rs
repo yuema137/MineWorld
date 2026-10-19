@@ -8,8 +8,8 @@ mod support;
 use mineworld_authoring::AuthoredSection;
 use mineworld_contracts::{Causation, Component, Event, EventEnvelope, Visibility};
 use mineworld_employment::{
-    BIOGRAPHICAL, Employment, EmploymentSystem, Hired, ShiftEnded, ShiftStarted, WageDue,
-    employed_by,
+    BIOGRAPHICAL, Employment, EmploymentSystem, Hired, LateForShift, ShiftEnded, ShiftStarted,
+    WageDue, employed_by,
 };
 use mineworld_inventory::ItemsProduced;
 use mineworld_sdk::SystemPack;
@@ -229,10 +229,11 @@ fn hiring_is_a_genesis_fact_the_owner_reduces_into_employment_and_an_edge() {
             "the employed-by edge, Person → Organization"
         );
     }
-    assert_eq!(BIOGRAPHICAL, [Hired::EVENT_TYPE]);
+    // Being late for a shift is biographical too since ARC-287.
+    assert_eq!(BIOGRAPHICAL, [Hired::EVENT_TYPE, LateForShift::EVENT_TYPE]);
     assert_eq!(
         <EmploymentSystem as SystemPack>::BIOGRAPHICAL,
-        [Hired::EVENT_TYPE],
+        [Hired::EVENT_TYPE, LateForShift::EVENT_TYPE],
         "the pack says so to the build"
     );
 }

@@ -1388,6 +1388,7 @@ dependencies = [
  "mineworld-naming",
  "mineworld-packages",
  "mineworld-schedule",
+ "schemars",
  "serde",
  "serde_json",
 ]

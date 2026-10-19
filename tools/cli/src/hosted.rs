@@ -4,7 +4,8 @@
 //! --agent SEAT   ReactiveSeat   RuleController::since(bound): answers what it hears while bound,
 //!                               consulted every wall second (F-13)
 //! --town         PacedSeat      the seat's decision model (default `rule`, PacedRuleController) with
-//!                               Consult { seed, pace × scale, observation }: seat k consulted at
+//!                               Consult { seed, pace × scale, stride = scale, observation }: seat k
+//!                               consulted at
 //!                               genesis + k + m·pace·scale — `run`'s lattice, with --cadence in wall
 //!                               seconds — and, while its person walks, asked for the next stride
 //!                               at genesis + k + n·scale: once a wall second (ARC-75)
@@ -274,6 +275,7 @@ impl HostedController for PacedSeat {
             let asked = Consult {
                 seed: self.seed,
                 pace: SimDuration::from_seconds(window),
+                stride: SimDuration::from_seconds(self.step),
                 observation,
             };
             self.model
@@ -283,6 +285,7 @@ impl HostedController for PacedSeat {
             let asked = Consult {
                 seed: self.seed,
                 pace: self.answer,
+                stride: SimDuration::from_seconds(self.step),
                 observation,
             };
             self.model.step(&asked)

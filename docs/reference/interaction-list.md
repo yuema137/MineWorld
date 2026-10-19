@@ -205,6 +205,45 @@ The name of a curve, such as none, linear, half-life or power: 1 to 32 of a-z, 0
 
 **Reference lists** a section may `extends`: `default`.
 
+<a id="configure-employment"></a>
+
+## `configure/employment.yaml`
+
+Read when `world.yaml` lists `employment` under `configure:`.
+Read by the `employment` system (package `mineworld-employment`), which a world enables in `systems:`.
+
+configure/employment.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - cap_per_shift: 600
+```
+
+### Actions of `configure/employment.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+
+### Parameters of `configure/employment.yaml`
+
+A parameter entry may name `actor`, `target`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `cap_per_shift` | whole number | no | `600` | 0 to 1000000 | The most minor units deducted for one shift. |
+| `deduction_enabled` | true or false | no | `false` | — | Whether lateness costs the employee money. Off, it is a complaint only and no money moves. |
+| `final_at` | whole number | no | `3` | 1 to 20 | How many make one final; read as at least `warning_at`. |
+| `grace_minutes` | whole number | no | `0` | 0 to 60 | Minutes after a shift begins before arriving counts as late. |
+| `per_late_minute` | whole number | no | `10` | 0 to 10000 | Minor units deducted per started minute late. |
+| `warning_at` | whole number | no | `2` | 1 to 20 | How many latenesses within the window make one a warning. |
+| `window_days` | whole number | no | `7` | 1 to 60 | Days a lateness counts towards the level of the next one. |
+
+**Reference lists** a section may `extends`: `default`.
+
 <a id="configure-sleep"></a>
 
 ## `configure/sleep.yaml`
