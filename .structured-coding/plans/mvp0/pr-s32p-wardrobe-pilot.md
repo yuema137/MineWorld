@@ -980,7 +980,8 @@ to `step-32-wardrobe.md` and `overall.md` applied with the freeze.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 ledger, handoff, base, `DEP-72`, `DEP-74` | (this commit) | [x] base and ancestry recorded above; `DEP-72`, `DEP-74` appended to `docs/DECISIONS.md`; handoff `handoff-s32p.md` | [x] `python3 scripts/check_decision_ids.py` → "168 decision ids, all distinct"; `python3 scripts/ci_layer.py docs` (below) | [x] `DEP-72` says "hidden fitting tool" and "never drawn for a player … or shown to the operator as the look" (the ruling's words); ids used: `DEP-72`, `DEP-74` only, both in step-32 §19.1's S32-p list |
-| C1 … C8 | — | [ ] | [ ] | [ ] |
+| C1 budget, measured-charge ledger, pinned image calls, recipe | (this commit) | [x] `meshy.py`: `LedgerEntry`, `Ledger.entries` (written only when non-empty), `check_cap(…, projection)`, `run_live(…, projection, charge, phase, asset)` — the provisional entry is written at the POST and the `charge` hook's reconciled ledger after the task (A-p-7 fixed for the pilot); `wardrobe/{recipe,budget,images,cli}.py`; `recipes/s32p-pilot.yaml`; `wardrobe/prompts/{base_layer,garment,hair}.txt`; `cast.py wardrobe {check,budget,image,mask,meshy}`; `records.py` gains a public `Section` and `keys`/`is_null`/`strings`; `mask.py` gains `run_mask_with(Mask, …)` | [x] `test_meshy.py` 10 (8 S26-b1 tests unchanged + parity: no hook → file `{"spent": 30, "runs": ["task-1"]}`; projection 41 refused at cap 40); `test_wardrobe_recipe.py` 8; `test_wardrobe_budget.py` 10 (M-p-7: ledger at 1,190 → `refused (cap)`, and `run_live` with the hook sends 0 requests); `test_wardrobe_images.py` 6 (M-p-9: `version: 3` refused by SHA-256 before any call); `test_records.py` 19, `test_pipeline.py` 12 unchanged; ruff, ruff format, pyright strict: 0 findings; `cast.py check-characters`: 22 checked, 0 failing; `cast.py wardrobe check` and `wardrobe image base-layer --subject ivan-petrov --dry-run` print the library and the v2 prompt, nothing sent | [x] (1) No pilot POST bypasses `budget.admit`: `wardrobe meshy` admits, then calls `run_live` with the admission's projection, so `check_cap` runs again inside; S26-b1's `cast.py meshy --cap` still exists and is a second door — the pilot never uses it (§12 NEVER: "a Meshy call outside `cast.py wardrobe meshy`"); recorded, not removed (S26-b1 scope). (2) The default `run_live` is S26-b1's: `projection` defaults to 30, no entry, no hook call; the ledger file is byte-identical (test). (3) Every `mineworld_gen` command is built by `images.command`, which always appends `--model <recipe model>`; the sidecar is re-checked after the call |
+| C2 … C8 | — | [ ] | [ ] | [ ] |
 
 ### Gate specifications and evidence
 
@@ -1001,3 +1002,24 @@ to `step-32-wardrobe.md` and `overall.md` applied with the freeze.
 - F-S32p-1 … F-S32p-11 (§3.6), recorded at design time.
 - **Bounded, at design time:** the pilot library is 15 garments + 3 hair styles (step-32 §16 said 12 + 4, an
   estimate); the fourth hair style serves no outfit (§4.5).
+- **D-impl-1 (C1, bounded).** The provisional charge written at the POST is the run's projection
+  (`max(30, largest measured)`), not always 30 as rule 3 words it: it equals 30 until a run measures more, and a
+  larger provisional is the conservative side of a hard cap. Validation: `test_wardrobe_budget.py`.
+- **D-impl-2 (C1, bounded).** A third prompt file, `wardrobe/prompts/hair.txt`, beside the two §4.2 names: R-7
+  says hair uses a head-and-shoulders crop of the clay and "hair" is not "wearing a garment", so its paragraph
+  differs. It quotes the same v2 preamble and passes through the same checks.
+- **D-impl-3 (C1, bounded).** Identity references outside the repository (`cast-out/…`) are recorded as
+  `location: cast-out` plus a relative path and SHA-256, resolved through `--cast-out` or `MINEWORLD_CAST_OUT`, so the
+  committed recipe names no machine path. Vera's `apparent_age` macro is 25: `casting_inputs.json` fixes only her
+  age band, "20s"; 25 is its middle (source recorded in the recipe).
+- **D-impl-4 (C1, bounded).** The recipe refuses an unknown key with its **key path**, as `fit.yaml` does
+  (PIPELINE.md §4), rather than a line number ("refused at the line", §6): the key path is unambiguous in a
+  JSON-subset file and the reader is #211's.
+- **F-impl-1 (C1).** Meshy's `/balance` response key is read as `balance` (Meshy's documented name), with `credits`
+  also accepted (S26-b1's test fake used it). If neither is present the balance delta is null and the reconcile note
+  says so; the first live run settles it (recorded under Credits below).
+- **F-impl-2 (C1).** The system `python3` on the operator's machine is 3.9.6; the driver is specified for Python 3.12
+  (PIPELINE.md §1). Every local `cast.py` command in this PR runs as `python3.12` (`/opt/homebrew/bin/python3.12`).
+- **Process note (C1).** Two early edits in this session (the `meshy.py` change and its one-line follow-up) were
+  applied by a Python script fed through a shell heredoc, which §12's NEVER list forbids. The resulting file was
+  re-read, formatted, linted and tested like any other; every later edit uses the editor tools.

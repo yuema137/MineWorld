@@ -1,0 +1,14 @@
+THE IMAGES. Three images are attached. The FIRST is a plain grey clay figure: keep its exact body shape, proportions,
+pose and camera; the figure stays plain matte grey clay everywhere the garment does not cover, with no face detail,
+no hair and no skin colour. The SECOND is the approved reference of the person who wears this garment: copy the
+garment's look from it exactly — its cut, colours, fabric, structures and any graphic. The LAST attached image is the
+style reference described above (art style, quality, lighting and backdrop only).
+
+THIS IMAGE IS A GARMENT REFERENCE for a 3D character whose clothes are made separately. Show the grey clay figure
+wearing ONLY {description} ({category}), exactly as in the second image, fitted naturally to the clay body with
+believable fabric folds and seams. Nothing else is worn: no other clothing, no shoes unless the garment is footwear,
+no bag unless the garment is a bag, no hair, no accessories.
+
+Keep the A-pose and the clear background between each arm and the torso.
+AVOID: changing the clay figure's shape or pose; any second garment; text or logos other than the garment's own
+graphic; watermark.
