@@ -271,7 +271,7 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 | C1 AC-1 allow list | `ebb41f0a` | [x] `GENERIC_PACKS` + `sleep`, `needs`; `admitted_section`; `ARC-35` note | [x] `cargo test -p mineworld-acceptance --test ac1_composability` PASS 16/16 (incl. the new `a_needs_section_in_social_cafe_is_still_refused`); `check_decision_ids.py` PASS | [x] checks 1–2 untouched |
 | C2 Market Town | `1a5409ac` | [x] §3 items 1–5, 7 (item 6 not needed) | [x] `mineworld validate` PASS (193 genesis facts); 3-day run: 0 faults, 50 `fell-asleep`, 67 `items-consumed`, no `buy` refused; AC-1 check 3 PASS with the content | [x] every number equals §2's tables |
 | C3 Commute Town | `4e39407b` | [x] `consumption`, `sleep`, `needs` appended (unconfigured: the packs' defaults); bread 500; a bakery shop (bread 130, shelf 10); produces 8 + 8 + 6 = 22 loaves (11 000 = 127 % of 4 × 2 160); wallets 1 000 → 200 000 (F-Nd-2) | [x] `mineworld validate` PASS; 3-day run: 0 faults, 17 `fell-asleep`, 31 `items-consumed` | [x] |
-| C4 Tests | this commit | [x] `needs_town.rs` (AC-Nd-2, AC-S35-5 default; AC-S35-5 30 d, -8, -1, -2 (b) ignored); `fixture/needs.rs` is now the removal copy; `needs_controllers.rs` runs the real worlds (the "copy" is gone; seated = needs ∩ walked, since Otto now has needs) | see below — **FAIL, material stop S-Nd-1** | [x] thresholds as frozen; nothing retuned |
+| C4 Tests | `9f6e4053` | [x] `needs_town.rs` (AC-Nd-2, AC-S35-5 default; AC-S35-5 30 d, -8, -1, -2 (b) ignored); `fixture/needs.rs` is now the removal copy; `needs_controllers.rs` runs the real worlds (the "copy" is gone; seated = needs ∩ walked, since Otto now has needs) | see below — **FAIL, material stop S-Nd-1** | [x] thresholds as frozen; nothing retuned |
 
 - **F-Nd-2 (bounded, C3):** Commute Town's people started with 1 000 and earn 400–500 a day against ~560 a day of
   bread; by §2.3's own rule (an endowment lasts 300 days) the wallets become 200 000, as Market Town's jobless.
@@ -294,6 +294,18 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 | `cargo test -p mineworld-cli --test needs_controllers` (AC-Nc-4, default) | **FAIL**: Market Town Dev (#10) ate 0 times in 3 days |
 | `cargo test -p mineworld-cli --test punctuality` (default, 7 d, seed 1) | **FAIL**: Market Town 12 of 14 parts on time — Alice +149 min, Felix +43 min (AC-S35-9 at risk) |
 | `cargo test -p mineworld-cli --test lateness` (default) | **FAIL** `on_the_default_policy_nobody_is_late` (Market Town complaints); the strict-boss and boundary cases PASS |
+| `cargo test -p mineworld-cli --test market_town` (300 d; 30 d × 2, kill after day 15 and resume, seed 8) | **PASS** (183 s): the market lives 300 days with both packs, ASRB-1/-2 growth bound holds (AC-S35-12), same seed = same history incl. kill-and-resume (AC-S35-1 for Market Town on macOS) |
+| `cargo test -p mineworld-cli --test market_composition` | **FAIL** (expected, F-Nd-4): "without consumption" is now refused at load — `configure/needs.yaml` … needs `consumption` — exactly step-35 §7's row; the test's expectation for that case must become "refused, naming consumption" (a tools/cli/tests edit for the milestone batch) |
+| `cargo clippy -p mineworld-cli -p mineworld-acceptance --tests -D warnings` · `cargo fmt --check` | PASS · PASS |
+
+- **F-Nd-4 (bounded, for the milestone batch):** `market_composition.rs`'s consumption case expects "runs"; with
+  `needs` enabled the loader refuses a world without `consumption` (step §7), so the expectation is stale, not the
+  code. Not edited here (it would mask nothing, but SPEED FIRST batches it with the milestone fixes).
+- **Baselines (deferred, lane re-records once at the step milestone; C5's re-record not done here):** Market Town:
+  every `summary-*`, `facts-300s`, `journal-300s`, `sealed-300s` moves (genesis gains `needs-assigned`,
+  `nourishment-assigned`, the two `*-interactions-configured`; behaviour, prices and production change). Social
+  Café, Lakeside, Bodies Yard: N-d edits none of their files, so N-d moves none of their digests (only LE's
+  pre-registered genesis-row move, F-LE-4). Commute Town is test-only and has no baseline section.
 
 AC-S35-8, all `rule`, seated people, 30 days (thresholds: 03:00 ≥ 850 ‰, 14:00 ≤ 100 ‰, sleep 7.0–9.5 h, TV ≤ 350 ‰,
 famished ≤ 24 h):
