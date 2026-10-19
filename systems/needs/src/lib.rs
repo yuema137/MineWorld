@@ -25,6 +25,7 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod disclose;
 
 pub mod component;
 pub mod event;

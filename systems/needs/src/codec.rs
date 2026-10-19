@@ -9,6 +9,12 @@ pub(crate) fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("this pack's payloads are JSON-representable by construction")
 }
 
+/// Encodes a disclosed record as the self-describing value an observation carries.
+pub(crate) fn to_value<T: Serialize>(value: &T) -> serde_json::Value {
+    serde_json::to_value(value)
+        .expect("this pack's payloads are JSON-representable by construction")
+}
+
 /// Reads an event payload as `E` — this pack's own, or inventory's or sleep's, whose published types
 /// it decodes through (`ARC-28`).
 pub(crate) fn event_payload<E: Event + DeserializeOwned>(
