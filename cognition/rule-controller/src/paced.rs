@@ -50,12 +50,12 @@
 //! 13       follow the agenda                                                 agenda.rs
 //! 14, 15   attempt a complete affordance, and which one                      offered.rs
 //! —        a due commute takes no draw                                       commute.rs
-//! —        asleep, eat and bed take no draw (the bedtime offset is a mix)    needs.rs
+//! —        asleep, eat, bed and fetch take no draw (the bedtime offset is a mix)  needs.rs
 //! ```
 //!
 //! The order of the hard rungs: asleep (wake or nothing) → a due commute → eat → an invitation, a
-//! reply → the boss policy → bed → the agenda and everything after (`pr-s35-nc-controllers.md`
-//! SD-Nc-2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
+//! reply → the boss policy → bed → fetch food (Q-S35-OP1) → the agenda and everything after
+//! (`pr-s35-nc-controllers.md` SD-Nc-2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
 //! lists are the same, so the same index is drawn.
 //!
 //! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
@@ -110,7 +110,7 @@ const PASSES_THROUGH_BELOW: u64 = 80;
 const DOOR_WINDOW: i64 = 21_600;
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacedRuleController {
     seed: u64,
     pace: SimDuration,
@@ -149,7 +149,7 @@ impl PacedRuleController {
     /// The same controller, eating, going to bed and waking for work by `needs` in a world that
     /// discloses needs and sleep (`ARC-286`).
     #[must_use]
-    pub const fn needing(mut self, needs: NeedsPolicy) -> Self {
+    pub fn needing(mut self, needs: NeedsPolicy) -> Self {
         self.needs = Some(needs);
         self
     }
@@ -207,7 +207,7 @@ impl PacedRuleController {
         let draw = Draw::new(self.seed, observation);
         // Asleep: `wake` when a punctual part's commute is due, else nothing at all (`needs.rs`). Not
         // asleep — and nobody is in a world without `sleep` — nothing here changes.
-        if let Some(needs) = self.needs
+        if let Some(needs) = self.needs.as_ref()
             && let Some(decided) = needs.asleep(observation, self.commute, self.pace)
         {
             return decided;
@@ -222,7 +222,7 @@ impl PacedRuleController {
         }
         // Hungry with something nourishing in hand: eat it, with no draw (`needs.rs`). No `needs`
         // disclosed, nothing here changes.
-        if let Some(meal) = self.needs.and_then(|needs| needs.eat(observation)) {
+        if let Some(meal) = self.needs.as_ref().and_then(|needs| needs.eat(observation)) {
             return Some(meal);
         }
         // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
@@ -247,9 +247,19 @@ impl PacedRuleController {
         // (`needs.rs`). No `needs` disclosed, nothing here changes.
         if let Some(bed) = self
             .needs
+            .as_ref()
             .and_then(|needs| needs.bed(observation, self.seed, self.commute))
         {
             return Some(bed);
+        }
+        // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
+        // (`needs.rs`, Q-S35-OP1 (b)). No `needs` disclosed, nothing here changes.
+        if let Some(decided) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.fetch(observation))
+        {
+            return decided;
         }
         // Then the day: away from where my agenda says, usually head there; at it, stay — no doorway
         // (`agenda.rs`). No agenda disclosed, nothing here changes and no draw is taken.

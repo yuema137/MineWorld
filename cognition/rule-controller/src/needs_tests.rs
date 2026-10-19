@@ -5,7 +5,7 @@
 use mineworld_contracts::{
     Action, ActionRequest, ActionTypeId, Affordance, ComponentRecord, EntityId, EntityType,
     Location, Millimetres, Observation, PerceivedEntity, PlaceId, ProcessId, SimDuration,
-    SpatialRequirement, WorldTime,
+    SpatialRequirement, Tag, Tags, WorldTime,
 };
 use mineworld_conversation::{Talk, talk_requirement};
 use mineworld_decision::ModelParameters;
@@ -15,7 +15,7 @@ use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use serde_json::{Value, json};
 
 use crate::commute::Commute;
-use crate::needs::{ClockTime, NeedsPolicy, Night, sleep_minutes};
+use crate::needs::{ClockTime, NeedsPolicy, Night, SleepUntil, sleep_minutes};
 use crate::{PacedRuleController, RuleParameters};
 
 const ME: u64 = 3;
@@ -262,11 +262,22 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
         bed(View::at(AFTERNOON).feeling(0, 600)).is_none(),
         "daytime"
     );
-    assert!(bed(View::at(AFTERNOON).feeling(0, 899)).is_none());
-    assert!(
-        bed(View::at(AFTERNOON).feeling(0, 900)).is_some(),
-        "exhausted"
-    );
+    // Q-S35-OP1 (a): outside the night only the fully exhausted go to bed — 900 no longer does.
+    assert!(bed(View::at(AFTERNOON).feeling(0, 900)).is_none());
+    assert!(bed(View::at(AFTERNOON).feeling(0, 999)).is_none());
+    let exhausted = bed(View::at(AFTERNOON).feeling(0, 1_000)).expect("exhausted");
+    // Begun before the night, a sleep still runs to its end (06:00, 960 minutes), cut by the commute's
+    // leave-by (05:16, 916) and the world's longest (840) — not at rested (480), which would wake me at
+    // 22:00.
+    assert_eq!(slept_for(&exhausted), 840);
+    let rested = NeedsPolicy {
+        sleep_until: SleepUntil::Rested,
+        ..policy.clone()
+    };
+    let early = rested
+        .bed(&View::at(AFTERNOON).feeling(0, 1_000).build(), 7, commute())
+        .expect("exhausted");
+    assert_eq!(slept_for(&early), 480, "1 000 ÷ 125 per hour");
     let mut nowhere = View::at(LATE_EVENING).feeling(0, 1_000);
     nowhere.sleep_offered = false;
     assert!(
@@ -278,9 +289,41 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
             .decide(&View::at(LATE_EVENING).feeling(0, 700).build())
             .expect("goes to bed");
         assert_eq!(kind(&decided), Sleep::ACTION_TYPE.as_str(), "seed {seed}");
-        // Rested after 700 ÷ 125 per hour = 336 minutes, before leaving for work at 05:16 (346).
-        assert_eq!(slept_for(&decided), 336, "seed {seed}");
+        // Q-S35-OP1 (a): a sleep begun in the night runs to its end (06:00, 390 minutes from 23:30),
+        // cut by the leave-by for work at 05:16 (346) — no longer at rested (336).
+        assert_eq!(slept_for(&decided), 346, "seed {seed}");
     }
+}
+
+#[test]
+fn a_night_sleep_runs_to_the_nights_end_unless_the_policy_says_rested() {
+    let policy = NeedsPolicy::default();
+    let mut free = View::at(LATE_EVENING).feeling(0, 700);
+    free.punctual = false;
+    let to_end = policy.bed(&free.build(), 7, commute()).expect("bed");
+    assert_eq!(slept_for(&to_end), 390, "23:30 → 06:00");
+    let rested = NeedsPolicy {
+        sleep_until: SleepUntil::Rested,
+        ..policy.clone()
+    };
+    assert_eq!(
+        slept_for(&rested.bed(&free.build(), 7, commute()).expect("bed")),
+        336,
+        "700 ÷ 125 per hour"
+    );
+    // Past midnight the night's end is the same morning: 02:00 → 06:00.
+    let mut late = View::at(86_400 + 2 * 3_600).feeling(0, 700);
+    late.punctual = false;
+    assert_eq!(
+        slept_for(&policy.bed(&late.build(), 7, commute()).expect("bed")),
+        240
+    );
+    // The world's longest still bounds it.
+    free.terms = (15, 300);
+    assert_eq!(
+        slept_for(&policy.bed(&free.build(), 7, commute()).expect("bed")),
+        300
+    );
 }
 
 #[test]
@@ -306,7 +349,7 @@ fn the_bedtime_offset_spreads_people_over_the_first_hour_and_wraps_midnight() {
     assert!(first.len() > 10, "bedtimes spread: {first:?}");
     let together = NeedsPolicy {
         bedtime_spread_minutes: 0,
-        ..policy
+        ..policy.clone()
     };
     assert!((0..SEEDS).all(|observer| together.in_night(7, id(observer), minute(22, 0))));
     let owls = NeedsPolicy {
@@ -369,7 +412,7 @@ fn a_sleeper_wakes_only_when_the_commute_is_due_and_does_nothing_else() {
     assert_eq!(policy.asleep(&early, commute(), pace), Some(None));
     let lazy = NeedsPolicy {
         wake_for_commute: false,
-        ..policy
+        ..policy.clone()
     };
     assert_eq!(lazy.asleep(&due, commute(), pace), Some(None));
     for seed in 0..SEEDS {
@@ -437,8 +480,27 @@ fn the_needs_block_decodes_with_the_step_defaults() {
             decoded.bedtime_spread_minutes,
             decoded.wake_for_commute,
         ),
-        (600, 600, 900, 22 * 60, 6 * 60, 60, true)
+        (600, 600, 1_000, 22 * 60, 6 * 60, 60, true)
     );
+    assert_eq!(decoded.sleep_until, SleepUntil::NightEnd);
+    assert!(decoded.fetch_food);
+    assert_eq!(decoded.fetch_from, 600);
+    assert_eq!(decoded.shop_tags, vec![Tag::new("shop").expect("a tag")]);
+    let written = policy(json!({
+        "sleep_until": "rested", "fetch_food": false, "fetch_from": 800,
+        "shop_tags": ["bakery", "market"], "tired_from": 600, "exhausted_from": 900,
+    }))
+    .expect("the amended keys");
+    assert_eq!(
+        (
+            written.sleep_until,
+            written.fetch_food,
+            written.fetch_from,
+            written.exhausted_from
+        ),
+        (SleepUntil::Rested, false, 800, 900)
+    );
+    assert_eq!(written.shop_tags.len(), 2);
     let owls = policy(json!({
         "night": { "from": "01:00", "until": "09:00" },
         "eat_from": 1, "tired_from": 1_000, "exhausted_from": 1_000,
@@ -482,6 +544,17 @@ fn the_needs_block_refuses_each_bound_by_name() {
         (json!({ "night": { "at": "22:00" } }), "unknown field `at`"),
         (json!({ "sleepy_from": 3 }), "unknown field `sleepy_from`"),
         (
+            json!({ "fetch_from": 0 }),
+            "'fetch_from' is 1 … 1000, not 0",
+        ),
+        (json!({ "fetch_from": 1_001 }), "'fetch_from' is 1 … 1000"),
+        (
+            json!({ "shop_tags": ["a", "b", "c", "d", "e", "f", "g", "h", "i"] }),
+            "'shop_tags' lists at most 8 tags, not 9",
+        ),
+        (json!({ "shop_tags": ["Not A Tag"] }), "contains 'N'"),
+        (json!({ "sleep_until": "noon" }), "unknown variant `noon`"),
+        (
             json!({ "tired_from": 700, "exhausted_from": 650 }),
             "'exhausted_from' (650) is below 'tired_from' (700)",
         ),
@@ -496,5 +569,224 @@ fn the_needs_block_refuses_each_bound_by_name() {
     ] {
         let error = policy(wrong.clone()).expect_err("refused").to_string();
         assert!(error.contains(names), "{wrong}: {error}");
+    }
+}
+
+// ---- The fetch band (Q-S35-OP1 (b)) -------------------------------------------------------------
+
+const STREET: u64 = 30;
+const STORE: u64 = 31;
+const OFFICE: u64 = 32;
+
+fn tag(name: &str) -> Tag {
+    Tag::new(name).expect("a tag")
+}
+
+/// Where I stand, hungry, and what the world discloses there: the place's own tags, its doorways (each
+/// with the destination's tags), the `buy` offers (kind, available) and what I hold (kind, nourishes).
+struct Errand {
+    at: u64,
+    hunger: u16,
+    place_tags: Vec<&'static str>,
+    doors: Vec<(u64, Vec<&'static str>)>,
+    buys: Vec<(u64, bool)>,
+    held: Vec<(u64, u16)>,
+    walking_to: Option<u64>,
+    needs: bool,
+}
+
+impl Errand {
+    fn at(at: u64) -> Self {
+        Self {
+            at,
+            hunger: 700,
+            place_tags: Vec::new(),
+            doors: Vec::new(),
+            buys: Vec::new(),
+            held: Vec::new(),
+            walking_to: None,
+            needs: true,
+        }
+    }
+
+    fn build(&self) -> Observation<Value> {
+        let here = Location::in_place(place(self.at));
+        let leads_to: Vec<Value> = self
+            .doors
+            .iter()
+            .map(|(to, tags)| {
+                let mut door =
+                    serde_json::to_value(mineworld_movement::Passage::new(place(*to), None, None))
+                        .expect("serializes");
+                door["to_tags"] = json!(tags);
+                door
+            })
+            .collect();
+        let mut site = PerceivedEntity::new(id(self.at), EntityType::Place)
+            .with_tags(Tags::new(self.place_tags.iter().map(|name| tag(name))));
+        if !self.doors.is_empty() {
+            site =
+                site.with_components(vec![ComponentRecord::new::<mineworld_movement::Passages>(
+                    id(self.at),
+                    json!({ "leads_to": leads_to }),
+                )]);
+        }
+        let mut mine = Vec::new();
+        if self.needs {
+            let nourishment: Vec<Value> = self
+                .held
+                .iter()
+                .filter(|(_, hunger)| *hunger > 0)
+                .map(|(raw, hunger)| json!({ "item": item(*raw), "hunger": hunger }))
+                .collect();
+            mine.push(record(
+                ME,
+                "needs",
+                json!({ "hunger": self.hunger, "tiredness": 0, "nourishment": nourishment }),
+            ));
+        }
+        let held: Vec<Value> = self
+            .held
+            .iter()
+            .map(|(raw, _)| json!({ "item": item(*raw), "count": 1 }))
+            .collect();
+        mine.push(record(ME, "holdings", json!({ "held": held })));
+        if let Some(to) = self.walking_to {
+            mine.push(ComponentRecord::new::<mineworld_movement::Walking>(
+                id(ME),
+                json!({
+                    "destination": serde_json::to_value(mineworld_movement::Destination::Place(
+                        Location::in_place(place(to)),
+                    ))
+                    .expect("serializes"),
+                    "next": [],
+                }),
+            ));
+        }
+        let me = PerceivedEntity::new(id(ME), EntityType::Person)
+            .at(here)
+            .with_components(mine);
+        let mut affordances = vec![Affordance::available(
+            WalkTo::ACTION_TYPE,
+            None,
+            move_offer_requirement(),
+        )];
+        for (raw, available) in &self.buys {
+            let buy = ActionTypeId::new("buy").expect("a slug");
+            let offer = if *available {
+                Affordance::available(buy, None, SpatialRequirement::NONE)
+            } else {
+                Affordance::unavailable(
+                    buy,
+                    None,
+                    SpatialRequirement::NONE,
+                    mineworld_contracts::Rejection::Unavailable,
+                )
+            };
+            affordances.push(offer.with_payload(json!({ "item": item(*raw) })));
+        }
+        Observation::new(id(ME), WorldTime::from_seconds(AFTERNOON))
+            .at_location(here)
+            .perceiving(vec![site, me])
+            .offering(affordances)
+    }
+}
+
+/// The place a `walk-to` request names, or the item a `buy` names.
+fn walked_to(request: &ActionRequest) -> Value {
+    let payload: Value = serde_json::from_slice(request.payload().payload()).expect("JSON");
+    payload["to"].clone()
+}
+
+fn destination(raw: u64) -> Value {
+    serde_json::to_value(mineworld_movement::Destination::Place(Location::in_place(
+        place(raw),
+    )))
+    .expect("serializes")
+}
+
+#[test]
+fn hungry_with_no_food_a_person_buys_what_is_offered_here_and_not_already_held() {
+    let policy = NeedsPolicy::default();
+    let mut shop = Errand::at(STORE);
+    shop.place_tags = vec!["shop"];
+    shop.doors = vec![(STREET, vec!["street"])];
+    // 9 is held and does not nourish me (a mug, or a coffee): known not to help. 12 is out of stock.
+    shop.held = vec![(9, 0)];
+    shop.buys = vec![(12, false), (11, true), (9, true), (10, true)];
+    let bought = policy.fetch(&shop.build()).expect("applies").expect("asks");
+    assert_eq!((kind(&bought), eaten(&bought)), ("buy", json!("10")));
+    for seed in 0..SEEDS {
+        let decided = controller(seed).decide(&shop.build()).expect("buys");
+        assert_eq!(eaten(&decided), json!("10"), "seed {seed}");
+    }
+    // Nothing left that could help: the shop is where food is, so I do not walk out.
+    shop.buys = vec![(12, false), (9, true)];
+    assert_eq!(policy.fetch(&shop.build()), None);
+    // Below fetch_from, or holding something that nourishes (the eat band's), the band is silent.
+    shop.buys = vec![(10, true)];
+    shop.hunger = 599;
+    assert_eq!(policy.fetch(&shop.build()), None);
+    shop.hunger = 700;
+    shop.held = vec![(9, 0), (13, 200)];
+    assert_eq!(policy.fetch(&shop.build()), None);
+}
+
+#[test]
+fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end() {
+    let policy = NeedsPolicy::default();
+    let mut street = Errand::at(STREET);
+    street.doors = vec![
+        (HOME, vec!["residential"]),
+        (STORE, vec!["store", "shop"]),
+        (OFFICE, vec!["office"]),
+    ];
+    let walk = policy
+        .fetch(&street.build())
+        .expect("applies")
+        .expect("asks");
+    assert_eq!(kind(&walk), WalkTo::ACTION_TYPE.as_str());
+    assert_eq!(walked_to(&walk), destination(STORE));
+    // Already on my way there: nothing is asked, and nothing redirects the walk.
+    street.walking_to = Some(STORE);
+    assert_eq!(policy.fetch(&street.build()), Some(None));
+    street.walking_to = None;
+    // The world tags its shops otherwise: the policy names the tag, the code names no place.
+    let bakers = NeedsPolicy {
+        shop_tags: vec![tag("bakery")],
+        ..policy.clone()
+    };
+    let mut lane = Errand::at(STREET);
+    lane.doors = vec![(HOME, vec!["residential"]), (OFFICE, vec!["bakery"])];
+    let walk = bakers.fetch(&lane.build()).expect("applies").expect("asks");
+    assert_eq!(walked_to(&walk), destination(OFFICE));
+    // A street with several doors and no shop among them: the band has nowhere to send me.
+    assert_eq!(policy.fetch(&lane.build()), None);
+    // At home, one door: out to the street, where a shop may be seen.
+    let mut home = Errand::at(HOME);
+    home.place_tags = vec!["residential"];
+    home.doors = vec![(STREET, vec!["street"])];
+    let walk = policy.fetch(&home.build()).expect("applies").expect("asks");
+    assert_eq!(walked_to(&walk), destination(STREET));
+    for seed in 0..SEEDS {
+        let decided = controller(seed).decide(&home.build()).expect("goes out");
+        assert_eq!(walked_to(&decided), destination(STREET), "seed {seed}");
+    }
+    // Switched off, or with no needs disclosed, the band is inert.
+    let off = NeedsPolicy {
+        fetch_food: false,
+        ..policy.clone()
+    };
+    assert_eq!(off.fetch(&home.build()), None);
+    home.needs = false;
+    assert_eq!(policy.fetch(&home.build()), None);
+    for seed in 0..SEEDS {
+        let base = PacedRuleController::new(seed, seconds(PACE))
+            .commuting(Commute::default(), seconds(STRIDE));
+        assert_eq!(
+            controller(seed).decide(&home.build()),
+            base.decide(&home.build()),
+            "seed {seed}"
+        );
     }
 }

@@ -13,9 +13,16 @@
 //! eat        hunger ≥ eat_from               → the held kind that nourishes most (ties: lowest ItemId)
 //! bed        `sleep` available here, and tiredness ≥ exhausted_from, or tiredness ≥ tired_from inside
 //!            [night.from + offset, night.until), offset = mix(seed, observer) mod (spread + 1) minutes
-//!            for = max(shortest, min(longest, minutes to rested, minutes until the commute's leave-by))
+//!            for = max(shortest, min(longest, L, minutes until the commute's leave-by)), where L is
+//!            minutes to the next end of the night (`sleep_until: night-end`), or to rested (`rested`)
+//! fetch      hunger ≥ fetch_from and nothing nourishing held → buy an unheld kind offered here, else
+//!            walk to a doorway's place tagged with a `shop_tags` tag, else out of a one-door place
 //! polite     greet, approach and invite skip a person disclosed asleep
 //! ```
+//!
+//! The defaults of `exhausted_from` (1 000), `sleep_until` and the fetch band are operator ruling
+//! Q-S35-OP1 (2026-10-19; `ARC-286`, amendment): bed only in the night unless fully exhausted, a sleep
+//! begun in the night runs to its end, and a hungry person with no food goes to a disclosed shop.
 //!
 //! **Inert when absent (I-Nc-1).** Every band starts from the disclosed `needs` or `asleep` record and
 //! returns at once without it; none takes a [`Draw`](mineworld_decision::Draw) at all — the bedtime
@@ -29,7 +36,7 @@ use core::fmt;
 
 use mineworld_contracts::{
     ActionRequest, Affordance, Component, EntityId, ItemId, Observation, PerceivedEntity,
-    SimDuration,
+    SimDuration, Tag,
 };
 use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
@@ -37,9 +44,9 @@ use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use crate::act::request;
+use crate::act::{head_for, request};
 use crate::commute::{Commute, next_part};
-use crate::read::{available, disclosed};
+use crate::read::{available, destination_tags, disclosed, doorways};
 
 /// The component type `needs` discloses a person's own needs on, by its slug.
 pub const NEEDS: &str = "needs";
@@ -171,9 +178,28 @@ impl<'de> Visitor<'de> for NightFields {
     }
 }
 
-/// `rule`'s needs policy (SD-Nc-1). Every field may be omitted and keeps its default; the defaults are
-/// step-35 §6.2's, fixed before any run (I-S35-7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+/// How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SleepUntil {
+    /// Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
+    #[default]
+    NightEnd,
+    /// Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+    Rested,
+}
+
+/// The most tags `shop_tags` may list, as a `motivated` role (SD-DLb-7).
+const MAX_SHOP_TAGS: usize = 8;
+
+/// The default `shop_tags`: the one generic word for a place that sells.
+fn default_shop_tags() -> Vec<Tag> {
+    vec![Tag::new("shop").expect("a valid tag")]
+}
+
+/// `rule`'s needs policy (SD-Nc-1, amended by Q-S35-OP1). Every field may be omitted and keeps its
+/// default; the defaults are step-35 §6.2's as amended on 2026-10-19 (`ARC-286`, amendment).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[schemars(extend("required" = Vec::<&str>::new()))]
 pub struct NeedsPolicy {
     /// Hunger at which a held food is eaten, 1 … 1 000.
@@ -182,7 +208,8 @@ pub struct NeedsPolicy {
     /// Tiredness at which bed is chosen inside the night, 1 … 1 000.
     #[schemars(range(min = 1, max = 1_000))]
     pub tired_from: u16,
-    /// Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`.
+    /// Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default,
+    /// 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)).
     #[schemars(range(min = 1, max = 1_000))]
     pub exhausted_from: u16,
     /// The hours a tired person goes to bed in.
@@ -192,6 +219,18 @@ pub struct NeedsPolicy {
     pub bedtime_spread_minutes: u16,
     /// Whether to sleep no longer than the departure for a punctual next part allows.
     pub wake_for_commute: bool,
+    /// `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to
+    /// bed before it began) or `rested`.
+    pub sleep_until: SleepUntil,
+    /// Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)).
+    pub fetch_food: bool,
+    /// Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000.
+    #[schemars(range(min = 1, max = 1_000))]
+    pub fetch_from: u16,
+    /// The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place
+    /// carrying any of them is where food is fetched from.
+    #[schemars(with = "Vec<String>", length(max = 8))]
+    pub shop_tags: Vec<Tag>,
 }
 
 impl Default for NeedsPolicy {
@@ -199,10 +238,14 @@ impl Default for NeedsPolicy {
         Self {
             eat_from: 600,
             tired_from: 600,
-            exhausted_from: 900,
+            exhausted_from: 1_000,
             night: Night::default(),
             bedtime_spread_minutes: 60,
             wake_for_commute: true,
+            sleep_until: SleepUntil::NightEnd,
+            fetch_food: true,
+            fetch_from: 600,
+            shop_tags: default_shop_tags(),
         }
     }
 }
@@ -215,6 +258,10 @@ const KEYS: &[&str] = &[
     "night",
     "bedtime_spread_minutes",
     "wake_for_commute",
+    "sleep_until",
+    "fetch_food",
+    "fetch_from",
+    "shop_tags",
 ];
 
 /// A value inside `low ..= high`, or a refusal naming the bound, raised while the decoder stands on
@@ -279,6 +326,19 @@ impl<'de> Visitor<'de> for PolicyFields {
                     policy.bedtime_spread_minutes = within(&key, map.next_value()?, 0, 240)?;
                 }
                 "wake_for_commute" => policy.wake_for_commute = map.next_value()?,
+                "sleep_until" => policy.sleep_until = map.next_value()?,
+                "fetch_food" => policy.fetch_food = map.next_value()?,
+                "fetch_from" => policy.fetch_from = within(&key, map.next_value()?, 1, 1_000)?,
+                "shop_tags" => {
+                    let tags: Vec<Tag> = map.next_value()?;
+                    if tags.len() > MAX_SHOP_TAGS {
+                        return Err(A::Error::custom(format!(
+                            "'shop_tags' lists at most {MAX_SHOP_TAGS} tags, not {}",
+                            tags.len()
+                        )));
+                    }
+                    policy.shop_tags = tags;
+                }
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -388,10 +448,22 @@ pub fn sleep_minutes(
     wake_for_commute: bool,
     commute: Option<(Commute, SimDuration)>,
 ) -> Option<u16> {
+    sleep_minutes_until(observation, felt, wake_for_commute, commute, None)
+}
+
+/// [`sleep_minutes`], with `until` — minutes to the night's end — in place of "minutes to rested" when
+/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end).
+fn sleep_minutes_until(
+    observation: &Observation<Value>,
+    felt: &Felt,
+    wake_for_commute: bool,
+    commute: Option<(Commute, SimDuration)>,
+    until: Option<i64>,
+) -> Option<u16> {
     let bounds = terms(observation)?;
     let rest = i64::from(felt.rates.rest_per_hour.max(1));
     let rested = (i64::from(felt.tiredness) * 60 + rest - 1) / rest;
-    let mut minutes = i64::from(bounds.longest_minutes).min(rested);
+    let mut minutes = i64::from(bounds.longest_minutes).min(until.unwrap_or(rested));
     let now = observation.at().seconds();
     if wake_for_commute
         && let Some((commute, stride)) = commute
@@ -418,6 +490,12 @@ impl NeedsPolicy {
         let length = (i64::from(self.night.until.minutes()) - from).rem_euclid(DAY_MINUTES);
         let into = (minute - from).rem_euclid(DAY_MINUTES);
         offset <= into && into < length
+    }
+
+    /// Minutes from `at` (world seconds) to the night's end, `night.until`, the next one after `at`.
+    pub fn minutes_to_night_end(&self, at: i64) -> i64 {
+        let minute = at.rem_euclid(86_400) / 60;
+        (i64::from(self.night.until.minutes()) - minute).rem_euclid(DAY_MINUTES)
     }
 
     /// Rung 0 (SD-Nc-3): asleep, `wake` when a punctual part's commute is due by `commute` (LE's due
@@ -462,14 +540,122 @@ impl NeedsPolicy {
         }
         let tired = felt.tiredness;
         let now = observation.at().seconds();
-        let goes = tired >= self.exhausted_from
-            || (tired >= self.tired_from && self.in_night(seed, observation.observer(), now));
+        let night = self.in_night(seed, observation.observer(), now);
+        let goes = tired >= self.exhausted_from || (tired >= self.tired_from && night);
         if !goes {
             return None;
         }
-        let minutes = sleep_minutes(observation, &felt, self.wake_for_commute, commute)?;
+        // Q-S35-OP1 (a): a sleep runs to the end of the night — the one I am in, or for the fully
+        // exhausted who go to bed before it, the next — so that nobody wakes rested at 03:00.
+        let until =
+            (self.sleep_until == SleepUntil::NightEnd).then(|| self.minutes_to_night_end(now));
+        let minutes =
+            sleep_minutes_until(observation, &felt, self.wake_for_commute, commute, until)?;
         Some(request(observation.observer(), &Sleep::new(minutes)))
     }
+
+    /// The fetch band (Q-S35-OP1 (b)): hungry from `fetch_from` and holding nothing that nourishes me,
+    /// go for food from what the world discloses — no place is named:
+    ///
+    /// ```text
+    /// a `buy` offered available here     buy a kind I hold none of, the lowest ItemId (a held kind
+    ///                                    that does not nourish me is known not to help)
+    /// here sells (a shop tag, or a `buy`
+    /// offered at all)                    nothing more: the shop has nothing for me
+    /// a doorway to a shop-tagged place   walk there (the lowest PlaceId of them)
+    /// a place with one doorway           walk out through it: a dead end leads to the rest of the world
+    /// ```
+    ///
+    /// [`None`] when the band does not apply, so the consult goes on; `Some(None)` when my own walk
+    /// already goes where the band would send me, so nothing redirects it. No draw.
+    pub fn fetch(&self, observation: &Observation<Value>) -> Option<Option<ActionRequest>> {
+        if !self.fetch_food {
+            return None;
+        }
+        let felt = own(observation)?;
+        if felt.hunger < self.fetch_from || felt.nourishment.iter().any(|food| food.hunger > 0) {
+            return None;
+        }
+        let held = held_kinds(observation);
+        let buys: Vec<(ItemId, &Affordance<Value>)> = observation
+            .affordances()
+            .iter()
+            .filter(|affordance| affordance.action_type().as_str() == BUY)
+            .filter_map(|affordance| {
+                let item =
+                    serde_json::from_value(affordance.payload()?.get("item")?.clone()).ok()?;
+                Some((item, affordance))
+            })
+            .collect();
+        if let Some((_, offer)) = buys
+            .iter()
+            .filter(|(item, offer)| offer.is_available() && !held.contains(item))
+            .min_by_key(|(item, _)| *item)
+        {
+            return Some(offer.request(observation.observer(), encoded));
+        }
+        let here = *observation.self_location()?;
+        let sells_here = !buys.is_empty()
+            || observation
+                .entity(here.place().entity_id())
+                .is_some_and(|place| self.shop_tags.iter().any(|tag| place.tags().contains(tag)));
+        if sells_here {
+            return None;
+        }
+        let shops = destination_tags(observation, here);
+        let shop = shops
+            .iter()
+            .find(|(_, tags)| tags.iter().any(|tag| self.shop_tags.contains(tag)))
+            .map(|(place, _)| *place);
+        let to = match shop {
+            Some(place) => place,
+            None => {
+                let doors = doorways(observation, here)?;
+                let mut doors = doors.iter();
+                let only = doors.next()?;
+                if doors.next().is_some() {
+                    return None;
+                }
+                only.to()
+            }
+        };
+        Some(head_for(observation, to)?.request())
+    }
+}
+
+/// The action type economy offers for a priced kind, by its slug — named, never linked (`ARC-35`
+/// check 2).
+const BUY: &str = "buy";
+
+/// The component type inventory discloses a holder's holdings on, by its slug.
+const HOLDINGS: &str = "holdings";
+
+/// The part of inventory's disclosed `holdings` record this controller reads: which kinds I hold.
+#[derive(Deserialize)]
+struct DisclosedHoldings {
+    #[serde(default)]
+    held: Vec<DisclosedHeld>,
+}
+
+#[derive(Deserialize)]
+struct DisclosedHeld {
+    item: ItemId,
+}
+
+/// Every kind I hold, as inventory discloses it to me; none when it discloses nothing.
+fn held_kinds(observation: &Observation<Value>) -> Vec<ItemId> {
+    observation
+        .entity(observation.observer())
+        .and_then(|me| {
+            me.components()
+                .iter()
+                .find(|record| record.component_type().as_str() == HOLDINGS)
+        })
+        .and_then(|record| {
+            serde_json::from_value::<DisclosedHoldings>(record.payload().clone()).ok()
+        })
+        .map(|holdings| holdings.held.into_iter().map(|held| held.item).collect())
+        .unwrap_or_default()
 }
 
 /// The item a feeding affordance (`eat`/`drink`) names in its complete payload.
